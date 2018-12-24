@@ -1,0 +1,42 @@
+Geometry = GenFormat {
+3  C
+ H
+     1    1    0.0   0.0   0.0
+     2    1    0.8   0.0   0.0
+     3    1    0.2   0.6   0.0
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-8  # Extremely small!
+  ReadInitialCharges = Yes
+  Charge = 1.0
+  MaxAngularMomentum = {
+    H = "s"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 20
+  }
+  SlaterKosterFiles = {
+    H-H = "H-H.skf"
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  WriteChargesAsText = No
+  ReadChargesAsText = Yes
+  SkipChargeTest = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 6
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

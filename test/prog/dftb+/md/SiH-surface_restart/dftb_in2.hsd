@@ -1,0 +1,55 @@
+Geometry = GenFormat {
+    <<< geo_end.gen
+}
+
+Driver = VelocityVerlet {
+    Steps = 1
+    TimeStep [Femtosecond] = 0.1
+    Thermostat = Andersen {
+        Temperature [Kelvin] = 273.15
+        ReselectProbability = 0.2
+        ReselectIndividually = Yes
+    }
+    MovedAtoms = 1:8  # subset of atoms moving
+    Velocities [AA/ps] = {
+        <<< velocities.dat
+    }
+    KeepStationary = Yes # sum of velocities maintained as 0
+}
+
+Hamiltonian = DFTB {
+    SCC = No
+    MaxAngularMomentum = {
+        Si = "p"
+        H = "s"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 273.15
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "./"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    KPointsAndWeights = SupercellFolding {
+        6 0 0
+        0 6 0
+        0 0 1
+        0.0 0.0 0.5
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+    RandomSeed = 2
+}
+
+ParserOptions = {
+    ParserVersion = 5
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

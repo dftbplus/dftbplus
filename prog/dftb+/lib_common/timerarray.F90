@@ -152,7 +152,6 @@ contains
     real(dp) :: totalCpu, totalWall, cpuTime, wallTime, allCpu, allWall
     integer :: iTimer, level, maxLevel
     character :: operation
-    character(100) :: formatStr
     character(:), allocatable :: prefix
 
     if (this%maxLevel < 0) then

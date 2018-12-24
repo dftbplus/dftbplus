@@ -116,8 +116,6 @@ contains
     !> Cutoff for the ewald summation
     real(dp), intent(in), optional :: blurWidths(:)
 
-    real(dp), allocatable :: dummy(:,:)
-
     this%nChrg = size(coordsAndCharges, dim=2)
 
     @:ASSERT(size(coordsAndCharges, dim=1) == 4)
@@ -160,7 +158,7 @@ contains
 
 
   !> Updates the module, if the lattice vectors had been changed
-  subroutine updateLatVecs(this, latVecs, recVecs, ewaldCutoff)
+  subroutine updateLatVecs(this, latVecs, recVecs)
 
     !> External charges structure
     class(TExtCharge), intent(inout) :: this
@@ -170,11 +168,6 @@ contains
 
     !> New reciprocal lattice vectors.
     real(dp), intent(in) :: recVecs(:,:)
-
-    !> Cutoff for the Ewald function.
-    real(dp), intent(in) :: ewaldCutoff
-
-    real(dp), allocatable :: dummy(:,:)
 
     @:ASSERT(this%tInitialized .and. this%tPeriodic)
 

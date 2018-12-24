@@ -3,42 +3,46 @@
 # gfortran/gcc 5.4 - 7.1
 ############################################################################
 
+# Directory where standard packages are installed in the system
+PREFIX := /usr
+
+
 ifeq ($(strip $(WITH_MPI)),1)
 ############################################################################
 # MPI settings
 ############################################################################
 
 # Compilers
-FXX = mpif90
+# Replace mpifort with mpif90 in case your MPI does not support it yet
+FXX = mpifort
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -funroll-all-loops
+FXXOPT = -O2 -funroll-all-loops -fopenmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Linker
 LN = $(FXX)
-LNOPT =
+LNOPT = -fopenmp
 
 # How to link specific libraries
 
 # ScaLAPACK
-SCALAPACKDIR = /usr/lib
-LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack -L$(ATLASDIR)
+SCALAPACKDIR = $(PREFIX)/lib
+LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack
 
 # LAPACK/BLAS
-ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
+LIB_LAPACK = -llapack -lblas
 
 # Any other libraries to be linked
-OTHERLIBS =
+OTHERLIBS = -lgomp -lpthread
 
 # M4 preprocessor settings
 M4 = m4
 M4OPT = 
 
 # Command to run the test binary
-TESTRUNNER = mpirun -n $(TESTPROC)
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS) mpiexec -n $(TEST_MPI_PROCS)
 
 else
 ############################################################################
@@ -60,15 +64,14 @@ LNOPT = -fopenmp
 # How to link specific libraries
 
 # LAPACK/BLAS
-# Consider using a threaded LAPACK/BLAS implementation for full performance
-ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
+# Make sure you use threaded LAPACK/BLAS (e.g. openBLAS) for full performance!
+LIB_LAPACK = -llapack -lblas
 
 # Any other libraries to be linked
-OTHERLIBS = -lgomp -lpthread
+OTHERLIBS =
 
 # Command to run a binary
-TESTRUNNER =
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS)
 
 endif
 
@@ -81,7 +84,26 @@ FYPP = $(ROOT)/external/fypp/bin/fypp
 FYPPOPT =
 
 # Library options in general
-LIBOPT = 
+LIBOPT =
+
+# Whether DFTD3 should be compiled during the build process. If set to 1 (yes),
+# you will have to download the dftd3 library before starting the build using
+# the utils/get_opt_externals tool.
+# (Only active, if WITH_DFTB3 was set in make.config.)
+COMPILE_DFTD3 := 1
+
+# Set the compile time include and the link time library options for
+# dftd3-lib. Ignored if WITH_DFTD3 has been disabled or COMPILE_DFTD3 enabled.
+DFTD3_INCS := -I$(PREFIX)/include/dftd3-lib
+DFTD3_LIBS := -L$(PREFIX)/lib -ldftd3
+
+# Link time library options for linking ARPACK. Ignored if WITH_ARPACK was
+# disabled.
+ARPACK_LIBS := -larpack
+
+# Whether ARPACK depends on the external LAPACK and BLAS libraries
+ARPACK_NEEDS_LAPACK := 0
+
 
 ############################################################################
 # Developer settings
@@ -90,12 +112,16 @@ LIBOPT =
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     OTHERLIBS = 
-    FXXOPT = -g -Wall -std=f2008 -pedantic
+    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic
     CCOPT = -g -Wall -pedantic -fall-intrinsics
 endif
 
 ifeq ($(strip $(DEBUG)),2)
+
+
     OTHERLIBS = 
-    FXXOPT = -g -Wall -std=f2008 -pedantic -fbounds-check
+    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check
+    FXXOPT += -Wno-unused-variable -Wno-unused-dummy-argument -Wno-unused-function -Wno-uninitialized 
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
+
 endif

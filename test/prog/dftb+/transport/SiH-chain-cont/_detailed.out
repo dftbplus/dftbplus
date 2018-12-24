@@ -1,0 +1,75 @@
+ Fermi distribution function
+ 
+
+********************************************************************************
+  iSCC Total electronic   Diff electronic      SCC error    
+    7   -0.15831133E+01    0.44408921E-15    0.15343282E-12
+********************************************************************************
+
+ Net atomic charges
+  Atom       Net charge
+     1      -0.27004284
+     2       0.27004284
+     3      -0.27004284
+     4       0.27004284
+  
+ SPIN =            1
+  
+ Eigenvalues /H
+   -0.49789098
+   -0.34941243
+   -0.26223416
+   -0.11149329
+ 
+ Eigenvalues /eV
+  -13.54830300
+   -9.50799596
+   -7.13575461
+   -3.03388686
+ 
+ Fillings
+     2.00000
+     2.00000
+     0.00000
+     0.00000
+ 
+ Nr. of electrons (spin: 1):      4.00000000
+ Atom populations (spin: 1)
+  Atom       Population
+     1       1.27004284
+     2       0.72995716
+     3       1.27004284
+     4       0.72995716
+ 
+ l-shell populations (spin: 1)
+  Atom Sh.   l       Population
+     1   1   0       1.27004284
+     2   1   0       0.72995716
+     3   1   0       1.27004284
+     4   1   0       0.72995716
+ 
+ Orbital populations (spin: 1)
+  Atom Sh.   l   m       Population
+     1   1   0   0       1.27004284
+     2   1   0   0       0.72995716
+     3   1   0   0       1.27004284
+     4   1   0   0       0.72995716
+ 
+ Fermi energy:                    -0.3046921383 H       -8.291095 eV
+ Band energy:                     -1.6946068259 H      -46.112598 eV
+ TS:                               0.0000000000 H        0.000000 eV
+ Band free energy (E-TS):         -1.6946068259 H      -46.112598 eV
+ Extrapolated E(0K):              -1.6946068259 H      -46.112598 eV
+ 
+ Input/Output charge (spin: 1):      4.00000000      4.00000000
+ 
+ Energy H0:                       -1.6046984170 H      -43.666066 eV
+ Energy SCC:                       0.0215851582 H        0.587362 eV
+ Total Electronic energy:         -1.5831132588 H      -43.078704 eV
+ Repulsive energy:                 0.0034942657 H        0.095084 eV
+ Total energy:                    -1.5796189931 H      -42.983620 eV
+ Total Mermin free energy:        -1.5796189931 H      -42.983620 eV
+ 
+ Calculation with static geometry
+ 
+ SCC converged

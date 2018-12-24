@@ -1,0 +1,441 @@
+================================================================================
+==
+==           DFTB+ (Density Functional Tight Binding and much more)
+==
+==                 DFTB++1704 version with quantum transport
+==
+==                                  based on
+==
+==                          Unofficial release (r5479)
+==
+==                            (ParserVersion = 4)
+==
+================================================================================
+
+********************************************************************************
+** Parsing and initializing
+********************************************************************************
+
+Interpreting input file 'dftb_in.hsd'
+--------------------------------------------------------------------------------
+Contacts:
+Name of contact 1 : source                                            
+   AtomRange           =     38    47
+   Temperature         =    -1.000000
+   Potential           =     0.146997
+   tWideBand           =            F
+   LevelSpacing        =     0.000000
+   FermiLevel          =    -0.220496
+   FermiLevel          =     0.000000
+   tWriteSelfEnergy    =            F
+   tReadSelfEnergy     =            F
+   tWriteSurfaceGF     =            F
+   tReadSurfaceGF      =            T
+Name of contact 2 : drain                                             
+   AtomRange           =     48    57
+   Temperature         =    -1.000000
+   Potential           =    -0.146997
+   tWideBand           =            F
+   LevelSpacing        =     0.000000
+   FermiLevel          =    -0.220496
+   FermiLevel          =     0.000000
+   tWriteSelfEnergy    =            F
+   tReadSelfEnergy     =            F
+   tWriteSurfaceGF     =            F
+   tReadSurfaceGF      =            T
+Reading SK-files:
+  ../../../slako/mio-0-1/H-H.skf
+Done.
+
+
+Processed input in HSD format written to 'dftb_pin.hsd'
+
+Starting initialization...
+--------------------------------------------------------------------------------
+PGRID:ALLPROC: 1 x 1
+PGRID:ATOM: 1 x 1
+ (negf_init) CONTACT INFO #           1
+ Temperature:    0.0000000000000000     
+ Potential (with built-in):   0.14699729813453630     
+ eFermi:  -0.22049594720180443     
+
+ (negf_init) CONTACT INFO #           2
+ Temperature:    0.0000000000000000     
+ Potential (with built-in):  -0.14699729813453632     
+ eFermi:  -0.22049594720180443     
+
+ Electro-chemical potentials:  -0.36749324533634076       -7.3498649067268107E-002
+ Mode:                         Static calculation
+Contact upload:              Yes
+Contact calculation:         No
+Use Poisson solver:          No
+ Self consistent charges:      No
+ Spin polarisation:            No
+ Nr. of up electrons:             28.500000
+ Nr. of down electrons:           28.500000
+ Periodic boundaries:          No
+ Diagonalizer:                 Transport only (Green's functions)
+ Electronic temperature:             0.100000E-07
+ Included shells:               H:  s
+ Extra options:
+--------------------------------------------------------------------------------
+
+********************************************************************************
+** Geometry step: 0
+********************************************************************************
+
+  Structure info:
+  Number of PLs:           4
+  PLs coupled to contacts:           1           4
+
+
+================================================================================
+                             COMPUTATION OF TRANSPORT         
+================================================================================
+
+ Transport is started
+ Number of States = 57
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+
+================================================================================
+                           LibNEGF: Current calculation
+================================================================================
+
+>>> The Meir-Wingreen transport is started.
+    The retarded contact Surface GF is red from the file source-SurfaceGF.mgf
+    The retarded contact Surface GF is red from the file drain-SurfaceGF.mgf
+INTEGRAL: point # 1/81  CPU= 0  E=-3.67493245E-01
+Compute Contact SE ...................................   1.00000005E-03 sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 2/81  CPU= 0  E=-3.63818313E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 3/81  CPU= 0  E=-3.60143380E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 4/81  CPU= 0  E=-3.56468448E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 5/81  CPU= 0  E=-3.52793516E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 6/81  CPU= 0  E=-3.49118583E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 7/81  CPU= 0  E=-3.45443651E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 8/81  CPU= 0  E=-3.41768718E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 9/81  CPU= 0  E=-3.38093786E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 10/81  CPU= 0  E=-3.34418853E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 11/81  CPU= 0  E=-3.30743921E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 12/81  CPU= 0  E=-3.27068988E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 13/81  CPU= 0  E=-3.23394056E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 14/81  CPU= 0  E=-3.19719123E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 15/81  CPU= 0  E=-3.16044191E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 16/81  CPU= 0  E=-3.12369259E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 17/81  CPU= 0  E=-3.08694326E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 18/81  CPU= 0  E=-3.05019394E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 19/81  CPU= 0  E=-3.01344461E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 20/81  CPU= 0  E=-2.97669529E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 21/81  CPU= 0  E=-2.93994596E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 22/81  CPU= 0  E=-2.90319664E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 23/81  CPU= 0  E=-2.86644731E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 24/81  CPU= 0  E=-2.82969799E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 25/81  CPU= 0  E=-2.79294866E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 26/81  CPU= 0  E=-2.75619934E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 27/81  CPU= 0  E=-2.71945002E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 28/81  CPU= 0  E=-2.68270069E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 29/81  CPU= 0  E=-2.64595137E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 30/81  CPU= 0  E=-2.60920204E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 31/81  CPU= 0  E=-2.57245272E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 32/81  CPU= 0  E=-2.53570339E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 33/81  CPU= 0  E=-2.49895407E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 34/81  CPU= 0  E=-2.46220474E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 35/81  CPU= 0  E=-2.42545542E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 36/81  CPU= 0  E=-2.38870609E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 37/81  CPU= 0  E=-2.35195677E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 38/81  CPU= 0  E=-2.31520745E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 39/81  CPU= 0  E=-2.27845812E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 40/81  CPU= 0  E=-2.24170880E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 41/81  CPU= 0  E=-2.20495947E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 42/81  CPU= 0  E=-2.16821015E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 43/81  CPU= 0  E=-2.13146082E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 44/81  CPU= 0  E=-2.09471150E-01
+Compute Contact SE ...................................   1.00000005E-03 sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 45/81  CPU= 0  E=-2.05796217E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 46/81  CPU= 0  E=-2.02121285E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 47/81  CPU= 0  E=-1.98446352E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 48/81  CPU= 0  E=-1.94771420E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 49/81  CPU= 0  E=-1.91096488E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 50/81  CPU= 0  E=-1.87421555E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 51/81  CPU= 0  E=-1.83746623E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 52/81  CPU= 0  E=-1.80071690E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 53/81  CPU= 0  E=-1.76396758E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 54/81  CPU= 0  E=-1.72721825E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 55/81  CPU= 0  E=-1.69046893E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 56/81  CPU= 0  E=-1.65371960E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 57/81  CPU= 0  E=-1.61697028E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 58/81  CPU= 0  E=-1.58022095E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 59/81  CPU= 0  E=-1.54347163E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 60/81  CPU= 0  E=-1.50672231E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 61/81  CPU= 0  E=-1.46997298E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 62/81  CPU= 0  E=-1.43322366E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 63/81  CPU= 0  E=-1.39647433E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 64/81  CPU= 0  E=-1.35972501E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 65/81  CPU= 0  E=-1.32297568E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 66/81  CPU= 0  E=-1.28622636E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 67/81  CPU= 0  E=-1.24947703E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 68/81  CPU= 0  E=-1.21272771E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 69/81  CPU= 0  E=-1.17597839E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 70/81  CPU= 0  E=-1.13922906E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 71/81  CPU= 0  E=-1.10247974E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 72/81  CPU= 0  E=-1.06573041E-01
+Compute Contact SE ...................................   1.00000005E-03 sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 73/81  CPU= 0  E=-1.02898109E-01
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 74/81  CPU= 0  E=-9.92231762E-02
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 75/81  CPU= 0  E=-9.55482438E-02
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 76/81  CPU= 0  E=-9.18733113E-02
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 77/81  CPU= 0  E=-8.81983789E-02
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 78/81  CPU= 0  E=-8.45234464E-02
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 79/81  CPU= 0  E=-8.08485140E-02
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 80/81  CPU= 0  E=-7.71735815E-02
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 81/81  CPU= 0  E=-7.34986491E-02
+Compute Contact SE ...................................   0.00000000     sec
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+
+>>> The Meir-Wingreen transport is finished.
+
+================================================================================
+                            LibNEGF: Current finished
+================================================================================
+  contacts:   1  2 current:    4.85419E-04 A       
+ calc_current done
+ TIME program total     CPU:     0.08       Wall:     0.09

@@ -27,7 +27,6 @@ module mainio
   use constants
   use periodic
   use commontypes
-  use fifo
   use sparse2dense
   use blasroutines
   use charmanip, only : i2c
@@ -60,6 +59,7 @@ module mainio
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
+  public :: openDetailedOut
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
@@ -67,9 +67,11 @@ module mainio
   public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
+  public :: writeShifts, writeContShifts
+  public :: uploadShiftPerL
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
-  public :: printMdInfo
+  public :: printMdInfo, printBlankLine
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -106,24 +108,21 @@ module mainio
 contains
 
   !> Writes the eigenvectors to disc.
-  subroutine writeEigenvectors(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec,&
+  subroutine writeEigenvectors(env, runId, neighbourList, nNeighbourSK, cellVec, iCellVec,&
       & denseDesc, iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
       & tPrintEigvecsTxt, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> File ID for ground state eigenvectors
-    integer, intent(in) :: fd
-
     !> Job ID for future identification
     integer, intent(in) :: runId
 
     !> list of neighbours for each atom
-    type(TNeighborList), intent(in) :: neighborList
+    type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
@@ -177,11 +176,11 @@ contains
     @:ASSERT(allocated(SSqrReal) .neqv. allocated(SSqrCplx))
 
     if (allocated(eigvecsCplx)) then
-      call writeCplxEigvecs(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec, denseDesc,&
+      call writeCplxEigvecs(env, runId, neighbourList, nNeighbourSK, cellVec, iCellVec, denseDesc,&
           & iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
           & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx)
     else
-      call writeRealEigvecs(env, fd, runId, neighborList, nNeighbor, denseDesc, iPair,&
+      call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iPair,&
           & img2CentCell, species, speciesName, orb, over, parallelKS, tPrintEigvecsTxt,&
           & eigvecsReal, SSqrReal)
     end if
@@ -190,24 +189,21 @@ contains
 
 
   !> Writes real eigenvectors
-  subroutine writeRealEigvecs(env, fd, runId, neighborList, nNeighbor, denseDesc, iPair,&
+  subroutine writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iPair,&
       & img2CentCell, species, speciesName, orb, over, parallelKS, tPrintEigvecsTxt, eigvecsReal,&
       & SSqrReal, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> File ID for ground state eigenvectors
-    integer, intent(in) :: fd
-
     !> Job ID for future identification
     integer, intent(in) :: runId
 
     !> list of neighbours for each atom
-    type(TNeighborList), intent(in) :: neighborList
+    type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index of start of atom blocks in dense matrices
     type(TDenseDescr), intent(in) :: denseDesc
@@ -240,23 +236,22 @@ contains
     real(dp), intent(inout) :: eigvecsReal(:,:,:)
 
     !> Storage for dense real overlap matrix
-    real(dp), intent(out) :: SSqrReal(:,:)
+    real(dp), intent(inout) :: SSqrReal(:,:)
 
     !> optional alternative file prefix, to appear as "fileName".bin or "fileName".out
     character(len=*), intent(in), optional :: fileName
 
   #:if WITH_SCALAPACK
-    call writeRealEigvecsBinBlacs(env, denseDesc, eigvecsReal, fd, runId, parallelKS,&
-        & fileName=fileName)
+    call writeRealEigvecsBinBlacs(env, denseDesc, eigvecsReal, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
-      call writeRealEigvecsTxtBlacs(env, denseDesc, eigvecsReal, fd, parallelKS, orb, over,&
-          & neighborList%iNeighbor, nNeighbor, iPair, img2CentCell, species, speciesName,&
+      call writeRealEigvecsTxtBlacs(env, denseDesc, eigvecsReal, parallelKS, orb, over,&
+          & neighbourList%iNeighbour, nNeighbourSK, iPair, img2CentCell, species, speciesName,&
           & fileName=fileName)
     end if
   #:else
-    call writeRealEigvecsBinSerial(eigvecsReal, fd, runId, parallelKS, fileName=fileName)
+    call writeRealEigvecsBinSerial(eigvecsReal, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
-      call writeRealEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
+      call writeRealEigvecsTxtSerial(neighbourList, nNeighbourSK, denseDesc, iPair, img2CentCell,&
           & orb, species, speciesName, over, parallelKS, eigvecsReal, SSqrReal, fileName=fileName)
     end if
   #:endif
@@ -265,24 +260,21 @@ contains
 
 
   !> Writes complex eigenvectors.
-  subroutine writeCplxEigvecs(env, fd, runId, neighborList, nNeighbor, cellVec, iCellVec,&
+  subroutine writeCplxEigvecs(env, runId, neighbourList, nNeighbourSK, cellVec, iCellVec,&
       & denseDesc, iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
       & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> File ID for ground state eigenvectors
-    integer, intent(in) :: fd
-
     !> Job ID for future identification
     integer, intent(in) :: runId
 
     !> list of neighbours for each atom
-    type(TNeighborList), intent(in) :: neighborList
+    type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
@@ -324,34 +316,33 @@ contains
     complex(dp), intent(inout) :: eigvecsCplx(:,:,:)
 
     !> Storage for dense complex overlap matrix
-    complex(dp), intent(out) :: SSqrCplx(:,:)
+    complex(dp), intent(inout) :: SSqrCplx(:,:)
 
     !> optional alternative file prefix, to appear as "fileName".bin or "fileName".out
     character(len=*), intent(in), optional :: fileName
 
   #:if WITH_SCALAPACK
-    call writeCplxEigvecsBinBlacs(env, denseDesc, eigvecsCplx, fd, runId, parallelKS,&
-        & fileName=fileName)
+    call writeCplxEigvecsBinBlacs(env, denseDesc, eigvecsCplx, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
       if (denseDesc%t2Component) then
-        call writePauliEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, fd, parallelKS, orb, over,&
-            & kPoint, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iPair, img2CentCell,&
+        call writePauliEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, parallelKS, orb, over, kPoint,&
+            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iPair, img2CentCell,&
             & species, speciesName, fileName=fileName)
       else
-        call writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, fd, parallelKS, orb, over,&
-            & kPoint, neighborList%iNeighbor, nNeighbor, iCellVec, cellVec, iPair, img2CentCell,&
+        call writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecsCplx, parallelKS, orb, over, kPoint,&
+            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iPair, img2CentCell,&
             & species, speciesName, fileName=fileName)
       end if
     end if
   #:else
-    call writeCplxEigvecsBinSerial(eigvecsCplx, fd, runId, parallelKS, fileName=fileName)
+    call writeCplxEigvecsBinSerial(eigvecsCplx, runId, parallelKS, fileName=fileName)
     if (tPrintEigvecsTxt) then
       if (denseDesc%t2Component) then
-        call writePauliEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair,&
+        call writePauliEigvecsTxtSerial(neighbourList, nNeighbourSK, denseDesc, iPair,&
             & img2CentCell, iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoint,&
             & eigvecsCplx, SSqrCplx, fileName=fileName)
       else
-        call writeCplxEigvecsTxtSerial(fd, neighborList, nNeighbor, denseDesc, iPair, img2CentCell,&
+        call writeCplxEigvecsTxtSerial(neighbourList, nNeighbourSK, denseDesc, iPair, img2CentCell,&
             & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoint, eigvecsCplx,&
             & SSqrCplx, fileName=fileName)
       end if
@@ -366,7 +357,7 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into binary output file (BLACS version).
-  subroutine write${NAME}$EigvecsBinBlacs(env, denseDesc, eigvecs, fd, runId, parallelKS, fileName)
+  subroutine write${NAME}$EigvecsBinBlacs(env, denseDesc, eigvecs, runId, parallelKS, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -376,9 +367,6 @@ contains
 
     !> Square Hamiltonian (or work array)
     ${DTYPE}$(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> Id of the current program run.
     integer, intent(in) :: runId
@@ -392,7 +380,7 @@ contains
     type(linecomm) :: collector
     ${DTYPE}$(dp), allocatable :: localEigvec(:)
     integer :: nOrb
-    integer :: iKS, iGroup, iEig
+    integer :: iKS, iGroup, iEig, fd
 
     nOrb = denseDesc%fullSize
     allocate(localEigvec(nOrb))
@@ -448,13 +436,10 @@ contains
 #:else
 
   !> Writes ${DTYPE}$ eigenvectors in binary format.
-  subroutine write${NAME}$EigvecsBinSerial(eigvecs, fd, runId, parallelKS, fileName)
+  subroutine write${NAME}$EigvecsBinSerial(eigvecs, runId, parallelKS, fileName)
 
     !> Square Hamiltonian (or work array)
     ${DTYPE}$(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> Id of the current program run.
     integer, intent(in) :: runId
@@ -466,7 +451,7 @@ contains
     character(len=*), intent(in), optional :: fileName
 
     integer :: iKS, iSpin
-    integer :: ii
+    integer :: ii, fd
 
     call prepareEigvecFileBin(fd, runId, fileName)
     do iKS = 1, parallelKS%nLocalKS
@@ -487,8 +472,8 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into human readible output file (BLACS version).
-  subroutine writeRealEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, parallelKS, orb, over,&
-      & iNeighbor, nNeighbor, iSparseStart, img2CentCell, species, speciesName, fileName)
+  subroutine writeRealEigvecsTxtBlacs(env, denseDesc, eigvecs, parallelKS, orb, over, iNeighbour,&
+      & nNeighbourSK, iSparseStart, img2CentCell, species, speciesName, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -499,9 +484,6 @@ contains
     !> Square Hamiltonian (or work array)
     real(dp), intent(in) :: eigvecs(:,:,:)
 
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
-
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
@@ -511,11 +493,11 @@ contains
     !> Sparse overlap
     real(dp), intent(in) :: over(:)
 
-    !> Neighbors of each atom
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbours of each atom
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index array for sparse matrices
     integer, intent(in) :: iSparseStart(:,:)
@@ -536,10 +518,10 @@ contains
     real(dp), allocatable :: localEigvec(:), localFrac(:)
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:)
     integer :: nOrb, nAtom
-    integer :: iKS, iS, iGroup, iEig
+    integer :: iKS, iS, iGroup, iEig, fd
 
     nOrb = denseDesc%fullSize
-    nAtom = size(nNeighbor)
+    nAtom = size(nNeighbourSK)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     if (env%mpi%tGroupMaster) then
@@ -563,7 +545,7 @@ contains
           end if
           iS = parallelKS%groupKS(2, iKS, iGroup)
           if (iGroup == 0) then
-            call unpackHSRealBlacs(env%blacs, over, iNeighbor, nNeighbor, iSparseStart,&
+            call unpackHSRealBlacs(env%blacs, over, iNeighbour, nNeighbourSK, iSparseStart,&
                 & img2CentCell, denseDesc, globalS)
             call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalFrac, denseDesc%blacsOrbSqr)
@@ -586,8 +568,8 @@ contains
     else
       ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
-        call unpackHSRealBlacs(env%blacs, over, iNeighbor, nNeighbor, iSparseStart, img2CentCell,&
-            & denseDesc, globalS)
+        call unpackHSRealBlacs(env%blacs, over, iNeighbour, nNeighbourSK, iSparseStart,&
+            & img2CentCell, denseDesc, globalS)
         call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
             & globalFrac, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = globalFrac * eigvecs(:,:,iKS)
@@ -615,17 +597,14 @@ contains
 #:else
 
     !> Writes real eigenvectors in text form.
-  subroutine writeRealEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+  subroutine writeRealEigvecsTxtSerial(neighlist, nNeighbourSK, denseDesc, iPair, img2CentCell,&
       & orb, species, speciesName, over, parallelKS, eigvecs, SSqr, fileName)
 
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighlist
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighlist
-
-    !> Nr. of neighbors for SK-interaction.
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for SK-interaction.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Dense descriptor for H and S
     type(TDenseDescr), intent(in) :: denseDesc
@@ -662,12 +641,12 @@ contains
 
     real(dp), allocatable :: rVecTemp(:)
     integer :: nAtom
-    integer :: iKS, iS, iEig
+    integer :: iKS, iS, iEig, fd
 
-    nAtom = size(nNeighbor)
+    nAtom = size(nNeighbourSK)
     call prepareEigvecFileTxt(fd, .false., fileName)
     allocate(rVecTemp(size(eigvecs, dim=1)))
-    call unpackHS(SSqr, over, neighlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iPair,&
+    call unpackHS(SSqr, over, neighlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iPair,&
         & img2CentCell)
     do iKS = 1, parallelKS%nLocalKS
       iS = parallelKS%localKS(2, iKS)
@@ -688,8 +667,8 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecs, fdEigvec, parallelKS, orb, over,&
-      & kPoints, iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species,&
+  subroutine writeCplxEigvecsTxtBlacs(env, denseDesc, eigvecs, parallelKS, orb, over, kPoints,&
+      & iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, species,&
       & speciesName, fileName)
 
     !> Environment settings
@@ -700,9 +679,6 @@ contains
 
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fdEigvec
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -716,11 +692,11 @@ contains
     !> Kpoints
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> Neighbors of each atom
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbours of each atom
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Cell vector index for each atom
     integer, intent(in) :: iCellVec(:)
@@ -748,10 +724,10 @@ contains
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     real(dp), allocatable :: localFrac(:), globalFrac(:,:)
     integer :: nEigvec, nAtom
-    integer :: iKS, iK, iS, iGroup, iEig
+    integer :: iKS, iK, iS, iGroup, iEig, fd
 
     nEigvec = denseDesc%nOrb
-    nAtom = size(nNeighbor)
+    nAtom = size(nNeighbourSK)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -762,7 +738,7 @@ contains
 
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
     if (env%mpi%tGlobalMaster) then
-      call prepareEigvecFileTxt(fdEigvec, .false., fileName)
+      call prepareEigvecFileTxt(fd, .false., fileName)
     end if
 
     if (env%mpi%tGlobalMaster) then
@@ -774,8 +750,8 @@ contains
           iK = parallelKS%groupKS(1, iKS, iGroup)
           iS = parallelKS%groupKS(2, iKS, iGroup)
           if (iGroup == 0) then
-            call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
-                & cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
+            call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), iNeighbour, nNeighbourSK,&
+                & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
             call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
             globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
@@ -789,15 +765,15 @@ contains
               call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
               call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
             end if
-            call writeSingleCplxEigvecTxt(fdEigvec, localEigvec, localFrac, iS, iK, iEig, orb,&
-                & species, speciesName, nAtom)
+            call writeSingleCplxEigvecTxt(fd, localEigvec, localFrac, iS, iK, iEig, orb, species,&
+                & speciesName, nAtom)
           end do
         end do group
       end do
     else
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
-        call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
+        call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), iNeighbour, nNeighbourSK, iCellVec,&
             & cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
         call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
@@ -818,7 +794,7 @@ contains
     end if
 
     if (env%mpi%tGlobalMaster) then
-      close(fdEigvec)
+      close(fd)
     end if
 
   end subroutine writeCplxEigvecsTxtBlacs
@@ -826,18 +802,15 @@ contains
 #:else
 
     !> Writes complex eigenvectors in text form.
-  subroutine writeCplxEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+  subroutine writeCplxEigvecsTxtSerial(neighlist, nNeighbourSK, denseDesc, iPair, img2CentCell,&
       & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoints, eigvecs, SSqr,&
       & fileName)
 
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighlist
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighlist
-
-    !> Nr. of neighbors for SK-interaction.
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for SK-interaction.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Dense matrix descriptor for H and S
     type(TDenseDescr), intent(in) :: denseDesc
@@ -884,9 +857,9 @@ contains
     complex(dp), allocatable :: cVecTemp(:)
     real(dp), allocatable :: fracs(:)
     integer :: nEigvecs, nAtom
-    integer :: iKS, iK, iS, iEig
+    integer :: iKS, iK, iS, iEig, fd
 
-    nAtom = size(nNeighbor)
+    nAtom = size(nNeighbourSK)
     call prepareEigvecFileTxt(fd, denseDesc%t2Component, fileName)
     allocate(cVecTemp(size(eigvecs, dim=1)))
     nEigvecs = size(eigvecs, dim=2)
@@ -895,7 +868,7 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
-      call unpackHS(SSqr, over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor, iCellVec,&
+      call unpackHS(SSqr, over, kPoints(:,iK), neighlist%iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, denseDesc%iAtomStart, iPair, img2CentCell)
       do iEig = 1, nEigvecs
         call hemv(cVecTemp, SSqr, eigvecs(:,iEig,iKS))
@@ -914,9 +887,9 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writePauliEigvecsTxtBlacs(env, denseDesc, eigvecs, fd, parallelKS, orb, over, kPoints,&
-      & iNeighbor, nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, species, speciesName,&
-      & fileName)
+  subroutine writePauliEigvecsTxtBlacs(env, denseDesc, eigvecs, parallelKS, orb, over, kPoints,&
+      & iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, species,&
+      & speciesName, fileName)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -926,9 +899,6 @@ contains
 
     !> Square Hamiltonian (or work array)
     complex(dp), intent(in) :: eigvecs(:,:,:)
-
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -942,11 +912,11 @@ contains
     !> Kpoints
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> Neighbors of each atom
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbours of each atom
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Cell vector index for each atom
     integer, intent(in) :: iCellVec(:)
@@ -974,10 +944,10 @@ contains
     complex(dp), allocatable :: localEigvec(:), localSDotC(:)
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     integer :: nAtom, nOrb
-    integer :: iKS, iK, iGroup, iEig
+    integer :: iKS, iK, iGroup, iEig, fd
 
     nOrb = denseDesc%fullSize
-    nAtom = size(nNeighbor)
+    nAtom = size(nNeighbourSK)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     if (env%mpi%tGroupMaster) then
@@ -1004,8 +974,8 @@ contains
           end if
           iK = parallelKS%groupKS(1, iKS, iGroup)
           if (iGroup == 0) then
-            call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
-                & cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
+            call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbour, nNeighbourSK,&
+                & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
             call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
           end if
@@ -1028,7 +998,7 @@ contains
       ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
-        call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbor, nNeighbor, iCellVec,&
+        call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbour, nNeighbourSK, iCellVec,&
             & cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
         call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
@@ -1056,18 +1026,15 @@ contains
 #:else
 
     !> Writes complex eigenvectors in text form.
-  subroutine writePauliEigvecsTxtSerial(fd, neighlist, nNeighbor, denseDesc, iPair, img2CentCell,&
+  subroutine writePauliEigvecsTxtSerial(neighlist, nNeighbourSK, denseDesc, iPair, img2CentCell,&
       & iCellVec, cellVec, orb, species, speciesName, over, parallelKS, kPoints, eigvecs, SSqr,&
       & fileName)
 
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighlist
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighlist
-
-    !> Nr. of neighbors for SK-interaction.
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for SK-interaction.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Dense matrix descriptor for H and S
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1114,9 +1081,9 @@ contains
     complex(dp), allocatable :: cVecTemp(:)
     real(dp), allocatable :: fracs(:,:)
     integer :: nEigvecs, nAtom
-    integer :: iKS, iK, iEig
+    integer :: iKS, iK, iEig, fd
 
-    nAtom = size(nNeighbor)
+    nAtom = size(nNeighbourSK)
     call prepareEigvecFileTxt(fd, denseDesc%t2Component, fileName)
     allocate(cVecTemp(size(eigvecs, dim=1)))
     nEigvecs = size(eigvecs, dim=2)
@@ -1124,7 +1091,7 @@ contains
 
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
-      call unpackSPauli(over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor,&
+      call unpackSPauli(over, kPoints(:,iK), neighlist%iNeighbour, nNeighbourSK,&
           & denseDesc%iAtomStart, iPair, img2CentCell, iCellVec, cellVec, SSqr)
       do iEig = 1, nEigvecs
         call hemv(cVecTemp, SSqr, eigvecs(:,iEig,iKS))
@@ -1141,7 +1108,7 @@ contains
 
 
   !> Write projected eigenvectors.
-  subroutine writeProjectedEigenvectors(env, regionLabels, fd, eigen, neighborList, nNeighbor,&
+  subroutine writeProjectedEigenvectors(env, regionLabels, eigen, neighbourList, nNeighbourSK,&
       & cellVec, iCellVec, denseDesc, iPair, img2CentCell, orb, over, kPoint, kWeight, iOrbRegion,&
       & parallelKS, eigvecsReal, workReal, eigvecsCplx, workCplx)
 
@@ -1151,17 +1118,14 @@ contains
     !> File name prefix for each region
     type(ListCharLc), intent(inout) :: regionLabels
 
-    !> File descriptor for each region
-    integer, intent(in) :: fd(:)
-
     !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
 
     !> list of neighbours for each atom
-    type(TNeighborList), intent(in) :: neighborList
+    type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
@@ -1189,6 +1153,8 @@ contains
 
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
+
+    !> Orbital regions to project
     type(ListIntR1), intent(inout) :: iOrbRegion
 
     !> K-points and spins to process
@@ -1212,31 +1178,31 @@ contains
   #:if WITH_SCALAPACK
     if (allocated(eigvecsCplx)) then
       if (denseDesc%t2Component) then
-        call writeProjPauliEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen,&
-            & eigvecsCplx, orb, parallelKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
-            & img2CentCell, iCellVec, cellVec)
+        call writeProjPauliEigvecsBlacs(env, denseDesc, regionLabels, iOrbRegion, eigen,&
+            & eigvecsCplx, orb, parallelKS, kPoint, kWeight, over, neighbourList, nNeighbourSK,&
+            & iPair, img2CentCell, iCellVec, cellVec)
       else
-        call writeProjCplxEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen&
-            &,eigvecsCplx, parallelKS, kPoint, kWeight, over, neighborList, nNeighbor, iPair,&
+        call writeProjCplxEigvecsBlacs(env, denseDesc, regionLabels, iOrbRegion, eigen,&
+            & eigvecsCplx, parallelKS, kPoint, kWeight, over, neighbourList, nNeighbourSK, iPair,&
             & img2CentCell, iCellVec, cellVec)
       end if
     else
-      call writeProjRealEigvecsBlacs(env, denseDesc, regionLabels, fd, iOrbRegion, eigen,&
-          & eigvecsReal, parallelKS, over, neighborList, nNeighbor, iPair, img2CentCell)
+      call writeProjRealEigvecsBlacs(env, denseDesc, regionLabels, iOrbRegion, eigen, eigvecsReal,&
+          & parallelKS, over, neighbourList, nNeighbourSK, iPair, img2CentCell)
     end if
   #:else
     if (allocated(eigvecsCplx)) then
       if (denseDesc%t2Component) then
-        call writeProjPauliEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
+        call writeProjPauliEigvecsSerial(regionLabels, eigen, neighbourList, nNeighbourSK, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
             & eigvecsCplx, workCplx, iOrbRegion)
       else
-        call writeProjCplxEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, cellVec,&
+        call writeProjCplxEigvecsSerial(regionLabels, eigen, neighbourList, nNeighbourSK, cellVec,&
             & iCellVec, denseDesc, iPair, img2CentCell, over, kpoint, kWeight, parallelKS,&
             & eigvecsCplx, workCplx, iOrbRegion)
       end if
     else
-      call writeProjRealEigvecsSerial(regionLabels, fd, eigen, neighborList, nNeighbor, denseDesc,&
+      call writeProjRealEigvecsSerial(regionLabels, eigen, neighbourList, nNeighbourSK, denseDesc,&
           & iPair, img2CentCell, over, parallelKS, eigvecsReal, workReal, iOrbRegion)
     end if
   #:endif
@@ -1247,8 +1213,8 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the real eigvectors into human readible output file (BLACS version).
-  subroutine writeProjRealEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
-      & eigvecs, parallelKS, over, neighborList, nNeighbor, iSparseStart, img2CentCell)
+  subroutine writeProjRealEigvecsBlacs(env, denseDesc, fileNames, iOrbRegion, eigvals, eigvecs,&
+      & parallelKS, over, neighbourList, nNeighbourSK, iSparseStart, img2CentCell)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1258,9 +1224,6 @@ contains
 
     !> List of region file names
     type(ListCharLc), intent(inout) :: fileNames
-
-    !> File descriptor for a not yet opened file for  each region
-    integer, intent(in) :: fd(:)
 
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
@@ -1277,11 +1240,11 @@ contains
     !> Sparse overlap
     real(dp), intent(in) :: over(:)
 
-    !> Neighbors of each atom
-    type(TNeighborList), intent(in) :: neighborList
+    !> Neighbours of each atom
+    type(TNeighbourList), intent(in) :: neighbourList
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index array for sparse matrices
     integer, intent(in) :: iSparseStart(:,:)
@@ -1293,8 +1256,10 @@ contains
     real(dp), allocatable :: globalS(:,:), globalFrac(:,:), localFrac(:)
     integer :: nOrb, nReg
     integer :: iKS, iS, iGroup, iEig
+    integer, allocatable :: fd(:)
 
-    nReg = size(fd)
+    nReg = len(iOrbRegion)
+    allocate(fd(nReg))
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -1318,7 +1283,7 @@ contains
           end if
           iS = parallelKS%groupKS(2, iKS, iGroup)
           if (iGroup == 0) then
-            call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor,&
+            call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
                 & iSparseStart, img2CentCell, denseDesc, globalS)
             call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalFrac, denseDesc%blacsOrbSqr)
@@ -1339,8 +1304,8 @@ contains
     else
       ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
-        call unpackHSRealBlacs(env%blacs, over, neighborList%iNeighbor, nNeighbor, iSparseStart,&
-            & img2CentCell, denseDesc, globalS)
+        call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
+            & iSparseStart, img2CentCell, denseDesc, globalS)
         call pblasfx_psymm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS), denseDesc%blacsOrbSqr,&
             & globalFrac, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = eigvecs(:,:,iKS) * globalFrac
@@ -1364,23 +1329,20 @@ contains
 #:else
 
     !> Write the projected eigenstates into text files
-  subroutine writeProjRealEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, denseDesc,&
+  subroutine writeProjRealEigvecsSerial(fileNames, eigvals, neighlist, nNeighbourSK, denseDesc,&
       & iPair, img2CentCell, over, parallelKS, eigvecs, work, iOrbRegion)
 
     !> List with fileNames for each region
     type(listCharLc), intent(inout) :: fileNames
 
-    !> File unit IDs for each of the regions
-    integer, intent(in) :: fd(:)
-
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> Neighbor list
-    type(TNeighborList), intent(in) :: neighlist
+    !> Neighbour list
+    type(TNeighbourList), intent(in) :: neighlist
 
-    !> Nr. of neighbors for SK-interaction
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for SK-interaction
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Dense matrix descriptor for H and S
     type(TDenseDescr), intent(in) :: denseDesc
@@ -1408,11 +1370,14 @@ contains
 
     integer :: iKS, iS, iEig
     real(dp), allocatable :: rVecTemp(:)
+    integer, allocatable :: fd(:)
+
+    allocate(fd(len(iOrbRegion)))
 
     call prepareProjEigvecFiles(fd, fileNames)
 
     allocate(rVecTemp(size(eigvecs, dim=1)))
-    call unpackHS(work, over, neighlist%iNeighbor, nNeighbor, denseDesc%iAtomStart, iPair,&
+    call unpackHS(work, over, neighlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iPair,&
         & img2CentCell)
     do iKS = 1, parallelKS%nLocalKS
       iS = parallelKS%localKS(2, iKS)
@@ -1425,6 +1390,8 @@ contains
       call writeProjEigvecFooter(fd)
     end do
 
+    call finishProjEigvecFiles(fd)
+
   end subroutine writeProjRealEigvecsSerial
 
 #:endif
@@ -1433,8 +1400,8 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writeProjCplxEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
-      & eigvecs, parallelKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
+  subroutine writeProjCplxEigvecsBlacs(env, denseDesc, fileNames, iOrbRegion, eigvals, eigvecs,&
+      & parallelKS, kPoints, kWeights, over, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, iCellVec, cellVec)
 
     !> Environment settings
@@ -1445,9 +1412,6 @@ contains
 
     !> List of region file names
     type(ListCharLc), intent(inout) :: fileNames
-
-    !> File descriptor for a not yet opened file for  each region
-    integer, intent(in) :: fd(:)
 
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
@@ -1470,11 +1434,11 @@ contains
     !> Sparse overlap
     real(dp), intent(in) :: over(:)
 
-    !> Neighbors of each atom
-    type(TNeighborList), intent(in) :: neighborList
+    !> Neighbours of each atom
+    type(TNeighbourList), intent(in) :: neighbourList
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index array for sparse matrices
     integer, intent(in) :: iSparseStart(:,:)
@@ -1493,8 +1457,10 @@ contains
     complex(dp), allocatable :: globalS(:,:), globalSDotC(:,:)
     integer :: nOrb, nReg
     integer :: iKS, iK, iS, iGroup, iEig
+    integer, allocatable :: fd(:)
 
-    nReg = size(fd)
+    nReg = len(iOrbRegion)
+    allocate(fd(nReg))
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -1520,8 +1486,8 @@ contains
           iK = parallelKS%groupKS(1, iKS, iGroup)
           iS = parallelKS%groupKS(2, iKS, iGroup)
           if (iGroup == 0) then
-            call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor,&
-                & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
+            call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighbourList%iNeighbour,&
+                & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
             call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
             globalFrac(:,:) = real(globalSDotC * conjg(eigvecs(:,:,iKS)))
@@ -1542,8 +1508,8 @@ contains
       ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
-        call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
-            & iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
+        call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, globalS)
         call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
@@ -1567,24 +1533,21 @@ contains
 #:else
 
   !> Write the projected complex eigenstates into text files.
-  subroutine writeProjCplxEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec,&
+  subroutine writeProjCplxEigvecsSerial(fileNames, eigvals, neighlist, nNeighbourSK, cellVec,&
       & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, parallelKS, eigvecs,&
       & work, iOrbRegion)
 
     !> list of region names
     type(ListCharLc), intent(inout) :: fileNames
 
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd(:)
-
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighlist
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighlist
 
-    !> Nr. of neighbors for SK-interaction.
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for SK-interaction.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Cell vectors of shifted cells.
     real(dp), intent(in) :: cellVec(:,:)
@@ -1624,8 +1587,10 @@ contains
 
     integer :: iKS, iS, iK, iEig, nOrb
     complex(dp), allocatable :: cVecTemp(:)
+    integer, allocatable :: fd(:)
 
     nOrb = denseDesc%fullSize
+    allocate(fd(len(iOrbRegion)))
 
     call prepareProjEigvecFiles(fd, fileNames)
 
@@ -1634,7 +1599,7 @@ contains
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
       call writeProjEigvecHeader(fd, iS, iK, kWeights(iK))
-      call unpackHS(work, over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor, iCellVec,&
+      call unpackHS(work, over, kPoints(:,iK), neighlist%iNeighbour, nNeighbourSK, iCellVec,&
           & cellVec, denseDesc%iAtomStart, iPair, img2CentCell)
       do iEig = 1, nOrb
         call hemv(cVecTemp, work, eigvecs(:,iEig,iKS))
@@ -1654,8 +1619,8 @@ contains
 #:if WITH_SCALAPACK
 
   !> Write the complex eigvectors into human readible output file (BLACS version).
-  subroutine writeProjPauliEigvecsBlacs(env, denseDesc, fileNames, fd, iOrbRegion, eigvals,&
-      & eigvecs, orb, parallelKS, kPoints, kWeights, over, neighborList, nNeighbor, iSparseStart,&
+  subroutine writeProjPauliEigvecsBlacs(env, denseDesc, fileNames, iOrbRegion, eigvals, eigvecs,&
+      & orb, parallelKS, kPoints, kWeights, over, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, iCellVec, cellVec)
 
     !> Environment settings
@@ -1666,9 +1631,6 @@ contains
 
     !> List of region file names
     type(ListCharLc), intent(inout) :: fileNames
-
-    !> File descriptor for a not yet opened file for  each region
-    integer, intent(in) :: fd(:)
 
     !> orbital number in each region
     type(listIntR1), intent(inout) :: iOrbRegion
@@ -1694,11 +1656,11 @@ contains
     !> Sparse overlap
     real(dp), intent(in) :: over(:)
 
-    !> Neighbors of each atom
-    type(TNeighborList), intent(in) :: neighborList
+    !> Neighbours of each atom
+    type(TNeighbourList), intent(in) :: neighbourList
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index array for sparse matrices
     integer, intent(in) :: iSparseStart(:,:)
@@ -1718,7 +1680,9 @@ contains
     real(dp), allocatable :: fracs(:,:)
     integer :: nOrb
     integer :: iKS, iK, iGroup, iEig
+    integer, allocatable :: fd(:)
 
+    allocate(fd(len(iOrbRegion)))
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
@@ -1746,8 +1710,8 @@ contains
           end if
           iK = parallelKS%groupKS(1, iKS, iGroup)
           if (iGroup == 0) then
-            call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor,&
-                & nNeighbor, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+            call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighbourList%iNeighbour,&
+                & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
                 & globalS)
             call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
                 & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
@@ -1772,8 +1736,9 @@ contains
       ! All processes except the global master process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
-        call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighborList%iNeighbor, nNeighbor,&
-            & iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc, globalS)
+        call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+            & globalS)
         call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         do iEig = 1, nOrb
@@ -1800,24 +1765,21 @@ contains
 #:else
 
   !> Write the projected complex eigenstates into text files.
-  subroutine writeProjPauliEigvecsSerial(fileNames, fd, eigvals, neighlist, nNeighbor, cellVec,&
+  subroutine writeProjPauliEigvecsSerial(fileNames, eigvals, neighlist, nNeighbourSK, cellVec,&
       & iCellVec, denseDesc, iPair, img2CentCell, over, kPoints, kWeights, parallelKS, eigvecs,&
       & work, iOrbRegion)
 
     !> list of region names
     type(ListCharLc), intent(inout) :: fileNames
 
-    !> Fileid (file not yet opened) to use.
-    integer, intent(in) :: fd(:)
-
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
 
-    !> Neighbor list.
-    type(TNeighborList), intent(in) :: neighlist
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighlist
 
-    !> Nr. of neighbors for SK-interaction.
-    integer, intent(in) :: nNeighbor(:)
+    !> Nr. of neighbours for SK-interaction.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Cell vectors of shifted cells.
     real(dp), intent(in) :: cellVec(:,:)
@@ -1859,7 +1821,9 @@ contains
     real(dp), allocatable :: fracs(:,:)
     integer :: nOrb
     integer :: iKS, iK, iEig
+    integer, allocatable :: fd(:)
 
+    allocate(fd(len(iOrbRegion)))
     nOrb = denseDesc%fullSize
 
     call prepareProjEigvecFiles(fd, fileNames)
@@ -1870,7 +1834,7 @@ contains
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
       call writeProjEigvecHeader(fd, 1, iK, kWeights(iK))
-      call unpackSPauli(over, kPoints(:,iK), neighlist%iNeighbor, nNeighbor,&
+      call unpackSPauli(over, kPoints(:,iK), neighlist%iNeighbour, nNeighbourSK,&
           & denseDesc%iAtomStart, iPair, img2CentCell, iCellVec, cellVec, work)
       do iEig = 1, nOrb
         call hemv(cVecTemp, work, eigvecs(:,iEig,iKS))
@@ -1894,23 +1858,27 @@ contains
     character(*), intent(in) :: fileName
 
     !> Associated file ID
-    integer, intent(out) :: fd
+    integer, intent(out), optional :: fd
 
-    fd = getFileId()
-    open(fd, file=fileName, action="write", status="replace")
-    close(fd)
+    integer :: fdTmp
+
+    if (present(fd)) then
+      fd = getFileId()
+      open(fd, file=fileName, action="write", status="replace")
+      close(fd)
+    else
+      open(newUnit=fdTmp, file=fileName, action="write", status="replace")
+      close(fdTmp)
+    end if
 
   end subroutine initOutputFile
 
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
-  subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
+  subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation, esp)
-
-    !> File ID to write to
-    integer, intent(in) :: fd
+      & gibbsFree, endCoords, tLocalise, localisation, esp, tunneling, ldos)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1963,13 +1931,20 @@ contains
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
 
+    !> tunneling array
+    real(dp), allocatable, intent(in) :: tunneling(:,:)
+
+    !> local projected DOS array
+    real(dp), allocatable, intent(in) :: ldos(:,:)
+
+
     !> Object holding the potentials and their locations
     type(TElStatPotentials), allocatable, intent(in) :: esp
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
+    integer :: fd
 
-
-    open(fd, file=fileName, action="write", status="old", position="append")
+    open(newunit=fd, file=fileName, action="write", status="old", position="append")
     if (tPeriodic) then
       call writeTagged(fd, tag_volume, cellVol)
     end if
@@ -2003,26 +1978,42 @@ contains
     if (tLocalise) then
       call writeTagged(fd, tag_pmlocalise, localisation)
     end if
+
+
     if (allocated(esp)) then
       call writeTagged(fd, tag_internfield, -esp%intPotential)
       if (allocated(esp%extPotential)) then
         call writeTagged(fd, tag_externfield, -esp%extPotential)
       end if
     end if
+
+
+    if (allocated(tunneling)) then
+      if (size(tunneling, dim=1) > 0) then
+        call writeTagged(fd, tag_tunn, tunneling)
+      end if
+    end if
+
+    if (allocated(ldos)) then
+      if (size(ldos,1) > 0) then
+        call writeTagged(fd, tag_ldos, ldos)
+      end if
+    end if
+
     close(fd)
 
   end subroutine writeAutotestTag
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fd, fileName, derivs, chrgForces, tStress, totalStress,&
-      & pDynMatrix, tPeriodic, cellVol)
-
-    !> File ID to write to
-    integer, intent(in) :: fd
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress,&
+      & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
 
     !> Name of output file
     character(*), intent(in) :: fileName
+
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: energy
 
     !> Atomic derivatives (allocation status used as a flag)
     real(dp), allocatable, intent(in) :: derivs(:,:)
@@ -2045,9 +2036,33 @@ contains
     !> Unit cell volume if periodic (unreferenced otherwise)
     real(dp), intent(in) :: cellVol
 
+    !> Are Mulliken charges to be output
+    logical, intent(in) :: tMulliken
+
+    !> Output Mulliken charges
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> Reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    real(dp), allocatable :: qOutputUpDown(:,:,:)
+    integer :: fd
+
     @:ASSERT(tPeriodic .eqv. tStress)
 
-    open(fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
+
+    call writeTagged(fd, tag_freeEgy, energy%EMermin)
+    call writeTagged(fd, tag_egyTotal, energy%ETotal)
+
+    ! extrapolated zero temperature energy
+    call writeTagged(fd, tag_egy0Total, energy%Ezero)
+
+    if (energy%EForceRelated /= 0.0_dp) then
+      ! energy connected to the evaluated force/stress (differs for various free energies)
+      call writeTagged(fd, tag_egyforcerelated, energy%EForceRelated)
+    end if
+
     if (allocated(derivs)) then
       call writeTagged(fd, tag_forceTot, -derivs)
     end if
@@ -2063,6 +2078,14 @@ contains
     if (tPeriodic) then
       call writeTagged(fd, tag_volume, cellVol)
     end if
+
+    if (tMulliken) then
+      qOutputUpDown = qOutput
+      call qm2ud(qOutputUpDown)
+      call writeTagged(fd, tag_qOutput, qOutputUpDown(:,:,1))
+      call writeTagged(fd, tag_qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1), dim=1))
+    end if
+
     close(fd)
 
   end subroutine writeResultsTag
@@ -2119,7 +2142,7 @@ contains
 
     type(xmlf_t) :: xf
     real(dp), allocatable :: bufferRealR2(:,:)
-    integer :: ii, jj
+    integer :: ii, jj, ll
     real(dp), pointer :: pOccNatural(:,:)
 
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
@@ -2156,7 +2179,9 @@ contains
     if (allocated(occNatural)) then
       call xml_NewElement(xf, "excitedoccupations")
       call xml_NewElement(xf, "spin" // i2c(1))
-      pOccNatural(1:size(occNatural), 1:1) => occNatural
+      !pOccNatural(1:size(occNatural), 1:1) => occNatural
+      ll = size(occNatural)
+      pOccNatural(1:ll, 1:1) => occNatural
       call writeChildValue(xf, "k" // i2c(1), pOccNatural)
       call xml_EndElement(xf, "spin" // i2c(1))
       call xml_EndElement(xf, "excitedoccupations")
@@ -2169,10 +2194,7 @@ contains
 
 
   !> Write the band structure data out
-  subroutine writeBandOut(fd, fileName, eigen, filling, kWeight)
-
-    !> File  ID
-    integer, intent(in) :: fd
+  subroutine writeBandOut(fileName, eigen, filling, kWeight)
 
     !> Name of file to write to
     character(*), intent(in) :: fileName
@@ -2186,9 +2208,9 @@ contains
     !> Weights of the k-points
     real(dp), intent(in) :: kWeight(:)
 
-    integer :: iSpin, iK, iEgy
+    integer :: iSpin, iK, iEgy, fd
 
-    open(unit=fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
     do iSpin = 1, size(eigen, dim=3)
       do iK = 1, size(eigen, dim=2)
         write(fd, *) 'KPT ', iK, ' SPIN ', iSpin, ' KWEIGHT ', kWeight(iK)
@@ -2206,10 +2228,7 @@ contains
 
 
   !> Write the second derivative matrix
-  subroutine writeHessianOut(fd, fileName, pDynMatrix)
-
-    !> File ID
-    integer, intent(in) :: fd
+  subroutine writeHessianOut(fileName, pDynMatrix)
 
     !> File name
     character(*), intent(in) :: fileName
@@ -2217,9 +2236,9 @@ contains
     !> Dynamical (Hessian) matrix
     real(dp), intent(in) :: pDynMatrix(:,:)
 
-    integer :: ii
+    integer :: ii, fd
 
-    open(unit=fd, file=fileName, action="write", status="replace")
+    open(newunit=fd, file=fileName, action="write", status="replace")
     do ii = 1, size(pDynMatrix, dim=2)
       write(fd, formatHessian) pDynMatrix(:, ii)
     end do
@@ -2228,15 +2247,10 @@ contains
 
   end subroutine writeHessianOut
 
-  !> First group of data to go to detailed.out
-  subroutine writeDetailedOut1(fd, fileName, tAppendDetailedOut, iDistribFn, nGeoSteps, iGeoStep,&
-      & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
-      & indMovedAtom, coord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
-      & tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0, pressure, cellVol,&
-      & tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpinOrbit, tScc,&
-      & invLatVec, kPoints)
 
-    !> File ID
+  !> Open file detailed.out
+  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter)
+    !> File  ID
     integer, intent(in) :: fd
 
     !> Name of file to write to
@@ -2244,6 +2258,32 @@ contains
 
     !> Append to the end of the file or overwrite
     logical, intent(in) :: tAppendDetailedOut
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Which scc step is occuring
+    integer, intent(in) :: iSccIter
+
+    if (iGeoStep == 0 .and. iSccIter == 1) then
+      open(fd, file=fileName, status="replace", action="write")
+    elseif (.not. tAppendDetailedOut) then
+      close(fd)
+      open(fd, file=fileName, status="replace", action="write")
+    end if
+
+  end subroutine openDetailedOut
+
+
+  !> First group of data to go to detailed.out
+  subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
+      & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
+      & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
+      & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
+      & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tNegf, invLatVec, kPoints, iAtInCentralRegion)
+
+    !> File ID
+    integer, intent(in) :: fd
 
     !> Electron distribution choice
     integer, intent(in) :: iDistribFn
@@ -2269,7 +2309,7 @@ contains
     !> Which step of lattice optimisation is occuring
     integer, intent(in) :: iLatGeoStep
 
-    !> Whic scc step is occuring
+    !> Which scc step is occuring
     integer, intent(in) :: iSccIter
 
     !> Energy terms in the system
@@ -2296,10 +2336,10 @@ contains
     !> Output atomic charges (if SCC)
     real(dp), intent(in) :: qOutput(:,:,:)
 
-    !> Eigenvalues/single particle states
+    !> Eigenvalues/single particle states (level, kpoint, spin)
     real(dp), intent(in) :: eigen(:,:,:)
 
-    !> Occupation numbers
+    !> Occupation numbers (level, kpoint, spin)
     real(dp), intent(in) :: filling(:,:,:)
 
     !> Type containing atomic orbital information
@@ -2356,11 +2396,17 @@ contains
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
+    !> is this a spin polarized calculation?
+    logical :: tSpin
+
     !> Are spin orbit interactions present
     logical, intent(in) :: tSpinOrbit
 
     !> Is this a self consistent charge calculation
     logical, intent(in) :: tScc
+
+    !> whether we solve NEGF
+    logical, intent(in) :: tNegf
 
     !> Reciprocal lattice vectors if periodic
     real(dp), intent(in) :: invLatVec(:,:)
@@ -2368,21 +2414,21 @@ contains
     !> K-points if periodic
     real(dp), intent(in) :: kPoints(:,:)
 
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
-    integer :: nAtom, nLevel, nKPoint, nSpinHams, nMovedAtom
-    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, kk
-    logical :: tSpin
+    integer :: nAtom, nKPoint, nSpinHams, nMovedAtom
+    integer :: iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
 
     character(lc) :: strTmp
 
     nAtom = size(q0, dim=2)
-    nLevel = size(eigen, dim=1)
     nKPoint = size(eigen, dim=2)
     nSpinHams = size(eigen, dim=3)
     nMovedAtom = size(indMovedAtom)
-    tSpin = (nSpin == 2 .or. nSpin == 4)
 
     qInputUpDown = qInput
     call qm2ud(qInputUpDown)
@@ -2391,13 +2437,6 @@ contains
     if (allocated(qBlockOut)) then
       qBlockOutUpDown = qBlockOut
       call qm2ud(qBlockOutUpDown)
-    end if
-
-    if (iGeoStep == 0 .and. iSccIter == 1) then
-      open(fd, file=fileName, status="replace", action="write")
-    elseif (.not. tAppendDetailedOut) then
-      close(fd)
-      open(fd, file=fileName, status="replace", action="write")
     end if
 
     select case(iDistribFn)
@@ -2460,34 +2499,38 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
-      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, :, 1) - qOutput(:, :, 1))
+      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, iAtInCentralRegion(:), 1)&
+          & - qOutput(:, iAtInCentralRegion(:), 1))
       write(fd, "(/,A)") " Atomic gross charges (e)"
       write(fd, "(A5, 1X, A16)")" Atom", " Charge"
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
     end if
 
-    call writeDetailedOutEigenvalues(fd, eigen, filling)
 
     if (nSpin == 4) then
       if (tPrintMulliken) then
         do iSpin = 1, 4
+
           write(fd,"(3A, F16.8)") 'Nr. of electrons (', quaternionName(iSpin), '):',&
-              & sum(qOutput(:,:, iSpin))
+              & sum(qOutput(:, iAtInCentralRegion(:), iSpin))
           write(fd, *)
           write(fd, "(/, 3A)") 'Atom populations (', quaternionName(iSpin), ')'
           write(fd, "(A5, 1X, A16)") " Atom", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             write(fd, "(1X, I5, 1X, F16.8)") iAt, sum(qOutput(:, iAt, iSpin))
           end do
           write(fd, "(/, 3A)") 'l-shell populations (', quaternionName(iSpin), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.", "  l", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
-              write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp), &
+              write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
                   & sum(qOutput(orb%posShell(iSh,iSp):orb%posShell(iSh+1, iSp) - 1, iAt, iSpin))
             end do
           end do
@@ -2495,13 +2538,14 @@ contains
           write(fd, "(/, 3A)") 'Orbital populations (', quaternionName(iSpin) ,')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)") " Atom", "Sh.","  l","  m",&
               & " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               ang = orb%angShell(iSh, iSp)
               do kk = 0, 2 * ang
-                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") &
-                    & iAt, iSh, ang, kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin)
+                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, ang, kk - ang,&
+                    & qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin)
               end do
             end do
           end do
@@ -2512,7 +2556,8 @@ contains
       if (tDFTBU) then
         do iSpin = 1, 4
           write(fd, "(3A)") 'Block populations (', quaternionName(iSpin), ')'
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
             do iOrb = 1, orb%nOrbSpecies(iSp)
@@ -2527,13 +2572,13 @@ contains
         write(fd, "(/, A)") 'Electron angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "S", "Momentum"
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
-            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
-                & iAt, iSh, orb%angShell(iSh, iSp),&
-                & 0.5_dp * sqrt(sum(sum(qOutput(orb%posShell(iSh, iSp)&
-                & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1)**2)), &
+            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
+                & orb%angShell(iSh, iSp), 0.5_dp * sqrt(sum(sum(qOutput(orb%posShell(iSh, iSp)&
+                & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1)**2)),&
                 & -gfac * 0.25_dp * sum(qOutput(orb%posShell(iSh, iSp)&
                 & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1)
           end do
@@ -2541,12 +2586,13 @@ contains
         write(fd, "(/, A)") 'Orbital angular momentum (mu_B/hbar)'
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "L", "Momentum"
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
-            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
-                & iAt, iSh, orb%angShell(iSh, iSp), &
-                & sqrt(sum(orbitalL(1:3, iSh, iAt)**2)), -orbitalL(1:3, iSh, iAt)
+            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
+                & orb%angShell(iSh, iSp), sqrt(sum(orbitalL(1:3, iSh, iAt)**2)),&
+                & -orbitalL(1:3, iSh, iAt)
           end do
         end do
 
@@ -2555,19 +2601,18 @@ contains
         write(fd, "(2X, A5, T10, A3, T14, A1, T20, A1, T35, A9)")&
             & "Atom", "Sh.", "l", "J", "Momentum"
         angularMomentum(:) = 0.0_dp
-        do iAt = 1, nAtom
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
           iSp = species(iAt)
           do iSh = 1, orb%nShell(iSp)
-            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") &
-                & iAt, iSh, orb%angShell(iSh, iSp),&
-                & sqrt(sum((orbitalL(1:3, iSh, iAt)&
+            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F14.8, ' :', 3F14.8)") iAt, iSh,&
+                & orb%angShell(iSh, iSp), sqrt(sum((orbitalL(1:3, iSh, iAt)&
                 & + sum(0.5_dp * qOutput(orb%posShell(iSh, iSp)&
-                & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1))**2)), &
-                & -orbitalL(1:3, iSh, iAt) &
+                & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1))**2)),&
+                & -orbitalL(1:3, iSh, iAt)&
                 & -gfac * 0.25_dp * sum(qOutput(orb%posShell(iSh, iSp)&
                 & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1)
-            angularMomentum(1:3) = angularMomentum(1:3) &
-                & -orbitalL(1:3, iSh, iAt) &
+            angularMomentum(1:3) = angularMomentum(1:3) -orbitalL(1:3, iSh, iAt)&
                 & -gfac * 0.25_dp * sum(qOutput(orb%posShell(iSh, iSp)&
                 & :orb%posShell(iSh + 1, iSp) - 1, iAt, 2:4), dim=1)
           end do
@@ -2578,17 +2623,19 @@ contains
       lpSpinPrint2: do iSpin = 1, nSpin
         if (tPrintMulliken) then
           write(fd, "(3A, F16.8)") 'Nr. of electrons (', trim(spinName(iSpin)), '):',&
-              & sum(qOutputUpDown(:, :, iSpin))
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
           write(fd, "(3A)") 'Atom populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A16)") " Atom", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             write(fd, "(I5, 1X, F16.8)") iAt, sum(qOutputUpDown(:, iAt, iSpin))
           end do
           write(fd, *)
           write(fd, "(3A)") 'l-shell populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)")&
               & " Atom", "Sh.", "  l", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
@@ -2600,13 +2647,14 @@ contains
           write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
           write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16)")&
               & " Atom", "Sh.", "  l", "  m", " Population"
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               ang = orb%angShell(iSh, iSp)
               do kk = 0, 2 * ang
-                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") &
-                    &iAt, iSh, ang, kk - ang, qOutputUpDown(orb%posShell(iSh, iSp) + kk, iAt, iSpin)
+                write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, ang, kk - ang,&
+                    & qOutputUpDown(orb%posShell(iSh, iSp) + kk, iAt, iSpin)
               end do
             end do
           end do
@@ -2614,7 +2662,8 @@ contains
         end if
         if (tDFTBU) then
           write(fd, "(3A)") 'Block populations (', trim(spinName(iSpin)), ')'
-          do iAt = 1, nAtom
+          do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
             iSp = species(iAt)
             write(fd, "(A, 1X, I0)") 'Atom', iAt
             do iOrb = 1, orb%nOrbSpecies(iSp)
@@ -2638,11 +2687,13 @@ contains
       write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
       if (tPrintMulliken) then
         if (nSpin == 2) then
-          write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
-              & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
+          write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
+              & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
         else
-          write(fd, "(3A, 2F16.8)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
-              & sum(qInputUpDown(:, :, iSpin)), sum(qOutputUpDown(:, :, iSpin))
+          write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
+              & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
+              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
         end if
       end if
       write(fd, *)
@@ -2669,8 +2720,8 @@ contains
       write(fd, format2U) 'Energy ext. field', energy%Eext, 'H', energy%Eext * Hartree__eV, 'eV'
     end if
 
-    write(fd, format2U) 'Total Electronic energy', energy%Eelec, 'H', &
-        & energy%Eelec * Hartree__eV, 'eV'
+    write(fd, format2U) 'Total Electronic energy', energy%Eelec, 'H', energy%Eelec * Hartree__eV,&
+        & 'eV'
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
     if (tDispersion) then
@@ -2679,8 +2730,13 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
+    write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
     write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
         & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+    if (energy%EForceRelated /= 0.0_dp) then
+      write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV'
+    end if
     if (tPeriodic .and. pressure /= 0.0_dp) then
       write(fd, format2U) 'Gibbs free energy', energy%Etotal - sum(TS) + cellVol * pressure,&
           & 'H', Hartree__eV * (energy%Etotal - sum(TS) + cellVol * pressure), 'eV'
@@ -2689,20 +2745,23 @@ contains
 
     if (tAtomicEnergy) then
       write(fd, "(A)") 'Atom resolved electronic energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
             & Hartree__eV * energy%atomElec(iAt), ' eV'
       end do
       write(fd, *)
 
       write(fd, "(A)") 'Atom resolved repulsive energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomRep(iAt), ' H',&
             & Hartree__eV * energy%atomRep(iAt), ' eV'
       end do
       write(fd, *)
       write(fd, "(A)") 'Atom resolved total energies '
-      do iAt = 1, nAtom
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
         write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
             & Hartree__eV * energy%atomTotal(iAt), ' eV'
       end do
@@ -2712,80 +2771,10 @@ contains
   end subroutine writeDetailedOut1
 
 
-  !> Helper routine to write formatted eigenvalues and fillings
-  subroutine writeDetailedOutEigenvalues(fd, eigen, filling)
-
-    !> File ID
-    integer, intent(in) :: fd
-
-    !> Eigenvalues/single particle states
-    real(dp), intent(in) :: eigen(:,:,:)
-
-    !> Occupation numbers
-    real(dp), intent(in) :: filling(:,:,:)
-
-    integer :: iSpin, nSpin, iK, kk, nKPoint, iEgy, nEgy, ii
-    real(dp) :: scaleFactor
-
-    ! meV level accuracy format for eigenvalues
-    character(*), parameter :: formatEigen(2) = [&
-        & character(21) :: "(4X, F10.5, 2X, F8.5)", "(4X, F10.3, 2X, F8.5)"]
-
-    ! K-points per group
-    integer, parameter :: nKPointPerGroup = 3
-
-    nEgy = size(filling, dim=1)
-    nKPoint = size(filling, dim=2)
-    nSpin = size(filling, dim=3)
-
-    lpSpinPrint: do iSpin = 1, nSpin
-
-      if (nSpin == 2) then
-        write(fd, "(2A)") 'COMPONENT = ', trim(spinName(iSpin))
-      else
-        write(fd, "(2A)") 'COMPONENT = ', trim(quaternionName(iSpin))
-      end if
-
-      do ii = 1, 2
-        if (ii == 1) then
-          write(fd, "(/, A)") 'Eigenvalues (H) and fillings (e)'
-          scaleFactor = 1.0_dp
-        else
-          write(fd, "(/, A)") 'Eigenvalues (eV) and fillings (e)'
-          scaleFactor = Hartree__eV
-        end if
-        do iK = 1, nKPoint, nKPointPerGroup
-          if (nKPoint > 1) then
-            if (nKPoint - iK > 0) then
-              write(fd, "(A, I0, ':', I0)") 'K-points ', iK, min(iK + nKPointPerGroup - 1, nKPoint)
-            else
-              write(fd, "(A, I0)") 'K-point ', iK
-            end if
-          end if
-          do iEgy = 1, nEgy
-            write(fd, "(I8)", advance='no') iEgy
-            do kk = 0, nKPointPerGroup - 1
-              if (iK + kk > nKPoint) then
-                exit
-              end if
-              write(fd, formatEigen(ii), advance='no') scaleFactor * eigen(iEgy, iK + kk, iSpin),&
-                  & filling(iEgy, iK + kk, iSpin)
-            end do
-            write(fd, *)
-          end do
-        end do
-      end do
-      write(fd, *)
-
-    end do lpSpinPrint
-
-  end subroutine writeDetailedOutEigenvalues
-
-
   !> Second group of data for detailed.out
   subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
-      & indMovedAtom, cellVol, cellPressure, geoOutFile)
+      & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2844,6 +2833,9 @@ contains
     !> File for geometry output
     character(*), intent(in) :: geoOutFile
 
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
     integer :: iAt, ii
 
     if (tScc) then
@@ -2864,8 +2856,8 @@ contains
     ! only print excitation energy if 1) its been calculated and 2) its avaialable for a single
     ! state
     if (tLinResp .and. energy%Eexcited /= 0.0_dp) then
-      write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", &
-          & Hartree__eV * energy%Eexcited, "eV"
+      write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", Hartree__eV * energy%Eexcited,&
+          & "eV"
       write(fd, *)
     end if
 
@@ -2876,8 +2868,9 @@ contains
 
     if (tPrintForces) then
       write(fd, "(A)") 'Total Forces'
-      do iAt = 1, size(derivs, dim=2)
-        write(fd, "(3F20.12)") -derivs(:, iAt)
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, 3F20.12)")iAt, -derivs(:, iAt)
       end do
       write(fd, *)
       if (tStress .and. .not. tMd) then
@@ -2893,7 +2886,8 @@ contains
         write(fd, *)
       end if
 
-      write(fd, format1Ue) "Maximal derivative component", maxval(abs(derivs)), 'au'
+      write(fd, format1Ue) "Maximal derivative component",&
+          & maxval(abs(derivs(:,iAtInCentralRegion(:)))), 'au'
       if (size(indMovedAtom) > 0) then
         write(fd, format1Ue) "Max force for moved atoms:",&
             & maxval(abs(derivs(:, indMovedAtom))), 'au'
@@ -3104,8 +3098,8 @@ contains
 
   !> Second group of output data during molecular dynamics
   subroutine writeMdOut2(fd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
-      & energy, latVec, cellVol, cellPressure, pressure, tempIon, absEField, qOutput, q0,&
-      & dipoleMoment)
+      & energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon, absEField,&
+      & qOutput, q0, dipoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
@@ -3130,6 +3124,9 @@ contains
 
     !> energy contributions
     type(TEnergies), intent(in) :: energy
+
+    !> excitation energies, if allocated
+    real(dp), allocatable, intent(inout) :: energiesCasida(:)
 
     !> Lattice vectors if periodic
     real(dp), intent(in) :: latVec(:,:)
@@ -3159,6 +3156,7 @@ contains
     real(dp), intent(inout), allocatable :: dipoleMoment(:)
 
     integer :: ii
+    character(lc) :: strTmp
 
     if (tStress) then
       if (tBarostat) then
@@ -3176,9 +3174,18 @@ contains
             & Hartree__eV * energy%EGibbsKin, 'eV'
       end if
     end if
-    if (tLinResp .and. energy%Eexcited /= 0.0_dp) then
-      write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
-          & Hartree__eV * energy%Eexcited, "eV"
+    if (tLinResp) then
+      if (energy%Eexcited /= 0.0_dp) then
+        write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
+            & Hartree__eV * energy%Eexcited, "eV"
+      end if
+      if (allocated(energiesCasida)) then
+        do ii = 1, size(energiesCasida)
+          write(strTmp,"('Excitation ',I0)")ii
+          write(fd, format2U) trim(strTmp), energiesCasida(ii), "H",&
+              & Hartree__eV * energiesCasida(ii), "eV"
+        end do
+      end if
     end if
     write(fd, format2U) 'Potential Energy', energy%EMermin,'H', energy%EMermin * Hartree__eV, 'eV'
     write(fd, format2U) 'MD Kinetic Energy', energy%Ekin, 'H', energy%Ekin * Hartree__eV, 'eV'
@@ -3214,16 +3221,13 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, fdCharges, tWriteBinary, orb, qInput, qBlockIn, qiBlockIn)
+  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
 
-    !> File descriptor for charge output
-    integer, intent(in) :: fdCharges
-
-    !> Charges should be output in binary (T) or ascii (F)
-    logical, intent(in) :: tWriteBinary
+    !> Charges should be output in ascii (T) or binary (F)
+    logical, intent(in) :: tWriteAscii
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3239,21 +3243,28 @@ contains
 
     if (allocated(qBlockIn)) then
       if (allocated(qiBlockIn)) then
-        call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb, qBlockIn, qiBlockIn)
+        call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn)
       else
-        call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb, qBlockIn)
+        call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn)
       end if
     else
-      call writeQToFile(qInput, fCharges, fdCharges, tWriteBinary, orb)
+      call writeQToFile(qInput, fCharges, tWriteAscii, orb)
     end if
-    write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)
+    if (tWriteAscii) then
+      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
+    else
+      write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.bin'
+    end if
 
   end subroutine writeCharges
 
 
   !> Writes Hamiltonian and overlap matrices and stops program execution.
-  subroutine writeHSAndStop(tWriteHS, tWriteRealHS, tRealHS, over, neighborList, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
+  subroutine writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList,&
+      & nNeighbourSK, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, ham, iHam)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Write dense hamiltonian and overlap matrices
     logical, intent(in) :: tWriteHS
@@ -3268,10 +3279,10 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> atomic neighbours
-    type(TNeighborList), intent(in) :: neighborList
+    type(TNeighbourList), intent(in) :: neighbourList
 
     !> number of neighbours for each central cell atom
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Dense matrix indexing for atomic blocks
     integer, intent(in) :: iAtomStart(:)
@@ -3311,17 +3322,22 @@ contains
     call qm2ud(hamUpDown)
 
     ! Write out matrices if necessary and quit.
-    call writeHS(tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighborList%iNeighbor,&
-        & nNeighbor, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
+    call writeHS(env, tWriteHS, tWriteRealHS, tRealHS, hamUpDown, over, neighbourList%iNeighbour,&
+        & nNeighbourSK, iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
     write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
+    call env%destruct()
+    call destructGlobalEnv()
     stop
 
   end subroutine writeHSAndStop
 
 
   !> Invokes the writing routines for the Hamiltonian and overlap matrices.
-  subroutine writeHS(tWriteHS, tWriteRealHS, tRealHS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
-      & iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
+  subroutine writeHS(env, tWriteHS, tWriteRealHS, tRealHS, ham, over, iNeighbour, nNeighbourSK,&
+      & iAtomStart, iPair, img2CentCell, kPoint, iCellVec, cellVec, iHam)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Should the hamiltonian and overlap be written out as dense matrices
     logical, intent(in) :: tWriteHS
@@ -3339,10 +3355,10 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> Atomic neighbour data
-    integer, intent(in) :: iNeighbor(0:,:)
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> number of atomic neighbours for each atom
-    integer, intent(in) :: nNeighbor(:)
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iAtomStart(:)
@@ -3371,37 +3387,168 @@ contains
 
     if (tWriteRealHS) then
       do iS = 1, nSpin
-        call writeSparse("hamreal" // i2c(iS) // ".dat", ham(:,iS), iNeighbor, &
-            &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+        call writeSparse("hamreal" // i2c(iS) // ".dat", ham(:,iS), iNeighbour, nNeighbourSK,&
+            & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
         if (allocated(iHam)) then
-          call writeSparse("hamimag" // i2c(iS) // ".dat", iHam(:,iS),&
-              & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,iCellVec,&
-              & cellVec)
+          call writeSparse("hamimag" // i2c(iS) // ".dat", iHam(:,iS), iNeighbour, nNeighbourSK,&
+              & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
         end if
       end do
-      call writeSparse("overreal.dat", over, iNeighbor, &
-          &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+      call writeSparse("overreal.dat", over, iNeighbour, nNeighbourSK, iAtomStart, iPair,&
+          & img2CentCell, iCellVec, cellVec)
     end if
     if (tWriteHS) then
       if (tRealHS) then
         do iS = 1, nSpin
-          call writeSparseAsSquare("hamsqr" // i2c(iS) // ".dat", ham(:,iS), &
-              &iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
+          call writeSparseAsSquare(env, "hamsqr" // i2c(iS) // ".dat", ham(:,iS), iNeighbour,&
+              & nNeighbourSK, iAtomStart, iPair, img2CentCell)
         end do
-        call writeSparseAsSquare("oversqr.dat", over, iNeighbor, nNeighbor, &
-            &iAtomStart, iPair, img2CentCell)
+        call writeSparseAsSquare(env, "oversqr.dat", over, iNeighbour, nNeighbourSK, iAtomStart,&
+            & iPair, img2CentCell)
       else
         do iS = 1, nSpin
-          call writeSparseAsSquare("hamsqr" // i2c(iS) // ".dat", ham(:,iS), &
-              &kPoint, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, &
-              &iCellVec, cellVec)
+          call writeSparseAsSquare(env, "hamsqr" // i2c(iS) // ".dat", ham(:,iS), kPoint,&
+              & iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
         end do
-        call writeSparseAsSquare("oversqr.dat", over, kPoint, iNeighbor, &
-            &nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
+        call writeSparseAsSquare(env, "oversqr.dat", over, kPoint, iNeighbour, nNeighbourSK,&
+            & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
       end if
     end if
 
   end subroutine writeHS
+
+
+  !> Write the Hamiltonian self consistent shifts to file
+  subroutine writeShifts(fShifts, orb, shiftPerL)
+    !> filename where shifts are stored
+    character(*), intent(in) :: fShifts
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> shifts organized per (shell , atom,  spin)
+    real(dp), intent(in) :: shiftPerL(:,:,:)
+
+    ! locals
+    integer :: fdHS, nSpin, nAtom, ii, jj
+
+    nSpin = size(shiftPerL, dim=3)
+    nAtom = size(shiftPerL, dim=2)
+
+    if (size(shiftPerL, dim=1) /= orb%mShell ) then
+      call error("Internal error in writeshift: size(shiftPerL,1)")
+    endif
+
+    if (size(shiftPerL, dim=2) /= size(orb%nOrbAtom) ) then
+      call error("Internal error in writeshift size(shiftPerL,2)")
+    endif
+
+    open(newunit=fdHS, file=trim(fShifts), form="formatted")
+    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
+    do ii = 1, nAtom
+      write(fdHS, *) orb%nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
+    end do
+
+    close(fdHS)
+
+    write(stdOut,*) ">> Shifts saved for restart in shifts.dat"
+
+  end subroutine writeShifts
+
+
+  !> Writes the contact potential shifts per shell (for transport)
+  subroutine writeContShifts(filename, orb, shiftPerL, charges, Ef)
+    !> filename where shifts are written
+    character(*), intent(in) :: filename
+    !> orbital structure
+    type(TOrbitals), intent(in) :: orb
+    !> array of shifts per shell and spin
+    real(dp), intent(in) :: shiftPerL(:,:,:)
+    !> array of charges per shell and spin
+    real(dp), intent(in) :: charges(:,:,:)
+    !> Fermi level
+    real(dp), intent(in) :: Ef(:)
+
+    integer :: fdHS, nAtom, nSpin
+
+    nSpin = size(shiftPerL,3)
+    nAtom = size(shiftPerL,2)
+
+    if (size(shiftPerL,1) /= orb%mShell) then
+      call error("Internal error in writeContShifts: size(shiftPerL,1)")
+    endif
+
+    if (size(orb%nOrbAtom) /= nAtom) then
+      call error("Internal error in writeContShifts: size(shiftPerL,2)")
+    endif
+
+    if (all(shape(charges) /= (/ orb%mOrb, nAtom, nSpin /))) then
+      call error("Internal error in writeContShift: shape(charges)")
+    endif
+
+    open(newunit=fdHS, file=trim(filename), form="formatted")
+    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
+    write(fdHS, *) orb%nOrbAtom
+    write(fdHS, *) shiftPerL
+    write(fdHS, *) charges
+    if (nSpin == 2) then
+      write(fdHS, *) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
+      write(fdHS, *) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2), 'eV'
+    else
+      write(fdHS, *) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
+    end if
+
+    close(fdHS)
+
+  end subroutine writeContShifts
+
+
+  !> Read the potential shifts from file
+  subroutine uploadShiftPerL(fShifts, orb, nAtom, nSpin, shiftPerL)
+    !> filename where shifts are stored
+    character(*), intent(in) :: fShifts
+
+    !> orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> number of atoms and spin blocks
+    integer, intent(in) :: nAtom, nSpin
+
+    !> potential shifts (shell,atom,spin) charge/mag is used
+    real(dp), intent(inout) :: shiftPerL(:,:,:)
+
+    !Locals
+    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii, jj
+    integer, allocatable :: nOrbAtom(:)
+
+    shiftPerL(:,:,:) = 0.0_dp
+
+    open(newunit=fdH, file=fShifts, form="formatted")
+    read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+
+    if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell .or. mOrbSt /= orb%mOrb) then
+      call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
+    end if
+    if (nSpin /= nSpinSt) then
+      call error("Shift upload error: Mismatch in number of spin channels.")
+    end if
+
+    allocate(nOrbAtom(nAtomSt))
+    do ii = 1, nAtom
+      read(fdH, *) nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
+    end do
+
+    close(fdH)
+
+    if (any(nOrbAtom(:) /= orb%nOrbAtom(:))) then
+      call error("Incompatible orbitals in the upload file!")
+    end if
+
+    deallocate(nOrbAtom)
+
+  end subroutine uploadShiftPerL
+
+
 
 
   !> Write current geometry to disc
@@ -3586,6 +3733,9 @@ contains
 
   end subroutine printSccHeader
 
+  subroutine printBlankLine()
+    write(stdOut,*)
+  end subroutine printBlankLine
 
   !> Prints info about scc convergence.
   subroutine printSccInfo(tDftbU, iSccIter, Eelec, diffElec, sccErrorQ)
@@ -3622,8 +3772,14 @@ contains
 
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
+    write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
+        & "eV"
     write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-        & Hartree__eV * energy%EMermin," eV"
+        & Hartree__eV * energy%EMermin, "eV"
+    if (energy%EForceRelated /= 0.0_dp) then
+      write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV'
+    end if
 
   end subroutine printEnergies
 
@@ -3713,12 +3869,12 @@ contains
     type(TEnergies), intent(in) :: energy
 
     if (tSetFillingTemp) then
-      write(stdOut, format2U) 'Electronic Temperature:', tempElec, 'H', tempElec / Boltzmann, 'K'
+      write(stdOut, format2U) 'Electronic Temperature', tempElec, 'H', tempElec / Boltzmann, 'K'
     end if
     if (tEfield) then
       write(stdOut, format1U1e) 'External E field', absEField, 'au', absEField * au__V_m, 'V/m'
     end if
-    write(stdOut, format2U) "MD Temperature:", tempIon, "H", tempIon / Boltzmann, "K"
+    write(stdOut, format2U) "MD Temperature", tempIon, "H", tempIon / Boltzmann, "K"
     write(stdOut, format2U) "MD Kinetic Energy", energy%Ekin, "H", Hartree__eV * energy%Ekin, "eV"
     write(stdOut, format2U) "Total MD Energy", energy%EMerminKin, "H",&
         & Hartree__eV * energy%EMerminKin, "eV"
@@ -3792,8 +3948,8 @@ contains
   !> Prepares binary eigenvector file for writing.
   subroutine prepareEigvecFileBin(fd, runId, fileName)
 
-    !> File descriptor to use
-    integer, intent(in) :: fd
+    !> New file ID for the results
+    integer, intent(out) :: fd
 
     !> Run id to write into the file header
     integer, intent(in) :: runId
@@ -3805,9 +3961,9 @@ contains
 
     if (present(fileName)) then
       write(tmpStr, "(A,A)") trim(fileName), ".bin"
-      open(fd, file=tmpStr, action="write", status="replace", form="unformatted")
+      open(newunit=fd, file=tmpStr, action="write", status="replace", form="unformatted")
     else
-      open(fd, file=eigvecBin, action="write", status="replace", form="unformatted")
+      open(newunit=fd, file=eigvecBin, action="write", status="replace", form="unformatted")
     end if
     write(fd) runId
 
@@ -3817,8 +3973,8 @@ contains
   !> Prepares text eigenvector file for writing.
   subroutine prepareEigvecFileTxt(fd, t2Component, fileName)
 
-    !> File descriptor to use
-    integer, intent(in) :: fd
+    !> New file ID for the results
+    integer, intent(out) :: fd
 
     !> Whether eigenvectors present 2-component Pauli vectors
     logical, intent(in) :: t2Component
@@ -3830,14 +3986,14 @@ contains
 
     if (present(fileName)) then
       write(tmpStr, "(A,A)") trim(fileName), ".out"
-      open(fd, file=tmpStr, action="write", status="replace", position="rewind")
+      open(newunit=fd, file=tmpStr, action="write", status="replace", position="rewind")
     else
-      open(fd, file=eigvecOut, action="write", status="replace", position="rewind")
+      open(newunit=fd, file=eigvecOut, action="write", status="replace", position="rewind")
     end if
     write(fd, "(A/)") "Coefficients and Mulliken populations of the atomic orbitals"
     if (t2Component) then
-      write(fd,"(A/)")"   Atom   Orb  up spin coefficients       &
-          & down spin coefficients         charge      x           y           z"
+      write(fd,"(A/)")"   Atom   Orb  up spin coefficients        down spin coefficients        &
+          & charge      x           y           z"
     end if
 
   end subroutine prepareEigvecFileTxt
@@ -4164,7 +4320,7 @@ contains
   subroutine prepareProjEigvecFiles(fd, fileNames)
 
     !> File descriptor for a not yet opened file for each region
-    integer, intent(in) :: fd(:)
+    integer, intent(out) :: fd(:)
 
     !> List of region file names
     type(ListCharLc), intent(inout) :: fileNames
@@ -4174,7 +4330,7 @@ contains
 
     do iReg = 1, size(fd)
       call get(fileNames, tmpStr, iReg)
-      open(fd(iReg), file=tmpStr, action="write", status="replace", form="formatted")
+      open(newunit=fd(iReg), file=tmpStr, action="write", status="replace", form="formatted")
     end do
 
   end subroutine prepareProjEigvecFiles
@@ -4210,24 +4366,24 @@ contains
     !> Number of geometry steps
     integer, intent(in) :: nGeoSteps
 
-    integer :: ii
+    integer :: ii, fdEsp
     character(lc) :: tmpStr
 
     if (env%tGlobalMaster) then
       if (esp%tAppendEsp) then
-        open(esp%fdEsp, file=trim(esp%EspOutFile), position="append")
+        open(newunit=fdEsp, file=trim(esp%EspOutFile), position="append")
       else
-        open(esp%fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
+        open(newunit=fdEsp, file=trim(esp%EspOutFile), action="write", status="replace")
       end if
       ! Header with presence of external field and regular grid size
       write(tmpStr, "('# ', L2, 3I6, 1x, I0)")allocated(esp%extPotential),&
           & esp%gridDimensioning, size(esp%intPotential)
       if (.not.esp%tAppendEsp .or. iGeoStep == 0) then
-        write(esp%fdEsp,"(A)")trim(tmpStr)
+        write(fdEsp,"(A)")trim(tmpStr)
         if (all(esp%gridDimensioning > 0)) then
-          write(esp%fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
+          write(fdEsp,"(A,3E20.12)")'#',esp%origin* Bohr__AA
           do ii = 1, 3
-            write(esp%fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
+            write(fdEsp,"(A,3E20.12)")'#',esp%axes(:,ii)* Bohr__AA
           end do
         end if
       end if
@@ -4243,36 +4399,36 @@ contains
       if (all(esp%gridDimensioning > 0)) then
         ! Regular point distribution, do not print positions
         if (allocated(esp%extPotential)) then
-          write(esp%fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
+          write(fdEsp,"(A,A)")'# Internal (V)        External (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(2E20.12)")-esp%intPotential(ii) * Hartree__eV,&
+            write(fdEsp,"(2E20.12)")-esp%intPotential(ii) * Hartree__eV,&
                 & -esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(esp%fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
+          write(fdEsp,"(A,A)")'# Internal (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(E20.12)")-esp%intPotential(ii) * Hartree__eV
+            write(fdEsp,"(E20.12)")-esp%intPotential(ii) * Hartree__eV
           end do
         end if
       else
         ! Scattered points, print locations
         if (allocated(esp%extPotential)) then
-          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)       &
-              & External (V)', trim(tmpStr)
+          write(fdEsp,"(A,A)")'#           Location (AA)             Internal (V)        External&
+              & (V)', trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+            write(fdEsp,"(3E12.4,2E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
                 & -esp%intPotential(ii) * Hartree__eV, -esp%extPotential(ii) * Hartree__eV
           end do
         else
-          write(esp%fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
+          write(fdEsp,"(A,A)")'#           Location (AA)             Internal (V)',&
               & trim(tmpStr)
           do ii = 1, size(esp%espGrid,dim=2)
-            write(esp%fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
+            write(fdEsp,"(3E12.4,E20.12)")esp%espGrid(:,ii) * Bohr__AA,&
                 & -esp%intPotential(ii) * Hartree__eV
           end do
         end if
       end if
-      close(esp%fdEsp)
+      close(fdEsp)
     end if
 
   end subroutine writeEsp
