@@ -135,7 +135,6 @@ module initprogram
   !> nr of different types (nAtom)
   integer :: nType
 
-
   !> data type for atomic orbital information
   type(TOrbitals), target :: orb
 
@@ -618,27 +617,26 @@ module initprogram
   !> data type for linear response
   type(linresp), save :: lresp
 
-  
-  !>Whether to run a rangeseparated calculation
+  !> Whether to run a range separated calculation
   logical :: tRangeSep 
 
-  !> Rangeseparation data
+  !> Range Separation data
   type(RangeSepFunc), allocatable :: rangeSep
 
-  !> DeltaRhos for calculation of rangeseperated Hamiltonian
-  real(dp), allocatable, target :: deltaRhoIn(:), deltaRhoOut(:)
+  !> DeltaRho input for calculation of range separated Hamiltonian
+  real(dp), allocatable, target :: deltaRhoIn(:)
 
-  !> Holds change in deltaRho between SCC steps for rangeseparation
+  !> DeltaRho output from calculation of range separated Hamiltonian
+  real(dp), allocatable, target :: deltaRhoOut(:)
+
+  !> Holds change in deltaRho between SCC steps for range separation
   real(dp), allocatable :: deltaRhoDiff(:)
 
-  !> DeltaRhos for rangeseparation in matrix form
-  real(dp), pointer :: deltaRhoInSqr(:,:,:), deltaRhoOutSqr(:,:,:)
+  !> DeltaRho input for range separation in matrix form
+  real(dp), pointer :: deltaRhoInSqr(:,:,:)
 
-  !> k-dependent density matrices for PbcRangeSep
-  real(dp), allocatable, target :: deltaRhoInK(:), deltaRhoOutK(:), deltaRhoDiffK(:)
-
-  !> In matrix form 
-  real(dp), pointer :: deltaRhoInSqrK(:,:,:,:), deltaRhoOutSqrK(:,:,:,:)
+  !> DeltaRho output from range separation in matrix form
+  real(dp), pointer :: deltaRhoOutSqr(:,:,:)
 
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
@@ -2017,27 +2015,21 @@ contains
       qOutRed = 0.0_dp
     end if
 
-    !> Initialize rangeseparated
+    !> Initialize range separated
     if (tRangeSep) then
-       allocate(rangeSep)
-       call rangeSep%initModule(nAtom, species0, speciesName,hubbU(1,:),&
-            &input%ctrl%screeningThreshold,input%ctrl%omega,nkPoint,tSpin,&
-            &input%ctrl%tTabulatedGamma,input%ctrl%rangeSepAlgorithm)
-       allocate(deltaRhoIn(nOrb * nOrb * nSpin))
-       allocate(deltaRhoOut(nOrb * nOrb * nSpin))
-       allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
-    !> Initialize rangeseparated with pbc
-       allocate(deltaRhoInK(nOrb * nOrb * nSpin * nKPoint))
-       allocate(deltaRhoOutK(nOrb * nOrb * nSpin * nKPoint))
-       allocate(deltaRhoDiffK(nOrb * nOrb * nSpin * nKPoint))
-    !>Pointers required by screening algorithm
-       deltaRhoInSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoIn(1:nOrb*nOrb*nSpin)
-       deltaRhoOutSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoOut(1:nOrb*nOrb*nSpin)
-       deltaRhoInSqrK(1:nOrb,1:nOrb,1:nSpin,1:nKPoint) => deltaRhoInK(1:nOrb*nOrb*nSpin*nKPoint)
-       deltaRhoOutSqrK(1:nOrb,1:nOrb,1:nSpin,1:nKPoint) => deltaRhoOutK(1:nOrb*nOrb*nSpin*nKPoint)
-    !> Required by screening algorithm
-       nMixElements = nOrb * nOrb * nSpin
-       deltaRhoInSqr(:,:,:) = 0.0_dp     
+      allocate(rangeSep)
+      call rangeSep%initModule(nAtom, species0, speciesName,hubbU(1,:),&
+          &input%ctrl%screeningThreshold,input%ctrl%omega,nkPoint,tSpin,&
+          &input%ctrl%tTabulatedGamma,input%ctrl%rangeSepAlgorithm)
+      allocate(deltaRhoIn(nOrb * nOrb * nSpin))
+      allocate(deltaRhoOut(nOrb * nOrb * nSpin))
+      allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
+      !>Pointers required by screening algorithm
+      deltaRhoInSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoIn(1:nOrb*nOrb*nSpin)
+      deltaRhoOutSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoOut(1:nOrb*nOrb*nSpin)
+      !> Required by screening algorithm
+      nMixElements = nOrb * nOrb * nSpin
+      deltaRhoInSqr(:,:,:) = 0.0_dp
     end if
 
     ! Initialize Mulliken charges
@@ -3417,6 +3409,10 @@ contains
     if (tRangeSep) then
       if (withMpi) then
         call error("Range separated calculations do not work with MPI yet")
+      end if
+      if (tForces .and. nSpin > 1) then
+        call error("Range separated forces not currently implemented for spin polarized&
+            & calculations")
       end if
     end if
 

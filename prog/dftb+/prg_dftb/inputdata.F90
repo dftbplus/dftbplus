@@ -435,7 +435,6 @@ module inputdata_module
     real(dp) :: screeningThreshold
     logical :: tRangeSep
     real(dp) :: omega
-    character(lc) :: rangeSepType
     logical :: tTabulatedGamma
     character(lc) :: rangeSepAlgorithm
 

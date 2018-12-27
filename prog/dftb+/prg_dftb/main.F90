@@ -186,6 +186,8 @@ contains
     !> All of the excited energies actuall solved by Casida routines (if used)
     real(dp), allocatable :: energiesCasida(:)
 
+    integer :: iSpin
+
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
 
@@ -341,7 +343,15 @@ contains
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (tRangeSep) then
-           call denseSubtractDensityOfAtoms_nospin(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
+
+          if(nSpin == 2) then
+            do iSpin = 1, 2
+              call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr,iSpin)
+            end do
+          else
+            call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
+          end if
+          !call denseSubtractDensityOfAtoms_nospin(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
         end if
 
         if (tWriteBandDat) then
@@ -2092,7 +2102,7 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
-    integer :: iKS, iSpin
+    integer :: iKS, iSpin, ii
 
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
@@ -3051,7 +3061,7 @@ contains
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
         & + energy%Eext + energy%e3rd
-    !> Add exchange conribution for rangeseprated calculations
+    !> Add exchange conribution for range separated calculations
     if(allocated(rangeSep)) then
        call rangeSep%addLREnergy(energy%Eelec)
     end if
@@ -3333,9 +3343,8 @@ contains
           call unpackHS(SSqrReal, over, neighbourList%iNeighbour,&
                & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell)
           call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
-          ! RangeSep: for spin-unrestricted calculation
-          ! the initial guess should be equally distributed to
-          ! alpha and beta density matrices
+          ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
+          ! distributed to alpha and beta density matrices
           if(nSpin == 2) then
              qInput(:,:,1) = qInput(:,:,1) + q0(:,:,1)*0.5_dp
              qInput(:,:,2) = qInput(:,:,2) + q0(:,:,1)*0.5_dp
@@ -4646,9 +4655,13 @@ contains
     if (allocated(rangeSep)) then
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
-      call rangeSep%addLRGradients(derivs, NonSccDeriv, deltaRhoOutSqr(:,:,1), skHamCont,&
-          & skOverCont, coord, species, orb, denseDesc%iAtomStart, SSqrReal,&
-          & neighbourList%iNeighbour, nNeighbourSK)
+      if (size(deltaRhoOutSqr, dim=3) == 1) then
+        call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr(:,:,1), skHamCont,&
+            & skOverCont, coord, species, orb, denseDesc%iAtomStart, SSqrReal,&
+            & neighbourList%iNeighbour, nNeighbourSK)
+      else
+        call error("Range separated forces only spin free at the moment")
+      end if
     end if
 
     call getERepDeriv(tmpDerivs, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&

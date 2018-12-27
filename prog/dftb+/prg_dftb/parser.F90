@@ -1461,10 +1461,10 @@ contains
       call getNodeName(value, buffer)
       select case(char(buffer))
       case ("nb")
-        write(*,*) "Using the Neighbor list-based algorithm"
+        write(StdOut,*) "Using the Neighbor list-based algorithm"
         ctrl%rangeSepAlgorithm = char(buffer)
       case ("tr")
-        write(*,*) "Using the Thresholding algorithm"
+        write(StdOut,*) "Using the Thresholding algorithm"
         ctrl%rangeSepAlgorithm = char(buffer)
         call getChildValue(value, "Threshold", ctrl%screeningThreshold, 0.1e-5_dp)
       case default
@@ -1491,7 +1491,6 @@ contains
 
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
           & skInterMeth, repPoly, rangeSepSK=rangeSepSK)
-      ctrl%rangeSepType = rangeSepSk%type
       ctrl%omega = rangeSepSk%omega
 
     end if

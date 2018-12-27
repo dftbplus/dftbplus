@@ -306,12 +306,11 @@ contains
     read(fp, *, iostat=iostat) chdummy, omega
     call checkioerror(iostat, fname, "Error in reading range-sep method and range-sep parameter")
 
-    if (chdummy == "LC") then
-       rangeSepSK%type = "LCDFTB"
-    else
-       write(chdummy, "(A)") "Unknown range-separation method"
-       call error(chdummy)
+    if (chdummy /= "LC") then
+      write(chdummy, "(A,A,A)") "Unknown range-separation method in SK file '", trim(fname), "'"
+      call error(chdummy)
     end if
+
     if (omega < 0.0_dp) then 
       write(chdummy, "(A)") "Range-separation parameter is negative"
       call error(chdummy)
