@@ -29,3 +29,8 @@ mpifx.o += _extlib_mpifx
 scalapackfx.o: _extlib_scalapackfx _extlib_lapack
 scalapackfx.o += _extlib_scalapackfx _extlib_lapack
 #:endif
+
+#:if WITH_TRANSPORT
+negf_int.o: _extlib_libnegf
+negf_int.o += _extlib_libnegf
+#:endif

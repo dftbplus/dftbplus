@@ -55,7 +55,7 @@ contains
   subroutine initGlobalEnv()
 
   #:if WITH_MPI
-    call mpifx_init()
+    call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
     call globalMpiComm%init()
     if (globalMpiComm%master) then
       stdOut = stdOut0
@@ -104,7 +104,10 @@ contains
     !> Error code to emit (default: 1)
     integer, intent(in), optional :: errorCode
 
-    integer :: error, errorCode0
+    integer :: errorCode0
+  #:if WITH_MPI
+    integer :: error
+  #:endif
 
     if (.not. present(errorCode)) then
       errorCode0 = 1

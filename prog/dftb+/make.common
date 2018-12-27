@@ -79,6 +79,7 @@ endef
 _mod_%:
 	@[ -f $< ] && touch $@
 
+.PRECIOUS: %.f90
 
 ############################################################################
 # External libraries
@@ -131,12 +132,25 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
-
 ifeq ($(strip $(WITH_MPI)),1)
   #
   # MPI settings
   #
   FYPPOPT += -DWITH_MPI -DWITH_SCALAPACK
+
+  # TRANSPORT
+  ifeq ($(strip $(WITH_TRANSPORT)),1)
+    L_INCS += -I$(BUILDROOT)/external/libnegf/libnegf
+    L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
+    L_INCS += -I$(BUILDROOT)/external/poisson
+    LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lnegf -lsparskit -lsyscalls -lc
+    POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
+    COMPILED_EXTERNALS += _extlib_mudpack
+    L_LIBS += $(if $(filter _extlib_libnegf, $^), $(POISSON_LIBS))
+    COMPILED_EXTERNALS += _extlib_libnegf
+    L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
+    FYPPOPT += -DWITH_TRANSPORT
+  endif
 
   MPIFX_LIBS := -L$(BUILDROOT)/external/mpifx -lmpifx
   MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
@@ -155,6 +169,7 @@ ifeq ($(strip $(WITH_MPI)),1)
   PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
   L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
   L_LIBS += $(L_LIBS_LAPACKBLAS)
+
 else
   #
   # NON-MPI settings

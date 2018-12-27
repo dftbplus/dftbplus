@@ -197,9 +197,10 @@ contains
       end do
       ! reserved for future expansion for repulsive potentials using higher
       ! order terms only:
-      do ii = powMin1, 3, -1
-        xh = xh * rrr
-      end do
+      ! Commented as it gives a warning
+      !do ii = powMin1, 3, -1
+      !  xh = xh * rrr
+      !end do
       d2 = xh
     end if
 

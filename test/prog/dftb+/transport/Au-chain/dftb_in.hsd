@@ -1,0 +1,104 @@
+geometry = genformat {
+<<< "Au-chain.gen"
+}
+
+Transport{
+   Device{
+     AtomRange=           1          12
+     FirstLayerAtoms =      1     5     9
+   }
+   Contact{
+     Id = "source"
+     AtomRange=          13          20
+     Potential [eV] = 0.0
+     FermiLevel [eV] = -6.3051829983324215  
+   }
+   Contact{
+     Id = "drain"
+     AtomRange=          21          28
+     Potential [eV] = 0.0
+     FermiLevel [eV] = -6.3051829983324215 
+   }
+   #Task= ContactHamiltonian{
+   #   contactId = "drain"
+   #}
+}
+
+hamiltonian = dftb {
+  scc = yes 
+  scctolerance = 1e-6
+  maxscciterations = 100
+  readInitialCharges = Yes
+  orbitalResolvedSCC= Yes
+
+  maxangularmomentum = {
+    Au = d
+  }
+
+  filling = Fermi {
+    Temperature [K] = 0 
+  }
+
+  KPointsAndWeights = SupercellFolding {
+   1 0 0
+   0 1 0 
+   0 0 1 
+   0.0 0.0 0.0
+  }
+
+  Electrostatics = Poisson {
+    #Poissonbox [Angstrom] = 20.0 20.0 20.0
+    MinimalGrid [Angstrom] = 0.4 0.4 0.4
+    AtomDensityCutoff [Angstrom] = 7.05
+    CutoffCheck = No  
+    SavePotential = Yes 
+    PoissonAccuracy = 1e-5
+    BuildBulkPotential = Yes
+    #RecomputeAfterDensity = Yes
+  }
+
+  #!Electrostatics = gammafunctional{}
+ 
+ 
+  slaterkosterfiles = {
+    Au-Au = "Au-Au.skf"
+  }
+
+  Eigensolver = GreensFunction{
+     Verbosity = 51   
+     RealAxisPoints = 100
+     EnclosedPoles = 3
+  }
+  
+  #!Eigensolver = DivideAndConquer{} 
+}
+
+Analysis{
+  TunnelingAndDOS{
+    EnergyRange [eV] = -0.0  0.0
+    EnergyStep [eV] = 0.02 
+  }
+}
+
+!Analysis{}
+
+Parallel = {
+  Blacs{ 
+    BlockSize = 4 
+  }
+
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+options = {
+  writeautotesttag = yes
+  writeChargesAsText = yes 
+  readChargesAsText = yes 
+}
+
+parseroptions = {
+  parserversion = 6
+}
+ 

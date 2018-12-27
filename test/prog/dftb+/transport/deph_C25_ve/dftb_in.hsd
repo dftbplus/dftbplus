@@ -1,0 +1,97 @@
+Geometry = GenFormat {
+<<< 'C25.gen'
+}
+
+Transport {
+  Device {
+    AtomRange = 1 5
+    FirstLayerAtoms =  1
+  }
+  Contact {
+    Id = "source"
+    AtomRange = 6 15
+    FermiLevel [eV] = -5.6407  
+    Potential [eV] =  4.
+    #WideBand = Yes   
+    #LevelSpacing = 0.231
+    #WriteSelfEnergy = Yes
+    #ReadSelfEnergy = Yes
+    #WriteSurfaceGF = Yes
+    #ReadSurfaceGF = Yes
+    Temperature = 0.00001
+  }
+  Contact {
+    Id = "drain"
+    AtomRange = 16 25
+    FermiLevel [eV] = -5.6407  
+    Potential [eV] = -4.
+    #WideBand = Yes  
+    #LevelSpacing = 0.231
+    #WriteSelfEnergy = Yes
+    #ReadSelfEnergy = Yes
+    #WriteSurfaceGF = Yes
+    #ReadSurfaceGF = Yes
+    Temperature = 0.00001
+  }    
+  Task = UploadContacts {}
+}
+
+Hamiltonian = DFTB {
+  #SCC = Yes
+  #SCCTolerance = 1e-6
+  #EwaldParameter = 0.1
+  #ReadInitialCharges = Yes
+  MaxAngularMomentum = {
+    C = "p"
+  }  
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = ""
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  Electrostatics = Poisson {
+    Poissonbox [Angstrom] = 45.0 10.0 10.0
+    #MinimalGrid [Angstrom] = 0.5 0.5 0.5
+    #SavePotential = Yes
+  }
+  Eigensolver = TransportOnly{}
+  #Eigensolver = GreensFunction {}
+  #Mixer = Broyden {
+  #  MixingParameter = 0.02
+  #}
+}
+
+# ************************************
+# NOTE: Dephasing is not working yet
+# ************************************  
+Dephasing{ 
+ VibronicElastic {
+   Coupling [eV] = Constant { 0.5 }
+   MaxSCBAIterations = 100
+ }
+}
+
+Analysis = {
+  TunnelingAndDos {
+    Verbosity = 101
+    EnergyRange [eV] = -9.  -2.   
+    EnergyStep [eV] =0.02
+    Region = {
+    Atoms = 1:5
+    }
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 6
+}
+
+Parallel = {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

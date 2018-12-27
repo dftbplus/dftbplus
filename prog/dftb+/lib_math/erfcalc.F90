@@ -86,8 +86,6 @@ contains
     !> Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
     integer, intent(in) :: jint
 
-    real(dp), parameter :: xinf = 1.79E308_dp
-    real(dp), parameter :: xneg = -26.628_dp
     real(dp), parameter :: xsmall = 1.11E-16_dp
     real(dp), parameter :: xbig = 26.543_dp
     real(dp), parameter :: xhuge = 6.71E7_dp
@@ -95,12 +93,10 @@ contains
 
     real(dp), parameter :: four = 4.0_dp
     real(dp), parameter :: one = 1.0_dp
-    real(dp), parameter :: half = 0.5_dp
-    real(dp), parameter :: two = 2.0_dp
     real(dp), parameter :: zero = 0.0_dp
     real(dp), parameter :: sqrpi = 5.6418958354775628695E-1_dp
     real(dp), parameter :: thresh = 0.46875E0_dp
-    real(dp), parameter :: sixten = 16.0_dp
+    real(dp), parameter :: sixteen = 16.0_dp
     real(dp), parameter :: aa(5) = [&
         & 3.16112374387056560E00_dp, 1.13864154151050156E02_dp,&
         & 3.77485237685302021E02_dp, 3.20937758913846947E03_dp,&
@@ -163,7 +159,7 @@ contains
       end do
       res = (xnum + cc(8)) / (xden + dd(8))
       if (jint /= 2) then
-        ysq = aint(yy * sixten) / sixten
+        ysq = aint(yy * sixteen) / sixteen
         del = (yy - ysq) * (yy + ysq)
         res = exp(-ysq * ysq) * exp(-del) * res
       end if
@@ -174,12 +170,12 @@ contains
       res = zero
       if (yy >= xbig) then
         if ((jint /= 2) .or. (yy >= xmax)) then
-          call fixnegf_()
+          call fixnegf_dp(res, ysq, del, yy, jint, xx)
           return
         end if
         if (yy >= xhuge) then
           res = sqrpi / yy
-          call fixnegf_()
+          call fixnegf_dp(res, ysq, del, yy, jint, xx)
           return
         end if
       end if
@@ -193,39 +189,50 @@ contains
       res = ysq *(xnum + pp(5)) / (xden + qq(5))
       res = (sqrpi -  res) / yy
       if (jint /= 2) then
-        ysq = aint(yy * sixten) / sixten
+        ysq = aint(yy * sixteen) / sixteen
         del = (yy - ysq) * (yy + ysq)
         res = exp(-ysq*ysq) * exp(-del) * res
       end if
     end if
-    call fixnegf_()
-
-  contains
-
-
-    !> fix up for negative argument, erf, etc.
-    subroutine fixnegf_()
-      if (jint == 0) then
-        res = (half - res) + half
-        if (xx < zero) res = -res
-      else if (jint == 1) then
-        if (xx < zero) res = two - res
-      else
-        if (xx < zero) then
-          if (xx < xneg) then
-            res = xinf
-          else
-            ysq = aint(xx * sixten) / sixten
-            del = (xx - ysq) * (xx + ysq)
-            yy = exp(ysq * ysq) * exp(del)
-            res = (yy + yy) - res
-          end if
-        end if
-      end if
-    end subroutine fixnegf_
+    call fixnegf_dp(res, ysq, del, yy, jint, xx)
 
   end subroutine erfcalc_calcdouble
 
+  !> fix up for negative argument, erf, etc.
+  subroutine fixnegf_dp(res, ysq, del, yy, jint, xx)
+    real(dp), intent(inout) :: res
+    real(dp), intent(inout) :: ysq
+    real(dp), intent(inout) :: del
+    real(dp), intent(inout) :: yy
+    integer, intent(in) :: jint
+    real(dp), intent(in) :: xx
+
+    real(dp), parameter :: zero = 0.0_dp
+    real(dp), parameter :: half = 0.5_dp
+    real(dp), parameter :: two = 2.0_dp
+    real(dp), parameter :: sixteen = 16.0_dp
+    real(dp), parameter :: xneg = -26.628_dp
+    real(dp), parameter :: xinf = 1.79E308_dp
+
+    if (jint == 0) then
+      res = (half - res) + half
+      if (xx < zero) res = -res
+    else if (jint == 1) then
+      if (xx < zero) res = two - res
+    else
+      if (xx < zero) then
+        if (xx < xneg) then
+          res = xinf
+        else
+          ysq = aint(xx * sixteen) / sixteen
+          del = (xx - ysq) * (xx + ysq)
+          yy = exp(ysq * ysq) * exp(del)
+          res = (yy + yy) - res
+        end if
+      end if
+    end if
+
+  end subroutine fixnegf_dp
 
   !> Calculates the appropriate function in single precision.
   subroutine erfcalc_calcsingle(arg, res, jint)
@@ -239,8 +246,6 @@ contains
     !> Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
     integer, intent(in) :: jint
 
-    real(sp), parameter :: xinf = 3.40E+38_sp
-    real(sp), parameter :: xneg = -9.382E0_sp
     real(sp), parameter :: xsmall = 5.96E-8_sp
     real(sp), parameter :: xbig = 9.194E0_sp
     real(sp), parameter :: xhuge = 2.90E3_sp
@@ -248,12 +253,10 @@ contains
 
     real(sp), parameter :: four = 4.0_sp
     real(sp), parameter :: one = 1.0_sp
-    real(sp), parameter :: half = 0.5_sp
-    real(sp), parameter :: two = 2.0_sp
     real(sp), parameter :: zero = 0.0_sp
     real(sp), parameter :: sqrpi = 5.6418958354775628695E-1_sp
     real(sp), parameter :: thresh = 0.46875E0_sp
-    real(sp), parameter :: sixten = 16.0_sp
+    real(sp), parameter :: sixteen = 16.0_sp
     real(sp), parameter :: aa(5) = [&
         & 3.16112374387056560E00_sp, 1.13864154151050156E02_sp,&
         & 3.77485237685302021E02_sp, 3.20937758913846947E03_sp,&
@@ -316,7 +319,7 @@ contains
       end do
       res = (xnum + cc(8)) / (xden + dd(8))
       if (jint /= 2) then
-        ysq = aint(yy * sixten) / sixten
+        ysq = aint(yy * sixteen) / sixteen
         del = (yy - ysq) * (yy + ysq)
         res = exp(-ysq * ysq) * exp(-del) * res
       end if
@@ -327,12 +330,12 @@ contains
       res = zero
       if (yy >= xbig) then
         if ((jint /= 2) .or. (yy >= xmax)) then
-          call fixnegf_()
+          call fixnegf_sp(res, ysq, del, yy, jint, xx)
           return
         end if
         if (yy >= xhuge) then
           res = sqrpi / yy
-          call fixnegf_()
+          call fixnegf_sp(res, ysq, del, yy, jint, xx)
           return
         end if
       end if
@@ -346,37 +349,48 @@ contains
       res = ysq *(xnum + pp(5)) / (xden + qq(5))
       res = (sqrpi -  res) / yy
       if (jint /= 2) then
-        ysq = aint(yy * sixten) / sixten
+        ysq = aint(yy * sixteen) / sixteen
         del = (yy - ysq) * (yy + ysq)
         res = exp(-ysq*ysq) * exp(-del) * res
       end if
     end if
-    call fixnegf_()
-
-  contains
-
-
-    !> fix up for negative argument, erf, etc.
-    subroutine fixnegf_()
-      if (jint == 0) then
-        res = (half - res) + half
-        if (xx < zero) res = -res
-      else if (jint == 1) then
-        if (xx < zero) res = two - res
-      else
-        if (xx < zero) then
-          if (xx < xneg) then
-            res = xinf
-          else
-            ysq = aint(xx * sixten) / sixten
-            del = (xx - ysq) * (xx + ysq)
-            yy = exp(ysq * ysq) * exp(del)
-            res = (yy + yy) - res
-          end if
-        end if
-      end if
-    end subroutine fixnegf_
+    call fixnegf_sp(res, ysq, del, yy, jint, xx)
 
   end subroutine erfcalc_calcsingle
+
+  !> fix up for negative argument, erf, etc.
+  subroutine fixnegf_sp(res, ysq, del, yy, jint, xx)
+    real(sp), intent(inout) :: res
+    real(sp), intent(inout) :: ysq
+    real(sp), intent(inout) :: del
+    real(sp), intent(inout) :: yy
+    integer, intent(in) :: jint
+    real(sp), intent(in) :: xx
+
+    real(sp), parameter :: zero = 0.0_sp
+    real(sp), parameter :: half = 0.5_sp
+    real(sp), parameter :: two = 2.0_sp
+    real(sp), parameter :: sixteen = 16.0_sp
+    real(sp), parameter :: xneg = -9.382E0_sp
+    real(sp), parameter :: xinf = 3.40E+38_sp
+
+    if (jint == 0) then
+      res = (half - res) + half
+      if (xx < zero) res = -res
+    else if (jint == 1) then
+      if (xx < zero) res = two - res
+    else
+      if (xx < zero) then
+        if (xx < xneg) then
+          res = xinf
+        else
+          ysq = aint(xx * sixteen) / sixteen
+          del = (xx - ysq) * (xx + ysq)
+          yy = exp(ysq * ysq) * exp(del)
+          res = (yy + yy) - res
+        end if
+      end if
+    end if
+  end subroutine fixnegf_sp
 
 end module erfcalc

@@ -53,7 +53,6 @@ Hamiltonian = DFTB {
   }
 
   RangeSep = {
-    Enable = Yes
     Algorithm = NB {}
   }
 }

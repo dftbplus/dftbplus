@@ -1,0 +1,76 @@
+Geometry = GenFormat {
+    2  C
+    Fe
+    1 1 0.00000000 0.00000000 0.00000000
+    2 1 2.18194133 0.00000000 0.00000000
+}
+
+Driver = ConjugateGradient {
+    MovedAtoms = {2}
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1e-10  # very small!
+    OrbitalResolvedSCC = Yes
+    MaxSCCIterations = 1000
+    Mixer = Anderson {}
+    MaxAngularMomentum = {
+        Fe = "d"
+    }
+    ReadInitialCharges = No
+    SpinPolarisation = nonColinear { # each atom starts with a spin of 3x
+        InitialSpins = {
+            AllAtomSpins = {
+                0.0 0.0 -3.0
+                0.0 0.0  3.0
+            }
+        }
+    }
+    SpinConstants = {
+        Fe = {
+            -0.013 -0.009 -0.003
+            -0.009 -0.011 -0.001
+            -0.003 -0.001 -0.015
+        }
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 10
+    }
+    SlaterKosterFiles = {
+        Fe-Fe = "./Fe-Fe.skf"
+    }
+    SpinOrbit = {
+        Fe [eV] = {0.0 0.0 0.058}
+        Dual = No
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    WriteEigenvectors = Yes
+    EigenvectorsAsTxt = Yes
+    AtomResolvedEnergies = Yes
+    ProjectStates = {
+        Region = {
+            Atoms = Fe
+            ShellResolved = Yes
+            Label = "Fe"
+        }
+    }
+}
+
+ParserOptions = {
+    ParserVersion = 5
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation
+    # with MPI-binary. (Check the manual before using this in
+    # production runs!)
+    UseOmpThreads = Yes
+}
+

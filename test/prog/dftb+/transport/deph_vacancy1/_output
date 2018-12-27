@@ -1,0 +1,148 @@
+================================================================================
+==
+==           DFTB+ (Density Functional Tight Binding and much more)
+==
+==                 DFTB++1704 version with quantum transport
+==
+==                                  based on
+==
+==                          Unofficial release (r5479)
+==
+==                            (ParserVersion = 4)
+==
+================================================================================
+
+********************************************************************************
+** Parsing and initializing
+********************************************************************************
+
+Interpreting input file 'dftb_in.hsd'
+--------------------------------------------------------------------------------
+Contacts:
+Name of contact 1 : source                                            
+   AtomRange           =    136   271
+   Temperature         =    -1.000000
+   Potential           =     0.073499
+   tWideBand           =            F
+   LevelSpacing        =     0.000000
+   FermiLevel          =    -0.173100
+   FermiLevel          =     0.000000
+   tWriteSelfEnergy    =            F
+   tReadSelfEnergy     =            F
+   tWriteSurfaceGF     =            F
+   tReadSurfaceGF      =            F
+Name of contact 2 : drain                                             
+   AtomRange           =    272   407
+   Temperature         =    -1.000000
+   Potential           =    -0.073499
+   tWideBand           =            F
+   LevelSpacing        =     0.000000
+   FermiLevel          =    -0.173100
+   FermiLevel          =     0.000000
+   tWriteSelfEnergy    =            F
+   tReadSelfEnergy     =            F
+   tWriteSurfaceGF     =            F
+   tReadSurfaceGF      =            F
+Reading SK-files:
+  ../../../slako/mio-0-1/C-C.skf
+  ../../../slako/mio-0-1/C-H.skf
+  ../../../slako/mio-0-1/H-C.skf
+  ../../../slako/mio-0-1/H-H.skf
+Done.
+Vibronic dephasing model
+
+
+Processed input in HSD format written to 'dftb_pin.hsd'
+
+Starting initialization...
+--------------------------------------------------------------------------------
+PGRID:ALLPROC: 1 x 1
+PGRID:ATOM: 1 x 1
+ (negf_init) CONTACT INFO #           1
+ Temperature:    0.0000000000000000     
+ Potential (with built-in):    7.3498649067268149E-002
+ eFermi:  -0.17310034335077659     
+
+ (negf_init) CONTACT INFO #           2
+ Temperature:    0.0000000000000000     
+ Potential (with built-in):   -7.3498649067268135E-002
+ eFermi:  -0.17310034335077659     
+
+ Electro-chemical potentials:  -0.24659899241804473       -9.9601694283508457E-002
+ Mode:                         Static calculation
+Contact upload:              Yes
+Contact calculation:         No
+Use Poisson solver:          No
+ Self consistent charges:      No
+ Spin polarisation:            No
+ Nr. of up electrons:            742.000000
+ Nr. of down electrons:          742.000000
+ Periodic boundaries:          No
+ Diagonalizer:                 Transport only (Green's functions)
+ Electronic temperature:             0.100000E-07
+ Included shells:               C:  s, p
+                                H:  s
+ Extra options:
+--------------------------------------------------------------------------------
+
+********************************************************************************
+** Geometry step: 0
+********************************************************************************
+
+  Structure info:
+  Number of PLs:           2
+  PLs coupled to contacts:           2           1
+
+
+================================================================================
+                             COMPUTATION OF TRANSPORT         
+================================================================================
+
+ Transport is started
+ Number of States = 1484
+ Hamiltonian is written to the file H_dftb.mtr
+ Overlap is written to the file S_dftb.mtr
+ Hamiltonian is red from the file H_dftb.mtr
+ Overlap is red from the file S_dftb.mtr
+ Löwdin orthogonalization for device only is done! 
+
+ Setting local block diagonal (BD) elastic dephasing model
+
+================================================================================
+                           LibNEGF: Current calculation
+================================================================================
+
+>>> The Meir-Wingreen transport is started.
+INTEGRAL: point # 1/3  CPU= 0  E=-2.38870609E-01
+Compute Contact SE ...................................
+Computing SGF 001       ..............................   2.20400000     sec
+Computing SGF 001       ..............................   2.20099998     sec
+......................................................   4.46500015     sec
+ SCBA exit succesfully after            4  iterations
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 2/3  CPU= 0  E=-2.35195677E-01
+Compute Contact SE ...................................
+Computing SGF 002       ..............................   2.27099991     sec
+Computing SGF 002       ..............................   2.19199991     sec
+......................................................   4.52400017     sec
+ SCBA exit succesfully after            4  iterations
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+INTEGRAL: point # 3/3  CPU= 0  E=-2.31520745E-01
+Compute Contact SE ...................................
+Computing SGF 003       ..............................   2.21900010     sec
+Computing SGF 003       ..............................   2.22199988     sec
+......................................................   4.50099993     sec
+ SCBA exit succesfully after            5  iterations
+ iterative_meir_wingreen is started
+ iterative_meir_wingreen is finished
+
+>>> The Meir-Wingreen transport is finished.
+
+================================================================================
+                            LibNEGF: Current finished
+================================================================================
+  contacts:   1  2 current:    6.44949E-05 A       
+ calc_current done
+ TIME program total     CPU:    46.34       Wall:    46.63

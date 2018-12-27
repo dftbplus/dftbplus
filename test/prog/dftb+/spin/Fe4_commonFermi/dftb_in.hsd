@@ -45,8 +45,15 @@ Options {
 
 Analysis {
   MullikenAnalysis = Yes
+  CalculateForces = Yes
 }
 
 ParserOptions {
-  ParserVersion = 5
+  ParserVersion = 6
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
 }

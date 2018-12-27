@@ -1,0 +1,59 @@
+Geometry =  GenFormat {
+    6  S
+  C  H
+    1 1    0.0000000000E+00   -0.4239198836E+00    0.0000000000E+00
+    2 2    0.8849572731E+00   -0.1089106621E+01    0.0000000000E+00
+    3 2   -0.8849572731E+00   -0.1089106621E+01    0.0000000000E+00
+    4 1    0.0000000000E+00    0.4239198836E+00    0.1257727259E+01
+    5 2   -0.8849572731E+00    0.1089106621E+01    0.1257727259E+01
+    6 2    0.8849572731E+00    0.1089106621E+01    0.1257727259E+01
+    0.0000000000E+00    0.0000000000E+00    0.0000000000E+00
+    0.5000000000E+02    0.0000000000E+00    0.0000000000E+00
+    0.0000000000E+00    0.5000000000E+02    0.0000000000E+00
+    0.0000000000E+00    0.0000000000E+00    0.2515454517E+01
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-8
+  MaxAngularMomentum {
+    H = "s"
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix  = ".skf"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 300
+  }
+  ThirdOrderFull = Yes
+  HubbardDerivs {
+    C = -0.1492
+    H = -0.1857
+  }
+  KPointsAndWeights = SupercellFolding {
+   1 0 0
+   0 1 0
+   0 0 6
+   0.5 0.5 0.5
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+Analysis = {
+  CalculateForces = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 5
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
