@@ -343,7 +343,6 @@ contains
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (tRangeSep) then
-
           if(nSpin == 2) then
             do iSpin = 1, 2
               call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr,iSpin)
@@ -351,7 +350,6 @@ contains
           else
             call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
           end if
-          !call denseSubtractDensityOfAtoms_nospin(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
         end if
 
         if (tWriteBandDat) then
@@ -428,7 +426,8 @@ contains
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
-            call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn)
+            call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn,&
+                & deltaRhoIn)
           end if
         end if
 
@@ -610,7 +609,7 @@ contains
         tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
             & .and. maxSccIter > 1
         if (tWriteCharges) then
-          call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn)
+          call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
         end if
 
         ! initially assume coordinates are not being updated

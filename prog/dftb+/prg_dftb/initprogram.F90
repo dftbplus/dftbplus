@@ -2017,6 +2017,9 @@ contains
 
     !> Initialize range separated
     if (tRangeSep) then
+      if (input%ctrl%tReadChrg .and. input%ctrl%rangeSepAlgorithm == "tr") then
+        call error("Restart on thresholded range separation not working correctly")
+      end if
       allocate(rangeSep)
       call rangeSep%initModule(nAtom, species0, speciesName,hubbU(1,:),&
           &input%ctrl%screeningThreshold,input%ctrl%omega,nkPoint,tSpin,&
@@ -2054,63 +2057,34 @@ contains
     end if
 
     if (tSccCalc) then
+
       do iAt = 1, nAtom
         iSp = species0(iAt)
         do iSh = 1, orb%nShell(iSp)
           qShell0 (iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
         end do
       end do
+
       if (tReadChrg) then
-        if (tDFTBU) then
-          if (nSpin == 2) then
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
-                  & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
-            end if
-          else
-            if (tImHam) then
-              if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
-                ! do not check charge or magnetisation from file
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
-                    & qBlock=qBlockIn,qiBlock=qiBlockIn)
-              else
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
-                    & qBlock=qBlockIn,qiBlock=qiBlockIn)
-              end if
-            else
-              if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
-                ! do not check charge or magnetisation from file
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
-                    & qBlock=qBlockIn)
-              else
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
-                    & qBlock=qBlockIn)
-              end if
-            end if
-          end if
+
+        if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+          ! do not check charge or magnetisation from file
+          call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn, qiBlockIn,&
+              & deltaRhoIn)
         else
-          ! hack again caused by going from up/down to q and M
-          if (nSpin == 2) then
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
-                  & magnetisation=nEl(1)-nEl(2))
-            end if
+          ! check number of electrons in file
+          if (nSpin /= 2) then
+            call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
+                & qiBlockIn, deltaRhoIn,nEl = sum(nEl))
           else
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1))
-            end if
+            ! check magnetisation in addition
+            call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
+                & qiBlockIn, deltaRhoIn,nEl = sum(nEl), magnetisation=nEl(1)-nEl(2))
           end if
         end if
+
       else
+
         if (allocated(input%ctrl%initialCharges)) then
           if (abs(sum(input%ctrl%initialCharges) - input%ctrl%nrChrg) > 1e-4_dp) then
             write(strTmp, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match specified&
