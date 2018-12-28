@@ -11,13 +11,11 @@
 !> Contains range separated related routines.
 module rangeseparated
   use accuracy
-  use message
   use assert
+  use message
   use nonscc, only : NonSccDiff
-  use SlakoCont, only : OSlakoCont, getMIntegrals, getSKIntegrals
-  use SK, only : rotateH0
+  use SlakoCont, only : OSlakoCont
   use CommonTypes
-  use Interpolation
   use sorting
   use sparse2dense, only : blockSymmetrizeHS
   use globalenv, only : stdOut
@@ -41,21 +39,10 @@ module rangeseparated
     real(dp), allocatable :: coords(:,:)
     !> evaluated gamma, Atom1, Atom2 at each geometry step
     real(dp), allocatable :: lrGammaEval(:,:)
-    !> tabulated gamma, lrGamma(spec1, spec2, dist, (1,2))
-    real(dp), allocatable :: lrGamma(:,:,:,:)
-    !> grid for tabulated gamma
-    real(dp), allocatable :: grid(:)
     !> range-separation parameter
     real(dp) :: omega
-    !> tabulated grid extent
-    real(dp) :: gamma_range
-    !> tabulated grid number of points
-    integer :: num_mesh_points
-    !> tabulated grid spacings
-    real(dp) :: delta
     !> Hubbard U values for atoms
     real(dp), allocatable :: hubbu(:)
-
 
     ! Hamiltonian Screening
     !> previous hamiltonian in screening by tolerance
@@ -77,8 +64,6 @@ module rangeseparated
 
     !> is the system spin polarized
     logical :: tSpin
-    !> Is gamma tabulated or using the functional form
-    logical :: tTabGamma
     !> algorithm for range separation screening
     character(lc) :: RSAlg
     !> species of atoms
@@ -100,7 +85,7 @@ module rangeseparated
 contains
 
 
-  !> Return the range separation algorithm value
+  !> Return the choice of range separation screening algorithm
   function getRSALg(self) result(res)
 
     !> class instance
@@ -115,8 +100,7 @@ contains
 
 
   !> Intitialize the range-sep module
-  subroutine initModule(self, nAtom, species, speciesNames, hubbu, screen, omega, tSpin, tTabGamma,&
-      & RSAlg)
+  subroutine initModule(self, nAtom, species, speciesNames, hubbu, screen, omega, tSpin, RSAlg)
 
     !> class instance
     class(RangeSepFunc), intent(inout) :: self
@@ -142,22 +126,17 @@ contains
     !> spin unrestricted?
     logical, intent(in) :: tSpin
 
-    !> tabulated or analytical lr-gamma?
-    logical, intent(in) :: tTabGamma
-
     !> lr-hamiltonian construction algorithm
     character(lc), intent(in) :: RSAlg
 
-    call initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin, tTabGamma)
+    call initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin)
     call printModuleInfoAndCheckReqs(self)
-    if(tTabGamma) then
-      call loadAndProcessTabulatedLRGammas(self, speciesNames, species)
-    end if
 
   contains
 
+
     !> initialise data structures and allocate storage
-    subroutine initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin, tTabGamma)
+    subroutine initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin)
 
       class(RangeSepFunc), intent(inout) :: self
       integer, intent(in) :: nAtom
@@ -167,7 +146,6 @@ contains
       real(dp), intent(in) :: omega
       character(lc), intent(in) :: RSAlg
       logical, intent(in) :: tSpin
-      logical, intent(in) :: tTabGamma
 
       self%tScreeningInited = .false.
       self%pScreeningThreshold = screen
@@ -175,7 +153,6 @@ contains
       self%lrenergy = 0.0_dp
       self%RSAlg = RSAlg
       self%tSpin = tSpin
-      self%tTabGamma = tTabGamma
 
       allocate(self%coords(3, nAtom))
       allocate(self%species(nAtom))
@@ -185,6 +162,7 @@ contains
       self%species(:) = species
 
     end subroutine initAndAllocate
+
 
     !> test for option consistency and print some information
     subroutine printModuleInfoAndCheckReqs(self)
@@ -212,12 +190,6 @@ contains
         write(StdOut,'(a)') "  -> spin-restricted calculation"
       end if
 
-      if (self%tTabGamma) then
-        write(StdOut,'(a)') "  -> use the tabulated long-range Gamma"
-      else
-        write(StdOut,'(a)') "  -> use analytical long-range Gamma"
-      end if
-
       select case (self%RSAlg)
       case ("nb")
         write(StdOut,'(a)') "  -> using the neighbour list-based algorithm"
@@ -229,73 +201,6 @@ contains
       end select
 
     end subroutine printModuleInfoAndCheckReqs
-
-
-    !> Read the gamma function values from disc for each species combination
-    subroutine loadAndProcessTabulatedLRGammas(self, speciesNames, species)
-      class(RangeSepFunc), intent(inout) :: self
-      character(mc), intent(in) :: speciesNames(:)
-      integer, intent(in) :: species(:)
-
-      character(lc) :: fname, dummy
-      integer :: ii, jj, kk, st, fd
-      logical :: tFileExists
-      integer :: num_mesh_points
-      real(dp) :: delta,tmp, dist
-      real(dp), allocatable :: test_array2(:)
-
-      num_mesh_points=500
-      delta=0.02_dp
-      do ii = 1, size(speciesNames)
-        do jj = 1, size(speciesNames)
-          fname = "gamma-" // trim(speciesNames(ii)) // "-" // trim(speciesNames(jj))
-          write(StdOut,*) "process the header of '" // trim(fname) // ".dat'"
-          fname = trim(fname) // ".dat"
-          !
-          inquire (file=fname, exist=tFileExists, iostat=st)
-          if(tFileExists) then
-            open(newunit=fd,FILE=trim(fname),FORM='formatted',STATUS='unknown')
-            read(fd,*) dummy, self%omega, self%num_mesh_points, self%delta
-            close(fd)
-            !
-            write(StdOut,'(a,E17.8)') "RS-Parameter k=", self%omega
-            self%gamma_range=real(self%num_mesh_points,dp)*self%delta
-            write(StdOut,'(a,I6,2E17.8)')"gamma mesh parameters:", self%num_mesh_points,&
-                & self%delta, self%gamma_range
-            num_mesh_points=self%num_mesh_points
-            delta=self%delta
-          else
-            call error("RangeSep: Tabulated long-range Gamma file does not exist!")
-          end if
-        end do
-      end do
-      !
-      write(StdOut,'(a,3I5)') "allocating the array for lr-gamma, dimensions:", size(speciesNames),&
-          & size(speciesNames), num_mesh_points
-      allocate(self%lrGamma(size(speciesNames),size(speciesNames),num_mesh_points,2))
-      allocate(self%grid(num_mesh_points))
-      allocate(test_array2(num_mesh_points))
-      !
-      self%species(:) = species
-      do ii = 1, size(speciesNames)
-        do jj = 1, size(speciesNames)
-          fname = "gamma-" // trim(speciesNames(ii)) // "-" // trim(speciesNames(jj))
-          write(StdOut,*) "Need to process '" // trim(fname) // ".dat'"
-          fname = trim(fname) // ".dat"
-          !
-          open(newunit=fd,FILE=trim(fname),FORM='formatted',STATUS='unknown')
-          read(fd,*)
-          do kk=1,num_mesh_points
-            read(fd,*) self%grid(kk),self%lrGamma(ii,jj,kk,1)
-          end do
-          close(fd)
-
-          call set_cubic_spline(self%grid,self%lrGamma(ii,jj,:,1),test_array2)
-          self%lrGamma(ii,jj,:,2)=test_array2
-        end do
-      end do
-
-    end subroutine loadAndProcessTabulatedLRGammas
 
   end subroutine initModule
 
@@ -325,7 +230,7 @@ contains
           dist = dist + (self%coords(ii, iAtom1) - self%coords(ii, iAtom2))**2
         end do
         dist = sqrt(dist)
-        self%lrGammaEval(iAtom1, iAtom2) = getGammaValue(self, iSp1, iSp2, dist)
+        self%lrGammaEval(iAtom1, iAtom2) = getAnalyticalGammaValue(self, iSp1, iSp2, dist)
         self%lrGammaEval(iAtom2, iAtom1) = self%lrGammaEval(iAtom1, iAtom2)
       end do
     end do
@@ -340,7 +245,7 @@ contains
   end subroutine updateCoords
 
 
-  !> Adds the LR-exchange contribution to hamiltonian using the threshold algorithm
+  !> Adds the LR-exchange contribution to hamiltonian using the thresholding algorithm
   subroutine addLRHamiltonian_tr(self, overlap, deltaRho, iSquare, hamiltonian, orb)
 
     !> class instance
@@ -362,7 +267,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     real(dp), allocatable :: tmpovr(:,:), tmpDRho(:,:), testovr(:,:), tmpDDRho(:,:), tmpDham(:,:)
-    real :: start, finish
+    real(dp) :: start, finish
     integer, allocatable :: ovrind(:,:)
     integer, parameter :: DESC_LEN = 3, ISTART = 1, IEND = 2, INORB = 3
 
@@ -376,12 +281,24 @@ contains
 
   contains
 
+    !> allocate and initialise some necessary arrays
     subroutine allocateAndInit(tmpovr, tmpDham, tmpDRho, tmpDDRho, testovr, ovrind)
+
+      !> overlap matrix
       real(dp), allocatable, intent(inout) :: tmpovr(:,:)
+
+      !>
       real(dp), allocatable, intent(inout) :: tmpDham(:,:)
+
+      !>
       real(dp), allocatable, intent(inout) :: tmpDRho(:,:)
+
+      !>
       real(dp), allocatable, intent(inout) :: tmpDDRho(:,:)
+
+      !> matrix of test values for overlap
       real(dp), allocatable, intent(inout) :: testovr(:,:)
+
       integer, allocatable :: ovrind(:,:)
       integer :: matrixSize, nAtom
       real(dp) :: tmp
@@ -427,7 +344,7 @@ contains
       integer, dimension(DESC_LEN) :: descA, descB, descM, descN
 
       nAtom = size(self%species)
-      pbound = getMaxDensElement()
+      pbound = maxval(abs(tmpDDRho))
       tmpDham = 0.0_dp
       loopMu: do iAtMu = 1, nAtom
         descM = getDescriptor(iAtMu)
@@ -517,22 +434,22 @@ contains
         self%hprev = 0.0_dp
         self%dRhoprev = tmpDRho
       end if
+
     end subroutine checkAndInitScreening
 
 
-    function getMaxDensElement() result(pbound)
-      real(dp) :: pbound
-      pbound = maxval(abs(tmpDDRho))
-    end function getMaxDensElement
-
-
+    !> location of relevant indices in dense matrix
     function getDescriptor(iAt) result(desc)
+
+      !> relevant atom
       integer, intent(in) :: iAt
+
+      !> resulting location ranges
       integer, dimension(DESC_LEN) :: desc
 
       desc(:) = [ iSquare(iAt), iSquare(iAt + 1) - 1, iSquare(iAt + 1) - iSquare(iAt) ]
-    end function getDescriptor
 
+    end function getDescriptor
 
   end subroutine addLRHamiltonian_tr
 
@@ -614,7 +531,7 @@ contains
     real(dp), dimension(:,:), allocatable, target :: tmpHH
     real(dp) :: tmp
     integer :: mu, nu
-    real :: start, finish
+    real(dp) :: start, finish
 
     call cpu_time(start)
     call allocateAndInit(tmpHH, tmpDRho)
@@ -679,18 +596,22 @@ contains
 
     subroutine evaluateEnergy()
       tmp = 0.0_dp
-      do iAtM = 1, nAtom
-        do iAtN = 1, iAtM
-          do mu = iSquare(iAtM), iSquare(iAtM + 1) - 1
-            do nu = iSquare(iAtN), iSquare(iAtN + 1) - 1
-              if(iAtN == iAtM) then
-                tmp = tmp + tmpHH(mu, nu) * tmpDRho(mu, nu)
-              else
-                tmp = tmp + 2.0_dp * tmpHH(mu, nu) * tmpDRho(mu, nu)
-              end if
-            end do
-          end do
-        end do
+      !do iAtM = 1, nAtom
+      !  do iAtN = 1, iAtM
+      !    do mu = iSquare(iAtM), iSquare(iAtM + 1) - 1
+      !      do nu = iSquare(iAtN), iSquare(iAtN + 1) - 1
+      !        if(iAtN == iAtM) then
+      !          tmp = tmp + tmpHH(mu, nu) * tmpDRho(mu, nu)
+      !        else
+      !          tmp = tmp + 2.0_dp * tmpHH(mu, nu) * tmpDRho(mu, nu)
+      !        end if
+      !      end do
+      !    end do
+      !  end do
+      !end do
+      !self%lrenergy = self%lrenergy + 0.5_dp * tmp
+      do mu = 1, size(tmpHH, dim = 2)
+        tmp = tmp + tmpHH(mu,mu)*tmpDRho(mu,mu) + 2.0_dp*sum(tmpHH(mu+1:,mu)*tmpDRho(mu+1:,mu))
       end do
       self%lrenergy = self%lrenergy + 0.5_dp * tmp
     end subroutine evaluateEnergy
@@ -994,52 +915,6 @@ contains
   end function getdYGammaSubPart
 
 
-  !> returns the long-range gamma
-  function getGammaValue(self, Sp1, Sp2, dist)
-
-    !> class instance
-    class(RangeSepFunc), intent(inout) :: self
-
-    !> species 1
-    integer, intent(in) :: Sp1
-
-    !> species 2
-    integer, intent(in) :: Sp2
-
-    !> distance
-    real(dp), intent(in) :: dist
-
-    real(dp) :: getGammaValue
-    real(dp) :: tmp, tmp2
-
-    if(self%tTabGamma) then
-      ! This option is used for test purposes only!
-      ! In the normal case the analytical formula (getAnalyticalGammaValue) should be used
-      if(abs(dist) .le. 1.0e-16_dp) then
-        tmp2 = 0.02_dp
-        call get_cubic_spline(self%grid, self%lrGamma(Sp1,Sp2,:,1), self%lrGamma(Sp1,Sp2,:,2),&
-            & tmp2, tmp)
-        getGammaValue = tmp * 1.0_dp
-      else
-        ! NOTE: gammas are generated to 10.0 Bohr, the interpolation for larger distances is
-        ! undefined!!!
-        if(abs(dist) .le. self%gamma_range) then
-          call get_cubic_spline(self%grid, self%lrGamma(Sp1,Sp2,:,1), self%lrGamma(Sp1,Sp2,:,2),&
-              & dist, tmp)
-          getGammaValue = tmp * 1.0_dp
-        else
-          ! for large distances gamma is equal to (1-exp(-kR))/R
-          getGammaValue = (1.0_dp - exp(-self%omega * dist)) / dist
-        end if
-      end if
-    else
-      ! Usual case is the analytical gamma formula:
-      getGammaValue = getAnalyticalGammaValue(self, Sp1, Sp2, dist)
-    end if
-
-  end function getGammaValue
-
-
   !> Returns the numerical derivative of lr-gamma for iAtom1, iAtom2
   subroutine getGammaPrimeValue(self, grad, iAtom1, iAtom2, coords, species)
 
@@ -1080,7 +955,7 @@ contains
     !        vect(jj) = vect(jj) - real(2 * ii - 3, dp) * deltaXDiff
     !        dist = sqrt(sum(vect(:)**2))
     !        vect(:) = vect(:) / dist
-    !        tmp(jj) = tmp(jj) + real(2 * ii - 3, dp) * getGammaValue(self, sp1, sp2, dist)
+    !        tmp(jj) = tmp(jj) + real(2 * ii - 3, dp)*getAnalyticalGammaValue(self, sp1, sp2, dist)
     !      end do
     !    end do
     !    tmp(:) = 0.5_dp * tmp(:) / deltaXDiff
@@ -1146,7 +1021,7 @@ contains
     real(dp) :: dummy(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb,3)
     real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpovr(:,:), tmpRho(:,:), tmpderiv(:,:)
-    real :: start, finish
+    real(dp) :: start, finish
 
     write(stdOut,'(a)') "rangeSep: addLRGradients"
     @:ASSERT(size(gradients,dim=1) == 3)
@@ -1269,6 +1144,8 @@ contains
 
   !> evaluate the LR-Energy contribution directly. Very slow, use addLREnergy instead.
   function evaluateLREnergyDirect(self, deltaRho, ovrlap, iSquare) result (energy)
+
+    !> instance of LR
     class(RangeSepFunc), intent(inout) :: self
 
     !> square density matrixa
@@ -1280,11 +1157,13 @@ contains
     !> Dense matrix atom indexing
     integer, intent(in) :: iSquare(:)
 
-    real(dp) :: energy, tmp
+    !> resulting energy
+    real(dp) :: energy
+
     integer :: iAt1, iAt2, nAtom, mu, nu, alpha, beta
     real(dp), allocatable :: tmpovr(:,:), tmpDRho(:,:)
-    real :: start, finish
-    !
+    real(dp) :: tmp, start, finish
+
     call cpu_time(start)
     nAtom = size(self%species)
     allocate(tmpovr(size(ovrlap, dim = 1), size(ovrlap, dim = 1)))
@@ -1317,97 +1196,5 @@ contains
     call cpu_time(finish)
 
   end function evaluateLREnergyDirect
-
-
-  !> Initialise a cubic spline table
-  subroutine set_cubic_spline(xx, fct, gama)
-
-    !> array of postions
-    real(dp), intent(in) :: xx(:)
-
-    !> array of functions
-    real(dp), intent(in) :: fct(:)
-
-    !> resulting
-    real(dp), allocatable, intent(out) :: gama(:)
-
-    integer :: ii, kk, nn
-    real(dp) :: p,qn,sig,un,yp1,ypn
-    real(dp), allocatable :: u(:)
-
-    nn = size(xx)
-    allocate(gama(nn))
-    allocate(u(nn))
-
-    yp1=exp(-xx(1))
-    ypn=exp(-xx(nn))
-    ! natural spline
-    gama(1)=0
-    u(1)=0
-
-    do ii=2,nn-1
-      sig = (xx(ii)-xx(ii-1))/(xx(ii+1)-xx(ii-1))
-      p=sig*gama(ii-1)+2.0_dp
-      gama(ii)=(sig-1.0_dp)/p
-      u(ii)=(6.0_dp*((fct(ii+1)-fct(ii))/(xx(ii+1)-xx(ii)) - (fct(ii)-fct(ii&
-          &-1))/(xx(ii)-xx(ii-1)))/(xx(ii+1)-xx(ii-1))-sig*u(ii-1))/p
-    end do
-    ! natural spline
-    qn=0.0_dp
-    un=0.0_dp
-    gama(nn)=(un-qn*u(nn-1))/(qn*gama(nn-1)+1.0_dp)
-    do kk=nn-1,1,-1
-      gama(kk)=gama(kk)*gama(kk+1)+u(kk)
-    end do
-
-    ! ??????????
-    gama=0.0_dp
-
-  end subroutine set_cubic_spline
-
-
-  !> returns cubic spline value at specified point x
-  !> Placed here, rather than in interpolation.F90, because only called here.
-  !> (algorithm is based on NR)
-  subroutine get_cubic_spline(xx, fct, dds, x, y)
-
-    !> array with abscissae
-    real(dp), intent(in) :: xx(:)
-
-    !> array with ordinate
-    real(dp), intent(in) :: fct(:)
-
-    !> splines second derivatives, derived via set cubic splines
-    real(dp), intent(in) :: dds(:)
-
-    !> evaluation point
-    real(dp), intent(in) :: x
-
-    !> evaluated spline
-    real(dp), intent(out) :: y
-
-    integer :: right, left, middle
-    real(dp) :: step, A, B
-
-    ! bisection
-    left = 1
-    right = size(xx)
-    do
-      if((right - left) <= 1) exit
-      middle = (right + left)/2
-      if( x >= xx(middle)) then
-        left = middle
-      else
-        right = middle
-      end if
-    end do
-    step = xx(right) - xx(left)
-    A = (xx(right) - x)/step
-    B = (x - xx(left))/step
-    ! calculate the spline value
-    y = A*fct(left)+B*fct(right)+step*step/6.0_dp*(A*A - 1.0_dp)*A*dds(left)&
-        &+step*step/6.0_dp*(B*B-1.0_dp)*B*dds(right)
-
-  end subroutine get_cubic_spline
 
 end module rangeseparated

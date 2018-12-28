@@ -1456,7 +1456,6 @@ contains
     call getChild(node, "RangeSep", child, .false., modifier)
     if (associated(child)) then
       ctrl%tRangeSep = .true.
-      call getChildValue(child, "TabulatedGamma", ctrl%tTabulatedGamma, .false.)
       call getChildValue(child, "Algorithm", value, "TR", child=child2)
       call getNodeName(value, buffer)
       select case(char(buffer))

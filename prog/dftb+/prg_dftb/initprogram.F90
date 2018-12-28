@@ -2025,8 +2025,7 @@ contains
       end if
       allocate(rangeSep)
       call rangeSep%initModule(nAtom, species0, speciesName, hubbU(1,:),&
-          & input%ctrl%screeningThreshold, input%ctrl%omega, tSpin, input%ctrl%tTabulatedGamma,&
-          & input%ctrl%rangeSepAlgorithm)
+          & input%ctrl%screeningThreshold, input%ctrl%omega, tSpin, input%ctrl%rangeSepAlgorithm)
       allocate(deltaRhoIn(nOrb * nOrb * nSpin))
       allocate(deltaRhoOut(nOrb * nOrb * nSpin))
       allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
