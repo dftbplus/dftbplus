@@ -2017,13 +2017,16 @@ contains
 
     !> Initialize range separated
     if (tRangeSep) then
+      if (.not.tRealHS .or. tPeriodic) then
+        call error("Range separated functionality only works with non-periodic structures")
+      end if
       if (input%ctrl%tReadChrg .and. input%ctrl%rangeSepAlgorithm == "tr") then
         call error("Restart on thresholded range separation not working correctly")
       end if
       allocate(rangeSep)
-      call rangeSep%initModule(nAtom, species0, speciesName,hubbU(1,:),&
-          &input%ctrl%screeningThreshold,input%ctrl%omega,nkPoint,tSpin,&
-          &input%ctrl%tTabulatedGamma,input%ctrl%rangeSepAlgorithm)
+      call rangeSep%initModule(nAtom, species0, speciesName, hubbU(1,:),&
+          & input%ctrl%screeningThreshold, input%ctrl%omega, tSpin, input%ctrl%tTabulatedGamma,&
+          & input%ctrl%rangeSepAlgorithm)
       allocate(deltaRhoIn(nOrb * nOrb * nSpin))
       allocate(deltaRhoOut(nOrb * nOrb * nSpin))
       allocate(deltaRhoDiff(nOrb * nOrb * nSpin))

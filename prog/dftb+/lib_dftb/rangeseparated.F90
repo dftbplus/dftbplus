@@ -37,34 +37,51 @@ module rangeseparated
   !> Range-Sep module structure
   type :: RangeSepFunc
 
+    !> coordinates of the atom
     real(dp), allocatable :: coords(:,:)
-    real(dp), allocatable :: lrGamma(:,:,:,:) ! lrGamma(spec1, spec2, dist, (1,2))
-    real(dp), allocatable :: lrGammaEval(:,:) ! Atom1, Atom2 at each geometry step
+    !> evaluated gamma, Atom1, Atom2 at each geometry step
+    real(dp), allocatable :: lrGammaEval(:,:)
+    !> tabulated gamma, lrGamma(spec1, spec2, dist, (1,2))
+    real(dp), allocatable :: lrGamma(:,:,:,:)
+    !> grid for tabulated gamma
     real(dp), allocatable :: grid(:)
-
     !> range-separation parameter
     real(dp) :: omega
-
+    !> tabulated grid extent
     real(dp) :: gamma_range
+    !> tabulated grid number of points
     integer :: num_mesh_points
+    !> tabulated grid spacings
     real(dp) :: delta
+    !> Hubbard U values for atoms
     real(dp), allocatable :: hubbu(:)
 
+
     ! Hamiltonian Screening
+    !> previous hamiltonian in screening by tolerance
     real(dp), allocatable :: hprev(:,:)
+    !> previous delta density matrix in screening by tolerance
     real(dp), allocatable :: dRhoprev(:,:)
+    !> Is screening initialised
     logical :: tScreeningInited
-    real(dp) :: pScreeningTreshold
+    !> threshold for screening by value
+    real(dp) :: pScreeningThreshold
 
     ! lr-energy
+    !> total long range energy
     real(dp) :: lrenergy
+    !> spin up energy
     real(dp) :: lrenergyUp
+    !> spin down energy
     real(dp) :: lrenergyDn
 
+    !> is the system spin polarized
     logical :: tSpin
+    !> Is gamma tabulated or using the functional form
     logical :: tTabGamma
+    !> algorithm for range separation screening
     character(lc) :: RSAlg
-
+    !> species of atoms
     integer, allocatable :: species(:)
 
   contains
@@ -89,15 +106,17 @@ contains
     !> class instance
     class(RangeSepFunc), intent(in) :: self
 
+    !> name of the algorithm in use
     character(lc) :: res
 
     res = self%RSAlg
 
   end function getRSALg
 
+
   !> Intitialize the range-sep module
-  subroutine initModule(self, nAtom, species, speciesNames, hubbu, screen, omega, nKPts, tSpin,&
-      & tTabGamma, RSAlg)
+  subroutine initModule(self, nAtom, species, speciesNames, hubbu, screen, omega, tSpin, tTabGamma,&
+      & RSAlg)
 
     !> class instance
     class(RangeSepFunc), intent(inout) :: self
@@ -120,9 +139,6 @@ contains
     !> range separation parameter
     real(dp), intent(in) :: omega
 
-    !> number of K-points for the calculation (1 for cluster)
-    integer, intent(in) :: nKPts
-
     !> spin unrestricted?
     logical, intent(in) :: tSpin
 
@@ -133,14 +149,16 @@ contains
     character(lc), intent(in) :: RSAlg
 
     call initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin, tTabGamma)
-    call printModuleInfoAndCheckReqs(self, nKPts)
+    call printModuleInfoAndCheckReqs(self)
     if(tTabGamma) then
       call loadAndProcessTabulatedLRGammas(self, speciesNames, species)
     end if
 
   contains
 
+    !> initialise data structures and allocate storage
     subroutine initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin, tTabGamma)
+
       class(RangeSepFunc), intent(inout) :: self
       integer, intent(in) :: nAtom
       real(dp), intent(in) :: hubbu(:)
@@ -152,7 +170,7 @@ contains
       logical, intent(in) :: tTabGamma
 
       self%tScreeningInited = .false.
-      self%pScreeningTreshold = screen
+      self%pScreeningThreshold = screen
       self%omega = omega
       self%lrenergy = 0.0_dp
       self%RSAlg = RSAlg
@@ -168,11 +186,12 @@ contains
 
     end subroutine initAndAllocate
 
+    !> test for option consistency and print some information
+    subroutine printModuleInfoAndCheckReqs(self)
 
-    subroutine printModuleInfoAndCheckReqs(self, nKPts)
+      !> instance
       class(RangeSepFunc), intent(inout) :: self
-      integer, intent(in) :: nKPts
-      !
+
       write(StdOut,'(a)') "================================"
       write(StdOut,'(a)') "Range-separated Hybrids in DFTB "
       write(StdOut,'(a)') ""
@@ -181,14 +200,10 @@ contains
 
       ! Check for current restrictions
       if (self%tSpin .and. self%RSAlg == "tr") then
-        call error("Spin-unrestricted calculation for threshing algorithm not yet implemented!")
+        call error("Spin-unrestricted calculation for thresholding algorithm not yet implemented!")
       end if
 
-      if (nKPts > 1) then
-        call error("k-points not yet implemented!")
-      end if
-
-      ! summarize module settings
+      ! summarise module settings
       write(StdOut,'(a,F10.3)') "  -> range-separation parameter [1/a0]:", self%omega
 
       if (self%tSpin) then
@@ -208,7 +223,7 @@ contains
         write(StdOut,'(a)') "  -> using the neighbour list-based algorithm"
       case ("tr")
         write(StdOut,'(a)') "  -> using the thresholding algorithm"
-        write(StdOut,'(a,E17.8)') "     -> Screening Threshold:", self%pScreeningTreshold
+        write(StdOut,'(a,E17.8)') "     -> Screening Threshold:", self%pScreeningThreshold
       case default
         call error("Invalid algorithm for screening exchange")
       end select
@@ -422,7 +437,7 @@ contains
           iSp1 = self%species(iAt1)
           nOrb1 = orb%nOrbSpecies(iSp1)
           prb = pbound * testovr(iAt1, iAtMu)
-          if(abs(prb) >= self%pScreeningTreshold) then
+          if(abs(prb) >= self%pScreeningThreshold) then
             loopNu: do iAtNu = 1, iAtMu
               descN = getDescriptor(iAtNu)
               gammabatchtmp = self%lrGammaEval(iAtMu, iAtNu) + self%lrGammaEval(iAt1, iAtNu)
@@ -432,7 +447,7 @@ contains
                 nOrb2 = orb%nOrbSpecies(iSp2)
                 ! screening condition
                 tstbound = prb * testovr(iAt2, iAtNu)
-                if(abs(tstbound) >= self%pScreeningTreshold) then
+                if(abs(tstbound) >= self%pScreeningThreshold) then
                   descB = getDescriptor(iAt2)
                   gammabatch = (self%lrGammaEval(iAtMu, iAt2) + self%lrGammaEval(iAt1, iAt2)&
                       & + gammabatchtmp)
@@ -1304,19 +1319,26 @@ contains
   end function evaluateLREnergyDirect
 
 
+  !> Initialise a cubic spline table
   subroutine set_cubic_spline(xx, fct, gama)
+
+    !> array of postions
     real(dp), intent(in) :: xx(:)
+
+    !> array of functions
     real(dp), intent(in) :: fct(:)
+
+    !> resulting
     real(dp), allocatable, intent(out) :: gama(:)
-    !
+
     integer :: ii, kk, nn
     real(dp) :: p,qn,sig,un,yp1,ypn
     real(dp), allocatable :: u(:)
-    !
+
     nn = size(xx)
     allocate(gama(nn))
     allocate(u(nn))
-    !
+
     yp1=exp(-xx(1))
     ypn=exp(-xx(nn))
     ! natural spline
@@ -1338,6 +1360,7 @@ contains
       gama(kk)=gama(kk)*gama(kk+1)+u(kk)
     end do
 
+    ! ??????????
     gama=0.0_dp
 
   end subroutine set_cubic_spline
