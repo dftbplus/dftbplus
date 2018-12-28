@@ -780,16 +780,24 @@ contains
   end subroutine addLRHamiltonian
 
 
-  !!> Analytical long-range Gamma
-  !> self, RangeSepFunc instatnce
-  !> Sp1, Sp2, species
-  !> dist, separation of sites 1 and 2
+  !> Analytical long-range Gamma
   function getAnalyticalGammaValue(self, Sp1, Sp2, dist)
+
+    !> RangeSepFunc instance
     class(RangeSepFunc), intent(inout) :: self
-    integer, intent(in) :: Sp1, Sp2
+
+    !> first species
+    integer, intent(in) :: Sp1
+
+    !> second species
+    integer, intent(in) :: Sp2
+
+    !> distance between atoms
     real(dp), intent(in) :: dist
+
+    !> resulting gamma
     real(dp) :: getAnalyticalGammaValue
-    !
+
     integer :: ii
     real(dp) :: tauA, tauB, omega
     real(dp) :: prefac, tmp, tmp2, tau
@@ -867,6 +875,110 @@ contains
   end function getYGammaSubPart
 
 
+  !> Derivative of analytical long-range Gamma
+  function getdAnalyticalGammaValue(self, Sp1, Sp2, dist)
+
+    !> RangeSepFunc instance
+    class(RangeSepFunc), intent(inout) :: self
+
+    !> first species
+    integer, intent(in) :: Sp1
+
+    !> second species
+    integer, intent(in) :: Sp2
+
+    !> distance between atoms
+    real(dp), intent(in) :: dist
+
+    !> resulting d gamma / d dist
+    real(dp) :: getdAnalyticalGammaValue
+
+    integer :: ii
+    real(dp) :: tauA, tauB, omega
+    real(dp) :: prefac, tmp, tmp2, tau, dTmp, dTmp2
+
+    tauA = 3.2_dp * self%hubbu(Sp1)
+    tauB = 3.2_dp * self%hubbu(Sp2)
+    omega = self%omega
+
+    if (dist < tolSameDist) then
+      ! on-site case
+      if (abs(tauA - tauB) < MinHubDiff ) then
+        getdAnalyticalGammaValue = 0.0_dp
+      else
+        call error("Error(RangeSep): R = 0, Ua != Ub")
+      end if
+    else
+      ! off-site case, Ua == Ub
+      if (abs(tauA - tauB) < MinHubDiff ) then
+        tauA = 0.5_dp * (tauA + tauB)
+
+        tmp = dist**2 * (3.0_dp*tauA**4*omega**4 - 3.0_dp*tauA**6*omega**2 - tauA**2*omega**6)&
+            & + dist * (15.0_dp*tauA**3*omega**4 - 21.0_dp*tauA**5*omega**2 - 3.0_dp*tauA*omega**6)&
+            & + (15.0_dp * tauA**2 * omega**4 - 45.0_dp * tauA**4 * omega**2 - 3.0_dp * omega**6)
+
+        dTmp = 2.0_dp*dist*(3.0_dp*tauA**4*omega**4 - 3.0_dp*tauA**6*omega**2 - tauA**2*omega**6)&
+            & + (15.0_dp*tauA**3*omega**4 - 21.0_dp*tauA**5*omega**2 - 3.0_dp*tauA*omega**6)
+
+        dtmp = (dtmp*exp(-tauA*dist) -tmp*tauA*exp(-tauA*dist))/ (48.0_dp * tauA**5)
+
+        tmp2 = ( dist**2 * tauA**3 / 48.0_dp + 0.1875_dp * dist * tauA**2 + 0.6875_dp * tauA&
+            & + 1.0_dp / dist ) * exp(-tauA * dist)
+
+        dTmp2 = &
+            & (2.0_dp*dist*tauA**3/48.0_dp +0.1875_dp*tauA**2 -1.0_dp/dist**2) * exp(-tauA*dist)&
+            & -(dist**2*tauA**3/48.0_dp + 0.1875_dp*dist*tauA**2 + 0.6875_dp*tauA +1.0_dp/dist)&
+            & * tauA * exp(-tauA * dist)
+
+        getdAnalyticalGammaValue = -1.0_dp/dist**2 -dtmp2&
+            & + (tauA**8 / (tauA**2 - omega**2)**4) * (dtmp + dtmp2 + omega*exp(-omega * dist)/dist&
+            & +exp(-omega * dist) / dist**2)
+
+      else
+        ! off-site, Ua != Ub
+        prefac = tauA**4 / (tauA * tauA - omega * omega )**2
+        prefac = prefac * tauB**4 / (tauB * tauB - omega * omega )**2
+        prefac = prefac * ( -omega * exp(-omega * dist) / dist - exp(-omega * dist) / dist**2)
+        getdAnalyticalGammaValue = -1.0_dp / (dist**2) - prefac&
+            & + getdYGammaSubPart(tauA,tauB,dist,omega) +getdYGammaSubPart(tauB,tauA,dist,omega)&
+            & -getdYGammaSubPart(tauA,tauB,dist,0.0_dp) -getdYGammaSubPart(tauB,tauA,dist,0.0_dp)
+      end if
+    end if
+
+  end function getdAnalyticalGammaValue
+
+
+  !> returns the derivative of the subexpression for the evaluation of the off-site
+  !> Y-Gamma-integral. Note that tauA /= tauB
+  function getdYGammaSubPart(tauA, tauB, R, omega)
+
+    !> decay constant site A
+    real(dp), intent(in) :: tauA
+
+    !> decay constant site B
+    real(dp), intent(in) :: tauB
+
+    !> separation of the sites A and B
+    real(dp), intent(in) :: R
+
+    !> range-separation parameter
+    real(dp), intent(in) :: omega
+
+    real(dp) :: getdYGammaSubPart
+    real(dp) :: prefac, tmp, tmp2, dtmp
+
+    tmp = tauA**2 - omega**2
+    prefac = tauA * tauA / tmp
+    tmp = prefac * prefac / (tauA * tauA - tauB * tauB)**3
+    dtmp = tmp * (tauB**6 - 3.0_dp * tauA * tauA * tauB**4 + 2.0_dp * omega * omega * tauB**4)/R**2
+    tmp = tmp * (tauB**6 - 3.0_dp * tauA * tauA * tauB**4 + 2.0_dp * omega * omega * tauB**4) / R
+    tmp2 = tauA * tauB**4 * 0.5_dp * prefac / (tauB * tauB - tauA * tauA )**2 - tmp
+
+    getdYGammaSubPart = (dtmp -tmp2 * tauA) * exp(-tauA * R)
+
+  end function getdYGammaSubPart
+
+
   !> returns the long-range gamma
   function getGammaValue(self, Sp1, Sp2, dist)
 
@@ -939,53 +1051,79 @@ contains
 
     integer :: sp1, sp2, jj, ii
     real(dp) :: vect(3), tmp(3),tmp2(3), dist
+    real(dp) :: tauA, tauB, omega
 
     sp1 = species(iAtom1)
     sp2 = species(iAtom2)
 
-    do jj = 1, 3 ! x,y,z
-      tmp(jj) = 0.0_dp
-      do ii = 1, 2 ! +h, -h
-        ! difference vector
-        vect(:) = coords(:,iAtom2) - coords(:,iAtom1)
-        vect(jj) = vect(jj) - real(2 * ii - 3, dp) * deltaXDiff
-        dist = sqrt(sum(vect(:)**2))
-        vect(:) = vect(:) / dist
-        tmp(jj) = tmp(jj) + real(2 * ii - 3, dp) * getGammaValue(self, sp1, sp2, dist)
-      end do
-    end do
-    tmp(:) = 0.5_dp * tmp(:) / deltaXDiff
-    grad = tmp
+    ! numerical finite difference
+    !    do jj = 1, 3 ! x,y,z
+    !      tmp(jj) = 0.0_dp
+    !      do ii = 1, 2 ! +h, -h
+    !        ! difference vector
+    !        vect(:) = coords(:,iAtom2) - coords(:,iAtom1)
+    !        vect(jj) = vect(jj) - real(2 * ii - 3, dp) * deltaXDiff
+    !        dist = sqrt(sum(vect(:)**2))
+    !        vect(:) = vect(:) / dist
+    !        tmp(jj) = tmp(jj) + real(2 * ii - 3, dp) * getGammaValue(self, sp1, sp2, dist)
+    !      end do
+    !    end do
+    !    tmp(:) = 0.5_dp * tmp(:) / deltaXDiff
+    !    grad(:) = tmp(:)
+
+    ! analytical derivatives
+    vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
+    dist = sqrt(sum(vect(:)**2))
+    vect(:) = vect(:) / dist
+    grad(:) = vect(:) * getdAnalyticalGammaValue(self, sp1, sp2, dist)
 
   end subroutine getGammaPrimeValue
 
-  !> Adds gradients due to long-range HF-contribution.
-  !! \param self, class instance
-  !! \param gradients
-  !! \param deltaRho, square difference DM (triangle form)
-  !! \param skHamCont
-  !! \param skOverCont
-  !! \param coords
-  !! \param species
-  !! \param orb
-  !! \param iSquare
-  !! \param ovrlapMat
-  !! \param iNeighbour
-  !! \param nNeighbour
-  subroutine addLRGradients(self, gradients, derivator, deltaRho, skHamCont, skOverCont,&
-      & coords, species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbour)
+
+  !> Adds gradients due to long-range HF-contribution
+  subroutine addLRGradients(self, gradients, derivator, deltaRho, skHamCont, skOverCont, coords,&
+      & species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbour)
+
+    !> class instance
     class(RangeSepFunc), intent(inout) :: self
+
+    !> energy gradients
     real(dp), intent(inout) :: gradients(:,:)
 
+    !> density matrix difference from reference q0
     real(dp), intent(in) :: deltaRho(:,:)
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+
+    !> sparse hamiltonian (non-scc)
+    type(OSlakoCont), intent(in) :: skHamCont
+
+    !> sparse overlap part
+    type(OSlakoCont), intent(in) :: skOverCont
+
+    !> atomic coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> chemical species of atoms
     integer, intent(in) :: species(:)
+
+    !> orbital information for system
     type(TOrbitals), intent(in) :: orb
+
+    !> index for dense arrays
     integer, intent(in) :: iSquare(:)
+
+    !> overlap matrix
     real(dp), intent(in) :: ovrlapMat(:,:)
-    integer, intent(in) :: iNeighbour(0:,:), nNeighbour(:)
+
+    !> neighbours of atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> number of atoms neighbouring each site
+    integer, intent(in) :: nNeighbour(:)
+
+    !> differentiation object
     class(NonSccDiff), intent(in) :: derivator
+
+
     integer :: nAtom, iAtK, iNeighK, iAtB, iNeighB, iAtC, iAtA, kpa
     real(dp) :: tmpgamma1, tmpgamma2
     real(dp) :: tmpforce(3), tmpforce_r(3), tmpforce2, tmpmultvar1
