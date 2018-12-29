@@ -276,7 +276,7 @@ contains
     call evaluateHamiltonian(tmpDHam)
     self%hprev = self%hprev + tmpDham
     hamiltonian = hamiltonian + self%hprev
-    self%lrenergy = evaluateEnergy()
+    self%lrenergy = self%lrenergy + evaluateEnergy(self%hprev, tmpDRho)
     call cpu_time(finish)
 
   contains
@@ -343,7 +343,18 @@ contains
       integer :: kk, ll, jj, ii, mu, nu
       integer, dimension(DESC_LEN) :: descA, descB, descM, descN
 
+      real(dp), allocatable :: gammaCache(:,:)
+
       nAtom = size(self%species)
+      allocate(gammaCache(nAtom, nAtom))
+      do iAtNu = 1, nAtom
+        gammaCache(iAtNu,iAtNu) = self%lrGammaEval(iAtNu, iAtNu)
+        do iAtMu = iAtNu+1, nAtom
+          gammaCache(iAtMu,iAtNu) = self%lrGammaEval(iAtMu, iAtNu)
+          gammaCache(iAtNu,iAtMu) = gammaCache(iAtMu,iAtNu)
+        end do
+      end do
+
       pbound = maxval(abs(tmpDDRho))
       tmpDham = 0.0_dp
       loopMu: do iAtMu = 1, nAtom
@@ -357,7 +368,8 @@ contains
           if(abs(prb) >= self%pScreeningThreshold) then
             loopNu: do iAtNu = 1, iAtMu
               descN = getDescriptor(iAtNu)
-              gammabatchtmp = self%lrGammaEval(iAtMu, iAtNu) + self%lrGammaEval(iAt1, iAtNu)
+              !gammabatchtmp = self%lrGammaEval(iAtMu, iAtNu) + self%lrGammaEval(iAt1, iAtNu)
+              gammabatchtmp = gammaCache(iAtMu, iAtNu) + gammaCache(iAt1, iAtNu)
               loopLL: do ll = 1, nAtom
                 iAt2 = ovrind(iAtNu, nAtom + 1 - ll)
                 iSp2 = self%species(iAt2)
@@ -366,7 +378,9 @@ contains
                 tstbound = prb * testovr(iAt2, iAtNu)
                 if(abs(tstbound) >= self%pScreeningThreshold) then
                   descB = getDescriptor(iAt2)
-                  gammabatch = (self%lrGammaEval(iAtMu, iAt2) + self%lrGammaEval(iAt1, iAt2)&
+                  !gammabatch = (self%lrGammaEval(iAtMu, iAt2) + self%lrGammaEval(iAt1, iAt2)&
+                  !    & + gammabatchtmp)
+                  gammabatch = (gammaCache(iAtMu, iAt2) + gammaCache(iAt1, iAt2)&
                       & + gammabatchtmp)
                   gammabatch = -0.125_dp * gammabatch
                   ! calculate the Q_AB
@@ -396,30 +410,6 @@ contains
       end do loopMu
 
     end subroutine evaluateHamiltonian
-
-
-    function evaluateEnergy() result(energy)
-      integer :: nAtom, iAtMu, iAtNu, mu, nu
-      real(dp) :: tmp, energy
-
-      nAtom = size(self%species)
-      tmp = 0.0_dp
-      do iAtMu = 1, nAtom
-        do iAtNu = 1, iAtMu
-          do mu = iSquare(iAtMu), iSquare(iAtMu + 1) - 1
-            do nu = iSquare(iAtNu), iSquare(iAtNu + 1) - 1
-              if(iAtNu == iAtMu) then
-                tmp = tmp + self%hprev(mu, nu) * tmpDRho(mu, nu)
-              else
-                tmp = tmp + 2.0_dp * self%hprev(mu, nu) * tmpDRho(mu, nu)
-              end if
-            end do
-          end do
-        end do
-      end do
-      energy = 0.5_dp * tmp
-
-    end function evaluateEnergy
 
 
     subroutine checkAndInitScreening(self, matrixSize, tmpDRho)
@@ -469,19 +459,18 @@ contains
 
   end subroutine addLRenergy
 
-
+  !> copy lower triangle to upper
   subroutine symmetrizeSquareMatrix(matrix)
+
+    !> matrix to symmetrize
     real(dp), allocatable, intent(inout) :: matrix(:,:)
-    integer :: ii, jj, matSize
+
+    integer :: ii, matSize
 
     matSize = size(matrix, dim = 1)
-    if( matSize /= size(matrix, dim = 2)) then
-      call error("Error(RangeSep): not a square matrix")
-    end if
+  @:ASSERT(size(matrix, dim = 2) == matSize)
     do ii = 1, matSize
-      do jj = ii + 1, matSize
-        matrix(ii, jj) = matrix(jj, ii)
-      end do
+      matrix(ii, ii+1:matSize) = matrix(ii+1:matSize, ii)
     end do
 
   end subroutine symmetrizeSquareMatrix
@@ -537,7 +526,7 @@ contains
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
     HH = HH + tmpHH
-    call evaluateEnergy()
+    self%lrenergy = self%lrenergy + evaluateEnergy(tmpHH, tmpDRho)
     call cpu_time(finish)
 
   contains
@@ -552,7 +541,19 @@ contains
     end subroutine allocateAndInit
 
     subroutine evaluateHamiltonian()
+      real(dp), allocatable :: gammaCache(:,:)
+      ! loop order iAtN, iAtB, iAtA, iAtM
+
       nAtom = size(self%species)
+      allocate(gammaCache(nAtom, nAtom))
+      do iAtN = 1, nAtom
+        gammaCache(iAtN,iAtN) = self%lrGammaEval(iAtN, iAtN)
+        do iAtM = iAtN+1, nAtom
+          gammaCache(iAtM,iAtN) = self%lrGammaEval(iAtM, iAtN)
+          gammaCache(iAtN,iAtM) = gammaCache(iAtM,iAtN)
+        end do
+      end do
+
       loopN: do iAtN = 1, nAtom
         descN = getDescriptor(iAtN)
         loopB: do iNeighN = 0, nNeighbour(iAtN)
@@ -564,13 +565,15 @@ contains
             descA = getDescriptor(iAtA)
             call copyDensityBlock(descA, descB, Pab, pPab)
             call copyDensityBlock(descA, descN, Pan, pPan)
-            gamma1 = self%lrGammaEval(iAtA, iAtN) + self%lrGammaEval(iAtA, iAtB)
+            !gamma1 = self%lrGammaEval(iAtA, iAtN) + self%lrGammaEval(iAtA, iAtB)
+            gamma1 = gammaCache(iAtA, iAtN) + gammaCache(iAtA, iAtB)
             loopM: do iNeighA = 0, nNeighbour(iAtA)
               iAtM = iNeighbour(iNeighA, iAtA)
               descM = getDescriptor(iAtM)
               call copyOverlapBlock(iAtA, iNeighA, descA(INORB), descM(INORB), Sma, pSma)
               call transposeBlock(pSma, Sam, pSam)
-              gamma2 = self%lrGammaEval(iAtM, iAtN) + self%lrGammaEval(iAtM, iAtB)
+              !gamma2 = self%lrGammaEval(iAtM, iAtN) + self%lrGammaEval(iAtM, iAtB)
+              gamma2 = gammaCache(iAtM, iAtN) + gammaCache(iAtM, iAtB)
               gammaTot = gamma1 + gamma2
               !
               if (iAtM >= iAtN) then
@@ -594,27 +597,6 @@ contains
 
     end subroutine evaluateHamiltonian
 
-    subroutine evaluateEnergy()
-      tmp = 0.0_dp
-      !do iAtM = 1, nAtom
-      !  do iAtN = 1, iAtM
-      !    do mu = iSquare(iAtM), iSquare(iAtM + 1) - 1
-      !      do nu = iSquare(iAtN), iSquare(iAtN + 1) - 1
-      !        if(iAtN == iAtM) then
-      !          tmp = tmp + tmpHH(mu, nu) * tmpDRho(mu, nu)
-      !        else
-      !          tmp = tmp + 2.0_dp * tmpHH(mu, nu) * tmpDRho(mu, nu)
-      !        end if
-      !      end do
-      !    end do
-      !  end do
-      !end do
-      !self%lrenergy = self%lrenergy + 0.5_dp * tmp
-      do mu = 1, size(tmpHH, dim = 2)
-        tmp = tmp + tmpHH(mu,mu)*tmpDRho(mu,mu) + 2.0_dp*sum(tmpHH(mu+1:,mu)*tmpDRho(mu+1:,mu))
-      end do
-      self%lrenergy = self%lrenergy + 0.5_dp * tmp
-    end subroutine evaluateEnergy
 
     function getDescriptor(iAt) result(desc)
       integer, intent(in) :: iAt
@@ -658,6 +640,7 @@ contains
 
     end subroutine transposeBlock
 
+
     subroutine updateHamiltonianBlock(descM, descN, pSma, pSbN, pPab)
       integer, dimension(DESC_LEN), intent(in) :: descM, descN
       real(dp), dimension(:,:), pointer, intent(in) :: pSma, pSbN, pPab
@@ -676,35 +659,71 @@ contains
   end subroutine addLRHamiltonian_nb
 
 
+  !> evaluate energy from triangles of the hamitonian and density matrix
+  pure function evaluateEnergy(hamiltonian, densityMat) result(egy)
+
+    !> hamiltonian matrix
+    real(dp), intent(in) :: hamiltonian(:,:)
+
+    !> density matrix
+    real(dp), intent(in) :: densityMat(:,:)
+
+    !> resulting energy
+    real(dp) :: egy
+
+    integer :: mu
+
+    egy = 0.0_dp
+    do mu = 1, size(hamiltonian, dim = 2)
+      egy = egy + hamiltonian(mu,mu)*densityMat(mu,mu)&
+          & + 2.0_dp*sum(hamiltonian(mu+1:,mu)*densityMat(mu+1:,mu))
+    end do
+    egy = 0.5_dp * egy
+
+  end function evaluateEnergy
+
+
   !> Interface routine.
-  !!
-  !> self, class instance
-  !> densSqr  Square (unpacked) density matrix
-  !> over  Sparse (packed) overlap matrix.
-  !> iNeighbour  Neighbour indices.
-  !> nNeighbour  Nr. of neighbours for each atom.
-  !> iSquare  Position of each atom in the rows/columns of the square
-  !!     matrices. Shape: (nAtom)
-  !> iPair  Position of each (neighbour, atom) pair in the sparse
-  !!   matrix. Shape: (0:maxNeighbour, nAtom)
-  !> orb  Orbital information.
-  !> HH  Square (unpacked) Hamiltonian to be updated.
-  !> overlap, square real overlap matrix
-  !> deltaRho, square density matrix (deltaRho in DFTB terms)
   subroutine addLRHamiltonian(self, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair, orb, HH,&
       & overlap, deltaRho)
+
+    !> class instance
     class(RangeSepFunc), intent(inout) :: self
+
     ! NB
+
+    !> Square (unpacked) density matrix
     real(dp), dimension(:,:), target, intent(in) :: densSqr
+
+    !> Sparse (packed) overlap matrix.
     real(dp), dimension(:), intent(in) :: over
+
+    !> Neighbour indices.
     integer, dimension(0:,:), intent(in) :: iNeighbour
+
+    !> Nr. of neighbours for each atom.
     integer, dimension(:), intent(in) :: nNeighbour
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, dimension(:), intent(in) :: iSquare
+
+    !> iPair Position of each (neighbour, atom) pair in the sparse matrix.
+    !> Shape: (0:maxNeighbour,nAtom)
     integer, dimension(0:,:), intent(in) :: iPair
+
+    !> Orbital information.
     type(TOrbitals), intent(in) :: orb
+
+    !> Square (unpacked) Hamiltonian to be updated.
     real(dp), dimension(:,:), intent(inout), target :: HH
+
     ! TR
-    real(dp), intent(in) :: overlap(:,:), deltaRho(:,:)
+
+    !> square real overlap matrix
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> square density matrix (deltaRho in DFTB terms)
+    real(dp), intent(in) :: deltaRho(:,:)
 
     select case(self%getRSAlg())
     case ("tr")
@@ -713,6 +732,7 @@ contains
       call self%addLRHamiltonian_nb(densSqr, over, iNeighbour, nNeighbour, iSquare, iPair, orb, HH)
     case default
     end select
+
   end subroutine addLRHamiltonian
 
 
@@ -737,7 +757,7 @@ contains
     integer :: ii
     real(dp) :: tauA, tauB, omega
     real(dp) :: prefac, tmp, tmp2, tau
-    !
+
     tauA = 3.2_dp * self%hubbu(Sp1)
     tauB = 3.2_dp * self%hubbu(Sp2)
     omega = self%omega
