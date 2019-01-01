@@ -86,7 +86,7 @@ contains
 
 
   !> Return the choice of range separation screening algorithm
-  function getRSALg(self) result(res)
+  pure function getRSALg(self) result(res)
 
     !> class instance
     class(RangeSepFunc), intent(in) :: self
@@ -346,30 +346,25 @@ contains
       real(dp), allocatable :: gammaCache(:,:)
 
       nAtom = size(self%species)
+      ! marginally faster to make a local copy, at least with gfortran
       allocate(gammaCache(nAtom, nAtom))
-      do iAtNu = 1, nAtom
-        gammaCache(iAtNu,iAtNu) = self%lrGammaEval(iAtNu, iAtNu)
-        do iAtMu = iAtNu+1, nAtom
-          gammaCache(iAtMu,iAtNu) = self%lrGammaEval(iAtMu, iAtNu)
-          gammaCache(iAtNu,iAtMu) = gammaCache(iAtMu,iAtNu)
-        end do
-      end do
+      gammaCache(:,:) = self%lrGammaEval(:, :)
 
       pbound = maxval(abs(tmpDDRho))
       tmpDham = 0.0_dp
       loopMu: do iAtMu = 1, nAtom
-        descM = getDescriptor(iAtMu)
+        descM = getDescriptor(iAtMu, iSquare)
         loopKK: do kk = 1, nAtom
           iAt1 = ovrind(iAtMu, nAtom + 1 - kk)
-          descA = getDescriptor(iAt1)
+          descA = getDescriptor(iAt1, iSquare)
           iSp1 = self%species(iAt1)
           nOrb1 = orb%nOrbSpecies(iSp1)
           prb = pbound * testovr(iAt1, iAtMu)
           if(abs(prb) >= self%pScreeningThreshold) then
             loopNu: do iAtNu = 1, iAtMu
-              descN = getDescriptor(iAtNu)
+              descN = getDescriptor(iAtNu, iSquare)
               !gammabatchtmp = self%lrGammaEval(iAtMu, iAtNu) + self%lrGammaEval(iAt1, iAtNu)
-              gammabatchtmp = gammaCache(iAtMu, iAtNu) + gammaCache(iAt1, iAtNu)
+              gammabatchtmp = gammaCache(iAtNu, iAtMu) + gammaCache(iAtNu, iAt1)
               loopLL: do ll = 1, nAtom
                 iAt2 = ovrind(iAtNu, nAtom + 1 - ll)
                 iSp2 = self%species(iAt2)
@@ -377,11 +372,10 @@ contains
                 ! screening condition
                 tstbound = prb * testovr(iAt2, iAtNu)
                 if(abs(tstbound) >= self%pScreeningThreshold) then
-                  descB = getDescriptor(iAt2)
+                  descB = getDescriptor(iAt2, iSquare)
                   !gammabatch = (self%lrGammaEval(iAtMu, iAt2) + self%lrGammaEval(iAt1, iAt2)&
                   !    & + gammabatchtmp)
-                  gammabatch = (gammaCache(iAtMu, iAt2) + gammaCache(iAt1, iAt2)&
-                      & + gammabatchtmp)
+                  gammabatch = gammaCache(iAt2, iAtMu) + gammaCache(iAt2, iAt1) + gammabatchtmp
                   gammabatch = -0.125_dp * gammabatch
                   ! calculate the Q_AB
                   do nu = descN(ISTART), descN(IEND)
@@ -427,53 +421,7 @@ contains
 
     end subroutine checkAndInitScreening
 
-
-    !> location of relevant indices in dense matrix
-    function getDescriptor(iAt) result(desc)
-
-      !> relevant atom
-      integer, intent(in) :: iAt
-
-      !> resulting location ranges
-      integer, dimension(DESC_LEN) :: desc
-
-      desc(:) = [ iSquare(iAt), iSquare(iAt + 1) - 1, iSquare(iAt + 1) - iSquare(iAt) ]
-
-    end function getDescriptor
-
   end subroutine addLRHamiltonian_tr
-
-
-  !> Add the LR-Energy contribution to the total energy
-  subroutine addLREnergy(self, energy)
-
-    !> RangeSep class instance
-    class(RangeSepFunc), intent(inout) :: self
-
-    !> total energy
-    real(dp), intent(inout) :: energy
-
-    energy = energy + self%lrenergy
-    ! hack for spin unrestricted calculation
-    self%lrenergy = 0.0_dp
-
-  end subroutine addLRenergy
-
-  !> copy lower triangle to upper
-  subroutine symmetrizeSquareMatrix(matrix)
-
-    !> matrix to symmetrize
-    real(dp), allocatable, intent(inout) :: matrix(:,:)
-
-    integer :: ii, matSize
-
-    matSize = size(matrix, dim = 1)
-  @:ASSERT(size(matrix, dim = 2) == matSize)
-    do ii = 1, matSize
-      matrix(ii, ii+1:matSize) = matrix(ii+1:matSize, ii)
-    end do
-
-  end subroutine symmetrizeSquareMatrix
 
 
   !> Updates the Hamiltonian with the range separated contribution.
@@ -541,35 +489,31 @@ contains
     end subroutine allocateAndInit
 
     subroutine evaluateHamiltonian()
+
       real(dp), allocatable :: gammaCache(:,:)
-      ! loop order iAtN, iAtB, iAtA, iAtM
 
       nAtom = size(self%species)
+
+      ! marginally faster to make a local copy, at least with gfortran
       allocate(gammaCache(nAtom, nAtom))
-      do iAtN = 1, nAtom
-        gammaCache(iAtN,iAtN) = self%lrGammaEval(iAtN, iAtN)
-        do iAtM = iAtN+1, nAtom
-          gammaCache(iAtM,iAtN) = self%lrGammaEval(iAtM, iAtN)
-          gammaCache(iAtN,iAtM) = gammaCache(iAtM,iAtN)
-        end do
-      end do
+      gammaCache(:,:) = self%lrGammaEval(:, :)
 
       loopN: do iAtN = 1, nAtom
-        descN = getDescriptor(iAtN)
+        descN = getDescriptor(iAtN, iSquare)
         loopB: do iNeighN = 0, nNeighbour(iAtN)
           iAtB = iNeighbour(iNeighN, iAtN)
-          descB = getDescriptor(iAtB)
+          descB = getDescriptor(iAtB, iSquare)
           call copyOverlapBlock(iAtN, iNeighN, descN(INORB), descB(INORB), Sbn, pSbn)
           call transposeBlock(pSbn, Snb, pSnb)
           loopA: do iAtA = 1, nAtom
-            descA = getDescriptor(iAtA)
+            descA = getDescriptor(iAtA, iSquare)
             call copyDensityBlock(descA, descB, Pab, pPab)
             call copyDensityBlock(descA, descN, Pan, pPan)
             !gamma1 = self%lrGammaEval(iAtA, iAtN) + self%lrGammaEval(iAtA, iAtB)
             gamma1 = gammaCache(iAtA, iAtN) + gammaCache(iAtA, iAtB)
             loopM: do iNeighA = 0, nNeighbour(iAtA)
               iAtM = iNeighbour(iNeighA, iAtA)
-              descM = getDescriptor(iAtM)
+              descM = getDescriptor(iAtM, iSquare)
               call copyOverlapBlock(iAtA, iNeighA, descA(INORB), descM(INORB), Sma, pSma)
               call transposeBlock(pSma, Sam, pSam)
               !gamma2 = self%lrGammaEval(iAtM, iAtN) + self%lrGammaEval(iAtM, iAtB)
@@ -597,13 +541,6 @@ contains
 
     end subroutine evaluateHamiltonian
 
-
-    function getDescriptor(iAt) result(desc)
-      integer, intent(in) :: iAt
-      integer, dimension(DESC_LEN) :: desc
-
-      desc(:) = [ iSquare(iAt), iSquare(iAt + 1) - 1, iSquare(iAt + 1) - iSquare(iAt) ]
-    end function getDescriptor
 
     subroutine copyOverlapBlock(iAt, iNeigh, nOrbAt, nOrbNeigh, localBlock, pLocalBlock)
       integer, intent(in) :: iAt, iNeigh, nOrbAt, nOrbNeigh
@@ -649,14 +586,64 @@ contains
 
       pHmn => tmpHH(descM(ISTART):descM(IEND), descN(ISTART):descN(IEND))
       if(self%tSpin) then
-        pHmn(:,:) = pHmn + gammaTot * matmul(matmul(pSma, pPab), pSbn) * (-0.25_dp)
+        pHmn(:,:) = pHmn - 0.25_dp * gammaTot * matmul(matmul(pSma, pPab), pSbn)
       else
-        pHmn(:,:) = pHmn + gammaTot * matmul(matmul(pSma, pPab), pSbn) * (-0.125_dp)
+        pHmn(:,:) = pHmn - 0.125_dp * gammaTot * matmul(matmul(pSma, pPab), pSbn)
       end if
 
     end subroutine updateHamiltonianBlock
 
   end subroutine addLRHamiltonian_nb
+
+
+  !> Add the LR-Energy contribution to the total energy
+  subroutine addLREnergy(self, energy)
+
+    !> RangeSep class instance
+    class(RangeSepFunc), intent(inout) :: self
+
+    !> total energy
+    real(dp), intent(inout) :: energy
+
+    energy = energy + self%lrenergy
+    ! hack for spin unrestricted calculation
+    self%lrenergy = 0.0_dp
+
+  end subroutine addLRenergy
+
+
+  !> copy lower triangle to upper for a square matrix
+  subroutine symmetrizeSquareMatrix(matrix)
+
+    !> matrix to symmetrize
+    real(dp), allocatable, intent(inout) :: matrix(:,:)
+
+    integer :: ii, matSize
+
+    matSize = size(matrix, dim = 1)
+  @:ASSERT(size(matrix, dim = 2) == matSize)
+    do ii = 1, matSize
+      matrix(ii, ii+1:matSize) = matrix(ii+1:matSize, ii)
+    end do
+
+  end subroutine symmetrizeSquareMatrix
+
+
+  !> location of relevant atomic block indices in a dense matrix
+  pure function getDescriptor(iAt, iSquare) result(desc)
+
+    !> relevant atom
+    integer, intent(in) :: iAt
+
+    !> indexing array for start of atom orbitals
+    integer, intent(in) :: iSquare(:)
+
+    !> resulting location ranges
+    integer :: desc(3)
+
+    desc(:) = [ iSquare(iAt), iSquare(iAt + 1) - 1, iSquare(iAt + 1) - iSquare(iAt) ]
+
+  end function getDescriptor
 
 
   !> evaluate energy from triangles of the hamitonian and density matrix
@@ -1202,8 +1189,8 @@ contains
             do alpha = 1, size(tmpovr, dim = 1)
               do beta = 1, size(tmpovr, dim = 1)
                 tmp = tmp + (&
-                    & tmpDRho(alpha,beta)*tmpDRho(mu,nu) +tmpDRho(mu,beta)*tmpDRho(alpha,nu)) &
-                    & * tmpovr(mu,alpha) * tmpovr(nu,beta)
+                    & tmpDRho(alpha,beta) * tmpDRho(mu,nu)&
+                    & +tmpDRho(mu,beta) * tmpDRho(alpha,nu)) * tmpovr(mu,alpha) * tmpovr(nu,beta)
               end do
             end do
           end do

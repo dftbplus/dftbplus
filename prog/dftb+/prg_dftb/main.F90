@@ -345,7 +345,7 @@ contains
         if (tRangeSep) then
           if(nSpin == 2) then
             do iSpin = 1, 2
-              call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr,iSpin)
+              call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr, iSpin)
             end do
           else
             call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
