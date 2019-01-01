@@ -79,8 +79,8 @@ contains
 
 
   !> Reads the data from an SK-file.
-  subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, &
-      &repSplineIn, repPolyIn, rangeSepSK)
+  subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, repSplineIn, repPolyIn,&
+      & rangeSepSK)
 
     !> Contains the content of the SK-file on exit
     type(TOldSKData), intent(out) :: skData
@@ -108,7 +108,10 @@ contains
 
     integer :: file
     character(lc) :: chDummy
+
+    !> extended format for f orbitals
     logical :: tExtended
+
     integer :: nShell
     integer :: ii, iGrid
     real(dp) :: rDummy
@@ -185,8 +188,8 @@ contains
 
     call readSplineRep(file, fileName, repSplineIn, iSp1, iSp2)
 
-    !> Read rangeseparation parameter
-    if(present(rangeSepSK)) then
+    !> Read range separation parameter
+    if (present(rangeSepSK)) then
        call readRangeSep(file, fileName, rangeSepSK)
     end if
 
