@@ -2516,7 +2516,7 @@ contains
     !> Distances to artificially truncate tables of SK integrals
     real(dp), intent(in), optional :: truncationCutOff
 
-    !> if calculation rangeseparated read omega from end of SK file
+    !> if calculation range separated then read omega from end of SK file
     type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
 
     integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInt, nInteract,iSh1
@@ -2578,11 +2578,11 @@ contains
               end if
             else
               if (readRep .and. repPoly(iSp2, iSp1)) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
-                    &repPolyIn=repPolyIn1, rangeSepSK=rangeSepSK)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, repPolyIn=repPolyIn1,&
+                    & rangeSepSK=rangeSepSK)
               elseif (readRep) then
-                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
-                    &iSp1, iSp2, repSplineIn=repSplineIn1, rangeSepSK=rangeSepSK)
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
+                    & repSplineIn=repSplineIn1, rangeSepSK=rangeSepSK)
               else
                 call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK)
               end if
@@ -2646,8 +2646,8 @@ contains
         nInteract = getNSKIntegrals(iSp1, iSp2, orb)
         allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInteract))
         allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInteract))
-        call getFullTable(skHam, skOver, skData12, skData21, angShells(iSp1), &
-            &angShells(iSp2))
+        call getFullTable(skHam, skOver, skData12, skData21, angShells(iSp1),&
+            & angShells(iSp2))
 
         ! Add H/S tables to the containers for iSp1-iSp2
         dist = skData12(1,1)%dist
@@ -2669,7 +2669,7 @@ contains
           allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInteract))
           allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInteract))
           call getFullTable(skHam, skOver, skData21, skData12, angShells(iSp2),&
-              &angShells(iSp1))
+              & angShells(iSp1))
           allocate(pSlakoEqGrid1, pSlakoEqGrid2)
           call init(pSlakoEqGrid1, dist, skHam(:nEntries,:), skInterMeth)
           call init(pSlakoEqGrid2, dist, skOver(:nEntries,:), skInterMeth)
@@ -2889,8 +2889,7 @@ contains
 
   !> Creates from the columns of the Slater-Koster files for A-B and B-A a full table for A-B,
   !> containing all integrals.
-  subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
-      &angShells2)
+  subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, angShells2)
 
     !> Resulting table of H integrals
     real(dp), intent(out) :: skHam(:,:)
