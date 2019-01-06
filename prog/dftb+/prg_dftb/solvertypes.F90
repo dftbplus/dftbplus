@@ -23,6 +23,8 @@ module solvertypes
 
   ! geometry optimisers
 
+  !> Null case
+  integer, parameter :: optNull = 0
   !> Steepest descent optimiser
   integer, parameter :: optSD = 1
   !> Conjugate gradient optimiser

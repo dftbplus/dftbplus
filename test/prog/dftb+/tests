@@ -194,6 +194,7 @@ transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CH4-poisson                  #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CNT                          #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/CNT_GF                       #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4
