@@ -83,6 +83,11 @@ parallelks.o = parallelks.o $(_mod_dftbp_environment) $(common.fypp)
 _mod_dftbp_parallelks: parallelks.o
 _mod_dftbp_parallelks = $(parallelks.o)
 
+slaterkoster.o: _mod_repcont _mod_commontypes _mod_accuracy _mod_slakocont
+slaterkoster.o = slaterkoster.o $(_mod_repcont) $(_mod_commontypes) $(_mod_accuracy) $(_mod_slakocont)
+_mod_slaterkoster: slaterkoster.o
+_mod_slaterkoster = $(slaterkoster.o)
+
 typegeometry.o: _mod_dftbp_accuracy
 typegeometry.o = typegeometry.o $(_mod_dftbp_accuracy)
 _mod_dftbp_typegeometry: typegeometry.o

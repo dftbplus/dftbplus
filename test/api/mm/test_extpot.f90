@@ -18,7 +18,7 @@ program test_extpot
 
   integer, parameter :: nExtChrg = 2
 
-  ! H2O coordinates
+  ! H2O coordinates (atomic units)
   real(dp), parameter :: initialCoords(3, nAtom) = reshape([&
       & 0.000000000000000E+00_dp, -0.188972598857892E+01_dp,  0.000000000000000E+00_dp,&
       & 0.000000000000000E+00_dp,  0.000000000000000E+00_dp,  0.147977639152057E+01_dp,&
@@ -27,10 +27,10 @@ program test_extpot
   ! H2O atom types
   integer, parameter :: species(nAtom) = [1, 2, 2]
 
-  ! External charges (positions and charges)
+  ! External charges (positions and charges, again atomic units)
   real(dp), parameter :: extCharges(4, nExtChrg) = reshape([&
-      & -0.94486343888717805E+00_dp, -0.94486343888717794E+01_dp,  0.17007541899969201E+01_dp, 2.5_dp,&
-      &  0.43463718188810203E+01_dp, -0.58581533211004997E+01_dp,  0.26456176288841000E+01_dp, -1.9_dp&
+      &-0.94486343888717805E+00_dp,-0.94486343888717794E+01_dp, 0.17007541899969201E+01_dp, 2.5_dp,&
+      & 0.43463718188810203E+01_dp,-0.58581533211004997E+01_dp, 0.26456176288841000E+01_dp, -1.9_dp&
       &], [4, nExtChrg])
 
   type(TDftbPlus) :: dftbp
@@ -39,17 +39,16 @@ program test_extpot
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom), extPot(nAtom), extPotGrad(3, nAtom)
   real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
-  integer :: devNull
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
   type(fnode), pointer :: pParserOpts
+
+  !integer :: devNull
 
   ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
   !open(newunit=devNull, file="/dev/null", action="write")
   !call TDftbPlus_init(dftbp, outputUnit=devNull)
   call TDftbPlus_init(dftbp)
 
-  ! You should provide the dftb_in.hsd and skfiles as found in the
-  ! test/prog/dftb+/non-scc/Si_2/ folder
   call dftbp%getEmptyInput(input)
   call input%getRootNode(pRoot)
   call setChild(pRoot, "Geometry", pGeo)
@@ -61,28 +60,44 @@ program test_extpot
   call setChild(pHam, "Dftb", pDftb)
   call setChildValue(pDftb, "Scc", .true.)
   call setChildValue(pDftb, "SccTolerance", 1e-12_dp)
+
+  ! sub-block inside hamiltonian for the maximum angular momenta
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
+  ! explicitly set the maximum angular momenta for the species
   call setChildValue(pMaxAng, "O", "p")
   call setChildValue(pMaxAng, "H", "s")
+
+  ! get the SK data
+  ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder. These can
+  ! be downloaded with the utils/get_opt_externals script
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "external/slakos/origin/mio-1-1/")
   call setChildValue(pType2Files, "Separator", "-")
   call setChildValue(pType2Files, "Suffix", ".skf")
+
+  !  set up analysis options
   call setChild(pRoot, "Analysis", pAnalysis)
   call setChildValue(pAnalysis, "CalculateForces", .true.)
+
   call setChild(pRoot, "ParserOptions", pParserOpts)
   call setChildValue(pParserOpts, "ParserVersion", 5)
   
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
-  
+
+  ! initialise the DFTB+ calculator
   call dftbp%setupCalculator(input)
 
+  ! Replace coordinates
   coords(:,:) = initialCoords
   call dftbp%setGeometry(coords)
+
+  ! add external point charges
   call getPointChargePotential(extCharges(1:3,:), extCharges(4,:), coords, extPot, extPotGrad)
   call dftbp%setExternalPotential(atomPot=extPot, potGrad=extPotGrad)
+
+  ! get results
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
   call dftbp%getGrossCharges(atomCharges)

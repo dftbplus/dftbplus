@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+!> main module for the DFTB+ API
 module dftbp_mainapi
   use dftbp_environment, only : TEnvironment
   use dftbp_accuracy, only : dp
@@ -26,9 +27,13 @@ module dftbp_mainapi
 
 contains
 
-
+  !> Sets up the atomic geometry
   subroutine setGeometry(coords, latVecs)
+
+    !> atom coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    !> lattice vectors, if periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
     coord0(:,:) = coords
@@ -43,8 +48,13 @@ contains
   end subroutine setGeometry
 
 
+  !> Returns the free energy of the system at finite temperature
   subroutine getEnergy(env, merminEnergy)
+
+    !> Instance
     type(TEnvironment), intent(inout) :: env
+
+    !> Resulting energy
     real(dp), intent(out) :: merminEnergy
 
     call recalcGeometry(env)
@@ -53,8 +63,13 @@ contains
   end subroutine getEnergy
 
 
+  !> get forces on atoms
   subroutine getGradients(env, gradients)
+
+    !> instance
     type(TEnvironment), intent(inout) :: env
+
+    !> resulting gradients wrt atom positions
     real(dp), intent(out) :: gradients(:,:)
 
     call recalcGeometry(env)
@@ -63,7 +78,10 @@ contains
   end subroutine getGradients
 
 
+  !> get the gross (Mulliken projected) charges for atoms wrt neutral atoms
   subroutine getGrossCharges(atomCharges)
+
+    !> resulting charges
     real(dp), intent(out) :: atomCharges(:)
 
     atomCharges(:) = sum(q0(:, :, 1) - qOutput(:, :, 1), dim=1)
@@ -161,6 +179,7 @@ contains
   end subroutine getExtChargeGradients
 
 
+  !> Obtains number of atoms in the system
   function nrOfAtoms()
     integer :: nrOfAtoms
 
@@ -173,7 +192,10 @@ contains
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+  !> re-evaluate the energy/forces if the geometry changes
   subroutine recalcGeometry(env)
+
+    !> instance
     type(TEnvironment), intent(inout) :: env
 
     logical :: tStopDriver, tStopScc

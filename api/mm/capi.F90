@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !> Contains the C-API of DFTB+.
 module dftbp_capi
   use, intrinsic :: iso_c_binding
@@ -9,11 +16,12 @@ module dftbp_capi
   implicit none
   private
 
-
+  !> DFTB+ input tree
   type, bind(C) :: c_DftbPlusInput
     type(c_ptr) :: pDftbPlusInput
   end type c_DftbPlusInput
 
+  !> DFTB+ calculation
   type, bind(C) :: c_DftbPlus
     type(c_ptr) :: instance
   end type c_DftbPlus
@@ -29,9 +37,13 @@ module dftbp_capi
 
 contains
 
-
+  !> Initialises a DFTB+ calculation with output sent to to some location
   subroutine c_DftbPlus_init(handler, outputFileName) bind(C, name='dftbp_init')
+
+    !> DFTB+ handler
     type(c_DftbPlus), intent(out) :: handler
+
+    !> output location
     type(c_ptr), value, intent(in) :: outputFileName
 
     type(TDftbPlusC), pointer :: instance
@@ -54,9 +66,13 @@ contains
   end subroutine c_DftbPlus_init
 
 
+  !> finalises a DFTB+ instance
   subroutine c_DftbPlus_final(handler) bind(C, name='dftbp_final')
+
+    !> DFTB+ handler
     type(c_DftbPlus), intent(inout) :: handler
 
+    !> the specific instance to be finalised
     type(TDftbPlusC), pointer :: instance
 
     call c_f_pointer(handler%instance, instance)
@@ -70,10 +86,17 @@ contains
   end subroutine c_DftbPlus_final
 
 
+  !> Read input for DFTB+ from a specified file
   subroutine c_DftbPlus_getInputFromFile(handler, fileName, inputHandler)&
       & bind(C, name='dftbp_get_input_from_file')
+
+    !> handler for the input
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> file to read
     character(c_char), intent(in) :: fileName(*)
+
+    !> handler for the resulting input
     type(c_DftbPlusInput), intent(out) :: inputHandler
 
     type(TDftbPlusC), pointer :: instance
@@ -89,9 +112,14 @@ contains
   end subroutine c_DftbPlus_getInputFromFile
 
 
+  !> process a document tree to get settings for the calculation
   subroutine c_DftbPlus_processInput(handler, inputHandler)&
       & bind(C, name='dftbp_process_input')
+
+    !> handler for the calculation instance
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> input tree handler
     type(c_DftbPlusInput), intent(inout) :: inputHandler
 
     type(TDftbPlusC), pointer :: instance
@@ -104,10 +132,17 @@ contains
   end subroutine c_DftbPlus_processInput
 
 
+  !> set an external potential on the DFTB+ calculation
   subroutine c_DftbPlus_setExternalPotential(handler, extPot, extPotGrad)&
       & bind(C, name='dftbp_set_external_potential')
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> externally set potential
     real(c_double), intent(in) :: extPot(*)
+
+    !> gradient of the potential wrt to atom positions
     type(c_ptr), value, intent(in) :: extPotGrad
 
     type(TDftbPlusC), pointer :: instance
@@ -127,11 +162,20 @@ contains
   end subroutine c_DftbPlus_setExternalPotential
 
 
+  !> register a generator for an external potential
   subroutine c_DftbPlus_registerExtPotGenerator(handler, refPtr, extPotFunc, extPotGradFunc)&
       & bind(C, name='dftbp_register_ext_pot_generator')
+
+    !> handler for the potential
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> pointer to the C routine for the external potential
     type(c_ptr), value, intent(in) :: refPtr
+
+    !> function for the external potential
     type(c_funptr), value, intent(in) :: extPotFunc
+
+    !> function for the gradient of the potential
     type(c_funptr), value, intent(in) :: extPotGradFunc
 
     type(TDftbPlusC), pointer :: instance
@@ -148,8 +192,13 @@ contains
   end subroutine c_DftbPlus_registerExtPotGenerator
 
 
+  !> set/replace the coordinates in a DFTB+ calculation instance
   subroutine c_DftbPlus_setCoords(handler, coords) bind(C, name='dftbp_set_coords')
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> coordinates, (xyz, :nAtom)
     real(c_double), intent(in) :: coords(3,*)
 
     type(TDftbPlusC), pointer :: instance
@@ -162,10 +211,17 @@ contains
   end subroutine c_DftbPlus_setCoords
 
 
+  !> Set both the coordinates and lattice vectors
   subroutine c_DftbPlus_setCoordsAndLatticeVecs(handler, coords, latVecs)&
       & bind(C, name='dftbp_set_coords_and_lattice_vecs')
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> coordinates, row major format (xyz, :nAtom)
     real(c_double), intent(in) :: coords(3,*)
+
+    !> lattice vectors, row major format
     real(c_double), intent(in) :: latvecs(3, *)
 
     type(TDftbPlusC), pointer :: instance
@@ -178,8 +234,13 @@ contains
   end subroutine c_DftbPlus_setCoordsAndLatticeVecs
 
 
+  !> Obtain the DFTB+ energy
   subroutine c_DftbPlus_getEnergy(handler, merminEnergy) bind(C, name='dftbp_get_energy')
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> resulting energy
     real(c_double), intent(out) :: merminEnergy
 
     type(TDftbPlusC), pointer :: instance
@@ -190,8 +251,13 @@ contains
   end subroutine c_DftbPlus_getEnergy
 
 
+  !> Obtain the gradients wrt DFTB atom positions
   subroutine c_DftbPlus_getGradients(handler, gradients) bind(C, name='dftbp_get_gradients')
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> gradients, row major format
     real(c_double), intent(out) :: gradients(3, *)
 
     type(TDftbPlusC), pointer :: instance
@@ -204,9 +270,14 @@ contains
   end subroutine c_DftbPlus_getGradients
 
 
+  !> Obtain gross (Mulliken) charges for atoms wrt to neutral references
   subroutine c_DftbPlus_getGrossCharges(handler, atomCharges)&
       & bind(C, name='dftbp_get_gross_charges')
+
+    !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
+
+    !> resulting atomic charges
     real(c_double), intent(out) :: atomCharges(*)
 
     type(TDftbPlusC), pointer :: instance

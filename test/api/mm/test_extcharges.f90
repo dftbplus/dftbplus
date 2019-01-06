@@ -5,6 +5,7 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+!> example code for adding external charges to a water molecule calculation
 program test_extcharges
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
@@ -17,7 +18,7 @@ program test_extcharges
 
   integer, parameter :: nExtChrg = 2
 
-  ! H2O coordinates
+  ! H2O coordinates, atomic units
   real(dp), parameter :: initialCoords(3, nAtom) = reshape([&
       & 0.000000000000000E+00_dp, -0.188972598857892E+01_dp,  0.000000000000000E+00_dp,&
       & 0.000000000000000E+00_dp,  0.000000000000000E+00_dp,  0.147977639152057E+01_dp,&
@@ -26,13 +27,14 @@ program test_extcharges
   ! Atomic number of each atom
   integer, parameter :: atomTypes(nAtom) = [8, 1, 1]
 
+  ! list of atoms by atomic number
   character(2), parameter :: atomTypeNames(10) = [character(2) ::&
       & "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne"]
 
-  ! External charges (positions and charges)
+  ! External charges (positions and charges, again atomic units)
   real(dp), parameter :: extCharges(4, nExtChrg) = reshape([&
-      & -0.94486343888717805E+00_dp, -0.94486343888717794E+01_dp,  0.17007541899969201E+01_dp, 2.5_dp,&
-      &  0.43463718188810203E+01_dp, -0.58581533211004997E+01_dp,  0.26456176288841000E+01_dp, -1.9_dp&
+      &-0.94486343888717805E+00_dp,-0.94486343888717794E+01_dp, 0.17007541899969201E+01_dp, 2.5_dp,&
+      & 0.43463718188810203E+01_dp,-0.58581533211004997E+01_dp, 0.26456176288841000E+01_dp, -1.9_dp&
       &], [4, nExtChrg])
 
   character(100), parameter :: slakoFiles(2, 2) = reshape([character(100) :: &
@@ -52,17 +54,18 @@ program test_extcharges
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom)
   real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
-  integer :: devNull
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
   type(fnode), pointer :: pParserOpts
+
+  !integer :: devNull
 
   ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
   !open(newunit=devNull, file="/dev/null", action="write")
   !call TDftbPlus_init(dftbp, outputUnit=devNull)
   call TDftbPlus_init(dftbp)
 
-  ! You should provide the dftb_in.hsd and skfiles as found in the
-  ! test/prog/dftb+/non-scc/Si_2/ folder
+  ! You should provide the skfiles as found in the external/slakos/origin/mio-1-1/ folder. These can
+  ! be downloaded with the utils/get_opt_externals script
   call dftbp%getEmptyInput(input)
   call input%getRootNode(pRoot)
   call setChild(pRoot, "Geometry", pGeo)
@@ -82,10 +85,14 @@ program test_extcharges
   call setChildValue(pDftb, "Scc", .true.)
   call setChildValue(pDftb, "SccTolerance", 1e-12_dp)
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
+
+  ! read angular momenta from SK data
   call setChildValue(pMaxAng, speciesNames(1),&
       & maxAngNames(getMaxAngFromSlakoFile(slakoFiles(1, 1)) + 1))
   call setChildValue(pMaxAng, speciesNames(2),&
       & maxAngNames(getMaxAngFromSlakoFile(slakoFiles(2, 2)) + 1))
+
+  ! set up locations for SK file data
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
   call setChild(pSlakos, "Type2FileNames", pType2Files)
   call setChildValue(pType2Files, "Prefix", "external/slakos/origin/mio-1-1/")
@@ -98,12 +105,18 @@ program test_extcharges
   
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
-  
+
+  ! convert input into settings for the DFTB+ calculator
   call dftbp%setupCalculator(input)
 
-  coords(:,:) = initialCoords
+  ! add external charges
   call dftbp%setExternalCharges(extCharges(1:3,:), extCharges(4,:))
+
+  ! replace QM atom coordinates
+  coords(:,:) = initialCoords
   call dftbp%setGeometry(coords)
+
+  ! get energy, charges and forces
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
   call dftbp%getExtChargeGradients(extChargeGrads)
@@ -132,6 +145,7 @@ program test_extcharges
       & 0.222543951385786E-002_dp, -0.473142778171874E-002_dp
   print "(A,3F15.10)", 'Obtained gradient of charge 2:', extChargeGrads(:,2)
 
+  ! clean up
   call TDftbPlus_destruct(dftbp)
 
 

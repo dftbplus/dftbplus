@@ -18,8 +18,8 @@ mmapi.o = mmapi.o $(_mod_dftbp_environment) $(common.fypp) $(_mod_dftbp_accuracy
 _mod_dftbp_mmapi: mmapi.o
 _mod_dftbp_mmapi = $(mmapi.o)
 
-qdepextpotgenc.o: _mod_dftbp_qdepextpotgen
-qdepextpotgenc.o = qdepextpotgenc.o $(_mod_dftbp_qdepextpotgen)
+qdepextpotgenc.o: _mod_dftbp_accuracy _mod_dftbp_qdepextpotgen
+qdepextpotgenc.o = qdepextpotgenc.o $(_mod_dftbp_accuracy) $(_mod_dftbp_qdepextpotgen)
 _mod_dftbp_qdepextpotgenc: qdepextpotgenc.o
 _mod_dftbp_qdepextpotgenc = $(qdepextpotgenc.o)
 

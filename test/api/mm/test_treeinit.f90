@@ -5,38 +5,50 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-program test_cluster
+!> Test code which builds the DFTB input tree and then evaluates energy and forces. Example is a
+!> periodic geometry with k-points.
+program test_treeinit
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_constants, only : AA__Bohr
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
-  
+
+  ! reference coordinates, (xyz,:nAtom) in atomic units
   real(dp), parameter :: initialCoords(3, 2) = reshape([&
       & 0.0000000000000000_dp, 0.0000000000000000_dp, 0.0000000000000000_dp,&
       & 2.5639291987021915_dp, 2.5639291987021915_dp, 2.5639291987021915_dp], [3, 2])
 
+  ! lattice vectors in atomic units
   real(dp), parameter :: initialLatVecs(3, 3) = reshape([&
       & 5.1278583974043830_dp, 5.1278583974043830_dp, 0.0000000000000000_dp,&
       & 0.0000000000000000_dp, 5.1278583974043830_dp, 5.1278583974043830_dp,&
       & 5.1278583974043830_dp, 0.0000000000000000_dp, 5.1278583974043830_dp], [3, 3])
 
+  ! DFTB+ calculation itself
   type(TDftbPlus) :: dftbp
+  ! input settings
   type(TDftbPlusInput) :: input
 
   real(dp) :: merminEnergy
   real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2)
-  integer :: devNull
+
+  ! pointers to the parts of the input tree that will be set
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pOptions, pParserOpts
+
+  !integer :: devNull
 
   ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
   !open(newunit=devNull, file="/dev/null", action="write")
   !call TDftbPlus_init(dftbp, outputUnit=devNull)
   call TDftbPlus_init(dftbp)
 
-  ! You should provide the dftb_in.hsd and skfiles as found in the
-  ! test/prog/dftb+/non-scc/Si_2/ folder
+  ! You should provide the skfiles found in the external/slakos/origin/pbc-0-3/ folder. These can be
+  ! downloaded with the utils/get_opt_externals script.
+
+  ! initialise a DFTB input tree and populate entries which do not have relevant or appropriate
+  ! default values
   call dftbp%getEmptyInput(input)
   call input%getRootNode(pRoot)
   call setChild(pRoot, "Geometry", pGeo)
@@ -61,13 +73,16 @@ program test_cluster
   call setChildValue(pOptions, "CalculateForces", .true.)
   call setChild(pRoot, "ParserOptions", pParserOpts)
   call setChildValue(pParserOpts, "ParserVersion", 3)
-  
+
+  ! print resulting input file, including defaults
   print *, 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
-  
+  print *
 
+  ! parse the input for the DFTB+ instance
   call dftbp%setupCalculator(input)
 
+  ! set the lattice vectors and coordinates in the document tree
   latVecs(:,:) = initialLatVecs
   coords(:,:) = initialCoords
   call dftbp%setGeometry(coords, latVecs)
@@ -79,9 +94,12 @@ program test_cluster
       & -0.010321385989_dp
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
 
+  ! make a small displacement in the lattice vectors and coordinates
   latVecs(1, 1) = latVecs(1, 1) + 0.1_dp * AA__Bohr
   coords(1, 1) = coords(1, 1) + 0.1_dp * AA__Bohr
   call dftbp%setGeometry(coords, latVecs)
+
+  ! re-calculate energy and forces
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
   print "(A,F15.10)", 'Expected Mermin Energy:', -2.5916977557_dp
@@ -89,7 +107,8 @@ program test_cluster
   print "(A,3F15.10)", 'Expected gradient of atom 1:', 0.021290612216_dp, -0.010269102833_dp,&
       & -0.017111497265_dp
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
-  
+
+  ! clean up
   call TDftbPlus_destruct(dftbp)
-  
-end program test_cluster
+
+end program test_treeinit
