@@ -178,6 +178,16 @@ void dftbp_set_coords_and_lattice_vecs(DftbPlus *instance, const double *coords,
 
 
 /**
+ * Queries the nr. of atoms in the system.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \return Nr. of atoms
+ */
+int dftbp_get_nr_atoms(DftbPlus *instance);
+
+
+/**
  * Queries the energy of the current geometry
  *
  * \param[inout] instance Handler of the DFTB+ instance.

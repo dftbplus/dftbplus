@@ -47,33 +47,34 @@ module dftbp_mmapi
   !> A DFTB+ calculation
   type :: TDftbPlus
     private
-    !> compuational environment
     type(TEnvironment) :: env
+    logical :: tInit = .false.
   contains
     !> read input from a file
-    procedure, nopass :: getInputFromFile => TDftbPlus_getInputFromFile
+    procedure :: getInputFromFile => TDftbPlus_getInputFromFile
     !> get an empty input to populate
-    procedure, nopass :: getEmptyInput => TDftbPlus_getEmptyInput
+    procedure :: getEmptyInput => TDftbPlus_getEmptyInput
     !> set up a DFTB+ calculator from input tree
     procedure :: setupCalculator => TDftbPlus_setupCalculator
     !> set/replace the geometry of a calculator
-    procedure, nopass :: setGeometry => TDftbPlus_setGeometry
+    procedure :: setGeometry => TDftbPlus_setGeometry
     !> add an external potential to a calculator
-    procedure, nopass :: setExternalPotential => TDftbPlus_setExternalPotential
+    procedure :: setExternalPotential => TDftbPlus_setExternalPotential
     !> add external charges to a calculator
-    procedure, nopass :: setExternalCharges => TDftbPlus_setExternalCharges
+    procedure :: setExternalCharges => TDftbPlus_setExternalCharges
     !> add reactive external charges to a calculator
-    procedure, nopass :: setQDepExtPotGen => TDftbPlus_setQDepExtPotGen
+    procedure :: setQDepExtPotGen => TDftbPlus_setQDepExtPotGen
     !> obtain the DFTB+ energy
     procedure :: getEnergy => TDftbPlus_getEnergy
     !> obtain the DFTB+ gradients
     procedure :: getGradients => TDftbPlus_getGradients
     !> obtain the gradients of the external charges
-    procedure, nopass :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
+    procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
-    procedure, nopass :: getGrossCharges => TDftbPlus_getGrossCharges
+    procedure :: getGrossCharges => TDftbPlus_getGrossCharges
     !> Return the number of DFTB+ atoms in the system
-    procedure, nopass :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    procedure, private :: checkInit => TDftbPlus_checkInit
   end type TDftbPlus
 
 
@@ -131,6 +132,7 @@ contains
 
     call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
     call TEnvironment_init(this%env)
+    this%tInit = .true.
 
   end subroutine TDftbPlus_init
 
@@ -141,15 +143,21 @@ contains
     !> Instance
     type(TDftbPlus), intent(inout) :: this
 
+    call this%checkInit()
+
     call this%env%destruct()
     call destructGlobalEnv()
     nDftbPlusCalc = 0
+    this%tInit = .false.
 
   end subroutine TDftbPlus_destruct
 
 
   !> Fills up the input by parsing an HSD file
-  subroutine TDftbPlus_getInputFromFile(fileName, input)
+  subroutine TDftbPlus_getInputFromFile(this, fileName, input)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
 
     !> Name of the file to parse
     character(*), intent(in) :: fileName
@@ -157,18 +165,25 @@ contains
     !> Input containing the tree representation of the parsed HSD file.
     type(TDftbPlusInput), intent(out) :: input
 
+    call this%checkInit()
+
     call readHsdFile(fileName, input%hsdTree)
 
   end subroutine TDftbPlus_getInputFromFile
 
 
   !> Creates an input with no entries.
-  subroutine TDftbPlus_getEmptyInput(input)
+  subroutine TDftbPlus_getEmptyInput(this, input)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
 
     !> Instance.
     type(TDftbPlusInput), intent(out) :: input
 
     type(fnode), pointer :: root, dummy
+
+    call this%checkInit()
 
     input%hsdTree => createDocumentNode()
     root => createElement(rootTag)
@@ -189,6 +204,8 @@ contains
     type(TParserFlags) :: parserFlags
     type(inputData) :: inpData
 
+    call this%checkInit()
+
     call parseHsdTree(input%hsdTree, inpData, parserFlags)
     call initProgramVariables(inpData, this%env)
 
@@ -196,11 +213,18 @@ contains
 
 
   !> Sets the geometry in the calculator.
-  subroutine TDftbPlus_setGeometry(coords, latVecs)
+  subroutine TDftbPlus_setGeometry(this, coords, latVecs)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
 
     !> Atomic coordinates in Bohr units. Shape: (3, nAtom).
     real(dp), intent(in) :: coords(:,:)
+
+    !> Lattice vectors in Borh units. Shape: (3, 3).
     real(dp), intent(in), optional :: latVecs(:,:)
+
+    call this%checkInit()
 
     call setGeometry(coords, latVecs)
 
@@ -208,7 +232,10 @@ contains
 
 
   !> Sets an external potential.
-  subroutine TDftbPlus_setExternalPotential(atomPot, potGrad)
+  subroutine TDftbPlus_setExternalPotential(this, atomPot, potGrad)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
 
     !> Potential acting on each atom. Shape: (nAtom)
     real(dp), intent(in), optional :: atomPot(:)
@@ -216,13 +243,18 @@ contains
     !> Gradient of the potential  on each atom. Shape: (3, nAtom)
     real(dp), intent(in), optional :: potGrad(:,:)
 
+    call this%checkInit()
+
     call setExternalPotential(atomPot=atomPot, potGrad=potGrad)
 
   end subroutine TDftbPlus_setExternalPotential
 
 
   !> Sets external point charges.
-  subroutine TDftbPlus_setExternalCharges(chargeCoords, chargeQs, blurWidths)
+  subroutine TDftbPlus_setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
 
     !> Coordiante of the external charges
     real(dp), intent(in) :: chargeCoords(:,:)
@@ -233,19 +265,26 @@ contains
     !> Widths of the Gaussian for each charge used for blurring (0.0 = no blurring)
     real(dp), intent(in), optional :: blurWidths(:)
 
+    call this%checkInit()
+
     call setExternalCharges(chargeCoords, chargeQs, blurWidths)
 
   end subroutine TDftbPlus_setExternalCharges
 
 
   !> Sets the generator for the population dependant external potential.
-  subroutine TDftbPlus_setQDepExtPotGen(extPotGen)
+  subroutine TDftbPlus_setQDepExtPotGen(this, extPotGen)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
 
     !> Population dependant external potential generator
     class(TQDepExtPotGen), intent(in) :: extPotGen
 
     type(TQDepExtPotGenWrapper) :: extPotGenWrapper
     type(TQDepExtPotProxy) :: extPotProxy
+
+    call this%checkInit()
 
     allocate(extPotGenWrapper%instance, source=extPotGen)
     call TQDepExtPotProxy_init(extPotProxy, [extPotGenWrapper])
@@ -263,6 +302,8 @@ contains
     !> Mermin free energy.
     real(dp), intent(out) :: merminEnergy
 
+    call this%checkInit()
+
     call getEnergy(this%env, merminEnergy)
 
   end subroutine TDftbPlus_getEnergy
@@ -277,6 +318,8 @@ contains
     !> Gradients on the atoms.
     real(dp), intent(out) :: gradients(:,:)
 
+    call this%checkInit()
+
     call getGradients(this%env, gradients)
 
   end subroutine TDftbPlus_getGradients
@@ -286,10 +329,15 @@ contains
   !>
   !> This function may only be called if TDftbPlus_setExternalCharges was called before it
   !>
-  subroutine TDftbPlus_getExtChargeGradients(gradients)
+  subroutine TDftbPlus_getExtChargeGradients(this, gradients)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
 
     !> Gradients acting on the external charges.
     real(dp), intent(out) :: gradients(:,:)
+
+    call this%checkInit()
 
     call getExtChargeGradients(gradients)
 
@@ -297,22 +345,49 @@ contains
 
 
   !> Returns the gross charges of each atom
-  subroutine TDftbPlus_getGrossCharges(atomCharges)
+  subroutine TDftbPlus_getGrossCharges(this, atomCharges)
+
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
 
     !> Atomic gross charges.
     real(dp), intent(out) :: atomCharges(:)
+
+    call this%checkInit()
 
     call getGrossCharges(atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
 
 
-  function TDftbPlus_nrOfAtoms() result(nAtom)
+  !> Returns the nr. of atoms in the system.
+  function TDftbPlus_nrOfAtoms(this) result(nAtom)
+
+    !> Instance
+    class(TDftbPlus), intent(in) :: this
+
+    !> Nr. of atoms
     integer :: nAtom
+
+    call this%checkInit()
 
     nAtom = nrOfAtoms()
 
   end function TDftbPlus_nrOfAtoms
+
+
+  !> Checks whether the type is already initialized and stops the code if not.
+  subroutine TDftbPlus_checkInit(this)
+
+    !> Instance.
+    class(TDftbPlus), intent(in) :: this
+
+    if (.not. this%tInit) then
+      write(stdOut, "(A)") "Error: Received uninitialized TDftbPlus instance"
+      stop
+    end if
+
+  end subroutine TDftbPlus_checkInit
 
 
   !> Reads out the atomic angular momenta from an SK-file
@@ -388,5 +463,7 @@ contains
     end do
 
   end subroutine convertAtomTypesToSpecies
+
+
 
 end module dftbp_mmapi
