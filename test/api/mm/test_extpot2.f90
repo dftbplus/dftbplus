@@ -52,7 +52,7 @@ program test_amber
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom), extPot(nAtom), extPotGrad(3, nAtom)
   real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
-  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
+  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis
   type(fnode), pointer :: pParserOpts
 
   !integer :: devNull
@@ -85,10 +85,10 @@ program test_amber
   call setChildValue(pMaxAng, "H", maxAngNames(getMaxAngFromSlakoFile(slakoFiles(2, 2)) + 1))
   ! read the actual SK files in
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-  call setChild(pSlakos, "Type2FileNames", pType2Files)
-  call setChildValue(pType2Files, "Prefix", "external/slakos/origin/mio-1-1/")
-  call setChildValue(pType2Files, "Separator", "-")
-  call setChildValue(pType2Files, "Suffix", ".skf")
+  call setChildValue(pSlakos, "O-O", trim(slakoFiles(1, 1)))
+  call setChildValue(pSlakos, "H-O", trim(slakoFiles(2, 1)))
+  call setChildValue(pSlakos, "O-H", trim(slakoFiles(1, 2)))
+  call setChildValue(pSlakos, "H-H", trim(slakoFiles(2, 2)))
 
   ! Analysis block for input
   call setChild(pRoot, "Analysis", pAnalysis)

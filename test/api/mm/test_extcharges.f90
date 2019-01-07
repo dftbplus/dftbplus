@@ -44,7 +44,7 @@ program test_extcharges
       & "external/slakos/origin/mio-1-1/H-H.skf"], [2, 2])
 
   character(1), parameter :: maxAngNames(4) = ["s", "p", "d", "f"]
-  
+
 
   type(TDftbPlus) :: dftbp
   type(TDftbPlusInput) :: input
@@ -54,7 +54,7 @@ program test_extcharges
   real(dp) :: merminEnergy
   real(dp) :: coords(3, nAtom), gradients(3, nAtom)
   real(dp) :: atomCharges(nAtom), extChargeGrads(3, nExtChrg)
-  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pType2Files, pAnalysis
+  type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pAnalysis
   type(fnode), pointer :: pParserOpts
 
   !integer :: devNull
@@ -76,7 +76,7 @@ program test_extcharges
   ! (which will have to be used at other places) will be X1, X2, etc.
   print "(A)", "Converting atom types"
   call convertAtomTypesToSpecies(atomTypes, species, speciesNames, atomTypeNames)
-  
+
   call setChildValue(pGeo, "TypeNames", speciesNames)
   coords(:,:) = 0.0_dp
   call setChildValue(pGeo, "TypesAndCoordinates", reshape(species, [1, size(species)]), coords)
@@ -94,15 +94,15 @@ program test_extcharges
 
   ! set up locations for SK file data
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-  call setChild(pSlakos, "Type2FileNames", pType2Files)
-  call setChildValue(pType2Files, "Prefix", "external/slakos/origin/mio-1-1/")
-  call setChildValue(pType2Files, "Separator", "-")
-  call setChildValue(pType2Files, "Suffix", ".skf")
+  call setChildValue(pSlakos, "O-O", trim(slakoFiles(1, 1)))
+  call setChildValue(pSlakos, "H-O", trim(slakoFiles(2, 1)))
+  call setChildValue(pSlakos, "O-H", trim(slakoFiles(1, 2)))
+  call setChildValue(pSlakos, "H-H", trim(slakoFiles(2, 2)))
   call setChild(pRoot, "Analysis", pAnalysis)
   call setChildValue(pAnalysis, "CalculateForces", .true.)
   call setChild(pRoot, "ParserOptions", pParserOpts)
   call setChildValue(pParserOpts, "ParserVersion", 5)
-  
+
   print "(A)", 'Input tree in HSD format:'
   call dumpHsd(input%hsdTree, output_unit)
 
