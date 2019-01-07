@@ -1507,7 +1507,7 @@ contains
       call indxov(win, ia, getij, i, a)
       updwn = (win(ia) <= nmatup)
       call transq(i, a, iAtomStart, updwn, stimc, c, qij)
-      zq(:) = zq(:) + zz(ia) * qij(:)
+      zq(:) = zq + zz(ia) * qij
     end do
 
     call hemv(gamxpyq, gammaMat, zq)
@@ -1517,7 +1517,7 @@ contains
       call indxoo(homo, nocc, ij, i, j)
       call transq(i, j, iAtomStart, updwn, stimc, c, qij)
       ! W contains 1/2 for i == j.
-      woo(ij) = woo(ij) + 4.0_dp * sum(qij(:) * gamxpyq(:))
+      woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamxpyq)
     end do
 
     ! Divide diagonal elements of W_ij by 2.
