@@ -178,6 +178,18 @@ contains
   end subroutine c_DftbPlus_setCoordsAndLatticeVecs
 
 
+  function c_DftbPlus_nrOfAtoms(handler) result(nAtom) bind(C, name='dftbp_get_nr_atoms')
+    type(c_DftbPlus), intent(inout) :: handler
+    integer(c_int) :: nAtom
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+
+  end function c_DftbPlus_nrOfAtoms
+
+
   subroutine c_DftbPlus_getEnergy(handler, merminEnergy) bind(C, name='dftbp_get_energy')
     type(c_DftbPlus), intent(inout) :: handler
     real(c_double), intent(out) :: merminEnergy

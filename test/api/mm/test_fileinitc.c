@@ -32,10 +32,16 @@ int main()
 
   double mermin_energy;
   double *gradients;
+  int natom;
 
   dftbp_init(&calculator, NULL);
   dftbp_get_input_from_file(&calculator, "dftb_in.hsd", &input);
   dftbp_process_input(&calculator, &input);
+
+  /* Check whether the calculator was initialized with the correct nr. of atoms */
+  natom = dftbp_get_nr_atoms(&calculator);
+  printf("Expected nr. of atoms: %d\n", NR_OF_ATOMS);
+  printf("Obtained nr. of atoms: %d\n", natom);
 
   dftbp_set_coords_and_lattice_vecs(&calculator, coords, latvecs);
 
