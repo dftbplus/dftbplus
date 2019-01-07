@@ -147,6 +147,7 @@ void get_external_potential_grad(void *refptr, double *dqatom, double *extpotgra
  *
  * This will be a simple type containing all the relevant variables which the callback function
  * has to deal with in order to calculate the external potential or its gradient.
+ * Everything in atomic units.
  */
 void initialize_context(Context *cont)
 {

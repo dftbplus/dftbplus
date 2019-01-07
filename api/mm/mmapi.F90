@@ -30,30 +30,49 @@ module dftbp_mmapi
   public :: getMaxAngFromSlakoFile, convertAtomTypesToSpecies
 
 
+  !> Number of DFTB+ calculation instances
   integer :: nDftbPlusCalc = 0
 
+
+  !> input tree for DFTB+ calculation
   type :: TDftbPlusInput
+    !> tree for HSD format input
     type(fnode), pointer :: hsdTree => null()
   contains
+    !> obtain the root of the tree of input
     procedure :: getRootNode => TDftbPlusInput_getRootNode
   end type TDftbPlusInput
 
 
+  !> A DFTB+ calculation
   type :: TDftbPlus
     private
+    !> compuational environment
     type(TEnvironment) :: env
   contains
+    !> read input from a file
     procedure, nopass :: getInputFromFile => TDftbPlus_getInputFromFile
+    !> get an empty input to populate
     procedure, nopass :: getEmptyInput => TDftbPlus_getEmptyInput
+    !> set up a DFTB+ calculator from input tree
     procedure :: setupCalculator => TDftbPlus_setupCalculator
+    !> set/replace the geometry of a calculator
     procedure, nopass :: setGeometry => TDftbPlus_setGeometry
+    !> add an external potential to a calculator
     procedure, nopass :: setExternalPotential => TDftbPlus_setExternalPotential
+    !> add external charges to a calculator
     procedure, nopass :: setExternalCharges => TDftbPlus_setExternalCharges
+    !> add reactive external charges to a calculator
     procedure, nopass :: setQDepExtPotGen => TDftbPlus_setQDepExtPotGen
+    !> obtain the DFTB+ energy
     procedure :: getEnergy => TDftbPlus_getEnergy
+    !> obtain the DFTB+ gradients
     procedure :: getGradients => TDftbPlus_getGradients
+    !> obtain the gradients of the external charges
     procedure, nopass :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
+    !> get the gross (Mulliken) DFTB+ charges
     procedure, nopass :: getGrossCharges => TDftbPlus_getGrossCharges
+    !> Return the number of DFTB+ atoms in the system
     procedure, nopass :: nrOfAtoms => TDftbPlus_nrOfAtoms
   end type TDftbPlus
 
@@ -79,7 +98,7 @@ contains
   end subroutine TDftbPlusInput_getRootNode
 
 
-  !> Initalises an DFTB+ instance.
+  !> Initalises a DFTB+ instance
   !>
   !> Note: due to some remaining global variables in the DFTB+ core, only one instance can be
   !> initialised within one process. Therefore, this routine can not be called twice, unless the
@@ -87,7 +106,7 @@ contains
   !>
   subroutine TDftbPlus_init(this, outputUnit, mpiComm)
 
-    !> Instance.
+    !> Instance
     type(TDftbPlus), intent(out) :: this
 
     !> Unit where to write the output (note: also error messages are written here)
@@ -116,7 +135,7 @@ contains
   end subroutine TDftbPlus_init
 
 
-  !> Destructs a DFTB+ instance.
+  !> Destroys a DFTB+ instance
   subroutine TDftbPlus_destruct(this)
 
     !> Instance
@@ -265,7 +284,7 @@ contains
 
   !> Returns the gradients on the external charges.
   !>
-  !> This function may only be called, if TDftbPlus_setExternalCharges was called before.
+  !> This function may only be called if TDftbPlus_setExternalCharges was called before it
   !>
   subroutine TDftbPlus_getExtChargeGradients(gradients)
 
@@ -277,7 +296,7 @@ contains
   end subroutine TDftbPlus_getExtChargeGradients
 
 
-  !> Returnss the gross charges of each atom.
+  !> Returns the gross charges of each atom
   subroutine TDftbPlus_getGrossCharges(atomCharges)
 
     !> Atomic gross charges.
@@ -296,7 +315,7 @@ contains
   end function TDftbPlus_nrOfAtoms
 
 
-  !> Reads out the angular momentum from the an SK-file.
+  !> Reads out the atomic angular momenta from an SK-file
   !>
   !> NOTE: This only works with handcrafted (non-standard) SK-files, where the nr. of shells
   !>   has been added as 3rd entry to the first line of the homo-nuclear SK-files.
@@ -321,7 +340,7 @@ contains
   end function getMaxAngFromSlakoFile
 
 
-  !> Converts atom types to species.
+  !> Converts atom types to species
   subroutine convertAtomTypesToSpecies(typeNumbers, species, speciesNames, typeNames)
 
     !> Type number of each atom is the system. It can be arbitrary number (e.g. atomic number)

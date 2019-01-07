@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !> Simplified C-interface with callbacks for population dependant external potential generators.
 module dftbp_qdepextpotgenc
   use, intrinsic :: iso_c_binding
@@ -9,8 +16,10 @@ module dftbp_qdepextpotgenc
   public :: getExtPotIfaceC, getExtPotGradIfaceC
   public :: TQDepExtPotGenC, TQDepExtPotGenC_init
 
-  !> Interface to the routine which calculates the external potential from the charges.
+  !> Interface to the routine which calculates the external potential due to charges
   abstract interface
+
+    !> Interface to set up external potential
     subroutine getExtPotIfaceC(refPtr, dQAtom, extPotAtom) bind(C)
       import :: c_double, c_ptr
 
@@ -26,6 +35,7 @@ module dftbp_qdepextpotgenc
     end subroutine getExtPotIfaceC
 
 
+    !> Interface to set up gradient of external potential
     subroutine getExtPotGradIfaceC(refPtr, dQAtom, extPotAtomGrad) bind(C)
       import :: c_double, c_ptr
 
@@ -43,6 +53,7 @@ module dftbp_qdepextpotgenc
   end interface
 
 
+  !> builds on the charge dependent external interface type from dftbp_qdepextpotgen for the C API
   type, extends(TQDepExtPotGen) :: TQDepExtPotGenC
     private
     type(c_ptr) :: refPtr
@@ -57,10 +68,19 @@ module dftbp_qdepextpotgenc
 contains
 
 
+  !> Initialise an external charge dependent external potential within this type
   subroutine TQDepExtPotGenC_init(this, refPtr, extPotFunc, extPotGradFunc)
+
+    !> Instance
     type(TQDepExtPotGenC), intent(out) :: this
+
+    !> pointer to the C routine for the external potential
     type(c_ptr), intent(in) :: refPtr
+
+    !> function for the potential evaluation
     procedure(getExtPotIfaceC), pointer, intent(in) :: extPotFunc
+
+    !> function for the gradient of the potential
     procedure(getExtPotGradIfaceC), pointer, intent(in) :: extPotGradFunc
 
     this%getExtPot => extPotFunc
@@ -71,6 +91,7 @@ contains
 
 
 
+  !> extra routine a charge dependent external potential
   subroutine TDepExtPotGenC_getExternalPot(this, chargePerAtom, chargePerShell, extPotAtom,&
       & extPotShell)
 
@@ -91,12 +112,14 @@ contains
     real(dp), intent(out) :: extPotShell(:,:)
 
     call this%getExtPot(this%refPtr, chargePerAtom, extPotAtom)
+    ! currently only atom resolved, no non-local l-dependent part
     extPotShell(:,:) = 0.0_dp
 
   end subroutine TDepExtPotGenC_getExternalPot
 
 
 
+  !> extra routine for interfacing gradients from a charge dependent external potential
   subroutine TQDepExtPotGenC_getExternalPotGrad(this, chargePerAtom, chargePerShell, extPotGrad)
 
     !> Class instance.

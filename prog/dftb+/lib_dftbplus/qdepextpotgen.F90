@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !> Contains the interface for an external population dependent potential.
 module dftbp_qdepextpotgen
   use dftbp_accuracy, only : dp
@@ -14,7 +21,9 @@ module dftbp_qdepextpotgen
   !>
   type, abstract :: TQDepExtPotGen
   contains
+    !> get the external potential
     procedure(getExtPotIface), deferred :: getExternalPot
+    !> get the gradient of the potential wrt DFTB atom positions
     procedure(getExtPotGradIface), deferred :: getExternalPotGrad
   end type TQDepExtPotGen
 

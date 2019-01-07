@@ -20,8 +20,8 @@ test_extpot2.o = test_extpot2.o $(_mod_extchargepot) $(_mod_dftbp_constants) $(_
 test_fileinit.o: _mod_dftbp_constants _mod_dftbplus
 test_fileinit.o = test_fileinit.o $(_mod_dftbp_constants) $(_mod_dftbplus)
 
-test_qdepextpot.o: _mod_extchargepotgen _mod_dftbplus
-test_qdepextpot.o = test_qdepextpot.o $(_mod_extchargepotgen) $(_mod_dftbplus)
+test_qdepextpot.o: _mod_extchargepot _mod_extchargepotgen _mod_dftbplus
+test_qdepextpot.o = test_qdepextpot.o $(_mod_extchargepot) $(_mod_extchargepotgen) $(_mod_dftbplus)
 
 test_treeinit.o: _mod_dftbp_constants _mod_dftbplus
 test_treeinit.o = test_treeinit.o $(_mod_dftbp_constants) $(_mod_dftbplus)

@@ -1,3 +1,10 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
 !> Contains a proxy communicating with external generators of population dependent potentials.
 module dftbp_qdepextpotproxy
   use dftbp_accuracy, only : dp
@@ -14,11 +21,16 @@ module dftbp_qdepextpotproxy
   !> Collection of external q-dependent potentials queried during the SCC-cycle
   type :: TQDepExtPotProxy
     private
+    !> collection of external potentials
     type(TQDepExtPotGenWrapper), allocatable :: generators(:)
+    !> energy contributions to DFTB atoms due to potentials
     real(dp), allocatable :: energyAtom(:)
   contains
+    !> add potential contribution
     procedure :: addPotential => TQDepExtPotProxy_addPotential
+    !> add energy contribution
     procedure :: addEnergy => TQDepExtPotProxy_addEnergy
+    !> add force contribution
     procedure :: addGradientDc => TQDepExtPotProxy_addGradientDc
   end type TQDepExtPotProxy
 
