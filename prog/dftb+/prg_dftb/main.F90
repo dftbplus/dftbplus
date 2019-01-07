@@ -343,7 +343,7 @@ contains
 
         if (tMulliken) then
           call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
-              & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+              & iSparseStart, qOutput, iRhoPrim, qBlockOut, qiBlockOut)
         end if
 
         #:if WITH_TRANSPORT
