@@ -1502,14 +1502,12 @@ contains
     end do
 
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
-    do iAt1 = 1, natom
-      zq(iAt1) = 0.0_dp
-      do ia = 1, nxov
-        call indxov(win, ia, getij, i, a)
-        updwn = (win(ia) <= nmatup)
-        call transq(i, a, iAtomStart, updwn, stimc, c, qij)
-        zq(iAt1) = zq(iAt1) + zz(ia) * qij(iAt1)
-      end do
+    zq(:) = 0.0_dp
+    do ia = 1, nxov
+      call indxov(win, ia, getij, i, a)
+      updwn = (win(ia) <= nmatup)
+      call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      zq(:) = zq + zz(ia) * qij
     end do
 
     call hemv(gamxpyq, gammaMat, zq)
@@ -1518,10 +1516,8 @@ contains
     do ij = 1, nxoo
       call indxoo(homo, nocc, ij, i, j)
       call transq(i, j, iAtomStart, updwn, stimc, c, qij)
-      do iAt1 = 1, natom
-        ! W contains 1/2 for i == j.
-        woo(ij) = woo(ij) + 4.0_dp * qij(iAt1) * gamxpyq(iAt1)
-      end do
+      ! W contains 1/2 for i == j.
+      woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamxpyq)
     end do
 
     ! Divide diagonal elements of W_ij by 2.
