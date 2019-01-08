@@ -22,6 +22,8 @@ module linrespcommon
   !> prefactor of 2/3.
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
 
+  real(dp), allocatable :: qCacheOV(:,:)
+
 contains
 
 
@@ -324,6 +326,41 @@ contains
 
   end subroutine rindxov_array
 
+  !> generate a list of transitions
+  subroutine cacheFill(iAtomStart, win, getij, nxov_rd, stimc, c, nmatup)
+
+    !> indexing array for square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> index array for transitions to single particle transitions
+    integer, intent(in) :: win(:)
+
+    !> array of the occupied->virtual pairs
+    integer, intent(in) :: getij(:,:)
+
+    !> number of transitions
+    integer, intent(in) :: nxov_rd
+
+    !> overlap times ground state mo-coefficients
+    real(dp), intent(in) :: stimc(:,:,:)
+
+    !> ground state mo-coefficients
+    real(dp), intent(in) :: c(:,:,:)
+
+    !> number of up-up excitations
+    integer, intent(in) :: nmatup
+
+    integer :: ia, i, a
+    logical :: updwn
+
+    do ia = 1, nxov_rd
+      call indxov(win, ia, getij, i, a)
+      updwn = (win(ia) <= nmatup)
+      call transq(i, a, iAtomStart, updwn, stimc, c, qCacheOV(:,ia))
+    end do
+
+  end subroutine cacheFill
+
 
   !> Calculates atomic transition charges for a certain excitation.
   !> Calculates qij = 0.5 * (c_i S c_j + c_j S c_i) where c_i and c_j are selected eigenvectors, and
@@ -359,9 +396,11 @@ contains
     @:ASSERT(all(shape(stimc) == shape(grndEigVecs)))
 
     ss = 1
-    if (.not. updwn) ss = 2
-    qTmp(:) =  grndEigVecs(:,ii,ss) * stimc(:,jj,ss) &
-        & + grndEigVecs(:,jj,ss) * stimc(:,ii,ss)
+    if (.not. updwn) then
+      ss = 2
+    end if
+
+    qTmp(:) =  grndEigVecs(:,ii,ss) * stimc(:,jj,ss) + grndEigVecs(:,jj,ss) * stimc(:,ii,ss)
     do kk = 1, size(qij)
       aa = iAtomStart(kk)
       bb = iAtomStart(kk + 1) -1
@@ -512,16 +551,17 @@ contains
     call wtdn(wij, occNr, win, nmatup, nmat, getij, wnij)
     wnij = sqrt(wnij) ! always used as root(wnij) after this
 
-    otmp = 0.0_dp
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
-    do ia = 1, nmat
-      call indxov(win, ia, getij, ii, jj)
-      updwn = (win(ia) <= nmatup)
-      call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-      otmp = otmp + vin(ia) * wnij(ia) * qij
-    end do
-    !$OMP  END PARALLEL DO
+    otmp(:) = 0.0_dp
+    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
+    !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
+    ! do ia = 1, nmat
+    !  call indxov(win, ia, getij, ii, jj)
+    !  updwn = (win(ia) <= nmatup)
+    !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+    !  otmp = otmp + vin(ia) * wnij(ia) * qij
+    !end do
+    !!$OMP  END PARALLEL DO
+    otmp(:) = otmp(:) + matmul(qCacheOV(:,:nmat), vin(:nmat) * wnij(:nmat)) ! * qij
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -529,30 +569,32 @@ contains
 
         call hemv(gtmp, gamma, otmp)
 
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-        !$OMP& SCHEDULE(RUNTIME)
-        do ia = 1, nmat
-          call indxov(win, ia, getij, ii, jj)
-          updwn = (win(ia) <= nmatup)
-          call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-          vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
-        end do
-        !$OMP  END PARALLEL DO
+        !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
+        !!$OMP& SCHEDULE(RUNTIME)
+        !do ia = 1, nmat
+        !  call indxov(win, ia, getij, ii, jj)
+        !  updwn = (win(ia) <= nmatup)
+        !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+        !  vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
+        !end do
+        !!$OMP  END PARALLEL DO
+        vout(:) = 2.0_dp * wnij(:) * matmul(transpose(qCacheOV(:,:nmat)),gtmp)
       else
 
         otmp = 2.0_dp * otmp * spinW(species0)
 
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-        !$OMP& SCHEDULE(RUNTIME)
-        do ia = 1, nmat
-          call indxov(win, ia, getij, ii, jj)
-          updwn = (win(ia) <= nmatup)
-          call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-          ! Note: 2 times atomic magnetization m_A
-          ! vout = sum_A q_A^ia m_A * otmp(A)
-          vout(ia) = vout(ia) + wnij(ia) * dot_product(qij, otmp)
-        end do
-        !$OMP  END PARALLEL DO
+        !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
+        !!$OMP& SCHEDULE(RUNTIME)
+        !do ia = 1, nmat
+        !  call indxov(win, ia, getij, ii, jj)
+        !  updwn = (win(ia) <= nmatup)
+        !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+        !  ! Note: 2 times atomic magnetization m_A
+        !  ! vout = sum_A q_A^ia m_A * otmp(A)
+        !  vout(ia) = vout(ia) + wnij(ia) * dot_product(qij, otmp)
+        !end do
+        !!$OMP  END PARALLEL DO
+        vout(:) = wnij(:) * matmul(transpose(qCacheOV(:,:nmat)),otmp)
 
       end if
 
@@ -658,31 +700,33 @@ contains
 
     @:ASSERT(size(rkm1) == nmat)
 
-    tmp(:) = 0.0_dp
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:tmp)
-    do ia = 1, nmat
-      call indxov(win, ia, getij, ii, jj)
-      updwn = (win(ia) <= nmatup)
-      call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-      tmp(:) = tmp + rhs2(ia) * qij
-    end do
-    !$OMP  END PARALLEL DO
+    !tmp(:) = 0.0_dp
+    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
+    !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:tmp)
+    !do ia = 1, nmat
+    !  call indxov(win, ia, getij, ii, jj)
+    !  updwn = (win(ia) <= nmatup)
+    !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+    !  tmp(:) = tmp + rhs2(ia) * qij
+    !end do
+    !!$OMP  END PARALLEL DO
+    tmp(:) = matmul(qCacheOV(:,:),rhs2(:))
 
     call hemv(gtmp, gamma, tmp)
 
-    rkm1 = 0.0_dp
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
-    !$OMP& SCHEDULE(RUNTIME)
-    do ia = 1, nmat
-      call indxov(win, ia, getij, ii, jj)
-      updwn = (win(ia) <= nmatup)
-      call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-      rkm1(ia) = 4.0_dp * dot_product(gtmp, qij)
-    end do
-    !$OMP  END PARALLEL DO
+    !rkm1(:) = 0.0_dp
+    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
+    !!$OMP& SCHEDULE(RUNTIME)
+    !do ia = 1, nmat
+    !  call indxov(win, ia, getij, ii, jj)
+    !  updwn = (win(ia) <= nmatup)
+    !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+    !  rkm1(ia) = 4.0_dp * dot_product(gtmp, qij)
+    !end do
+    !!$OMP  END PARALLEL DO
+    rkm1(:) = 4.0_dp * matmul(qCacheOV(:,:),gTmp(:))
 
-    rkm1 = rkm1 + wij * rhs2
+    rkm1(:) = rkm1(:) + wij(:) * rhs2(:)
 
   end subroutine apbw
 

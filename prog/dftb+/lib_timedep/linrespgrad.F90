@@ -247,14 +247,11 @@ contains
 
     integer :: nStat
 
-
     !> control variables
     logical :: tZVector, tCoeffs, tTradip
 
-
     !> printing data
     logical :: tMulliken
-
 
     !> should gradients be calculated
     logical :: tForces
@@ -466,6 +463,11 @@ contains
     ! requirement combined with the need to get at least nexc states
     nxov_rd = max(nxov_rd,min(nexc+1,nxov))
 
+    write(*,*)'Transitions included',nxov_rd
+    allocate(qCacheOV(nAtom,nxov_rd))
+
+    call cacheFill(iAtomStart, win, getij, nxov_rd, stimc, grndEigVecs, nxov_ud(1))
+
     if (fdXplusY >  0) then
       open(fdXplusY, file=XplusYOut, position="rewind", status="replace")
     end if
@@ -659,6 +661,8 @@ contains
       end if
 
     end if
+
+    deallocate(qCacheOV)
 
   end subroutine LinRespGrad_old
 
@@ -1213,10 +1217,10 @@ contains
 
     ! Build xpyq = sum_ia (X+Y)_ia
     do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
-      updwn = (win(ia) <= nmatup)
-      call transq(i, a, iAtomStart, updwn, stimc, c, qij)
-      xpyq(:) = xpyq + xpy(ia) * qij
+      !call indxov(win, ia, getij, i, a)
+      !updwn = (win(ia) <= nmatup)
+      !call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      xpyq(:) = xpyq + xpy(ia) * qCacheOV(:,ia) !qij
     end do
 
     ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
@@ -1315,10 +1319,10 @@ contains
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
     do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
-      updwn = (win(ia) <= nmatup)
-      call transq(i, a, iAtomStart, updwn, stimc, c, qij)
-      rhs(ia) = rhs(ia) - 4.0_dp * sum(qij * gamqt)
+      !call indxov(win, ia, getij, i, a)
+      !updwn = (win(ia) <= nmatup)
+      !call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      rhs(ia) = rhs(ia) - 4.0_dp * sum(qCacheOV(:,ia) * gamqt) !sum(qij * gamqt)
     end do
 
     ! Furche vectors
@@ -1377,9 +1381,10 @@ contains
     ! Choosing a start value
     ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
     do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
-      updwn = (win(ia) <= nmatup)
-      call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      !call indxov(win, ia, getij, i, a)
+      !updwn = (win(ia) <= nmatup)
+      !call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      qij = qCacheOV(:,ia)
       call hemv(qTmp, gammaMat, qij)
       rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
       rhs2(ia) = rhs(ia) / rs
@@ -1502,12 +1507,13 @@ contains
     end do
 
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
-    do iAt1 = 1, natom
-      zq(iAt1) = 0.0_dp
-      do ia = 1, nxov
-        call indxov(win, ia, getij, i, a)
-        updwn = (win(ia) <= nmatup)
-        call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+    zq(:) = 0.0_dp
+    do ia = 1, nxov
+      !call indxov(win, ia, getij, i, a)
+      !updwn = (win(ia) <= nmatup)
+      !call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      do iAt1 = 1, natom
+        qij = qCacheOV(:, ia)
         zq(iAt1) = zq(iAt1) + zz(ia) * qij(iAt1)
       end do
     end do
