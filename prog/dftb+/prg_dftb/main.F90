@@ -4102,7 +4102,7 @@ contains
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
       call MBDgetGradients(mbDispersion, tmpDerivs)
-      derivs(:,:) = derivs + tmpDerivs
+      derivs(:,:) = derivs - tmpDerivs  !sign flip: vdW modules return forces not gradients
     end if
   #:endif
 
