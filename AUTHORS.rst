@@ -39,5 +39,7 @@ contributed to DFTB+ :
 
 * Michael Sternberg (Argonne National Laboratory, USA)
 
+* Martin Stöhr (University of Luxembourg, Luxembourg)
+
 * Frank Stuckenberg (University of Bremen, Germany)
 
