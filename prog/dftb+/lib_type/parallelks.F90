@@ -54,7 +54,7 @@ contains
     !> Number of k-points in calculation.
     integer, intent(in) :: nKpoint
 
-    !> Number of spin channels in calculation
+    !> Number of independent spin channels in calculation
     integer, intent(in) :: nSpin
 
     integer :: nGroup, myGroup, iGroup

@@ -2233,7 +2233,7 @@ contains
         call error("Linear response is not compatible with transport calculations")
       end if
       if (nSpin > 2) then
-        call error("Non-colinear spin not currently compatible with transport calculations")
+        call warning("Non-colinear spin under testing")
       end if
     end if
 

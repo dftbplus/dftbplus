@@ -580,6 +580,7 @@ contains
         end if
       end do
     end do
+    iAtomStart2(nAtom+1) = 2*iAtomStart(nAtom+1) - 1
 
     nrow = iAtomStart2(nAtom+1) - 1
     allocate(rowpnt(nrow+1) )
@@ -670,7 +671,7 @@ contains
   !> Caveat The routine should only applied on CSR matrixes created by the createEquiv_cplx
   !> subroutine, since it exploits the ordering of the column indexes.
   subroutine foldToCSR_cplx(csr, sparse, kPoint, iAtomStart, iPair, iNeighbor, nNeighbor,&
-      & img2CentCell, iCellVec, cellVec, orb)
+      & img2CentCell, iCellVec, cellVec, orb, nComp)
 
     !> Resulting CSR matrix.
     type(z_CSR), intent(inout) :: csr
@@ -705,14 +706,24 @@ contains
     !> orb  Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
+    !> number of Spin component (1 or 2) required for overlap!
+    integer, intent(in) :: nComp
 
-    integer, allocatable :: nCols(:)
-    complex(dp), allocatable :: tmpCol(:,:), phases(:)
-    integer :: nAtom, nCellVec
+
+    integer, allocatable :: nCols(:), iAtomStart2(:)
+    complex(dp), allocatable :: tmpCol(:,:), phases(:), tmpMat(:,:)
+    integer :: nAtom, nCellVec, shift
     integer :: iOrb1, nOrb1, nOrb2, iAt1, iAt2, iAt2f, iNeigh
     integer :: iRow, iCol, iVal, ind
     integer :: ii, jj, kk
 
+    print*, "Fold to CSR, nComponents=",nComp
+
+    if (nComp == 2) then
+      shift = 1
+    else
+      shift = 0
+    end if
 
     nAtom = size(orb%nOrbAtom)
     nCellVec = size(cellVec, dim=2)
@@ -723,26 +734,31 @@ contains
       phases(ii) = exp(2.0_dp * pi * (0.0_dp, 1.0_dp) * dot_product(kPoint, cellVec(:,ii)))
     end do
 
-    allocate(tmpCol(csr%nRow, orb%mOrb))   ! One atomic block column.
+    iAtomStart2 = nComp*iAtomStart - shift
+
+    allocate(tmpCol(csr%nRow, nComp*orb%mOrb))   ! One atomic block column
+    allocate(tmpMat(nComp*orb%mOrb, nComp*orb%mOrb))
+    csr%nzval = (0.0_dp, 0.0_dp)
+
     lpAt1: do iAt1 = 1, nAtom
       ! Unfold the columns for the current atom from the sparse matrix.
-      nOrb1 = orb%nOrbAtom(iAt1)
+      nOrb1 = nComp * orb%nOrbAtom(iAt1)
       tmpCol(:,:) = 0.0_dp
       do iNeigh = 0, nNeighbor(iAt1)
         ind = iPair(iNeigh,iAt1) + 1
         iAt2 = iNeighbor(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
-        nOrb2 = orb%nOrbAtom(iAt2f)
-        iRow = iAtomStart(iAt2f)
+        nOrb2 = nComp * orb%nOrbAtom(iAt2f)
+        iRow = iAtomStart2(iAt2f)
+        call getSparseBlock(sparse, ind, tmpMat, nOrb2/nComp, nOrb1/nComp, nComp)
         tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1) = tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1)&
-            & + phases(iCellVec(iAt2)) * reshape(sparse(ind:ind+nOrb2*nOrb1-1), [nOrb2, nOrb1])
+            & + phases(iCellVec(iAt2)) * tmpMat(1:nOrb2, 1:nOrb1)
       end do
 
       ! Copy every column into the appropriate row in the upper triangle of
       ! the CSR matrix (the copy is masked by the sparsity structure stored
       ! in the CSR matrix)
-      nOrb1 = orb%nOrbAtom(iAt1)
-      iCol = iAtomStart(iAt1)
+      iCol = iAtomStart2(iAt1)
       do iOrb1 = 1, nOrb1
         ii = csr%rowpnt(iCol + iOrb1 - 1)
         jj = csr%rowpnt(iCol + iOrb1) - 1
@@ -780,7 +796,7 @@ contains
   !> Caveat The routine should only applied on CSR matrixes created by the createEquiv_cplx
   !> subroutine, since it exploits the ordering of the column indexes.
   subroutine foldToCSR_Pauli(csr, sparse, kPoint, iAtomStart, iPair, iNeighbor, nNeighbor,&
-      & img2CentCell, iCellVec, cellVec, orb, iHam)
+      & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
 
     !> Resulting CSR matrix.
     type(z_CSR), intent(inout) :: csr
@@ -815,8 +831,11 @@ contains
     !> orb  Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
+    !> whether SOC is active
+    logical, intent(in) :: tSpinOrbit
+
     !> imaginary part of sparse hamiltonian
-    real(dp), intent(in), optional :: iHam(:, :)
+    real(dp), intent(in), allocatable :: iHam(:, :)
 
 
     integer, allocatable :: nCols(:), iAtomStart2(:)
@@ -826,6 +845,8 @@ contains
     integer :: iRow, iCol, iVal, ind
     integer :: ii, jj, kk
 
+    print*,"FOLD HAM TO CSR WITH SOC"
+    if(allocated(iHam)) print*, "Dual SOC"
 
     nAtom = size(orb%nOrbAtom)
     nCellVec = size(cellVec, dim=2)
@@ -835,11 +856,8 @@ contains
     do ii = 1, nCellVec
       phases(ii) = exp(2.0_dp * pi * (0.0_dp, 1.0_dp) * dot_product(kPoint, cellVec(:,ii)))
     end do
-    
-    allocate(iAtomStart2(nAtom+1))
-    do iAt1 = 1, nAtom
-      iAtomStart2(iAt1) = 2*iAtomStart(iAt1) - 1
-    end do
+      
+    iAtomStart2 = 2*iAtomStart - 1
 
     allocate(tmpCol(csr%nRow, 2*orb%mOrb))   ! One atomic block column.
     allocate(tmpMat(2*orb%mOrb, 2*orb%mOrb))
@@ -854,7 +872,7 @@ contains
         iAt2f = img2CentCell(iAt2)
         nOrb2 = 2*orb%nOrbAtom(iAt2f)
         iRow = iAtomStart2(iAt2f)
-        call getPauliBlock(sparse, ind, tmpMat, nOrb2/2, nOrb1/2, iHam)
+        call getPauliBlock(sparse, ind, tmpMat, nOrb2/2, nOrb1/2, tSpinOrbit, iHam)
         tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1) = tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1)&
             & + phases(iCellVec(iAt2)) * tmpMat(1:nOrb2, 1:nOrb1) 
       end do
@@ -862,7 +880,6 @@ contains
       ! Copy every column into the appropriate row in the upper triangle of
       ! the CSR matrix (the copy is masked by the sparsity structure stored
       ! in the CSR matrix)
-      nOrb1 = 2*orb%nOrbAtom(iAt1)
       iCol = iAtomStart2(iAt1)
       do iOrb1 = 1, nOrb1
         ii = csr%rowpnt(iCol + iOrb1 - 1)
@@ -893,9 +910,43 @@ contains
 
   end subroutine foldToCSR_Pauli
 
+  subroutine getSparseBlock(sparse, ind, tmpMat, nOrb2, nOrb1, nComp)
+
+    !> sparse hamiltonian
+    real(dp), intent(in) :: sparse(:)
+
+    !> start index of atom block in sparse matrix
+    integer, intent(in) :: ind
+
+    !> dense atom block
+    complex(dp), intent(out) :: tmpMat(:, :)
+
+    !> number of orbitals along rows
+    integer, intent(in) :: nOrb2
+
+    !> number of orbitals along cols
+    integer, intent(in) :: nOrb1
+
+    !> number of spin components
+    integer, intent(in) :: nComp
 
 
-  subroutine getPauliBlock(ham, ind, tmpMat, nOrb2, nOrb1, iHam)
+    real(dp), allocatable :: work(:, :)
+ 
+    tmpMat = (0.0_dp, 0.0_dp)
+    work = reshape(sparse(ind:ind+nOrb2*nOrb1-1), [nOrb2, nOrb1])
+    tmpMat(1:nOrb2, 1:nOrb1) = work(1:nOrb2, 1:nOrb1)
+
+    ! 2x2 spin matrix
+    if (nComp == 2) then
+      tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = work(1:nOrb2, 1:nOrb1)
+    end if
+
+  end subroutine getSparseBlock
+
+
+
+  subroutine getPauliBlock(ham, ind, tmpMat, nOrb2, nOrb1, tSpinOrbit, iHam)
 
     !> sparse hamiltonian
     real(dp), intent(in) :: ham(:, :)
@@ -912,25 +963,31 @@ contains
     !> number of orbitals along cols
     integer, intent(in) :: nOrb1
 
+    !> true if SOC is active
+    logical, intent(in) :: tSpinOrbit
+
     !> imaginary part of sparse hamiltonian
-    real(dp), intent(in), optional :: iHam(:, :)
+    real(dp), intent(in), allocatable :: iHam(:, :)
 
 
     real(dp), allocatable :: work(:, :)
 
+    tmpMat = (0.0_dp, 0.0_dp)
     ! 1 0 charge part
     ! 0 1
     work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 1), [nOrb2, nOrb1])
     tmpMat(1:nOrb2, 1:nOrb1) = 0.5_dp*work(1:nOrb2, 1:nOrb1)
     tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = 0.5_dp*work(1:nOrb2, 1:nOrb1)
 
-    if (present(iHam)) then
+    if (allocated(iHam)) then
       work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 1), [nOrb2, nOrb1])
       tmpMat(1:nOrb2, 1:nOrb1) = tmpMat(1:nOrb2,1:nOrb1) &
           &+ 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
       tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) &
           &+ 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
     end if
+
+    if (.not.tSpinOrbit) return
 
     ! 0 1 x part
     ! 1 0
@@ -962,7 +1019,7 @@ contains
     ! => L- = i* iHam(:,2) + iHam(:,3) 
     ! (Lz L-)
     ! (L+ Lz) 
-    if (present(iHam)) then
+    if (allocated(iHam)) then
       work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 2), [nOrb2, nOrb1])
       tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
           & + 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)

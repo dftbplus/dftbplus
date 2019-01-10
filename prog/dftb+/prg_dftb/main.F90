@@ -229,7 +229,7 @@ contains
     #:if WITH_TRANSPORT
       if (tNegf) then
         call initNegfStuff(denseDesc, transpar, ginfo, neighbourList, nNeighbourSK, img2CentCell,&
-            & orb)
+            & orb, nSpin, tDualSpinOrbit)
       end if
     #:endif
 
@@ -276,9 +276,12 @@ contains
           ! Open detailed.out before jumping out of lpGeomOpt
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, 1)
         end if
-        ! We need to define hamltonian by adding the potential
+        ! We need to define Hamiltonian adding the external potential and Spin-Orbit
+        call resetInternalPotentials(potential)
+        call addSpinOrbitPotential(tDualSpinOrbit, xi, orb, species, potential)
         call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
             & img2CentCell, potential, ham, iHam)
+        call transformHam(ham, iHam)
         exit lpGeomOpt
       end if
 
@@ -471,7 +474,8 @@ contains
         write(stdOut,*) " <<< supercell.xyz written on file"
         call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
             & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu)
+            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu, &
+            & tSpinOrbit, iHam)
       end if
     #:endif
 
@@ -504,7 +508,7 @@ contains
         call getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
             & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
             & tRealHS, ham, over, parallelKS, solver, iSCCIter, mu, ERhoPrim, eigvecsReal,&
-            & SSqrReal, eigvecsCplx, SSqrCplx)
+            & SSqrReal, eigvecsCplx, SSqrCplx, tSpinOrbit, iHam)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
@@ -735,7 +739,7 @@ contains
       call calc_current(env%mpi%globalComm, parallelKS%localKS, ham, over,&
           & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
-          & leadCurrents, writeTunn, writeLDOS, mu)
+          & leadCurrents, writeTunn, writeLDOS, mu, tSpinOrbit, iHam)
     end if
   #:endif
 
@@ -1082,7 +1086,7 @@ contains
 
   !> Initialise transport
   subroutine initNegfStuff(denseDescr, transpar, ginfo, neighbourList, nNeighbour, img2CentCell,&
-      & orb)
+      & orb, nSpin, tDualSpinOrbit)
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDescr
@@ -1104,15 +1108,28 @@ contains
 
     !> Number of neighbours of each real atom
     integer, intent(in) :: nNeighbour(:)
+   
+    !> signal the hamiltonian size for SOC (1, 2, 4)
+    integer, intent(in) :: nSpin
+
+    !> dual spin orbit hamiltonian
+    logical, intent(in) :: tDualSpinOrbit
 
     ! known issue about the PLs: We need an automatic partitioning
-    call negf_init_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbour, img2CentCell,&
-        & orb)
-
-    call negf_init_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour, nNeighbour,&
-        & img2CentCell)
-
-    call negf_init_dephasing(ginfo%tundos)  !? why tundos
+   
+    select case(nSpin)
+    case(1, 2) 
+      call negf_init_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbour, &
+          img2CentCell, orb)
+      call negf_init_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour, &
+          nNeighbour, img2CentCell, .false.)
+      call negf_init_dephasing(ginfo%tundos)  !? why tundos
+    case(4)
+      call negf_init_csr(denseDescr%iAtomStart, neighbourList%iNeighbour, nNeighbour, &
+          img2CentCell, orb, tDualSpinOrbit)
+      call negf_init_str(denseDescr, transpar, ginfo%greendens, neighbourList%iNeighbour, &
+          nNeighbour, img2CentCell, .true.)
+    end select
 
   end subroutine initNegfStuff
 #:endif
@@ -1765,8 +1782,10 @@ contains
   !> Hack due to not using Pauli-type structure for diagonalisation
   !> For collinear spin, qm2ud will produce the right potential:
   !> (Vq, uB*Bz*σz) -> (Vq + uB*Bz*σz, Vq - uB*Bz*σz)
-  !> For non-collinear spin-orbit, all blocks are multiplied by 1/2:
+  !> For non-collinear spin-orbit, all blocks are later multiplied by 1/2 according to the algebra
+  !> [I/2, σx/2, σy/2, σz/2], resulting in:
   !> (Vq/2, uL* Lx*σx/2, uL* Ly*σy/2, uL* Lz*σz/2)
+  !> For this the Hamiltonian blocks are pre-multiplied here by a factor 2* 
   subroutine transformHam(Ham, iHam)
     real(dp), intent(inout) :: Ham(:,:)
     real(dp), intent(inout), allocatable :: iHam(:,:)
@@ -1954,7 +1973,8 @@ contains
 
       call calcdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
           & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS,&
+          & tSpinOrbit, iHam)
 
       call ud2qm(rhoPrim)
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
@@ -3739,7 +3759,8 @@ contains
   !>
   subroutine getEnergyWeightedDensity(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
       & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVEc, cellVec, tRealHS,&
-      & ham, over, parallelKS, solver, iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+      & ham, over, parallelKS, solver, iSCC, mu, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx,&
+      & tSpinOrbit, iHam)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3818,8 +3839,13 @@ contains
 
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    
+    !> Are spin orbit interactions present (needed for negf)
+    logical, intent(in) :: tSpinOrbit
 
-    integer :: nSpin
+    !> imaginary part of the hamiltonian (needed for negf)
+    real(dp), intent(in), allocatable :: iHam(:,:)
+
 
     call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
 
@@ -3827,14 +3853,13 @@ contains
     if (solver == solverGF) then
       call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
           & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim,&
+          & tSpinOrbit, iHam)
       return
     end if
   #:endif
 
-    nSpin = size(ham, dim=2)
-
-    if (nSpin == 4) then
+    if (size(ham, dim=2) == 4) then
       call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
           & tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)

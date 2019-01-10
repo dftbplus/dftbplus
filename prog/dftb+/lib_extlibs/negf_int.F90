@@ -12,7 +12,7 @@ module negf_int
   use constants
   use libnegf_vars
   use libnegf, only : convertcurrent, eovh, getel, lnParams, negf_mpi_init, pass_DM, Tnegf, unit
-  use libnegf, only : z_CSR
+  use libnegf, only : z_CSR, z_DNS
   use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
   use libnegf, only : associate_current, compute_current, compute_density_dft, compute_ldos
   use libnegf, only : create, create_scratch, destroy
@@ -21,6 +21,7 @@ module negf_int
   use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
   use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
   use libnegf, only : read_negf_in, negf_partition_info, printcsr
+  use libnegf, only : extract
   use mat_conv
   use sparse2dense
   use densedescr
@@ -430,19 +431,24 @@ module negf_int
   end subroutine negf_init_bp
 
   !> Initialise compressed sparse row matrices
-  subroutine negf_init_csr(iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
+  subroutine negf_init_csr(iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb, tDualSO)
     integer, intent(in) :: iAtomStart(:)
     integer, intent(in) :: iNeighbor(0:,:)
     integer, intent(in) :: nNeighbor(:)
     integer, intent(in) :: img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
+    logical, intent(in), optional :: tDualSO
 
     pCsrHam => csrHam
     pCsrOver => csrOver
     if (allocated(csrHam%nzval)) then
       call destroy(csrHam)
     end if
-    call init(csrHam, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
+    if (present(tDualSO)) then
+      call init(csrHam, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb, tDualSO)
+    else
+      call init(csrHam, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
+    end if
     if (allocated(csrOver%nzval)) then
       call destroy(csrOver)
     end if
@@ -469,13 +475,14 @@ module negf_int
   end subroutine negf_destroy
 
   !------------------------------------------------------------------------------
-  subroutine negf_init_str(denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell)
+  subroutine negf_init_str(denseDescr, transpar, greendens, iNeigh, nNeigh, img2CentCell, tSOC)
     Type(TDenseDescr), intent(in) :: denseDescr
     Type(TTranspar), intent(in) :: transpar
     Type(TNEGFGreenDensInfo) :: greendens
     Integer, intent(in) :: nNeigh(:)
     Integer, intent(in) :: img2CentCell(:)
     Integer, intent(in) :: iNeigh(0:,:)
+    logical, intent(in) :: tSOC
 
     Integer, allocatable :: PL_end(:), cont_end(:), surf_end(:), cblk(:), ind(:)
     Integer, allocatable :: atomst(:), plcont(:)
@@ -511,14 +518,14 @@ module negf_int
     allocate(ind(natoms+1))
     allocate(minv(nbl,ncont))
 
-    ind(:) = DenseDescr%iatomstart(:) - 1
+    if (tSOC) then
+      ind(:) = 2*DenseDescr%iatomstart(:) - 2 
+    else      
+      ind(:) = DenseDescr%iatomstart(:) - 1
+    end if  
+    print*,'ind=',ind
     minv = 0
     cblk = 0
-
-    do i = 1, ncont
-       cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
-       surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
-    enddo
 
     if (transpar%defined) then
       do i = 1, nbl-1
@@ -535,6 +542,16 @@ module negf_int
       PL_end(nbl) = ind(natoms+1)
       atomst(nbl+1) = natoms + 1
     endif
+
+    do i = 1, nbl
+      print*, "PL end=",PL_end(i)
+    end do
+
+    do i = 1, ncont
+      cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
+      surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
+      print*, "cont_end=",cont_end(i)
+    enddo
 
     if (transpar%defined .and. ncont.gt.0) then
 
@@ -874,12 +891,13 @@ module negf_int
   !> Calculates density matrix with Green's functions
  subroutine calcdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
-     & Ef, E0, TS)
+     & Ef, E0, TS, tSpinOrbit, iHam)
 
     integer, intent(in) :: iSCCIter
     type(mpifx_comm), intent(in) :: mpicomm
     integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
+    real(dp), intent(in), allocatable :: iHam(:,:)
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
@@ -889,8 +907,9 @@ module negf_int
     real(dp), intent(in) :: mu(:,:)
     real(dp), intent(out) :: rho(:,:)
     real(dp), intent(out) :: Eband(:), Ef(:), E0(:), TS(:)
+    logical, intent(in) :: tSpinOrbit
 
-    integer :: nSpin, nKS, iK, iS, iKS
+    integer :: nSpin, nKS, iK, iS, iKS, nComp 
     type(z_CSR), target :: csrDens
     type(z_CSR), pointer :: pCsrDens
 
@@ -903,6 +922,11 @@ module negf_int
     ! built-int potentials (the unpolarized does) in the poisson
     nKS = size(groupKS, dim=2)
     nSpin = size(ham, dim=2)
+    if (nSpin==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if    
     rho = 0.0_dp
 
     write(stdOut, *)
@@ -917,10 +941,19 @@ module negf_int
 
       write(stdOut,*) 'k-point',iK,'Spin',iS
 
-      call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
+      select case (nComp)
+      case(1)   
+        call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
+      case(2)
+        call foldToCSR(csrHam, ham, kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
+      end select
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
+
+      call check_matrix(csrHam, csrOver)
+      stop
 
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), DensMat=pCsrDens)
 
@@ -952,12 +985,14 @@ module negf_int
 
   !> Calculates E-density matrix with Green's functions
   subroutine calcEdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
+      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE, &
+      & tSpinOrbit, iHam)
 
     integer, intent(in) :: iSCCIter
     type(mpifx_comm), intent(in) :: mpicomm
     integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
+    real(dp), intent(in), allocatable :: iHam(:,:)
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
@@ -966,8 +1001,9 @@ module negf_int
     real(dp), intent(in) :: kPoints(:,:), kWeights(:)
     real(dp), intent(in) :: mu(:,:)
     real(dp), intent(out) :: rhoE(:)
+    logical, intent(in) :: tSpinOrbit
 
-    integer :: nSpin, nKS, iK, iS, iKS
+    integer :: nSpin, nComp, nKS, iK, iS, iKS
     type(z_CSR), target :: csrEDens
     type(z_CSR), pointer :: pCsrEDens
 
@@ -982,6 +1018,11 @@ module negf_int
 
     nKS = size(groupKS, dim=2)
     nSpin = size(ham, dim=2)
+    if (nSpin==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if    
     rhoE = 0.0_dp
 
     write(stdOut, *)
@@ -995,10 +1036,16 @@ module negf_int
 
       write(stdOut,*) 'k-point',iK,'Spin',iS
 
-      call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
+      select case (nComp)
+      case(1)   
+        call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
+      case(2)
+        call foldToCSR(csrHam, ham, kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
+      end select
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
 
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), EnMat=pCsrEDens)
 
@@ -1022,10 +1069,12 @@ module negf_int
 
   !> Calculate the partial density of states
   subroutine calcPDOS_green(mpicomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
-      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, ldosTot, writeLDOS)
+      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, ldosTot, writeLDOS, &
+      & tSpinOrbit, iHam)
     integer, intent(in) :: groupKS(:,:)
     type(mpifx_comm), intent(in) :: mpicomm
     real(dp), intent(in) :: ham(:,:), over(:)
+    real(dp), intent(in), allocatable :: iHam(:,:)
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
@@ -1033,11 +1082,11 @@ module negf_int
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: kPoints(:,:), kWeights(:)
     real(dp), allocatable, intent(inout) :: ldosTot(:,:)
-    logical, intent(in) :: writeLDOS
+    logical, intent(in) :: writeLDOS, tSpinOrbit
 
     real(dp), pointer    :: ldosMat(:,:)=>null()
     real(dp), allocatable :: ldosSKRes(:,:,:)
-    integer :: iKS, iK, iS, nKS, nKPoint, nSpin, ii, jj, err
+    integer :: iKS, iK, iS, nKS, nKPoint, nSpin, nComp, ii, jj, err
     type(lnParams) :: params
     integer :: fdUnit
 
@@ -1048,6 +1097,11 @@ module negf_int
     nKS = size(groupKS, dim=2)
     nKPoint = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
+    if (nSpin==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if    
 
     write(stdOut, *)
     write(stdOut, '(80("="))')
@@ -1061,13 +1115,16 @@ module negf_int
 
       write(stdOut,*) 'k-point',iK,'Spin',iS
 
-      call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, &
-          &iPair, iNeighbor, nNeighbor, img2CentCell, &
-          &iCellVec, cellVec, orb)
-
-      call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, &
-          &iPair, iNeighbor, nNeighbor, img2CentCell, &
-          &iCellVec, cellVec, orb)
+      select case (nComp)
+      case(1)   
+        call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
+      case(2)
+        call foldToCSR(csrHam, ham, kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
+      end select
+      call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
 
       call negf_ldos(pCsrHam, PCsrOver, iS, iK, kWeights(iK), ldosMat)
 
@@ -1101,7 +1158,7 @@ module negf_int
   !> Calculate the current
   subroutine calc_current(mpicomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
-      & currLead, writeTunn, writeLDOS, mu)
+      & currLead, writeTunn, writeLDOS, mu, tSpinOrbit, iham)
 
     integer, intent(in) :: groupKS(:,:)
     type(mpifx_comm), intent(in) :: mpicomm
@@ -1118,26 +1175,26 @@ module negf_int
     real(dp), allocatable, intent(inout) :: currLead(:)
     logical, intent(in) :: writeLDOS
     logical, intent(in) :: writeTunn
-    ! We need this now for different fermi levels in colinear spin
+    real(dp), intent(in) :: mu(:,:) ! spin Fermi levels
+    logical, intent(in) :: tSpinOrbit 
+    real(dp), intent(in), allocatable :: iHam(:,:)
+
     ! Note: the spin polirized does not work with
     ! built-int potentials (the unpolarized does) in the poisson
     ! I do not set the fermi because it seems that in libnegf it is
     ! not really needed
-    real(dp), intent(in) :: mu(:,:)
-
     real(dp), allocatable :: tunnSKRes(:,:,:), currSKRes(:,:,:), ldosSKRes(:,:,:)
     real(dp), pointer    :: tunnPMat(:,:)=>null()
     real(dp), pointer    :: currPMat(:,:)=>null()
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
-    integer :: iKS, iK, iS, nKS, ii, err, ncont
+    integer :: iKS, iK, iS, nKS, ii, err, ncont, nComp
     type(unit) :: unitOfEnergy        ! Set the units of H
     type(unit) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
-    integer :: i, j, k, NumStates, icont
     real(dp), dimension(:,:), allocatable :: H_all, S_all
-    character(:), allocatable :: filename
+    character(16) :: filename
 
     call negf_mpi_init(mpicomm)
 
@@ -1148,6 +1205,11 @@ module negf_int
 
     nKS = size(groupKS, dim=2)
     ncont = size(mu,1)
+    if (size(ham,2)==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if    
 
     if (params%verbose.gt.30) then
       write(stdOut, *)
@@ -1176,13 +1238,11 @@ module negf_int
       if (all(kPoints(:,iK) .eq. 0.0_dp) .and. &
          (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
 
-        NumStates = negf%NumStates
-
         if (.not.allocated(H_all)) then
-          allocate(H_all(NumStates,NumStates))
+          allocate(H_all(negf%NumStates,negf%NumStates))
         end if
         if (.not.allocated(S_all)) then
-          allocate(S_all(NumStates,NumStates))
+          allocate(S_all(negf%NumStates,negf%NumStates))
         end if
 
         call unpackHS(H_all, ham(:,iS), iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell)
@@ -1195,13 +1255,19 @@ module negf_int
 
       else
 
-        call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
-            & img2CentCell, iCellVec, cellVec, orb)
-
+        select case (nComp)
+        case(1)   
+          call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+              & img2CentCell, iCellVec, cellVec, orb, nComp)
+        case(2)
+          call foldToCSR(csrHam, ham, kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+              & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
+        end select
         call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
-            & img2CentCell, iCellVec, cellVec, orb)
-
+              & img2CentCell, iCellVec, cellVec, orb, nComp)
       end if
+
+      call check_matrix(csrHam, csrOver)
 
       call negf_current(pCsrHam, pCsrOver, iS, iK, kWeights(iK), &
                        & tunnPMat, currPMat, ldosPMat, currPVec)
@@ -1403,7 +1469,7 @@ module negf_int
   ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine local_currents(mpicomm, groupKS, ham, over, &
       & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, orb, kPoints, kWeights, coord, dumpDens, chempot)
+      & cellVec, orb, kPoints, kWeights, coord, dumpDens, chempot, tSpinOrbit, iHam)
 
     type(mpifx_comm), intent(in) :: mpicomm
     integer, intent(in) :: groupKS(:,:)
@@ -1422,8 +1488,10 @@ module negf_int
     ! I do not set the fermi because it seems that in libnegf it is
     ! not really needed
     real(dp), intent(in) :: chempot(:,:)
+    logical, intent(in) :: tSpinOrbit
+    real(dp), intent(in), allocatable :: iHam(:,:)
 
-    integer :: n,m, mu, nu, nAtom, irow, nrow, ncont
+    integer :: n,m, mu, nu, nAtom, irow, nrow, ncont, nComp
     integer :: nKS, nKPoint, nSpin, iK, iKS, iS, inn, startn, endn, morb
     real(dp), dimension(:), allocatable :: Im
     integer, dimension(:,:), allocatable :: nneig
@@ -1453,6 +1521,11 @@ module negf_int
     nKS = size(groupKS, dim=2)
     nKPoint = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
+    if (nSpin==4) then
+      nComp = 2
+    else
+      nComp = 1
+    end if    
     nAtom = size(orb%nOrbAtom)
 
     do iKS = 1, nKS
@@ -1461,12 +1534,18 @@ module negf_int
 
       write(stdOut,*) 'k-point',iK,'Spin',iS
 
-      ! We need to recompute Rho and RhoE .....
-      call foldToCSR(csrHam, ham(:,iS), kPoints(:,1), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
-      call foldToCSR(csrOver, over, kPoints(:,1), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
+      select case (nComp)
+      case(1)   
+        call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
+      case(2)
+        call foldToCSR(csrHam, ham, kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, tSpinOrbit, iHam)
+      end select
+      call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
+            & img2CentCell, iCellVec, cellVec, orb, nComp)
 
+      ! We need to recompute Rho and RhoE .....
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
 
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
@@ -2053,5 +2132,72 @@ module negf_int
     !close(12)
 
   end subroutine orthogonalization_dev
+
+  subroutine check_matrix(csrHam, csrOver)
+    type(z_CSR) :: csrHam, csrOver
+
+    type(z_DNS) :: HH, SS
+    integer :: i, i1, i2
+
+    call extract(csrHam, 1, 26, 1, 26, HH)
+    call extract(csrOver, 1, 26, 1, 26, SS)
+
+    print*,'HH dim:',size(HH%val,1)
+    print*,'Ga'
+    print*,'HH(1:18,1:18) Huu'
+    i1 = 1; i2 = 18
+    do i = i1, i2
+      print*,HH%val(i,i1:i2)
+    end do
+
+    print*,'As'
+    i1 = 19; i2 = 26
+    do i = i1, i2
+      print*,HH%val(i,i1:i2)
+    end do
+
+    print*,'Ga-As'
+    i1 = 19; i2 = 26
+    do i = 1, 18
+      print*,HH%val(i,i1:i2)
+    end do
+
+    print*,'As-Ga'
+    i1 = 1; i2 = 18
+    do i = 19, 26
+      print*,HH%val(i,i1:i2)
+    end do
+
+
+
+    print*,'OVERLAP'
+    print*,'Ga'
+    print*,'SC(1:18,1:18) Suu'
+    i1 = 1; i2 = 18
+    do i = i1, i2
+      print*, SS%val(i,i1:i2)
+    end do
+
+    print*,'As'
+    i1 = 19; i2 = 26
+    do i = i1, i2
+      print*, SS%val(i,i1:i2)
+    end do
+
+    print*,'Ga-As'
+    i1 = 19; i2 = 26
+    do i = 1, 18
+      print*, SS%val(i,i1:i2)
+    end do
+
+    print*,'As-Ga'
+    i1 = 1; i2 = 18
+    do i = 19, 26
+      print*, SS%val(i,i1:i2)
+    end do
+
+
+  end subroutine check_matrix
+
 
 end module negf_int

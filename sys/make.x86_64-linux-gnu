@@ -120,7 +120,7 @@ ifeq ($(strip $(DEBUG)),2)
 
 
     OTHERLIBS = 
-    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check
+    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check -finit-real=nan
     FXXOPT += -Wno-unused-variable -Wno-unused-dummy-argument -Wno-unused-function -Wno-uninitialized 
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
 
