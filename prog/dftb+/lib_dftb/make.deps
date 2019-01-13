@@ -259,6 +259,11 @@ stress.o = stress.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_e
 _mod_stress: stress.o
 _mod_stress = $(stress.o)
 
+test.o: _mod_routines
+test.o = test.o $(_mod_routines)
+_mod_routines: test.o
+_mod_routines = $(test.o)
+
 thirdorder.o: _mod_commontypes common.fypp _mod_charges _mod_periodic _mod_assert _mod_shortgamma _mod_accuracy
 thirdorder.o = thirdorder.o $(_mod_commontypes) $(common.fypp) $(_mod_charges) $(_mod_periodic) $(_mod_assert) $(_mod_shortgamma) $(_mod_accuracy)
 _mod_thirdorder_module: thirdorder.o

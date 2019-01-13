@@ -15,6 +15,7 @@ module linrespcommon
   use sorting
   use message
   use commontypes
+  use transitionCharges
   implicit none
   public
 
@@ -191,7 +192,7 @@ contains
 
 
   !> Computes individual indices from the compound occ-virt excitation index.
-  subroutine indxov(win, indx, getij, ii, jj)
+  pure subroutine indxov(win, indx, getij, ii, jj)
 
     !> index array after sorting of eigenvalues.
     integer, intent(in) :: win(:)
@@ -215,6 +216,42 @@ contains
     jj = getij(indo,2)
 
   end subroutine indxov
+
+
+  !> generate a list of transitions
+  subroutine cacheFill(iAtomStart, win, getij, nxov_rd, stimc, c, nmatup)
+
+    !> indexing array for square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> index array for transitions to single particle transitions
+    integer, intent(in) :: win(:)
+
+    !> array of the occupied->virtual pairs
+    integer, intent(in) :: getij(:,:)
+
+    !> number of transitions
+    integer, intent(in) :: nxov_rd
+
+    !> overlap times ground state mo-coefficients
+    real(dp), intent(in) :: stimc(:,:,:)
+
+    !> ground state mo-coefficients
+    real(dp), intent(in) :: c(:,:,:)
+
+    !> number of up-up excitations
+    integer, intent(in) :: nmatup
+
+    integer :: ia, i, a
+    logical :: updwn
+
+    do ia = 1, nxov_rd
+      call indxov(win, ia, getij, i, a)
+      updwn = (win(ia) <= nmatup)
+      call transq(i, a, iAtomStart, updwn, stimc, c, qCacheOV(:,ia))
+    end do
+
+  end subroutine cacheFill
 
 
   !> Computes individual indices from the compound occ-occ excitation index.
@@ -325,89 +362,6 @@ contains
     !$OMP  END PARALLEL DO
 
   end subroutine rindxov_array
-
-  !> generate a list of transitions
-  subroutine cacheFill(iAtomStart, win, getij, nxov_rd, stimc, c, nmatup)
-
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
-
-    !> index array for transitions to single particle transitions
-    integer, intent(in) :: win(:)
-
-    !> array of the occupied->virtual pairs
-    integer, intent(in) :: getij(:,:)
-
-    !> number of transitions
-    integer, intent(in) :: nxov_rd
-
-    !> overlap times ground state mo-coefficients
-    real(dp), intent(in) :: stimc(:,:,:)
-
-    !> ground state mo-coefficients
-    real(dp), intent(in) :: c(:,:,:)
-
-    !> number of up-up excitations
-    integer, intent(in) :: nmatup
-
-    integer :: ia, i, a
-    logical :: updwn
-
-    do ia = 1, nxov_rd
-      call indxov(win, ia, getij, i, a)
-      updwn = (win(ia) <= nmatup)
-      call transq(i, a, iAtomStart, updwn, stimc, c, qCacheOV(:,ia))
-    end do
-
-  end subroutine cacheFill
-
-
-  !> Calculates atomic transition charges for a certain excitation.
-  !> Calculates qij = 0.5 * (c_i S c_j + c_j S c_i) where c_i and c_j are selected eigenvectors, and
-  !> S the overlap matrix. Since qij is atomic quantity (so far) the corresponding values are summed
-  !> up.
-  !> Note: the parameters 'updwn' were added for spin alpha and beta channels.
-  subroutine transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-
-    !> Index of inital state.
-    integer, intent(in) :: ii
-
-    !> Index of final state.
-    integer, intent(in) :: jj
-
-    !> Starting position of each atom in the list of orbitals.
-    integer, intent(in) :: iAtomStart(:)
-
-    !> up spin channel (T) or down spin channel (F)
-    logical, intent(in) :: updwn
-
-    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb).
-    real(dp), intent(in) :: stimc(:,:,:)
-
-    !> Eigenvectors (nOrb, nOrb)
-    real(dp), intent(in) :: grndEigVecs(:,:,:)
-
-    !> Transition charge on exit. (nAtom)
-    real(dp), intent(out) :: qij(:)
-
-    integer :: kk, aa, bb, ss
-    real(dp) :: qTmp(size(stimc,dim=1))
-
-    @:ASSERT(all(shape(stimc) == shape(grndEigVecs)))
-
-    ss = 1
-    if (.not. updwn) then
-      ss = 2
-    end if
-
-    qTmp(:) =  grndEigVecs(:,ii,ss) * stimc(:,jj,ss) + grndEigVecs(:,jj,ss) * stimc(:,ii,ss)
-    do kk = 1, size(qij)
-      aa = iAtomStart(kk)
-      bb = iAtomStart(kk + 1) -1
-      qij(kk) = 0.5_dp * sum(qTmp(aa:bb))
-    end do
-
-  end subroutine transq
 
 
   !> Returns the (spatial) MO overlap between orbitals in different spin channels
@@ -724,7 +678,7 @@ contains
     !  rkm1(ia) = 4.0_dp * dot_product(gtmp, qij)
     !end do
     !!$OMP  END PARALLEL DO
-    rkm1(:) = 4.0_dp * matmul(qCacheOV(:,:),gTmp(:))
+    rkm1(:nMat) = 4.0_dp * matmul(transpose(qCacheOV(:,:nMat)),gTmp(:))
 
     rkm1(:) = rkm1(:) + wij(:) * rhs2(:)
 

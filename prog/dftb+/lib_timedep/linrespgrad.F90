@@ -25,6 +25,7 @@ module linrespgrad
   use taggedoutput
   use sorting
   use qm
+  use transitionCharges
   implicit none
   private
 
@@ -256,6 +257,10 @@ contains
     !> should gradients be calculated
     logical :: tForces
 
+    !> transition charges, either cached or evaluated on demand
+    type(qTransition) :: charges
+
+
     ! ARPACK library variables
     ndigit = -3
     ! Output unit:
@@ -404,10 +409,10 @@ contains
       ! use a stable sort so that degenerate transitions from the same single particle state are
       ! grouped together in the results, allowing these to be selected together (since how intensity
       ! is shared out over degenerate transitions is arbitrary between eigensolvers/platforms).
-      call merge_sort(win,wij, 1.0_dp*epsilon(1.0))
+      call merge_sort(win, wij, 1.0_dp*epsilon(1.0))
     else
       ! do not require stability, use the usual routine to sort, saving an O(N) workspace
-      call index_heap_sort(win,wij)
+      call index_heap_sort(win, wij)
     end if
     wij = wij(win)
 
@@ -464,9 +469,12 @@ contains
     nxov_rd = max(nxov_rd,min(nexc+1,nxov))
 
     write(*,*)'Transitions included',nxov_rd
-    allocate(qCacheOV(nAtom,nxov_rd))
 
+    allocate(qCacheOV(nAtom,nxov_rd))
     call cacheFill(iAtomStart, win, getij, nxov_rd, stimc, grndEigVecs, nxov_ud(1))
+    call qTransitionInit(charges, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij, win,&
+        & .true.)
+
 
     if (fdXplusY >  0) then
       open(fdXplusY, file=XplusYOut, position="rewind", status="replace")
@@ -937,7 +945,7 @@ contains
     !> index for composite excitations to specific occupied and empty states
     integer, intent(in) :: getij(:,:)
 
-    !> single particle excitations
+    !> single particle excitation index
     integer, intent(in) :: win(:)
 
     !> Casida exitation energies
@@ -1217,10 +1225,10 @@ contains
 
     ! Build xpyq = sum_ia (X+Y)_ia
     do ia = 1, nxov
-      !call indxov(win, ia, getij, i, a)
-      !updwn = (win(ia) <= nmatup)
-      !call transq(i, a, iAtomStart, updwn, stimc, c, qij)
-      xpyq(:) = xpyq + xpy(ia) * qCacheOV(:,ia) !qij
+      call indxov(win, ia, getij, i, a)
+      updwn = (win(ia) <= nmatup)
+      call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      xpyq(:) = xpyq + xpy(ia) * qij
     end do
 
     ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
@@ -1319,10 +1327,10 @@ contains
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
     do ia = 1, nxov
-      !call indxov(win, ia, getij, i, a)
-      !updwn = (win(ia) <= nmatup)
-      !call transq(i, a, iAtomStart, updwn, stimc, c, qij)
-      rhs(ia) = rhs(ia) - 4.0_dp * sum(qCacheOV(:,ia) * gamqt) !sum(qij * gamqt)
+      call indxov(win, ia, getij, i, a)
+      updwn = (win(ia) <= nmatup)
+      call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      rhs(ia) = rhs(ia) - 4.0_dp * sum(qij * gamqt)
     end do
 
     ! Furche vectors
@@ -1448,7 +1456,7 @@ contains
     !> Z vector
     real(dp), intent(in) :: zz(:)
 
-    !> index array for transitions
+    !> index array for single particle transitions
     integer, intent(in) :: win(:)
 
     !> highest occupied level
@@ -1509,11 +1517,11 @@ contains
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
     zq(:) = 0.0_dp
     do ia = 1, nxov
-      !call indxov(win, ia, getij, i, a)
-      !updwn = (win(ia) <= nmatup)
-      !call transq(i, a, iAtomStart, updwn, stimc, c, qij)
+      call indxov(win, ia, getij, i, a)
+      updwn = (win(ia) <= nmatup)
+      call transq(i, a, iAtomStart, updwn, stimc, c, qij)
       do iAt1 = 1, natom
-        qij = qCacheOV(:, ia)
+        !qij = qCacheOV(:, ia)
         zq(iAt1) = zq(iAt1) + zz(ia) * qij(iAt1)
       end do
     end do
@@ -1650,7 +1658,7 @@ contains
     !> Atomic positions
     real(dp), intent(in) :: coord0(:,:)
 
-    !> transition energies
+    !> single particle transition index
     integer, intent(in) :: win(:)
 
     !> number of same-spin transitions
@@ -1727,7 +1735,7 @@ contains
     !> windowing)
     integer, intent(in) :: nocc
 
-    !> single particle excitation energies
+    !> single particle transition index
     integer, intent(in) :: win(:)
 
     !> number of up->up transitions
