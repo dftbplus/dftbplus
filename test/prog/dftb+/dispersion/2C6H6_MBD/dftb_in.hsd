@@ -31,7 +31,6 @@ Hamiltonian = DFTB {
     NOmegaGrid = 15
     Beta = 1.05
     KGrid = 2 2 2
-    VacuumAxis = Yes Yes Yes
   }
 }
 

@@ -2973,7 +2973,7 @@ contains
 
     ! TODO there should be a mechanism that allows either TS or MBD, not both,
     ! or we have to initialize two different mbd_calc instances
-    input%dispersion_type = 'ts'
+    input%method = 'ts'
     call getChildValue(node, "EnergyAccuracy", input%ts_ene_acc, input%ts_ene_acc, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), energyUnits, child, input%ts_ene_acc)
@@ -2995,12 +2995,11 @@ contains
     type(string) :: buffer
     type(fnode), pointer :: child
 
-    input%dispersion_type = 'mbd'
+    input%method = 'mbd-rsscs'
     call getChildValue(node, "Beta", input%mbd_beta, input%mbd_beta)
     call getChildValue(node, "NOmegaGrid", input%n_omega_grid, input%n_omega_grid)
     call getChildValue(node, "KGrid", input%k_grid)
     call getChildValue(node, "KGridShift", input%k_grid_shift, input%k_grid_shift)
-    call getChildValue(node, "VacuumAxis", input%vacuum_axis, input%vacuum_axis)
     call getChildValue(node, "ReferenceSet", buffer, 'ts', child=child)
     input%vdw_params_kind = tolower(unquote(char(buffer)))
     call checkManyBodyDispRefName(input%vdw_params_kind, child)

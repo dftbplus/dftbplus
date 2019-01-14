@@ -3,7 +3,7 @@
 !> Imports the functionality of libMBD.
 module mbd_module
 #:if WITH_MBD
-  use mbd_api, TMbdInit => mbd_input, TMbd => mbd_calculation
+  use mbd, TMbdInit => mbd_input_t, TMbd => mbd_calc_t
 #:endif
   implicit none
   private

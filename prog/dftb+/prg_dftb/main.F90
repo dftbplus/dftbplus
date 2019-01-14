@@ -2737,7 +2737,7 @@ contains
     print *, "CPA:", cpa
     call mbDispersion%update_vdw_params_from_ratios(cpa)
 
-    call mbDispersion%get_energy(eMbd)
+    call mbDispersion%evaluate_vdw_method(eMbd)
 
     if (tIoProc) then
       write(stdOut,*) 'MBD energy ', eMbd, ' ', eMbd * Hartree__eV
@@ -4269,6 +4269,7 @@ contains
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
       call mbDispersion%get_lattice_derivs(tmpStress)
+      tmpStress = -matmul(latVec, tmpStress)/cellVol
       if (tIoProc) then
         write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD STRESS!!!!!!!!!!!!!!!!'
         write(stdOut,*) tmpStress(:, :)

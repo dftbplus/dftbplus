@@ -3359,7 +3359,7 @@ contains
     character(80) :: tmpStr
 
     write(stdOut, "(A)") ''
-    if (input%dispersion_type == 'ts') then
+    if (input%method == 'ts') then
       write(stdOut, "(A)") "Using TS from SEDC module [Phys. Rev. B 80, 205414 (2009)]"
       write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
       select case (trim(input%vdw_params_kind))
@@ -3379,7 +3379,7 @@ contains
       write(stdOut, "(A)") '  TSForceAccuracy           ' // trim(adjustl(tmpStr))
       write(tmpStr, "(E18.6)") input%ts_ene_acc
       write(stdOut, "(A)") '  TSEnergyAccuracy          ' // trim(adjustl(tmpStr))
-  else if (input%dispersion_type == 'mbd') then
+  else if (input%method == 'mbd-rsscs') then
       write(stdOut,"(A)") "Using MBD model [Phys. Rev. Lett. 108, 236402 (2012)]"
       write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
       select case (trim(input%vdw_params_kind))
@@ -3397,16 +3397,10 @@ contains
       write(stdOut,"(A)") "  Parameters                "//trim(adjustl(tmpStr))
       write(stdOut,"(A)") '  Module                    mbdvdw'
       write(stdOut,"(A)") '  MBD eigensolver           QR (LAPACK)'
-      if (all(input%vacuum_axis)) then
-        write(stdOut,"(A)") "  PBC for MBD               No"
-      else
-        write(tmpStr,"(3(L2,1X))") .not. input%vacuum_axis
-        write(stdOut,"(A)") "  PBC for MBD (x,y,z)       "//trim(adjustl(tmpStr))
-        write(tmpStr, "(3(I3,1X))") input%k_grid
-        write(stdOut,"(A)") "  MBD k-Grid                "//trim(adjustl(tmpStr))
-        write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
-        write(stdOut,"(A)") "  MBD k-Grid shift          "//trim(adjustl(tmpStr))
-      end if
+      write(tmpStr, "(3(I3,1X))") input%k_grid
+      write(stdOut,"(A)") "  MBD k-Grid                "//trim(adjustl(tmpStr))
+      write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
+      write(stdOut,"(A)") "  MBD k-Grid shift          "//trim(adjustl(tmpStr))
       write(tmpStr, "(I3)") input%n_omega_grid
       write(stdOut, "(A)") "  Gridsize (frequencies)    "//trim(adjustl(tmpStr))
     end if
