@@ -38,11 +38,13 @@ module transitionCharges
 
     procedure :: qTransIJ
     procedure :: qMatVec
+    procedure :: qVecMat
 
   end type qTransition
 
 contains
 
+  !> initialise the cache/on-the fly transition charge evaluator
   subroutine qTransitionInit(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, nxov_rd, nMatUp,&
       & getij, win, tStore)
 
@@ -209,6 +211,65 @@ contains
     end if
 
   end subroutine qMatVec
+
+
+  !> Transition charges right producted with a vector v * Q
+  pure subroutine qVecMat(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij, win, vector,&
+        & qProduct)
+
+    !> instance of the transition charge object
+    class(qTransition), intent(in) :: this
+
+    !> Starting position of each atom in the list of orbitals
+    integer, intent(in) :: iAtomStart(:)
+
+    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb)
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:)
+
+    !> Eigenvectors (nOrb, nOrb)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> index array for for single particle excitations
+    integer, intent(in) :: getij(:,:)
+
+    !> index array for single particle excitions that are included
+    integer, intent(in) :: win(:)
+
+    !> vector to product with the transition charges
+    real(dp), intent(in) :: vector(:)
+
+    !> Product on exit
+    real(dp), intent(out) :: qProduct(:)
+
+    real(dp), allocatable :: qij(:)
+    integer :: ii, jj, ij, kk
+    logical :: updwn
+
+    if (this%tCacheCharges) then
+
+      qProduct(:) = matmul(vector(:), this%qCacheOccVirt(:, :))
+
+    else
+
+      allocate(qij(this%nAtom))
+
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn,qij)&
+      !!$OMP& SCHEDULE(RUNTIME)
+      do ij = 1, this%nTransitions
+        kk = win(ij)
+        ii = getij(kk,1)
+        jj = getij(kk,2)
+        updwn = (kk <= this%nMatUp)
+        call transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs, qij(:))
+        qProduct(ij) = dot_product(qij(:), vector(:))
+      end do
+      !!$OMP  END PARALLEL DO
+
+      deallocate(qij)
+
+    end if
+
+  end subroutine qVecMat
 
 
   !> Calculates atomic transition charges for a specified excitation.

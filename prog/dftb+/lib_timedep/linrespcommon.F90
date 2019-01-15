@@ -518,32 +518,18 @@ contains
 
         call hemv(gtmp, gamma, otmp)
 
-        !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-        !!$OMP& SCHEDULE(RUNTIME)
-        !do ia = 1, nmat
-        !  call indxov(win, ia, getij, ii, jj)
-        !  updwn = (win(ia) <= nmatup)
-        !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-        !  vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
-        !end do
-        !!$OMP  END PARALLEL DO
-        vout(:) = 2.0_dp * wnij(:) * matmul(transpose(qCacheOV(:,:nmat)),gtmp)
+        ! 2 * wn * (g * Q)
+        call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, vOut)
+        vOut(:) = 2.0_dp * wnij(:) * vOut(:)
+
       else
 
         otmp = 2.0_dp * otmp * spinW(species0)
 
-        !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-        !!$OMP& SCHEDULE(RUNTIME)
-        !do ia = 1, nmat
-        !  call indxov(win, ia, getij, ii, jj)
-        !  updwn = (win(ia) <= nmatup)
-        !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-        !  ! Note: 2 times atomic magnetization m_A
-        !  ! vout = sum_A q_A^ia m_A * otmp(A)
-        !  vout(ia) = vout(ia) + wnij(ia) * dot_product(qij, otmp)
-        !end do
-        !!$OMP  END PARALLEL DO
-        vout(:) = wnij(:) * matmul(transpose(qCacheOV(:,:nmat)),otmp)
+        ! wn * (o * Q)
+        call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, oTmp, vOut)
+        vOut(:) = wnij(:) * vOut(:)
+
 
       end if
 
@@ -557,10 +543,9 @@ contains
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do ia = 1,nmat
 
-        call indxov(win, ia, getij, ii, jj)
         updwn = (win(ia) <= nmatup)
 
-        call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+        qij(:) = transCharges%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
 
         !singlet gamma part (S)
         vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
@@ -582,9 +567,9 @@ contains
       !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
 
-        call indxov(win, ia, getij, ii, jj)
         updwn = (win(ia) <= nmatup)
-        call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+        qij(:) = transCharges%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
+
         if (updwn) then
           fact = 1.0_dp
         else
