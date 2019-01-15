@@ -439,7 +439,7 @@ contains
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
   subroutine omegatvec(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
-      & occNr, getij, gamma, species0, spinW )
+      & occNr, getij, gamma, species0, spinW, transCharges)
 
     !> logical spin polarization
     logical, intent(in) :: spin
@@ -486,6 +486,9 @@ contains
     !> ground state spin constants for each species
     real(dp), intent(in) :: spinW(:)
 
+    !> machinery for transition charges between single particle levels
+    type(qTransition), intent(in) :: transCharges
+
     integer :: nmat, natom
     integer :: ia, ii, jj
     real(dp) :: fact
@@ -505,17 +508,9 @@ contains
     call wtdn(wij, occNr, win, nmatup, nmat, getij, wnij)
     wnij = sqrt(wnij) ! always used as root(wnij) after this
 
-    otmp(:) = 0.0_dp
-    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-    !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
-    ! do ia = 1, nmat
-    !  call indxov(win, ia, getij, ii, jj)
-    !  updwn = (win(ia) <= nmatup)
-    !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-    !  otmp = otmp + vin(ia) * wnij(ia) * qij
-    !end do
-    !!$OMP  END PARALLEL DO
-    otmp(:) = otmp(:) + matmul(qCacheOV(:,:nmat), vin(:nmat) * wnij(:nmat)) ! * qij
+    ! product charges with the v*wn product
+    call transCharges%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, vin(:nmat) * wnij(:nmat),&
+        & oTmp)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 

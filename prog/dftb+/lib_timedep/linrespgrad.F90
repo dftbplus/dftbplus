@@ -258,7 +258,7 @@ contains
     logical :: tForces
 
     !> transition charges, either cached or evaluated on demand
-    type(qTransition) :: charges
+    type(qTransition) :: transCharges
 
 
     ! ARPACK library variables
@@ -472,8 +472,8 @@ contains
 
     allocate(qCacheOV(nAtom,nxov_rd))
     call cacheFill(iAtomStart, win, getij, nxov_rd, stimc, grndEigVecs, nxov_ud(1))
-    call qTransitionInit(charges, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij, win,&
-        & .true.)
+    call qTransitionInit(transCharges, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij,&
+        & win, .true.)
 
 
     if (fdXplusY >  0) then
@@ -519,8 +519,8 @@ contains
 
       sym = symmetries(isym)
       call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
-          & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, fdArnoldiDiagnosis,&
-          & eval, evec )
+          & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transCharges,&
+          & fdArnoldiDiagnosis, eval, evec )
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, snglPartTransDip(1:nxov_rd,:), wij(:nxov_rd), eval, evec,&
@@ -677,7 +677,8 @@ contains
 
   !> Builds and diagonalizes the excitation matrix via iterative technique.
   subroutine buildAndDiagExcMatrix(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
-      & grndEigVecs, filling, getij, gammaMat, species0, spinW, fdArnoldiDiagnosis, eval, evec)
+      & grndEigVecs, filling, getij, gammaMat, species0, spinW, transCharges, fdArnoldiDiagnosis,&
+      & eval, evec)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -723,6 +724,9 @@ contains
 
     !> atomic resolved spin constants
     real(dp), intent(in) :: spinW(:)
+
+    !> machinery for transition charges between single particle levels
+    type(qTransition), intent(in) :: transCharges
 
     !> resulting eigenvalues for transitions
     real(dp), intent(out) :: eval(:)
@@ -794,7 +798,7 @@ contains
       ! Action of excitation supermatrix on supervector
       call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat,&
-          & species0, spinW)
+          & species0, spinW, transCharges)
 
     end do
 
@@ -835,7 +839,7 @@ contains
           & non-orthog'
       do iState = 1, nExc
         call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
-            & grndEigVecs, filling, getij, gammaMat, species0, spinW)
+            & grndEigVecs, filling, getij, gammaMat, species0, spinW, transCharges)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-evec(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))

@@ -36,8 +36,8 @@ module transitionCharges
 
   contains
 
-    procedure, nopass :: qTransIJ
-    procedure, nopass :: qMatVec
+    procedure :: qTransIJ
+    procedure :: qMatVec
 
   end type qTransition
 
@@ -151,7 +151,7 @@ contains
   end function qTransIJ
 
 
-  !> Transition charges producted with a matrix
+  !> Transition charges left producted with a vector Q * v
   pure subroutine qMatVec(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij, win, vector,&
         & qProduct)
 
@@ -191,16 +191,16 @@ contains
 
       allocate(qij(this%nAtom))
 
+      qProduct(:) = 0.0_dp
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn,qij)&
       !!$OMP& SCHEDULE(RUNTIME)
       do ij = 1, this%nTransitions
         kk = win(ij)
         ii = getij(kk,1)
         jj = getij(kk,2)
-        !call indxov(win, ij, getij, ii, jj)
         updwn = (kk <= this%nMatUp)
         call transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs, qij(:))
-        qProduct(ij) = dot_product(qij(:), vector)
+        qProduct(:) = qProduct(:) + qij(:) * vector(ij)
       end do
       !!$OMP  END PARALLEL DO
 
