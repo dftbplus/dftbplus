@@ -470,8 +470,6 @@ contains
 
     write(*,*)'Transitions included',nxov_rd
 
-    allocate(qCacheOV(nAtom,nxov_rd))
-    call cacheFill(iAtomStart, win, getij, nxov_rd, stimc, grndEigVecs, nxov_ud(1))
     call qTransitionInit(transCharges, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij,&
         & win, .true.)
 
@@ -638,7 +636,7 @@ contains
             & stimc, grndEigVecs, gammaMat, spinW, omega, sym, rhs, t,&
             & wov, woo, wvv)
         call solveZVectorEq(rhs, win, nxov_ud(1), getij, natom, iAtomStart,&
-            & stimc, gammaMat, wij(:nxov_rd), grndEigVecs)
+            & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transCharges)
         call calcWVectorZ(rhs, win, nocc, nocc_r, nxov_ud(1), getij, iAtomStart,&
             & stimc, grndEigVecs, gammaMat, grndEigVal(:,1), wov, woo, wvv)
         call calcPMatrix(t, rhs, win, getij, pc)
@@ -670,7 +668,6 @@ contains
 
     end if
 
-    deallocate(qCacheOV)
 
   end subroutine LinRespGrad_old
 
@@ -929,8 +926,7 @@ contains
     end if
 
     if (tTradip) then
-      call transitionDipole(snglPartTransDip, wnij, eval, evec,&
-          & transitionDipoles)
+      call transitionDipole(snglPartTransDip, wnij, eval, evec, transitionDipoles)
     end if
 
   end subroutine getOscillatorStrengths
@@ -1348,7 +1344,8 @@ contains
 
 
   !> Solving the (A+B) Z = -R equation via conjugate gradient
-  subroutine solveZVectorEq(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij, c)
+  subroutine solveZVectorEq(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij, c,&
+      & transCharges)
 
     !> on entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)
@@ -1380,6 +1377,9 @@ contains
     !> ground state mo-coefficients
     real(dp), intent(in) :: c(:,:,:)
 
+    !> machinery for transition charges between single particle levels
+    type(qTransition), intent(in) :: transCharges
+
     integer :: nxov
     integer :: ia, i, a, k
     real(dp) :: rhs2(size(rhs)),rkm1(size(rhs)),pkm1(size(rhs)),apk(size(rhs))
@@ -1393,10 +1393,7 @@ contains
     ! Choosing a start value
     ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
     do ia = 1, nxov
-      !call indxov(win, ia, getij, i, a)
-      !updwn = (win(ia) <= nmatup)
-      !call transq(i, a, iAtomStart, updwn, stimc, c, qij)
-      qij = qCacheOV(:,ia)
+      qij = transCharges%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
       call hemv(qTmp, gammaMat, qij)
       rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
       rhs2(ia) = rhs(ia) / rs
@@ -1409,8 +1406,8 @@ contains
     deallocate(qij)
 
     ! action of matrix on vector
-    call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart,&
-        & stimc, c, gammaMat)
+    call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
+        & transCharges)
 
     rkm1 = rhs - rkm1
     pkm1 = rkm1
@@ -1419,8 +1416,8 @@ contains
     do k = 1, nxov**2
 
       ! action of matrix on vector
-      call apbw(apk, pkm1, wij, nxov, natom,&
-          & win, nmatup, getij, iAtomStart, stimc, c, gammaMat)
+      call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
+          & transCharges)
 
       tmp1 = dot_product(rkm1, rkm1)
       tmp2 = dot_product(pkm1, apk)
@@ -1525,7 +1522,6 @@ contains
       updwn = (win(ia) <= nmatup)
       call transq(i, a, iAtomStart, updwn, stimc, c, qij)
       do iAt1 = 1, natom
-        !qij = qCacheOV(:, ia)
         zq(iAt1) = zq(iAt1) + zz(ia) * qij(iAt1)
       end do
     end do

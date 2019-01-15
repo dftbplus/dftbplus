@@ -23,7 +23,6 @@ module linrespcommon
   !> prefactor of 2/3.
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
 
-  real(dp), allocatable :: qCacheOV(:,:)
 
 contains
 
@@ -216,42 +215,6 @@ contains
     jj = getij(indo,2)
 
   end subroutine indxov
-
-
-  !> generate a list of transitions
-  subroutine cacheFill(iAtomStart, win, getij, nxov_rd, stimc, c, nmatup)
-
-    !> indexing array for square matrices
-    integer, intent(in) :: iAtomStart(:)
-
-    !> index array for transitions to single particle transitions
-    integer, intent(in) :: win(:)
-
-    !> array of the occupied->virtual pairs
-    integer, intent(in) :: getij(:,:)
-
-    !> number of transitions
-    integer, intent(in) :: nxov_rd
-
-    !> overlap times ground state mo-coefficients
-    real(dp), intent(in) :: stimc(:,:,:)
-
-    !> ground state mo-coefficients
-    real(dp), intent(in) :: c(:,:,:)
-
-    !> number of up-up excitations
-    integer, intent(in) :: nmatup
-
-    integer :: ia, i, a
-    logical :: updwn
-
-    do ia = 1, nxov_rd
-      call indxov(win, ia, getij, i, a)
-      updwn = (win(ia) <= nmatup)
-      call transq(i, a, iAtomStart, updwn, stimc, c, qCacheOV(:,ia))
-    end do
-
-  end subroutine cacheFill
 
 
   !> Computes individual indices from the compound occ-occ excitation index.
@@ -508,7 +471,7 @@ contains
     call wtdn(wij, occNr, win, nmatup, nmat, getij, wnij)
     wnij = sqrt(wnij) ! always used as root(wnij) after this
 
-    ! product charges with the v*wn product
+    ! product charges with the v*wn product, i.e. Q * v*wn
     call transCharges%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, vin(:nmat) * wnij(:nmat),&
         & oTmp)
 
@@ -547,10 +510,10 @@ contains
 
         qij(:) = transCharges%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
 
-        !singlet gamma part (S)
+        ! singlet gamma part (S)
         vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
 
-        !magnetization part (T1)
+        ! magnetization part (T1)
         if (updwn) then
           fact = 1.0_dp
         else
@@ -589,7 +552,7 @@ contains
 
   !> Multiplies the supermatrix (A+B) with a given vector.
   subroutine apbw(rkm1, rhs2, wij, nmat, natom, win, nmatup, getij, iAtomStart, stimc, grndEigVecs,&
-      & gamma)
+      & gamma, transCharges)
 
     !> Resulting vector on return.
     real(dp), intent(out) :: rkm1(:)
@@ -627,6 +590,9 @@ contains
     !> transition charges
     real(dp), intent(in) :: gamma(:,:)
 
+    !> machinery for transition charges between single particle levels
+    type(qTransition), intent(in) :: transCharges
+
     !> gamma matrix
     integer :: ia, ii, jj
     real(dp) :: tmp(natom), gtmp(natom), qij(natom)
@@ -634,33 +600,13 @@ contains
 
     @:ASSERT(size(rkm1) == nmat)
 
-    !tmp(:) = 0.0_dp
-    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
-    !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:tmp)
-    !do ia = 1, nmat
-    !  call indxov(win, ia, getij, ii, jj)
-    !  updwn = (win(ia) <= nmatup)
-    !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-    !  tmp(:) = tmp + rhs2(ia) * qij
-    !end do
-    !!$OMP  END PARALLEL DO
-    tmp(:) = matmul(qCacheOV(:,:),rhs2(:))
+    call transCharges%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, rhs2, tmp)
 
     call hemv(gtmp, gamma, tmp)
 
-    !rkm1(:) = 0.0_dp
-    !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
-    !!$OMP& SCHEDULE(RUNTIME)
-    !do ia = 1, nmat
-    !  call indxov(win, ia, getij, ii, jj)
-    !  updwn = (win(ia) <= nmatup)
-    !  call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-    !  rkm1(ia) = 4.0_dp * dot_product(gtmp, qij)
-    !end do
-    !!$OMP  END PARALLEL DO
-    rkm1(:nMat) = 4.0_dp * matmul(transpose(qCacheOV(:,:nMat)),gTmp(:))
+    call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, rkm1)
 
-    rkm1(:) = rkm1(:) + wij(:) * rhs2(:)
+    rkm1(:) = 4.0_dp * rkm1(:) + wij(:) * rhs2(:)
 
   end subroutine apbw
 
