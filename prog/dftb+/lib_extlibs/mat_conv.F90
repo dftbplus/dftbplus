@@ -1263,10 +1263,14 @@ contains
 
         !rho_x = Re{down-up}
         sparse(ind:ind+n12-1, 2) = sparse(ind:ind+n12-1, 2) &
-            & + reshape(real(tmpMat(n2p1:n2t2, 1:n1)), (/n12/))
+            & + reshape(real(tmpMat(n2p1:n2t2, 1:n1)), (/n12/)) &
+            & + reshape(real(tmpMat(1:n2, n1p1:n1t2)), (/n12/)) 
+
         !rho_y = Im{down-up}
         sparse(ind:ind+n12-1, 3) = sparse(ind:ind+n12-1, 3) &
-            & + reshape(aimag(tmpMat(n2p1:n2t2, 1:n1)), (/n12/))
+            & + reshape(aimag(tmpMat(n2p1:n2t2, 1:n1)), (/n12/)) &
+            & - reshape(aimag(tmpMat(1:n2, n1p1:n1t2)), (/n12/)) 
+
         !rho_z = Re{up-up - down-down}
         sparse(ind:ind+n12-1, 4) = sparse(ind:ind+n12-1, 4) &
             & + reshape(real(tmpMat(1:n2, 1:n1)), (/n12/)) &
@@ -1275,15 +1279,19 @@ contains
         if (allocated(isparse)) then
           !rho_q = up-up + down-down
           isparse(ind:ind+n12-1, 1) = isparse(ind:ind+n12-1, 1) &
-              & + reshape(aimag(tmpMat(1:n2, 1:n1)), (/n12/))
-          isparse(ind:ind+n12-1, 1) = isparse(ind:ind+n12-1, 1) &
+              & + reshape(aimag(tmpMat(1:n2, 1:n1)), (/n12/)) &
               & + reshape(aimag(tmpMat(n2p1:n2t2, n1p1:n1t2)), (/n12/))
+
           !rho_x = Im{down-up}
           isparse(ind:ind+n12-1, 2) = isparse(ind:ind+n12-1, 2) &
-              & + reshape(aimag(tmpMat(n2p1:n2t2, 1:n1)), (/n12/))
+              & + reshape(aimag(tmpMat(n2p1:n2t2, 1:n1)), (/n12/)) &
+              & + reshape(aimag(tmpMat(1:n2, n1p1:n1t2)), (/n12/)) 
+
           !rho_y = -Re{down-up}
           isparse(ind:ind+n12-1, 3) = isparse(ind:ind+n12-1, 3) &
-              & - reshape(real(tmpMat(n2p1:n2t2, 1:n1)), (/n12/))
+              & - reshape(real(tmpMat(n2p1:n2t2, 1:n1)), (/n12/)) &
+              & + reshape(real(tmpMat(1:n2, n1p1:n1t2)), (/n12/)) 
+
           !rho_z = Im{up-up - down-down}
           isparse(ind:ind+n12-1, 4) = isparse(ind:ind+n12-1, 4) &
               & + reshape(aimag(tmpMat(1:n2, 1:n1)), (/n12/)) &
