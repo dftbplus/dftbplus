@@ -13,14 +13,15 @@ module transitionCharges
   use accuracy
   implicit none
 
-  public :: qTransition, qTransitionInit
+  !private
+  public :: qTransition, qTransitionInit, qTransitionDestroy
 
   !> Internal data of the transition charges
   type :: qTransition
     private
 
     !> should transition charges be cached in memory or evaluated when needed?
-    logical :: tCacheCharges = .false.
+    logical :: tCacheCharges
 
     !> storage if caching the occupied -> virtual transition charges
     real(dp), allocatable :: qCacheOccVirt(:,:)
@@ -48,6 +49,7 @@ contains
   subroutine qTransitionInit(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, nxov_rd, nMatUp,&
       & getij, win, tStore)
 
+    !> Instance
     type(qTransition), intent(inout) :: this
 
     !> Starting position of each atom in the list of orbitals
@@ -107,6 +109,19 @@ contains
     end if
 
   end subroutine qTransitionInit
+
+
+  !> clean up memory for instance
+  subroutine qTransitionDestroy(this)
+
+    !> Instance
+    type(qTransition), intent(inout) :: this
+
+    if (allocated(this%qCacheOccVirt)) then
+      deallocate(this%qCacheOccVirt)
+    end if
+
+  end subroutine qTransitionDestroy
 
 
   !> returns transtion charges between single particle levels
@@ -179,7 +194,7 @@ contains
     real(dp), intent(in) :: vector(:)
 
     !> Product on exit
-    real(dp), intent(out) :: qProduct(:)
+    real(dp), intent(inout) :: qProduct(:)
 
     real(dp), allocatable :: qij(:)
     integer :: ii, jj, ij, kk
@@ -187,13 +202,12 @@ contains
 
     if (this%tCacheCharges) then
 
-      qProduct(:) = matmul(this%qCacheOccVirt(:, :), vector(:))
+      qProduct(:) = qProduct(:) + matmul(this%qCacheOccVirt(:, :), vector(:))
 
     else
 
       allocate(qij(this%nAtom))
 
-      qProduct(:) = 0.0_dp
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn,qij)&
       !!$OMP& SCHEDULE(RUNTIME)
       do ij = 1, this%nTransitions
@@ -239,7 +253,7 @@ contains
     real(dp), intent(in) :: vector(:)
 
     !> Product on exit
-    real(dp), intent(out) :: qProduct(:)
+    real(dp), intent(inout) :: qProduct(:)
 
     real(dp), allocatable :: qij(:)
     integer :: ii, jj, ij, kk
@@ -247,7 +261,7 @@ contains
 
     if (this%tCacheCharges) then
 
-      qProduct(:) = matmul(vector(:), this%qCacheOccVirt(:, :))
+      qProduct(:) = qProduct(:) + matmul(vector(:), this%qCacheOccVirt(:, :))
 
     else
 
@@ -261,7 +275,7 @@ contains
         jj = getij(kk,2)
         updwn = (kk <= this%nMatUp)
         call transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs, qij(:))
-        qProduct(ij) = dot_product(qij(:), vector(:))
+        qProduct(ij) = qProduct(ij) + dot_product(qij(:), vector(:))
       end do
       !!$OMP  END PARALLEL DO
 

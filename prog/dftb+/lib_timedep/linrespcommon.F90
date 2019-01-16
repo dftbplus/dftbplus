@@ -472,6 +472,7 @@ contains
     wnij = sqrt(wnij) ! always used as root(wnij) after this
 
     ! product charges with the v*wn product, i.e. Q * v*wn
+    oTmp(:) = 0.0_dp
     call transCharges%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, vin(:nmat) * wnij(:nmat),&
         & oTmp)
 
@@ -482,6 +483,7 @@ contains
         call hemv(gtmp, gamma, otmp)
 
         ! 2 * wn * (g * Q)
+        vOut(:) = 0.0_dp
         call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, vOut)
         vOut(:) = 2.0_dp * wnij(:) * vOut(:)
 
@@ -490,6 +492,7 @@ contains
         otmp = 2.0_dp * otmp * spinW(species0)
 
         ! wn * (o * Q)
+        vOut = 0.0_dp
         call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, oTmp, vOut)
         vOut(:) = wnij(:) * vOut(:)
 
@@ -530,9 +533,9 @@ contains
       !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
 
-        updwn = (win(ia) <= nmatup)
         qij(:) = transCharges%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
 
+        updwn = (win(ia) <= nmatup)
         if (updwn) then
           fact = 1.0_dp
         else
@@ -600,10 +603,12 @@ contains
 
     @:ASSERT(size(rkm1) == nmat)
 
+    tmp(:) = 0.0_dp
     call transCharges%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, rhs2, tmp)
 
     call hemv(gtmp, gamma, tmp)
 
+    rkm1(:) = 0.0_dp
     call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, rkm1)
 
     rkm1(:) = 4.0_dp * rkm1(:) + wij(:) * rhs2(:)
