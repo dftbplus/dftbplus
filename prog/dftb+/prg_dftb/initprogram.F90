@@ -1569,7 +1569,7 @@ contains
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
-    tStress = (tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
+    tStress = (tPeriodic .and. tForces .and. .not.tPoisson .and. tStress)
 
     nMovedAtom = input%ctrl%nrMoved
     nMovedCoord = 3 * nMovedAtom
@@ -2232,8 +2232,8 @@ contains
       if (tLinResp) then
         call error("Linear response is not compatible with transport calculations")
       end if
-      if (nSpin > 2) then
-        call warning("Non-colinear spin under testing")
+      if (nSpin > 2 .and. .not.tDualSpinOrbit) then
+        call error("non-collinear transport calculations only work with dual SOC")
       end if
     end if
 
@@ -3023,7 +3023,6 @@ contains
     end if
 
     if (tNegf) then
-      write(stdOut,*) 'init negf'
       if (size(DenseDesc%iAtomStart) /= nAtom+1) then
         call error('Internal error: DenseDesc not created')
       end if

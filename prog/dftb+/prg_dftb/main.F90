@@ -1974,7 +1974,7 @@ contains
       call calcdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
           & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS,&
-          & tSpinOrbit, iHam)
+          & tSpinOrbit, iHam, irhoPrim)
 
       call ud2qm(rhoPrim)
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)

@@ -21,7 +21,6 @@ module negf_int
   use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
   use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
   use libnegf, only : read_negf_in, negf_partition_info, printcsr
-  use libnegf, only : extract
   use mat_conv
   use sparse2dense
   use densedescr
@@ -272,15 +271,15 @@ module negf_int
         params%n_poles = 0
       end if
 
-      write(stdOut,*) 'Density Matrix Parameters'
-      if (.not.transpar%defined) then
-        write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(1)
-        write(stdOut,*) 'eFermi: ', params%mu(1)
-      end if
-      write(stdOut,*) 'Contour Points: ', params%Np_n(1:2)
-      write(stdOut,*) 'Number of poles: ', params%N_poles
-      write(stdOut,*) 'Real-axis points: ', params%Np_real(1)
-      write(stdOut,*)
+      !write(stdOut,*) 'Density Matrix Parameters'
+      !if (.not.transpar%defined) then
+      !  write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(1)
+      !  write(stdOut,*) 'eFermi: ', params%mu(1)
+      !end if
+      !write(stdOut,*) 'Contour Points: ', params%Np_n(1:2)
+      !write(stdOut,*) 'Number of poles: ', params%N_poles
+      !write(stdOut,*) 'Real-axis points: ', params%Np_real(1)
+      !write(stdOut,*)
 
     end if
 
@@ -523,7 +522,7 @@ module negf_int
     else      
       ind(:) = DenseDescr%iatomstart(:) - 1
     end if  
-    print*,'ind=',ind
+    
     minv = 0
     cblk = 0
 
@@ -543,14 +542,9 @@ module negf_int
       atomst(nbl+1) = natoms + 1
     endif
 
-    do i = 1, nbl
-      print*, "PL end=",PL_end(i)
-    end do
-
     do i = 1, ncont
       cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
       surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
-      print*, "cont_end=",cont_end(i)
     enddo
 
     if (transpar%defined .and. ncont.gt.0) then
@@ -891,7 +885,7 @@ module negf_int
   !> Calculates density matrix with Green's functions
  subroutine calcdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
-     & Ef, E0, TS, tSpinOrbit, iHam)
+     & Ef, E0, TS, tSpinOrbit, iHam, irho)
 
     integer, intent(in) :: iSCCIter
     type(mpifx_comm), intent(in) :: mpicomm
@@ -905,9 +899,10 @@ module negf_int
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(in) :: kPoints(:,:), kWeights(:)
     real(dp), intent(in) :: mu(:,:)
-    real(dp), intent(out) :: rho(:,:)
     real(dp), intent(out) :: Eband(:), Ef(:), E0(:), TS(:)
     logical, intent(in) :: tSpinOrbit
+    real(dp), intent(out) :: rho(:,:)
+    real(dp), intent(inout), allocatable :: irho(:,:)
 
     integer :: nSpin, nKS, iK, iS, iKS, nComp 
     type(z_CSR), target :: csrDens
@@ -928,6 +923,7 @@ module negf_int
       nComp = 1
     end if    
     rho = 0.0_dp
+    irho = 0.0_dp
 
     write(stdOut, *)
     write(stdOut, '(80("="))')
@@ -939,7 +935,9 @@ module negf_int
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      if (negf%verbose > 10) then
+        write(stdOut,*) 'k-point',iK,'Spin',iS
+      end if
 
       select case (nComp)
       case(1)   
@@ -952,16 +950,19 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
             & img2CentCell, iCellVec, cellVec, orb, nComp)
 
-      call check_matrix(csrHam, csrOver)
-      stop
-
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), DensMat=pCsrDens)
 
       ! NOTE:
       ! unfold adds up to rho the csrDens(k) contribution
       !
-      call unfoldFromCSR(rho(:,iS), csrDens, kPoints(:,iK), kWeights(iK), iAtomStart, iPair,&
-          & iNeighbor, nNeighbor, img2CentCell, iCellVec, cellVec, orb)
+      select case (nComp)
+      case(1)   
+        call unfoldFromCSR(rho(:,iS), csrDens, kPoints(:,iK), kWeights(iK), iAtomStart, iPair,&
+           & iNeighbor, nNeighbor, img2CentCell, iCellVec, cellVec, orb, nComp)
+      case(2)
+        call unfoldFromCSR(rho, csrDens, kPoints(:,iK), kWeights(iK), iAtomStart, iPair,&
+           & iNeighbor, nNeighbor, img2CentCell, iCellVec, cellVec, orb, irho)
+      end select
 
       call destruct(csrDens)
 
@@ -1004,6 +1005,7 @@ module negf_int
     logical, intent(in) :: tSpinOrbit
 
     integer :: nSpin, nComp, nKS, iK, iS, iKS
+    real(dp), allocatable :: irhoE(:)
     type(z_CSR), target :: csrEDens
     type(z_CSR), pointer :: pCsrEDens
 
@@ -1034,7 +1036,9 @@ module negf_int
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      if (negf%verbose > 10) then
+        write(stdOut,*) 'k-point',iK,'Spin',iS
+      end if
 
       select case (nComp)
       case(1)   
@@ -1053,7 +1057,7 @@ module negf_int
       ! unfold adds up to rhoEPrim the csrEDens(k) contribution
       !
       call unfoldFromCSR(rhoE, csrEDens, kPoints(:,iK), kWeights(iK), iAtomStart, iPair, iNeighbor,&
-          & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
+          & nNeighbor, img2CentCell, iCellVec, cellVec, orb, nComp)
 
       call destruct(csrEDens)
 
@@ -1113,7 +1117,9 @@ module negf_int
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      if (negf%verbose > 10) then
+        write(stdOut,*) 'k-point',iK,'Spin',iS
+      end if
 
       select case (nComp)
       case(1)   
@@ -1223,7 +1229,9 @@ module negf_int
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'Spin',iS,'k-point',iK,'k-weight',kWeights(iK)
+      if (negf%verbose > 10) then
+        write(stdOut,*) 'Spin',iS,'k-point',iK,'k-weight',kWeights(iK)
+      end if
 
       params%mu(1:ncont) = mu(1:ncont,iS)
 
@@ -1266,8 +1274,6 @@ module negf_int
         call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
               & img2CentCell, iCellVec, cellVec, orb, nComp)
       end if
-
-      call check_matrix(csrHam, csrOver)
 
       call negf_current(pCsrHam, pCsrOver, iS, iK, kWeights(iK), &
                        & tunnPMat, currPMat, ldosPMat, currPVec)
@@ -1532,7 +1538,9 @@ module negf_int
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
-      write(stdOut,*) 'k-point',iK,'Spin',iS
+      if (negf%verbose > 10) then
+        write(stdOut,*) 'k-point',iK,'Spin',iS
+      end if
 
       select case (nComp)
       case(1)   
@@ -2132,72 +2140,6 @@ module negf_int
     !close(12)
 
   end subroutine orthogonalization_dev
-
-  subroutine check_matrix(csrHam, csrOver)
-    type(z_CSR) :: csrHam, csrOver
-
-    type(z_DNS) :: HH, SS
-    integer :: i, i1, i2
-
-    call extract(csrHam, 1, 26, 1, 26, HH)
-    call extract(csrOver, 1, 26, 1, 26, SS)
-
-    print*,'HH dim:',size(HH%val,1)
-    print*,'Ga'
-    print*,'HH(1:18,1:18) Huu'
-    i1 = 1; i2 = 18
-    do i = i1, i2
-      print*,HH%val(i,i1:i2)
-    end do
-
-    print*,'As'
-    i1 = 19; i2 = 26
-    do i = i1, i2
-      print*,HH%val(i,i1:i2)
-    end do
-
-    print*,'Ga-As'
-    i1 = 19; i2 = 26
-    do i = 1, 18
-      print*,HH%val(i,i1:i2)
-    end do
-
-    print*,'As-Ga'
-    i1 = 1; i2 = 18
-    do i = 19, 26
-      print*,HH%val(i,i1:i2)
-    end do
-
-
-
-    print*,'OVERLAP'
-    print*,'Ga'
-    print*,'SC(1:18,1:18) Suu'
-    i1 = 1; i2 = 18
-    do i = i1, i2
-      print*, SS%val(i,i1:i2)
-    end do
-
-    print*,'As'
-    i1 = 19; i2 = 26
-    do i = i1, i2
-      print*, SS%val(i,i1:i2)
-    end do
-
-    print*,'Ga-As'
-    i1 = 19; i2 = 26
-    do i = 1, 18
-      print*, SS%val(i,i1:i2)
-    end do
-
-    print*,'As-Ga'
-    i1 = 1; i2 = 18
-    do i = 19, 26
-      print*, SS%val(i,i1:i2)
-    end do
-
-
-  end subroutine check_matrix
 
 
 end module negf_int

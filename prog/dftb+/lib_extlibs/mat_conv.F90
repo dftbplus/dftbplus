@@ -59,7 +59,7 @@ module mat_conv
   interface unfoldFromCSR
     module procedure unfoldFromCSR_real
     module procedure unfoldFromCSR_cplx
-    !module procedure unfoldFromCSR_pauli
+    module procedure unfoldFromCSR_pauli
   end interface unfoldFromCSR
 
 contains
@@ -666,6 +666,7 @@ contains
 
   !> Folds the internal sparse formatted matrix to the compressed sparse row format (complex
   !> version).
+  !> It allows for 1x1 or 2x2 spin matrices, resulting useful to convert the overlap matrix
   !>
   !> Note: In the resulting CSR format both triangles of the matrix are set.
   !> Caveat The routine should only applied on CSR matrixes created by the createEquiv_cplx
@@ -706,7 +707,7 @@ contains
     !> orb  Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
-    !> number of Spin component (1 or 2) required for overlap!
+    !> number of Spin components (1 or 2)
     integer, intent(in) :: nComp
 
 
@@ -716,8 +717,6 @@ contains
     integer :: iOrb1, nOrb1, nOrb2, iAt1, iAt2, iAt2f, iNeigh
     integer :: iRow, iCol, iVal, ind
     integer :: ii, jj, kk
-
-    print*, "Fold to CSR, nComponents=",nComp
 
     if (nComp == 2) then
       shift = 1
@@ -845,9 +844,6 @@ contains
     integer :: iRow, iCol, iVal, ind
     integer :: ii, jj, kk
 
-    print*,"FOLD HAM TO CSR WITH SOC"
-    if(allocated(iHam)) print*, "Dual SOC"
-
     nAtom = size(orb%nOrbAtom)
     nCellVec = size(cellVec, dim=2)
 
@@ -927,7 +923,7 @@ contains
     !> number of orbitals along cols
     integer, intent(in) :: nOrb1
 
-    !> number of spin components
+    !> number of Spin components (1 or 2) 
     integer, intent(in) :: nComp
 
 
@@ -971,19 +967,26 @@ contains
 
 
     real(dp), allocatable :: work(:, :)
+    integer :: n2, n1p1, n1t2, n2p1, n2t2
+
+    n2 = nOrb2*nOrb1
+    n1p1 = nOrb1+1
+    n2p1 = nOrb2+1
+    n1t2 = 2*nOrb1
+    n2t2 = 2*nOrb2
 
     tmpMat = (0.0_dp, 0.0_dp)
     ! 1 0 charge part
     ! 0 1
-    work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 1), [nOrb2, nOrb1])
+    work = reshape(ham(ind:ind+n2-1, 1), [nOrb2, nOrb1])
     tmpMat(1:nOrb2, 1:nOrb1) = 0.5_dp*work(1:nOrb2, 1:nOrb1)
-    tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = 0.5_dp*work(1:nOrb2, 1:nOrb1)
+    tmpMat(n2p1:n2t2, n1p1:n1t2) = 0.5_dp*work(1:nOrb2, 1:nOrb1)
 
     if (allocated(iHam)) then
-      work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 1), [nOrb2, nOrb1])
+      work = reshape(iHam(ind:ind+n2-1, 1), [nOrb2, nOrb1])
       tmpMat(1:nOrb2, 1:nOrb1) = tmpMat(1:nOrb2,1:nOrb1) &
           &+ 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
-      tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) &
+      tmpMat(n2p1:n2t2, n1p1:n1t2) = tmpMat(n2p1:n2t2, n1p1:n1t2) &
           &+ 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
     end if
 
@@ -991,18 +994,18 @@ contains
 
     ! 0 1 x part
     ! 1 0
-    work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 2), [nOrb2, nOrb1])
-    tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+    work = reshape(ham(ind:ind+n2-1, 2), [nOrb2, nOrb1])
+    tmpMat(n2p1:n2t2, 1:nOrb1) = tmpMat(n2p1:n2t2, 1:nOrb1) &
          & + 0.5_dp * work(1:nOrb2, 1:nOrb1)
-    tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) = tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) &
+    tmpMat(1:nOrb2, n1p1:n1t2) = tmpMat(1:nOrb2, n1p1:n1t2) &
          & + 0.5_dp * work(1:nOrb2, 1:nOrb1)
 
     ! 0 -i y part
     ! i  0
     work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 3), [nOrb2, nOrb1])
-    tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+    tmpMat(n2p1:n2t2, 1:nOrb1) = tmpMat(n2p1:n2t2, 1:nOrb1) &
          & + 0.5_dp * cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
-    tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) = tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) &
+    tmpMat(1:nOrb2, n1p1:n1t2) = tmpMat(1:nOrb2, n1p1:n1t2) &
          & - 0.5_dp * cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
 
     ! 1  0 z part
@@ -1010,7 +1013,7 @@ contains
     work = reshape(ham(ind:ind+nOrb2*nOrb1-1, 4), [nOrb2, nOrb1])
     tmpMat(1:nOrb2, 1:nOrb1) = tmpMat(1:nOrb2, 1:nOrb1) &
          & + 0.5_dp * work(1:nOrb2, 1:nOrb1)
-    tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+    tmpMat(n2p1:n2t2, 1:nOrb1) = tmpMat(n2p1:n2t2, 1:nOrb1) &
          & - 0.5_dp * work(1:nOrb2, 1:nOrb1)
 
     ! iHam(:,2:4) = (Im{L+}, -Re{L+}, Im{Lz})
@@ -1020,22 +1023,22 @@ contains
     ! (Lz L-)
     ! (L+ Lz) 
     if (allocated(iHam)) then
-      work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 2), [nOrb2, nOrb1])
-      tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+      work = reshape(iHam(ind:ind+n2-1, 2), [nOrb2, nOrb1])
+      tmpMat(n2p1:n2t2, 1:nOrb1) = tmpMat(n2p1:n2t2, 1:nOrb1) &
           & + 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
-      tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) = tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) &
+      tmpMat(1:nOrb2, n1p1:n1t2) = tmpMat(1:nOrb2, n1p1:n1t2) &
           & + 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
 
-      work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 3), [nOrb2, nOrb1])
-      tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) = tmpMat(nOrb2+1:2*nOrb2, 1:nOrb1) &
+      work = reshape(iHam(ind:ind+n2-1, 3), [nOrb2, nOrb1])
+      tmpMat(n2p1:n2t2, 1:nOrb1) = tmpMat(n2p1:n2t2, 1:nOrb1) &
           & - 0.5_dp * work(1:nOrb2, 1:nOrb1)
-      tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) = tmpMat(1:nOrb2, nOrb1+1:2*nOrb1) &
+      tmpMat(1:nOrb2, n1p1:n1t2) = tmpMat(1:nOrb2, n1p1:n1t2) &
           & + 0.5_dp * work(1:nOrb2, 1:nOrb1)
  
-      work = reshape(iHam(ind:ind+nOrb2*nOrb1-1, 4), [nOrb2, nOrb1])
+      work = reshape(iHam(ind:ind+n2-1, 4), [nOrb2, nOrb1])
       tmpMat(1:nOrb2, 1:nOrb1) = tmpMat(1:nOrb2,1:nOrb1) &
           &+ 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
-      tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) = tmpMat(nOrb2+1:2*nOrb2, nOrb1+1:2*nOrb1) &
+      tmpMat(n2p1:n2t2, n1p1:n1t2) = tmpMat(n2p1:n2t2, n1p1:n1t2) &
           &- 0.5_dp*cmplx(0,1,dp) * work(1:nOrb2, 1:nOrb1)
     end if
 
@@ -1043,11 +1046,12 @@ contains
 
 
   !> Unfolds a matrix from the CSR form into the internal sparse representation (real version).
-  !>
+  !> Allows for 1 or 2 spin components, resulting useful to conver the ERho matrix
+  !>  
   !> Note: The CSR matrix must be hermitian. The unfolded matrix is added to the passed sparse
   !> matrix.
   subroutine unfoldFromCSR_cplx(sparse, csr, kPoint, kWeight, iAtomStart, iPair, iNeighbor,&
-      & nNeighbor, img2CentCell, iCellVec, cellVec, orb)
+      & nNeighbor, img2CentCell, iCellVec, cellVec, orb, nComp)
 
     !> sparse Updated sparse matrix.
     real(dp), intent(inout) :: sparse(:)
@@ -1085,18 +1089,29 @@ contains
     !> orb  Orbitals in the system.
     type(TOrbitals), intent(in) :: orb
 
+    !> number of Spin components (1 or 2) 
+    integer, intent(in) :: nComp
+
     complex(dp), allocatable :: tmpCol(:,:), phases(:)
-    integer :: nAtom, nCellVec
+    integer, allocatable :: iAtomStart2(:)
+    integer :: nAtom, nCellVec, shift
     integer :: iOrb1, nOrb1, nOrb2, iAt1, iAt2, iAt2f, iNeigh
     integer :: iRow, iCol, ind
-    integer :: ii
+    integer :: ii, n12
 
+    if (nComp == 2) then
+      shift = 1
+    else
+      shift = 0
+    end if
+    
     nAtom = size(orb%nOrbAtom)
-
-    @:ASSERT(csr%nRow == iAtomStart(nAtom+1) - 1)
+    iAtomStart2 = nComp*iAtomStart - shift
+    
+    @:ASSERT(csr%nRow == iAtomStart2(nAtom+1) - 1)
     @:ASSERT(size(kPoint) == 3)
-
-    allocate(tmpCol(csr%nRow, orb%mOrb))
+    
+    allocate(tmpCol(csr%nRow, nComp*orb%mOrb))   ! One atomic block column.
 
     ! Create phase factors
     nCellVec = size(cellVec, dim=2)
@@ -1110,12 +1125,12 @@ contains
       ! of the block column. (Matrix is assumed to be hermitian!)
       tmpCol(:,:) = (0.0_dp, 0.0_dp)
       nOrb1 = orb%nOrbAtom(iAt1)
-      iCol = iAtomStart(iAt1)
-      do iOrb1 = 1, nOrb1
+      iCol = iAtomStart2(iAt1)
+      do iOrb1 = 1, nComp*nOrb1
         ii = iCol + iOrb1 - 1
         do ind = csr%rowpnt(ii), csr%rowpnt(ii+1) - 1
           tmpCol(csr%colind(ind), iOrb1) = conjg(csr%nzval(ind))
-          ! NOTE: why conjg ??
+          ! conjg is needed to transform rows into columns 
         end do
       end do
 
@@ -1125,11 +1140,16 @@ contains
         iAt2 = iNeighbor(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         nOrb2 = orb%nOrbAtom(iAt2f)
-        iRow = iAtomStart(iAt2f)
-        sparse(ind:ind+nOrb2*nOrb1-1) = sparse(ind:ind+nOrb2*nOrb1-1)&
+        iRow = iAtomStart2(iAt2f)
+        n12 = nOrb1 * nOrb2
+        sparse(ind:ind+n12-1) = sparse(ind:ind+n12-1)&
             & + kWeight * real(  phases(iCellVec(iAt2))&
-            & * reshape(tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1),(/nOrb2*nOrb1/) ), dp)
-
+            & * reshape(tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1), (/n12/) ), dp)
+        if (nComp==2) then
+          sparse(ind:ind+n12-1) = sparse(ind:ind+n12-1)&
+             & + kWeight * real(  phases(iCellVec(iAt2))&
+             & * reshape(tmpCol(iRow+nOrb2:iRow+nComp*nOrb2-1, nOrb1+1:nComp*nOrb1), (/n12/) ), dp)
+        end if
       end do
     end do
 
@@ -1139,6 +1159,145 @@ contains
   end subroutine unfoldFromCSR_cplx
 
 
+  !> Unfolds a matrix from the CSR form into the internal sparse representation (real version).
+  !>
+  !> Note: The CSR matrix must be hermitian. The unfolded matrix is added to the passed sparse
+  !> matrix.
+  subroutine unfoldFromCSR_Pauli(sparse, csr, kPoint, kWeight, iAtomStart, iPair, iNeighbor,&
+      & nNeighbor, img2CentCell, iCellVec, cellVec, orb, isparse)
+
+    !> sparse Updated sparse matrix.
+    real(dp), intent(inout) :: sparse(:,:)
+
+    !> csr CSR matrix
+    type(z_CSR), intent(in) :: csr
+
+    !> kPoint K-point for the unfolding.
+    real(dp), intent(in) :: kPoint(:)
+
+    !> kWeight Weight of the K-point for the unfolding.
+    real(dp), intent(in) :: kWeight
+
+    !> iAtomStart Starting positions of the atoms in the square matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> iPair Starting position of atom-neighbor interaction in the sparse matrix.
+    integer, intent(in) :: iPair(0:,:)
+
+    !> iNeighbor Index of neighbors
+    integer, intent(in) :: iNeighbor(0:,:)
+
+    !> nNeighbor Number of neighbors
+    integer, intent(in) :: nNeighbor(:)
+
+    !> img2CentCell Image of the atoms in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> iCellVec  Index of the cell shifting vector for each atom.
+    integer, intent(in) :: iCellVec(:)
+
+    !> cellVec  Cell shifting vectors (relative coordinates)
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> orb  Orbitals in the system.
+    type(TOrbitals), intent(in) :: orb
+
+    !> Imaginary part of sparse matrix.
+    real(dp), intent(inout), allocatable :: isparse(:,:)
+
+
+    complex(dp), allocatable :: tmpCol(:,:), tmpMat(:,:), phases(:)
+    integer, allocatable :: iAtomStart2(:)
+    integer :: nAtom, nCellVec, shift
+    integer :: iOrb1, nOrb1, nOrb2, iAt1, iAt2, iAt2f, iNeigh
+    integer :: ii, iRow, iCol, ind
+    integer :: n1, n2, n1p1, n1t2, n2p1, n2t2, n12
+
+    nAtom = size(orb%nOrbAtom)
+    iAtomStart2 = 2*iAtomStart - 1 
+    
+    @:ASSERT(size(kPoint) == 3)
+    @:ASSERT(csr%nRow == iAtomStart2(nAtom+1) - 1)
+    
+    allocate(tmpCol(csr%nRow, 2*orb%mOrb))   ! One atomic block column.
+    allocate(tmpMat(2*orb%mOrb, 2*orb%mOrb))
+
+    ! Create phase factors
+    nCellVec = size(cellVec, dim=2)
+    allocate(phases(nCellVec))
+    do ii = 1, nCellVec
+      phases(ii) = exp(-2.0_dp * pi * (0.0_dp, 1.0_dp) * dot_product(kPoint, cellVec(:,ii)))
+    end do
+
+    do iAt1 = 1, nAtom
+      ! Put the rows belonging to a certain atom into the appropriate column
+      ! of the block column. (Matrix is assumed to be hermitian!)
+      tmpCol(:,:) = (0.0_dp, 0.0_dp)
+      nOrb1 = 2*orb%nOrbAtom(iAt1)
+      iCol = iAtomStart2(iAt1)
+      do iOrb1 = 1, nOrb1
+        ii = iCol + iOrb1 - 1
+        do ind = csr%rowpnt(ii), csr%rowpnt(ii+1) - 1
+          tmpCol(csr%colind(ind), iOrb1) = conjg(csr%nzval(ind))
+          ! conjg is needed to transform rows into columns 
+        end do
+      end do
+
+      ! Unfold the block column into the internal sparse format
+      do iNeigh = 0, nNeighbor(iAt1)
+        ind = iPair(iNeigh,iAt1) + 1
+        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        nOrb2 = 2*orb%nOrbAtom(iAt2f)
+        iRow = iAtomStart2(iAt2f)
+        tmpMat(1:nOrb2,1:nOrb1) = kWeight * 0.5_dp * phases(iCellVec(iAt2)) &
+              & * tmpCol(iRow:iRow+nOrb2-1, 1:nOrb1) 
+        n12 = nOrb1*nOrb2/4
+        n1=nOrb1/2; n2=nOrb2/2
+        n1p1=n1+1; n2p1=n2+1
+        n1t2=n1*2; n2t2=n2*2
+        !rho_q = Re{up-up + down-down}
+        sparse(ind:ind+n12-1, 1) = sparse(ind:ind+n12-1, 1) &
+            & + reshape(real(tmpMat(1:n2, 1:n1)), (/n12/)) &
+            & + reshape(real(tmpMat(n2p1:n2t2, n1p1:n1t2)), (/n12/))
+
+        !rho_x = Re{down-up}
+        sparse(ind:ind+n12-1, 2) = sparse(ind:ind+n12-1, 2) &
+            & + reshape(real(tmpMat(n2p1:n2t2, 1:n1)), (/n12/))
+        !rho_y = Im{down-up}
+        sparse(ind:ind+n12-1, 3) = sparse(ind:ind+n12-1, 3) &
+            & + reshape(aimag(tmpMat(n2p1:n2t2, 1:n1)), (/n12/))
+        !rho_z = Re{up-up - down-down}
+        sparse(ind:ind+n12-1, 4) = sparse(ind:ind+n12-1, 4) &
+            & + reshape(real(tmpMat(1:n2, 1:n1)), (/n12/)) &
+            & - reshape(real(tmpMat(n2p1:n2t2, n1p1:n1t2)), (/n12/))
+
+        if (allocated(isparse)) then
+          !rho_q = up-up + down-down
+          isparse(ind:ind+n12-1, 1) = isparse(ind:ind+n12-1, 1) &
+              & + reshape(aimag(tmpMat(1:n2, 1:n1)), (/n12/))
+          isparse(ind:ind+n12-1, 1) = isparse(ind:ind+n12-1, 1) &
+              & + reshape(aimag(tmpMat(n2p1:n2t2, n1p1:n1t2)), (/n12/))
+          !rho_x = Im{down-up}
+          isparse(ind:ind+n12-1, 2) = isparse(ind:ind+n12-1, 2) &
+              & + reshape(aimag(tmpMat(n2p1:n2t2, 1:n1)), (/n12/))
+          !rho_y = -Re{down-up}
+          isparse(ind:ind+n12-1, 3) = isparse(ind:ind+n12-1, 3) &
+              & - reshape(real(tmpMat(n2p1:n2t2, 1:n1)), (/n12/))
+          !rho_z = Im{up-up - down-down}
+          isparse(ind:ind+n12-1, 4) = isparse(ind:ind+n12-1, 4) &
+              & + reshape(aimag(tmpMat(1:n2, 1:n1)), (/n12/)) &
+              & - reshape(aimag(tmpMat(n2p1:n2t2, n1p1:n1t2)), (/n12/))
+        end if      
+      end do
+    end do
+
+    deallocate(tmpCol)
+    deallocate(tmpMat)
+    deallocate(phases)
+
+
+  end subroutine unfoldFromCSR_Pauli
 
   !> Creates a CSR matrix by cloning the sparsity structure of another CSR matrix (real version).
   !>
