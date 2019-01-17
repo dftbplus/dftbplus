@@ -1569,7 +1569,10 @@ contains
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
-    tStress = (tPeriodic .and. tForces .and. .not.tPoisson .and. tStress)
+    ! Stress is not computed with Green's function approaches. 
+    ! Even in bulk calculations stress does not come out right. Issue under investigation
+    ! If Poisson solver is active, lattice relaxations are currently not possible
+    tStress = (tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
 
     nMovedAtom = input%ctrl%nrMoved
     nMovedCoord = 3 * nMovedAtom
