@@ -275,11 +275,9 @@ contains
       end if
 
     #:if WITH_ELSI
-      if (electronicSolver%tUsingELSI) then
-        if (.not.tLargeDenseMatrices) then
-          call initSparse2Sparse(sparseIndexing, env, electronicSolver, neighbourList%iNeighbour,&
-              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        end if
+      if (electronicSolver%tUsingELSI .and. .not. tLargeDenseMatrices) then
+        call initSparse2Sparse(sparseIndexing, env, electronicSolver, neighbourList%iNeighbour,&
+            & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
     #:endif
 

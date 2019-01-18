@@ -18,16 +18,9 @@ module solvers
   implicit none
 
   private
-  public :: TElectronicSolverInp, TElectronicSolver, electronicSolverTypes
-#:if WITH_ELSI
-  public :: init
-#:endif
-
-#:if WITH_ELSI
-  interface init
-    module procedure init_ELSI
-  end interface init
-#:endif
+  public :: TElectronicSolverInp
+  public :: TElectronicSolver, TElectronicSolver_init
+  public :: electronicSolverTypes
 
   !> Input for electronic/eigen solver block
   type :: TElectronicSolverInp
@@ -84,19 +77,28 @@ module solvers
   !> Eigensolver state and settings
   type :: TElectronicSolver
 
+    !> Electronic solver number
+    integer, public :: iSolver
+
+    !> Whether it is an ELSI solver
+    logical, public :: isElsiSolver
+
+    !> Whether the solver provides eigenvalues
+    logical, public :: providesEigenvals
+
     !> Is the ELSI solver being used
     logical :: tUsingELSI = .false.
 
     !> Are Choleskii factors already available for the overlap matrix
     logical, public, allocatable :: tCholeskiiDecomposed(:)
 
-    !> Electronic solver number
-    integer :: iSolver
-
   #:if WITH_ELSI
 
     !> Handle for the ELSI library
     type(elsi_handle), public :: elsiHandle
+
+    !> Use sparse CSR format
+    logical, public :: ELSI_CSR = .false.
 
     !> solver number
     integer :: ELSI_SOLVER
@@ -157,54 +159,69 @@ module solvers
     real(dp), public :: ELSI_NTPoly_truncation
     real(dp), public :: ELSI_NTPoly_tolerance
 
-    !> Use sparse CSR format
-    logical :: ELSI_CSR
-
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nELSI_resets = 0
 
   contains
 
-    procedure :: resetELSI
+    procedure :: initElsi => TElectronicSolver_initElsi
+    procedure :: resetElsi => TElectronicSolver_resetElsi
+    procedure :: finalElsi => TElectronicSolver_finalElsi
+    procedure :: getSolverName => TElectronicSolver_getSolverName
+    procedure, private :: ensurePauliCompatibility => TElectronicSolver_ensurePauliCompatibility
 
   #:endif
 
   end type TElectronicSolver
 
   !> Namespace for possible solver methods
-  type :: electronicSolverTypesEnum
-    integer :: qr
-    integer :: divideandconquer
-    integer :: relativelyrobust
+  type :: TElectronicSolverTypesEnum
+    integer :: qr = 1
+    integer :: divideandconquer = 2
+    integer :: relativelyrobust = 3
     ! elsi provided solvers
-    integer :: elpa
-    integer :: omm
-    integer :: pexsi
-    integer :: dummy1
-    integer :: dummy2
-    integer :: ntpoly
+    integer :: elpa = 4
+    integer :: omm = 5
+    integer :: pexsi = 6
+    integer :: dummy1 = 7
+    integer :: dummy2 = 8
+    integer :: ntpoly = 9
     ! transport related
-    integer :: gf
-    integer :: onlyTransport
-  end type electronicSolverTypesEnum
+    integer :: gf = 10
+    integer :: onlyTransport = 11
+  end type TElectronicSolverTypesEnum
 
   !> Actual values for electronicSolverTypes.
-  type(electronicSolverTypesEnum), parameter :: electronicSolverTypes =&
-      & electronicSolverTypesEnum(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+  type(TElectronicSolverTypesEnum), parameter :: electronicSolverTypes =&
+      & TElectronicSolverTypesEnum()
 
 contains
+
+  subroutine TElectronicSolver_init(this, iSolver)
+    type(TElectronicSolver), intent(out) :: this
+    integer, intent(in) :: iSolver
+
+    this%iSolver = iSolver
+    this%isElsiSolver = any(this%iSolver ==&
+        & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+        & electronicSolverTypes%ntpoly])
+    this%providesEigenvals = any(this%iSolver ==&
+        & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa])
+
+  end subroutine TElectronicSolver_init
 
 #: if WITH_ELSI
 
   !> Initialise extra settings relevant to ELSI in the solver data structure
-  subroutine init_ELSI(inp, this, env, nBasisFn, nEl, iDistribFn, tWriteDetailedOutBands,&
-      & nSpin, nKPoint, tWriteHS)
+  subroutine TElectronicSolver_initElsi(this, inp, env, nBasisFn, nEl, iDistribFn,&
+      & tWriteDetailedOutBands, nSpin, nKPoint, tWriteHS)
+
+    !> control structure for solvers, including ELSI data
+    class(TElectronicSolver), intent(inout) :: this
 
     !> input structure for ELSI
     type(TElectronicSolverInp), intent(in) :: inp
-
-    !> control structure for solvers, including ELSI data
-    type(TElectronicSolver), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -344,11 +361,16 @@ contains
     this%ELSI_OutputLevel = 3
   #:endcall DEBUG_CODE
 
-  end subroutine init_ELSI
+    if (nSpin == 4) then
+      call this%ensurePauliCompatibility()
+    end if
+
+  end subroutine TElectronicSolver_initElsi
+
 
   !> reset the ELSI solver - safer to do this on geometry change, due to the lack of a Choleskii
   !> refactorization option
-  subroutine resetELSI(this, tempElec, iSpin, iKPoint, kWeight)
+  subroutine TElectronicSolver_resetElsi(this, tempElec, iSpin, iKPoint, kWeight)
 
     !> Instance
     class(TElectronicSolver), intent(inout) :: this
@@ -490,8 +512,98 @@ contains
       call elsi_set_output_log(this%elsiHandle, 1)
     end if
 
-  end subroutine resetELSI
+  end subroutine TElectronicSolver_resetElsi
+
+
+  subroutine TElectronicSolver_finalElsi(this)
+    class(TElectronicSolver), intent(inout) :: this
+
+    call elsi_finalize(this%elsiHandle)
+
+  end subroutine TElectronicSolver_finalElsi
 
 #:endif
+
+
+  function TElectronicSolver_getSolverName(this) result(solverName)
+    class(TElectronicSolver), intent(in) :: this
+    character(:), allocatable :: solverName
+
+    character(lc) :: buffer
+
+    select case (this%iSolver)
+
+    case(electronicSolverTypes%qr)
+      write(buffer, "(A)") "Standard"
+
+    case(electronicSolverTypes%divideandconquer)
+      write(buffer, "(A)") "Divide and Conquer"
+
+    case(electronicSolverTypes%relativelyrobust)
+      write(buffer, "(A)") "Relatively robust"
+
+  #:if WITH_ELSI
+
+    case(electronicSolverTypes%elpa)
+      if (this%ELSI_ELPA_SOLVER_Option == 1) then
+        write(buffer, "(A)") "ELSI interface to the 1 stage ELPA solver"
+      else
+        write(buffer, "(A)") "ELSI interface to the 2 stage ELPA solver"
+      end if
+
+    case(electronicSolverTypes%omm)
+      write(buffer, "(A,I0,A,E8.2)") "ELSI solver libOMM with ",&
+          & this%ELSI_OMM_iter, " ELPA iterations",this%ELSI_OMM_Tolerance
+      if (this%ELSI_CSR) then
+        write(buffer, "(A)") "ELSI solver libOMM Sparse"
+      else
+        write(buffer, "(A)") "ELSI solver libOMM Dense"
+      end if
+
+    case(electronicSolverTypes%pexsi)
+      if (this%ELSI_CSR) then
+        write(buffer, "(A)") "ELSI solver PEXSI Sparse"
+      else
+        write(buffer, "(A)") "ELSI solver PEXSI Dense"
+      end if
+
+    case(electronicSolverTypes%ntpoly)
+      if (this%ELSI_CSR) then
+        write(buffer, "(A)") "ELSI solver NTPoly Sparse"
+      else
+        write(buffer, "(A)") "ELSI solver NTPoly Dense"
+      end if
+
+  #:endif
+
+    case(electronicSolverTypes%gf)
+      write(buffer, "(A)") "Green's functions"
+
+    case(electronicSolverTypes%onlyTransport)
+      write(buffer, "(A)") "Transport Only (no energies)"
+
+    case default
+      write(buffer, "(A,I0,A)") "Invalid electronic solver! (iSolver = ", this%iSolver, ")"
+
+    end select
+    solverName = trim(buffer)
+
+  end function TElectronicSolver_getSolverName
+
+
+  subroutine TElectronicSolver_ensurePauliCompatibility(this)
+    class(TElectronicSolver), intent(in) :: this
+
+    logical :: tPauliIncompat
+
+    tPauliIncompat = this%ELSI_CSR&
+        & .and. any(this%iSolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+        & electronicSolverTypes%ntpoly])
+    if (tPauliIncompat) then
+      call error("Current solver configuration not avaible for two component complex hamiltonians")
+    end if
+
+  end subroutine TElectronicSolver_ensurePauliCompatibility
+
 
 end module solvers
