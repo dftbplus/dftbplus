@@ -1526,10 +1526,8 @@ contains
     do ij = 1, nxoo
       call indxoo(homo, nocc, ij, i, j)
       qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
-      do iAt1 = 1, natom
-        ! W contains 1/2 for i == j.
-        woo(ij) = woo(ij) + 4.0_dp * qij(iAt1) * gamxpyq(iAt1)
-      end do
+      ! W contains 1/2 for i == j.
+      woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamxpyq)
     end do
 
     ! Divide diagonal elements of W_ij by 2.
