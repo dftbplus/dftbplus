@@ -77,8 +77,8 @@ contains
       & coord0, nexc, nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbour,&
       & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
       & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
-      & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, omega, allOmega, shift,&
-      & skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
+      & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
+      & allOmega, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -191,6 +191,9 @@ contains
 
     !> the window for transitions not included in nexc and energy window (if used)
     real(dp), intent(in) :: oscillatorWindow
+
+    !> should transition charges be cached or evaluated on the fly?
+    logical, intent(in) :: tCacheCharges
 
     !> excitation energy of state nstat0
     real(dp), intent(out) :: omega
@@ -471,7 +474,7 @@ contains
     write(*,*)'Transitions included',nxov_rd
 
     call qTransitionInit(transCharges, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij,&
-        & win, .true.)
+        & win, tCacheCharges)
 
 
     if (fdXplusY >  0) then

@@ -3430,6 +3430,7 @@ contains
           & modifier=modifier,  child=child2)
       ctrl%lrespini%tOscillatorWindow = ctrl%lrespini%oscillatorWindow /= 0.0_dp
       call convertByMul(char(modifier), dipoleUnits, child2, ctrl%lrespini%oscillatorWindow)
+      call getChildValue(child, "CacheCharges", ctrl%lrespini%tCacheCharges, default=.true.)
       call getChildValue(child, "WriteMulliken", ctrl%lrespini%tMulliken, default=.false.)
       call getChildValue(child, "WriteCoefficients", ctrl%lrespini%tCoeffs, default=.false.)
       ctrl%lrespini%tGrndState = .false.
