@@ -1236,13 +1236,13 @@ contains
       call hemv(gamxpyq, gammaMat,  xpyq)
       do ab = 1, nxvv
         call indxvv(homo, ab, a, b)
-        call transq(a, b, iAtomStart, updwn, stimc, c, qij)
+        qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
         qgamxpyq(ab) = 2.0_dp * sum(qij * gamxpyq)
       end do
     else ! triplet case
       do ab = 1, nxvv
         call indxvv(homo, ab, a, b)
-        call transq(a, b, iAtomStart, updwn, stimc, c, qij)
+        qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
         qgamxpyq(ab) = 2.0_dp * sum(qij * xpyq * spinW(species0))
       end do
     end if
@@ -1266,7 +1266,7 @@ contains
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
         call indxoo(homo, nocc, ij, i, j)
-        call transq(i, j, iAtomStart, updwn, stimc, c, qij)
+        qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
         qgamxpyq(ij) = 2.0_dp * sum(qij * gamxpyq)
       end do
@@ -1274,7 +1274,7 @@ contains
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
         call indxoo(homo, nocc, ij, i, j)
-        call transq(i, j, iAtomStart, updwn, stimc, c, qij)
+        qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         qgamxpyq(ij) = 2.0_dp * sum(qij * xpyq * spinW(species0))
       end do
     end if
@@ -1301,7 +1301,7 @@ contains
     gamxpyq(:) = 0.0_dp
     do ij = 1, nxoo
       call indxoo(homo, nocc, ij, i, j)
-      call transq(i, j, iAtomStart, updwn, stimc, c, qij)
+      qij = transq(i, j, iAtomStart, updwn, stimc, c)
       if (i == j) then
         gamxpyq(:) = gamxpyq(:) + t(i,j) * qij(:)
       else
@@ -1313,7 +1313,7 @@ contains
     ! gamxpyq(iAt2) += sum_ab q_ab(iAt2) T_ab
     do ab = 1, nxvv
       call indxvv(homo, ab, a, b)
-      call transq(a, b, iAtomStart, updwn, stimc, c, qij)
+      qij(:) = transq(a, b, iAtomStart, updwn, stimc, c)
       if (a == b) then
         gamxpyq(:) = gamxpyq(:) + t(a,b) * qij(:)
       else
@@ -1331,7 +1331,7 @@ contains
     ! Furche vectors
     do ij = 1, nxoo
       call indxoo(homo, nocc, ij, i, j)
-      call transq(i, j, iAtomStart, updwn, stimc, c, qij)
+      qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
       woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamqt)
     end do
 
@@ -1522,7 +1522,7 @@ contains
     ! sum_iAt1 qij(iAt1) gamxpyq(iAt1)
     do ij = 1, nxoo
       call indxoo(homo, nocc, ij, i, j)
-      call transq(i, j, iAtomStart, updwn, stimc, c, qij)
+      qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
       do iAt1 = 1, natom
         ! W contains 1/2 for i == j.
         woo(ij) = woo(ij) + 4.0_dp * qij(iAt1) * gamxpyq(iAt1)
@@ -1684,7 +1684,7 @@ contains
     do indm = 1, nxov
       call indxov(win, indm, getij, ii, jj)
       updwn = (win(indm) <= nmatup)
-      call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+      qij(:) = transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs)
       snglPartTransDip(indm, :) = matmul(coord0, qij)
     end do
 

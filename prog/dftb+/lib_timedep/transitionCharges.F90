@@ -95,8 +95,8 @@ contains
         jj = getij(kk,2)
         !call indxov(win, ij, getij, ii, jj)
         updwn = (kk <= this%nMatUp)
-        call transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs, grndEigVecs,&
-            & this%qCacheOccVirt(:,ij))
+        this%qCacheOccVirt(:,ij) = transq(ii, jj, iAtomStart, updwn,  sTimesGrndEigVecs,&
+            & grndEigVecs)
       end do
       !!$OMP  END PARALLEL DO
 
@@ -160,9 +160,8 @@ contains
       kk = win(ij)
       ii = getij(kk,1)
       jj = getij(kk,2)
-      !call indxov(win, ij, getij, ii, jj)
       updwn = (kk <= this%nMatUp)
-      call transq(ii, jj, iAtomStart, updwn, sTimesgrndEigVecs, grndEigVecs, q(:))
+      q(:) = transq(ii, jj, iAtomStart, updwn, sTimesgrndEigVecs, grndEigVecs)
     end if
 
   end function qTransIJ
@@ -215,7 +214,7 @@ contains
         ii = getij(kk,1)
         jj = getij(kk,2)
         updwn = (kk <= this%nMatUp)
-        call transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs, qij(:))
+        qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(:) = qProduct(:) + qij(:) * vector(ij)
       end do
       !!$OMP  END PARALLEL DO
@@ -274,7 +273,7 @@ contains
         ii = getij(kk,1)
         jj = getij(kk,2)
         updwn = (kk <= this%nMatUp)
-        call transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs, qij(:))
+        qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
         qProduct(ij) = qProduct(ij) + dot_product(qij(:), vector(:))
       end do
       !!$OMP  END PARALLEL DO
@@ -291,7 +290,7 @@ contains
   !> S the overlap matrix.
   !> Since qij is atomic quantity (so far) the corresponding values for the atom are summed up.
   !> Note: the parameters 'updwn' were added for spin alpha and beta channels.
-  pure subroutine transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs, qij)
+  pure function transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs) result(qij)
 
     !> Index of inital state.
     integer, intent(in) :: ii
@@ -312,7 +311,7 @@ contains
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> Transition charge on exit. (nAtom)
-    real(dp), intent(out) :: qij(:)
+    real(dp) :: qij(size(iAtomStart)-1)
 
     integer :: kk, aa, bb, ss
     real(dp) :: qTmp(size(grndEigVecs,dim=1))
@@ -330,7 +329,7 @@ contains
       qij(kk) = 0.5_dp * sum(qTmp(aa:bb))
     end do
 
-  end subroutine transq
+  end function transq
 
 
 end module transitionCharges
