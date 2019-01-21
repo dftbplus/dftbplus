@@ -43,7 +43,7 @@ module timeprop_module
   use periodic
   use velocityverlet
   use nonscc
-  use energies, only: TEnergies
+  use energies, only: TEnergies, init
   use populations
   use eigenvects
   use sk
@@ -472,7 +472,7 @@ contains
     character(4) :: dumpIdx
     type(TTimer) :: loopTime
 
-    complex(cp) :: RdotSprime(this%nOrbs,this%nOrbs)
+    complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
     real(dp) :: coordNew(3, this%nAtom), totalForce(3, this%nAtom), ePerBond(this%nAtom, this%nAtom)
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
 
@@ -518,7 +518,7 @@ contains
 
     ! Initialize electron dinamics
     rhoOld(:,:,:) = rho
-    call initializePropagator(this, this%dt, rhoOld, rho, H1, Sinv, coord, skHamCont,&
+    call initializePropagator(this, -this%dt, rhoOld, rho, H1, Sinv, coord, skHamCont,&
          & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare)
     call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList%iNeighbour, nNeighbourSK, orb,&
          & iSquare, iPair, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, &
@@ -540,10 +540,10 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-      if (.not. this%tRestart .or. iStep > 0) then
+!      if (iStep > 0) then
          call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, time,&
               & energy, energyKin, dipole, deltaQ, coord, totalForce, iStep, ePerBond, ePBondDat)
-      end if
+!      end if
 
      if (this%tIons) then
         coord(:,:) = coordNew
@@ -1142,7 +1142,7 @@ contains
     real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
     integer :: iSpin, iOrb, iOrb2
 
-    allocate(rhoPrim(size(ham), this%nSpin), ErhoPrim(size(ham)))
+    allocate(rhoPrim(size(ham, dim=1), this%nSpin), ErhoPrim(size(ham, dim=1)))
     this%nSparse = size(H0)
     allocate(ham0(size(H0)))
     ham0(:) = H0
@@ -1156,7 +1156,7 @@ contains
     do iSpin=1,this%nSpin
        call unpackHS(T3,ham(:,iSpin),iNeighbour,nNeighbourSK,iSquare,iPair,img2CentCell)
        call blockSymmetrizeHS(T3,iSquare)
-       H1(:,:,iSpin) = cmplx(T3, 0, cp) ! Hamiltonian
+       H1(:,:,iSpin) = cmplx(T3, 0, dp) ! Hamiltonian
        T3 = 0.0_dp
     end do
 
@@ -1225,10 +1225,11 @@ contains
     integer, intent(in) :: nNeighbourSK(:), iSquare(:)
     integer, allocatable, intent(in) :: img2CentCell(:)
     integer :: iSpin
-    complex(cp) :: RdotSprime(this%nOrbs,this%nOrbs)
+    complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
     complex(dp) :: T1(this%nOrbs,this%nOrbs)
 
     rhoOld(:,:,:) = rho
+
     if (this%tIons) then
        call getRdotSprime(this, RdotSprime, coord, skOverCont, orb, img2CentCell, &
             &neighbourList, nNeighbourSK, iSquare)
@@ -1519,14 +1520,17 @@ contains
     real(dp), intent(in) :: energyKin, totalForce(:,:)
     real(dp) :: auxVeloc(3, this%nAtom)
 
+    write(energydat, '(9F25.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
+         & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
          & iSpin=1, this%nSpin)
 
     if (mod(iStep, this%writeFreq) == 0) then
-       write(energydat, '(9F25.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
-            & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
-       write(qDat, '(*(2x,F25.15))') time * au__fs, -sum(deltaQ),&
-            & (-sum(deltaQ(iAtom,:)), iAtom=1, this%nAtom)
+      write(qDat, "(2X,2F25.15)", advance="no") time * au__fs, -sum(deltaQ)
+      do iAtom = 1, this%nAtom
+        write(qDat, "(F25.15)", advance="no")-sum(deltaQ(iAtom,:))
+      end do
+      write(qDat,*)
     end if
 
     if (this%tIons .and. (mod(iStep,this%writeFreq) == 0)) then
@@ -1626,7 +1630,7 @@ contains
     integer :: iOrb
 
     real(dp) :: T3(this%nOrbs, this%nOrbs)
-    complex(cp), intent(inout) :: H1(:,:,:), Ssqr(:,:)
+    complex(dp), intent(inout) :: H1(:,:,:), Ssqr(:,:)
     real(dp) :: eigen(this%nOrbs)
 
     H1(:,:,iSpin) = -imag * H1(:,:,iSpin) ! change back to real H1
@@ -1684,7 +1688,7 @@ contains
     if (this%ReadMDVelocities) then
        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom),&
             & this%pThermostat, this%initialVelocities, halfVelocities)
-       this%movedVelo(:, this%indMovedAtom) = this%initialVelocities
+       this%movedVelo(:, :) = this%initialVelocities
     else
        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), &
             &this%pThermostat, halfVelocities, velocities)
@@ -1710,7 +1714,7 @@ contains
   subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare, iPair,&
        & img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
     type(TElecDynamics), intent(inout), target :: this
-    complex(cp), intent(inout) :: Sinv(:,:), Ssqr(:,:)
+    complex(dp), intent(inout) :: Sinv(:,:), Ssqr(:,:)
     real(dp), allocatable, intent(inout) :: ham0(:)
     real(dp), allocatable, intent(inout) :: ham(:,:), over(:)
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -1766,14 +1770,14 @@ contains
    Sreal = 0.0_dp
    call unpackHS(Sreal,over,neighbourList%iNeighbour,nNeighbourSK,iSquare,iPair,img2CentCell)
    call blockSymmetrizeHS(Sreal,iSquare)
-   Ssqr(:,:) = cmplx(Sreal, 0, cp)
+   Ssqr(:,:) = cmplx(Sreal, 0, dp)
 
    SinvReal = 0.0_dp
    do iOrb = 1, this%nOrbs
       SinvReal(iOrb, iOrb) = 1.0_dp
    end do
    call gesv(Sreal,SinvReal)
-   Sinv(:,:) = cmplx(SinvReal, 0, cp)
+   Sinv(:,:) = cmplx(SinvReal, 0, dp)
   end subroutine updateH0S
 
 
@@ -1782,7 +1786,7 @@ contains
        & img2CentCell, iPair, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
        & pRepCont, coord, rhoPrim, ErhoPrim, iStep, env)
     type(TElecDynamics), intent(inout), target :: this
-    complex(cp), intent(in) :: rho(:,:,:), H1(:,:,:), Sinv(:,:)
+    complex(dp), intent(in) :: rho(:,:,:), H1(:,:,:), Sinv(:,:)
     type(TNeighbourList), intent(in) :: neighbourList
     integer, intent(in) :: nNeighbourSK(:)
     integer, allocatable, intent(in) :: iPair(:,:), img2CentCell(:)
@@ -1876,7 +1880,7 @@ contains
        &neighbourList, nNeighbourSK, iSquare)
     type(TElecDynamics), intent(in), target :: this
     type(OSlakoCont), intent(in) :: skOverCont
-    complex(cp), intent(out) :: RdotSprime(this%nOrbs,this%nOrbs)
+    complex(dp), intent(out) :: RdotSprime(this%nOrbs,this%nOrbs)
     type(TOrbitals), intent(in) :: orb
     real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb), dcoord(3,this%nAtom)
@@ -1894,7 +1898,7 @@ contains
     end do
 
     sPrimeTmp = 0.0_dp
-    RdotSprime = 0.0_cp
+    RdotSprime = 0.0_dp
 
     !$OMP PARALLEL DO PRIVATE(iAtom1,iStart1,iEnd1,iSp1,nOrb1,sPrimeTmp2,iNeigh,iAtom2, &
     !$OMP& iAtom2f,iStart2,iEnd2,iSp2,nOrb2,sPrimeTmp,iDir) DEFAULT(SHARED) &
@@ -1912,7 +1916,7 @@ contains
              sPrimeTmp2(:,:) = sPrimeTmp2 + &
                   &this%onsiteGrads(iDir, iAtom1, :, :) * dcoord(iDir, iAtom1)
           end do
-          RdotSprime(iStart1:iEnd1,iStart1:iEnd1) = cmplx(sPrimeTmp2(1:nOrb1,1:nOrb1), 0, cp)
+          RdotSprime(iStart1:iEnd1,iStart1:iEnd1) = cmplx(sPrimeTmp2(1:nOrb1,1:nOrb1), 0, dp)
        end if
 
        ! Offsite blocks
@@ -1933,7 +1937,7 @@ contains
                      &sPrimeTmp(:,:,iDir) * dcoord(iDir,iAtom1)
              end do
              RdotSprime(iStart2:iEnd2,iStart1:iEnd1) = &
-                  & cmplx(sPrimeTmp2(1:nOrb2,1:nOrb1), 0, cp)
+                  & cmplx(sPrimeTmp2(1:nOrb2,1:nOrb1), 0, dp)
 
              sPrimeTmp2(:,:) = 0.0_dp
              do iDir=1,3
@@ -1941,7 +1945,7 @@ contains
                      &sPrimeTmp(:,:,iDir) * dcoord(iDir,iAtom2)
              end do
              RdotSprime(iStart1:iEnd1,iStart2:iEnd2) = &
-                  & cmplx(transpose(sPrimeTmp2(1:nOrb2,1:nOrb1)), 0, cp)
+                  & cmplx(transpose(sPrimeTmp2(1:nOrb2,1:nOrb1)), 0, dp)
           end if
        end do
     end do
