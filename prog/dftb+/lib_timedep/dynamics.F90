@@ -158,7 +158,7 @@ contains
 
     real(dp) :: norm
 
-    this%field = inp%tdfield
+    this%field = inp%tdField
     this%dt = inp%dt
     this%nSteps = inp%steps
     this%pertType = inp%pertType
@@ -393,7 +393,7 @@ contains
 
     ! Initialize electron dinamics
     rhoOld(:,:,:) = rho
-    call initializePropagator(this, this%dt, rho, rhoOld, H1, Sinv)
+    call initializePropagator(this, -this%dt, rhoOld, rho, H1, Sinv)
 
     call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList%iNeighbour, nNeighbourSK, orb,&
         & iSquare, iPair, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont)
