@@ -1,0 +1,631 @@
+================================================================================
+==
+==           DFTB+ (Density Functional Tight Binding and much more)
+==
+==                 DFTB++1704 version with quantum transport
+==
+==                                  based on
+==
+==                          Unofficial release (r5479)
+==
+==                            (ParserVersion = 4)
+==
+================================================================================
+
+********************************************************************************
+** Parsing and initializing
+********************************************************************************
+
+Interpreting input file 'dftb_in.hsd'
+--------------------------------------------------------------------------------
+***  Converting input from version  3 to version  4 ...
+***  Done.
+
+Reading SK-files:
+  C-C.skf
+  C-H.skf
+  H-C.skf
+  H-H.skf
+Done.
+Vibronic dephasing model is being red
+BP dephasing model is being red
+
+
+Processed input in HSD format written to 'dftb_pin.hsd'
+
+Starting initialization...
+--------------------------------------------------------------------------------
+PGRID:ALLPROC: 1 x 1
+PGRID:ATOM: 1 x 1
+Poisson parallelized on 1 nodes
+ Atomic density tolerance:   -13.322568219481409     
+ Atomic density cutoff:    13.322568219481409      a.u.
+ Input PoissonBox=   30.0000   30.0000   30.0000  A
+ PoissAcc=   9.9999999999999995E-008
+ Bulk Boundary Potential:    No
+ Atomic cutoff radius=   7.0499999999999998      A
+
+ System Type: UNCONTACTED CLUSTER  STRUCTURE
+ periodicity direction:  0
+ Fermi Level=   0.0000000000000000      eV
+CENTRAL REGION
+ Atom start - end =      1     5
+
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+ Mode:                         Static calculation
+Contact upload:              No
+Contact calculation:         No
+Use Poisson solver:          Yes
+ Self consistent charges:      Yes
+ SCC-tolerance:                      0.100000E-07
+ Max. scc iterations:                     100
+ Ewald alpha parameter:              0.000000E+00
+ Spin polarisation:            No
+ Nr. of up electrons:              4.000000
+ Nr. of down electrons:            4.000000
+ Periodic boundaries:          No
+ Diagonalizer:                 Green's Functions (density matrix)
+ Maximal SCC-cycles:                      100
+ Electronic temperature:             0.100000E-07
+ Initial charges:              Read in from 'charges.bin'
+ Included shells:               C:  s, p
+                                H:  s
+ Extra options:
+                               Force calculation
+--------------------------------------------------------------------------------
+
+********************************************************************************
+** Geometry step: 0
+********************************************************************************
+
+ TIME 1/r coord update  CPU:     0.05       Wall: ********
+  iSCC Total electronic   Diff electronic      SCC error    
+
+=========================================================================
+                    SOLVING POISSON EQUATION             
+=========================================================================
+-------------------------------------------------------------------------
+ Poisson Box internally adjusted:
+ x range=   -14.71716    15.28284; Periodic:  F
+ y range=   -15.05000    14.95000; Periodic:  F
+ z range=   -14.65000    15.35000; Periodic:  F
+ Mesh details:
+ Lx=    30.000  nx= 129   dlx=  0.23437
+ Ly=    30.000  ny= 129   dly=  0.23437
+ Lz=    30.000  nz= 129   dlz=  0.23437
+-------------------------------------------------------------------------
+ -------------------------------------------------------------------------
+ Relative Poisson Error =   2.2600846800410459E-008
+ Number of cycles executed =  6/ 60
+ -------------------------------------------------------------------------
+*************************************************************************
+=========================================================================
+                     COMPUTING DENSITY MATRIX      
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+    1   -0.31447168E+01    0.00000000E+00    0.28543867E-01
+
+=========================================================================
+                    SOLVING POISSON EQUATION             
+=========================================================================
+ -------------------------------------------------------------------------
+ Relative Poisson Error =   1.8500024086380782E-008
+ Number of cycles executed =  5/ 60
+ -------------------------------------------------------------------------
+*************************************************************************
+=========================================================================
+                     COMPUTING DENSITY MATRIX      
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+    2   -0.31448021E+01   -0.85252443E-04    0.18116038E-01
+
+=========================================================================
+                    SOLVING POISSON EQUATION             
+=========================================================================
+ -------------------------------------------------------------------------
+ Relative Poisson Error =   2.7835305667256992E-008
+ Number of cycles executed =  5/ 60
+ -------------------------------------------------------------------------
+*************************************************************************
+=========================================================================
+                     COMPUTING DENSITY MATRIX      
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+    3   -0.31449747E+01   -0.17266577E-03    0.50130031E-02
+
+=========================================================================
+                    SOLVING POISSON EQUATION             
+=========================================================================
+ -------------------------------------------------------------------------
+ Relative Poisson Error =   2.0936838482873914E-008
+ Number of cycles executed =  5/ 60
+ -------------------------------------------------------------------------
+*************************************************************************
+=========================================================================
+                     COMPUTING DENSITY MATRIX      
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+    4   -0.31450654E+01   -0.90709786E-04    0.19864742E-03
+
+=========================================================================
+                    SOLVING POISSON EQUATION             
+=========================================================================
+ -------------------------------------------------------------------------
+ Relative Poisson Error =   1.0208506990322611E-008
+ Number of cycles executed =  4/ 60
+ -------------------------------------------------------------------------
+*************************************************************************
+=========================================================================
+                     COMPUTING DENSITY MATRIX      
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+    5   -0.31450658E+01   -0.31886258E-06    0.44739763E-04
+
+=========================================================================
+                    SOLVING POISSON EQUATION             
+=========================================================================
+ -------------------------------------------------------------------------
+ Relative Poisson Error =   8.7074312614845635E-008
+ Number of cycles executed =  3/ 60
+ -------------------------------------------------------------------------
+*************************************************************************
+=========================================================================
+                     COMPUTING DENSITY MATRIX      
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+    6   -0.31450658E+01   -0.48597810E-07    0.80041135E-06
+
+=========================================================================
+                    SOLVING POISSON EQUATION             
+=========================================================================
+ -------------------------------------------------------------------------
+ Relative Poisson Error =   4.3192076062444392E-008
+ Number of cycles executed =  2/ 60
+ -------------------------------------------------------------------------
+*************************************************************************
+=========================================================================
+                     COMPUTING DENSITY MATRIX      
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+    7   -0.31450658E+01   -0.89637711E-08    0.36666063E-06
+
+=========================================================================
+                    SOLVING POISSON EQUATION             
+=========================================================================
+ -------------------------------------------------------------------------
+ Relative Poisson Error =   2.4803113197325586E-008
+ Number of cycles executed =  2/ 60
+ -------------------------------------------------------------------------
+*************************************************************************
+=========================================================================
+                     COMPUTING DENSITY MATRIX      
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+    8   -0.31450658E+01   -0.11949997E-09    0.70335278E-08
+>> Charges saved for restart in charges.bin
+
+ Total Energy:                      -3.1559552527 H
+ Total Mermin free energy:          -3.1559552527 H
+=========================================================================
+                  COMPUTING E-WEIGHTED DENSITY MATRIX 
+=========================================================================
+
+ Setting local fully diagonal (FD) elastic dephasing model
+
+ Setting local fully diagonal (FD) BP dephasing model
+ BP dephasing initialization is finished
+CONTOUR INTEGRAL, CPU 0 points 40
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            1  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+ SCBA exit succesfully after            2  iterations
+*************************************************************************
+*************************************************************************
+Release Poisson Memory:
+   peak memory allocated:   250.16 Mb
+current memory allocated:     0.00 bt
+ TIME program total     CPU:    15.77       Wall:    15.86

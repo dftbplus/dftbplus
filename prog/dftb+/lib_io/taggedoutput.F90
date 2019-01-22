@@ -95,8 +95,20 @@ module taggedoutput
   !> final negative gross atomic Mulliken charges after real-time propagation
   character(*), parameter, public :: tag_tdcharges = 'final_td_charges'
 
+  !> total tunneling vector
+  character(*), parameter, public :: tag_tunn = 'total_tunneling'
+
+  !> total projected DOS vector
+  character(*), parameter, public :: tag_ldos = 'total_localdos'
+
   !> total internal energy
   character(*), parameter, public :: tag_egyTotal   = 'total_energy'
+
+  !> total internal energy extrapolated to 0 K
+  character(*), parameter, public :: tag_egy0Total   = 'extrapolated0_energy'
+
+  !> Energy, which if differentiated gives - force
+  character(*), parameter, public :: tag_egyforcerelated = 'forcerelated_energy'
 
   !> Internal electric field
   character(*), parameter, public :: tag_internfield = 'internal_efield'

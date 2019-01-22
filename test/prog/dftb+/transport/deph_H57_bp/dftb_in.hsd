@@ -1,0 +1,76 @@
+Geometry = GenFormat {
+<<< 'H57.gen'
+}
+
+Transport {
+  Device {
+    AtomRange = 1 37
+    FirstLayerAtoms =  1 7 13 21
+  }
+  Contact {
+    Id = "source"
+    AtomRange = 38 47
+    FermiLevel [eV] = -6.   
+    Potential [eV] = 4.
+    ReadSurfaceGF = Yes
+    Temperature = 0.00001
+  }
+  Contact {
+    Id = "drain"
+    AtomRange = 48 57
+    FermiLevel [eV] = -6.   
+    Potential [eV] = -4.
+    ReadSurfaceGF = Yes
+    Temperature = 0.00001
+  }
+  Task = UploadContacts {}
+}
+
+Hamiltonian = DFTB {
+  SCC = No
+  #SCCTolerance = 1e-6
+  #ReadInitialCharges = No
+  MaxAngularMomentum = {
+    H = "s"
+  }  
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = ""
+    Separator = "-"    
+    Suffix = ".skf"
+  }
+  Eigensolver = TransportOnly{}
+}
+
+# ************************************
+# NOTE: Dephasing is not working yet
+# ************************************   
+Dephasing {
+  BuettikerProbes{
+    Coupling [eV] = constant{ 0.5 }
+  }
+}  
+
+Analysis = {
+  TunnelingAndDos {
+    Verbosity = 101
+    EnergyRange [eV] = -10. -2.
+    EnergyStep [eV] =0.1
+    Region = {
+      Atoms = 1:37
+    }
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 6
+}
+
+Parallel = {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

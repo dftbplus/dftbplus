@@ -23,6 +23,16 @@ lapack.o = lapack.o $(_mod_accuracy)
 _mod_lapack: lapack.o
 _mod_lapack = $(lapack.o)
 
+libnegf_vars.o: _mod_wrappedintrinsics _mod_commontypes _mod_accuracy _mod_xmlf90
+libnegf_vars.o = libnegf_vars.o $(_mod_wrappedintrinsics) $(_mod_commontypes) $(_mod_accuracy) $(_mod_xmlf90)
+_mod_libnegf_vars: libnegf_vars.o
+_mod_libnegf_vars = $(libnegf_vars.o)
+
+mat_conv.o: _mod_commontypes common.fypp _mod_libnegf _mod_assert _mod_accuracy _mod_constants
+mat_conv.o = mat_conv.o $(_mod_commontypes) $(common.fypp) $(_mod_libnegf) $(_mod_assert) $(_mod_accuracy) $(_mod_constants)
+_mod_mat_conv: mat_conv.o
+_mod_mat_conv = $(mat_conv.o)
+
 #:if WITH_MPI
 mpifx.o: common.fypp _mod_libmpifx_module
 mpifx.o = mpifx.o $(common.fypp) $(_mod_libmpifx_module)
@@ -33,6 +43,23 @@ mpifx.o: common.fypp
 mpifx.o = mpifx.o $(common.fypp)
 _mod_mpifx: mpifx.o
 _mod_mpifx = $(mpifx.o)
+#:endif
+
+negf_int.o: _mod_sparse2dense _mod_libnegf_vars _mod_commontypes _mod_globalenv _mod_constants _mod_solvertypes _mod_libmpifx_module _mod_densedescr _mod_mat_conv _mod_formatout _mod_message _mod_globals _mod_accuracy _mod_libnegf
+negf_int.o = negf_int.o $(_mod_sparse2dense) $(_mod_libnegf_vars) $(_mod_commontypes) $(_mod_globalenv) $(_mod_constants) $(_mod_solvertypes) $(_mod_libmpifx_module) $(_mod_densedescr) $(_mod_mat_conv) $(_mod_formatout) $(_mod_message) $(_mod_globals) $(_mod_accuracy) $(_mod_libnegf)
+_mod_negf_int: negf_int.o
+_mod_negf_int = $(negf_int.o)
+
+#:if WITH_MPI
+poisson_int.o: _mod_libnegf_vars _mod_commontypes common.fypp _mod_globalenv _mod_constants _mod_message _mod_system_calls _mod_accuracy _mod_poisson _mod_libmpifx_module
+poisson_int.o = poisson_int.o $(_mod_libnegf_vars) $(_mod_commontypes) $(common.fypp) $(_mod_globalenv) $(_mod_constants) $(_mod_message) $(_mod_system_calls) $(_mod_accuracy) $(_mod_poisson) $(_mod_libmpifx_module)
+_mod_poisson_init: poisson_int.o
+_mod_poisson_init = $(poisson_int.o)
+#:else
+poisson_int.o: _mod_libnegf_vars _mod_commontypes common.fypp _mod_globalenv _mod_constants _mod_message _mod_system_calls _mod_accuracy _mod_poisson
+poisson_int.o = poisson_int.o $(_mod_libnegf_vars) $(_mod_commontypes) $(common.fypp) $(_mod_globalenv) $(_mod_constants) $(_mod_message) $(_mod_system_calls) $(_mod_accuracy) $(_mod_poisson)
+_mod_poisson_init: poisson_int.o
+_mod_poisson_init = $(poisson_int.o)
 #:endif
 
 #:if WITH_SCALAPACK

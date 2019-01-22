@@ -33,12 +33,16 @@ module timeprop_module
   use spin
   use repcont
   use energies, only: TEnergies, init
+  use evaluateenergies
+  use thirdorder_module, only : ThirdOrder
   use populations
   use repulsive
   use periodic
   use environment
   use timer
   use taggedoutput
+  use hamiltonian
+  use solvertypes
   implicit none
   private
 
@@ -56,7 +60,7 @@ module timeprop_module
     !> Timestep for propagation
     real(dp) :: dt
 
-    !> Field energy in eV
+    !> Electric field angular frequency
     real(dp) :: omega
 
     !> Real part of the polarization direction for laser fields
@@ -113,9 +117,8 @@ module timeprop_module
     real(dp), allocatable :: tdFunction(:, :), phase
     integer :: nSteps, writeFreq, pertType, envType, spType
     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
-    integer, allocatable :: species(:), polDirs(:)
-    character(mc), allocatable :: speciesName(:)
-    logical :: tPopulations, tSpinPol=.false.
+    integer, allocatable :: polDirs(:)
+    logical :: tPopulations
     logical :: tRestart, tWriteRestart, tWriteAutotest
     logical :: tLaser = .false., tKick = .false., tEnvFromFile = .false.
     type(TScc), allocatable :: sccCalc
@@ -136,19 +139,13 @@ contains
 
 
   !> Initialisation of input variables
-  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag)
+  subroutine TElecDynamics_init(this, inp, tWriteAutotest, autotestTag)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
 
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(in) :: inp
-
-    !> species of all atoms in the system
-    integer, allocatable, intent(in) :: species(:)
-
-    !> label for each atomic chemical species
-    character(mc), allocatable, intent(in) :: speciesName(:)
 
     !> produce tagged output?
     logical, intent(in) :: tWriteAutotest
@@ -170,8 +167,6 @@ contains
     this%phase = inp%phase
     this%writeFreq = inp%writeFreq
     this%restartFreq = inp%restartFreq
-    this%species = species
-    this%speciesName = speciesName
     allocate(this%sccCalc)
 
     if (inp%envType /= iTDConstant) then
@@ -188,12 +183,11 @@ contains
     if (this%tLaser) then
       this%omega = inp%omega
       this%fieldDir = inp%reFieldPolVec + imag * inp%imFieldPolVec
-      norm = sqrt(sum(this%fieldDir * conjg(this%fieldDir)))
+      norm = sqrt(real(dot_product(this%fieldDir,this%fieldDir)))
       ! normalize polarization vector
       this%fieldDir = this%fieldDir / norm
-      allocate(this%tdFunction(0:this%nSteps, 3))
+      allocate(this%tdFunction(3, 0:this%nSteps))
       this%tEnvFromFile = (this%envType == iTDFromFile)
-      call getTDFunction(this)
     end if
 
     if (this%tKick) then
@@ -211,8 +205,10 @@ contains
 
 
   !> Driver of time dependent propagation to calculate wither spectrum or laser
-  subroutine runDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
-      & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, sccCalc, env)
+  subroutine runDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
+      & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
+      & env, tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+      & iAtInCentralRegion, tFixEf, Ef)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -220,8 +216,11 @@ contains
     !> Eigenvectors
     real(dp), intent(inout) :: Hsq(:,:,:)
 
-    !> Sparse storage for non-SCC hamitonian
-    real(dp), intent(inout) :: H0(:)
+    !> Sparse non-SCC hamitonian
+    real(dp), intent(in) :: H0(:)
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
 
     !> reference atomic occupations
     real(dp), intent(inout) :: q0(:,:,:)
@@ -236,7 +235,7 @@ contains
     real(dp), allocatable, intent(inout) :: coord(:,:)
 
     !> spin constants
-    real(dp), allocatable, intent(in) :: W(:,:,:)
+    real(dp), allocatable, intent(in) :: spinW(:,:,:)
 
     !> occupations
     real(dp), intent(in) :: filling(:,:,:)
@@ -245,7 +244,7 @@ contains
     integer, intent(inout) :: nNeighbourSK(:)
 
     !> index array for location of atomic blocks in large sparse arrays
-    integer, allocatable, intent(inout) :: iPair(:,:)
+    integer, allocatable, intent(inout) :: iSparseStart(:,:)
 
     !> image atoms to their equivalent in the central cell
     integer, allocatable, intent(inout) :: img2CentCell(:)
@@ -268,6 +267,49 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
+    !> Is dual spin orbit being used (block potentials)
+    logical, intent(in) :: tDualSpinOrbit
+
+    !> Spin orbit constants if required
+    real(dp), allocatable, intent(in) :: xi(:,:)
+
+    !> 3rd order settings
+    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> block (dual) atomic populations
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
+
+    !> U-J prefactors in DFTB+U
+    real(dp), intent(in), allocatable :: UJ(:,:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), allocatable :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), allocatable :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), allocatable :: niUJ(:,:)
+
+    !> Imaginary part of sparse hamiltonian storage
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
+    !> from the given number of electrons
+    real(dp), intent(inout) :: Ef(:)
+
     integer :: iPol
     logical :: tWriteAutotest
 
@@ -275,7 +317,6 @@ contains
 
     this%nSpin = size(ham(:,:), dim=2)
     if (this%nSpin > 1) then
-      this%tSpinPol = .true.
       call qm2ud(q0)
     end if
 
@@ -288,20 +329,26 @@ contains
         this%currPolDir = this%polDirs(iPol)
         ! Make sure only last component enters autotest
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
-        call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
-            & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env)
+        call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
+            & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
+            & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+            & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
       end do
     else
-      call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbourSK, iSquare,&
-          & iPair, img2CentCell, orb, coord, W, pRepCont, env)
+      call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList, nNeighbourSK,&
+          & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
+          & xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+          & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
     end if
 
   end subroutine runDynamics
 
 
   !> Runs the electronic dynamics of the system
-  subroutine doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
-      & iSquare, iPair, img2CentCell, orb, coord, W, pRepCont, env)
+  subroutine doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
+      & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
+      & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
+      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -310,7 +357,10 @@ contains
     real(dp), intent(inout) :: Hsq(:,:,:)
 
     !> Sparse storage for non-SCC hamitonian
-    real(dp), intent(inout) :: H0(:)
+    real(dp), intent(in) :: H0(:)
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
 
     !> reference atomic occupations
     real(dp), intent(inout) :: q0(:,:,:)
@@ -325,7 +375,7 @@ contains
     real(dp), allocatable, intent(inout) :: coord(:,:)
 
     !> spin constants
-    real(dp), allocatable, intent(in) :: W(:,:,:)
+    real(dp), allocatable, intent(in) :: spinW(:,:,:)
 
     !> occupations
     real(dp), intent(in) :: filling(:,:,:)
@@ -334,7 +384,7 @@ contains
     integer, intent(inout) :: nNeighbourSK(:)
 
     !> index array for location of atomic blocks in large sparse arrays
-    integer, allocatable, intent(inout) :: iPair(:,:)
+    integer, allocatable, intent(inout) :: iSparseStart(:,:)
 
     !> image atoms to their equivalent in the central cell
     integer, allocatable, intent(inout) :: img2CentCell(:)
@@ -354,6 +404,52 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
+    !> Is dual spin orbit being used (block potentials)
+    logical, intent(in) :: tDualSpinOrbit
+
+    !> block (dual) atomic populations
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
+
+    !> U-J prefactors in DFTB+U
+    real(dp), intent(in), allocatable :: UJ(:,:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), allocatable :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), allocatable :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), allocatable :: niUJ(:,:)
+
+    !> Spin orbit constants if required
+    real(dp), allocatable, intent(in) :: xi(:,:)
+
+    !> 3rd order settings
+    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Imaginary part of sparse hamiltonian storage
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
+    !> from the given number of electrons
+    real(dp), intent(inout) :: Ef(:)
+
+    !> Should autotest data be written?
+    logical, intent(in) :: tWriteAutotest
+
 
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%nSpin), rhoOld(this%nOrbs,this%nOrbs,this%nSpin)
@@ -361,42 +457,66 @@ contains
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
     real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
     real(dp) :: dipole(3,this%nSpin), chargePerShell(orb%mShell,this%nAtom,this%nSpin)
-    real(dp), allocatable :: rhoPrim(:,:), ham0(:)
-    real(dp) :: time, dTime, startTime = 0.0_dp, timeElec = 0.0_dp
+    real(dp), allocatable :: rhoPrim(:,:)
+    real(dp) :: time, startTime = 0.0_dp, timeElec = 0.0_dp
     integer :: dipoleDat, qDat, energyDat, populDat(2)
-    integer :: iStep = 0, iAtom, iSpin
+    integer :: iStep = 0, iSpin
     type(TPotentials) :: potential
     type(TEnergies) :: energy
-    character(4) :: dumpIdx
     type(TTimer) :: loopTime
+    real(dp) :: TS(this%nSpin)
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
     if (this%tRestart) then
-      call readRestart(rho, Ssqr, coord, startTime)
+      call readRestart(rho, rhoOld, Ssqr, coord, startTime)
     end if
 
-    call initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, Hsq, filling, orb,&
-        & rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iPair, img2CentCell,&
-        & Eiginv, EiginvAdj, energy)
+    if (this%tLaser) then
+      call getTDFunction(this, startTime)
+    end if
+
+    call initializeTDVariables(this, rho, H1, Ssqr, Sinv, over, ham, Hsq, filling, orb,&
+        & rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+        & img2CentCell, Eiginv, EiginvAdj, energy)
+
+    ! Calculate repulsive energy
+    call getERep(energy%atomRep, coord, nNeighbourSK, neighbourList%iNeighbour, species, pRepCont,&
+        & img2CentCell)
+    energy%Erep = sum(energy%atomRep)
 
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
-    call updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential,&
-        & neighbourList%iNeighbour, nNeighbourSK, iSquare, iPair, img2CentCell, iStep,&
-        & chargePerShell, W, env)
+
+    call updateH(this, H1, ham, over, H0, species, qq, q0, coord, orb, potential,&
+        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
+        & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, iHam, qBlock, qiBlock,&
+        & nDftbUFunc, UJ, nUJ, iUJ, niUJ)
 
     ! Apply kick to rho if necessary
     if (this%tKick) then
       call kickDM(this, rho, Ssqr, Sinv, iSquare, coord)
     end if
 
-    ! Initialize electron dinamics
-    rhoOld(:,:,:) = rho
-    call initializePropagator(this, -this%dt, rhoOld, rho, H1, Sinv)
+    ! had to add the "or tKick" option to override rhoOld if tRestart = yes, otherwise it will be
+    ! badly initialised
+    if (.not.this%tRestart .or. this%tKick) then
+      ! Initialize electron dynamics
+      rhoOld(:,:,:) = rho
+      call initializePropagator(this, -this%dt, rhoOld, rho, H1, Sinv)
+    end if
 
-    call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList%iNeighbour, nNeighbourSK, orb,&
-        & iSquare, iPair, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont)
+    rhoPrim(:,:) = 0.0_dp
+    do iSpin = 1, this%nSpin
+      call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+    end do
+
+    TS = 0.0_dp
+    call getEnergies(this%sccCalc, qq, q0, chargePerShell, species, this%tLaser, .false.,&
+        & .false., tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
+        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
+        & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
@@ -414,16 +534,27 @@ contains
       end if
 
       call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
-      call updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential,&
-          & neighbourList%iNeighbour, nNeighbourSK, iSquare, iPair, img2CentCell, iStep,&
-          & chargePerShell, W, env)
+
+      call updateH(this, H1, ham, over, H0, species, qq, q0, coord, orb, potential,&
+          & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
+          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, iHam, qBlock, qiBlock,&
+          & nDftbUFunc, UJ, nUJ, iUJ, niUJ)
 
       if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
-        call writeRestart(rho, Ssqr, coord, time)
+        call writeRestart(rho, rhoOld, Ssqr, coord, time)
       end if
 
-      call getTDEnergy(this, energy, rhoPrim, rho, neighbourList%iNeighbour, nNeighbourSK, orb,&
-          & iSquare, iPair, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont)
+      rhoPrim(:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+      end do
+
+      TS = 0.0_dp
+      call getEnergies(this%sccCalc, qq, q0, chargePerShell, species, this%tLaser, .false.,&
+          & .false., tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
+          & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
+          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef)
 
       do iSpin = 1, this%nSpin
         !The following is commented for the fast popagate that considers a real H
@@ -433,7 +564,7 @@ contains
         call swap(rhoOld(:,:,iSpin), rho(:,:,iSpin))
 
         if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-          call getTDPopulations(this, rho, Eiginv, EiginvAdj, T1, populDat, time, iSpin)
+          call getTDPopulations(rho, Eiginv, EiginvAdj, T1, populDat, time, iSpin)
         end if
       end do
 
@@ -448,7 +579,7 @@ contains
     write(stdOut, "(A)") 'Dynamics finished OK!'
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
-    if (this%tWriteAutotest) then
+    if (tWriteAutotest) then
       call writeTDAutotest(this, dipole, energy, deltaQ)
     end if
 
@@ -458,8 +589,10 @@ contains
 
 
   !> Updates the hamiltonian with SCC and external TD field (if any) contributions
-  subroutine updateH(this, H1, ham, over, ham0, qq, q0, coord, orb, potential, iNeighbour,&
-      & nNeighbourSK, iSquare, iPair, img2CentCell, iStep, chargePerShell, W, env)
+  subroutine updateH(this, H1, ham, over, H0, species, qq, q0, coord, orb, potential,&
+      & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
+      & spinW, env, tDualSpinOrbit, xi, thirdOrd, iHam, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ,&
+      & niUJ)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -474,7 +607,10 @@ contains
     real(dp), allocatable, intent(inout) :: over(:)
 
     !> Sparse storage for non-SCC hamitonian
-    real(dp), intent(in) :: ham0(:)
+    real(dp), intent(in) :: H0(:)
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
 
     !> atomic ocupations
     real(dp), intent(inout) :: qq(:,:,:)
@@ -491,8 +627,8 @@ contains
     !> potential acting on the system
     type(TPotentials), intent(inout) :: potential
 
-    !> Atomic neighbour data
-    integer, intent(in) :: iNeighbour(0:,:)
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(inout) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -501,7 +637,7 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> index array for location of atomic blocks in large sparse arrays
-    integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> image atoms to their equivalent in the central cell
     integer, intent(in) :: img2CentCell(:)
@@ -513,63 +649,99 @@ contains
     real(dp), intent(inout) :: chargePerShell(:,:,:)
 
     !> spin constants
-    real(dp), allocatable, intent(in) :: W(:,:,:)
+    real(dp), allocatable, intent(in) :: spinW(:,:,:)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
+    !> Is dual spin orbit being used (block potentials)
+    logical, intent(in) :: tDualSpinOrbit
+
+    !> Spin orbit constants if required
+    real(dp), allocatable, intent(in) :: xi(:,:)
+
+    !> 3rd order settings
+    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Imaginary part of sparse hamiltonian storage
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    !> block (dual) atomic populations
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
+
+    !> U-J prefactors in DFTB+U
+    real(dp), intent(in), allocatable :: UJ(:,:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), allocatable :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), allocatable :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), allocatable :: niUJ(:,:)
+
+
     real(dp) :: T2(this%nOrbs,this%nOrbs)
-    real(dp) :: shellPot(orb%mShell, this%nAtom, this%nSpin), atomPot(this%nAtom, this%nSpin)
     integer :: iAtom, iSpin
+    logical :: tDFTBU, tImHam
 
-    ham(:,1) = ham0(:)
+    ! left over from Poisson shift upload from transport being messy
+    real(dp), allocatable :: dummy(:,:)
 
+    ham = 0.0_dp
     if (this%nSpin == 2) then
-      ham(:,2) = 0.0_dp
       call ud2qm(qq)
       call ud2qm(q0)
-      call getChargePerShell(qq, orb, this%species, chargePerShell)
     end if
 
-    call clearPotential(potential)
-
-    call this%sccCalc%updateCharges(env, qq, q0, orb, this%species, iNeighbour, img2CentCell)
-    call this%sccCalc%getShiftPerAtom(atomPot(:,1))
-    call this%sccCalc%getShiftPerL(shellPot(:,:,1))
-    potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
-    potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
-
-    ! Build spin contribution (if necessary)
-    if (this%tSpinPol) then
-      call getSpinShift(shellPot, chargePerShell, this%species, orb, W)
-      potential%intShell = potential%intShell + shellPot
+    tDFTBU = .false.
+    if (allocated(UJ)) then
+      if (size(UJ) > 0) then
+        tDFTBU = .true.
+      end if
     end if
+    tImHam = .false. ! for the moment
 
-    call total_shift(potential%intShell, potential%intAtom, orb, this%species)
-    call total_shift(potential%intBlock, potential%intShell, orb, this%species)
+    call resetExternalPotentials(potential)
+    call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
-    !! Add time dependent field if necessary
+    call getChargePerShell(qq, orb, species, chargePerShell)
+    call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, species,&
+        & neighbourList, img2CentCell, spinW, thirdOrd, potential, gammaf, .false., .false., dummy)
+    call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, species, orb, nDftbUFunc, UJ,&
+        & nUJ, iUJ, niUJ, potential)
+
+    ! Add time dependent field if necessary
     if (this%tLaser) then
       do iAtom = 1, this%nAtom
-        potential%extAtom(iAtom, 1) = dot_product(coord(:,iAtom), this%tdFunction(iStep, :))
+        potential%extAtom(iAtom, 1) = dot_product(coord(:,iAtom), this%tdFunction(:, iStep))
       end do
-      call total_shift(potential%extShell, potential%extAtom, orb, this%species)
-      call total_shift(potential%extBlock, potential%extShell, orb, this%species)
-      potential%intShell = potential%intShell + potential%extShell ! for SCC
-      potential%intBlock = potential%intBlock + potential%extBlock ! for forces
+      call total_shift(potential%extShell, potential%extAtom, orb, species)
+      call total_shift(potential%extBlock, potential%extShell, orb, species)
     end if
 
-    call add_shift(ham, over, nNeighbourSK, iNeighbour, this%species, orb, iPair, this%nAtom,&
-        & img2CentCell, potential%intShell)
+    potential%intBlock = potential%intBlock + potential%extBlock
 
+    call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+        & img2CentCell, potential, ham, iHam)
+
+    ! Hack due to not using Pauli-type structure outside of this part of the routine
     if (this%nSpin == 2) then
-      ham(:,:) = 2.0_dp * ham
+      ham = 2.0_dp * ham
       call qm2ud(ham)
       call qm2ud(q0)
     end if
 
     do iSpin=1,this%nSpin
-      call unpackHS(T2,ham(:,iSpin),iNeighbour,nNeighbourSK,iSquare,iPair,img2CentCell)
+      call unpackHS(T2, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK, iSquare,&
+          & iSparseStart, img2CentCell)
       call blockSymmetrizeHS(T2,iSquare)
       H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
     end do
@@ -577,23 +749,9 @@ contains
   end subroutine updateH
 
 
-  !> Clear potential object
-  subroutine clearPotential(potential)
-
-    !> potential acting on the system
-    type(TPotentials), intent(inout) :: potential
-
-    potential%intAtom(:,:) = 0.0_dp
-    potential%intShell(:,:,:) = 0.0_dp
-    potential%intBlock(:,:,:,:) = 0.0_dp
-    potential%extAtom(:,:) = 0.0_dp
-    potential%extShell(:,:,:) = 0.0_dp
-    potential%extBlock(:,:,:,:) = 0.0_dp
-  end subroutine clearPotential
-
-
   !> Kick the density matrix for spectrum calculations
   subroutine kickDM(this, rho, Ssqr, Sinv, iSquare, coord)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
@@ -660,10 +818,13 @@ contains
 
 
   !> Creates array for external TD field
-  subroutine getTDFunction(this)
+  subroutine getTDFunction(this, startTime)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> starting time of the simulation, if relevant
+    real(dp), intent(in) :: startTime
 
     real(dp) :: midPulse, deltaT, angFreq, E0, time, envelope
     real(dp) :: tdfun(3)
@@ -678,7 +839,7 @@ contains
     open(newunit=laserDat, file='laser.dat')
 
     do iStep = 0,this%nSteps
-      time = iStep * this%dt
+      time = iStep * this%dt + startTime
 
       if (this%envType == iTDConstant) then
         envelope = 1.0_dp
@@ -692,12 +853,12 @@ contains
 
       if (this%tEnvFromFile) then
         read(laserDat, *)time, tdfun(1), tdfun(2), tdfun(3)
-        this%tdFunction(iStep, :) = tdfun * (Bohr__AA / Hartree__eV)
+        this%tdFunction(:, iStep) = tdfun * (Bohr__AA / Hartree__eV)
       else
-        this%tdFunction(iStep, :) = E0 * envelope * aimag(Exp(imag*(time*angFreq + this%phase))&
+        this%tdFunction(:, iStep) = E0 * envelope * aimag(exp(imag*(time*angFreq + this%phase))&
              & * this%fieldDir)
         write(laserDat, "(5F15.8)") time * au__fs,&
-            & this%tdFunction(iStep, :) * (Hartree__eV / Bohr__AA)
+            & this%tdFunction(:, iStep) * (Hartree__eV / Bohr__AA)
       end if
 
     end do
@@ -737,136 +898,29 @@ contains
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
 
-    integer :: iAt, iOrb, iSpin, iOrb2
+    integer :: iAt, iSpin, iOrb1, iOrb2
 
     qq = 0.0_dp
-    dipole = 0.0_dp
-
     do iSpin=1, this%nSpin
       do iAt = 1, this%nAtom
-        iOrb = 0
-        do iOrb2 = iSquare(iAt), iSquare(iAt+1)-1
-          iOrb = iOrb + 1
-          ! hermitian transpose used as real part only is needed
-          qq(iOrb,iAt,iSpin) = real(sum(rho(:, iOrb2, iSpin) * Ssqr(:, iOrb2)), dp)
-        end do
-        dipole(:,iSpin) = dipole(:,iSpin)&
-            & + sum(q0(:, iAt, iSpin) - qq(:, iAt, iSpin)) * coord(:, iAt)
+        iOrb1 = iSquare(iAt)
+        iOrb2 = iSquare(iAt+1)-1
+        ! hermitian transpose used as real part only is needed
+        qq(:iOrb2-iOrb1+1,iAt,iSpin) = real(sum(rho(:, iOrb1:iOrb2, iSpin) * Ssqr(:, iOrb1:iOrb2),&
+            & dim=1), dp)
       end do
     end do
 
     deltaQ(:,:) = sum((qq - q0), dim=1)
+    dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
 
   end subroutine getChargeDipole
 
 
-  !> Calculate energy
-  subroutine getTDEnergy(this, energy, rhoPrim, rho, iNeighbour, nNeighbourSK, orb, iSquare, iPair,&
-      & img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont)
-
-    !> ElecDynamics instance
-    type(TElecDynamics), intent(inout) :: this
-
-    !> data type for energy components and total
-    type(TEnergies), intent(inout) :: energy
-
-    !> sparse density matrix
-    real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
-
-    !> Density matrix
-    complex(dp), intent(in) :: rho(:,:,:)
-
-    !> Sparse storage for non-SCC hamitonian
-    real(dp), intent(in) :: ham0(:)
-
-    !> atomic ocupations
-    real(dp), intent(inout) :: qq(:,:,:)
-
-    !> reference atomic occupations
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Atomic neighbour data
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Index array for start of atomic block in dense matrices
-    integer, intent(in) :: iSquare(:)
-
-    !> index array for location of atomic blocks in large sparse arrays
-    integer, intent(in) :: iPair(0:,:)
-
-    !> image atoms to their equivalent in the central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> electrons in each atomi shell
-    real(dp), intent(in) :: chargePerShell(:,:,:)
-
-    !> potential acting on the system
-    type(TPotentials), intent(in) :: potential
-
-    !> atomic coordinates
-    real(dp), intent(in) :: coord(:,:)
-
-    !> repulsive information
-    type(ORepCont), intent(in) :: pRepCont
-
-    integer :: iSpin
-
-    iSpin = 1
-
-    rhoPrim(:,iSpin) = 0.0_dp
-
-    ! should be complex
-    call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), iNeighbour, nNeighbourSK, orb%mOrb,&
-        & iSquare, iPair, img2CentCell)
-
-    energy%ETotal = 0.0_dp
-    energy%EnonSCC = 0.0_dp
-    energy%atomNonSCC(:) = 0.0_dp
-    call mulliken(energy%atomNonSCC(:), rhoPrim(:,1), ham0, orb, iNeighbour, nNeighbourSK,&
-        & img2CentCell, iPair)
-    energy%EnonSCC =  sum(energy%atomNonSCC)
-
-    if (this%tLaser) then
-      energy%atomExt = -sum(q0(:, :, 1) - qq(:, :, 1),dim=1) * potential%extAtom(:,1)
-      energy%Eext =  sum(energy%atomExt)
-    else
-      energy%Eext = 0.0_dp
-      energy%atomExt = 0.0_dp
-    end if
-
-    call this%sccCalc%getEnergyPerAtom(energy%atomSCC)
-    energy%eSCC = sum(energy%atomSCC)
-
-    if (this%nSpin > 1) then
-      energy%atomSpin = 0.5_dp * sum(sum(potential%intShell(:,:,2:this%nSpin)&
-          & * chargePerShell(:,:,2:this%nSpin), dim=1), dim=2)
-      energy%Espin = sum(energy%atomSpin)
-    else
-      energy%atomSpin = 0.0_dp
-      energy%eSpin = 0.0_dp
-    end if
-
-    ! Calculate repulsive energy
-    call getERep(energy%atomRep, coord, nNeighbourSK, iNeighbour, this%species, pRepCont,&
-        & img2CentCell)
-    energy%Erep = sum(energy%atomRep)
-
-    energy%Eelec = energy%EnonSCC + energy%eSCC + energy%Espin + energy%Eext
-    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
-
-  end subroutine getTDEnergy
-
-
   !> Create all necessary matrices and instances for dynamics
-  subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, Hsq, filling,&
-      & orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iPair, img2CentCell, Eiginv,&
-      & EiginvAdj, energy)
+  subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, over, ham, Hsq, filling,&
+      & orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell,&
+      & Eiginv, EiginvAdj, energy)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -883,9 +937,6 @@ contains
     !> occupations
     real(dp), intent(in) :: filling(:,:,:)
 
-    !> Sparse storage for non-SCC hamitonian
-    real(dp), intent(in) :: H0(:)
-
     !> Atomic neighbour data
     integer, intent(in) :: iNeighbour(0:,:)
 
@@ -896,7 +947,7 @@ contains
     integer, intent(in) :: iSquare(:)
 
     !> index array for location of atomic blocks in large sparse arrays
-    integer, intent(in) :: iPair(0:,:)
+    integer, intent(in) :: iSparseStart(0:,:)
 
     !> image atoms to their equivalent in the central cell
     integer, intent(in) :: img2CentCell(:)
@@ -913,9 +964,6 @@ contains
     !> sparse density matrix
     real(dp), allocatable, intent(out) :: rhoPrim(:,:)
 
-    !> Sparse storage for non-SCC hamitonian
-    real(dp), allocatable, intent(out) :: ham0(:)
-
     !> Square overlap matrix
     complex(dp), intent(out) :: Ssqr(:,:)
 
@@ -926,7 +974,7 @@ contains
     complex(dp), intent(out) :: H1(:,:,:)
 
     !> Density matrix
-    complex(dp), intent(out) :: rho(:,:,:)
+    complex(dp), intent(inout) :: rho(:,:,:)
 
     !> Inverse of eigenvectors matrix (for populations)
     complex(dp), allocatable, intent(out), optional :: Eiginv(:,:,:)
@@ -938,17 +986,15 @@ contains
     integer :: iSpin, iOrb, iOrb2
 
     allocate(rhoPrim(size(ham, dim=1), this%nSpin))
-    allocate(ham0(size(H0)))
-    ham0(:) = H0
 
     T2 = 0.0_dp
     T3 = 0.0_dp
-    call unpackHS(T2,over,iNeighbour,nNeighbourSK,iSquare,iPair,img2CentCell)
+    call unpackHS(T2,over,iNeighbour,nNeighbourSK,iSquare,iSparseStart,img2CentCell)
     call blockSymmetrizeHS(T2,iSquare)
     Ssqr(:,:) = cmplx(T2, 0, dp)
 
     do iSpin=1,this%nSpin
-      call unpackHS(T3,ham(:,iSpin),iNeighbour,nNeighbourSK,iSquare,iPair,img2CentCell)
+      call unpackHS(T3,ham(:,iSpin),iNeighbour,nNeighbourSK,iSquare,iSparseStart,img2CentCell)
       call blockSymmetrizeHS(T3,iSquare)
       H1(:,:,iSpin) = cmplx(T3, 0, dp)
       T3 = 0.0_dp
@@ -969,16 +1015,18 @@ contains
     Sinv(:,:) = cmplx(T3, 0, dp)
     write(stdOut,"(A)")'S inverted'
 
-    do iSpin=1,this%nSpin
-      T2 = 0.0_dp
-      call makeDensityMatrix(T2,Hsq(:,:,iSpin),filling(:,1,iSpin))
-      rho(:,:,iSpin) = cmplx(T2, 0, dp)
-      do iOrb = 1, this%nOrbs-1
-        do iOrb2 = iOrb+1, this%nOrbs
-          rho(iOrb, iOrb2, iSpin) = rho(iOrb2, iOrb, iSpin)
+    if (.not.this%tRestart) then
+      do iSpin=1,this%nSpin
+        T2 = 0.0_dp
+        call makeDensityMatrix(T2,Hsq(:,:,iSpin),filling(:,1,iSpin))
+        rho(:,:,iSpin) = cmplx(T2, 0, dp)
+        do iOrb = 1, this%nOrbs-1
+          do iOrb2 = iOrb+1, this%nOrbs
+            rho(iOrb, iOrb2, iSpin) = rho(iOrb2, iOrb, iSpin)
+          end do
         end do
       end do
-    end do
+    end if
 
     call init(potential, orb, this%nAtom, this%nSpin)
     call init(energy, this%nAtom)
@@ -988,8 +1036,9 @@ contains
 
   !> Perfoms a step backwards to boot the dynamics using the Euler algorithm
   subroutine initializePropagator(this, step, rhoOld, rho, H1, Sinv)
+
     !> ElecDynamics instance
-    type(TElecDynamics), intent(in) :: this
+    type(TElecDynamics), intent(inout) :: this
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -1023,7 +1072,7 @@ contains
   subroutine propagateRho(this, rhoOld, rho, H1, Sinv, step)
 
     !> ElecDynamics instance
-    type(TElecDynamics), intent(in) :: this
+    type(TElecDynamics), intent(inout) :: this
 
     !> Density matrix at previous step
     complex(dp), intent(inout) :: rhoOld(:,:)
@@ -1098,7 +1147,6 @@ contains
     character(20) :: dipoleFileName
     character(1) :: strSpin
     integer :: iSpin
-    logical :: exist
 
     if (this%tKick) then
       if (this%currPolDir == 1) then
@@ -1171,24 +1219,37 @@ contains
     !> Name of the file to open
     character(*) :: fileName
 
+    character(30) :: newName
+
+    character(1) :: strCount
+
     logical :: exist=.false.
 
+    integer :: count
+
+    ! changed the append by this block to rename the restarted output
     if (this%tRestart) then
       inquire(file=fileName, exist=exist)
+      count = 1
+      do while (exist)
+        write(strCount,'(i1)') count
+        newName = "rest" // trim(strCount) // "_" // fileName
+        inquire(file=newName, exist=exist)
+        count = count + 1
+     end do
+    else
+      newName = fileName
     end if
 
-    if (exist) then
-      open(newunit=unitName, file=fileName, status="old", position="append", action="write")
-    else
-      open(newunit=unitName, file=fileName, action="write")
-    end if
+    open(newunit=unitName, file=newName, action="write")
+
   end subroutine openFile
 
 
   !> Write to and read from restart files
-  subroutine writeRestart(rho, Ssqr, coord, time, dumpName)
+  subroutine writeRestart(rho, rhoOld, Ssqr, coord, time, dumpName)
 
-    complex(dp), intent(in) :: rho(:,:,:), Ssqr(:,:)
+    complex(dp), intent(in) :: rho(:,:,:), rhoOld(:,:,:), Ssqr(:,:)
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
@@ -1205,16 +1266,19 @@ contains
     else
       open(newunit=dumpBin, file='tddump.bin', form='unformatted', access='stream', action='write')
     end if
-    write(dumpBin) rho, Ssqr, coord, time
+    write(dumpBin) rho, rhoOld, Ssqr, coord, time
     close(dumpBin)
   end subroutine writeRestart
 
 
   !> read a restart file containing density matrix, overlap, coordinates and time step
-  subroutine readRestart(rho, Ssqr, coord, time)
+  subroutine readRestart(rho, rhoOld, Ssqr, coord, time)
 
     !> Density Matrix
     complex(dp), intent(out) :: rho(:,:,:)
+
+    !> Previous density Matrix
+    complex(dp), intent(out) :: rhoOld(:,:,:)
 
     !> Square overlap matrix
     complex(dp), intent(out) :: Ssqr(:,:)
@@ -1228,7 +1292,7 @@ contains
     integer :: dumpBin
 
     open(newunit=dumpBin, file='tddump.bin', form='unformatted', access='stream', action='read')
-    read(dumpBin) rho, Ssqr, coord, time
+    read(dumpBin) rho, rhoOld, Ssqr, coord, time
     close(dumpBin)
 
   end subroutine readRestart
@@ -1273,8 +1337,11 @@ contains
         & iSpin=1, this%nSpin)
 
     if (mod(iStep, this%writeFreq) == 0) then
-      write(qDat, '(*(2x,F25.15))') time * au__fs, -sum(deltaQ),&
-          & (-sum(deltaQ(iAtom,:)), iAtom=1, this%nAtom)
+      write(qDat, "(2X,2F25.15)", advance="no") time * au__fs, -sum(deltaQ)
+      do iAtom = 1, this%nAtom
+        write(qDat, "(F25.15)", advance="no")-sum(deltaQ(iAtom,:))
+      end do
+      write(qDat,*)
     end if
 
   end subroutine writeTDOutputs
@@ -1282,6 +1349,7 @@ contains
 
   !> Initialize matrices for populations
   subroutine tdPopulInit(this, Eiginv, EiginvAdj, HSq, iSpin)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
@@ -1298,7 +1366,7 @@ contains
     integer, intent(in) :: iSpin
 
     real(dp), allocatable :: T2(:,:), T3(:,:)
-    integer :: iOrb, iOrb2
+    integer :: iOrb
 
     allocate(T2(this%nOrbs, this%nOrbs), T3(this%nOrbs, this%nOrbs))
 
@@ -1310,12 +1378,10 @@ contains
     call gesv(T2,T3)
     Eiginv(:, :, iSpin) = cmplx(T3, 0, dp)
 
+    T2(:,:) = transpose(Hsq(:,:,iSpin))
     T3 = 0.0_dp
     do iOrb = 1, this%nOrbs
       T3(iOrb, iOrb) = 1.0_dp
-      do iOrb2 = 1, this%nOrbs
-        T2(iOrb, iOrb2) = Hsq(iOrb2, iOrb, iSpin)
-      end do
     end do
     call gesv(T2,T3)
     EiginvAdj(:, :, iSpin) = cmplx(T3, 0, dp)
@@ -1326,10 +1392,7 @@ contains
 
 
   !> Calculate populations at each time step
-  subroutine getTDPopulations(this, rho, Eiginv, EiginvAdj, T1, populDat, time, iSpin)
-
-    !> ElecDynamics instance
-    type(TElecDynamics), intent(in) :: this
+  subroutine getTDPopulations(rho, Eiginv, EiginvAdj, T1, populDat, time, iSpin)
 
     !> Density Matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -1352,14 +1415,18 @@ contains
     !> Spin index
     integer, intent(in) :: iSpin
 
-    complex(dp) :: T2(this%nOrbs, this%nOrbs)
-    integer :: iOrb
+    real(dp) :: occ(size(T1,dim=2))
+    integer :: ii
 
-    call gemm(T1, Eiginv(:,:,iSpin), rho(:,:,iSpin))
-    call gemm(T2, T1, EiginvAdj(:,:,iSpin))
+    call gemm(T1, rho(:,:,iSpin), EiginvAdj(:,:,iSpin))
+    T1 = transpose(Eiginv(:,:,iSpin)) * T1
 
-    write(populDat(iSpin),'(*(2x,F25.15))') time * au__fs,&
-        & (real(T2(iOrb, iOrb), dp), iOrb=1, this%nOrbs)
+    occ = real(sum(T1,dim=1))
+    write(populDat(iSpin),'(*(2x,F25.15))', advance='no') time * au__fs
+    do ii = 1, size(occ)
+      write(populDat(iSpin),'(*(2x,F25.15))', advance='no')occ(ii)
+    end do
+    write(populDat(iSpin),*)
 
   end subroutine getTDPopulations
 

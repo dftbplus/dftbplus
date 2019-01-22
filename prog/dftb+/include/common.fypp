@@ -25,6 +25,8 @@
 #:set WITH_ARPACK = defined('WITH_ARPACK')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
+#:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
+#:set WITH_POISSON = defined('WITH_POISSON')
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

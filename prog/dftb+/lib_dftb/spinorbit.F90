@@ -38,7 +38,7 @@ contains
     !> returned energy for each atom
     real(dp), intent(out) :: Eatom(:)
 
-    !> Density matrix in Packed format
+    !> Density matrix in dense format
     complex(dp), intent(in) :: rho(:,:)
 
     !> Offset array in the square matrix.
@@ -332,6 +332,9 @@ contains
     speciesPlus(:,:) = 0.0_dp
     do iShell = 1, orb%nShell(iSpecies)
       ll = orb%angShell(iShell, iSpecies)
+      if (ll == 0) then
+        cycle
+      end if
       nOrbShell = 2 * ll + 1
       iOrbStart = orb%posShell(iShell, iSpecies)
       iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
