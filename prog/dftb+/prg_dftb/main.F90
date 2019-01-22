@@ -258,7 +258,7 @@ contains
       if (tCoordsChanged) then
         call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, repCutoff,&
             & skCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
-            & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbourSK,&
+            & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK,&
             & nNeighbourRep, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart,&
             & tPoisson)
       end if
@@ -1001,7 +1001,7 @@ contains
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutOff, repCutOff,&
       & skCutOff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, img2CentCell, iCellVec,&
-      & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nAllOrb, nNeighbourSK,&
+      & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK,&
       & nNeighbourRep, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson)
 
     !> Environment settings
@@ -1054,9 +1054,6 @@ contains
 
     !> Total number of atoms including images
     integer, intent(out) :: nAllAtom
-
-    !> Total number of atomic orbitals including image atoms
-    integer, intent(out) :: nAllOrb
 
     !> Central cell atomic coordinates, folded inside the central cell
     real(dp), intent(out) :: coord0Fold(:,:)
@@ -1115,7 +1112,6 @@ contains
     call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
         & nAllAtom, coord0Fold, species0, mCutOff, rCellVec)
 
-    nAllOrb = sum(orb%nOrbSpecies(species(1:nAllAtom)))
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, skCutOff)
 
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&

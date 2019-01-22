@@ -146,9 +146,6 @@ module initprogram
   !> nr. of orbitals in the system
   integer :: nOrb
 
-  !> nr. of orbitals for all atoms
-  integer :: nAllOrb
-
   !> types of the atoms (nAllAtom)
   integer, allocatable :: species(:)
 
@@ -645,9 +642,6 @@ module initprogram
   !> Produce band.dat
   logical :: tWriteBandDat
 
-  !> write band data in detailed.out
-  logical :: tWriteDetailedOutBands = .true.
-
   !> Should HS (square) be printed?
   logical :: tWriteHS
 
@@ -989,6 +983,10 @@ contains
 
     !> Is the check-sum for charges read externally be used?
     logical :: tSkipChrgChecksum
+
+    !> nr. of orbitals for all atoms
+    integer :: nAllOrb
+
 
     @:ASSERT(input%tInitialized)
 
@@ -1382,24 +1380,6 @@ contains
 
     iDistribFn = input%ctrl%iDistribFn
     tempElec = input%ctrl%tempElec
-
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
-        & input%ctrl%parallelOpts, nIndepHam, tempElec)
-    call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver)
-
-    if (electronicSolver%isElsiSolver) then
-      ! Would be using the ELSI matrix writing mechanism, so set this as always false
-      tWriteHS = .false.
-
-    #:if WITH_ELSI
-      nAllOrb = nOrb
-      if (t2Component) then
-        nAllOrb = 2 * nAllOrb
-      end if
-      call electronicSolver%initElsi(input%ctrl%solver, env, nAllOrb, nEl, iDistribFn,&
-          & tWriteDetailedOutBands, nSpin, nKpoint, input%ctrl%tWriteHS)
-    #:endif
-    end if
 
     tFixEf = input%ctrl%tFixEf
     if (allocated(input%ctrl%Ef)) then
@@ -2251,7 +2231,23 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
+
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
+
+
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
+        & input%ctrl%parallelOpts, nIndepHam, tempElec)
+    call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver)
+
+    if (electronicSolver%isElsiSolver) then
+      ! Would be using the ELSI matrix writing mechanism, so set this as always false
+      tWriteHS = .false.
+      #:if WITH_ELSI
+        call electronicSolver%initElsi(input%ctrl%solver, env, denseDesc%fullSize, nEl, iDistribFn,&
+            & nSpin, nKpoint, input%ctrl%tWriteHS)
+      #:endif
+    end if
+
 
   #:if WITH_TRANSPORT
     if (tLatOpt .and. tNegf) then
@@ -2892,9 +2888,11 @@ contains
   !> Clean up things that do not automatically get removed on going out of scope
   subroutine destructProgramVariables()
 
+  #:if WITH_ELSI
     if (electronicSolver%isElsiSolver) then
       call electronicSolver%finalElsi()
     end if
+  #:endif
 
     if (tProjEigenvecs) then
       call destruct(iOrbRegion)

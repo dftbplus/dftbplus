@@ -162,17 +162,23 @@ module solvers
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nELSI_resets = 0
 
+  #:endif
+
   contains
+
+  #:if WITH_ELSI
 
     procedure :: initElsi => TElectronicSolver_initElsi
     procedure :: resetElsi => TElectronicSolver_resetElsi
     procedure :: finalElsi => TElectronicSolver_finalElsi
-    procedure :: getSolverName => TElectronicSolver_getSolverName
-    procedure, private :: ensurePauliCompatibility => TElectronicSolver_ensurePauliCompatibility
 
   #:endif
 
+    procedure :: getSolverName => TElectronicSolver_getSolverName
+    procedure, private :: ensurePauliCompatibility => TElectronicSolver_ensurePauliCompatibility
+
   end type TElectronicSolver
+
 
   !> Namespace for possible solver methods
   type :: TElectronicSolverTypesEnum
@@ -215,7 +221,7 @@ contains
 
   !> Initialise extra settings relevant to ELSI in the solver data structure
   subroutine TElectronicSolver_initElsi(this, inp, env, nBasisFn, nEl, iDistribFn,&
-      & tWriteDetailedOutBands, nSpin, nKPoint, tWriteHS)
+      & nSpin, nKPoint, tWriteHS)
 
     !> control structure for solvers, including ELSI data
     class(TElectronicSolver), intent(inout) :: this
@@ -234,9 +240,6 @@ contains
 
     !> filling function
     integer, intent(in) :: iDistribFn
-
-    !> Should bands be produced?
-    logical, intent(inout) :: tWriteDetailedOutBands
 
     !> total number of spin channels.
     integer, intent(in) :: nSpin
@@ -274,14 +277,6 @@ contains
       ! ignored by NTPoly:
       this%ELSI_n_state = nBasisFn
     end select
-
-    tWriteDetailedOutBands = .false.
-    ! bands only available for solvers up to ELPA in the list
-    if (any(this%iSolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
-      tWriteDetailedOutBands = .true.
-    end if
 
     ! parallelism with multiple processes
     this%ELSI_parallel = 1
@@ -594,14 +589,19 @@ contains
   subroutine TElectronicSolver_ensurePauliCompatibility(this)
     class(TElectronicSolver), intent(in) :: this
 
-    logical :: tPauliIncompat
+    #:if WITH_ELSI
 
-    tPauliIncompat = this%ELSI_CSR&
-        & .and. any(this%iSolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
-        & electronicSolverTypes%ntpoly])
-    if (tPauliIncompat) then
-      call error("Current solver configuration not avaible for two component complex hamiltonians")
-    end if
+      logical :: tPauliIncompat
+
+      tPauliIncompat = this%ELSI_CSR&
+          & .and. any(this%iSolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+          & electronicSolverTypes%ntpoly])
+      if (tPauliIncompat) then
+        call error("Current solver configuration not avaible for two component complex&
+            & hamiltonians")
+      end if
+
+    #:endif
 
   end subroutine TElectronicSolver_ensurePauliCompatibility
 
