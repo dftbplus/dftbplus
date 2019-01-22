@@ -726,7 +726,7 @@ contains
        call runDynamics(elecDyn, eigvecsReal, ham, H0, species, q0, over, filling, neighbourList,&
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord, spinW,&
             & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, qBlockOut, qiBlockOut,&
-            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam, iAtInCentralRegion, tFixEf, Ef)
+            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam, iAtInCentralRegion, tFixEf, Ef, species0, coord)
     end if
 
 

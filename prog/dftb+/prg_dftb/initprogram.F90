@@ -2886,7 +2886,7 @@ contains
        call error("Electron dynamics does not work with spin shared Fermi levels yet")
      end if
 
-     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, tWriteAutotest, autotestTag)
+     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, speciesName, tWriteAutotest, autotestTag)
 
    end if
 

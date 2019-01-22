@@ -117,8 +117,9 @@ module timeprop_module
     real(dp), allocatable :: tdFunction(:, :), phase
     integer :: nSteps, writeFreq, pertType, envType, spType
     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
-    integer, allocatable :: polDirs(:)
-    logical :: tPopulations
+    integer, allocatable :: species(:), polDirs(:), species0(:)
+    character(mc), allocatable :: speciesName(:)
+    logical :: tPopulations, tSpinPol=.false.
     logical :: tRestart, tWriteRestart, tWriteAutotest
     logical :: tLaser = .false., tKick = .false., tEnvFromFile = .false.
     type(TScc), allocatable :: sccCalc
@@ -139,13 +140,16 @@ contains
 
 
   !> Initialisation of input variables
-  subroutine TElecDynamics_init(this, inp, tWriteAutotest, autotestTag)
+  subroutine TElecDynamics_init(this, inp, speciesName, tWriteAutotest, autotestTag)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
 
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(in) :: inp
+
+    !> label for each atomic chemical species
+    character(mc), allocatable, intent(in) :: speciesName(:)
 
     !> produce tagged output?
     logical, intent(in) :: tWriteAutotest
@@ -167,6 +171,7 @@ contains
     this%phase = inp%phase
     this%writeFreq = inp%writeFreq
     this%restartFreq = inp%restartFreq
+    this%speciesName = speciesName
     allocate(this%sccCalc)
 
     if (inp%envType /= iTDConstant) then
@@ -208,7 +213,7 @@ contains
   subroutine runDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
       & env, tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-      & iAtInCentralRegion, tFixEf, Ef)
+      & iAtInCentralRegion, tFixEf, Ef, species0, coordAll)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -231,8 +236,11 @@ contains
     !> overlap (sparse)
     real(dp), allocatable, intent(inout) :: over(:)
 
-    !> atomic coordinates
+    !> central atomic coordinates
     real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> all atomic coordinates
+    real(dp), allocatable, intent(inout) :: coordAll(:,:)
 
     !> spin constants
     real(dp), allocatable, intent(in) :: spinW(:,:,:)
@@ -310,10 +318,17 @@ contains
     !> from the given number of electrons
     real(dp), intent(inout) :: Ef(:)
 
+    !> species of central atoms
+    integer, intent(in) :: species0(:)
+
     integer :: iPol
     logical :: tWriteAutotest
 
     this%sccCalc = sccCalc
+    allocate(this%species(size(species)))
+    allocate(this%species0(size(species0)))
+    this%species = species
+    this%species0 = species0
 
     this%nSpin = size(ham(:,:), dim=2)
     if (this%nSpin > 1) then
@@ -332,13 +347,13 @@ contains
         call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
             & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
             & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-            & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
+            & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll)
       end do
     else
       call doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList, nNeighbourSK,&
           & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
           & xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-          & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
+          & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll)
     end if
 
   end subroutine runDynamics
@@ -348,7 +363,7 @@ contains
   subroutine doDynamics(this, Hsq, ham, H0, species, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
       & tDualSpinOrbit, xi, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
-      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest)
+      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -373,6 +388,9 @@ contains
 
     !> atomic coordinates
     real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> all atomic coordinates
+    real(dp), allocatable, intent(inout) :: coordAll(:,:)
 
     !> spin constants
     real(dp), allocatable, intent(in) :: spinW(:,:,:)
@@ -480,8 +498,8 @@ contains
         & img2CentCell, Eiginv, EiginvAdj, energy)
 
     ! Calculate repulsive energy
-    call getERep(energy%atomRep, coord, nNeighbourSK, neighbourList%iNeighbour, species, pRepCont,&
-        & img2CentCell)
+    call getERep(energy%atomRep, coordAll, nNeighbourSK, neighbourList%iNeighbour, species,&
+         & pRepCont, img2CentCell)
     energy%Erep = sum(energy%atomRep)
 
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat)
@@ -529,9 +547,7 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-      if (.not. this%tRestart .or. iStep > 0) then
-        call writeTDOutputs(this, dipoleDat, qDat, energyDat, time, energy, dipole, deltaQ, iStep)
-      end if
+      call writeTDOutputs(this, dipoleDat, qDat, energyDat, time, energy, dipole, deltaQ, iStep)
 
       call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
 
