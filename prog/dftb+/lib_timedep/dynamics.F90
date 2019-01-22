@@ -428,7 +428,7 @@ contains
       do iSpin = 1, this%nSpin
         !The following is commented for the fast popagate that considers a real H
         !call scal(H1(:,:,iSpin), imag)
-        call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv, T1,&
+        call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv,&
             & 2.0_dp * this%dt)
         call swap(rhoOld(:,:,iSpin), rho(:,:,iSpin))
 
@@ -1006,23 +1006,21 @@ contains
     !> Time step in atomic units (with sign, to perform step backwards or forwards)
     real(dp), intent(in) :: step
 
-    complex(dp) :: T1(this%nOrbs,this%nOrbs)
     integer :: iSpin
 
     rhoOld(:,:,:) = rho
 
     do iSpin=1,this%nSpin
-      T1 = 0.0_dp
       ! The following line is commented to make the fast propagate work since it needs a real H
       !H1(:,:,iSpin) = imag * H1(:,:,iSpin)
-      call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv, T1, step)
+      call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv, step)
     end do
 
   end subroutine initializePropagator
 
 
   !> Propagate rho, notice that H = iH (coeficients are real)
-  subroutine propagateRho(this, rhoOld, rho, H1, Sinv, T1, step)
+  subroutine propagateRho(this, rhoOld, rho, H1, Sinv, step)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -1038,9 +1036,6 @@ contains
 
     !> Square overlap inverse
     complex(dp), intent(in) :: Sinv(:,:)
-
-    !> Auxiliary matrix
-    complex(dp), intent(out) :: T1(:,:)
 
     !> Time step in atomic units
     real(dp), intent(in) :: step
@@ -1073,8 +1068,8 @@ contains
     !$omp parallel do private(i,j)
     do i=1,this%nOrbs
       do j=1,this%nOrbs
-        rhoOld(i,j) = rhoOld(i,j) + cmplx(0, -step, dp) * (T4R(i,j) + cmplx(0,1,dp) * T5R(i,j)) &
-                      + cmplx(0, step, dp) * conjg(T4R(j,i) + cmplx(0,1,dp) * T5R(j,i))
+        rhoOld(i,j) = rhoOld(i,j) + cmplx(0, -step, dp) * (T4R(i,j) + imag * T5R(i,j)) &
+                      + cmplx(0, step, dp) * conjg(T4R(j,i) + imag * T5R(j,i))
       enddo
     enddo
     !$omp end parallel do
