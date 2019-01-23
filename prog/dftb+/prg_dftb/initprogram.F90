@@ -53,6 +53,7 @@ module initprogram
   use simplealgebra
   use nonscc
   use scc
+  use onsitecorrection
   use h5correction
   use sccinit
   use slakocont
@@ -548,14 +549,21 @@ module initprogram
   integer :: nIneqOrb
 
   !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks
-  !> (if tDFTBU)
+  !> (if tDFTBU or onsite corrections)
   integer :: nMixElements
 
   !> Orbital equivalency for orbital blocks
   integer, allocatable :: iEqBlockDFTBU(:,:,:,:)
 
+  !> Equivalences for onsite block corrections if needed
+  integer, allocatable :: iEqBlockOnSite(:,:,:,:)
+
   !> Orbital equivalency for orbital blocks with spin-orbit
   integer, allocatable :: iEqBlockDFTBULS(:,:,:,:)
+
+  !> Equivalences for onsite block corrections if needed with spin orbit
+  integer, allocatable :: iEqBlockOnSiteLS(:,:,:,:)
+
 
   ! External charges
 
@@ -600,6 +608,14 @@ module initprogram
   !> data structure for 3rd order
   type(ThirdOrder), allocatable :: thirdOrd
 
+  !> Correction to energy from on-site matrix elements
+  real(dp), allocatable :: onSiteElements(:,:,:,:)
+
+  !> Correction to dipole momements on-site matrix elements
+  real(dp), allocatable :: onSiteDipole(:,:)
+
+  !> Should block charges be mixed as well as charges
+  logical :: tMixBlockCharges = .false.
 
   !> Calculate Casida linear response excitations
   logical :: tLinResp
@@ -983,6 +999,8 @@ contains
     !> Is the check-sum for charges read externally be used?
     logical :: tSkipChrgChecksum
 
+    integer :: iSpin
+
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -1134,6 +1152,14 @@ contains
         end do
       end do
     end if
+
+    ! on-site corrections
+    if (allocated(input%ctrl%onSiteElements)) then
+      allocate(onSiteElements(orb%mShell, orb%mShell, 2, nType))
+      onSiteElements(:,:,:,:) = input%ctrl%onSiteElements(:,:,:,:)
+    end if
+
+    tMixBlockCharges = tDFTBU .or. allocated(onSiteElements)
 
     ! DFTB+U parameters
     if (tDFTBU) then
@@ -1391,6 +1417,7 @@ contains
       deallocate(iEqOrbSCC)
       nIneqOrb = maxval(iEqOrbitals)
       nMixElements = nIneqOrb
+
       if (tDFTBU) then
         allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
         allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
@@ -1400,6 +1427,34 @@ contains
         nIneqOrb = maxval(iEqOrbitals)
         deallocate(iEqOrbSpin)
         deallocate(iEqOrbDFTBU)
+      end if
+
+      if (allocated(onSiteElements)) then
+        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+        iEqOrbSpin(:,:,:) = 0.0_dp
+        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
+        iEqOrbDFTBU(:,:,:) = 0.0_dp
+        call Ons_getOrbitalEquiv(iEqOrbDFTBU,orb, species0)
+        call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
+        iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+        nIneqOrb = maxval(iEqOrbitals)
+        deallocate(iEqOrbSpin)
+        deallocate(iEqOrbDFTBU)
+      end if
+
+      if (allocated(onSiteElements)) then
+        ! all onsite blocks are full of unique elements
+        allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        if (tImHam) then
+          allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        end if
+        call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
+        nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
+        if (allocated(iEqBlockOnSiteLS)) then
+          nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
+        end if
+      else if (tDFTBU) then
+        ! only a sub-set of onsite blocks are reduced/expanded
         allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
         call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
         nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
@@ -1412,6 +1467,8 @@ contains
           nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
         end if
       end if
+
+
     else
       nIneqOrb = nOrb
       nMixElements = 0
@@ -1824,7 +1881,12 @@ contains
       tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tCasidaForces .or.&
           & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
 
-      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces)
+      if (allocated(onSiteElements) .and. tLinRespZVect) then
+        call error("Excited state property evaluation currently incompatible with onsite&
+            & corrections")
+      end if
+
+      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
 
     end if
 
@@ -1915,8 +1977,8 @@ contains
         call error("XLBOMD does not work with thermostats yet")
       elseif (tBarostat) then
         call error("XLBOMD does not work with barostats yet")
-      elseif (nSpin /= 1 .or. tDFTBU) then
-        call error("XLBOMD does not work for spin or DFTB+U yet")
+      elseif (nSpin /= 1 .or. tDFTBU .or. allocated(onSiteElements)) then
+        call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
       elseif (forceType /= forceDynT0 .and. forceType /= forceDynT) then
         call error("Force evaluation method incompatible with XLBOMD")
       elseif (iDistribFn /= Fermi) then
@@ -1972,7 +2034,7 @@ contains
     qInput(:,:,:) = 0.0_dp
     qOutput(:,:,:) = 0.0_dp
 
-    if (tDFTBU) then
+    if (tMixBlockCharges) then
       allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
       allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
       qBlockIn(:,:,:,:) = 0.0_dp
@@ -2026,7 +2088,7 @@ contains
         end do
       end do
       if (tReadChrg) then
-        if (tDFTBU) then
+        if (tMixBlockCharges) then
           if (nSpin == 2) then
             if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
               ! do not check charge or magnetisation from file
@@ -2132,7 +2194,7 @@ contains
             end if
           end if
         end select
-        if (tDFTBU) then
+        if (tMixBlockCharges) then
           qBlockIn = 0.0_dp
           do iS = 1, nSpin
             do iAt = 1, nAtom
@@ -2157,13 +2219,19 @@ contains
       qInpRed = 0.0_dp
       if (nSpin == 2) then
         call qm2ud(qInput)
-        if (tDFTBU) then
+        if (tMixBlockCharges) then
           call qm2ud(qBlockIn)
         end if
       end if
 
       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
-      if (tDFTBU) then
+
+      if (allocated(onSiteElements)) then
+        call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
+        if (tImHam) then
+          call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, skew=.true. )
+        end if
+      else if (tDFTBU) then
         call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
         if (tImHam) then
           call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
@@ -2172,7 +2240,7 @@ contains
 
       if (nSpin == 2) then
         call ud2qm(qInput)
-        if (tDFTBU) then
+        if (tMixBlockCharges) then
           call ud2qm(qBlockIn)
         end if
       end if
@@ -2492,6 +2560,9 @@ contains
         write(stdOut, "(A,':',T35,A)")"Orbitally dependant functional", "Yes"
         write(stdOut, "(A,':',T30,A)")"Orbital functional", trim(plusUFunctionals%names(nDFTBUfunc))
       end if
+      if (allocated(onSiteElements)) then
+        write(stdOut, "(A,':',T35,A)")"On-site corrections", "Yes"
+      end if
     else
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "No"
     end if
@@ -2776,6 +2847,15 @@ contains
     if (tPrintForces .and. .not. (tMD .or. tGeoOpt .or. tDerivs)) then
       write(stdOut, "(T30,A)") "Force calculation"
     end if
+    select case (forceType)
+    case(forceOrig)
+      write(stdOut, "(A,T30,A)") "Force type", "original"
+    case(forceDynT0)
+      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
+      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
+    case(forceDynT)
+      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
+    end select
     if (tPrintEigVecs) then
       write(stdOut, "(T30,A)") "Eigenvector printing"
     end if
@@ -2809,18 +2889,34 @@ contains
           end do
         end if
       end do
-
     end if
 
-    select case (forceType)
-    case(forceOrig)
-      write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceDynT0)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
-      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(forceDynT)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
-    end select
+    tFirst = .true.
+    if (allocated(onSiteElements)) then
+      do iSp = 1, nType
+        do iSpin = 1, 2
+          if (iSpin == 1) then
+            write(strTmp2, "(A,':')") "uu"
+          else
+            write(strTmp2, "(A,':')") "ud"
+          end if
+          do jj = 1, orb%nShell(iSp)
+            do kk = 1, orb%nShell(iSp)
+              if (tFirst) then
+                write(strTmp, "(A,':')") "On-site coupling constants"
+                tFirst = .false.
+              else
+                write(strTmp, "(A)") ""
+              end if
+              write(stdOut, "(A,T30,A5,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
+                  & trim(speciesName(iSp))//trim(strTmp2), jj,&
+                  & orbitalNames(orb%angShell(jj, iSp)+1), kk,&
+                  & orbitalNames(orb%angShell(kk, iSp)+1), onSiteElements(kk, jj, iSpin, iSp)
+            end do
+          end do
+        end do
+      end do
+    end if
 
     if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")

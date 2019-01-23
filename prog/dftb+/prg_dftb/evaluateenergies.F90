@@ -26,6 +26,7 @@ module evaluateenergies
   use thirdorder_module, only : ThirdOrder
   use environment, only : TEnvironment
   use scc, only : TScc
+  use onsitecorrection
 
   implicit none
 
@@ -38,7 +39,7 @@ contains
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tEField, tXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
       & cellVol, extPressure, TS, potential, energy, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ,&
-      & nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef)
+      & nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -140,6 +141,9 @@ contains
     !> from the given number of electrons
     real(dp), intent(inout) :: Ef(:)
 
+    !> Corrections terms for on-site elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
     integer :: nSpin
     real(dp) :: nEl(2)
 
@@ -178,6 +182,11 @@ contains
       energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
     end if
 
+    if (allocated(onSiteElements)) then
+      call getEons(energy%atomOnSite, qBlock, qiBlock, q0, onSiteElements, species, orb)
+      energy%eOnSite = sum(energy%atomOnSite)
+    end if
+
     if (tDftbU) then
       if (allocated(qiBlock)) then
         call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ,&
@@ -195,9 +204,9 @@ contains
     end if
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd
+        & + energy%Eext + energy%e3rd + energy%eOnSite
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-        & + energy%atomLS + energy%atomExt + energy%atom3rd
+        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
     energy%EMermin = energy%Etotal - sum(TS)
