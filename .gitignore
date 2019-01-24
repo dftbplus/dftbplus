@@ -15,3 +15,6 @@ test/prog/dftb+/transtests
 test/prog/dftb+/alltests
 RELEASE
 srun.sh
+doc/dftb+/manual/*
+!doc/dftb+/manual/*.tex
+!doc/dftb+/manual/Fig*

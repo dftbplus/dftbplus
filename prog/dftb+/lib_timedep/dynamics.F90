@@ -522,7 +522,6 @@ contains
       end do
     end if
 
-    !call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
     if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
       qiBlock(:,:,:,:) = 0.0_dp
@@ -533,13 +532,14 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
     end if
-    qq(:,:,:) = 0.0_dp
-    do iSpin = 1, this%nSpin
-      call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
-          & nNeighbourSK, img2CentCell, iSparseStart)
-    end do
-    deltaQ(:,:) = sum((qq - q0), dim=1)
-    dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
+    call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
+    !qq(:,:,:) = 0.0_dp
+    !do iSpin = 1, this%nSpin
+    !  call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+    !      & nNeighbourSK, img2CentCell, iSparseStart)
+    !end do
+    !deltaQ(:,:) = sum((qq - q0), dim=1)
+    !dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
 
     call updateH(this, H1, ham, over, H0, species, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
@@ -590,7 +590,10 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-      call writeTDOutputs(this, dipoleDat, qDat, energyDat, time, energy, dipole, deltaQ, iStep)
+      if (iStep > 0) then
+        call writeTDOutputs(this, dipoleDat, qDat, energyDat, time-this%dt, energy, dipole, deltaQ,&
+           & iStep-1)
+      end if
 
       rhoPrim(:,:) = 0.0_dp
       if (allocated(iRhoPrim)) then
@@ -607,7 +610,6 @@ contains
         end do
       end if
 
-      !call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
       if (allocated(qBlock)) then
         qBlock(:,:,:,:) = 0.0_dp
         qiBlock(:,:,:,:) = 0.0_dp
@@ -618,13 +620,14 @@ contains
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
         end do
       end if
-      qq(:,:,:) = 0.0_dp
-      do iSpin = 1, this%nSpin
-        call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
-            & nNeighbourSK, img2CentCell, iSparseStart)
-      end do
-      deltaQ(:,:) = sum((qq - q0), dim=1)
-      dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
+      call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare)
+      !qq(:,:,:) = 0.0_dp
+      !do iSpin = 1, this%nSpin
+      !  call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+      !      & nNeighbourSK, img2CentCell, iSparseStart)
+      !end do
+      !deltaQ(:,:) = sum((qq - q0), dim=1)
+      !dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
 
       call updateH(this, H1, ham, over, H0, species, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
