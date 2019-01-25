@@ -200,6 +200,8 @@ timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/C60_triplet                   #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/NO_onsite                     #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/GNR_periodic                     #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/CH3_dftbu_singlet                     #? OMP_THREADS == 1 and not WITH_MPI
 
 transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
