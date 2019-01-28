@@ -77,5 +77,24 @@
 #{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
 #:enddef
 
+
+#! Creates a stub subroutine with given arguments which calls raises an error.
+#!
+#! Args:
+#!     NAME: Name of the stub subroutine to create.
+#!     ARGTYPES: List of subroutine argument types.
+#!
+#:def STUB_SUBROUTINE(NAME, ARGTYPES)
+#:set args = ["arg{}".format(iarg + 1) for iarg in range(len(ARGTYPES))]
+subroutine ${NAME}$(${", ".join(args)}$)
+    use message, only : error
+#:for iarg, argtype in enumerate(ARGTYPES)
+  ${argtype}$ :: arg${iarg + 1}$
+#:endfor
+  call error("Unsupported call: " // "${NAME}$" // "() called in a build missing the necessary&
+      & component")
+end subroutine ${NAME}$
+#:enddef
+
+
 #:endmute
-        

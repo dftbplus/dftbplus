@@ -17,10 +17,8 @@ module eigenvects
   use solvertypes
 #:if WITH_SCALAPACK
   use scalapackfx
-#:if WITH_ELSI
-  use ELSI
 #:endif
-#:endif
+  use elsiiface
   use parallelks
   use solvers
   implicit none

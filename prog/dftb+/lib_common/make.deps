@@ -88,17 +88,10 @@ _mod_schedule: schedule.o
 _mod_schedule = $(schedule.o)
 #:endif
 
-#:if WITH_ELSI
-solvers.o: _mod_message _mod_environment common.fypp _mod_accuracy _mod_elsi
-solvers.o = solvers.o $(_mod_message) $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_elsi)
+solvers.o: _mod_message _mod_environment common.fypp _mod_accuracy _mod_elsiiface
+solvers.o = solvers.o $(_mod_message) $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_elsiiface)
 _mod_solvers: solvers.o
 _mod_solvers = $(solvers.o)
-#:else
-solvers.o: _mod_message _mod_environment common.fypp _mod_accuracy
-solvers.o = solvers.o $(_mod_message) $(_mod_environment) $(common.fypp) $(_mod_accuracy)
-_mod_solvers: solvers.o
-_mod_solvers = $(solvers.o)
-#:endif
 
 timer.o: _mod_globalenv
 timer.o = timer.o $(_mod_globalenv)

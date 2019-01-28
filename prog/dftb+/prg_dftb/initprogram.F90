@@ -15,11 +15,8 @@ module initprogram
   use globalenv
   use environment
   use scalapackfx
-#:if WITH_ELSI
-  use ELSI
-#:endif
   use solvers
-  use elsiInterface
+  use elsiiface
   use inputdata_module
   use densedescr
   use solvertypes

@@ -41,7 +41,7 @@ module parser
 #:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
-  use elsiInterface
+  use elsiiface
   use solvers, only : electronicSolverTypes
   use wrappedintrinsics
 #:if WITH_TRANSPORT

@@ -15,10 +15,8 @@ module main
 #:if WITH_SCALAPACK
   use scalapackfx
   use scalafxext
-#:if WITH_ELSI
-  use elsi
 #:endif
-#:endif
+  use elsiiface
   use solvers
   use assert
   use constants

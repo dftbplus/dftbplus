@@ -21,9 +21,7 @@ module sparse2sparse
 #:if WITH_MPI
   use mpifx
 #:endif
-#:if WITH_ELSI
-  use elsi
-#:endif
+  use elsiiface
   implicit none
 
   private

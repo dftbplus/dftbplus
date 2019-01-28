@@ -12,9 +12,7 @@ module solvers
   use accuracy
   use message
   use environment
-#:if WITH_ELSI
-  use ELSI
-#:endif
+  use elsiiface
   implicit none
 
   private
