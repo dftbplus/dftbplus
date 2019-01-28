@@ -1786,54 +1786,50 @@ contains
     ! Electronic solver
     call getChildValue(node, "Eigensolver", value, "RelativelyRobust")
     call getNodeName(value, buffer)
+
     select case(char(buffer))
+
     case ("qr")
       ctrl%solver%isolver = electronicSolverTypes%qr
+
     case ("divideandconquer")
       ctrl%solver%isolver = electronicSolverTypes%divideandconquer
+
     case ("relativelyrobust")
       ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
 
     case ("elpa")
-
       ctrl%solver%isolver = electronicSolverTypes%elpa
-    #:if WITH_ELSI
-      call getChildValue(value, "Mode", ctrl%solver%ELPA_Solver, 2)
-    #:endif
+      allocate(ctrl%solver%elsi)
+      call getChildValue(value, "Mode", ctrl%solver%elsi%ELPA_Solver, 2)
 
     case ("omm")
-
       ctrl%solver%isolver = electronicSolverTypes%omm
-    #:if WITH_ELSI
-      call getChildValue(value, "nIterationsELPA", ctrl%solver%OMM_IterationsELPA, 5)
-      call getChildValue(value, "Tolerance", ctrl%solver%OMM_Tolerance, 1.0E-10_dp)
-      call getChildValue(value, "Choleskii", ctrl%solver%OMM_Choleskii, .true.)
-    #:endif
+      allocate(ctrl%solver%elsi)
+      call getChildValue(value, "nIterationsELPA", ctrl%solver%elsi%OMM_IterationsELPA, 5)
+      call getChildValue(value, "Tolerance", ctrl%solver%elsi%OMM_Tolerance, 1.0E-10_dp)
+      call getChildValue(value, "Choleskii", ctrl%solver%elsi%OMM_Choleskii, .true.)
 
     case ("pexsi")
-
       ctrl%solver%isolver = electronicSolverTypes%pexsi
-    #:if WITH_ELSI
-      call getChildValue(value, "Poles", ctrl%solver%PEXSI_n_pole, 20)
-      call getChildValue(value, "ProcsPerPole", ctrl%solver%PEXSI_np_per_pole, 1)
-      call getChildValue(value, "muPoints", ctrl%solver%PEXSI_n_mu, 2)
-      call getChildValue(value, "SymbolicFactorProcs", ctrl%solver%PEXSI_np_symbo, 1)
-      call getChildValue(value, "SpectralRadius", ctrl%solver%PEXSI_delta_e, 10.0_dp,&
+      allocate(ctrl%solver%elsi)
+      call getChildValue(value, "Poles", ctrl%solver%elsi%PEXSI_n_pole, 20)
+      call getChildValue(value, "ProcsPerPole", ctrl%solver%elsi%PEXSI_np_per_pole, 1)
+      call getChildValue(value, "muPoints", ctrl%solver%elsi%PEXSI_n_mu, 2)
+      call getChildValue(value, "SymbolicFactorProcs", ctrl%solver%elsi%PEXSI_np_symbo, 1)
+      call getChildValue(value, "SpectralRadius", ctrl%solver%elsi%PEXSI_delta_e, 10.0_dp,&
           & modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, ctrl%solver%PEXSI_delta_e)
-    #:endif
+      call convertByMul(char(modifier), energyUnits, child, ctrl%solver%elsi%PEXSI_delta_e)
 
     case ("ntpoly")
-
       ctrl%solver%isolver = electronicSolverTypes%ntpoly
-    #:if WITH_ELSI
+      allocate(ctrl%solver%elsi)
       if (ctrl%tSpin) then
         call detailedError(value, "Solver does not currently support spin polarisation")
       end if
-      call getChildValue(value, "PurificationMethod", ctrl%solver%NTPoly_method, 2)
-      call getChildValue(value, "Tolerance", ctrl%solver%NTPoly_tolerance, 1.0E-5_dp)
-      call getChildValue(value, "Truncation", ctrl%solver%NTPoly_truncation, 1.0E-10_dp)
-    #:endif
+      call getChildValue(value, "PurificationMethod", ctrl%solver%elsi%NTPoly_method, 2)
+      call getChildValue(value, "Tolerance", ctrl%solver%elsi%NTPoly_tolerance, 1.0E-5_dp)
+      call getChildValue(value, "Truncation", ctrl%solver%elsi%NTPoly_truncation, 1.0E-10_dp)
 
   #:if WITH_TRANSPORT
     case ("greensfunction")
@@ -1863,6 +1859,7 @@ contains
 
     case default
       call detailedError(value, "Unknown electronic solver")
+
     end select
 
     if ((ctrl%solver%isolver == electronicSolverTypes%omm .or.&
@@ -1880,16 +1877,14 @@ contains
       end if
     end if
 
-  #:if WITH_ELSI
     if (any(ctrl%solver%isolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])) then
-      call getChildValue(value, "Sparse", ctrl%solver%ELSI_CSR, .false.)
+      call getChildValue(value, "Sparse", ctrl%solver%elsi%ELSI_CSR, .false.)
       if (ctrl%t2Component) then
         call detailedError(value,"Two-component hamiltonians currently cannot be used with sparse&
             & ELSI solvers")
       end if
     end if
-  #:endif
 
   #:if WITH_TRANSPORT
     if (all(ctrl%solver%isolver /= [electronicSolverTypes%GF,electronicSolverTypes%OnlyTransport])&

@@ -26,16 +26,12 @@ module sparse2sparse
 
   private
   public :: TSparse2Sparse
-#:if WITH_ELSI
   public :: initSparse2Sparse
   public :: calcDensityRealElsi, getEDensityRealElsi
   public :: calcDensityComplexElsi, getEDensityComplexElsi
-#:endif
 
   !> data type for indexing transformation from DFTB+ compressed block to CSR
   type :: TSparse2Sparse
-
-  #:if WITH_ELSI
 
     logical :: tInit = .false.
 
@@ -69,11 +65,8 @@ module sparse2sparse
     !> Count of the atoms with elements in the columns held locally
     integer :: nAtomsInColumns
 
-  #:endif
-
   end type TSparse2Sparse
 
-#:if WITH_ELSI
 
 #:set FLAVOURS = [('real'), ('complex')]
 
@@ -89,11 +82,7 @@ module sparse2sparse
   #:endfor
   end interface cpElsi2Block
 
-#:endif
-
 contains
-
-#:if WITH_ELSI
 
 
   subroutine initSparse2Sparse(self, env, electronicSolver, iNeighbour, nNeighbourSK, iAtomStart,&
@@ -136,13 +125,13 @@ contains
       deallocate(self%atomsInColumns)
     end if
 
-    numCol = electronicSolver%ELSI_n_basis
+    numCol = electronicSolver%elsi%n_basis
 
-    self%colStartLocal = env%mpi%groupComm%rank * electronicSolver%ELSI_CSR_blockSize + 1
+    self%colStartLocal = env%mpi%groupComm%rank * electronicSolver%elsi%CSR_blockSize + 1
     if (env%mpi%groupComm%rank /= env%mpi%groupComm%size - 1) then
-      self%numColLocal = electronicSolver%ELSI_CSR_blockSize
+      self%numColLocal = electronicSolver%elsi%CSR_blockSize
     else
-      self%numColLocal = numCol - (env%mpi%groupComm%size - 1) * electronicSolver%ELSI_CSR_blockSize
+      self%numColLocal = numCol - (env%mpi%groupComm%size - 1) * electronicSolver%elsi%CSR_blockSize
     end if
     self%colEndLocal = self%colStartLocal + self%numColLocal - 1
 
@@ -289,7 +278,7 @@ contains
       call pack2elsi_real(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, self%colStartLocal, self%colEndLocal, self%colPtrLocal, SnzValLocal,&
           & self%rowIndLocal)
-      call elsi_set_csc(electronicSolver%elsiHandle, self%nnzGlobal, self%nnzLocal,&
+      call elsi_set_csc(electronicSolver%elsi%handle, self%nnzGlobal, self%nnzLocal,&
           & self%numColLocal, self%rowIndLocal, self%colPtrLocal)
     else
       call pack2elsi_real(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
@@ -301,21 +290,21 @@ contains
         & iSparseStart, img2CentCell, self%colStartLocal, self%colEndLocal, self%colPtrLocal,&
         & HnzValLocal)
 
-    if (electronicSolver%ELSI_tWriteHS) then
+    if (electronicSolver%elsi%tWriteHS) then
       ! set up for sparse matrix writing
-      call elsi_set_rw_csc(electronicSolver%ELSI_rwHandle, self%nnzGlobal, self%nnzLocal,&
+      call elsi_set_rw_csc(electronicSolver%elsi%rwHandle, self%nnzGlobal, self%nnzLocal,&
           & self%numColLocal)
 
-      call elsi_write_mat_real_sparse(electronicSolver%ELSI_rwHandle, "ELSI_HrealSparse.bin",&
+      call elsi_write_mat_real_sparse(electronicSolver%elsi%rwHandle, "ELSI_HrealSparse.bin",&
           & self%rowIndLocal, self%colPtrLocal, HnzValLocal)
-      call elsi_write_mat_real_sparse(electronicSolver%ELSI_rwHandle, "ELSI_SrealSparse.bin",&
+      call elsi_write_mat_real_sparse(electronicSolver%elsi%rwHandle, "ELSI_SrealSparse.bin",&
           & self%rowIndLocal, self%colPtrLocal, SnzValLocal)
-      call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+      call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
       call cleanShutdown("Finished matrix write")
     end if
 
     ! Load the matrix into ELSI and solve DM
-    call elsi_dm_real_sparse(electronicSolver%elsiHandle, HnzValLocal, SnzValLocal, DMnzValLocal,&
+    call elsi_dm_real_sparse(electronicSolver%elsi%handle, HnzValLocal, SnzValLocal, DMnzValLocal,&
         & Eband(iS))
 
     ! get DM back into DFTB+ format
@@ -364,7 +353,7 @@ contains
     allocate(EDMnzValLocal(self%nnzLocal))
 
     ! get the energy weighted density matrix from ELSI
-    call elsi_get_edm_real_sparse(electronicSolver%elsiHandle, EDMnzValLocal)
+    call elsi_get_edm_real_sparse(electronicSolver%elsi%handle, EDMnzValLocal)
 
     ! get EDM back into DFTB+ format
     erho(:) = 0.0_dp
@@ -452,7 +441,7 @@ contains
       call pack2elsi_cmplx(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
           & img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal, self%colEndLocal,&
           & self%colPtrLocal, SnzValLocal, self%rowIndLocal)
-      call elsi_set_csc(electronicSolver%elsiHandle, self%nnzGlobal, self%nnzLocal,&
+      call elsi_set_csc(electronicSolver%elsi%handle, self%nnzGlobal, self%nnzLocal,&
           & self%numColLocal, self%rowIndLocal, self%colPtrLocal)
     else
       call pack2elsi_cmplx(self, over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
@@ -465,21 +454,21 @@ contains
         & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, self%colStartLocal,&
         & self%colEndLocal, self%colPtrLocal, HnzValLocal)
 
-    if (electronicSolver%ELSI_tWriteHS) then
+    if (electronicSolver%elsi%tWriteHS) then
       ! set up for sparse matrix writing
-      call elsi_set_rw_csc(electronicSolver%ELSI_rwHandle, self%nnzGlobal, self%nnzLocal,&
+      call elsi_set_rw_csc(electronicSolver%elsi%rwHandle, self%nnzGlobal, self%nnzLocal,&
           & self%numColLocal)
 
-      call elsi_write_mat_complex_sparse(electronicSolver%ELSI_rwHandle, "ELSI_HcmplxSparse.bin",&
+      call elsi_write_mat_complex_sparse(electronicSolver%elsi%rwHandle, "ELSI_HcmplxSparse.bin",&
           & self%rowIndLocal, self%colPtrLocal, HnzValLocal)
-      call elsi_write_mat_complex_sparse(electronicSolver%ELSI_rwHandle, "ELSI_ScmplxSparse.bin",&
+      call elsi_write_mat_complex_sparse(electronicSolver%elsi%rwHandle, "ELSI_ScmplxSparse.bin",&
           & self%rowIndLocal, self%colPtrLocal, SnzValLocal)
-      call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+      call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
       call cleanShutdown("Finished matrix write")
     end if
 
     ! Load the matrix into ELSI and solve DM
-    call elsi_dm_complex_sparse(electronicSolver%elsiHandle, HnzValLocal, SnzValLocal,&
+    call elsi_dm_complex_sparse(electronicSolver%elsi%handle, HnzValLocal, SnzValLocal,&
         & DMnzValLocal, Eband(iS))
 
     ! get DM back into DFTB+ format
@@ -540,7 +529,7 @@ contains
     allocate(EDMnzValLocal(self%nnzLocal))
 
     ! get the energy weighted density matrix from ELSI
-    call elsi_get_edm_complex_sparse(electronicSolver%elsiHandle, EDMnzValLocal)
+    call elsi_get_edm_complex_sparse(electronicSolver%elsi%handle, EDMnzValLocal)
 
     ! get EDM back into DFTB+ format
     erho(:) = 0.0_dp
@@ -974,6 +963,7 @@ contains
   end function isColumnInLocal
 
 #:for SUFFIX in FLAVOURS
+
   !> Add the content of a local matrix block to ELSI CSC format
   subroutine addBlock2Elsi${SUFFIX}$(loc, colStart, colEnd, ii, jj, colptr, rowOffset, val,&
       & rowIndLocal)
@@ -1238,6 +1228,7 @@ contains
 
 
 #:for SUFFIX in FLAVOURS
+
   !> Copies the content from the ELSI structure to block
   subroutine cpElsi2Block${SUFFIX}$(colStart, colEnd, colptr, nzval, jj, blockRow, loc)
 
@@ -1274,9 +1265,8 @@ contains
     end do
 
   end subroutine cpElsi2Block${SUFFIX}$
-#:endfor
 
-#:endif
+#:endfor
 
 
 end module sparse2sparse

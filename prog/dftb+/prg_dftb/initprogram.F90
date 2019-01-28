@@ -2239,10 +2239,8 @@ contains
     if (electronicSolver%isElsiSolver) then
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       tWriteHS = .false.
-      #:if WITH_ELSI
-        call electronicSolver%initElsi(input%ctrl%solver, env, denseDesc%fullSize, nEl, iDistribFn,&
-            & nSpin, nKpoint, input%ctrl%tWriteHS)
-      #:endif
+      call electronicSolver%initElsi(input%ctrl%solver, env, denseDesc%fullSize, nEl, iDistribFn,&
+          & nSpin, nKpoint, input%ctrl%tWriteHS)
     end if
 
 
@@ -2885,11 +2883,9 @@ contains
   !> Clean up things that do not automatically get removed on going out of scope
   subroutine destructProgramVariables()
 
-  #:if WITH_ELSI
     if (electronicSolver%isElsiSolver) then
       call electronicSolver%finalElsi()
     end if
-  #:endif
 
     if (tProjEigenvecs) then
       call destruct(iOrbRegion)
@@ -3399,11 +3395,9 @@ contains
 
     ! If only H/S should be printed, no allocation for square HS is needed
     tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
-  #:if WITH_ELSI
-    if (electronicSolver%ELSI_CSR) then
-      tLargeDenseMatrices = .false.
+    if (electronicSolver%isElsiSolver) then
+      tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%CSR
     end if
-  #:endif
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)

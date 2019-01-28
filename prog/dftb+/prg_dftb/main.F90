@@ -230,14 +230,12 @@ contains
       electronicSolver%tCholeskiiDecomposed(:) = .false.
     #:endif
 
-    #:if WITH_ELSI
-      if (electronicSolver%tUsingELSI) then
+      if (electronicSolver%isElsiSolver) then
         ! as each spin and k-point combination forms a separate group for this solver, iKS = 1
         iKS = 1
         call electronicSolver%resetELSI( tempElec, parallelKS%localKS(2, iKS),&
             & parallelKS%localKS(1, iKS), kWeight(parallelKS%localKS(1, iKS)))
       end if
-    #:endif
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
@@ -272,12 +270,10 @@ contains
         call reset(pChrgMixer, nMixElements)
       end if
 
-    #:if WITH_ELSI
-      if (electronicSolver%tUsingELSI .and. .not. tLargeDenseMatrices) then
+      if (electronicSolver%isElsiSolver .and. .not. tLargeDenseMatrices) then
         call initSparse2Sparse(sparseIndexing, env, electronicSolver, neighbourList%iNeighbour,&
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
-    #:endif
 
       call env%globalTimer%startTimer(globalTimers%sparseH0S)
       call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbourSK, neighbourList%iNeighbour,&
@@ -322,21 +318,19 @@ contains
         exit lpGeomOpt
       end if
 
-    #:if  WITH_ELSI
       if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
         ! update Delta V ranges here for PEXSI
         if (tSccCalc) then
-          if (.not.allocated(electronicSolver%ELSI_PEXSI_VOld)) then
-            allocate(electronicSolver%ELSI_PEXSI_VOld(size(potential%intBlock(:,:,:,1))))
+          if (.not.allocated(electronicSolver%elsi%PEXSI_VOld)) then
+            allocate(electronicSolver%elsi%PEXSI_VOld(size(potential%intBlock(:,:,:,1))))
           end if
-          electronicSolver%ELSI_PEXSI_VOld = reshape( &
+          electronicSolver%elsi%PEXSI_VOld = reshape( &
               & potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
               & [size(potential%extBlock(:,:,:,1))] )
         end if
-        electronicSolver%ELSI_PEXSI_DeltaVmin = 0.0_dp
-        electronicSolver%ELSI_PEXSI_DeltaVmax = 0.0_dp
+        electronicSolver%elsi%PEXSI_DeltaVmin = 0.0_dp
+        electronicSolver%elsi%PEXSI_DeltaVmax = 0.0_dp
       end if
-    #:endif
 
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
           & tNegf)
@@ -372,24 +366,22 @@ contains
         ! All potentials are added up into intBlock
         potential%intBlock = potential%intBlock + potential%extBlock
 
-      #:if  WITH_ELSI
         if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
           ! update Delta V ranges here for PEXSI
           if (tSccCalc) then
-            electronicSolver%ELSI_PEXSI_DeltaVmin =&
-                & minval(electronicSolver%ELSI_PEXSI_VOld&
+            electronicSolver%elsi%PEXSI_DeltaVmin =&
+                & minval(electronicSolver%elsi%PEXSI_VOld&
                 & -reshape(potential%intBlock(:,:,:,1)+potential%extBlock(:,:,:,1),&
                 & [size(potential%extBlock(:,:,:,1))]))
-            electronicSolver%ELSI_PEXSI_DeltaVmax =&
-                & maxval(electronicSolver%ELSI_PEXSI_VOld&
+            electronicSolver%elsi%PEXSI_DeltaVmax =&
+                & maxval(electronicSolver%elsi%PEXSI_VOld&
                 & -reshape(potential%intBlock(:,:,:,1)+potential%extBlock(:,:,:,1),&
                 & [size(potential%extBlock(:,:,:,1))]))
-            electronicSolver%ELSI_PEXSI_VOld = reshape( &
+            electronicSolver%elsi%PEXSI_VOld = reshape( &
                 & potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
                 & [size(potential%extBlock(:,:,:,1))] )
           end if
         end if
-      #:endif
 
         ! Compute the SCC Hamiltonian
         call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
@@ -2048,17 +2040,14 @@ contains
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
-    #:if WITH_ELSI
       call getDensityFromElsi(env, denseDesc, ham, over, neighbourList, nNeighbourSK, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, electronicSolver,&
           & tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken,&
           & iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, eigen, filling, rhoPrim, Eband,&
           & TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx,&
           & SSqrCplx, eigvecsCplx, tLargeDenseMatrices, sparseIndexing)
-    #:else
-      call error("Internal error : getDensity : ELSI solver although compiled without ELSI")
-   #:endif
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+
     end select
 
   end subroutine getDensity
@@ -2258,8 +2247,6 @@ contains
   end subroutine getDensityFromDenseDiag
 
 
-#:if WITH_ELSI
-
   !> Returns the density matrix using ELSI non-diagonalisation routines.
   subroutine getDensityFromElsi(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
@@ -2428,10 +2415,10 @@ contains
     end if
 
     if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
-      call elsi_set_pexsi_mu_min(electronicSolver%elsiHandle,&
-          & electronicSolver%ELSI_PEXSI_mu_min + electronicSolver%ELSI_PEXSI_DeltaVmin)
-      call elsi_set_pexsi_mu_max(electronicSolver%elsiHandle,&
-          & electronicSolver%ELSI_PEXSI_mu_max + electronicSolver%ELSI_PEXSI_DeltaVmax)
+      call elsi_set_pexsi_mu_min(electronicSolver%elsi%handle,&
+          & electronicSolver%elsi%PEXSI_mu_min + electronicSolver%elsi%PEXSI_DeltaVmin)
+      call elsi_set_pexsi_mu_max(electronicSolver%elsi%handle,&
+          & electronicSolver%elsi%PEXSI_mu_max + electronicSolver%elsi%PEXSI_DeltaVmax)
     end if
 
     if (nSpin /= 4) then
@@ -2474,17 +2461,17 @@ contains
     Ef(:) = 0.0_dp
     TS(:) = 0.0_dp
     if (env%mpi%tGroupMaster) then
-      call elsi_get_mu(electronicSolver%elsiHandle, Ef(iS))
-      call elsi_get_entropy(electronicSolver%elsiHandle, TS(iS))
+      call elsi_get_mu(electronicSolver%elsi%handle, Ef(iS))
+      call elsi_get_entropy(electronicSolver%elsi%handle, TS(iS))
     end if
     call mpifx_allreduceip(env%mpi%globalComm, Ef, MPI_SUM)
     call mpifx_allreduceip(env%mpi%globalComm, TS, MPI_SUM)
 
     if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
-      call elsi_get_pexsi_mu_min(electronicSolver%elsiHandle,&
-          & electronicSolver%ELSI_PEXSI_mu_min)
-      call elsi_get_pexsi_mu_max(electronicSolver%elsiHandle,&
-          & electronicSolver%ELSI_PEXSI_mu_max)
+      call elsi_get_pexsi_mu_min(electronicSolver%elsi%handle,&
+          & electronicSolver%elsi%PEXSI_mu_min)
+      call elsi_get_pexsi_mu_max(electronicSolver%elsi%handle,&
+          & electronicSolver%elsi%PEXSI_mu_max)
     end if
 
     ! Add up and distribute density matrix contribution from each group
@@ -2563,7 +2550,7 @@ contains
     if (.not. electronicSolver%tCholeskiiDecomposed(iKS)) then
       call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
           & iSparseStart, img2CentCell, denseDesc, SSqrReal)
-      if (electronicSolver%ELSI_OMM_Choleskii .or. electronicSolver%iSolver ==&
+      if (electronicSolver%elsi%OMM_Choleskii .or. electronicSolver%iSolver ==&
           & electronicSolverTypes%pexsi) then
         electronicSolver%tCholeskiiDecomposed(iKS) = .true.
       end if
@@ -2572,13 +2559,13 @@ contains
     allocate(rhoSqrReal(size(HSqrReal, dim=1), size(HSqrReal, dim=2)))
     rhoSqrReal(:,:) = 0.0_dp
     Eband(iS) = 0.0_dp
-    if (electronicSolver%ELSI_tWriteHS) then
-      call elsi_write_mat_real(electronicSolver%ELSI_rwHandle, "ELSI_Hreal.bin", HSqrReal)
-      call elsi_write_mat_real(electronicSolver%ELSI_rwHandle, "ELSI_Sreal.bin", SSqrReal)
-      call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+    if (electronicSolver%elsi%tWriteHS) then
+      call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Hreal.bin", HSqrReal)
+      call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Sreal.bin", SSqrReal)
+      call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
       call cleanShutdown("Finished dense matrix write")
     end if
-    call elsi_dm_real(electronicSolver%elsiHandle, HSqrReal, SSqrReal, rhoSqrReal, Eband(iS))
+    call elsi_dm_real(electronicSolver%elsi%handle, HSqrReal, SSqrReal, rhoSqrReal, Eband(iS))
 
     call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal, neighbourList%iNeighbour,&
         & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iS))
@@ -2668,7 +2655,7 @@ contains
       call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc,&
           & SSqrCplx)
-      if (electronicSolver%ELSI_OMM_Choleskii &
+      if (electronicSolver%elsi%OMM_Choleskii &
           &.or. electronicSolver%iSolver == electronicSolverTypes%pexsi) then
         electronicSolver%tCholeskiiDecomposed(iKS) = .true.
       end if
@@ -2676,15 +2663,15 @@ contains
 
     allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
     rhoSqrCplx(:,:) = 0.0_dp
-    if (electronicSolver%ELSI_tWriteHS) then
-      call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Hcmplex.bin",&
+    if (electronicSolver%elsi%tWriteHS) then
+      call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Hcmplex.bin",&
           & HSqrCplx)
-      call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Scmplx.bin",&
+      call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Scmplx.bin",&
           & SSqrCplx)
-      call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+      call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
       call cleanShutdown("Finished dense matrix write")
     end if
-    call elsi_dm_complex(electronicSolver%elsiHandle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
+    call elsi_dm_complex(electronicSolver%elsi%handle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
         & Eband(iS))
     call packRhoCplxBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
         & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
@@ -2820,7 +2807,7 @@ contains
       call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
           & SSqrCplx)
-      if (electronicSolver%ELSI_OMM_Choleskii .or. electronicSolver%iSolver&
+      if (electronicSolver%elsi%OMM_Choleskii .or. electronicSolver%iSolver&
           & == electronicSolverTypes%pexsi) then
         electronicSolver%tCholeskiiDecomposed(iKS) = .true.
       end if
@@ -2830,15 +2817,15 @@ contains
     end if
     allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
     rhoSqrCplx(:,:) = 0.0_dp
-    if (electronicSolver%ELSI_tWriteHS) then
-      call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Hcmplex.bin",&
+    if (electronicSolver%elsi%tWriteHS) then
+      call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Hcmplex.bin",&
           & HSqrCplx)
-      call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Scmplx.bin",&
+      call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Scmplx.bin",&
           & SSqrCplx)
-      call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+      call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
       call cleanShutdown("Finished dense matrix write")
     end if
-    call elsi_dm_complex(electronicSolver%elsiHandle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
+    call elsi_dm_complex(electronicSolver%elsi%handle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
         & Eband(iS))
     if (tSpinOrbit .and. .not. tDualSpinOrbit) then
       call getOnsiteSpinOrbitEnergy(env, rVecTemp, rhoSqrCplx, denseDesc, xi, orb, species)
@@ -2862,9 +2849,6 @@ contains
     RhoPrim(:,:) = 2.0_dp * RhoPrim
 
   end subroutine getDensityFromElsiPauliDense
-
-
-#:endif
 
 
   !> Builds and diagonalises dense Hamiltonians.
@@ -4711,44 +4695,35 @@ contains
             & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
             & tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
       else
-      #:if WITH_ELSI
         ERhoPrim(:) = 0.0_dp
-        if (electronicSolver%ELSI_CSR) then
+        if (electronicSolver%elsi%CSR) then
           call error("Not supported yet")
         else
           ! iKS always 1, as number of groups matches the number of k-points
           iKS = 1
           iK = parallelKS%localKS(1, iKS)
-          call elsi_get_edm_complex(electronicSolver%elsiHandle, SSqrCplx)
+          call elsi_get_edm_complex(electronicSolver%elsi%handle, SSqrCplx)
           call packERhoPauliBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
               & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
               & img2CentCell, ERhoPrim)
           call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
         end if
-
-      #:else
-        call error("Should not be here without ELSI support included in compilation")
-      #:endif
       end if
     else if (tRealHS) then
       if (any(electronicSolver%iSolver == [electronicSolverTypes%omm,&
           & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
-    #:if WITH_ELSI
-        if (electronicSolver%ELSI_CSR) then
+        if (electronicSolver%elsi%CSR) then
           call getEDensityRealElsi(sparseIndexing, electronicSolver,&
               & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
               & img2CentCell, orb, erhoPrim)
         else
-          call elsi_get_edm_real(electronicSolver%elsiHandle, SSqrReal)
+          call elsi_get_edm_real(electronicSolver%elsi%handle, SSqrReal)
           ERhoPrim(:) = 0.0_dp
           call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour,&
               & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
         end if
         ! add contributions from different spin channels together if necessary
         call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
-      #:else
-        call error("Should not be here without ELSI support included in compilation")
-      #:endif
       else
         call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
             & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ham, over, parallelKS,&
@@ -4762,24 +4737,20 @@ contains
             & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
             & cellVec, ham, over, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
       else
-      #:if WITH_ELSI
         ERhoPrim(:) = 0.0_dp
         ! iKS always 1
         iK = parallelKS%localKS(1, 1)
-        if (electronicSolver%ELSI_CSR) then
+        if (electronicSolver%elsi%CSR) then
           call getEDensityComplexElsi(sparseIndexing, electronicSolver, kPoint(:,iK), kWeight(iK),&
               & iCellVec, cellVec, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
               & iSparseStart, img2CentCell, orb, erhoPrim)
         else
-          call elsi_get_edm_complex(electronicSolver%elsiHandle, SSqrCplx)
+          call elsi_get_edm_complex(electronicSolver%elsi%handle, SSqrCplx)
           call packRhoCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
               & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
               & img2CentCell, ERhoPrim)
         end if
         call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
-      #:else
-        call error("Should not be here without ELSI support included in compilation")
-      #:endif
       end if
     end if
 

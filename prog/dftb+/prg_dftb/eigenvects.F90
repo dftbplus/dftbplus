@@ -181,19 +181,16 @@ contains
       call scalafx_psygvr(HSqr, desc, SSqrTmp, desc, eigenVals, eigenVecs, desc, uplo="L",&
           & jobz="V", skipchol=electronicSolver%tCholeskiiDecomposed(1))
     case(electronicSolverTypes%elpa)
-    #:if WITH_ELSI
-      if (electronicSolver%ELSI_tWriteHS) then
-        call elsi_write_mat_real(electronicSolver%ELSI_rwHandle, "ELSI_Hreal.bin", HSqr)
-        call elsi_write_mat_real(electronicSolver%ELSI_rwHandle, "ELSI_Sreal.bin", SSqr)
-        call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+      if (electronicSolver%elsi%tWriteHS) then
+        call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Hreal.bin", HSqr)
+        call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Sreal.bin", SSqr)
+        call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
         call cleanShutdown("Finished dense matrix write")
       end if
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent
-      call elsi_ev_real(electronicSolver%elsiHandle, HSqr, SSqrTmp, eigenVals, eigenVecs)
-    #:else
-      call error('Requires the ELSI library')
-    #:endif
+      call elsi_ev_real(electronicSolver%elsi%handle, HSqr, SSqrTmp, eigenVals, eigenVecs)
+
     case default
       call error('Unknown eigensolver')
     end select
@@ -256,29 +253,30 @@ contains
     end if
 
     select case(electronicSolver%iSolver)
+
     case(electronicSolverTypes%QR)
       call scalafx_phegv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz, &
           & skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
+
     case(electronicSolverTypes%divideandconquer)
       call scalafx_phegvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
           & allocfix=.true., skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
+
     case(electronicSolverTypes%relativelyrobust)
       call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
           & skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
+
     case(electronicSolverTypes%elpa)
-  #:if WITH_ELSI
-      if (electronicSolver%ELSI_tWriteHS) then
-        call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Hcmplx.bin", HSqr)
-        call elsi_write_mat_complex(electronicSolver%ELSI_rwHandle, "ELSI_Scmplx.bin", SSqr)
-        call elsi_finalize_rw(electronicSolver%ELSI_rwHandle)
+      if (electronicSolver%elsi%tWriteHS) then
+        call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Hcmplx.bin", HSqr)
+        call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Scmplx.bin", SSqr)
+        call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
         call cleanShutdown("Finished dense matrix write")
       end if
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent
-      call elsi_ev_complex(electronicSolver%elsiHandle, HSqr, SSqr, eigenVals, eigenVecs)
-  #:else
-      call error('Requires the ELSI library')
-  #:endif
+      call elsi_ev_complex(electronicSolver%elsi%handle, HSqr, SSqr, eigenVals, eigenVecs)
+
     case default
       call error('Unknown eigensolver')
     end select

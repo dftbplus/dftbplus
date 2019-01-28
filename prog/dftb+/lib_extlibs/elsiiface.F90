@@ -41,7 +41,6 @@ module elsiiface
   public :: elsi_set_spin, elsi_set_kpoint
   public :: elsi_set_output, elsi_set_output_log
   public :: elsi_ev_complex, elsi_ev_real
-
   public :: elsi_set_rw_csc
   public :: elsi_set_rw_mpi, elsi_set_rw_blacs
   public :: elsi_set_mpi, elsi_set_mpi_global
@@ -78,23 +77,20 @@ contains
   !
 
   $:STUB_SUBROUTINE('elsi_init', ['type(elsi_handle)', 'integer', 'integer', 'integer', 'integer',&
-      & 'integer', 'integer'])
+      & 'real(dp)', 'integer'])
 
   $:STUB_SUBROUTINE('elsi_finalize', ['type(elsi_handle)'])
 
   $:STUB_SUBROUTINE('elsi_set_csc', ['type(elsi_handle)', 'integer', 'integer', 'integer',&
       & 'integer, dimension(:)', 'integer, dimension(:)'])
 
-  $:STUB_SUBROUTINE('elsi_set_csc_blk', ['type(elsi_handle)', 'integer', 'integer', 'integer',&
-      & 'integer, dimension(:)', 'integer, dimension(:)'])
+  $:STUB_SUBROUTINE('elsi_set_csc_blk', ['type(elsi_handle)', 'integer'])
 
   $:STUB_SUBROUTINE('elsi_dm_real', ['type(elsi_handle)', 'real(dp), dimension(:,:)',&
-      & 'real(dp), dimension(:,:)', 'real(dp), dimension(:,:)', 'real(dp), dimension(:,:)',&
-      & 'real(dp)'])
+      & 'real(dp), dimension(:,:)', 'real(dp), dimension(:,:)', 'real(dp)'])
 
   $:STUB_SUBROUTINE('elsi_dm_complex', ['type(elsi_handle)', 'complex(dp), dimension(:,:)',&
-      & 'complex(dp), dimension(:,:)', 'complex(dp), dimension(:,:)',&
-      & 'complex(dp), dimension(:,:)', 'real(dp)'])
+      & 'complex(dp), dimension(:,:)', 'complex(dp), dimension(:,:)', 'real(dp)'])
 
   $:STUB_SUBROUTINE('elsi_dm_real_sparse', ['type(elsi_handle)', 'real(dp), dimension(:)',&
       & 'real(dp), dimension(:)', 'real(dp), dimension(:)', 'real(dp)'])
@@ -106,20 +102,20 @@ contains
 
   $:STUB_SUBROUTINE('elsi_get_edm_complex', ['type(elsi_handle)', 'complex(dp), dimension(:,:)'])
 
-  $:STUB_SUBROUTINE('elsi_get_edm_real_sparse', ['type(elsi_handle)', 'real(dp), dimension(:,:)'])
+  $:STUB_SUBROUTINE('elsi_get_edm_real_sparse', ['type(elsi_handle)', 'real(dp), dimension(:)'])
 
   $:STUB_SUBROUTINE('elsi_get_edm_complex_sparse', ['type(elsi_handle)',&
-      & 'complex(dp), dimension(:,:)'])
+      & 'complex(dp), dimension(:)'])
 
   $:STUB_SUBROUTINE('elsi_get_mu', ['type(elsi_handle)', 'real(dp)'])
 
   $:STUB_SUBROUTINE('elsi_get_entropy', ['type(elsi_handle)', 'real(dp)'])
 
   $:STUB_SUBROUTINE('elsi_ev_real', ['type(elsi_handle)', 'real(dp), dimension(:,:)',&
-      & 'real(dp), dimension(:,:)', 'real(dp), dimension(:,:)', 'real(dp), dimension(:)'])
+      & 'real(dp), dimension(:,:)', 'real(dp), dimension(:)', 'real(dp), dimension(:,:)'])
 
   $:STUB_SUBROUTINE('elsi_ev_complex', ['type(elsi_handle)', 'complex(dp), dimension(:,:)',&
-      & 'complex(dp), dimension(:,:)', 'complex(dp), dimension(:,:)', 'real(dp), dimension(:)'])
+      & 'complex(dp), dimension(:,:)', 'real(dp), dimension(:)', 'complex(dp), dimension(:,:)'])
 
   $:STUB_SUBROUTINE('elsi_set_blacs', ['type(elsi_handle)', 'integer', 'integer'])
 
@@ -178,7 +174,7 @@ contains
   $:STUB_SUBROUTINE('elsi_set_output_log', ['type(elsi_handle)', 'integer'])
 
   $:STUB_SUBROUTINE('elsi_init_rw', ['type(elsi_rw_handle)', 'integer', 'integer', 'integer',&
-      & 'integer'])
+      & 'real(dp)'])
 
   $:STUB_SUBROUTINE('elsi_finalize_rw', ['type(elsi_rw_handle)'])
 
@@ -186,13 +182,13 @@ contains
 
   $:STUB_SUBROUTINE('elsi_set_rw_mpi', ['type(elsi_rw_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_rw_blacs', ['type(elsi_rw_handle)', 'integer', 'integer', 'integer'])
+  $:STUB_SUBROUTINE('elsi_set_rw_blacs', ['type(elsi_rw_handle)', 'integer', 'integer'])
 
   $:STUB_SUBROUTINE('elsi_write_mat_real_sparse', ['type(elsi_rw_handle)', 'character(*)',&
-      & 'integer, dimension(:)', 'integer, dimension(:)', 'integer, dimension(:)'])
+      & 'integer, dimension(:)', 'integer, dimension(:)', 'real(dp), dimension(:)'])
 
   $:STUB_SUBROUTINE('elsi_write_mat_complex_sparse', ['type(elsi_rw_handle)', 'character(*)',&
-      & 'integer, dimension(:)', 'integer, dimension(:)', 'integer, dimension(:)'])
+      & 'integer, dimension(:)', 'integer, dimension(:)', 'complex(dp), dimension(:)'])
 
   $:STUB_SUBROUTINE('elsi_write_mat_real', ['type(elsi_rw_handle)', 'character(*)',&
       & 'real(dp), dimension(:,:)'])
