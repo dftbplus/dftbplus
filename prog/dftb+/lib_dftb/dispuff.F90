@@ -244,7 +244,7 @@ contains
     this%vol = abs(determinant33(latVecs))
     invRecVecs(:,:) = latVecs / (2.0_dp * pi)
     recVecs(:,:) = transpose(invRecVecs)
-    call matinv(invRecVecs)
+    call matinv(recVecs)
     this%eta =  getOptimalEta(latVecs, this%vol) / sqrt(2.0_dp)
     this%ewaldRCut = getMaxRDispersion(this%eta, this%c6sum, this%vol, tolDispersion)
     this%ewaldGCut = getMaxGDispersion(this%eta, this%c6sum, tolDispersion)

@@ -297,9 +297,10 @@ contains
     !> Cell vector for the translated cells to consider.
     real(dp), intent(in) :: rCellVec(:,:)
 
-    call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-        & rCellVec)
-    if (size(species) < nAllAtom) then
+    call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
+        &coord0, cutoff, rCellVec)
+
+    if (size(species) /= nAllAtom) then
       deallocate(species)
       allocate(species(nAllAtom))
     end if
@@ -462,7 +463,8 @@ contains
       neigh%iNeighbour(1:nn1, iAtom1) = neigh%iNeighbour(indx(:nn1), iAtom1)
       neigh%neighDist2(1:nn1, iAtom1) = neigh%neighDist2(indx(:nn1), iAtom1)
     end do
-    coord(:,nAllAtom+1:size(coord, dim=2)) = 0.0_dp
+
+    call reallocateArrays1(img2CentCell, iCellVec, coord, nAllAtom)
 
   end subroutine updateNeighbourList
 
@@ -555,7 +557,9 @@ contains
 
     @:ASSERT(size(iCellVec) == mAtom)
     @:ASSERT(all(shape(coord) == (/ 3, mAtom /)))
-    @:ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
+    !@:ASSERT((mNewAtom > 0) .and. (mNewAtom > mAtom))
+    @:ASSERT((mNewAtom > 0))
+    mAtom = min(mAtom,mNewAtom)
 
     call move_alloc(img2CentCell, tmpIntR1)
     allocate(img2CentCell(mNewAtom))
@@ -569,7 +573,7 @@ contains
 
     call move_alloc(coord, tmpRealR2)
     allocate(coord(3, mNewAtom))
-    coord(:, :mAtom) = tmpRealR2
+    coord(:, :mAtom) = tmpRealR2(:, :mAtom)
 
   end subroutine reallocateArrays1
 

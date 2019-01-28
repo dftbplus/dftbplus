@@ -3,13 +3,18 @@
 # nagfor 6.1, gcc 4.8
 ############################################################################
 
+# Directory where standard packages are installed in the system
+PREFIX := /usr
+
+
 ifeq ($(strip $(WITH_MPI)),1)
 ############################################################################
 # MPI settings
 ############################################################################
 
 # Compilers
-FXX = mpif90
+# Replace mpifort with mpif90 in case your MPI does not support it yet
+FXX = mpifort
 CC = gcc
 
 # Compiler options
@@ -23,7 +28,7 @@ LNOPT = -openmp
 # How to link specific libraries
 
 # ScaLAPACK
-SCALAPACKDIR = /usr/lib
+SCALAPACKDIR = $(PREFIX)/lib
 LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack
 
 # LAPACK/BLAS
@@ -87,6 +92,25 @@ FYPPOPT = -DINTERNAL_ERFC -DEXP_TRAP
 
 # Library options in general
 LIBOPT = 
+
+# Whether DFTD3 should be compiled during the build process. If set to 1 (yes),
+# you will have to download the dftd3 library before starting the build using
+# the utils/get_opt_externals tool.
+# (Only active, if WITH_DFTB3 was set in make.config.)
+COMPILE_DFTD3 := 1
+
+# Set the compile time include and the link time library options for
+# dftd3-lib. Ignored if WITH_DFTD3 has been disabled or COMPILE_DFTD3 enabled.
+DFTD3_INCS := -I$(PREFIX)/include/dftd3-lib
+DFTD3_LIBS := -L$(PREFIX)/lib -ldftd3
+
+# Link time library options for linking ARPACK. Ignored if WITH_ARPACK was
+# disabled.
+ARPACK_LIBS := -larpack
+
+# Whether ARPACK depends on the external LAPACK and BLAS libraries
+ARPACK_NEEDS_LAPACK := 0
+
 
 ############################################################################
 # Developer settings

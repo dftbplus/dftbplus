@@ -524,7 +524,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \is{False}, forces will be calculated using the non-converged charges and the
   molecular dynamics continues. In this case you should consider using
   \is{ForceEvaluation = 'Dynamics'} (or \is{ForceEvaluation = 'DynamicsT0'}) in
-  the \is{Dftb} block as it gives more accurate forces for non-converged
+  the \is{DFTB} block as it gives more accurate forces for non-converged
   charges.
 
 \item[\is{Xlbomd}] If present, extended Lagrangian type molecular dynamics
@@ -992,15 +992,15 @@ following properties:
   \kw{InitialCharges} & p & SCC = Yes & \cb & \\
   \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
-  \kw{DampXH} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
-  \kw{DampXHExponent} & r & DampXH = Yes & - & \\
-  \kw{HBondCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.D3H5}\\
+  \kw{HCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
+  \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
   \kw{CustomisedHubbards} & p & & & \\
+  \kw{TruncateSKRange} & p & & & \\
   \hline
 \end{ptable}
 
@@ -1236,6 +1236,9 @@ following properties:
 \item[\is{Dispersion}] Specifies which kind of dispersion correction
   to apply. See p.~\pref{sec:dftbp.Dispersion}.
 
+\item[\is{OnSiteCorrection}] Used to include the on-site matrix elements of
+  Dom\'inguez {\it et al.}~\cite{dominguez15}. See p.~\pref{sec:dftbp.Onsites}.
+  
 \item[\is{Differentiation}] Specifies how to calculate finite difference
   derivatives in the force routines. See p.~\pref{sec:dftbp.Differentiation}.
 
@@ -1258,6 +1261,39 @@ following properties:
   \begin{verbatim}
   CustomisedHubbards {
     Si = 0.32 0.24
+  }
+  \end{verbatim}
+
+\item[\is{TruncateSKRange}] Enables overriding of the number of elements to be
+  read from the Slater-Koster parameters, shortening the interaction range of
+  atoms. 
+
+  \textbf{Warning:} This option is for experts only! Overriding values stored in
+  the SK-files may result in \textbf{inconsistent results}. Make sure you
+  understand the consequences when using this option.
+  
+  \begin{ptable}
+    \kw{SKMaxDistance} & r &  & -- & \\
+    \kw{HardCutOff} & l &  & No & \\
+  \end{ptable}
+  \begin{description}
+    \item[\is{SKMaxDistance}]\modif{\modtype{length}} Length at which to cut the
+      overlap and non-SCC interactions for all atoms in the system. If this
+      length is longer than the distances in the Slater-Koster files it will
+      have no effect.
+    \item[\is{HardCutOff}] The Slater-Koster interpolation \dftbp{} produces
+      will smoothly tail off to zero at a short distance beyond the table, which
+      is controlled by \kw{OldSKInterpolation}. If \kw{HardCutOff} is set to
+      \kw{Yes}, then the distance set by \kw{SKMaxDistance} includes this tail,
+      i.e., no interactions occur beyond that distance. In the case of \kw{No}
+      this zeroing tail extends slightly beyond the \kw{HardCutOff} distance.
+  \end{description}
+  
+  Example:
+  \begin{verbatim}
+  TruncateSKRange = {
+    SKMaxDistance [AA] = 4.0
+    HardCutOff = Yes
   }
   \end{verbatim}
 
@@ -1575,8 +1611,10 @@ distribution:
 \subsubsection{SpinConstants}
 \label{sec:dftbp.SpinConstants}
 
-For each atomic species in the calculation the spin coupling constants for that
-atom must be specified.
+This environment suplies the atomic constants required for either spin polarised
+calculations or when evaluating properties which depend on spin interactions
+(triplet excitations for example).  In these cases, for each atomic species in
+the calculation the spin coupling constants for that atom must be specified.
 
 When \is{OrbitalResolvedSCC} = \is{No}, an extra keyword in this block controls
 whether the spin constants are resolved by shell or are identical for all
@@ -1723,8 +1761,11 @@ options:
   system. For collinear spin polarisation, values for up and down spin channels
   are required. Otherwise only a single global chemical potential is
   required. If this option is present, the total charge and the total spin of
-  the system are not conserved. (Settings in the options \is{Charge} and
-  \is{UnpairedElectrons} will be ignored.)
+  the system are not conserved (settings in the options \is{Charge} and
+  \is{UnpairedElectrons} will be ignored). If a fixed chemical potential is
+  used, the output {\em force related energy} includes the contribution to the
+  free energy, $- N \mu$, hence if differentiated will give the forces and
+  stresses (if periodic).
 \end{description}
 
 \subsubsection{Fermi\{\}}
@@ -2141,10 +2182,8 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. A modification of
-  the D3 dispersion to be used as a part of the D3H5
-  correction~\cite{rezac-jctc-13-2017} (see section \ref{sec:dftbp.D3H5}) is
-  also available.
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. Modification
+  hydrogen bond interaction strengths (see section \ref{sec:dftbp.hcorr}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2367,8 +2406,9 @@ and adjust them if needed.
 Example using default parameters:
 \begin{verbatim}
   ThirdOrderFull = Yes
-  DampXH = Yes
-
+  HCorrection = Damping {
+    Exponent = 4.0
+  }
   Dispersion = DftD3 {}
 \end{verbatim}
 
@@ -2419,7 +2459,7 @@ parameters are taken to be the same as in the dftd3 code.
 
 \item[\is{HHRepulsion}] Required when calculating the
   DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
-  section~\ref{sec:dftbp.D3H5} for details and parameter values). This keyword
+  section~\ref{sec:dftbp.hcorr} for details and parameter values). This keyword
   enables an additional short range repulsion term in all hydrogen--hydrogen
   pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
   closely together.
@@ -2431,26 +2471,11 @@ parameters are taken to be the same as in the dftd3 code.
 
 If you would like to use what is called ``DFTB3'' in some publication(s)
 \cite{gauss-jctc-7-931}, this group of options include the relevant
-modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3 model
-  you will need to set \is{{ThirdOrderFull} = Yes}, \is{DampXH = Yes} and set
-  the exponents in \is{DampXHExponent} }.
+modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3
+  model} you will need to set \is{{ThirdOrderFull} = Yes} and damp H--X the
+interactions (see Section \ref{sec:dftbp.hcorr}).
 
 \begin{description}
-
-\item[\is{DampXH}] If set to \is{Yes} the short range contribution to the SCC
-  interaction between atoms $A$ and $B$ is damped by the factor
-  \begin{equation*}
-    e^{-\left(\frac{U_{Al} + U_{Bl}}{2}\right)^\zeta r_{AB}^2}
-  \end{equation*}
-  provided that at least one of the two atoms is hydrogen
-  \cite{gauss-jctc-7-931,yang-JPCA-111-10861}. ($U_{Al}$ and $U_{Bl}$ are the
-  Hubbard Us of the two atoms for the $l$-shell, $r_{AB}$ is the distance
-  between the atoms.) An atom is considered to be a hydrogen-like atom, if its
-  mass (stored in the appropriate homonuclear SK-file) is less than 3.5 amu. The
-  parameter $\zeta$ can be set with the keyword \is{DampXHExponent}.
-
-\item[\is{DampXHExponent}] Sets the parameter $\zeta$ for the short range
-  damping. (See keyword \is{DampXH} above.)
 
 \item[\is{ThirdOrder}] If set to \is{Yes} the \textit{on-site} 3rd order
   correction \cite{yang-JPCA-111-10861} is switched on. This corrects the
@@ -2483,29 +2508,53 @@ Hamiltonian = DFTB {
 \end{verbatim}
 \end{description}
 
-\subsection{DFTB3-D3H5}
-\label{sec:dftbp.D3H5}
-\index{DFTB3-D3H5}
+\subsection{Hydrogen corrections}
+\label{sec:dftbp.hcorr}
+
+There are currently two available methods to correct hydrogen interactions
+(mainly hydrogen bonds) in the \is{HCorrection} environment:
+
+\subsubsection{Damping}
+\index{sec:Damp X-H}
+
+The \is{Damping} method modifies the short range contribution to the SCC
+interaction between atoms $A$ and $B$ with the damping factor
+\begin{equation*}
+  e^{-\left(\frac{U_{Al} + U_{Bl}}{2}\right)^\zeta r_{AB}^2}
+\end{equation*}
+provided that at least one of the two atoms is
+hydrogen~\cite{gauss-jctc-7-931,yang-JPCA-111-10861}. ($U_{Al}$ and $U_{Bl}$ are
+the Hubbard U values of the two atoms for the $l$-shell, $r_{AB}$ is the
+distance between the atoms.) An atom is considered to be a hydrogen-like atom,
+if its mass (stored in the appropriate homonuclear SK-file) is less than 3.5
+amu.  The \is{Exponent} keyword in this environment sets the parameter $\zeta$
+for the short range damping:
+\begin{verbatim}
+HCorrection = Damping {
+  Exponent = 4.05
+}
+\end{verbatim}
+Table 2 of reference~\cite{gauss-jctc-7-931} gives suggested values of the
+exponent for different DFTB2 and DFTB3 models applied to light atoms bonded to
+hydrogen.
+
+\subsubsection{DFTB3-D3H5}
+\index{sec:DFTB3-D3H5}
 
 DFTB3-D3H5~\cite{rezac-jctc-13-2017} is a variant of DFTB3 with additional
 corrections for non-covalent interactions (dispersion and hydrogen bonds).  It
 consists of a third-order DFTB calculation using the 3OB parameter set, but
-where the gamma-function damping (\is{DampXH}) is replaced by the H5 correction
-and an additional D3 dispersion correction in included. This method also
-includes a repulsive term which is added to prevent unphysically close approach
-of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
+where the gamma-function damping (\is{Damping} method above) is replaced by the
+H5 correction and an additional D3 dispersion correction in included. This
+method also includes a repulsive term which is added to prevent unphysically
+close approach of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
 
-\begin{description}
-\item[\is{HBondCorrection}] Setting this keyword to \iscb{H5} activates the
-  correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. \is{H5} is currently
-  the only option accepted for \is{HBondCorrection}.
-\end{description}
-
-If no additional parameters are provided in the input, suitable values for
-H-\{O,N,S\} systems are used (the correction was developed for the DFTB3/3OB
-model and parameters).
+Setting the \is{HCorrection} environment to \iscb{H5} activates this
+correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. If no additional
+parameters are provided in the input, suitable values for H-\{O,N,S\} systems
+are used (the correction was developed for the DFTB3/3OB model and parameters).
 \begin{verbatim}
-HBondCorrection = H5 {}
+HCorrection = H5 {}
 \end{verbatim}
 
 \textbf{Note:} It was found that DFTB3 overestimates the strength of H-bonds
@@ -2513,8 +2562,8 @@ involving the terminal nitrogen of an azide group, and the published results in
 Ref.~\cite{rezac-jctc-13-2017} were obtained with the H5 correction switched off
 for these specific atoms. To reproduce this behavior in a system containing
 nitrogen in several environments, a new atom type with a different name but the
-same DFTB parameters can be used for for the specific N atoms to which the
-correction should not be applied.
+same DFTB parameters can be used for specific N atoms to which the correction
+should not be applied.
 
 If you want to specify the parameters manually, \is{H5} accepts following
 options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
@@ -2545,20 +2594,20 @@ options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
     \exp\left(-\frac{\left(r_{X\text{H}} - r_0\right)^2}{2w^2}\right)\right)
     \text.
   \end{equation*}
-  You have to specify one value for each of the chemical species you would like
-  to correct (see the example below). Explicitly setting a negative value
+  You will have to specify one value for each of the chemical species you would
+  like to correct (see the example below). Explicitly setting a negative value
   (e.g. \is{-1.0}) for a given atom type switches off the correction for
   hydrogen bonds involving that type of atom. In the special cases of N, O or S,
-  if do not specify a value (and do not disable the contribution by using
+  if you do not specify a value (and do not disable the contribution by using
   \is{-1.0}), the default value from the reference paper will be
-  used~\cite{rezac-jctc-13-2017}. For any other ommitted atom types, the code
+  used~\cite{rezac-jctc-13-2017}. For any other omitted atom types, the code
   defaults to a choice of \is{-1.0} (no correction).
 \end{description}
 
 \begin{verbatim}
 Hamiltonian = DFTB {
   :
-  HBondCorrection = H5 {
+  HCorrection = H5 {
     RScaling = 0.714
     WScaling = 0.25
     H5Scaling {
@@ -2595,6 +2644,35 @@ Hamiltonian = DFTB {
   :
 }
 \end{verbatim}
+
+\subsection{On site corrections}
+\label{sec:dftbp.Onsites}
+
+This block enables corrections for on-site matrix elements which improve the
+description of multi-centre integrals~\cite{garcia14Thesis} leading to, for
+example, improved hydrogen-bond energies~\cite{dominguez15}. 
+
+For each chemical species, the spin-same-spin and spin-different-spin constants
+should be specified for all combinations of atomic shells. {\bf note:} the
+matrix of constants is symmetric and the purely s-with-s entries are zero (the
+code ignores their value due to symmetry).
+
+Example:
+\begin{verbatim}
+OnSiteCorrection= {
+    # same spin oxygen
+    Ouu = {0.00000  0.08672
+           0.08672 -0.00523}
+    # hetero-spin oxygen
+    Oud = {0.00000  0.14969
+           0.14969  0.03834}
+    # H all zero
+    Huu = {0}
+    Hud = {0}
+}
+\end{verbatim}
+
+Some on-site constants are given in appendix~\ref{app:onsiteconst}.
 
 \subsection{Differentiation}
 \label{sec:dftbp.Differentiation}
@@ -2676,6 +2754,7 @@ This block collects some global options for the run.
   \kwl{ReadChargesAsText}{kw:dftbp.ReadChargesAsText} & l &
   ReadInitialCharges = Yes & No & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
+  \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
 \end{ptable}
 \begin{description}
 
@@ -2761,6 +2840,17 @@ This block collects some global options for the run.
 \item[\is{WriteChargesAsText}] If \is{No}, the program stores charges in the
   binary file \verb|charges.bin|, while if \is{Yes} then \verb|charges.dat|
   contains text of this data. See section \ref{sec:charges.bin}.
+
+\item[\is{SkipChargeTest}] If \is{Yes}, testing of whether the charges read from
+  file match the total charge (and magnetisation) specified in the {\dftbp}
+  input (if relevant) is performed. Skipping this test (setting to \is{No}) may
+  be useful if restarting from a charges generated for a similar system with
+  slightly different total charge or magnetisation. Similarly, in the event of
+  serious instabilities in the SCC cycle, the generated charge restart file may
+  fall outside of the check-sum tolerances, hence this option allows a
+  re-start. Finally, in the case of user edited \verb|charges.dat| file (see
+  section~\ref{sec:charges.bin}), the check-sum this option removed the
+  requirement that the checksum values in the file match the charges.
 
 \end{description}
 
@@ -2858,11 +2948,11 @@ maximised. The resulting localised states are output as
 appendix~\ref{sec:dftbp.eigenvec} for \verb|eigenvec.out| and \verb|eigenvec.bin|.
 
 \begin{ptable}
-  \kw{Tollerance} & r &  & 1E-4 & \\
+  \kw{Tolerance} & r &  & 1E-4 & \\
   \kw{MaxIterations} & i &  & 100 & \\
 \end{ptable}
 \begin{description}
-\item[\is{Tollerance}] Cut off for rotations in the localisation process.
+\item[\is{Tolerance}] Cut off for rotations in the localisation process.
 \item[\is{MaxIterations}] Maximum number of total sweeps to perform.
 \end{description}
 
@@ -2872,7 +2962,7 @@ Analysis = {
   Localise = {
     PipekMezey = {
        # These are the default options, which are also set if the bracket is left empty.
-       Tollerance = 1.0E-4
+       Tolerance = 1.0E-4
        MaxIterations = 100
     }  
   }
@@ -2886,12 +2976,12 @@ method which {\em may} have better scaling properties.
 
 \begin{ptable}
   \kw{Dense} & l & & \is{No} & \\
-  \kw{SparseTollerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
+  \kw{SparseTolerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
 \end{ptable}
 \begin{description}
 \item[\is{Dense}] Selects the conventional method (\is{Yes}) using Jacobi sweeps
   over all orbital pairs or (\is{No}) uses the default sparse method.
-\item[\is{SparseTollerances}] The sparse method introduces support regions during
+\item[\is{SparseTolerances}] The sparse method introduces support regions during
   evaluation to increase performance, and these requires a set of tolerances to
   determine the regions to be used (these are listed in decreasing order, i.e.,
   with tighter tolerances as the localisation proceeds).
@@ -3194,6 +3284,7 @@ fractional occupations. The specifications for this block have the following pro
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{WriteStatusArnoldi}     & l & & No & \\
     \kw{TestArnoldi}            & l & & No & \\
+    \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
   \end{ptable}
 
   \begin{description}
@@ -3258,6 +3349,13 @@ fractional occupations. The specifications for this block have the following pro
 
   \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is created, which gives data
     on the quality of the resulting eigenstates.
+
+  \item[\is{ExcitedStateForces}] If set to \is{Yes}, evaluated forces include
+    the contributions from an excited state of interest. By default, it is set
+    to \is{Yes} if forces are being calculated (for example in geometry
+    optimisation) and to \is{No} otherwise. By setting it explicitly to
+    \is{No}, you can calculate the excitations during a molecular dynamics
+    simulation that is being driven by the ground state forces only.
 
   \end{description}
 
@@ -3327,7 +3425,9 @@ the code. They only take effect, if the code was compiled with MPI-support.
   different process groups are working on different k-points and spins at the
   same time. The number of process groups must be a divisor of the total number
   of MPI-processes. Default: 1 (all processes work at the same k-point and spin
-  at a given time).
+  at a given time). Note that transport calculations between contacts are
+  currently incompatible with multiple process groups (see
+  section~\ref{app:transp}).
 
 \item[\is{UseOmpThreads}] Enables the usage of OpenMP-threads (hybrid
   MPI/OpenMP-parallelisation). In order to prevent you from accidently running

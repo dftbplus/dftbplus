@@ -33,6 +33,8 @@ OWD=`pwd`
 TAGDIFF_CONF=tagdiff.conf
 TAGDIFF_LOG=tagdiff.log
 
+TEST_SCRIPT=testrun.sh
+
 TAGDIFF_MATCH_OK="OK"
 TAGDIFF_MATCH_INCOMPLETE="Not found in new"
 
@@ -184,10 +186,10 @@ case "${STAGE_SEP}$stages" in *${STAGE_SEP}P*) STAGE_PREPARE=1;; esac
 case "${STAGE_SEP}$stages" in *${STAGE_SEP}R*) STAGE_RUN=1    ;; esac
 case "${STAGE_SEP}$stages" in *${STAGE_SEP}C*) STAGE_COMPARE=1;; esac
 case "${STAGE_SEP}$stages" in *${STAGE_SEP}S*) STAGE_SUMMARY=1;; esac
-case "${STAGE_SEP}$stages" in 
+case "${STAGE_SEP}$stages" in
   *${STAGE_SEP}A*)
     STAGE_PREPARE=1
-    STAGE_RUN=1 
+    STAGE_RUN=1
     STAGE_COMPARE=1
     STAGE_SUMMARY=1
     ;;
@@ -315,7 +317,7 @@ do
 		$APP_TAGDATA  $TAGDIFF_LOG ${STATUS_PREFIX}* 2> /dev/null
 	gunzip -f _dummy_arg *.gz 2> /dev/null
 
-	if [ ! -e "$APP_INPUT" ]; then
+	if [ ! -e "$APP_INPUT" ] && [ ! -e "$TEST_SCRIPT" ]; then
 	    echo "Error: Input file \"$APP_INPUT\" missing"
 	    touch "${STATUS_PREFIX}${STATUS_ERROR}"
 	    continue
@@ -328,14 +330,14 @@ do
     if [ -n "$STAGE_RUN" ]; then
         rm -f $APP_STDOUT $APP_STDERR
         touch $APP_STDOUT $APP_STDERR
-	if [ -e ./prerun.sh ]; then
-	    ./prerun.sh >> $APP_STDOUT 2>> $APP_STDERR
-	fi
 	test -n "$verbose" && echo_n " running .."
-	$TIME_CMD $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
-	if [ -e ./postrun.sh ]; then
-	    ./postrun.sh >> $APP_STDOUT 2>> $APP_STDERR
+
+	if [ -e "$TEST_SCRIPT" ]; then
+	    $TIME_CMD ./$TEST_SCRIPT $app_prerun $app_cmd $app_postrun >> $APP_STDOUT 2>> $APP_STDERR
+	else
+	    $TIME_CMD $app_prerun $app_cmd $app_postrun  >> $APP_STDOUT 2>> $APP_STDERR
 	fi
+
 	if [ -z "$STAGE_COMPARE" ]; then
 	    test -n "$verbose" && echo_n " done."
 	fi

@@ -76,8 +76,8 @@ contains
       & coord0, nexc, nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbour,&
       & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
       & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
-      & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, omega, shift, skHamCont,&
-      & skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
+      & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, omega, allOmega, onsMEs,&
+      & shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -194,6 +194,12 @@ contains
     !> excitation energy of state nstat0
     real(dp), intent(out) :: omega
 
+    !> excitation energy of all states that have been solved
+    real(dp), allocatable, intent(inout) :: allOmega(:)
+
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
@@ -226,7 +232,6 @@ contains
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
 
-
     !> array from pairs of single particles states to compound index - should replace with a more
     !> compact data structure in the cases where there are oscilator windows
     integer, allocatable :: iatrans(:,:)
@@ -244,14 +249,11 @@ contains
 
     integer :: nStat
 
-
     !> control variables
     logical :: tZVector, tCoeffs, tTradip
 
-
     !> printing data
     logical :: tMulliken
-
 
     !> should gradients be calculated
     logical :: tForces
@@ -507,7 +509,7 @@ contains
       sym = symmetries(isym)
       call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
           & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, fdArnoldiDiagnosis,&
-          & eval, evec )
+          & eval, evec, onsMEs, orb)
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, snglPartTransDip(1:nxov_rd,:), wij(:nxov_rd), eval, evec,&
@@ -522,6 +524,16 @@ contains
         call writeExcitations(sym, osz, nexc, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd),&
             & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc)
       end if
+
+      if (allocated(allOmega)) then
+        if (size(allOmega) /= size(symmetries) * nExc) then
+          deallocate(allOmega)
+        end if
+      end if
+      if (.not. allocated(allOmega)) then
+        allocate(allOmega(size(symmetries) * nExc))
+      end if
+      allOmega(1+(iSym-1)*nExc:iSym*nExc) = sqrt(eval)
 
     end do
 
@@ -652,7 +664,8 @@ contains
 
   !> Builds and diagonalizes the excitation matrix via iterative technique.
   subroutine buildAndDiagExcMatrix(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
-      & grndEigVecs, filling, getij, gammaMat, species0, spinW, fdArnoldiDiagnosis, eval, evec)
+      & grndEigVecs, filling, getij, gammaMat, species0, spinW, fdArnoldiDiagnosis, eval, evec,&
+      & onsMEs, orb)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -704,6 +717,12 @@ contains
 
     !> eigenvectors for transitions
     real(dp), intent(out) :: evec(:,:)
+
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
     real(dp) :: sigma
@@ -769,7 +788,7 @@ contains
       ! Action of excitation supermatrix on supervector
       call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat,&
-          & species0, spinW)
+          & species0, spinW, onsMEs, orb)
 
     end do
 
@@ -810,7 +829,7 @@ contains
           & non-orthog'
       do iState = 1, nExc
         call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
-            & grndEigVecs, filling, getij, gammaMat, species0, spinW)
+            & grndEigVecs, filling, getij, gammaMat, species0, spinW, onsMEs, orb)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-evec(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))

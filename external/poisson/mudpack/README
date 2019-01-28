@@ -1,0 +1,13 @@
+                   MUDPACK FOR dftb+
+==============================================================
+
+This is a modified version of mudpack 5.0.2 in order to support
+double precision arithmetics (L. Latessa, 2003) 
+Further changes has been done to make the code compling with 
+modern fortran standard.
+
+
+This changes have been done under the LICENSE reported in the
+separate file.
+ 
+

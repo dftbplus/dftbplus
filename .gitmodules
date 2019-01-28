@@ -4,3 +4,7 @@
 [submodule "external/scalapackfx/origin"]
 	path = external/scalapackfx/origin
 	url = https://github.com/dftbplus/scalapackfx.git
+[submodule "external/libnegf/origin"]
+	path = external/libnegf/origin
+	url = https://bitbucket.org/pecchia/libnegf.git
+	branch = master

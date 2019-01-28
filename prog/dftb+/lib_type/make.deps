@@ -78,8 +78,8 @@ parallelks.o = parallelks.o $(_mod_environment) $(common.fypp)
 _mod_parallelks: parallelks.o
 _mod_parallelks = $(parallelks.o)
 
-typegeometry.o: _mod_accuracy
-typegeometry.o = typegeometry.o $(_mod_accuracy)
+typegeometry.o: _mod_lapackroutines common.fypp _mod_accuracy
+typegeometry.o = typegeometry.o $(_mod_lapackroutines) $(common.fypp) $(_mod_accuracy)
 _mod_typegeometry: typegeometry.o
 _mod_typegeometry = $(typegeometry.o)
 
@@ -87,4 +87,9 @@ typegeometryhsd.o: _mod_tokenreader _mod_charmanip _mod_simplealgebra _mod_hsdut
 typegeometryhsd.o = typegeometryhsd.o $(_mod_tokenreader) $(_mod_charmanip) $(_mod_simplealgebra) $(_mod_hsdutils) $(_mod_linkedlist) $(_mod_hsdutils2) $(_mod_xmlf90) $(_mod_typegeometry) $(_mod_unitconversion)
 _mod_typegeometryhsd: typegeometryhsd.o
 _mod_typegeometryhsd = $(typegeometryhsd.o)
+
+wrapped_intrinsics.o: _mod_accuracy
+wrapped_intrinsics.o = wrapped_intrinsics.o $(_mod_accuracy)
+_mod_wrappedintrinsics: wrapped_intrinsics.o
+_mod_wrappedintrinsics = $(wrapped_intrinsics.o)
 

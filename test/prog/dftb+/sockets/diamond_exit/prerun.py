@@ -40,17 +40,17 @@ def main():
 
     for iStep in range(NR_STEPS):
         print("Step %i" % iStep)
-        connection.sendall('POSDATA     ')
+        connection.sendall(b'POSDATA     ')
         connection.sendall(latvecs)
 
         connection.sendall(la.inv(latvecs))
         connection.sendall(np.int32(len(coords)))
         connection.sendall(coords)
 
-        connection.sendall('GETFORCE    ')
+        connection.sendall(b'GETFORCE    ')
         # needs work:
         buf = receive_all(connection, 12)
-        if (buf != 'FORCEREADY  '):
+        if (buf != b'FORCEREADY  '):
             raise ValueError('Unexpected value of "GETFORCE": "%s"!' % buf)
 
         # expecting energy and number of atoms
@@ -77,7 +77,7 @@ def main():
 
 
     print("Requesting clean shutdown of DFTB+")
-    connection.sendall('EXIT        ')
+    connection.sendall(b'EXIT        ')
 
     time.sleep(2)
     connection.shutdown(socket.SHUT_RDWR)

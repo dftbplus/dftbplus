@@ -26,6 +26,12 @@ module inputdata_module
 #:endif
   use pmlocalisation, only : TPipekMezeyInp
   use elstatpot, only : TElStatPotentialsInp
+
+#:if WITH_TRANSPORT
+  use libnegf_vars
+  use poisson_init
+#:endif
+
   implicit none
   private
   save
@@ -33,6 +39,9 @@ module inputdata_module
   public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
   public :: TBlacsOpts
   public :: init, destruct
+#:if WITH_TRANSPORT
+  public :: TNEGFInfo
+#:endif
 
 
   !> Contains Blacs specific options.
@@ -85,6 +94,8 @@ module inputdata_module
 
     !> Read starting charges from disc
     logical :: tReadChrg = .false.
+
+    logical :: tSkipChrgChecksum = .false.
 
     !> Disc charges are stored as ascii or binary files
     logical :: tReadChrgAscii = .true.
@@ -158,7 +169,10 @@ module inputdata_module
     logical :: tProjEigenvecs = .false.
 
     !> Evaluate forces
-    logical :: tForces     = .false.
+    logical :: tForces = .false.
+
+    !> Evaluate force contributions from the excited state if required and (tForces)
+    logical :: tCasidaForces = .false.
 
     !> force evaluation method
     integer :: forceType
@@ -244,7 +258,7 @@ module inputdata_module
 
     real(dp) :: tempElec      = 0.0_dp
     logical :: tFixEf        = .false.
-    real(dp) :: Ef(2)         = 0.0_dp
+    real(dp), allocatable :: Ef(:)
     logical :: tFillKSep     = .false.
     integer :: iDistribFn    = 0
     real(dp) :: wvScale       = 0.0_dp
@@ -307,6 +321,11 @@ module inputdata_module
     !> l-values of U-J for each block
     integer, allocatable :: iUJ(:,:,:)
 
+    !> Correction to energy from on-site matrix elements
+    real(dp), allocatable :: onSiteElements(:,:,:,:)
+
+    !> Correction to dipole momements on-site matrix elements
+    real(dp), allocatable :: onSiteDipole(:,:)
 
     !> Number of external charges
     integer :: nExtChrg = 0
@@ -387,6 +406,14 @@ module inputdata_module
     logical :: tWriteRealHS = .false.
     logical :: tMinMemory = .false.
 
+    !> potential shifts are read from file
+    logical :: tReadShifts = .false.
+    !> potential shifts are written on file
+    logical :: tWriteShifts = .false.
+
+    !> use Poisson solver for electrostatics
+    logical :: tPoisson = .false.
+
 
     !> Dispersion related stuff
     type(DispersionInp), allocatable :: dispInp
@@ -439,13 +466,26 @@ module inputdata_module
     type(TOrbitals), allocatable :: orb
   end type slater
 
+#:if WITH_TRANSPORT
+  !> container for data needed by libNEGF
+  type TNEGFInfo
+    type(TNEGFTunDos) :: tundos  !Transport section informations
+    type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
+  end type TNEGFInfo
+#:endif
+
 
   !> container for input data constituents
   type inputData
+    logical :: tInitialized = .false.
     type(control) :: ctrl
     type(TGeometry) :: geom
     type(slater) :: slako
-    logical :: tInitialized = .false.
+  #:if WITH_TRANSPORT
+    type(TTransPar) :: transpar
+    type(TNEGFInfo) :: ginfo
+    type(TPoissonInfo) :: poisson
+  #:endif
   end type inputData
 
 

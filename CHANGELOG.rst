@@ -11,11 +11,9 @@ Unreleased
 Added
 -----
 
-- Option for removing translational and rotational degrees of freedom in modes.
+- Ability to perform ground state MD with excitation energies
 
-- H5 correction for hydrogen bonds.
 
-  
 Changed
 -------
 
@@ -23,9 +21,41 @@ Changed
 Fixed
 -----
 
+
+
+18.2
+====
+
+Added
+-----
+
+- Option for removing translational and rotational degrees of freedom in modes.
+
+- H5 correction for hydrogen bonds.
+
+
+Changed
+-------
+
+- Updated parser version to 6.
+
+- Syntax for H5 and DampedHX corrections for hydrogen bonds unified.
+
+
+Fixed
+-----
+
 - Compilation when socket interface disabled.
 
-- Stress tensor evaluation for 3rd order DFTB
+- Stress tensor evaluation for 3rd order DFTB.
+
+- Tollerance keyword typo.
+
+- Corrected erroneous Lennard-Jones-dispersion for periodic cases (broken since
+  release 1.3)
+
+- Forces/stresses for dual spin orbit.
+
 
 18.1 (2018-03-02)
 =================
