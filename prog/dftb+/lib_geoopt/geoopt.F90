@@ -13,9 +13,12 @@ module geoopt
   use gdiis
   use lbfgs
   implicit none
-
   private
 
+
+  public :: OGeoOpt
+  public :: init, reset, next
+  public :: geoOptTypes
 
   !> Interface type for the various geometry optimization algorithms
   type OGeoOpt
@@ -48,14 +51,17 @@ module geoopt
     module procedure GeoOpt_next
   end interface
 
-  public :: OGeoOpt
-  public :: init, reset, next
 
-  !> Constants for the different geometry optimizers
-  integer, parameter :: iConjGrad = 1
-  integer, parameter :: iSteepDesc = 2
-  integer, parameter :: iDiis = 3
-  integer, parameter :: iLbfgs = 4
+  type :: TGeoOptTypesEnum
+    integer :: none = 0
+    integer :: steepestDesc = 1
+    integer :: conjugateGrad = 2
+    integer :: diis = 3
+    integer :: lbfgs = 4
+  end type TGeoOptTypesEnum
+
+  type(TGeoOptTypesEnum), parameter :: geoOptTypes = TGeoOptTypesEnum()
+
 
 contains
 
@@ -69,7 +75,7 @@ contains
     !> An already initialized conjugate gradient instance
     type(OConjGrad), allocatable, intent(inout) :: pConjGrad
 
-    self%iGeoOpt = iConjGrad
+    self%iGeoOpt = geoOptTypes%conjugateGrad
     call move_alloc(pConjGrad, self%pConjGrad)
 
   end subroutine GeoOpt_initConjGrad
@@ -84,7 +90,7 @@ contains
     !> An already initialized steepest descent instance
     type(OSteepDesc), allocatable, intent(inout) :: pSteepDesc
 
-    self%iGeoOpt = iSteepDesc
+    self%iGeoOpt = geoOptTypes%steepestDesc
     call move_alloc(pSteepDesc, self%pSteepDesc)
 
   end subroutine GeoOpt_initSteepDesc
@@ -99,7 +105,7 @@ contains
     !> An already initialized modified DIIS instance
     type(ODiis), allocatable, intent(inout) :: pDiis
 
-    self%iGeoOpt = iDiis
+    self%iGeoOpt = geoOptTypes%diis
     call move_alloc(pDiis, self%pDiis)
 
   end subroutine GeoOpt_initDiis
@@ -113,7 +119,7 @@ contains
     !> An already initialized modified LBFGS
     type(Tlbfgs), allocatable, intent(inout) :: pLbfgs
 
-    self%iGeoOpt = iLbfgs
+    self%iGeoOpt = geoOptTypes%lbfgs
     call move_alloc(pLbfgs, self%pLbfgs)
 
   end subroutine GeoOpt_initLbfgs
@@ -128,13 +134,13 @@ contains
     real(dp), intent(in) :: x0(:)
 
     select case (self%iGeoOpt)
-    case(iConjGrad)
+    case(geoOptTypes%conjugateGrad)
       call reset(self%pConjGrad, x0)
-    case(iSteepDesc)
+    case(geoOptTypes%steepestDesc)
       call reset(self%pSteepDesc, x0)
-    case(iDiis)
+    case(geoOptTypes%diis)
       call reset(self%pDiis, x0)
-    case (iLbfgs)
+    case (geoOptTypes%lbfgs)
       call self%pLbfgs%reset(x0)
     end select
 
@@ -161,13 +167,13 @@ contains
     logical, intent(out) :: tConverged
 
     select case (self%iGeoOpt)
-    case(iConjGrad)
+    case(geoOptTypes%conjugateGrad)
       call next(self%pConjGrad, fx, dx, xNew, tConverged)
-    case (iSteepDesc)
+    case (geoOptTypes%steepestDesc)
       call next(self%pSteepDesc, dx, xNew, tConverged)
-    case (iDiis)
+    case (geoOptTypes%diis)
       call next(self%pDiis, dx, xNew, tConverged)
-    case (iLbfgs)
+    case (geoOptTypes%lbfgs)
       call self%pLbfgs%next(fx, dx, xNew, tConverged)
     end select
 

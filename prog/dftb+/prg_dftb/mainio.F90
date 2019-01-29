@@ -33,7 +33,7 @@ module mainio
   use linkedlist
   use taggedoutput
   use fileid
-  use solvers
+  use elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use spin, only : qm2ud
   use energies
   use xmlf90

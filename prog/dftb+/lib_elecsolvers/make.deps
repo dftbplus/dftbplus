@@ -1,0 +1,14 @@
+elecsolvers.o: _mod_elsisolver _mod_elecsolvertypes _mod_environment common.fypp _mod_accuracy
+elecsolvers.o = elecsolvers.o $(_mod_elsisolver) $(_mod_elecsolvertypes) $(_mod_environment) $(common.fypp) $(_mod_accuracy)
+_mod_elecsolvers: elecsolvers.o
+_mod_elecsolvers = $(elecsolvers.o)
+
+elecsolvertypes.o:
+elecsolvertypes.o = elecsolvertypes.o
+_mod_elecsolvertypes: elecsolvertypes.o
+_mod_elecsolvertypes = $(elecsolvertypes.o)
+
+elsisolver.o: common.fypp _mod_elsiiface _mod_message _mod_environment _mod_elecsolvertypes _mod_accuracy
+elsisolver.o = elsisolver.o $(common.fypp) $(_mod_elsiiface) $(_mod_message) $(_mod_environment) $(_mod_elecsolvertypes) $(_mod_accuracy)
+_mod_elsisolver: elsisolver.o
+_mod_elsisolver = $(elsisolver.o)

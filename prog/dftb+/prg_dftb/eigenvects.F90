@@ -14,13 +14,12 @@ module eigenvects
   use accuracy
   use eigensolver
   use message
-  use solvertypes
 #:if WITH_SCALAPACK
   use scalapackfx
 #:endif
   use elsiiface
   use parallelks
-  use solvers
+  use elecsolvers, only : TElectronicSolver, electronicSolverTypes
   implicit none
   private
 

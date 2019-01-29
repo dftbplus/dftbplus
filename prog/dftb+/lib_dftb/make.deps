@@ -238,13 +238,13 @@ _mod_sparse2dense = $(sparse2dense.o)
 #:endif
 
 #:if WITH_MPI
-sparse2sparse.o: _mod_commontypes common.fypp _mod_constants _mod_message _mod_assert _mod_environment _mod_solvers _mod_accuracy _mod_elsiiface _mod_mpifx
-sparse2sparse.o = sparse2sparse.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_solvers) $(_mod_accuracy) $(_mod_elsiiface) $(_mod_mpifx)
+sparse2sparse.o: _mod_commontypes common.fypp _mod_constants _mod_message _mod_assert _mod_environment _mod_elsiiface _mod_accuracy _mod_elecsolvers _mod_mpifx
+sparse2sparse.o = sparse2sparse.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_elsiiface) $(_mod_accuracy) $(_mod_elecsolvers) $(_mod_mpifx)
 _mod_sparse2sparse: sparse2sparse.o
 _mod_sparse2sparse = $(sparse2sparse.o)
 #:else
-sparse2sparse.o: _mod_commontypes common.fypp _mod_constants _mod_message _mod_assert _mod_environment _mod_solvers _mod_accuracy _mod_elsiiface
-sparse2sparse.o = sparse2sparse.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_solvers) $(_mod_accuracy) $(_mod_elsiiface)
+sparse2sparse.o: _mod_commontypes common.fypp _mod_constants _mod_message _mod_assert _mod_environment _mod_elsiiface _mod_accuracy _mod_elecsolvers
+sparse2sparse.o = sparse2sparse.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_environment) $(_mod_elsiiface) $(_mod_accuracy) $(_mod_elecsolvers)
 _mod_sparse2sparse: sparse2sparse.o
 _mod_sparse2sparse = $(sparse2sparse.o)
 #:endif

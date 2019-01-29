@@ -13,7 +13,6 @@ module parser
   use assert
   use accuracy
   use constants
-  use solvertypes
   use inputdata_module
   use typegeometryhsd
   use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
@@ -38,11 +37,14 @@ module parser
   use commontypes
   use oldskdata
   use xmlf90
+  use dftbp_forcetypes, only : forceTypes
+  use mixer, only : mixerTypes
+  use geoopt, only : geoOptTypes
 #:if WITH_SOCKETS
   use ipisocket, only : IPI_PROTOCOLS
 #:endif
   use elsiiface
-  use solvers, only : electronicSolverTypes
+  use elecsolvers, only : electronicSolverTypes
   use wrappedintrinsics
 #:if WITH_TRANSPORT
   use poisson_init
@@ -368,7 +370,7 @@ contains
     ctrl%tCoordOpt = .false.
     ctrl%tLatOpt = .false.
 
-    ctrl%iGeoOpt = 0
+    ctrl%iGeoOpt = geoOptTypes%none
     ctrl%tMD = .false.
     ctrl%iThermostat = 0
     ctrl%tForces = .false.
@@ -383,7 +385,7 @@ contains
     case ("steepestdescent")
       ! Steepest downhill optimisation
 
-      ctrl%iGeoOpt = optSD
+      ctrl%iGeoOpt = geoOptTypes%steepestDesc
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
 
@@ -440,7 +442,7 @@ contains
     case ("conjugategradient")
       ! Conjugate gradient location optimisation
 
-      ctrl%iGeoOpt = optCG
+      ctrl%iGeoOpt = geoOptTypes%conjugateGrad
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
       call getChildValue(node, "LatticeOpt", ctrl%tLatOpt, .false.)
@@ -493,7 +495,7 @@ contains
     case("gdiis")
       ! Gradient DIIS optimisation, only stable in the quadratic region
 
-      ctrl%iGeoOpt = optDIIS
+      ctrl%iGeoOpt = geoOptTypes%diis
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
       call getChildValue(node, "alpha", ctrl%deltaGeoOpt, 1.0E-1_dp)
@@ -544,7 +546,7 @@ contains
 
     case ("lbfgs")
 
-      ctrl%iGeoOpt = 4
+      ctrl%iGeoOpt = geoOptTypes%lbfgs
 
       ctrl%tForces = .true.
       ctrl%restartFreq = 1
@@ -1486,7 +1488,7 @@ contains
       select case(char(buffer))
 
       case ("broyden")
-        ctrl%iMixSwitch = mixerBroyden
+        ctrl%iMixSwitch = mixerTypes%broyden
         call getChildValue(value, "MixingParameter", ctrl%almix, 0.2_dp)
         call getChildValue(value, "InverseJacobiWeight", ctrl%broydenOmega0, &
             &0.01_dp)
@@ -1498,7 +1500,7 @@ contains
             &1.0e-2_dp)
 
       case ("anderson")
-        ctrl%iMixSwitch = mixerAnderson
+        ctrl%iMixSwitch = mixerTypes%anderson
         call getChildValue(value, "MixingParameter", ctrl%almix, 0.05_dp)
         call getChildValue(value, "Generations", ctrl%iGenerations, 4)
         call getChildValue(value, "InitMixingParameter", &
@@ -1524,11 +1526,11 @@ contains
             &1.0e-2_dp)
 
       case ("simple")
-        ctrl%iMixSwitch = mixerSimple
+        ctrl%iMixSwitch = mixerTypes%simple
         call getChildValue(value, "MixingParameter", ctrl%almix, 0.05_dp)
 
       case("diis")
-        ctrl%iMixSwitch = mixerDIIS
+        ctrl%iMixSwitch = mixerTypes%diis
         call getChildValue(value, "InitMixingParameter", ctrl%almix, 0.2_dp)
         call getChildValue(value, "Generations", ctrl%iGenerations, 6)
         call getChildValue(value, "UseFromStart", ctrl%tFromStart, .true.)
@@ -1801,11 +1803,13 @@ contains
     case ("elpa")
       ctrl%solver%isolver = electronicSolverTypes%elpa
       allocate(ctrl%solver%elsi)
+      ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value, "Mode", ctrl%solver%elsi%ELPA_Solver, 2)
 
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
       allocate(ctrl%solver%elsi)
+      ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value, "nIterationsELPA", ctrl%solver%elsi%OMM_IterationsELPA, 5)
       call getChildValue(value, "Tolerance", ctrl%solver%elsi%OMM_Tolerance, 1.0E-10_dp)
       call getChildValue(value, "Choleskii", ctrl%solver%elsi%OMM_Choleskii, .true.)
@@ -1813,6 +1817,7 @@ contains
     case ("pexsi")
       ctrl%solver%isolver = electronicSolverTypes%pexsi
       allocate(ctrl%solver%elsi)
+      ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value, "Poles", ctrl%solver%elsi%PEXSI_n_pole, 20)
       call getChildValue(value, "ProcsPerPole", ctrl%solver%elsi%PEXSI_np_per_pole, 1)
       call getChildValue(value, "muPoints", ctrl%solver%elsi%PEXSI_n_mu, 2)
@@ -1824,6 +1829,7 @@ contains
     case ("ntpoly")
       ctrl%solver%isolver = electronicSolverTypes%ntpoly
       allocate(ctrl%solver%elsi)
+      ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       if (ctrl%tSpin) then
         call detailedError(value, "Solver does not currently support spin polarisation")
       end if
@@ -2234,16 +2240,16 @@ contains
           & child=child)
       select case (tolower(unquote(char(buffer))))
       case("traditional")
-        ctrl%forceType = forceOrig
+        ctrl%forceType = forceTypes%orig
       case("dynamicst0")
-        ctrl%forceType = forceDynT0
+        ctrl%forceType = forceTypes%dynamicT0
       case("dynamics")
-        ctrl%forceType = forceDynT
+        ctrl%forceType = forceTypes%dynamicTFinite
       case default
         call detailedError(child, "Invalid force evaluation method.")
       end select
     else
-      ctrl%forceType = forceOrig
+      ctrl%forceType = forceTypes%orig
     end if
 
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)

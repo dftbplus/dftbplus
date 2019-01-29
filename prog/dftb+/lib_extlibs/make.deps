@@ -14,13 +14,13 @@ _mod_dftd3_module: dftd3.o
 _mod_dftd3_module = $(dftd3.o)
 
 #:if WITH_ELSI
-elsiiface.o: _mod_message common.fypp _mod_accuracy _mod_elsi
-elsiiface.o = elsiiface.o $(_mod_message) $(common.fypp) $(_mod_accuracy) $(_mod_elsi)
+elsiiface.o: common.fypp _mod_accuracy _mod_elsi
+elsiiface.o = elsiiface.o $(common.fypp) $(_mod_accuracy) $(_mod_elsi)
 _mod_elsiiface: elsiiface.o
 _mod_elsiiface = $(elsiiface.o)
 #:else
-elsiiface.o: _mod_message common.fypp _mod_accuracy
-elsiiface.o = elsiiface.o $(_mod_message) $(common.fypp) $(_mod_accuracy)
+elsiiface.o: common.fypp _mod_accuracy
+elsiiface.o = elsiiface.o $(common.fypp) $(_mod_accuracy)
 _mod_elsiiface: elsiiface.o
 _mod_elsiiface = $(elsiiface.o)
 #:endif

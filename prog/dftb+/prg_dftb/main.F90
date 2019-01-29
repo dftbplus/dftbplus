@@ -17,10 +17,9 @@ module main
   use scalafxext
 #:endif
   use elsiiface
-  use solvers
+  use elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use assert
   use constants
-  use solvertypes
   use globalenv
   use environment
   use densedescr
@@ -75,7 +74,8 @@ module main
   use mdcommon
   use mdintegrator
   use tempprofile
-
+  use dftbp_elstattypes, only : elstatTypes
+  use dftbp_forcetypes, only : forceTypes
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -1639,13 +1639,13 @@ contains
 
     select case(electrostatics)
 
-    case(gammaf)
+    case(elstatTypes%gammaFunc)
 
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       call sccCalc%getShiftPerAtom(atomPot(:,1))
       call sccCalc%getShiftPerL(shellPot(:,:,1))
 
-    case(poisson)
+    case(elstatTypes%poisson)
 
     #:if WITH_TRANSPORT
       ! NOTE: charge-magnetization representation is used
@@ -4818,7 +4818,7 @@ contains
 
     nLocalRows = size(eigvecsReal, dim=1)
     nLocalCols = size(eigvecsReal, dim=2)
-    if (forceType == forceDynT0 .or. forceType == forceDynT) then
+    if (forceType == forceTypes%dynamicT0 .or. forceType == forceTypes%dynamicTFinite) then
       allocate(work2(nLocalRows, nLocalCols))
     end if
 
@@ -4828,7 +4828,7 @@ contains
 
       select case (forceType)
 
-      case(forceOrig)
+      case(forceTypes%orig)
         ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
         call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
@@ -4842,7 +4842,7 @@ contains
         end if
       #:endif
 
-      case(forceDynT0)
+      case(forceTypes%dynamicT0)
         ! Correct force for XLBOMD for T=0K (DHD)
       #:if WITH_SCALAPACK
         call unpackHSRealBlacs(env%blacs, ham(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
@@ -4864,7 +4864,7 @@ contains
         call symm(work, "R", work2, eigvecsReal(:,:,iKS), alpha=0.5_dp)
       #:endif
 
-      case(forceDynT)
+      case(forceTypes%dynamicTFinite)
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
       #:if WITH_SCALAPACK
         call makeDensityMtxRealBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, filling(:,1,iS),&
@@ -4983,7 +4983,7 @@ contains
     nLocalRows = size(eigvecsCplx, dim=1)
     nLocalCols = size(eigvecsCplx, dim=2)
 
-    if (forceType == forceDynT0 .or. forceType == forceDynT) then
+    if (forceType == forceTypes%dynamicT0 .or. forceType == forceTypes%dynamicTFinite) then
       allocate(work2(nLocalRows, nLocalCols))
     end if
 
@@ -4994,7 +4994,7 @@ contains
 
       select case (forceType)
 
-      case(forceOrig)
+      case(forceTypes%orig)
         ! Original (non-consistent) scheme
       #:if WITH_SCALAPACK
         call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&
@@ -5009,7 +5009,7 @@ contains
         end if
       #:endif
 
-      case(forceDynT0)
+      case(forceTypes%dynamicT0)
         ! Correct force for XLBOMD for T=0K (DHD)
       #:if WITH_SCALAPACK
         call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
@@ -5029,7 +5029,7 @@ contains
         call hemm(work, "R", work2, eigvecsCplx(:,:,iKS), alpha=(0.5_dp, 0.0_dp))
       #:endif
 
-      case(forceDynT)
+      case(forceTypes%dynamicTFinite)
         ! Correct force for XLBOMD for T <> 0K (DHS^-1 + S^-1HD)
       #:if WITH_SCALAPACK
         call makeDensityMtxCplxBlacs(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr,&

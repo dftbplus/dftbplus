@@ -15,11 +15,10 @@ module initprogram
   use globalenv
   use environment
   use scalapackfx
-  use solvers
+  use elecsolvers
   use elsiiface
   use inputdata_module
   use densedescr
-  use solvertypes
   use constants
   use periodic
   use accuracy
@@ -81,6 +80,8 @@ module initprogram
   use potentials
   use taggedoutput
   use formatout
+  use dftbp_forcetypes, only : forceTypes
+  use dftbp_elstattypes, only : elstatTypes
 #:if WITH_TRANSPORT
   use libnegf_vars
   use negf_int
@@ -1441,11 +1442,11 @@ contains
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
       select case (iMixer)
-      case (mixerSimple)
+      case (mixerTypes%simple)
         allocate(pSimplemixer)
         call init(pSimpleMixer, mixParam)
         call init(pChrgMixer, pSimpleMixer)
-      case (mixerAnderson)
+      case (mixerTypes%anderson)
         allocate(pAndersonMixer)
         if (input%ctrl%andersonNrDynMix > 0) then
           call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
@@ -1455,12 +1456,12 @@ contains
               & omega0=input%ctrl%andersonOmega0)
         end if
         call init(pChrgMixer, pAndersonMixer)
-      case (mixerBroyden)
+      case (mixerTypes%broyden)
         allocate(pBroydenMixer)
         call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
             & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
         call init(pChrgMixer, pBroydenMixer)
-      case(mixerDIIS)
+      case(mixerTypes%diis)
         allocate(pDIISMixer)
         call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
         call init(pChrgMixer, pDIISMixer)
@@ -1530,11 +1531,11 @@ contains
     if (tSccCalc) then
       forceType = input%ctrl%forceType
     else
-      if (input%ctrl%forceType /= forceOrig) then
+      if (input%ctrl%forceType /= forceTypes%orig) then
         call error("Invalid force evaluation method for non-SCC calculations.")
       end if
     end if
-    if (forceType == forceDynT0 .and. tempElec > minTemp) then
+    if (forceType == forceTypes%dynamicT0 .and. tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
     end if
     if (tForces) then
@@ -1612,7 +1613,7 @@ contains
       allocate(tmpCoords(nMovedCoord))
       tmpCoords(1:nMovedCoord) = reshape(coord0(:, indMovedAtom), (/ nMovedCoord /))
       select case (input%ctrl%iGeoOpt)
-      case(optSD)
+      case(geoOptTypes%steepestDesc)
         allocate(tmpWeight(nMovedCoord))
         tmpWeight(1:nMovedCoord) = 0.5_dp * deltaT**2 / reshape(spread(mass(indMovedAtom), 1, 3),&
             & (/nMovedCoord/))
@@ -1621,16 +1622,16 @@ contains
             & tmpWeight )
         deallocate(tmpWeight)
         call init(pGeoCoordOpt, pSteepDesc)
-      case (optCG)
+      case (geoOptTypes%conjugateGrad)
         allocate(pConjGrad)
         call init(pConjGrad, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp)
         call init(pGeoCoordOpt, pConjGrad)
-      case (optDIIS)
+      case (geoOptTypes%diis)
         allocate(pDIIS)
         call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, input%ctrl%deltaGeoOpt,&
             & input%ctrl%iGenGeoOpt)
         call init(pGeoCoordOpt, pDIIS)
-      case (optLBFGS)
+      case (geoOptTypes%lbfgs)
         allocate(pLbfgs)
         call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
             & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
@@ -1642,14 +1643,14 @@ contains
     allocate(pGeoLatOpt)
     if (tLatOpt) then
       select case (input%ctrl%iGeoOpt)
-      case(optSD)
+      case(geoOptTypes%steepestDesc)
         allocate(tmpWeight(9))
         tmpWeight = 1.0_dp
         allocate(pSteepDescLat)
         call init(pSteepDescLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp, tmpWeight)
         deallocate(tmpWeight)
         call init(pGeoLatOpt, pSteepDescLat)
-      case(optCG, optDIIS) ! use CG lattice for both DIIS and CG
+      case(geoOptTypes%conjugateGrad, geoOptTypes%diis) ! use CG lattice for both DIIS and CG
         allocate(pConjGradLat)
         call init(pConjGradLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp)
         call init(pGeoLatOpt, pConjGradLat)
@@ -1931,7 +1932,7 @@ contains
         call error("XLBOMD does not work with barostats yet")
       elseif (nSpin /= 1 .or. tDFTBU) then
         call error("XLBOMD does not work for spin or DFTB+U yet")
-      elseif (forceType /= forceDynT0 .and. forceType /= forceDynT) then
+      elseif (forceType /= forceTypes%dynamicT0 .and. forceType /= forceTypes%dynamicTFinite) then
         call error("Force evaluation method incompatible with XLBOMD")
       elseif (iDistribFn /= Fermi) then
         call error("Filling function incompatible with XLBOMD")
@@ -2274,9 +2275,9 @@ contains
     end if
 
     if (tPoisson) then
-      electrostatics = poisson
+      electrostatics = elstatTypes%poisson
     else
-      electrostatics = gammaf
+      electrostatics = elstatTypes%gammaFunc
     end if
 
   #:if WITH_SCALAPACK
@@ -2485,13 +2486,13 @@ contains
         strTmp = ""
       end if
       select case (input%ctrl%iGeoOpt)
-      case (optSD)
+      case (geoOptTypes%steepestDesc)
         write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
-      case (2)
+      case (geoOptTypes%conjugateGrad)
         write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
-      case (3)
+      case (geoOptTypes%diis)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
-      case (4)
+      case (geoOptTypes%lbfgs)
         write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case default
         call error("Unknown optimisation mode")
@@ -2551,24 +2552,24 @@ contains
 
     if (tSccCalc) then
       select case (iMixer)
-      case(mixerSimple)
+      case(mixerTypes%simple)
         write (strTmp, "(A)") "Simple"
-      case(mixerAnderson)
+      case(mixerTypes%anderson)
         write (strTmp, "(A)") "Anderson"
-      case(mixerBroyden)
+      case(mixerTypes%broyden)
         write (strTmp, "(A)") "Broyden"
-      case(mixerDIIS)
+      case(mixerTypes%diis)
         write (strTmp, "(A)") "DIIS"
       end select
       write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
       write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
       write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
       select case (iMixer)
-      case(mixerAnderson)
+      case(mixerTypes%anderson)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-      case(mixerBroyden)
+      case(mixerTypes%broyden)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
-      case(mixerDIIS)
+      case(mixerTypes%diis)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
       end select
     end if
@@ -2579,18 +2580,18 @@ contains
     if (tGeoOpt) then
       write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", nGeoSteps
       write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
-      if (input%ctrl%iGeoOpt == optSD) then
+      if (input%ctrl%iGeoOpt == geoOptTypes%steepestDesc) then
         write(stdOut, "(A,':',T30,E14.6)") "Step size", deltaT
       end if
     end if
 
     if (tForces) then
       select case (forceType)
-      case(forceOrig)
+      case(forceTypes%orig)
         strTmp = "Traditional"
-      case(forceDynT0)
+      case(forceTypes%dynamicT0)
         strTmp = "Dynamics, zero electronic temp."
-      case(forceDynT)
+      case(forceTypes%dynamicTFinite)
         strTmp = "Dynamics, finite electronic temp."
       end select
       write(stdOut, "(A,':',T30,A)") "Force evaluation method", trim(strTmp)
@@ -2826,12 +2827,12 @@ contains
     end if
 
     select case (forceType)
-    case(forceOrig)
+    case(forceTypes%orig)
       write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceDynT0)
+    case(forceTypes%dynamicT0)
       write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
       write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(forceDynT)
+    case(forceTypes%dynamicTFinite)
       write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
     end select
 

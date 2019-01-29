@@ -18,7 +18,7 @@ module inputdata_module
   use slakocont
   use commontypes
   use repcont
-  use solvers
+  use elecsolvers, only : TElectronicSolverInp
   use linkedlist
   use xlbomd_module
 #:if WITH_SOCKETS
