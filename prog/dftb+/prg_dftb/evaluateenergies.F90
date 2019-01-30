@@ -153,11 +153,11 @@ contains
     energy%atomNonSCC(:) = 0.0_dp
     call mulliken(energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighbourList%iNeighbour, nNeighbourSK,&
         & img2CentCell, iSparseStart)
-    energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
+    energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion))
 
     if (tEfield) then
       energy%atomExt = sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
-      energy%Eext = sum(energy%atomExt(iAtInCentralRegion(:)))
+      energy%Eext = sum(energy%atomExt(iAtInCentralRegion))
     end if
 
     if (allocated(sccCalc)) then
@@ -166,11 +166,11 @@ contains
       else
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
-      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
+      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion))
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
-        energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
+        energy%Espin = sum(energy%atomSpin(iAtInCentralRegion))
       end if
     end if
     if (allocated(thirdOrd)) then
@@ -179,7 +179,7 @@ contains
       else
         call thirdOrd%getEnergyPerAtom(energy%atom3rd)
       end if
-      energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
+      energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion))
     end if
 
     if (allocated(onSiteElements)) then
@@ -194,13 +194,13 @@ contains
       else
         call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
       end if
-      energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion(:)))
+      energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion))
     end if
 
     if (tDualSpinOrbit) then
       energy%atomLS(:) = 0.0_dp
       call getDualSpinOrbitEnergy(energy%atomLS, qiBlock, xi, orb, species)
-      energy%ELS = sum(energy%atomLS(iAtInCentralRegion(:)))
+      energy%ELS = sum(energy%atomLS(iAtInCentralRegion))
     end if
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&

@@ -299,6 +299,7 @@ contains
     if (tDispersion) then
        this%tDispersion = .true.
        allocate(this%dispersion, source=dispersion)
+       !call this%dispersion%updateCoords(neighbourList, img2CentCell, coord, species0)
     end if
 
     this%skRepCutoff = skRepCutoff
@@ -583,7 +584,6 @@ contains
     type(TPotentials) :: potential
     type(TEnergies) :: energy
     type(TTimer) :: loopTime
-    real(dp) :: TS(this%nSpin)
     real(dp), allocatable :: qBlock(:,:,:,:), qiBlock(:,:,:,:)
 
     complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
@@ -595,8 +595,8 @@ contains
 
     if (this%tRestart) then
        call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
-       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare, iSparseStart,&
-           & img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
+       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+            & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
        if (this%tIons) then
           this%initialVelocities(:,:) = this%movedVelo
           this%ReadMDVelocities = .true.
@@ -686,33 +686,10 @@ contains
          & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare)
     end if
 
-    rhoPrim(:,:) = 0.0_dp
-    if (allocated(iRhoPrim)) then
-      iRhoPrim(:,:) = 0.0_dp
-      do iSpin = 1, this%nSpin
-        call packHS(rhoPrim(:,iSpin), iRhoPrim(:,iSpin), rho(:,:,iSpin), neighbourList%iNeighbour,&
-            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-      end do
-    else
-      do iSpin = 1, this%nSpin
-        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-      end do
-    end if
-
-    TS = 0.0_dp
-    call getEnergies(this%sccCalc, qq, q0, chargePerShell, species, this%tLaser, .false.,&
-        & .false., tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-        & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
-    call getERep(energy%atomRep, coordAll, nNeighbourSK, neighbourList%iNeighbour, species,&
-         & pRepCont, img2CentCell)
-    energy%Erep = sum(energy%atomRep)
-    energyKin = 0.0_dp
-    call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList%iNeighbour, nNeighbourSK, orb,&
+    call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
          & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, &
-         & pRepCont, energyKin)
-    ! modify getTDEnergy to include everyting
+         & pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ,&
+         & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
@@ -732,8 +709,8 @@ contains
 
      if (this%tIons) then
         coord(:,:) = coordNew
-        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare, iSparseStart,&
-             & img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
+        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+             &iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
      end if
 
      if ((this%tPumpProbe) .and. (mod(iStep, this%nSteps/this%PuProbeFrames) == 0)) then
@@ -799,30 +776,10 @@ contains
              &neighbourList, nNeighbourSK, iSquare)
      end if
 
-          rhoPrim(:,:) = 0.0_dp
-     if (allocated(iRhoPrim)) then
-        iRhoPrim(:,:) = 0.0_dp
-        do iSpin = 1, this%nSpin
-          call packHS(rhoPrim(:,iSpin), iRhoPrim(:,iSpin), rho(:,:,iSpin),&
-              & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSquare, iSparseStart,&
-              & img2CentCell)
-        end do
-      else
-        do iSpin = 1, this%nSpin
-          call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-              & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-        end do
-      end if
-
-      TS = 0.0_dp
-      call getEnergies(this%sccCalc, qq, q0, chargePerShell, species, this%tLaser, .false.,&
-          & .false., tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-          & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
-     call getTDEnergy(this, energy, rhoPrim, rho, neighbourList%iNeighbour, nNeighbourSK, orb,&
+     call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
           & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, &
-          & pRepCont, energyKin)
-     ! modify getTDEnergy to include everyting
+          & pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ,&
+          & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
      if (this%tPairWiseEnergy) then
         call pairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
@@ -1231,8 +1188,10 @@ contains
 
 
   !> Calculate energy - modify to include new way to calculate energy
-  subroutine getTDEnergy(this, energy, rhoPrim, rho, iNeighbour, nNeighbourSK, orb, iSquare, &
-       & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, pRepCont, energyKin)
+  subroutine getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
+       & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, &
+       & pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ,&
+       & niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1258,8 +1217,8 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-    !> Atomic neighbour data
-    integer, intent(in) :: iNeighbour(0:,:)
+    !> neighbour list
+    type(TNeighbourList), intent(in) :: neighbourList
 
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
@@ -1285,61 +1244,75 @@ contains
     !> repulsive information
     type(ORepCont), intent(in) :: pRepCont
 
+    !> kinetic energy
     real(dp), intent(out) :: energyKin
+
+    !> Is dual spin orbit being used
+    logical, intent(in) :: tDualSpinOrbit
+
+        !> 3rd order settings
+    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> block (dual) atomic populations
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
+
+    !> U-J prefactors in DFTB+U
+    real(dp), intent(in), allocatable :: UJ(:,:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), allocatable :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), allocatable :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), allocatable :: niUJ(:,:)
+
+    !> Spin orbit constants
+    real(dp), intent(in), allocatable :: xi(:,:)
+
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
+    !> from the given number of electrons
+    real(dp), intent(inout) :: Ef(:)
+
+    !> Corrections terms for on-site elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     integer :: iSpin
     logical :: tUseBuggyRepSum = .false.
+    real(dp) :: TS(this%nSpin)
 
     if (size(rhoPrim, dim=1) /= this%nSparse) then
        deallocate(rhoPrim)
        allocate(rhoPrim(this%nSparse, this%nSpin))
     end if
 
+    rhoPrim(:,:) = 0.0_dp
     do iSpin = 1, this%nSpin
-
-       rhoPrim(:,iSpin) = 0.0_dp
-       call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), iNeighbour, nNeighbourSK, orb%mOrb,&
-            & iSquare, iSparseStart, img2CentCell)
+      call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
     end do
 
-    if (this%nSpin == 2) then
-       call ud2qm(rhoPrim)
-    end if
-
-    energy%ETotal = 0.0_dp
-    energy%EnonSCC = 0.0_dp
-    energy%atomNonSCC(:) = 0.0_dp
-    energyKin = 0.0_dp
-
-    call mulliken(energy%atomNonSCC(:), rhoPrim(:,1), ham0, orb, iNeighbour, nNeighbourSK,&
-        & img2CentCell, iSparseStart)
-    energy%EnonSCC =  sum(energy%atomNonSCC)
-
-    if (this%tLaser) then
-      energy%atomExt = -sum(q0(:, :, 1) - qq(:, :, 1),dim=1) * potential%extAtom(:,1)
-      energy%Eext =  sum(energy%atomExt)
-    else
-      energy%Eext = 0.0_dp
-      energy%atomExt = 0.0_dp
-    end if
-
-    call this%sccCalc%getEnergyPerAtom(energy%atomSCC)
-    energy%eSCC = sum(energy%atomSCC)
-
-    if (this%nSpin > 1) then
-      energy%atomSpin = 0.5_dp * sum(sum(potential%intShell(:,:,2:this%nSpin)&
-          & * chargePerShell(:,:,2:this%nSpin), dim=1), dim=2)
-      energy%Espin = sum(energy%atomSpin)
-    else
-      energy%atomSpin = 0.0_dp
-      energy%eSpin = 0.0_dp
-    end if
+    call ud2qm(rhoPrim)
 
     ! Calculate repulsive energy
-    call getERep(energy%atomRep, coord, nNeighbourSK, iNeighbour, this%species, pRepCont,&
-        & img2CentCell)
+    call getERep(energy%atomRep, coord, nNeighbourSK, neighbourList%iNeighbour, this%species,&
+         & pRepCont, img2CentCell)
     energy%Erep = sum(energy%atomRep)
 
+    ! Calculate dispersion component
     if (this%tDispersion) then
        call this%dispersion%getEnergies(energy%atomDisp)
        energy%eDisp = sum(energy%atomDisp)
@@ -1348,13 +1321,20 @@ contains
        energy%eDisp = 0.0_dp
     end if
 
+    TS = 0.0_dp
+    call getEnergies(this%sccCalc, qq, q0, chargePerShell, this%species, this%tLaser, .false.,&
+         & .false., tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
+         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
+         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+    ! getEnergies returns the total energy Etotal including repulsive and dispersions energies
+
+    ! Calculate nuclear kinetic energy
+    energyKin = 0.0_dp
     if (this%tIons) then
        energyKin = 0.5_dp * sum(this%movedMass(:,:) * this%movedVelo(:,:)**2)
        energy%Etotal = energy%Etotal + energyKin
     end if
 
-    energy%Eelec = energy%EnonSCC + energy%eSCC + energy%Espin + energy%Eext
-    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
   end subroutine getTDEnergy
 
 
@@ -2129,8 +2109,7 @@ contains
     call this%sccCalc%updateCoords(env, coord, this%species, neighbourList)
 
    if (this%tDispersion) then
-      call this%dispersion%updateCoords(neighbourList, img2CentCell, coord, &
-           & specie0)
+      call this%dispersion%updateCoords(neighbourList, img2CentCell, coord, specie0)
    end if
 
    call buildH0(env, ham0, skHamCont, this%atomEigVal, coord, nNeighbourSK, &
