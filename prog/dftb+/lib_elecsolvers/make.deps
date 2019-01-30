@@ -8,7 +8,14 @@ elecsolvertypes.o = elecsolvertypes.o
 _mod_elecsolvertypes: elecsolvertypes.o
 _mod_elecsolvertypes = $(elecsolvertypes.o)
 
-elsisolver.o: common.fypp _mod_elsiiface _mod_message _mod_environment _mod_elecsolvertypes _mod_accuracy
-elsisolver.o = elsisolver.o $(common.fypp) $(_mod_elsiiface) $(_mod_message) $(_mod_environment) $(_mod_elecsolvertypes) $(_mod_accuracy)
+#:if WITH_MPI
+elsisolver.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_elsiiface _mod_message _mod_energies _mod_assert _mod_densedescr _mod_angmomentum _mod_spinorbit _mod_environment _mod_orbitals _mod_spin _mod_periodic _mod_elecsolvertypes _mod_accuracy _mod_constants _mod_mpifx
+elsisolver.o = elsisolver.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_elsiiface) $(_mod_message) $(_mod_energies) $(_mod_assert) $(_mod_densedescr) $(_mod_angmomentum) $(_mod_spinorbit) $(_mod_environment) $(_mod_orbitals) $(_mod_spin) $(_mod_periodic) $(_mod_elecsolvertypes) $(_mod_accuracy) $(_mod_constants) $(_mod_mpifx)
 _mod_elsisolver: elsisolver.o
 _mod_elsisolver = $(elsisolver.o)
+#:else
+elsisolver.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_elsiiface _mod_message _mod_energies _mod_assert _mod_densedescr _mod_angmomentum _mod_spinorbit _mod_environment _mod_orbitals _mod_spin _mod_periodic _mod_elecsolvertypes _mod_accuracy _mod_constants
+elsisolver.o = elsisolver.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_elsiiface) $(_mod_message) $(_mod_energies) $(_mod_assert) $(_mod_densedescr) $(_mod_angmomentum) $(_mod_spinorbit) $(_mod_environment) $(_mod_orbitals) $(_mod_spin) $(_mod_periodic) $(_mod_elecsolvertypes) $(_mod_accuracy) $(_mod_constants)
+_mod_elsisolver: elsisolver.o
+_mod_elsisolver = $(elsisolver.o)
+#:endif
