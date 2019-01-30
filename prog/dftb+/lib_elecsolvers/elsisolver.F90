@@ -29,6 +29,7 @@ module elsisolver
   use spin, only : ud2qm
   use angmomentum, only : getLOnsite
   use spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
+  use potentials, only : TPotentials
   implicit none
   private
 
@@ -36,6 +37,9 @@ module elsisolver
   public :: TElsiSolver
   public :: TElsiSolver_init, TElsiSolver_final
   public :: TElsiSolver_getDensity
+  public :: initPexsiDeltaVRanges
+  public :: updatePexsiDeltaVRanges
+  public :: getEDensityMtxElsiPauli, getEDensityMtxElsiReal, getEDensityMtxElsiCmplx
   public :: getEDensityRealElsi, getEDensityComplexElsi
   public :: TSparse2Sparse, initSparse2Sparse
 
@@ -1424,9 +1428,245 @@ contains
   end subroutine calcDensityRealElsi
 
 
+  subroutine initPexsiDeltaVRanges(tSccCalc, potential, elsiSolver)
+
+    !> Whether we have an SCC calculation
+    logical, intent(in) :: tSccCalc
+
+    !> Potentials acting
+    type(TPotentials), intent(in) :: potential
+
+    !> Electronic solver information
+    type(TElsiSolver), intent(inout) :: elsiSolver
+
+    if (tSccCalc) then
+      if (.not.allocated(elsiSolver%PEXSI_VOld)) then
+        allocate(elsiSolver%PEXSI_VOld(size(potential%intBlock(:,:,:,1))))
+      end if
+      elsiSolver%PEXSI_VOld = reshape(potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
+          & [size(potential%extBlock(:,:,:,1))])
+    end if
+    elsiSolver%PEXSI_DeltaVmin = 0.0_dp
+    elsiSolver%PEXSI_DeltaVmax = 0.0_dp
+
+  end subroutine initPexsiDeltaVRanges
+
+
+  subroutine updatePexsiDeltaVRanges(potential, elsiSolver)
+
+    !> Potentials acting
+    type(TPotentials), intent(in) :: potential
+
+    !> Electronic solver information
+    type(TElsiSolver), intent(inout) :: elsiSolver
+
+
+    elsiSolver%PEXSI_DeltaVmin = minval(elsiSolver%PEXSI_VOld&
+        & - reshape(potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
+        & [size(potential%extBlock(:,:,:,1))]))
+    elsiSolver%PEXSI_DeltaVmax = maxval(elsiSolver%PEXSI_VOld&
+        & - reshape(potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
+        & [size(potential%extBlock(:,:,:,1))]))
+    elsiSolver%PEXSI_VOld = reshape(potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
+        & [size(potential%extBlock(:,:,:,1))])
+
+  end subroutine updatePexsiDeltaVRanges
+
+
+  subroutine getEDensityMtxElsiPauli(env, elsiSolver, denseDesc, kPoint, kWeight, neighbourList,&
+      & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, parallelKS, ERhoPrim,&
+      & SSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Electronic solver information
+    type(TElsiSolver), intent(inout) :: elsiSolver
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> K-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
+
+    !> Storage for dense overlap matrix
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    integer :: iK
+
+    if (elsiSolver%CSR) then
+      call error("EDensity via sparse ELSI solver not supported for Pauli-matrices")
+    else
+      ! iKS always 1, as number of groups matches the number of k-points
+      iK = parallelKS%localKS(1, 1)
+      call elsi_get_edm_complex(elsiSolver%handle, SSqrCplx)
+      call packERhoPauliBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, ERhoPrim)
+      call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+    end if
+
+  end subroutine getEDensityMtxElsiPauli
+
+
+  subroutine getEDensityMtxElsiReal(env, elsiSolver, sparseIndexing, denseDesc, neighbourList,&
+      & nNeighbourSK, orb, iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Electronic solver information
+    type(TElsiSolver), intent(inout) :: elsiSolver
+
+    !> Structure for sparse data representions, if using ELSI
+    type(TSparse2Sparse), intent(inout) :: sparseIndexing
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
+
+    !> Storage for dense overlap matrix
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+
+    if (elsiSolver%CSR) then
+      call getEDensityRealElsi(sparseIndexing, elsiSolver,&
+          & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, orb, erhoPrim)
+    else
+      call elsi_get_edm_real(elsiSolver%handle, SSqrReal)
+      ERhoPrim(:) = 0.0_dp
+      call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour, nNeighbourSK,&
+          & orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+    end if
+
+    ! add contributions from different spin channels together if necessary
+    call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+
+  end subroutine getEDensityMtxElsiReal
+
+
+  subroutine getEDensityMtxElsiCmplx(env, elsiSolver, sparseIndexing, denseDesc, kPoint, kWeight,&
+      & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
+      & parallelKS, ERhoPrim, SSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Electronic solver information
+    type(TElsiSolver), intent(inout) :: elsiSolver
+
+    !> Structure for sparse data representions, if using ELSI
+    type(TSparse2Sparse), intent(inout) :: sparseIndexing
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> K-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
+
+    !> Storage for dense overlap matrix (complex case)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    integer :: iK
+
+    ERhoPrim(:) = 0.0_dp
+    ! iKS always 1
+    iK = parallelKS%localKS(1, 1)
+    if (elsiSolver%CSR) then
+      call getEDensityComplexElsi(sparseIndexing, elsiSolver, kPoint(:,iK), kWeight(iK), iCellVec,&
+          & cellVec, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, orb, erhoPrim)
+    else
+      call elsi_get_edm_complex(elsiSolver%handle, SSqrCplx)
+      call packRhoCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, ERhoPrim)
+    end if
+    call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+
+  end subroutine getEDensityMtxElsiCmplx
+
+
   !> Gets energy density matrix using the elsi routine.
   subroutine getEDensityRealElsi(self, elsiSolver, iNeighbour,&
-      & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, erho)
+      & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, Erho)
 
     !> Sparse conversion instance
     type(TSparse2Sparse), intent(inout) :: self
@@ -1453,7 +1693,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Density matrix in DFTB+ sparse format
-    real(dp), intent(out) :: erho(:)
+    real(dp), intent(out) :: Erho(:)
 
     integer :: iS
     real(dp), allocatable :: EDMnzValLocal(:)
