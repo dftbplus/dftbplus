@@ -3911,7 +3911,6 @@ contains
   end subroutine readElecDynamics
 
 
-<<<<<<< HEAD
   !> Reads MD velocities
   subroutine readInitialVelocitiesNAMD(node, input, nAtom)
 

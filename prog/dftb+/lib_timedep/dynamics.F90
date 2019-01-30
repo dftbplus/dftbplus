@@ -839,13 +839,13 @@ contains
               call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv,&
                    & this%dt)
            else
-              call propagateRhoRealH(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv,&
+              call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv,&
                    & 2.0_dp * this%dt)
            end if
         else
            !The following is commented for the fast popagate that considers a real H
            !call scal(H1(:,:,iSpin), imag)
-           call propagateRhoFrozen(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv,&
+           call propagateRhoRealH(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv,&
                 & 2.0_dp * this%dt)
         end if
 
@@ -2211,8 +2211,7 @@ contains
     call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim(:), skHamCont,&
          &skOverCont, coord, this%species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
          & iSparseStart, orb, potential%intBlock)
-    call this%sccCalc%updateCharges(env, qq, q0, orb, this%species, neighbourList%iNeighbour, &
-         &img2CentCell)
+    call this%sccCalc%updateCharges(env, qq, q0, orb, this%species)
     call this%sccCalc%addForceDc(env, derivs, this%species, neighbourList%iNeighbour, &
          & img2CentCell)
     call getERepDeriv(repulsiveDerivs, coord, nNeighbourSK, neighbourList%iNeighbour, this%species,&
