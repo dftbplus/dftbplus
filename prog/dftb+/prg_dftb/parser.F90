@@ -1804,27 +1804,27 @@ contains
       ctrl%solver%isolver = electronicSolverTypes%elpa
       allocate(ctrl%solver%elsi)
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value, "Mode", ctrl%solver%elsi%ELPA_Solver, 2)
+      call getChildValue(value, "Mode", ctrl%solver%elsi%elpaSolver, 2)
 
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
       allocate(ctrl%solver%elsi)
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value, "nIterationsELPA", ctrl%solver%elsi%OMM_IterationsELPA, 5)
-      call getChildValue(value, "Tolerance", ctrl%solver%elsi%OMM_Tolerance, 1.0E-10_dp)
-      call getChildValue(value, "Choleskii", ctrl%solver%elsi%OMM_Choleskii, .true.)
+      call getChildValue(value, "nIterationsELPA", ctrl%solver%elsi%ommIterationsElpa, 5)
+      call getChildValue(value, "Tolerance", ctrl%solver%elsi%ommTolerance, 1.0E-10_dp)
+      call getChildValue(value, "Choleskii", ctrl%solver%elsi%ommCholesky, .true.)
 
     case ("pexsi")
       ctrl%solver%isolver = electronicSolverTypes%pexsi
       allocate(ctrl%solver%elsi)
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value, "Poles", ctrl%solver%elsi%PEXSI_n_pole, 20)
-      call getChildValue(value, "ProcsPerPole", ctrl%solver%elsi%PEXSI_np_per_pole, 1)
-      call getChildValue(value, "muPoints", ctrl%solver%elsi%PEXSI_n_mu, 2)
-      call getChildValue(value, "SymbolicFactorProcs", ctrl%solver%elsi%PEXSI_np_symbo, 1)
-      call getChildValue(value, "SpectralRadius", ctrl%solver%elsi%PEXSI_delta_e, 10.0_dp,&
+      call getChildValue(value, "Poles", ctrl%solver%elsi%pexsiNPole, 20)
+      call getChildValue(value, "ProcsPerPole", ctrl%solver%elsi%pexsiNpPerPole, 1)
+      call getChildValue(value, "muPoints", ctrl%solver%elsi%pexsiNMu, 2)
+      call getChildValue(value, "SymbolicFactorProcs", ctrl%solver%elsi%pexsiNpSymbo, 1)
+      call getChildValue(value, "SpectralRadius", ctrl%solver%elsi%pexsiDeltaE, 10.0_dp,&
           & modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, ctrl%solver%elsi%PEXSI_delta_e)
+      call convertByMul(char(modifier), energyUnits, child, ctrl%solver%elsi%pexsiDeltaE)
 
     case ("ntpoly")
       ctrl%solver%isolver = electronicSolverTypes%ntpoly
@@ -1833,9 +1833,9 @@ contains
       if (ctrl%tSpin) then
         call detailedError(value, "Solver does not currently support spin polarisation")
       end if
-      call getChildValue(value, "PurificationMethod", ctrl%solver%elsi%NTPoly_method, 2)
-      call getChildValue(value, "Tolerance", ctrl%solver%elsi%NTPoly_tolerance, 1.0E-5_dp)
-      call getChildValue(value, "Truncation", ctrl%solver%elsi%NTPoly_truncation, 1.0E-10_dp)
+      call getChildValue(value, "PurificationMethod", ctrl%solver%elsi%ntpolyMethod, 2)
+      call getChildValue(value, "Tolerance", ctrl%solver%elsi%ntpolyTolerance, 1.0E-5_dp)
+      call getChildValue(value, "Truncation", ctrl%solver%elsi%ntpolyTruncation, 1.0E-10_dp)
 
   #:if WITH_TRANSPORT
     case ("greensfunction")
@@ -1885,7 +1885,7 @@ contains
 
     if (any(ctrl%solver%isolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])) then
-      call getChildValue(value, "Sparse", ctrl%solver%elsi%ELSI_CSR, .false.)
+      call getChildValue(value, "Sparse", ctrl%solver%elsi%elsiCsr, .false.)
       if (ctrl%t2Component) then
         call detailedError(value,"Two-component hamiltonians currently cannot be used with sparse&
             & ELSI solvers")

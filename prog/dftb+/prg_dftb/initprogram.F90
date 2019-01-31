@@ -16,6 +16,7 @@ module initprogram
   use environment
   use scalapackfx
   use elecsolvers
+  use elsisolver, only : TElsiSolver_init, TElsiSolver_final
   use elsiiface
   use inputdata_module
   use densedescr
@@ -2240,8 +2241,8 @@ contains
     if (electronicSolver%isElsiSolver) then
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       tWriteHS = .false.
-      call electronicSolver%initElsi(input%ctrl%solver, env, denseDesc%fullSize, nEl, iDistribFn,&
-          & nSpin, nKpoint, input%ctrl%tWriteHS)
+      call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
+          & nEl, iDistribFn, nSpin, nKpoint, input%ctrl%tWriteHS)
     end if
 
 
@@ -2885,7 +2886,7 @@ contains
   subroutine destructProgramVariables()
 
     if (electronicSolver%isElsiSolver) then
-      call electronicSolver%finalElsi()
+      call TElsiSolver_final(electronicSolver%elsi)
     end if
 
     if (tProjEigenvecs) then
@@ -3397,7 +3398,7 @@ contains
     ! If only H/S should be printed, no allocation for square HS is needed
     tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
     if (electronicSolver%isElsiSolver) then
-      tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%CSR
+      tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&

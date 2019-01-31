@@ -16,11 +16,7 @@ module main
   use scalapackfx
   use scalafxext
 #:endif
-  use elsiiface
   use elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use elsisolver, only : TSparse2Sparse, TElsiSolver_getDensity, TElsiSolver_getEDensity,&
-      &initSparse2Sparse, getEDensityMtxElsiReal, getEDensityMtxElsiCmplx, getEDensityMtxElsiPauli,&
-      & initPexsiDeltaVRanges, updatePexsiDeltaVRanges
   use assert
   use constants
   use globalenv
@@ -190,9 +186,6 @@ contains
     !> locality measure for the wavefunction
     real(dp) :: localisation
 
-    !> Structure for sparse data representions, if using ELSI
-    type(TSparse2Sparse) :: sparseIndexing
-
     !> All of the excited energies actuall solved by Casida routines (if used)
     real(dp), allocatable :: energiesCasida(:)
 
@@ -234,7 +227,7 @@ contains
       if (electronicSolver%isElsiSolver) then
         ! as each spin and k-point combination forms a separate group for this solver, iKS = 1
         iKS = 1
-        call electronicSolver%resetELSI( tempElec, parallelKS%localKS(2, iKS),&
+        call electronicSolver%elsi%reset(tempElec, parallelKS%localKS(2, iKS),&
             & parallelKS%localKS(1, iKS), kWeight(parallelKS%localKS(1, iKS)))
       end if
 
@@ -272,9 +265,8 @@ contains
       end if
 
       if (electronicSolver%isElsiSolver .and. .not. tLargeDenseMatrices) then
-        call initSparse2Sparse(sparseIndexing, env, electronicSolver%elsi,&
-            & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-            & img2CentCell)
+        call electronicSolver%elsi%updateGeometry(env, neighbourList, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
 
       call env%globalTimer%startTimer(globalTimers%sparseH0S)
@@ -310,7 +302,6 @@ contains
       ! For non-scc calculations with transport only, jump out of geometry loop
       if (electronicSolver%iSolver == electronicSolverTypes%OnlyTransport) then
         if (tWriteDetailedOut) then
-          ! Open detailed.out before jumping out of lpGeomOpt
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, 1)
         end if
         ! We need to define hamltonian by adding the potential
@@ -320,7 +311,7 @@ contains
       end if
 
       if (electronicSolver%iSolver == electronicSolverTypes%pexsi) then
-        call initPexsiDeltaVRanges(tSccCalc, potential, electronicSolver%elsi)
+        call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
       end if
 
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
@@ -357,10 +348,9 @@ contains
         potential%intBlock = potential%intBlock + potential%extBlock
 
         if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. tSccCalc) then
-          call updatePexsiDeltaVRanges(potential, electronicSolver%elsi)
+          call electronicSolver%elsi%updatePexsiDeltaVRanges(potential)
         end if
 
-        ! Compute the SCC Hamiltonian
         call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
             & img2CentCell, potential, ham, iHam)
 
@@ -372,16 +362,14 @@ contains
               & cellVec, ham, iHam)
         end if
 
-        ! Transform Hamiltonian from qm to ud
-        call transformHam(ham, iHam)
+        call convertToUpDownRepr(ham, iHam)
 
         call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
             & electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
             & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, eigen,&
             & filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
-            & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, tLargeDenseMatrices,&
-            & sparseIndexing)
+            & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, tLargeDenseMatrices)
 
         if (tWriteBandDat) then
           call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -544,7 +532,7 @@ contains
         call getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling, eigen,&
             & kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
             & iCellVec, cellVec, tRealHS, ham, over, parallelKS, iSCCIter, mu, ERhoPrim,&
-            & eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx, sparseIndexing)
+            & eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
@@ -1792,7 +1780,7 @@ contains
   !> (Vq, uB*Bz*σz) -> (Vq + uB*Bz*σz, Vq - uB*Bz*σz)
   !> For non-collinear spin-orbit, all blocks are multiplied by 1/2:
   !> (Vq/2, uL* Lx*σx/2, uL* Ly*σy/2, uL* Lz*σz/2)
-  subroutine transformHam(Ham, iHam)
+  subroutine convertToUpDownRepr(Ham, iHam)
     real(dp), intent(inout) :: Ham(:,:)
     real(dp), intent(inout), allocatable :: iHam(:,:)
 
@@ -1814,7 +1802,7 @@ contains
       end if
     end if
 
-  end subroutine transformHam
+  end subroutine convertToUpDownRepr
 
 
   !> Returns the sparse density matrix.
@@ -1828,7 +1816,7 @@ contains
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
       & tempElec, nEl, parallelKS, Ef, mu, energy, eigen, filling, rhoPrim, Eband, TS, E0, iHam,&
       & xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx,&
-      & rhoSqrReal, tLargeDenseMatrices, sparseIndexing)
+      & rhoSqrReal, tLargeDenseMatrices)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1974,9 +1962,6 @@ contains
     !> Are dense matrices for H, S, etc. being used
     logical, intent(in) :: tLargeDenseMatrices
 
-    !> sparse matrices indexing data structure
-    type(TSparse2Sparse), intent(inout) :: sparseIndexing
-
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     logical :: tImHam
@@ -2017,12 +2002,10 @@ contains
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
-      call TElsiSolver_getDensity(electronicSolver%elsi, env, denseDesc, ham, over,&
-          & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint,&
-          & kWeight, orb, species, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
-          & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, eigen,&
-          & filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
-          & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, tLargeDenseMatrices, sparseIndexing)
+      call electronicSolver%elsi%getDensity(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
+          & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, tRealHS,&
+          & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, Ef, energy, rhoPrim,&
+          & Eband, TS, iHam, xi, orbitalL, HSqrReal, SSqrReal, iRhoPrim, HSqrCplx, SSqrCplx)
       call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
     end select
@@ -3959,7 +3942,7 @@ contains
   subroutine getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling,&
       & eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
       & iCellVEc, cellVec, tRealHS, ham, over, parallelKS, iSCC, mu, ERhoPrim, HSqrReal, SSqrReal,&
-      & HSqrCplx, SSqrCplx, sparseIndexing)
+      & HSqrCplx, SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4039,9 +4022,6 @@ contains
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
-    !> sparse matrices indexing data structure
-    type(TSparse2Sparse), intent(inout) :: sparseIndexing
-
     integer :: nSpin
 
     nSpin = size(ham, dim=2)
@@ -4073,9 +4053,9 @@ contains
 
     case (electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
 
-      call TElsiSolver_getEDensity(electronicSolver%elsi, env, denseDesc, nSpin, kPoint, kWeight,&
-          & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-          & tRealHS, parallelKS, ERhoPrim, SSqrReal, SSqrCplx, sparseIndexing)
+      call electronicSolver%elsi%getEDensity(env, denseDesc, nSpin, kPoint, kWeight, neighbourList,&
+          & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS, parallelKS,&
+          & ERhoPrim, SSqrReal, SSqrCplx)
 
     end select
 
