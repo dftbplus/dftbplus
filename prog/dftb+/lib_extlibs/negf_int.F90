@@ -923,7 +923,9 @@ module negf_int
       nComp = 1
     end if    
     rho = 0.0_dp
-    irho = 0.0_dp
+    if (allocated(iRho)) then
+      irho = 0.0_dp
+    end if
 
     write(stdOut, *)
     write(stdOut, '(80("="))')
@@ -1005,7 +1007,6 @@ module negf_int
     logical, intent(in) :: tSpinOrbit
 
     integer :: nSpin, nComp, nKS, iK, iS, iKS
-    real(dp), allocatable :: irhoE(:)
     type(z_CSR), target :: csrEDens
     type(z_CSR), pointer :: pCsrEDens
 
