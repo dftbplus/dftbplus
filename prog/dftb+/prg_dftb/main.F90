@@ -18,8 +18,8 @@ module main
 #:endif
   use elsiiface
   use elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use elsisolver, only : TSparse2Sparse, TElsiSolver_getDensity, initSparse2Sparse,&
-      & getEDensityMtxElsiReal, getEDensityMtxElsiCmplx, getEDensityMtxElsiPauli,&
+  use elsisolver, only : TSparse2Sparse, TElsiSolver_getDensity, TElsiSolver_getEDensity,&
+      &initSparse2Sparse, getEDensityMtxElsiReal, getEDensityMtxElsiCmplx, getEDensityMtxElsiPauli,&
       & initPexsiDeltaVRanges, updatePexsiDeltaVRanges
   use assert
   use constants
@@ -4042,60 +4042,143 @@ contains
     !> sparse matrices indexing data structure
     type(TSparse2Sparse), intent(inout) :: sparseIndexing
 
-    logical :: t2Component
+    integer :: nSpin
+
+    nSpin = size(ham, dim=2)
 
     call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
 
-  #:if WITH_TRANSPORT
-    if (electronicSolver%iSolver == electronicSolverTypes%GF) then
-      call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
-          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
-      return
-    end if
-    if (electronicSolver%iSolver == electronicSolverTypes%onlyTransport) then
+    select case (electronicSolver%iSolver)
+
+    case (electronicSolverTypes%GF)
+
+    #:if WITH_TRANSPORT
+      if (electronicSolver%iSolver == electronicSolverTypes%GF) then
+        call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
+            & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
+      end if
+    #:endif
+
+    case (electronicSolverTypes%onlyTransport)
+
       call error("OnlyTransport solver cannot calculate the energy weighted density matrix")
-    end if
-  #:endif
 
-    t2Component = (size(ham, dim=2) == 4)
+    case (electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
 
-    if (t2Component) then
-      if (electronicSolver%providesEigenvals) then
-        call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
-            & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-            & tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
-      else
-        call getEDensityMtxElsiPauli(env, electronicSolver%elsi, denseDesc, kPoint, kWeight,&
-            & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-            & parallelKS, ERhoPrim, SSqrCplx)
-      end if
-    else
-      if (tRealHS) then
-        if (electronicSolver%providesEigenvals) then
-          call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
-              & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ham, over,&
-              & parallelKS, HSqrReal, SSqrReal, ERhoPrim)
-        else
-          call getEDensityMtxElsiReal(env, electronicSolver%elsi, sparseIndexing, denseDesc,&
-              & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
-        end if
-      else
-        if (electronicSolver%providesEigenvals) then
-          call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
-              & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
-              & cellVec, ham, over, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
-        else
-          call getEDensityMtxElsiCmplx(env, electronicSolver%elsi, sparseIndexing, denseDesc,&
-              & kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
-              & iCellVec, cellVec, parallelKS, ERhoPrim, SSqrCplx)
-        end if
-      end if
-    end if
+      call getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
+          & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
+          & tRealHS, ham, over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+
+    case (electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
+
+      call TElsiSolver_getEDensity(electronicSolver%elsi, env, denseDesc, nSpin, kPoint, kWeight,&
+          & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
+          & tRealHS, parallelKS, ERhoPrim, SSqrReal, SSqrCplx, sparseIndexing)
+
+    end select
 
     call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
 
   end subroutine getEnergyWeightedDensity
+
+
+  !> Calculates the energy weighted density matrix using eigenvectors
+  subroutine getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
+      & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
+      & ham, over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Force type
+    integer, intent(in) :: forceType
+
+    !> Occupations of single particle states in the ground state
+    real(dp), intent(in) :: filling(:,:,:)
+
+    !> Eigenvalues
+    real(dp), intent(in) :: eigen(:,:,:)
+
+    !> K-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    logical, intent(in) :: tRealHS
+
+    !> Sparse Hamiltonian
+    real(dp), intent(in) :: ham(:,:)
+
+    !> Sparse overlap
+    real(dp), intent(in) :: over(:)
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
+
+    !> Storage for dense hamiltonian matrix
+    real(dp), intent(inout), allocatable :: HSqrReal(:,:,:)
+
+    !> Storage for dense overlap matrix
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+
+    !> Storage for dense hamitonian matrix (complex case)
+    complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
+
+    !> Storage for dense overlap matrix (complex case)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    integer :: nSpin
+
+    nSpin = size(ham, dim=2)
+
+    if (nSpin == 4) then
+      call getEDensityMtxFromPauliEigvecs(env, denseDesc, filling, eigen, kPoint, kWeight,&
+          & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
+          & tRealHS, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
+    else
+      if (tRealHS) then
+        call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
+            & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ham, over,&
+            & parallelKS, HSqrReal, SSqrReal, ERhoPrim)
+      else
+        call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
+            & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
+            & cellVec, ham, over, parallelKS, HSqrCplx, SSqrCplx, ERhoPrim)
+      end if
+    end if
+
+  end subroutine getEDensityMtxFromEigvecs
 
 
   !> Calculates density matrix from real eigenvectors.

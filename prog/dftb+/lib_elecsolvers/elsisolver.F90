@@ -36,7 +36,7 @@ module elsisolver
   public :: TElsiSolverInp
   public :: TElsiSolver
   public :: TElsiSolver_init, TElsiSolver_final
-  public :: TElsiSolver_getDensity
+  public :: TElsiSolver_getDensity, TElsiSolver_getEDensity
   public :: initPexsiDeltaVRanges
   public :: updatePexsiDeltaVRanges
   public :: getEDensityMtxElsiPauli, getEDensityMtxElsiReal, getEDensityMtxElsiCmplx
@@ -832,6 +832,86 @@ contains
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
   end subroutine TElsiSolver_getDensity
+
+
+  ! Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
+  subroutine TElsiSolver_getEDensity(this, env, denseDesc,&
+      & nSpin, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
+      & iCellVec, cellVec, tRealHS, parallelKS, ERhoPrim, SSqrReal, SSqrCplx, sparseIndexing)
+
+    !> Electronic solver information
+    type(TElsiSolver), intent(inout) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Number of spin channels
+    integer, intent(in) :: nSpin
+
+    !> K-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    logical, intent(in) :: tRealHS
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> Energy weighted sparse matrix
+    real(dp), intent(out) :: ERhoPrim(:)
+
+    !> Storage for dense overlap matrix
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+
+    !> Storage for dense overlap matrix (complex case)
+    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    !> sparse matrices indexing data structure
+    type(TSparse2Sparse), intent(inout) :: sparseIndexing
+
+    if (nSpin == 4) then
+      call getEDensityMtxElsiPauli(env, this, denseDesc, kPoint, kWeight,&
+          & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
+          & parallelKS, ERhoPrim, SSqrCplx)
+    else
+      if (tRealHS) then
+        call getEDensityMtxElsiReal(env, this, sparseIndexing, denseDesc,&
+            & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
+      else
+        call getEDensityMtxElsiCmplx(env, this, sparseIndexing, denseDesc,&
+            & kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
+            & iCellVec, cellVec, parallelKS, ERhoPrim, SSqrCplx)
+      end if
+    end if
+
+  end subroutine TElsiSolver_getEDensity
 
 
   !> Returns the density matrix using ELSI non-diagonalisation routines (real dense case).
