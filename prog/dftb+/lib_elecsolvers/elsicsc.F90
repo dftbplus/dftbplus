@@ -17,6 +17,7 @@ module elsicsc
   use environment, only : TEnvironment
   use periodic, only : TNeighbourList
   use constants, only : pi
+  use message, only : error
   implicit none
   private
 
@@ -67,22 +68,26 @@ module elsicsc
   end type TElsiCsc
 
 
-#:set TYPES = ['real', 'complex']
+#:if WITH_ELSI
+
+  #:set TYPES = ['real', 'complex']
 
   ! Internal routines addding blocks to ELSI matrices
   interface addBlock2Elsi
-  #:for TYPE in TYPES
-    module procedure addBlock2Elsi${TYPE}$
-  #:endfor
+    #:for TYPE in TYPES
+      module procedure addBlock2Elsi${TYPE}$
+    #:endfor
   end interface addBlock2Elsi
 
 
   ! Internal routines copying blocks from  ELSI matrices
   interface cpElsi2Block
-  #:for TYPE in TYPES
-    module procedure cpElsi2Block${TYPE}$
-  #:endfor
+    #:for TYPE in TYPES
+      module procedure cpElsi2Block${TYPE}$
+    #:endfor
   end interface cpElsi2Block
+
+#:endif
 
 
 contains
@@ -118,6 +123,8 @@ contains
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
+  #:if WITH_ELSI
+
     integer :: numCol, iAtom1, iAtom2, iAtom2f, nAtom, ii, jj, iNeigh, iNext, nOrb1, nOrb2
     integer :: iOrig
     integer, allocatable :: blockList(:,:)
@@ -144,6 +151,12 @@ contains
     call getBlockRow(neighList%iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell,&
       & this%colStartLocal, this%colEndLocal, this%atomsInColumns, this%nAtomsInColumns,&
       & this%blockRow)
+
+  #:else
+
+    call error("Internal error: TElsiCsc_init() called despite missing ELSI support")
+
+  #:endif
 
   end subroutine TElsiCsc_init
 
@@ -179,6 +192,8 @@ contains
 
     !> Local non-zero elements
     real(dp), intent(out) :: nzValLocal(:)
+
+  #:if WITH_ELSI
 
     integer :: nAtom
     integer :: iOrig, ii, jj, nOrb1, nOrb2
@@ -257,6 +272,13 @@ contains
       end do
     end do
 
+  #:else
+
+    call error("Internal error: TElsiCsc_convertPackedToElsiReal() called despite missing ELSI&
+        & support")
+
+  #:endif
+
   end subroutine TElsiCsc_convertPackedToElsiReal
 
 
@@ -303,6 +325,8 @@ contains
 
     !> Local non-zero elements
     complex(dp), intent(out) :: nzValLocal(:)
+
+  #:if WITH_ELSI
 
     integer :: nAtom
     integer :: iOrig, ii, jj, nOrb1, nOrb2
@@ -392,6 +416,13 @@ contains
       end do
     end do
 
+  #:else
+
+    call error("Internal error: TElsiCsc_convertPackedToElsiCmplx() called despite missing ELSI&
+        & support")
+
+  #:endif
+
   end subroutine TElsiCsc_convertPackedToElsiCmplx
 
 
@@ -428,6 +459,8 @@ contains
 
     !> Sparse Hamiltonian
     real(dp), intent(inout) :: primitive(:)
+
+  #:if WITH_ELSI
 
     integer :: nAtom
     integer :: iOrig, ii, jj, kk
@@ -472,6 +505,13 @@ contains
 
       end do
     end do
+
+  #:else
+
+    call error("Internal error: TElsiCsc_convertElsiToPackedReal() called despite missing ELSI&
+        & support")
+
+  #:endif
 
   end subroutine TElsiCsc_convertElsiToPackedReal
 
@@ -521,6 +561,8 @@ contains
 
     !> Sparse Hamiltonian
     real(dp), intent(inout) :: primitive(:)
+
+  #:if WITH_ELSI
 
     integer :: nAtom, iVec
     integer :: iOrig, ii, jj, kk
@@ -574,12 +616,22 @@ contains
       end do
     end do
 
+  #:else
+
+    call error("Internal error: TElsiCsc_convertElsiToPackedCmplx() called despite missing ELSI&
+        & support")
+
+  #:endif
+
   end subroutine TElsiCsc_convertElsiToPackedCmplx
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#:if WITH_ELSI
+
 
   !> Checks if atom block is part of local matrix (Elsi)
   pure logical function isBlockInLocal(rowStartBlock, rowEndBlock, colStartBlock, colEndBlock,&
@@ -939,5 +991,6 @@ contains
 
   end subroutine getBlockRow
 
+#:endif
 
 end module elsicsc

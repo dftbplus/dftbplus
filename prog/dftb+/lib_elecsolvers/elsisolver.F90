@@ -30,6 +30,7 @@ module elsisolver
   use angmomentum, only : getLOnsite
   use spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use potentials, only : TPotentials
+  use message, only : error
   implicit none
   private
 
@@ -204,6 +205,8 @@ contains
     !> Should the matrices be written out
     logical, intent(in) :: tWriteHS
 
+  #:if WITH_ELSI
+
     this%iSolver = inp%iSolver
 
     select case(this%iSolver)
@@ -324,6 +327,12 @@ contains
 
     this%tCholeskyDecomposed = .false.
 
+  #:else
+
+    call error("Internal error: TElsiSolver_init() called despite missing ELSI support")
+
+  #:endif
+
   end subroutine TElsiSolver_init
 
 
@@ -333,7 +342,16 @@ contains
     !> Instance
     type(TElsiSolver), intent(inout) :: this
 
+  #:if WITH_ELSI
+
     call elsi_finalize(this%handle)
+
+  #:else
+
+    call error("Internal error: TELsiSolver_final() called despite missing ELSI&
+        & support")
+
+  #:endif
 
   end subroutine TELsiSolver_final
 
@@ -356,6 +374,8 @@ contains
 
     !> weight for current k-point
     real(dp), intent(in) :: kWeight
+
+  #:if WITH_ELSI
 
     if (this%nResets > 0) then
       ! destroy previous instance of solver if called before
@@ -481,6 +501,12 @@ contains
       call elsi_set_output_log(this%handle, 1)
     end if
 
+  #:else
+
+    call error("Internal error: TElsiSolver_reset() called despite missing ELSI support")
+
+  #:endif
+
   end subroutine TElsiSolver_reset
 
 
@@ -507,8 +533,17 @@ contains
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
+  #:if WITH_ELSI
+
     call TElsiCsc_init(this%elsiCsc, env, this%nBasis, this%csrBlockSize, neighList,&
         & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell)
+
+  #:else
+
+    call error("Internal error: TELsiSolver_updateGeometry() called despite missing ELSI&
+        & support")
+
+  #:endif
 
   end subroutine TElsiSolver_updateGeometry
 
@@ -621,6 +656,8 @@ contains
     !> dense complex (k-points) overlap storage
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
+  #:if WITH_ELSI
+
     integer :: nSpin
     integer :: iKS, iK, iS
 
@@ -699,6 +736,12 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
+  #:else
+
+    call error("Internal error: TELsiSolver_getDensity() called despite missing ELSI support")
+
+  #:endif
+
   end subroutine TElsiSolver_getDensity
 
 
@@ -761,6 +804,8 @@ contains
     !> Storage for dense overlap matrix (complex case)
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
 
+  #:if WITH_ELSI
+
     if (nSpin == 4) then
       call getEDensityMtxPauli(this, env, denseDesc, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
@@ -775,6 +820,12 @@ contains
             & ERhoPrim, SSqrCplx)
       end if
     end if
+
+  #:else
+
+    call error("Internal error: TELsiSolver_getDensity() called despite missing ELSI support")
+
+  #:endif
 
   end subroutine TElsiSolver_getEDensity
 
@@ -791,6 +842,8 @@ contains
     !> Potentials acting
     type(TPotentials), intent(in) :: potential
 
+  #:if WITH_ELSI
+
     if (tSccCalc) then
       if (.not.allocated(this%pexsiVOld)) then
         allocate(this%pexsiVOld(size(potential%intBlock(:,:,:,1))))
@@ -800,6 +853,13 @@ contains
     end if
     this%pexsiDeltaVMin = 0.0_dp
     this%pexsiDeltaVMax = 0.0_dp
+
+  #:else
+
+    call error("Internal error: TELsiSolver_initPexsiDeltaVRanges() called despite missing ELSI&
+        & support")
+
+  #:endif
 
   end subroutine TElsiSolver_initPexsiDeltaVRanges
 
@@ -813,6 +873,8 @@ contains
     !> Potentials acting
     type(TPotentials), intent(in) :: potential
 
+  #:if WITH_ELSI
+
     this%pexsiDeltaVMin = minval(this%pexsiVOld&
         & - reshape(potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
         & [size(potential%extBlock(:,:,:,1))]))
@@ -821,6 +883,13 @@ contains
         & [size(potential%extBlock(:,:,:,1))]))
     this%pexsiVOld = reshape(potential%intBlock(:,:,:,1) + potential%extBlock(:,:,:,1),&
         & [size(potential%extBlock(:,:,:,1))])
+
+  #:else
+
+    call error("Internal error: TElsiSolver_updatePexsiDeltaVRanges() called despite missing ELSI&
+        & support")
+
+  #:endif
 
   end subroutine TElsiSolver_updatePexsiDeltaVRanges
 
@@ -833,6 +902,8 @@ contains
 
     !> Name of the solver.
     character(:), allocatable :: solverName
+
+  #:if WITH_ELSI
 
     character(lc) :: buffer
 
@@ -875,12 +946,20 @@ contains
 
     solverName = trim(buffer)
 
+  #:else
+
+    call error("Internal error: TElsiSolver_getSolverName() called despite missing ELSI support")
+
+  #:endif
+
   end function TElsiSolver_getSolverName
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+#:if WITH_ELSI
 
   !> Returns the density matrix using ELSI non-diagonalisation routines (real dense case).
   subroutine getDensityRealDense(this, env, denseDesc, ham, over, neighbourList,&
@@ -1603,5 +1682,6 @@ contains
 
   end subroutine getEDensityMtxPauli
 
+#:endif
 
 end module elsisolver
