@@ -3893,7 +3893,7 @@ contains
           ! without a thermostat, if we know the initial
           ! velocities, we do not need a temperature, so just set it to something
           ! 'safe'
-          input%tempAtom = 0.0_dp !minTemp
+          input%tempAtom = minTemp
        else
           call getChildValue(node, "InitialTemperature", input%tempAtom, &
                &modifier=modifier, child=child)
