@@ -100,12 +100,16 @@ contains
 
     @:ASSERT(all(shape(velocities) >= (/ 3, self%nAtom /)))
 
-    do ii = 1, self%nAtom
-      call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), self%kT, &
-          & self%pRanlux)
-    end do
-    call restFrame(self%pMDFrame, velocities(:,:), self%mass)
-    call rescaleTokT(self%pMDFrame, velocities(:,:), self%mass, self%kT)
+    if (self%kT > minTemp) then
+      do ii = 1, self%nAtom
+        call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), self%kT, &
+            & self%pRanlux)
+      end do
+      call restFrame(self%pMDFrame, velocities(:,:), self%mass)
+      call rescaleTokT(self%pMDFrame, velocities(:,:), self%mass, self%kT)
+    else
+      velocities(:,:) = 0.0_dp
+    end if
 
   end subroutine DummyThermostat_getInitVelos
 
