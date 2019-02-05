@@ -611,7 +611,7 @@ contains
         & rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
         & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont)
 
-    if (allocated(UJ) .or. allocated(onSiteElements)) then
+    if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
       allocate(qiBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
       allocate(iRhoPrim(size(rhoPrim,dim=1), size(rhoPrim,dim=2)))
@@ -2053,7 +2053,8 @@ contains
     end if
 
     ! Euler step forward
-    this%movedVelo(:,:) = this%movedVelo - 0.5_dp * movedAccel * this%dt ! Has ensures good initialization
+    this%movedVelo(:,:) = this%movedVelo - 0.5_dp * movedAccel * this%dt
+    ! Has ensures good initialization
     coordNew(:,:) = coord
     coordNew(:,this%indMovedAtom) = coord(:,this%indMovedAtom) &
          & + this%movedVelo(:,:) * this%dt + 0.5_dp * movedAccel(:,:) * this%dt**2
@@ -2101,8 +2102,8 @@ contains
          &neighbourList, nAllAtom, coord0Fold, specie0, this%mCutoff, this%rCellVec)
     nAllOrb = sum(orb%nOrbSpecies(this%species(1:nAllAtom)))
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skRepCutoff)
-    call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb, iSparseStart,&
-         & sparseSize)
+    call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
+         & iSparseStart, sparseSize)
 
     deallocate(ham)
     deallocate(over)

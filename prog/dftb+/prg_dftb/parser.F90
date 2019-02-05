@@ -3893,7 +3893,7 @@ contains
           ! without a thermostat, if we know the initial
           ! velocities, we do not need a temperature, so just set it to something
           ! 'safe'
-          input%tempAtom = minTemp
+          input%tempAtom = 0.0_dp !minTemp
        else
           call getChildValue(node, "InitialTemperature", input%tempAtom, &
                &modifier=modifier, child=child)
@@ -3902,7 +3902,7 @@ contains
           end if
           call convertByMul(char(modifier), energyUnits, child, input%tempAtom)
           if (input%tempAtom < minTemp) then
-             input%tempAtom = minTemp
+             input%tempAtom = 0.0_dp !previously it was minTemp
           end if
        end if
        call getInputMasses(node, geo, masses)

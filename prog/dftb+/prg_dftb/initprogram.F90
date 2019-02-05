@@ -2983,7 +2983,7 @@ contains
      end if
 
      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName, &
-          &tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, repCutoff, mCutoff, &
+          &tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, skCutoff, mCutoff, &
           &iCellVec, atomEigVal, dispersion, nonSccDeriv)
 
    end if
