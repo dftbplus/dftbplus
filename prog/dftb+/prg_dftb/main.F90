@@ -738,8 +738,8 @@ contains
        call runDynamics(elecDyn, eigvecsReal, ham, H0, species, q0, over, filling, neighbourList,&
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord0, spinW,&
             & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-            & iHam, iAtInCentralRegion, tFixEf, Ef, species0, coord, onsiteElements, skHamCont,&
-            & skOverCont)
+            & iHam, iAtInCentralRegion, tFixEf, Ef, coord, onsiteElements, skHamCont,&
+            & skOverCont, latVec, invLatVec)
     end if
 
 
