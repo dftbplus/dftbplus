@@ -1155,7 +1155,7 @@ contains
     end do
 
     deltaQ(:,:) = sum((qq - q0), dim=1)
-    dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
+    dipole(:,:) = -matmul(coord, deltaQ)
 
     ! sparse way to calculate charge and dipole
     !qq(:,:,:) = 0.0_dp
@@ -2043,33 +2043,33 @@ contains
 
     allocate(pVelocityVerlet)
     if (this%ReadMDVelocities) then
-       call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom),&
-            & this%pThermostat, this%initialVelocities, halfVelocities)
-       this%movedVelo(:, :) = this%initialVelocities
+      this%movedVelo(:, :) = this%initialVelocities
     else
-       call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), &
-            &this%pThermostat, halfVelocities, velocities)
-       this%movedVelo(:,:) = velocities
+      this%movedVelo(:, :) = 0.0_dp
     end if
 
-    ! Euler step forward
-    this%movedVelo(:,:) = this%movedVelo - 0.5_dp * movedAccel * this%dt ! Has ensures good initialization
+    call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+        & this%movedVelo, this%ReadMDVelocities, halfVelocities)
+
+    ! Euler step forward from 1st VV step
+    ! Ensures good initialization
+    this%movedVelo(:,:) = this%movedVelo - 0.5_dp * movedAccel * this%dt
     coordNew(:,:) = coord
     coordNew(:,this%indMovedAtom) = coord(:,this%indMovedAtom) &
-         & + this%movedVelo(:,:) * this%dt + 0.5_dp * movedAccel(:,:) * this%dt**2
+        & + this%movedVelo(:,:) * this%dt + 0.5_dp * movedAccel(:,:) * this%dt**2
 
     ! This re-initializes the VVerlet propagator with coordNew
     this%movedVelo(:,:) = this%movedVelo + 0.5_dp * movedAccel * this%dt
-    call init(pVelocityVerlet, this%dt, coordNew(:, this%indMovedAtom),&
-         & this%pThermostat, this%movedVelo, halfVelocities)
+    call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo, .true.)
     allocate(this%pMDIntegrator)
     call init(this%pMDIntegrator, pVelocityVerlet)
+
   end subroutine initIonDynamics
 
 
   !> Calculates forces on nuclei and updates positions
-  subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare, iSparseStart,&
-       & img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
+  subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+      & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
     type(TElecDynamics), intent(inout), target :: this
     complex(dp), intent(inout) :: Sinv(:,:), Ssqr(:,:)
     real(dp), allocatable, intent(inout) :: ham0(:)
@@ -2101,8 +2101,8 @@ contains
          &neighbourList, nAllAtom, coord0Fold, specie0, this%mCutoff, this%rCellVec)
     nAllOrb = sum(orb%nOrbSpecies(this%species(1:nAllAtom)))
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skRepCutoff)
-    call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb, iSparseStart,&
-         & sparseSize)
+    call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
+        & iSparseStart, sparseSize)
 
     deallocate(ham)
     deallocate(over)
@@ -2124,7 +2124,8 @@ contains
          & iSparseStart, orb)
 
     Sreal = 0.0_dp
-    call unpackHS(Sreal,over,neighbourList%iNeighbour,nNeighbourSK,iSquare,iSparseStart,img2CentCell)
+    call unpackHS(Sreal, over, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+        & img2CentCell)
     call blockSymmetrizeHS(Sreal,iSquare)
     Ssqr(:,:) = cmplx(Sreal, 0, dp)
 
