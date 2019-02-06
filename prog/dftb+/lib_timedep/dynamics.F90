@@ -2061,28 +2061,27 @@ contains
 
     allocate(pVelocityVerlet)
     if (this%ReadMDVelocities) then
-       call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom),&
-            & this%pThermostat, this%initialVelocities, halfVelocities)
-       this%movedVelo(:, :) = this%initialVelocities
+      this%movedVelo(:, :) = this%initialVelocities
     else
-       call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), &
-            &this%pThermostat, halfVelocities, velocities)
-       this%movedVelo(:,:) = velocities
+      this%movedVelo(:, :) = 0.0_dp
     end if
 
-    ! Euler step forward
+    call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+        & this%movedVelo, this%ReadMDVelocities, halfVelocities)
+
+    ! Euler step forward from 1st VV step
+    ! Ensures good initialization
     this%movedVelo(:,:) = this%movedVelo - 0.5_dp * movedAccel * this%dt
-    ! Has ensures good initialization
     coordNew(:,:) = coord
     coordNew(:,this%indMovedAtom) = coord(:,this%indMovedAtom) &
-         & + this%movedVelo(:,:) * this%dt + 0.5_dp * movedAccel(:,:) * this%dt**2
+        & + this%movedVelo(:,:) * this%dt + 0.5_dp * movedAccel(:,:) * this%dt**2
 
     ! This re-initializes the VVerlet propagator with coordNew
     this%movedVelo(:,:) = this%movedVelo + 0.5_dp * movedAccel * this%dt
-    call init(pVelocityVerlet, this%dt, coordNew(:, this%indMovedAtom),&
-         & this%pThermostat, this%movedVelo, halfVelocities)
+    call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo, .true.)
     allocate(this%pMDIntegrator)
     call init(this%pMDIntegrator, pVelocityVerlet)
+
   end subroutine initIonDynamics
 
 
@@ -2121,7 +2120,7 @@ contains
          &neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skRepCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
-         & iSparseStart, sparseSize)
+        & iSparseStart, sparseSize)
 
     this%nSparse = sparseSize
     call reallocateTDSparseArrays(this, ham, over, ham0, rhoPrim, iRhoPrim, ErhoPrim)
@@ -2138,7 +2137,8 @@ contains
          & this%speciesAll, iSparseStart, orb)
 
     Sreal = 0.0_dp
-    call unpackHS(Sreal,over,neighbourList%iNeighbour,nNeighbourSK,iSquare,iSparseStart,img2CentCell)
+    call unpackHS(Sreal, over, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+        & img2CentCell)
     call blockSymmetrizeHS(Sreal,iSquare)
     Ssqr(:,:) = cmplx(Sreal, 0, dp)
 
