@@ -914,13 +914,13 @@ contains
 !    if (this%tSpinPol) then
 !       call getSpinShift(shellPot, chargePerShell, this%species, orb, W)
 !       potential%intShell = potential%intShell + shellPot
-    if (allocated(UJ) .or. allocated(onSiteElements)) then
+    if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       ! convert to qm representation
       call ud2qm(qBlock)
       call ud2qm(qiBlock)
     end if
 
-    if (allocated(UJ)) then
+    if (size(UJ) /= 0) then
       call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, species, orb, nDftbUFunc, UJ,&
           & nUJ, iUJ, niUJ, potential)
     end if
@@ -1152,17 +1152,15 @@ contains
       end do
     end do
 
-    deltaQ(:,:) = sum((qq - q0), dim=1)
-    dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
-
     ! sparse way to calculate charge and dipole
     !qq(:,:,:) = 0.0_dp
     !do iSpin = 1, this%nSpin
     !  call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
     !      & nNeighbourSK, img2CentCell, iSparseStart)
     !end do
-    !deltaQ(:,:) = sum((qq - q0), dim=1)
-    !dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
+
+    deltaQ(:,:) = sum((qq - q0), dim=1)
+    dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
 
 
     if (allocated(qBlock)) then
