@@ -3902,7 +3902,7 @@ contains
           end if
           call convertByMul(char(modifier), energyUnits, child, input%tempAtom)
           if (input%tempAtom < minTemp) then
-             input%tempAtom = minTemp
+             input%tempAtom = 0.0_dp !previously it was minTemp
           end if
        end if
        call getInputMasses(node, geo, masses)

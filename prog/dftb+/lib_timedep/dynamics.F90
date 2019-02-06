@@ -596,7 +596,8 @@ contains
     if (this%tRestart) then
        call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-            & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
+            & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+            & iRhoPrim, ErhoPrim)
        if (this%tIons) then
           this%initialVelocities(:,:) = this%movedVelo
           this%ReadMDVelocities = .true.
@@ -611,7 +612,7 @@ contains
         & rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
         & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont)
 
-    if (allocated(UJ) .or. allocated(onSiteElements)) then
+    if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
       allocate(qiBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
       allocate(iRhoPrim(size(rhoPrim,dim=1), size(rhoPrim,dim=2)))
@@ -681,11 +682,8 @@ contains
      if (this%tIons) then
         coord(:,:) = coordNew
         call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-             &iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
-        ! here this%nSparse could have changed
-        call checkRealloc2(this, rhoPrim)
-        call checkRealloc2(this, iRhoPrim)
-        call checkRealloc(this, ErhoPrim)
+             &iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+             & iRhoPrim, ErhoPrim)
      end if
 
      if ((this%tPumpProbe) .and. (mod(iStep, this%nSteps/this%PuProbeFrames) == 0)) then
@@ -916,13 +914,13 @@ contains
 !    if (this%tSpinPol) then
 !       call getSpinShift(shellPot, chargePerShell, this%species, orb, W)
 !       potential%intShell = potential%intShell + shellPot
-    if (allocated(UJ) .or. allocated(onSiteElements)) then
+    if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       ! convert to qm representation
       call ud2qm(qBlock)
       call ud2qm(qiBlock)
     end if
 
-    if (allocated(UJ)) then
+    if (size(UJ) /= 0) then
       call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, species, orb, nDftbUFunc, UJ,&
           & nUJ, iUJ, niUJ, potential)
     end if
@@ -1154,17 +1152,15 @@ contains
       end do
     end do
 
-    deltaQ(:,:) = sum((qq - q0), dim=1)
-    dipole(:,:) = -matmul(coord, deltaQ)
-
     ! sparse way to calculate charge and dipole
     !qq(:,:,:) = 0.0_dp
     !do iSpin = 1, this%nSpin
     !  call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
     !      & nNeighbourSK, img2CentCell, iSparseStart)
     !end do
-    !deltaQ(:,:) = sum((qq - q0), dim=1)
-    !dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
+
+    deltaQ(:,:) = sum((qq - q0), dim=1)
+    dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
 
 
     if (allocated(qBlock)) then
@@ -2067,9 +2063,10 @@ contains
   end subroutine initIonDynamics
 
 
-  !> Calculates forces on nuclei and updates positions
+  !> Calculates nonscc hamiltonian and overlap for new geometry and reallocates sparse arrays
   subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-      & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env)
+       & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+       & iRhoPrim, ErhoPrim)
     type(TElecDynamics), intent(inout), target :: this
     complex(dp), intent(inout) :: Sinv(:,:), Ssqr(:,:)
     real(dp), allocatable, intent(inout) :: ham0(:)
@@ -2084,6 +2081,7 @@ contains
     type(OSlakoCont), intent(in) :: skHamCont, skOverCont
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
+    real(dp), allocatable, intent(inout) :: rhoPrim(:,:), ErhoPrim(:), iRhoPrim(:,:)
 
     real(dp) :: Sreal(this%nOrbs,this%nOrbs), SinvReal(this%nOrbs,this%nOrbs)
     real(dp) :: coord0Fold(3,this%nAtom)
@@ -2092,7 +2090,6 @@ contains
     integer :: info, ipiv(this%nOrbs, this%nOrbs)
     integer :: iSpin, sparseSize, iOrb
 
-    !! Calculate overlap, H0 for new geometry
     nAllAtom = this%nAtom
     coord0Fold(:,:) = coord
     allocate(specie0, source=this%species)
@@ -2104,13 +2101,8 @@ contains
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
 
-    deallocate(ham)
-    deallocate(over)
-    deallocate(ham0)
-    allocate(ham(sparseSize, this%nSpin))
-    allocate(over(sparseSize))
-    allocate(ham0(sparseSize))
     this%nSparse = sparseSize
+    call reallocateTDSparseArrays(this, ham, over, ham0, rhoPrim, iRhoPrim, ErhoPrim)
 
     call this%sccCalc%updateCoords(env, coord, this%species, neighbourList)
 
@@ -2375,29 +2367,31 @@ contains
   end subroutine pairWiseBondEO
 
 
-  subroutine checkRealloc(this, arr)
+  !> Reallocates sparse arrays after change of coordinates
+  subroutine reallocateTDSparseArrays(this, ham, over, ham0, rhoPrim, iRhoPrim, ErhoPrim)
     type(TElecDynamics), intent(in), target :: this
-    real(dp), allocatable, intent(inout) :: arr(:)
+    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), ham0(:)
+    real(dp), allocatable, intent(inout) :: rhoPrim(:,:), ErhoPrim(:), iRhoPrim(:,:)
 
-    if (allocated(arr)) then
-       if (size(arr, dim=1) /= this%nSparse) then
-          deallocate(arr)
-          allocate(arr(this%nSparse))
-       end if
+    deallocate(ham)
+    deallocate(over)
+    deallocate(ham0)
+    deallocate(rhoPrim)
+    allocate(ham(this%nSparse, this%nSpin))
+    allocate(over(this%nSparse))
+    allocate(ham0(this%nSparse))
+    allocate(rhoPrim(this%nSparse, this%nSpin))
+
+    if (allocated(iRhoPrim)) then
+       deallocate(iRhoPrim)
+       allocate(iRhoPrim(this%nSparse, this%nSpin))
     end if
-  end subroutine checkRealloc
 
-
-  subroutine checkRealloc2(this, arr)
-    type(TElecDynamics), intent(in), target :: this
-    real(dp), allocatable, intent(inout) :: arr(:,:)
-
-    if (allocated(arr)) then
-       if (size(arr, dim=1) /= this%nSparse) then
-          deallocate(arr)
-          allocate(arr(this%nSparse, this%nSpin))
-       end if
+    if (allocated(ErhoPrim)) then
+       deallocate(ErhoPrim)
+       allocate(ErhoPrim(this%nSparse))
     end if
-  end subroutine checkRealloc2
+
+  end subroutine reallocateTDSparseArrays
 
 end module timeprop_module
