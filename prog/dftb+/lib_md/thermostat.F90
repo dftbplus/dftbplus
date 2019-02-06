@@ -160,8 +160,6 @@ contains
 
 
   !> Updates the velocities.
-  !>
-
   !> Note: The DummyThermostat has no method to update the velocities, so the wrapper returns
   !> without touching the velocities.
   subroutine Thermostat_updateVelocities(self, velocities)

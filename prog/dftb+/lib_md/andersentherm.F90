@@ -18,6 +18,7 @@ module andersentherm
   use mdcommon
   use ranlux
   use tempprofile
+  use message
   implicit none
   private
 
