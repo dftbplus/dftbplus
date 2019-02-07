@@ -147,7 +147,8 @@ type TElecDynamics
    character(mc) :: autotestTag
 
    real(dp), allocatable :: initialVelocities(:,:), movedVelo(:,:), movedMass(:,:)
-   real(dp) :: mCutoff, skRepCutoff, rCellVec(3,1)
+   real(dp) :: mCutoff, skRepCutoff
+   real(dp), allocatable :: rCellVec(:,:)
    real(dp), allocatable :: atomEigVal(:,:), onsiteGrads(:,:,:,:)
    integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PuProbeFrames
    integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
@@ -173,9 +174,9 @@ end type TElecDynamics
 contains
 
   !> Initialisation of input variables
-  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag, &
-       &randomThermostat, mass, nAtom, skRepCutoff, mCutoff, iCellVec, atomEigVal, dispersion, &
-       &nonSccDeriv, tPeriodic)
+  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
+       & randomThermostat, mass, nAtom, skRepCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
+       & tPeriodic)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -194,7 +195,6 @@ contains
 
     real(dp), intent(in), allocatable :: atomEigVal(:,:)
     integer, intent(in) :: nAtom
-    integer, allocatable, intent(in) :: iCellVec(:)
     type(ORanlux), allocatable, intent(inout) :: randomThermostat
     real(dp), intent(in) :: mCutoff, skRepCutoff, mass(:)
     class(DispersionIface), allocatable, intent(inout) :: dispersion
@@ -312,8 +312,6 @@ contains
 
     this%skRepCutoff = skRepCutoff
     this%mCutoff = mCutoff
-    allocate(this%iCellVec, source=iCellVec)
-    this%rCellVec(:,1) = [0.0_dp, 0.0_dp, 0.0_dp]
     allocate(this%atomEigVal, source=atomEigVal)
   end subroutine TElecDynamics_init
 
@@ -323,7 +321,7 @@ contains
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
       & env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iHam,&
       & iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont, latVec, &
-      & invLatVec)
+      & invLatVec, iCellVec, rCellVec)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -431,7 +429,9 @@ contains
     real(dp), intent(in) :: latVec(:,:)
 
     !> Inverse of the lattice vectors
-    real(dp), intent(in) :: invLatVec(:,:)
+    real(dp), intent(in) :: invLatVec(:,:), rCellVec(:,:)
+
+    integer, allocatable, intent(in) :: iCellVec(:)
 
     integer :: iPol
     logical :: tWriteAutotest
@@ -451,6 +451,8 @@ contains
     allocate(this%invLatVec(3,3))
     this%latVec = latVec
     this%invLatVec = invLatVec
+    this%iCellVec = iCellVec
+    this%rCellVec = rCellVec
 
     tWriteAutotest = this%tWriteAutotest
     if (this%tKick) then
@@ -660,10 +662,10 @@ contains
          & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare)
     end if
 
-    call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList, nNeighbourSK, orb,&
-         & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, &
-         & pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ,&
-         & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+    call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
+         & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
+         & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, qiBlock, nDftbUFunc,&
+         & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     if (this%tPairWiseEnergy) then
        call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
@@ -672,6 +674,7 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
+    open(unit=678, file='test.dump')
     ! Main loop
     call env%globalTimer%startTimer(globalTimers%elecDynLoop)
     call loopTime%start()
@@ -685,10 +688,10 @@ contains
            & energy, energyKin, dipole, deltaQ, coord, totalForce, iStep, ePerBond, ePBondDat)
 
      if (this%tIons) then
-        coord(:,:) = coordNew
-        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-             &iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
-             & iRhoPrim, ErhoPrim, coordAll)
+       coord(:,:) = coordNew
+       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+            & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+            &  iRhoPrim, ErhoPrim, coordAll)
      end if
 
      if ((this%tPumpProbe) .and. (mod(iStep, this%nSteps/this%PuProbeFrames) == 0)) then
@@ -724,9 +727,9 @@ contains
      end if
 
      call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
-          & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, coord, &
-          & pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, qiBlock, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+          & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
+          & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, qiBlock, nDftbUFunc,&
+          & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
      if (this%tPairWiseEnergy) then
         call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
@@ -928,8 +931,8 @@ contains
     end if
 
     if (size(UJ) /= 0) then
-      call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, speciesAll, orb, nDftbUFunc, UJ,&
-          & nUJ, iUJ, niUJ, potential)
+      call addBlockChargePotentials(qBlock, qiBlock, tDftbU, tImHam, speciesAll, orb, nDftbUFunc,&
+          & UJ, nUJ, iUJ, niUJ, potential)
     end if
     if (allocated(onSiteElements)) then
       call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock, q0,&
@@ -1195,7 +1198,6 @@ contains
                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
        end do
     end if
-
 
   end subroutine getChargeDipole
 
@@ -2107,14 +2109,13 @@ contains
 
     real(dp) :: Sreal(this%nOrbs,this%nOrbs), SinvReal(this%nOrbs,this%nOrbs)
     real(dp) :: coord0Fold(3,this%nAtom)
-    integer :: nAllAtom
-    integer :: info, ipiv(this%nOrbs, this%nOrbs)
-    integer :: iSpin, sparseSize, iOrb
+    integer :: nAllAtom, iSpin, sparseSize, iOrb
 
     coord0Fold(:,:) = coord
     if (this%tPeriodic) then
        call foldCoordToUnitCell(coord0Fold, this%latVec, this%invLatVec)
     end if
+
 
     call updateNeighbourListAndSpecies(coordAll, this%speciesAll, img2CentCell, this%iCellVec, &
          &neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
@@ -2201,7 +2202,7 @@ contains
     repulsiveDerivs(:,:) = 0.0_dp
 
     call derivative_shift(env, derivs, this%derivator, rhoPrim, ErhoPrim, skHamCont,&
-         &skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
+         & skOverCont, coordAll, this%speciesAll, neighbourList%iNeighbour, nNeighbourSK, &
          & img2CentCell, iSparseStart, orb, potential%intBlock)
     call this%sccCalc%updateCharges(env, qq, q0, orb, this%speciesAll)
     call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
@@ -2212,7 +2213,7 @@ contains
     if (this%tLaser) then
        do iDir = 1, 3
           derivs(iDir,:) = derivs(iDir,:)&
-               & - sum(q0(:,:,1) - qq(:,:,1), dim=1) * this%TDFunction(iStep, iDir)
+               & - sum(q0(:,:,1) - qq(:,:,1), dim=1) * this%TDFunction(iDir, iStep)
        end do
     end if
 

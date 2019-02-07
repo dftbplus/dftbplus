@@ -2987,9 +2987,9 @@ contains
        call error("Electron dynamics does not work with MD")
      end if
 
-     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName, &
-          &tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, skCutoff, mCutoff, &
-          &iCellVec, atomEigVal, dispersion, nonSccDeriv, tPeriodic)
+     call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName,&
+          & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, skCutoff, mCutoff,&
+          & atomEigVal, dispersion, nonSccDeriv, tPeriodic)
 
    end if
 

@@ -3885,9 +3885,9 @@ contains
             &child, input%indMovedAtom)
 
        input%nMovedAtom = size(input%indMovedAtom)
-       if (input%nMovedAtom == 0) then
-          call error("No atoms specified for molecular dynamics.")
-       end if
+!       if (input%nMovedAtom == 0) then
+!          call error("No atoms specified for molecular dynamics.")
+!       end if
        call readInitialVelocitiesNAMD(node, input, geo%nAtom)
        if (input%tReadMDVelocities) then
           ! without a thermostat, if we know the initial

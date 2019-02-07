@@ -739,7 +739,7 @@ contains
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord0, spinW,&
             & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & iHam, iAtInCentralRegion, tFixEf, Ef, coord, onsiteElements, skHamCont,&
-            & skOverCont, latVec, invLatVec)
+            & skOverCont, latVec, invLatVec, iCellVec, rCellVec)
     end if
 
 
