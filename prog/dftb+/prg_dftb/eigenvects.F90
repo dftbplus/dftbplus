@@ -130,10 +130,14 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseRealMtxBlacs(electronicSolver, jobz, desc, HSqr, SSqr, eigenVals, eigenVecs)
+  subroutine diagDenseRealMtxBlacs(electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
+      & eigenVecs)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Index of the overlap matrix where Cholesky should be stored.
+    integer, intent(in) :: iCholesky
 
     !> type of eigenVals-problem, either 'V'/'v' with vectors or 'N'/'n' eigenValsvalues only
     character, intent(in) :: jobz
@@ -154,31 +158,22 @@ contains
     !> Eigenvectors
     real(dp), intent(out) :: eigenVecs(:,:)
 
-    real(dp), save, allocatable :: SSqrTmp(:,:)
-
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-    if (electronicSolver%tCholeskiiDecomposed(1)) then
-      ! Matrix was already decomposed, so use stored copy (possibly 2 spin channels, but same
-      ! overlap matrix)
-    else
-      ! if this is the first call, allocate space
-      if (.not.allocated(ssqrTmp)) then
-        allocate(ssqrTmp(size(ssqr,dim=1), size(ssqr,dim=2)))
-      end if
-      SSqrTmp = SSqr
+    if (electronicSolver%hasCholesky(iCholesky)) then
+      call electronicSolver%getCholesky(iCholesky, SSqr)
     end if
 
     select case(electronicSolver%iSolver)
     case(electronicSolverTypes%QR)
-      call scalafx_psygv(HSqr, desc, SSqrTmp, desc, eigenVals, eigenVecs, desc, uplo="L",&
-          & jobz=jobz, skipchol=electronicSolver%tCholeskiiDecomposed(1))
+      call scalafx_psygv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
+          & skipchol=electronicSolver%hasCholesky(iCholesky))
     case(electronicSolverTypes%divideandconquer)
-      call scalafx_psygvd(HSqr, desc, SSqrTmp, desc, eigenVals, eigenVecs, desc, uplo="L",&
-          & jobz="V", allocfix=.true., skipchol=electronicSolver%tCholeskiiDecomposed(1))
+      call scalafx_psygvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
+          & allocfix=.true., skipchol=electronicSolver%hasCholesky(iCholesky))
     case(electronicSolverTypes%relativelyrobust)
-      call scalafx_psygvr(HSqr, desc, SSqrTmp, desc, eigenVals, eigenVecs, desc, uplo="L",&
-          & jobz="V", skipchol=electronicSolver%tCholeskiiDecomposed(1))
+      call scalafx_psygvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
+          & skipchol=electronicSolver%hasCholesky(iCholesky))
     case(electronicSolverTypes%elpa)
       if (electronicSolver%elsi%tWriteHS) then
         call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Hreal.bin", HSqr)
@@ -188,14 +183,15 @@ contains
       end if
       ! ELPA solver, returns eigenstates
       ! note, this only factorises overlap on first call - no skipchol equivalent
-      call elsi_ev_real(electronicSolver%elsi%handle, HSqr, SSqrTmp, eigenVals, eigenVecs)
+      call elsi_ev_real(electronicSolver%elsi%handle, HSqr, SSqr, eigenVals, eigenVecs)
 
     case default
       call error('Unknown eigensolver')
     end select
 
-    ! Choleskii factors of S now definitely avalable
-    electronicSolver%tCholeskiiDecomposed = .true.
+    if (.not. electronicSolver%hasCholesky(1)) then
+      call electronicSolver%storeCholesky(1, SSqr)
+    end if
 
   end subroutine diagDenseRealMtxBlacs
 
@@ -204,17 +200,14 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseCplxMtxBlacs(electronicSolver, parallelKS, iKS, jobz, desc, HSqr, SSqr,&
-      & eigenVals, eigenVecs)
+  subroutine diagDenseCplxMtxBlacs(electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
+      & eigenVecs)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> K-points and spins in use
-    type(TParallelKS), intent(in) :: parallelKS
-
-    !> Index for current k-point/spin
-    integer, intent(in) :: iKS
+    !> Index of the overlap matrix where Cholesky should be stored.
+    integer, intent(in) :: iCholesky
 
     !> type of eigenVals-problem, either 'V'/'v' with vectors or 'N'/'n' eigenValsvalues only
     character, intent(in) :: jobz
@@ -235,35 +228,25 @@ contains
     !> Eigenvectors
     complex(dp), intent(out) :: eigenVecs(:,:)
 
-    complex(dp), save, allocatable :: SSqrTmp(:,:,:)
-
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-    ! if this is the first call, allocate space
-    if (.not.allocated(ssqrTmp)) then
-      allocate(ssqrTmp(size(ssqr,dim=1), size(ssqr,dim=2), parallelKS%nLocalKS))
-    end if
-
-    if (electronicSolver%tCholeskiiDecomposed(iKS)) then
-      ! Matrix was already decomposed, so use stored copy (possibly 2 spin channels, but can not
-      ! easily use the same overlap as may not be in same group or ordered in any particular
-      ! pattern)
-      SSqr = SSqrTmp(:,:,iKS)
+    if (electronicSolver%hasCholesky(iCholesky)) then
+      call electronicSolver%getCholesky(iCholesky, SSqr)
     end if
 
     select case(electronicSolver%iSolver)
 
     case(electronicSolverTypes%QR)
       call scalafx_phegv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz, &
-          & skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
+          & skipchol=electronicSolver%hasCholesky(iCholesky))
 
     case(electronicSolverTypes%divideandconquer)
       call scalafx_phegvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
-          & allocfix=.true., skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
+          & allocfix=.true., skipchol=electronicSolver%hasCholesky(iCholesky))
 
     case(electronicSolverTypes%relativelyrobust)
       call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
-          & skipchol=electronicSolver%tCholeskiiDecomposed(iKS))
+          & skipchol=electronicSolver%hasCholesky(iCholesky))
 
     case(electronicSolverTypes%elpa)
       if (electronicSolver%elsi%tWriteHS) then
@@ -280,13 +263,9 @@ contains
       call error('Unknown eigensolver')
     end select
 
-    if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
-      ! store the factorised overlap matrix for this iKS value
-      SSqrTmp(:,:,iKS) = SSqr
+    if (.not. electronicSolver%hasCholesky(iCholesky)) then
+      call electronicSolver%storeCholesky(iCholesky, SSqr)
     end if
-
-    ! Choleskii factors of S now avalable
-    electronicSolver%tCholeskiiDecomposed(iKS) = .true.
 
   end subroutine diagDenseCplxMtxBlacs
 

@@ -122,6 +122,9 @@ module elsisolver
 
     integer :: nSpin
     integer :: nKPoint
+    integer :: iSpin
+    integer :: iKPoint
+    real(dp) :: kWeight
 
     integer :: muBroadenScheme
     integer :: muMpOrder
@@ -163,6 +166,7 @@ module elsisolver
 
     procedure :: reset => TElsiSolver_reset
     procedure :: updateGeometry => TElsiSolver_updateGeometry
+    procedure :: updateElectronicTemp => TElsiSolver_updateElectronicTemp
     procedure :: getDensity => TElsiSolver_getDensity
     procedure :: getEDensity => TElsiSolver_getEDensity
     procedure :: initPexsiDeltaVRanges => TElsiSolver_initPexsiDeltaVRanges
@@ -176,7 +180,8 @@ contains
 
 
   !> Initialise ELSI solver
-  subroutine TElsiSolver_init(this, inp, env, nBasisFn, nEl, iDistribFn, nSpin, nKPoint, tWriteHS)
+  subroutine TElsiSolver_init(this, inp, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin, nKPoint,&
+      & iKPoint, kWeight, tWriteHS)
 
     !> control structure for solvers, including ELSI data
     class(TElsiSolver), intent(out) :: this
@@ -199,8 +204,17 @@ contains
     !> total number of spin channels.
     integer, intent(in) :: nSpin
 
+    !> spin channel processed by current process
+    integer, intent(in) :: iSpin
+
     !> total number of k-points
     integer, intent(in) :: nKPoint
+
+    !> K-point processed by current process.
+    integer, intent(in) :: iKPoint
+
+    !> Weight of current k-point
+    real(dp), intent(in) :: kWeight
 
     !> Should the matrices be written out
     logical, intent(in) :: tWriteHS
@@ -257,7 +271,10 @@ contains
     end if
 
     this%nSpin = nSpin
+    this%iSpin = iSpin
     this%nKPoint = nKPoint
+    this%iKPoint = iKPoint
+    this%kWeight = kWeight
 
     this%mpiCommWorld = env%mpi%globalComm%id
     this%myCommWorld = env%mpi%groupComm%id
@@ -358,22 +375,11 @@ contains
 
   !> reset the ELSI solver - safer to do this on geometry change, due to the lack of a Choleskii
   !> refactorization option
-  subroutine TElsiSolver_reset(this, tempElec, iSpin, iKPoint, kWeight)
+  subroutine TElsiSolver_reset(this)
 
     !> Instance
     class(TElsiSolver), intent(inout) :: this
 
-    !> electron temperature
-    real(dp), intent(in) :: tempElec
-
-    !> current spin value, set to be 1 if non-collinear
-    integer, intent(in) :: iSpin
-
-    !> current k-point value
-    integer, intent(in) :: iKPoint
-
-    !> weight for current k-point
-    real(dp), intent(in) :: kWeight
 
   #:if WITH_ELSI
 
@@ -408,13 +414,6 @@ contains
       end if
     end if
 
-    call elsi_set_mu_broaden_scheme(this%handle, this%muBroadenScheme)
-    if (this%muBroadenScheme == 2) then
-      call elsi_set_mu_mp_order(this%handle, this%muMpOrder)
-    end if
-
-    ! set filling temperature/width
-    call elsi_set_mu_broaden_width(this%handle, tempElec)
 
     select case(this%iSolver)
     case(electronicSolverTypes%elpa)
@@ -451,9 +450,6 @@ contains
       call elsi_set_pexsi_mu_min(this%handle, this%pexsiMuMin +this%pexsiDeltaVMin)
       call elsi_set_pexsi_mu_max(this%handle, this%pexsiMuMax +this%pexsiDeltaVMax)
 
-      ! set filling temperature/width
-      call elsi_set_pexsi_temp(this%handle, tempElec)
-
       ! number of poles for the expansion
       call elsi_set_pexsi_n_pole(this%handle, this%pexsiNPole)
 
@@ -485,14 +481,14 @@ contains
       ! density matrix build needs to know the number of spin channels to normalize against
       select case(this%nSpin)
       case(1)
-        call elsi_set_spin(this%handle, 1, iSpin)
+        call elsi_set_spin(this%handle, 1, this%iSpin)
       case(2)
-        call elsi_set_spin(this%handle, 2, iSpin)
+        call elsi_set_spin(this%handle, 2, this%iSpin)
       case(4)
-        call elsi_set_spin(this%handle, 2, iSpin)
+        call elsi_set_spin(this%handle, 2, this%iSpin)
       end select
       if (this%nKPoint > 1) then
-        call elsi_set_kpoint(this%handle, this%nKPoint, iKPoint, kWeight)
+        call elsi_set_kpoint(this%handle, this%nKPoint, this%iKPoint, this%kWeight)
       end if
     end if
 
@@ -546,6 +542,36 @@ contains
   #:endif
 
   end subroutine TElsiSolver_updateGeometry
+
+
+  !> Updated the electronic temperature
+  subroutine TElsiSolver_updateElectronicTemp(this, tempElec)
+
+    !> Instance
+    class(TElsiSolver), intent(inout) :: this
+
+    !> Electronic temperature
+    real(dp), intent(in) :: tempElec
+
+  #:if WITH_ELSI
+
+    call elsi_set_mu_broaden_scheme(this%handle, this%muBroadenScheme)
+    if (this%muBroadenScheme == 2) then
+      call elsi_set_mu_mp_order(this%handle, this%muMpOrder)
+    end if
+    call elsi_set_mu_broaden_width(this%handle, tempElec)
+    if (this%iSolver == electronicSolverTypes%pexsi) then
+      call elsi_set_pexsi_temp(this%handle, tempElec)
+    end if
+
+  #:else
+
+    call error("Internal error: TELsiSolver_updateElectronicTemp() called despite missing ELSI&
+        & support")
+
+  #:endif
+
+  end subroutine TElsiSolver_updateElectronicTemp
 
 
   !> Returns the density matrix using ELSI non-diagonalisation routines.

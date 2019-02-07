@@ -204,32 +204,12 @@ contains
     ! As first geometry iteration, require updates for coordinates in dependent routines
     tCoordsChanged = .true.
 
-  #:if WITH_SCALAPACK
-    if (tRealHS .and. .not.(nSpin > 2 .or. t2Component)) then
-      ! spin channels share common overlap, no k-points, purely real calculation
-      allocate(electronicSolver%tCholeskiiDecomposed(1))
-    else
-      ! Labels for the local parts of the overlap matrix
-      allocate(electronicSolver%tCholeskiiDecomposed(parallelKS%nLocalKS))
-    end if
-  #:endif
-
     ! Main geometry loop
     lpGeomOpt: do iGeoStep = 0, nGeoSteps
 
       call env%globalTimer%startTimer(globalTimers%preSccInit)
 
-    #:if WITH_SCALAPACK
-      ! prompt eigenvecs routines to store Choleskii factors
-      electronicSolver%tCholeskiiDecomposed(:) = .false.
-    #:endif
-
-      if (electronicSolver%isElsiSolver) then
-        ! as each spin and k-point combination forms a separate group for this solver, iKS = 1
-        iKS = 1
-        call electronicSolver%elsi%reset(tempElec, parallelKS%localKS(2, iKS),&
-            & parallelKS%localKS(1, iKS), kWeight(parallelKS%localKS(1, iKS)))
-      end if
+      call electronicSolver%reset()
 
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
@@ -279,6 +259,8 @@ contains
       if (tSetFillingTemp) then
         call getTemperature(temperatureProfile, tempElec)
       end if
+
+      call electronicSolver%updateElectronicTemp(tempElec)
 
       call calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbourRep, neighbourList,&
           & pRepCont, energy%atomRep, energy%ERep, iAtInCentralRegion)
@@ -2263,12 +2245,12 @@ contains
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHSRealBlacs(env%blacs, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
           & iSparseStart, img2CentCell, denseDesc, HSqrReal)
-      if (.not.electronicSolver%tCholeskiiDecomposed(1)) then
+      if (.not. electronicSolver%hasCholesky(1)) then
         call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
             & iSparseStart, img2CentCell, denseDesc, SSqrReal)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtxBlacs(electronicSolver, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
+      call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
           & eigen(:,iSpin), eigvecsReal(:,:,iKS))
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -2356,13 +2338,13 @@ contains
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHSCplxBlacs(env%blacs, ham(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
-      if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
+      if (.not. electronicSolver%hasCholesky(iKS)) then
         call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, SSqrCplx)
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call diagDenseMtxBlacs(electronicSolver, parallelKS, iKS, 'V', denseDesc%blacsOrbSqr,&
-          & HSqrCplx, SSqrCplx, eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
+      call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
+          & eigen(:,iK,iSpin), eigvecsCplx(:,:,iKS))
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
@@ -2466,11 +2448,11 @@ contains
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
             & HSqrCplx)
       end if
-      if (.not.electronicSolver%tCholeskiiDecomposed(iKS)) then
+      if (.not. electronicSolver%hasCholesky(iKS)) then
         call unpackSPauliBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
             & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
             & SSqrCplx)
-      endif
+      end if
     #:else
       if (allocated(iHam)) then
         call unpackHPauli(ham, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK, iSparseStart,&
@@ -2487,8 +2469,8 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
     #:if WITH_SCALAPACK
-      call diagDenseMtxBlacs(electronicSolver, parallelKS, iKS, 'V', denseDesc%blacsOrbSqr,&
-          & HSqrCplx, SSqrCplx, eigen(:,iK), eigvecsCplx(:,:,iKS))
+      call diagDenseMtxBlacs(electronicSolver, iKS, 'V', denseDesc%blacsOrbSqr, HSqrCplx, SSqrCplx,&
+          & eigen(:,iK), eigvecsCplx(:,:,iKS))
     #:else
       call diagDenseMtx(electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK))
       eigvecsCplx(:,:,iKS) = HSqrCplx

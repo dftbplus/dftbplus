@@ -1,17 +1,5 @@
-#:if WITH_MPI
-blacssolver.o: common.fypp _mod_mpifx
-blacssolver.o = blacssolver.o $(common.fypp) $(_mod_mpifx)
-_mod_blacssolver: blacssolver.o
-_mod_blacssolver = $(blacssolver.o)
-#:else
-blacssolver.o: common.fypp
-blacssolver.o = blacssolver.o $(common.fypp)
-_mod_blacssolver: blacssolver.o
-_mod_blacssolver = $(blacssolver.o)
-#:endif
-
-elecsolvers.o: _mod_elsisolver _mod_elecsolvertypes common.fypp _mod_accuracy
-elecsolvers.o = elecsolvers.o $(_mod_elsisolver) $(_mod_elecsolvertypes) $(common.fypp) $(_mod_accuracy)
+elecsolvers.o: _mod_elsisolver _mod_elecsolvertypes _mod_assert common.fypp _mod_accuracy
+elecsolvers.o = elecsolvers.o $(_mod_elsisolver) $(_mod_elecsolvertypes) $(_mod_assert) $(common.fypp) $(_mod_accuracy)
 _mod_elecsolvers: elecsolvers.o
 _mod_elecsolvers = $(elecsolvers.o)
 
@@ -43,13 +31,3 @@ elsisolver.o = elsisolver.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fy
 _mod_elsisolver: elsisolver.o
 _mod_elsisolver = $(elsisolver.o)
 #:endif
-
-foldedmatrix.o: common.fypp _mod_accuracy
-foldedmatrix.o = foldedmatrix.o $(common.fypp) $(_mod_accuracy)
-_mod_foldedmatrix: foldedmatrix.o
-_mod_foldedmatrix = $(foldedmatrix.o)
-
-fortranarray.o: _mod_message common.fypp _mod_assert _mod_accuracy _mod_foldedmatrix
-fortranarray.o = fortranarray.o $(_mod_message) $(common.fypp) $(_mod_assert) $(_mod_accuracy) $(_mod_foldedmatrix)
-_mod_fortranarray: fortranarray.o
-_mod_fortranarray = $(fortranarray.o)

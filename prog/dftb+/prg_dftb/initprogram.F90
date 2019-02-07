@@ -983,9 +983,8 @@ contains
     !> Is the check-sum for charges read externally be used?
     logical :: tSkipChrgChecksum
 
-    !> nr. of orbitals for all atoms
-    integer :: nAllOrb
-
+    !> Nr. of buffered Cholesky-decompositions
+    integer :: nBufferedCholesky
 
     @:ASSERT(input%tInitialized)
 
@@ -2233,16 +2232,23 @@ contains
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
-
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
         & input%ctrl%parallelOpts, nIndepHam, tempElec)
-    call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver)
+    if (tRealHS) then
+      nBufferedCholesky = 1
+    else
+      nBufferedCholesky = parallelKS%nLocalKS
+    end if
+    call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
     if (electronicSolver%isElsiSolver) then
+      @:ASSERT(parallelKS%nLocalKS == 1)
+
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       tWriteHS = .false.
       call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
-          & nEl, iDistribFn, nSpin, nKpoint, input%ctrl%tWriteHS)
+          & nEl, iDistribFn, nSpin, parallelKS%localKS(2, 1), nKpoint, parallelKS%localKS(1, 1),&
+          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
     end if
 
 
