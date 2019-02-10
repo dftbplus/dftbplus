@@ -25,7 +25,7 @@ module linrespgrad
   use taggedoutput
   use sorting
   use qm
-  use transitionCharges
+  use transcharges
   implicit none
   private
 
@@ -261,7 +261,7 @@ contains
     logical :: tForces
 
     !> transition charges, either cached or evaluated on demand
-    type(qTransition) :: transCharges
+    type(TTransCharges) :: transChrg
 
 
     ! ARPACK library variables
@@ -471,9 +471,7 @@ contains
     ! requirement combined with the need to get at least nexc states
     nxov_rd = max(nxov_rd,min(nexc+1,nxov))
 
-    write(*,*)'Transitions included',nxov_rd
-
-    call qTransitionInit(transCharges, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij,&
+    call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij,&
         & win, tCacheCharges)
 
 
@@ -520,7 +518,7 @@ contains
 
       sym = symmetries(isym)
       call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
-          & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transCharges,&
+          & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
           & fdArnoldiDiagnosis, eval, evec )
 
       ! Excitation oscillator strengths for resulting states
@@ -637,11 +635,11 @@ contains
         call getZVectorEqRHS(xpy, xmy, win, iAtomStart, nocc, nocc_r,&
             & nxov_ud(1), getij, iatrans, natom, species0,grndEigVal(:,1),&
             & stimc, grndEigVecs, gammaMat, spinW, omega, sym, rhs, t,&
-            & wov, woo, wvv, transCharges)
+            & wov, woo, wvv, transChrg)
         call solveZVectorEq(rhs, win, nxov_ud(1), getij, natom, iAtomStart,&
-            & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transCharges)
+            & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg)
         call calcWVectorZ(rhs, win, nocc, nocc_r, nxov_ud(1), getij, iAtomStart,&
-            & stimc, grndEigVecs, gammaMat, grndEigVal(:,1), wov, woo, wvv, transCharges)
+            & stimc, grndEigVecs, gammaMat, grndEigVal(:,1), wov, woo, wvv, transChrg)
         call calcPMatrix(t, rhs, win, getij, pc)
 
         call writeCoeffs(pc, grndEigVecs, filling, nocc, fdCoeffs,&
@@ -658,7 +656,7 @@ contains
         if (tForces) then
           call addGradients(sym, nxov_rd, natom, species0, iAtomStart, norb, nocc, nocc_r,&
               & nxov_ud(1), getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, HubbardU,&
-              & spinW, shift, woo, wov, wvv, transCharges, xpy, coord0, orb, skHamCont,&
+              & spinW, shift, woo, wov, wvv, transChrg, xpy, coord0, orb, skHamCont,&
               & skOverCont, derivator, rhoSqr(:,:,1), excgrad)
         end if
 
@@ -670,14 +668,12 @@ contains
 
     end if
 
-    call qTransitionDestroy(transCharges)
-
   end subroutine LinRespGrad_old
 
 
   !> Builds and diagonalizes the excitation matrix via iterative technique.
   subroutine buildAndDiagExcMatrix(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
-      & grndEigVecs, filling, getij, gammaMat, species0, spinW, transCharges, fdArnoldiDiagnosis,&
+      & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
       & eval, evec)
 
     !> spin polarisation?
@@ -726,7 +722,7 @@ contains
     real(dp), intent(in) :: spinW(:)
 
     !> machinery for transition charges between single particle levels
-    type(qTransition), intent(in) :: transCharges
+    type(TTransCharges), intent(in) :: transChrg
 
     !> resulting eigenvalues for transitions
     real(dp), intent(out) :: eval(:)
@@ -798,7 +794,7 @@ contains
       ! Action of excitation supermatrix on supervector
       call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat,&
-          & species0, spinW, transCharges)
+          & species0, spinW, transChrg)
 
     end do
 
@@ -839,7 +835,7 @@ contains
           & non-orthog'
       do iState = 1, nExc
         call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
-            & grndEigVecs, filling, getij, gammaMat, species0, spinW, transCharges)
+            & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-evec(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))
@@ -1094,7 +1090,7 @@ contains
   !> do not depend on Z.
   subroutine getZVectorEqRHS(xpy, xmy, win, iAtomStart, homo, nocc, nmatup, getij, iatrans, natom,&
       & species0, grndEigVal, stimc, c, gammaMat, spinW, omega, sym, rhs, t, wov, woo, wvv,&
-      & transCharges)
+      & transChrg)
 
     !> X+Y Furche term
     real(dp), intent(in) :: xpy(:)
@@ -1166,7 +1162,7 @@ contains
     real(dp), intent(out) :: wvv(:)
 
     !> machinery for transition charges between single particle levels
-    type(qTransition), intent(in) :: transCharges
+    type(TTransCharges), intent(in) :: transChrg
 
     real(dp), allocatable :: xpyq(:), qij(:), gamxpyq(:), qgamxpyq(:), gamqt(:)
     integer :: nxov, nxoo, nxvv
@@ -1232,7 +1228,7 @@ contains
 
     ! xpyq = Q * xpy
     xpyq(:) = 0.0_dp
-    call transCharges%qMatVec(iAtomStart, stimc, c, getij, win, xpy, xpyq)
+    call transChrg%qMatVec(iAtomStart, stimc, c, getij, win, xpy, xpyq)
 
     ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
     if (sym == "S") then
@@ -1329,7 +1325,7 @@ contains
     call hemv(gamqt, gammaMat, gamxpyq)
 
     ! rhs -= sum_q^ia(iAt1) gamxpyq(iAt1)
-    call transCharges%qVecMat(iAtomStart, stimc, c, getij, win, -4.0_dp*gamqt, rhs)
+    call transChrg%qVecMat(iAtomStart, stimc, c, getij, win, -4.0_dp*gamqt, rhs)
 
     ! Furche vectors
     do ij = 1, nxoo
@@ -1343,7 +1339,7 @@ contains
 
   !> Solving the (A+B) Z = -R equation via conjugate gradient
   subroutine solveZVectorEq(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij, c,&
-      & transCharges)
+      & transChrg)
 
     !> on entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)
@@ -1376,7 +1372,7 @@ contains
     real(dp), intent(in) :: c(:,:,:)
 
     !> machinery for transition charges between single particle levels
-    type(qTransition), intent(in) :: transCharges
+    type(TTransCharges), intent(in) :: transChrg
 
     integer :: nxov
     integer :: ia, i, a, k
@@ -1390,7 +1386,7 @@ contains
     ! Choosing a start value
     ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
     do ia = 1, nxov
-      qij = transCharges%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
+      qij = transChrg%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
       call hemv(qTmp, gammaMat, qij)
       rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
       rhs2(ia) = rhs(ia) / rs
@@ -1404,7 +1400,7 @@ contains
 
     ! action of matrix on vector
     call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-        & transCharges)
+        & transChrg)
 
     rkm1 = rhs - rkm1
     pkm1 = rkm1
@@ -1414,7 +1410,7 @@ contains
 
       ! action of matrix on vector
       call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-          & transCharges)
+          & transChrg)
 
       tmp1 = dot_product(rkm1, rkm1)
       tmp2 = dot_product(pkm1, apk)
@@ -1449,7 +1445,7 @@ contains
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
   !> 2.
   subroutine calcWvectorZ(zz, win, homo, nocc, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-      & grndEigVal, wov, woo, wvv, transCharges)
+      & grndEigVal, wov, woo, wvv, transChrg)
 
     !> Z vector
     real(dp), intent(in) :: zz(:)
@@ -1494,7 +1490,7 @@ contains
     real(dp), intent(inout) :: wvv(:)
 
     !> machinery for transition charges between single particle levels
-    type(qTransition), intent(in) :: transCharges
+    type(TTransCharges), intent(in) :: transChrg
 
     integer :: nxov, nxoo, nxvv, natom
     integer :: ij, ia, ab, i, j, a, b, iAt1
@@ -1517,7 +1513,7 @@ contains
 
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij: zq(iAt1) = sum_kb q^kb(iAt1) Z_kb
     zq(:) = 0.0_dp
-    call transCharges%qMatVec(iAtomStart, stimc, c, getij, win, zz, zq)
+    call transChrg%qMatVec(iAtomStart, stimc, c, getij, win, zz, zq)
 
     call hemv(gamxpyq, gammaMat, zq)
 
@@ -1698,7 +1694,7 @@ contains
   !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
   subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, nocc, nmatup, getij,&
       & win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, HubbardU, spinW, shift, woo, wov, wvv,&
-      & transCharges, xpy, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, excgrad)
+      & transChrg, xpy, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, excgrad)
 
     !> symmetry of the transition
     character, intent(in) :: sym
@@ -1771,7 +1767,7 @@ contains
     real(dp), intent(in) :: wvv(:)
 
     !> machinery for transition charges between single particle levels
-    type(qTransition), intent(in) :: transCharges
+    type(TTransCharges), intent(in) :: transChrg
 
     !> X+Y Furche term
     real(dp), intent(in) :: xpy(:)
@@ -1831,7 +1827,7 @@ contains
     ! xypq(alpha) = sum_ia (X+Y)_ia q^ia(alpha)
     ! complexity norb * norb * norb
     xpyq(:) = 0.0_dp
-    call transCharges%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, xpy,xpyq)
+    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, xpy,xpyq)
 
     ! complexity norb * norb
     shxpyq(:) = 0.0_dp
