@@ -19,8 +19,8 @@ elsiiface.o = elsiiface.o $(common.fypp) $(_mod_accuracy) $(_mod_elsi)
 _mod_elsiiface: elsiiface.o
 _mod_elsiiface = $(elsiiface.o)
 #:else
-elsiiface.o: common.fypp _mod_accuracy
-elsiiface.o = elsiiface.o $(common.fypp) $(_mod_accuracy)
+elsiiface.o: common.fypp _mod_accuracy _mod_message _mod_iso_c_binding
+elsiiface.o = elsiiface.o $(common.fypp) $(_mod_accuracy) $(_mod_message) $(_mod_iso_c_binding)
 _mod_elsiiface: elsiiface.o
 _mod_elsiiface = $(elsiiface.o)
 #:endif
