@@ -599,7 +599,6 @@ contains
     !> gamma matrix
     integer :: ia, ii, jj
     real(dp) :: tmp(natom), gtmp(natom), qij(natom)
-    logical :: updwn
 
     @:ASSERT(size(rkm1) == nmat)
 

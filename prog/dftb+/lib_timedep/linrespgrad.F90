@@ -1172,7 +1172,7 @@ contains
     integer :: nxov, nxoo, nxvv
     integer :: i, j, a, b, ia, ib, ij, ab, ja
     real(dp) :: tmp1, tmp2
-    logical :: updwn = .true.
+    logical, parameter :: updwn = .true.
 
     nxov = size(rhs)
     nxoo = size(woo)
@@ -1499,7 +1499,7 @@ contains
     integer :: nxov, nxoo, nxvv, natom
     integer :: ij, ia, ab, i, j, a, b, iAt1
     real(dp), allocatable :: qij(:), gamxpyq(:), zq(:)
-    logical :: updwn = .true.
+    logical, parameter :: updwn = .true.
 
     nxov = size(zz)
     natom = size(gammaMat, dim=1)
