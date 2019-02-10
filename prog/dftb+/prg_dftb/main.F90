@@ -1120,6 +1120,7 @@ contains
     call negf_init_dephasing(ginfo%tundos)  !? why tundos
 
   end subroutine initNegfStuff
+
 #:endif
 
 
