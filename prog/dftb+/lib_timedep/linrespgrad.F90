@@ -1172,7 +1172,7 @@ contains
     integer :: nxov, nxoo, nxvv
     integer :: i, j, a, b, ia, ib, ij, ab, ja
     real(dp) :: tmp1, tmp2
-    logical :: updwn
+    logical :: updwn = .true.
 
     nxov = size(rhs)
     nxoo = size(woo)
@@ -1383,7 +1383,6 @@ contains
     real(dp) :: rhs2(size(rhs)),rkm1(size(rhs)),pkm1(size(rhs)),apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
     real(dp), allocatable :: qij(:)
-    logical :: updwn
 
     nxov = size(rhs)
     allocate(qij(nAtom))
@@ -1500,7 +1499,7 @@ contains
     integer :: nxov, nxoo, nxvv, natom
     integer :: ij, ia, ab, i, j, a, b, iAt1
     real(dp), allocatable :: qij(:), gamxpyq(:), zq(:)
-    logical :: updwn
+    logical :: updwn = .true.
 
     nxov = size(zz)
     natom = size(gammaMat, dim=1)
@@ -1807,8 +1806,6 @@ contains
     integer :: iSp1, iSp2
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, rab
     real(dp) :: diffvec(3), dgab(3), tmp3a, tmp3b
-
-    logical :: updwn
 
     integer :: nxoo, nxvv
 

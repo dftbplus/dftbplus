@@ -201,7 +201,7 @@ contains
 
     if (this%tCacheCharges) then
 
-      qProduct(:) = qProduct(:) + matmul(this%qCacheOccVirt(:, :), vector(:))
+      qProduct(:) = qProduct + matmul(this%qCacheOccVirt, vector)
 
     else
 
@@ -215,7 +215,7 @@ contains
         jj = getij(kk,2)
         updwn = (kk <= this%nMatUp)
         qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
-        qProduct(:) = qProduct(:) + qij(:) * vector(ij)
+        qProduct(:) = qProduct + qij * vector(ij)
       end do
       !!$OMP  END PARALLEL DO
 
@@ -260,7 +260,7 @@ contains
 
     if (this%tCacheCharges) then
 
-      qProduct(:) = qProduct(:) + matmul(vector(:), this%qCacheOccVirt(:, :))
+      qProduct(:) = qProduct + matmul(vector, this%qCacheOccVirt)
 
     else
 
@@ -274,7 +274,7 @@ contains
         jj = getij(kk,2)
         updwn = (kk <= this%nMatUp)
         qij(:) = transq(ii, jj, iAtomStart, updwn, sTimesGrndEigVecs, grndEigVecs)
-        qProduct(ij) = qProduct(ij) + dot_product(qij(:), vector(:))
+        qProduct(ij) = qProduct(ij) + dot_product(qij, vector)
       end do
       !!$OMP  END PARALLEL DO
 
