@@ -608,7 +608,7 @@ contains
        call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
             & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
-            & iRhoPrim, ErhoPrim, coordAll)
+            &  iRhoPrim, ErhoPrim, coordAll)
        if (this%tIons) then
           this%initialVelocities(:,:) = this%movedVelo
           this%ReadMDVelocities = .true.
@@ -674,7 +674,6 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
-    open(unit=678, file='test.dump')
     ! Main loop
     call env%globalTimer%startTimer(globalTimers%elecDynLoop)
     call loopTime%start()
@@ -684,8 +683,10 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-      call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, time,&
-           & energy, energyKin, dipole, deltaQ, coord, totalForce, iStep, ePerBond, ePBondDat)
+     if (.not. this%tRestart .or. (iStep > 0)) then
+       call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, time,&
+            & energy, energyKin, dipole, deltaQ, coord, totalForce, iStep, ePerBond, ePBondDat)
+     end if
 
      if (this%tIons) then
        coord(:,:) = coordNew
@@ -1445,12 +1446,15 @@ contains
     call blockSymmetrizeHS(T2,iSquare)
     Ssqr(:,:) = cmplx(T2, 0, dp)
 
-    do iSpin = 1, this%nSpin
-      call unpackHS(T3, ham(:,iSpin), iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
-      call blockSymmetrizeHS(T3, iSquare)
-      H1(:,:,iSpin) = cmplx(T3, 0, dp)
-      T3 = 0.0_dp
-    end do
+    if (.not.this%tRestart) then
+      do iSpin = 1, this%nSpin
+         call unpackHS(T3, ham(:,iSpin), iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+              & img2CentCell)
+        call blockSymmetrizeHS(T3, iSquare)
+        H1(:,:,iSpin) = cmplx(T3, 0, dp)
+        T3 = 0.0_dp
+      end do
+    end if
 
     if (this%tPopulations) then
       allocate(Eiginv(this%nOrbs, this%nOrbs, this%nSpin))
@@ -2116,7 +2120,6 @@ contains
        call foldCoordToUnitCell(coord0Fold, this%latVec, this%invLatVec)
     end if
 
-
     call updateNeighbourListAndSpecies(coordAll, this%speciesAll, img2CentCell, this%iCellVec, &
          &neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
     call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skRepCutoff)
@@ -2124,6 +2127,12 @@ contains
         & iSparseStart, sparseSize)
 
     this%nSparse = sparseSize
+    if (.not. allocated(ham0)) then
+       allocate(ham0(this%nSparse))
+    end if
+    if (.not. allocated(rhoPrim)) then
+       allocate(rhoPrim(this%nSparse, this%nSpin))
+    end if
     call reallocateTDSparseArrays(this, ham, over, ham0, rhoPrim, iRhoPrim, ErhoPrim)
 
     call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
