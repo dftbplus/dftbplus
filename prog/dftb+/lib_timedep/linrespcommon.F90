@@ -26,40 +26,6 @@ module linrespcommon
 
 contains
 
-
-  !> Sort arrays in reverse order on basis of values in the sposz array
-  subroutine dipsort(wij, sposz, win, transd)
-
-    !> Energies of transitions
-    real(dp), intent(inout) :: wij(:)
-
-    !> array to be sorted containing single particle transition strengths
-    real(dp), intent(inout) :: sposz(:)
-
-    !> index array for transitions to single particle transitions
-    integer, intent(inout) :: win(:)
-
-    !> dipole moments (to be ordered on first index according to sposz sorting)
-    real(dp), intent(inout) :: transd(:,:)
-
-    integer, allocatable :: tmpIndx(:)
-
-    allocate(tmpIndx(size(win)))
-
-    @:ASSERT(size(wij) == size(sposz))
-    @:ASSERT(size(wij) == size(win))
-    @:ASSERT(size(wij) == size(transd,dim=1))
-
-    call index_heap_sort(tmpIndx, sposz)
-    tmpIndx = tmpIndx(size(win):1:-1)
-    win = win(tmpIndx)
-    wij = wij(tmpIndx)
-    sposz = sposz(tmpIndx)
-    transd(:,:) = transd(tmpIndx,:)
-
-  end subroutine dipsort
-
-
   !> find (possibly degenerate) transitions with stronger dipole
   !> transition strengths than a tolerance, count them and place at
   !> the start of the appropriate arrays
