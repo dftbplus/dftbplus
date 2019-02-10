@@ -14,6 +14,9 @@ module elsiiface
   use accuracy, only : dp
 #:if WITH_ELSI
   use elsi
+#:else
+  use iso_c_binding, only : r8 => c_double, i4 => c_int32_t
+  use message, only : error
 #:endif
   implicit none
   private
@@ -72,129 +75,433 @@ contains
 
 #:if not WITH_ELSI
 
+  !> Generates error message, if a stub was called
+  subroutine stubError(routineName)
+    character(*), intent(in) :: routineName
+
+    call error("Internal error: " // trim(routineName) // "() called in a build without ELSI&
+        & support")
+
+  end subroutine stubError
+
+
   !
   ! Placeholder routines when compiled without ELSI support
   !
 
-  $:STUB_SUBROUTINE('elsi_init', ['type(elsi_handle)', 'integer', 'integer', 'integer', 'integer',&
-      & 'real(dp)', 'integer'])
+  subroutine elsi_init(eh, solver, parallel_mode, matrix_format, n_basis, n_electron, n_state)
+    type(elsi_handle), intent(out) :: eh
+    integer(i4), intent(in) :: solver
+    integer(i4), intent(in) :: parallel_mode
+    integer(i4), intent(in) :: matrix_format
+    integer(i4), intent(in) :: n_basis
+    real(r8), intent(in) :: n_electron
+    integer(i4), intent(in) :: n_state
+    call stubError("elsi_init")
+  end subroutine elsi_init
 
-  $:STUB_SUBROUTINE('elsi_finalize', ['type(elsi_handle)'])
 
-  $:STUB_SUBROUTINE('elsi_set_csc', ['type(elsi_handle)', 'integer', 'integer', 'integer',&
-      & 'integer, dimension(:)', 'integer, dimension(:)'])
+  subroutine elsi_finalize(eh)
+    type(elsi_handle), intent(inout) :: eh
+    call stubError("elsi_finalize")
+  end subroutine elsi_finalize
 
-  $:STUB_SUBROUTINE('elsi_set_csc_blk', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_dm_real', ['type(elsi_handle)', 'real(dp), dimension(:,:)',&
-      & 'real(dp), dimension(:,:)', 'real(dp), dimension(:,:)', 'real(dp)'])
+  subroutine elsi_set_csc(eh, nnz_g, nnz_l, n_lcol, row_ind, col_ptr)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: nnz_g
+    integer(i4), intent(in) :: nnz_l
+    integer(i4), intent(in) :: n_lcol
+    integer(i4), intent(in) :: row_ind(:)
+    integer(i4), intent(in) :: col_ptr(:)
+    call stubError("elsi_set_csc")
+  end subroutine elsi_set_csc
 
-  $:STUB_SUBROUTINE('elsi_dm_complex', ['type(elsi_handle)', 'complex(dp), dimension(:,:)',&
-      & 'complex(dp), dimension(:,:)', 'complex(dp), dimension(:,:)', 'real(dp)'])
 
-  $:STUB_SUBROUTINE('elsi_dm_real_sparse', ['type(elsi_handle)', 'real(dp), dimension(:)',&
-      & 'real(dp), dimension(:)', 'real(dp), dimension(:)', 'real(dp)'])
+  subroutine elsi_set_csc_blk(eh, blk)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: blk
+    call stubError("elsi_set_csc_blk")
+  end subroutine elsi_set_csc_blk
 
-  $:STUB_SUBROUTINE('elsi_dm_complex_sparse', ['type(elsi_handle)', 'complex(dp), dimension(:)',&
-      & 'complex(dp), dimension(:)', 'complex(dp), dimension(:)', 'real(dp)'])
 
-  $:STUB_SUBROUTINE('elsi_get_edm_real', ['type(elsi_handle)', 'real(dp), dimension(:,:)'])
+  subroutine elsi_dm_real(eh, ham, ovlp, dm, ebs)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(inout) :: ham(:,:)
+    real(r8), intent(inout) :: ovlp(:,:)
+    real(r8), intent(inout) :: dm(:,:)
+    real(r8), intent(inout) :: ebs
+    call stubError("elsi_dm_real")
+  end subroutine elsi_dm_real
 
-  $:STUB_SUBROUTINE('elsi_get_edm_complex', ['type(elsi_handle)', 'complex(dp), dimension(:,:)'])
 
-  $:STUB_SUBROUTINE('elsi_get_edm_real_sparse', ['type(elsi_handle)', 'real(dp), dimension(:)'])
+  subroutine elsi_dm_complex(eh, ham, ovlp, dm, ebs)
+    type(elsi_handle), intent(inout) :: eh
+    complex(r8), intent(inout) :: ham(:,:)
+    complex(r8), intent(inout) :: ovlp(:,:)
+    complex(r8), intent(inout) :: dm(:,:)
+    real(r8), intent(inout) :: ebs
+    call stubError("elsi_dm_complex")
+  end subroutine elsi_dm_complex
 
-  $:STUB_SUBROUTINE('elsi_get_edm_complex_sparse', ['type(elsi_handle)',&
-      & 'complex(dp), dimension(:)'])
 
-  $:STUB_SUBROUTINE('elsi_get_mu', ['type(elsi_handle)', 'real(dp)'])
+  subroutine elsi_dm_real_sparse(eh, ham, ovlp, dm, ebs)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(inout) :: ham(:)
+    real(r8), intent(inout) :: ovlp(:)
+    real(r8), intent(inout) :: dm(:)
+    real(r8), intent(inout) :: ebs
+    call stubError("elsi_dm_real_sparse")
+  end subroutine elsi_dm_real_sparse
 
-  $:STUB_SUBROUTINE('elsi_get_entropy', ['type(elsi_handle)', 'real(dp)'])
 
-  $:STUB_SUBROUTINE('elsi_ev_real', ['type(elsi_handle)', 'real(dp), dimension(:,:)',&
-      & 'real(dp), dimension(:,:)', 'real(dp), dimension(:)', 'real(dp), dimension(:,:)'])
+  subroutine elsi_dm_complex_sparse(eh, ham, ovlp, dm, ebs)
+    type(elsi_handle), intent(inout) :: eh
+    complex(r8), intent(inout) :: ham(:)
+    complex(r8), intent(inout) :: ovlp(:)
+    complex(r8), intent(inout) :: dm(:)
+    real(r8), intent(inout) :: ebs
+    call stubError("elsi_dm_complex_sparse")
+  end subroutine elsi_dm_complex_sparse
 
-  $:STUB_SUBROUTINE('elsi_ev_complex', ['type(elsi_handle)', 'complex(dp), dimension(:,:)',&
-      & 'complex(dp), dimension(:,:)', 'real(dp), dimension(:)', 'complex(dp), dimension(:,:)'])
 
-  $:STUB_SUBROUTINE('elsi_set_blacs', ['type(elsi_handle)', 'integer', 'integer'])
+  subroutine elsi_get_edm_real(eh, edm)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(out) :: edm(:,:)
+    call stubError("elsi_get_edm_real")
+  end subroutine elsi_get_edm_real
 
-  $:STUB_SUBROUTINE('elsi_set_elpa_solver', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_kpoint', ['type(elsi_handle)', 'integer', 'integer', 'real(dp)'])
+  subroutine elsi_get_edm_complex(eh, edm)
+    type(elsi_handle), intent(inout) :: eh
+    complex(r8), intent(out) :: edm(:,:)
+    call stubError("elsi_get_edm_complex")
+  end subroutine elsi_get_edm_complex
 
-  $:STUB_SUBROUTINE('elsi_set_spin', ['type(elsi_handle)', 'integer', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_mpi', ['type(elsi_handle)', 'integer'])
+  subroutine elsi_get_edm_real_sparse(eh, edm)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(out) :: edm(:)
+    call stubError("elsi_get_edm_real_sparse")
+  end subroutine elsi_get_edm_real_sparse
 
-  $:STUB_SUBROUTINE('elsi_set_mpi_global', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_sing_check', ['type(elsi_handle)', 'integer'])
+  subroutine elsi_get_edm_complex_sparse(eh, edm)
+    type(elsi_handle), intent(inout) :: eh
+    complex(r8), intent(out) :: edm(:)
+    call stubError("elsi_get_edm_complex_sparse")
+  end subroutine elsi_get_edm_complex_sparse
 
-  $:STUB_SUBROUTINE('elsi_set_mu_broaden_scheme', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_mu_broaden_width', ['type(elsi_handle)', 'real(dp)'])
+  subroutine elsi_get_mu(eh, mu)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(out) :: mu
+    call stubError("elsi_get_mu")
+  end subroutine elsi_get_mu
 
-  $:STUB_SUBROUTINE('elsi_set_mu_mp_order', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_ntpoly_method', ['type(elsi_handle)', 'integer'])
+  subroutine elsi_get_entropy(eh, entropy)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(out) :: entropy
+    call stubError("elsi_get_entropy")
+  end subroutine elsi_get_entropy
 
-  $:STUB_SUBROUTINE('elsi_set_ntpoly_filter', ['type(elsi_handle)', 'real(dp)'])
 
-  $:STUB_SUBROUTINE('elsi_set_ntpoly_tol', ['type(elsi_handle)', 'real(dp)'])
+  subroutine elsi_ev_real(eh, ham, ovlp, eval, evec)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(inout) :: ham(:,:)
+    real(r8), intent(inout) :: ovlp(:,:)
+    real(r8), intent(inout) :: eval(:)
+    real(r8), intent(inout) :: evec(:,:)
+    call stubError("elsi_ev_real")
+  end subroutine elsi_ev_real
 
-  $:STUB_SUBROUTINE('elsi_set_omm_flavor', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_omm_n_elpa', ['type(elsi_handle)', 'integer'])
+  subroutine elsi_ev_complex(eh, ham, ovlp, eval, evec)
+    type(elsi_handle), intent(inout) :: eh
+    complex(r8), intent(inout) :: ham(:,:)
+    complex(r8), intent(inout) :: ovlp(:,:)
+    real(r8), intent(inout) :: eval(:)
+    complex(r8), intent(inout) :: evec(:,:)
+    call stubError("elsi_ev_complex")
+  end subroutine elsi_ev_complex
 
-  $:STUB_SUBROUTINE('elsi_set_omm_tol', ['type(elsi_handle)', 'real(dp)'])
 
-  $:STUB_SUBROUTINE('elsi_get_pexsi_mu_min', ['type(elsi_handle)', 'real(dp)'])
+  subroutine elsi_set_blacs(eh, blacs_ctxt, block_size)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: blacs_ctxt
+    integer(i4), intent(in) :: block_size
+    call stubError("elsi_set_blacs")
+  end subroutine elsi_set_blacs
 
-  $:STUB_SUBROUTINE('elsi_get_pexsi_mu_max', ['type(elsi_handle)', 'real(dp)'])
 
-  $:STUB_SUBROUTINE('elsi_set_pexsi_mu_min', ['type(elsi_handle)', 'real(dp)'])
+  subroutine elsi_set_elpa_solver(eh, solver)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: solver
+    call stubError("elsi_set_set_elpa_solver")
+  end subroutine elsi_set_elpa_solver
 
-  $:STUB_SUBROUTINE('elsi_set_pexsi_mu_max', ['type(elsi_handle)', 'real(dp)'])
 
-  $:STUB_SUBROUTINE('elsi_set_pexsi_delta_e', ['type(elsi_handle)', 'real(dp)'])
+  subroutine elsi_set_kpoint(eh, n_kpt, i_kpt, i_wt)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: n_kpt
+    integer(i4), intent(in) :: i_kpt
+    real(r8), intent(in) :: i_wt
+    call stubError("elsi_set_kpoint")
+  end subroutine elsi_set_kpoint
 
-  $:STUB_SUBROUTINE('elsi_set_pexsi_temp', ['type(elsi_handle)', 'real(dp)'])
 
-  $:STUB_SUBROUTINE('elsi_set_pexsi_n_mu', ['type(elsi_handle)', 'integer'])
+  subroutine elsi_set_spin(eh, n_spin, i_spin)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: n_spin
+    integer(i4), intent(in) :: i_spin
+    call stubError("elsi_set_spin")
+  end subroutine elsi_set_spin
 
-  $:STUB_SUBROUTINE('elsi_set_pexsi_np_symbo', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_pexsi_n_pole', ['type(elsi_handle)', 'integer'])
+  subroutine elsi_set_mpi(eh, comm)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: comm
+    call stubError("elsi_set_mpi")
+  end subroutine elsi_set_mpi
 
-  $:STUB_SUBROUTINE('elsi_set_pexsi_np_per_pole', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_output', ['type(elsi_handle)', 'integer'])
+  subroutine elsi_set_mpi_global(eh, comm_all)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: comm_all
+    call stubError("elsi_set_mpi_global")
+  end subroutine elsi_set_mpi_global
 
-  $:STUB_SUBROUTINE('elsi_set_output_log', ['type(elsi_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_init_rw', ['type(elsi_rw_handle)', 'integer', 'integer', 'integer',&
-      & 'real(dp)'])
+  subroutine elsi_set_sing_check(eh, illcond_check)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: illcond_check
+    call stubError("elsi_set_sing_check")
+  end subroutine elsi_set_sing_check
 
-  $:STUB_SUBROUTINE('elsi_finalize_rw', ['type(elsi_rw_handle)'])
 
-  $:STUB_SUBROUTINE('elsi_set_rw_csc', ['type(elsi_rw_handle)', 'integer', 'integer', 'integer'])
+  subroutine elsi_set_mu_broaden_scheme(eh, broaden_scheme)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: broaden_scheme
+    call stubError("elsi_set_mu_broaden_scheme")
+  end subroutine elsi_set_mu_broaden_scheme
 
-  $:STUB_SUBROUTINE('elsi_set_rw_mpi', ['type(elsi_rw_handle)', 'integer'])
 
-  $:STUB_SUBROUTINE('elsi_set_rw_blacs', ['type(elsi_rw_handle)', 'integer', 'integer'])
+  subroutine elsi_set_mu_broaden_width(eh, broaden_width)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: broaden_width
+    call stubError("elsi_set_mu_broaden_width")
+  end subroutine elsi_set_mu_broaden_width
 
-  $:STUB_SUBROUTINE('elsi_write_mat_real_sparse', ['type(elsi_rw_handle)', 'character(*)',&
-      & 'integer, dimension(:)', 'integer, dimension(:)', 'real(dp), dimension(:)'])
 
-  $:STUB_SUBROUTINE('elsi_write_mat_complex_sparse', ['type(elsi_rw_handle)', 'character(*)',&
-      & 'integer, dimension(:)', 'integer, dimension(:)', 'complex(dp), dimension(:)'])
+  subroutine elsi_set_mu_mp_order(eh, mp_order)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: mp_order
+    call stubError("elsi_set_mu_broaden_width")
+  end subroutine elsi_set_mu_mp_order
 
-  $:STUB_SUBROUTINE('elsi_write_mat_real', ['type(elsi_rw_handle)', 'character(*)',&
-      & 'real(dp), dimension(:,:)'])
 
-  $:STUB_SUBROUTINE('elsi_write_mat_complex', ['type(elsi_rw_handle)', 'character(*)',&
-      & 'complex(dp), dimension(:,:)'])
+  subroutine elsi_set_ntpoly_method(eh, method)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: method
+    call stubError("elsi_set_ntpoly_method")
+  end subroutine elsi_set_ntpoly_method
+
+
+  subroutine elsi_set_ntpoly_filter(eh, filter)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: filter
+    call stubError("elsi_set_ntpoly_filter")
+  end subroutine elsi_set_ntpoly_filter
+
+
+  subroutine elsi_set_ntpoly_tol(eh, tol)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: tol
+    call stubError("elsi_set_ntpoly_tol")
+  end subroutine elsi_set_ntpoly_tol
+
+
+  subroutine elsi_set_omm_flavor(eh, flavor)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: flavor
+    call stubError("elsi_set_omm_flavor")
+  end subroutine elsi_set_omm_flavor
+
+
+  subroutine elsi_set_omm_n_elpa(eh, n_elpa)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: n_elpa
+    call stubError("elsi_set_omm_n_elpa")
+  end subroutine elsi_set_omm_n_elpa
+
+
+  subroutine elsi_set_omm_tol(eh, tol)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: tol
+    call stubError("elsi_set_omm_tol")
+  end subroutine elsi_set_omm_tol
+
+
+  subroutine elsi_set_pexsi_mu_min(eh, mu_min)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: mu_min
+    call stubError("elsi_set_pexsi_mu_min")
+  end subroutine elsi_set_pexsi_mu_min
+
+
+  subroutine elsi_set_pexsi_mu_max(eh, mu_max)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: mu_max
+    call stubError("elsi_set_pexsi_mu_max")
+  end subroutine elsi_set_pexsi_mu_max
+
+
+  subroutine elsi_get_pexsi_mu_min(eh, mu_min)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(out) :: mu_min
+    call stubError("elsi_get_pexsi_mu_min")
+  end subroutine elsi_get_pexsi_mu_min
+
+
+  subroutine elsi_get_pexsi_mu_max(eh, mu_max)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(out) :: mu_max
+    call stubError("elsi_get_pexsi_mu_max")
+  end subroutine elsi_get_pexsi_mu_max
+
+
+  subroutine elsi_set_pexsi_delta_e(eh, delta_e)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: delta_e
+    call stubError("elsi_get_pexsi_delta_e")
+  end subroutine elsi_set_pexsi_delta_e
+
+
+  subroutine elsi_set_pexsi_temp(eh, temp)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: temp
+    call stubError("elsi_set_pexsi_temp")
+  end subroutine elsi_set_pexsi_temp
+
+
+  subroutine elsi_set_pexsi_n_mu(eh, n_mu)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: n_mu
+    call stubError("elsi_set_pexsi_n_mu")
+  end subroutine elsi_set_pexsi_n_mu
+
+
+  subroutine elsi_set_pexsi_np_symbo(eh, np_symbo)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: np_symbo
+    call stubError("elsi_set_pexsi_np_symbo")
+  end subroutine elsi_set_pexsi_np_symbo
+
+
+  subroutine elsi_set_pexsi_n_pole(eh, n_pole)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: n_pole
+    call stubError("elsi_set_pexsi_np_pole")
+  end subroutine elsi_set_pexsi_n_pole
+
+
+  subroutine elsi_set_pexsi_np_per_pole(eh, np_per_pole)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: np_per_pole
+    call stubError("elsi_set_pexsi_np_per_pole")
+  end subroutine elsi_set_pexsi_np_per_pole
+
+
+  subroutine elsi_set_output(eh, output)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: output
+    call stubError("elsi_set_output")
+  end subroutine elsi_set_output
+
+
+  subroutine elsi_set_output_log(eh, output_log)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: output_log
+    call stubError("elsi_set_output_log")
+  end subroutine elsi_set_output_log
+
+
+  subroutine elsi_init_rw(rwh, task, parallel_mode, n_basis, n_electron)
+    type(elsi_rw_handle), intent(out) :: rwh
+    integer(i4), intent(in) :: task
+    integer(i4), intent(in) :: parallel_mode
+    integer(i4), intent(in) :: n_basis
+    real(r8), intent(in) :: n_electron
+    call stubError("elsi_init_rw")
+  end subroutine elsi_init_rw
+
+
+  subroutine elsi_finalize_rw(rwh)
+    type(elsi_rw_handle), intent(inout) :: rwh
+    call stubError("elsi_finalize_rw")
+  end subroutine elsi_finalize_rw
+
+
+  subroutine elsi_set_rw_csc(rwh, nnz_g, nnz_l_sp, n_lcol_sp)
+    type(elsi_rw_handle), intent(inout) :: rwh
+    integer(i4), intent(in) :: nnz_g
+    integer(i4), intent(in) :: nnz_l_sp
+    integer(i4), intent(in) :: n_lcol_sp
+    call stubError("elsi_set_rw_csc")
+  end subroutine elsi_set_rw_csc
+
+
+  subroutine elsi_set_rw_mpi(rwh, mpi_comm)
+    type(elsi_rw_handle), intent(inout) :: rwh
+    integer(i4), intent(in) :: mpi_comm
+    call stubError("elsi_set_rw_mpi")
+  end subroutine elsi_set_rw_mpi
+
+
+
+  subroutine elsi_set_rw_blacs(rwh, blacs_ctxt, block_size)
+    type(elsi_rw_handle), intent(inout) :: rwh
+    integer(i4), intent(in) :: blacs_ctxt
+    integer(i4), intent(in) :: block_size
+    call stubError("elsi_set_rw_blacs")
+  end subroutine elsi_set_rw_blacs
+
+
+  subroutine elsi_write_mat_real_sparse(rwh, f_name, row_ind, col_ptr, mat)
+    type(elsi_rw_handle), intent(in) :: rwh
+    character(*), intent(in) :: f_name
+    integer(i4), intent(in) :: row_ind(:)
+    integer(i4), intent(in) :: col_ptr(:)
+    real(r8), intent(in) :: mat(:)
+    call stubError("elsi_write_mat_real_sparse")
+  end subroutine elsi_write_mat_real_sparse
+
+
+  subroutine elsi_write_mat_complex_sparse(rwh, f_name, row_ind, col_ptr, mat)
+    type(elsi_rw_handle), intent(in) :: rwh
+    character(*), intent(in) :: f_name
+    integer(i4), intent(in) :: row_ind(:)
+    integer(i4), intent(in) :: col_ptr(:)
+    complex(r8), intent(in) :: mat(:)
+    call stubError("elsi_write_mat_complex_sparse")
+  end subroutine elsi_write_mat_complex_sparse
+
+
+  subroutine elsi_write_mat_real(rwh, f_name, mat)
+    type(elsi_rw_handle), intent(in) :: rwh
+    character(*), intent(in) :: f_name
+    real(r8), intent(in) :: mat(:,:)
+    call stubError("elsi_write_mat_real")
+  end subroutine elsi_write_mat_real
+
+
+  subroutine elsi_write_mat_complex(rwh, f_name, mat)
+    type(elsi_rw_handle), intent(in) :: rwh
+    character(*), intent(in) :: f_name
+    complex(r8), intent(in) :: mat(:,:)
+    call stubError("elsi_write_mat_complex")
+  end subroutine elsi_write_mat_complex
 
 #:endif
 
