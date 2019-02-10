@@ -2307,16 +2307,16 @@ contains
                 sPrimeTmp2(:,:) = sPrimeTmp2 + &
                      &sPrimeTmp(:,:,iDir) * dcoord(iDir,iAtom1)
              end do
-             RdotSprime(iStart2:iEnd2,iStart1:iEnd1) = &
-                  & cmplx(sPrimeTmp2(1:nOrb2,1:nOrb1), 0, dp)
+             RdotSprime(iStart2:iEnd2,iStart1:iEnd1) = RdotSprime(iStart2:iEnd2,iStart1:iEnd1)&
+                  & + cmplx(sPrimeTmp2(1:nOrb2,1:nOrb1), 0, dp)
 
              sPrimeTmp2(:,:) = 0.0_dp
              do iDir=1,3
                 sPrimeTmp2(:,:) = sPrimeTmp2 - &
                      &sPrimeTmp(:,:,iDir) * dcoord(iDir,iAtom2f)
              end do
-             RdotSprime(iStart1:iEnd1,iStart2:iEnd2) = &
-                  & cmplx(transpose(sPrimeTmp2(1:nOrb2,1:nOrb1)), 0, dp)
+             RdotSprime(iStart1:iEnd1,iStart2:iEnd2) = RdotSprime(iStart1:iEnd1,iStart2:iEnd2)&
+                  & + cmplx(transpose(sPrimeTmp2(1:nOrb2,1:nOrb1)), 0, dp)
           end if
        end do
     end do

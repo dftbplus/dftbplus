@@ -95,6 +95,12 @@ module taggedoutput
   !> final negative gross atomic Mulliken charges after real-time propagation
   character(*), parameter, public :: tag_tdcharges = 'final_td_charges'
 
+  !> final forces components after real-time propagation
+  character(*), parameter, public :: tag_tdforces = 'final_td_forces'
+
+  !> final geometry after real-time propagation
+  character(*), parameter, public :: tag_tdcoords = 'final_td_geometry'
+
   !> total tunneling vector
   character(*), parameter, public :: tag_tunn = 'total_tunneling'
 
