@@ -29,8 +29,7 @@ module negf_int
   use FormatOut
   use globalenv
   use message
-  use solvertypes
-  use solvers
+  use elecsolvertypes, only : electronicSolverTypes
 
   implicit none
   private

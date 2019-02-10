@@ -254,6 +254,11 @@ _mod_spinorbit: spinorbit.o
 _mod_spinorbit = $(spinorbit.o)
 #:endif
 
+spinwave.o: common.fypp _mod_assert
+spinwave.o = spinwave.o $(common.fypp) $(_mod_assert)
+_mod_spinwave: spinwave.o
+_mod_spinwave = $(spinwave.o)
+
 stress.o: _mod_commontypes common.fypp _mod_schedule _mod_environment _mod_repcont _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
 stress.o = stress.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_environment) $(_mod_repcont) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
 _mod_stress: stress.o
