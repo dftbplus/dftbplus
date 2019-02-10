@@ -777,7 +777,7 @@ contains
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
     if (tWriteAutotest) then
-      call writeTDAutotest(this, dipole, energy, deltaQ)
+      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce)
     end if
 
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
@@ -2029,7 +2029,7 @@ contains
 
 
   !> Write time-dependent tagged information to autotestTag file
-  subroutine writeTDAutotest(this, dipole, energy, deltaQ)
+  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2042,6 +2042,8 @@ contains
 
     !> Negative gross charge
     real(dp), intent(in) :: deltaQ(:,:)
+    real(dp), intent(in) :: coord(:,:)
+    real(dp), intent(in) :: totalForce(:,:)
 
     integer :: fdAutotest
 
@@ -2050,6 +2052,13 @@ contains
     call writeTagged(fdAutotest, tag_tdenergy, energy%eSCC)
     call writeTagged(fdAutotest, tag_tddipole, dipole)
     call writeTagged(fdAutotest, tag_tdcharges, deltaQ)
+    if (this%tIons) then
+      call writeTagged(fdAutotest, tag_ehrencoords, coord)
+      call writeTagged(fdAutotest, tag_ehrenvelos, this%movedVelo)
+    end if
+    if (this%tForces) then
+      call writeTagged(fdAutotest, tag_ehrenforces, totalForce)
+    end if
 
     close(fdAutotest)
 

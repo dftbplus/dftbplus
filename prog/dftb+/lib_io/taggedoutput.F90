@@ -95,11 +95,14 @@ module taggedoutput
   !> final negative gross atomic Mulliken charges after real-time propagation
   character(*), parameter, public :: tag_tdcharges = 'final_td_charges'
 
-  !> final forces components after real-time propagation
-  character(*), parameter, public :: tag_tdforces = 'final_td_forces'
+  !> final forces components after real-time (Ehrenfest) propagation
+  character(*), parameter, public :: tag_ehrenforces = 'final_ehrenfest_forc'
 
-  !> final geometry after real-time propagation
-  character(*), parameter, public :: tag_tdcoords = 'final_td_geometry'
+  !> final geometry after real-time (Ehrenfest) propagation
+  character(*), parameter, public :: tag_ehrencoords = 'final_ehrenfest_geom'
+
+  !> final velocities after real-time (Ehrenfest) propagation
+  character(*), parameter, public :: tag_ehrenvelos = 'final_ehrenfest_velo'
 
   !> total tunneling vector
   character(*), parameter, public :: tag_tunn = 'total_tunneling'
