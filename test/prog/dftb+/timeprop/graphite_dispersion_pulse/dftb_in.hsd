@@ -77,7 +77,8 @@
  }
  
  Options = {
-   WriteAutotestTag = Yes 
+   WriteAutotestTag = Yes
+   RandomSeed = 1234 
  }
  
  ParserOptions = {
@@ -94,7 +95,7 @@
         LaserEnergy [ev] = 3.802
       }
       IonDynamics = Yes
-      InitialTemperature [k] = 100.0
+      InitialTemperature [k] = 273.15
     }
 
    CalculateForces = Yes

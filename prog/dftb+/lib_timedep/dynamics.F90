@@ -231,7 +231,11 @@ contains
       this%tLaser = .true.
     else if (inp%pertType == iKick) then
       this%tKick = .true.
-    ! add here other kinds of perturbations
+    else if (inp%pertType == iKick) then
+      this%tKick = .true.
+      this%tLaser = .true.
+    else
+      call error("Wrong type of perturbation.")
     end if
 
     if (this%tLaser) then
@@ -656,7 +660,7 @@ contains
          & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare)
     end if
 
-    call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
+    call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList, nNeighbourSK, orb,&
          & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
          & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, nDftbUFunc,&
          & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
@@ -1316,6 +1320,7 @@ contains
     energyKin = 0.0_dp
     if (this%tIons) then
        energyKin = 0.5_dp * sum(this%movedMass(:,:) * this%movedVelo(:,:)**2)
+       energy%Etotal = energy%Etotal + energyKin
     end if
 
   end subroutine getTDEnergy
