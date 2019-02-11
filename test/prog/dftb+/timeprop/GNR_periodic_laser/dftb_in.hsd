@@ -68,9 +68,7 @@
         PolarizationDirection = 0 1 0 
         LaserEnergy [ev] = 3.802
       } 
-      WriteFrequency = 1
     }
-    CalculateForces = Yes
   }
 
  Parallel {
