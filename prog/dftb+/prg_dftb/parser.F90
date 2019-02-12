@@ -3754,7 +3754,7 @@ contains
     call getChildValue(node, "Steps", input%steps)
     call getChildValue(node, "TimeStep", input%dt, modifier=modifier, &
          & child=child)
-    call convertByMul(char(modifier), timeUnits, child, input%Dt)
+    call convertByMul(char(modifier), timeUnits, child, input%dt)
 
     call getChildValue(node, "FieldStrength", input%tdfield, modifier=modifier, child=child)
     call convertByMul(char(modifier), EFieldUnits, child, input%tdfield)
@@ -3767,9 +3767,14 @@ contains
     call getChildValue(node, "Forces", input%tForces, .false.)
     call getChildValue(node, "WritePairWiseEnergy", input%tPairWise, .false.)
     call getChildValue(node, "OnsiteGradients", input%tOnsiteGradients, .false.)
-    call getChildValue(node, "PumpProbe", input%tPumpProbe, .false.)
-    if (input%tPumpProbe) then
-       call getChildValue(node, "PumpProbeFrames", input%tdPPFrames, 100)
+    call getChildValue(node, "Pump", input%tPump, .false.)
+    if (input%tPump) then
+      call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
+      call getChildValue(node, "PumpProbeRange", input%tdPpRange, [0, input%steps])
+    end if
+    call getChildValue(node, "Probe", input%tProbe, .false.)
+    if (input%tPump .and. input%tProbe) then
+      call detailedError(child, "Pump and probe cannot be simultaneously true.")
     end if
 
     call getChildValue(node, "EulerEvery", input%eulerFreq, -1)
@@ -3829,12 +3834,25 @@ contains
           call detailedError(child, "Wrong specified polarization direction")
        end if
        call getChildValue(value, "SpinType", input%spType, iTDSinglet)
+
        call getChildValue(value, "LaserPolDir", input%reFieldPolVec)
        call getChildValue(value, "LaserImagPolDir", input%imFieldPolVec, &
             & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
        call getChildValue(value, "LaserEnergy", input%omega, &
             & modifier=modifier, child=child)
        call convertByMul(char(modifier), energyUnits, child, input%omega)
+       call getChildValue(value, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value, "LaserStrength", input%tdLaserField, modifier=modifier, child=child)
+       call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)
+
+       call getChildValue(value, "ExcitedAtoms", buffer, "1:-1", child=child, &
+            &multiple=.true.)
+       call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, &
+            &child, input%indExcitedAtom)
+       input%nExcitedAtom = size(input%indExcitedAtom)
+       if (input%nExcitedAtom == 0) then
+          call error("No atoms specified for laser excitation.")
+       end if
 
     case ("none")
        input%pertType = iNoTDPert
