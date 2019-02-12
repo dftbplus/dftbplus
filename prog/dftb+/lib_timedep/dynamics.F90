@@ -123,23 +123,41 @@ module timeprop_module
     !> If dump file should be written during the dynamics
     logical :: tWriteRestart
 
+    !> Index of the moved atoms
     integer, allocatable :: indMovedAtom(:)
+    !> Index of the excited atoms
     integer, allocatable :: indExcitedAtom(:)
+    !> Number of moved atoms
     integer :: nMovedAtom
+    !> Number of steps every which an Euler step is applied (to kill numerical noise)
     integer :: eulerFreq
+    !> Number of total system snapshots to be saved during pump simulation
     integer :: tdPPFrames
+    !> Number of excited atoms
     integer :: nExcitedAtom
+    !> Initial and final steps to save the snapshots during pump simulation
     integer :: tdPpRange(2)
+    !> if forces should be calculated during propagation
     logical :: tForces
+    !> if nuclei should be moved during propagation
     logical :: tIons
+    !> if velocities are supplied from imput
     logical :: tReadMDVelocities
+    !> if Euler steps should be done during simulation
     logical :: tEulers
+    !> if pairwise bond energy or order should be calculated and written
     logical :: tPairWise
+    !> if this is a pump trajectory (for a pump-probe simulation)
     logical :: tPump
+    !> if this is a probe trajectory (for a pump-probe simulation)
     logical :: tProbe
+    !> if onsite elements of nonadiabatic couplings  should be calculated (needs special SK tables)
     logical :: tOnsiteGradients
+    !> atomic (initial) kinetic temperature
     real(dp) :: tempAtom
+    !> field strength for KickAndLaser perturbations
     real(dp) :: tdLaserField = 0.0_dp
+    !> intial atomic velocities if supplied
     real(dp), allocatable :: initialVelocities(:,:)
 end type TElecDynamicsInp
 
@@ -479,8 +497,12 @@ contains
     real(dp), intent(in) :: latVec(:,:)
 
     !> Inverse of the lattice vectors
-    real(dp), intent(in) :: invLatVec(:,:), rCellVec(:,:)
+    real(dp), intent(in) :: invLatVec(:,:)
 
+    !> cell vectors in absolute units
+    real(dp), intent(in) :: rCellVec(:,:)
+
+    !> index in cellVec for each atom
     integer, allocatable, intent(in) :: iCellVec(:)
 
     integer :: iPol
@@ -587,7 +609,11 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    !> Raw H^0 hamiltonian data
+    type(OSlakoCont), intent(in) :: skHamCont
+
+    !> Raw overlap data
+    type(OSlakoCont), intent(in) :: skOverCont
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
@@ -1198,6 +1224,7 @@ contains
     !> overlap (sparse)
     real(dp), allocatable, intent(in) :: over(:)
 
+    !> Mulliken block charges
     real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
 
     integer :: iAt, iSpin, iOrb1, iOrb2
@@ -1291,7 +1318,7 @@ contains
     !> potential acting on the system
     type(TPotentials), intent(in) :: potential
 
-    !> atomic coordinates
+    !> Coords of the atoms (3, nAllAtom)
     real(dp), intent(in) :: coordAll(:,:)
 
     !> repulsive information
@@ -1342,7 +1369,6 @@ contains
 
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iSpin
-    logical :: tUseBuggyRepSum = .false.
     real(dp) :: TS(this%nSpin)
 
     rhoPrim(:,:) = 0.0_dp
@@ -1456,12 +1482,18 @@ contains
     !> Local sparse storage for non-SCC hamitonian
     real(dp), allocatable, intent(out) :: ham0(:)
 
+    !> Raw overlap data
     type(OSlakoCont), intent(in) :: skOverCont
+
+    !> Energy weighted density matrix
     real(dp), allocatable, intent(out) :: ErhoPrim(:)
+
     !> block (dual) atomic populations
     real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
+
     !> U-J prefactors in DFTB+U
     real(dp), intent(in), allocatable :: UJ(:,:)
+
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
@@ -1556,12 +1588,30 @@ contains
     !> Time step in atomic units (with sign, to perform step backwards or forwards)
     real(dp), intent(in) :: step
 
+    !> Coords of the atoms (3, nAllAtom)
     real(dp), intent(in) :: coordAll(:,:)
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+
+    !> Raw H^0 hamiltonian data
+    type(OSlakoCont), intent(in) :: skHamCont
+
+    !> Raw overlap data
+    type(OSlakoCont), intent(in) :: skOverCont
+
+    !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> ADT for neighbour parameters
     type(TNeighbourList), intent(in) :: neighbourList
-    integer, intent(in) :: nNeighbourSK(:), iSquare(:)
+
+    !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> image atoms to their equivalent in the central cell
     integer, allocatable, intent(in) :: img2CentCell(:)
+
     integer :: iSpin
     complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
 
@@ -1686,7 +1736,14 @@ contains
     !> Populations  output file ID
     integer, intent(out) :: populDat(2)
 
-    integer, intent(out) :: forceDat, coorDat, ePBondDat
+    !> Forces output file ID
+    integer, intent(out) :: forceDat
+
+    !> Coords  output file ID
+    integer, intent(out) :: coorDat
+
+    !> Pairwise bond energy  output file ID
+    integer, intent(out) :: ePBondDat
 
     character(20) :: dipoleFileName
     character(1) :: strSpin
@@ -1760,7 +1817,14 @@ contains
     !> Populations output file ID
     integer, intent(in) :: populDat(2)
 
-    integer, intent(in) :: forceDat, coorDat, ePBondDat
+    !> Forces output file ID
+    integer, intent(in) :: forceDat
+
+    !> Coords output file ID
+    integer, intent(in) :: coorDat
+
+    !> Pairwise bond energy output file ID
+    integer, intent(in) :: ePBondDat
 
     integer :: iSpin
 
@@ -1795,10 +1859,10 @@ contains
     type(TElecDynamics), intent(in) :: this
 
     !> File ID
-    integer :: unitName
+    integer, intent(out) :: unitName
 
     !> Name of the file to open
-    character(*) :: fileName
+    character(*), intent(in) :: fileName
 
     character(30) :: newName
 
@@ -1829,7 +1893,14 @@ contains
   !> Write to and read from restart files
   subroutine writeRestart(rho, rhoOld, Ssqr, coord, veloc, time, dumpName)
 
-    complex(dp), intent(in) :: rho(:,:,:), rhoOld(:,:,:), Ssqr(:,:)
+    !> Density matrix
+    complex(dp), intent(in) :: rho(:,:,:)
+
+    !> Density matrix at previous step
+    complex(dp), intent(in) :: rhoOld(:,:,:)
+
+    !> Square overlap matrix
+    complex(dp), intent(in) :: Ssqr(:,:)
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -1914,12 +1985,29 @@ contains
     !> current step of the propagation
     integer, intent(in) :: iStep
 
-    integer :: iAtom, iAtom2, iSpin, iDir
+    !> Forces output file ID
+    integer, intent(in) :: forceDat
 
-    integer, intent(in) :: forceDat, coorDat, ePBondDat
-    real(dp), intent(in) :: coord(:,:), ePerBond(:,:)
-    real(dp), intent(in) :: energyKin, totalForce(:,:)
+    !> Coords output file ID
+    integer, intent(in) :: coorDat
+
+    !> Pairwise bond energy output file ID
+    integer, intent(in) :: ePBondDat
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Pairwise bond energy
+    real(dp), intent(in) :: ePerBond(:,:)
+
+    !> Kinetic energy
+    real(dp), intent(in) :: energyKin
+
+    !> forces (3, nAtom)
+    real(dp), intent(in) :: totalForce(:,:)
+
     real(dp) :: auxVeloc(3, this%nAtom)
+    integer :: iAtom, iAtom2, iSpin, iDir
 
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
          & iSpin=1, this%nSpin)
@@ -2036,16 +2124,20 @@ contains
     !> Spin index
     integer, intent(in) :: iSpin
 
+    !> Square hamiltonian (multiplied by imag unit)
+    complex(dp), intent(inout) :: H1(:,:,:)
+
+    !> Square overlap matrix
+    complex(dp), intent(inout) :: Ssqr(:,:)
+
     real(dp) :: occ(size(T1,dim=2))
     integer :: ii
-
-    complex(dp), intent(inout) :: H1(:,:,:), Ssqr(:,:)
     real(dp) :: eigen(this%nOrbs)
 
     if (this%tIons) then
-       H1(:,:,iSpin) = -imag * H1(:,:,iSpin) ! change back to real H1
+       H1(:,:,iSpin) = -imag * H1(:,:,iSpin) ! change back to real H1 (careful, included D matrix!)
        ! only do previous step because of using other propagateRho for frozen nuclei
-       call diagDenseMtx(2, 'V', H1(:,:,iSpin), SSqr, eigen)
+       call diagDenseMtx(2, 'V', H1(:,:,iSpin), SSqr, eigen) !should be real(H1)
        call tdPopulInit(this, Eiginv, EiginvAdj, real(H1), iSpin)
     end if
 
@@ -2076,7 +2168,11 @@ contains
 
     !> Negative gross charge
     real(dp), intent(in) :: deltaQ(:,:)
+
+    !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
+
+    !> forces (3, nAtom)
     real(dp), intent(in) :: totalForce(:,:)
 
     integer :: fdAutotest
@@ -2101,10 +2197,22 @@ contains
 
   !> Initialize ion dynamics
   subroutine initIonDynamics(this, coordNew, coord, movedAccel)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
+
+    !> Data for the velocity verlet integrator
     type(OVelocityVerlet), allocatable :: pVelocityVerlet
-    real(dp), intent(in) :: coord(:,:), movedAccel(:,:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> acceleration on moved atoms (3, nMovedAtom)
+    real(dp), intent(in) :: movedAccel(:,:)
+
+    !> coordinates of next step
     real(dp), intent(out) :: coordNew(:,:)
+
     logical :: halfVelocities = .true.
     real(dp) :: velocities(3, this%nMovedAtom)
 
@@ -2138,21 +2246,63 @@ contains
   subroutine updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
        & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
        & ErhoPrim, coordAll)
-    type(TElecDynamics), intent(inout), target :: this
-    complex(dp), intent(inout) :: Sinv(:,:), Ssqr(:,:)
-    real(dp), allocatable, intent(inout) :: ham0(:)
-    real(dp), allocatable, intent(inout) :: ham(:,:), over(:)
-    real(dp), allocatable, intent(inout) :: coord(:,:), coordAll(:,:)
 
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout), target :: this
+
+    !> Square overlap inverse
+    complex(dp), intent(inout) :: Sinv(:,:)
+
+    !> Square overlap matrix
+    complex(dp), intent(inout) :: Ssqr(:,:)
+
+    !> Local sparse storage for non-SCC hamitonian
+    real(dp), allocatable, intent(inout) :: ham0(:)
+
+    !> scc hamitonian (sparse)
+    real(dp), allocatable, intent(inout) :: ham(:,:)
+
+    !> overlap (sparse)
+    real(dp), allocatable, intent(inout) :: over(:)
+
+    !> atomic coordinates
+    real(dp), allocatable, intent(inout) :: coord(:,:)
+
+    !> Coords of the atoms (3, nAllAtom)
+    real(dp), allocatable, intent(inout) :: coordAll(:,:)
+
+    !> ADT for neighbour parameters
     type(TNeighbourList), intent(inout) :: neighbourList
+
+    !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, intent(inout) :: nNeighbourSK(:)
-    integer, allocatable, intent(inout) :: iSparseStart(:,:), img2CentCell(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, allocatable, intent(inout) :: iSparseStart(:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, allocatable, intent(inout) :: img2CentCell(:)
+
+    !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
+
+    !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+
+    !> Raw H^0 hamiltonian data
+    type(OSlakoCont), intent(in) :: skHamCont
+
+    !> Raw overlap data
+    type(OSlakoCont), intent(in) :: skOverCont
+
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
-    real(dp), allocatable, intent(inout) :: rhoPrim(:,:), ErhoPrim(:)
+
+    !> sparse density matrix
+    real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
+
+    !> Energy weighted density matrix
+    real(dp), allocatable, intent(inout) :: ErhoPrim(:)
 
     real(dp) :: Sreal(this%nOrbs,this%nOrbs), SinvReal(this%nOrbs,this%nOrbs)
     real(dp) :: coord0Fold(3,this%nAtom)
@@ -2208,27 +2358,78 @@ contains
   subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
        & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
        & pRepCont, coordAll, rhoPrim, ErhoPrim, iStep, env)
-    type(TElecDynamics), intent(inout), target :: this
-    complex(dp), intent(in) :: rho(:,:,:), H1(:,:,:), Sinv(:,:)
-    type(TNeighbourList), intent(in) :: neighbourList
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout) :: this
+
+    !> Density Matrix
+    complex(dp), intent(in) :: rho(:,:,:)
+
+    !> Square hamiltonian
+    complex(dp), intent(in) :: H1(:,:,:)
+
+    !> Square inverse overlap
+    complex(dp), intent(in) :: Sinv(:,:)
+
+    !> ADT for neighbour parameters
+    type(TNeighbourList), intent(inout) :: neighbourList
+
+    !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
     integer, intent(in) :: nNeighbourSK(:)
-    integer, allocatable, intent(in) :: iSparseStart(:,:), img2CentCell(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, allocatable, intent(in) :: iSparseStart(:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, allocatable, intent(in) :: img2CentCell(:)
+
+    !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
-    real(dp), intent(out) :: totalForce(3, this%nAtom)
-    real(dp), intent(out) :: movedAccel(3, this%nMovedAtom)
-    type(TPotentials), intent(in) :: potential
+
+    !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
-    real(dp), intent(inout) :: qq(:,:,:), q0(:,:,:)
+
+    !> Raw H^0 hamiltonian data
+    type(OSlakoCont), intent(in) :: skHamCont
+
+    !> Raw overlap data
+    type(OSlakoCont), intent(in) :: skOverCont
+
+    !> sparse density matrix
+    real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
+
+    !> Energy weighted density matrix
+    real(dp), allocatable, intent(inout) :: ErhoPrim(:)
+
+    !> forces (3, nAtom)
+    real(dp), intent(out) :: totalForce(3, this%nAtom)
+
+    !> acceleration on moved atoms (3, nMovedAtom)
+    real(dp), intent(out) :: movedAccel(3, this%nMovedAtom)
+
+    !> potential acting on the system
+    type(TPotentials), intent(in) :: potential
+
+    !> atomic ocupations
+    real(dp), intent(inout) :: qq(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(inout) :: q0(:,:,:)
+
+    !> repulsive information
     type(ORepCont), intent(in) :: pRepCont
+
+    !> Coords of the atoms (3, nAllAtom)
     real(dp), intent(in) :: coordAll(:,:)
-    real(dp), allocatable, intent(inout) :: rhoPrim(:,:), ErhoPrim(:)
+
+    !> current step of the propagation
     integer, intent(in) :: iStep
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
     real(dp) :: T1(this%nOrbs,this%nOrbs),T2(this%nOrbs,this%nOrbs)
     real(dp) :: derivs(3,this%nAtom), repulsiveDerivs(3,this%nAtom), totalDeriv(3, this%nAtom)
     integer :: iSpin, iDir
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
 
     ErhoPrim(:) = 0.0_dp
     rhoPrim(:,:) = 0.0_dp
@@ -2289,22 +2490,41 @@ contains
   end subroutine getForces
 
 
-  !> Calculates nonadiabatic matrix (Sprime) times velocities (Rdot)
+  !> Calculates nonadiabatic matrix: overlap gradient (Sprime) times velocities (Rdot)
   subroutine getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
        &neighbourList, nNeighbourSK, iSquare)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in), target :: this
+
+    !> Raw overlap data
     type(OSlakoCont), intent(in) :: skOverCont
+
+    ! nonadiabatic coupling matrix elements
     complex(dp), intent(out) :: RdotSprime(this%nOrbs,this%nOrbs)
+
+    !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Coords of the atoms (3, nAllAtom)
+    real(dp), intent(in) :: coordAll(:,:)
+
+    !> ADT for neighbour parameters
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, allocatable, intent(in) :: img2CentCell(:)
+
     real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb), dcoord(3,this%nAtom)
-    real(dp), intent(in) :: coordAll(:,:)
     integer :: iAtom1,iStart1,iEnd1,iSp1,nOrb1,iAtomAux,iDir
     integer :: iNeigh,iStart2,iEnd2,iAtom2,iAtom2f,iSp2,nOrb2
-    type(TNeighbourList), intent(in) :: neighbourList
-    integer, intent(in) :: nNeighbourSK(:)
-    integer, intent(in) :: iSquare(:)
-    integer, allocatable, intent(in) :: img2CentCell(:)
 
     dcoord = 0.0_dp
     do iAtom1=1,this%nMovedAtom
@@ -2370,9 +2590,16 @@ contains
 
   !> Calculates onsite gradients for non-adiabatic coupling
   subroutine getOnsiteGrads(this, skOverCont, orb)
-    type(TElecDynamics), intent(inout) :: this
+
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout), target :: this
+
+    !> Raw overlap data
     type(OSlakoCont), intent(in) :: skOverCont
+
+    !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
     real(dp) :: dist, uVects(3,3), vect(3), Stmp(2, orb%mOrb, orb%mOrb), Sder(orb%mOrb, orb%mOrb)
     real(dp) :: Stmp2(3, orb%mOrb, orb%mOrb)
     real(dp) :: interSKOver(getMIntegrals(skOverCont))
@@ -2409,13 +2636,34 @@ contains
   !! If hamover = over is bond order
   subroutine getPairWiseBondEO(this, EObond, rhoPrim, hamover, iSquare, iNeighbour, nNeighbourSK, &
        & img2CentCell, iSparseStart)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in), target :: this
+
+    !> sparse density matrix (only spin-unpolarized)
     real(dp), intent(in) :: rhoPrim(:)
+
+    !> non-scc hamiltonian or overlap matrix in sparse format
     real(dp), intent(in) :: hamover(:)
+
+    !> pairwise energy (if hamover = ham0) or bond order (if hamover=ham) (nAtom, nAtom)
     real(dp), intent(out) :: EObond(this%nAtom, this%nAtom)
-    integer, intent(in) :: iNeighbour(0:,:), nNeighbourSK(:)
-    integer, allocatable, intent(in) :: iSparseStart(:,:), img2CentCell(:)
+
+    !> Atomic neighbour data
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, intent(in) :: iSparseStart(0:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
     integer :: iAt1, iAt2, iAt2f, nOrb1, nOrb2, iOrig, iStart, iEnd, iNeigh, mOrb, iOrb, iOrb2
 
     EObond = 0.0_dp
@@ -2441,9 +2689,24 @@ contains
 
   !> Reallocates sparse arrays after change of coordinates
   subroutine reallocateTDSparseArrays(this, ham, over, ham0, rhoPrim, ErhoPrim)
+
+    !> ElecDynamics instance
     type(TElecDynamics), intent(in), target :: this
-    real(dp), allocatable, intent(inout) :: ham(:,:), over(:), ham0(:)
-    real(dp), allocatable, intent(inout) :: rhoPrim(:,:), ErhoPrim(:)
+
+    !> scc hamitonian (sparse)
+    real(dp), allocatable, intent(inout) :: ham(:,:)
+
+    !> overlap (sparse)
+    real(dp), allocatable, intent(inout) :: over(:)
+
+    !> Local sparse storage for non-SCC hamitonian
+    real(dp), allocatable, intent(inout) :: ham0(:)
+
+    !> sparse density matrix
+    real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
+
+    !> Energy weighted density matrix
+    real(dp), allocatable, intent(inout) :: ErhoPrim(:)
 
     deallocate(ham)
     deallocate(over)
