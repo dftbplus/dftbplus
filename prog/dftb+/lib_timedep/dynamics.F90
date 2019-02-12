@@ -119,14 +119,27 @@ module timeprop_module
 
     !> If calculation should be restarted from dump file
     logical :: tRestart
+
     !> If dump file should be written during the dynamics
     logical :: tWriteRestart
 
-    integer, allocatable :: indMovedAtom(:), indExcitedAtom(:)
-    integer :: nMovedAtom, eulerFreq, tdPPFrames, nExcitedAtom
-    logical :: tForces, tIons, tReadMDVelocities, tEulers, tPairWise, tPumpProbe
+    integer, allocatable :: indMovedAtom(:)
+    integer, allocatable :: indExcitedAtom(:)
+    integer :: nMovedAtom
+    integer :: eulerFreq
+    integer :: tdPPFrames
+    integer :: nExcitedAtom
+    integer :: tdPpRange(2)
+    logical :: tForces
+    logical :: tIons
+    logical :: tReadMDVelocities
+    logical :: tEulers
+    logical :: tPairWise
+    logical :: tPump
+    logical :: tProbe
     logical :: tOnsiteGradients
     real(dp) :: tempAtom
+    real(dp) :: tdLaserField = 0.0_dp
     real(dp), allocatable :: initialVelocities(:,:)
 end type TElecDynamicsInp
 
@@ -142,17 +155,17 @@ type TElecDynamics
    character(mc), allocatable :: speciesName(:)
    logical :: tPopulations, tSpinPol=.false.
    logical :: tRestart, tWriteRestart, tWriteAutotest
-   logical :: tLaser = .false., tKick = .false., tEnvFromFile = .false.
+   logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
    type(TScc), allocatable :: sccCalc
    character(mc) :: autotestTag
 
    real(dp), allocatable :: initialVelocities(:,:), movedVelo(:,:), movedMass(:,:)
-   real(dp) :: mCutoff, skRepCutoff
+   real(dp) :: mCutoff, skRepCutoff, laserField
    real(dp), allocatable :: rCellVec(:,:)
    real(dp), allocatable :: atomEigVal(:,:), onsiteGrads(:,:,:,:)
-   integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PuProbeFrames
+   integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PpFreq, PpIni, PpEnd
    integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
-   logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPumpProbe
+   logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe
    logical :: FirstIonStep = .true., tEulers = .false.
    logical :: tPairWiseEnergy = .false., tCalcOnsiteGradients = .false., tPeriodic = .false.
    type(OThermostat), allocatable :: pThermostat
@@ -193,17 +206,42 @@ contains
     !> Tagged output files (machine readable)
     character(*), intent(in) :: autotestTag
 
+    !> self energy (orbital, atom)
     real(dp), intent(in), allocatable :: atomEigVal(:,:)
+
+    !> nr. of atoms
     integer, intent(in) :: nAtom
+
+    ! thermostat object
     type(ORanlux), allocatable, intent(inout) :: randomThermostat
-    real(dp), intent(in) :: mCutoff, skRepCutoff, mass(:)
+
+    !> longest range of interactions for which neighbours are required
+    real(dp), intent(in) :: mCutoff
+
+    !> Cut off distance for Slater-Koster interactions
+    real(dp) :: skRepCutoff
+
+    !> list of atomic masses
+    real(dp) :: mass(:)
+
+    !> dispersion data and calculations
     class(DispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Differentiation method for (H^0,S)
     type(NonSccDiff), intent(in) :: nonSccDeriv
+
+    !> types of the atoms (nAtom)
     integer, intent(in) :: species(:)
+
+    !> if calculation is periodic
     logical, intent(in) :: tPeriodic
 
+    !> dummy thermostat objetct
     type(ODummyThermostat), allocatable :: pDummyTherm
+
+    !> MD Framework
     type(OMDCommon), allocatable :: pMDFrame
+
     real(dp) :: norm, tempAtom
     logical :: tMDstill, tDispersion
 
@@ -231,9 +269,11 @@ contains
       this%tLaser = .true.
     else if (inp%pertType == iKick) then
       this%tKick = .true.
-    else if (inp%pertType == iKick) then
+    else if (inp%pertType == iKickAndLaser) then
       this%tKick = .true.
       this%tLaser = .true.
+      this%laserField = inp%tdLaserField
+      this%tKickAndLaser = .true.
     else
       call error("Wrong type of perturbation.")
     end if
@@ -265,8 +305,6 @@ contains
     this%tEulers = inp%tEulers
     this%eulerFreq = inp%eulerFreq
     this%tPairWiseEnergy = inp%tPairWise
-    this%tPumpProbe = inp%tPumpProbe
-    this%PuProbeFrames = inp%tdPPFrames
     this%tCalcOnsiteGradients = inp%tOnsiteGradients
     allocate(this%species(size(species)))
     this%species = species
@@ -317,8 +355,19 @@ contains
     this%skRepCutoff = skRepCutoff
     this%mCutoff = mCutoff
     allocate(this%atomEigVal, source=atomEigVal)
-  end subroutine TElecDynamics_init
 
+    this%tPump = inp%tPump
+    if (inp%tPump) then
+      this%PpFreq = this%nSteps / inp%tdPPFrames
+      this%PpIni = inp%tdPpRange(1)
+      this%PpEnd = inp%tdPpRange(2)
+    end if
+    this%tProbe = inp%tProbe
+    if (this%tProbe) then
+      this%tRestart = .true.
+      this%tWriteRestart = .false.
+    end if
+  end subroutine TElecDynamics_init
 
   !> Driver of time dependent propagation to calculate wither spectrum or laser
   subroutine runDynamics(this, Hsq, ham, H0, speciesAll, q0, over, filling, neighbourList,&
@@ -628,7 +677,7 @@ contains
          & over, rhoPrim, neighbourlist, nNeighbourSK, orb, iSparseStart, img2CentCell)
 
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
-        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
+        & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements)
 
@@ -670,6 +719,11 @@ contains
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
     end if
 
+    ! after calculating the TD function, set initial time to zero for probe simulations
+    if (this%tProbe) then
+      startTime = 0.0_dp
+    end if
+
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
 
     ! Main loop
@@ -681,7 +735,7 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-     if (.not. this%tRestart .or. (iStep > 0)) then
+     if (.not. this%tRestart .or. (iStep > 0) .or. this%tProbe) then
        call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, time,&
             & energy, energyKin, dipole, deltaQ, coord, totalForce, iStep, ePerBond, ePBondDat)
      end if
@@ -693,10 +747,11 @@ contains
             & ErhoPrim, coordAll)
      end if
 
-     if ((this%tPumpProbe) .and. (mod(iStep, this%nSteps/this%PuProbeFrames) == 0)) then
-        write(dumpIdx,'(i4)')int(this%PuProbeFrames*iStep/this%nSteps)
-        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, 0.0_dp,&
-             & trim(dumpIdx) // 'ppdump.bin')
+     if ((this%tPump) .and. (mod(iStep-this%PpIni, this%PpFreq) == 0)&
+       & .and. (iStep <= this%PpEnd)) then
+       write(dumpIdx,'(i4)')int((iStep-this%PpIni)/this%PpFreq)
+       call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time,&
+            & trim(dumpIdx) // 'ppdump.bin')
      end if
 
      call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock,&
@@ -1051,6 +1106,9 @@ contains
     deltaT = this%time1 - this%time0
     angFreq = this%omega
     E0 = this%field
+    if (this%tKickAndLaser) then
+      E0 = this%laserField
+    end if
     this%tdFunction(:,:) = 0.0_dp
     if (this%tEnvFromFile) then
        E0 = 0.0_dp !this is to make sure we never sum the current field with the read from file
@@ -1646,36 +1704,38 @@ contains
     else
       dipoleFileName = 'mu.dat'
     end if
-
     call openFile(this, dipoleDat, dipoleFileName)
-    call openFile(this, qDat, 'qsvst.dat')
-    call openFile(this, energyDat, 'energyvst.dat')
+
+    if (.not. this%tProbe) then
+      call openFile(this, qDat, 'qsvst.dat')
+      call openFile(this, energyDat, 'energyvst.dat')
+
+      if (this%tForces) then
+        call openFile(this, forceDat, 'forcesvst.dat')
+      end if
+
+      if (this%tIons) then
+        call openFile(this, coorDat, 'tdcoords.xyz')
+      end if
+
+      if (this%tPairWiseEnergy) then
+        if (this%tRestart) then
+          inquire(file='eperbond.dat', exist=exist)
+        end if
+        if (exist) then
+          open(newunit=ePBondDat, file='eperbond.dat', status="old", &
+              &position="append", form='unformatted', access='stream')
+        else
+          open(newunit=ePBondDat, file='eperbond.dat', form='unformatted', access='stream')
+        end if
+      end if
+    end if
 
     if (this%tPopulations) then
        do iSpin=1,this%nSpin
           write(strSpin,'(i1)')iSpin
           call openFile(this, populDat(iSpin), 'molPopul' // trim(strSpin) // '.dat')
        end do
-    end if
-
-    if (this%tForces) then
-       call openFile(this, forceDat, 'forcesvst.dat')
-    end if
-
-    if (this%tIons) then
-       call openFile(this, coorDat, 'tdcoords.xyz')
-    end if
-
-    if (this%tPairWiseEnergy) then
-       if (this%tRestart) then
-          inquire(file='eperbond.dat', exist=exist)
-       end if
-       if (exist) then
-          open(newunit=ePBondDat, file='eperbond.dat', status="old", &
-               &position="append", form='unformatted', access='stream')
-       else
-          open(newunit=ePBondDat, file='eperbond.dat', form='unformatted', access='stream')
-       end if
     end if
 
   end subroutine initTDOutput
@@ -1861,47 +1921,48 @@ contains
     real(dp), intent(in) :: energyKin, totalForce(:,:)
     real(dp) :: auxVeloc(3, this%nAtom)
 
-    write(energydat, '(9F25.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
-         & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
          & iSpin=1, this%nSpin)
 
-    if (mod(iStep, this%writeFreq) == 0) then
-      write(qDat, "(2X,2F25.15)", advance="no") time * au__fs, -sum(deltaQ)
-      do iAtom = 1, this%nAtom
-        write(qDat, "(F25.15)", advance="no")-sum(deltaQ(iAtom,:))
-      end do
-      write(qDat,*)
+    ! for probe simulations we only need the dipole moment
+    if (.not. this%tProbe) then
+
+       write(energydat, '(9F25.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
+            & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
+
+       if (mod(iStep, this%writeFreq) == 0) then
+          write(qDat, "(2X,2F25.15)", advance="no") time * au__fs, -sum(deltaQ)
+          do iAtom = 1, this%nAtom
+             write(qDat, "(F25.15)", advance="no")-sum(deltaQ(iAtom,:))
+          end do
+          write(qDat,*)
+       end if
+
+       if (this%tIons .and. (mod(iStep,this%writeFreq) == 0)) then
+          auxVeloc = 0.0_dp
+          auxVeloc(:, this%indMovedAtom) = this%movedVelo
+          write(coorDat,'(I5)')this%nAtom
+          write(coorDat,*) 'MD step:', iStep, 'time', time * au__fs
+          do iAtom=1,this%nAtom
+             write(coorDat, '(A2, 6F16.8)') trim(this%speciesName(this%species(iAtom))), &
+                  &coord(:, iAtom) * Bohr__AA, auxVeloc(:, iAtom) * Bohr__AA / au__fs
+          end do
+       endif
+
+       if (this%tForces .and. (mod(iStep,this%writeFreq) == 0)) then
+          write(forceDat, "(F25.15)", advance="no") time * au__fs
+          do iAtom = 1, this%nAtom
+             write(forceDat, "(3F25.15)", advance="no") totalForce(:,iAtom)
+          end do
+          write(forceDat,*)
+       end if
+
+       if (this%tPairWiseEnergy .and. mod(iStep,this%writeFreq) == 0) then
+          write(ePBondDat) time * au__fs, sum(ePerBond(:,:)), &
+               & ((ePerBond(iAtom, iAtom2), iAtom=1,this%nAtom), iAtom2=1,this%nAtom)
+       end if
+
     end if
-
-    if (this%tIons .and. (mod(iStep,this%writeFreq) == 0)) then
-       auxVeloc = 0.0_dp
-       auxVeloc(:, this%indMovedAtom) = this%movedVelo
-       write(coorDat,'(I5)')this%nAtom
-       write(coorDat,*) 'MD step:', iStep, 'time', time * au__fs
-       do iAtom=1,this%nAtom
-          write(coorDat, '(A2, 6F16.8)') trim(this%speciesName(this%species(iAtom))), &
-               &coord(:, iAtom) * Bohr__AA, auxVeloc(:, iAtom) * Bohr__AA / au__fs
-       end do
-    endif
-
-    if (this%tForces .and. (mod(iStep,this%writeFreq) == 0)) then
-      write(forceDat, "(F25.15)", advance="no") time * au__fs
-      do iAtom = 1, this%nAtom
-        write(forceDat, "(3F25.15)", advance="no") totalForce(:,iAtom)
-      end do
-      write(forceDat,*)
-    end if
-
-!    if (this%tForces .and. (mod(iStep,this%writeFreq) == 0)) then
-!       write(forceDat, '(10000F25.15)') time * au__fs, (totalForce(:,iAtom), iAtom=1,this%nAtom)
-!    end if
-
-    if (this%tPairWiseEnergy .and. mod(iStep,this%writeFreq) == 0) then
-       write(ePBondDat) time * au__fs, sum(ePerBond(:,:)), &
-            & ((ePerBond(iAtom, iAtom2), iAtom=1,this%nAtom), iAtom2=1,this%nAtom)
-    end if
-
   end subroutine writeTDOutputs
 
 
