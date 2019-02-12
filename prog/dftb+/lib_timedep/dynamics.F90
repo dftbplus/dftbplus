@@ -125,38 +125,55 @@ module timeprop_module
 
     !> Index of the moved atoms
     integer, allocatable :: indMovedAtom(:)
+
     !> Index of the excited atoms
     integer, allocatable :: indExcitedAtom(:)
+
     !> Number of moved atoms
     integer :: nMovedAtom
+
     !> Number of steps every which an Euler step is applied (to kill numerical noise)
     integer :: eulerFreq
+
     !> Number of total system snapshots to be saved during pump simulation
     integer :: tdPPFrames
+
     !> Number of excited atoms
     integer :: nExcitedAtom
+
     !> Initial and final steps to save the snapshots during pump simulation
     integer :: tdPpRange(2)
+
     !> if forces should be calculated during propagation
     logical :: tForces
+
     !> if nuclei should be moved during propagation
     logical :: tIons
+
     !> if velocities are supplied from imput
     logical :: tReadMDVelocities
+
     !> if Euler steps should be done during simulation
     logical :: tEulers
+
     !> if pairwise bond energy or order should be calculated and written
     logical :: tPairWise
+
     !> if this is a pump trajectory (for a pump-probe simulation)
     logical :: tPump
+
     !> if this is a probe trajectory (for a pump-probe simulation)
     logical :: tProbe
+
     !> if onsite elements of nonadiabatic couplings  should be calculated (needs special SK tables)
     logical :: tOnsiteGradients
+
     !> atomic (initial) kinetic temperature
     real(dp) :: tempAtom
+
     !> field strength for KickAndLaser perturbations
     real(dp) :: tdLaserField = 0.0_dp
+
     !> intial atomic velocities if supplied
     real(dp), allocatable :: initialVelocities(:,:)
 end type TElecDynamicsInp
