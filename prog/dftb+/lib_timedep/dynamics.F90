@@ -2472,10 +2472,12 @@ contains
     rhoPrim(:,:) = 0.0_dp
 
     do iSpin = 1, this%nSpin
-       call gemm(T1, real(H1(:,:,iSpin), dp), real(rho(:,:,iSpin), dp))
-       !call zher2k()
-       call gemm(T2, real(Sinv, dp), T1, 0.5_dp, 0.0_dp)
-       call daxpy(this%nOrbs*this%nOrbs, 1.0_dp, transpose(T2), 1, T2, 1)
+!       call gemm(T1, real(H1(:,:,iSpin), dp), real(rho(:,:,iSpin), dp))
+       call gemm(T1, real(rho(:,:,iSpin), dp), real(H1(:,:,iSpin), dp))
+       call her2k(T2, real(Sinv, dp), T1, 0.5_dp)
+       !(C,A,B,alpha,beta,uplo,trans,n,k
+       !call gemm(T2, real(Sinv, dp), T1, 0.5_dp, 0.0_dp)
+       !call daxpy(this%nOrbs*this%nOrbs, 1.0_dp, transpose(T2), 1, T2, 1)
        !T1 = T2 + transpose(T2)
 
        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
