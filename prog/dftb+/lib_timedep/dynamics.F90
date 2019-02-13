@@ -208,7 +208,7 @@ type TElecDynamics
    class(DispersionIface), allocatable :: dispersion
    type(NonSccDiff), allocatable :: derivator
    real(dp), allocatable :: latVec(:,:), invLatVec(:,:)
-
+   real(dp), allocatable :: initCoord(:,:)
    !> count of the number of times dynamics have been initialised
    integer :: nDynamicsInit = 0
 
@@ -526,7 +526,7 @@ contains
     !> index in cellVec for each atom
     integer, allocatable, intent(in) :: iCellVec(:)
 
-    integer :: iPol
+    integer :: iPol, iCall
     logical :: tWriteAutotest
 
     this%sccCalc = sccCalc
@@ -548,6 +548,11 @@ contains
     this%rCellVec = rCellVec
 
     tWriteAutotest = this%tWriteAutotest
+    iCall = 1
+    if (size(this%polDirs) > 1) then
+      allocate(this%initCoord(3,this%nAtom))
+      this%initCoord(:,:) = coord
+    end if
     if (this%tKick) then
       do iPol = 1, size(this%polDirs)
         this%currPolDir = this%polDirs(iPol)
@@ -557,13 +562,14 @@ contains
             & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
             & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-            & skOverCont)
+            & skOverCont, iCall)
+        iCall = iCall + 1
       end do
     else
       call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
           & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
           & xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef,&
-          & tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont)
+          & tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont, iCall)
     end if
 
   end subroutine runDynamics
@@ -574,7 +580,7 @@ contains
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
       & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
       & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-      & skOverCont)
+      & skOverCont, iCall)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -676,6 +682,8 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
+    integer :: iCall
+
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%nSpin), rhoOld(this%nOrbs,this%nOrbs,this%nSpin)
     complex(dp) :: H1(this%nOrbs,this%nOrbs,this%nSpin), T1(this%nOrbs,this%nOrbs)
@@ -699,15 +707,25 @@ contains
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
     if (this%tRestart) then
-       call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
-       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+      call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
+      call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+          & ErhoPrim, coordAll)
+      if (this%tIons) then
+        this%initialVelocities(:,:) = this%movedVelo
+        this%ReadMDVelocities = .true.
+      end if
+    else
+      if (iCall > 1 .and. this%tIons) then
+        coord(:,:) = this%initCoord
+        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
             & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
             & ErhoPrim, coordAll)
-       if (this%tIons) then
-          this%initialVelocities(:,:) = this%movedVelo
-          this%ReadMDVelocities = .true.
-       end if
+        this%initialVelocities(:,:) = this%movedVelo
+        this%ReadMDVelocities = .true.
+      end if
     end if
+
 
     if (this%tLaser) then
       call getTDFunction(this, startTime)
@@ -2240,12 +2258,6 @@ contains
     real(dp) :: velocities(3, this%nMovedAtom)
 
     integer :: ii
-
-    if (this%nDynamicsInit > 0) then
-      do ii = 1, size(coord,dim=2)
-        write(*,*)ii,coord(:,ii),this%initialVelocities(:,ii)
-      end do
-    end if
 
     if (this%nDynamicsInit == 0) then
       allocate(pVelocityVerlet)
