@@ -208,6 +208,10 @@ type TElecDynamics
    class(DispersionIface), allocatable :: dispersion
    type(NonSccDiff), allocatable :: derivator
    real(dp), allocatable :: latVec(:,:), invLatVec(:,:)
+
+   !> count of the number of times dynamics have been initialised
+   integer :: nDynamicsInit = 0
+
 end type TElecDynamics
 
   !> Enumerating available types of perturbation
@@ -879,7 +883,9 @@ contains
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
 
     if (this%tIons) then
-       deallocate(this%pMDIntegrator)
+      if (size(this%polDirs) <  (this%nDynamicsInit + 1)) then
+        deallocate(this%pMDIntegrator)
+      end if
     end if
 
    end subroutine doDynamics
@@ -2218,8 +2224,8 @@ contains
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
-    !> Data for the velocity verlet integrator
-    type(OVelocityVerlet), allocatable :: pVelocityVerlet
+    !> coordinates of next step
+    real(dp), intent(out) :: coordNew(:,:)
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -2227,34 +2233,57 @@ contains
     !> acceleration on moved atoms (3, nMovedAtom)
     real(dp), intent(in) :: movedAccel(:,:)
 
-    !> coordinates of next step
-    real(dp), intent(out) :: coordNew(:,:)
+    ! Data for the velocity verlet integrator
+    type(OVelocityVerlet), allocatable :: pVelocityVerlet
 
     logical :: halfVelocities = .true.
     real(dp) :: velocities(3, this%nMovedAtom)
 
-    allocate(pVelocityVerlet)
+    integer :: ii
+
+    if (this%nDynamicsInit > 0) then
+      do ii = 1, size(coord,dim=2)
+        write(*,*)ii,coord(:,ii),this%initialVelocities(:,ii)
+      end do
+    end if
+
+    if (this%nDynamicsInit == 0) then
+      allocate(pVelocityVerlet)
+    end if
+
     if (this%ReadMDVelocities) then
       this%movedVelo(:, :) = this%initialVelocities
     else
       this%movedVelo(:, :) = 0.0_dp
     end if
 
-    call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
-        & this%movedVelo, this%ReadMDVelocities, halfVelocities)
+    if (this%nDynamicsInit == 0) then
+      call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+          & this%movedVelo, this%ReadMDVelocities, halfVelocities)
+      this%initialVelocities(:, this%indMovedAtom) = this%movedVelo
+    else
+      call reset(this%pMDIntegrator, coordNew(:, this%indMovedAtom), this%initialVelocities,&
+          & halfVelocities)
+    end if
 
-    ! Euler step forward from 1st VV step
-    ! Ensures good initialization
+    ! Euler step from 1st VV step
+    ! Ensures good initialization and puts velocity and coords on common time step
     this%movedVelo(:,:) = this%movedVelo - 0.5_dp * movedAccel * this%dt
     coordNew(:,:) = coord
     coordNew(:,this%indMovedAtom) = coord(:,this%indMovedAtom) &
         & + this%movedVelo(:,:) * this%dt + 0.5_dp * movedAccel(:,:) * this%dt**2
-
     ! This re-initializes the VVerlet propagator with coordNew
     this%movedVelo(:,:) = this%movedVelo + 0.5_dp * movedAccel * this%dt
-    call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo, .true.)
-    allocate(this%pMDIntegrator)
-    call init(this%pMDIntegrator, pVelocityVerlet)
+
+    if (this%nDynamicsInit == 0) then
+      call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo, halfVelocities)
+      allocate(this%pMDIntegrator)
+      call init(this%pMDIntegrator, pVelocityVerlet)
+    else
+      call reset(this%pMDIntegrator, coordNew(:, this%indMovedAtom), this%movedVelo, halfVelocities)
+    end if
+
+    this%nDynamicsInit = this%nDynamicsInit + 1
 
   end subroutine initIonDynamics
 
