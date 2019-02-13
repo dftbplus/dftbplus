@@ -3,8 +3,8 @@ arpack.o = arpack.o $(common.fypp) $(_mod_accuracy)
 _mod_arpack: arpack.o
 _mod_arpack = $(arpack.o)
 
-blas.o: _mod_accuracy
-blas.o = blas.o $(_mod_accuracy)
+blas.o: common.fypp _mod_accuracy
+blas.o = blas.o $(common.fypp) $(_mod_accuracy)
 _mod_blas: blas.o
 _mod_blas = $(blas.o)
 
