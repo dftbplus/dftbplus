@@ -1519,7 +1519,7 @@ contains
     integer :: lda, ldb, ldc
     integer :: in, ik
     character :: iTrans, iUplo
-    real(${VPREC}$) :: iAlpha, iBeta
+    ${VTYPE}$(${VPREC}$) :: iAlpha, iBeta
 
     if (present(uplo)) then
       iUplo = uplo
