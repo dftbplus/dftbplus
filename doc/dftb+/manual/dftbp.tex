@@ -3019,6 +3019,18 @@ Calculate the real-time propagation of the electronic state of the system in the
   \kw{WriteRestart} & l & & Yes & \\
   \kw{WriteFrequency} & i & & 50 & \\  
   \kw{RestartFrequency} & i & & Steps/10 & \\
+  \kw{Forces} & l & & No & \\
+  \kw{IonDynamics} & l & & No & \\
+  \kw{InitialTemperature} & r & IonDynamics = Yes & - & \\
+  \kw{MovedAtoms} & (i|s)+ & IonDynamics = Yes & 1:-1 & \\
+  \kw{Velocities} & (3r)* & IonDynamics = Yes & - & \\
+  \kw{Pump} & l & & No & \\
+  \kw{PumpProbeFrames} & i & Pump = Yes & - & \\
+  \kw{ProbeProbeRange} & 2i & Pump = Yes & 0:Steps & \\
+  \kw{Probe} & l & & No & \\
+  \kw{EulerEvery} & i & & -1 & \\
+  \kw{WriteBondEnergy} & l & WriteBondOrder = No & No & \\
+  \kw{WriteBondOrder} & l & WriteBondEnergy = No & No & \\
 \end{ptable}
 
 \begin{description}
@@ -3038,6 +3050,35 @@ Calculate the real-time propagation of the electronic state of the system in the
 \item[\is{RestartFrequency}] Number of steps every which the system's state should be writen to restart file.
 
 \item[\is{WriteFrequency}] Number of steps every which the atomic charges and molecular orbital populations (if \is{Populations} = Yes) are written to file.
+
+\item[\is{Forces}] If forces on all atoms should be calculated and written to \verb|forcesvst.dat|.
+
+\item[\is{IonDynamics}] If nuclei should be propagated in the dynamics using the Velocity Verlet algorithm. If set to Yes, then either the \is{InitialTemperature} keyworkd or the \is{Velocities} keyword must be set. The positions and velocities every \is{WriteFrequency} steps will be saved in XYZ format to \verb|tdcoords.xyz|.
+
+\item[\is{MovedAtoms}] List of atoms that will be moved during the dynamics. See \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.
+
+\item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting velocities for the Ehrenfest MD according to the Maxwell-Boltzmann distribution at the specified temperature. This is redundant in the case of specified initial velocities. See section \label{sec:dftbp.Thermostat}.
+
+\item[\is{Velocities}]\modif{\modtype{velocity}}  Specified atomic velocities for all the atoms of the given structure (including ``velocities'' for any stationary atoms, which are silently ignored). (\textbf{Note:} if the velocities from a previous (MD or Ehrenfest) run are used, the velocities printed in the XYZ files are specified in {\AA}/ps, so this should be set in the input). See section \label{sec:dftbp.VelocityVerlet}.
+
+\item[\is{Pump}] If this trajectory corresponds to the dynamics under a pump pulse, with the intention to probe the system afterwards at different delay times, to simulate a pump-probe transient absorption experiment. The effect of the keyword is to write dump files named \textit{i}\verb|ppdump.bin| ($i=0,\dots,\mathrm{PumpProbeFrames}$) containing the state of the system (density matrix, coordinates, velocities) every a given number of steps. 
+
+\item[\is{PumpProbeFrames}] Number of total snapshots of the system in the pump trajectory that will be saved for future probe simulations.
+
+\item[\is{PumpProbeRange}] The range of number of steps \is{InitialStep}:\is{FinalStep} between which the snapshots will be dumped. Notice that it is not a time range, but the initial and final number of steps. The frequency of writing is then (\is{FinalStep} - \is{InitialStep})/\is{PumpProbeFrames}.
+  
+\item[\is{Probe}] If this is the simulation of a probe. If set to yes, then automatically \is{Restart} = Yes, \is{WriteRestart} = No, and only the dipole moment output files will be written, since this keyword is used together with a \is{Kick} perturbation to probe the system. Notice that the dump file that contains the state of the system that wants to be probed must be present and renamed to \verb|tddump.bin|.
+
+\item[\is{EulerEvery}] Number of steps every which an Euler integration step is done in the electronic propagation (that normally uses the Leapfrog algorithm). The default value ensures no Euler steps are done during the dynamics. If used, must be set to something larger than 50.
+
+\item[\is{WriteBondEnergy}] If the pairwise, time-dependent bond energy $BE(t)$, calculated as 
+$$ BE_{AB}(t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) H^0_{\mu \nu}(t),$$
+should be written to the \verb|bondenergy.bin| file . This is written every \is{WriteFrequency} steps, and in binary format because of the large amount of data. Currently incompatible with \is{WriteBondOrder}.
+
+\item[\is{WriteBondOrder}] If the pairwise, time-dependent bond order $BO(t)$, calculated as
+$$ BO_{AB} (t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) S_{\mu \nu}(t),$$
+should be written to the \verb|bondorder.bin| file every \is{WriteFrequency} steps and in binary format. Currently incompatible with \is{WriteBondEnergy}.
+
 \end{description}
 
 \subsubsection{Perturbation\{\}}
@@ -3063,6 +3104,7 @@ Perform Dirac-delta perturbation (or \textit{kick}) to the density matrix.
 \end{description}
 
 \paragraph{Laser\{\}}
+\label{sec:dftbp.tdpert.laser}
 Apply time-dependent sinusoidal perturbation to the system.
 
 \begin{ptable}
@@ -3070,6 +3112,7 @@ Apply time-dependent sinusoidal perturbation to the system.
   \kw{ImagPolarizationDirection} & 3r & & 0 0 0 & \\
   \kw{LaserEnergy} & r & & & \\
   \kw{Phase} & r & & 0 & \\
+  \kw{ExcitedAtoms} & (i|s)+ & & 1:-1 & \\
 \end{ptable}
 
 \begin{description}
@@ -3080,7 +3123,40 @@ Apply time-dependent sinusoidal perturbation to the system.
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar \omega$ of the laser.
  
  \item[\is{Phase}] Optional initial phase of laser field in radians, such that sinusoidal component of the field is described by $\sin(\omega t + \phi)$.
+ 
+ \item[\is{ExcitedAtoms}] List of atoms that will be excited by the laser. The format is the same as the \is{MovedAtoms} keyword.
 
+\end{description}
+
+\paragraph{Kick+Laser\{\}}
+Apply a \is{Kick} plus a \is{Laser} to the system. Useful for probing the excited state on the system while being driven by a laser. The keywords are a combination of the ones for kick and laser.
+
+\begin{ptable}
+  \kw{KickPolDir} & i &  & - & \\
+  \kw{LaserPolDir} & 3r &  & - & \\
+  \kw{LaserImagPolDir} & 3r & & 0 0 0 & \\
+  \kw{LaserEnergy} & r & & - & \\
+  \kw{LaserStrength} & r & & - & \\
+  \kw{Phase} & r & & 0 & \\
+  \kw{ExcitedAtoms} & (i|s)+ & & 1:-1 & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{KickPolDir}] Same as PolarizationDirection in \is{Kick}.
+ 
+ \item[\is{SpinType}] Same as \is{Kick}.
+
+ \item[\is{LaserPolDir}] Same as PolarizationDirection in \is{Laser}.
+ 
+ \item[\is{LaserImagPolDir}] Same as ImagPolarizationDirection in \is{Laser}.
+ 
+ \item[\is{LaserEnergy }] \modif{\modtype{energy}} Same as in \is{Laser}.
+ 
+ \item[{LaserStrength}] Peak intensity of the applied laser (in this mode, \is{FieldStrength} is the kick intensity).
+ 
+ \item[\is{Phase}] Same as in \is{Laser}.
+ 
+ \item[\is{ExcitedAtoms}] Same as in \is{Laser}.
 \end{description}
 
 
@@ -3120,6 +3196,9 @@ $$ f(t) =
 
 The properties of this method are the same as for the Gaussian (\kw{Time0}, \kw{Time1}) and have the same meaning.
 
+
+
+
   Example:\invparskip
 \begin{verbatim}
   ElectronDynamics = {
@@ -3135,6 +3214,12 @@ The properties of this method are the same as for the Gaussian (\kw{Time0}, \kw{
       Time1 [fs] = 30.0
     }
     Populations = Yes
+    IonDynamics = Yes
+    InitialTemperature [k] = 0.0
+    Pump = Yes
+    PumpProbeFrames = 1000
+    PumpProbeRange = 0 20000
+    EulerEvery = 200
   }
 \end{verbatim}
 
@@ -3905,6 +3990,43 @@ time (in fs), $E_x$, $E_y$, $E_z$
 Created if \kw{Populations} = Yes. The number $i$ in molPopul$i$.dat indicates the spin channel for spin polarised calculations (if spin unpolarised, only molPopul1.dat is written). It contains the populations projected onto the ground state molecular orbitals (GSMO), written every \kw{WriteFrequency} steps. The projection is done by calculating first the change of basis matrix $\Lambda$ from the coefficients matrix of the GSMO, $\Lambda = C^{-1}$, and then projecting the time-dependent density matrix of the system in the atomic orbital basis: 
 $$\rho^{GSMO}(t) = \Lambda \rho^{AO}(t) \Lambda^{\dagger} $$
 The diagonal elements of $\rho^{GSMO}$ are the seeked populations. The first column is the time (in fs), and from the second one the populations starting from the lowest lying orbital.
+
+\subsection{forcesvst.dat}
+
+Time-dependent forces, calculated within the Ehrenfest approach and ignoring velocity-dependent terms, printed every \kw{WriteFrequency} steps, if \is{Forces} = Yes. The file has $3N +1$ columns where $N$ is the number of atoms, in the following order:
+
+time (in fs), $F_1^x$, $F_1^y$, $F_1^z$, $F_2^x$, $\dots$, $F_N^x$, $F_N^y$, $F_N^z$ 
+
+\subsection{tdcoords.xyz}
+
+Coordinates and velocities of the atoms saved every \kw{WriteFrequency} steps in XYZ format, if \is{IonDynamics} = Yes, in the following way
+
+$N$ \\
+(comment for first frame) \\
+El$_1$, $x_1$, $y_1$, $z_1$, $v_1^x$, $v_1^y$, $v_1^z$ \\
+$\vdots$ \\
+El$_N$, $x_N$, $y_N$, $z_N$, $v_N^x$, $v_N^y$, $v_N^z$
+$N$ \\
+$\vdots$ \\
+$\vdots$ \\
+(comment for last frame) \\
+El$_1$, $x_1$, $y_1$, $z_1$, $v_1^x$, $v_1^y$, $v_1^z$ \\
+$\vdots$
+El$_N$, $x_N$, $y_N$, $z_N$, $v_N^x$, $v_N^y$, $v_N^z$
+
+\subsection{bondenergy.bin}
+
+Pairwise bond energy, written if \is{WriteBondEnergy} = Yes, every \is{WriteFrequency} steps. All numbers are 64 bit real, in the following order:
+
+time (in fs), $BE_{1,1}$, $BE_{2,1}$, $BE_{3,1}$, $\dots$, $BE_{N,1}$, $BE_{1,2}$, $\dots$, $BE_{N,N}$
+
+\subsection{bondorder.bin}
+
+Pairwise bond order, written if \is{WriteBondOrder} = Yes, every \is{WriteFrequency} steps. All numbers are 64 bit real, in the following order:
+
+time (in fs), $BO_{1,1}$, $BO_{2,1}$, $BO_{3,1}$, $\dots$, $BO_{N,1}$, $BO_{1,2}$, $\dots$, $BO_{N,N}$
+
+
 
 
 %%% Local Variables:
