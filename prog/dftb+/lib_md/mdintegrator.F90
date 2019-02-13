@@ -18,7 +18,7 @@ module mdintegrator
   private
 
   public :: OMDIntegrator
-  public :: init, next, rescale, state
+  public :: init, next, rescale, reset, state
 
 
   !> Data for the MD integrator.
@@ -37,6 +37,12 @@ module mdintegrator
   interface init
     module procedure MDIntegrator_init_VVerlet
   end interface init
+
+
+  !> reset the positions and velocities of the integrator
+  interface reset
+    module procedure MDIntegrator_reset
+  end interface reset
 
 
   !> Take a geometry step
@@ -120,6 +126,31 @@ contains
     call rescale(self%pVelocityVerlet,coord,latVecs,stress)
 
   end subroutine MDIntegrator_rescale
+
+
+  !> resets the positions and velocities of the integrator internal state
+  subroutine MDIntegrator_reset(self, positions, velocities, tHalfVelocities)
+
+    !> Integrator instance
+    type(OMDIntegrator), intent(inout) :: self
+
+    !> New position of the atoms.
+    real(dp), intent(in) :: positions(:,:)
+
+    !> On input, if tHalfVelocities these are the t=-.5 velocities, but ignored if false. On output
+    !> these are the internal velocities, either at current time or t=-.5 depending on setting of
+    !> tHalfVelocities if this is allocated
+    real(dp), intent(inout) :: velocities(:,:)
+
+    !> This indicates if the routine is setting the t-.5 velocities internally, otherwise they need
+    !> to be regenerated later.
+    logical, intent(in) :: tHalfVelocities
+
+    @:ASSERT(allocated(self%pVelocityVerlet))
+
+    call reset(self%pVelocityVerlet, positions, velocities, tHalfVelocities)
+
+  end subroutine MDIntegrator_reset
 
 
   !> Probe internal state of the integrator, writing this to disc
