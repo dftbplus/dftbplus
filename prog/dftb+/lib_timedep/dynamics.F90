@@ -1813,7 +1813,7 @@ contains
     end if
     call openFile(this, dipoleDat, dipoleFileName)
 
-    if (.not. this%tProbe) then
+    if (.not. this%tKick) then
       call openFile(this, qDat, 'qsvst.dat')
       call openFile(this, energyDat, 'energyvst.dat')
 
@@ -1838,13 +1838,13 @@ contains
            count = 1
            do while (exist)
               write(strCount,'(i1)') count
-              newbondEOName = "rest" // trim(strCount) // "_" // bondEOName
-              inquire(file=newbondEOName, exist=exist)
+              newBondEOName = "rest" // trim(strCount) // "_" // bondEOName
+              inquire(file=newBondEOName, exist=exist)
               count = count + 1
            end do
         end if
+        open(newunit=ePBondDat, file=newBondEOName, form='unformatted', access='stream')
       end if
-      open(newunit=ePBondDat, file=newbondEOName, form='unformatted', access='stream')
     end if
 
     if (this%tPopulations) then
@@ -2071,8 +2071,8 @@ contains
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
          & iSpin=1, this%nSpin)
 
-    ! for probe simulations we only need the dipole moment
-    if (.not. this%tProbe) then
+    ! for kick simulations we only need the dipole moment
+    if (.not. this%tKick) then
 
        write(energydat, '(9F25.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
             & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
