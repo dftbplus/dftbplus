@@ -3743,6 +3743,8 @@ contains
 
     type(fnode), pointer :: value, value2, child, child2
     type(string) :: buffer, buffer2, modifier
+    logical :: ppRangeInvalid
+    real (dp) :: defPpRange(2)
 
   #:if WITH_MPI
     if (associated(node)) then
@@ -3770,16 +3772,27 @@ contains
     call getChildValue(node, "WriteBondOrder", input%tBondO, .false.)
     call getChildValue(node, "OnsiteGradients", input%tOnsiteGradients, .false.)
     call getChildValue(node, "Pump", input%tPump, .false.)
+
     if (input%tPump) then
       call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
-      call getChildValue(node, "PumpProbeRange", input%tdPpRange, [0, input%steps])
+      defPpRange = [0.0_dp, input%steps * input%dt]
+      call getChildValue(node, "PumpProbeRange", input%tdPpRange, defPprange, modifier=modifier,&
+           & child=child)
+       call convertByMul(char(modifier), timeUnits, child, input%tdPpRange)
+
+      ppRangeInvalid = (input%tdPpRange(2) <= input%tdPpRange(1))&
+           & .or. (input%tdPprange(1) < defPpRange(1)) .or. (input%tdPpRange(2) > defPpRange(2))
+      if (ppRangeInvalid) then
+         call detailederror(child, "Wrong definition of PumpProbeRange")
+      end if
     end if
+
     call getChildValue(node, "Probe", input%tProbe, .false.)
     if (input%tPump .and. input%tProbe) then
       call detailedError(child, "Pump and probe cannot be simultaneously true.")
     end if
 
-    call getChildValue(node, "EulerEvery", input%eulerFreq, -1)
+    call getChildValue(node, "EulerFrequency", input%eulerFreq, 0)
     if ((input%eulerFreq < 50) .and. (input%eulerFreq > 0)) then
        call detailedError(child, "Wrong number of Euler steps, should be above 50")
     end if
@@ -3829,7 +3842,7 @@ contains
           call error("No atoms specified for laser excitation.")
        end if
 
-    case ("kick+laser")
+    case ("kickandlaser")
        input%pertType = iKickAndLaser
        call getChildValue(value, "KickPolDir", input%polDir)
        if (input%polDir > 4) then
