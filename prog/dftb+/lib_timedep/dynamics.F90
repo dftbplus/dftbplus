@@ -141,8 +141,8 @@ module timeprop_module
     !> Number of excited atoms
     integer :: nExcitedAtom
 
-    !> Initial and final steps to save the snapshots during pump simulation
-    integer :: tdPpRange(2)
+    !> Initial and final times to save the snapshots during pump simulation
+    real(dp) :: tdPpRange(2)
 
     !> if forces should be calculated during propagation
     logical :: tForces
@@ -282,6 +282,7 @@ contains
 
     real(dp) :: norm, tempAtom
     logical :: tMDstill, tDispersion
+    integer :: iAtom
 
     this%field = inp%tdField
     this%dt = inp%dt
@@ -296,7 +297,6 @@ contains
     this%writeFreq = inp%writeFreq
     this%restartFreq = inp%restartFreq
     this%speciesName = speciesName
-    allocate(this%sccCalc)
 
     if (inp%envType /= iTDConstant) then
       this%time0 = inp%time0
@@ -345,21 +345,12 @@ contains
     this%tBondE = inp%tBondE
     this%tBondO = inp%tBondO
     this%tCalcOnsiteGradients = inp%tOnsiteGradients
-    allocate(this%species(size(species)))
     this%species = species
     this%tPeriodic = tPeriodic
 
-    if (this%tForces .and. .not. this%tIons) then
-       this%nMovedAtom = nAtom
-       allocate(this%movedMass(3, nAtom))
-       this%movedMass(:,:) = spread(mass(this%species), 1, 3)
-       allocate(this%derivator, source=nonSccDeriv)
-    end if
-
-    !! For forces
     if (this%tIons) then
        this%tForces = .true.
-       allocate(this%indMovedAtom, source=inp%indMovedAtom)
+       this%indMovedAtom = inp%indMovedAtom
        this%nMovedAtom = inp%nMovedAtom
        tempAtom = inp%tempAtom
        tMDstill = .false.
@@ -381,8 +372,15 @@ contains
        call init(this%pThermostat, pDummyTherm)
        allocate(this%derivator, source=nonSccDeriv)
     else
+       if (this%tForces) then
+          this%nMovedAtom = nAtom
+          allocate(this%movedMass(3, nAtom))
+          this%movedMass(:,:) = spread(mass, 1, 3)
+          allocate(this%derivator, source=nonSccDeriv)
+          this%indMovedAtom = [(iAtom, iAtom = 1, nAtom)]
+       end if
        allocate(this%movedVelo(3, nAtom))
-       this%movedVelo = 0.0_dp
+       this%movedVelo(:,:) = 0.0_dp
     end if
 
     tDispersion = allocated(dispersion)
@@ -397,9 +395,9 @@ contains
 
     this%tPump = inp%tPump
     if (inp%tPump) then
-      this%PpFreq = this%nSteps / inp%tdPPFrames
-      this%PpIni = inp%tdPpRange(1)
-      this%PpEnd = inp%tdPpRange(2)
+      this%PpIni = int(inp%tdPpRange(1)/this%dt)
+      this%PpEnd = int(inp%tdPpRange(2)/this%dt)
+      this%PpFreq = int((this%PpEnd - this%PpIni) / inp%tdPPFrames)
     end if
     this%tProbe = inp%tProbe
     if (this%tProbe) then
@@ -407,6 +405,7 @@ contains
       this%tWriteRestart = .false.
     end if
   end subroutine TElecDynamics_init
+
 
   !> Driver of time dependent propagation to calculate wither spectrum or laser
   subroutine runDynamics(this, Hsq, ham, H0, speciesAll, q0, over, filling, neighbourList,&
@@ -530,7 +529,6 @@ contains
     logical :: tWriteAutotest
 
     this%sccCalc = sccCalc
-    allocate(this%speciesAll(size(speciesAll)))
     this%speciesAll = speciesAll
     this%nSpin = size(ham(:,:), dim=2)
     if (this%nSpin > 1) then
@@ -539,9 +537,6 @@ contains
 
     this%nOrbs = size(Hsq, dim=1)
     this%nAtom = size(coord, dim=2)
-
-    allocate(this%latVec(3,3))
-    allocate(this%invLatVec(3,3))
     this%latVec = latVec
     this%invLatVec = invLatVec
     this%iCellVec = iCellVec
@@ -683,9 +678,9 @@ contains
     real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
     real(dp) :: dipole(3,this%nSpin), chargePerShell(orb%mShell,this%nAtom,this%nSpin)
     real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:)
-    real(dp) :: time, startTime = 0.0_dp, timeElec = 0.0_dp
+    real(dp) :: time, startTime, timeElec
     integer :: dipoleDat, qDat, energyDat, populDat(2), forceDat, coorDat, ePBondDat
-    integer :: iStep = 0, iSpin
+    integer :: iStep, iSpin
     type(TPotentials) :: potential
     type(TEnergies) :: energy
     type(TTimer) :: loopTime
@@ -695,8 +690,13 @@ contains
     real(dp) :: coordNew(3, this%nAtom), totalForce(3, this%nAtom), ePerBond(this%nAtom, this%nAtom)
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
     character(4) :: dumpIdx
+    logical :: tProbeFrameWrite
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
+
+    iStep = 0
+    startTime = 0.0_dp
+    timeElec = 0.0_dp
 
     if (this%tRestart) then
        call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
@@ -798,8 +798,9 @@ contains
             & ErhoPrim, coordAll)
      end if
 
-     if ((this%tPump) .and. (mod(iStep-this%PpIni, this%PpFreq) == 0)&
-       & .and. (iStep <= this%PpEnd)) then
+     tProbeFrameWrite = this%tPump .and. (iStep >= this%PpIni) .and. (iStep <= this%PpEnd)&
+          & .and. (mod(iStep-this%PpIni, this%PpFreq) == 0)
+     if (tProbeFrameWrite) then
        write(dumpIdx,'(i4)')int((iStep-this%PpIni)/this%PpFreq)
        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time,&
             & trim(dumpIdx) // 'ppdump.bin')
@@ -850,7 +851,7 @@ contains
 !           call scal(H1(:,:,iSpin), imag)
 !           call zaxpy(this%nOrbs*this%nOrbs, 1.0_dp, RdotSprime, 1, H1(:,:,iSpin), 1)
 
-           if (this%tEulers .and. (iStep > 100) .and. (mod(iStep, this%eulerFreq) == 0)) then
+           if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, this%eulerFreq) == 0)) then
               call zcopy(this%nOrbs*this%nOrbs, rho(:,:,iSpin), 1, rhoOld(:,:,iSpin), 1)
               call propagateRho(this, rhoOld(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv,&
                    & this%dt)
@@ -872,7 +873,7 @@ contains
 
      end do
 
-     if (mod(iStep, this%nSteps / 10) == 0) then
+     if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
         call loopTime%stop()
         timeElec  = loopTime%getWallClockTime()
         write(stdOut, "(A,2x,I6,2(2x,A,F10.6))") 'Step ', iStep, 'elapsed loop time: ',&
@@ -1002,9 +1003,6 @@ contains
     real(dp), allocatable :: dummy(:,:)
 
     ham(:,:) = 0.0_dp
-    if (allocated(iHam)) then
-       call error("Ehrenfest dynamics not working with imaginary hamiltonian yet")
-    end if
 
     if (this%nSpin == 2) then
       call ud2qm(qq)
@@ -1828,7 +1826,7 @@ contains
     if (this%tPopulations) then
        do iSpin=1,this%nSpin
           write(strSpin,'(i1)')iSpin
-          call openFile(this, populDat(iSpin), 'molPopul' // trim(strSpin) // '.dat')
+          call openFile(this, populDat(iSpin), 'molpopul' // trim(strSpin) // '.dat')
        end do
     end if
 
@@ -2395,6 +2393,7 @@ contains
   subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
        & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
        & pRepCont, coordAll, rhoPrim, ErhoPrim, iStep, env)
+
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
@@ -2438,10 +2437,10 @@ contains
     real(dp), allocatable, intent(inout) :: ErhoPrim(:)
 
     !> forces (3, nAtom)
-    real(dp), intent(out) :: totalForce(3, this%nAtom)
+    real(dp), intent(out) :: totalForce(:,:)
 
     !> acceleration on moved atoms (3, nMovedAtom)
-    real(dp), intent(out) :: movedAccel(3, this%nMovedAtom)
+    real(dp), intent(out) :: movedAccel(:,:)
 
     !> potential acting on the system
     type(TPotentials), intent(in) :: potential
@@ -2472,7 +2471,6 @@ contains
     rhoPrim(:,:) = 0.0_dp
 
     do iSpin = 1, this%nSpin
-!       call gemm(T1, real(H1(:,:,iSpin), dp), real(rho(:,:,iSpin), dp))
        call gemm(T1, real(rho(:,:,iSpin), dp), real(H1(:,:,iSpin), dp))
        call her2k(T2, real(Sinv, dp), T1, 0.5_dp)
        !(C,A,B,alpha,beta,uplo,trans,n,k
@@ -2515,12 +2513,7 @@ contains
     end if
 
     totalForce(:,:) = - totalDeriv
-
-    if (this%tIons) then
-       movedAccel(:,:) = totalForce(:, this%indMovedAtom) / this%movedMass
-    else
-       movedAccel(:,:) = totalForce / this%movedMass
-    end if
+    movedAccel(:,:) = totalForce(:, this%indMovedAtom) / this%movedMass
 
     call qm2ud(qq)
     call qm2ud(q0)
@@ -2669,6 +2662,7 @@ contains
     end do
 
   end subroutine getOnsiteGrads
+
 
   !! Calculates properties per bond.
   !! If hamover = ham0 is energy

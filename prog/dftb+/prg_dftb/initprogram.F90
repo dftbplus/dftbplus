@@ -2987,6 +2987,15 @@ contains
        call error("Electron dynamics does not work with MD")
      end if
 
+     if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
+       call error("Electron dynamics does not work with charge system")
+     end if
+
+     if (.not. tRealHS) then
+       call error("Electron dynamics does not support k-points")
+     end if
+
+
      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName,&
           & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, skCutoff, mCutoff,&
           & atomEigVal, dispersion, nonSccDeriv, tPeriodic)
