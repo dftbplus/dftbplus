@@ -156,8 +156,11 @@ module timeprop_module
     !> if Euler steps should be done during simulation
     logical :: tEulers
 
-    !> if pairwise bond energy or order should be calculated and written
-    logical :: tPairWise
+    !> if pairwise bond energy should be calculated and written
+    logical :: tBondE
+
+    !> if pairwise bond order should be calculated and written
+    logical :: tBondO
 
     !> if this is a pump trajectory (for a pump-probe simulation)
     logical :: tPump
@@ -201,8 +204,8 @@ type TElecDynamics
    integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PpFreq, PpIni, PpEnd
    integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
    logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe
-   logical :: FirstIonStep = .true., tEulers = .false.
-   logical :: tPairWiseEnergy = .false., tCalcOnsiteGradients = .false., tPeriodic = .false.
+   logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondO = .false.
+   logical :: tCalcOnsiteGradients = .false., tPeriodic = .false.
    type(OThermostat), allocatable :: pThermostat
    type(OMDIntegrator), allocatable :: pMDIntegrator
    class(DispersionIface), allocatable :: dispersion
@@ -343,7 +346,8 @@ contains
     this%tForces = inp%tForces
     this%tEulers = inp%tEulers
     this%eulerFreq = inp%eulerFreq
-    this%tPairWiseEnergy = inp%tPairWise
+    this%tBondE = inp%tBondE
+    this%tBondO = inp%tBondO
     this%tCalcOnsiteGradients = inp%tOnsiteGradients
     allocate(this%species(size(species)))
     this%species = species
@@ -779,12 +783,16 @@ contains
          & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, nDftbUFunc,&
          & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
-    if (this%tPairWiseEnergy) then
-       call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
-            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+    if (this%tBondE) then
+      call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
+           & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+    else if (this%tBondO) then
+      call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), over, iSquare, &
+           & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
     end if
 
     ! after calculating the TD function, set initial time to zero for probe simulations
+    ! this is to calculate properly the dipole fourier transform after the simulation
     if (this%tProbe) then
       startTime = 0.0_dp
     end if
@@ -850,9 +858,12 @@ contains
           & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, nDftbUFunc,&
           & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
-     if (this%tPairWiseEnergy) then
-        call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
-             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+     if (this%tBondE) then
+       call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
+            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+     else if (this%tBondO) then
+       call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), over, iSquare, &
+            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
      end if
 
      do iSpin = 1, this%nSpin
@@ -1783,12 +1794,12 @@ contains
     !> Coords  output file ID
     integer, intent(out) :: coorDat
 
-    !> Pairwise bond energy  output file ID
+    !> Pairwise bond energy or order output file ID
     integer, intent(out) :: ePBondDat
 
-    character(20) :: dipoleFileName
-    character(1) :: strSpin
-    integer :: iSpin
+    character(20) :: dipoleFileName, bondEOName, newBondEOName
+    character(1) :: strSpin, strCount
+    integer :: iSpin, count
     logical :: exist=.false.
 
     if (this%tKick) then
@@ -1816,17 +1827,26 @@ contains
         call openFile(this, coorDat, 'tdcoords.xyz')
       end if
 
-      if (this%tPairWiseEnergy) then
+      if (this%tBondE) then
+        bondEOName = 'bondenergy.bin'
+      else if (this%tBondO) then
+        bondEOName = 'bondorder.bin'
+      end if
+      newBondEOName = bondEOName
+
+      if (this%tBondE .or. this%tBondO) then
         if (this%tRestart) then
-          inquire(file='eperbond.dat', exist=exist)
-        end if
-        if (exist) then
-          open(newunit=ePBondDat, file='eperbond.dat', status="old", &
-              &position="append", form='unformatted', access='stream')
-        else
-          open(newunit=ePBondDat, file='eperbond.dat', form='unformatted', access='stream')
+           inquire(file=bondEOName, exist=exist)
+           count = 1
+           do while (exist)
+              write(strCount,'(i1)') count
+              newbondEOName = "rest" // trim(strCount) // "_" // bondEOName
+              inquire(file=newbondEOName, exist=exist)
+              count = count + 1
+           end do
         end if
       end if
+      open(newunit=ePBondDat, file=newbondEOName, form='unformatted', access='stream')
     end if
 
     if (this%tPopulations) then
@@ -1864,7 +1884,7 @@ contains
     !> Coords output file ID
     integer, intent(in) :: coorDat
 
-    !> Pairwise bond energy output file ID
+    !> Pairwise bond energy or order output file ID
     integer, intent(in) :: ePBondDat
 
     integer :: iSpin
@@ -1887,7 +1907,7 @@ contains
       close(forceDat)
    end if
 
-   if (this%tPairWiseEnergy) then
+   if (this%tBondE .or. this%tBondO) then
       close(ePBondDat)
    end if
   end subroutine closeTDOutputs
@@ -2032,13 +2052,13 @@ contains
     !> Coords output file ID
     integer, intent(in) :: coorDat
 
-    !> Pairwise bond energy output file ID
+    !> Pairwise bond energy or order output file ID
     integer, intent(in) :: ePBondDat
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> Pairwise bond energy
+    !> Pairwise bond energy or order
     real(dp), intent(in) :: ePerBond(:,:)
 
     !> Kinetic energy
@@ -2086,7 +2106,7 @@ contains
           write(forceDat,*)
        end if
 
-       if (this%tPairWiseEnergy .and. mod(iStep,this%writeFreq) == 0) then
+       if ((this%tBondE .or. this%tBondO) .and. mod(iStep,this%writeFreq) == 0) then
           write(ePBondDat) time * au__fs, sum(ePerBond(:,:)), &
                & ((ePerBond(iAtom, iAtom2), iAtom=1,this%nAtom), iAtom2=1,this%nAtom)
        end if
