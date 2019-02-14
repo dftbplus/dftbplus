@@ -84,7 +84,15 @@ module initprogram
   use negf_int
   use poisson_init
 #:endif
+#:if WITH_GPU
+  use count_device_module
+#:endif
   implicit none
+
+#:if WITH_GPU
+  integer :: ngpus
+  integer :: req_ngpus
+#:endif
 
   !> Tagged output files (machine readable)
   character(*), parameter :: autotestTag = "autotest.tag"
@@ -2527,10 +2535,27 @@ contains
       write (strTmp, "(A)") "Green's functions"
     case(solverOnlyTransport)
       write (strTmp, "(A)") "Transport Only (no energies)"
+  #:if WITH_GPU
+    case(solverGPU)
+      write (strTmp, "(A)") "Divide and Conquer (MAGMA GPU version)"
+  #:endif 
     case default
       call error("Unknown eigensolver!")
     end select
     write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
+
+  #:if WITH_GPU
+    if (solver.eq.solverGPU) then
+      call  gpu_avail(ngpus)
+      call  gpu_req(req_ngpus)
+      write(*,*) "Number of GPUs requested:",req_ngpus
+      write(*,*) "Number of GPUs found    :",ngpus
+      if ((req_ngpus .le. ngpus) .and. (req_ngpus .ge. 1)) then
+        ngpus = req_ngpus
+      endif
+      call  magmaf_init()
+    endif
+  #:endif    
 
     if (tSccCalc) then
       select case (iMixer)

@@ -170,9 +170,26 @@ ifeq ($(strip $(WITH_MPI)),1)
   L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
   L_LIBS += $(L_LIBS_LAPACKBLAS)
 
+else ifeq ($(strip $(WITH_GPU)),1)
+  #
+  # GPU-Settings
+  # 
+  FYPPOPT += -DWITH_GPU
+
+  COMPILED_EXTERNALS += _extlib_countdevice
+  LIB_COUNTDEVICE = -L$(BUILDROOT)/external/countdevice -lcountdevice
+  INC_COUNTDEVICE = -I$(BUILDROOT)/external/countdevice
+  L_LIBS += $(if $(filter _extlib_countdevice, $^), $(LIB_COUNTDEVICE))
+  L_INCS += $(INC_COUNTDEVICE)
+
+  # LAPACK/BLAS
+  PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
+  L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
+  L_LIBS += $(L_LIBS_LAPACKBLAS)
+
 else
   #
-  # NON-MPI settings
+  # NON-MPI NON-GPU settings
   #
 
   # LAPACK/BLAS

@@ -27,7 +27,7 @@
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
 #:set WITH_POISSON = defined('WITH_POISSON')
-
+#:set WITH_GPU = defined('WITH_GPU')
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #! ASSERT and DEBUG related macros

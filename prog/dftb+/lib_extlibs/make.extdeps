@@ -34,3 +34,8 @@ scalapackfx.o += _extlib_scalapackfx _extlib_lapack
 negf_int.o: _extlib_libnegf
 negf_int.o += _extlib_libnegf
 #:endif
+
+#:if WITH_GPU
+countdevice.o: _extlib_countdevice
+countdevice.o += _extlib_countdevice
+#:endif

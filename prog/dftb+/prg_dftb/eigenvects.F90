@@ -18,6 +18,10 @@ module eigenvects
 #:if WITH_SCALAPACK
   use scalapackfx
 #:endif
+#:if WITH_GPU
+  use initprogram, only: ngpus
+  use magma
+#:endif
   implicit none
   private
 
@@ -76,6 +80,10 @@ contains
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(solverRR)
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
+#:if WITH_GPU
+    case(solverGPU)
+      call gpu_gvd(ngpus,HSqrReal,SSqrReal,eigen,'L',jobz)
+#:endif
     case default
       call error('Unknown eigensolver')
     end select
@@ -116,6 +124,10 @@ contains
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(solverRR)
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+#:if WITH_GPU
+    case(solverGPU)
+      call gpu_gvd(ngpus,HSqrCplx,SSqrCplx,eigen,'L',jobz)
+#:endif
     case default
       call error('Unknown eigensolver')
     end select

@@ -57,7 +57,8 @@ module solvertypes
   integer, parameter :: solverGF = 4
   !> Transport only transmission solution
   integer, parameter :: solverOnlyTransport = 5
-
+  !> GPU Divide and conquer eigensolver
+  integer, parameter :: solverGPU = 6
 
   ! electrostatic solution method
 

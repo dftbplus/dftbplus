@@ -73,6 +73,9 @@ ifeq ($(strip $(WITH_TRANSPORT)),1)
   external_libnegf: external_mpifx
   external_poisson: external_mpifx external_libnegf
 endif
+ifeq ($(strip $(WITH_GPU)),1)
+dftb+: external_countdevice
+endif
 
 modes: external_xmlf90
 waveplot: external_xmlf90
@@ -91,7 +94,7 @@ misc_skderivs: external_xmlf90
 EXTERNAL_NAME = $(subst external_,,$@)
 
 EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
-    external_scalapackfx external_poisson external_libnegf
+    external_scalapackfx external_poisson external_libnegf external_countdevice
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)

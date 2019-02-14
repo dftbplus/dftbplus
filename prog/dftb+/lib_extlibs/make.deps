@@ -79,3 +79,14 @@ xmlf90.o = xmlf90.o $(_mod_m_strings) $(_mod_flib_dom) $(_mod_flib_wxml)
 _mod_xmlf90: xmlf90.o
 _mod_xmlf90 = $(xmlf90.o)
 
+#:if WITH_GPU
+countdevice.o: common.fypp _mod_count_device_module
+countdevice.o = countdevice.o $(common.fypp) $(_mod_count_device_module)
+_mod_countdevice: countdevice.o
+_mod_countdevice = $(countdevice.o)
+#:else
+countdevice.o: common.fypp
+countdevice.o = countdevice.o $(common.fypp)
+_mod_countdevice: countdevice.o
+_mod_countdevice = $(countdevice.o)
+#:endif
