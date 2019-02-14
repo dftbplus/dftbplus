@@ -1006,7 +1006,7 @@ module blas
       integer, intent(in) :: kk
 
       !> scaling factor
-      real(${VPREC}$), intent(in) :: alpha
+      ${VTYPE}$(${VPREC}$), intent(in) :: alpha
 
       !> leading matrix dimension for a
       integer, intent(in) :: lda
@@ -1021,7 +1021,7 @@ module blas
       ${VTYPE}$(${VPREC}$), intent(in) :: bb(lda, *)
 
       !> scale factor
-      real(${VPREC}$), intent(in) :: beta
+      ${VTYPE}$(${VPREC}$), intent(in) :: beta
 
       !> leading matrix dimension
       integer, intent(in) :: ldc

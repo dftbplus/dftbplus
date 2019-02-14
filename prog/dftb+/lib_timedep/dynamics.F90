@@ -211,6 +211,10 @@ type TElecDynamics
    class(DispersionIface), allocatable :: dispersion
    type(NonSccDiff), allocatable :: derivator
    real(dp), allocatable :: latVec(:,:), invLatVec(:,:)
+   real(dp), allocatable :: initCoord(:,:)
+   !> count of the number of times dynamics have been initialised
+   integer :: nDynamicsInit = 0
+
 end type TElecDynamics
 
   !> Enumerating available types of perturbation
@@ -525,7 +529,7 @@ contains
     !> index in cellVec for each atom
     integer, allocatable, intent(in) :: iCellVec(:)
 
-    integer :: iPol
+    integer :: iPol, iCall
     logical :: tWriteAutotest
 
     this%sccCalc = sccCalc
@@ -543,6 +547,11 @@ contains
     this%rCellVec = rCellVec
 
     tWriteAutotest = this%tWriteAutotest
+    iCall = 1
+    if (size(this%polDirs) > 1) then
+      allocate(this%initCoord(3,this%nAtom))
+      this%initCoord(:,:) = coord
+    end if
     if (this%tKick) then
       do iPol = 1, size(this%polDirs)
         this%currPolDir = this%polDirs(iPol)
@@ -552,13 +561,14 @@ contains
             & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
             & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-            & skOverCont)
+            & skOverCont, iCall)
+        iCall = iCall + 1
       end do
     else
       call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
           & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
           & xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef,&
-          & tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont)
+          & tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont, iCall)
     end if
 
   end subroutine runDynamics
@@ -569,7 +579,7 @@ contains
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
       & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
       & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-      & skOverCont)
+      & skOverCont, iCall)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -671,6 +681,8 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
+    integer :: iCall
+
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%nSpin), rhoOld(this%nOrbs,this%nOrbs,this%nSpin)
     complex(dp) :: H1(this%nOrbs,this%nOrbs,this%nSpin), T1(this%nOrbs,this%nOrbs)
@@ -699,15 +711,25 @@ contains
     timeElec = 0.0_dp
 
     if (this%tRestart) then
-       call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
-       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+      call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
+      call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+          & ErhoPrim, coordAll)
+      if (this%tIons) then
+        this%initialVelocities(:,:) = this%movedVelo
+        this%ReadMDVelocities = .true.
+      end if
+    else
+      if (iCall > 1 .and. this%tIons) then
+        coord(:,:) = this%initCoord
+        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
             & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
             & ErhoPrim, coordAll)
-       if (this%tIons) then
-          this%initialVelocities(:,:) = this%movedVelo
-          this%ReadMDVelocities = .true.
-       end if
+        this%initialVelocities(:,:) = this%movedVelo
+        this%ReadMDVelocities = .true.
+      end if
     end if
+
 
     if (this%tLaser) then
       call getTDFunction(this, startTime)
@@ -891,7 +913,9 @@ contains
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
 
     if (this%tIons) then
-       deallocate(this%pMDIntegrator)
+      if (size(this%polDirs) <  (this%nDynamicsInit + 1)) then
+        deallocate(this%pMDIntegrator)
+      end if
     end if
 
    end subroutine doDynamics
@@ -2236,8 +2260,8 @@ contains
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
 
-    !> Data for the velocity verlet integrator
-    type(OVelocityVerlet), allocatable :: pVelocityVerlet
+    !> coordinates of next step
+    real(dp), intent(out) :: coordNew(:,:)
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -2245,34 +2269,51 @@ contains
     !> acceleration on moved atoms (3, nMovedAtom)
     real(dp), intent(in) :: movedAccel(:,:)
 
-    !> coordinates of next step
-    real(dp), intent(out) :: coordNew(:,:)
+    ! Data for the velocity verlet integrator
+    type(OVelocityVerlet), allocatable :: pVelocityVerlet
 
     logical :: halfVelocities = .true.
     real(dp) :: velocities(3, this%nMovedAtom)
 
-    allocate(pVelocityVerlet)
+    integer :: ii
+
+    if (this%nDynamicsInit == 0) then
+      allocate(pVelocityVerlet)
+    end if
+
     if (this%ReadMDVelocities) then
       this%movedVelo(:, :) = this%initialVelocities
     else
       this%movedVelo(:, :) = 0.0_dp
     end if
 
-    call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
-        & this%movedVelo, this%ReadMDVelocities, halfVelocities)
+    if (this%nDynamicsInit == 0) then
+      call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+          & this%movedVelo, this%ReadMDVelocities, halfVelocities)
+      this%initialVelocities(:, this%indMovedAtom) = this%movedVelo
+    else
+      call reset(this%pMDIntegrator, coordNew(:, this%indMovedAtom), this%initialVelocities,&
+          & halfVelocities)
+    end if
 
-    ! Euler step forward from 1st VV step
-    ! Ensures good initialization
+    ! Euler step from 1st VV step
+    ! Ensures good initialization and puts velocity and coords on common time step
     this%movedVelo(:,:) = this%movedVelo - 0.5_dp * movedAccel * this%dt
     coordNew(:,:) = coord
     coordNew(:,this%indMovedAtom) = coord(:,this%indMovedAtom) &
         & + this%movedVelo(:,:) * this%dt + 0.5_dp * movedAccel(:,:) * this%dt**2
-
     ! This re-initializes the VVerlet propagator with coordNew
     this%movedVelo(:,:) = this%movedVelo + 0.5_dp * movedAccel * this%dt
-    call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo, .true.)
-    allocate(this%pMDIntegrator)
-    call init(this%pMDIntegrator, pVelocityVerlet)
+
+    if (this%nDynamicsInit == 0) then
+      call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo, halfVelocities)
+      allocate(this%pMDIntegrator)
+      call init(this%pMDIntegrator, pVelocityVerlet)
+    else
+      call reset(this%pMDIntegrator, coordNew(:, this%indMovedAtom), this%movedVelo, halfVelocities)
+    end if
+
+    this%nDynamicsInit = this%nDynamicsInit + 1
 
   end subroutine initIonDynamics
 
