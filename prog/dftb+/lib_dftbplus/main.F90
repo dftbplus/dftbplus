@@ -77,6 +77,7 @@ module dftbp_main
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_taggedoutput, only : TTaggedWriter
   implicit none
   private
 
@@ -232,12 +233,12 @@ contains
         energy%EGibbs = energy%EMermin + extPressure * cellVol
       end if
       call writeAutotestTag(fdAutotest, autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
-          & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
-          & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp)
+          & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy%EMermin,&
+          & extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp, taggedWriter)
     end if
     if (tWriteResultsTag) then
       call writeResultsTag(fdResultsTag, resultsTag, derivs, chrgForces, tStress, totalStress,&
-          & pDynMatrix, tPeriodic, cellVol)
+          & pDynMatrix, tPeriodic, cellVol, taggedWriter)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&
@@ -464,10 +465,10 @@ contains
       call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
       call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
           & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
-          & skHamCont, skOverCont, fdAutotest, autotestTag, fdEigvec, runId, neighborList,&
-          & nNeighbor, denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tForces,&
-          & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, SSqrReal,&
-          & rhoSqrReal, excitedDerivs, occNatural)
+          & skHamCont, skOverCont, fdAutotest, autotestTag, taggedWriter, fdEigvec, runId,&
+          & neighborList, nNeighbor, denseDesc, iSparseStart, img2CentCell, tWriteAutotest,&
+          & tForces, tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy,&
+          & SSqrReal, rhoSqrReal, excitedDerivs, occNatural)
     end if
 
     if (tXlbomd) then
@@ -3107,8 +3108,8 @@ contains
  !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
       & eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont, skOverCont,&
-      & fdAutotest, autotestTag, fdEigvec, runId, neighborList, nNeighbor, denseDesc, iSparseStart,&
-      & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+      & fdAutotest, autotestTag, taggedWriter, fdEigvec, runId, neighborList, nNeighbor, denseDesc,&
+      & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, work, rhoSqrReal, excitedDerivs, occNatural)
 
     !> Environment settings
@@ -3164,6 +3165,9 @@ contains
 
     !> File name for regression data
     character(*), intent(in) :: autotestTag
+
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> File ID for ground state eigenvectors
     integer, intent(in) :: fdEigvec
@@ -3251,8 +3255,8 @@ contains
       end if
       call addGradients(tSpin, lresp, denseDesc%iAtomStart, eigvecsReal, eigen, work, filling,&
           & coord0, sccCalc, dQAtom, pSpecies0, neighborList%iNeighbor, img2CentCell, orb,&
-          & skHamCont, skOverCont, tWriteAutotest, fdAutotest, energy%Eexcited, excitedDerivs,&
-          & nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
+          & skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited,&
+          & excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, fdEigvec, runId, neighborList, nNeighbor, denseDesc,&
             & iSparseStart, img2CentCell, pSpecies0, speciesName, orb, over, parallelKS,&
@@ -3261,7 +3265,7 @@ contains
     else
       call calcExcitations(lresp, tSpin, denseDesc, eigvecsReal, eigen, work, filling, coord0,&
           & sccCalc, dQAtom, pSpecies0, neighborList%iNeighbor, img2CentCell, orb, tWriteAutotest,&
-          & fdAutotest, energy%Eexcited)
+          & fdAutotest, taggedWriter, energy%Eexcited)
     end if
     energy%Etotal = energy%Etotal + energy%Eexcited
     energy%EMermin = energy%EMermin + energy%Eexcited

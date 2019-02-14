@@ -1,11 +1,11 @@
 #:if WITH_ARPACK
-linresp.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_scc _mod_dftbp_fileid _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_slakocont _mod_dftbp_message _mod_dftbp_linrespgrad
-linresp.o = linresp.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_scc) $(_mod_dftbp_fileid) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_slakocont) $(_mod_dftbp_message) $(_mod_dftbp_linrespgrad)
+linresp.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_scc _mod_dftbp_taggedoutput _mod_dftbp_fileid _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_slakocont _mod_dftbp_message _mod_dftbp_linrespgrad
+linresp.o = linresp.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_scc) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_fileid) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_slakocont) $(_mod_dftbp_message) $(_mod_dftbp_linrespgrad)
 _mod_dftbp_linresp_module: linresp.o
 _mod_dftbp_linresp_module = $(linresp.o)
 #:else
-linresp.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_scc _mod_dftbp_fileid _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_slakocont _mod_dftbp_message
-linresp.o = linresp.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_scc) $(_mod_dftbp_fileid) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_slakocont) $(_mod_dftbp_message)
+linresp.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_scc _mod_dftbp_taggedoutput _mod_dftbp_fileid _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_slakocont _mod_dftbp_message
+linresp.o = linresp.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_scc) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_fileid) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_slakocont) $(_mod_dftbp_message)
 _mod_dftbp_linresp_module: linresp.o
 _mod_dftbp_linresp_module = $(linresp.o)
 #:endif

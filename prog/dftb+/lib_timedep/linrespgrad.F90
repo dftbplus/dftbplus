@@ -22,7 +22,7 @@ module dftbp_linrespgrad
   use dftbp_blasroutines
   use dftbp_eigensolver
   use dftbp_message
-  use dftbp_taggedoutput
+  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_sorting
   use dftbp_qm
   implicit none
@@ -74,8 +74,8 @@ contains
   !> based on Time Dependent DFRT
   subroutine LinRespGrad_old(tSpin, natom, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq,&
       & coord0, nexc, nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbor, &
-      & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY, &
-      & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, &
+      & img2CentCell, orb, tWriteTagged, fdTagged, taggedWriter, fdMulliken, fdCoeffs, tGrndState,&
+      & fdXplusY, fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, &
       & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, omega, shift, skHamCont, &
       & skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
 
@@ -144,6 +144,9 @@ contains
 
     !> file descriptor for the tagged data output
     integer, intent(in) :: fdTagged
+
+    !> tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> file unit for excited Mulliken populations?
     integer, intent(in) :: fdMulliken
@@ -517,10 +520,12 @@ contains
         call getExcSpin(Ssq, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd), filling, stimc, &
             & grndEigVecs)
         call writeExcitations(sym, osz, nexc, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd), &
-            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc, Ssq)
+            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter,&
+            & fdExc, Ssq)
       else
         call writeExcitations(sym, osz, nexc, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd), &
-            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc)
+            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter,&
+            & fdExc)
       end if
 
     end do
@@ -2071,7 +2076,7 @@ contains
   !> Write out transitions from ground to excited state along with single particle transitions and
   !> dipole strengths
   subroutine writeExcitations(sym, osz, nexc, nmatup, getij, win, eval, evec, wij, fdXplusY, &
-      & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc, Ssq)
+      & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
 
     !> Symmetry label for the type of transition
     character, intent(in) :: sym
@@ -2117,6 +2122,9 @@ contains
 
     !> file unit for tagged output (> -1 for write out)
     integer, intent(in) :: fdTagged
+
+    !> tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> file unit for excitation energies
     integer, intent(in) :: fdExc
@@ -2292,8 +2300,8 @@ contains
       endif
     end do
     if (tWriteTagged) then
-      call writeTagged(fdTagged, tag_excEgy, eDeg(:iDeg))
-      call writeTagged(fdTagged, tag_excOsc, oDeg(:iDeg))
+      call taggedWriter%write(fdTagged, tagLabels%excEgy, eDeg(:iDeg))
+      call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg(:iDeg))
     end if
 
   end subroutine writeExcitations

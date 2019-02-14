@@ -835,10 +835,13 @@ module dftbp_initprogram
   !> In the special case of cartesian axis aligned orthorhombic lattice vectors, negative diagonal
   !> elements expand the supercell.
   real(dp) :: totalLatDeriv(3,3)
-  
+
   !> Stress tensors for various contribution in periodic calculations
   !> Sign convention: Positive diagonal elements expand the supercell
   real(dp) :: totalStress(3,3)
+
+  ! Tagged writer
+  type(TTaggedWriter) :: taggedWriter
 
   private :: createRandomGenerators
 
@@ -2282,7 +2285,7 @@ contains
       write(stdOut, *)
     end if
   #:endif
-    
+
   #:if WITH_SCALAPACK
     write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
         & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
@@ -2920,7 +2923,8 @@ contains
     !> Electrostatic potentials if requested
     type(TElStatPotentials), allocatable, intent(inout) :: esp
 
-    call initTaggedWriter()
+    call TTaggedWriter_init(taggedWriter)
+
     if (tWriteAutotest) then
       call initOutputFile(autotestTag, fdAutotest)
     end if

@@ -1907,7 +1907,7 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fd, fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation, esp)
+      & gibbsFree, endCoords, tLocalise, localisation, esp, taggedWriter)
 
     !> File ID to write to
     integer, intent(in) :: fd
@@ -1966,47 +1966,50 @@ contains
     !> Object holding the potentials and their locations
     type(TElStatPotentials), allocatable, intent(in) :: esp
 
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     real(dp), allocatable :: qOutputUpDown(:,:,:)
 
 
     open(fd, file=fileName, action="write", status="old", position="append")
     if (tPeriodic) then
-      call writeTagged(fd, tag_volume, cellVol)
+      call taggedWriter%write(fd, tagLabels%volume, cellVol)
     end if
     if (tMulliken) then
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
-      call writeTagged(fd, tag_qOutput, qOutputUpDown(:,:,1))
+      call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown(:,:,1))
     end if
     if (allocated(derivs)) then
-      call writeTagged(fd, tag_forceTot, -derivs)
+      call taggedWriter%write(fd, tagLabels%forceTot, -derivs)
     end if
     if (allocated(chrgForces)) then
-      call writeTagged(fd, tag_chrgForces, -chrgForces)
+      call taggedWriter%write(fd, tagLabels%chrgForces, -chrgForces)
     end if
     if (allocated(excitedDerivs)) then
       if (size(excitedDerivs) > 0) then
-        call writeTagged(fd, tag_excForce, -excitedDerivs)
+        call taggedWriter%write(fd, tagLabels%excForce, -excitedDerivs)
       end if
     end if
     if (tStress) then
-      call writeTagged(fd, tag_stressTot, totalStress)
+      call taggedWriter%write(fd, tagLabels%stressTot, totalStress)
     end if
     if (associated(pDynMatrix)) then
-      call writeTagged(fd, tag_HessianNum, pDynMatrix)
+      call taggedWriter%write(fd, tagLabels%HessianNum, pDynMatrix)
     end if
-    call writeTagged(fd, tag_freeEgy, freeEnergy)
+    call taggedWriter%write(fd, tagLabels%freeEgy, freeEnergy)
     if (pressure /= 0.0_dp) then
-      call writeTagged(fd, tag_Gibbsfree, gibbsFree)
+      call taggedWriter%write(fd, tagLabels%Gibbsfree, gibbsFree)
     end if
-    call writeTagged(fd, tag_endCoord, endCoords)
+    call taggedWriter%write(fd, tagLabels%endCoord, endCoords)
     if (tLocalise) then
-      call writeTagged(fd, tag_pmlocalise, localisation)
+      call taggedWriter%write(fd, tagLabels%pmlocalise, localisation)
     end if
     if (allocated(esp)) then
-      call writeTagged(fd, tag_internfield, -esp%intPotential)
+      call taggedWriter%write(fd, tagLabels%internfield, -esp%intPotential)
       if (allocated(esp%extPotential)) then
-        call writeTagged(fd, tag_externfield, -esp%extPotential)
+        call taggedWriter%write(fd, tagLabels%externfield, -esp%extPotential)
       end if
     end if
     close(fd)
@@ -2016,7 +2019,7 @@ contains
 
   !> Writes out machine readable data
   subroutine writeResultsTag(fd, fileName, derivs, chrgForces, tStress, totalStress,&
-      & pDynMatrix, tPeriodic, cellVol)
+      & pDynMatrix, tPeriodic, cellVol, taggedWriter)
 
     !> File ID to write to
     integer, intent(in) :: fd
@@ -2045,23 +2048,27 @@ contains
     !> Unit cell volume if periodic (unreferenced otherwise)
     real(dp), intent(in) :: cellVol
 
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+
     @:ASSERT(tPeriodic .eqv. tStress)
 
     open(fd, file=fileName, action="write", status="replace")
     if (allocated(derivs)) then
-      call writeTagged(fd, tag_forceTot, -derivs)
+      call taggedWriter%write(fd, tagLabels%forceTot, -derivs)
     end if
     if (allocated(chrgForces)) then
-      call writeTagged(fd, tag_chrgForces, -chrgForces)
+      call taggedWriter%write(fd, tagLabels%chrgForces, -chrgForces)
     end if
     if (tStress) then
-      call writeTagged(fd, tag_stressTot, totalStress)
+      call taggedWriter%write(fd, tagLabels%stressTot, totalStress)
     end if
     if (associated(pDynMatrix)) then
-      call writeTagged(fd, tag_HessianNum, pDynMatrix)
+      call taggedWriter%write(fd, tagLabels%HessianNum, pDynMatrix)
     end if
     if (tPeriodic) then
-      call writeTagged(fd, tag_volume, cellVol)
+      call taggedWriter%write(fd, tagLabels%volume, cellVol)
     end if
     close(fd)
 
