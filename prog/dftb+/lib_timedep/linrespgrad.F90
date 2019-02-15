@@ -33,7 +33,7 @@ module linrespgrad
 
 
   !> Tolerance for ARPACK solver.
-  real(dp), parameter :: ARTOL = epsilon(1.0_dp)
+  real(dp), parameter :: ARTOL = epsilon(1.0_rsp)
 
 
   !> Maximal allowed iteration in the ARPACK solver.

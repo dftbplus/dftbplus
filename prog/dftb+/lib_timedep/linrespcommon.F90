@@ -23,8 +23,8 @@ module linrespcommon
   !> prefactor of 2/3.
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
 
-
 contains
+
 
   !> find (possibly degenerate) transitions with stronger dipole
   !> transition strengths than a tolerance, count them and place at
