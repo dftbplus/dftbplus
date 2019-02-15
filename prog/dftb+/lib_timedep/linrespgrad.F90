@@ -1230,7 +1230,6 @@ contains
     xpyq(:) = 0.0_dp
     call transChrg%qMatVec(iAtomStart, stimc, c, getij, win, xpy, xpyq)
 
-     updwn = .true.
 
     ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
     if (sym == "S") then
@@ -1519,7 +1518,6 @@ contains
 
     call hemv(gamxpyq, gammaMat, zq)
 
-    updwn = .true.
 
     ! sum_iAt1 qij(iAt1) gamxpyq(iAt1)
     do ij = 1, nxoo
