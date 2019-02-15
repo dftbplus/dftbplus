@@ -24,7 +24,7 @@ ExcitedState {
         StateOfInterest = 1
         Symmetry = Singlet
         WriteMulliken = Yes
-	CacheCharges = No
+        CacheCharges = No
     }
 }
 

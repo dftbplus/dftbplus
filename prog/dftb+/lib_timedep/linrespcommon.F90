@@ -15,7 +15,7 @@ module linrespcommon
   use sorting
   use message
   use commontypes
-  use transitionCharges
+  use transcharges
   implicit none
   public
 
@@ -25,40 +25,6 @@ module linrespcommon
 
 
 contains
-
-
-  !> Sort arrays in reverse order on basis of values in the sposz array
-  subroutine dipsort(wij, sposz, win, transd)
-
-    !> Energies of transitions
-    real(dp), intent(inout) :: wij(:)
-
-    !> array to be sorted containing single particle transition strengths
-    real(dp), intent(inout) :: sposz(:)
-
-    !> index array for transitions to single particle transitions
-    integer, intent(inout) :: win(:)
-
-    !> dipole moments (to be ordered on first index according to sposz sorting)
-    real(dp), intent(inout) :: transd(:,:)
-
-    integer, allocatable :: tmpIndx(:)
-
-    allocate(tmpIndx(size(win)))
-
-    @:ASSERT(size(wij) == size(sposz))
-    @:ASSERT(size(wij) == size(win))
-    @:ASSERT(size(wij) == size(transd,dim=1))
-
-    call index_heap_sort(tmpIndx, sposz)
-    tmpIndx = tmpIndx(size(win):1:-1)
-    win = win(tmpIndx)
-    wij = wij(tmpIndx)
-    sposz = sposz(tmpIndx)
-    transd(:,:) = transd(tmpIndx,:)
-
-  end subroutine dipsort
-
 
   !> find (possibly degenerate) transitions with stronger dipole
   !> transition strengths than a tolerance, count them and place at
@@ -402,7 +368,7 @@ contains
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
   subroutine omegatvec(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
-      & occNr, getij, gamma, species0, spinW, transCharges)
+      & occNr, getij, gamma, species0, spinW, transChrg)
 
     !> logical spin polarization
     logical, intent(in) :: spin
@@ -450,7 +416,7 @@ contains
     real(dp), intent(in) :: spinW(:)
 
     !> machinery for transition charges between single particle levels
-    type(qTransition), intent(in) :: transCharges
+    type(TTransCharges), intent(in) :: transChrg
 
     integer :: nmat, natom
     integer :: ia, ii, jj
@@ -473,7 +439,7 @@ contains
 
     ! product charges with the v*wn product, i.e. Q * v*wn
     oTmp(:) = 0.0_dp
-    call transCharges%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, vin(:nmat) * wnij(:nmat),&
+    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, vin(:nmat) * wnij(:nmat),&
         & oTmp)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
@@ -484,7 +450,7 @@ contains
 
         ! 2 * wn * (g * Q)
         vOut(:) = 0.0_dp
-        call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, vOut)
+        call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, vOut)
         vOut(:) = 2.0_dp * wnij(:) * vOut(:)
 
       else
@@ -493,7 +459,7 @@ contains
 
         ! wn * (o * Q)
         vOut = 0.0_dp
-        call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, oTmp, vOut)
+        call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, oTmp, vOut)
         vOut(:) = wnij(:) * vOut(:)
 
 
@@ -511,7 +477,7 @@ contains
 
         updwn = (win(ia) <= nmatup)
 
-        qij(:) = transCharges%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
+        qij(:) = transChrg%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
 
         ! singlet gamma part (S)
         vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
@@ -533,7 +499,7 @@ contains
       !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
 
-        qij(:) = transCharges%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
+        qij(:) = transChrg%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
 
         updwn = (win(ia) <= nmatup)
         if (updwn) then
@@ -555,7 +521,7 @@ contains
 
   !> Multiplies the supermatrix (A+B) with a given vector.
   subroutine apbw(rkm1, rhs2, wij, nmat, natom, win, nmatup, getij, iAtomStart, stimc, grndEigVecs,&
-      & gamma, transCharges)
+      & gamma, transChrg)
 
     !> Resulting vector on return.
     real(dp), intent(out) :: rkm1(:)
@@ -594,7 +560,7 @@ contains
     real(dp), intent(in) :: gamma(:,:)
 
     !> machinery for transition charges between single particle levels
-    type(qTransition), intent(in) :: transCharges
+    type(TTransCharges), intent(in) :: transChrg
 
     !> gamma matrix
     integer :: ia, ii, jj
@@ -603,12 +569,12 @@ contains
     @:ASSERT(size(rkm1) == nmat)
 
     tmp(:) = 0.0_dp
-    call transCharges%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, rhs2, tmp)
+    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, rhs2, tmp)
 
     call hemv(gtmp, gamma, tmp)
 
     rkm1(:) = 0.0_dp
-    call transCharges%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, rkm1)
+    call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, rkm1)
 
     rkm1(:) = 4.0_dp * rkm1(:) + wij(:) * rhs2(:)
 

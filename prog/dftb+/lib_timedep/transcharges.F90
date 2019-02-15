@@ -8,16 +8,17 @@
 #:include 'common.fypp'
 
 !> Helper routines for transition charges between levels.
-module transitionCharges
+module transcharges
   use assert
   use accuracy
   implicit none
+  private
 
-  !private
-  public :: qTransition, qTransitionInit, qTransitionDestroy
+  public :: TTransCharges, TTransCharges_init
+  public :: transq
 
   !> Internal data of the transition charges
-  type :: qTransition
+  type :: TTransCharges
     private
 
     !> should transition charges be cached in memory or evaluated when needed?
@@ -37,20 +38,21 @@ module transitionCharges
 
   contains
 
-    procedure :: qTransIJ
-    procedure :: qMatVec
-    procedure :: qVecMat
+    procedure :: qTransIJ =>TTransCharges_qTransIJ
+    procedure :: qMatVec => TTransCharges_qMatVec
+    procedure :: qVecMat => TTransCharges_qVecMat
 
-  end type qTransition
+  end type TTransCharges
+
 
 contains
 
   !> initialise the cache/on-the fly transition charge evaluator
-  subroutine qTransitionInit(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, nxov_rd, nMatUp,&
+  subroutine TTransCharges_init(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, nTrans, nMatUp,&
       & getij, win, tStore)
 
     !> Instance
-    type(qTransition), intent(inout) :: this
+    type(TTransCharges), intent(out) :: this
 
     !> Starting position of each atom in the list of orbitals
     integer, intent(in) :: iAtomStart(:)
@@ -62,7 +64,7 @@ contains
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
     !> number of transitions in the system
-    integer, intent(in) :: nxov_rd
+    integer, intent(in) :: nTrans
 
     !> number of up-up excitations
     integer, intent(in) :: nMatUp
@@ -79,17 +81,17 @@ contains
     integer :: ij, ii, jj, kk
     logical :: updwn
 
-    this%nTransitions = nxov_rd
+    this%nTransitions = nTrans
     this%nAtom = size(iAtomStart) - 1
     this%nMatUp = nMatUp
 
     if (tStore) then
 
-    @:ASSERT(.not.allocated(this%qCacheOccVirt))
-      allocate(this%qCacheOccVirt(this%nAtom,nxov_rd))
+      @:ASSERT(.not.allocated(this%qCacheOccVirt))
+      allocate(this%qCacheOccVirt(this%nAtom, nTrans))
 
       !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn) SCHEDULE(RUNTIME)
-      do ij = 1, nxov_rd
+      do ij = 1, nTrans
         kk = win(ij)
         ii = getij(kk,1)
         jj = getij(kk,2)
@@ -108,27 +110,15 @@ contains
 
     end if
 
-  end subroutine qTransitionInit
-
-
-  !> clean up memory for instance
-  subroutine qTransitionDestroy(this)
-
-    !> Instance
-    type(qTransition), intent(inout) :: this
-
-    if (allocated(this%qCacheOccVirt)) then
-      deallocate(this%qCacheOccVirt)
-    end if
-
-  end subroutine qTransitionDestroy
+  end subroutine TTransCharges_init
 
 
   !> returns transtion charges between single particle levels
-  pure function qTransIJ(this, ij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij, win) result(q)
+  pure function TTransCharges_qTransIJ(this, ij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+      & win) result(q)
 
     !> instance of the transition charge object
-    class(qTransition), intent(in) :: this
+    class(TTransCharges), intent(in) :: this
 
     !> Index of transition
     integer, intent(in) :: ij
@@ -164,15 +154,15 @@ contains
       q(:) = transq(ii, jj, iAtomStart, updwn, sTimesgrndEigVecs, grndEigVecs)
     end if
 
-  end function qTransIJ
+  end function TTransCharges_qTransIJ
 
 
   !> Transition charges left producted with a vector Q * v
-  pure subroutine qMatVec(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij, win, vector,&
-        & qProduct)
+  pure subroutine TTransCharges_qMatVec(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+      & win, vector, qProduct)
 
     !> instance of the transition charge object
-    class(qTransition), intent(in) :: this
+    class(TTransCharges), intent(in) :: this
 
     !> Starting position of each atom in the list of orbitals
     integer, intent(in) :: iAtomStart(:)
@@ -223,15 +213,15 @@ contains
 
     end if
 
-  end subroutine qMatVec
+  end subroutine TTransCharges_qMatVec
 
 
   !> Transition charges right producted with a vector v * Q
-  pure subroutine qVecMat(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij, win, vector,&
-        & qProduct)
+  pure subroutine TTransCharges_qVecMat(this, iAtomStart, sTimesGrndEigVecs, grndEigVecs, getij,&
+      & win, vector, qProduct)
 
     !> instance of the transition charge object
-    class(qTransition), intent(in) :: this
+    class(TTransCharges), intent(in) :: this
 
     !> Starting position of each atom in the list of orbitals
     integer, intent(in) :: iAtomStart(:)
@@ -282,7 +272,7 @@ contains
 
     end if
 
-  end subroutine qVecMat
+  end subroutine TTransCharges_qVecMat
 
 
   !> Calculates atomic transition charges for a specified excitation.
@@ -332,4 +322,4 @@ contains
   end function transq
 
 
-end module transitionCharges
+end module transcharges
