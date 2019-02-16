@@ -56,6 +56,9 @@ module linresp_module
     !> this state of interest
     real(dp) :: oscillatorWindow
 
+    !> should transition charges be cached
+    logical :: tCacheCharges
+
     !> number of excited states to find
     integer :: nStat
 
@@ -92,11 +95,15 @@ module linresp_module
     !> dipole strengths to excited states
     logical :: tTradip
 
-    !> print state and diagnose output of Arnoldi solver
-    logical :: tArnoldi, tDiagnoseArnoldi
+    !> print state of Arnoldi solver
+    logical :: tArnoldi
+
+    !> diagnose output of Arnoldi solver
+    logical :: tDiagnoseArnoldi
 
     !> Initialised data structure?
     logical :: tInit = .false.
+
   end type linrespini
 
 
@@ -107,6 +114,7 @@ module linresp_module
     real(dp) :: energyWindow
     logical :: tOscillatorWindow
     real(dp) :: oscillatorWindow
+    logical :: tCacheCharges
     integer :: nOcc, nVir, nAtom
     real(dp) :: nEl
     character :: symmetry
@@ -179,6 +187,7 @@ contains
     this%energyWindow = ini%energyWindow
     this%tOscillatorWindow = ini%tOscillatorWindow
     this%oscillatorWindow = ini%oscillatorWindow
+    this%tCacheCharges = ini%tCacheCharges
     this%nStat = ini%nStat
     this%symmetry = ini%sym
 
@@ -316,7 +325,7 @@ contains
         & fdTagged, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
         & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,  this%fdArnoldiDiagnosis,&
         & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-        & this%oscillatorWindow, excEnergy, allExcEnergies)
+        & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies)
 
 #:else
     call error('Internal error: Illegal routine call to LinResp_calcExcitations')
@@ -428,8 +437,8 @@ contains
           & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
           & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
           & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-          & this%oscillatorWindow, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
-          & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies, shiftPerAtom,&
+          & skHamCont, skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
@@ -437,8 +446,8 @@ contains
           & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
           & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
           & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-          & this%oscillatorWindow, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
-          & excgradient, derivator, rhoSqr)
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies, shiftPerAtom,&
+          & skHamCont, skOverCont, excgradient, derivator, rhoSqr)
     end if
 
 #:else

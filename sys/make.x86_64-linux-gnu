@@ -18,8 +18,8 @@ FXX = mpifort
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -funroll-all-loops -fopenmp
-CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+FXXOPT = -O2 -funroll-all-loops -fopenmp -fall-intrinsics
+CCOPT = -O2 -funroll-all-loops
 
 # Linker
 LN = $(FXX)
@@ -75,8 +75,8 @@ FXX = gfortran
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -funroll-all-loops -fopenmp
-CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+FXXOPT = -O2 -funroll-all-loops -fopenmp -fall-intrinsics
+CCOPT = -O2 -funroll-all-loops
 
 # Linker
 LN = $(FXX)
@@ -133,8 +133,8 @@ ARPACK_NEEDS_LAPACK = 0
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     OTHERLIBS =
-    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic
-    CCOPT = -g -Wall -pedantic -fall-intrinsics
+    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fall-intrinsics
+    CCOPT = -g -Wall -pedantic
 endif
 
 ifeq ($(strip $(DEBUG)),2)
@@ -143,6 +143,7 @@ ifeq ($(strip $(DEBUG)),2)
     OTHERLIBS =
     FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check
     FXXOPT += -Wno-unused-variable -Wno-unused-dummy-argument -Wno-unused-function -Wno-uninitialized
-    CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
+    FXXOPT += -fall-intrinsics
+    CCOPT = -g -Wall -pedantic -fbounds-check
 
 endif

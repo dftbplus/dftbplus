@@ -1676,7 +1676,7 @@ contains
         allocate(pConjGradLat)
         call init(pConjGradLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp)
         call init(pGeoLatOpt, pConjGradLat)
-      case (4)
+      case (geoOptTypes%LBFGS)
         allocate(pLbfgsLat)
         call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
             & input%ctrl%lbfgsInp%memory)
@@ -2261,7 +2261,6 @@ contains
     tNegf = .false.
   #:endif
 
-    tWriteBandDat = tWriteBandDat .and. .not. tNegf
 
     if (tNegf) then
       if (tDispersion) then
@@ -2438,9 +2437,9 @@ contains
   #:endif
 
     if (tRandomSeed) then
-      write(stdOut, "(A,':',T30,I14)") "Chosen random seed", iSeed
+      write(stdOut, "(A,':',T30,I0)") "Chosen random seed", iSeed
     else
-      write(stdOut, "(A,':',T30,I14)") "Specified random seed", iSeed
+      write(stdOut, "(A,':',T30,I0)") "Specified random seed", iSeed
     end if
 
     if (input%ctrl%tMD) then
