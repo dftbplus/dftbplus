@@ -84,8 +84,10 @@ module elsisolver
   end type TElsiSolverInp
 
 
-  !> Contains settings for the solvers of the ELSI library
+  !> Contains settings for the solvers of the ELSI library. See ELSI manual for detailed meaning of
+  !> variables
   type :: TElsiSolver
+
     private
 
     !> should the code write matrices and stop
@@ -103,62 +105,137 @@ module elsisolver
     !> Use sparse CSR format
     logical, public :: isSparse = .false.
 
+    !> ELSI Solver choice
     integer :: solver
+
+    !> Level of solver information output
     integer :: outputLevel
+
+    !> See ELSI manual - parallelisation strategy
     integer :: parallel
+
+    !> See ELSI manual - type of parallel data decomposition
     integer :: denseBlacs
 
+    !> Number of basis functions
     integer :: nBasis
+
+    !> Number of electrons in the system
     real(dp) :: nElectron
+
+    !> Maximum spin occupation for levels
     real(dp) :: spinDegeneracy
+
+    !> Number of states to solve when relevant
     integer :: nState
+
+    !> Global comm
     integer :: mpiCommWorld
+
+    !> Group comm
     integer :: myCommWorld
+
+    !> BLACS matrix context in use
     integer :: myBlacsCtx
+
+    !> BLACS block sizes
     integer :: BlacsBlockSize
+
+    !> CSC blocksize
     integer :: csrBlockSize
 
+    !> Number of independent spins
     integer :: nSpin
+
+    !> Number of independent k-points
     integer :: nKPoint
+
+    !> Index for current spin processed here
     integer :: iSpin
+
+    !> Index for current k-point processed here
     integer :: iKPoint
+
+    !> Weighting for current k-point
     real(dp) :: kWeight
 
+    !> Choice of broadening function
     integer :: muBroadenScheme
+
+    !> If Meth-Paxton, order of scheme
     integer :: muMpOrder
-
-    ! ELPA settings
-    integer :: elpaSolverOption
-
-    ! OMM settings
-    integer :: ommIter
-    real(dp) :: ommTolerance
-    logical :: ommCholesky
-
-    ! PEXSI settings
-    real(dp) :: pexsiMuMin
-    real(dp) :: pexsiMuMax
-    real(dp) :: pexsiDeltaVMin
-    real(dp) :: pexsiDeltaVMax
-    real(dp), allocatable :: pexsiVOld(:)
-    integer :: pexsiNPole
-    integer :: pexsiNpPerPole
-    integer :: pexsiNMu
-    integer :: pexsiNpSymbo
-    real(dp) :: pexsiDeltaE
-
-    ! NTPoly settings
-    integer :: ntpolyMethod
-    real(dp) :: ntpolyTruncation
-    real(dp) :: ntpolyTolerance
 
     !> count of the number of times ELSI has been reset (usually every geometry step)
     integer :: nResets = 0
 
+    !> Has overlap been factorized
     logical :: tCholeskyDecomposed
+
+    !> Is this the first calls for this geometry
     logical :: tFirstCalc = .true.
 
+    !> Sparse format data structure
     type(TElsiCsc), allocatable :: elsiCsc
+
+
+    !! ELPA settings
+
+    !> ELPA solver choice
+    integer :: elpaSolverOption
+
+    !! OMM settings
+
+    !> Starting iterations with ELPA
+    integer :: ommIter
+
+    !> Tolerance for minimisation
+    real(dp) :: ommTolerance
+
+    !> Whether to Cholesky factorize and transform or work with general
+    logical :: ommCholesky
+
+    !! PEXSI settings
+
+    !> Minimum contour range
+    real(dp) :: pexsiMuMin
+
+    !> Maximum contour range
+    real(dp) :: pexsiMuMax
+
+    !> Most negative potential
+    real(dp) :: pexsiDeltaVMin
+
+    !> Most positive potential
+    real(dp) :: pexsiDeltaVMax
+
+    !> Previous potentials
+    real(dp), allocatable :: pexsiVOld(:)
+
+    !> Number of poles for expansion
+    integer :: pexsiNPole
+
+    !> Processors per pole
+    integer :: pexsiNpPerPole
+
+    !> Processes for chemical potential search
+    integer :: pexsiNMu
+
+    !> Processors used for symbolic factorization stage
+    integer :: pexsiNpSymbo
+
+    !> Spectral radius
+    real(dp) :: pexsiDeltaE
+
+    !! NTPoly settings
+
+    !> Choice of minimisation method
+    integer :: ntpolyMethod
+
+    !> Truncation threshold for elements
+    real(dp) :: ntpolyTruncation
+
+    !> Convergence tolerance
+    real(dp) :: ntpolyTolerance
 
   contains
 
@@ -245,7 +322,7 @@ contains
 
     case (electronicSolverTypes%ntpoly)
       this%solver = 6
-      ! ignored by NTPoly:
+      ! ignored by NTPoly, but set anyway:
       this%nState = nBasisFn
 
     end select
@@ -259,7 +336,7 @@ contains
     ! number of electrons in the problem
     this%nElectron = sum(nEl)
 
-    ! should the code write the hamiltonian and overlap and stop
+    ! should the code write the hamiltonian and overlap then stop
     this%tWriteHS = tWriteHS
 
     if (nSpin == 2) then
@@ -418,8 +495,10 @@ contains
 
       select case(this%elpaSolverOption)
       case(1)
+        ! single stage
         call elsi_set_elpa_solver(this%handle, 1)
       case(2)
+        ! two stage
         call elsi_set_elpa_solver(this%handle, 2)
       case default
         call error("Unknown ELPA solver modes")
@@ -457,7 +536,7 @@ contains
       ! number of processors for symbolic factorisation task
       call elsi_set_pexsi_np_symbo(this%handle, this%pexsiNpSymbo)
 
-      ! spectral radius (range of eigenspectrum, if known, otherwise defaul usually fine)
+      ! spectral radius (range of eigenspectrum, if known, otherwise default usually fine)
       call elsi_set_pexsi_delta_e(this%handle, this%pexsiDeltaE)
 
     case(electronicSolverTypes%ntpoly)
@@ -506,9 +585,11 @@ contains
   end subroutine TElsiSolver_reset
 
 
+  !> Resets solver due to geometry changes
   subroutine TElsiSolver_updateGeometry(this, env, neighList, nNeighbourSK, iAtomStart,&
       & iSparseStart, img2CentCell)
 
+    !> Instance
     class(TElsiSolver), intent(inout) :: this
 
     !> Environment settings
@@ -1518,6 +1599,7 @@ contains
   end subroutine getDensityCmplxSparse
 
 
+  !> Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine getEDensityMtxReal(this, env, denseDesc, neighbourList, nNeighbourSK, orb,&
       & iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
 
@@ -1571,6 +1653,7 @@ contains
   end subroutine getEDensityMtxReal
 
 
+  !> Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine getEDensityMtxCmplx(this, env, denseDesc, kPoint, kWeight, neighbourList,&
       & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, parallelKS, ERhoPrim,&
       & SSqrCplx)
@@ -1643,6 +1726,7 @@ contains
   end subroutine getEDensityMtxCmplx
 
 
+  !> Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine getEDensityMtxPauli(this, env, denseDesc, kPoint, kWeight, neighbourList,&
       & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, parallelKS, ERhoPrim,&
       & SSqrCplx)

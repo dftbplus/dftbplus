@@ -14,9 +14,12 @@ module elecsolvertypes
 
   !> Namespace for possible solver methods
   type :: TElecSolverTypesEnum
+
+    ! lapack/scalapack solvers
     integer :: qr = 1
     integer :: divideandconquer = 2
     integer :: relativelyrobust = 3
+
     ! elsi provided solvers
     integer :: elpa = 4
     integer :: omm = 5
@@ -24,9 +27,11 @@ module elecsolvertypes
     integer :: dummy1 = 7
     integer :: dummy2 = 8
     integer :: ntpoly = 9
+
     ! transport related
     integer :: gf = 10
     integer :: onlyTransport = 11
+
   end type TElecSolverTypesEnum
 
 

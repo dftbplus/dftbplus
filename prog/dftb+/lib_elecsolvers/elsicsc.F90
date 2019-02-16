@@ -887,6 +887,7 @@ contains
   end subroutine getColPtr
 
 
+  !> Generates indexing for local rows of the CSC matrix
   subroutine getBlockRow(iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell,&
       & colStart, colEnd, atomsInColumns, nAtomsInColumns, blockRow)
 
