@@ -29,7 +29,7 @@ module negf_int
   use FormatOut
   use globalenv
   use message
-  use solvertypes
+  use elecsolvertypes, only : electronicSolverTypes
 
   implicit none
   private
@@ -117,7 +117,7 @@ module negf_int
     call init_contacts(negf, ncont)
     call set_scratch(negf, ".")
 
-    if (tIoProc .and. transpar%defined .and. solver == solverGF) then
+    if (tIoProc .and. transpar%defined .and. solver == electronicSolverTypes%GF) then
       call create_scratch(negf)
     end if
 

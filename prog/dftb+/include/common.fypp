@@ -19,6 +19,8 @@
 
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
 #:set WITH_MPI = defined('WITH_MPI')
+#:set WITH_ELSI = defined('WITH_ELSI')
+#:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
 #:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
 #:set WITH_DFTD3 = defined('WITH_DFTD3')
 #:set WITH_SOCKETS = defined('WITH_SOCKETS')
@@ -76,4 +78,3 @@
 #:enddef
 
 #:endmute
-        

@@ -1713,13 +1713,13 @@ detailed output.
 \label{sec:dftbp.Eigensolver}
 
 Currently the following LAPACK~3.0~\cite{lapack3} eigensolver methods
-are available:
+are always available:
 \begin{itemize}
 \item \iscb{QR}\\ (QR decomposition based solver)
-\item \iscb{DivideAndConquer}\\ (this requires about twice the memory
-  of the other solvers)
-\item \iscb{RelativelyRobust}\\ (using the subspace form but
-  calculating all states)
+\item \iscb{DivideAndConquer}\\ (this requires about twice the memory of the
+  other solvers)
+\item \iscb{RelativelyRobust}\\ (using the subspace form but calculating all
+  states)
 \end{itemize}
 None of them needs any parameters or properties specified.
 
@@ -1728,6 +1728,115 @@ Example:\invparskip
   Eigensolver = DivideAndConquer {}
 \end{verbatim}
 
+For ScaLAPACK enabled compilation, all three solvers are also available.
+
+If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
+the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
+become available.
+
+\subsubsection{ELPA}
+
+This is avalable with either single or two stage solution methods (the second of
+these is claimed to be more efficiently parallel for large problems).
+
+Example:\invparskip
+\begin{verbatim}
+  Eigensolver = ELPA {
+    Mode = 2
+  }
+\end{verbatim}
+
+One caveat for this solver is that the number of parallel groups (see
+p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
+case of collinear spin polarisation). Calculations without k-points can use
+either one or two groups in the case of collinear spin polarisation.
+
+\subsubsection{OMM}
+
+This method minimises the single particle density matrix, so does not make band
+structure information available. It is only stable for insulating grounds
+states, i.e., systems with a HOMO-LUMO (band) gap.
+
+The orbital minimisation method has four options:
+
+\begin{ptable}
+  \kw{nInterationsELPA} & i& & 5 & \\
+  \kw{Tolerance} & r& & 1E-10 & \\
+  \kw{Choleskii} & l& & Yes & \\
+  \kw{Sparse}    & l& & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{nInterationsELPA}] Number of initial iterations to be performed with
+  ELPA before the OMM method starts.
+\item[\is{Tolerance}] Minimisation tolerance for this solver, larger values are
+  faster by may be less stable.
+\item[\is{Choleskii}] Whether the overlap is Choleskii factorised before
+  applying OMM. This may increase stability of this method.
+\item[\is{Sparse}] Whether the code should use the sparse matrix interface to
+  ELSI solvers. This does not substantially improve memory usage in this case as
+  internally the dense problem is solved with libOMM.
+\end{description}
+
+\subsubsection{PEXSI}
+
+The PEXSI solver directly calculates the density matrix, so does not make band
+structure information or Mermi free energy available. The scaling with system
+size is better than the other solvers available in \dftbp{}, increasing as
+$O(N_\mathrm{atom}^{d/2 + 1/2})$ where $d$ is the effective dimensionality of
+the system. Hence for three dimensional structures it will scale as $O(N^2)$ for
+general systems.
+\begin{ptable}
+  \kw{Poles}        & i & & 20 & \\
+  \kw{ProcsPerPole} & i & & 1  & \\
+  \kw{muPoints}     & i & & 2  & \\
+  \kw{SymbolicFactorProcs} & i & & 1  & \\
+  \kw{SpectralRadius} & r & & 10 & \\
+  \kw{Sparse} & l& & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{Poles}] number of poles for the complex plane calculation.
+\item[\is{ProcsPerPole}] processors used to calculate the inversion at each pole.
+\item[\is{muPoints}] number of processors used to search for the Fermi level.
+\item[\is{SymbolicFactorProcs}] number of processors to use in evaluating the
+  factorisation pattern of matrices.
+\item[\is{SpectralRadius}]\modif{\modtype{Energy}} extension of the complex
+  contour.
+\item[\is{Sparse}] Whether the code should use the sparse ELSI matrix interface.
+\end{description}
+
+\subsubsection{NTPoly}
+
+This method constructs the single particle density matrix via a purification
+method based on matrix polynomials (hence requires insulating systems). The
+solver does not make band structure information available, but can be linear
+scaling in both time and memory depending on settings and system. Currently the
+solver does not support spin polarisation or k-points.
+
+This solver has four options:
+
+\begin{ptable}
+  \kw{PurificationMethod} & i& & 2 & \\
+  \kw{Tolerance} & r& & 1E-5 & \\
+  \kw{Truncation} & r& & 1E-10 & \\
+  \kw{Sparse} & l& & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{PurificationMethod}] Allowed choices are 0 for canonical purification,
+  1 for trace correcting purification, 2 for 4$^\mathrm{th}$ order trace
+  resetting purification, and 3 for generalised hole-particle canonical
+  purification.
+\item[\is{Tolerance}] Iterative convergence tolerance for this solver, larger
+  values are faster by may be less stable.
+\item[\is{Truncation}] Tolerance below which matrix elements in the density
+  matrix are dropped to enforce sparsity.
+\item[\is{Sparse}] Whether the code should use the sparse matrix ELSI interface.
+\end{description}
+
+The default choices of \is{Tolerance} and \is{Truncation} lead to an accurate,
+but slow, solutions. Alternatively linear scaling can be achieved at smaller
+system sizes with a larger choice of these values. Values in the range of 1E-3
+and 1E-6 for \is{Tolerance} and \is{Truncation} may be suitable (but test the
+quality of the solutions).
 
 \subsection{Filling}
 \label{sec:dftbp.Filling}
