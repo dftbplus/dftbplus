@@ -20,17 +20,15 @@ module elsisolver
   use densedescr
   use periodic
   use orbitals
-  use message, only : error
+  use message, only : error, cleanshutdown
   use commontypes, only : TParallelKS, TOrbitals
   use energies, only : TEnergies
   use sparse2dense
   use assert
-  use message
   use spin, only : ud2qm
   use angmomentum, only : getLOnsite
   use spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
   use potentials, only : TPotentials
-  use message, only : error
   implicit none
   private
 
@@ -945,7 +943,7 @@ contains
       end if
 
     case(electronicSolverTypes%omm)
-      write(buffer, "(A,I0,A,E8.2)") "ELSI solver libOMM with ",&
+      write(buffer, "(A,I0,A,E9.2)") "ELSI solver libOMM with ",&
           & this%ommIter, " ELPA iterations",this%ommTolerance
       if (this%isSparse) then
         write(buffer, "(A)") "ELSI solver libOMM Sparse"
