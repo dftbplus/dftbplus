@@ -497,6 +497,8 @@ contains
       call elsi_set_output_log(this%handle, 1)
     end if
 
+    this%tFirstCalc = .true.
+
   #:else
 
     call error("Internal error: TElsiSolver_reset() called despite missing ELSI support")
