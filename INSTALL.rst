@@ -23,7 +23,7 @@ Additionally there are optional requirements for some DFTB+ features:
 
 * In addition to ScaLAPACK, the `ELSI
   <https://wordpress.elsi-interchange.org/>`_ library for large scale systems can
-  also be used.
+  optionally also be used.
 
 * The M4 preprocessor, if you want to build the MPI-parallelised version of the
   code
