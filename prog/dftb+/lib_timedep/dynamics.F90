@@ -1888,8 +1888,10 @@ contains
     integer :: iSpin
 
     close(dipoleDat)
-    close(qDat)
-    close(energyDat)
+    if (.not. this%tKick) then
+      close(qDat)
+      close(energyDat)
+    end if
 
     if (this%tPopulations) then
        do iSpin = 1, this%nSpin
