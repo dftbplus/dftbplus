@@ -11,7 +11,13 @@ Unreleased
 Added
 -----
 
-- Ability to perform ground state MD with excitation energies
+- Non-equilibrium Green's function transport.
+
+- Use of the ELSI library.
+  
+- Ability to perform ground state MD with excitation energies.
+
+- Caching for transition charges in excited state.
 
 
 Changed

@@ -55,9 +55,10 @@ module timeprop_module
   use timer
   use taggedoutput
   use hamiltonian
-  use solvertypes
+  use dftbp_elstattypes
   use onsitecorrection
   use message
+  use elecsolvers, only : TElectronicSolver
   implicit none
   private
 
@@ -416,7 +417,7 @@ contains
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
       & env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
       & tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec,&
-      & rCellVec)
+      & rCellVec, electronicSolver)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -529,6 +530,9 @@ contains
     !> index in cellVec for each atom
     integer, allocatable, intent(in) :: iCellVec(:)
 
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
     integer :: iPol, iCall
     logical :: tWriteAutotest
 
@@ -561,14 +565,15 @@ contains
             & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
             & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-            & skOverCont, iCall)
+            & skOverCont, iCall, electronicSolver)
         iCall = iCall + 1
       end do
     else
       call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
           & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
           & xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef,&
-          & tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont, iCall)
+          & tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont, iCall,&
+          & electronicSolver)
     end if
 
   end subroutine runDynamics
@@ -579,7 +584,7 @@ contains
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
       & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
       & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-      & skOverCont, iCall)
+      & skOverCont, iCall, electronicSolver)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -681,7 +686,11 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
-    integer :: iCall
+    !> Number of times this has been called
+    integer, intent(in) :: iCall
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%nSpin), rhoOld(this%nOrbs,this%nOrbs,this%nSpin)
@@ -890,7 +899,8 @@ contains
 
         call swap(rhoOld(:,:,iSpin), rho(:,:,iSpin))
         if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-           call getTDPopulations(this, rho, Eiginv, EiginvAdj, T1, H1, Ssqr, populDat, time, iSpin)
+          call getTDPopulations(this, electronicSolver, rho, Eiginv, EiginvAdj, T1, H1, Ssqr,&
+              & populDat, time, iSpin)
         end if
 
      end do
@@ -1044,7 +1054,8 @@ contains
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
     call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, speciesAll,&
-        & neighbourList, img2CentCell, spinW, thirdOrd, potential, gammaf, .false., .false., dummy)
+        & neighbourList, img2CentCell, spinW, thirdOrd, potential, elstatTypes%gammaFunc, .false.,&
+        & .false., dummy)
 
     ! Build spin contribution (if necessary)
 !    if (this%tSpinPol) then
@@ -2159,10 +2170,14 @@ contains
   end subroutine tdPopulInit
 
   !> Calculate populations at each time step
-  subroutine getTDPopulations(this, rho, Eiginv, EiginvAdj, T1, H1, Ssqr, populDat, time, iSpin)
+  subroutine getTDPopulations(this, electronicSolver, rho, Eiginv, EiginvAdj, T1, H1, Ssqr,&
+      & populDat, time, iSpin)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> Density Matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -2198,7 +2213,7 @@ contains
     if (this%tIons) then
        H1(:,:,iSpin) = -imag * H1(:,:,iSpin) ! change back to real H1 (careful, included D matrix!)
        ! only do previous step because of using other propagateRho for frozen nuclei
-       call diagDenseMtx(2, 'V', H1(:,:,iSpin), SSqr, eigen) !should be real(H1)
+       call diagDenseMtx(electronicSolver, 'V', H1(:,:,iSpin), SSqr, eigen) !should be real(H1)
        call tdPopulInit(this, Eiginv, EiginvAdj, real(H1), iSpin)
     end if
 

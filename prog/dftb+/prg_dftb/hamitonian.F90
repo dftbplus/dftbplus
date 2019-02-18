@@ -22,7 +22,7 @@ module hamiltonian
   use thirdorder_module, only : ThirdOrder
   use environment, only : TEnvironment
   use scc, only : TScc
-  use solvertypes
+  use dftbp_elstattypes
 
 #:if WITH_TRANSPORT
   use poisson_init
@@ -177,61 +177,6 @@ contains
   end subroutine setUpExternalElectricField
 
 
-  !> Returns the Hamiltonian for the given scc iteration
-  subroutine getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
-      & img2CentCell, potential, ham, iHam)
-
-    !> non-SCC hamitonian (sparse)
-    real(dp), intent(in) :: H0(:)
-
-    !> overlap (sparse)
-    real(dp), intent(in) :: over(:)
-
-    !> Number of atomic neighbours
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> list of atomic neighbours
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> species of atoms
-    integer, intent(in) :: species(:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Index for atomic blocks in sparse data
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> image atoms to central cell atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> potential acting on sustem
-    type(TPotentials), intent(in) :: potential
-
-    !> resulting hamitonian (sparse)
-    real(dp), intent(out) :: ham(:,:)
-
-    !> imaginary part of hamitonian (if required, signalled by being allocated)
-    real(dp), allocatable, intent(inout) :: iHam(:,:)
-
-    integer :: nAtom
-
-    nAtom = size(orb%nOrbAtom)
-
-    ham(:,:) = 0.0_dp
-    ham(:,1) = h0
-    call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
-        & nAtom, img2CentCell, potential%intBlock)
-
-    if (allocated(iHam)) then
-      iHam(:,:) = 0.0_dp
-      call add_shift(iHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-          & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
-    end if
-
-  end subroutine getSccHamiltonian
-
-
   !> Reset internal potential related quantities
   subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
@@ -335,13 +280,13 @@ contains
 
     select case(electrostatics)
 
-    case(gammaf)
+    case(elstatTypes%gammaFunc)
 
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       call sccCalc%getShiftPerAtom(atomPot(:,1))
       call sccCalc%getShiftPerL(shellPot(:,:,1))
 
-    case(poisson)
+    case(elstatTypes%poisson)
 
     #:if WITH_TRANSPORT
       ! NOTE: charge-magnetization representation is used
@@ -396,8 +341,8 @@ contains
 
 
   !> Add potentials comming from on-site block of the dual density matrix.
-  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
-      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb, nDftbUFunc&
+      &, UJ, nUJ, iUJ, niUJ, potential)
 
     !> block input charges
     real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
@@ -449,5 +394,59 @@ contains
 
   end subroutine addBlockChargePotentials
 
+
+  !> Returns the Hamiltonian for the given scc iteration
+  subroutine getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+      & img2CentCell, potential, ham, iHam)
+
+    !> non-SCC hamitonian (sparse)
+    real(dp), intent(in) :: H0(:)
+
+    !> overlap (sparse)
+    real(dp), intent(in) :: over(:)
+
+    !> Number of atomic neighbours
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> list of atomic neighbours
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> species of atoms
+    integer, intent(in) :: species(:)
+
+    !> atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Index for atomic blocks in sparse data
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> image atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> potential acting on sustem
+    type(TPotentials), intent(in) :: potential
+
+    !> resulting hamitonian (sparse)
+    real(dp), intent(out) :: ham(:,:)
+
+    !> imaginary part of hamitonian (if required, signalled by being allocated)
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
+    integer :: nAtom
+
+    nAtom = size(orb%nOrbAtom)
+
+    ham(:,:) = 0.0_dp
+    ham(:,1) = h0
+    call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
+        & nAtom, img2CentCell, potential%intBlock)
+
+    if (allocated(iHam)) then
+      iHam(:,:) = 0.0_dp
+      call add_shift(iHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+          & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
+    end if
+
+  end subroutine getSccHamiltonian
 
 end module hamiltonian

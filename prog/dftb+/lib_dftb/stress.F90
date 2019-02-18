@@ -27,7 +27,7 @@ contains
 
 
   !> The stress tensor contribution from the repulsive energy term
-  subroutine getRepulsiveStress(st, coords, nNeighbourSK, iNeighbours, species, img2CentCell,&
+  subroutine getRepulsiveStress(st, coords, nNeighbourRep, iNeighbours, species, img2CentCell,&
       & repCont, cellVol)
 
     !> stress tensor
@@ -37,7 +37,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbours for atoms in the central cell
-    integer, intent(in) :: nNeighbourSK(:)
+    integer, intent(in) :: nNeighbourRep(:)
 
     !> Index of neighbours for a given atom.
     integer, intent(in) :: iNeighbours(0:,:)
@@ -59,11 +59,11 @@ contains
 
     @:ASSERT(all(shape(st) == [3, 3]))
 
-    nAtom = size(nNeighbourSK)
+    nAtom = size(nNeighbourRep)
     st(:,:) = 0.0_dp
 
     do iAt1 = 1, nAtom
-      do iNeigh = 1, nNeighbourSK(iAt1)
+      do iNeigh = 1, nNeighbourRep(iAt1)
         iAt2 = iNeighbours(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         vect(:) = coords(:,iAt1) - coords(:,iAt2)

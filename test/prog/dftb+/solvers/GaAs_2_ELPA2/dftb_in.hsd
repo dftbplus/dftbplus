@@ -1,0 +1,62 @@
+Geometry = GenFormat {
+2  S
+ Ga As
+     1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+     2    2    0.13567730000E+01   0.13567730000E+01   0.13567730000E+01
+   0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+   0.27135460000E+01   0.27135460000E+01   0.00000000000E+00
+   0.00000000000E+00   0.27135460000E+01   0.27135460000E+01
+   0.27135460000E+01   0.00000000000E+00   0.27135460000E+01
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  Eigensolver = ELPA {}
+  SCCTolerance = 1.0E-7  # Very small!
+  MaxAngularMomentum = {
+    Ga = "d"
+    As = "p"
+  }
+  Charge = 0.0
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 0.2
+  }
+  SpinConstants = {  # These are dummy spin constants, never use them!
+    Ga = {-4.1E-2}
+    As = {-5.0E-2}
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 1.000000000000000E-006
+  }
+  SlaterKosterFiles = {
+    Ga-Ga = "./Ga-Ga.skf"
+    Ga-As = "./Ga-As.skf"
+    As-Ga = "./As-Ga.skf"
+    As-As = "./As-As.skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   2 0 0
+   0 2 0
+   0 0 2
+   0.5 0.5 0.5
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+Analysis = {
+  CalculateForces = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 5
+}
+
+Parallel = {
+  Groups = 8
+  UseOmpThreads = Yes
+}
