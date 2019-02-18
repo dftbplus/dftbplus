@@ -35,7 +35,7 @@ clean:
 %.o: %.f90
 	$(FXX) $(FXXOPT) -o $@ -c $<
 
-%.o: %c
+%.o: %.c
 	$(CC) $(CCOPT) -o $@ -c $<
 
 _mod_%:

@@ -18,6 +18,7 @@ module inputdata_module
   use slakocont
   use commontypes
   use repcont
+  use elecsolvers, only : TElectronicSolverInp
   use linkedlist
   use xlbomd_module
   use timeprop_module
@@ -210,7 +211,10 @@ module inputdata_module
     !> initial charges
     real(dp), allocatable :: initialCharges(:)
     logical :: tDFTBU        = .false.
-    integer :: iSolver       = 0
+
+    !> Electronic/eigenvalue solver options
+    type(TElectronicSolverInp) :: solver
+
     integer :: iMixSwitch    = 0
     integer :: maxIter       = 0
     real(dp) :: almix         = 0.0_dp

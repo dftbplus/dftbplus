@@ -14,10 +14,12 @@ module eigenvects
   use accuracy
   use eigensolver
   use message
-  use solvertypes
 #:if WITH_SCALAPACK
   use scalapackfx
 #:endif
+  use elsiiface
+  use parallelks
+  use elecsolvers, only : TElectronicSolver, electronicSolverTypes
   implicit none
   private
 
@@ -45,10 +47,10 @@ contains
 
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenvectors and values,
   !> as well as often the Cholesky factorized overlap matrix (due to a side effect of lapack)
-  subroutine diagDenseRealMtx(iSolver, jobz, HSqrReal, SSqrReal, eigen)
+  subroutine diagDenseRealMtx(electronicSolver, jobz, HSqrReal, SSqrReal, eigen)
 
-    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer, intent(in) :: iSolver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> type of eigen-problem, either 'V'/'v' with vectors or 'N'/'n' eigenvalues only
     character, intent(in) :: jobz
@@ -69,12 +71,12 @@ contains
     @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-    select case(iSolver)
-    case(solverQR)
+    select case(electronicSolver%iSolver)
+    case(electronicSolverTypes%QR)
       call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
-    case(solverDAC)
+    case(electronicSolverTypes%divideandconquer)
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
-    case(solverRR)
+    case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
@@ -86,10 +88,10 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap with k-points to give the
   !> eigenvectors and values, as well as often the Cholesky factorized overlap matrix (due to a side
   !> effect of lapack)
-  subroutine diagDenseComplexMtx(iSolver, jobz, HSqrCplx, SSqrCplx, eigen)
+  subroutine diagDenseComplexMtx(electronicSolver, jobz, HSqrCplx, SSqrCplx, eigen)
 
-    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer, intent(in) :: iSolver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> type of eigen-problem, either 'V'/'v' vectors or 'N'/'n' eigenvalues only
     character, intent(in) :: jobz
@@ -109,12 +111,12 @@ contains
     @:ASSERT(size(HSqrCplx, dim=1) == size(eigen))
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-    select case(iSolver)
-    case(solverQR)
+    select case(electronicSolver%iSolver)
+    case(electronicSolverTypes%QR)
       call hegv(HSqrCplx,SSqrCplx,eigen,'L',jobz)
-    case(solverDAC)
+    case(electronicSolverTypes%divideandconquer)
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
-    case(solverRR)
+    case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case default
       call error('Unknown eigensolver')
@@ -128,10 +130,14 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseRealMtxBlacs(iSolver, jobz, desc, HSqr, SSqr, eigenVals, eigenVecs)
+  subroutine diagDenseRealMtxBlacs(electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
+      & eigenVecs)
 
-    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer, intent(in) :: iSolver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Index of the overlap matrix where Cholesky should be stored.
+    integer, intent(in) :: iCholesky
 
     !> type of eigenVals-problem, either 'V'/'v' with vectors or 'N'/'n' eigenValsvalues only
     character, intent(in) :: jobz
@@ -152,20 +158,40 @@ contains
     !> Eigenvectors
     real(dp), intent(out) :: eigenVecs(:,:)
 
-
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-    select case(iSolver)
-    case(solverQR)
-      call scalafx_psygv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz)
-    case(solverDAC)
+    if (electronicSolver%hasCholesky(iCholesky)) then
+      call electronicSolver%getCholesky(iCholesky, SSqr)
+    end if
+
+    select case(electronicSolver%iSolver)
+    case(electronicSolverTypes%QR)
+      call scalafx_psygv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
+          & skipchol=electronicSolver%hasCholesky(iCholesky))
+    case(electronicSolverTypes%divideandconquer)
       call scalafx_psygvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
-          & allocfix=.true.)
-    case(solverRR)
-      call scalafx_psygvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V")
+          & allocfix=.true., skipchol=electronicSolver%hasCholesky(iCholesky))
+    case(electronicSolverTypes%relativelyrobust)
+      call scalafx_psygvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz="V",&
+          & skipchol=electronicSolver%hasCholesky(iCholesky))
+    case(electronicSolverTypes%elpa)
+      if (electronicSolver%elsi%tWriteHS) then
+        call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Hreal.bin", HSqr)
+        call elsi_write_mat_real(electronicSolver%elsi%rwHandle, "ELSI_Sreal.bin", SSqr)
+        call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
+        call cleanShutdown("Finished dense matrix write")
+      end if
+      ! ELPA solver, returns eigenstates
+      ! note, this only factorises overlap on first call - no skipchol equivalent
+      call elsi_ev_real(electronicSolver%elsi%handle, HSqr, SSqr, eigenVals, eigenVecs)
+
     case default
       call error('Unknown eigensolver')
     end select
+
+    if (.not. electronicSolver%hasCholesky(1)) then
+      call electronicSolver%storeCholesky(1, SSqr)
+    end if
 
   end subroutine diagDenseRealMtxBlacs
 
@@ -174,10 +200,14 @@ contains
   !> Diagonalizes a sparse represented Hamiltonian and overlap to give the eigenValsvectors and
   !> values, as well as often the Cholesky factorized overlap matrix (due to a side effect of
   !> lapack)
-  subroutine diagDenseCplxMtxBlacs(iSolver, jobz, desc, HSqr, SSqr, eigenVals, eigenVecs)
+  subroutine diagDenseCplxMtxBlacs(electronicSolver, iCholesky, jobz, desc, HSqr, SSqr, eigenVals,&
+      & eigenVecs)
 
-    !> Choice of eigensolver, 4 different lapack dense solvers currently supported
-    integer, intent(in) :: iSolver
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Index of the overlap matrix where Cholesky should be stored.
+    integer, intent(in) :: iCholesky
 
     !> type of eigenVals-problem, either 'V'/'v' with vectors or 'N'/'n' eigenValsvalues only
     character, intent(in) :: jobz
@@ -198,20 +228,44 @@ contains
     !> Eigenvectors
     complex(dp), intent(out) :: eigenVecs(:,:)
 
-
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
 
-    select case(iSolver)
-    case(solverQR)
-      call scalafx_phegv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz)
-    case(solverDAC)
+    if (electronicSolver%hasCholesky(iCholesky)) then
+      call electronicSolver%getCholesky(iCholesky, SSqr)
+    end if
+
+    select case(electronicSolver%iSolver)
+
+    case(electronicSolverTypes%QR)
+      call scalafx_phegv(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz, &
+          & skipchol=electronicSolver%hasCholesky(iCholesky))
+
+    case(electronicSolverTypes%divideandconquer)
       call scalafx_phegvd(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
-          & allocfix=.true.)
-    case(solverRR)
-      call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz)
+          & allocfix=.true., skipchol=electronicSolver%hasCholesky(iCholesky))
+
+    case(electronicSolverTypes%relativelyrobust)
+      call scalafx_phegvr(HSqr, desc, SSqr, desc, eigenVals, eigenVecs, desc, uplo="L", jobz=jobz,&
+          & skipchol=electronicSolver%hasCholesky(iCholesky))
+
+    case(electronicSolverTypes%elpa)
+      if (electronicSolver%elsi%tWriteHS) then
+        call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Hcmplx.bin", HSqr)
+        call elsi_write_mat_complex(electronicSolver%elsi%rwHandle, "ELSI_Scmplx.bin", SSqr)
+        call elsi_finalize_rw(electronicSolver%elsi%rwHandle)
+        call cleanShutdown("Finished dense matrix write")
+      end if
+      ! ELPA solver, returns eigenstates
+      ! note, this only factorises overlap on first call - no skipchol equivalent
+      call elsi_ev_complex(electronicSolver%elsi%handle, HSqr, SSqr, eigenVals, eigenVecs)
+
     case default
       call error('Unknown eigensolver')
     end select
+
+    if (.not. electronicSolver%hasCholesky(iCholesky)) then
+      call electronicSolver%storeCholesky(iCholesky, SSqr)
+    end if
 
   end subroutine diagDenseCplxMtxBlacs
 
