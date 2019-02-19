@@ -199,7 +199,7 @@ type TElecDynamics
    character(mc) :: autotestTag
 
    real(dp), allocatable :: initialVelocities(:,:), movedVelo(:,:), movedMass(:,:)
-   real(dp) :: mCutoff, skRepCutoff, laserField
+   real(dp) :: mCutoff, skCutoff, laserField
    real(dp), allocatable :: rCellVec(:,:)
    real(dp), allocatable :: atomEigVal(:,:), onsiteGrads(:,:,:,:)
    integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PpFreq, PpIni, PpEnd
@@ -231,7 +231,7 @@ contains
 
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
-       & randomThermostat, mass, nAtom, skRepCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
+       & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
        & tPeriodic)
 
     !> ElecDynamics instance
@@ -262,7 +262,7 @@ contains
     real(dp), intent(in) :: mCutoff
 
     !> Cut off distance for Slater-Koster interactions
-    real(dp) :: skRepCutoff
+    real(dp) :: skCutoff
 
     !> list of atomic masses
     real(dp) :: mass(:)
@@ -394,7 +394,7 @@ contains
        allocate(this%dispersion, source=dispersion)
     end if
 
-    this%skRepCutoff = skRepCutoff
+    this%skCutoff = skCutoff
     this%mCutoff = mCutoff
     allocate(this%atomEigVal, source=atomEigVal)
 
@@ -2408,7 +2408,7 @@ contains
 
     call updateNeighbourListAndSpecies(coordAll, this%speciesAll, img2CentCell, this%iCellVec, &
          &neighbourList, nAllAtom, coord0Fold, this%species, this%mCutoff, this%rCellVec)
-    call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skRepCutoff)
+    call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, this%skCutoff)
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
 
