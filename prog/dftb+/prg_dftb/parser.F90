@@ -3573,6 +3573,7 @@ contains
     if (any(ctrl%solver%isolver == [electronicSolverTypes%qr,&
         & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
         & electronicSolverTypes%elpa])) then
+      tHaveEigenDecomposition = .true.
     end if
 
     if (tHaveEigenDecomposition) then
