@@ -15,9 +15,11 @@ module initprogram
   use globalenv
   use environment
   use scalapackfx
+  use elecsolvers
+  use elsisolver, only : TElsiSolver_init, TElsiSolver_final
+  use elsiiface
   use inputdata_module
   use densedescr
-  use solvertypes
   use constants
   use periodic
   use accuracy
@@ -80,6 +82,8 @@ module initprogram
   use potentials
   use taggedoutput
   use formatout
+  use dftbp_forcetypes, only : forceTypes
+  use dftbp_elstattypes, only : elstatTypes
 #:if WITH_TRANSPORT
   use libnegf_vars
   use negf_int
@@ -141,9 +145,6 @@ module initprogram
 
   !> nr. of orbitals in the system
   integer :: nOrb
-
-  !> nr. of orbitals for all atoms
-  integer :: nAllOrb
 
   !> types of the atoms (nAllAtom)
   integer, allocatable :: species(:)
@@ -355,10 +356,6 @@ module initprogram
 
   !> MD stepsize
   real(dp) :: deltaT
-
-
-  !> eigensolver
-  integer :: solver
 
   !> maximal number of SCC iterations
   integer :: maxSccIter
@@ -804,6 +801,12 @@ module initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
+  !> Electronic structure solver
+  type(TElectronicSolver) :: electronicSolver
+
+  !> Are large dense matrices required?
+  logical :: tLargeDenseMatrices
+
   private :: createRandomGenerators
 
 #:if WITH_TRANSPORT
@@ -996,7 +999,11 @@ contains
     !> Is the check-sum for charges read externally be used?
     logical :: tSkipChrgChecksum
 
+    !> Spin loop index
     integer :: iSpin
+
+    !> Nr. of buffered Cholesky-decompositions
+    integer :: nBufferedCholesky
 
     @:ASSERT(input%tInitialized)
 
@@ -1064,13 +1071,23 @@ contains
       tRealHS = .false.
     end if
 
-    #:if WITH_MPI
-      call env%initMpi(input%ctrl%parallelOpts%nGroup)
-    #:endif
+  #:if WITH_MPI
 
-    #:if WITH_SCALAPACK
-      call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
-    #:endif
+    if (input%ctrl%parallelOpts%nGroup > nIndepHam * nKPoint) then
+      write(stdOut, *)"Parallel groups only relevant for tasks split over sufficent spins and/or&
+          & k-points"
+      write(tmpStr,"('Nr. groups:',I4,', Nr. indepdendent spins times k-points:',I4)")&
+          & input%ctrl%parallelOpts%nGroup, nIndepHam * nKPoint
+      call error(trim(tmpStr))
+    end if
+
+    call env%initMpi(input%ctrl%parallelOpts%nGroup)
+  #:endif
+
+
+  #:if WITH_SCALAPACK
+    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
+  #:endif
     call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     sccTol = input%ctrl%sccTol
@@ -1080,13 +1097,15 @@ contains
           & boundary conditions!")
     end if
     tFracCoord = input%geom%tFracCoord
-    solver = input%ctrl%iSolver
+
     if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
       maxSccIter = 1
     end if
 
+    tWriteHS = input%ctrl%tWriteHS
+    tWriteRealHS = input%ctrl%tWriteRealHS
 
     if (tPeriodic) then
       tLatticeChanged = .true.
@@ -1386,6 +1405,7 @@ contains
 
     iDistribFn = input%ctrl%iDistribFn
     tempElec = input%ctrl%tempElec
+
     tFixEf = input%ctrl%tFixEf
     if (allocated(input%ctrl%Ef)) then
       Ef(:) = input%ctrl%Ef
@@ -1480,11 +1500,11 @@ contains
       nGeneration = input%ctrl%iGenerations
       mixParam = input%ctrl%almix
       select case (iMixer)
-      case (mixerSimple)
+      case (mixerTypes%simple)
         allocate(pSimplemixer)
         call init(pSimpleMixer, mixParam)
         call init(pChrgMixer, pSimpleMixer)
-      case (mixerAnderson)
+      case (mixerTypes%anderson)
         allocate(pAndersonMixer)
         if (input%ctrl%andersonNrDynMix > 0) then
           call init(pAndersonMixer, nGeneration, mixParam, input%ctrl%andersonInitMixing,&
@@ -1494,12 +1514,12 @@ contains
               & omega0=input%ctrl%andersonOmega0)
         end if
         call init(pChrgMixer, pAndersonMixer)
-      case (mixerBroyden)
+      case (mixerTypes%broyden)
         allocate(pBroydenMixer)
         call init(pBroydenMixer, maxSccIter, mixParam, input%ctrl%broydenOmega0,&
             & input%ctrl%broydenMinWeight, input%ctrl%broydenMaxWeight, input%ctrl%broydenWeightFac)
         call init(pChrgMixer, pBroydenMixer)
-      case(mixerDIIS)
+      case(mixerTypes%diis)
         allocate(pDIISMixer)
         call init(pDIISMixer,nGeneration, mixParam, input%ctrl%tFromStart)
         call init(pChrgMixer, pDIISMixer)
@@ -1569,11 +1589,11 @@ contains
     if (tSccCalc) then
       forceType = input%ctrl%forceType
     else
-      if (input%ctrl%forceType /= forceOrig) then
+      if (input%ctrl%forceType /= forceTypes%orig) then
         call error("Invalid force evaluation method for non-SCC calculations.")
       end if
     end if
-    if (forceType == forceDynT0 .and. tempElec > minTemp) then
+    if (forceType == forceTypes%dynamicT0 .and. tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
     end if
     if (tForces) then
@@ -1591,12 +1611,34 @@ contains
       end select
     end if
 
+    call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
+
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
+        & input%ctrl%parallelOpts, nIndepHam, tempElec)
+    if (tRealHS) then
+      nBufferedCholesky = 1
+    else
+      nBufferedCholesky = parallelKS%nLocalKS
+    end if
+    call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
+
+    if (electronicSolver%isElsiSolver) then
+      @:ASSERT(parallelKS%nLocalKS == 1)
+
+      ! Would be using the ELSI matrix writing mechanism, so set this as always false
+      tWriteHS = .false.
+      call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
+          & nEl, iDistribFn, nSpin, parallelKS%localKS(2, 1), nKpoint, parallelKS%localKS(1, 1),&
+          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
+    end if
+
+
   #:if WITH_TRANSPORT
     ! whether tunneling is computed
     tTunn = input%ginfo%tundos%defined
 
     ! Do we use any part of negf (solver, tunnelling etc.)?
-    tNegf = (solver .eq. solverGF) .or. tTunn
+    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn
 
     if (tNegf .and. env%mpi%nGroup > 1) then
       call error("At the moment NEGF solvers cannot be used for multiple processor groups")
@@ -1651,7 +1693,7 @@ contains
       allocate(tmpCoords(nMovedCoord))
       tmpCoords(1:nMovedCoord) = reshape(coord0(:, indMovedAtom), (/ nMovedCoord /))
       select case (input%ctrl%iGeoOpt)
-      case(optSD)
+      case(geoOptTypes%steepestDesc)
         allocate(tmpWeight(nMovedCoord))
         tmpWeight(1:nMovedCoord) = 0.5_dp * deltaT**2 / reshape(spread(mass(indMovedAtom), 1, 3),&
             & (/nMovedCoord/))
@@ -1660,16 +1702,16 @@ contains
             & tmpWeight )
         deallocate(tmpWeight)
         call init(pGeoCoordOpt, pSteepDesc)
-      case (optCG)
+      case (geoOptTypes%conjugateGrad)
         allocate(pConjGrad)
         call init(pConjGrad, size(tmpCoords), input%ctrl%maxForce, input%ctrl%maxAtomDisp)
         call init(pGeoCoordOpt, pConjGrad)
-      case (optDIIS)
+      case (geoOptTypes%diis)
         allocate(pDIIS)
         call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, input%ctrl%deltaGeoOpt,&
             & input%ctrl%iGenGeoOpt)
         call init(pGeoCoordOpt, pDIIS)
-      case (optLBFGS)
+      case (geoOptTypes%lbfgs)
         allocate(pLbfgs)
         call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
             & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
@@ -1681,18 +1723,18 @@ contains
     allocate(pGeoLatOpt)
     if (tLatOpt) then
       select case (input%ctrl%iGeoOpt)
-      case(optSD)
+      case(geoOptTypes%steepestDesc)
         allocate(tmpWeight(9))
         tmpWeight = 1.0_dp
         allocate(pSteepDescLat)
         call init(pSteepDescLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp, tmpWeight)
         deallocate(tmpWeight)
         call init(pGeoLatOpt, pSteepDescLat)
-      case(optCG, optDIIS) ! use CG lattice for both DIIS and CG
+      case(geoOptTypes%conjugateGrad, geoOptTypes%diis) ! use CG lattice for both DIIS and CG
         allocate(pConjGradLat)
         call init(pConjGradLat, 9, input%ctrl%maxForce, input%ctrl%maxLatDisp)
         call init(pGeoLatOpt, pConjGradLat)
-      case (optLBFGS)
+      case (geoOptTypes%LBFGS)
         allocate(pLbfgsLat)
         call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
             & input%ctrl%lbfgsInp%memory)
@@ -1975,7 +2017,7 @@ contains
         call error("XLBOMD does not work with barostats yet")
       elseif (nSpin /= 1 .or. tDFTBU .or. allocated(onSiteElements)) then
         call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
-      elseif (forceType /= forceDynT0 .and. forceType /= forceDynT) then
+      elseif (forceType /= forceTypes%dynamicT0 .and. forceType /= forceTypes%dynamicTFinite) then
         call error("Force evaluation method incompatible with XLBOMD")
       elseif (iDistribFn /= Fermi) then
         call error("Filling function incompatible with XLBOMD")
@@ -2086,7 +2128,7 @@ contains
       if (tReadChrg) then
         if (tMixBlockCharges) then
           if (nSpin == 2) then
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+            if (tFixEf .or. tSkipChrgChecksum) then
               ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
             else
@@ -2104,7 +2146,7 @@ contains
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
-              if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+              if (tFixEf .or. tSkipChrgChecksum) then
                 ! do not check charge or magnetisation from file
                 call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn)
@@ -2117,7 +2159,7 @@ contains
         else
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+            if (tFixEf .or. tSkipChrgChecksum) then
               ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
@@ -2125,7 +2167,7 @@ contains
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
-            if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+            if (tFixEf .or. tSkipChrgChecksum) then
               ! do not check charge or magnetisation from file
               call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
@@ -2146,7 +2188,7 @@ contains
         else
           qInput(:,:,:) = q0
         end if
-        if (.not. input%ctrl%tSkipChrgChecksum) then
+        if (.not. tSkipChrgChecksum) then
           ! Rescaling to ensure correct number of electrons in the system
           qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
         end if
@@ -2164,7 +2206,7 @@ contains
                   & * input%ctrl%initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
             end do
           else
-            if (.not. input%ctrl%tSkipChrgChecksum) then
+            if (.not. tSkipChrgChecksum) then
               do ii = 1, nAtom
                 qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
                     & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
@@ -2180,7 +2222,7 @@ contains
               call error("Incorrect shape initialSpins array!")
             end if
             ! Rescaling to ensure correct number of electrons in the system
-            if (.not. input%ctrl%tSkipChrgChecksum) then
+            if (.not. tSkipChrgChecksum) then
               do ii = 1, nAtom
                 do jj = 1, 3
                   qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
@@ -2263,9 +2305,8 @@ contains
     tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat
-    tWriteHS = input%ctrl%tWriteHS
-    tWriteRealHS = input%ctrl%tWriteRealHS
+    tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalMaster&
+        & .and. electronicSolver%providesEigenvals
 
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
@@ -2279,10 +2320,8 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-    call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
-
   #:if WITH_TRANSPORT
-    if (tLatOpt .and. ( solver == solverGF .or. solver == solverOnlyTransport)) then
+    if (tLatOpt .and. tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
     call initTransport(env, input)
@@ -2291,7 +2330,6 @@ contains
     tNegf = .false.
   #:endif
 
-    tWriteBandDat = tWriteBandDat .and. .not. tNegf
 
     if (tNegf) then
       if (tDispersion) then
@@ -2311,9 +2349,9 @@ contains
     end if
 
     if (tPoisson) then
-      electrostatics = poisson
+      electrostatics = elstatTypes%poisson
     else
-      electrostatics = gammaf
+      electrostatics = elstatTypes%gammaFunc
     end if
 
   #:if WITH_SCALAPACK
@@ -2322,13 +2360,13 @@ contains
     end associate
   #:endif
 
-    call initArrays(env, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit,&
-        & tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb,&
-        & nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0,&
-        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS, E0, Eband,&
-        & eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx,&
-        & HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural, velocities,&
-        & movedVelo, movedAccel, movedMass, dipoleMoment)
+    call initArrays(env, electronicSolver, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd,&
+        & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
+        & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
+        & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
+        & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
+        & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
+        & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -2468,9 +2506,9 @@ contains
   #:endif
 
     if (tRandomSeed) then
-      write(stdOut, "(A,':',T30,I14)") "Chosen random seed", iSeed
+      write(stdOut, "(A,':',T30,I0)") "Chosen random seed", iSeed
     else
-      write(stdOut, "(A,':',T30,I14)") "Specified random seed", iSeed
+      write(stdOut, "(A,':',T30,I0)") "Specified random seed", iSeed
     end if
 
     if (input%ctrl%tMD) then
@@ -2522,13 +2560,13 @@ contains
         strTmp = ""
       end if
       select case (input%ctrl%iGeoOpt)
-      case (optSD)
+      case (geoOptTypes%steepestDesc)
         write(stdOut, "('Mode:',T30,A)")'Steepest descent' // trim(strTmp)
-      case (optCG)
+      case (geoOptTypes%conjugateGrad)
         write(stdOut, "('Mode:',T30,A)") 'Conjugate gradient relaxation' // trim(strTmp)
-      case (optDIIS)
+      case (geoOptTypes%diis)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' // trim(strTmp)
-      case (optLBFGS)
+      case (geoOptTypes%lbfgs)
         write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case default
         call error("Unknown optimisation mode")
@@ -2587,42 +2625,28 @@ contains
       write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "No"
     end if
 
-    select case (solver)
-    case(solverQR)
-      write (strTmp, "(A)") "Standard"
-    case(solverDAC)
-      write (strTmp, "(A)") "Divide and Conquer"
-    case(solverRR)
-      write (strTmp, "(A)") "Relatively robust"
-    case(solverGF)
-      write (strTmp, "(A)") "Green's functions"
-    case(solverOnlyTransport)
-      write (strTmp, "(A)") "Transport Only (no energies)"
-    case default
-      call error("Unknown eigensolver!")
-    end select
-    write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
+    write(stdOut, "(A,':',T30,A)") "Electronic solver", electronicSolver%getSolverName()
 
     if (tSccCalc) then
       select case (iMixer)
-      case(mixerSimple)
+      case(mixerTypes%simple)
         write (strTmp, "(A)") "Simple"
-      case(mixerAnderson)
+      case(mixerTypes%anderson)
         write (strTmp, "(A)") "Anderson"
-      case(mixerBroyden)
+      case(mixerTypes%broyden)
         write (strTmp, "(A)") "Broyden"
-      case(mixerDIIS)
+      case(mixerTypes%diis)
         write (strTmp, "(A)") "DIIS"
       end select
       write(stdOut, "(A,':',T30,A,' ',A)") "Mixer", trim(strTmp), "mixer"
       write(stdOut, "(A,':',T30,F14.6)") "Mixing parameter", mixParam
       write(stdOut, "(A,':',T30,I14)") "Maximal SCC-cycles", maxSccIter
       select case (iMixer)
-      case(mixerAnderson)
+      case(mixerTypes%anderson)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
-      case(mixerBroyden)
+      case(mixerTypes%broyden)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vec. in memory", nGeneration
-      case(mixerDIIS)
+      case(mixerTypes%diis)
         write(stdOut, "(A,':',T30,I14)") "Nr. of chrg. vectors to mix", nGeneration
       end select
     end if
@@ -2633,18 +2657,18 @@ contains
     if (tGeoOpt) then
       write(stdOut, "(A,':',T30,I14)") "Max. nr. of geometry steps", nGeoSteps
       write(stdOut, "(A,':',T30,E14.6)") "Force tolerance", input%ctrl%maxForce
-      if (input%ctrl%iGeoOpt == optSD) then
+      if (input%ctrl%iGeoOpt == geoOptTypes%steepestDesc) then
         write(stdOut, "(A,':',T30,E14.6)") "Step size", deltaT
       end if
     end if
 
     if (tForces) then
       select case (forceType)
-      case(forceOrig)
+      case(forceTypes%orig)
         strTmp = "Traditional"
-      case(forceDynT0)
+      case(forceTypes%dynamicT0)
         strTmp = "Dynamics, zero electronic temp."
-      case(forceDynT)
+      case(forceTypes%dynamicTFinite)
         strTmp = "Dynamics, finite electronic temp."
       end select
       write(stdOut, "(A,':',T30,A)") "Force evaluation method", trim(strTmp)
@@ -2844,12 +2868,12 @@ contains
       write(stdOut, "(T30,A)") "Force calculation"
     end if
     select case (forceType)
-    case(forceOrig)
+    case(forceTypes%orig)
       write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceDynT0)
+    case(forceTypes%dynamicT0)
       write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
       write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(forceDynT)
+    case(forceTypes%dynamicTFinite)
       write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
     end select
     if (tPrintEigVecs) then
@@ -2914,6 +2938,16 @@ contains
       end do
     end if
 
+    select case (forceType)
+    case(forceTypes%orig)
+      write(stdOut, "(A,T30,A)") "Force type", "original"
+    case(forceTypes%dynamicT0)
+      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
+      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
+    case(forceTypes%dynamicTFinite)
+      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
+    end select
+
     if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
     end if
@@ -2961,6 +2995,10 @@ contains
 
   !> Clean up things that do not automatically get removed on going out of scope
   subroutine destructProgramVariables()
+
+    if (electronicSolver%isElsiSolver) then
+      call TElsiSolver_final(electronicSolver%elsi)
+    end if
 
     if (tProjEigenvecs) then
       call destruct(iOrbRegion)
@@ -3063,7 +3101,7 @@ contains
     ! NOTE: originally EITHER 'contact calculations' OR 'upload' was possible
     !       introducing 'TransportOnly' option the logic is bit more
     !       involved: Contacts are not uploded in case of non-scc calculations
-    if (solver == solverOnlyTransport .and. .not.tSccCalc) then
+    if (electronicSolver%iSolver == electronicSolverTypes%OnlyTransport .and. .not.tSccCalc) then
       tUpload = .false.
     end if
 
@@ -3126,7 +3164,7 @@ contains
 
       ! Some sanity checks and initialization of GDFTB/NEGF
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
-          & tempElec, solver)
+          & tempElec, electronicSolver%iSolver)
 
       ginfo = input%ginfo
 
@@ -3227,16 +3265,19 @@ contains
 
 
   !> Allocates most of the large arrays needed during the DFTB run.
-  subroutine initArrays(env, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken,&
-      & tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
-      & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc,&
-      & rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS,&
-      & E0, Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx,&
-      & eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural,&
-      & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+  subroutine initArrays(env, electronicSolver, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd,&
+      & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
+      & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
+      & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
+      & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
+      & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
+      & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
+
+    !> electronic solver for the system
+    type(TElectronicSolver), intent(in) :: electronicSolver
 
     !> Are forces required
     logical, intent(in) :: tForces
@@ -3439,13 +3480,21 @@ contains
     allocate(TS(nSpinHams))
     allocate(E0(nSpinHams))
     allocate(Eband(nSpinHams))
-    allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
-    allocate(filling(sqrHamSize, nKpoint, nSpinHams))
     TS = 0.0_dp
     E0 = 0.0_dp
     Eband = 0.0_dp
-    eigen = 0.0_dp
-    filling = 0.0_dp
+
+    if (electronicSolver%providesEigenvals) then
+      allocate(eigen(sqrHamSize, nKPoint, nSpinHams))
+      allocate(filling(sqrHamSize, nKpoint, nSpinHams))
+    else
+      ! due to use of the shape elsewhere in determining kpoints and spin channels:
+      allocate(eigen(0, nKPoint, nSpinHams))
+      allocate(filling(0, nKpoint, nSpinHams))
+    end if
+    eigen(:,:,:) = 0.0_dp
+    filling(:,:,:) = 0.0_dp
+
 
     allocate(coord0Fold(3, nAtom))
 
@@ -3458,7 +3507,11 @@ contains
     end if
 
     ! If only H/S should be printed, no allocation for square HS is needed
-    if (.not. (tWriteRealHS .or. tWriteHS)) then
+    tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
+    if (electronicSolver%isElsiSolver) then
+      tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
+    end if
+    if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
@@ -3756,6 +3809,47 @@ contains
     end if
 
   end subroutine getDenseDescCommon
+
+
+  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+    integer, intent(in) :: iSolver
+    logical, intent(in) :: tSpin
+    real(dp), intent(in) :: kPoints(:,:)
+    type(TParallelOpts), intent(in) :: parallelOpts
+    integer, intent(in) :: nIndepHam
+    real(dp), intent(in) :: tempElec
+
+    logical :: tElsiSolver
+    integer :: nKPoint
+
+    tElsiSolver = any(electronicSolver%iSolver ==&
+        & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+        & electronicSolverTypes%ntpoly])
+    if (.not. withELSI .and. tElsiSolver) then
+      call error("This binary was not compiled with ELSI support enabled")
+    end if
+
+    if (electronicSolver%iSolver == electronicSolverTypes%ntpoly) then
+      if (tSpin) then
+        call error("The NTPoly solver currently does not support spin polarisation")
+      end if
+
+      if (any(kPoints /= 0.0_dp)) then
+        call error("The NTPoly solver currently does not support k-points")
+      end if
+    end if
+
+    nKPoint = size(kPoints, dim=2)
+    if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
+      call error("This solver requires as many parallel processor groups as there are independent&
+          & spin and k-point combinations")
+    end if
+
+    if (iSolver == electronicSolverTypes%pexsi .and. tempElec < epsilon(0.0)) then
+      call error("This solver requires a finite electron broadening")
+    end if
+
+  end subroutine ensureSolverCompatibility
 
 
 end module initprogram

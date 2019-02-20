@@ -17,8 +17,12 @@ module mixer
   use diismixer
   use message
   implicit none
-
   private
+
+  public :: OMixer
+  public :: init, reset, mix
+  public :: hasInverseJacobian, getInverseJacobian
+  public :: mixerTypes
 
 
   !> Interface type for various mixers.
@@ -74,16 +78,16 @@ module mixer
     module procedure Mixer_getInverseJacobian
   end interface getInverseJacobian
 
-  public :: OMixer
-  public :: init, reset, mix
-  public :: hasInverseJacobian, getInverseJacobian
 
+  type :: TMixerTypesEnum
+    integer :: simple = 1
+    integer :: anderson = 2
+    integer :: broyden = 3
+    integer :: diis = 4
+  end type TMixerTypesEnum
 
-  !> Identifying constant for each of the different mixers.
-  integer, parameter :: iSimpleMixer = 1
-  integer, parameter :: iAndersonMixer = 2
-  integer, parameter :: iBroydenMixer = 3
-  integer, parameter :: iDIISMixer = 4
+  !> Contains mixer types
+  type(TMixerTypesEnum), parameter :: mixerTypes = TMixerTypesEnum()
 
 contains
 
@@ -97,7 +101,7 @@ contains
     !> A valid simple mixer instance on exit.
     type(OSimpleMixer), allocatable, intent(inout) :: pSimple
 
-    self%mixerType = iSimpleMixer
+    self%mixerType = mixerTypes%simple
     call move_alloc(pSimple, self%pSimpleMixer)
 
   end subroutine Mixer_initSimple
@@ -112,7 +116,7 @@ contains
     !> A valid Anderson mixer instance on exit.
     type(OAndersonMixer), allocatable, intent(inout) :: pAnderson
 
-    self%mixerType = iAndersonMixer
+    self%mixerType = mixerTypes%anderson
     call move_alloc(pAnderson, self%pAndersonMixer)
 
   end subroutine Mixer_initAnderson
@@ -127,7 +131,7 @@ contains
     !> A valid Broyden mixer instance on exit.
     type(OBroydenMixer), allocatable, intent(inout) :: pBroyden
 
-    self%mixerType = iBroydenMixer
+    self%mixerType = mixerTypes%broyden
     call move_alloc(pBroyden, self%pBroydenMixer)
 
   end subroutine Mixer_initBroyden
@@ -142,7 +146,7 @@ contains
     !> A valid DIIS mixer instance on exit.
     type(ODIISMixer), allocatable, intent(inout) :: pDIIS
 
-    self%mixerType = iDIISMixer
+    self%mixerType = mixerTypes%diis
     call move_alloc(pDIIS, self%pDIISMixer)
 
   end subroutine Mixer_initDIIS
@@ -158,13 +162,13 @@ contains
     integer, intent(in) :: nElem
 
     select case (self%mixerType)
-    case(iSimpleMixer)
+    case(mixerTypes%simple)
       call reset(self%pSimpleMixer, nElem)
-    case (iAndersonMixer)
+    case (mixerTypes%anderson)
       call reset(self%pAndersonMixer, nElem)
-    case (iBroydenMixer)
+    case (mixerTypes%broyden)
       call reset(self%pBroydenMixer, nElem)
-    case (iDIISMixer)
+    case (mixerTypes%diis)
       call reset(self%pDIISMixer, nElem)
     end select
 
@@ -184,13 +188,13 @@ contains
     real(dp),      intent(in) :: qDiff(:)
 
     select case (self%mixerType)
-    case (iSimpleMixer)
+    case (mixerTypes%simple)
       call mix(self%pSimpleMixer, qInpRes, qDiff)
-    case (iAndersonMixer)
+    case (mixerTypes%anderson)
       call mix(self%pAndersonMixer, qInpRes, qDiff)
-    case (iBroydenMixer)
+    case (mixerTypes%broyden)
       call mix(self%pBroydenMixer, qInpRes, qDiff)
-    case (iDIISMixer)
+    case (mixerTypes%diis)
       call mix(self%pDIISMixer, qInpRes, qDiff)
     end select
 
@@ -207,13 +211,13 @@ contains
     logical :: has
 
     select case (self%mixerType)
-    case(iSimpleMixer)
+    case(mixerTypes%simple)
       has = .false.
-    case (iAndersonMixer)
+    case (mixerTypes%anderson)
       has = .false.
-    case (iBroydenMixer)
+    case (mixerTypes%broyden)
       has = .true.
-    case (iDIISMixer)
+    case (mixerTypes%diis)
       has = .false.
     end select
 
@@ -230,13 +234,13 @@ contains
     real(dp), intent(out) :: invJac(:,:)
 
     select case (self%mixerType)
-    case(iSimpleMixer)
+    case(mixerTypes%simple)
       call error("Simple mixer does not provide inverse Jacobian")
-    case (iAndersonMixer)
+    case (mixerTypes%anderson)
       call error("Anderson mixer does not provide inverse Jacobian")
-    case (iBroydenMixer)
+    case (mixerTypes%broyden)
       call getInverseJacobian(self%pBroydenMixer, invJac)
-    case (iDIISMixer)
+    case (mixerTypes%diis)
       call error("DIIS mixer does not provide inverse Jacobian")
     end select
 
