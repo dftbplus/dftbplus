@@ -400,28 +400,30 @@ contains
     real(dp), intent(out) :: qq_ij(:,:)
 
     integer :: nOrb, iOrb1, iOrb2
-    integer :: mu, ss
+    integer :: mu, nu, ss
 
     ss = 1
     if (.not. updwn) ss = 2
 
-    mu = iAtomStart(iAt)
+    !mu = iAtomStart(iAt)
     qq_ij(:,:) = 0.0_dp
-    call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss), stimc(mu:mu+nOrb-1,jj,ss))
-    call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss), stimc(mu:mu+nOrb-1,ii,ss))
-    qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss), stimc(mu:mu+nOrb-1,jj,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss), stimc(mu:mu+nOrb-1,ii,ss))
+    !qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
 
-    !do iOrb1 = 1, nOrb
-    !  do iOrb2 = iOrb1, nOrb
-    !    mu = iAtomStart(iAt) + iOrb1
-    !    nu = iAtomStart(iAt) + iOrb2
-    !    qq_ij(iOrb1,iOrb2) = 0.25_dp*( grndEigVecs(mu,ii,ss)*stimc(nu,jj,ss) &
-    !         &                       + grndEigVecs(mu,jj,ss)*stimc(nu,ii,ss) &
-    !         &                       + grndEigVecs(nu,ii,ss)*stimc(mu,jj,ss) &
-    !         &                       + grndEigVecs(nu,jj,ss)*stimc(mu,ii,ss) )
-    !    if (iOrb1 /= iOrb2) qq_ij(iOrb2,iOrb1) = qq_ij(iOrb1,iOrb2)
-    !  end do
-    !end do
+    do iOrb1 = 1, nOrb
+      do iOrb2 = iOrb1, nOrb
+        mu = iAtomStart(iAt) + iOrb1 - 1
+        nu = iAtomStart(iAt) + iOrb2 - 1
+        qq_ij(iOrb1,iOrb2) = 0.25_dp*( grndEigVecs(mu,ii,ss)*stimc(nu,jj,ss) &
+             &                       + grndEigVecs(mu,jj,ss)*stimc(nu,ii,ss) &
+             &                       + grndEigVecs(nu,ii,ss)*stimc(mu,jj,ss) &
+             &                       + grndEigVecs(nu,jj,ss)*stimc(mu,ii,ss) )
+        if (iOrb1 /= iOrb2) then
+          qq_ij(iOrb2,iOrb1) = qq_ij(iOrb1,iOrb2)
+        end if
+      end do
+    end do
 
   end subroutine transDens
 
