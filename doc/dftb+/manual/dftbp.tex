@@ -2643,18 +2643,21 @@ Hamiltonian = DFTB {
 \subsection{RangeSep}
 \label{sec:dftbp.RangeSep}
 
-The \kw{RangeSep} keyword specifies the use of the long-range corrected formalism
-in DFTB. The electrostatic interaction is split up into long and short ranged
-components according to
+The \kw{RangeSep} keyword specifies the use of the long-range corrected
+formalism in DFTB~\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107}. The
+electrostatic interaction is split up into long and short ranged components
+according to
 \begin{equation*}
 \frac{1}{r}=\frac{1-e^{-\omega r}}{r}+\frac{e^{-\omega r}}{r},
 \end{equation*}
-with the range-separation parameter $\omega$, which is set in the
-Slater-Koster files. The option should only be used with corresponding
-parameter sets created for use with long-range correction.
-Note that the present release does not yet support long-range corrected
-excited states calculations with LC-TD-DFTB, and the \kw{RangeSep} keyword can therefore not
-be used in conjungtion with the \kw{ExcitedState} keyword.
+with the range-separation parameter $\omega$, which is set in the Slater-Koster
+files. The option should only be used with corresponding parameter sets created
+for use with long-range correction.
+
+\textbf{Note:} that the present release does not yet support long-range
+corrected excited states calculations with LC-TD-DFTB, and the \kw{RangeSep}
+keyword can therefore not be used in conjungtion with the \kw{ExcitedState}
+keyword.
 
 The \kw{RangeSep} field keyword has the following options
 \begin{ptable}
