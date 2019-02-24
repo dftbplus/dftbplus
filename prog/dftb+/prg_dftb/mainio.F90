@@ -1879,7 +1879,7 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
-      & endCoords, tLocalise, localisation, esp, tunneling, ldos)
+      & endCoords, tLocalise, localisation, esp, tunneling, ldos, tDefinedFreeE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1938,6 +1938,9 @@ contains
     !> local projected DOS array
     real(dp), allocatable, intent(in) :: ldos(:,:)
 
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
+
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
 
@@ -1967,8 +1970,13 @@ contains
     if (associated(pDynMatrix)) then
       call writeTagged(fd, tag_HessianNum, pDynMatrix)
     end if
-    ! Mermin electronic free energy
-    call writeTagged(fd, tag_freeEgy, energy%EMermin)
+    if (tDefinedFreeE) then
+      ! Mermin electronic free energy
+      call writeTagged(fd, tag_freeEgy, energy%EMermin)
+    else
+      ! only total energy available
+      call writeTagged(fd, tag_egyTotal, energy%ETotal)
+    end if
     if (pressure /= 0.0_dp) then
       ! Gibbs free energy
       call writeTagged(fd, tag_Gibbsfree, energy%EGibbs)

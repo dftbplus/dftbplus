@@ -768,9 +768,9 @@ contains
         cellVol = abs(determinant33(latVec))
         energy%EGibbs = energy%EMermin + extPressure * cellVol
       end if
-      call writeAutotestTag(autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
-          & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
-          & energy, extPressure, coord0, tLocalise, localisation, esp, tunneling, ldos)
+      call writeAutotestTag(autotestTag, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
+          & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, extPressure,&
+          & coord0, tLocalise, localisation, esp, tunneling, ldos, tDefinedFreeE)
     end if
     if (tWriteResultsTag) then
       call writeResultsTag(resultsTag, energy, derivs, chrgForces, electronicSolver, tStress,&
