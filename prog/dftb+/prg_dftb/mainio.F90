@@ -1878,8 +1878,8 @@ contains
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
   subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
-      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation, esp, tunneling, ldos)
+      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
+      & endCoords, tLocalise, localisation, esp, tunneling, ldos)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1914,14 +1914,11 @@ contains
     !> Hessian (dynamical) matrix
     real(dp), pointer, intent(in) ::  pDynMatrix(:,:)
 
-    !> Mermin electronic free energy
-    real(dp), intent(in) :: freeEnergy
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: energy
 
     !> External pressure
     real(dp), intent(in) :: pressure
-
-    !> Gibbs free energy (includes pV term)
-    real(dp), intent(in) :: gibbsFree
 
     !> Final atomic coordinates
     real(dp), intent(in) :: endCoords(:,:)
@@ -1970,9 +1967,11 @@ contains
     if (associated(pDynMatrix)) then
       call writeTagged(fd, tag_HessianNum, pDynMatrix)
     end if
-    call writeTagged(fd, tag_freeEgy, freeEnergy)
+    ! Mermin electronic free energy
+    call writeTagged(fd, tag_freeEgy, energy%EMermin)
     if (pressure /= 0.0_dp) then
-      call writeTagged(fd, tag_Gibbsfree, gibbsFree)
+      ! Gibbs free energy
+      call writeTagged(fd, tag_Gibbsfree, energy%EGibbs)
     end if
     call writeTagged(fd, tag_endCoord, endCoords)
     if (tLocalise) then

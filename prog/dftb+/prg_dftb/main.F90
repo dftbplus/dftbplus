@@ -770,8 +770,7 @@ contains
       end if
       call writeAutotestTag(autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
           & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
-          & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp,&
-          & tunneling, ldos)
+          & energy, extPressure, coord0, tLocalise, localisation, esp, tunneling, ldos)
     end if
     if (tWriteResultsTag) then
       call writeResultsTag(resultsTag, energy, derivs, chrgForces, electronicSolver, tStress,&
