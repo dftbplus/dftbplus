@@ -62,7 +62,7 @@ module initprogram
   use dispersions
   use thirdorder_module
   use linresp_module
-  use RangeSeparated, only : RangeSepFunc
+  use RangeSeparated, only : RangeSepFunc, RangeSep_init
   use stress
   use orbitalequiv
   use commontypes
@@ -2024,12 +2024,12 @@ contains
         call error("Restart on thresholded range separation not working correctly")
       end if
       allocate(rangeSep)
-      call rangeSep%initModule(nAtom, species0, speciesName, hubbU(1,:),&
+      call RangeSep_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
           & input%ctrl%screeningThreshold, input%ctrl%omega, tSpin, input%ctrl%rangeSepAlgorithm)
       allocate(deltaRhoIn(nOrb * nOrb * nSpin))
       allocate(deltaRhoOut(nOrb * nOrb * nSpin))
       allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
-      !>Pointers required by screening algorithm
+      !> Pointers required by screening algorithm
       deltaRhoInSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoIn(1:nOrb*nOrb*nSpin)
       deltaRhoOutSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoOut(1:nOrb*nOrb*nSpin)
       !> Required by screening algorithm

@@ -22,7 +22,7 @@ module rangeseparated
   implicit none
   private
 
-  public :: RangeSepFunc, TRangeSepSKTag
+  public :: RangeSepFunc, TRangeSepSKTag, RangeSep_init
 
   !> Slater-Koster file RangeSep tag structure
   type :: TRangeSepSKTag
@@ -37,40 +37,52 @@ module rangeseparated
 
     !> coordinates of the atom
     real(dp), allocatable :: coords(:,:)
+
     !> evaluated gamma, Atom1, Atom2 at each geometry step
     real(dp), allocatable :: lrGammaEval(:,:)
+
     !> range-separation parameter
     real(dp) :: omega
+
     !> Hubbard U values for atoms
     real(dp), allocatable :: hubbu(:)
 
     ! Hamiltonian Screening
+
     !> previous hamiltonian in screening by tolerance
     real(dp), allocatable :: hprev(:,:)
+
     !> previous delta density matrix in screening by tolerance
     real(dp), allocatable :: dRhoprev(:,:)
+
     !> Is screening initialised
     logical :: tScreeningInited
+
     !> threshold for screening by value
     real(dp) :: pScreeningThreshold
 
     ! lr-energy
+
     !> total long range energy
     real(dp) :: lrenergy
-    !> spin up energy
+
+    !> spin up part of energy
     real(dp) :: lrenergyUp
-    !> spin down energy
+
+    !> spin down part of energy
     real(dp) :: lrenergyDn
 
-    !> is the system spin polarized
+    !> is the system spin unrestricted or restricted
     logical :: tSpin
+
     !> algorithm for range separation screening
     character(lc) :: RSAlg
+
     !> species of atoms
     integer, allocatable :: species(:)
 
   contains
-    procedure :: initModule
+
     procedure :: updateCoords
     procedure :: addLRHamiltonian
     procedure :: addLRHamiltonian_tr
@@ -79,6 +91,7 @@ module rangeseparated
     procedure :: addLRGradients
     procedure :: getRSAlg
     procedure :: evaluateLREnergyDirect
+
   end type RangeSepFunc
 
 
@@ -100,10 +113,10 @@ contains
 
 
   !> Intitialize the range-sep module
-  subroutine initModule(self, nAtom, species, speciesNames, hubbu, screen, omega, tSpin, RSAlg)
+  subroutine RangeSep_init(self, nAtom, species, speciesNames, hubbu, screen, omega, tSpin, RSAlg)
 
     !> class instance
-    class(RangeSepFunc), intent(inout) :: self
+    type(RangeSepFunc), intent(inout) :: self
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -138,13 +151,28 @@ contains
     !> initialise data structures and allocate storage
     subroutine initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin)
 
+      !> Instance
       class(RangeSepFunc), intent(inout) :: self
+
+      !> Number of atoms
       integer, intent(in) :: nAtom
+
+      !> Hubbard U values for atoms
       real(dp), intent(in) :: hubbu(:)
+
+      !> Species of atoms
       integer, intent(in) :: species(:)
+
+      !> screening cutoff if using appropriate method
       real(dp), intent(in) :: screen
+
+      !> Range separation parameter
       real(dp), intent(in) :: omega
+
+      !> Algorithm for range separation
       character(lc), intent(in) :: RSAlg
+
+      !> Is this spin restricted (F) or unrestricted (T)
       logical, intent(in) :: tSpin
 
       self%tScreeningInited = .false.
@@ -202,7 +230,7 @@ contains
 
     end subroutine printModuleInfoAndCheckReqs
 
-  end subroutine initModule
+  end subroutine RangeSep_init
 
 
   !> update the rangeSep module on coordinate change
@@ -287,16 +315,16 @@ contains
       !> overlap matrix
       real(dp), allocatable, intent(inout) :: tmpovr(:,:)
 
-      !>
+      !> Update on hamiltonian from DM changes
       real(dp), allocatable, intent(inout) :: tmpDham(:,:)
 
-      !>
+      !> Density matrix minus reference density matrix
       real(dp), allocatable, intent(inout) :: tmpDRho(:,:)
 
-      !>
+      !> Change in tmpDRho between iteration, used for update
       real(dp), allocatable, intent(inout) :: tmpDDRho(:,:)
 
-      !> matrix of test values for overlap
+      !> matrix of test values for overlap (based on maximum overlap elements between atoms)
       real(dp), allocatable, intent(inout) :: testovr(:,:)
 
       integer, allocatable :: ovrind(:,:)
@@ -332,9 +360,12 @@ contains
       end do
     end subroutine allocateAndInit
 
-
+    !> Evaluate the update to hamiltonian due to change the in the DM
     subroutine evaluateHamiltonian(tmpDHam)
-      real(dp), allocatable, intent(inout) :: tmpDHam(:,:)
+
+      !> Update for the old hamiltonian on exit
+      real(dp), intent(out) :: tmpDHam(:,:)
+
       integer :: nAtom
       real(dp) :: pbound, prb
       real(dp) :: tmpvec1(orb%mOrb), tmpvec2(orb%mOrb), tmpvec3(orb%mOrb)
@@ -406,6 +437,7 @@ contains
     end subroutine evaluateHamiltonian
 
 
+    !>
     subroutine checkAndInitScreening(self, matrixSize, tmpDRho)
       class(RangeSepFunc), intent(inout) :: self
       integer, intent(in) :: matrixSize
@@ -1155,7 +1187,7 @@ contains
     !> instance of LR
     class(RangeSepFunc), intent(inout) :: self
 
-    !> square density matrixa
+    !> square density matrix
     real(dp), intent(in) :: deltaRho(:,:)
 
     !> square overlap matrix
