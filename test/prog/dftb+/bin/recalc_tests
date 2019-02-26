@@ -13,6 +13,7 @@ SCRIPTNAME=`basename $0`
 #INPUT="input"
 OUTPUT="output"
 RESULTS="autotest.tag"
+TEST_SCRIPT=testrun.sh
 
 print_help () {
   echo "$SCRIPTNAME <dftb> <tmpdir> <testdir> [ <testdir> ... ]"
@@ -72,16 +73,11 @@ for testdir in $@; do
   for file in $OUTPUT $RESULTS; do
     [ -e $file ] && rm -f $file
   done
-  echo "Calculating testsystem $testdir ..."  
-  if [ -e ./prerun.sh ]; then
-    ./prerun.sh & > $OUTPUT 2> /dev/null
-    sleep 2
+  echo "Calculating testsystem $testdir ..."
+  if [ -e "$TEST_SCRIPT" ]; then
+      ./$TEST_SCRIPT $dftb > $OUTPUT 2> /dev/null
   else
-    rm -f $OUTPUT
-  fi
-  $dftb >> $OUTPUT
-  if [ -e ./postrun.sh ]; then
-    ./postrun.sh >> $OUTPUT 2>> /dev/null
+      $dftb > $OUTPUT
   fi
   for result in $RESULTS; do
     if [ ! -e $result ]; then

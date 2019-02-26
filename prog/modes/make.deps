@@ -3,6 +3,11 @@ initmodes.o = initmodes.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accur
 _mod_dftbp_initmodes: initmodes.o
 _mod_dftbp_initmodes = $(initmodes.o)
 
-modes.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_taggedoutput _mod_dftbp_eigensolver _mod_dftbp_io _mod_dftbp_typegeometry _mod_dftbp_initmodes _mod_dftbp_constants
-modes.o = modes.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_eigensolver) $(_mod_dftbp_io) $(_mod_dftbp_typegeometry) $(_mod_dftbp_initmodes) $(_mod_dftbp_constants)
+modeprojection.o: _mod_dftbp_eigensolver common.fypp _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_message _mod_dftbp_typegeometry _mod_dftbp_simplealgebra
+modeprojection.o = modeprojection.o $(_mod_dftbp_eigensolver) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_message) $(_mod_dftbp_typegeometry) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_modeprojection: modeprojection.o
+_mod_dftbp_modeprojection = $(modeprojection.o)
+
+modes.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_modeprojection _mod_dftbp_taggedoutput _mod_dftbp_eigensolver _mod_dftbp_io _mod_dftbp_typegeometry _mod_dftbp_initmodes _mod_dftbp_message _mod_dftbp_constants
+modes.o = modes.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_modeprojection) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_eigensolver) $(_mod_dftbp_io) $(_mod_dftbp_typegeometry) $(_mod_dftbp_initmodes) $(_mod_dftbp_message) $(_mod_dftbp_constants)
 

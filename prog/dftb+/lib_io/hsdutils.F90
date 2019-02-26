@@ -247,11 +247,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -455,11 +455,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -538,11 +538,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     nReadItem = 0
     variableValue = 0.0_dp
@@ -658,11 +658,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -740,11 +740,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     nReadItem = 0
     if (present(default)) then
@@ -1452,14 +1452,14 @@ contains
     logical :: tList, tAllowEmptyVal, tDummyValue
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(default)) then
       if (len(default) == 0) then
         @:ASSERT(present(allowEmptyValue))
         @:ASSERT(allowEmptyValue)
       end if
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
 
     if (present(list)) then
       tList = list
@@ -1544,7 +1544,7 @@ contains
     iStart = 1
     call getNextToken(str, buffer, iStart, iostat)
     do while (iostat == TOKEN_OK)
-      call process(char(buffer), speciesNames, species, nAtom, node, li)
+      call convAtomRangeToIntProcess(char(buffer), speciesNames, species, nAtom, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
     allocate(val(len(li)))
@@ -1553,83 +1553,80 @@ contains
     end if
     call destruct(li)
 
-  contains
+  end subroutine convAtomRangeToInt
 
+  !> Helper routine.
+  subroutine convAtomRangeToIntProcess(cbuffer, speciesNames, species, nAtom, node, li)
+    character(len=*), intent(in) :: cbuffer
+    character(len=*), intent(in) :: speciesNames(:)
+    integer, intent(in) :: species(:)
+    integer, intent(in) :: nAtom
+    type(fnode), pointer :: node
+    type(ListInt), intent(inout) :: li
 
-    !> Helper routine.
-    subroutine process(cbuffer, speciesNames, species, nAtom, node, li)
-      character(len=*), intent(in) :: cbuffer
-      character(len=*), intent(in) :: speciesNames(:)
-      integer, intent(in) :: species(:)
-      integer, intent(in) :: nAtom
-      type(fnode), pointer :: node
-      type(ListInt), intent(inout) :: li
+    integer :: iPos, bounds(2), iSp, ii
+    integer :: iStart1, iStart2, iost(2)
 
-      integer :: iPos, bounds(2), iSp, ii
-      integer :: iStart1, iStart2, iost(2)
-
-      if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
-          &.or. cbuffer(1:1) == "-") then
-        iPos = scan(cbuffer, ":")
-        if (iPos /= 0) then
-          iStart1 = 1
-          iStart2 = iPos + 1
-          call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
-          call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
-          if (any(iost /= TOKEN_OK)) then
-            call detailedError(node, "Invalid range specification '" &
-                &// trim(cbuffer) // "'")
-          end if
-          if (any(bounds > nAtom) .or. any(bounds < -nAtom) &
-              &.or. any(bounds == 0)) then
-            call detailedError(node, "Specified number out of range in '" &
-                &// trim(cbuffer) // "'")
-          end if
-          bounds = modulo(bounds, nAtom + 1)
-          if (bounds(1) > bounds(2)) then
-            call detailedError(node, "Negative range '" // trim(cbuffer) &
-                &// "'")
-          end if
-          do ii = bounds(1), bounds(2)
-            call append(li, ii)
-          end do
-        else
-          iStart1 = 1
-          call getNextToken(cbuffer, ii, iStart1, iost(1))
-          if (iost(1) /= TOKEN_OK) then
-            call detailedError(node, "Invalid integer '" // trim(cbuffer) &
-                &// "'")
-          end if
-          if (ii > nAtom .or. ii < -nAtom .or. ii == 0) then
-            call detailedError(node, "Specified number (" // trim(cbuffer) // &
-                &") out of range.")
-          end if
-          ii = modulo(ii, nAtom + 1)
-          call append(li, ii)
+    if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
+        &.or. cbuffer(1:1) == "-") then
+      iPos = scan(cbuffer, ":")
+      if (iPos /= 0) then
+        iStart1 = 1
+        iStart2 = iPos + 1
+        call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
+        call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
+        if (any(iost /= TOKEN_OK)) then
+          call detailedError(node, "Invalid range specification '" &
+              &// trim(cbuffer) // "'")
         end if
-      else
-        ! Try to interprete it as a species name
-        iPos = 0
-        do iSp = 1, size(speciesNames)
-          if (speciesNames(iSp) == cbuffer) then
-            iPos = iSp
-            exit
-          end if
-        end do
-        if (iPos == 0) then
-          call detailedError(node, "Invalid species name '" // trim(cbuffer) &
+        if (any(bounds > nAtom) .or. any(bounds < -nAtom) &
+            &.or. any(bounds == 0)) then
+          call detailedError(node, "Specified number out of range in '" &
+              &// trim(cbuffer) // "'")
+        end if
+        bounds = modulo(bounds, nAtom + 1)
+        if (bounds(1) > bounds(2)) then
+          call detailedError(node, "Negative range '" // trim(cbuffer) &
               &// "'")
         end if
-        do ii = 1, size(species)
-          if (species(ii) == iPos) then
-            call append(li, ii)
-          end if
+        do ii = bounds(1), bounds(2)
+          call append(li, ii)
         end do
+      else
+        iStart1 = 1
+        call getNextToken(cbuffer, ii, iStart1, iost(1))
+        if (iost(1) /= TOKEN_OK) then
+          call detailedError(node, "Invalid integer '" // trim(cbuffer) &
+              &// "'")
+        end if
+        if (ii > nAtom .or. ii < -nAtom .or. ii == 0) then
+          call detailedError(node, "Specified number (" // trim(cbuffer) // &
+              &") out of range.")
+        end if
+        ii = modulo(ii, nAtom + 1)
+        call append(li, ii)
       end if
+    else
+      ! Try to interprete it as a species name
+      iPos = 0
+      do iSp = 1, size(speciesNames)
+        if (speciesNames(iSp) == cbuffer) then
+          iPos = iSp
+          exit
+        end if
+      end do
+      if (iPos == 0) then
+        call detailedError(node, "Invalid species name '" // trim(cbuffer) &
+            &// "'")
+      end if
+      do ii = 1, size(species)
+        if (species(ii) == iPos) then
+          call append(li, ii)
+        end if
+      end do
+    end if
 
-    end subroutine process
-
-  end subroutine convAtomRangeToInt
+  end subroutine convAtomRangeToIntProcess
 
 
   !> Converts a string containing indices and ranges to a list of indices.
@@ -1655,7 +1652,7 @@ contains
     iStart = 1
     call getNextToken(str, buffer, iStart, iostat)
     do while (iostat == TOKEN_OK)
-      call process(char(buffer), nMax, node, li)
+      call convRangeToIntProcess(char(buffer), nMax, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
     allocate(val(len(li)))
@@ -1664,65 +1661,61 @@ contains
     end if
     call destruct(li)
 
-  contains
-
-
-    !> Helper routine.
-    subroutine process(cbuffer, nMax, node, li)
-      character(len=*), intent(in) :: cbuffer
-      integer, intent(in) :: nMax
-      type(fnode), pointer :: node
-      type(ListInt), intent(inout) :: li
-
-      integer :: iPos, bounds(2), ii
-      integer :: iStart1, iStart2, iost(2)
-
-      if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
-          &.or. cbuffer(1:1) == "-") then
-        iPos = scan(cbuffer, ":")
-        if (iPos /= 0) then
-          iStart1 = 1
-          iStart2 = iPos + 1
-          call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
-          call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
-          if (any(iost /= TOKEN_OK)) then
-            call detailedError(node, "Invalid range specification '" &
-                &// trim(cbuffer) // "'")
-          end if
-          if (any(bounds > nMax) .or. any(bounds < -nMax) &
-              &.or. any(bounds == 0)) then
-            call detailedError(node, "Specified number out of range in '" &
-                &// trim(cbuffer) // "'")
-          end if
-          bounds = modulo(bounds, nMax + 1)
-          if (bounds(1) > bounds(2)) then
-            call detailedError(node, "Negative range '" // trim(cbuffer) &
-                &// "'")
-          end if
-          do ii = bounds(1), bounds(2)
-            call append(li, ii)
-          end do
-        else
-          iStart1 = 1
-          call getNextToken(cbuffer, ii, iStart1, iost(1))
-          if (iost(1) /= TOKEN_OK) then
-            call detailedError(node, "Invalid integer '" // trim(cbuffer) &
-                &// "'")
-          end if
-          if (ii > nMax .or. ii < -nMax .or. ii == 0) then
-            call detailedError(node, "Specified number (" // trim(cbuffer) // &
-                &") out of range.")
-          end if
-          call append(li, ii)
-        end if
-      else
-        call detailedError(node, "Invalid range '" // trim(cbuffer) // "'")
-      end if
-
-    end subroutine process
-
   end subroutine convRangeToInt
 
+  !> Helper routine.
+  subroutine convRangeToIntProcess(cbuffer, nMax, node, li)
+    character(len=*), intent(in) :: cbuffer
+    integer, intent(in) :: nMax
+    type(fnode), pointer :: node
+    type(ListInt), intent(inout) :: li
+
+    integer :: iPos, bounds(2), ii
+    integer :: iStart1, iStart2, iost(2)
+
+    if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
+        &.or. cbuffer(1:1) == "-") then
+      iPos = scan(cbuffer, ":")
+      if (iPos /= 0) then
+        iStart1 = 1
+        iStart2 = iPos + 1
+        call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
+        call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
+        if (any(iost /= TOKEN_OK)) then
+          call detailedError(node, "Invalid range specification '" &
+              &// trim(cbuffer) // "'")
+        end if
+        if (any(bounds > nMax) .or. any(bounds < -nMax) &
+            &.or. any(bounds == 0)) then
+          call detailedError(node, "Specified number out of range in '" &
+              &// trim(cbuffer) // "'")
+        end if
+        bounds = modulo(bounds, nMax + 1)
+        if (bounds(1) > bounds(2)) then
+          call detailedError(node, "Negative range '" // trim(cbuffer) &
+              &// "'")
+        end if
+        do ii = bounds(1), bounds(2)
+          call append(li, ii)
+        end do
+      else
+        iStart1 = 1
+        call getNextToken(cbuffer, ii, iStart1, iost(1))
+        if (iost(1) /= TOKEN_OK) then
+          call detailedError(node, "Invalid integer '" // trim(cbuffer) &
+              &// "'")
+        end if
+        if (ii > nMax .or. ii < -nMax .or. ii == 0) then
+          call detailedError(node, "Specified number (" // trim(cbuffer) // &
+              &") out of range.")
+        end if
+        call append(li, ii)
+      end if
+    else
+      call detailedError(node, "Invalid range '" // trim(cbuffer) // "'")
+    end if
+
+  end subroutine convRangeToIntProcess
 
   !> Returns a child node with a specified name
   subroutine getChild(node, name, child, requested, modifier)

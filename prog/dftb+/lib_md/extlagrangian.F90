@@ -210,7 +210,7 @@ contains
 
     case (phases%fillingUp)
 
-      this%ind = modIndex(this%ind + 1)
+      this%ind = modIndex(this%ind + 1, this%nTimeSteps)
       this%auxVectors(:, this%ind) = outLast
       inNext(:) = outLast
 
@@ -228,7 +228,7 @@ contains
 
       ! Build new auxiliary vector by integration
       allocate(diff(size(inNext)))
-      ind1 = modIndex(ind0 - 1)
+      ind1 = modIndex(ind0 - 1, this%nTimeSteps)
       inNext(:) = 2.0_dp * this%auxVectors(:,ind0) - this%auxVectors(:,ind1)
       diff(:) = outLast - this%auxVectors(:,ind0)
       if (allocated(this%precondMtx)) then
@@ -238,32 +238,29 @@ contains
 
       ! Add dissipation
       do ii = 0, this%nTimeSteps
-        ind = modIndex(ind0 - ii)
+        ind = modIndex(ind0 - ii, this%nTimeSteps)
         inNext(:) = inNext&
             & + this%alpha * this%auxCoeffs(ii) * this%auxVectors(:,ind)
       end do
 
       ! Store predicted vector in the database
-      this%ind = modIndex(this%ind + 1)
+      this%ind = modIndex(this%ind + 1, this%nTimeSteps)
       this%auxVectors(:,this%ind) = inNext
     end select
 
     call this%updatePhaseAndSteps()
 
-  contains
-
-
-    !> helper function
-    function modIndex(ind)
-      integer, intent(in) :: ind
-      integer :: modIndex
-
-      modIndex = modulo(ind - 1, this%nTimeSteps + 1) + 1
-
-    end function modIndex
-
   end subroutine getNextInput
 
+  !> helper function
+  pure function modIndex(ind, nTimeSteps)
+    integer, intent(in) :: ind
+    integer, intent(in) :: nTimeSteps
+    integer :: modIndex
+
+    modIndex = modulo(ind - 1, nTimeSteps + 1) + 1
+
+  end function modIndex
 
   !> Whether next output quantity passed to the integrator should still contain
   !! fully converged values.

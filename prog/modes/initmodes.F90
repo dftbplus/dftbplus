@@ -26,13 +26,11 @@ module dftbp_initmodes
   use dftbp_unitconversion
   use dftbp_oldskdata
   implicit none
-
   private
-  save
 
 
   !> program version
-  character(len=*), parameter :: version =  "0.01"
+  character(len=*), parameter :: version =  "0.02"
 
   !> root node name of the input tree
   character(len=*), parameter :: rootTag = "modes"
@@ -86,6 +84,12 @@ module dftbp_initmodes
   !> use xmakemol dialect xyz
   logical, public :: tXmakeMol
 
+  !> Remove translation modes
+  logical, public :: tRemoveTranslate
+
+  !> Remove rotation modes
+  logical, public :: tRemoveRotate
+
   !> modes to produce xyz file for
   integer, allocatable, public :: modesToPlot(:)
 
@@ -104,7 +108,8 @@ module dftbp_initmodes
   !> list of atoms in dynamical matrix
   integer, allocatable, public :: iMovedAtoms(:)
 
-  !! Locally created variables
+  !> Number of derivatives
+  integer, public :: nDerivs
 
 contains
 
@@ -125,7 +130,6 @@ contains
     type(listCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
-    integer :: nDerivs
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?
 
     !! Write header
@@ -152,6 +156,9 @@ contains
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
+
+    call getChildValue(root, "RemoveTranslation", tRemoveTranslate, .false.)
+    call getChildValue(root, "RemoveRotation", tRemoveRotate, .false.)
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child, multiple=.true.)
     call convAtomRangeToInt(char(buffer2), geo%speciesNames, geo%species, &

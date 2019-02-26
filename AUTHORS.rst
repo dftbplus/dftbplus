@@ -35,7 +35,10 @@ contributed to DFTB+ :
 * Gabriele Penazzi (formerly University of Bremen Germany (till 2016), now
   QuantumWise A/S, Denmark)
 
+* Jan Řezáč (Institute of Organic Chemistry and Biochemistry AS CR, Czech Republic)
+
 * Michael Sternberg (Argonne National Laboratory, USA)
 
 * Frank Stuckenberg (University of Bremen, Germany)
 
+* Victor Yu (Duke University, USA)

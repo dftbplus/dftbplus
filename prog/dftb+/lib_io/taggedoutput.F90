@@ -81,6 +81,9 @@ module dftbp_taggedoutput
     !> Gibbs free energy for finite pressure periodic systems
     character(lenLabel) :: gibbsFree = 'gibbs_energy'
 
+    !> Gross atomic charges
+    character(lenLabel) :: qOutAtGross  = 'gross_atomic_charges'
+
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
 
@@ -95,6 +98,21 @@ module dftbp_taggedoutput
 
     !> total stress tensor for periodic geometries
     character(lenLabel) :: stressTot = 'stress'
+
+    !> total tunneling vector
+    character(lenLabel) :: tunn = 'total_tunneling'
+
+    !> total projected DOS vector
+    character(lenLabel) :: ldos = 'total_localdos'
+
+    !> total internal energy
+    character(lenLabel) :: egyTotal   = 'total_energy'
+
+    !> total internal energy extrapolated to 0 K
+    character(lenLabel) :: egy0Total   = 'extrapolated0_energy'
+
+    !> Energy, which if differentiated gives - force
+    character(lenLabel) :: egyForceRelated = 'forcerelated_energy'
 
     !> Internal electric field
     character(lenLabel) :: internField = 'internal_efield'

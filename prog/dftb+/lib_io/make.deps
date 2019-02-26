@@ -8,13 +8,13 @@ fileid.o = fileid.o $(_mod_dftbp_message)
 _mod_dftbp_fileid: fileid.o
 _mod_dftbp_fileid = $(fileid.o)
 
-formatout.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines _mod_dftbp_fileid _mod_dftbp_globalenv _mod_dftbp_sparse2dense _mod_dftbp_constants
-formatout.o = formatout.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_fileid) $(_mod_dftbp_globalenv) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_constants)
+formatout.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines _mod_dftbp_constants _mod_dftbp_globalenv _mod_dftbp_sparse2dense _mod_dftbp_message
+formatout.o = formatout.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_constants) $(_mod_dftbp_globalenv) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_message)
 _mod_dftbp_formatout: formatout.o
 _mod_dftbp_formatout = $(formatout.o)
 
-hsdparser.o: _mod_dftbp_assert common.fypp _mod_dftbp_xmlutils _mod_dftbp_xmlf90 _mod_dftbp_fileid _mod_dftbp_charmanip _mod_dftbp_message
-hsdparser.o = hsdparser.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_xmlutils) $(_mod_dftbp_xmlf90) $(_mod_dftbp_fileid) $(_mod_dftbp_charmanip) $(_mod_dftbp_message)
+hsdparser.o: _mod_dftbp_assert common.fypp _mod_dftbp_xmlutils _mod_dftbp_xmlf90 _mod_dftbp_charmanip _mod_dftbp_message
+hsdparser.o = hsdparser.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_xmlutils) $(_mod_dftbp_xmlf90) $(_mod_dftbp_charmanip) $(_mod_dftbp_message)
 _mod_dftbp_hsdparser: hsdparser.o
 _mod_dftbp_hsdparser = $(hsdparser.o)
 

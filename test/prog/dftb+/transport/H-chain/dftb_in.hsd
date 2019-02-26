@@ -1,0 +1,95 @@
+geometry = genformat {
+<<< "30h.gen"
+}
+
+transport {
+    device {
+      atomrange = 1 11 
+    }
+    contact {
+      Id = "Source"
+      atomrange = 12 21
+    FermiLevel [eV] = -6.4926472360850
+     potential [eV] = 0.0
+    }
+    contact {
+      Id = "Drain"
+      atomrange = 22 31
+    FermiLevel [eV] = -6.4926472360850
+     potential [eV] = 2.0
+    }
+
+  
+ #!task = ContactHamiltonian{
+ #  ContactId = "Drain"
+ #}
+}
+
+hamiltonian = dftb {
+  scc = yes 
+  scctolerance = 1e-6
+  maxscciterations = 100
+  maxangularmomentum = {
+    h = s
+  }
+
+  filling = Fermi {
+    Temperature [K] = 0
+  }
+
+  #KPointsAndWeights = SupercellFolding {
+  # 16 0 0
+  # 0 1 0 
+  # 0 0 1 
+  # 0.0 0.0 0.0
+  #}
+
+  Electrostatics = Poisson {
+    Poissonbox [Angstrom] = 20.0 20.0 20.0
+    MinimalGrid [Angstrom] = 0.4 0.4 0.4
+    AtomDensityCutoff [Angstrom] = 7.05
+    CutoffCheck = No  
+    SavePotential = Yes 
+    PoissonAccuracy = 1e-5
+    BuildBulkPotential = Yes
+    #RecomputeAfterDensity = Yes
+  }
+
+  #!Electrostatics = gammafunctional{}
+ 
+ 
+  slaterkosterfiles = {
+    H-H = "H-H-noS.skf"
+  }
+  Eigensolver = GreensFunction{
+     Verbosity = 51   
+     RealAxisPoints = 100
+     EnclosedPoles = 3
+  }
+  #!Eigensolver = DivideAndConquer{} 
+}
+
+Analysis{
+  TunnelingAndDOS{
+    EnergyRange [eV] = -0.0  0.0
+    EnergyStep [eV] = 0.02 
+  }
+}
+
+Parallel = {
+  Blacs{ 
+    BlockSize = 4 
+  }
+
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+options = {
+  writeautotesttag = yes 
+}
+
+parseroptions = {
+  parserversion = 6
+}

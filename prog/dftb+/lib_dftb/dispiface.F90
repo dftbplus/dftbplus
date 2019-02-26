@@ -8,9 +8,11 @@
 !> Common interface for all dispersion modules.
 module dftbp_dispiface
   use dftbp_accuracy, only : dp
-  use dftbp_periodic, only : TNeighborList
+  use dftbp_periodic, only : TNeighbourList
   implicit none
-
+  private
+  
+  public :: DispersionIface
 
   !> Interface for classes providing dispersion.
   type, abstract :: DispersionIface
@@ -35,18 +37,18 @@ module dftbp_dispiface
     procedure(getStressIface), deferred :: getStress
   end type DispersionIface
 
-  abstract interface
 
+  abstract interface
 
     !> Update internal stored coordinate
     subroutine updateCoordsIface(this, neigh, img2CentCell, coords, species0)
-      import :: DispersionIface, TNeighborList, dp
+      import :: DispersionIface, TNeighbourList, dp
 
       !> data structure
       class(DispersionIface), intent(inout) :: this
 
       !> list of neighbours to atoms
-      type(TNeighborList), intent(in) :: neigh
+      type(TNeighbourList), intent(in) :: neigh
 
       !> image to central cell atom index
       integer, intent(in) :: img2CentCell(:)

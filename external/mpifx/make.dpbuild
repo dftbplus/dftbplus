@@ -19,7 +19,7 @@ all: libmpifx
 
 libmpifx:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/Makefile.lib \
-	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" INCLUDES="$(INCLUDES)" \
             M4="$(M4)" M4OPT="$(M4OPT)" SRCDIR="$(SRCDIR)/origin/src"
 
 clean:

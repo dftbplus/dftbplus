@@ -1,0 +1,1373 @@
+================================================================================
+==
+==   Density Functional based Tight Binding with a lot of extensions (DFTB+)    
+==
+==                          Unofficial release (r2776)
+==
+==                            (ParserVersion = 3)
+==
+================================================================================
+
+
+********************************************************************************
+** Parsing and initializing
+********************************************************************************
+
+Interpreting input file 'dftb_in.hsd'
+--------------------------------------------------------------------------------
+
+
+Processed input in HSD format written to 'dftb_pin.hsd'
+
+Starting initialization...
+--------------------------------------------------------------------------------
+ Initializing gdftb
+=========================================================================
+                             READ PAR.IN
+=========================================================================
+=========================================================================
+ natoms=           5
+ ntypes=           2
+ is Periodic= F
+ coordinates=
+    1  1   0.0000   0.0000   0.0000
+    2  2   0.0000   0.0000   2.0787
+    3  2   2.1380   0.0000  -0.3779
+    4  2  -1.0690   1.6626  -0.7559
+    5  2  -0.8800  -1.8515  -0.7559
+ ind=
+           0           4           5           6           7           8
+   qzero,   uhubb,   lmax
+   4.0000   0.3647     2
+   1.0000   0.4195     1
+ Conversion factor Ang/a.u.  0.529177249000000     
+ Conversion factor eV/a.u.   27.2113845000000     
+ Machine accuracy  2.220446049250313E-016
+ Temperature for electronic distribution=  0.000000000000000E+000
+ Np=  20  20  20  20
+ Contour parameters: LmbMax=  0.500000000000000      N_omega=          35
+ Delta for Green's function=  1.000000000000000E-004
+ ReadOldSGF= F
+ Bias=  0.000000000000000E+000 BiasDir=           0
+ DoPoisson= T
+ Input PoissonBox=
+   30.0000000000000       0.000000000000000E+000  0.000000000000000E+000
+  0.000000000000000E+000   30.0000000000000       0.000000000000000E+000
+  0.000000000000000E+000  0.000000000000000E+000   30.0000000000000     
+ MinPoissonGrid (x direction)=  0.400000000000000     
+ MinPoissonGrid (y direction)=  0.400000000000000     
+ MinPoissonGrid (z direction)=  0.400000000000000     
+ PoissAcc=  1.000000000000000E-005
+ BulkBoundaryPot= F
+ Atomic orbital radius=   4.50000000000000     
+ PoissPlane=  0.000000000000000E+000  0.000000000000000E+000
+ MaxSCCiter=         100
+ BroydenMix=  5.000000000000000E-002
+=========================================================================
+ System Type: UNCONTACTED CLUSTER  STRUCTURE
+ Fermi Level=  -1.13234674218812      eV
+ MOLECULE
+ Atom start =      1
+ Atom end =      5
+ nmdim=           8
+  
+=========================================================================
+Mode:                        Static calculation
+Self consistent charges:     Yes
+SCC-tolerance:                 0.100000E-07
+Max. scc iterations:                    100
+Spin polarisation:           No
+Nr. of up electrons:             4.000000
+Nr. of down electrons:           4.000000
+Periodic boundaries:         No
+Diagonalizer:                Relativel robust (version 2)
+Mixer:                       Broyden mixer
+Mixing parameter:                  0.200000
+Maximal SCC-cycles:                     100
+Nr. of chrg. vec. in memory:            100
+Electronic temperature:        0.100000E-07
+Initial charges:             Set automatically (system chrg:   0.000E+00)
+Included shells:              C:  S, P
+                              H:  S
+Extra options:
+                             Force calculation
+--------------------------------------------------------------------------------
+ 
+
+********************************************************************************
+** Geometry step:    0
+********************************************************************************
+
+  iSCC Total electronic   Diff electronic      SCC error    
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  5.0000002E-04 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.54 kb
+   peak memory allocated:    18.04 kb
+ 
+    1   -0.32071274E+01    0.00000000E+00    0.34754336E+00
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.57 kb
+   peak memory allocated:    18.07 kb
+ 
+    2   -0.32072398E+01   -0.11238329E-03    0.26329939E+00
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.60 kb
+   peak memory allocated:    18.10 kb
+ 
+    3   -0.32073911E+01   -0.15138363E-03    0.81831264E-03
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.63 kb
+   peak memory allocated:    18.14 kb
+ 
+    4   -0.32073912E+01   -0.15290688E-07    0.58554742E-03
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.66 kb
+   peak memory allocated:    18.17 kb
+ 
+    5   -0.32073912E+01   -0.15880935E-07    0.95753480E-05
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.70 kb
+   peak memory allocated:    18.20 kb
+ 
+    6   -0.32073912E+01   -0.26072478E-11    0.26273006E-06
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.73 kb
+   peak memory allocated:    18.23 kb
+ 
+    7   -0.32073912E+01   -0.22204460E-14    0.12150375E-06
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.76 kb
+   peak memory allocated:    18.26 kb
+ 
+    8   -0.32073912E+01   -0.88817842E-15    0.51274540E-11
+>> Charges saved for restart in charges.bin
+ 
+ Total Energy:                          -3.218281
+ Total Mermin free energy:              -3.218281
+*************************************************************************
+ H:          64           8
+ S:          64           8
+ HM:          64           8
+ SM:          64           8
+ number of blocks:           1
+ indeces of molecular blocks:
+           1           9
+ Interacting blocks:
+ 
+ Indeces of interacting blocks:
+ 
+=========================================================================
+           COMPUTING DENSITY MATRIX - Complex Integration
+=========================================================================
+INTEGRAL 1: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 1: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 1: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  1/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  2/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  3/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  4/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  5/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  6/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point  7/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  8/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point  9/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 10/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 11/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 12/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 13/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 14/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 15/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 16/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 17/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  9.9999997E-05 sec
+INTEGRAL 2: point 18/ 20  CPU=  0
+Compute Green`s funct ................................  0.0000000E+00 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 19/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+INTEGRAL 2: point 20/ 20  CPU=  0
+Compute Green`s funct ................................  9.9999997E-05 sec
+Density matrix update ................................  0.0000000E+00 sec
+=========================================================================
+Average number of decimation iter.:0.000
+current memory allocated:     5.79 kb
+   peak memory allocated:    18.30 kb
+ 

@@ -198,10 +198,10 @@ contains
     !> instance
     type(TEnvironment), intent(inout) :: env
 
-    logical :: tStopDriver, tStopScc
+    logical :: tStopDriver, tStopScc, tExitGeoOpt
 
     if (tLatticeChanged .or. tCoordsChanged) then
-      call processGeometry(env, 1, 1, .false., tStopDriver, tStopScc)
+      call processGeometry(env, 1, 1, .false., tStopDriver, tStopScc, tExitGeoOpt)
       tLatticeChanged = .false.
       tCoordsChanged = .false.
     end if

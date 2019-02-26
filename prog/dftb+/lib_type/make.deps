@@ -13,11 +13,6 @@ dynneighlist.o = dynneighlist.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp
 _mod_dftbp_dynneighlist: dynneighlist.o
 _mod_dftbp_dynneighlist = $(dynneighlist.o)
 
-fifo.o: _mod_dftbp_fileid _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
-fifo.o = fifo.o $(_mod_dftbp_fileid) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
-_mod_dftbp_fifo: fifo.o
-_mod_dftbp_fifo = $(fifo.o)
-
 latpointiter.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
 latpointiter.o = latpointiter.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
 _mod_dftbp_latpointiter: latpointiter.o
@@ -68,8 +63,8 @@ linkedlists0.o = linkedlists0.o $(_mod_dftbp_xmlf90) $(_mod_dftbp_assert) $(link
 _mod_dftbp_linkedlists0: linkedlists0.o
 _mod_dftbp_linkedlists0 = $(linkedlists0.o)
 
-oldskdata.o: _mod_dftbp_reppoly _mod_dftbp_assert _mod_dftbp_repspline _mod_dftbp_accuracy common.fypp _mod_dftbp_message _mod_dftbp_fileid _mod_dftbp_constants
-oldskdata.o = oldskdata.o $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(_mod_dftbp_repspline) $(_mod_dftbp_accuracy) $(common.fypp) $(_mod_dftbp_message) $(_mod_dftbp_fileid) $(_mod_dftbp_constants)
+oldskdata.o: _mod_dftbp_reppoly _mod_dftbp_assert _mod_dftbp_repspline _mod_dftbp_accuracy common.fypp _mod_dftbp_message _mod_dftbp_constants
+oldskdata.o = oldskdata.o $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(_mod_dftbp_repspline) $(_mod_dftbp_accuracy) $(common.fypp) $(_mod_dftbp_message) $(_mod_dftbp_constants)
 _mod_dftbp_oldskdata: oldskdata.o
 _mod_dftbp_oldskdata = $(oldskdata.o)
 
@@ -83,8 +78,8 @@ parallelks.o = parallelks.o $(_mod_dftbp_environment) $(common.fypp)
 _mod_dftbp_parallelks: parallelks.o
 _mod_dftbp_parallelks = $(parallelks.o)
 
-typegeometry.o: _mod_dftbp_accuracy
-typegeometry.o = typegeometry.o $(_mod_dftbp_accuracy)
+typegeometry.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines
+typegeometry.o = typegeometry.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines)
 _mod_dftbp_typegeometry: typegeometry.o
 _mod_dftbp_typegeometry = $(typegeometry.o)
 
@@ -92,4 +87,9 @@ typegeometryhsd.o: _mod_dftbp_unitconversion _mod_dftbp_tokenreader _mod_dftbp_l
 typegeometryhsd.o = typegeometryhsd.o $(_mod_dftbp_unitconversion) $(_mod_dftbp_tokenreader) $(_mod_dftbp_linkedlist) $(_mod_dftbp_typegeometry) $(_mod_dftbp_xmlf90) $(_mod_dftbp_charmanip) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_hsdutils) $(_mod_dftbp_simplealgebra)
 _mod_dftbp_typegeometryhsd: typegeometryhsd.o
 _mod_dftbp_typegeometryhsd = $(typegeometryhsd.o)
+
+wrapped_intrinsics.o: _mod_dftbp_accuracy
+wrapped_intrinsics.o = wrapped_intrinsics.o $(_mod_dftbp_accuracy)
+_mod_dftbp_wrappedintr: wrapped_intrinsics.o
+_mod_dftbp_wrappedintr = $(wrapped_intrinsics.o)
 

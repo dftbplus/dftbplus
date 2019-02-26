@@ -19,12 +19,19 @@ module dftbp_inputdata_module
   use dftbp_commontypes
   use dftbp_repcont
   use dftbp_linkedlist
+  use dftbp_elecsolvers, only : TElectronicSolverInp
   use dftbp_xlbomd_module
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IpiSocketCommInp
 #:endif
   use dftbp_pmlocalisation, only : TPipekMezeyInp
   use dftbp_elstatpot, only : TElStatPotentialsInp
+
+#:if WITH_TRANSPORT
+  use libnegf_vars
+  use poisson_init
+#:endif
+
   implicit none
   private
   save
@@ -32,6 +39,9 @@ module dftbp_inputdata_module
   public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
   public :: TBlacsOpts
   public :: init, destruct
+#:if WITH_TRANSPORT
+  public :: TNEGFInfo
+#:endif
 
 
   !> Contains Blacs specific options.
@@ -84,6 +94,8 @@ module dftbp_inputdata_module
 
     !> Read starting charges from disc
     logical :: tReadChrg = .false.
+
+    logical :: tSkipChrgChecksum = .false.
 
     !> Disc charges are stored as ascii or binary files
     logical :: tReadChrgAscii = .true.
@@ -157,7 +169,10 @@ module dftbp_inputdata_module
     logical :: tProjEigenvecs = .false.
 
     !> Evaluate forces
-    logical :: tForces     = .false.
+    logical :: tForces = .false.
+
+    !> Evaluate force contributions from the excited state if required and (tForces)
+    logical :: tCasidaForces = .false.
 
     !> force evaluation method
     integer :: forceType
@@ -195,7 +210,10 @@ module dftbp_inputdata_module
     !> initial charges
     real(dp), allocatable :: initialCharges(:)
     logical :: tDFTBU        = .false.
-    integer :: iSolver       = 0
+
+    !> Electronic/eigenvalue solver options
+    type(TElectronicSolverInp) :: solver
+
     integer :: iMixSwitch    = 0
     integer :: maxIter       = 0
     real(dp) :: almix         = 0.0_dp
@@ -243,7 +261,7 @@ module dftbp_inputdata_module
 
     real(dp) :: tempElec      = 0.0_dp
     logical :: tFixEf        = .false.
-    real(dp) :: Ef(2)         = 0.0_dp
+    real(dp), allocatable :: Ef(:)
     logical :: tFillKSep     = .false.
     integer :: iDistribFn    = 0
     real(dp) :: wvScale       = 0.0_dp
@@ -348,6 +366,16 @@ module dftbp_inputdata_module
     real(dp) :: dampExp = 0.0_dp
 
 
+    ! H5 correction
+    !> H5 correction On/Off(default) flag
+    logical ::h5SwitchedOn = .false.
+    !> Global parameters - set to -1 to identify they were not initialized
+    real(dp) :: h5RScale = -1.0_dp
+    real(dp) :: h5WScale = -1.0_dp
+    real(dp), allocatable :: h5ElementPara(:)
+    ! H5 correction end
+
+
     !> Old repulsive
     logical :: useBuggyRepSum
 
@@ -375,6 +403,14 @@ module dftbp_inputdata_module
     logical :: tWriteHS = .false.
     logical :: tWriteRealHS = .false.
     logical :: tMinMemory = .false.
+
+    !> potential shifts are read from file
+    logical :: tReadShifts = .false.
+    !> potential shifts are written on file
+    logical :: tWriteShifts = .false.
+
+    !> use Poisson solver for electrostatics
+    logical :: tPoisson = .false.
 
 
     !> Dispersion related stuff
@@ -426,13 +462,26 @@ module dftbp_inputdata_module
     type(TOrbitals), allocatable :: orb
   end type slater
 
+#:if WITH_TRANSPORT
+  !> container for data needed by libNEGF
+  type TNEGFInfo
+    type(TNEGFTunDos) :: tundos  !Transport section informations
+    type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
+  end type TNEGFInfo
+#:endif
+
 
   !> container for input data constituents
   type inputData
+    logical :: tInitialized = .false.
     type(control) :: ctrl
     type(TGeometry) :: geom
     type(slater) :: slako
-    logical :: tInitialized = .false.
+  #:if WITH_TRANSPORT
+    type(TTransPar) :: transpar
+    type(TNEGFInfo) :: ginfo
+    type(TPoissonInfo) :: poisson
+  #:endif
   end type inputData
 
 

@@ -3,7 +3,6 @@ Geometry = GenFormat {
 }
 
 Driver = Socket {
-    File = "dftb_cluster"
     Verbosity = 3 # loud
     Protocol = i-PI {} # i-PI interface
     MaxSteps = 5 # Terminate this instance only when out of structures
@@ -39,3 +38,6 @@ Parallel {
   UseOmpThreads = Yes
 }
 
+# add details for the communication file to be used, this is set
+# externally by prerun.py in the created file.txt
+<<+ file.hsd

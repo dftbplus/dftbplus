@@ -27,9 +27,19 @@ check: check_dptools
 
 include make.config
 
+################################################################################
+# Sanity checks
+################################################################################
+
 # Check whether DEBUG level is correct
 ifeq ($(filter 0 1 2,$(strip $(DEBUG))),)
   $(error 'Invalid value $(DEBUG) for DEBUG (must be 0, 1 or 2)')
+endif
+
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  ifneq ($(strip $(WITH_MPI)),1)
+    $(error 'Transport can only be included when code is built with MPI')
+  endif
 endif
 
 ################################################################################
@@ -53,15 +63,21 @@ dftb+ modes waveplot:
 
 DFTBPLUS_DEPS := update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
-DFTBPLUS_DEPS += external_fsockets
+  DFTBPLUS_DEPS += external_fsockets
 endif
 ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
-DFTBPLUS_DEPS += external_dftd3
+  DFTBPLUS_DEPS += external_dftd3
 endif
 ifeq ($(strip $(WITH_MPI)),1)
-DFTBPLUS_DEPS += external_mpifx external_scalapackfx
+  DFTBPLUS_DEPS += external_mpifx external_scalapackfx
+endif
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  DFTBPLUS_DEPS += external_libnegf external_poisson
+  external_libnegf: external_mpifx
+  external_poisson: external_mpifx external_libnegf
 endif
 dftb+: $(DFTBPLUS_DEPS)
+
 modes: external_xmlf90
 waveplot: external_xmlf90
 
@@ -79,13 +95,14 @@ misc_skderivs: external_xmlf90
 EXTERNAL_NAME = $(subst external_,,$@)
 
 EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
-    external_scalapackfx
+    external_scalapackfx external_poisson external_libnegf
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)
 	$(MAKE) -C $(BUILDDIR)/external/$(EXTERNAL_NAME) \
           -f $(ROOT)/external/$(EXTERNAL_NAME)/make.dpbuild \
           ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
+
 
 
 API_NAME = $(subst api_,,$@)
