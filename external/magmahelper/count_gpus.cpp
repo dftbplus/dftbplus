@@ -1,22 +1,22 @@
 #include <magma.h>
 
-// count GPUs function
+// Function to count GPU
 
-const int MAXGPUS = 117; // 117 is large enough to fit all device IDs
+const int MAXGPUS = 120; // large enough to fit all device IDs
 
+// Obtain number of available of GPUs
 extern "C"  void  MagmaGpuNum_Available(int* max_ngpus)
 {
     magma_device_t devices[MAXGPUS];
     magma_int_t number_of_gpus;
-    magma_getdevices( devices, MAXGPUS, &number_of_gpus);
+    magma_getdevices(devices, MAXGPUS, &number_of_gpus);
     *max_ngpus=number_of_gpus;
     return;
 }
 
+// Number of GPUs requested by the code
 extern "C" void MagmaGpuNum_Requested(int* req_ngpus)
 {
     *req_ngpus= magma_num_gpus();
     return;
 }
-
-
