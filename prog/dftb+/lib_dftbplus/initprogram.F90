@@ -200,7 +200,6 @@ module dftbp_initprogram
   !> reciprocal lattice vectors as columns
   real(dp), allocatable, target :: recVec(:,:)
 
-
   !> original lattice vectors used for optimizing
   real(dp) :: origLatVec(3,3)
 
@@ -813,7 +812,7 @@ module dftbp_initprogram
   real(dp) :: Efield(3), absEfield
   !> Electronic structure solver
   type(TElectronicSolver) :: electronicSolver
-  
+
   !> Are large dense matrices required?
   logical :: tLargeDenseMatrices
 
@@ -3803,6 +3802,7 @@ contains
     end if
 
   end subroutine ensureSolverCompatibility
+
 
   !> Initialises SCC related parameters before geometry loop starts
   function getMinSccIters(tSccCalc, tDftbU, nSpin) result(minSccIter)

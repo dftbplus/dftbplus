@@ -286,7 +286,7 @@ contains
   subroutine getChargePerShell(qOrb, orb, species, chargePerShell, qRef)
 
     !> charges in each orbital, for each atom and spin channel
-    real(dp), intent(in), target :: qOrb(:,:,:)
+    real(dp), intent(in) :: qOrb(:,:,:)
 
     !> orbital information
     type(TOrbitals), intent(in) :: orb

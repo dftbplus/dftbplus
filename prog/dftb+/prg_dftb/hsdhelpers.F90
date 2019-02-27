@@ -7,6 +7,7 @@
 
 #:include "common.fypp"
 
+!> HSD-parsing related helper routines.
 module dftbp_hsdhelpers
   use dftbp_globalenv, only : stdOut, tIoProc
   use dftbp_parser

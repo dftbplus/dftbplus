@@ -329,7 +329,8 @@ contains
         & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
         & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
         & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
-        & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies)
+        & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
+        & allExcEnergies)
 
 #:else
     call error('Internal error: Illegal routine call to LinResp_calcExcitations')
@@ -341,8 +342,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator, rhoSqr,&
-      & occNatural, naturalOrbs)
+      & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator,&
+      & rhoSqr, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -450,7 +451,7 @@ contains
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
-          & this%spinW, this%nEl, iNeighbor, img2CentCell, orb, tWriteTagged, fdTagged,&
+          & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
           & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
           & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
           & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&

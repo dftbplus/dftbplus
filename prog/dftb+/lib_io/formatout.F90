@@ -13,7 +13,7 @@ module dftbp_formatout
   use dftbp_environment
   use dftbp_assert
   use dftbp_accuracy
-    use dftbp_message
+  use dftbp_message
   use dftbp_constants
   use dftbp_lapackroutines, only: matinv
   use dftbp_sparse2dense

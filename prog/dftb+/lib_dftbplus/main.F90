@@ -179,7 +179,10 @@ contains
 
       if (tForces) then
         call getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
-            & tStopDriver, iLatGeoStep, tempIon)
+            & tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
+        if (tExitGeoOpt) then
+          exit geoOpt
+        end if
       end if
 
       if (tWriteDetailedOut .and. tMd) then
@@ -669,7 +672,7 @@ contains
           & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
           & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
           & iRhoPrim, thirdOrd, qDepExtPot, chrgForces, dispersion, tPoisson)
-      if (tLinResp) then
+      if (tCasidaForces) then
         derivs(:,:) = derivs + excitedDerivs
       end if
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
@@ -718,7 +721,7 @@ contains
       & constrLatDerivs)
 
     !> On input energy derivatives, on exit resulting projected derivatives
-    real(dp), intent(inout) :: derivs(:,:)
+    real(dp), intent(inout), allocatable :: derivs(:,:)
 
     !> Atoms being constrained
     integer, allocatable, intent(in) :: conAtom(:)
@@ -765,7 +768,7 @@ contains
 
 
   subroutine getNextGeometry(env, iGeoStep, tWriteRestart, constrLatDerivs, tCoordStep, tGeomEnd,&
-      & tStopDriver, iLatGeoStep, tempIon)
+      & tStopDriver, iLatGeoStep, tempIon, tExitGeoOpt)
     use dftbp_initprogram
 
     !> Environment settings
@@ -796,6 +799,9 @@ contains
     !> MD instantaneous thermal energy
     real(dp), intent(out) :: tempIon
 
+    !> Whether geometry optimisation should be stop
+    logical, intent(out) :: tExitGeoOpt
+
 
     !> Difference between last calculated and new geometry.
     real(dp) :: diffGeo
@@ -807,18 +813,21 @@ contains
     tCoordsChanged = .false.
     tLatticeChanged = .false.
 
+    tExitGeoOpt = .false.
+
     if (tDerivs) then
       call getNextDerivStep(derivDriver, derivs, indMovedAtom, coord0, tGeomEnd)
       if (tGeomEnd) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
+        tExitGeoOpt = .true.
         return
       end if
       tCoordsChanged = .true.
     else if (tGeoOpt) then
       tCoordsChanged = .true.
       if (tCoordStep) then
-        call getNextCoordinateOptStep(pGeoCoordOpt, energy, derivs, indMovedAtom,&
-            & coord0, diffGeo, tCoordEnd, .not. tCasidaForces)
+        call getNextCoordinateOptStep(pGeoCoordOpt, energy, derivs, indMovedAtom, coord0, diffGeo,&
+            & tCoordEnd, .not. tCasidaForces)
         if (.not. tLatOpt) then
           tGeomEnd = tCoordEnd
         end if
@@ -837,6 +846,7 @@ contains
       end if
       if (tGeomEnd .and. diffGeo < tolSameDist) then
         call env%globalTimer%stopTimer(globalTimers%postSCC)
+        tExitGeoOpt = .true.
         return
       end if
     else if (tMD) then
@@ -1588,7 +1598,7 @@ contains
   end subroutine overrideContactCharges
 
 #:endif
-  
+
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
@@ -1831,7 +1841,7 @@ contains
 
   end subroutine getSccHamiltonian
 
-  
+
   !> Transform the hamiltonian from QM to UD representation
   !> Hack due to not using Pauli-type structure for diagonalisation
   !> For collinear spin, qm2ud will produce the right potential:
@@ -5538,7 +5548,7 @@ contains
   end subroutine calcPipekMezeyLocalisation
 
   subroutine printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtoms)
-    real(dp), intent(in) :: derivs(:,:)
+    real(dp), intent(in), allocatable :: derivs(:,:)
     real(dp), intent(in) :: constrLatDerivs(:)
     logical, intent(in) :: tCoordOpt
     logical, intent(in) :: tLatOpt
