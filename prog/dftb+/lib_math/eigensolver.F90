@@ -123,7 +123,7 @@ contains
     @:ASSERT(n>0)
     call ssyev(jobz, uplo, n, a, n, w, idealwork, -1, info)
     if (info/=0) then
-      call error("Failue in SSYEV to determine optimum workspace")
+      call error("Failure in SSYEV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -172,7 +172,7 @@ contains
     @:ASSERT(n>0)
     call dsyev(jobz, uplo, n, a, n, w, idealwork, -1, info)
     if (info/=0) then
-      call error("Failue in DSYEV to determine optimum workspace")
+      call error("Failure in DSYEV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -223,7 +223,7 @@ contains
     allocate(rwork(3*n-2))
     call cheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
-      call error("Failue in CHEEV to determine optimum workspace")
+      call error("Failure in CHEEV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
@@ -274,7 +274,7 @@ contains
     allocate(rwork(3*n-2))
     call zheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
-      call error("Failue in ZHEEV to determine optimum workspace")
+      call error("Failure in ZHEEV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
@@ -337,7 +337,7 @@ contains
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call ssygv(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
     if (info/=0) then
-       call error("Failue in SSYGV to determine optimum workspace")
+       call error("Failure in SSYGV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -405,7 +405,7 @@ contains
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call dsygv(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
     if (info/=0) then
-       call error("Failue in DSYGV to determine optimum workspace")
+       call error("Failure in DSYGV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -475,7 +475,7 @@ contains
     allocate(rwork(3*n-2))
     call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
-       call error("Failue in CHEGV to determine optimum workspace")
+       call error("Failure in CHEGV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
@@ -546,7 +546,7 @@ contains
     allocate(rwork(3*n-2))
     call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
-       call error("Failue in CHEGV to determine optimum workspace")
+       call error("Failure in CHEGV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
@@ -617,7 +617,7 @@ contains
     call ssygvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
          & iidealwork, -1, info)
     if (info/=0) then
-       call error("Failue in SSYGVD to determine optimum workspace")
+       call error("Failure in SSYGVD to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -689,7 +689,7 @@ contains
     call dsygvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & iidealwork, -1, info)
     if (info/=0) then
-      call error("Failue in DSYGVD to determine optimum workspace")
+      call error("Failure in DSYGVD to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -763,7 +763,7 @@ contains
     call chegvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & ridealwork, -1, iidealwork, -1, info)
     if (info/=0) then
-      call error("Failue in CHEGVD to determine optimum workspace")
+      call error("Failure in CHEGVD to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     int_ridealwork=floor(ridealwork(1))
@@ -839,7 +839,7 @@ contains
     call zhegvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & ridealwork, -1, iidealwork, -1, info)
     if (info/=0) then
-      call error("Failue in ZHEGVD to determine optimum workspace")
+      call error("Failure in ZHEGVD to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     int_ridealwork=floor(ridealwork(1))
@@ -978,7 +978,7 @@ contains
     end if
 
     if (info/=0) then
-      call error("Failue in SSYGVR to determine optimum workspace")
+      call error("Failure in SSYGVR to determine optimum workspace")
     endif
     lwork = floor(tmpWork(1))
     liwork = floor(real(tmpIWork(1)))
@@ -1192,7 +1192,7 @@ contains
     end if
 
     if (info/=0) then
-      call error("Failue in DSYGVR to determine optimum workspace")
+      call error("Failure in DSYGVR to determine optimum workspace")
     endif
     lwork = floor(tmpWork(1))
     liwork = floor(real(tmpIWork(1)))
@@ -1408,7 +1408,7 @@ contains
     end if
 
     if (info/=0) then
-      call error("Failue in CHEEVR to determine optimum workspace")
+      call error("Failure in CHEEVR to determine optimum workspace")
     endif
     lwork = floor(real(tmpWork(1)))
     liwork = floor(real(tmpIWork(1)))
@@ -1628,7 +1628,7 @@ contains
     end if
 
     if (info/=0) then
-      call error("Failue in ZHEEVR to determine optimum workspace")
+      call error("Failure in ZHEEVR to determine optimum workspace")
     endif
     lwork = floor(real(tmpWork(1)))
     liwork = floor(real(tmpIWork(1)))

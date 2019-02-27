@@ -29,7 +29,7 @@ module negf_int
   use FormatOut
   use globalenv
   use message
-  use solvertypes
+  use elecsolvertypes, only : electronicSolverTypes
 
   implicit none
   private
@@ -117,7 +117,7 @@ module negf_int
     call init_contacts(negf, ncont)
     call set_scratch(negf, ".")
 
-    if (tIoProc .and. transpar%defined .and. solver == solverGF) then
+    if (tIoProc .and. transpar%defined .and. solver == electronicSolverTypes%GF) then
       call create_scratch(negf)
     end if
 
@@ -1337,14 +1337,29 @@ module negf_int
 
   end subroutine add_partial_results
 
+
   !> utility to write tunneling or ldos on files
   subroutine write_file(negf, matTot, matSKRes, filename, groupKS, kpoints, kWeights)
+
+    !> Contains input data, runtime quantities and output data
     type(TNegf) :: negf
+
+    !> results to print if allocated
     real(dp), intent(in), allocatable :: matTot(:,:)
+
+    !> k- and spin-resolved quantities, if allocated
     real(dp), intent(in), allocatable :: matSKRes(:,:,:)
+
+    !> file to print out to
     character(*), intent(in) :: filename
+
+    !> local k-points and spins on this processor
     integer, intent(in) :: groupKS(:,:)
+
+    !> k-points
     real(dp), intent(in) :: kPoints(:,:)
+
+    !> Weights for k-points
     real(dp), intent(in) :: kWeights(:)
 
     integer :: ii, jj, nKS, iKS, nK, nS, iK, iS, fdUnit
@@ -1357,32 +1372,35 @@ module negf_int
     nS = nKS/nK
 
     open(newunit=fdUnit, file=trim(filename)//'.dat')
-    do ii=1,size(matTot,1)
-      write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
-      do jj=1,size(matTot,2)
-        write(fdUnit,'(es20.8)',ADVANCE='NO') matTot(ii,jj)
+    do ii=1,size(matTot, dim=1)
+      write(fdUnit,'(F20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
+      do jj=1,size(matTot, dim=2)
+        write(fdUnit,'(ES20.8)',ADVANCE='NO') matTot(ii,jj)
       enddo
       write(fdUnit,*)
     enddo
     close(fdUnit)
 
-    if (nKS.gt.1) then
+    if (nKS > 1) then
+
       open(newunit=fdUnit, file=trim(filename)//'_kpoints.dat')
-      write(fdUnit,*)  '# NKpoints = ', nK
-      write(fdUnit,*)  '# NSpin = ', nS
-      write(fdUnit,*)  '# Energy [eV], <spin k1 k2 k3 weight> '
+      write(fdUnit,*)'# NKpoints = ', nK
+      write(fdUnit,*)'# NSpin = ', nS
+      write(fdUnit,*)'# Energy [eV], <spin k1 k2 k3 weight> '
       write(fdUnit,'(A1)', ADVANCE='NO') '# '
-      do iKS = 1,nKS
+
+      do iKS = 1, nKS
         iK = groupKS(1,iKS)
         iS = groupKS(2,iKS)
         write(fdUnit,'(i5.2)', ADVANCE='NO') iS
         write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
       end do
       write(fdUnit,*)
+
       if (allocated(matSKRes)) then
-        do ii=1,size(matSKRes(:,:,1),1)
+        do ii = 1, size(matSKRes(:,:,:), dim=1)
           write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
-          do jj=1,size(matSKRes(:,:,1),2)
+          do jj = 1, size(matSKRes(:,:,:), dim=2)
             do iKS = 1,nKS
               write(fdUnit,'(es20.8)',ADVANCE='NO') matSKRes(ii,jj, iKS)
             enddo
@@ -1391,6 +1409,7 @@ module negf_int
         enddo
       end if
       close(fdUnit)
+
     end if
 
   end subroutine write_file
