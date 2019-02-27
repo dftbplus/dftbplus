@@ -6,7 +6,7 @@
 
 
 non-scc/Si_384_GPU                     #? WITH_GPU and MPI_PROCS <= 1
-scc/SiC_512                            #? WITH_GPU and MPI_PROCS <= 1
+scc/SiC_512_GPU                        #? WITH_GPU and MPI_PROCS <= 1
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4

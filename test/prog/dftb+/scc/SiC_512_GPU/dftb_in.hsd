@@ -18,7 +18,7 @@ Hamiltonian = DFTB {
         Separator = "-"
         Suffix = ".skf"
     }
-    Eigensolver = GPU {}
+    Eigensolver = MAGMA {}
     KPointsAndWeights = SupercellFolding {
         2 0 0
         0 2 0

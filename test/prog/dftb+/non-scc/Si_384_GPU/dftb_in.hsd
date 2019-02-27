@@ -398,7 +398,7 @@ Hamiltonian = DFTB {
   MaxAngularMomentum = {
     Si = "p"
   }
-  Eigensolver = GPU {}
+  Eigensolver = MAGMA {}
   Filling = Fermi {
     Temperature [Kelvin] = 0.000000000000000E+000
   }
@@ -411,13 +411,16 @@ Hamiltonian = DFTB {
 }
 
 Options = {
-  MullikenAnalysis = Yes
-  CalculateForces = Yes
   WriteAutotestTag = Yes
 }
 
+Analysis = {
+  MullikenAnalysis = Yes
+  CalculateForces = Yes
+}
+
 ParserOptions = {
-  ParserVersion = 3
+  ParserVersion = 6
 }
 
 Parallel {
