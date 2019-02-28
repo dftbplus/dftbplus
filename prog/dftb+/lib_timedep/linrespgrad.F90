@@ -649,7 +649,7 @@ contains
             & tCoeffs, tGrndState, occNatural, naturalOrbs)
 
         ! Make MO to AO transformation of the excited density matrix
-        call makeSimiliarityTrans(pc, grndEigVecs(:,:,1))
+        call makeSimilarityTrans(pc, grndEigVecs(:,:,1))
 
         call getExcMulliken(iAtomStart, pc, SSqr, dqex)
         if (tMulliken) then
