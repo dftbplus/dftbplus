@@ -452,7 +452,6 @@ contains
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies,&
           & this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont, excgradient, derivator,&
           & rhoSqr, occNatural, naturalOrbs)
-
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
