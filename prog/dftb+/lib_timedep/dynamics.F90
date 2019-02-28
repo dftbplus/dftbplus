@@ -1962,7 +1962,7 @@ contains
   end subroutine openFile
 
 
-  !> Write to and read from restart files
+  !> Write to restart file
   subroutine writeRestart(rho, rhoOld, Ssqr, coord, veloc, time, dumpName)
 
     !> Density matrix
