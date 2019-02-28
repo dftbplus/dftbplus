@@ -138,5 +138,5 @@ ifeq ($(strip $(DEBUG)),1)
 endif
 ifeq ($(strip $(DEBUG)),2)
     FXXOPT = -qopenmp -g -warn all -stand f08 -standard-semantics -check -diag-error-limit 1 -traceback
-    CCOPT = -g -warn all -check
+    CCOPT = -g -Wall -check
 endif

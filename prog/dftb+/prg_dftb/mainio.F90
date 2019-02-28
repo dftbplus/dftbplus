@@ -2445,15 +2445,18 @@ contains
       call qm2ud(qBlockOutUpDown)
     end if
 
-    select case(iDistribFn)
-    case(0)
-      write(fd,*) 'Fermi distribution function'
-    case(1)
-      write(fd,*) 'Gaussian distribution function'
-    case default
-      write(fd,*) 'Methfessel-Paxton distribution function order', iDistribFn
-    end select
-    write(fd,*)
+    if (.not. tNegf) then
+      ! depends on the contact calculations
+      select case(iDistribFn)
+      case(0)
+        write(fd,*) 'Fermi distribution function'
+      case(1)
+        write(fd,*) 'Gaussian distribution function'
+      case default
+        write(fd,*) 'Methfessel-Paxton distribution function order', iDistribFn
+      end select
+      write(fd,*)
+    end if
 
     if (nGeoSteps > 0) then
       if (tMD) then
@@ -2684,7 +2687,10 @@ contains
       if (nSpin == 2) then
         write(fd, "(A, 1X, A)") 'Spin ', trim(spinName(iSpin))
       end if
-      write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
+      if (.not. tNegf) then
+        ! set in the input and for multiple contact Ef values not meaningful anyway
+        write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
+      end if
       if (all(electronicSolver%iSolver /= [electronicSolverTypes%pexsi,&
           & electronicSolverTypes%GF, electronicSolverTypes%OnlyTransport])) then
         write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'

@@ -107,9 +107,9 @@ Options = {
 }
 
 ParserOptions = {
-  ParserVersion = 5
+  ParserVersion = 6
 }
 
 Parallel = {
-  UseOmpThreads = No
+  UseOmpThreads = Yes
 }
