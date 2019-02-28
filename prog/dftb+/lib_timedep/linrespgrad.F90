@@ -1379,25 +1379,11 @@ contains
     integer :: ia, i, a, k
     real(dp) :: rhs2(size(rhs)),rkm1(size(rhs)),pkm1(size(rhs)),apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
-    real(dp), allocatable :: qij(:)
 
     nxov = size(rhs)
-    allocate(qij(nAtom))
-
-    ! Choosing a start value
-    ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
-    do ia = 1, nxov
-      qij = transChrg%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
-      call hemv(qTmp, gammaMat, qij)
-      rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
-      rhs2(ia) = rhs(ia) / rs
-    end do
-
+    ! Choosing a start value for rhs
     ! unit vector
     rhs2 = 1.0_dp / sqrt(real(nxov,dp))
-
-    ! Free some space, before entering the apbw routine
-    deallocate(qij)
 
     ! action of matrix on vector
     call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
