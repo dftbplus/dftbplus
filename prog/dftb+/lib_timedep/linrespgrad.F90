@@ -803,7 +803,7 @@ contains
       ! Action of excitation supermatrix on supervector
       call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat,&
-          & species0, spinW, transChrg, onsMEs, orb)
+          & species0, spinW, onsMEs, orb, transChrg)
 
     end do
 
@@ -844,7 +844,7 @@ contains
           & non-orthog'
       do iState = 1, nExc
         call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
-            & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg, onsMEs, orb)
+            & grndEigVecs, filling, getij, gammaMat, species0, spinW, onsMEs, orb, transChrg)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-evec(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))

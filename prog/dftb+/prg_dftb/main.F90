@@ -329,7 +329,6 @@ contains
           call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
               & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
-
           if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
             call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockIn, qiBlockIn, q0,&
                 & onSiteElements, species, orb)
@@ -446,7 +445,7 @@ contains
               & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
               & tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
-              & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements),tNegf, invLatVec, kPoint,&
+              & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver)
         end if
 
