@@ -1288,7 +1288,7 @@ contains
     !> Mulliken block charges
     real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
 
-    integer :: iAt, iSpin, iOrb1, iOrb2
+    integer :: iAt, iSpin, iOrb1, iOrb2, nOrb
 
     qq = 0.0_dp
     do iSpin=1, this%nSpin
@@ -1311,17 +1311,33 @@ contains
     deltaQ(:,:) = sum((qq - q0), dim=1)
     dipole(:,:) = -matmul(coord(:,:), deltaQ(:,:))
 
-    if (allocated(qBlock)) then
-      rhoPrim(:,:) = 0.0_dp
-      do iSpin = 1, this%nSpin
-        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-             & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-      end do
+    ! sparse way to calculate block populations
+    !if (allocated(qBlock)) then
+    !  rhoPrim(:,:) = 0.0_dp
+    !  do iSpin = 1, this%nSpin
+    !    call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+    !         & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+    !  end do
+    !
+    !  qBlock(:,:,:,:) = 0.0_dp
+    !  do iSpin = 1, this%nSpin
+    !    call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+    !         & nNeighbourSK, img2CentCell, iSparseStart)
+    !  end do
+    !end if
 
+    if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
       do iSpin = 1, this%nSpin
-        call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
-             & nNeighbourSK, img2CentCell, iSparseStart)
+        do iAt = 1, this%nAtom
+          iOrb1 = iSquare(iAt)
+          iOrb2 = iSquare(iAt+1)
+          nOrb = iOrb2 - iOrb1
+          qBlock(:nOrb,:nOrb,iAt,iSpin) = real(matmul(Ssqr(iOrb1:iOrb2-1,:),&
+              & rho(:,iOrb1:iOrb2-1,iSpin)))
+          qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
+              & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
+        end do
       end do
     end if
 
