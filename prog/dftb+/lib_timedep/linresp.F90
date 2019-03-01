@@ -83,6 +83,9 @@ module linresp_module
     !> Write natural orbitals for excited state
     logical :: tPrintEigVecs
 
+    !> Write density matrix for excited state(s)
+    logical :: tWriteDensityMatrix = .false.
+
     !> write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
 
@@ -137,6 +140,7 @@ module linresp_module
 
     integer :: fdArnoldiDiagnosis = -1
     logical :: tPrintEigVecs
+    logical :: tWriteDensityMatrix
     logical :: tInit = .false.
   end type linresp
 
@@ -250,6 +254,7 @@ contains
 
     ! Write to disc
     this%tPrintEigVecs = ini%tPrintEigVecs
+    this%tWriteDensityMatrix = ini%tWriteDensityMatrix
 
     call move_alloc(ini%spinW, this%spinW)
     call move_alloc(ini%hubbardU, this%HubbardU)
@@ -337,7 +342,7 @@ contains
         & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,  this%fdArnoldiDiagnosis,&
         & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
         & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies,&
-        & this%onSiteMatrixElements)
+        & this%onSiteMatrixElements, this%tWriteDensityMatrix)
 
 #:else
     call error('Internal error: Illegal routine call to LinResp_calcExcitations')
@@ -450,8 +455,8 @@ contains
           & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
           & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies,&
-          & this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont, excgradient, derivator,&
-          & rhoSqr, occNatural, naturalOrbs)
+          & this%onSiteMatrixElements, this%tWriteDensityMatrix, shiftPerAtom, skHamCont,&
+          & skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
@@ -460,8 +465,8 @@ contains
           & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
           & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies,&
-          & this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont, excgradient, derivator,&
-          & rhoSqr)
+          & this%onSiteMatrixElements, this%tWriteDensityMatrix, shiftPerAtom, skHamCont,&
+          & skOverCont, excgradient, derivator, rhoSqr)
     end if
 
 #:else
