@@ -78,8 +78,8 @@ contains
       & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
       & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
       & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
-      & allOmega, onsMEs, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
-      & naturalOrbs)
+      & allOmega, onsMEs, tWriteDensityMatrix, shift, skHamCont, skOverCont, excgrad, derivator,&
+      & rhoSqr, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -205,6 +205,9 @@ contains
     !> onsite corrections if in use
     real(dp), allocatable :: onsMEs(:,:,:,:)
 
+    !> Should the density matrix be stored?
+    logical, intent(in) :: tWriteDensityMatrix
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
@@ -312,9 +315,12 @@ contains
     @:ASSERT(present(excgrad) .eqv. present(shift))
     @:ASSERT(present(excgrad) .eqv. present(skHamCont))
     @:ASSERT(present(excgrad) .eqv. present(skOverCont))
-    @:ASSERT(present(excgrad) .eqv. present(rhoSqr))
     @:ASSERT(present(excgrad) .eqv. present(derivator))
-
+  #:call ASSERT_CODE
+    if (present(excgrad)) then
+    @:ASSERT(present(rhoSqr))
+  end if
+  #:endcall ASSERT_CODE
     @:ASSERT(present(occNatural) .eqv. present(naturalOrbs))
 
     ! count initial number of transitions from occupied to empty states
@@ -348,7 +354,8 @@ contains
 
 
     !> is a z vector required?
-    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs)
+    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs) .or.&
+        & tWriteDensityMatrix
 
     ! Sanity checks
     nstat = nstat0
@@ -650,6 +657,10 @@ contains
 
         ! Make MO to AO transformation of the excited density matrix
         call makeSimilarityTrans(pc, grndEigVecs(:,:,1))
+
+        if (tWriteDensityMatrix) then
+          call writeDM(iLev, pc, rhoSqr)
+        end if
 
         call getExcMulliken(iAtomStart, pc, SSqr, dqex)
         if (tMulliken) then
@@ -1555,6 +1566,39 @@ contains
   end subroutine calcWvectorZ
 
 
+  !> Write out density matrix, full if rhoSqr is present
+  subroutine writeDM(iLev, pc, rhoSqr)
+
+    integer, intent(in) :: iLev
+
+    real(dp), intent(in) :: pc(:,:)
+
+    real(dp), intent(in), optional :: rhoSqr(:,:,:)
+
+    integer :: fdUnit, iErr
+    character(lc) :: tmpStr, error_string
+
+    write(tmpStr, "(A,I0,A)")"DM", iLev, ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="replace",&
+        & form='unformatted',iostat=iErr)
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open density matrix"
+      call error(error_string)
+    end if
+
+    write(fdUnit)size(pc, dim=1)
+    if (present(rhoSqr)) then
+      write(fdUnit)cmplx(pc+rhoSqr(:,:,1), 0.0_dp, dp)
+    else
+      write(fdUnit)cmplx(pc, 0.0_dp, dp)
+    end if
+
+    close(fdUnit)
+
+  end subroutine writeDM
+
+
   !> Mulliken population for a square density matrix and overlap
   !> Note: assumes both triangles of both square matrices are filled
   subroutine getExcMulliken(iAtomStart, pc, s, dqex)
@@ -1615,7 +1659,7 @@ contains
     @:ASSERT(all(shape(coord0) == [3,nAtom]))
 
     ! Output of excited state Mulliken charges
-    open(fdMulliken, file=excitedQOut,position="append")
+    open(fdMulliken, file=excitedQOut, position="append")
     write(fdMulliken, "(a,a,i2)") "# MULLIKEN CHARGES of excited state ",&
         & sym, nstat
     write(fdMulliken, "(a,2x,A,i4)") "#", 'Natoms =',natom
