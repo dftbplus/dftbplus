@@ -2068,9 +2068,7 @@ contains
 
     call writeTagged(fd, tag_egyTotal, energy%ETotal)
 
-    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
+    if (electronicSolver%providesEigenvals) then
       call writeTagged(fd, tag_freeEgy, energy%EMermin)
       ! extrapolated zero temperature energy
       call writeTagged(fd, tag_egy0Total, energy%Ezero)
@@ -3820,10 +3818,7 @@ contains
 
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
-
+    if (electronicSolver%providesEigenvals) then
       write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
           & "eV"
       write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&

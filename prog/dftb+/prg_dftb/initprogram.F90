@@ -2995,6 +2995,7 @@ contains
     logical :: tAtomsOutside
     integer :: iSpin, isz
     integer :: nSpinChannels, iCont, jCont
+    real(dp) :: mu1, mu2
 
     ! These two checks are redundant, I check if they are equal
     if (input%poisson%defined .neqv. input%ctrl%tPoisson) then
@@ -3041,10 +3042,9 @@ contains
         lpConts: do iCont = 1, transpar%ncont
           do jCont = iCont + 1, transpar%ncont
             do iSpin = 1, nSpinChannels
-              if (abs(&
-                  & transpar%contacts(iCont)%eFermi(iSpin)-transpar%contacts(iCont)%potential&
-                  &-transpar%contacts(jCont)%eFermi(iSpin)+transpar%contacts(jCont)%potential )&
-                  & > tolEfEquiv) then
+              mu1 = transpar%contacts(iCont)%eFermi(iSpin) - transpar%contacts(iCont)%potential
+              mu2 = transpar%contacts(jCont)%eFermi(iSpin) - transpar%contacts(jCont)%potential
+              if (abs(mu1 - mu2) > tolEfEquiv) then
                 tDefinedFreeE = .false.
                 exit lpConts
               end if
