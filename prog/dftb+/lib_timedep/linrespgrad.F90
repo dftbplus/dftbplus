@@ -636,7 +636,7 @@ contains
             & nxov_ud(1), getij, iatrans, natom, species0,grndEigVal(:,1),&
             & stimc, grndEigVecs, gammaMat, spinW, omega, sym, rhs, t,&
             & wov, woo, wvv, transChrg)
-        call solveZVectorEq(rhs, win, nxov_ud(1), getij, natom, iAtomStart,&
+        call solveZVectorPrecond(rhs, win, nxov_ud(1), getij, natom, iAtomStart,&
             & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg)
         call calcWVectorZ(rhs, win, nocc, nocc_r, nxov_ud(1), getij, iAtomStart,&
             & stimc, grndEigVecs, gammaMat, grndEigVal(:,1), wov, woo, wvv, transChrg)
@@ -1379,25 +1379,11 @@ contains
     integer :: ia, i, a, k
     real(dp) :: rhs2(size(rhs)),rkm1(size(rhs)),pkm1(size(rhs)),apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
-    real(dp), allocatable :: qij(:)
+    real(dp), allocatable :: qij(:), P(:)
 
     nxov = size(rhs)
-    allocate(qij(nAtom))
-
-    ! Choosing a start value
-    ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
-    do ia = 1, nxov
-      qij = transChrg%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
-      call hemv(qTmp, gammaMat, qij)
-      rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
-      rhs2(ia) = rhs(ia) / rs
-    end do
-
-    ! unit vector
-    rhs2 = 1.0_dp / sqrt(real(nxov,dp))
-
-    ! Free some space, before entering the apbw routine
-    deallocate(qij)
+    ! unit vector as initial guess solution
+    rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
 
     ! action of matrix on vector
     call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
@@ -1441,6 +1427,117 @@ contains
     rhs(:) = rhs2(:)
 
   end subroutine solveZVectorEq
+
+
+  !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
+  subroutine solveZVectorPrecond(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij,&
+      & c, transChrg)
+
+    !> on entry -R, on exit Z
+    real(dp), intent(inout) :: rhs(:)
+
+    !> index for single particle excitations
+    integer, intent(in) :: win(:)
+
+    !> number of transitions between only up states
+    integer, intent(in) :: nmatup
+
+    !> index array from composite index to specific filled-empty transition
+    integer, intent(in) :: getij(:,:)
+
+    !> number of atoms
+    integer, intent(in) :: natom
+
+    !> index vector for S and H0 matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> overlap times ground state mo-coefficients
+    real(dp), intent(in) :: stimc(:,:,:)
+
+    !> Softened coulomb matrix
+    real(dp), intent(in) :: gammaMat(:,:)
+
+    !> single particle excitation energies
+    real(dp), intent(in) :: wij(:)
+
+    !> ground state mo-coefficients
+    real(dp), intent(in) :: c(:,:,:)
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    integer :: nxov
+    integer :: ia, i, a, k
+    real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
+    real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
+    real(dp), allocatable :: qij(:), P(:)
+
+    nxov = size(rhs)
+    allocate(qij(nAtom))
+
+    ! diagonal preconditioner
+    ! P^-1 = 1 / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
+    allocate(P(nxov))
+    do ia = 1, nxov
+      qij = transChrg%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
+      call hemv(qTmp, gammaMat, qij)
+      rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
+      P(ia) = 1.0_dp / rs
+    end do
+
+    ! Free some space, before entering the apbw routine
+    deallocate(qij)
+
+    ! unit vector as initial guess solution
+    rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
+
+    ! action of matrix on vector
+    call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
+        & transChrg)
+
+    rkm1(:) = rhs - rkm1
+    zkm1(:) = P * rkm1
+    pkm1(:) = zkm1
+
+    ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
+    do k = 1, nxov**2
+
+      ! action of matrix on vector
+      call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
+          & transChrg)
+
+      tmp1 = dot_product(rkm1, zkm1)
+      tmp2 = dot_product(pkm1, apk)
+      alphakm1 = tmp1 / tmp2
+
+      rhs2 = rhs2 + alphakm1 * pkm1
+
+      rkm1 = rkm1 -alphakm1 * apk
+
+      tmp2 = dot_product(rkm1, rkm1)
+
+      ! residual
+      if (tmp2 <= epsilon(1.0_dp)**2) then
+        exit
+      end if
+
+      if (k == nxov**2) then
+        call error("solveZVectorEq : Z vector not converged!")
+      end if
+
+      zkm1(:) = P * rkm1
+
+      tmp2 = dot_product(zkm1, rkm1)
+
+      bkm1 = tmp2 / tmp1
+
+      pkm1 = zkm1 + bkm1 * pkm1
+
+    end do
+
+    rhs(:) = rhs2(:)
+
+  end subroutine solveZVectorPrecond
 
 
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
