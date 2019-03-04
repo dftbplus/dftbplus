@@ -1338,97 +1338,6 @@ contains
   end subroutine getZVectorEqRHS
 
 
-  !> Solving the (A+B) Z = -R equation via conjugate gradient
-  subroutine solveZVectorEq(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij, c,&
-      & transChrg)
-
-    !> on entry -R, on exit Z
-    real(dp), intent(inout) :: rhs(:)
-
-    !> index for single particle excitations
-    integer, intent(in) :: win(:)
-
-    !> number of transitions between only up states
-    integer, intent(in) :: nmatup
-
-    !> index array from composite index to specific filled-empty transition
-    integer, intent(in) :: getij(:,:)
-
-    !> number of atoms
-    integer, intent(in) :: natom
-
-    !> index vector for S and H0 matrices
-    integer, intent(in) :: iAtomStart(:)
-
-    !> overlap times ground state mo-coefficients
-    real(dp), intent(in) :: stimc(:,:,:)
-
-    !> Softened coulomb matrix
-    real(dp), intent(in) :: gammaMat(:,:)
-
-    !> single particle excitation energies
-    real(dp), intent(in) :: wij(:)
-
-    !> ground state mo-coefficients
-    real(dp), intent(in) :: c(:,:,:)
-
-    !> machinery for transition charges between single particle levels
-    type(TTransCharges), intent(in) :: transChrg
-
-    integer :: nxov
-    integer :: ia, i, a, k
-    real(dp) :: rhs2(size(rhs)),rkm1(size(rhs)),pkm1(size(rhs)),apk(size(rhs))
-    real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
-    real(dp), allocatable :: qij(:), P(:)
-
-    nxov = size(rhs)
-    ! unit vector as initial guess solution
-    rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
-
-    ! action of matrix on vector
-    call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-        & transChrg)
-
-    rkm1 = rhs - rkm1
-    pkm1 = rkm1
-
-    ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
-    do k = 1, nxov**2
-
-      ! action of matrix on vector
-      call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-          & transChrg)
-
-      tmp1 = dot_product(rkm1, rkm1)
-      tmp2 = dot_product(pkm1, apk)
-      alphakm1 = tmp1 / tmp2
-
-      rhs2 = rhs2 + alphakm1 * pkm1
-
-      rkm1 = rkm1 -alphakm1 * apk
-
-      tmp2 = dot_product(rkm1, rkm1)
-
-      ! residual
-      if (tmp2 <= epsilon(1.0_dp)**2) then
-        exit
-      end if
-
-      if (k == nxov**2) then
-        call error("solveZVectorEq : Z vector not converged!")
-      end if
-
-      bkm1 = tmp2 / tmp1
-
-      pkm1 = rkm1 + bkm1 * pkm1
-
-    end do
-
-    rhs(:) = rhs2(:)
-
-  end subroutine solveZVectorEq
-
-
   !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
   subroutine solveZVectorPrecond(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij,&
       & c, transChrg)
@@ -1529,6 +1438,7 @@ contains
 
       tmp2 = dot_product(zkm1, rkm1)
 
+      ! Fletcher–Reeves update
       bkm1 = tmp2 / tmp1
 
       pkm1 = zkm1 + bkm1 * pkm1
