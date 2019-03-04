@@ -618,10 +618,6 @@ contains
         ALLOCATE(pc(norb, norb))
       end if
 
-      ! Furche terms: X+Y, X-Y
-      xpy(:nxov_rd) = sqrt(wij(:nxov_rd)) / sqrt(omega) * evec(:nxov_rd,nstat)
-      xmy(:nxov_rd) = sqrt(omega) / sqrt(wij(:nxov_rd)) * evec(:nxov_rd,nstat)
-
       ! set up transition indexing
       call rindxov_array(win, nocc, nxov, getij, iatrans)
 
