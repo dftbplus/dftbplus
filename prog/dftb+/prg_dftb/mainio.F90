@@ -33,6 +33,7 @@ module mainio
   use linkedlist
   use taggedoutput
   use fileid
+  use elecsolvers, only : TElectronicSolver, electronicSolverTypes
   use spin, only : qm2ud
   use energies
   use xmlf90
@@ -1877,8 +1878,8 @@ contains
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
   subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
-      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation, esp, tunneling, ldos)
+      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
+      & endCoords, tLocalise, localisation, esp, tunneling, ldos, tDefinedFreeE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1913,14 +1914,11 @@ contains
     !> Hessian (dynamical) matrix
     real(dp), pointer, intent(in) ::  pDynMatrix(:,:)
 
-    !> Mermin electronic free energy
-    real(dp), intent(in) :: freeEnergy
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: energy
 
     !> External pressure
     real(dp), intent(in) :: pressure
-
-    !> Gibbs free energy (includes pV term)
-    real(dp), intent(in) :: gibbsFree
 
     !> Final atomic coordinates
     real(dp), intent(in) :: endCoords(:,:)
@@ -1931,15 +1929,17 @@ contains
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
 
+    !> Object holding the potentials and their locations
+    type(TElStatPotentials), allocatable, intent(in) :: esp
+
     !> tunneling array
     real(dp), allocatable, intent(in) :: tunneling(:,:)
 
     !> local projected DOS array
     real(dp), allocatable, intent(in) :: ldos(:,:)
 
-
-    !> Object holding the potentials and their locations
-    type(TElStatPotentials), allocatable, intent(in) :: esp
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
 
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
@@ -1970,9 +1970,16 @@ contains
     if (associated(pDynMatrix)) then
       call writeTagged(fd, tag_HessianNum, pDynMatrix)
     end if
-    call writeTagged(fd, tag_freeEgy, freeEnergy)
+    if (tDefinedFreeE) then
+      ! Mermin electronic free energy
+      call writeTagged(fd, tag_freeEgy, energy%EMermin)
+    else
+      ! only total energy available
+      call writeTagged(fd, tag_egyTotal, energy%ETotal)
+    end if
     if (pressure /= 0.0_dp) then
-      call writeTagged(fd, tag_Gibbsfree, gibbsFree)
+      ! Gibbs free energy
+      call writeTagged(fd, tag_Gibbsfree, energy%EGibbs)
     end if
     call writeTagged(fd, tag_endCoord, endCoords)
     if (tLocalise) then
@@ -2006,8 +2013,8 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress,&
-      & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, electronicSolver, tStress,&
+      & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, tDefinedFreeE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2020,6 +2027,10 @@ contains
 
     !> Forces on external charges
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
 
     !> Should stresses be printed (assumes periodic)
     logical, intent(in) :: tStress
@@ -2045,6 +2056,9 @@ contains
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
 
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
+
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
 
@@ -2052,13 +2066,15 @@ contains
 
     open(newunit=fd, file=fileName, action="write", status="replace")
 
-    call writeTagged(fd, tag_freeEgy, energy%EMermin)
     call writeTagged(fd, tag_egyTotal, energy%ETotal)
 
-    ! extrapolated zero temperature energy
-    call writeTagged(fd, tag_egy0Total, energy%Ezero)
+    if (electronicSolver%providesEigenvals) then
+      call writeTagged(fd, tag_freeEgy, energy%EMermin)
+      ! extrapolated zero temperature energy
+      call writeTagged(fd, tag_egy0Total, energy%Ezero)
+    end if
 
-    if (energy%EForceRelated /= 0.0_dp) then
+    if (tDefinedFreeE) then
       ! energy connected to the evaluated force/stress (differs for various free energies)
       call writeTagged(fd, tag_egyforcerelated, energy%EForceRelated)
     end if
@@ -2247,7 +2263,6 @@ contains
 
   end subroutine writeHessianOut
 
-
   !> Open file detailed.out
   subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter)
     !> File  ID
@@ -2274,13 +2289,13 @@ contains
 
   end subroutine openDetailedOut
 
-
   !> First group of data to go to detailed.out
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
-      & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tNegf, invLatVec, kPoints, iAtInCentralRegion)
+      & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
+      & electronicSolver, tDefinedFreeE)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2417,6 +2432,12 @@ contains
     !> atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)
 
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
+
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
@@ -2439,15 +2460,18 @@ contains
       call qm2ud(qBlockOutUpDown)
     end if
 
-    select case(iDistribFn)
-    case(0)
-      write(fd,*) 'Fermi distribution function'
-    case(1)
-      write(fd,*) 'Gaussian distribution function'
-    case default
-      write(fd,*) 'Methfessel-Paxton distribution function order', iDistribFn
-    end select
-    write(fd,*)
+    if (.not. tNegf) then
+      ! depends on the contact calculations
+      select case(iDistribFn)
+      case(0)
+        write(fd,*) 'Fermi distribution function'
+      case(1)
+        write(fd,*) 'Gaussian distribution function'
+      case default
+        write(fd,*) 'Methfessel-Paxton distribution function order', iDistribFn
+      end select
+      write(fd,*)
+    end if
 
     if (nGeoSteps > 0) then
       if (tMD) then
@@ -2509,7 +2533,6 @@ contains
       end do
       write(fd, *)
     end if
-
 
     if (nSpin == 4) then
       if (tPrintMulliken) then
@@ -2679,12 +2702,22 @@ contains
       if (nSpin == 2) then
         write(fd, "(A, 1X, A)") 'Spin ', trim(spinName(iSpin))
       end if
-      write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
-      write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
-      write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
-      write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
-          & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
-      write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
+      if (.not. tNegf) then
+        ! set in the input and for multiple contact Ef values not meaningful anyway
+        write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
+      end if
+      if (all(electronicSolver%iSolver /= [electronicSolverTypes%pexsi,&
+          & electronicSolverTypes%GF, electronicSolverTypes%OnlyTransport])) then
+        write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
+      end if
+      if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+          & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+          & electronicSolverTypes%elpa])) then
+        write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
+        write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
+            & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
+        write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
+      end if
       if (tPrintMulliken) then
         if (nSpin == 2) then
           write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', trim(spinName(iSpin)), '):',&
@@ -2730,10 +2763,14 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
-    write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
-        & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
-    if (energy%EForceRelated /= 0.0_dp) then
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa])) then
+      write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
+      write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
+          & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
+    end if
+    if (tDefinedFreeE) then
       write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
@@ -3761,18 +3798,29 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy)
+  subroutine printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
 
+    !> Electron entropy times temperature
+    real(dp), intent(in) :: TS(:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
+
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-    write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
-        & "eV"
-    write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-        & Hartree__eV * energy%EMermin, "eV"
-    if (energy%EForceRelated /= 0.0_dp) then
+    if (electronicSolver%providesEigenvals) then
+      write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
+          & "eV"
+      write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+          & Hartree__eV * energy%EMermin, "eV"
+    end if
+    if (tDefinedFreeE) then
       write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if

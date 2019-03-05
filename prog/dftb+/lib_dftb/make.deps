@@ -163,8 +163,8 @@ potentials.o = potentials.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) 
 _mod_potentials: potentials.o
 _mod_potentials = $(potentials.o)
 
-rangeseparated.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_sorting _mod_interpolation _mod_sk _mod_assert _mod_nonscc _mod_periodic _mod_accuracy _mod_slakocont
-rangeseparated.o = rangeseparated.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_interpolation) $(_mod_sk) $(_mod_assert) $(_mod_nonscc) $(_mod_periodic) $(_mod_accuracy) $(_mod_slakocont)
+rangeseparated.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_globalenv _mod_sorting _mod_message _mod_assert _mod_nonscc _mod_accuracy _mod_slakocont
+rangeseparated.o = rangeseparated.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_globalenv) $(_mod_sorting) $(_mod_message) $(_mod_assert) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
 _mod_rangeseparated: rangeseparated.o
 _mod_rangeseparated = $(rangeseparated.o)
 
