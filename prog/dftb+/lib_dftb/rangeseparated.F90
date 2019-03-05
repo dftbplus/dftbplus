@@ -327,7 +327,9 @@ contains
       !> matrix of test values for overlap (based on maximum overlap elements between atoms)
       real(dp), allocatable, intent(inout) :: testovr(:,:)
 
-      integer, allocatable :: ovrind(:,:)
+      !> sorted index array for maximal overlap elements between atom blocks
+      integer, allocatable, intent(inout) :: ovrind(:,:)
+
       integer :: matrixSize, nAtom
       real(dp) :: tmp
       integer :: iAtMu, iAtNu
@@ -358,10 +360,12 @@ contains
       do iAtMu = 1, nAtom
         call index_heap_sort(ovrind(iAtMu,:),testovr(iAtMu,:))
       end do
+
     end subroutine allocateAndInit
 
+
     !> Evaluate the update to hamiltonian due to change the in the DM
-    subroutine evaluateHamiltonian(tmpDHam)
+    pure subroutine evaluateHamiltonian(tmpDHam)
 
       !> Update for the old hamiltonian on exit
       real(dp), intent(out) :: tmpDHam(:,:)
@@ -437,10 +441,16 @@ contains
     end subroutine evaluateHamiltonian
 
 
-    !>
+    !> Initialise the screening matrices
     subroutine checkAndInitScreening(self, matrixSize, tmpDRho)
+
+      !> Instance
       class(RangeSepFunc), intent(inout) :: self
+
+      !> linear dimension of matrix
       integer, intent(in) :: matrixSize
+
+      !> Delta rho from iteration
       real(dp), allocatable, intent(in) :: tmpDRho(:,:)
 
       if(.not. self%tScreeningInited) then
@@ -511,15 +521,25 @@ contains
 
   contains
 
+    !> Allocate storage for mapping 1D<->2D array sections
     subroutine allocateAndInit(tmpHH, tmpDRho)
-      real(dp), dimension(:,:), allocatable, target, intent(inout) :: tmpDRho, tmpHH
+
+      !> density matrix case
+      real(dp), dimension(:,:), allocatable, target, intent(inout) :: tmpDRho
+
+      !> hamiltonian matrix case
+      real(dp), dimension(:,:), allocatable, target, intent(inout) :: tmpHH
+
       allocate(tmpHH(size(HH, dim = 1), size(HH, dim = 2)))
       tmpHH = 0.0_dp
       allocate(tmpDRho(size(densSqr, dim = 1), size(densSqr, dim = 1)))
       tmpDRho = densSqr
       call symmetrizeSquareMatrix(tmpDRho)
+
     end subroutine allocateAndInit
 
+
+    !> actually evaluate the neighbour based cutt-off hamiltonian
     subroutine evaluateHamiltonian()
 
       real(dp), allocatable :: gammaCache(:,:)
@@ -574,9 +594,25 @@ contains
     end subroutine evaluateHamiltonian
 
 
-    subroutine copyOverlapBlock(iAt, iNeigh, nOrbAt, nOrbNeigh, localBlock, pLocalBlock)
-      integer, intent(in) :: iAt, iNeigh, nOrbAt, nOrbNeigh
+    !> copy atom block from sparse matrix
+    pure subroutine copyOverlapBlock(iAt, iNeigh, nOrbAt, nOrbNeigh, localBlock, pLocalBlock)
+
+      !> Atom for which this is a neighbour
+      integer, intent(in) :: iAt
+
+      !> Number of neighbour for this block
+      integer, intent(in) :: iNeigh
+
+      !> Number of orbitals on iAt
+      integer, intent(in) :: nOrbAt
+
+      !> Number of orbitals on neighbour atom
+      integer, intent(in) :: nOrbNeigh
+
+      !> local block
       real(dp), dimension(:), target, intent(inout) :: localBlock
+
+      !> Pointer to local block
       real(dp), dimension(:,:), pointer, intent(out) :: pLocalBlock
 
       integer :: ind
@@ -587,10 +623,19 @@ contains
 
     end subroutine copyOverlapBlock
 
+    !> copy a density matrix block from sparse matrix
+    pure subroutine copyDensityBlock(desc1, desc2, localBlock, pLocalBlock)
 
-    subroutine copyDensityBlock(desc1, desc2, localBlock, pLocalBlock)
-      integer, dimension(DESC_LEN), intent(in) :: desc1, desc2
+      !> start, end and range of first block
+      integer, dimension(DESC_LEN), intent(in) :: desc1
+
+      !> start, end and range of second block
+      integer, dimension(DESC_LEN), intent(in) :: desc2
+
+      !> local block in 1D format
       real(dp), dimension(:), target, intent(inout) :: localBlock
+
+      !> Pointer to local block
       real(dp), dimension(:,:), pointer, intent(out) :: pLocalBlock
 
       pLocalBlock(1:desc1(INORB), 1:desc2(INORB)) => localBlock(1:desc1(INORB)*desc2(INORB))
@@ -599,9 +644,16 @@ contains
     end subroutine copyDensityBlock
 
 
-    subroutine transposeBlock(orig, localBlock, pLocalBlock)
+    !> Transpose a block
+    pure subroutine transposeBlock(orig, localBlock, pLocalBlock)
+
+      !> Original matrix block
       real(dp), dimension(:,:), intent(in) :: orig
+
+      !> local copy in 1D
       real(dp), dimension(:), target, intent(out) :: localBlock
+
+      !> pointer to local copy
       real(dp), dimension(:,:), pointer, intent(out) :: pLocalBlock
 
       pLocalBlock(1:size(orig, dim=2), 1:size(orig, dim=1)) => localBlock(1:size(orig))
@@ -610,9 +662,23 @@ contains
     end subroutine transposeBlock
 
 
+    !> Add a contribution to a Hamiltonian block
     subroutine updateHamiltonianBlock(descM, descN, pSma, pSbN, pPab)
-      integer, dimension(DESC_LEN), intent(in) :: descM, descN
-      real(dp), dimension(:,:), pointer, intent(in) :: pSma, pSbN, pPab
+
+      !> start, end and range of row
+      integer, dimension(DESC_LEN), intent(in) :: descM
+
+      !> start, end and range of column
+      integer, dimension(DESC_LEN), intent(in) :: descN
+
+      !> First overlap block
+      real(dp), dimension(:,:), pointer, intent(in) :: pSma
+
+      !> Second overlap block
+      real(dp), dimension(:,:), pointer, intent(in) :: pSbN
+
+      !> density matrix block
+      real(dp), dimension(:,:), pointer, intent(in) :: pPab
 
       real(dp), dimension(:,:), pointer :: pHmn
 
@@ -709,7 +775,7 @@ contains
     !> class instance
     class(RangeSepFunc), intent(inout) :: self
 
-    ! NB
+    ! Neighbour based screening
 
     !> Square (unpacked) density matrix
     real(dp), dimension(:,:), target, intent(in) :: densSqr
@@ -736,7 +802,7 @@ contains
     !> Square (unpacked) Hamiltonian to be updated.
     real(dp), dimension(:,:), intent(inout), target :: HH
 
-    ! TR
+    ! Threshold based screening
 
     !> square real overlap matrix
     real(dp), intent(in) :: overlap(:,:)
@@ -822,7 +888,7 @@ contains
 
 
   !> returns the subexpression for the evaluation of the off-site Y-Gamma-integral
-  function getYGammaSubPart(tauA, tauB, R, omega)
+  pure function getYGammaSubPart(tauA, tauB, R, omega)
 
     !> decay constant site A
     real(dp), intent(in) :: tauA
@@ -851,7 +917,7 @@ contains
 
 
   !> Derivative of analytical long-range Gamma
-  function getdAnalyticalGammaValue(self, Sp1, Sp2, dist)
+  function getdAnalyticalGammaDeriv(self, Sp1, Sp2, dist)
 
     !> RangeSepFunc instance
     class(RangeSepFunc), intent(inout) :: self
@@ -866,7 +932,7 @@ contains
     real(dp), intent(in) :: dist
 
     !> resulting d gamma / d dist
-    real(dp) :: getdAnalyticalGammaValue
+    real(dp) :: getdAnalyticalGammaDeriv
 
     integer :: ii
     real(dp) :: tauA, tauB, omega
@@ -879,7 +945,7 @@ contains
     if (dist < tolSameDist) then
       ! on-site case
       if (abs(tauA - tauB) < MinHubDiff ) then
-        getdAnalyticalGammaValue = 0.0_dp
+        getdAnalyticalGammaDeriv = 0.0_dp
       else
         call error("Error(RangeSep): R = 0, Ua != Ub")
       end if
@@ -905,7 +971,7 @@ contains
             & -(dist**2*tauA**3/48.0_dp + 0.1875_dp*dist*tauA**2 + 0.6875_dp*tauA +1.0_dp/dist)&
             & * tauA * exp(-tauA * dist)
 
-        getdAnalyticalGammaValue = -1.0_dp/dist**2 -dtmp2&
+        getdAnalyticalGammaDeriv = -1.0_dp/dist**2 -dtmp2&
             & + (tauA**8 / (tauA**2 - omega**2)**4) * (dtmp + dtmp2 + omega*exp(-omega * dist)/dist&
             & +exp(-omega * dist) / dist**2)
 
@@ -914,18 +980,18 @@ contains
         prefac = tauA**4 / (tauA * tauA - omega * omega )**2
         prefac = prefac * tauB**4 / (tauB * tauB - omega * omega )**2
         prefac = prefac * ( -omega * exp(-omega * dist) / dist - exp(-omega * dist) / dist**2)
-        getdAnalyticalGammaValue = -1.0_dp / (dist**2) - prefac&
+        getdAnalyticalGammaDeriv = -1.0_dp / (dist**2) - prefac&
             & + getdYGammaSubPart(tauA,tauB,dist,omega) +getdYGammaSubPart(tauB,tauA,dist,omega)&
             & -getdYGammaSubPart(tauA,tauB,dist,0.0_dp) -getdYGammaSubPart(tauB,tauA,dist,0.0_dp)
       end if
     end if
 
-  end function getdAnalyticalGammaValue
+  end function getdAnalyticalGammaDeriv
 
 
   !> returns the derivative of the subexpression for the evaluation of the off-site
   !> Y-Gamma-integral. Note that tauA /= tauB
-  function getdYGammaSubPart(tauA, tauB, R, omega)
+  pure function getdYGammaSubPart(tauA, tauB, R, omega)
 
     !> decay constant site A
     real(dp), intent(in) :: tauA
@@ -954,7 +1020,7 @@ contains
   end function getdYGammaSubPart
 
 
-  !> Returns the numerical derivative of lr-gamma for iAtom1, iAtom2
+  !> Returns the derivative of lr-gamma for iAtom1, iAtom2
   subroutine getGammaPrimeValue(self, grad, iAtom1, iAtom2, coords, species)
 
     !> class instance
@@ -975,8 +1041,8 @@ contains
     !> list of all atomic species
     integer, intent(in) :: species(:)
 
-    !> finite difference choice
-    real(dp), parameter :: deltaXDiff = epsilon(1.0_dp)**0.25_dp
+    !!> finite difference choice
+    !real(dp), parameter :: deltaXDiff = epsilon(1.0_dp)**0.25_dp
 
     integer :: sp1, sp2, jj, ii
     real(dp) :: vect(3), tmp(3),tmp2(3), dist
@@ -1004,7 +1070,7 @@ contains
     vect(:) = coords(:,iAtom1) - coords(:,iAtom2)
     dist = sqrt(sum(vect(:)**2))
     vect(:) = vect(:) / dist
-    grad(:) = vect(:) * getdAnalyticalGammaValue(self, sp1, sp2, dist)
+    grad(:) = vect(:) * getdAnalyticalGammaDeriv(self, sp1, sp2, dist)
 
   end subroutine getGammaPrimeValue
 
@@ -1051,7 +1117,6 @@ contains
 
     !> differentiation object
     class(NonSccDiff), intent(in) :: derivator
-
 
     integer :: nAtom, iAtK, iNeighK, iAtB, iNeighB, iAtC, iAtA, kpa
     real(dp) :: tmpgamma1, tmpgamma2
@@ -1148,11 +1213,21 @@ contains
 
   contains
 
+    !> Initialise the
     subroutine allocateAndInit(tmpovr, tmpRho, gammaPrimeTmp, tmpderiv)
+
+      !> Storage for the overlap
       real(dp), allocatable, intent(inout) :: tmpovr(:,:)
+
+      !> storage for density matrix
       real(dp), allocatable, intent(inout) :: tmpRho(:,:)
+
+      !> storage for derivative of gamma interaction
       real(dp), allocatable, intent(inout) :: gammaPrimeTmp(:,:,:)
+
+      !> workspace for the derivatives
       real(dp), allocatable, intent(inout) :: tmpderiv(:,:)
+
       real(dp) :: tmp(3)
       integer :: iAt1, iAt2, nAtom
 
