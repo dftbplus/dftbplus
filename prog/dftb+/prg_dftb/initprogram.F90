@@ -2023,6 +2023,9 @@ contains
       if (input%ctrl%tReadChrg .and. input%ctrl%rangeSepAlgorithm == "tr") then
         call error("Restart on thresholded range separation not working correctly")
       end if
+      if (input%ctrl%tOrbResolved) then
+        call error("Range separated functionality currently does not support l-resolved scc yet")
+      end if
       allocate(rangeSep)
       call RangeSep_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
           & input%ctrl%screeningThreshold, input%ctrl%omega, tSpin, input%ctrl%rangeSepAlgorithm)
