@@ -232,8 +232,8 @@ contains
         call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, repCutoff,&
             & skCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell,&
             & iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, &
-            & nNeighbourSK, nNeighbourRep, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
-            & iSparseStart, tPoisson)
+            & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
+            & ERhoPrim, iSparseStart, tPoisson)
       end if
 
     #:if WITH_TRANSPORT
@@ -355,7 +355,7 @@ contains
             & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep,&
             & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
             & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
-            & deltaRhoOutSqr, qOutput, tLargeDenseMatrices)
+            & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (tRangeSep) then
@@ -965,7 +965,8 @@ contains
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutOff, repCutOff,&
       & skCutOff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec,&
       & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK,&
-      & nNeighbourRep, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson)
+      & nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
+      & iSparseStart, tPoisson)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1039,6 +1040,10 @@ contains
     !> Number of neighbours of each real atom close enough for repulsive interactions
     integer, intent(out) :: nNeighbourRep(:)
 
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(inout), allocatable :: nNeighbourLC(:)
+
     !> Sparse hamiltonian storage
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
@@ -1086,6 +1091,10 @@ contains
 
     ! count neighbours for repulsive interactions between atoms
     call getNrOfNeighboursForAll(nNeighbourRep, neighbourList, repCutOff)
+
+    if (allocated(nNeighbourLC)) then
+      nNeighbourLC(:) = nNeighbourSK
+    end if
 
     ! Notify various modules about coordinate changes
   #:if WITH_TRANSPORT
@@ -1832,7 +1841,8 @@ contains
       & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf, tMulliken, iDistribFn,&
       & tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen, filling, rhoPrim, Eband, TS,&
       & E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
-      & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, tLargeDenseMatrices)
+      & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
+      & tLargeDenseMatrices)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1987,6 +1997,10 @@ contains
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
 
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(in), allocatable :: nNeighbourLC(:)
+
     !> Are dense matrices for H, S, etc. being used
     logical, intent(in) :: tLargeDenseMatrices
 
@@ -2026,7 +2040,7 @@ contains
           & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen,&
           & filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
           & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
-          & qOutput)
+          & qOutput, nNeighbourLC)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
 
@@ -2048,7 +2062,8 @@ contains
       & electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep, tFixEf,&
       & tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling,&
       & rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
-      & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput)
+      & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
+      & nNeighbourLC)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2197,6 +2212,9 @@ contains
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
 
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(in), allocatable :: nNeighbourLC(:)
 
     integer :: nSpin
 
@@ -2207,7 +2225,7 @@ contains
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep,&
-            & deltaRhoInSqr, qOutput, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:))
+            & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:))
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
@@ -2252,7 +2270,7 @@ contains
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep, deltaRhoInSqr,&
-      & qOutput, HSqrReal, SSqrReal, eigvecsReal, eigen)
+      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2295,6 +2313,10 @@ contains
 
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
+
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(in), allocatable :: nNeighbourLC(:)
 
     !> dense hamitonian matrix
     real(dp), intent(out) :: HSqrReal(:,:)
@@ -2341,7 +2363,7 @@ contains
         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
         !call env%globalTimer%stopTimer(globalTimers%densityMatrix)
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), over,&
-            & neighbourList%iNeighbour,  nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+            & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
             & orb, HSqrReal(:,:), SSqrReal,  deltaRhoInSqr(:,:,iSpin))
       end if
 

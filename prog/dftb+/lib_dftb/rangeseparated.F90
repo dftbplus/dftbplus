@@ -468,8 +468,8 @@ contains
 
 
   !> Updates the Hamiltonian with the range separated contribution.
-  subroutine addLRHamiltonian_nb(self, env, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair,&
-      & orb, HH)
+  subroutine addLRHamiltonian_nb(self, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare,&
+      & iPair, orb, HH)
 
     !> instance of object
     class(RangeSepFunc), intent(inout) :: self
@@ -487,7 +487,7 @@ contains
     integer, dimension(0:,:), intent(in) :: iNeighbour
 
     !> Nr. of neighbours for each atom.
-    integer, dimension(:), intent(in) :: nNeighbour
+    integer, dimension(:), intent(in) :: nNeighbourLC
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, dimension(:), intent(in) :: iSquare
@@ -553,7 +553,7 @@ contains
 
       loopN: do iAtN = 1, nAtom
         descN = getDescriptor(iAtN, iSquare)
-        loopB: do iNeighN = 0, nNeighbour(iAtN)
+        loopB: do iNeighN = 0, nNeighbourLC(iAtN)
           iAtB = iNeighbour(iNeighN, iAtN)
           descB = getDescriptor(iAtB, iSquare)
           call copyOverlapBlock(iAtN, iNeighN, descN(INORB), descB(INORB), Sbn, pSbn)
@@ -564,7 +564,7 @@ contains
             call copyDensityBlock(descA, descN, Pan, pPan)
             !gamma1 = self%lrGammaEval(iAtA, iAtN) + self%lrGammaEval(iAtA, iAtB)
             gamma1 = gammaCache(iAtA, iAtN) + gammaCache(iAtA, iAtB)
-            loopM: do iNeighA = 0, nNeighbour(iAtA)
+            loopM: do iNeighA = 0, nNeighbourLC(iAtA)
               iAtM = iNeighbour(iNeighA, iAtA)
               descM = getDescriptor(iAtM, iSquare)
               call copyOverlapBlock(iAtA, iNeighA, descA(INORB), descM(INORB), Sma, pSma)
@@ -770,7 +770,7 @@ contains
 
 
   !> Interface routine.
-  subroutine addLRHamiltonian(self, env, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair,&
+  subroutine addLRHamiltonian(self, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
       & orb, HH, overlap, deltaRho)
 
     !> class instance
@@ -791,7 +791,7 @@ contains
     integer, dimension(0:,:), intent(in) :: iNeighbour
 
     !> Nr. of neighbours for each atom.
-    integer, dimension(:), intent(in) :: nNeighbour
+    integer, dimension(:), intent(in) :: nNeighbourLC
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, dimension(:), intent(in) :: iSquare
@@ -819,7 +819,7 @@ contains
     case ("tr")
       call self%addLRHamiltonian_tr(env, overlap, deltaRho, iSquare, HH, orb)
     case ("nb")
-      call self%addLRHamiltonian_nb(env, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair,&
+      call self%addLRHamiltonian_nb(env, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
           & orb, HH)
     case default
     end select
@@ -1084,7 +1084,7 @@ contains
 
   !> Adds gradients due to long-range HF-contribution
   subroutine addLRGradients(self, gradients, derivator, deltaRho, skHamCont, skOverCont, coords,&
-      & species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbour)
+      & species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
 
     !> class instance
     class(RangeSepFunc), intent(inout) :: self
@@ -1119,8 +1119,8 @@ contains
     !> neighbours of atoms
     integer, intent(in) :: iNeighbour(0:,:)
 
-    !> number of atoms neighbouring each site
-    integer, intent(in) :: nNeighbour(:)
+    !> number of atoms neighbouring each site where the overlap is non-zero
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> differentiation object
     class(NonSccDiff), intent(in) :: derivator
@@ -1141,7 +1141,7 @@ contains
     ! sum K
     loopK: do iAtK = 1, nAtom
       ! C >= K
-      loopC: do iNeighK = 0, nNeighbour(iAtK)
+      loopC: do iNeighK = 0, nNeighbourSK(iAtK)
         iAtC = iNeighbour(iNeighK, iAtK)
         ! evaluate the ovr_prime
         sPrimeTmp2 = 0.0_dp
@@ -1152,7 +1152,7 @@ contains
         end if
         loopB: do iAtB = 1, nAtom
           ! A > B
-          loopA: do iNeighB = 0, nNeighbour(iAtB)
+          loopA: do iNeighB = 0, nNeighbourSK(iAtB)
             iAtA = iNeighbour(iNeighB, iAtB)
             tmpgamma1 = self%lrGammaEval(iAtK,iAtB) + self%lrGammaEval(iAtC,iAtB)
             tmpgamma2 = tmpgamma1 + self%lrGammaEval(iAtK,iAtA) + self%lrGammaEval(iAtC,iAtA)

@@ -226,6 +226,10 @@ module initprogram
   !> nr. of neighbours for atoms within Erep interaction distance (usually short)
   integer, allocatable :: nNeighbourRep(:)
 
+  !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+  !> functional
+  integer, allocatable :: nNeighbourLC(:)
+
   !> H/S sparse matrices indexing array for atomic blocks
   integer, allocatable :: iSparseStart(:,:)
 
@@ -2251,6 +2255,9 @@ contains
     call init(neighbourList, nAtom, nInitNeighbour)
     allocate(nNeighbourSK(nAtom))
     allocate(nNeighbourRep(nAtom))
+    if (tRangeSep) then
+      allocate(nNeighbourLC(nAtom))
+    end if
 
     ! Set various options
     tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
