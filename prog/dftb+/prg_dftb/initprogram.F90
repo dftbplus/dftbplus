@@ -257,6 +257,17 @@ module initprogram
   !> Repulsive interaction raw data
   type(ORepCont) :: pRepCont
 
+  !> Interaction cutoff distances
+  type OCutoffs
+    real(dp) :: skCutOff
+    real(dp) :: repCutOff
+    real(dp) :: lcCutOff
+    real(dp) :: mCutOff
+  end type OCutoffs
+
+  !> Cut off distances for various types of interaction
+  type(OCutoffs) :: cutOff
+
   !> Cut off distance for Slater-Koster interactions
   real(dp) :: skCutOff
 
@@ -1206,10 +1217,11 @@ contains
       allocate(iUJ(0,0,0))
     end if
 
-    ! Cut-offs from SlaKo and repulsive
-    skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
-    repCutOff = getCutOff(pRepCont)
-    mCutOff = max(skCutOff, repCutOff)
+    ! Cut-offs for SlaKo, repulsive and range-separation
+    cutOff%skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
+    cutOff%repCutOff = getCutOff(pRepCont)
+    cutOff%lcCutOff = cutOff%skCutOff
+    cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff, cutOff%lcCutOff])
 
     ! Get species names and output file
     geoOutFile = input%ctrl%outFile
@@ -1307,7 +1319,7 @@ contains
       deallocate(sccInp)
 
       ! Longest cut-off including the softening part of gamma
-      mCutOff = max(mCutOff, sccCalc%getCutOff())
+      cutOff%mCutOff = max(cutOff%mCutOff, sccCalc%getCutOff())
 
       if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
         call error("Onsite third order DFTB only compatible with orbital non resolved SCC")
@@ -1327,7 +1339,7 @@ contains
         thirdInp%shellResolved = input%ctrl%tOrbResolved
         allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
-        mCutOff = max(mCutOff, thirdOrd%getCutOff())
+        cutOff%mCutOff = max(cutOff%mCutOff, thirdOrd%getCutOff())
       end if
     end if
 
@@ -1783,7 +1795,7 @@ contains
         call move_alloc(dftd3, dispersion)
     #:endif
       end if
-      mCutOff = max(mCutOff, dispersion%getRCutOff())
+      cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
 
     end if
 
@@ -2242,7 +2254,7 @@ contains
 
     ! Initialise images (translations)
     if (tPeriodic) then
-      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, mCutOff)
+      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, cutOff%mCutOff)
     else
       allocate(cellVec(3, 1))
       allocate(rCellVec(3, 1))

@@ -224,16 +224,16 @@ contains
       end if
 
       if (tLatticeChanged) then
-        call handleLatticeChange(latVec, sccCalc, tStress, extPressure, mCutOff, dispersion,&
+        call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion,&
             & recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
       end if
 
       if (tCoordsChanged) then
-        call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutoff, repCutoff,&
-            & skCutoff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell,&
-            & iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, &
-            & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-            & ERhoPrim, iSparseStart, tPoisson)
+        call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
+            & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec,&
+            & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK,&
+            & nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
+            & iSparseStart, tPoisson)
       end if
 
     #:if WITH_TRANSPORT
@@ -962,11 +962,12 @@ contains
 
 
   !> Does the operations that are necessary after atomic coordinates change
-  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, mCutOff, repCutOff,&
-      & skCutOff, orb, tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec,&
-      & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK,&
-      & nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
-      & iSparseStart, tPoisson)
+  subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
+      & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec, neighbourList,&
+      & nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK, nNeighbourRep, nNeighbourLC,&
+      & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson)
+
+    use initprogram, only : OCutoffs
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -983,14 +984,8 @@ contains
     !> chemical species of central cell atoms
     integer, intent(in) :: species0(:)
 
-    !> Longest cut-off distance that neighbour maps are generated
-    real(dp), intent(in) :: mCutOff
-
-    !> Cut-off distance for repulsive interactions
-    real(dp), intent(in) :: repCutOff
-
-    !> Cut-off distance for Slater-Koster interactions
-    real(dp), intent(in) :: skCutOff
+    !> Longest cut-off distances that neighbour maps are generated for
+    type(OCutoffs), intent(in) :: cutOff
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -1081,19 +1076,20 @@ contains
     end if
 
     call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
-        & nAllAtom, coord0Fold, species0, mCutOff, rCellVec)
+        & nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec)
 
-    call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, skCutOff)
+    call getNrOfNeighboursForAll(nNeighbourSK, neighbourList, cutoff%skCutOff)
 
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
     call reallocateSparseArrays(sparseSize, ham, over, H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
 
     ! count neighbours for repulsive interactions between atoms
-    call getNrOfNeighboursForAll(nNeighbourRep, neighbourList, repCutOff)
+    call getNrOfNeighboursForAll(nNeighbourRep, neighbourList, cutoff%repCutOff)
 
     if (allocated(nNeighbourLC)) then
-      nNeighbourLC(:) = nNeighbourSK
+      ! count neighbours for repulsive interactions between atoms
+      call getNrOfNeighboursForAll(nNeighbourLC, neighbourList, cutoff%lcCutOff)
     end if
 
     ! Notify various modules about coordinate changes
