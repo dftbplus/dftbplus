@@ -1590,7 +1590,9 @@ contains
       call error(error_string)
     end if
 
-    write(fdUnit)size(pc, dim=1)
+    ! size and spin channels
+    write(fdUnit)size(pc, dim=1), 1
+
     if (allocated(rhoSqr)) then
       write(fdUnit)cmplx(pc+rhoSqr(:,:,1), 0.0_dp, dp)
     else

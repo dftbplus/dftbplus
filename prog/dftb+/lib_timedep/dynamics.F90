@@ -121,6 +121,9 @@ module timeprop_module
     !> If calculation should be restarted from dump file
     logical :: tRestart
 
+    !> If a density matrix should be read from file
+    logical :: tReadDM
+
     !> If dump file should be written during the dynamics
     logical :: tWriteRestart
 
@@ -193,7 +196,7 @@ type TElecDynamics
    integer, allocatable :: species(:), polDirs(:), speciesAll(:)
    character(mc), allocatable :: speciesName(:)
    logical :: tPopulations, tSpinPol=.false.
-   logical :: tRestart, tWriteRestart, tWriteAutotest
+   logical :: tRestart, tReadDM, tWriteRestart, tWriteAutotest
    logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
    type(TScc), allocatable :: sccCalc
    character(mc) :: autotestTag
@@ -297,6 +300,7 @@ contains
     this%spType = inp%spType
     this%tPopulations = inp%tPopulations
     this%tRestart = inp%tRestart
+    this%tReadDM = inp%tReadDM
     this%tWriteRestart = inp%tWriteRestart
     this%phase = inp%phase
     this%writeFreq = inp%writeFreq
@@ -409,6 +413,7 @@ contains
       this%tRestart = .true.
       this%tWriteRestart = .false.
     end if
+    this%tReadDM = .true.
   end subroutine TElecDynamics_init
 
 
@@ -712,6 +717,7 @@ contains
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
     character(4) :: dumpIdx
     logical :: tProbeFrameWrite
+    character(mc) :: fileName
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
@@ -721,6 +727,17 @@ contains
 
     if (this%tRestart) then
       call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
+      call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+          & ErhoPrim, coordAll)
+      if (this%tIons) then
+        this%initialVelocities(:,:) = this%movedVelo
+        this%ReadMDVelocities = .true.
+      end if
+    elseif (this%tReadDM) then
+      fileName = "DM1.dat"
+      write(stdOut,*)'Reading ',trim(fileName)
+      call readDM(rho, fileName)
       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
           & ErhoPrim, coordAll)
@@ -2041,6 +2058,35 @@ contains
     read(dumpBin) rho, rhoOld, Ssqr, coord, veloc, time
     close(dumpBin)
   end subroutine readRestart
+
+
+  !> read an external density matrix
+  subroutine readDM(rho, filename)
+
+    !> Density Matrix
+    complex(dp), intent(out) :: rho(:,:,:)
+
+    !> file to open for the density matrix
+    character(mc), intent(in) :: filename
+
+    integer :: n, nSpin, iSpin, densityMatBin
+    character(lc) :: errorString
+
+    open(newunit=densityMatBin, file=trim(filename), form='unformatted', action='read')
+    read(densityMatBin)n, nSpin
+    if (any(shape(rho) /= [n, n, nSpin])) then
+      write(errorString,"(A,2I6,I2,A,2I6,I2)")"Sizeof file",shape(rho),"not",n,n,nSpin
+      call error(errorString)
+    end if
+
+    do iSpin = 1, nSpin
+      read(densityMatBin)rho(:,:,iSpin)
+    end do
+
+    close(densityMatBin)
+
+  end subroutine readDM
+
 
   !> Write results to file
   subroutine writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, &
