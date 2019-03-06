@@ -1468,16 +1468,16 @@ contains
       call getNodeName(value1, buffer)
       select case(char(buffer))
       case ("nb")
-        write(StdOut,*) "Using the Neighbor list-based algorithm"
-        ctrl%rangeSepAlgorithm = char(buffer)
+        call getChildValue(value1, "DeltaCutoff", ctrl%screeningThreshold, 0.0_dp,&
+            & modifier=modifier, child=field)
+        call convertByMul(char(modifier), lengthUnits, field, ctrl%screeningThreshold)
       case ("tr")
-        write(StdOut,*) "Using the Thresholding algorithm"
-        ctrl%rangeSepAlgorithm = char(buffer)
         call getChildValue(value1, "Threshold", ctrl%screeningThreshold, 0.1e-5_dp)
       case default
         call getNodeHSDName(value1, buffer)
         call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
       end select
+      ctrl%rangeSepAlgorithm = char(buffer)
     else
       ctrl%tRangeSep = .false.
     end if

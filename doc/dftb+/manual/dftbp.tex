@@ -2765,7 +2765,7 @@ for use with long-range correction.
 
 \textbf{Note:} that the present release does not yet support long-range
 corrected excited states calculations with LC-TD-DFTB, and the \kw{RangeSep}
-keyword can therefore not be used in conjungtion with the \kw{ExcitedState}
+keyword can therefore not be used in conjunction with the \kw{ExcitedState}
 keyword.
 
 The \kw{RangeSep} field keyword has the following options
@@ -2775,17 +2775,24 @@ The \kw{RangeSep} field keyword has the following options
 \end{ptable}
 \begin{description}
 \item[\is{Enable}] Turns on long-range correction.
-\item[\is{Alogrithm}] Method used for distance dependent screening to ensure
+\item[\is{Algorithm}] Method used for distance dependent screening to ensure
   quadratic scaling with system size. Supports two options:
 \begin{description}
 \item[\is{TR\{\}}] Screening according to estimated magnitude of terms. This
   is the recommended choice. The
   threshold value is passed as an option, e.g.
 \begin{verbatim}
-Algorithm = TR{ 1e-6 }
+Algorithm = TR{ Threshold = 1e-6 }
 \end{verbatim}
 for screening with threshold 1e-6. The default value is 1e-5.
-\item[\is{NB\{\}}] Neighbor list based screening.
+\item[\is{NB\{\}}] Neighbour list based screening.
+  The neighbour distance cutoff can be adjusted with an option:
+\begin{verbatim}
+Algorithm = NB {
+  DeltaCutoff [AA] = -2.0
+}
+\end{verbatim}
+
 \end{description}
 \end{description}
 

@@ -1220,7 +1220,15 @@ contains
     ! Cut-offs for SlaKo, repulsive and range-separation
     cutOff%skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
     cutOff%repCutOff = getCutOff(pRepCont)
-    cutOff%lcCutOff = cutOff%skCutOff
+    cutOff%lcCutOff = 0.0_dp
+    if (tRangeSep) then
+      if (input%ctrl%rangeSepAlgorithm == "nb") then
+        cutOff%lcCutOff = cutOff%skCutOff + input%ctrl%screeningThreshold
+        if (cutOff%lcCutOff < 0.0_dp) then
+          call error("Screening cutoff for range-separated neighbours too short.")
+        end if
+      end if
+    end if
     cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff, cutOff%lcCutOff])
 
     ! Get species names and output file
@@ -2098,6 +2106,12 @@ contains
       !> Required by screening algorithm
       nMixElements = nOrb * nOrb * nSpin
       deltaRhoInSqr(:,:,:) = 0.0_dp
+      select case(trim(input%ctrl%rangeSepAlgorithm))
+      case ("tr")
+        write(StdOut,*) "Using the Neighbor list-based algorithm"
+      case ("nb")
+        write(StdOut,*) "Using the Thresholding algorithm"
+      end select
     end if
 
     ! Initialize Mulliken charges
