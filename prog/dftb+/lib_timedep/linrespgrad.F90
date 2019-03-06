@@ -78,8 +78,8 @@ contains
       & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
       & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
       & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
-      & allOmega, onsMEs, tWriteDensityMatrix, shift, skHamCont, skOverCont, excgrad, derivator,&
-      & rhoSqr, occNatural, naturalOrbs)
+      & allOmega, onsMEs, tWriteDensityMatrix, rhoSqr, shift, skHamCont, skOverCont, excgrad,&
+      & derivator, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -208,6 +208,9 @@ contains
     !> Should the density matrix be stored?
     logical, intent(in) :: tWriteDensityMatrix
 
+    !> ground state square density matrix
+    real(dp), intent(in), allocatable :: rhoSqr(:,:,:)
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
@@ -222,9 +225,6 @@ contains
 
     !> Differentiator for H0 and S matrices.
     class(NonSccDiff), intent(in), optional :: derivator
-
-    !> ground state square density matrix
-    real(dp), intent(in), optional :: rhoSqr(:,:,:)
 
     !> Occupation numbers for natural orbitals from the excited state density matrix
     real(dp), intent(out), optional :: occNatural(:)
@@ -318,7 +318,7 @@ contains
     @:ASSERT(present(excgrad) .eqv. present(derivator))
   #:call ASSERT_CODE
     if (present(excgrad)) then
-    @:ASSERT(present(rhoSqr))
+    @:ASSERT(allocated(rhoSqr))
   end if
   #:endcall ASSERT_CODE
     @:ASSERT(present(occNatural) .eqv. present(naturalOrbs))
@@ -1573,7 +1573,7 @@ contains
 
     real(dp), intent(in) :: pc(:,:)
 
-    real(dp), intent(in), optional :: rhoSqr(:,:,:)
+    real(dp), intent(in), allocatable :: rhoSqr(:,:,:)
 
     integer :: fdUnit, iErr
     character(lc) :: tmpStr, error_string
@@ -1588,7 +1588,7 @@ contains
     end if
 
     write(fdUnit)size(pc, dim=1)
-    if (present(rhoSqr)) then
+    if (allocated(rhoSqr)) then
       write(fdUnit)cmplx(pc+rhoSqr(:,:,1), 0.0_dp, dp)
     else
       write(fdUnit)cmplx(pc, 0.0_dp, dp)

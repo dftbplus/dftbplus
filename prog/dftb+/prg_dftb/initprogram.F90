@@ -1921,7 +1921,8 @@ contains
 
       tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tCasidaForces .or.&
-          & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
+          & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs .or.&
+          & input%ctrl%lrespini%tWriteDensityMatrix)
 
       if (allocated(onSiteElements) .and. tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&

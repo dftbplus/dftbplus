@@ -11,7 +11,7 @@
 !>
 !> The functionality of the module has some limitation:
 !> * Third order does not work.
-!> * Periodic system do not work yet appart from Gamma point.
+!> * Periodic system do not work yet appart from Gamma point energies.
 !> * Orbital potentials or spin-orbit does not work yet.
 !> * Only for closed shell or colinear spin polarization (excitation energies only in that
 !>   case).
@@ -276,7 +276,7 @@ contains
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine LinResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-      & excEnergy, allExcEnergies)
+      & excEnergy, allExcEnergies, rhoSqr)
 
     !> data structure with additional linear response values
     type(linresp), intent(inout) :: this
@@ -332,9 +332,13 @@ contains
     !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
+    !> ground state density matrix (square matrix plus spin index)
+    real(dp), intent(inout), allocatable :: rhoSqr(:,:,:)
+
 #:if WITH_ARPACK
     @:ASSERT(this%tInit)
     @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
+
     call LinRespGrad_old(tSpin, this%nAtom, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
         & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0,&
         & this%HubbardU, this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged,&
@@ -342,7 +346,7 @@ contains
         & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,  this%fdArnoldiDiagnosis,&
         & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
         & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies,&
-        & this%onSiteMatrixElements, this%tWriteDensityMatrix)
+        & this%onSiteMatrixElements, this%tWriteDensityMatrix, rhoSqr)
 
 #:else
     call error('Internal error: Illegal routine call to LinResp_calcExcitations')
@@ -409,7 +413,7 @@ contains
     class(NonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix (square matrix plus spin index)
-    real(dp), intent(in)  :: rhoSqr(:,:,:)
+    real(dp), intent(in), allocatable  :: rhoSqr(:,:,:)
 
     !> print tag information
     logical, intent(in) :: tWriteTagged
@@ -455,8 +459,8 @@ contains
           & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
           & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies,&
-          & this%onSiteMatrixElements, this%tWriteDensityMatrix, shiftPerAtom, skHamCont,&
-          & skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+          & this%onSiteMatrixElements, this%tWriteDensityMatrix, rhoSqr, shiftPerAtom, skHamCont,&
+          & skOverCont, excgradient, derivator, occNatural, naturalOrbs)
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
@@ -465,8 +469,8 @@ contains
           & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
           & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
           & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies,&
-          & this%onSiteMatrixElements, this%tWriteDensityMatrix, shiftPerAtom, skHamCont,&
-          & skOverCont, excgradient, derivator, rhoSqr)
+          & this%onSiteMatrixElements, this%tWriteDensityMatrix, rhoSqr, shiftPerAtom, skHamCont,&
+          & skOverCont, excgradient, derivator)
     end if
 
 #:else
