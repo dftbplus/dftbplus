@@ -111,7 +111,7 @@ contains
     type(inputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
-    type(fnode), pointer :: root, tmp, hamNode, child, dummy
+    type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
     type(TParserflags) :: parserFlags
     logical :: tHSD, missing
 
@@ -194,16 +194,16 @@ contains
   #:endif
 
     ! Analysis of properties
-    call getChildValue(root, "Analysis", dummy, "", child=child, list=.true., &
+    call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
 
   #:if WITH_TRANSPORT
-    call readAnalysis(child, input%ctrl, input%geom, input%slako%orb, input%transpar, &
+    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
         & input%ginfo%tundos)
 
     call finalizeNegf(input)
   #:else
-    call readAnalysis(child, input%ctrl, input%geom, input%slako%orb)
+    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
   #:endif
 
     ! excited state options
@@ -219,6 +219,10 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
+    ! analysis settings that need to know settings from the options block
+    call readLaterAnalysis(analysisNode, input%ctrl)
+
+    ! read parallel calculation settings
     call readParallel(root, input)
 
     ! input data strucutre has been initialised
@@ -3672,10 +3676,6 @@ contains
       end if
 
       call getChildValue(node, "WriteEigenvectors", ctrl%tPrintEigVecs, .false.)
-      if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
-        call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
-            & .false.)
-      end if
 
     #:if WITH_SOCKETS
       tWriteBandDatDef = .not. allocated(ctrl%socketInput)
@@ -3717,6 +3717,23 @@ contains
 
 
   end subroutine readAnalysis
+
+
+  !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}
+  subroutine readLaterAnalysis(node, ctrl)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> Control structure to fill
+    type(control), intent(inout) :: ctrl
+
+    if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
+      call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
+          & .false.)
+    end if
+
+  end subroutine readLaterAnalysis
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state
