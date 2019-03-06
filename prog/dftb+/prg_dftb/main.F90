@@ -2331,17 +2331,20 @@ contains
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
 
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
       !> Add rangeseparated contribution
       !> Assumes deltaRhoInSqr only used by rangeseparation
       !> Should this be used elsewhere, need to pass tRangeSep
       if(associated(deltaRhoInSqr)) then
-         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
-         call rangeSep%addLRHamiltonian(deltaRhoInSqr(:,:,iSpin), over, neighbourList%iNeighbour, &
-          & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, orb, HSqrReal(:,:), SSqrReal, &
-          & deltaRhoInSqr(:,:,iSpin))
+        !call env%globalTimer%startTimer(globalTimers%densityMatrix)
+        call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
+        !call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+        call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), over,&
+            & neighbourList%iNeighbour,  nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+            & orb, HSqrReal(:,:), SSqrReal,  deltaRhoInSqr(:,:,iSpin))
       end if
 
-      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
     #:endif

@@ -11,6 +11,7 @@
 !> Contains range separated related routines.
 module rangeseparated
   use accuracy
+  use environment
   use assert
   use message
   use nonscc, only : NonSccDiff
@@ -274,10 +275,13 @@ contains
 
 
   !> Adds the LR-exchange contribution to hamiltonian using the thresholding algorithm
-  subroutine addLRHamiltonian_tr(self, overlap, deltaRho, iSquare, hamiltonian, orb)
+  subroutine addLRHamiltonian_tr(self, env, overlap, deltaRho, iSquare, hamiltonian, orb)
 
     !> class instance
     class(RangeSepFunc), intent(inout) :: self
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> square real overlap matrix
     real(dp), intent(in) :: overlap(:,:)
@@ -295,17 +299,14 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     real(dp), allocatable :: tmpovr(:,:), tmpDRho(:,:), testovr(:,:), tmpDDRho(:,:), tmpDham(:,:)
-    real(dp) :: start, finish
     integer, allocatable :: ovrind(:,:)
     integer, parameter :: DESC_LEN = 3, ISTART = 1, IEND = 2, INORB = 3
 
-    call cpu_time(start)
     call allocateAndInit(tmpovr, tmpDham, tmpDRho, tmpDDRho, testovr, ovrind)
     call evaluateHamiltonian(tmpDHam)
     self%hprev = self%hprev + tmpDham
     hamiltonian = hamiltonian + self%hprev
     self%lrenergy = self%lrenergy + evaluateEnergy(self%hprev, tmpDRho)
-    call cpu_time(finish)
 
   contains
 
@@ -467,11 +468,14 @@ contains
 
 
   !> Updates the Hamiltonian with the range separated contribution.
-  subroutine addLRHamiltonian_nb(self, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair, orb,&
-      & HH)
+  subroutine addLRHamiltonian_nb(self, env, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair,&
+      & orb, HH)
 
     !> instance of object
     class(RangeSepFunc), intent(inout) :: self
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> Square (unpacked) density matrix
     real(dp), dimension(:,:), target, intent(in) :: densSqr
@@ -510,14 +514,11 @@ contains
     real(dp), dimension(:,:), allocatable, target :: tmpHH
     real(dp) :: tmp
     integer :: mu, nu
-    real(dp) :: start, finish
 
-    call cpu_time(start)
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
     HH = HH + tmpHH
     self%lrenergy = self%lrenergy + evaluateEnergy(tmpHH, tmpDRho)
-    call cpu_time(finish)
 
   contains
 
@@ -769,11 +770,14 @@ contains
 
 
   !> Interface routine.
-  subroutine addLRHamiltonian(self, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair, orb, HH,&
-      & overlap, deltaRho)
+  subroutine addLRHamiltonian(self, env, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair,&
+      & orb, HH, overlap, deltaRho)
 
     !> class instance
     class(RangeSepFunc), intent(inout) :: self
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     ! Neighbour based screening
 
@@ -810,13 +814,16 @@ contains
     !> square density matrix (deltaRho in DFTB terms)
     real(dp), intent(in) :: deltaRho(:,:)
 
+    call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
     select case(self%getRSAlg())
     case ("tr")
-      call self%addLRHamiltonian_tr(overlap, deltaRho, iSquare, HH, orb)
+      call self%addLRHamiltonian_tr(env, overlap, deltaRho, iSquare, HH, orb)
     case ("nb")
-      call self%addLRHamiltonian_nb(densSqr, over, iNeighbour, nNeighbour, iSquare, iPair, orb, HH)
+      call self%addLRHamiltonian_nb(env, densSqr, over, iNeighbour, nNeighbour, iSquare, iPair,&
+          & orb, HH)
     case default
     end select
+    call env%globalTimer%stopTimer(globalTimers%rangeSeparatedH)
 
   end subroutine addLRHamiltonian
 
@@ -1125,11 +1132,9 @@ contains
     real(dp) :: dummy(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb,3)
     real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpovr(:,:), tmpRho(:,:), tmpderiv(:,:)
-    real(dp) :: start, finish
 
     write(stdOut,'(a)') "rangeSep: addLRGradients"
     @:ASSERT(size(gradients,dim=1) == 3)
-    call cpu_time(start)
     call allocateAndInit(tmpovr, tmpRho, gammaPrimeTmp, tmpderiv)
     nAtom = size(self%species)
     tmpderiv = 0.0_dp
@@ -1205,10 +1210,6 @@ contains
 
     gradients(:,:) = gradients -0.25_dp * tmpderiv
 
-    call cpu_time(finish)
-    write(stdOut,'(a)') "Neighbour list based eval:"
-    print '("-> done. time = ", f10.4, " sec.")', finish - start
-
     deallocate(tmpovr, tmpRho, gammaPrimeTmp, tmpderiv)
 
   contains
@@ -1257,10 +1258,13 @@ contains
 
 
   !> evaluate the LR-Energy contribution directly. Very slow, use addLREnergy instead.
-  function evaluateLREnergyDirect(self, deltaRho, ovrlap, iSquare) result (energy)
+  function evaluateLREnergyDirect(self, env, deltaRho, ovrlap, iSquare) result (energy)
 
     !> instance of LR
     class(RangeSepFunc), intent(inout) :: self
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> square density matrix
     real(dp), intent(in) :: deltaRho(:,:)
@@ -1276,9 +1280,9 @@ contains
 
     integer :: iAt1, iAt2, nAtom, mu, nu, alpha, beta
     real(dp), allocatable :: tmpovr(:,:), tmpDRho(:,:)
-    real(dp) :: tmp, start, finish
+    real(dp) :: tmp
 
-    call cpu_time(start)
+    call env%globalTimer%startTimer(globalTimers%energyEval)
     nAtom = size(self%species)
     allocate(tmpovr(size(ovrlap, dim = 1), size(ovrlap, dim = 1)))
     allocate(tmpDRho(size(deltaRho, dim = 1), size(deltaRho, dim = 1)))
@@ -1307,7 +1311,7 @@ contains
     end do
     energy = -energy / 8.0_dp
 
-    call cpu_time(finish)
+    call env%globalTimer%stopTimer(globalTimers%energyEval)
 
   end function evaluateLREnergyDirect
 
