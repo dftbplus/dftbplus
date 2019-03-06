@@ -3180,7 +3180,7 @@ contains
     call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
         & iSparseStart, img2CentCell)
     call blockSymmetrizeHS(work, denseDesc%iAtomStart)
-    if (tForces) then
+    if (allocated(rhoSqrReal)) then
       do iSpin = 1, nSpin
         call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), denseDesc%iAtomStart)
       end do
@@ -3205,7 +3205,7 @@ contains
     else
       call calcExcitations(lresp, tSpin, denseDesc, eigvecsReal, eigen, work, filling, coord0,&
           & sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
-          & tWriteAutotest, fdAutotest, energy%Eexcited, energies)
+          & tWriteAutotest, fdAutotest, energy%Eexcited, energies, rhoSqrReal)
     end if
     energy%Etotal = energy%Etotal + energy%Eexcited
     energy%EMermin = energy%EMermin + energy%Eexcited
