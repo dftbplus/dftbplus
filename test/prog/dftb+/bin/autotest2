@@ -196,12 +196,12 @@ case "${STAGE_SEP}$stages" in
 esac
 
 
-# Check if executable is there:
-if [ ! -x "${app_cmd}" -a -n "${STAGE_RUN}" ]; then
-  echo "${SCRIPTNAME}: Error: Executable '${app_cmd}' does not exist" 1>&2
-  echo "Type '${SCRIPTNAME} -h' for help" 1>&2
-  exit 1
-fi
+## Check if executable is there:
+#if [ ! -x "${app_cmd}" -a -n "${STAGE_RUN}" ]; then
+#  echo "${SCRIPTNAME}: Error: Executable '${app_cmd}' does not exist" 1>&2
+#  echo "Type '${SCRIPTNAME} -h' for help" 1>&2
+#  exit 1
+#fi
 
 if [ -n "$STAGE_PREPARE" -o -n "$STAGE_RUN" -o -n "$STAGE_COMPARE" \
     -o -n "$verbose" ]

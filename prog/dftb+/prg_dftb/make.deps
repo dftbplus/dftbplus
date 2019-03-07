@@ -1,8 +1,3 @@
 dftbplus.o: _mod_dftbp_environment common.fypp _mod_dftbp_main _mod_dftbp_inputdata_module _mod_dftbp_initprogram _mod_dftbp_hsdhelpers _mod_dftbp_formatout _mod_dftbp_globalenv
 dftbplus.o = dftbplus.o $(_mod_dftbp_environment) $(common.fypp) $(_mod_dftbp_main) $(_mod_dftbp_inputdata_module) $(_mod_dftbp_initprogram) $(_mod_dftbp_hsdhelpers) $(_mod_dftbp_formatout) $(_mod_dftbp_globalenv)
 
-hsdhelpers.o: common.fypp _mod_dftbp_inputdata_module _mod_dftbp_hsdutils2 _mod_dftbp_xmlf90 _mod_dftbp_parser _mod_dftbp_message _mod_dftbp_globalenv _mod_dftbp_hsdparser _mod_dftbp_hsdutils
-hsdhelpers.o = hsdhelpers.o $(common.fypp) $(_mod_dftbp_inputdata_module) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_xmlf90) $(_mod_dftbp_parser) $(_mod_dftbp_message) $(_mod_dftbp_globalenv) $(_mod_dftbp_hsdparser) $(_mod_dftbp_hsdutils)
-_mod_dftbp_hsdhelpers: hsdhelpers.o
-_mod_dftbp_hsdhelpers = $(hsdhelpers.o)
-

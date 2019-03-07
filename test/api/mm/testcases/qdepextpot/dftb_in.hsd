@@ -6,14 +6,14 @@ Geometry = GenFormat {
      2    2    0.00000000000E+00   0.00000000000E+00   0.78306400000E+00
      3    2    0.00000000000E+00   0.00000000000E+00  -0.78306400000E+00
 }
-Driver = {}
+Driver {}
 
 Hamiltonian = DFTB {
   SCC = Yes
   SCCTolerance = 1.0E-10 # Extremely small!
   MaxSCCIterations = 1000
   Mixer = Broyden {}
-  MaxAngularMomentum = {
+  MaxAngularMomentum {
     O = "p"
     H = "s"
   }
@@ -24,9 +24,9 @@ Hamiltonian = DFTB {
     Separator = "-"
     Suffix  = ".skf"
   }
-  #ElectricField = {
-  #  PointCharges = {
-  #    CoordsAndCharges = {
+  #ElectricField {
+  #  PointCharges {
+  #    CoordsAndCharges {
   #      -0.944863438887178  -9.44863438887178  1.70075418999692    2.5
   #       4.34637181888102   -5.85815332110050  2.64561762888410   -1.9
   #    }
@@ -34,13 +34,16 @@ Hamiltonian = DFTB {
   #}
 }
 
-Options = {
+Options {
   WriteAutotestTag = Yes
+}
+
+Analysis {
   CalculateForces = Yes
 }
 
-ParserOptions = {
-  ParserVersion = 5
+ParserOptions {
+  ParserVersion = 6
 }
 
 Parallel {

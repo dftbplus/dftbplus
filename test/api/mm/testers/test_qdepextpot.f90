@@ -14,6 +14,8 @@ program test_qdepextpot
   use dftbplus
   use extchargepot, only : getPointChargePotential
   use extchargepotgen, only : TExtChargePotGen, TExtChargePotGen_init
+  ! Only needed for the internal test system
+  use testhelpers, only : writeAutotestTag
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
@@ -41,7 +43,7 @@ program test_qdepextpot
 
   real(dp), allocatable :: extPot(:), extPotGrad(:,:)
   real(dp) :: merminEnergy
-  real(dp) :: gradients(3, 3)
+  real(dp) :: gradients(3, nQmAtom), grossCharges(nQmAtom)
   !integer :: devNull
 
   ! Pass the 1st external charge to dynamic potential generator from the extchargepotgen module,
@@ -72,13 +74,15 @@ program test_qdepextpot
   ! obtain energy and forces
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
-  print "(A,F15.10)", 'Expected Mermin Energy:', -3.9854803392_dp
+  call dftbp%getGrossCharges(grossCharges)
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
-  print "(A,3F15.10)", 'Expected gradient of atom 1:', 0.017651363773_dp, -0.183137129803_dp,&
-      & 0.003198251627_dp
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
+  print "(A,3F15.10)", 'Obtained gross charges:', grossCharges
 
   ! clean up
   call TDftbPlus_destruct(dftbp)
+
+  ! Write file for internal test system
+  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges)
 
 end program test_qdepextpot

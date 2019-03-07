@@ -7,7 +7,13 @@
 
 ROOT := $(PWD)
 
-.PHONY: default misc all
+# Define a default goal here to make sure, make.config does not introduce on
+.PHONY: _default
+default: _default
+
+include make.config
+
+.PHONY: default misc api all
 default: dftb+ modes waveplot
 misc: misc_skderivs misc_slakovalue
 api: api_mm
@@ -18,14 +24,16 @@ install: install_dftb+ install_modes install_waveplot install_dptools
 install_misc: install_misc_skderivs install_misc_slakovalue
 install_api: install_api_mm
 
-.PHONY: test
+.PHONY: test test_api
 test: test_dftb+ test_dptools
+
+ifeq ($(strip $(BUILD_API)),1)
+  test: test_api
+endif
 test_api: test_api_mm
 
 .PHONY: check
 check: check_dptools
-
-include make.config
 
 ################################################################################
 # Sanity checks
@@ -105,17 +113,33 @@ $(EXTERNALS):
 
 
 
-API_NAME = $(subst api_,,$@)
-
 .PHONY: api_mm
-api_mm:
-	mkdir -p $(BUILDDIR)/api/$(API_NAME)
-	$(MAKE) -C $(BUILDDIR)/api/$(API_NAME) \
-	    -f $(ROOT)/api/$(API_NAME)/make.build \
+api_mm: api_lib_mm
+ifeq ($(strip $(BUILD_TEST_BINARIES)),1)
+  api_mm: api_tester_mm
+endif
+
+
+.PHONY: api_lib_mm
+api_lib_mm:
+	mkdir -p $(BUILDDIR)/api/mm
+	$(MAKE) -C $(BUILDDIR)/api/mm -f $(ROOT)/api/mm/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
+api_lib_mm: $(DFTBPLUS_DEPS)
 
-api_mm: $(DFTBPLUS_DEPS)
+
+API_TESTER_NAME = $(subst api_tester_,,$@)
+
+.PHONY: api_tester_mm
+api_tester_mm:
+	echo "HELLO"
+	mkdir -p $(BUILDDIR)/test/api/mm/testers
+	$(MAKE) -C $(BUILDDIR)/test/api/mm/testers \
+	    -f $(ROOT)/test/api/mm/make.build \
+	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
+
+api_tester_mm: api_lib_mm
 
 ################################################################################
 # Test targets
@@ -129,19 +153,19 @@ test_dftb+:
 
 test_dftb+: dftb+
 
-.PHONY: test_api_mm
-test_api_mm:
-	mkdir -p $(BUILDDIR)/test/api/$(subst test_api_,,$@)
-	$(MAKE) -C $(BUILDDIR)/test/api/$(subst test_api_,,$@) \
-	    -f $(ROOT)/test/api/$(subst test_api_,,$@)/make.build \
-	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-test_api_mm: api_mm
-
+.PHONY: test_dptools
 test_dptools:
 	mkdir -p $(BUILDDIR)/test/tools/dptools
 	cd $< && $(ROOT)/test/tools/dptools/runtests.sh $(PYTHONS)
 
+
+.PHONY: test_api_mm
+test_api_mm:
+	$(MAKE) -C $(BUILDDIR)/test/api/mm -f $(ROOT)/test/api/mm/make.build \
+            ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) test
+
+test_api_mm: api_mm
 
 ################################################################################
 # Install targets

@@ -212,7 +212,6 @@ int main()
   double mermin_energy;
   double *gradients, *charges;
 
-  printf("HELLO\n");
   /* Fill up the context with all the relevant data */
   initialize_context(&cont);
 

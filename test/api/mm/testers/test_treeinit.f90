@@ -11,6 +11,8 @@ program test_treeinit
   use, intrinsic :: iso_fortran_env, only : output_unit
   use dftbplus
   use dftbp_constants, only : AA__Bohr
+  ! Only needed for the internal test system
+  use testhelpers, only : writeAutotestTag
   implicit none
 
   integer, parameter :: dp = kind(1.0d0)
@@ -63,7 +65,7 @@ program test_treeinit
   call setChild(pDftb, "MaxAngularMomentum", pMaxAng)
   call setChildValue(pMaxAng, "Si", "p")
   call setChild(pDftb, "SlaterKosterFiles", pSlakos)
-  call setChildValue(pSlakos, "Si-Si", "./external/slakos/origin/pbc-0-3/Si-Si.skf")
+  call setChildValue(pSlakos, "Si-Si", "./Si-Si.skf")
   call setChildValue(pDftb, "KPointsAndWeights", reshape([&
       &  0.25_dp,  0.25_dp, 0.25_dp, 1.00_dp,&
       & -0.25_dp,  0.25_dp, 0.25_dp, 1.00_dp,&
@@ -88,10 +90,7 @@ program test_treeinit
   call dftbp%setGeometry(coords, latVecs)
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
-  print "(A,F15.10)", 'Expected Mermin Energy:', -2.5933460731_dp
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
-  print "(A,3F15.10)", 'Expected gradient of atom 1:', -0.010321385989_dp, -0.010321385989_dp,&
-      & -0.010321385989_dp
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
 
   ! make a small displacement in the lattice vectors and coordinates
@@ -102,13 +101,13 @@ program test_treeinit
   ! re-calculate energy and forces
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
-  print "(A,F15.10)", 'Expected Mermin Energy:', -2.5916977557_dp
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
-  print "(A,3F15.10)", 'Expected gradient of atom 1:', 0.021290612216_dp, -0.010269102833_dp,&
-      & -0.017111497265_dp
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
 
   ! clean up
   call TDftbPlus_destruct(dftbp)
+
+  ! Write file for internal test system
+  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients)
 
 end program test_treeinit

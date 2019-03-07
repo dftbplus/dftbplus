@@ -10,6 +10,8 @@
 program test_fileinit
   use dftbplus
   use dftbp_constants, only : AA__Bohr
+  ! Only needed for the internal test system
+  use testhelpers, only : writeAutotestTag
   implicit none
 
   ! double precision real
@@ -30,16 +32,16 @@ program test_fileinit
   type(TDftbPlusInput) :: input
 
   real(dp) :: merminEnergy
-  real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2)
+  real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2), grossCharges(2)
 
   integer :: devNull
 
   ! Note: setting the global standard output to /dev/null to suppress output and run-time error
   ! messages
   open(newunit=devNull, file="/dev/null", action="write")
-  call TDftbPlus_init(dftbp, outputUnit=devNull)
+  !call TDftbPlus_init(dftbp, outputUnit=devNull)
 
-  !call TDftbPlus_init(dftbp)
+  call TDftbPlus_init(dftbp)
 
   ! You should provide the dftb_in.hsd and skfile found in the test/prog/dftb+/non-scc/Si_2/ folder
   call dftbp%getInputFromFile("dftb_in.hsd", input)
@@ -60,27 +62,26 @@ program test_fileinit
   ! evaluate energy and forces
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
-  print "(A,F15.10)", 'Expected Mermin Energy:', -2.5933460731_dp
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
-  print "(A,3F15.10)", 'Expected gradient of atom 1:', -0.010321385989_dp, -0.010321385989_dp,&
-      & -0.010321385989_dp
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
 
   ! make a small displacement in the lattice vectors and coordinates
   latVecs(1, 1) = latVecs(1, 1) + 0.1_dp * AA__Bohr
-  coords(1, 1) = coords(1, 1) + 0.1_dp * AA__Bohr
+  coords(1, 1) = coords(1, 1) + 0.2_dp * AA__Bohr
   call dftbp%setGeometry(coords, latVecs)
 
   ! re-calculate energy and forces
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
-  print "(A,F15.10)", 'Expected Mermin Energy:', -2.5916977557_dp
+  call dftbp%getGrossCharges(grossCharges)
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
-  print "(A,3F15.10)", 'Expected gradient of atom 1:', 0.021290612216_dp, -0.010269102833_dp,&
-      & -0.017111497265_dp
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
+  print "(A,2F15.10)", 'Obtained charges:', grossCharges
 
   ! clean up
   call TDftbPlus_destruct(dftbp)
+
+  ! Write file for internal test system
+  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges)
 
 end program test_fileinit

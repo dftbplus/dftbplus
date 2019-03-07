@@ -16,6 +16,7 @@ module dftbp_mmapi
   use dftbp_mainapi
   use dftbp_parser
   use dftbp_hsdutils
+  use dftbp_hsdhelpers, only : doPostParseJobs
   use dftbp_inputdata_module
   use dftbp_xmlf90
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
@@ -207,6 +208,7 @@ contains
     call this%checkInit()
 
     call parseHsdTree(input%hsdTree, inpData, parserFlags)
+    call doPostParseJobs(input%hsdTree, parserFlags)
     call initProgramVariables(inpData, this%env)
 
   end subroutine TDftbPlus_setupCalculator

@@ -43,7 +43,7 @@ module dftbp_taggedoutput
     character(len=lenFormStr) :: formCmplx
     character(len=lenFormStr) :: formInt
     character(len=lenFormStr) :: formLogical
-    logical :: initialized
+    logical :: initialized = .false.
   contains
     #:for _, SUFFIX, _, _ in TEMPLATE_PARAMS
       #:for RANK in range(MAX_RANK + 1)

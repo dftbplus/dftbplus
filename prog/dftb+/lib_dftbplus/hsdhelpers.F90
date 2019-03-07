@@ -20,7 +20,7 @@ module dftbp_hsdhelpers
   implicit none
   private
 
-  public :: parseHsdInput
+  public :: parseHsdInput, doPostParseJobs
 
 
   !> Name of the DFTB+ input file
@@ -75,7 +75,7 @@ contains
     type(fnode), pointer :: root
 
     call getChild(hsdTree, rootTag, root)
-    
+
     ! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
 
