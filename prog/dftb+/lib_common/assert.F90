@@ -10,6 +10,7 @@
 !> Auxiliary subroutines for the ASSERT command
 module assert
   use io
+  use globalenv, only : abortProgram
   implicit none
   private
 
@@ -34,7 +35,7 @@ contains
     write(stdout, '(A)') "!!! UNFULLFILLED ASSERTION"
     write(stdout, '(A,A)') "!!! FILE:      ", fileName
     write(stdout, '(A,I0)') "!!! LINE NR.:  ", lineNr
-    stop
+    call abortProgram()
 
   end subroutine assertError
 
