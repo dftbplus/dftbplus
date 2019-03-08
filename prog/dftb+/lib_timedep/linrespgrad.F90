@@ -78,8 +78,8 @@ contains
       & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
       & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
       & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
-      & allOmega, onsMEs, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
-      & naturalOrbs)
+      & allOmega, onsMEs, tWriteDensityMatrix, rhoSqr, shift, skHamCont, skOverCont, excgrad,&
+      & derivator, occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -205,6 +205,12 @@ contains
     !> onsite corrections if in use
     real(dp), allocatable :: onsMEs(:,:,:,:)
 
+    !> Should the density matrix be stored?
+    logical, intent(in) :: tWriteDensityMatrix
+
+    !> ground state square density matrix
+    real(dp), intent(in), allocatable :: rhoSqr(:,:,:)
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
@@ -219,9 +225,6 @@ contains
 
     !> Differentiator for H0 and S matrices.
     class(NonSccDiff), intent(in), optional :: derivator
-
-    !> ground state square density matrix
-    real(dp), intent(in), optional :: rhoSqr(:,:,:)
 
     !> Occupation numbers for natural orbitals from the excited state density matrix
     real(dp), intent(out), optional :: occNatural(:)
@@ -312,9 +315,12 @@ contains
     @:ASSERT(present(excgrad) .eqv. present(shift))
     @:ASSERT(present(excgrad) .eqv. present(skHamCont))
     @:ASSERT(present(excgrad) .eqv. present(skOverCont))
-    @:ASSERT(present(excgrad) .eqv. present(rhoSqr))
     @:ASSERT(present(excgrad) .eqv. present(derivator))
-
+  #:call ASSERT_CODE
+    if (present(excgrad)) then
+    @:ASSERT(allocated(rhoSqr))
+  end if
+  #:endcall ASSERT_CODE
     @:ASSERT(present(occNatural) .eqv. present(naturalOrbs))
 
     ! count initial number of transitions from occupied to empty states
@@ -348,7 +354,8 @@ contains
 
 
     !> is a z vector required?
-    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs)
+    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs) .or.&
+        & tWriteDensityMatrix
 
     ! Sanity checks
     nstat = nstat0
@@ -621,10 +628,6 @@ contains
         ALLOCATE(pc(norb, norb))
       end if
 
-      ! Furche terms: X+Y, X-Y
-      xpy(:nxov_rd) = sqrt(wij(:nxov_rd)) / sqrt(omega) * evec(:nxov_rd,nstat)
-      xmy(:nxov_rd) = sqrt(omega) / sqrt(wij(:nxov_rd)) * evec(:nxov_rd,nstat)
-
       ! set up transition indexing
       call rindxov_array(win, nocc, nxov, getij, iatrans)
 
@@ -639,7 +642,7 @@ contains
             & nxov_ud(1), getij, iatrans, natom, species0,grndEigVal(:,1),&
             & stimc, grndEigVecs, gammaMat, spinW, omega, sym, rhs, t,&
             & wov, woo, wvv, transChrg)
-        call solveZVectorEq(rhs, win, nxov_ud(1), getij, natom, iAtomStart,&
+        call solveZVectorPrecond(rhs, win, nxov_ud(1), getij, natom, iAtomStart,&
             & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg)
         call calcWVectorZ(rhs, win, nocc, nocc_r, nxov_ud(1), getij, iAtomStart,&
             & stimc, grndEigVecs, gammaMat, grndEigVal(:,1), wov, woo, wvv, transChrg)
@@ -650,6 +653,10 @@ contains
 
         ! Make MO to AO transformation of the excited density matrix
         call makeSimilarityTrans(pc, grndEigVecs(:,:,1))
+
+        if (tWriteDensityMatrix) then
+          call writeDM(iLev, pc, rhoSqr)
+        end if
 
         call getExcMulliken(iAtomStart, pc, SSqr, dqex)
         if (tMulliken) then
@@ -1347,9 +1354,9 @@ contains
   end subroutine getZVectorEqRHS
 
 
-  !> Solving the (A+B) Z = -R equation via conjugate gradient
-  subroutine solveZVectorEq(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij, c,&
-      & transChrg)
+  !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
+  subroutine solveZVectorPrecond(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij,&
+      & c, transChrg)
 
     !> on entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)
@@ -1386,34 +1393,36 @@ contains
 
     integer :: nxov
     integer :: ia, i, a, k
-    real(dp) :: rhs2(size(rhs)),rkm1(size(rhs)),pkm1(size(rhs)),apk(size(rhs))
+    real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
-    real(dp), allocatable :: qij(:)
+    real(dp), allocatable :: qij(:), P(:)
 
     nxov = size(rhs)
     allocate(qij(nAtom))
 
-    ! Choosing a start value
-    ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
+    ! diagonal preconditioner
+    ! P^-1 = 1 / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
+    allocate(P(nxov))
     do ia = 1, nxov
       qij = transChrg%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
       call hemv(qTmp, gammaMat, qij)
       rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
-      rhs2(ia) = rhs(ia) / rs
+      P(ia) = 1.0_dp / rs
     end do
-
-    ! unit vector
-    rhs2 = 1.0_dp / sqrt(real(nxov,dp))
 
     ! Free some space, before entering the apbw routine
     deallocate(qij)
+
+    ! unit vector as initial guess solution
+    rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
 
     ! action of matrix on vector
     call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
         & transChrg)
 
-    rkm1 = rhs - rkm1
-    pkm1 = rkm1
+    rkm1(:) = rhs - rkm1
+    zkm1(:) = P * rkm1
+    pkm1(:) = zkm1
 
     ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
     do k = 1, nxov**2
@@ -1422,7 +1431,7 @@ contains
       call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
           & transChrg)
 
-      tmp1 = dot_product(rkm1, rkm1)
+      tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
       alphakm1 = tmp1 / tmp2
 
@@ -1441,15 +1450,20 @@ contains
         call error("solveZVectorEq : Z vector not converged!")
       end if
 
+      zkm1(:) = P * rkm1
+
+      tmp2 = dot_product(zkm1, rkm1)
+
+      ! Fletcher–Reeves update
       bkm1 = tmp2 / tmp1
 
-      pkm1 = rkm1 + bkm1 * pkm1
+      pkm1 = zkm1 + bkm1 * pkm1
 
     end do
 
     rhs(:) = rhs2(:)
 
-  end subroutine solveZVectorEq
+  end subroutine solveZVectorPrecond
 
 
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
@@ -1555,6 +1569,39 @@ contains
   end subroutine calcWvectorZ
 
 
+  !> Write out density matrix, full if rhoSqr is present
+  subroutine writeDM(iLev, pc, rhoSqr)
+
+    integer, intent(in) :: iLev
+
+    real(dp), intent(in) :: pc(:,:)
+
+    real(dp), intent(in), allocatable :: rhoSqr(:,:,:)
+
+    integer :: fdUnit, iErr
+    character(lc) :: tmpStr, error_string
+
+    write(tmpStr, "(A,I0,A)")"DM", iLev, ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="replace",&
+        & form='unformatted',iostat=iErr)
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open density matrix"
+      call error(error_string)
+    end if
+
+    write(fdUnit)size(pc, dim=1)
+    if (allocated(rhoSqr)) then
+      write(fdUnit)cmplx(pc+rhoSqr(:,:,1), 0.0_dp, dp)
+    else
+      write(fdUnit)cmplx(pc, 0.0_dp, dp)
+    end if
+
+    close(fdUnit)
+
+  end subroutine writeDM
+
+
   !> Mulliken population for a square density matrix and overlap
   !> Note: assumes both triangles of both square matrices are filled
   subroutine getExcMulliken(iAtomStart, pc, s, dqex)
@@ -1615,7 +1662,7 @@ contains
     @:ASSERT(all(shape(coord0) == [3,nAtom]))
 
     ! Output of excited state Mulliken charges
-    open(fdMulliken, file=excitedQOut,position="append")
+    open(fdMulliken, file=excitedQOut, position="append")
     write(fdMulliken, "(a,a,i2)") "# MULLIKEN CHARGES of excited state ",&
         & sym, nstat
     write(fdMulliken, "(a,2x,A,i4)") "#", 'Natoms =',natom

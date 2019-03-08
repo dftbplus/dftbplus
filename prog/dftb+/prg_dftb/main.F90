@@ -446,7 +446,7 @@ contains
               & tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-              & iAtInCentralRegion, electronicSolver)
+              & iAtInCentralRegion, electronicSolver, tDefinedFreeE)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -524,7 +524,7 @@ contains
             & nSpin, qOutput, velocities)
       end if
 
-      call printEnergies(energy, TS, electronicSolver)
+      call printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
       if (tForces) then
         call env%globalTimer%startTimer(globalTimers%forceCalc)
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
@@ -795,14 +795,13 @@ contains
         cellVol = abs(determinant33(latVec))
         energy%EGibbs = energy%EMermin + extPressure * cellVol
       end if
-      call writeAutotestTag(autotestTag, tPeriodic, cellVol, tMulliken, qOutput,&
-          & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix,&
-          & energy%EMermin, extPressure, energy%EGibbs, coord0, tLocalise, localisation, esp, &
-          & tunneling, ldos)
+      call writeAutotestTag(autotestTag, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
+          & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, extPressure,&
+          & coord0, tLocalise, localisation, esp, tunneling, ldos, tDefinedFreeE)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(resultsTag, energy, derivs, chrgForces, tStress, totalStress,&
-          & pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0)
+      call writeResultsTag(resultsTag, energy, derivs, chrgForces, electronicSolver, tStress,&
+          & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, tDefinedFreeE)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&
@@ -3180,7 +3179,7 @@ contains
     call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
         & iSparseStart, img2CentCell)
     call blockSymmetrizeHS(work, denseDesc%iAtomStart)
-    if (tForces) then
+    if (allocated(rhoSqrReal)) then
       do iSpin = 1, nSpin
         call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), denseDesc%iAtomStart)
       end do
@@ -3205,7 +3204,7 @@ contains
     else
       call calcExcitations(lresp, tSpin, denseDesc, eigvecsReal, eigen, work, filling, coord0,&
           & sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
-          & tWriteAutotest, fdAutotest, energy%Eexcited, energies)
+          & tWriteAutotest, fdAutotest, energy%Eexcited, energies, rhoSqrReal)
     end if
     energy%Etotal = energy%Etotal + energy%Eexcited
     energy%EMermin = energy%EMermin + energy%Eexcited
