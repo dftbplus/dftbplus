@@ -322,32 +322,33 @@ contains
     real(dp), intent(out) :: qq_ij(:,:)
 
     integer :: nOrb, iOrb1, iOrb2
-    integer :: mu, ss
+    integer :: mu, nu, ss
 
     ss = 1
     if (.not. updwn) ss = 2
 
-    mu = iAtomStart(iAt)
+    !mu = iAtomStart(iAt)
     qq_ij(:,:) = 0.0_dp
-    call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss), stimc(mu:mu+nOrb-1,jj,ss))
-    call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss), stimc(mu:mu+nOrb-1,ii,ss))
-    qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss), stimc(mu:mu+nOrb-1,jj,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss), stimc(mu:mu+nOrb-1,ii,ss))
+    !qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
 
-    !do iOrb1 = 1, nOrb
-    !  do iOrb2 = iOrb1, nOrb
-    !    mu = iAtomStart(iAt) + iOrb1
-    !    nu = iAtomStart(iAt) + iOrb2
-    !    qq_ij(iOrb1,iOrb2) = 0.25_dp*( grndEigVecs(mu,ii,ss)*stimc(nu,jj,ss) &
-    !         &                       + grndEigVecs(mu,jj,ss)*stimc(nu,ii,ss) &
-    !         &                       + grndEigVecs(nu,ii,ss)*stimc(mu,jj,ss) &
-    !         &                       + grndEigVecs(nu,jj,ss)*stimc(mu,ii,ss) )
-    !    if (iOrb1 /= iOrb2) qq_ij(iOrb2,iOrb1) = qq_ij(iOrb1,iOrb2)
-    !  end do
-    !end do
+    do iOrb1 = 1, nOrb
+      do iOrb2 = iOrb1, nOrb
+        mu = iAtomStart(iAt) + iOrb1 - 1
+        nu = iAtomStart(iAt) + iOrb2 - 1
+        qq_ij(iOrb1,iOrb2) = 0.25_dp*( grndEigVecs(mu,ii,ss)*stimc(nu,jj,ss) &
+             &                       + grndEigVecs(mu,jj,ss)*stimc(nu,ii,ss) &
+             &                       + grndEigVecs(nu,ii,ss)*stimc(mu,jj,ss) &
+             &                       + grndEigVecs(nu,jj,ss)*stimc(mu,ii,ss) )
+        if (iOrb1 /= iOrb2) then
+          qq_ij(iOrb2,iOrb1) = qq_ij(iOrb1,iOrb2)
+        end if
+      end do
+    end do
 
   end subroutine transDens
 
-  
   !> Returns the (spatial) MO overlap between orbitals in different spin channels
   function MOoverlap(pp, qq, stimc, grndEigVecs) result(S_pq)
 
@@ -423,7 +424,7 @@ contains
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
   subroutine omegatvec(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
-      & occNr, getij, gamma, species0, spinW, transChrg, onsMEs, orb)
+      & occNr, getij, gamma, species0, spinW, onsMEs, orb, transChrg)
 
     !> logical spin polarization
     logical, intent(in) :: spin
@@ -470,14 +471,14 @@ contains
     !> ground state spin constants for each species
     real(dp), intent(in) :: spinW(:)
 
-    !> machinery for transition charges between single particle levels
-    type(TTransCharges), intent(in) :: transChrg
-
     !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
     real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
 
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
 
     integer :: nmat, natom
     integer :: ia, ii, jj
@@ -509,7 +510,6 @@ contains
       if (sym == 'S') then
 
         call hemv(gtmp, gamma, otmp)
-
 
         ! 2 * wn * (g * Q)
         vOut(:) = 0.0_dp

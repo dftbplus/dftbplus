@@ -81,8 +81,8 @@ module environment
       & TTimerItem("Force calculation", 2),&
       & TTimerItem("Stress calculation", 2),&
       & TTimerItem("Post-geometry optimisation", 1),&
-      & TTimerItem("Electron dynamics initialisation", 1),&
-      & TTimerItem("Electron dynamics loop", 1)&
+      & TTimerItem("Electron dynamics initialisation", 2),&
+      & TTimerItem("Electron dynamics loop", 2)&
       & ]
 
   type :: TGlobalTimersHelper

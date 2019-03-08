@@ -75,8 +75,8 @@ contains
     end do
     uu(ll, ll) = 1.0_dp
 
-    call makeSimiliarityTrans(Lz, uu)
-    call makeSimiliarityTrans(Lplus, uu)
+    call makeSimilarityTrans(Lz, uu)
+    call makeSimilarityTrans(Lplus, uu)
 
   end subroutine getLOperators
 
@@ -312,7 +312,7 @@ contains
 
     ! convert to tesseral form
     do iCart = 1, 3
-      call makeSimiliarityTrans(L(:,:,iCart), uu)
+      call makeSimilarityTrans(L(:,:,iCart), uu)
     end do
 
   end subroutine localLOperators
