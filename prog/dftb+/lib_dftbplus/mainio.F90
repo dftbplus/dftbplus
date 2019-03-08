@@ -1878,8 +1878,8 @@ contains
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
   subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
-      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, freeEnergy, pressure,&
-      & gibbsFree, endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos)
+      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
+      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1914,14 +1914,11 @@ contains
     !> Hessian (dynamical) matrix
     real(dp), pointer, intent(in) ::  pDynMatrix(:,:)
 
-    !> Mermin electronic free energy
-    real(dp), intent(in) :: freeEnergy
+    !> Energy contributions and total
+    type(TEnergies), intent(in) :: energy
 
     !> External pressure
     real(dp), intent(in) :: pressure
-
-    !> Gibbs free energy (includes pV term)
-    real(dp), intent(in) :: gibbsFree
 
     !> Final atomic coordinates
     real(dp), intent(in) :: endCoords(:,:)
@@ -1932,15 +1929,17 @@ contains
     !> Localisation measure, if relevant
     real(dp), intent(in) :: localisation
 
+    !> Object holding the potentials and their locations
+    type(TElStatPotentials), allocatable, intent(in) :: esp
+
     !> tunneling array
     real(dp), allocatable, intent(in) :: tunneling(:,:)
 
     !> local projected DOS array
     real(dp), allocatable, intent(in) :: ldos(:,:)
 
-
-    !> Object holding the potentials and their locations
-    type(TElStatPotentials), allocatable, intent(in) :: esp
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -1974,9 +1973,16 @@ contains
     if (associated(pDynMatrix)) then
       call taggedWriter%write(fd, tagLabels%HessianNum, pDynMatrix)
     end if
-    call taggedWriter%write(fd, tagLabels%freeEgy, freeEnergy)
+    if (tDefinedFreeE) then
+      ! Mermin electronic free energy
+      call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
+    else
+      ! only total energy available
+      call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
+    end if
     if (pressure /= 0.0_dp) then
-      call taggedWriter%write(fd, tagLabels%Gibbsfree, gibbsFree)
+      ! Gibbs free energy
+      call taggedWriter%write(fd, tagLabels%gibbsfree, energy%EGibbs)
     end if
     call taggedWriter%write(fd, tagLabels%endCoord, endCoords)
     if (tLocalise) then
@@ -2010,8 +2016,9 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, tStress,&
-      & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter)
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, electronicSolver, tStress,&
+      & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
+      & tDefinedFreeE)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2024,6 +2031,10 @@ contains
 
     !> Forces on external charges
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
 
     !> Should stresses be printed (assumes periodic)
     logical, intent(in) :: tStress
@@ -2052,6 +2063,9 @@ contains
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
+
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
 
@@ -2059,13 +2073,15 @@ contains
 
     open(newunit=fd, file=fileName, action="write", status="replace")
 
-    call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
     call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
 
-    ! extrapolated zero temperature energy
-    call taggedWriter%write(fd, tagLabels%egy0Total, energy%Ezero)
+    if (electronicSolver%providesEigenvals) then
+      call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
+      ! extrapolated zero temperature energy
+      call taggedWriter%write(fd, tagLabels%egy0Total, energy%Ezero)
+    end if
 
-    if (energy%EForceRelated /= 0.0_dp) then
+    if (tDefinedFreeE) then
       ! energy connected to the evaluated force/stress (differs for various free energies)
       call taggedWriter%write(fd, tagLabels%egyForceRelated, energy%EForceRelated)
     end if
@@ -2286,7 +2302,7 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
-      & electronicSolver)
+      & electronicSolver, tDefinedFreeE)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2425,6 +2441,9 @@ contains
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2758,7 +2777,7 @@ contains
       write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
           & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
     end if
-    if (energy%EForceRelated /= 0.0_dp) then
+    if (tDefinedFreeE) then
       write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
@@ -3348,7 +3367,7 @@ contains
     write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
     call env%destruct()
     call destructGlobalEnv()
-    stop
+    call abortProgram()
 
   end subroutine writeHSAndStop
 
@@ -3786,7 +3805,7 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS, electronicSolver)
+  subroutine printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
@@ -3797,13 +3816,18 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
 
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
+
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-    write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
-        & "eV"
-    write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-        & Hartree__eV * energy%EMermin, "eV"
-    if (energy%EForceRelated /= 0.0_dp) then
+    if (electronicSolver%providesEigenvals) then
+      write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
+          & "eV"
+      write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+          & Hartree__eV * energy%EMermin, "eV"
+    end if
+    if (tDefinedFreeE) then
       write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if

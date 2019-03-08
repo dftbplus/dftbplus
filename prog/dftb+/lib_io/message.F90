@@ -79,7 +79,7 @@ contains
     write(stdOut, '(2a)') '-> ', trim(message)
     flush(stdOut)
     call synchronizeAll()
-    call abort()
+    call abortProgram()
 
   end subroutine error_single
 
@@ -98,7 +98,7 @@ contains
     end do
     flush(stdOut)
     call synchronizeAll()
-    call abort()
+    call abortProgram()
 
   end subroutine error_array
 
@@ -112,7 +112,7 @@ contains
     write(stdOut, '(A)') trim(message)
     flush(stdOut)
     call synchronizeAll()
-    call abort()
+    call abortProgram()
 
   end subroutine shutdown_single
 
@@ -130,7 +130,7 @@ contains
     end do
     flush(stdOut)
     call synchronizeAll()
-    call abort()
+    call abortProgram()
 
   end subroutine shutdown_array
 

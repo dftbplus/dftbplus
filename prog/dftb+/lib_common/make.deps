@@ -3,8 +3,8 @@ accuracy.o = accuracy.o
 _mod_dftbp_accuracy: accuracy.o
 _mod_dftbp_accuracy = $(accuracy.o)
 
-assert.o: common.fypp _mod_dftbp_io
-assert.o = assert.o $(common.fypp) $(_mod_dftbp_io)
+assert.o: _mod_dftbp_globalenv common.fypp _mod_dftbp_io
+assert.o = assert.o $(_mod_dftbp_globalenv) $(common.fypp) $(_mod_dftbp_io)
 _mod_dftbp_assert: assert.o
 _mod_dftbp_assert = $(assert.o)
 
