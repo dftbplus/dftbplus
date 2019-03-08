@@ -16,6 +16,7 @@
 #include <string.h>
 #include <math.h>
 #include "dftbplus.h"
+#include "testhelpers.h"
 
 #define NR_QM_ATOMS 3
 #define NR_MM_ATOMS 2
@@ -247,7 +248,6 @@ int main()
          -0.183137129803, 0.003198251627);
   printf("Obtained gradient of atom 1: %15.10f %15.10f %15.10f\n", gradients[0], gradients[1],
          gradients[2]);
-  free(gradients);
 
   /* Query the charges (electron population) on the atoms */
   charges = (double *) malloc(NR_QM_ATOMS * sizeof(double));
@@ -263,6 +263,13 @@ int main()
 
   /* Destruct the calculational context */
   finalize_context(&cont);
+
+
+  /* Save some data for the internal test system */
+  dftbp_write_autotest_tag(NR_QM_ATOMS, 0, mermin_energy, gradients, charges, NULL);
+
+  free(gradients);
+  free(charges);
 
   return 0;
 }

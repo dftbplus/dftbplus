@@ -27,14 +27,17 @@ CINCOPTS = -I$(ROOT)/api/mm
 %.o: %.c
 	$(CC) $(CCOPT) $(CINCOPTS) -o $@ -c $<
 
+
 test_fileinit: test_fileinit.o testhelpers.o
 	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
 
 test_fileinit.o: testhelpers.o
 
 
-test_fileinitc: test_fileinitc.o
+test_fileinitc: test_fileinitc.o testhelpers.o
 	$(LN_C) $(LNOPT_C) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS) $(OTHERLIBS_C)
+
+test_fileinitc.o: testhelpers.o
 
 
 test_treeinit: test_treeinit.o testhelpers.o
@@ -67,8 +70,10 @@ test_qdepextpot: test_qdepextpot.o extchargepotgen.o extchargepot.o testhelpers.
 test_qdepextpot.o: extchargepotgen.o extchargepot.o testhelpers.o
 
 
-test_qdepextpotc: test_qdepextpotc.o
+test_qdepextpotc: test_qdepextpotc.o testhelpers.o
 	$(LN_C) $(LNOPT_C) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS) $(OTHERLIBS_C)
+
+test_qdepextpotc.o: testhelpers.o
 
 
 ################################################################################
