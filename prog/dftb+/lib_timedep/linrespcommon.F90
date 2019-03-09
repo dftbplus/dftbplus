@@ -148,8 +148,12 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj) SCHEDULE(RUNTIME) REDUCTION(+:nv,no)
     do ia = 1, nxov
       call indxov(win, ia, getij, ii, jj)
-      if (ii == homo) nv = nv +1
-      if (jj == homo +1) no = no +1
+      if (ii == homo) then
+        nv = nv +1
+      end if
+      if (jj == homo +1) then
+        no = no +1
+      end if
     end do
     !$OMP  END PARALLEL DO
 
