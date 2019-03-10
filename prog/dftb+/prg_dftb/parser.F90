@@ -3851,10 +3851,12 @@ contains
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(inout) :: input
 
+    integer :: ii
     type(fnode), pointer :: value1, value2, child, child2
     type(string) :: buffer, buffer2, modifier
-    logical :: ppRangeInvalid
+    logical :: ppRangeInvalid, tNeedFieldStrength
     real (dp) :: defPpRange(2)
+    type(fnodeList), pointer :: children
 
   #:if WITH_MPI
     if (associated(node)) then
@@ -3868,9 +3870,6 @@ contains
          & child=child)
     call convertByMul(char(modifier), timeUnits, child, input%dt)
 
-    call getChildValue(node, "FieldStrength", input%tdfield, modifier=modifier, child=child)
-    call convertByMul(char(modifier), EFieldUnits, child, input%tdfield)
-
     call getChildValue(node, "Populations", input%tPopulations, .false.)
     call getChildValue(node, "WriteFrequency", input%writeFreq, 50)
     call getChildValue(node, "Restart", input%tRestart, .false.)
@@ -3882,6 +3881,26 @@ contains
     call getChildValue(node, "WriteBondOrder", input%tBondO, .false.)
     call getChildValue(node, "OnsiteGradients", input%tOnsiteGradients, .false.)
     call getChildValue(node, "Pump", input%tPump, .false.)
+
+    ! input block for reading starting density matrices
+    call getChildValue(node, "ReadDensityMatrix", value1, "", child=child,  allowEmptyValue=.true.,&
+        & list=.true.)
+    call getChildren(child, "File", children)
+    if (getLength(children) > 0) then
+      allocate(input%initialDensityMatrices(getLength(children)))
+      allocate(input%DMWeight(getLength(children)))
+      do ii = 1, getLength(children)
+        call getItem1(children, ii, child2)
+        call getChildValue(child2, "Name",  buffer)
+        input%initialDensityMatrices(ii) = unquote(char(buffer))
+        if (getLength(children) > 1) then
+          call getChildValue(child2, "Weight", input%DMWeight(ii), 1.0_dp)
+        else
+          input%DMWeight(:) = 1.0_dp
+        end if
+      end do
+    end if
+    call destroyNodeList(children)
 
     if (input%tPump) then
       call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
@@ -3911,6 +3930,9 @@ contains
     else
        input%tEulers = .false.
     end if
+
+    ! assume this is required (needed for most perturbations, but not none)
+    tNeedFieldStrength = .true.
 
     !! Different perturbation types
     call getChildValue(node, "Perturbation", value1, "None", child=child)
@@ -3955,7 +3977,7 @@ contains
     case ("kickandlaser")
        input%pertType = iKickAndLaser
        call getChildValue(value1, "KickPolDir", input%polDir)
-       if (input%polDir > 4) then
+       if ( input%polDir < 1 .or. input%polDir > 4) then
           call detailedError(child, "Wrong specified polarization direction")
        end if
        call getChildValue(value1, "SpinType", input%spType, iTDSinglet)
@@ -3982,10 +4004,15 @@ contains
 
     case ("none")
        input%pertType = iNoTDPert
-
+       tNeedFieldStrength = .false.
     case default
        call detailedError(child, "Unknown perturbation type " // char(buffer))
     end select
+
+    if (tNeedFieldStrength) then
+      call getChildValue(node, "FieldStrength", input%tdfield, modifier=modifier, child=child)
+      call convertByMul(char(modifier), EFieldUnits, child, input%tdfield)
+    end if
 
     !! Different envelope functions
     call getChildValue(node, "EnvelopeShape", value1, "Constant")

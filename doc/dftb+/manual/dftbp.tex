@@ -141,7 +141,7 @@ Geometry = {
 }
 \end{verbatim}
 
-\subsection{GenFormat\{\}}
+\subsection{GenFormat\cb}
 \label{sec:dftbp.GenFormat}
 
 You can use the generic format to specify the geometry (see
@@ -195,7 +195,7 @@ methods are available:
 \end{description}
 
 
-\subsection{SteepestDescent\{\}}
+\subsection{SteepestDescent\cb}
 \label{sec:dftbp.SteepestDescent}
 
 \begin{ptable}
@@ -212,7 +212,7 @@ methods are available:
   \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{Pressure}          & r & Periodic = Yes, LatticeOpt = Yes & 0.0
   & \\
-  \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\{\}~ & 0.2 & \\
+  \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\cb~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
@@ -332,7 +332,7 @@ methods are available:
 \end{description}
 
 
-\subsection{ConjugateGradient\{\}}
+\subsection{ConjugateGradient\cb}
 \label{sec:dftbp.ConjugateGradient}
 
 \begin{ptable}
@@ -346,14 +346,14 @@ methods are available:
   \kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
   \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
-  \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\{\}~ & 0.2 & \\
+  \kw{MaxAtomStep}       & r & MovedAtoms $\neq$ None\cb~ & 0.2 & \\
   \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
   \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
 \end{ptable}
 
 See previous subsection for the description of the properties.
 
-\subsection{gDIIS\{\}}
+\subsection{gDIIS\cb}
 \label{sec:dftbp.gDIIS}
 
 \begin{ptable}
@@ -410,7 +410,7 @@ Specific properties for this method are:
   \is{Memory} should between 3 and 20~\cite{NoceWrig06}.
 \end{description}
 
-\subsection{SecondDerivatives\{\}}
+\subsection{SecondDerivatives\cb}
 \label{sec:dftbp.SecondDerivatives}
 
 Calculates the second derivatives\index{Hessian} of the energy
@@ -449,7 +449,7 @@ frequencies.
 \end{description}
 
 
-\subsection{VelocityVerlet\{\}}
+\subsection{VelocityVerlet\cb}
 \label{sec:dftbp.VelocityVerlet}
 
 The code propagates atomic motion using velocity Verlet dynamics with optional
@@ -556,7 +556,7 @@ time step.
   This is redundant in the case of specified initial velocities.
 \end{description}
 
-\paragraph{Andersen\{\}}
+\paragraph{Andersen\cb}
 \label{sec:dftbp.Andersen}
 
 Andersen thermostat~\cite{andersen-JCP-72-2384} sampling an NVT\index{NVT ensemble} ensemble.
@@ -589,7 +589,7 @@ accumulation of data for dynamical properties.
 
 \end{description}
 
-\paragraph{Berendsen\{\}}
+\paragraph{Berendsen\cb}
 \label{sec:dftbp.Berendsen}
 
 Berendsen thermostat~\cite{berendsen-JCP-81-3684} samples something
@@ -624,7 +624,7 @@ before using this thermostat~\cite{harvey-JCC-19-726}).
 
 \end{description}
 
-\paragraph{NoseHoover\{\}}
+\paragraph{NoseHoover\cb}
 \label{sec:dftbp.NoseHoover}
 
 Nos\'e-Hoover chain thermostat~\cite{martyna-mp-87-1117} sampling an
@@ -666,7 +666,7 @@ all of the atoms in the system.
 
 \end{description}
 
-\paragraph{TemperatureProfile\{\}}
+\paragraph{TemperatureProfile\cb}
 \label{sec:dftbp.TemperatureProfile}
 
 Specifies a temperature profile during molecular dynamics. It takes as
@@ -894,7 +894,7 @@ Slater-Koster file. An example is given below
 \end{verbatim}
 where \kw{Atoms} specifies the atom or atoms which each have a mass of \kw{MassPerAtom} assigned.
 
-\subsection{Socket\{\}}
+\subsection{Socket\cb}
 \label{sec:dftbp.Socket}
 
 The code tries to connect to a socket interface to receive control instructions
@@ -960,7 +960,7 @@ remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
 \label{sec:dftbp.Hamiltonian}
 
 Currently only a DFTB Hamiltonian is implemented, so you must set
-\is{Hamiltonian = DFTB\{\}}. The \iscb{DFTB} method may contain the
+\is{Hamiltonian = DFTB\cb}. The \iscb{DFTB} method may contain the
 following properties:
 
 \begin{ptable}
@@ -970,14 +970,14 @@ following properties:
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{OrbitalResolvedSCC} & l & SCC = Yes & No & \\
-  \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
+  \kw{Mixer} &m& SCC = Yes  & Broyden\cb & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
   \kw{Charge} &r& & 0.0 & \\
   \kw{SpinPolarisation} &m& SCC = Yes & \cb & \pref{sec:dftbp.SpinPolarisation} \\
-  \kw{SpinConstants} &p& SpinPolarisation $\neq$ \{\}~ & - &
+  \kw{SpinConstants} &p& SpinPolarisation $\neq$ \cb~ & - &
   \pref{sec:dftbp.SpinConstants} \\
   \kw{ShellResolvedSpin} &l& OrbitalResolvedSCC = No & No & \\
-  \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\{\}~ & \cb &
+  \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\cb~ & \cb &
   \pref{sec:dftbp.SpinOrbit} \\
   \kw{Eigensolver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Eigensolver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
@@ -986,13 +986,13 @@ following properties:
   \kw{PolynomialRepulsive} & p|m & & \cb & \\
   \kw{KPointsAndWeights} &(4r)+|m& Periodic = Yes & - &
   \pref{sec:dftbp.KPointsAndWeights} \\
-  \kw{OrbitalPotential} &m & SpinPolarisation $\neq$ \{\}~ & \cb &
+  \kw{OrbitalPotential} &m & SpinPolarisation $\neq$ \cb~ & \cb &
   \pref{sec:dftbp.OrbitalPotential} \\
   \kw{ReadInitialCharges} &l& SCC = Yes & No & \\
   \kw{InitialCharges} & p & SCC = Yes & \cb & \\
   \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
-  \kw{HCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hcorr}\\
+  \kw{HCorrection} & m & SCC = Yes & None \cb & \pref{sec:dftbp.hcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
@@ -1016,7 +1016,7 @@ following properties:
   convergence. If convergence is not reached after the specified
   number of steps, the program stops. However in cases where the
   calculation is not for a static structure (so \is{Driver} $\neq$
-  \{\}), this behaviour can be overridden using
+  \cb), this behaviour can be overridden using
   \kw{ConvergentForcesOnly}.
 
 \item[\is{EwaldParameter}] Sets the dimensionless parameter $\alpha$
@@ -1307,7 +1307,7 @@ following properties:
 \iscb{Anderson}, \iscb{DIIS} (DIIS accel\-er\-ated simple mixer) and
 \iscb{Simple} (simple mixer).
 
-\subsubsection{Broyden\{\}}
+\subsubsection{Broyden\cb}
 \label{sec:dftbp.Broyden}
 
 Minimises the error function
@@ -1356,7 +1356,7 @@ DFTB+U), is large and needs a high number of SCC-iterations
 (\is{MaxSCCIteration}).
 
 
-\subsubsection{Anderson\{\}}
+\subsubsection{Anderson\cb}
 \label{sec:dftbp.Anderson}
 
 Modified Anderson mixer \cite{eyert-JCP-124-271}.
@@ -1409,7 +1409,7 @@ Example:
 \end{verbatim}
 
 
-\subsubsection{DIIS\{\}}
+\subsubsection{DIIS\cb}
 \label{sec:dftbp.DIIS}
 
 Direct inversion of the iterative space is a general method to
@@ -1430,7 +1430,7 @@ accelerates the simple mix process.
 
 
 
-\subsubsection{Simple\{\}}
+\subsubsection{Simple\cb}
 \label{sec:dftbp.Simple}
 
 Constructs a linear combination of the current input and output
@@ -1455,7 +1455,7 @@ polarised.
 
 No spin polarisation contributions to the energy or band-structure.
 
-\subsubsection{Colinear\{\}}
+\subsubsection{Colinear\cb}
 \label{sec:dftbp.Colinear}
 
 Colinear spin polarisation in the $z$ direction.
@@ -1465,7 +1465,7 @@ specified:
 \begin{ptable}
   \kw{UnpairedElectrons} & r &  & 0  & \\
   \kw{RelaxTotalSpin} & l & & No & \\
-  \kw{InitialSpins}      & p &  & \{\} & \\
+  \kw{InitialSpins}      & p &  & \cb & \\
 \end{ptable}
 \begin{description}
 
@@ -1538,14 +1538,14 @@ Example (setting all spins together):
 \end{verbatim}
 \end{description}
 
-\subsubsection{NonColinear\{\}}
+\subsubsection{NonColinear\cb}
 \label{sec:dftbp.NonColinear}
 
 Non-collinear spin polarisation with arbitrary spin polarisation vector
 on every atom. The only option allowed is to set the initial spin
 distribution:
 \begin{ptable}
-  \kw{InitialSpins}       & p &  & \{\} & \\
+  \kw{InitialSpins}       & p &  & \cb & \\
 \end{ptable}
 \begin{description}
 \item[\is{InitialSpins}] Initialisation of the $x$, $y$ and $z$
@@ -1877,7 +1877,7 @@ options:
   stresses (if periodic).
 \end{description}
 
-\subsubsection{Fermi\{\}}
+\subsubsection{Fermi\cb}
 \label{sec:dftbp.Fermi}
 
 Fills the single particle levels according to a Fermi distribution. When using a
@@ -1893,7 +1893,7 @@ Example:
   }
 \end{verbatim}
 
-\subsubsection{MethfesselPaxton\{\}}
+\subsubsection{MethfesselPaxton\cb}
 \label{sec:dftbp.MethfesselPaxton}
 
 Produces a Fermi-like distribution but with much lower electron
@@ -1945,7 +1945,7 @@ using the \iscb{SelectedShells} keyword in the
 file name for certain species pairs. (For details see the description
 about the \iscb{MaxAngularMomentum} keyword.)
 
-\subsubsection{Type2FileNames\{\}}
+\subsubsection{Type2FileNames\cb}
 \label{sec:dftbp.Type2FileNames}
 
 You can use this method to generate the name of the Slater-Koster
@@ -2009,7 +2009,7 @@ automatically normalised by the program.
   }
 \end{verbatim}
 
-\subsubsection{SupercellFolding\{\}}
+\subsubsection{SupercellFolding\cb}
 \label{sec:dftbp.SupercellFolding}
 
 This method generates a sampling set containing all the special
@@ -2087,7 +2087,7 @@ due to symmetry reasons.) For those cases, you should explicitly
 specify $k$-points with the correct symmetry.
 
 
-\subsubsection{KLines\{\}}
+\subsubsection{KLines\cb}
 \label{sec:dftbp.KLines}
 
 This method specifies $k$-points lying along arbitrary lines in the
@@ -2794,7 +2794,7 @@ derivatives are evaluated.
 difference derivatives with a step size of 0.01 atomic units. If you want to reproduce old results,
 choose the \is{FiniteDiff} method and set the step size explicitly to this value.
 
-\subsubsection{FiniteDiff\{\}}
+\subsubsection{FiniteDiff\cb}
 \label{sec:dftbp.FiniteDiff}
 
 Finite difference derivatives with a specified step size
@@ -2806,7 +2806,7 @@ Finite difference derivatives with a specified step size
 \end{description}
 
 
-\subsubsection{Richardson\{\}}
+\subsubsection{Richardson\cb}
 \label{sec:dftbp.Richardson}
 
 Extrapolation of finite difference via Richardson's deferred approach to the
@@ -3122,9 +3122,10 @@ Calculate the real-time propagation of the electronic state of the system in the
   \kw{TimeStep} & r & & - & \\
   \kw{FieldStrength} & r & & - & \\
   \kw{Perturbation} & m & & None & \pref{sec:dftbp.tdpert} \\
-  \kw{EnvelopeShape} & m & Perturbation = Laser\{\} & Constant & \pref{sec:dftbp.envelope} \\
+  \kw{EnvelopeShape} & m & Perturbation = Laser\cb & Constant & \pref{sec:dftbp.envelope} \\
   \kw{Populations} & l & & No & \\
   \kw{Restart} & l & & No & \\
+  \kw{ReadDensityMatrix} & m & & \cb & \pref{sec:dftbp.tdreaddm} \\
   \kw{WriteRestart} & l & & Yes & \\
   \kw{WriteFrequency} & i & & 50 & \\  
   \kw{RestartFrequency} & i & & Steps/10 & \\
@@ -3190,7 +3191,7 @@ should be written to the \verb|bondorder.bin| file every \is{WriteFrequency} ste
 
 \end{description}
 
-\subsubsection{Perturbation\{\}}
+\subsubsection{\kwcb{Perturbation}}
 \label{sec:dftbp.tdpert}
 
 Determines the type of perturbation that is applied.
@@ -3198,12 +3199,12 @@ Determines the type of perturbation that is applied.
 \paragraph{\iscb{None}}
 No time-dependent perturbation is included, free dynamics are calculated.
 
-\paragraph{Kick\{\}}
+\paragraph{\kwcb{Kick}}
 Perform Dirac-delta perturbation (or \textit{kick}) to the density matrix.
 
 \begin{ptable}
   \kw{PolarizationDirection} & i &  & - & \\
-  \kw{SpinType} & s & SpinPolarisation = Colinear \{\} & Singlet & \\
+  \kw{SpinType} & s & SpinPolarisation = Colinear \cb & Singlet & \\
 \end{ptable}
 
 \begin{description}
@@ -3212,7 +3213,7 @@ Perform Dirac-delta perturbation (or \textit{kick}) to the density matrix.
  \item[\is{SpinType}] Must be eiher ``Singlet'' or ``Triplet'' for singlet or triplet spectra, respectively. Only implemented for collinear spin polarisation.
 \end{description}
 
-\paragraph{Laser\{\}}
+\paragraph{\kwcb{Laser}}
 \label{sec:dftbp.tdpert.laser}
 Apply time-dependent sinusoidal perturbation to the system.
 
@@ -3237,7 +3238,7 @@ Apply time-dependent sinusoidal perturbation to the system.
 
 \end{description}
 
-\paragraph{KickAndLaser\{\}}
+\paragraph{\kwcb{KickAndLaser}}
 Apply a \is{Kick} plus a \is{Laser} to the system. Useful for probing the excited state on the system while being driven by a laser. The keywords are a combination of the ones for kick and laser.
 
 \begin{ptable}
@@ -3269,16 +3270,16 @@ Apply a \is{Kick} plus a \is{Laser} to the system. Useful for probing the excite
 \end{description}
 
 
-\subsubsection{EnvelopeShape\{\}}
+\subsubsection{\kwcb{EnvelopeShape}}
 \label{sec:dftbp.envelope}
 
 Determines the envelope $f(t)$ of the laser, such that the laser field is $E(t) = E_0 f(t) \sin(\omega t + \phi) $
 
-\paragraph{Constant\{\}}
+\paragraph{\kwcb{Constant}}
 
 Constant envelope and equal to $f(t) = 1$. Produces continuous wave laser.
 
-\paragraph{Gaussian\{\}}
+\paragraph{\kwcb{Gaussian}}
 
 Applies a Gaussian envelope function $f(t) = \exp (-(t-t_m)^2 / \beta^2)$, where $t_m$ is the time at which the pulse is centered and $\beta = \tau / 2\sqrt{\pi}$, $\tau$ being the duration of the pulse.
 
@@ -3293,7 +3294,7 @@ Applies a Gaussian envelope function $f(t) = \exp (-(t-t_m)^2 / \beta^2)$, where
 \end{description}
 
 
-\paragraph{Sin2\{\}}
+\paragraph{\kwcb{Sin2}}
 
 Applies a sin$^2$ envelope function:
 
@@ -3330,6 +3331,39 @@ The properties of this method are the same as for the Gaussian (\kw{Time0}, \kw{
     PumpProbeRange [fs] = 0.0 50.0
     EulerFrequency = 200
   }
+\end{verbatim}
+
+\subsubsection{Perturbation\cb}
+\label{sec:dftbp.tdreaddm}
+
+Reads in a starting density matrix (or mixture of density matrices)
+file(s). These are compatible with files generated by \is{WriteDensityMatrix}.
+
+\begin{ptable}
+  \kw{Name} & s &  & "" & \\
+  \kw{Weight} & s & & 1.0 & \\
+\end{ptable}
+
+\begin{description}
+ \item[\is{Name}] Name of binary file holding the density matrix.
+ \item[\is{Weight}] If more than one file is specified, this is required to
+   weight the contributions from each density matrix.
+\end{description}
+
+
+For example, a mixture of the lowest two degenerate bright excited states of the
+\cf{C6H6} molecule:
+\begin{verbatim}
+ReadDensityMatrix = {
+    File = {
+        Name = "DM7.dat"
+        Weight = 0.5
+    }
+    File = {
+        Name = "DM8.dat"
+        Weight = 0.5
+    }
+}
 \end{verbatim}
 
 
@@ -3465,7 +3499,7 @@ fractional occupations. The specifications for this block have the following pro
   \begin{ptable}
     \kw{NrOfExcitations}        & i & & - & \\
     \kw{StateOfInterest}        & i & & 0 & \\
-    \kw{Symmetry}               & s & SpinPolarisation $=$ \{\}~ & - & \\
+    \kw{Symmetry}               & s & SpinPolarisation $=$ \cb~ & - & \\
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
@@ -3473,6 +3507,7 @@ fractional occupations. The specifications for this block have the following pro
     \kw{WriteMulliken}          & l & & No & \\
     \kw{WriteCoefficients}      & l & & No & \\
     \kw{WriteEigenvectors}      & l & & No & \\
+    \kw{WriteDensityMatrix}     & l & & No & \\
     \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
     \kw{WriteTransitionDipole}  & l & & No & \\
@@ -3525,6 +3560,10 @@ fractional occupations. The specifications for this block have the following pro
 
   \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is created. This file
     contains the natural orbitals for the specified excited state.
+
+  \item[\is{WriteDensityMatrix}] If set to \is{Yes}, the file(s) DM?.bin are
+    created. These hold the excited state density matrices, in the atomic
+    orbital basis, for the evaluated states.
 
   \item[\is{TotalStateCoeffs}] Option to control data from
     \is{WriteCoefficients} or \is{WriteEigenvectors}. If set to \is{No} the
@@ -4096,7 +4135,7 @@ Time (in fs), $\mu_x$ (up), $\mu_y$ (up), $\mu_z$ (up), $\mu_x$ (down), $\mu_y$ 
 \subsection{laser.dat}
 \index{laser.dat}
 
-Created if \kw{Perturbation} = Laser\{\} (see \label{sec:dftbp.tdpert}). Laser field components $E_i$ (in V/\AA) as a function of time, in the following order:
+Created if \kw{Perturbation} = \kwcb{Laser} (see \label{sec:dftbp.tdpert}). Laser field components $E_i$ (in V/\AA) as a function of time, in the following order:
 
 time (in fs), $E_x$, $E_y$, $E_z$
 
