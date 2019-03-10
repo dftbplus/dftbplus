@@ -317,6 +317,9 @@ contains
       this%tLaser = .true.
       this%laserField = inp%tdLaserField
       this%tKickAndLaser = .true.
+    else if (inp%pertType == iNoTDPert) then
+      this%tKick = .false.
+      this%tLaser = .false.
     else
       call error("Wrong type of perturbation.")
     end if
@@ -1062,7 +1065,7 @@ contains
 !       call getSpinShift(shellPot, chargePerShell, this%species, orb, W)
 !       potential%intShell = potential%intShell + shellPot
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
-      ! convert to qm representation
+     ! convert to qm representation
       call ud2qm(qBlock)
     end if
 
