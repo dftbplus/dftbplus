@@ -2094,7 +2094,7 @@ contains
       else
         ALLOCATE(occtmp(size(occ)))
         occtmp = 0.0_dp
-        call evalCoeffs(t2,occNatural,grndEigVecs(:,:,1))
+        call evalCoeffs(t2,occtmp,grndEigVecs(:,:,1))
       end if
 
       ! Better to get this by post-processing DFTB+ output, but here for

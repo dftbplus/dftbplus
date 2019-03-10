@@ -1619,8 +1619,8 @@ contains
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
-        & input%ctrl%parallelOpts, nIndepHam, tempElec)
+    !call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
+    !    & input%ctrl%parallelOpts, nIndepHam, tempElec)
     if (tRealHS) then
       nBufferedCholesky = 1
     else
