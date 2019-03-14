@@ -91,7 +91,7 @@ test_extpot2.o: extchargepot.o testhelpers.o
 test_extcharges: test_extcharges.o testhelpers.o
 	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(OTHERLIBS)
 
-test_extcharges: testhelpers.o
+test_extcharges.o: testhelpers.o
 
 
 test_qdepextpot: test_qdepextpot.o extchargepotgen.o extchargepot.o testhelpers.o
