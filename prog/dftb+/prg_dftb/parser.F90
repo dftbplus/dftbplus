@@ -3859,7 +3859,7 @@ contains
       call destruct(li)
     end if
 
-    !! Note: we parse first the task because we need to know it to defined the
+    !! Note: we parse first the task because we need to know it to define the
     !! mandatory contact entries. On the other hand we need to wait that
     !! contacts are parsed to resolve the name of the contact for task =
     !! contacthamiltonian
@@ -3872,14 +3872,16 @@ contains
       call detailedError(root, "At least two contacts must be defined")
     end if
     allocate(transpar%contacts(transpar%ncont))
-    !! Parse contact geometry
-
-    call readContacts(pNodeList, transpar%contacts, geom, (buffer .eq. "uploadcontacts"))
 
     select case (char(buffer))
+    case ("setupgeometry")
+      
+      call readContacts(pNodeList, transpar%contacts, geom, buffer)
+          
 
     case ("contacthamiltonian")
 
+      call readContacts(pNodeList, transpar%contacts, geom, buffer)
       transpar%taskUpload = .false.
       call getChildValue(pTaskType, "ContactId", buffer, child=pTmp)
       contact = getContactByName(transpar%contacts(:)%name, tolower(trim(unquote(char(buffer)))),&
@@ -3901,6 +3903,7 @@ contains
 
     case ("uploadcontacts")
 
+      call readContacts(pNodeList, transpar%contacts, geom, buffer)
       transpar%taskUpload = .true.
 
     case default
@@ -4874,17 +4877,18 @@ contains
   end subroutine readTunAndDos
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, upload)
+  subroutine readContacts(pNodeList, contacts, geom, task)
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(fnodeList), pointer :: pNodeList
     type(TGeometry), intent(in) :: geom
-    logical, intent(in) :: upload
+    character(*), intent(in) :: task
 
     real(dp) :: contactLayerTol
     integer :: ii, jj
     type(fnode), pointer :: field, pNode, pTmp, pWide
     type(string) :: buffer, modif
     type(listReal) :: fermiBuffer
+    integer, allocatable :: tmpI1(:)
 
 
     do ii = 1, size(contacts)
@@ -4907,23 +4911,29 @@ contains
       call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
           & child=field)
       call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
-      call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
-      call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
-          & contactLayerTol, contacts(ii)%lattice, contacts(ii)%dir)
-      contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
 
-      ! Contact temperatures. A negative default is used so it is quite clear when the user sets a
-      ! different value. In such a case this overrides values defined in the Filling block
-      call getChild(pNode,"Temperature", field, modifier=modif, requested=.false.)
-      if (associated(field)) then
-        call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modif,&
-            & child=field)
-        call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
+      if (task .eq. "setupgeometry") then
+        call getChildValue(pNode, "Atoms", buffer, child=pTmp, multiple=.true.)
+        call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, atmIndx)
       else
-        contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
-      end if
+        call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
+        call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
+          & contactLayerTol, contacts(ii)%lattice, contacts(ii)%dir)
+        contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
 
-      if (upload) then
+        ! Contact temperatures. A negative default is used so it is quite clear when the user sets a
+        ! different value. In such a case this overrides values defined in the Filling block
+        call getChild(pNode,"Temperature", field, modifier=modif, requested=.false.)
+        if (associated(field)) then
+          call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modif,&
+            & child=field)
+          call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
+        else
+          contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
+        end if
+      endif
+
+      if (task .eq. "uploadcontacts") then
         call getChildValue(pNode, "Potential", contacts(ii)%potential, 0.0_dp, modifier=modif,&
             & child=field)
         call convertByMul(char(modif), energyUnits, field, contacts(ii)%potential)
