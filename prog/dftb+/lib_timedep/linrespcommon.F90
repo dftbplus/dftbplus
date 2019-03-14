@@ -118,48 +118,6 @@ contains
   end subroutine dipSelect
 
 
-  !> counts number of transition involving either the HOMO or LUMO levels.  Used to find number of
-  !> states in the occupied and empty spaces.
-  subroutine getNorb_r(nxov, win, getij, homo, no, nv)
-
-    !> number of excitations
-    integer, intent(in) :: nxov
-
-    !> index array after sorting of eigenvalues
-    integer, intent(in) :: win(:)
-
-    !> Index array of transitions
-    integer, intent(in) :: getij(:,:)
-
-    !> index of highest occupied level
-    integer, intent(in) :: homo
-
-    !> number of occupied states with transitions into LUMO
-    integer, intent(out) :: no
-
-    !> number of virtual states involved in transitions from HOMO
-    integer, intent(out) :: nv
-
-    integer :: ia, ii, jj
-
-    no = 0
-    nv = 0
-
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj) SCHEDULE(RUNTIME) REDUCTION(+:nv,no)
-    do ia = 1, nxov
-      call indxov(win, ia, getij, ii, jj)
-      if (ii == homo) then
-        nv = nv +1
-      end if
-      if (jj == homo +1) then
-        no = no +1
-      end if
-    end do
-    !$OMP  END PARALLEL DO
-
-  end subroutine getNorb_r
-
-
   !> Computes individual indices from the compound occ-virt excitation index.
   pure subroutine indxov(win, indx, getij, ii, jj)
 
@@ -188,13 +146,7 @@ contains
 
 
   !> Computes individual indices from the compound occ-occ excitation index.
-  subroutine indxoo(nocc, nocc_r, indx, ii, jj)
-
-    !> number of occupied states
-    integer, intent(in) :: nocc
-
-    !> number of required occupied-occupied transitions states
-    integer, intent(in) :: nocc_r
+  subroutine indxoo(indx, ii, jj)
 
     !> Compound excitation index.
     integer, intent(in) :: indx
@@ -205,7 +157,7 @@ contains
     !> Final state.
     integer, intent(out) :: jj
 
-    call indxvv(nocc - nocc_r, indx, ii, jj)
+    call indxvv(0, indx, ii, jj)
 
   end subroutine indxoo
 

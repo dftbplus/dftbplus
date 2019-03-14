@@ -594,11 +594,10 @@ contains
 
       ! redefine if needed (generalize it for spin-polarized and fractional occupancy)
       nocc = int(rnel) / 2
+      nocc_r = nOcc
+      nvir_r = nOrb - nOcc
 
-      ! count virtual and occupied states
-      call getNorb_r(nxov_rd, win, getij, nocc, nocc_r, nvir_r)
-
-      ! size of occ-occ and virt-virt blocks
+      ! elements in a triangle plus the diagonal of the occ-occ and virt-virt blocks
       nxoo_r = (nocc_r * (nocc_r + 1)) / 2
       nxvv_r = (nvir_r * (nvir_r + 1)) / 2
 
@@ -1261,7 +1260,7 @@ contains
     if (sym == "S") then
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
-        call indxoo(homo, nocc, ij, i, j)
+        call indxoo(ij, i, j)
         qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
         qgamxpyq(ij) = 2.0_dp * sum(qij * gamxpyq)
@@ -1269,7 +1268,7 @@ contains
     else
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
-        call indxoo(homo, nocc, ij, i, j)
+        call indxoo(ij, i, j)
         qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         qgamxpyq(ij) = 2.0_dp * sum(qij * xpyq * spinW(species0))
       end do
@@ -1296,7 +1295,7 @@ contains
     ! gamxpyq(iAt2) = sum_ij q_ij(iAt2) T_ij
     gamxpyq(:) = 0.0_dp
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij = transq(i, j, iAtomStart, updwn, stimc, c)
       if (i == j) then
         gamxpyq(:) = gamxpyq(:) + t(i,j) * qij(:)
@@ -1326,7 +1325,7 @@ contains
 
     ! Furche vectors
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
       woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamqt)
     end do
@@ -1524,7 +1523,7 @@ contains
 
     ! sum_iAt1 qij(iAt1) gamxpyq(iAt1)
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
       ! W contains 1/2 for i == j.
       woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamxpyq)
@@ -1532,7 +1531,7 @@ contains
 
     ! Divide diagonal elements of W_ij by 2.
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       if (i == j) then
         woo(ij) = 0.5_dp * woo(ij)
       end if
@@ -1871,7 +1870,7 @@ contains
     wcc(:,:) = 0.0_dp
 
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       ! replace with DSYR2 call :
       do mu = 1, norb
         do nu = 1, norb
