@@ -94,6 +94,8 @@ contains
 
     if (nExtCharge > 0 .and. c_associated(extChargeGradients)) then
       call c_f_pointer(extChargeGradients, pExtChargeGradients, [3, nExtCharge])
+    else
+      pExtChargeGradients => null()
     end if
 
     call writeAutotestTag(merminEnergy=merminEnergy, gradients=pGradients,&
