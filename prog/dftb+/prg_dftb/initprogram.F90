@@ -3763,12 +3763,12 @@ contains
     end if
 
     nKPoint = size(kPoints, dim=2)
-  #:if WITH_MPI
-    if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
-      call error("This solver requires as many parallel processor groups as there are independent&
-          & spin and k-point combinations")
+    if (withMpi) then
+      if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
+        call error("This solver requires as many parallel processor groups as there are independent&
+            & spin and k-point combinations")
+      end if
     end if
-  #:endif
 
     if (iSolver == electronicSolverTypes%pexsi .and. tempElec < epsilon(0.0)) then
       call error("This solver requires a finite electron broadening")
