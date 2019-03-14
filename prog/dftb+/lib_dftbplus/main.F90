@@ -325,22 +325,29 @@ contains
     !> Whether main code should exit the geometry optimisation loop
     logical, intent(out) :: tExitGeoOpt
 
-    !> Charge error in the last iterations
+    ! Charge error in the last iterations
     real(dp) :: sccErrorQ, diffElec
 
-    !> Loop variables
+    ! Loop variables
     integer :: iSccIter
 
-    !> energy in previous scc cycles
+    ! energy in previous scc cycles
     real(dp) :: Eold
 
-    !> whether scc converged
+    ! whether scc converged
     logical :: tConverged
 
-    !> Whether scc restart info should be written in current iteration
+    ! Whether scc restart info should be written in current iteration
     logical :: tWriteSccRestart
 
+    ! Charge difference
+    real(dp), allocatable :: dQ(:,:,:)
+
     call env%globalTimer%startTimer(globalTimers%preSccInit)
+
+    if (allocated(qDepExtPot)) then
+      allocate(dQ(orb%mShell, nAtom, nSpin))
+    end if
 
     call electronicSolver%reset()
     tExitGeoOpt = .false.
@@ -459,14 +466,9 @@ contains
       potential%intBlock = potential%intBlock + potential%extBlock
 
       if (allocated(qDepExtPot)) then
-        ! TEMPORARY HACK, should be removed with a proper container for charges
-        block
-          real(dp), allocatable :: dQ(:,:,:)
-          allocate(dQ(orb%mShell, nAtom, nSpin))
-          call getChargePerShell(qInput, orb, species, dQ, qRef=q0)
-          call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
-              & potential%intBlock)
-        end block
+        call getChargePerShell(qInput, orb, species, dQ, qRef=q0)
+        call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
+            & potential%intBlock)
       end if
 
       if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. tSccCalc) then
@@ -531,14 +533,9 @@ contains
       end if
 
       if (allocated(qDepExtPot)) then
-        ! TEMPORARY HACK, should be removed with a proper container for charges
-        block
-          real(dp), allocatable :: dQ(:,:,:)
-          allocate(dQ(orb%mShell, nAtom, nSpin))
-          call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
-          call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
-              & potential%intBlock)
-        end block
+        call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
+        call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
+            & potential%intBlock)
       end if
 
       call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
@@ -4746,9 +4743,10 @@ contains
     !> whether Poisson solver is used
     logical, intent(in) :: tPoisson
 
-    !Locals
+    ! Locals
     real(dp), allocatable :: tmpDerivs(:,:)
     real(dp), allocatable :: dummyArray(:,:)
+    real(dp), allocatable :: dQ(:,:,:)
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom, iAt
     integer :: ii
@@ -4820,15 +4818,9 @@ contains
         end if
 
       if (allocated(qDepExtPot)) then
-        ! TEMPORARY HACK, should be removed with a proper container for charges
-        block
-          real(dp), allocatable :: dQ(:,:,:)
-          integer :: nSpin
-          nSpin = size(qOutput, dim=3)
-          allocate(dQ(orb%mShell, nAtom, nSpin))
-          call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
-          call qDepExtPot%addGradientDc(sum(dQ(:,:,1), dim=1), dQ(:,:,1), derivs)
-        end block
+        allocate(dQ(orb%mShell, nAtom, size(qOutput, dim=3)))
+        call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
+        call qDepExtPot%addGradientDc(sum(dQ(:,:,1), dim=1), dQ(:,:,1), derivs)
       end if
 
       if (tExtField) then

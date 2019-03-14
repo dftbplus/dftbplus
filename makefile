@@ -9,12 +9,15 @@ ROOT := $(PWD)
 
 # Define a default goal here to make sure, make.config does not introduce on
 .PHONY: _default
-default: _default
+_default: default
 
 include make.config
 
 .PHONY: default misc api all
 default: dftb+ modes waveplot
+ifeq ($(strip $(BUILD_API)),1)
+   default: api
+endif
 misc: misc_skderivs misc_slakovalue
 api: api_mm
 all: default misc api
@@ -133,7 +136,6 @@ API_TESTER_NAME = $(subst api_tester_,,$@)
 
 .PHONY: api_tester_mm
 api_tester_mm:
-	echo "HELLO"
 	mkdir -p $(BUILDDIR)/test/api/mm/testers
 	$(MAKE) -C $(BUILDDIR)/test/api/mm/testers \
 	    -f $(ROOT)/test/api/mm/make.build \

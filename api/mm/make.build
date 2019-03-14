@@ -5,7 +5,7 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 
-TARGETS = libdftbplus_mm.a
+TARGETS = libdftb+.a
 
 .PHONY: all
 all: $(TARGETS)
@@ -17,7 +17,7 @@ SRCDIRS += $(ROOT)/prog/dftb+/include
 INCDIRS := $(ROOT)/prog/dftb+/include
 include $(ROOT)/prog/dftb+/make.common
 
-libdftbplus_mm.a: $(dftbplus.o)
+libdftb+.a: $(dftbplus.o)
 	ar r $@ $(filter-out _%,$^)
 
 install: $(TARGETS)

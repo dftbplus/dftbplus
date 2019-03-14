@@ -17,9 +17,31 @@ include $(ROOT)/make.config
 
 vpath % $(ROOT)/test/api/mm/testers
 
-INCOPTS = -I$(BUILDDIR)/api/mm -I$(BUILDDIR)/external/xmlf90
-LIBOPTS = -L$(BUILDDIR)/api/mm -ldftbplus_mm -L$(BUILDDIR)/external/xmlf90 -lxmlf90
-CINCOPTS = -I$(ROOT)/api/mm
+#
+# Include and library settings
+#
+
+INCOPTS := -I$(BUILDDIR)/api/mm
+LIBOPTS := -L$(BUILDDIR)/api/mm -ldftb+
+
+# xmlf90 library
+INCOPTS += -I$(BUILDDIR)/external/xmlf90
+LIBOPTS +=  -L$(BUILDDIR)/external/xmlf90 -lxmlf90
+
+# optional DFTD3 library
+ifeq ($(strip $(WITH_DFTD3)),1)
+  INCOPTS += -I$(BUILDROOT)/external/dftd3
+  LIBOPTS += -L$(BUILDROOT)/external/dftd3 -ldftd3
+endif
+
+LIBOPTS += $(LIB_LAPACK)
+
+CINCOPTS := -I$(ROOT)/api/mm
+
+
+#
+# General rules
+#
 
 %.o: %.f90
 	$(FXX) $(FXXOPT) $(INCOPTS) -o $@ -c $<
@@ -28,50 +50,58 @@ CINCOPTS = -I$(ROOT)/api/mm
 	$(CC) $(CCOPT) $(CINCOPTS) -o $@ -c $<
 
 
+#
+# Dependencies and linking commands
+#
+
+extchargepot.o:
+
+extchargepotgen.o: extchargepot.o
+
 test_fileinit: test_fileinit.o testhelpers.o
-	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(OTHERLIBS)
 
 test_fileinit.o: testhelpers.o
 
 
 test_fileinitc: test_fileinitc.o testhelpers.o
-	$(LN_C) $(LNOPT_C) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS) $(OTHERLIBS_C)
+	$(LN_C) $(LNOPT_C) -o $@ $^ $(LIBOPTS) $(OTHERLIBS) $(OTHERLIBS_C)
 
 test_fileinitc.o: testhelpers.o
 
 
 test_treeinit: test_treeinit.o testhelpers.o
-	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(OTHERLIBS)
 
 test_treeinit.o: testhelpers.o
 
 
 test_extpot: test_extpot.o extchargepot.o testhelpers.o
-	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(OTHERLIBS)
 
 test_extpot.o: extchargepot.o testhelpers.o
 
 
 test_extpot2: test_extpot2.o extchargepot.o testhelpers.o
-	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(OTHERLIBS)
 
 test_extpot2.o: extchargepot.o testhelpers.o
 
 
 test_extcharges: test_extcharges.o testhelpers.o
-	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(OTHERLIBS)
 
 test_extcharges: testhelpers.o
 
 
 test_qdepextpot: test_qdepextpot.o extchargepotgen.o extchargepot.o testhelpers.o
-	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS)
+	$(LN) $(LNOPT) -o $@ $^ $(LIBOPTS) $(OTHERLIBS)
 
 test_qdepextpot.o: extchargepotgen.o extchargepot.o testhelpers.o
 
 
 test_qdepextpotc: test_qdepextpotc.o testhelpers.o
-	$(LN_C) $(LNOPT_C) -o $@ $^ $(LIBOPTS) $(LIB_LAPACK) $(OTHERLIBS) $(OTHERLIBS_C)
+	$(LN_C) $(LNOPT_C) -o $@ $^ $(LIBOPTS) $(OTHERLIBS) $(OTHERLIBS_C)
 
 test_qdepextpotc.o: testhelpers.o
 
