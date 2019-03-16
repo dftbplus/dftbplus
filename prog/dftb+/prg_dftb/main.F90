@@ -423,8 +423,7 @@ contains
             call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
                 & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
                 & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
-                & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff,&
-                & deltaRhoInSqr)
+                & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff)
           end if
 
           call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
@@ -2360,7 +2359,7 @@ contains
         !call env%globalTimer%stopTimer(globalTimers%densityMatrix)
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), over,&
             & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
-            & orb, HSqrReal(:,:), SSqrReal,  deltaRhoInSqr(:,:,iSpin))
+            & orb, HSqrReal(:,:), SSqrReal)
       end if
 
       call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
@@ -3481,7 +3480,7 @@ contains
   subroutine getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK, iAtomStart,&
       & iSparseStart, img2CentCell, pChrgMixer, qOutput, orb, iGeoStep, iSccIter, minSccIter,&
       & maxSccIter, sccTol, tStopScc, tReadChrg, q0, qInput, sccErrorQ, tConverged, deltaRhoOut,&
-      & deltaRhoIn, deltaRhoDiff, deltaRhoInSqr)
+      & deltaRhoIn, deltaRhoDiff)
 
     !> Square dense overlap storage
     real(dp), allocatable, intent(inout) :: SSqrReal(:,:)
@@ -3555,9 +3554,6 @@ contains
     !> difference of delta density matrix in and out
     real(dp), intent(inout) :: deltaRhoDiff(:)
 
-    !> Matrix form of deltaRhoIn
-    real(dp), intent(inout) :: deltaRhoInSqr(:,:,:)
-
 
     integer :: nSpin
 
@@ -3576,7 +3572,8 @@ contains
           call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
           call unpackHS(SSqrReal, over, neighbourList%iNeighbour,&
                & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell)
-          call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
+          call denseMulliken(reshape(deltaRhoIn,[orb%nOrb,orb%nOrb,nSpin]), SSqrReal, iAtomStart,&
+              & qInput)
           ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
           ! distributed to alpha and beta density matrices
           if(nSpin == 2) then

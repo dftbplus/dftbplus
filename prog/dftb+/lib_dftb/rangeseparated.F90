@@ -769,7 +769,7 @@ contains
 
   !> Interface routine.
   subroutine addLRHamiltonian(self, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
-      & orb, HH, overlap, deltaRho)
+      & orb, HH, overlap)
 
     !> class instance
     class(RangeSepFunc), intent(inout) :: self
@@ -809,13 +809,10 @@ contains
     !> square real overlap matrix
     real(dp), intent(in) :: overlap(:,:)
 
-    !> square density matrix (deltaRho in DFTB terms)
-    real(dp), intent(in) :: deltaRho(:,:)
-
     call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
     select case(self%getRSAlg())
     case ("tr")
-      call addLRHamiltonian_tr(self, env, overlap, deltaRho, iSquare, HH, orb)
+      call addLRHamiltonian_tr(self, env, overlap, densSqr, iSquare, HH, orb)
     case ("nb")
       call addLRHamiltonian_nb(self, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
           & orb, HH)
