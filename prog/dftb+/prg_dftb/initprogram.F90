@@ -2083,12 +2083,14 @@ contains
       qOutRed = 0.0_dp
     end if
 
+    tReadChrg = input%ctrl%tReadChrg
+
     !> Initialize range separated
     if (tRangeSep) then
       if (.not.tRealHS .or. tPeriodic) then
         call error("Range separated functionality only works with non-periodic structures")
       end if
-      if (input%ctrl%tReadChrg .and. input%ctrl%rangeSepAlgorithm == "tr") then
+      if (tReadChrg .and. input%ctrl%rangeSepAlgorithm == "tr") then
         call error("Restart on thresholded range separation not working correctly")
       end if
       if (input%ctrl%tOrbResolved) then
@@ -2118,8 +2120,6 @@ contains
     if (tMulliken .or. tLinResp) then
       call initQFromShellChrg(q0, referenceN0, species0, orb)
     end if
-
-    tReadChrg = input%ctrl%tReadChrg
 
     tReadShifts = input%ctrl%tReadShifts
     tWriteShifts = input%ctrl%tWriteShifts
@@ -2688,7 +2688,7 @@ contains
     end if
 
     if (tSccCalc) then
-      if (input%ctrl%tReadChrg) then
+      if (tReadChrg) then
         write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
         write (strTmp, "(A,E11.3,A)") "Set automatically (system chrg: ", input%ctrl%nrChrg, ")"
