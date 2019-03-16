@@ -86,8 +86,6 @@ module rangeseparated
 
     procedure :: updateCoords
     procedure :: addLRHamiltonian
-    procedure :: addLRHamiltonian_tr
-    procedure :: addLRHamiltonian_nb
     procedure :: addLREnergy
     procedure :: addLRGradients
     procedure :: getRSAlg
@@ -278,7 +276,7 @@ contains
   subroutine addLRHamiltonian_tr(self, env, overlap, deltaRho, iSquare, hamiltonian, orb)
 
     !> class instance
-    class(RangeSepFunc), intent(inout) :: self
+    type(RangeSepFunc), intent(inout) :: self
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -455,11 +453,11 @@ contains
       real(dp), allocatable, intent(in) :: tmpDRho(:,:)
 
       if(.not. self%tScreeningInited) then
-        self%tScreeningInited = .true.
         allocate(self%hprev(matrixSize, matrixSize))
         allocate(self%dRhoprev(matrixSize, matrixSize))
         self%hprev = 0.0_dp
         self%dRhoprev = tmpDRho
+        self%tScreeningInited = .true.
       end if
 
     end subroutine checkAndInitScreening
@@ -472,7 +470,7 @@ contains
       & iPair, orb, HH)
 
     !> instance of object
-    class(RangeSepFunc), intent(inout) :: self
+    type(RangeSepFunc), intent(inout) :: self
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -817,9 +815,9 @@ contains
     call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
     select case(self%getRSAlg())
     case ("tr")
-      call self%addLRHamiltonian_tr(env, overlap, deltaRho, iSquare, HH, orb)
+      call addLRHamiltonian_tr(self, env, overlap, deltaRho, iSquare, HH, orb)
     case ("nb")
-      call self%addLRHamiltonian_nb(env, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
+      call addLRHamiltonian_nb(self, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
           & orb, HH)
     case default
     end select
