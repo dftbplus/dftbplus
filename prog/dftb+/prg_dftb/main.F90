@@ -2202,7 +2202,7 @@ contains
     real(dp), pointer, intent(in) :: deltaRhoInSqr(:,:,:)
 
     !> Change in density matrix during this SCC step for rangesep
-    real(dp), pointer, intent(out) :: deltaRhoOutSqr(:,:,:)
+    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
     !> Output electrons
     real(dp), intent(inout) :: qOutput(:,:,:)
@@ -2632,7 +2632,7 @@ contains
     real(dp), intent(inout), allocatable  :: rhoSqrReal(:,:,:)
 
     !> Change in density matrix during this SCC step for rangesep
-    real(dp), pointer, intent(out) :: deltaRhoOutSqr(:,:,:)
+    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
     integer :: iKS, iSpin
 
