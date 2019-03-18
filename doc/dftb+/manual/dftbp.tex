@@ -2641,6 +2641,39 @@ Table 2 of reference~\cite{gauss-jctc-7-931} gives suggested values of the
 exponent for different DFTB2 and DFTB3 models applied to light atoms bonded to
 hydrogen.
 
+\subsubsection{DampingVer2}
+\index{sec:Dampv2 X-H}
+
+The \is{DampingVer2} method is a generalized version of
+\is{Damping}, modifying the short range contribution to the SCC interaction
+between atoms $A$ and $B$ with the damping factor
+
+\begin{equation*}
+  e^{-\left(\frac{C_{A} + C_{B}}{2}\right) r_{AB}^2}
+\end{equation*}
+($C_{A}$ and $C_{B}$ are
+the empirical parameters of the two atoms, $r_{AB}$ is the
+distance between the atoms.) An atom is considered to be a hydrogen-like atom,
+if its mass (stored in the appropriate homonuclear SK-file) is less than 3.5
+amu. In general, any non-l-dependent \is{Damping} can be reproduced by
+\is{DampingVer2} with a suitable set of $C_{A}$ and $C_{B}$. For
+example, with MIO parameter 
+\begin{verbatim}
+HCorrection = DampingVer2 {
+  H = 0.013568230959337483
+  O = 0.028092892164372177
+}
+\end{verbatim}
+is identical to 
+\begin{verbatim}
+HCorrection = Damping {
+  Exponent = 4.95
+}
+\end{verbatim}
+
+\textbf{Note:} \is{DampingVer2} is currently only available for DFTB2 and
+DFTB3(ThirdOrder=Yes). The DFTB3(ThirdOrderFull=Yes) has not tested yet.
+
 \subsubsection{DFTB3-D3H5}
 \index{sec:DFTB3-D3H5}
 
