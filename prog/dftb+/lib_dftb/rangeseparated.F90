@@ -88,27 +88,12 @@ module rangeseparated
     procedure :: addLRHamiltonian
     procedure :: addLREnergy
     procedure :: addLRGradients
-    procedure :: getRSAlg
     procedure :: evaluateLREnergyDirect
 
   end type RangeSepFunc
 
 
 contains
-
-
-  !> Return the choice of range separation screening algorithm
-  pure function getRSALg(self) result(res)
-
-    !> class instance
-    class(RangeSepFunc), intent(in) :: self
-
-    !> name of the algorithm in use
-    character(lc) :: res
-
-    res = self%RSAlg
-
-  end function getRSALg
 
 
   !> Intitialize the range-sep module
@@ -810,7 +795,7 @@ contains
     real(dp), intent(in) :: overlap(:,:)
 
     call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
-    select case(self%getRSAlg())
+    select case(trim(self%RSAlg))
     case ("tr")
       call addLRHamiltonian_tr(self, env, overlap, densSqr, iSquare, HH, orb)
     case ("nb")
