@@ -52,6 +52,7 @@ h-bonds/D3H5_water_dimer               #? WITH_DFTD3 and MPI_PROCS <= 1
 non-scc/CH4                            #? MPI_PROCS <= 1
 non-scc/decapentaene                   #? MPI_PROCS <= 2
 scc/2H2O-3rdorder                      #? MPI_PROCS <= 1
+scc/2H2O-3rdorder-damp_ver2            #? MPI_PROCS <= 1
 scc/2H2O-3rdorder_read                 #? MPI_PROCS <= 1
 scc/C2H6_3rdfull                       #? MPI_PROCS <= 1
 scc/C2H6_3rdfull-damp                  #? MPI_PROCS <= 1
