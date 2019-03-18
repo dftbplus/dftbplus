@@ -19,6 +19,8 @@ Added
 
 - Caching for transition charges in excited state.
 
+- DFTB+ can be compiled as a library and accessed via high level API.
+
 
 Changed
 -------
