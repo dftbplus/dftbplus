@@ -69,6 +69,7 @@ module initprogram
   use commontypes
   use sorting, only : heap_sort
   use linkedlist
+  use wrappedintrinsics 
   use xlbomd_module
   use etemp, only : Fermi
 #:if WITH_SOCKETS
@@ -1124,8 +1125,6 @@ contains
     atomEigVal(:,:) = input%slako%skSelf(1:orb%mShell, :)
 
     @:ASSERT(size(input%slako%skOcc, dim=1) >= orb%mShell)
-    allocate(referenceN0(orb%mShell, nType))
-    referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
     @:ASSERT(size(input%slako%mass) == nType)
     allocate(speciesMass(nType))
     speciesMass(:) = input%slako%mass(:)
@@ -1315,6 +1314,7 @@ contains
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
 
+    allocate(referenceN0(orb%mShell, nType))
     allocate(mass(nAtom))
     mass = speciesMass(species0)
     if (allocated(input%ctrl%masses)) then
@@ -1355,28 +1355,6 @@ contains
     else
       allocate(nEl(nSpin))
       allocate(Ef(nSpin))
-    end if
-
-    nEl0 = 0.0_dp
-    do ii = 1, nAtom
-      nEl0 = nEl0 + sum(input%slako%skOcc(1:orb%nShell(species0(ii)), species0(ii)))
-    end do
-    nEl(:) = 0.0_dp
-    if (nSpin == 1 .or. nSpin == 4) then
-      nEl(1) = nEl0 - input%ctrl%nrChrg
-      if(ceiling(nEl(1)) > 2.0_dp*nOrb) then
-        call error("More electrons than basis functions!")
-      end if
-    else
-      nEl(1) = 0.5_dp * (nEl0 - input%ctrl%nrChrg + input%ctrl%nrSpinPol)
-      nEl(2) = 0.5_dp * (nEl0 - input%ctrl%nrChrg - input%ctrl%nrSpinPol)
-      if (any(ceiling(nEl(:)) > nOrb)) then
-        call error("More electrons than basis functions!")
-      end if
-    end if
-
-    if (.not.all(nEl(:) >= 0.0_dp)) then
-      call error("Less than 0 electrons!")
     end if
 
     iDistribFn = input%ctrl%iDistribFn
@@ -1526,6 +1504,58 @@ contains
 
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
+    tLinResp = input%ctrl%lrespini%tInit
+
+    referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
+
+    ! Allocate charge arrays
+    if (tMulliken) then ! automatically true if tSccCalc
+      allocate(q0(orb%mOrb, nAtom, nSpin))
+      q0(:,:,:) = 0.0_dp
+      allocate(qShell0(orb%mShell, nAtom))
+      qShell0(:,:) = 0.0_dp
+    else
+      allocate(q0(0,0,0))
+      allocate(qShell0(0,0))
+    end if
+
+    ! Initialize reference neutral atoms.
+    if (tLinResp.and.allocated(input%ctrl%customOccAtoms)) then 
+       call error("Custom occupation not compatible with linear response")
+    end if     
+    if (tMulliken) then
+      if (allocated(input%ctrl%customOccAtoms)) then    
+        call printCustomReferenceOccupations(orb, input%geom%species, &
+            & input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
+        call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
+            & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
+      else   
+        call initQFromShellChrg(q0, referenceN0, species0, orb)
+      end if  
+    end if
+
+    nEl0 = 0.0_dp
+    do ii = 1, nAtom
+      nEl0 = nEl0 + sum(q0(1:orb%nOrbAtom(ii),ii,1)) 
+    end do
+    nEl(:) = 0.0_dp
+    if (nSpin == 1 .or. nSpin == 4) then
+      nEl(1) = nEl0 - input%ctrl%nrChrg
+      if(ceiling(nEl(1)) > 2.0_dp*nOrb) then
+        call error("More electrons than basis functions!")
+      end if
+    else
+      nEl(1) = 0.5_dp * (nEl0 - input%ctrl%nrChrg + input%ctrl%nrSpinPol)
+      nEl(2) = 0.5_dp * (nEl0 - input%ctrl%nrChrg - input%ctrl%nrSpinPol)
+      if (any(ceiling(nEl(:)) > nOrb)) then
+        call error("More electrons than basis functions!")
+      end if
+    end if
+  
+    if (.not.all(nEl(:) >= 0.0_dp)) then
+      call error("Less than 0 electrons!")
+    end if
+
     if (tForces) then
       tCasidaForces = input%ctrl%tCasidaForces
     else
@@ -1786,9 +1816,6 @@ contains
     end if
     tLocalise = allocated(pipekMezey)
 
-    ! Linear response
-    tLinResp = input%ctrl%lrespini%tInit
-
     if (tLinResp) then
 
       ! input sanity checking
@@ -1995,18 +2022,6 @@ contains
       EfieldPhase = 0
     end if
 
-    ! Allocate charge arrays
-    if (tMulliken) then ! automatically true if tSccCalc
-      allocate(q0(orb%mOrb, nAtom, nSpin))
-      q0(:,:,:) = 0.0_dp
-
-      allocate(qShell0(orb%mShell, nAtom))
-      qShell0(:,:) = 0.0_dp
-    else
-      allocate(q0(0,0,0))
-      allocate(qShell0(0,0))
-    end if
-
     allocate(qInput(orb%mOrb, nAtom, nSpin))
     allocate(qOutput(orb%mOrb, nAtom, nSpin))
     qInput(:,:,:) = 0.0_dp
@@ -2037,11 +2052,6 @@ contains
       qOutRed = 0.0_dp
     end if
 
-    ! Initialize Mulliken charges
-    if (tMulliken .or. tLinResp) then
-      call initQFromShellChrg(q0, referenceN0, species0, orb)
-    end if
-
     tReadChrg = input%ctrl%tReadChrg
 
     tReadShifts = input%ctrl%tReadShifts
@@ -2052,17 +2062,17 @@ contains
 
     tWriteChrgAscii = input%ctrl%tWriteChrgAscii
 
-    if (tReadChrg) then
+    !if (tReadChrg) then
       tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
-    else
-      tSkipChrgChecksum = .false.
-    end if
+    !else
+    !  tSkipChrgChecksum = .false.
+    !end if
 
     if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
         do iSh = 1, orb%nShell(iSp)
-          qShell0 (iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
+          qShell0(iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
         end do
       end do
       if (tReadChrg) then
@@ -2077,7 +2087,7 @@ contains
             end if
           else
             if (tImHam) then
-              if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+              if (tFixEf .or. tSkipChrgChecksum) then
                 ! do not check charge or magnetisation from file
                 call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
@@ -3774,5 +3784,73 @@ contains
 
   end subroutine ensureSolverCompatibility
 
+  subroutine applyCustomReferenceOccupations(customOccAtoms, &
+      & customOccFillings, species, orb, referenceN0, q0)
+    type(WrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
+    real(dp), intent(in) :: customOccFillings(:,:)
+    integer, intent(in) :: species(:)
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: referenceN0(:,:)
+    real(dp), intent(inout) :: q0(:,:,:)
+    
+    integer :: nCustomBlock, iCustomBlock, iCustomAtom, nAtom, iAt, iSp
+    real(dp), allocatable :: refOcc(:,:)
+    
+    nAtom = size(species)
+    ! note that all arrays, referenceN0, customOccAtoms, refOcc 
+    ! are allocated to orb%mShell so assignments vecA(:,) = vecB(:,) work
+    allocate(refOcc(orb%mShell, nAtom))
+    ! initialize to referenceN0
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      refOcc(:, iAt) = referenceN0(:, iSp)
+    end do
+
+    ! override to customOccupation 
+    if (allocated(customOccAtoms)) then
+      nCustomBlock = size(customOccAtoms)
+      do iCustomBlock = 1, nCustomBlock
+        do iCustomAtom = 1, size(customOccAtoms(iCustomBlock)%data)
+          iAt =  customOccAtoms(iCustomBlock)%data(iCustomAtom)
+          refOcc(:, iAt) = customOccFillings(:,iCustomBlock)
+        end do
+      end do
+    end if
+
+    ! initialize q0 with right orbital order
+    call initQFromUsrChrg(q0, refOcc, species, orb)
+
+  end subroutine applyCustomReferenceOccupations
+  
+
+  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, &
+      & customOccFillings)
+    type(TOrbitals), intent(in) :: orb
+    integer, intent(in) :: species(:)
+    type(WrappedInt1), intent(in) :: customOccAtoms(:)
+    real(dp), intent(in) :: customOccFillings(:,:)
+
+    character(lc) :: formstr
+    integer :: nCustomBlock, iCustomBlock, iSp, nShell, nAtom
+
+    nCustomBlock = size(customOccFillings)
+    if (nCustomBlock == 0) then
+      return
+    end if
+    write(stdout, "(1X,A)") "*** Custom defined reference occupations:"
+    do iCustomBlock = 1, size(customOccAtoms)
+      if (iCustomBlock /= 1) then
+        write(stdout, *)
+      end if
+      nAtom = size(customOccAtoms(iCustomBlock)%data)
+      write(formstr, "(A,I0,A)") "('Atom(s): '", nAtom, "(I0,1X))"
+      write(stdout, formstr) customOccAtoms(iCustomBlock)%data
+      iSp = species(customOccAtoms(iCustomBlock)%data(1))
+      nShell = orb%nShell(iSp)
+      write(formstr, "(A,I0,A)") "('Fillings: ',", nShell, "F8.4)"
+      write(stdout, formstr) customOccFillings(1:nShell, iCustomBlock)
+    end do
+    write(stdout, "(1X,A)") "***"
+  end subroutine printCustomReferenceOccupations
 
 end module initprogram

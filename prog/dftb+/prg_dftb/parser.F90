@@ -21,6 +21,7 @@ module parser
   use charmanip
   use message
   use linkedlist
+  use wrappedintrinsics
   use unitconversion
   use inputconversion
   use oldcompat
@@ -1551,6 +1552,9 @@ contains
 
       ctrl%tMulliken = .true.
       call readHCorrection(node, geo, ctrl)
+
+      call readCustomReferenceOcc(node, slako%orb, slako%skOcc, geo, &
+            & ctrl%customOccAtoms, ctrl%customOccFillings)
 
     end if ifSCC
 
@@ -3696,7 +3700,6 @@ contains
 
   end subroutine readAnalysis
 
-
   !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}
   subroutine readLaterAnalysis(node, ctrl)
 
@@ -5141,6 +5144,64 @@ contains
   end subroutine finalizeNegf
 #:endif
 
+
+  !> This subroutine overrides the neutral (reference) atom electronic occupation 
+  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, &
+      & customOcc)
+    type(fnode), pointer, intent(in) :: root
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: referenceOcc(:,:)
+    type(TGeometry), intent(in) :: geo
+    type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+    real(dp), allocatable, intent(out) :: customOcc(:,:)
+
+    type(fnode), pointer :: node, container, child
+    type(fNodeList), pointer :: nodes
+    type(string) :: buffer
+    integer :: nCustomOcc, iCustomOcc, iShell, iSpecies, nAtom
+    character(sc) :: shellname
+    logical, allocatable :: atomOverriden(:)
+
+    call getChild(root, "CustomReferenceOccupations", container, requested=.false.)
+    if (.not. associated(container)) then
+      return
+    end if
+
+    call getChildren(container, "ReferenceOccupation", nodes)
+    nCustomOcc = getLength(nodes)
+    nAtom = size(geo%species)
+    allocate(iAtInRegion(nCustomOcc))
+    allocate(customOcc(orb%mShell, nCustomOcc))
+    allocate(atomOverriden(nAtom))
+    atomOverriden(:) = .false.
+    customOcc(:,:) = 0.0_dp
+    
+    do iCustomOcc = 1, nCustomOcc
+      call getItem1(nodes, iCustomOcc, node)
+      call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geo%speciesNames, &
+          & geo%species, child, iAtInRegion(iCustomOcc)%data)
+      if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
+        call detailedError(child, "Atom region contains atom(s) which have&
+            & already been overriden")
+      end if
+      atomOverriden(iAtInRegion(iCustomOcc)%data) = .true.
+      iSpecies = geo%species(iAtInRegion(iCustomOcc)%data(1))
+      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecies)) then
+        call detailedError(child, "All atoms in a ReferenceOccupation&
+            & declaration must have the same type.")
+      end if
+      do iShell = 1, orb%nShell(iSpecies)
+        write(shellname, "(A)") orbitalNames(orb%angShell(iShell, iSpecies) + 1)
+          call getChildValue(node, shellname, customOcc(iShell, iCustomOcc), &
+            & default=referenceOcc(iShell, iSpecies))
+      end do
+    end do
+    if (associated(nodes)) then
+      call destroyNodeList(nodes)
+    end if
+
+  end subroutine readCustomReferenceOcc
 
   !> Reads the parallel block.
   subroutine readParallel(root, input)

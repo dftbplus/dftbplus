@@ -20,6 +20,7 @@ module inputdata_module
   use repcont
   use elecsolvers, only : TElectronicSolverInp
   use linkedlist
+  use wrappedintrinsics 
   use xlbomd_module
 #:if WITH_SOCKETS
   use ipisocket, only : IpiSocketCommInp
@@ -445,6 +446,10 @@ module inputdata_module
 
     !> Maximal timing level to show in output
     integer :: timingLevel
+    
+    ! Custom occupations
+    type(WrappedInt1), allocatable :: customOccAtoms(:)
+    real(dp), allocatable :: customOccFillings(:,:)
 
   end type control
 
