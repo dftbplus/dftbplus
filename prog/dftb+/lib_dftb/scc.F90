@@ -50,6 +50,9 @@ module scc
     !> exponent if damping used
     real(dp) :: dampExp = 0.0_dp
 
+    !> Damping Coefficient if damping version 2 used
+    real(dp), allocatable :: dampingCoeff(:)
+
     !> lattice vectors
     real(dp), allocatable :: latVecs(:,:)
 
@@ -183,6 +186,9 @@ module scc
     !> Damping exponent
     real(dp) :: dampExp
 
+    !> Damping Coefficient
+    real(dp), allocatable :: dampingCoeff(:)
+
     !> Is the system periodic?
     logical :: tPeriodic
 
@@ -284,6 +290,9 @@ contains
     @:ASSERT(size(inp%hubbU, dim=1) == this%mShell)
     @:ASSERT(size(inp%hubbU, dim=2) == this%nSpecies)
     @:ASSERT(size(inp%tDampedShort) == this%nSpecies)
+    if (allocated(inp%dampingCoeff)) then
+      @:ASSERT(size(inp%dampingCoeff) == this%nSpecies)
+    end if
     @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
   #:call ASSERT_CODE
     if (allocated(inp%extCharges)) then
@@ -430,6 +439,12 @@ contains
     allocate(this%tDampedShort(this%nSpecies))
     this%tDampedShort(:) = inp%tDampedShort(:)
     this%dampExp = inp%dampExp
+
+    ! Initialise short range damping verion 2
+    if (allocated(inp%dampingCoeff)) then
+      allocate(this%dampingCoeff(this%nSpecies))
+      this%dampingCoeff(:) = inp%dampingCoeff(:)
+    end if
 
     ! H5 correction
     this%tH5 = allocated(inp%h5Correction)
@@ -1326,7 +1341,12 @@ contains
             u2 = this%uniqHubbU(iU2, species(iAt2f))
             if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
               if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+                if (.not. allocated(this%dampingCoeff)) then
+                  tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+                else
+                  tmpGammaPrime = expGammaDampedVer2Prime(rab, u2, u1, this%dampingCoeff(iSp2),&
+                    & this%dampingCoeff(iSp1))
+                end if
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
               end if
@@ -1384,7 +1404,12 @@ contains
             u2 = this%uniqHubbU(iU2, iSp2)
             if (iNeigh <= this%nNeighShort(iU2,iU1,iSp2,iAt1)) then
               if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, this%dampExp)
+                if (.not. allocated(this%dampingCoeff)) then
+                  this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, this%dampExp)
+                else 
+                  this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDampedVer2(rab, u2, u1,&
+                      & this%dampingCoeff(iSp2), this%dampingCoeff(iSp1))
+                end if
               else
                 this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
                 if (this%tH5) then
@@ -1441,7 +1466,12 @@ contains
             u2 = this%uniqHubbU(iU2, species(iAt2f))
             if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
               if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+                if (.not. allocated(this%dampingCoeff)) then
+                  tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+                else
+                  tmpGammaPrime = expGammaDampedVer2Prime(rab, u2, u1, this%dampingCoeff(iSp2),&
+                      & this%dampingCoeff(iSp1))
+                end if
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
                 if (this%tH5) then
@@ -1512,7 +1542,12 @@ contains
             u2 = this%uniqHubbU(iU2, species(iAt2f))
             if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
               if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+                if (.not. allocated(this%dampingCoeff)) then
+                  tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+                else 
+                  tmpGammaPrime = expGammaDampedVer2Prime(rab, u2, u1, this%dampingCoeff(iSp2),&
+                      & this%dampingCoeff(iSp1))
+                end if
               else
                 tmpGammaPrime = expGammaPrime(rab, u2, u1)
                 if (this%tH5) then

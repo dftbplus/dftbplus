@@ -1225,11 +1225,18 @@ contains
       if (input%ctrl%tDampH) then
         tDampedShort = (speciesMass < 3.5_dp * amu__au)
         !tDampedShort(:) = (speciesName == "H" .or. speciesName == "h")
+      else if (input%ctrl%tDampHVer2) then
+        tDampedShort = (speciesMass < 3.5_dp * amu__au)
       else
         tDampedShort(:) = .false.
       end if
       sccInp%tDampedShort = tDampedShort
       sccInp%dampExp = input%ctrl%dampExp
+      ! damping version 2 
+      if (input%ctrl%tDampHVer2) then
+        allocate(sccInp%dampingCoeff(nType))
+        sccInp%dampingCoeff(:) = input%ctrl%dampingCoeff(:)
+      end if
 
       ! H5 correction
       if (input%ctrl%h5SwitchedOn) then

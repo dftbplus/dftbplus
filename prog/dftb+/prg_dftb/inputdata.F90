@@ -365,6 +365,10 @@ module inputdata_module
     logical :: tDampH = .false.
     real(dp) :: dampExp = 0.0_dp
 
+    !> H short range damping version 2
+    logical :: tDampHVer2 = .false.
+    real(dp), allocatable :: dampingCoeff(:)
+
 
     ! H5 correction
     !> H5 correction On/Off(default) flag

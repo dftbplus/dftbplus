@@ -15,6 +15,7 @@ module shortgamma
   private
 
   public :: expGamma, expGammaDamped, expGammaPrime, expGammaDampedPrime
+  public :: expGammaDampedVer2, expGammaDampedVer2Prime
   public :: expGammaCutoff
 
 
@@ -243,6 +244,32 @@ contains
 
   end function expGammaDamped
 
+  !> Determines the value of the short range contribution to gamma with the exponential form with
+  !> damping version 2.
+  function expGammaDampedVer2(rab, Ua, Ub, coeffa1, coeffa2)
+
+    !> separation of sites a and b
+    real(dp), intent(in) :: rab
+
+    !> Hubbard U for site a
+    real(dp), intent(in) :: Ua
+
+    !> Hubbard U for site b
+    real(dp), intent(in) :: Ub
+
+    !> Damping coefficient
+    real(dp), intent(in) :: coeffa1, coeffa2 
+
+    !> returned contribution
+    real(dp) :: expGammaDampedVer2
+
+    real(dp) :: rTmp
+
+    rTmp = -1.0_dp * 0.5_dp * (coeffa1 + coeffa2)
+    expGammaDampedVer2 = expGamma(rab, Ua, Ub) * exp(rTmp * rab**2)
+
+  end function expGammaDampedVer2
+
 
   !> Determines the value of the derivative of the short range contribution to gamma with the
   !> exponential form with damping
@@ -271,6 +298,32 @@ contains
 
   end function expGammaDampedPrime
 
+  !> Determines the value of the derivative of the short range contribution to gamma with the
+  !> exponential form with damping version 2
+  function expGammaDampedVer2Prime(rab, Ua, Ub, coeffa1, coeffa2)
+
+    !> separation of sites a and b
+    real(dp), intent(in) :: rab
+
+    !> Hubbard U for site a
+    real(dp), intent(in) :: Ua
+
+    !> Hubbard U for site b
+    real(dp), intent(in) :: Ub
+
+    !> Damping coefficient  
+    real(dp), intent(in) :: coeffa1, coeffa2
+
+    !> returned contribution
+    real(dp) :: expGammaDampedVer2Prime
+
+    real(dp) :: rTmp
+
+    rTmp = -1.0_dp * 0.5_dp *(coeffa1 + coeffa2)
+    expGammaDampedVer2Prime = expGammaPrime(rab, Ua, Ub) * exp(rTmp * rab**2) &
+        &+ 2.0_dp * expGamma(rab, Ua, Ub) * exp(rTmp * rab**2) * rab * rTmp
+
+  end function expGammaDampedVer2Prime
 
   !> Determines the value of the short range contribution to gamma using the old Ohno/Klopman form
   !> Caveat: This is too long ranged to use in a periodic calculation
