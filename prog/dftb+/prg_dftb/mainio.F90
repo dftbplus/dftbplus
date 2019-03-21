@@ -3364,7 +3364,7 @@ contains
     write(stdOut, "(A)") "Hamilton/Overlap written, exiting program."
     call env%destruct()
     call destructGlobalEnv()
-    stop
+    call abortProgram()
 
   end subroutine writeHSAndStop
 

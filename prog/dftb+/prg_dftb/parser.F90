@@ -2163,7 +2163,7 @@ contains
               & 'The count for the occurance of shells of species ', &
               & trim(geo%speciesNames(iSp1)),' are:'
           write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
-          stop
+          call abortProgram()
         end if
       end do
       deallocate(iTmpN)

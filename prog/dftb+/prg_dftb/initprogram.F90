@@ -3748,7 +3748,7 @@ contains
     integer, intent(in) :: iSolver
     logical, intent(in) :: tSpin
     real(dp), intent(in) :: kPoints(:,:)
-    type(TParallelOpts), intent(in) :: parallelOpts
+    type(TParallelOpts), intent(in), allocatable :: parallelOpts
     integer, intent(in) :: nIndepHam
     real(dp), intent(in) :: tempElec
 
@@ -3773,9 +3773,11 @@ contains
     end if
 
     nKPoint = size(kPoints, dim=2)
-    if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
-      call error("This solver requires as many parallel processor groups as there are independent&
-          & spin and k-point combinations")
+    if (withMpi) then
+      if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
+        call error("This solver requires as many parallel processor groups as there are independent&
+            & spin and k-point combinations")
+      end if
     end if
 
     if (iSolver == electronicSolverTypes%pexsi .and. tempElec < epsilon(0.0)) then
