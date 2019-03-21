@@ -191,7 +191,7 @@ module poisson
      if (contdir(m).gt.0) then
        xmax = maxval(x(f,iatm(1):iatm(2)))
        xmin = minval(x(f,iatc(3,m):iatc(2,m)))
-       if (xmin > xmax) then
+       if (xmin > xmax-deltaR_max/2.0_dp) then
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
@@ -204,7 +204,7 @@ module poisson
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
        xmax = maxval(x(f,iatc(3,m):iatc(2,m)))
-       if (xmin > xmax) then
+       if (xmin > xmax-deltaR_max/2.0_dp) then
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
@@ -1566,6 +1566,70 @@ subroutine gradient_V(phi,iparm,fparm,dlx,dly,dlz,grad_V)
 end subroutine gradient_V
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+subroutine save_pot_cube(iparm,fparm,dlx,dly,dlz,phi,rhs)
+  integer, intent(in) :: iparm(23) 
+  real(kind=dp), intent(in) :: fparm(8)
+  real(kind=dp), intent(in) :: dlx,dly,dlz
+  real(kind=dp), intent(in) :: phi(:,:,:)
+  real(kind=dp), intent(in) :: rhs(:,:,:)
+ 
+  integer :: fp, nx, ny, nz, i, j, k
+  real(dp) :: or(3)
+
+  or = 0.0_dp
+  nx = size(phi,1)
+  ny = size(phi,2)
+  nz = size(phi,3)
+
+  if (verbose.gt.70) then 
+    if(id0) write(stdOut,'(1x,a)') 'Saving charge density and potential ...'
+  endif
+
+  if (id0) then
+    open(newunit=fp,file='potential.cube')
+    write(fp,*) 'CUBE'
+    write(fp,*) 'x, y, z'
+    write(fp,'(i4,3f17.8)') 1,or(1)*a_u,or(2)*a_u,or(3)*a_u
+    write(fp,'(i4,3f17.8)') nx,dlx*a_u,0.0,0.0
+    write(fp,'(i4,3f17.8)') ny,0.0,dly*a_u,0.0
+    write(fp,'(i4,3f17.8)') nz,0.0,0.0,dlz*a_u
+    ! write a dummy atom
+    write(fp,'(i1,4f12.5)') 1,0.0,0.0,0.0,0.0
+
+    do i=1,nx
+      do j=1,ny
+        do k=1,nz
+          write(fp,'(E17.8)',advance='NO') phi(i,j,k)*hartree
+          if (mod(k-1,6) .eq. 5) write(fp,*)
+        end do
+        write(fp,*)
+      end do
+    end do
+    close(fp)
+    open(newunit=fp,file='charge_density.cube')
+    write(fp,*) 'CUBE'
+    write(fp,*) 'x, y, z'
+    write(fp,'(i4,3f12.5)') 1,or(1)*a_u,or(2)*a_u,or(3)*a_u
+    write(fp,'(i4,3f12.5)') nx,dlx*a_u,0.0,0.0
+    write(fp,'(i4,3f12.5)') ny,0.0,dly*a_u,0.0
+    write(fp,'(i4,3f12.5)') nz,0.0,0.0,dlz*a_u
+    ! write a dummy atom
+    write(fp,'(i1,4f12.5)') 1,0.0,0.0,0.0,0.0
+
+    do i=1,nx
+      do j=1,ny
+        do k=1,nz
+          write(fp,'(E13.5)',advance='NO') rhs(i,j,k)/(-4.0_dp*Pi)
+          if (mod(k-1,6) .eq. 5) write(fp,*)
+        end do
+        write(fp,*)
+      end do
+    end do
+    close(fp)
+  end if
+
+end subroutine save_pot_cube
+
 subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
   
   integer, intent(in) :: iparm(23) 
