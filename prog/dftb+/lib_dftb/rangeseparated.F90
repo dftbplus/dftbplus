@@ -362,12 +362,7 @@ contains
       integer :: kk, ll, jj, ii, mu, nu
       integer, dimension(DESC_LEN) :: descA, descB, descM, descN
 
-      real(dp), allocatable :: gammaCache(:,:)
-
       nAtom = size(self%species)
-      ! marginally faster to make a local copy, at least with gfortran
-      allocate(gammaCache(nAtom, nAtom))
-      gammaCache(:,:) = self%lrGammaEval(:, :)
 
       pbound = maxval(abs(tmpDDRho))
       tmpDham = 0.0_dp
@@ -382,8 +377,7 @@ contains
           if(abs(prb) >= self%pScreeningThreshold) then
             loopNu: do iAtNu = 1, iAtMu
               descN = getDescriptor(iAtNu, iSquare)
-              !gammabatchtmp = self%lrGammaEval(iAtMu, iAtNu) + self%lrGammaEval(iAt1, iAtNu)
-              gammabatchtmp = gammaCache(iAtNu, iAtMu) + gammaCache(iAtNu, iAt1)
+              gammabatchtmp = self%lrGammaEval(iAtMu, iAtNu) + self%lrGammaEval(iAt1, iAtNu)
               loopLL: do ll = 1, nAtom
                 iAt2 = ovrind(iAtNu, nAtom + 1 - ll)
                 iSp2 = self%species(iAt2)
@@ -392,9 +386,8 @@ contains
                 tstbound = prb * testovr(iAt2, iAtNu)
                 if(abs(tstbound) >= self%pScreeningThreshold) then
                   descB = getDescriptor(iAt2, iSquare)
-                  !gammabatch = (self%lrGammaEval(iAtMu, iAt2) + self%lrGammaEval(iAt1, iAt2)&
-                  !    & + gammabatchtmp)
-                  gammabatch = gammaCache(iAt2, iAtMu) + gammaCache(iAt2, iAt1) + gammabatchtmp
+                  gammabatch = (self%lrGammaEval(iAtMu, iAt2) + self%lrGammaEval(iAt1, iAt2)&
+                      & + gammabatchtmp)
                   gammabatch = -0.125_dp * gammabatch
                   ! calculate the Q_AB
                   do nu = descN(ISTART), descN(IEND)
@@ -413,7 +406,6 @@ contains
                 else
                   exit
                 end if
-
               end do loopLL
             end do loopNu
           else
@@ -523,16 +515,10 @@ contains
     end subroutine allocateAndInit
 
 
-    !> actually evaluate the neighbour based cutt-off hamiltonian
+    !> actually evaluate the neighbour based cut-off hamiltonian
     subroutine evaluateHamiltonian()
 
-      real(dp), allocatable :: gammaCache(:,:)
-
       nAtom = size(self%species)
-
-      ! marginally faster to make a local copy, at least with gfortran
-      allocate(gammaCache(nAtom, nAtom))
-      gammaCache(:,:) = self%lrGammaEval(:, :)
 
       loopN: do iAtN = 1, nAtom
         descN = getDescriptor(iAtN, iSquare)
@@ -545,15 +531,13 @@ contains
             descA = getDescriptor(iAtA, iSquare)
             call copyDensityBlock(descA, descB, Pab, pPab)
             call copyDensityBlock(descA, descN, Pan, pPan)
-            !gamma1 = self%lrGammaEval(iAtA, iAtN) + self%lrGammaEval(iAtA, iAtB)
-            gamma1 = gammaCache(iAtA, iAtN) + gammaCache(iAtA, iAtB)
+            gamma1 = self%lrGammaEval(iAtA, iAtN) + self%lrGammaEval(iAtA, iAtB)
             loopM: do iNeighA = 0, nNeighbourLC(iAtA)
               iAtM = iNeighbour(iNeighA, iAtA)
               descM = getDescriptor(iAtM, iSquare)
               call copyOverlapBlock(iAtA, iNeighA, descA(INORB), descM(INORB), Sma, pSma)
               call transposeBlock(pSma, Sam, pSam)
-              !gamma2 = self%lrGammaEval(iAtM, iAtN) + self%lrGammaEval(iAtM, iAtB)
-              gamma2 = gammaCache(iAtM, iAtN) + gammaCache(iAtM, iAtB)
+              gamma2 = self%lrGammaEval(iAtM, iAtN) + self%lrGammaEval(iAtM, iAtB)
               gammaTot = gamma1 + gamma2
               !
               if (iAtM >= iAtN) then
