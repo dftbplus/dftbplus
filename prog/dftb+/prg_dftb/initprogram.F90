@@ -1223,6 +1223,9 @@ contains
     cutOff%lcCutOff = 0.0_dp
     if (tRangeSep) then
       if (input%ctrl%rangeSepAlgorithm == "nb") then
+        if (input%ctrl%screeningThreshold > 0.0_dp) then
+          call error("Screening cutoff for range-separated neighbours should be zero or negative.")
+        end if
         cutOff%lcCutOff = cutOff%skCutOff + input%ctrl%screeningThreshold
         if (cutOff%lcCutOff < 0.0_dp) then
           call error("Screening cutoff for range-separated neighbours too short.")
