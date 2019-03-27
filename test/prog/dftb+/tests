@@ -9,6 +9,7 @@ rangesep/C18H12-nbscreening            #? not WITH_MPI
 rangesep/CH3                           #? not WITH_MPI
 rangesep/C60-nb                        #? not WITH_MPI
 rangesep/C60-nb-cutoff                 #? not WITH_MPI
+rangesep/C240_tn                       #? not WITH_MPI
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4
