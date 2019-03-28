@@ -1,5 +1,6 @@
 module setupgeom
   use accuracy
+  use globalenv
   use constants
   use message
   use sorting
@@ -41,6 +42,9 @@ module setupgeom
     ! 2. Sort each contact along the contact direction
     call sortContacts(geom, iAtInRegion, contDir)
 
+    ! Print atom lists
+    call print_debug(geom, iAtInRegion)
+
     ! 3. resort the second contact PL to be a shifted copy of the first
     call arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs)
 
@@ -63,7 +67,6 @@ module setupgeom
     character(15) :: sindx
 
     ncont = size(iAtInRegion)-1
-
 
     allocate(mask(geom%nAtom))
     mask = .true.
@@ -151,7 +154,6 @@ module setupgeom
     ncont = size(iAtInRegion)-1
 
     do icont = 1, ncont
-
       if (nPLs(icont)==2) then
         associate(data=>iAtInRegion(icont)%data)       
         uu = 0.0_dp
@@ -159,6 +161,10 @@ module setupgeom
         vv = contvec(1:3,icont)
         tol = norm2(vv)*contvec(4,icont)
         PLsize = size(data)/2
+        write(stdOut, *) "PL size",PLsize
+        write(stdOut, *) "Number of PLs",nPLs(icont)
+        write(stdOut, *) "contact vector",contvec(1:3,icont)
+        write(stdOut, *) "tolerance",tol
         do ii = 1, PLsize
           bestcross = 1e10
           bestdiff = 1e10
@@ -170,13 +176,19 @@ module setupgeom
             if (norm2(vec-vv)<bestdiff) then
                bestdiff = norm2(vec-vv)   
             end if
-            if (norm2(cross3(vec,uu))< tol .and. norm2(vec-vv)< tol ) then
+            if (norm2(vec+vv)<bestdiff) then
+               bestdiff = norm2(vec+vv)   
+            end if
+            if (norm2(cross3(vec,uu))< tol .and. &
+                  & (norm2(vec-vv)< tol .or. norm2(vec+vv)<tol) ) then
               exit
             end if  
           end do
           if (bestcross>tol .or. bestdiff>tol) then
-             write(sindx,*) data(ii)
-             call error("Atom not found for atom "//trim(adjustl(sindx)))
+             write(stdOut, *) "Atom ",data(ii)   
+             write(stdOut, *) "Best cross vector:", bestcross   
+             write(stdOut, *) "Best difference:", bestdiff
+             call error("Atom not found")
           end if  
           call swap(data(PLsize+ii),data(jj))
         end do  
@@ -184,6 +196,9 @@ module setupgeom
       else if (nPLs(icont)==1) then
         PLsize = size(iAtInRegion(icont)%data)
         contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
+        write(stdOut, *) "PL size",PLsize
+        write(stdOut, *) "Build second PL"
+        write(stdOut, *) "contact vector",contvec(1:3,icont)
         call reallocate_int(iAtInRegion(icont)%data, PLsize)
         call reallocate_coords(geom%coords, PLsize)
         call reallocate_int(geom%species, PLsize)
@@ -329,22 +344,26 @@ module setupgeom
   ! debug subroutine
   subroutine print_debug(geom, iAtInRegion)
     type(TGeometry), intent(in) :: geom
-    type(wrappedInt1), intent(inout) :: iAtInRegion(:)
+    type(wrappedInt1), intent(in) :: iAtInRegion(:)
     
     integer :: icont, ncont, PLsize
 
+    ncont = size(iAtInRegion) - 1
+
     do icont = 1, ncont
       if (allocated(iAtInRegion(icont)%data)) then
-          PLsize = size(iAtInRegion(icont)%data)/2  
-          print*,'Atoms in contact',icont,':'
-          print*,iAtInRegion(icont)%data(1:PLsize)
-          print*,iAtInRegion(icont)%data(PLsize+1:2*PLsize)
-      endif
-      print*
+        PLsize = size(iAtInRegion(icont)%data)/2  
+        write(stdOut,*) 'Atoms in contact',icont,':'
+        write(stdOut,*) iAtInRegion(icont)%data(1:PLsize)
+        write(stdOut,*) iAtInRegion(icont)%data(PLsize+1:2*PLsize)
+        write(stdOut,*) 
+      else
+        call error("Atom list not allocated")
+      end if    
     end do
-    print*,'Atoms in device:'
-    print*,iAtInRegion(ncont+1)%data
-    print*
+    write(stdOut,*) 'Atoms in device:'
+    write(stdOut,*) iAtInRegion(ncont+1)%data
+    write(stdOut,*) 
 
   end subroutine print_debug
 
