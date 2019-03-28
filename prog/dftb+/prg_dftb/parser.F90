@@ -50,6 +50,7 @@ module parser
 #:if WITH_TRANSPORT
   use poisson_init
   use libnegf_vars
+  use setupgeom
 #:endif
   implicit none
 
@@ -148,9 +149,6 @@ contains
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
 
-    ! electronic Hamiltonian
-    call getChildValue(root, "Hamiltonian", hamNode)
-
     call getChild(root, "Transport", child, requested=.false.)
 
   #:if WITH_TRANSPORT
@@ -165,6 +163,9 @@ contains
       input%transpar%idxdevice(1) = 1
       input%transpar%idxdevice(2) = input%geom%nAtom
     end if
+    
+    ! electronic Hamiltonian
+    call getChildValue(root, "Hamiltonian", hamNode)
 
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
         & input%ginfo%greendens, input%poisson)
@@ -181,6 +182,8 @@ contains
       call detailedError(child, "Program had been compiled without transport enabled")
     end if
 
+    ! electronic Hamiltonian
+    call getChildValue(root, "Hamiltonian", hamNode)
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako)
 
   #:endif
@@ -3837,27 +3840,22 @@ contains
     type(fnode), pointer :: pTmp, field
     type(fnodeList), pointer :: pNodeList
     integer :: ii, contact
-    real(dp) :: acc, contactRange(2), lateralContactSeparation
+    real(dp) :: acc, contactRange(2), lateralContactSeparation, plCutoff
     type(listInt) :: li
+    type(WrappedInt1), allocatable :: iAtInRegion(:)
+    real(dp), allocatable :: contVec(:,:)
+    integer, allocatable :: nPLs(:)
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
-    call getChild(root, "Device", pDevice)
-    call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
-    call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
-    call readFirstLayerAtoms(pTmp, transpar%PL, transpar%nPLs, transpar%idxdevice)
-    if (.not.associated(pTmp)) then
-      call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
-    end if
-
-    call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)
-    if (associated(pTmp)) then
-      call init(li)
-      call getChildValue(pTmp, "", li)
-      allocate(transpar%cblk(len(li)))
-      call asArray(li,transpar%cblk)
-      call destruct(li)
-    end if
+    !call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)
+    !if (associated(pTmp)) then
+    !  call init(li)
+    !  call getChildValue(pTmp, "", li)
+    !  allocate(transpar%cblk(len(li)))
+    !  call asArray(li,transpar%cblk)
+    !  call destruct(li)
+    !end if
 
     !! Note: we parse first the task because we need to know it to define the
     !! mandatory contact entries. On the other hand we need to wait that
@@ -3866,6 +3864,16 @@ contains
     call getChildValue(root, "Task", pTaskType, child=pTask, default='uploadcontacts')
     call getNodeName(pTaskType, buffer)
 
+    if (char(buffer).ne."setupgeometry") then
+      call getChild(root, "Device", pDevice)
+      call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
+      call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
+      call readFirstLayerAtoms(pTmp, transpar%PL, transpar%nPLs, transpar%idxdevice)
+      if (.not.associated(pTmp)) then
+        call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
+      end if
+    end if
+    
     call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
     if (transpar%ncont < 2) then
@@ -3876,12 +3884,17 @@ contains
     select case (char(buffer))
     case ("setupgeometry")
       
-      call readContacts(pNodeList, transpar%contacts, geom, buffer)
-          
+      call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, &
+            contVec, nPLs)
+      call getChildValue(pTask, "PLCutoff", plCutoff, 10.0_dp, modifier=modif, child=field)
+      call convertByMul(char(modif), lengthUnits, field, plCutoff)
+      call setupGeometry(geom, iAtInRegion, contVec, plCutoff, nPLs)
+      write(stdout,*) 'Geometry processed. Job finished'
+      stop 
 
     case ("contacthamiltonian")
 
-      call readContacts(pNodeList, transpar%contacts, geom, buffer)
+      call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
       transpar%taskUpload = .false.
       call getChildValue(pTaskType, "ContactId", buffer, child=pTmp)
       contact = getContactByName(transpar%contacts(:)%name, tolower(trim(unquote(char(buffer)))),&
@@ -3903,7 +3916,7 @@ contains
 
     case ("uploadcontacts")
 
-      call readContacts(pNodeList, transpar%contacts, geom, buffer)
+      call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
       transpar%taskUpload = .true.
 
     case default
@@ -3964,7 +3977,7 @@ contains
       newLatVecs(modulo(ind+1,3)+1, 2) = -newLatVecs(ind,1)
       newLatVecs(ind,2) = 0.0_dp !newLatVecs(modulo(ind+1,3)+1, 1)
       newLatVecs(modulo(ind-1,3)+1, 2) = 0.0_dp
-      call cross3(newLatVecs(:,3), newLatVecs(:,1), newLatVecs(:,2))
+      newLatVecs(:,3) = cross3(newLatVecs(:,1), newLatVecs(:,2))
       newLatVecs(:,2) = newLatVecs(:,2) / sqrt(sum(newLatVecs(:,2)**2))
       newLatVecs(:,3) = newLatVecs(:,3) / sqrt(sum(newLatVecs(:,3)**2))
       newOrigin = 0.0_dp
@@ -4877,19 +4890,31 @@ contains
   end subroutine readTunAndDos
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, task)
-    type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
+  subroutine readContacts(pNodeList, contacts, geom, task, iAtInRegion, contVec, nPLs)
     type(fnodeList), pointer :: pNodeList
+    type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     character(*), intent(in) :: task
+    type(WrappedInt1), allocatable, intent(out), optional :: iAtInRegion(:)
+    real(dp), intent(out), allocatable, optional :: contVec(:,:)
+    integer, intent(out), allocatable, optional :: nPLs(:)
 
-    real(dp) :: contactLayerTol
+    real(dp) :: contactLayerTol, vec(3)
     integer :: ii, jj
     type(fnode), pointer :: field, pNode, pTmp, pWide
     type(string) :: buffer, modif
-    type(listReal) :: fermiBuffer
+    type(listReal) :: fermiBuffer, vecBuffer
     integer, allocatable :: tmpI1(:)
 
+    if (present(iAtInRegion)) then
+      allocate(iAtInRegion(size(contacts)+1))
+    end if
+    if (present(contVec)) then
+      allocate(contVec(4,size(contacts)))
+    end if 
+    if (present(nPLs)) then
+      allocate(nPLs(size(contacts)))
+    end if
 
     do ii = 1, size(contacts)
 
@@ -4913,8 +4938,21 @@ contains
       call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
 
       if (task .eq. "setupgeometry") then
-        call getChildValue(pNode, "Atoms", buffer, child=pTmp, multiple=.true.)
-        call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, atmIndx)
+        call getChildValue(pNode, "NumPLsDefined", nPLs(ii), 2)    
+        call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
+        call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, &
+             iAtInRegion(ii)%data, ishift=char_to_int(char(modif)))
+        call init(vecBuffer)
+        call getChildValue(pNode, "ContactVector", vecBuffer, modifier=modif)
+        if (len(vecBuffer).eq.3) then
+           call asArray(vecBuffer, vec)
+           call convertByMul(char(modif), lengthUnits, pNode, vec)
+           contVec(1:3,ii) = vec
+           contVec(4,ii) = contactLayerTol
+           call destruct(vecBuffer)
+        else
+           call error("ContactVector must define three entries")
+        end if   
       else
         call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
         call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
@@ -4979,6 +5017,21 @@ contains
       end if
 
     end do
+
+    contains
+
+      function char_to_int(chr) result(ind)
+        character(*), intent(in) :: chr
+        integer :: ind
+        if (trim(chr) .eq. "") then
+          ind = 0
+          return
+        end if
+        if (verify(chr,"+-0123456789") .ne. 0) then
+          call error("Modifier in Atoms should be an integer number")   
+        end if  
+        read(chr,*) ind
+      end function char_to_int
 
   end subroutine readContacts
 

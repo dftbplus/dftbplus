@@ -20,10 +20,10 @@ contains
 
 
   !> Cross product
-  subroutine cross3(res, v1, v2)
+  function cross3(v1, v2) result(res)
 
     !> Resulting vector.
-    real(dp), intent(out) :: res(3)
+    real(dp) :: res(3)
 
     !> First vector.
     real(dp), intent(in) :: v1(3)
@@ -35,7 +35,7 @@ contains
     res(2) = v1(3) * v2(1) - v1(1) * v2(3)
     res(3) = v1(1) * v2(2) - v1(2) * v2(1)
 
-  end subroutine cross3
+  end function cross3
 
 
   !> Signed determinant of a 3x3 matrix

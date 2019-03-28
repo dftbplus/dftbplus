@@ -7,7 +7,7 @@
 
 #:include 'linkedlist.fypp'
 
-!> Linked list for single real vectors
+!> Linked list for single integer vectors
 module linkedlisti1
   use assert
   implicit none
