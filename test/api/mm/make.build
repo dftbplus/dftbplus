@@ -128,6 +128,9 @@ PROCESSED_TESTFILE := _tests
 AUTOTEST_SCRIPT := $(ROOT)/test/prog/dftb+/bin/autotest2
 TAGDIFF_SCRIPT := $(ROOT)/test/prog/dftb+/bin/tagdiff
 
+# Include directory for Fypp
+FYPPINCS := -I$(ROOT)/prog/dftb+/include
+
 # Complete command with options
 AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTCASE_ROOT) -w $(TEST_WORKDIR) -d $(TAGDIFF_SCRIPT)
 
@@ -135,7 +138,7 @@ AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTCASE_ROOT) -w $(TEST_WORKDIR) -d $(T
 CREATE_PRETESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
 	$(shell $(ROOT)/utils/test/testlist_to_fypp < $(TESTFILE) > $(PROCESSED_TESTFILE).fypp),)
 CREATE_TESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\
-	$(shell $(FYPP) $(FYPPOPT) $(inc-opts) -DMPI_PROCS=$(TEST_MPI_PROCS) -DOMP_THREADS=$(TEST_OMP_THREADS) $(PROCESSED_TESTFILE).fypp > $(PROCESSED_TESTFILE)),)
+	$(shell $(FYPP) $(FYPPOPT) $(FYPPINCS) -DMPI_PROCS=$(TEST_MPI_PROCS) -DOMP_THREADS=$(TEST_OMP_THREADS) $(PROCESSED_TESTFILE).fypp > $(PROCESSED_TESTFILE)),)
 TESTS := $(if $(filter test,$(MAKECMDGOALS)),\
 	$(shell $(AUTOTEST_CMD) -f $(PROCESSED_TESTFILE) -l),)
 
