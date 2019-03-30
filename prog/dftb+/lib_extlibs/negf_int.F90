@@ -727,7 +727,7 @@ module negf_int
     if (present(DensMat).and.present(EnMat)) then
        params%DorE  = 'B'
        call set_params(negf,params)
-       stop 'UNSUPPORTED CASE in negf_density'
+       call error('UNSUPPORTED CASE in negf_density')
     endif
 
     if (params%DorE.eq.'N') then

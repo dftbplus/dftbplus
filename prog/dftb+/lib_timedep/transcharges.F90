@@ -90,7 +90,7 @@ contains
       @:ASSERT(.not.allocated(this%qCacheOccVirt))
       allocate(this%qCacheOccVirt(this%nAtom, nTrans))
 
-      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn) SCHEDULE(RUNTIME)
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn) SCHEDULE(RUNTIME)
       do ij = 1, nTrans
         kk = win(ij)
         ii = getij(kk,1)
@@ -197,8 +197,8 @@ contains
 
       allocate(qij(this%nAtom))
 
-      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn,qij)&
-      !!$OMP& SCHEDULE(RUNTIME)
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
+      !!$OMP& SCHEDULE(RUNTIME) REDUCTION(+:qProduct)
       do ij = 1, this%nTransitions
         kk = win(ij)
         ii = getij(kk,1)
@@ -256,7 +256,7 @@ contains
 
       allocate(qij(this%nAtom))
 
-      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,updwn,qij)&
+      !!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,ii,jj,kk,updwn,qij)&
       !!$OMP& SCHEDULE(RUNTIME)
       do ij = 1, this%nTransitions
         kk = win(ij)

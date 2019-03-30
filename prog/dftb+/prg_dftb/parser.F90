@@ -110,7 +110,7 @@ contains
     type(inputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
-    type(fnode), pointer :: root, tmp, hamNode, child, dummy
+    type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
     type(TParserflags) :: parserFlags
     logical :: tHSD, missing
 
@@ -170,7 +170,7 @@ contains
 
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
-      call detailedError(child, "Be patient... Dephasing feature will be available soon!")    
+      call detailedError(child, "Be patient... Dephasing feature will be available soon!")
       !call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
@@ -193,16 +193,16 @@ contains
   #:endif
 
     ! Analysis of properties
-    call getChildValue(root, "Analysis", dummy, "", child=child, list=.true., &
+    call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
 
   #:if WITH_TRANSPORT
-    call readAnalysis(child, input%ctrl, input%geom, input%slako%orb, input%transpar, &
+    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
         & input%ginfo%tundos)
 
     call finalizeNegf(input)
   #:else
-    call readAnalysis(child, input%ctrl, input%geom, input%slako%orb)
+    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
   #:endif
 
     ! excited state options
@@ -218,6 +218,10 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
+    ! analysis settings that need to know settings from the options block
+    call readLaterAnalysis(analysisNode, input%ctrl)
+
+    ! read parallel calculation settings
     call readParallel(root, input)
 
     ! input data strucutre has been initialised
@@ -2155,7 +2159,7 @@ contains
               & 'The count for the occurance of shells of species ', &
               & trim(geo%speciesNames(iSp1)),' are:'
           write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
-          stop
+          call abortProgram()
         end if
       end do
       deallocate(iTmpN)
@@ -3580,103 +3584,114 @@ contains
     character(lc) :: strTmp
     type(listRealR1) :: lr1
     logical :: tPipekDense
-    logical :: tWriteBandDatDef
+    logical :: tWriteBandDatDef, tHaveEigenDecomposition
 
-    call getChildValue(node, "ProjectStates", val, "", child=child, &
-        & allowEmptyValue=.true., list=.true.)
-    call getChildren(child, "Region", children)
-    nReg = getLength(children)
-    ctrl%tProjEigenvecs = (nReg > 0)
-    if (ctrl%tProjEigenvecs) then
-      allocate(ctrl%tShellResInRegion(nReg))
-      allocate(ctrl%tOrbResInRegion(nReg))
-      allocate(ctrl%RegionLabel(nReg))
-      call init(ctrl%iAtInRegion)
-      do iReg = 1, nReg
-        call getItem1(children, iReg, child2)
-        call getChildValue(child2, "Atoms", buffer, child=child3, &
-            &multiple=.true.)
-        call convAtomRangeToInt(char(buffer), geo%speciesNames, &
-            &geo%species, child3, pTmpI1)
-        call append(ctrl%iAtInRegion, pTmpI1)
-        call getChildValue(child2, "ShellResolved", &
-            & ctrl%tShellResInRegion(iReg), .false., child=child3)
-        if (ctrl%tShellResInRegion(iReg)) then
-          if (.not. all(geo%species(pTmpI1) == geo%species(pTmpI1(1)))) then
-            call detailedError(child3, "Shell resolved PDOS only allowed for &
-                &regions where all atoms belong to the same species")
-          end if
-        end if
-        call getChildValue(child2, "OrbitalResolved", &
-            & ctrl%tOrbResInRegion(iReg), .false., child=child3)
-        if (ctrl%tOrbResInRegion(iReg)) then
-          if (.not. all(geo%species(pTmpI1) == geo%species(pTmpI1(1)))) then
-            call detailedError(child3, "Orbital resolved PDOS only allowed for &
-                &regions where all atoms belong to the same species")
-          end if
-        end if
-        deallocate(pTmpI1)
-        write(strTmp, "('region',I0)") iReg
-        call getChildValue(child2, "Label", buffer, trim(strTmp))
-        ctrl%RegionLabel(iReg) = unquote(char(buffer))
-      end do
+    tHaveEigenDecomposition = .false.
+    if (any(ctrl%solver%isolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa])) then
+      tHaveEigenDecomposition = .true.
     end if
 
-    call getChild(node, "Localise", child=val, requested=.false.)
-    if (associated(val)) then
-      ctrl%tLocalise = .true.
-      call getChild(val, "PipekMezey", child=child2, requested=.false.)
-      if (associated(child2)) then
-        allocate(ctrl%pipekMezeyInp)
-        associate(inp => ctrl%pipekMezeyInp)
-          call getChildValue(child2, "MaxIterations", inp%maxIter, 100)
-          tPipekDense = .true.
-          if (.not. geo%tPeriodic) then
-            call getChildValue(child2, "Dense", tPipekDense, .false.)
-            if (.not. tPipekDense) then
-              call init(lr1)
-              call getChild(child2, "SparseTolerances", child=child3, requested=.false.)
-              if (associated(child3)) then
-                call getChildValue(child3, "", 1, lr1)
-                if (len(lr1) < 1) then
-                  call detailedError(child2, "Missing values of tolerances.")
-                end if
-                allocate(inp%sparseTols(len(lr1)))
-                call asVector(lr1, inp%sparseTols)
-              else
-                allocate(inp%sparseTols(4))
-                inp%sparseTols = [0.1_dp, 0.01_dp, 1.0E-6_dp, 1.0E-12_dp]
-                call setChildValue(child2, "SparseTolerances", inp%sparseTols)
-              end if
-              call destruct(lr1)
+    if (tHaveEigenDecomposition) then
+
+      call getChildValue(node, "ProjectStates", val, "", child=child, &
+          & allowEmptyValue=.true., list=.true.)
+      call getChildren(child, "Region", children)
+      nReg = getLength(children)
+      ctrl%tProjEigenvecs = (nReg > 0)
+      if (ctrl%tProjEigenvecs) then
+        allocate(ctrl%tShellResInRegion(nReg))
+        allocate(ctrl%tOrbResInRegion(nReg))
+        allocate(ctrl%RegionLabel(nReg))
+        call init(ctrl%iAtInRegion)
+        do iReg = 1, nReg
+          call getItem1(children, iReg, child2)
+          call getChildValue(child2, "Atoms", buffer, child=child3, &
+              &multiple=.true.)
+          call convAtomRangeToInt(char(buffer), geo%speciesNames, &
+              &geo%species, child3, pTmpI1)
+          call append(ctrl%iAtInRegion, pTmpI1)
+          call getChildValue(child2, "ShellResolved", &
+              & ctrl%tShellResInRegion(iReg), .false., child=child3)
+          if (ctrl%tShellResInRegion(iReg)) then
+            if (.not. all(geo%species(pTmpI1) == geo%species(pTmpI1(1)))) then
+              call detailedError(child3, "Shell resolved PDOS only allowed for &
+                  &regions where all atoms belong to the same species")
             end if
           end if
-          if (tPipekDense) then
-            call getChildValue(child2, "Tolerance", inp%tolerance, 1.0E-4_dp)
+          call getChildValue(child2, "OrbitalResolved", &
+              & ctrl%tOrbResInRegion(iReg), .false., child=child3)
+          if (ctrl%tOrbResInRegion(iReg)) then
+            if (.not. all(geo%species(pTmpI1) == geo%species(pTmpI1(1)))) then
+              call detailedError(child3, "Orbital resolved PDOS only allowed for &
+                  &regions where all atoms belong to the same species")
+            end if
           end if
-        end associate
-      else
-        call detailedError(val, "No localisation method chosen")
+          deallocate(pTmpI1)
+          write(strTmp, "('region',I0)") iReg
+          call getChildValue(child2, "Label", buffer, trim(strTmp))
+          ctrl%RegionLabel(iReg) = unquote(char(buffer))
+        end do
       end if
+
+      call getChild(node, "Localise", child=val, requested=.false.)
+      if (associated(val)) then
+        ctrl%tLocalise = .true.
+        call getChild(val, "PipekMezey", child=child2, requested=.false.)
+        if (associated(child2)) then
+          allocate(ctrl%pipekMezeyInp)
+          associate(inp => ctrl%pipekMezeyInp)
+            call getChildValue(child2, "MaxIterations", inp%maxIter, 100)
+            tPipekDense = .true.
+            if (.not. geo%tPeriodic) then
+              call getChildValue(child2, "Dense", tPipekDense, .false.)
+              if (.not. tPipekDense) then
+                call init(lr1)
+                call getChild(child2, "SparseTolerances", child=child3, requested=.false.)
+                if (associated(child3)) then
+                  call getChildValue(child3, "", 1, lr1)
+                  if (len(lr1) < 1) then
+                    call detailedError(child2, "Missing values of tolerances.")
+                  end if
+                  allocate(inp%sparseTols(len(lr1)))
+                  call asVector(lr1, inp%sparseTols)
+                else
+                  allocate(inp%sparseTols(4))
+                  inp%sparseTols = [0.1_dp, 0.01_dp, 1.0E-6_dp, 1.0E-12_dp]
+                  call setChildValue(child2, "SparseTolerances", inp%sparseTols)
+                end if
+                call destruct(lr1)
+              end if
+            end if
+            if (tPipekDense) then
+              call getChildValue(child2, "Tolerance", inp%tolerance, 1.0E-4_dp)
+            end if
+          end associate
+        else
+          call detailedError(val, "No localisation method chosen")
+        end if
+      end if
+
+      call getChildValue(node, "WriteEigenvectors", ctrl%tPrintEigVecs, .false.)
+
+    #:if WITH_SOCKETS
+      tWriteBandDatDef = .not. allocated(ctrl%socketInput)
+    #:else
+      tWriteBandDatDef = .true.
+    #:endif
+
+      call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
+
     end if
 
+    ! Is this compatible with Poisson solver use?
     call readElectrostaticPotential(node, geo, ctrl)
 
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)
-    call getChildValue(node, "WriteEigenvectors", ctrl%tPrintEigVecs, .false.)
 
-    if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
-      call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
-          & .false.)
-    end if
-  #:if WITH_SOCKETS
-    tWriteBandDatDef = .not. allocated(ctrl%socketInput)
-  #:else
-    tWriteBandDatDef = .true.
-  #:endif
-    call getChildValue(node, "WriteBandOut", ctrl%tWriteBandDat, tWriteBandDatDef)
     call getChildValue(node, "CalculateForces", ctrl%tPrintForces, .false.)
 
   #:if WITH_TRANSPORT
@@ -3693,6 +3708,23 @@ contains
   #:endif
 
   end subroutine readAnalysis
+
+
+  !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}
+  subroutine readLaterAnalysis(node, ctrl)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> Control structure to fill
+    type(control), intent(inout) :: ctrl
+
+    if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
+      call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
+          & .false.)
+    end if
+
+  end subroutine readLaterAnalysis
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state

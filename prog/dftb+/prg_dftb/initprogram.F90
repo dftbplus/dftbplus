@@ -345,6 +345,9 @@ module initprogram
   !> Fermi energy per spin
   real(dp), allocatable :: Ef(:)
 
+  !> Can an electronic free energy be correctly defined?
+  logical :: tDefinedFreeE
+
   !> Filling temp updated by MD.
   logical :: tSetFillingTemp
 
@@ -2320,11 +2323,12 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
+    tDefinedFreeE = .true.
   #:if WITH_TRANSPORT
     if (tLatOpt .and. tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
-    call initTransport(env, input)
+    call initTransport(env, input, tDefinedFreeE)
   #:else
     tPoisson = .false.
     tNegf = .false.
@@ -3081,14 +3085,24 @@ contains
 #:endif
 
 #:if WITH_TRANSPORT
-  subroutine initTransport(env, input)
+  subroutine initTransport(env, input, tDefinedFreeE)
+
+    !> Computational environment
     type(TEnvironment), intent(in) :: env
+
+    !> Input data
     type(inputData), intent(in) :: input
 
-    !> Whether transport has been initialized
-    logical :: tInitialized, tAtomsOutside
+    !> Is the free energy defined (i.e. equilibrium calculation)
+    logical, intent(out) :: tDefinedFreeE
+
+    ! Whether transport has been initialized
+    logical :: tInitialized
+
+    logical :: tAtomsOutside
     integer :: iSpin, isz
-    integer :: nSpinChannels
+    integer :: nSpinChannels, iCont, jCont
+    real(dp) :: mu1, mu2
 
     ! These two checks are redundant, I check if they are equal
     if (input%poisson%defined .neqv. input%ctrl%tPoisson) then
@@ -3116,6 +3130,8 @@ contains
       nSpinChannels = 1
     endif
 
+    tDefinedFreeE = .true.
+
     associate(transpar=>input%transpar, greendens=>input%ginfo%greendens)
       ! Non colinear spin not yet supported
       ! Include the built-in potential as in negf init, but the whole
@@ -3129,6 +3145,20 @@ contains
           mu(1:transpar%ncont, iSpin) = minval(transpar%contacts(1:transpar%ncont)%eFermi(iSpin))&
                & - transpar%contacts(1:transpar%ncont)%potential
         end do
+        ! Test if this is a non-equilibrium system
+        lpConts: do iCont = 1, transpar%ncont
+          do jCont = iCont + 1, transpar%ncont
+            do iSpin = 1, nSpinChannels
+              mu1 = transpar%contacts(iCont)%eFermi(iSpin) - transpar%contacts(iCont)%potential
+              mu2 = transpar%contacts(jCont)%eFermi(iSpin) - transpar%contacts(jCont)%potential
+              if (abs(mu1 - mu2) > tolEfEquiv) then
+                tDefinedFreeE = .false.
+                exit lpConts
+              end if
+            end do
+          end do
+        end do lpConts
+
       else
         allocate(mu(1, nSpinChannels))
         mu(1,1:nSpinChannels) = greendens%oneFermi(1:nSpinChannels)
@@ -3815,7 +3845,7 @@ contains
     integer, intent(in) :: iSolver
     logical, intent(in) :: tSpin
     real(dp), intent(in) :: kPoints(:,:)
-    type(TParallelOpts), intent(in) :: parallelOpts
+    type(TParallelOpts), intent(in), allocatable :: parallelOpts
     integer, intent(in) :: nIndepHam
     real(dp), intent(in) :: tempElec
 
@@ -3840,9 +3870,11 @@ contains
     end if
 
     nKPoint = size(kPoints, dim=2)
-    if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
-      call error("This solver requires as many parallel processor groups as there are independent&
-          & spin and k-point combinations")
+    if (withMpi) then
+      if (tElsiSolver .and. parallelOpts%nGroup /= nIndepHam * nKPoint) then
+        call error("This solver requires as many parallel processor groups as there are independent&
+            & spin and k-point combinations")
+      end if
     end if
 
     if (iSolver == electronicSolverTypes%pexsi .and. tempElec < epsilon(0.0)) then

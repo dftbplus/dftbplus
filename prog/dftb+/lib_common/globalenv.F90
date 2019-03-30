@@ -23,7 +23,7 @@ module globalenv
   private
 
   public :: initGlobalEnv, destructGlobalEnv
-  public :: abort, shutdown, synchronizeAll
+  public :: abortProgram, shutdown, synchronizeAll
   public :: stdOut, tIoProc
   public :: withScalapack, withMpi
 
@@ -99,7 +99,7 @@ contains
   !> Note: if this routine is called by any the processes, execution immediately stops
   !> without waiting for any other processes.
   !>
-  subroutine abort(errorCode)
+  subroutine abortProgram(errorCode)
 
     !> Error code to emit (default: 1)
     integer, intent(in), optional :: errorCode
@@ -123,7 +123,7 @@ contains
   #:endif
     stop
 
-  end subroutine abort
+  end subroutine abortProgram
 
 
   !> Waits until all processes reach this point
