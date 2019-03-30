@@ -2168,6 +2168,19 @@ contains
 
     end if
 
+    ! On-site
+    call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
+            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
+        call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
+            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
+      end do
+    end if
+
     ! Dispersion
     call getChildValue(node, "Dispersion", value1, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true.)

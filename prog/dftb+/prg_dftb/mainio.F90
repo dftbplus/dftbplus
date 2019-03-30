@@ -2294,8 +2294,8 @@ contains
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
-      & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
-      & electronicSolver, tDefinedFreeE)
+      & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2419,6 +2419,9 @@ contains
 
     !> Is this a self consistent charge calculation
     logical, intent(in) :: tScc
+
+    !> Are on-site corrections being used?
+    logical, intent(in) :: tOnSite
 
     !> whether we solve NEGF
     logical, intent(in) :: tNegf
@@ -2740,8 +2743,10 @@ contains
         write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
       end if
       if (tDFTBU) then
-        write(fd, format2U) 'Energy DFTB+U', energy%Edftbu, 'H',&
-            & energy%Edftbu * Hartree__eV, 'eV'
+        write(fd, format2U) 'Energy DFTB+U', energy%Edftbu, 'H', energy%Edftbu * Hartree__eV, 'eV'
+      end if
+      if (tOnSite) then
+        write (fd,format2U) 'Energy onsite', energy%eOnSite, 'H', energy%eOnSite*Hartree__eV, 'eV'
       end if
     end if
 

@@ -15,6 +15,7 @@ module linrespcommon
   use sorting
   use message
   use commontypes
+  use onsitecorrection, only : getOnsME
   use transcharges
   implicit none
   public
@@ -249,6 +250,62 @@ contains
   end subroutine rindxov_array
 
 
+  !> calculate the transition block at a specific atom
+  subroutine transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
+
+    !> Index of inital state.
+    integer, intent(in) :: ii
+
+    !> Index of final state.
+    integer, intent(in) :: jj
+
+    !> Atom number
+    integer, intent(in) :: iAt
+
+    !> Starting position of each atom in the list of orbitals.
+    integer, intent(in) :: iAtomStart(:)
+
+    !> up spin channel (T) or down spin channel (F)
+    logical, intent(in) :: updwn
+
+    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb).
+    real(dp), intent(in) :: stimc(:,:,:)
+
+    !> Eigenvectors (nOrb, nOrb)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> Transition charge block
+    real(dp), intent(out) :: qq_ij(:,:)
+
+    integer :: nOrb, iOrb1, iOrb2
+    integer :: mu, nu, ss
+
+    ss = 1
+    if (.not. updwn) ss = 2
+
+    !mu = iAtomStart(iAt)
+    qq_ij(:,:) = 0.0_dp
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss), stimc(mu:mu+nOrb-1,jj,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss), stimc(mu:mu+nOrb-1,ii,ss))
+    !qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
+
+    do iOrb1 = 1, nOrb
+      do iOrb2 = iOrb1, nOrb
+        mu = iAtomStart(iAt) + iOrb1 - 1
+        nu = iAtomStart(iAt) + iOrb2 - 1
+        qq_ij(iOrb1,iOrb2) = 0.25_dp*( grndEigVecs(mu,ii,ss)*stimc(nu,jj,ss) &
+             &                       + grndEigVecs(mu,jj,ss)*stimc(nu,ii,ss) &
+             &                       + grndEigVecs(nu,ii,ss)*stimc(mu,jj,ss) &
+             &                       + grndEigVecs(nu,jj,ss)*stimc(mu,ii,ss) )
+        if (iOrb1 /= iOrb2) then
+          qq_ij(iOrb2,iOrb1) = qq_ij(iOrb1,iOrb2)
+        end if
+      end do
+    end do
+
+  end subroutine transDens
+
+
   !> Returns the (spatial) MO overlap between orbitals in different spin channels
   function MOoverlap(pp, qq, stimc, grndEigVecs) result(S_pq)
 
@@ -324,15 +381,15 @@ contains
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
   subroutine omegatvec(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
-      & occNr, getij, gamma, species0, spinW, transChrg)
+      & occNr, getij, gamma, species0, spinW, onsMEs, orb, transChrg)
 
     !> logical spin polarization
     logical, intent(in) :: spin
 
-    !> Vector to multiply with. (nmat)
+    !> Vector to multiply with size(nmat)
     real(dp), intent(in) :: vin(:)
 
-    !> Vector containing the result on exit. (nmat,)
+    !> Vector containing the result on exit size(nmat)
     real(dp), intent(out) :: vout(:)
 
     !> Excitation energies (wij = epsion_j - epsilon_i)
@@ -371,6 +428,12 @@ contains
     !> ground state spin constants for each species
     real(dp), intent(in) :: spinW(:)
 
+    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
@@ -382,6 +445,7 @@ contains
     real(dp) :: qij(size(gamma, dim=1)) ! qij Working array (used for excitation charges). (nAtom)
     real(dp) :: wnij(size(wij))
     logical :: updwn
+    real(dp) :: vout_ons(size(vin))
 
     @:ASSERT(size(vin) == size(vout))
 
@@ -470,9 +534,120 @@ contains
 
     end if
 
-    vout = vout + ( wij**2 ) * vin
+    if (allocated(onsMEs)) then
+      call onsiteEner(spin, sym, wnij, win, nmatup, iAtomStart, getij, species0, stimc,&
+          & grndEigVecs, onsMEs, orb, vin, vout_ons)
+      vout(:) = vout + vout_ons
+    end if
+    
+    vout(:) = vout(:) + ( wij**2 ) * vin
 
   end subroutine omegatvec
+
+
+  subroutine onsiteEner(spin, sym, wnij, win, nmatup, iAtomStart, getij, species0, stimc,&
+      & grndEigVecs, ons_en, orb, vin, vout)
+
+    logical, intent(in) :: spin
+    character, intent(in) :: sym
+    real(dp), intent(in) :: wnij(:)
+    integer, intent(in) :: win(:)
+    integer, intent(in) :: nmatup
+    integer, intent(in) :: iAtomStart(:)
+    integer, intent(in) :: getij(:,:)
+    integer, intent(in) :: species0(:)
+    real(dp), intent(in) :: stimc(:,:,:)
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+    real(dp), intent(in) :: ons_en(:,:,:,:)
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(in) :: vin(:)
+    real(dp), intent(out) :: vout(:)
+
+    real(dp) :: otmp(orb%mOrb,orb%mOrb,size(species0),2)
+    real(dp) :: fact
+    real(dp) :: onsite(orb%mOrb,orb%mOrb,2)
+    real(dp) :: qq_ij(orb%mOrb,orb%mOrb)
+    logical :: updwn
+    integer :: nmat, nAtom, nOrb
+    integer :: ia, iAt, iSp, iSh, iOrb, iOrb1, iOrb2, ii, jj, mu, nu, ss, sindx(2), iSpin
+    real(dp) :: degeneracy, partTrace
+
+    nmat = size(vin)
+    nAtom = size(species0)
+
+    vout(:) = 0.0_dp
+    otmp(:,:,:,:)  = 0.0_dp
+
+    fact = 1.0_dp
+    if (.not.Spin) then
+      if (sym == 'T') then
+        fact = -1.0_dp
+      end if
+    end if
+
+    if (spin) then
+      ss = 2
+    else
+      ss = 1
+    end if
+
+    do iAt = 1, nAtom
+      iSp = species0(iAt)
+      nOrb = orb%nOrbAtom(iAt)
+      call getOnsME(orb, iSp, ons_en, nOrb, onsite)
+      do ia = 1, nmat
+        call indxov(win, ia, getij, ii, jj)
+        updwn = (win(ia) <= nmatup)
+        call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
+        if (spin) then
+          if (.not. updwn) then
+            sindx = [2, 1]
+          else
+            sindx = [1, 2]
+          end if
+          do iSpin = 1, 2
+            otmp(:nOrb, :nOrb, iAt, iSpin) = otmp(:nOrb, :nOrb, iAt, iSpin) + qq_ij(:nOrb, :nOrb)&
+                & * wnij(ia) * vin(ia) * onsite(:nOrb, :nOrb, sindx(iSpin))
+          end do
+        else
+          ! closed shell
+          otmp(:nOrb, :nOrb, iAt, 1) = otmp(:nOrb, :nOrb, iAt, 1) + 0.5_dp &
+              & * qq_ij(:nOrb, :nOrb) * wnij(ia) * vin(ia)&
+              & * (onsite(:nOrb, :nOrb, 1) + fact * onsite(:nOrb, :nOrb, 2))
+        end if
+      end do
+      ! rotational invariance corection for diagonal part
+      do iSpin = 1, ss
+        do iSh = 1, orb%nShell(iSp)
+          degeneracy = real(2*orb%angShell(iSh, iSp) + 1, dp)
+          partTrace = 0.0_dp
+          do iOrb = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
+            partTrace = partTrace + otmp(iOrb, iOrb, iAt, iSpin)
+          end do
+          partTrace = partTrace / degeneracy
+          do iOrb = orb%posShell(iSh, iSp), orb%posShell(iSh + 1, iSp) - 1
+            otmp(iOrb, iOrb, iAt, iSpin) = otmp(iOrb, iOrb, iAt, iSpin) - partTrace
+          end do
+        end do
+      end do
+    end do
+
+    do ia = 1, nmat
+      call indxov(win, ia, getij, ii, jj)
+      updwn = (win(ia) <= nmatup)
+      ss = 1
+      if (.not. updwn) then
+        ss = 2
+      end if
+      do iAt = 1, nAtom
+        nOrb = orb%nOrbAtom(iAt)
+        call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
+        vout(ia) = vout(ia) + 4.0_dp * wnij(ia) *&
+            & sum(qq_ij(:nOrb, :nOrb) * otmp(:nOrb, :nOrb, iAt, ss))
+      end do
+    end do
+
+  end subroutine onsiteEner
 
 
   !> Multiplies the supermatrix (A+B) with a given vector.
