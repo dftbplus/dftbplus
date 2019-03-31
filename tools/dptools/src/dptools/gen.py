@@ -45,7 +45,15 @@ class Gen:
                 GEN-format.
         """
         with OpenFile(fobj, 'r') as fp:
-            lines = fp.readlines()
+            alllines = fp.readlines()
+
+        # strip out lines starting with hashmarks
+        lines = []
+        for line in alllines:
+            li=line.strip()
+            if not li.startswith("#"):
+                lines.append(li)
+
         words = lines[0].split()
         natom = int(words[0])
         flag = words[1].lower()
