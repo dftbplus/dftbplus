@@ -32,6 +32,7 @@ Example: Geometry of GaAs with 2 atoms in the fractional supercell
 format
 \begin{verbatim}
   2  F
+# This is a comment
   Ga As
   1 1     0.0  0.0  0.0
   2 2     0.25 0.25 0.25
@@ -40,3 +41,6 @@ format
   0.           2.713546     2.713546
   2.713546     0.           2.713546
 \end{verbatim}
+
+{\bf Note} The \dftbp{} input parser as well as the dptools utilities will
+ignore any lines starting with the \# comment mark.
