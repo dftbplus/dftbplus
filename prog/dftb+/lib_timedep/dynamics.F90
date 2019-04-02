@@ -181,12 +181,6 @@ module timeprop_module
     !> intial atomic velocities if supplied
     real(dp), allocatable :: initialVelocities(:,:)
 
-    !> Files for reading the density matrix from disc
-    character(mc), allocatable :: initialDensityMatrices(:)
-
-    !> Weights for multiple densitiy matrices
-    real(dp), allocatable :: DMWeight(:)
-
 end type TElecDynamicsInp
 
 !> Data type for electronic dynamics internal settings
@@ -200,7 +194,7 @@ type TElecDynamics
    integer, allocatable :: species(:), polDirs(:), speciesAll(:)
    character(mc), allocatable :: speciesName(:)
    logical :: tPopulations, tSpinPol=.false.
-   logical :: tRestart, tReadDM, tWriteRestart, tWriteAutotest
+   logical :: tRestart, tWriteRestart, tWriteAutotest
    logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
    type(TScc), allocatable :: sccCalc
    character(mc) :: autotestTag
@@ -220,12 +214,6 @@ type TElecDynamics
    type(NonSccDiff), allocatable :: derivator
    real(dp), allocatable :: latVec(:,:), invLatVec(:,:)
    real(dp), allocatable :: initCoord(:,:)
-
-   !> Files for reading the density matrix from disc
-   character(mc), allocatable :: initialDensityMatrices(:)
-
-   !> Weights for multiple densitiy matrices
-   real(dp), allocatable :: DMWeight(:)
 
    !> count of the number of times dynamics have been initialised
    integer :: nDynamicsInit = 0
@@ -252,7 +240,7 @@ contains
     type(TElecDynamics), intent(out) :: this
 
     !> ElecDynamicsInp instance
-    type(TElecDynamicsInp), intent(inout) :: inp
+    type(TElecDynamicsInp), intent(in) :: inp
 
     !> label for each atomic chemical species
     character(mc), allocatable, intent(in) :: speciesName(:)
@@ -311,16 +299,6 @@ contains
     this%spType = inp%spType
     this%tPopulations = inp%tPopulations
     this%tRestart = inp%tRestart
-
-    if (allocated(inp%initialDensityMatrices)) then
-      call move_alloc(inp%initialDensityMatrices, this%initialDensityMatrices)
-      call move_alloc(inp%DMWeight, this%DMWeight)
-      this%tReadDM = .true.
-    else
-      this%tReadDM = .false.
-    end if
-
-
     this%tWriteRestart = inp%tWriteRestart
     this%phase = inp%phase
     this%writeFreq = inp%writeFreq
@@ -728,7 +706,7 @@ contains
     real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:)
     real(dp) :: time, startTime, timeElec
     integer :: dipoleDat, qDat, energyDat, populDat(2), forceDat, coorDat, ePBondDat
-    integer :: ii, iStep, iSpin
+    integer ::  iStep, iSpin
     type(TPotentials) :: potential
     type(TEnergies) :: energy
     type(TTimer) :: loopTime
@@ -739,9 +717,7 @@ contains
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
     character(4) :: dumpIdx
     logical :: tProbeFrameWrite
-    character(mc) :: fileName
-    complex(dp), allocatable :: rhoTmp(:,:,:)
-
+    
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
     iStep = 0
@@ -757,32 +733,6 @@ contains
         this%initialVelocities(:,:) = this%movedVelo
         this%ReadMDVelocities = .true.
       end if
-    elseif (this%tReadDM) then
-      if (size(this%DMWeight) > 1) then
-        rho(:,:,:) = cmplx(0,0,dp)
-        allocate(rhoTmp(this%nOrbs,this%nOrbs,this%nSpin))
-        do ii = 1, size(this%DMWeight)
-          write(stdOut,*)'Reading ',trim(this%initialDensityMatrices(ii))
-          call readDM(rhoTmp, this%initialDensityMatrices(ii))
-          rho(:,:,:) = rho + this%DMWeight(ii) * rhoTmp
-        end do
-        deallocate(rhoTmp)
-      else
-        write(stdOut,*)'Reading ',trim(this%initialDensityMatrices(1))
-        call readDM(rho, this%initialDensityMatrices(1))
-        ! rho(:,:,:) = this%DMWeight(ii) * rho
-      end if
-      call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-          & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
-          & ErhoPrim, coordAll)
-      !rhoPrim(:,:) = 0.0_dp
-      !do iSpin = 1, this%nSpin
-      !  call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-      !      & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-      !end do
-      if (this%tIons) then
-        this%ReadMDVelocities = .false.
-      end if
     else
       if (iCall > 1 .and. this%tIons) then
         coord(:,:) = this%initCoord
@@ -793,8 +743,6 @@ contains
         this%ReadMDVelocities = .true.
       end if
     end if
-
-
     if (this%tLaser) then
       call getTDFunction(this, startTime)
     end if
@@ -814,11 +762,16 @@ contains
         & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements)
 
+    if (this%tDispersion) then
+      if (this%tPeriodic) then
+        call this%dispersion%updateLatVecs(this%latVec)
+      end if
+      call this%dispersion%updateCoords(neighbourList, img2CentCell, coordAll, this%speciesAll)
+      this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
+    end if
+
     if (this%tForces) then
        totalForce(:,:) = 0.0_dp
-       if (this%tDispersion) then
-         call this%dispersion%updateCoords(neighbourList, img2CentCell, coordAll, this%speciesAll)
-       end if
        call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK, &
             & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0, &
             & pRepCont, coordAll, rhoPrim, ErhoPrim, 0, env)
@@ -1669,7 +1622,7 @@ contains
     Sinv(:,:) = cmplx(T3, 0, dp)
     write(stdOut,"(A)")'S inverted'
 
-    if (.not.(this%tRestart .or. this%tReadDM)) then
+    if (.not.this%tRestart) then
       do iSpin=1,this%nSpin
         T2 = 0.0_dp
         call makeDensityMatrix(T2,Hsq(:,:,iSpin),filling(:,1,iSpin))
@@ -2097,33 +2050,6 @@ contains
     close(dumpBin)
   end subroutine readRestart
 
-
-  !> read an external density matrix
-  subroutine readDM(rho, filename)
-
-    !> Density Matrix
-    complex(dp), intent(out) :: rho(:,:,:)
-
-    !> file to open for the density matrix
-    character(mc), intent(in) :: filename
-
-    integer :: n, nSpin, iSpin, densityMatBin
-    character(lc) :: errorString
-
-    open(newunit=densityMatBin, file=trim(filename), form='unformatted', action='read')
-    read(densityMatBin)n, nSpin
-    if (any(shape(rho) /= [n, n, nSpin])) then
-      write(errorString,"(A,2I6,I2,A,2I6,I2)")"Sizeof file",shape(rho),"not",n,n,nSpin
-      call error(errorString)
-    end if
-
-    do iSpin = 1, nSpin
-      read(densityMatBin)rho(:,:,iSpin)
-    end do
-
-    close(densityMatBin)
-
-  end subroutine readDM
 
 
   !> Write results to file

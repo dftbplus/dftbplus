@@ -5,6 +5,25 @@
 #:include 'common.fypp'
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8
+timeprop/benzene_kick                  #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/H2_singlet                    #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/H2_triplet                    #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/C60_triplet                   #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/NO_onsite                     #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/GNR_periodic_kick             #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/CH3_dftbu_singlet             #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/GNR_periodic_laser            #? OMP_THREADS == 1 and not WITH_MPI
+
+timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI 
+timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI
+
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4
 solvers/Si32C32_ELPA2                  #? WITH_ELSI and MPI_PROCS <= 4
 solvers/Fe4_ELPA_2group                #? WITH_ELSI and MPI_PROCS <= 4 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
@@ -214,25 +233,6 @@ geoopt/Vsi+O_lbfgs                     #? MPI_PROCS <= 4
 geoopt/Vsi+O                           #? MPI_PROCS <= 4
 scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0
 scc/SiC64+V_dynforce                   #? MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
-
-timeprop/benzene_kick                  #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/H2_singlet                    #? OMP_THREADS <= 1 and not WITH_MPI
-timeprop/H2_triplet                    #? OMP_THREADS <= 1 and not WITH_MPI
-timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/C60_triplet                   #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/NO_onsite                     #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/GNR_periodic_kick             #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/CH3_dftbu_singlet             #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/GNR_periodic_laser            #? OMP_THREADS == 1 and not WITH_MPI
-
-timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI 
-timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI
 
 transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
