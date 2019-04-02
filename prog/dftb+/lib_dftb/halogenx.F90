@@ -7,46 +7,31 @@
 
 #:include 'common.fypp'
 
-!> Contains subroutines to add additiona to repulsive pair contributions
+!> Contains subroutines to add addition to repulsive pair contributions involving halogens
 module halogenX
   use assert
-  use accuracy, only : dp
+  use accuracy, only : dp, mc
   use vdwdata
-  use message, only : warning
+  use constants, only : AA__Bohr
+  use message
   implicit none
   private
 
-  public :: TRepAdditionsInp
-  public :: TRepAdditions, TRepAdditions_init
-
-
-  !> Type for input variables to set repulsive pairwise additions to the DFTB model
-  type :: TRepAdditionsInp
-
-    !> Correction from http://dx.doi.org/10.1021/ct5009137
-    logical :: tHalogen
-
-  end type TRepAdditionsInp
-
+  public :: THalogenX, THalogenX_init
 
   !> Type for repulsive pairwise additions
-  type :: TRepAdditions
+  type :: THalogenX
 
     private
-
-    !> Correction from http://dx.doi.org/10.1021/ct5009137
-    logical :: tHalogen
-    real(dp) :: c(3)
-    real(dp), allocatable :: dij(:,:)
 
   contains
 
     procedure :: getCutOff
-    procedure :: getEnergy
-    procedure :: getForces
-    procedure :: getStress
+    !procedure :: getEnergy
+    !procedure :: getForces
+    !procedure :: getStress
 
-  end type TRepAdditions
+  end type THalogenX
 
   !> Switching radius as multipliers of vdw radii
   real(dp), parameter :: R0 = 0.7_dp
@@ -65,52 +50,70 @@ module halogenX
 
 contains
 
+  !> Initialise structure
+  subroutine THalogenX_init(this, species, speciesNames)
 
-  subroutine TRepAdditions_init(this, inp, species, speciesNames)
+    type(THalogenX), intent(out) :: this
 
-    !>
+    !> Species for each atom
     integer, intent(in) :: species(:)
 
     !> Names of the atom types
     character(*), intent(in) :: speciesNames(:)
 
-  end subroutine TRepAdditions_init
+    integer :: iSp1, iSp2
+    character(mc) :: spName1, spName2
+
+    do iSp1 = 1, maxval(species)
+      spName1 = speciesNames(iSp1)
+      if (.not. any(spName1 == ["N","O"])) then
+        cycle
+      end if
+      do iSp2 = 1, maxval(species)
+        spName2 = speciesNames(iSp2)
+        if (.not. any(spName2 == ["Cl","Br"]) .and. spName2 /= "I") then
+          cycle
+        end if
+        write(*,*)iSp1,iSp2,trim(spName1),trim(spName2)
+      end do
+    end do
+
+  end subroutine THalogenX_init
 
 
   !> Returns the distance over which the halogen correction decays
-  pure function getCutOff(speciesNames)
+  function getCutOff(this, speciesNames)
+
+    !> instance of the correction
+    class(THalogenX), intent(in) :: this
 
     !> Names of the atom types
     character(*), intent(in) :: speciesNames(:)
 
-    integer :: nSpecies, iSp1m iSp2
-    real(dp) :: dMax, radius
-    character(mc) :: spName1, spName2
+    real(dp) :: getCutOff
 
-    real(dp), parameter :: minInteraction = 1.0E-20_dp
+    real(dp) :: dMax
 
-    nSpecies = size(speciesNames)
+    ! energy in kcal/mol for a pair at the cutoff distance
+    real(dp), parameter :: minInteraction = 1.0E-14_dp
 
-    do iSp1 = 1, size(speciesNames)
-      spName1 = speciesNames(iSp1)
-      call getVdwData(speciesNames(iSp1), radius, found=tFoundRadius)
-      do iSp2 = 1, size(speciesNames)
+    if ( .not. (any(speciesNames == ["Cl","Br"]) .or. any(speciesNames == "I")) .and.&
+        &.not. any(speciesNames == ["N","O"]) ) then
+      call error("No relevant combinations of atomic elements present for halogen correction")
+    end if
 
-        spName2 = speciesNames(iSp2)
+    ! add on the extra distance over which the interaction decays
+    dMax = maxval(dab) + (-log(2.0_dp * minInteraction / c(1)) / c(2))**(1.0_dp/c(3))
 
-
-        
-      end do
-    end do
-
-    ! add on the extra distance over which
-    dmax = dmax + (-log(2.0_dp * minInteraction / c1) / c2)**(1.0_dp/c3)
+    getCutOff = dMax * AA__Bohr
 
   end function getCutOff
 
 
   !> DFTB3-X term (Eqn. 5 of 10.1021/ct5009137)
   pure function fx(R, c, dab)
+
+    real(dp) :: fx
 
     real(dp), intent(in) :: R
     real(dp), intent(in) :: c(3)
@@ -153,6 +156,5 @@ contains
     end if
 
   end function halogendSigma
-
 
 end module halogenX

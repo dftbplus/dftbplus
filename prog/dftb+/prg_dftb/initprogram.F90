@@ -57,6 +57,7 @@ module initprogram
   use scc
   use onsitecorrection
   use h5correction
+  use halogenX
   use sccinit
   use slakocont
   use repcont
