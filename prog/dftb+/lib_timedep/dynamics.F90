@@ -2113,7 +2113,7 @@ contains
     ! for kick simulations we only need the dipole moment
     if (.not. this%tKick) then
 
-       write(energydat, '(9F25.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
+       write(energydat, '(9F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
             & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
 
        if (mod(iStep, this%writeFreq) == 0) then
