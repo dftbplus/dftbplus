@@ -996,6 +996,7 @@ following properties:
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
+  \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
   \kw{CustomisedHubbards} & p & & & \\
@@ -1236,6 +1237,9 @@ following properties:
 \item[\is{Dispersion}] Specifies which kind of dispersion correction
   to apply. See p.~\pref{sec:dftbp.Dispersion}.
 
+\item[\is{OnSiteCorrection}] Used to include the on-site matrix elements of
+  Dom\'inguez {\it et al.}~\cite{dominguez15}. See p.~\pref{sec:dftbp.Onsites}.
+  
 \item[\is{Differentiation}] Specifies how to calculate finite difference
   derivatives in the force routines. See p.~\pref{sec:dftbp.Differentiation}.
 
@@ -1635,8 +1639,10 @@ distribution:
 \subsubsection{SpinConstants}
 \label{sec:dftbp.SpinConstants}
 
-For each atomic species in the calculation the spin coupling constants for that
-atom must be specified.
+This environment suplies the atomic constants required for either spin polarised
+calculations or when evaluating properties which depend on spin interactions
+(triplet excitations for example).  In these cases, for each atomic species in
+the calculation the spin coupling constants for that atom must be specified.
 
 When \is{OrbitalResolvedSCC} = \is{No}, an extra keyword in this block controls
 whether the spin constants are resolved by shell or are identical for all
@@ -2775,6 +2781,35 @@ Hamiltonian = DFTB {
   :
 }
 \end{verbatim}
+
+\subsection{On site corrections}
+\label{sec:dftbp.Onsites}
+
+This block enables corrections for on-site matrix elements which improve the
+description of multi-centre integrals~\cite{garcia14Thesis} leading to, for
+example, improved hydrogen-bond energies~\cite{dominguez15}. 
+
+For each chemical species, the spin-same-spin and spin-different-spin constants
+should be specified for all combinations of atomic shells. {\bf note:} the
+matrix of constants is symmetric and the purely s-with-s entries are zero (the
+code ignores their value due to symmetry).
+
+Example:
+\begin{verbatim}
+OnSiteCorrection= {
+    # same spin oxygen
+    Ouu = {0.00000  0.08672
+           0.08672 -0.00523}
+    # hetero-spin oxygen
+    Oud = {0.00000  0.14969
+           0.14969  0.03834}
+    # H all zero
+    Huu = {0}
+    Hud = {0}
+}
+\end{verbatim}
+
+Some on-site constants are given in appendix~\ref{app:onsiteconst}.
 
 \subsection{Differentiation}
 \label{sec:dftbp.Differentiation}
