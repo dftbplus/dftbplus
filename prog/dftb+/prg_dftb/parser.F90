@@ -5251,7 +5251,7 @@ contains
         case(1)
           sindx = ""
         case(2:9)
-          write(sindx,'(A)') ind(ii)   
+          write(sindx,'(I1)') ind(ii)   
         case(10:)
           call error("Exceeded maximum number of shells with the same angular momentum (9)")     
         end select 
