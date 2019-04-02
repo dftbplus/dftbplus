@@ -132,7 +132,7 @@ contains
 
   end subroutine initQFromShellChrg
 
-  !> Initialise charge vector from user-defined custom charges.
+  !> Initialise charge vector from user-defined reference atomic-charges.
   subroutine initQFromUsrChrg(qq, qAtShell, species, orb)
 
     !> The charges per lm,atom,spin

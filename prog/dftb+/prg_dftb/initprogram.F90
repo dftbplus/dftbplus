@@ -2062,11 +2062,7 @@ contains
 
     tWriteChrgAscii = input%ctrl%tWriteChrgAscii
 
-    !if (tReadChrg) then
-      tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
-    !else
-    !  tSkipChrgChecksum = .false.
-    !end if
+    tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
 
     if (tSccCalc) then
       do iAt = 1, nAtom

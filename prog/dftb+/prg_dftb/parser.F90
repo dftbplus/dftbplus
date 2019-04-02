@@ -5148,18 +5148,24 @@ contains
   !> This subroutine overrides the neutral (reference) atom electronic occupation 
   subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, &
       & customOcc)
+    !> Node to be parsed
     type(fnode), pointer, intent(in) :: root
+    !> Orbitals infos
     type(TOrbitals), intent(in) :: orb
+    !> Default reference occupations
     real(dp), intent(in) :: referenceOcc(:,:)
+    !> Geometry infos
     type(TGeometry), intent(in) :: geo
+    !> Atom indices corresponding to user defined reference atomic charges
     type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+    !> User-defined reference atomic charges 
     real(dp), allocatable, intent(out) :: customOcc(:,:)
 
     type(fnode), pointer :: node, container, child
     type(fNodeList), pointer :: nodes
     type(string) :: buffer
-    integer :: nCustomOcc, iCustomOcc, iShell, iSpecies, nAtom
-    character(sc) :: shellname
+    integer :: nCustomOcc, iCustomOcc, iShell, iSpecie, nAtom
+    character(sc), allocatable :: shellnames(:)
     logical, allocatable :: atomOverriden(:)
 
     call getChild(root, "CustomReferenceOccupations", container, requested=.false.)
@@ -5186,22 +5192,63 @@ contains
             & already been overriden")
       end if
       atomOverriden(iAtInRegion(iCustomOcc)%data) = .true.
-      iSpecies = geo%species(iAtInRegion(iCustomOcc)%data(1))
-      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecies)) then
+      iSpecie = geo%species(iAtInRegion(iCustomOcc)%data(1))
+      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecie)) then
         call detailedError(child, "All atoms in a ReferenceOccupation&
             & declaration must have the same type.")
       end if
-      do iShell = 1, orb%nShell(iSpecies)
-        write(shellname, "(A)") orbitalNames(orb%angShell(iShell, iSpecies) + 1)
-          call getChildValue(node, shellname, customOcc(iShell, iCustomOcc), &
-            & default=referenceOcc(iShell, iSpecies))
+      call getOrbitalNames(iSpecie, orb, shellnames)
+      do iShell = 1, orb%nShell(iSpecie)
+          call getChildValue(node, shellnames(iShell), customOcc(iShell, iCustomOcc), &
+            & default=referenceOcc(iShell, iSpecie))
       end do
+      deallocate(shellnames)
     end do
     if (associated(nodes)) then
       call destroyNodeList(nodes)
     end if
 
   end subroutine readCustomReferenceOcc
+
+  !> Builds a unique names for the atomic orbitals 
+  !> Assign 's', 'p', 'd' to first occurring shells, then 's2', 'p2', ... 
+  subroutine getOrbitalNames(iSpecie, orb, shellnames) 
+    !> atomic specie    
+    integer, intent(in) :: iSpecie    
+    !> orbital info
+    type(TOrbitals), intent(in) :: orb
+    !> output string naming the atomic orbital  
+    character(sc), intent(out), allocatable :: shellnames(:)
+
+    integer :: ii, jj 
+    integer, allocatable :: ind(:)
+    !character(sc), allocatable :: names(:)
+    character(1) :: sindx
+
+    !allocate(names(orb%nShell(iSpecie)))
+    allocate(shellnames(orb%nShell(iSpecie)))
+    allocate(ind(orb%nShell(iSpecie)))
+    ind = 1 
+
+    do ii = 1, orb%nShell(iSpecie) 
+      write(shellnames(ii), "(A)") orbitalNames(orb%angShell(ii, iSpecie) + 1)
+      if (any(shellnames(ii) == shellnames(1:ii-1))) then
+        ind(ii) = ind(ii) + 1
+        select case (ind(ii))
+        case(1)
+          sindx = ""
+        case(2:9)
+          write(sindx,'(A)') ind(ii)   
+        case(10:)
+          call error("Exceeded maximum number of shells with the same angular momentum (9)")     
+        end select 
+        shellnames(ii) = trim(adjustl(shellnames(ii)))//sindx
+      end if
+      print*,shellnames(ii)
+    end do
+    deallocate(ind)  
+
+  end subroutine getOrbitalNames  
 
   !> Reads the parallel block.
   subroutine readParallel(root, input)
