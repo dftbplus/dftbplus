@@ -3876,31 +3876,10 @@ contains
     call getChildValue(node, "WriteRestart", input%tWriteRestart, .true.)
     call getChildValue(node, "RestartFrequency", input%restartFreq, input%Steps / 10)
     call getChildValue(node, "Forces", input%tForces, .false.)
-!    call getChildValue(node, "WritePairWiseEnergy", input%tPairWise, .false.)
     call getChildValue(node, "WriteBondEnergy", input%tBondE, .false.)
     call getChildValue(node, "WriteBondOrder", input%tBondO, .false.)
     call getChildValue(node, "OnsiteGradients", input%tOnsiteGradients, .false.)
     call getChildValue(node, "Pump", input%tPump, .false.)
-
-    ! input block for reading starting density matrices
-    call getChildValue(node, "ReadDensityMatrix", value1, "", child=child,  allowEmptyValue=.true.,&
-        & list=.true.)
-    call getChildren(child, "File", children)
-    if (getLength(children) > 0) then
-      allocate(input%initialDensityMatrices(getLength(children)))
-      allocate(input%DMWeight(getLength(children)))
-      do ii = 1, getLength(children)
-        call getItem1(children, ii, child2)
-        call getChildValue(child2, "Name",  buffer)
-        input%initialDensityMatrices(ii) = unquote(char(buffer))
-        if (getLength(children) > 1) then
-          call getChildValue(child2, "Weight", input%DMWeight(ii), 1.0_dp)
-        else
-          input%DMWeight(:) = 1.0_dp
-        end if
-      end do
-    end if
-    call destroyNodeList(children)
 
     if (input%tPump) then
       call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
