@@ -75,6 +75,7 @@ scc/CH2_n_3rdfull                      #? MPI_PROCS <= 1
 scc/CH2_n_3rdfull_damp                 #? MPI_PROCS <= 1
 scc/GaAs_2_restart                     #? MPI_PROCS <= 1
 scc/SiH_custom-ref                     #? MPI_PROCS <= 1
+scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 

@@ -2,7 +2,7 @@ Geometry = GenFormat {
   2 C
   H
   1 1  0.0000000 0.00000000 0.00000000
-  2 1  0.6000000 0.00000000 0.00000000
+  2 1  1.0000000 0.00000000 0.00000000
 }
 
 Hamiltonian = DFTB {
@@ -26,6 +26,7 @@ Hamiltonian = DFTB {
     }
   }  
 
+  Eigensolver=DivideAndConquer{}
 
 }
 
@@ -37,6 +38,7 @@ Parallel = {
 
 Options {
   WriteAutotestTag = Yes
+  #WriteHS = Yes
 }
 
 ParserOptions {
