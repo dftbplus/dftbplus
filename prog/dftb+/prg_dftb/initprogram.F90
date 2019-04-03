@@ -958,7 +958,7 @@ contains
     type(H5Corr), allocatable :: pH5Correction
     logical :: tHHRepulsion
 
-    type(THalogenX), allocatable :: halogenX
+    type(THalogenX), allocatable :: halogenXCorrection
 
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
@@ -1347,8 +1347,8 @@ contains
     species0(:) = input%geom%species(:)
 
     if (tSccCalc .and. input%ctrl%tHalogenX) then
-      allocate(halogenX)
-      call THalogenX_init(halogenX, species0, speciesName)
+      allocate(halogenXCorrection)
+      call THalogenX_init(halogenXCorrection, species0, speciesName)
     end if
 
     allocate(mass(nAtom))
@@ -1826,6 +1826,10 @@ contains
       end if
       mCutOff = max(mCutOff, dispersion%getRCutOff())
 
+    end if
+
+    if (allocated(halogenXCorrection)) then
+      mCutOff = max(mCutOff, halogenXCorrection%getRCutOff())
     end if
 
     if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then

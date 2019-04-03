@@ -24,27 +24,29 @@ module halogenX
 
     private
 
+    integer, allocatable :: relevantSpecies(:,:)
+    real(dp) :: maxDab = 0.0_dp
+
   contains
 
-    procedure :: getCutOff
-    !procedure :: getEnergy
-    !procedure :: getForces
+    procedure :: getRCutOff
+    !procedure :: getEnergies
+    !procedure :: addGradients
     !procedure :: getStress
 
   end type THalogenX
 
-  !> Switching radius as multipliers of vdw radii
+  ! energy in kcal/mol for pair truncation
+  real(dp), parameter :: minInteraction = 1.0E-14_dp
+
+  !> Switching radii as multipliers of vdw radii
   real(dp), parameter :: R0 = 0.7_dp
   real(dp), parameter :: R1 = 0.8_dp
 
   !> Parameters from table 3 of 10.1021/ct5009137 in AA
   real(dp), parameter :: dab(6) = [1.237_dp, 1.099_dp, 1.313_dp, 1.526_dp, 1.349_dp, 1.521_dp]
 
-  !> Atomic numbers of pairs of corrected atoms
-  integer, parameter :: pairs(6,2) = reshape([16,16,16,15,15,15,17,35,53,17,35,53],[6,2],&
-      & order=[1,2])
-
-  !> C constants from table 3 of 10.1021/ct5009137 in kcal/mol, some weird power of inverse distance
+  !> c constants from table 3 of 10.1021/ct5009137 in kcal/mol, some weird power of inverse distance
   !> and dimensionless respectively
   real(dp), parameter :: c(3) = [7.761_dp, 0.050_dp, 4.518_dp]
 
@@ -62,59 +64,67 @@ contains
     character(*), intent(in) :: speciesNames(:)
 
     logical :: tHalogen
-    integer :: iSp1, iSp2
+    integer :: iSp1, iSp2, ii, jj, nSpecies
     character(mc) :: spName1, spName2
 
+    nSpecies = maxval(species)
     tHalogen = .false.
-    do iSp1 = 1, maxval(species)
+    allocate(this%relevantSpecies(nSpecies, nSpecies))
+    this%relevantSpecies(:,:) = 0
+    this%maxDab = 0.0_dp
+    do iSp1 = 1, nSpecies
       spName1 = speciesNames(iSp1)
       if (.not. any(spName1 == ["N","O"])) then
         cycle
       end if
-      do iSp2 = 1, maxval(species)
+      do iSp2 = 1, nSpecies
         spName2 = speciesNames(iSp2)
         if (.not. any(spName2 == ["Cl","Br"]) .and. spName2 /= "I") then
           cycle
         end if
-        write(*,*)iSp1,iSp2,trim(spName1),trim(spName2)
+
+        select case(trim(spName1)//trim(spName2))
+        case('OCl')
+          this%relevantSpecies(iSp1,iSp2) = 1
+        case('OBr')
+          this%relevantSpecies(iSp1,iSp2) = 2
+        case('OI')
+          this%relevantSpecies(iSp1,iSp2) = 3
+        case('NCl')
+          this%relevantSpecies(iSp1,iSp2) = 4
+        case('NBr')
+          this%relevantSpecies(iSp1,iSp2) = 5
+        case('NI')
+          this%relevantSpecies(iSp1,iSp2) = 6
+        end select
+        this%maxDab = max(this%maxDab, dab(this%relevantSpecies(iSp1,iSp2)))
         tHalogen = .true.
       end do
     end do
 
     if (.not. tHalogen) then
-      call error("No suitable O-X or N-X halogen combinations")
+      call error("No suitable O-X or N-X halogen combinations for this correction")
     end if
 
   end subroutine THalogenX_init
 
 
   !> Returns the distance over which the halogen correction decays
-  function getCutOff(this, speciesNames)
+  pure function getRCutOff(this)
 
     !> instance of the correction
     class(THalogenX), intent(in) :: this
 
-    !> Names of the atom types
-    character(*), intent(in) :: speciesNames(:)
+    real(dp) :: getRCutOff
 
-    real(dp) :: getCutOff
+    real(dp) :: cutoff
 
-    real(dp) :: dMax
+    ! Distance over which the interaction decays to minInteraction
+    cutoff = this%maxDab + (-log(2.0_dp * minInteraction / c(1)) / c(2))**(1.0_dp/c(3))
 
-    ! energy in kcal/mol for a pair at the cutoff distance
-    real(dp), parameter :: minInteraction = 1.0E-14_dp
+    getRCutOff = cutoff * AA__Bohr
 
-    if ( .not. (any(speciesNames == ["Cl","Br"]) .or. any(speciesNames == "I")) .and.&
-        &.not. any(speciesNames == ["N","O"]) ) then
-      call error("No relevant combinations of atomic elements present for halogen correction")
-    end if
-
-    ! add on the extra distance over which the interaction decays
-    dMax = maxval(dab) + (-log(2.0_dp * minInteraction / c(1)) / c(2))**(1.0_dp/c(3))
-
-    getCutOff = dMax * AA__Bohr
-
-  end function getCutOff
+  end function getRCutOff
 
 
   !> DFTB3-X term (Eqn. 5 of 10.1021/ct5009137)
