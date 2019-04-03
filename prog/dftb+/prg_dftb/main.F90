@@ -270,6 +270,10 @@ contains
         call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
       end if
 
+      if (allocated(halogenXCorrection)) then
+        call halogenXCorrection%getEnergies(coord, neighbourList, img2CentCell)
+      end if
+
       call resetExternalPotentials(potential)
 
       if (tReadShifts) then

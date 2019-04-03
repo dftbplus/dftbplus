@@ -13,6 +13,7 @@ module halogenX
   use accuracy, only : dp, mc
   use vdwdata
   use constants, only : AA__Bohr
+  use periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use message
   implicit none
   private
@@ -26,11 +27,13 @@ module halogenX
 
     integer, allocatable :: relevantSpecies(:,:)
     real(dp) :: maxDab = 0.0_dp
+    integer :: nAtom
+    real(dp) :: cutOff = 0.0_dp
 
   contains
 
     procedure :: getRCutOff
-    !procedure :: getEnergies
+    procedure :: getEnergies
     !procedure :: addGradients
     !procedure :: getStress
 
@@ -53,12 +56,12 @@ module halogenX
 contains
 
   !> Initialise structure
-  subroutine THalogenX_init(this, species, speciesNames)
+  subroutine THalogenX_init(this, species0, speciesNames)
 
     type(THalogenX), intent(out) :: this
 
-    !> Species for each atom
-    integer, intent(in) :: species(:)
+    !> Species for each atom in central cell
+    integer, intent(in) :: species0(:)
 
     !> Names of the atom types
     character(*), intent(in) :: speciesNames(:)
@@ -67,7 +70,8 @@ contains
     integer :: iSp1, iSp2, ii, jj, nSpecies
     character(mc) :: spName1, spName2
 
-    nSpecies = maxval(species)
+    nSpecies = maxval(species0)
+    this%nAtom = size(species0)
     tHalogen = .false.
     allocate(this%relevantSpecies(nSpecies, nSpecies))
     this%relevantSpecies(:,:) = 0
@@ -110,22 +114,46 @@ contains
 
 
   !> Returns the distance over which the halogen correction decays
-  pure function getRCutOff(this)
+  function getRCutOff(this)
 
     !> instance of the correction
-    class(THalogenX), intent(in) :: this
+    class(THalogenX), intent(inout) :: this
 
     real(dp) :: getRCutOff
 
     real(dp) :: cutoff
 
     ! Distance over which the interaction decays to minInteraction
-    cutoff = this%maxDab + (-log(2.0_dp * minInteraction / c(1)) / c(2))**(1.0_dp/c(3))
-
-    getRCutOff = cutoff * AA__Bohr
+    this%cutoff = this%maxDab + (-log(2.0_dp * minInteraction / c(1)) / c(2))**(1.0_dp/c(3))
+    this%cutoff = this%cutoff * AA__Bohr
+    getRCutOff = this%cutoff
 
   end function getRCutOff
 
+
+  subroutine getEnergies(this, coords, neigh, img2CentCell)
+
+    !> instance of the correction
+    class(THalogenX), intent(in) :: this
+
+    !> Current coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> Updated mapping to central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    integer, allocatable :: nNeigh(:)
+    integer :: iAt1, iNeig, iAt2, iAt2f
+
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+
+
+
+  end subroutine getEnergies
 
   !> DFTB3-X term (Eqn. 5 of 10.1021/ct5009137)
   pure function fx(R, c, dab)

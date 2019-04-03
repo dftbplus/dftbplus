@@ -877,6 +877,9 @@ module initprogram
   !> list of atoms in the central cell (or device region if transport)
   integer, allocatable :: iAtInCentralRegion(:)
 
+  !> Correction for {O,N}-X bonds
+  type(THalogenX), allocatable :: halogenXCorrection
+
 contains
 
 
@@ -957,8 +960,6 @@ contains
     ! H5 correction
     type(H5Corr), allocatable :: pH5Correction
     logical :: tHHRepulsion
-
-    type(THalogenX), allocatable :: halogenXCorrection
 
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
