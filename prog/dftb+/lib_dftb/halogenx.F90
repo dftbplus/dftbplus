@@ -12,7 +12,7 @@ module halogenX
   use assert
   use accuracy, only : dp, mc
   use vdwdata
-  use constants, only : AA__Bohr
+  use constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
   use periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use message
   implicit none
@@ -26,6 +26,7 @@ module halogenX
     private
 
     integer, allocatable :: relevantSpecies(:,:)
+    real(dp), allocatable :: radii(:)
     real(dp) :: maxDab = 0.0_dp
     integer :: nAtom
     real(dp) :: cutOff = 0.0_dp
@@ -75,9 +76,14 @@ contains
     tHalogen = .false.
     allocate(this%relevantSpecies(nSpecies, nSpecies))
     this%relevantSpecies(:,:) = 0
+    allocate(this%radii(nSpecies))
+    this%radii(:) = 0.0_dp
     this%maxDab = 0.0_dp
     do iSp1 = 1, nSpecies
       spName1 = speciesNames(iSp1)
+      if (any(spName1 == ["N","O","I"]) .or. any(spName1 == ["Cl","Br"])) then
+        call getVdwData(spName1, this%radii(iSp1))
+      end if
       if (.not. any(spName1 == ["N","O"])) then
         cycle
       end if
@@ -86,7 +92,6 @@ contains
         if (.not. any(spName2 == ["Cl","Br"]) .and. spName2 /= "I") then
           cycle
         end if
-
         select case(trim(spName1)//trim(spName2))
         case('OCl')
           this%relevantSpecies(iSp1,iSp2) = 1
@@ -101,6 +106,7 @@ contains
         case('NI')
           this%relevantSpecies(iSp1,iSp2) = 6
         end select
+        this%relevantSpecies(iSp2,iSp1) = this%relevantSpecies(iSp1,iSp2)
         this%maxDab = max(this%maxDab, dab(this%relevantSpecies(iSp1,iSp2)))
         tHalogen = .true.
       end do
@@ -131,13 +137,17 @@ contains
   end function getRCutOff
 
 
-  subroutine getEnergies(this, coords, neigh, img2CentCell)
+  subroutine getEnergies(this, atomE, coords, species, neigh, img2CentCell)
 
     !> instance of the correction
     class(THalogenX), intent(in) :: this
 
+    real(dp), intent(out) :: atomE(:)
+
     !> Current coordinates
     real(dp), intent(in) :: coords(:,:)
+
+    integer, intent(in) :: species(:)
 
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neigh
@@ -146,39 +156,58 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     integer, allocatable :: nNeigh(:)
-    integer :: iAt1, iNeig, iAt2, iAt2f
+    integer :: iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
+    real(dp) :: r, rvdw, eTmp
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
 
+    atomE(:) = 0.0_dp
 
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, nNeigh(iAt1)
+        iAt2 = neigh%iNeighbour(iNeigh,iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        if (this%relevantSpecies(iSp1,iSp2) /= 0) then
+          r = sqrt(neigh%neighDist2(iNeigh, iAt1))
+          rvdw = this%radii(iSp1) + this%radii(iSp2)
+          eTmp = halogenSigma(r,rvdw) * fx(r, dab(this%relevantSpecies(iSp1,iSp2)))
+          eTmp = eTmp&
+              & + (1.0_dp-halogenSigma(r,rvdw)) * fx(R0*rvdw, dab(this%relevantSpecies(iSp1,iSp2)))
+          eTmp = eTmp * 0.5_dp * kcal_mol__Hartree
+          atomE(iAt1) = atomE(iAt1) + 0.5_dp * eTmp
+          atomE(iAt2f) = atomE(iAt2f) + 0.5_dp * eTmp
+        end if
+      end do
+    end do
 
   end subroutine getEnergies
 
   !> DFTB3-X term (Eqn. 5 of 10.1021/ct5009137)
-  pure function fx(R, c, dab)
+  pure function fx(R, dab)
 
     real(dp) :: fx
 
     real(dp), intent(in) :: R
-    real(dp), intent(in) :: c(3)
     real(dp), intent(in) :: dab
 
-    fx = 0.5_dp * c(1) * exp(-c(2) * (R - dab)**c(3))
+    fx = 0.5_dp * c(1) * exp(-c(2) * (R * Bohr__AA - dab)**c(3))
 
   end function fx
 
-
   !> Switch function (Eqn. 8 of 10.1021/ct5009137)
-  pure function halogenSigma(R) result(out)
+  pure function halogenSigma(R, rvdw) result(out)
     real(dp), intent(in) :: R
+    real(dp), intent(in) :: rvdw
     real(dp) :: out
 
     real(dp) :: x
 
-    if (R < R0) then
+    if (R < R0*rvdw) then
       out = 1.0_dp
-    elseif (R > R1) then
+    elseif (R > R1*rvdw) then
       out = 0.0_dp
     else
       x = (R - R0) / (R1 - R0)

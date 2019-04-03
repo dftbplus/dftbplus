@@ -2295,7 +2295,7 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2440,6 +2440,9 @@ contains
 
     !> Is the free energy correctly defined
     logical, intent(in) :: tDefinedFreeE
+
+    !> Is there a halogen bond correction present?
+    logical, intent(in) :: tHalogenX
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2765,6 +2768,10 @@ contains
     if (tDispersion) then
       write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
           & energy%eDisp * Hartree__eV, 'eV'
+    end if
+    if (tHalogenX) then
+      write(fd, format2U) 'Halogen correction energy', energy%eHalogenX, 'H',&
+          & energy%eHalogenX * Hartree__eV, 'eV'
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'

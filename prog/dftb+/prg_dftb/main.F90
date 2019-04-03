@@ -271,7 +271,9 @@ contains
       end if
 
       if (allocated(halogenXCorrection)) then
-        call halogenXCorrection%getEnergies(coord, neighbourList, img2CentCell)
+        call halogenXCorrection%getEnergies(energy%atomHalogenX, coord, species, neighbourList,&
+            & img2CentCell)
+        energy%EHalogenX = sum(energy%atomHalogenX(iAtInCentralRegion))
       end if
 
       call resetExternalPotentials(potential)
@@ -447,7 +449,7 @@ contains
               & tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-              & iAtInCentralRegion, electronicSolver, tDefinedFreeE)
+              & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection))
         end if
 
         if (tConverged .or. tStopScc) then
@@ -3198,8 +3200,8 @@ contains
         & + energy%Eext + energy%e3rd + energy%eOnSite
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
         & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
-    energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
-    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
+    energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
+    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
     energy%EMermin = energy%Etotal - sum(TS)
     ! extrapolated to 0 K
     energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
