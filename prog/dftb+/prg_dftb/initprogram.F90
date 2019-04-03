@@ -958,6 +958,8 @@ contains
     type(H5Corr), allocatable :: pH5Correction
     logical :: tHHRepulsion
 
+    type(THalogenX), allocatable :: halogenX
+
     character(lc) :: tmpStr
     integer, allocatable :: tmpir1(:)
 
@@ -1273,6 +1275,7 @@ contains
         sccInp%h5Correction = pH5Correction
       end if
 
+
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
       if (tExtChrg) then
@@ -1342,6 +1345,11 @@ contains
     allocate(species0(nAtom))
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
+
+    if (tSccCalc .and. input%ctrl%tHalogenX) then
+      allocate(halogenX)
+      call THalogenX_init(halogenX, species0, speciesName)
+    end if
 
     allocate(mass(nAtom))
     mass = speciesMass(species0)

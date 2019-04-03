@@ -61,9 +61,11 @@ contains
     !> Names of the atom types
     character(*), intent(in) :: speciesNames(:)
 
+    logical :: tHalogen
     integer :: iSp1, iSp2
     character(mc) :: spName1, spName2
 
+    tHalogen = .false.
     do iSp1 = 1, maxval(species)
       spName1 = speciesNames(iSp1)
       if (.not. any(spName1 == ["N","O"])) then
@@ -75,8 +77,13 @@ contains
           cycle
         end if
         write(*,*)iSp1,iSp2,trim(spName1),trim(spName2)
+        tHalogen = .true.
       end do
     end do
+
+    if (.not. tHalogen) then
+      call error("No suitable O-X or N-X halogen combinations")
+    end if
 
   end subroutine THalogenX_init
 

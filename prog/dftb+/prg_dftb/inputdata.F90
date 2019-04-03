@@ -380,6 +380,8 @@ module inputdata_module
     real(dp), allocatable :: h5ElementPara(:)
     ! H5 correction end
 
+    !> Halogen X correction
+    logical :: tHalogenX = .false.
 
     !> Old repulsive
     logical :: useBuggyRepSum
@@ -506,7 +508,7 @@ contains
 
   !> Mark data structure as initialised
   subroutine InputData_init(self)
-    type(inputData), intent(out) :: self
+    type(inputData), intent(inout) :: self
 
     self%tInitialized = .true.
 

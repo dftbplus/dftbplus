@@ -1552,6 +1552,8 @@ contains
       ctrl%tMulliken = .true.
       call readHCorrection(node, geo, ctrl)
 
+      call getChildValue(node, "HalogenX", ctrl%tHalogenX, .false.)
+
     end if ifSCC
 
     ! Spin calculation
