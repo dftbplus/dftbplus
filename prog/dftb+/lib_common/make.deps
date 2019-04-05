@@ -3,8 +3,8 @@ accuracy.o = accuracy.o
 _mod_accuracy: accuracy.o
 _mod_accuracy = $(accuracy.o)
 
-assert.o: common.fypp _mod_io
-assert.o = assert.o $(common.fypp) $(_mod_io)
+assert.o: common.fypp _mod_globalenv _mod_io
+assert.o = assert.o $(common.fypp) $(_mod_globalenv) $(_mod_io)
 _mod_assert: assert.o
 _mod_assert = $(assert.o)
 

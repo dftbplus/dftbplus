@@ -42,6 +42,7 @@ spin/H2                                #? MPI_PROCS <= 1
 analysis/C2H4_localise                 #? not WITH_MPI
 analysis/graphene_localise             #? not WITH_MPI
 
+onsite/H2O                             #? MPI_PROCS <= 1
 dftb+u/CH3                             #? MPI_PROCS <= 1
 dispersion/2H2O                        #? MPI_PROCS <= 1
 dispersion/2H2O_uff                    #? MPI_PROCS <= 1
@@ -79,6 +80,8 @@ spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/NO_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
+timedep/N2_onsite                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/propadiene_OscWindow           #? WITH_ARPACK and MPI_PROCS <= 1
 
 analysis/H2O_ESP                       #? MPI_PROCS <= 1
@@ -94,6 +97,8 @@ spinorbit/Fe2_dual_field               #? MPI_PROCS <= 2
 spinorbit/Fe2_dual_Fermi               #? MPI_PROCS <= 2
 spinorbit/Si_2                         #? MPI_PROCS <= 1
 dispersion/DNA_uff                     #? MPI_PROCS <= 4
+onsite/Au13                            #? MPI_PROCS <= 4
+onsite/Au13pSIC                        #? MPI_PROCS <= 4
 
 timedep/C4H6-S1-Force                  #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C4H6-Singlet                   #? WITH_ARPACK and MPI_PROCS <= 1

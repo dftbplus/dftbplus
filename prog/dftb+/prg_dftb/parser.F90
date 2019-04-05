@@ -110,7 +110,7 @@ contains
     type(inputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
-    type(fnode), pointer :: root, tmp, hamNode, child, dummy
+    type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
     type(TParserflags) :: parserFlags
     logical :: tHSD, missing
 
@@ -170,7 +170,7 @@ contains
 
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
-      call detailedError(child, "Be patient... Dephasing feature will be available soon!")    
+      call detailedError(child, "Be patient... Dephasing feature will be available soon!")
       !call readDephasing(child, input%slako%orb, input%geom, input%transpar, input%ginfo%tundos)
     end if
 
@@ -193,16 +193,16 @@ contains
   #:endif
 
     ! Analysis of properties
-    call getChildValue(root, "Analysis", dummy, "", child=child, list=.true., &
+    call getChildValue(root, "Analysis", dummy, "", child=analysisNode, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
 
   #:if WITH_TRANSPORT
-    call readAnalysis(child, input%ctrl, input%geom, input%slako%orb, input%transpar, &
+    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb, input%transpar, &
         & input%ginfo%tundos)
 
     call finalizeNegf(input)
   #:else
-    call readAnalysis(child, input%ctrl, input%geom, input%slako%orb)
+    call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
   #:endif
 
     ! excited state options
@@ -218,6 +218,10 @@ contains
     ! Read W values if needed by Hamitonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
+    ! analysis settings that need to know settings from the options block
+    call readLaterAnalysis(analysisNode, input%ctrl)
+
+    ! read parallel calculation settings
     call readParallel(root, input)
 
     ! input data strucutre has been initialised
@@ -2155,13 +2159,26 @@ contains
               & 'The count for the occurance of shells of species ', &
               & trim(geo%speciesNames(iSp1)),' are:'
           write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
-          stop
+          call abortProgram()
         end if
       end do
       deallocate(iTmpN)
 
       ctrl%tDFTBU = .true.
 
+    end if
+
+    ! On-site
+    call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
+            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
+        call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
+            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
+      end do
     end if
 
     ! Dispersion
@@ -3657,10 +3674,6 @@ contains
       end if
 
       call getChildValue(node, "WriteEigenvectors", ctrl%tPrintEigVecs, .false.)
-      if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
-        call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
-            & .false.)
-      end if
 
     #:if WITH_SOCKETS
       tWriteBandDatDef = .not. allocated(ctrl%socketInput)
@@ -3695,6 +3708,23 @@ contains
   #:endif
 
   end subroutine readAnalysis
+
+
+  !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}
+  subroutine readLaterAnalysis(node, ctrl)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> Control structure to fill
+    type(control), intent(inout) :: ctrl
+
+    if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
+      call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
+          & .false.)
+    end if
+
+  end subroutine readLaterAnalysis
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state

@@ -77,8 +77,9 @@ contains
       & coord0, nexc, nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbour,&
       & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
       & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
-      & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
-      & allOmega, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
+      & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
+      & allOmega, onsMEs, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
+      & naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -201,6 +202,9 @@ contains
     !> excitation energy of all states that have been solved
     real(dp), allocatable, intent(inout) :: allOmega(:)
 
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
@@ -232,7 +236,6 @@ contains
     real(dp), allocatable :: t(:,:), rhs(:), woo(:), wvv(:), wov(:)
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
-
 
     !> array from pairs of single particles states to compound index - should replace with a more
     !> compact data structure in the cases where there are oscilator windows
@@ -519,7 +522,7 @@ contains
       sym = symmetries(isym)
       call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
           & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
-          & fdArnoldiDiagnosis, eval, evec )
+          & fdArnoldiDiagnosis, eval, evec, onsMEs, orb)
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, snglPartTransDip(1:nxov_rd,:), wij(:nxov_rd), eval, evec,&
@@ -594,11 +597,10 @@ contains
 
       ! redefine if needed (generalize it for spin-polarized and fractional occupancy)
       nocc = int(rnel) / 2
+      nocc_r = nOcc
+      nvir_r = nOrb - nOcc
 
-      ! count virtual and occupied states
-      call getNorb_r(nxov_rd, win, getij, nocc, nocc_r, nvir_r)
-
-      ! size of occ-occ and virt-virt blocks
+      ! elements in a triangle plus the diagonal of the occ-occ and virt-virt blocks
       nxoo_r = (nocc_r * (nocc_r + 1)) / 2
       nxvv_r = (nvir_r * (nvir_r + 1)) / 2
 
@@ -618,10 +620,6 @@ contains
         ALLOCATE(pc(norb, norb))
       end if
 
-      ! Furche terms: X+Y, X-Y
-      xpy(:nxov_rd) = sqrt(wij(:nxov_rd)) / sqrt(omega) * evec(:nxov_rd,nstat)
-      xmy(:nxov_rd) = sqrt(omega) / sqrt(wij(:nxov_rd)) * evec(:nxov_rd,nstat)
-
       ! set up transition indexing
       call rindxov_array(win, nocc, nxov, getij, iatrans)
 
@@ -636,7 +634,7 @@ contains
             & nxov_ud(1), getij, iatrans, natom, species0,grndEigVal(:,1),&
             & stimc, grndEigVecs, gammaMat, spinW, omega, sym, rhs, t,&
             & wov, woo, wvv, transChrg)
-        call solveZVectorEq(rhs, win, nxov_ud(1), getij, natom, iAtomStart,&
+        call solveZVectorPrecond(rhs, win, nxov_ud(1), getij, natom, iAtomStart,&
             & stimc, gammaMat, wij(:nxov_rd), grndEigVecs, transChrg)
         call calcWVectorZ(rhs, win, nocc, nocc_r, nxov_ud(1), getij, iAtomStart,&
             & stimc, grndEigVecs, gammaMat, grndEigVal(:,1), wov, woo, wvv, transChrg)
@@ -674,7 +672,7 @@ contains
   !> Builds and diagonalizes the excitation matrix via iterative technique.
   subroutine buildAndDiagExcMatrix(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
       & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
-      & eval, evec)
+      & eval, evec, onsMEs, orb)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -729,6 +727,12 @@ contains
 
     !> eigenvectors for transitions
     real(dp), intent(out) :: evec(:,:)
+
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
     real(dp) :: sigma
@@ -794,7 +798,7 @@ contains
       ! Action of excitation supermatrix on supervector
       call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat,&
-          & species0, spinW, transChrg)
+          & species0, spinW, onsMEs, orb, transChrg)
 
     end do
 
@@ -835,7 +839,7 @@ contains
           & non-orthog'
       do iState = 1, nExc
         call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
-            & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg)
+            & grndEigVecs, filling, getij, gammaMat, species0, spinW, onsMEs, orb, transChrg)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-evec(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))
@@ -1265,7 +1269,7 @@ contains
     if (sym == "S") then
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
-        call indxoo(homo, nocc, ij, i, j)
+        call indxoo(ij, i, j)
         qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
         qgamxpyq(ij) = 2.0_dp * sum(qij * gamxpyq)
@@ -1273,7 +1277,7 @@ contains
     else
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
-        call indxoo(homo, nocc, ij, i, j)
+        call indxoo(ij, i, j)
         qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         qgamxpyq(ij) = 2.0_dp * sum(qij * xpyq * spinW(species0))
       end do
@@ -1300,7 +1304,7 @@ contains
     ! gamxpyq(iAt2) = sum_ij q_ij(iAt2) T_ij
     gamxpyq(:) = 0.0_dp
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij = transq(i, j, iAtomStart, updwn, stimc, c)
       if (i == j) then
         gamxpyq(:) = gamxpyq(:) + t(i,j) * qij(:)
@@ -1330,7 +1334,7 @@ contains
 
     ! Furche vectors
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
       woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamqt)
     end do
@@ -1338,9 +1342,9 @@ contains
   end subroutine getZVectorEqRHS
 
 
-  !> Solving the (A+B) Z = -R equation via conjugate gradient
-  subroutine solveZVectorEq(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij, c,&
-      & transChrg)
+  !> Solving the (A+B) Z = -R equation via diagonally preconditioned conjugate gradient
+  subroutine solveZVectorPrecond(rhs, win, nmatup, getij, natom, iAtomStart, stimc, gammaMat, wij,&
+      & c, transChrg)
 
     !> on entry -R, on exit Z
     real(dp), intent(inout) :: rhs(:)
@@ -1377,34 +1381,36 @@ contains
 
     integer :: nxov
     integer :: ia, i, a, k
-    real(dp) :: rhs2(size(rhs)),rkm1(size(rhs)),pkm1(size(rhs)),apk(size(rhs))
+    real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
-    real(dp), allocatable :: qij(:)
+    real(dp), allocatable :: qij(:), P(:)
 
     nxov = size(rhs)
     allocate(qij(nAtom))
 
-    ! Choosing a start value
-    ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
+    ! diagonal preconditioner
+    ! P^-1 = 1 / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
+    allocate(P(nxov))
     do ia = 1, nxov
       qij = transChrg%qTransIJ(ia, iAtomStart, stimc, c, getij, win)
       call hemv(qTmp, gammaMat, qij)
       rs = 4.0_dp * dot_product(qij, qTmp) + wij(ia)
-      rhs2(ia) = rhs(ia) / rs
+      P(ia) = 1.0_dp / rs
     end do
-
-    ! unit vector
-    rhs2 = 1.0_dp / sqrt(real(nxov,dp))
 
     ! Free some space, before entering the apbw routine
     deallocate(qij)
+
+    ! unit vector as initial guess solution
+    rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
 
     ! action of matrix on vector
     call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
         & transChrg)
 
-    rkm1 = rhs - rkm1
-    pkm1 = rkm1
+    rkm1(:) = rhs - rkm1
+    zkm1(:) = P * rkm1
+    pkm1(:) = zkm1
 
     ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
     do k = 1, nxov**2
@@ -1413,7 +1419,7 @@ contains
       call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
           & transChrg)
 
-      tmp1 = dot_product(rkm1, rkm1)
+      tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
       alphakm1 = tmp1 / tmp2
 
@@ -1432,15 +1438,20 @@ contains
         call error("solveZVectorEq : Z vector not converged!")
       end if
 
+      zkm1(:) = P * rkm1
+
+      tmp2 = dot_product(zkm1, rkm1)
+
+      ! Fletcher–Reeves update
       bkm1 = tmp2 / tmp1
 
-      pkm1 = rkm1 + bkm1 * pkm1
+      pkm1 = zkm1 + bkm1 * pkm1
 
     end do
 
     rhs(:) = rhs2(:)
 
-  end subroutine solveZVectorEq
+  end subroutine solveZVectorPrecond
 
 
   !> Calculate Z-dependent parts of the W-vectors and divide diagonal elements of W_ij and W_ab by
@@ -1521,7 +1532,7 @@ contains
 
     ! sum_iAt1 qij(iAt1) gamxpyq(iAt1)
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
       ! W contains 1/2 for i == j.
       woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamxpyq)
@@ -1529,7 +1540,7 @@ contains
 
     ! Divide diagonal elements of W_ij by 2.
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       if (i == j) then
         woo(ij) = 0.5_dp * woo(ij)
       end if
@@ -1868,7 +1879,7 @@ contains
     wcc(:,:) = 0.0_dp
 
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       ! replace with DSYR2 call :
       do mu = 1, norb
         do nu = 1, norb
