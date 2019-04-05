@@ -47,11 +47,12 @@ class Gen:
         with OpenFile(fobj, 'r') as fp:
             alllines = fp.readlines()
 
-        # strip out lines starting with hashmarks
+        # strip out comments starting with hashmarks
         lines = []
         for line in alllines:
-            li=line.strip()
-            if not li.startswith("#"):
+            li = line.partition('#')[0]
+            li = li.rstrip()
+            if li:
                 lines.append(li)
 
         words = lines[0].split()
