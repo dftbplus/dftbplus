@@ -2041,7 +2041,7 @@ contains
 
       if (present(occNatural)) then
         naturalOrbs(:,:,1) = t2
-        call evalCoeffs(naturalOrbs(:,:,1) ,occNatural,grndEigVecs(:,:,1))
+        call evalCoeffs(naturalOrbs(:,:,1), occNatural, grndEigVecs(:,:,1))
         if (tCoeffs) then
           ALLOCATE(occtmp(size(occ)))
           occTmp = occNatural
@@ -2049,7 +2049,7 @@ contains
       else
         ALLOCATE(occtmp(size(occ)))
         occtmp = 0.0_dp
-        call evalCoeffs(t2,occNatural,grndEigVecs(:,:,1))
+        call evalCoeffs(t2, occtmp, grndEigVecs(:,:,1))
       end if
 
       ! Better to get this by post-processing DFTB+ output, but here for
@@ -2072,7 +2072,7 @@ contains
 
 
   !> Project MO density matrix onto ground state orbitals
-  subroutine evalCoeffs(t2,occ,eig)
+  subroutine evalCoeffs(t2, occ, eig)
 
     !> density matrix
     real(dp), intent(inout) :: t2(:,:)
