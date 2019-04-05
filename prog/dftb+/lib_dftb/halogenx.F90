@@ -35,7 +35,7 @@ module halogenX
 
     procedure :: getRCutOff
     procedure :: getEnergies
-    !procedure :: addGradients
+    procedure :: addGradients
     !procedure :: getStress
 
   end type THalogenX
@@ -73,11 +73,12 @@ contains
 
     nSpecies = maxval(species0)
     this%nAtom = size(species0)
-    tHalogen = .false.
     allocate(this%relevantSpecies(nSpecies, nSpecies))
     this%relevantSpecies(:,:) = 0
     allocate(this%radii(nSpecies))
     this%radii(:) = 0.0_dp
+
+    tHalogen = .false.
     this%maxDab = 0.0_dp
     do iSp1 = 1, nSpecies
       spName1 = speciesNames(iSp1)
@@ -177,30 +178,117 @@ contains
           eTmp = eTmp&
               & + (1.0_dp-halogenSigma(r,rvdw)) * fx(R0*rvdw, dab(this%relevantSpecies(iSp1,iSp2)))
           eTmp = eTmp * 0.5_dp * kcal_mol__Hartree
-          atomE(iAt1) = atomE(iAt1) + 0.5_dp * eTmp
-          atomE(iAt2f) = atomE(iAt2f) + 0.5_dp * eTmp
+          atomE(iAt1) = atomE(iAt1) + eTmp
+          atomE(iAt2f) = atomE(iAt2f) + eTmp
         end if
       end do
     end do
 
   end subroutine getEnergies
 
+
+  subroutine addGradients(this, derivs, coords, species, neigh, img2CentCell)
+
+    !> instance of the correction
+    class(THalogenX), intent(in) :: this
+
+    !> Derivatives to add contribution to to
+    real(dp), intent(inout) :: derivs(:,:)
+
+    !> Current coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    integer, intent(in) :: species(:)
+
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> Updated mapping to central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    integer, allocatable :: nNeigh(:)
+    integer :: iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
+    real(dp) :: r, rvdw, eTmp, fTmp(3)
+
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, nNeigh(iAt1)
+        iAt2 = neigh%iNeighbour(iNeigh,iAt1)
+        iAt2f = img2CentCell(iAt2)
+        if (iAt2f == iAt1) then
+          cycle
+        end if
+        iSp2 = species(iAt2f)
+        if (this%relevantSpecies(iSp1,iSp2) /= 0) then
+          r = sqrt(neigh%neighDist2(iNeigh, iAt1))
+          rvdw = this%radii(iSp1) + this%radii(iSp2)
+
+          eTmp = halogendSigma(r,rvdw) * fx(r, dab(this%relevantSpecies(iSp1,iSp2)))&
+              & +halogenSigma(r,rvdw) * dfx(r, dab(this%relevantSpecies(iSp1,iSp2)))
+          eTmp = eTmp&
+              & +(1.0_dp-halogenSigma(r,rvdw)) * dfx(R0*rvdw, dab(this%relevantSpecies(iSp1,iSp2)))&
+              & -halogendSigma(r,rvdw) * fx(R0*rvdw, dab(this%relevantSpecies(iSp1,iSp2)))
+          eTmp = eTmp * 0.5_dp * kcal_mol__Hartree * Bohr__AA
+
+          fTmp(:) = ( coords(:,iAt2f) - coords(:,iAt1) ) * eTmp / r
+
+          derivs(:,iAt1) = derivs(:,iAt1) + fTmp
+          derivs(:,iAt2f) = derivs(:,iAt2f) - fTmp
+
+        end if
+      end do
+    end do
+
+  end subroutine addGradients
+
   !> DFTB3-X term (Eqn. 5 of 10.1021/ct5009137)
   pure function fx(R, dab)
 
+    !> result in kcal/mol
     real(dp) :: fx
 
+    !> distance in a.u.
     real(dp), intent(in) :: R
+
+    !> distance cut-off in AA
     real(dp), intent(in) :: dab
 
     fx = 0.5_dp * c(1) * exp(-c(2) * (R * Bohr__AA - dab)**c(3))
 
   end function fx
 
+
+  !> Derivative of DFTB3-X term wrt. R
+  pure function dfx(R, dab)
+
+    !> result in kcal/mol AA
+    real(dp) :: dfx
+
+    !> distance in a.u.
+    real(dp), intent(in) :: R
+
+    !> distance cut-off in AA
+    real(dp), intent(in) :: dab
+
+    dfx = fx(R, dab)
+    dfx = dfx * c(2) * c(3) * (R * Bohr__AA - dab)**(c(3)-1.0_dp)
+
+  end function dfx
+
+
   !> Switch function (Eqn. 8 of 10.1021/ct5009137)
   pure function halogenSigma(R, rvdw) result(out)
+
+    !> Distance in a.u.
     real(dp), intent(in) :: R
+
+    !> Van der Waals radii sum in a.u.
     real(dp), intent(in) :: rvdw
+
+    !> result fraction
     real(dp) :: out
 
     real(dp) :: x
@@ -218,13 +306,20 @@ contains
 
 
   !> Derivative of switch function (Eqn. 12 of 10.1021/ct5009137)
-  pure function halogendSigma(R) result(out)
+  pure function halogendSigma(R, rvdw) result(out)
+
+    !> Distance in a.u.
     real(dp), intent(in) :: R
+
+    !> Van der Waals radii sum in a.u.
+    real(dp), intent(in) :: rvdw
+
+    !> result
     real(dp) :: out
 
     real(dp) :: x
 
-    if (R > R0 .and. R < R1) then
+    if (R > R0*rvdw .and. R < R1*rvdw) then
       x = (R - R0) / (R1 - R0)
       out = -140.0_dp*x**6 +420.0_dp*x**5 -420.0_dp*x**4 +140.0_dp*x**3
     end if

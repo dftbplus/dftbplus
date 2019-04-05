@@ -66,6 +66,7 @@ module main
   use simplealgebra
   use message
   use repcont
+  use halogenX
   use xlbomd_module
   use slakocont
   use linkedlist
@@ -539,7 +540,7 @@ contains
         call getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
             & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-            & iRhoPrim, thirdOrd, chrgForces, dispersion, qBlockOut, tPoisson)
+            & iRhoPrim, thirdOrd, chrgForces, dispersion, qBlockOut, tPoisson, halogenXCorrection)
         if (tCasidaForces) then
           derivs(:,:) = derivs + excitedDerivs
         end if
@@ -4630,7 +4631,7 @@ contains
   subroutine getGradients(env, sccCalc, tEField, tXlbomd, nonSccDeriv, Efield, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-      & chrgForces, dispersion, qBlockOut, tPoisson)
+      & chrgForces, dispersion, qBlockOut, tPoisson, halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4719,6 +4720,8 @@ contains
     !> whether Poisson solver is used
     logical, intent(in) :: tPoisson
 
+    type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
+
     !Locals
     real(dp), allocatable :: tmpDerivs(:,:)
     real(dp), allocatable :: dummyArray(:,:)
@@ -4803,6 +4806,10 @@ contains
 
     if (allocated(dispersion)) then
       call dispersion%addGradients(derivs)
+    end if
+
+    if (allocated(halogenXCorrection)) then
+      call halogenXCorrection%addGradients(derivs, coord, species, neighbourList, img2CentCell)
     end if
 
     call getERepDeriv(tmpDerivs, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
