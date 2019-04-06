@@ -1,95 +1,95 @@
-commontypes.o: _mod_orbitals _mod_parallelks
-commontypes.o = commontypes.o $(_mod_orbitals) $(_mod_parallelks)
-_mod_commontypes: commontypes.o
-_mod_commontypes = $(commontypes.o)
+commontypes.o: _mod_dftbp_orbitals _mod_dftbp_parallelks
+commontypes.o = commontypes.o $(_mod_dftbp_orbitals) $(_mod_dftbp_parallelks)
+_mod_dftbp_commontypes: commontypes.o
+_mod_dftbp_commontypes = $(commontypes.o)
 
-densedescr.o: _mod_scalapackfx common.fypp
-densedescr.o = densedescr.o $(_mod_scalapackfx) $(common.fypp)
-_mod_densedescr: densedescr.o
-_mod_densedescr = $(densedescr.o)
+densedescr.o: common.fypp _mod_dftbp_scalapackfx
+densedescr.o = densedescr.o $(common.fypp) $(_mod_dftbp_scalapackfx)
+_mod_dftbp_densedescr: densedescr.o
+_mod_dftbp_densedescr = $(densedescr.o)
 
-dynneighlist.o: _mod_message _mod_assert common.fypp _mod_accuracy _mod_latpointiter
-dynneighlist.o = dynneighlist.o $(_mod_message) $(_mod_assert) $(common.fypp) $(_mod_accuracy) $(_mod_latpointiter)
-_mod_dynneighlist: dynneighlist.o
-_mod_dynneighlist = $(dynneighlist.o)
+dynneighlist.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_message _mod_dftbp_latpointiter
+dynneighlist.o = dynneighlist.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_message) $(_mod_dftbp_latpointiter)
+_mod_dftbp_dynneighlist: dynneighlist.o
+_mod_dftbp_dynneighlist = $(dynneighlist.o)
 
-latpointiter.o: _mod_assert common.fypp _mod_accuracy
-latpointiter.o = latpointiter.o $(_mod_assert) $(common.fypp) $(_mod_accuracy)
-_mod_latpointiter: latpointiter.o
-_mod_latpointiter = $(latpointiter.o)
+latpointiter.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+latpointiter.o = latpointiter.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_latpointiter: latpointiter.o
+_mod_dftbp_latpointiter = $(latpointiter.o)
 
-linkedlist.o: common.fypp _mod_linkedlisti0 _mod_linkedlistr1 _mod_linkedlistr2 _mod_linkedlisti1 _mod_linkedlists0 _mod_linkedlistlc0 _mod_linkedlistmc0 _mod_assert _mod_linkedlistr0 _mod_accuracy
-linkedlist.o = linkedlist.o $(common.fypp) $(_mod_linkedlisti0) $(_mod_linkedlistr1) $(_mod_linkedlistr2) $(_mod_linkedlisti1) $(_mod_linkedlists0) $(_mod_linkedlistlc0) $(_mod_linkedlistmc0) $(_mod_assert) $(_mod_linkedlistr0) $(_mod_accuracy)
-_mod_linkedlist: linkedlist.o
-_mod_linkedlist = $(linkedlist.o)
+linkedlist.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_linkedlisti1 _mod_dftbp_linkedlistmc0 _mod_dftbp_linkedlistr2 _mod_dftbp_linkedlistr1 _mod_dftbp_linkedlistlc0 _mod_dftbp_linkedlistr0 _mod_dftbp_linkedlists0 _mod_dftbp_linkedlisti0
+linkedlist.o = linkedlist.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_linkedlisti1) $(_mod_dftbp_linkedlistmc0) $(_mod_dftbp_linkedlistr2) $(_mod_dftbp_linkedlistr1) $(_mod_dftbp_linkedlistlc0) $(_mod_dftbp_linkedlistr0) $(_mod_dftbp_linkedlists0) $(_mod_dftbp_linkedlisti0)
+_mod_dftbp_linkedlist: linkedlist.o
+_mod_dftbp_linkedlist = $(linkedlist.o)
 
-linkedlisti0.o: linkedlist.fypp _mod_assert
-linkedlisti0.o = linkedlisti0.o $(linkedlist.fypp) $(_mod_assert)
-_mod_linkedlisti0: linkedlisti0.o
-_mod_linkedlisti0 = $(linkedlisti0.o)
+linkedlisti0.o: _mod_dftbp_assert linkedlist.fypp
+linkedlisti0.o = linkedlisti0.o $(_mod_dftbp_assert) $(linkedlist.fypp)
+_mod_dftbp_linkedlisti0: linkedlisti0.o
+_mod_dftbp_linkedlisti0 = $(linkedlisti0.o)
 
-linkedlisti1.o: linkedlist.fypp _mod_assert
-linkedlisti1.o = linkedlisti1.o $(linkedlist.fypp) $(_mod_assert)
-_mod_linkedlisti1: linkedlisti1.o
-_mod_linkedlisti1 = $(linkedlisti1.o)
+linkedlisti1.o: _mod_dftbp_assert linkedlist.fypp
+linkedlisti1.o = linkedlisti1.o $(_mod_dftbp_assert) $(linkedlist.fypp)
+_mod_dftbp_linkedlisti1: linkedlisti1.o
+_mod_dftbp_linkedlisti1 = $(linkedlisti1.o)
 
-linkedlistlc0.o: _mod_assert linkedlist.fypp _mod_accuracy
-linkedlistlc0.o = linkedlistlc0.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
-_mod_linkedlistlc0: linkedlistlc0.o
-_mod_linkedlistlc0 = $(linkedlistlc0.o)
+linkedlistlc0.o: _mod_dftbp_assert linkedlist.fypp _mod_dftbp_accuracy
+linkedlistlc0.o = linkedlistlc0.o $(_mod_dftbp_assert) $(linkedlist.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_linkedlistlc0: linkedlistlc0.o
+_mod_dftbp_linkedlistlc0 = $(linkedlistlc0.o)
 
-linkedlistmc0.o: _mod_assert linkedlist.fypp _mod_accuracy
-linkedlistmc0.o = linkedlistmc0.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
-_mod_linkedlistmc0: linkedlistmc0.o
-_mod_linkedlistmc0 = $(linkedlistmc0.o)
+linkedlistmc0.o: _mod_dftbp_assert linkedlist.fypp _mod_dftbp_accuracy
+linkedlistmc0.o = linkedlistmc0.o $(_mod_dftbp_assert) $(linkedlist.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_linkedlistmc0: linkedlistmc0.o
+_mod_dftbp_linkedlistmc0 = $(linkedlistmc0.o)
 
-linkedlistr0.o: _mod_assert linkedlist.fypp _mod_accuracy
-linkedlistr0.o = linkedlistr0.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
-_mod_linkedlistr0: linkedlistr0.o
-_mod_linkedlistr0 = $(linkedlistr0.o)
+linkedlistr0.o: _mod_dftbp_assert linkedlist.fypp _mod_dftbp_accuracy
+linkedlistr0.o = linkedlistr0.o $(_mod_dftbp_assert) $(linkedlist.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_linkedlistr0: linkedlistr0.o
+_mod_dftbp_linkedlistr0 = $(linkedlistr0.o)
 
-linkedlistr1.o: _mod_assert linkedlist.fypp _mod_accuracy
-linkedlistr1.o = linkedlistr1.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
-_mod_linkedlistr1: linkedlistr1.o
-_mod_linkedlistr1 = $(linkedlistr1.o)
+linkedlistr1.o: _mod_dftbp_assert linkedlist.fypp _mod_dftbp_accuracy
+linkedlistr1.o = linkedlistr1.o $(_mod_dftbp_assert) $(linkedlist.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_linkedlistr1: linkedlistr1.o
+_mod_dftbp_linkedlistr1 = $(linkedlistr1.o)
 
-linkedlistr2.o: _mod_assert linkedlist.fypp _mod_accuracy
-linkedlistr2.o = linkedlistr2.o $(_mod_assert) $(linkedlist.fypp) $(_mod_accuracy)
-_mod_linkedlistr2: linkedlistr2.o
-_mod_linkedlistr2 = $(linkedlistr2.o)
+linkedlistr2.o: _mod_dftbp_assert linkedlist.fypp _mod_dftbp_accuracy
+linkedlistr2.o = linkedlistr2.o $(_mod_dftbp_assert) $(linkedlist.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_linkedlistr2: linkedlistr2.o
+_mod_dftbp_linkedlistr2 = $(linkedlistr2.o)
 
-linkedlists0.o: _mod_xmlf90 linkedlist.fypp _mod_assert
-linkedlists0.o = linkedlists0.o $(_mod_xmlf90) $(linkedlist.fypp) $(_mod_assert)
-_mod_linkedlists0: linkedlists0.o
-_mod_linkedlists0 = $(linkedlists0.o)
+linkedlists0.o: _mod_dftbp_xmlf90 _mod_dftbp_assert linkedlist.fypp
+linkedlists0.o = linkedlists0.o $(_mod_dftbp_xmlf90) $(_mod_dftbp_assert) $(linkedlist.fypp)
+_mod_dftbp_linkedlists0: linkedlists0.o
+_mod_dftbp_linkedlists0 = $(linkedlists0.o)
 
-oldskdata.o: common.fypp _mod_constants _mod_reppoly _mod_repspline _mod_assert _mod_message _mod_accuracy
-oldskdata.o = oldskdata.o $(common.fypp) $(_mod_constants) $(_mod_reppoly) $(_mod_repspline) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
-_mod_oldskdata: oldskdata.o
-_mod_oldskdata = $(oldskdata.o)
+oldskdata.o: _mod_dftbp_reppoly _mod_dftbp_assert _mod_dftbp_repspline _mod_dftbp_accuracy common.fypp _mod_dftbp_message _mod_dftbp_constants
+oldskdata.o = oldskdata.o $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(_mod_dftbp_repspline) $(_mod_dftbp_accuracy) $(common.fypp) $(_mod_dftbp_message) $(_mod_dftbp_constants)
+_mod_dftbp_oldskdata: oldskdata.o
+_mod_dftbp_oldskdata = $(oldskdata.o)
 
-orbitals.o: _mod_accuracy
-orbitals.o = orbitals.o $(_mod_accuracy)
-_mod_orbitals: orbitals.o
-_mod_orbitals = $(orbitals.o)
+orbitals.o: _mod_dftbp_accuracy
+orbitals.o = orbitals.o $(_mod_dftbp_accuracy)
+_mod_dftbp_orbitals: orbitals.o
+_mod_dftbp_orbitals = $(orbitals.o)
 
-parallelks.o: _mod_environment common.fypp
-parallelks.o = parallelks.o $(_mod_environment) $(common.fypp)
-_mod_parallelks: parallelks.o
-_mod_parallelks = $(parallelks.o)
+parallelks.o: _mod_dftbp_environment common.fypp
+parallelks.o = parallelks.o $(_mod_dftbp_environment) $(common.fypp)
+_mod_dftbp_parallelks: parallelks.o
+_mod_dftbp_parallelks = $(parallelks.o)
 
-typegeometry.o: _mod_lapackroutines common.fypp _mod_accuracy
-typegeometry.o = typegeometry.o $(_mod_lapackroutines) $(common.fypp) $(_mod_accuracy)
-_mod_typegeometry: typegeometry.o
-_mod_typegeometry = $(typegeometry.o)
+typegeometry.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines
+typegeometry.o = typegeometry.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines)
+_mod_dftbp_typegeometry: typegeometry.o
+_mod_dftbp_typegeometry = $(typegeometry.o)
 
-typegeometryhsd.o: _mod_tokenreader _mod_charmanip _mod_simplealgebra _mod_hsdutils _mod_linkedlist _mod_hsdutils2 _mod_xmlf90 _mod_typegeometry _mod_unitconversion
-typegeometryhsd.o = typegeometryhsd.o $(_mod_tokenreader) $(_mod_charmanip) $(_mod_simplealgebra) $(_mod_hsdutils) $(_mod_linkedlist) $(_mod_hsdutils2) $(_mod_xmlf90) $(_mod_typegeometry) $(_mod_unitconversion)
-_mod_typegeometryhsd: typegeometryhsd.o
-_mod_typegeometryhsd = $(typegeometryhsd.o)
+typegeometryhsd.o: _mod_dftbp_unitconversion _mod_dftbp_tokenreader _mod_dftbp_linkedlist _mod_dftbp_typegeometry _mod_dftbp_xmlf90 _mod_dftbp_charmanip _mod_dftbp_hsdutils2 _mod_dftbp_hsdutils _mod_dftbp_simplealgebra
+typegeometryhsd.o = typegeometryhsd.o $(_mod_dftbp_unitconversion) $(_mod_dftbp_tokenreader) $(_mod_dftbp_linkedlist) $(_mod_dftbp_typegeometry) $(_mod_dftbp_xmlf90) $(_mod_dftbp_charmanip) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_hsdutils) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_typegeometryhsd: typegeometryhsd.o
+_mod_dftbp_typegeometryhsd = $(typegeometryhsd.o)
 
-wrapped_intrinsics.o: _mod_accuracy
-wrapped_intrinsics.o = wrapped_intrinsics.o $(_mod_accuracy)
-_mod_wrappedintrinsics: wrapped_intrinsics.o
-_mod_wrappedintrinsics = $(wrapped_intrinsics.o)
+wrapped_intrinsics.o: _mod_dftbp_accuracy
+wrapped_intrinsics.o = wrapped_intrinsics.o $(_mod_dftbp_accuracy)
+_mod_dftbp_wrappedintr: wrapped_intrinsics.o
+_mod_dftbp_wrappedintr = $(wrapped_intrinsics.o)
 

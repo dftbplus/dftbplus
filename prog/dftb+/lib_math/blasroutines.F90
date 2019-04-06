@@ -9,10 +9,10 @@
 
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
-module blasroutines
-  use assert
-  use accuracy
-  use blas
+module dftbp_blasroutines
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_blas
   implicit none
 
 
@@ -1902,4 +1902,4 @@ contains
 
   end subroutine hemm_dblecmplx
 
-end module blasroutines
+end module dftbp_blasroutines

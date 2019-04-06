@@ -6,9 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Module to print data types
-module intrinsicpr
-  use accuracy
-  use io
+module dftbp_intrinsicpr
+  use dftbp_accuracy
+  use dftbp_io
 
   private
 
@@ -340,4 +340,4 @@ contains
 
   end subroutine printArrayCharR2
 
-end module intrinsicpr
+end module dftbp_intrinsicpr

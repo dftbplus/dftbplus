@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Common mathematical operations built out of multiple scalapack calls
-module scalafxext
-  use accuracy, only : lc, dp
-  use scalapackfx
-  use message
+module dftbp_scalafxext
+  use dftbp_accuracy, only : lc, dp
+  use dftbp_scalapackfx
+  use dftbp_message
   implicit none
   private
 
@@ -103,4 +103,4 @@ contains
   end subroutine phermatinv
 
 
-end module scalafxext
+end module dftbp_scalafxext

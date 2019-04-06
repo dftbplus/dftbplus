@@ -9,9 +9,9 @@
 
 !> Contains routines relating to Hermite polynomials
 !> To do: Proper documentation, and trap overflow and underflows
-module hermite
-  use assert
-  use accuracy, only : dp
+module dftbp_hermite
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
   implicit none
 contains
 
@@ -46,4 +46,4 @@ contains
 
   end subroutine hx
 
-end module hermite
+end module dftbp_hermite

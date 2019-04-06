@@ -9,11 +9,11 @@
 
 !> Contains Types and subroutine to build up and query a Slater-Koster table where the integrals are
 !> specified on an equidistant grid.
-module slakoeqgrid
-  use assert
-  use accuracy
-  use interpolation
-  use message
+module dftbp_slakoeqgrid
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_interpolation
+  use dftbp_message
   implicit none
   private
 
@@ -312,4 +312,4 @@ contains
 
   end subroutine SlakoEqGrid_interOld_
 
-end module slakoeqgrid
+end module dftbp_slakoeqgrid

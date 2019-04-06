@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Exporting the functionality we use from the library dftd3.
-module dftd3_module
+module dftbp_dftd3_module
   use dftd3_api
   implicit none
   private
@@ -31,4 +31,4 @@ module dftd3_module
 
 #:endif
 
-end module dftd3_module
+end module dftbp_dftd3_module

@@ -9,14 +9,14 @@
 
 !> Nose-Hoover Chain thermostat
 !> Based on Martyna et al. Molecular Physics 87 no. 5 1117-1157 (1996).
-module nhctherm
-  use assert
-  use accuracy
-  use mdcommon
-  use ranlux
-  use tempprofile
-  use energies
-  use message
+module dftbp_nhctherm
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_mdcommon
+  use dftbp_ranlux
+  use dftbp_tempprofile
+  use dftbp_energies
+  use dftbp_message
   implicit none
 
 
@@ -326,4 +326,4 @@ contains
 
   end subroutine NHC_state
 
-end module nhctherm
+end module dftbp_nhctherm

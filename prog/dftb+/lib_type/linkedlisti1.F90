@@ -8,8 +8,8 @@
 #:include 'linkedlist.fypp'
 
 !> Linked list for single real vectors
-module linkedlisti1
-  use assert
+module dftbp_linkedlisti1
+  use dftbp_assert
   implicit none
   private
 
@@ -19,4 +19,4 @@ module linkedlisti1
       & ITEM_RANK=1,&
       & PADDING='0')
 
-end module linkedlisti1
+end module dftbp_linkedlisti1

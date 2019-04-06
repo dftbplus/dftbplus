@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 !> Module for initializing SCC part of the calculation
-module sccinit
-  use assert
-  use accuracy
-  use io
-  use message
-  use commontypes
-  use charmanip
+module dftbp_sccinit
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_io
+  use dftbp_message
+  use dftbp_commontypes
+  use dftbp_charmanip
   implicit none
   private
 
@@ -440,4 +440,4 @@ contains
 
   end subroutine writeQToFile
 
-end module sccinit
+end module dftbp_sccinit

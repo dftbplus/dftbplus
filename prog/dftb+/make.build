@@ -51,7 +51,7 @@ TAGDIFF_SCRIPT := $(TESTDIR)/bin/tagdiff
 
 # Complete command with options
 AUTOTEST_CMD := $(AUTOTEST_SCRIPT) -r $(TESTDIR) -w $(AUTOTEST_WORKDIR) \
-	        -d $(TAGDIFF_SCRIPT)
+	        -d $(TAGDIFF_SCRIPT) -c
 
 # Get list of tests to execute, but only if test is specified as goal
 CREATE_PRETESTFILE := $(if $(filter test,$(MAKECMDGOALS)),\

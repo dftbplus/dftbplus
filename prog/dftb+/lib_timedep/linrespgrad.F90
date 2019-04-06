@@ -8,24 +8,24 @@
 #:include 'common.fypp'
 
 !> Linear response excitations and gradients with respect to atomic coordinates
-module linrespgrad
-  use assert
-  use arpack
-  use linrespcommon
-  use commontypes
-  use slakocont
-  use shortgamma
-  use accuracy
-  use constants, only : Hartree__eV, au__Debye
-  use nonscc, only : NonSccDiff
-  use scc, only : TScc
-  use blasroutines
-  use eigensolver
-  use message
-  use taggedoutput
-  use sorting
-  use qm
-  use transcharges
+module dftbp_linrespgrad
+  use dftbp_assert
+  use dftbp_arpack
+  use dftbp_linrespcommon
+  use dftbp_commontypes
+  use dftbp_slakocont
+  use dftbp_shortgamma
+  use dftbp_accuracy
+  use dftbp_constants, only : Hartree__eV, au__Debye
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_scc, only : TScc
+  use dftbp_blasroutines
+  use dftbp_eigensolver
+  use dftbp_message
+  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_sorting
+  use dftbp_qm
+  use dftbp_transcharges
   implicit none
   private
 
@@ -75,9 +75,9 @@ contains
   !> based on Time Dependent DFRT
   subroutine LinRespGrad_old(tSpin, natom, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq,&
       & coord0, nexc, nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbour,&
-      & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
-      & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
-      & tEnergyWindow, energyWindow,tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
+      & img2CentCell, orb, tWriteTagged, fdTagged, taggedWriter, fdMulliken, fdCoeffs, tGrndState,&
+      & fdXplusY, fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, &
+      & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
       & allOmega, onsMEs, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
       & naturalOrbs)
 
@@ -146,6 +146,9 @@ contains
 
     !> file descriptor for the tagged data output
     integer, intent(in) :: fdTagged
+
+    !> tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> file unit for excited Mulliken populations?
     integer, intent(in) :: fdMulliken
@@ -532,10 +535,12 @@ contains
         call getExcSpin(Ssq, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd), filling, stimc,&
             & grndEigVecs)
         call writeExcitations(sym, osz, nexc, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd),&
-            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc, Ssq)
+            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter,&
+            & fdExc, Ssq)
       else
         call writeExcitations(sym, osz, nexc, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd),&
-            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc)
+            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter,&
+            & fdExc)
       end if
 
       if (allocated(allOmega)) then
@@ -2097,7 +2102,7 @@ contains
   !> Write out transitions from ground to excited state along with single particle transitions and
   !> dipole strengths
   subroutine writeExcitations(sym, osz, nexc, nmatup, getij, win, eval, evec, wij, fdXplusY,&
-      & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc, Ssq)
+      & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
 
     !> Symmetry label for the type of transition
     character, intent(in) :: sym
@@ -2143,6 +2148,9 @@ contains
 
     !> file unit for tagged output (> -1 for write out)
     integer, intent(in) :: fdTagged
+
+    !> tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> file unit for excitation energies
     integer, intent(in) :: fdExc
@@ -2318,8 +2326,8 @@ contains
       endif
     end do
     if (tWriteTagged) then
-      call writeTagged(fdTagged, tag_excEgy, eDeg(:iDeg))
-      call writeTagged(fdTagged, tag_excOsc, oDeg(:iDeg))
+      call taggedWriter%write(fdTagged, tagLabels%excEgy, eDeg(:iDeg))
+      call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg(:iDeg))
     end if
 
   end subroutine writeExcitations
@@ -2423,4 +2431,4 @@ contains
 
   end subroutine writeSPExcitations
 
-end module linrespgrad
+end module dftbp_linrespgrad

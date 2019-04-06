@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a file registry which keeps track of eventually open files and closes them.
-module fileregistry
+module dftbp_fileregistry
   implicit none
   private
 
@@ -84,4 +84,4 @@ contains
   end subroutine TFileRegistry_closeAll
   
 
-end module fileregistry
+end module dftbp_fileregistry

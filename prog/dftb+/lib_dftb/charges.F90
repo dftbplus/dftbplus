@@ -8,14 +8,15 @@
 #:include 'common.fypp'
 
 !> Module to calculate atomic charges
-module charges
-  use assert
-  use accuracy
-  use commontypes, only : TOrbitals
+module dftbp_charges
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_commontypes, only : TOrbitals
   implicit none
   private
 
   public :: getSummedCharges
+
 
 contains
 
@@ -189,4 +190,4 @@ contains
 
   end subroutine getSummedChargesPerUniqU
 
-end module charges
+end module dftbp_charges
