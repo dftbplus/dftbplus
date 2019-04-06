@@ -24,12 +24,20 @@ make test_api
 
 Although the DFTB+ library contains nearly all internal routines of the DFTB+
 code, you should access the code functionality only via the provided API and not
-by calling those internal routines directly. We put great efforts in keeping the
-API stable over time, while the interface of the internal routines can change
-without notice. The API version can be found in the \verb|API_VERSION| file in
-the \verb|api/mm| folder. We use semantic versioning, a change in the major
-(first) version number indicates backwards incompatible changes, while changes
-in the minor (second) version number indicate backwards compatible extensions.
+by calling internal routines directly. We aim to keep the API stable over time,
+but the internal routines themselves can change without notice between
+releases. The API version can be found in the \verb|API_VERSION| file in the
+\verb|api/mm| folder. We use semantic versioning, a change in the major (first)
+version number indicates backwards incompatible changes, while changes in the
+minor (second) version number indicate backwards compatible extensions of the
+API.
 
-The interface is documented in the source code file
-\verb|api/mm/mmapi.F90|.
+When using the API, we suggest that \kw{ParserVersion} should be set in order to
+ensure that you can maintain backwards compatibility with later versions of
+DFTB+.
+
+The Fortran interface is documented in the source code file
+\verb|api/mm/mmapi.F90|, while \verb|api/mm/capi.F90| gives the bindings for
+calling from C. DFTB+ uses atomic units internally, hence exchanged values
+should be in this unit system (however HSD formatted data can carry unit
+modifiers, see examples of input parsing for details).

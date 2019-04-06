@@ -19,7 +19,8 @@ Added
 
 - Caching for transition charges in excited state.
 
-- DFTB+ can be compiled as a library and accessed via high level API.
+- DFTB+ can be compiled as a library and accessed via high level API (version
+  number is in the file api/mm/API_VERSION below the main directory).
 
 
 Changed

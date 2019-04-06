@@ -17,6 +17,7 @@
   #:set DEBUG = 0
 #:endif
 
+#:set WITH_C = defined('CC')
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
 #:set WITH_MPI = defined('WITH_MPI')
 #:set WITH_ELSI = defined('WITH_ELSI')

@@ -4,11 +4,11 @@
 
 #:include 'common.fypp'
 
-extcharges
-extpot
-extpot2
-fileinit
-fileinitc
-qdepextpot
-qdepextpotc
-treeinit
+extcharges          #? not WITH_MPI
+extpot              #? not WITH_MPI
+extpot2             #? not WITH_MPI
+fileinit            #? not WITH_MPI
+fileinitc           #? not WITH_MPI and WITH_C
+qdepextpot          #? not WITH_MPI
+qdepextpotc         #? not WITH_MPI and WITH_C
+treeinit            #? not WITH_MPI
