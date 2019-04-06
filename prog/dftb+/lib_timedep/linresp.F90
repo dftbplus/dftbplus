@@ -115,6 +115,7 @@ module dftbp_linresp_module
     real(dp) :: energyWindow
     logical :: tOscillatorWindow
     real(dp) :: oscillatorWindow
+    real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
     logical :: tCacheCharges
     integer :: nOcc, nVir, nAtom
     real(dp) :: nEl
@@ -162,7 +163,7 @@ contains
 
 
   !> Initialize an internal data type for linear response excitations
-  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces)
+  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements)
 
     !> data structure for linear response
     type(linresp), intent(out) :: this
@@ -181,6 +182,10 @@ contains
 
     !> Are excited state force contributions required
     logical, intent(in) :: tCasidaForces
+
+    !> onsite corrections if in use
+    real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
+
 
 #:if WITH_ARPACK
     this%nExc = ini%nExc
@@ -249,6 +254,12 @@ contains
 
     call move_alloc(ini%spinW, this%spinW)
     call move_alloc(ini%hubbardU, this%HubbardU)
+    if (allocated(onSiteMatrixElements)) then
+      allocate(this%onSiteMatrixElements(size(onSiteMatrixElements,dim=1),&
+          & size(onSiteMatrixElements,dim=2), size(onSiteMatrixElements,dim=3),&
+          & size(onSiteMatrixElements,dim=4)))
+      this%onSiteMatrixElements(:,:,:,:) = onSiteMatrixElements
+    end if
     this%tinit = .true.
 #:else
     this%tinit = .false.
@@ -330,7 +341,7 @@ contains
         & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
         & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
         & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-        & allExcEnergies)
+        & allExcEnergies, this%onSiteMatrixElements)
 
 #:else
     call error('Internal error: Illegal routine call to LinResp_calcExcitations')
@@ -446,8 +457,8 @@ contains
           & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
           & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
           & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-          & allExcEnergies, shiftPerAtom, skHamCont, skOverCont, excgradient, derivator, rhoSqr,&
-          & occNatural, naturalOrbs)
+          & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
+          & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
@@ -456,7 +467,8 @@ contains
           & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
           & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
           & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-          & allExcEnergies, shiftPerAtom, skHamCont, skOverCont, excgradient, derivator, rhoSqr)
+          & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
+          & excgradient, derivator, rhoSqr)
     end if
 
 #:else

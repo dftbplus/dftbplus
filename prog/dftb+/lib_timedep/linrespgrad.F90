@@ -78,7 +78,8 @@ contains
       & img2CentCell, orb, tWriteTagged, fdTagged, taggedWriter, fdMulliken, fdCoeffs, tGrndState,&
       & fdXplusY, fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, &
       & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
-      & allOmega, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
+      & allOmega, onsMEs, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
+      & naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -204,6 +205,9 @@ contains
     !> excitation energy of all states that have been solved
     real(dp), allocatable, intent(inout) :: allOmega(:)
 
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
@@ -235,7 +239,6 @@ contains
     real(dp), allocatable :: t(:,:), rhs(:), woo(:), wvv(:), wov(:)
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
-
 
     !> array from pairs of single particles states to compound index - should replace with a more
     !> compact data structure in the cases where there are oscilator windows
@@ -522,7 +525,7 @@ contains
       sym = symmetries(isym)
       call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
           & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
-          & fdArnoldiDiagnosis, eval, evec )
+          & fdArnoldiDiagnosis, eval, evec, onsMEs, orb)
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, snglPartTransDip(1:nxov_rd,:), wij(:nxov_rd), eval, evec,&
@@ -674,7 +677,7 @@ contains
   !> Builds and diagonalizes the excitation matrix via iterative technique.
   subroutine buildAndDiagExcMatrix(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
       & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
-      & eval, evec)
+      & eval, evec, onsMEs, orb)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -729,6 +732,12 @@ contains
 
     !> eigenvectors for transitions
     real(dp), intent(out) :: evec(:,:)
+
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
     real(dp) :: sigma
@@ -794,7 +803,7 @@ contains
       ! Action of excitation supermatrix on supervector
       call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat,&
-          & species0, spinW, transChrg)
+          & species0, spinW, onsMEs, orb, transChrg)
 
     end do
 
@@ -835,7 +844,7 @@ contains
           & non-orthog'
       do iState = 1, nExc
         call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
-            & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg)
+            & grndEigVecs, filling, getij, gammaMat, species0, spinW, onsMEs, orb, transChrg)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-evec(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))
@@ -2037,7 +2046,7 @@ contains
 
       if (present(occNatural)) then
         naturalOrbs(:,:,1) = t2
-        call evalCoeffs(naturalOrbs(:,:,1) ,occNatural,grndEigVecs(:,:,1))
+        call evalCoeffs(naturalOrbs(:,:,1), occNatural, grndEigVecs(:,:,1))
         if (tCoeffs) then
           ALLOCATE(occtmp(size(occ)))
           occTmp = occNatural
@@ -2045,7 +2054,7 @@ contains
       else
         ALLOCATE(occtmp(size(occ)))
         occtmp = 0.0_dp
-        call evalCoeffs(t2,occNatural,grndEigVecs(:,:,1))
+        call evalCoeffs(t2, occtmp, grndEigVecs(:,:,1))
       end if
 
       ! Better to get this by post-processing DFTB+ output, but here for
@@ -2068,7 +2077,7 @@ contains
 
 
   !> Project MO density matrix onto ground state orbitals
-  subroutine evalCoeffs(t2,occ,eig)
+  subroutine evalCoeffs(t2, occ, eig)
 
     !> density matrix
     real(dp), intent(inout) :: t2(:,:)

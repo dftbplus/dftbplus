@@ -324,6 +324,11 @@ module dftbp_inputdata_module
     !> l-values of U-J for each block
     integer, allocatable :: iUJ(:,:,:)
 
+    !> Correction to energy from on-site matrix elements
+    real(dp), allocatable :: onSiteElements(:,:,:,:)
+
+    !> Correction to dipole momements on-site matrix elements
+    real(dp), allocatable :: onSiteDipole(:,:)
 
     !> Number of external charges
     integer :: nExtChrg = 0

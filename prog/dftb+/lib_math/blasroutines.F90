@@ -27,7 +27,7 @@ module dftbp_blasroutines
 
 
   !> Rank 1 update of a matrix A := alpha*x*y' + A
-  !> Wrapper for the level 2 blas routine xger to perform the rank 1 update of the chosen triangle
+  !> Wrapper for the level 2 blas routine xger to perform the rank 1 update of a general matrix
   interface ger
     module procedure ger_real
     module procedure ger_cmplx

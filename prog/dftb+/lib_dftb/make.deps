@@ -138,6 +138,11 @@ nonscc.o = nonscc.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp
 _mod_dftbp_nonscc: nonscc.o
 _mod_dftbp_nonscc = $(nonscc.o)
 
+onscorrection.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_commontypes _mod_dftbp_slakocont _mod_dftbp_message
+onscorrection.o = onscorrection.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont) $(_mod_dftbp_message)
+_mod_dftbp_onsitecorrection: onscorrection.o
+_mod_dftbp_onsitecorrection = $(onscorrection.o)
+
 orbitalequiv.o: _mod_dftbp_commontypes _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
 orbitalequiv.o = orbitalequiv.o $(_mod_dftbp_commontypes) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
 _mod_dftbp_orbitalequiv: orbitalequiv.o

@@ -4,7 +4,7 @@ Contributing code to DFTB+
 
 DFTB+ is an open source project, and everyone is welcome to contribute
 improvements and extensions, provided they are willing to provide their
-contributions under the same license as DFTB+ itself.
+changes under the same license as DFTB+ itself.
 
 
 How to contribute
