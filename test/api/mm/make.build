@@ -110,6 +110,11 @@ test_qdepextpotc.o: testhelpers.o
 # Testing
 ################################################################################
 
+# Check for presence of a C compiler
+ifdef CC
+FYPPOPT += -DCC
+endif
+
 TESTDIR := $(ROOT)/test/api/mm
 
 # File with the list of the tests
