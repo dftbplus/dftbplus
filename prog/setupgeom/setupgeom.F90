@@ -9,7 +9,6 @@
 
 program setupGeometry 
   use globalenv
-  use environment
   use inputdata_module, only : inputData
   use formatout, only : printDftbHeader
   use parser_setup, only : parseHsdInput
@@ -18,7 +17,6 @@ program setupGeometry
   character(len=*), parameter :: releaseName = ''
   integer, parameter :: releaseYear = 2018
 
-  type(TEnvironment) :: env
   type(inputData), allocatable :: input
 
   call initGlobalEnv()
@@ -26,7 +24,6 @@ program setupGeometry
   allocate(input)
   call parseHsdInput(input)
   deallocate(input)
-  call env%destruct()
   call destructGlobalEnv()
 
 end program setupGeometry
