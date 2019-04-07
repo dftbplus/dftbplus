@@ -251,8 +251,8 @@ _mod_oldcompat = $(oldcompat.o)
 
 #:if WITH_SOCKETS
 #:if WITH_TRANSPORT
-parser.o: common.fypp _mod_elecsolvers _mod_charmanip _mod_inputconversion _mod_dftbp_forcetypes _mod_assert _mod_hsdutils2 _mod_slakoeqgrid _mod_lapackroutines _mod_dispersions _mod_slakocont _mod_inputdata_module _mod_globalenv _mod_elsiiface _mod_linkedlist _mod_xmlf90 _mod_dftbplusu _mod_unitconversion _mod_geoopt _mod_reppoly _mod_message _mod_commontypes _mod_repcont _mod_oldcompat _mod_simplealgebra _mod_accuracy _mod_hsdparser _mod_constants _mod_typegeometryhsd _mod_hsdutils _mod_mixer _mod_periodic _mod_wrappedintrinsics _mod_oldskdata _mod_repspline _mod_ipisocket _mod_libnegf_vars _mod_poisson_init _mod_setupgeom
-parser.o = parser.o $(common.fypp) $(_mod_elecsolvers) $(_mod_charmanip) $(_mod_inputconversion) $(_mod_dftbp_forcetypes) $(_mod_assert) $(_mod_hsdutils2) $(_mod_slakoeqgrid) $(_mod_lapackroutines) $(_mod_dispersions) $(_mod_slakocont) $(_mod_inputdata_module) $(_mod_globalenv) $(_mod_elsiiface) $(_mod_linkedlist) $(_mod_xmlf90) $(_mod_dftbplusu) $(_mod_unitconversion) $(_mod_geoopt) $(_mod_reppoly) $(_mod_message) $(_mod_commontypes) $(_mod_repcont) $(_mod_oldcompat) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_hsdparser) $(_mod_constants) $(_mod_typegeometryhsd) $(_mod_hsdutils) $(_mod_mixer) $(_mod_periodic) $(_mod_wrappedintrinsics) $(_mod_oldskdata) $(_mod_repspline) $(_mod_ipisocket) $(_mod_libnegf_vars) $(_mod_poisson_init) $(_mod_setupgeom)
+parser.o: common.fypp _mod_elecsolvers _mod_charmanip _mod_inputconversion _mod_dftbp_forcetypes _mod_assert _mod_hsdutils2 _mod_slakoeqgrid _mod_lapackroutines _mod_dispersions _mod_slakocont _mod_inputdata_module _mod_globalenv _mod_elsiiface _mod_linkedlist _mod_xmlf90 _mod_dftbplusu _mod_unitconversion _mod_geoopt _mod_reppoly _mod_message _mod_commontypes _mod_repcont _mod_oldcompat _mod_simplealgebra _mod_accuracy _mod_hsdparser _mod_constants _mod_typegeometryhsd _mod_hsdutils _mod_mixer _mod_periodic _mod_wrappedintrinsics _mod_oldskdata _mod_repspline _mod_ipisocket _mod_libnegf_vars _mod_poisson_init
+parser.o = parser.o $(common.fypp) $(_mod_elecsolvers) $(_mod_charmanip) $(_mod_inputconversion) $(_mod_dftbp_forcetypes) $(_mod_assert) $(_mod_hsdutils2) $(_mod_slakoeqgrid) $(_mod_lapackroutines) $(_mod_dispersions) $(_mod_slakocont) $(_mod_inputdata_module) $(_mod_globalenv) $(_mod_elsiiface) $(_mod_linkedlist) $(_mod_xmlf90) $(_mod_dftbplusu) $(_mod_unitconversion) $(_mod_geoopt) $(_mod_reppoly) $(_mod_message) $(_mod_commontypes) $(_mod_repcont) $(_mod_oldcompat) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_hsdparser) $(_mod_constants) $(_mod_typegeometryhsd) $(_mod_hsdutils) $(_mod_mixer) $(_mod_periodic) $(_mod_wrappedintrinsics) $(_mod_oldskdata) $(_mod_repspline) $(_mod_ipisocket) $(_mod_libnegf_vars) $(_mod_poisson_init)
 _mod_parser: parser.o
 _mod_parser = $(parser.o)
 #:else
@@ -263,8 +263,8 @@ _mod_parser = $(parser.o)
 #:endif
 #:else
 #:if WITH_TRANSPORT
-parser.o: common.fypp _mod_elecsolvers _mod_charmanip _mod_inputconversion _mod_dftbp_forcetypes _mod_assert _mod_hsdutils2 _mod_slakoeqgrid _mod_lapackroutines _mod_dispersions _mod_slakocont _mod_inputdata_module _mod_globalenv _mod_elsiiface _mod_linkedlist _mod_xmlf90 _mod_dftbplusu _mod_unitconversion _mod_geoopt _mod_reppoly _mod_message _mod_commontypes _mod_repcont _mod_oldcompat _mod_simplealgebra _mod_accuracy _mod_hsdparser _mod_constants _mod_typegeometryhsd _mod_hsdutils _mod_mixer _mod_periodic _mod_wrappedintrinsics _mod_oldskdata _mod_repspline _mod_libnegf_vars _mod_poisson_init _mod_setupgeom
-parser.o = parser.o $(common.fypp) $(_mod_elecsolvers) $(_mod_charmanip) $(_mod_inputconversion) $(_mod_dftbp_forcetypes) $(_mod_assert) $(_mod_hsdutils2) $(_mod_slakoeqgrid) $(_mod_lapackroutines) $(_mod_dispersions) $(_mod_slakocont) $(_mod_inputdata_module) $(_mod_globalenv) $(_mod_elsiiface) $(_mod_linkedlist) $(_mod_xmlf90) $(_mod_dftbplusu) $(_mod_unitconversion) $(_mod_geoopt) $(_mod_reppoly) $(_mod_message) $(_mod_commontypes) $(_mod_repcont) $(_mod_oldcompat) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_hsdparser) $(_mod_constants) $(_mod_typegeometryhsd) $(_mod_hsdutils) $(_mod_mixer) $(_mod_periodic) $(_mod_wrappedintrinsics) $(_mod_oldskdata) $(_mod_repspline) $(_mod_libnegf_vars) $(_mod_poisson_init) $(_mod_setupgeom)
+parser.o: common.fypp _mod_elecsolvers _mod_charmanip _mod_inputconversion _mod_dftbp_forcetypes _mod_assert _mod_hsdutils2 _mod_slakoeqgrid _mod_lapackroutines _mod_dispersions _mod_slakocont _mod_inputdata_module _mod_globalenv _mod_elsiiface _mod_linkedlist _mod_xmlf90 _mod_dftbplusu _mod_unitconversion _mod_geoopt _mod_reppoly _mod_message _mod_commontypes _mod_repcont _mod_oldcompat _mod_simplealgebra _mod_accuracy _mod_hsdparser _mod_constants _mod_typegeometryhsd _mod_hsdutils _mod_mixer _mod_periodic _mod_wrappedintrinsics _mod_oldskdata _mod_repspline _mod_libnegf_vars _mod_poisson_init
+parser.o = parser.o $(common.fypp) $(_mod_elecsolvers) $(_mod_charmanip) $(_mod_inputconversion) $(_mod_dftbp_forcetypes) $(_mod_assert) $(_mod_hsdutils2) $(_mod_slakoeqgrid) $(_mod_lapackroutines) $(_mod_dispersions) $(_mod_slakocont) $(_mod_inputdata_module) $(_mod_globalenv) $(_mod_elsiiface) $(_mod_linkedlist) $(_mod_xmlf90) $(_mod_dftbplusu) $(_mod_unitconversion) $(_mod_geoopt) $(_mod_reppoly) $(_mod_message) $(_mod_commontypes) $(_mod_repcont) $(_mod_oldcompat) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_hsdparser) $(_mod_constants) $(_mod_typegeometryhsd) $(_mod_hsdutils) $(_mod_mixer) $(_mod_periodic) $(_mod_wrappedintrinsics) $(_mod_oldskdata) $(_mod_repspline) $(_mod_libnegf_vars) $(_mod_poisson_init)
 _mod_parser: parser.o
 _mod_parser = $(parser.o)
 #:else
@@ -274,9 +274,4 @@ _mod_parser: parser.o
 _mod_parser = $(parser.o)
 #:endif
 #:endif
-
-setupgeom.o: _mod_sorting _mod_simplealgebra _mod_tgeometry _mod_linkedlist _mod_wrappedintrinsics
-setupgeom.o = setupgeom.o $(_mod_sorting) $(_mod_simplealgebra) $(_mod_tgeometry) $(_mod_linkedlist) $(_mod_wrappedintrinsics)
-_mod_setupgeom: setupgeom.o
-_mod_setupgeom = $(setupgeom.o)
 

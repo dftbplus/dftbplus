@@ -8,7 +8,7 @@
 ROOT := $(PWD)
 
 .PHONY: default misc all
-default: dftb+ modes waveplot
+default: dftb+ modes waveplot setupgeom
 misc: misc_skderivs misc_slakovalue
 all: default misc
 
@@ -52,8 +52,8 @@ update_release:
         || $(ROOT)/utils/build/update_release $(BUILDDIR)/RELEASE \
         || echo "(UNKNOWN RELEASE)" > $(BUILDDIR)/RELEASE
 
-.PHONY: dftb+ modes waveplot
-dftb+ modes waveplot:
+.PHONY: dftb+ modes waveplot setupgeom
+dftb+ modes waveplot setupgeom:
 	mkdir -p $(BUILDDIR)/prog/$@
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)

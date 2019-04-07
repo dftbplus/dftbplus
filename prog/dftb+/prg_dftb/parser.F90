@@ -50,7 +50,6 @@ module parser
 #:if WITH_TRANSPORT
   use poisson_init
   use libnegf_vars
-  use setupgeom
 #:endif
   implicit none
 
@@ -3861,14 +3860,6 @@ contains
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
-    !call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)
-    !if (associated(pTmp)) then
-    !  call init(li)
-    !  call getChildValue(pTmp, "", li)
-    !  allocate(transpar%cblk(len(li)))
-    !  call asArray(li,transpar%cblk)
-    !  call destruct(li)
-    !end if
 
     !! Note: we parse first the task because we need to know it to define the
     !! mandatory contact entries. On the other hand we need to wait that
@@ -3877,14 +3868,16 @@ contains
     call getChildValue(root, "Task", pTaskType, child=pTask, default='uploadcontacts')
     call getNodeName(pTaskType, buffer)
 
-    if (char(buffer).ne."setupgeometry") then
-      call getChild(root, "Device", pDevice)
-      call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
-      call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
-      call readFirstLayerAtoms(pTmp, transpar%PL, transpar%nPLs, transpar%idxdevice)
-      if (.not.associated(pTmp)) then
-        call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
-      end if
+    if (char(buffer) == "setupgeometry") then
+       call error("Please use tool setupgeom with Task=setupgeometry")
+    end if   
+
+    call getChild(root, "Device", pDevice)
+    call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
+    call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
+    call readFirstLayerAtoms(pTmp, transpar%PL, transpar%nPLs, transpar%idxdevice)
+    if (.not.associated(pTmp)) then
+      call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
     end if
     
     call getChildren(root, "Contact", pNodeList)
@@ -3895,16 +3888,6 @@ contains
     allocate(transpar%contacts(transpar%ncont))
 
     select case (char(buffer))
-    case ("setupgeometry")
-      
-      call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, &
-            contVec, nPLs)
-      call getChildValue(pTask, "PLCutoff", plCutoff, 10.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, plCutoff)
-      call setupGeometry(geom, iAtInRegion, contVec, plCutoff, nPLs)
-      write(stdout,*) 'Geometry processed. Job finished'
-      stop 
-
     case ("contacthamiltonian")
 
       call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
@@ -4950,39 +4933,21 @@ contains
           & child=field)
       call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
 
-      if (task .eq. "setupgeometry") then
-        call getChildValue(pNode, "NumPLsDefined", nPLs(ii), 2)    
-        call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
-        call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, &
-             iAtInRegion(ii)%data, ishift=char_to_int(char(modif)))
-        call init(vecBuffer)
-        call getChildValue(pNode, "ContactVector", vecBuffer, modifier=modif)
-        if (len(vecBuffer).eq.3) then
-           call asArray(vecBuffer, vec)
-           call convertByMul(char(modif), lengthUnits, pNode, vec)
-           contVec(1:3,ii) = vec
-           contVec(4,ii) = contactLayerTol
-           call destruct(vecBuffer)
-        else
-           call error("ContactVector must define three entries")
-        end if   
-      else
-        call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
-        call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
-          & contactLayerTol, contacts(ii)%lattice, contacts(ii)%dir)
-        contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
+      call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
+      call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
+        & contactLayerTol, contacts(ii)%lattice, contacts(ii)%dir)
+      contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
 
-        ! Contact temperatures. A negative default is used so it is quite clear when the user sets a
-        ! different value. In such a case this overrides values defined in the Filling block
-        call getChild(pNode,"Temperature", field, modifier=modif, requested=.false.)
-        if (associated(field)) then
-          call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modif,&
-            & child=field)
-          call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
-        else
-          contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
-        end if
-      endif
+      ! Contact temperatures. A negative default is used so it is quite clear when the user sets a
+      ! different value. In such a case this overrides values defined in the Filling block
+      call getChild(pNode,"Temperature", field, modifier=modif, requested=.false.)
+      if (associated(field)) then
+        call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modif,&
+          & child=field)
+        call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
+      else
+        contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
+      end if
 
       if (task .eq. "uploadcontacts") then
         call getChildValue(pNode, "Potential", contacts(ii)%potential, 0.0_dp, modifier=modif,&

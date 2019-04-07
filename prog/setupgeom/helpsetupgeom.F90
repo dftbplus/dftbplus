@@ -1,4 +1,4 @@
-module setupgeom
+module helpsetupgeom
   use accuracy
   use globalenv
   use constants
@@ -438,6 +438,6 @@ module setupgeom
     close(fd2)
   end subroutine print_gen
 
-end module setupgeom
+end module helpsetupgeom
 
 
