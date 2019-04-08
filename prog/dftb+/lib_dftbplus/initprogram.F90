@@ -2724,18 +2724,6 @@ contains
       end if
     end if
 
-    if (tForces) then
-      select case (forceType)
-      case(forceTypes%orig)
-        strTmp = "Traditional"
-      case(forceTypes%dynamicT0)
-        strTmp = "Dynamics, zero electronic temp."
-      case(forceTypes%dynamicTFinite)
-        strTmp = "Dynamics, finite electronic temp."
-      end select
-      write(stdOut, "(A,':',T30,A)") "Force evaluation method", trim(strTmp)
-    end if
-
     tFirst = .true.
     if (allocated(conAtom)) then
       do ii = 1, nAtom
@@ -2929,15 +2917,17 @@ contains
     if (tPrintForces .and. .not. (tMD .or. tGeoOpt .or. tDerivs)) then
       write(stdOut, "(T30,A)") "Force calculation"
     end if
-    select case (forceType)
-    case(forceTypes%orig)
-      write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceTypes%dynamicT0)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
-      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(forceTypes%dynamicTFinite)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
-    end select
+    if (tForces) then
+      select case (forceType)
+      case(forceTypes%orig)
+        write(stdOut, "(A,T30,A)") "Force type", "original"
+      case(forceTypes%dynamicT0)
+        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
+        write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
+      case(forceTypes%dynamicTFinite)
+        write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
+      end select
+    end if
     if (tPrintEigVecs) then
       write(stdOut, "(T30,A)") "Eigenvector printing"
     end if
@@ -2999,16 +2989,6 @@ contains
         end do
       end do
     end if
-
-    select case (forceType)
-    case(forceTypes%orig)
-      write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceTypes%dynamicT0)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
-      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(forceTypes%dynamicTFinite)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
-    end select
 
     if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
