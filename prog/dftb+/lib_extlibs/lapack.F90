@@ -7,8 +7,8 @@
 
 !> Interface wrapper for the lapack routines. See the <a href="http://www.netlib.org/lapack/">lapack
 !> project documentation</a> for more details
-module lapack
-  use accuracy, only : rsp, rdp
+module dftbp_lapack
+  use dftbp_accuracy, only : rsp, rdp
   implicit none
   public
 
@@ -2122,4 +2122,4 @@ module lapack
 
   end interface zgesvd
   
-end module lapack
+end module dftbp_lapack

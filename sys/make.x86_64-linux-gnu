@@ -100,12 +100,19 @@ endif
 # General settings
 ############################################################################
 
+# Linker for c executables
+LN_C = $(CC)
+LNOPT_C =
+
 # Preprocessor
 FYPP = $(ROOT)/external/fypp/bin/fypp
 FYPPOPT =
 
 # Library options in general
 LIBOPT =
+
+# Additional libraries needed to be linked when linking C-executables
+OTHERLIBS_C = -lgfortran -lm -lgomp
 
 # Whether DFTD3 should be compiled during the build process. If set to 1 (yes),
 # you will have to download the dftd3 library before starting the build using
@@ -130,20 +137,20 @@ ARPACK_NEEDS_LAPACK = 0
 # Developer settings
 ############################################################################
 
+# NOTE: GFortran 7 and below give false compilation errors on some
+# c_f_pointer() calls if option "-std=f2008" is used. GFortran 8 is OK
+
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     OTHERLIBS =
-    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fall-intrinsics
+    FXXOPT = -fopenmp -g -Wall -pedantic -fall-intrinsics #-std=f2008
     CCOPT = -g -Wall -pedantic
 endif
 
 ifeq ($(strip $(DEBUG)),2)
-
-
     OTHERLIBS =
-    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check
+    FXXOPT = -fopenmp -g -Wall -pedantic -fbounds-check #-std=f2008
     FXXOPT += -Wno-unused-variable -Wno-unused-dummy-argument -Wno-unused-function -Wno-uninitialized
     FXXOPT += -fall-intrinsics
     CCOPT = -g -Wall -pedantic -fbounds-check
-
 endif

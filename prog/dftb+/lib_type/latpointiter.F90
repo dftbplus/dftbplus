@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Implements an interator over lattice points up to a certain cutoff
-module latpointiter
-  use accuracy, only : dp
-  use assert
+module dftbp_latpointiter
+  use dftbp_accuracy, only : dp
+  use dftbp_assert
   implicit none
   private
 
@@ -252,4 +252,4 @@ contains
 
   end subroutine getRanges
 
-end module latpointiter
+end module dftbp_latpointiter

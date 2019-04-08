@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains various constants for memory management
-module memman
-  use accuracy
+module dftbp_memman
+  use dftbp_accuracy
 
   implicit none
 
@@ -36,4 +36,4 @@ contains
 
   end function incrmntOfArray
 
-end module memman
+end module dftbp_memman

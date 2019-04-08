@@ -1,4 +1,4 @@
-module flib_sax
+module xmlf90_flib_sax
 
 !
 ! Stub module to gather all the functionality needed by the user
@@ -8,14 +8,14 @@ module flib_sax
 !
 ! m_xml_error is necessary in order to use a custom error handler.
 !
-use m_dictionary
-use m_xml_parser
-use m_converters
-use m_xml_error
+use xmlf90_dictionary
+use xmlf90_xml_parser
+use xmlf90_converters
+use xmlf90_xml_error
 
 implicit none
 
 public
 
-end module flib_sax
+end module xmlf90_flib_sax
 

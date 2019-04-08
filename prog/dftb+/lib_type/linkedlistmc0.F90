@@ -8,9 +8,9 @@
 #:include 'linkedlist.fypp'
 
 !> Linked list for single charcter strings
-module linkedlistmc0
-  use accuracy, only : mc
-  use assert
+module dftbp_linkedlistmc0
+  use dftbp_accuracy, only : mc
+  use dftbp_assert
   implicit none
   private
 
@@ -19,4 +19,4 @@ module linkedlistmc0
       & ITEM_TYPE='character(mc)',&
       & PADDING='""')
 
-end module linkedlistmc0
+end module dftbp_linkedlistmc0

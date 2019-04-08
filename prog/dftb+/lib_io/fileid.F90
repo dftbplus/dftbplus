@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> IDs for file operations
-module fileid
-  use message
+module dftbp_fileid
+  use dftbp_message
 
   private
 
@@ -37,4 +37,4 @@ contains
 
   end function getFileId
 
-end module fileid
+end module dftbp_fileid

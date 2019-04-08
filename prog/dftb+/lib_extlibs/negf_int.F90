@@ -7,9 +7,6 @@
 
 !> Interface to LIBNEGF for DFTB+
 module negf_int
-
-  use accuracy
-  use constants
   use libnegf_vars
   use libnegf, only : convertcurrent, eovh, getel, lnParams, negf_mpi_init, pass_DM, Tnegf, unit
   use libnegf, only : z_CSR
@@ -21,16 +18,17 @@ module negf_int
   use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
   use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
   use libnegf, only : read_negf_in, negf_partition_info, printcsr
-  use mat_conv
-  use sparse2dense
-  use densedescr
-  use commonTypes, only : TOrbitals
-  use libmpifx_module
-  use FormatOut
-  use globalenv
-  use message
-  use elecsolvertypes, only : electronicSolverTypes
-
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_matconv
+  use dftbp_sparse2dense
+  use dftbp_densedescr
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_mpifx
+  use dftbp_formatout
+  use dftbp_globalenv
+  use dftbp_message
+  use dftbp_elecsolvertypes, only : electronicSolverTypes
   implicit none
   private
 

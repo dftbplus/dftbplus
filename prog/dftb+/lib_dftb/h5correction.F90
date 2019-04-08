@@ -9,10 +9,10 @@
 
 !> H5 H-bond correction. Scales the gamma function at short-range for H-bond acceptor element pairs.
 !> See http://dx.doi.org/10.1021/acs.jctc.7b00629 for details.
-module h5correction
-  use accuracy
-  use vdwdata
-  use message, only : warning
+module dftbp_h5correction
+  use dftbp_accuracy
+  use dftbp_vdwdata
+  use dftbp_message, only : warning
   implicit none
   private
 
@@ -213,4 +213,4 @@ contains
   end subroutine getParams
 
 
-end module h5correction
+end module dftbp_h5correction

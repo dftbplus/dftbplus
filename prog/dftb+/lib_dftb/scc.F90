@@ -8,27 +8,27 @@
 #:include 'common.fypp'
 
 !> Functions and local variables for the SCC calculation.
-module scc
+module dftbp_scc
 #:if WITH_SCALAPACK
-  use mpifx
-  use scalapackfx
+  use dftbp_mpifx
+  use dftbp_scalapackfx
 #:endif
-  use environment
-  use assert
-  use accuracy
-  use message
-  use coulomb
-  use shortgamma
-  use fileid
-  use constants
-  use periodic
-  use externalcharges
-  use blasroutines
-  use commontypes
-  use chargeconstr
-  use shift
-  use dynneighlist
-  use h5correction
+  use dftbp_environment
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_coulomb
+  use dftbp_shortgamma
+  use dftbp_fileid
+  use dftbp_constants
+  use dftbp_periodic
+  use dftbp_externalcharges
+  use dftbp_blasroutines
+  use dftbp_commontypes
+  use dftbp_chargeconstr
+  use dftbp_shift
+  use dftbp_dynneighlist
+  use dftbp_h5correction
   implicit none
 
   private
@@ -162,9 +162,6 @@ module scc
     !> Mapping L-shell -> uniq U
     integer, allocatable :: iHubbU(:,:)
 
-    !> Are external charges present?
-    logical :: tExtChrg
-
     !> Negative gross charge
     real(dp), allocatable :: deltaQ(:,:)
 
@@ -202,7 +199,7 @@ module scc
     logical :: tAutoEwald
 
     !> External charges
-    type(TExtCharge) :: extCharge
+    type(TExtCharge), allocatable :: extCharge
 
 #:if WITH_SCALAPACK
     !> Descriptor for 1/R matrix
@@ -230,6 +227,7 @@ module scc
     procedure :: updateCoords
     procedure :: updateLatVecs
     procedure :: updateCharges
+    procedure :: setExternalCharges
     procedure :: updateShifts
     procedure :: getAtomicGammaMatrix
     procedure :: getEnergyPerAtom
@@ -281,16 +279,7 @@ contains
 
     @:ASSERT(allocated(inp%latVecs) .eqv. allocated(inp%recVecs))
     @:ASSERT(allocated(inp%latVecs) .eqv. (inp%volume > 0.0_dp))
-    @:ASSERT(size(inp%hubbU, dim=1) == this%mShell)
-    @:ASSERT(size(inp%hubbU, dim=2) == this%nSpecies)
-    @:ASSERT(size(inp%tDampedShort) == this%nSpecies)
     @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
-  #:call ASSERT_CODE
-    if (allocated(inp%extCharges)) then
-      @:ASSERT(size(inp%extCharges, dim=1) == 4)
-      @:ASSERT(size(inp%extCharges, dim=2) > 0)
-    end if
-  #:endcall ASSERT_CODE
 
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc /= -1) then
@@ -311,7 +300,6 @@ contains
     allocate(this%shiftPerL(this%mShell, this%nAtom))
     allocate(this%shortGamma(0, 0, 0, 0))
     this%tPeriodic = allocated(inp%latVecs)
-    this%tExtChrg = allocated(inp%extCharges)
 
     ! Initialize Hubbard U's
     allocate(this%uniqHubbU(this%mShell, this%nSpecies))
@@ -382,30 +370,9 @@ contains
     end if
 
     ! Initialise external charges
-    if (this%tExtChrg) then
-
-      if (allocated(inp%blurWidths)) then
-        if (this%tPeriodic) then
-          if (any(inp%blurWidths > 1.0e-7_dp)) then
-            if (1.0_dp / maxval(inp%blurWidths) < this%alpha) then
-              call error("Charge blur widths are too wide compared to the Ewald real space sum")
-            end if
-          end if
-          call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
-              & inp%recVecs, maxREwald, blurWidths=inp%blurWidths)
-        else
-          call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom,&
-              & blurWidths=inp%blurWidths)
-        end if
-      else
-        if (this%tPeriodic) then
-          call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom, inp%latVecs,&
-              & inp%recVecs, maxREwald)
-        else
-          call TExtCharge_init(this%extCharge, inp%extCharges, this%nAtom)
-        end if
-      end if
-
+    if (allocated(inp%extCharges)) then
+      call this%setExternalCharges(inp%extCharges(1:3,:), inp%extCharges(4,:),&
+          & blurWidths=inp%blurWidths)
     end if
 
     this%tChrgConstr = allocated(inp%chrgConstraints)
@@ -513,15 +480,15 @@ contains
 
     call initGamma_(this, species, neighList%iNeighbour)
 
-    if (this%tExtChrg) then
+    if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
-        call this%extCharge%updateCoords(env, this%coord, this%rCellVec, this%gLatPoint,&
+        call this%extCharge%setCoordinates(env, this%coord, this%rCellVec, this%gLatPoint,&
             & this%alpha, this%volume)
       else
-        call this%extCharge%updateCoords(env, this%coord)
+        call this%extCharge%setCoordinates(env, this%coord)
       end if
     end if
-
+    
   end subroutine updateCoords
 
 
@@ -563,8 +530,8 @@ contains
     call getCellTranslations(dummy, this%rCellVec, latVec, recVec / (2.0_dp * pi), maxREwald)
 
     call this%ewaldNeighList%updateLatVecs(latVec, recVec / (2.0_dp * pi))
-    if (this%tExtChrg) then
-      call this%extCharge%updateLatVecs(latVec, recVec)
+    if (allocated(this%extCharge)) then
+      call this%extCharge%setLatticeVectors(latVec, recVec)
     end if
 
   end subroutine updateLatVecs
@@ -632,6 +599,31 @@ contains
 
   end subroutine updateShifts
 
+  subroutine setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
+    class(TScc), intent(inout) :: this
+    real(dp), intent(in) :: chargeCoords(:,:)
+    real(dp), intent(in) :: chargeQs(:)
+    real(dp), intent(in), optional :: blurWidths(:)
+
+    if (.not. allocated(this%extCharge)) then
+      allocate(this%extCharge)
+      call TExtCharge_init(this%extCharge, this%nAtom, size(chargeQs), this%tPeriodic)
+    end if
+
+    if (present(blurWidths)) then
+      if (this%tPeriodic .and. any(blurWidths > 1.0e-7_dp)) then
+        if (1.0_dp / maxval(blurWidths) < this%alpha) then
+          call error("Charge blur widths are too wide compared to the Ewald real space sum")
+        end if
+      end if
+      call this%extCharge%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
+    else
+      call this%extCharge%setExternalCharges(chargeCoords, chargeQs)
+    end if
+
+  end subroutine setExternalCharges
+
+
   !> Routine for returning lower triangle of atomic resolved gamma as a matrix
   subroutine getAtomicGammaMatrix(this, gammamat, iNeighbour, img2CentCell)
 
@@ -684,7 +676,7 @@ contains
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom&
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
 
-    if (this%tExtChrg) then
+    if (allocated(this%extCharge)) then
       call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
     if (this%tChrgConstr) then
@@ -738,7 +730,7 @@ contains
     eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
         & + sum(this%shiftPerL * (2.0_dp * dQOutShell - this%deltaQPerLShell), dim=1))
 
-    if (this%tExtChrg) then
+    if (allocated(this%extCharge)) then
       call error("XLBOMD not working with external charges yet")
       !call addEnergyPerAtom_ExtChrg(this%deltaQAtom, eScc)
     end if
@@ -783,7 +775,7 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(force,dim=1) == 3)
     @:ASSERT(size(force,dim=2) == this%nAtom)
-    @:ASSERT(present(chrgForce) .eqv. this%tExtChrg)
+    @:ASSERT(present(chrgForce) .eqv. allocated(this%extCharge))
 
     ! Short-range part of gamma contribution
     call addGammaPrime_(this, force, species, iNeighbour, img2CentCell)
@@ -796,7 +788,7 @@ contains
       call addInvRPrime(env, this%nAtom, this%coord, this%deltaQAtom, force)
     end if
 
-    if (this%tExtChrg) then
+    if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
             & this%rCellVec, this%gLatPoint, this%alpha, this%volume)
@@ -872,8 +864,7 @@ contains
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
     shift = this%shiftPerAtom
-
-    if (this%tExtChrg) then
+    if (allocated(this%extCharge)) then
       call this%extCharge%addShiftPerAtom(shift)
     end if
     if (this%tChrgConstr) then
@@ -1037,7 +1028,7 @@ contains
       call addInvRPrimeXlbomd(env, this%nAtom, this%coord, this%deltaQAtom, dQOutAtom, force)
     end if
 
-    if (this%tExtChrg) then
+    if (allocated(this%extCharge)) then
       call error("XLBOMD with external charges does not work yet!")
     end if
 
@@ -1098,7 +1089,7 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    if (this%tExtChrg) then
+    if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
         call this%extCharge%getElStatPotential(env, locations, this%rCellVec, this%gLatPoint,&
             & this%alpha, this%volume, V, epsSoften=epsSoften)
@@ -1693,4 +1684,4 @@ contains
   end subroutine getSummedChargesPerUniqU_
 
 
-end module scc
+end module dftbp_scc

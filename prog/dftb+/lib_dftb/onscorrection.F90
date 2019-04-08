@@ -7,13 +7,13 @@
 
 #:include 'common.fypp'
 
-module onsitecorrection
-  use accuracy
-  use assert
-  use commontypes
-  use message
-  use nonscc, only : NonSccDiff
-  use slakocont
+module dftbp_onsitecorrection
+  use dftbp_accuracy
+  use dftbp_assert
+  use dftbp_commontypes
+  use dftbp_message
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_slakocont
   implicit none
   private
 
@@ -431,4 +431,4 @@ contains
 
   end subroutine onsblock_expand
 
-end module onsitecorrection
+end module dftbp_onsitecorrection

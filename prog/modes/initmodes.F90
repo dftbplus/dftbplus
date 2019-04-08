@@ -8,23 +8,23 @@
 #:include 'common.fypp'
 
 !> Contains the routines for initialising modes.
-module initmodes
-  use assert
-  use io
-  use hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
-  use xmlutils
-  use hsdutils
-  use hsdutils2
-  use flib_dom
-  use linkedlist
-  use charmanip
-  use accuracy
-  use constants
-  use typegeometryhsd
-  use message
-  use fileid
-  use unitconversion
-  use oldskdata
+module dftbp_initmodes
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_xmlutils
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use xmlf90_flib_dom
+  use dftbp_linkedlist
+  use dftbp_charmanip
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_typegeometryhsd
+  use dftbp_message
+  use dftbp_fileid
+  use dftbp_unitconversion
+  use dftbp_oldskdata
   implicit none
   private
 
@@ -110,8 +110,6 @@ module initmodes
 
   !> Number of derivatives
   integer, public :: nDerivs
-
-  !! Locally created variables
 
 contains
 
@@ -328,4 +326,4 @@ contains
 
   end subroutine readGeometry
 
-end module initmodes
+end module dftbp_initmodes

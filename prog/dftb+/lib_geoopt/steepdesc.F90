@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Function minimization with steepest descent algorithm
-module steepdesc
-  use assert
-  use accuracy
+module dftbp_steepdesc
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
 
   private
@@ -203,4 +203,4 @@ contains
 
   end subroutine next_local
 
-end module steepdesc
+end module dftbp_steepdesc
