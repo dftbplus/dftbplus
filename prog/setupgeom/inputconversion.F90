@@ -4,11 +4,11 @@
 #:include 'common.fypp'
 
 module inputconversion
-  use assert    
-  use accuracy
-  use commontypes
-  use wrappedintrinsics
-  use periodic, only : buildSquaredAtomIndex
+  use dftbp_assert    
+  use dftbp_accuracy
+  use dftbp_commontypes
+  use dftbp_wrappedintr
+  use dftbp_periodic, only : buildSquaredAtomIndex
   implicit none
   private
 

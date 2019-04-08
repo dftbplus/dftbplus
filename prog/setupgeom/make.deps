@@ -1,42 +1,42 @@
-helpsetupgeom.o: _mod_globalenv _mod_constants _mod_sorting _mod_message _mod_linkedlist _mod_simplealgebra _mod_wrappedintrinsics _mod_accuracy _mod_typegeometry
-helpsetupgeom.o = helpsetupgeom.o $(_mod_globalenv) $(_mod_constants) $(_mod_sorting) $(_mod_message) $(_mod_linkedlist) $(_mod_simplealgebra) $(_mod_wrappedintrinsics) $(_mod_accuracy) $(_mod_typegeometry)
+helpsetupgeom.o: _mod_dftbp_wrappedintr _mod_dftbp_accuracy _mod_dftbp_linkedlist _mod_dftbp_sorting _mod_dftbp_typegeometry _mod_dftbp_constants _mod_dftbp_globalenv _mod_dftbp_message _mod_dftbp_simplealgebra
+helpsetupgeom.o = helpsetupgeom.o $(_mod_dftbp_wrappedintr) $(_mod_dftbp_accuracy) $(_mod_dftbp_linkedlist) $(_mod_dftbp_sorting) $(_mod_dftbp_typegeometry) $(_mod_dftbp_constants) $(_mod_dftbp_globalenv) $(_mod_dftbp_message) $(_mod_dftbp_simplealgebra)
 _mod_helpsetupgeom: helpsetupgeom.o
 _mod_helpsetupgeom = $(helpsetupgeom.o)
 
-inputconversion.o: _mod_commontypes common.fypp _mod_assert _mod_periodic _mod_wrappedintrinsics _mod_accuracy
-inputconversion.o = inputconversion.o $(_mod_commontypes) $(common.fypp) $(_mod_assert) $(_mod_periodic) $(_mod_wrappedintrinsics) $(_mod_accuracy)
+inputconversion.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_commontypes _mod_dftbp_wrappedintr
+inputconversion.o = inputconversion.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_commontypes) $(_mod_dftbp_wrappedintr)
 _mod_inputconversion: inputconversion.o
 _mod_inputconversion = $(inputconversion.o)
 
 #:if WITH_TRANSPORT
-inputdata.o: _mod_commontypes common.fypp _mod_message _mod_repcont _mod_assert _mod_linkedlist _mod_wrappedintrinsics _mod_accuracy _mod_slakocont _mod_typegeometry _mod_libnegf_vars
-inputdata.o = inputdata.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_repcont) $(_mod_assert) $(_mod_linkedlist) $(_mod_wrappedintrinsics) $(_mod_accuracy) $(_mod_slakocont) $(_mod_typegeometry) $(_mod_libnegf_vars)
-_mod_inputdata_module: inputdata.o
-_mod_inputdata_module = $(inputdata.o)
+inputdata.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_repcont _mod_dftbp_linkedlist _mod_dftbp_typegeometry _mod_dftbp_commontypes _mod_dftbp_wrappedintr _mod_dftbp_slakocont _mod_dftbp_message _mod_libnegf_vars
+inputdata.o = inputdata.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_repcont) $(_mod_dftbp_linkedlist) $(_mod_dftbp_typegeometry) $(_mod_dftbp_commontypes) $(_mod_dftbp_wrappedintr) $(_mod_dftbp_slakocont) $(_mod_dftbp_message) $(_mod_libnegf_vars)
+_mod_inputdata_setup: inputdata.o
+_mod_inputdata_setup = $(inputdata.o)
 #:else
-inputdata.o: _mod_commontypes common.fypp _mod_message _mod_repcont _mod_assert _mod_linkedlist _mod_wrappedintrinsics _mod_accuracy _mod_slakocont _mod_typegeometry
-inputdata.o = inputdata.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_repcont) $(_mod_assert) $(_mod_linkedlist) $(_mod_wrappedintrinsics) $(_mod_accuracy) $(_mod_slakocont) $(_mod_typegeometry)
-_mod_inputdata_module: inputdata.o
-_mod_inputdata_module = $(inputdata.o)
+inputdata.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_repcont _mod_dftbp_linkedlist _mod_dftbp_typegeometry _mod_dftbp_commontypes _mod_dftbp_wrappedintr _mod_dftbp_slakocont _mod_dftbp_message
+inputdata.o = inputdata.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_repcont) $(_mod_dftbp_linkedlist) $(_mod_dftbp_typegeometry) $(_mod_dftbp_commontypes) $(_mod_dftbp_wrappedintr) $(_mod_dftbp_slakocont) $(_mod_dftbp_message)
+_mod_inputdata_setup: inputdata.o
+_mod_inputdata_setup = $(inputdata.o)
 #:endif
 
-oldcompat.o: _mod_xmlutils _mod_message _mod_hsdutils _mod_charmanip _mod_hsdutils2 _mod_xmlf90 _mod_accuracy
-oldcompat.o = oldcompat.o $(_mod_xmlutils) $(_mod_message) $(_mod_hsdutils) $(_mod_charmanip) $(_mod_hsdutils2) $(_mod_xmlf90) $(_mod_accuracy)
+oldcompat.o: _mod_dftbp_accuracy _mod_dftbp_hsdutils2 _mod_dftbp_xmlutils _mod_dftbp_message _mod_dftbp_xmlf90 _mod_dftbp_charmanip _mod_dftbp_hsdutils
+oldcompat.o = oldcompat.o $(_mod_dftbp_accuracy) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_xmlutils) $(_mod_dftbp_message) $(_mod_dftbp_xmlf90) $(_mod_dftbp_charmanip) $(_mod_dftbp_hsdutils)
 _mod_oldcompat: oldcompat.o
 _mod_oldcompat = $(oldcompat.o)
 
 #:if WITH_TRANSPORT
-parser_setup.o: common.fypp _mod_charmanip _mod_inputconversion _mod_assert _mod_hsdutils2 _mod_slakoeqgrid _mod_dispersions _mod_slakocont _mod_inputdata_module _mod_globalenv _mod_linkedlist _mod_xmlf90 _mod_unitconversion _mod_reppoly _mod_message _mod_commontypes _mod_repcont _mod_oldcompat _mod_simplealgebra _mod_accuracy _mod_hsdparser _mod_constants _mod_typegeometryhsd _mod_hsdutils _mod_periodic _mod_wrappedintrinsics _mod_oldskdata _mod_repspline _mod_libnegf_vars _mod_helpsetupgeom
-parser_setup.o = parser_setup.o $(common.fypp) $(_mod_charmanip) $(_mod_inputconversion) $(_mod_assert) $(_mod_hsdutils2) $(_mod_slakoeqgrid) $(_mod_dispersions) $(_mod_slakocont) $(_mod_inputdata_module) $(_mod_globalenv) $(_mod_linkedlist) $(_mod_xmlf90) $(_mod_unitconversion) $(_mod_reppoly) $(_mod_message) $(_mod_commontypes) $(_mod_repcont) $(_mod_oldcompat) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_hsdparser) $(_mod_constants) $(_mod_typegeometryhsd) $(_mod_hsdutils) $(_mod_periodic) $(_mod_wrappedintrinsics) $(_mod_oldskdata) $(_mod_repspline) $(_mod_libnegf_vars) $(_mod_helpsetupgeom)
+parser_setup.o: _mod_dftbp_slakoeqgrid common.fypp _mod_inputconversion _mod_dftbp_hsdutils2 _mod_dftbp_slakocont _mod_dftbp_hsdutils _mod_dftbp_reppoly _mod_dftbp_assert _mod_dftbp_wrappedintr _mod_dftbp_unitconversion _mod_dftbp_linkedlist _mod_dftbp_dispersions _mod_dftbp_globalenv _mod_inputdata_setup _mod_dftbp_simplealgebra _mod_dftbp_repcont _mod_dftbp_constants _mod_dftbp_accuracy _mod_dftbp_typegeometryhsd _mod_dftbp_periodic _mod_dftbp_oldskdata _mod_oldcompat _mod_dftbp_xmlf90 _mod_dftbp_commontypes _mod_dftbp_charmanip _mod_dftbp_message _mod_dftbp_repspline _mod_dftbp_hsdparser _mod_libnegf_vars _mod_helpsetupgeom
+parser_setup.o = parser_setup.o $(_mod_dftbp_slakoeqgrid) $(common.fypp) $(_mod_inputconversion) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_slakocont) $(_mod_dftbp_hsdutils) $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(_mod_dftbp_wrappedintr) $(_mod_dftbp_unitconversion) $(_mod_dftbp_linkedlist) $(_mod_dftbp_dispersions) $(_mod_dftbp_globalenv) $(_mod_inputdata_setup) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_repcont) $(_mod_dftbp_constants) $(_mod_dftbp_accuracy) $(_mod_dftbp_typegeometryhsd) $(_mod_dftbp_periodic) $(_mod_dftbp_oldskdata) $(_mod_oldcompat) $(_mod_dftbp_xmlf90) $(_mod_dftbp_commontypes) $(_mod_dftbp_charmanip) $(_mod_dftbp_message) $(_mod_dftbp_repspline) $(_mod_dftbp_hsdparser) $(_mod_libnegf_vars) $(_mod_helpsetupgeom)
 _mod_parser_setup: parser_setup.o
 _mod_parser_setup = $(parser_setup.o)
 #:else
-parser_setup.o: common.fypp _mod_charmanip _mod_inputconversion _mod_assert _mod_hsdutils2 _mod_slakoeqgrid _mod_dispersions _mod_slakocont _mod_inputdata_module _mod_globalenv _mod_linkedlist _mod_xmlf90 _mod_unitconversion _mod_reppoly _mod_message _mod_commontypes _mod_repcont _mod_oldcompat _mod_simplealgebra _mod_accuracy _mod_hsdparser _mod_constants _mod_typegeometryhsd _mod_hsdutils _mod_periodic _mod_wrappedintrinsics _mod_oldskdata _mod_repspline
-parser_setup.o = parser_setup.o $(common.fypp) $(_mod_charmanip) $(_mod_inputconversion) $(_mod_assert) $(_mod_hsdutils2) $(_mod_slakoeqgrid) $(_mod_dispersions) $(_mod_slakocont) $(_mod_inputdata_module) $(_mod_globalenv) $(_mod_linkedlist) $(_mod_xmlf90) $(_mod_unitconversion) $(_mod_reppoly) $(_mod_message) $(_mod_commontypes) $(_mod_repcont) $(_mod_oldcompat) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_hsdparser) $(_mod_constants) $(_mod_typegeometryhsd) $(_mod_hsdutils) $(_mod_periodic) $(_mod_wrappedintrinsics) $(_mod_oldskdata) $(_mod_repspline)
+parser_setup.o: _mod_dftbp_slakoeqgrid common.fypp _mod_inputconversion _mod_dftbp_hsdutils2 _mod_dftbp_slakocont _mod_dftbp_hsdutils _mod_dftbp_reppoly _mod_dftbp_assert _mod_dftbp_wrappedintr _mod_dftbp_unitconversion _mod_dftbp_linkedlist _mod_dftbp_dispersions _mod_dftbp_globalenv _mod_inputdata_setup _mod_dftbp_simplealgebra _mod_dftbp_repcont _mod_dftbp_constants _mod_dftbp_accuracy _mod_dftbp_typegeometryhsd _mod_dftbp_periodic _mod_dftbp_oldskdata _mod_oldcompat _mod_dftbp_xmlf90 _mod_dftbp_commontypes _mod_dftbp_charmanip _mod_dftbp_message _mod_dftbp_repspline _mod_dftbp_hsdparser
+parser_setup.o = parser_setup.o $(_mod_dftbp_slakoeqgrid) $(common.fypp) $(_mod_inputconversion) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_slakocont) $(_mod_dftbp_hsdutils) $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(_mod_dftbp_wrappedintr) $(_mod_dftbp_unitconversion) $(_mod_dftbp_linkedlist) $(_mod_dftbp_dispersions) $(_mod_dftbp_globalenv) $(_mod_inputdata_setup) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_repcont) $(_mod_dftbp_constants) $(_mod_dftbp_accuracy) $(_mod_dftbp_typegeometryhsd) $(_mod_dftbp_periodic) $(_mod_dftbp_oldskdata) $(_mod_oldcompat) $(_mod_dftbp_xmlf90) $(_mod_dftbp_commontypes) $(_mod_dftbp_charmanip) $(_mod_dftbp_message) $(_mod_dftbp_repspline) $(_mod_dftbp_hsdparser)
 _mod_parser_setup: parser_setup.o
 _mod_parser_setup = $(parser_setup.o)
 #:endif
 
-setupgeom.o: _mod_inputdata_module _mod_parser_setup common.fypp _mod_globalenv _mod_environment _mod_formatout
-setupgeom.o = setupgeom.o $(_mod_inputdata_module) $(_mod_parser_setup) $(common.fypp) $(_mod_globalenv) $(_mod_environment) $(_mod_formatout)
+setupgeom.o: _mod_dftbp_globalenv _mod_parser_setup _mod_dftbp_formatout common.fypp _mod_inputdata_setup
+setupgeom.o = setupgeom.o $(_mod_dftbp_globalenv) $(_mod_parser_setup) $(_mod_dftbp_formatout) $(common.fypp) $(_mod_inputdata_setup)
 

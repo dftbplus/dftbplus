@@ -7,27 +7,20 @@
 
 #:include 'common.fypp'
 
-!> Contains data type representing the input data for DFTB
-module inputdata_module
-  use assert
-  use accuracy
-  use typegeometry
-  use message
-  !use dispersions, only : DispersionInp
-  !use linresp_module, only : linrespini
-  use slakocont
-  use commontypes
-  use repcont
-  !use elecsolvers, only : TElectronicSolverInp
-  use linkedlist
-  use wrappedintrinsics 
-  !use xlbomd_module
-  !use pmlocalisation, only : TPipekMezeyInp
-  !use elstatpot, only : TElStatPotentialsInp
+!> Contains data type representing the input data for setupgeom 
+module inputdata_setup
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_typegeometry
+  use dftbp_message
+  use dftbp_slakocont
+  use dftbp_commontypes
+  use dftbp_repcont
+  use dftbp_linkedlist
+  use dftbp_wrappedintr 
 
 #:if WITH_TRANSPORT
   use libnegf_vars
-  !use poisson_init
 #:endif
 
   implicit none
@@ -128,7 +121,7 @@ module inputdata_module
     !> add new geometries at the end of files
     logical :: tAppendGeo  = .false.
 
-    !> use converged SCC forces only
+    !> use dftbp_converged SCC forces only
     logical :: tConvrgForces = .true.
 
     !> geometry step
@@ -280,7 +273,7 @@ module inputdata_module
     real(dp) :: pressure       = 0.0_dp
     logical :: tBarostat = .false.
 
-    !> use isotropic scaling if barostatting
+    !> use dftbp_isotropic scaling if barostatting
     logical :: tIsotropic = .true.
     real(dp) :: BarostatStrength = 0.0_dp
 
@@ -404,7 +397,7 @@ module inputdata_module
     !> potential shifts are written on file
     logical :: tWriteShifts = .false.
 
-    !> use Poisson solver for electrostatics
+    !> use dftbp_Poisson solver for electrostatics
     logical :: tPoisson = .false.
 
 
@@ -466,7 +459,6 @@ module inputdata_module
   #:if WITH_TRANSPORT
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
-    !type(TPoissonInfo) :: poisson
   #:endif
   end type inputData
 
@@ -513,4 +505,4 @@ contains
 
   end subroutine Control_destruct
 
-end module inputdata_module
+end module inputdata_setup

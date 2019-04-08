@@ -9,38 +9,38 @@
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
 module parser_setup
-  use globalenv
-  use assert
-  use accuracy
-  use constants
-  use inputdata_module
-  use typegeometryhsd
-  use hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
-  use hsdutils
-  use hsdutils2
-  use charmanip
-  use message
-  use linkedlist
-  use wrappedintrinsics
-  use unitconversion
-  use inputconversion
-  use oldcompat
-  use periodic
-  use simplealgebra, only: cross3, determinant33
-  use dispersions
-  use slakocont
-  use slakoeqgrid
-  use repcont
-  use repspline
-  use reppoly
-  use commontypes
-  use oldskdata
-  use xmlf90
-  use wrappedintrinsics
+  use dftbp_globalenv
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_typegeometryhsd
+  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use dftbp_charmanip
+  use dftbp_message
+  use dftbp_linkedlist
+  use dftbp_wrappedintr
+  use dftbp_unitconversion
+  use dftbp_periodic
+  use dftbp_simplealgebra, only: cross3, determinant33
+  use dftbp_dispersions
+  use dftbp_slakocont
+  use dftbp_slakoeqgrid
+  use dftbp_repcont
+  use dftbp_repspline
+  use dftbp_reppoly
+  use dftbp_commontypes
+  use dftbp_oldskdata
+  use dftbp_xmlf90
+  use dftbp_wrappedintr
 #:if WITH_TRANSPORT
   use libnegf_vars
   use helpsetupgeom
 #:endif
+  use inputdata_setup
+  use inputconversion
+  use oldcompat
   implicit none
 
   private
@@ -197,7 +197,7 @@ contains
     !> Node to get the information from
     type(fnode), pointer :: node
 
-    !> Root of the entire tree (in case it needs to be converted, for example because of compability
+    !> Root of the entire tree (in case it needs to be converted, for example because dftbp_of compability
     !> options)
     type(fnode), pointer :: root
 
@@ -302,7 +302,7 @@ contains
     !  call destruct(li)
     !end if
 
-    !! Note: we parse first the task because we need to know it to define the
+    !! Note: we parse first the task because dftbp_we need to know it to define the
     !! mandatory contact entries. On the other hand we need to wait that
     !! contacts are parsed to resolve the name of the contact for task =
     !! contacthamiltonian

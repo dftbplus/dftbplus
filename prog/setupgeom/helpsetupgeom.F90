@@ -1,13 +1,13 @@
 module helpsetupgeom
-  use accuracy
-  use globalenv
-  use constants
-  use message
-  use sorting
-  use simplealgebra  
-  use wrappedIntrinsics
-  use linkedlist
-  use typeGeometry
+  use dftbp_accuracy
+  use dftbp_globalenv
+  use dftbp_constants
+  use dftbp_message
+  use dftbp_sorting
+  use dftbp_simplealgebra  
+  use dftbp_wrappedIntr
+  use dftbp_linkedlist
+  use dftbp_typeGeometry
   implicit none
 
   public :: setupGeometry

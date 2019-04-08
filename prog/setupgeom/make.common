@@ -8,7 +8,7 @@
 # clear suffixes
 .SUFFIXES:
 .SUFFIXES: .f .f90 .F90 .o
-.PRECIOUS: %.f90
+#.PRECIOUS: %.f90
 
 FXXCLEAN = *.mod
 FYPPINC = -I
@@ -17,6 +17,8 @@ include $(ROOT)/make.config
 
 FYPPOPT += -DDEBUG=$(DEBUG)
 
+RELEASE := $(shell cat $(BUILDROOT)/RELEASE)
+FYPPOPT += -DRELEASE="'$(RELEASE)'"
 vpath % $(SRCDIRS)
 
 ############################################################################
@@ -98,12 +100,21 @@ INC_XMLF90 := -I$(BUILDROOT)/external/xmlf90
 L_LIBS += $(if $(filter _extlib_xmlf90, $^), $(LIB_XMLF90))
 L_INCS += $(INC_XMLF90)
 
-# LAPACK
+# LAPACK/BLAS
 PRESENT_EXTERNALS += _extlib_lapack
 L_LIBS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
 
+# TRANSPORT
 ifeq ($(strip $(WITH_TRANSPORT)),1)
   FYPPOPT += -DWITH_TRANSPORT
+  #POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
+  #COMPILED_EXTERNALS += _extlib_mudpack _extlib_poisson
+  #L_LIBS += $(if $(filter _extlib_poisson, $^), $(POISSON_LIBS))
+  #L_INCS += -I$(BUILDROOT)/external/poisson
+  #L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
+  #MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
+  #L_INCS += $(MPIFX_INCS)
+  #COMPILED_EXTERNALS += _extlib_mpifx
 endif
 
 $(COMPILED_EXTERNALS): __FORCE__

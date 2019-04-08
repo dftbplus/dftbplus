@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 program setupGeometry 
-  use globalenv
-  use inputdata_module, only : inputData
-  use formatout, only : printDftbHeader
+  use dftbp_globalenv
+  use dftbp_formatout, only : printDftbHeader
+  use inputdata_setup, only : inputData
   use parser_setup, only : parseHsdInput
   implicit none
 
