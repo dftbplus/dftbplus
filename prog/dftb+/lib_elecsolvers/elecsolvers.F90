@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Contains computer environment settings
-module elecsolvers
-  use accuracy, only : dp, lc
-  use assert
-  use elecsolvertypes, only : electronicSolverTypes
-  use elsisolver
+module dftbp_elecsolvers
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_assert
+  use dftbp_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elsisolver
   implicit none
 
   private
@@ -229,4 +229,4 @@ contains
   end subroutine TElectronicSolver_updateElectronicTemp
 
 
-end module elecsolvers
+end module dftbp_elecsolvers

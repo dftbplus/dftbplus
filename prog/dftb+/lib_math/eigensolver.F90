@@ -10,12 +10,12 @@
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code.
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
-module eigensolver
-  use assert
-  use message
-  use accuracy, only : rsp, rdp
-  use blas
-  use lapack
+module dftbp_eigensolver
+  use dftbp_assert
+  use dftbp_message
+  use dftbp_accuracy, only : rsp, rdp
+  use dftbp_blas
+  use dftbp_lapack
   implicit none
   private
 
@@ -2042,4 +2042,4 @@ contains
 
   end subroutine dblecmplx_zhbgv
 
-end module eigensolver
+end module dftbp_eigensolver

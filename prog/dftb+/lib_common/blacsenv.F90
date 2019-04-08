@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Contains BLACS environmental settings.
-module blacsenv
-  use mpienv
-  use message
-  use scalapackfx
-  use assert
+module dftbp_blacsenv
+  use dftbp_mpienv
+  use dftbp_message
+  use dftbp_scalapackfx
+  use dftbp_assert
   implicit none
   private
 
@@ -156,4 +156,4 @@ contains
   end subroutine getGridMap
 
 
-end module blacsenv
+end module dftbp_blacsenv

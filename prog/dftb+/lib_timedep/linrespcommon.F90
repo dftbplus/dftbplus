@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Helper routines for the linear response modules.
-module linrespcommon
-  use assert
-  use accuracy
-  use blasroutines
-  use sorting
-  use message
-  use commontypes
-  use onsitecorrection, only : getOnsME
-  use transcharges
+module dftbp_linrespcommon
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_blasroutines
+  use dftbp_sorting
+  use dftbp_message
+  use dftbp_commontypes
+  use dftbp_transcharges
+  use dftbp_onsitecorrection, only : getOnsME
   implicit none
   public
 
@@ -814,4 +814,4 @@ contains
 
   end subroutine transitionDipole
 
-end module linrespcommon
+end module dftbp_linrespcommon

@@ -8,16 +8,16 @@
 #:include 'common.fypp'
 
 !> Contains routines for converting from and to ELSIs CSC format.
-module elsicsc
+module dftbp_elsicsc
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
-  use accuracy, only : dp
-  use assert
-  use environment, only : TEnvironment
-  use periodic, only : TNeighbourList
-  use constants, only : pi
-  use message, only : error
+  use dftbp_accuracy, only : dp
+  use dftbp_assert
+  use dftbp_environment, only : TEnvironment
+  use dftbp_periodic, only : TNeighbourList
+  use dftbp_constants, only : pi
+  use dftbp_message, only : error
   implicit none
   private
 
@@ -994,4 +994,4 @@ contains
 
 #:endif
 
-end module elsicsc
+end module dftbp_elsicsc

@@ -9,20 +9,20 @@
 
 !> Calculates the first and second derivatives of matrix elements
 program skderivs
-  use assert
-  use io
-  use Accuracy
-  use Constants
-  use Message
-  use flib_dom
-  use HSDParser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
-  use HSDUtils
-  use HSDUtils2
-  use CharManip
-  use LinkedList
-  use SlakoEqGrid
-  use OldSKData
-  use FileId
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_message
+  use xmlf90_flib_dom
+  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use dftbp_charmanip
+  use dftbp_linkedlist
+  use dftbp_slakoeqgrid
+  use dftbp_oldskdata
+  use dftbp_fileid
   implicit none
 
 

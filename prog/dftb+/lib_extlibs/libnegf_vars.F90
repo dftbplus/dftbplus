@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 module libnegf_vars
-  use Accuracy, only : dp, mc, lc
-  use CommonTypes
-  use WrappedIntrinsics
-  use xmlf90
+  use dftbp_accuracy, only : dp, mc, lc
+  use dftbp_commontypes
+  use dftbp_wrappedintr
+  use dftbp_xmlf90
   implicit none
   private
 

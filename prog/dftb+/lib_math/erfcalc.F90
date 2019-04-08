@@ -14,10 +14,10 @@
 !>
 !> Compared to iforts built in erf routine, the max. deviation is 4e-16 for
 !> the double precision implementation.
-module erfcalc
+module dftbp_erfcalc
 
   !> wp: working precision, sp: real single, dp: real double
-  use accuracy,  only : wp => dp, sp => rsp, dp => rdp
+  use dftbp_accuracy,  only : wp => dp, sp => rsp, dp => rdp
   implicit none
   private
 
@@ -393,4 +393,4 @@ contains
     end if
   end subroutine fixnegf_sp
 
-end module erfcalc
+end module dftbp_erfcalc

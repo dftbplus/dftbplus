@@ -11,14 +11,14 @@
 !> Periodic summation from the following references:
 !> N. Karasawa et al., J. Phys. Chem. 93, 7320-7327 (1989)
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
-module dispcommon
-  use assert
-  use accuracy
-  use constants, only : pi
-  use message
-  use sorting
-  use simplealgebra, only : cross3
-  use errorfunction
+module dftbp_dispcommon
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants, only : pi
+  use dftbp_message
+  use dftbp_sorting
+  use dftbp_simplealgebra, only : cross3
+  use dftbp_errorfunction
   implicit none
   private
 
@@ -484,4 +484,4 @@ contains
 
   end function getDispReciprocalError
 
-end module dispcommon
+end module dftbp_dispcommon

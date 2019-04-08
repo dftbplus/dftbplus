@@ -9,12 +9,12 @@
 
 !> Calculates various types of charge populations
 !> To do: extend to other populations than Mulliken
-module populations
-  use assert
-  use accuracy
-  use constants
-  use periodic
-  use commontypes
+module dftbp_populations
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_periodic
+  use dftbp_commontypes
   implicit none
   private
 
@@ -283,10 +283,10 @@ contains
 
 
   !> Calculate the number of charges per shell given the orbital charges.
-  subroutine getChargePerShell(qq, orb, species, chargePerShell)
+  subroutine getChargePerShell(qOrb, orb, species, chargePerShell, qRef)
 
     !> charges in each orbital, for each atom and spin channel
-    real(dp), intent(in) :: qq(:,:,:)
+    real(dp), intent(in) :: qOrb(:,:,:)
 
     !> orbital information
     type(TOrbitals), intent(in) :: orb
@@ -297,8 +297,18 @@ contains
     !> Resulting charges in atomic shells
     real(dp), intent(out) :: chargePerShell(:,:,:)
 
+    !> Optional reference values
+    real(dp), intent(in), optional :: qRef(:,:,:)
+
+    real(dp), allocatable :: qq(:,:,:)
     integer :: iAt, iSp, iSh
     integer :: nAtom, nSpin
+
+    if (present(qRef)) then
+      qq = qOrb - qRef
+    else
+      qq = qOrb
+    end if
 
     nAtom = size(chargePerShell, dim=2)
     nSpin = size(chargePerShell, dim=3)
@@ -316,4 +326,4 @@ contains
 
 
 
-end module populations
+end module dftbp_populations

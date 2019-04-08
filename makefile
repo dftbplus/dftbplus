@@ -7,22 +7,36 @@
 
 ROOT := $(PWD)
 
-.PHONY: default misc all
+# Define a default goal here to make sure, make.config does not introduce on
+.PHONY: _default
+_default: default
+
+include make.config
+
+.PHONY: default misc api all
 default: dftb+ modes waveplot setupgeom
+ifeq ($(strip $(BUILD_API)),1)
+   default: api
+endif
 misc: misc_skderivs misc_slakovalue
-all: default misc
+api: api_mm
+all: default misc api
 
 .PHONY: install install_misc install_all
 install: install_dftb+ install_modes install_waveplot install_dptools
 install_misc: install_misc_skderivs install_misc_slakovalue
+install_api: install_api_mm
 
-.PHONY: test
+.PHONY: test test_api
 test: test_dftb+ test_dptools
+
+ifeq ($(strip $(BUILD_API)),1)
+  test: test_api
+endif
+test_api: test_api_mm
 
 .PHONY: check
 check: check_dptools
-
-include make.config
 
 ################################################################################
 # Sanity checks
@@ -58,21 +72,22 @@ dftb+ modes waveplot setupgeom:
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-dftb+: update_release external_xmlf90
+DFTBPLUS_DEPS := update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
-  dftb+: external_fsockets
+  DFTBPLUS_DEPS += external_fsockets
 endif
 ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
-  dftb+: external_dftd3
+  DFTBPLUS_DEPS += external_dftd3
 endif
 ifeq ($(strip $(WITH_MPI)),1)
-  dftb+: external_mpifx external_scalapackfx
+  DFTBPLUS_DEPS += external_mpifx external_scalapackfx
 endif
 ifeq ($(strip $(WITH_TRANSPORT)),1)
-  dftb+: external_libnegf external_poisson
+  DFTBPLUS_DEPS += external_libnegf external_poisson
   external_libnegf: external_mpifx
   external_poisson: external_mpifx external_libnegf
 endif
+dftb+: $(DFTBPLUS_DEPS)
 
 modes: external_xmlf90
 waveplot: external_xmlf90
@@ -100,6 +115,34 @@ $(EXTERNALS):
           ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
 
+
+.PHONY: api_mm
+api_mm: api_lib_mm
+ifeq ($(strip $(BUILD_TEST_BINARIES)),1)
+  api_mm: api_tester_mm
+endif
+
+
+.PHONY: api_lib_mm
+api_lib_mm:
+	mkdir -p $(BUILDDIR)/api/mm
+	$(MAKE) -C $(BUILDDIR)/api/mm -f $(ROOT)/api/mm/make.build \
+	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
+
+api_lib_mm: $(DFTBPLUS_DEPS)
+
+
+API_TESTER_NAME = $(subst api_tester_,,$@)
+
+.PHONY: api_tester_mm
+api_tester_mm:
+	mkdir -p $(BUILDDIR)/test/api/mm/testers
+	$(MAKE) -C $(BUILDDIR)/test/api/mm/testers \
+	    -f $(ROOT)/test/api/mm/make.build \
+	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
+
+api_tester_mm: api_lib_mm
+
 ################################################################################
 # Test targets
 ################################################################################
@@ -113,10 +156,18 @@ test_dftb+:
 test_dftb+: dftb+
 
 
+.PHONY: test_dptools
 test_dptools:
 	mkdir -p $(BUILDDIR)/test/tools/dptools
 	cd $< && $(ROOT)/test/tools/dptools/runtests.sh $(PYTHONS)
 
+
+.PHONY: test_api_mm
+test_api_mm:
+	$(MAKE) -C $(BUILDDIR)/test/api/mm -f $(ROOT)/test/api/mm/make.build \
+            ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) test
+
+test_api_mm: api_mm
 
 ################################################################################
 # Install targets
@@ -145,6 +196,13 @@ PYTHON := python
 install_dptools:
 	cd $(ROOT)/tools/dptools \
             && $(PYTHON) setup.py install --prefix $(INSTALLDIR)
+
+
+.PHONY: install_api_mm
+install_api_mm:
+	$(MAKE) -C $(BUILDDIR)/api/$(subst install_api_,,$@) \
+	    -f $(ROOT)/api/$(subst install_api_,,$@)/make.build \
+	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) install
 
 ################################################################################
 # Check targets

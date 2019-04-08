@@ -9,10 +9,10 @@
 
 !> Function minimization with the standard conjugate gradient technique.  See Numerical Recipes for
 !> details.
-module conjgrad
-  use assert
-  use accuracy
-  use linemin
+module dftbp_conjgrad
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_linemin
   implicit none
 
   private
@@ -324,4 +324,4 @@ contains
 
   end subroutine ConjGrad_getMinGrad
 
-end module conjgrad
+end module dftbp_conjgrad

@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Auxiliary subroutines for the ASSERT command
-module assert
-  use io
-  use globalenv, only : abortProgram
+module dftbp_assert
+  use dftbp_io
+  use dftbp_globalenv, only : abortProgram
   implicit none
   private
 
@@ -41,4 +41,4 @@ contains
 
 #:endcall ASSERT_CODE
 
-end module assert
+end module dftbp_assert
