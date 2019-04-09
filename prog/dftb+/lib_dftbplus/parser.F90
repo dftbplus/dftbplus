@@ -5212,7 +5212,6 @@ contains
         end select 
         shellnames(ii) = trim(adjustl(shellnames(ii)))//sindx
       end if
-      print*,shellnames(ii)
     end do
     deallocate(ind)  
 
