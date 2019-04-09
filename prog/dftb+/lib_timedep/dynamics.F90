@@ -181,6 +181,9 @@ module timeprop_module
     !> intial atomic velocities if supplied
     real(dp), allocatable :: initialVelocities(:,:)
 
+    !> if initial fillings are provided in an external file
+    logical :: tFillingsFromFile
+
 end type TElecDynamicsInp
 
 !> Data type for electronic dynamics internal settings
@@ -207,7 +210,7 @@ type TElecDynamics
    integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
    logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe
    logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondO = .false.
-   logical :: tCalcOnsiteGradients = .false., tPeriodic = .false.
+   logical :: tCalcOnsiteGradients = .false., tPeriodic = .false., tFillingsFromFile = .false.
    type(OThermostat), allocatable :: pThermostat
    type(OMDIntegrator), allocatable :: pMDIntegrator
    class(DispersionIface), allocatable :: dispersion
@@ -304,6 +307,7 @@ contains
     this%writeFreq = inp%writeFreq
     this%restartFreq = inp%restartFreq
     this%speciesName = speciesName
+    this%tFillingsFromFile = inp%tFillingsFromFile
 
     if (inp%envType /= iTDConstant) then
       this%time0 = inp%time0
@@ -455,7 +459,7 @@ contains
     real(dp), allocatable, intent(in) :: spinW(:,:,:)
 
     !> occupations
-    real(dp), intent(in) :: filling(:,:,:)
+    real(dp), intent(inout) :: filling(:,:,:)
 
     !> Number of neighbours for each of the atoms
     integer, intent(inout) :: nNeighbourSK(:)
@@ -619,7 +623,7 @@ contains
     real(dp), allocatable, intent(in) :: spinW(:,:,:)
 
     !> occupations
-    real(dp), intent(in) :: filling(:,:,:)
+    real(dp), intent(inout) :: filling(:,:,:)
 
     !> Number of neighbours for each of the atoms
     integer, intent(inout) :: nNeighbourSK(:)
@@ -717,7 +721,7 @@ contains
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
     character(4) :: dumpIdx
     logical :: tProbeFrameWrite
-    
+
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
     iStep = 0
@@ -1514,7 +1518,7 @@ contains
     real(dp), allocatable, intent(in) :: ham(:,:)
 
     !> occupations
-    real(dp), intent(in) :: filling(:,:,:)
+    real(dp), intent(inout) :: filling(:,:,:)
 
     !> Atomic neighbour data
     integer, intent(in) :: iNeighbour(0:,:)
@@ -1583,7 +1587,7 @@ contains
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
-    integer :: iSpin, iOrb, iOrb2
+    integer :: iSpin, iOrb, iOrb2, fillingsIn
 
     allocate(rhoPrim(size(ham, dim=1), this%nSpin))
     allocate(ErhoPrim(size(ham, dim=1)))
@@ -1621,6 +1625,16 @@ contains
     call gesv(T2, T3)
     Sinv(:,:) = cmplx(T3, 0, dp)
     write(stdOut,"(A)")'S inverted'
+
+    if (this%tFillingsFromFile) then
+       filling(:,:,:) = 0.0_dp
+       open(newunit=fillingsIn, file='fillings.in')
+       do iSpin=1,this%nSpin
+          do iOrb=1,this%nOrbs
+             read(fillingsIn, *) filling(iOrb,1,iSpin)
+          end do
+       end do
+    end if
 
     if (.not.this%tRestart) then
       do iSpin=1,this%nSpin
