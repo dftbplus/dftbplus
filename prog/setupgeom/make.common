@@ -8,7 +8,7 @@
 # clear suffixes
 .SUFFIXES:
 .SUFFIXES: .f .f90 .F90 .o
-#.PRECIOUS: %.f90
+.PRECIOUS: %.f90
 
 FXXCLEAN = *.mod
 FYPPINC = -I
@@ -100,21 +100,37 @@ INC_XMLF90 := -I$(BUILDROOT)/external/xmlf90
 L_LIBS += $(if $(filter _extlib_xmlf90, $^), $(LIB_XMLF90))
 L_INCS += $(INC_XMLF90)
 
-# LAPACK/BLAS
-PRESENT_EXTERNALS += _extlib_lapack
-L_LIBS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
 
 # TRANSPORT
 ifeq ($(strip $(WITH_TRANSPORT)),1)
+  FYPPOPT += -DWITH_MPI -DWITH_SCALAPACK
   FYPPOPT += -DWITH_TRANSPORT
-  #POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
-  #COMPILED_EXTERNALS += _extlib_mudpack _extlib_poisson
+  POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
+  COMPILED_EXTERNALS += _extlib_mudpack _extlib_poisson
+  LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lsyscalls -lc
   #L_LIBS += $(if $(filter _extlib_poisson, $^), $(POISSON_LIBS))
-  #L_INCS += -I$(BUILDROOT)/external/poisson
-  #L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
-  #MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
-  #L_INCS += $(MPIFX_INCS)
-  #COMPILED_EXTERNALS += _extlib_mpifx
+  L_LIBS += $(POISSON_LIBS)
+  L_LIBS += $(LIBNEGF_LIBS)
+  L_INCS += -I$(BUILDROOT)/external/poisson
+  L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
+  #MPIFX
+  MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
+  MPIFX_LIBS := -L$(BUILDROOT)/external/mpifx -lmpifx
+  L_INCS += $(MPIFX_INCS)
+  L_LIBS += $(MPIFX_LIBS)
+  COMPILED_EXTERNALS += _extlib_mpifx
+  #SCALAPACKFX
+  SCALAPACKFX_LIBS := -L$(BUILDROOT)/external/scalapackfx -lscalapackfx
+  SCALAPACKFX_INCS := -I$(BUILDROOT)/external/scalapackfx
+  L_LIBS += $(if $(filter _extlib_scalapackfx, $^), $(SCALAPACKFX_LIBS)\
+      $(LIB_SCALAPACK))
+  L_INCS += $(SCALAPACKFX_INCS)
+
+  COMPILED_EXTERNALS += _extlib_mpifx _extlib_scalapackfx
+
+  # LAPACK/BLAS
+  PRESENT_EXTERNALS += _extlib_lapack
+  L_LIBS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
 endif
 
 $(COMPILED_EXTERNALS): __FORCE__
