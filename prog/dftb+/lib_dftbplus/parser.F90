@@ -37,6 +37,7 @@ module dftbp_parser
   use dftbp_commontypes
   use dftbp_oldskdata
   use dftbp_xmlf90
+  use dftbp_orbitals
   use dftbp_forcetypes, only : forceTypes
   use dftbp_mixer, only : mixerTypes
   use dftbp_geoopt, only : geoOptTypes
@@ -5178,44 +5179,6 @@ contains
 
   end subroutine readCustomReferenceOcc
 
-  !> Builds a unique names for the atomic orbitals 
-  !> Assign 's', 'p', 'd' to first occurring shells, then 's2', 'p2', ... 
-  subroutine getOrbitalNames(iSpecie, orb, shellnames) 
-    !> atomic specie    
-    integer, intent(in) :: iSpecie    
-    !> orbital info
-    type(TOrbitals), intent(in) :: orb
-    !> output string naming the atomic orbital  
-    character(sc), intent(out), allocatable :: shellnames(:)
-
-    integer :: ii, jj 
-    integer, allocatable :: ind(:)
-    !character(sc), allocatable :: names(:)
-    character(1) :: sindx
-
-    !allocate(names(orb%nShell(iSpecie)))
-    allocate(shellnames(orb%nShell(iSpecie)))
-    allocate(ind(orb%nShell(iSpecie)))
-    ind = 1 
-
-    do ii = 1, orb%nShell(iSpecie) 
-      write(shellnames(ii), "(A)") orbitalNames(orb%angShell(ii, iSpecie) + 1)
-      if (any(shellnames(ii) == shellnames(1:ii-1))) then
-        ind(ii) = ind(ii) + 1
-        select case (ind(ii))
-        case(1)
-          sindx = ""
-        case(2:9)
-          write(sindx,'(I1)') ind(ii)   
-        case(10:)
-          call error("Exceeded maximum number of shells with the same angular momentum (9)")     
-        end select 
-        shellnames(ii) = trim(adjustl(shellnames(ii)))//sindx
-      end if
-    end do
-    deallocate(ind)  
-
-  end subroutine getOrbitalNames  
 
   !> Reads the parallel block.
   subroutine readParallel(root, input)
