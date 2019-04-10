@@ -1697,9 +1697,11 @@ contains
     ! Do we use any part of negf (solver, tunnelling etc.)?
     tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn
 
+  #:if WITH_MPI
     if (tNegf .and. env%mpi%nGroup > 1) then
       call error("At the moment NEGF solvers cannot be used for multiple processor groups")
     end if
+  #:endif
 
   #:else
 
@@ -3237,8 +3239,12 @@ contains
         poissStr%latVecs(:,:) = 0.0_dp
       end if
       poissStr%tempElec = tempElec
+    #:if WITH_MPI
       call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
           & tInitialized)
+    #:else
+      call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, tInitialized)
+    #:endif
       if (.not. tInitialized) then
         call error("Poisson solver not initialized")
       end if
@@ -3251,8 +3257,13 @@ contains
       end if
 
       ! Some sanity checks and initialization of GDFTB/NEGF
+    #:if WITH_MPI
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
           & tempElec, electronicSolver%iSolver)
+    #:else
+      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, &
+          & tempElec, electronicSolver%iSolver)
+    #:endif
 
       ginfo = input%ginfo
 

@@ -246,7 +246,11 @@ contains
     end if
 
     if (tTunn) then
+  #:if WITH_MPI
       call calc_current(env%mpi%globalComm, parallelKS%localKS, ham, over,&
+  #:else
+      call calc_current(parallelKS%localKS, ham, over,&
+  #:endif
           & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
           & leadCurrents, writeTunn, writeLDOS, mu)
@@ -642,7 +646,11 @@ contains
       if (tLocalCurrents) then
         call writeXYZFormat("supercell.xyz", coord, species, speciesName)
         write(stdOut,*) " <<< supercell.xyz written on file"
+    #:if WITH_MPI
         call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
+    #:else
+        call local_currents(parallelKS%localKS, ham, over,&
+    #:endif
             & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu)
       end if
@@ -2058,7 +2066,11 @@ contains
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
     #:if WITH_TRANSPORT
+    #:if WITH_MPI
       call calcdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
+    #:else
+      call calcdensity_green(iSCC, parallelKS%localKS, ham, over,&
+    #:endif
           & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
     #:else
@@ -4181,7 +4193,11 @@ contains
 
     #:if WITH_TRANSPORT
       if (electronicSolver%iSolver == electronicSolverTypes%GF) then
+    #:if WITH_MPI
         call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
+    #:else
+        call calcEdensity_green(iSCC, parallelKS%localKS, ham, over,&
+    #:endif
             & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
       end if

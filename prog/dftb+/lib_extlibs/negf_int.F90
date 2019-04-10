@@ -4,11 +4,15 @@
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
+#:include "common.fypp"
 
 !> Interface to LIBNEGF for DFTB+
 module negf_int
   use libnegf_vars
-  use libnegf, only : convertcurrent, eovh, getel, lnParams, negf_mpi_init, pass_DM, Tnegf, unit
+  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, unit
+#:if WITH_MPI
+  use libnegf, only : negf_mpi_init
+#:endif
   use libnegf, only : z_CSR
   use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
   use libnegf, only : associate_current, compute_current, compute_density_dft, compute_ldos
@@ -24,11 +28,13 @@ module negf_int
   use dftbp_sparse2dense
   use dftbp_densedescr
   use dftbp_commontypes, only : TOrbitals
-  use dftbp_mpifx
   use dftbp_formatout
   use dftbp_globalenv
   use dftbp_message
   use dftbp_elecsolvertypes, only : electronicSolverTypes
+#:if WITH_MPI
+  use dftbp_mpifx
+#:endif
   implicit none
   private
 
@@ -81,12 +87,15 @@ module negf_int
   !> Init gDFTB environment and variables
   !>
   !> Note: mpicomm should be the global commworld here
+#:if WITH_MPI
   subroutine negf_init(transpar, greendens, tundos, mpicomm, tempElec, solver)
-
+    Type(mpifx_comm), intent(in) :: mpicomm
+#:else
+  subroutine negf_init(transpar, greendens, tundos, tempElec, solver)
+#:endif
     Type(TTranspar), intent(in) :: transpar
     Type(TNEGFGreenDensInfo), intent(in) :: greendens
     Type(TNEGFTunDos), intent(in) :: tundos
-    Type(mpifx_comm), intent(in) :: mpicomm
     real(dp), intent(in) :: tempElec
 
     !> Which solver call is used in the main code
@@ -101,7 +110,9 @@ module negf_int
     ! Workaround: ifort 16
     ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
+#:if WITH_MPI
     call negf_mpi_init(mpicomm)
+#:endif
 
     if (transpar%defined) then
       ncont = transpar%ncont
@@ -870,12 +881,17 @@ module negf_int
 
 
   !> Calculates density matrix with Green's functions
+#:if WITH_MPI
  subroutine calcdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
      & Ef, E0, TS)
-
-    integer, intent(in) :: iSCCIter
     type(mpifx_comm), intent(in) :: mpicomm
+#:else
+ subroutine calcdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
+     & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
+     & Ef, E0, TS)
+#:endif
+    integer, intent(in) :: iSCCIter
     integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
@@ -894,8 +910,9 @@ module negf_int
 
     pCsrDens => csrDens
 
+#:if WITH_MPI
     call negf_mpi_init(mpicomm)
-
+#:endif
     ! We need this now for different fermi levels in colinear spin
     ! Note: the spin polirized does not work with
     ! built-int potentials (the unpolarized does) in the poisson
@@ -938,10 +955,12 @@ module negf_int
 
     end do
 
+#:if WITH_MPI
     do iS = 1, nSpin
       ! In place all-reduce of the density matrix
       call mpifx_allreduceip(mpicomm, rho(:,iS), MPI_SUM)
     end do
+#:endif
 
     write(stdOut,'(80("="))')
     write(stdOut,*)
@@ -949,11 +968,15 @@ module negf_int
   end subroutine calcdensity_green
 
   !> Calculates E-density matrix with Green's functions
+#:if WITH_MPI
   subroutine calcEdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
-
-    integer, intent(in) :: iSCCIter
     type(mpifx_comm), intent(in) :: mpicomm
+#:else
+  subroutine calcEdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
+      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
+#:endif
+    integer, intent(in) :: iSCCIter
     integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
@@ -971,7 +994,9 @@ module negf_int
 
     pCsrEDens => csrEDens
 
+#:if WITH_MPI
     call negf_mpi_init(mpicomm)
+#:endif
     ! We need this now for different fermi levels in colinear spin
     ! Note: the spin polirized does not work with
     ! built-int potentials (the unpolarized does) in the poisson
@@ -1011,7 +1036,9 @@ module negf_int
     end do
 
     ! In place all-reduce of the density matrix
+#:if WITH_MPI
     call mpifx_allreduceip(mpicomm, rhoE, MPI_SUM)
+#:endif
 
     write(stdOut,'(80("="))')
     write(stdOut,*)
@@ -1019,10 +1046,15 @@ module negf_int
   end subroutine calcEdensity_green
 
   !> Calculate the partial density of states
+#:if WITH_MPI
   subroutine calcPDOS_green(mpicomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, ldosTot, writeLDOS)
-    integer, intent(in) :: groupKS(:,:)
     type(mpifx_comm), intent(in) :: mpicomm
+#:else
+  subroutine calcPDOS_green(groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
+      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, ldosTot, writeLDOS)
+#:endif
+    integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
@@ -1039,7 +1071,9 @@ module negf_int
     type(lnParams) :: params
     integer :: fdUnit
 
+#:if WITH_MPI
     call negf_mpi_init(mpicomm)
+#:endif
 
     call get_params(negf, params)
 
@@ -1069,7 +1103,11 @@ module negf_int
 
       call negf_ldos(pCsrHam, PCsrOver, iS, iK, kWeights(iK), ldosMat)
 
+#:if WITH_MPI
       call add_partial_results(mpicomm, ldosMat, ldosTot, ldosSKRes, iKS, nKS)
+#:else
+      call add_partial_results(ldosMat, ldosTot, ldosSKRes, iKS, nKS)
+#:endif
 
     end do
 
@@ -1097,12 +1135,17 @@ module negf_int
 
 
   !> Calculate the current
+#:if WITH_MPI
   subroutine calc_current(mpicomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
       & currLead, writeTunn, writeLDOS, mu)
-
-    integer, intent(in) :: groupKS(:,:)
     type(mpifx_comm), intent(in) :: mpicomm
+#:else
+  subroutine calc_current(groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
+      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
+      & currLead, writeTunn, writeLDOS, mu)
+#:endif
+    integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
@@ -1137,8 +1180,9 @@ module negf_int
     real(dp), dimension(:,:), allocatable :: H_all, S_all
     character(:), allocatable :: filename
 
+#:if WITH_MPI
     call negf_mpi_init(mpicomm)
-
+#:endif
     call get_params(negf, params)
 
     unitOfEnergy%name = "H"
@@ -1218,17 +1262,23 @@ module negf_int
       !       tunnMat MPI gather partial results and accumulate k-summation
       !       currPMat stores contact current I_i(iE)
       !       tunnSKRes stores tunneling for all k-points and spin: T(iE, i->j, iSK)
+
+#:if WITH_MPI
       call add_partial_results(mpicomm, tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
-
       call add_partial_results(mpicomm, currPMat, currMat, currSKRes, iKS, nKS)
-
       call add_partial_results(mpicomm, ldosPMat, ldosMat, ldosSKRes, iKS, nKS)
+#:else
+      call add_partial_results(tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
+      call add_partial_results(currPMat, currMat, currSKRes, iKS, nKS)
+      call add_partial_results(ldosPMat, ldosMat, ldosSKRes, iKS, nKS)
+#:endif
 
     end do
 
+#:if WITH_MPI
     call mpifx_allreduceip(mpicomm, currLead, MPI_SUM)
-
     call mpifx_barrier(mpicomm)
+#:endif
 
     ! converts from internal atomic units into A
     currLead = currLead * convertCurrent(unitOfEnergy, unitOfCurrent)
@@ -1285,8 +1335,12 @@ module negf_int
   !----------------------------------------------------------------------------
   !   utility to allocate and sum partial results
   !----------------------------------------------------------------------------
+#:if WITH_MPI
   subroutine add_partial_results(mpicomm, pMat, matTot, matSKRes, iK, nK)
     type(mpifx_comm), intent(in) :: mpicomm
+#:else
+  subroutine add_partial_results(pMat, matTot, matSKRes, iK, nK)
+#:endif
     real(dp), intent(in), pointer :: pMat(:,:)
     real(dp), allocatable :: matTot(:,:)
     real(dp), allocatable :: matSKRes(:,:,:)
@@ -1296,6 +1350,7 @@ module negf_int
     integer :: err
 
     if (associated(pMat)) then
+#:if WITH_MPI
       allocate(tmpMat(size(pMat,1), size(pMat,2)), stat=err)
 
       if (err /= 0) then
@@ -1304,7 +1359,7 @@ module negf_int
 
       tmpMat = pMat
       call mpifx_allreduceip(mpicomm, tmpMat, MPI_SUM)
-
+#:endif
       if(.not.allocated(matTot)) then
         allocate(matTot(size(pMat,1), size(pMat,2)), stat=err)
 
@@ -1314,7 +1369,11 @@ module negf_int
 
         matTot = 0.0_dp
       end if
+#:if WITH_MPI
       matTot = matTot + tmpMat
+#:else
+      matTot = matTot + pMat
+#:endif
 
       if (nK > 1) then
         if (.not.allocated(matSKRes)) then
@@ -1326,15 +1385,20 @@ module negf_int
 
           matSKRes = 0.0_dp
         endif
+#:if WITH_MPI
         matSKRes(:,:,iK) = tmpMat(:,:)
+#:else
+        matSKRes(:,:,iK) = pMat(:,:)
+#:endif
       end if
 
+#:if WITH_MPI
       deallocate(tmpMat)
+#:endif
 
     end if
 
   end subroutine add_partial_results
-
 
   !> utility to write tunneling or ldos on files
   subroutine write_file(negf, matTot, matSKRes, filename, groupKS, kpoints, kWeights)
@@ -1418,11 +1482,16 @@ module negf_int
   !
   ! NOTE: Limited to non-periodic systems             s !!!!!!!!!!!
   ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#:if WITH_MPI
   subroutine local_currents(mpicomm, groupKS, ham, over, &
       & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, orb, kPoints, kWeights, coord, dumpDens, chempot)
-
     type(mpifx_comm), intent(in) :: mpicomm
+#:else
+  subroutine local_currents(groupKS, ham, over, &
+      & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
+      & cellVec, orb, kPoints, kWeights, coord, dumpDens, chempot)
+#:endif
     integer, intent(in) :: groupKS(:,:)
     real(dp), intent(in) :: ham(:,:), over(:)
     integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
@@ -1457,8 +1526,9 @@ module negf_int
     pCsrDens => csrDens
     pCsrEDens => csrEDens
 
+#:if WITH_MPI
     call negf_mpi_init(mpicomm)
-
+#:endif
     call get_params(negf, params)
 
     write(stdOut, *)
@@ -1487,11 +1557,10 @@ module negf_int
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
 
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
-
+#:if WITH_MPI
       call mpifx_allreduceip(mpicomm, csrDens%nzval, MPI_SUM)
-
       call mpifx_allreduceip(mpicomm, csrEDens%nzval, MPI_SUM)
-
+#:endif
       allocate(nneig(size(iNeighbor,2), NMAX))
       allocate(nn(size(iNeighbor,2)))
       call symmetrize_neiglist(nAtom, iNeighbor, nNeighbor, img2CentCell, coord, nneig, nn)

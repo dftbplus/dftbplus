@@ -49,7 +49,7 @@ endif
 
 ifeq ($(strip $(WITH_TRANSPORT)),1)
   ifneq ($(strip $(WITH_MPI)),1)
-    $(error 'Transport can only be included when code is built with MPI')
+   # $(error 'Transport can only be included when code is built with MPI')
   endif
 endif
 
@@ -84,8 +84,11 @@ ifeq ($(strip $(WITH_MPI)),1)
 endif
 ifeq ($(strip $(WITH_TRANSPORT)),1)
   DFTBPLUS_DEPS += external_libnegf external_poisson
-  external_libnegf: external_mpifx
-  external_poisson: external_mpifx external_libnegf
+  external_poisson: external_libnegf
+  ifeq ($(strip $(WITH_MPI)),1)
+    external_libnegf: external_mpifx
+    external_poisson: external_mpifx
+  endif
 endif
 dftb+: $(DFTBPLUS_DEPS)
 
