@@ -306,8 +306,8 @@ contains
     !! mandatory contact entries. On the other hand we need to wait that
     !! contacts are parsed to resolve the name of the contact for task =
     !! contacthamiltonian
-    call getChildValue(root, "Task", pTaskType, child=pTask, default='uploadcontacts')
-    call getNodeName(pTaskType, buffer)
+    call getChildValue(root, "Task", pTask, child=pTaskType, default='uploadcontacts')
+    call getNodeName(pTask, buffer)
 
     if (char(buffer).ne."setupgeometry") then
       call getChild(root, "Device", pDevice)
@@ -337,8 +337,8 @@ contains
 
     case default
 
-      call getNodeHSDName(pTaskType, buffer)
-      call detailedError(pTask, "Invalid task '" // char(buffer) // "'")
+      call getNodeHSDName(pTask, buffer)
+      call detailedError(pTaskType, "Invalid task '" // char(buffer) // "'")
 
    end select
 

@@ -52,7 +52,7 @@ module helpsetupgeom
     call definePLs(geom, iAtInRegion, plcutoff, PLlist)
    
     !5. write ordered geometry
-    call print_gen(geom, iAtInRegion, PLlist, contDir)
+    call print_gen(geom, iAtInRegion, PLlist, contDir, plcutoff)
 
 
   end subroutine setupGeometry
@@ -368,11 +368,12 @@ module helpsetupgeom
   end subroutine print_debug
 
   ! -----------------------------------------------------------------------------------------------| 
-  subroutine print_gen(geom, iAtInRegion, PLlist, contDir)
+  subroutine print_gen(geom, iAtInRegion, PLlist, contDir, plCutoff)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(in) :: iAtInRegion(:)
     type(listIntR1), intent(inout) :: PLlist
     integer, intent(in) :: contDir(:)
+    real(dp), intent(in) :: plCutoff
 
 
     integer, allocatable :: atomsInPL(:)
@@ -383,7 +384,7 @@ module helpsetupgeom
 
     open(newunit=fd1, file='processed.gen')
     open(newunit=fd2, file='transport.hsd')
-    write(fd2,*) 'Transport{'
+    write(fd2,'(A)') 'Transport{'
 
     if (geom%tPeriodic) then
       write(fd1,*) geom%natom, 'S'
@@ -428,6 +429,14 @@ module helpsetupgeom
       write(fd2,'(A)') ' '//trim(adjustl(sindx))
       write(fd2,'(2x,A)') '}' !close Contact
     end do
+    write(fd2,'(A)') '}' !close Transport
+    write(fd2,'(A)') '+Hamiltonian = DFTB{'
+    write(fd2,'(2x,A)') '*TruncateSKRange = {'
+    write(fd2,'(4x,A,F8.4)') '*SKMaxDistance = ', plCutoff
+    write(fd2,'(4x,A)') '*HardCutoff = Yes'
+    write(fd2,'(2x,A)') '}'
+    write(fd2,'(A)') '}'
+
     if (geom%tPeriodic) then
       write(fd1,*) geom%origin*Bohr__AA
       write(fd1,*) geom%latVecs(:,1)*Bohr__AA
