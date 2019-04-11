@@ -100,19 +100,13 @@ INC_XMLF90 := -I$(BUILDROOT)/external/xmlf90
 L_LIBS += $(if $(filter _extlib_xmlf90, $^), $(LIB_XMLF90))
 L_INCS += $(INC_XMLF90)
 
+# LAPACK/BLAS
+PRESENT_EXTERNALS += _extlib_lapack
+L_LIBS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
 
-# TRANSPORT
-ifeq ($(strip $(WITH_TRANSPORT)),1)
+#MPI
+ifeq ($(strip $(WITH_MPI)),1)
   FYPPOPT += -DWITH_MPI -DWITH_SCALAPACK
-  FYPPOPT += -DWITH_TRANSPORT
-  POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
-  COMPILED_EXTERNALS += _extlib_mudpack _extlib_poisson
-  LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lsyscalls -lc
-  #L_LIBS += $(if $(filter _extlib_poisson, $^), $(POISSON_LIBS))
-  L_LIBS += $(POISSON_LIBS)
-  L_LIBS += $(LIBNEGF_LIBS)
-  L_INCS += -I$(BUILDROOT)/external/poisson
-  L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
   #MPIFX
   MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
   MPIFX_LIBS := -L$(BUILDROOT)/external/mpifx -lmpifx
@@ -125,12 +119,25 @@ ifeq ($(strip $(WITH_TRANSPORT)),1)
   L_LIBS += $(if $(filter _extlib_scalapackfx, $^), $(SCALAPACKFX_LIBS)\
       $(LIB_SCALAPACK))
   L_INCS += $(SCALAPACKFX_INCS)
+  COMPILED_EXTERNALS += _extlib_scalapackfx
+endif
 
-  COMPILED_EXTERNALS += _extlib_mpifx _extlib_scalapackfx
+# TRANSPORT
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  FYPPOPT += -DWITH_TRANSPORT
+  
+  LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lnegf -lsparskit 
+  SYSCALLS_LIBS := -L$(BUILDROOT)/external/libnegf -lsyscalls -lc
+  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(SYSCALLS_LIBS))
+  L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
+  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
+  L_INCS += -I$(BUILDROOT)/external/libnegf/libnegf
+  COMPILED_EXTERNALS += _extlib_libnegf
 
-  # LAPACK/BLAS
-  PRESENT_EXTERNALS += _extlib_lapack
-  L_LIBS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
+  POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
+  L_LIBS += $(if $(filter _extlib_poisson, $^), $(POISSON_LIBS))
+  L_INCS += -I$(BUILDROOT)/external/poisson
+  COMPILED_EXTERNALS += _extlib_poisson
 endif
 
 $(COMPILED_EXTERNALS): __FORCE__
