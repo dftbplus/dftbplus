@@ -19,6 +19,7 @@ module dftbp_sccinit
   private
 
   public :: initQFromAtomChrg, initQFromShellChrg, initQFromFile, writeQToFile
+  public :: initQFromUsrChrg
 
   !> Used to return runtime diagnostics
   character(len=120) :: error_string
@@ -130,6 +131,47 @@ contains
     end do
 
   end subroutine initQFromShellChrg
+
+  !> Initialise charge vector from user-defined reference atomic-charges.
+  subroutine initQFromUsrChrg(qq, qAtShell, species, orb)
+
+    !> The charges per lm,atom,spin
+    real(dp), intent(out) :: qq(:,:,:)
+
+    !> The reference charges per shell per Atom
+    real(dp), intent(in) :: qAtShell(:,:)
+
+    !> List of chemical species for each atom
+    integer, intent(in) :: species(:)
+
+    !> Information about the orbitals
+    type(TOrbitals), intent(in) :: orb
+
+    integer :: iAt1, iSp1, iSh1, nAtom, iSh1l, iSh1r, nSh1
+
+    nAtom = size(orb%nOrbAtom)
+
+    @:ASSERT(size(qq, dim=1) == orb%mOrb)
+    @:ASSERT(size(qq, dim=2) == nAtom)
+    @:ASSERT(size(qq, dim=3) >= 1)
+    @:ASSERT(size(qAtShell, dim=1) == orb%mShell)
+    @:ASSERT(size(qAtShell, dim=2) == nAtom)
+    @:ASSERT(size(species) == nAtom)
+
+    qq(:,:,:) = 0.0_dp
+
+    ! fill degenerately over m for each shell l
+    do iAt1 = 1, nAtom
+      iSp1 = species(iAt1)
+      do iSh1 = 1, orb%nShell(iSp1)
+        iSh1l = orb%posShell(iSh1, iSp1)
+        iSh1r = orb%posShell(iSh1+1, iSp1) - 1
+        nSh1 = iSh1r-iSh1l+1
+        qq(iSh1l:iSh1r, iAt1, 1) = qAtShell(iSh1, iAt1) / real(nSh1, dp)
+      end do
+    end do
+
+  end subroutine initQFromUsrChrg
 
 
   !> Initialise the charge vector from a named external file. Check the total
