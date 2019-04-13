@@ -5136,7 +5136,7 @@ contains
     character(sc), allocatable :: shellnames(:)
     logical, allocatable :: atomOverriden(:)
 
-    call getChild(root, "CustomReferenceOccupations", container, requested=.false.)
+    call getChild(root, "CustomOccupations", container, requested=.false.)
     if (.not. associated(container)) then
       return
     end if
