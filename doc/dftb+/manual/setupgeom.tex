@@ -1,0 +1,89 @@
+\chapter{Setup Geometry}
+
+The program utility \setupgeom can be used to prepare a geometry for transport calculations 
+as specified in the Transport section.
+
+\section{Input for \setupgeom}
+
+The input of code must be named \verb|dftb_in.hsd| and should be a
+Human-friendly Structured Data (HSD) formatted file (see Appendix \ref{sec:hsd}).
+
+The file is similar to the \dftbp input, where just 2 sections are needed. 
+The table below contains the list of the properties, that must occur in the
+input file:
+
+\begin{ptableh}
+  \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
+  \kw{Transport} & p & & \cb & \\
+\end{ptableh}
+
+\begin{description}
+\item[\is{Geometry}] Specifies the geometry for the system to be
+  calculated.  See p.~\pref{sec:dftbp.Geometry}.
+\end{description}
+
+\subsection{Transport\{\}}
+\label{sec:setup.Transport}
+
+The transport block must specify the atoms in each contact.  
+An example of the \verb|Transport| section is reported below:
+
+\begin{verbatim}
+Transport {
+    Contact {
+      Id = "source"
+	Atoms [+1] = {9:24 56:78}
+	ContactVector = 0.0 0.0 3.78
+	NumSpecifiedPLs = 2
+    }
+    Contact {
+      Id = "drain"
+	Atoms [+1] = {81:100}
+	ContactVector = 0.0 0.0 3.78
+	NumSpecifiedPLs = 2
+    }
+    Task = SetupGeometry{
+      PLCutoff [AA] = 5.0
+    }
+}
+\end{verbatim}
+  
+
+\begin{ptable}
+ \kw{Id}    & s & &   &  \\
+ \kw{Atoms} &l i& & - & \pref{Atoms} \\
+ \kw{NumSpecifiedPLs} &i & & 2 & \\	
+ \kw{ContactVector} & 3r & & - & \\	
+ \kw{PLCutoff} & r & & 10.0 &\\ 
+\end{ptable}
+
+\begin{description}
+\item[\is{Id}] Specifies a unique contact name.
+\item[\is{Atoms}] Sets the list of atoms belonging to the named contact. This list can
+	be easily obtained using some external atomic manipulation tool like for instance Jmol. 
+	NOTE the modifier $[+1]$ used to shift all given indices by $1$ in case the list of atoms 
+	is given starting the numbering from $0$.
+\item[\is{NumSpecifiedPLs}] Specifies the number of PLs given for the named contact. If this value 
+	is 2 (default) the total number of atoms in the contact are divided by 2 and the 2nd PL
+	is reordered according to the 1st with the help of \kw{ContactVector}. If this value is 1, 
+	the second PL is created, again using \kw{ContactVector}. 
+\item[\is{ContactVector}] Sets the translation vector connecting the 2 PLs along the transport direction. 
+	Since contact must be aligned to a cartesian axis, so must be this vector. Different contact
+      can be in different directions. Also notice that the vector must be specified along the positive axis 
+      direction.
+\item[\is{PLCutoff}]  This value sets the cutoff distance of the Hamiltonian and Overlap electronic
+     interactions. In transport calculations, trading off between accuracy and computational speed
+     it is possible to cutoff the interactions shorter than the SK-tables, to about 5.0 Angstrom. 
+     This cutoff changes the size of the PLs computed in the device region.	
+\end{description}
+
+\subsection{Code output}
+
+The code writes two files, \verb|processed.gen| and \verb|transport.hsd|. The first file is the 
+processed geometry, reordered according to the needs of transport calculations. The second 
+contains the details of the geometry partitioning for transport, as described in the Transport 
+section and that can be included in the input file.
+For convenience this file also contains the \verb|SKTruncation| parameter in order to 
+make the Hamiltonian consistent with the \kw{PLCutoff} set above. 
+
+
