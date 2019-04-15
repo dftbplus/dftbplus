@@ -53,7 +53,7 @@ module poisson
   public :: check_poisson_box, check_contacts, check_localbc
   public :: check_parameters, write_parameters, check_biasdir
   ! from mpi_poisson
-#:if defined("MPI") 
+#:if WITH_MPI 
   public :: poiss_mpi_init, poiss_mpi_split, global_comm, poiss_comm
 #:endif
   public :: id0, active_id, numprocs
