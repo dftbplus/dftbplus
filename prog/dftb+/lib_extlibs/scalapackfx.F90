@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Exports scalapackfx functionality if compiled with scalapack support, otherwise empty.
-module scalapackfx
+module dftbp_scalapackfx
 #:if WITH_SCALAPACK
   use libscalapackfx_module
 #:endif
   implicit none
   public
 
-end module scalapackfx
+end module dftbp_scalapackfx

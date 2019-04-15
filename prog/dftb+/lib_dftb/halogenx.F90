@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 !> Contains subroutines to add addition to repulsive pair contributions involving halogens
-module halogenX
-  use assert
-  use accuracy, only : dp, mc
-  use vdwdata
-  use constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
-  use periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use message
+module dftbp_halogenX
+  use dftbp_assert
+  use dftbp_accuracy, only : dp, mc
+  use dftbp_vdwdata
+  use dftbp_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
+  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_message
   implicit none
   private
 
@@ -326,4 +326,4 @@ contains
 
   end function halogendSigma
 
-end module halogenX
+end module dftbp_halogenX

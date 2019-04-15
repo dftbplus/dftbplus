@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 !> Contains character manipulation routines
-module charmanip
-  use assert
+module dftbp_charmanip
+  use dftbp_assert
   implicit none
 
   private
@@ -448,4 +448,4 @@ contains
 
   end subroutine convertWhitespaces
 
-end module charmanip
+end module dftbp_charmanip

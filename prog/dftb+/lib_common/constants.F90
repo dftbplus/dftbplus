@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a list of physical constants for the code
-module constants
-  use accuracy
+module dftbp_constants
+  use dftbp_accuracy
 
   !! Natural constants
 
@@ -136,4 +136,4 @@ module constants
   complex(dp), parameter :: imag = (0.0_dp,1.0_dp)
 
 
-end module constants
+end module dftbp_constants

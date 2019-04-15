@@ -10,14 +10,14 @@
 !> A cache for calculating molecule orbitals on a grid.
 !> This object is responsible for reading in the eigenvectors from a specified file and passing the
 !> appropriate eigenvectors to the molecule orbital calculator.
-module GridCache
-  use assert
-  use io
-  use Constants
-  use Accuracy
-  use FileId
-  use Message
-  use MolecularOrbital
+module dftbp_gridcache
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_constants
+  use dftbp_accuracy
+  use dftbp_fileid
+  use dftbp_message
+  use dftbp_molecularorbital
   implicit none
 
   private
@@ -380,4 +380,4 @@ contains
 
   end subroutine local_next
 
-end module GridCache
+end module dftbp_gridcache

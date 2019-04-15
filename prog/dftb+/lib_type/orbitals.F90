@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a type with basis information
-module orbitals
-  use accuracy
+module dftbp_orbitals
+  use dftbp_accuracy
   implicit none
   private
 
@@ -47,4 +47,4 @@ module orbitals
     integer :: nOrb
   end type TOrbitals
 
-end module orbitals
+end module dftbp_orbitals

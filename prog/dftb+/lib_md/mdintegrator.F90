@@ -10,10 +10,10 @@
 !> General purpose wrapper for MD integrators.
 !>
 !> Note: Currently only velocity Verlet is wrapped.
-module mdintegrator
-  use assert
-  use Accuracy
-  use VelocityVerlet
+module dftbp_mdintegrator
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_velocityverlet
   implicit none
   private
 
@@ -135,4 +135,4 @@ contains
 
   end subroutine MDIntegrator_state
 
-end module mdintegrator
+end module dftbp_mdintegrator

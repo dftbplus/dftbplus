@@ -15,10 +15,10 @@
 !> elements", A. V. Podolskiy and P. Vogl, Phys. Rev.  B 69, 233101 (2004).
 !>
 !> Caveat: Only angular momenta up to f are currently allowed
-module sk
-  use assert
-  use accuracy
-  use commontypes
+module dftbp_sk
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_commontypes
   implicit none
 
   private
@@ -946,4 +946,4 @@ contains
 
   end subroutine ff
 
-end module sk
+end module dftbp_sk

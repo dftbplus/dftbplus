@@ -6,12 +6,12 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains wrapper for all thermostats.
-module thermostat
-  use accuracy
-  use dummytherm
-  use andersentherm
-  use berendsentherm
-  use nhctherm
+module dftbp_thermostat
+  use dftbp_accuracy
+  use dftbp_dummytherm
+  use dftbp_andersentherm
+  use dftbp_berendsentherm
+  use dftbp_nhctherm
   implicit none
   private
 
@@ -208,4 +208,4 @@ contains
 
   end subroutine Thermostat_state
 
-end module thermostat
+end module dftbp_thermostat

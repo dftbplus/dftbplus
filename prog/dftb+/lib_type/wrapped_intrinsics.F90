@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Implementes various ragged arrays.
-module WrappedIntrinsics
-  use Accuracy
+module dftbp_wrappedintr
+  use dftbp_accuracy
   implicit none
   private
 
@@ -25,4 +25,4 @@ module WrappedIntrinsics
     logical, allocatable :: data(:)
   end type WrappedLogical1
 
-end module WrappedIntrinsics
+end module dftbp_wrappedintr

@@ -10,7 +10,8 @@ In order to compile DFTB+, you need the following software components:
 
 * A Fortran 2003 compliant compiler
 
-* A C-compiler
+* A C-compiler (required if building with the socket interface enabled or if C
+  language API bindings are required)
 
 * GNU make (version >= 3.79.1)
 

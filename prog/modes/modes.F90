@@ -9,17 +9,19 @@
 
 !> Program for calculating system normal modes from a Hessian
 program modes
-  use assert
-  use io
-  use initmodes
-  use accuracy, only : dp, lc
-  use constants, only : Hartree__cm, Bohr__AA, pi
-  use typegeometry
-  use eigensolver, only : heev
-  use taggedoutput
-  use message
-  use modeprojection
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_initmodes
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_constants, only : Hartree__cm, Bohr__AA, pi
+  use dftbp_typegeometry
+  use dftbp_eigensolver, only : heev
+  use dftbp_taggedoutput
+  use dftbp_message
+  use dftbp_modeprojection
   implicit none
+
+  type(TTaggedWriter) :: taggedWriter
 
   integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
   integer :: iCount, jCount
@@ -68,14 +70,14 @@ program modes
   end do
   write(stdout, *)
 
-  call initTaggedWriter()
+  call TTaggedWriter_init(taggedWriter)
   open(12, file="vibrations.tag", form="formatted", status="replace")
-  call writeTagged(12, "frequencies", eigenValues)
+  call taggedWriter%write(12, "frequencies", eigenValues)
 
   if (tPlotModes) then
-    call writeTagged(12, "saved_modes", modesToPlot)
+    call taggedWriter%write(12, "saved_modes", modesToPlot)
     write(stdout, *) "Writing eigenmodes to vibrations.tag"
-    call writeTagged(12, "eigenmodes", dynMatrix(:,ModesToPlot))
+    call taggedWriter%write(12, "eigenmodes", dynMatrix(:,ModesToPlot))
 
     write(stdout, *)'Plotting eigenmodes:'
     write(stdout, *)ModesToPlot(:)
@@ -93,7 +95,7 @@ program modes
       dynMatrix(:,iMode) = dynMatrix(:,iMode) &
           & / sqrt(sum(dynMatrix(:,iMode)**2))
     end do
-    call writeTagged(12, "eigenmodes_scaled", dynMatrix(:,ModesToPlot))
+    call taggedWriter%write(12, "eigenmodes_scaled", dynMatrix(:,ModesToPlot))
     close(12)
 
     ! Create displacment vectors for every atom in every mode.

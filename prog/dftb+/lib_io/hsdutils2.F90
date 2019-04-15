@@ -9,16 +9,16 @@
 
 !> Contains more high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
-module hsdutils2
-  use assert
-  use accuracy
-  use hsdutils
-  use hsdparser
-  use xmlutils
-  use unitconversion, only : unit
-  use message
-  use charmanip
-  use xmlf90
+module dftbp_hsdutils2
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_hsdutils
+  use dftbp_hsdparser
+  use dftbp_xmlutils
+  use dftbp_unitconversion, only : unit
+  use dftbp_message
+  use dftbp_charmanip
+  use dftbp_xmlf90
   implicit none
   private
 
@@ -557,4 +557,4 @@ contains
 
   end subroutine getDescendant
 
-end module hsdutils2
+end module dftbp_hsdutils2

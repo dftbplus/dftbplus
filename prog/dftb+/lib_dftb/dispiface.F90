@@ -6,9 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Common interface for all dispersion modules.
-module dispiface
-  use accuracy, only : dp
-  use periodic, only : TNeighbourList
+module dftbp_dispiface
+  use dftbp_accuracy, only : dp
+  use dftbp_periodic, only : TNeighbourList
   implicit none
   private
   
@@ -122,4 +122,4 @@ module dispiface
 
   end interface
 
-end module dispiface
+end module dftbp_dispiface
