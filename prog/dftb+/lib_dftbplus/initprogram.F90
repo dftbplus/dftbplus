@@ -68,6 +68,7 @@ module dftbp_initprogram
   use dftbp_linresp_module
   use dftbp_stress
   use dftbp_orbitalequiv
+  use dftbp_orbitals
   use dftbp_commontypes
   use dftbp_sorting, only : heap_sort
   use dftbp_linkedlist
@@ -1062,6 +1063,8 @@ contains
     !> Nr. of buffered Cholesky-decompositions
     integer :: nBufferedCholesky
 
+    character(sc), allocatable :: shellnames(:)
+
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -1636,9 +1639,7 @@ contains
        call error("Custom occupation not compatible with linear response")
     end if     
     if (tMulliken) then
-      if (allocated(input%ctrl%customOccAtoms)) then    
-        call printCustomReferenceOccupations(orb, input%geom%species, &
-            & input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
+      if (allocated(input%ctrl%customOccAtoms)) then
         call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
             & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
       else   
@@ -2782,6 +2783,7 @@ contains
     end if
 
     do iSp = 1, nType
+      call getOrbitalNames(iSp, orb, shellnames)
       if (iSp == 1) then
         write (strTmp, "(A,':')") "Included shells"
       else
@@ -2789,13 +2791,21 @@ contains
       end if
       do jj = 1, orb%nShell(iSp)
         if (jj == 1) then
-          strTmp2 = trim(orbitalNames(orb%angShell(jj, iSp) + 1))
+          strTmp2 = trim(shellNames(jj))
         else
-          strTmp2 = trim(strTmp2) // ", " // trim(orbitalNames(orb%angShell(jj, iSp) + 1))
+          strTmp2 = trim(strTmp2) // ", " // trim(shellNames(jj))
         end if
       end do
       write(stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), trim(strTmp2)
+      deallocate(shellnames)
     end do
+
+    if (tMulliken) then
+      if (allocated(input%ctrl%customOccAtoms)) then
+        call printCustomReferenceOccupations(orb, input%geom%species, &
+            & input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
+      end if
+    end if
 
     if (tPeriodic) then
       do ii = 1, nKPoint
@@ -3994,27 +4004,38 @@ contains
     type(WrappedInt1), intent(in) :: customOccAtoms(:)
     real(dp), intent(in) :: customOccFillings(:,:)
 
-    character(lc) :: formstr
-    integer :: nCustomBlock, iCustomBlock, iSp, nShell, nAtom
+    character(lc) :: formstr, outStr
+    integer :: nCustomBlock, iCustomBlock, iSp, nShell, nAtom, iSh
+    character(sc), allocatable :: shellnames(:)
 
     nCustomBlock = size(customOccFillings)
     if (nCustomBlock == 0) then
       return
     end if
-    write(stdout, "(1X,A)") "*** Custom defined reference occupations:"
+    write(stdout, "(A)") "Custom defined reference occupations:"
     do iCustomBlock = 1, size(customOccAtoms)
-      if (iCustomBlock /= 1) then
-        write(stdout, *)
-      end if
       nAtom = size(customOccAtoms(iCustomBlock)%data)
-      write(formstr, "(A,I0,A)") "('Atom(s): '", nAtom, "(I0,1X))"
-      write(stdout, formstr) customOccAtoms(iCustomBlock)%data
+      if (nAtom == 1) then
+        write(outStr, "(A)") "Atom:"
+      else
+        write(outStr, "(A)") "Atoms:"
+      end if
+      write(formstr, "(I0,A)") nAtom, "(I0,1X))"
+      write(stdout, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
       iSp = species(customOccAtoms(iCustomBlock)%data(1))
       nShell = orb%nShell(iSp)
-      write(formstr, "(A,I0,A)") "('Fillings: ',", nShell, "F8.4)"
-      write(stdout, formstr) customOccFillings(1:nShell, iCustomBlock)
+      call getOrbitalNames(iSp, orb, shellnames)
+      outStr = ""
+      do iSh = 1, nShell
+        if (iSh > 1) then
+          write(outStr,"(A,',')")trim(outStr)
+        end if
+        write(outStr,"(A,1X,A,F8.4)")trim(outStr), trim(shellnames(iSh)),&
+            & customOccFillings(iSh, iCustomBlock)
+      end do
+      write(stdout,"(A,T29,A)")"Fillings:",trim(outStr)
+      deallocate(shellnames)
     end do
-    write(stdout, "(1X,A)") "***"
   end subroutine printCustomReferenceOccupations
 
   !> Initialises SCC related parameters before geometry loop starts
