@@ -703,7 +703,7 @@ contains
             & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep,&
             & species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
             & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
-            & dispersion)
+            & dispersion, halogenXCorrection)
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
         call printVolume(cellVol)
 
@@ -4819,6 +4819,7 @@ contains
     !> whether Poisson solver is used
     logical, intent(in) :: tPoisson
 
+    !> Correction for halogen bonds
     type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
 
     ! Locals
@@ -4930,7 +4931,7 @@ contains
   subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
+      & totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion, halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5022,6 +5023,9 @@ contains
     !> dispersion interactions
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
+    !> Correction for halogen bonds
+    type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
+
     real(dp) :: tmpStress(3, 3)
     logical :: tImHam
 
@@ -5055,6 +5059,12 @@ contains
 
     if (allocated(dispersion)) then
       call dispersion%getStress(tmpStress)
+      totalStress(:,:) = totalStress + tmpStress
+    end if
+
+    if (allocated(halogenXCorrection)) then
+      call halogenXCorrection%getStress(tmpStress, coord, neighbourList, species, img2CentCell,&
+          & cellVol)
       totalStress(:,:) = totalStress + tmpStress
     end if
 

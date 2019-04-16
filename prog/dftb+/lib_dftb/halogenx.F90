@@ -8,6 +8,7 @@
 #:include 'common.fypp'
 
 !> Contains subroutines to add addition to repulsive pair contributions involving halogens
+!> from doi: 10.1021/ct5009137
 module dftbp_halogenX
   use dftbp_assert
   use dftbp_accuracy, only : dp, mc
@@ -19,6 +20,7 @@ module dftbp_halogenX
   private
 
   public :: THalogenX, THalogenX_init
+
 
   !> Type for repulsive pairwise additions
   type :: THalogenX
@@ -36,29 +38,31 @@ module dftbp_halogenX
     procedure :: getRCutOff
     procedure :: getEnergies
     procedure :: addGradients
-    !procedure :: getStress
+    procedure :: getStress
 
   end type THalogenX
 
-  ! energy in kcal/mol for pair truncation
+  !> energy in kcal/mol for pair truncation
   real(dp), parameter :: minInteraction = 1.0E-14_dp
 
   !> Switching radii as multipliers of vdw radii
   real(dp), parameter :: R0 = 0.7_dp
   real(dp), parameter :: R1 = 0.8_dp
 
-  !> Parameters from table 3 of 10.1021/ct5009137 in AA
+  !> Parameters from table 3 of doi: 10.1021/ct5009137 in AA
   real(dp), parameter :: dab(6) = [1.237_dp, 1.099_dp, 1.313_dp, 1.526_dp, 1.349_dp, 1.521_dp]
 
-  !> c constants from table 3 of 10.1021/ct5009137 in kcal/mol, some weird power of inverse distance
-  !> and dimensionless respectively
+  !> c constants from table 3 of doi: 10.1021/ct5009137 in kcal/mol, some weird power of inverse
+  !> distance and dimensionless respectively
   real(dp), parameter :: c(3) = [7.761_dp, 0.050_dp, 4.518_dp]
 
 contains
 
+
   !> Initialise structure
   subroutine THalogenX_init(this, species0, speciesNames)
 
+    !> Instance
     type(THalogenX), intent(out) :: this
 
     !> Species for each atom in central cell
@@ -114,7 +118,7 @@ contains
     end do
 
     if (.not. tHalogen) then
-      call error("No suitable O-X or N-X halogen combinations for this correction")
+      call error("No suitable O-X or N-X halogen combinations present for this correction")
     end if
 
   end subroutine THalogenX_init
@@ -126,28 +130,30 @@ contains
     !> instance of the correction
     class(THalogenX), intent(inout) :: this
 
+    !> Returned distance
     real(dp) :: getRCutOff
-
-    real(dp) :: cutoff
 
     ! Distance over which the interaction decays to minInteraction
     this%cutoff = this%maxDab + (-log(2.0_dp * minInteraction / c(1)) / c(2))**(1.0_dp/c(3))
-    this%cutoff = this%cutoff * AA__Bohr
+    this%cutoff = this%cutoff * AA__Bohr ! in a.u.
     getRCutOff = this%cutoff
 
   end function getRCutOff
 
 
+  !> Get energy contributions from halogen-X correction
   subroutine getEnergies(this, atomE, coords, species, neigh, img2CentCell)
 
     !> instance of the correction
     class(THalogenX), intent(in) :: this
 
+    !> Resulting  energy contributions
     real(dp), intent(out) :: atomE(:)
 
     !> Current coordinates
     real(dp), intent(in) :: coords(:,:)
 
+    !> Species of the atoms
     integer, intent(in) :: species(:)
 
     !> Neighbour list.
@@ -156,6 +162,7 @@ contains
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
 
+    ! Local variables
     integer, allocatable :: nNeigh(:)
     integer :: iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
     real(dp) :: r, rvdw, eTmp
@@ -172,14 +179,21 @@ contains
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         if (this%relevantSpecies(iSp1,iSp2) /= 0) then
-          r = sqrt(neigh%neighDist2(iNeigh, iAt1))
-          rvdw = this%radii(iSp1) + this%radii(iSp2)
+
+          ! values in AA
+          r = sqrt(neigh%neighDist2(iNeigh, iAt1)) * Bohr__AA
+          rvdw = (this%radii(iSp1) + this%radii(iSp2)) * Bohr__AA
+
           eTmp = halogenSigma(r,rvdw) * fx(r, dab(this%relevantSpecies(iSp1,iSp2)))
           eTmp = eTmp&
               & + (1.0_dp-halogenSigma(r,rvdw)) * fx(R0*rvdw, dab(this%relevantSpecies(iSp1,iSp2)))
-          eTmp = eTmp * 0.5_dp * kcal_mol__Hartree
+
+          ! convert back to a.u.
+          eTmp = eTmp * kcal_mol__Hartree
+
           atomE(iAt1) = atomE(iAt1) + eTmp
           atomE(iAt2f) = atomE(iAt2f) + eTmp
+
         end if
       end do
     end do
@@ -187,6 +201,7 @@ contains
   end subroutine getEnergies
 
 
+  !> Gradient contribution from the halogen-X term
   subroutine addGradients(this, derivs, coords, species, neigh, img2CentCell)
 
     !> instance of the correction
@@ -198,6 +213,7 @@ contains
     !> Current coordinates
     real(dp), intent(in) :: coords(:,:)
 
+    !> Chemical species of atoms
     integer, intent(in) :: species(:)
 
     !> Neighbour list.
@@ -206,9 +222,10 @@ contains
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
 
+    ! Local variables
     integer, allocatable :: nNeigh(:)
     integer :: iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
-    real(dp) :: r, rvdw, eTmp, fTmp(3)
+    real(dp) :: r, rTmp, rvdw, eTmp, fTmp(3)
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
@@ -223,17 +240,11 @@ contains
         end if
         iSp2 = species(iAt2f)
         if (this%relevantSpecies(iSp1,iSp2) /= 0) then
-          r = sqrt(neigh%neighDist2(iNeigh, iAt1))
-          rvdw = this%radii(iSp1) + this%radii(iSp2)
 
-          eTmp = halogendSigma(r,rvdw) * fx(r, dab(this%relevantSpecies(iSp1,iSp2)))&
-              & +halogenSigma(r,rvdw) * dfx(r, dab(this%relevantSpecies(iSp1,iSp2)))
-          eTmp = eTmp&
-              & +(1.0_dp-halogenSigma(r,rvdw)) * dfx(R0*rvdw, dab(this%relevantSpecies(iSp1,iSp2)))&
-              & -halogendSigma(r,rvdw) * fx(R0*rvdw, dab(this%relevantSpecies(iSp1,iSp2)))
-          eTmp = eTmp * 0.5_dp * kcal_mol__Hartree * Bohr__AA
+          rvdw = (this%radii(iSp1) + this%radii(iSp2))
 
-          fTmp(:) = ( coords(:,iAt2f) - coords(:,iAt1) ) * eTmp / r
+          call getEnergyDeriv(fTmp, coords(:,iAt2f) - coords(:,iAt1), rvdw,&
+              & this%relevantSpecies(iSp1,iSp2))
 
           derivs(:,iAt1) = derivs(:,iAt1) + fTmp
           derivs(:,iAt2f) = derivs(:,iAt2f) - fTmp
@@ -244,19 +255,110 @@ contains
 
   end subroutine addGradients
 
-  !> DFTB3-X term (Eqn. 5 of 10.1021/ct5009137)
+
+  !> Pairwise derivative terms
+  subroutine getEnergyDeriv(intermed, vec, rvdw, iDab)
+
+    !> Pair force component
+    real(dp), intent(out) :: intermed(3)
+
+    !> vector between atoms
+    real(dp), intent(in) :: vec(3)
+
+    !> Van der Waals radii
+    real(dp), intent(in) :: rvdw
+
+    !> Chemical combination for parameters
+    integer, intent(in) :: iDab
+
+    real(dp) :: rvdwAA, r, rTmp, fTmp
+
+    rvdwAA = rvdw * Bohr__AA
+    rTmp = sqrt(sum(vec**2))
+    r = rTmp * Bohr__AA
+
+    fTmp = halogendSigma(r,rvdwAA) * fx(r, dab(iDab)) + halogenSigma(r,rvdwAA) * dfx(r, dab(iDab)) &
+        & -halogendSigma(r,rvdwAA) * fx(R0*rvdwAA, dab(iDab))
+
+    intermed(:) = 2.0_dp * kcal_mol__Hartree * Bohr__AA * fTmp * vec(:) / rTmp
+
+  end subroutine getEnergyDeriv
+
+
+  !> The stress tensor contribution from the halogen-X term
+  subroutine getStress(this, st, coords, neigh, species, img2CentCell, cellVol)
+
+    !> instance of the correction
+    class(THalogenX), intent(in) :: this
+
+    !> stress tensor
+    real(dp), intent(out) :: st(:,:)
+
+    !> coordinates (x,y,z, all atoms including possible images)
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> Species of atoms in the central cell.
+    integer, intent(in) :: species(:)
+
+    !> indexing array for periodic image atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> cell volume.
+    real(dp), intent(in) :: cellVol
+
+    integer :: iAt1, iNeigh, iAt2, iAt2f, ii, nAtom, iSp1, iSp2
+    real(dp) :: vect(3), intermed(3), prefac, rvdw
+    integer, allocatable :: nNeigh(:)
+
+    st(:,:) = 0.0_dp
+
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, nNeigh(iAt1)
+        iAt2 = neigh%iNeighbour(iNeigh,iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        if (this%relevantSpecies(iSp1,iSp2) /= 0) then
+          vect(:) = coords(:,iAt2) - coords(:,iAt1)
+          rvdw = (this%radii(iSp1) + this%radii(iSp2))
+          call getEnergyDeriv(intermed, vect, rvdw, this%relevantSpecies(iSp1,iSp2))
+
+          if (iAt1 == iAt2f) then
+            prefac = 0.5_dp
+          else
+            prefac = 1.0_dp
+          end if
+          do ii = 1, 3
+            st(:, ii) = st(:, ii) + prefac * intermed(:) * vect(ii)
+          end do
+        end if
+      end do
+    end do
+
+    st = st / cellVol
+
+  end subroutine getStress
+
+
+  !> DFTB3-X term (Eqn. 5 of doi: 10.1021/ct5009137)
   pure function fx(R, dab)
 
     !> result in kcal/mol
     real(dp) :: fx
 
-    !> distance in a.u.
+    !> distance in AA
     real(dp), intent(in) :: R
 
     !> distance cut-off in AA
     real(dp), intent(in) :: dab
 
-    fx = 0.5_dp * c(1) * exp(-c(2) * (R * Bohr__AA - dab)**c(3))
+    fx = 0.5_dp * c(1) * exp(-c(2) * ((R - dab)**c(3)))
 
   end function fx
 
@@ -267,19 +369,19 @@ contains
     !> result in kcal/mol AA
     real(dp) :: dfx
 
-    !> distance in a.u.
+    !> distance in AA
     real(dp), intent(in) :: R
 
     !> distance cut-off in AA
     real(dp), intent(in) :: dab
 
     dfx = fx(R, dab)
-    dfx = dfx * c(2) * c(3) * (R * Bohr__AA - dab)**(c(3)-1.0_dp)
+    dfx = dfx * c(2) * c(3) * (R - dab)**(c(3)-1.0_dp)
 
   end function dfx
 
 
-  !> Switch function (Eqn. 8 of 10.1021/ct5009137)
+  !> Switch function (Eqn. 8 of doi: 10.1021/ct5009137)
   pure function halogenSigma(R, rvdw) result(out)
 
     !> Distance in a.u.
@@ -294,18 +396,18 @@ contains
     real(dp) :: x
 
     if (R < R0*rvdw) then
-      out = 1.0_dp
-    elseif (R > R1*rvdw) then
       out = 0.0_dp
+    elseif (R > R1*rvdw) then
+      out = 1.0_dp
     else
-      x = (R - R0) / (R1 - R0)
+      x = (R - R0*rvdw) / ((R1 - R0)*rvdw)
       out = -20.0_dp*x**7 +70.0_dp*x**6 -84.0_dp*x**5 +35.0_dp*x**4
     end if
 
   end function halogenSigma
 
 
-  !> Derivative of switch function (Eqn. 12 of 10.1021/ct5009137)
+  !> Derivative of switch function (Eqn. 12 of doi: 10.1021/ct5009137)
   pure function halogendSigma(R, rvdw) result(out)
 
     !> Distance in a.u.
@@ -320,8 +422,11 @@ contains
     real(dp) :: x
 
     if (R > R0*rvdw .and. R < R1*rvdw) then
-      x = (R - R0) / (R1 - R0)
+      x = (R - R0*rvdw) / ((R1 - R0)*rvdw)
       out = -140.0_dp*x**6 +420.0_dp*x**5 -420.0_dp*x**4 +140.0_dp*x**3
+      out = out / ((R1 - R0)*rvdw)
+    else
+      out = 0.0_dp
     end if
 
   end function halogendSigma
