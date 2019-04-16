@@ -5117,16 +5117,22 @@ contains
   !> This subroutine overrides the neutral (reference) atom electronic occupation 
   subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, &
       & customOcc)
+
     !> Node to be parsed
     type(fnode), pointer, intent(in) :: root
+
     !> Orbitals infos
     type(TOrbitals), intent(in) :: orb
+
     !> Default reference occupations
     real(dp), intent(in) :: referenceOcc(:,:)
+
     !> Geometry infos
     type(TGeometry), intent(in) :: geo
+
     !> Atom indices corresponding to user defined reference atomic charges
     type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+
     !> User-defined reference atomic charges 
     real(dp), allocatable, intent(out) :: customOcc(:,:)
 
