@@ -243,7 +243,7 @@ contains
 
           rvdw = (this%radii(iSp1) + this%radii(iSp2))
 
-          call getEnergyDeriv(fTmp, coords(:,iAt2f) - coords(:,iAt1), rvdw,&
+          call getEnergyDeriv(fTmp, coords(:,iAt2) - coords(:,iAt1), rvdw,&
               & this%relevantSpecies(iSp1,iSp2))
 
           derivs(:,iAt1) = derivs(:,iAt1) + fTmp
