@@ -94,7 +94,7 @@ dftb+: $(DFTBPLUS_DEPS)
 
 modes: external_xmlf90
 waveplot: external_xmlf90
-
+setupgeom: external_xmlf90
 
 .PHONY: misc_skderivs misc_slakovalue
 misc_skderivs misc_slakovalue:
