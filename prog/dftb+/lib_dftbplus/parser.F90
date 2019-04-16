@@ -26,7 +26,6 @@ module dftbp_parser
   use dftbp_inputconversion
   use dftbp_lapackroutines, only : matinv
   use dftbp_periodic
-  use dftbp_simplealgebra, only: determinant33
   use dftbp_dispersions
   use dftbp_simplealgebra, only: cross3, determinant33
   use dftbp_slakocont
@@ -38,6 +37,7 @@ module dftbp_parser
   use dftbp_commontypes
   use dftbp_oldskdata
   use dftbp_xmlf90
+  use dftbp_orbitals
   use dftbp_forcetypes, only : forceTypes
   use dftbp_mixer, only : mixerTypes
   use dftbp_geoopt, only : geoOptTypes
@@ -1508,6 +1508,9 @@ contains
 
       ctrl%tMulliken = .true.
       call readHCorrection(node, geo, ctrl)
+
+      call readCustomReferenceOcc(node, slako%orb, slako%skOcc, geo, &
+            & ctrl%customOccAtoms, ctrl%customOccFillings)
 
     end if ifSCC
 
@@ -3666,7 +3669,6 @@ contains
 
   end subroutine readAnalysis
 
-
   !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}
   subroutine readLaterAnalysis(node, ctrl)
 
@@ -5110,6 +5112,78 @@ contains
 
   end subroutine finalizeNegf
 #:endif
+
+
+  !> This subroutine overrides the neutral (reference) atom electronic occupation 
+  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, &
+      & customOcc)
+
+    !> Node to be parsed
+    type(fnode), pointer, intent(in) :: root
+
+    !> Orbitals infos
+    type(TOrbitals), intent(in) :: orb
+
+    !> Default reference occupations
+    real(dp), intent(in) :: referenceOcc(:,:)
+
+    !> Geometry infos
+    type(TGeometry), intent(in) :: geo
+
+    !> Atom indices corresponding to user defined reference atomic charges
+    type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+
+    !> User-defined reference atomic charges 
+    real(dp), allocatable, intent(out) :: customOcc(:,:)
+
+    type(fnode), pointer :: node, container, child
+    type(fNodeList), pointer :: nodes
+    type(string) :: buffer
+    integer :: nCustomOcc, iCustomOcc, iShell, iSpecie, nAtom
+    character(sc), allocatable :: shellnames(:)
+    logical, allocatable :: atomOverriden(:)
+
+    call getChild(root, "CustomOccupations", container, requested=.false.)
+    if (.not. associated(container)) then
+      return
+    end if
+
+    call getChildren(container, "ReferenceOccupation", nodes)
+    nCustomOcc = getLength(nodes)
+    nAtom = size(geo%species)
+    allocate(iAtInRegion(nCustomOcc))
+    allocate(customOcc(orb%mShell, nCustomOcc))
+    allocate(atomOverriden(nAtom))
+    atomOverriden(:) = .false.
+    customOcc(:,:) = 0.0_dp
+    
+    do iCustomOcc = 1, nCustomOcc
+      call getItem1(nodes, iCustomOcc, node)
+      call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geo%speciesNames, &
+          & geo%species, child, iAtInRegion(iCustomOcc)%data)
+      if (any(atomOverriden(iAtInRegion(iCustomOcc)%data))) then
+        call detailedError(child, "Atom region contains atom(s) which have&
+            & already been overriden")
+      end if
+      atomOverriden(iAtInRegion(iCustomOcc)%data) = .true.
+      iSpecie = geo%species(iAtInRegion(iCustomOcc)%data(1))
+      if (any(geo%species(iAtInRegion(iCustomOcc)%data) /= iSpecie)) then
+        call detailedError(child, "All atoms in a ReferenceOccupation&
+            & declaration must have the same type.")
+      end if
+      call getOrbitalNames(iSpecie, orb, shellnames)
+      do iShell = 1, orb%nShell(iSpecie)
+          call getChildValue(node, shellnames(iShell), customOcc(iShell, iCustomOcc), &
+            & default=referenceOcc(iShell, iSpecie))
+      end do
+      deallocate(shellnames)
+    end do
+    if (associated(nodes)) then
+      call destroyNodeList(nodes)
+    end if
+
+  end subroutine readCustomReferenceOcc
 
 
   !> Reads the parallel block.
