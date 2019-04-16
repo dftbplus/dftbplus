@@ -8,7 +8,7 @@
 # clear suffixes
 .SUFFIXES:
 .SUFFIXES: .f .f90 .F90 .o
-.PRECIOUS: %.f90
+%.PRECIOUS: %.f90
 
 FXXCLEAN = *.mod
 FYPPINC = -I
@@ -104,43 +104,6 @@ L_INCS += $(INC_XMLF90)
 PRESENT_EXTERNALS += _extlib_lapack
 L_LIBS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
 
-# TRANSPORT
-ifeq ($(strip $(WITH_TRANSPORT)),1)
-  FYPPOPT += -DWITH_TRANSPORT
-  
-  LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lnegf -lsparskit 
-  SYSCALLS_LIBS := -L$(BUILDROOT)/external/libnegf -lsyscalls -lc
-  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(SYSCALLS_LIBS))
-  L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
-  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
-  L_INCS += -I$(BUILDROOT)/external/libnegf/libnegf
-  COMPILED_EXTERNALS += _extlib_libnegf
-
-  POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
-  L_LIBS += $(if $(filter _extlib_poisson, $^), $(POISSON_LIBS))
-  L_INCS += -I$(BUILDROOT)/external/poisson
-  COMPILED_EXTERNALS += _extlib_poisson
-endif
-
-#MPI
-ifeq ($(strip $(WITH_MPI)),1)
-  FYPPOPT += -DWITH_MPI -DWITH_SCALAPACK
-  #MPIFX
-  MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
-  MPIFX_LIBS := -L$(BUILDROOT)/external/mpifx -lmpifx
-  L_INCS += $(MPIFX_INCS)
-  L_LIBS += $(MPIFX_LIBS)
-  COMPILED_EXTERNALS += _extlib_mpifx
-  #SCALAPACKFX
-  SCALAPACKFX_LIBS := -L$(BUILDROOT)/external/scalapackfx -lscalapackfx
-  SCALAPACKFX_INCS := -I$(BUILDROOT)/external/scalapackfx
-  L_LIBS += $(if $(filter _extlib_scalapackfx, $^), $(SCALAPACKFX_LIBS)\
-      $(LIB_SCALAPACK))
-  L_INCS += $(SCALAPACKFX_INCS)
-  COMPILED_EXTERNALS += _extlib_scalapackfx
-endif
-
-
 $(COMPILED_EXTERNALS): __FORCE__
 	touch -r $(BUILDROOT)/external/$(subst _extlib_,,$@)/BUILD_TIMESTAMP $@
 __FORCE__:
@@ -163,6 +126,8 @@ define link-target
 $(LN) $(LNOPT) -o $@ $(filter-out _%,$^) $(L_LIBS) $(OTHERLIBS)
 endef
 
+# Include local makefile once again to override rules, defs and deferred vars
+#include $(ARCHMAKE)
 
 ### Local Variables:
 ### mode:makefile
