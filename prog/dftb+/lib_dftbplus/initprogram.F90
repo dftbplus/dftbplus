@@ -1400,7 +1400,10 @@ contains
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
 
-    if (tSccCalc .and. input%ctrl%tHalogenX) then
+    if (input%ctrl%tHalogenX) then
+      if (.not. (t3rd .or. t3rdFull)) then
+        call error("Halogen correction only fitted for 3rd order models")
+      end if
       allocate(halogenXCorrection)
       call THalogenX_init(halogenXCorrection, species0, speciesName)
     end if

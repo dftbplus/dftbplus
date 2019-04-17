@@ -1509,8 +1509,6 @@ contains
       ctrl%tMulliken = .true.
       call readHCorrection(node, geo, ctrl)
 
-      call getChildValue(node, "DFTB3X", ctrl%tHalogenX, .false.)
-
     end if ifSCC
 
     ! Spin calculation
@@ -2207,6 +2205,8 @@ contains
           ctrl%thirdOrderOn(:,1) = 0.0_dp
           ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geo%species)
         end if
+        ! Halogen correction to the DFTB3 model
+        call getChildValue(node, "DFTB3X", ctrl%tHalogenX, .false.)
       end if
     end if
 
