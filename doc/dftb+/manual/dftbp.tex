@@ -993,6 +993,7 @@ following properties:
   \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
   \kw{HCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hcorr}\\
+  \kw{DFTB3X} & l & ThirdOrder(Full) = Yes & No & \pref{sec:dftbp.xcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
@@ -2616,6 +2617,13 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 \end{description}
+
+\subsection{Halogen corrections}
+\label{sec:dftbp.xcorr}
+
+Includes the halogen correction of Ref.~\cite{kubillus-jctc-11-332}. This is
+fitted for the DFTB3-D3 model and the {\tt 3ob-3-1} parameter set.
+
 
 \subsection{Hydrogen corrections}
 \label{sec:dftbp.hcorr}
