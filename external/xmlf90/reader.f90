@@ -167,7 +167,7 @@ else
 
       !  Normal read, with more stuff left on the line
       !
-      fb%buffer = str(1:len) 
+      fb%buffer(1:len) = str(1:len)
       fb%nchars = len
 
    else         ! (end of record)
@@ -175,7 +175,7 @@ else
       !  End of record. We mark it with an LF, whatever it is the native marker.
       !
 !!      fb%buffer = str(1:len) // char(10)
-      fb%buffer = str(1:len)             !! Avoid allocation of string
+      fb%buffer(1:len) = str(1:len)             !! Avoid allocation of string
       len = len + 1                      !! by compiler
       fb%buffer(len:len) = char(10)   
       fb%nchars = len
