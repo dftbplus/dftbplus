@@ -31,6 +31,8 @@ Changed
 Fixed
 -----
 
+- Orbital-resolved projected eigenstates (shell-resolved were correct)
+
 
 
 18.2
