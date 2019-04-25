@@ -2485,7 +2485,7 @@ contains
               tmpir1 = 0
               ind = 1
               do iAt = 1, nAtomRegion
-                tmpir1(ind) = denseDesc%iAtomStart(iAt) + iOrb - 1
+                tmpir1(ind) = denseDesc%iAtomStart(iAtomRegion(iAt)) + iOrb - 1
                 ind = ind + 1
               end do
               call append(iOrbRegion, tmpir1)
