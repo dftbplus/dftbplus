@@ -50,11 +50,13 @@ module dftbp_orbitals
   end type TOrbitals
 
   !> Names of the atomic orbitals in tesseral basis
+  !> general set for f orbitals (not cubic), see
+  !> http://winter.group.shef.ac.uk/orbitron/AOs/4f/equations.html
   character(9), parameter :: orbitalNames(-3:3,0:3) = reshape([&
-      & '         ','         ','         ','s        ','         ','         ','         ',&
+      & '         ','         ','         ','         ','         ','         ','         ',&
       & '         ','         ','y        ','z        ','x        ','         ','         ',&
-      & '         ','z2-y2    ','yz       ','z2       ','zx       ','zy       ','         ',&
-      & 'y(3x2-y2)','xyz      ','yz2      ','z3       ','xz2      ','z(x2-y2) ','x(x2-3y2)'&
+      & '         ','xy       ','yz       ','z2       ','xz       ','x2-y2    ','         ',&
+      & 'y(3x2-y2)','x2+y2+z2 ','yz2      ','z3       ','xz2      ','z(x2-y2) ','x(x2-3y2)'&
       &], [7,4])
 
 contains
