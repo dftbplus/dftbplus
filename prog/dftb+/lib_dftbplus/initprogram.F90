@@ -2771,7 +2771,7 @@ contains
     end if
 
     do iSp = 1, nType
-      call getOrbitalNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellnames)
       if (iSp == 1) then
         write (strTmp, "(A,':')") "Included shells"
       else
@@ -2849,7 +2849,7 @@ contains
               write(strTmp, "(A)") ""
             end if
             write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp),&
-                & jj, orbitalNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
+                & jj, shellNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
           end do
         end do
       end if
@@ -2867,8 +2867,8 @@ contains
               write(strTmp, "(A)") ""
             end if
             write(stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
-                & speciesName(iSp), jj, orbitalNames(orb%angShell(jj, iSp)+1), kk,&
-                & orbitalNames(orb%angShell(kk, iSp)+1), spinW(kk, jj, iSp)
+                & speciesName(iSp), jj, shellNames(orb%angShell(jj, iSp)+1), kk,&
+                & shellNames(orb%angShell(kk, iSp)+1), spinW(kk, jj, iSp)
           end do
         end do
       end do
@@ -2888,7 +2888,7 @@ contains
             write(strTmp, "(A)") ""
           end if
           write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)")trim(strTmp), speciesName(iSp),&
-                & jj, orbitalNames(orb%angShell(jj, iSp)+1), xi(jj, iSp)
+                & jj, shellNames(orb%angShell(jj, iSp)+1), xi(jj, iSp)
           if (xi(jj, iSp) /= 0.0_dp .and. orb%angShell(jj, iSp) == 0) then
             call error("Program halt due to non-zero s-orbital spin-orbit coupling constant!")
           end if
@@ -2998,8 +2998,8 @@ contains
               end if
               write(stdOut, "(A,T30,A5,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
                   & trim(speciesName(iSp))//trim(strTmp2), jj,&
-                  & orbitalNames(orb%angShell(jj, iSp)+1), kk,&
-                  & orbitalNames(orb%angShell(kk, iSp)+1), onSiteElements(kk, jj, iSpin, iSp)
+                  & shellNames(orb%angShell(jj, iSp)+1), kk,&
+                  & shellNames(orb%angShell(kk, iSp)+1), onSiteElements(kk, jj, iSpin, iSp)
             end do
           end do
         end do
@@ -4004,7 +4004,7 @@ contains
       write(stdout, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
       iSp = species(customOccAtoms(iCustomBlock)%data(1))
       nShell = orb%nShell(iSp)
-      call getOrbitalNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellnames)
       outStr = ""
       do iSh = 1, nShell
         if (iSh > 1) then

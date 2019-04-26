@@ -1224,8 +1224,8 @@ contains
           do jj = 1, nShell
             tmpCh = strTmp(jj:jj)
             tFound = .false.
-            do kk = 1, size(orbitalNames)
-              if (tmpCh == trim(orbitalNames(kk))) then
+            do kk = 1, size(shellNames)
+              if (tmpCh == trim(shellNames(kk))) then
                 if (tShellIncl(kk)) then
                   call detailedError(value1, "Double selection of the same shell&
                       & '" // tmpCh // "' in shell selection block '" &
@@ -1248,8 +1248,8 @@ contains
       case(textNodeName)
         call getChildValue(child2, "", buffer)
         strTmp = unquote(char(buffer))
-        do jj = 1, size(orbitalNames)
-          if (trim(strTmp) == trim(orbitalNames(jj))) then
+        do jj = 1, size(shellNames)
+          if (trim(strTmp) == trim(shellNames(jj))) then
             call append(angShells(iSp1), angShellOrdered(:jj))
           end if
         end do
@@ -5172,7 +5172,7 @@ contains
         call detailedError(child, "All atoms in a ReferenceOccupation&
             & declaration must have the same type.")
       end if
-      call getOrbitalNames(iSpecie, orb, shellnames)
+      call getShellNames(iSpecie, orb, shellnames)
       do iShell = 1, orb%nShell(iSpecie)
           call getChildValue(node, shellnames(iShell), customOcc(iShell, iCustomOcc), &
             & default=referenceOcc(iShell, iSpecie))

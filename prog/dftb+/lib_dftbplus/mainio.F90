@@ -2106,7 +2106,8 @@ contains
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
       call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown(:,:,1))
-      call taggedWriter%write(fd, tagLabels%qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1), dim=1))
+      call taggedWriter%write(fd, tagLabels%qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
+          & dim=1))
     end if
 
     close(fd)
@@ -4097,9 +4098,9 @@ contains
       do iSh = 1, orb%nShell(iSp)
         ang = orb%angShell(iSh, iSp)
         if (iSh == 1) then
-          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), orbitalNames(ang + 1)
+          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), shellNames(ang + 1)
         else
-          write(tmpStr, "(10X,A1)") orbitalNames(ang + 1)
+          write(tmpStr, "(10X,A1)") shellNames(ang + 1)
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
@@ -4158,9 +4159,9 @@ contains
       do iSh = 1, orb%nShell(iSp)
         ang = orb%angShell(iSh, iSp)
         if (iSh == 1) then
-          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), orbitalNames(ang + 1)
+          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), shellNames(ang + 1)
         else
-          write(tmpStr, "(10X,A1)") orbitalNames(ang + 1)
+          write(tmpStr, "(10X,A1)") shellNames(ang + 1)
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
@@ -4219,9 +4220,9 @@ contains
       do iSh = 1, orb%nShell(iSp)
         ang = orb%angShell(iSh,iSp)
         if (iSh == 1) then
-          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), orbitalNames(ang + 1)
+          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), shellNames(ang + 1)
         else
-          write(tmpStr, "(10X,A1)") orbitalNames(ang + 1)
+          write(tmpStr, "(10X,A1)") shellNames(ang + 1)
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1

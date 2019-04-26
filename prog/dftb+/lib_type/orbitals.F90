@@ -9,11 +9,11 @@
 module dftbp_orbitals
   use dftbp_accuracy
   use dftbp_message
-  use dftbp_constants, only : orbitalNames
+  use dftbp_constants, only : shellNames
   implicit none
   private
 
-  public :: TOrbitals, getOrbitalNames
+  public :: TOrbitals, getShellNames, orbitalNames
 
 
   !> Contains information about the orbitals of the species/atoms in the system
@@ -49,12 +49,19 @@ module dftbp_orbitals
     integer :: nOrb
   end type TOrbitals
 
+  !> Names of the atomic orbitals in tesseral basis
+  character(9), parameter :: orbitalNames(-3:3,0:3) = reshape([&
+      & '         ','         ','         ','s        ','         ','         ','         ',&
+      & '         ','         ','y        ','z        ','x        ','         ','         ',&
+      & '         ','z2-y2    ','yz       ','z2       ','zx       ','zy       ','         ',&
+      & 'y(3x2-y2)','xyz      ','yz2      ','z3       ','xz2      ','z(x2-y2) ','x(x2-3y2)'&
+      &], [7,4])
 
 contains
 
   !> Builds a unique names for the atomic orbitals
   !> Assign 's', 'p', 'd' to first occurring shells, then 's2', 'p2', ...
-  subroutine getOrbitalNames(iSpecie, orb, shellnames)
+  subroutine getShellNames(iSpecie, orb, shellnames)
 
     !> atomic specie
     integer, intent(in) :: iSpecie
@@ -75,7 +82,7 @@ contains
     ind = 1
 
     do ii = 1, orb%nShell(iSpecie)
-      write(shellnames(ii), "(A)") orbitalNames(orb%angShell(ii, iSpecie) + 1)
+      write(shellnames(ii), "(A)") shellNames(orb%angShell(ii, iSpecie) + 1)
       if (any(shellnames(ii) == shellnames(1:ii-1))) then
         ind(ii) = ind(ii) + 1
         if (ind(ii) == 1) then
@@ -92,7 +99,7 @@ contains
     end do
     deallocate(ind)
 
-  end subroutine getOrbitalNames
+  end subroutine getShellNames
 
 
 end module dftbp_orbitals
