@@ -1063,7 +1063,7 @@ contains
     !> Nr. of buffered Cholesky-decompositions
     integer :: nBufferedCholesky
 
-    character(sc), allocatable :: shellnames(:)
+    character(sc), allocatable :: shellNamesTmp(:)
 
     @:ASSERT(input%tInitialized)
 
@@ -2771,7 +2771,7 @@ contains
     end if
 
     do iSp = 1, nType
-      call getShellNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellNamesTmp)
       if (iSp == 1) then
         write (strTmp, "(A,':')") "Included shells"
       else
@@ -2779,13 +2779,13 @@ contains
       end if
       do jj = 1, orb%nShell(iSp)
         if (jj == 1) then
-          strTmp2 = trim(shellNames(jj))
+          strTmp2 = trim(shellNamesTmp(jj))
         else
-          strTmp2 = trim(strTmp2) // ", " // trim(shellNames(jj))
+          strTmp2 = trim(strTmp2) // ", " // trim(shellNamesTmp(jj))
         end if
       end do
       write(stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), trim(strTmp2)
-      deallocate(shellnames)
+      deallocate(shellNamesTmp)
     end do
 
     if (tMulliken) then

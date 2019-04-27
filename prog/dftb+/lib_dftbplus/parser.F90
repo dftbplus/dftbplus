@@ -5140,7 +5140,7 @@ contains
     type(fNodeList), pointer :: nodes
     type(string) :: buffer
     integer :: nCustomOcc, iCustomOcc, iShell, iSpecie, nAtom
-    character(sc), allocatable :: shellnames(:)
+    character(sc), allocatable :: shellNamesTmp(:)
     logical, allocatable :: atomOverriden(:)
 
     call getChild(root, "CustomOccupations", container, requested=.false.)
@@ -5172,12 +5172,12 @@ contains
         call detailedError(child, "All atoms in a ReferenceOccupation&
             & declaration must have the same type.")
       end if
-      call getShellNames(iSpecie, orb, shellnames)
+      call getShellNames(iSpecie, orb, shellNamesTmp)
       do iShell = 1, orb%nShell(iSpecie)
-          call getChildValue(node, shellnames(iShell), customOcc(iShell, iCustomOcc), &
+          call getChildValue(node, shellNamesTmp(iShell), customOcc(iShell, iCustomOcc), &
             & default=referenceOcc(iShell, iSpecie))
       end do
-      deallocate(shellnames)
+      deallocate(shellNamesTmp)
     end do
     if (associated(nodes)) then
       call destroyNodeList(nodes)
