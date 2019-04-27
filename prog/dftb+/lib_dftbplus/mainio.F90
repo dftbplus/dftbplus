@@ -2698,7 +2698,7 @@ contains
               if (ang > 0) then
                 write(strtmp,"(A)")trim(shellNamesTmp(iSh))//'_'
               else
-                write(strtmp,"(A)")trim(shellNamesTmp(iSh))
+                write(strTmp,"(A)")trim(shellNamesTmp(iSh))
               end if
               do kk = 0, 2 * ang
                 write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8, 2X, A)") iAt, iSh, ang,&
@@ -4065,8 +4065,8 @@ contains
     end if
     write(fd, "(A/)") "Coefficients and Mulliken populations of the atomic orbitals"
     if (t2Component) then
-      write(fd,"(A/)")"   Atom   Orb  up spin coefficients        down spin coefficients        &
-          & charge      x           y           z"
+      write(fd,"(A/)")"   Atom   Orb         up spin coefficients   down spin coefficients  &
+          &  charge    x         y         z"
     end if
 
   end subroutine prepareEigvecFileTxt
@@ -4103,7 +4103,8 @@ contains
     !> Number of atoms
     integer, intent(in) :: nAtom
 
-    character(lc) :: tmpStr
+    character(sc), allocatable :: shellNamesTmp(:)
+    character(lc) :: tmpStr, strTmp
     integer :: ind, ang
     integer :: iAt, iSp, iSh, iOrb
 
@@ -4111,18 +4112,26 @@ contains
     ind = 0
     do iAt = 1, nAtom
       iSp = species(iAt)
+      call getShellNames(iSp, orb, shellNamesTmp)
       do iSh = 1, orb%nShell(iSp)
         ang = orb%angShell(iSh, iSp)
-        if (iSh == 1) then
-          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), shellNames(ang + 1)
+        if (ang > 0) then
+          write(strTmp,"(A)")trim(shellNamesTmp(iSh))//'_'
         else
-          write(tmpStr, "(10X,A1)") shellNames(ang + 1)
+          write(strTmp,"(A)")trim(shellNamesTmp(iSh))
+        end if
+        if (iSh == 1) then
+          write(tmpStr, "(I5,1X,A2,2X,A)") iAt, speciesName(iSp), trim(strTmp)
+        else
+          write(tmpStr, "(10X,A)") trim(strTmp)
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
-          write(fd, "(A,I1,T15,F12.6,3X,F12.6)") trim(tmpStr), iOrb, eigvec(ind), fracs(ind)
+          write(fd, "(A,T22,1X,F10.6,1X,F10.6)") trim(tmpStr)//trim(orbitalNames(iOrb-ang-1,ang)),&
+              & eigvec(ind), fracs(ind)
         end do
       end do
+      deallocate(shellNamesTmp)
       write(fd,*)
     end do
 
@@ -4163,7 +4172,8 @@ contains
     !> Number of atoms
     integer, intent(in) :: nAtom
 
-    character(lc) :: tmpStr
+    character(sc), allocatable :: shellNamesTmp(:)
+    character(lc) :: tmpStr, strTmp
     integer :: ind, ang
     integer :: iAt, iSp, iSh, iOrb
 
@@ -4172,19 +4182,27 @@ contains
     ind = 0
     do iAt = 1, nAtom
       iSp = species(iAt)
+      call getShellNames(iSp, orb, shellNamesTmp)
       do iSh = 1, orb%nShell(iSp)
         ang = orb%angShell(iSh, iSp)
-        if (iSh == 1) then
-          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), shellNames(ang + 1)
+        if (ang > 0) then
+          write(strTmp,"(A)")trim(shellNamesTmp(iSh))//'_'
         else
-          write(tmpStr, "(10X,A1)") shellNames(ang + 1)
+          write(strTmp,"(A)")trim(shellNamesTmp(iSh))
+        end if
+        if (iSh == 1) then
+          write(tmpStr, "(I5,1X,A2,2X,A)") iAt, speciesName(iSp), trim(strTmp)
+        else
+          write(tmpStr, "(10X,A)")  trim(strTmp)
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
-          write(fd, "(A,I1,T15,'(',F12.6,',',F12.6,')',3X,F12.6)") trim(tmpStr), iOrb,&
+          write(fd, "(A,T22,1X'(',F10.6,',',F10.6,1X,')',1X,F10.6)")&
+              & trim(tmpStr)//trim(orbitalNames(iOrb-ang-1,ang)),&
               & real(eigvec(ind)), aimag(eigvec(ind)), fracs(ind)
         end do
       end do
+      deallocate(shellNamesTmp)
       write(fd,*)
     end do
 
@@ -4225,7 +4243,8 @@ contains
     !> Number of orbitals
     integer, intent(in) :: nOrb
 
-    character(lc) :: tmpStr
+    character(sc), allocatable :: shellNamesTmp(:)
+    character(lc) :: tmpStr, strTmp
     integer :: ind, ang
     integer :: iAt, iSp, iSh, iOrb
 
@@ -4233,21 +4252,28 @@ contains
     ind = 0
     do iAt = 1, nAtom
       iSp = species(iAt)
+      call getShellNames(iSp, orb, shellNamesTmp)
       do iSh = 1, orb%nShell(iSp)
         ang = orb%angShell(iSh,iSp)
-        if (iSh == 1) then
-          write(tmpStr, "(I5,1X,A2,2X,A1)") iAt, speciesName(iSp), shellNames(ang + 1)
+        if (ang > 0) then
+          write(strTmp,"(A)")trim(shellNamesTmp(iSh))//'_'
         else
-          write(tmpStr, "(10X,A1)") shellNames(ang + 1)
+          write(strTmp,"(A)")trim(shellNamesTmp(iSh))
+        end if
+        if (iSh == 1) then
+          write(tmpStr, "(I5,1X,A2,2X,A)") iAt, speciesName(iSp), trim(strTmp)
+        else
+          write(tmpStr, "(10X,A)") trim(strTmp)
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
-          write(fd, "(A,I1,T15,'(',F12.6,',',F12.6,')','(',F12.6,',',F12.6,')',3X,4F12.6)")&
-              & trim(tmpStr), iOrb, real(eigvec(ind)), aimag(eigvec(ind)),&
-              & real(eigvec(ind + nOrb)), aimag(eigvec(ind + nOrb)),&
+          write(fd, "(A,T22,1X,'(',F10.6,',',F10.6,')','(',F10.6,',',F10.6,')',1X,4F10.6)")&
+              & trim(tmpStr)//trim(orbitalNames(iOrb-ang-1,ang)), real(eigvec(ind)),&
+              & aimag(eigvec(ind)), real(eigvec(ind + nOrb)), aimag(eigvec(ind + nOrb)),&
               & fracs(:, ind)
         end do
       end do
+      deallocate(shellNamesTmp)
       write(fd,*)
     end do
 
