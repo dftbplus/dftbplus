@@ -1365,8 +1365,8 @@ contains
       ! Longest cut-off including the softening part of gamma
       mCutOff = max(mCutOff, sccCalc%getCutOff())
 
-      if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
-        call error("Onsite third order DFTB only compatible with orbital non resolved SCC")
+      if (input%ctrl%t3rd .and. input%ctrl%tShellResolved) then
+        call error("Onsite third order DFTB only compatible with shell non-resolved SCC")
       end if
 
       ! Initialize full 3rd order module
@@ -1380,7 +1380,7 @@ contains
         allocate(thirdInp%damped(nType))
         thirdInp%damped(:) = tDampedShort
         thirdInp%dampExp = input%ctrl%dampExp
-        thirdInp%shellResolved = input%ctrl%tOrbResolved
+        thirdInp%shellResolved = input%ctrl%tShellResolved
         allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
         mCutOff = max(mCutOff, thirdOrd%getCutOff())
@@ -1950,8 +1950,8 @@ contains
         call error("Linear response does not support spin orbit coupling at the moment.")
       elseif (tDFTBU) then
         call error("Linear response does not support LDA+U yet")
-      elseif (input%ctrl%tOrbResolved) then
-        call error("Linear response does not support orbital resolved scc yet")
+      elseif (input%ctrl%tShellResolved) then
+        call error("Linear response does not support shell resolved scc yet")
       end if
       if (tempElec > 0.0_dp .and. tCasidaForces) then
         write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
@@ -2654,7 +2654,7 @@ contains
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
-      if (input%ctrl%tOrbResolved) then
+      if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
@@ -2899,8 +2899,8 @@ contains
     if (tSccCalc) then
       if (t3rdFull) then
         write(stdOut, "(A,T30,A)") "Full 3rd order correction", "Yes"
-        if (input%ctrl%tOrbResolved) then
-          write(stdOut, "(A,T30,A)") "Orbital-resolved 3rd order", "Yes"
+        if (input%ctrl%tShellResolved) then
+          write(stdOut, "(A,T30,A)") "Shell-resolved 3rd order", "Yes"
           write(stdOut, "(A30)") "Shell-resolved Hubbard derivs:"
           write(stdOut, "(A)") "        s-shell   p-shell   d-shell   f-shell"
           do iSp = 1, nType
