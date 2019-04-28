@@ -644,15 +644,14 @@ contains
 
     #:if WITH_TRANSPORT
       if (tLocalCurrents) then
-        call writeXYZFormat("supercell.xyz", coord, species, speciesName)
-        write(stdOut,*) " <<< supercell.xyz written on file"
     #:if WITH_MPI
         call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
     #:else
         call local_currents(parallelKS%localKS, ham, over,&
     #:endif
-            & neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, coord0Fold, .false., mu)
+            & neighbourList, nNeighbourSK, skCutoff, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoint, kWeight, coord0Fold, &
+            & species0, speciesName, mu)
       end if
     #:endif
 
@@ -1085,7 +1084,7 @@ contains
     integer, allocatable, intent(inout) :: species(:)
 
     !> Vectors to units cells in absolute units
-    real(dp), allocatable, intent(inout) :: rCellVec(:,:)
+    real(dp), allocatable, intent(in) :: rCellVec(:,:)
 
     !> Number of neighbours of each real atom
     integer, intent(out) :: nNeighbourSK(:)
@@ -1122,7 +1121,7 @@ contains
 
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
-    integer :: sparseSize
+    integer :: sparseSize, m
 
     coord0Fold(:,:) = coord0
     if (tPeriodic) then

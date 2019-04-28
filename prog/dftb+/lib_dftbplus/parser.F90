@@ -1815,8 +1815,8 @@ contains
       ! fixEf also avoids checks of total charge in initQFromFile
       ctrl%tFixEf = .true.
       if (geo%tPeriodic .and. greendens%doLocalCurr) then
-         call detailedError(value1, "Local Currents in periodic systems still needs" //&
-              " debugging and will be available soon")
+         !call detailedError(value1, "Local Currents in periodic systems still needs" //&
+         !     " debugging and will be available soon")
       end if
     case ("transportonly")
       if (ctrl%tGeoOpt .or. ctrl%tMD) then
@@ -3160,7 +3160,7 @@ contains
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
         iSp1 = geo%species(iAt1)
-        do iNeigh = 1, neighs%nNeighbourSK(iAt1)
+        do iNeigh = 1, neighs%nNeighbour(iAt1)
           iAt2f = img2CentCell(neighs%iNeighbour(iNeigh, iAt1))
           iSp2 = geo%species(iAt2f)
           rTmp = rCutoffs(iSp1) + rCutoffs(iSp2)

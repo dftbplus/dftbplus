@@ -32,6 +32,8 @@ module negf_int
   use dftbp_globalenv
   use dftbp_message
   use dftbp_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_linkedlist
+  use dftbp_periodic
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -1484,39 +1486,63 @@ module negf_int
   ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #:if WITH_MPI
   subroutine local_currents(mpicomm, groupKS, ham, over, &
-      & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, orb, kPoints, kWeights, coord, dumpDens, chempot)
+      & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
+      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot)
+    !> MPI communicator
     type(mpifx_comm), intent(in) :: mpicomm
 #:else
   subroutine local_currents(groupKS, ham, over, &
-      & iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, orb, kPoints, kWeights, coord, dumpDens, chempot)
+      & neighborList, nNeighbor, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
+      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot)
 #:endif
+    !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
+    !> Hamiltonian and Overlap matrices 
     real(dp), intent(in) :: ham(:,:), over(:)
-    integer, intent(in) :: iNeighbor(0:,:), nNeighbor(:)
+    !> Neighbor list container
+    type(TNeighbourList), intent(in) :: neighbourList   
+    !> nNeighbor list for SK interactions
+    integer, intent(in) :: nNeighbour(:)
+    !> SK interaction cutoff
+    real(dp), intent(in) :: skCutoff
+    !> Indices of staring atom block and Pairs 
     integer, intent(in) :: iAtomStart(:), iPair(0:,:)
+    !> map of atoms to central cell
     integer, intent(in) :: img2CentCell(:), iCellVec(:)
-    real(dp), intent(in) :: cellVec(:,:)
+    !> translation vectors to lattice cells in units of lattice constants
+    real(dp), allocatable, intent(in) :: cellVec(:,:)
+    !> Vectors to unit cells in absolute units
+    real(dp), allocatable, intent(in) :: rCellVec(:,:)
+    !> Orbital descriptor 
     type(TOrbitals), intent(in) :: orb
+    !> k-points and weights 
     real(dp), intent(in) :: kPoints(:,:), kWeights(:)
-    real(dp), intent(in) :: coord(:,:)
-    logical, intent(in) :: dumpDens
+    !> central cell coordinates (folded to central cell) 
+    real(dp), intent(in) :: coord0(:,:)
+    !> Species indices for atoms in central cell
+    integer, intent(in) :: species0(:)
+    !> Species Names (as in gen file)
+    character(*), intent(in) :: speciesName(:)
     ! We need this now for different fermi levels in colinear spin
     ! Note: spin polarized does not work with
-    ! built-int potentials (the unpolarized does) in the poisson
+    ! built-in potential (the unpolarized does) in the poisson
     ! I do not set the fermi because it seems that in libnegf it is
     ! not really needed
     real(dp), intent(in) :: chempot(:,:)
 
-    integer :: n,m, mu, nu, nAtom, irow, nrow, ncont
+    ! Local stuff ---------------------------------------------------------
+    integer :: n0, nn, mm,  mu, nu, nAtom, irow, nrow, ncont
     integer :: nKS, nKPoint, nSpin, iK, iKS, iS, inn, startn, endn, morb
-    real(dp), dimension(:), allocatable :: Im
-    integer, dimension(:,:), allocatable :: nneig
-    integer, dimension(:), allocatable :: nn
-    integer, parameter :: NMAX=40
+    real(dp), dimension(:,:,:), allocatable :: lcurr 
+    real(dp) :: Im
+    type(TNeighbourList) :: lc_neigh
+    integer, dimension(:), allocatable :: lc_img2CentCell, lc_iCellVec, lc_species
+    real(dp), dimension(:,:), allocatable :: lc_coord 
+    integer :: lc_nAllAtom
+    real(dp) :: cutoff
+    integer, parameter :: nInitNeigh=40
     complex(dp) :: c1,c2
-    character(1) :: sp
+    character(3) :: skp
     integer :: iSCCiter=2
     type(z_CSR), target :: csrDens, csrEDens
     type(z_CSR), pointer :: pCsrDens, pCsrEDens
@@ -1541,7 +1567,29 @@ module negf_int
     nKPoint = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
     nAtom = size(orb%nOrbAtom)
+    if (nKPoint > 999) then
+      call error("Too many kpoints > 999 for local currents")
+    end if
 
+    ! Create a symmetrized neighbour list extended to periodic cell in lc_coord 
+    if (any(iCellVec.ne.1)) then
+      lc_nAllAtom = int((real(nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
+    else
+      lc_nAllAtom = nAtom
+    end if
+    allocate(lc_coord(3, lc_nAllAtom))
+    allocate(lc_species(lc_nAllAtom))
+    allocate(lc_img2CentCell(lc_nAllAtom))
+    allocate(lc_iCellVec(lc_nAllAtom))
+    call init(lc_neigh, nAtom, nInitNeigh) 
+    
+    call updateNeighbourListAndSpecies(lc_coord, lc_species, lc_img2CentCell, lc_iCellVec, &
+        & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, symmetric=.true.)
+   
+    allocate(lcurr(maxval(lc_neigh%nNeighbour(:)), nAtom, nSpin))
+    lcurr = 0.0_dp
+
+    ! loop on k-points and spin
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
@@ -1549,71 +1597,91 @@ module negf_int
       write(stdOut,*) 'k-point',iK,'Spin',iS
 
       ! We need to recompute Rho and RhoE .....
-      call foldToCSR(csrHam, ham(:,iS), kPoints(:,1), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
-      call foldToCSR(csrOver, over, kPoints(:,1), iAtomStart, iPair, iNeighbor, nNeighbor,&
-          & img2CentCell, iCellVec, cellVec, orb)
+      call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
+          & nNeighbour, img2CentCell, iCellVec, CellVec, orb)
+      call foldToCSR(csrOver, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
+          & nNeighbour, img2CentCell, iCellVec, CellVec, orb)
 
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
-
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
+
 #:if WITH_MPI
       call mpifx_allreduceip(mpicomm, csrDens%nzval, MPI_SUM)
       call mpifx_allreduceip(mpicomm, csrEDens%nzval, MPI_SUM)
 #:endif
-      allocate(nneig(size(iNeighbor,2), NMAX))
-      allocate(nn(size(iNeighbor,2)))
-      call symmetrize_neiglist(nAtom, iNeighbor, nNeighbor, img2CentCell, coord, nneig, nn)
 
+      write(skp,'(I3.3)') iK
+      open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
 
-      if (iS .eq. 1) then
-        sp = 'u'
-      end if
-      if (iS .eq. 2) then
-        sp = 'd'
-      end if
+      ! loop on central cell atoms and write local currents to all other 
+      ! interacting atoms within the cell and neighbour cells
+      do mm = 1, nAtom
 
-      open(newUnit = fdUnit, file = 'lcurrents_'//sp//'.dat')
+        mOrb = orb%nOrbAtom(mm)
+        iRow = iAtomStart(mm)
 
-      do m = 1, nAtom
-        allocate(Im(nn(m)))
-        Im(:) = 0.0_dp
+        write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
 
-        mOrb = orb%nOrbAtom(m)
-        iRow = iAtomStart(m)
-
-        write(fdUnit,'(I5,3(F12.6),I3)',advance='NO') m, coord(:,m), nn(m)
-
-        do inn = 1, nn(m)
-          n = nneig(m,inn)
-          startn = iAtomStart(img2CentCell(n))
-          endn = startn + orb%nOrbAtom(n) - 1
+        do inn = 1, lc_neigh%nNeighbour(mm)
+          nn = lc_neigh%iNeighbour(inn, mm) 
+          n0 = lc_img2CentCell(nn)
+          startn = iAtomStart(n0)
+          endn = startn + orb%nOrbAtom(n0) - 1
+          Im = 0.0_dp
           ! tracing orbitals of atoms  n  m
           ! More efficient without getel ?
           do mu = iRow, iRow+mOrb-1
             do nu = startn, endn
               c1 = conjg(getel(csrDens,mu,nu))
               c2 = conjg(getel(csrEDens,mu,nu))
-              Im(inn) = Im(inn) + aimag(getel(csrHam,mu,nu)*c1 - getel(csrOver,mu,nu)*c2)
+              Im = Im + aimag(getel(csrHam,mu,nu)*c1 - getel(csrOver,mu,nu)*c2)
             enddo
           enddo
           ! pi-factor  comes from  Gn = rho * pi
-          write(fdUnit,'(I5,ES17.8)',advance='NO') n, 2.0_dp*params%g_spin*pi*eovh*Im(inn)
-
+          Im = Im * 2.0_dp*params%g_spin*pi*eovh*kWeights(iK)
+          write(fdUnit,'(I5,ES17.8)',advance='NO') nn, Im 
+          lcurr(inn, mm, iS) = lcurr(inn, mm, iS) + Im
         enddo
 
         write(fdUnit,*)
-
-        deallocate(Im)
-
       enddo
+        
+      close(fdUnit)
+
+      call destruct(csrDens)
+      call destruct(csrEDens)
+
     enddo
 
+    ! Write the total current per spin channel  
+    do iS = 1, nSpin
+      open(newUnit = fdUnit, file = 'lcurrents_'//spin2ch(iS)//'.dat')
+      do mm = 1, nAtom
+        write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
+        do inn = 1, lc_neigh%nNeighbour(mm)
+          write(fdUnit,'(I5,ES17.8)',advance='NO') lc_neigh%iNeighbour(inn, mm), lcurr(inn,mm,iS) 
+        end do
+        write(fdUnit,*)
+      end do  
+    end do
     close(fdUnit)
-    call destruct(csrDens)
-    call destruct(csrEDens)
-    deallocate(nneig)
-    deallocate(nn)
+    deallocate(lcurr)
+
+    call writeXYZFormat("supercell.xyz", lc_coord, lc_species, speciesName)
+    write(stdOut,*) " <<< supercell.xyz written on file"
+
+    contains
+
+    function spin2ch(iS) result(ch)
+      integer, intent(in) :: iS
+      character(1) :: ch
+      select case(iS)
+      case(1)
+        ch = 'u'
+      case(2)
+        ch = 'd'
+      end select    
+    end function spin2ch
 
   end subroutine local_currents
 
@@ -1627,24 +1695,31 @@ module negf_int
     integer, intent(in) :: nNeighbor(:)
     integer, intent(in) :: img2CentCell(:)
     real(dp), intent(in) :: coord(:,:)
-    integer, dimension(:,:), intent(out) :: nneig
-    integer, dimension(:), intent(out) :: nn
+    integer, intent(out), allocatable :: nneig(:,:)
+    integer, intent(out), allocatable :: nn(:)
+    !real(dp), intent(out), allocatable :: coord2(:,:)
 
     real(dp) :: dist, dr(3)
     integer :: m, n, inn, ii, jj, morb
     integer, parameter :: NMAX=40
+    type(listRealR1) :: coordlist
+    
+    allocate(nneig(size(iNeighbor,2), NMAX))
+    allocate(nn(size(iNeighbor,2)))
 
     nn=0
     nneig=0
 
+    ! Loop on central cell atoms and search neighbors
     do m = 1, nAtom
       do inn = 1, nNeighbor(m)
         if (inn.gt.NMAX) then
           exit
         end if
+        
         n = img2CentCell(iNeighbor(inn,m))
         !n = iNeighbor(inn,m)
-        if(nn(m).lt.NMAX) then
+        if (nn(m).lt.NMAX) then
           nn(m)=nn(m)+1
           nneig(m,nn(m))=n
           ! sort by distances
