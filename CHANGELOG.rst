@@ -30,6 +30,7 @@ Added
 Changed
 -------
 
+- Updated parser version to 7.
 
 Fixed
 -----
