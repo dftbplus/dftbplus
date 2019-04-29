@@ -601,7 +601,7 @@ contains
       end if
 
       ! redefine if needed (generalize it for spin-polarized and fractional occupancy)
-      nocc = int(rnel) / 2
+      nocc = nint(rnel) / 2
       nocc_r = nOcc
       nvir_r = nOrb - nOcc
 

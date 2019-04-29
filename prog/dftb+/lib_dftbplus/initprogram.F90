@@ -1647,10 +1647,7 @@ contains
       end if  
     end if
 
-    nEl0 = 0.0_dp
-    do ii = 1, nAtom
-      nEl0 = nEl0 + sum(q0(1:orb%nOrbAtom(ii),ii,1)) 
-    end do
+    nEl0 = sum(q0(:,:,1))
     nEl(:) = 0.0_dp
     if (nSpin == 1 .or. nSpin == 4) then
       nEl(1) = nEl0 - input%ctrl%nrChrg
