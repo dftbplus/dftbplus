@@ -1,14 +1,22 @@
-\chapter{Setup Geometry}
+\chapter{\setupgeom}
 
-The program utility \setupgeom can be used to prepare a geometry for transport calculations 
-as specified in the Transport section.
+The program utility \setupgeom{} can help in preparing the input geometry 
+for transport calculations, following the rules specified in the Transport section.
+Starting from a geometry that can be the output of a previous relaxation step or 
+any other building step, \setupgeom{} can be used to specify the system partitioning 
+into \emph{contacts} and \emph{device} regions and reorder the atom numbers such that
+the \emph{device} is placed before the \emph{contacts}. Additionally the tool reorders the
+atoms of the two PLs of each contact or can create the second PL if only one is specified.
+Finally, the \emph{device} region is reordered and partitioned into PLs for more
+efficient Green's function calculations.
+A practical example is discussed in \dftbp{} recipes.
 
 \section{Input for \setupgeom}
 
-The input of code must be named \verb|dftb_in.hsd| and should be a
+The input of the code must be named \verb|setup_in.hsd| and should be a
 Human-friendly Structured Data (HSD) formatted file (see Appendix \ref{sec:hsd}).
 
-The file is similar to the \dftbp input, where just 2 sections are needed. 
+The file is similar to the \dftbp{} input, where just 2 sections are needed. 
 The table below contains the list of the properties, that must occur in the
 input file:
 
@@ -32,15 +40,15 @@ An example of the \verb|Transport| section is reported below:
 Transport {
     Contact {
       Id = "source"
-	Atoms [+1] = {9:24 56:78}
-	ContactVector = 0.0 0.0 3.78
-	NumSpecifiedPLs = 2
+     	Atoms [zeroBased] = {9:24 56:78}
+     	ContactVector = 0.0 0.0 3.78
+     	NumSpecifiedPLs = 2
     }
     Contact {
       Id = "drain"
-	Atoms [+1] = {81:100}
-	ContactVector = 0.0 0.0 3.78
-	NumSpecifiedPLs = 2
+      Atoms [zeroBased] = {81:100}
+     	ContactVector = 0.0 0.0 3.78
+      NumSpecifiedPLs = 2
     }
     Task = SetupGeometry{
       PLCutoff [AA] = 5.0
@@ -60,9 +68,9 @@ Transport {
 \begin{description}
 \item[\is{Id}] Specifies a unique contact name.
 \item[\is{Atoms}] Sets the list of atoms belonging to the named contact. This list can
-	be easily obtained using some external atomic manipulation tool like for instance Jmol. 
-	NOTE the modifier $[+1]$ used to shift all given indices by $1$ in case the list of atoms 
-	is given starting the numbering from $0$.
+	be easily obtained using some external atomic manipulation tool like for instance Jmol. \\ 
+	NOTE the modifier $[zeroBased]$ specifing that the defined atom numbers starts from $0$
+	rather than $1$. Use $[oneBased]$ or no modifier for normal numbering starting from $1$.
 \item[\is{NumSpecifiedPLs}] Specifies the number of PLs given for the named contact. If this value 
 	is 2 (default) the total number of atoms in the contact are divided by 2 and the 2nd PL
 	is reordered according to the 1st with the help of \kw{ContactVector}. If this value is 1, 
@@ -83,7 +91,7 @@ The code writes two files, \verb|processed.gen| and \verb|transport.hsd|. The fi
 processed geometry, reordered according to the needs of transport calculations. The second 
 contains the details of the geometry partitioning for transport, as described in the Transport 
 section and that can be included in the input file.
-For convenience this file also contains the \verb|SKTruncation| parameter in order to 
+For convenience this file also contains the \verb|SKTruncation| block in order to 
 make the Hamiltonian consistent with the \kw{PLCutoff} set above. 
 
 
