@@ -51,19 +51,19 @@ module parser_setup
   ! Default file names
 
   !> Main HSD input file
-  character(len=*), parameter :: hsdInputName = "dftb_in.hsd"
+  character(len=*), parameter :: hsdInputName = "setup_in.hsd"
 
   !> XML input file
-  character(len=*), parameter :: xmlInputName = "dftb_in.xml"
+  character(len=*), parameter :: xmlInputName = "setup_in.xml"
 
   !> Processed HSD input
-  character(len=*), parameter :: hsdProcInputName = "dftb_pin.hsd"
+  character(len=*), parameter :: hsdProcInputName = "setup_pin.hsd"
 
   !> Processed  XML input
-  character(len=*), parameter :: xmlProcInputName = "dftb_pin.xml"
+  character(len=*), parameter :: xmlProcInputName = "setup_pin.xml"
 
   !> Tag at the head of the input document tree
-  character(len=*), parameter :: rootTag = "dftb_in"
+  character(len=*), parameter :: rootTag = "setup_in"
 
 
   !> Version of the current parser
@@ -399,7 +399,7 @@ contains
         call getChildValue(pNode, "NumPLsDefined", nPLs(ii), 2)    
         call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
         call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, &
-             iAtInRegion(ii)%data, ishift=char_to_int(char(modif)))
+             iAtInRegion(ii)%data, ishift=string_to_int(char(modif)))
         call init(vecBuffer)
         call getChildValue(pNode, "ContactVector", vecBuffer, modifier=modif)
         if (len(vecBuffer).eq.3) then
@@ -418,6 +418,22 @@ contains
     end do
 
     contains
+
+      function string_to_int(chr) result(ind)
+        character(*), intent(in) :: chr
+        integer :: ind
+        if (trim(chr) .eq. "") then
+          ind = 0
+        else
+          if (tolower(trim(chr)) .eq. "onebased") then
+            ind = 0    
+          else if (tolower(trim(chr)) .eq. "zerobased") then
+            ind = 1
+          else
+            call error("Modifier in Atoms "//trim(chr)//" not recongnized")   
+          end if
+        end if
+      end function string_to_int
 
       function char_to_int(chr) result(ind)
         character(*), intent(in) :: chr
