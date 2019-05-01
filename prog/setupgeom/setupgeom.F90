@@ -15,7 +15,7 @@ program setupGeometry
   implicit none
 
   character(len=*), parameter :: releaseName = ''
-  integer, parameter :: releaseYear = 2018
+  integer, parameter :: releaseYear = 2019
 
   type(inputData), allocatable :: input
 

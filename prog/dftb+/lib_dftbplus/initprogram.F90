@@ -68,6 +68,7 @@ module dftbp_initprogram
   use dftbp_linresp_module
   use dftbp_stress
   use dftbp_orbitalequiv
+  use dftbp_orbitals
   use dftbp_commontypes
   use dftbp_sorting, only : heap_sort
   use dftbp_linkedlist
@@ -1062,6 +1063,8 @@ contains
     !> Nr. of buffered Cholesky-decompositions
     integer :: nBufferedCholesky
 
+    character(sc), allocatable :: shellnames(:)
+
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -1636,9 +1639,7 @@ contains
        call error("Custom occupation not compatible with linear response")
     end if     
     if (tMulliken) then
-      if (allocated(input%ctrl%customOccAtoms)) then    
-        call printCustomReferenceOccupations(orb, input%geom%species, &
-            & input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
+      if (allocated(input%ctrl%customOccAtoms)) then
         call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
             & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
       else   
@@ -2486,7 +2487,7 @@ contains
               tmpir1 = 0
               ind = 1
               do iAt = 1, nAtomRegion
-                tmpir1(ind) = denseDesc%iAtomStart(iAt) + iOrb - 1
+                tmpir1(ind) = denseDesc%iAtomStart(iAtomRegion(iAt)) + iOrb - 1
                 ind = ind + 1
               end do
               call append(iOrbRegion, tmpir1)
@@ -2732,18 +2733,6 @@ contains
       end if
     end if
 
-    if (tForces) then
-      select case (forceType)
-      case(forceTypes%orig)
-        strTmp = "Traditional"
-      case(forceTypes%dynamicT0)
-        strTmp = "Dynamics, zero electronic temp."
-      case(forceTypes%dynamicTFinite)
-        strTmp = "Dynamics, finite electronic temp."
-      end select
-      write(stdOut, "(A,':',T30,A)") "Force evaluation method", trim(strTmp)
-    end if
-
     tFirst = .true.
     if (allocated(conAtom)) then
       do ii = 1, nAtom
@@ -2784,6 +2773,7 @@ contains
     end if
 
     do iSp = 1, nType
+      call getOrbitalNames(iSp, orb, shellnames)
       if (iSp == 1) then
         write (strTmp, "(A,':')") "Included shells"
       else
@@ -2791,13 +2781,21 @@ contains
       end if
       do jj = 1, orb%nShell(iSp)
         if (jj == 1) then
-          strTmp2 = trim(orbitalNames(orb%angShell(jj, iSp) + 1))
+          strTmp2 = trim(shellNames(jj))
         else
-          strTmp2 = trim(strTmp2) // ", " // trim(orbitalNames(orb%angShell(jj, iSp) + 1))
+          strTmp2 = trim(strTmp2) // ", " // trim(shellNames(jj))
         end if
       end do
       write(stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), trim(strTmp2)
+      deallocate(shellnames)
     end do
+
+    if (tMulliken) then
+      if (allocated(input%ctrl%customOccAtoms)) then
+        call printCustomReferenceOccupations(orb, input%geom%species, &
+            & input%ctrl%customOccAtoms, input%ctrl%customOccFillings)
+      end if
+    end if
 
     if (tPeriodic) then
       do ii = 1, nKPoint
@@ -2937,15 +2935,17 @@ contains
     if (tPrintForces .and. .not. (tMD .or. tGeoOpt .or. tDerivs)) then
       write(stdOut, "(T30,A)") "Force calculation"
     end if
-    select case (forceType)
-    case(forceTypes%orig)
-      write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceTypes%dynamicT0)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
-      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(forceTypes%dynamicTFinite)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
-    end select
+    if (tForces) then
+      select case (forceType)
+      case(forceTypes%orig)
+        write(stdOut, "(A,T30,A)") "Force type", "original"
+      case(forceTypes%dynamicT0)
+        write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
+        write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
+      case(forceTypes%dynamicTFinite)
+        write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
+      end select
+    end if
     if (tPrintEigVecs) then
       write(stdOut, "(T30,A)") "Eigenvector printing"
     end if
@@ -3007,16 +3007,6 @@ contains
         end do
       end do
     end if
-
-    select case (forceType)
-    case(forceTypes%orig)
-      write(stdOut, "(A,T30,A)") "Force type", "original"
-    case(forceTypes%dynamicT0)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with re-diagonalized eigenvalues"
-      write(stdOut, "(A,T30,A)") "Force type", "erho with DHD-product (T_elec = 0K)"
-    case(forceTypes%dynamicTFinite)
-      write(stdOut, "(A,T30,A)") "Force type", "erho with S^-1 H D (Te <> 0K)"
-    end select
 
     if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
@@ -4005,27 +3995,38 @@ contains
     type(WrappedInt1), intent(in) :: customOccAtoms(:)
     real(dp), intent(in) :: customOccFillings(:,:)
 
-    character(lc) :: formstr
-    integer :: nCustomBlock, iCustomBlock, iSp, nShell, nAtom
+    character(lc) :: formstr, outStr
+    integer :: nCustomBlock, iCustomBlock, iSp, nShell, nAtom, iSh
+    character(sc), allocatable :: shellnames(:)
 
     nCustomBlock = size(customOccFillings)
     if (nCustomBlock == 0) then
       return
     end if
-    write(stdout, "(1X,A)") "*** Custom defined reference occupations:"
+    write(stdout, "(A)") "Custom defined reference occupations:"
     do iCustomBlock = 1, size(customOccAtoms)
-      if (iCustomBlock /= 1) then
-        write(stdout, *)
-      end if
       nAtom = size(customOccAtoms(iCustomBlock)%data)
-      write(formstr, "(A,I0,A)") "('Atom(s): '", nAtom, "(I0,1X))"
-      write(stdout, formstr) customOccAtoms(iCustomBlock)%data
+      if (nAtom == 1) then
+        write(outStr, "(A)") "Atom:"
+      else
+        write(outStr, "(A)") "Atoms:"
+      end if
+      write(formstr, "(I0,A)") nAtom, "(I0,1X))"
+      write(stdout, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
       iSp = species(customOccAtoms(iCustomBlock)%data(1))
       nShell = orb%nShell(iSp)
-      write(formstr, "(A,I0,A)") "('Fillings: ',", nShell, "F8.4)"
-      write(stdout, formstr) customOccFillings(1:nShell, iCustomBlock)
+      call getOrbitalNames(iSp, orb, shellnames)
+      outStr = ""
+      do iSh = 1, nShell
+        if (iSh > 1) then
+          write(outStr,"(A,',')")trim(outStr)
+        end if
+        write(outStr,"(A,1X,A,F8.4)")trim(outStr), trim(shellnames(iSh)),&
+            & customOccFillings(iSh, iCustomBlock)
+      end do
+      write(stdout,"(A,T29,A)")"Fillings:",trim(outStr)
+      deallocate(shellnames)
     end do
-    write(stdout, "(1X,A)") "***"
   end subroutine printCustomReferenceOccupations
 
   !> Initialises SCC related parameters before geometry loop starts

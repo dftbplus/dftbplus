@@ -26,7 +26,7 @@ Hamiltonian = DFTB {
 
   OldSKInterpolation = Yes
 
-  CustomReferenceOccupations{
+  CustomOccupations{
     ReferenceOccupation{
       Atoms = {1 3 5 7} 
       p = 2.1 
