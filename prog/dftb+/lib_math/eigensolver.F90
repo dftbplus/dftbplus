@@ -17,7 +17,7 @@ module dftbp_eigensolver
   use dftbp_blas
   use dftbp_lapack
 #:if WITH_GPU
-  use dftbp_magma
+  use magma
 #:endif
   implicit none
   private

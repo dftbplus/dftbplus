@@ -33,8 +33,8 @@ _mod_dftbp_determinant = $(determinant.o)
 #:endif
 
 #:if WITH_GPU
-eigensolver.o: _mod_dftbp_blas _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapack _mod_dftbp_message _mod_dftbp_magma
-eigensolver.o = eigensolver.o $(_mod_dftbp_blas) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapack) $(_mod_dftbp_message) $(_mod_dftbp_magma)
+eigensolver.o: _mod_dftbp_blas _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapack _mod_dftbp_message _mod_magma
+eigensolver.o = eigensolver.o $(_mod_dftbp_blas) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapack) $(_mod_dftbp_message) $(_mod_magma)
 _mod_dftbp_eigensolver: eigensolver.o
 _mod_dftbp_eigensolver = $(eigensolver.o)
 #:else

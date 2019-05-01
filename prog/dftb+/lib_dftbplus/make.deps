@@ -1,7 +1,7 @@
 #:if WITH_SCALAPACK
 #:if WITH_GPU
-eigenvects.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_elsiiface _mod_dftbp_elecsolvers _mod_dftbp_eigensolver _mod_dftbp_message _mod_dftbp_parallelks _mod_dftbp_scalapackfx _mod_dftbp_initprogram _mod_dftbp_magma
-eigenvects.o = eigenvects.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_elsiiface) $(_mod_dftbp_elecsolvers) $(_mod_dftbp_eigensolver) $(_mod_dftbp_message) $(_mod_dftbp_parallelks) $(_mod_dftbp_scalapackfx) $(_mod_dftbp_initprogram) $(_mod_dftbp_magma)
+eigenvects.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_elsiiface _mod_dftbp_elecsolvers _mod_dftbp_eigensolver _mod_dftbp_message _mod_dftbp_parallelks _mod_dftbp_scalapackfx _mod_dftbp_initprogram _mod_magma
+eigenvects.o = eigenvects.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_elsiiface) $(_mod_dftbp_elecsolvers) $(_mod_dftbp_eigensolver) $(_mod_dftbp_message) $(_mod_dftbp_parallelks) $(_mod_dftbp_scalapackfx) $(_mod_dftbp_initprogram) $(_mod_magma)
 _mod_dftbp_eigenvects: eigenvects.o
 _mod_dftbp_eigenvects = $(eigenvects.o)
 #:else
@@ -12,8 +12,8 @@ _mod_dftbp_eigenvects = $(eigenvects.o)
 #:endif
 #:else
 #:if WITH_GPU
-eigenvects.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_elsiiface _mod_dftbp_elecsolvers _mod_dftbp_eigensolver _mod_dftbp_message _mod_dftbp_parallelks _mod_dftbp_initprogram _mod_dftbp_magma
-eigenvects.o = eigenvects.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_elsiiface) $(_mod_dftbp_elecsolvers) $(_mod_dftbp_eigensolver) $(_mod_dftbp_message) $(_mod_dftbp_parallelks) $(_mod_dftbp_initprogram) $(_mod_dftbp_magma)
+eigenvects.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_elsiiface _mod_dftbp_elecsolvers _mod_dftbp_eigensolver _mod_dftbp_message _mod_dftbp_parallelks _mod_dftbp_initprogram _mod_magma
+eigenvects.o = eigenvects.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_elsiiface) $(_mod_dftbp_elecsolvers) $(_mod_dftbp_eigensolver) $(_mod_dftbp_message) $(_mod_dftbp_parallelks) $(_mod_dftbp_initprogram) $(_mod_magma)
 _mod_dftbp_eigenvects: eigenvects.o
 _mod_dftbp_eigenvects = $(eigenvects.o)
 #:else

@@ -19,7 +19,7 @@ module dftbp_eigenvects
 #:endif
 #:if WITH_GPU
   use dftbp_initprogram, only: ngpus
-  use dftbp_magma
+  use magma
 #:endif
   use dftbp_elsiiface
   use dftbp_parallelks
