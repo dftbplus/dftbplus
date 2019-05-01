@@ -95,7 +95,8 @@ contains
         & electronicSolverTypes%ntpoly])
     this%providesEigenvals = any(this%iSolver ==&
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa])
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%magma_gvd])
 
     this%nCholesky = nCholesky
     allocate(this%hasCholesky(this%nCholesky))
