@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> MAGMA GPU interface library
-module magmahelper
+module dftbp_magmahelper
 #:if WITH_GPU
   use device_info
 #:endif
@@ -26,4 +26,4 @@ module magmahelper
 
 #:endif
 
-end module magmahelper
+end module dftbp_magmahelper

@@ -7,8 +7,8 @@
 
 !> Contains names of various units and their conversion factors to the corresponding unit used
 !> internal in the code (atomic units).
-module unitconversion
-  use constants
+module dftbp_unitconversion
+  use dftbp_constants
   implicit none
 
   public
@@ -213,4 +213,4 @@ module unitconversion
       &unit("dalton              ", amu__au ) &
       &/)
 
-end module unitconversion
+end module dftbp_unitconversion

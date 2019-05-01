@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Contains computer environment settings
-module environment
-  use globalenv, only : shutdown, stdOut
-  use timerarray
-  use fileregistry
+module dftbp_environment
+  use dftbp_globalenv, only : shutdown, stdOut
+  use dftbp_timerarray
+  use dftbp_fileregistry
 #:if WITH_MPI
-  use mpienv
+  use dftbp_mpienv
 #:endif
 #:if WITH_SCALAPACK
-  use blacsenv
+  use dftbp_blacsenv
 #:endif
   implicit none
   private
@@ -39,7 +39,7 @@ module environment
     integer, public :: myGroup = 0
 
     !> Global timers
-    type(TTimerArray), public :: globalTimer
+    type(TTimerArray), public, allocatable :: globalTimer
 
     !> Registry of files, which may be open and must be closed when environment is shut down
     type(TFileRegistry), public :: fileFinalizer
@@ -122,7 +122,9 @@ contains
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    call this%globalTimer%writeTimings()
+    if (allocated(this%globalTimer)) then
+      call this%globalTimer%writeTimings()
+    end if
     call this%fileFinalizer%closeAll()
     flush(stdOut)
 
@@ -159,6 +161,7 @@ contains
     !> File unit into which the table should be written
     integer, intent(in) :: unit
 
+    allocate(this%globalTimer)
     call TTimerArray_init(this%globalTimer, globalTimerItems, maxLevel=timingLevel, header=header,&
         & unit=unit)
 
@@ -215,4 +218,4 @@ contains
 #:endif
 
 
-end module environment
+end module dftbp_environment

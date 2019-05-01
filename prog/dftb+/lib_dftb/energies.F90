@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Module to wrap around the different energy components in the DFTB total energy expression
-module energies
-  use assert
-  use accuracy
+module dftbp_energies
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
   private
 
@@ -47,6 +47,9 @@ module energies
 
     !> Dispersion energy
     real(dp) :: eDisp   = 0.0_dp
+
+    !> Onsite correction energy
+    real(dp) :: eOnSite = 0.0_dp
 
     !> Total 3rd order
     real(dp) :: e3rd    = 0.0_dp
@@ -106,6 +109,10 @@ module energies
     !> atom resolved dispersion
     real(dp), allocatable :: atomDisp(:)
 
+    !> atom onsite correction energies
+    real(dp), allocatable :: atomOnSite(:)
+
+
     !> atom resolved 3rd order
     real(dp), allocatable :: atom3rd(:)
 
@@ -144,6 +151,7 @@ contains
     allocate(self%atomExt(nAtom))
     allocate(self%atomElec(nAtom))
     allocate(self%atomDisp(nAtom))
+    allocate(self%atomOnSite(nAtom))
     allocate(self%atom3rd(nAtom))
     allocate(self%atomTotal(nAtom))
     self%atomRep(:) = 0.0_dp
@@ -155,6 +163,7 @@ contains
     self%atomExt(:) = 0.0_dp
     self%atomElec(:) = 0.0_dp
     self%atomDisp(:) = 0.0_dp
+    self%atomOnSite(:) = 0.0_dp
     self%atom3rd(:) = 0.0_dp
     self%atomTotal(:) = 0.0_dp
 
@@ -167,6 +176,7 @@ contains
     self%Eext = 0.0_dp
     self%Eelec = 0.0_dp
     self%EDisp = 0.0_dp
+    self%EOnSite = 0.0_dp
     self%E3rd = 0.0_dp
     self%Etotal = 0.0_dp
     self%EMermin = 0.0_dp
@@ -177,4 +187,4 @@ contains
 
   end subroutine Energies_init
 
-end module energies
+end module dftbp_energies

@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains routines to locate a value in an ascending array using bisection
-module bisect
-  use accuracy, only : dp
+module dftbp_bisect
+  use dftbp_accuracy, only : dp
   implicit none
 
 
@@ -122,4 +122,4 @@ contains
     end if
   end subroutine bisection_int
 
-end module bisect
+end module dftbp_bisect

@@ -8,9 +8,9 @@
 #:include 'linkedlist.fypp'
 
 !> Linked list for single real values
-module linkedlistr0
-  use accuracy, only : dp
-  use assert
+module dftbp_linkedlistr0
+  use dftbp_accuracy, only : dp
+  use dftbp_assert
   implicit none
   private
 
@@ -19,4 +19,4 @@ module linkedlistr0
       & ITEM_TYPE='real(dp)',&
       & PADDING='0.0_dp')
 
-end module linkedlistr0
+end module dftbp_linkedlistr0

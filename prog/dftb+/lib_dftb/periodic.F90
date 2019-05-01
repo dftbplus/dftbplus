@@ -8,18 +8,18 @@
 #:include 'common.fypp'
 
 !> Contains subroutines for the periodic boundary conditions and neighbour data
-module periodic
-  use assert
-  use accuracy
-  use constants, only : pi
-  use message
-  use sorting
-  use bisect
-  use linkedlist
-  use simplealgebra, only : determinant33, invert33
-  use commontypes
-  use memman
-  use latpointiter
+module dftbp_periodic
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants, only : pi
+  use dftbp_message
+  use dftbp_sorting
+  use dftbp_bisect
+  use dftbp_linkedlist
+  use dftbp_simplealgebra, only : determinant33, invert33
+  use dftbp_commontypes
+  use dftbp_memman
+  use dftbp_latpointiter
   implicit none
 
   private
@@ -1075,4 +1075,4 @@ contains
 
   end subroutine cartesianFractional
 
-end module periodic
+end module dftbp_periodic

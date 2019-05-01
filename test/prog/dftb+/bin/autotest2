@@ -83,6 +83,7 @@ Options (default value in paranthesis):
     -f testspec		file containing test names -- cumulative
     -l			parse testspec file and list tests
     -F			(force) annul previous -f
+    -c                  check executable binary is present
     -s stage1,stage2,...
     			Perform given stage[s] -- cumulative.
                         Known stages:
@@ -160,6 +161,7 @@ do
 	-f)	testspec_files="$testspec_files $2"; shift 2 ;;
 	-F)	testspec_files=""; shift ;;	# countermand -f
 	-l)	list_tests=1; shift ;;
+	-c)	check_for_bin=1; shift ;;
 	-s)	stages="${stages}${stages_sep}$2"
 		stages_sep=${STAGE_SEP}; shift 2 ;;
 
@@ -195,12 +197,13 @@ case "${STAGE_SEP}$stages" in
     ;;
 esac
 
-
-# Check if executable is there:
-if [ ! -x "${app_cmd}" -a -n "${STAGE_RUN}" ]; then
-  echo "${SCRIPTNAME}: Error: Executable '${app_cmd}' does not exist" 1>&2
-  echo "Type '${SCRIPTNAME} -h' for help" 1>&2
-  exit 1
+if [ -n "$check_for_bin" ]; then
+    # Check if executable is there:
+    if [ ! -x "${app_cmd}" -a -n "${STAGE_RUN}" ]; then
+	echo "${SCRIPTNAME}: Error: Executable '${app_cmd}' does not exist" 1>&2
+	echo "Type '${SCRIPTNAME} -h' for help" 1>&2
+	exit 1
+    fi
 fi
 
 if [ -n "$STAGE_PREPARE" -o -n "$STAGE_RUN" -o -n "$STAGE_COMPARE" \

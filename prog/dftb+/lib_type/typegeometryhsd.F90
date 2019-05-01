@@ -6,16 +6,16 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Routines to read/write a TGeometry type in HSD and XML format.
-module typegeometryhsd
-  use typegeometry
-  use hsdutils
-  use hsdutils2
-  use tokenreader
-  use unitconversion
-  use linkedlist
-  use charmanip
-  use simplealgebra, only : invert33, determinant33
-  use xmlf90, flib_normalize => normalize
+module dftbp_typegeometryhsd
+  use dftbp_typegeometry
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use dftbp_tokenreader
+  use dftbp_unitconversion
+  use dftbp_linkedlist
+  use dftbp_charmanip
+  use dftbp_simplealgebra, only : invert33, determinant33
+  use dftbp_xmlf90, flib_normalize => normalize
   implicit none
   private
 
@@ -317,4 +317,4 @@ contains
 
   end subroutine readTGeometryGen_help
 
-end module typegeometryhsd
+end module dftbp_typegeometryhsd

@@ -9,7 +9,7 @@
 !! calculation, both for the fortran numerical model and defaults for the various algorithms in the
 !! code.
 !! Not all routines use the string length specifications to set their character string lengths.
-module accuracy
+module dftbp_accuracy
   implicit none
 
   !> precision of the real data type
@@ -125,4 +125,7 @@ module accuracy
   !> Tolerance for the dispersion damping function being considered 1
   real(dp), parameter :: tolDispDamp = 1.0e-10_dp
 
-end module accuracy
+  !> Tolerance for electron chemical potential differences being considered equivalent (1E-6 eV)
+  real(dp), parameter :: tolEfEquiv = 3.675E-7_dp
+
+end module dftbp_accuracy

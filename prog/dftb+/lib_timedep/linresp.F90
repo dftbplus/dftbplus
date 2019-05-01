@@ -16,19 +16,20 @@
 !> * Only for closed shell or colinear spin polarization (excitation energies only in that
 !>   case).
 !> * Onsite corrections are not included in this version
-module linresp_module
-  use assert
-  use accuracy
-  use message
-  use commontypes
-  use slakocont
-  use fileid
-  use scc, only : TScc
-  use nonscc, only : NonSccDiff
-  use densedescr
+module dftbp_linresp_module
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_commontypes
+  use dftbp_slakocont
+  use dftbp_fileid
+  use dftbp_scc, only : TScc
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_densedescr
+  use dftbp_taggedoutput, only : TTaggedWriter
 #:if WITH_ARPACK
   ! code is compiled with arpack available
-  use linrespgrad
+  use dftbp_linrespgrad
 #:endif
   implicit none
   private
@@ -114,6 +115,7 @@ module linresp_module
     real(dp) :: energyWindow
     logical :: tOscillatorWindow
     real(dp) :: oscillatorWindow
+    real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
     logical :: tCacheCharges
     integer :: nOcc, nVir, nAtom
     real(dp) :: nEl
@@ -161,7 +163,7 @@ contains
 
 
   !> Initialize an internal data type for linear response excitations
-  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces)
+  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements)
 
     !> data structure for linear response
     type(linresp), intent(out) :: this
@@ -180,6 +182,10 @@ contains
 
     !> Are excited state force contributions required
     logical, intent(in) :: tCasidaForces
+
+    !> onsite corrections if in use
+    real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
+
 
 #:if WITH_ARPACK
     this%nExc = ini%nExc
@@ -248,6 +254,12 @@ contains
 
     call move_alloc(ini%spinW, this%spinW)
     call move_alloc(ini%hubbardU, this%HubbardU)
+    if (allocated(onSiteMatrixElements)) then
+      allocate(this%onSiteMatrixElements(size(onSiteMatrixElements,dim=1),&
+          & size(onSiteMatrixElements,dim=2), size(onSiteMatrixElements,dim=3),&
+          & size(onSiteMatrixElements,dim=4)))
+      this%onSiteMatrixElements(:,:,:,:) = onSiteMatrixElements
+    end if
     this%tinit = .true.
 #:else
     this%tinit = .false.
@@ -260,7 +272,7 @@ contains
   !> Wrapper to call the actual linear response routine for excitation energies
   subroutine LinResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-      & excEnergy, allExcEnergies)
+      & taggedWriter, excEnergy, allExcEnergies)
 
     !> data structure with additional linear response values
     type(linresp), intent(inout) :: this
@@ -310,6 +322,9 @@ contains
     !> file id for tagging information
     integer, intent(in) :: fdTagged
 
+    !> tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> excitation energy (only when nStat /=0, othewise set numerically 0)
     real(dp), intent(out) :: excEnergy
 
@@ -322,10 +337,11 @@ contains
     call LinRespGrad_old(tSpin, this%nAtom, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
         & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0,&
         & this%HubbardU, this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged,&
-        & fdTagged, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
-        & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,  this%fdArnoldiDiagnosis,&
-        & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-        & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies)
+        & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
+        & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
+        & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
+        & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
+        & allExcEnergies, this%onSiteMatrixElements)
 
 #:else
     call error('Internal error: Illegal routine call to LinResp_calcExcitations')
@@ -337,8 +353,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & tWriteTagged, fdTagged, excEnergy, allExcEnergies, excgradient, derivator, rhoSqr,&
-      & occNatural, naturalOrbs)
+      & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator,&
+      & rhoSqr, occNatural, naturalOrbs)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -400,6 +416,9 @@ contains
     !> file descriptor for tagged data
     integer, intent(in) :: fdTagged
 
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> energy of particular excited state
     real(dp), intent(out) :: excenergy
 
@@ -434,20 +453,22 @@ contains
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
           & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-          & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
-          & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
-          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-          & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies, shiftPerAtom,&
-          & skHamCont, skOverCont, excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+          & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
+          & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
+          & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
+          & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
+          & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
+          & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
           & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-          & this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY, this%fdTrans,&
-          & this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi, this%fdArnoldiDiagnosis,&
-          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
-          & this%oscillatorWindow, this%tCacheCharges, excEnergy, allExcEnergies, shiftPerAtom,&
-          & skHamCont, skOverCont, excgradient, derivator, rhoSqr)
+          & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
+          & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
+          & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
+          & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
+          & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
+          & excgradient, derivator, rhoSqr)
     end if
 
 #:else
@@ -456,4 +477,4 @@ contains
 
   end subroutine LinResp_addGradients
 
-end module linresp_module
+end module dftbp_linresp_module

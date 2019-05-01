@@ -14,15 +14,15 @@
 !> Note: Dense code based on suggestions from Thomas Heine
 !> Caveat: The routines create the transposed and complex conjugated of the density matrices! (cc*
 !> instead of the conventional c*c)
-module densitymatrix
-  use assert
-  use accuracy
-  use blasroutines
-  use sorting
-  use commontypes
+module dftbp_densitymatrix
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_blasroutines
+  use dftbp_sorting
+  use dftbp_commontypes
 #:if WITH_SCALAPACK
-  use scalapackfx
-  use blacsenv
+  use dftbp_scalapackfx
+  use dftbp_blacsenv
 #:endif
   implicit none
   private
@@ -837,4 +837,4 @@ contains
 
 #:endif
 
-end module densitymatrix
+end module dftbp_densitymatrix

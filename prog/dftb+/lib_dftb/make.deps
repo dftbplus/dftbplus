@@ -1,271 +1,276 @@
-chargeconstr.o: _mod_accuracy common.fypp _mod_assert
-chargeconstr.o = chargeconstr.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
-_mod_chargeconstr: chargeconstr.o
-_mod_chargeconstr = $(chargeconstr.o)
+chargeconstr.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+chargeconstr.o = chargeconstr.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_chargeconstr: chargeconstr.o
+_mod_dftbp_chargeconstr = $(chargeconstr.o)
 
-charges.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert
-charges.o = charges.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert)
-_mod_charges: charges.o
-_mod_charges = $(charges.o)
+charges.o: _mod_dftbp_commontypes _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+charges.o = charges.o $(_mod_dftbp_commontypes) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_charges: charges.o
+_mod_dftbp_charges = $(charges.o)
 
 #:if WITH_SCALAPACK
 #:if WITH_MPI
-coulomb.o: common.fypp _mod_schedule _mod_constants _mod_message _mod_assert _mod_dynneighlist _mod_environment _mod_errorfunction _mod_accuracy _mod_scalapackfx _mod_mpifx
-coulomb.o = coulomb.o $(common.fypp) $(_mod_schedule) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_dynneighlist) $(_mod_environment) $(_mod_errorfunction) $(_mod_accuracy) $(_mod_scalapackfx) $(_mod_mpifx)
-_mod_coulomb: coulomb.o
-_mod_coulomb = $(coulomb.o)
+coulomb.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_errorfunction _mod_dftbp_dynneighlist _mod_dftbp_constants _mod_dftbp_schedule _mod_dftbp_message _mod_dftbp_scalapackfx _mod_dftbp_mpifx
+coulomb.o = coulomb.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_errorfunction) $(_mod_dftbp_dynneighlist) $(_mod_dftbp_constants) $(_mod_dftbp_schedule) $(_mod_dftbp_message) $(_mod_dftbp_scalapackfx) $(_mod_dftbp_mpifx)
+_mod_dftbp_coulomb: coulomb.o
+_mod_dftbp_coulomb = $(coulomb.o)
 #:else
-coulomb.o: common.fypp _mod_schedule _mod_constants _mod_message _mod_assert _mod_dynneighlist _mod_environment _mod_errorfunction _mod_accuracy _mod_scalapackfx
-coulomb.o = coulomb.o $(common.fypp) $(_mod_schedule) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_dynneighlist) $(_mod_environment) $(_mod_errorfunction) $(_mod_accuracy) $(_mod_scalapackfx)
-_mod_coulomb: coulomb.o
-_mod_coulomb = $(coulomb.o)
+coulomb.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_errorfunction _mod_dftbp_dynneighlist _mod_dftbp_constants _mod_dftbp_schedule _mod_dftbp_message _mod_dftbp_scalapackfx
+coulomb.o = coulomb.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_errorfunction) $(_mod_dftbp_dynneighlist) $(_mod_dftbp_constants) $(_mod_dftbp_schedule) $(_mod_dftbp_message) $(_mod_dftbp_scalapackfx)
+_mod_dftbp_coulomb: coulomb.o
+_mod_dftbp_coulomb = $(coulomb.o)
 #:endif
 #:else
 #:if WITH_MPI
-coulomb.o: common.fypp _mod_schedule _mod_constants _mod_message _mod_assert _mod_dynneighlist _mod_environment _mod_errorfunction _mod_accuracy _mod_mpifx
-coulomb.o = coulomb.o $(common.fypp) $(_mod_schedule) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_dynneighlist) $(_mod_environment) $(_mod_errorfunction) $(_mod_accuracy) $(_mod_mpifx)
-_mod_coulomb: coulomb.o
-_mod_coulomb = $(coulomb.o)
+coulomb.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_errorfunction _mod_dftbp_dynneighlist _mod_dftbp_constants _mod_dftbp_schedule _mod_dftbp_message _mod_dftbp_mpifx
+coulomb.o = coulomb.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_errorfunction) $(_mod_dftbp_dynneighlist) $(_mod_dftbp_constants) $(_mod_dftbp_schedule) $(_mod_dftbp_message) $(_mod_dftbp_mpifx)
+_mod_dftbp_coulomb: coulomb.o
+_mod_dftbp_coulomb = $(coulomb.o)
 #:else
-coulomb.o: common.fypp _mod_schedule _mod_constants _mod_message _mod_assert _mod_dynneighlist _mod_environment _mod_errorfunction _mod_accuracy
-coulomb.o = coulomb.o $(common.fypp) $(_mod_schedule) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_dynneighlist) $(_mod_environment) $(_mod_errorfunction) $(_mod_accuracy)
-_mod_coulomb: coulomb.o
-_mod_coulomb = $(coulomb.o)
+coulomb.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_errorfunction _mod_dftbp_dynneighlist _mod_dftbp_constants _mod_dftbp_schedule _mod_dftbp_message
+coulomb.o = coulomb.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_errorfunction) $(_mod_dftbp_dynneighlist) $(_mod_dftbp_constants) $(_mod_dftbp_schedule) $(_mod_dftbp_message)
+_mod_dftbp_coulomb: coulomb.o
+_mod_dftbp_coulomb = $(coulomb.o)
 #:endif
 #:endif
 
 #:if WITH_SCALAPACK
-densitymatrix.o: _mod_commontypes common.fypp _mod_sorting _mod_blasroutines _mod_assert _mod_accuracy _mod_blacsenv _mod_scalapackfx
-densitymatrix.o = densitymatrix.o $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy) $(_mod_blacsenv) $(_mod_scalapackfx)
-_mod_densitymatrix: densitymatrix.o
-_mod_densitymatrix = $(densitymatrix.o)
+densitymatrix.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_sorting _mod_dftbp_blasroutines _mod_dftbp_commontypes _mod_dftbp_blacsenv _mod_dftbp_scalapackfx
+densitymatrix.o = densitymatrix.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_sorting) $(_mod_dftbp_blasroutines) $(_mod_dftbp_commontypes) $(_mod_dftbp_blacsenv) $(_mod_dftbp_scalapackfx)
+_mod_dftbp_densitymatrix: densitymatrix.o
+_mod_dftbp_densitymatrix = $(densitymatrix.o)
 #:else
-densitymatrix.o: _mod_commontypes common.fypp _mod_sorting _mod_blasroutines _mod_assert _mod_accuracy
-densitymatrix.o = densitymatrix.o $(_mod_commontypes) $(common.fypp) $(_mod_sorting) $(_mod_blasroutines) $(_mod_assert) $(_mod_accuracy)
-_mod_densitymatrix: densitymatrix.o
-_mod_densitymatrix = $(densitymatrix.o)
+densitymatrix.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_sorting _mod_dftbp_blasroutines _mod_dftbp_commontypes
+densitymatrix.o = densitymatrix.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_sorting) $(_mod_dftbp_blasroutines) $(_mod_dftbp_commontypes)
+_mod_dftbp_densitymatrix: densitymatrix.o
+_mod_dftbp_densitymatrix = $(densitymatrix.o)
 #:endif
 
-dftbplusu.o: _mod_commontypes common.fypp _mod_fileid _mod_spin _mod_assert _mod_message _mod_accuracy
-dftbplusu.o = dftbplusu.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_spin) $(_mod_assert) $(_mod_message) $(_mod_accuracy)
-_mod_dftbplusu: dftbplusu.o
-_mod_dftbplusu = $(dftbplusu.o)
+dftbplusu.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_spin _mod_dftbp_commontypes _mod_dftbp_fileid _mod_dftbp_message
+dftbplusu.o = dftbplusu.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_spin) $(_mod_dftbp_commontypes) $(_mod_dftbp_fileid) $(_mod_dftbp_message)
+_mod_dftbp_dftbplusu: dftbplusu.o
+_mod_dftbp_dftbplusu = $(dftbplusu.o)
 
-dispcommon.o: common.fypp _mod_constants _mod_sorting _mod_message _mod_errorfunction _mod_assert _mod_simplealgebra _mod_accuracy
-dispcommon.o = dispcommon.o $(common.fypp) $(_mod_constants) $(_mod_sorting) $(_mod_message) $(_mod_errorfunction) $(_mod_assert) $(_mod_simplealgebra) $(_mod_accuracy)
-_mod_dispcommon: dispcommon.o
-_mod_dispcommon = $(dispcommon.o)
+dispcommon.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_errorfunction _mod_dftbp_sorting _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_simplealgebra
+dispcommon.o = dispcommon.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_errorfunction) $(_mod_dftbp_sorting) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_dispcommon: dispcommon.o
+_mod_dftbp_dispcommon = $(dispcommon.o)
 
-dispdftd3.o: common.fypp _mod_constants _mod_dftd3_module _mod_dispiface _mod_simplealgebra _mod_assert _mod_periodic _mod_accuracy
-dispdftd3.o = dispdftd3.o $(common.fypp) $(_mod_constants) $(_mod_dftd3_module) $(_mod_dispiface) $(_mod_simplealgebra) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
-_mod_dispdftd3_module: dispdftd3.o
-_mod_dispdftd3_module = $(dispdftd3.o)
+dispdftd3.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_dftd3_module _mod_dftbp_periodic _mod_dftbp_dispiface _mod_dftbp_constants _mod_dftbp_simplealgebra
+dispdftd3.o = dispdftd3.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_dftd3_module) $(_mod_dftbp_periodic) $(_mod_dftbp_dispiface) $(_mod_dftbp_constants) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_dispdftd3_module: dispdftd3.o
+_mod_dftbp_dispdftd3_module = $(dispdftd3.o)
 
 #:if WITH_DFTD3
-dispersions.o: _mod_dispiface _mod_dispuff_module _mod_dispslaterkirkw common.fypp _mod_dispuffdata _mod_dispdftd3_module
-dispersions.o = dispersions.o $(_mod_dispiface) $(_mod_dispuff_module) $(_mod_dispslaterkirkw) $(common.fypp) $(_mod_dispuffdata) $(_mod_dispdftd3_module)
-_mod_dispersions: dispersions.o
-_mod_dispersions = $(dispersions.o)
+dispersions.o: _mod_dftbp_dispuff_module _mod_dftbp_dispuffdata common.fypp _mod_dftbp_dispslaterkirkw _mod_dftbp_dispiface _mod_dftbp_dispdftd3_module
+dispersions.o = dispersions.o $(_mod_dftbp_dispuff_module) $(_mod_dftbp_dispuffdata) $(common.fypp) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispdftd3_module)
+_mod_dftbp_dispersions: dispersions.o
+_mod_dftbp_dispersions = $(dispersions.o)
 #:else
-dispersions.o: _mod_dispiface _mod_dispuff_module _mod_dispslaterkirkw common.fypp _mod_dispuffdata
-dispersions.o = dispersions.o $(_mod_dispiface) $(_mod_dispuff_module) $(_mod_dispslaterkirkw) $(common.fypp) $(_mod_dispuffdata)
-_mod_dispersions: dispersions.o
-_mod_dispersions = $(dispersions.o)
+dispersions.o: _mod_dftbp_dispuff_module _mod_dftbp_dispuffdata common.fypp _mod_dftbp_dispslaterkirkw _mod_dftbp_dispiface
+dispersions.o = dispersions.o $(_mod_dftbp_dispuff_module) $(_mod_dftbp_dispuffdata) $(common.fypp) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_dispiface)
+_mod_dftbp_dispersions: dispersions.o
+_mod_dftbp_dispersions = $(dispersions.o)
 #:endif
 
-dispiface.o: _mod_periodic _mod_accuracy
-dispiface.o = dispiface.o $(_mod_periodic) $(_mod_accuracy)
-_mod_dispiface: dispiface.o
-_mod_dispiface = $(dispiface.o)
+dispiface.o: _mod_dftbp_accuracy _mod_dftbp_periodic
+dispiface.o = dispiface.o $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic)
+_mod_dftbp_dispiface: dispiface.o
+_mod_dftbp_dispiface = $(dispiface.o)
 
-dispslaterkirkw.o: common.fypp _mod_constants _mod_lapackroutines _mod_dispiface _mod_periodic _mod_assert _mod_dispcommon _mod_message _mod_simplealgebra _mod_accuracy
-dispslaterkirkw.o = dispslaterkirkw.o $(common.fypp) $(_mod_constants) $(_mod_lapackroutines) $(_mod_dispiface) $(_mod_periodic) $(_mod_assert) $(_mod_dispcommon) $(_mod_message) $(_mod_simplealgebra) $(_mod_accuracy)
-_mod_dispslaterkirkw: dispslaterkirkw.o
-_mod_dispslaterkirkw = $(dispslaterkirkw.o)
+dispslaterkirkw.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines _mod_dftbp_periodic _mod_dftbp_message _mod_dftbp_dispiface _mod_dftbp_dispcommon _mod_dftbp_constants _mod_dftbp_simplealgebra
+dispslaterkirkw.o = dispslaterkirkw.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_periodic) $(_mod_dftbp_message) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispcommon) $(_mod_dftbp_constants) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_dispslaterkirkw: dispslaterkirkw.o
+_mod_dftbp_dispslaterkirkw = $(dispslaterkirkw.o)
 
-dispuff.o: common.fypp _mod_constants _mod_lapackroutines _mod_dispiface _mod_periodic _mod_assert _mod_dispcommon _mod_simplealgebra _mod_accuracy
-dispuff.o = dispuff.o $(common.fypp) $(_mod_constants) $(_mod_lapackroutines) $(_mod_dispiface) $(_mod_periodic) $(_mod_assert) $(_mod_dispcommon) $(_mod_simplealgebra) $(_mod_accuracy)
-_mod_dispuff_module: dispuff.o
-_mod_dispuff_module = $(dispuff.o)
+dispuff.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines _mod_dftbp_periodic _mod_dftbp_dispiface _mod_dftbp_dispcommon _mod_dftbp_constants _mod_dftbp_simplealgebra
+dispuff.o = dispuff.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_periodic) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispcommon) $(_mod_dftbp_constants) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_dispuff_module: dispuff.o
+_mod_dftbp_dispuff_module = $(dispuff.o)
 
-dispuffdata.o: _mod_message _mod_accuracy _mod_constants _mod_charmanip
-dispuffdata.o = dispuffdata.o $(_mod_message) $(_mod_accuracy) $(_mod_constants) $(_mod_charmanip)
-_mod_dispuffdata: dispuffdata.o
-_mod_dispuffdata = $(dispuffdata.o)
+dispuffdata.o: _mod_dftbp_charmanip _mod_dftbp_constants _mod_dftbp_accuracy _mod_dftbp_message
+dispuffdata.o = dispuffdata.o $(_mod_dftbp_charmanip) $(_mod_dftbp_constants) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
+_mod_dftbp_dispuffdata: dispuffdata.o
+_mod_dftbp_dispuffdata = $(dispuffdata.o)
 
-elecconstraints.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert _mod_angmomentum
-elecconstraints.o = elecconstraints.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert) $(_mod_angmomentum)
-_mod_elecconstraints: elecconstraints.o
-_mod_elecconstraints = $(elecconstraints.o)
+elecconstraints.o: _mod_dftbp_commontypes _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_angmomentum
+elecconstraints.o = elecconstraints.o $(_mod_dftbp_commontypes) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_angmomentum)
+_mod_dftbp_elecconstraints: elecconstraints.o
+_mod_dftbp_elecconstraints = $(elecconstraints.o)
 
-elstatpot.o: _mod_environment common.fypp _mod_accuracy _mod_scc
-elstatpot.o = elstatpot.o $(_mod_environment) $(common.fypp) $(_mod_accuracy) $(_mod_scc)
-_mod_elstatpot: elstatpot.o
-_mod_elstatpot = $(elstatpot.o)
+elstatpot.o: _mod_dftbp_environment common.fypp _mod_dftbp_accuracy _mod_dftbp_scc
+elstatpot.o = elstatpot.o $(_mod_dftbp_environment) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_scc)
+_mod_dftbp_elstatpot: elstatpot.o
+_mod_dftbp_elstatpot = $(elstatpot.o)
 
-emfields.o: _mod_commontypes common.fypp _mod_constants _mod_angmomentum _mod_assert _mod_simplealgebra _mod_accuracy _mod_io
-emfields.o = emfields.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_angmomentum) $(_mod_assert) $(_mod_simplealgebra) $(_mod_accuracy) $(_mod_io)
-_mod_emfields: emfields.o
-_mod_emfields = $(emfields.o)
+emfields.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_angmomentum _mod_dftbp_io _mod_dftbp_commontypes _mod_dftbp_constants _mod_dftbp_simplealgebra
+emfields.o = emfields.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_angmomentum) $(_mod_dftbp_io) $(_mod_dftbp_commontypes) $(_mod_dftbp_constants) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_emfields: emfields.o
+_mod_dftbp_emfields = $(emfields.o)
 
-energies.o: _mod_accuracy common.fypp _mod_assert
-energies.o = energies.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
-_mod_energies: energies.o
-_mod_energies = $(energies.o)
+energies.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+energies.o = energies.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_energies: energies.o
+_mod_dftbp_energies = $(energies.o)
 
-etemp.o: _mod_hermite common.fypp _mod_constants _mod_sorting _mod_message _mod_factorial _mod_assert _mod_errorfunction _mod_accuracy
-etemp.o = etemp.o $(_mod_hermite) $(common.fypp) $(_mod_constants) $(_mod_sorting) $(_mod_message) $(_mod_factorial) $(_mod_assert) $(_mod_errorfunction) $(_mod_accuracy)
-_mod_etemp: etemp.o
-_mod_etemp = $(etemp.o)
+etemp.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_errorfunction _mod_dftbp_sorting _mod_dftbp_hermite _mod_dftbp_constants _mod_dftbp_factorial _mod_dftbp_message
+etemp.o = etemp.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_errorfunction) $(_mod_dftbp_sorting) $(_mod_dftbp_hermite) $(_mod_dftbp_constants) $(_mod_dftbp_factorial) $(_mod_dftbp_message)
+_mod_dftbp_etemp: etemp.o
+_mod_dftbp_etemp = $(etemp.o)
 
-externalcharges.o: common.fypp _mod_constants _mod_environment _mod_coulomb _mod_blasroutines _mod_assert _mod_periodic _mod_accuracy
-externalcharges.o = externalcharges.o $(common.fypp) $(_mod_constants) $(_mod_environment) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
-_mod_externalcharges: externalcharges.o
-_mod_externalcharges = $(externalcharges.o)
+externalcharges.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_coulomb _mod_dftbp_periodic _mod_dftbp_blasroutines _mod_dftbp_constants
+externalcharges.o = externalcharges.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_coulomb) $(_mod_dftbp_periodic) $(_mod_dftbp_blasroutines) $(_mod_dftbp_constants)
+_mod_dftbp_externalcharges: externalcharges.o
+_mod_dftbp_externalcharges = $(externalcharges.o)
 
-forces.o: _mod_commontypes common.fypp _mod_schedule _mod_environment _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
-forces.o = forces.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_environment) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
-_mod_forces: forces.o
-_mod_forces = $(forces.o)
+forces.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_scc _mod_dftbp_schedule _mod_dftbp_commontypes _mod_dftbp_slakocont
+forces.o = forces.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_scc) $(_mod_dftbp_schedule) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont)
+_mod_dftbp_forces: forces.o
+_mod_dftbp_forces = $(forces.o)
 
-h5correction.o: _mod_vdwdata common.fypp _mod_accuracy _mod_message
-h5correction.o = h5correction.o $(_mod_vdwdata) $(common.fypp) $(_mod_accuracy) $(_mod_message)
-_mod_h5correction: h5correction.o
-_mod_h5correction = $(h5correction.o)
+h5correction.o: _mod_dftbp_vdwdata common.fypp _mod_dftbp_accuracy _mod_dftbp_message
+h5correction.o = h5correction.o $(_mod_dftbp_vdwdata) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
+_mod_dftbp_h5correction: h5correction.o
+_mod_dftbp_h5correction = $(h5correction.o)
 
-nonscc.o: _mod_commontypes common.fypp _mod_schedule _mod_message _mod_environment _mod_assert _mod_sk _mod_accuracy _mod_slakocont
-nonscc.o = nonscc.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_message) $(_mod_environment) $(_mod_assert) $(_mod_sk) $(_mod_accuracy) $(_mod_slakocont)
-_mod_nonscc: nonscc.o
-_mod_nonscc = $(nonscc.o)
+nonscc.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_sk _mod_dftbp_schedule _mod_dftbp_commontypes _mod_dftbp_slakocont _mod_dftbp_message
+nonscc.o = nonscc.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_sk) $(_mod_dftbp_schedule) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont) $(_mod_dftbp_message)
+_mod_dftbp_nonscc: nonscc.o
+_mod_dftbp_nonscc = $(nonscc.o)
 
-orbitalequiv.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert
-orbitalequiv.o = orbitalequiv.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert)
-_mod_orbitalequiv: orbitalequiv.o
-_mod_orbitalequiv = $(orbitalequiv.o)
+onscorrection.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_commontypes _mod_dftbp_slakocont _mod_dftbp_message
+onscorrection.o = onscorrection.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont) $(_mod_dftbp_message)
+_mod_dftbp_onsitecorrection: onscorrection.o
+_mod_dftbp_onsitecorrection = $(onscorrection.o)
 
-periodic.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_sorting _mod_message _mod_bisect _mod_latpointiter _mod_assert _mod_linkedlist _mod_simplealgebra _mod_accuracy
-periodic.o = periodic.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_sorting) $(_mod_message) $(_mod_bisect) $(_mod_latpointiter) $(_mod_assert) $(_mod_linkedlist) $(_mod_simplealgebra) $(_mod_accuracy)
-_mod_periodic: periodic.o
-_mod_periodic = $(periodic.o)
+orbitalequiv.o: _mod_dftbp_commontypes _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+orbitalequiv.o = orbitalequiv.o $(_mod_dftbp_commontypes) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_orbitalequiv: orbitalequiv.o
+_mod_dftbp_orbitalequiv = $(orbitalequiv.o)
 
-pmlocalisation.o: _mod_sparse2dense common.fypp _mod_sorting _mod_message _mod_blasroutines _mod_assert _mod_periodic _mod_accuracy _mod_io
-pmlocalisation.o = pmlocalisation.o $(_mod_sparse2dense) $(common.fypp) $(_mod_sorting) $(_mod_message) $(_mod_blasroutines) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy) $(_mod_io)
-_mod_pmlocalisation: pmlocalisation.o
-_mod_pmlocalisation = $(pmlocalisation.o)
+periodic.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_sorting _mod_dftbp_constants _mod_dftbp_bisect _mod_dftbp_latpointiter _mod_dftbp_commontypes _mod_dftbp_linkedlist _mod_dftbp_memman _mod_dftbp_message _mod_dftbp_simplealgebra
+periodic.o = periodic.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_sorting) $(_mod_dftbp_constants) $(_mod_dftbp_bisect) $(_mod_dftbp_latpointiter) $(_mod_dftbp_commontypes) $(_mod_dftbp_linkedlist) $(_mod_dftbp_memman) $(_mod_dftbp_message) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_periodic: periodic.o
+_mod_dftbp_periodic = $(periodic.o)
 
-populations.o: _mod_commontypes common.fypp _mod_constants _mod_assert _mod_periodic _mod_accuracy
-populations.o = populations.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
-_mod_populations: populations.o
-_mod_populations = $(populations.o)
+pmlocalisation.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_sorting _mod_dftbp_blasroutines _mod_dftbp_io _mod_dftbp_sparse2dense _mod_dftbp_message
+pmlocalisation.o = pmlocalisation.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_sorting) $(_mod_dftbp_blasroutines) $(_mod_dftbp_io) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_message)
+_mod_dftbp_pmlocalisation: pmlocalisation.o
+_mod_dftbp_pmlocalisation = $(pmlocalisation.o)
 
-potentials.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert
-potentials.o = potentials.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert)
-_mod_potentials: potentials.o
-_mod_potentials = $(potentials.o)
+populations.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_commontypes _mod_dftbp_constants
+populations.o = populations.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_commontypes) $(_mod_dftbp_constants)
+_mod_dftbp_populations: populations.o
+_mod_dftbp_populations = $(populations.o)
 
-repcont.o: _mod_accuracy common.fypp _mod_assert _mod_repspline _mod_reppoly
-repcont.o = repcont.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_repspline) $(_mod_reppoly)
-_mod_repcont: repcont.o
-_mod_repcont = $(repcont.o)
+potentials.o: _mod_dftbp_commontypes _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+potentials.o = potentials.o $(_mod_dftbp_commontypes) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_potentials: potentials.o
+_mod_dftbp_potentials = $(potentials.o)
 
-reppoly.o: _mod_accuracy common.fypp _mod_assert _mod_bisect
-reppoly.o = reppoly.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_bisect)
-_mod_reppoly: reppoly.o
-_mod_reppoly = $(reppoly.o)
+repcont.o: _mod_dftbp_repspline _mod_dftbp_reppoly _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+repcont.o = repcont.o $(_mod_dftbp_repspline) $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_repcont: repcont.o
+_mod_dftbp_repcont = $(repcont.o)
 
-repspline.o: _mod_accuracy common.fypp _mod_assert _mod_bisect
-repspline.o = repspline.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_bisect)
-_mod_repspline: repspline.o
-_mod_repspline = $(repspline.o)
+reppoly.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_bisect
+reppoly.o = reppoly.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_bisect)
+_mod_dftbp_reppoly: reppoly.o
+_mod_dftbp_reppoly = $(reppoly.o)
 
-repulsive.o: _mod_accuracy common.fypp _mod_assert _mod_repcont
-repulsive.o = repulsive.o $(_mod_accuracy) $(common.fypp) $(_mod_assert) $(_mod_repcont)
-_mod_repulsive: repulsive.o
-_mod_repulsive = $(repulsive.o)
+repspline.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_bisect
+repspline.o = repspline.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_bisect)
+_mod_dftbp_repspline: repspline.o
+_mod_dftbp_repspline = $(repspline.o)
+
+repulsive.o: _mod_dftbp_assert common.fypp _mod_dftbp_repcont _mod_dftbp_accuracy
+repulsive.o = repulsive.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_repcont) $(_mod_dftbp_accuracy)
+_mod_dftbp_repulsive: repulsive.o
+_mod_dftbp_repulsive = $(repulsive.o)
 
 #:if WITH_SCALAPACK
-scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_h5correction _mod_mpifx _mod_scalapackfx
-scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_h5correction) $(_mod_mpifx) $(_mod_scalapackfx)
-_mod_scc: scc.o
-_mod_scc = $(scc.o)
+scc.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_blasroutines _mod_dftbp_accuracy _mod_dftbp_coulomb _mod_dftbp_periodic _mod_dftbp_shortgamma _mod_dftbp_shift _mod_dftbp_externalcharges _mod_dftbp_dynneighlist _mod_dftbp_constants _mod_dftbp_h5correction _mod_dftbp_commontypes _mod_dftbp_fileid _mod_dftbp_chargeconstr _mod_dftbp_message _mod_dftbp_mpifx _mod_dftbp_scalapackfx
+scc.o = scc.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_blasroutines) $(_mod_dftbp_accuracy) $(_mod_dftbp_coulomb) $(_mod_dftbp_periodic) $(_mod_dftbp_shortgamma) $(_mod_dftbp_shift) $(_mod_dftbp_externalcharges) $(_mod_dftbp_dynneighlist) $(_mod_dftbp_constants) $(_mod_dftbp_h5correction) $(_mod_dftbp_commontypes) $(_mod_dftbp_fileid) $(_mod_dftbp_chargeconstr) $(_mod_dftbp_message) $(_mod_dftbp_mpifx) $(_mod_dftbp_scalapackfx)
+_mod_dftbp_scc: scc.o
+_mod_dftbp_scc = $(scc.o)
 #:else
-scc.o: _mod_commontypes common.fypp _mod_fileid _mod_constants _mod_message _mod_chargeconstr _mod_assert _mod_coulomb _mod_blasroutines _mod_dynneighlist _mod_externalcharges _mod_periodic _mod_environment _mod_shortgamma _mod_shift _mod_accuracy _mod_h5correction
-scc.o = scc.o $(_mod_commontypes) $(common.fypp) $(_mod_fileid) $(_mod_constants) $(_mod_message) $(_mod_chargeconstr) $(_mod_assert) $(_mod_coulomb) $(_mod_blasroutines) $(_mod_dynneighlist) $(_mod_externalcharges) $(_mod_periodic) $(_mod_environment) $(_mod_shortgamma) $(_mod_shift) $(_mod_accuracy) $(_mod_h5correction)
-_mod_scc: scc.o
-_mod_scc = $(scc.o)
+scc.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_blasroutines _mod_dftbp_accuracy _mod_dftbp_coulomb _mod_dftbp_periodic _mod_dftbp_shortgamma _mod_dftbp_shift _mod_dftbp_externalcharges _mod_dftbp_dynneighlist _mod_dftbp_constants _mod_dftbp_h5correction _mod_dftbp_commontypes _mod_dftbp_fileid _mod_dftbp_chargeconstr _mod_dftbp_message
+scc.o = scc.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_blasroutines) $(_mod_dftbp_accuracy) $(_mod_dftbp_coulomb) $(_mod_dftbp_periodic) $(_mod_dftbp_shortgamma) $(_mod_dftbp_shift) $(_mod_dftbp_externalcharges) $(_mod_dftbp_dynneighlist) $(_mod_dftbp_constants) $(_mod_dftbp_h5correction) $(_mod_dftbp_commontypes) $(_mod_dftbp_fileid) $(_mod_dftbp_chargeconstr) $(_mod_dftbp_message)
+_mod_dftbp_scc: scc.o
+_mod_dftbp_scc = $(scc.o)
 #:endif
 
-sccinit.o: _mod_commontypes common.fypp _mod_message _mod_assert _mod_charmanip _mod_accuracy _mod_io
-sccinit.o = sccinit.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_assert) $(_mod_charmanip) $(_mod_accuracy) $(_mod_io)
-_mod_sccinit: sccinit.o
-_mod_sccinit = $(sccinit.o)
+sccinit.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_io _mod_dftbp_commontypes _mod_dftbp_charmanip _mod_dftbp_message
+sccinit.o = sccinit.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_io) $(_mod_dftbp_commontypes) $(_mod_dftbp_charmanip) $(_mod_dftbp_message)
+_mod_dftbp_sccinit: sccinit.o
+_mod_dftbp_sccinit = $(sccinit.o)
 
-shift.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert
-shift.o = shift.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert)
-_mod_shift: shift.o
-_mod_shift = $(shift.o)
+shift.o: _mod_dftbp_commontypes _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+shift.o = shift.o $(_mod_dftbp_commontypes) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_shift: shift.o
+_mod_dftbp_shift = $(shift.o)
 
-shortgamma.o: _mod_message _mod_accuracy
-shortgamma.o = shortgamma.o $(_mod_message) $(_mod_accuracy)
-_mod_shortgamma: shortgamma.o
-_mod_shortgamma = $(shortgamma.o)
+shortgamma.o: _mod_dftbp_accuracy _mod_dftbp_message
+shortgamma.o = shortgamma.o $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
+_mod_dftbp_shortgamma: shortgamma.o
+_mod_dftbp_shortgamma = $(shortgamma.o)
 
-sk.o: _mod_accuracy _mod_commontypes common.fypp _mod_assert
-sk.o = sk.o $(_mod_accuracy) $(_mod_commontypes) $(common.fypp) $(_mod_assert)
-_mod_sk: sk.o
-_mod_sk = $(sk.o)
+sk.o: _mod_dftbp_commontypes _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+sk.o = sk.o $(_mod_dftbp_commontypes) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_sk: sk.o
+_mod_dftbp_sk = $(sk.o)
 
-slakocont.o: _mod_accuracy _mod_slakoeqgrid common.fypp _mod_assert
-slakocont.o = slakocont.o $(_mod_accuracy) $(_mod_slakoeqgrid) $(common.fypp) $(_mod_assert)
-_mod_slakocont: slakocont.o
-_mod_slakocont = $(slakocont.o)
+slakocont.o: _mod_dftbp_slakoeqgrid _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
+slakocont.o = slakocont.o $(_mod_dftbp_slakoeqgrid) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_slakocont: slakocont.o
+_mod_dftbp_slakocont = $(slakocont.o)
 
-slakoeqgrid.o: _mod_accuracy _mod_message common.fypp _mod_assert _mod_interpolation
-slakoeqgrid.o = slakoeqgrid.o $(_mod_accuracy) $(_mod_message) $(common.fypp) $(_mod_assert) $(_mod_interpolation)
-_mod_slakoeqgrid: slakoeqgrid.o
-_mod_slakoeqgrid = $(slakoeqgrid.o)
+slakoeqgrid.o: _mod_dftbp_assert common.fypp _mod_dftbp_interpolation _mod_dftbp_accuracy _mod_dftbp_message
+slakoeqgrid.o = slakoeqgrid.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_interpolation) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
+_mod_dftbp_slakoeqgrid: slakoeqgrid.o
+_mod_dftbp_slakoeqgrid = $(slakoeqgrid.o)
 
 #:if WITH_SCALAPACK
-sparse2dense.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_densedescr _mod_assert _mod_periodic _mod_accuracy _mod_blacsenv _mod_scalapackfx
-sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_densedescr) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy) $(_mod_blacsenv) $(_mod_scalapackfx)
-_mod_sparse2dense: sparse2dense.o
-_mod_sparse2dense = $(sparse2dense.o)
+sparse2dense.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_memman _mod_dftbp_constants _mod_dftbp_blacsenv _mod_dftbp_scalapackfx
+sparse2dense.o = sparse2dense.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_memman) $(_mod_dftbp_constants) $(_mod_dftbp_blacsenv) $(_mod_dftbp_scalapackfx)
+_mod_dftbp_sparse2dense: sparse2dense.o
+_mod_dftbp_sparse2dense = $(sparse2dense.o)
 #:else
-sparse2dense.o: _mod_commontypes common.fypp _mod_memman _mod_constants _mod_densedescr _mod_assert _mod_periodic _mod_accuracy
-sparse2dense.o = sparse2dense.o $(_mod_commontypes) $(common.fypp) $(_mod_memman) $(_mod_constants) $(_mod_densedescr) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
-_mod_sparse2dense: sparse2dense.o
-_mod_sparse2dense = $(sparse2dense.o)
+sparse2dense.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_memman _mod_dftbp_constants
+sparse2dense.o = sparse2dense.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_memman) $(_mod_dftbp_constants)
+_mod_dftbp_sparse2dense: sparse2dense.o
+_mod_dftbp_sparse2dense = $(sparse2dense.o)
 #:endif
 
-spin.o: _mod_commontypes common.fypp _mod_message _mod_shift _mod_assert _mod_accuracy
-spin.o = spin.o $(_mod_commontypes) $(common.fypp) $(_mod_message) $(_mod_shift) $(_mod_assert) $(_mod_accuracy)
-_mod_spin: spin.o
-_mod_spin = $(spin.o)
+spin.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_shift _mod_dftbp_commontypes _mod_dftbp_message
+spin.o = spin.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_shift) $(_mod_dftbp_commontypes) $(_mod_dftbp_message)
+_mod_dftbp_spin: spin.o
+_mod_dftbp_spin = $(spin.o)
 
 #:if WITH_SCALAPACK
-spinorbit.o: _mod_commontypes common.fypp _mod_constants _mod_assert _mod_densedescr _mod_angmomentum _mod_environment _mod_accuracy _mod_scalapackfx
-spinorbit.o = spinorbit.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_assert) $(_mod_densedescr) $(_mod_angmomentum) $(_mod_environment) $(_mod_accuracy) $(_mod_scalapackfx)
-_mod_spinorbit: spinorbit.o
-_mod_spinorbit = $(spinorbit.o)
+spinorbit.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_angmomentum _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_constants _mod_dftbp_scalapackfx
+spinorbit.o = spinorbit.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_angmomentum) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_constants) $(_mod_dftbp_scalapackfx)
+_mod_dftbp_spinorbit: spinorbit.o
+_mod_dftbp_spinorbit = $(spinorbit.o)
 #:else
-spinorbit.o: _mod_commontypes common.fypp _mod_constants _mod_assert _mod_densedescr _mod_angmomentum _mod_environment _mod_accuracy
-spinorbit.o = spinorbit.o $(_mod_commontypes) $(common.fypp) $(_mod_constants) $(_mod_assert) $(_mod_densedescr) $(_mod_angmomentum) $(_mod_environment) $(_mod_accuracy)
-_mod_spinorbit: spinorbit.o
-_mod_spinorbit = $(spinorbit.o)
+spinorbit.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_angmomentum _mod_dftbp_commontypes _mod_dftbp_densedescr _mod_dftbp_constants
+spinorbit.o = spinorbit.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_angmomentum) $(_mod_dftbp_commontypes) $(_mod_dftbp_densedescr) $(_mod_dftbp_constants)
+_mod_dftbp_spinorbit: spinorbit.o
+_mod_dftbp_spinorbit = $(spinorbit.o)
 #:endif
 
-stress.o: _mod_commontypes common.fypp _mod_schedule _mod_environment _mod_repcont _mod_assert _mod_scc _mod_nonscc _mod_accuracy _mod_slakocont
-stress.o = stress.o $(_mod_commontypes) $(common.fypp) $(_mod_schedule) $(_mod_environment) $(_mod_repcont) $(_mod_assert) $(_mod_scc) $(_mod_nonscc) $(_mod_accuracy) $(_mod_slakocont)
-_mod_stress: stress.o
-_mod_stress = $(stress.o)
+stress.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_repcont _mod_dftbp_scc _mod_dftbp_schedule _mod_dftbp_commontypes _mod_dftbp_slakocont
+stress.o = stress.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_repcont) $(_mod_dftbp_scc) $(_mod_dftbp_schedule) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont)
+_mod_dftbp_stress: stress.o
+_mod_dftbp_stress = $(stress.o)
 
-thirdorder.o: _mod_commontypes common.fypp _mod_charges _mod_periodic _mod_assert _mod_shortgamma _mod_accuracy
-thirdorder.o = thirdorder.o $(_mod_commontypes) $(common.fypp) $(_mod_charges) $(_mod_periodic) $(_mod_assert) $(_mod_shortgamma) $(_mod_accuracy)
-_mod_thirdorder_module: thirdorder.o
-_mod_thirdorder_module = $(thirdorder.o)
+thirdorder.o: _mod_dftbp_charges _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_shortgamma _mod_dftbp_commontypes
+thirdorder.o = thirdorder.o $(_mod_dftbp_charges) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_shortgamma) $(_mod_dftbp_commontypes)
+_mod_dftbp_thirdorder_module: thirdorder.o
+_mod_dftbp_thirdorder_module = $(thirdorder.o)
 
-vdwdata.o: _mod_message _mod_accuracy _mod_constants _mod_charmanip
-vdwdata.o = vdwdata.o $(_mod_message) $(_mod_accuracy) $(_mod_constants) $(_mod_charmanip)
-_mod_vdwdata: vdwdata.o
-_mod_vdwdata = $(vdwdata.o)
+vdwdata.o: _mod_dftbp_charmanip _mod_dftbp_constants _mod_dftbp_accuracy _mod_dftbp_message
+vdwdata.o = vdwdata.o $(_mod_dftbp_charmanip) $(_mod_dftbp_constants) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
+_mod_dftbp_vdwdata: vdwdata.o
+_mod_dftbp_vdwdata = $(vdwdata.o)
 

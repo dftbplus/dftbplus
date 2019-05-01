@@ -8,25 +8,25 @@
 #:include 'common.fypp'
 
 !> Contains the routines for initialising waveplot.
-module InitWaveplot
-  use assert
-  use io
-  use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
-  use XMLUtils
-  use HSDUtils
-  use HSDUtils2
-  use flib_dom
-  use LinkedList
-  use CharManip
-  use Accuracy
-  use Constants
-  use TypeGeometryHSD
-  use Message
-  use FileId
-  use MolecularOrbital
-  use GridCache
-  use UnitConversion
-  use Slater
+module dftbp_initwaveplot
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_xmlutils
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use xmlf90_flib_dom
+  use dftbp_linkedlist
+  use dftbp_charmanip
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_typegeometryhsd
+  use dftbp_message
+  use dftbp_fileid
+  use dftbp_molecularorbital
+  use dftbp_gridcache
+  use dftbp_unitconversion
+  use dftbp_slater
   implicit none
 
   private
@@ -752,4 +752,4 @@ contains
 
   end function determinant
 
-end module InitWaveplot
+end module dftbp_initwaveplot

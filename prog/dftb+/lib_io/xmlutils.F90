@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Utilities for processing an XML tree
-module xmlutils
-  use assert
-  use charmanip
-  use xmlf90
+module dftbp_xmlutils
+  use dftbp_assert
+  use dftbp_charmanip
+  use dftbp_xmlf90
   implicit none
 
   private
@@ -261,4 +261,4 @@ contains
 
   end subroutine removeNodes
 
-end module xmlutils
+end module dftbp_xmlutils

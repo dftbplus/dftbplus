@@ -101,12 +101,19 @@ endif
 # General settings
 ############################################################################
 
+# Linker for c executables
+LN_C = $(LN)
+LNOPT_C = -nofor_main
+
 # Preprocessor
 FYPP = $(ROOT)/external/fypp/bin/fypp
 FYPPOPT =
 
 # Library options in general
 LIBOPT =
+
+# Additional libraries needed to be linked when linking C-executables
+OTHERLIBS_C =
 
 # Whether DFTD3 should be compiled during the build process. If set to 1 (yes),
 # you will have to download the dftd3 library before starting the build using

@@ -10,20 +10,22 @@
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code.
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
-module eigensolver
-  use assert
-  use message
-  use accuracy, only : rsp, rdp
-  use blas
-  use lapack
+module dftbp_eigensolver
+  use dftbp_assert
+  use dftbp_message
+  use dftbp_accuracy, only : rsp, rdp
+  use dftbp_blas
+  use dftbp_lapack
 #:if WITH_GPU
-  use magma
+  use dftbp_magma
 #:endif
-
-  !implicit none
+  implicit none
   private
 
-  public :: heev, hegv, hegvd, gvr, bgv, gpu_gvd
+  public :: heev, hegv, hegvd, gvr, bgv
+#:if WITH_GPU
+  public :: gpu_gvd
+#:endif
 
 
   !> Used to return runtime diagnostics
@@ -2190,4 +2192,4 @@ contains
 #:endif
 
 
-end module eigensolver
+end module dftbp_eigensolver

@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Socket interface library
-module fsockets
-  use f90sockets
+module dftbp_fsockets
+  use fsockets
   implicit none
 
 #:if WITH_SOCKETS
@@ -22,4 +22,4 @@ module fsockets
 
 #:endif
 
-end module fsockets
+end module dftbp_fsockets

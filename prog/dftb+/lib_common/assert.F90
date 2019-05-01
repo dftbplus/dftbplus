@@ -8,8 +8,9 @@
 #:include 'common.fypp'
 
 !> Auxiliary subroutines for the ASSERT command
-module assert
-  use io
+module dftbp_assert
+  use dftbp_io
+  use dftbp_globalenv, only : abortProgram
   implicit none
   private
 
@@ -34,10 +35,10 @@ contains
     write(stdout, '(A)') "!!! UNFULLFILLED ASSERTION"
     write(stdout, '(A,A)') "!!! FILE:      ", fileName
     write(stdout, '(A,I0)') "!!! LINE NR.:  ", lineNr
-    stop
+    call abortProgram()
 
   end subroutine assertError
 
 #:endcall ASSERT_CODE
 
-end module assert
+end module dftbp_assert

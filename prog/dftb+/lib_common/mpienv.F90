@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains MPI related environment settings
-module mpienv
-  use accuracy, only : lc
-  use mpifx
-  use message
+module dftbp_mpienv
+  use dftbp_accuracy, only : lc
+  use dftbp_mpifx
+  use dftbp_message
   implicit none
   private
 
@@ -92,4 +92,4 @@ contains
   end subroutine TMpiEnv_init
 
 
-end module mpienv
+end module dftbp_mpienv
