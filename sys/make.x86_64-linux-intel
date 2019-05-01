@@ -83,11 +83,27 @@ CCOPT = -O2 -ip
 LN = $(FXX)
 LNOPT =
 
+# GPU extra settings
+ifeq ($(strip $(WITH_GPU)),1)
+
+MAGMADIR = /opt/magma
+
+L_INCS += -I$(CUDADIR)/include -I$(MAGMADIR)/include -L$(CUDADIR)/lib64
+
+LIB_LAPACK = -L$(MAGMADIR)/lib -lmagma -L$(CUDADIR)/lib64 -lcublas	\
+-lcudart -lcusparse -lculibos
+
+else
+
+LIB_LAPACK =
+
+endif
+
 # How to link specific libraries
 
 # LAPACK/BLAS
 MKL_LIBDIR = $(MKLROOT)/lib/intel64
-LIB_LAPACK   = -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
+LIB_LAPACK += -L$(MKL_LIBDIR) -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core
 
 # Any other libraries to be linked
 OTHERLIBS = -liomp5
