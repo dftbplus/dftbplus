@@ -52,6 +52,7 @@ Transport {
     }
     Task = SetupGeometry{
       PLCutoff [AA] = 5.0
+      FoldToUnitCell = Yes
     }
 }
 \end{verbatim}
@@ -59,10 +60,12 @@ Transport {
 
 \begin{ptable}
  \kw{Id}    & s & &   &  \\
- \kw{Atoms} &l i& & - & \pref{Atoms} \\
+ \kw{Atoms} &l i& & - &  \\
  \kw{NumSpecifiedPLs} &i & & 2 & \\	
  \kw{ContactVector} & 3r & & - & \\	
  \kw{PLCutoff} & r & & 10.0 &\\ 
+ \kw{FoldToUnitCell} & l & & No &\\ 
+ \kw{Translation} & 3r & & 0.0 &\\ 
 \end{ptable}
 
 \begin{description}
@@ -71,6 +74,7 @@ Transport {
 	be easily obtained using some external atomic manipulation tool like for instance Jmol. \\ 
 	NOTE the modifier $[zeroBased]$ specifing that the defined atom numbers starts from $0$
 	rather than $1$. Use $[oneBased]$ or no modifier for normal numbering starting from $1$.
+	In general follows the rules for \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.
 \item[\is{NumSpecifiedPLs}] Specifies the number of PLs given for the named contact. If this value 
 	is 2 (default) the total number of atoms in the contact are divided by 2 and the 2nd PL
 	is reordered according to the 1st with the help of \kw{ContactVector}. If this value is 1, 
@@ -83,6 +87,12 @@ Transport {
      interactions. In transport calculations, trading off between accuracy and computational speed
      it is possible to cutoff the interactions shorter than the SK-tables, to about 5.0 Angstrom. 
      This cutoff changes the size of the PLs computed in the device region.	
+\item[\is{FoldToUnitCell}] Is used to fold all coordinates to the unit cell such that all fractional
+	coordinates are in the range 0 to 1. The structure is first translated such that all coordinates
+	have posive values. This is particularly useful when local currents are computed 
+	because in this case \dftbp{} outputs a structure file where negative coordinates are folded.
+\item[\is{Translation}] Adds a rigid translation vector to the atomic coordinates  
+
 \end{description}
 
 \subsection{Code output}

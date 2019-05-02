@@ -19,9 +19,7 @@ module inputdata_setup
   use dftbp_linkedlist
   use dftbp_wrappedintr 
 
-#:if WITH_TRANSPORT
   use libnegf_vars
-#:endif
 
   implicit none
   private
@@ -30,9 +28,7 @@ module inputdata_setup
   public :: control, TGeometry, slater, inputData, TParallelOpts
   public :: TBlacsOpts
   public :: init, destruct
-#:if WITH_TRANSPORT
   public :: TNEGFInfo
-#:endif
 
 
   !> Contains Blacs specific options.
@@ -441,13 +437,11 @@ module inputdata_setup
     type(TOrbitals), allocatable :: orb
   end type slater
 
-#:if WITH_TRANSPORT
   !> container for data needed by libNEGF
   type TNEGFInfo
     type(TNEGFTunDos) :: tundos  !Transport section informations
     type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
   end type TNEGFInfo
-#:endif
 
 
   !> container for input data constituents
@@ -456,10 +450,8 @@ module inputdata_setup
     type(control) :: ctrl
     type(TGeometry) :: geom
     type(slater) :: slako
-  #:if WITH_TRANSPORT
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
-  #:endif
   end type inputData
 
 

@@ -14,12 +14,15 @@ module helpsetupgeom
 
   contains
 
-  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs)
+  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, tfold)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(inout) :: contVec(:,:)
     real(dp), intent(in) :: plCutoff
     integer, intent(in) :: nPLs(:)
+    real(dp), intent(in) :: translVec(:)
+    logical, intent(in) :: tfold
+   
 
     type(listIntR1) :: PLlist
     integer, allocatable :: contdir(:)
@@ -50,8 +53,11 @@ module helpsetupgeom
 
     ! 4. Define device PLs
     call definePLs(geom, iAtInRegion, plcutoff, PLlist)
-   
-    !5. write ordered geometry
+  
+    ! 5. Translate or fold cell
+    call TranslateAndFold(geom, translVec, tfold)
+
+    ! 6. write ordered geometry
     call print_gen(geom, iAtInRegion, PLlist, contDir, plcutoff)
 
 
@@ -161,6 +167,7 @@ module helpsetupgeom
         vv = contvec(1:3,icont)
         tol = norm2(vv)*contvec(4,icont)
         PLsize = size(data)/2
+        write(stdOut, *) "Contact",icont
         write(stdOut, *) "PL size",PLsize
         write(stdOut, *) "Number of PLs",nPLs(icont)
         write(stdOut, *) "contact vector",contvec(1:3,icont)
@@ -368,6 +375,28 @@ module helpsetupgeom
   end subroutine print_debug
 
   ! -----------------------------------------------------------------------------------------------| 
+  subroutine translateAndFold(geom, translVec, tfold)
+    type(TGeometry), intent(inout) :: geom
+    real(dp), intent(in) :: translVec(:)
+    logical, intent(in) :: tfold
+
+    integer :: ii
+
+    if (geom%tPeriodic .and. tfold) then
+      geom%coords(1,:) = geom%coords(1,:) - minval(geom%coords(1,:))
+      geom%coords(2,:) = geom%coords(2,:) - minval(geom%coords(2,:))
+      geom%coords(3,:) = geom%coords(3,:) - minval(geom%coords(3,:))
+      call foldCoordToUnitCell(geom%coords, geom%latVecs, geom%recVecs2p)
+    end if
+
+    do ii = 1, geom%nAtom
+      geom%coords(:,ii) = geom%coords(:,ii) + translVec 
+    end do
+
+  end subroutine translateAndFold
+
+        
+  ! -----------------------------------------------------------------------------------------------| 
   subroutine print_gen(geom, iAtInRegion, PLlist, contDir, plCutoff)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(in) :: iAtInRegion(:)
@@ -446,6 +475,48 @@ module helpsetupgeom
     close(fd1)
     close(fd2)
   end subroutine print_gen
+
+  !> Fold coordinates back in the central cell.
+  !>
+  !> Throw away the integer part of the relative coordinates of every atom. If the resulting
+  !> coordinate is very near to 1.0 (closer than 1e-12 in absolute length), fold it to 0.0 to make
+  !> the algorithm more predictable and independent of numerical noise.
+  subroutine foldCoordToUnitCell(coord, latVec, recVec2p, invShift)
+
+    !> Contains the original coordinates on call and the folded ones on return.
+    real(dp), intent(inout) :: coord(:,:)
+
+    !> Lattice vectors (column format).
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> Reciprocal vectors in units of 2pi (column format).
+    real(dp), intent(in) :: recVec2p(:,:)
+
+    !> Contains difference vectors old_coords - new_coords.
+    real(dp), intent(out), optional :: invShift(:,:)
+
+
+    integer :: nAtom
+    integer :: ii, jj
+    real(dp) :: frac(3), frac2(3), tmp3(3), vecLen(3)
+
+    nAtom = size(coord, dim=2)
+
+    vecLen(:) = sqrt(sum(latVec(:,:)**2, dim=1))
+    do ii = 1, nAtom
+      do jj = 1, 3
+        frac(jj) = dot_product(recVec2p(:,jj), coord(:,ii))
+      end do
+      tmp3(:) = coord(:,ii)
+      frac2(:) = frac(:) - real(floor(frac(:)), dp)
+      where (abs(vecLen*(1.0_dp - frac2)) < 1e-12_dp) frac2 = 0.0_dp
+      coord(:, ii) = matmul(latVec, frac2)
+      if (present(invShift)) then
+        invShift(:,ii) = tmp3(:) - coord(:,ii)
+      end if
+    end do
+
+  end subroutine foldCoordToUnitCell
 
 end module helpsetupgeom
 
