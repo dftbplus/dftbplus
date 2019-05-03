@@ -34,10 +34,8 @@ module parser_setup
   use dftbp_oldskdata
   use dftbp_xmlf90
   use dftbp_wrappedintr
-#:if WITH_TRANSPORT
   use libnegf_vars
   use helpsetupgeom
-#:endif
   use inputdata_setup
   use inputconversion
   use oldcompat
@@ -140,8 +138,6 @@ contains
 
     call getChild(root, "Transport", child, requested=.false.)
 
-  #:if WITH_TRANSPORT
-
     ! Read in transport and modify geometry if it is only a contact calculation
     if (associated(child)) then
       call readTransportGeometry(child, input%geom, input%transpar)
@@ -152,14 +148,6 @@ contains
       input%transpar%idxdevice(1) = 1
       input%transpar%idxdevice(2) = input%geom%nAtom
     end if
-
-  #:else
-
-    if (associated(child)) then
-      call detailedError(child, "Program had been compiled without transport enabled")
-    end if
-
-  #:endif
 
     ! input data strucutre has been initialised
     input%tInitialized = .true.
@@ -267,7 +255,6 @@ contains
   end subroutine readGeometry
 
 
-#:if WITH_TRANSPORT
   !> Read geometry information for transport calculation
   subroutine readTransportGeometry(root, geom, transpar)
 
@@ -288,8 +275,9 @@ contains
     real(dp) :: acc, contactRange(2), lateralContactSeparation, plCutoff
     type(listInt) :: li
     type(WrappedInt1), allocatable :: iAtInRegion(:)
-    real(dp), allocatable :: contVec(:,:)
+    real(dp), allocatable :: contVec(:,:), translVec(:)
     integer, allocatable :: nPLs(:)
+    logical :: tfold
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
@@ -333,7 +321,9 @@ contains
             contVec, nPLs)
       call getChildValue(pTask, "PLCutoff", plCutoff, 10.0_dp, modifier=modif, child=field)
       call convertByMul(char(modif), lengthUnits, field, plCutoff)
-      call setupGeometry(geom, iAtInRegion, contVec, plCutoff, nPLs)
+      call getTranslation(pTask, translVec)
+      call getChildValue(pTask, "FoldToUnitCell", tfold, .false.)
+      call setupGeometry(geom, iAtInRegion, contVec, plCutoff, nPLs, translVec, tfold)
 
     case default
 
@@ -450,6 +440,33 @@ contains
 
   end subroutine readContacts
 
-#:endif
+  subroutine getTranslation(pNode, translVec)
+    type(fnode), pointer :: pNode
+    real(dp), intent(inout), allocatable :: translVec(:)    
+    
+    type(fnode), pointer :: pVal, pChild
+    type(listReal) :: vecBuffer
+    type(string) :: modif, buffer
+
+    allocate(translVec(3))
+
+    call getChildValue(pNode, "Translation", pVal, "", child=pChild, &
+        & modifier=modif, allowEmptyValue=.true.)
+    call getNodeName2(pVal, buffer)
+    if (char(buffer)=="") then
+      translVec = 0.0_dp
+    else    
+      call init(vecBuffer)
+      call getChildValue(pChild, "", vecBuffer, modifier=modif)
+      if (len(vecBuffer).eq.3) then
+        call asArray(vecBuffer, translVec)
+        call convertByMul(char(modif), lengthUnits, pNode, translVec)
+        call destruct(vecBuffer)
+      else
+        call error("ContactVector must define three entries")
+      end if
+    end if   
+  end subroutine getTranslation
+     
 
 end module parser_setup
