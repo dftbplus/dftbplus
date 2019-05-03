@@ -39,7 +39,7 @@ module helpsetupgeom
       contDir(icont) = get_contdir(contVec(:,icont))
     end do
 
-    ! 1. Set the indeces of atoms in the device region
+    ! 1. Set the indices of atoms in the device region
     call assignDeviceAtoms(geom, iAtInRegion)
 
     ! 2. Sort each contact along the contact direction
@@ -63,7 +63,7 @@ module helpsetupgeom
 
   end subroutine setupGeometry
 
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine assignDeviceAtoms(geom, iAtInRegion)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
@@ -105,7 +105,7 @@ module helpsetupgeom
           
   end subroutine assignDeviceAtoms
   
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine sortContacts(geom, iAtInRegion, contDir)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
@@ -145,7 +145,7 @@ module helpsetupgeom
     end do
   end subroutine sortContacts
   
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
@@ -257,7 +257,7 @@ module helpsetupgeom
 
   end subroutine arrangeContactPLs
   
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine definePLs(geom, iAtInRegion, plcutoff, PLlist)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
@@ -306,7 +306,7 @@ module helpsetupgeom
     end associate
 
   end subroutine definePLs
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
 
   function get_contdir(contvec) result(dir)
      real(dp), intent(in) :: contvec(:)
@@ -338,7 +338,7 @@ module helpsetupgeom
 
   end function get_contdir
 
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine swap(a,b)
     integer :: a,b
     integer :: tmp
@@ -347,7 +347,7 @@ module helpsetupgeom
     b=tmp
   end subroutine swap
 
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   ! debug subroutine
   subroutine print_debug(geom, iAtInRegion)
     type(TGeometry), intent(in) :: geom
@@ -374,7 +374,7 @@ module helpsetupgeom
 
   end subroutine print_debug
 
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine translateAndFold(geom, translVec, tfold)
     type(TGeometry), intent(inout) :: geom
     real(dp), intent(in) :: translVec(:)
@@ -396,7 +396,7 @@ module helpsetupgeom
   end subroutine translateAndFold
 
         
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine print_gen(geom, iAtInRegion, PLlist, contDir, plCutoff)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(in) :: iAtInRegion(:)

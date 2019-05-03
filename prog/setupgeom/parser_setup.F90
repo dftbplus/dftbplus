@@ -185,8 +185,8 @@ contains
     !> Node to get the information from
     type(fnode), pointer :: node
 
-    !> Root of the entire tree (in case it needs to be converted, for example because dftbp_of compability
-    !> options)
+    !> Root of the entire tree (in case it needs to be converted, for example because dftbp_of
+    !> compability options)
     type(fnode), pointer :: root
 
     !> Contains parser flags on exit.
