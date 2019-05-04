@@ -538,7 +538,7 @@ contains
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, q0, orb, species)
+  subroutine updateCharges(this, env, qOrbital, orb, species, q0)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
@@ -549,19 +549,19 @@ contains
     !> Orbital resolved charges
     real(dp), intent(in) :: qOrbital(:,:,:)
 
-    !> Reference charge distribution (neutral atoms)
-    real(dp), intent(in) :: q0(:,:,:)
-
     !> Contains information about the atomic orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
     !> Species of the atoms (should not change during run)
     integer, intent(in) :: species(:)
 
+    !> Reference charge distribution (neutral atoms)
+    real(dp), intent(in), optional :: q0(:,:,:)
+
     @:ASSERT(this%tInitialised)
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
-        & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, this%deltaQ,&
+        & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU, q0=q0)
 
   end subroutine updateCharges
 
@@ -723,8 +723,8 @@ contains
     allocate(dQOutAtom(this%nAtom))
     allocate(dQOutShell(this%mShell, this%nAtom))
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOut, q0, dQOut, dQOutAtom,&
-        & dQOutShell)
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOut, dQOut, dQOutAtom,&
+        & dQOutShell, q0=q0)
 
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
     eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
@@ -1013,8 +1013,8 @@ contains
     allocate(dQOutLShell(this%mShell, this%nAtom))
     allocate(dQOutUniqU(this%mHubbU, this%nAtom))
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbitalOut, q0, dQOut,&
-        & dQOutAtom, dQOutLShell, dQOutUniqU)
+    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbitalOut, dQOut,&
+        & dQOutAtom, dQOutLShell, dQOutUniqU, q0=q0)
 
     ! Short-range part of gamma contribution
     call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour, img2CentCell,&
@@ -1542,8 +1542,8 @@ contains
 
 
   !> Calculates various gross charges needed by the SCC module.
-  subroutine getSummedCharges_(nAtom, iHubbU, species, orb, qOrbital, q0, dQ, dQAtom, dQShell,&
-      & dQUniqU)
+  subroutine getSummedCharges_(nAtom, iHubbU, species, orb, qOrbital, dQ, dQAtom, dQShell,&
+      & dQUniqU, q0)
 
     !> Number of atoms in the system
     integer, intent(in) :: nAtom
@@ -1560,9 +1560,6 @@ contains
     !> Orbital resolved charges
     real(dp), intent(in) :: qOrbital(:,:,:)
 
-    !> Reference charge distribution (neutral atoms)
-    real(dp), intent(in) :: q0(:,:,:)
-
     !> gross charge for each orbital
     real(dp), intent(out) :: dQ(:,:)
 
@@ -1575,7 +1572,14 @@ contains
     !> gross charge for shells with the same U value on atoms
     real(dp), intent(out), optional :: dQUniqU(:,:)
 
-    call getSummedChargesPerOrbital_(qOrbital(:,:,1), q0(:,:,1), dQ)
+    !> Reference charge distribution (neutral atoms)
+    real(dp), intent(in), optional :: q0(:,:,:)
+
+    if (present(q0)) then
+      call getSummedChargesPerOrbital_(qOrbital(:,:,1), q0(:,:,1), dQ)
+    else
+      dQ(:,:) = qOrbital(:,:,1)
+    end if
     call getSummedChargesPerAtom_(dQ, dQAtom)
     call getSummedChargesPerLShell_(nAtom,species, orb, dQ, dQShell)
     if (present(dQUniqU)) then

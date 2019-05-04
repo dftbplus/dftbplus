@@ -82,6 +82,7 @@ module dftbp_main
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
+  use dftbp_perturbderivs
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -287,6 +288,13 @@ contains
     end if
 
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
+
+    if (tRealHS) then
+      call perturbationWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over, orb,&
+          & nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
+          & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqOrb, iEqOrbitals,&
+          & tempElec, Ef, tFixEf, spinW, pChrgMixer)
+    end if
 
   #:if WITH_TRANSPORT
     if (tPoisson) then
@@ -1681,7 +1689,7 @@ contains
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
-    call sccCalc%updateCharges(env, qInput, q0, orb, species)
+    call sccCalc%updateCharges(env, qInput, orb, species, q0)
 
     select case(electrostatics)
 
