@@ -59,6 +59,7 @@ module timeprop_module
   use onsitecorrection
   use message
   use elecsolvers, only : TElectronicSolver
+  use simplealgebra
   implicit none
   private
 
@@ -2439,7 +2440,32 @@ contains
 
     real(dp) :: Sreal(this%nOrbs,this%nOrbs), SinvReal(this%nOrbs,this%nOrbs)
     real(dp) :: coord0Fold(3,this%nAtom)
+    real(dp) :: cellVol, recVecs(3,3), recVecs2p(3,3), recCellVol
+    real(dp), allocatable :: cellVecs(:,:)
     integer :: nAllAtom, iSpin, sparseSize, iOrb
+
+
+    ! are all these values necessary for Ehrenfest dynamics with periodic boundaries?
+    if (this%tPeriodic) then
+       recVecs = 0.0_dp
+       recVecs2p = 0.0_dp
+       cellVecs = 0.0_dp
+       allocate(cellVecs(3,3))
+       cellVol = abs(determinant33(this%latVec))
+       recVecs2p(:,:) = this%latVec
+       call matinv(recVecs2p)
+       recVecs2p = transpose(recVecs2p)
+       recVecs = 2.0_dp * pi * recVecs2p
+
+       call this%sccCalc%updateLatVecs(this%latVec, recVecs, cellVol)
+       this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
+
+       if (this%tDispersion) then
+          call this%dispersion%updateLatVecs(this%latVec)
+          this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
+       end if
+       call getCellTranslations(cellVecs, this%rCellVec, this%latVec, recVecs2p, this%mCutOff)
+    end if
 
     coord0Fold(:,:) = coord
     if (this%tPeriodic) then
