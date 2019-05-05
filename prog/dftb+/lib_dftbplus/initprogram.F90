@@ -1653,10 +1653,7 @@ contains
       end if  
     end if
 
-    nEl0 = 0.0_dp
-    do ii = 1, nAtom
-      nEl0 = nEl0 + sum(q0(1:orb%nOrbAtom(ii),ii,1)) 
-    end do
+    nEl0 = sum(q0(:,:,1))
     nEl(:) = 0.0_dp
     if (nSpin == 1 .or. nSpin == 4) then
       nEl(1) = nEl0 - input%ctrl%nrChrg
@@ -2495,7 +2492,7 @@ contains
               tmpir1 = 0
               ind = 1
               do iAt = 1, nAtomRegion
-                tmpir1(ind) = denseDesc%iAtomStart(iAt) + iOrb - 1
+                tmpir1(ind) = denseDesc%iAtomStart(iAtomRegion(iAt)) + iOrb - 1
                 ind = ind + 1
               end do
               call append(iOrbRegion, tmpir1)

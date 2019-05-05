@@ -2106,7 +2106,8 @@ contains
       qOutputUpDown = qOutput
       call qm2ud(qOutputUpDown)
       call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown(:,:,1))
-      call taggedWriter%write(fd, tagLabels%qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1), dim=1))
+      call taggedWriter%write(fd, tagLabels%qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
+          & dim=1))
     end if
 
     close(fd)

@@ -491,8 +491,8 @@ if [ -n "$STAGE_SUMMARY" ]; then
     fi
     echo "$TABLE_SEP"
     echo Details in:
-    (cd ${OWD}; ls -1 $workroot_parented/{$TAGDIFF_LOG,$APP_STDERR}) \
-      2>/dev/null   | pr -t1 -o4
+    echo  $workroot/$SUMMARY_STDERROR
+    echo  $workroot/$SUMMARY_TAGDIFF_LOG
     echo "$TABLE_HEADER"
     exit $exit_status
 fi
