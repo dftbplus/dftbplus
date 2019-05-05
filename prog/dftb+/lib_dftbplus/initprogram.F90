@@ -1915,16 +1915,15 @@ contains
       call TElStatPotentials_init(esp, input%ctrl%elStatPotentialsInp, tEField .or. tExtChrg)
     end if
 
-    tLocalise = input%ctrl%tLocalise
-    if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
-      call error("Localisation of electronic states currently unsupported for non-collinear and&
-          & spin orbit calculations")
-    end if
     if (allocated(input%ctrl%pipekMezeyInp)) then
       allocate(pipekMezey)
       call initialise(pipekMezey, input%ctrl%pipekMezeyInp)
     end if
     tLocalise = allocated(pipekMezey)
+    if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
+      call error("Localisation of electronic states currently unsupported for non-collinear and&
+          & spin orbit calculations")
+    end if
 
     if (tLinResp) then
 
