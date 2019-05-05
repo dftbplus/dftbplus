@@ -293,7 +293,8 @@ contains
       call perturbationWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over, orb,&
           & nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
           & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqOrb, iEqOrbitals,&
-          & tempElec, Ef, tFixEf, spinW, pChrgMixer)
+          & tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter, tWriteAutotest, autotestTag,&
+          & tWriteResultsTag, resultsTag)
     end if
 
   #:if WITH_TRANSPORT

@@ -120,6 +120,9 @@ module dftbp_taggedoutput
     !> External electric field
     character(lenLabel) :: externField = 'external_efield'
 
+    !> Static electric polarizability from linear response/perturbation
+    character(lenLabel) :: dmudEPerturb = 'staticPolResponse'
+
   end type TTagLabelsEnum
 
 

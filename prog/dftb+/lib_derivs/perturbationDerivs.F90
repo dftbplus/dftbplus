@@ -28,6 +28,7 @@ module dftbp_perturbderivs
   use dftbp_periodic
   use dftbp_densedescr
   use dftbp_sparse2dense
+  use dftbp_taggedoutput
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -57,7 +58,8 @@ contains
   subroutine perturbStat(env, parallelKS, filling, SSqrReal, eigvals, eigvecs, ham, over, orb,&
       & nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqMixElements,&
-      & iEqOrbitals, tempElec, Ef, tFixEf, spinW, pChrgMixer)
+      & iEqOrbitals, tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter, tWriteAutoTest,&
+      & autoTestTagFile, tWriteTaggedOut, taggedResultsFile)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -147,6 +149,21 @@ contains
     !> Charge mixing object
     type(OMixer), intent(inout) :: pChrgMixer
 
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    !> should regression test data be written
+    logical, intent(in) :: tWriteAutoTest
+
+    !> File name for regression data
+    character(*), intent(in) :: autoTestTagFile
+
+    !> should machine readable output data be written
+    logical, intent(in) :: tWriteTaggedOut
+
+    !> File name for machine readable results data
+    character(*), intent(in) :: taggedResultsFile
+
     integer :: iS, iK, iKS, iAt, iCart, iSCC, iLev, iSh, iSp
     integer :: nSpin, nOrbs
     integer, allocatable :: nFilled(:), nEmpty(:)
@@ -182,6 +199,10 @@ contains
 
     logical :: tSccCalc, tMetallic, tConverged
 
+    real(dp) :: polarizability(3,3)
+
+    integer :: fdResults
+
   #:if WITH_SCALAPACK
     integer :: desc(DLEN_), nn
 
@@ -190,6 +211,9 @@ contains
         & env%blacs%columnBlockSize, desc)
   #:endif
 
+    write(stdOut,*)
+    write(stdOut,*)'Perturbation calculation of polarisation'
+    write(stdOut,*)
 
     nSpin = size(ham, dim=2)
     nOrbs = size(filling,dim=1)
@@ -235,8 +259,8 @@ contains
 
     tMetallic = (.not.all(nFilled == nEmpty -1))
 
-    write(stdOut,*)'Fully or partly filled states end at', nFilled
-    write(stdOut,*)'Fully or partly empty states start at', nEmpty
+    write(stdOut,"(1X,A,T30,I0)")'Fully or partly filled states end at', nFilled
+    write(stdOut,"(1X,A,T30,I0)")'Fully or partly empty states start at', nEmpty
     if (tMetallic) then
       write(stdOut,*)'Metallic system'
     else
@@ -259,6 +283,9 @@ contains
 
     do iCart = 1, 3 ! polarization direction
 
+      write(stdOut,*)
+      write(stdOut,"(1X,A,1X,A,1X,A)")'Calculating direction',direction(iCart),'Field'
+
       dqIn(:,:,:) = 0.0_dp
       dqOut(:,:,:) = 0.0_dp
 
@@ -277,6 +304,8 @@ contains
         dqInpRed(:) = 0.0_dp
         dqPerShell(:,:,:) = 0.0_dp
       end if
+
+      write(stdOut,"(1XA,T12,A)")'SCC Iter','Error'
 
       iSCCIter = 1
       tStopSCC = .false.
@@ -456,7 +485,7 @@ contains
           dqDiffRed(:) = dqOutRed(:) - dqInpRed(:)
           sccErrorQ = maxval(abs(dqDiffRed))
 
-          write(StdOut,*)'Iter',iSCCIter,'Error',sccErrorQ
+          write(StdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
           tConverged = (sccErrorQ < sccTol)
 
           if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
@@ -509,23 +538,32 @@ contains
 
       end do lpSCC
 
-      if (iCart==1) then
-        write(stdOut,*)'Polarisability'
-      end if
       do ii = 1, 3
-        write(stdOut,"(E20.12)",advance ='no') &
-            & -sum(sum(dqOut(:,:nAtom,1),dim=1)*coord(ii,:nAtom))
+        polarizability(ii, iCart) = -sum(sum(dqOut(:,:nAtom,1),dim=1)*coord(ii,:nAtom))
       end do
-      write(stdOut,*)
 
     end do
 
     !call destroy(dpotential)
 
-    deallocate(dham)
-    deallocate(nFilled)
-    deallocate(nEmpty)
+    write(stdOut,*)
+    write(stdOut,*)'Polarisability'
+    do iCart = 1, 3
+      write(stdOut,"(3E20.12)")polarizability(:, iCart)
+    end do
 
+    if (tWriteAutoTest) then
+      open(newunit=fdResults, file=trim(autoTestTagFile), position="append")
+      call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarizability)
+      close(fdResults)
+    end if
+    if (tWriteTaggedOut) then
+      open(newunit=fdResults, file=trim(taggedResultsFile), position="append")
+      call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarizability)
+      close(fdResults)
+    end if
+
+    
   end subroutine perturbStat
 
 
