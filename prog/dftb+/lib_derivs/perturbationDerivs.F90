@@ -34,6 +34,8 @@ module dftbp_perturbderivs
 #:endif
 #:if WITH_SCALAPACK
   use dftbp_scalafxext
+#:else
+  use dftbp_blasroutines
 #:endif
 
   implicit none
@@ -175,7 +177,7 @@ contains
     integer :: nSpin, nOrbs
     integer, allocatable :: nFilled(:), nEmpty(:)
 
-    integer :: ii, jj, iGlob, jGlob
+    integer :: ii, jj, iGlob, jGlob, iEmpty, iFilled
     integer :: iSCCIter
     logical :: tStopSCC
 
@@ -206,11 +208,12 @@ contains
 
     logical :: tSccCalc, tMetallic, tConverged
 
-    real(dp) :: polarizability(3,3)
+    real(dp) :: polarisability(3,3)
 
     integer :: fdResults
 
   #:if WITH_SCALAPACK
+    ! need distributed matrix descriptors
     integer :: desc(DLEN_), nn
 
     nn = denseDesc%fullSize
@@ -227,7 +230,6 @@ contains
     allocate(dham(size(ham,dim=1),nSpin))
 
     tSccCalc = (maxSccIter > 1)
-
 
     call init(dpotential,orb,nAtom,nSpin)
 
@@ -288,7 +290,9 @@ contains
       write(stdOut,*)'Density of states at the Fermi energy Nf:',nF
     end if
 
-    do iCart = 1, 3 ! polarisation direction
+    ! polarisation direction
+    ! note, could MPI parallelise over this
+    do iCart = 1, 3
 
       if (tSccCalc) then
         write(stdOut,*)
@@ -359,7 +363,6 @@ contains
 
         #:if WITH_SCALAPACK
 
-
           call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
               & iSparseStart, img2CentCell, denseDesc, work(:,:,iKS))
 
@@ -379,9 +382,10 @@ contains
               iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
                   & env%blacs%orbitalGrid%nrow)
 
-              !if (iGlob == jGlob) then ! derivative of eigenvalues
-              !  write(stdOut,*)iGlob,work(ii,jj,iKS)*Hartree__eV
-              !end if
+              !if (iGlob == jGlob) then work(ii,jj,iKS) contains a derivative of an eigenvalue
+              if (iGlob == jGlob) then
+                write(stdOut,*)work(ii,jj,iKS)
+              end if
 
               ! weight with inverse of energy differences
               work(ii,jj,iKS) = work(ii,jj,iKS) * &
@@ -394,18 +398,51 @@ contains
           call pblasfx_pgemm(eigvecs(:,:,iKS), denseDesc%blacsOrbSqr, work(:,:,iKS),&
               & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr)
 
-          ! Form derivative of density matrix and symmetrize
+          ! Form derivative of density matrix
           call pblasfx_pgemm(work2(:,:,iKS), denseDesc%blacsOrbSqr,eigvecs(:,:,iKS),&
               & denseDesc%blacsOrbSqr, work(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
               & kk=nFilled(iS))
           work2(:,:,iKS) = work(:,:,iKS)
-
+          ! and symmetrize
           call pblasfx_ptran(work(:,:,iKS), denseDesc%blacsOrbSqr, work2(:,:,iKS),&
               & denseDesc%blacsOrbSqr, beta=1.0_dp)
 
         #:else
 
+          work2(:,:,iKS) = 0.0_dp
+          call unpackHS(work2(:,:,iKS), dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
 
+          ! form |c> H' <c|
+          call symm(work(:,:,iKS), 'l', work2(:,:,iKS), eigvecs(:,:,iKS))
+          work(:,:,iKS) = matmul(transpose(eigvecs(:,:,iKS)), work(:,:,iKS))
+
+          ! diagonal elements of work(:,:,iKS) are now derivatives of eigenvalues if needed
+          do ii = 1, size(work, dim=1)
+            write(*,*)work(ii,ii,iKS)
+          end do
+
+          ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
+          ! weighting the elements
+          do iFilled = 1, nFilled(iS)
+            do iEmpty = nEmpty(iS), nOrbs
+              work(iEmpty, iFilled, iKS) = work(iEmpty, iFilled, iKS) * &
+                  & invDiff(eigvals(iFilled,iS, iK), eigvals(iEmpty, iS, iK), Ef(iS), tempElec)&
+                  & *theta(eigvals(iFilled, iS, iK), eigvals(iEmpty, iS, iK), tempElec)
+            end do
+          end do
+
+          ! calculate the derivatives of ci
+          work(:, :nFilled(iS), iKS) =&
+              & matmul(eigvecs(:, nEmpty(iS):, iKS), work(nEmpty(iS):, :nFilled(iS), iKS))
+          ! zero the uncalculated virtual states
+          work(:, nFilled(iS)+1:, iKS) = 0.0_dp
+
+          ! form the derivative of the density matrix
+          work2(:,:,iKS) = matmul(work(:, :nFilled(iS), iKS),&
+              & transpose(eigvecs(:, :nFilled(iS), iKS)))
+          work2(:,:,iKS) = work2(:,:,iKS) +&
+              & matmul(eigvecs(:, :nFilled(iS), iKS), transpose(work(:, :nFilled(iS), iKS)))
 
         #:endif
 
@@ -413,8 +450,9 @@ contains
           call packRhoRealBlacs(env%blacs, denseDesc, work2(:,:,iKS), neighbourList%iNeighbour,&
               & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drho(:,iS))
         #:else
+          !drho(:,iS) = 0.0_dp
           call packHS(drho(:,iS), work2(:,:,iKS), neighbourList%iNeighbour, nNeighbourSK,&
-              & orb%mOrb, denseDesc, iSparseStart, img2CentCell)
+              & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         #:endif
 
         end do
@@ -425,9 +463,9 @@ contains
       #:endif
 
         drhoextra = 0.0_dp
-        if ((.not. tFixEf) .and. tMetallic .and. env%blacs%orbitalGrid%iproc /= -1) then
-
+        if ((.not. tFixEf) .and. tMetallic) then
           ! correct for Fermi level shift for q=0 fields
+
           do iKS = 1, parallelKS%nLocalKS
             iK = parallelKS%localKS(1, iKS)
             iS = parallelKS%localKS(2, iKS)
@@ -441,6 +479,9 @@ contains
             if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
               ! Fermi level changes, so need to correct for the change in the number of charges
               work(:,:,iKS) = 0.0_dp
+
+            #:if WITH_SCALAPACK
+
               do jj = 1, size(work,dim=2)
                 jGlob = scalafx_indxl2g(jj,desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
                     & env%blacs%orbitalGrid%ncol)
@@ -453,8 +494,27 @@ contains
                   & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
                   & alpha=2.0_dp)
 
+            #:else
+
+              work(:,:,iKS) = 0.0_dp
+              do iFilled = nEmpty(iS), nFilled(iS)
+                work(:,iFilled, iKS) = eigVecs(:,iFilled,iKS) * &
+                    & deltamn(eigvals(iFilled,iK,iS), Ef(iS), tempElec)*dEf(iS)
+              end do
+              work2(:,:,iKS) = 2.0_dp * matmul(work(:, nEmpty(iS):nFilled(iS), iKS),&
+                  & transpose(eigvecs(:, nEmpty(iS):nFilled(iS), iKS)))
+
+            #:endif
+
+              ! pack extra term into density matrix
+           #:if WITH_SCALAPACK
               call packRhoRealBlacs(env%blacs, denseDesc, work2(:,:,iKS), neighbourList%iNeighbour,&
-                  & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drhoextra(:,iS))
+                  & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drhoExtra(:,iS))
+           #:else
+              call packHS(drhoExtra(:,iS), work2(:,:,iKS), neighbourList%iNeighbour, nNeighbourSK,&
+                  & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+           #:endif
+
             end if
 
           end do
@@ -550,7 +610,7 @@ contains
       end do lpSCC
 
       do ii = 1, 3
-        polarizability(ii, iCart) = -sum(sum(dqOut(:,:nAtom,1),dim=1)*coord(ii,:nAtom))
+        polarisability(ii, iCart) = -sum(sum(dqOut(:,:nAtom,1),dim=1)*coord(ii,:nAtom))
       end do
 
     end do
@@ -560,27 +620,27 @@ contains
     write(stdOut,*)
     write(stdOut,*)'Polarisability'
     do iCart = 1, 3
-      write(stdOut,"(3E20.12)")polarizability(:, iCart)
+      write(stdOut,"(3E20.12)")polarisability(:, iCart)
     end do
 
     if (tWriteAutoTest) then
       open(newunit=fdResults, file=trim(autoTestTagFile), position="append")
-      call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarizability)
+      call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarisability)
       close(fdResults)
     end if
     if (tWriteTaggedOut) then
       open(newunit=fdResults, file=trim(taggedResultsFile), position="append")
-      call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarizability)
+      call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarisability)
       close(fdResults)
     end if
     if (tWriteDetailedOut) then
       write(fdDetailedOut,*)'Polarisability (a.u.)'
       do iCart = 1, 3
-        write(fdDetailedOut,"(3E20.12)")polarizability(:, iCart)
+        write(fdDetailedOut,"(3E20.12)")polarisability(:, iCart)
       end do
     end if
     write(fdDetailedOut,*)
-    
+
   end subroutine perturbStat
 
 
@@ -727,7 +787,7 @@ contains
 !
 !    allocate(dham(nSparse,nSpin))
 !
-!    do iCart = 1, 3 ! polarization direction
+!    do iCart = 1, 3 ! polarisation direction
 !
 !      dqIn = 0.0_dp
 !      dqOut = 0.0_dp

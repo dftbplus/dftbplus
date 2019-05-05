@@ -4,6 +4,7 @@
 
 #:include 'common.fypp'
 
+response/CH4                           #? MPI_PROCS <= 1
 response/H2O                           #? MPI_PROCS <= 1
 response/H2Oscc                        #? MPI_PROCS <= 1
 
