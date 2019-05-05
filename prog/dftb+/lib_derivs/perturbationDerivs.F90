@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Module for linear response derivative calculations
+!> Module for linear response derivative calculations using perturbation methods
 module dftbp_perturbderivs
   use dftbp_accuracy
   use dftbp_constants
@@ -181,7 +181,7 @@ contains
     integer :: iSCCIter
     logical :: tStopSCC
 
-    ! derivatives of hamiltonian, eigenvalues and eigenvectors
+    ! matrices for derivatives of hamiltonian, eigenvalues and eigenvectors
     real(dp), allocatable :: dham(:,:)
     real(dp) :: drho(size(over),size(ham, dim=2))
     real(dp) :: drhoExtra(size(over),size(ham, dim=2))
@@ -190,7 +190,6 @@ contains
     real(dp) :: dqInpRed(nMixElements), dqOutRed(nMixElements)
     real(dp) :: dqDiffRed(nMixElements), sccErrorQ
     real(dp) :: dqPerShell(orb%mOrb,nAtom,size(ham, dim=2))
-    real(dp) :: tmpFill(size(filling,dim=1))
     type(TPotentials) :: dpotential
 
     real(dp), allocatable :: shellPot(:,:,:)
@@ -319,7 +318,7 @@ contains
       end if
 
       if (tSccCalc) then
-        write(stdOut,"(1XA,T12,A)")'SCC Iter','Error'
+        write(stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
       end if
 
       iSCCIter = 1
@@ -609,8 +608,6 @@ contains
 
     end do
 
-    !call destroy(dpotential)
-
     write(stdOut,*)
     write(stdOut,*)'Polarisability'
     do iCart = 1, 3
@@ -634,6 +631,7 @@ contains
       end do
     end if
     write(fdDetailedOut,*)
+
 
   end subroutine perturbStat
 
