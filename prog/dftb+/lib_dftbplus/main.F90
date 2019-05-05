@@ -254,6 +254,20 @@ contains
     end if
   #:endif
 
+    ! response properties from perturbation-like expressions
+    if (tPolarisability) then
+      if (tStaticPolarisability) then
+        if (tRealHS) then
+          call perturbationWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over,&
+              & orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
+              & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
+              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter,&
+              & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
+              & fdDetailedOut)
+        end if
+      end if
+    end if
+
     if (allocated(pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
       if (withMpi) then
@@ -288,19 +302,6 @@ contains
     end if
 
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
-
-    if (tPolarisability) then
-      if (tStaticPolarisability) then
-        if (tRealHS) then
-          call perturbationWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over,&
-              & orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
-              & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
-              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter,&
-              & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
-              & fdDetailedOut)
-        end if
-      end if
-    end if
 
     if (env%tGlobalMaster) then
       if (tWriteDetailedOut) then

@@ -333,8 +333,8 @@ contains
           call sccCalc%getShiftPerL(dpotential%intShell(:,:,1))
 
           if (allocated(spinW)) then
-            call getSpinShift(shellPot,dqPerShell,species,orb,spinW)
-            dpotential%intShell = dpotential%intShell + shellPot
+            call getSpinShift(shellPot, dqPerShell, species, orb, spinW)
+            dpotential%intShell(:,:,:) = dpotential%intShell + shellPot
           end if
         end if
 
