@@ -351,7 +351,7 @@ contains
             & iSparseStart, nAtom, img2CentCell, dpotential%intBlock)
 
         if (nSpin == 2) then
-          dham(:,:) = 2.0_dp *  dham(:,:)
+          dham(:,:) = 2.0_dp * dham(:,:)
         end if
         call qm2ud(dham)
 
@@ -383,9 +383,6 @@ contains
                   & env%blacs%orbitalGrid%nrow)
 
               !if (iGlob == jGlob) then work(ii,jj,iKS) contains a derivative of an eigenvalue
-              if (iGlob == jGlob) then
-                write(stdOut,*)work(ii,jj,iKS)
-              end if
 
               ! weight with inverse of energy differences
               work(ii,jj,iKS) = work(ii,jj,iKS) * &
@@ -418,9 +415,6 @@ contains
           work(:,:,iKS) = matmul(transpose(eigvecs(:,:,iKS)), work(:,:,iKS))
 
           ! diagonal elements of work(:,:,iKS) are now derivatives of eigenvalues if needed
-          do ii = 1, size(work, dim=1)
-            write(*,*)work(ii,ii,iKS)
-          end do
 
           ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
           ! weighting the elements
@@ -492,7 +486,7 @@ contains
               end do
               call pblasfx_pgemm(work(:,:,iKS), denseDesc%blacsOrbSqr,eigvecs(:,:,iKS),&
                   & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
-                  & alpha=2.0_dp)
+                  & alpha=real(3-nSpin,dp))
 
             #:else
 
@@ -501,7 +495,7 @@ contains
                 work(:,iFilled, iKS) = eigVecs(:,iFilled,iKS) * &
                     & deltamn(eigvals(iFilled,iK,iS), Ef(iS), tempElec)*dEf(iS)
               end do
-              work2(:,:,iKS) = 2.0_dp * matmul(work(:, nEmpty(iS):nFilled(iS), iKS),&
+              work2(:,:,iKS) = real(3-nSpin,dp) * matmul(work(:, nEmpty(iS):nFilled(iS), iKS),&
                   & transpose(eigvecs(:, nEmpty(iS):nFilled(iS), iKS)))
 
             #:endif
