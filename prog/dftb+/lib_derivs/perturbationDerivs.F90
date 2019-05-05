@@ -266,8 +266,8 @@ contains
 
     tMetallic = (.not.all(nFilled == nEmpty -1))
 
-    write(stdOut,"(1X,A,T30,I0)")'Fully or partly filled states end at', nFilled
-    write(stdOut,"(1X,A,T30,I0)")'Fully or partly empty states start at', nEmpty
+    write(stdOut,"(1X,A,T40,I0)")'Fully or partly filled states end at :', nFilled
+    write(stdOut,"(1X,A,T40,I0)")'Fully or partly empty states start at:', nEmpty
     if (tMetallic) then
       write(stdOut,*)'Metallic system'
     else
@@ -285,13 +285,15 @@ contains
         end do
         nf(iS) = real(3-nSpin,dp)*nf(iS)
       end do
-      write(stdOut,*)'Electrons at the Fermi energy Nf:',nF
+      write(stdOut,*)'Density of states at the Fermi energy Nf:',nF
     end if
 
     do iCart = 1, 3 ! polarisation direction
 
-      write(stdOut,*)
-      write(stdOut,"(1X,A,1X,A,1X,A)")'Calculating direction',direction(iCart),'Field'
+      if (tSccCalc) then
+        write(stdOut,*)
+        write(stdOut,"(1X,A,1X,A,1X,A)")'Calculating',direction(iCart),'direction field'
+      end if
 
       dqIn(:,:,:) = 0.0_dp
       dqOut(:,:,:) = 0.0_dp
@@ -312,7 +314,9 @@ contains
         dqPerShell(:,:,:) = 0.0_dp
       end if
 
-      write(stdOut,"(1XA,T12,A)")'SCC Iter','Error'
+      if (tSccCalc) then
+        write(stdOut,"(1XA,T12,A)")'SCC Iter','Error'
+      end if
 
       iSCCIter = 1
       tStopSCC = .false.

@@ -483,6 +483,12 @@ module dftbp_initprogram
   !> Pipek-Mezey localisation calculator
   type(TPipekMezey), allocatable :: pipekMezey
 
+  !> Should polarisability be calculated
+  logical :: tPolarisability
+
+  !> Static polarisability
+  logical :: tStaticPolarisability
+
   !> use commands from socket communication to control the run
   logical :: tSocket
 
@@ -1904,7 +1910,7 @@ contains
 
     end if
 
-    if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then
+    if ((.not.tPeriodic) .and. tMulliken) then
       tDipole = .true.
     else
       tDipole = .false.
@@ -1928,6 +1934,10 @@ contains
       call initialise(pipekMezey, input%ctrl%pipekMezeyInp)
     end if
     tLocalise = allocated(pipekMezey)
+
+    !> Polarisability of the system
+    tPolarisability = input%ctrl%tPolarisability
+    tStaticPolarisability = input%ctrl%tStaticPolarisability
 
     if (tLinResp) then
 

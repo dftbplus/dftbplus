@@ -3667,6 +3667,19 @@ contains
     endif
   #:endif
 
+    ! electric polarisability of system
+    ctrl%tPolarisability = .false.
+    call getChild(node, "Polarisability", child=child, requested=.false.)
+    if (associated(child)) then
+      ctrl%tPolarisability = .true.
+      call getChildValue(child, "Static", ctrl%tStaticPolarisability, .false.)
+      if (.not.(ctrl%tStaticPolarisability)) then
+        call detailedError(child, &
+            & "Static polarisability must be requested.")
+      end if
+    end if
+
+
   end subroutine readAnalysis
 
   !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}

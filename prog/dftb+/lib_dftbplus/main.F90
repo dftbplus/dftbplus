@@ -289,12 +289,17 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
 
-    if (tRealHS) then
-      call perturbationWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over, orb,&
-          & nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
-          & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqOrb, iEqOrbitals,&
-          & tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter, tWriteAutotest, autotestTag,&
-          & tWriteResultsTag, resultsTag, tWriteDetailedOut, fdDetailedOut)
+    if (tPolarisability) then
+      if (tStaticPolarisability) then
+        if (tRealHS) then
+          call perturbationWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over,&
+              & orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
+              & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
+              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter,&
+              & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
+              & fdDetailedOut)
+        end if
+      end if
     end if
 
     if (env%tGlobalMaster) then

@@ -4,6 +4,9 @@
 
 #:include 'common.fypp'
 
+response/H2O                           #? MPI_PROCS <= 1
+response/H2Oscc                        #? MPI_PROCS <= 1
+
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4
 solvers/Si32C32_ELPA2                  #? WITH_ELSI and MPI_PROCS <= 4
