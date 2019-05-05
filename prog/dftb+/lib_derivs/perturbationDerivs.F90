@@ -39,7 +39,7 @@ module dftbp_perturbderivs
 
   private
   public :: perturbationWrtE
-  
+
   interface perturbationWrtE
     module procedure perturbStat
     !module procedure perturbDyn
@@ -50,7 +50,7 @@ module dftbp_perturbderivs
 
   !> Direction labels
   character(len=1), parameter :: direction(3) = ['x','y','z']
-  
+
 contains
 
   !> Static (frequency independent) perturbation
@@ -148,13 +148,13 @@ contains
     type(OMixer), intent(inout) :: pChrgMixer
 
     integer :: iS, iK, iKS, iAt, iCart, iSCC, iLev, iSh, iSp
-    integer :: nSpin, nOrbs, nSparse
+    integer :: nSpin, nOrbs
     integer, allocatable :: nFilled(:), nEmpty(:)
-    
+
     integer :: ii, jj, iGlob, jGlob
     integer :: iSCCIter
     logical :: tStopSCC
-    
+
     ! derivatives of hamiltonian, eigenvalues and eigenvectors
     real(dp), allocatable :: dham(:,:)
     real(dp) :: drho(size(over),size(ham, dim=2))
@@ -177,10 +177,10 @@ contains
         & size(eigvecs,dim=3))
     real(dp) :: work2(size(eigvecs,dim=1),size(eigvecs,dim=2), &
         & size(eigvecs,dim=3))
-    
+
     real(dp) :: nF(size(ham, dim=2)), dEf(size(ham, dim=2))
 
-    logical :: tSccCalc, tSpin, tMetallic, tConverged
+    logical :: tSccCalc, tMetallic, tConverged
 
   #:if WITH_SCALAPACK
     integer :: desc(DLEN_), nn
@@ -192,14 +192,14 @@ contains
 
 
     nSpin = size(ham, dim=2)
-    nSparse = size(ham,dim=1)
     nOrbs = size(filling,dim=1)
-        
+    allocate(dham(size(ham,dim=1),nSpin))
+
     tSccCalc = (maxSccIter > 1)
-    tSpin = (nSpin > 1)
-    
+
+
     call init(dpotential,orb,nAtom,nSpin)
-    
+
     allocate(nFilled(nSpin))
     allocate(nEmpty(nSpin))
 
@@ -210,7 +210,7 @@ contains
     nFilled = -1
     do iS = 1, nSpin
       do iLev = 1, nOrbs
-        if ( filling(iLev,1,iS) <= epsilon(1.0_dp) ) then
+        if ( filling(iLev,1,iS) <= 10.0_dp*epsilon(1.0_dp) ) then
           nFilled(iS) = iLev - 1
           exit
         end if
@@ -223,7 +223,7 @@ contains
     do iS = 1, nSpin
       do iLev = 1, nOrbs
         if ( abs( filling(iLev,1,iS) - real(3-nSpin,dp) ) &
-            & >= epsilon(1.0_dp)) then
+            & >= 10.0_dp*epsilon(1.0_dp)) then
           nEmpty(iS) = iLev
           exit
         end if
@@ -232,9 +232,9 @@ contains
         nEmpty(iS) = 1
       end if
     end do
-    
+
     tMetallic = (.not.all(nFilled == nEmpty -1))
-    
+
     write(stdOut,*)'Fully or partly filled states end at', nFilled
     write(stdOut,*)'Fully or partly empty states start at', nEmpty
     if (tMetallic) then
@@ -244,7 +244,7 @@ contains
     end if
 
     if (tMetallic) then
-      
+
       ! Number of electrons at the Fermi energy
       do iS = 1, nSpin
         nf(iS) = 0.0_dp
@@ -256,143 +256,138 @@ contains
       end do
       write(stdOut,*)'Electrons at the Fermi energy Nf:',nF
     end if
-    
-    allocate(dham(nSparse,nSpin))
-    
+
     do iCart = 1, 3 ! polarization direction
-      
-      dqIn = 0.0_dp
-      dqOut = 0.0_dp
+
+      dqIn(:,:,:) = 0.0_dp
+      dqOut(:,:,:) = 0.0_dp
+
       ! derivative of E.x
-      dpotential%extAtom = 0.0_dp
+      dpotential%extAtom(:,:) = 0.0_dp
       do iAt = 1, nAtom
         dpotential%extAtom(iAt,1) = coord(iCart,iAt)
       end do
-      
-      dpotential%extBlock = 0.0_dp
-      dpotential%extShell = 0.0_dp
+      dpotential%extShell(:,:,:) = 0.0_dp
+      dpotential%extBlock(:,:,:,:) = 0.0_dp
       call total_shift(dpotential%extShell, dpotential%extAtom, orb, species)
       call total_shift(dpotential%extBlock, dpotential%extShell, orb, species)
-      
+
       if (tSccCalc) then
         call reset(pChrgMixer, nMixElements)
-        dqInpRed = 0.0_dp
-        dqPerShell = 0.0_dp
+        dqInpRed(:) = 0.0_dp
+        dqPerShell(:,:,:) = 0.0_dp
       end if
-      
+
       iSCCIter = 1
       tStopSCC = .false.
       lpSCC: do while (iSCCiter <= maxSccIter)
-        
-        dpotential%intAtom = 0.0_dp
-        dpotential%intBlock = 0.0_dp
-        dpotential%intShell = 0.0_dp
-        
+
+        dpotential%intAtom(:,:) = 0.0_dp
+        dpotential%intShell(:,:,:) = 0.0_dp
+        dpotential%intBlock(:,:,:,:) = 0.0_dp
+
         if (tSccCalc .and. iSCCiter>1) then
           call sccCalc%updateCharges(env, dqIn, orb, species)
+          call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
           call sccCalc%getShiftPerAtom(dpotential%intAtom(:,1))
           call sccCalc%getShiftPerL(dpotential%intShell(:,:,1))
-          
+
           if (allocated(spinW)) then
             call getSpinShift(shellPot,dqPerShell,species,orb,spinW)
             dpotential%intShell = dpotential%intShell + shellPot
           end if
-          
         end if
-        
+
         call total_shift(dpotential%intShell,dpotential%intAtom, orb,species)
         call total_shift(dpotential%intBlock,dpotential%intShell, orb,species)
-        
-        dpotential%intBlock = dpotential%intBlock + dpotential%extBlock
-        
-        dham = 0.0_dp
+        dpotential%intBlock(:,:,:,:) = dpotential%intBlock + dpotential%extBlock
+
+        dham(:,:) = 0.0_dp
         call add_shift(dham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
             & iSparseStart, nAtom, img2CentCell, dpotential%intBlock)
-        
+
         if (nSpin == 2) then
           dham(:,:) = 2.0_dp *  dham(:,:)
         end if
         call qm2ud(dham)
-        
-        drho = 0.0_dp
-        
-        if (env%blacs%orbitalGrid%iproc /= -1) then
-          
-          do iKS = 1, parallelKS%nLocalKS
-            iK = parallelKS%localKS(1, iKS)
-            iS = parallelKS%localKS(2, iKS)
 
-          #:if WITH_SCALAPACK
+        drho(:,:) = 0.0_dp
 
-            call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
-                & iSparseStart, img2CentCell, denseDesc, work(:,:,iKS))
+        do iKS = 1, parallelKS%nLocalKS
+          iK = parallelKS%localKS(1, iKS)
+          iS = parallelKS%localKS(2, iKS)
 
-            ! dH times c_i
-            call pblasfx_psymm(work(:,:,iKS), denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
-                & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr) !, mm=nFilled(iS))
+        #:if WITH_SCALAPACK
 
-            ! c_i times dH times c_i
-            call pblasfx_pgemm(eigvecs(:,:,iKS), denseDesc%blacsOrbSqr, work2(:,:,iKS),&
-                & denseDesc%blacsOrbSqr,  work(:,:,iKS), denseDesc%blacsOrbSqr, transa="T")
 
-            ! derivative of eigenvalues stored diagonal of matrix work, from <c|h'|c>
-            do jj = 1, size(work,dim=2)
-              jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
-                  &  env%blacs%orbitalGrid%ncol)
-              do ii = 1, size(work,dim=1)
-                iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
-                    & env%blacs%orbitalGrid%nrow)
+          call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+              & iSparseStart, img2CentCell, denseDesc, work(:,:,iKS))
 
-                !if (iGlob == jGlob) then ! derivative of eigenvalues
-                !  write(stdOut,*)iGlob,work(ii,jj,iKS)*Hartree__eV
-                !end if
+          ! dH times c_i
+          call pblasfx_psymm(work(:,:,iKS), denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+              & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr) !, mm=nFilled(iS))
 
-                ! weight with inverse of energy differences
-                work(ii,jj,iKS) = work(ii,jj,iKS) * &
-                    & invDiff(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),Ef(iS),tempElec)&
-                    & * theta(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),tempElec)
-              end do
+          ! c_i times dH times c_i
+          call pblasfx_pgemm(eigvecs(:,:,iKS), denseDesc%blacsOrbSqr, work2(:,:,iKS),&
+              & denseDesc%blacsOrbSqr,  work(:,:,iKS), denseDesc%blacsOrbSqr, transa="T")
+
+          ! derivative of eigenvalues stored diagonal of matrix work, from <c|h'|c>
+          do jj = 1, size(work,dim=2)
+            jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+                &  env%blacs%orbitalGrid%ncol)
+            do ii = 1, size(work,dim=1)
+              iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+                  & env%blacs%orbitalGrid%nrow)
+
+              !if (iGlob == jGlob) then ! derivative of eigenvalues
+              !  write(stdOut,*)iGlob,work(ii,jj,iKS)*Hartree__eV
+              !end if
+
+              ! weight with inverse of energy differences
+              work(ii,jj,iKS) = work(ii,jj,iKS) * &
+                  & invDiff(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),Ef(iS),tempElec)&
+                  & * theta(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),tempElec)
             end do
-
-            ! Derivatives of states
-            call pblasfx_pgemm(eigvecs(:,:,iKS), denseDesc%blacsOrbSqr, work(:,:,iKS),&
-                & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr)
-
-            ! Form derivative of density matrix and symmetrize
-            call pblasfx_pgemm(work2(:,:,iKS), denseDesc%blacsOrbSqr,eigvecs(:,:,iKS),&
-                & denseDesc%blacsOrbSqr, work(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
-                & kk=nFilled(iS))
-            work2(:,:,iKS) = work(:,:,iKS)
-
-            call pblasfx_ptran(work(:,:,iKS), denseDesc%blacsOrbSqr, work2(:,:,iKS),&
-                & denseDesc%blacsOrbSqr, beta=1.0_dp)
-
-          #:else
-
-          #:endif
-            
-          #:if WITH_SCALAPACK
-            call packRhoRealBlacs(env%blacs, denseDesc, work2(:,:,iKS), neighbourList%iNeighbour,&
-                & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drho(:,iS))
-          #:else
-            call packHS(drho(:,iS), work2(:,:,iKS), neighbourList%iNeighbour, nNeighbourSK,&
-                & orb%mOrb, denseDesc, iSparseStart, img2CentCell)
-          #:endif
-
           end do
-          
-          
-        end if
+
+          ! Derivatives of states
+          call pblasfx_pgemm(eigvecs(:,:,iKS), denseDesc%blacsOrbSqr, work(:,:,iKS),&
+              & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr)
+
+          ! Form derivative of density matrix and symmetrize
+          call pblasfx_pgemm(work2(:,:,iKS), denseDesc%blacsOrbSqr,eigvecs(:,:,iKS),&
+              & denseDesc%blacsOrbSqr, work(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
+              & kk=nFilled(iS))
+          work2(:,:,iKS) = work(:,:,iKS)
+
+          call pblasfx_ptran(work(:,:,iKS), denseDesc%blacsOrbSqr, work2(:,:,iKS),&
+              & denseDesc%blacsOrbSqr, beta=1.0_dp)
+
+        #:else
+
+
+
+        #:endif
+
+        #:if WITH_SCALAPACK
+          call packRhoRealBlacs(env%blacs, denseDesc, work2(:,:,iKS), neighbourList%iNeighbour,&
+              & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drho(:,iS))
+        #:else
+          call packHS(drho(:,iS), work2(:,:,iKS), neighbourList%iNeighbour, nNeighbourSK,&
+              & orb%mOrb, denseDesc, iSparseStart, img2CentCell)
+        #:endif
+
+        end do
 
       #:if WITH_SCALAPACK
         ! Add up and distribute density matrix contribution from each group
         call mpifx_allreduceip(env%mpi%globalComm, dRho, MPI_SUM)
       #:endif
 
+        drhoextra = 0.0_dp
         if ((.not. tFixEf) .and. tMetallic .and. env%blacs%orbitalGrid%iproc /= -1) then
 
           ! correct for Fermi level shift for q=0 fields
-          drhoextra = 0.0_dp
           do iKS = 1, parallelKS%nLocalKS
             iK = parallelKS%localKS(1, iKS)
             iS = parallelKS%localKS(2, iKS)
@@ -400,10 +395,10 @@ contains
             dqOut = 0.0_dp
             call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-            
+
             dEf(iS) = -sum(dqOut(:,:,iS))/nF(iS)
 
-            if (abs(dEf(iS)) > epsilon(1.0_dp)) then
+            if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
               ! Fermi level changes, so need to correct for the change in the number of charges
               work(:,:,iKS) = 0.0_dp
               do jj = 1, size(work,dim=2)
@@ -421,7 +416,7 @@ contains
               call packRhoRealBlacs(env%blacs, denseDesc, work2(:,:,iKS), neighbourList%iNeighbour,&
                   & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drhoextra(:,iS))
             end if
-            
+
           end do
 
         #:if WITH_SCALAPACK
@@ -431,13 +426,13 @@ contains
           drho = drho + drhoextra
 
         end if
-        
+
         if (nSpin == 1) then
           drho = 2.0_dp * drho
         end if
-        
+
         call ud2qm(drho)
-        
+
         dqOut = 0.0_dp
         do iS = 1, nSpin
           call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
@@ -448,7 +443,7 @@ contains
           !      &orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
           !end if
         end do
-        
+
         if (tSccCalc) then
           dqOutRed = 0.0_dp
           call OrbitalEquiv_reduce(dqOut, iEqOrbitals, orb, &
@@ -457,13 +452,13 @@ contains
           !  call AppendBlock_reduce( qBlockOut, iEqBlockDFTBU, orb, &
           !      & qOutRed )
           !end if
-          
+
           dqDiffRed(:) = dqOutRed(:) - dqInpRed(:)
           sccErrorQ = maxval(abs(dqDiffRed))
-          
+
           write(StdOut,*)'Iter',iSCCIter,'Error',sccErrorQ
           tConverged = (sccErrorQ < sccTol)
-          
+
           if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
             if (iSCCIter == 1) then
               dqIn(:,:,:) = dqOut(:,:,:)
@@ -492,12 +487,12 @@ contains
         else
           tConverged = .true.
         end if
-        
+
         if (tConverged) then
           exit lpSCC
         end if
-        
-        if (tSpin) then
+
+        if (allocated(spinW)) then
           dqPerShell = 0.0_dp
           do iAt = 1, nAtom
             iSp = species(iAt)
@@ -507,13 +502,13 @@ contains
                   & orb%posShell(iSh+1,iSp)-1,iAt,:nSpin),dim=1)
             end do
           end do
-          
+
         end if
-        
+
         iSCCIter = iSCCIter +1
-        
+
       end do lpSCC
-      
+
       if (iCart==1) then
         write(stdOut,*)'Polarisability'
       end if
@@ -524,9 +519,9 @@ contains
       write(stdOut,*)
 
     end do
-    
+
     !call destroy(dpotential)
-    
+
     deallocate(dham)
     deallocate(nFilled)
     deallocate(nEmpty)
