@@ -60,7 +60,7 @@ module dftbp_mainio
   public :: writeProjectedEigenvectors
   public :: initOutputFile, writeAutotestTag, writeResultsTag, writeDetailedXml, writeBandOut
   public :: writeHessianOut
-  public :: openDetailedOut
+  public :: openDetailedOut, closeDetailedOut
   public :: writeDetailedOut1, writeDetailedOut2, writeDetailedOut3, writeDetailedOut4
   public :: writeDetailedOut5
   public :: writeMdOut1, writeMdOut2, writeMdOut3
@@ -2272,6 +2272,7 @@ contains
 
   !> Open file detailed.out
   subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter)
+
     !> File  ID
     integer, intent(in) :: fd
 
@@ -3114,9 +3115,20 @@ contains
       end if
     end if
     write(fd,*)
-    close(fd)
 
   end subroutine writeDetailedOut5
+
+
+  !> Close file used for detailed.out
+  subroutine closeDetailedOut(fd)
+
+    !> File  ID
+    integer, intent(in) :: fd
+
+    close(fd)
+
+  end subroutine closeDetailedOut
+
 
   !> First group of output data during molecular dynamics
   subroutine writeMdOut1(fd, fileName, iGeoStep, pMdIntegrator)

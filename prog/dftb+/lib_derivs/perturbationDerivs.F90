@@ -59,7 +59,7 @@ contains
       & nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqMixElements,&
       & iEqOrbitals, tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter, tWriteAutoTest,&
-      & autoTestTagFile, tWriteTaggedOut, taggedResultsFile)
+      & autoTestTagFile, tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -163,6 +163,13 @@ contains
 
     !> File name for machine readable results data
     character(*), intent(in) :: taggedResultsFile
+
+    !> should detailed.out be written to
+    logical, intent(in) :: tWriteDetailedOut
+
+    !> File id for detailed.out
+    integer, intent(in) :: fdDetailedOut
+
 
     integer :: iS, iK, iKS, iAt, iCart, iSCC, iLev, iSh, iSp
     integer :: nSpin, nOrbs
@@ -281,7 +288,7 @@ contains
       write(stdOut,*)'Electrons at the Fermi energy Nf:',nF
     end if
 
-    do iCart = 1, 3 ! polarization direction
+    do iCart = 1, 3 ! polarisation direction
 
       write(stdOut,*)
       write(stdOut,"(1X,A,1X,A,1X,A)")'Calculating direction',direction(iCart),'Field'
@@ -562,7 +569,13 @@ contains
       call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarizability)
       close(fdResults)
     end if
-
+    if (tWriteDetailedOut) then
+      write(fdDetailedOut,*)'Polarisability (a.u.)'
+      do iCart = 1, 3
+        write(fdDetailedOut,"(3E20.12)")polarizability(:, iCart)
+      end do
+    end if
+    write(fdDetailedOut,*)
     
   end subroutine perturbStat
 

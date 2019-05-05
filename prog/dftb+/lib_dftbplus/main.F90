@@ -294,7 +294,13 @@ contains
           & nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
           & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqOrb, iEqOrbitals,&
           & tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter, tWriteAutotest, autotestTag,&
-          & tWriteResultsTag, resultsTag)
+          & tWriteResultsTag, resultsTag, tWriteDetailedOut, fdDetailedOut)
+    end if
+
+    if (env%tGlobalMaster) then
+      if (tWriteDetailedOut) then
+        call closeDetailedOut(fdDetailedOut)
+      end if
     end if
 
   #:if WITH_TRANSPORT
@@ -305,6 +311,7 @@ contains
       call negf_destroy()
     end if
   #:endif
+
 
   end subroutine runDftbPlus
 
@@ -824,7 +831,6 @@ contains
 
     !> Whether geometry optimisation should be stop
     logical, intent(out) :: tExitGeoOpt
-
 
     !> Difference between last calculated and new geometry.
     real(dp) :: diffGeo
