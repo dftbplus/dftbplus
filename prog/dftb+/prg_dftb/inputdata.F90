@@ -18,6 +18,7 @@ module inputdata_module
   use slakocont
   use commontypes
   use repcont
+  use elecsolvers, only : TElectronicSolverInp
   use linkedlist
   use xlbomd_module
 #:if WITH_SOCKETS
@@ -25,6 +26,12 @@ module inputdata_module
 #:endif
   use pmlocalisation, only : TPipekMezeyInp
   use elstatpot, only : TElStatPotentialsInp
+
+#:if WITH_TRANSPORT
+  use libnegf_vars
+  use poisson_init
+#:endif
+
   implicit none
   private
   save
@@ -32,6 +39,9 @@ module inputdata_module
   public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
   public :: TBlacsOpts
   public :: init, destruct
+#:if WITH_TRANSPORT
+  public :: TNEGFInfo
+#:endif
 
 
   !> Contains Blacs specific options.
@@ -200,7 +210,10 @@ module inputdata_module
     !> initial charges
     real(dp), allocatable :: initialCharges(:)
     logical :: tDFTBU        = .false.
-    integer :: iSolver       = 0
+
+    !> Electronic/eigenvalue solver options
+    type(TElectronicSolverInp) :: solver
+
     integer :: iMixSwitch    = 0
     integer :: maxIter       = 0
     real(dp) :: almix         = 0.0_dp
@@ -248,7 +261,7 @@ module inputdata_module
 
     real(dp) :: tempElec      = 0.0_dp
     logical :: tFixEf        = .false.
-    real(dp) :: Ef(2)         = 0.0_dp
+    real(dp), allocatable :: Ef(:)
     logical :: tFillKSep     = .false.
     integer :: iDistribFn    = 0
     real(dp) :: wvScale       = 0.0_dp
@@ -391,6 +404,14 @@ module inputdata_module
     logical :: tWriteRealHS = .false.
     logical :: tMinMemory = .false.
 
+    !> potential shifts are read from file
+    logical :: tReadShifts = .false.
+    !> potential shifts are written on file
+    logical :: tWriteShifts = .false.
+
+    !> use Poisson solver for electrostatics
+    logical :: tPoisson = .false.
+
 
     !> Dispersion related stuff
     type(DispersionInp), allocatable :: dispInp
@@ -413,6 +434,12 @@ module inputdata_module
 
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
+
+    !>Rangeseparation
+    real(dp) :: screeningThreshold
+    logical :: tRangeSep
+    real(dp) :: omega
+    character(lc) :: rangeSepAlgorithm
 
 
   #:if WITH_SOCKETS
@@ -441,13 +468,26 @@ module inputdata_module
     type(TOrbitals), allocatable :: orb
   end type slater
 
+#:if WITH_TRANSPORT
+  !> container for data needed by libNEGF
+  type TNEGFInfo
+    type(TNEGFTunDos) :: tundos  !Transport section informations
+    type(TNEGFGreenDensInfo) :: greendens  !NEGF solver section informations
+  end type TNEGFInfo
+#:endif
+
 
   !> container for input data constituents
   type inputData
+    logical :: tInitialized = .false.
     type(control) :: ctrl
     type(TGeometry) :: geom
     type(slater) :: slako
-    logical :: tInitialized = .false.
+  #:if WITH_TRANSPORT
+    type(TTransPar) :: transpar
+    type(TNEGFInfo) :: ginfo
+    type(TPoissonInfo) :: poisson
+  #:endif
   end type inputData
 
 

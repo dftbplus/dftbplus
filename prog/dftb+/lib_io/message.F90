@@ -28,7 +28,15 @@ module message
     module procedure error_array
   end interface
 
-  public :: warning, error
+
+  !> terminating the code with a message
+  interface cleanShutdown
+    module procedure shutdown_single
+    module procedure shutdown_array
+  end interface
+
+
+  public :: warning, error, cleanShutdown
 
 contains
 
@@ -93,5 +101,37 @@ contains
     call abort()
 
   end subroutine error_array
+
+
+  !> Prints a message and stops the code cleanly.
+  subroutine shutdown_single(message)
+
+    !> Shutdown message to print to standard out.
+    character (len=*), intent(in) :: message
+
+    write(stdOut, '(A)') trim(message)
+    flush(stdOut)
+    call synchronizeAll()
+    call abort()
+
+  end subroutine shutdown_single
+
+
+  !> Prints messages and stops the code cleanly.
+  subroutine shutdown_array(messages)
+
+    !> Lines of the shutdown message to print to standard out.
+    character(len=*), intent(in) :: messages(:)
+
+    integer :: ii
+
+    do ii = 1, size(messages)
+      write(stdOut, '(A)') trim(messages(ii))
+    end do
+    flush(stdOut)
+    call synchronizeAll()
+    call abort()
+
+  end subroutine shutdown_array
 
 end module message

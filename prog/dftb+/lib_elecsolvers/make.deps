@@ -1,0 +1,34 @@
+elecsolvers.o: _mod_elsisolver _mod_elecsolvertypes _mod_assert common.fypp _mod_accuracy
+elecsolvers.o = elecsolvers.o $(_mod_elsisolver) $(_mod_elecsolvertypes) $(_mod_assert) $(common.fypp) $(_mod_accuracy)
+_mod_elecsolvers: elecsolvers.o
+_mod_elecsolvers = $(elecsolvers.o)
+
+elecsolvertypes.o:
+elecsolvertypes.o = elecsolvertypes.o
+_mod_elecsolvertypes: elecsolvertypes.o
+_mod_elecsolvertypes = $(elecsolvertypes.o)
+
+#:if WITH_MPI
+elsicsc.o: common.fypp _mod_constants _mod_message _mod_environment _mod_assert _mod_periodic _mod_accuracy _mod_mpifx
+elsicsc.o = elsicsc.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_environment) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy) $(_mod_mpifx)
+_mod_elsicsc: elsicsc.o
+_mod_elsicsc = $(elsicsc.o)
+#:else
+elsicsc.o: common.fypp _mod_constants _mod_message _mod_environment _mod_assert _mod_periodic _mod_accuracy
+elsicsc.o = elsicsc.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_environment) $(_mod_assert) $(_mod_periodic) $(_mod_accuracy)
+_mod_elsicsc: elsicsc.o
+_mod_elsicsc = $(elsicsc.o)
+#:endif
+
+#:if WITH_MPI
+elsisolver.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_potentials _mod_elsiiface _mod_message _mod_energies _mod_assert _mod_densedescr _mod_angmomentum _mod_spinorbit _mod_environment _mod_elsicsc _mod_orbitals _mod_spin _mod_periodic _mod_elecsolvertypes _mod_accuracy _mod_mpifx
+elsisolver.o = elsisolver.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_potentials) $(_mod_elsiiface) $(_mod_message) $(_mod_energies) $(_mod_assert) $(_mod_densedescr) $(_mod_angmomentum) $(_mod_spinorbit) $(_mod_environment) $(_mod_elsicsc) $(_mod_orbitals) $(_mod_spin) $(_mod_periodic) $(_mod_elecsolvertypes) $(_mod_accuracy) $(_mod_mpifx)
+_mod_elsisolver: elsisolver.o
+_mod_elsisolver = $(elsisolver.o)
+#:else
+elsisolver.o: _mod_sparse2dense _mod_commontypes common.fypp _mod_potentials _mod_elsiiface _mod_message _mod_energies _mod_assert _mod_densedescr _mod_angmomentum _mod_spinorbit _mod_environment _mod_elsicsc _mod_orbitals _mod_spin _mod_periodic _mod_elecsolvertypes _mod_accuracy
+elsisolver.o = elsisolver.o $(_mod_sparse2dense) $(_mod_commontypes) $(common.fypp) $(_mod_potentials) $(_mod_elsiiface) $(_mod_message) $(_mod_energies) $(_mod_assert) $(_mod_densedescr) $(_mod_angmomentum) $(_mod_spinorbit) $(_mod_environment) $(_mod_elsicsc) $(_mod_orbitals) $(_mod_spin) $(_mod_periodic) $(_mod_elecsolvertypes) $(_mod_accuracy)
+_mod_elsisolver: elsisolver.o
+_mod_elsisolver = $(elsisolver.o)
+#:endif
+

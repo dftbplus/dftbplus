@@ -15,6 +15,7 @@ module linrespcommon
   use sorting
   use message
   use commontypes
+  use transcharges
   implicit none
   public
 
@@ -23,39 +24,6 @@ module linrespcommon
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
 
 contains
-
-
-  !> Sort arrays in reverse order on basis of values in the sposz array
-  subroutine dipsort(wij, sposz, win, transd)
-
-    !> Energies of transitions
-    real(dp), intent(inout) :: wij(:)
-
-    !> array to be sorted containing single particle transition strengths
-    real(dp), intent(inout) :: sposz(:)
-
-    !> index array for transitions to single particle transitions
-    integer, intent(inout) :: win(:)
-
-    !> dipole moments (to be ordered on first index according to sposz sorting)
-    real(dp), intent(inout) :: transd(:,:)
-
-    integer, allocatable :: tmpIndx(:)
-
-    allocate(tmpIndx(size(win)))
-
-    @:ASSERT(size(wij) == size(sposz))
-    @:ASSERT(size(wij) == size(win))
-    @:ASSERT(size(wij) == size(transd,dim=1))
-
-    call index_heap_sort(tmpIndx, sposz)
-    tmpIndx = tmpIndx(size(win):1:-1)
-    win = win(tmpIndx)
-    wij = wij(tmpIndx)
-    sposz = sposz(tmpIndx)
-    transd(:,:) = transd(tmpIndx,:)
-
-  end subroutine dipsort
 
 
   !> find (possibly degenerate) transitions with stronger dipole
@@ -189,7 +157,7 @@ contains
 
 
   !> Computes individual indices from the compound occ-virt excitation index.
-  subroutine indxov(win, indx, getij, ii, jj)
+  pure subroutine indxov(win, indx, getij, ii, jj)
 
     !> index array after sorting of eigenvalues.
     integer, intent(in) :: win(:)
@@ -325,52 +293,6 @@ contains
   end subroutine rindxov_array
 
 
-  !> Calculates atomic transition charges for a certain excitation.
-  !> Calculates qij = 0.5 * (c_i S c_j + c_j S c_i) where c_i and c_j are selected eigenvectors, and
-  !> S the overlap matrix. Since qij is atomic quantity (so far) the corresponding values are summed
-  !> up.
-  !> Note: the parameters 'updwn' were added for spin alpha and beta channels.
-  subroutine transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-
-    !> Index of inital state.
-    integer, intent(in) :: ii
-
-    !> Index of final state.
-    integer, intent(in) :: jj
-
-    !> Starting position of each atom in the list of orbitals.
-    integer, intent(in) :: iAtomStart(:)
-
-    !> up spin channel (T) or down spin channel (F)
-    logical, intent(in) :: updwn
-
-    !> Overlap times eigenvector: sum_m Smn cmi (nOrb, nOrb).
-    real(dp), intent(in) :: stimc(:,:,:)
-
-    !> Eigenvectors (nOrb, nOrb)
-    real(dp), intent(in) :: grndEigVecs(:,:,:)
-
-    !> Transition charge on exit. (nAtom)
-    real(dp), intent(out) :: qij(:)
-
-    integer :: kk, aa, bb, ss
-    real(dp) :: qTmp(size(stimc,dim=1))
-
-    @:ASSERT(all(shape(stimc) == shape(grndEigVecs)))
-
-    ss = 1
-    if (.not. updwn) ss = 2
-    qTmp(:) =  grndEigVecs(:,ii,ss) * stimc(:,jj,ss) &
-        & + grndEigVecs(:,jj,ss) * stimc(:,ii,ss)
-    do kk = 1, size(qij)
-      aa = iAtomStart(kk)
-      bb = iAtomStart(kk + 1) -1
-      qij(kk) = 0.5_dp * sum(qTmp(aa:bb))
-    end do
-
-  end subroutine transq
-
-
   !> Returns the (spatial) MO overlap between orbitals in different spin channels
   function MOoverlap(pp, qq, stimc, grndEigVecs) result(S_pq)
 
@@ -446,7 +368,7 @@ contains
   !> Note: In order not to store the entire supermatrix (nmat, nmat), the various pieces are
   !> assembled individually and multiplied directly with the corresponding part of the supervector.
   subroutine omegatvec(spin, vin, vout, wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, &
-      & occNr, getij, gamma, species0, spinW )
+      & occNr, getij, gamma, species0, spinW, transChrg)
 
     !> logical spin polarization
     logical, intent(in) :: spin
@@ -493,6 +415,9 @@ contains
     !> ground state spin constants for each species
     real(dp), intent(in) :: spinW(:)
 
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
     integer :: nmat, natom
     integer :: ia, ii, jj
     real(dp) :: fact
@@ -512,16 +437,10 @@ contains
     call wtdn(wij, occNr, win, nmatup, nmat, getij, wnij)
     wnij = sqrt(wnij) ! always used as root(wnij) after this
 
-    otmp = 0.0_dp
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
-    do ia = 1, nmat
-      call indxov(win, ia, getij, ii, jj)
-      updwn = (win(ia) <= nmatup)
-      call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-      otmp = otmp + vin(ia) * wnij(ia) * qij
-    end do
-    !$OMP  END PARALLEL DO
+    ! product charges with the v*wn product, i.e. Q * v*wn
+    oTmp(:) = 0.0_dp
+    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, vin(:nmat) * wnij(:nmat),&
+        & oTmp)
 
     if (.not.spin) then !-----------spin-unpolarized systems--------------
 
@@ -529,30 +448,20 @@ contains
 
         call hemv(gtmp, gamma, otmp)
 
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-        !$OMP& SCHEDULE(RUNTIME)
-        do ia = 1, nmat
-          call indxov(win, ia, getij, ii, jj)
-          updwn = (win(ia) <= nmatup)
-          call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-          vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
-        end do
-        !$OMP  END PARALLEL DO
+        ! 2 * wn * (g * Q)
+        vOut(:) = 0.0_dp
+        call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, vOut)
+        vOut(:) = 2.0_dp * wnij(:) * vOut(:)
+
       else
 
         otmp = 2.0_dp * otmp * spinW(species0)
 
-        !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij) &
-        !$OMP& SCHEDULE(RUNTIME)
-        do ia = 1, nmat
-          call indxov(win, ia, getij, ii, jj)
-          updwn = (win(ia) <= nmatup)
-          call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-          ! Note: 2 times atomic magnetization m_A
-          ! vout = sum_A q_A^ia m_A * otmp(A)
-          vout(ia) = vout(ia) + wnij(ia) * dot_product(qij, otmp)
-        end do
-        !$OMP  END PARALLEL DO
+        ! wn * (o * Q)
+        vOut = 0.0_dp
+        call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, oTmp, vOut)
+        vOut(:) = wnij(:) * vOut(:)
+
 
       end if
 
@@ -566,15 +475,14 @@ contains
       !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:otmp)
       do ia = 1,nmat
 
-        call indxov(win, ia, getij, ii, jj)
         updwn = (win(ia) <= nmatup)
 
-        call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
+        qij(:) = transChrg%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
 
-        !singlet gamma part (S)
+        ! singlet gamma part (S)
         vout(ia) = 2.0_dp * wnij(ia) * dot_product(qij, gtmp)
 
-        !magnetization part (T1)
+        ! magnetization part (T1)
         if (updwn) then
           fact = 1.0_dp
         else
@@ -591,9 +499,9 @@ contains
       !$OMP& SCHEDULE(RUNTIME)
       do ia = 1,nmat
 
-        call indxov(win, ia, getij, ii, jj)
+        qij(:) = transChrg%qTransIJ(ia, iAtomStart, stimc, grndEigVecs, getij, win)
+
         updwn = (win(ia) <= nmatup)
-        call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
         if (updwn) then
           fact = 1.0_dp
         else
@@ -613,7 +521,7 @@ contains
 
   !> Multiplies the supermatrix (A+B) with a given vector.
   subroutine apbw(rkm1, rhs2, wij, nmat, natom, win, nmatup, getij, iAtomStart, stimc, grndEigVecs,&
-      & gamma)
+      & gamma, transChrg)
 
     !> Resulting vector on return.
     real(dp), intent(out) :: rkm1(:)
@@ -651,38 +559,24 @@ contains
     !> transition charges
     real(dp), intent(in) :: gamma(:,:)
 
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
     !> gamma matrix
     integer :: ia, ii, jj
     real(dp) :: tmp(natom), gtmp(natom), qij(natom)
-    logical :: updwn
 
     @:ASSERT(size(rkm1) == nmat)
 
     tmp(:) = 0.0_dp
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
-    !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:tmp)
-    do ia = 1, nmat
-      call indxov(win, ia, getij, ii, jj)
-      updwn = (win(ia) <= nmatup)
-      call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-      tmp(:) = tmp + rhs2(ia) * qij
-    end do
-    !$OMP  END PARALLEL DO
+    call transChrg%qMatVec(iAtomStart, stimc, grndEigVecs, getij, win, rhs2, tmp)
 
     call hemv(gtmp, gamma, tmp)
 
-    rkm1 = 0.0_dp
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj,updwn,qij)&
-    !$OMP& SCHEDULE(RUNTIME)
-    do ia = 1, nmat
-      call indxov(win, ia, getij, ii, jj)
-      updwn = (win(ia) <= nmatup)
-      call transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs, qij)
-      rkm1(ia) = 4.0_dp * dot_product(gtmp, qij)
-    end do
-    !$OMP  END PARALLEL DO
+    rkm1(:) = 0.0_dp
+    call transChrg%qVecMat(iAtomStart, stimc, grndEigVecs, getij, win, gTmp, rkm1)
 
-    rkm1 = rkm1 + wij * rhs2
+    rkm1(:) = 4.0_dp * rkm1(:) + wij(:) * rhs2(:)
 
   end subroutine apbw
 

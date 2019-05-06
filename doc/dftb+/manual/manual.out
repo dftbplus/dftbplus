@@ -1,0 +1,99 @@
+\BOOKMARK [0][-]{chapter.1}{1 Introduction}{}% 1
+\BOOKMARK [0][-]{chapter.2}{2 Input for DFTB+}{}% 2
+\BOOKMARK [1][-]{section.2.1}{2.1 Main input}{chapter.2}% 3
+\BOOKMARK [1][-]{section.2.2}{2.2 Geometry}{chapter.2}% 4
+\BOOKMARK [2][-]{subsection.2.2.1}{2.2.1 Explicit geometry specification}{section.2.2}% 5
+\BOOKMARK [2][-]{subsection.2.2.2}{2.2.2 GenFormat\173\175}{section.2.2}% 6
+\BOOKMARK [1][-]{section.2.3}{2.3 Driver}{chapter.2}% 7
+\BOOKMARK [2][-]{subsection.2.3.1}{2.3.1 SteepestDescent\173\175}{section.2.3}% 8
+\BOOKMARK [2][-]{subsection.2.3.2}{2.3.2 ConjugateGradient\173\175}{section.2.3}% 9
+\BOOKMARK [2][-]{subsection.2.3.3}{2.3.3 gDIIS\173\175}{section.2.3}% 10
+\BOOKMARK [2][-]{subsection.2.3.4}{2.3.4 LBFGS\173\175}{section.2.3}% 11
+\BOOKMARK [2][-]{subsection.2.3.5}{2.3.5 SecondDerivatives\173\175}{section.2.3}% 12
+\BOOKMARK [2][-]{subsection.2.3.6}{2.3.6 VelocityVerlet\173\175}{section.2.3}% 13
+\BOOKMARK [2][-]{subsection.2.3.7}{2.3.7 Socket\173\175}{section.2.3}% 14
+\BOOKMARK [1][-]{section.2.4}{2.4 Hamiltonian}{chapter.2}% 15
+\BOOKMARK [2][-]{subsection.2.4.1}{2.4.1 Mixer}{section.2.4}% 16
+\BOOKMARK [2][-]{subsection.2.4.2}{2.4.2 SpinPolarisation}{section.2.4}% 17
+\BOOKMARK [2][-]{subsection.2.4.3}{2.4.3 SpinOrbit}{section.2.4}% 18
+\BOOKMARK [2][-]{subsection.2.4.4}{2.4.4 Eigensolver}{section.2.4}% 19
+\BOOKMARK [2][-]{subsection.2.4.5}{2.4.5 Filling}{section.2.4}% 20
+\BOOKMARK [2][-]{subsection.2.4.6}{2.4.6 SlaterKosterFiles}{section.2.4}% 21
+\BOOKMARK [2][-]{subsection.2.4.7}{2.4.7 KPointsAndWeights}{section.2.4}% 22
+\BOOKMARK [2][-]{subsection.2.4.8}{2.4.8 OrbitalPotential}{section.2.4}% 23
+\BOOKMARK [2][-]{subsection.2.4.9}{2.4.9 ElectricField}{section.2.4}% 24
+\BOOKMARK [2][-]{subsection.2.4.10}{2.4.10 Dispersion}{section.2.4}% 25
+\BOOKMARK [2][-]{subsection.2.4.11}{2.4.11 DFTB3}{section.2.4}% 26
+\BOOKMARK [2][-]{subsection.2.4.12}{2.4.12 Hydrogen corrections}{section.2.4}% 27
+\BOOKMARK [2][-]{subsection.2.4.13}{2.4.13 RangeSep}{section.2.4}% 28
+\BOOKMARK [2][-]{subsection.2.4.14}{2.4.14 Differentiation}{section.2.4}% 29
+\BOOKMARK [2][-]{subsection.2.4.15}{2.4.15 ForceEvaluation}{section.2.4}% 30
+\BOOKMARK [1][-]{section.2.5}{2.5 Options}{chapter.2}% 31
+\BOOKMARK [1][-]{section.2.6}{2.6 Analysis}{chapter.2}% 32
+\BOOKMARK [1][-]{section.2.7}{2.7 ExcitedState}{chapter.2}% 33
+\BOOKMARK [2][-]{subsection.2.7.1}{2.7.1 Casida}{section.2.7}% 34
+\BOOKMARK [1][-]{section.2.8}{2.8 ParserOptions}{chapter.2}% 35
+\BOOKMARK [1][-]{section.2.9}{2.9 Parallel}{chapter.2}% 36
+\BOOKMARK [0][-]{chapter.3}{3 Output of DFTB+}{}% 37
+\BOOKMARK [1][-]{section.3.1}{3.1 results.tag}{chapter.3}% 38
+\BOOKMARK [1][-]{section.3.2}{3.2 hamsqrN.dat, oversqr.dat}{chapter.3}% 39
+\BOOKMARK [1][-]{section.3.3}{3.3 hamrealN.dat, overreal.dat}{chapter.3}% 40
+\BOOKMARK [1][-]{section.3.4}{3.4 eigenvec.out, eigenvec.bin}{chapter.3}% 41
+\BOOKMARK [1][-]{section.3.5}{3.5 charges.bin / charges.dat}{chapter.3}% 42
+\BOOKMARK [1][-]{section.3.6}{3.6 md.out}{chapter.3}% 43
+\BOOKMARK [1][-]{section.3.7}{3.7 Electrostatic potential data}{chapter.3}% 44
+\BOOKMARK [1][-]{section.3.8}{3.8 Excited state results files}{chapter.3}% 45
+\BOOKMARK [2][-]{subsection.3.8.1}{3.8.1 ARPACK.DAT}{section.3.8}% 46
+\BOOKMARK [2][-]{subsection.3.8.2}{3.8.2 COEF.DAT}{section.3.8}% 47
+\BOOKMARK [2][-]{subsection.3.8.3}{3.8.3 EXC.DAT}{section.3.8}% 48
+\BOOKMARK [2][-]{subsection.3.8.4}{3.8.4 SPX.DAT}{section.3.8}% 49
+\BOOKMARK [2][-]{subsection.3.8.5}{3.8.5 TDP.DAT}{section.3.8}% 50
+\BOOKMARK [2][-]{subsection.3.8.6}{3.8.6 TRA.DAT}{section.3.8}% 51
+\BOOKMARK [2][-]{subsection.3.8.7}{3.8.7 TEST\137ARPACK.DAT}{section.3.8}% 52
+\BOOKMARK [2][-]{subsection.3.8.8}{3.8.8 XCH.DAT}{section.3.8}% 53
+\BOOKMARK [2][-]{subsection.3.8.9}{3.8.9 XplusY.DAT}{section.3.8}% 54
+\BOOKMARK [2][-]{subsection.3.8.10}{3.8.10 XREST.DAT}{section.3.8}% 55
+\BOOKMARK [0][-]{chapter.4}{4 Transport calculations}{}% 56
+\BOOKMARK [1][-]{section.4.1}{4.1 Definition of the geometry}{chapter.4}% 57
+\BOOKMARK [1][-]{section.4.2}{4.2 Transport}{chapter.4}% 58
+\BOOKMARK [2][-]{subsection.4.2.1}{4.2.1 Device\173\175}{section.4.2}% 59
+\BOOKMARK [2][-]{subsection.4.2.2}{4.2.2 Contact\173\175}{section.4.2}% 60
+\BOOKMARK [2][-]{subsection.4.2.3}{4.2.3 Task = ContactHamiltonian\173\175}{section.4.2}% 61
+\BOOKMARK [2][-]{subsection.4.2.4}{4.2.4 Task = UploadContacts\173\175}{section.4.2}% 62
+\BOOKMARK [1][-]{section.4.3}{4.3 GreensFunction}{chapter.4}% 63
+\BOOKMARK [1][-]{section.4.4}{4.4 Eigensolver = TransportOnly}{chapter.4}% 64
+\BOOKMARK [1][-]{section.4.5}{4.5 Contour integration}{chapter.4}% 65
+\BOOKMARK [1][-]{section.4.6}{4.6 Spin-polarised transport}{chapter.4}% 66
+\BOOKMARK [1][-]{section.4.7}{4.7 Poisson solver}{chapter.4}% 67
+\BOOKMARK [2][-]{subsection.4.7.1}{4.7.1 Boundary Conditions}{section.4.7}% 68
+\BOOKMARK [2][-]{subsection.4.7.2}{4.7.2 Electrostatic Gates}{section.4.7}% 69
+\BOOKMARK [1][-]{section.4.8}{4.8 Parallelisations}{chapter.4}% 70
+\BOOKMARK [1][-]{section.4.9}{4.9 Analysis}{chapter.4}% 71
+\BOOKMARK [1][-]{section.4.10}{4.10 TunnelingAndDos}{chapter.4}% 72
+\BOOKMARK [1][-]{section.4.11}{4.11 Setting electronic temperature}{chapter.4}% 73
+\BOOKMARK [1][-]{section.4.12}{4.12 Troubleshooting transport}{chapter.4}% 74
+\BOOKMARK [1][-]{section.4.13}{4.13 Transport Tools}{chapter.4}% 75
+\BOOKMARK [0][-]{chapter.5}{5 modes}{}% 76
+\BOOKMARK [1][-]{section.5.1}{5.1 Input for modes}{chapter.5}% 77
+\BOOKMARK [2][-]{subsection.5.1.1}{5.1.1 Hessian\173\175}{section.5.1}% 78
+\BOOKMARK [2][-]{subsection.5.1.2}{5.1.2 DisplayModes\173\175}{section.5.1}% 79
+\BOOKMARK [0][-]{chapter.6}{6 Waveplot}{}% 80
+\BOOKMARK [1][-]{section.6.1}{6.1 Input for Waveplot}{chapter.6}% 81
+\BOOKMARK [2][-]{subsection.6.1.1}{6.1.1 Options}{section.6.1}% 82
+\BOOKMARK [2][-]{subsection.6.1.2}{6.1.2 Basis}{section.6.1}% 83
+\BOOKMARK [2][-]{subsection.6.1.3}{6.1.3 ParserOptions}{section.6.1}% 84
+\BOOKMARK [0][-]{appendix.A}{A The HSD format}{}% 85
+\BOOKMARK [1][-]{section.A.1}{A.1 Scalars and list of scalars}{appendix.A}% 86
+\BOOKMARK [1][-]{section.A.2}{A.2 Methods and property lists}{appendix.A}% 87
+\BOOKMARK [1][-]{section.A.3}{A.3 Modifiers}{appendix.A}% 88
+\BOOKMARK [1][-]{section.A.4}{A.4 File inclusion}{appendix.A}% 89
+\BOOKMARK [1][-]{section.A.5}{A.5 Processing}{appendix.A}% 90
+\BOOKMARK [1][-]{section.A.6}{A.6 Extended format}{appendix.A}% 91
+\BOOKMARK [0][-]{appendix.B}{B Unit modifiers}{}% 92
+\BOOKMARK [0][-]{appendix.C}{C Description of the gen format}{}% 93
+\BOOKMARK [0][-]{appendix.D}{D Atomic spin constants}{}% 94
+\BOOKMARK [0][-]{appendix.E}{E Dispersion constants}{}% 95
+\BOOKMARK [0][-]{appendix.F}{F Description of restart files}{}% 96
+\BOOKMARK [1][-]{subsection.F.0.1}{F.0.1 charges.bin / charges.dat}{appendix.F}% 97
+\BOOKMARK [0][-]{appendix.G}{G Publications to cite}{}% 98
+\BOOKMARK [0][-]{section*.50}{Index}{}% 99

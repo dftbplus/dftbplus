@@ -1,0 +1,64 @@
+This is BibTeX, Version 0.99d (TeX Live 2017)
+Capacity: max_strings=100000, hash_size=100000, hash_prime=85009
+The top-level auxiliary file: manual.aux
+A level-1 auxiliary file: introduction.aux
+A level-1 auxiliary file: dftbp.aux
+A level-1 auxiliary file: transport.aux
+A level-1 auxiliary file: modes.aux
+A level-1 auxiliary file: waveplot.aux
+A level-1 auxiliary file: hsd.aux
+A level-1 auxiliary file: unit_mod.aux
+A level-1 auxiliary file: gen.aux
+A level-1 auxiliary file: spin_constants.aux
+A level-1 auxiliary file: disp_constants.aux
+A level-1 auxiliary file: restart_files.aux
+A level-1 auxiliary file: publications.aux
+A level-1 auxiliary file: references.aux
+The style file: plain.bst
+Database file #1: titles.bib
+Database file #2: manual.bib
+Warning--to sort, need author or key in ARPACK-ng
+Warning--to sort, need author, editor, or key in Pecchia_spring
+Warning--empty author and editor in Pecchia_spring
+You've used 50 entries,
+            2118 wiz_defined-function locations,
+            1388 strings with 22275 characters,
+and the built_in function-call counts, 17617 in all, are:
+= -- 1640
+> -- 1054
+< -- 2
++ -- 421
+- -- 366
+* -- 1402
+:= -- 3081
+add.period$ -- 149
+call.type$ -- 50
+change.case$ -- 329
+chr.to.int$ -- 0
+cite$ -- 53
+duplicate$ -- 553
+empty$ -- 1231
+format.name$ -- 366
+if$ -- 3537
+int.to.chr$ -- 0
+int.to.str$ -- 50
+missing$ -- 48
+newline$ -- 251
+num.names$ -- 96
+pop$ -- 261
+preamble$ -- 1
+purify$ -- 283
+quote$ -- 0
+skip$ -- 368
+stack$ -- 0
+substring$ -- 1023
+swap$ -- 60
+text.length$ -- 2
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 194
+warning$ -- 3
+while$ -- 143
+width$ -- 52
+write$ -- 548
+(There were 3 warnings)

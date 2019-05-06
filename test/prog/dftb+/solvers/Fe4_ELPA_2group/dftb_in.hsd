@@ -1,0 +1,54 @@
+Geometry = GenFormat {
+    4  C
+ Fe
+    1 1      0.00120789      0.00020770      0.00020773
+    2 1      1.66468182      1.66468190      0.00020778
+    3 1      1.66468183      0.00020777      1.66468190
+    4 1      0.00020785      1.66468187      1.66468187
+}
+
+Driver = ConjugateGradient {
+  MaxForceComponent = 1.0E-6
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  OrbitalResolvedSCC = Yes
+  Mixer = Anderson {}
+  SCCTolerance = 1.0E-8
+  MaxAngularMomentum {
+    Fe = "d"
+  }
+  Charge = 0.0
+  SpinPolarisation = Colinear {
+    UnpairedElectrons = 12
+  }
+  SpinConstants {
+    Fe {
+           -0.013 -0.009 -0.003
+           -0.009 -0.011 -0.001
+           -0.003 -0.001 -0.015
+    }
+  }
+  Eigensolver = ELPA {}
+  Filling = MethfesselPaxton {
+    Temperature [Kelvin] = 5.0e+2
+    Order = 2
+  }
+  SlaterKosterFiles = {
+    Fe-Fe = "./Fe-Fe.skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 5
+}
+
+Parallel {
+  Groups = 2
+  UseOmpThreads = No
+}

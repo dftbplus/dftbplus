@@ -4,7 +4,7 @@
 ############################################################################
 
 # Directory where standard packages are installed in the system
-PREFIX := /usr
+PREFIX = /usr
 
 # PGI library directory
 PGI_LIBDIR = /opt/pgi/linux86-64/17.10/lib
@@ -35,6 +35,26 @@ LIB_SCALAPACK = -L$(PGI_LIBDIR)/scalapack/scalapack-2.0.2/openmpi-2.1.2/lib -lsc
 
 # LAPACK/BLAS
 LIB_LAPACK = -L$(PGI_LIBDIR) -llapack -lblas
+
+# ELSI
+ifeq ($(strip $(WITH_ELSI)),1)
+
+# Include directory for ELSI
+ELSIINCDIR =
+
+# Library path and files for libOMM and ELPA parts of ELSI
+ELSIDIR =
+LIB_ELSI = -L$(ELSIDIR) -lelsi -lOMM -lMatrixSwitch -lelpa -lNTPoly -lfortjson
+
+ifeq ($(strip $(WITH_PEXSI)),1)
+
+# Scotch and PEXSI libraries
+SCOTCHDIR =
+LIB_PEXSI = -lpexsi -lsuperlu_dist -L$(SCOTCHDIR) -lptscotchparmetis    \
+-lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr -lstdc++ -lmpi++
+
+endif
+endif
 
 # Any other libraries to be linked
 OTHERLIBS =
@@ -91,19 +111,19 @@ LIBOPT =
 # you will have to download the dftd3 library before starting the build using
 # the utils/get_opt_externals tool.
 # (Only active, if WITH_DFTB3 was set in make.config.)
-COMPILE_DFTD3 := 1
+COMPILE_DFTD3 = 1
 
 # Set the compile time include and the link time library options for
 # dftd3-lib. Ignored if WITH_DFTD3 has been disabled or COMPILE_DFTD3 enabled.
-DFTD3_INCS := -I$(PREFIX)/include/dftd3-lib
-DFTD3_LIBS := -L$(PREFIX)/lib -ldftd3
+DFTD3_INCS = -I$(PREFIX)/include/dftd3-lib
+DFTD3_LIBS = -L$(PREFIX)/lib -ldftd3
 
 # Link time library options for linking ARPACK. Ignored if WITH_ARPACK was
 # disabled.
-ARPACK_LIBS := -larpack
+ARPACK_LIBS = -larpack
 
 # Whether ARPACK depends on the external LAPACK and BLAS libraries
-ARPACK_NEEDS_LAPACK := 0
+ARPACK_NEEDS_LAPACK = 0
 
 
 ############################################################################

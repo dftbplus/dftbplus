@@ -327,11 +327,10 @@ contains
     if (present(iHam)) then
       call unpackHS(work, iHam(:, 3), kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
           & iAtomStart, iPair, img2CentCell)
+
+      ! Apply hermitian symmetry just in case
       do ii = 1, nOrb
         work(ii, ii+1:) = -conjg(work(ii+1:, ii))
-      end do
-      do ii = 1, nOrb
-        work(ii+1:, ii) = -conjg(work(ii, ii+1:))
       end do
 
       HSqrCplx(nOrb+1:2*nOrb, 1:nOrb) = HSqrCplx(nOrb+1:2*nOrb, 1:nOrb)&
