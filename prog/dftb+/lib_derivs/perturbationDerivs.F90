@@ -20,6 +20,7 @@ module dftbp_perturbderivs
   use dftbp_populations
   use dftbp_spin
   use dftbp_dftbplusu
+  use dftbp_onsitecorrection
   use dftbp_mainio
   use dftbp_shift
   use dftbp_mixer
@@ -57,8 +58,8 @@ contains
       & nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqMixElements,&
       & iEqOrbitals, tempElec, Ef, tFixEf, spinW, tDFTBU, UJ, nUJ, iUJ, niUJ, iEqBlockDftbu,&
-      & pChrgMixer, taggedWriter, tWriteAutoTest, autoTestTagFile, tWriteTaggedOut,&
-      & taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
+      & onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest, autoTestTagFile,&
+      & tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -132,6 +133,12 @@ contains
 
     !> Equivalence relations between orbitals
     integer, intent(in) :: iEqOrbitals(:,:,:)
+
+    !> onsite matrix elements for shells (elements between s orbitals on the same shell are ignored)
+    real(dp), intent(in), allocatable :: onsMEs(:,:,:,:)
+
+    !> Equivalences for onsite block corrections if needed
+    integer, intent(in), allocatable :: iEqBlockOnSite(:,:,:,:)
 
     !> Electron temperature
     real(dp), intent(in) :: tempElec
@@ -208,6 +215,7 @@ contains
 
     real(dp), allocatable :: dqBlockIn(:,:,:,:)
     real(dp), allocatable :: dqBlockOut(:,:,:,:)
+    real(dp), allocatable :: dummy(:,:,:,:)
 
     ! derivative of potentials
     type(TPotentials) :: dpotential
@@ -250,7 +258,7 @@ contains
 
     tSccCalc = (maxSccIter > 1)
 
-    if (tDFTBU) then
+    if (tDFTBU .or. allocated(onsMEs)) then
       allocate(dqBlockIn(orb%mOrb,orb%mOrb,nAtom,nSpin))
       allocate(dqBlockOut(orb%mOrb,orb%mOrb,nAtom,nSpin))
     end if
@@ -330,7 +338,7 @@ contains
 
       dqIn(:,:,:) = 0.0_dp
       dqOut(:,:,:) = 0.0_dp
-      if (tDFTBU) then
+      if (tDFTBU .or. allocated(onsMEs)) then
         dqBlockIn(:,:,:,:) = 0.0_dp
         dqBlockOut(:,:,:,:) = 0.0_dp
       end if
@@ -363,7 +371,7 @@ contains
         dpotential%intShell(:,:,:) = 0.0_dp
         dpotential%intBlock(:,:,:,:) = 0.0_dp
 
-        if (tDFTBU) then
+        if (tDFTBU .or. allocated(onsMEs)) then
           dpotential%orbitalBlock(:,:,:,:) = 0.0_dp
         end if
 
@@ -384,13 +392,18 @@ contains
             call getDftbUShift(dpotential%orbitalBlock, dqBlockIn, species, orb, 2,&
                 & UJ, nUJ, niUJ, iUJ)
           end if
+          if (allocated(onsMEs)) then
+            call addOnsShift(dpotential%orbitalBlock, dpotential%iOrbitalBlock, dqBlockIn,&
+                & dummy, onsMEs, species, orb)
+          end if
+
 
         end if
 
         call total_shift(dpotential%intShell,dpotential%intAtom, orb,species)
         call total_shift(dpotential%intBlock,dpotential%intShell, orb,species)
         dpotential%intBlock(:,:,:,:) = dpotential%intBlock + dpotential%extBlock
-        if (tDFTBU) then
+        if (tDFTBU .or. allocated(onsMEs)) then
           dpotential%intBlock(:,:,:,:) = dpotential%intBlock + dpotential%orbitalBlock
         end if
 
@@ -579,7 +592,7 @@ contains
         do iS = 1, nSpin
           call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-          if (tDFTBU) then
+          if (tDFTBU .or. allocated(onsMEs)) then
             dqBlockOut(:,:,:,iS) = 0.0_dp
             call mulliken(dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
              & nNeighbourSK, img2CentCell, iSparseStart)
@@ -593,6 +606,9 @@ contains
           if (tDFTBU) then
             call AppendBlock_reduce(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed )
           end if
+          if (allocated(onsMEs)) then
+            call onsBlock_reduce(dqBlockOut, iEqBlockOnSite, orb, dqOutRed)
+          end if
 
           dqDiffRed(:) = dqOutRed(:) - dqInpRed(:)
           sccErrorQ = maxval(abs(dqDiffRed))
@@ -604,7 +620,7 @@ contains
             if (iSCCIter == 1) then
               dqIn(:,:,:) = dqOut(:,:,:)
               dqInpRed(:) = dqOutRed(:)
-              if (tDFTBU) then
+              if (tDFTBU .or. allocated(onsMEs)) then
                 dqBlockIn(:,:,:,:) = dqBlockOut(:,:,:,:)
               end if
             else
@@ -618,11 +634,17 @@ contains
 
               call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, &
                   & orb, dqIn)
-              if (tDFTBU) then
+              if (tDFTBU .or. allocated(onsMEs)) then
                 dqBlockIn(:,:,:,:) = 0.0_dp
-                call Block_expand( dqInpRed ,iEqBlockDFTBU, orb, dqBlockIn, species(:nAtom), nUJ,&
-                    & niUJ, iUJ, orbEquiv=iEqOrbitals )
+                if (tDFTBU) then
+                  call Block_expand( dqInpRed ,iEqBlockDFTBU, orb, dqBlockIn, species(:nAtom), nUJ,&
+                      & niUJ, iUJ, orbEquiv=iEqOrbitals )
+                else
+                  call Onsblock_expand(dqInpRed, iEqBlockOnSite, orb, dqBlockIn,&
+                      & orbEquiv=iEqOrbitals)
+                end if
               end if
+
             end if
           end if
         else

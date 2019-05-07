@@ -262,8 +262,9 @@ contains
               & orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
               & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
               & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, tDFTBU, UJ, nUJ, iUJ, niUJ,&
-              & iEqBlockDftbu, pChrgMixer, taggedWriter, tWriteAutotest, autotestTag,&
-              & tWriteResultsTag, resultsTag, tWriteDetailedOut, fdDetailedOut)
+              & iEqBlockDftbu, onSiteElements, iEqBlockOnSite, pChrgMixer, taggedWriter,&
+              & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
+              & fdDetailedOut)
         end if
       end if
     end if
@@ -485,8 +486,8 @@ contains
             & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
         if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
-          call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockIn, qiBlockIn, q0,&
-              & onSiteElements, species, orb)
+          call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockIn, qiBlockIn,&
+              & onSiteElements, species, orb, q0)
         end if
 
       end if
@@ -560,7 +561,7 @@ contains
 
         if (allocated(onSiteElements)) then
           call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockOut, qiBlockOut,&
-              & q0, onSiteElements, species, orb)
+              & onSiteElements, species, orb, q0)
         end if
 
         potential%intBlock = potential%intBlock + potential%extBlock
