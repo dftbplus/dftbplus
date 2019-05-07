@@ -1907,7 +1907,7 @@ contains
 
     end if
 
-    if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then
+    if ((.not.tPeriodic) .and. tMulliken) then
       tDipole = .true.
     else
       tDipole = .false.

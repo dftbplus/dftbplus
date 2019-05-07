@@ -258,12 +258,12 @@ contains
     if (tPolarisability) then
       if (tStaticPolarisability) then
         if (tRealHS) then
-          call perturbationWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over,&
+          call staticPerturWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over,&
               & orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
               & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
-              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter,&
-              & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
-              & fdDetailedOut)
+              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, tDFTBU, UJ, nUJ, iUJ, niUJ,&
+              & iEqBlockDftbu, pChrgMixer, taggedWriter, tWriteAutotest, autotestTag,&
+              & tWriteResultsTag, resultsTag, tWriteDetailedOut, fdDetailedOut)
         end if
       end if
     end if
@@ -1767,8 +1767,8 @@ contains
 
 
   !> Add potentials comming from on-site block of the dual density matrix.
-  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb, nDftbUFunc&
-      &, UJ, nUJ, iUJ, niUJ, potential)
+  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
+      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
     !> block input charges
     real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)

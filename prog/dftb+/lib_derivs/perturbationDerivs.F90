@@ -19,6 +19,7 @@ module dftbp_perturbderivs
   use dftbp_orbitalequiv
   use dftbp_populations
   use dftbp_spin
+  use dftbp_dftbplusu
   use dftbp_mainio
   use dftbp_shift
   use dftbp_mixer
@@ -41,12 +42,7 @@ module dftbp_perturbderivs
   implicit none
 
   private
-  public :: perturbationWrtE
-
-  interface perturbationWrtE
-    module procedure perturbStat
-    !module procedure perturbDyn
-  end interface perturbationWrtE
+  public :: staticPerturWrtE
 
   !> small complex value for frequency dependent cases
   complex(dp), parameter :: eta = (0.0_dp,1.0E-8_dp)
@@ -57,11 +53,12 @@ module dftbp_perturbderivs
 contains
 
   !> Static (frequency independent) perturbation
-  subroutine perturbStat(env, parallelKS, filling, SSqrReal, eigvals, eigvecs, ham, over, orb,&
+  subroutine staticPerturWrtE(env, parallelKS, filling, SSqrReal, eigvals, eigvecs, ham, over, orb,&
       & nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqMixElements,&
-      & iEqOrbitals, tempElec, Ef, tFixEf, spinW, pChrgMixer, taggedWriter, tWriteAutoTest,&
-      & autoTestTagFile, tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
+      & iEqOrbitals, tempElec, Ef, tFixEf, spinW, tDFTBU, UJ, nUJ, iUJ, niUJ, iEqBlockDftbu,&
+      & pChrgMixer, taggedWriter, tWriteAutoTest, autoTestTagFile, tWriteTaggedOut,&
+      & taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -148,6 +145,24 @@ contains
     !> spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
+    !> is this a +U calculation
+    logical, intent(in) :: tDftbU
+
+    !> prefactor for +U potential
+    real(dp), allocatable, intent(in) :: UJ(:,:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), allocatable :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), allocatable :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), allocatable :: niUJ(:,:)
+
+    !> equivalence mapping for dual charge blocks
+    integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
+
     !> Charge mixing object
     type(OMixer), intent(inout) :: pChrgMixer
 
@@ -189,7 +204,12 @@ contains
     real(dp) :: dqOut(orb%mOrb,nAtom,size(ham, dim=2))
     real(dp) :: dqInpRed(nMixElements), dqOutRed(nMixElements)
     real(dp) :: dqDiffRed(nMixElements), sccErrorQ
-    real(dp) :: dqPerShell(orb%mOrb,nAtom,size(ham, dim=2))
+    real(dp) :: dqPerShell(orb%mShell,nAtom,size(ham, dim=2))
+
+    real(dp), allocatable :: dqBlockIn(:,:,:,:)
+    real(dp), allocatable :: dqBlockOut(:,:,:,:)
+
+    ! derivative of potentials
     type(TPotentials) :: dpotential
 
     real(dp), allocatable :: shellPot(:,:,:)
@@ -230,6 +250,11 @@ contains
 
     tSccCalc = (maxSccIter > 1)
 
+    if (tDFTBU) then
+      allocate(dqBlockIn(orb%mOrb,orb%mOrb,nAtom,nSpin))
+      allocate(dqBlockOut(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    end if
+
     call init(dpotential,orb,nAtom,nSpin)
 
     allocate(nFilled(nSpin))
@@ -242,7 +267,7 @@ contains
     nFilled = -1
     do iS = 1, nSpin
       do iLev = 1, nOrbs
-        if ( filling(iLev,1,iS) <= 10.0_dp*epsilon(1.0_dp) ) then
+        if ( filling(iLev,1,iS) < epsilon(1.0) ) then
           nFilled(iS) = iLev - 1
           exit
         end if
@@ -255,7 +280,7 @@ contains
     do iS = 1, nSpin
       do iLev = 1, nOrbs
         if ( abs( filling(iLev,1,iS) - real(3-nSpin,dp) ) &
-            & >= 10.0_dp*epsilon(1.0_dp)) then
+            & > epsilon(1.0)) then
           nEmpty(iS) = iLev
           exit
         end if
@@ -267,8 +292,13 @@ contains
 
     tMetallic = (.not.all(nFilled == nEmpty -1))
 
-    write(stdOut,"(1X,A,T40,I0)")'Fully or partly filled states end at :', nFilled
-    write(stdOut,"(1X,A,T40,I0)")'Fully or partly empty states start at:', nEmpty
+    if (nSpin == 1) then
+      write(stdOut,"(1X,A,T40,I0)")'Fully or partly filled states end at :', nFilled
+      write(stdOut,"(1X,A,T40,I0)")'Fully or partly empty states start at:', nEmpty
+    else
+      write(stdOut,"(1X,A,T40,I0,1X,I0)")'Fully or partly filled states end at :', nFilled
+      write(stdOut,"(1X,A,T40,I0,1X,I0)")'Fully or partly empty states start at:', nEmpty
+    end if
     if (tMetallic) then
       write(stdOut,*)'Metallic system'
     else
@@ -277,7 +307,7 @@ contains
 
     if (tMetallic) then
 
-      ! Number of electrons at the Fermi energy
+      ! Density of electrons at the Fermi energy
       do iS = 1, nSpin
         nf(iS) = 0.0_dp
         do ii = nEmpty(iS), nFilled(iS)
@@ -300,6 +330,10 @@ contains
 
       dqIn(:,:,:) = 0.0_dp
       dqOut(:,:,:) = 0.0_dp
+      if (tDFTBU) then
+        dqBlockIn(:,:,:,:) = 0.0_dp
+        dqBlockOut(:,:,:,:) = 0.0_dp
+      end if
 
       ! derivative of E.x
       dpotential%extAtom(:,:) = 0.0_dp
@@ -329,6 +363,10 @@ contains
         dpotential%intShell(:,:,:) = 0.0_dp
         dpotential%intBlock(:,:,:,:) = 0.0_dp
 
+        if (tDFTBU) then
+          dpotential%orbitalBlock(:,:,:,:) = 0.0_dp
+        end if
+
         if (tSccCalc .and. iSCCiter>1) then
           call sccCalc%updateCharges(env, dqIn, orb, species)
           call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
@@ -336,14 +374,25 @@ contains
           call sccCalc%getShiftPerL(dpotential%intShell(:,:,1))
 
           if (allocated(spinW)) then
+            call getChargePerShell(dqIn, orb, species, dqPerShell)
             call getSpinShift(shellPot, dqPerShell, species, orb, spinW)
             dpotential%intShell(:,:,:) = dpotential%intShell + shellPot
           end if
+
+          if (tDFTBU) then
+            ! note the derivatives of both FLL and pSIC are pSIC, which is case 2
+            call getDftbUShift(dpotential%orbitalBlock, dqBlockIn, species, orb, 2,&
+                & UJ, nUJ, niUJ, iUJ)
+          end if
+
         end if
 
         call total_shift(dpotential%intShell,dpotential%intAtom, orb,species)
         call total_shift(dpotential%intBlock,dpotential%intShell, orb,species)
         dpotential%intBlock(:,:,:,:) = dpotential%intBlock + dpotential%extBlock
+        if (tDFTBU) then
+          dpotential%intBlock(:,:,:,:) = dpotential%intBlock + dpotential%orbitalBlock
+        end if
 
         dham(:,:) = 0.0_dp
         call add_shift(dham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
@@ -405,46 +454,46 @@ contains
 
         #:else
 
-          work2(:,:,iKS) = 0.0_dp
-          call unpackHS(work2(:,:,iKS), dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+          work2(:,:,iS) = 0.0_dp
+          call unpackHS(work2(:,:,iS), dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
 
           ! form |c> H' <c|
-          call symm(work(:,:,iKS), 'l', work2(:,:,iKS), eigvecs(:,:,iKS))
-          work(:,:,iKS) = matmul(transpose(eigvecs(:,:,iKS)), work(:,:,iKS))
+          call symm(work(:,:,iS), 'l', work2(:,:,iS), eigvecs(:,:,iS))
+          work(:,:,iS) = matmul(transpose(eigvecs(:,:,iS)), work(:,:,iS))
 
-          ! diagonal elements of work(:,:,iKS) are now derivatives of eigenvalues if needed
+          ! diagonal elements of work(:,:,iS) are now derivatives of eigenvalues if needed
 
           ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
           ! weighting the elements
           do iFilled = 1, nFilled(iS)
             do iEmpty = nEmpty(iS), nOrbs
-              work(iEmpty, iFilled, iKS) = work(iEmpty, iFilled, iKS) * &
-                  & invDiff(eigvals(iFilled,iS, iK), eigvals(iEmpty, iS, iK), Ef(iS), tempElec)&
-                  & *theta(eigvals(iFilled, iS, iK), eigvals(iEmpty, iS, iK), tempElec)
+              work(iEmpty, iFilled, iS) = work(iEmpty, iFilled, iS) * &
+                  & invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec)&
+                  & *theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)
             end do
           end do
 
           ! calculate the derivatives of ci
           work(:, :nFilled(iS), iKS) =&
-              & matmul(eigvecs(:, nEmpty(iS):, iKS), work(nEmpty(iS):, :nFilled(iS), iKS))
+              & matmul(eigvecs(:, nEmpty(iS):, iS), work(nEmpty(iS):, :nFilled(iS), iS))
           ! zero the uncalculated virtual states
-          work(:, nFilled(iS)+1:, iKS) = 0.0_dp
+          work(:, nFilled(iS)+1:, iS) = 0.0_dp
 
           ! form the derivative of the density matrix
-          work2(:,:,iKS) = matmul(work(:, :nFilled(iS), iKS),&
-              & transpose(eigvecs(:, :nFilled(iS), iKS)))
-          work2(:,:,iKS) = work2(:,:,iKS) +&
-              & matmul(eigvecs(:, :nFilled(iS), iKS), transpose(work(:, :nFilled(iS), iKS)))
+          work2(:,:,iS) = matmul(work(:, :nFilled(iS), iS),&
+              & transpose(eigvecs(:, :nFilled(iS), iS)))
+          work2(:,:,iS) = work2(:,:,iS) +&
+              & matmul(eigvecs(:, :nFilled(iS), iS), transpose(work(:, :nFilled(iS), iS)))
 
         #:endif
+
 
         #:if WITH_SCALAPACK
           call packRhoRealBlacs(env%blacs, denseDesc, work2(:,:,iKS), neighbourList%iNeighbour,&
               & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drho(:,iS))
         #:else
-          !drho(:,iS) = 0.0_dp
-          call packHS(drho(:,iS), work2(:,:,iKS), neighbourList%iNeighbour, nNeighbourSK,&
+          call packHS(drho(:,iS), work2(:,:,iS), neighbourList%iNeighbour, nNeighbourSK,&
               & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         #:endif
 
@@ -463,7 +512,7 @@ contains
             iK = parallelKS%localKS(1, iKS)
             iS = parallelKS%localKS(2, iKS)
 
-            dqOut = 0.0_dp
+            dqOut(:,:,iS) = 0.0_dp
             call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
@@ -480,7 +529,7 @@ contains
                     & env%blacs%orbitalGrid%ncol)
                 if (jGlob >= nEmpty(iS) .and. jGlob <= nFilled(iS)) then
                   work(:,jj,iKS) = eigvecs(:,jj,iKS) * &
-                      & deltamn(eigVals(jGlob,1,iKS),Ef(iS),tempElec)*dEf(iS)
+                      & deltamn(eigVals(jGlob, 1, iKS), Ef(iS), tempElec) * dEf(iS)
                 end if
               end do
               call pblasfx_pgemm(work(:,:,iKS), denseDesc%blacsOrbSqr,eigvecs(:,:,iKS),&
@@ -489,13 +538,13 @@ contains
 
             #:else
 
-              work(:,:,iKS) = 0.0_dp
+              work(:,:,iS) = 0.0_dp
               do iFilled = nEmpty(iS), nFilled(iS)
-                work(:,iFilled, iKS) = eigVecs(:,iFilled,iKS) * &
-                    & deltamn(eigvals(iFilled,iK,iS), Ef(iS), tempElec)*dEf(iS)
+                work(:, iFilled, iS) = eigVecs(:, iFilled, iS) * &
+                    & deltamn(eigvals(iFilled, iK, iS), Ef(iS), tempElec) * dEf(iS)
               end do
-              work2(:,:,iKS) = real(3-nSpin,dp) * matmul(work(:, nEmpty(iS):nFilled(iS), iKS),&
-                  & transpose(eigvecs(:, nEmpty(iS):nFilled(iS), iKS)))
+              work2(:, :, iS) = real(3-nSpin,dp) * matmul(work(:, nEmpty(iS):nFilled(iS), iS),&
+                  & transpose(eigvecs(:, nEmpty(iS):nFilled(iS), iS)))
 
             #:endif
 
@@ -504,7 +553,7 @@ contains
               call packRhoRealBlacs(env%blacs, denseDesc, work2(:,:,iKS), neighbourList%iNeighbour,&
                   & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drhoExtra(:,iS))
            #:else
-              call packHS(drhoExtra(:,iS), work2(:,:,iKS), neighbourList%iNeighbour, nNeighbourSK,&
+              call packHS(drhoExtra(:,iS), work2(:,:,iS), neighbourList%iNeighbour, nNeighbourSK,&
                   & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
            #:endif
 
@@ -526,25 +575,24 @@ contains
 
         call ud2qm(drho)
 
-        dqOut = 0.0_dp
+        dqOut(:,:,:) = 0.0_dp
         do iS = 1, nSpin
           call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
               & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-          !if (tDFTBU) then
-          !  qBlockOut(:,:,:,iS) = 0.0_dp
-          !  call mulliken(qBlockOut(:,:,:,iS), over, drho(:,iS), &
-          !      &orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-          !end if
+          if (tDFTBU) then
+            dqBlockOut(:,:,:,iS) = 0.0_dp
+            call mulliken(dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
+             & nNeighbourSK, img2CentCell, iSparseStart)
+          end if
         end do
 
         if (tSccCalc) then
           dqOutRed = 0.0_dp
           call OrbitalEquiv_reduce(dqOut, iEqOrbitals, orb, &
               & dqOutRed(:nIneqMixElements))
-          !if (tDFTBU) then
-          !  call AppendBlock_reduce( qBlockOut, iEqBlockDFTBU, orb, &
-          !      & qOutRed )
-          !end if
+          if (tDFTBU) then
+            call AppendBlock_reduce(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed )
+          end if
 
           dqDiffRed(:) = dqOutRed(:) - dqInpRed(:)
           sccErrorQ = maxval(abs(dqDiffRed))
@@ -556,9 +604,9 @@ contains
             if (iSCCIter == 1) then
               dqIn(:,:,:) = dqOut(:,:,:)
               dqInpRed(:) = dqOutRed(:)
-              !if (tDFTBU) then
-              !  qBlockIn(:,:,:,:) = qBlockOut(:,:,:,:)
-              !end if
+              if (tDFTBU) then
+                dqBlockIn(:,:,:,:) = dqBlockOut(:,:,:,:)
+              end if
             else
 
               call mix(pChrgMixer, dqInpRed, dqDiffRed)
@@ -570,11 +618,11 @@ contains
 
               call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, &
                   & orb, dqIn)
-              !if (tDFTBU) then
-              !  qBlockIn = 0.0_dp
-              !  call Block_expand( qInpRed ,iEqBlockDFTBU, orb, &
-              !      & qBlockIn, specie0, nUJ, niUJ, iUJ, orbEquiv=iEqOrbitals )
-              !end if
+              if (tDFTBU) then
+                dqBlockIn(:,:,:,:) = 0.0_dp
+                call Block_expand( dqInpRed ,iEqBlockDFTBU, orb, dqBlockIn, species(:nAtom), nUJ,&
+                    & niUJ, iUJ, orbEquiv=iEqOrbitals )
+              end if
             end if
           end if
         else
@@ -633,7 +681,7 @@ contains
     write(fdDetailedOut,*)
 
 
-  end subroutine perturbStat
+  end subroutine staticPerturWrtE
 
 
 !  subroutine perturbDyn(mympi, allproc, grpproc, gridAtom, &
