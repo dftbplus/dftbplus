@@ -15,11 +15,11 @@ ifeq ($(strip $(WITH_MPI)),1)
 # Compilers
 # Replace mpifort with mpif90 in case your MPI does not support it yet
 FXX = mpifort
-CC = gcc
+CC = nagfor
 
 # Compiler options
 FXXOPT = -O2 -ieee=full -mismatch -openmp
-CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+CCOPT = =C -O2 -ieee=full -mismatch -openmp
 
 # Linker
 LN = $(FXX)
@@ -71,11 +71,11 @@ else
 
 # Compilers
 FXX = nagfor
-CC = gcc
+CC = nagfor
 
 # Compiler options
 FXXOPT = -O2 -ieee=full -openmp
-CCOPT = -O2 -funroll-all-loops -fall-intrinsics
+CCOPT = =C -O2 -ieee=full -openmp
 
 # Linker
 LN = $(FXX)
@@ -106,6 +106,10 @@ endif
 # General settings
 ############################################################################
 
+# Linker for c executables
+LN_C = $(CC)
+LNOPT_C = =C -openmp
+
 # Preprocessor
 FYPP = $(ROOT)/external/fypp/bin/fypp
 FYPPOPT = -DINTERNAL_ERFC -DEXP_TRAP
@@ -132,6 +136,9 @@ ARPACK_LIBS = -larpack
 ARPACK_NEEDS_LAPACK = 0
 
 
+# Additional libraries needed to be linked when linking C-executables
+OTHERLIBS_C =
+
 ############################################################################
 # Developer settings
 ############################################################################
@@ -139,9 +146,9 @@ ARPACK_NEEDS_LAPACK = 0
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     FXXOPT = -ieee=full -f2008 -g -gline -mismatch
-    CCOPT = -g -Wall -pedantic -fall-intrinsics
+    CCOPT = =C -g -gline -mismatch
 endif
 ifeq ($(strip $(DEBUG)),2)
     FXXOPT = -ieee=full -f2008 -g -gline -C=all -nan -mtrace=all -mismatch
-    CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
+    CCOPT = =C -ieee=full -f2008 -g -gline -C=all -nan -mtrace=all -mismatch
 endif

@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Code to calculate forces for several different types of calculation (non-scc, scc, sDFTB etc)
-module forces
-  use assert
-  use accuracy
-  use nonscc, only : NonSccDiff
-  use scc
-  use commontypes
-  use slakocont
-  use schedule
-  use environment
+module dftbp_forces
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_scc
+  use dftbp_commontypes
+  use dftbp_slakocont
+  use dftbp_schedule
+  use dftbp_environment
   implicit none
 
   private
@@ -417,4 +417,4 @@ contains
 
   end subroutine derivative_iBlock
 
-end module forces
+end module dftbp_forces

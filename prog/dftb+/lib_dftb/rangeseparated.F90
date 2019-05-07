@@ -9,17 +9,17 @@
 
 
 !> Contains range separated related routines.
-module rangeseparated
-  use accuracy
-  use environment
-  use assert
-  use message
-  use nonscc, only : NonSccDiff
-  use SlakoCont, only : OSlakoCont
-  use CommonTypes
-  use sorting
-  use sparse2dense, only : blockSymmetrizeHS
-  use globalenv, only : stdOut
+module dftbp_rangeseparated
+  use dftbp_accuracy
+  use dftbp_environment
+  use dftbp_assert
+  use dftbp_message
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_SlakoCont, only : OSlakoCont
+  use dftbp_CommonTypes
+  use dftbp_sorting
+  use dftbp_sparse2dense, only : blockSymmetrizeHS
+  use dftbp_globalenv, only : stdOut
   implicit none
   private
 
@@ -1279,4 +1279,4 @@ contains
 
   end function evaluateLREnergyDirect
 
-end module rangeseparated
+end module dftbp_rangeseparated

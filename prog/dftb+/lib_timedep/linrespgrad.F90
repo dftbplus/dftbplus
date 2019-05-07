@@ -8,24 +8,24 @@
 #:include 'common.fypp'
 
 !> Linear response excitations and gradients with respect to atomic coordinates
-module linrespgrad
-  use assert
-  use arpack
-  use linrespcommon
-  use commontypes
-  use slakocont
-  use shortgamma
-  use accuracy
-  use constants, only : Hartree__eV, au__Debye
-  use nonscc, only : NonSccDiff
-  use scc, only : TScc
-  use blasroutines
-  use eigensolver
-  use message
-  use taggedoutput
-  use sorting
-  use qm
-  use transcharges
+module dftbp_linrespgrad
+  use dftbp_assert
+  use dftbp_arpack
+  use dftbp_linrespcommon
+  use dftbp_commontypes
+  use dftbp_slakocont
+  use dftbp_shortgamma
+  use dftbp_accuracy
+  use dftbp_constants, only : Hartree__eV, au__Debye
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_scc, only : TScc
+  use dftbp_blasroutines
+  use dftbp_eigensolver
+  use dftbp_message
+  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
+  use dftbp_sorting
+  use dftbp_qm
+  use dftbp_transcharges
   implicit none
   private
 
@@ -75,10 +75,11 @@ contains
   !> based on Time Dependent DFRT
   subroutine LinRespGrad_old(tSpin, natom, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dq,&
       & coord0, nexc, nstat0, symc, SSqr, filling, species0, HubbardU, spinW, rnel, iNeighbour,&
-      & img2CentCell, orb, tWriteTagged, fdTagged, fdMulliken, fdCoeffs, tGrndState, fdXplusY,&
-      & fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc,&
+      & img2CentCell, orb, tWriteTagged, fdTagged, taggedWriter, fdMulliken, fdCoeffs, tGrndState,&
+      & fdXplusY, fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, &
       & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
-      & allOmega, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural, naturalOrbs)
+      & allOmega, onsMEs, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
+      & naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -146,6 +147,9 @@ contains
     !> file descriptor for the tagged data output
     integer, intent(in) :: fdTagged
 
+    !> tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     !> file unit for excited Mulliken populations?
     integer, intent(in) :: fdMulliken
 
@@ -201,6 +205,9 @@ contains
     !> excitation energy of all states that have been solved
     real(dp), allocatable, intent(inout) :: allOmega(:)
 
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
@@ -232,7 +239,6 @@ contains
     real(dp), allocatable :: t(:,:), rhs(:), woo(:), wvv(:), wov(:)
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
-
 
     !> array from pairs of single particles states to compound index - should replace with a more
     !> compact data structure in the cases where there are oscilator windows
@@ -519,7 +525,7 @@ contains
       sym = symmetries(isym)
       call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
           & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
-          & fdArnoldiDiagnosis, eval, evec )
+          & fdArnoldiDiagnosis, eval, evec, onsMEs, orb)
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, snglPartTransDip(1:nxov_rd,:), wij(:nxov_rd), eval, evec,&
@@ -529,10 +535,12 @@ contains
         call getExcSpin(Ssq, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd), filling, stimc,&
             & grndEigVecs)
         call writeExcitations(sym, osz, nexc, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd),&
-            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc, Ssq)
+            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter,&
+            & fdExc, Ssq)
       else
         call writeExcitations(sym, osz, nexc, nxov_ud(1), getij, win, eval, evec, wij(:nxov_rd),&
-            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc)
+            & fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter,&
+            & fdExc)
       end if
 
       if (allocated(allOmega)) then
@@ -593,12 +601,11 @@ contains
       end if
 
       ! redefine if needed (generalize it for spin-polarized and fractional occupancy)
-      nocc = int(rnel) / 2
+      nocc = nint(rnel) / 2
+      nocc_r = nOcc
+      nvir_r = nOrb - nOcc
 
-      ! count virtual and occupied states
-      call getNorb_r(nxov_rd, win, getij, nocc, nocc_r, nvir_r)
-
-      ! size of occ-occ and virt-virt blocks
+      ! elements in a triangle plus the diagonal of the occ-occ and virt-virt blocks
       nxoo_r = (nocc_r * (nocc_r + 1)) / 2
       nxvv_r = (nvir_r * (nvir_r + 1)) / 2
 
@@ -670,7 +677,7 @@ contains
   !> Builds and diagonalizes the excitation matrix via iterative technique.
   subroutine buildAndDiagExcMatrix(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
       & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
-      & eval, evec)
+      & eval, evec, onsMEs, orb)
 
     !> spin polarisation?
     logical, intent(in) :: tSpin
@@ -725,6 +732,12 @@ contains
 
     !> eigenvectors for transitions
     real(dp), intent(out) :: evec(:,:)
+
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
 
     real(dp), allocatable :: workl(:), workd(:), resid(:), vv(:,:), qij(:)
     real(dp) :: sigma
@@ -790,7 +803,7 @@ contains
       ! Action of excitation supermatrix on supervector
       call omegatvec(tSpin, workd(ipntr(1):ipntr(1)+nxov-1), workd(ipntr(2):ipntr(2)+nxov-1),&
           & wij, sym, win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat,&
-          & species0, spinW, transChrg)
+          & species0, spinW, onsMEs, orb, transChrg)
 
     end do
 
@@ -831,7 +844,7 @@ contains
           & non-orthog'
       do iState = 1, nExc
         call omegatvec(tSpin, evec(:,iState), Hv, wij, sym, win, nmatup, iAtomStart, stimc,&
-            & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg)
+            & grndEigVecs, filling, getij, gammaMat, species0, spinW, onsMEs, orb, transChrg)
         write(fdArnoldiDiagnosis,"(I4,4E16.8)")iState, dot_product(Hv,evec(:,iState))-eval(iState),&
             & sqrt(sum( (Hv-evec(:,iState)*eval(iState) )**2 )), orthnorm(iState,iState) - 1.0_dp,&
             & max(maxval(orthnorm(:iState-1,iState)), maxval(orthnorm(iState+1:,iState)))
@@ -1261,7 +1274,7 @@ contains
     if (sym == "S") then
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
-        call indxoo(homo, nocc, ij, i, j)
+        call indxoo(ij, i, j)
         qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
         qgamxpyq(ij) = 2.0_dp * sum(qij * gamxpyq)
@@ -1269,7 +1282,7 @@ contains
     else
       do ij = 1, nxoo
         qgamxpyq(ij) = 0.0_dp
-        call indxoo(homo, nocc, ij, i, j)
+        call indxoo(ij, i, j)
         qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
         qgamxpyq(ij) = 2.0_dp * sum(qij * xpyq * spinW(species0))
       end do
@@ -1296,7 +1309,7 @@ contains
     ! gamxpyq(iAt2) = sum_ij q_ij(iAt2) T_ij
     gamxpyq(:) = 0.0_dp
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij = transq(i, j, iAtomStart, updwn, stimc, c)
       if (i == j) then
         gamxpyq(:) = gamxpyq(:) + t(i,j) * qij(:)
@@ -1326,7 +1339,7 @@ contains
 
     ! Furche vectors
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
       woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamqt)
     end do
@@ -1524,7 +1537,7 @@ contains
 
     ! sum_iAt1 qij(iAt1) gamxpyq(iAt1)
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       qij(:) = transq(i, j, iAtomStart, updwn, stimc, c)
       ! W contains 1/2 for i == j.
       woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamxpyq)
@@ -1532,7 +1545,7 @@ contains
 
     ! Divide diagonal elements of W_ij by 2.
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       if (i == j) then
         woo(ij) = 0.5_dp * woo(ij)
       end if
@@ -1871,7 +1884,7 @@ contains
     wcc(:,:) = 0.0_dp
 
     do ij = 1, nxoo
-      call indxoo(homo, nocc, ij, i, j)
+      call indxoo(ij, i, j)
       ! replace with DSYR2 call :
       do mu = 1, norb
         do nu = 1, norb
@@ -2033,7 +2046,7 @@ contains
 
       if (present(occNatural)) then
         naturalOrbs(:,:,1) = t2
-        call evalCoeffs(naturalOrbs(:,:,1) ,occNatural,grndEigVecs(:,:,1))
+        call evalCoeffs(naturalOrbs(:,:,1), occNatural, grndEigVecs(:,:,1))
         if (tCoeffs) then
           ALLOCATE(occtmp(size(occ)))
           occTmp = occNatural
@@ -2041,7 +2054,7 @@ contains
       else
         ALLOCATE(occtmp(size(occ)))
         occtmp = 0.0_dp
-        call evalCoeffs(t2,occNatural,grndEigVecs(:,:,1))
+        call evalCoeffs(t2, occtmp, grndEigVecs(:,:,1))
       end if
 
       ! Better to get this by post-processing DFTB+ output, but here for
@@ -2064,7 +2077,7 @@ contains
 
 
   !> Project MO density matrix onto ground state orbitals
-  subroutine evalCoeffs(t2,occ,eig)
+  subroutine evalCoeffs(t2, occ, eig)
 
     !> density matrix
     real(dp), intent(inout) :: t2(:,:)
@@ -2089,7 +2102,7 @@ contains
   !> Write out transitions from ground to excited state along with single particle transitions and
   !> dipole strengths
   subroutine writeExcitations(sym, osz, nexc, nmatup, getij, win, eval, evec, wij, fdXplusY,&
-      & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, fdExc, Ssq)
+      & fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
 
     !> Symmetry label for the type of transition
     character, intent(in) :: sym
@@ -2135,6 +2148,9 @@ contains
 
     !> file unit for tagged output (> -1 for write out)
     integer, intent(in) :: fdTagged
+
+    !> tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> file unit for excitation energies
     integer, intent(in) :: fdExc
@@ -2310,8 +2326,8 @@ contains
       endif
     end do
     if (tWriteTagged) then
-      call writeTagged(fdTagged, tag_excEgy, eDeg(:iDeg))
-      call writeTagged(fdTagged, tag_excOsc, oDeg(:iDeg))
+      call taggedWriter%write(fdTagged, tagLabels%excEgy, eDeg(:iDeg))
+      call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg(:iDeg))
     end if
 
   end subroutine writeExcitations
@@ -2415,4 +2431,4 @@ contains
 
   end subroutine writeSPExcitations
 
-end module linrespgrad
+end module dftbp_linrespgrad

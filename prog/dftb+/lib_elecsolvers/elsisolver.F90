@@ -8,27 +8,27 @@
 #:include 'common.fypp'
 
 !> Contains the interface to the ELSI solvers
-module elsisolver
+module dftbp_elsisolver
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
-  use accuracy, only : dp, lc
-  use environment, only : TEnvironment, globalTimers
-  use elecsolvertypes, only : electronicSolverTypes
-  use elsiiface
-  use elsicsc
-  use densedescr
-  use periodic
-  use orbitals
-  use message, only : error, cleanshutdown
-  use commontypes, only : TParallelKS, TOrbitals
-  use energies, only : TEnergies
-  use sparse2dense
-  use assert
-  use spin, only : ud2qm
-  use angmomentum, only : getLOnsite
-  use spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
-  use potentials, only : TPotentials
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_environment, only : TEnvironment, globalTimers
+  use dftbp_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elsiiface
+  use dftbp_elsicsc
+  use dftbp_densedescr
+  use dftbp_periodic
+  use dftbp_orbitals
+  use dftbp_message, only : error, cleanshutdown
+  use dftbp_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_energies, only : TEnergies
+  use dftbp_sparse2dense
+  use dftbp_assert
+  use dftbp_spin, only : ud2qm
+  use dftbp_angmomentum, only : getLOnsite
+  use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
+  use dftbp_potentials, only : TPotentials
   implicit none
   private
 
@@ -1794,4 +1794,4 @@ contains
 
 #:endif
 
-end module elsisolver
+end module dftbp_elsisolver

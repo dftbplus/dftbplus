@@ -8,11 +8,11 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program polyvalue
-  use accuracy
-  use io
-  use reppoly
-  use fileid
-  use message
+  use dftbp_accuracy
+  use dftbp_io
+  use dftbp_reppoly
+  use dftbp_fileid
+  use dftbp_message
   implicit none
 
   character(lc) :: arg, fname

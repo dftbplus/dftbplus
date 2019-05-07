@@ -816,8 +816,8 @@ addition to the common XLBOMD settings above:
   then use a less strict SCC tolerance once the integrator is active).
 \end{description}
 
-The \is{XlbomdFast} block allows has the following specific options in addition
-to the common XLBOMD settings above:
+The \is{XlbomdFast} block has the following specific options in addition to
+the common XLBOMD settings above:
 
 \begin{ptable}
   \kw{TransientSteps} & i & & 10 & \\
@@ -997,9 +997,11 @@ following properties:
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{RangeSep} & p &  & \cb & \pref{sec:dftbp.RangeSep} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
+  \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
-  \kw{CustomisedHubbards} & p & & & \\
+  \kw{CustomisedHubbards} & p & SCC = Yes & & \\
+  \kw{CustomOccupations} & p & SCC = Yes & & \\
   \kw{TruncateSKRange} & p & & & \\
   \hline
 \end{ptable}
@@ -1236,6 +1238,9 @@ following properties:
 \item[\is{Dispersion}] Specifies which kind of dispersion correction
   to apply. See p.~\pref{sec:dftbp.Dispersion}.
 
+\item[\is{OnSiteCorrection}] Used to include the on-site matrix elements of
+  Dom\'inguez {\it et al.}~\cite{dominguez15}. See p.~\pref{sec:dftbp.Onsites}.
+  
 \item[\is{Differentiation}] Specifies how to calculate finite difference
   derivatives in the force routines. See p.~\pref{sec:dftbp.Differentiation}.
 
@@ -1260,6 +1265,36 @@ following properties:
     Si = 0.32 0.24
   }
   \end{verbatim}
+
+\item[\kw{CustomOccupations}] Enables overriding the reference neutral atom
+  electronic occupations of the shells. Note that the atom remains neutral since
+  a corresponding ionic counter charge is implicitly added to its core. This
+  option can be used, for example, to simulate effective doping by setting a
+  slightly larger or smaller number of electrons on certain atoms.
+
+  Example:
+  \begin{verbatim}
+  CustomOccupations{
+    ReferenceOccupation{
+      Atoms={1:30}
+      p=2.01
+    }
+    ReferenceOccupation{
+      Atoms={31:60}
+      p=1.99
+    }
+  }
+  \end{verbatim}
+  
+  The example above sets a filling population of +0.01e or -0.01e in the p shell
+  of the corresponding atom indices. When the states are filled up, the electron
+  excess or depletion results in a shift of the Fermi level in the bands.
+
+  \textbf{Warning:} This option is for experts only! Overriding values stored in
+  the SK-files may result in \textbf{inconsistent results}. Please look at the
+  transport section of the
+  \href{https://dftbplus-recipes.readthedocs.io/en/latest/}{dftb+ recipes} to
+  see an example of the correct use of this option.
 
 \item[\is{TruncateSKRange}] Enables overriding of the number of elements to be
   read from the Slater-Koster parameters, shortening the interaction range of
@@ -1608,8 +1643,10 @@ distribution:
 \subsubsection{SpinConstants}
 \label{sec:dftbp.SpinConstants}
 
-For each atomic species in the calculation the spin coupling constants for that
-atom must be specified.
+This environment suplies the atomic constants required for either spin polarised
+calculations or when evaluating properties which depend on spin interactions
+(triplet excitations for example).  In these cases, for each atomic species in
+the calculation the spin coupling constants for that atom must be specified.
 
 When \is{OrbitalResolvedSCC} = \is{No}, an extra keyword in this block controls
 whether the spin constants are resolved by shell or are identical for all
@@ -2795,6 +2832,35 @@ Algorithm = NB {
 
 \end{description}
 \end{description}
+
+\subsection{On site corrections}
+\label{sec:dftbp.Onsites}
+
+This block enables corrections for on-site matrix elements which improve the
+description of multi-centre integrals~\cite{garcia14Thesis} leading to, for
+example, improved hydrogen-bond energies~\cite{dominguez15}. 
+
+For each chemical species, the spin-same-spin and spin-different-spin constants
+should be specified for all combinations of atomic shells. {\bf note:} the
+matrix of constants is symmetric and the purely s-with-s entries are zero (the
+code ignores their value due to symmetry).
+
+Example:
+\begin{verbatim}
+OnSiteCorrection= {
+    # same spin oxygen
+    Ouu = {0.00000  0.08672
+           0.08672 -0.00523}
+    # hetero-spin oxygen
+    Oud = {0.00000  0.14969
+           0.14969  0.03834}
+    # H all zero
+    Huu = {0}
+    Hud = {0}
+}
+\end{verbatim}
+
+Some on-site constants are given in appendix~\ref{app:onsiteconst}.
 
 \subsection{Differentiation}
 \label{sec:dftbp.Differentiation}

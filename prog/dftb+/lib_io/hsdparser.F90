@@ -16,12 +16,12 @@
 !> detected during the processing of the DOM-tree.
 !>
 !> For the specification of the HSD format see the sample input
-module hsdparser
-  use assert
-  use message
-  use charmanip
-  use xmlutils
-  use xmlf90
+module dftbp_hsdparser
+  use dftbp_assert
+  use dftbp_message
+  use dftbp_charmanip
+  use dftbp_xmlutils
+  use dftbp_xmlf90
   implicit none
   private
 
@@ -677,7 +677,7 @@ contains
     character(len=*), intent(in) :: message
 
     !> Name of the current file
-    character(len=lc), intent(in) :: file
+    character(*), intent(in) :: file
 
     !> Number of current line
     integer, intent(in) :: line
@@ -685,7 +685,11 @@ contains
     character(len=lc) :: msgArray(2)
 
     !! Watch out to trunk away enough from the file name to prevent overflow
-    write (msgArray(1), 9991) trim(file(1:lc-40)), line
+    if (len_trim(file) > lc - 40) then
+      write (msgArray(1), 9991) trim(file(1:lc-40)), line
+    else
+      write (msgArray(1), 9991) trim(file), line
+    end if
 9991 format("HSD parser error: File '",A,"', Line",I5,".")
     write (msgArray(2), "(A)") trim(message(:min(lc, len(message))))
     call error(msgArray)
@@ -1025,4 +1029,4 @@ contains
 
   end subroutine getHSDPath_recursive
 
-end module hsdparser
+end module dftbp_hsdparser

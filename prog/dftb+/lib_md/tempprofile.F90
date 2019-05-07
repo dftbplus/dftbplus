@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Contains simple temperature profiles for molecular dynamics.
-module tempprofile
-  use assert
-  use accuracy
+module dftbp_tempprofile
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
   private
 
@@ -190,4 +190,4 @@ contains
 
   end subroutine TempProfile_getTemperature
 
-end module tempprofile
+end module dftbp_tempprofile

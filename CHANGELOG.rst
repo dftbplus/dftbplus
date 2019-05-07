@@ -19,6 +19,10 @@ Added
 
 - Caching for transition charges in excited state.
 
+- DFTB+ can be compiled as a library and accessed via high level API (version
+  number is in the file api/mm/API_VERSION below the main directory).
+
+- Onsite corrected hamiltonian for ground and Casidat excited state energies.
 
 Changed
 -------
@@ -26,6 +30,8 @@ Changed
 
 Fixed
 -----
+
+- Orbital-resolved projected eigenstates (shell-resolved were correct)
 
 
 

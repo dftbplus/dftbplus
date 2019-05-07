@@ -8,13 +8,13 @@
 #:include 'common.fypp'
 
 program dftbplus
-  use globalenv
-  use environment
-  use main, only : runDftbPlus
-  use inputdata_module, only : inputData
-  use formatout, only : printDftbHeader
-  use parser, only : parseHsdInput
-  use initprogram, only : initProgramVariables
+  use dftbp_globalenv
+  use dftbp_environment
+  use dftbp_main, only : runDftbPlus
+  use dftbp_inputdata_module, only : inputData
+  use dftbp_formatout, only : printDftbHeader
+  use dftbp_hsdhelpers, only : parseHsdInput
+  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables
   implicit none
 
   character(len=*), parameter :: releaseName = '${RELEASE}$'
@@ -31,6 +31,7 @@ program dftbplus
   call initProgramVariables(input, env)
   deallocate(input)
   call runDftbPlus(env)
+  call destructProgramVariables()
   call env%destruct()
   call destructGlobalEnv()
 

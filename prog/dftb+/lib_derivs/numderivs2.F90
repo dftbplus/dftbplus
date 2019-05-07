@@ -9,9 +9,9 @@
 
 !> Module containing routines for numerical second derivs of energy using central finite difference.
 !> To Do: Option to restart the calculation
-module numderivs2
-  use assert
-  use accuracy, only : dp
+module dftbp_numderivs2
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
   implicit none
   private
 
@@ -180,4 +180,4 @@ contains
 
   end subroutine getDerivMatrixPtr
 
-end module numderivs2
+end module dftbp_numderivs2

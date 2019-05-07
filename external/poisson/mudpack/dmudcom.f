@@ -2173,8 +2173,8 @@ c----+|----------------------------------------------------------------|
 c----+|----------------------------------------------------------------|
 c----+|----------------------------------------------------------------|
       subroutine sgsl(a,lda,n,ipvt,b,job)
-      integer lda,n,ipvt(1),job                                                 
-      double precision a(lda,1),b(1)                                                        
+      integer lda,n,ipvt(n),job
+      double precision a(lda,n),b(n)
       double precision sdt,t
       integer k,kb,l,nm1                                                        
 
