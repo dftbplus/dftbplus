@@ -11,7 +11,7 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB {
   SCC = Yes
-  SCCTolerance = 1.0E-10  # Very small!
+  SCCTolerance = 1.0E-9  # Very small!
   
   MaxAngularMomentum {
     O = "p"
