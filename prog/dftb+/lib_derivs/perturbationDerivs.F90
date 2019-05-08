@@ -57,9 +57,9 @@ contains
   subroutine staticPerturWrtE(env, parallelKS, filling, SSqrReal, eigvals, eigvecs, ham, over, orb,&
       & nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqMixElements,&
-      & iEqOrbitals, tempElec, Ef, tFixEf, spinW, tDFTBU, UJ, nUJ, iUJ, niUJ, iEqBlockDftbu,&
-      & onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest, autoTestTagFile,&
-      & tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
+      & iEqOrbitals, tempElec, Ef, tFixEf, tSpinSharedEf, spinW, tDFTBU, UJ, nUJ, iUJ, niUJ,&
+      & iEqBlockDftbu, onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest,&
+      & autoTestTagFile, tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -148,6 +148,9 @@ contains
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
+
+    !> Is the Fermi level common accross spin channels?
+    logical, intent(in) :: tSpinSharedEf
 
     !> spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
@@ -247,6 +250,14 @@ contains
     call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
         & env%blacs%columnBlockSize, desc)
   #:endif
+
+    if (tFixEf) then
+      call error("Perturbation expressions not currently implemented for fixed Fermi energy")
+    end if
+    if (tSpinSharedEf) then
+      call error("Perturbation expressions not currently implemented for shared Fermi energy&
+          & between spins")
+    end if
 
     write(stdOut,*)
     write(stdOut,*)'Perturbation calculation of polarisation'
@@ -518,7 +529,7 @@ contains
       #:endif
 
         drhoextra = 0.0_dp
-        if ((.not. tFixEf) .and. tMetallic) then
+        if (tMetallic) then
           ! correct for Fermi level shift for q=0 fields
 
           do iKS = 1, parallelKS%nLocalKS
