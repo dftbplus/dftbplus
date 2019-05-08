@@ -54,12 +54,12 @@ module dftbp_perturbderivs
 
 contains
 
-  !> Static (frequency independent) perturbation
-  subroutine staticPerturWrtE(env, parallelKS, filling, SSqrReal, eigvals, eigvecs, ham, over, orb,&
-      & nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
+  !> Static (frequency independent) perturbation at q=0
+  subroutine staticPerturWrtE(env, parallelKS, filling, SSqrReal, eigvals, eigVecsReal, ham, over,&
+      & orb, nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqMixElements,&
-      & iEqOrbitals, tempElec, Ef, tFixEf, tSpinSharedEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
-      & niUJ, iEqBlockDftbu, onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest,&
+      & iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ, niUJ,&
+      & iEqBlockDftbu, onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest,&
       & autoTestTagFile, tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
 
     !> Environment settings
@@ -78,7 +78,7 @@ contains
     real(dp), intent(in) :: eigvals(:,:,:)
 
     !> ground state eigenvectors
-    real(dp), intent(in) :: eigvecs(:,:,:)
+    real(dp), intent(in) :: eigVecsReal(:,:,:)
 
     !> Sparse Hamiltonian
     real(dp), intent(in) :: ham(:,:)
@@ -149,9 +149,6 @@ contains
 
     !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
     logical, intent(in) :: tFixEf
-
-    !> Is the Fermi level common accross spin channels?
-    logical, intent(in) :: tSpinSharedEf
 
     !> spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
@@ -229,14 +226,14 @@ contains
 
     real(dp), allocatable :: shellPot(:,:,:)
 
-    real(dp) :: dci(size(eigvecs,dim=1),size(eigvecs,dim=2), &
-        & size(eigvecs,dim=3))
+    real(dp) :: dci(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
+        & size(eigVecsReal,dim=3))
     real(dp) :: deigvals(size(eigvals,dim=1),size(eigvals,dim=2), &
         & size(eigvals,dim=3))
-    real(dp) :: work(size(eigvecs,dim=1),size(eigvecs,dim=2), &
-        & size(eigvecs,dim=3))
-    real(dp) :: work2(size(eigvecs,dim=1),size(eigvecs,dim=2), &
-        & size(eigvecs,dim=3))
+    real(dp) :: work(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
+        & size(eigVecsReal,dim=3))
+    real(dp) :: work2(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
+        & size(eigVecsReal,dim=3))
 
     real(dp) :: nF(size(ham, dim=2)), dEf(size(ham, dim=2))
 
@@ -257,10 +254,6 @@ contains
 
     if (tFixEf) then
       call error("Perturbation expressions not currently implemented for fixed Fermi energy")
-    end if
-    if (tSpinSharedEf) then
-      call error("Perturbation expressions not currently implemented for shared Fermi energy&
-          & between spins")
     end if
     if (allocated(thirdOrd)) then
       call error("Perturbation expressions not currently implemented for 3rd order model")
@@ -446,11 +439,11 @@ contains
               & iSparseStart, img2CentCell, denseDesc, work(:,:,iKS))
 
           ! dH times c_i
-          call pblasfx_psymm(work(:,:,iKS), denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
+          call pblasfx_psymm(work(:,:,iKS), denseDesc%blacsOrbSqr, eigVecsReal(:,:,iKS),&
               & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr) !, mm=nFilled(iS))
 
           ! c_i times dH times c_i
-          call pblasfx_pgemm(eigvecs(:,:,iKS), denseDesc%blacsOrbSqr, work2(:,:,iKS),&
+          call pblasfx_pgemm(eigVecsReal(:,:,iKS), denseDesc%blacsOrbSqr, work2(:,:,iKS),&
               & denseDesc%blacsOrbSqr,  work(:,:,iKS), denseDesc%blacsOrbSqr, transa="T")
 
           ! derivative of eigenvalues stored diagonal of matrix work, from <c|h'|c>
@@ -471,11 +464,11 @@ contains
           end do
 
           ! Derivatives of states
-          call pblasfx_pgemm(eigvecs(:,:,iKS), denseDesc%blacsOrbSqr, work(:,:,iKS),&
+          call pblasfx_pgemm(eigVecsReal(:,:,iKS), denseDesc%blacsOrbSqr, work(:,:,iKS),&
               & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr)
 
           ! Form derivative of density matrix
-          call pblasfx_pgemm(work2(:,:,iKS), denseDesc%blacsOrbSqr,eigvecs(:,:,iKS),&
+          call pblasfx_pgemm(work2(:,:,iKS), denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
               & denseDesc%blacsOrbSqr, work(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
               & kk=nFilled(iS))
           work2(:,:,iKS) = work(:,:,iKS)
@@ -490,8 +483,8 @@ contains
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
 
           ! form |c> H' <c|
-          call symm(work(:,:,iS), 'l', work2(:,:,iS), eigvecs(:,:,iS))
-          work(:,:,iS) = matmul(transpose(eigvecs(:,:,iS)), work(:,:,iS))
+          call symm(work(:,:,iS), 'l', work2(:,:,iS), eigVecsReal(:,:,iS))
+          work(:,:,iS) = matmul(transpose(eigVecsReal(:,:,iS)), work(:,:,iS))
 
           ! diagonal elements of work(:,:,iS) are now derivatives of eigenvalues if needed
 
@@ -507,15 +500,15 @@ contains
 
           ! calculate the derivatives of ci
           work(:, :nFilled(iS), iKS) =&
-              & matmul(eigvecs(:, nEmpty(iS):, iS), work(nEmpty(iS):, :nFilled(iS), iS))
+              & matmul(eigVecsReal(:, nEmpty(iS):, iS), work(nEmpty(iS):, :nFilled(iS), iS))
           ! zero the uncalculated virtual states
           work(:, nFilled(iS)+1:, iS) = 0.0_dp
 
           ! form the derivative of the density matrix
           work2(:,:,iS) = matmul(work(:, :nFilled(iS), iS),&
-              & transpose(eigvecs(:, :nFilled(iS), iS)))
+              & transpose(eigVecsReal(:, :nFilled(iS), iS)))
           work2(:,:,iS) = work2(:,:,iS) +&
-              & matmul(eigvecs(:, :nFilled(iS), iS), transpose(work(:, :nFilled(iS), iS)))
+              & matmul(eigVecsReal(:, :nFilled(iS), iS), transpose(work(:, :nFilled(iS), iS)))
 
         #:endif
 
@@ -559,11 +552,11 @@ contains
                 jGlob = scalafx_indxl2g(jj,desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
                     & env%blacs%orbitalGrid%ncol)
                 if (jGlob >= nEmpty(iS) .and. jGlob <= nFilled(iS)) then
-                  work(:,jj,iKS) = eigvecs(:,jj,iKS) * &
+                  work(:,jj,iKS) = eigVecsReal(:,jj,iKS) * &
                       & deltamn(eigVals(jGlob, 1, iKS), Ef(iS), tempElec) * dEf(iS)
                 end if
               end do
-              call pblasfx_pgemm(work(:,:,iKS), denseDesc%blacsOrbSqr,eigvecs(:,:,iKS),&
+              call pblasfx_pgemm(work(:,:,iKS), denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
                   & denseDesc%blacsOrbSqr, work2(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
                   & alpha=real(3-nSpin,dp))
 
@@ -571,11 +564,11 @@ contains
 
               work(:,:,iS) = 0.0_dp
               do iFilled = nEmpty(iS), nFilled(iS)
-                work(:, iFilled, iS) = eigVecs(:, iFilled, iS) * &
+                work(:, iFilled, iS) = eigVecsReal(:, iFilled, iS) * &
                     & deltamn(eigvals(iFilled, iK, iS), Ef(iS), tempElec) * dEf(iS)
               end do
               work2(:, :, iS) = real(3-nSpin,dp) * matmul(work(:, nEmpty(iS):nFilled(iS), iS),&
-                  & transpose(eigvecs(:, nEmpty(iS):nFilled(iS), iS)))
+                  & transpose(eigVecsReal(:, nEmpty(iS):nFilled(iS), iS)))
 
             #:endif
 
@@ -726,7 +719,7 @@ contains
 
 !  subroutine perturbDyn(mympi, allproc, grpproc, gridAtom, &
 !      & groupKS, nGroups, groupsize, desc, filling, nElectrons, SSqrReal, eigvals, &
-!      & eigvecs, ham, over, orb, nAtom, species, speciesnames, iNeighbour, &
+!      & eigVecsReal, ham, over, orb, nAtom, species, speciesnames, iNeighbour, &
 !      & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, coord, maxSccIter, sccTol, &
 !      & nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef, W, pChrgMixer, omega)
 !    type(mpifx_comm), intent(in) :: mympi
@@ -740,7 +733,7 @@ contains
 !    real(dp), intent(in) :: nElectrons(:)
 !    real(dp), intent(inout) :: SSqrReal(:,:)
 !    real(dp), intent(in) :: eigvals(:,:,:)
-!    real(dp), intent(in) :: eigvecs(:,:,:)
+!    real(dp), intent(in) :: eigVecsReal(:,:,:)
 !    real(dp), intent(in) :: ham(:,:), over(:)
 !    type(TOrbitals), pointer :: orb
 !    integer, intent(in) :: nAtom, species(:)
@@ -778,17 +771,17 @@ contains
 !    real(dp) :: tmpFill(size(filling,dim=1))
 !    type(TPotentials) :: dpotential
 !
-!    real(dp) :: dci(size(eigvecs,dim=1),size(eigvecs,dim=2), &
-!        & size(eigvecs,dim=3))
+!    real(dp) :: dci(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
+!        & size(eigVecsReal,dim=3))
 !    real(dp) :: deigvals(size(eigvals,dim=1),size(eigvals,dim=2), &
 !        & size(eigvals,dim=3))
-!    real(dp) :: work(size(eigvecs,dim=1),size(eigvecs,dim=2), &
-!        & size(eigvecs,dim=3))
-!    real(dp) :: work2(size(eigvecs,dim=1),size(eigvecs,dim=2), &
-!        & size(eigvecs,dim=3))
-!    complex(dp) :: cwork1(size(eigvecs,dim=1),size(eigvecs,dim=2))
-!    complex(dp) :: tmpCeigvecs(size(eigvecs,dim=1),size(eigvecs,dim=2))
-!    complex(dp) :: cwork2(size(eigvecs,dim=1),size(eigvecs,dim=2))
+!    real(dp) :: work(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
+!        & size(eigVecsReal,dim=3))
+!    real(dp) :: work2(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
+!        & size(eigVecsReal,dim=3))
+!    complex(dp) :: cwork1(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2))
+!    complex(dp) :: tmpCeigVecsReal(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2))
+!    complex(dp) :: cwork2(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2))
 !
 !    real(dp) :: nF(size(ham, dim=2)), dEf(size(ham, dim=2))
 !
@@ -802,7 +795,7 @@ contains
 !    tSccCalc = (maxSccIter > 1)
 !    tSpin = (nSpin > 1)
 !
-!    ASSERT(size(eigvecs,dim=3) == nSpin)
+!    ASSERT(size(eigVecsReal,dim=3) == nSpin)
 !    ASSERT(all(shape(coord) == [3,nAtom]))
 !
 !      do iCart = 1, 3
@@ -944,16 +937,16 @@ contains
 !                  & work(:,:,iKS))
 !
 !              ! dH times c_i
-!              call pblasfx_psymm(work(:,:,iKS), desc, eigvecs(:,:,iKS), desc, &
+!              call pblasfx_psymm(work(:,:,iKS), desc, eigVecsReal(:,:,iKS), desc, &
 !                  & work2(:,:,iKS), desc) !, mm=nFilled(iS))
 !
 !              ! c_i times dH times c_i
-!              call pblasfx_pgemm(eigvecs(:,:,iKS), desc, work2(:,:,iKS), desc, &
+!              call pblasfx_pgemm(eigVecsReal(:,:,iKS), desc, work2(:,:,iKS), desc, &
 !                  & work(:,:,iKS), desc, transa="T")
 !              ! derivative of eigenvalues stored diagonal of matrix work,
 !              ! from <c|h'|c>
 !
-!              tmpCeigvecs = eigvecs(:,:,iKS) ! complex copy of eigenvectors
+!              tmpCeigVecsReal = eigVecsReal(:,:,iKS) ! complex copy of eigenvectors
 !
 !              do iSignOmega = -1, 1, 2 ! loop over positive and negative frequencies
 !
@@ -975,11 +968,11 @@ contains
 !                end do
 !
 !                ! Derivatives of eigen-state vectors
-!                call pblasfx_pgemm(tmpCeigvecs, desc, cwork1, desc, &
+!                call pblasfx_pgemm(tmpCeigVecsReal, desc, cwork1, desc, &
 !                    & cwork2, desc)
 !
 !                ! Form derivative of density matrix and then hermitian symmetrise
-!                call pblasfx_pgemm(cwork2, desc,tmpCeigvecs, desc, &
+!                call pblasfx_pgemm(cwork2, desc,tmpCeigVecsReal, desc, &
 !                    & cwork1, desc, transb="T", kk=nFilled(iS))
 !
 !                cwork2 = cwork1
@@ -1019,11 +1012,11 @@ contains
 !                  jGlob = scalafx_indxl2g(jj,desc(NB_), &
 !                      & grpproc%mycol,desc(CSRC_), grpproc%ncol)
 !                  if (jGlob >= nEmpty(iS) .and. jGlob <= nFilled(iS)) then
-!                    work(:,jj,iKS) = eigvecs(:,jj,iKS) * &
+!                    work(:,jj,iKS) = eigVecsReal(:,jj,iKS) * &
 !                        & deltamn(eigVals(jGlob,1,iKS),Ef(iS),tempElec)*dEf(iS)
 !                  end if
 !                end do
-!                call pblasfx_pgemm(work(:,:,iKS), desc,eigvecs(:,:,iKS), desc, &
+!                call pblasfx_pgemm(work(:,:,iKS), desc,eigVecsReal(:,:,iKS), desc, &
 !                    & work2(:,:,iKS), desc, transb="T",alpha=2.0_dp)
 !                call packrho_parallel_real(grpproc, desc, work2(:,:,iKS), &
 !                    & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, &

@@ -261,10 +261,10 @@ contains
           call staticPerturWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over,&
               & orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
               & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
-              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, tSpinSharedEf, spinW, thirdOrd,&
-              & tDFTBU, UJ, nUJ, iUJ, niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite,&
-              & pChrgMixer, taggedWriter, tWriteAutotest, autotestTag, tWriteResultsTag,&
-              & resultsTag, tWriteDetailedOut, fdDetailedOut)
+              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
+              & niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite, pChrgMixer, taggedWriter,&
+              & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
+              & fdDetailedOut)
         end if
       end if
     end if
