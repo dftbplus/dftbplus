@@ -19,6 +19,7 @@ module dftbp_perturbderivs
   use dftbp_orbitalequiv
   use dftbp_populations
   use dftbp_spin
+  use dftbp_thirdorder_module, only : ThirdOrder
   use dftbp_dftbplusu
   use dftbp_onsitecorrection
   use dftbp_mainio
@@ -57,8 +58,8 @@ contains
   subroutine staticPerturWrtE(env, parallelKS, filling, SSqrReal, eigvals, eigvecs, ham, over, orb,&
       & nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
       & img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements, nIneqMixElements,&
-      & iEqOrbitals, tempElec, Ef, tFixEf, tSpinSharedEf, spinW, tDFTBU, UJ, nUJ, iUJ, niUJ,&
-      & iEqBlockDftbu, onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest,&
+      & iEqOrbitals, tempElec, Ef, tFixEf, tSpinSharedEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
+      & niUJ, iEqBlockDftbu, onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest,&
       & autoTestTagFile, tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
 
     !> Environment settings
@@ -154,6 +155,9 @@ contains
 
     !> spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
+
+    !> Third order SCC interactions
+    type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
 
     !> is this a +U calculation
     logical, intent(in) :: tDftbU
@@ -257,6 +261,9 @@ contains
     if (tSpinSharedEf) then
       call error("Perturbation expressions not currently implemented for shared Fermi energy&
           & between spins")
+    end if
+    if (allocated(thirdOrd)) then
+      call error("Perturbation expressions not currently implemented for 3rd order model")
     end if
 
     write(stdOut,*)
