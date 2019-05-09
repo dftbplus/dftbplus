@@ -12,6 +12,7 @@ response/CH3+u                         #? MPI_PROCS <= 1
 response/H2Oonsite                     #? MPI_PROCS <= 1
 response/C60                           #? MPI_PROCS <= 4 or (not WITH_MPI)
 response/C60+                          #? (not WITH_MPI) or (MPI_PROCS <= 4 and MPI_PROCS % 2 == 0)
+response/H2Pauli                       #? MPI_PROCS <= 1
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4

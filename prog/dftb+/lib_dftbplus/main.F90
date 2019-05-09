@@ -257,15 +257,13 @@ contains
     ! response properties from perturbation-like expressions
     if (tPolarisability) then
       if (tStaticPolarisability) then
-        if (tRealHS) then
-          call staticPerturWrtE(env, parallelKS, filling, SSqrReal, eigen, eigVecsReal, ham, over,&
-              & orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
-              & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
-              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
-              & niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite, pChrgMixer, taggedWriter,&
-              & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
-              & fdDetailedOut)
-        end if
+        call staticPerturWrtE(env, parallelKS, filling, eigen, eigVecsReal, eigvecsCplx, ham,&
+            & over, orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
+            & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
+            & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
+            & niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite, pChrgMixer, taggedWriter,&
+            & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
+            & fdDetailedOut, kPoint, kWeight, cellVec, iCellVec)
       end if
     end if
 
