@@ -321,8 +321,7 @@ contains
     end if
 
     if (tMetallic) then
-
-      ! Density of electrons at the Fermi energy
+      ! Density of electrons at the Fermi energy required to correct later
       do iS = 1, nSpin
         nf(iS) = 0.0_dp
         do ii = nEmpty(iS), nFilled(iS)
@@ -350,7 +349,7 @@ contains
         dqBlockOut(:,:,:,:) = 0.0_dp
       end if
 
-      ! derivative of E.x
+      ! derivative wrt to electric field as a perturbation
       dpotential%extAtom(:,:) = 0.0_dp
       do iAt = 1, nAtom
         dpotential%extAtom(iAt,1) = coord(iCart,iAt)
@@ -395,7 +394,7 @@ contains
           end if
 
           if (tDFTBU) then
-            ! note the derivatives of both FLL and pSIC are pSIC, which is case 2 == pSIC
+            ! note the derivatives of both FLL and pSIC are pSIC (case 2 in module)
             call getDftbUShift(dpotential%orbitalBlock, dqBlockIn, species, orb, 2,&
                 & UJ, nUJ, niUJ, iUJ)
           end if
@@ -441,11 +440,11 @@ contains
         end do
 
       #:if WITH_SCALAPACK
-        ! Add up and distribute density matrix contribution from each group
+        ! Add up and distribute density matrix contributions from each group
         call mpifx_allreduceip(env%mpi%globalComm, dRho, MPI_SUM)
       #:endif
 
-        drhoextra = 0.0_dp
+        dRhoExtra = 0.0_dp
         if (tMetallic) then
           ! correct for Fermi level shift for q=0 fields
 
@@ -461,44 +460,14 @@ contains
 
             if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
               ! Fermi level changes, so need to correct for the change in the number of charges
-              workReal(:,:,iKS) = 0.0_dp
 
-            #:if WITH_SCALAPACK
-
-              do jj = 1, size(workReal,dim=2)
-                jGlob = scalafx_indxl2g(jj,desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
-                    & env%blacs%orbitalGrid%ncol)
-                if (jGlob >= nEmpty(iS) .and. jGlob <= nFilled(iS)) then
-                  workReal(:,jj,iKS) = eigVecsReal(:,jj,iKS) * &
-                      & deltamn(eigVals(jGlob, 1, iKS), Ef(iS), tempElec) * dEf(iS)
-                end if
-              end do
-              call pblasfx_pgemm(workReal(:,:,iKS), denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
-                  & denseDesc%blacsOrbSqr, workReal(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
-                  & alpha=real(3-nSpin,dp))
-
-            #:else
-
-              workReal(:,:,iS) = 0.0_dp
-              do iFilled = nEmpty(iS), nFilled(iS)
-                workReal(:, iFilled, iS) = eigVecsReal(:, iFilled, iS) * &
-                    & deltamn(eigvals(iFilled, iK, iS), Ef(iS), tempElec) * dEf(iS)
-              end do
-              workReal(:, :, iS) = real(3-nSpin,dp)&
-                  & * matmul(workReal(:, nEmpty(iS):nFilled(iS), iS),&
-                  & transpose(eigVecsReal(:, nEmpty(iS):nFilled(iS), iS)))
-
-            #:endif
-
-              ! pack extra term into density matrix
-            #:if WITH_SCALAPACK
-              call packRhoRealBlacs(env%blacs, denseDesc, workReal(:,:,iKS),&
-                  & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
-                  & drhoExtra(:,iS))
-            #:else
-              call packHS(drhoExtra(:,iS), workReal(:,:,iS), neighbourList%iNeighbour,&
-                  & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-            #:endif
+              call dRhoFermiChangeStaticReal(dRhoExtra(:, iS), env, parallelKS, iKS, neighbourList,&
+                  & nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty,&
+                  & eigVecsReal, orb, denseDesc, tempElec, eigVals&
+                #:if WITH_SCALAPACK
+                  &, desc&
+                #:endif
+                  &)
 
             end if
 
@@ -838,6 +807,117 @@ contains
   #:endif
 
   end subroutine dRhoStaticReal
+
+
+  !> Calculate the change in the density matrix due to shift in the Fermi energy
+  subroutine dRhoFermiChangeStaticReal(dRhoExtra, env, parallelKS, iKS, neighbourList,&
+      & nNEighbourSK, img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty, eigVecsReal, orb,&
+      & denseDesc, tempElec, eigVals&
+    #:if WITH_SCALAPACK
+      &, desc&
+    #:endif
+      &)
+
+    !> Additional contribution to the density matrix to cancel effect of Fermi energy change
+    real(dp), intent(out) :: dRhoExtra(:)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> spin channel
+    integer, intent(in) :: iKS
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> Fermi level derivative
+    real(dp), intent(in) :: dEf(:)
+
+    !> Fermi level
+    real(dp), intent(in) :: Ef(:)
+
+    !> Last (partly) filled level in each spin channel
+    integer, intent(in) :: nFilled(:)
+
+    !> First (partly) empty level in each spin channel
+    integer, intent(in) :: nEmpty(:)
+
+    !> ground state eigenvectors
+    real(dp), intent(in) :: eigVecsReal(:,:,:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Electron temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Eigenvalue of each level, kpoint and spin channel
+    real(dp), intent(in) :: eigvals(:,:,:)
+
+  #:if WITH_SCALAPACK
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(DLEN_)
+  #:endif
+
+    integer :: iFilled, jj, jGlob, nSpin, iS
+    real(dp) :: workReal(size(eigVecsReal, dim=1), size(eigVecsReal, dim=2))
+
+    iS = parallelKS%localKS(2, iKS)
+    nSpin = size(eigVecsReal, dim=3)
+
+    workReal(:,:) = 0.0_dp
+
+  #:if WITH_SCALAPACK
+
+    do jj = 1, size(workReal,dim=2)
+      jGlob = scalafx_indxl2g(jj,desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+          & env%blacs%orbitalGrid%ncol)
+      if (jGlob >= nEmpty(iS) .and. jGlob <= nFilled(iS)) then
+        workReal(:,jj) = eigVecsReal(:,jj,iKS) * &
+            & deltamn(eigVals(jGlob, 1, iKS), Ef(iS), tempElec) * dEf(iS)
+      end if
+    end do
+    call pblasfx_pgemm(workReal(:,:), denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
+        & denseDesc%blacsOrbSqr, workReal(:,:), denseDesc%blacsOrbSqr, transb="T",&
+        & alpha=real(3-nSpin,dp))
+
+  #:else
+
+    do iFilled = nEmpty(iS), nFilled(iS)
+      workReal(:, iFilled) = eigVecsReal(:, iFilled, iS) * &
+          & deltamn(eigvals(iFilled, 1, iS), Ef(iS), tempElec) * dEf(iS)
+    end do
+    workReal(:, :) = real(3-nSpin,dp)&
+        & * matmul(workReal(:, nEmpty(iS):nFilled(iS)),&
+        & transpose(eigVecsReal(:, nEmpty(iS):nFilled(iS), iS)))
+
+  #:endif
+
+    ! pack extra term into density matrix
+  #:if WITH_SCALAPACK
+    call packRhoRealBlacs(env%blacs, denseDesc, workReal, neighbourList%iNeighbour, nNeighbourSK,&
+        & orb%mOrb, iSparseStart, img2CentCell, drhoExtra)
+  #:else
+    call packHS(drhoExtra, workReal, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
+        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+  #:endif
+
+  end subroutine dRhoFermiChangeStaticReal
 
 
 !  subroutine perturbDyn(mympi, allproc, grpproc, gridAtom, &
