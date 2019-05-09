@@ -226,10 +226,7 @@ contains
 
     real(dp), allocatable :: shellPot(:,:,:)
 
-    real(dp) :: workReal(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
-        & size(eigVecsReal,dim=3))
-    real(dp) :: work2Real(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
-        & size(eigVecsReal,dim=3))
+    real(dp), allocatable :: workReal(:,:,:)
 
     real(dp) :: nF(size(ham, dim=2)), dEf(size(ham, dim=2))
 
@@ -261,6 +258,9 @@ contains
 
     nSpin = size(ham, dim=2)
     nOrbs = size(filling,dim=1)
+
+    allocate(workReal(nOrbs,nOrbs, nSpin))
+
     allocate(dham(size(ham,dim=1),nSpin))
 
     tSccCalc = (maxSccIter > 1)
@@ -395,7 +395,7 @@ contains
           end if
 
           if (tDFTBU) then
-            ! note the derivatives of both FLL and pSIC are pSIC, which is case 2
+            ! note the derivatives of both FLL and pSIC are pSIC, which is case 2 == pSIC
             call getDftbUShift(dpotential%orbitalBlock, dqBlockIn, species, orb, 2,&
                 & UJ, nUJ, niUJ, iUJ)
           end if
@@ -403,7 +403,6 @@ contains
             call addOnsShift(dpotential%orbitalBlock, dpotential%iOrbitalBlock, dqBlockIn,&
                 & dummy, onsMEs, species, orb)
           end if
-
 
         end if
 
@@ -426,96 +425,18 @@ contains
         drho(:,:) = 0.0_dp
 
         do iKS = 1, parallelKS%nLocalKS
+
           iK = parallelKS%localKS(1, iKS)
           iS = parallelKS%localKS(2, iKS)
 
-        #:if WITH_SCALAPACK
-
-          call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
-              & iSparseStart, img2CentCell, denseDesc, workReal(:,:,iKS))
-
-          ! dH times c_i
-          call pblasfx_psymm(workReal(:,:,iKS), denseDesc%blacsOrbSqr, eigVecsReal(:,:,iKS),&
-              & denseDesc%blacsOrbSqr, work2Real(:,:,iKS), denseDesc%blacsOrbSqr) !, mm=nFilled(iS))
-
-          ! c_i times dH times c_i
-          call pblasfx_pgemm(eigVecsReal(:,:,iKS), denseDesc%blacsOrbSqr, work2Real(:,:,iKS),&
-              & denseDesc%blacsOrbSqr,  workReal(:,:,iKS), denseDesc%blacsOrbSqr, transa="T")
-
-          ! derivative of eigenvalues stored diagonal of matrix workReal, from <c|h'|c>
-          do jj = 1, size(workReal,dim=2)
-            jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
-                &  env%blacs%orbitalGrid%ncol)
-            do ii = 1, size(workReal,dim=1)
-              iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
-                  & env%blacs%orbitalGrid%nrow)
-
-              !if (iGlob == jGlob) then workReal(ii,jj,iKS) contains a derivative of an eigenvalue
-
-              ! weight with inverse of energy differences
-              workReal(ii,jj,iKS) = workReal(ii,jj,iKS) * &
-                  & invDiff(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),Ef(iS),tempElec)&
-                  & * theta(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),tempElec)
-            end do
-          end do
-
-          ! Derivatives of states
-          call pblasfx_pgemm(eigVecsReal(:,:,iKS), denseDesc%blacsOrbSqr, workReal(:,:,iKS),&
-              & denseDesc%blacsOrbSqr, work2Real(:,:,iKS), denseDesc%blacsOrbSqr)
-
-          ! Form derivative of density matrix
-          call pblasfx_pgemm(work2Real(:,:,iKS), denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
-              & denseDesc%blacsOrbSqr, workReal(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
-              & kk=nFilled(iS))
-          work2Real(:,:,iKS) = workReal(:,:,iKS)
-          ! and symmetrize
-          call pblasfx_ptran(workReal(:,:,iKS), denseDesc%blacsOrbSqr, work2Real(:,:,iKS),&
-              & denseDesc%blacsOrbSqr, beta=1.0_dp)
-
-        #:else
-
-          work2Real(:,:,iS) = 0.0_dp
-          call unpackHS(work2Real(:,:,iS), dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
-              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-
-          ! form |c> H' <c|
-          call symm(workReal(:,:,iS), 'l', work2Real(:,:,iS), eigVecsReal(:,:,iS))
-          workReal(:,:,iS) = matmul(transpose(eigVecsReal(:,:,iS)), workReal(:,:,iS))
-
-          ! diagonal elements of workReal(:,:,iS) are now derivatives of eigenvalues if needed
-
-          ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
-          ! weighting the elements
-          do iFilled = 1, nFilled(iS)
-            do iEmpty = nEmpty(iS), nOrbs
-              workReal(iEmpty, iFilled, iS) = workReal(iEmpty, iFilled, iS) * &
-                  & invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec)&
-                  & *theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)
-            end do
-          end do
-
-          ! calculate the derivatives of ci
-          workReal(:, :nFilled(iS), iKS) =&
-              & matmul(eigVecsReal(:, nEmpty(iS):, iS), workReal(nEmpty(iS):, :nFilled(iS), iS))
-          ! zero the uncalculated virtual states
-          workReal(:, nFilled(iS)+1:, iS) = 0.0_dp
-
-          ! form the derivative of the density matrix
-          work2Real(:,:,iS) = matmul(workReal(:, :nFilled(iS), iS),&
-              & transpose(eigVecsReal(:, :nFilled(iS), iS)))
-          work2Real(:,:,iS) = work2Real(:,:,iS) +&
-              & matmul(eigVecsReal(:, :nFilled(iS), iS), transpose(workReal(:, :nFilled(iS), iS)))
-
-        #:endif
-
-
-        #:if WITH_SCALAPACK
-          call packRhoRealBlacs(env%blacs, denseDesc, work2Real(:,:,iKS), neighbourList%iNeighbour,&
-              & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, drho(:,iS))
-        #:else
-          call packHS(drho(:,iS), work2Real(:,:,iS), neighbourList%iNeighbour, nNeighbourSK,&
-              & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        #:endif
+          ! evaluate derivative of density matrix
+          call dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
+              & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec,&
+              & orb, drho(:,iS)&
+            #:if WITH_SCALAPACK
+              &, desc&
+            #:endif
+              &)
 
         end do
 
@@ -553,7 +474,7 @@ contains
                 end if
               end do
               call pblasfx_pgemm(workReal(:,:,iKS), denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
-                  & denseDesc%blacsOrbSqr, work2Real(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
+                  & denseDesc%blacsOrbSqr, workReal(:,:,iKS), denseDesc%blacsOrbSqr, transb="T",&
                   & alpha=real(3-nSpin,dp))
 
             #:else
@@ -563,21 +484,21 @@ contains
                 workReal(:, iFilled, iS) = eigVecsReal(:, iFilled, iS) * &
                     & deltamn(eigvals(iFilled, iK, iS), Ef(iS), tempElec) * dEf(iS)
               end do
-              work2Real(:, :, iS) = real(3-nSpin,dp)&
+              workReal(:, :, iS) = real(3-nSpin,dp)&
                   & * matmul(workReal(:, nEmpty(iS):nFilled(iS), iS),&
                   & transpose(eigVecsReal(:, nEmpty(iS):nFilled(iS), iS)))
 
             #:endif
 
               ! pack extra term into density matrix
-           #:if WITH_SCALAPACK
-              call packRhoRealBlacs(env%blacs, denseDesc, work2Real(:,:,iKS),&
+            #:if WITH_SCALAPACK
+              call packRhoRealBlacs(env%blacs, denseDesc, workReal(:,:,iKS),&
                   & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell,&
                   & drhoExtra(:,iS))
-           #:else
-              call packHS(drhoExtra(:,iS), work2Real(:,:,iS), neighbourList%iNeighbour,&
+            #:else
+              call packHS(drhoExtra(:,iS), workReal(:,:,iS), neighbourList%iNeighbour,&
                   & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-           #:endif
+            #:endif
 
             end if
 
@@ -713,6 +634,210 @@ contains
 
 
   end subroutine staticPerturWrtE
+
+
+  !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
+  subroutine dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
+      & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec, orb,&
+      & dRhoSparse,&
+    #:if WITH_SCALAPACK
+      & desc,&
+    #:endif
+      & dEi, dPsi)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Derivative of the hamiltonian
+    real(dp), intent(in) :: dham(:,:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Particular spin/k-point
+    integer, intent(in) :: iKS
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> ground state eigenvectors
+    real(dp), intent(in) :: eigVecsReal(:,:,:)
+
+    !> Eigenvalue of each level, kpoint and spin channel
+    real(dp), intent(in) :: eigvals(:,:,:)
+
+    !> Fermi level(s)
+    real(dp), intent(in) :: Ef(:)
+
+    !> Last (partly) filled level in each spin channel
+    integer, intent(in) :: nFilled(:)
+
+    !> First (partly) empty level in each spin channel
+    integer, intent(in) :: nEmpty(:)
+
+    !> Electron temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> returning dRhoSparse on exit
+    real(dp), intent(out) :: dRhoSparse(:)
+
+  #:if WITH_SCALAPACK
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(DLEN_)
+  #:endif
+
+    !> Optional derivative of single particle eigenvalues
+    real(dp), intent(inout), optional :: dEi(:)
+
+    !> Optional derivatives of single particle wavefunctions
+    real(dp), intent(inout), optional :: dPsi(:, :)
+
+    integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iS, iK, nOrb
+    real(dp) :: workLocal(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
+    real(dp) :: dRho(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
+
+    iK = parallelKS%localKS(1, iKS)
+    iS = parallelKS%localKS(2, iKS)
+
+    if (present(dEi)) then
+      dEi(:) = 0.0_dp
+    end if
+    if (present(dPsi)) then
+      dPsi(:,:) = 0.0_dp
+    end if
+
+    workLocal(:,:) = 0.0_dp
+    dRho(:,:) = 0.0_dp
+
+  #:if WITH_SCALAPACK
+
+    ! dH in square form
+    call unpackHSRealBlacs(env%blacs, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+        & iSparseStart, img2CentCell, denseDesc, workLocal)
+
+    ! dH times c_i
+    call pblasfx_psymm(workLocal, denseDesc%blacsOrbSqr, eigVecsReal(:,:,iKS),&
+        & denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr) !, mm=nFilled(iS))
+
+    ! c_i times dH times c_i
+    call pblasfx_pgemm(eigVecsReal(:,:,iKS), denseDesc%blacsOrbSqr, dRho,&
+        & denseDesc%blacsOrbSqr,  workLocal, denseDesc%blacsOrbSqr, transa="T")
+
+    ! derivative of eigenvalues stored diagonal of matrix workLocal, from <c|h'|c>
+    do jj = 1, size(workLocal,dim=2)
+      jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+          & env%blacs%orbitalGrid%ncol)
+      do ii = 1, size(workLocal,dim=1)
+        iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+            & env%blacs%orbitalGrid%nrow)
+
+        if (present(dEi)) then
+          if (iGlob == jGlob) then
+            !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
+            dEi(iGlob) = workLocal(ii,jj)
+          end if
+        end if
+
+        ! weight with inverse of energy differences
+        workLocal(ii,jj) = workLocal(ii,jj) * &
+            & invDiff(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),Ef(iS),tempElec)&
+            & * theta(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),tempElec)
+
+      end do
+    end do
+
+    if (present(dEi)) then
+      call mpifx_allreduceip(env%mpi%globalComm, dEi, MPI_SUM)
+    end if
+
+    ! Derivatives of states
+    call pblasfx_pgemm(eigVecsReal(:,:,iKS), denseDesc%blacsOrbSqr, workLocal,&
+        & denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr)
+
+    if (present(dPsi)) then
+      dPsi(:,:) = workLocal
+    end if
+
+    ! Form derivative of occupied density matrix
+    call pblasfx_pgemm(dRho, denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
+        & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transb="T",&
+        & kk=nFilled(iS))
+    dRho(:,:) = workLocal
+    ! and symmetrize
+    call pblasfx_ptran(workLocal, denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr,&
+        & beta=1.0_dp)
+
+  #:else
+
+    ! serial case
+    nOrb = size(dRho, dim = 1)
+
+    ! dH matrix in square form
+    call unpackHS(dRho, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+
+    ! form |c> H' <c|
+    call symm(workLocal, 'l', dRho, eigVecsReal(:,:,iS))
+    workLocal(:,:) = matmul(transpose(eigVecsReal(:,:,iS)), workLocal)
+
+    ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
+    if (present(dEi)) then
+      do ii = 1, nOrb
+       dEi(ii) = workLocal(ii,ii)
+      end do
+    end if
+
+    ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
+    ! weighting the elements
+    do iFilled = 1, nFilled(iS)
+      do iEmpty = nEmpty(iS), nOrb
+        workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
+            & invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec)&
+            & *theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)
+      end do
+    end do
+
+    ! calculate the derivatives of ci
+    workLocal(:, :nFilled(iS)) =&
+        & matmul(eigVecsReal(:, nEmpty(iS):, iS), workLocal(nEmpty(iS):, :nFilled(iS)))
+    ! zero the uncalculated virtual states
+    workLocal(:, nFilled(iS)+1:) = 0.0_dp
+
+    if (present(dPsi)) then
+      dPsi(:,:) = workLocal
+    end if
+
+    ! form the derivative of the density matrix
+    dRho(:,:) = matmul(workLocal(:, :nFilled(iS)), transpose(eigVecsReal(:, :nFilled(iS), iS)))&
+        & + matmul(eigVecsReal(:, :nFilled(iS), iS), transpose(workLocal(:, :nFilled(iS))))
+
+  #:endif
+
+    dRhoSparse(:) = 0.0_dp
+  #:if WITH_SCALAPACK
+    call packRhoRealBlacs(env%blacs, denseDesc, dRho, neighbourList%iNeighbour, nNeighbourSK,&
+        & orb%mOrb, iSparseStart, img2CentCell, dRhoSparse)
+  #:else
+    call packHS(dRhoSparse, dRho, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
+        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+  #:endif
+
+  end subroutine dRhoStaticReal
 
 
 !  subroutine perturbDyn(mympi, allproc, grpproc, gridAtom, &
