@@ -1000,7 +1000,7 @@ following properties:
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
   \kw{CustomisedHubbards} & p & SCC = Yes & & \\
-  \kw{CustomOccupations} & p & SCC = Yes & & \\
+  \kw{CustomisedOccupations} & p & SCC = Yes & & \\
   \kw{TruncateSKRange} & p & & & \\
   \hline
 \end{ptable}
@@ -1265,7 +1265,7 @@ following properties:
   }
   \end{verbatim}
 
-\item[\kw{CustomOccupations}] Enables overriding the reference neutral atom
+\item[\kw{CustomisedOccupations}] Enables overriding the reference neutral atom
   electronic occupations of the shells. Note that the atom remains neutral since
   a corresponding ionic counter charge is implicitly added to its core. This
   option can be used, for example, to simulate effective doping by setting a
@@ -1273,7 +1273,7 @@ following properties:
 
   Example:
   \begin{verbatim}
-  CustomOccupations{
+  CustomisedOccupations{
     ReferenceOccupation{
       Atoms={1:30}
       p=2.01

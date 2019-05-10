@@ -18,7 +18,7 @@ Hamiltonian = DFTB {
     H-H = "./H1-H1.skf" "./H1-H2.skf" "./H2-H1.skf" "./H2-H2.skf"
   }
 
-  CustomOccupations{
+  CustomisedOccupations{
     ReferenceOccupation{
       Atoms = {1 2} 
       s = 0.5
