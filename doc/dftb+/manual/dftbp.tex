@@ -969,14 +969,14 @@ following properties:
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
-  \kw{OrbitalResolvedSCC} & l & SCC = Yes & No & \\
+  \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
   \kw{Charge} &r& & 0.0 & \\
   \kw{SpinPolarisation} &m& SCC = Yes & \cb & \pref{sec:dftbp.SpinPolarisation} \\
   \kw{SpinConstants} &p& SpinPolarisation $\neq$ \{\}~ & - &
   \pref{sec:dftbp.SpinConstants} \\
-  \kw{ShellResolvedSpin} &l& OrbitalResolvedSCC = No & No & \\
+  \kw{ShellResolvedSpin} &l& ShellResolvedSCC = No & No & \\
   \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\{\}~ & \cb &
   \pref{sec:dftbp.SpinOrbit} \\
   \kw{Eigensolver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Eigensolver} \\
@@ -1039,7 +1039,7 @@ following properties:
 \item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
   systems.
 
-\item[\is{OrbitalResolvedSCC}] If set to \is{Yes}, all distinct
+\item[\is{ShellResolvedSCC}] If set to \is{Yes}, all distinct
   Hubbard $U$ values for the different atomic angular momenta shells
   are used, when calculating the SCC contributions. Otherwise, the
   value supplied for the $s$-shell is used for all angular
@@ -1647,10 +1647,10 @@ calculations or when evaluating properties which depend on spin interactions
 (triplet excitations for example).  In these cases, for each atomic species in
 the calculation the spin coupling constants for that atom must be specified.
 
-When \is{OrbitalResolvedSCC} = \is{No}, an extra keyword in this block controls
+When \is{ShellResolvedSCC} = \is{No}, an extra keyword in this block controls
 whether the spin constants are resolved by shell or are identical for all
 shells: \kw{ShellResolvedSpin}, defaulting to the same value as
-\is{OrbitalResolvedSCC}.
+\is{ShellResolvedSCC}.
 
 When shell resolved spin constants are specified, they must be ordered with
 respect to the pairs of shells they couple, such that the index for the second

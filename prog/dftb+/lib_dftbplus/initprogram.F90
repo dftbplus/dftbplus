@@ -1063,7 +1063,7 @@ contains
     !> Nr. of buffered Cholesky-decompositions
     integer :: nBufferedCholesky
 
-    character(sc), allocatable :: shellnames(:)
+    character(sc), allocatable :: shellNamesTmp(:)
 
     @:ASSERT(input%tInitialized)
 
@@ -1365,8 +1365,8 @@ contains
       ! Longest cut-off including the softening part of gamma
       mCutOff = max(mCutOff, sccCalc%getCutOff())
 
-      if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
-        call error("Onsite third order DFTB only compatible with orbital non resolved SCC")
+      if (input%ctrl%t3rd .and. input%ctrl%tShellResolved) then
+        call error("Onsite third order DFTB only compatible with shell non-resolved SCC")
       end if
 
       ! Initialize full 3rd order module
@@ -1380,7 +1380,7 @@ contains
         allocate(thirdInp%damped(nType))
         thirdInp%damped(:) = tDampedShort
         thirdInp%dampExp = input%ctrl%dampExp
-        thirdInp%shellResolved = input%ctrl%tOrbResolved
+        thirdInp%shellResolved = input%ctrl%tShellResolved
         allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
         mCutOff = max(mCutOff, thirdOrd%getCutOff())
@@ -1947,8 +1947,8 @@ contains
         call error("Linear response does not support spin orbit coupling at the moment.")
       elseif (tDFTBU) then
         call error("Linear response does not support LDA+U yet")
-      elseif (input%ctrl%tOrbResolved) then
-        call error("Linear response does not support orbital resolved scc yet")
+      elseif (input%ctrl%tShellResolved) then
+        call error("Linear response does not support shell resolved scc yet")
       end if
       if (tempElec > 0.0_dp .and. tCasidaForces) then
         write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
@@ -2651,7 +2651,7 @@ contains
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
-      if (input%ctrl%tOrbResolved) then
+      if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
@@ -2768,7 +2768,7 @@ contains
     end if
 
     do iSp = 1, nType
-      call getOrbitalNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellNamesTmp)
       if (iSp == 1) then
         write (strTmp, "(A,':')") "Included shells"
       else
@@ -2776,13 +2776,13 @@ contains
       end if
       do jj = 1, orb%nShell(iSp)
         if (jj == 1) then
-          strTmp2 = trim(shellNames(jj))
+          strTmp2 = trim(shellNamesTmp(jj))
         else
-          strTmp2 = trim(strTmp2) // ", " // trim(shellNames(jj))
+          strTmp2 = trim(strTmp2) // ", " // trim(shellNamesTmp(jj))
         end if
       end do
       write(stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), trim(strTmp2)
-      deallocate(shellnames)
+      deallocate(shellNamesTmp)
     end do
 
     if (tMulliken) then
@@ -2846,7 +2846,7 @@ contains
               write(strTmp, "(A)") ""
             end if
             write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp),&
-                & jj, orbitalNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
+                & jj, shellNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
           end do
         end do
       end if
@@ -2864,8 +2864,8 @@ contains
               write(strTmp, "(A)") ""
             end if
             write(stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
-                & speciesName(iSp), jj, orbitalNames(orb%angShell(jj, iSp)+1), kk,&
-                & orbitalNames(orb%angShell(kk, iSp)+1), spinW(kk, jj, iSp)
+                & speciesName(iSp), jj, shellNames(orb%angShell(jj, iSp)+1), kk,&
+                & shellNames(orb%angShell(kk, iSp)+1), spinW(kk, jj, iSp)
           end do
         end do
       end do
@@ -2885,7 +2885,7 @@ contains
             write(strTmp, "(A)") ""
           end if
           write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)")trim(strTmp), speciesName(iSp),&
-                & jj, orbitalNames(orb%angShell(jj, iSp)+1), xi(jj, iSp)
+                & jj, shellNames(orb%angShell(jj, iSp)+1), xi(jj, iSp)
           if (xi(jj, iSp) /= 0.0_dp .and. orb%angShell(jj, iSp) == 0) then
             call error("Program halt due to non-zero s-orbital spin-orbit coupling constant!")
           end if
@@ -2896,8 +2896,8 @@ contains
     if (tSccCalc) then
       if (t3rdFull) then
         write(stdOut, "(A,T30,A)") "Full 3rd order correction", "Yes"
-        if (input%ctrl%tOrbResolved) then
-          write(stdOut, "(A,T30,A)") "Orbital-resolved 3rd order", "Yes"
+        if (input%ctrl%tShellResolved) then
+          write(stdOut, "(A,T30,A)") "Shell-resolved 3rd order", "Yes"
           write(stdOut, "(A30)") "Shell-resolved Hubbard derivs:"
           write(stdOut, "(A)") "        s-shell   p-shell   d-shell   f-shell"
           do iSp = 1, nType
@@ -2995,8 +2995,8 @@ contains
               end if
               write(stdOut, "(A,T30,A5,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
                   & trim(speciesName(iSp))//trim(strTmp2), jj,&
-                  & orbitalNames(orb%angShell(jj, iSp)+1), kk,&
-                  & orbitalNames(orb%angShell(kk, iSp)+1), onSiteElements(kk, jj, iSpin, iSp)
+                  & shellNames(orb%angShell(jj, iSp)+1), kk,&
+                  & shellNames(orb%angShell(kk, iSp)+1), onSiteElements(kk, jj, iSpin, iSp)
             end do
           end do
         end do
@@ -4001,7 +4001,7 @@ contains
       write(stdout, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
       iSp = species(customOccAtoms(iCustomBlock)%data(1))
       nShell = orb%nShell(iSp)
-      call getOrbitalNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellnames)
       outStr = ""
       do iSh = 1, nShell
         if (iSh > 1) then

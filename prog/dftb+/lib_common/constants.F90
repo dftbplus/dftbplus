@@ -118,12 +118,12 @@ module dftbp_constants
   integer, parameter :: maxL = 3
 
 
-  !> Number of orbital names
-  integer, parameter :: nOrbitalName = maxL + 1
+  !> Number of shell names
+  integer, parameter :: nShellName = maxL + 1
 
 
   !> Name of the orbitals
-  character(len=1), parameter :: orbitalNames(nOrbitalName) = ["s", "p", "d", "f"]
+  character(len=1), parameter :: shellNames(nShellName) = ["s", "p", "d", "f"]
 
 
   !> Names of the spin directions
