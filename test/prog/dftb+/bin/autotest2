@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
 #  Copyright (C) 2018  DFTB+ developers group                                  #
@@ -46,6 +46,8 @@ APP_TAGDATA=autotest.tag
 APP_TAGDATA_REF=_autotest.tag
 
 TIME_CMD=time
+# Override time command if not available on the system
+$TIME_CMD ls &> /dev/null || TIME_CMD=""
 
 SUMMARY_TAGDIFF_LOG="$TAGDIFF_LOG"
 SUMMARY_STDERROR="$APP_STDERR"
