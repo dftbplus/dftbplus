@@ -76,7 +76,7 @@ scc/CH2_n_3rdfull_damp                 #? MPI_PROCS <= 1
 scc/GaAs_2_restart                     #? MPI_PROCS <= 1
 scc/SiH_custom-ref                     #? MPI_PROCS <= 1
 scc/HH_custom-ref                      #? MPI_PROCS <= 1
-spin/Fe4                               #? MPI_PROCS == 2
+spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
@@ -214,8 +214,8 @@ non-scc/Si_216                         #? MPI_PROCS <= 4
 md/ptcda-xlbomd-ldep                   #? MPI_PROCS <= 4
 geoopt/Vsi+O_lbfgs                     #? MPI_PROCS <= 4
 geoopt/Vsi+O                           #? MPI_PROCS <= 4
-scc/SiC64+V_dynforce_groups            #? MPI_PROCS <= 8 and MPI_PROCS % 4 == 0
-scc/SiC64+V_dynforce                   #? MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
+scc/SiC64+V_dynforce_groups            #? (MPI_PROCS <= 8 and MPI_PROCS % 4 == 0) or not WITH_MPI
+scc/SiC64+V_dynforce                   #? (MPI_PROCS <= 4 and MPI_PROCS % 2 == 0) or not WITH_MPI
 
 transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
