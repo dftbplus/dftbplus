@@ -228,7 +228,7 @@ contains
     real(dp), allocatable :: dham(:,:), idHam(:,:)
     real(dp) :: drho(size(over),size(ham, dim=2))
     real(dp) :: drhoExtra(size(over),size(ham, dim=2))
-    real(dp), allocatable :: idRho(:,:)
+    real(dp), allocatable :: idRho(:,:), idRhoExtra(:,:)
     real(dp) :: dqIn(orb%mOrb,nAtom,size(ham, dim=2))
     real(dp) :: dqOut(orb%mOrb,nAtom,size(ham, dim=2))
     real(dp) :: dqInpRed(nMixElements), dqOutRed(nMixElements)
@@ -519,6 +519,18 @@ contains
                     &, desc&
                   #:endif
                     &)
+
+              elseif (nSpin > 2) then
+
+                call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
+                    & kPoint, kWeight, iCellVec, cellVec,neighbourList, nNEighbourSK,&
+                    & img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb,&
+                    & denseDesc, tempElec, eigVals&
+                  #:if WITH_SCALAPACK
+                    &, desc&
+                  #:endif
+                    &)
+
               end if
 
             end if
@@ -1183,6 +1195,161 @@ contains
       dRhoSparse(:,:) = 2.0_dp * dRhoSparse
 
   end subroutine dRhoStaticPauli
+
+
+  !> Calculate the change in the density matrix due to shift in the Fermi energy
+  subroutine dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS, kPoint,&
+      & kWeight, iCellVec, cellVec,neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEf,&
+      & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
+    #:if WITH_SCALAPACK
+      &, desc&
+    #:endif
+      &)
+
+    !> Additional contribution to the density matrix to cancel effect of Fermi energy change
+    real(dp), intent(out) :: dRhoExtra(:,:)
+
+    !> Imaginary part of additional contribution to the density matrix to cancel effect of Fermi
+    !> energy change
+    real(dp), intent(inout), allocatable :: idRhoExtra(:,:)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> spin/kpoint channel
+    integer, intent(in) :: iKS
+
+    !> k-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> Weights for k-points
+    real(dp), intent(in) :: kWeight(:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Vectors (in units of the lattice constants) to cells of the lattice
+    real(dp), intent(in) :: cellVec(:,:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> Fermi level derivative
+    real(dp), intent(in) :: dEf(:)
+
+    !> Fermi level
+    real(dp), intent(in) :: Ef(:)
+
+    !> Last (partly) filled level in each spin channel
+    integer, intent(in) :: nFilled(:)
+
+    !> First (partly) empty level in each spin channel
+    integer, intent(in) :: nEmpty(:)
+
+    !> ground state eigenvectors
+    complex(dp), intent(in) :: eigVecsCplx(:,:,:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Electron temperature
+    real(dp), intent(in) :: tempElec
+
+    !> Eigenvalue of each level, kpoint and spin channel
+    real(dp), intent(in) :: eigvals(:,:,:)
+
+  #:if WITH_SCALAPACK
+    !> BLACS matrix descriptor
+    integer, intent(in) :: desc(DLEN_)
+  #:endif
+
+    integer :: iFilled, jj, jGlob, iK
+    complex(dp) :: workLocal(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
+
+    workLocal(:,:) = cmplx(0,0,dp)
+
+    iK = parallelKS%localKS(1, iKS)
+
+  #:if WITH_SCALAPACK
+
+    do jj = 1, size(workLocal,dim=2)
+      jGlob = scalafx_indxl2g(jj,desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+          & env%blacs%orbitalGrid%ncol)
+      if (jGlob >= nEmpty(iKS) .and. jGlob <= nFilled(iKS)) then
+        workLocal(:, jj) = eigVecsCplx(:, jj, iKS) * &
+            & deltamn(eigVals(jGlob, iKS, 1), Ef(iKS), tempElec) * dEf(iKS)
+      end if
+    end do
+    call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr,eigVecsCplx(:, :, iKS),&
+        & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transb="C")
+
+  #:else
+
+    do iFilled = nEmpty(iKS), nFilled(iKS)
+      workLocal(:, iFilled) = eigVecsCplx(:, iFilled, iKS) * &
+          & deltamn(eigvals(iFilled, iKS, 1), Ef(iKS), tempElec) * dEf(iKS)
+    end do
+    workLocal(:, :) = matmul(workLocal(:, nEmpty(iKS):nFilled(iKS)),&
+        & transpose(conjg(eigVecsCplx(:, nEmpty(iKS):nFilled(iKS), iKS))))
+
+  #:endif
+
+    if (allocated(idRhoExtra)) then
+      idRhoExtra(:,:) = 0.0_dp
+    end if
+
+    ! pack extra term into density matrix
+  #:if WITH_SCALAPACK
+    if (allocated(idRhoExtra)) then
+      call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, dRhoExtra, idRhoExtra)
+    else
+      call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & img2CentCell, dRhoExtra)
+    end if
+  #:else
+    call packHSPauli(dRhoExtra, workLocal, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
+        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    if (allocated(idRhoExtra)) then
+      call packHSPauliImag(idRhoExtra, workLocal, neighbourlist%iNeighbour, nNeighbourSK,&
+          & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    end if
+    !call packHS(rhoPrim, workLocal, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
+    !    & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+    !    & img2CentCell)
+    !if (tImHam) then
+    !  call iPackHS(iRhoPrim, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
+    !      & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
+    !      & img2CentCell)
+    !end if
+
+  #:endif
+
+    ! adjustment from Pauli to charge/spin
+    dRhoExtra(:,:) = 2.0_dp * dRhoExtra
+    if (allocated(idRhoExtra)) then
+      idRhoExtra(:,:) = 2.0_dp * idRhoExtra
+    end if
+
+  end subroutine dRhoFermiChangeStaticPauli
+
 
 !  subroutine perturbDyn(mympi, allproc, grpproc, gridAtom, &
 !      & groupKS, nGroups, groupsize, desc, filling, nElectrons, SSqrReal, eigvals, &
