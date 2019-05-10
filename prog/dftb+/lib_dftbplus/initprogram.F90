@@ -1648,6 +1648,9 @@ contains
     end if
 
     nEl0 = sum(q0(:,:,1))
+    if (abs(nEl0 - nint(nEl0)) < elecTolMax) then
+      nEl0 = nint(nEl0)
+    end if
     nEl(:) = 0.0_dp
     if (nSpin == 1 .or. nSpin == 4) then
       nEl(1) = nEl0 - input%ctrl%nrChrg
