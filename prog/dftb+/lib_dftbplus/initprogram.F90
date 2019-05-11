@@ -3652,8 +3652,8 @@ contains
       if (withMpi) then
         call error("Range separated calculations do not work with MPI yet")
       end if
-      if (tForces .and. nSpin > 1) then
-        call error("Range separated forces not currently implemented for spin polarized&
+      if (tForces .and. nSpin > 2) then
+        call error("Range separated forces not currently implemented for non-colinear&
             & calculations")
       end if
     end if
