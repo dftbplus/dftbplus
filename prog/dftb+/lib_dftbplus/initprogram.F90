@@ -1713,6 +1713,11 @@ contains
     if (electronicSolver%isElsiSolver) then
       @:ASSERT(parallelKS%nLocalKS == 1)
 
+      if (omp_get_max_threads() > 1) then
+        call error("The ELSI-solvers should not be run with multiple threads. Set the&
+            & environment variable OMP_NUM_THREADS to 1 in order to disable multi-threading.")
+      end if
+
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       tWriteHS = .false.
       call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&

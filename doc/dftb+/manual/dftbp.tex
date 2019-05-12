@@ -1771,6 +1771,12 @@ If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
 the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
 become available.
 
+Note: The ELSI-solvers are not tested with multiple OpenMP-threads. Therefore,
+{\dftbp} will stop with an error, if an ELSI-solver has been selected and the
+maximal number of allowed threads is greater than one. (You can control the
+number of allowed OpenMP-threads via the \verb|OMP_NUM_THREADS| environment
+variable.)
+
 \subsubsection{ELPA}
 
 This is avalable with either single or two stage solution methods (the second of
