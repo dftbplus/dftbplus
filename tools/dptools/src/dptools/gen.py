@@ -45,7 +45,16 @@ class Gen:
                 GEN-format.
         """
         with OpenFile(fobj, 'r') as fp:
-            lines = fp.readlines()
+            alllines = fp.readlines()
+
+        # strip out comments starting with hashmarks
+        lines = []
+        for line in alllines:
+            li = line.partition('#')[0]
+            li = li.rstrip()
+            if li:
+                lines.append(li)
+
         words = lines[0].split()
         natom = int(words[0])
         flag = words[1].lower()

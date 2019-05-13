@@ -46,6 +46,8 @@ APP_TAGDATA=autotest.tag
 APP_TAGDATA_REF=_autotest.tag
 
 TIME_CMD=time
+# Override time command if not available on the system
+($TIME_CMD ls 2>&1) > /dev/null || TIME_CMD=""
 
 SUMMARY_TAGDIFF_LOG="$TAGDIFF_LOG"
 SUMMARY_STDERROR="$APP_STDERR"
@@ -491,8 +493,8 @@ if [ -n "$STAGE_SUMMARY" ]; then
     fi
     echo "$TABLE_SEP"
     echo Details in:
-    (cd ${OWD}; ls -1 $workroot_parented/{$TAGDIFF_LOG,$APP_STDERR}) \
-      2>/dev/null   | pr -t1 -o4
+    echo  $workroot/$SUMMARY_STDERROR
+    echo  $workroot/$SUMMARY_TAGDIFF_LOG
     echo "$TABLE_HEADER"
     exit $exit_status
 fi

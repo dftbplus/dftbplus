@@ -24,14 +24,20 @@ Added
 
 - Onsite corrected hamiltonian for ground and Casidat excited state energies.
 
+- Labelling of atomic orbital choices in output
+
+
 Changed
 -------
 
+- Updated parser version to 7.
 
 Fixed
 -----
 
+- Orbital-resolved projected eigenstates (shell-resolved were correct)
 
+- Corrected Orbital to Shell naming conventions
 
 18.2
 ====
