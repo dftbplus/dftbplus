@@ -2658,8 +2658,10 @@ Hamiltonian = DFTB {
 \subsection{Halogen corrections}
 \label{sec:dftbp.xcorr}
 
-Includes the halogen correction of Ref.~\cite{kubillus-jctc-11-332}. This is
-fitted for the DFTB3-D3 model and the {\tt 3ob-3-1} parameter set.
+The \kw{DFTB3X} keyword includes the halogen correction of
+Ref.~\cite{kubillus-jctc-11-332}. This is fitted for the DFTB3-D3 model and the
+{\tt 3ob-3-1} parameter set. The correction is only relevant for systems
+including interactions between \{O,N\}--\{Cl,Br,I\} pairs of atoms.
 
 
 \subsection{Hydrogen corrections}
