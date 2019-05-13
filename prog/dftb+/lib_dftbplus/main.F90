@@ -5174,12 +5174,12 @@ contains
     if (allocated(rangeSep)) then
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
-      if (size(deltaRhoOutSqr, dim=3) == 1) then
-        call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr(:,:,1), skHamCont,&
+      if (size(deltaRhoOutSqr, dim=3) > 2) then
+        call error("Range separated forces do not support non-colinear spin")
+      else
+        call rangeSep%addLRGradients(derivs, nonSccDeriv, deltaRhoOutSqr, skHamCont,&
             & skOverCont, coord, species, orb, denseDesc%iAtomStart, SSqrReal,&
             & neighbourList%iNeighbour, nNeighbourSK)
-      else
-        call error("Range separated forces only spin free at the moment")
       end if
     end if
 

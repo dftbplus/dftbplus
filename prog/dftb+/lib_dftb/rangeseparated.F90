@@ -682,8 +682,7 @@ contains
   subroutine symmetrizeSquareMatrix(matrix)
 
     !> matrix to symmetrize
-    real(dp), allocatable, intent(inout) :: matrix(:,:)
-
+    real(dp), intent(inout) :: matrix(:,:)
     integer :: ii, matSize
 
     matSize = size(matrix, dim = 1)
@@ -1057,7 +1056,7 @@ contains
     real(dp), intent(inout) :: gradients(:,:)
 
     !> density matrix difference from reference q0
-    real(dp), intent(in) :: deltaRho(:,:)
+    real(dp), intent(in) :: deltaRho(:,:,:)
 
     !> sparse hamiltonian (non-scc)
     type(OSlakoCont), intent(in) :: skHamCont
@@ -1092,13 +1091,14 @@ contains
     integer :: nAtom, iAtK, iNeighK, iAtB, iNeighB, iAtC, iAtA, kpa
     real(dp) :: tmpgamma1, tmpgamma2
     real(dp) :: tmpforce(3), tmpforce_r(3), tmpforce2, tmpmultvar1
-    integer :: mu, nu, alpha, beta, ccc, kkk
+    integer :: nSpin, iSpin, mu, nu, alpha, beta, ccc, kkk
     real(dp) :: dummy(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb,3)
-    real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpovr(:,:), tmpRho(:,:), tmpderiv(:,:)
+    real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpovr(:,:), tmpRho(:,:,:), tmpderiv(:,:)
 
     write(stdOut,'(a)') "rangeSep: addLRGradients"
     @:ASSERT(size(gradients,dim=1) == 3)
+    nSpin = size(deltaRho,dim=3)
     call allocateAndInit(tmpovr, tmpRho, gammaPrimeTmp, tmpderiv)
     nAtom = size(self%species)
     tmpderiv = 0.0_dp
@@ -1130,10 +1130,12 @@ contains
               do kpa = iSquare(iAtK), iSquare(iAtK + 1) - 1
                 kkk = kkk + 1
                 tmpmultvar1 = 0.0_dp
-                do alpha = iSquare(iAtA), iSquare(iAtA + 1) - 1
-                  do beta = iSquare(iAtB), iSquare(iAtB + 1) - 1
-                    tmpmultvar1 = tmpmultvar1 + tmpovr(beta, alpha) * (tmpRho(beta,kpa) &
-                        & * tmpRho(alpha,mu) + tmpRho(alpha,kpa) * tmpRho(beta,mu))
+                do iSpin = 1, nSpin
+                  do alpha = iSquare(iAtA), iSquare(iAtA + 1) - 1
+                    do beta = iSquare(iAtB), iSquare(iAtB + 1) - 1
+                      tmpmultvar1 = tmpmultvar1 + tmpovr(beta, alpha) * (tmpRho(beta,kpa,iSpin) &
+                       & * tmpRho(alpha,mu,iSpin) + tmpRho(alpha,kpa,iSpin) * tmpRho(beta,mu,iSpin))
+                    end do
                   end do
                 end do
                 tmpforce(:) = tmpforce(:) + tmpmultvar1 * (sPrimeTmp(ccc,kkk,:))
@@ -1172,7 +1174,7 @@ contains
       end do loopC
     end do loopK
 
-    gradients(:,:) = gradients -0.25_dp * tmpderiv
+    gradients(:,:) = gradients -0.25_dp * nSpin * tmpderiv
 
     deallocate(tmpovr, tmpRho, gammaPrimeTmp, tmpderiv)
 
@@ -1185,7 +1187,7 @@ contains
       real(dp), allocatable, intent(inout) :: tmpovr(:,:)
 
       !> storage for density matrix
-      real(dp), allocatable, intent(inout) :: tmpRho(:,:)
+      real(dp), allocatable, intent(inout) :: tmpRho(:,:,:)
 
       !> storage for derivative of gamma interaction
       real(dp), allocatable, intent(inout) :: gammaPrimeTmp(:,:,:)
@@ -1194,17 +1196,19 @@ contains
       real(dp), allocatable, intent(inout) :: tmpderiv(:,:)
 
       real(dp) :: tmp(3)
-      integer :: iAt1, iAt2, nAtom
+      integer :: iSpin, iAt1, iAt2, nAtom
 
       nAtom = size(self%species)
       allocate(tmpovr(size(ovrlapMat, dim = 1), size(ovrlapMat, dim = 1)))
-      allocate(tmpRho(size(deltaRho, dim = 1), size(deltaRho, dim = 1)))
+      allocate(tmpRho(size(deltaRho, dim = 1), size(deltaRho, dim = 1), size(deltaRho, dim = 3)))
       allocate(gammaPrimeTmp(3, nAtom, nAtom))
       allocate(tmpderiv(3, size(gradients, dim = 2)))
       tmpovr = ovrlapMat
       tmpRho = deltaRho
       call symmetrizeSquareMatrix(tmpovr)
-      call symmetrizeSquareMatrix(tmpRho)
+      do iSpin = 1, size(deltaRho, dim = 3)
+        call symmetrizeSquareMatrix(tmpRho(:,:,iSpin))
+      enddo
       ! precompute the gamma derivatives
       write(stdOut,'(a)') "precomputing the lr-gamma derivatives"
       gammaPrimeTmp = 0.0_dp
