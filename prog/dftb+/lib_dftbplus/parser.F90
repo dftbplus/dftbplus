@@ -1851,7 +1851,7 @@ contains
     if (any(ctrl%solver%isolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])) then
       call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false.)
-      if (ctrl%t2Component) then
+      if (ctrl%t2Component .and. ctrl%solver%elsi%elsiCsr) then
         call detailedError(value1,"Two-component hamiltonians currently cannot be used with sparse&
             & ELSI solvers")
       end if
