@@ -14,7 +14,8 @@ module helpsetupgeom
 
   contains
 
-  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, tfold)
+  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, tfold, &
+              & printDebug)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(inout) :: contVec(:,:)
@@ -22,6 +23,7 @@ module helpsetupgeom
     integer, intent(in) :: nPLs(:)
     real(dp), intent(in) :: translVec(:)
     logical, intent(in) :: tfold
+    logical, intent(in) :: printDebug
    
 
     type(listIntR1) :: PLlist
@@ -46,10 +48,12 @@ module helpsetupgeom
     call sortContacts(geom, iAtInRegion, contDir)
 
     ! Print atom lists
-    call print_debug(geom, iAtInRegion)
+    if (printDebug) then
+      call print_debug(geom, iAtInRegion)
+    end if
 
     ! 3. resort the second contact PL to be a shifted copy of the first
-    call arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs)
+    call arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs, plcutoff)
 
     ! 4. Define device PLs
     call definePLs(geom, iAtInRegion, plcutoff, PLlist)
@@ -59,7 +63,10 @@ module helpsetupgeom
 
     ! 6. write ordered geometry
     call print_gen(geom, iAtInRegion, PLlist, contDir, plcutoff)
-
+ 
+    write(stdOut,*)
+    write(stdOut,*) "Written processed geometry file 'processed.gen'"
+    write(stdOut,*) "Written input lines in 'transport.hsd'"
 
   end subroutine setupGeometry
 
@@ -146,16 +153,18 @@ module helpsetupgeom
   end subroutine sortContacts
   
   ! -----------------------------------------------------------------------------------------------| 
-  subroutine arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs)
+  subroutine arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs, plcutoff)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(inout) :: contVec(:,:)
     integer, intent(in) :: contDir(:)
     integer, intent(in) :: nPLs(:)
+    real(dp), intent(in) :: plcutoff
 
-    integer :: ii, jj, kk, icont, ncont, PLsize
+    integer :: ii, jj, kk, icont, ncont, PLsize, nAddPLs, iPL
     real(dp) :: vec(3), uu(3), vv(3), tol, bestcross, bestdiff
     character(10) :: sindx
+
 
     ncont = size(iAtInRegion)-1
 
@@ -172,6 +181,15 @@ module helpsetupgeom
         write(stdOut, *) "Number of PLs",nPLs(icont)
         write(stdOut, *) "contact vector",contvec(1:3,icont)
         write(stdOut, *) "tolerance",tol
+        ! check PL size    
+        if (norm2(contvec(1:3,icont))<plcutoff) then
+          write(stdOut, *)    
+          write(stdOut, *) "The size of the contact PL is shorter than SK cutoff" 
+          write(stdOut, *) "Check your input geometry or force SKTruncation"
+          write(stdOut, *) "Alternatively, specify 1 PL and let the code adjust contact size"
+          call error("")  
+        end if
+        ! 
         do ii = 1, PLsize
           bestcross = 1e10
           bestdiff = 1e10
@@ -202,21 +220,30 @@ module helpsetupgeom
         end associate
       else if (nPLs(icont)==1) then
         PLsize = size(iAtInRegion(icont)%data)
-        contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
         write(stdOut, *) "PL size",PLsize
-        write(stdOut, *) "Build second PL"
+        contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
         write(stdOut, *) "contact vector",contvec(1:3,icont)
-        call reallocate_int(iAtInRegion(icont)%data, PLsize)
-        call reallocate_coords(geom%coords, PLsize)
-        call reallocate_int(geom%species, PLsize)
+        ! counting number of added PLs. Factor of 2 is needed to get 
+        ! always an even total number
+        nAddPLs = floor(plcutoff/norm2(contvec(1:3,icont)))*2 + 1
+        write(stdOut, *) "Adding",nAddPLs,"PL(s)"
+        if (nAddPLs>=3) then
+          call warning("More than 1 PL needs to be added") 
+        end if
+        call reallocate_int(iAtInRegion(icont)%data, nAddPLs*PLsize)
+        call reallocate_coords(geom%coords, nAddPLs*PLsize)
+        call reallocate_int(geom%species, nAddPLs*PLsize)
         associate(data=>iAtInRegion(icont)%data)
-        do ii = 1, PLsize
-          data(PLsize+ii) = geom%nAtom + ii !new atoms to the end of structure
-          geom%coords(:,data(PLsize+ii)) = geom%coords(:,data(ii)) + contVec(1:3,icont)
-          geom%species(data(PLsize+ii)) = geom%species(data(ii))
+        do iPL = 1, nAddPLs
+          do ii = 1, PLsize
+            jj = iPL*PLsize+ii
+            data(jj) = geom%nAtom + ii !new atoms to the end of structure
+            geom%coords(:,data(jj)) = geom%coords(:,data(ii)) + iPL*contVec(1:3,icont)
+            geom%species(data(jj)) = geom%species(data(ii))
+          end do
         end do
         end associate
-        geom%nAtom = geom%nAtom + PLsize
+        geom%nAtom = geom%nAtom + PLsize*nAddPLs
       else
         call error("Number of PLs in contact must be either 1 or 2")
       end if     
