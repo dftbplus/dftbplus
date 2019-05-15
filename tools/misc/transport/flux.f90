@@ -2,36 +2,35 @@ program current
   implicit none
 
   integer, parameter :: dp=8 
-  integer :: natoms    
+  integer :: nat, natoms    
   integer, dimension(:,:), allocatable :: neig     
   integer, dimension(:), allocatable :: nn     
   real(8), dimension(:,:), allocatable :: Inm    
   real(8), dimension(:,:), allocatable :: coord
-  integer :: m, tmp, i, j, n, k, maxnn, maxnn_valid
-  real(8) :: z, Iz, dr(3), e(3), Imax, frac, width, norm_dr, arr_len
-  character(64) :: arg, filename
+  integer :: m, itmp, io, i, j, n, k, maxnn, maxnn_valid
+  real(8) :: z, Iz, dr(3), e(3), Imax, frac, width, norm_dr, arr_len, rtmp(3)
+  character(64) :: arg, filename1, filename2
   character(4) :: id
   logical :: bondflux
 
   if (iargc().lt.4) then 
-     write(*,*) "flux -a|b 'lcurrent.dat' natoms maxneigbors [fraction width]"
+     write(*,*) "flux supercell.xyz -a|b 'lcurrent.dat' maxneigbors [fraction width]"
      write(*,*) " -a : atom currents; -b: bond currents"
-     write(*,*) " natoms: number of atoms in flux file"
      write(*,*) " maxneighbours: neighbours considered in flux calculation"
      write(*,*) " fraction [1.0]: The arrow lengths are normalized to I_max/fraction"
      write(*,*) " width [0.2]: arrows are given a width depending on length"   
      write(*,*) "              arrows too long are made thicker and rescaled"   
      stop 
   endif
+  
+  CALL getarg(1, filename1)
 
-  CALL getarg(1, arg)
+  CALL getarg(2, arg)
   if (trim(arg).eq."-b") bondflux = .true.
   if (trim(arg).eq."-a") bondflux = .false.
 
-  CALL getarg(2, filename)
+  CALL getarg(3, filename2)
 
-  CALL getarg(3, arg)
-  read(arg,*) natoms
   n = 40
   CALL getarg(4, arg)
   read(arg,*) maxnn
@@ -50,22 +49,32 @@ program current
     width = 0.2      
   endif  
 
-  allocate(neig(natoms,n))
-  allocate(nn(natoms))
-  allocate(Inm(natoms,n))
-  allocate(coord(3,natoms))
-
+  open(105, file=trim(filename1))
+  read(105, *) nat
+  allocate(neig(nat,n))
+  allocate(nn(nat))
+  allocate(Inm(nat,n))
+  allocate(coord(3,nat))
+  read(105, *)
+  do m=1, nat
+    read(105,*) id, coord(1:3,m) 
+  end do
+  close(105)
+  
+  ! Figure out the number of atoms
+  open(105,file=trim(filename2))
   Inm = 0.d0
-
-  open(105,file=trim(filename))
-  do m=1, natoms    
-     read(105,*) tmp, coord(1:3,m), nn(m), (neig(m,i), Inm(m,i), i=1,nn(m)) 
+  do m=1, nat  
+    read(105,*, iostat=io) itmp, rtmp(1:3), nn(m), (neig(m,i), Inm(m,i), i=1,nn(m)) 
+    if (io<0) then
+      natoms = m-1    
+      exit
+    endif
   enddo
   close(105)
 
-  coord=coord*0.529177_dp
-
   Imax=maxval(abs(Inm(1:natoms,1:maxnn)))
+  print*,'# Natoms=',natoms
   print*,'# Imax=',Imax
 
   if(Imax.eq.0.d0) Imax=1.0_dp
