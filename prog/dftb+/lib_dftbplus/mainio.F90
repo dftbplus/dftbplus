@@ -4197,7 +4197,7 @@ contains
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
-          write(fd, "(A,T22,1X'(',F10.6,',',F10.6,1X,')',1X,F10.6)")&
+          write(fd, "(A,T22,1X,'(',F10.6,',',F10.6,1X,')',1X,F10.6)")&
               & trim(tmpStr)//trim(orbitalNames(iOrb-ang-1,ang)),&
               & real(eigvec(ind)), aimag(eigvec(ind)), fracs(ind)
         end do
