@@ -2221,15 +2221,18 @@ contains
 
     !> Initialize range separated
     if (tRangeSep) then
-      if (.not.tRealHS .or. tPeriodic) then
-        call error("Range separated functionality only works with non-periodic structures")
+      if (tPeriodic) then
+        call error("Range separated functionality only works with non-periodic structures at the&
+            & moment")
       end if
       if (tReadChrg .and. input%ctrl%rangeSepAlgorithm == "tr") then
-        call error("Restart on thresholded range separation not working correctly")
+        call error("Restart on thresholded range separation not currently working correctly")
       end if
       if (input%ctrl%tOrbResolved) then
-        call error("Range separated functionality currently does not support l-resolved scc yet")
+        call error("Range separated functionality currently does not yet support shell-resolved&
+            & scc")
       end if
+
       allocate(rangeSep)
       call RangeSep_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
           & input%ctrl%screeningThreshold, input%ctrl%omega, tSpin, input%ctrl%rangeSepAlgorithm)
@@ -3652,9 +3655,23 @@ contains
       if (withMpi) then
         call error("Range separated calculations do not work with MPI yet")
       end if
-      if (tForces .and. nSpin > 2) then
-        call error("Range separated forces not currently implemented for non-colinear&
-            & calculations")
+      if (nSpin > 2) then
+        call error("Range separated calculations not implemented for non-colinear calculations")
+      end if
+      if (tXlbomd) then
+        call error("Range separated calculations not currently implemented for XLBOMD")
+      end if
+      if (t3rd) then
+        call error("Range separated calculations not currently implemented for 3rd order DFTB")
+      end if
+      if (tLinResp) then
+        call error("Range separated calculations not currently implemented for linear response")
+      end if
+      if (tSpinOrbit) then
+        call error("Range separated calculations not currently implemented for spin orbit")
+      end if
+      if (tDFTBU) then
+        call error("Range separated calculations not currently implemented for DFTB+U")
       end if
     end if
 
