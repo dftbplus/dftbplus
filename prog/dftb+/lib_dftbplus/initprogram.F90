@@ -1406,6 +1406,9 @@ contains
       if (.not. (t3rd .or. t3rdFull)) then
         call error("Halogen correction only fitted for 3rd order models")
       end if
+      if (tPeriodic) then
+        call error("Halogen correction was not fitted in periodic systems in original paper")
+      end if
       allocate(halogenXCorrection)
       call THalogenX_init(halogenXCorrection, species0, speciesName)
     end if

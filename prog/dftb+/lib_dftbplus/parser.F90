@@ -2211,24 +2211,28 @@ contains
         end if
         ! Halogen correction to the DFTB3 model
         tHalogenAtoms = .false.
-        do iSp1 = 1, geo%nSpecies
-          if (any(geo%speciesNames(iSp1) == ["N","O"])) then
-            tHalogenAtoms = .true.
-            exit
-          end if
-        end do
-        if (tHalogenAtoms) then
-          tHalogenAtoms = .false.
+        if (.not.geo%tPeriodic) then
           do iSp1 = 1, geo%nSpecies
-            if (any(geo%speciesNames(iSp1) == ["Cl","Br"]) .or. geo%speciesNames(iSp1) == "I") then
+            if (any(geo%speciesNames(iSp1) == ["N","O"])) then
               tHalogenAtoms = .true.
               exit
             end if
           end do
           if (tHalogenAtoms) then
-            call getChildValue(node, "DFTB3X", ctrl%tHalogenX, .false.)
+            tHalogenAtoms = .false.
+            do iSp1 = 1, geo%nSpecies
+              if (any(geo%speciesNames(iSp1) == ["Cl","Br"]) .or. geo%speciesNames(iSp1) == "I")&
+                  & then
+                tHalogenAtoms = .true.
+                exit
+              end if
+            end do
+            if (tHalogenAtoms) then
+              call getChildValue(node, "DFTB3X", ctrl%tHalogenX, .false.)
+            end if
           end if
         end if
+
       end if
     end if
 
