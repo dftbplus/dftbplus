@@ -559,7 +559,6 @@ contains
     this%invLatVec = invLatVec
     this%iCellVec = iCellVec
     this%rCellVec = rCellVec
-
     tWriteAutotest = this%tWriteAutotest
     iCall = 1
     if (size(this%polDirs) > 1) then
@@ -720,6 +719,7 @@ contains
     complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
     real(dp) :: coordNew(3, this%nAtom), totalForce(3, this%nAtom), ePerBond(this%nAtom, this%nAtom)
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
+    real(dp) :: cellVol, recVecs(3,3), recVecs2p(3,3)
     character(4) :: dumpIdx
     logical :: tProbeFrameWrite
 
@@ -757,6 +757,26 @@ contains
         & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock,&
         & UJ, onSiteElements)
 
+    call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
+    if (this%tDispersion) then
+       call this%dispersion%updateCoords(neighbourList, img2CentCell, coordAll, this%speciesAll)
+       this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
+    end if
+
+    if (this%tPeriodic) then
+       cellVol = abs(determinant33(this%latVec))
+       recVecs2p(:,:) = this%latVec
+       call matinv(recVecs2p)
+       recVecs2p = transpose(recVecs2p)
+       recVecs = 2.0_dp * pi * recVecs2p
+       call this%sccCalc%updateLatVecs(this%latVec, recVecs, cellVol)
+       this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
+       if (this%tDispersion) then
+          call this%dispersion%updateLatVecs(this%latVec)
+          this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
+       end if
+    end if
+
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock,&
@@ -766,14 +786,6 @@ contains
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements)
-
-    if (this%tDispersion) then
-      if (this%tPeriodic) then
-        call this%dispersion%updateLatVecs(this%latVec)
-      end if
-      call this%dispersion%updateCoords(neighbourList, img2CentCell, coordAll, this%speciesAll)
-      this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
-    end if
 
     if (this%tForces) then
        totalForce(:,:) = 0.0_dp
@@ -2440,32 +2452,7 @@ contains
 
     real(dp) :: Sreal(this%nOrbs,this%nOrbs), SinvReal(this%nOrbs,this%nOrbs)
     real(dp) :: coord0Fold(3,this%nAtom)
-    real(dp) :: cellVol, recVecs(3,3), recVecs2p(3,3), recCellVol
-    real(dp), allocatable :: cellVecs(:,:)
     integer :: nAllAtom, iSpin, sparseSize, iOrb
-
-
-    ! are all these values necessary for Ehrenfest dynamics with periodic boundaries?
-    if (this%tPeriodic) then
-       recVecs = 0.0_dp
-       recVecs2p = 0.0_dp
-       cellVecs = 0.0_dp
-       allocate(cellVecs(3,3))
-       cellVol = abs(determinant33(this%latVec))
-       recVecs2p(:,:) = this%latVec
-       call matinv(recVecs2p)
-       recVecs2p = transpose(recVecs2p)
-       recVecs = 2.0_dp * pi * recVecs2p
-
-       call this%sccCalc%updateLatVecs(this%latVec, recVecs, cellVol)
-       this%mCutOff = max(this%mCutOff, this%sccCalc%getCutOff())
-
-       if (this%tDispersion) then
-          call this%dispersion%updateLatVecs(this%latVec)
-          this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
-       end if
-       call getCellTranslations(cellVecs, this%rCellVec, this%latVec, recVecs2p, this%mCutOff)
-    end if
 
     coord0Fold(:,:) = coord
     if (this%tPeriodic) then
