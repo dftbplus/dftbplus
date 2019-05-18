@@ -543,6 +543,11 @@ contains
       nElec = nElec + kWeight(iKpt)
       ind = ind + 1
     end do
+
+    ! just in case the system has all levels filled, but eventually this means Ef has to be above
+    ! last eigenvalue:
+    ind = min(size(eigenvals), ind)
+
     iLev = tmpIndx(ind)
     jOrb = mod(iLev - 1, size1) + 1
     jKpt = mod((iLev - 1) / size1, size2) + 1
