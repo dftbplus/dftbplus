@@ -467,19 +467,64 @@ contains
     real(dp), intent(out) :: mSKCutoff
 
     ! Locals
+    type(fnode), pointer :: child 
+    integer :: skInterMeth
+    logical :: oldSKInter
+
+    call getChildValue(node, "OldSKInterpolation", oldSKInter, .false.)
+    if (oldSKInter) then
+      skInterMeth = skEqGridOld
+    else
+      skInterMeth = skEqGridNew
+    end if
+
+    call getChild(node, "TruncateSKRange", child, requested=.false.)
+    if (associated(child)) then
+      call warning("Artificially truncating the SK table, this is normally a bad idea!")
+      call SKTruncations(child, mSKCutOff, skInterMeth)
+    else
+      call readSKFiles(node, geo%nSpecies, geo%speciesNames, mSKCutOff)
+    end if
+    ! The fudge distance is added to get complete cutoff
+    select case(skInterMeth)
+    case(skEqGridOld)
+      mSKCutOff = mSKCutOff + distFudgeOld
+    case(skEqGridNew)
+      mSKCutOff = mSKCutOff + distFudge
+    end select
+
+  end subroutine getSKcutoff  
+
+  !> Reads Slater-Koster files
+  !> Should be replaced with a more sophisticated routine, once the new SK-format has been
+  !> established
+  subroutine readSKFiles(node, nSpecies, speciesNames, maxSKcutoff)
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Nr. of species in the system
+    integer, intent(in) :: nSpecies
+
+    !> Array with specie names
+    character(mc), intent(in) :: speciesNames(:)
+
+    !> Maximum SK cutoff distance obtained from SK files  
+    real(dp), intent(out) :: maxSKcutoff
+
     type(fnode), pointer :: value1, child, child2 
     type(string) :: buffer, buffer2
-    type(listCharLc), allocatable :: skFiles(:,:)
     type(listString) :: lStr
+    type(listCharLc), allocatable :: skFiles(:,:)
+    type(TOldSKData) :: skData
     integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
-    integer :: skInterMeth
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
-    logical :: tLower, tExist, oldSKInter
-
+    character(lc) :: fileName
+    logical :: tLower, tExist
+    
     ! Slater-Koster files
-    allocate(skFiles(geo%nSpecies, geo%nSpecies))
-    do iSp1 = 1, geo%nSpecies
-      do iSp2 = 1, geo%nSpecies
+    allocate(skFiles(nSpecies, nSpecies))
+    do iSp1 = 1, nSpecies
+      do iSp2 = 1, nSpecies
         call init(skFiles(iSp2, iSp1))
       end do
     end do
@@ -494,17 +539,17 @@ contains
       call getChildValue(value1, "Separator", buffer2, "")
       separator = unquote(char(buffer2))
       call getChildValue(value1, "LowerCaseTypeName", tLower, .false.)
-      do iSp1 = 1, geo%nSpecies
+      do iSp1 = 1, nSpecies
         if (tLower) then
-          elem1 = tolower(geo%speciesNames(iSp1))
+          elem1 = tolower(speciesNames(iSp1))
         else
-          elem1 = geo%speciesNames(iSp1)
+          elem1 = speciesNames(iSp1)
         end if
-        do iSp2 = 1, geo%nSpecies
+        do iSp2 = 1, nSpecies
           if (tLower) then
-            elem2 = tolower(geo%speciesNames(iSp2))
+            elem2 = tolower(speciesNames(iSp2))
           else
-            elem2 = geo%speciesNames(iSp2)
+            elem2 = speciesNames(iSp2)
           end if
           strTmp = trim(prefix) // trim(elem1) // trim(separator) &
               &// trim(elem2) // trim(suffix)
@@ -518,10 +563,10 @@ contains
       end do
     case default
       call setUnprocessed(value1)
-      do iSp1 = 1, geo%nSpecies
-        do iSp2 = 1, geo%nSpecies
-          strTmp = trim(geo%speciesNames(iSp1)) // "-" &
-              &// trim(geo%speciesNames(iSp2))
+      do iSp1 = 1, nSpecies
+        do iSp2 = 1, nSpecies
+          strTmp = trim(speciesNames(iSp1)) // "-" &
+              &// trim(speciesNames(iSp2))
           call init(lStr)
           call getChildValue(child, trim(strTmp), lStr, child=child2)
           !if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
@@ -541,54 +586,6 @@ contains
         end do
       end do
     end select
-    call getChildValue(node, "OldSKInterpolation", oldSKInter, .false.)
-    if (oldSKInter) then
-      skInterMeth = skEqGridOld
-    else
-      skInterMeth = skEqGridNew
-    end if
-
-    call getChild(node, "TruncateSKRange", child, requested=.false.)
-    if (associated(child)) then
-      call warning("Artificially truncating the SK table, this is normally a bad idea!")
-      call SKTruncations(child, mSKCutOff, skInterMeth)
-    else
-      call readSKFiles(skFiles, geo%nSpecies, mSKCutOff)
-    end if
-    ! The fudge distance is added to get complete cutoff
-    select case(skInterMeth)
-    case(skEqGridOld)
-      mSKCutOff = mSKCutOff + distFudgeOld
-    case(skEqGridNew)
-      mSKCutOff = mSKCutOff + distFudge
-    end select
-
-    do iSp1 = 1, geo%nSpecies
-      do iSp2 = 1, geo%nSpecies
-        call destruct(skFiles(iSp2, iSp1))
-      end do
-    end do
-    deallocate(skFiles)
-  
-  end subroutine getSKcutoff  
-
-  !> Reads Slater-Koster files
-  !> Should be replaced with a more sophisticated routine, once the new SK-format has been
-  !> established
-  subroutine readSKFiles(skFiles, nSpecies, maxSKcutoff)
-
-    !> List of SK file names to read in for every interaction
-    type(ListCharLc), intent(inout) :: skFiles(:,:)
-
-    !> Nr. of species in the system
-    integer, intent(in) :: nSpecies
-
-    !> Maximum SK cutoff distance obtained from SK files  
-    real(dp), intent(out) :: maxSKcutoff
-
-    integer :: iSp1, iSp2
-    type(TOldSKData) :: skData
-    character(lc) :: fileName
 
     write(stdout, "(A)") "Reading SK-files:"
     do iSp1 = 1, nSpecies
@@ -601,7 +598,14 @@ contains
     end do
     write(stdout, "(A)") "Done."
     write(stdout, *) 
-
+    
+    do iSp1 = 1, nSpecies
+      do iSp2 = 1, nSpecies
+        call destruct(skFiles(iSp2, iSp1))
+      end do
+    end do
+    deallocate(skFiles)
+  
   end subroutine readSKFiles
 
 

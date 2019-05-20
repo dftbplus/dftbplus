@@ -162,9 +162,9 @@ module helpsetupgeom
     real(dp), intent(in) :: plcutoff
 
     integer :: ii, jj, kk, icont, ncont, PLsize, nAddPLs, iPL
-    real(dp) :: vec(3), uu(3), vv(3), tol, bestcross, bestdiff
+    real(dp) :: vec(3), uu(3), vv(3), tol, bestcross, bestdiff, mindist
     character(10) :: sindx
-
+    character(lc) :: errmess(4)
 
     ncont = size(iAtInRegion)-1
 
@@ -177,17 +177,19 @@ module helpsetupgeom
         tol = norm2(vv)*contvec(4,icont)
         PLsize = size(data)/2
         write(stdOut, *) "Contact",icont
-        write(stdOut, *) "PL size",PLsize
-        write(stdOut, *) "Number of PLs",nPLs(icont)
-        write(stdOut, *) "contact vector",contvec(1:3,icont)
-        write(stdOut, *) "tolerance",tol
-        ! check PL size    
-        if (norm2(contvec(1:3,icont))<plcutoff) then
-          write(stdOut, *)    
-          write(stdOut, *) "The size of the contact PL is shorter than SK cutoff" 
-          write(stdOut, *) "Check your input geometry or force SKTruncation"
-          write(stdOut, *) "Alternatively, specify 1 PL and let the code adjust contact size"
-          call error("")  
+        write(stdOut, *) "PL size:",PLsize
+        write(stdOut, *) "Number of PLs:",nPLs(icont)
+        write(stdOut, *) "contact vector:",contvec(1:3,icont)
+        write(stdOut, *) "tolerance:",tol
+        ! check PL size   
+        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont)) 
+        write(stdOut, *) "minimum distance 2nd neighbour PL:",mindist
+        if (mindist<plcutoff) then
+          errmess(1) = "The size of the contact PL is shorter than SK cutoff" 
+          errmess(2) = "Check your input geometry or force SKTruncation"
+          errmess(3) = "Alternatively, specify 1 PL and let the code adjust contact size"
+          errmess(4) = ""
+          call error(errmess)  
         end if
         ! 
         do ii = 1, PLsize
@@ -219,13 +221,15 @@ module helpsetupgeom
         end do  
         end associate
       else if (nPLs(icont)==1) then
-        PLsize = size(iAtInRegion(icont)%data)
-        write(stdOut, *) "PL size",PLsize
+        associate(data=>iAtInRegion(icont)%data)
+        PLsize = size(data)
+        write(stdOut, *) "PL size:",PLsize
         contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
-        write(stdOut, *) "contact vector",contvec(1:3,icont)
+        write(stdOut, *) "contact vector:",contvec(1:3,icont)
         ! counting number of added PLs. Factor of 2 is needed to get 
         ! always an even total number
-        nAddPLs = floor(plcutoff/norm2(contvec(1:3,icont)))*2 + 1
+        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont)) 
+        nAddPLs = floor(plcutoff/mindist)*2 + 1
         write(stdOut, *) "Adding",nAddPLs,"PL(s)"
         if (nAddPLs>=3) then
           call warning("More than 1 PL needs to be added") 
@@ -233,7 +237,6 @@ module helpsetupgeom
         call reallocate_int(iAtInRegion(icont)%data, nAddPLs*PLsize)
         call reallocate_coords(geom%coords, nAddPLs*PLsize)
         call reallocate_int(geom%species, nAddPLs*PLsize)
-        associate(data=>iAtInRegion(icont)%data)
         do iPL = 1, nAddPLs
           do ii = 1, PLsize
             jj = iPL*PLsize+ii
@@ -544,6 +547,37 @@ module helpsetupgeom
     end do
 
   end subroutine foldCoordToUnitCell
+
+  function minDist2ndPL(coord, iAt, PLsize, contvec) result(mindist)
+    
+    !> Contains the original coordinates on call and the folded ones on return.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Indices of the atoms in a contact
+    integer, intent(in) :: iAt(:)
+
+    !> Number of atoms in each contact PL
+    integer, intent(in) :: PLsize
+
+    !> Lattice vectors (column format).
+    real(dp), intent(in) :: contVec(3)
+
+    !> Output minimal distance between 2nd-neighbour PLs
+    real(dp) :: mindist
+
+    integer :: ii, jj
+    real(dp) :: dist, vec2(3)
+
+    vec2=2.0_dp*contVec
+    mindist = 1e10
+
+    do ii = 1, PLsize
+      do jj = 1, PLsize
+        mindist = min(mindist,norm2(coord(:,iAt(ii))+vec2-coord(:,iAt(jj))))
+      end do   
+    end do
+
+  end function minDist2ndPL
 
 end module helpsetupgeom
 
