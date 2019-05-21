@@ -56,6 +56,9 @@ contains
       case (5)
         call convert_5_6(root)
         version = 6
+      case (6)
+        call convert_6_7(root)
+        version = 7
       end select
     end do
 
@@ -386,5 +389,24 @@ contains
     end if
 
   end subroutine convert_5_6
+
+
+  !> Converts input from version 6 to 7. (Version 7 introcuded in April 2019)
+  subroutine convert_6_7(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, par
+    logical :: tVal
+
+    call getDescendant(root, "Hamiltonian/DFTB/OrbitalResolvedSCC", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword converted to 'ShellResolvedSCC'.")
+      call setNodeName(ch1, "ShellResolvedSCC")
+    end if
+
+  end subroutine convert_6_7
+
 
 end module dftbp_oldcompat
