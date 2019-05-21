@@ -277,7 +277,7 @@ contains
     type(WrappedInt1), allocatable :: iAtInRegion(:)
     real(dp), allocatable :: contVec(:,:), translVec(:)
     integer, allocatable :: nPLs(:)
-    logical :: tfold, printDebug
+    logical :: printDebug
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
@@ -309,9 +309,8 @@ contains
       call getSKcutoff(pTask, geom, skCutoff)
       write(stdOut,*) 'Maximum SK cutoff:', SKcutoff
       call getTranslation(pTask, translVec)
-      call getChildValue(pTask, "FoldToUnitCell", tfold, .false.)
       call getChildValue(pTask, "printInfo", printDebug, .false.)
-      call setupGeometry(geom, iAtInRegion, contVec, skCutoff, nPLs, translVec, tfold, printDebug)
+      call setupGeometry(geom, iAtInRegion, contVec, skCutoff, nPLs, translVec, printDebug)
 
     case default
 

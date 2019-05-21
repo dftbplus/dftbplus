@@ -14,15 +14,13 @@ module helpsetupgeom
 
   contains
 
-  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, tfold, &
-              & printDebug)
+  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, printDebug)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(inout) :: contVec(:,:)
     real(dp), intent(in) :: plCutoff
     integer, intent(in) :: nPLs(:)
     real(dp), intent(in) :: translVec(:)
-    logical, intent(in) :: tfold
     logical, intent(in) :: printDebug
    
 
@@ -40,11 +38,14 @@ module helpsetupgeom
     do icont=1,ncont
       contDir(icont) = get_contdir(contVec(:,icont))
     end do
+    
+    ! 1. Translate or fold cell
+    call TranslateAndFold(geom, translVec, .true.)
 
-    ! 1. Set the indices of atoms in the device region
+    ! 2. Set the indices of atoms in the device region
     call assignDeviceAtoms(geom, iAtInRegion)
 
-    ! 2. Sort each contact along the contact direction
+    ! 3. Sort each contact along the contact direction
     call sortContacts(geom, iAtInRegion, contDir)
 
     ! Print atom lists
@@ -52,15 +53,12 @@ module helpsetupgeom
       call print_debug(geom, iAtInRegion)
     end if
 
-    ! 3. resort the second contact PL to be a shifted copy of the first
+    ! 4. re-sort the second contact PL to be a shifted copy of the first
     call arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs, plcutoff)
 
-    ! 4. Define device PLs
-    call definePLs(geom, iAtInRegion, plcutoff, PLlist)
+    ! 5. Define device PLs
+    call defineDevicePLs(geom, iAtInRegion, plcutoff, PLlist)
   
-    ! 5. Translate or fold cell
-    call TranslateAndFold(geom, translVec, tfold)
-
     ! 6. write ordered geometry
     call print_gen(geom, iAtInRegion, PLlist, contDir, plcutoff)
  
@@ -288,42 +286,61 @@ module helpsetupgeom
   end subroutine arrangeContactPLs
   
   ! -----------------------------------------------------------------------------------------------
-  subroutine definePLs(geom, iAtInRegion, plcutoff, PLlist)
+  subroutine defineDevicePLs(geom, iAtInRegion, plcutoff, PLlist)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(in) :: plCutoff
     type(listIntR1), intent(out) :: PLlist
 
-    integer :: ii, jj, iPL, sizeL, sizeD, ncont
+    integer :: ii, jj, kk, sizeL,  sizeD, ncont
     logical, allocatable :: mask(:)
     type(listInt) :: atomsInPL
     integer, allocatable :: buffer(:)
     real(dp) :: vec(3)
+    logical :: addAllR
     
     ! March from contact 1 in the device. Put atoms within cutoff
     ! in a list then restart from that list to the next 
     call init(PLlist)
     buffer = iAtInRegion(1)%data
-    ncont = size(iAtInRegion)-1
     sizeL = size(buffer)    
+    ncont = size(iAtInRegion)-1
     sizeD = size(iAtInRegion(ncont+1)%data)
     allocate(mask(sizeD))
     mask=.true.
-    iPL = 0
+    addAllR=.false.
 
     ! put array of contact atoms in the first node of PLlist
-    associate(dataD=>iAtInRegion(ncont+1)%data)
+    associate(dataD=>iAtInRegion(ncont+1)%data, dataR=>iAtInRegion(2)%data)
     do while (count(mask)>0) 
       call init(atomsInPL)
-      do ii = 1, sizeL
+      lpL: do ii = 1, sizeL
         do jj = 1, sizeD
           vec(:) = geom%coords(:,buffer(ii))-geom%coords(:,dataD(jj))
           if (norm2(vec)<plcutoff .and. mask(jj)) then
             call append(atomsInPL, dataD(jj))
             mask(jj) = .false.   
+            ! check distance from contact 2. If d < cutoff all remaining atoms
+            ! will go in the last PL
+            do kk = 1, size(dataR)
+              vec(:) = geom%coords(:,dataD(jj))-geom%coords(:,dataR(kk))
+              if (norm2(vec)<plcutoff) then
+                addAllR=.true.
+                exit lpL
+              end if      
+            end do
           end if
         end do 
-      end do 
+      end do lpL
+      ! Add all remaining atoms
+      if (addAllR) then
+        do jj = 1, sizeD
+          if (mask(jj)) then
+            call append(atomsInPL, dataD(jj))
+            mask(jj) = .false.   
+          end if 
+        end do
+      end if
       ! A. transform list to array and add the array to PLlist
       deallocate(buffer)
       allocate(buffer(len(atomsInPL)))
@@ -331,11 +348,10 @@ module helpsetupgeom
       call destruct(atomsInPL)
       call append(PLlist, buffer) 
       sizeL = size(buffer)
-      iPL = iPL + 1
     end do   
     end associate
 
-  end subroutine definePLs
+  end subroutine defineDevicePLs
   ! -----------------------------------------------------------------------------------------------
 
   function get_contdir(contvec) result(dir)
