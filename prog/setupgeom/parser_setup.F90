@@ -185,8 +185,8 @@ contains
     !> Node to get the information from
     type(fnode), pointer :: node
 
-    !> Root of the entire tree (in case it needs to be converted, for example because dftbp_of compability
-    !> options)
+    !> Root of the entire tree (in case it needs to be converted, for example because dftbp_of
+    !> compability options)
     type(fnode), pointer :: root
 
     !> Contains parser flags on exit.
@@ -272,23 +272,15 @@ contains
     type(fnode), pointer :: pTmp, field
     type(fnodeList), pointer :: pNodeList
     integer :: ii, contact
-    real(dp) :: acc, contactRange(2), lateralContactSeparation, plCutoff
+    real(dp) :: acc, contactRange(2), lateralContactSeparation, skCutoff
     type(listInt) :: li
     type(WrappedInt1), allocatable :: iAtInRegion(:)
     real(dp), allocatable :: contVec(:,:), translVec(:)
     integer, allocatable :: nPLs(:)
-    logical :: tfold
+    logical :: printDebug
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
-    !call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)
-    !if (associated(pTmp)) then
-    !  call init(li)
-    !  call getChildValue(pTmp, "", li)
-    !  allocate(transpar%cblk(len(li)))
-    !  call asArray(li,transpar%cblk)
-    !  call destruct(li)
-    !end if
 
     !! Note: we parse first the task because dftbp_we need to know it to define the
     !! mandatory contact entries. On the other hand we need to wait that
@@ -300,11 +292,6 @@ contains
     if (char(buffer).ne."setupgeometry") then
       call getChild(root, "Device", pDevice)
       call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
-      !call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
-      !call readFirstLayerAtoms(pTmp, transpar%PL, transpar%nPLs, transpar%idxdevice)
-      !if (.not.associated(pTmp)) then
-      !  call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
-      !end if
     end if
     
     call getChildren(root, "Contact", pNodeList)
@@ -319,11 +306,11 @@ contains
       
       call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, &
             contVec, nPLs)
-      call getChildValue(pTask, "PLCutoff", plCutoff, 10.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, plCutoff)
+      call getSKcutoff(pTask, geom, skCutoff)
+      write(stdOut,*) 'Maximum SK cutoff:', SKcutoff
       call getTranslation(pTask, translVec)
-      call getChildValue(pTask, "FoldToUnitCell", tfold, .false.)
-      call setupGeometry(geom, iAtInRegion, contVec, plCutoff, nPLs, translVec, tfold)
+      call getChildValue(pTask, "printInfo", printDebug, .false.)
+      call setupGeometry(geom, iAtInRegion, contVec, skCutoff, nPLs, translVec, printDebug)
 
     case default
 
@@ -468,5 +455,194 @@ contains
     end if   
   end subroutine getTranslation
      
+  subroutine getSKcutoff(node, geo, mSKCutoff)
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    !> Maximum cutoff distance from sk files
+    real(dp), intent(out) :: mSKCutoff
+
+    ! Locals
+    type(fnode), pointer :: child 
+    integer :: skInterMeth
+    logical :: oldSKInter
+
+    call getChildValue(node, "OldSKInterpolation", oldSKInter, .false.)
+    if (oldSKInter) then
+      skInterMeth = skEqGridOld
+    else
+      skInterMeth = skEqGridNew
+    end if
+
+    call getChild(node, "TruncateSKRange", child, requested=.false.)
+    if (associated(child)) then
+      call warning("Artificially truncating the SK table, this is normally a bad idea!")
+      call SKTruncations(child, mSKCutOff, skInterMeth)
+    else
+      call readSKFiles(node, geo%nSpecies, geo%speciesNames, mSKCutOff)
+    end if
+    ! The fudge distance is added to get complete cutoff
+    select case(skInterMeth)
+    case(skEqGridOld)
+      mSKCutOff = mSKCutOff + distFudgeOld
+    case(skEqGridNew)
+      mSKCutOff = mSKCutOff + distFudge
+    end select
+
+  end subroutine getSKcutoff  
+
+  !> Reads Slater-Koster files
+  !> Should be replaced with a more sophisticated routine, once the new SK-format has been
+  !> established
+  subroutine readSKFiles(node, nSpecies, speciesNames, maxSKcutoff)
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Nr. of species in the system
+    integer, intent(in) :: nSpecies
+
+    !> Array with specie names
+    character(mc), intent(in) :: speciesNames(:)
+
+    !> Maximum SK cutoff distance obtained from SK files  
+    real(dp), intent(out) :: maxSKcutoff
+
+    type(fnode), pointer :: value1, child, child2 
+    type(string) :: buffer, buffer2
+    type(listString) :: lStr
+    type(listCharLc), allocatable :: skFiles(:,:)
+    type(TOldSKData) :: skData
+    integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
+    character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
+    character(lc) :: fileName
+    logical :: tLower, tExist
+    
+    ! Slater-Koster files
+    allocate(skFiles(nSpecies, nSpecies))
+    do iSp1 = 1, nSpecies
+      do iSp2 = 1, nSpecies
+        call init(skFiles(iSp2, iSp1))
+      end do
+    end do
+    call getChildValue(node, "SlaterKosterFiles", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case ("type2filenames")
+      call getChildValue(value1, "Prefix", buffer2, "")
+      prefix = unquote(char(buffer2))
+      call getChildValue(value1, "Suffix", buffer2, "")
+      suffix = unquote(char(buffer2))
+      call getChildValue(value1, "Separator", buffer2, "")
+      separator = unquote(char(buffer2))
+      call getChildValue(value1, "LowerCaseTypeName", tLower, .false.)
+      do iSp1 = 1, nSpecies
+        if (tLower) then
+          elem1 = tolower(speciesNames(iSp1))
+        else
+          elem1 = speciesNames(iSp1)
+        end if
+        do iSp2 = 1, nSpecies
+          if (tLower) then
+            elem2 = tolower(speciesNames(iSp2))
+          else
+            elem2 = speciesNames(iSp2)
+          end if
+          strTmp = trim(prefix) // trim(elem1) // trim(separator) &
+              &// trim(elem2) // trim(suffix)
+          call append(skFiles(iSp2, iSp1), strTmp)
+          inquire(file=strTmp, exist=tExist)
+          if (.not. tExist) then
+            call detailedError(value1, "SK file with generated name '" &
+                &// trim(strTmp) // "' does not exist.")
+          end if
+        end do
+      end do
+    case default
+      call setUnprocessed(value1)
+      do iSp1 = 1, nSpecies
+        do iSp2 = 1, nSpecies
+          strTmp = trim(speciesNames(iSp1)) // "-" &
+              &// trim(speciesNames(iSp2))
+          call init(lStr)
+          call getChildValue(child, trim(strTmp), lStr, child=child2)
+          !if (len(lStr) /= len(angShells(iSp1)) * len(angShells(iSp2))) then
+          !  call detailedError(child2, "Incorrect number of Slater-Koster &
+          !      &files")
+          !end if
+          do ii = 1, len(lStr)
+            call get(lStr, strTmp, ii)
+            inquire(file=strTmp, exist=tExist)
+            if (.not. tExist) then
+              call detailedError(child2, "SK file '" // trim(strTmp) &
+                  &// "' does not exist'")
+            end if
+            call append(skFiles(iSp2, iSp1), strTmp)
+          end do
+          call destruct(lStr)
+        end do
+      end do
+    end select
+
+    write(stdout, "(A)") "Reading SK-files:"
+    do iSp1 = 1, nSpecies
+      do iSp2 = iSp1, nSpecies
+        call get(skFiles(iSp2, iSp1), fileName, 1)
+        write(stdout,*) trim(fileName)
+        call readFromFile(skData, fileName, (iSp1 == iSp2))
+        maxSKcutoff = max(maxSKcutoff, skData%dist * size(skData%skHam,1))
+      end do 
+    end do
+    write(stdout, "(A)") "Done."
+    write(stdout, *) 
+    
+    do iSp1 = 1, nSpecies
+      do iSp2 = 1, nSpecies
+        call destruct(skFiles(iSp2, iSp1))
+      end do
+    end do
+    deallocate(skFiles)
+  
+  end subroutine readSKFiles
+
+
+  !> Options for truncation of the SK data sets at a fixed distance
+  subroutine SKTruncations(node, truncationCutOff, skInterMeth)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> This is the resulting cutoff distance
+    real(dp), intent(out) :: truncationCutOff
+
+    !> Method of the sk interpolation
+    integer, intent(in) :: skInterMeth
+
+    logical :: tHardCutOff
+    type(fnode), pointer :: field
+    type(string) :: modifier
+
+    ! Artificially truncate the SK table
+    call getChildValue(node, "SKMaxDistance", truncationCutOff, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, truncationCutOff)
+
+    call getChildValue(node, "HardCutOff", tHardCutOff, .true.)
+    if (tHardCutOff) then
+      ! Adjust by the length of the tail appended to the cutoff
+      select case(skInterMeth)
+      case(skEqGridOld)
+        truncationCutOff = truncationCutOff - distFudgeOld
+      case(skEqGridNew)
+        truncationCutOff = truncationCutOff - distFudge
+      end select
+    end if
+    if (truncationCutOff < epsilon(0.0_dp)) then
+      call detailedError(field, "Truncation is shorter than the minimum distance over which SK data&
+          & goes to 0")
+    end if
+
+  end subroutine SKTruncations
 
 end module parser_setup

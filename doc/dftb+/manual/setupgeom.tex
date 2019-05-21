@@ -51,8 +51,13 @@ Transport {
       NumSpecifiedPLs = 2
     }
     Task = SetupGeometry{
-      PLCutoff [AA] = 5.0
-      FoldToUnitCell = Yes
+      TruncateSKRange = {
+        SKMaxDistance [AA] = 5.0
+        HardCutOff = Yes
+	}
+	SlaterKosterFiles = type2names{
+        ...
+	}
     }
 }
 \end{verbatim}
@@ -63,9 +68,9 @@ Transport {
  \kw{Atoms} &l i& & - &  \\
  \kw{NumSpecifiedPLs} &i & & 2 & \\	
  \kw{ContactVector} & 3r & & - & \\	
- \kw{PLCutoff} & r & & 10.0 &\\ 
- \kw{FoldToUnitCell} & l & & No &\\ 
  \kw{Translation} & 3r & & 0.0 &\\ 
+ \kw{TruncateSKRange} & p & & & \\
+ \kw{SlaterKosterFiles} & p & & & \\
 \end{ptable}
 
 \begin{description}
@@ -77,20 +82,16 @@ Transport {
 	In general follows the rules for \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.
 \item[\is{NumSpecifiedPLs}] Specifies the number of PLs given for the named contact. If this value 
 	is 2 (default) the total number of atoms in the contact are divided by 2 and the 2nd PL
-	is reordered according to the 1st with the help of \kw{ContactVector}. If this value is 1, 
-	the second PL is created, again using \kw{ContactVector}. 
+	is reordered according to the 1st with the help of \kw{ContactVector}. 
+	If this value is 1, the correct numbers of PLs are created according to the interaction cutoff
+	distance. 
 \item[\is{ContactVector}] Sets the translation vector connecting the 2 PLs along the transport direction. 
 	Since contact must be aligned to a cartesian axis, so must be this vector. Different contact
       can be in different directions. Also notice that the vector must be specified along the positive axis 
       direction.
-\item[\is{PLCutoff}]  This value sets the cutoff distance of the Hamiltonian and Overlap electronic
-     interactions. In transport calculations, trading off between accuracy and computational speed
-     it is possible to cutoff the interactions shorter than the SK-tables, to about 5.0 Angstrom. 
-     This cutoff changes the size of the PLs computed in the device region.	
-\item[\is{FoldToUnitCell}] Is used to fold all coordinates to the unit cell such that all fractional
-	coordinates are in the range 0 to 1. The structure is first translated such that all coordinates
-	have posive values. This is particularly useful when local currents are computed 
-	because in this case \dftbp{} outputs a structure file where negative coordinates are folded.
+\item[\is{TruncateSKRange}]  This section is the same as that described in section \ref{sec:dftbp.Hamiltoanian}.
+\item[\is{SlaterKosterFiles}]  This section is the same as that described in section 
+	\ref{sec:dftbp.Hamiltoanian}. The SK files are used to compute the cutoff distance.
 \item[\is{Translation}] Adds a rigid translation vector to the atomic coordinates  
 
 \end{description}
@@ -98,10 +99,13 @@ Transport {
 \subsection{Code output}
 
 The code writes two files, \verb|processed.gen| and \verb|transport.hsd|. The first file is the 
-processed geometry, reordered according to the needs of transport calculations. The second 
-contains the details of the geometry partitioning for transport, as described in the Transport 
-section and that can be included in the input file.
-For convenience this file also contains the \verb|SKTruncation| block in order to 
-make the Hamiltonian consistent with the \kw{PLCutoff} set above. 
+processed geometry, reordered according to the needs of transport calculations. 
+NOTE that coordinates are folded to the unit cell such that all fractional coordinates are in the 
+range 0 to 1. The structure is first translated such that all coordinates  have posive values. 
+This step is important in order to take properly into account the periodic images.
+The file \verb|transport.hsd| contains the details of the geometry partitioning for transport, 
+as described in the Transport section and that can be included in the input file.
+For convenience this file also contains the block \verb|TruncateSKRange| in order to 
+make the Hamiltonian consistent with the \kw{MaxSKCutoff} set in there. 
 
 

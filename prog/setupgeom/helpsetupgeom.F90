@@ -14,14 +14,14 @@ module helpsetupgeom
 
   contains
 
-  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, tfold)
+  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, printDebug)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(inout) :: contVec(:,:)
     real(dp), intent(in) :: plCutoff
     integer, intent(in) :: nPLs(:)
     real(dp), intent(in) :: translVec(:)
-    logical, intent(in) :: tfold
+    logical, intent(in) :: printDebug
    
 
     type(listIntR1) :: PLlist
@@ -38,32 +38,37 @@ module helpsetupgeom
     do icont=1,ncont
       contDir(icont) = get_contdir(contVec(:,icont))
     end do
+    
+    ! 1. Translate or fold cell
+    call TranslateAndFold(geom, translVec, .true.)
 
-    ! 1. Set the indeces of atoms in the device region
+    ! 2. Set the indices of atoms in the device region
     call assignDeviceAtoms(geom, iAtInRegion)
 
-    ! 2. Sort each contact along the contact direction
+    ! 3. Sort each contact along the contact direction
     call sortContacts(geom, iAtInRegion, contDir)
 
     ! Print atom lists
-    call print_debug(geom, iAtInRegion)
+    if (printDebug) then
+      call print_debug(geom, iAtInRegion)
+    end if
 
-    ! 3. resort the second contact PL to be a shifted copy of the first
-    call arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs)
+    ! 4. re-sort the second contact PL to be a shifted copy of the first
+    call arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs, plcutoff)
 
-    ! 4. Define device PLs
-    call definePLs(geom, iAtInRegion, plcutoff, PLlist)
+    ! 5. Define device PLs
+    call defineDevicePLs(geom, iAtInRegion, plcutoff, PLlist)
   
-    ! 5. Translate or fold cell
-    call TranslateAndFold(geom, translVec, tfold)
-
     ! 6. write ordered geometry
     call print_gen(geom, iAtInRegion, PLlist, contDir, plcutoff)
-
+ 
+    write(stdOut,*)
+    write(stdOut,*) "Written processed geometry file 'processed.gen'"
+    write(stdOut,*) "Written input lines in 'transport.hsd'"
 
   end subroutine setupGeometry
 
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine assignDeviceAtoms(geom, iAtInRegion)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
@@ -105,7 +110,7 @@ module helpsetupgeom
           
   end subroutine assignDeviceAtoms
   
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine sortContacts(geom, iAtInRegion, contDir)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
@@ -146,16 +151,18 @@ module helpsetupgeom
   end subroutine sortContacts
   
   ! -----------------------------------------------------------------------------------------------| 
-  subroutine arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs)
+  subroutine arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs, plcutoff)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(inout) :: contVec(:,:)
     integer, intent(in) :: contDir(:)
     integer, intent(in) :: nPLs(:)
+    real(dp), intent(in) :: plcutoff
 
-    integer :: ii, jj, kk, icont, ncont, PLsize
-    real(dp) :: vec(3), uu(3), vv(3), tol, bestcross, bestdiff
+    integer :: ii, jj, kk, icont, ncont, PLsize, nAddPLs, iPL
+    real(dp) :: vec(3), uu(3), vv(3), tol, bestcross, bestdiff, mindist
     character(10) :: sindx
+    character(lc) :: errmess(4)
 
     ncont = size(iAtInRegion)-1
 
@@ -168,10 +175,21 @@ module helpsetupgeom
         tol = norm2(vv)*contvec(4,icont)
         PLsize = size(data)/2
         write(stdOut, *) "Contact",icont
-        write(stdOut, *) "PL size",PLsize
-        write(stdOut, *) "Number of PLs",nPLs(icont)
-        write(stdOut, *) "contact vector",contvec(1:3,icont)
-        write(stdOut, *) "tolerance",tol
+        write(stdOut, *) "PL size:",PLsize
+        write(stdOut, *) "Number of PLs:",nPLs(icont)
+        write(stdOut, *) "contact vector:",contvec(1:3,icont)
+        write(stdOut, *) "tolerance:",tol
+        ! check PL size   
+        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont)) 
+        write(stdOut, *) "minimum distance 2nd neighbour PL:",mindist
+        if (mindist<plcutoff) then
+          errmess(1) = "The size of the contact PL is shorter than SK cutoff" 
+          errmess(2) = "Check your input geometry or force SKTruncation"
+          errmess(3) = "Alternatively, specify 1 PL and let the code adjust contact size"
+          errmess(4) = ""
+          call error(errmess)  
+        end if
+        ! 
         do ii = 1, PLsize
           bestcross = 1e10
           bestdiff = 1e10
@@ -201,22 +219,32 @@ module helpsetupgeom
         end do  
         end associate
       else if (nPLs(icont)==1) then
-        PLsize = size(iAtInRegion(icont)%data)
-        contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
-        write(stdOut, *) "PL size",PLsize
-        write(stdOut, *) "Build second PL"
-        write(stdOut, *) "contact vector",contvec(1:3,icont)
-        call reallocate_int(iAtInRegion(icont)%data, PLsize)
-        call reallocate_coords(geom%coords, PLsize)
-        call reallocate_int(geom%species, PLsize)
         associate(data=>iAtInRegion(icont)%data)
-        do ii = 1, PLsize
-          data(PLsize+ii) = geom%nAtom + ii !new atoms to the end of structure
-          geom%coords(:,data(PLsize+ii)) = geom%coords(:,data(ii)) + contVec(1:3,icont)
-          geom%species(data(PLsize+ii)) = geom%species(data(ii))
+        PLsize = size(data)
+        write(stdOut, *) "PL size:",PLsize
+        contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
+        write(stdOut, *) "contact vector:",contvec(1:3,icont)
+        ! counting number of added PLs. Factor of 2 is needed to get 
+        ! always an even total number
+        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont)) 
+        nAddPLs = floor(plcutoff/mindist)*2 + 1
+        write(stdOut, *) "Adding",nAddPLs,"PL(s)"
+        if (nAddPLs>=3) then
+          call warning("More than 1 PL needs to be added") 
+        end if
+        call reallocate_int(iAtInRegion(icont)%data, nAddPLs*PLsize)
+        call reallocate_coords(geom%coords, nAddPLs*PLsize)
+        call reallocate_int(geom%species, nAddPLs*PLsize)
+        do iPL = 1, nAddPLs
+          do ii = 1, PLsize
+            jj = iPL*PLsize+ii
+            data(jj) = geom%nAtom + ii !new atoms to the end of structure
+            geom%coords(:,data(jj)) = geom%coords(:,data(ii)) + iPL*contVec(1:3,icont)
+            geom%species(data(jj)) = geom%species(data(ii))
+          end do
         end do
         end associate
-        geom%nAtom = geom%nAtom + PLsize
+        geom%nAtom = geom%nAtom + PLsize*nAddPLs
       else
         call error("Number of PLs in contact must be either 1 or 2")
       end if     
@@ -257,43 +285,62 @@ module helpsetupgeom
 
   end subroutine arrangeContactPLs
   
-  ! -----------------------------------------------------------------------------------------------| 
-  subroutine definePLs(geom, iAtInRegion, plcutoff, PLlist)
+  ! -----------------------------------------------------------------------------------------------
+  subroutine defineDevicePLs(geom, iAtInRegion, plcutoff, PLlist)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(in) :: plCutoff
     type(listIntR1), intent(out) :: PLlist
 
-    integer :: ii, jj, iPL, sizeL, sizeD, ncont
+    integer :: ii, jj, kk, sizeL,  sizeD, ncont
     logical, allocatable :: mask(:)
     type(listInt) :: atomsInPL
     integer, allocatable :: buffer(:)
     real(dp) :: vec(3)
+    logical :: addAllR
     
     ! March from contact 1 in the device. Put atoms within cutoff
     ! in a list then restart from that list to the next 
     call init(PLlist)
     buffer = iAtInRegion(1)%data
-    ncont = size(iAtInRegion)-1
     sizeL = size(buffer)    
+    ncont = size(iAtInRegion)-1
     sizeD = size(iAtInRegion(ncont+1)%data)
     allocate(mask(sizeD))
     mask=.true.
-    iPL = 0
+    addAllR=.false.
 
     ! put array of contact atoms in the first node of PLlist
-    associate(dataD=>iAtInRegion(ncont+1)%data)
+    associate(dataD=>iAtInRegion(ncont+1)%data, dataR=>iAtInRegion(2)%data)
     do while (count(mask)>0) 
       call init(atomsInPL)
-      do ii = 1, sizeL
+      lpL: do ii = 1, sizeL
         do jj = 1, sizeD
           vec(:) = geom%coords(:,buffer(ii))-geom%coords(:,dataD(jj))
           if (norm2(vec)<plcutoff .and. mask(jj)) then
             call append(atomsInPL, dataD(jj))
             mask(jj) = .false.   
+            ! check distance from contact 2. If d < cutoff all remaining atoms
+            ! will go in the last PL
+            do kk = 1, size(dataR)
+              vec(:) = geom%coords(:,dataD(jj))-geom%coords(:,dataR(kk))
+              if (norm2(vec)<plcutoff) then
+                addAllR=.true.
+                exit lpL
+              end if      
+            end do
           end if
         end do 
-      end do 
+      end do lpL
+      ! Add all remaining atoms
+      if (addAllR) then
+        do jj = 1, sizeD
+          if (mask(jj)) then
+            call append(atomsInPL, dataD(jj))
+            mask(jj) = .false.   
+          end if 
+        end do
+      end if
       ! A. transform list to array and add the array to PLlist
       deallocate(buffer)
       allocate(buffer(len(atomsInPL)))
@@ -301,12 +348,11 @@ module helpsetupgeom
       call destruct(atomsInPL)
       call append(PLlist, buffer) 
       sizeL = size(buffer)
-      iPL = iPL + 1
     end do   
     end associate
 
-  end subroutine definePLs
-  ! -----------------------------------------------------------------------------------------------| 
+  end subroutine defineDevicePLs
+  ! -----------------------------------------------------------------------------------------------
 
   function get_contdir(contvec) result(dir)
      real(dp), intent(in) :: contvec(:)
@@ -338,7 +384,7 @@ module helpsetupgeom
 
   end function get_contdir
 
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine swap(a,b)
     integer :: a,b
     integer :: tmp
@@ -347,7 +393,7 @@ module helpsetupgeom
     b=tmp
   end subroutine swap
 
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   ! debug subroutine
   subroutine print_debug(geom, iAtInRegion)
     type(TGeometry), intent(in) :: geom
@@ -374,7 +420,7 @@ module helpsetupgeom
 
   end subroutine print_debug
 
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine translateAndFold(geom, translVec, tfold)
     type(TGeometry), intent(inout) :: geom
     real(dp), intent(in) :: translVec(:)
@@ -396,7 +442,7 @@ module helpsetupgeom
   end subroutine translateAndFold
 
         
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------
   subroutine print_gen(geom, iAtInRegion, PLlist, contDir, plCutoff)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(in) :: iAtInRegion(:)
@@ -517,6 +563,37 @@ module helpsetupgeom
     end do
 
   end subroutine foldCoordToUnitCell
+
+  function minDist2ndPL(coord, iAt, PLsize, contvec) result(mindist)
+    
+    !> Contains the original coordinates on call and the folded ones on return.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Indices of the atoms in a contact
+    integer, intent(in) :: iAt(:)
+
+    !> Number of atoms in each contact PL
+    integer, intent(in) :: PLsize
+
+    !> Lattice vectors (column format).
+    real(dp), intent(in) :: contVec(3)
+
+    !> Output minimal distance between 2nd-neighbour PLs
+    real(dp) :: mindist
+
+    integer :: ii, jj
+    real(dp) :: dist, vec2(3)
+
+    vec2=2.0_dp*contVec
+    mindist = 1e10
+
+    do ii = 1, PLsize
+      do jj = 1, PLsize
+        mindist = min(mindist,norm2(coord(:,iAt(ii))+vec2-coord(:,iAt(jj))))
+      end do   
+    end do
+
+  end function minDist2ndPL
 
 end module helpsetupgeom
 
