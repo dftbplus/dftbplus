@@ -1710,11 +1710,8 @@ contains
     end if
     call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
-    if (any(electronicSolver%iSolver ==&
-        & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
-        & electronicSolverTypes%ntpoly]) .and.&
-        & input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
-
+    if (electronicSolver%isElsiSolver .and. input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint)&
+        & then
       call error("ELSI solvers require as many groups as spin and k-point combinations")
     end if
 
