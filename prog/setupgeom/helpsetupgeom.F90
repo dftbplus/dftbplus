@@ -57,7 +57,7 @@ module helpsetupgeom
     call arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs, plcutoff)
 
     ! 5. Define device PLs
-    call defineDevicePLs(geom, iAtInRegion, plcutoff, PLlist)
+    call defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
   
     ! 6. write ordered geometry
     call print_gen(geom, iAtInRegion, PLlist, contDir, plcutoff)
@@ -190,6 +190,7 @@ module helpsetupgeom
           call error(errmess)  
         end if
         ! 
+        write(stdOut, *) "check and reorder contact PLs"
         do ii = 1, PLsize
           bestcross = 1e10
           bestdiff = 1e10
@@ -218,6 +219,7 @@ module helpsetupgeom
           call swap(data(PLsize+ii),data(jj))
         end do  
         end associate
+        write(stdOut, *) "contact done"
       else if (nPLs(icont)==1) then
         associate(data=>iAtInRegion(icont)%data)
         PLsize = size(data)
@@ -286,13 +288,15 @@ module helpsetupgeom
   end subroutine arrangeContactPLs
   
   ! -----------------------------------------------------------------------------------------------
-  subroutine defineDevicePLs(geom, iAtInRegion, plcutoff, PLlist)
+  subroutine defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
     type(TGeometry), intent(in) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(in) :: plCutoff
+    real(dp), intent(in) :: contVec(:,:)
     type(listIntR1), intent(out) :: PLlist
 
     integer :: ii, jj, kk, sizeL,  sizeD, ncont
+    integer :: icx, icy, icz, nc(3)
     logical, allocatable :: mask(:)
     type(listInt) :: atomsInPL
     integer, allocatable :: buffer(:)
@@ -310,27 +314,44 @@ module helpsetupgeom
     mask=.true.
     addAllR=.false.
 
+    nc = 1
+    do ii = 1, size(contVec,2)
+      nc(maxloc(abs(contvec(:,ii)))) = 0
+    end do
+
+    write(stdOut,*) "Partitioning device into PLs"
     ! put array of contact atoms in the first node of PLlist
     associate(dataD=>iAtInRegion(ncont+1)%data, dataR=>iAtInRegion(2)%data)
+     
+    ! Loop until there are atoms to process      
     do while (count(mask)>0) 
       call init(atomsInPL)
+      ! Loop on atoms of current PL
       lpL: do ii = 1, sizeL
-        do jj = 1, sizeD
-          vec(:) = geom%coords(:,buffer(ii))-geom%coords(:,dataD(jj))
-          if (norm2(vec)<plcutoff .and. mask(jj)) then
-            call append(atomsInPL, dataD(jj))
-            mask(jj) = .false.   
-            ! check distance from contact 2. If d < cutoff all remaining atoms
-            ! will go in the last PL
-            do kk = 1, size(dataR)
-              vec(:) = geom%coords(:,dataD(jj))-geom%coords(:,dataR(kk))
-              if (norm2(vec)<plcutoff) then
-                addAllR=.true.
-                exit lpL
-              end if      
-            end do
-          end if
-        end do 
+        ! Loop on all other atoms including periodic copies 
+        do icx = -nc(1), nc(1)
+          do icy = -nc(2), nc(2)
+            do icz = -nc(3), nc(3)
+              do jj = 1, sizeD
+                vec(:) = geom%coords(:,buffer(ii))-geom%coords(:,dataD(jj))
+                vec(:) = vec(:)+icx*geom%latVecs(:,1)+icy*geom%latVecs(:,2)+icz*geom%latVecs(:,3)
+                if (norm2(vec)<plcutoff .and. mask(jj)) then
+                  call append(atomsInPL, dataD(jj))
+                  mask(jj) = .false.   
+                  ! check distance from contact 2. If d < cutoff all remaining atoms
+                  ! will go in the last PL
+                  do kk = 1, size(dataR)
+                    vec(:) = geom%coords(:,dataD(jj))-geom%coords(:,dataR(kk))
+                    if (norm2(vec)<plcutoff) then
+                      addAllR=.true.
+                      exit lpL
+                    end if      
+                  end do
+                end if
+              end do 
+            end do ! cell z
+          end do ! cell y
+        end do ! cell x 
       end do lpL
       ! Add all remaining atoms
       if (addAllR) then
@@ -348,8 +369,13 @@ module helpsetupgeom
       call destruct(atomsInPL)
       call append(PLlist, buffer) 
       sizeL = size(buffer)
+      if (sizeL==0) then
+        call error("Found layer of 0 size")
+      end if  
+      write(stdOut,*) "* Layer size:",sizeL
     end do   
     end associate
+    write(stdOut,*) "Done."
 
   end subroutine defineDevicePLs
   ! -----------------------------------------------------------------------------------------------
