@@ -410,7 +410,10 @@ contains
   end subroutine convert_6_7
 
 
+  !> Update values in the DftD3 block to match behaviour of v6 parser
   subroutine handleD3Defaults(root)
+
+    !> Root node of the HSD-tree
     type(fnode), pointer :: root
 
     type(fnode), pointer :: pD3, pDampMethod, pChild
@@ -439,9 +442,16 @@ contains
   end subroutine handleD3Defaults
 
 
+  !> Helper routine to update values in the DftD3 block to match behaviour of v6 parser
   subroutine useDftb3Default(root, option, default)
+
+    !> Root node of the HSD-tree
     type(fnode), pointer, intent(in) :: root
+
+    !> Name of option inside the DftD3 block
     character(*), intent(in) :: option
+
+    !> Default value to set
     real(dp), intent(in) :: default
 
     type(fnode), pointer :: pChild
