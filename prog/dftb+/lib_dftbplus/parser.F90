@@ -3254,14 +3254,13 @@ contains
     type(fnode), pointer :: child, childval
     type(string) :: buffer
 
-    call getChildValue(node, "Damping", childval, default="BeckeJohnson", &
-        & child=child)
+    call getChildValue(node, "Damping", childval, child=child)
     call getNodeName(childval, buffer)
     select case (char(buffer))
     case ("beckejohnson")
       input%tBeckeJohnson = .true.
-      call getChildValue(childval, "a1", input%a1, default=0.5719_dp)
-      call getChildValue(childval, "a2", input%a2, default=3.6017_dp)
+      call getChildValue(childval, "a1", input%a1)
+      call getChildValue(childval, "a2", input%a2)
       ! Alpha is not used in BJ-damping, however, there are unused terms,
       ! which are calculated with alpha nevertheless, so set the default
       ! as found in dftd3 code.
@@ -3278,8 +3277,8 @@ contains
       call getNodeHSDName(childval, buffer)
       call detailedError(child, "Invalid damping method '" // char(buffer) // "'")
     end select
-    call getChildValue(node, "s6", input%s6, default=1.0_dp)
-    call getChildValue(node, "s8", input%s8, default=0.5883_dp)
+    call getChildValue(node, "s6", input%s6)
+    call getChildValue(node, "s8", input%s8)
     call getChildValue(node, "cutoff", input%cutoff, default=sqrt(9000.0_dp), &
         & modifier=buffer, child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoff)
