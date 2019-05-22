@@ -841,6 +841,18 @@ contains
       call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
     end if
 
+    if (tSpinOrbit) then
+      call mpifx_allreduceip(env%mpi%globalComm, energy%atomLS, MPI_SUM)
+      energy%atomLS(:) = 2.0_dp * energy%atomLS
+    end if
+    if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
+      call mpifx_allreduceip(env%mpi%globalComm, orbitalL, MPI_SUM)
+      orbitalL(:,:,:) = 2.0_dp * orbitalL
+    end if
+    if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+      energy%ELS = sum(energy%atomLS)
+    end if
+
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
   #:else
