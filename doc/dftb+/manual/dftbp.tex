@@ -2538,25 +2538,28 @@ treated as functional-dependent values. All other parameters are fixed based on
 these parameters.
 
 As the DFTB energy functional is largely determined by the underlying
-parameterisation (the Slater-Koster-files) and the chosen DFTB model
-(e.g.\ non-scc, scc, 3rd order, etc.), there are no universal parameter choices
-which can be used with all settings. The dftd3-program contains optimised
-parameters for the DFTB3 functional, described in section~\ref{sec:dftbp.DFTB3}. The DFTB3
-appropriate values are given for the Becke-Johnson-damping function, and are
-used as default values in the \dftbp{} parser.
+parameterisation (the Slater-Koster-files) and the chosen DFTB model (e.g.\
+non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
+can be used with all settings. The original dftd3-program contains the following
+parameters for the DFTB3 functional (described in section~\ref{sec:dftbp.DFTB3})
+with Becke-Johnson damping:
 
-\textbf{Warning:} Please note, that these default values have only been tested for the DFTB3
-model. If you use any other DFTB-model, make sure that the parameters still give reasonable results,
-and adjust them if needed.
+\begin{equation*}
+  s_6 = 1.0\text,\quad
+  s_8 = 0.5883\text,\quad
+  a_1 = 0.5719\text,\quad
+  a_2 = 3.6017\text.
+\end{equation*}
 
-Example using default parameters:
-\begin{verbatim}
-  ThirdOrderFull = Yes
-  HCorrection = Damping {
-    Exponent = 4.0
-  }
-  Dispersion = DftD3 {}
-\end{verbatim}
+\textbf{Warning:} Please note, that these values have been tested for the DFTB3
+model only. If you use any other form of DFTB, make sure to adjust these
+parameters accordingly (the reference papers for several extensions to DFTB give
+specific values compatible with their models).
+
+\textbf{Note:} for the version 6 or earlier of the \dftbp{} input parser (see
+section~\ref{sec:dftbp.ParserOptions}) the default values of these parameters
+are set to be appropriate for DFTB3. But from parser version 7 onwards, no
+default values are set.
 
 Example using adjusted parameters with Becke-Johnson damping:
 \begin{verbatim}

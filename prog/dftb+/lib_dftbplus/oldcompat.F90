@@ -15,7 +15,7 @@ module dftbp_oldcompat
   use dftbp_charmanip
   use dftbp_xmlutils
   use dftbp_xmlf90
-  implicit None
+  implicit none
   private
 
   public :: convertOldHSD
@@ -405,8 +405,65 @@ contains
       call detailedWarning(ch1, "Keyword converted to 'ShellResolvedSCC'.")
       call setNodeName(ch1, "ShellResolvedSCC")
     end if
+    call handleD3Defaults(root)
 
   end subroutine convert_6_7
+
+
+  !> Update values in the DftD3 block to match behaviour of v6 parser
+  subroutine handleD3Defaults(root)
+
+    !> Root node of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: pD3, pDampMethod, pChild
+    type(string) :: buffer
+    real(dp) :: dummy
+
+    call getDescendant(root, "Hamiltonian/DFTB/Dispersion/DftD3", pD3)
+    if (.not. associated(pD3)) then
+      return
+    end if
+
+    call useDftb3Default(pD3, "s6", 1.0_dp)
+    call useDftb3Default(pD3, "s8", 0.5883_dp)
+
+    call getChildValue(pD3, "Damping", pDampMethod, default="BeckeJohnson", child=pChild)
+    call setUnprocessed(pChild)
+    call setUnprocessed(pDampMethod)
+    call getNodeName(pDampMethod, buffer)
+
+    select case (char(buffer))
+    case ("beckejohnson")
+      call useDftb3Default(pDampMethod, "a1", 0.5719_dp)
+      call useDftb3Default(pDampMethod, "a2", 3.6017_dp)
+    end select
+
+  end subroutine handleD3Defaults
+
+
+  !> Helper routine to update values in the DftD3 block to match behaviour of v6 parser
+  subroutine useDftb3Default(root, option, default)
+
+    !> Root node of the HSD-tree
+    type(fnode), pointer, intent(in) :: root
+
+    !> Name of option inside the DftD3 block
+    character(*), intent(in) :: option
+
+    !> Default value to set
+    real(dp), intent(in) :: default
+
+    type(fnode), pointer :: pChild
+
+    call getChild(root, option, pChild, requested=.false.)
+    if (.not. associated(pChild)) then
+      call setChildValue(root, option, default, child=pChild)
+      call detailedWarning(pChild, "Using DFTB3 optimised default value for parameter " // option)
+    end if
+    call setUnprocessed(pChild)
+
+  end subroutine useDftb3Default
 
 
 end module dftbp_oldcompat
