@@ -1710,13 +1710,12 @@ contains
     end if
     call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
-    if (electronicSolver%isElsiSolver .and. input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint)&
-        & then
-      call error("ELSI solvers require as many groups as spin and k-point combinations")
-    end if
-
     if (electronicSolver%isElsiSolver) then
       @:ASSERT(parallelKS%nLocalKS == 1)
+
+      if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
+        call error("ELSI solvers require as many groups as spin and k-point combinations")
+      end if
 
       if (omp_get_max_threads() > 1) then
         call error("The ELSI-solvers should not be run with multiple threads. Set the&
