@@ -2552,8 +2552,14 @@ with Becke-Johnson damping:
 \end{equation*}
 
 \textbf{Warning:} Please note, that these values have been tested for the DFTB3
-model only. If you use any other DFTB-model, make sure to test and eventually to
-adjust those parameters accordingly.
+model only. If you use any other form of DFTB, make sure to adjust these
+parameters accordingly (the reference papers for several extensions to DFTB give
+specific values compatible with their models).
+
+\textbf{Note:} for the version 6 or earlier of the \dftbp{} input parser (see
+section~\ref{sec:dftbp.ParserOptions}) the default values of these parameters
+are set to be appropriate for DFTB3. But from parser version 7 onwards, no
+default values are set.
 
 Example using adjusted parameters with Becke-Johnson damping:
 \begin{verbatim}
