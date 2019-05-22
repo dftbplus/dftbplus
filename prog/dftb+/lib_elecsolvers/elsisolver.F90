@@ -345,7 +345,7 @@ contains
       this%spinDegeneracy = 0.0_dp
     end if
 
-    this%nSpin = nSpin
+    this%nSpin = min(nSpin, 2) ! copes with 2 component spin
     this%iSpin = iSpin
     this%nKPoint = nKPoint
     this%iKPoint = iKPoint

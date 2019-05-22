@@ -1723,6 +1723,10 @@ contains
             & environment variable OMP_NUM_THREADS to 1 in order to disable multi-threading.")
       end if
 
+      if (tSpinOrbit .and. electronicSolver%iSolver /= electronicSolverTypes%omm) then
+        call error("Only the ELSI libOMM solver is implemented for spin orbit at the moment")
+      end if
+
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       tWriteHS = .false.
       call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
