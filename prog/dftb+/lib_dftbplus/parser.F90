@@ -1815,10 +1815,6 @@ contains
       call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
       ! fixEf also avoids checks of total charge in initQFromFile
       ctrl%tFixEf = .true.
-      if (geo%tPeriodic .and. greendens%doLocalCurr) then
-         !call detailedError(value1, "Local Currents in periodic systems still needs" //&
-         !     " debugging and will be available soon")
-      end if
     case ("transportonly")
       if (ctrl%tGeoOpt .or. ctrl%tMD) then
         call detailederror(node, "transportonly cannot be used with relaxations or md")
