@@ -2047,7 +2047,7 @@ contains
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     logical :: tImHam
-    real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
+    real(dp), allocatable :: rVecTemp(:)
 
     nSpin = size(ham, dim=2)
     tImHam = allocated(iRhoPrim)
