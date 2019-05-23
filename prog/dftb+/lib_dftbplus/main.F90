@@ -2106,7 +2106,7 @@ contains
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     logical :: tImHam
-    real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
+    real(dp), allocatable :: rVecTemp(:)
 
     nSpin = size(ham, dim=2)
     tImHam = allocated(iRhoPrim)
@@ -5906,7 +5906,8 @@ contains
 
   subroutine sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
     type(TEnvironment), intent(in) :: env
-    type(IpiSocketComm), intent(inout) :: socket
+    ! Socket may be unallocated (as on slave processes)
+    type(IpiSocketComm), allocatable, intent(inout) :: socket
     type(TEnergies), intent(in) :: energy
     real(dp), intent(in) :: TS(:)
     real(dp), intent(in) :: derivs(:,:)
@@ -5917,7 +5918,6 @@ contains
       ! stress was computed above in the force evaluation block or is 0 if aperiodic
       call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
     end if
-
   end subroutine sendEnergyAndForces
 
 #:endif

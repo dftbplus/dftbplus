@@ -29,7 +29,7 @@ contains
     real(dp), intent(inout) :: potential(:,:,:,:)
 
     !> resulting onsite matrix elements (imaginary part)
-    real(dp), intent(inout) :: iPotential(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: iPotential(:,:,:,:)
 
     !> Block charges
     real(dp), intent(in) :: qBlock(:,:,:,:)

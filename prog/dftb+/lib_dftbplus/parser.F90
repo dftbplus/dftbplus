@@ -64,7 +64,7 @@ module dftbp_parser
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
   !> Version of the current parser
-  integer, parameter :: parserVersion = 6
+  integer, parameter :: parserVersion = 7
 
 
   !> Version of the oldest parser for which compatibility is still maintained
@@ -1231,8 +1231,8 @@ contains
           do jj = 1, nShell
             tmpCh = strTmp(jj:jj)
             tFound = .false.
-            do kk = 1, size(orbitalNames)
-              if (tmpCh == trim(orbitalNames(kk))) then
+            do kk = 1, size(shellNames)
+              if (tmpCh == trim(shellNames(kk))) then
                 if (tShellIncl(kk)) then
                   call detailedError(value1, "Double selection of the same shell&
                       & '" // tmpCh // "' in shell selection block '" &
@@ -1255,8 +1255,8 @@ contains
       case(textNodeName)
         call getChildValue(child2, "", buffer)
         strTmp = unquote(char(buffer))
-        do jj = 1, size(orbitalNames)
-          if (trim(strTmp) == trim(orbitalNames(jj))) then
+        do jj = 1, size(shellNames)
+          if (trim(strTmp) == trim(shellNames(jj))) then
             call append(angShells(iSp1), angShellOrdered(:jj))
           end if
         end do
@@ -1408,7 +1408,7 @@ contains
       end if
     end select
 
-    call getChildValue(node, "OrbitalResolvedSCC", ctrl%tOrbResolved, .false.)
+    call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
     call getChildValue(node, "OldSKInterpolation", ctrl%oldSKInter, .false.)
     if (ctrl%oldSKInter) then
       skInterMeth = skEqGridOld
@@ -1416,7 +1416,7 @@ contains
       skInterMeth = skEqGridNew
     end if
 
-    !> Rangeseparation input
+    !> Range separation input
     ctrl%tRangeSep = .false.
     call getChild(node, "RangeSep", child, .false., modifier)
     if (associated(child)) then
@@ -1440,27 +1440,24 @@ contains
     end if
 
     if (.not. ctrl%tRangeSep) then
-
       call getChild(node, "TruncateSKRange", child, requested=.false.)
       if (associated(child)) then
         call warning("Artificially truncating the SK table, this is normally a bad idea!")
         call SKTruncations(child, rSKCutOff, skInterMeth)
-        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
-            & skInterMeth, repPoly, truncationCutOff=rSKCutOff)
+        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+            & skInterMeth, repPoly, rSKCutOff)
       else
         rSKCutOff = 0.0_dp
-        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
+        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
             & skInterMeth, repPoly)
       end if
 
     else
 
-      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tOrbResolved,&
+      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
           & skInterMeth, repPoly, rangeSepSK=rangeSepSK)
       ctrl%omega = rangeSepSk%omega
-
     end if
-
 
 
     do iSp1 = 1, geo%nSpecies
@@ -1893,7 +1890,7 @@ contains
     if (any(ctrl%solver%isolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])) then
       call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false.)
-      if (ctrl%t2Component) then
+      if (ctrl%t2Component .and. ctrl%solver%elsi%elsiCsr) then
         call detailedError(value1,"Two-component hamiltonians currently cannot be used with sparse&
             & ELSI solvers")
       end if
@@ -2226,7 +2223,7 @@ contains
         call detailedError(node, "You must choose either ThirdOrder or&
             & ThirdOrderFull")
       end if
-      if (ctrl%t3rd .and. ctrl%tOrbResolved) then
+      if (ctrl%t3rd .and. ctrl%tShellResolved) then
         call error("Only full third-order DFTB is compatible with orbital&
             & resolved SCC")
       end if
@@ -2236,7 +2233,7 @@ contains
         ctrl%hubDerivs(:,:) = 0.0_dp
         do iSp1 = 1, geo%nSpecies
           nShell = slako%orb%nShell(iSp1)
-          if (ctrl%tOrbResolved) then
+          if (ctrl%tShellResolved) then
             call getChildValue(child, geo%speciesNames(iSp1),&
                 & ctrl%hubDerivs(1:nShell, iSp1))
           else
@@ -2272,7 +2269,7 @@ contains
       ctrl%forceType = forceTypes%orig
     end if
 
-    call readCustomisedHubbards(node, geo, slako%orb, ctrl%tOrbResolved, ctrl%hubbU)
+    call readCustomisedHubbards(node, geo, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
 
   end subroutine readDFTBHam
 
@@ -3308,14 +3305,13 @@ contains
     type(fnode), pointer :: child, childval
     type(string) :: buffer
 
-    call getChildValue(node, "Damping", childval, default="BeckeJohnson", &
-        & child=child)
+    call getChildValue(node, "Damping", childval, child=child)
     call getNodeName(childval, buffer)
     select case (char(buffer))
     case ("beckejohnson")
       input%tBeckeJohnson = .true.
-      call getChildValue(childval, "a1", input%a1, default=0.5719_dp)
-      call getChildValue(childval, "a2", input%a2, default=3.6017_dp)
+      call getChildValue(childval, "a1", input%a1)
+      call getChildValue(childval, "a2", input%a2)
       ! Alpha is not used in BJ-damping, however, there are unused terms,
       ! which are calculated with alpha nevertheless, so set the default
       ! as found in dftd3 code.
@@ -3332,8 +3328,8 @@ contains
       call getNodeHSDName(childval, buffer)
       call detailedError(child, "Invalid damping method '" // char(buffer) // "'")
     end select
-    call getChildValue(node, "s6", input%s6, default=1.0_dp)
-    call getChildValue(node, "s8", input%s8, default=0.5883_dp)
+    call getChildValue(node, "s6", input%s6)
+    call getChildValue(node, "s8", input%s8)
     call getChildValue(node, "cutoff", input%cutoff, default=sqrt(9000.0_dp), &
         & modifier=buffer, child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoff)
@@ -3756,7 +3752,7 @@ contains
     type(control), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-    logical :: tLRNeedsSpinConstants, tOrbResolvedW
+    logical :: tLRNeedsSpinConstants, tShellResolvedW
     integer :: iSp1
 
     tLRNeedsSpinConstants = .false.
@@ -3776,13 +3772,13 @@ contains
       ctrl%spinW(:,:,:) = 0.0_dp
 
       call getChild(hamNode, "SpinConstants", child)
-      if (.not.ctrl%tOrbResolved) then
-        call getChildValue(child, "ShellResolvedSpin", tOrbResolvedW, .false.)
+      if (.not.ctrl%tShellResolved) then
+        call getChildValue(child, "ShellResolvedSpin", tShellResolvedW, .false.)
       else
-        tOrbResolvedW = .true.
+        tShellResolvedW = .true.
       end if
 
-      if (tOrbResolvedW) then
+      if (tShellResolvedW) then
         ! potentially unique values for each shell
         do iSp1 = 1, geo%nSpecies
           call getChildValue(child, geo%speciesNames(iSp1),&
@@ -5194,10 +5190,10 @@ contains
     type(fNodeList), pointer :: nodes
     type(string) :: buffer
     integer :: nCustomOcc, iCustomOcc, iShell, iSpecie, nAtom
-    character(sc), allocatable :: shellnames(:)
+    character(sc), allocatable :: shellNamesTmp(:)
     logical, allocatable :: atomOverriden(:)
 
-    call getChild(root, "CustomOccupations", container, requested=.false.)
+    call getChild(root, "CustomisedOccupations", container, requested=.false.)
     if (.not. associated(container)) then
       return
     end if
@@ -5226,12 +5222,12 @@ contains
         call detailedError(child, "All atoms in a ReferenceOccupation&
             & declaration must have the same type.")
       end if
-      call getOrbitalNames(iSpecie, orb, shellnames)
+      call getShellNames(iSpecie, orb, shellNamesTmp)
       do iShell = 1, orb%nShell(iSpecie)
-          call getChildValue(node, shellnames(iShell), customOcc(iShell, iCustomOcc), &
+          call getChildValue(node, shellNamesTmp(iShell), customOcc(iShell, iCustomOcc), &
             & default=referenceOcc(iShell, iSpecie))
       end do
-      deallocate(shellnames)
+      deallocate(shellNamesTmp)
     end do
     if (associated(nodes)) then
       call destroyNodeList(nodes)

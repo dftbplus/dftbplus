@@ -88,7 +88,7 @@ module dftbp_inputdata_module
     logical :: tScc        = .false.
 
     !> l-shell resolved SCC
-    logical :: tOrbResolved = .false.
+    logical :: tShellResolved = .false.
 
     !> SCC tolerance
     real(dp) :: sccTol      = 0.0_dp
