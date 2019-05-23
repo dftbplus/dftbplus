@@ -345,7 +345,8 @@ contains
       this%spinDegeneracy = 0.0_dp
     end if
 
-    this%nSpin = min(nSpin, 2) ! copes with 2 component spin
+    ! Number of spin channels passed to the ELSI library
+    this%nSpin = min(nSpin, 2)
     this%iSpin = iSpin
     this%nKPoint = nKPoint
     this%iKPoint = iKPoint
