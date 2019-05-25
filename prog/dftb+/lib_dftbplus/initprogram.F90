@@ -909,6 +909,8 @@ module dftbp_initprogram
   !> Tunneling, local DOS and current
   real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
   real(dp), allocatable :: leadCurrents(:)
+  !> Array storing local (bond) currents 
+  real(dp), allocatable :: lCurrArray(:,:)
 
   !> Poisson Derivatives (forces)
   real(dp), allocatable :: poissonDerivs(:,:)
@@ -1734,9 +1736,11 @@ contains
   #:if WITH_TRANSPORT
     ! whether tunneling is computed
     tTunn = input%ginfo%tundos%defined
+    ! whether local currents are computed
+    tLocalCurrents = input%ginfo%greendens%doLocalCurr
 
     ! Do we use any part of negf (solver, tunnelling etc.)?
-    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn
+    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn .or. tLocalCurrents
 
   #:if WITH_MPI
     if (tNegf .and. env%mpi%nGroup > 1) then
@@ -3184,10 +3188,8 @@ contains
       tUpload = .false.
     end if
 
-    ! contact calculation (complementary to Upload)
-    tContCalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
-    ! whether local currents are computed
-    tLocalCurrents = input%ginfo%greendens%doLocalCurr
+    ! contact calculation in case some contact is computed
+    tContCalc = (input%transpar%taskContInd /= 0)
 
     if (nSpin <=2) then
       nSpinChannels = nSpin

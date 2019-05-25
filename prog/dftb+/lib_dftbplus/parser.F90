@@ -1823,6 +1823,8 @@ contains
         call detailederror(node, "transportonly cannot be used when "// &
             &  "task = contactHamiltonian")
       end if
+      call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
+      print*,'LocalCurrents:',greendens%doLocalCurr
       ctrl%solver%isolver = electronicSolverTypes%OnlyTransport
       ctrl%tFixEf = .true.
   #:endif
@@ -4049,8 +4051,8 @@ contains
     call getChildValue(pNode, "Verbosity", greendens%verbose, 51)
     call getChildValue(pNode, "Delta", greendens%delta, 1.0e-5_dp, modifier=modif, child=field)
     call convertByMul(char(modif), energyUnits, field, greendens%delta)
-    call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .true.)
     call getChildValue(pNode, "ReadSurfaceGFs", greendens%readSGF, .false.)
+    call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .not.greendens%readSGF)
     call getChildValue(pNode, "ContourPoints", greendens%nP(1:2), [ 20, 20 ])
     call getChildValue(pNode, "EnclosedPoles",  greendens%nPoles, 3)
     call getChildValue(pNode, "LowestEnergy", greendens%enLow, -2.0_dp, modifier=modif, child=field)

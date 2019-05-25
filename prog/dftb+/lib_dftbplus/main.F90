@@ -241,6 +241,7 @@ contains
     if (tContCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
       associate(tp => transpar)
+      write(stdOut,*) 'shiftcont_'//trim(tp%contacts(tp%taskContInd)%output)//".dat written to file"      
       call writeContShifts(tp%contacts(tp%taskContInd)%output, orb, potential%intShell, qOutput, Ef)
       end associate
     end if
@@ -254,6 +255,17 @@ contains
           & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
           & leadCurrents, writeTunn, writeLDOS, mu)
+    end if
+
+    if (tLocalCurrents) then
+  #:if WITH_MPI
+      call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
+  #:else
+      call local_currents(parallelKS%localKS, ham, over,&
+  #:endif
+          & neighbourList, nNeighbourSK, skCutoff, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoint, kWeight, coord0Fold, &
+          & species0, speciesName, mu, lCurrArray)
     end if
   #:endif
 
@@ -278,7 +290,8 @@ contains
       end if
       call writeAutotestTag(autotestTag, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
           & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, extPressure,&
-          & coord0, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE)
+          & coord0, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE,&
+          & lCurrArray)
     end if
     if (tWriteResultsTag) then
       call writeResultsTag(resultsTag, energy, derivs, chrgForces, electronicSolver, tStress,&
@@ -641,19 +654,6 @@ contains
           & nNeighbourSk, species, iSparseStart, img2CentCell)
     #:endcall DEBUG_CODE
     end if
-
-    #:if WITH_TRANSPORT
-      if (tLocalCurrents) then
-    #:if WITH_MPI
-        call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
-    #:else
-        call local_currents(parallelKS%localKS, ham, over,&
-    #:endif
-            & neighbourList, nNeighbourSK, skCutoff, denseDesc%iAtomStart, iSparseStart,&
-            & img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoint, kWeight, coord0Fold, &
-            & species0, speciesName, mu)
-      end if
-    #:endif
 
     call env%globalTimer%startTimer(globalTimers%eigvecWriting)
 

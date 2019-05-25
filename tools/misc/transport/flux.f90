@@ -9,17 +9,18 @@ program current
   real(8), dimension(:,:), allocatable :: coord
   integer :: m, itmp, io, i, j, n, k, maxnn, maxnn_valid
   real(8) :: z, Iz, dr(3), e(3), Imax, frac, width, norm_dr, arr_len, rtmp(3)
-  character(64) :: arg, filename1, filename2
+  character(64) :: arg, filename1, filename2, color
   character(4) :: id
   logical :: bondflux
 
   if (iargc().lt.4) then 
-     write(*,*) "flux supercell.xyz -a|b 'lcurrent.dat' maxneigbors [fraction width]"
+     write(*,*) "flux supercell.xyz -a|b 'lcurrent.dat' maxneigbors [-f fraction -w width -c color]"
      write(*,*) " -a : atom currents; -b: bond currents"
      write(*,*) " maxneighbours: neighbours considered in flux calculation"
      write(*,*) " fraction [1.0]: The arrow lengths are normalized to I_max/fraction"
      write(*,*) " width [0.2]: arrows are given a width depending on length"   
      write(*,*) "              arrows too long are made thicker and rescaled"   
+     write(*,*) " color      : colors for the arrows"    
      stop 
   endif
   
@@ -35,19 +36,25 @@ program current
   CALL getarg(4, arg)
   read(arg,*) maxnn
 
-  if (iargc().gt.4 ) then
-    CALL getarg(5, arg)
-    read(arg,*) frac
-  else
-    frac = 1.0
-  endif
+  frac = 1.0
+  width = 0.2      
+  color = "yellow"
 
-  if (iargc().gt.5 ) then
-    CALL getarg(6, arg)
-    read(arg,*) width
-  else
-    width = 0.2      
-  endif  
+  do m = 5, iargc(), 2
+    CALL getarg(m, arg)
+    if (trim(arg) == "-f") then
+      CALL getarg(m+1, arg)
+      read(arg,*) frac 
+    end if
+    if (trim(arg) == "-w") then
+      CALL getarg(m+1, arg)
+      read(arg,*) width
+    end if
+    if (trim(arg) == "-c") then
+      CALL getarg(m+1, arg)
+      read(arg,*) color
+    end if
+  end do
 
   open(105, file=trim(filename1))
   read(105, *) nat
@@ -96,40 +103,49 @@ program current
          !draw the bond current only if it follows the bond
          arr_len = frac*Inm(m,j)/Imax
 
-         if (arr_len .gt. 0.2d0) then
+         if (arr_len .gt. 0.1d0) then
             write(*,*) '# ',n,m,Inm(m,j)/Imax 
             write(id,'(i4.4)') k
             arg='draw arr'//id//' arrow width'
 
-            if(arr_len .lt. 0.4d0) then   
-               e(:)=coord(:,m)+arr_len*dr(:)*2.0
-               write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),0.5*width,' {', &
-                     & coord(1:3,m),'}{',e(1:3),'} color yellow' 
-            endif
-            if(arr_len .ge. 0.4 .and. arr_len .lt. 1.d0) then   
-               e(:)=coord(:,m)+arr_len*dr(:)
-               write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),width,' {', &
-                     & coord(1:3,m),'}{',e(1:3),'} color yellow' 
-            endif
-            if(arr_len .ge. 1.d0 .and. arr_len .lt. 1.5d0) then   
-               e(:)=coord(:,m)+dr(:)*0.8
-               write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),1.5*width,' {', &
-                     & coord(1:3,m),'}{',e(1:3),'} color yellow' 
-            endif
-            if(arr_len .ge. 1.5d0 .and. arr_len .lt. 2.0d0) then   
-               e(:)=coord(:,m)+dr(:)*0.8
+            e(:)=coord(:,m)+dr(:)*0.9
+            !write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),arr_len*width,' {', &
+            !         & coord(1:3,m),'}{',e(1:3),'} color '//trim(color) 
+
+           if(arr_len .lt. 0.2d0) then   
+              e(:)=coord(:,m)+dr(:)*0.9
+              write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),0.25*width,' {', &
+                    & coord(1:3,m),'}{',e(1:3),'} color '//trim(color) 
+           endif
+           if(arr_len .ge. 0.2 .and. arr_len .lt. 0.4d0) then   
+              e(:)=coord(:,m)+dr(:)*0.9
+              write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),0.5*width,' {', &
+                    & coord(1:3,m),'}{',e(1:3),'} color '//trim(color) 
+           endif
+           if(arr_len .ge. 0.4 .and. arr_len .lt. 1.d0) then   
+              e(:)=coord(:,m)+dr(:)*0.9
+              write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),width,' {', &
+                    & coord(1:3,m),'}{',e(1:3),'} color '//trim(color) 
+           endif
+           if(arr_len .ge. 1.d0 .and. arr_len .lt. 1.5d0) then   
+              e(:)=coord(:,m)+dr(:)*0.8
+              write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),1.5*width,' {', &
+                    & coord(1:3,m),'}{',e(1:3),'} color '//trim(color) 
+           endif
+           if(arr_len .ge. 1.5d0 .and. arr_len .lt. 2.0d0) then   
+              e(:)=coord(:,m)+dr(:)*0.8
                write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),2.0*width,' {', &
-                     & coord(1:3,m),'}{',e(1:3),'} color yellow' 
-            endif
-            if(arr_len .ge. 2.0d0 .and. arr_len .lt. 2.5d0) then   
-               e(:)=coord(:,m)+dr(:)*0.8
-               write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),2.5*width,' {', &
-                     & coord(1:3,m),'}{',e(1:3),'} color yellow' 
-            endif
-            if(arr_len .ge. 2.5d0 ) then   
-               e(:)=coord(:,m)+dr(:)*0.8
-               write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),3.0*width,' {', &
-                     & coord(1:3,m),'}{',e(1:3),'} color yellow' 
+                     & coord(1:3,m),'}{',e(1:3),'} color '//trim(color)  
+           endif
+           if(arr_len .ge. 2.0d0 .and. arr_len .lt. 2.5d0) then   
+              e(:)=coord(:,m)+dr(:)*0.8
+              write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),2.5*width,' {', &
+                    & coord(1:3,m),'}{',e(1:3),'} color '//trim(color)  
+           endif
+           if(arr_len .ge. 2.5d0 ) then   
+              e(:)=coord(:,m)+dr(:)*0.8
+              write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),3.0*width,' {', &
+                     & coord(1:3,m),'}{',e(1:3),'} color '//trim(color)  
             endif
             k=k+1
          endif     
@@ -156,7 +172,7 @@ program current
        write(id,'(i4.4)') k
        arg='draw arr'//id//' arrow width'
        write(*,'(a24,f6.2,a2,3(f10.4),a2,3(f10.4),a14)') trim(arg),width,' {', &
-           & coord(1:3,m),'}{',coord(:,m)+e(1:3),'} color yellow' 
+           & coord(1:3,m),'}{',coord(:,m)+e(1:3),'} color '//trim(color) 
        k=k+1
  
     enddo

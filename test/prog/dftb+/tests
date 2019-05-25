@@ -233,3 +233,4 @@ transport/SiH-cont-poiss               #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/graphene_x                   #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/graphene3T                   #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/Au-chain                     #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/local-curr                   #? WITH_TRANSPORT and MPI_PROCS <= 4

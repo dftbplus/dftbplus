@@ -13,10 +13,10 @@ module negf_int
 #:if WITH_MPI
   use libnegf, only : negf_mpi_init
 #:endif
-  use libnegf, only : z_CSR
+  use libnegf, only : z_CSR, READ_SGF, COMP_SGF, COMPSAVE_SGF
   use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
   use libnegf, only : associate_current, compute_current, compute_density_dft, compute_ldos
-  use libnegf, only : create, create_scratch, destroy
+  use libnegf, only : create, create_scratch, destroy, set_readoldDMsgf
   use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
   use libnegf, only : init_negf, init_structure, log_deallocatep, pass_hs, set_bp_dephasing
   use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
@@ -128,7 +128,7 @@ module negf_int
     call init_contacts(negf, ncont)
     call set_scratch(negf, ".")
 
-    if (tIoProc .and. transpar%defined .and. solver == electronicSolverTypes%GF) then
+    if (tIoProc .and. greendens%saveSGF ) then
       call create_scratch(negf)
     end if
 
@@ -259,18 +259,22 @@ module negf_int
            params%Np_real = greendens%nP(3)  ! real axis points
         end if
       end if
+     
+      ! Setting for Read/Write Surface GFs. 
+      ! NOTE: for the moment in tunneling and dos SGF are always   
+      ! recomputed because bias may change points and errors are easy
 
-      !Read G.F. from very first iter
-      if (greendens%readSGF .and. .not.greendens%saveSGF) then
-        params%readOldSGF=0
+      ! Read G.F. from very first iter
+      if (greendens%readSGF) then
+        params%readOldDM_SGFs = READ_SGF
       end if
-      !compute G.F. at every iteration
+      ! Compute G.F. at every iteration
       if (.not.greendens%readSGF .and. .not.greendens%saveSGF) then
-        params%readOldSGF=1
+        params%readOldDM_SGFs = COMP_SGF
       end if
-      !Default Write on first iter
+      ! Default Write on first iter
       if (.not.greendens%readSGF .and. greendens%saveSGF) then
-        params%readOldSGF=2
+        params%readOldDM_SGFs = COMPSAVE_SGF
       end if
 
       if(any(params%kbT_dm > 0) .and. greendens%nPoles == 0) then
@@ -290,6 +294,11 @@ module negf_int
       write(stdOut,*) 'Contour Points: ', params%Np_n(1:2)
       write(stdOut,*) 'Number of poles: ', params%N_poles
       write(stdOut,*) 'Real-axis points: ', params%Np_real(1)
+      if (params%readOldDM_SGFs==0) then
+        write(stdOut,*) 'Read Existing SGFs: Yes '
+      else 
+        write(stdOut,*) 'Read Existing SGFs: No, option ', params%readOldDM_SGFs
+      end if
       write(stdOut,*)
 
     end if
@@ -325,6 +334,9 @@ module negf_int
       params%Emin =  tundos%Emin
       params%Emax =  tundos%Emax
       params%Estep = tundos%Estep
+      
+      ! For the moment tunneling and ldos SGFs are always recomputed 
+      params%readOldT_SGFs = COMP_SGF
 
     endif
 
@@ -718,7 +730,6 @@ module negf_int
 
     call get_params(negf, params)
 
-    params%iteration = miter
     params%kpoint = nkpoint
     params%spin = spin
     params%DorE='N'
@@ -915,6 +926,15 @@ module negf_int
 #:if WITH_MPI
     call negf_mpi_init(mpicomm)
 #:endif
+    !Decide what to do with surface GFs.
+    !sets readOldSGF: if it is 0 or 1 it is left so
+    if (negf%readOldDM_SGFs.eq.COMPSAVE_SGF) then
+      if(iSCCIter.eq.1) then
+        call set_readOldDMsgf(negf, COMPSAVE_SGF)  ! compute and save SGF on files
+      else
+        call set_readOldDMsgf(negf, READ_SGF)  ! read from files
+      endif
+    endif
     ! We need this now for different fermi levels in colinear spin
     ! Note: the spin polirized does not work with
     ! built-int potentials (the unpolarized does) in the poisson
@@ -964,6 +984,11 @@ module negf_int
     end do
 #:endif
 
+    ! Now SGFs can be read unless not stored 
+    if (negf%readOldDM_SGFs.ne.COMP_SGF) then
+      call set_readOldDMsgf(negf, READ_SGF)  ! read from files
+    end if
+
     write(stdOut,'(80("="))')
     write(stdOut,*)
 
@@ -999,6 +1024,16 @@ module negf_int
 #:if WITH_MPI
     call negf_mpi_init(mpicomm)
 #:endif
+    !Decide what to do with surface GFs.
+    !sets readOldSGF: if it is 0 or 1 it is left so
+    if (negf%readOldDM_SGFs.eq.COMPSAVE_SGF) then
+      if(iSCCIter.eq.1) then
+        call set_readOldDMsgf(negf, COMPSAVE_SGF)  ! compute and save SGF on files
+      else
+        call set_readOldDMsgf(negf, READ_SGF)  ! read from files
+      endif
+    endif
+
     ! We need this now for different fermi levels in colinear spin
     ! Note: the spin polirized does not work with
     ! built-int potentials (the unpolarized does) in the poisson
@@ -1042,6 +1077,11 @@ module negf_int
     call mpifx_allreduceip(mpicomm, rhoE, MPI_SUM)
 #:endif
 
+    ! Now SGFs can be read unless not stored 
+    if (negf%readOldDM_SGFs.ne.COMP_SGF) then
+      call set_readOldDMsgf(negf, READ_SGF)  ! read from files
+    end if
+
     write(stdOut,'(80("="))')
     write(stdOut,*)
 
@@ -1078,7 +1118,7 @@ module negf_int
 #:endif
 
     call get_params(negf, params)
-
+   
     nKS = size(groupKS, dim=2)
     nKPoint = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
@@ -1173,7 +1213,7 @@ module negf_int
     real(dp), pointer    :: currPMat(:,:)=>null()
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
-    integer :: iKS, iK, iS, nKS, ii, err, ncont
+    integer :: iKS, iK, iS, nKS, ii, err, ncont, readSGFbkup
     type(unit) :: unitOfEnergy        ! Set the units of H
     type(unit) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
@@ -1331,7 +1371,7 @@ module negf_int
       ! needed to avoid some segfault
       allocate(ldosMat(0,0))
     end if
-
+    
   end subroutine calc_current
 
   !----------------------------------------------------------------------------
@@ -1487,13 +1527,15 @@ module negf_int
 #:if WITH_MPI
   subroutine local_currents(mpicomm, groupKS, ham, over, &
       & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot)
+      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
+      & testArray)
     !> MPI communicator
     type(mpifx_comm), intent(in) :: mpicomm
 #:else
   subroutine local_currents(groupKS, ham, over, &
       & neighborList, nNeighbor, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot)
+      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
+      & testArray)
 #:endif
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1529,6 +1571,9 @@ module negf_int
     ! I do not set the fermi because it seems that in libnegf it is
     ! not really needed
     real(dp), intent(in) :: chempot(:,:)
+    !> Array passed back to main for autotests (will become the output)
+    real(dp), allocatable, intent(out) :: testArray(:,:)
+
 
     ! Local stuff ---------------------------------------------------------
     integer :: n0, nn, mm,  mu, nu, nAtom, irow, nrow, ncont
@@ -1543,7 +1588,7 @@ module negf_int
     integer, parameter :: nInitNeigh=40
     complex(dp) :: c1,c2
     character(3) :: skp
-    integer :: iSCCiter=2
+    integer :: iSCCiter
     type(z_CSR), target :: csrDens, csrEDens
     type(z_CSR), pointer :: pCsrDens, pCsrEDens
     type(lnParams) :: params
@@ -1556,6 +1601,16 @@ module negf_int
     call negf_mpi_init(mpicomm)
 #:endif
     call get_params(negf, params)
+
+    !Decide what to do with surface GFs.
+    !sets readOldSGF: if it is 0 or 1 it is left so
+    if (negf%readOldDM_SGFs.eq.COMPSAVE_SGF) then
+      if(iSCCIter.eq.1) then
+        call set_readOldDMsgf(negf, COMPSAVE_SGF)  ! compute and save SGF on files
+      else
+        call set_readOldDMsgf(negf, READ_SGF)  ! read from files
+      endif
+    endif
 
     write(stdOut, *)
     write(stdOut, '(80("="))')
@@ -1599,10 +1654,16 @@ module negf_int
       ! We need to recompute Rho and RhoE .....
       call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
           & nNeighbour, img2CentCell, iCellVec, CellVec, orb)
-      call foldToCSR(csrOver, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
+      call foldToCSR(csrOver, over, kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
           & nNeighbour, img2CentCell, iCellVec, CellVec, orb)
 
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
+
+      ! Unless SGFs are not stored, read them from file
+      if (negf%readOldDM_SGFs.ne.COMP_SGF) then
+         call set_readOldDMsgf(negf, READ_SGF) 
+      end if   
+
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
 #:if WITH_MPI
@@ -1653,13 +1714,16 @@ module negf_int
 
     enddo
 
+    allocate(testArray(maxval(lc_neigh%nNeighbour),nAtom*nSpin))
+    testArray=0.0_dp
     ! Write the total current per spin channel  
     do iS = 1, nSpin
       open(newUnit = fdUnit, file = 'lcurrents_'//spin2ch(iS)//'.dat')
       do mm = 1, nAtom
         write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
         do inn = 1, lc_neigh%nNeighbour(mm)
-          write(fdUnit,'(I5,ES17.8)',advance='NO') lc_neigh%iNeighbour(inn, mm), lcurr(inn,mm,iS) 
+          write(fdUnit,'(I5,ES17.8)',advance='NO') lc_neigh%iNeighbour(inn, mm), lcurr(inn,mm,iS)
+          testArray(inn,(iS-1)*nAtom+mm) = lcurr(inn,mm,iS) 
         end do
         write(fdUnit,*)
       end do  
@@ -1667,6 +1731,7 @@ module negf_int
     close(fdUnit)
     deallocate(lcurr)
 
+    write(stdOut,*) 
     call writeXYZFormat("supercell.xyz", lc_coord, lc_species, speciesName)
     write(stdOut,*) " <<< supercell.xyz written on file"
 
