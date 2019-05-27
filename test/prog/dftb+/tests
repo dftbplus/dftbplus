@@ -15,6 +15,7 @@ response/C60+                          #? (not WITH_MPI) or (MPI_PROCS <= 4 and 
 response/H2Pauli                       #? MPI_PROCS <= 1
 response/CH3+u_noncol                  #? MPI_PROCS <= 1
 response/OH_noncol                     #? MPI_PROCS <= 1
+response/Au2                           #? MPI_PROCS <= 4 or (not WITH_MPI)
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4

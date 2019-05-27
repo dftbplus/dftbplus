@@ -507,6 +507,7 @@ contains
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
             dEf(iS) = -sum(dqOut(:,:,iS))/nF(iS)
+            write(stdOut,*)'dEf',dEf
 
             if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
               ! Fermi level changes, so need to correct for the change in the number of charges
@@ -541,12 +542,12 @@ contains
           ! Add up and distribute density matrix contribution from each group
           call mpifx_allreduceip(env%mpi%globalComm, dRhoExtra, MPI_SUM)
         #:endif
-          drho = drho + drhoextra
+          dRho(:,:) = dRho + dRhoExtra
 
         end if
 
-        drho(:,:) = maxFill * drho
-        call ud2qm(drho)
+        dRho(:,:) = maxFill * drho
+        call ud2qm(dRho)
 
         if (allocated(idRho)) then
           idRho(:,:) = maxFill * drho
@@ -578,7 +579,7 @@ contains
           dqDiffRed(:) = dqOutRed(:) - dqInpRed(:)
           sccErrorQ = maxval(abs(dqDiffRed))
 
-          write(StdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
+          write(stdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
           tConverged = (sccErrorQ < sccTol)
 
           if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
@@ -772,7 +773,7 @@ contains
 
     ! c_i times dH times c_i
     call pblasfx_pgemm(eigVecsReal(:,:,iKS), denseDesc%blacsOrbSqr, dRho,&
-        & denseDesc%blacsOrbSqr,  workLocal, denseDesc%blacsOrbSqr, transa="T")
+        & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="T")
 
     ! derivative of eigenvalues stored diagonal of matrix workLocal, from <c|h'|c>
     do jj = 1, size(workLocal,dim=2)
@@ -959,8 +960,8 @@ contains
             & deltamn(eigVals(jGlob, 1, iKS), Ef(iS), tempElec) * dEf(iS)
       end if
     end do
-    call pblasfx_pgemm(workReal(:,:), denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
-        & denseDesc%blacsOrbSqr, workReal(:,:), denseDesc%blacsOrbSqr, transb="T",&
+    call pblasfx_pgemm(workReal, denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
+        & denseDesc%blacsOrbSqr, workReal, denseDesc%blacsOrbSqr, transb="T",&
         & alpha=real(3-nSpin,dp))
 
   #:else
@@ -1076,11 +1077,12 @@ contains
     !> Optional derivatives of single particle wavefunctions
     complex(dp), intent(inout), optional :: dPsi(:, :)
 
-    integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iK, nOrb
+    integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iK, iS, nOrb
     complex(dp) :: workLocal(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
     complex(dp) :: dRho(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
 
     iK = parallelKS%localKS(1, iKS)
+    iS = parallelKS%localKS(2, iKS)
 
     if (present(dEi)) then
       dEi(:) = 0.0_dp
@@ -1094,6 +1096,7 @@ contains
 
   #:if WITH_SCALAPACK
 
+    ! dH in square form
     if (allocated(idHam)) then
       call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
@@ -1104,7 +1107,57 @@ contains
           & workLocal)
     end if
 
-    call error("Currently missing from here onwards")
+    ! dH times c_i
+    call pblasfx_phemm(workLocal, denseDesc%blacsOrbSqr, eigVecsCplx(:,:,iKS),&
+        & denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr) !, mm=nFilled(iS))
+
+    ! c_i times dH times c_i
+    call pblasfx_pgemm(eigVecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, dRho,&
+        & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="C")
+
+    ! derivative of eigenvalues stored diagonal of matrix workLocal, from <c|h'|c>
+    do jj = 1, size(workLocal,dim=2)
+      jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+          & env%blacs%orbitalGrid%ncol)
+      do ii = 1, size(workLocal,dim=1)
+        iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+            & env%blacs%orbitalGrid%nrow)
+
+        if (present(dEi)) then
+          if (iGlob == jGlob) then
+            !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
+            dEi(iGlob) = workLocal(ii,jj)
+          end if
+        end if
+
+        ! weight with inverse of energy differences
+        workLocal(ii, jj) = workLocal(ii, jj) * &
+            & invDiff(eigvals(jGlob,iK,iS),eigvals(iGlob,iK,iS),Ef(iS),tempElec)&
+            & * theta(eigvals(jGlob,iK,iS),eigvals(iGlob,iK,iS),tempElec)
+
+      end do
+    end do
+
+    if (present(dEi)) then
+      call mpifx_allreduceip(env%mpi%globalComm, dEi, MPI_SUM)
+    end if
+
+    ! Derivatives of states
+    call pblasfx_pgemm(eigVecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, workLocal,&
+        & denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr)
+
+    if (present(dPsi)) then
+      dPsi(:,:) = workLocal
+    end if
+
+    ! Form derivative of occupied density matrix
+    call pblasfx_pgemm(dRho, denseDesc%blacsOrbSqr,eigVecsCplx(:,:,iKS),&
+        & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transb="C",&
+        & kk=nFilled(iS))
+    dRho(:,:) = workLocal
+    ! and hermitize
+    call pblasfx_ptranc(workLocal, denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr,&
+        & beta=(1.0_dp,0.0_dp))
 
   #:else
 
@@ -1180,15 +1233,6 @@ contains
         call packHSPauliImag(idRhoSparse, dRho, neighbourlist%iNeighbour, nNeighbourSK,&
             & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
       end if
-      !call packHS(rhoPrim, workLocal, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
-      !    & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-      !    & img2CentCell)
-      !if (tImHam) then
-      !  call iPackHS(iRhoPrim, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
-      !      & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-      !      & img2CentCell)
-      !end if
-
   #:endif
 
       ! adjustment from Pauli to charge/spin
@@ -1278,34 +1322,38 @@ contains
     integer, intent(in) :: desc(DLEN_)
   #:endif
 
-    integer :: iFilled, jj, jGlob, iK
+    integer :: iFilled, jj, jGlob, iK, iS
     complex(dp) :: workLocal(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
 
     workLocal(:,:) = cmplx(0,0,dp)
 
     iK = parallelKS%localKS(1, iKS)
+    iS = parallelKS%localKS(2, iKS)
 
   #:if WITH_SCALAPACK
 
     do jj = 1, size(workLocal,dim=2)
-      jGlob = scalafx_indxl2g(jj,desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+      jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
           & env%blacs%orbitalGrid%ncol)
-      if (jGlob >= nEmpty(iKS) .and. jGlob <= nFilled(iKS)) then
+      if (jGlob >= nEmpty(iS) .and. jGlob <= nFilled(iS)) then
         workLocal(:, jj) = eigVecsCplx(:, jj, iKS) * &
-            & deltamn(eigVals(jGlob, iKS, 1), Ef(iKS), tempElec) * dEf(iKS)
+            & deltamn(eigVals(jGlob, iK, iS), Ef(iS), tempElec) * dEf(iS)
       end if
     end do
-    call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr,eigVecsCplx(:, :, iKS),&
-        & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transb="C")
+
+    call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr,eigVecsCplx(:, :, 1),&
+        & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transb="C",&
+        & alpha=(1.0_dp,0.0_dp))
 
   #:else
 
-    do iFilled = nEmpty(iKS), nFilled(iKS)
-      workLocal(:, iFilled) = eigVecsCplx(:, iFilled, iKS) * &
-          & deltamn(eigvals(iFilled, iKS, 1), Ef(iKS), tempElec) * dEf(iKS)
+    do iFilled = nEmpty(1), nFilled(1)
+      workLocal(:, iFilled) = eigVecsCplx(:, iFilled, 1) * &
+          & deltamn(eigvals(iFilled, 1, 1), Ef(1), tempElec) * dEf(1)
     end do
-    workLocal(:, :) = matmul(workLocal(:, nEmpty(iKS):nFilled(iKS)),&
-        & transpose(conjg(eigVecsCplx(:, nEmpty(iKS):nFilled(iKS), iKS))))
+
+    workLocal(:, :) = matmul(workLocal(:, nEmpty(1):nFilled(1)),&
+        & transpose(conjg(eigVecsCplx(:, nEmpty(1):nFilled(1), 1))))
 
   #:endif
 
@@ -1331,14 +1379,6 @@ contains
       call packHSPauliImag(idRhoExtra, workLocal, neighbourlist%iNeighbour, nNeighbourSK,&
           & orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
     end if
-    !call packHS(rhoPrim, workLocal, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
-    !    & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-    !    & img2CentCell)
-    !if (tImHam) then
-    !  call iPackHS(iRhoPrim, workLocal, kPoint(:,iK), kWeight(iK), neighbourlist%iNeighbour,&
-    !      & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-    !      & img2CentCell)
-    !end if
 
   #:endif
 
