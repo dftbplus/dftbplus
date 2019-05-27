@@ -1936,6 +1936,10 @@ contains
     tPolarisability = input%ctrl%tPolarisability
     tStaticPolarisability = input%ctrl%tStaticPolarisability
 
+    if (.not. electronicSolver%providesEigenvals .and. tPolarisability) then
+      call error("Currently the perturbation expresions require a solver that provides eigenstates")
+    end if
+
     if (tLinResp) then
 
       ! input sanity checking
