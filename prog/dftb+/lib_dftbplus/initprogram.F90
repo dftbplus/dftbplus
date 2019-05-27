@@ -3911,12 +3911,25 @@ contains
   end subroutine getDenseDescCommon
 
 
+  !> Check for compatibility between requested electronic solver and features of the calculation
   subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+
+    !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
+
+    !> Is this a spin polarised calculation
     logical, intent(in) :: tSpin
+
+    !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
+
+    !> Options for a parallel calculation, if needed
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
+
+    !> Number of indepdent hamiltonian matrices at a given k-value
     integer, intent(in) :: nIndepHam
+
+    !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
 
     logical :: tElsiSolver
@@ -3953,13 +3966,27 @@ contains
 
   end subroutine ensureSolverCompatibility
 
-  subroutine applyCustomReferenceOccupations(customOccAtoms, &
-      & customOccFillings, species, orb, referenceN0, q0)
+
+  !> Modify the reference atomic shell charges for the neutral atom
+  subroutine applyCustomReferenceOccupations(customOccAtoms,  customOccFillings, species,&
+      & orb, referenceN0, q0)
+
+    !> Array of occupation arrays, one for each atom
     type(WrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
+
+    !> Reference fillings for atomic shells
     real(dp), intent(in) :: customOccFillings(:,:)
+
+    !> Species of atoms
     integer, intent(in) :: species(:)
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
+
+    !> Reference charges from the Slater-Koster file
     real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Charges required for atomic neutrality in reference state
     real(dp), intent(inout) :: q0(:,:,:)
     
     integer :: nCustomBlock, iCustomBlock, iCustomAtom, nAtom, iAt, iSp
@@ -3992,11 +4019,19 @@ contains
   end subroutine applyCustomReferenceOccupations
   
 
-  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, &
-      & customOccFillings)
+  !> Print out the reference occupations for atoms
+  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, customOccFillings)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Chemical species of atoms
     integer, intent(in) :: species(:)
+
+    !> Array of occupation arrays, one for each atom
     type(WrappedInt1), intent(in) :: customOccAtoms(:)
+
+    !> Fillings for each atomic shell
     real(dp), intent(in) :: customOccFillings(:,:)
 
     character(lc) :: formstr, outStr
@@ -4032,6 +4067,7 @@ contains
       deallocate(shellnames)
     end do
   end subroutine printCustomReferenceOccupations
+
 
   !> Initialises SCC related parameters before geometry loop starts
   function getMinSccIters(tSccCalc, tDftbU, nSpin) result(minSccIter)

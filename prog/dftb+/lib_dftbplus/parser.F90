@@ -1131,6 +1131,7 @@ contains
 
   end subroutine readHamiltonian
 
+
   !> Reads DFTB-Hamiltonian
 #:if WITH_TRANSPORT
   subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
@@ -4701,6 +4702,7 @@ contains
 
   end subroutine readCoupling
 
+
   !> Read Tunneling and Dos options from analysis block
   subroutine readTunAndDos(root, orb, geo, tundos, transpar, tempElec)
     type(fnode), pointer :: root
@@ -5114,8 +5116,7 @@ contains
 
 
   !> This subroutine overrides the neutral (reference) atom electronic occupation 
-  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, &
-      & customOcc)
+  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, customOcc)
 
     !> Node to be parsed
     type(fnode), pointer, intent(in) :: root
