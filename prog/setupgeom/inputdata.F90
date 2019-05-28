@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Contains data type representing the input data for setupgeom 
-module inputdata_setup
+module dftbp_inputsetup
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_typegeometry
@@ -497,4 +497,4 @@ contains
 
   end subroutine Control_destruct
 
-end module inputdata_setup
+end module dftbp_inputsetup

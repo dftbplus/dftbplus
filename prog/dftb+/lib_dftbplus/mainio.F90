@@ -2017,9 +2017,7 @@ contains
     end if
 
     if (allocated(lCurrArray)) then
-      if (size(lCurrArray,1) > 0) then
-        call taggedWriter%write(fd, tagLabels%localCurrents, lCurrArray)
-      end if     
+      call taggedWriter%write(fd, tagLabels%localCurrents, lCurrArray)
     end if
 
     close(fd)
@@ -3569,6 +3567,8 @@ contains
     end if
 
     close(fdHS)
+      
+    write(stdOut,*) 'shiftcont_'//trim(filename)//".dat written to file"     
 
   end subroutine writeContShifts
 

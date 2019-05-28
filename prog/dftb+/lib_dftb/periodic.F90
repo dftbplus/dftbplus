@@ -347,7 +347,7 @@ contains
     real(dp), intent(in) :: cutoff
 
     !> Absolute coordinates of the shifted supercells which could have interacting
-    !> atoms with thecentral cell.
+    !> atoms with the central cell.
     real(dp), intent(in) :: rCellVec(:,:)
 
     !> Optional, whether the map should be symmetric (dftb default = .false.)
@@ -371,7 +371,7 @@ contains
     real(dp) :: dist2
     real(dp) :: rCell(3), rr(3)
     integer :: ii, iAtom1, oldIAtom1, iAtom2
-    integer :: nn1, eAtom
+    integer :: nn1, iAtom2End
     logical :: symm
     integer, allocatable :: indx(:)
     character(len=100) :: strError
@@ -421,11 +421,11 @@ contains
       lpIAtom1: do iAtom1 = 1, nAtom
         rr(:) = coord0(:, iAtom1) + rCell(:)
         if (symm) then
-          eAtom = nAtom
+          iAtom2End = nAtom
         else
-          eAtom = iAtom1
+          iAtom2End = iAtom1
         end if
-        lpIAtom2: do iAtom2 = 1, eAtom
+        lpIAtom2: do iAtom2 = 1, iAtom2End
           !  If distance greater than cutoff -> skip
           dist2 = sum((coord0(:, iAtom2) - rr(:))**2)
           if (dist2 > cutoff2) then

@@ -1,13 +1,13 @@
-module helpsetupgeom
+module dftbp_helpsetupgeom
   use dftbp_accuracy
   use dftbp_globalenv
   use dftbp_constants
   use dftbp_message
   use dftbp_sorting
   use dftbp_simplealgebra  
-  use dftbp_wrappedIntr
+  use dftbp_wrappedintr
   use dftbp_linkedlist
-  use dftbp_typeGeometry
+  use dftbp_typegeometry
   implicit none
 
   public :: setupGeometry
@@ -126,12 +126,9 @@ module helpsetupgeom
     do icont = 1, ncont
       ! check position of contact w.r.t. device atoms 
       ! and decide sign of contact direction
-      mean = 0.0_dp
       associate(data=>iAtInRegion(icont)%data, dir=>contDir(icont))
-      do ii = 1, size(data)
-        mean = mean + geom%coords(dir, data(ii))
-      end do
-      if (mean/size(data) < minval(geom%coords(dir,iAtInRegion(ncont+1)%data ))) then
+      mean = sum(geom%coords(dir, data))/real(size(data),dp)
+      if (mean < minval(geom%coords(dir,iAtInRegion(ncont+1)%data ))) then
         dir = -dir
       end if   
       end associate
@@ -192,19 +189,13 @@ module helpsetupgeom
         ! 
         write(stdOut, *) "check and reorder contact PLs"
         do ii = 1, PLsize
-          bestcross = 1e10
-          bestdiff = 1e10
+          bestcross = huge(bestcross)
+          bestdiff = huge(bestdiff)
           do jj = PLsize+1, 2*PLsize 
             vec(:) = geom%coords(:,data(jj))-geom%coords(:,data(ii))
-            if (norm2(cross3(vec,uu))<bestcross) then
-               bestcross = norm2(cross3(vec,uu))  
-            end if
-            if (norm2(vec-vv)<bestdiff) then
-               bestdiff = norm2(vec-vv)   
-            end if
-            if (norm2(vec+vv)<bestdiff) then
-               bestdiff = norm2(vec+vv)   
-            end if
+            bestcross = min(bestcross, norm2(cross3(vec,uu)))
+            bestdiff = min(bestdiff, norm2(vec-vv))
+            bestdiff = min(bestdiff, norm2(vec+vv))
             if (norm2(cross3(vec,uu))< tol .and. &
                   & (norm2(vec-vv)< tol .or. norm2(vec+vv)<tol) ) then
               exit
@@ -234,9 +225,9 @@ module helpsetupgeom
         if (nAddPLs>=3) then
           call warning("More than 1 PL needs to be added") 
         end if
-        call reallocate_int(iAtInRegion(icont)%data, nAddPLs*PLsize)
-        call reallocate_coords(geom%coords, nAddPLs*PLsize)
-        call reallocate_int(geom%species, nAddPLs*PLsize)
+        call reallocateInt(iAtInRegion(icont)%data, nAddPLs*PLsize)
+        call reallocateCoords(geom%coords, nAddPLs*PLsize)
+        call reallocateInt(geom%species, nAddPLs*PLsize)
         do iPL = 1, nAddPLs
           do ii = 1, PLsize
             jj = iPL*PLsize+ii
@@ -252,8 +243,9 @@ module helpsetupgeom
       end if     
     end do
 
-    contains 
-    subroutine reallocate_int(array, addsize)
+    contains
+ 
+    subroutine reallocateInt(array, addsize)
       integer, intent(inout), allocatable :: array(:)
       integer, intent(in) :: addsize
 
@@ -267,9 +259,9 @@ module helpsetupgeom
       allocate(array(siz+addsize))
       array(1:siz)=tmpdata
       deallocate(tmpdata)
-    end subroutine reallocate_int
+    end subroutine reallocateInt
 
-    subroutine reallocate_coords(array, addsize)
+    subroutine reallocateCoords(array, addsize)
       real(dp), intent(inout), allocatable :: array(:,:)
       integer, intent(in) :: addsize
 
@@ -283,7 +275,7 @@ module helpsetupgeom
       allocate(array(3,siz+addsize))
       array(:,1:siz)=tmpcoords
       deallocate(tmpcoords)
-    end subroutine reallocate_coords
+    end subroutine reallocateCoords
 
   end subroutine arrangeContactPLs
   
@@ -621,6 +613,6 @@ module helpsetupgeom
 
   end function minDist2ndPL
 
-end module helpsetupgeom
+end module dftbp_helpsetupgeom
 
 

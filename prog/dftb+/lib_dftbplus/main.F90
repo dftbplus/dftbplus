@@ -240,32 +240,36 @@ contains
   #:if WITH_TRANSPORT
     if (tContCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
-      associate(tp => transpar)
-      write(stdOut,*) 'shiftcont_'//trim(tp%contacts(tp%taskContInd)%output)//".dat written to file"      
-      call writeContShifts(tp%contacts(tp%taskContInd)%output, orb, potential%intShell, qOutput, Ef)
-      end associate
+      call writeContShifts(transpar%contacts(transpar%taskContInd)%output, orb, &
+          & potential%intShell, qOutput, Ef)
     end if
 
     if (tTunn) then
   #:if WITH_MPI
       call calc_current(env%mpi%globalComm, parallelKS%localKS, ham, over,&
-  #:else
-      call calc_current(parallelKS%localKS, ham, over,&
-  #:endif
           & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
           & leadCurrents, writeTunn, writeLDOS, mu)
+  #:else
+      call calc_current(parallelKS%localKS, ham, over,&
+          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
+          & leadCurrents, writeTunn, writeLDOS, mu)
+  #:endif
     end if
 
     if (tLocalCurrents) then
   #:if WITH_MPI
       call local_currents(env%mpi%globalComm, parallelKS%localKS, ham, over,&
-  #:else
-      call local_currents(parallelKS%localKS, ham, over,&
-  #:endif
           & neighbourList, nNeighbourSK, skCutoff, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoint, kWeight, coord0Fold, &
           & species0, speciesName, mu, lCurrArray)
+  #:else
+      call local_currents(parallelKS%localKS, ham, over,&
+          & neighbourList, nNeighbourSK, skCutoff, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoint, kWeight, coord0Fold, &
+          & species0, speciesName, mu, lCurrArray)
+  #:endif
     end if
   #:endif
 
@@ -1121,7 +1125,7 @@ contains
 
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
-    integer :: sparseSize, m
+    integer :: sparseSize
 
     coord0Fold(:,:) = coord0
     if (tPeriodic) then
@@ -2067,11 +2071,13 @@ contains
     #:if WITH_TRANSPORT
     #:if WITH_MPI
       call calcdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
-    #:else
-      call calcdensity_green(iSCC, parallelKS%localKS, ham, over,&
-    #:endif
           & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
+    #:else
+      call calcdensity_green(iSCC, parallelKS%localKS, ham, over,&
+          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
+    #:endif
     #:else
       call error("Internal error: getDensity : GF-solver although code compiled without transport")
     #:endif
@@ -4194,11 +4200,13 @@ contains
       if (electronicSolver%iSolver == electronicSolverTypes%GF) then
     #:if WITH_MPI
         call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
-    #:else
-        call calcEdensity_green(iSCC, parallelKS%localKS, ham, over,&
-    #:endif
             & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
             & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
+    #:else
+        call calcEdensity_green(iSCC, parallelKS%localKS, ham, over,&
+            & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
+    #:endif
       end if
     #:endif
 

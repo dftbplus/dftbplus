@@ -10,8 +10,8 @@
 program setupGeometry 
   use dftbp_globalenv
   use dftbp_formatout, only : printDftbHeader
-  use inputdata_setup, only : inputData
-  use parser_setup, only : parseHsdInput
+  use dftbp_inputsetup, only : inputData
+  use dftbp_parsersetup, only : parseHsdInput
   implicit none
 
   character(len=*), parameter :: releaseName = ''

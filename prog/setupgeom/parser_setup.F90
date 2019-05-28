@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Fills the derived type with the input parameters from an HSD or an XML file.
-module parser_setup
+module dftbp_parsersetup
   use dftbp_globalenv
   use dftbp_assert
   use dftbp_accuracy
@@ -35,10 +35,10 @@ module parser_setup
   use dftbp_xmlf90
   use dftbp_wrappedintr
   use libnegf_vars
-  use helpsetupgeom
-  use inputdata_setup
-  use inputconversion
-  use oldcompat
+  use dftbp_helpsetupgeom
+  use dftbp_inputsetup
+  use dftbp_inputconversion
+  use dftbp_oldcompat
   implicit none
 
   private
@@ -308,7 +308,6 @@ contains
             contVec, nPLs)
       call getSKcutoff(pTask, geom, skCutoff)
       write(stdOut,*) 'Maximum SK cutoff:', SKcutoff
-      call getTranslation(pTask, translVec)
       call getChildValue(pTask, "printInfo", printDebug, .false.)
       call setupGeometry(geom, iAtInRegion, contVec, skCutoff, nPLs, translVec, printDebug)
 
@@ -382,6 +381,10 @@ contains
         if (len(vecBuffer).eq.3) then
            call asArray(vecBuffer, vec)
            call convertByMul(char(modif), lengthUnits, pNode, vec)
+           ! check vector is along x y or z
+           if (count(vec == 0.0_dp) < 2 ) then
+             call error("ContactVector must be along either x, y or z")
+           end if 
            contVec(1:3,ii) = vec
            contVec(4,ii) = contactLayerTol
            call destruct(vecBuffer)
@@ -645,4 +648,4 @@ contains
 
   end subroutine SKTruncations
 
-end module parser_setup
+end module dftbp_parsersetup

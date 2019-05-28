@@ -47,12 +47,6 @@ ifeq ($(filter 0 1 2,$(strip $(DEBUG))),)
   $(error 'Invalid value $(DEBUG) for DEBUG (must be 0, 1 or 2)')
 endif
 
-ifeq ($(strip $(WITH_TRANSPORT)),1)
-  ifneq ($(strip $(WITH_MPI)),1)
-   # $(error 'Transport can only be included when code is built with MPI')
-  endif
-endif
-
 ################################################################################
 # Build targets
 ################################################################################

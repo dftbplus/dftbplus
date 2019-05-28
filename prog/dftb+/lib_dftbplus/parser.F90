@@ -1824,7 +1824,6 @@ contains
             &  "task = contactHamiltonian")
       end if
       call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
-      print*,'LocalCurrents:',greendens%doLocalCurr
       ctrl%solver%isolver = electronicSolverTypes%OnlyTransport
       ctrl%tFixEf = .true.
   #:endif
@@ -3823,10 +3822,6 @@ contains
     call getChildValue(root, "Task", pTaskType, child=pTask, default='uploadcontacts')
     call getNodeName(pTaskType, buffer)
 
-    if (char(buffer) == "setupgeometry") then
-       call error("Please use tool setupgeom with Task=setupgeometry")
-    end if   
-
     call getChild(root, "Device", pDevice)
     call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
     call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
@@ -3841,11 +3836,12 @@ contains
       call detailedError(root, "At least two contacts must be defined")
     end if
     allocate(transpar%contacts(transpar%ncont))
+      
+    call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
 
     select case (char(buffer))
     case ("contacthamiltonian")
 
-      call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
       transpar%taskUpload = .false.
       call getChildValue(pTaskType, "ContactId", buffer, child=pTmp)
       contact = getContactByName(transpar%contacts(:)%name, tolower(trim(unquote(char(buffer)))),&
@@ -3867,7 +3863,6 @@ contains
 
     case ("uploadcontacts")
 
-      call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
       transpar%taskUpload = .true.
 
     case default
@@ -4950,21 +4945,6 @@ contains
       end if
 
     end do
-
-    contains
-
-      function char_to_int(chr) result(ind)
-        character(*), intent(in) :: chr
-        integer :: ind
-        if (trim(chr) .eq. "") then
-          ind = 0
-          return
-        end if
-        if (verify(chr,"+-0123456789") .ne. 0) then
-          call error("Modifier in Atoms should be an integer number")   
-        end if  
-        read(chr,*) ind
-      end function char_to_int
 
   end subroutine readContacts
 

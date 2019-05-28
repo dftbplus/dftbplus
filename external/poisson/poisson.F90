@@ -193,7 +193,7 @@ module poisson
      if (contdir(m).gt.0) then
        xmax = maxval(x(f,iatm(1):iatm(2)))
        xmin = minval(x(f,iatc(3,m):iatc(2,m)))
-       if (xmin > xmax-deltaR_max/2.0_dp) then
+       if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
@@ -206,7 +206,7 @@ module poisson
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
        xmax = maxval(x(f,iatc(3,m):iatc(2,m)))
-       if (xmin > xmax-deltaR_max/2.0_dp) then
+       if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
          write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m

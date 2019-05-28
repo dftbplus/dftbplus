@@ -3,7 +3,7 @@
 !!
 #:include 'common.fypp'
 
-module inputconversion
+module dftbp_inputconversion
   use dftbp_assert    
   use dftbp_accuracy
   use dftbp_commontypes
@@ -159,4 +159,4 @@ contains
   end subroutine addAtomResolvedRegion
 
 
-end module inputconversion
+end module dftbp_inputconversion
