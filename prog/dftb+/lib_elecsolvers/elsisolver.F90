@@ -165,8 +165,8 @@ module dftbp_elsisolver
     !> If Meth-Paxton, order of scheme
     integer :: muMpOrder
 
-    !> count of the number of times ELSI has been reset (usually every geometry step)
-    integer :: nResets = 0
+    !> Whether solver had been already initialised
+    logical :: tSolverInitialised = .false.
 
     !> Has overlap been factorized
     logical :: tCholeskyDecomposed
@@ -459,7 +459,7 @@ contains
 
   #:if WITH_ELSI
 
-    if (this%nResets > 0) then
+    if (this%tSolverInitialised) then
 
       ! reset previous instance of solver
       call elsi_reinit(this%handle)
@@ -575,12 +575,11 @@ contains
       if (this%OutputLevel == 3) then
         call elsi_set_output_log(this%handle, 1)
       end if
-
+      this%tSolverInitialised = .true.
     end if
 
     this%tCholeskyDecomposed = .false.
     this%tFirstCalc = .true.
-    this%nResets = this%nResets + 1
 
   #:else
 
