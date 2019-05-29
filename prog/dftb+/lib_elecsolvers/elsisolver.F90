@@ -460,122 +460,127 @@ contains
   #:if WITH_ELSI
 
     if (this%nResets > 0) then
-      ! destroy previous instance of solver if called before
-      call elsi_finalize(this%handle)
+
+      ! reset previous instance of solver
+      call elsi_reinit(this%handle)
+
+    else
+
+      ! initialise solver
+
+      call elsi_init(this%handle, this%solver, this%parallel, this%denseBlacs, this%nBasis,&
+          & this%nElectron, this%nState)
+
+      call elsi_set_mpi_global(this%handle, this%mpiCommWorld)
+      call elsi_set_sing_check(this%handle, 0) ! disable singularity check
+      call elsi_set_mpi(this%handle, this%myCommWorld)
+
+      if (this%isSparse) then
+        call elsi_set_csc_blk(this%handle, this%csrBlockSize)
+      end if
+      call elsi_set_blacs(this%handle, this%myBlacsCtx, this%BlacsBlockSize)
+
+      if (this%tWriteHS) then
+        ! setup to write a matrix
+        call elsi_init_rw(this%rwHandle, 1, this%parallel, this%nBasis, this%nElectron)
+        ! MPI comm
+        call elsi_set_rw_mpi(this%rwHandle, this%mpiCommWorld)
+        if (.not.this%isSparse) then
+          ! dense matrices
+          call elsi_set_rw_blacs(this%rwHandle, this%myBlacsCtx, this%BlacsBlockSize)
+        end if
+      end if
+
+
+      select case(this%iSolver)
+      case(electronicSolverTypes%elpa)
+
+        select case(this%elpaSolverOption)
+        case(1)
+          ! single stage
+          call elsi_set_elpa_solver(this%handle, 1)
+        case(2)
+          ! two stage
+          call elsi_set_elpa_solver(this%handle, 2)
+        case default
+          call error("Unknown ELPA solver modes")
+        end select
+
+      case(electronicSolverTypes%omm)
+        ! libOMM
+        if (this%ommCholesky) then
+          call elsi_set_omm_flavor(this%handle, 2)
+        else
+          call elsi_set_omm_flavor(this%handle, 0)
+        end if
+        call elsi_set_omm_n_elpa(this%handle, this%ommIter)
+        call elsi_set_omm_tol(this%handle, this%ommTolerance)
+
+      case(electronicSolverTypes%pexsi)
+
+        this%pexsiMuMin = -10.0_dp
+        this%pexsiMuMax = 10.0_dp
+        this%pexsiDeltaVMin = 0.0_dp
+        this%pexsiDeltaVMax = 0.0_dp
+
+        ! processors per pole to invert for
+        call elsi_set_pexsi_np_per_pole(this%handle, this%pexsiNpPerPole)
+
+        call elsi_set_pexsi_mu_min(this%handle, this%pexsiMuMin +this%pexsiDeltaVMin)
+        call elsi_set_pexsi_mu_max(this%handle, this%pexsiMuMax +this%pexsiDeltaVMax)
+
+        ! number of poles for the expansion
+        call elsi_set_pexsi_n_pole(this%handle, this%pexsiNPole)
+
+        ! number of interpolation points for mu
+        call elsi_set_pexsi_n_mu(this%handle, this%pexsiNMu)
+
+        ! number of processors for symbolic factorisation task
+        call elsi_set_pexsi_np_symbo(this%handle, this%pexsiNpSymbo)
+
+        ! spectral radius (range of eigenspectrum, if known, otherwise default usually fine)
+        call elsi_set_pexsi_delta_e(this%handle, this%pexsiDeltaE)
+
+      case(electronicSolverTypes%ntpoly)
+
+        ! NTPoly
+        ! set purification method
+        call elsi_set_ntpoly_method(this%handle, this%ntpolyMethod)
+
+        ! set truncation tolerance for sparse matrix multiplications
+        call elsi_set_ntpoly_filter(this%handle, this%ntpolyTruncation)
+
+        ! set purification convergence threshold
+        call elsi_set_ntpoly_tol(this%handle, this%ntpolyTolerance)
+
+      end select
+
+      if (any(this%iSolver == [electronicSolverTypes%omm,&
+          & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
+        ! density matrix build needs to know the number of spin channels to normalize against
+        select case(this%nSpin)
+        case(1)
+          call elsi_set_spin(this%handle, 1, this%iSpin)
+        case(2)
+          call elsi_set_spin(this%handle, 2, this%iSpin)
+        case(4)
+          call elsi_set_spin(this%handle, 2, this%iSpin)
+        end select
+        if (this%nKPoint > 1) then
+          call elsi_set_kpoint(this%handle, this%nKPoint, this%iKPoint, this%kWeight)
+        end if
+      end if
+
+      call elsi_set_output(this%handle, this%OutputLevel)
+      if (this%OutputLevel == 3) then
+        call elsi_set_output_log(this%handle, 1)
+      end if
+
     end if
-    this%nResets = this%nResets + 1
 
     this%tCholeskyDecomposed = .false.
-
-    call elsi_init(this%handle, this%solver, this%parallel, this%denseBlacs, this%nBasis,&
-        & this%nElectron, this%nState)
-
-    call elsi_set_mpi_global(this%handle, this%mpiCommWorld)
-    call elsi_set_sing_check(this%handle, 0) ! disable singularity check
-    call elsi_set_mpi(this%handle, this%myCommWorld)
-
-    if (this%isSparse) then
-      call elsi_set_csc_blk(this%handle, this%csrBlockSize)
-    end if
-    call elsi_set_blacs(this%handle, this%myBlacsCtx, this%BlacsBlockSize)
-
-    if (this%tWriteHS) then
-      ! setup to write a matrix
-      call elsi_init_rw(this%rwHandle, 1, this%parallel, this%nBasis, this%nElectron)
-      ! MPI comm
-      call elsi_set_rw_mpi(this%rwHandle, this%mpiCommWorld)
-      if (.not.this%isSparse) then
-        ! dense matrices
-        call elsi_set_rw_blacs(this%rwHandle, this%myBlacsCtx, this%BlacsBlockSize)
-      end if
-    end if
-
-
-    select case(this%iSolver)
-    case(electronicSolverTypes%elpa)
-
-      select case(this%elpaSolverOption)
-      case(1)
-        ! single stage
-        call elsi_set_elpa_solver(this%handle, 1)
-      case(2)
-        ! two stage
-        call elsi_set_elpa_solver(this%handle, 2)
-      case default
-        call error("Unknown ELPA solver modes")
-      end select
-
-    case(electronicSolverTypes%omm)
-      ! libOMM
-      if (this%ommCholesky) then
-        call elsi_set_omm_flavor(this%handle, 2)
-      else
-        call elsi_set_omm_flavor(this%handle, 0)
-      end if
-      call elsi_set_omm_n_elpa(this%handle, this%ommIter)
-      call elsi_set_omm_tol(this%handle, this%ommTolerance)
-
-    case(electronicSolverTypes%pexsi)
-
-      this%pexsiMuMin = -10.0_dp
-      this%pexsiMuMax = 10.0_dp
-      this%pexsiDeltaVMin = 0.0_dp
-      this%pexsiDeltaVMax = 0.0_dp
-
-      ! processors per pole to invert for
-      call elsi_set_pexsi_np_per_pole(this%handle, this%pexsiNpPerPole)
-
-      call elsi_set_pexsi_mu_min(this%handle, this%pexsiMuMin +this%pexsiDeltaVMin)
-      call elsi_set_pexsi_mu_max(this%handle, this%pexsiMuMax +this%pexsiDeltaVMax)
-
-      ! number of poles for the expansion
-      call elsi_set_pexsi_n_pole(this%handle, this%pexsiNPole)
-
-      ! number of interpolation points for mu
-      call elsi_set_pexsi_n_mu(this%handle, this%pexsiNMu)
-
-      ! number of processors for symbolic factorisation task
-      call elsi_set_pexsi_np_symbo(this%handle, this%pexsiNpSymbo)
-
-      ! spectral radius (range of eigenspectrum, if known, otherwise default usually fine)
-      call elsi_set_pexsi_delta_e(this%handle, this%pexsiDeltaE)
-
-    case(electronicSolverTypes%ntpoly)
-
-      ! NTPoly
-      ! set purification method
-      call elsi_set_ntpoly_method(this%handle, this%ntpolyMethod)
-
-      ! set truncation tolerance for sparse matrix multiplications
-      call elsi_set_ntpoly_filter(this%handle, this%ntpolyTruncation)
-
-      ! set purification convergence threshold
-      call elsi_set_ntpoly_tol(this%handle, this%ntpolyTolerance)
-
-    end select
-
-    if (any(this%iSolver == [electronicSolverTypes%omm,&
-        & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
-      ! density matrix build needs to know the number of spin channels to normalize against
-      select case(this%nSpin)
-      case(1)
-        call elsi_set_spin(this%handle, 1, this%iSpin)
-      case(2)
-        call elsi_set_spin(this%handle, 2, this%iSpin)
-      case(4)
-        call elsi_set_spin(this%handle, 2, this%iSpin)
-      end select
-      if (this%nKPoint > 1) then
-        call elsi_set_kpoint(this%handle, this%nKPoint, this%iKPoint, this%kWeight)
-      end if
-    end if
-
-    call elsi_set_output(this%handle, this%OutputLevel)
-    if (this%OutputLevel == 3) then
-      call elsi_set_output_log(this%handle, 1)
-    end if
-
     this%tFirstCalc = .true.
+    this%nResets = this%nResets + 1
 
   #:else
 
