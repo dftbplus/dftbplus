@@ -51,13 +51,13 @@ Transport {
       NumSpecifiedPLs = 2
     }
     Task = SetupGeometry{
+      SlaterKosterFiles = type2names{
+        ...
+      }
       TruncateSKRange = {
         SKMaxDistance [AA] = 5.0
         HardCutOff = Yes
-        }
-        SlaterKosterFiles = type2names{
-         ...
-        }
+      }
     }
 }
 \end{verbatim}
@@ -66,9 +66,8 @@ Transport {
 \begin{ptable}
  \kw{Id}    & s & &   &  \\
  \kw{Atoms} &l i& & - &  \\
- \kw{NumSpecifiedPLs} &i & & 2 & \\	
+ \kw{NumSpecifiedPLs} &i & 1 or 2 & 2 & \\	
  \kw{ContactVector} & 3r & & - & \\	
- \kw{Translation} & 3r & & 0.0 &\\ 
  \kw{TruncateSKRange} & p & & & \\
  \kw{SlaterKosterFiles} & p & & & \\
 \end{ptable}

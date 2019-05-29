@@ -15,12 +15,25 @@ module dftbp_helpsetupgeom
   contains
 
   subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, printDebug)
+    !> Container of the system geometry    
     type(TGeometry), intent(inout) :: geom
+
+    !> Variable size vectors containing atom indices in each region
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
+    
+    !> Contact vector (contact PL repetition)
     real(dp), intent(inout) :: contVec(:,:)
+    
+    !> Slater-Koster cutoff for partitioning
     real(dp), intent(in) :: plCutoff
+    
+    !> Number of PLs provided
     integer, intent(in) :: nPLs(:)
+    
+    !> Translation vector to apply to the whole structure (after folding)
     real(dp), intent(in) :: translVec(:)
+    
+    !> Whether debug infos should be printed
     logical, intent(in) :: printDebug
    
 
@@ -83,15 +96,15 @@ module dftbp_helpsetupgeom
     mask = .true.
     
     do icont = 1, ncont
-       do ii = 1, size(iAtInRegion(icont)%data)
-         jj = iAtInRegion(icont)%data(ii)
-         if (.not.mask(jj)) then 
-           write(sindx,'(I10)') jj    
-           call error("atom "//adjustl(sindx)//" is found in more than one region")  
-         else 
-           mask(jj) = .false.    
-         end if
-       end do
+      do ii = 1, size(iAtInRegion(icont)%data)
+        jj = iAtInRegion(icont)%data(ii)
+        if (.not.mask(jj)) then 
+          write(sindx,'(I10)') jj    
+          call error("atom "//adjustl(sindx)//" is found in more than one region")  
+        else 
+          mask(jj) = .false.    
+        end if
+      end do
     end do
   
     jj = count(mask)
