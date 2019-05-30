@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+
 !> Global variables and initialization for the main program.
 module dftbp_initprogram
   use omp_lib
@@ -170,16 +171,6 @@ module dftbp_initprogram
 
   !> Coords in central cell (3, nAtom)
   real(dp), allocatable, target :: coord0(:,:)
-
-  !> temporary coordinates
-  real(dp), allocatable :: tmpCoords(:)
-
-  !> temporary weights
-  real(dp), allocatable :: tmpWeight(:)
-
-  !> temporary array of coords (3,:)
-  real(dp), allocatable :: tmp3Coords(:,:)
-
 
   !> if calculation is periodic
   logical :: tPeriodic
@@ -995,6 +986,8 @@ contains
     type(OVelocityVerlet), allocatable :: pVelocityVerlet
     type(OTempProfile), pointer :: pTempProfile
 
+    real(dp), allocatable :: tmpCoords(:), tmpWeight(:), tmp3Coords(:,:)
+
     type(ORanlux), allocatable :: randomInit, randomThermostat
     integer :: iSeed
 
@@ -1635,16 +1628,16 @@ contains
     end if
 
     ! Initialize reference neutral atoms.
-    if (tLinResp.and.allocated(input%ctrl%customOccAtoms)) then 
+    if (tLinResp.and.allocated(input%ctrl%customOccAtoms)) then
        call error("Custom occupation not compatible with linear response")
-    end if     
+    end if
     if (tMulliken) then
       if (allocated(input%ctrl%customOccAtoms)) then
         call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
             & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
-      else   
+      else
         call initQFromShellChrg(q0, referenceN0, species0, orb)
-      end if  
+      end if
     end if
 
     nEl0 = sum(q0(:,:,1))
@@ -1664,7 +1657,7 @@ contains
         call error("More electrons than basis functions!")
       end if
     end if
-  
+
     if (.not.all(nEl(:) >= 0.0_dp)) then
       call error("Less than 0 electrons!")
     end if
@@ -3066,7 +3059,7 @@ contains
   end subroutine initProgramVariables
 
 
-  !> Clean up things that do not automatically get removed on going out of scope
+  !> Clean up things that did not automatically get removed by going out of scope
   subroutine destructProgramVariables()
 
     if (electronicSolver%isElsiSolver) then
@@ -3077,6 +3070,31 @@ contains
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
     end if
+
+    @:SAFE_DEALLOC(sccCalc, img2CentCell, species, species0, coord, coord0)
+    @:SAFE_DEALLOC(latVec, recVec, invLatVec, cellVec, rCellVec, iCellVec)
+    @:SAFE_DEALLOC(neighbourList, nNeighbourSk, nNeighbourRep, iSparseStart)
+    @:SAFE_DEALLOC(hubbU, atomEigVal, referenceN0, mass, speciesMass)
+    @:SAFE_DEALLOC(ham, iHam, chargePerShell, chargePerAtom, over, kPoint, kWeight)
+    @:SAFE_DEALLOC(nEl, spinW, xi, UJ, nUJ, niUJ, iUJ, Ef, esp)
+    @:SAFE_DEALLOC(indMovedAtom, conAtom, conVec, pipekMezey)
+    #:if WITH_SOCKETS
+      @:SAFE_DEALLOC(socket)
+    #:endif
+    @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
+    @:SAFE_DEALLOC(temperatureProfile, derivDriver)
+    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+    @:SAFE_DEALLOC(qInpRed, qOutRed, qDiffRed)
+    @:SAFE_DEALLOC(iEqOrbitals, iEqBlockDftbU, iEqBlockOnSite, iEqBlockDftbULs, iEqBlockOnSiteLs)
+    @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
+    @:SAFE_DEALLOC(dispersion, xlbomdIntegrator)
+    @:SAFE_DEALLOC(velocities, movedVelo, movedAccel, movedMass)
+    @:SAFE_DEALLOC(rhoPrim, iRhoPrim, ERhoPrim, h0, filling, Eband, TS, E0)
+    @:SAFE_DEALLOC(HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, eigen)
+    @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, chrgForces, excitedDerivs, dipoleMoment)
+    @:SAFE_DEALLOC(coord0Fold, newCoords, orbitalL, occNatural, mu)
+    @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, poissonDerivs, shiftPerLUp, chargeUp)
+    @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
 
   end subroutine destructProgramVariables
 
@@ -3988,12 +4006,12 @@ contains
 
     !> Charges required for atomic neutrality in reference state
     real(dp), intent(inout) :: q0(:,:,:)
-    
+
     integer :: nCustomBlock, iCustomBlock, iCustomAtom, nAtom, iAt, iSp
     real(dp), allocatable :: refOcc(:,:)
-    
+
     nAtom = size(species)
-    ! note that all arrays, referenceN0, customOccAtoms, refOcc 
+    ! note that all arrays, referenceN0, customOccAtoms, refOcc
     ! are allocated to orb%mShell so assignments vecA(:,) = vecB(:,) work
     allocate(refOcc(orb%mShell, nAtom))
     ! initialize to referenceN0
@@ -4002,7 +4020,7 @@ contains
       refOcc(:, iAt) = referenceN0(:, iSp)
     end do
 
-    ! override to customOccupation 
+    ! override to customOccupation
     if (allocated(customOccAtoms)) then
       nCustomBlock = size(customOccAtoms)
       do iCustomBlock = 1, nCustomBlock
@@ -4017,7 +4035,7 @@ contains
     call initQFromUsrChrg(q0, refOcc, species, orb)
 
   end subroutine applyCustomReferenceOccupations
-  
+
 
   !> Print out the reference occupations for atoms
   subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, customOccFillings)
