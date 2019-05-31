@@ -72,7 +72,7 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB {
     SCC = Yes
-    SCCTolerance = 1.0E-7 # relatively small
+    SCCTolerance = 1.0E-6 # relatively small
     Eigensolver = PEXSI {
         Poles = 20
     }
@@ -111,7 +111,8 @@ Options {
 }
 
 Analysis {
-    CalculateForces = Yes
+    # PEXSI bug at the moment (May 2019)
+    CalculateForces = No
 }
 
 ParserOptions {
