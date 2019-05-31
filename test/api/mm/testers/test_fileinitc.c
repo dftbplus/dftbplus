@@ -117,7 +117,7 @@ int main()
     if (si2) {
       dftbp_set_coords_and_lattice_vecs(&calculator, coords_si2, latvecs_si2);
     } else {
-      dftbp_set_coords_and_lattice_vecs(&calculator, coords_h2o, NULL);
+      dftbp_set_coords(&calculator, coords_h2o);
     }
 
     /* evaluate energy */
