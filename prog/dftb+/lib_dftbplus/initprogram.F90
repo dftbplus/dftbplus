@@ -1729,6 +1729,10 @@ contains
           & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
     end if
 
+    if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then
+      call error("Alternative force evaluation methods are not supported by this electronic&
+          & solver.")
+    end if
 
   #:if WITH_TRANSPORT
     ! whether tunneling is computed
