@@ -2168,7 +2168,7 @@ contains
       end if
     case ("poisson")
       ctrl%tPoisson = .true.
-      call readPoisson(value1, poisson, geo%tPeriodic, tp%tPeriodic1D)
+      call readPoisson(value1, poisson, geo%tPeriodic, tp)
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
@@ -3837,9 +3837,6 @@ contains
 
     call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
-    if (transpar%ncont < 2) then
-      call detailedError(root, "At least two contacts must be defined")
-    end if
     allocate(transpar%contacts(transpar%ncont))
     !! Parse contact geometry
 
@@ -4123,10 +4120,13 @@ contains
 
 
   !> Read in Poisson related data
-  subroutine readPoisson(pNode, poisson, tPeriodic, tPeriodic1D)
+  subroutine readPoisson(pNode, poisson, tPeriodic, transpar)
     type(fnode), pointer :: pNode
     type(TPoissonInfo), intent(inout) :: poisson
-    logical, intent(in) :: tPeriodic, tPeriodic1D
+    logical, intent(in) :: tPeriodic
+
+    !> Parameters of the transport calculation
+    type(TTransPar), intent(inout) :: transpar
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
     type(string) :: buffer, modif
@@ -4136,35 +4136,43 @@ contains
     logical :: needsPoissonBox
 
     poisson%defined = .true.
-    needsPoissonBox = (.not. tPeriodic) .or. tPeriodic1D
+    needsPoissonBox = (.not. tPeriodic) .or. transpar%tPeriodic1D .or. (transpar%nCont == 1)
+
+    !!!!! HERE !
     if (needsPoissonBox) then
-      call getChildValue(pNode, "PoissonBox", poisson%poissBox, &
-          & modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          & poisson%poissBox)
+      if (transpar%nCont == 1 .and. .not. transpar%tPeriodic1D) then
+
+        write(stdout,*)transpar%contacts(1)%lattice, transpar%contacts(1)%dir
+        write(stdout,*)transpar%contacts(1)%lattice(transpar%contacts(1)%dir) > 0.0_dp
+        write(stdout,*)tPeriodic
+        call error("Stoping here")
+
+       ! needs a check mechanism for periodicity and transpar%nCont == 1
+
+      else
+        call getChildValue(pNode, "PoissonBox", poisson%poissBox, modifier=modif, child=field)
+        call convertByMul(char(modif), lengthUnits, field, poisson%poissBox)
+      end if
     end if
+
     poisson%foundBox = needsPoissonBox
-    call getChildValue(pNode, "MinimalGrid", poisson%poissGrid, &
-        & [ 0.3_dp, 0.3_dp, 0.3_dp ], modifier=modif, child=field)
-    call convertByMul(char(modif), lengthUnits, field, &
-        & poisson%poissGrid)
+    call getChildValue(pNode, "MinimalGrid", poisson%poissGrid, [ 0.3_dp, 0.3_dp, 0.3_dp ],&
+        & modifier=modif, child=field)
+    call convertByMul(char(modif), lengthUnits, field, poisson%poissGrid)
     call getChildValue(pNode, "NumericalNorm", poisson%numericNorm, .false.)
-    call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., &
-        & modifier=modif)
+    call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., modifier=modif)
     call getChild(pNode, "AtomDensityTolerance", pTmp2, requested=.false.)
     if (associated(pTmp) .and. associated(pTmp2)) then
-      call detailedError(pNode, "Either one of the tags AtomDensityCutoff or&
-          & AtomDensityTolerance can be specified.")
+      call detailedError(pNode, "Either one of the tags AtomDensityCutoff or AtomDensityTolerance&
+          & can be specified.")
     else if (associated(pTmp)) then
-      call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, &
-          &  modifier=modif)
+      call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modif)
       call convertByMul(char(modif), lengthUnits, pTmp, poisson%maxRadAtomDens)
       if (poisson%maxRadAtomDens <= 0.0_dp) then
         call detailedError(pTmp2, "Atom density cutoff must be > 0")
       end if
     else
-      call getChildValue(pNode, "AtomDensityTolerance", denstol, 1e-6_dp, &
-          & child=pTmp2)
+      call getChildValue(pNode, "AtomDensityTolerance", denstol, 1e-6_dp, child=pTmp2)
       if (denstol <= 0.0_dp) then
         call detailedError(pTmp2, "Atom density tolerance must be > 0")
       end if
@@ -4172,34 +4180,25 @@ contains
       poisson%maxRadAtomDens = -denstol
     end if
 
-    call getChildValue(pNode, "CutoffCheck", poisson%cutoffcheck,&
-        & .true.)
+    call getChildValue(pNode, "CutoffCheck", poisson%cutoffcheck, .true.)
     call getChildValue(pNode, "Verbosity", poisson%verbose, 51)
-    call getChildValue(pNode, "SavePotential", poisson%savePotential,&
-        & .false.)
-    call getChildValue(pNode, "PoissonAccuracy", poisson%poissAcc,&
-        & 1.0e-6_dp)
-    call getChildValue(pNode, "BuildBulkPotential", poisson%bulkBC,&
-        & .true.)
-    call getChildValue(pNode, "ReadOldBulkPotential", &
-        & poisson%readBulkPot, .false.)
-    call getChildValue(pNode, "RecomputeAfterDensity",&
-        & poisson%solvetwice, .false.)
-    call getChildValue(pNode, "MaxPoissonIterations",&
-        & poisson%maxPoissIter, 60)
+    call getChildValue(pNode, "SavePotential", poisson%savePotential, .false.)
+    call getChildValue(pNode, "PoissonAccuracy", poisson%poissAcc, 1.0e-6_dp)
+    call getChildValue(pNode, "BuildBulkPotential", poisson%bulkBC, .true.)
+    call getChildValue(pNode, "ReadOldBulkPotential", poisson%readBulkPot, .false.)
+    call getChildValue(pNode, "RecomputeAfterDensity", poisson%solvetwice, .false.)
+    call getChildValue(pNode, "MaxPoissonIterations", poisson%maxPoissIter, 60)
 
     call getChild(pNode, "OverrideDefaultBC", pTmp, requested=.false.)
     poisson%overrideBC(:) = 0
     if (associated(pTmp)) then
-      call getPoissonBoundaryConditionOverrides(pTmp, [ 1, 2 ], &
-          & poisson%overrideBC)
+      call getPoissonBoundaryConditionOverrides(pTmp, [ 1, 2 ], poisson%overrideBC)
     end if
 
     call getChildValue(pNode, "OverrideBulkBC", pTmp, "none")
     poisson%overrBulkBC(:) = -1
     if (associated(pNode)) then
-      call getPoissonBoundaryConditionOverrides(pTmp, [ 0, 1, 2 ], &
-          & poisson%overrBulkBC)
+      call getPoissonBoundaryConditionOverrides(pTmp, [ 0, 1, 2 ], poisson%overrBulkBC)
     end if
 
     call getChildValue(pNode, "BoundaryRegion", pTmp, "global")
@@ -4209,23 +4208,21 @@ contains
       poisson%localBCType = "G"
     case ("square")
       poisson%localBCType = "S"
-      call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, &
-          &9.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          & poisson%bufferLocBC)
+      call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, 9.0_dp, modifier=modif,&
+          & child=field)
+      call convertByMul(char(modif), lengthUnits, field, poisson%bufferLocBC)
     case ("circle")
       poisson%localBCType = "C"
-      call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, &
-          &9.0_dp, modifier=modif, child=field)
+      call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, 9.0_dp, modifier=modif,&
+          & child=field)
       call convertByMul(char(modif), lengthUnits, field, poisson%bufferLocBC)
     case default
       call getNodeHSDName(pTmp, buffer)
-      call detailedError(pTmp, "Invalid boundary region type '" &
-          &// char(buffer) // "'")
+      call detailedError(pTmp, "Invalid boundary region type '" // char(buffer) // "'")
     end select
 
-    call getChildValue(pNode, "BoxExtension", poisson%bufferBox, &
-         &0.0_dp, modifier=modif, child=field)
+    call getChildValue(pNode, "BoxExtension", poisson%bufferBox, 0.0_dp, modifier=modif,&
+        & child=field)
     call convertByMul(char(modif), lengthUnits, field, poisson%bufferBox)
     if (poisson%bufferBox.lt.0.0_dp) then
       call detailedError(pNode, "BoxExtension must be a positive number")
@@ -4240,56 +4237,46 @@ contains
       poisson%gateType = "N"
     case ("planar")
       poisson%gateType = "P"
-      call getChildValue(pTmp2, "GateLength", poisson%gateLength_l,&
-          & 0.0_dp, modifier= modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%gateLength_l)
+      call getChildValue(pTmp2, "GateLength", poisson%gateLength_l, 0.0_dp, modifier= modif,&
+          & child=field)
+      call convertByMul(char(modif), lengthUnits, field, poisson%gateLength_l)
 
       gatelength_l = poisson%gateLength_l !avoids a warning on intents
-      call getChildValue(pTmp2, "GateLength_l", poisson%gateLength_l, &
-          & gateLength_l, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%gateLength_l)
+      call getChildValue(pTmp2, "GateLength_l", poisson%gateLength_l, gateLength_l, modifier=modif,&
+          & child=field)
+      call convertByMul(char(modif), lengthUnits, field, poisson%gateLength_l)
 
-      call getChildValue(pTmp2, "GateLength_t", poisson%gateLength_t, &
-          &poisson%gateLength_l, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%gateLength_t)
+      call getChildValue(pTmp2, "GateLength_t", poisson%gateLength_t, poisson%gateLength_l,&
+          & modifier=modif, child=field)
+      call convertByMul(char(modif), lengthUnits, field, poisson%gateLength_t)
 
-      call getChildValue(pTmp2, "GateDistance", poisson%gateRad, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%gateRad)
+      call getChildValue(pTmp2, "GateDistance", poisson%gateRad, 0.0_dp, modifier=modif,&
+          & child=field)
+      call convertByMul(char(modif), lengthUnits, field, poisson%gateRad)
 
-      call getChildValue(pTmp2, "GatePotential", poisson%gatepot, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, &
-          &poisson%gatepot)
+      call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modif,&
+          & child=field)
+      call convertByMul(char(modif), energyUnits, field, poisson%gatepot)
 
       !call getChildValue(pTmp2, "GateDirection", poisson%gatedir, 2)
       poisson%gatedir = 2
 
     case ("cylindrical")
       poisson%gateType = "C"
-      call getChildValue(pTmp2, "GateLength",poisson%gateLength_l,&
-          & 0.0_dp, modifier= modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%gateLength_l)
+      call getChildValue(pTmp2, "GateLength",poisson%gateLength_l, 0.0_dp, modifier= modif,&
+          & child=field)
+      call convertByMul(char(modif), lengthUnits, field, poisson%gateLength_l)
 
-      call getChildValue(pTmp2, "GateRadius", poisson%gateRad, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%gateRad)
+      call getChildValue(pTmp2, "GateRadius", poisson%gateRad, 0.0_dp, modifier=modif, child=field)
+      call convertByMul(char(modif), lengthUnits, field, poisson%gateRad)
 
-      call getChildValue(pTmp2, "GatePotential", poisson%gatepot, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, &
-          &poisson%gatepot)
+      call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modif,&
+          & child=field)
+      call convertByMul(char(modif), lengthUnits, field, poisson%gatepot)
 
     case default
       call getNodeHSDName(pTmp2, buffer)
-      call detailedError(pTmp2, "Invalid gate type '" &
-          &// char(buffer) // "'")
+      call detailedError(pTmp2, "Invalid gate type '" // char(buffer) // "'")
 
     end select
 
@@ -4461,6 +4448,7 @@ contains
     end if
 
   end subroutine getContactVector
+
 
   !> Read dephasing block
   subroutine readDephasing(node, orb, geom, tp, tundos)
