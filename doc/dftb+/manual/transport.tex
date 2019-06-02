@@ -606,6 +606,7 @@ Cartesian axes, $x$, $y$, $z$.
   \kw{Gate} & m & & none\{\} & \pref{Electrostatic Gates} \\
   \kw{MaxParallelNodes} & m & & none\{\} & \pref{Parallelisations} \\
   \kw{RecomputeAfterDensity} & l & & No & \\
+  \kw{PoissonThickness} & r & contacts = 1 & &\\
 \end{ptableh}
 
 
@@ -614,8 +615,6 @@ Cartesian axes, $x$, $y$, $z$.
   messages and takes values ranging from 1 to 100.
 \item[\is{PoissonBox}]\modif{\modtype{length}} Dimension of the Poisson box
   along the directions $x$, $y$ and $z$.
-
-  
 \item[\is{BoxExtension}]\modif{\modtype{length}} With this value it is possible
   to tune the position of the box interface between the device and contacts.  By
   default (\is{BoxExtension}=0.0) the boundary is placed at the midpoint between
@@ -659,6 +658,9 @@ Cartesian axes, $x$, $y$, $z$.
   calculations it is set to \is{No} by default in order to avoid the extra time
   spent on the Poisson step. This does not affect the SCC loop or other
   calculations apart from the electronic energy and forces.
+\item[\is{PoissonThickness}] In the special case of a single contact (cases like
+  the end of semi-infinite wires or surfaces of crystals), the thickness of the
+  Poisson box normal to the surface of the contact can be set with this command.
 \end{description}
 
 {\bf Note}: The Poisson box can be specified using the keyword
@@ -766,6 +768,10 @@ BoundaryRegion = Circle {
 In some special cases it might be necessary to override the default BCs applied
 by the code to the Poisson equation. Currently this can be done using the
 keywords: \verb|OverrideDefaultBC| and \verb|OverrideBulkBC|.
+
+In the special case of a single contact, the boundary condition on the other
+side of the box to that contact is automatically over-ridden to be of Neumann
+type (but can still then be over-ridden with \is{OverrideDefaultBC}).
 
 \begin{description}
 \item[\is{OverrideDefaultBC}] block is used to override the BCs described
