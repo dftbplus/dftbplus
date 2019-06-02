@@ -2168,7 +2168,7 @@ contains
       end if
     case ("poisson")
       ctrl%tPoisson = .true.
-      call readPoisson(value1, poisson, geo%tPeriodic, tp)
+      call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs)
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
@@ -3135,8 +3135,7 @@ contains
       end do
       mCutoff = 2.0_dp * maxval(rCutoffs)
       if (geo%tPeriodic) then
-        call getCellTranslations(cellVec, rCellVec, geo%latVecs, &
-            & geo%recVecs2p, mCutoff)
+        call getCellTranslations(cellVec, rCellVec, geo%latVecs, geo%recVecs2p, mCutoff)
       else
         allocate(cellVec(3, 1))
         allocate(rCellVec(3, 1))
@@ -4120,10 +4119,11 @@ contains
 
 
   !> Read in Poisson related data
-  subroutine readPoisson(pNode, poisson, tPeriodic, transpar)
+  subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs)
     type(fnode), pointer :: pNode
     type(TPoissonInfo), intent(inout) :: poisson
     logical, intent(in) :: tPeriodic
+    real(dp), intent(in) :: latVecs(3,3)
 
     !> Parameters of the transport calculation
     type(TTransPar), intent(inout) :: transpar
@@ -4138,17 +4138,18 @@ contains
     poisson%defined = .true.
     needsPoissonBox = (.not. tPeriodic) .or. transpar%tPeriodic1D .or. (transpar%nCont == 1)
 
-    !!!!! HERE !
     if (needsPoissonBox) then
       if (transpar%nCont == 1 .and. .not. transpar%tPeriodic1D) then
-
-        write(stdout,*)transpar%contacts(1)%lattice, transpar%contacts(1)%dir
-        write(stdout,*)transpar%contacts(1)%lattice(transpar%contacts(1)%dir) > 0.0_dp
-        write(stdout,*)tPeriodic
-        call error("Stoping here")
-
-       ! needs a check mechanism for periodicity and transpar%nCont == 1
-
+        poisson%poissBox(:) = 0.0_dp
+        do ii = 1, 3
+          if (ii == transpar%contacts(1)%dir) then
+            call getChildValue(pNode, "PoissonThickness", poisson%poissBox(ii), modifier=modif,&
+                & child=field)
+            call convertByMul(char(modif), lengthUnits, field, poisson%poissBox)
+          else
+            poisson%poissBox(ii) = sqrt(sum(latVecs(:,ii)**2))
+          end if
+        end do
       else
         call getChildValue(pNode, "PoissonBox", poisson%poissBox, modifier=modif, child=field)
         call convertByMul(char(modif), lengthUnits, field, poisson%poissBox)
@@ -4189,8 +4190,21 @@ contains
     call getChildValue(pNode, "RecomputeAfterDensity", poisson%solvetwice, .false.)
     call getChildValue(pNode, "MaxPoissonIterations", poisson%maxPoissIter, 60)
 
-    call getChild(pNode, "OverrideDefaultBC", pTmp, requested=.false.)
     poisson%overrideBC(:) = 0
+
+    if (transpar%nCont == 1) then
+      ! single contact, so set opposite box face default to be a Neumann boundary condition as
+      ! approximation to open to infinity in that direction
+      ibc = 2 * (transpar%contacts(1)%dir - 1) + 1
+      if (transpar%contacts(1)%lattice(transpar%contacts(1)%dir) > 0.0_dp) then
+        ! it is the max face for that side that should be modified:
+        ibc = ibc + 1
+      end if
+      ! actually set the boundary cond. on that face
+      poisson%overrideBC(ibc) = 2
+    end if
+
+    call getChild(pNode, "OverrideDefaultBC", pTmp, requested=.false.)
     if (associated(pTmp)) then
       call getPoissonBoundaryConditionOverrides(pTmp, [ 1, 2 ], poisson%overrideBC)
     end if
