@@ -4179,6 +4179,11 @@ contains
 
     case (electronicSolverTypes%GF)
 
+      if (forceType /= forceTypes%orig) then
+        call error("Alternative force evaluation methods are not supported by this electronic&
+            & solver.")
+      end if
+
     #:if WITH_TRANSPORT
       if (electronicSolver%iSolver == electronicSolverTypes%GF) then
         call calcEdensity_green(iSCC, env%mpi%globalComm, parallelKS%localKS, ham, over,&
@@ -4189,7 +4194,7 @@ contains
 
     case (electronicSolverTypes%onlyTransport)
 
-      call error("OnlyTransport solver cannot calculate the energy weighted density matrix")
+      call error("The OnlyTransport solver cannot calculate the energy weighted density matrix")
 
     case (electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
@@ -4199,6 +4204,11 @@ contains
           & tRealHS, ham, over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     case (electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
+
+      if (forceType /= forceTypes%orig) then
+        call error("Alternative force evaluation methods are not supported by this electronic&
+            & solver.")
+      end if
 
       call electronicSolver%elsi%getEDensity(env, denseDesc, nSpin, kPoint, kWeight, neighbourList,&
           & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS, parallelKS,&
