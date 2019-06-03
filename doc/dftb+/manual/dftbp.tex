@@ -2820,19 +2820,20 @@ The \kw{RangeSep} field keyword has the following options
   \kw{Algorithm} & m & & TR\{ 1e-5 \} & \\
 \end{ptable}
 \begin{description}
-\item[\is{Enable}] Turns on long-range correction.
+\item[\is{Enable}] Turns on the long-range correction.
 \item[\is{Algorithm}] Method used for distance dependent screening to ensure
   quadratic scaling with system size. Supports two options:
 \begin{description}
-\item[\is{TR\{\}}] Screening according to estimated magnitude of terms. This
-  is the recommended choice. The
-  threshold value is passed as an option, e.g.
+\item[\is{TR\{\}}] Screening according to estimated magnitude of terms. This is
+  the recommended choice for speed and accuracy but does not support all of the
+  cases (restarting and spin polarisation). The threshold value is passed as an
+  option, e.g.
 \begin{verbatim}
 Algorithm = TR{ Threshold = 1e-6 }
 \end{verbatim}
 for screening with threshold 1e-6. The default value is 1e-5.
-\item[\is{NB\{\}}] Neighbour list based screening.
-  The neighbour distance cutoff can be adjusted with an option:
+\item[\is{NB\{\}}] Neighbour list based screening.  The neighbour distance
+  cutoff can be adjusted with an option:
 \begin{verbatim}
 Algorithm = NB {
   DeltaCutoff [AA] = -2.0
