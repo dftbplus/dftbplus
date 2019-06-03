@@ -30,12 +30,7 @@ Hamiltonian = DFTB {
 
     Electrostatics = Poisson {
       MinimalGrid [Angstrom] = 0.3 0.3 0.3
-
-      # As structure is semi-infinite, in normal direction set d phi / dz = 0 at end of Poisson box
-      PoissonBox [Angstrom] = {20 20 30}
-      OverrideDefaultBC = Neumann {
-          Boundaries = zmax
-      }
+      PoissonBox [Angstrom] = {20 20 30} # wire along z, so padding out the end
     }
 
     Eigensolver = GreensFunction{
