@@ -1694,7 +1694,7 @@ contains
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint, tForces,&
         & input%ctrl%parallelOpts, nIndepHam, tempElec)
     if (tRealHS) then
       nBufferedCholesky = 1
@@ -3934,7 +3934,8 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, tForces, parallelOpts, nIndepHam,&
+      & tempElec)
 
     !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -3944,6 +3945,9 @@ contains
 
     !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
+
+    !> Are forces required
+    logical, intent(in) :: tForces
 
     !> Options for a parallel calculation, if needed
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
@@ -3956,6 +3960,12 @@ contains
 
     logical :: tElsiSolver
     integer :: nKPoint
+
+    ! Temporary error test for PEXSI bug (May 2019)
+    if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)&
+        & .and. tForces) then
+      call error("A temporary bug prevents correct force evaluation with PEXSI at general k-points")
+    end if
 
     tElsiSolver = any(electronicSolver%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
