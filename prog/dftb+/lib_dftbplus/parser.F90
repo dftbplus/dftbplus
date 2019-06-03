@@ -4191,19 +4191,6 @@ contains
     call getChildValue(pNode, "MaxPoissonIterations", poisson%maxPoissIter, 60)
 
     poisson%overrideBC(:) = 0
-
-    if (transpar%nCont == 1) then
-      ! single contact, so set opposite box face default to be a Neumann boundary condition as
-      ! approximation to open to infinity in that direction
-      ibc = 2 * (transpar%contacts(1)%dir - 1) + 1
-      if (transpar%contacts(1)%lattice(transpar%contacts(1)%dir) > 0.0_dp) then
-        ! it is the max face for that side that should be modified:
-        ibc = ibc + 1
-      end if
-      ! actually set the boundary cond. on that face
-      poisson%overrideBC(ibc) = 2
-    end if
-
     call getChild(pNode, "OverrideDefaultBC", pTmp, requested=.false.)
     if (associated(pTmp)) then
       call getPoissonBoundaryConditionOverrides(pTmp, [ 1, 2 ], poisson%overrideBC)
