@@ -1156,6 +1156,9 @@ contains
     else
       maxSccIter = 1
     end if
+    if (maxSccIter < 1) then
+      call error("SCC iterations must be larger than 0")
+    end if
 
     tWriteHS = input%ctrl%tWriteHS
     tWriteRealHS = input%ctrl%tWriteRealHS
