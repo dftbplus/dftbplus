@@ -42,13 +42,13 @@ Transport {
       Id = "source"
      	Atoms [zeroBased] = {9:24 56:78}
      	ContactVector = 0.0 0.0 3.78
-     	NumSpecifiedPLs = 2
+     	SpecifiedPLs = 2
     }
     Contact {
       Id = "drain"
       Atoms [zeroBased] = {81:100}
      	ContactVector = 0.0 0.0 3.78
-      NumSpecifiedPLs = 2
+      SpecifiedPLs = 2
     }
     Task = SetupGeometry{
       SlaterKosterFiles = type2names{
@@ -66,7 +66,7 @@ Transport {
 \begin{ptable}
  \kw{Id}    & s & &   &  \\
  \kw{Atoms} &l i& & - &  \\
- \kw{NumSpecifiedPLs} &i & 1 or 2 & 2 & \\	
+ \kw{SpecifiedPLs} &i & 1 or 2 & 2 & \\	
  \kw{ContactVector} & 3r & & - & \\	
  \kw{TruncateSKRange} & p & & & \\
  \kw{SlaterKosterFiles} & p & & & \\
@@ -79,7 +79,7 @@ Transport {
 	NOTE the modifier $[zeroBased]$ specifing that the defined atom numbers starts from $0$
 	rather than $1$. Use $[oneBased]$ or no modifier for normal numbering starting from $1$.
 	In general follows the rules for \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.
-\item[\is{NumSpecifiedPLs}] Specifies the number of PLs given for the named contact. If this value 
+\item[\is{SpecifiedPLs}] Specifies the number of PLs given for the named contact. If this value 
 	is 2 (default) the total number of atoms in the contact are divided by 2 and the 2nd PL
 	is reordered according to the 1st with the help of \kw{ContactVector}. 
 	If this value is 1, the correct numbers of PLs are created according to the interaction cutoff
