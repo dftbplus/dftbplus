@@ -372,7 +372,7 @@ contains
       call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
 
       if (task .eq. "setupgeometry") then
-        call getChildValue(pNode, "NumPLsDefined", nPLs(ii), 2)    
+        call getChildValue(pNode, "SpecifiedPLs", nPLs(ii), 2)
         call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
         call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, &
              iAtInRegion(ii)%data, ishift=string_to_int(char(modif)))
