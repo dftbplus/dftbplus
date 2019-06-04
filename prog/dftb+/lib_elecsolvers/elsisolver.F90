@@ -464,6 +464,12 @@ contains
       ! reset previous instance of solver
       call elsi_reinit(this%handle)
 
+      ! reset PEXSI chemical potential search
+      this%pexsiMuMin = -10.0_dp
+      this%pexsiMuMax = 10.0_dp
+      this%pexsiDeltaVMin = 0.0_dp
+      this%pexsiDeltaVMax = 0.0_dp
+
     else
 
       ! initialise solver
