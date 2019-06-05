@@ -2329,8 +2329,9 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. Modification
-  hydrogen bond interaction strengths (see section \ref{sec:dftbp.hcorr}).
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
+  section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
+  strengths (see section \ref{sec:dftbp.hcorr}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2493,8 +2494,8 @@ used in the code 'dftd3' by Stefan Grimme and coworkers.  It is based on the
 {\it ansatz} described in Refs.~\cite{grimme-jcp-132-154104} and
 \cite{grimme-jcp-32-1456-1465}.
 
-\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library enabled to use this
-feature.
+\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library
+enabled to use this feature.
 
 This dispersion correction for DFTB adds a contribution to the general
 Kohn-Sham-like energy
@@ -2541,21 +2542,8 @@ these parameters.
 As the DFTB energy functional is largely determined by the underlying
 parameterisation (the Slater-Koster-files) and the chosen DFTB model (e.g.\
 non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
-can be used with all settings. The original dftd3-program contains the following
-parameters for the DFTB3 functional (described in section~\ref{sec:dftbp.DFTB3})
-with Becke-Johnson damping:
-
-\begin{equation*}
-  s_6 = 1.0\text,\quad
-  s_8 = 0.5883\text,\quad
-  a_1 = 0.5719\text,\quad
-  a_2 = 3.6017\text.
-\end{equation*}
-
-\textbf{Warning:} Please note, that these values have been tested for the DFTB3
-model only. If you use any other form of DFTB, make sure to adjust these
-parameters accordingly (the reference papers for several extensions to DFTB give
-specific values compatible with their models).
+can be used with all settings, but some relevant choices for various
+parameterisation are given in Appendix \ref{app:dftd3const}.
 
 \textbf{Note:} for the version 6 or earlier of the \dftbp{} input parser (see
 section~\ref{sec:dftbp.ParserOptions}) the default values of these parameters
@@ -2770,9 +2758,10 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 
-\textbf{Note:} The van der Waals radii ($r_\text{vdW}$) of atoms are also
-required. \dftbp{} stores these for most of the periodic table, but for cases
-that are not available their contribution to this correction are neglected.
+\textbf{Note:} \label{page:dftbp.H5} The van der Waals radii ($r_\text{vdW}$) of
+atoms are also required. \dftbp{} stores these for most of the periodic table,
+but for cases that are not available their contribution to this correction are
+neglected.
 
 For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
 has to be used. In addition to setting up appropriate values of the D3
