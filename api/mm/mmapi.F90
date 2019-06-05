@@ -146,6 +146,7 @@ contains
 
     call this%checkInit()
 
+    call destructProgramVariables()
     call this%env%destruct()
     call destructGlobalEnv()
     nDftbPlusCalc = 0
