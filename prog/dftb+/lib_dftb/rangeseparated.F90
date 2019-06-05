@@ -62,6 +62,9 @@ module dftbp_rangeseparated
     !> threshold for screening by value
     real(dp) :: pScreeningThreshold
 
+    !> Cutoff adjustment for neighbour map
+    real(dp) :: cutoff
+
     ! lr-energy
 
     !> total long range energy
@@ -97,7 +100,8 @@ contains
 
 
   !> Intitialize the range-sep module
-  subroutine RangeSep_init(self, nAtom, species, speciesNames, hubbu, screen, omega, tSpin, RSAlg)
+  subroutine RangeSep_init(self, nAtom, species, speciesNames, hubbu, screen, cutoff, omega, tSpin,&
+      & RSAlg)
 
     !> class instance
     type(RangeSepFunc), intent(inout) :: self
@@ -117,6 +121,9 @@ contains
     !> screening threshold value
     real(dp), intent(in) :: screen
 
+    !> screening cutoff value
+    real(dp), intent(in) :: cutoff
+
     !> range separation parameter
     real(dp), intent(in) :: omega
 
@@ -126,14 +133,14 @@ contains
     !> lr-hamiltonian construction algorithm
     character(lc), intent(in) :: RSAlg
 
-    call initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin)
+    call initAndAllocate(self, nAtom, hubbu, species, screen, cutoff, omega, RSAlg, tSpin)
     call printModuleInfoAndCheckReqs(self)
 
   contains
 
 
     !> initialise data structures and allocate storage
-    subroutine initAndAllocate(self, nAtom, hubbu, species, screen, omega, RSAlg, tSpin)
+    subroutine initAndAllocate(self, nAtom, hubbu, species, screen, cutoff, omega, RSAlg, tSpin)
 
       !> Instance
       class(RangeSepFunc), intent(inout) :: self
@@ -150,6 +157,9 @@ contains
       !> screening cutoff if using appropriate method
       real(dp), intent(in) :: screen
 
+      !> screening cutoff value
+      real(dp), intent(in) :: cutoff
+
       !> Range separation parameter
       real(dp), intent(in) :: omega
 
@@ -161,6 +171,7 @@ contains
 
       self%tScreeningInited = .false.
       self%pScreeningThreshold = screen
+      self%cutoff = cutoff
       self%omega = omega
       self%lrenergy = 0.0_dp
       self%RSAlg = RSAlg
@@ -189,7 +200,7 @@ contains
       write(StdOut,'(a)') "=> Initializing RangeSep module"
 
       ! Check for current restrictions
-      if (self%tSpin .and. self%RSAlg == "tr") then
+      if (self%tSpin .and. any(["tr","tn"] == self%RSAlg)) then
         call error("Spin-unrestricted calculation for thresholding algorithm not yet implemented!")
       end if
 
@@ -205,9 +216,18 @@ contains
       select case (self%RSAlg)
       case ("nb")
         write(StdOut,'(a)') "  -> using the neighbour list-based algorithm"
+        if (abs(self%cutoff) > epsilon(0.0_dp)) then
+          write(StdOut,'(a,E17.8,a)') "     -> Screening cutoff:", self%cutoff,' a.u.'
+        end if
       case ("tr")
         write(StdOut,'(a)') "  -> using the thresholding algorithm"
         write(StdOut,'(a,E17.8)') "     -> Screening Threshold:", self%pScreeningThreshold
+      case ("tn")
+        write(StdOut,'(a)') "  -> using the hybrid threshold algorithm"
+        write(StdOut,'(a,E17.8)') "     -> Screening Threshold:", self%pScreeningThreshold
+        if (abs(self%cutoff) > epsilon(0.0_dp)) then
+          write(StdOut,'(a,E17.8,a)') "     -> Screening cutoff:", self%cutoff,' a.u.'
+        end if
       case default
         call error("Invalid algorithm for screening exchange")
       end select
@@ -662,6 +682,198 @@ contains
   end subroutine addLRHamiltonian_nb
 
 
+  !> Adds the LR-exchange contribution to hamiltonian using the thresholding algorithm
+  subroutine addLRHamiltonian_tn(self, env, overlap, deltaRho, iNeighbour, nNeighbourLC, iSquare,&
+      & hamiltonian, orb)
+
+    !> class instance
+    type(RangeSepFunc), intent(inout) :: self
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> square real overlap matrix
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> square density matrix (deltaRho in DFTB terms)
+    real(dp), intent(in) :: deltaRho(:,:)
+
+    !> Neighbour indices.
+    integer, dimension(0:,:), intent(in) :: iNeighbour
+
+    !> Nr. of neighbours for each atom.
+    integer, dimension(:), intent(in) :: nNeighbourLC
+
+    !> mapping atom_number -> number of the first basis function of the atomic block atom_number
+    integer, intent(in) :: iSquare(:)
+
+    !> current hamiltonian
+    real(dp), intent(inout) :: hamiltonian(:,:)
+
+    !> orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    real(dp), allocatable :: tmpovr(:,:), tmpDRho(:,:), testovr(:,:), tmpDDRho(:,:), tmpDham(:,:)
+    integer, allocatable :: ovrind(:,:)
+    !logical, allocatable :: testRho(:,:)
+    integer, parameter :: DESC_LEN = 3, ISTART = 1, IEND = 2, INORB = 3
+
+    call allocateAndInit()
+    call evaluateHamiltonian(tmpDHam)
+    self%hprev = self%hprev + tmpDham
+    hamiltonian = hamiltonian + self%hprev
+    self%lrenergy = self%lrenergy + evaluateEnergy(self%hprev, tmpDRho)
+
+  contains
+
+    !> allocate and initialise some necessary arrays
+    subroutine allocateAndInit()
+
+      integer :: matrixSize, nAtom
+      real(dp) :: tmp
+      integer :: iAtMu, iAtNu, iNeigh
+
+      matrixSize = size(hamiltonian, dim = 1)
+      nAtom = size(self%species)
+      allocate(tmpovr(matrixSize, matrixSize))
+      allocate(tmpDham(matrixSize, matrixSize))
+      allocate(tmpDRho(matrixSize, matrixSize))
+      allocate(tmpDDRho(matrixSize, matrixSize))
+      allocate(testovr(nAtom,nAtom))
+      !allocate(testRho(nAtom,nAtom))
+      allocate(ovrind(nAtom,nAtom))
+      tmpovr = overlap
+      call blockSymmetrizeHS(tmpovr, iSquare)
+      tmpDRho = deltaRho
+      call symmetrizeSquareMatrix(tmpDRho)
+      tmpDham = 0.0_dp
+      call checkAndInitScreening(self, matrixSize, tmpDRho)
+      tmpDDRho = tmpDRho - self%dRhoprev
+      self%dRhoprev = tmpDRho
+      testovr(:,:) = 0.0_dp
+      do iAtMu = 1, nAtom
+        do iNeigh = 0, nNeighbourLC(iAtMu)
+          iAtNu = iNeighbour(iNeigh, iAtMu)
+          tmp = maxval( abs( tmpovr(iSquare(iAtMu):iSquare(iAtMu + 1) - 1,&
+              & iSquare(iAtNu):iSquare(iAtNu + 1) - 1) ) )
+          testovr(iAtMu,iAtNu) = tmp
+          testovr(iAtNu,iAtMu) = tmp
+        end do
+      end do
+      do iAtMu = 1, nAtom
+        call index_heap_sort(ovrind(iAtMu,:),testovr(iAtMu,:))
+      end do
+
+    end subroutine allocateAndInit
+
+
+    !> Evaluate the update to hamiltonian due to change the in the DM
+    pure subroutine evaluateHamiltonian(tmpDHam)
+
+      !> Update for the old hamiltonian on exit
+      real(dp), intent(out) :: tmpDHam(:,:)
+
+      integer :: nAtom
+      real(dp) :: pbound, prb
+      real(dp) :: tmpvec1(orb%mOrb), tmpvec2(orb%mOrb), tmpvec3(orb%mOrb)
+      real(dp) :: tmp, tstbound, gammabatch, gammabatchtmp
+      integer :: iAtMu, iAtNu, iAt1, iAt2, iSp1, iSp2, nOrb1, nOrb2
+      integer :: kk, ll, jj, ii, mu, nu
+      integer, dimension(DESC_LEN) :: descA, descB, descM, descN
+
+      nAtom = size(self%species)
+
+      !testRho(:,:) = .false.
+      !do iAt1 = 1, nAtom
+      !  do iAt2 = 1, nAtom
+      !    if (maxval(abs(tmpDDRho(iSquare(iAt2):iSquare(iAt2+1)-1,&
+      !        & iSquare(iAt1):iSquare(iAt1+1)-1))) < self%pScreeningThreshold) then
+      !      testRho(iAt2, iAt1) = .true.
+      !    end if
+      !  end do
+      !end do
+
+      pbound = maxval(abs(tmpDDRho))
+      tmpDham = 0.0_dp
+      loopMu: do iAtMu = 1, nAtom
+        descM = getDescriptor(iAtMu, iSquare)
+        loopKK: do kk = 1, nAtom
+          iAt1 = ovrind(iAtMu, nAtom + 1 - kk)
+          descA = getDescriptor(iAt1, iSquare)
+          iSp1 = self%species(iAt1)
+          nOrb1 = orb%nOrbSpecies(iSp1)
+          prb = pbound * testovr(iAt1, iAtMu)
+          if(abs(prb) >= self%pScreeningThreshold) then
+            loopNu: do iAtNu = 1, iAtMu
+              descN = getDescriptor(iAtNu, iSquare)
+              gammabatchtmp = self%lrGammaEval(iAtMu, iAtNu) + self%lrGammaEval(iAt1, iAtNu)
+              loopLL: do ll = 1, nAtom
+                iAt2 = ovrind(iAtNu, nAtom + 1 - ll)
+                iSp2 = self%species(iAt2)
+                nOrb2 = orb%nOrbSpecies(iSp2)
+                ! screening conditions
+                !if (testRho(iAt2,iAt1)) then
+                !  cycle
+                !end if
+                tstbound = prb * testovr(iAt2, iAtNu)
+                if(abs(tstbound) >= self%pScreeningThreshold) then
+                  descB = getDescriptor(iAt2, iSquare)
+                  gammabatch = (self%lrGammaEval(iAtMu, iAt2) + self%lrGammaEval(iAt1, iAt2)&
+                      & + gammabatchtmp)
+                  gammabatch = -0.125_dp * gammabatch
+                  ! calculate the Q_AB
+                  do nu = descN(ISTART), descN(IEND)
+                    jj = 0
+                    tmpvec2(1:nOrb2) = tmpovr(descB(ISTART):descB(IEND), nu)
+                    do ii = descA(ISTART), descA(IEND)
+                      jj = jj + 1
+                      tmpvec1(jj) = sum(tmpvec2(1:nOrb2) * tmpDDRho(ii, descB(ISTART):descB(IEND)))
+                    end do
+                    tmp = 0.0_dp
+                    do mu = descM(ISTART), descM(IEND)
+                      tmp = sum(tmpovr(descA(ISTART):descA(IEND), mu) * tmpvec1(1:nOrb1))
+                      tmpDham(mu, nu) = tmpDham(mu, nu) + gammabatch * tmp
+                    end do
+                  end do
+                else
+                  exit
+                end if
+              end do loopLL
+            end do loopNu
+          else
+            exit
+          end if
+        end do loopKK
+      end do loopMu
+
+    end subroutine evaluateHamiltonian
+
+
+    !> Initialise the screening matrices
+    subroutine checkAndInitScreening(self, matrixSize, tmpDRho)
+
+      !> Instance
+      class(RangeSepFunc), intent(inout) :: self
+
+      !> linear dimension of matrix
+      integer, intent(in) :: matrixSize
+
+      !> Delta rho from iteration
+      real(dp), allocatable, intent(in) :: tmpDRho(:,:)
+
+      if(.not. self%tScreeningInited) then
+        allocate(self%hprev(matrixSize, matrixSize))
+        allocate(self%dRhoprev(matrixSize, matrixSize))
+        self%hprev = 0.0_dp
+        self%dRhoprev = tmpDRho
+        self%tScreeningInited = .true.
+      end if
+
+    end subroutine checkAndInitScreening
+
+  end subroutine addLRHamiltonian_tn
+
+
   !> Add the LR-Energy contribution to the total energy
   subroutine addLREnergy(self, energy)
 
@@ -784,6 +996,9 @@ contains
     case ("nb")
       call addLRHamiltonian_nb(self, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare, iPair,&
           & orb, HH)
+    case ("tn")
+      call addLRHamiltonian_tn(self, env, overlap, densSqr, iNeighbour, nNeighbourLC, iSquare, HH,&
+          & orb)
     case default
     end select
     call env%globalTimer%stopTimer(globalTimers%rangeSeparatedH)

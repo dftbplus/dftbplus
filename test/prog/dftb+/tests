@@ -11,6 +11,7 @@ rangesep/C60-nb                        #? not WITH_MPI
 rangesep/C60-nb-cutoff                 #? not WITH_MPI
 rangesep/Thymine-T1-force              #? not WITH_MPI
 rangesep/cyclopropene_nb_restart       #? not WITH_MPI
+rangesep/C240_tn                       #? not WITH_MPI
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8 and OMP_THREADS == 1
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1

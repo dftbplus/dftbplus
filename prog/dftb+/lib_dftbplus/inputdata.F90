@@ -441,9 +441,10 @@ module dftbp_inputdata_module
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
 
-    !>Rangeseparation
-    real(dp) :: screeningThreshold
+    !>Range separation
     logical :: tRangeSep
+    real(dp) :: screeningThreshold
+    real(dp) :: deltaDistance
     real(dp) :: omega
     character(lc) :: rangeSepAlgorithm
 

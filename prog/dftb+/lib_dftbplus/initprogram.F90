@@ -1301,16 +1301,17 @@ contains
     cutOff%repCutOff = getCutOff(pRepCont)
     cutOff%lcCutOff = 0.0_dp
     if (tRangeSep) then
-      if (input%ctrl%rangeSepAlgorithm == "nb") then
-        if (input%ctrl%screeningThreshold > 0.0_dp) then
+      if (any(["nb", "tn"] == input%ctrl%rangeSepAlgorithm)) then
+        if (input%ctrl%deltaDistance > 0.0_dp) then
           call error("Screening cutoff for range-separated neighbours should be zero or negative.")
         end if
-        cutOff%lcCutOff = cutOff%skCutOff + input%ctrl%screeningThreshold
+        cutOff%lcCutOff = cutOff%skCutOff + input%ctrl%deltaDistance
         if (cutOff%lcCutOff < 0.0_dp) then
           call error("Screening cutoff for range-separated neighbours too short.")
         end if
       end if
     end if
+    ! redundant as lcCutOff <= skCutOff
     cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff, cutOff%lcCutOff])
 
     ! Get species names and output file
@@ -2243,8 +2244,8 @@ contains
         call error("Range separated functionality only works with non-periodic structures at the&
             & moment")
       end if
-      if (tReadChrg .and. input%ctrl%rangeSepAlgorithm == "tr") then
-        call error("Restart on thresholded range separation not currently working correctly")
+      if (tReadChrg .and. any(["tr","tn"] == input%ctrl%rangeSepAlgorithm)) then
+        call error("Restart on thresholded range separation not working correctly")
       end if
       if (input%ctrl%tShellResolved) then
         call error("Range separated functionality currently does not yet support shell-resolved&
@@ -2253,7 +2254,8 @@ contains
 
       allocate(rangeSep)
       call RangeSep_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-          & input%ctrl%screeningThreshold, input%ctrl%omega, tSpin, input%ctrl%rangeSepAlgorithm)
+          & input%ctrl%screeningThreshold, input%ctrl%deltaDistance, input%ctrl%omega, tSpin,&
+          & input%ctrl%rangeSepAlgorithm)
       allocate(deltaRhoIn(nOrb * nOrb * nSpin))
       allocate(deltaRhoOut(nOrb * nOrb * nSpin))
       allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
@@ -2268,6 +2270,8 @@ contains
         write(StdOut,*) "Using the Neighbor list-based algorithm"
       case ("nb")
         write(StdOut,*) "Using the Thresholding algorithm"
+      case ("tn")
+        write(StdOut,*) "Using the combined neighbor-threshold algorithm"
       end select
     end if
 

@@ -2828,6 +2828,15 @@ Algorithm = NB {
   DeltaCutoff [AA] = -2.0
 }
 \end{verbatim}
+\item[\is{TN\{\}}] Mixed screening algorithm, using aspects of both \iscb{TR}
+  and \iscb{NB}.  The neighbour distance cutoff and threshold can both be
+  adjusted with options:
+\begin{verbatim}
+Algorithm = TN {
+  DeltaCutoff [AA] = -2.0
+  Threshold = 5e-5
+}
+\end{verbatim}
 
 \end{description}
 \end{description}
