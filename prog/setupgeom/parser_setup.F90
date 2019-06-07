@@ -275,7 +275,6 @@ contains
     real(dp) :: acc, contactRange(2), lateralContactSeparation, skCutoff
     type(listInt) :: li
     type(WrappedInt1), allocatable :: iAtInRegion(:)
-    real(dp), allocatable :: contVec(:,:), translVec(:)
     integer, allocatable :: nPLs(:)
     logical :: printDebug
 
@@ -304,12 +303,11 @@ contains
     select case (char(buffer))
     case ("setupgeometry")
       
-      call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, &
-            contVec, nPLs)
+      call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, nPLs)
       call getSKcutoff(pTask, geom, skCutoff)
       write(stdOut,*) 'Maximum SK cutoff:', SKcutoff
       call getChildValue(pTask, "printInfo", printDebug, .false.)
-      call setupGeometry(geom, iAtInRegion, contVec, skCutoff, nPLs, translVec, printDebug)
+      call setupGeometry(geom, iAtInRegion, transpar%contacts, skCutoff, nPLs, printDebug)
 
     case default
 
@@ -324,14 +322,13 @@ contains
 
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, task, iAtInRegion, contVec, nPLs)
+  subroutine readContacts(pNodeList, contacts, geom, task, iAtInRegion, nPLs)
     type(fnodeList), pointer :: pNodeList
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     character(*), intent(in) :: task
-    type(WrappedInt1), allocatable, intent(out), optional :: iAtInRegion(:)
-    real(dp), intent(out), allocatable, optional :: contVec(:,:)
-    integer, intent(out), allocatable, optional :: nPLs(:)
+    type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+    integer, intent(out), allocatable :: nPLs(:)
 
     real(dp) :: contactLayerTol, vec(3)
     integer :: ii, jj
@@ -340,15 +337,8 @@ contains
     type(listReal) :: fermiBuffer, vecBuffer
     integer, allocatable :: tmpI1(:)
 
-    if (present(iAtInRegion)) then
-      allocate(iAtInRegion(size(contacts)+1))
-    end if
-    if (present(contVec)) then
-      allocate(contVec(4,size(contacts)))
-    end if 
-    if (present(nPLs)) then
-      allocate(nPLs(size(contacts)))
-    end if
+    allocate(iAtInRegion(size(contacts)+1))
+    allocate(nPLs(size(contacts)))
 
     do ii = 1, size(contacts)
 
@@ -372,7 +362,7 @@ contains
       call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
 
       if (task .eq. "setupgeometry") then
-        call getChildValue(pNode, "SpecifiedPLs", nPLs(ii), 2)
+        call getChildValue(pNode, "NumPLsDefined", nPLs(ii), 2)    
         call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
         call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, &
              iAtInRegion(ii)%data, ishift=string_to_int(char(modif)))
@@ -385,8 +375,8 @@ contains
            if (count(vec == 0.0_dp) < 2 ) then
              call error("ContactVector must be along either x, y or z")
            end if 
-           contVec(1:3,ii) = vec
-           contVec(4,ii) = contactLayerTol
+           contacts(ii)%lattice = vec
+           contacts(ii)%shiftAccuracy = contactLayerTol
            call destruct(vecBuffer)
         else
            call error("ContactVector must define three entries")

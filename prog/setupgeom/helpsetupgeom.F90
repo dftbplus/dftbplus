@@ -8,13 +8,14 @@ module dftbp_helpsetupgeom
   use dftbp_wrappedintr
   use dftbp_linkedlist
   use dftbp_typegeometry
+  use libnegf_vars, only : contactInfo
   implicit none
 
   public :: setupGeometry
 
   contains
 
-  subroutine setupGeometry(geom, iAtInRegion, ContVec, plCutoff, nPLs, translVec, printDebug)
+  subroutine setupGeometry(geom, iAtInRegion, contacts, plCutoff, nPLs, printDebug)
     !> Container of the system geometry    
     type(TGeometry), intent(inout) :: geom
 
@@ -22,16 +23,13 @@ module dftbp_helpsetupgeom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     
     !> Contact vector (contact PL repetition)
-    real(dp), intent(inout) :: contVec(:,:)
+    type(contactInfo), intent(in),  allocatable :: contacts(:)
     
     !> Slater-Koster cutoff for partitioning
     real(dp), intent(in) :: plCutoff
     
     !> Number of PLs provided
     integer, intent(in) :: nPLs(:)
-    
-    !> Translation vector to apply to the whole structure (after folding)
-    real(dp), intent(in) :: translVec(:)
     
     !> Whether debug infos should be printed
     logical, intent(in) :: printDebug
@@ -40,20 +38,28 @@ module dftbp_helpsetupgeom
     type(listIntR1) :: PLlist
     integer, allocatable :: contdir(:)
     integer :: icont, ncont
+    real(dp), allocatable :: contVec(:,:)
 
     if (geom%tfracCoord) then
       call error("setup geometry does not work for fractional coordinates yet")    
     end if
 
+    ! number of contacts
+    ncont = size(iAtInRegion)-1  
+
+    ! this is to keep old code as much as possible
+    allocate(contVec(4,ncont)) 
+
     ! get contact directions (positive or negative)
-    ncont = size(iAtInRegion)-1    
     allocate(contDir(ncont))
     do icont=1,ncont
+      contVec(1:3,icont) = contacts(icont)%lattice(1:3)
+      contVec(4,icont) = contacts(icont)%shiftAccuracy
       contDir(icont) = get_contdir(contVec(:,icont))
     end do
     
     ! 1. Translate or fold cell
-    call TranslateAndFold(geom, translVec, .true.)
+    call TranslateAndFold(geom, .true.)
 
     ! 2. Set the indices of atoms in the device region
     call assignDeviceAtoms(geom, iAtInRegion)
@@ -73,7 +79,7 @@ module dftbp_helpsetupgeom
     call defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
   
     ! 6. write ordered geometry
-    call print_gen(geom, iAtInRegion, PLlist, contDir, plcutoff)
+    call print_gen(geom, contacts, iAtInRegion, PLlist, contDir, plcutoff)
  
     write(stdOut,*)
     write(stdOut,*) "Written processed geometry file 'processed.gen'"
@@ -452,9 +458,8 @@ module dftbp_helpsetupgeom
   end subroutine print_debug
 
   ! -----------------------------------------------------------------------------------------------
-  subroutine translateAndFold(geom, translVec, tfold)
+  subroutine translateAndFold(geom, tfold)
     type(TGeometry), intent(inout) :: geom
-    real(dp), intent(in) :: translVec(:)
     logical, intent(in) :: tfold
 
     integer :: ii
@@ -466,16 +471,13 @@ module dftbp_helpsetupgeom
       call foldCoordToUnitCell(geom%coords, geom%latVecs, geom%recVecs2p)
     end if
 
-    do ii = 1, geom%nAtom
-      geom%coords(:,ii) = geom%coords(:,ii) + translVec 
-    end do
-
   end subroutine translateAndFold
 
         
   ! -----------------------------------------------------------------------------------------------
-  subroutine print_gen(geom, iAtInRegion, PLlist, contDir, plCutoff)
+  subroutine print_gen(geom, contacts, iAtInRegion, PLlist, contDir, plCutoff)
     type(TGeometry), intent(in) :: geom
+    type(contactInfo), intent(in) :: contacts(:)
     type(wrappedInt1), intent(in) :: iAtInRegion(:)
     type(listIntR1), intent(inout) :: PLlist
     integer, intent(in) :: contDir(:)
@@ -524,6 +526,7 @@ module dftbp_helpsetupgeom
     ! Write Contact Atoms
     do icont = 1, ncont
       write(fd2,'(2x,A)') 'Contact{'
+      write(fd2,'(4x,A)') 'Id = "'//trim(contacts(icont)%name)//'"'
       write(sindx,'(I10)') kk+1
       write(fd2,'(4x,A)',advance='no') 'AtomRange= '//trim(adjustl(sindx))
       do ii = 1, size(iAtInRegion(icont)%data)
@@ -536,10 +539,10 @@ module dftbp_helpsetupgeom
       write(fd2,'(2x,A)') '}' !close Contact
     end do
     write(fd2,'(A)') '}' !close Transport
-    write(fd2,'(A)') '+Hamiltonian = DFTB{'
-    write(fd2,'(2x,A)') '*TruncateSKRange = {'
-    write(fd2,'(4x,A,F8.4)') '*SKMaxDistance = ', plCutoff
-    write(fd2,'(4x,A)') '*HardCutoff = Yes'
+    write(fd2,'(A)') 'Hamiltonian = DFTB{'
+    write(fd2,'(2x,A)') 'TruncateSKRange = {'
+    write(fd2,'(4x,A,F8.4)') 'SKMaxDistance = ', plCutoff
+    write(fd2,'(4x,A)') 'HardCutoff = Yes'
     write(fd2,'(2x,A)') '}'
     write(fd2,'(A)') '}'
 

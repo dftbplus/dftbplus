@@ -4836,14 +4836,11 @@ contains
   end subroutine readTunAndDos
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, task, iAtInRegion, contVec, nPLs)
+  subroutine readContacts(pNodeList, contacts, geom, task)
     type(fnodeList), pointer :: pNodeList
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     character(*), intent(in) :: task
-    type(WrappedInt1), allocatable, intent(out), optional :: iAtInRegion(:)
-    real(dp), intent(out), allocatable, optional :: contVec(:,:)
-    integer, intent(out), allocatable, optional :: nPLs(:)
 
     real(dp) :: contactLayerTol, vec(3)
     integer :: ii, jj
@@ -4851,16 +4848,6 @@ contains
     type(string) :: buffer, modif
     type(listReal) :: fermiBuffer, vecBuffer
     integer, allocatable :: tmpI1(:)
-
-    if (present(iAtInRegion)) then
-      allocate(iAtInRegion(size(contacts)+1))
-    end if
-    if (present(contVec)) then
-      allocate(contVec(4,size(contacts)))
-    end if 
-    if (present(nPLs)) then
-      allocate(nPLs(size(contacts)))
-    end if
 
     do ii = 1, size(contacts)
 
