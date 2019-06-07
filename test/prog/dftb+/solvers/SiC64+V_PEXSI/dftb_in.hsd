@@ -90,7 +90,6 @@ Hamiltonian = DFTB {
     C-C = "./C-C.skf"
   }
       
-  ForceEvaluation = 'dynamics'
   KPointsAndWeights = SupercellFolding {
     1 0 0
     0 1 0

@@ -7,6 +7,7 @@
 
 #:include 'common.fypp'
 
+
 !> Global variables and initialization for the main program.
 module dftbp_initprogram
   use omp_lib
@@ -170,16 +171,6 @@ module dftbp_initprogram
 
   !> Coords in central cell (3, nAtom)
   real(dp), allocatable, target :: coord0(:,:)
-
-  !> temporary coordinates
-  real(dp), allocatable :: tmpCoords(:)
-
-  !> temporary weights
-  real(dp), allocatable :: tmpWeight(:)
-
-  !> temporary array of coords (3,:)
-  real(dp), allocatable :: tmp3Coords(:,:)
-
 
   !> if calculation is periodic
   logical :: tPeriodic
@@ -997,6 +988,8 @@ contains
     type(OVelocityVerlet), allocatable :: pVelocityVerlet
     type(OTempProfile), pointer :: pTempProfile
 
+    real(dp), allocatable :: tmpCoords(:), tmpWeight(:), tmp3Coords(:,:)
+
     type(ORanlux), allocatable :: randomInit, randomThermostat
     integer :: iSeed
 
@@ -1164,6 +1157,9 @@ contains
       maxSccIter = input%ctrl%maxIter
     else
       maxSccIter = 1
+    end if
+    if (maxSccIter < 1) then
+      call error("SCC iterations must be larger than 0")
     end if
 
     tWriteHS = input%ctrl%tWriteHS
@@ -1637,16 +1633,16 @@ contains
     end if
 
     ! Initialize reference neutral atoms.
-    if (tLinResp.and.allocated(input%ctrl%customOccAtoms)) then 
+    if (tLinResp.and.allocated(input%ctrl%customOccAtoms)) then
        call error("Custom occupation not compatible with linear response")
-    end if     
+    end if
     if (tMulliken) then
       if (allocated(input%ctrl%customOccAtoms)) then
         call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
             & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
-      else   
+      else
         call initQFromShellChrg(q0, referenceN0, species0, orb)
-      end if  
+      end if
     end if
 
     nEl0 = sum(q0(:,:,1))
@@ -1666,7 +1662,7 @@ contains
         call error("More electrons than basis functions!")
       end if
     end if
-  
+
     if (.not.all(nEl(:) >= 0.0_dp)) then
       call error("Less than 0 electrons!")
     end if
@@ -1703,7 +1699,7 @@ contains
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint, tForces,&
         & input%ctrl%parallelOpts, nIndepHam, tempElec)
     if (tRealHS) then
       nBufferedCholesky = 1
@@ -1712,17 +1708,23 @@ contains
     end if
     call TElectronicSolver_init(electronicSolver, input%ctrl%solver%iSolver, nBufferedCholesky)
 
-    if (electronicSolver%isElsiSolver .and. input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint)&
-        & then
-      call error("ELSI solvers require as many groups as spin and k-point combinations")
-    end if
-
     if (electronicSolver%isElsiSolver) then
       @:ASSERT(parallelKS%nLocalKS == 1)
+
+      if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
+        call error("ELSI solvers require as many groups as spin and k-point combinations")
+      end if
 
       if (omp_get_max_threads() > 1) then
         call error("The ELSI-solvers should not be run with multiple threads. Set the&
             & environment variable OMP_NUM_THREADS to 1 in order to disable multi-threading.")
+      end if
+
+      if (tSpinOrbit .and. .not.&
+          & any(electronicSolver%iSolver==[electronicSolverTypes%omm,electronicSolverTypes%elpa]))&
+          & then
+        call error("Only the ELSI libOMM and ELPA solvers are suitable for spin orbit at the&
+            & moment")
       end if
 
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
@@ -1732,6 +1734,10 @@ contains
           & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
     end if
 
+    if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then
+      call error("Alternative force evaluation methods are not supported by this electronic&
+          & solver.")
+    end if
 
   #:if WITH_TRANSPORT
     ! whether tunneling is computed
@@ -3066,7 +3072,7 @@ contains
   end subroutine initProgramVariables
 
 
-  !> Clean up things that do not automatically get removed on going out of scope
+  !> Clean up things that did not automatically get removed by going out of scope
   subroutine destructProgramVariables()
 
     if (electronicSolver%isElsiSolver) then
@@ -3077,6 +3083,31 @@ contains
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
     end if
+
+    @:SAFE_DEALLOC(sccCalc, img2CentCell, species, species0, coord, coord0)
+    @:SAFE_DEALLOC(latVec, recVec, invLatVec, cellVec, rCellVec, iCellVec)
+    @:SAFE_DEALLOC(neighbourList, nNeighbourSk, nNeighbourRep, iSparseStart)
+    @:SAFE_DEALLOC(hubbU, atomEigVal, referenceN0, mass, speciesMass)
+    @:SAFE_DEALLOC(ham, iHam, chargePerShell, chargePerAtom, over, kPoint, kWeight)
+    @:SAFE_DEALLOC(nEl, spinW, xi, UJ, nUJ, niUJ, iUJ, Ef, esp)
+    @:SAFE_DEALLOC(indMovedAtom, conAtom, conVec, pipekMezey)
+    #:if WITH_SOCKETS
+      @:SAFE_DEALLOC(socket)
+    #:endif
+    @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
+    @:SAFE_DEALLOC(temperatureProfile, derivDriver)
+    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+    @:SAFE_DEALLOC(qInpRed, qOutRed, qDiffRed)
+    @:SAFE_DEALLOC(iEqOrbitals, iEqBlockDftbU, iEqBlockOnSite, iEqBlockDftbULs, iEqBlockOnSiteLs)
+    @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
+    @:SAFE_DEALLOC(dispersion, xlbomdIntegrator)
+    @:SAFE_DEALLOC(velocities, movedVelo, movedAccel, movedMass)
+    @:SAFE_DEALLOC(rhoPrim, iRhoPrim, ERhoPrim, h0, filling, Eband, TS, E0)
+    @:SAFE_DEALLOC(HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, eigen)
+    @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, chrgForces, excitedDerivs, dipoleMoment)
+    @:SAFE_DEALLOC(coord0Fold, newCoords, orbitalL, occNatural, mu)
+    @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, poissonDerivs, shiftPerLUp, chargeUp)
+    @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
 
   end subroutine destructProgramVariables
 
@@ -3918,16 +3949,39 @@ contains
   end subroutine getDenseDescCommon
 
 
-  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+  !> Check for compatibility between requested electronic solver and features of the calculation
+  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, tForces, parallelOpts, nIndepHam,&
+      & tempElec)
+
+    !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
+
+    !> Is this a spin polarised calculation
     logical, intent(in) :: tSpin
+
+    !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
+
+    !> Are forces required
+    logical, intent(in) :: tForces
+
+    !> Options for a parallel calculation, if needed
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
+
+    !> Number of indepdent hamiltonian matrices at a given k-value
     integer, intent(in) :: nIndepHam
+
+    !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
 
     logical :: tElsiSolver
     integer :: nKPoint
+
+    ! Temporary error test for PEXSI bug (May 2019)
+    if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)&
+        & .and. tForces) then
+      call error("A temporary bug prevents correct force evaluation with PEXSI at general k-points")
+    end if
 
     tElsiSolver = any(electronicSolver%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
@@ -3960,20 +4014,34 @@ contains
 
   end subroutine ensureSolverCompatibility
 
-  subroutine applyCustomReferenceOccupations(customOccAtoms, &
-      & customOccFillings, species, orb, referenceN0, q0)
+
+  !> Modify the reference atomic shell charges for the neutral atom
+  subroutine applyCustomReferenceOccupations(customOccAtoms,  customOccFillings, species,&
+      & orb, referenceN0, q0)
+
+    !> Array of occupation arrays, one for each atom
     type(WrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
+
+    !> Reference fillings for atomic shells
     real(dp), intent(in) :: customOccFillings(:,:)
+
+    !> Species of atoms
     integer, intent(in) :: species(:)
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
+
+    !> Reference charges from the Slater-Koster file
     real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Charges required for atomic neutrality in reference state
     real(dp), intent(inout) :: q0(:,:,:)
-    
+
     integer :: nCustomBlock, iCustomBlock, iCustomAtom, nAtom, iAt, iSp
     real(dp), allocatable :: refOcc(:,:)
-    
+
     nAtom = size(species)
-    ! note that all arrays, referenceN0, customOccAtoms, refOcc 
+    ! note that all arrays, referenceN0, customOccAtoms, refOcc
     ! are allocated to orb%mShell so assignments vecA(:,) = vecB(:,) work
     allocate(refOcc(orb%mShell, nAtom))
     ! initialize to referenceN0
@@ -3982,7 +4050,7 @@ contains
       refOcc(:, iAt) = referenceN0(:, iSp)
     end do
 
-    ! override to customOccupation 
+    ! override to customOccupation
     if (allocated(customOccAtoms)) then
       nCustomBlock = size(customOccAtoms)
       do iCustomBlock = 1, nCustomBlock
@@ -3997,13 +4065,21 @@ contains
     call initQFromUsrChrg(q0, refOcc, species, orb)
 
   end subroutine applyCustomReferenceOccupations
-  
 
-  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, &
-      & customOccFillings)
+
+  !> Print out the reference occupations for atoms
+  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, customOccFillings)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Chemical species of atoms
     integer, intent(in) :: species(:)
+
+    !> Array of occupation arrays, one for each atom
     type(WrappedInt1), intent(in) :: customOccAtoms(:)
+
+    !> Fillings for each atomic shell
     real(dp), intent(in) :: customOccFillings(:,:)
 
     character(lc) :: formstr, outStr
@@ -4039,6 +4115,7 @@ contains
       deallocate(shellnames)
     end do
   end subroutine printCustomReferenceOccupations
+
 
   !> Initialises SCC related parameters before geometry loop starts
   function getMinSccIters(tSccCalc, tDftbU, nSpin) result(minSccIter)

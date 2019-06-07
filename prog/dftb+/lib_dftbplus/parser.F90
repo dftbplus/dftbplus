@@ -862,7 +862,7 @@ contains
   end subroutine readDriver
 
 
-  !> Extended lagrangian options
+  !> Extended lagrangian options for XLBOMD
   subroutine readXlbomdOptions(node, input)
 
     !> node in the input tree
@@ -949,7 +949,7 @@ contains
   end subroutine readXlbomdOptions
 
 
-  !> Reads geometry constraints.
+  !> Reads geometry constraints
   subroutine readGeoConstraints(node, ctrl, nAtom)
 
     !> Node to get the information from
@@ -1133,6 +1133,7 @@ contains
     end select
 
   end subroutine readHamiltonian
+
 
   !> Reads DFTB-Hamiltonian
 #:if WITH_TRANSPORT
@@ -2715,7 +2716,7 @@ contains
   end subroutine readSKFiles
 
 
-  !> Checks if the provided set of SK-tables for a the interactions A-B and B-A are consistent.
+  !> Checks if the provided set of SK-tables for a the interactions A-B and B-A are consistent
   subroutine checkSKCompElec(skData12, skData21, sp1, sp2)
 
     !> Slater-Koster integral set for the interaction A-B
@@ -2886,9 +2887,8 @@ contains
 
 
   !> Creates from the columns of the Slater-Koster files for A-B and B-A a full table for A-B,
-  !> containing all integrals.
-  subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, &
-      &angShells2)
+  !> containing all integrals
+  subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, angShells2)
 
     !> Resulting table of H integrals
     real(dp), intent(out) :: skHam(:,:)
@@ -3062,7 +3062,7 @@ contains
   end subroutine readDispersion
 
 
-  !> Reads in the dispersion input data for the Slater-Kirkwood dispersion modell.
+  !> Reads in the dispersion input data for the Slater-Kirkwood dispersion model
   subroutine readDispSlaKirk(node, geo, input)
 
     !> Node to process
@@ -3242,7 +3242,7 @@ contains
 #:if WITH_DFTD3
 
 
-  !> Reads in initialization data for the DFTD3 dispersion module.
+  !> Reads in initialization data for the DFTD3 dispersion module
   subroutine readDispDFTD3(node, input)
 
     !> Node to process.
@@ -3254,14 +3254,13 @@ contains
     type(fnode), pointer :: child, childval
     type(string) :: buffer
 
-    call getChildValue(node, "Damping", childval, default="BeckeJohnson", &
-        & child=child)
+    call getChildValue(node, "Damping", childval, child=child)
     call getNodeName(childval, buffer)
     select case (char(buffer))
     case ("beckejohnson")
       input%tBeckeJohnson = .true.
-      call getChildValue(childval, "a1", input%a1, default=0.5719_dp)
-      call getChildValue(childval, "a2", input%a2, default=3.6017_dp)
+      call getChildValue(childval, "a1", input%a1)
+      call getChildValue(childval, "a2", input%a2)
       ! Alpha is not used in BJ-damping, however, there are unused terms,
       ! which are calculated with alpha nevertheless, so set the default
       ! as found in dftd3 code.
@@ -3278,8 +3277,8 @@ contains
       call getNodeHSDName(childval, buffer)
       call detailedError(child, "Invalid damping method '" // char(buffer) // "'")
     end select
-    call getChildValue(node, "s6", input%s6, default=1.0_dp)
-    call getChildValue(node, "s8", input%s8, default=0.5883_dp)
+    call getChildValue(node, "s6", input%s6)
+    call getChildValue(node, "s8", input%s8)
     call getChildValue(node, "cutoff", input%cutoff, default=sqrt(9000.0_dp), &
         & modifier=buffer, child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoff)
@@ -3336,7 +3335,6 @@ contains
 
     !> Control structure to populate
     type(control), intent(inout) :: ctrl
-
 
     !> Names of thermal profiles
     character(len=*), parameter :: tempMethodNames(3) = (/ 'constant   ', &
@@ -3941,12 +3939,23 @@ contains
   end subroutine reduceGeometry
 
 
+  !> Reads settings for the first layer atoms in principal layers
   subroutine readFirstLayerAtoms(pnode, pls, npl, idxdevice, check)
-    logical, optional :: check
+
     type(fnode), pointer, intent(in) :: pnode
-    integer :: idxdevice(2)
-    integer, allocatable :: pls(:)
-    integer :: npl
+
+    !> Start atoms in the principal layers
+    integer, allocatable, intent(out) :: pls(:)
+
+    !> Number of principal layers
+    integer, intent(out) :: npl
+
+    !> Atoms range of the device
+    integer, intent(in) :: idxdevice(2)
+
+    !> Optional setting to turn on/off check (defaults to on if absent)
+    logical, optional, intent(in) :: check
+
 
     type(listInt) :: li
     logical :: checkidx
@@ -3965,8 +3974,7 @@ contains
           if (any(pls < idxdevice(1) .or. &
                   pls > idxdevice(2))) then
              call detailedError(pnode, "First layer atoms must be between " &
-               &// i2c(idxdevice(1)) // " &
-               & and " // i2c(idxdevice(2)) // ".")
+               &// i2c(idxdevice(1)) // " and " // i2c(idxdevice(2)) // ".")
           end if
         end if
       else
@@ -3978,14 +3986,24 @@ contains
   end subroutine readFirstLayerAtoms
 
 
+  !> Reads Green's function settings
   subroutine readGreensFunction(pNode, greendens, transpar, tempElec)
+
+    !> Input tree
+    type(fnode), pointer :: pTmp
+
+    !> Settings for Green's function solver
     type(TNEGFGreenDensInfo), intent(inout) :: greendens
+
+    !> Transport solver settings
     type(TTransPar), intent(inout) :: transpar
+
+    !> Electron temperature
     real(dp), intent(in) :: tempElec
 
     type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
     type(fnodeList), pointer :: pNodeList
-    type(fnode), pointer :: pTmp, field, child1, child2
+    type(fnode), pointer :: field, child1, child2
     real(dp) :: Estep
     integer :: defValue, ii, nfermi
     type(string) :: buffer, modif
@@ -4111,15 +4129,23 @@ contains
         !    & defvalue, child=child1)
       end if
 
-
   end subroutine readGreensFunction
 
 
   !> Read in Poisson related data
   subroutine readPoisson(pNode, poisson, tPeriodic, tPeriodic1D)
+
+    !> Input tree
     type(fnode), pointer :: pNode
+
+    !> data type for Poisson solver settings
     type(TPoissonInfo), intent(inout) :: poisson
-    logical, intent(in) :: tPeriodic, tPeriodic1D
+
+    !> Is this a periodic structure
+    logical, intent(in) :: tPeriodic
+
+    !> Is this a wire-like structure
+    logical, intent(in) :: tPeriodic1D
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
     type(string) :: buffer, modif
@@ -4161,7 +4187,7 @@ contains
       if (denstol <= 0.0_dp) then
         call detailedError(pTmp2, "Atom density tolerance must be > 0")
       end if
-      ! Negative value to signalize automatic determination
+      ! Negative value to signal automatic determination
       poisson%maxRadAtomDens = -denstol
     end if
 
@@ -4293,9 +4319,16 @@ contains
   end subroutine readPoisson
 
 
+  !> Over-rides the boundary conditions on the Poisson solver
   subroutine getPoissonBoundaryConditionOverrides(pNode, availableConditions, overrideBC)
+
+    !> Input data tree
     type(fnode), pointer, intent(in) :: pNode
+
+    !> List of conditions that can be set as choices
     integer, intent(in) :: availableConditions(:)
+
+    !> Array of boundary condition types on the 6 faces of the box, 0 for use of default
     integer, intent(inout) :: overrideBC(:)
 
     integer, parameter :: PERIODIC_BC = 0
@@ -4455,15 +4488,22 @@ contains
 
   end subroutine getContactVector
 
+
   !> Read dephasing block
   subroutine readDephasing(node, orb, geom, tp, tundos)
+
+    !> Input tree node
     type(fnode), pointer :: node
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
     !> Atomic geometry, including the contact atoms
     type(TGeometry), intent(in) :: geom
+
     !> Parameters of the transport calculation
     type(TTransPar), intent(inout) :: tp
+
     !> Parameters of tunneling and dos calculation
     type(TNEGFTunDos), intent(inout) :: tundos
 
@@ -4494,15 +4534,22 @@ contains
 
   end subroutine readDephasing
 
+
   !> Read Electron-Phonon blocks (for density and/or current calculation)
   subroutine readElPh(node, elph, geom, orb, tp)
+
+    !> Input node in the tree
     type(fnode), pointer :: node
+
     !> container for electron-phonon parameters
     type(TElPh), intent(inout) :: elph
+
     !> Geometry type
     type(TGeometry), intent(in) :: geom
+
     !> Orbitals infos
     type(TOrbitals), intent(in) :: orb
+
     !> Transport parameter type
     type(TTransPar), intent(in) :: tp
 
@@ -4535,13 +4582,19 @@ contains
 
   !> Read Buettiker probe dephasing blocks (for density and/or current calculation)
   subroutine readDephasingBP(node, elph, geom, orb, tp)
+
+    !> Node in input document tree
     type(fnode), pointer :: node
+
     !> container for buttiker-probes parameters
     type(TElPh), intent(inout) :: elph
+
     !> Geometry type
     type(TGeometry), intent(in) :: geom
+
     !> Orbitals infos
     type(TOrbitals), intent(in) :: orb
+
     !> Transport parameter type
     type(TTransPar), intent(inout) :: tp
 
@@ -4589,18 +4642,23 @@ contains
 
   end subroutine readDephasingBP
 
-  !!-----------------------------------------------------------------------------
-  !! Read Coupling
-  !! 2 modes support, constant or specified per each orbital
-  !!-----------------------------------------------------------------------------
+
+  !> Reads coupling strength and mode for dephasing
+  !> 2 modes support, constant or specified per each orbital
   subroutine readCoupling(node, elph, geom, orb, tp)
+
+    !> Node in the input tree
     type(fnode), pointer :: node
+
     !> container for buttiker-probes parameters
     type(TElPh), intent(inout) :: elph
+
     !> Geometry type
     type(TGeometry), intent(in) :: geom
+
     !> Orbitals infos
     type(TOrbitals), intent(in) :: orb
+
     !> Transport parameter type
     type(TTransPar), intent(in) :: tp
 
@@ -4694,6 +4752,7 @@ contains
     end select
 
   end subroutine readCoupling
+
 
   !> Read Tunneling and Dos options from analysis block
   subroutine readTunAndDos(root, orb, geo, tundos, transpar, tempElec)
@@ -4797,8 +4856,8 @@ contains
         allocate(tundos%nf(getLength(pNodeList)))
         do ii = 1, getLength(pNodeList)
           call getItem1(pNodeList, ii, pNode)
-          call getEmitterCollectorByName(pNode, tundos%ni(ii),&
-              & tundos%nf(ii), transpar%contacts(:)%name)
+          call getEmitterCollectorByName(pNode, tundos%ni(ii), tundos%nf(ii),&
+              & transpar%contacts(:)%name)
         end do
         call destroyNodeList(pNodeList)
       else
@@ -4835,6 +4894,7 @@ contains
 
   end subroutine readTunAndDos
 
+
   !> Read bias information, used in Analysis and Green's function eigensolver
   subroutine readContacts(pNodeList, contacts, geom, task)
     type(fnodeList), pointer :: pNodeList
@@ -4846,8 +4906,7 @@ contains
     integer :: ii, jj
     type(fnode), pointer :: field, pNode, pTmp, pWide
     type(string) :: buffer, modif
-    type(listReal) :: fermiBuffer, vecBuffer
-    integer, allocatable :: tmpI1(:)
+    type(listReal) :: fermiBuffer
 
     do ii = 1, size(contacts)
 
@@ -4936,11 +4995,16 @@ contains
   end subroutine readContacts
 
 
-
   !> Read in Fermi levels
   subroutine getFermiLevels(pNode, eFermis, nodeModifier)
+
+    !> Document tree node to start from
     type(fnode), pointer :: pNode
+
+    !> Fermi energies for contacts
     real(dp), intent(out) :: eFermis(:)
+
+    !> Any node modifiers in action
     type(string), intent(in) :: nodeModifier
 
     real(dp) :: eFermi
@@ -4963,8 +5027,17 @@ contains
 
   !> Get contacts for terminal currents by name
   subroutine getEmitterCollectorByName(pNode, emitter, collector, contactNames)
+
+    !> Node in the input tree for error reporting
     type(fnode), pointer :: pNode
-    integer, intent(out) :: emitter, collector
+
+    !> Contact number for emitting
+    integer, intent(out) :: emitter
+
+    !> Contact number for collecting
+    integer, intent(out) :: collector
+
+    !> Labels of contacts
     character(len=*), intent(in) :: contactNames(:)
 
     type(listString) :: lString
@@ -4988,9 +5061,17 @@ contains
 
   !> Getting the contact by name
   function getContactByName(contactNames, contName, pNode) result(contact)
-    character(len=*), intent(in) :: contactNames(:)
-    character(len=*), intent(in) :: contName
+
+    !> Node in the input tree for error reporting
     type(fnode), pointer :: pNode
+
+    !> All of the contact labels
+    character(len=*), intent(in) :: contactNames(:)
+
+    !> Specific contact label to identify
+    character(len=*), intent(in) :: contName
+
+    !> Contact number
     integer :: contact
 
     logical :: tFound
@@ -5011,10 +5092,20 @@ contains
 
   !> Read the names of regions to calculate PDOS for
   subroutine readPDOSRegions(children, geo, iAtInregion, tShellResInRegion, regionLabels)
+
+    !> Nodes in the tree for the various regions
     type(fnodeList), pointer :: children
+
+    !> Geometry of the system
     type(TGeometry), intent(in) :: geo
+
+    !> Atoms in a given region
     type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+
+    !> Is the region to be projected by shell
     logical, allocatable, intent(out) :: tShellResInRegion(:)
+
+    !> Labels for the regions
     character(lc), allocatable, intent(out) :: regionLabels(:)
 
     integer :: nReg, iReg
@@ -5052,6 +5143,8 @@ contains
 
   !> Some assignment and consistency check in negf/poisson containers before calling initialization
   subroutine finalizeNegf(input)
+
+    !> Input structure for DFTB+
     type(inputData), intent(inout) :: input
 
     integer :: ii
@@ -5108,20 +5201,19 @@ contains
 #:endif
 
 
-  !> This subroutine overrides the neutral (reference) atom electronic occupation 
-  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, &
-      & customOcc)
+  !> This subroutine overrides the neutral (reference) atom electronic occupation
+  subroutine readCustomReferenceOcc(root, orb, referenceOcc, geo, iAtInRegion, customOcc)
 
     !> Node to be parsed
     type(fnode), pointer, intent(in) :: root
 
-    !> Orbitals infos
+    !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> Default reference occupations
     real(dp), intent(in) :: referenceOcc(:,:)
 
-    !> Geometry infos
+    !> Geometry information
     type(TGeometry), intent(in) :: geo
 
     !> Atom indices corresponding to user defined reference atomic charges
@@ -5215,7 +5307,7 @@ contains
   end subroutine readParallel
 
 
-  !> Reads the blacs block.
+  !> Reads the blacs block
   subroutine readBlacs(root, blacsOpts)
 
     !> Root node eventually containing the current block
@@ -5241,6 +5333,7 @@ contains
   end subroutine readBlacs
 
 
+  !> Reads the settings for electrostatic potential plotting
   subroutine readElectrostaticPotential(node, geo, ctrl)
 
     !> Node containing optional electrostatic settings

@@ -595,7 +595,7 @@ module negf_int
 
          if (all(minv(:,j1) == 0)) then
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
-           write(stdOut,*) 'WARNING: contact',j1,' does no interact with any PL '
+           write(stdOut,*) 'WARNING: contact',j1,' does not interact with any PL'
            write(stdOut,*) '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!'
            minv(1,j1) = j1
          end if
