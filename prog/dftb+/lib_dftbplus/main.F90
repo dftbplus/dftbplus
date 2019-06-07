@@ -146,7 +146,6 @@ contains
 
     logical :: tExitGeoOpt
 
-    integer :: iSpin
 
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
         & iLatGeoStep)
@@ -2454,16 +2453,14 @@ contains
 
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-      !> Add rangeseparated contribution
-      !> Assumes deltaRhoInSqr only used by rangeseparation
-      !> Should this be used elsewhere, need to pass tRangeSep
+      ! Add rangeseparated contribution
+      ! Assumes deltaRhoInSqr only used by rangeseparation
+      ! Should this be used elsewhere, need to pass tRangeSep
       if(associated(deltaRhoInSqr)) then
-        !call env%globalTimer%startTimer(globalTimers%densityMatrix)
         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
-        !call env%globalTimer%stopTimer(globalTimers%densityMatrix)
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), over,&
             & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
-            & orb, HSqrReal(:,:), SSqrReal)
+            & orb, HSqrReal, SSqrReal)
       end if
 
       call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
@@ -3692,33 +3689,32 @@ contains
     deltaRhoDiff(:) = deltaRhoOut - deltaRhoIn
     sccErrorQ = maxval(abs(deltaRhoDiff))
     tConverged = (sccErrorQ < sccTol)&
-         & .and. (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
+        & .and. (iSCCiter >= minSCCIter .or. tReadChrg .or. iGeoStep > 0)
 
     if ((.not. tConverged) .and. (iSCCiter /= maxSccIter .and. .not. tStopScc)) then
-       if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .and. .not. tReadChrg)) then
-          deltaRhoIn(:) = deltaRhoOut
-          qInput(:,:,:) = qOutput
-       else
-          call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
-          call unpackHS(SSqrReal, over, neighbourList%iNeighbour,&
-               & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell)
-          call denseMulliken(reshape(deltaRhoIn,[orb%nOrb,orb%nOrb,nSpin]), SSqrReal, iAtomStart,&
-              & qInput)
-          ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
-          ! distributed to alpha and beta density matrices
-          if(nSpin == 2) then
-             qInput(:,:,1) = qInput(:,:,1) + q0(:,:,1)*0.5_dp
-             qInput(:,:,2) = qInput(:,:,2) + q0(:,:,1)*0.5_dp
-          else
-             qInput(:,:,:) = qInput + q0
-          end if
-          if (nSpin == 2) then
-             call ud2qm(qInput)
-          end if
-       end if
+      if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .and. .not. tReadChrg)) then
+        deltaRhoIn(:) = deltaRhoOut
+        qInput(:,:,:) = qOutput
+      else
+        call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
+        call unpackHS(SSqrReal, over, neighbourList%iNeighbour,&
+            & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell)
+        call denseMulliken(reshape(deltaRhoIn,[orb%nOrb,orb%nOrb,nSpin]), SSqrReal, iAtomStart,&
+            & qInput)
+        ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
+        ! distributed to alpha and beta density matrices
+        if(nSpin == 2) then
+          qInput(:,:,1) = qInput(:,:,1) + q0(:,:,1) * 0.5_dp
+          qInput(:,:,2) = qInput(:,:,2) + q0(:,:,1) * 0.5_dp
+        else
+          qInput(:,:,:) = qInput + q0
+        end if
+        call ud2qm(qInput)
+      end if
     end if
 
   end subroutine getNextInputDensity
+
 
   !> Reduce charges according to orbital equivalency rules.
   subroutine reduceCharges(orb, nIneqOrb, iEqOrbitals, qOrb, qRed, qBlock, iEqBlockDftbu, qiBlock,&

@@ -67,7 +67,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder_module
   use dftbp_linresp_module
-  use dftbp_RangeSeparated, only : RangeSepFunc, RangeSep_init
+  use dftbp_RangeSeparated, only : RangeSepFunc, RangeSepFunc_init
   use dftbp_stress
   use dftbp_orbitalequiv
   use dftbp_orbitals
@@ -2256,7 +2256,7 @@ contains
       end if
 
       allocate(rangeSep)
-      call RangeSep_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
+      call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
           & input%ctrl%screeningThreshold, input%ctrl%deltaDistance, input%ctrl%omega, tSpin,&
           & input%ctrl%rangeSepAlgorithm)
       allocate(deltaRhoIn(nOrb * nOrb * nSpin))
