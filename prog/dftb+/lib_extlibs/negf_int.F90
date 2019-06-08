@@ -1533,7 +1533,7 @@ module negf_int
     type(mpifx_comm), intent(in) :: mpicomm
 #:else
   subroutine local_currents(groupKS, ham, over, &
-      & neighborList, nNeighbor, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
+      & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
       & testArray)
 #:endif
