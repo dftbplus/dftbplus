@@ -148,7 +148,6 @@ contains
       input%transpar%idxdevice(1) = 1
       input%transpar%idxdevice(2) = input%geom%nAtom
     end if
-
     ! input data strucutre has been initialised
     input%tInitialized = .true.
 
@@ -305,7 +304,7 @@ contains
       
       call readContacts(pNodeList, transpar%contacts, geom, char(buffer), iAtInRegion, nPLs)
       call getSKcutoff(pTask, geom, skCutoff)
-      write(stdOut,*) 'Maximum SK cutoff:', SKcutoff
+      write(stdOut,*) 'Maximum SK cutoff:', SKcutoff*Bohr__AA,'(A)'
       call getChildValue(pTask, "printInfo", printDebug, .false.)
       call setupGeometry(geom, iAtInRegion, transpar%contacts, skCutoff, nPLs, printDebug)
 
@@ -362,7 +361,7 @@ contains
       call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
 
       if (task .eq. "setupgeometry") then
-        call getChildValue(pNode, "NumPLsDefined", nPLs(ii), 2)    
+        call getChildValue(pNode, "NumPLsDefined", nPLs(ii))
         call getChildValue(pNode, "Atoms", buffer, child=pTmp, modifier=modif, multiple=.true.)
         call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, pTmp, &
              iAtInRegion(ii)%data, ishift=string_to_int(char(modif)))
