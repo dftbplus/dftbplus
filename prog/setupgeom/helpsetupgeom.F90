@@ -13,9 +13,11 @@ module dftbp_helpsetupgeom
 
   public :: setupGeometry
 
-  contains
+contains
 
+  !> Set up transport structure with contacts
   subroutine setupGeometry(geom, iAtInRegion, contacts, plCutoff, nPLs, printDebug)
+
     !> Container of the system geometry    
     type(TGeometry), intent(inout) :: geom
 
@@ -73,7 +75,7 @@ module dftbp_helpsetupgeom
     end if
 
     ! 4. re-sort the second contact PL to be a shifted copy of the first
-    call arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs, plcutoff)
+    call arrangeContactPLs(geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
 
     ! 5. Define device PLs
     call defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
@@ -167,9 +169,10 @@ module dftbp_helpsetupgeom
   end subroutine sortContacts
   
   ! -----------------------------------------------------------------------------------------------| 
-  subroutine arrangeContactPLs(geom, iAtInRegion, contVec, contDir, nPLs, plcutoff)
+  subroutine arrangeContactPLs(geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
+    type(contactInfo), intent(in) :: contacts(:)
     real(dp), intent(inout) :: contVec(:,:)
     integer, intent(in) :: contDir(:)
     integer, intent(in) :: nPLs(:)
@@ -183,6 +186,7 @@ module dftbp_helpsetupgeom
     ncont = size(iAtInRegion)-1
 
     do icont = 1, ncont
+      write(stdOut, *) "Contact",icont, '"'//trim(contacts(icont)%name)//'"'
       if (nPLs(icont)==2) then
         associate(data=>iAtInRegion(icont)%data)       
         uu = 0.0_dp
@@ -190,14 +194,13 @@ module dftbp_helpsetupgeom
         vv = contvec(1:3,icont)
         tol = norm2(vv)*contvec(4,icont)
         PLsize = size(data)/2
-        write(stdOut, *) "Contact",icont
         write(stdOut, *) "PL size:",PLsize
         write(stdOut, *) "Number of PLs:",nPLs(icont)
-        write(stdOut, *) "contact vector:",contvec(1:3,icont)
+        write(stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA,'(A)'
         write(stdOut, *) "tolerance:",tol
         ! check PL size   
         mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont)) 
-        write(stdOut, *) "minimum distance 2nd neighbour PL:",mindist
+        write(stdOut, *) "minimum distance 2nd neighbour PL:", mindist*Bohr__AA,'(A)'
         if (mindist<plcutoff) then
           errmess(1) = "The size of the contact PL is shorter than SK cutoff" 
           errmess(2) = "Check your input geometry or force SKTruncation"
@@ -221,9 +224,9 @@ module dftbp_helpsetupgeom
             end if  
           end do
           if (bestcross>tol .or. bestdiff>tol) then
-             write(stdOut, *) "Atom ",data(ii)   
-             write(stdOut, *) "Best cross vector:", bestcross   
-             write(stdOut, *) "Best difference:", bestdiff
+             write(stdOut, *) "Atom ",data(ii)
+             write(stdOut, *) "Best cross vector:", bestcross*Bohr__AA, '(A)'
+             write(stdOut, *) "Best difference:", bestdiff*Bohr__AA, '(A)'
              call error("Atom not found")
           end if  
           call swap(data(PLsize+ii),data(jj))
@@ -231,31 +234,36 @@ module dftbp_helpsetupgeom
         end associate
         write(stdOut, *) "contact done"
       else if (nPLs(icont)==1) then
-        associate(data=>iAtInRegion(icont)%data)
-        PLsize = size(data)
+        PLsize = size(iAtInRegion(icont)%data)
         write(stdOut, *) "PL size:",PLsize
         contVec(1:3,icont) = contVec(1:3,icont)*real(sign(1,contDir(icont)),dp)
-        write(stdOut, *) "contact vector:",contvec(1:3,icont)
+        write(stdOut, *) "contact vector:",contvec(1:3,icont)*Bohr__AA, '(A)'
         ! counting number of added PLs. Factor of 2 is needed to get 
         ! always an even total number
-        mindist=minDist2ndPL(geom%coords,data,PLsize,contvec(1:3,icont)) 
+        mindist=minDist2ndPL(geom%coords,iAtInRegion(icont)%data,PLsize,contvec(1:3,icont))
         nAddPLs = floor(plcutoff/mindist)*2 + 1
-        write(stdOut, *) "Adding",nAddPLs,"PL(s)"
-        if (nAddPLs>=3) then
-          call warning("More than 1 PL needs to be added") 
+        if (nAddPLs==1) then
+          write(stdOut, *) "Adding",nAddPLs,"PL"
+        else
+          write(stdOut, *) "Adding",nAddPLs,"PLs"
+          if (nAddPLs>=3) then
+            call warning("More than 1 PL needs to be added")
+          end if
         end if
         call reallocateInt(iAtInRegion(icont)%data, nAddPLs*PLsize)
         call reallocateCoords(geom%coords, nAddPLs*PLsize)
         call reallocateInt(geom%species, nAddPLs*PLsize)
+
+
         do iPL = 1, nAddPLs
           do ii = 1, PLsize
             jj = iPL*PLsize+ii
-            data(jj) = geom%nAtom + ii !new atoms to the end of structure
-            geom%coords(:,data(jj)) = geom%coords(:,data(ii)) + iPL*contVec(1:3,icont)
-            geom%species(data(jj)) = geom%species(data(ii))
+            iAtInRegion(icont)%data(jj) = geom%nAtom + ii !new atoms to the end of structure
+            geom%coords(:,iAtInRegion(icont)%data(jj)) = geom%coords(:,iAtInRegion(icont)%data(ii))&
+                & + iPL*contVec(1:3,icont)
+            geom%species(iAtInRegion(icont)%data(jj)) = geom%species(iAtInRegion(icont)%data(ii))
           end do
         end do
-        end associate
         geom%nAtom = geom%nAtom + PLsize*nAddPLs
       else
         call error("Number of PLs in contact must be either 1 or 2")
@@ -490,19 +498,8 @@ module dftbp_helpsetupgeom
     
     ncont = size(iAtInRegion)-1    
 
-    open(newunit=fd1, file='processed.gen')
     open(newunit=fd2, file='transport.hsd')
     write(fd2,'(A)') 'Transport{'
-
-    if (geom%tPeriodic) then
-      write(fd1,*) geom%natom, 'S'
-    else  
-      write(fd1,*) geom%natom, 'C'
-    endif
-    do ii = 1, geom%nSpecies
-      write(fd1,'(1x,A,1x)',advance='No') trim(geom%SpeciesNames(ii))
-    end do
-    write(fd1,*)
 
     ! Write Device Atoms
     write(fd2,'(2x,A)') 'Device{'
@@ -511,29 +508,20 @@ module dftbp_helpsetupgeom
     do jj = 1, len(PLlist)
       write(sindx,'(I10)') kk+1
       write(fd2,'(A)', advance='no') ' '//trim(adjustl(sindx))
-      call get(PLlist, atomsInPL, jj)
-      do ii = 1, size(atomsInPL)
-        kk = kk + 1
-        write(fd1,*) kk, geom%species(atomsInPL(ii)), &
-              geom%coords(:,atomsInPL(ii))*Bohr__AA
-      end do  
-      deallocate(atomsInPL)
-    end do  
+      kk = kk + size(atomsInPL)
+    end do
     write(fd2,*) '}' !close FirstLayerAtoms
     write(sindx,'(I10)') kk
     write(fd2,'(4x,A)') 'AtomRange= 1 '//trim(adjustl(sindx))
     write(fd2,'(2x,A)') '}' !close Device
+
     ! Write Contact Atoms
     do icont = 1, ncont
       write(fd2,'(2x,A)') 'Contact{'
       write(fd2,'(4x,A)') 'Id = "'//trim(contacts(icont)%name)//'"'
       write(sindx,'(I10)') kk+1
       write(fd2,'(4x,A)',advance='no') 'AtomRange= '//trim(adjustl(sindx))
-      do ii = 1, size(iAtInRegion(icont)%data)
-         kk = kk + 1
-         write(fd1,*) kk, geom%species(iAtInRegion(icont)%data(ii)), &
-            geom%coords(:,iAtInRegion(icont)%data(ii))*Bohr__AA
-      end do
+      kk = kk + size(iAtInRegion(icont)%data)
       write(sindx,'(I10)') kk
       write(fd2,'(A)') ' '//trim(adjustl(sindx))
       write(fd2,'(2x,A)') '}' !close Contact
@@ -546,6 +534,45 @@ module dftbp_helpsetupgeom
     write(fd2,'(2x,A)') '}'
     write(fd2,'(A)') '}'
 
+    close(fd2)
+
+    ! gen output
+
+    open(newunit=fd1, file='processed.gen')
+    if (geom%tPeriodic) then
+      write(fd1,*) geom%natom, 'S'
+    else
+      write(fd1,*) geom%natom, 'C'
+    endif
+    do ii = 1, geom%nSpecies
+      write(fd1,'(1x,A,1x)',advance='No') trim(geom%SpeciesNames(ii))
+    end do
+    write(fd1,*)
+
+102 format(I5,I2,3E20.10)
+
+    ! Write Device Atoms
+    write(fd1,"(4X,A)") '# device atoms'
+    do jj = 1, len(PLlist)
+      kk = 0
+      call get(PLlist, atomsInPL, jj)
+      do ii = 1, size(atomsInPL)
+        kk = kk + 1
+        write(fd1,102) kk, geom%species(atomsInPL(ii)), geom%coords(:,atomsInPL(ii))*Bohr__AA
+      end do
+      deallocate(atomsInPL)
+    end do
+
+    ! Write Contact Atoms
+    do icont = 1, ncont
+      write(fd1,"(4X,A)") '# contact "'//trim(contacts(icont)%name)//'" atoms'
+      do ii = 1, size(iAtInRegion(icont)%data)
+        kk = mod(ii - 1, size(iAtInRegion(icont)%data) / 2) + 1
+        write(fd1,102) kk, geom%species(iAtInRegion(icont)%data(ii)), &
+            geom%coords(:,iAtInRegion(icont)%data(ii))*Bohr__AA
+      end do
+    end do
+
     if (geom%tPeriodic) then
       write(fd1,*) geom%origin*Bohr__AA
       write(fd1,*) geom%latVecs(:,1)*Bohr__AA
@@ -553,7 +580,7 @@ module dftbp_helpsetupgeom
       write(fd1,*) geom%latVecs(:,3)*Bohr__AA
     end if
     close(fd1)
-    close(fd2)
+
   end subroutine print_gen
 
   !> Fold coordinates back in the central cell.
@@ -630,5 +657,3 @@ module dftbp_helpsetupgeom
   end function minDist2ndPL
 
 end module dftbp_helpsetupgeom
-
-
