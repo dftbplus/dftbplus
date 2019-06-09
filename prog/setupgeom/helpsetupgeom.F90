@@ -137,10 +137,11 @@ contains
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
     integer, intent(inout) :: contDir(:)
 
-    integer :: ii, icont, ncont
+    integer :: ii, jj, icont, ncont
     real(dp), allocatable :: subarray(:)
     integer, allocatable :: indxs(:), buffer(:)
-    real(dp) :: mean
+    real(dp) :: mean, contRange(3)
+    integer :: visitOrder(3)
 
     ncont = size(iAtInRegion)-1
       
@@ -156,11 +157,26 @@ contains
 
       allocate(subarray(size(iAtInRegion(icont)%data)))
       allocate(indxs(size(subarray)))
+      ! identify contact direction wrt device
       if (contDir(icont)>0) then
         subarray(:)=geom%coords(abs(contDir(icont)), iAtInRegion(icont)%data(:))
       else
         subarray(:)=-geom%coords(abs(contDir(icont)), iAtInRegion(icont)%data(:))
-      end if  
+      end if
+      ! sort contact directions perpendicular to device by largest coord range in that direction
+      contRange(:) = abs(maxval(geom%coords(:,iAtInRegion(icont)%data(:)),dim=2)&
+          & - minval(geom%coords(:,iAtInRegion(icont)%data(:)),dim=2))
+      contRange(abs(contDir(icont))) = huge(1.0)
+      call index_heap_sort(visitOrder, contRange)
+      do ii = 3, 1, -1
+        jj = visitOrder(ii)
+        if (jj == abs(contDir(icont))) then
+          cycle
+        end if
+        subarray(:) = subarray * (abs(maxval(geom%coords(jj,iAtInRegion(icont)%data(:))) -&
+            & minval(geom%coords(jj,iAtInRegion(icont)%data(:)))) + epsilon(1.0))
+        subarray(:) = subarray + geom%coords(jj, iAtInRegion(icont)%data(:))
+      end do
       call index_heap_sort(indxs, subarray)
       buffer = iAtInRegion(icont)%data(indxs)
       iAtInRegion(icont)%data = buffer
@@ -168,7 +184,7 @@ contains
     end do
   end subroutine sortContacts
   
-  ! -----------------------------------------------------------------------------------------------| 
+  ! -----------------------------------------------------------------------------------------------!
   subroutine arrangeContactPLs(geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
     type(TGeometry), intent(inout) :: geom
     type(wrappedInt1), intent(inout) :: iAtInRegion(:)
@@ -247,7 +263,7 @@ contains
         else
           write(stdOut, *) "Adding",nAddPLs,"PLs"
           if (nAddPLs>=3) then
-            call warning("More than 1 PL needs to be added")
+            call warning("More than 1 copy of the supplied PL will be added to this contact")
           end if
         end if
         call reallocateInt(iAtInRegion(icont)%data, nAddPLs*PLsize)
@@ -392,7 +408,7 @@ contains
         call error("Found layer of 0 size")
       end if  
       write(stdOut,*) "* Layer size:",sizeL
-    end do   
+    end do
     end associate
     write(stdOut,*) "Done."
 
