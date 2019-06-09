@@ -167,7 +167,7 @@ contains
     character(lc) :: strTmp
     logical :: isHSD, inputMissing, useOldInter
     type(string) :: buffer
-    integer :: angShellOrdered(size(orbitalNames))
+    integer :: angShellOrdered(size(shellNames))
     type(listIntR1) :: angShells(2)
     type(listInt), allocatable :: lIntTmp
     real(dp), allocatable :: skHam(:,:), skOver(:,:)
@@ -199,8 +199,8 @@ contains
     call getChildValue(root, "MaxAngularMomentum1", buffer, child=child)
     strTmp = unquote(char(buffer))
     call init(angShells(1))
-    do jj = 1, size(orbitalNames)
-      if (trim(strTmp) == trim(orbitalNames(jj))) then
+    do jj = 1, size(shellNames)
+      if (trim(strTmp) == trim(shellNames(jj))) then
         call append(angShells(1), angShellOrdered(:jj))
       end if
     end do
@@ -218,8 +218,8 @@ contains
       call getChildValue(root, "MaxAngularMomentum2", buffer, child=child)
       strTmp = unquote(char(buffer))
       call init(angShells(2))
-      do jj = 1, size(orbitalNames)
-        if (trim(strTmp) == trim(orbitalNames(jj))) then
+      do jj = 1, size(shellNames)
+        if (trim(strTmp) == trim(shellNames(jj))) then
           call append(angShells(2), angShellOrdered(:jj))
         end if
       end do
