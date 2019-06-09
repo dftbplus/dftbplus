@@ -122,7 +122,7 @@ module dftbp_constants
   integer, parameter :: nShellName = maxL + 1
 
 
-  !> Name of the orbitals
+  !> Names of the atomic shells
   character(len=1), parameter :: shellNames(nShellName) = ["s", "p", "d", "f"]
 
 
