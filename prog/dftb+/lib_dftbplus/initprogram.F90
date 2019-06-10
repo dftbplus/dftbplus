@@ -1297,14 +1297,12 @@ contains
     cutOff%repCutOff = getCutOff(pRepCont)
     cutOff%lcCutOff = 0.0_dp
     if (tRangeSep) then
-      if (any(["nb", "tn"] == input%ctrl%rangeSepAlgorithm)) then
-        if (input%ctrl%deltaDistance > 0.0_dp) then
-          call error("Screening cutoff for range-separated neighbours should be zero or negative.")
-        end if
-        cutOff%lcCutOff = cutOff%skCutOff + input%ctrl%deltaDistance
-        if (cutOff%lcCutOff < 0.0_dp) then
-          call error("Screening cutoff for range-separated neighbours too short.")
-        end if
+      if (input%ctrl%deltaDistance > 0.0_dp) then
+        call error("Screening cutoff for range-separated neighbours should be zero or negative.")
+      end if
+      cutOff%lcCutOff = cutOff%skCutOff + input%ctrl%deltaDistance
+      if (cutOff%lcCutOff < 0.0_dp) then
+        call error("Screening cutoff for range-separated neighbours too short.")
       end if
     end if
     ! redundant as lcCutOff <= skCutOff

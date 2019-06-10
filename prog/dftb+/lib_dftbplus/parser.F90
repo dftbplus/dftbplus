@@ -1424,17 +1424,13 @@ contains
       ctrl%tRangeSep = .true.
       call getChildValue(child, "Algorithm", value1, "TR", child=child2)
       call getNodeName(value1, buffer)
+      call getChildValue(value1, "DeltaCutoff", ctrl%deltaDistance, 0.0_dp,&
+          & modifier=modifier, child=field)
+      call convertByMul(char(modifier), lengthUnits, field, ctrl%deltaDistance)
       select case(char(buffer))
       case ("nb")
-        call getChildValue(value1, "DeltaCutoff", ctrl%deltaDistance, 0.0_dp,&
-            & modifier=modifier, child=field)
-        call convertByMul(char(modifier), lengthUnits, field, ctrl%deltaDistance)
+        continue
       case ("tr")
-        call getChildValue(value1, "Threshold", ctrl%screeningThreshold, 0.1e-5_dp)
-      case ("tn")
-        call getChildValue(value1, "DeltaCutoff", ctrl%deltaDistance, 0.0_dp,&
-            & modifier=modifier, child=field)
-        call convertByMul(char(modifier), lengthUnits, field, ctrl%deltaDistance)
         call getChildValue(value1, "Threshold", ctrl%screeningThreshold, 0.1e-5_dp)
       case default
         call getNodeHSDName(value1, buffer)

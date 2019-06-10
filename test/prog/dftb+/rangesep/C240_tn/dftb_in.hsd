@@ -17,7 +17,7 @@ Hamiltonian = DFTB {
     }
 
     RangeSep = {
-        Algorithm = TN {
+        Algorithm = TR {
             DeltaCutoff [AA] = -3
             Threshold = 5E-4
         }
