@@ -407,6 +407,13 @@ contains
     end if
     call handleD3Defaults(root)
 
+    call getDescendant(root, "Hamiltonian/DFTB/Eigensolver", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword renamed to 'Solver'.")
+      call setNodeName(ch1, "Solver")
+    end if
+
+
   end subroutine convert_6_7
 
 
