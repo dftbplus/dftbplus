@@ -13,14 +13,28 @@ _default: default
 
 include make.config
 
-.PHONY: default misc api all
+.PHONY: default misc all
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+else
+.PHONY: api
+endif
+
 default: dftb+ modes waveplot setupgeom
 ifeq ($(strip $(BUILD_API)),1)
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+else
    default: api
+endif
 endif
 misc: misc_skderivs misc_slakovalue
 api: api_mm
-all: default misc api
+all: default misc
+ifeq ($(strip $(BUILD_API)),1)
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+else
+all: api
+endif
+endif
 
 .PHONY: install install_misc install_all
 install: install_dftb+ install_modes install_waveplot install_dptools
