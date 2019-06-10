@@ -1880,7 +1880,8 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
-      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE)
+      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE,&
+      & lCurrArray)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1941,6 +1942,10 @@ contains
 
     !> Is the free energy correctly defined
     logical, intent(in) :: tDefinedFreeE
+
+    !> Array containing bond currents as (Jvalues, atom)
+    !> This array is for testing only since it misses info
+    real(dp), allocatable, intent(in) :: lCurrArray(:,:)
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2009,6 +2014,10 @@ contains
       if (size(ldos,1) > 0) then
         call taggedWriter%write(fd, tagLabels%ldos, ldos)
       end if
+    end if
+
+    if (allocated(lCurrArray)) then
+      call taggedWriter%write(fd, tagLabels%localCurrents, lCurrArray)
     end if
 
     close(fd)
@@ -3558,6 +3567,8 @@ contains
     end if
 
     close(fdHS)
+      
+    write(stdOut,*) 'shiftcont_'//trim(filename)//".dat written to file"     
 
   end subroutine writeContShifts
 

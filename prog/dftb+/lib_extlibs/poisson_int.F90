@@ -167,8 +167,11 @@ module poisson_init
 contains
 
   !> Initialise gDFTB environment and variables
+#:if WITH_MPI
   subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, mpicomm, initinfo)
-
+#:else
+  subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, initinfo)
+#:endif
     !> initialisation choices for poisson solver
     Type(TPoissonStructure), intent(in) :: structure
 
@@ -183,10 +186,10 @@ contains
 
     !> Transport parameters
     Type(TTransPar), intent(in) :: transpar
-
+#:if WITH_MPI
     !> MPI details
     Type(mpifx_comm), intent(in) :: mpicomm
-
+#:endif
     !> Success of initialisation
     logical, intent(out) :: initinfo
 
@@ -200,8 +203,8 @@ contains
     call poiss_mpi_init(mpicomm)
     call poiss_mpi_split(min(poissoninfo%maxNumNodes, mpicomm%size))
     call mpi_barrier(mpicomm, iErr)
-  #:else
-    call error("The Poisson solver currently requires MPI parallelism to be enabled")
+  !#:else
+    !call error("The Poisson solver currently requires MPI parallelism to be enabled")
   #:endif
 
     write(stdOut,*)

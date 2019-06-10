@@ -138,15 +138,11 @@ program buildwire
   write(*,*) '  Contact{'
   write(*,*) '    Id = "source"'
   write(*,"(1x,A,I0,' ',I0)") '    AtomRange = ', pl_atm*num_pl+1, pl_atm*(num_pl+2)
-  write(*,*) '    Potential [eV] = 0.0'
-  write(*,*) '    FermiLevel [eV] = 0.0'
   write(*,*) '  }'
 
   write(*,*) '  Contact{'
   write(*,*) '    Id = "drain"'
   write(*,"(1x,A,I0,' ',I0)") '    AtomRange = ', pl_atm*(num_pl+2)+1, pl_atm*(num_pl+4)
-  write(*,*) '    Potential [eV] = 0.0'
-  write(*,*) '    FermiLevel [eV] = 0.0'
   write(*,*) '  }'
 
   write(*,*) '  Task= contactHamiltonian{'

@@ -5,17 +5,13 @@
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 
+# clear suffixes
 .SUFFIXES:
 .SUFFIXES: .f .f90 .F90 .o
-
-#.PRECIOUS: .f90
+%.PRECIOUS: %.f90
 
 FXXCLEAN = *.mod
-
-# How to tell the preprocessor to look for includes
 FYPPINC = -I
-
-# Include user customization to set simply expanded (immediate) variables.
 
 include $(ROOT)/make.config
 
@@ -23,7 +19,6 @@ FYPPOPT += -DDEBUG=$(DEBUG)
 
 RELEASE := $(shell cat $(BUILDROOT)/RELEASE)
 FYPPOPT += -DRELEASE="'$(RELEASE)'"
-
 vpath % $(SRCDIRS)
 
 ############################################################################
@@ -74,9 +69,6 @@ endef
 %.o: %.f90
 	$(FXX) $(FXXOPT) $(L_INCS) -o $@ -c $<
 
-%.o: %.f
-	$(FXX) $(FXXOPT) $(L_INCS) -o $@ -c $<
-
 _mod_%:
 	@[ -f $< ] && touch $@
 
@@ -89,7 +81,7 @@ _mod_%:
 #
 #  Technique: If any requisite occurs as _extlib_<library name> the according
 #  library will be linked. It must be already compiled at that point.
-#  Dependency of an object file on a library must be set in the 
+#  Dependency of an object file on a library must be set in the
 #  <sourcedir of object file >/make.extdeps as
 #    <name of object file>: _extlib_<library name>
 #    <name of object file> += _extlib_<library name>
@@ -108,109 +100,9 @@ INC_XMLF90 := -I$(BUILDROOT)/external/xmlf90
 L_LIBS += $(if $(filter _extlib_xmlf90, $^), $(LIB_XMLF90))
 L_INCS += $(INC_XMLF90)
 
-# FSOCKETS
-ifeq ($(strip $(WITH_SOCKETS)),1)
-  COMPILED_EXTERNALS += _extlib_fsockets
-  LIB_FSOCKETS = -L$(BUILDROOT)/external/fsockets -lfsockets
-  INC_FSOCKETS = -I$(BUILDROOT)/external/fsockets
-  L_LIBS += $(if $(filter _extlib_fsockets, $^), $(LIB_FSOCKETS))
-  L_INCS += $(INC_FSOCKETS)
-  FYPPOPT += -DWITH_SOCKETS
-endif
-
-# DFTD3
-ifeq ($(strip $(WITH_DFTD3)),1)
-  ifeq ($(strip $(COMPILE_DFTD3)),1)
-    COMPILED_EXTERNALS += _extlib_dftd3
-    DFTD3_LIBS := -L$(BUILDROOT)/external/dftd3 -ldftd3
-    DFTD3_INCS := -I$(BUILDROOT)/external/dftd3
-  else
-    PRESENT_EXTERNALS += _extlib_dftd3
-  endif
-  FYPPOPT += -DWITH_DFTD3
-  L_LIBS += $(if $(filter _extlib_dftd3, $^), $(DFTD3_LIBS))
-  L_INCS += $(DFTD3_INCS)
-endif
-
-# TRANSPORT
-ifeq ($(strip $(WITH_TRANSPORT)),1)
-  FYPPOPT += -DWITH_TRANSPORT
-
-  LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lnegf -lsparskit 
-  SYSCALLS_LIBS := -L$(BUILDROOT)/external/libnegf -lsyscalls -lc
-  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(SYSCALLS_LIBS))
-  L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
-  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
-  L_INCS += -I$(BUILDROOT)/external/libnegf/libnegf
-  COMPILED_EXTERNALS += _extlib_libnegf
-
-  POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
-  L_LIBS += $(if $(filter _extlib_poisson, $^), $(POISSON_LIBS))
-  L_INCS += -I$(BUILDROOT)/external/poisson
-  COMPILED_EXTERNALS += _extlib_poisson
-endif
-
-ifeq ($(strip $(WITH_MPI)),1)
-  #
-  # MPI settings
-  #
-  FYPPOPT += -DWITH_MPI -DWITH_SCALAPACK
-
-  MPIFX_LIBS := -L$(BUILDROOT)/external/mpifx -lmpifx
-  MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
-  L_LIBS += $(MPIFX_LIBS)
-  L_INCS += $(MPIFX_INCS)
-
-  # ELSI library
-  ifeq ($(strip $(WITH_ELSI)),1)
-    L_INCS += -I$(ELSIINCDIR)
-    L_LIBS += $(LIB_ELSI)
-    FYPPOPT += -DWITH_ELSI
-    ifeq ($(strip $(WITH_PEXSI)),1)
-      FYPPOPT += -DWITH_PEXSI
-      L_LIBS += $(LIB_PEXSI)
-    endif
-  endif
-
-  SCALAPACKFX_LIBS := -L$(BUILDROOT)/external/scalapackfx -lscalapackfx
-  SCALAPACKFX_INCS := -I$(BUILDROOT)/external/scalapackfx
-  L_LIBS += $(if $(filter _extlib_scalapackfx, $^), $(SCALAPACKFX_LIBS)\
-      $(LIB_SCALAPACK))
-  L_INCS += $(SCALAPACKFX_INCS)
-
-  COMPILED_EXTERNALS += _extlib_mpifx _extlib_scalapackfx
-
-  # LAPACK/BLAS
-  PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
-  L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
-  L_LIBS += $(L_LIBS_LAPACKBLAS)
-
-else
-  #
-  # NON-MPI settings
-  #
-
-  # LAPACK/BLAS
-  PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
-  L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
-
-  # ARPACK
-  ifeq ($(strip $(WITH_ARPACK)),1)
-    PRESENT_EXTERNALS += _extlib_arpack
-    FYPPOPT += -DWITH_ARPACK
-    L_LIBS_ARPACK += $(if $(filter _extlib_arpack, $^), $(ARPACK_LIBS))
-  endif
-
-  # If ARPACK was built without LAPACK/BLAS routines, they should be resolved from
-  # the main LAPACK/BLAS library . Otherwise link ARPACK as last to prevent its
-  # BLAS/LAPACK routines to interfere with the main libary (crashes in some cases)
-  ifeq ($(strip $(ARPACK_NEEDS_LAPACK)),1)
-    L_LIBS += $(L_LIBS_ARPACK) $(L_LIBS_LAPACKBLAS)
-  else
-    L_LIBS += $(L_LIBS_LAPACKBLAS) $(L_LIBS_ARPACK)
-  endif
-endif
-  
+# LAPACK/BLAS
+PRESENT_EXTERNALS += _extlib_lapack
+L_LIBS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
 
 $(COMPILED_EXTERNALS): __FORCE__
 	touch -r $(BUILDROOT)/external/$(subst _extlib_,,$@)/BUILD_TIMESTAMP $@
@@ -223,7 +115,7 @@ $(PRESENT_EXTERNALS):
 #  Targets
 ############################################################################
 
-clean: 
+clean:
 	-rm -f *.o *.f90 _mod_* $(FXXCLEAN) _dependencies _extlib_*
 
 ############################################################################
@@ -236,7 +128,6 @@ endef
 
 # Include local makefile once again to override rules, defs and deferred vars
 #include $(ARCHMAKE)
-
 
 ### Local Variables:
 ### mode:makefile

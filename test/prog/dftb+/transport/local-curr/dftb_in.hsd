@@ -1,0 +1,103 @@
+Geometry = GenFormat {
+<<< 'processed.gen'
+}
+
+Transport{
+  Device{
+    FirstLayerAtoms={  1 51 73 95 115 135 155 }
+    AtomRange= 1 218
+  }
+  Contact{
+    Id = "source"
+    AtomRange= 219 314
+    PLShiftTolerance = 1e-3
+    Fermilevel [eV] = -4.6768627753396839  
+    potential [eV] = -0.05
+  }
+  Contact{
+    Id = "drain"
+    AtomRange= 315 410
+    PLShiftTolerance = 1e-3
+    Fermilevel [eV] = -4.6768627753396839  
+    potential [eV] = 0.05
+  }
+  #task=ContactHamiltonian{
+  #  contactId="source"
+  #}
+}
+
+
+Hamiltonian = DFTB {
+  SCC = Yes  
+  MaxSCCIterations = 100
+  SCCTolerance = 1e-6
+  ReadInitialCharges = Yes 
+
+  MaxAngularMomentum = {
+    C = "p"
+    H = "s"
+  }
+  
+  TruncateSKRange = {
+    SKMaxDistance =  9.44 
+    HardCutoff = Yes
+  }
+  		
+  SlaterKosterFiles = Type2FileNames{
+    prefix =  "./"    
+    separator  = "-"
+    suffix  = ".skf"
+  }
+
+ KPointsAndWeights = SuperCellFolding {
+    1 0 0
+    0 1 0 
+    0 0 1
+    0.0 0.0 0.0
+  }
+
+  Electrostatics = Poisson {
+    MinimalGrid [Angstrom] = 0.5 0.5 0.5
+    SavePotential = Yes
+    BuildBulkPotential = No
+  }
+
+  Eigensolver = GreensFunction{
+     LocalCurrents=Yes
+     delta = 5e-4
+     verbosity = 100
+     #ReadSurfaceGFs = Yes 
+  }
+
+  Mixer = Broyden {
+    MixingParameter = 0.05
+  }
+	
+}
+
+Options{
+  ReadChargesAsText = Yes
+  WriteChargesAsText = Yes
+  WriteAutotestTag = Yes
+}
+
+ParserOptions{
+  ParserVersion = 6
+}
+
+Parallel{
+  useOMPThreads = Yes
+} 
+
+
+#Analysis = {
+#TunnelingAndDos {
+#  Verbosity = 101
+#  EnergyRange [eV] = -6.0  -4.0
+#  EnergyStep [eV] = 0.01
+#  Region = {
+#    Atoms = 1:256
+#  }
+# }
+#}
+

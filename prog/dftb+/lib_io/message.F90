@@ -47,7 +47,7 @@ contains
     !> Warning message to print to standard out.
     character (len=*), intent(in) :: message
 
-    write(stdOut, '(1a)') 'WARNING!'
+    write(stdOut, '(1a)') 'WARNING!' 
     write(stdOut, '(2a)') '-> ', trim(message)
 
   end subroutine warning_single

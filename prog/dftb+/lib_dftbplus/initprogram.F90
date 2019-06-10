@@ -900,6 +900,8 @@ module dftbp_initprogram
   !> Tunneling, local DOS and current
   real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
   real(dp), allocatable :: leadCurrents(:)
+  !> Array storing local (bond) currents 
+  real(dp), allocatable :: lCurrArray(:,:)
 
   !> Poisson Derivatives (forces)
   real(dp), allocatable :: poissonDerivs(:,:)
@@ -1155,6 +1157,9 @@ contains
       maxSccIter = input%ctrl%maxIter
     else
       maxSccIter = 1
+    end if
+    if (maxSccIter < 1) then
+      call error("SCC iterations must be larger than 0")
     end if
 
     tWriteHS = input%ctrl%tWriteHS
@@ -1694,7 +1699,7 @@ contains
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint, tForces,&
         & input%ctrl%parallelOpts, nIndepHam, tempElec)
     if (tRealHS) then
       nBufferedCholesky = 1
@@ -1729,17 +1734,25 @@ contains
           & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
     end if
 
+    if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then
+      call error("Alternative force evaluation methods are not supported by this electronic&
+          & solver.")
+    end if
 
   #:if WITH_TRANSPORT
     ! whether tunneling is computed
     tTunn = input%ginfo%tundos%defined
+    ! whether local currents are computed
+    tLocalCurrents = input%ginfo%greendens%doLocalCurr
 
     ! Do we use any part of negf (solver, tunnelling etc.)?
-    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn
+    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn .or. tLocalCurrents
 
+  #:if WITH_MPI
     if (tNegf .and. env%mpi%nGroup > 1) then
       call error("At the moment NEGF solvers cannot be used for multiple processor groups")
     end if
+  #:endif
 
   #:else
 
@@ -3206,10 +3219,8 @@ contains
       tUpload = .false.
     end if
 
-    ! contact calculation (complementary to Upload)
-    tContCalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
-    ! whether local currents are computed
-    tLocalCurrents = input%ginfo%greendens%doLocalCurr
+    ! contact calculation in case some contact is computed
+    tContCalc = (input%transpar%taskContInd /= 0)
 
     if (nSpin <=2) then
       nSpinChannels = nSpin
@@ -3266,8 +3277,12 @@ contains
         poissStr%latVecs(:,:) = 0.0_dp
       end if
       poissStr%tempElec = tempElec
+    #:if WITH_MPI
       call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
           & tInitialized)
+    #:else
+      call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, tInitialized)
+    #:endif
       if (.not. tInitialized) then
         call error("Poisson solver not initialized")
       end if
@@ -3280,8 +3295,13 @@ contains
       end if
 
       ! Some sanity checks and initialization of GDFTB/NEGF
+    #:if WITH_MPI
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
           & tempElec, electronicSolver%iSolver)
+    #:else
+      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, &
+          & tempElec, electronicSolver%iSolver)
+    #:endif
 
       ginfo = input%ginfo
 
@@ -3930,7 +3950,8 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, tForces, parallelOpts, nIndepHam,&
+      & tempElec)
 
     !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -3940,6 +3961,9 @@ contains
 
     !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
+
+    !> Are forces required
+    logical, intent(in) :: tForces
 
     !> Options for a parallel calculation, if needed
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
@@ -3952,6 +3976,12 @@ contains
 
     logical :: tElsiSolver
     integer :: nKPoint
+
+    ! Temporary error test for PEXSI bug (May 2019)
+    if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)&
+        & .and. tForces) then
+      call error("A temporary bug prevents correct force evaluation with PEXSI at general k-points")
+    end if
 
     tElsiSolver = any(electronicSolver%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
