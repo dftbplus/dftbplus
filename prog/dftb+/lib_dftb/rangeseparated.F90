@@ -86,6 +86,12 @@ module dftbp_rangeseparated
     !> species of atoms
     integer, allocatable :: species(:)
 
+    !!> Cutoff radious
+    !real(dp) :: cutoff
+
+    !> Nr. of neighbours
+    integer, allocatable :: nNeighbours(:)
+
   contains
 
     procedure :: updateCoords

@@ -98,11 +98,11 @@ contains
 
     !> Data tree representation of the input
     type(fnode), pointer :: hsdTree
-    
+
     call parseHSD(rootTag, hsdFile, hsdTree)
 
   end subroutine readHsdFile
-    
+
 
   !> Parse input from an HSD/XML file
   subroutine parseHsdTree(hsdTree, input, parserFlags)
@@ -1417,29 +1417,8 @@ contains
       skInterMeth = skEqGridNew
     end if
 
-    !> Range separation input
-    ctrl%tRangeSep = .false.
-    call getChild(node, "RangeSep", child, .false., modifier)
-    if (associated(child)) then
-      ctrl%tRangeSep = .true.
-      call getChildValue(child, "Algorithm", value1, "TR", child=child2)
-      call getNodeName(value1, buffer)
-      call getChildValue(value1, "DeltaCutoff", ctrl%deltaDistance, 0.0_dp,&
-          & modifier=modifier, child=field)
-      call convertByMul(char(modifier), lengthUnits, field, ctrl%deltaDistance)
-      select case(char(buffer))
-      case ("nb")
-        continue
-      case ("tr")
-        call getChildValue(value1, "Threshold", ctrl%screeningThreshold, 0.1e-5_dp)
-      case default
-        call getNodeHSDName(value1, buffer)
-        call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
-      end select
-      ctrl%rangeSepAlgorithm = char(buffer)
-    else
-      ctrl%tRangeSep = .false.
-    end if
+    call parseRangeSeparated(node, ctrl)
+
 
     if (.not. ctrl%tRangeSep) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
@@ -5278,7 +5257,7 @@ contains
     !> Atom indices corresponding to user defined reference atomic charges
     type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
 
-    !> User-defined reference atomic charges 
+    !> User-defined reference atomic charges
     real(dp), allocatable, intent(out) :: customOcc(:,:)
 
     type(fnode), pointer :: node, container, child
@@ -5301,7 +5280,7 @@ contains
     allocate(atomOverriden(nAtom))
     atomOverriden(:) = .false.
     customOcc(:,:) = 0.0_dp
-    
+
     do iCustomOcc = 1, nCustomOcc
       call getItem1(nodes, iCustomOcc, node)
       call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
@@ -5586,5 +5565,37 @@ contains
     print*, x, err, is
 
   end function is_numeric
+
+
+  !> Parse range separation input
+  subroutine parseRangeSeparated(node, ctrl)
+    type(fnode), pointer, intent(in) :: node
+    type(control), intent(inout) :: ctrl
+
+    type(fnode), pointer :: child, value1, child2, field
+    type(string) :: buffer, modifier
+
+    ctrl%tRangeSep = .false.
+    call getChild(node, "RangeSep", child, .false., modifier)
+    if (associated(child)) then
+      ctrl%tRangeSep = .true.
+      call getChildValue(child, "Algorithm", value1, "TR", child=child2)
+      call getNodeName(value1, buffer)
+      call getChildValue(value1, "DeltaCutoff", ctrl%deltaDistance, 0.0_dp,&
+          & modifier=modifier, child=field)
+      call convertByMul(char(modifier), lengthUnits, field, ctrl%deltaDistance)
+      select case(char(buffer))
+      case ("nb")
+        continue
+      case ("tr")
+        call getChildValue(value1, "Threshold", ctrl%screeningThreshold, 1e-6_dp)
+      case default
+        call getNodeHSDName(value1, buffer)
+        call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
+      end select
+      ctrl%rangeSepAlgorithm = char(buffer)
+    end if
+
+  end subroutine parseRangeSeparated
 
 end module dftbp_parser

@@ -1292,21 +1292,10 @@ contains
       allocate(iUJ(0,0,0))
     end if
 
-    ! Cut-offs for SlaKo, repulsive and range-separation
+    ! Cut-offs for SlaKo, repulsive
     cutOff%skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
     cutOff%repCutOff = getCutOff(pRepCont)
-    cutOff%lcCutOff = 0.0_dp
-    if (tRangeSep) then
-      if (input%ctrl%deltaDistance > 0.0_dp) then
-        call error("Screening cutoff for range-separated neighbours should be zero or negative.")
-      end if
-      cutOff%lcCutOff = cutOff%skCutOff + input%ctrl%deltaDistance
-      if (cutOff%lcCutOff < 0.0_dp) then
-        call error("Screening cutoff for range-separated neighbours too short.")
-      end if
-    end if
-    ! redundant as lcCutOff <= skCutOff
-    cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff, cutOff%lcCutOff])
+    cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
 
     ! Get species names and output file
     geoOutFile = input%ctrl%outFile
@@ -2239,41 +2228,12 @@ contains
 
     tReadChrg = input%ctrl%tReadChrg
 
-    !> Initialize range separated
     if (tRangeSep) then
-      if (tPeriodic) then
-        call error("Range separated functionality only works with non-periodic structures at the&
-            & moment")
-      end if
-      if (tReadChrg .and. any(["tr","tn"] == input%ctrl%rangeSepAlgorithm)) then
-        call error("Restart on thresholded range separation not working correctly")
-      end if
-      if (input%ctrl%tShellResolved) then
-        call error("Range separated functionality currently does not yet support shell-resolved&
-            & scc")
-      end if
-
-      allocate(rangeSep)
-      call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-          & input%ctrl%screeningThreshold, input%ctrl%deltaDistance, input%ctrl%omega, tSpin,&
+      call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
           & input%ctrl%rangeSepAlgorithm)
-      allocate(deltaRhoIn(nOrb * nOrb * nSpin))
-      allocate(deltaRhoOut(nOrb * nOrb * nSpin))
-      allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
-      !> Pointers required by screening algorithm
-      deltaRhoInSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoIn(1:nOrb*nOrb*nSpin)
-      deltaRhoOutSqr(1:nOrb,1:nOrb,1:nSpin) => deltaRhoOut(1:nOrb*nOrb*nSpin)
-      !> Required by screening algorithm
-      nMixElements = nOrb * nOrb * nSpin
-      deltaRhoInSqr(:,:,:) = 0.0_dp
-      select case(trim(input%ctrl%rangeSepAlgorithm))
-      case ("tr")
-        write(StdOut,*) "Using the Neighbor list-based algorithm"
-      case ("nb")
-        write(StdOut,*) "Using the Thresholding algorithm"
-      case ("tn")
-        write(StdOut,*) "Using the combined neighbor-threshold algorithm"
-      end select
+      call getRangeSeparatedCutoff(input%ctrl%deltaDistance, cutOff)
+      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl, tSpin, rangeSep,&
+          & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
     end if
 
     tReadShifts = input%ctrl%tReadShifts
@@ -4216,6 +4176,74 @@ contains
     end if
 
   end function getMinSccIters
+
+
+  !> Stop if any range separated incompatible setting is found
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, rsAlg)
+    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: tReadChrg
+    logical, intent(in) :: tShellResolved
+    character(*), intent(in) :: rsAlg
+
+    if (tPeriodic) then
+      call error("Range separated functionality only works with non-periodic structures at the&
+          & moment")
+    end if
+    if (tReadChrg .and. rsAlg == "th") then
+      call error("Restart on thresholded range separation not working correctly")
+    end if
+    if (tShellResolved) then
+      call error("Range separated functionality currently does not yet support shell-resolved scc")
+    end if
+
+  end subroutine ensureRangeSeparatedReqs
+
+
+  !> Determine range separeted cut-off and also update maximal cutoff
+  subroutine getRangeSeparatedCutOff(deltaDistance, cutOff)
+    real(dp), intent(in) :: deltaDistance
+    type(OCutoffs), intent(inout) :: cutOff
+
+    cutOff%lcCutOff = 0.0_dp
+    if (deltaDistance > 0.0_dp) then
+      call error("Screening cutoff for range-separated neighbours should be zero or negative.")
+    end if
+    cutOff%lcCutOff = cutOff%skCutOff + deltaDistance
+    if (cutOff%lcCutOff < 0.0_dp) then
+      call error("Screening cutoff for range-separated neighbours too short.")
+    end if
+    cutOff%mCutoff = max(cutOff%mCutOff, cutoff%lcCutOff)
+
+  end subroutine getRangeSeparatedCutOff
+
+
+  !> Initialise range separated extension.
+  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, ctrl, tSpin, rangeSep,&
+      & deltaRhoIn, deltarhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+    integer, intent(in) :: nAtom
+    integer, intent(in) :: species0(:)
+    character(*), intent(in) :: speciesName(:)
+    real(dp), intent(in) :: hubbU(:,:)
+    type(control), intent(in) :: ctrl
+    logical, intent(in) :: tSpin
+    type(RangeSepFunc), allocatable, intent(out) :: rangeSep
+    real(dp), allocatable, target, intent(out) :: deltaRhoIn(:), deltaRhoOut(:)
+    real(dp), allocatable, intent(out) :: deltaRhoDiff(:)
+    real(dp), pointer, intent(out) :: deltaRhoInSqr(:,:,:), deltaRhoOutSqr(:,:,:)
+    integer, intent(out) :: nMixElements
+
+    allocate(rangeSep)
+    call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
+        & ctrl%screeningThreshold, ctrl%deltaDistance, ctrl%omega, tSpin, ctrl%rangeSepAlgorithm)
+    allocate(deltaRhoIn(nOrb * nOrb * nSpin))
+    allocate(deltaRhoOut(nOrb * nOrb * nSpin))
+    allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
+    deltaRhoInSqr(1:nOrb, 1:nOrb, 1:nSpin) => deltaRhoIn(1 : nOrb * nOrb * nSpin)
+    deltaRhoOutSqr(1:nOrb, 1:nOrb, 1:nSpin) => deltaRhoOut(1 : nOrb * nOrb * nSpin)
+    nMixElements = nOrb * nOrb * nSpin
+    deltaRhoInSqr(:,:,:) = 0.0_dp
+
+  end subroutine initRangeSeparated
 
 
 end module dftbp_initprogram
