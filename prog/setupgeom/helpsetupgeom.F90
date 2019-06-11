@@ -524,6 +524,7 @@ contains
     do jj = 1, len(PLlist)
       write(sindx,'(I10)') kk+1
       write(fd2,'(A)', advance='no') ' '//trim(adjustl(sindx))
+      call get(PLlist, atomsInPL, jj)
       kk = kk + size(atomsInPL)
     end do
     write(fd2,*) '}' !close FirstLayerAtoms
