@@ -349,10 +349,15 @@ contains
     mask=.true.
     addAllR=.false.
 
-    nc = 1
-    do ii = 1, size(contVec,2)
-      nc(maxloc(abs(contvec(:,ii)))) = 0
-    end do
+    nc = 0
+    if (geom%tPeriodic .and. allocated(geom%latVecs)) then
+      nc = 1
+      ! Remove loops on periodic copies along contact direction
+      do ii = 1, size(contVec,2)
+        nc(maxloc(abs(contvec(:,ii)))) = 0
+      end do
+    end if
+       
 
     write(stdOut,*) "Partitioning device into PLs"
     ! put array of contact atoms in the first node of PLlist
@@ -369,7 +374,9 @@ contains
             do icz = -nc(3), nc(3)
               do jj = 1, sizeD
                 vec(:) = geom%coords(:,buffer(ii))-geom%coords(:,dataD(jj))
-                vec(:) = vec(:)+icx*geom%latVecs(:,1)+icy*geom%latVecs(:,2)+icz*geom%latVecs(:,3)
+                if (allocated(geom%latVecs)) then
+                  vec(:) = vec(:)+icx*geom%latVecs(:,1)+icy*geom%latVecs(:,2)+icz*geom%latVecs(:,3)
+                end if 
                 if (norm2(vec)<plcutoff .and. mask(jj)) then
                   call append(atomsInPL, dataD(jj))
                   mask(jj) = .false.   
