@@ -1417,10 +1417,9 @@ contains
       skInterMeth = skEqGridNew
     end if
 
-    call parseRangeSeparated(node, ctrl)
+    call parseRangeSeparated(node, ctrl%rangeSepInp)
 
-
-    if (.not. ctrl%tRangeSep) then
+    if (.not. allocated(ctrl%rangeSepInp)) then
       call getChild(node, "TruncateSKRange", child, requested=.false.)
       if (associated(child)) then
         call warning("Artificially truncating the SK table, this is normally a bad idea!")
@@ -1437,7 +1436,7 @@ contains
 
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
           & skInterMeth, repPoly, rangeSepSK=rangeSepSK)
-      ctrl%omega = rangeSepSk%omega
+      ctrl%rangeSepInp%omega = rangeSepSk%omega
     end if
 
 
@@ -5568,9 +5567,9 @@ contains
 
 
   !> Parse range separation input
-  subroutine parseRangeSeparated(node, ctrl)
+  subroutine parseRangeSeparated(node, input)
     type(fnode), pointer, intent(in) :: node
-    type(control), intent(inout) :: ctrl
+    type(TRangeSepInp), allocatable, intent(out) :: input
 
     type(fnode), pointer :: child1, value1, child2, value2, child3
     type(string) :: buffer, modifier
@@ -5581,24 +5580,24 @@ contains
     select case (char(buffer))
 
     case ("none")
-      ctrl%tRangeSep = .false.
-
+      continue
+      
     case ("lc")
-      ctrl%tRangeSep = .true.
+      allocate(input)
       call getChildValue(value1, "Screening", value2, "Thresholded", child=child2)
       call getNodeName(value2, buffer)
       select case(char(buffer))
       case ("neighbourbased")
-        call getChildValue(value2, "CutoffReduction", ctrl%cutoffRed, 0.0_dp,&
+        input%rangeSepAlg = "nb"
+        call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
-        call convertByMul(char(modifier), lengthUnits, child3, ctrl%cutoffRed)
-        ctrl%rangeSepAlgorithm = "nb"
+        call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
       case ("thresholded")
-        call getChildValue(value2, "Threshold", ctrl%screeningThreshold, 1e-6_dp)
-        call getChildValue(value2, "CutoffReduction", ctrl%cutoffRed, 0.0_dp,&
+        input%rangeSepAlg = "tr"
+        call getChildValue(value2, "Threshold", input%screeningThreshold, 1e-6_dp)
+        call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
-        call convertByMul(char(modifier), lengthUnits, child3, ctrl%cutoffRed)
-        ctrl%rangeSepAlgorithm = "tr"
+        call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
       case default
         call getNodeHSdName(value2, buffer)
         call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
