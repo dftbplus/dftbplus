@@ -15,7 +15,7 @@ Hamiltonian = DFTB {
     H-C = "H-C.skf"
     H-H = "H-H.skf"
   }
-  RangeSep = LC {
+  RangeSeparated = LC {
     Screening = NeighbourBased {}
   }
 }
