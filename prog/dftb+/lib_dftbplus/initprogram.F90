@@ -91,6 +91,7 @@ module dftbp_initprogram
 
   use dftbp_magmahelper
 #:if WITH_GPU
+  use iso_c_binding, only :  c_int
   use device_info
 #:endif
 
@@ -102,8 +103,8 @@ module dftbp_initprogram
   implicit none
 
 #:if WITH_GPU
-  integer :: ngpus
-  integer :: req_ngpus
+  integer (c_int):: ngpus
+  integer (c_int):: req_ngpus
 #:endif
 
   !> Container for external potentials

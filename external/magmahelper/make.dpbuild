@@ -18,9 +18,9 @@ STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
 
 vpath % $(SRCDIR)
 
-CSRC = $(notdir $(wildcard $(SRCDIR)/*.cpp))
+CSRC = $(notdir $(wildcard $(SRCDIR)/*.c))
 F90SRC = $(notdir $(wildcard $(SRCDIR)/*.f90))
-CDEVICEOBJS = $(patsubst %.cpp,%.o,$(CSRC))
+CDEVICEOBJS = $(patsubst %.c,%.o,$(CSRC))
 FDEVICEOBJS = $(patsubst %.f90,%.o,$(F90SRC))
 
 
@@ -38,5 +38,5 @@ clean:
 %.o: %.f90
 	$(FXX) -c $<
 
-%.o: %.cpp
-	$(CXX) $(CXXOPT) $(LDFLAGS) -c $<
+%.o: %.c
+	$(CC) $(CCOPT) $(LDFLAGS) -c $<
