@@ -16,11 +16,11 @@ Hamiltonian = DFTB {
       Temperature [K] = 300
     }
 
-    RangeSep = {
-        Algorithm = TR {
-            DeltaCutoff [AA] = -3
-            Threshold = 5E-4
-        }
+    RangeSeparated = LC {
+      Screening = Thresholded {
+        CutoffReduction [AA] = 3
+        Threshold = 5E-4
+      }
     }
 }
 

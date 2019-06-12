@@ -52,8 +52,10 @@ Hamiltonian = DFTB {
     H-H = "H-H.skf"
   }
 
-  RangeSep = {
-    Algorithm = TR { Threshold = 1.0e-8 }
+  RangeSeparated = LC {
+    Screening = Thresholded {
+      Threshold = 1.0e-8
+    }
   }
 }
 

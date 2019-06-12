@@ -65,9 +65,6 @@ module dftbp_rangeseparated
     !> threshold for screening by value
     real(dp) :: pScreeningThreshold
 
-    !> Cutoff adjustment for neighbour map
-    real(dp) :: cutoff
-
     !> total long range energy
     real(dp) :: lrEnergy
 
@@ -85,9 +82,6 @@ module dftbp_rangeseparated
 
     !> species of atoms
     integer, allocatable :: species(:)
-
-    !!> Cutoff radious
-    !real(dp) :: cutoff
 
     !> Nr. of neighbours
     integer, allocatable :: nNeighbours(:)
@@ -107,8 +101,8 @@ contains
 
 
   !> Intitialize the range-sep module
-  subroutine RangeSepFunc_init(this, nAtom, species, speciesNames, hubbu, screen, cutoff, omega,&
-      & tSpin, rsAlg)
+  subroutine RangeSepFunc_init(this, nAtom, species, speciesNames, hubbu, screen, omega, tSpin,&
+      & rsAlg)
 
     !> class instance
     type(RangeSepFunc), intent(out) :: this
@@ -128,9 +122,6 @@ contains
     !> screening threshold value
     real(dp), intent(in) :: screen
 
-    !> screening cutoff value
-    real(dp), intent(in) :: cutoff
-
     !> range separation parameter
     real(dp), intent(in) :: omega
 
@@ -140,14 +131,14 @@ contains
     !> lr-hamiltonian construction algorithm
     character(lc), intent(in) :: rsAlg
 
-    call initAndAllocate(this, nAtom, hubbu, species, screen, cutoff, omega, rsAlg, tSpin)
+    call initAndAllocate(this, nAtom, hubbu, species, screen, omega, rsAlg, tSpin)
     call checkRequirements(this)
 
   contains
 
 
     !> initialise data structures and allocate storage
-    subroutine initAndAllocate(this, nAtom, hubbu, species, screen, cutoff, omega, rsAlg, tSpin)
+    subroutine initAndAllocate(this, nAtom, hubbu, species, screen, omega, rsAlg, tSpin)
 
       !> Instance
       class(RangeSepFunc), intent(out) :: this
@@ -164,9 +155,6 @@ contains
       !> screening cutoff if using appropriate method
       real(dp), intent(in) :: screen
 
-      !> screening cutoff value
-      real(dp), intent(in) :: cutoff
-
       !> Range separation parameter
       real(dp), intent(in) :: omega
 
@@ -178,7 +166,6 @@ contains
 
       this%tScreeningInited = .false.
       this%pScreeningThreshold = screen
-      this%cutoff = cutoff
       this%omega = omega
       this%lrEnergy = 0.0_dp
       this%rsAlg = rsAlg
@@ -206,7 +193,7 @@ contains
       end if
 
       if (.not. any(["nb", "tr"] == this%rsAlg)) then
-        call error("Invalid algorithm for screening exchange")
+        call error("Invalid algorithm '" // trim(this%rsAlg) // "' for screening exchange")
       end if
 
     end subroutine checkRequirements

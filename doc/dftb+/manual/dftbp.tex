@@ -995,7 +995,7 @@ following properties:
   \kw{HCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
-  \kw{RangeSep} & p &  & \cb & \pref{sec:dftbp.RangeSep} \\
+  \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
@@ -2784,11 +2784,12 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 
-\subsection{RangeSep}
+\subsection{RangeSeparated}
 \label{sec:dftbp.RangeSep}
 
-The \kw{RangeSep} keyword specifies the use of the long-range corrected
-formalism in DFTB~\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107}. The
+The \kw{RangeSeparated} keyword specifies the use of a range separated hybrid
+functional. Currently, only the long-range corrected hybrid functional (\is{LC})
+\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107} is implemented. There, the
 electrostatic interaction is split up into long and short ranged components
 according to
 \begin{equation*}
@@ -2798,48 +2799,86 @@ with the range-separation parameter $\omega$, which is set in the Slater-Koster
 files. The option should only be used with corresponding parameter sets created
 for use with long-range correction.
 
-\textbf{Note:} that the present release does not yet support long-range
-corrected excited states calculations with LC-TD-DFTB, and the \kw{RangeSep}
-keyword can therefore not be used in conjunction with the \kw{ExcitedState}
-keyword.
+\textbf{Note:} The present release does not yet support long-range
+corrected excited states calculations with LC-TD-DFTB, and the
+\kw{RangeSeparated} keyword can, therefore, not be used in conjunction with the
+\kw{ExcitedState} keyword.
 
-The \kw{RangeSep} field keyword has the following options
+The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
+range-separated hybrid functional) or the \is{LC}\cb\  block as value. Latter
+enables the following option:
+
 \begin{ptable}
-  \kw{Enable}  & l &  & No & \\
-  \kw{Algorithm} & m & & TR\{ 1e-5 \} & \\
+  %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /}}} \\
+  %% \hline
+  \kw{Screening} & m & & Thresholded \cb & \\
 \end{ptable}
+
+
 \begin{description}
-\item[\is{Enable}] Turns on the long-range correction.
-\item[\is{Algorithm}] Method used for distance dependent screening to ensure
-  quadratic scaling with system size. Supports two options:
-\begin{description}
-\item[\is{TR\{\}}] Screening according to estimated magnitude of terms. This is
-  the recommended choice for speed and accuracy but does not support all of the
-  cases (restarting and spin polarisation). The threshold value is passed as an
-  option, e.g.
+\item[\is{Screening}] Choice of the screening method. The following choices are
+  allowed:
+  
+  \begin{description}
+  \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
+    terms. This is the recommended choice for speed and accuracy but does not
+    support all of the cases (restarting and spin polarisation).
+
+    \begin{ptable}
+      %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
+      %% Screeing / Thresholded /}}} \\
+      %% \hline
+      \kw{Threshold} & r & & 1e-6 & \\
+      \kw{CutoffReduction} & r & & 0.0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{Threashold}] Threashold, below which elements are considered to be
+      zero.
+    \item[\is{CutoffReduction}]\modif{\modtype{length}} Reduces the spatial
+      cutoff, beyond which the overlap between atoms is considered to be zero.
+      This can be used as an additional tweak to speed up the LC-calculation,
+      but make sure first, that your results do not change
+      considerably. Default: 0.0 -- no reduction, using the cutoff from the
+      SK-files.
+    \end{description}
+
+    
+  \item[NeighbourBased] Uses a purely neighbour-list based algorithm. This
+    algorithm is usually considerably slower than the \is{Thresholded}.
+    
+    \begin{ptable}
+      %%\multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
+      %% Screeing / Thresholded /}}} \\
+      %% \hline
+      \kw{CutoffReduction} & r & & 0.0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[CutoffReduction]\modif{\modtype{length}} See description in the
+      \is{Thresholded} block.
+    \end{description}
+  \end{description}
+\end{description}
+
+Example for thresholded screening with customised threshold value.
 \begin{verbatim}
-Algorithm = TR{ Threshold = 1e-6 }
-\end{verbatim}
-for screening with threshold 1e-6. The default value is 1e-5.
-\item[\is{NB\{\}}] Neighbour list based screening.  The neighbour distance
-  cutoff can be adjusted with an option:
-\begin{verbatim}
-Algorithm = NB {
-  DeltaCutoff [AA] = -2.0
-}
-\end{verbatim}
-\item[\is{TN\{\}}] Mixed screening algorithm, using aspects of both \iscb{TR}
-  and \iscb{NB}.  The neighbour distance cutoff and threshold can both be
-  adjusted with options:
-\begin{verbatim}
-Algorithm = TN {
-  DeltaCutoff [AA] = -2.0
-  Threshold = 5e-5
+RangeSeparated = LC {
+  Screening = Thresholded {
+    Threshold = 1e-5
+  }
 }
 \end{verbatim}
 
-\end{description}
-\end{description}
+Example for neighbour list based screening with customised cutoff reduction:
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = NeighbourBased {
+    CutoffReduction [AA] = 2.0
+  }
+}
+\end{verbatim}
+
 
 \subsection{On site corrections}
 \label{sec:dftbp.Onsites}

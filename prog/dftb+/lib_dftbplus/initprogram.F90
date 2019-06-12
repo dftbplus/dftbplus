@@ -1114,7 +1114,7 @@ contains
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
-    tRangeSep = input%ctrl%tRangeSep
+    tRangeSep = allocated(input%ctrl%rangeSepInp)
 
     if (t2Component) then
       nSpin = 4
@@ -2230,10 +2230,11 @@ contains
 
     if (tRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
-          & input%ctrl%rangeSepAlgorithm)
-      call getRangeSeparatedCutoff(input%ctrl%deltaDistance, cutOff)
-      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl, tSpin, rangeSep,&
-          & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+          & input%ctrl%rangeSepInp)
+      call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
+      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp, tSpin,&
+          & rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr,&
+          & nMixElements)
     end if
 
     tReadShifts = input%ctrl%tReadShifts
@@ -4179,17 +4180,17 @@ contains
 
 
   !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, rsAlg)
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, rangeSepInp)
     logical, intent(in) :: tPeriodic
     logical, intent(in) :: tReadChrg
     logical, intent(in) :: tShellResolved
-    character(*), intent(in) :: rsAlg
+    type(TRangeSepInp), intent(in) :: rangeSepInp
 
     if (tPeriodic) then
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
     end if
-    if (tReadChrg .and. rsAlg == "th") then
+    if (tReadChrg .and. rangeSepInp%rangeSepAlg == "tr") then
       call error("Restart on thresholded range separation not working correctly")
     end if
     if (tShellResolved) then
@@ -4200,15 +4201,15 @@ contains
 
 
   !> Determine range separeted cut-off and also update maximal cutoff
-  subroutine getRangeSeparatedCutOff(deltaDistance, cutOff)
-    real(dp), intent(in) :: deltaDistance
+  subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
+    real(dp), intent(in) :: cutoffRed
     type(OCutoffs), intent(inout) :: cutOff
 
     cutOff%lcCutOff = 0.0_dp
-    if (deltaDistance > 0.0_dp) then
-      call error("Screening cutoff for range-separated neighbours should be zero or negative.")
+    if (cutoffRed < 0.0_dp) then
+      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
     end if
-    cutOff%lcCutOff = cutOff%skCutOff + deltaDistance
+    cutOff%lcCutOff = cutOff%skCutOff - cutoffRed
     if (cutOff%lcCutOff < 0.0_dp) then
       call error("Screening cutoff for range-separated neighbours too short.")
     end if
@@ -4218,13 +4219,13 @@ contains
 
 
   !> Initialise range separated extension.
-  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, ctrl, tSpin, rangeSep,&
+  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin, rangeSep,&
       & deltaRhoIn, deltarhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
     integer, intent(in) :: nAtom
     integer, intent(in) :: species0(:)
     character(*), intent(in) :: speciesName(:)
     real(dp), intent(in) :: hubbU(:,:)
-    type(control), intent(in) :: ctrl
+    type(TRangeSepInp), intent(in) :: rangeSepInp
     logical, intent(in) :: tSpin
     type(RangeSepFunc), allocatable, intent(out) :: rangeSep
     real(dp), allocatable, target, intent(out) :: deltaRhoIn(:), deltaRhoOut(:)
@@ -4234,7 +4235,7 @@ contains
 
     allocate(rangeSep)
     call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-        & ctrl%screeningThreshold, ctrl%deltaDistance, ctrl%omega, tSpin, ctrl%rangeSepAlgorithm)
+        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, rangeSepInp%rangeSepAlg)
     allocate(deltaRhoIn(nOrb * nOrb * nSpin))
     allocate(deltaRhoOut(nOrb * nOrb * nSpin))
     allocate(deltaRhoDiff(nOrb * nOrb * nSpin))

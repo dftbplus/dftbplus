@@ -39,6 +39,7 @@ module dftbp_inputdata_module
 
   public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
   public :: TBlacsOpts
+  public :: TRangeSepInp
   public :: init, destruct
 #:if WITH_TRANSPORT
   public :: TNEGFInfo
@@ -73,6 +74,15 @@ module dftbp_inputdata_module
   type TLbfgsInput
     integer :: memory
   end type TLbfgsInput
+
+
+  !> Range separation input
+  type TRangeSepInp
+    real(dp) :: screeningThreshold
+    real(dp) :: cutoffRed
+    real(dp) :: omega
+    character(lc) :: rangeSepAlg
+  end type TRangeSepInp
 
 
   !> Main control data for program as extracted by the parser
@@ -441,12 +451,7 @@ module dftbp_inputdata_module
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
 
-    !>Range separation
-    logical :: tRangeSep
-    real(dp) :: screeningThreshold
-    real(dp) :: deltaDistance
-    real(dp) :: omega
-    character(lc) :: rangeSepAlgorithm
+    type(TRangeSepInp), allocatable :: rangeSepInp
 
 
   #:if WITH_SOCKETS
