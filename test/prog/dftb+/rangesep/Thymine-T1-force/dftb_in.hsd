@@ -79,8 +79,8 @@ Hamiltonian = DFTB {
     ShellResolvedSpin = Yes
   }
 
-  RangeSep = {
-    Algorithm = NB {}
+  RangeSeparated = LC {
+    Screening = NeighbourBased {}
   }
 }
 

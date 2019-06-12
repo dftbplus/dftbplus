@@ -2231,7 +2231,7 @@ contains
     if (tRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
           & input%ctrl%rangeSepAlgorithm)
-      call getRangeSeparatedCutoff(input%ctrl%deltaDistance, cutOff)
+      call getRangeSeparatedCutoff(input%ctrl%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl, tSpin, rangeSep,&
           & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
     end if
@@ -4189,7 +4189,7 @@ contains
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
     end if
-    if (tReadChrg .and. rsAlg == "th") then
+    if (tReadChrg .and. rsAlg == "tr") then
       call error("Restart on thresholded range separation not working correctly")
     end if
     if (tShellResolved) then
@@ -4200,15 +4200,15 @@ contains
 
 
   !> Determine range separeted cut-off and also update maximal cutoff
-  subroutine getRangeSeparatedCutOff(deltaDistance, cutOff)
-    real(dp), intent(in) :: deltaDistance
+  subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
+    real(dp), intent(in) :: cutoffRed
     type(OCutoffs), intent(inout) :: cutOff
 
     cutOff%lcCutOff = 0.0_dp
-    if (deltaDistance > 0.0_dp) then
-      call error("Screening cutoff for range-separated neighbours should be zero or negative.")
+    if (cutoffRed < 0.0_dp) then
+      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
     end if
-    cutOff%lcCutOff = cutOff%skCutOff + deltaDistance
+    cutOff%lcCutOff = cutOff%skCutOff - cutoffRed
     if (cutOff%lcCutOff < 0.0_dp) then
       call error("Screening cutoff for range-separated neighbours too short.")
     end if
@@ -4234,7 +4234,7 @@ contains
 
     allocate(rangeSep)
     call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-        & ctrl%screeningThreshold, ctrl%deltaDistance, ctrl%omega, tSpin, ctrl%rangeSepAlgorithm)
+        & ctrl%screeningThreshold, ctrl%omega, tSpin, ctrl%rangeSepAlgorithm)
     allocate(deltaRhoIn(nOrb * nOrb * nSpin))
     allocate(deltaRhoOut(nOrb * nOrb * nSpin))
     allocate(deltaRhoDiff(nOrb * nOrb * nSpin))

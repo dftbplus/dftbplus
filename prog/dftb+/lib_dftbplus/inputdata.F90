@@ -444,7 +444,7 @@ module dftbp_inputdata_module
     !>Range separation
     logical :: tRangeSep
     real(dp) :: screeningThreshold
-    real(dp) :: deltaDistance
+    real(dp) :: cutoffRed
     real(dp) :: omega
     character(lc) :: rangeSepAlgorithm
 

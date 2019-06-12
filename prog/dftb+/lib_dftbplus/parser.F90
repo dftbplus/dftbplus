@@ -5572,29 +5572,42 @@ contains
     type(fnode), pointer, intent(in) :: node
     type(control), intent(inout) :: ctrl
 
-    type(fnode), pointer :: child, value1, child2, field
+    type(fnode), pointer :: child1, value1, child2, value2, child3
     type(string) :: buffer, modifier
 
-    ctrl%tRangeSep = .false.
-    call getChild(node, "RangeSep", child, .false., modifier)
-    if (associated(child)) then
+    call getChildValue(node, "RangeSeparated", value1, "None", child=child1)
+    call getNodeName(value1, buffer)
+
+    select case (char(buffer))
+
+    case ("none")
+      ctrl%tRangeSep = .false.
+
+    case ("lc")
       ctrl%tRangeSep = .true.
-      call getChildValue(child, "Algorithm", value1, "TR", child=child2)
-      call getNodeName(value1, buffer)
-      call getChildValue(value1, "DeltaCutoff", ctrl%deltaDistance, 0.0_dp,&
-          & modifier=modifier, child=field)
-      call convertByMul(char(modifier), lengthUnits, field, ctrl%deltaDistance)
+      call getChildValue(value1, "Screening", value2, "Thresholded", child=child2)
+      call getNodeName(value2, buffer)
       select case(char(buffer))
-      case ("nb")
-        continue
-      case ("tr")
-        call getChildValue(value1, "Threshold", ctrl%screeningThreshold, 1e-6_dp)
+      case ("neighbourbased")
+        call getChildValue(value2, "CutoffReduction", ctrl%cutoffRed, 0.0_dp,&
+            & modifier=modifier, child=child3)
+        call convertByMul(char(modifier), lengthUnits, child3, ctrl%cutoffRed)
+        ctrl%rangeSepAlgorithm = "nb"
+      case ("thresholded")
+        call getChildValue(value2, "Threshold", ctrl%screeningThreshold, 1e-6_dp)
+        call getChildValue(value2, "CutoffReduction", ctrl%cutoffRed, 0.0_dp,&
+            & modifier=modifier, child=child3)
+        call convertByMul(char(modifier), lengthUnits, child3, ctrl%cutoffRed)
+        ctrl%rangeSepAlgorithm = "tr"
       case default
-        call getNodeHSDName(value1, buffer)
-        call detailedError(child, "Invalid Algorithm '" // char(buffer) // "'")
+        call getNodeHSdName(value2, buffer)
+        call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
       end select
-      ctrl%rangeSepAlgorithm = char(buffer)
-    end if
+
+    case default
+      call getNodeHSDName(value1, buffer)
+      call detailedError(child1, "Invalid Algorithm '" // char(buffer) // "'")
+    end select
 
   end subroutine parseRangeSeparated
 

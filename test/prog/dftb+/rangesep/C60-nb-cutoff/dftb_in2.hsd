@@ -14,10 +14,10 @@ Hamiltonian = DFTB {
         C-C = "C-C.skf"
     }
 
-    RangeSep = {
-        Algorithm = NB {
-	  DeltaCutoff [AA] = -2
-	}
+    RangeSeparated = LC {
+      Screening = NeighbourBased {
+	CutoffReduction [AA] = 2.0
+      }
     }
 }
 
