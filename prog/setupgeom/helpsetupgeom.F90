@@ -270,20 +270,20 @@ contains
         call reallocateCoords(geom%coords, nAddPLs*PLsize)
         call reallocateInt(geom%species, nAddPLs*PLsize)
 
-
+        ! add atoms to the end of the structure
         do iPL = 1, nAddPLs
           do ii = 1, PLsize
             jj = iPL*PLsize+ii
-            iAtInRegion(icont)%data(jj) = geom%nAtom + ii !new atoms to the end of structure
-            geom%coords(:,iAtInRegion(icont)%data(jj)) = geom%coords(:,iAtInRegion(icont)%data(ii))&
-                & + iPL*contVec(1:3,icont)
+            iAtInRegion(icont)%data(jj) = geom%nAtom + jj - PLsize
+            geom%coords(:,iAtInRegion(icont)%data(jj)) = geom%coords(:,iAtInRegion(icont)%data(ii)) &
+                  &+ iPL*contVec(1:3,icont)
             geom%species(iAtInRegion(icont)%data(jj)) = geom%species(iAtInRegion(icont)%data(ii))
           end do
         end do
         geom%nAtom = geom%nAtom + PLsize*nAddPLs
       else
         call error("Number of PLs in contact must be either 1 or 2")
-      end if     
+      end if
     end do
 
     contains
@@ -533,6 +533,7 @@ contains
       write(fd2,'(A)', advance='no') ' '//trim(adjustl(sindx))
       call get(PLlist, atomsInPL, jj)
       kk = kk + size(atomsInPL)
+      deallocate(atomsInPL)
     end do
     write(fd2,*) '}' !close FirstLayerAtoms
     write(sindx,'(I10)') kk
