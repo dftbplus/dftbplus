@@ -1080,6 +1080,7 @@ contains
 
   #:else
 
+    solverName = ""
     call error("Internal error: TElsiSolver_getSolverName() called despite missing ELSI support")
 
   #:endif

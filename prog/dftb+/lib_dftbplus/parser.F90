@@ -38,6 +38,7 @@ module dftbp_parser
   use dftbp_oldskdata
   use dftbp_xmlf90
   use dftbp_orbitals
+  use dftbp_rangeseparated
   use dftbp_forcetypes, only : forceTypes
   use dftbp_mixer, only : mixerTypes
   use dftbp_geoopt, only : geoOptTypes
@@ -97,11 +98,11 @@ contains
 
     !> Data tree representation of the input
     type(fnode), pointer :: hsdTree
-    
+
     call parseHSD(rootTag, hsdFile, hsdTree)
 
   end subroutine readHsdFile
-    
+
 
   !> Parse input from an HSD/XML file
   subroutine parseHsdTree(hsdTree, input, parserFlags)
@@ -1198,6 +1199,12 @@ contains
     integer :: nElem
     real(dp) :: rSKCutOff
 
+    !>For rangeseparation
+    logical :: tRSep
+    real(dp) :: screeningThreshold
+    type(TRangeSepSKTag) :: rangeSepSK
+
+
     ! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1
       angShellOrdered(ii) = ii - 1
@@ -1410,17 +1417,28 @@ contains
       skInterMeth = skEqGridNew
     end if
 
-    call getChild(node, "TruncateSKRange", child, requested=.false.)
-    if (associated(child)) then
-      call warning("Artificially truncating the SK table, this is normally a bad idea!")
-      call SKTruncations(child, rSKCutOff, skInterMeth)
-      call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-          & skInterMeth, repPoly, rSKCutOff)
+    call parseRangeSeparated(node, ctrl%rangeSepInp)
+
+    if (.not. allocated(ctrl%rangeSepInp)) then
+      call getChild(node, "TruncateSKRange", child, requested=.false.)
+      if (associated(child)) then
+        call warning("Artificially truncating the SK table, this is normally a bad idea!")
+        call SKTruncations(child, rSKCutOff, skInterMeth)
+        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+            & skInterMeth, repPoly, rSKCutOff)
+      else
+        rSKCutOff = 0.0_dp
+        call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
+            & skInterMeth, repPoly)
+      end if
+
     else
-      rSKCutOff = 0.0_dp
+
       call readSKFiles(skFiles, geo%nSpecies, slako, slako%orb, angShells, ctrl%tShellResolved,&
-          & skInterMeth, repPoly)
+          & skInterMeth, repPoly, rangeSepSK=rangeSepSK)
+      ctrl%rangeSepInp%omega = rangeSepSk%omega
     end if
+
 
     do iSp1 = 1, geo%nSpecies
       call destruct(angShells(iSp1))
@@ -2498,7 +2516,7 @@ contains
   !> Should be replaced with a more sophisticated routine, once the new SK-format has been
   !> established
   subroutine readSKFiles(skFiles, nSpecies, slako, orb, angShells, orbRes, skInterMeth, repPoly,&
-      & truncationCutOff)
+      & truncationCutOff, rangeSepSK)
 
     !> List of SK file names to read in for every interaction
     type(ListCharLc), intent(inout) :: skFiles(:,:)
@@ -2528,7 +2546,10 @@ contains
     !> Distances to artificially truncate tables of SK integrals
     real(dp), intent(in), optional :: truncationCutOff
 
-    integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
+    !> if calculation range separated then read omega from end of SK file
+    type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+
+    integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInt, nInteract,iSh1
     integer :: angShell(maxL+1), nShell
     logical :: readRep, readAtomic
     character(lc) :: fileName
@@ -2576,15 +2597,25 @@ contains
             readRep = (iSK1 == 1 .and. iSK2 == 1)
             readAtomic = (iSp1 == iSp2 .and. iSK1 == iSK2)
             call get(skFiles(iSp2, iSp1), fileName, ind)
-            write(stdout, "(2X,A)") trim(fileName)
-            if (readRep .and. repPoly(iSp2, iSp1)) then
-              call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
-                  &repPolyIn=repPolyIn1)
-            elseif (readRep) then
-              call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, &
-                  &iSp1, iSp2, repSplineIn=repSplineIn1)
+            if (.not. present(rangeSepSK)) then
+              if (readRep .and. repPoly(iSp2, iSp1)) then
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, repPolyIn=repPolyIn1)
+              elseif (readRep) then
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
+                    & repSplineIn=repSplineIn1)
+              else
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
+              end if
             else
-              call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic)
+              if (readRep .and. repPoly(iSp2, iSp1)) then
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, repPolyIn=repPolyIn1,&
+                    & rangeSepSK=rangeSepSK)
+              elseif (readRep) then
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, iSp1, iSp2,&
+                    & repSplineIn=repSplineIn1, rangeSepSK=rangeSepSK)
+              else
+                call readFromFile(skData12(iSK2,iSK1), fileName, readAtomic, rangeSepSK=rangeSepSK)
+              end if
             end if
             ind = ind + 1
           end do
@@ -2645,8 +2676,8 @@ contains
         nInteract = getNSKIntegrals(iSp1, iSp2, orb)
         allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInteract))
         allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInteract))
-        call getFullTable(skHam, skOver, skData12, skData21, angShells(iSp1), &
-            &angShells(iSp2))
+        call getFullTable(skHam, skOver, skData12, skData21, angShells(iSp1),&
+            & angShells(iSp2))
 
         ! Add H/S tables to the containers for iSp1-iSp2
         dist = skData12(1,1)%dist
@@ -2668,7 +2699,7 @@ contains
           allocate(skHam(size(skData12(1,1)%skHam, dim=1), nInteract))
           allocate(skOver(size(skData12(1,1)%skOver, dim=1), nInteract))
           call getFullTable(skHam, skOver, skData21, skData12, angShells(iSp2),&
-              &angShells(iSp1))
+              & angShells(iSp1))
           allocate(pSlakoEqGrid1, pSlakoEqGrid2)
           call init(pSlakoEqGrid1, dist, skHam(:nEntries,:), skInterMeth)
           call init(pSlakoEqGrid2, dist, skOver(:nEntries,:), skInterMeth)
@@ -2887,7 +2918,7 @@ contains
 
 
   !> Creates from the columns of the Slater-Koster files for A-B and B-A a full table for A-B,
-  !> containing all integrals
+  !> containing all integrals.
   subroutine getFullTable(skHam, skOver, skData12, skData21, angShells1, angShells2)
 
     !> Resulting table of H integrals
@@ -5225,7 +5256,7 @@ contains
     !> Atom indices corresponding to user defined reference atomic charges
     type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
 
-    !> User-defined reference atomic charges 
+    !> User-defined reference atomic charges
     real(dp), allocatable, intent(out) :: customOcc(:,:)
 
     type(fnode), pointer :: node, container, child
@@ -5248,7 +5279,7 @@ contains
     allocate(atomOverriden(nAtom))
     atomOverriden(:) = .false.
     customOcc(:,:) = 0.0_dp
-    
+
     do iCustomOcc = 1, nCustomOcc
       call getItem1(nodes, iCustomOcc, node)
       call getChildValue(node, "Atoms", buffer, child=child, multiple=.true.)
@@ -5533,5 +5564,50 @@ contains
     print*, x, err, is
 
   end function is_numeric
+
+
+  !> Parse range separation input
+  subroutine parseRangeSeparated(node, input)
+    type(fnode), pointer, intent(in) :: node
+    type(TRangeSepInp), allocatable, intent(out) :: input
+
+    type(fnode), pointer :: child1, value1, child2, value2, child3
+    type(string) :: buffer, modifier
+
+    call getChildValue(node, "RangeSeparated", value1, "None", child=child1)
+    call getNodeName(value1, buffer)
+
+    select case (char(buffer))
+
+    case ("none")
+      continue
+      
+    case ("lc")
+      allocate(input)
+      call getChildValue(value1, "Screening", value2, "Thresholded", child=child2)
+      call getNodeName(value2, buffer)
+      select case(char(buffer))
+      case ("neighbourbased")
+        input%rangeSepAlg = "nb"
+        call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
+            & modifier=modifier, child=child3)
+        call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
+      case ("thresholded")
+        input%rangeSepAlg = "tr"
+        call getChildValue(value2, "Threshold", input%screeningThreshold, 1e-6_dp)
+        call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
+            & modifier=modifier, child=child3)
+        call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
+      case default
+        call getNodeHSdName(value2, buffer)
+        call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")
+      end select
+
+    case default
+      call getNodeHSDName(value1, buffer)
+      call detailedError(child1, "Invalid Algorithm '" // char(buffer) // "'")
+    end select
+
+  end subroutine parseRangeSeparated
 
 end module dftbp_parser
