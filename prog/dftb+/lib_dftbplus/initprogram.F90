@@ -671,10 +671,10 @@ module dftbp_initprogram
   real(dp), allocatable :: deltaRhoDiff(:)
 
   !> DeltaRho input for range separation in matrix form
-  real(dp), pointer :: deltaRhoInSqr(:,:,:)
+  real(dp), pointer :: deltaRhoInSqr(:,:,:) => null()
 
   !> DeltaRho output from range separation in matrix form
-  real(dp), pointer :: deltaRhoOutSqr(:,:,:)
+  real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
 
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
