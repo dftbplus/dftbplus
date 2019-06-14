@@ -1807,6 +1807,11 @@ contains
         call error("External charges temporarily disabled for transport calculations&
             & (electrostatic gates are available).")
       end if
+    #:if WITH_TRANSPORT
+      if (tRangeSep .and. transpar%nCont > 0) then
+        call error("Range separated calculations do not work with transport calculations yet")
+      end if
+    #:endif
     end if
 
 
