@@ -36,6 +36,9 @@ Additionally there are optional requirements for some DFTB+ features:
 * The `MAGMA <http://icl.cs.utk.edu/magma/>_` library for GPU accelerated
   computation.
 
+For external libraries, make sure that they are compiled with the same precision
+models for the variables (same integer and floating point values).
+
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
 

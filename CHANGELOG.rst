@@ -24,7 +24,8 @@ Added
 
 - Onsite corrected hamiltonian for ground and Casidat excited state energies.
 
-- GPU acceleration using the MAGMA library for eigensolution
+- GPU acceleration using the MAGMA library for eigensolution. WARNING: this is
+  currently an experimental feature, so should be used with care.
 
 Changed
 -------
