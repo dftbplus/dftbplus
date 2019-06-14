@@ -271,9 +271,6 @@ module dftbp_initprogram
   !> Cut off distances for various types of interaction
   type(OCutoffs) :: cutOff
 
-  !> Cut off distance for Slater-Koster interactions
-  real(dp) :: skCutOff
-
   !> Cut off distance for repulsive interactions
   real(dp) :: repCutOff
 
@@ -933,6 +930,8 @@ module dftbp_initprogram
   !> Tunneling, local DOS and current
   real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
   real(dp), allocatable :: leadCurrents(:)
+  !> Array storing local (bond) currents 
+  real(dp), allocatable :: lCurrArray(:,:)
 
   !> Poisson Derivatives (forces)
   real(dp), allocatable :: poissonDerivs(:,:)
@@ -1777,13 +1776,17 @@ contains
   #:if WITH_TRANSPORT
     ! whether tunneling is computed
     tTunn = input%ginfo%tundos%defined
+    ! whether local currents are computed
+    tLocalCurrents = input%ginfo%greendens%doLocalCurr
 
     ! Do we use any part of negf (solver, tunnelling etc.)?
-    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn
+    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn .or. tLocalCurrents
 
+  #:if WITH_MPI
     if (tNegf .and. env%mpi%nGroup > 1) then
       call error("At the moment NEGF solvers cannot be used for multiple processor groups")
     end if
+  #:endif
 
   #:else
 
@@ -1804,6 +1807,11 @@ contains
         call error("External charges temporarily disabled for transport calculations&
             & (electrostatic gates are available).")
       end if
+    #:if WITH_TRANSPORT
+      if (tRangeSep .and. transpar%nCont > 0) then
+        call error("Range separated calculations do not work with transport calculations yet")
+      end if
+    #:endif
     end if
 
 
@@ -3232,10 +3240,8 @@ contains
       tUpload = .false.
     end if
 
-    ! contact calculation (complementary to Upload)
-    tContCalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
-    ! whether local currents are computed
-    tLocalCurrents = input%ginfo%greendens%doLocalCurr
+    ! contact calculation in case some contact is computed
+    tContCalc = (input%transpar%taskContInd /= 0)
 
     if (nSpin <=2) then
       nSpinChannels = nSpin
@@ -3292,8 +3298,12 @@ contains
         poissStr%latVecs(:,:) = 0.0_dp
       end if
       poissStr%tempElec = tempElec
+    #:if WITH_MPI
       call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
           & tInitialized)
+    #:else
+      call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, tInitialized)
+    #:endif
       if (.not. tInitialized) then
         call error("Poisson solver not initialized")
       end if
@@ -3306,8 +3316,13 @@ contains
       end if
 
       ! Some sanity checks and initialization of GDFTB/NEGF
+    #:if WITH_MPI
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
           & tempElec, electronicSolver%iSolver)
+    #:else
+      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, &
+          & tempElec, electronicSolver%iSolver)
+    #:endif
 
       ginfo = input%ginfo
 

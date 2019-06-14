@@ -31,6 +31,8 @@ scalapackfx.o += _extlib_scalapackfx _extlib_lapack
 #:endif
 
 #:if WITH_TRANSPORT
-negf_int.o: _extlib_libnegf
-negf_int.o += _extlib_libnegf
+negf_int.o: _extlib_libnegf 
+negf_int.o += _extlib_libnegf 
+poisson_int.o: _extlib_poisson _extlib_libnegf 
+poisson_int.o += _extlib_poisson _extlib_libnegf
 #:endif

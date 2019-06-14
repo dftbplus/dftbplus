@@ -131,8 +131,6 @@ contains
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
 
-    call getChildValue(root, "Hamiltonian", hamNode)
-
     call getChild(root, "Transport", child, requested=.false.)
 
   #:if WITH_TRANSPORT
@@ -147,6 +145,9 @@ contains
       input%transpar%idxdevice(1) = 1
       input%transpar%idxdevice(2) = input%geom%nAtom
     end if
+    
+    ! electronic Hamiltonian
+    call getChildValue(root, "Hamiltonian", hamNode)
 
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
         & input%ginfo%greendens, input%poisson)
@@ -163,6 +164,8 @@ contains
       call detailedError(child, "Program had been compiled without transport enabled")
     end if
 
+    ! electronic Hamiltonian
+    call getChildValue(root, "Hamiltonian", hamNode)
     call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako)
 
   #:endif
@@ -1831,10 +1834,6 @@ contains
       call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
       ! fixEf also avoids checks of total charge in initQFromFile
       ctrl%tFixEf = .true.
-      if (geo%tPeriodic .and. greendens%doLocalCurr) then
-         call detailedError(value1, "Local Currents in periodic systems still needs" //&
-              " debugging and will be available soon")
-      end if
     case ("transportonly")
       if (ctrl%tGeoOpt .or. ctrl%tMD) then
         call detailederror(node, "transportonly cannot be used with relaxations or md")
@@ -1843,6 +1842,7 @@ contains
         call detailederror(node, "transportonly cannot be used when "// &
             &  "task = contactHamiltonian")
       end if
+      call readGreensFunction(value1, greendens, tp, ctrl%tempElec)
       ctrl%solver%isolver = electronicSolverTypes%OnlyTransport
       ctrl%tFixEf = .true.
   #:endif
@@ -3189,7 +3189,7 @@ contains
       nNeighs(:) = 0
       do iAt1 = 1, geo%nAtom
         iSp1 = geo%species(iAt1)
-        do iNeigh = 1, neighs%nNeighbourSK(iAt1)
+        do iNeigh = 1, neighs%nNeighbour(iAt1)
           iAt2f = img2CentCell(neighs%iNeighbour(iNeigh, iAt1))
           iSp2 = geo%species(iAt2f)
           rTmp = rCutoffs(iSp1) + rCutoffs(iSp2)
@@ -3835,11 +3835,22 @@ contains
     type(fnode), pointer :: pTmp, field
     type(fnodeList), pointer :: pNodeList
     integer :: ii, contact
-    real(dp) :: acc, contactRange(2), lateralContactSeparation
+    real(dp) :: acc, contactRange(2), lateralContactSeparation, plCutoff
     type(listInt) :: li
+    type(WrappedInt1), allocatable :: iAtInRegion(:)
+    real(dp), allocatable :: contVec(:,:)
+    integer, allocatable :: nPLs(:)
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
+
+    !! Note: we parse first the task because we need to know it to define the
+    !! mandatory contact entries. On the other hand we need to wait that
+    !! contacts are parsed to resolve the name of the contact for task =
+    !! contacthamiltonian
+    call getChildValue(root, "Task", pTaskType, child=pTask, default='uploadcontacts')
+    call getNodeName(pTaskType, buffer)
+
     call getChild(root, "Device", pDevice)
     call getChildValue(pDevice, "AtomRange", transpar%idxdevice)
     call getChild(pDevice, "FirstLayerAtoms", pTmp, requested=.false.)
@@ -3847,35 +3858,17 @@ contains
     if (.not.associated(pTmp)) then
       call setChildValue(pDevice, "FirstLayerAtoms", transpar%PL)
     end if
-
-    call getChild(pDevice, "ContactPLs", pTmp, requested=.false.)
-    if (associated(pTmp)) then
-      call init(li)
-      call getChildValue(pTmp, "", li)
-      allocate(transpar%cblk(len(li)))
-      call asArray(li,transpar%cblk)
-      call destruct(li)
-    end if
-
-    !! Note: we parse first the task because we need to know it to defined the
-    !! mandatory contact entries. On the other hand we need to wait that
-    !! contacts are parsed to resolve the name of the contact for task =
-    !! contacthamiltonian
-    call getChildValue(root, "Task", pTaskType, child=pTask, default='uploadcontacts')
-    call getNodeName(pTaskType, buffer)
-
+    
     call getChildren(root, "Contact", pNodeList)
     transpar%ncont = getLength(pNodeList)
     if (transpar%ncont < 2) then
       call detailedError(root, "At least two contacts must be defined")
     end if
     allocate(transpar%contacts(transpar%ncont))
-    !! Parse contact geometry
-
-    call readContacts(pNodeList, transpar%contacts, geom, (buffer .eq. "uploadcontacts"))
+      
+    call readContacts(pNodeList, transpar%contacts, geom, char(buffer))
 
     select case (char(buffer))
-
     case ("contacthamiltonian")
 
       transpar%taskUpload = .false.
@@ -3959,7 +3952,7 @@ contains
       newLatVecs(modulo(ind+1,3)+1, 2) = -newLatVecs(ind,1)
       newLatVecs(ind,2) = 0.0_dp !newLatVecs(modulo(ind+1,3)+1, 1)
       newLatVecs(modulo(ind-1,3)+1, 2) = 0.0_dp
-      call cross3(newLatVecs(:,3), newLatVecs(:,1), newLatVecs(:,2))
+      newLatVecs(:,3) = cross3(newLatVecs(:,1), newLatVecs(:,2))
       newLatVecs(:,2) = newLatVecs(:,2) / sqrt(sum(newLatVecs(:,2)**2))
       newLatVecs(:,3) = newLatVecs(:,3) / sqrt(sum(newLatVecs(:,3)**2))
       newOrigin = 0.0_dp
@@ -4102,8 +4095,8 @@ contains
     call getChildValue(pNode, "Verbosity", greendens%verbose, 51)
     call getChildValue(pNode, "Delta", greendens%delta, 1.0e-5_dp, modifier=modif, child=field)
     call convertByMul(char(modif), energyUnits, field, greendens%delta)
-    call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .true.)
     call getChildValue(pNode, "ReadSurfaceGFs", greendens%readSGF, .false.)
+    call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .not.greendens%readSGF)
     call getChildValue(pNode, "ContourPoints", greendens%nP(1:2), [ 20, 20 ])
     call getChildValue(pNode, "EnclosedPoles",  greendens%nPoles, 3)
     call getChildValue(pNode, "LowestEnergy", greendens%enLow, -2.0_dp, modifier=modif, child=field)
@@ -4934,13 +4927,13 @@ contains
 
 
   !> Read bias information, used in Analysis and Green's function eigensolver
-  subroutine readContacts(pNodeList, contacts, geom, upload)
-    type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
+  subroutine readContacts(pNodeList, contacts, geom, task)
     type(fnodeList), pointer :: pNodeList
+    type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
-    logical, intent(in) :: upload
+    character(*), intent(in) :: task
 
-    real(dp) :: contactLayerTol
+    real(dp) :: contactLayerTol, vec(3)
     integer :: ii, jj
     type(fnode), pointer :: field, pNode, pTmp, pWide
     type(string) :: buffer, modif
@@ -4966,9 +4959,10 @@ contains
       call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
           & child=field)
       call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
+
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
       call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
-          & contactLayerTol, contacts(ii)%lattice, contacts(ii)%dir)
+        & contactLayerTol, contacts(ii)%lattice, contacts(ii)%dir)
       contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
 
       ! Contact temperatures. A negative default is used so it is quite clear when the user sets a
@@ -4976,13 +4970,13 @@ contains
       call getChild(pNode,"Temperature", field, modifier=modif, requested=.false.)
       if (associated(field)) then
         call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modif,&
-            & child=field)
+          & child=field)
         call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
       else
         contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
       end if
 
-      if (upload) then
+      if (task .eq. "uploadcontacts") then
         call getChildValue(pNode, "Potential", contacts(ii)%potential, 0.0_dp, modifier=modif,&
             & child=field)
         call convertByMul(char(modif), energyUnits, field, contacts(ii)%potential)

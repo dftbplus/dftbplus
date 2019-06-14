@@ -297,7 +297,7 @@ contains
 
     vecLens(:) = sqrt(sum(latVecs**2, dim=1))
     call index_heap_sort(indx, vecLens)
-    call cross3(tmp, latVecs(:,indx(1)), latVecs(:,indx(2)))
+    tmp(:) = cross3(latVecs(:,indx(1)), latVecs(:,indx(2)))
     eta = sqrt(vecLens(indx(1)) * vol / (pi * sqrt(sum(tmp**2))))
 
   end function getOptimalEta

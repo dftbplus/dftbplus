@@ -1,11 +1,11 @@
 .SUFFIXES :
 .SUFFIXES : .fig .pdf .ps .toc .bbl .aux .tex .ind .html ._tmp_
 
-MANUALCOMPONENTS = manual.tex packages.tex newcommands.tex hsd.tex	\
-    unit_mod.tex gen.tex spin_constants.tex disp_constants.tex		\
-    dftd3_constants.tex onsite_constants.tex restart_files.tex		\
-    publications.tex references.tex introduction.tex dftbp.tex		\
-    transport.tex modes.tex waveplot.tex Fig_device.pdf			\
+MANUALCOMPONENTS = manual.tex packages.tex newcommands.tex hsd.tex      \
+    unit_mod.tex gen.tex spin_constants.tex disp_constants.tex          \
+    dftd3_constants.tex onsite_constants.tex restart_files.tex          \
+    publications.tex references.tex introduction.tex dftbp.tex          \
+    transport.tex modes.tex waveplot.tex setupgeom.tex Fig_device.pdf   \
     Fig_integration.png api.tex
 
 RM = /usr/bin/env rm -f
