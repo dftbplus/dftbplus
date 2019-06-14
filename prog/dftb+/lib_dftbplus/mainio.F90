@@ -3289,7 +3289,7 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn)
+  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -3309,15 +3309,11 @@ contains
     !> Imaginary part of block populations if present
     real(dp), intent(in), allocatable :: qiBlockIn(:,:,:,:)
 
-    if (allocated(qBlockIn)) then
-      if (allocated(qiBlockIn)) then
-        call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn)
-      else
-        call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn)
-      end if
-    else
-      call writeQToFile(qInput, fCharges, tWriteAscii, orb)
-    end if
+    !> Full density matrix with on-diagonal adjustment
+    real(dp), intent(in), allocatable :: deltaRhoIn(:)
+
+
+    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn)
     if (tWriteAscii) then
       write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
     else

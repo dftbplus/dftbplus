@@ -300,13 +300,8 @@ contains
     !> Whether the neighbour list should be symmetric or not (default)
     logical, intent(in), optional :: symmetric
 
-    if (present(symmetric)) then
-      call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
-          &coord0, cutoff, rCellVec, symmetric)
-    else
-      call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, &
-          &coord0, cutoff, rCellVec)
-    end if
+    call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
+        & rCellVec, symmetric)
 
     if (size(species) /= nAllAtom) then
       deallocate(species)

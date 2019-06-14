@@ -1637,11 +1637,11 @@ module negf_int
     allocate(lc_img2CentCell(lc_nAllAtom))
     allocate(lc_iCellVec(lc_nAllAtom))
     call init(lc_neigh, nAtom, nInitNeigh) 
-    
+
     call updateNeighbourListAndSpecies(lc_coord, lc_species, lc_img2CentCell, lc_iCellVec, &
         & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, symmetric=.true.)
-   
-    allocate(lcurr(maxval(lc_neigh%nNeighbour(:)), nAtom, nSpin))
+
+    allocate(lcurr(maxval(lc_neigh%nNeighbour), nAtom, nSpin))
     lcurr = 0.0_dp
 
     ! loop on k-points and spin
