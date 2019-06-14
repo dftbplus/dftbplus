@@ -2044,7 +2044,7 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> Data for rangeseparated calculation
-    type(RangeSepFunc), intent(inout) :: rangeSep
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> eigenvalues (level, kpoint, spin)
     real(dp), intent(out) :: eigen(:,:,:)
@@ -2265,7 +2265,7 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> Data for rangeseparated calculation
-    type(RangeSepFunc), intent(inout) :: rangeSep
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> eigenvalues (level, kpoint, spin)
     real(dp), intent(out) :: eigen(:,:,:)
@@ -2421,7 +2421,7 @@ contains
     type(TParallelKS), intent(in) :: parallelKS
 
     !>Data for rangeseparated calcualtion
-    type(RangeSepFunc), intent(inout) :: rangeSep
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Change in density matrix during last rangesep SCC cycle
     real(dp), pointer, intent(in) :: deltaRhoInSqr(:,:,:)
@@ -2473,7 +2473,7 @@ contains
       ! Add rangeseparated contribution
       ! Assumes deltaRhoInSqr only used by rangeseparation
       ! Should this be used elsewhere, need to pass tRangeSep
-      if(associated(deltaRhoInSqr)) then
+      if (allocated(rangeSep)) then
         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), over,&
             & neighbourList%iNeighbour,  nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
@@ -3431,7 +3431,7 @@ contains
         & + energy%Eext + energy%e3rd + energy%eOnSite
 
     !> Add exchange conribution for range separated calculations
-    if(allocated(rangeSep)) then
+    if (allocated(rangeSep)) then
        call rangeSep%addLREnergy(energy%Eelec)
     end if
 
@@ -5092,7 +5092,7 @@ contains
     type(RangeSepFunc), intent(inout), allocatable ::rangeSep
 
     !> dense overlap matrix, required for rangeSep
-    real(dp) :: SSqrReal(:,:)
+    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
     !> sparse overlap matrix, required for rangeSep
     real(dp), intent(in) :: over(:)
