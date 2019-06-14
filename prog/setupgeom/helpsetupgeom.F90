@@ -270,20 +270,20 @@ contains
         call reallocateCoords(geom%coords, nAddPLs*PLsize)
         call reallocateInt(geom%species, nAddPLs*PLsize)
 
-
+        ! add atoms to the end of the structure
         do iPL = 1, nAddPLs
           do ii = 1, PLsize
             jj = iPL*PLsize+ii
-            iAtInRegion(icont)%data(jj) = geom%nAtom + ii !new atoms to the end of structure
-            geom%coords(:,iAtInRegion(icont)%data(jj)) = geom%coords(:,iAtInRegion(icont)%data(ii))&
-                & + iPL*contVec(1:3,icont)
+            iAtInRegion(icont)%data(jj) = geom%nAtom + jj - PLsize
+            geom%coords(:,iAtInRegion(icont)%data(jj)) = geom%coords(:,iAtInRegion(icont)%data(ii)) &
+                  &+ iPL*contVec(1:3,icont)
             geom%species(iAtInRegion(icont)%data(jj)) = geom%species(iAtInRegion(icont)%data(ii))
           end do
         end do
         geom%nAtom = geom%nAtom + PLsize*nAddPLs
       else
         call error("Number of PLs in contact must be either 1 or 2")
-      end if     
+      end if
     end do
 
     contains
@@ -349,10 +349,15 @@ contains
     mask=.true.
     addAllR=.false.
 
-    nc = 1
-    do ii = 1, size(contVec,2)
-      nc(maxloc(abs(contvec(:,ii)))) = 0
-    end do
+    nc = 0
+    if (geom%tPeriodic .and. allocated(geom%latVecs)) then
+      nc = 1
+      ! Remove loops on periodic copies along contact direction
+      do ii = 1, size(contVec,2)
+        nc(maxloc(abs(contvec(:,ii)))) = 0
+      end do
+    end if
+       
 
     write(stdOut,*) "Partitioning device into PLs"
     ! put array of contact atoms in the first node of PLlist
@@ -369,7 +374,9 @@ contains
             do icz = -nc(3), nc(3)
               do jj = 1, sizeD
                 vec(:) = geom%coords(:,buffer(ii))-geom%coords(:,dataD(jj))
-                vec(:) = vec(:)+icx*geom%latVecs(:,1)+icy*geom%latVecs(:,2)+icz*geom%latVecs(:,3)
+                if (allocated(geom%latVecs)) then
+                  vec(:) = vec(:)+icx*geom%latVecs(:,1)+icy*geom%latVecs(:,2)+icz*geom%latVecs(:,3)
+                end if 
                 if (norm2(vec)<plcutoff .and. mask(jj)) then
                   call append(atomsInPL, dataD(jj))
                   mask(jj) = .false.   
@@ -524,7 +531,9 @@ contains
     do jj = 1, len(PLlist)
       write(sindx,'(I10)') kk+1
       write(fd2,'(A)', advance='no') ' '//trim(adjustl(sindx))
+      call get(PLlist, atomsInPL, jj)
       kk = kk + size(atomsInPL)
+      deallocate(atomsInPL)
     end do
     write(fd2,*) '}' !close FirstLayerAtoms
     write(sindx,'(I10)') kk

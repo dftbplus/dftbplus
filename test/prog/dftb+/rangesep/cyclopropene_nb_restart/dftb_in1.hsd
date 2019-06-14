@@ -1,0 +1,29 @@
+Geometry = GenFormat {
+  <<< geo.gen
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1.0E-8 # Extremely small
+  MaxAngularMomentum = {
+   H = "s"
+   C = "p"
+  }
+  SlaterKosterFiles = {
+    C-C = "C-C.skf"
+    C-H = "C-H.skf"
+    H-C = "H-C.skf"
+    H-H = "H-H.skf"
+  }
+  RangeSeparated = LC {
+    Screening = NeighbourBased {}
+  }
+}
+
+Options = {
+  WriteAutotestTag = No
+}
+
+ParserOptions = {
+  ParserVersion = 7
+}

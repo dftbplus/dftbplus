@@ -67,6 +67,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder_module
   use dftbp_linresp_module
+  use dftbp_RangeSeparated, only : RangeSepFunc, RangeSepFunc_init
   use dftbp_stress
   use dftbp_orbitalequiv
   use dftbp_orbitals
@@ -153,7 +154,6 @@ module dftbp_initprogram
   !> nr of different types (nAtom)
   integer :: nType
 
-
   !> data type for atomic orbital information
   type(TOrbitals), target :: orb
 
@@ -229,6 +229,10 @@ module dftbp_initprogram
   !> nr. of neighbours for atoms within Erep interaction distance (usually short)
   integer, allocatable :: nNeighbourRep(:)
 
+  !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+  !> functional
+  integer, allocatable :: nNeighbourLC(:)
+
   !> H/S sparse matrices indexing array for atomic blocks
   integer, allocatable :: iSparseStart(:,:)
 
@@ -256,14 +260,19 @@ module dftbp_initprogram
   !> Repulsive interaction raw data
   type(ORepCont) :: pRepCont
 
-  !> Cut off distance for Slater-Koster interactions
-  real(dp) :: skCutOff
+  !> Interaction cutoff distances
+  type OCutoffs
+    real(dp) :: skCutOff
+    real(dp) :: repCutOff
+    real(dp) :: lcCutOff
+    real(dp) :: mCutOff
+  end type OCutoffs
+
+  !> Cut off distances for various types of interaction
+  type(OCutoffs) :: cutOff
 
   !> Cut off distance for repulsive interactions
   real(dp) :: repCutOff
-
-  !> longest range of interactions for which neighbours are required
-  real(dp) :: mCutOff
 
   !> Sparse hamiltonian matrix
   real(dp), allocatable :: ham(:,:)
@@ -642,6 +651,27 @@ module dftbp_initprogram
 
   !> data type for linear response
   type(linresp), save :: lresp
+
+  !> Whether to run a range separated calculation
+  logical :: tRangeSep
+
+  !> Range Separation data
+  type(RangeSepFunc), allocatable :: rangeSep
+
+  !> DeltaRho input for calculation of range separated Hamiltonian
+  real(dp), allocatable, target :: deltaRhoIn(:)
+
+  !> DeltaRho output from calculation of range separated Hamiltonian
+  real(dp), allocatable, target :: deltaRhoOut(:)
+
+  !> Holds change in deltaRho between SCC steps for range separation
+  real(dp), allocatable :: deltaRhoDiff(:)
+
+  !> DeltaRho input for range separation in matrix form
+  real(dp), pointer :: deltaRhoInSqr(:,:,:) => null()
+
+  !> DeltaRho output from range separation in matrix form
+  real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
 
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
@@ -1083,6 +1113,7 @@ contains
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
+    tRangeSep = allocated(input%ctrl%rangeSepInp)
 
     if (t2Component) then
       nSpin = 4
@@ -1260,10 +1291,10 @@ contains
       allocate(iUJ(0,0,0))
     end if
 
-    ! Cut-offs from SlaKo and repulsive
-    skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
-    repCutOff = getCutOff(pRepCont)
-    mCutOff = max(skCutOff, repCutOff)
+    ! Cut-offs for SlaKo, repulsive
+    cutOff%skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
+    cutOff%repCutOff = getCutOff(pRepCont)
+    cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
 
     ! Get species names and output file
     geoOutFile = input%ctrl%outFile
@@ -1361,7 +1392,7 @@ contains
       deallocate(sccInp)
 
       ! Longest cut-off including the softening part of gamma
-      mCutOff = max(mCutOff, sccCalc%getCutOff())
+      cutOff%mCutOff = max(cutOff%mCutOff, sccCalc%getCutOff())
 
       if (input%ctrl%t3rd .and. input%ctrl%tShellResolved) then
         call error("Onsite third order DFTB only compatible with shell non-resolved SCC")
@@ -1381,7 +1412,7 @@ contains
         thirdInp%shellResolved = input%ctrl%tShellResolved
         allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
-        mCutOff = max(mCutOff, thirdOrd%getCutOff())
+        cutOff%mCutOff = max(cutOff%mCutOff, thirdOrd%getCutOff())
       end if
     end if
 
@@ -1610,7 +1641,7 @@ contains
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
     tExtField = tEField
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf .or. tRangeSep
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
@@ -1633,11 +1664,14 @@ contains
     end if
 
     ! Initialize reference neutral atoms.
-    if (tLinResp.and.allocated(input%ctrl%customOccAtoms)) then
+    if (tLinResp .and. allocated(input%ctrl%customOccAtoms)) then
        call error("Custom occupation not compatible with linear response")
     end if
     if (tMulliken) then
       if (allocated(input%ctrl%customOccAtoms)) then
+        if (tLinResp) then
+          call error("Custom occupation not compatible with linear response")
+        end if
         call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
             & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
       else
@@ -1773,6 +1807,11 @@ contains
         call error("External charges temporarily disabled for transport calculations&
             & (electrostatic gates are available).")
       end if
+    #:if WITH_TRANSPORT
+      if (tRangeSep .and. transpar%nCont > 0) then
+        call error("Range separated calculations do not work with transport calculations yet")
+      end if
+    #:endif
     end if
 
 
@@ -1922,7 +1961,7 @@ contains
         call move_alloc(dftd3, dispersion)
     #:endif
       end if
-      mCutOff = max(mCutOff, dispersion%getRCutOff())
+      cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
 
     end if
 
@@ -2197,6 +2236,15 @@ contains
 
     tReadChrg = input%ctrl%tReadChrg
 
+    if (tRangeSep) then
+      call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
+          & input%ctrl%rangeSepInp)
+      call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
+      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp, tSpin,&
+          & rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr,&
+          & nMixElements)
+    end if
+
     tReadShifts = input%ctrl%tReadShifts
     tWriteShifts = input%ctrl%tWriteShifts
     ! Both temporarily removed until debugged:
@@ -2208,63 +2256,33 @@ contains
     tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
 
     if (tSccCalc) then
+
       do iAt = 1, nAtom
         iSp = species0(iAt)
         do iSh = 1, orb%nShell(iSp)
           qShell0(iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
         end do
       end do
+
       if (tReadChrg) then
-        if (tMixBlockCharges) then
-          if (nSpin == 2) then
-            if (tFixEf .or. tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
-                  & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
-            end if
-          else
-            if (tImHam) then
-              if (tFixEf .or. tSkipChrgChecksum) then
-                ! do not check charge or magnetisation from file
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
-                    & qBlock=qBlockIn,qiBlock=qiBlockIn)
-              else
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
-                    & qBlock=qBlockIn,qiBlock=qiBlockIn)
-              end if
-            else
-              if (tFixEf .or. tSkipChrgChecksum) then
-                ! do not check charge or magnetisation from file
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
-                    & qBlock=qBlockIn)
-              else
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
-                    & qBlock=qBlockIn)
-              end if
-            end if
-          end if
+        if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+          ! do not check charge or magnetisation from file
+          call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn, qiBlockIn,&
+              & deltaRhoIn)
         else
-          ! hack again caused by going from up/down to q and M
-          if (nSpin == 2) then
-            if (tFixEf .or. tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
-                  & magnetisation=nEl(1)-nEl(2))
-            end if
+          ! check number of electrons in file
+          if (nSpin /= 2) then
+            call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
+                & qiBlockIn, deltaRhoIn,nEl = sum(nEl))
           else
-            if (tFixEf .or. tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1))
-            end if
+            ! check magnetisation in addition
+            call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
+                & qiBlockIn, deltaRhoIn,nEl = sum(nEl), magnetisation=nEl(1)-nEl(2))
           end if
         end if
+
       else
+
         if (allocated(input%ctrl%initialCharges)) then
           if (abs(sum(input%ctrl%initialCharges) - input%ctrl%nrChrg) > 1e-4_dp) then
             write(strTmp, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match specified&
@@ -2375,7 +2393,7 @@ contains
 
     ! Initialise images (translations)
     if (tPeriodic) then
-      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, mCutOff)
+      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, cutOff%mCutOff)
     else
       allocate(cellVec(3, 1))
       allocate(rCellVec(3, 1))
@@ -2388,6 +2406,9 @@ contains
     call init(neighbourList, nAtom, nInitNeighbour)
     allocate(nNeighbourSK(nAtom))
     allocate(nNeighbourRep(nAtom))
+    if (tRangeSep) then
+      allocate(nNeighbourLC(nAtom))
+    end if
 
     ! Set various options
     tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
@@ -2783,7 +2804,7 @@ contains
     end if
 
     if (tSccCalc) then
-      if (input%ctrl%tReadChrg) then
+      if (tReadChrg) then
         write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
         write (strTmp, "(A,E11.3,A)") "Set automatically (system chrg: ", input%ctrl%nrChrg, ")"
@@ -3654,6 +3675,30 @@ contains
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
+    if (tRangeSep) then
+      if (withMpi) then
+        call error("Range separated calculations do not work with MPI yet")
+      end if
+      if (nSpin > 2) then
+        call error("Range separated calculations not implemented for non-colinear calculations")
+      end if
+      if (tXlbomd) then
+        call error("Range separated calculations not currently implemented for XLBOMD")
+      end if
+      if (t3rd) then
+        call error("Range separated calculations not currently implemented for 3rd order DFTB")
+      end if
+      if (tLinResp) then
+        call error("Range separated calculations not currently implemented for linear response")
+      end if
+      if (tSpinOrbit) then
+        call error("Range separated calculations not currently implemented for spin orbit")
+      end if
+      if (tDFTBU) then
+        call error("Range separated calculations not currently implemented for DFTB+U")
+      end if
+    end if
+
     if (tLinResp) then
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
@@ -4147,6 +4192,74 @@ contains
     end if
 
   end function getMinSccIters
+
+
+  !> Stop if any range separated incompatible setting is found
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, rangeSepInp)
+    logical, intent(in) :: tPeriodic
+    logical, intent(in) :: tReadChrg
+    logical, intent(in) :: tShellResolved
+    type(TRangeSepInp), intent(in) :: rangeSepInp
+
+    if (tPeriodic) then
+      call error("Range separated functionality only works with non-periodic structures at the&
+          & moment")
+    end if
+    if (tReadChrg .and. rangeSepInp%rangeSepAlg == "tr") then
+      call error("Restart on thresholded range separation not working correctly")
+    end if
+    if (tShellResolved) then
+      call error("Range separated functionality currently does not yet support shell-resolved scc")
+    end if
+
+  end subroutine ensureRangeSeparatedReqs
+
+
+  !> Determine range separeted cut-off and also update maximal cutoff
+  subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
+    real(dp), intent(in) :: cutoffRed
+    type(OCutoffs), intent(inout) :: cutOff
+
+    cutOff%lcCutOff = 0.0_dp
+    if (cutoffRed < 0.0_dp) then
+      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
+    end if
+    cutOff%lcCutOff = cutOff%skCutOff - cutoffRed
+    if (cutOff%lcCutOff < 0.0_dp) then
+      call error("Screening cutoff for range-separated neighbours too short.")
+    end if
+    cutOff%mCutoff = max(cutOff%mCutOff, cutoff%lcCutOff)
+
+  end subroutine getRangeSeparatedCutOff
+
+
+  !> Initialise range separated extension.
+  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin, rangeSep,&
+      & deltaRhoIn, deltarhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+    integer, intent(in) :: nAtom
+    integer, intent(in) :: species0(:)
+    character(*), intent(in) :: speciesName(:)
+    real(dp), intent(in) :: hubbU(:,:)
+    type(TRangeSepInp), intent(in) :: rangeSepInp
+    logical, intent(in) :: tSpin
+    type(RangeSepFunc), allocatable, intent(out) :: rangeSep
+    real(dp), allocatable, target, intent(out) :: deltaRhoIn(:), deltaRhoOut(:)
+    real(dp), allocatable, intent(out) :: deltaRhoDiff(:)
+    real(dp), pointer, intent(out) :: deltaRhoInSqr(:,:,:), deltaRhoOutSqr(:,:,:)
+    integer, intent(out) :: nMixElements
+
+    allocate(rangeSep)
+    call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
+        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, rangeSepInp%rangeSepAlg)
+    allocate(deltaRhoIn(nOrb * nOrb * nSpin))
+    allocate(deltaRhoOut(nOrb * nOrb * nSpin))
+    allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
+    deltaRhoInSqr(1:nOrb, 1:nOrb, 1:nSpin) => deltaRhoIn(1 : nOrb * nOrb * nSpin)
+    deltaRhoOutSqr(1:nOrb, 1:nOrb, 1:nSpin) => deltaRhoOut(1 : nOrb * nOrb * nSpin)
+    nMixElements = nOrb * nOrb * nSpin
+    deltaRhoInSqr(:,:,:) = 0.0_dp
+
+  end subroutine initRangeSeparated
 
 
 end module dftbp_initprogram
