@@ -2490,6 +2490,22 @@ contains
     else
       allocate(iAtInCentralRegion(transpar%idxdevice(2)))
     end if
+
+    if (transpar%tPeriodic1D) then
+      if ( any(abs(kPoint(2:3, :)) > 0.0_dp) ) then
+        call error("For transport in wire-like cases, only k-points in the first index should be&
+            & non-zero")
+      end if
+    end if
+
+    if (transpar%taskUpload .and. transpar%ncont > 0) then
+      do ii = 1, transpar%ncont
+        if (any(abs(kPoint(abs(transpar%contacts(ii)%dir), :)) > 0.0_dp)) then
+          call error("The k-points along transport direction(s) should zero in that direction")
+        end if
+      end do
+    end if
+
   #:else
     allocate(iAtInCentralRegion(nAtom))
   #:endif
