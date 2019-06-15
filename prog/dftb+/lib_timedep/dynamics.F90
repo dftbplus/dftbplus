@@ -1062,6 +1062,7 @@ contains
     real(dp), allocatable :: dummy(:,:)
 
     ham(:,:) = 0.0_dp
+    allocate(iHam(size(ham, dim=1), this%nSpin)))
 
     if (this%nSpin == 2) then
       call ud2qm(qq)
@@ -1118,6 +1119,13 @@ contains
     ! Hack due to not using Pauli-type structure outside of this part of the routine
     if (this%nSpin == 2) then
       ham = 2.0_dp * ham
+      if (allocated(iHam)) then
+        iHam = 2.0_dp * iHam
+        if (allocated(iHam)) then
+          call qm2ud(iHam)
+        end if
+      end if
+
       call qm2ud(ham)
       call qm2ud(q0)
       call qm2ud(qq)
