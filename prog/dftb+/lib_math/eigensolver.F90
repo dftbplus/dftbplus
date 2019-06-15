@@ -2097,10 +2097,7 @@ contains
   #:endif
 
     integer, allocatable :: iwork(:)
-    integer :: lwork, liwork, n, info, iitype, i, j
-
-    ! Padding for shared memory to avoid bank conflicts, 32-bit mode
-    !integer, parameter :: nwarp = 32
+    integer :: lwork, liwork, n, info, iitype
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
