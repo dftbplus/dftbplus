@@ -969,14 +969,14 @@ following properties:
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
-  \kw{OrbitalResolvedSCC} & l & SCC = Yes & No & \\
+  \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
   \kw{Charge} &r& & 0.0 & \\
   \kw{SpinPolarisation} &m& SCC = Yes & \cb & \pref{sec:dftbp.SpinPolarisation} \\
   \kw{SpinConstants} &p& SpinPolarisation $\neq$ \{\}~ & - &
   \pref{sec:dftbp.SpinConstants} \\
-  \kw{ShellResolvedSpin} &l& OrbitalResolvedSCC = No & No & \\
+  \kw{ShellResolvedSpin} &l& ShellResolvedSCC = No & No & \\
   \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\{\}~ & \cb &
   \pref{sec:dftbp.SpinOrbit} \\
   \kw{Eigensolver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Eigensolver} \\
@@ -995,12 +995,13 @@ following properties:
   \kw{HCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
+  \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
   \kw{CustomisedHubbards} & p & SCC = Yes & & \\
-  \kw{CustomOccupations} & p & SCC = Yes & & \\
+  \kw{CustomisedOccupations} & p & SCC = Yes & & \\
   \kw{TruncateSKRange} & p & & & \\
   \hline
 \end{ptable}
@@ -1039,7 +1040,7 @@ following properties:
 \item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
   systems.
 
-\item[\is{OrbitalResolvedSCC}] If set to \is{Yes}, all distinct
+\item[\is{ShellResolvedSCC}] If set to \is{Yes}, all distinct
   Hubbard $U$ values for the different atomic angular momenta shells
   are used, when calculating the SCC contributions. Otherwise, the
   value supplied for the $s$-shell is used for all angular
@@ -1265,7 +1266,7 @@ following properties:
   }
   \end{verbatim}
 
-\item[\kw{CustomOccupations}] Enables overriding the reference neutral atom
+\item[\kw{CustomisedOccupations}] Enables overriding the reference neutral atom
   electronic occupations of the shells. Note that the atom remains neutral since
   a corresponding ionic counter charge is implicitly added to its core. This
   option can be used, for example, to simulate effective doping by setting a
@@ -1273,7 +1274,7 @@ following properties:
 
   Example:
   \begin{verbatim}
-  CustomOccupations{
+  CustomisedOccupations{
     ReferenceOccupation{
       Atoms={1:30}
       p=2.01
@@ -1647,10 +1648,10 @@ calculations or when evaluating properties which depend on spin interactions
 (triplet excitations for example).  In these cases, for each atomic species in
 the calculation the spin coupling constants for that atom must be specified.
 
-When \is{OrbitalResolvedSCC} = \is{No}, an extra keyword in this block controls
+When \is{ShellResolvedSCC} = \is{No}, an extra keyword in this block controls
 whether the spin constants are resolved by shell or are identical for all
 shells: \kw{ShellResolvedSpin}, defaulting to the same value as
-\is{OrbitalResolvedSCC}.
+\is{ShellResolvedSCC}.
 
 When shell resolved spin constants are specified, they must be ordered with
 respect to the pairs of shells they couple, such that the index for the second
@@ -1773,6 +1774,12 @@ For ScaLAPACK enabled compilation, all three solvers are also available.
 If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
 the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
 become available.
+
+Note: The ELSI-solvers are not tested with multiple OpenMP-threads. Therefore,
+{\dftbp} will stop with an error, if an ELSI-solver has been selected and the
+maximal number of allowed threads is greater than one. (You can control the
+number of allowed OpenMP-threads via the \verb|OMP_NUM_THREADS| environment
+variable.)
 
 \subsubsection{ELPA}
 
@@ -2325,8 +2332,9 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. Modification
-  hydrogen bond interaction strengths (see section \ref{sec:dftbp.hcorr}).
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
+  section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
+  strengths (see section \ref{sec:dftbp.hcorr}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2489,8 +2497,8 @@ used in the code 'dftd3' by Stefan Grimme and coworkers.  It is based on the
 {\it ansatz} described in Refs.~\cite{grimme-jcp-132-154104} and
 \cite{grimme-jcp-32-1456-1465}.
 
-\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library enabled to use this
-feature.
+\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library
+enabled to use this feature.
 
 This dispersion correction for DFTB adds a contribution to the general
 Kohn-Sham-like energy
@@ -2535,25 +2543,15 @@ treated as functional-dependent values. All other parameters are fixed based on
 these parameters.
 
 As the DFTB energy functional is largely determined by the underlying
-parameterisation (the Slater-Koster-files) and the chosen DFTB model
-(e.g.\ non-scc, scc, 3rd order, etc.), there are no universal parameter choices
-which can be used with all settings. The dftd3-program contains optimised
-parameters for the DFTB3 functional, described in section~\ref{sec:dftbp.DFTB3}. The DFTB3
-appropriate values are given for the Becke-Johnson-damping function, and are
-used as default values in the \dftbp{} parser.
+parameterisation (the Slater-Koster-files) and the chosen DFTB model (e.g.\
+non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
+can be used with all settings, but some relevant choices for various
+parameterisation are given in Appendix \ref{app:dftd3const}.
 
-\textbf{Warning:} Please note, that these default values have only been tested for the DFTB3
-model. If you use any other DFTB-model, make sure that the parameters still give reasonable results,
-and adjust them if needed.
-
-Example using default parameters:
-\begin{verbatim}
-  ThirdOrderFull = Yes
-  HCorrection = Damping {
-    Exponent = 4.0
-  }
-  Dispersion = DftD3 {}
-\end{verbatim}
+\textbf{Note:} for the version 6 or earlier of the \dftbp{} input parser (see
+section~\ref{sec:dftbp.ParserOptions}) the default values of these parameters
+are set to be appropriate for DFTB3. But from parser version 7 onwards, no
+default values are set.
 
 Example using adjusted parameters with Becke-Johnson damping:
 \begin{verbatim}
@@ -2763,9 +2761,10 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 
-\textbf{Note:} The van der Waals radii ($r_\text{vdW}$) of atoms are also
-required. \dftbp{} stores these for most of the periodic table, but for cases
-that are not available their contribution to this correction are neglected.
+\textbf{Note:} \label{page:dftbp.H5} The van der Waals radii ($r_\text{vdW}$) of
+atoms are also required. \dftbp{} stores these for most of the periodic table,
+but for cases that are not available their contribution to this correction are
+neglected.
 
 For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
 has to be used. In addition to setting up appropriate values of the D3
@@ -2787,6 +2786,102 @@ Hamiltonian = DFTB {
   :
 }
 \end{verbatim}
+
+\subsection{RangeSeparated}
+\label{sec:dftbp.RangeSep}
+
+The \kw{RangeSeparated} keyword specifies the use of a range separated hybrid
+functional. Currently, only the long-range corrected hybrid functional (\is{LC})
+\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107} is implemented. There, the
+electrostatic interaction is split up into long and short ranged components
+according to
+\begin{equation*}
+\frac{1}{r}=\frac{1-e^{-\omega r}}{r}+\frac{e^{-\omega r}}{r},
+\end{equation*}
+with the range-separation parameter $\omega$, which is set in the Slater-Koster
+files. The option should only be used with corresponding parameter sets created
+for use with long-range correction.
+
+\textbf{Note:} The present release does not yet support long-range
+corrected excited states calculations with LC-TD-DFTB, and the
+\kw{RangeSeparated} keyword can, therefore, not be used in conjunction with the
+\kw{ExcitedState} keyword.
+
+The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
+range-separated hybrid functional) or the \is{LC}\cb\  block as value. Latter
+enables the following option:
+
+\begin{ptable}
+  %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /}}} \\
+  %% \hline
+  \kw{Screening} & m & & Thresholded \cb & \\
+\end{ptable}
+
+
+\begin{description}
+\item[\is{Screening}] Choice of the screening method. The following choices are
+  allowed:
+  
+  \begin{description}
+  \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
+    terms. This is the recommended choice for speed and accuracy but does not
+    support all of the cases (restarting and spin polarisation).
+
+    \begin{ptable}
+      %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
+      %% Screeing / Thresholded /}}} \\
+      %% \hline
+      \kw{Threshold} & r & & 1e-6 & \\
+      \kw{CutoffReduction} & r & & 0.0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{Threashold}] Threashold, below which elements are considered to be
+      zero.
+    \item[\is{CutoffReduction}]\modif{\modtype{length}} Reduces the spatial
+      cutoff, beyond which the overlap between atoms is considered to be zero.
+      This can be used as an additional tweak to speed up the LC-calculation,
+      but make sure first, that your results do not change
+      considerably. Default: 0.0 -- no reduction, using the cutoff from the
+      SK-files.
+    \end{description}
+
+    
+  \item[NeighbourBased] Uses a purely neighbour-list based algorithm. This
+    algorithm is usually considerably slower than the \is{Thresholded}.
+    
+    \begin{ptable}
+      %%\multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
+      %% Screeing / Thresholded /}}} \\
+      %% \hline
+      \kw{CutoffReduction} & r & & 0.0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[CutoffReduction]\modif{\modtype{length}} See description in the
+      \is{Thresholded} block.
+    \end{description}
+  \end{description}
+\end{description}
+
+Example for thresholded screening with customised threshold value.
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = Thresholded {
+    Threshold = 1e-5
+  }
+}
+\end{verbatim}
+
+Example for neighbour list based screening with customised cutoff reduction:
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = NeighbourBased {
+    CutoffReduction [AA] = 2.0
+  }
+}
+\end{verbatim}
+
 
 \subsection{On site corrections}
 \label{sec:dftbp.Onsites}

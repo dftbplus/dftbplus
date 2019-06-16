@@ -66,7 +66,7 @@ module dftbp_environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(14) = [&
+  type(TTimerItem), parameter :: globalTimerItems(16) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -74,7 +74,9 @@ module dftbp_environment
       & TTimerItem("Diagonalisation", 2),&
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
+      & TTimerItem("Range separated Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
+      & TTimerItem("Energy evaluation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
       & TTimerItem("Eigenvector writing", 2),&
       & TTimerItem("Energy-density matrix creation", 2),&
@@ -91,13 +93,15 @@ module dftbp_environment
     integer :: diagonalization = 5
     integer :: sparseToDense = 6
     integer :: denseToSparse = 7
-    integer :: densityMatrix = 8
-    integer :: postScc = 9
-    integer :: eigvecWriting = 10
-    integer :: energyDensityMatrix = 11
-    integer :: forceCalc = 12
-    integer :: stressCalc = 13
-    integer :: postGeoOpt = 14
+    integer :: rangeSeparatedH = 8
+    integer :: densityMatrix = 9
+    integer :: energyEval = 10
+    integer :: postScc = 11
+    integer :: eigvecWriting = 12
+    integer :: energyDensityMatrix = 13
+    integer :: forceCalc = 14
+    integer :: stressCalc = 15
+    integer :: postGeoOpt = 16
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()

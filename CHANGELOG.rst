@@ -27,16 +27,20 @@ Added
 - GPU acceleration using the MAGMA library for eigensolution. WARNING: this is
   currently an experimental feature, so should be used with care.
 
+- Labelling of atomic orbital choices in output
+
+
 Changed
 -------
 
+- Updated parser version to 7.
 
 Fixed
 -----
 
 - Orbital-resolved projected eigenstates (shell-resolved were correct)
 
-
+- Corrected Orbital to Shell naming conventions
 
 18.2
 ====

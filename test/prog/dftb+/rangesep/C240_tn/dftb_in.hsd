@@ -1,0 +1,39 @@
+Geometry = GenFormat {
+    <<< C240.gen
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-8
+    MaxAngularMomentum = {
+        C = "p"
+    }
+    SlaterKosterFiles = {
+        C-C = "C-C.skf"
+    }
+
+    Filling = Fermi {
+      Temperature [K] = 300
+    }
+
+    RangeSeparated = LC {
+      Screening = Thresholded {
+        CutoffReduction [AA] = 3
+        Threshold = 5E-4
+      }
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+    TimingVerbosity = -1
+}
+
+Analysis {
+    CalculateForces = No
+    AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 6
+}

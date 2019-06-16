@@ -318,12 +318,12 @@ Subroutine readbulk_pot(phi_bulk)
   do m = 1, ncont
    
     write(m_id,'(i2.2)') m
-    inquire(file='contacts/BulkPot_'//m_id//'.DAT',exist=lex)
+    inquire(file='contacts/BulkPot_'//m_id//'.dat',exist=lex)
     if (.not.lex) then
-      write(*,*) 'ERROR: file contacts/BulkPot_'//m_id//'.DAT not found'
+      write(*,*) 'ERROR: file contacts/BulkPot_'//m_id//'.dat not found'
       STOP
     else    
-      open(newunit=fp,file='contacts/BulkPot_'//m_id//'.DAT',form='formatted')
+      open(newunit=fp,file='contacts/BulkPot_'//m_id//'.dat',form='formatted')
     endif   
     
     read(fp,*) a,b,c
@@ -494,7 +494,7 @@ subroutine save_bulkpot(phi_bulk,m)
 
   write(m_id,'(i2.2)') m
   
-  open(newunit=fp,file='contacts/BulkPot_'//m_id//'.DAT',form='formatted')
+  open(newunit=fp,file='contacts/BulkPot_'//m_id//'.dat',form='formatted')
  
   write(fp,'(3(i5))') phi_bulk(m)%iparm(14), &
                       phi_bulk(m)%iparm(15), &

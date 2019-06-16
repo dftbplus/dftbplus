@@ -105,6 +105,9 @@ module dftbp_taggedoutput
     !> total projected DOS vector
     character(lenLabel) :: ldos = 'total_localdos'
 
+    !> total bond currents 
+    character(lenLabel) :: localCurrents = 'local_currents'
+
     !> total internal energy
     character(lenLabel) :: egyTotal   = 'total_energy'
 
