@@ -32,6 +32,9 @@ module dftbp_elecsolvertypes
     integer :: gf = 10
     integer :: onlyTransport = 11
 
+    ! GPU accellerated solvers using MAGMA
+    integer :: magma_gvd = 12
+
   end type TElecSolverTypesEnum
 
 

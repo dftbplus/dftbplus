@@ -38,6 +38,16 @@ Please disable this feature in make.config
   $(error $(err_mesg))
 endif
 
+ifeq ($(strip $(WITH_GPU)),1)
+  define err_mesg =
+******************************************************
+API build currently does not support GPU functionality
+Please disable this feature in make.config
+******************************************************
+  endef
+  $(error $(err_mesg))
+endif
+
 ifeq ($(strip $(WITH_MPI)),1)
   define err_mesg =
 ******************************************

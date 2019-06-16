@@ -90,6 +90,13 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
+
+  use dftbp_magmahelper
+#:if WITH_GPU
+  use iso_c_binding, only :  c_int
+  use device_info
+#:endif
+
 #:if WITH_TRANSPORT
   use libnegf_vars
   use negf_int
@@ -97,6 +104,10 @@ module dftbp_initprogram
 #:endif
   implicit none
 
+#:if WITH_GPU
+  integer (c_int):: ngpus
+  integer (c_int):: req_ngpus
+#:endif
 
   !> Container for external potentials
   type :: TRefExtPot
@@ -2738,6 +2749,20 @@ contains
 
     write(stdOut, "(A,':',T30,A)") "Electronic solver", electronicSolver%getSolverName()
 
+    if (electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
+    #:if WITH_GPU
+      call  gpu_avail(ngpus)
+      call  gpu_req(req_ngpus)
+      write(*,*) "Number of GPUs requested:",req_ngpus
+      write(*,*) "Number of GPUs found    :",ngpus
+      if ((req_ngpus .le. ngpus) .and. (req_ngpus .ge. 1)) then
+        ngpus = req_ngpus
+      endif
+    #:else
+      call error("Compiled without GPU support")
+    #:endif
+    endif
+
     if (tSccCalc) then
       select case (iMixer)
       case(mixerTypes%simple)
@@ -3731,17 +3756,37 @@ contains
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
-  subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb,&
-      & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
+  subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb, nAtom, nSpin,&
+      & shiftPerLUp, chargeUp, poissonDerivs)
 
-    logical, intent(in) :: tUpload, tPoisson
+    !> Are contacts being uploaded
+    logical, intent(in) :: tUpload
+
+    !> Is the Poisson solver required
+    logical, intent(in) :: tPoisson
+
+    !> Transport parameters
     type(TTransPar), intent(in) :: transpar
+
+    !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of atoms
     integer, intent(in) :: nAtom
+
+    !> Number of spin channels
     integer, intent(in) :: nSpin
+
+    !> uploded potential per shell per atom
     real(dp), allocatable, intent(out) :: shiftPerLUp(:,:)
+
+    !> uploaded charges for atoms
     real(dp), allocatable, intent(out) :: chargeUp(:,:,:)
+
+    !> Poisson Derivatives (needed for forces)
     real(dp), allocatable, intent(out) :: poissonDerivs(:,:)
 
     if (tUpload) then
@@ -3755,12 +3800,23 @@ contains
 
   end subroutine initTransportArrays
 
+
   !> Read contact potential shifts from file
   subroutine uploadContShiftPerL(shiftPerL, charges, tp, orb, species)
+
+    !> shifts for atoms in contacts
     real(dp), intent(out) :: shiftPerL(:,:)
+
+    !> charges for atoms in contacts
     real(dp), intent(out) :: charges(:,:,:)
+
+    !> transport parameters
     type(TTransPar), intent(in) :: tp
+
+    !> atomic orbital parameters
     type(TOrbitals), intent(in) :: orb
+
+    !> species of atoms in the system
     integer, intent(in) :: species(:)
 
     real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
@@ -4196,9 +4252,17 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, rangeSepInp)
+
+    !> Is the system periodic
     logical, intent(in) :: tPeriodic
+
+    !> Are charges read from disc
     logical, intent(in) :: tReadChrg
+
+    !> Is this a shell resolved calculation
     logical, intent(in) :: tShellResolved
+
+    !> Parameters for the range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
 
     if (tPeriodic) then
@@ -4215,9 +4279,13 @@ contains
   end subroutine ensureRangeSeparatedReqs
 
 
-  !> Determine range separeted cut-off and also update maximal cutoff
+  !> Determine range separated cut-off and also update maximal cutoff
   subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
+
+    !> Reduction in cut-off
     real(dp), intent(in) :: cutoffRed
+
+    !> Resulting cut-off
     type(OCutoffs), intent(inout) :: cutOff
 
     cutOff%lcCutOff = 0.0_dp
@@ -4236,16 +4304,44 @@ contains
   !> Initialise range separated extension.
   subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin, rangeSep,&
       & deltaRhoIn, deltarhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+
+    !> Number of atoms in the system
     integer, intent(in) :: nAtom
+
+    !> species of atoms
     integer, intent(in) :: species0(:)
+
+    !> names of chemical species
     character(*), intent(in) :: speciesName(:)
+
+    !> Hubbard values for species
     real(dp), intent(in) :: hubbU(:,:)
+
+    !> input for range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
+
+    !> Is this spin unrestricted
     logical, intent(in) :: tSpin
+
+    !> Resulting settings for range separation
     type(RangeSepFunc), allocatable, intent(out) :: rangeSep
-    real(dp), allocatable, target, intent(out) :: deltaRhoIn(:), deltaRhoOut(:)
+
+    !> Change in input density matrix flattened to 1D array
+    real(dp), allocatable, target, intent(out) :: deltaRhoIn(:)
+
+    !> Change in output density matrix flattened to 1D array
+    real(dp), allocatable, target, intent(out) :: deltaRhoOut(:)
+
+    !> Change in density matrix between in and out
     real(dp), allocatable, intent(out) :: deltaRhoDiff(:)
-    real(dp), pointer, intent(out) :: deltaRhoInSqr(:,:,:), deltaRhoOutSqr(:,:,:)
+
+    !> Change in input density matrix
+    real(dp), pointer, intent(out) :: deltaRhoInSqr(:,:,:)
+
+    !> Change in output density matrix
+    real(dp), pointer, intent(out) :: deltaRhoOutSqr(:,:,:)
+
+    !> Number of mixer elements
     integer, intent(out) :: nMixElements
 
     allocate(rangeSep)

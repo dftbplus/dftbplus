@@ -4,6 +4,9 @@
 
 #:include 'common.fypp'
 
+non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
+scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
+
 rangesep/C18H12-force                  #? not WITH_MPI
 rangesep/C18H12-nbscreening            #? not WITH_MPI
 rangesep/CH3                           #? not WITH_MPI
