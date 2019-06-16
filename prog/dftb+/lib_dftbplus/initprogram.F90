@@ -2753,8 +2753,8 @@ contains
     #:if WITH_GPU
       call  gpu_avail(ngpus)
       call  gpu_req(req_ngpus)
-      write(*,*) "Number of GPUs requested:",req_ngpus
-      write(*,*) "Number of GPUs found    :",ngpus
+      write(StdOut,*) "Number of GPUs requested:",req_ngpus
+      write(StdOut,*) "Number of GPUs found    :",ngpus
       if ((req_ngpus .le. ngpus) .and. (req_ngpus .ge. 1)) then
         ngpus = req_ngpus
       endif
