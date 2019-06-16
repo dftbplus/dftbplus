@@ -39,4 +39,4 @@ clean:
 	$(FXX) -c $<
 
 %.o: %.c
-	$(CC) $(CCOPT) $(LDFLAGS) -c $<
+	$(CC) $(CCOPT) -I$(MAGMADIR)/include -I$(CUDADIR)/include $(LDFLAGS) -c $<

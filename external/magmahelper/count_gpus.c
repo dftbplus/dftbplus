@@ -5,7 +5,7 @@
 const int MAXGPUS = 117; // large enough to fit all device IDs
 
 // Obtain number of available of GPUs
-extern "C"  void  MagmaGpuNum_Available(int* max_ngpus)
+void  MagmaGpuNum_Available(int* max_ngpus)
 {
     magma_device_t devices[MAXGPUS];
     magma_int_t number_of_gpus;
@@ -18,7 +18,7 @@ extern "C"  void  MagmaGpuNum_Available(int* max_ngpus)
 }
 
 // Number of GPUs requested by the code
-extern "C" void MagmaGpuNum_Requested(int* req_ngpus)
+void MagmaGpuNum_Requested(int* req_ngpus)
 {
     *req_ngpus= magma_num_gpus();
     return;
