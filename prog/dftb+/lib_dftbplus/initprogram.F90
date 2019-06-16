@@ -90,6 +90,13 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
+
+  use dftbp_magmahelper
+#:if WITH_GPU
+  use iso_c_binding, only :  c_int
+  use device_info
+#:endif
+
 #:if WITH_TRANSPORT
   use libnegf_vars
   use negf_int
@@ -97,6 +104,10 @@ module dftbp_initprogram
 #:endif
   implicit none
 
+#:if WITH_GPU
+  integer (c_int):: ngpus
+  integer (c_int):: req_ngpus
+#:endif
 
   !> Container for external potentials
   type :: TRefExtPot
@@ -2737,6 +2748,20 @@ contains
     end if
 
     write(stdOut, "(A,':',T30,A)") "Electronic solver", electronicSolver%getSolverName()
+
+    if (electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
+    #:if WITH_GPU
+      call  gpu_avail(ngpus)
+      call  gpu_req(req_ngpus)
+      write(*,*) "Number of GPUs requested:",req_ngpus
+      write(*,*) "Number of GPUs found    :",ngpus
+      if ((req_ngpus .le. ngpus) .and. (req_ngpus .ge. 1)) then
+        ngpus = req_ngpus
+      endif
+    #:else
+      call error("Compiled without GPU support")
+    #:endif
+    endif
 
     if (tSccCalc) then
       select case (iMixer)

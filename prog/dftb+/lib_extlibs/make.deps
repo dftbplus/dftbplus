@@ -40,6 +40,18 @@ libnegf_vars.o = libnegf_vars.o $(_mod_dftbp_xmlf90) $(_mod_dftbp_commontypes) $
 _mod_libnegf_vars: libnegf_vars.o
 _mod_libnegf_vars = $(libnegf_vars.o)
 
+#:if WITH_GPU
+magmahelper.o: common.fypp _mod_device_info
+magmahelper.o = magmahelper.o $(common.fypp) $(_mod_device_info)
+_mod_dftbp_magmahelper: magmahelper.o
+_mod_dftbp_magmahelper = $(magmahelper.o)
+#:else
+magmahelper.o: common.fypp
+magmahelper.o = magmahelper.o $(common.fypp)
+_mod_dftbp_magmahelper: magmahelper.o
+_mod_dftbp_magmahelper = $(magmahelper.o)
+#:endif
+
 matconv.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_commontypes _mod_dftbp_constants _mod_libnegf
 matconv.o = matconv.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_commontypes) $(_mod_dftbp_constants) $(_mod_libnegf)
 _mod_dftbp_matconv: matconv.o

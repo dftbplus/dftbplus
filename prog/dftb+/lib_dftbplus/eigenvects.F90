@@ -17,6 +17,10 @@ module dftbp_eigenvects
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx
 #:endif
+#:if WITH_GPU
+  use dftbp_initprogram, only: ngpus
+  use magma
+#:endif
   use dftbp_elsiiface
   use dftbp_parallelks
   use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
@@ -70,7 +74,7 @@ contains
     @:ASSERT(all(shape(HSqrReal) == shape(SSqrReal)))
     @:ASSERT(size(HSqrReal, dim=1) == size(eigen))
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-
+    
     select case(electronicSolver%iSolver)
     case(electronicSolverTypes%QR)
       call hegv(HSqrReal,SSqrReal,eigen,'L',jobz)
@@ -78,6 +82,12 @@ contains
       call hegvd(HSqrReal,SSqrReal,eigen,'L',jobz)
     case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrReal,SSqrReal,eigen,'L',jobz)
+    case(electronicSolverTypes%magma_gvd)
+  #:if WITH_GPU
+      call gpu_gvd(ngpus,HSqrReal,SSqrReal,eigen,'L',jobz)      
+  #:else
+      call error("This binary is compiled without GPU support")
+  #:endif
     case default
       call error('Unknown eigensolver')
     end select
@@ -118,6 +128,12 @@ contains
       call hegvd(HSqrCplx,SSqrCplx,eigen,'L',jobz)
     case(electronicSolverTypes%relativelyrobust)
       call gvr(HSqrCplx,SSqrCplx,eigen,'L',jobz)
+    case(electronicSolverTypes%magma_gvd)
+  #:if WITH_GPU
+      call gpu_gvd(ngpus,HSqrCplx,SSqrCplx,eigen,'L',jobz)
+  #:else
+      call error("This binary is compiled without GPU support")
+  #:endif
     case default
       call error('Unknown eigensolver')
     end select

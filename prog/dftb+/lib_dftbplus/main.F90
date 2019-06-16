@@ -514,7 +514,7 @@ contains
 
       if (tWriteRealHS .or. tWriteHS .and. any(electronicSolver%iSolver ==&
           & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-          & electronicSolverTypes%relativelyrobust])) then
+          & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd])) then
         call writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList,&
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec,&
             & cellVec, ham, iHam)
@@ -2147,7 +2147,8 @@ contains
       call error("OnlyTransport solver cannot calculate the density matrix")
 
     case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%magma_gvd)
 
       call getDensityFromDenseDiag(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
           & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
@@ -4465,7 +4466,8 @@ contains
       call error("The OnlyTransport solver cannot calculate the energy weighted density matrix")
 
     case (electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa, &
+        & electronicSolverTypes%magma_gvd)
 
       call getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&

@@ -1725,6 +1725,7 @@ contains
       end do
     end if
 
+
     ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
     ! thermostat.)
     call getChildValue(node, "Filling", value1, "Fermi", child=child)
@@ -1786,6 +1787,11 @@ contains
 
     case ("relativelyrobust")
       ctrl%solver%isolver = electronicSolverTypes%relativelyrobust
+
+  #:if WITH_GPU
+    case ("magma")
+      ctrl%solver%isolver = electronicSolverTypes%magma_gvd
+  #:endif
 
     case ("elpa")
       ctrl%solver%isolver = electronicSolverTypes%elpa

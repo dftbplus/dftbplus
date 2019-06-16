@@ -32,6 +32,9 @@ program dftbplus
   deallocate(input)
   call runDftbPlus(env)
   call destructProgramVariables()
+#:if WITH_GPU  
+  call magmaf_finalize()
+#:endif
   call env%destruct()
   call destructGlobalEnv()
 

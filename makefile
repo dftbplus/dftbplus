@@ -84,6 +84,9 @@ DFTBPLUS_DEPS := update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
   DFTBPLUS_DEPS += external_fsockets
 endif
+ifeq ($(strip $(WITH_GPU)),1)
+dftb+: external_magmahelper
+endif
 ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
   DFTBPLUS_DEPS += external_dftd3
 endif
@@ -116,8 +119,10 @@ misc_skderivs: external_xmlf90
 
 EXTERNAL_NAME = $(subst external_,,$@)
 
-EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
-    external_scalapackfx external_poisson external_libnegf
+EXTERNALS = external_xmlf90 external_fsockets external_dftd3	\
+    external_mpifx external_scalapackfx external_magmahelper	\
+    external_poisson external_libnegf
+
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)
