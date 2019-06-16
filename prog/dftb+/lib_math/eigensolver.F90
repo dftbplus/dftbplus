@@ -2089,7 +2089,7 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
-    ${VTYPE}$(r${VPREC}$p), allocatable :: H(:), S(:), work(:)
+    ${VTYPE}$(r${VPREC}$p), allocatable :: work(:)
 
   #:if VTYPE == 'complex'
     real(r${VPREC}$p), allocatable :: rwork(:)
@@ -2097,10 +2097,7 @@ contains
   #:endif
 
     integer, allocatable :: iwork(:)
-    integer :: lwork, liwork, n, info, iitype, ldm
-
-    ! Padding for shared memory to avoid bank conflicts, 32-bit mode
-    integer, parameter :: nwarp = 32
+    integer :: lwork, liwork, n, info, iitype
 
     @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
     @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
@@ -2115,17 +2112,6 @@ contains
     end if
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
 
-    ldm = nwarp * ((n+nwarp-1)/nwarp)
-  #:for VAR, FROM in [('H', 'A'), ('S', 'B')]
-    allocate(${VAR}$(ldm*ldm), stat=info)
-    if (info /= 0) then
-      call  error('CPU memory alloc error for ${VAR}$ in ${DTYPE}$_magma_${NAME}$. Exiting')
-    end if
-
-    ! Convert nxn matrix to 1D arrays
-    ${VAR}$(:) = reshape(${FROM}$(:n, :n), [n*n])
-  #:endfor
-
     ! Workspace query
     allocate(work(1))
     allocate(iwork(1))
@@ -2133,7 +2119,7 @@ contains
     allocate(rwork(1))
   #:endif
 
-    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, -1,&
+    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, work, -1,&
       #:if VTYPE == 'complex'
         & rwork, -1,&
       #:endif
@@ -2143,21 +2129,23 @@ contains
       call error("Failure in MAGMA_${NAME}$ to determine optimum workspace")
     endif
 
-    ! Optimal workspace allocation
+ #:if VTYPE == 'complex'
     lwork = floor(real(work(1)))
-    deallocate(work)
-    allocate(work(lwork))
-    liwork = int(iwork(1))
-    deallocate(iwork)
-    allocate(iwork(liwork))
-  #:if VTYPE == 'complex'
     lrwork = floor(rwork(1))
-    deallocate(rwork)
-    allocate(rwork(lrwork))
+    liwork = int(iwork(1))
+    deallocate(work) ;  allocate(work(lwork))
+    deallocate(rwork) ;  allocate(rwork(lrwork))
+    deallocate(iwork) ; allocate(iwork(liwork))
   #:endif
+  #:if VTYPE == 'real'
+    lwork = floor(work(1))
+    liwork = int(iwork(1))
+    deallocate(work) ;  allocate(work(lwork))
+    deallocate(iwork) ; allocate(iwork(liwork))
+   #:endif
 
     ! MAGMA Diagonalization
-    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, H, ldm, S, ldm, w, work, lwork,&
+    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, work, lwork,&
       #:if VTYPE == 'complex'
         & rwork, lrwork,&
       #:endif
@@ -2179,11 +2167,6 @@ contains
         call error(error_string)
       endif
     endif
-
-    ! Copy 1D array back to nxn matrix
-  #:for VAR, FROM in [('A', 'H'), ('B', 'S')]
-    ${VAR}$(:n,:n) = reshape(${FROM}$(:), [n, n])
-  #:endfor
 
   end subroutine ${DTYPE}$_magma_${NAME}$
 

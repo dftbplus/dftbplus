@@ -27,6 +27,8 @@ contributed to DFTB+ :
 
 * Cristopher Camacho (University of Costa Rica)
 
+* Caterina Cevallos-Brenes (University of Costa Rica)
+
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 

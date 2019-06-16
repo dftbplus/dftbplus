@@ -20,12 +20,15 @@ vpath % $(SRCDIR)
 
 CSRC = $(notdir $(wildcard $(SRCDIR)/*.c))
 F90SRC = $(notdir $(wildcard $(SRCDIR)/*.f90))
-MAGMAOBJS = $(patsubst %.c,%.o,$(CSRC)) $(patsubst %.f90,%.o,$(F90SRC))
+CDEVICEOBJS = $(patsubst %.c,%.o,$(CSRC))
+FDEVICEOBJS = $(patsubst %.f90,%.o,$(F90SRC))
 
+
+.PHONY: all
 all: libCountDevice.a
-	touch -r $< $(STAMPFILE)
+	touch -r $<  $(OBJDIR)/libmagmahelper.a $(STAMPFILE)
 
-libCountDevice.a: $(MAGMAOBJS)
+libCountDevice.a: $(FDEVICEOBJS) $(CDEVICEOBJS)
 	ar rcs $@ $^
 
 PHONY: clean
@@ -33,14 +36,7 @@ clean:
 	rm -f *.o *.mod *.a
 
 %.o: %.f90
-	$(FXX) $(FXXOPT) -o $@ -c $<
+	$(FXX) -c $<
 
 %.o: %.c
-	$(CC) $(CCOPT) -I$(MAGMADIR)/include -I$(CUDADIR)/include -o $@ -c $<
-
-_mod_%:
-	@[ -f $< ] && touch $@
-
-### Local Variables:
-### mode:makefile
-### End:
+	$(CC) $(CCOPT) -I$(MAGMADIR)/include -I$(CUDADIR)/include $(LDFLAGS) -c $<
