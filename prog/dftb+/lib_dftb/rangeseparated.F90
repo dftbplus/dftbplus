@@ -20,6 +20,7 @@ module dftbp_rangeseparated
   use dftbp_sorting
   use dftbp_sparse2dense, only : blockSymmetrizeHS
   use dftbp_globalenv, only : stdOut
+  use dftbp_f08math
   implicit none
   private
 
