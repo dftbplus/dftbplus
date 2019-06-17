@@ -163,7 +163,7 @@ contains
     else
       tIgnoreUnprocessed0 = .false.
     end if
-    if (.not. tIgnoreUnprocessed .and. (ll > 0)) then
+    if (.not. tIgnoreUnprocessed0 .and. (ll > 0)) then
       call error("Code halting due to the presence of errors in dftb_in file.")
     end if
 
