@@ -252,13 +252,18 @@ contains
     call init(inp%skHam, skData12(1,1)%dist, skHam, skInterMeth)
     call init(inp%skOver, skData12(1,1)%dist, skOver, skInterMeth)
 
-    call getChildValue(root, "Start", inp%from)
-    call getChildValue(root, "End", inp%to)
     call getChildValue(root, "Step", inp%step)
     call getChildValue(root, "Value", inp%value)
     call getChildValue(root, "FirstDerivative", inp%first)
     call getChildValue(root, "SecondDerivative", inp%second)
     call getChildValue(root, "Displacement", inp%displ)
+    call getChildValue(root, "Start", inp%from, child=child)
+    if (inp%from - inp%displ < skData12(1, 1)%dist) then
+      write(strTmp, "(A, F8.4)") "With given displacement, start point must be larger than ",&
+          & skData12(1, 1)%dist + inp%displ
+      call detailedError(child, trim(strTmp))
+    end if
+    call getChildValue(root, "End", inp%to, child=child)
     call getChildValue(root, "OutputPrefix", buffer)
     inp%output = unquote(char(buffer))
 

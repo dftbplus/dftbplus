@@ -34,7 +34,7 @@ SecondDerivative = Yes
 Displacement = 0.01
 
 # Where to start to calculate integrals
-Start = 0.02
+Start = 0.04
 
 # Where to stop to calculate integrals
 End = 10.0
