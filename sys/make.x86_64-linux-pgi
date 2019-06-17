@@ -1,13 +1,15 @@
 # -*- makefile -*-
 ############################################################################
-# pgfortran/pgcc 17.10
+# pgfortran/pgcc 18.10
+# NOTE: Compilation in DEBUG mode creates misbehaving executable.
+# NOTE: PGI Version 19.4 creates segfaulting executable.
 ############################################################################
 
 # Directory where standard packages are installed in the system
 PREFIX = /usr
 
 # PGI library directory
-PGI_LIBDIR = /opt/pgi/linux86-64/17.10/lib
+PGI_LIBDIR = /opt/pgi/linux86-64/18.10/lib
 
 
 ifeq ($(strip $(WITH_MPI)),1)
@@ -106,7 +108,7 @@ LNOPT_C = -Mnomain
 
 # Preprocessor
 FYPP = $(ROOT)/external/fypp/bin/fypp
-FYPPOPT =
+FYPPOPT = -DEMULATE_F08_MATH
 
 # Library options in general
 LIBOPT =

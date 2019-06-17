@@ -61,6 +61,11 @@ _mod_dftbp_errorfunction: errorfunction.o
 _mod_dftbp_errorfunction = $(errorfunction.o)
 #:endif
 
+f08math.o: common.fypp _mod_dftbp_accuracy
+f08math.o = f08math.o $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_f08math: f08math.o
+_mod_dftbp_f08math = $(f08math.o)
+
 factorial.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
 factorial.o = factorial.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
 _mod_dftbp_factorial: factorial.o

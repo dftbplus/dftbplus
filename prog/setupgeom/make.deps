@@ -1,5 +1,5 @@
-helpsetupgeom.o: _mod_libnegf_vars _mod_dftbp_wrappedintr _mod_dftbp_accuracy _mod_dftbp_linkedlist _mod_dftbp_sorting _mod_dftbp_typegeometry _mod_dftbp_constants _mod_dftbp_globalenv _mod_dftbp_message _mod_dftbp_simplealgebra
-helpsetupgeom.o = helpsetupgeom.o $(_mod_libnegf_vars) $(_mod_dftbp_wrappedintr) $(_mod_dftbp_accuracy) $(_mod_dftbp_linkedlist) $(_mod_dftbp_sorting) $(_mod_dftbp_typegeometry) $(_mod_dftbp_constants) $(_mod_dftbp_globalenv) $(_mod_dftbp_message) $(_mod_dftbp_simplealgebra)
+helpsetupgeom.o: _mod_libnegf_vars _mod_dftbp_wrappedintr _mod_dftbp_accuracy _mod_dftbp_linkedlist _mod_dftbp_sorting _mod_dftbp_f08math _mod_dftbp_typegeometry _mod_dftbp_constants _mod_dftbp_globalenv _mod_dftbp_message _mod_dftbp_simplealgebra
+helpsetupgeom.o = helpsetupgeom.o $(_mod_libnegf_vars) $(_mod_dftbp_wrappedintr) $(_mod_dftbp_accuracy) $(_mod_dftbp_linkedlist) $(_mod_dftbp_sorting) $(_mod_dftbp_f08math) $(_mod_dftbp_typegeometry) $(_mod_dftbp_constants) $(_mod_dftbp_globalenv) $(_mod_dftbp_message) $(_mod_dftbp_simplealgebra)
 _mod_dftbp_helpsetupgeom: helpsetupgeom.o
 _mod_dftbp_helpsetupgeom = $(helpsetupgeom.o)
 
