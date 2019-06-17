@@ -248,3 +248,4 @@ transport/Au-chain                     #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/SiH-chain_semiInf            #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/local-curr                   #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/polyacetylene_semiInf        #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/H-sheet_end                  #? WITH_TRANSPORT and MPI_PROCS <= 4
