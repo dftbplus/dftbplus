@@ -3011,9 +3011,9 @@ This block collects some global options for the run.
   p.~\pref{sec:dftbp.results}.
 
 \item[\is{WriteDetailedOut}] Controls the creation of the file
-  \verb|detailed.out|. Since this contains the detailed information
-  about the last step of your run, you shouldn't turn it off without
-  good reasons.
+  \verb|detailed.out| (see p.~\pref{sec:dftbp.detailedout}). Since this contains
+  the detailed information about the last step of your run, you shouldn't turn
+  it off without good reasons.
 
 \item[\is{RestartFrequency}] Specifies the interval at which charge
   restart information should be written to disc for static SCC
@@ -3527,6 +3527,70 @@ This chapter contains the description of some of the output files of
 \dftbp{} where the output format is not self documenting. Unless
 indicated otherwise, numbers in the output files are given in atomic
 units (with Hartree as the energy unit).
+
+\section{band.out}
+\label{sec:dftbp.bandout}
+\index{band.out}
+
+This contains the band energies and occupation of levels in electron volts and
+electron charge units as columns one and two. The file is printed if
+\is{WriteBandOut} = \is{Yes} (see section \ref{sec:dftbp.Analysis}). Blocks of
+numerical results start with a line which labels the k-point and spin channel
+for the energies.
+
+See the \dptools{} package for utilities for converting the data in this file
+into band-structures and density of states information suitable for plotting.
+
+\section{detailed.out}
+\label{sec:dftbp.detailedout}
+\index{detailed.out}
+
+This file contains details of the total energy and its components, as well as
+optional information on forces, atomic charges and other properties. It is
+intended for quick viewing, while values given to more significant figures are
+available in results.tag.
+
+Some of the information available in the file will also depend on the method
+being used in the calculation. For example, not all electronic solvers make the
+ground state electronic entropy available, hence only the internal energy would
+be quoted. Similarly, while the free energy of the system which when
+differentiated by atomic coordinates or boundary conditions gives the forces or
+stresses (printed as \textit{Force related energy}) this is not currently
+available for some types of non-equilibrium transport calculations.
+
+Some of the common energy results printed in this file are:\\
+
+\begin{center}
+  \begin{tabular}{|l|p{5.5cm}|}
+    \hline
+    TS& Product of the electron entropy and temperature\\
+    Total Electronic energy& The non-SCC energy plus other contributions to the
+    electronic energy (SCC, spin, $\ldots$)\\
+    Repulsive energy& The pairwise contribution to the total energy\\
+    Total energy& Sum of electronic energy\\
+    Extrapolated to 0& Estimated zero temperature energy if at finite
+    temperatures\\
+    Total Mermin free energy& $U - T S$, relevant free energy at finite
+    temperatures\\
+    Force related energy& Free energy relevant to forces in the system\\
+    Gibbs free energy& Energy corrected by $- p V$, i.e. the pressure and volume\\
+    MD Kinetic Energy& Kinetic energy of atoms in molecular dynamics\\
+    Total MD Energy& Sum of finite temperature electronic, repulsive and atomic
+    kinetic energies\\
+    \hline
+  \end{tabular}
+\end{center}
+
+Where available the Fermi level $\mu$ (i.e. the chemical potential of the
+electrons in the system) is also printed. For systems with an externally fixed
+Fermi level (i.e. where the total charge can change), this contribution is
+included in the Force related energy: $$\Delta E = + q_\mathrm{total} \mu,$$ but
+for calculations with fixed numbers of electrons it is not included in this
+energy. \textbf{Note:} The total energy reference may not match your required
+case in some situations, for example a shift with respect to the average
+electrostatic potential (in periodic cases) or whether the chemical potential
+should be with respect to the valence band maximum may be needed (see for
+example the discussion in Ref.~\cite{Lany_2009}).
 
 \section{results.tag}
 \label{sec:dftbp.results}
