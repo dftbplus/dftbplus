@@ -1774,7 +1774,7 @@ contains
     end if
 
     ! Electronic solver
-    call getChildValue(node, "Eigensolver", value1, "RelativelyRobust")
+    call getChildValue(node, "Solver", value1, "RelativelyRobust")
     call getNodeName(value1, buffer)
 
     select case(char(buffer))

@@ -979,7 +979,7 @@ following properties:
   \kw{ShellResolvedSpin} &l& ShellResolvedSCC = No & No & \\
   \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\{\}~ & \cb &
   \pref{sec:dftbp.SpinOrbit} \\
-  \kw{Eigensolver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Eigensolver} \\
+  \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
   \kw{SlaterKosterFiles} &p|m&  & - & \pref{sec:dftbp.SlaterKosterFiles} \\
   \kw{OldSKInterpolation} & l & & No & \\
@@ -1136,8 +1136,8 @@ following properties:
 \item[\is{SpinOrbit}] Specifies if the system includes Russel-Saunders
   coupling. See p.~\pref{sec:dftbp.SpinOrbit}
 
-\item[\is{Eigensolver}] Specifies which eigensolver to use for
-  diagonalising the Hamiltonian. See p.~\pref{sec:dftbp.Eigensolver}.
+\item[\is{Solver}] Specifies which solver (eigensolver, Green's function, etc.)
+  to use with the hamiltonian. See p.~\pref{sec:dftbp.Solver}.
 
 \item[\is{Filling}] Method for occupying the one electron levels with
   electrons. See p.~\pref{sec:dftbp.Filling}.
@@ -1747,11 +1747,11 @@ the single particle density matrix. The default value of this option is
 \is{Yes}, also giving extra information regarding atomic orbital moments in the
 detailed output.
 
-\subsection{Eigensolver}
-\label{sec:dftbp.Eigensolver}
+\subsection{Solver}
+\label{sec:dftbp.Solver}
 
-Currently the following LAPACK~3.0~\cite{lapack3} eigensolver methods
-are always available:
+Currently the following LAPACK~3.0~\cite{lapack3} eigensolver methods are always
+available:
 \begin{itemize}
 \item \iscb{QR}\\ (QR decomposition based solver)
 \item \iscb{DivideAndConquer}\\ (this requires about twice the memory of the
@@ -1766,10 +1766,11 @@ None of these solvers need any parameters or properties to be specified.
 
 Example:\invparskip
 \begin{verbatim}
-  Eigensolver = DivideAndConquer {}
+  Solver = DivideAndConquer {}
 \end{verbatim}
 
-For ScaLAPACK enabled compilation, all three solvers are also available.
+For ScaLAPACK enabled compilation, all three solvers are also available for MPI
+parallel use.
 
 If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
 the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
@@ -1783,12 +1784,12 @@ variable.)
 
 \subsubsection{ELPA}
 
-This is avalable with either single or two stage solution methods (the second of
-these is claimed to be more efficiently parallel for large problems).
+This is available with either single or two stage solution methods (the second
+of these should be more efficiently parallel for large problems).
 
 Example:\invparskip
 \begin{verbatim}
-  Eigensolver = ELPA {
+  Solver = ELPA {
     Mode = 2
   }
 \end{verbatim}
