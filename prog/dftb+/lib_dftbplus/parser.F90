@@ -3889,7 +3889,6 @@ contains
             & modifier=modif, child=field)
         call convertByMul(char(modif),lengthUnits,field,lateralContactSeparation)
       end if
-      transpar%tPeriodic1D = .not. geom%tPeriodic
 
       call reduceGeometry(transpar%contacts(contact)%lattice, transpar%contacts(contact)%idxrange,&
           & lateralContactSeparation, geom)
