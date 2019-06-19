@@ -1101,6 +1101,9 @@ contains
 
     character(sc), allocatable :: shellNamesTmp(:)
 
+    !> Format for two using exponential notation values with units
+    character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
+
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -2832,7 +2835,7 @@ contains
     end if
 
     if (.not.input%ctrl%tSetFillingTemp) then
-      write(stdOut, "(A,':',T30,E14.6)") "Electronic temperature", tempElec
+      write(stdOut, format2Ue) "Electronic temperature", tempElec, 'H', Hartree__eV * tempElec, 'eV'
     end if
     if (tMD) then
       write(stdOut, "(A,':',T30,E14.6)") "Time step", deltaT
