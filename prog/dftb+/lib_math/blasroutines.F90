@@ -566,9 +566,12 @@ contains
       iBeta = 0.0_rsp
     end if
 
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
-    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or.&
+        & iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=1) == size(x)))
+    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=2) == size(y)))
 
     m = size(a,dim=1)
     n = size(a,dim=2)
@@ -619,9 +622,12 @@ contains
       iBeta = 0.0_rdp
     end if
 
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
-    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or.&
+        & iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=1) == size(x)))
+    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=2) == size(y)))
 
     m = size(a,dim=1)
     n = size(a,dim=2)

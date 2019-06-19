@@ -1017,8 +1017,8 @@ contains
         & dQOutAtom, dQOutLShell, dQOutUniqU)
 
     ! Short-range part of gamma contribution
-    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour, img2CentCell,&
-        & force)
+    call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour,&
+        & img2CentCell, force)
 
     ! 1/R contribution
     if (this%tPeriodic) then
@@ -1128,7 +1128,8 @@ contains
         do iU1 = 1, this%nHubbU(species(iAt1))
           do iU2 = 1, this%nHubbU(iSp2)
             this%nNeighShort(iU2, iU1, iSp2, iAt1) =&
-                & getNrOfNeighbours(neighList, this%shortCutOff(iU2, iU1, iSp2, species(iAt1)), iAt1)
+                & getNrOfNeighbours(neighList, this%shortCutOff(iU2, iU1, iSp2, species(iAt1)),&
+                & iAt1)
           end do
         end do
       end do

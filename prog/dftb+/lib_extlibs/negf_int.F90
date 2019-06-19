@@ -1652,7 +1652,7 @@ module negf_int
       write(stdOut,*) 'k-point',iK,'Spin',iS
 
       ! We need to recompute Rho and RhoE .....
-      call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
+      call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour,&
           & nNeighbour, img2CentCell, iCellVec, CellVec, orb)
       call foldToCSR(csrOver, over, kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
           & nNeighbour, img2CentCell, iCellVec, CellVec, orb)
