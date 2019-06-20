@@ -3694,13 +3694,14 @@ contains
     real(dp), intent(inout) :: deltaRhoOut(:)
 
     !> delta density matrix as inpurt for next SCC cycle
-    real(dp), intent(inout) :: deltaRhoIn(:)
+    real(dp), target, intent(inout) :: deltaRhoIn(:)
 
     !> difference of delta density matrix in and out
     real(dp), intent(inout) :: deltaRhoDiff(:)
 
 
     integer :: nSpin
+    real(dp), pointer :: deltaRhoInSqr(:,:,:)
 
     nSpin = size(qOutput, dim=3)
 
@@ -3715,10 +3716,11 @@ contains
         qInput(:,:,:) = qOutput
       else
         call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
-        call unpackHS(SSqrReal, over, neighbourList%iNeighbour,&
-            & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell)
-        call denseMulliken(reshape(deltaRhoIn,[orb%nOrb,orb%nOrb,nSpin]), SSqrReal, iAtomStart,&
-            & qInput)
+        call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
+            & iSparseStart, img2CentCell)
+        deltaRhoInSqr(1:orb%nOrb, 1:orb%nOrb, 1:nSpin) => deltaRhoIn
+        call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
+
         ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
         ! distributed to alpha and beta density matrices
         if(nSpin == 2) then
