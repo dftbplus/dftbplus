@@ -4920,10 +4920,8 @@ contains
       call convertByMul(char(modif), energyUnits, field, &
           &tundos%broadeningDelta)
 
-      call getChildren(root, "Region", pNodeList)
-      call readPDOSRegions(pNodeList, geo, iAtInRegion, tShellResInRegion, &
-          & regionLabelPrefixes)
-      call destroyNodeList(pNodeList)
+      call readPDOSRegions(root, geo, transpar%idxdevice, iAtInRegion, &
+          & tShellResInRegion, regionLabelPrefixes)
       call transformPdosRegionInfo(iAtInRegion, tShellResInRegion, &
           & regionLabelPrefixes, orb, geo%species, tundos%dosOrbitals, &
           & tundos%dosLabels)
@@ -5127,13 +5125,17 @@ contains
 
 
   !> Read the names of regions to calculate PDOS for
-  subroutine readPDOSRegions(children, geo, iAtInregion, tShellResInRegion, regionLabels)
+  subroutine readPDOSRegions(node, geo, idxdevice, iAtInregion, &
+          & tShellResInRegion, regionLabels)
 
-    !> Nodes in the tree for the various regions
-    type(fnodeList), pointer :: children
+    !> Node to be parsed
+    type(fnode), pointer, intent(in) :: node 
 
     !> Geometry of the system
     type(TGeometry), intent(in) :: geo
+
+    !> Is the region to be projected by shell
+    integer, intent(in) :: idxdevice(2)
 
     !> Atoms in a given region
     type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
@@ -5146,11 +5148,22 @@ contains
 
     integer :: nReg, iReg
     integer, allocatable :: tmpI1(:)
+    type(fnodeList), pointer :: children
     type(fnode), pointer :: child, child2
     type(string) :: buffer
     character(lc) :: strTmp
-
+    
+    call getChildren(node, "Region", children)
     nReg = getLength(children)
+
+    if (nReg == 0) then
+      write(strTmp,"(I0':'I0)") idxdevice(1), idxdevice(2)
+      call setChild(node, "Region", child)
+      call setChildValue(child, "Atoms", strTmp)
+      call getChildren(node, "Region", children)
+      nReg = getLength(children)
+    end if 
+      
     allocate(tShellResInRegion(nReg))
     allocate(regionLabels(nReg))
     allocate(iAtInRegion(nReg))
@@ -5160,6 +5173,9 @@ contains
           & multiple=.true.)
       call convAtomRangeToInt(char(buffer), geo%speciesNames, &
           & geo%species, child2, tmpI1)
+      if (any(tmpI1<idxdevice(1)) .or. any(tmpI1>idxdevice(2))) then
+        call error("Atoms in PDOS regions must be within the device range")     
+      end if
       iAtInRegion(iReg)%data = tmpI1
       call getChildValue(child, "ShellResolved", &
           & tShellResInRegion(iReg), .false., child=child2)
@@ -5173,6 +5189,7 @@ contains
       call getChildValue(child, "Label", buffer, trim(strTmp))
       regionLabels(iReg) = unquote(char(buffer))
     end do
+    call destroyNodeList(children)
 
   end subroutine readPDOSRegions
 
@@ -5556,12 +5573,8 @@ contains
     real :: x
     integer :: err
 
-    print*,string
-
     read(string,*,iostat=err) x
     is = (err == 0)
-    print*, x, err, is
-
   end function is_numeric
 
 
