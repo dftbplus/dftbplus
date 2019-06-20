@@ -4121,7 +4121,9 @@ contains
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
       call mbDispersion%get_gradients(tmpDerivs)
-      tmpDerivs = -tmpDerivs
+      !> GSM: whereas the old mbd module returned forces instead of gradients,
+      !       the new one does return gradients. Thus the sign is right this time!
+      !> tmpDerivs = -tmpDerivs
       if (tIoProc) then
         write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD GRADIENTS!!!!!!!!!!!!!!!!'
         write(stdOut,*) tmpDerivs(:, :)
