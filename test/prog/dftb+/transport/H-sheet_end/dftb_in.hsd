@@ -48,7 +48,7 @@ Hamiltonian = DFTB {
         H-H = "H-H-noS.skf"
     }
 
-    Eigensolver = GreensFunction{
+    Solver = GreensFunction {
         Verbosity = 51
         ContourPoints = 50 50
         RealAxisPoints = 100

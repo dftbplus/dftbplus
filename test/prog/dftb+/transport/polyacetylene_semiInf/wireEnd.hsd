@@ -31,7 +31,7 @@ Hamiltonian = DFTB {
       Suffix = ".skf"
     }
 
-    Eigensolver = GreensFunction{
+    Solver = GreensFunction {
       RealAxisPoints = 500
       EnclosedPoles = 50
       ContourPoints = {
