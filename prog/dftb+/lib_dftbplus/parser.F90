@@ -4177,7 +4177,7 @@ contains
     logical, intent(in) :: tPeriodic
 
     !> Lattice vectors if periodic
-    real(dp), intent(in) :: latVecs(3,3)
+    real(dp), allocatable, intent(in) :: latVecs(:,:)
 
     !> Parameters of the transport calculation
     type(TTransPar), intent(inout) :: transpar
