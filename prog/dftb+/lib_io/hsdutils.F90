@@ -1518,7 +1518,7 @@ contains
 
 
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
-  subroutine convAtomRangeToInt(str, speciesNames, species, node, val, ishift)
+  subroutine convAtomRangeToInt(str, speciesNames, species, node, val, ishift, maxRange)
 
     !> String to convert
     character(len=*), intent(in) :: str
@@ -1538,6 +1538,9 @@ contains
     !> Shift to be applied to provided atomic indices
     integer, intent(in), optional :: ishift
 
+    !> Upper range of atoms
+    integer, intent(in), optional :: maxRange
+
     type(string) :: buffer
     type(ListInt) :: li
     integer :: nAtom, iStart, iostat, shift
@@ -1545,8 +1548,12 @@ contains
     shift = 0
     if (present(ishift)) then
       shift = ishift
-    end if    
-    nAtom = size(species)
+    end if
+    if (present(maxRange)) then
+      nAtom = maxRange
+    else
+      nAtom = size(species)
+    end if
     call init(li)
     iStart = 1
     call getNextToken(str, buffer, iStart, iostat)
@@ -1562,14 +1569,29 @@ contains
 
   end subroutine convAtomRangeToInt
 
+
   !> Helper routine.
   subroutine convAtomRangeToIntProcess(cbuffer, speciesNames, species, nAtom, node, li, shift)
+
+    !> Chunk of the specified atoms
     character(len=*), intent(in) :: cbuffer
+
+    !> Name of chemical species
     character(len=*), intent(in) :: speciesNames(:)
+
+    !> Chemical species of atoms
     integer, intent(in) :: species(:)
+
+    !> Upper limit on range of atoms
     integer, intent(in) :: nAtom
+
+    !> Master node for detailed errors.
     type(fnode), pointer :: node
+
+    !> List of the converted atom numbers
     type(ListInt), intent(inout) :: li
+
+    !> Shift in lower range of index
     integer, intent(in) :: shift 
 
     integer :: iPos, bounds(2), iSp, ii
@@ -1629,7 +1651,7 @@ contains
         call detailedError(node, "Invalid species name '" // trim(cbuffer) &
             &// "'")
       end if
-      do ii = 1, size(species)
+      do ii = 1, nAtom
         if (species(ii) == iPos) then
           call append(li, ii)
         end if
