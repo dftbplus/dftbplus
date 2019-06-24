@@ -2516,11 +2516,16 @@ contains
     end if
 
     if (transpar%taskUpload .and. transpar%ncont > 0) then
-      do ii = 1, transpar%ncont
-        if (any(abs(kPoint(abs(transpar%contacts(ii)%dir), :)) > 0.0_dp)) then
-          call error("The k-points along transport direction(s) should zero in that direction")
-        end if
-      end do
+      if (tPeriodic .and. .not. transpar%tPeriodic1D) then
+        do ii = 1, transpar%ncont
+          do jj = 1, 3
+            if (abs(dot_product(transpar%contacts(ii)%lattice, latVec(:,jj)))>epsilon(0.0)&
+                & .and. any(abs(kPoint(jj,:)) > 0.0_dp)) then
+              call error("The k-points along transport direction(s) should zero in that direction")
+            end if
+          end do
+        end do
+      end if
     end if
 
   #:else
