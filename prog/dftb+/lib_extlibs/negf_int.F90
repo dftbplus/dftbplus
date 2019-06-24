@@ -34,6 +34,7 @@ module negf_int
   use dftbp_elecsolvertypes, only : electronicSolverTypes
   use dftbp_linkedlist
   use dftbp_periodic
+  use dftbp_assert
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif

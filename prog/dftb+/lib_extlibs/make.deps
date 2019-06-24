@@ -70,13 +70,13 @@ _mod_dftbp_mpifx = $(mpifx.o)
 #:endif
 
 #:if WITH_MPI
-negf_int.o: _mod_libnegf_vars common.fypp _mod_libnegf _mod_dftbp_matconv _mod_dftbp_linkedlist _mod_dftbp_periodic _mod_dftbp_elecsolvertypes _mod_dftbp_message _mod_globals _mod_dftbp_commontypes _mod_dftbp_formatout _mod_dftbp_globalenv _mod_dftbp_densedescr _mod_dftbp_sparse2dense _mod_dftbp_constants _mod_dftbp_accuracy _mod_dftbp_mpifx _mod_libnegf
-negf_int.o = negf_int.o $(_mod_libnegf_vars) $(common.fypp) $(_mod_libnegf) $(_mod_dftbp_matconv) $(_mod_dftbp_linkedlist) $(_mod_dftbp_periodic) $(_mod_dftbp_elecsolvertypes) $(_mod_dftbp_message) $(_mod_globals) $(_mod_dftbp_commontypes) $(_mod_dftbp_formatout) $(_mod_dftbp_globalenv) $(_mod_dftbp_densedescr) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_constants) $(_mod_dftbp_accuracy) $(_mod_dftbp_mpifx) $(_mod_libnegf)
+negf_int.o: _mod_libnegf_vars _mod_dftbp_assert common.fypp _mod_libnegf _mod_dftbp_matconv _mod_dftbp_linkedlist _mod_dftbp_periodic _mod_dftbp_elecsolvertypes _mod_dftbp_message _mod_dftbp_commontypes _mod_dftbp_formatout _mod_dftbp_globalenv _mod_dftbp_densedescr _mod_dftbp_sparse2dense _mod_dftbp_constants _mod_dftbp_accuracy _mod_dftbp_mpifx _mod_libnegf
+negf_int.o = negf_int.o $(_mod_libnegf_vars) $(_mod_dftbp_assert) $(common.fypp) $(_mod_libnegf) $(_mod_dftbp_matconv) $(_mod_dftbp_linkedlist) $(_mod_dftbp_periodic) $(_mod_dftbp_elecsolvertypes) $(_mod_dftbp_message) $(_mod_dftbp_commontypes) $(_mod_dftbp_formatout) $(_mod_dftbp_globalenv) $(_mod_dftbp_densedescr) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_constants) $(_mod_dftbp_accuracy) $(_mod_dftbp_mpifx) $(_mod_libnegf)
 _mod_negf_int: negf_int.o
 _mod_negf_int = $(negf_int.o)
 #:else
-negf_int.o: _mod_libnegf_vars common.fypp _mod_libnegf _mod_dftbp_matconv _mod_dftbp_linkedlist _mod_dftbp_periodic _mod_dftbp_elecsolvertypes _mod_dftbp_message _mod_globals _mod_dftbp_commontypes _mod_dftbp_formatout _mod_dftbp_globalenv _mod_dftbp_densedescr _mod_dftbp_sparse2dense _mod_dftbp_constants _mod_dftbp_accuracy
-negf_int.o = negf_int.o $(_mod_libnegf_vars) $(common.fypp) $(_mod_libnegf) $(_mod_dftbp_matconv) $(_mod_dftbp_linkedlist) $(_mod_dftbp_periodic) $(_mod_dftbp_elecsolvertypes) $(_mod_dftbp_message) $(_mod_globals) $(_mod_dftbp_commontypes) $(_mod_dftbp_formatout) $(_mod_dftbp_globalenv) $(_mod_dftbp_densedescr) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_constants) $(_mod_dftbp_accuracy)
+negf_int.o: _mod_libnegf_vars _mod_dftbp_assert common.fypp _mod_libnegf _mod_dftbp_matconv _mod_dftbp_linkedlist _mod_dftbp_periodic _mod_dftbp_elecsolvertypes _mod_dftbp_message _mod_dftbp_commontypes _mod_dftbp_formatout _mod_dftbp_globalenv _mod_dftbp_densedescr _mod_dftbp_sparse2dense _mod_dftbp_constants _mod_dftbp_accuracy
+negf_int.o = negf_int.o $(_mod_libnegf_vars) $(_mod_dftbp_assert) $(common.fypp) $(_mod_libnegf) $(_mod_dftbp_matconv) $(_mod_dftbp_linkedlist) $(_mod_dftbp_periodic) $(_mod_dftbp_elecsolvertypes) $(_mod_dftbp_message) $(_mod_dftbp_commontypes) $(_mod_dftbp_formatout) $(_mod_dftbp_globalenv) $(_mod_dftbp_densedescr) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_constants) $(_mod_dftbp_accuracy)
 _mod_negf_int: negf_int.o
 _mod_negf_int = $(negf_int.o)
 #:endif

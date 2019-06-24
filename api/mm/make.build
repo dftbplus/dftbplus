@@ -23,8 +23,8 @@ libdftb+.a: $(dftbplus.o)
 install: $(TARGETS)
 	mkdir -p $(INSTALLDIR)/lib
 	cp $^ $(INSTALLDIR)/lib
-	mkdir -p $(INSTALLDIR)/include
-	cp *.mod $(INSTALLDIR)/include
+	mkdir -p $(INSTALLDIR)/include/dftb+
+	cp *.mod $(INSTALLDIR)/include/dftb+
 
 # Tests for incompatible compile options
 
