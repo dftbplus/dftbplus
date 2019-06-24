@@ -13,32 +13,23 @@ _default: default
 
 include make.config
 
-.PHONY: default misc all
-ifeq ($(strip $(WITH_TRANSPORT)),1)
-else
-.PHONY: api
-endif
+.PHONY: default misc all api
 
-default: dftb+ modes waveplot setupgeom
-ifeq ($(strip $(BUILD_API)),1)
+default: dftb+ modes waveplot
 ifeq ($(strip $(WITH_TRANSPORT)),1)
-else
-   default: api
-endif
+  default: setupgeom
 endif
 misc: misc_skderivs misc_slakovalue
-api: api_mm
 all: default misc
-ifeq ($(strip $(BUILD_API)),1)
-ifeq ($(strip $(WITH_TRANSPORT)),1)
-else
-all: api
-endif
-endif
+api: api_mm
 
-.PHONY: install install_misc install_all
+.PHONY: install install_misc install_all install_api
 install: install_dftb+ install_modes install_waveplot install_dptools
-install_misc: install_misc_skderivs install_misc_slakovalue
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  install: install_setupgeom
+endif
+install_misc: install_misc_skderivs install_misc_slakovalue install_tools_misc
+install_all: install install_misc
 install_api: install_api_mm
 
 .PHONY: test test_api
@@ -114,7 +105,7 @@ misc_skderivs misc_slakovalue:
 	    -f $(ROOT)/prog/misc/$(subst misc_,,$@)/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-misc_skderivs: external_xmlf90
+misc_skderivs misc_slakovalue: external_xmlf90
 
 
 EXTERNAL_NAME = $(subst external_,,$@)
@@ -189,8 +180,8 @@ test_api_mm: api_mm
 # Install targets
 ################################################################################
 
-.PHONY: install_dftb+ install_modes install_waveplot
-install_dftb+ install_modes install_waveplot:
+.PHONY: install_dftb+ install_modes install_waveplot install_setupgeom
+install_dftb+ install_modes install_waveplot install_setupgeom:
 	$(MAKE) -C $(BUILDDIR)/prog/$(subst install_,,$@) \
 	    -f $(ROOT)/prog/$(subst install_,,$@)/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) install
@@ -212,6 +203,12 @@ PYTHON := python
 install_dptools:
 	cd $(ROOT)/tools/dptools \
             && $(PYTHON) setup.py install --prefix $(INSTALLDIR)
+
+
+.PHONY: install_tools_misc
+install_tools_misc:
+	cp $(ROOT)/tools/misc/cubemanip $(INSTALLDIR)/bin
+	cp $(ROOT)/tools/misc/plotxy $(INSTALLDIR)/bin
 
 
 .PHONY: install_api_mm
