@@ -251,12 +251,12 @@ contains
       call calc_current(env%mpi%globalComm, parallelKS%localKS, ham, over,&
           & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
-          & leadCurrents, writeTunn, writeLDOS, mu)
+          & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
   #:else
       call calc_current(parallelKS%localKS, ham, over,&
           & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
-          & leadCurrents, writeTunn, writeLDOS, mu)
+          & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
   #:endif
     end if
 
