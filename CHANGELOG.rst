@@ -14,7 +14,7 @@ Added
 - Non-equilibrium Green's function transport.
 
 - Use of the ELSI library.
-  
+ 
 - Ability to perform ground state MD with excitation energies.
 
 - Caching for transition charges in excited state.
@@ -24,10 +24,12 @@ Added
 
 - Onsite corrected hamiltonian for ground state energies.
 
+- Range-separated hybrid DFTB.
+ 
 - GPU acceleration using the MAGMA library for eigensolution. WARNING: this is
   currently an experimental feature, so should be used with care.
 
-- Labelling of atomic orbital choices in output
+- Labelling of atomic orbital choices in output.
 
 
 Changed
