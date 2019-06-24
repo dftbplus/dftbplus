@@ -105,7 +105,7 @@ misc_skderivs misc_slakovalue:
 	    -f $(ROOT)/prog/misc/$(subst misc_,,$@)/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-misc_skderivs: external_xmlf90
+misc_skderivs misc_slakovalue: external_xmlf90
 
 
 EXTERNAL_NAME = $(subst external_,,$@)
