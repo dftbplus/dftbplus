@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(dftbplus VERSION 18.2 LANGUAGES Fortran C)
+project(dftbplus VERSION 19.2 LANGUAGES Fortran C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpCommon)
@@ -50,14 +50,14 @@ if(WITH_ARPACK)
 endif()
 
 find_package(OpenMP REQUIRED)
-list(APPEND CMAKE_C_FLAGS ${OpenMP_C_FLAGS})
-list(APPEND CMAKE_Fortran_FLAGS ${OpenMP_Fortran_FLAGS})
-list(APPEND CMAKE_EXE_LINKER_FLAGS ${OpenMP_EXE_LINKER_FLAGS})
+string(APPEND CMAKE_C_FLAGS " ${OpenMP_C_FLAGS}")
+string(APPEND CMAKE_Fortran_FLAGS " ${OpenMP_Fortran_FLAGS}")
+string(APPEND CMAKE_EXE_LINKER_FLAGS " ${OpenMP_EXE_LINKER_FLAGS}")
 
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin")
 set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
-set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include")
-set(INSTALL_MOD_DIR "${CMAKE_INSTALL_PREFIX}/include")
+set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+")
+set(INSTALL_MOD_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+/mods")
 
 dftbp_get_release_name(RELEASE)
 
