@@ -1486,6 +1486,9 @@ module negf_int
       end if
     else
       ! needed to avoid some segfault
+      if (allocated(tunnMat)) then
+          deallocate(tunnMat)
+        end if
       allocate(tunnMat(0,0))
     end if
 
@@ -1500,6 +1503,9 @@ module negf_int
       end if
     else
       ! needed to avoid some segfault
+      if (allocated(currMat)) then
+          deallocate(currMat)
+        end if
       allocate(currMat(0,0))
     endif
 
@@ -1513,6 +1519,9 @@ module negf_int
         end if
       else
         ! needed to avoid some segfault
+        if (allocated(ldosMat)) then
+          deallocate(ldosMat)
+        end if
         allocate(ldosMat(0,0))
       end if
     end if
