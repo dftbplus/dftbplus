@@ -5137,7 +5137,7 @@ contains
     if (nReg == 0) then
       write(strTmp,"(I0, ':', I0)") idxdevice(1), idxdevice(2)
       call setChild(node, "Region", child)
-      call setChildValue(child, "Atoms", strTmp)
+      call setChildValue(child, "Atoms", trim(strTmp))
       call setChildValue(child, "Label", "localDOS")
       call getChildren(node, "Region", children)
       nReg = getLength(children)
