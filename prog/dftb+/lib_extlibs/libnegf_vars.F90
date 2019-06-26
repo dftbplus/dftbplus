@@ -59,7 +59,7 @@ module libnegf_vars
 
     real(dp) :: length = 0.0_dp
 
-    !> Lattice vectors
+    !> contact vector
     real(dp) :: lattice(3)
 
     real(dp) :: potential = 0.0_dp
