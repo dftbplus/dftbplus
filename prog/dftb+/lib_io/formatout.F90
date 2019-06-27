@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2019  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -335,7 +335,8 @@ contains
     write(stdOut, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
     write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(release)
     write(stdOut, '(A)') verticalBar
-    write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) ', year, '  DFTB+ developers group'
+    write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) 2006 - ', year,&
+        & '  DFTB+ developers group'
     write(stdOut, '(A,/,2A,/,A)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1),&
         & verticalBar
     write(stdOut, '(2A)') verticalBar,&
