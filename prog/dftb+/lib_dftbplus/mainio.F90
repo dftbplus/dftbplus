@@ -1880,7 +1880,8 @@ contains
   !> regression testing
   subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
       & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
-      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE)
+      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE,&
+      & lCurrArray)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -1941,6 +1942,10 @@ contains
 
     !> Is the free energy correctly defined
     logical, intent(in) :: tDefinedFreeE
+
+    !> Array containing bond currents as (Jvalues, atom)
+    !> This array is for testing only since it misses info
+    real(dp), allocatable, intent(in) :: lCurrArray(:,:)
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2009,6 +2014,10 @@ contains
       if (size(ldos,1) > 0) then
         call taggedWriter%write(fd, tagLabels%ldos, ldos)
       end if
+    end if
+
+    if (allocated(lCurrArray)) then
+      call taggedWriter%write(fd, tagLabels%localCurrents, lCurrArray)
     end if
 
     close(fd)
@@ -2736,10 +2745,7 @@ contains
         ! set in the input and for multiple contact Ef values not meaningful anyway
         write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
       end if
-      if (all(electronicSolver%iSolver /= [electronicSolverTypes%pexsi,&
-          & electronicSolverTypes%GF, electronicSolverTypes%OnlyTransport])) then
-        write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
-      end if
+      write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
       if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
           & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
           & electronicSolverTypes%elpa])) then
@@ -3290,7 +3296,7 @@ contains
 
 
   !> Write out charges.
-  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn)
+  subroutine writeCharges(fCharges, tWriteAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
 
     !> File name for charges to be written to
     character(*), intent(in) :: fCharges
@@ -3310,15 +3316,11 @@ contains
     !> Imaginary part of block populations if present
     real(dp), intent(in), allocatable :: qiBlockIn(:,:,:,:)
 
-    if (allocated(qBlockIn)) then
-      if (allocated(qiBlockIn)) then
-        call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn)
-      else
-        call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn)
-      end if
-    else
-      call writeQToFile(qInput, fCharges, tWriteAscii, orb)
-    end if
+    !> Full density matrix with on-diagonal adjustment
+    real(dp), intent(in), allocatable :: deltaRhoIn(:)
+
+
+    call writeQToFile(qInput, fCharges, tWriteAscii, orb, qBlockIn, qiBlockIn, deltaRhoIn)
     if (tWriteAscii) then
       write(stdOut, "(A,A)") '>> Charges saved for restart in ', trim(fCharges)//'.dat'
     else
@@ -3568,6 +3570,8 @@ contains
     end if
 
     close(fdHS)
+      
+    write(stdOut,*) 'shiftcont_'//trim(filename)//".dat written to file"     
 
   end subroutine writeContShifts
 
@@ -4204,7 +4208,7 @@ contains
         end if
         do iOrb = 1, 2 * ang + 1
           ind = ind + 1
-          write(fd, "(A,T22,1X'(',F10.6,',',F10.6,1X,')',1X,F10.6)")&
+          write(fd, "(A,T22,1X,'(',F10.6,',',F10.6,1X,')',1X,F10.6)")&
               & trim(tmpStr)//trim(orbitalNames(iOrb-ang-1,ang)),&
               & real(eigvec(ind)), aimag(eigvec(ind)), fracs(ind)
         end do

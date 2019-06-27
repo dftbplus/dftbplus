@@ -1,0 +1,42 @@
+############################################################################
+# Makefile to compile the package within DFTB+
+#
+# Receives:
+#     ROOT: Root of the source directory
+#     BUILDROOT: Root of the build directory
+#
+############################################################################
+
+.SUFFIXES:
+.SUFFIXES: .f90 .c .o
+
+include $(ROOT)/make.config
+
+OBJDIR := $(BUILDROOT)/external/magmahelper
+SRCDIR := $(ROOT)/external/magmahelper
+STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
+
+vpath % $(SRCDIR)
+
+CSRC = $(notdir $(wildcard $(SRCDIR)/*.c))
+F90SRC = $(notdir $(wildcard $(SRCDIR)/*.f90))
+CDEVICEOBJS = $(patsubst %.c,%.o,$(CSRC))
+FDEVICEOBJS = $(patsubst %.f90,%.o,$(F90SRC))
+
+
+.PHONY: all
+all: libCountDevice.a
+	touch -r $<  $(OBJDIR)/libmagmahelper.a $(STAMPFILE)
+
+libCountDevice.a: $(FDEVICEOBJS) $(CDEVICEOBJS)
+	ar rcs $@ $^
+
+PHONY: clean
+clean:
+	rm -f *.o *.mod *.a
+
+%.o: %.f90
+	$(FXX) -c $<
+
+%.o: %.c
+	$(CC) $(CCOPT) -I$(MAGMADIR)/include -I$(CUDADIR)/include $(LDFLAGS) -c $<

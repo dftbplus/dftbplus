@@ -979,7 +979,7 @@ following properties:
   \kw{ShellResolvedSpin} &l& ShellResolvedSCC = No & No & \\
   \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\{\}~ & \cb &
   \pref{sec:dftbp.SpinOrbit} \\
-  \kw{Eigensolver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Eigensolver} \\
+  \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
   \kw{SlaterKosterFiles} &p|m&  & - & \pref{sec:dftbp.SlaterKosterFiles} \\
   \kw{OldSKInterpolation} & l & & No & \\
@@ -996,6 +996,7 @@ following properties:
   \kw{DFTB3X} & l & ThirdOrder(Full) = Yes & No & \pref{sec:dftbp.xcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
+  \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
@@ -1136,8 +1137,8 @@ following properties:
 \item[\is{SpinOrbit}] Specifies if the system includes Russel-Saunders
   coupling. See p.~\pref{sec:dftbp.SpinOrbit}
 
-\item[\is{Eigensolver}] Specifies which eigensolver to use for
-  diagonalising the Hamiltonian. See p.~\pref{sec:dftbp.Eigensolver}.
+\item[\is{Solver}] Specifies which solver (eigensolver, Green's function, etc.)
+  to use with the hamiltonian. See p.~\pref{sec:dftbp.Solver}.
 
 \item[\is{Filling}] Method for occupying the one electron levels with
   electrons. See p.~\pref{sec:dftbp.Filling}.
@@ -1747,26 +1748,30 @@ the single particle density matrix. The default value of this option is
 \is{Yes}, also giving extra information regarding atomic orbital moments in the
 detailed output.
 
-\subsection{Eigensolver}
-\label{sec:dftbp.Eigensolver}
+\subsection{Solver}
+\label{sec:dftbp.Solver}
 
-Currently the following LAPACK~3.0~\cite{lapack3} eigensolver methods
-are always available:
+Currently the following LAPACK~3.0~\cite{lapack3} eigensolver methods are always
+available:
 \begin{itemize}
 \item \iscb{QR}\\ (QR decomposition based solver)
 \item \iscb{DivideAndConquer}\\ (this requires about twice the memory of the
   other solvers)
 \item \iscb{RelativelyRobust}\\ (using the subspace form but calculating all
   states)
+\item \iscb{MAGMA}\\ (Only available for \dftbp{} binaries compiled with
+  MAGMA~\cite{tdb10, tnld10, dghklty14} GPU support. \textbf{WARNING:} this is
+  currently an experimental feature, so should be used with care.)
 \end{itemize}
-None of them needs any parameters or properties specified.
+None of these solvers need any parameters or properties to be specified.
 
 Example:\invparskip
 \begin{verbatim}
-  Eigensolver = DivideAndConquer {}
+  Solver = DivideAndConquer {}
 \end{verbatim}
 
-For ScaLAPACK enabled compilation, all three solvers are also available.
+For ScaLAPACK enabled compilation, all three solvers are also available for MPI
+parallel use.
 
 If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
 the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
@@ -1780,12 +1785,12 @@ variable.)
 
 \subsubsection{ELPA}
 
-This is avalable with either single or two stage solution methods (the second of
-these is claimed to be more efficiently parallel for large problems).
+This is available with either single or two stage solution methods (the second
+of these should be more efficiently parallel for large problems).
 
 Example:\invparskip
 \begin{verbatim}
-  Eigensolver = ELPA {
+  Solver = ELPA {
     Mode = 2
   }
 \end{verbatim}
@@ -2329,8 +2334,9 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}. Modification
-  hydrogen bond interaction strengths (see section \ref{sec:dftbp.hcorr}).
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
+  section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
+  strengths (see section \ref{sec:dftbp.hcorr}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2493,8 +2499,8 @@ used in the code 'dftd3' by Stefan Grimme and coworkers.  It is based on the
 {\it ansatz} described in Refs.~\cite{grimme-jcp-132-154104} and
 \cite{grimme-jcp-32-1456-1465}.
 
-\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library enabled to use this
-feature.
+\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library
+enabled to use this feature.
 
 This dispersion correction for DFTB adds a contribution to the general
 Kohn-Sham-like energy
@@ -2539,25 +2545,15 @@ treated as functional-dependent values. All other parameters are fixed based on
 these parameters.
 
 As the DFTB energy functional is largely determined by the underlying
-parameterisation (the Slater-Koster-files) and the chosen DFTB model
-(e.g.\ non-scc, scc, 3rd order, etc.), there are no universal parameter choices
-which can be used with all settings. The dftd3-program contains optimised
-parameters for the DFTB3 functional, described in section~\ref{sec:dftbp.DFTB3}. The DFTB3
-appropriate values are given for the Becke-Johnson-damping function, and are
-used as default values in the \dftbp{} parser.
+parameterisation (the Slater-Koster-files) and the chosen DFTB model (e.g.\
+non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
+can be used with all settings, but some relevant choices for various
+parameterisation are given in Appendix \ref{app:dftd3const}.
 
-\textbf{Warning:} Please note, that these default values have only been tested for the DFTB3
-model. If you use any other DFTB-model, make sure that the parameters still give reasonable results,
-and adjust them if needed.
-
-Example using default parameters:
-\begin{verbatim}
-  ThirdOrderFull = Yes
-  HCorrection = Damping {
-    Exponent = 4.0
-  }
-  Dispersion = DftD3 {}
-\end{verbatim}
+\textbf{Note:} for the version 6 or earlier of the \dftbp{} input parser (see
+section~\ref{sec:dftbp.ParserOptions}) the default values of these parameters
+are set to be appropriate for DFTB3. But from parser version 7 onwards, no
+default values are set.
 
 Example using adjusted parameters with Becke-Johnson damping:
 \begin{verbatim}
@@ -2776,9 +2772,10 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 
-\textbf{Note:} The van der Waals radii ($r_\text{vdW}$) of atoms are also
-required. \dftbp{} stores these for most of the periodic table, but for cases
-that are not available their contribution to this correction are neglected.
+\textbf{Note:} \label{page:dftbp.H5} The van der Waals radii ($r_\text{vdW}$) of
+atoms are also required. \dftbp{} stores these for most of the periodic table,
+but for cases that are not available their contribution to this correction are
+neglected.
 
 For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
 has to be used. In addition to setting up appropriate values of the D3
@@ -2800,6 +2797,102 @@ Hamiltonian = DFTB {
   :
 }
 \end{verbatim}
+
+\subsection{RangeSeparated}
+\label{sec:dftbp.RangeSep}
+
+The \kw{RangeSeparated} keyword specifies the use of a range separated hybrid
+functional. Currently, only the long-range corrected hybrid functional (\is{LC})
+\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107} is implemented. There, the
+electrostatic interaction is split up into long and short ranged components
+according to
+\begin{equation*}
+\frac{1}{r}=\frac{1-e^{-\omega r}}{r}+\frac{e^{-\omega r}}{r},
+\end{equation*}
+with the range-separation parameter $\omega$, which is set in the Slater-Koster
+files. The option should only be used with corresponding parameter sets created
+for use with long-range correction.
+
+\textbf{Note:} The present release does not yet support long-range
+corrected excited states calculations with LC-TD-DFTB, and the
+\kw{RangeSeparated} keyword can, therefore, not be used in conjunction with the
+\kw{ExcitedState} keyword.
+
+The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
+range-separated hybrid functional) or the \is{LC}\cb\  block as value. Latter
+enables the following option:
+
+\begin{ptable}
+  %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /}}} \\
+  %% \hline
+  \kw{Screening} & m & & Thresholded \cb & \\
+\end{ptable}
+
+
+\begin{description}
+\item[\is{Screening}] Choice of the screening method. The following choices are
+  allowed:
+  
+  \begin{description}
+  \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
+    terms. This is the recommended choice for speed and accuracy but does not
+    support all of the cases (restarting and spin polarisation).
+
+    \begin{ptable}
+      %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
+      %% Screeing / Thresholded /}}} \\
+      %% \hline
+      \kw{Threshold} & r & & 1e-6 & \\
+      \kw{CutoffReduction} & r & & 0.0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{Threashold}] Threashold, below which elements are considered to be
+      zero.
+    \item[\is{CutoffReduction}]\modif{\modtype{length}} Reduces the spatial
+      cutoff, beyond which the overlap between atoms is considered to be zero.
+      This can be used as an additional tweak to speed up the LC-calculation,
+      but make sure first, that your results do not change
+      considerably. Default: 0.0 -- no reduction, using the cutoff from the
+      SK-files.
+    \end{description}
+
+    
+  \item[NeighbourBased] Uses a purely neighbour-list based algorithm. This
+    algorithm is usually considerably slower than the \is{Thresholded}.
+    
+    \begin{ptable}
+      %%\multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
+      %% Screeing / Thresholded /}}} \\
+      %% \hline
+      \kw{CutoffReduction} & r & & 0.0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[CutoffReduction]\modif{\modtype{length}} See description in the
+      \is{Thresholded} block.
+    \end{description}
+  \end{description}
+\end{description}
+
+Example for thresholded screening with customised threshold value.
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = Thresholded {
+    Threshold = 1e-5
+  }
+}
+\end{verbatim}
+
+Example for neighbour list based screening with customised cutoff reduction:
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = NeighbourBased {
+    CutoffReduction [AA] = 2.0
+  }
+}
+\end{verbatim}
+
 
 \subsection{On site corrections}
 \label{sec:dftbp.Onsites}
@@ -2929,9 +3022,9 @@ This block collects some global options for the run.
   p.~\pref{sec:dftbp.results}.
 
 \item[\is{WriteDetailedOut}] Controls the creation of the file
-  \verb|detailed.out|. Since this contains the detailed information
-  about the last step of your run, you shouldn't turn it off without
-  good reasons.
+  \verb|detailed.out| (see p.~\pref{sec:dftbp.detailedout}). Since this contains
+  the detailed information about the last step of your run, you shouldn't turn
+  it off without good reasons.
 
 \item[\is{RestartFrequency}] Specifies the interval at which charge
   restart information should be written to disc for static SCC
@@ -3445,6 +3538,70 @@ This chapter contains the description of some of the output files of
 \dftbp{} where the output format is not self documenting. Unless
 indicated otherwise, numbers in the output files are given in atomic
 units (with Hartree as the energy unit).
+
+\section{band.out}
+\label{sec:dftbp.bandout}
+\index{band.out}
+
+This contains the band energies and occupation of levels in electron volts and
+electron charge units as columns one and two. The file is printed if
+\is{WriteBandOut} = \is{Yes} (see section \ref{sec:dftbp.Analysis}). Blocks of
+numerical results start with a line which labels the k-point and spin channel
+for the energies.
+
+See the \dptools{} package for utilities for converting the data in this file
+into band-structures and density of states information suitable for plotting.
+
+\section{detailed.out}
+\label{sec:dftbp.detailedout}
+\index{detailed.out}
+
+This file contains details of the total energy and its components, as well as
+optional information on forces, atomic charges and other properties. It is
+intended for quick viewing, while values given to more significant figures are
+available in results.tag.
+
+Some of the information available in the file will also depend on the method
+being used in the calculation. For example, not all electronic solvers make the
+ground state electronic entropy available, hence only the internal energy would
+be quoted. Similarly, while the free energy of the system which when
+differentiated by atomic coordinates or boundary conditions gives the forces or
+stresses (printed as \textit{Force related energy}) this is not currently
+available for some types of non-equilibrium transport calculations.
+
+Some of the common energy results printed in this file are:\\
+
+\begin{center}
+  \begin{tabular}{|l|p{5.5cm}|}
+    \hline
+    TS& Product of the electron entropy and temperature\\
+    Total Electronic energy& The non-SCC energy plus other contributions to the
+    electronic energy (SCC, spin, $\ldots$)\\
+    Repulsive energy& The pairwise contribution to the total energy\\
+    Total energy& Sum of electronic energy\\
+    Extrapolated to 0& Estimated zero temperature energy if at finite
+    temperatures\\
+    Total Mermin free energy& $U - T S$, relevant free energy at finite
+    temperatures\\
+    Force related energy& Free energy relevant to forces in the system\\
+    Gibbs free energy& Energy corrected by $- p V$, i.e. the pressure and volume\\
+    MD Kinetic Energy& Kinetic energy of atoms in molecular dynamics\\
+    Total MD Energy& Sum of finite temperature electronic, repulsive and atomic
+    kinetic energies\\
+    \hline
+  \end{tabular}
+\end{center}
+
+Where available the Fermi level $\mu$ (i.e. the chemical potential of the
+electrons in the system) is also printed. For systems with an externally fixed
+Fermi level (i.e. where the total charge can change), this contribution is
+included in the Force related energy: $$\Delta E = + q_\mathrm{total} \mu,$$ but
+for calculations with fixed numbers of electrons it is not included in this
+energy. \textbf{Note:} The total energy reference may not match your required
+case in some situations, for example a shift with respect to the average
+electrostatic potential (in periodic cases) or whether the chemical potential
+should be with respect to the valence band maximum may be needed (see for
+example the discussion in Ref.~\cite{Lany_2009}).
 
 \section{results.tag}
 \label{sec:dftbp.results}

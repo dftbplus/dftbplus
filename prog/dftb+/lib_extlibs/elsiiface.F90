@@ -23,7 +23,7 @@ module dftbp_elsiiface
 
   public :: withElsi, withPexsi
   public :: elsi_handle, elsi_rw_handle
-  public :: elsi_init, elsi_finalize
+  public :: elsi_init, elsi_reinit, elsi_finalize
   public :: elsi_init_rw, elsi_finalize_rw
   public :: elsi_set_csc, elsi_set_csc_blk
   public :: elsi_dm_real, elsi_dm_complex
@@ -100,6 +100,10 @@ contains
     call stubError("elsi_init")
   end subroutine elsi_init
 
+  subroutine elsi_reinit(eh)
+    type(elsi_handle), intent(inout) :: eh
+    call stubError("elsi_reinit")
+  end subroutine elsi_reinit
 
   subroutine elsi_finalize(eh)
     type(elsi_handle), intent(inout) :: eh

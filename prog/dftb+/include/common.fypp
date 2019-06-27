@@ -19,6 +19,7 @@
 
 #:set WITH_C = defined('CC')
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
+#:set WITH_GPU = defined('WITH_GPU')
 #:set WITH_MPI = defined('WITH_MPI')
 #:set WITH_ELSI = defined('WITH_ELSI')
 #:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
@@ -30,6 +31,7 @@
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
 #:set WITH_POISSON = defined('WITH_POISSON')
+#:set EMULATE_F08_MATH = defined('EMULATE_F08_MATH')
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -76,6 +78,14 @@
 #! Returns the suffix for a dummy argument for a given rank
 #:def FORTRAN_ARG_DIM_SUFFIX(rank)
 #{if rank == 0}##{else}#(${":" + ",:" * (rank - 1)}$)#{endif}#
+#:enddef
+
+
+#! Macro for automated deallocations
+#:def SAFE_DEALLOC(*args)
+  #:for arg in args
+    if (allocated(${arg}$)) deallocate(${arg}$)
+  #:endfor
 #:enddef
 
 #:endmute

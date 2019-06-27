@@ -13,18 +13,23 @@ _default: default
 
 include make.config
 
-.PHONY: default misc api all
+.PHONY: default misc all api
+
 default: dftb+ modes waveplot
-ifeq ($(strip $(BUILD_API)),1)
-   default: api
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  default: setupgeom
 endif
 misc: misc_skderivs misc_slakovalue
+all: default misc
 api: api_mm
-all: default misc api
 
-.PHONY: install install_misc install_all
+.PHONY: install install_misc install_all install_api
 install: install_dftb+ install_modes install_waveplot install_dptools
-install_misc: install_misc_skderivs install_misc_slakovalue
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  install: install_setupgeom
+endif
+install_misc: install_misc_skderivs install_misc_slakovalue install_tools_misc
+install_all: install install_misc
 install_api: install_api_mm
 
 .PHONY: test test_api
@@ -47,12 +52,6 @@ ifeq ($(filter 0 1 2,$(strip $(DEBUG))),)
   $(error 'Invalid value $(DEBUG) for DEBUG (must be 0, 1 or 2)')
 endif
 
-ifeq ($(strip $(WITH_TRANSPORT)),1)
-  ifneq ($(strip $(WITH_MPI)),1)
-    $(error 'Transport can only be included when code is built with MPI')
-  endif
-endif
-
 ################################################################################
 # Build targets
 ################################################################################
@@ -66,8 +65,8 @@ update_release:
         || $(ROOT)/utils/build/update_release $(BUILDDIR)/RELEASE \
         || echo "(UNKNOWN RELEASE)" > $(BUILDDIR)/RELEASE
 
-.PHONY: dftb+ modes waveplot
-dftb+ modes waveplot:
+.PHONY: dftb+ modes waveplot setupgeom
+dftb+ modes waveplot setupgeom:
 	mkdir -p $(BUILDDIR)/prog/$@
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
@@ -75,6 +74,9 @@ dftb+ modes waveplot:
 DFTBPLUS_DEPS := update_release external_xmlf90
 ifeq ($(strip $(WITH_SOCKETS)),1)
   DFTBPLUS_DEPS += external_fsockets
+endif
+ifeq ($(strip $(WITH_GPU)),1)
+dftb+: external_magmahelper
 endif
 ifeq ($(strip $(WITH_DFTD3))$(strip $(COMPILE_DFTD3)),11)
   DFTBPLUS_DEPS += external_dftd3
@@ -84,14 +86,17 @@ ifeq ($(strip $(WITH_MPI)),1)
 endif
 ifeq ($(strip $(WITH_TRANSPORT)),1)
   DFTBPLUS_DEPS += external_libnegf external_poisson
-  external_libnegf: external_mpifx
-  external_poisson: external_mpifx external_libnegf
+  external_poisson: external_libnegf
+  ifeq ($(strip $(WITH_MPI)),1)
+    external_libnegf: external_mpifx
+    external_poisson: external_mpifx
+  endif
 endif
 dftb+: $(DFTBPLUS_DEPS)
 
 modes: external_xmlf90
 waveplot: external_xmlf90
-
+setupgeom: external_xmlf90
 
 .PHONY: misc_skderivs misc_slakovalue
 misc_skderivs misc_slakovalue:
@@ -100,13 +105,15 @@ misc_skderivs misc_slakovalue:
 	    -f $(ROOT)/prog/misc/$(subst misc_,,$@)/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
-misc_skderivs: external_xmlf90
+misc_skderivs misc_slakovalue: external_xmlf90
 
 
 EXTERNAL_NAME = $(subst external_,,$@)
 
-EXTERNALS = external_xmlf90 external_fsockets external_dftd3 external_mpifx\
-    external_scalapackfx external_poisson external_libnegf
+EXTERNALS = external_xmlf90 external_fsockets external_dftd3	\
+    external_mpifx external_scalapackfx external_magmahelper	\
+    external_poisson external_libnegf
+
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
 	mkdir -p $(BUILDDIR)/external/$(EXTERNAL_NAME)
@@ -173,8 +180,8 @@ test_api_mm: api_mm
 # Install targets
 ################################################################################
 
-.PHONY: install_dftb+ install_modes install_waveplot
-install_dftb+ install_modes install_waveplot:
+.PHONY: install_dftb+ install_modes install_waveplot install_setupgeom
+install_dftb+ install_modes install_waveplot install_setupgeom:
 	$(MAKE) -C $(BUILDDIR)/prog/$(subst install_,,$@) \
 	    -f $(ROOT)/prog/$(subst install_,,$@)/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) install
@@ -196,6 +203,12 @@ PYTHON := python
 install_dptools:
 	cd $(ROOT)/tools/dptools \
             && $(PYTHON) setup.py install --prefix $(INSTALLDIR)
+
+
+.PHONY: install_tools_misc
+install_tools_misc:
+	cp $(ROOT)/tools/misc/cubemanip $(INSTALLDIR)/bin
+	cp $(ROOT)/tools/misc/plotxy $(INSTALLDIR)/bin
 
 
 .PHONY: install_api_mm

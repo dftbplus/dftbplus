@@ -82,11 +82,27 @@ CCOPT = -O2 -funroll-all-loops
 LN = $(FXX)
 LNOPT = -fopenmp
 
+# GPU extra settings
+ifeq ($(strip $(WITH_GPU)),1)
+
+MAGMADIR = /opt/magma
+
+L_INCS += -I$(CUDADIR)/include -I$(MAGMADIR)/include -L$(CUDADIR)/lib64
+
+LIB_LAPACK = -L$(MAGMADIR)/lib -lmagma -L$(CUDADIR)/lib64 -lcublas	\
+-lcudart -lcusparse -lculibos
+
+else
+
+LIB_LAPACK =
+
+endif
+
 # How to link specific libraries
 
 # LAPACK/BLAS
 # Make sure you use threaded LAPACK/BLAS (e.g. openBLAS) for full performance!
-LIB_LAPACK = -llapack -lblas
+LIB_LAPACK += -llapack -lblas
 
 # Any other libraries to be linked
 OTHERLIBS =

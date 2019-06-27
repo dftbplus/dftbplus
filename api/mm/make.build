@@ -23,8 +23,8 @@ libdftb+.a: $(dftbplus.o)
 install: $(TARGETS)
 	mkdir -p $(INSTALLDIR)/lib
 	cp $^ $(INSTALLDIR)/lib
-	mkdir -p $(INSTALLDIR)/include
-	cp *.mod $(INSTALLDIR)/include
+	mkdir -p $(INSTALLDIR)/include/dftb+
+	cp *.mod $(INSTALLDIR)/include/dftb+
 
 # Tests for incompatible compile options
 
@@ -34,6 +34,16 @@ ifeq ($(strip $(WITH_SOCKETS)),1)
 API build currently does not support sockets
 Please disable this feature in make.config
 ********************************************
+  endef
+  $(error $(err_mesg))
+endif
+
+ifeq ($(strip $(WITH_GPU)),1)
+  define err_mesg =
+******************************************************
+API build currently does not support GPU functionality
+Please disable this feature in make.config
+******************************************************
   endef
   $(error $(err_mesg))
 endif
@@ -53,6 +63,16 @@ ifeq ($(strip $(WITH_ARPACK)),1)
 ***************************************************************
 API build currently does not support functionality using ARPACK
 Please disable this feature in make.config
+***************************************************************
+  endef
+  $(error $(err_mesg))
+endif
+
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  define err_mesg =
+***************************************************************
+API build currently does not support functionality using NEGF
+transport. Please disable this feature in make.config
 ***************************************************************
   endef
   $(error $(err_mesg))

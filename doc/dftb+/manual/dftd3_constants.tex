@@ -1,0 +1,23 @@
+
+\chapter{DftD3 dispersion constants}
+\label{app:dftd3const}
+
+These are suggested dispersion values for some of the DFTB parameterizations for
+use with the DftD3 model (see p.~\pref{sec:dftbp.DftD3}). The table below gives
+the old defaults for DFTB3, those for which the 3OB parameters were fitted at
+the halogen correction stage, along with choices for the various OB2
+parameterizations for range separated calculations.
+
+\begin{tabular}{|c|ccccc|}
+  \hline Becke-Johnson damping
+  & old default & 3OB & OB2 (base) & OB2 (shift) & OB2 (split)\\
+  \hline
+  $a_1$ & 0.5719 & 0.746 & 0.717 & 0.816 & 0.497\\
+  $a_2$ & 3.6017 & 4.191 & 2.565 & 2.057 & 3.622\\
+  $s_6$ & 1.0    & 1.0   & 1.0   & 1.0   & 1.0\\
+  $s_8$ & 0.5883 & 3.209 & 0.011 & 0.010 & 0.010\\
+  \hline
+\end{tabular}
+
+Note: for the H5 corrected model, the DftD3 zero-damping parameters given on
+page~\pref{page:dftbp.H5} should be used. 

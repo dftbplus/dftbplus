@@ -16,10 +16,16 @@ module dftbp_eigensolver
   use dftbp_accuracy, only : rsp, rdp
   use dftbp_blas
   use dftbp_lapack
+#:if WITH_GPU
+  use magma
+#:endif
   implicit none
   private
 
   public :: heev, hegv, hegvd, gvr, bgv
+#:if WITH_GPU
+  public :: gpu_gvd
+#:endif
 
 
   !> Used to return runtime diagnostics
@@ -80,8 +86,17 @@ module dftbp_eigensolver
     module procedure dblecmplx_zhbgv
   end interface
 
-contains
+#:if WITH_GPU
+  !> Divide and conquer MAGMA GPU eigensolver
+  interface gpu_gvd
+    module procedure real_magma_ssygvd
+    module procedure dble_magma_dsygvd
+    module procedure cmplx_magma_chegvd
+    module procedure dblecmplx_magma_zhegvd
+  end interface
+#:endif
 
+contains
 
   !> Real eigensolver for a symmetric matrix
   subroutine real_ssyev(a,w,uplo,jobz)
@@ -2041,5 +2056,123 @@ contains
     endif
 
   end subroutine dblecmplx_zhbgv
+
+
+#:if WITH_GPU
+
+#: for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'ssygvd'),&
+  & ('dble', 'd', 'real', 'dsygvd'), ('cmplx', 's', 'complex', 'chegvd'),&
+  & ('dblecmplx', 'd', 'complex', 'zhegvd')]
+  !> Generalised eigensolution for symmetric/hermitian matrices on GPU(s)
+  subroutine ${DTYPE}$_magma_${NAME}$(ngpus, a, b, w, uplo, jobz, itype)
+
+    !> Number of GPUs to use
+    integer, intent(in) :: ngpus
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
+    ${VTYPE}$(r${VPREC}$p), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
+    ${VTYPE}$(r${VPREC}$p), intent(inout) :: b(:,:)
+
+    !> eigenvalues
+    real(r${VPREC}$p), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
+    character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
+    character, intent(in) :: jobz
+
+    !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
+    integer, optional, intent(in) :: itype
+
+    ${VTYPE}$(r${VPREC}$p), allocatable :: work(:)
+
+  #:if VTYPE == 'complex'
+    real(r${VPREC}$p), allocatable :: rwork(:)
+    integer :: lrwork
+  #:endif
+
+    integer, allocatable :: iwork(:)
+    integer :: lwork, liwork, n, info, iitype
+
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
+    n=size(a,dim=1)
+    @:ASSERT(n>0)
+    if (present(itype)) then
+      iitype = itype
+    else
+      iitype = 1
+    end if
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
+
+    ! Workspace query
+    allocate(work(1))
+    allocate(iwork(1))
+  #:if VTYPE == 'complex'
+    allocate(rwork(1))
+  #:endif
+
+    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, work, -1,&
+      #:if VTYPE == 'complex'
+        & rwork, -1,&
+      #:endif
+        & iwork, -1, info)
+
+    if (info /= 0) then
+      call error("Failure in MAGMA_${NAME}$ to determine optimum workspace")
+    endif
+
+ #:if VTYPE == 'complex'
+    lwork = floor(real(work(1)))
+    lrwork = floor(rwork(1))
+    liwork = int(iwork(1))
+    deallocate(work) ;  allocate(work(lwork))
+    deallocate(rwork) ;  allocate(rwork(lrwork))
+    deallocate(iwork) ; allocate(iwork(liwork))
+  #:endif
+  #:if VTYPE == 'real'
+    lwork = floor(work(1))
+    liwork = int(iwork(1))
+    deallocate(work) ;  allocate(work(lwork))
+    deallocate(iwork) ; allocate(iwork(liwork))
+   #:endif
+
+    ! MAGMA Diagonalization
+    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, work, lwork,&
+      #:if VTYPE == 'complex'
+        & rwork, lrwork,&
+      #:endif
+        & iwork, liwork, info)
+
+    ! test for errors
+    if (info /= 0) then
+      if (info < 0) then
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+            & illegal argument at position ',i6)") info
+        call error(error_string)
+      else if (info <= n) then
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+            & diagonal element ',i6,' did not converge to zero.')") info
+        call error(error_string)
+      else
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+            & non-positive definite overlap! ',i6)") info - n
+        call error(error_string)
+      endif
+    endif
+
+  end subroutine ${DTYPE}$_magma_${NAME}$
+
+#:endfor
+
+#:endif
+
 
 end module dftbp_eigensolver

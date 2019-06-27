@@ -285,8 +285,8 @@ contains
 
     !mu = iAtomStart(iAt)
     qq_ij(:,:) = 0.0_dp
-    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss), stimc(mu:mu+nOrb-1,jj,ss))
-    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss), stimc(mu:mu+nOrb-1,ii,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss),stimc(mu:mu+nOrb-1,jj,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss),stimc(mu:mu+nOrb-1,ii,ss))
     !qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
 
     do iOrb1 = 1, nOrb

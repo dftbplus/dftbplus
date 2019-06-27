@@ -12,7 +12,12 @@ make api
 \end{verbatim}
 After the compilation, the library (\verb|libdftb+.a|) can be found in the
 \verb|api/mm| directory of your build tree. You will find also all mod-files
-here.
+here. If you issue
+\begin{verbatim}
+make install_api
+\end{verbatim}
+the library and the modfiles will be installed in the appropriate
+sub-directories under the install target directory. 
 
 You can test the library functionality by issuing
 \begin{verbatim}

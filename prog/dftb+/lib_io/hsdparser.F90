@@ -795,13 +795,17 @@ contains
 
 
   !> Dumps a HSD tree in a file.
-  subroutine dumpHSD_file(myDoc, file)
+  subroutine dumpHSD_file(myDoc, file, subnode)
 
     !> The DOM tree
     type(fnode), pointer :: myDoc
 
     !> Name of the file
     character(len=*), intent(in) :: file
+
+    !> Whether passed node is an arbitrary node within the tree (or the tree top node otherwise).
+    !> Default: .false.
+    logical, optional, intent(in) :: subnode
 
     integer :: fd
     integer :: iostat
@@ -812,14 +816,14 @@ contains
       fileName = file
       call parsingError("Error in opening file for the HSD output.", fileName, -1)
     end if
-    call dumpHSD_opened(myDoc, fd)
+    call dumpHSD_opened(myDoc, fd, subnode)
     close(fd)
 
   end subroutine dumpHSD_file
 
 
   !> Dumps a DOM-tree representing a HSD input in HSD format to an opened file.
-  subroutine dumpHSD_opened(myDoc, fd)
+  subroutine dumpHSD_opened(myDoc, fd, subnode)
 
     !> The DOM tree
     type(fnode), pointer :: myDoc
@@ -827,11 +831,25 @@ contains
     !> File descriptor for an open file where output should go.
     integer, intent(in) :: fd
 
+    !> Whether passed node is an arbitrary node within the tree (or the tree top node otherwise).
+    !> Default: .false.
+    logical, optional, intent(in) :: subnode
+
     type(fnode), pointer :: rootNode
     type(fnode), pointer :: child
     type(string) :: buffer
+    logical :: subnode_
 
-    rootNode => getFirstChild(myDoc)
+    if (present(subnode)) then
+      subnode_ = subnode
+    else
+      subnode_ = .false.
+    end if
+    if (subnode_) then
+      rootNode => myDoc
+    else
+      rootNode => getFirstChild(myDoc)
+    end if
     if (.not. associated(rootNode)) then
       return
     end if

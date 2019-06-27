@@ -4,6 +4,18 @@
 
 #:include 'common.fypp'
 
+non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
+scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
+
+rangesep/C18H12-force                  #? not WITH_MPI
+rangesep/C18H12-nbscreening            #? not WITH_MPI
+rangesep/CH3                           #? not WITH_MPI
+rangesep/C60-nb                        #? not WITH_MPI
+rangesep/C60-nb-cutoff                 #? not WITH_MPI
+rangesep/Thymine-T1-force              #? not WITH_MPI
+rangesep/cyclopropene_nb_restart       #? not WITH_MPI
+rangesep/C240_tn                       #? not WITH_MPI
+
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8 and OMP_THREADS == 1
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/Si32C32_ELPA2                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
@@ -240,3 +252,7 @@ transport/SiH-cont-poiss               #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/graphene_x                   #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/graphene3T                   #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/Au-chain                     #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/SiH-chain_semiInf            #? WITH_TRANSPORT and MPI_PROCS <= 2
+transport/local-curr                   #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/polyacetylene_semiInf        #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/H-sheet_end                  #? WITH_TRANSPORT and MPI_PROCS <= 4
