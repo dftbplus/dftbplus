@@ -3919,7 +3919,7 @@ contains
     real(dp) :: contUnitVec(3), dots(3), newLatVecs(3, 3), newOrigin(3)
     real(dp) :: minProj, maxProj
     logical :: mask(3)
-    integer :: ind, ii
+    integer :: ind, indPrev, indNext, ii
 
     if (geom%tPeriodic) then
       contUnitVec = contactVec / sqrt(sum(contactVec**2, dim=1))
@@ -3944,19 +3944,22 @@ contains
       do while (.not. mask(ind))
         ind = ind + 1
       end do
-      newLatVecs(modulo(ind+1,3)+1, 2) = -newLatVecs(ind,1)
-      newLatVecs(ind,2) = 0.0_dp !newLatVecs(modulo(ind+1,3)+1, 1)
-      newLatVecs(modulo(ind-1,3)+1, 2) = 0.0_dp
+      ! Note: ind is one-based, substract 1 before modulo and add 1 after.
+      indNext = modulo(ind + 1 - 1, 3) + 1
+      indPrev = modulo(ind - 1 - 1, 3) + 1
+      newLatVecs(indNext, 2) = -newLatVecs(ind, 1)
+      newLatVecs(ind, 2) = newLatVecs(indNext, 1)
+      newLatVecs(indPrev, 2) = 0.0_dp
       newLatVecs(:,3) = cross3(newLatVecs(:,1), newLatVecs(:,2))
       newLatVecs(:,2) = newLatVecs(:,2) / sqrt(sum(newLatVecs(:,2)**2))
       newLatVecs(:,3) = newLatVecs(:,3) / sqrt(sum(newLatVecs(:,3)**2))
-      newOrigin = 0.0_dp
+      newOrigin(:) = 0.0_dp
     end if
     call reduce(geom, contactRange(1), contactRange(2))
     if (.not. geom%tPeriodic) then
       do ii = 2, 3
-        minProj = 0_dp !minval(matmul(newLatVecs(:,ii), geom%coords))
-        maxProj = 0_dp !maxval(matmul(newLatVecs(:,ii), geom%coords))
+        minProj = minval(matmul(newLatVecs(:,ii), geom%coords))
+        maxProj = maxval(matmul(newLatVecs(:,ii), geom%coords))
         newLatVecs(:,ii) = ((maxProj - minProj) + lateralContactSeparation) * newLatVecs(:,ii)
       end do
     end if

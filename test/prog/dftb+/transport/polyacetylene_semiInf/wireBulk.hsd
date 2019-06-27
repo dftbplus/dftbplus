@@ -34,11 +34,12 @@ Hamiltonian = DFTB {
       0 0 1
       0.5 0.0 0.0
     }
+    # Note: on some ScaLAPACK version we have experienced dead-locks with
+    # the RelativelyRobust solver for this case.
+    Solver = DivideAndConquer {}
 }
 
 Parallel{
-    # Reduce block size to allow multiple processors testing
-    Blacs{BlockSize=2}
     # Allow OMP threads explicitely to test for hybrid parallelisation with
     # MPI-binary. (Check the manual before using this in production runs!)
     UseOmpThreads = Yes
