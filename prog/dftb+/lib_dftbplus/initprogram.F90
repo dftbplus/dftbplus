@@ -1669,16 +1669,11 @@ contains
 
     referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
 
-    ! Allocate charge arrays
-    if (tMulliken) then ! automatically true if tSccCalc
-      allocate(q0(orb%mOrb, nAtom, nSpin))
-      q0(:,:,:) = 0.0_dp
-      allocate(qShell0(orb%mShell, nAtom))
-      qShell0(:,:) = 0.0_dp
-    else
-      allocate(q0(0,0,0))
-      allocate(qShell0(0,0))
-    end if
+    ! Allocate reference charge arrays
+    allocate(q0(orb%mOrb, nAtom, nSpin))
+    q0(:,:,:) = 0.0_dp
+    allocate(qShell0(orb%mShell, nAtom))
+    qShell0(:,:) = 0.0_dp
 
     ! Initialize reference neutral atoms.
     if (tLinResp .and. allocated(input%ctrl%customOccAtoms)) then
