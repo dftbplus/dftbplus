@@ -1,13 +1,14 @@
 program makecube
-
   implicit none
-  integer :: i,j,k,m, nx,ny,nz, narg, ln, err
-  real(8), dimension(:,:,:), allocatable :: phi3d, phi3d_0
-  real(8), dimension(:), allocatable :: x,y,z
-  real(8), dimension(3) :: or, dl
-  real(8), parameter :: au=0.529177
+
+  integer, parameter :: dp = kind(1.0d0)
+  
+  integer :: i,j,k, nx,ny,nz, narg, ln, err
+  real(dp), dimension(:,:,:), allocatable :: phi3d, phi3d_0
+  real(dp), dimension(:), allocatable :: x,y,z
+  real(dp), dimension(3) :: or
+  real(dp), parameter :: au = 0.529177_dp
   character(256) :: filebox,filex,filey,filez,filename,refname
-  character(80) :: buffer
   logical :: refpot
 
   narg=command_argument_count()
@@ -70,9 +71,6 @@ program makecube
   close(110)
 
   open(110,file=filename)
-  !read(110,'(a80)') buffer
-  !read(buffer,'(3i)', iostat=err) i,j,k
-  !if(err.ne.0) rewind(110)
 
   do i=1,nx
     do j=1,ny 
@@ -85,9 +83,6 @@ program makecube
 
   if (refpot) then
     open(110,file=refname)
-    !read(110,'(a80)') buffer
-    !read(buffer,'(3i)', iostat=err) i,j,k
-    !if(err.ne.0) rewind(110)
 
     do i=1,nx
       do j=1,ny 
@@ -98,10 +93,6 @@ program makecube
     enddo
     close(110)
   endif
-
-  dl(1) = x(2)-x(1)
-  dl(2) = y(2)-y(1)
-  dl(3) = z(2)-z(1)
 
   or(1) = x(1) !(x(1) - x(nx))/2.d0
   or(2) = y(1) !(y(1) - y(ny))/2.d0
