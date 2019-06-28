@@ -3006,10 +3006,6 @@ contains
        call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
      end if
 
-     if (.not.tRealHS) then
-       call error("Electron dynamics does not support k-points")
-    end if
-
      if (withMpi) then
        call error("Electron dynamics does not work with MPI yet")
      end if
@@ -3030,14 +3026,9 @@ contains
        call error("Electron dynamics does not work with charge system")
      end if
 
-     if (.not. tRealHS) then
-       call error("Electron dynamics does not support k-points")
-     end if
-
-
      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName,&
           & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, skCutoff, mCutoff,&
-          & atomEigVal, dispersion, nonSccDeriv, tPeriodic)
+          & atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS, tRealHS, kPoint, kWeight)
 
    end if
 
