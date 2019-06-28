@@ -17,7 +17,7 @@ include make.config
 
 default: dftb+ modes waveplot
 ifeq ($(strip $(WITH_TRANSPORT)),1)
-  default: setupgeom
+  default: setupgeom transporttools
 endif
 misc: misc_skderivs misc_slakovalue
 all: default misc
@@ -26,7 +26,7 @@ api: api_mm
 .PHONY: install install_misc install_all install_api
 install: install_dftb+ install_modes install_waveplot install_dptools
 ifeq ($(strip $(WITH_TRANSPORT)),1)
-  install: install_setupgeom
+  install: install_setupgeom install_transporttools
 endif
 install_misc: install_misc_skderivs install_misc_slakovalue install_tools_misc
 install_all: install install_misc
@@ -65,8 +65,8 @@ update_release:
         || $(ROOT)/utils/build/update_release $(BUILDDIR)/RELEASE \
         || echo "(UNKNOWN RELEASE)" > $(BUILDDIR)/RELEASE
 
-.PHONY: dftb+ modes waveplot setupgeom
-dftb+ modes waveplot setupgeom:
+.PHONY: dftb+ modes waveplot setupgeom transporttools
+dftb+ modes waveplot setupgeom transporttools:
 	mkdir -p $(BUILDDIR)/prog/$@
 	$(MAKE) -C $(BUILDDIR)/prog/$@ -f $(ROOT)/prog/$@/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
@@ -180,8 +180,8 @@ test_api_mm: api_mm
 # Install targets
 ################################################################################
 
-.PHONY: install_dftb+ install_modes install_waveplot install_setupgeom
-install_dftb+ install_modes install_waveplot install_setupgeom:
+.PHONY: install_dftb+ install_modes install_waveplot install_setupgeom install_transporttools
+install_dftb+ install_modes install_waveplot install_setupgeom install_transporttools:
 	$(MAKE) -C $(BUILDDIR)/prog/$(subst install_,,$@) \
 	    -f $(ROOT)/prog/$(subst install_,,$@)/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) install
@@ -189,7 +189,8 @@ install_dftb+ install_modes install_waveplot install_setupgeom:
 install_dftb+: dftb+
 install_modes: modes
 install_waveplot: waveplot
-
+install_setupgeom: setupgeom
+install_transporttools: transporttools
 
 .PHONY: install_misc_skderivs install_misc_slakovalue
 install_misc_skderivs install_misc_slakovalue:
