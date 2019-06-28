@@ -724,7 +724,8 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
+    complex(dp) :: Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
+    complex(dp) :: Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp) :: rhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp) :: H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS), T1(this%nOrbs,this%nOrbs)
@@ -752,6 +753,7 @@ contains
     iStep = 0
     startTime = 0.0_dp
     timeElec = 0.0_dp
+    RdotSprime = 0.0_dp
 
     if (this%tRestart) then
       call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
@@ -933,16 +935,16 @@ contains
 
            if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, this%eulerFreq) == 0)) then
               call zcopy(this%nOrbs*this%nOrbs, rho(:,:,iKS), 1, rhoOld(:,:,iKS), 1)
-              call propagateRho(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv,&
+              call propagateRho(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
                    & this%dt)
            else
-              call propagateRho(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv,&
+              call propagateRho(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
                    & 2.0_dp * this%dt)
            end if
         else
            !The following is commented for the fast popagate that considers a real H
            !call scal(H1(:,:,iSpin), imag)
-           call propagateRhoRealH(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv,&
+           call propagateRhoRealH(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
                 & 2.0_dp * this%dt)
         end if
 
@@ -1155,11 +1157,18 @@ contains
       call qm2ud(qq)
     end if
 
-    do iSpin = 1, this%nSpin
-      call unpackHS(T2, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK, iSquare,&
-           & iSparseStart, img2CentCell)
-      call blockSymmetrizeHS(T2,iSquare)
-      H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
+    do iKS = 1, this%parallelKS%nLocalKS
+      iSpin = this%parallelKS%localKS(2, iKS)
+      if (this%tRealHS) then
+        call unpackHS(T2, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+             & img2CentCell)
+        call blockSymmetrizeHS(T2, iSquare)
+        H1(:,:,iKS) = cmplx(T2, 0.0_dp, dp)
+      else
+        call unpackHS(H1(:,:,iKS), ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
+             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call blockSymmetrizeHS(H1(:,:,iKS), iSquare)
+      end if
     end do
 
   end subroutine updateH
@@ -1172,10 +1181,10 @@ contains
     type(TElecDynamics), intent(in) :: this
 
     !> Square overlap
-    complex(dp), intent(in) :: Ssqr(:,:)
+    complex(dp), intent(in) :: Ssqr(:,:,:)
 
     !> Square overlap inverse
-    complex(dp), intent(in) :: Sinv(:,:)
+    complex(dp), intent(in) :: Sinv(:,:,:)
 
     !> Density matrix
     complex(dp), intent(inout) :: rho(:,:,:)
@@ -1224,10 +1233,10 @@ contains
 
     do iKS = 1, this%parallelKS%nLocalKS
       call gemm(T2, T1(:,:,iKS), rho(:,:,iKS))
-      call gemm(T4, T2, Ssqr, cmplx(1, 0, dp))
+      call gemm(T4, T2, Ssqr(:,:,iKS), cmplx(1, 0, dp))
       call gemm(T2, T4, T3(:,:,iKS))
-      call gemm(rho(:,:,iKS), T2, Sinv, cmplx(0.5, 0, dp))
-      call gemm(rho(:,:,iKS), Sinv, T2, cmplx(0.5, 0, dp), cmplx(1, 0, dp), 'N', 'C')
+      call gemm(rho(:,:,iKS), T2, Sinv(:,:,iKS), cmplx(0.5, 0, dp))
+      call gemm(rho(:,:,iKS), Sinv(:,:,iKS), T2, cmplx(0.5, 0, dp), cmplx(1, 0, dp), 'N', 'C')
     end do
 
     write(stdout,"(A)")'Density kicked along ' // localDir(this%currPolDir) //'!'
@@ -1318,7 +1327,7 @@ contains
     complex(dp), intent(in) :: rho(:,:,:)
 
     !> Square overlap matrix
-    complex(dp), intent(in) :: Ssqr(:,:)
+    complex(dp), intent(in) :: Ssqr(:,:,:)
 
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
@@ -1356,7 +1365,7 @@ contains
           iOrb1 = iSquare(iAt)
           iOrb2 = iSquare(iAt+1)-1
           ! hermitian transpose used as real part only is needed
-          qq(:iOrb2-iOrb1+1,iAt,iSpin) = real(sum(rho(:, iOrb1:iOrb2, iSpin) * Ssqr(:, iOrb1:iOrb2),&
+          qq(:iOrb2-iOrb1+1,iAt,iSpin) = real(sum(rho(:,iOrb1:iOrb2,iSpin) * Ssqr(:,iOrb1:iOrb2,iSpin),&
                & dim=1), dp)
         end do
       end do
@@ -1409,7 +1418,7 @@ contains
           iOrb1 = iSquare(iAt)
           iOrb2 = iSquare(iAt+1)
           nOrb = iOrb2 - iOrb1
-          qBlock(:nOrb,:nOrb,iAt,iSpin) = real(matmul(Ssqr(iOrb1:iOrb2-1,:),&
+          qBlock(:nOrb,:nOrb,iAt,iSpin) = real(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin),&
               & rho(:,iOrb1:iOrb2-1,iSpin)))
           qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
               & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
@@ -1614,10 +1623,10 @@ contains
     real(dp), allocatable, intent(out) :: rhoPrim(:,:)
 
     !> Square overlap matrix
-    complex(dp), intent(out) :: Ssqr(:,:)
+    complex(dp), intent(out) :: Ssqr(:,:,:)
 
     !> Square overlap inverse
-    complex(dp), intent(out) :: Sinv(:,:)
+    complex(dp), intent(out) :: Sinv(:,:,:)
 
     !> Square hamiltonian
     complex(dp), intent(out) :: H1(:,:,:)
@@ -1661,38 +1670,61 @@ contains
     allocate(ham0(size(H0)))
     ham0(:) = H0
 
-    T2 = 0.0_dp
-    T3 = 0.0_dp
-    call unpackHS(T2, over, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
-    call blockSymmetrizeHS(T2,iSquare)
-    Ssqr(:,:) = cmplx(T2, 0, dp)
+    Ssqr = 0.0_dp
+    do iKS = 1, this%parallelKS%nLocalKS
+
+       if (this%tRealHS) then
+         T2 = 0.0_dp
+         T3 = 0.0_dp
+         call unpackHS(T2, over, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
+         call blockSymmetrizeHS(T2, iSquare)
+         Ssqr(:,:,iKS) = cmplx(T2, 0, dp)
+         do iOrb = 1, this%nOrbs
+           T3(iOrb, iOrb) = 1.0_dp
+         end do
+         call gesv(T2, T3)
+         Sinv(:,:,iKS) = cmplx(T3, 0, dp)
+
+       else
+         iK = this%parallelKS%localKS(1, iKS)
+         iSpin = this%parallelKS%localKS(2, iKS)
+         call unpackHS(SSqr(:,:,iKS), over, this%kPoint(:,iK), iNeighbour, nNeighbourSK, this%iCellVec,&
+              & this%rCellVec, iSquare, iSparseStart, img2CentCell)
+         call blockSymmetrizeHS(SSqr(:,:,iKS), iSquare)
+       end if
+
+    end do
+    write(stdOut,"(A)")'S inverted'
+
 
     if (.not.this%tRestart) then
-      do iSpin = 1, this%nSpin
-         call unpackHS(T3, ham(:,iSpin), iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-              & img2CentCell)
-        call blockSymmetrizeHS(T3, iSquare)
-        H1(:,:,iSpin) = cmplx(T3, 0, dp)
-        T3 = 0.0_dp
+      do iKS = 1, this%parallelKS%nLocalKS
+        iK = this%parallelKS%localKS(1, iKS)
+        iSpin = this%parallelKS%localKS(2, iKS)
+         if (this%tRealHS) then
+           call unpackHS(T3,ham(:,iSpin), iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
+           call blockSymmetrizeHS(T3, iSquare)
+           H1(:,:,iKS) = cmplx(T3, 0, dp)
+           T3 = 0.0_dp
+         else
+           call unpackHS(H1(:,:,iKS), ham(:,iSpin), kPoint(:,iK), iNeighbour, nNeighbourSK,&
+                & this%iCellVec, this%rCellVec, iSquare, iSparseStart, img2CentCell)
+           call blockSymmetrizeHS(H1(:,:,iKS), iSquare)
+         end if
       end do
     end if
 
-    if (this%tPopulations .and. (.not. this%tRealHS)) then
-      allocate(Eiginv(this%nOrbs, this%nOrbs, this%nSpin))
-      allocate(EiginvAdj(this%nOrbs, this%nOrbs, this%nSpin))
-      do iSpin=1, this%nSpin
-        call tdPopulInit(this, Eiginv, EiginvAdj, eigvecs, iSpin)
-      end do
-    else
-      call error("Populations and imaginary Hamiltonian not implemented yet.")
+    if (this%tPopulations) then
+      if (this%tRealHS) then
+        allocate(Eiginv(this%nOrbs, this%nOrbs, this%nSpin))
+        allocate(EiginvAdj(this%nOrbs, this%nOrbs, this%nSpin))
+        do iSpin = 1, this%nSpin
+          call tdPopulInit(this, Eiginv, EiginvAdj, eigvecs, iSpin)
+        end do
+      else
+        call error("Populations and imaginary Hamiltonian not implemented yet.")
+      end if
     end if
-
-    do iOrb = 1, this%nOrbs
-      T3(iOrb, iOrb) = 1.0_dp
-    end do
-    call gesv(T2, T3)
-    Sinv(:,:) = cmplx(T3, 0, dp)
-    write(stdOut,"(A)")'S inverted'
 
     if (this%tFillingsFromFile) then
        filling(:,:,:) = 0.0_dp
@@ -1751,7 +1783,7 @@ contains
     complex(dp), intent(out) :: rhoNew(:,:,:)
 
     !> Square overlap inverse
-    complex(dp), intent(in) :: Sinv(:,:)
+    complex(dp), intent(in) :: Sinv(:,:,:)
 
     !> Square hamiltonian
     complex(dp), intent(inout) :: H1(:,:,:)
@@ -1796,14 +1828,14 @@ contains
             &neighbourList, nNeighbourSK, iSquare)
     end if
 
-    do iSpin=1,this%nSpin
-       if (this%tIons) then
-          H1(:,:,iSpin) = RdotSprime + imag * H1(:,:,iSpin)
-          call propagateRho(this, rhoNew(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv, step)
+    do iKS = 1, this%parallelKS%nLocalKS
+       if (this%tIons .or. (.not. this%tRealHS)) then
+          H1(:,:,iSpin) = RdotSprime + imag * H1(:,:,iKS)
+          call propagateRho(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
        else
           ! The following line is commented to make the fast propagate work since it needs a real H
-          !H1(:,:,iSpin) = imag * H1(:,:,iSpin)
-          call propagateRhoRealH(this, rhoNew(:,:,iSpin), rho(:,:,iSpin), H1(:,:,iSpin), Sinv, step)
+          !H1(:,:,iKS) = imag * H1(:,:,iKS)
+          call propagateRhoRealH(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
        end if
     end do
 
@@ -2459,10 +2491,10 @@ contains
     type(TElecDynamics), intent(inout), target :: this
 
     !> Square overlap inverse
-    complex(dp), intent(inout) :: Sinv(:,:)
+    complex(dp), intent(inout) :: Sinv(:,:,:)
 
     !> Square overlap matrix
-    complex(dp), intent(inout) :: Ssqr(:,:)
+    complex(dp), intent(inout) :: Ssqr(:,:,:)
 
     !> Local sparse storage for non-SCC hamitonian
     real(dp), allocatable, intent(inout) :: ham0(:)
@@ -2558,7 +2590,10 @@ contains
        SinvReal(iOrb, iOrb) = 1.0_dp
     end do
     call gesv(Sreal, SinvReal)
-    Sinv(:,:) = cmplx(SinvReal, 0, dp)
+
+    do iKS = 1, this%parallelKS%nLocalKS
+      Sinv(:,:,iKS) = cmplx(SinvReal, 0, dp)
+    end do
   end subroutine updateH0S
 
 
@@ -2577,7 +2612,7 @@ contains
     complex(dp), intent(in) :: H1(:,:,:)
 
     !> Square inverse overlap
-    complex(dp), intent(in) :: Sinv(:,:)
+    complex(dp), intent(in) :: Sinv(:,:,:)
 
     !> ADT for neighbour parameters
     type(TNeighbourList), intent(inout) :: neighbourList
@@ -2645,7 +2680,7 @@ contains
 
     do iSpin = 1, this%nSpin
        call gemm(T1, real(rho(:,:,iSpin), dp), real(H1(:,:,iSpin), dp))
-       call her2k(T2, real(Sinv, dp), T1, 0.5_dp)
+       call her2k(T2, real(Sinv(:,:,iSpin), dp), T1, 0.5_dp)
        !(C,A,B,alpha,beta,uplo,trans,n,k
        !call gemm(T2, real(Sinv, dp), T1, 0.5_dp, 0.0_dp)
        !call daxpy(this%nOrbs*this%nOrbs, 1.0_dp, transpose(T2), 1, T2, 1)
