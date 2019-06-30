@@ -896,9 +896,9 @@ contains
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
           & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements)
 
-     if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
-        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
-     end if
+!     if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
+!        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
+!     end if
 
      if (this%tForces) then
         call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
@@ -1081,14 +1081,13 @@ contains
     real(dp), allocatable :: qiBlock(:,:,:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: iHam(:,:) ! not allocated since no imaginary ham
     real(dp) :: T2(this%nOrbs,this%nOrbs)
-    integer :: iAtom, iSpin
+    integer :: iAtom, iSpin, iKS, iK
     logical :: tDFTBU, tImHam
 
     ! left over from Poisson shift upload from transport being messy
     real(dp), allocatable :: dummy(:,:)
 
     ham(:,:) = 0.0_dp
-    allocate(iHam(size(ham, dim=1), this%nSpin))
 
     if (this%nSpin == 2) then
       call ud2qm(qq)
@@ -1158,15 +1157,16 @@ contains
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
+      iK = this%parallelKS%localKS(1, iKS)
       iSpin = this%parallelKS%localKS(2, iKS)
       if (this%tRealHS) then
         call unpackHS(T2, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
              & img2CentCell)
         call blockSymmetrizeHS(T2, iSquare)
-        H1(:,:,iKS) = cmplx(T2, 0.0_dp, dp)
+        H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
       else
-        call unpackHS(H1(:,:,iKS), ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
-             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call unpackHS(H1(:,:,iKS), ham(:,iSpin), this%kPoint(:,iK), neighbourList%iNeighbour,&
+             & nNeighbourSK, this%iCellVec, this%rCellVec, iSquare, iSparseStart, img2CentCell)
         call blockSymmetrizeHS(H1(:,:,iKS), iSquare)
       end if
     end do
@@ -1365,7 +1365,7 @@ contains
           iOrb1 = iSquare(iAt)
           iOrb2 = iSquare(iAt+1)-1
           ! hermitian transpose used as real part only is needed
-          qq(:iOrb2-iOrb1+1,iAt,iSpin) = real(sum(rho(:,iOrb1:iOrb2,iSpin) * Ssqr(:,iOrb1:iOrb2,iSpin),&
+          qq(:iOrb2-iOrb1+1,iAt,iSpin) = real(sum(rho(:,iOrb1:iOrb2,iSpin)*Ssqr(:,iOrb1:iOrb2,iSpin),&
                & dim=1), dp)
         end do
       end do
@@ -1384,7 +1384,6 @@ contains
           & nNeighbourSK, img2CentCell, iSparseStart)
     end if
     !call ud2qm(rhoPrim)
-
 
     ! sparse way to calculate charge and dipole
     !qq(:,:,:) = 0.0_dp
@@ -1662,7 +1661,7 @@ contains
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
-    integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS
+    integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS, iK
 
     allocate(rhoPrim(size(ham, dim=1), this%nSpin))
     allocate(ErhoPrim(size(ham, dim=1)))
@@ -1670,32 +1669,30 @@ contains
     allocate(ham0(size(H0)))
     ham0(:) = H0
 
-    Ssqr = 0.0_dp
-    do iKS = 1, this%parallelKS%nLocalKS
-
-       if (this%tRealHS) then
-         T2 = 0.0_dp
-         T3 = 0.0_dp
-         call unpackHS(T2, over, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
-         call blockSymmetrizeHS(T2, iSquare)
-         Ssqr(:,:,iKS) = cmplx(T2, 0, dp)
-         do iOrb = 1, this%nOrbs
-           T3(iOrb, iOrb) = 1.0_dp
-         end do
-         call gesv(T2, T3)
-         Sinv(:,:,iKS) = cmplx(T3, 0, dp)
-
-       else
-         iK = this%parallelKS%localKS(1, iKS)
-         iSpin = this%parallelKS%localKS(2, iKS)
-         call unpackHS(SSqr(:,:,iKS), over, this%kPoint(:,iK), iNeighbour, nNeighbourSK, this%iCellVec,&
-              & this%rCellVec, iSquare, iSparseStart, img2CentCell)
-         call blockSymmetrizeHS(SSqr(:,:,iKS), iSquare)
-       end if
-
-    end do
-    write(stdOut,"(A)")'S inverted'
-
+    if (.not. this%tRestart) then
+      Ssqr = 0.0_dp
+      do iKS = 1, this%parallelKS%nLocalKS
+        if (this%tRealHS) then
+          T2 = 0.0_dp
+          T3 = 0.0_dp
+          call unpackHS(T2, over, iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
+          call blockSymmetrizeHS(T2, iSquare)
+          Ssqr(:,:,iKS) = cmplx(T2, 0, dp)
+          do iOrb = 1, this%nOrbs
+            T3(iOrb, iOrb) = 1.0_dp
+          end do
+          call gesv(T2, T3)
+          Sinv(:,:,iKS) = cmplx(T3, 0, dp)
+        else
+          iK = this%parallelKS%localKS(1, iKS)
+          iSpin = this%parallelKS%localKS(2, iKS)
+          call unpackHS(SSqr(:,:,iKS), over, this%kPoint(:,iK), iNeighbour, nNeighbourSK,this%iCellVec,&
+               & this%rCellVec, iSquare, iSparseStart, img2CentCell)
+          call blockSymmetrizeHS(SSqr(:,:,iKS), iSquare)
+        end if
+      end do
+      write(stdOut,"(A)")'S inverted'
+    end if
 
     if (.not.this%tRestart) then
       do iKS = 1, this%parallelKS%nLocalKS
@@ -1707,7 +1704,7 @@ contains
            H1(:,:,iKS) = cmplx(T3, 0, dp)
            T3 = 0.0_dp
          else
-           call unpackHS(H1(:,:,iKS), ham(:,iSpin), kPoint(:,iK), iNeighbour, nNeighbourSK,&
+           call unpackHS(H1(:,:,iKS), ham(:,iSpin), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
                 & this%iCellVec, this%rCellVec, iSquare, iSparseStart, img2CentCell)
            call blockSymmetrizeHS(H1(:,:,iKS), iSquare)
          end if
@@ -1736,8 +1733,8 @@ contains
        end do
     end if
 
-    rho(:,:,:) = 0.0_dp
     if (.not.this%tRestart) then
+       rho(:,:,:) = 0.0_dp
        do iKS = 1, this%parallelKS%nLocalKS
           iSpin = this%parallelKS%localKS(2, iKS)
           if (this%tRealHS) then
@@ -1747,7 +1744,6 @@ contains
           else
              call makeDensityMatrix(rho(:,:,iKS), eigvecsCplx(:,:,iKS), filling(:,1,iSpin))
           end if
-
           do iOrb = 1, this%nOrbs-1
              do iOrb2 = iOrb+1, this%nOrbs
                 rho(iOrb, iOrb2, iKS) = rho(iOrb2, iOrb, iKS)
@@ -1818,7 +1814,7 @@ contains
     !> image atoms to their equivalent in the central cell
     integer, allocatable, intent(in) :: img2CentCell(:)
 
-    integer :: iSpin
+    integer :: iSpin, iKS
     complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
 
     !rhoNew(:,:,:) = rho(:,:,:)
@@ -1830,7 +1826,7 @@ contains
 
     do iKS = 1, this%parallelKS%nLocalKS
        if (this%tIons .or. (.not. this%tRealHS)) then
-          H1(:,:,iSpin) = RdotSprime + imag * H1(:,:,iKS)
+          H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
           call propagateRho(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
        else
           ! The following line is commented to make the fast propagate work since it needs a real H
@@ -2117,7 +2113,7 @@ contains
     complex(dp), intent(in) :: rhoOld(:,:,:)
 
     !> Square overlap matrix
-    complex(dp), intent(in) :: Ssqr(:,:)
+    complex(dp), intent(in) :: Ssqr(:,:,:)
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -2154,7 +2150,7 @@ contains
     complex(dp), intent(out) :: rhoOld(:,:,:)
 
     !> Square overlap matrix
-    complex(dp), intent(out) :: Ssqr(:,:)
+    complex(dp), intent(out) :: Ssqr(:,:,:)
 
     !> atomic coordinates
     real(dp), intent(out) :: coord(:,:)
@@ -2351,7 +2347,7 @@ contains
     complex(dp), intent(inout) :: H1(:,:,:)
 
     !> Square overlap matrix
-    complex(dp), intent(inout) :: Ssqr(:,:)
+    complex(dp), intent(inout) :: Ssqr(:,:,:)
 
     real(dp) :: occ(size(T1,dim=2))
     integer :: ii
@@ -2360,7 +2356,7 @@ contains
     if (this%tIons) then
        H1(:,:,iSpin) = -imag * H1(:,:,iSpin) ! change back to real H1 (careful, included D matrix!)
        ! only do previous step because of using other propagateRho for frozen nuclei
-       call diagDenseMtx(electronicSolver, 'V', H1(:,:,iSpin), SSqr, eigen) !should be real(H1)
+       call diagDenseMtx(electronicSolver, 'V', H1(:,:,iSpin), Ssqr(:,:,iSpin), eigen) !should be real(H1)
        call tdPopulInit(this, Eiginv, EiginvAdj, real(H1), iSpin)
     end if
 
@@ -2546,7 +2542,7 @@ contains
 
     real(dp) :: Sreal(this%nOrbs,this%nOrbs), SinvReal(this%nOrbs,this%nOrbs)
     real(dp) :: coord0Fold(3,this%nAtom)
-    integer :: nAllAtom, iSpin, sparseSize, iOrb
+    integer :: nAllAtom, iSpin, sparseSize, iOrb, iKS
 
     coord0Fold(:,:) = coord
     if (this%tPeriodic) then
@@ -2582,8 +2578,10 @@ contains
     Sreal = 0.0_dp
     call unpackHS(Sreal, over, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
         & img2CentCell)
-    call blockSymmetrizeHS(Sreal,iSquare)
-    Ssqr(:,:) = cmplx(Sreal, 0, dp)
+    call blockSymmetrizeHS(Sreal, iSquare)
+    do iKS = 1, this%parallelKS%nLocalKS
+       Ssqr(:,:,iKS) = cmplx(Sreal, 0, dp)
+    end do
 
     SinvReal = 0.0_dp
     do iOrb = 1, this%nOrbs
