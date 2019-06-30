@@ -6,6 +6,7 @@
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8
 timeprop/benzene_kick                  #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI 
 timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
@@ -20,7 +21,6 @@ timeprop/CH3_dftbu_singlet             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/GNR_periodic_laser            #? OMP_THREADS == 1 and not WITH_MPI
 
 timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI 
 timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI
 
