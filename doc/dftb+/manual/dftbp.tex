@@ -1840,6 +1840,7 @@ general systems.
   \kw{SymbolicFactorProcs} & i & & 1  & \\
   \kw{SpectralRadius} & r & & 10 & \\
   \kw{Sparse} & l& & No & \\
+  \kw{Threshold} & l& Sparse = No & 1E-15 & \\
 \end{ptable}
 \begin{description}
 \item[\is{Poles}] number of poles for the complex plane calculation.
@@ -1850,6 +1851,9 @@ general systems.
 \item[\is{SpectralRadius}]\modif{\modtype{Energy}} extension of the complex
   contour.
 \item[\is{Sparse}] Whether the code should use the sparse ELSI matrix interface.
+\item[\is{Threshold}] Sets the threshold to convert dense matrices to the
+  internal sparse representation that ELSI uses. This may be useful in the case
+  of matrix factorisation issues inside the solver.
 \end{description}
 
 \subsubsection{NTPoly}
@@ -1860,13 +1864,13 @@ solver does not make band structure information available, but can be linear
 scaling in both time and memory depending on settings and system. Currently the
 solver does not support spin polarisation or k-points.
 
-This solver has four options:
-
+This solver has several options:
 \begin{ptable}
   \kw{PurificationMethod} & i& & 2 & \\
   \kw{Tolerance} & r& & 1E-5 & \\
   \kw{Truncation} & r& & 1E-10 & \\
   \kw{Sparse} & l& & No & \\
+  \kw{Threshold} & l& Sparse = No & 1E-15 & \\
 \end{ptable}
 \begin{description}
 \item[\is{PurificationMethod}] Allowed choices are 0 for canonical purification,
@@ -1878,6 +1882,8 @@ This solver has four options:
 \item[\is{Truncation}] Tolerance below which matrix elements in the density
   matrix are dropped to enforce sparsity.
 \item[\is{Sparse}] Whether the code should use the sparse matrix ELSI interface.
+\item[\is{Threshold}] Sets the threshold to convert dense matrices to the
+  internal sparse representation that NTPoly uses.
 \end{description}
 
 The default choices of \is{Tolerance} and \is{Truncation} lead to an accurate,
