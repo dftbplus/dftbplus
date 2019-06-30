@@ -1763,7 +1763,16 @@ contains
       @:ASSERT(parallelKS%nLocalKS == 1)
 
       if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
-        call error("ELSI solvers require as many groups as spin and k-point combinations")
+        if (nSpin == 2) then
+          write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as spin and k-point&
+              & combinations. There are ", nIndepHam * nKPoint, " spin times k-point combinations&
+              & and ", input%ctrl%parallelOpts%nGroup, " groups"
+        else
+          write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as k-points. There&
+              & are ", nIndepHam * nKPoint, " k-points and ", input%ctrl%parallelOpts%nGroup,&
+              & " groups"
+        end if
+        call error(tmpStr)
       end if
 
       if (omp_get_max_threads() > 1) then
@@ -3801,6 +3810,17 @@ contains
     tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
     if (electronicSolver%isElsiSolver) then
       tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
+      if (.not.electronicSolver%elsi%isSparse .and. .not.(electronicSolver%providesEigenvals .or.&
+          & electronicSolver%iSolver == electronicSolverTypes%omm)) then
+        if (tDFTBU) then
+          call error("This dense ELSI solver is currently incompatible with DFTB+U, use the sparse&
+              & form")
+        end if
+        if (allocated(onSiteElements)) then
+          call error("This dense ELSI solver is currently incompatible with onsite correctios, use&
+              & the sparse form")
+        end if
+      end if
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
@@ -4196,16 +4216,6 @@ contains
         & electronicSolverTypes%ntpoly])
     if (.not. withELSI .and. tElsiSolver) then
       call error("This binary was not compiled with ELSI support enabled")
-    end if
-
-    if (electronicSolver%iSolver == electronicSolverTypes%ntpoly) then
-      if (tSpin) then
-        call error("The NTPoly solver currently does not support spin polarisation")
-      end if
-
-      if (any(kPoints /= 0.0_dp)) then
-        call error("The NTPoly solver currently does not support k-points")
-      end if
     end if
 
     nKPoint = size(kPoints, dim=2)
