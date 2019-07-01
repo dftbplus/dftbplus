@@ -4205,13 +4205,13 @@ contains
     logical :: tElsiSolver
     integer :: nKPoint
 
-    ! Temporary error test for PEXSI bug (May 2019)
-    if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)&
-        & .and. tForces) then
-      call error("A temporary bug prevents correct force evaluation with PEXSI at general k-points")
+    ! Temporary error test for PEXSI bug (July 2019)
+    if (iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)) then
+      call error("A temporary bug prevents correct evaluation with PEXSI at general k-points.&
+          & This should be fixed soon.")
     end if
 
-    tElsiSolver = any(electronicSolver%iSolver ==&
+    tElsiSolver = any(iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])
     if (.not. withELSI .and. tElsiSolver) then
