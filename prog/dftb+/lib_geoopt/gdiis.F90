@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Contains a geometry DIIS optimizer interface.
-module gdiis
-  use assert
-  use accuracy
-  use diismixer
+module dftbp_gdiis
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_diismixer
   implicit none
 
   private
@@ -136,4 +136,4 @@ contains
 
   end subroutine gDIIS_next
 
-end module gdiis
+end module dftbp_gdiis

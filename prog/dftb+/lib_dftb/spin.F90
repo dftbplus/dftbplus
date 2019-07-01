@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,12 +9,12 @@
 
 !> Module containing various routines for spin polarised calculations. Intended to be used with SCC
 !> switched on!
-module spin
-  use assert
-  use accuracy
-  use message
-  use commontypes
-  use shift
+module dftbp_spin
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_commontypes
+  use dftbp_shift
   implicit none
   private
 
@@ -184,9 +184,8 @@ contains
     !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:)
 
-    integer :: nSpin, nElements, ii
+    integer :: nSpin
 
-    nElements = size(x,dim=1)
     nSpin = size(x,dim=2)
     @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4 )
 
@@ -194,10 +193,8 @@ contains
     case (1)
       ! nothing to do
     case (2)
-      do ii = 1, nElements
-        x(ii,1) = 0.5_dp*(x(ii,1) + x(ii,2))
-        x(ii,2) = x(ii,1) - x(ii,2)
-      end do
+      x(:,1) = 0.5_dp * ( x(:,1) + x(:,2) )
+      x(:,2) = x(:,1) - x(:,2)
     case (4)
       ! nothing to do
     end select
@@ -211,11 +208,8 @@ contains
     !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:)
 
-    integer :: nSpin, ii, jj
-    integer :: nElements(2)
+    integer :: nSpin
 
-    nElements(1) = size(x,dim=1)
-    nElements(2) = size(x,dim=2)
     nSpin = size(x,dim=3)
     @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
@@ -223,12 +217,8 @@ contains
     case (1)
       ! nothing to do
     case (2)
-      do jj = 1, nElements(2)
-        do ii = 1, nElements(1)
-          x(ii,jj,1) = 0.5_dp*(x(ii,jj,1) + x(ii,jj,2))
-          x(ii,jj,2) = x(ii,jj,1) - x(ii,jj,2)
-        end do
-      end do
+      x(:,:,1) = 0.5_dp * ( x(:,:,1) + x(:,:,2) )
+      x(:,:,2) = x(:,:,1) - x(:,:,2)
     case (4)
       ! nothing to do
     end select
@@ -242,12 +232,8 @@ contains
     !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:,:)
 
-    integer :: nSpin, ii, jj, kk
-    integer :: nElements(3)
+    integer :: nSpin
 
-    nElements(1) = size(x,dim=1)
-    nElements(2) = size(x,dim=2)
-    nElements(3) = size(x,dim=3)
     nSpin = size(x,dim=4)
     @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
@@ -255,14 +241,8 @@ contains
     case (1)
       ! nothing to do
     case(2)
-      do kk = 1, nElements(3)
-        do jj = 1, nElements(2)
-          do ii = 1, nElements(1)
-            x(ii,jj,kk,1) = 0.5_dp*(x(ii,jj,kk,1) + x(ii,jj,kk,2))
-            x(ii,jj,kk,2) = x(ii,jj,kk,1) - x(ii,jj,kk,2)
-          end do
-        end do
-      end do
+      x(:,:,:,1) = 0.5_dp * ( x(:,:,:,1) + x(:,:,:,2) )
+      x(:,:,:,2) = x(:,:,:,1) - x(:,:,:,2)
     case (4)
       ! nothing to do
     end select
@@ -276,9 +256,8 @@ contains
     !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:)
 
-    integer :: nSpin, nElements, ii
+    integer :: nSpin
 
-    nElements = size(x,dim=1)
     nSpin = size(x,dim=2)
     @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
@@ -286,10 +265,8 @@ contains
     case (1)
       ! nothing to do
     case (2)
-      do ii = 1, nElements
-        x(ii,1) = x(ii,1) + x(ii,2)
-        x(ii,2) = x(ii,1) - 2.0_dp * x(ii,2)
-      end do
+      x(:,1) = x(:,1) + x(:,2)
+      x(:,2) = x(:,1) - 2.0_dp * x(:,2)
     case (4)
       ! nothing to do
     end select
@@ -303,11 +280,8 @@ contains
     !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:)
 
-    integer :: nSpin, ii, jj
-    integer :: nElements(2)
+    integer :: nSpin
 
-    nElements(1) = size(x,dim=1)
-    nElements(2) = size(x,dim=2)
     nSpin = size(x,dim=3)
     @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4 )
 
@@ -315,12 +289,8 @@ contains
     case (1)
       ! nothing to do
     case (2)
-      do jj = 1, nElements(2)
-        do ii = 1, nElements(1)
-          x(ii,jj,1) = x(ii,jj,1) + x(ii,jj,2)
-          x(ii,jj,2) = x(ii,jj,1) - 2.0_dp * x(ii,jj,2)
-        end do
-      end do
+      x(:,:,1) = x(:,:,1) + x(:,:,2)
+      x(:,:,2) = x(:,:,1) - 2.0_dp * x(:,:,2)
     case (4)
       ! nothing to do
     end select
@@ -334,12 +304,8 @@ contains
     !> array of data, last index spin
     real(dp), intent(inout) :: x(:,:,:,:)
 
-    integer :: nSpin, ii, jj, kk
-    integer :: nElements(3)
+    integer :: nSpin
 
-    nElements(1) = size(x,dim=1)
-    nElements(2) = size(x,dim=2)
-    nElements(3) = size(x,dim=3)
     nSpin = size(x,dim=4)
     @:ASSERT( nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
 
@@ -347,18 +313,12 @@ contains
     case (1)
       ! nothing to do
     case (2)
-      do kk = 1, nElements(3)
-        do jj = 1, nElements(2)
-          do ii = 1, nElements(1)
-            x(ii,jj,kk,1) = x(ii,jj,kk,1) + x(ii,jj,kk,2)
-            x(ii,jj,kk,2) = x(ii,jj,kk,1) - 2.0_dp * x(ii,jj,kk,2)
-          end do
-        end do
-      end do
+      x(:,:,:,1) = x(:,:,:,1) +          x(:,:,:,2)
+      x(:,:,:,2) = x(:,:,:,1) - 2.0_dp * x(:,:,:,2)
     case (4)
       ! nothing to do
     end select
 
   end subroutine ud2qm4
 
-end module spin
+end module dftbp_spin

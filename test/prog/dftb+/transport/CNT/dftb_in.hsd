@@ -1,0 +1,110 @@
+Geometry = GenFormat {
+<<< 'cnt_4pl.gen'
+}
+
+
+Transport {
+    Device {
+      AtomRange = 1 80
+    FirstLayerAtoms = 1  41  
+    }
+    Contact {
+      Id = "source"
+      AtomRange = 81 120
+      FermiLevel [eV] = -4.370889992000
+      potential = 0.0 
+    }
+    Contact {
+      Id = "drain"
+      AtomRange = 121 160
+      FermiLevel [eV] = -4.370889992000 
+      potential = 0.0 
+    }
+  #Task = ContactHamiltonian{
+  #   ContactId = "drain"
+  #}
+}
+
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = No 
+  #SCCTolerance = 1e-7
+  MaxAngularMomentum = {
+    C = "p"
+  }
+
+  Filling = Fermi {
+    Temperature [Kelvin] = 0
+  }
+  SlaterKosterFiles = {
+    C-C = "./C-C.skf"
+  }
+	
+  #KpointsAndWeights = SupercellFolding{
+  #  1 0 0
+  #  0 1 0
+  #  0 0 10
+  #  0.0 0.0 0.0
+  #}
+
+  #Electrostatics = Poisson {
+  #  Poissonbox [Angstrom] = 20.0 20.0 20.0
+  #  MinimalGrid [Angstrom] = 0.4 0.4 0.4
+  #  AtomDensityTolerance = 1e-5
+  #  CutoffCheck = No 
+  #  SavePotential = No
+  #  PoissonAccuracy = 1e-7
+  #}
+  #Electrostatics = GammaFunctional{}
+
+  #Eigensolver = GreensFunction {
+  #  Verbosity = 91
+  #  FirstLayerAtoms = 1  41  
+  #  Delta [eV] = 1e-4
+  #  ContourPoints = { 15 10 } 
+  #  LowestEnergy [eV] = -50.0
+  #  EnclosedPoles = 3
+  #}
+
+  Eigensolver = TransportOnly{} 
+}
+
+Analysis{
+
+  TunnelingAndDOS{
+    #WriteTunneling = No 
+    EnergyRange [eV] = -6.0  -5.5
+    EnergyStep [eV] = 0.02
+    Region {
+       Atoms = 1:40
+       Label = "first"
+    } 
+    Region{
+       Atoms = 41:80
+       Label = "second"
+    }
+    #Region {
+    #  Atoms = 1:-1
+    #  Label = "all_shellres"
+    #  ShellResolved = Yes
+    #}
+  }
+
+
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+Parallel{
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 6
+}

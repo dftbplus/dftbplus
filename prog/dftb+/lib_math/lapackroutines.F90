@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,11 +9,11 @@
 
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code. The
 !> interface of all LAPACK calls must be defined in the module lapack.
-module lapackroutines
-  use assert
-  use accuracy
-  use message
-  use lapack
+module dftbp_lapackroutines
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_lapack
   implicit none
 
   private
@@ -1467,4 +1467,4 @@ contains
 
   end subroutine zgesvd_dblecplx
 
-end module lapackroutines
+end module dftbp_lapackroutines

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,16 +9,16 @@
 
 !> Contains more high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
-module hsdutils2
-  use assert
-  use accuracy
-  use hsdutils
-  use hsdparser
-  use xmlutils
-  use unitconversion, only : unit
-  use message
-  use charmanip
-  use xmlf90
+module dftbp_hsdutils2
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_hsdutils
+  use dftbp_hsdparser
+  use dftbp_xmlutils
+  use dftbp_unitconversion, only : unit
+  use dftbp_message
+  use dftbp_charmanip
+  use dftbp_xmlf90
   implicit none
   private
 
@@ -163,7 +163,7 @@ contains
     else
       tIgnoreUnprocessed0 = .false.
     end if
-    if (.not. tIgnoreUnprocessed .and. (ll > 0)) then
+    if (.not. tIgnoreUnprocessed0 .and. (ll > 0)) then
       call error("Code halting due to the presence of errors in dftb_in file.")
     end if
 
@@ -557,4 +557,4 @@ contains
 
   end subroutine getDescendant
 
-end module hsdutils2
+end module dftbp_hsdutils2

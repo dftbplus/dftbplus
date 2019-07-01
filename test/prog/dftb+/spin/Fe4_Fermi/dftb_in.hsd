@@ -43,10 +43,11 @@ Options = {
 
 Analysis = {
     MullikenAnalysis = Yes
+    CalculateForces = Yes
 }
 
 ParserOptions = {
-    ParserVersion = 3
+    ParserVersion = 6
 }
 
 Parallel {
@@ -54,4 +55,3 @@ Parallel {
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
-

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,10 +8,10 @@
 #:include "common.fypp"
 
 !> Provides data structure for evaluated electrostatic potentials
-module elstatpot
-  use accuracy
-  use scc
-  use environment
+module dftbp_elstatpot
+  use dftbp_accuracy
+  use dftbp_scc
+  use dftbp_environment
   implicit none
   private
 
@@ -147,4 +147,4 @@ contains
   end subroutine evaluate
 
 
-end module elstatpot
+end module dftbp_elstatpot

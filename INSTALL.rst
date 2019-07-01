@@ -10,7 +10,8 @@ In order to compile DFTB+, you need the following software components:
 
 * A Fortran 2003 compliant compiler
 
-* A C-compiler
+* A C-compiler (required if building with the socket interface enabled or if C
+  language API bindings are required)
 
 * GNU make (version >= 3.79.1)
 
@@ -21,12 +22,22 @@ Additionally there are optional requirements for some DFTB+ features:
 * ScaLAPACK (version 2.0 or later) and an MPI aware Fortran compiler, if you
   want to build the MPI-parallelised version of the code
 
+* In addition to ScaLAPACK, the `ELSI
+  <https://wordpress.elsi-interchange.org/>`_ library for large scale systems can
+  optionally also be used.
+
 * The M4 preprocessor, if you want to build the MPI-parallelised version of the
   code
 
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 
 * The DftD3 dispersion library (if you need this dispersion model).
+
+* The `MAGMA <http://icl.cs.utk.edu/magma/>_` library for GPU accelerated
+  computation.
+
+For external libraries, make sure that they are compiled with the same precision
+models for the variables (same integer and floating point values).
 
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,12 +12,12 @@
 !> thermostat!
 !> Berendsen et al. J. Chem. Phys. 81 3684-3690 (1984).
 !> Harvey, Tan and Cheatham, J. Comp. Chem. 19 726-740 (1998).
-module berendsentherm
-  use assert
-  use accuracy
-  use mdcommon
-  use ranlux
-  use tempprofile
+module dftbp_berendsentherm
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_mdcommon
+  use dftbp_ranlux
+  use dftbp_tempprofile
   implicit none
   private
 
@@ -168,4 +168,4 @@ contains
 
   end subroutine Berendsen_state
 
-end module berendsentherm
+end module dftbp_berendsentherm

@@ -1,0 +1,47 @@
+############################################################################
+# Makefile to compile the package within DFTB+
+#
+# Receives:
+#     ROOT: Root of the source directory
+#     BUILDROOT: Root of the build directory
+#
+############################################################################
+
+include $(ROOT)/make.config
+
+OBJDIR := $(BUILDROOT)/external/poisson
+SRCDIR1 := $(ROOT)/external/poisson/mudpack
+SRCDIR2 := $(ROOT)/external/poisson
+STAMPFILE := $(OBJDIR)/BUILD_TIMESTAMP
+
+INCLUDES += -I$(BUILDROOT)/external/libnegf/ext_system
+
+ifeq ($(strip $(WITH_MPI)),1)
+  FYPPOPT += -DWITH_MPI
+  INCLUDES += -I$(BUILDROOT)/external/mpifx
+endif
+
+.PHONY: all clean libmudpack libpoisson 
+
+all: libmudpack libpoisson 
+	touch -r $(OBJDIR)/libmudpack.a $(STAMPFILE)
+	touch -r $(OBJDIR)/libpoisson.a $(STAMPFILE)
+
+libmudpack:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR1)/Makefile.lib \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR1)"
+
+libpoisson:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR2)/Makefile.lib \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR2)" \
+	    FPP="$(FYPP)" FPPOPT="$(FYPPOPT)" INCLUDES="$(INCLUDES)"
+
+
+clean:
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR2)/Makefile.lib \
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" SRCDIR="$(SRCDIR2)" clean
+
+
+### Local Variables:
+### mode:makefile
+### End:

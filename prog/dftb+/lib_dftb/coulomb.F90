@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,21 +8,21 @@
 #:include 'common.fypp'
 
 !> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
-module coulomb
+module dftbp_coulomb
 #:if WITH_SCALAPACK
-  use scalapackfx
+  use dftbp_scalapackfx
 #:endif
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
-  use schedule
-  use environment
-  use assert
-  use accuracy
-  use message
-  use errorfunction
-  use constants, only : pi
-  use dynneighlist
+  use dftbp_schedule
+  use dftbp_environment
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_errorfunction
+  use dftbp_constants, only : pi
+  use dftbp_dynneighlist
   implicit none
 
   private
@@ -1798,4 +1798,4 @@ contains
 
 
 
-end module coulomb
+end module dftbp_coulomb

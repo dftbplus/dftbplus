@@ -1,0 +1,63 @@
+Geometry = GenFormat {
+    4  C
+  C  O  H
+    1 1    0.6761569995E-01    0.6787055356E-01    0.6869041523E-01
+    2 2    0.7208490233E+00    0.7377875892E+00    0.7929753199E+00
+    3 3    0.2853193784E+00   -0.1035253702E+01   -0.1323496467E+00
+    4 3   -0.8428441016E+00    0.4605455590E+00   -0.4983760885E+00
+}
+
+Driver = VelocityVerlet {
+  Steps = 20
+  MDRestartFrequency = 10
+  TimeStep [Femtosecond] = 0.1
+  Thermostat = None {
+    InitialTemperature [Kelvin] = 273.15
+  }
+  OutputPrefix = "geo_end"
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1e-6
+    MaxAngularMomentum = {
+        O = "p"
+        C = "p"
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "./"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    SpinConstants = {
+        C = {-0.023} # HOMO Wpp
+        H = {-0.072} # HOMO Wss
+        O = {-0.028} # HOMO Wpp
+    }
+}
+
+Options {
+    WriteAutotestTag = Yes
+    RandomSeed = 1000
+}
+
+ExcitedState {
+    Casida {
+        NrOfExcitations = 15
+        StateOfInterest =  0
+        Symmetry = Both
+        WriteMulliken = No
+        ExcitedStateForces = No
+    }
+}
+
+ParserOptions {
+    ParserVersion = 6
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

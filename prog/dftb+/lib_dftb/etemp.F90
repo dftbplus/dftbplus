@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,15 +12,15 @@
 !> To do: Add other methods, including possibly Pederson and Jackson method
 !> PRB 43, 7312 (1991). Also fix exact occupation for electron numers, using
 !> interpolation instead of bisection.
-module etemp
-  use assert
-  use accuracy, only : dp, elecTol, elecTolMax, mExpArg
-  use errorfunction
-  use message
-  use hermite
-  use sorting
-  use constants
-  use factorial, only : fact
+module dftbp_etemp
+  use dftbp_assert
+  use dftbp_accuracy, only : dp, elecTol, elecTolMax, mExpArg
+  use dftbp_errorfunction
+  use dftbp_message
+  use dftbp_hermite
+  use dftbp_sorting
+  use dftbp_constants
+  use dftbp_factorial, only : fact
   implicit none
   private
 
@@ -120,10 +120,10 @@ contains
     end if
 
     ! For integer number of electrons, try middle gap for Ef
-    if (nElectrons - floor(nElectrons) < epsilon(1.0_dp)) then
+    if (abs(nElectrons - nint(nElectrons)) <= elecTol) then
       Ef = middleGap(eigenvals, kWeight, nElectrons)
       nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
-      if (abs(nElectrons - nElec) <= elecTol) then
+      if (abs(nElectrons - nElec) <= elecTolMax) then
         call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight)
         return
       end if
@@ -543,6 +543,11 @@ contains
       nElec = nElec + kWeight(iKpt)
       ind = ind + 1
     end do
+
+    ! just in case the system has all levels filled, but eventually this means Ef has to be above
+    ! last eigenvalue:
+    ind = min(size(eigenvals), ind)
+
     iLev = tmpIndx(ind)
     jOrb = mod(iLev - 1, size1) + 1
     jKpt = mod((iLev - 1) / size1, size2) + 1
@@ -551,4 +556,4 @@ contains
 
   end function middleGap
 
-end module etemp
+end module dftbp_etemp

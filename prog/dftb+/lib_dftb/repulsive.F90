@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,73 +8,21 @@
 #:include 'common.fypp'
 
 !> Contains subroutines to calculate repulsive pair contributions to energy and forces
-module repulsive
-  use assert
-  use accuracy, only : dp
-  use repcont
+module dftbp_repulsive
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_repcont
   implicit none
   private
 
   public :: getERep, getERepDeriv
 
 
-  !> Return repulsive energy contributions
-  interface getERep
-     module procedure getERep_total
-     module procedure getERep_atoms
-  end interface
-
 contains
 
 
-  !> Subroutine for calculating total energy contribution of the repulsives.
-  subroutine getERep_total(reslt, coords, nNeighbourSK, iNeighbours, species, img2CentCell, repCont)
-
-    !> Total energy contribution.
-    real(dp), intent(out) :: reslt
-
-    !> coordinates (x,y,z, all atoms including possible images)
-    real(dp), intent(in) :: coords(:,:)
-
-    !> Number of neighbours for atoms in the central cell
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Index of neighbours for a given atom.
-    integer, intent(in) :: iNeighbours(0:,:)
-
-    !> Species of atoms in the central cell.
-    integer, intent(in) :: species(:)
-
-    !> Index of each atom in the central cell which the atom is mapped on.
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Container for repulsive potentials.
-    type(ORepCont), intent(in) :: repCont
-
-    integer :: iAt1, iNeigh, iAt2, iAt2f
-    real(dp) :: vect(3), dist, intermed
-
-    reslt = 0.0_dp
-    do iAt1 = 1, size(nNeighbourSK)
-      do iNeigh = 1, nNeighbourSK(iAt1)
-        iAt2 = iNeighbours(iNeigh,iAt1)
-        iAt2f = img2CentCell(iAt2)
-        vect(:) = coords(:,iAt1) - coords(:,iAt2)
-        dist = sqrt(sum(vect**2))
-        call getEnergy(repCont, intermed, dist, species(iAt1), species(iAt2))
-        if (iAt2f /= iAt1) then
-          reslt = reslt + intermed
-        else
-          reslt = reslt + 0.5_dp * intermed
-        end if
-      end do
-    end do
-
-  end subroutine getERep_total
-
-
   !> Subroutine for repulsive energy contributions for each atom
-  subroutine getERep_atoms(reslt, coords, nNeighbourSK, iNeighbours, species, repCont, img2CentCell)
+  subroutine getERep(reslt, coords, nNeighbourRep, iNeighbours, species, repCont, img2CentCell)
 
     !> Energy for each atom.
     real(dp), intent(out) :: reslt(:)
@@ -83,7 +31,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbours for atoms in the central cell
-    integer, intent(in) :: nNeighbourSK(:)
+    integer, intent(in) :: nNeighbourRep(:)
 
     !> Index of neighbours for a given atom.
     integer, intent(in) :: iNeighbours(0:,:)
@@ -100,11 +48,11 @@ contains
     integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: vect(3), dist, intermed
 
-    @:ASSERT(size(reslt) == size(nNeighbourSK))
+    @:ASSERT(size(reslt) == size(nNeighbourRep))
 
     reslt(:) = 0.0_dp
-    do iAt1 = 1, size(nNeighbourSK)
-      do iNeigh = 1, nNeighbourSK(iAt1)
+    do iAt1 = 1, size(nNeighbourRep)
+      do iNeigh = 1, nNeighbourRep(iAt1)
         iAt2 = iNeighbours(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
@@ -117,11 +65,11 @@ contains
       end do
     end do
 
-  end subroutine getERep_atoms
+  end subroutine getERep
 
 
   !> Subroutine for force contributions of the repulsives.
-  subroutine getERepDeriv(reslt, coords, nNeighbourSK, iNeighbours, species, repCont, img2CentCell)
+  subroutine getERepDeriv(reslt, coords, nNeighbourRep, iNeighbours, species, repCont, img2CentCell)
 
     !> Energy for each atom.
     real(dp), intent(out) :: reslt(:,:)
@@ -130,7 +78,7 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     !> Number of neighbours for atoms in the central cell
-    integer, intent(in) :: nNeighbourSK(:)
+    integer, intent(in) :: nNeighbourRep(:)
 
     !> Index of neighbours for a given atom.
     integer, intent(in) :: iNeighbours(0:,:)
@@ -150,8 +98,8 @@ contains
     @:ASSERT(size(reslt,dim=1) == 3)
 
     reslt(:,:) = 0.0_dp
-    do iAt1 = 1, size(nNeighbourSK)
-      lpNeigh: do iNeigh = 1, nNeighbourSK(iAt1)
+    do iAt1 = 1, size(nNeighbourRep)
+      lpNeigh: do iNeigh = 1, nNeighbourRep(iAt1)
         iAt2 = iNeighbours(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         if (iAt2f == iAt1) then
@@ -166,4 +114,4 @@ contains
 
   end subroutine getERepDeriv
 
-end module repulsive
+end module dftbp_repulsive

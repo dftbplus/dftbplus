@@ -1,21 +1,21 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Routines to read/write a TGeometry type in HSD and XML format.
-module typegeometryhsd
-  use typegeometry
-  use hsdutils
-  use hsdutils2
-  use tokenreader
-  use unitconversion
-  use linkedlist
-  use charmanip
-  use simplealgebra, only : invert33, determinant33
-  use xmlf90, flib_normalize => normalize
+module dftbp_typegeometryhsd
+  use dftbp_typegeometry
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use dftbp_tokenreader
+  use dftbp_unitconversion
+  use dftbp_linkedlist
+  use dftbp_charmanip
+  use dftbp_simplealgebra, only : invert33, determinant33
+  use dftbp_xmlf90, flib_normalize => normalize
   implicit none
   private
 
@@ -33,6 +33,9 @@ module typegeometryhsd
 
   !> Locally defined subroutines
   public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
+
+  !> makes public subroutines from typegeometry
+  public :: reduce, setlattice
 
 contains
 
@@ -277,16 +280,23 @@ contains
         call getNextToken(text, geo%latVecs(:, ii), iStart, iErr)
         call checkError(node, iErr, "Invalid lattice vectors.")
       end do
+    end if
+
+    ! Check if any data remains in the geometry - should be nothing left now
+    call getNextToken(text, rTmp, iStart, iErr)
+    if (iErr /= TOKEN_EOS) then
+      call detailedError(node, "Superfluous data found. Check if specified number of atoms matches&
+          & the number of actually entered positions.")
+    end if
+
+    ! tests that are relevant to periodic geometries only
+    if (geo%tPeriodic) then
       geo%origin = geo%origin * AA__Bohr
       geo%latVecs = geo%latVecs * AA__Bohr
       if (geo%tFracCoord) then
         if (any(abs(geo%coords) > 1.0_dp)) then
-          call detailedWarning(node, &
-              &"Fractional coordinates with absolute value greater than one.")
+          call detailedWarning(node, "Fractional coordinates with absolute value greater than one.")
         end if
-        geo%coords = matmul(geo%latVecs, geo%coords)
-      else
-        geo%coords = geo%coords * AA__Bohr
       end if
       allocate(geo%recVecs2p(3, 3))
       det = determinant33(geo%latVecs)
@@ -294,16 +304,17 @@ contains
         call detailedError(node, "Dependent lattice vectors")
       end if
       call invert33(geo%recVecs2p, geo%latVecs, det)
+    end if
+
+    ! convert coords to correct internal units
+    if (geo%tFracCoord) then
+      geo%coords = matmul(geo%latVecs, geo%coords)
     else
       geo%coords = geo%coords * AA__Bohr
     end if
-    call getNextToken(text, rTmp, iStart, iErr)
-    if (iErr /= TOKEN_EOS) then
-      call detailedError(node, "Superfluous data found. Check if specified &
-          &number of atoms matches the number of actually entered positions.")
-    end if
+
     call normalize(geo)
 
   end subroutine readTGeometryGen_help
 
-end module typegeometryhsd
+end module dftbp_typegeometryhsd

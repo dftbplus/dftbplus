@@ -6,8 +6,11 @@ external/slakos/status
 external/dftd3/origin
 external/dftd3/status
 _build*
+_install
 make.arch
 make.config
 __pycache__
 .idea
 RELEASE
+tools/dptools/build
+test/prog/dftb+/transtests

@@ -5,6 +5,46 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
+19.1
+====
+
+Added
+-----
+
+- Non-equilibrium Green's function transport.
+
+- Use of the ELSI library.
+ 
+- Ability to perform ground state MD with excitation energies.
+
+- Caching for transition charges in excited state.
+
+- DFTB+ can be compiled as a library and accessed via high level API (version
+  number is in the file api/mm/API_VERSION below the main directory).
+
+- Onsite corrected hamiltonian for ground state energies.
+
+- Range-separated hybrid DFTB.
+ 
+- GPU acceleration using the MAGMA library for eigensolution. WARNING: this is
+  currently an experimental feature, so should be used with care.
+
+- Labelling of atomic orbital choices in output.
+
+
+Changed
+-------
+
+- Updated parser version to 7.
+
+Fixed
+-----
+
+- Orbital-resolved projected eigenstates (shell-resolved were correct)
+
+- Corrected Orbital to Shell naming conventions
+
+
 18.2
 ====
 

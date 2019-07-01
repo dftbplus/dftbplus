@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -31,10 +31,10 @@
 !>
 !> Step 4. is repeated as long as the projected derivative of the function on the line is less than
 !> the given tolerance.
-module linemin
-  use assert
-  use accuracy
-  use constants, only : goldenMeanP1
+module dftbp_linemin
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants, only : goldenMeanP1
   implicit none
 
   private
@@ -490,4 +490,4 @@ contains
 
   end subroutine LineMin_getMinLambda
 
-end module linemin
+end module dftbp_linemin
