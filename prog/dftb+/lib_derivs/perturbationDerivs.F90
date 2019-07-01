@@ -1341,7 +1341,7 @@ contains
       end if
     end do
 
-    call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr,eigVecsCplx(:, :, 1),&
+    call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr,eigVecsCplx(:, :, iKS),&
         & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transb="C",&
         & alpha=(1.0_dp,0.0_dp))
 
