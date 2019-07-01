@@ -20,8 +20,8 @@ Fixed
 -----
 
 
-19.1
-====
+19.1 (2019-07-01)
+=================
 
 Added
 -----
@@ -60,8 +60,8 @@ Fixed
 - Corrected Orbital to Shell naming conventions
 
 
-18.2
-====
+18.2 (2018-08-19)
+=================
 
 Added
 -----
