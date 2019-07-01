@@ -5,8 +5,8 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-Unreleased
-==========
+19.1
+====
 
 Added
 -----
@@ -43,6 +43,7 @@ Fixed
 - Orbital-resolved projected eigenstates (shell-resolved were correct)
 
 - Corrected Orbital to Shell naming conventions
+
 
 18.2
 ====

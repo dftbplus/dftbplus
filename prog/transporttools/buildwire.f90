@@ -1,44 +1,49 @@
 program buildwire
   implicit none
-  integer :: i,d(3),pl_atm,tot_atm,atm_cont,num_pl,err,k
+
+  integer, parameter :: dp = kind(1.0d0)
+
+  integer :: i,d(3),pl_atm,tot_atm,num_pl,err,k
   character(100) :: gen_file
   character(2) :: period
   character(70) :: atm_spec
   character(100) :: cell_centre, tmpStr
-  real(8) :: cell(3,3)
+  real(dp) :: cell(3,3)
   integer, ALLOCATABLE, DIMENSION (:) :: n_atm,typ_atm
-  real(8), ALLOCATABLE, DIMENSION (:) :: X,Y,Z      
+  real(dp), ALLOCATABLE, DIMENSION (:) :: X,Y,Z
   character(100) :: arg
   logical :: do_super
+  integer :: iargc
 
-  if (iargc() < 3) then
+  iargc = command_argument_count()
+  if (iargc < 3) then
     write(*,*) 'buildwire pl.gen dir npls [-s]'
     write(*,*) 'pl.gen: gen file with PL definition (supercell)'
     write(*,*) 'dir: 1=x, 2=y, 3=z'
     write(*,*) 'npls: Number of pls in the scattering region'
     write(*,*) '-s: (optional) makes a supercell structure'
     stop
-  end if 
+  end if
 
   d = 0
-  call getarg(1, arg)
+  call get_command_argument(1, arg)
   read(arg,*) gen_file
-  call getarg(2, arg)
+  call get_command_argument(2, arg)
   read(arg,*) k
   d(k) = 1
-  call getarg(3, arg)
+  call get_command_argument(3, arg)
   read(arg,*) num_pl
 
   do_super = .false.
-  if (iargc() == 4) then
-     call getarg(4, arg)
-     if (trim(arg) == "-s") then
-        do_super = .true.
-     end if   
+  if (iargc == 4) then
+    call get_command_argument(4, arg)
+    if (trim(arg) == "-s") then
+      do_super = .true.
+    end if
   end if
 
   open(30,file=trim(gen_file))
-  
+
   read(30,*) pl_atm, period
   read(30,'(A)') atm_spec
 
@@ -50,18 +55,18 @@ program buildwire
 
   ALLOCATE(Z(pl_atm),stat=err)
   IF (err /= 0) STOP 'no space for allocation (Z)'
-  
+
   ALLOCATE(n_atm(pl_atm),stat=err)
   IF (err /= 0) STOP 'no space for allocation (n_atm)'
-        
+
   ALLOCATE(typ_atm(pl_atm),stat=err)
   IF (err /= 0) STOP 'no space for allocation (typ_atm)'
-              
-  
+
+
   do i = 1,pl_atm
      read(30,*) n_atm(i),typ_atm(i),X(i),Y(i),Z(i)
   end do
-  
+
   read(30,'(A)') cell_centre
   do i = 1,3
      read(30,*) cell(i,1),cell(i,2),cell(i,3)
@@ -69,8 +74,8 @@ program buildwire
 
   close(30)
 
-             
-  tot_atm=pl_atm * (num_pl + 4)     
+
+  tot_atm=pl_atm * (num_pl + 4)
 
 
   open(30,file='Ordered_'//trim(gen_file))
@@ -84,9 +89,9 @@ program buildwire
   do k = 1,num_pl
      do i = 1,pl_atm
         write(30,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
-                               X(i)+(k-1)*cell(1,1)*d(1),& 
+                               X(i)+(k-1)*cell(1,1)*d(1),&
                                Y(i)+(k-1)*cell(2,2)*d(2), &
-                               Z(i)+(k-1)*cell(3,3)*d(3) 
+                               Z(i)+(k-1)*cell(3,3)*d(3)
      end do
   enddo
 
@@ -94,9 +99,9 @@ program buildwire
   do k = num_pl+1,num_pl+2
      do i = 1,pl_atm
         write(30,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
-                               X(i)+(k-1)*cell(1,1)*d(1),& 
+                               X(i)+(k-1)*cell(1,1)*d(1),&
                                Y(i)+(k-1)*cell(2,2)*d(2), &
-                               Z(i)+(k-1)*cell(3,3)*d(3) 
+                               Z(i)+(k-1)*cell(3,3)*d(3)
      end do
   enddo
 
@@ -104,9 +109,9 @@ program buildwire
   do k = 0,-1,-1
      do i = 1,pl_atm
         write(30,'(I5,I5,F20.12,F20.12,F20.12)') n_atm(i),typ_atm(i), &
-                               X(i)+(k-1)*cell(1,1)*d(1),& 
+                               X(i)+(k-1)*cell(1,1)*d(1),&
                                Y(i)+(k-1)*cell(2,2)*d(2), &
-                               Z(i)+(k-1)*cell(3,3)*d(3) 
+                               Z(i)+(k-1)*cell(3,3)*d(3)
      end do
   enddo
 
@@ -147,11 +152,8 @@ program buildwire
 
   write(*,*) '  Task= contactHamiltonian{'
   write(*,*) '    contactId = "source"'
-  write(*,*) '  }' 
+  write(*,*) '  }'
   write(*,*) '}'
   write(*,*)
 
 end program
-      
-      
-        

@@ -73,45 +73,54 @@ Geometry = GenFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  SCC = Yes
-  SCCTolerance = 1.0E-8
-  Eigensolver = PEXSI {
-    Sparse = No
-  }
-  MaxAngularMomentum {
-    Si = "p"
-    C = "p"
-  }
-  Filling = Fermi {
-    Temperature [Kelvin] = 300.0
-  }
-  SlaterKosterFiles {
-    Si-Si = "./Si-Si.skf"
-    Si-C = "./Si-C.skf"
-    C-Si = "./C-Si.skf"
-    C-C = "./C-C.skf"
-  }
-      
-  KPointsAndWeights = SupercellFolding {
-    1 0 0
-    0 1 0
-    0 0 1
-    0 0 0
-  }
+    SCC = Yes
+    SCCTolerance = 5.0E-6
+    Eigensolver = PEXSI {
+      Sparse = Yes
+    }
+    MaxAngularMomentum {
+        Si = "p"
+        C = "p"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 300.0
+    }
+    SlaterKosterFiles {
+        Si-Si = "./Si-Si.skf"
+        Si-C = "./Si-C.skf"
+        C-Si = "./C-Si.skf"
+        C-C = "./C-C.skf"
+    }
+    Charge = +1
+    SpinPolarisation = Colinear {
+        UnpairedElectrons = 1
+	RelaxTotalSpin = Yes
+    }
+    SpinConstants = {
+        C = -0.031
+        Si = -0.020
+    }
+    KPointsAndWeights = SupercellFolding {
+        2 0 0
+        0 1 0
+        0 0 1
+        0.5 0.5 0.5
+    }
 }
 
 Options {
-  WriteAutotestTag = Yes
+    WriteAutotestTag = Yes
 }
 
 Analysis {
-  CalculateForces = Yes
+    CalculateForces = Yes
 }
 
 ParserOptions {
-  ParserVersion = 5
+    ParserVersion = 5
 }
 
 Parallel {
-  UseOmpThreads = No
+    UseOmpThreads = No
+    Groups = 2
 }
