@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -118,12 +118,12 @@ module dftbp_constants
   integer, parameter :: maxL = 3
 
 
-  !> Number of orbital names
-  integer, parameter :: nOrbitalName = maxL + 1
+  !> Number of shell names
+  integer, parameter :: nShellName = maxL + 1
 
 
-  !> Name of the orbitals
-  character(len=1), parameter :: orbitalNames(nOrbitalName) = ["s", "p", "d", "f"]
+  !> Names of the atomic shells
+  character(len=1), parameter :: shellNames(nShellName) = ["s", "p", "d", "f"]
 
 
   !> Names of the spin directions

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -29,7 +29,7 @@ contains
     real(dp), intent(inout) :: potential(:,:,:,:)
 
     !> resulting onsite matrix elements (imaginary part)
-    real(dp), intent(inout) :: iPotential(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: iPotential(:,:,:,:)
 
     !> Block charges
     real(dp), intent(in) :: qBlock(:,:,:,:)

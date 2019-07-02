@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -601,8 +601,6 @@ contains
         iVec = iCellVec(iAtom2)
         phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
 
-        tmpSqr(1:nOrb2,1:nOrb1) = phase * tmpSqr(1:nOrb2,1:nOrb1)
-
         ! Hermitian conjugate the on-site block before packing, just in case
         if (iAtom1 == iAtom2f) then
           do kk = 1, nOrb2
@@ -611,7 +609,7 @@ contains
         end if
 
         primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
-            & + kWeight * real(reshape(tmpSqr(1:nOrb2,1:nOrb1), [nOrb1*nOrb2]))
+            & + kWeight * real(phase * reshape(tmpSqr(1:nOrb2,1:nOrb1), [nOrb1*nOrb2]))
 
       end do
     end do

@@ -1,11 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+
 
 !> Global variables and initialization for the main program.
 module dftbp_initprogram
@@ -66,6 +67,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder_module
   use dftbp_linresp_module
+  use dftbp_RangeSeparated, only : RangeSepFunc, RangeSepFunc_init
   use dftbp_stress
   use dftbp_orbitalequiv
   use dftbp_orbitals
@@ -88,6 +90,13 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
+
+  use dftbp_magmahelper
+#:if WITH_GPU
+  use iso_c_binding, only :  c_int
+  use device_info
+#:endif
+
 #:if WITH_TRANSPORT
   use libnegf_vars
   use negf_int
@@ -95,6 +104,10 @@ module dftbp_initprogram
 #:endif
   implicit none
 
+#:if WITH_GPU
+  integer (c_int):: ngpus
+  integer (c_int):: req_ngpus
+#:endif
 
   !> Container for external potentials
   type :: TRefExtPot
@@ -152,7 +165,6 @@ module dftbp_initprogram
   !> nr of different types (nAtom)
   integer :: nType
 
-
   !> data type for atomic orbital information
   type(TOrbitals), target :: orb
 
@@ -170,16 +182,6 @@ module dftbp_initprogram
 
   !> Coords in central cell (3, nAtom)
   real(dp), allocatable, target :: coord0(:,:)
-
-  !> temporary coordinates
-  real(dp), allocatable :: tmpCoords(:)
-
-  !> temporary weights
-  real(dp), allocatable :: tmpWeight(:)
-
-  !> temporary array of coords (3,:)
-  real(dp), allocatable :: tmp3Coords(:,:)
-
 
   !> if calculation is periodic
   logical :: tPeriodic
@@ -238,6 +240,10 @@ module dftbp_initprogram
   !> nr. of neighbours for atoms within Erep interaction distance (usually short)
   integer, allocatable :: nNeighbourRep(:)
 
+  !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+  !> functional
+  integer, allocatable :: nNeighbourLC(:)
+
   !> H/S sparse matrices indexing array for atomic blocks
   integer, allocatable :: iSparseStart(:,:)
 
@@ -265,14 +271,19 @@ module dftbp_initprogram
   !> Repulsive interaction raw data
   type(ORepCont) :: pRepCont
 
-  !> Cut off distance for Slater-Koster interactions
-  real(dp) :: skCutOff
+  !> Interaction cutoff distances
+  type OCutoffs
+    real(dp) :: skCutOff
+    real(dp) :: repCutOff
+    real(dp) :: lcCutOff
+    real(dp) :: mCutOff
+  end type OCutoffs
+
+  !> Cut off distances for various types of interaction
+  type(OCutoffs) :: cutOff
 
   !> Cut off distance for repulsive interactions
   real(dp) :: repCutOff
-
-  !> longest range of interactions for which neighbours are required
-  real(dp) :: mCutOff
 
   !> Sparse hamiltonian matrix
   real(dp), allocatable :: ham(:,:)
@@ -658,6 +669,27 @@ module dftbp_initprogram
   !> data type for linear response
   type(linresp), save :: lresp
 
+  !> Whether to run a range separated calculation
+  logical :: tRangeSep
+
+  !> Range Separation data
+  type(RangeSepFunc), allocatable :: rangeSep
+
+  !> DeltaRho input for calculation of range separated Hamiltonian
+  real(dp), allocatable, target :: deltaRhoIn(:)
+
+  !> DeltaRho output from calculation of range separated Hamiltonian
+  real(dp), allocatable, target :: deltaRhoOut(:)
+
+  !> Holds change in deltaRho between SCC steps for range separation
+  real(dp), allocatable :: deltaRhoDiff(:)
+
+  !> DeltaRho input for range separation in matrix form
+  real(dp), pointer :: deltaRhoInSqr(:,:,:) => null()
+
+  !> DeltaRho output from range separation in matrix form
+  real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
+
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
 
@@ -902,7 +934,10 @@ module dftbp_initprogram
   logical :: tLocalCurrents
 
   !> True if LDOS is stored on separate files for k-points
-  logical :: writeLDOS
+  logical :: tWriteLDOS
+
+  !> Labels for LDOS regions, if needed
+  character(lc), allocatable :: regionLabelLDOS(:)
 
   !> True if Tunneling is stored on separate files
   logical :: writeTunn
@@ -915,6 +950,8 @@ module dftbp_initprogram
   !> Tunneling, local DOS and current
   real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
   real(dp), allocatable :: leadCurrents(:)
+  !> Array storing local (bond) currents 
+  real(dp), allocatable :: lCurrArray(:,:)
 
   !> Poisson Derivatives (forces)
   real(dp), allocatable :: poissonDerivs(:,:)
@@ -1001,6 +1038,8 @@ contains
     type(OVelocityVerlet), allocatable :: pVelocityVerlet
     type(OTempProfile), pointer :: pTempProfile
 
+    real(dp), allocatable :: tmpCoords(:), tmpWeight(:), tmp3Coords(:,:)
+
     type(ORanlux), allocatable :: randomInit, randomThermostat
     integer :: iSeed
 
@@ -1069,7 +1108,10 @@ contains
     !> Nr. of buffered Cholesky-decompositions
     integer :: nBufferedCholesky
 
-    character(sc), allocatable :: shellnames(:)
+    character(sc), allocatable :: shellNamesTmp(:)
+
+    !> Format for two using exponential notation values with units
+    character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
 
     @:ASSERT(input%tInitialized)
 
@@ -1094,6 +1136,7 @@ contains
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
+    tRangeSep = allocated(input%ctrl%rangeSepInp)
 
     if (t2Component) then
       nSpin = 4
@@ -1168,6 +1211,9 @@ contains
       maxSccIter = input%ctrl%maxIter
     else
       maxSccIter = 1
+    end if
+    if (maxSccIter < 1) then
+      call error("SCC iterations must be larger than 0")
     end if
 
     tWriteHS = input%ctrl%tWriteHS
@@ -1268,10 +1314,10 @@ contains
       allocate(iUJ(0,0,0))
     end if
 
-    ! Cut-offs from SlaKo and repulsive
-    skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
-    repCutOff = getCutOff(pRepCont)
-    mCutOff = max(skCutOff, repCutOff)
+    ! Cut-offs for SlaKo, repulsive
+    cutOff%skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
+    cutOff%repCutOff = getCutOff(pRepCont)
+    cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
 
     ! Get species names and output file
     geoOutFile = input%ctrl%outFile
@@ -1369,10 +1415,10 @@ contains
       deallocate(sccInp)
 
       ! Longest cut-off including the softening part of gamma
-      mCutOff = max(mCutOff, sccCalc%getCutOff())
+      cutOff%mCutOff = max(cutOff%mCutOff, sccCalc%getCutOff())
 
-      if (input%ctrl%t3rd .and. input%ctrl%tOrbResolved) then
-        call error("Onsite third order DFTB only compatible with orbital non resolved SCC")
+      if (input%ctrl%t3rd .and. input%ctrl%tShellResolved) then
+        call error("Onsite third order DFTB only compatible with shell non-resolved SCC")
       end if
 
       ! Initialize full 3rd order module
@@ -1386,10 +1432,10 @@ contains
         allocate(thirdInp%damped(nType))
         thirdInp%damped(:) = tDampedShort
         thirdInp%dampExp = input%ctrl%dampExp
-        thirdInp%shellResolved = input%ctrl%tOrbResolved
+        thirdInp%shellResolved = input%ctrl%tShellResolved
         allocate(thirdOrd)
         call ThirdOrder_init(thirdOrd, thirdInp)
-        mCutOff = max(mCutOff, thirdOrd%getCutOff())
+        cutOff%mCutOff = max(cutOff%mCutOff, thirdOrd%getCutOff())
       end if
     end if
 
@@ -1618,7 +1664,7 @@ contains
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
     tExtField = tEField
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf .or. tRangeSep
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
@@ -1641,19 +1687,25 @@ contains
     end if
 
     ! Initialize reference neutral atoms.
-    if (tLinResp.and.allocated(input%ctrl%customOccAtoms)) then 
+    if (tLinResp .and. allocated(input%ctrl%customOccAtoms)) then
        call error("Custom occupation not compatible with linear response")
-    end if     
+    end if
     if (tMulliken) then
       if (allocated(input%ctrl%customOccAtoms)) then
+        if (tLinResp) then
+          call error("Custom occupation not compatible with linear response")
+        end if
         call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
             & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
-      else   
+      else
         call initQFromShellChrg(q0, referenceN0, species0, orb)
-      end if  
+      end if
     end if
 
     nEl0 = sum(q0(:,:,1))
+    if (abs(nEl0 - nint(nEl0)) < elecTolMax) then
+      nEl0 = nint(nEl0)
+    end if
     nEl(:) = 0.0_dp
     if (nSpin == 1 .or. nSpin == 4) then
       nEl(1) = nEl0 - input%ctrl%nrChrg
@@ -1667,7 +1719,7 @@ contains
         call error("More electrons than basis functions!")
       end if
     end if
-  
+
     if (.not.all(nEl(:) >= 0.0_dp)) then
       call error("Less than 0 electrons!")
     end if
@@ -1704,7 +1756,7 @@ contains
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint, tForces,&
         & input%ctrl%parallelOpts, nIndepHam, tempElec)
     if (tRealHS) then
       nBufferedCholesky = 1
@@ -1716,6 +1768,31 @@ contains
     if (electronicSolver%isElsiSolver) then
       @:ASSERT(parallelKS%nLocalKS == 1)
 
+      if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
+        if (nSpin == 2) then
+          write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as spin and k-point&
+              & combinations. There are ", nIndepHam * nKPoint, " spin times k-point combinations&
+              & and ", input%ctrl%parallelOpts%nGroup, " groups"
+        else
+          write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as k-points. There&
+              & are ", nIndepHam * nKPoint, " k-points and ", input%ctrl%parallelOpts%nGroup,&
+              & " groups"
+        end if
+        call error(tmpStr)
+      end if
+
+      if (omp_get_max_threads() > 1) then
+        call error("The ELSI-solvers should not be run with multiple threads. Set the&
+            & environment variable OMP_NUM_THREADS to 1 in order to disable multi-threading.")
+      end if
+
+      if (tSpinOrbit .and. .not.&
+          & any(electronicSolver%iSolver==[electronicSolverTypes%omm,electronicSolverTypes%elpa]))&
+          & then
+        call error("Only the ELSI libOMM and ELPA solvers are suitable for spin orbit at the&
+            & moment")
+      end if
+
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
       tWriteHS = .false.
       call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
@@ -1723,17 +1800,25 @@ contains
           & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
     end if
 
+    if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then
+      call error("Alternative force evaluation methods are not supported by this electronic&
+          & solver.")
+    end if
 
   #:if WITH_TRANSPORT
     ! whether tunneling is computed
     tTunn = input%ginfo%tundos%defined
+    ! whether local currents are computed
+    tLocalCurrents = input%ginfo%greendens%doLocalCurr
 
     ! Do we use any part of negf (solver, tunnelling etc.)?
-    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn
+    tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn .or. tLocalCurrents
 
+  #:if WITH_MPI
     if (tNegf .and. env%mpi%nGroup > 1) then
       call error("At the moment NEGF solvers cannot be used for multiple processor groups")
     end if
+  #:endif
 
   #:else
 
@@ -1754,6 +1839,11 @@ contains
         call error("External charges temporarily disabled for transport calculations&
             & (electrostatic gates are available).")
       end if
+    #:if WITH_TRANSPORT
+      if (tRangeSep .and. transpar%nCont > 0) then
+        call error("Range separated calculations do not work with transport calculations yet")
+      end if
+    #:endif
     end if
 
 
@@ -1903,7 +1993,7 @@ contains
         call move_alloc(dftd3, dispersion)
     #:endif
       end if
-      mCutOff = max(mCutOff, dispersion%getRCutOff())
+      cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
 
     end if
 
@@ -1921,16 +2011,15 @@ contains
       call TElStatPotentials_init(esp, input%ctrl%elStatPotentialsInp, tEField .or. tExtChrg)
     end if
 
-    tLocalise = input%ctrl%tLocalise
-    if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
-      call error("Localisation of electronic states currently unsupported for non-collinear and&
-          & spin orbit calculations")
-    end if
     if (allocated(input%ctrl%pipekMezeyInp)) then
       allocate(pipekMezey)
       call initialise(pipekMezey, input%ctrl%pipekMezeyInp)
     end if
     tLocalise = allocated(pipekMezey)
+    if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
+      call error("Localisation of electronic states currently unsupported for non-collinear and&
+          & spin orbit calculations")
+    end if
 
     !> Polarisability of the system
     tPolarisability = input%ctrl%tPolarisability
@@ -1961,8 +2050,8 @@ contains
         call error("Linear response does not support spin orbit coupling at the moment.")
       elseif (tDFTBU) then
         call error("Linear response does not support LDA+U yet")
-      elseif (input%ctrl%tOrbResolved) then
-        call error("Linear response does not support orbital resolved scc yet")
+      elseif (input%ctrl%tShellResolved) then
+        call error("Linear response does not support shell resolved scc yet")
       end if
       if (tempElec > 0.0_dp .and. tCasidaForces) then
         write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
@@ -2187,6 +2276,15 @@ contains
 
     tReadChrg = input%ctrl%tReadChrg
 
+    if (tRangeSep) then
+      call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
+          & input%ctrl%rangeSepInp)
+      call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
+      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp, tSpin,&
+          & rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr,&
+          & nMixElements)
+    end if
+
     tReadShifts = input%ctrl%tReadShifts
     tWriteShifts = input%ctrl%tWriteShifts
     ! Both temporarily removed until debugged:
@@ -2198,63 +2296,33 @@ contains
     tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
 
     if (tSccCalc) then
+
       do iAt = 1, nAtom
         iSp = species0(iAt)
         do iSh = 1, orb%nShell(iSp)
           qShell0(iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
         end do
       end do
+
       if (tReadChrg) then
-        if (tMixBlockCharges) then
-          if (nSpin == 2) then
-            if (tFixEf .or. tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
-                  & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
-            end if
-          else
-            if (tImHam) then
-              if (tFixEf .or. tSkipChrgChecksum) then
-                ! do not check charge or magnetisation from file
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
-                    & qBlock=qBlockIn,qiBlock=qiBlockIn)
-              else
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
-                    & qBlock=qBlockIn,qiBlock=qiBlockIn)
-              end if
-            else
-              if (tFixEf .or. tSkipChrgChecksum) then
-                ! do not check charge or magnetisation from file
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
-                    & qBlock=qBlockIn)
-              else
-                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
-                    & qBlock=qBlockIn)
-              end if
-            end if
-          end if
+        if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
+          ! do not check charge or magnetisation from file
+          call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn, qiBlockIn,&
+              & deltaRhoIn)
         else
-          ! hack again caused by going from up/down to q and M
-          if (nSpin == 2) then
-            if (tFixEf .or. tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
-                  & magnetisation=nEl(1)-nEl(2))
-            end if
+          ! check number of electrons in file
+          if (nSpin /= 2) then
+            call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
+                & qiBlockIn, deltaRhoIn,nEl = sum(nEl))
           else
-            if (tFixEf .or. tSkipChrgChecksum) then
-              ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
-            else
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1))
-            end if
+            ! check magnetisation in addition
+            call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
+                & qiBlockIn, deltaRhoIn,nEl = sum(nEl), magnetisation=nEl(1)-nEl(2))
           end if
         end if
+
       else
+
         if (allocated(input%ctrl%initialCharges)) then
           if (abs(sum(input%ctrl%initialCharges) - input%ctrl%nrChrg) > 1e-4_dp) then
             write(strTmp, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match specified&
@@ -2365,7 +2433,7 @@ contains
 
     ! Initialise images (translations)
     if (tPeriodic) then
-      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, mCutOff)
+      call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, cutOff%mCutOff)
     else
       allocate(cellVec(3, 1))
       allocate(rCellVec(3, 1))
@@ -2378,6 +2446,9 @@ contains
     call init(neighbourList, nAtom, nInitNeighbour)
     allocate(nNeighbourSK(nAtom))
     allocate(nNeighbourRep(nAtom))
+    if (tRangeSep) then
+      allocate(nNeighbourLC(nAtom))
+    end if
 
     ! Set various options
     tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
@@ -2453,12 +2524,39 @@ contains
     ! input%transpar
     call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
         & shiftPerLUp, chargeUp, poissonDerivs)
+
+    if (tUpload) then
+      ! check geometry details are consistent with transport with contacts
+      call checkTransportRanges(nAtom, input%transpar)
+    end if
+
     if (tContCalc) then
       ! geometry is reduced to contacts only
       allocate(iAtInCentralRegion(nAtom))
     else
       allocate(iAtInCentralRegion(transpar%idxdevice(2)))
     end if
+
+    if (transpar%tPeriodic1D) then
+      if ( any(abs(kPoint(2:3, :)) > 0.0_dp) ) then
+        call error("For transport in wire-like cases, only k-points in the first index should be&
+            & non-zero")
+      end if
+    end if
+
+    if (transpar%taskUpload .and. transpar%ncont > 0) then
+      if (tPeriodic .and. .not. transpar%tPeriodic1D) then
+        do ii = 1, transpar%ncont
+          do jj = 1, 3
+            if (abs(dot_product(transpar%contacts(ii)%lattice, latVec(:,jj)))>epsilon(0.0)&
+                & .and. any(abs(kPoint(jj,:)) > 0.0_dp)) then
+              call error("The k-points along transport direction(s) should zero in that direction")
+            end if
+          end do
+        end do
+      end if
+    end if
+
   #:else
     allocate(iAtInCentralRegion(nAtom))
   #:endif
@@ -2665,7 +2763,7 @@ contains
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "Yes"
       write(stdOut, "(A,':',T30,E14.6)") "SCC-tolerance", sccTol
       write(stdOut, "(A,':',T30,I14)") "Max. scc iterations", maxSccIter
-      if (input%ctrl%tOrbResolved) then
+      if (input%ctrl%tShellResolved) then
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "Yes"
       else
          write(stdOut, "(A,':',T30,A)") "Shell resolved Hubbard", "No"
@@ -2706,6 +2804,20 @@ contains
     end if
 
     write(stdOut, "(A,':',T30,A)") "Electronic solver", electronicSolver%getSolverName()
+
+    if (electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
+    #:if WITH_GPU
+      call  gpu_avail(ngpus)
+      call  gpu_req(req_ngpus)
+      write(StdOut,*) "Number of GPUs requested:",req_ngpus
+      write(StdOut,*) "Number of GPUs found    :",ngpus
+      if ((req_ngpus .le. ngpus) .and. (req_ngpus .ge. 1)) then
+        ngpus = req_ngpus
+      endif
+    #:else
+      call error("Compiled without GPU support")
+    #:endif
+    endif
 
     if (tSccCalc) then
       select case (iMixer)
@@ -2760,7 +2872,7 @@ contains
     end if
 
     if (.not.input%ctrl%tSetFillingTemp) then
-      write(stdOut, "(A,':',T30,E14.6)") "Electronic temperature", tempElec
+      write(stdOut, format2Ue) "Electronic temperature", tempElec, 'H', Hartree__eV * tempElec, 'eV'
     end if
     if (tMD) then
       write(stdOut, "(A,':',T30,E14.6)") "Time step", deltaT
@@ -2773,7 +2885,7 @@ contains
     end if
 
     if (tSccCalc) then
-      if (input%ctrl%tReadChrg) then
+      if (tReadChrg) then
         write (strTmp, "(A,A,A)") "Read in from '", trim(fCharges), "'"
       else
         write (strTmp, "(A,E11.3,A)") "Set automatically (system chrg: ", input%ctrl%nrChrg, ")"
@@ -2782,7 +2894,7 @@ contains
     end if
 
     do iSp = 1, nType
-      call getOrbitalNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellNamesTmp)
       if (iSp == 1) then
         write (strTmp, "(A,':')") "Included shells"
       else
@@ -2790,13 +2902,13 @@ contains
       end if
       do jj = 1, orb%nShell(iSp)
         if (jj == 1) then
-          strTmp2 = trim(shellNames(jj))
+          strTmp2 = trim(shellNamesTmp(jj))
         else
-          strTmp2 = trim(strTmp2) // ", " // trim(shellNames(jj))
+          strTmp2 = trim(strTmp2) // ", " // trim(shellNamesTmp(jj))
         end if
       end do
       write(stdOut, "(A,T29,A2,':  ',A)") trim(strTmp), trim(speciesName(iSp)), trim(strTmp2)
-      deallocate(shellnames)
+      deallocate(shellNamesTmp)
     end do
 
     if (tMulliken) then
@@ -2860,7 +2972,7 @@ contains
               write(strTmp, "(A)") ""
             end if
             write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)") trim(strTmp), speciesName(iSp),&
-                & jj, orbitalNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
+                & jj, shellNames(orb%angShell(jj, iSp)+1), hubbU(jj, iSp)
           end do
         end do
       end if
@@ -2878,8 +2990,8 @@ contains
               write(strTmp, "(A)") ""
             end if
             write(stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
-                & speciesName(iSp), jj, orbitalNames(orb%angShell(jj, iSp)+1), kk,&
-                & orbitalNames(orb%angShell(kk, iSp)+1), spinW(kk, jj, iSp)
+                & speciesName(iSp), jj, shellNames(orb%angShell(jj, iSp)+1), kk,&
+                & shellNames(orb%angShell(kk, iSp)+1), spinW(kk, jj, iSp)
           end do
         end do
       end do
@@ -2899,7 +3011,7 @@ contains
             write(strTmp, "(A)") ""
           end if
           write(stdOut, "(A,T30,A2,2X,I1,'(',A1,'): ',E14.6)")trim(strTmp), speciesName(iSp),&
-                & jj, orbitalNames(orb%angShell(jj, iSp)+1), xi(jj, iSp)
+                & jj, shellNames(orb%angShell(jj, iSp)+1), xi(jj, iSp)
           if (xi(jj, iSp) /= 0.0_dp .and. orb%angShell(jj, iSp) == 0) then
             call error("Program halt due to non-zero s-orbital spin-orbit coupling constant!")
           end if
@@ -2910,8 +3022,8 @@ contains
     if (tSccCalc) then
       if (t3rdFull) then
         write(stdOut, "(A,T30,A)") "Full 3rd order correction", "Yes"
-        if (input%ctrl%tOrbResolved) then
-          write(stdOut, "(A,T30,A)") "Orbital-resolved 3rd order", "Yes"
+        if (input%ctrl%tShellResolved) then
+          write(stdOut, "(A,T30,A)") "Shell-resolved 3rd order", "Yes"
           write(stdOut, "(A30)") "Shell-resolved Hubbard derivs:"
           write(stdOut, "(A)") "        s-shell   p-shell   d-shell   f-shell"
           do iSp = 1, nType
@@ -3009,8 +3121,8 @@ contains
               end if
               write(stdOut, "(A,T30,A5,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
                   & trim(speciesName(iSp))//trim(strTmp2), jj,&
-                  & orbitalNames(orb%angShell(jj, iSp)+1), kk,&
-                  & orbitalNames(orb%angShell(kk, iSp)+1), onSiteElements(kk, jj, iSpin, iSp)
+                  & shellNames(orb%angShell(jj, iSp)+1), kk,&
+                  & shellNames(orb%angShell(kk, iSp)+1), onSiteElements(kk, jj, iSpin, iSp)
             end do
           end do
         end do
@@ -3061,8 +3173,77 @@ contains
 
   end subroutine initProgramVariables
 
+#:if WITH_TRANSPORT
+  !> Check for inconsistencies in transport atom region definitions
+  subroutine checkTransportRanges(nAtom, transpar)
 
-  !> Clean up things that do not automatically get removed on going out of scope
+    !> Count of all atoms in the system
+    integer :: nAtom
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+
+    character(lc) :: strTmp
+    integer :: ii, jj
+    logical :: tFailCheck
+    logical, allocatable :: notInRegion(:)
+
+    ! check for atoms occurring inside both the device and a contact
+    do ii = 1, transpar%ncont
+      if (transpar%contacts(ii)%idxrange(1)<=transpar%idxdevice(2)) then
+        write(strTmp,"(A,I0,A,A,A,I0,A,I0)") "The device and contact overlap in their atom index&
+            & ranges, the device ends at ", transpar%idxdevice(2), ', contact "',&
+            & trim(transpar%contacts(ii)%name), '" is between ', transpar%contacts(ii)%idxrange(1),&
+            & ' and ',transpar%contacts(ii)%idxrange(2)
+        call error(trim(strTmp))
+      end if
+    end do
+
+    ! Check for atom(s) occuring in multiple contacts
+    do ii = 1, transpar%ncont
+      do jj = 1, transpar%ncont
+        if (ii == jj) then
+          cycle
+        end if
+        tFailCheck = .false.
+        if (transpar%contacts(ii)%idxrange(1) <= transpar%contacts(jj)%idxrange(1)) then
+          if (transpar%contacts(ii)%idxrange(2) >= transpar%contacts(jj)%idxrange(1)) then
+            tFailCheck = .true.
+          end if
+        else
+          if (transpar%contacts(jj)%idxrange(2) >= transpar%contacts(ii)%idxrange(1)) then
+            tFailCheck = .true.
+          end if
+        end if
+        if (tFailCheck) then
+          write(strTmp,"(A,A,A,A,A)")"Contact '",trim(transpar%contacts(ii)%name),"' and '",&
+              & trim(transpar%contacts(jj)%name),"' share atoms"
+          call error(trim(strTmp))
+        end if
+      end do
+    end do
+
+    ! check for additional atoms outside of the device and all contacts
+    if (maxval(transpar%contacts(:)%idxrange(2)) < nAtom) then
+      call error("Atoms present that are not in the device or any contact region")
+    end if
+
+    ! Check for gaps in atom ranges between regions
+    allocate(notInRegion(nAtom))
+    notInRegion = .true.
+    notInRegion(transpar%idxdevice(1):transpar%idxdevice(2)) = .false.
+    do ii = 1, transpar%ncont
+      notInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2)) = .false.
+    end do
+    if (any(notInRegion)) then
+      call error("Atom(s) present that are not in any region of the device or contacts")
+    end if
+
+  end subroutine checkTransportRanges
+#:endif
+
+
+  !> Clean up things that did not automatically get removed by going out of scope
   subroutine destructProgramVariables()
 
     if (electronicSolver%isElsiSolver) then
@@ -3073,6 +3254,32 @@ contains
       call destruct(iOrbRegion)
       call destruct(RegionLabels)
     end if
+
+    @:SAFE_DEALLOC(sccCalc, img2CentCell, species, species0, coord, coord0)
+    @:SAFE_DEALLOC(latVec, recVec, invLatVec, cellVec, rCellVec, iCellVec)
+    @:SAFE_DEALLOC(neighbourList, nNeighbourSk, nNeighbourRep, iSparseStart)
+    @:SAFE_DEALLOC(hubbU, atomEigVal, referenceN0, mass, speciesMass)
+    @:SAFE_DEALLOC(ham, iHam, chargePerShell, chargePerAtom, over, kPoint, kWeight)
+    @:SAFE_DEALLOC(nEl, spinW, xi, UJ, nUJ, niUJ, iUJ, Ef, esp)
+    @:SAFE_DEALLOC(indMovedAtom, conAtom, conVec, pipekMezey)
+    #:if WITH_SOCKETS
+      @:SAFE_DEALLOC(socket)
+    #:endif
+    @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
+    @:SAFE_DEALLOC(temperatureProfile, derivDriver)
+    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+    @:SAFE_DEALLOC(qInpRed, qOutRed, qDiffRed)
+    @:SAFE_DEALLOC(iEqOrbitals, iEqBlockDftbU, iEqBlockOnSite, iEqBlockDftbULs, iEqBlockOnSiteLs)
+    @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
+    @:SAFE_DEALLOC(dispersion, xlbomdIntegrator)
+    @:SAFE_DEALLOC(velocities, movedVelo, movedAccel, movedMass)
+    @:SAFE_DEALLOC(rhoPrim, iRhoPrim, ERhoPrim, h0, filling, Eband, TS, E0)
+    @:SAFE_DEALLOC(HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, eigen)
+    @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, chrgForces, excitedDerivs, dipoleMoment)
+    @:SAFE_DEALLOC(coord0Fold, newCoords, orbitalL, occNatural, mu)
+    @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, poissonDerivs, shiftPerLUp, chargeUp)
+    @:SAFE_DEALLOC(regionLabelLDOS)
+    @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
 
   end subroutine destructProgramVariables
 
@@ -3184,10 +3391,8 @@ contains
       tUpload = .false.
     end if
 
-    ! contact calculation (complementary to Upload)
-    tContCalc = input%transpar%defined .and. .not.tUpload .and. .not.tTunn
-    ! whether local currents are computed
-    tLocalCurrents = input%ginfo%greendens%doLocalCurr
+    ! contact calculation in case some contact is computed
+    tContCalc = (input%transpar%taskContInd /= 0)
 
     if (nSpin <=2) then
       nSpinChannels = nSpin
@@ -3244,8 +3449,12 @@ contains
         poissStr%latVecs(:,:) = 0.0_dp
       end if
       poissStr%tempElec = tempElec
+    #:if WITH_MPI
       call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
           & tInitialized)
+    #:else
+      call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, tInitialized)
+    #:endif
       if (.not. tInitialized) then
         call error("Poisson solver not initialized")
       end if
@@ -3258,8 +3467,13 @@ contains
       end if
 
       ! Some sanity checks and initialization of GDFTB/NEGF
+    #:if WITH_MPI
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
           & tempElec, electronicSolver%iSolver)
+    #:else
+      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, &
+          & tempElec, electronicSolver%iSolver)
+    #:endif
 
       ginfo = input%ginfo
 
@@ -3281,7 +3495,11 @@ contains
 
     !Write Dos and tunneling on separate files?
     writeTunn = ginfo%tundos%writeTunn
-    writeLDOS = ginfo%tundos%writeLDOS
+    tWriteLDOS = ginfo%tundos%writeLDOS
+
+    if (tWriteLDOS) then
+      call move_alloc(ginfo%tundos%dosLabels, regionLabelLDOS)
+    end if
 
   end subroutine initTransport
 
@@ -3606,10 +3824,45 @@ contains
     tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
     if (electronicSolver%isElsiSolver) then
       tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
+      if (.not.electronicSolver%elsi%isSparse .and. .not.(electronicSolver%providesEigenvals .or.&
+          & electronicSolver%iSolver == electronicSolverTypes%omm)) then
+        if (tDFTBU) then
+          call error("This dense ELSI solver is currently incompatible with DFTB+U, use the sparse&
+              & form")
+        end if
+        if (allocated(onSiteElements)) then
+          call error("This dense ELSI solver is currently incompatible with onsite correctios, use&
+              & the sparse form")
+        end if
+      end if
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
+    end if
+
+    if (tRangeSep) then
+      if (withMpi) then
+        call error("Range separated calculations do not work with MPI yet")
+      end if
+      if (nSpin > 2) then
+        call error("Range separated calculations not implemented for non-colinear calculations")
+      end if
+      if (tXlbomd) then
+        call error("Range separated calculations not currently implemented for XLBOMD")
+      end if
+      if (t3rd) then
+        call error("Range separated calculations not currently implemented for 3rd order DFTB")
+      end if
+      if (tLinResp) then
+        call error("Range separated calculations not currently implemented for linear response")
+      end if
+      if (tSpinOrbit) then
+        call error("Range separated calculations not currently implemented for spin orbit")
+      end if
+      if (tDFTBU) then
+        call error("Range separated calculations not currently implemented for DFTB+U")
+      end if
     end if
 
     if (tLinResp) then
@@ -3644,17 +3897,37 @@ contains
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
-  subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb,&
-      & nAtom, nSpin, shiftPerLUp, chargeUp, poissonDerivs)
+  subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb, nAtom, nSpin,&
+      & shiftPerLUp, chargeUp, poissonDerivs)
 
-    logical, intent(in) :: tUpload, tPoisson
+    !> Are contacts being uploaded
+    logical, intent(in) :: tUpload
+
+    !> Is the Poisson solver required
+    logical, intent(in) :: tPoisson
+
+    !> Transport parameters
     type(TTransPar), intent(in) :: transpar
+
+    !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Number of atoms
     integer, intent(in) :: nAtom
+
+    !> Number of spin channels
     integer, intent(in) :: nSpin
+
+    !> uploded potential per shell per atom
     real(dp), allocatable, intent(out) :: shiftPerLUp(:,:)
+
+    !> uploaded charges for atoms
     real(dp), allocatable, intent(out) :: chargeUp(:,:,:)
+
+    !> Poisson Derivatives (needed for forces)
     real(dp), allocatable, intent(out) :: poissonDerivs(:,:)
 
     if (tUpload) then
@@ -3668,12 +3941,23 @@ contains
 
   end subroutine initTransportArrays
 
+
   !> Read contact potential shifts from file
   subroutine uploadContShiftPerL(shiftPerL, charges, tp, orb, species)
+
+    !> shifts for atoms in contacts
     real(dp), intent(out) :: shiftPerL(:,:)
+
+    !> charges for atoms in contacts
     real(dp), intent(out) :: charges(:,:,:)
+
+    !> transport parameters
     type(TTransPar), intent(in) :: tp
+
+    !> atomic orbital parameters
     type(TOrbitals), intent(in) :: orb
+
+    !> species of atoms in the system
     integer, intent(in) :: species(:)
 
     real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
@@ -3907,32 +4191,45 @@ contains
   end subroutine getDenseDescCommon
 
 
-  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
+  !> Check for compatibility between requested electronic solver and features of the calculation
+  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, tForces, parallelOpts, nIndepHam,&
+      & tempElec)
+
+    !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
+
+    !> Is this a spin polarised calculation
     logical, intent(in) :: tSpin
+
+    !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
+
+    !> Are forces required
+    logical, intent(in) :: tForces
+
+    !> Options for a parallel calculation, if needed
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
+
+    !> Number of indepdent hamiltonian matrices at a given k-value
     integer, intent(in) :: nIndepHam
+
+    !> Temperature of the electrons
     real(dp), intent(in) :: tempElec
 
     logical :: tElsiSolver
     integer :: nKPoint
 
-    tElsiSolver = any(electronicSolver%iSolver ==&
+    ! Temporary error test for PEXSI bug (July 2019)
+    if (iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)) then
+      call error("A temporary bug prevents correct evaluation with PEXSI at general k-points.&
+          & This should be fixed soon.")
+    end if
+
+    tElsiSolver = any(iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])
     if (.not. withELSI .and. tElsiSolver) then
       call error("This binary was not compiled with ELSI support enabled")
-    end if
-
-    if (electronicSolver%iSolver == electronicSolverTypes%ntpoly) then
-      if (tSpin) then
-        call error("The NTPoly solver currently does not support spin polarisation")
-      end if
-
-      if (any(kPoints /= 0.0_dp)) then
-        call error("The NTPoly solver currently does not support k-points")
-      end if
     end if
 
     nKPoint = size(kPoints, dim=2)
@@ -3949,20 +4246,34 @@ contains
 
   end subroutine ensureSolverCompatibility
 
-  subroutine applyCustomReferenceOccupations(customOccAtoms, &
-      & customOccFillings, species, orb, referenceN0, q0)
+
+  !> Modify the reference atomic shell charges for the neutral atom
+  subroutine applyCustomReferenceOccupations(customOccAtoms,  customOccFillings, species,&
+      & orb, referenceN0, q0)
+
+    !> Array of occupation arrays, one for each atom
     type(WrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
+
+    !> Reference fillings for atomic shells
     real(dp), intent(in) :: customOccFillings(:,:)
+
+    !> Species of atoms
     integer, intent(in) :: species(:)
+
+    !> Atomic orbital data
     type(TOrbitals), intent(in) :: orb
+
+    !> Reference charges from the Slater-Koster file
     real(dp), intent(in) :: referenceN0(:,:)
+
+    !> Charges required for atomic neutrality in reference state
     real(dp), intent(inout) :: q0(:,:,:)
-    
+
     integer :: nCustomBlock, iCustomBlock, iCustomAtom, nAtom, iAt, iSp
     real(dp), allocatable :: refOcc(:,:)
-    
+
     nAtom = size(species)
-    ! note that all arrays, referenceN0, customOccAtoms, refOcc 
+    ! note that all arrays, referenceN0, customOccAtoms, refOcc
     ! are allocated to orb%mShell so assignments vecA(:,) = vecB(:,) work
     allocate(refOcc(orb%mShell, nAtom))
     ! initialize to referenceN0
@@ -3971,7 +4282,7 @@ contains
       refOcc(:, iAt) = referenceN0(:, iSp)
     end do
 
-    ! override to customOccupation 
+    ! override to customOccupation
     if (allocated(customOccAtoms)) then
       nCustomBlock = size(customOccAtoms)
       do iCustomBlock = 1, nCustomBlock
@@ -3986,13 +4297,21 @@ contains
     call initQFromUsrChrg(q0, refOcc, species, orb)
 
   end subroutine applyCustomReferenceOccupations
-  
 
-  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, &
-      & customOccFillings)
+
+  !> Print out the reference occupations for atoms
+  subroutine printCustomReferenceOccupations(orb, species, customOccAtoms, customOccFillings)
+
+    !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> Chemical species of atoms
     integer, intent(in) :: species(:)
+
+    !> Array of occupation arrays, one for each atom
     type(WrappedInt1), intent(in) :: customOccAtoms(:)
+
+    !> Fillings for each atomic shell
     real(dp), intent(in) :: customOccFillings(:,:)
 
     character(lc) :: formstr, outStr
@@ -4015,7 +4334,7 @@ contains
       write(stdout, "(A,T30,"//trim(formstr)//")") trim(outStr), customOccAtoms(iCustomBlock)%data
       iSp = species(customOccAtoms(iCustomBlock)%data(1))
       nShell = orb%nShell(iSp)
-      call getOrbitalNames(iSp, orb, shellnames)
+      call getShellNames(iSp, orb, shellnames)
       outStr = ""
       do iSh = 1, nShell
         if (iSh > 1) then
@@ -4028,6 +4347,7 @@ contains
       deallocate(shellnames)
     end do
   end subroutine printCustomReferenceOccupations
+
 
   !> Initialises SCC related parameters before geometry loop starts
   function getMinSccIters(tSccCalc, tDftbU, nSpin) result(minSccIter)
@@ -4059,6 +4379,114 @@ contains
     end if
 
   end function getMinSccIters
+
+
+  !> Stop if any range separated incompatible setting is found
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, rangeSepInp)
+
+    !> Is the system periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Are charges read from disc
+    logical, intent(in) :: tReadChrg
+
+    !> Is this a shell resolved calculation
+    logical, intent(in) :: tShellResolved
+
+    !> Parameters for the range separated calculation
+    type(TRangeSepInp), intent(in) :: rangeSepInp
+
+    if (tPeriodic) then
+      call error("Range separated functionality only works with non-periodic structures at the&
+          & moment")
+    end if
+    if (tReadChrg .and. rangeSepInp%rangeSepAlg == "tr") then
+      call error("Restart on thresholded range separation not working correctly")
+    end if
+    if (tShellResolved) then
+      call error("Range separated functionality currently does not yet support shell-resolved scc")
+    end if
+
+  end subroutine ensureRangeSeparatedReqs
+
+
+  !> Determine range separated cut-off and also update maximal cutoff
+  subroutine getRangeSeparatedCutOff(cutoffRed, cutOff)
+
+    !> Reduction in cut-off
+    real(dp), intent(in) :: cutoffRed
+
+    !> Resulting cut-off
+    type(OCutoffs), intent(inout) :: cutOff
+
+    cutOff%lcCutOff = 0.0_dp
+    if (cutoffRed < 0.0_dp) then
+      call error("Cutoff reduction for range-separated neighbours should be zero or positive.")
+    end if
+    cutOff%lcCutOff = cutOff%skCutOff - cutoffRed
+    if (cutOff%lcCutOff < 0.0_dp) then
+      call error("Screening cutoff for range-separated neighbours too short.")
+    end if
+    cutOff%mCutoff = max(cutOff%mCutOff, cutoff%lcCutOff)
+
+  end subroutine getRangeSeparatedCutOff
+
+
+  !> Initialise range separated extension.
+  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin, rangeSep,&
+      & deltaRhoIn, deltarhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+
+    !> Number of atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> species of atoms
+    integer, intent(in) :: species0(:)
+
+    !> names of chemical species
+    character(*), intent(in) :: speciesName(:)
+
+    !> Hubbard values for species
+    real(dp), intent(in) :: hubbU(:,:)
+
+    !> input for range separated calculation
+    type(TRangeSepInp), intent(in) :: rangeSepInp
+
+    !> Is this spin unrestricted
+    logical, intent(in) :: tSpin
+
+    !> Resulting settings for range separation
+    type(RangeSepFunc), allocatable, intent(out) :: rangeSep
+
+    !> Change in input density matrix flattened to 1D array
+    real(dp), allocatable, target, intent(out) :: deltaRhoIn(:)
+
+    !> Change in output density matrix flattened to 1D array
+    real(dp), allocatable, target, intent(out) :: deltaRhoOut(:)
+
+    !> Change in density matrix between in and out
+    real(dp), allocatable, intent(out) :: deltaRhoDiff(:)
+
+    !> Change in input density matrix
+    real(dp), pointer, intent(out) :: deltaRhoInSqr(:,:,:)
+
+    !> Change in output density matrix
+    real(dp), pointer, intent(out) :: deltaRhoOutSqr(:,:,:)
+
+    !> Number of mixer elements
+    integer, intent(out) :: nMixElements
+
+    allocate(rangeSep)
+    call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
+        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, rangeSepInp%rangeSepAlg)
+    allocate(deltaRhoIn(nOrb * nOrb * nSpin))
+    allocate(deltaRhoOut(nOrb * nOrb * nSpin))
+    allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
+    deltaRhoInSqr(1:nOrb, 1:nOrb, 1:nSpin) => deltaRhoIn(1 : nOrb * nOrb * nSpin)
+    deltaRhoOutSqr(1:nOrb, 1:nOrb, 1:nSpin) => deltaRhoOut(1 : nOrb * nOrb * nSpin)
+    nMixElements = nOrb * nOrb * nSpin
+    deltaRhoInSqr(:,:,:) = 0.0_dp
+
+  end subroutine initRangeSeparated
 
 
 end module dftbp_initprogram

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -95,7 +95,8 @@ contains
         & electronicSolverTypes%ntpoly])
     this%providesEigenvals = any(this%iSolver ==&
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa])
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%magma_gvd])
 
     this%nCholesky = nCholesky
     allocate(this%hasCholesky(this%nCholesky))
@@ -154,6 +155,9 @@ contains
 
     case(electronicSolverTypes%onlyTransport)
       write(buffer, "(A)") "Transport Only (no energies)"
+
+    case(electronicSolverTypes%magma_gvd)
+      write(buffer, "(A)") "Divide and Conquer (MAGMA GPU version)"
 
     case default
       write(buffer, "(A,I0,A)") "Invalid electronic solver! (iSolver = ", this%iSolver, ")"

@@ -74,9 +74,11 @@ Driver {}
 
 Hamiltonian = DFTB {
   SCC = Yes
-  #SCCTolerance = 1E-8
+  SCCTolerance = 1E-8
   MaxSCCIterations = 1000
-  Eigensolver = PEXSI {}
+  Eigensolver = PEXSI {
+    Sparse = No
+  }
   MaxAngularMomentum {
     Si = "p"
     C = "p"
@@ -91,7 +93,6 @@ Hamiltonian = DFTB {
     C-C = "./C-C.skf"
   }
       
-  ForceEvaluation = 'dynamics'
   KPointsAndWeights = SupercellFolding {
     2 0 0
     0 2 0

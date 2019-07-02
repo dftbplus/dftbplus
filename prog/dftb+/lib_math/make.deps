@@ -32,10 +32,17 @@ _mod_dftbp_determinant: determinant.o
 _mod_dftbp_determinant = $(determinant.o)
 #:endif
 
+#:if WITH_GPU
+eigensolver.o: _mod_dftbp_blas _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapack _mod_dftbp_message _mod_magma
+eigensolver.o = eigensolver.o $(_mod_dftbp_blas) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapack) $(_mod_dftbp_message) $(_mod_magma)
+_mod_dftbp_eigensolver: eigensolver.o
+_mod_dftbp_eigensolver = $(eigensolver.o)
+#:else
 eigensolver.o: _mod_dftbp_blas _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapack _mod_dftbp_message
 eigensolver.o = eigensolver.o $(_mod_dftbp_blas) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapack) $(_mod_dftbp_message)
 _mod_dftbp_eigensolver: eigensolver.o
 _mod_dftbp_eigensolver = $(eigensolver.o)
+#:endif
 
 erfcalc.o: _mod_dftbp_accuracy
 erfcalc.o = erfcalc.o $(_mod_dftbp_accuracy)
@@ -53,6 +60,11 @@ errorfunction.o = errorfunction.o $(common.fypp) $(_mod_dftbp_accuracy)
 _mod_dftbp_errorfunction: errorfunction.o
 _mod_dftbp_errorfunction = $(errorfunction.o)
 #:endif
+
+f08math.o: common.fypp _mod_dftbp_accuracy
+f08math.o = f08math.o $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_f08math: f08math.o
+_mod_dftbp_f08math = $(f08math.o)
 
 factorial.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
 factorial.o = factorial.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)

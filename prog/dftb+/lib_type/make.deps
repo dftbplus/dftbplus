@@ -63,8 +63,8 @@ linkedlists0.o = linkedlists0.o $(_mod_dftbp_xmlf90) $(_mod_dftbp_assert) $(link
 _mod_dftbp_linkedlists0: linkedlists0.o
 _mod_dftbp_linkedlists0 = $(linkedlists0.o)
 
-oldskdata.o: _mod_dftbp_reppoly _mod_dftbp_assert _mod_dftbp_repspline _mod_dftbp_accuracy common.fypp _mod_dftbp_message _mod_dftbp_constants
-oldskdata.o = oldskdata.o $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(_mod_dftbp_repspline) $(_mod_dftbp_accuracy) $(common.fypp) $(_mod_dftbp_message) $(_mod_dftbp_constants)
+oldskdata.o: _mod_dftbp_reppoly _mod_dftbp_assert _mod_dftbp_repspline _mod_dftbp_accuracy common.fypp _mod_dftbp_message _mod_dftbp_rangeseparated _mod_dftbp_constants
+oldskdata.o = oldskdata.o $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(_mod_dftbp_repspline) $(_mod_dftbp_accuracy) $(common.fypp) $(_mod_dftbp_message) $(_mod_dftbp_rangeseparated) $(_mod_dftbp_constants)
 _mod_dftbp_oldskdata: oldskdata.o
 _mod_dftbp_oldskdata = $(oldskdata.o)
 

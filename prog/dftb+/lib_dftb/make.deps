@@ -168,6 +168,11 @@ potentials.o = potentials.o $(_mod_dftbp_commontypes) $(_mod_dftbp_assert) $(com
 _mod_dftbp_potentials: potentials.o
 _mod_dftbp_potentials = $(potentials.o)
 
+rangeseparated.o: _mod_dftbp_environment _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_nonscc _mod_dftbp_sorting _mod_dftbp_f08math _mod_dftbp_sparse2dense _mod_dftbp_commontypes _mod_dftbp_globalenv _mod_dftbp_slakocont _mod_dftbp_message
+rangeseparated.o = rangeseparated.o $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_nonscc) $(_mod_dftbp_sorting) $(_mod_dftbp_f08math) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_commontypes) $(_mod_dftbp_globalenv) $(_mod_dftbp_slakocont) $(_mod_dftbp_message)
+_mod_dftbp_rangeseparated: rangeseparated.o
+_mod_dftbp_rangeseparated = $(rangeseparated.o)
+
 repcont.o: _mod_dftbp_repspline _mod_dftbp_reppoly _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
 repcont.o = repcont.o $(_mod_dftbp_repspline) $(_mod_dftbp_reppoly) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
 _mod_dftbp_repcont: repcont.o

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -106,7 +106,7 @@ contains
         end if
         vTmp(:) = inertia(:,ii)
         do iAt = 1, nMovedAtom
-          call cross3(rTmp, vTmp, geo%coords(:,iAt) - centreOfMass)
+          rTmp = cross3(vTmp, geo%coords(:,iAt) - centreOfMass)
           vectorsToNull((iAt - 1) * 3 + 1 : iAt * 3, nToNull - ii + 1) = rTmp
         end do
       end do

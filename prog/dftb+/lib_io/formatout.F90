@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -69,7 +69,7 @@ contains
 
 
   !> A wrapper around writeGenFormat_fid to open a file first.
-  subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, tFracCoord)
+  subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, tFracCoord, append)
 
     !> File name of the file which should be created
     character(len=*), intent(in) :: fileName
@@ -89,11 +89,27 @@ contains
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
 
+    !> Whether geometry should be appended (default: it is overwritten)
+    logical, intent(in), optional :: append
+
     integer :: fd
+
+    logical :: append0
+
+    if (present(append)) then
+      append0 = append
+    else
+      append0 = .false.
+    end if
 
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
-    open(newunit=fd, file=fileName, form="formatted", action="write", status="replace")
+    if (append0) then
+      open(newunit=fd, file=fileName, form="formatted", action="write", status="old",&
+          & position="append")
+    else
+      open(newunit=fd, file=fileName, form="formatted", action="write", status="replace")
+    end if
     call writeGenFormat(fd, coord, species, speciesName, latVec, tFracCoord)
     close(fd)
 
@@ -319,7 +335,8 @@ contains
     write(stdOut, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
     write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(release)
     write(stdOut, '(A)') verticalBar
-    write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) ', year, '  DFTB+ developers group'
+    write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) 2006 - ', year,&
+        & '  DFTB+ developers group'
     write(stdOut, '(A,/,2A,/,A)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1),&
         & verticalBar
     write(stdOut, '(2A)') verticalBar,&

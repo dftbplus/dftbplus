@@ -89,7 +89,7 @@ Hamiltonian = DFTB {
     C-Si = "./C-Si.skf"
     C-C = "./C-C.skf"
   }
-      
+  Eigensolver = QR {}
   ForceEvaluation = 'dynamics'
   KPointsAndWeights = SupercellFolding {
     2 0 0

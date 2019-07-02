@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -34,7 +34,7 @@ module libnegf_vars
     real(dp), allocatable :: coupling(:)
 
     !> Iterations for self-consistent Born approximation
-    integer  :: scba_niter = 0
+    integer :: scba_niter = 0
 
     !> List of orbital per atom for models = (2,3)
     integer, allocatable :: orbsperatm(:)
@@ -59,7 +59,7 @@ module libnegf_vars
 
     real(dp) :: length = 0.0_dp
 
-    !> Lattice vectors
+    !> contact vector
     real(dp) :: lattice(3)
 
     real(dp) :: potential = 0.0_dp
@@ -90,37 +90,39 @@ module libnegf_vars
   type TNEGFTunDos
 
     !> true only if filling block is defined
-    logical            :: defined = .false.
+    logical :: defined = .false.
 
     !> verbosity level of the library
-    integer            :: verbose
+    integer :: verbose
 
     !> spin degeneracy (used in transmission and current integration)
-    integer            :: gSpin
+    integer :: gSpin
 
     !> Min integration energy (possible to define them different for colinear spin calculation)
     real(dp) :: emin
 
     !> Max integration energy
-    real(dp)           :: emax
+    real(dp) :: emax
 
     !> Energy step
-    real(dp)           :: estep
+    real(dp) :: estep
 
     !> Delta for Green's function
-    real(dp)           :: delta
+    real(dp) :: delta
 
     !> An additional broadening delta for DOS and tunneling
-    real(dp)           :: broadeningDelta
+    real(dp) :: broadeningDelta
 
     !> emitter contact(s)
-    integer, allocatable  :: ni(:)
+    integer, allocatable :: ni(:)
 
     !> collector contact(s)
-    integer, allocatable  :: nf(:)
+    integer, allocatable :: nf(:)
 
+    !> Orbitals in regions
     type(WrappedInt1), allocatable :: dosOrbitals(:)
 
+    !> Labels of regions for LDOS calculations
     character(lc), allocatable :: dosLabels(:)
 
     !> write DOS on separate files
@@ -145,51 +147,51 @@ module libnegf_vars
   type TNEGFGreenDensInfo
 
     !> true only if filling block is defined
-    logical            :: defined = .false.
+    logical :: defined = .false.
 
     !> verbosity level of the library
-    integer            :: verbose
+    integer :: verbose
 
     !> Fermi level for closed system calculation. If a coliner spin calculation is defined, two
     !> values are needed (up and down) unique Fermi closed systems
-    real(dp)   :: oneFermi(2) = [0.0_dp, 0.0_dp]
+    real(dp) :: oneFermi(2) = [0.0_dp, 0.0_dp]
 
     !> delta function in G.F.
-    real(dp)           :: delta
+    real(dp) :: delta
 
     !> Number of points in contour
-    integer            :: nP(3)
+    integer :: nP(3)
 
     !> Lowest energy for contour int
-    real(dp)           :: enLow
+    real(dp) :: enLow
 
     !> Number of kT for Fermi dist
-    integer            :: nkT
+    integer :: nkT
 
     !> Number of poles included in contour
-    integer            :: nPoles
+    integer :: nPoles
 
     !> use or not Green solver
-    logical            :: doGreenDens = .false.
+    logical :: doGreenDens = .false.
 
     !> save SGF in files
-    logical            :: saveSGF
+    logical :: saveSGF
 
     !> read SGF from files
-    logical            :: readSGF
+    logical :: readSGF
 
     !> Calculate or not the local J. There is an independent definition of principal layers (pls),
     !> since in a closed system Green's calculation a separate definition may be used
-    logical            :: doLocalCurr = .false.
+    logical :: doLocalCurr = .false.
 
     !> Number of principal layers
-    integer            :: nPLs = 0
+    integer :: nPLs = 0
 
     !> PL indices (starting atom)
-    integer, allocatable  :: PL(:)
+    integer, allocatable :: PL(:)
 
     !> spin degeneracy (used in charge integration)
-    integer            :: gSpin
+    integer :: gSpin
 
     !> contact temperatures
     real(dp), allocatable :: kbT(:)
@@ -263,7 +265,7 @@ module libnegf_vars
 
 contains
 
-  !> Copies contents of a Green function density calculation structure
+  !> Copies contents of a Green's function density calculation structure
   subroutine copyGreenDens(gIN, gOUT)
 
     !> Original structure

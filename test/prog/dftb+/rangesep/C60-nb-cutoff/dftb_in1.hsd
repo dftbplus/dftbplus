@@ -1,0 +1,35 @@
+Geometry = GenFormat {
+    <<< geo.gen
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    ReadInitialCharges = No
+    SCCTolerance = 1.0E-3
+    MaxAngularMomentum = {
+        C = "p"
+    }
+
+    SlaterKosterFiles = {
+        C-C = "C-C.skf"
+    }
+
+    RangeSeparated = LC {
+      Screening = NeighbourBased {
+	CutoffReduction [AA] = 4.0
+      }
+    }
+}
+
+Options = {
+    WriteAutotestTag = No
+}
+
+Analysis {
+#    CalculateForces = Yes
+#    AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 6
+}

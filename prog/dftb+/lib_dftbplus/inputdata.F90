@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -39,6 +39,7 @@ module dftbp_inputdata_module
 
   public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
   public :: TBlacsOpts
+  public :: TRangeSepInp
   public :: init, destruct
 #:if WITH_TRANSPORT
   public :: TNEGFInfo
@@ -75,6 +76,15 @@ module dftbp_inputdata_module
   end type TLbfgsInput
 
 
+  !> Range separation input
+  type TRangeSepInp
+    real(dp) :: screeningThreshold
+    real(dp) :: cutoffRed
+    real(dp) :: omega
+    character(lc) :: rangeSepAlg
+  end type TRangeSepInp
+
+
   !> Main control data for program as extracted by the parser
   type control
 
@@ -88,7 +98,7 @@ module dftbp_inputdata_module
     logical :: tScc = .false.
 
     !> l-shell resolved SCC
-    logical :: tOrbResolved = .false.
+    logical :: tShellResolved = .false.
 
     !> SCC tolerance
     real(dp) :: sccTol = 0.0_dp
@@ -447,6 +457,8 @@ module dftbp_inputdata_module
 
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
+
+    type(TRangeSepInp), allocatable :: rangeSepInp
 
 
   #:if WITH_SOCKETS
