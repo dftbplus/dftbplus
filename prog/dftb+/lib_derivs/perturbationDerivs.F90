@@ -421,7 +421,7 @@ contains
           end if
 
           if (tDFTBU) then
-            ! note the derivatives of both FLL and pSIC are pSIC (case 2 in module)
+            ! note the derivatives of both FLL and pSIC are the same (pSIC, i.e. case 2 in module)
             call getDftbUShift(dpotential%orbitalBlock, dqBlockIn, species, orb, 2,&
                 & UJ, nUJ, niUJ, iUJ)
           end if
@@ -1119,13 +1119,22 @@ contains
     do jj = 1, size(workLocal,dim=2)
       jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
           & env%blacs%orbitalGrid%ncol)
+
+      if (jGlob > nFilled(1)) then
+        workLocal(:, jj) = 0.0_dp
+        cycle
+      end if
       do ii = 1, size(workLocal,dim=1)
         iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
             & env%blacs%orbitalGrid%nrow)
+        if (iGlob < nEmpty(1)) then
+          workLocal(ii, :) = 0.0_dp
+          cycle
+        end if
 
         if (present(dEi)) then
           if (iGlob == jGlob) then
-            !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
+            !if (iGlob == jGlob) then workLocal(ii,jj) contains derivative of iGlob-th eigenvalue
             dEi(iGlob) = workLocal(ii,jj)
           end if
         end if
@@ -1324,6 +1333,10 @@ contains
 
     integer :: iFilled, jj, jGlob, iK, iS
     complex(dp) :: workLocal(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
+  #:if WITH_SCALAPACK
+    complex(dp) :: workLocal2(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
+    complex(dp) :: workLocal3(size(eigVecsCplx, dim=1), size(eigVecsCplx, dim=2))
+  #:endif
 
     workLocal(:,:) = cmplx(0,0,dp)
 
@@ -1341,10 +1354,13 @@ contains
       end if
     end do
 
-    call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr,eigVecsCplx(:, :, iKS),&
-        & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transb="C",&
-        & alpha=(1.0_dp,0.0_dp))
-
+    workLocal3(:,:) = eigVecsCplx(:,:,iKS)
+    call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr, workLocal3,&
+        & denseDesc%blacsOrbSqr, workLocal2, denseDesc%blacsOrbSqr, transb="C")
+    workLocal(:,:) = workLocal2
+    ! Hermitian symmetry
+    call pblasfx_ptranc(workLocal2, denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr,&
+        & alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
   #:else
 
     do iFilled = nEmpty(1), nFilled(1)
