@@ -573,7 +573,11 @@ contains
       call qm2ud(q0)
     end if
 
-    this%nOrbs = size(eigvecs, dim=1)
+    if (this%tRealHS) then
+      this%nOrbs = size(eigvecs, dim=1)
+    else
+      this%nOrbs = size(eigvecsCplx, dim=1)
+    endif   
     this%nAtom = size(coord, dim=2)
     this%latVec = latVec
     this%invLatVec = invLatVec
@@ -1167,7 +1171,7 @@ contains
       else
         call unpackHS(H1(:,:,iKS), ham(:,iSpin), this%kPoint(:,iK), neighbourList%iNeighbour,&
              & nNeighbourSK, this%iCellVec, this%rCellVec, iSquare, iSparseStart, img2CentCell)
-        call blockSymmetrizeHS(H1(:,:,iKS), iSquare)
+        call blockHermitianHS(H1(:,:,iKS), iSquare)
       end if
     end do
 
@@ -1546,13 +1550,13 @@ contains
     energy%Erep = sum(energy%atomRep)
 
     ! Calculate dispersion component
-    if (this%tDispersion) then
-       call this%dispersion%getEnergies(energy%atomDisp)
-       energy%eDisp = sum(energy%atomDisp)
-    else
+!    if (this%tDispersion) then
+!       call this%dispersion%getEnergies(energy%atomDisp)
+!       energy%eDisp = sum(energy%atomDisp)
+!    else
        energy%atomDisp(:) = 0.0_dp
        energy%eDisp = 0.0_dp
-    end if
+!    end if
 
     TS = 0.0_dp
     call getEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
@@ -1661,6 +1665,7 @@ contains
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
+    complex(dp), allocatable :: T4(:,:)
     integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS, iK
 
     allocate(rhoPrim(size(ham, dim=1), this%nSpin))
@@ -1669,8 +1674,11 @@ contains
     allocate(ham0(size(H0)))
     ham0(:) = H0
 
+    allocate(T4(this%nOrbs,this%nOrbs))
+    
     if (.not. this%tRestart) then
       Ssqr = 0.0_dp
+      Sinv = 0.0_dp 
       do iKS = 1, this%parallelKS%nLocalKS
         if (this%tRealHS) then
           T2 = 0.0_dp
@@ -1686,9 +1694,14 @@ contains
         else
           iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
-          call unpackHS(SSqr(:,:,iKS), over, this%kPoint(:,iK), iNeighbour, nNeighbourSK,this%iCellVec,&
+          call unpackHS(T4, over, this%kPoint(:,iK), iNeighbour, nNeighbourSK,this%iCellVec,&
                & this%rCellVec, iSquare, iSparseStart, img2CentCell)
-          call blockSymmetrizeHS(SSqr(:,:,iKS), iSquare)
+          call blockHermitianHS(T4, iSquare)
+          Ssqr(:,:,iKS) = T4
+          do iOrb = 1, this%nOrbs
+            Sinv(iOrb, iOrb, iKS) = 1.0_dp
+          end do
+          call gesv(T4, Sinv(:,:,iKS))
         end if
       end do
       write(stdOut,"(A)")'S inverted'
@@ -1698,16 +1711,16 @@ contains
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
-         if (this%tRealHS) then
-           call unpackHS(T3,ham(:,iSpin), iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
-           call blockSymmetrizeHS(T3, iSquare)
-           H1(:,:,iKS) = cmplx(T3, 0, dp)
-           T3 = 0.0_dp
-         else
-           call unpackHS(H1(:,:,iKS), ham(:,iSpin), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
-                & this%iCellVec, this%rCellVec, iSquare, iSparseStart, img2CentCell)
-           call blockSymmetrizeHS(H1(:,:,iKS), iSquare)
-         end if
+        if (this%tRealHS) then
+          call unpackHS(T3,ham(:,iSpin), iNeighbour, nNeighbourSK, iSquare, iSparseStart, img2CentCell)
+          call blockSymmetrizeHS(T3, iSquare)
+          H1(:,:,iKS) = cmplx(T3, 0, dp)
+          T3 = 0.0_dp
+        else
+          call unpackHS(H1(:,:,iKS), ham(:,iSpin), this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
+               & this%iCellVec, this%rCellVec, iSquare, iSparseStart, img2CentCell)
+          call blockHermitianHS(H1(:,:,iKS), iSquare)
+        end if
       end do
     end if
 
@@ -1746,7 +1759,7 @@ contains
           end if
           do iOrb = 1, this%nOrbs-1
              do iOrb2 = iOrb+1, this%nOrbs
-                rho(iOrb, iOrb2, iKS) = rho(iOrb2, iOrb, iKS)
+                rho(iOrb, iOrb2, iKS) = conjg(rho(iOrb2, iOrb, iKS))
              end do
           end do
        end do
@@ -1763,6 +1776,8 @@ contains
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
        allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
     end if
+
+    deallocate(T4)
 
   end subroutine initializeTDVariables
 
