@@ -1755,7 +1755,7 @@ contains
              call makeDensityMatrix(T2, eigvecs(:,:,iKS), filling(:,1,iSpin))
              rho(:,:,iKS) = cmplx(T2, 0, dp)
           else
-             call makeDensityMatrix(rho(:,:,iKS), eigvecsCplx(:,:,iKS), filling(:,1,iSpin))
+             call makeDensityMatrix(rho(:,:,iKS), eigvecsCplx(:,:,iKS), filling(:,iK,iSpin))
           end if
           do iOrb = 1, this%nOrbs-1
              do iOrb2 = iOrb+1, this%nOrbs
@@ -1837,6 +1837,8 @@ contains
     if (this%tIons) then
        call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
             &neighbourList, nNeighbourSK, iSquare)
+    else
+       RdotSprime = 0.0_dp
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
