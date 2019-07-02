@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -1876,7 +1876,13 @@ contains
 
     if (any(ctrl%solver%isolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])) then
-      call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false.)
+      call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .true.)
+      if (.not.ctrl%solver%elsi%elsiCsr) then
+        if (any(ctrl%solver%isolver == [electronicSolverTypes%pexsi,electronicSolverTypes%ntpoly]))&
+            & then
+          call getChildValue(value1, "Threshold", ctrl%solver%elsi%elsi_zero_def, 1.0E-15_dp)
+        end if
+      end if
       if (ctrl%t2Component .and. ctrl%solver%elsi%elsiCsr) then
         call detailedError(value1,"Two-component hamiltonians currently cannot be used with sparse&
             & ELSI solvers")

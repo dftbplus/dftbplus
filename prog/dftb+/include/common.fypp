@@ -1,10 +1,9 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2018  DFTB+ developers group                                                     !
+#!  Copyright (C) 2006 - 2019  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
-#!
 #:mute
 #:if not defined('_COMMON_FYPP_')
 #:set _COMMON_FYPP_

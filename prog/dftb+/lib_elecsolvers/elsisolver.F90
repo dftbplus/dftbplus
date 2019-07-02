@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -81,6 +81,10 @@ module dftbp_elsisolver
     !> Use sparse CSR format
     logical :: elsiCsr = .false.
 
+    !> Tolerance for converting from dense matrices to internal sparse storage for libOMM, PEXSI and
+    !> NTPoly.
+    real(dp) :: elsi_zero_def
+
   end type TElsiSolverInp
 
 
@@ -104,6 +108,10 @@ module dftbp_elsisolver
 
     !> Use sparse CSR format
     logical, public :: isSparse = .false.
+
+    !> Tolerance for converting from dense matrices to internal sparse storage for libOMM, PEXSI and
+    !> NTPoly.
+    real(dp) :: elsi_zero_def
 
     !> ELSI Solver choice
     integer :: solver
@@ -395,6 +403,8 @@ contains
 
     this%isSparse = inp%elsiCsr
 
+    this%elsi_zero_def = inp%elsi_zero_def
+
     ! data as dense BLACS blocks
     if (this%isSparse) then
       ! CSR format
@@ -485,6 +495,8 @@ contains
 
       if (this%isSparse) then
         call elsi_set_csc_blk(this%handle, this%csrBlockSize)
+      else
+        call elsi_set_zero_def(this%handle, this%elsi_zero_def)
       end if
       call elsi_set_blacs(this%handle, this%myBlacsCtx, this%BlacsBlockSize)
 
@@ -496,6 +508,9 @@ contains
         if (.not.this%isSparse) then
           ! dense matrices
           call elsi_set_rw_blacs(this%rwHandle, this%myBlacsCtx, this%BlacsBlockSize)
+          ! use default of 1E-15 for the moment, but could be over-ridden if needed, probably with a
+          ! different variable name:
+          !call elsi_set_rw_zero_def(this%rwHandle, this%elsi_zero_def)
         end if
       end if
 

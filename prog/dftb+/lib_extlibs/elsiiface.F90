@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -25,7 +25,7 @@ module dftbp_elsiiface
   public :: elsi_handle, elsi_rw_handle
   public :: elsi_init, elsi_reinit, elsi_finalize
   public :: elsi_init_rw, elsi_finalize_rw
-  public :: elsi_set_csc, elsi_set_csc_blk
+  public :: elsi_set_csc, elsi_set_csc_blk, elsi_set_zero_def, elsi_set_rw_zero_def
   public :: elsi_dm_real, elsi_dm_complex
   public :: elsi_dm_real_sparse, elsi_dm_complex_sparse
   public :: elsi_get_edm_real, elsi_get_edm_complex
@@ -127,6 +127,17 @@ contains
     integer(i4), intent(in) :: blk
     call stubError("elsi_set_csc_blk")
   end subroutine elsi_set_csc_blk
+
+
+  subroutine elsi_set_zero_def(eh, zero)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: zero
+  end subroutine elsi_set_zero_def
+
+  subroutine elsi_set_rw_zero_def(eh, zero)
+    type(elsi_rw_handle), intent(inout) :: eh
+    real(r8), intent(in) :: zero
+  end subroutine elsi_set_rw_zero_def
 
 
   subroutine elsi_dm_real(eh, ham, ovlp, dm, ebs)

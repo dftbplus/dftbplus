@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -1685,16 +1685,11 @@ contains
 
     referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
 
-    ! Allocate charge arrays
-    if (tMulliken) then ! automatically true if tSccCalc
-      allocate(q0(orb%mOrb, nAtom, nSpin))
-      q0(:,:,:) = 0.0_dp
-      allocate(qShell0(orb%mShell, nAtom))
-      qShell0(:,:) = 0.0_dp
-    else
-      allocate(q0(0,0,0))
-      allocate(qShell0(0,0))
-    end if
+    ! Allocate reference charge arrays
+    allocate(q0(orb%mOrb, nAtom, nSpin))
+    q0(:,:,:) = 0.0_dp
+    allocate(qShell0(orb%mShell, nAtom))
+    qShell0(:,:) = 0.0_dp
 
     ! Initialize reference neutral atoms.
     if (tLinResp .and. allocated(input%ctrl%customOccAtoms)) then
@@ -1779,7 +1774,16 @@ contains
       @:ASSERT(parallelKS%nLocalKS == 1)
 
       if (input%ctrl%parallelOpts%nGroup /= nIndepHam * nKPoint) then
-        call error("ELSI solvers require as many groups as spin and k-point combinations")
+        if (nSpin == 2) then
+          write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as spin and k-point&
+              & combinations. There are ", nIndepHam * nKPoint, " spin times k-point combinations&
+              & and ", input%ctrl%parallelOpts%nGroup, " groups"
+        else
+          write(tmpStr, "(A,I0,A,I0,A)")"ELSI solvers require as many groups as k-points. There&
+              & are ", nIndepHam * nKPoint, " k-points and ", input%ctrl%parallelOpts%nGroup,&
+              & " groups"
+        end if
+        call error(tmpStr)
       end if
 
       if (omp_get_max_threads() > 1) then
@@ -2521,6 +2525,12 @@ contains
     ! input%transpar
     call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
         & shiftPerLUp, chargeUp, poissonDerivs)
+
+    if (tUpload) then
+      ! check geometry details are consistent with transport with contacts
+      call checkTransportRanges(nAtom, input%transpar)
+    end if
+
     if (tContCalc) then
       ! geometry is reduced to contacts only
       allocate(iAtInCentralRegion(nAtom))
@@ -3164,6 +3174,75 @@ contains
 
   end subroutine initProgramVariables
 
+#:if WITH_TRANSPORT
+  !> Check for inconsistencies in transport atom region definitions
+  subroutine checkTransportRanges(nAtom, transpar)
+
+    !> Count of all atoms in the system
+    integer :: nAtom
+
+    !> Transport parameters
+    type(TTransPar), intent(in) :: transpar
+
+    character(lc) :: strTmp
+    integer :: ii, jj
+    logical :: tFailCheck
+    logical, allocatable :: notInRegion(:)
+
+    ! check for atoms occurring inside both the device and a contact
+    do ii = 1, transpar%ncont
+      if (transpar%contacts(ii)%idxrange(1)<=transpar%idxdevice(2)) then
+        write(strTmp,"(A,I0,A,A,A,I0,A,I0)") "The device and contact overlap in their atom index&
+            & ranges, the device ends at ", transpar%idxdevice(2), ', contact "',&
+            & trim(transpar%contacts(ii)%name), '" is between ', transpar%contacts(ii)%idxrange(1),&
+            & ' and ',transpar%contacts(ii)%idxrange(2)
+        call error(trim(strTmp))
+      end if
+    end do
+
+    ! Check for atom(s) occuring in multiple contacts
+    do ii = 1, transpar%ncont
+      do jj = 1, transpar%ncont
+        if (ii == jj) then
+          cycle
+        end if
+        tFailCheck = .false.
+        if (transpar%contacts(ii)%idxrange(1) <= transpar%contacts(jj)%idxrange(1)) then
+          if (transpar%contacts(ii)%idxrange(2) >= transpar%contacts(jj)%idxrange(1)) then
+            tFailCheck = .true.
+          end if
+        else
+          if (transpar%contacts(jj)%idxrange(2) >= transpar%contacts(ii)%idxrange(1)) then
+            tFailCheck = .true.
+          end if
+        end if
+        if (tFailCheck) then
+          write(strTmp,"(A,A,A,A,A)")"Contact '",trim(transpar%contacts(ii)%name),"' and '",&
+              & trim(transpar%contacts(jj)%name),"' share atoms"
+          call error(trim(strTmp))
+        end if
+      end do
+    end do
+
+    ! check for additional atoms outside of the device and all contacts
+    if (maxval(transpar%contacts(:)%idxrange(2)) < nAtom) then
+      call error("Atoms present that are not in the device or any contact region")
+    end if
+
+    ! Check for gaps in atom ranges between regions
+    allocate(notInRegion(nAtom))
+    notInRegion = .true.
+    notInRegion(transpar%idxdevice(1):transpar%idxdevice(2)) = .false.
+    do ii = 1, transpar%ncont
+      notInRegion(transpar%contacts(ii)%idxrange(1):transpar%contacts(ii)%idxrange(2)) = .false.
+    end do
+    if (any(notInRegion)) then
+      call error("Atom(s) present that are not in any region of the device or contacts")
+    end if
+
+  end subroutine checkTransportRanges
+#:endif
+
 
   !> Clean up things that did not automatically get removed by going out of scope
   subroutine destructProgramVariables()
@@ -3746,6 +3825,17 @@ contains
     tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
     if (electronicSolver%isElsiSolver) then
       tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
+      if (.not.electronicSolver%elsi%isSparse .and. .not.(electronicSolver%providesEigenvals .or.&
+          & electronicSolver%iSolver == electronicSolverTypes%omm)) then
+        if (tDFTBU) then
+          call error("This dense ELSI solver is currently incompatible with DFTB+U, use the sparse&
+              & form")
+        end if
+        if (allocated(onSiteElements)) then
+          call error("This dense ELSI solver is currently incompatible with onsite correctios, use&
+              & the sparse form")
+        end if
+      end if
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
@@ -4130,27 +4220,17 @@ contains
     logical :: tElsiSolver
     integer :: nKPoint
 
-    ! Temporary error test for PEXSI bug (May 2019)
-    if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)&
-        & .and. tForces) then
-      call error("A temporary bug prevents correct force evaluation with PEXSI at general k-points")
+    ! Temporary error test for PEXSI bug (July 2019)
+    if (iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)) then
+      call error("A temporary bug prevents correct evaluation with PEXSI at general k-points.&
+          & This should be fixed soon.")
     end if
 
-    tElsiSolver = any(electronicSolver%iSolver ==&
+    tElsiSolver = any(iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly])
     if (.not. withELSI .and. tElsiSolver) then
       call error("This binary was not compiled with ELSI support enabled")
-    end if
-
-    if (electronicSolver%iSolver == electronicSolverTypes%ntpoly) then
-      if (tSpin) then
-        call error("The NTPoly solver currently does not support spin polarisation")
-      end if
-
-      if (any(kPoints /= 0.0_dp)) then
-        call error("The NTPoly solver currently does not support k-points")
-      end if
     end if
 
     nKPoint = size(kPoints, dim=2)

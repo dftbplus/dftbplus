@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -2744,8 +2744,9 @@ contains
       if (.not. tNegf) then
         ! set in the input and for multiple contact Ef values not meaningful anyway
         write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
+        ! not current available from the Green's function solver
+        write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
       end if
-      write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
       if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
           & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
           & electronicSolverTypes%elpa])) then
@@ -2760,9 +2761,14 @@ contains
               & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
               & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
         else
-          write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
-              & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
-              & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
+          if (tSCC) then
+            write(fd, "(3A, 2F18.10)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
+                & sum(qInputUpDown(:, iAtInCentralRegion(:), iSpin)),&
+                & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
+          else
+            write(fd, "(3A, F18.10)") 'Output electrons (', quaternionName(iSpin), '):',&
+                & sum(qOutputUpDown(:, iAtInCentralRegion(:), iSpin))
+          end if
         end if
       end if
       write(fd, *)
