@@ -220,7 +220,7 @@ type TElecDynamics
    real(dp), allocatable :: latVec(:,:), invLatVec(:,:)
    real(dp), allocatable :: initCoord(:,:)
 
-   !> count of the number of times dynamics have been initialised
+   !> count of the number of times dynamics has been initialised
    integer :: nDynamicsInit = 0
 
 end type TElecDynamics
@@ -757,7 +757,7 @@ contains
     iStep = 0
     startTime = 0.0_dp
     timeElec = 0.0_dp
-    RdotSprime = 0.0_dp
+    RdotSprime(:,:) = 0.0_dp
 
     if (this%tRestart) then
       call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
@@ -782,10 +782,10 @@ contains
       call getTDFunction(this, startTime)
     end if
 
-    call initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecs, filling, orb,&
-        & rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-        & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, UJ, onSiteElements,&
-        & eigvecsCplx)
+    call initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecs, filling,&
+        & orb, rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+        & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, UJ,&
+        & onSiteElements, eigvecsCplx)
 
     call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
     if (this%tDispersion) then
@@ -995,7 +995,7 @@ contains
     !> ElecDynamics instance
     type(TElecDynamics) :: this
 
-    !> Square hamiltonian
+    !> Square hamiltonian at each spin and k-point
     complex(dp), intent(inout) :: H1(:,:,:)
 
     !> resulting hamitonian (sparse)
@@ -1164,8 +1164,8 @@ contains
       iK = this%parallelKS%localKS(1, iKS)
       iSpin = this%parallelKS%localKS(2, iKS)
       if (this%tRealHS) then
-        call unpackHS(T2, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-             & img2CentCell)
+        call unpackHS(T2, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK, iSquare,&
+            & iSparseStart, img2CentCell)
         call blockSymmetrizeHS(T2, iSquare)
         H1(:,:,iSpin) = cmplx(T2, 0.0_dp, dp)
       else
@@ -1306,8 +1306,7 @@ contains
 
   !> Calculate charges, dipole moments
   subroutine getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock,&
-       & over, rhoPrim, neighbourlist, nNeighbourSK, orb, iSparseStart,&
-       & img2CentCell)
+       & over, rhoPrim, neighbourlist, nNeighbourSK, orb, iSparseStart, img2CentCell)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -1362,30 +1361,45 @@ contains
 
     integer :: iAt, iSpin, iOrb1, iOrb2, nOrb, iKS, iK
 
-    qq = 0.0_dp
+    qq(:,:,:) = 0.0_dp
     if (this%tRealHS) then
+
       do iSpin = 1, this%nSpin
         do iAt = 1, this%nAtom
           iOrb1 = iSquare(iAt)
           iOrb2 = iSquare(iAt+1)-1
           ! hermitian transpose used as real part only is needed
-          qq(:iOrb2-iOrb1+1,iAt,iSpin) = real(sum(rho(:,iOrb1:iOrb2,iSpin)*Ssqr(:,iOrb1:iOrb2,iSpin),&
-               & dim=1), dp)
+          qq(:iOrb2-iOrb1+1,iAt,iSpin) = real(sum(&
+              & rho(:,iOrb1:iOrb2,iSpin)*Ssqr(:,iOrb1:iOrb2,iSpin), dim=1), dp)
         end do
       end do
 
     else
 
-       rhoPrim(:,:) = 0.0_dp
-       do iKS = 1, this%parallelKS%nLocalKS
-          iK = this%parallelKS%localKS(1, iKS)
-          iSpin = this%parallelKS%localKS(2, iKS)
-          call packHS(rhoPrim(:,iSpin), rho(:,:,iKS), this%kPoint(:,iK), this%kWeight(iK),&
-               & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, this%iCellVec, this%rCellVec, &
-               & iSquare, iSparseStart, img2CentCell)
-       end do
-       call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
-          & nNeighbourSK, img2CentCell, iSparseStart)
+      !rhoPrim(:,:) = 0.0_dp
+      !do iKS = 1, this%parallelKS%nLocalKS
+      !  iK = this%parallelKS%localKS(1, iKS)
+      !  iSpin = this%parallelKS%localKS(2, iKS)
+      !  call packHS(rhoPrim(:,iSpin), rho(:,:,iKS), this%kPoint(:,iK), this%kWeight(iK),&
+      !      & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, this%iCellVec, this%rCellVec, &
+      !      & iSquare, iSparseStart, img2CentCell)
+      !end do
+      !call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
+      !    & nNeighbourSK, img2CentCell, iSparseStart)
+
+      do iKS = 1, this%parallelKS%nLocalKS
+        iK = this%parallelKS%localKS(1, iKS)
+        iSpin = this%parallelKS%localKS(2, iKS)
+
+        do iAt = 1, this%nAtom
+          iOrb1 = iSquare(iAt)
+          iOrb2 = iSquare(iAt+1)-1
+          ! only real part only is needed
+          qq(:iOrb2-iOrb1+1,iAt,iSpin) = qq(:iOrb2-iOrb1+1,iAt,iSpin) + this%kWeight(iK) * &
+              & real(sum(rho(:,iOrb1:iOrb2,iKS) * conjg(Ssqr(:,iOrb1:iOrb2,iKS)), dim=1), dp)
+        end do
+      end do
+
     end if
     !call ud2qm(rhoPrim)
 
@@ -1415,6 +1429,9 @@ contains
     !end if
 
     if (allocated(qBlock)) then
+      if (.not.this%tRealHS) then
+        call error("Not implemented yet")
+      end if
       qBlock(:,:,:,:) = 0.0_dp
       do iSpin = 1, this%nSpin
         do iAt = 1, this%nAtom
@@ -2609,6 +2626,7 @@ contains
     do iKS = 1, this%parallelKS%nLocalKS
       Sinv(:,:,iKS) = cmplx(SinvReal, 0, dp)
     end do
+
   end subroutine updateH0S
 
 
