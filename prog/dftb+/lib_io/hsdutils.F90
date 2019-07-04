@@ -153,7 +153,6 @@ module dftbp_hsdutils
   !> Attribute signals that a tag was processed
   character(len=*), parameter :: attrProcessed = "proc"
 
-
   !> Preallocateated size for temporary buffer strings
   integer, parameter :: preAllocSize = 1024
 

@@ -136,7 +136,7 @@ contains
     type(fnode), pointer :: child
     type(string) :: msg
     integer :: ii, ll
-    logical :: tIgnoreUnprocessed0
+    logical :: tIgnoreUnprocessed0, found
 
     call getUnprocessedNodes(node, list)
     ll = getLength(list)

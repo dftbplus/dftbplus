@@ -18,6 +18,7 @@ module dftbp_xmlutils
 
   public :: getFirstChildByName, getLastChildByName, removeSpace
   public :: getTagsWithoutAttribute, removeChildNodes, removeNodes
+  public :: getTagsWithAttribute
   public :: getChildrenByName
 
 contains
@@ -220,6 +221,74 @@ contains
     end do
 
   end subroutine getTagsWithoutAttr_recursive
+
+ !> Collects nodes in a tree that are with a specific attribute.
+  function getTagsWithAttribute(node, name, rootOnly) result(nodeList)
+
+    !> Tree to investigate
+    type(fnode), pointer :: node
+
+    !> Name of the attribute to look for
+    character(len=*), intent(in) :: name
+
+    !> Should children of a found attribute-less node be ignored?
+    logical, intent(in), optional :: rootOnly
+
+    !> List of the nodes without the specified attribute
+    type(fnodeList), pointer :: nodeList
+
+    logical :: tRootOnly
+
+    @:ASSERT(associated(node))
+    @:ASSERT(len(name) > 0)
+
+    if (present(rootOnly)) then
+      tRootOnly = rootOnly
+    else
+      tRootOnly = .true.
+    end if
+    nodeList => null()
+    call getTagsWithAttr_recursive(node, name, tRootOnly, nodeList)
+
+  end function getTagsWithAttribute
+
+  !> Recursive working subroutine for the getTagsWithoutAttribute routine
+  recursive subroutine getTagsWithAttr_recursive(node, name, rootOnly, &
+      &nodeList)
+
+    !> Tree to investigate
+    type(fnode), pointer :: node
+
+    !> Name of the attribute to look for
+    character(len=*), intent(in) :: name
+
+    !> Should children of a found attribute-less node be ignored?
+    logical, intent(in) :: rootOnly
+
+    !> List of the nodes without the specified attribute
+    type(fnodeList), pointer :: nodeList
+
+    type(fnode), pointer :: attr, child
+
+    @:ASSERT(associated(node))
+    @:ASSERT(len(name) > 0)
+
+    attr => getAttributeNode(node, name)
+    if (associated(attr)) then
+      call append(nodeList, node)
+      if (rootOnly) then
+        return
+      end if
+    end if
+    child => getFirstChild(node)
+    do while (associated(child))
+      if (getNodeType(child) /= TEXT_NODE) then
+        call getTagsWithAttr_recursive(child, name, rootOnly, nodeList)
+      end if
+      child => getNextSibling(child)
+    end do
+
+  end subroutine getTagsWithAttr_recursive
 
 
   !> Remove and destroy all children of a node.

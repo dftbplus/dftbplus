@@ -84,7 +84,7 @@ module dftbp_hsdparser
   ! Extension related stuff
 
   !> number of parser tag extensions
-  integer, parameter :: nExtension = 5
+  integer, parameter :: nExtension = 6
 
   !> Extend with things, or halt
   character(len=*), parameter :: sExtendIfPresentOrDie = "+"
@@ -101,10 +101,13 @@ module dftbp_hsdparser
   !> replace if present, or create
   character(len=*), parameter :: sReplaceIfPresentOrCreate = "!"
 
+  !> comment a whole block and its children
+  character(len=*), parameter :: sCommentNode = "%"
+
   !> Collect together as an array
   character(len=*), parameter :: extensions(nExtension) = &
       &(/ sExtendIfPresentOrDie, sExtendIfPresent, sExtendIfPresentOrCreate, &
-      &sCreateIfNotPresent, sReplaceIfPresentOrCreate /)
+      &sCreateIfNotPresent, sReplaceIfPresentOrCreate, sCommentNode /)
 
   ! Name and file descriptors for standard input/output
 
@@ -203,6 +206,7 @@ contains
     logical :: tFinished
     integer :: curLine
     character(len=lc) :: residual, curFile
+    logical :: parsedTypes(nSeparator)
 
     if (present(file)) then
       curFile = file
@@ -219,9 +223,9 @@ contains
     dummy => appendChild(myDoc, rootNode)
     curLine = 0
     residual = ""
+    parsedTypes = (/ .true., .true., .true., .true., .true., .true., .true. /)
     tFinished = parse_recursive(rootNode, 0, residual, .false., fd, curFile, &
-        &0, curLine, &
-        &(/ .true., .true., .true., .true., .true., .true., .true. /), .false.)
+        &0, curLine, parsedTypes, .false.)
     xmlDoc => myDoc
     myDoc => null()
 
@@ -262,10 +266,9 @@ contains
     !> True, if parsing is done
     logical, intent(in) :: tNew
 
+
     logical :: tFinished
-
     character(len=lc) :: strLine, word
-
     type(fnode), pointer :: childNode, dummy
     type(string) :: buffer
     integer :: newFile
@@ -504,8 +507,7 @@ contains
         else
           childNode => null()
         end if
-        newParsedTypes = (/ .true., .true., .true., .true., .true., .true., &
-            &.true. /)
+        newParsedTypes = (/ .true., .true., .true., .true., .true., .true., .true. /)
         tFinished = parse_recursive(childNode, depth+1, strLine, .false., &
             &fd, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
         residual = strLine
@@ -616,6 +618,9 @@ contains
           dummy => removeChild(parentNode, sameChild)
           call destroyNode(sameChild)
           tCreate = .true.
+        elseif (iType == 6) then
+          newChild => null()
+          return
         else
           newChild => sameChild
         end if
@@ -625,7 +630,7 @@ contains
         case(1)
           call parsingError("Containing block does not contain a(n) '" &
               &// trim(truncName) // "' block yet.", file, curLine)
-        case(2)
+        case(2,6)
           newChild => null()
           return
         case(3,4,5)
