@@ -23,6 +23,7 @@ module dftbp_hsdutils2
   private
 
   public :: getUnprocessedNodes, warnUnprocessedNodes,  getModifierIndex
+  public :: errorUnprocessedNodes
   public :: readHSDAsXML, readHSDOrXML
   public :: getNodeName2, setNodeName, removeModifier, splitModifier
   public :: setUnprocessed, getDescendant
@@ -121,36 +122,67 @@ contains
 
 
   !> Prints a warning message about unprocessed nodes
-  subroutine warnUnprocessedNodes(node, tIgnoreUnprocessed, nodeList)
+  subroutine warnUnprocessedNodes(node, ignoreList, nodeList)
 
     !> Root element of the tree to investigate
     type(fnode), pointer :: node
-
-    !> if anything left after processing should be flagged
-    logical, intent(in), optional :: tIgnoreUnprocessed
+    
+    !> list of left over nodes (if present)
+    type(fnodeList), pointer, optional :: ignoreList
 
     !> list of left over nodes (if present)
     type(fnodeList), pointer, optional :: nodeList
 
-    type(fnodeList), pointer :: list
-    type(fnode), pointer :: child
-    type(string) :: msg
-    integer :: ii, ll
-    logical :: tIgnoreUnprocessed0, found
+    type(fnodeList), pointer :: list, tmplist
+    type(fnode), pointer :: child, parent, childI
+    type(string) :: msg, name1,name2, nameI
+    integer :: ii, ll, jj, lI
 
-    call getUnprocessedNodes(node, list)
-    ll = getLength(list)
+    call getUnprocessedNodes(node, tmplist)
+    ll = getLength(tmplist)
+    if (present(ignoreList)) then
+      lI = getLength(ignoreList)
+    else
+      lI = 0
+    end if    
+    nullify(list)
+
     if (ll > 0) then
       msg = "The following " // i2c(ll) &
           &// " node(s) have been ignored by the parser:" // newline
       do ii = 0, ll-1
-        child => item(list, ii)
-        call append_to_string(msg, "(" // i2c(ii+1) // ")")
-        call appendPathAndLine(child, msg)
-        call append_to_string(msg, newline)
+        child => item(tmplist, ii)
+        parent => getParentNode(child)
+        call getNodeName(child, name1)
+        call getNodeName(parent, name2)
+        if (lI == 0) then
+          call append(list, child)    
+          call append_to_string(msg, "(" // i2c(ii+1) // ")")
+          call appendPathAndLine(child, msg)
+          call append_to_string(msg, newline)
+        end if  
+        do jj = 0, lI-1
+          childI => item(ignoreList, jj)
+          call getNodeName(childI, nameI)
+          ! check by name both node and parent (for block ignores)
+          if (char(name1) /= char(nameI) .and. char(name2) /= char(nameI)) then
+            call append(list, child)    
+            call append_to_string(msg, "(" // i2c(ii+1) // ")")
+            call appendPathAndLine(child, msg)
+            call append_to_string(msg, newline)
+          end if  
+        end do  
       end do
-      call warning(char(msg))
     end if
+
+    call removeNodes(tmplist)
+    call destroyNodeList(tmplist)
+
+    ll = getLength(list)
+    if (ll > 0) then
+      call warning(char(msg))
+    end if 
+
     if (present(nodeList)) then
       nodeList => list
     else
@@ -158,17 +190,12 @@ contains
       call destroyNodeList(list)
     end if
 
-    if (present(tIgnoreUnprocessed)) then
-      tIgnoreUnprocessed0 = tIgnoreUnprocessed
-    else
-      tIgnoreUnprocessed0 = .false.
-    end if
-    if (.not. tIgnoreUnprocessed0 .and. (ll > 0)) then
-      call error("Code halting due to the presence of errors in dftb_in file.")
-    end if
-
   end subroutine warnUnprocessedNodes
 
+  !> Issue an error for unprocessed nodes 
+  subroutine errorUnprocessedNodes()
+    call error("Code halting due to the presence of errors in dftb_in file.")
+  end subroutine errorUnprocessedNodes
 
   !> Reads a HSD tree from an xml-file
   subroutine readHSDAsXML(fileName, fp)

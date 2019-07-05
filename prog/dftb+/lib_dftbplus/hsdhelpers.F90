@@ -16,7 +16,8 @@ module dftbp_hsdhelpers
   use dftbp_hsdutils2
   use dftbp_inputdata_module
   use dftbp_message
-  use dftbp_xmlf90, only : fnode, destroyNode
+  use dftbp_xmlf90, only : fnode, createElement, fnodeList, append, &
+                     &      destroyNode, getLength
   implicit none
   private
 
@@ -72,12 +73,26 @@ contains
     !> Parser specific settings in the output
     type(TParserFlags), intent(in) :: parserFlags
 
-    type(fnode), pointer :: root
+    type(fnode), pointer :: root, node
+    type(fnodeList), pointer :: ignoreList, nodeList
 
     call getChild(hsdTree, rootTag, root)
 
+    ! Sets a list of nodes that will be ignored even if not processed
+    ! Logic: warnUnprocessed will check each node and its parent with ignoreList 
+    !        Hence setting "MaxAngularMomentum" will allow ignoring all 
+    !        its children elements  
+    nullify(ignoreList)
+    node => createElement("")
+    call setNodeName(node,"MaxAngularMomentum")
+    call append(ignoreList, node)
+
     ! Issue warning about unprocessed nodes
-    call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed)
+    call warnUnprocessedNodes(root, ignoreList, nodeList)
+
+    if (.not.parserFlags%tIgnoreUnprocessed .and. getLength(nodeList)>0) then
+      call errorUnprocessedNodes()
+    end if    
 
     ! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
