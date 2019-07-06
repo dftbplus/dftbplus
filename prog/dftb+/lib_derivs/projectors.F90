@@ -23,7 +23,9 @@ module dftbp_projectBLACS
   public
 
 contains
-  
+
+#:if WITH_SCALAPACK
+
   !> Real projector onto conduction band
   subroutine projEmptyReal(myBlacs, desc, parallelKS, SSqrReal, nFilled, eigvecs, over,&
       & orb, species, iNeighbor, nNeighbor, iAtomStart, iPair,  img2CentCell, Pc)
@@ -278,5 +280,80 @@ contains
     Pc = -Pc ! now have (1 - S.Pv)
     
   end subroutine projEmptyPauli
-  
+
+#:else
+
+  !> Real projector onto conduction band
+  subroutine projEmptyReal( Pc, ci, over, iNeighbor, nNeighbor, iPair, img2CentCell, denseDesc)
+
+    !> Projector onto conduction band states
+    real(dp), intent(out) :: Pc(:,:,:)
+
+    !> Ground state wavefunctions
+    real(dp), intent(in) :: ci(:,:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iPair(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    real(dp), allocatable :: SSqrReal(:,:)
+
+
+    ! Pc = matmul(ci(:,:nFilled(1),1),transpose(ci(:,:nFilled(1),1)))
+    Pc = 0.0_dp
+    do iSpin = 1, nSpin
+      call herk(Pc(:,:,iSpin),ci(:,:nFilled(1),iSpin))
+      do ii = 1, size(ci,dim=2)
+        Pc(ii,ii+1:,iSpin) = Pc(ii+1:,ii,iSpin)
+      end do
+    end do
+
+    allocate(SSqrReal(size(Pc,dim=1), size(Pc,dim=2))
+
+    SSqrReal = 0.0_dp
+    call unpackHS(SSqrReal,over,neighborList%iNeighbor, nNeighbor, iAtomStart,iPair,img2CentCell)
+    do ii = 1, size(ci,dim=2)
+      SSqrReal(ii,ii+1:) = SSqrReal(ii+1:,ii)
+    end do
+
+    write(*,*)'Forming Pc and PcT'
+    do iSpin = 1, nSpin
+      call gemm(Pct(:,:,iSpin),Pc(:,:,iSpin),SSqrReal,transA='T')
+    end do
+    !PcT = matmul(Pc,SSqrReal)
+    ALLOCATE_(arrayTmp,(size(ci,dim=1),size(ci,dim=2)))
+    !Pc = matmul(SSqrReal,Pc)
+    do iSpin = 1, nSpin
+      call gemm(arrayTmp,SSqrReal,Pc(:,:,iSpin),transA='T')
+      Pc(:,:,iSpin) = arrayTmp
+    end do
+    DEALLOCATE_(arrayTmp)
+
+    do iSpin = 1, nSpin
+      do ii = 1, size(ci,dim=2)
+        Pc(ii,ii,iSpin) = Pc(ii,ii,iSpin) - 1.0_dp
+        PcT(ii,ii,iSpin) = PcT(ii,ii,iSpin) - 1.0_dp
+      end do
+    end do
+
+  end subroutine projEmptyReal
+
+
+
+#:endif
+
 end module projectors

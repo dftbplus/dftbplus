@@ -126,6 +126,15 @@ module dftbp_taggedoutput
     !> Static electric polarizability from linear response/perturbation
     character(lenLabel) :: dmudEPerturb = 'staticPolResponse'
 
+    !> Static electric polarizability from linear response/perturbation
+    character(lenLabel) :: dqdEPerturb = 'staticChargeReponse'
+
+    !> Ground state single particle eigenvalues
+    character(lenLabel) :: eigenVals   = 'eigenvalues'
+
+    !> Electric dipole moment
+    character(lenLabel) :: electricDipole   = 'electricdipole'
+
   end type TTagLabelsEnum
 
 
