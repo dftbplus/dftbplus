@@ -1062,7 +1062,7 @@ contains
     real(dp), allocatable :: dummy(:,:)
 
     ham(:,:) = 0.0_dp
-    allocate(iHam(size(ham, dim=1), this%nSpin)))
+    allocate(iHam(size(ham, dim=1), this%nSpin))
 
     if (this%nSpin == 2) then
       call ud2qm(qq)
