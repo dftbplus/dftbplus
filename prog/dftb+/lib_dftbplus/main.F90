@@ -285,7 +285,7 @@ contains
             & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
             & niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite, pChrgMixer, taggedWriter,&
             & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
-            & fdDetailedOut, kPoint, kWeight, cellVec, iCellVec)
+            & fdDetailedOut, kPoint, kWeight, cellVec, iCellVec, tPeriodic)
       end if
     end if
 

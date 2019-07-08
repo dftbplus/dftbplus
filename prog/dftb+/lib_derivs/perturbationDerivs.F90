@@ -61,7 +61,7 @@ contains
       & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ,&
       & iUJ, niUJ, iEqBlockDftbu, onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest,&
       & autoTestTagFile, tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut,&
-      & kPoint, kWeight, cellVec, iCellVec)
+      & kPoint, kWeight, cellVec, iCellVec, tPeriodic)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -205,20 +205,23 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
 
-    !> Index for which unit cell atoms are associated with
-    integer, intent(in) :: iCellVec(:)
-
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    integer :: iS, iK, iKS, iAt, iCart, iSCC, iLev, iSh, iSp
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: tPeriodic
+
+    integer :: iS, iK, iKS, iAt, iNeigh, iCart, iSCC, iLev, iSh, iSp, jAt, jAtf
 
     integer :: nSpin, nKpts, nOrbs, nIndepHam
 
     ! maximum allowed number of electrons in a single particle state
     real(dp) :: maxFill
 
-    integer, allocatable :: nFilled(:), nEmpty(:)
+    integer, allocatable :: nFilled(:,:), nEmpty(:,:)
 
     integer :: ii, jj, iGlob, jGlob, iEmpty, iFilled
     integer :: iSCCIter
@@ -255,6 +258,10 @@ contains
     complex(dp), allocatable :: dPsiCmplx(:,:,:,:,:)
 
     integer :: fdResults
+
+    if (tPeriodic) then
+      call error("Electric field polarizability not currently implemented for periodic systems")
+    end if
 
   #:if WITH_SCALAPACK
     ! need distributed matrix descriptors
@@ -307,43 +314,49 @@ contains
       call init(dPotential(ii),orb,nAtom,nSpin)
     end do
 
-    allocate(nFilled(nIndepHam))
-    allocate(nEmpty(nIndepHam))
+    allocate(nFilled(nIndepHam, nKpts))
+    allocate(nEmpty(nIndepHam, nKpts))
 
     if (allocated(spinW)) then
       allocate(shellPot(orb%mShell, nAtom, nSpin))
     end if
 
+    ! If derivatives of eigenvalues are needed
     !allocate(dEi(nOrbs, nKpts, nIndepHam, 3))
     !dEi(:,:,:,:) = 0.0_dp
 
-    nFilled = -1
+    nFilled(:,:) = -1
     do iS = 1, nIndepHam
-      do iLev = 1, nOrbs
-        if ( filling(iLev,1,iS) < epsilon(1.0) ) then
-          nFilled(iS) = iLev - 1
-          exit
+      do iK = 1, nKPts
+        do iLev = 1, nOrbs
+          if ( filling(iLev,iK,iS) < epsilon(1.0) ) then
+            nFilled(iS,iK) = iLev - 1
+            exit
+          end if
+        end do
+        if (nFilled(iS, iK) < 0) then
+          nFilled(iS, iK) = nOrbs
         end if
       end do
-      if (nFilled(iS) < 0) then
-        nFilled(iS) = nOrbs
-      end if
     end do
-    nEmpty = -1
+    nEmpty(:,:) = -1
     do iS = 1, nIndepHam
-      do iLev = 1, nOrbs
-        if ( abs( filling(iLev,1,iS) - maxFill ) > epsilon(1.0)) then
-          nEmpty(iS) = iLev
-          exit
+      do iK = 1, nKpts
+        do iLev = 1, nOrbs
+          if ( abs( filling(iLev,iK,iS) - maxFill ) > epsilon(1.0)) then
+            nEmpty(iS, iK) = iLev
+            exit
+          end if
+        end do
+        if (nEmpty(iS, iK) < 0) then
+          nEmpty(iS, iK) = 1
         end if
       end do
-      if (nEmpty(iS) < 0) then
-        nEmpty(iS) = 1
-      end if
     end do
 
     tMetallic = (.not.all(nFilled == nEmpty -1))
 
+    ! if derivatives of valence wavefunctions needed
     !if (.not.tMetallic) then
     !  if (allocated(eigVecsReal)) then
     !    allocate(dPsiReal(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2), nIndepHam, 3))
@@ -352,18 +365,6 @@ contains
     !  end if
     !end if
 
-    select case(nSpin)
-    case(1)
-      write(stdOut,"(1X,A,T40,I0)")'Fully or partly filled states end at : ', nFilled
-      write(stdOut,"(1X,A,T40,I0)")'Fully or partly empty states start at: ', nEmpty
-    case(2)
-      write(stdOut,"(1X,A,T40,I0,1X,I0)")'Fully or partly filled states end at : ', nFilled
-      write(stdOut,"(1X,A,T40,I0,1X,I0)")'Fully or partly empty states start at: ', nEmpty
-    case(4)
-      ! colinear spin with potentially 2 different DOS at Fermi
-      write(stdOut,"(1X,A,T40,I0,1X,I0)")'Fully or partly filled states end at : ', nFilled
-      write(stdOut,"(1X,A,T40,I0,1X,I0)")'Fully or partly empty states start at: ', nEmpty
-    end select
     if (tMetallic) then
       write(stdOut,*)'Metallic system'
     else
@@ -371,12 +372,14 @@ contains
     end if
 
     if (tMetallic) then
-      ! Density of electrons at the Fermi energy required to correct later
+      ! Density of electrons at the Fermi energy, required to correct later for shift in Fermi level
+      ! at q=0 in metals
       do iS = 1, nIndepHam
         nf(iS) = 0.0_dp
-        do ii = nEmpty(iS), nFilled(iS)
-          nf(iS) = nf(iS) &
-              & + deltamn(Ef(iS),eigvals(ii,1,iS),tempElec)
+        do iK = 1, nKpts
+          do ii = nEmpty(iS, iK), nFilled(iS, iK)
+            nf(iS) = nf(iS) + kWeight(iK) * deltamn(Ef(iS), eigvals(ii,iK,iS), tempElec)
+          end do
         end do
         nf(iS) = maxFill * nf(iS)
       end do
@@ -400,13 +403,14 @@ contains
         dqBlockOut(:,:,:,:) = 0.0_dp
       end if
 
-      ! derivative wrt to electric field as a perturbation
       dPotential(iCart)%extAtom(:,:) = 0.0_dp
+      dPotential(iCart)%extShell(:,:,:) = 0.0_dp
+      dPotential(iCart)%extBlock(:,:,:,:) = 0.0_dp
+
+      ! derivative wrt to electric field as a perturbation
       do iAt = 1, nAtom
         dPotential(iCart)%extAtom(iAt,1) = coord(iCart,iAt)
       end do
-      dPotential(iCart)%extShell(:,:,:) = 0.0_dp
-      dPotential(iCart)%extBlock(:,:,:,:) = 0.0_dp
       call total_shift(dPotential(iCart)%extShell, dPotential(iCart)%extAtom, orb, species)
       call total_shift(dPotential(iCart)%extBlock, dPotential(iCart)%extShell, orb, species)
 
@@ -450,6 +454,7 @@ contains
                 & UJ, nUJ, niUJ, iUJ)
           end if
           if (allocated(onsMEs)) then
+            ! onsite corrections
             call addOnsShift(dPotential(iCart)%orbitalBlock, dPotential(iCart)%iOrbitalBlock,&
                 & dqBlockIn, dummy, onsMEs, species, orb)
           end if
@@ -458,12 +463,11 @@ contains
 
         call total_shift(dPotential(iCart)%intShell,dPotential(iCart)%intAtom, orb,species)
         call total_shift(dPotential(iCart)%intBlock,dPotential(iCart)%intShell, orb,species)
-        dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock&
-            & + dPotential(iCart)%extBlock
         if (tDFTBU .or. allocated(onsMEs)) then
           dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock&
               & + dPotential(iCart)%orbitalBlock
         end if
+        dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock+dPotential(iCart)%extBlock
 
         dHam(:,:) = 0.0_dp
         call add_shift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
@@ -485,35 +489,45 @@ contains
           idRho(:,:) = 0.0_dp
         end if
 
-        do iKS = 1, parallelKS%nLocalKS
+        ! evaluate derivative of density matrix
+        if (allocated(eigVecsReal)) then
 
-          iK = parallelKS%localKS(1, iKS)
-          iS = parallelKS%localKS(2, iKS)
+          do iKS = 1, parallelKS%nLocalKS
 
-          ! evaluate derivative of density matrix
-          if (allocated(eigVecsReal)) then
+            iS = parallelKS%localKS(2, iKS)
 
             call dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
-                & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec,&
-                & orb, drho(:,iS), iCart, &
+                & denseDesc, iKS, parallelKS, nFilled(:,1), nEmpty(:,1), eigVecsReal, eigVals,&
+                & Ef, tempElec, orb, drho(:,iS), iCart, &
               #:if WITH_SCALAPACK
                 & desc,&
               #:endif
                 & dEi, dPsiReal)
 
-          elseif (nSpin > 2) then
+          end do
+
+        elseif (nSpin > 2) then
+
+          do iKS = 1, parallelKS%nLocalKS
+
+            iK = parallelKS%localKS(1, iKS)
+
             call dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
-                & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigvecsCplx, eigVals, Ef,&
-                & tempElec, orb, dRho, idRho, kPoint, kWeight, cellVec, iCellVec, iKS, iCart, &
+                & img2CentCell, denseDesc, parallelKS, nFilled(:, iK), nEmpty(:, iK), eigvecsCplx,&
+                & eigVals, Ef, tempElec, orb, dRho, idRho, kPoint, kWeight, cellVec, iCellVec,&
+                & iKS, iCart, &
               #:if WITH_SCALAPACK
                 & desc,&
               #:endif
                 & dEi, dPsiCmplx)
-          else
 
-          end if
+          end do
 
-        end do
+        else
+
+          call error("Shouldn't be here")
+
+        end if
 
       #:if WITH_SCALAPACK
         ! Add up and distribute density matrix contributions from each group
@@ -532,15 +546,17 @@ contains
             call mulliken(dqOut(:,:,iS, iCart), over, drho(:,iS), orb, &
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
-            dEf(iS) = -sum(dqOut(:,:,iS, iCart))/nF(iS)
+            dEf(iS) = -sum(dqOut(:, :, iS, iCart)) / nF(iS)
 
             if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
               ! Fermi level changes, so need to correct for the change in the number of charges
 
               if (allocated(eigVecsReal)) then
+
+                ! real case, no k-points
                 call dRhoFermiChangeStaticReal(dRhoExtra(:, iS), env, parallelKS, iKS,&
-                    & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef, nFilled,&
-                    & nEmpty, eigVecsReal, orb, denseDesc, tempElec, eigVals&
+                    & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef,&
+                    & nFilled(:,iK), nEmpty(:,iK), eigVecsReal, orb, denseDesc, tempElec, eigVals&
                   #:if WITH_SCALAPACK
                     &, desc&
                   #:endif
@@ -548,14 +564,20 @@ contains
 
               elseif (nSpin > 2) then
 
+                ! two component wavefunction cases
                 call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
-                    & kPoint, kWeight, iCellVec, cellVec,neighbourList, nNEighbourSK,&
-                    & img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty, eigVecsCplx, orb,&
-                    & denseDesc, tempElec, eigVals&
+                    & kPoint, kWeight, cellVec, iCellVec,  neighbourList, nNEighbourSK,&
+                    & img2CentCell, iSparseStart, dEf, Ef, nFilled(:,iK), nEmpty(:,iK),&
+                    & eigVecsCplx, orb, denseDesc, tempElec, eigVals&
                   #:if WITH_SCALAPACK
                     &, desc&
                   #:endif
                     &)
+
+              else
+
+                ! k-points
+                call error("Not added yet")
 
               end if
 
@@ -592,7 +614,7 @@ contains
 
         if (tSccCalc) then
           dqOutRed = 0.0_dp
-          call OrbitalEquiv_reduce(dqOut(:,:,:,iCart), iEqOrbitals, orb, &
+          call OrbitalEquiv_reduce(dqOut(:,:,:,iCart), iEqOrbitals, orb,&
               & dqOutRed(:nIneqMixElements))
           if (tDFTBU) then
             call AppendBlock_reduce(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed )
@@ -609,11 +631,13 @@ contains
 
           if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
             if (iSCCIter == 1) then
+
               dqIn(:,:,:) = dqOut(:,:,:,iCart)
               dqInpRed(:) = dqOutRed(:)
               if (tDFTBU .or. allocated(onsMEs)) then
                 dqBlockIn(:,:,:,:) = dqBlockOut(:,:,:,:)
               end if
+
             else
 
               call mix(pChrgMixer, dqInpRed, dqDiffRed)
@@ -623,8 +647,8 @@ contains
               dqInpRed(:) = dqInpRed / env%mpi%globalComm%size
             #:endif
 
-              call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, &
-                  & orb, dqIn)
+              call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, orb, dqIn)
+
               if (tDFTBU .or. allocated(onsMEs)) then
                 dqBlockIn(:,:,:,:) = 0.0_dp
                 if (tDFTBU) then
@@ -652,8 +676,7 @@ contains
             iSp = species(iAt)
             do iSh = 1, orb%nShell(iSp)
               dqPerShell(iSh,iAt,:nSpin) = dqPerShell(iSh,iAt,:nSpin) +&
-                  & sum(dqIn(orb%posShell(iSh,iSp): &
-                  & orb%posShell(iSh+1,iSp)-1,iAt,:nSpin),dim=1)
+                  & sum(dqIn(orb%posShell(iSh,iSp): orb%posShell(iSh+1,iSp)-1,iAt,:nSpin),dim=1)
             end do
           end do
 
@@ -851,10 +874,9 @@ contains
     if (allocated(dEi)) then
 
       if (iGlob == jGlob) then
-            !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
-            dEi(iGlob, iK, iS, iCart) = workLocal(ii,jj)
-          end if
-
+        !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
+        dEi(iGlob, iK, iS, iCart) = workLocal(ii,jj)
+      end if
 
     end if
 
@@ -1129,11 +1151,11 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
 
-    !> Index for which unit cell atoms are associated with
-    integer, intent(in) :: iCellVec(:)
-
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
 
     !> spin/kpoint channel
     integer, intent(in) :: iKS
@@ -1174,11 +1196,11 @@ contains
     ! dH in square form
     if (allocated(idHam)) then
       call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
-          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+          & nNeighbourSK, cellVec, iCellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
           & workLocal, iorig=idHam)
     else
       call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
-          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+          & nNeighbourSK, cellVec, iCellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
           & workLocal)
     end if
 
@@ -1304,11 +1326,11 @@ contains
   #:if WITH_SCALAPACK
     if (allocated(idRhoSparse)) then
       call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, cellVec, iCellVec, iSparseStart,&
           & img2CentCell, dRhoSparse, idRhoSparse)
       else
         call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
-            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, cellVec, iCellVec, iSparseStart,&
             & img2CentCell, dRhoSparse)
       end if
   #:else
@@ -1328,7 +1350,7 @@ contains
 
   !> Calculate the change in the density matrix due to shift in the Fermi energy
   subroutine dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS, kPoint,&
-      & kWeight, iCellVec, cellVec,neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEf,&
+      & kWeight, cellVec, iCellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEf,&
       & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
     #:if WITH_SCALAPACK
       &, desc&
@@ -1357,11 +1379,11 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
 
-    !> Index for which unit cell atoms are associated with
-    integer, intent(in) :: iCellVec(:)
-
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
+
+    !> Index for which unit cell atoms are associated with
+    integer, intent(in) :: iCellVec(:)
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -1457,11 +1479,11 @@ contains
   #:if WITH_SCALAPACK
     if (allocated(idRhoExtra)) then
       call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, cellVec, iCellVec, iSparseStart,&
           & img2CentCell, dRhoExtra, idRhoExtra)
     else
       call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, cellVec, iCellVec, iSparseStart,&
           & img2CentCell, dRhoExtra)
     end if
   #:else
@@ -1481,7 +1503,6 @@ contains
     end if
 
   end subroutine dRhoFermiChangeStaticPauli
-
 
 
 !  subroutine perturbDyn(mympi, allproc, grpproc, gridAtom, &
