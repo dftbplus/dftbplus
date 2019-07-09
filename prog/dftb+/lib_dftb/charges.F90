@@ -24,38 +24,29 @@ contains
   !> Calculates various gross charges.
   subroutine getSummedCharges(species, orb, qOrbital, q0, iHubbU, dQ, dQAtom, dQShell, dQUniqU)
 
-
     !> Species of each atom.
     integer, intent(in) :: species(:)
-
 
     !> Orbital information
     type(TOrbitals), intent(in) :: orb
 
-
     !> Orbital populations.
     real(dp), intent(in) :: qOrbital(:,:,:)
 
-
     !> Reference populations.
-    real(dp), intent(in) :: q0(:,:,:)
-
+    real(dp), intent(in), optional :: q0(:,:,:)
 
     !> Unique Hubbard U indices (only needed if dQUniqU is passed)
     integer, intent(in), optional :: iHubbU(:,:)
 
-
     !> charge per orbital.
     real(dp), target, intent(out), optional :: dQ(:,:)
-
 
     !> Summed charge per atom.
     real(dp), target, intent(out), optional :: dQAtom(:)
 
-
     !> Summed charge per shell.
     real(dp), target, intent(out), optional :: dQShell(:,:)
-
 
     !> Summed charges per unique Hubbard U
     real(dp), target, intent(out), optional :: dQUniqU(:,:)
@@ -82,7 +73,10 @@ contains
       end if
     end if
 
-    call getSummedChargesPerOrbital(qOrbital(:,:,1), q0(:,:,1), dQWork)
+    dQWork(:,:) = qOrbital(:,:,1)
+    if (present(q0)) then
+      dQWork(:,:) = dQWork(:,:) - q0(:,:,1)
+    end if
     if (present(dQAtom)) then
       call getSummedChargesPerAtom(dQWork, dQAtom)
     end if
@@ -98,25 +92,8 @@ contains
   ! Private routines
 
 
-  !> orbital resolved charges
-  subroutine getSummedChargesPerOrbital(qOrbital, q0, deltaQ)
-
-    !> charges per orbital
-    real(dp), intent(in) :: qOrbital(:,:)
-
-    !> reference atomic charges
-    real(dp), intent(in) :: q0(:,:)
-
-    !> Summed charges (q - q0)
-    real(dp), intent(out) :: deltaQ(:,:)
-
-    deltaQ(:,:) = qOrbital - q0
-
-  end subroutine getSummedChargesPerOrbital
-
-
   !> atom resolved charges
-  subroutine getSummedChargesPerAtom(deltaQ, deltaQAtom)
+  pure subroutine getSummedChargesPerAtom(deltaQ, deltaQAtom)
 
     !> gross charge for all atomic orbitals on atoms
     real(dp), intent(in) :: deltaQ(:,:)
@@ -130,7 +107,7 @@ contains
 
 
   !> shell resolved charges
-  subroutine getSummedChargesPerLShell(species, orb, deltaQ, deltaQPerLShell)
+  pure subroutine getSummedChargesPerLShell(species, orb, deltaQ, deltaQPerLShell)
 
     !> chemical species of each atom
     integer, intent(in) :: species(:)
@@ -160,7 +137,7 @@ contains
 
 
   !> charges for regions with common U values
-  subroutine getSummedChargesPerUniqU(species, orb, deltaQPerLShell, iHubbU, deltaQUniqU)
+  pure subroutine getSummedChargesPerUniqU(species, orb, deltaQPerLShell, iHubbU, deltaQUniqU)
 
     !> chemical species of each atom
     integer, intent(in) :: species(:)

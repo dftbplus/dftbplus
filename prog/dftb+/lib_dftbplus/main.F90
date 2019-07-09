@@ -278,7 +278,7 @@ contains
 
     ! response properties from perturbation-like expressions
     if (tPolarisability) then
-      if (.not.(tPeriodic .or. tRangeSep .or. tNegf .or. allocated(thirdOrd))) then
+      if (.not.(tPeriodic .or. tRangeSep .or. tNegf)) then
         if (tStaticPolarisability) then
           call staticPerturWrtE(env, parallelKS, filling, eigen, eigVecsReal, eigvecsCplx, ham,&
               & over, orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&

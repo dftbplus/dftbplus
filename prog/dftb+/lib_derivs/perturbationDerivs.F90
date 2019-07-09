@@ -245,7 +245,7 @@ contains
     ! derivative of potentials
     type(TPotentials) :: dPotential(3)
 
-    real(dp), allocatable :: shellPot(:,:,:)
+    real(dp), allocatable :: shellPot(:,:,:), atomPot(:,:)
 
     real(dp) :: nF(size(Ef)), dEf(size(Ef))
 
@@ -274,9 +274,6 @@ contains
 
     if (tFixEf) then
       call error("Perturbation expressions not currently implemented for fixed Fermi energy")
-    end if
-    if (allocated(thirdOrd)) then
-      call error("Perturbation expressions not currently implemented for 3rd order model")
     end if
 
     write(stdOut,*)
@@ -317,9 +314,13 @@ contains
     allocate(nFilled(nIndepHam, nKpts))
     allocate(nEmpty(nIndepHam, nKpts))
 
-    if (allocated(spinW)) then
+    if (allocated(spinW) .or. allocated(thirdOrd)) then
       allocate(shellPot(orb%mShell, nAtom, nSpin))
     end if
+    if (allocated(thirdOrd)) then
+      allocate(atomPot(nAtom, nSpin))
+    end if
+
 
     ! If derivatives of eigenvalues are needed
     !allocate(dEi(nOrbs, nKpts, nIndepHam, 3))
@@ -446,6 +447,15 @@ contains
             call getChargePerShell(dqIn, orb, species, dqPerShell)
             call getSpinShift(shellPot, dqPerShell, species, orb, spinW)
             dPotential(iCart)%intShell(:,:,:) = dPotential(iCart)%intShell + shellPot
+          end if
+
+          if (allocated(thirdOrd)) then
+            atomPot(:,:) = 0.0_dp
+            shellPot(:,:,:) = 0.0_dp
+            call thirdOrd%getdShiftdQ(atomPot(:,1), shellPot(:,:,1), species, neighbourList, dqIn,&
+                & img2CentCell, orb)
+            dPotential(iCart)%intAtom(:,1) = dPotential(iCart)%intAtom(:,1) + atomPot(:,1)
+            dPotential(iCart)%intShell(:,:,1) = dPotential(iCart)%intShell(:,:,1) + shellPot(:,:,1)
           end if
 
           if (tDFTBU) then

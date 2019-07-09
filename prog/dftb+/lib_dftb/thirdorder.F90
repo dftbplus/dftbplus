@@ -67,6 +67,7 @@ module dftbp_thirdorder_module
     procedure :: updateCoords
     procedure :: updateCharges
     procedure :: getShifts
+    procedure :: getdShiftdQ
     procedure :: getEnergyPerAtom
     procedure :: getEnergyPerAtomXlbomd
     procedure :: addGradientDc
@@ -301,6 +302,110 @@ contains
     end if
 
   end subroutine getShifts
+
+
+  !> Derivative of shifts with respect to orbital charges
+  subroutine getdShiftdQ(this, dShiftPerAtom, dShiftPerShell, species, neighList, dqq,&
+      & img2CentCell, orb)
+
+    !> Instance
+    class(ThirdOrder), intent(inout) :: this
+
+    !> Derivative of shift per atom.
+    real(dp), intent(out) :: dShiftPerAtom(:)
+
+    !> Derivative of shift per shell.
+    real(dp), intent(out) :: dShiftPerShell(:,:)
+
+    !> Species, shape: [nAtom]
+    integer, intent(in) :: species(:)
+
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighList
+
+    !> Derivative of orbital charges.
+    real(dp), intent(in) :: dqq(:,:,:)
+
+    !> Mapping on atoms in central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    real(dp), allocatable :: chargesPerShell(:,:)
+    integer :: iAt1, iAt2f, iSp1, iSp2, iSh1, iSh2, iNeigh
+    real(dp) :: dShift1(this%mShells, this%nAtoms), dShift2(this%mShells, this%nAtoms)
+    real(dp) :: dShift3(this%nAtoms)
+    real(dp) :: dChargesPerShell(this%mShells, this%nAtoms), dChargesPerAtom(this%nAtoms)
+    real(dp) :: tmp(this%mShells, this%nAtoms)
+
+    ! assume that the summed charges for the system are correct, i.e. this%chargesPerShell has been
+    ! updated before this routine is called
+
+    dChargesPerAtom(:) = 0.0_dp
+    dChargesPerShell(:,:) = 0.0_dp
+    tmp(:,:) = 0.0_dp
+    if (this%shellResolved) then
+      call getSummedCharges(species, orb, dqq, dQAtom=dChargesPerAtom, dQShell=dChargesPerShell)
+    else
+      ! First (only) component of chargesPerShell contains atomic charge
+      call getSummedCharges(species, orb, dqq, dQAtom=dChargesPerAtom, dQShell=dChargesPerShell)
+      dChargesPerShell(1,:) = sum(tmp, dim=1)
+    end if
+
+    dShift1(:,:) = 0.0_dp
+    dShift2(:,:) = 0.0_dp
+    dShift3(:) = 0.0_dp
+
+    do iAt1 = 1, this%nAtoms
+      iSp1 = species(iAt1)
+      do iNeigh = 0, this%nNeighMax(iAt1)
+        iAt2f = img2CentCell(neighList%iNeighbour(iNeigh, iAt1))
+        iSp2 = species(iAt2f)
+        do iSh1 = 1, this%nShells(iSp1)
+          do iSh2 = 1, this%nShells(iSp2)
+
+            dShift1(iSh1, iAt1) = dShift1(iSh1, iAt1) + this%gamma3ab(iSh2, iSh1, iNeigh, iAt1) * (&
+                & this%chargesPerShell(iSh2, iAt2f) * dChargesPerAtom(iAt1) +&
+                & dChargesPerShell(iSh2, iAt2f) * this%chargesPerAtom(iAt1) )
+            dShift2(iSh1, iAt1) = dShift2(iSh1, iAt1) + this%gamma3ba(iSh2, iSh1, iNeigh, iAt1) * (&
+                & this%chargesPerShell(iSh2, iAt2f) * dChargesPerAtom(iAt2f) +&
+                & dChargesPerShell(iSh2, iAt2f) * this%chargesPerAtom(iAt2f) )
+            dShift3(iAt1) = dShift3(iAt1) + this%gamma3ab(iSh2, iSh1, iNeigh, iAt1) * (&
+                & this%chargesPerShell(iSh2, iAt2f) * dChargesPerShell(iSh1, iAt1) +&
+                & dChargesPerShell(iSh2, iAt2f) * this%chargesPerShell(iSh1, iAt1) )
+
+            if (iAt2f /= iAt1) then
+              dShift1(iSh2, iAt2f) = dShift1(iSh2, iAt2f)&
+                  & + this%gamma3ba(iSh2, iSh1, iNeigh, iAt1) * (&
+                  & this%chargesPerShell(iSh1, iAt1) * dChargesPerAtom(iAt2f) +&
+                  & dChargesPerShell(iSh1, iAt1) * this%chargesPerAtom(iAt2f) )
+              dShift2(iSh2, iAt2f) = dShift2(iSh2, iAt2f)&
+                  & + this%gamma3ab(iSh2, iSh1, iNeigh, iAt1) * (&
+                  & this%chargesPerShell(iSh1, iAt1) * dChargesPerAtom(iAt1) +&
+                  & dChargesPerShell(iSh1, iAt1) * this%chargesPerAtom(iAt1) )
+              dShift3(iAt2f) = dShift3(iAt2f) + this%gamma3ba(iSh2, iSh1, iNeigh, iAt1) * (&
+                  & this%chargesPerShell(iSh1, iAt1) * dChargesPerShell(iSh2, iAt2f) +&
+                  & dChargesPerShell(iSh1, iAt1) * this%chargesPerShell(iSh2, iAt2f) )
+            end if
+          end do
+        end do
+      end do
+    end do
+
+    dShift1(:,:) = 1.0_dp / 3.0_dp * dShift1
+    dShift2(:,:) = 1.0_dp / 3.0_dp * dShift2
+    dShift3(:) = 1.0_dp / 3.0_dp * dShift3
+
+    if (this%shellResolved) then
+      dShiftPerAtom(:) = dShift3
+      dShiftPerShell(:,:) = dShift1 + dShift2
+    else
+      dShiftPerAtom(:) = dShift1(1,:) + dShift2(1,:) + dShift3
+      dShiftPerShell(:,:) = 0.0_dp
+    end if
+
+  end subroutine getdShiftdQ
 
 
   !> Returns energy per atom.
