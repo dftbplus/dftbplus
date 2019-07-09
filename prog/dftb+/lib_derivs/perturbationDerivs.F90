@@ -259,10 +259,6 @@ contains
 
     integer :: fdResults
 
-    if (tPeriodic) then
-      call error("Electric field polarizability not currently implemented for periodic systems")
-    end if
-
   #:if WITH_SCALAPACK
     ! need distributed matrix descriptors
     integer :: desc(DLEN_), nn
@@ -271,6 +267,10 @@ contains
     call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
         & env%blacs%columnBlockSize, desc)
   #:endif
+
+    if (tPeriodic) then
+      call error("Electric field polarizability not currently implemented for periodic systems")
+    end if
 
     if (tFixEf) then
       call error("Perturbation expressions not currently implemented for fixed Fermi energy")
