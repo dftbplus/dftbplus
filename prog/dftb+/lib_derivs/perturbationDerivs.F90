@@ -61,7 +61,7 @@ contains
       & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ,&
       & iUJ, niUJ, iEqBlockDftbu, onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest,&
       & autoTestTagFile, tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut,&
-      & kPoint, kWeight, cellVec, iCellVec, tPeriodic)
+      & kPoint, kWeight, iCellVec, cellVec, tPeriodic)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -514,7 +514,7 @@ contains
 
             call dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
                 & img2CentCell, denseDesc, parallelKS, nFilled(:, iK), nEmpty(:, iK), eigvecsCplx,&
-                & eigVals, Ef, tempElec, orb, dRho, idRho, kPoint, kWeight, cellVec, iCellVec,&
+                & eigVals, Ef, tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec,&
                 & iKS, iCart, &
               #:if WITH_SCALAPACK
                 & desc,&
@@ -566,7 +566,7 @@ contains
 
                 ! two component wavefunction cases
                 call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
-                    & kPoint, kWeight, cellVec, iCellVec,  neighbourList, nNEighbourSK,&
+                    & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
                     & img2CentCell, iSparseStart, dEf, Ef, nFilled(:,iK), nEmpty(:,iK),&
                     & eigVecsCplx, orb, denseDesc, tempElec, eigVals&
                   #:if WITH_SCALAPACK
@@ -1085,7 +1085,7 @@ contains
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
   subroutine dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
-      & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, cellVec, iCellVec, iKS, iCart,&
+      & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, iCart,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
@@ -1196,11 +1196,11 @@ contains
     ! dH in square form
     if (allocated(idHam)) then
       call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
-          & nNeighbourSK, cellVec, iCellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
           & workLocal, iorig=idHam)
     else
       call unpackHPauliBlacs(env%blacs, dHam, kPoint(:,iK), neighbourList%iNeighbour,&
-          & nNeighbourSK, cellVec, iCellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
+          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
           & workLocal)
     end if
 
@@ -1326,11 +1326,11 @@ contains
   #:if WITH_SCALAPACK
     if (allocated(idRhoSparse)) then
       call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, cellVec, iCellVec, iSparseStart,&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
           & img2CentCell, dRhoSparse, idRhoSparse)
       else
         call packRhoPauliBlacs(env%blacs, denseDesc, dRho, kPoint(:,iK), kWeight(iK),&
-            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, cellVec, iCellVec, iSparseStart,&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
             & img2CentCell, dRhoSparse)
       end if
   #:else
@@ -1350,7 +1350,7 @@ contains
 
   !> Calculate the change in the density matrix due to shift in the Fermi energy
   subroutine dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS, kPoint,&
-      & kWeight, cellVec, iCellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEf,&
+      & kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK, img2CentCell, iSparseStart, dEf,&
       & Ef, nFilled, nEmpty, eigVecsCplx, orb, denseDesc, tempElec, eigVals&
     #:if WITH_SCALAPACK
       &, desc&
@@ -1479,11 +1479,11 @@ contains
   #:if WITH_SCALAPACK
     if (allocated(idRhoExtra)) then
       call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, cellVec, iCellVec, iSparseStart,&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
           & img2CentCell, dRhoExtra, idRhoExtra)
     else
       call packRhoPauliBlacs(env%blacs, denseDesc, workLocal, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, cellVec, iCellVec, iSparseStart,&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
           & img2CentCell, dRhoExtra)
     end if
   #:else

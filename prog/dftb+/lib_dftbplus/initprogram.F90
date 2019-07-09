@@ -2025,8 +2025,23 @@ contains
     tPolarisability = input%ctrl%tPolarisability
     tStaticPolarisability = input%ctrl%tStaticPolarisability
 
-    if (.not. electronicSolver%providesEigenvals .and. tPolarisability) then
-      call error("Currently the perturbation expresions require a solver that provides eigenstates")
+    if (tPolarisability) then
+      if (.not. electronicSolver%providesEigenvals) then
+        call error("Currently the perturbation expresions require a solver that provides&
+            & eigenstates")
+      end if
+      if (allocated(thirdOrd)) then
+        call error("Currently the perturbation expressions for DFTB3 are not implemented")
+      end if
+      if (tRangeSep) then
+        call error("Currently the perturbation expresions for LC-DFTB are not implemented")
+      end if
+      if (tNegf) then
+        call error("Currently the perturbation expresions for NEGF are not implemented")
+      end if
+      if (tPeriodic) then
+        call error("Currently the perturbation expresions periodic systems are not implemented")
+      end if
     end if
 
     if (tLinResp) then

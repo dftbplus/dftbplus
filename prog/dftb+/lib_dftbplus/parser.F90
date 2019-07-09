@@ -3708,11 +3708,9 @@ contains
       ctrl%tPolarisability = .true.
       call getChildValue(child, "Static", ctrl%tStaticPolarisability, .false.)
       if (.not.(ctrl%tStaticPolarisability)) then
-        call detailedError(child, &
-            & "Static polarisability must be requested.")
+        call detailedError(child, "Static polarisability must be requested currently.")
       end if
     end if
-
 
   end subroutine readAnalysis
 
