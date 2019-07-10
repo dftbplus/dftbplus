@@ -349,7 +349,7 @@ contains
       call getSummedCharges(species, orb, dqq, dQAtom=dChargesPerAtom, dQShell=dChargesPerShell)
     else
       ! First (only) component of chargesPerShell contains atomic charge
-      call getSummedCharges(species, orb, dqq, dQAtom=dChargesPerAtom, dQShell=dChargesPerShell)
+      call getSummedCharges(species, orb, dqq, dQAtom=dChargesPerAtom, dQShell=tmp)
       dChargesPerShell(1,:) = sum(tmp, dim=1)
     end if
 
