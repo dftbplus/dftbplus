@@ -278,15 +278,16 @@ contains
 
     ! response properties from perturbation-like expressions
     if (tPolarisability) then
-      if (.not.(tPeriodic .or. tRangeSep .or. tNegf)) then
+      if (.not.(tPeriodic .or. tNegf)) then
         if (tStaticPolarisability) then
           call staticPerturWrtE(env, parallelKS, filling, eigen, eigVecsReal, eigvecsCplx, ham,&
               & over, orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
               & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
               & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
-              & niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite, pChrgMixer, taggedWriter,&
-              & tWriteAutotest, autotestTag, tWriteResultsTag, resultsTag, tWriteDetailedOut,&
-              & fdDetailedOut, kPoint, kWeight, iCellVec, cellVec, tPeriodic)
+              & niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite, rangeSep, nNeighbourLC,&
+              & pChrgMixer, taggedWriter, tWriteAutotest, autotestTag, tWriteResultsTag,&
+              & resultsTag, tWriteDetailedOut, fdDetailedOut, kPoint, kWeight, iCellVec, cellVec,&
+              & tPeriodic)
         end if
       end if
     end if
@@ -2443,7 +2444,7 @@ contains
     !> K-points and spins to be handled
     type(TParallelKS), intent(in) :: parallelKS
 
-    !>Data for rangeseparated calcualtion
+    !> Data for rangeseparated calculation
     type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Change in density matrix during last rangesep SCC cycle

@@ -2030,9 +2030,6 @@ contains
         call error("Currently the perturbation expresions require a solver that provides&
             & eigenstates")
       end if
-      if (tRangeSep) then
-        call error("Currently the perturbation expresions for LC-DFTB are not implemented")
-      end if
       if (tNegf) then
         call error("Currently the perturbation expresions for NEGF are not implemented")
       end if

@@ -21,6 +21,7 @@ module dftbp_perturbderivs
   use dftbp_spin
   use dftbp_thirdorder_module, only : ThirdOrder
   use dftbp_dftbplusu
+  use dftbp_rangeseparated, only : RangeSepFunc
   use dftbp_onsitecorrection
   use dftbp_mainio
   use dftbp_shift
@@ -59,9 +60,9 @@ contains
       & over, orb, nAtom, species, speciesnames, neighbourList, nNeighbourSK, denseDesc,&
       & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
       & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ,&
-      & iUJ, niUJ, iEqBlockDftbu, onsMEs, iEqBlockOnSite, pChrgMixer, taggedWriter, tWriteAutoTest,&
-      & autoTestTagFile, tWriteTaggedOut, taggedResultsFile, tWriteDetailedOut, fdDetailedOut,&
-      & kPoint, kWeight, iCellVec, cellVec, tPeriodic)
+      & iUJ, niUJ, iEqBlockDftbu, onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer,&
+      & taggedWriter, tWriteAutoTest, autoTestTagFile, tWriteTaggedOut, taggedResultsFile,&
+      & tWriteDetailedOut, fdDetailedOut, kPoint, kWeight, iCellVec, cellVec, tPeriodic)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -175,6 +176,13 @@ contains
     !> equivalence mapping for dual charge blocks
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
+    !> Data for range-separated calculation
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(inout), allocatable :: nNeighbourLC(:)
+
     !> Charge mixing object
     type(OMixer), intent(inout) :: pChrgMixer
 
@@ -238,7 +246,7 @@ contains
     real(dp) :: dqDiffRed(nMixElements), sccErrorQ
     real(dp) :: dqPerShell(orb%mShell,nAtom,size(ham, dim=2))
 
-    real(dp), allocatable :: dqBlockIn(:,:,:,:)
+    real(dp), allocatable :: dqBlockIn(:,:,:,:), SSqrReal(:,:)
     real(dp), allocatable :: dqBlockOut(:,:,:,:)
     real(dp), allocatable :: dummy(:,:,:,:)
 
@@ -258,6 +266,9 @@ contains
     complex(dp), allocatable :: dPsiCmplx(:,:,:,:,:)
 
     integer :: fdResults
+
+    real(dp), pointer :: dRhoOutSqr(:,:,:), dRhoInSqr(:,:,:)
+    real(dp), allocatable, target :: dRhoOut(:), dRhoIn(:)
 
   #:if WITH_SCALAPACK
     ! need distributed matrix descriptors
@@ -299,6 +310,20 @@ contains
     nKpts = size(filling,dim=2)
 
     allocate(dHam(size(ham,dim=1),nSpin))
+
+    if (allocated(rangeSep)) then
+      allocate(SSqrReal(nOrbs, nOrbs))
+      SSqrReal(:,:) = 0.0_dp
+      call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
+          & iSparseStart, img2CentCell)
+      allocate(dRhoOut(nOrbs * nOrbs * nSpin))
+      dRhoOutSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoOut(1 : nOrbs * nOrbs * nSpin)
+      allocate(dRhoIn(nOrbs * nOrbs * nSpin))
+      dRhoInSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoIn(1 : nOrbs * nOrbs * nSpin)
+    else
+      dRhoInSqr => null()
+      dRhoOutSqr => null()
+    end if
 
     tSccCalc = (maxSccIter > 1)
 
@@ -419,6 +444,10 @@ contains
         call reset(pChrgMixer, nMixElements)
         dqInpRed(:) = 0.0_dp
         dqPerShell(:,:,:) = 0.0_dp
+        if (allocated(rangeSep)) then
+          dRhoIn(:) = 0.0_dp
+          dRhoOut(:) = 0.0_dp
+        end if
       end if
 
       if (tSccCalc) then
@@ -506,9 +535,14 @@ contains
 
             iS = parallelKS%localKS(2, iKS)
 
+            if (allocated(dRhoOut)) then
+              ! replace with case that will get updated in dRhoStaticReal
+              dRhoOut(:) = dRhoIn
+            end if
+
             call dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
                 & denseDesc, iKS, parallelKS, nFilled(:,1), nEmpty(:,1), eigVecsReal, eigVals,&
-                & Ef, tempElec, orb, drho(:,iS), iCart, &
+                & Ef, tempElec, orb, drho(:,iS), iCart, dRhoOutSqr, rangeSep, over, nNeighbourLC,&
               #:if WITH_SCALAPACK
                 & desc,&
               #:endif
@@ -604,6 +638,9 @@ contains
         end if
 
         dRho(:,:) = maxFill * drho
+        if (allocated(dRhoOut)) then
+          dRhoOut(:) = maxFill * dRhoOut
+        end if
         call ud2qm(dRho)
 
         if (allocated(idRho)) then
@@ -623,17 +660,21 @@ contains
         end do
 
         if (tSccCalc) then
-          dqOutRed = 0.0_dp
-          call OrbitalEquiv_reduce(dqOut(:,:,:,iCart), iEqOrbitals, orb,&
-              & dqOutRed(:nIneqMixElements))
-          if (tDFTBU) then
-            call AppendBlock_reduce(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed )
-          end if
-          if (allocated(onsMEs)) then
-            call onsBlock_reduce(dqBlockOut, iEqBlockOnSite, orb, dqOutRed)
-          end if
 
-          dqDiffRed(:) = dqOutRed(:) - dqInpRed(:)
+          if (allocated(rangeSep)) then
+            dqDiffRed(:) = dRhoOut - dRhoIn
+          else
+            dqOutRed = 0.0_dp
+            call OrbitalEquiv_reduce(dqOut(:,:,:,iCart), iEqOrbitals, orb,&
+                & dqOutRed(:nIneqMixElements))
+            if (tDFTBU) then
+              call AppendBlock_reduce(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed )
+            end if
+            if (allocated(onsMEs)) then
+              call onsBlock_reduce(dqBlockOut, iEqBlockOnSite, orb, dqOutRed)
+            end if
+            dqDiffRed(:) = dqOutRed - dqInpRed
+          end if
           sccErrorQ = maxval(abs(dqDiffRed))
 
           write(stdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
@@ -641,32 +682,41 @@ contains
 
           if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
             if (iSCCIter == 1) then
-
-              dqIn(:,:,:) = dqOut(:,:,:,iCart)
-              dqInpRed(:) = dqOutRed(:)
-              if (tDFTBU .or. allocated(onsMEs)) then
-                dqBlockIn(:,:,:,:) = dqBlockOut(:,:,:,:)
+              if (allocated(rangeSep)) then
+                dRhoIn(:) = dRhoOut
+                call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+              else
+                dqIn(:,:,:) = dqOut(:,:,:,iCart)
+                dqInpRed(:) = dqOutRed(:)
+                if (tDFTBU .or. allocated(onsMEs)) then
+                  dqBlockIn(:,:,:,:) = dqBlockOut(:,:,:,:)
+                end if
               end if
 
             else
 
-              call mix(pChrgMixer, dqInpRed, dqDiffRed)
-            #:if WITH_MPI
-              ! Synchronise charges in order to avoid mixers that store a history drifting apart
-              call mpifx_allreduceip(env%mpi%globalComm, dqInpRed, MPI_SUM)
-              dqInpRed(:) = dqInpRed / env%mpi%globalComm%size
-            #:endif
+              if (allocated(rangeSep)) then
+                call mix(pChrgMixer, dRhoIn, dqDiffRed)
+                call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+              else
+                call mix(pChrgMixer, dqInpRed, dqDiffRed)
+              #:if WITH_MPI
+                ! Synchronise charges in order to avoid mixers that store a history drifting apart
+                call mpifx_allreduceip(env%mpi%globalComm, dqInpRed, MPI_SUM)
+                dqInpRed(:) = dqInpRed / env%mpi%globalComm%size
+              #:endif
 
-              call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, orb, dqIn)
+                call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, orb, dqIn)
 
-              if (tDFTBU .or. allocated(onsMEs)) then
-                dqBlockIn(:,:,:,:) = 0.0_dp
-                if (tDFTBU) then
-                  call Block_expand( dqInpRed ,iEqBlockDFTBU, orb, dqBlockIn, species(:nAtom), nUJ,&
-                      & niUJ, iUJ, orbEquiv=iEqOrbitals )
-                else
-                  call Onsblock_expand(dqInpRed, iEqBlockOnSite, orb, dqBlockIn,&
-                      & orbEquiv=iEqOrbitals)
+                if (tDFTBU .or. allocated(onsMEs)) then
+                  dqBlockIn(:,:,:,:) = 0.0_dp
+                  if (tDFTBU) then
+                    call Block_expand( dqInpRed ,iEqBlockDFTBU, orb, dqBlockIn, species(:nAtom),&
+                        & nUJ, niUJ, iUJ, orbEquiv=iEqOrbitals )
+                  else
+                    call Onsblock_expand(dqInpRed, iEqBlockOnSite, orb, dqBlockIn,&
+                        & orbEquiv=iEqOrbitals)
+                  end if
                 end if
               end if
 
@@ -778,14 +828,14 @@ contains
   !> q=0, k=0
   subroutine dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
       & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, iCart,&
+      & dRhoSparse, iCart, dRhoSqr, rangeSep, over, nNeighbourLC,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
       & dEi, dPsi)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Derivative of the hamiltonian
     real(dp), intent(in) :: dHam(:,:)
@@ -838,6 +888,19 @@ contains
     !> Cartesian direction of perturbation
     integer, intent(in) :: iCart
 
+    !> Derivative of rho as a square matrix, if needed
+    real(dp), pointer :: dRhoSqr(:,:,:)
+
+    !> Data for range-separated calculation
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> Number of neighbours for each of the atoms for the exchange contributions in the long range
+    !> functional
+    integer, intent(inout), allocatable :: nNeighbourLC(:)
+
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
     integer, intent(in) :: desc(DLEN_)
@@ -851,7 +914,7 @@ contains
 
     integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iS, iK, nOrb
     real(dp) :: workLocal(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
-    real(dp) :: dRho(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
+    real(dp), allocatable :: dRho(:,:)
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
@@ -864,6 +927,7 @@ contains
     end if
 
     workLocal(:,:) = 0.0_dp
+    allocate(dRho(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2)))
     dRho(:,:) = 0.0_dp
 
   #:if WITH_SCALAPACK
@@ -931,6 +995,13 @@ contains
     call unpackHS(dRho, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
 
+    if (allocated(rangeSep)) then
+      call unpackHS(workLocal, over, neighbourList%iNeighbour, nNeighbourSK,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call rangeSep%addLRHamiltonian(env, dRhoSqr(:,:,iS), over, neighbourList%iNeighbour,&
+          & nNeighbourLC, denseDesc%iAtomStart, iSparseStart, orb, dRho, workLocal)
+    end if
+
     ! form |c> H' <c|
     call symm(workLocal, 'l', dRho, eigVecsReal(:,:,iS))
     workLocal(:,:) = matmul(transpose(eigVecsReal(:,:,iS)), workLocal)
@@ -977,6 +1048,13 @@ contains
     call packHS(dRhoSparse, dRho, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
   #:endif
+
+    if (associated(dRhoSqr)) then
+      do ii = 1, orb%nOrb
+        dRho(ii,ii+1:) = dRho(ii+1:,ii)
+      end do
+      dRhoSqr(:,:,iS) = dRho
+    end if
 
   end subroutine dRhoStaticReal
 

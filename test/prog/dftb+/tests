@@ -16,6 +16,7 @@ response/H2Pauli                       #? MPI_PROCS <= 1
 response/CH3+u_noncol                  #? MPI_PROCS <= 1
 response/OH_noncol                     #? MPI_PROCS <= 1
 response/Au2                           #? MPI_PROCS <= 4 or (not WITH_MPI)
+response/C18H12-LCnb                   #? not WITH_MPI
 
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
