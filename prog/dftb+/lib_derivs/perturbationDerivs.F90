@@ -312,6 +312,9 @@ contains
     allocate(dHam(size(ham,dim=1),nSpin))
 
     if (allocated(rangeSep)) then
+      if (nSpin > 1) then
+        call error("Spin-polarised range separated response not implemented yet")
+      end if
       allocate(SSqrReal(nOrbs, nOrbs))
       SSqrReal(:,:) = 0.0_dp
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
@@ -419,7 +422,6 @@ contains
     lpCart: do iCart = 1, 3
 
       if (tSccCalc) then
-        write(stdOut,*)
         write(stdOut,"(1X,A,1X,A,1X,A)")'Calculating',direction(iCart),'direction field'
       end if
 
@@ -581,6 +583,10 @@ contains
         dRhoExtra = 0.0_dp
         if (tMetallic) then
           ! correct for Fermi level shift for q=0 fields
+
+          if (allocated(rangeSep)) then
+            call error("Range separated not implemented for metalic response yet")
+          end if
 
           do iKS = 1, parallelKS%nLocalKS
             iK = parallelKS%localKS(1, iKS)
@@ -764,7 +770,6 @@ contains
     end if
   #:endif
 
-    write(stdOut,*)
     write(stdOut,*)'Polarisability'
     do iCart = 1, 3
       write(stdOut,"(3E20.12)")polarisability(:, iCart)

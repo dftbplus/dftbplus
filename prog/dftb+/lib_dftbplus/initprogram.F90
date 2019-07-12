@@ -2036,6 +2036,9 @@ contains
       if (tPeriodic) then
         call error("Currently the perturbation expresions periodic systems are not implemented")
       end if
+      if (t3rd) then
+        call error("Only full 3rd order currently supported for perturbation")
+      end if
     end if
 
     if (tLinResp) then
@@ -3860,7 +3863,7 @@ contains
       if (tXlbomd) then
         call error("Range separated calculations not currently implemented for XLBOMD")
       end if
-      if (t3rd) then
+      if (t3rd .or. t3rdFull) then
         call error("Range separated calculations not currently implemented for 3rd order DFTB")
       end if
       if (tLinResp) then
