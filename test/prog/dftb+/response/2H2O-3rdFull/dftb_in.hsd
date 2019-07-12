@@ -1,0 +1,48 @@
+Geometry =  GenFormat {
+    <<< geom.gen
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-8
+    MaxSCCIterations = 1000
+    Filling = Fermi {
+        Temperature [K] = 300
+    }
+    MaxAngularMomentum {
+        H = "s"
+        O = "p"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix  = ".skf"
+    }
+    ThirdOrderFull = Yes
+    HubbardDerivs {
+        O = -0.14
+        H = -0.07
+    }
+    HCorrection = Damping {
+        Exponent = 4.95
+    }
+}
+
+Analysis = {
+    Polarisability = {
+        Static = Yes
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 7
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
