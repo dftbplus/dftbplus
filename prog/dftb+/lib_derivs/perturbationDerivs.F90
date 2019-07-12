@@ -267,6 +267,9 @@ contains
 
     integer :: fdResults
 
+
+    ! used for range separated contributions, note this stays in the up/down representation
+    ! throughout if spin polarised
     real(dp), pointer :: dRhoOutSqr(:,:,:), dRhoInSqr(:,:,:)
     real(dp), allocatable, target :: dRhoOut(:), dRhoIn(:)
 
@@ -288,7 +291,7 @@ contains
     end if
 
     write(stdOut,*)
-    write(stdOut,*)'Perturbation calculation of polarisation'
+    write(stdOut,*)'Perturbation calculation of electric polarisability'
     write(stdOut,*)
 
     nSpin = size(ham, dim=2)
@@ -312,17 +315,14 @@ contains
     allocate(dHam(size(ham,dim=1),nSpin))
 
     if (allocated(rangeSep)) then
-      if (nSpin > 1) then
-        call error("Spin-polarised range separated response not implemented yet")
-      end if
       allocate(SSqrReal(nOrbs, nOrbs))
       SSqrReal(:,:) = 0.0_dp
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
       allocate(dRhoOut(nOrbs * nOrbs * nSpin))
-      dRhoOutSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoOut(1 : nOrbs * nOrbs * nSpin)
+      dRhoOutSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoOut(:nOrbs*nOrbs*nSpin)
       allocate(dRhoIn(nOrbs * nOrbs * nSpin))
-      dRhoInSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoIn(1 : nOrbs * nOrbs * nSpin)
+      dRhoInSqr(1:nOrbs, 1:nOrbs, 1:nSpin) => dRhoIn(:nOrbs*nOrbs*nSpin)
     else
       dRhoInSqr => null()
       dRhoOutSqr => null()
@@ -539,7 +539,7 @@ contains
 
             if (allocated(dRhoOut)) then
               ! replace with case that will get updated in dRhoStaticReal
-              dRhoOut(:) = dRhoIn
+              dRhoOutSqr(:,:,iS) = dRhoInSqr(:,:,iS)
             end if
 
             call dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
@@ -549,7 +549,6 @@ contains
                 & desc,&
               #:endif
                 & dEi, dPsiReal)
-
           end do
 
         elseif (nSpin > 2) then
@@ -561,7 +560,7 @@ contains
             call dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
                 & img2CentCell, denseDesc, parallelKS, nFilled(:, iK), nEmpty(:, iK), eigvecsCplx,&
                 & eigVals, Ef, tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec,&
-                & iKS, iCart, &
+                & iKS, iCart,&
               #:if WITH_SCALAPACK
                 & desc,&
               #:endif
@@ -584,10 +583,6 @@ contains
         if (tMetallic) then
           ! correct for Fermi level shift for q=0 fields
 
-          if (allocated(rangeSep)) then
-            call error("Range separated not implemented for metalic response yet")
-          end if
-
           do iKS = 1, parallelKS%nLocalKS
             iK = parallelKS%localKS(1, iKS)
             iS = parallelKS%localKS(2, iKS)
@@ -606,7 +601,8 @@ contains
                 ! real case, no k-points
                 call dRhoFermiChangeStaticReal(dRhoExtra(:, iS), env, parallelKS, iKS,&
                     & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef,&
-                    & nFilled(:,iK), nEmpty(:,iK), eigVecsReal, orb, denseDesc, tempElec, eigVals&
+                    & nFilled(:,iK), nEmpty(:,iK), eigVecsReal, orb, denseDesc, tempElec, eigVals,&
+                    & dRhoOutSqr&
                   #:if WITH_SCALAPACK
                     &, desc&
                   #:endif
@@ -661,7 +657,7 @@ contains
           if (tDFTBU .or. allocated(onsMEs)) then
             dqBlockOut(:,:,:,iS) = 0.0_dp
             call mulliken(dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
-             & nNeighbourSK, img2CentCell, iSparseStart)
+                & nNeighbourSK, img2CentCell, iSparseStart)
           end if
         end do
 
@@ -727,6 +723,11 @@ contains
               end if
 
             end if
+
+            if (allocated(rangeSep)) then
+              call ud2qm(dqIn)
+            end if
+
           end if
         else
           tConverged = .true.
@@ -770,6 +771,7 @@ contains
     end if
   #:endif
 
+    write(stdOut,*)
     write(stdOut,*)'Polarisability'
     do iCart = 1, 3
       write(stdOut,"(3E20.12)")polarisability(:, iCart)
@@ -1055,9 +1057,6 @@ contains
   #:endif
 
     if (associated(dRhoSqr)) then
-      do ii = 1, orb%nOrb
-        dRho(ii,ii+1:) = dRho(ii+1:,ii)
-      end do
       dRhoSqr(:,:,iS) = dRho
     end if
 
@@ -1067,7 +1066,7 @@ contains
   !> Calculate the change in the density matrix due to shift in the Fermi energy
   subroutine dRhoFermiChangeStaticReal(dRhoExtra, env, parallelKS, iKS, neighbourList,&
       & nNEighbourSK, img2CentCell, iSparseStart, dEf, Ef, nFilled, nEmpty, eigVecsReal, orb,&
-      & denseDesc, tempElec, eigVals&
+      & denseDesc, tempElec, eigVals, dRhoSqr&
     #:if WITH_SCALAPACK
       &, desc&
     #:endif
@@ -1124,6 +1123,9 @@ contains
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
 
+    !> Derivative of rho as a square matrix, if needed
+    real(dp), pointer :: dRhoSqr(:,:,:)
+
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
     integer, intent(in) :: desc(DLEN_)
@@ -1171,6 +1173,10 @@ contains
     call packHS(drhoExtra, workReal, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
   #:endif
+
+    if  (associated(dRhoSqr)) then
+      dRhoSqr(:,:,iS) = dRhoSqr(:,:,iS) + workReal
+    end if
 
   end subroutine dRhoFermiChangeStaticReal
 

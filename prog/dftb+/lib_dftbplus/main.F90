@@ -2494,8 +2494,8 @@ contains
 
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-      ! Add rangeseparated contribution
-      ! Assumes deltaRhoInSqr only used by rangeseparation
+      ! Add range separated contribution
+      ! Assumes deltaRhoInSqr only used by range separation
       ! Should this be used elsewhere, need to pass tRangeSep
       if (allocated(rangeSep)) then
         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
