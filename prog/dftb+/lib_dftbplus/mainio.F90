@@ -2086,8 +2086,7 @@ contains
 
     @:ASSERT(tPeriodic .eqv. tStress)
 
-    open(newunit=fd, file=fileName, action="write", status="replace")
-
+    open(newunit=fd, file=fileName, action="write", status="old", position="append")
     call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
 
     if (electronicSolver%providesEigenvals) then

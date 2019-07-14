@@ -497,8 +497,8 @@ module dftbp_initprogram
   !> Should polarisability be calculated
   logical :: tPolarisability
 
-  !> Static polarisability
-  logical :: tStaticPolarisability
+  !> Frequencies at which to calculate polarizability
+  real(dp), allocatable :: omegaPolarisability(:)
 
   !> use commands from socket communication to control the run
   logical :: tSocket
@@ -2023,7 +2023,21 @@ contains
 
     !> Polarisability of the system
     tPolarisability = input%ctrl%tPolarisability
-    tStaticPolarisability = input%ctrl%tStaticPolarisability
+    ii = 0
+    jj = 1
+    if (input%ctrl%tStaticPolarisability) then
+      ii = 1
+      jj = 2
+    end if
+    if (allocated(input%ctrl%omegaPolarisability)) then
+      ii = ii + size(input%ctrl%omegaPolarisability)
+    end if
+    if (ii > 0) then
+      ! place any static (0 energy case) at start of array
+      allocate(omegaPolarisability(ii))
+      omegaPolarisability(:) = 0.0_dp
+      omegaPolarisability(jj:) = input%ctrl%omegaPolarisability
+    end if
 
     if (tPolarisability) then
       if (.not. electronicSolver%providesEigenvals) then

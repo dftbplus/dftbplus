@@ -20,6 +20,7 @@ response/2H2O-3rdFull                  #? MPI_PROCS <= 1
 response/C18H12-LCnb                   #? not WITH_MPI
 response/Thymine-T1_LC                 #? not WITH_MPI 
 response/Thymine-charge_LC             #? not WITH_MPI
+CH4_dynamic                            #? MPI_PROCS <= 1
 
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI

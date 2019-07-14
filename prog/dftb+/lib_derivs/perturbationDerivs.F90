@@ -62,7 +62,7 @@ contains
       & nIneqMixElements, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ,&
       & iUJ, niUJ, iEqBlockDftbu, onsMEs, iEqBlockOnSite, rangeSep, nNeighbourLC, pChrgMixer,&
       & taggedWriter, tWriteAutoTest, autoTestTagFile, tWriteTaggedOut, taggedResultsFile,&
-      & tWriteDetailedOut, fdDetailedOut, kPoint, kWeight, iCellVec, cellVec, tPeriodic)
+      & tWriteDetailedOut, fdDetailedOut, kPoint, kWeight, iCellVec, cellVec, tPeriodic, omegas)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -222,6 +222,10 @@ contains
     !> Is this a periodic geometry
     logical, intent(in) :: tPeriodic
 
+    !> Driving frequencies for dynamic polarization calculations (values of 0 or not allocated being
+    !> the static case)
+    real(dp), intent(in), allocatable :: omegas(:)
+
     integer :: iS, iK, iKS, iAt, iNeigh, iCart, iSCC, iLev, iSh, iSp, jAt, jAtf
 
     integer :: nSpin, nKpts, nOrbs, nIndepHam
@@ -241,7 +245,7 @@ contains
     real(dp) :: drhoExtra(size(over),size(ham, dim=2))
     real(dp), allocatable :: idRho(:,:), idRhoExtra(:,:)
     real(dp) :: dqIn(orb%mOrb,nAtom,size(ham, dim=2))
-    real(dp) :: dqOut(orb%mOrb, nAtom, size(ham, dim=2), 3), dqUpDown(orb%mOrb, size(ham, dim=2))
+    real(dp) :: dqOut(orb%mOrb, nAtom, size(ham, dim=2)), dqUpDown(orb%mOrb, size(ham, dim=2))
     real(dp) :: dqInpRed(nMixElements), dqOutRed(nMixElements)
     real(dp) :: dqDiffRed(nMixElements), sccErrorQ
     real(dp) :: dqPerShell(orb%mShell,nAtom,size(ham, dim=2))
@@ -259,14 +263,17 @@ contains
 
     logical :: tSccCalc, tMetallic, tConverged
 
-    real(dp) :: polarisability(3,3)
+    real(dp), allocatable :: polarisability(:,:,:)
 
     real(dp), allocatable :: dEi(:,:,:,:)
     real(dp), allocatable :: dPsiReal(:,:,:,:)
     complex(dp), allocatable :: dPsiCmplx(:,:,:,:,:)
 
-    integer :: fdResults
+    integer :: fdResults, fdResponses
 
+    ! dynamical perturbation
+    integer :: iOmega, nOmega
+    real(dp) :: omega
 
     ! used for range separated contributions, note this stays in the up/down representation
     ! throughout if spin polarised
@@ -281,6 +288,14 @@ contains
     call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
         & env%blacs%columnBlockSize, desc)
   #:endif
+
+    if (allocated(omegas)) then
+      nOmega = size(omegas)
+    else
+      nOmega = 1
+    end if
+
+    allocate(polarisability(3,3,nOmega))
 
     if (tPeriodic) then
       call error("Electric field polarizability not currently implemented for periodic systems")
@@ -415,15 +430,11 @@ contains
       write(stdOut,*)'Density of states at the Fermi energy Nf:',nF
     end if
 
-    dqOut(:,:,:,:) = 0.0_dp
+    dqOut(:,:,:) = 0.0_dp
 
     ! polarisation direction
     ! note, could MPI parallelise over this
     lpCart: do iCart = 1, 3
-
-      if (tSccCalc) then
-        write(stdOut,"(1X,A,1X,A,1X,A)")'Calculating',direction(iCart),'direction field'
-      end if
 
       dqIn(:,:,:) = 0.0_dp
       if (tDFTBU .or. allocated(onsMEs)) then
@@ -442,326 +453,340 @@ contains
       call total_shift(dPotential(iCart)%extShell, dPotential(iCart)%extAtom, orb, species)
       call total_shift(dPotential(iCart)%extBlock, dPotential(iCart)%extShell, orb, species)
 
-      if (tSccCalc) then
-        call reset(pChrgMixer, nMixElements)
-        dqInpRed(:) = 0.0_dp
-        dqPerShell(:,:,:) = 0.0_dp
-        if (allocated(rangeSep)) then
-          dRhoIn(:) = 0.0_dp
-          dRhoOut(:) = 0.0_dp
-        end if
-      end if
+      lpOmega: do iOmega = 1, nOmega
 
-      if (tSccCalc) then
-        write(stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
-      end if
-
-      iSCCIter = 1
-      tStopSCC = .false.
-      lpSCC: do while (iSCCiter <= maxSccIter)
-
-        dPotential(iCart)%intAtom(:,:) = 0.0_dp
-        dPotential(iCart)%intShell(:,:,:) = 0.0_dp
-        dPotential(iCart)%intBlock(:,:,:,:) = 0.0_dp
-
-        if (tDFTBU .or. allocated(onsMEs)) then
-          dPotential(iCart)%orbitalBlock(:,:,:,:) = 0.0_dp
-        end if
-
-        if (tSccCalc .and. iSCCiter>1) then
-          call sccCalc%updateCharges(env, dqIn, orb, species)
-          call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
-          call sccCalc%getShiftPerAtom(dPotential(iCart)%intAtom(:,1))
-          call sccCalc%getShiftPerL(dPotential(iCart)%intShell(:,:,1))
-
-          if (allocated(spinW)) then
-            call getChargePerShell(dqIn, orb, species, dqPerShell)
-            call getSpinShift(shellPot, dqPerShell, species, orb, spinW)
-            dPotential(iCart)%intShell(:,:,:) = dPotential(iCart)%intShell + shellPot
-          end if
-
-          if (allocated(thirdOrd)) then
-            atomPot(:,:) = 0.0_dp
-            shellPot(:,:,:) = 0.0_dp
-            call thirdOrd%getdShiftdQ(atomPot(:,1), shellPot(:,:,1), species, neighbourList, dqIn,&
-                & img2CentCell, orb)
-            dPotential(iCart)%intAtom(:,1) = dPotential(iCart)%intAtom(:,1) + atomPot(:,1)
-            dPotential(iCart)%intShell(:,:,1) = dPotential(iCart)%intShell(:,:,1) + shellPot(:,:,1)
-          end if
-
-          if (tDFTBU) then
-            ! note the derivatives of both FLL and pSIC are the same (pSIC, i.e. case 2 in module)
-            call getDftbUShift(dPotential(iCart)%orbitalBlock, dqBlockIn, species, orb, 2,&
-                & UJ, nUJ, niUJ, iUJ)
-          end if
-          if (allocated(onsMEs)) then
-            ! onsite corrections
-            call addOnsShift(dPotential(iCart)%orbitalBlock, dPotential(iCart)%iOrbitalBlock,&
-                & dqBlockIn, dummy, onsMEs, species, orb)
-          end if
-
-        end if
-
-        call total_shift(dPotential(iCart)%intShell,dPotential(iCart)%intAtom, orb,species)
-        call total_shift(dPotential(iCart)%intBlock,dPotential(iCart)%intShell, orb,species)
-        if (tDFTBU .or. allocated(onsMEs)) then
-          dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock&
-              & + dPotential(iCart)%orbitalBlock
-        end if
-        dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock+dPotential(iCart)%extBlock
-
-        dHam(:,:) = 0.0_dp
-        call add_shift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-            & iSparseStart, nAtom, img2CentCell, dPotential(iCart)%intBlock)
-
-        if (nSpin > 1) then
-          dHam(:,:) = 2.0_dp * dHam(:,:)
-          if (allocated(idHam)) then
-            idHam(:,:) = 2.0_dp * idHam(:,:)
-          end if
-        end if
-        call qm2ud(dHam)
-        if (allocated(idHam)) then
-          call qm2ud(idHam)
-        end if
-
-        dRho(:,:) = 0.0_dp
-        if (allocated(idRho)) then
-          idRho(:,:) = 0.0_dp
-        end if
-
-        ! evaluate derivative of density matrix
-        if (allocated(eigVecsReal)) then
-
-          do iKS = 1, parallelKS%nLocalKS
-
-            iS = parallelKS%localKS(2, iKS)
-
-            if (allocated(dRhoOut)) then
-              ! replace with case that will get updated in dRhoStaticReal
-              dRhoOutSqr(:,:,iS) = dRhoInSqr(:,:,iS)
-            end if
-
-            call dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
-                & denseDesc, iKS, parallelKS, nFilled(:,1), nEmpty(:,1), eigVecsReal, eigVals,&
-                & Ef, tempElec, orb, drho(:,iS), iCart, dRhoOutSqr, rangeSep, over, nNeighbourLC,&
-              #:if WITH_SCALAPACK
-                & desc,&
-              #:endif
-                & dEi, dPsiReal)
-          end do
-
-        elseif (nSpin > 2) then
-
-          do iKS = 1, parallelKS%nLocalKS
-
-            iK = parallelKS%localKS(1, iKS)
-
-            call dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
-                & img2CentCell, denseDesc, parallelKS, nFilled(:, iK), nEmpty(:, iK), eigvecsCplx,&
-                & eigVals, Ef, tempElec, orb, dRho, idRho, kPoint, kWeight, iCellVec, cellVec,&
-                & iKS, iCart,&
-              #:if WITH_SCALAPACK
-                & desc,&
-              #:endif
-                & dEi, dPsiCmplx)
-
-          end do
-
+        if (allocated(omegas)) then
+          omega = omegas(iOmega)
         else
-
-          call error("Shouldn't be here")
-
+          omega = 0.0_dp
         end if
-
-      #:if WITH_SCALAPACK
-        ! Add up and distribute density matrix contributions from each group
-        call mpifx_allreduceip(env%mpi%globalComm, dRho, MPI_SUM)
-      #:endif
-
-        dRhoExtra = 0.0_dp
-        if (tMetallic) then
-          ! correct for Fermi level shift for q=0 fields
-
-          do iKS = 1, parallelKS%nLocalKS
-            iK = parallelKS%localKS(1, iKS)
-            iS = parallelKS%localKS(2, iKS)
-
-            dqOut(:,:,iS, iCart) = 0.0_dp
-            call mulliken(dqOut(:,:,iS, iCart), over, drho(:,iS), orb, &
-                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-
-            dEf(iS) = -sum(dqOut(:, :, iS, iCart)) / nF(iS)
-
-            if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
-              ! Fermi level changes, so need to correct for the change in the number of charges
-
-              if (allocated(eigVecsReal)) then
-
-                ! real case, no k-points
-                call dRhoFermiChangeStaticReal(dRhoExtra(:, iS), env, parallelKS, iKS,&
-                    & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef,&
-                    & nFilled(:,iK), nEmpty(:,iK), eigVecsReal, orb, denseDesc, tempElec, eigVals,&
-                    & dRhoOutSqr&
-                  #:if WITH_SCALAPACK
-                    &, desc&
-                  #:endif
-                    &)
-
-              elseif (nSpin > 2) then
-
-                ! two component wavefunction cases
-                call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
-                    & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
-                    & img2CentCell, iSparseStart, dEf, Ef, nFilled(:,iK), nEmpty(:,iK),&
-                    & eigVecsCplx, orb, denseDesc, tempElec, eigVals&
-                  #:if WITH_SCALAPACK
-                    &, desc&
-                  #:endif
-                    &)
-
-              else
-
-                ! k-points
-                call error("Not added yet")
-
-              end if
-
-            end if
-
-          end do
-
-        #:if WITH_SCALAPACK
-          ! Add up and distribute density matrix contribution from each group
-          call mpifx_allreduceip(env%mpi%globalComm, dRhoExtra, MPI_SUM)
-        #:endif
-          dRho(:,:) = dRho + dRhoExtra
-
-        end if
-
-        dRho(:,:) = maxFill * drho
-        if (allocated(dRhoOut)) then
-          dRhoOut(:) = maxFill * dRhoOut
-        end if
-        call ud2qm(dRho)
-
-        if (allocated(idRho)) then
-          idRho(:,:) = maxFill * drho
-          call ud2qm(idRho)
-        end if
-
-        dqOut(:,:,:,iCart) = 0.0_dp
-        do iS = 1, nSpin
-          call mulliken(dqOut(:,:,iS, iCart), over, drho(:,iS), orb, &
-              & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-          if (tDFTBU .or. allocated(onsMEs)) then
-            dqBlockOut(:,:,:,iS) = 0.0_dp
-            call mulliken(dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
-                & nNeighbourSK, img2CentCell, iSparseStart)
-          end if
-        end do
 
         if (tSccCalc) then
-
+          call reset(pChrgMixer, nMixElements)
+          dqInpRed(:) = 0.0_dp
+          dqPerShell(:,:,:) = 0.0_dp
           if (allocated(rangeSep)) then
-            dqDiffRed(:) = dRhoOut - dRhoIn
-          else
-            dqOutRed = 0.0_dp
-            call OrbitalEquiv_reduce(dqOut(:,:,:,iCart), iEqOrbitals, orb,&
-                & dqOutRed(:nIneqMixElements))
+            dRhoIn(:) = 0.0_dp
+            dRhoOut(:) = 0.0_dp
+          end if
+        end if
+
+        if (tSccCalc) then
+          write(stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
+        end if
+
+        iSCCIter = 1
+        tStopSCC = .false.
+        lpSCC: do while (iSCCiter <= maxSccIter)
+
+          dPotential(iCart)%intAtom(:,:) = 0.0_dp
+          dPotential(iCart)%intShell(:,:,:) = 0.0_dp
+          dPotential(iCart)%intBlock(:,:,:,:) = 0.0_dp
+
+          if (tDFTBU .or. allocated(onsMEs)) then
+            dPotential(iCart)%orbitalBlock(:,:,:,:) = 0.0_dp
+          end if
+
+          if (tSccCalc .and. iSCCiter>1) then
+            call sccCalc%updateCharges(env, dqIn, orb, species)
+            call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
+            call sccCalc%getShiftPerAtom(dPotential(iCart)%intAtom(:,1))
+            call sccCalc%getShiftPerL(dPotential(iCart)%intShell(:,:,1))
+
+            if (allocated(spinW)) then
+              call getChargePerShell(dqIn, orb, species, dqPerShell)
+              call getSpinShift(shellPot, dqPerShell, species, orb, spinW)
+              dPotential(iCart)%intShell(:,:,:) = dPotential(iCart)%intShell + shellPot
+            end if
+
+            if (allocated(thirdOrd)) then
+              atomPot(:,:) = 0.0_dp
+              shellPot(:,:,:) = 0.0_dp
+              call thirdOrd%getdShiftdQ(atomPot(:,1), shellPot(:,:,1), species, neighbourList,&
+                  & dqIn, img2CentCell, orb)
+              dPotential(iCart)%intAtom(:,1) = dPotential(iCart)%intAtom(:,1) + atomPot(:,1)
+              dPotential(iCart)%intShell(:,:,1) = dPotential(iCart)%intShell(:,:,1)&
+                  & + shellPot(:,:,1)
+            end if
+
             if (tDFTBU) then
-              call AppendBlock_reduce(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed )
+              ! note the derivatives of both FLL and pSIC are the same (pSIC, i.e. case 2 in module)
+              call getDftbUShift(dPotential(iCart)%orbitalBlock, dqBlockIn, species, orb, 2,&
+                  & UJ, nUJ, niUJ, iUJ)
             end if
             if (allocated(onsMEs)) then
-              call onsBlock_reduce(dqBlockOut, iEqBlockOnSite, orb, dqOutRed)
-            end if
-            dqDiffRed(:) = dqOutRed - dqInpRed
-          end if
-          sccErrorQ = maxval(abs(dqDiffRed))
-
-          write(stdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
-          tConverged = (sccErrorQ < sccTol)
-
-          if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
-            if (iSCCIter == 1) then
-              if (allocated(rangeSep)) then
-                dRhoIn(:) = dRhoOut
-                call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
-              else
-                dqIn(:,:,:) = dqOut(:,:,:,iCart)
-                dqInpRed(:) = dqOutRed(:)
-                if (tDFTBU .or. allocated(onsMEs)) then
-                  dqBlockIn(:,:,:,:) = dqBlockOut(:,:,:,:)
-                end if
-              end if
-
-            else
-
-              if (allocated(rangeSep)) then
-                call mix(pChrgMixer, dRhoIn, dqDiffRed)
-                call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
-              else
-                call mix(pChrgMixer, dqInpRed, dqDiffRed)
-              #:if WITH_MPI
-                ! Synchronise charges in order to avoid mixers that store a history drifting apart
-                call mpifx_allreduceip(env%mpi%globalComm, dqInpRed, MPI_SUM)
-                dqInpRed(:) = dqInpRed / env%mpi%globalComm%size
-              #:endif
-
-                call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, orb, dqIn)
-
-                if (tDFTBU .or. allocated(onsMEs)) then
-                  dqBlockIn(:,:,:,:) = 0.0_dp
-                  if (tDFTBU) then
-                    call Block_expand( dqInpRed ,iEqBlockDFTBU, orb, dqBlockIn, species(:nAtom),&
-                        & nUJ, niUJ, iUJ, orbEquiv=iEqOrbitals )
-                  else
-                    call Onsblock_expand(dqInpRed, iEqBlockOnSite, orb, dqBlockIn,&
-                        & orbEquiv=iEqOrbitals)
-                  end if
-                end if
-              end if
-
-            end if
-
-            if (allocated(rangeSep)) then
-              call ud2qm(dqIn)
+              ! onsite corrections
+              call addOnsShift(dPotential(iCart)%orbitalBlock, dPotential(iCart)%iOrbitalBlock,&
+                  & dqBlockIn, dummy, onsMEs, species, orb)
             end if
 
           end if
-        else
-          tConverged = .true.
-        end if
 
-        if (tConverged) then
-          exit lpSCC
-        end if
+          call total_shift(dPotential(iCart)%intShell,dPotential(iCart)%intAtom, orb,species)
+          call total_shift(dPotential(iCart)%intBlock,dPotential(iCart)%intShell, orb,species)
+          if (tDFTBU .or. allocated(onsMEs)) then
+            dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock&
+                & + dPotential(iCart)%orbitalBlock
+          end if
+          dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock&
+              & + dPotential(iCart)%extBlock
 
-        if (allocated(spinW)) then
-          dqPerShell = 0.0_dp
-          do iAt = 1, nAtom
-            iSp = species(iAt)
-            do iSh = 1, orb%nShell(iSp)
-              dqPerShell(iSh,iAt,:nSpin) = dqPerShell(iSh,iAt,:nSpin) +&
-                  & sum(dqIn(orb%posShell(iSh,iSp): orb%posShell(iSh+1,iSp)-1,iAt,:nSpin),dim=1)
+          dHam(:,:) = 0.0_dp
+          call add_shift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
+              & iSparseStart, nAtom, img2CentCell, dPotential(iCart)%intBlock)
+
+          if (nSpin > 1) then
+            dHam(:,:) = 2.0_dp * dHam(:,:)
+            if (allocated(idHam)) then
+              idHam(:,:) = 2.0_dp * idHam(:,:)
+            end if
+          end if
+          call qm2ud(dHam)
+          if (allocated(idHam)) then
+            call qm2ud(idHam)
+          end if
+
+          dRho(:,:) = 0.0_dp
+          if (allocated(idRho)) then
+            idRho(:,:) = 0.0_dp
+          end if
+
+          ! evaluate derivative of density matrix
+          if (allocated(eigVecsReal)) then
+
+            do iKS = 1, parallelKS%nLocalKS
+
+              iS = parallelKS%localKS(2, iKS)
+
+              if (allocated(dRhoOut)) then
+                ! replace with case that will get updated in dRhoStaticReal
+                dRhoOutSqr(:,:,iS) = dRhoInSqr(:,:,iS)
+              end if
+
+              call dRhoStaticReal(env, dHam, omega, neighbourList, nNeighbourSK, iSparseStart,&
+                  & img2CentCell, denseDesc, iKS, parallelKS, nFilled(:,1), nEmpty(:,1),&
+                  & eigVecsReal, eigVals, Ef, tempElec, orb, drho(:,iS), iCart, dRhoOutSqr,&
+                  & rangeSep, over, nNeighbourLC,&
+                #:if WITH_SCALAPACK
+                  & desc,&
+                #:endif
+                  & dEi, dPsiReal)
             end do
+
+          elseif (nSpin > 2) then
+
+            do iKS = 1, parallelKS%nLocalKS
+
+              iK = parallelKS%localKS(1, iKS)
+
+              call dRhoStaticPauli(env, dHam, idHam, omega, neighbourList, nNeighbourSK,&
+                  & iSparseStart, img2CentCell, denseDesc, parallelKS, nFilled(:, iK),&
+                  & nEmpty(:, iK), eigvecsCplx, eigVals, Ef, tempElec, orb, dRho, idRho, kPoint,&
+                  & kWeight, iCellVec, cellVec, iKS, iCart,&
+                #:if WITH_SCALAPACK
+                  & desc,&
+                #:endif
+                  & dEi, dPsiCmplx)
+
+            end do
+
+          else
+
+            call error("Shouldn't be here")
+
+          end if
+
+        #:if WITH_SCALAPACK
+          ! Add up and distribute density matrix contributions from each group
+          call mpifx_allreduceip(env%mpi%globalComm, dRho, MPI_SUM)
+        #:endif
+
+          dRhoExtra = 0.0_dp
+          if (tMetallic) then
+            ! correct for Fermi level shift for q=0 fields
+
+            do iKS = 1, parallelKS%nLocalKS
+              iK = parallelKS%localKS(1, iKS)
+              iS = parallelKS%localKS(2, iKS)
+
+              dqOut(:,:,iS) = 0.0_dp
+              call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
+                  & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+
+              dEf(iS) = -sum(dqOut(:, :, iS)) / nF(iS)
+
+              if (abs(dEf(iS)) > 10.0_dp*epsilon(1.0_dp)) then
+                ! Fermi level changes, so need to correct for the change in the number of charges
+
+                if (allocated(eigVecsReal)) then
+
+                  ! real case, no k-points
+                  call dRhoFermiChangeStaticReal(dRhoExtra(:, iS), env, parallelKS, iKS,&
+                      & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef,&
+                      & nFilled(:,iK), nEmpty(:,iK), eigVecsReal, orb, denseDesc, tempElec,&
+                      & eigVals, dRhoOutSqr&
+                    #:if WITH_SCALAPACK
+                      &, desc&
+                    #:endif
+                      &)
+
+                elseif (nSpin > 2) then
+
+                  ! two component wavefunction cases
+                  call dRhoFermiChangeStaticPauli(dRhoExtra, idRhoExtra, env, parallelKS, iKS,&
+                      & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
+                      & img2CentCell, iSparseStart, dEf, Ef, nFilled(:,iK), nEmpty(:,iK),&
+                      & eigVecsCplx, orb, denseDesc, tempElec, eigVals&
+                    #:if WITH_SCALAPACK
+                      &, desc&
+                    #:endif
+                      &)
+
+                else
+
+                  ! k-points
+                  call error("Not added yet")
+
+                end if
+
+              end if
+
+            end do
+
+          #:if WITH_SCALAPACK
+            ! Add up and distribute density matrix contribution from each group
+            call mpifx_allreduceip(env%mpi%globalComm, dRhoExtra, MPI_SUM)
+          #:endif
+            dRho(:,:) = dRho + dRhoExtra
+
+          end if
+
+          dRho(:,:) = maxFill * drho
+          if (allocated(dRhoOut)) then
+            dRhoOut(:) = maxFill * dRhoOut
+          end if
+          call ud2qm(dRho)
+
+          if (allocated(idRho)) then
+            idRho(:,:) = maxFill * drho
+            call ud2qm(idRho)
+          end if
+
+          dqOut(:,:,:) = 0.0_dp
+          do iS = 1, nSpin
+            call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
+                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+            if (tDFTBU .or. allocated(onsMEs)) then
+              dqBlockOut(:,:,:,iS) = 0.0_dp
+              call mulliken(dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
+                  & nNeighbourSK, img2CentCell, iSparseStart)
+            end if
           end do
 
+          if (tSccCalc) then
+
+            if (allocated(rangeSep)) then
+              dqDiffRed(:) = dRhoOut - dRhoIn
+            else
+              dqOutRed = 0.0_dp
+              call OrbitalEquiv_reduce(dqOut, iEqOrbitals, orb,&
+                  & dqOutRed(:nIneqMixElements))
+              if (tDFTBU) then
+                call AppendBlock_reduce(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed )
+              end if
+              if (allocated(onsMEs)) then
+                call onsBlock_reduce(dqBlockOut, iEqBlockOnSite, orb, dqOutRed)
+              end if
+              dqDiffRed(:) = dqOutRed - dqInpRed
+            end if
+            sccErrorQ = maxval(abs(dqDiffRed))
+
+            write(stdOut,"(1X,I0,T10,E20.12)")iSCCIter, sccErrorQ
+            tConverged = (sccErrorQ < sccTol)
+
+            if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
+              if (iSCCIter == 1) then
+                if (allocated(rangeSep)) then
+                  dRhoIn(:) = dRhoOut
+                  call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+                else
+                  dqIn(:,:,:) = dqOut
+                  dqInpRed(:) = dqOutRed(:)
+                  if (tDFTBU .or. allocated(onsMEs)) then
+                    dqBlockIn(:,:,:,:) = dqBlockOut(:,:,:,:)
+                  end if
+                end if
+
+              else
+
+                if (allocated(rangeSep)) then
+                  call mix(pChrgMixer, dRhoIn, dqDiffRed)
+                  call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
+                else
+                  call mix(pChrgMixer, dqInpRed, dqDiffRed)
+                #:if WITH_MPI
+                  ! Synchronise charges in order to avoid mixers that store a history drifting apart
+                  call mpifx_allreduceip(env%mpi%globalComm, dqInpRed, MPI_SUM)
+                  dqInpRed(:) = dqInpRed / env%mpi%globalComm%size
+                #:endif
+
+                  call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, orb, dqIn)
+
+                  if (tDFTBU .or. allocated(onsMEs)) then
+                    dqBlockIn(:,:,:,:) = 0.0_dp
+                    if (tDFTBU) then
+                      call Block_expand( dqInpRed ,iEqBlockDFTBU, orb, dqBlockIn, species(:nAtom),&
+                          & nUJ, niUJ, iUJ, orbEquiv=iEqOrbitals )
+                    else
+                      call Onsblock_expand(dqInpRed, iEqBlockOnSite, orb, dqBlockIn,&
+                          & orbEquiv=iEqOrbitals)
+                    end if
+                  end if
+                end if
+
+              end if
+
+              if (allocated(rangeSep)) then
+                call ud2qm(dqIn)
+              end if
+
+            end if
+          else
+            tConverged = .true.
+          end if
+
+          if (tConverged) then
+            exit lpSCC
+          end if
+
+          if (allocated(spinW)) then
+            dqPerShell = 0.0_dp
+            do iAt = 1, nAtom
+              iSp = species(iAt)
+              do iSh = 1, orb%nShell(iSp)
+                dqPerShell(iSh,iAt,:nSpin) = dqPerShell(iSh,iAt,:nSpin) +&
+                    & sum(dqIn(orb%posShell(iSh,iSp): orb%posShell(iSh+1,iSp)-1,iAt,:nSpin),dim=1)
+              end do
+            end do
+
+          end if
+
+          iSCCIter = iSCCIter +1
+
+        end do lpSCC
+
+        if (tMetallic) then
+          write(stdOut,*)
+          write(stdOut,"(A,2E20.12)")'d E_f / d E_'//trim(direction(iCart))//':', dEf
+          write(stdOut,*)
         end if
 
-        iSCCIter = iSCCIter +1
+        do ii = 1, 3
+          polarisability(ii, iCart, iOmega) =&
+              & -sum(sum(dqOut(:,:nAtom,1),dim=1)*coord(ii,:nAtom))
+        end do
 
-      end do lpSCC
-
-      if (tMetallic) then
-        write(stdOut,*)
-        write(stdOut,"(A,2E20.12)")'d E_f / d E_'//trim(direction(iCart))//':', dEf
-        write(stdOut,*)
-      end if
-
-      do ii = 1, 3
-        polarisability(ii, iCart) = -sum(sum(dqOut(:,:nAtom,1,iCart),dim=1)*coord(ii,:nAtom))
-      end do
+      end do lpOmega
 
     end do lpCart
 
@@ -771,21 +796,39 @@ contains
     end if
   #:endif
 
-    write(stdOut,*)
-    write(stdOut,*)'Polarisability'
-    do iCart = 1, 3
-      write(stdOut,"(3E20.12)")polarisability(:, iCart)
-    end do
+    if (allocated(omegas)) then
+      if (omegas(1) == 0.0_dp) then
+        write(stdOut,*)'Static polarisability'
+        do iCart = 1, 3
+          write(stdOut,"(3E20.12)")polarisability(:, iCart, 1)
+        end do
+        write(stdOut,*)
+      end if
+      if (tIoProc) then
+        open(newunit=fdResponses, file="polarisabilities.dat", action="write", status="replace")
+        do iOmega = 1, nOmega
+          write(fdResponses,"(10E20.12)")omegas(iOmega)*Hartree__eV, polarisability(:, :, iOmega)
+        end do
+        close(fdResponses)
+      end if
+    else
+      write(stdOut,*)'Static polarisability'
+      do iCart = 1, 3
+        write(stdOut,"(3E20.12)")polarisability(:, iCart, 1)
+      end do
+      write(stdOut,*)
+    end if
 
     if (tWriteAutoTest) then
       open(newunit=fdResults, file=trim(autoTestTagFile), position="append")
-      call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarisability)
+      call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarisability(:,:,nOmega))
       close(fdResults)
     end if
     if (tWriteTaggedOut) then
-      open(newunit=fdResults, file=trim(taggedResultsFile), position="append")
+      open(newunit=fdResults, file=trim(taggedResultsFile), action="write", status="old",&
+          & position="append")
       call taggedWriter%write(fdResults, tagLabels%dmudEPerturb, polarisability)
-      call taggedWriter%write(fdResults, tagLabels%dqdEPerturb, sum(dqOut(:,:nAtom,:,:), dim = 1))
+      call taggedWriter%write(fdResults, tagLabels%dqdEPerturb, sum(dqout(:,:natom,:), dim = 1))
       close(fdResults)
     end if
 
@@ -811,7 +854,7 @@ contains
       do iCart = 1, 3
         write(fdDetailedOut,"(A)")'d q / d E_'//trim(direction(iCart))//':'
         do iAt = 1, nAtom
-          dqUpDown(:orb%nOrbAtom(iAt), :) = dqOut(:orb%nOrbAtom(iAt),iAt,:,iCart)
+          dqUpDown(:orb%nOrbAtom(iAt), :) = dqOut(:orb%nOrbAtom(iAt),iAt,:)
           call qm2ud(dqUpDown)
           do iS = 1, nSpin
             write(fdDetailedOut,"(I4,4E20.12)")iAt, sum(dqUpDown(:orb%nOrbAtom(iAt), :))
@@ -821,8 +864,13 @@ contains
 
       write(fdDetailedOut,*)
       write(fdDetailedOut,*)'Polarisability (a.u.)'
-      do iCart = 1, 3
-        write(fdDetailedOut,"(3E20.12)")polarisability(:, iCart)
+      do iOmega = 1, nOmega
+        do iCart = 1, 3
+          write(fdDetailedOut,"(3E20.12)")polarisability(:, iCart, iOmega)
+        end do
+        if (nOmega > 1) then
+          write(fdDetailedOut,*)
+        end if
       end do
     end if
     write(fdDetailedOut,*)
@@ -833,9 +881,9 @@ contains
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at
   !> q=0, k=0
-  subroutine dRhoStaticReal(env, dHam, neighbourList, nNeighbourSK, iSparseStart, img2CentCell,&
-      & denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef, tempElec, orb,&
-      & dRhoSparse, iCart, dRhoSqr, rangeSep, over, nNeighbourLC,&
+  subroutine dRhoStaticReal(env, dHam, omega, neighbourList, nNeighbourSK, iSparseStart,&
+      & img2CentCell, denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef,&
+      & tempElec, orb, dRhoSparse, iCart, dRhoSqr, rangeSep, over, nNeighbourLC,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
@@ -846,6 +894,9 @@ contains
 
     !> Derivative of the hamiltonian
     real(dp), intent(in) :: dHam(:,:)
+
+    !> Driving frequency (if non-zero, is required for time dependent DFTB)
+    real(dp), intent(out) :: omega
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -921,10 +972,17 @@ contains
 
     integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iS, iK, nOrb
     real(dp) :: workLocal(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
+    complex(dp), allocatable :: cWorkLocal(:, :)
     real(dp), allocatable :: dRho(:,:)
+
+    integer :: iSignOmega
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
+
+    if (omega /= 0.0_dp) then
+      allocate(cWorkLocal(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2)))
+    end if
 
     if (allocated(dEi)) then
       dEi(:, iK, iS, iCart) = 0.0_dp
@@ -953,13 +1011,12 @@ contains
 
     ! derivative of eigenvalues stored diagonal of matrix workLocal, from <c|h'|c>
     if (allocated(dEi)) then
-
       if (iGlob == jGlob) then
         !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
         dEi(iGlob, iK, iS, iCart) = workLocal(ii,jj)
       end if
-
     end if
+
 
     ! weight with inverse of energy differences
     do jj = 1, size(workLocal,dim=2)
@@ -988,6 +1045,7 @@ contains
     call pblasfx_pgemm(dRho, denseDesc%blacsOrbSqr,eigVecsReal(:,:,iKS),&
         & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transb="T",&
         & kk=nFilled(iS))
+
     dRho(:,:) = workLocal
     ! and symmetrize
     call pblasfx_ptran(workLocal, denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr,&
@@ -1020,30 +1078,65 @@ contains
       end do
     end if
 
-    ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
-    ! weighting the elements
-    do iFilled = 1, nFilled(iS)
-      do iEmpty = nEmpty(iS), nOrb
-        workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
-            & invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec)&
-            & *theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)
+    if (omega == 0.0_dp) then
+      ! static case
+
+      ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
+      ! the elements
+      do iFilled = 1, nFilled(iS)
+        do iEmpty = nEmpty(iS), nOrb
+          workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
+              & invDiff(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), Ef(iS), tempElec)&
+              & *theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)
+        end do
       end do
-    end do
 
-    ! calculate the derivatives of ci
-    workLocal(:, :nFilled(iS)) =&
-        & matmul(eigVecsReal(:, nEmpty(iS):, iS), workLocal(nEmpty(iS):, :nFilled(iS)))
+      ! calculate the derivatives of the eigenvectors
+      workLocal(:, :nFilled(iS)) =&
+          & matmul(eigVecsReal(:, nEmpty(iS):, iS), workLocal(nEmpty(iS):, :nFilled(iS)))
 
-    if (allocated(dPsi)) then
-      dPsi(:, :, iS, iCart) = workLocal
+      if (allocated(dPsi)) then
+        dPsi(:, :, iS, iCart) = workLocal
+      end if
+
+      ! zero the uncalculated virtual states
+      workLocal(:, nFilled(iS)+1:) = 0.0_dp
+
+      ! form the derivative of the density matrix
+      dRho(:,:) = matmul(workLocal(:, :nFilled(iS)), transpose(eigVecsReal(:, :nFilled(iS), iS)))&
+          & + matmul(eigVecsReal(:, :nFilled(iS), iS), transpose(workLocal(:, :nFilled(iS))))
+
+    else
+      ! dynamic case
+
+      dRho(:,:) = 0.0_dp
+      ! loop over real and imaginary frequencies of driving
+      do iSignOmega = -1, 1, 2
+
+        ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
+        ! the elements
+        do iFilled = 1, nFilled(iS)
+          do iEmpty = nEmpty(iS), nOrb
+            cWorkLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
+                & ( theta(eigvals(iEmpty, iK, iS), Ef(iS), tempElec)&
+                & - theta(eigvals(iFilled, iK, iS), Ef(iS), tempElec) ) &
+                & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)&
+                & / ( eigvals(iEmpty, iK, iS) - eigvals(iFilled, iK, iS) + iSignOmega * omega + eta)
+          end do
+        end do
+
+        ! calculate the derivatives of the eigenvectors
+        cWorkLocal(:, :nFilled(iS)) =&
+            & matmul(eigVecsReal(:, nEmpty(iS):, iS), cWorkLocal(nEmpty(iS):, :nFilled(iS)))
+
+        ! form the derivative of the density matrix
+        dRho(:,:) = dRho + 0.5_dp*real(&
+            & matmul(cWorkLocal(:, :nFilled(iS)), transpose(eigVecsReal(:, :nFilled(iS), iS)))&
+            & + matmul(eigVecsReal(:, :nFilled(iS), iS), transpose(cWorkLocal(:, :nFilled(iS)))) )
+
+      end do
+
     end if
-
-    ! zero the uncalculated virtual states
-    workLocal(:, nFilled(iS)+1:) = 0.0_dp
-
-    ! form the derivative of the density matrix
-    dRho(:,:) = matmul(workLocal(:, :nFilled(iS)), transpose(eigVecsReal(:, :nFilled(iS), iS)))&
-        & + matmul(eigVecsReal(:, :nFilled(iS), iS), transpose(workLocal(:, :nFilled(iS))))
 
   #:endif
 
@@ -1182,7 +1275,7 @@ contains
 
 
   !> Calculate the derivative of density matrix from derivative of hamiltonian in static case at q=0
-  subroutine dRhoStaticPauli(env, dHam, idHam, neighbourList, nNeighbourSK, iSparseStart,&
+  subroutine dRhoStaticPauli(env, dHam, idHam, omega, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, denseDesc, parallelKS, nFilled, nEmpty, eigVecsCplx, eigVals, Ef, tempElec,&
       & orb, dRhoSparse, idRhoSparse, kPoint, kWeight, iCellVec, cellVec, iKS, iCart,&
     #:if WITH_SCALAPACK
@@ -1198,6 +1291,9 @@ contains
 
     !> Derivative of the imaginary part of the hamiltonian
     real(dp), intent(in), allocatable :: idHam(:,:)
+
+    !> Driving frequency (if non-zero, is required for time dependent DFTB)
+    real(dp), intent(out) :: omega
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -1276,6 +1372,8 @@ contains
     integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iK, iS, nOrb
     complex(dp) :: workLocal(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
     complex(dp) :: dRho(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
+
+    integer :: iSignOmega
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
@@ -1388,32 +1486,69 @@ contains
       end do
     end if
 
-    ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
-    ! weighting the elements
-    do iFilled = 1, nFilled(1)
-      do iEmpty = nEmpty(1), nOrb
-        workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
-            & invDiff(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), Ef(1), tempElec)&
-            & *theta(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), tempElec)
+    if (omega == 0.0_dp) then
+      ! static case
+
+      ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
+      ! weighting the elements
+      do iFilled = 1, nFilled(1)
+        do iEmpty = nEmpty(1), nOrb
+          workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
+              & invDiff(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), Ef(1), tempElec)&
+              & *theta(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), tempElec)
+        end do
       end do
-    end do
 
-    ! calculate the derivatives of ci
-    workLocal(:, :nFilled(1)) =&
-        & matmul(eigVecsCplx(:, nEmpty(1):, iKS), workLocal(nEmpty(1):, :nFilled(1)))
+      ! calculate the derivatives of ci
+      workLocal(:, :nFilled(1)) =&
+          & matmul(eigVecsCplx(:, nEmpty(1):, iKS), workLocal(nEmpty(1):, :nFilled(1)))
 
-    if (allocated(dPsi)) then
-      dPsi(:, :, iK, iS, iCart) = workLocal
+      if (allocated(dPsi)) then
+        dPsi(:, :, iK, iS, iCart) = workLocal
+      end if
+
+      ! zero the uncalculated virtual states
+      workLocal(:, nFilled(1)+1:) = 0.0_dp
+
+      ! form the derivative of the density matrix
+      dRho(:,:) = matmul(workLocal(:, :nFilled(1)),&
+          & transpose(conjg(eigVecsCplx(:, :nFilled(1), iKS))) )&
+          & + matmul(eigVecsCplx(:, :nFilled(1), iKS),&
+          & transpose(conjg(workLocal(:, :nFilled(iKS)))) )
+
+    else
+
+      ! dynamic case
+
+      dRho(:,:) = 0.0_dp
+      ! loop over real and imaginary frequencies of driving
+      do iSignOmega = -1, 1, 2
+
+        ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
+        ! the elements
+        do iFilled = 1, nFilled(iS)
+          do iEmpty = nEmpty(iS), nOrb
+            workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
+                & ( theta(eigvals(iEmpty, iK, iS), Ef(iS), tempElec)&
+                & - theta(eigvals(iFilled, iK, iS), Ef(iS), tempElec) ) &
+                & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)&
+                & / ( eigvals(iEmpty, iK, iS) - eigvals(iFilled, iK, iS) + iSignOmega * omega + eta)
+          end do
+        end do
+
+        ! calculate the derivatives of ci
+        workLocal(:, :nFilled(1)) =&
+            & matmul(eigVecsCplx(:, nEmpty(1):, iKS), workLocal(nEmpty(1):, :nFilled(1)))
+
+        ! form the derivative of the density matrix
+        dRho(:,:) = dRho + 0.5_dp * ( matmul(workLocal(:, :nFilled(1)),&
+            & transpose(conjg(eigVecsCplx(:, :nFilled(1), iKS))) )&
+            & + matmul(eigVecsCplx(:, :nFilled(1), iKS),&
+            & transpose(conjg(workLocal(:, :nFilled(iKS)))) ) )
+
+      end do
+
     end if
-
-    ! zero the uncalculated virtual states
-    workLocal(:, nFilled(1)+1:) = 0.0_dp
-
-    ! form the derivative of the density matrix
-    dRho(:,:) = matmul(workLocal(:, :nFilled(1)),&
-        & transpose(conjg(eigVecsCplx(:, :nFilled(1), iKS))) )&
-        & + matmul(eigVecsCplx(:, :nFilled(1), iKS),&
-        & transpose(conjg(workLocal(:, :nFilled(iKS)))) )
 
   #:endif
 
@@ -1602,431 +1737,5 @@ contains
     end if
 
   end subroutine dRhoFermiChangeStaticPauli
-
-
-!  subroutine perturbDyn(mympi, allproc, grpproc, gridAtom, &
-!      & groupKS, nGroups, groupsize, desc, filling, nElectrons, SSqrReal, eigvals, &
-!      & eigVecsReal, ham, over, orb, nAtom, species, speciesnames, iNeighbour, &
-!      & nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, coord, maxSccIter, sccTol, &
-!      & nMixElements, nIneqMixElements, iEqOrbitals, tempElec, Ef, W, pChrgMixer, omega)
-!    type(mpifx_comm), intent(in) :: mympi
-!    type(blacsgrid), intent(in) :: allproc
-!    type(blacsgrid), intent(in) :: grpproc
-!    type(blacsgrid), intent(in) :: gridAtom
-!    integer, intent(in) :: groupKS(:,:)
-!    integer, intent(in) :: nGroups, groupsize
-!    integer, intent(in) :: desc(DLEN_)
-!    real(dp), intent(in) :: filling(:,:,:)
-!    real(dp), intent(in) :: nElectrons(:)
-!    real(dp), intent(inout) :: SSqrReal(:,:)
-!    real(dp), intent(in) :: eigvals(:,:,:)
-!    real(dp), intent(in) :: eigVecsReal(:,:,:)
-!    real(dp), intent(in) :: ham(:,:), over(:)
-!    type(TOrbitals), pointer :: orb
-!    integer, intent(in) :: nAtom, species(:)
-!    character(mc), intent(in) :: speciesnames(:)
-!    integer, intent(in) :: iNeighbour(0:,:), nNeighbourSK(:)
-!    integer, intent(in) :: denseDesc%iAtomStart(:), iSparseStart(0:,:)
-!    integer, intent(in) :: img2CentCell(:)
-!    real(dp), intent(in) :: coord(:,:)
-!    integer, intent(in) :: maxSccIter
-!    real(dp), intent(in) :: sccTol
-!    integer, intent(in) :: nMixElements, nIneqMixElements
-!    integer, intent(in) :: iEqOrbitals(:,:,:)
-!    real(dp), intent(in) :: tempElec, Ef(:)
-!    real(dp), intent(in) :: W(:,:,:)
-!    type(omixer), pointer, intent(inout) :: pChrgMixer
-!    real(dp), intent(in) :: omega(:)
-!
-!    integer :: iS, iK, iKS, iAt, iCart, iSCC, iLev, iSh, iSp
-!    integer :: nSpin, nOrbs, nSparse
-!    integer, allocatable :: nFilled(:), nEmpty(:)
-!
-!    integer :: ii, jj, iGlob, jGlob, iSignOmega, iOmega, nOmega
-!    integer :: iSCCIter
-!    logical :: tStopSCC
-!
-!    ! derivatives of hamiltonian, eigenvalues and eigenvectors
-!    real(dp), allocatable :: dHam(:,:)
-!    real(dp) :: drho(size(over),size(ham, dim=2))
-!    real(dp) :: drhoExtra(size(over),size(ham, dim=2))
-!    real(dp) :: dqIn(orb%mOrb,nAtom,size(ham, dim=2))
-!    real(dp) :: dqOut(orb%mOrb,nAtom,size(ham, dim=2))
-!    real(dp) :: dqInpRed(nMixElements), dqOutRed(nMixElements)
-!    real(dp) :: dqDiffRed(nMixElements), sccErrorQ, polarisability(3,3)
-!    real(dp) :: dqPerShell(orb%mOrb,nAtom,size(ham, dim=2))
-!    real(dp) :: tmpFill(size(filling,dim=1))
-!    type(TPotentials) :: dPotential
-!
-!    real(dp) :: dci(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
-!        & size(eigVecsReal,dim=3))
-!    real(dp) :: deigvals(size(eigvals,dim=1),size(eigvals,dim=2), &
-!        & size(eigvals,dim=3))
-!    real(dp) :: work(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
-!        & size(eigVecsReal,dim=3))
-!    real(dp) :: work2(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2), &
-!        & size(eigVecsReal,dim=3))
-!    complex(dp) :: cwork1(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2))
-!    complex(dp) :: tmpCeigVecsReal(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2))
-!    complex(dp) :: cwork2(size(eigVecsReal,dim=1),size(eigVecsReal,dim=2))
-!
-!    real(dp) :: nF(size(ham, dim=2)), dEf(size(ham, dim=2))
-!
-!    logical :: tSccCalc, tSpin, tMetallic, tConverged
-!
-!    nSpin = size(ham, dim=2)
-!    nSparse = size(ham,dim=1)
-!    nOrbs = size(filling,dim=1)
-!    nOmega = size(omega)
-!
-!    tSccCalc = (maxSccIter > 1)
-!    tSpin = (nSpin > 1)
-!
-!    ASSERT(size(eigVecsReal,dim=3) == nSpin)
-!    ASSERT(all(shape(coord) == [3,nAtom]))
-!
-!      do iCart = 1, 3
-!        open(1001+iCart,file="pol_"//direction(iCart),position="rewind", &
-!            & status="replace")
-!      end do
-!
-!    call create(dPotential,orb,nAtom,nSpin)
-!
-!    allocate(nFilled(nSpin))
-!    allocate(nEmpty(nSpin))
-!
-!    nFilled = -1
-!    do iS = 1, nSpin
-!      do iLev = 1, nOrbs
-!        if ( filling(iLev,1,iS) <= epsilon(1.0_dp) ) then
-!          nFilled(iS) = iLev - 1
-!          exit
-!        end if
-!      end do
-!      if (nFilled(iS) < 0) then
-!        nFilled(iS) = nOrbs
-!      end if
-!    end do
-!    nEmpty = -1
-!    do iS = 1, nSpin
-!      do iLev = 1, nOrbs
-!        if ( abs( filling(iLev,1,iS) - real(3-nSpin,dp) ) &
-!            & >= epsilon(1.0_dp)) then
-!          nEmpty(iS) = iLev
-!          exit
-!        end if
-!      end do
-!      if (nEmpty(iS) < 0) then
-!        nEmpty(iS) = 1
-!      end if
-!    end do
-!
-!    tMetallic = (.not.all(nFilled == nEmpty -1))
-!
-!      write(stdOut,*)'Fully or partly filled states',nFilled
-!      write(stdOut,*)'Fully or partly empty states',nEmpty
-!      if (tMetallic) then
-!        write(stdOut,*)'Metallic system'
-!      else
-!        write(stdOut,*)'Non-metallic system'
-!      end if
-!
-!    if (tMetallic) then
-!
-!      ! Number of electrons at the Fermi energy
-!      do iS = 1, nSpin
-!        nf(iS) = 0.0_dp
-!        do ii = nEmpty(iS), nFilled(iS)
-!          nf(iS) = nf(iS) &
-!              & + deltamn(Ef(iS),eigvals(ii,1,iS),tempElec)
-!        end do
-!        nf(iS) = real(3-nSpin,dp)*nf(iS)
-!      end do
-!        write(stdOut,*)'Electrons at the Fermi energy Nf:',nF
-!      end if
-!
-!    allocate(dHam(nSparse,nSpin))
-!
-!    do iCart = 1, 3 ! polarisation direction
-!
-!      dqIn = 0.0_dp
-!      dqOut = 0.0_dp
-!      ! derivative of E.x
-!      dPotential%extAtom = 0.0_dp
-!      do iAt = 1, nAtom
-!        dPotential%extAtom(iAt,1) = coord(iCart,iAt)
-!      end do
-!
-!      dPotential%extBlock = 0.0_dp
-!      call total_shift(dPotential%extBlock, dPotential%extAtom, orb, species)
-!
-!      do iOmega = 1, nOmega
-!
-!        if (tSccCalc) then
-!          call reset(pChrgMixer, nMixElements)
-!        end if
-!        if (iOmega == 1) then
-!          dqInpRed = 0.0_dp
-!          dqPerShell = 0.0_dp
-!        end if
-!
-!          write(stdOut,*)'At',omega(iOmega),'au',omega(iOmega)*Hartree__eV,'eV'
-!
-!        iSCCIter = 1
-!        tStopSCC = .false.
-!        lpSCC: do while (iSCCiter <= maxSccIter)
-!
-!          dPotential%intAtom = 0.0_dp
-!          dPotential%intBlock = 0.0_dp
-!          dPotential%intShell = 0.0_dp
-!
-!          if (tSccCalc .and. ( iSCCiter>1 .or. iOmega > 1)) then
-!            call updateCharges_SCC(allproc, gridAtom, dqIn, orb, species, &
-!                & neighbourList%iNeighbour, img2CentCell)
-!            call getShiftPerAtom(dPotential%intAtom)
-!            call getShiftPerL(dPotential%intShell)
-!
-!            if (tSpin) then
-!              call addSpinShift(dPotential%intShell,dqPerShell,species,orb,W)
-!            end if
-!
-!            !if (tDFTBU) then
-!            !  call shift_DFTBU(dPotential%orbitalBlock,qBlockIn,specie,orb, &
-!            !      & 2, UJ, nUJ, niUJ, iUJ)
-!            !end if
-!
-!          end if
-!
-!          call total_shift(dPotential%intShell,dPotential%intAtom, orb,species)
-!          call total_shift(dPotential%intBlock,dPotential%intShell, orb,species)
-!
-!          dPotential%intBlock = dPotential%intBlock + dPotential%extBlock
-!
-!          dHam = 0.0_dp
-!          call add_shift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart, &
-!              & nAtom, img2CentCell, dPotential%intBlock)
-!
-!          if (nSpin == 2) then
-!            dHam(:,:) = 2.0_dp *  dHam(:,:)
-!          end if
-!          call qm2ud(dHam)
-!
-!          drho = 0.0_dp
-!
-!          if (grpproc%iproc /= -1) then
-!
-  !            do iKS = 1, parallelKS%nLocalKS
-  !  iK = parallelKS%localKS(1, iKS)
-  !  iS = parallelKS%localKS(2, iKS)
-!
-!              call unpackhs_parallel_real(grpproc, dHam(:,iS), neighbourList%iNeighbour, &
-!                  & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, desc, &
-!                  & work(:,:,iKS))
-!
-!              ! dH times c_i
-!              call pblasfx_psymm(work(:,:,iKS), desc, eigVecsReal(:,:,iKS), desc, &
-!                  & work2(:,:,iKS), desc) !, mm=nFilled(iS))
-!
-!              ! c_i times dH times c_i
-!              call pblasfx_pgemm(eigVecsReal(:,:,iKS), desc, work2(:,:,iKS), desc, &
-!                  & work(:,:,iKS), desc, transa="T")
-!              ! derivative of eigenvalues stored diagonal of matrix work,
-!              ! from <c|h'|c>
-!
-!              tmpCeigVecsReal = eigVecsReal(:,:,iKS) ! complex copy of eigenvectors
-!
-!              do iSignOmega = -1, 1, 2 ! loop over positive and negative frequencies
-!
-!                do jj = 1, size(work,dim=2)
-!                  jGlob = scalafx_indxl2g(jj,desc(NB_),grpproc%mycol,desc(CSRC_),&
-!                      & grpproc%ncol)
-!                  do ii = 1, size(work,dim=1)
-!                    iGlob = scalafx_indxl2g(ii,desc(MB_),grpproc%myrow,desc(RSRC_),&
-!                        & grpproc%nrow)
-!
-!                    ! weight with inverse of energy differences
-!                    cwork1(ii,jj) = work(ii,jj,iKS) * &
-!                        & ( theta(eigvals(jGlob,1,iS),Ef(iS),tempElec) &
-!                        & - theta(eigvals(iGlob,1,iS),Ef(iS),tempElec) ) &
-!                        & * theta(eigvals(jGlob,1,iS),eigvals(iGlob,1,iS),tempElec) &
-!                        & / (eigvals(jGlob,1,iS)-eigvals(iGlob,1,iS) &
-!                        &    + iSignOmega * omega(iOmega) + eta)
-!                  end do
-!                end do
-!
-!                ! Derivatives of eigen-state vectors
-!                call pblasfx_pgemm(tmpCeigVecsReal, desc, cwork1, desc, &
-!                    & cwork2, desc)
-!
-!                ! Form derivative of density matrix and then hermitian symmetrise
-!                call pblasfx_pgemm(cwork2, desc,tmpCeigVecsReal, desc, &
-!                    & cwork1, desc, transb="T", kk=nFilled(iS))
-!
-!                cwork2 = cwork1
-!
-!                call pblasfx_ptranc(cwork2,desc,cwork1,desc, &
-!                    & alpha=(0.5_dp,0.0_dp), beta=(0.5_dp,0.0_dp))
-!
-!                call packrho_parallel_real(grpproc, desc, real(cwork1), &
-!                    & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, &
-!                    & img2CentCell, drho(:,iS) )
-!
-!              end do
-!
-!            end do
-!
-!          end if
-!
-!          call blacsfx_gsum(allproc, drho, rdest=-1, cdest=-1)
-!
-!          if (tMetallic.and.grpproc%iproc /= -1) then
-!            ! correct for Fermi level shift for q=0 fields
-!            drhoextra = 0.0_dp
-!            do iKS = 1, parallelKS%nLocalKS
-!  iK = parallelKS%localKS(1, iKS)
-!  iS = parallelKS%localKS(2, iKS)
-!
-!              dqOut = 0.0_dp
-!              call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
-!                  & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-!
-!              dEf(iS) = -sum(dqOut(:,:,iS))/nF(iS)
-!
-!              if (abs(dEf(iS)) > epsilon(1.0_dp)) then ! Fermi level changes,
-!                ! so need to correct for change in the number of charges
-!                work(:,:,iKS) = 0.0_dp
-!                do jj = 1, size(work,dim=2)
-!                  jGlob = scalafx_indxl2g(jj,desc(NB_), &
-!                      & grpproc%mycol,desc(CSRC_), grpproc%ncol)
-!                  if (jGlob >= nEmpty(iS) .and. jGlob <= nFilled(iS)) then
-!                    work(:,jj,iKS) = eigVecsReal(:,jj,iKS) * &
-!                        & deltamn(eigVals(jGlob,1,iKS),Ef(iS),tempElec)*dEf(iS)
-!                  end if
-!                end do
-!                call pblasfx_pgemm(work(:,:,iKS), desc,eigVecsReal(:,:,iKS), desc, &
-!                    & work2(:,:,iKS), desc, transb="T",alpha=2.0_dp)
-!                call packrho_parallel_real(grpproc, desc, work2(:,:,iKS), &
-!                    & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, &
-!                    & img2CentCell, drhoextra(:,iS) )
-!              end if
-!
-!            end do
-!
-!            call blacsfx_gsum(allproc, drhoextra, rdest=-1, cdest=-1)
-!            drho = drho + drhoextra
-!          end if
-!
-!          if (nSpin == 1) then
-!            drho = 2.0_dp * drho
-!          end if
-!
-!          call ud2qm(drho)
-!
-!          dqOut = 0.0_dp
-!          do iS = 1, nSpin
-!            call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
-!                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-!            !if (tDFTBU) then
-!            !  qBlockOut(:,:,:,iS) = 0.0_dp
-!            !  call mulliken(qBlockOut(:,:,:,iS), over, drho(:,iS), &
-!            !      &orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-!            !end if
-!          end do
-!
-!          if (tSccCalc) then
-!            dqOutRed = 0.0_dp
-!            call OrbitalEquiv_reduce(dqOut, iEqOrbitals, orb, &
-!                & dqOutRed(:nIneqMixElements))
-!            !if (tDFTBU) then
-!            !  call AppendBlock_reduce( qBlockOut, iEqBlockDFTBU, orb, &
-!            !      & qOutRed )
-!            !end if
-!
-!            dqDiffRed(:) = dqOutRed(:) - dqInpRed(:)
-!            sccErrorQ = maxval(abs(dqDiffRed))
-!
-!              write(stdOut,*)'Iter',iSCCIter,'Error',sccErrorQ
-!            tConverged = (sccErrorQ < sccTol)
-!
-!            if ((.not. tConverged) .and. iSCCiter /= maxSccIter) then
-!              if (iSCCIter == 1 .and. iOmega == 1) then
-!                dqIn(:,:,:) = dqOut(:,:,:)
-!                dqInpRed(:) = dqOutRed(:)
-!                !if (tDFTBU) then
-!                !  qBlockIn(:,:,:,:) = qBlockOut(:,:,:,:)
-!                !end if
-!              else
-!                ! Mixing only done on master node as mixer may require IO.
-!                if (ioproc) then
-!                  call mix(pChrgMixer, dqInpRed, dqDiffRed)
-!                end if
-!                call mpifx_bcast(mympi, dqInpRed, root=ioprocid)
-!
-!                call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, &
-!                    & orb, dqIn)
-!                !if (tDFTBU) then
-!                !  qBlockIn = 0.0_dp
-!                !  call Block_expand( qInpRed ,iEqBlockDFTBU, orb, &
-!                !      & qBlockIn, specie0, nUJ, niUJ, iUJ, orbEquiv=iEqOrbitals )
-!                !end if
-!              end if
-!            end if
-!          else
-!            tConverged = .true.
-!          end if
-!
-!          if (tConverged) then
-!            exit lpSCC
-!          end if
-!
-!          if (tSpin) then
-!            dqPerShell = 0.0_dp
-!            do iAt = 1, nAtom
-!              iSp = species(iAt)
-!              do iSh = 1, orb%nShell(iSp)
-!                dqPerShell(iSh,iAt,:nSpin) = dqPerShell(iSh,iAt,:nSpin) +&
-!                    & sum(dqIn(orb%posShell(iSh,iSp): &
-!                    & orb%posShell(iSh+1,iSp)-1,iAt,:nSpin),dim=1)
-!              end do
-!            end do
-!
-!          end if
-!
-!          iSCCIter = iSCCIter +1
-!
-!        end do lpSCC
-!
-!        if (ioproc) then
-!          if (iCart==1) then
-!            write(stdOut,*)'Polarisability'
-!          end if
-!          do ii = 1, 3
-!            write(stdOut,"(E20.12)",advance ='no') &
-!                & -sum(sum(dqOut(:,:nAtom,1),dim=1)*coord(ii,:nAtom))
-!            polarisability(ii,iCart) = &
-!                & -sum(sum(dqOut(:,:nAtom,1),dim=1)*coord(ii,:nAtom))
-!          end do
-!          write(stdOut,*)
-!          write(1001+icart,"(5E20.12)")omega(iOmega)*Hartree__eV, &
-!              & polarisability(:,iCart), sqrt(sum((dqOut(:,:,1)*dqOut(:,:,1))))
-!          call flush(1001+icart)
-!        end if
-!
-!      end do
-!
-!    end do
-!
-!    if (ioproc) then
-!      do ii = 1, 3
-!        close(1001+icart)
-!      end do
-!    end if
-!    call destroy(dPotential)
-!    deallocate(dHam)
-!    deallocate(nFilled)
-!    deallocate(nEmpty)
-!
-!  end subroutine perturbDyn
-
 
 end module dftbp_Perturbderivs

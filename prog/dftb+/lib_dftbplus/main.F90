@@ -279,16 +279,14 @@ contains
     ! response properties from perturbation-like expressions
     if (tPolarisability) then
       if (.not.(tPeriodic .or. tNegf)) then
-        if (tStaticPolarisability) then
-          call staticPerturWrtE(env, parallelKS, filling, eigen, eigVecsReal, eigvecsCplx, ham,&
-              & over, orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
-              & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
-              & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
-              & niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite, rangeSep, nNeighbourLC,&
-              & pChrgMixer, taggedWriter, tWriteAutotest, autotestTag, tWriteResultsTag,&
-              & resultsTag, tWriteDetailedOut, fdDetailedOut, kPoint, kWeight, iCellVec, cellVec,&
-              & tPeriodic)
-        end if
+        call staticPerturWrtE(env, parallelKS, filling, eigen, eigVecsReal, eigvecsCplx, ham,&
+            & over, orb, nAtom, species, speciesName, neighbourList, nNeighbourSK, denseDesc,&
+            & iSparseStart, img2CentCell, coord, sccCalc, maxSccIter, sccTol, nMixElements,&
+            & nIneqOrb, iEqOrbitals, tempElec, Ef, tFixEf, spinW, thirdOrd, tDFTBU, UJ, nUJ, iUJ,&
+            & niUJ, iEqBlockDftbu, onSiteElements, iEqBlockOnSite, rangeSep, nNeighbourLC,&
+            & pChrgMixer, taggedWriter, tWriteAutotest, autotestTag, tWriteResultsTag,&
+            & resultsTag, tWriteDetailedOut, fdDetailedOut, kPoint, kWeight, iCellVec, cellVec,&
+            & tPeriodic, omegaPolarisability)
       end if
     end if
 

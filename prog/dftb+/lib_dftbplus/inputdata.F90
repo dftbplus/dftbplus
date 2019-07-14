@@ -171,8 +171,11 @@ module dftbp_inputdata_module
     !> Should polarisability be calculated
     logical :: tPolarisability = .false.
 
-    !> Static polarisability
+    !> Should static polarisability be calculated
     logical :: tStaticPolarisability = .false.
+
+    !> Energies for frequency driving in dynamic polarizability
+    real(dp), allocatable :: omegaPolarisability(:)
 
     !> printing of atom resolved energies
     logical :: tAtomicEnergy = .false.
