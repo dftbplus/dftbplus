@@ -1371,12 +1371,17 @@ contains
 
     integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iK, iS, nOrb
     complex(dp) :: workLocal(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
+    complex(dp), allocatable :: cWorkLocal(:, :)
     complex(dp) :: dRho(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2))
 
     integer :: iSignOmega
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
+
+    if (omega /= 0.0_dp) then
+      allocate(cWorkLocal(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
+    end if
 
     if (allocated(dEi)) then
       dEi(:, iK, iS, iCart) = 0.0_dp
@@ -1528,7 +1533,7 @@ contains
         ! the elements
         do iFilled = 1, nFilled(iS)
           do iEmpty = nEmpty(iS), nOrb
-            workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
+            cWorkLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
                 & ( theta(eigvals(iEmpty, iK, iS), Ef(iS), tempElec)&
                 & - theta(eigvals(iFilled, iK, iS), Ef(iS), tempElec) ) &
                 & * theta(eigvals(iFilled, iK, iS), eigvals(iEmpty, iK, iS), tempElec)&
@@ -1537,14 +1542,14 @@ contains
         end do
 
         ! calculate the derivatives of ci
-        workLocal(:, :nFilled(1)) =&
-            & matmul(eigVecsCplx(:, nEmpty(1):, iKS), workLocal(nEmpty(1):, :nFilled(1)))
+        cWorkLocal(:, :nFilled(1)) =&
+            & matmul(eigVecsCplx(:, nEmpty(1):, iKS), cWorkLocal(nEmpty(1):, :nFilled(1)))
 
         ! form the derivative of the density matrix
-        dRho(:,:) = dRho + 0.5_dp * ( matmul(workLocal(:, :nFilled(1)),&
+        dRho(:,:) = dRho + 0.5_dp * ( matmul(cWorkLocal(:, :nFilled(1)),&
             & transpose(conjg(eigVecsCplx(:, :nFilled(1), iKS))) )&
             & + matmul(eigVecsCplx(:, :nFilled(1), iKS),&
-            & transpose(conjg(workLocal(:, :nFilled(iKS)))) ) )
+            & transpose(conjg(cWorkLocal(:, :nFilled(iKS)))) ) )
 
       end do
 
