@@ -255,7 +255,7 @@ contains
     real(dp), allocatable :: dummy(:,:,:,:)
 
     ! derivative of potentials
-    type(TPotentials) :: dPotential(3)
+    type(TPotentials) :: dPotential
 
     real(dp), allocatable :: shellPot(:,:,:), atomPot(:,:)
 
@@ -350,9 +350,7 @@ contains
       allocate(dqBlockOut(orb%mOrb,orb%mOrb,nAtom,nSpin))
     end if
 
-    do ii = 1, 3
-      call init(dPotential(ii),orb,nAtom,nSpin)
-    end do
+    call init(dPotential,orb,nAtom,nSpin)
 
     allocate(nFilled(nIndepHam, nKpts))
     allocate(nEmpty(nIndepHam, nKpts))
@@ -442,16 +440,16 @@ contains
         dqBlockOut(:,:,:,:) = 0.0_dp
       end if
 
-      dPotential(iCart)%extAtom(:,:) = 0.0_dp
-      dPotential(iCart)%extShell(:,:,:) = 0.0_dp
-      dPotential(iCart)%extBlock(:,:,:,:) = 0.0_dp
+      dPotential%extAtom(:,:) = 0.0_dp
+      dPotential%extShell(:,:,:) = 0.0_dp
+      dPotential%extBlock(:,:,:,:) = 0.0_dp
 
       ! derivative wrt to electric field as a perturbation
       do iAt = 1, nAtom
-        dPotential(iCart)%extAtom(iAt,1) = coord(iCart,iAt)
+        dPotential%extAtom(iAt,1) = coord(iCart,iAt)
       end do
-      call total_shift(dPotential(iCart)%extShell, dPotential(iCart)%extAtom, orb, species)
-      call total_shift(dPotential(iCart)%extBlock, dPotential(iCart)%extShell, orb, species)
+      call total_shift(dPotential%extShell, dPotential%extAtom, orb, species)
+      call total_shift(dPotential%extBlock, dPotential%extShell, orb, species)
 
       lpOmega: do iOmega = 1, nOmega
 
@@ -463,11 +461,13 @@ contains
 
         if (tSccCalc) then
           call reset(pChrgMixer, nMixElements)
-          dqInpRed(:) = 0.0_dp
-          dqPerShell(:,:,:) = 0.0_dp
-          if (allocated(rangeSep)) then
-            dRhoIn(:) = 0.0_dp
-            dRhoOut(:) = 0.0_dp
+          if (iOmega == 1) then
+            dqInpRed(:) = 0.0_dp
+            dqPerShell(:,:,:) = 0.0_dp
+            if (allocated(rangeSep)) then
+              dRhoIn(:) = 0.0_dp
+              dRhoOut(:) = 0.0_dp
+            end if
           end if
         end if
 
@@ -479,24 +479,24 @@ contains
         tStopSCC = .false.
         lpSCC: do while (iSCCiter <= maxSccIter)
 
-          dPotential(iCart)%intAtom(:,:) = 0.0_dp
-          dPotential(iCart)%intShell(:,:,:) = 0.0_dp
-          dPotential(iCart)%intBlock(:,:,:,:) = 0.0_dp
+          dPotential%intAtom(:,:) = 0.0_dp
+          dPotential%intShell(:,:,:) = 0.0_dp
+          dPotential%intBlock(:,:,:,:) = 0.0_dp
 
           if (tDFTBU .or. allocated(onsMEs)) then
-            dPotential(iCart)%orbitalBlock(:,:,:,:) = 0.0_dp
+            dPotential%orbitalBlock(:,:,:,:) = 0.0_dp
           end if
 
           if (tSccCalc .and. iSCCiter>1) then
             call sccCalc%updateCharges(env, dqIn, orb, species)
             call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
-            call sccCalc%getShiftPerAtom(dPotential(iCart)%intAtom(:,1))
-            call sccCalc%getShiftPerL(dPotential(iCart)%intShell(:,:,1))
+            call sccCalc%getShiftPerAtom(dPotential%intAtom(:,1))
+            call sccCalc%getShiftPerL(dPotential%intShell(:,:,1))
 
             if (allocated(spinW)) then
               call getChargePerShell(dqIn, orb, species, dqPerShell)
               call getSpinShift(shellPot, dqPerShell, species, orb, spinW)
-              dPotential(iCart)%intShell(:,:,:) = dPotential(iCart)%intShell + shellPot
+              dPotential%intShell(:,:,:) = dPotential%intShell + shellPot
             end if
 
             if (allocated(thirdOrd)) then
@@ -504,36 +504,36 @@ contains
               shellPot(:,:,:) = 0.0_dp
               call thirdOrd%getdShiftdQ(atomPot(:,1), shellPot(:,:,1), species, neighbourList,&
                   & dqIn, img2CentCell, orb)
-              dPotential(iCart)%intAtom(:,1) = dPotential(iCart)%intAtom(:,1) + atomPot(:,1)
-              dPotential(iCart)%intShell(:,:,1) = dPotential(iCart)%intShell(:,:,1)&
+              dPotential%intAtom(:,1) = dPotential%intAtom(:,1) + atomPot(:,1)
+              dPotential%intShell(:,:,1) = dPotential%intShell(:,:,1)&
                   & + shellPot(:,:,1)
             end if
 
             if (tDFTBU) then
               ! note the derivatives of both FLL and pSIC are the same (pSIC, i.e. case 2 in module)
-              call getDftbUShift(dPotential(iCart)%orbitalBlock, dqBlockIn, species, orb, 2,&
+              call getDftbUShift(dPotential%orbitalBlock, dqBlockIn, species, orb, 2,&
                   & UJ, nUJ, niUJ, iUJ)
             end if
             if (allocated(onsMEs)) then
               ! onsite corrections
-              call addOnsShift(dPotential(iCart)%orbitalBlock, dPotential(iCart)%iOrbitalBlock,&
+              call addOnsShift(dPotential%orbitalBlock, dPotential%iOrbitalBlock,&
                   & dqBlockIn, dummy, onsMEs, species, orb)
             end if
 
           end if
 
-          call total_shift(dPotential(iCart)%intShell,dPotential(iCart)%intAtom, orb,species)
-          call total_shift(dPotential(iCart)%intBlock,dPotential(iCart)%intShell, orb,species)
+          call total_shift(dPotential%intShell,dPotential%intAtom, orb,species)
+          call total_shift(dPotential%intBlock,dPotential%intShell, orb,species)
           if (tDFTBU .or. allocated(onsMEs)) then
-            dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock&
-                & + dPotential(iCart)%orbitalBlock
+            dPotential%intBlock(:,:,:,:) = dPotential%intBlock&
+                & + dPotential%orbitalBlock
           end if
-          dPotential(iCart)%intBlock(:,:,:,:) = dPotential(iCart)%intBlock&
-              & + dPotential(iCart)%extBlock
+          dPotential%intBlock(:,:,:,:) = dPotential%intBlock&
+              & + dPotential%extBlock
 
           dHam(:,:) = 0.0_dp
           call add_shift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-              & iSparseStart, nAtom, img2CentCell, dPotential(iCart)%intBlock)
+              & iSparseStart, nAtom, img2CentCell, dPotential%intBlock)
 
           if (nSpin > 1) then
             dHam(:,:) = 2.0_dp * dHam(:,:)
