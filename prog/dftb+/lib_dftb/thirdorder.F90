@@ -337,7 +337,7 @@ contains
     real(dp) :: dShift1(this%mShells, this%nAtoms), dShift2(this%mShells, this%nAtoms)
     real(dp) :: dShift3(this%nAtoms)
     real(dp) :: dChargesPerShell(this%mShells, this%nAtoms), dChargesPerAtom(this%nAtoms)
-    real(dp) :: tmp(this%mShells, this%nAtoms)
+    real(dp) :: tmp(orb%mShell, this%nAtoms)
 
     ! assume that the summed charges for the system are correct, i.e. this%chargesPerShell has been
     ! updated before this routine is called
