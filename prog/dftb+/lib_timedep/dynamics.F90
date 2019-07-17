@@ -439,7 +439,7 @@ contains
   end subroutine TElecDynamics_init
 
 
-  !> Driver of time dependent propagation to calculate wither spectrum or laser
+  !> Driver of time dependent propagation to calculate with either spectrum or laser
   subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
       & env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
