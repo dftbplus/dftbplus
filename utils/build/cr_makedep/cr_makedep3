@@ -186,22 +186,22 @@ class BranchBlock(object):
           filedeps.append(depName)
           vardeps.append("$(%s)" % depName)
       if fsrc:
-        #print("%s.o: %s%s" % (fbase, fbase, fext), file=fp, end='')
-        print("%s.o:" % (fbase), file=fp, end='')
+        #print("%s.o: %s%s" % (fbase, fbase, fext), file=fp, end=' ')
+        print("%s.o:" % (fbase), file=fp, end=' ')
         if filedeps:
-          print(" ".join(filedeps), file=fp, end='')
+          print(" ".join(filedeps), file=fp, end=' ')
         print("", file=fp)
-        print("%s.o = %s.o" % (fbase, fbase), file=fp, end='')
+        print("%s.o = %s.o" % (fbase, fbase), file=fp, end=' ')
         if vardeps:
-          print(" ".join(vardeps), file=fp, end='')
+          print(" ".join(vardeps), file=fp, end=' ')
         print("", file=fp)
       else:
         if filedeps:
-          print("%s%s:" % (fbase, fext), file=fp, end='')
-          print(" ".join(filedeps), file=fp, end='')
-        print("%s%s =" % (fbase, fext), file=fp, end='')
+          print("%s%s:" % (fbase, fext), file=fp, end=' ')
+          print(" ".join(filedeps), file=fp, end=' ')
+        print("%s%s =" % (fbase, fext), file=fp, end=' ')
         if vardeps:
-          print(" ".join(vardeps), file=fp, end='')
+          print(" ".join(vardeps), file=fp, end=' ')
         print("", file=fp)
 
       # Print definitions:
