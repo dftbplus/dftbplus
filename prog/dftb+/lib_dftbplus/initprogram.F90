@@ -2036,7 +2036,9 @@ contains
       ! place any static (0 energy case) at start of array
       allocate(omegaPolarisability(ii))
       omegaPolarisability(:) = 0.0_dp
-      omegaPolarisability(jj:) = input%ctrl%omegaPolarisability
+      if (jj <= ii) then
+         omegaPolarisability(jj:) = input%ctrl%omegaPolarisability
+      end if
     end if
 
     if (tPolarisability) then
