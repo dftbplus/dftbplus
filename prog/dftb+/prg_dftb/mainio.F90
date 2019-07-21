@@ -2062,8 +2062,6 @@ contains
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
 
-    @:ASSERT(tPeriodic .eqv. tStress)
-
     open(newunit=fd, file=fileName, action="write", status="replace")
 
     call writeTagged(fd, tag_egyTotal, energy%ETotal)
@@ -2086,6 +2084,7 @@ contains
       call writeTagged(fd, tag_chrgForces, -chrgForces)
     end if
     if (tStress) then
+    @:ASSERT(tPeriodic)
       call writeTagged(fd, tag_stressTot, totalStress)
     end if
     if (associated(pDynMatrix)) then
