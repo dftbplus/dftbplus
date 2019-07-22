@@ -468,6 +468,32 @@ module dftbp_inputdata_module
     type(WrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
 
+
+    ! TI-DFTB variables - MYD, TDK, RAS
+
+
+    !> NonAufbau
+    logical :: tNonAufbau = .false.
+
+    !> SpinPurify
+    logical :: tSpinPurify = .true.
+
+    !> GroundGuess
+    logical :: tGroundGuess = .false.
+
+    !> MOM
+    logical :: tMOM = .false.
+
+    !> IMOM
+    logical :: tIMOM = .false.
+
+    !> (Triplet or Mixed)DAD
+    integer :: nDADt = 1
+    integer :: nDADm = 1
+
+
+
+
   end type control
 
 
