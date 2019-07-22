@@ -709,7 +709,7 @@ contains
           & nSpin, qOutput, velocities)
     end if
 
-    call printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
+    call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
 
     if (tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)

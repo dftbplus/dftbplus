@@ -3837,7 +3837,7 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
+  subroutine printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
@@ -3851,13 +3851,44 @@ contains
     !> Is the free energy correctly defined
     logical, intent(in) :: tDefinedFreeE
 
+    !> Is this a non-Aufbau calculation? - MYD
+    logical, intent(in) :: tNonAufbau
+
+    !> Is this a spin purified calculation? - MYD
+    logical, intent(in) :: tSpinPurify
+
+    !> Should there be a ground state intial guess before Non-Aufbau calc?
+    logical, intent(in) :: tGroundGuess
+    integer, intent(in) :: iDet
+
+
+
     write(stdOut, *)
-    write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
-    if (electronicSolver%providesEigenvals) then
-      write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
+    if (tNonAufbau) then !-MYD
+     ! if (tSpinPurify .and. iDet /= 0) then !_MYD
+      if (tSpinPurify) then
+        write (stdOut, format2U) 'Triplet Energy', energy%Etriplet, "H", Hartree__eV * energy%Etriplet, "eV"
+        write (stdOut, format2U) 'Mixed Energy', energy%Emixed, "H", Hartree__eV * energy%Emixed, "eV"
+        write (stdOut, format2U) 'Spin Purified Energy', energy%Etotal, "H", &
+          & Hartree__eV * energy%Etotal, "eV"
+        if (tGroundGuess) then
+          write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
+            & Hartree__eV * energy%Egroundguess, "eV"
+        end if
+      else
+        write (stdOut, format2U) 'Non-Aufbau Singlet Energy', energy%Etotal, "H", Hartree__eV * energy%Etotal,&
           & "eV"
-      write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+        write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
+          & Hartree__eV * energy%Etotal, "eV"
+      end if
+    else
+      write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
+      if (electronicSolver%providesEigenvals) then
+        write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
+            & "eV"
+        write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
           & Hartree__eV * energy%EMermin, "eV"
+      end if
     end if
     if (tDefinedFreeE) then
       write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&

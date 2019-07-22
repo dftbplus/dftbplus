@@ -82,6 +82,19 @@ module dftbp_energies
     !> used for example in geometry optimisation or energetic comparisions.
     real(dp) :: EForceRelated = 0.0_dp
 
+    !> TI-DFTB Energy variables - MYD, RAS, TDK
+    real(dp) :: Emixed = 0.0_dp
+    real(dp) :: EmixMermin = 0.0_dp
+    real(dp) :: EmixZero = 0.0_dp
+    real(dp) :: EmixGibbs = 0.0_dp
+    real(dp) :: EmixForceRelated = 0.0_dp
+    real(dp) :: Egroundguess = 0.0_dp
+    real(dp) :: Etriplet = 0.0_dp
+    real(dp) :: EtripMermin = 0.0_dp
+    real(dp) :: EtripZero = 0.0_dp
+    real(dp) :: EtripGibbs = 0.0_dp
+    real(dp) :: EtripForceRelated = 0.0_dp
+
     !> atom resolved repulsive
     real(dp), allocatable :: atomRep(:)
 
