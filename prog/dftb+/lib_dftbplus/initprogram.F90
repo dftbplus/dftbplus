@@ -1021,10 +1021,6 @@ module dftbp_initprogram
   !>MOM Overlap matrix storage
   real(dp), allocatable :: overlapM(:,:)
 
-  !> Saving HOMO index
-  integer :: ahorb
-  integer :: bhorb
-
   !> Index of projection values MOM
   integer, allocatable :: indxMOM(:)
 

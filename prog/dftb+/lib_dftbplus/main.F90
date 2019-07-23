@@ -555,7 +555,7 @@ contains
             & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
             & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices, tNonAufbau, &
             & tSpinPurify, tMOM, tIMOM, OldHSqrReal, SSqrRealStorage, Otemp, overlapM, iDet, &
-            & ahorb, bhorb, indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, SSqrTranspose, &
+            & indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, SSqrTranspose, &
             & identityM, nMOM)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
@@ -2028,7 +2028,7 @@ contains
       & E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
       & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
       & tLargeDenseMatrices, tNonAufbau, tSpinPurify, tMOM, tIMOM, OldHSqrReal, SSqrRealStorage, &
-      &  Otemp, overlapM, iDet, ahorb, bhorb, indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, &
+      &  Otemp, overlapM, iDet, indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, &
       & SSqrTranspose, identityM, nMOM)
 
 
@@ -2219,9 +2219,6 @@ contains
     !> Which state is being calculated?
     integer, intent(in) :: iDet
 
-    !> Saving HOMO index
-    integer, intent(inout) :: ahorb
-    integer, intent(inout) :: bhorb
 
     !> Index of projection values MOM
     integer, intent(out) :: indxMOM(:)
@@ -2290,7 +2287,7 @@ contains
           & filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
           & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
           & qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, tMOM, tIMOM, OldHSqrReal, &
-          &  SSqrRealStorage, Otemp, overlapM, iDet, ahorb, bhorb, indxMOM, prjMOM, fillMOM, &
+          &  SSqrRealStorage, Otemp, overlapM, iDet, indxMOM, prjMOM, fillMOM, &
           & iSccIter, tGroundGuess, SSqrTranspose, identityM, nMOM)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
@@ -2315,7 +2312,7 @@ contains
       & rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
       & nNeighbourLC, tNonAufbau, tSpinPurify, tMOM, tIMOM, OldHSqrReal, SSqrRealStorage, &
-      & Otemp, overlapM, iDet, ahorb, bhorb, indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, &
+      & Otemp, overlapM, iDet, indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, &
       & SSqrTranspose, identityM, nMOM)
 
     !> Environment settings
@@ -2496,9 +2493,6 @@ contains
     !> Which state is being calculated?
     integer, intent(in) :: iDet
 
-    !> Saving HOMO index
-    integer, intent(inout) :: ahorb
-    integer, intent(inout) :: bhorb
 
     !> Index of projection values MOM
     integer, intent(out) :: indxMOM(:)
@@ -2546,10 +2540,10 @@ contains
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-        & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, ahorb, bhorb)
+        & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
 
     if (tNonAufbau .and. .not. (tGroundGuess .and. iDet==0)) then 
-        call fillingSwap(tSpinPurify, iDet, filling, ahorb, bhorb)
+        call fillingSwap(tSpinPurify, iDet, filling, nEl)
     end if
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
@@ -3272,7 +3266,7 @@ contains
 
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
-      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, ahorb, bhorb)
+      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0)
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -3317,9 +3311,6 @@ contains
     !> Band energies extrapolated to zero Kelvin
     real(dp), intent(out) :: E0(:)
 
-    !> Saving HOMO index
-    integer, intent(out) :: ahorb
-    integer, intent(out) :: bhorb
 
     real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1)
     real(dp) :: EfTmp
@@ -3341,12 +3332,12 @@ contains
       ! Fixed value of the Fermi level for each spin channel
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
-            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, ahorb, bhorb)
+            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights)
       end do
     else if (nSpinHams == 2 .and. tSpinSharedEf) then
       ! Common Fermi level across two colinear spin channels
       call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
-          & iDistribFn, ahorb, bhorb)
+          & iDistribFn)
       Ef(2) = Ef(1)
     else if (tFillKSep) then
       ! Every spin channel and every k-point filled up individually.
@@ -3357,7 +3348,7 @@ contains
       do iS = 1, nSpinHams
         do iK = 1, nKPoints
           call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
-              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn, ahorb, bhorb)
+              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn)
           Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
           Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
           TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
@@ -3368,7 +3359,7 @@ contains
       ! Every spin channel (but no the k-points) filled up individually
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
-            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn, ahorb, bhorb)
+            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn)
       end do
     end if
 
