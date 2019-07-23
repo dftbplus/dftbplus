@@ -24,7 +24,7 @@ module dftbp_etemp
   implicit none
   private
 
-  public :: Efilling, electronFill, Fermi, Gaussian, Methfessel
+  public :: Efilling, electronFill, Fermi, Gaussian, Methfessel, fillingSwap
 
 
   !> Definition of a type of broadening function - Fermi-Dirac in this case
@@ -54,7 +54,7 @@ contains
   !> filling for different k-points and/or spins.
   !>
   !> Note: If no electrons are present, the Fermi energy is set to zero per default.
-  subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib)
+  subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib, ahorb, bhorb)
 
     !> Band structure energy at T
     real(dp), intent(out) :: Ebs(:)
@@ -88,6 +88,11 @@ contains
 
     !> scheme
     integer, intent(in) :: distrib
+
+    !> Saving HOMO index
+    integer, intent (out) :: ahorb
+    integer, intent (out) :: bhorb
+
 
     real(dp) :: upperEf, lowerEf
     real(dp) :: nElec
@@ -124,7 +129,7 @@ contains
       Ef = middleGap(eigenvals, kWeight, nElectrons)
       nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
       if (abs(nElectrons - nElec) <= elecTolMax) then
-        call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight)
+        call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight, ahorb, bhorb)
         return
       end if
     end if
@@ -197,7 +202,7 @@ contains
     end if
 
     nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
-    call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight)
+    call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight,ahorb,bhorb)
 
     ! re-scale to give exact number of electrons, this is a temporay hack
     if (nElec > epsilon(1.0_dp)) then
@@ -352,7 +357,7 @@ contains
   !> Ref: G. Kresse and J. Furthm&uuml;ller, Phys. Rev. B vol 54, pp 11169 (1996).
   !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
   !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
-  subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights)
+  subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights,ahorb,bhorb)
 
     !> Band structure energy at T
     real(dp), intent(out) :: Eband(:)
@@ -383,6 +388,10 @@ contains
 
     !> k-point weightings
     real(dp), intent(in) :: kWeights(:)
+
+    !> Saving HOMO index
+    integer, intent(out) :: ahorb
+    integer, intent(out) :: bhorb
 
     integer :: MPorder
     integer :: kpts
@@ -465,6 +474,11 @@ contains
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
 #:endif
             if (filling(j, i, iSpin) <= elecTol) then
+              if (iSpin ==1) then
+                ahorb = j - 1
+              else if (iSpin ==2) then
+                bhorb = j - 1
+              end if
               exit
             end if
             if (filling(j, i, iSpin) > epsilon(0.0_dp) .and.&
@@ -484,6 +498,43 @@ contains
     end if
 
   end subroutine electronFill
+
+
+  subroutine fillingSwap(tSpinPurify, iDet, filling, ahorb, bhorb)
+
+
+    !> Is this a spin purified calculation? - MYD
+    logical, intent(in) :: tSpinPurify
+
+    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
+    integer, intent(in) :: iDet
+
+    !> Fillings (orbital, kpoint, spin)
+    real(dp), intent(inout) :: filling(:,:,:)
+
+    !> Saving HOMO index
+    integer, intent(in) :: ahorb
+    integer, intent(in) :: bhorb
+
+    integer :: iSpin =1
+    real(dp) :: swapfill
+ 
+    if (iDet == 1 .and. tSpinPurify) then
+      swapfill = filling(ahorb + 1, iSpin, iSpin) ! S = alpha LUMO
+      filling(ahorb + 1, iSpin, iSpin) = filling(bhorb, iSpin, iSpin + 1) ! alpha LUMO = beta HOMO
+      filling(bhorb, iSpin, iSpin + 1)  = swapfill ! beta HOMO = S
+    else
+      swapfill = filling(ahorb + 1, iSpin, iSpin) ! S = alpha LUMO
+      filling(ahorb + 1, iSpin, iSpin) = filling(ahorb, iSpin, iSpin) ! alpha LUMO = alpha HOMO
+      filling(ahorb, iSpin, iSpin)  = swapfill ! alpha HOMO = S
+    end if
+
+
+
+
+  end subroutine fillingSwap
+
+
 
 
   !> Calculate the weighting factors for the Methfessel-Paxton smearing scheme

@@ -2179,8 +2179,11 @@ contains
     integer :: ii, jj, ll
     real(dp), pointer :: pOccNatural(:,:)
 
+
+    write (*,*) 'mainio A' !MYD
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
     call xml_ADDXMLDeclaration(xf)
+    write (*,*) 'mainio B' !MYD
     call xml_NewElement(xf, "detailedout")
     call writeChildValue(xf, "identity", runId)
     call xml_NewElement(xf, "geometry")
@@ -2220,10 +2223,10 @@ contains
       call xml_EndElement(xf, "spin" // i2c(1))
       call xml_EndElement(xf, "excitedoccupations")
     end if
-
+    write (*,*) 'mainio C' !MYD
     call xml_EndElement(xf, "detailedout")
     call xml_Close(xf)
-
+    write (*,*) 'mainio D' !MYD
   end subroutine writeDetailedXml
 
 
@@ -2282,7 +2285,7 @@ contains
   end subroutine writeHessianOut
 
   !> Open file detailed.out
-  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter)
+  subroutine openDetailedOut(fd, fileName, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
     !> File  ID
     integer, intent(in) :: fd
 
@@ -2298,7 +2301,10 @@ contains
     !> Which scc step is occuring
     integer, intent(in) :: iSccIter
 
-    if (iGeoStep == 0 .and. iSccIter == 1) then
+    !> Which state is being calculated?
+    integer, intent(in) :: iDet
+
+    if (iGeoStep == 0 .and. iSccIter == 1 .and. iDet == 0) then
       open(fd, file=fileName, status="replace", action="write")
     elseif (.not. tAppendDetailedOut) then
       close(fd)
@@ -3864,8 +3870,7 @@ contains
 
 
     write(stdOut, *)
-    if (tNonAufbau) then !-MYD
-     ! if (tSpinPurify .and. iDet /= 0) then !_MYD
+    if (tNonAufbau) then
       if (tSpinPurify) then
         write (stdOut, format2U) 'Triplet Energy', energy%Etriplet, "H", Hartree__eV * energy%Etriplet, "eV"
         write (stdOut, format2U) 'Mixed Energy', energy%Emixed, "H", Hartree__eV * energy%Emixed, "eV"
