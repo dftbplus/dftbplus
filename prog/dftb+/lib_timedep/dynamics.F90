@@ -1776,6 +1776,7 @@ contains
     if (.not.this%tRestart) then
        rho(:,:,:) = 0.0_dp
        do iKS = 1, this%parallelKS%nLocalKS
+          iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
           if (this%tRealHS) then
              T2 = 0.0_dp
