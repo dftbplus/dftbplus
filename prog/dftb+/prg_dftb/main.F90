@@ -754,7 +754,7 @@ contains
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, coord0, spinW,&
             & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & iAtInCentralRegion, tFixEf, Ef, coord, onsiteElements, skHamCont, skOverCont,&
-            & latVec, invLatVec, iCellVec, rCellVec, electronicSolver, eigvecsCplx)
+            & latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx)
     end if
 
 
@@ -898,7 +898,7 @@ contains
 
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
-      & recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
+      & recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -934,10 +934,10 @@ contains
     real(dp), intent(out) :: extLatDerivs(:,:)
 
     !> translation vectors to lattice cells in units of lattice constants
-    real(dp), allocatable, intent(out) :: cellVecs(:,:)
+    real(dp), allocatable, intent(out) :: cellVec(:,:)
 
     !> Vectors to unit cells in absolute units
-    real(dp), allocatable, intent(out) :: rCellVecs(:,:)
+    real(dp), allocatable, intent(out) :: rCellVec(:,:)
 
     cellVol = abs(determinant33(latVecs))
     recVecs2p(:,:) = latVecs
@@ -957,7 +957,7 @@ contains
       call dispersion%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, dispersion%getRCutOff())
     end if
-    call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutOff)
+    call getCellTranslations(cellVec, rCellVec, latVecs, recVecs2p, mCutOff)
 
   end subroutine handleLatticeChange
 
