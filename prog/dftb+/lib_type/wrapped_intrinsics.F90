@@ -11,7 +11,8 @@ module dftbp_wrappedintr
   implicit none
   private
 
-#:set FLAVOURS = [('integer', 'Int', ''), ('real', 'Real', '(dp)'), ('logical','Logical','')]
+#:set FLAVOURS = [('logical','Logical',''), ('integer', 'Int', ''), ('real', 'Real', '(dp)'),&
+  & ('complex', 'Cmplx', '(dp)') ]
 
 #:for _, SUFFIX, _ in FLAVOURS
 #:for DIM in [('1'), ('2')]
