@@ -21,6 +21,8 @@ response/C18H12-LCnb                   #? not WITH_MPI
 response/Thymine-T1_LC                 #? not WITH_MPI 
 response/Thymine-charge_LC             #? not WITH_MPI
 response/CH4_dynamic                   #? MPI_PROCS <= 1
+response/OH_dynamic                    #? MPI_PROCS <= 1
+response/Au2_dynamic                   #? MPI_PROCS <= 4 or (not WITH_MPI)
 
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
