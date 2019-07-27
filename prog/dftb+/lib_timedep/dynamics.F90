@@ -1689,7 +1689,8 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
-    real(dp) :: T2(this%nOrbs,this%nOrbs), T3(this%nOrbs, this%nOrbs)
+    real(dp), allocatable :: T2(:,:), T3(:,:)
+    complex(dp), allocatable :: T4(:,:), T5(:,:)
     integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS, iK, ii
 
     allocate(rhoPrim(size(ham, dim=1), this%nSpin))
@@ -1697,6 +1698,14 @@ contains
     this%nSparse = size(H0)
     allocate(ham0(size(H0)))
     ham0(:) = H0
+
+    if (this%tRealHS) then
+      allocate(T2(this%nOrbs,this%nOrbs))
+      allocate(T3(this%nOrbs, this%nOrbs))
+    else
+      allocate(T4(this%nOrbs,this%nOrbs))
+      allocate(T5(this%nOrbs, this%nOrbs))
+    end if
 
     if (.not. this%tRestart) then
       Ssqr = 0.0_dp
@@ -1716,18 +1725,17 @@ contains
         else
           iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
-          do ii = 1, 2
-            Ssqr(:,:,iKS) = cmplx(0,0,dp)
-            call unpackHS(Ssqr(:,:,iKS), over, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
-                & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
-            call blockHermitianHS(Ssqr(:,:,iKS), iSquare)
-            if (ii == 2) then
-              do iOrb = 1, this%nOrbs
-                Sinv(iOrb, iOrb, iKS) = 1.0_dp
-              end do
-              call gesv(Ssqr(:,:,iKS), Sinv(:,:,iKS))
-            end if
+          T4(:,:) = cmplx(0,0,dp)
+          T5(:,:) = cmplx(0,0,dp)
+          call unpackHS(T4, over, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
+              & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
+          call blockHermitianHS(T4, iSquare)
+          Ssqr(:,:,iKS) = T4
+          do iOrb = 1, this%nOrbs
+            T5(iOrb, iOrb) = 1.0_dp
           end do
+          call gesv(T4, T5)
+          Sinv(:,:,iKS) = T5
         end if
       end do
       write(stdOut,"(A)")'S inverted'
