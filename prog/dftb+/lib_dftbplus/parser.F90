@@ -3704,70 +3704,78 @@ contains
     endif
   #:endif
 
-    ! electric polarisability of system
-    ctrl%tPolarisability = .false.
-    call getChild(node, "Polarisability", child=child, requested=.false.)
-    if (associated(child)) then
-
-      ctrl%tPolarisability = .true.
-
-      call getChildValue(child, "Static", ctrl%tStaticPolarisability, .false.)
-
-      call getChild(child, "Dynamic", child=child2, requested=.false.)
-      if (associated(child2)) then
-        call init(lr)
-        call getChild(child2, "Frequencies", child=child3, modifier=modifier, requested=.false.)
-        if (associated(child3)) then
-          call getChildValue(child3, "", lr, child=child4, modifier=modifier)
-          if (len(lr) > 0) then
-            allocate(ctrl%OmegaPolarisability(len(lr)))
-            call asArray(lr, ctrl%OmegaPolarisability)
-            call convertByMul(char(modifier),freqUnits, child3, ctrl%OmegaPolarisability)
-          end if
-        end if
-        call getChild(child2, "FrequencyRange", child=child3, modifier=modifier, requested=.false.)
-        if (associated(child3)) then
-          call getChildValue(child3, "", lr, child=child4, modifier=modifier)
-          if (len(lr) == 3) then
-            call asArray(lr, tmp3R)
-            call convertByMul(char(modifier),freqUnits, child3, tmp3R)
-            if (abs(tmp3R(3)) <= epsilon(0.0_dp)) then
-              call detailedError(child3,"Increase step size in dynamic polarisation range.")
-            end if
-
-            nFreq = max(int((tmp3R(3)-tmp3R(1))/tmp3R(2))+1,0) ! how many frequencies in range?
-
-            if (nFreq > 0) then ! add them onto the list
-              if (allocated(ctrl%OmegaPolarisability)) then
-                jj = size(ctrl%OmegaPolarisability)
-              else
-                jj = 0
-              end if
-              allocate(tmpR(jj+nFreq))
-              tmpR = 0.0_dp
-              if (allocated(ctrl%OmegaPolarisability)) then
-                tmpR(:jj) = ctrl%OmegaPolarisability
-              end if
-              do ii = 1, nFreq
-                tmpR(jj+ii) = tmp3R(1) + (ii-1) * tmp3R(2)
-              end do
-              if (allocated(ctrl%OmegaPolarisability)) then
-                deallocate(ctrl%OmegaPolarisability)
-              end if
-              allocate(ctrl%OmegaPolarisability(jj+nFreq))
-              ctrl%OmegaPolarisability(:) = tmpR
-              deallocate(tmpR)
-            end if
-          else
-            call detailedError(child3,"Malformed frequency range.")
-          end if
-        end if
-        call destruct(lr)
+    if (tHaveEigenDecomposition) then
+      if (geo%tPeriodic) then
+        call getChildValue(node, "KDerivs", ctrl%tKDerivs, .false.)
       end if
 
-      if (.not.(ctrl%tStaticPolarisability.or.allocated(ctrl%omegaPolarisability))) then
-        call detailedError(child, &
-            & "At least one of static or dynamic polarisability must be requested.")
+      ! electric polarisability of system
+      ctrl%tPolarisability = .false.
+      call getChild(node, "Polarisability", child=child, requested=.false.)
+      if (associated(child)) then
+
+        ctrl%tPolarisability = .true.
+
+        call getChildValue(child, "Static", ctrl%tStaticPolarisability, .false.)
+
+        call getChild(child, "Dynamic", child=child2, requested=.false.)
+        if (associated(child2)) then
+          call init(lr)
+          call getChild(child2, "Frequencies", child=child3, modifier=modifier, requested=.false.)
+          if (associated(child3)) then
+            call getChildValue(child3, "", lr, child=child4, modifier=modifier)
+            if (len(lr) > 0) then
+              allocate(ctrl%OmegaPolarisability(len(lr)))
+              call asArray(lr, ctrl%OmegaPolarisability)
+              call convertByMul(char(modifier),freqUnits, child3, ctrl%OmegaPolarisability)
+            end if
+          end if
+          call getChild(child2, "FrequencyRange", child=child3, modifier=modifier,&
+              & requested=.false.)
+          if (associated(child3)) then
+            call getChildValue(child3, "", lr, child=child4, modifier=modifier)
+            if (len(lr) == 3) then
+              call asArray(lr, tmp3R)
+              call convertByMul(char(modifier),freqUnits, child3, tmp3R)
+              if (abs(tmp3R(3)) <= epsilon(0.0_dp)) then
+                call detailedError(child3,"Increase step size in dynamic polarisation range.")
+              end if
+
+              nFreq = max(int((tmp3R(3)-tmp3R(1))/tmp3R(2))+1,0) ! how many frequencies in range?
+
+              if (nFreq > 0) then ! add them onto the list
+                if (allocated(ctrl%OmegaPolarisability)) then
+                  jj = size(ctrl%OmegaPolarisability)
+                else
+                  jj = 0
+                end if
+                allocate(tmpR(jj+nFreq))
+                tmpR = 0.0_dp
+                if (allocated(ctrl%OmegaPolarisability)) then
+                  tmpR(:jj) = ctrl%OmegaPolarisability
+                end if
+                do ii = 1, nFreq
+                  tmpR(jj+ii) = tmp3R(1) + (ii-1) * tmp3R(2)
+                end do
+                if (allocated(ctrl%OmegaPolarisability)) then
+                  deallocate(ctrl%OmegaPolarisability)
+                end if
+                allocate(ctrl%OmegaPolarisability(jj+nFreq))
+                ctrl%OmegaPolarisability(:) = tmpR
+                deallocate(tmpR)
+              end if
+            else
+              call detailedError(child3,"Malformed frequency range.")
+            end if
+          end if
+          call destruct(lr)
+        end if
+
+        if (.not.(ctrl%tStaticPolarisability.or.allocated(ctrl%omegaPolarisability))) then
+          call detailedError(child, &
+              & "At least one of static or dynamic polarisability must be requested.")
+        end if
+
       end if
 
     end if

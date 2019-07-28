@@ -171,6 +171,9 @@ module dftbp_inputdata_module
     !> Should polarisability be calculated
     logical :: tPolarisability = .false.
 
+    !> Should derivatives wrt to k be evaluated for band states
+    logical :: tKDerivs = .false.
+
     !> Should static polarisability be calculated
     logical :: tStaticPolarisability = .false.
 

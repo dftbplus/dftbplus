@@ -34,6 +34,32 @@ _mod_dftbp_perturbderivs = $(perturbationDerivs.o)
 #:endif
 #:endif
 
+#:if WITH_MPI
+#:if WITH_SCALAPACK
+perturbationk.o: _mod_dftbp_environment _mod_dftbp_potentials common.fypp _mod_dftbp_taggedoutput _mod_dftbp_mainio _mod_dftbp_globalenv _mod_dftbp_thirdorder_module _mod_dftbp_finitethelper _mod_dftbp_orbitalequiv _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_scalapackfx _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_degenerateperturb _mod_dftbp_onsitecorrection _mod_dftbp_commontypes _mod_dftbp_dftbplusu _mod_dftbp_spin _mod_dftbp_mixer _mod_dftbp_scc _mod_dftbp_populations _mod_dftbp_shift _mod_dftbp_densedescr _mod_dftbp_sparse2dense _mod_dftbp_mpifx _mod_dftbp_scalafxext
+perturbationk.o = perturbationk.o $(_mod_dftbp_environment) $(_mod_dftbp_potentials) $(common.fypp) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_mainio) $(_mod_dftbp_globalenv) $(_mod_dftbp_thirdorder_module) $(_mod_dftbp_finitethelper) $(_mod_dftbp_orbitalequiv) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_scalapackfx) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_degenerateperturb) $(_mod_dftbp_onsitecorrection) $(_mod_dftbp_commontypes) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_spin) $(_mod_dftbp_mixer) $(_mod_dftbp_scc) $(_mod_dftbp_populations) $(_mod_dftbp_shift) $(_mod_dftbp_densedescr) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_mpifx) $(_mod_dftbp_scalafxext)
+_mod_dftbp_perturbkderivs: perturbationk.o
+_mod_dftbp_perturbkderivs = $(perturbationk.o)
+#:else
+perturbationk.o: _mod_dftbp_environment _mod_dftbp_potentials common.fypp _mod_dftbp_taggedoutput _mod_dftbp_mainio _mod_dftbp_globalenv _mod_dftbp_thirdorder_module _mod_dftbp_finitethelper _mod_dftbp_orbitalequiv _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_scalapackfx _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_degenerateperturb _mod_dftbp_onsitecorrection _mod_dftbp_commontypes _mod_dftbp_dftbplusu _mod_dftbp_spin _mod_dftbp_mixer _mod_dftbp_scc _mod_dftbp_populations _mod_dftbp_shift _mod_dftbp_densedescr _mod_dftbp_sparse2dense _mod_dftbp_mpifx _mod_dftbp_blasroutines
+perturbationk.o = perturbationk.o $(_mod_dftbp_environment) $(_mod_dftbp_potentials) $(common.fypp) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_mainio) $(_mod_dftbp_globalenv) $(_mod_dftbp_thirdorder_module) $(_mod_dftbp_finitethelper) $(_mod_dftbp_orbitalequiv) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_scalapackfx) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_degenerateperturb) $(_mod_dftbp_onsitecorrection) $(_mod_dftbp_commontypes) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_spin) $(_mod_dftbp_mixer) $(_mod_dftbp_scc) $(_mod_dftbp_populations) $(_mod_dftbp_shift) $(_mod_dftbp_densedescr) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_mpifx) $(_mod_dftbp_blasroutines)
+_mod_dftbp_perturbkderivs: perturbationk.o
+_mod_dftbp_perturbkderivs = $(perturbationk.o)
+#:endif
+#:else
+#:if WITH_SCALAPACK
+perturbationk.o: _mod_dftbp_environment _mod_dftbp_potentials common.fypp _mod_dftbp_taggedoutput _mod_dftbp_mainio _mod_dftbp_globalenv _mod_dftbp_thirdorder_module _mod_dftbp_finitethelper _mod_dftbp_orbitalequiv _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_scalapackfx _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_degenerateperturb _mod_dftbp_onsitecorrection _mod_dftbp_commontypes _mod_dftbp_dftbplusu _mod_dftbp_spin _mod_dftbp_mixer _mod_dftbp_scc _mod_dftbp_populations _mod_dftbp_shift _mod_dftbp_densedescr _mod_dftbp_sparse2dense _mod_dftbp_scalafxext
+perturbationk.o = perturbationk.o $(_mod_dftbp_environment) $(_mod_dftbp_potentials) $(common.fypp) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_mainio) $(_mod_dftbp_globalenv) $(_mod_dftbp_thirdorder_module) $(_mod_dftbp_finitethelper) $(_mod_dftbp_orbitalequiv) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_scalapackfx) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_degenerateperturb) $(_mod_dftbp_onsitecorrection) $(_mod_dftbp_commontypes) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_spin) $(_mod_dftbp_mixer) $(_mod_dftbp_scc) $(_mod_dftbp_populations) $(_mod_dftbp_shift) $(_mod_dftbp_densedescr) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_scalafxext)
+_mod_dftbp_perturbkderivs: perturbationk.o
+_mod_dftbp_perturbkderivs = $(perturbationk.o)
+#:else
+perturbationk.o: _mod_dftbp_environment _mod_dftbp_potentials common.fypp _mod_dftbp_taggedoutput _mod_dftbp_mainio _mod_dftbp_globalenv _mod_dftbp_thirdorder_module _mod_dftbp_finitethelper _mod_dftbp_orbitalequiv _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_scalapackfx _mod_dftbp_accuracy _mod_dftbp_periodic _mod_dftbp_degenerateperturb _mod_dftbp_onsitecorrection _mod_dftbp_commontypes _mod_dftbp_dftbplusu _mod_dftbp_spin _mod_dftbp_mixer _mod_dftbp_scc _mod_dftbp_populations _mod_dftbp_shift _mod_dftbp_densedescr _mod_dftbp_sparse2dense _mod_dftbp_blasroutines
+perturbationk.o = perturbationk.o $(_mod_dftbp_environment) $(_mod_dftbp_potentials) $(common.fypp) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_mainio) $(_mod_dftbp_globalenv) $(_mod_dftbp_thirdorder_module) $(_mod_dftbp_finitethelper) $(_mod_dftbp_orbitalequiv) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_scalapackfx) $(_mod_dftbp_accuracy) $(_mod_dftbp_periodic) $(_mod_dftbp_degenerateperturb) $(_mod_dftbp_onsitecorrection) $(_mod_dftbp_commontypes) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_spin) $(_mod_dftbp_mixer) $(_mod_dftbp_scc) $(_mod_dftbp_populations) $(_mod_dftbp_shift) $(_mod_dftbp_densedescr) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_blasroutines)
+_mod_dftbp_perturbkderivs: perturbationk.o
+_mod_dftbp_perturbkderivs = $(perturbationk.o)
+#:endif
+#:endif
+
 #:if WITH_SCALAPACK
 projectors.o: _mod_dftbp_commontypes common.fypp _mod_dftbp_blasroutines _mod_dftbp_accuracy _mod_dftbp_message _mod_dftbp_blacsenv _mod_dftbp_scalapackfx
 projectors.o = projectors.o $(_mod_dftbp_commontypes) $(common.fypp) $(_mod_dftbp_blasroutines) $(_mod_dftbp_accuracy) $(_mod_dftbp_message) $(_mod_dftbp_blacsenv) $(_mod_dftbp_scalapackfx)
@@ -46,8 +72,8 @@ _mod_dftbp_projectblacs: projectors.o
 _mod_dftbp_projectblacs = $(projectors.o)
 #:endif
 
-rotateOrbitals.o: common.fypp _mod_dftbp_wrappedintr _mod_dftbp_accuracy _mod_dftbp_eigensolver
-rotateOrbitals.o = rotateOrbitals.o $(common.fypp) $(_mod_dftbp_wrappedintr) $(_mod_dftbp_accuracy) $(_mod_dftbp_eigensolver)
+rotateOrbitals.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_qm _mod_dftbp_eigensolver _mod_dftbp_wrappedintr _mod_dftbp_message
+rotateOrbitals.o = rotateOrbitals.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_qm) $(_mod_dftbp_eigensolver) $(_mod_dftbp_wrappedintr) $(_mod_dftbp_message)
 _mod_dftbp_degenerateperturb: rotateOrbitals.o
 _mod_dftbp_degenerateperturb = $(rotateOrbitals.o)
 

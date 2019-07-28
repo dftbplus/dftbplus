@@ -84,6 +84,7 @@ module dftbp_main
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_perturbderivs
+  use dftbp_perturbkderivs
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -277,6 +278,12 @@ contains
   #:endif
 
     ! response properties from perturbation-like expressions
+    if (tKDerivs .and. tPeriodic .and. allocated(eigVecsCplx)) then
+      call dPsidK(env, parallelKS, eigen, eigVecsCplx, ham, over, orb, nAtom, species,&
+          & neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, coord, kPoint,&
+          & kWeight, cellVec, iCellVec, latVec)
+    end if
+
     if (tPolarisability) then
       if (.not.(tPeriodic .or. tNegf)) then
         call staticPerturWrtE(env, parallelKS, filling, eigen, eigVecsReal, eigvecsCplx, ham,&

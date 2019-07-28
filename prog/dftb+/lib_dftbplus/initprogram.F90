@@ -391,7 +391,7 @@ module dftbp_initprogram
   !> Minimal number of SCC iterations
   integer :: minSccIter
 
-  !> is this a spin polarized calculation?
+  !> is this a spin polarised calculation?
   logical :: tSpin
 
   !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
@@ -496,6 +496,9 @@ module dftbp_initprogram
 
   !> Should polarisability be calculated
   logical :: tPolarisability
+
+  !> Should derivatives of eigenstates wrt to k be evaluated
+  logical :: tKDerivs
 
   !> Frequencies at which to calculate polarizability
   real(dp), allocatable :: omegaPolarisability(:)
@@ -2020,6 +2023,10 @@ contains
       call error("Localisation of electronic states currently unsupported for non-collinear and&
           & spin orbit calculations")
     end if
+
+    !> k derivatives (first steps for properties like one method of Berry phase evaluation or for
+    !> dielectric tensors)
+    tKDerivs = input%ctrl%tKDerivs
 
     !> Polarisability of the system
     tPolarisability = input%ctrl%tPolarisability

@@ -31,6 +31,7 @@ module dftbp_perturbkderivs
   use dftbp_periodic
   use dftbp_densedescr
   use dftbp_sparse2dense
+  use dftbp_degeneratePerturb
   use dftbp_taggedoutput
 #:if WITH_MPI
   use dftbp_mpifx

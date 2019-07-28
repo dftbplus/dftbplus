@@ -86,8 +86,8 @@ lapackroutines.o = lapackroutines.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_d
 _mod_dftbp_lapackroutines: lapackroutines.o
 _mod_dftbp_lapackroutines = $(lapackroutines.o)
 
-qm.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
-qm.o = qm.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+qm.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_message
+qm.o = qm.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
 _mod_dftbp_qm: qm.o
 _mod_dftbp_qm = $(qm.o)
 
