@@ -1690,7 +1690,7 @@ contains
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     real(dp), allocatable :: T2(:,:), T3(:,:)
-    complex(dp), allocatable :: T4(:,:), T5(:,:)
+    complex(dp), allocatable :: T4(:,:)
     integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS, iK, ii
 
     allocate(rhoPrim(size(ham, dim=1), this%nSpin))
@@ -1704,7 +1704,6 @@ contains
       allocate(T3(this%nOrbs, this%nOrbs))
     else
       allocate(T4(this%nOrbs,this%nOrbs))
-      allocate(T5(this%nOrbs, this%nOrbs))
     end if
 
     if (.not. this%tRestart) then
@@ -1726,16 +1725,15 @@ contains
           iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
           T4(:,:) = cmplx(0,0,dp)
-          T5(:,:) = cmplx(0,0,dp)
           call unpackHS(T4, over, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
               & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
           call blockHermitianHS(T4, iSquare)
           Ssqr(:,:,iKS) = T4
+          Sinv(:,:,iKS) = cmplx(0,0,dp)
           do iOrb = 1, this%nOrbs
-            T5(iOrb, iOrb) = 1.0_dp
+            Sinv(iOrb, iOrb, iKS) = 1.0_dp
           end do
-          call gesv(T4, T5)
-          Sinv(:,:,iKS) = T5
+          call gesv(T4, Sinv(:,:,iKS))
         end if
       end do
       write(stdOut,"(A)")'S inverted'
