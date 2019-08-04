@@ -144,6 +144,7 @@ contains
     allocate(eCi(nOrbs, nOrbs))
     allocate(dEi(nOrbs, nOrbs))
 
+    allocate(workLocal(nOrbs, nOrbs))
 
     do iKS = 1, parallelKS%nLocalKS
       iK = parallelKS%localKS(1, iKS)
@@ -173,6 +174,19 @@ contains
             & - matmul(dOverSqr(:,:,kk), eCi)))
         write(*,*)iK,kk,(dEi(iOrb, iOrb)*Hartree__eV, iOrb = 1, nOrbs)
       end do
+
+      ! form |c> H' - e S' <c|
+      call hemm(workLocal, 'l', dHamSqr, eigVecsCplx(:,:,iKS))
+      call hemm(workLocal, 'l', dOverSqr, eCi, beta=(1.0_dp,0.0_dp))
+      workLocal(:,:) = matmul(transpose(conjg(eigVecsCplx(:,:,iKS))), workLocal)
+
+      ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
+      if (allocated(dEi)) then
+        do ii = 1, nOrb
+          dEi(ii, iK, iS, iCart) = workLocal(ii,ii)
+        end do
+      end if
+
 
     end do
 
