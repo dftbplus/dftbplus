@@ -18,13 +18,32 @@ module dftbp_degeneratePerturb
   implicit none
   private
 
-  public :: degenerateUnitary, degenerateTransform
+  public :: degenerateUnitary, degenerateTransform, TDegeneracyTransform
 
 #:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
+  !> type for resolving degenerate orbitals in perturbation expressions
+  type :: TDegeneracyTransform
+    private
+#:for NAME, TYPE, LABEL in FLAVOURS
+
+    !> Dense unitary matrix to transform orbitals
+    ${TYPE}$(dp), allocatable :: ${LABEL}$U(:,:)
+
+    !> Individual sub-blocks of unitary matrices to transform orbitals, if much smaller than U
+    type(wrapped${LABEL}$2), allocatable :: ${LABEL}$UBlock(:)
+
+    !> Block ranges as needed in UBlock, deallocated again by time of return if dense U case
+    integer, allocatable :: ${LABEL}$blockRange(:,:)
+
+#:endfor
+
+  end type TDegeneracyTransform
+
+
 #:if WITH_SCALAPACK
 
-  ! to do, but will match interfaces for serial
+  ! to do
 
 #:else
 
