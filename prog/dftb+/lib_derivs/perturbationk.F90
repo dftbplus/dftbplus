@@ -31,8 +31,9 @@ module dftbp_perturbkderivs
   use dftbp_periodic
   use dftbp_densedescr
   use dftbp_sparse2dense
-  use dftbp_degeneratePerturb
+  use dftbp_degeneratePerturb, only : degenerateTransform
   use dftbp_taggedoutput
+  use dftbp_wrappedintr
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -113,11 +114,15 @@ contains
     real(dp), intent(in) :: latVec(:,:)
 
     integer :: nIndepHam, nSpin, nOrbs, nKpts, iAt1, iNeigh, iAt2, iAt2f, ii, jj, kk, iCell, iSpin
-    integer :: iDir, iK, iOrb, iKS, iS
-    real(dp), allocatable :: dHam(:,:), dOver(:), dEi(:,:)
+    integer :: iDir, iK, iOrb, iKS, iS, iCart
+    real(dp), allocatable :: dHam(:,:), dOver(:), dEi(:,:,:)
     real(dp) :: vec(3)
-    complex(dp), allocatable :: dPsi(:,:,:,:), dHamSqr(:,:,:), dOverSqr(:,:,:), workLocal(:,:)
+    complex(dp), allocatable :: dPsi(:,:,:,:), dHamSqr(:,:), dOverSqr(:,:), workLocal(:,:)
     complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:,:), eCi(:,:)
+
+    complex(dp), allocatable :: U(:,:)
+    type(wrappedCmplx2), allocatable :: UBlock(:)
+    integer, allocatable :: blockRange(:,:)
 
   #:if WITH_SCALAPACK
     ! need distributed matrix descriptors
@@ -139,54 +144,62 @@ contains
     nOrbs = size(eigVecsCplx,dim=1)
     nKpts = size(kpoint, dim=2)
 
-    allocate(dHamSqr(nOrbs, nOrbs, 3))
-    allocate(dOverSqr(nOrbs, nOrbs, 3))
+    allocate(dHamSqr(nOrbs, nOrbs))
+    allocate(dOverSqr(nOrbs, nOrbs))
     allocate(eCi(nOrbs, nOrbs))
-    allocate(dEi(nOrbs, nOrbs))
+    allocate(dEi(nOrbs, parallelKS%nLocalKS, 3))
 
     allocate(workLocal(nOrbs, nOrbs))
 
     do iKS = 1, parallelKS%nLocalKS
+
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
       do iOrb = 1, nOrbs
         eCi(:,iOrb) = eigvals(iOrb,iK,iS) * eigvecsCplx(:,iOrb,iKS)
       end do
 
-      dOverSqr(:,:,:) = cmplx(0,0,dp)
-      dHamSqr(:,:,:) = cmplx(0,0,dp)
-      call unpackHSdk(dOverSqr, over, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-          & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      call unpackHSdk(dHamSqr, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-          & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      do kk = 1, 3
-        do iOrb = 1, nOrbs
-          dOverSqr(iOrb, iOrb+1:,kk) = conjg(dOverSqr(iOrb+1:, iOrb, kk))
-          dHamSqr(iOrb, iOrb+1:,kk) = conjg(dHamSqr(iOrb+1:, iOrb, kk))
-          dOverSqr(iOrb, iOrb, kk) = real(dOverSqr(iOrb, iOrb, kk))
-          dHamSqr(iOrb, iOrb, kk) = real(dHamSqr(iOrb, iOrb, kk))
-        end do
+      do iCart = 1, 3
+
+        dOverSqr(:,:) = cmplx(0,0,dp)
+        dHamSqr(:,:) = cmplx(0,0,dp)
+        call unpackHSdk(dOverSqr, over, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCart)
+        call unpackHSdk(dHamSqr, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCart)
+
+        ! form |c> H' - e S' <c|
+        call hemm(workLocal, 'l', dHamSqr, eigVecsCplx(:,:,iKS))
+        call hemm(workLocal, 'l', dOverSqr, eCi, alpha=(-1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+        workLocal(:,:) = matmul(transpose(conjg(eigVecsCplx(:,:,iKS))), workLocal)
+
+        call degenerateTransform(workLocal, eigvals(:,iK,iS), U, UBlock, blockRange)
+
+        ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
+        if (allocated(dEi)) then
+          do ii = 1, nOrbs
+            dEi(ii, iKS, iCart) = real(workLocal(ii,ii), dp)
+          end do
+        end if
+        write(stdOut,*)iKS,iCart,(dEi(iOrb, iKS, iCart), iOrb = 1, nOrbs)
+
+        ! ! symmetrise
+        ! do iOrb = 1, nOrbs
+        !   dOverSqr(iOrb, iOrb+1:) = conjg(dOverSqr(iOrb+1:, iOrb))
+        !   dHamSqr(iOrb, iOrb+1:) = conjg(dHamSqr(iOrb+1:, iOrb))
+        !   ! diagonal is real (hemitian matrix at this stage)
+        !   dOverSqr(iOrb, iOrb) = real(dOverSqr(iOrb, iOrb))
+        !   dHamSqr(iOrb, iOrb) = real(dHamSqr(iOrb, iOrb))
+        ! end do
+        !
+        ! workLocal = real(matmul(transpose(conjg(eigvecsCplx(:,:,iKS))),&
+        !     & matmul(dHamSqr(:,:), eigvecsCplx(:,:,iKS)) - matmul(dOverSqr(:,:), eCi)))
+        ! do iOrb = 1, nOrbs
+        !   dEi(iOrb,iKS, iCart) = workLocal(iOrb,iOrb)
+        ! end do
+
       end do
-
-      do kk = 1, 3
-        dEi(:,:) = real(matmul(transpose(conjg(eigvecsCplx(:,:,iKS))),&
-            & matmul(dHamSqr(:,:,kk), eigvecsCplx(:,:,iKS))&
-            & - matmul(dOverSqr(:,:,kk), eCi)))
-        write(*,*)iK,kk,(dEi(iOrb, iOrb)*Hartree__eV, iOrb = 1, nOrbs)
-      end do
-
-      ! form |c> H' - e S' <c|
-      call hemm(workLocal, 'l', dHamSqr, eigVecsCplx(:,:,iKS))
-      call hemm(workLocal, 'l', dOverSqr, eCi, beta=(1.0_dp,0.0_dp))
-      workLocal(:,:) = matmul(transpose(conjg(eigVecsCplx(:,:,iKS))), workLocal)
-
-      ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
-      if (allocated(dEi)) then
-        do ii = 1, nOrb
-          dEi(ii, iK, iS, iCart) = workLocal(ii,ii)
-        end do
-      end if
-
+      write(stdOut,*)
 
     end do
 

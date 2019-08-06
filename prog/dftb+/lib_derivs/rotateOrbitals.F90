@@ -31,7 +31,7 @@ module dftbp_degeneratePerturb
   !> Generate unitary matrix for degenerate perturbation
   interface degenerateUnitary
   #:for NAME, _, _ in FLAVOURS
-    module procedure ${NAME}$Unitary
+    module procedure ${NAME}$DegenerateUnitary
   #:endfor
   end interface degenerateUnitary
 
@@ -60,7 +60,7 @@ contains
 
 #:for NAME, TYPE, LABEL in FLAVOURS
   !> ${NAME}$ case of orthogonalising against degenerate perturbation operation cases
-  subroutine ${NAME}$Transform(matrixToProcess, ei, tol, eiRange)
+  subroutine ${NAME}$Transform(matrixToProcess, ei, U, UBlock, blockRange, tol, eiRange)
 
     !> Matrix elements between (potentially degenerate) orbitals
     ${TYPE}$(dp), intent(inout) :: matrixToProcess(:,:)
@@ -68,16 +68,22 @@ contains
     !> Eigenvalues of states
     real(dp), intent(in) :: ei(:)
 
-    !> Optional tolerance for comparisions between states
-    real(dp), intent(in), optional :: tol
+    !> Unitary matrix to transform orbitals
+    ${TYPE}$(dp), allocatable, intent(inout) :: U(:,:)
+
+    !> Individual sub-blocks of unitary matrices to transform orbitals, if much smaller than U
+    type(wrapped${LABEL}$2), allocatable, intent(inout) :: UBlock(:)
+
+    !> Block ranges as needed in UBlock, deallocated again by time of return if dense U case
+    integer, allocatable, intent(inout) :: blockRange(:,:)
 
     !> sub range of eigenvalues to process, for example relevant for parallel gauge in metallic
     !> systems where only partially filled states are dangerous wrt to degeneration
     integer, intent(in), optional :: eiRange(2)
 
-    ${TYPE}$(dp), allocatable :: U(:,:)
-    type(wrapped${LABEL}$2), allocatable :: UBlock(:)
-    integer, allocatable :: blockRange(:,:)
+    !> Optional tolerance for comparisions between states
+    real(dp), intent(in), optional :: tol
+
     integer :: iGrp, nGrp, iS, iE
 
     call degenerateUnitary(U, UBlock, blockRange, matrixToProcess, ei, tol, eiRange)
@@ -114,7 +120,7 @@ contains
 
   !> Transform matrix for degenerate states into combinations that are orthogonal under the action
   !> of the matrix
-  subroutine ${NAME}$Unitary(U, UBlock, blockRange, matrixToProcess, ei, tol, eiRange)
+  subroutine ${NAME}$DegenerateUnitary(U, UBlock, blockRange, matrixToProcess, ei, tol, eiRange)
 
     !> Unitary matrix to transform orbitals
     ${TYPE}$(dp), intent(inout), allocatable :: U(:,:)
@@ -154,7 +160,15 @@ contains
 
     nOrb = size(ei)
 
-    allocate(blockRange(2,nOrb))
+    if (allocated(blockRange)) then
+      if (any(shape(blockRange) /= [2,nOrb])) then
+        deallocate(blockRange)
+      end if
+    end if
+    if (.not.allocated(blockRange)) then
+      allocate(blockRange(2,nOrb))
+    end if
+    blockRange(:,:) = 0
 
     call degeneracyRanges(blockRange, nGrp, Ei, tol, eiRange)
 
@@ -171,7 +185,14 @@ contains
     if (tFullU) then
       ! make whole matrix as U
       tFullU = .true.
-      allocate(U(nOrb, nOrb))
+      if (allocated(U)) then
+        if (any(shape(U) /= [nOrb,nOrb])) then
+          deallocate(U)
+        end if
+      end if
+      if (.not.allocated(U)) then
+        allocate(U(nOrb, nOrb))
+      end if
       U(:,:) = zero
       do ii = 1, nOrb
         U(ii,ii) = one
@@ -179,13 +200,20 @@ contains
     else
       ! just make individual blocks, as much smaller and faster to use
       tFullU = .false.
+      if (allocated(UBlock)) then
+        do iGrp = 1, size(UBlock)
+          deallocate(UBlock(iGrp)%data)
+        end do
+        deallocate(UBlock)
+      end if
       allocate(UBlock(nGrp))
       do iGrp = 1, nGrp
         nInBlock = blockRange(2,iGrp) - blockRange(1,iGrp) + 1
+        allocate(UBlock(iGrp)%data(nInBlock,nInBlock))
         if (nInBlock > 1) then
-          ! only allocate if actual transform needed
-          allocate(UBlock(iGrp)%data(nInBlock,nInBlock))
           UBlock(iGrp)%data = zero
+        else
+          UBlock(iGrp)%data = one
         end if
       end do
     end if
@@ -211,11 +239,7 @@ contains
       end if
     end do
 
-    if (.not. tFullU) then
-      deallocate(blockRange)
-    end if
-
-  end subroutine ${NAME}$Unitary
+  end subroutine ${NAME}$DegenerateUnitary
 #:endfor
 
 #:endif

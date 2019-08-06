@@ -2375,10 +2375,10 @@ contains
   !> on-site blocks are only filled in the lower triangle part of the matrix. To fill the matrix
   !> completely, apply the blockSymmetrizeHS subroutine.
   subroutine unpackHSdk(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iAtomStart, iPair, img2CentCell)
+      & iAtomStart, iPair, img2CentCell, iK)
 
     !> Square form matrix on exit wrt to k_(x,y,z)
-    complex(dp), intent(out) :: square(:, :, :)
+    complex(dp), intent(out) :: square(:, :)
 
     !> Sparse matrix
     real(dp), intent(in) :: orig(:)
@@ -2407,9 +2407,12 @@ contains
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
+    !> Direction in which to calculate derivatives
+    integer, intent(in) :: iK
+
     complex(dp) :: phase
     integer :: nAtom
-    integer :: iOrig, ii, jj, iK
+    integer :: iOrig, ii, jj
     integer :: iNeigh
     integer :: iOldVec, iVec
     integer :: iAtom1, iAtom2, iAtom2f
@@ -2425,7 +2428,7 @@ contains
     @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
-    square(:, :, :) = cmplx(0, 0, dp)
+    square(:, :) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
     phase = 1.0_dp
@@ -2444,11 +2447,9 @@ contains
           phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
-        do iK = 1, 3
-          square(jj:jj+nOrb2-1, ii:ii+nOrb1-1, iK) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1, iK)&
-              & + imag * 2.0_dp * pi * cellVec(iK, iVec) * phase *&
-              & reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
-        end do
+        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
+            & + imag * 2.0_dp * pi * cellVec(iK, iVec) * phase *&
+            & reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
       end do
     end do
 
