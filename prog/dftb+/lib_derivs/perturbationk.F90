@@ -31,9 +31,10 @@ module dftbp_perturbkderivs
   use dftbp_periodic
   use dftbp_densedescr
   use dftbp_sparse2dense
-  use dftbp_degeneratePerturb, only : degenerateTransform
+  use dftbp_rotateDegenerateOrbs, only : degenerateTransform
   use dftbp_taggedoutput
   use dftbp_wrappedintr
+  use dftbp_taggedoutput, only : TTaggedWriter
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -52,7 +53,8 @@ contains
 
   subroutine dPsidK(env, parallelKS, eigvals, eigVecsCplx, ham, over, orb, nAtom, species,&
       & neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, coord, kPoint, kWeight,&
-      & cellVec, iCellVec, latVec)
+      & cellVec, iCellVec, latVec, taggedWriter, tWriteAutoTest, autoTestTagFile, tWriteTaggedOut,&
+      & taggedResultsFile, tWriteDetailedOut, fdDetailedOut)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -111,7 +113,29 @@ contains
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
 
+    !> Lattice vectors for the unit cell
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    !> should regression test data be written
+    logical, intent(in) :: tWriteAutoTest
+
+    !> File name for regression data
+    character(*), intent(in) :: autoTestTagFile
+
+    !> should machine readable output data be written
+    logical, intent(in) :: tWriteTaggedOut
+
+    !> File name for machine readable results data
+    character(*), intent(in) :: taggedResultsFile
+
+    !> should detailed.out be written to
+    logical, intent(in) :: tWriteDetailedOut
+
+    !> File id for detailed.out
+    integer, intent(in) :: fdDetailedOut
 
     integer :: nIndepHam, nSpin, nOrbs, nKpts, iAt1, iNeigh, iAt2, iAt2f, ii, jj, kk, iCell, iSpin
     integer :: iDir, iK, iOrb, iKS, iS, iCart
@@ -119,6 +143,8 @@ contains
     real(dp) :: vec(3)
     complex(dp), allocatable :: dPsi(:,:,:,:), dHamSqr(:,:), dOverSqr(:,:), workLocal(:,:)
     complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:,:), eCi(:,:)
+
+    integer :: fdResults
 
     complex(dp), allocatable :: U(:,:)
     type(wrappedCmplx2), allocatable :: UBlock(:)
@@ -181,7 +207,6 @@ contains
             dEi(ii, iKS, iCart) = real(workLocal(ii,ii), dp)
           end do
         end if
-        write(stdOut,*)iKS,iCart,(dEi(iOrb, iKS, iCart), iOrb = 1, nOrbs)
 
         ! ! symmetrise
         ! do iOrb = 1, nOrbs
@@ -199,9 +224,33 @@ contains
         ! end do
 
       end do
-      write(stdOut,*)
 
     end do
+
+    if (tWriteAutoTest) then
+      open(newunit=fdResults, file=trim(autoTestTagFile), position="append")
+      call taggedWriter%write(fdResults, tagLabels%dEigenDk, dEi)
+      close(fdResults)
+    end if
+    if (tWriteTaggedOut) then
+      open(newunit=fdResults, file=trim(taggedResultsFile), action="write", status="old",&
+          & position="append")
+      call taggedWriter%write(fdResults, tagLabels%dEigenDk, dEi)
+      close(fdResults)
+    end if
+
+    if (tWriteDetailedOut) then
+      write(fdDetailedOut,*)'Linear response derivatives or eigenvalues (eV) wrt to k(x,y,z)'
+      do iKS = 1, parallelKS%nLocalKS
+        iK = parallelKS%localKS(1, iKS)
+        iS = parallelKS%localKS(2, iKS)
+        write(fdDetailedOut,"(1X,A,I2,A,I0)")'Spin ',iS,' kpoint ', iK
+        do iOrb = 1, nOrbs
+          write(fdDetailedOut,"(I6,3F10.3)")iOrb, Hartree__eV * dEi(iOrb, iKS, :)
+        end do
+      end do
+      write(fdDetailedOut,*)
+    end if
 
   #:endif
 

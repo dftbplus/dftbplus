@@ -281,7 +281,8 @@ contains
     if (tKDerivs .and. tPeriodic .and. allocated(eigVecsCplx)) then
       call dPsidK(env, parallelKS, eigen, eigVecsCplx, ham, over, orb, nAtom, species,&
           & neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, coord, kPoint,&
-          & kWeight, cellVec, iCellVec, latVec)
+          & kWeight, cellVec, iCellVec, latVec, taggedWriter, tWriteAutotest, autotestTag,&
+          & tWriteResultsTag, resultsTag, tWriteDetailedOut, fdDetailedOut)
     end if
 
     if (tPolarisability) then

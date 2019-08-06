@@ -130,7 +130,10 @@ module dftbp_taggedoutput
     character(lenLabel) :: dqdEPerturb = 'staticChargeReponse'
 
     !> Ground state single particle eigenvalues
-    character(lenLabel) :: eigenVals   = 'eigenvalues'
+    character(lenLabel) :: eigenVals = 'eigenvalues'
+
+    !> Derivatives of ground state single particle eigenvalues wrt. k
+    character(lenLabel) :: dEigenDk  = 'dEidk'
 
     !> Electric dipole moment
     character(lenLabel) :: electricDipole   = 'electricdipole'

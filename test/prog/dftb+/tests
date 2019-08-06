@@ -24,6 +24,8 @@ response/CH4_dynamic                   #? MPI_PROCS <= 1
 response/OH_dynamic                    #? MPI_PROCS <= 1
 response/Au2_dynamic                   #? MPI_PROCS <= 4 or (not WITH_MPI)
 
+response/Si_2_k                        #? not WITH_MPI
+
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 

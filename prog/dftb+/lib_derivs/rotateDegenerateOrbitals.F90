@@ -9,7 +9,7 @@
 
 !> Module containing routines to make linear combinations of orbitals for degenerate perturbation
 !> from a hermitian/symmetric matrix
-module dftbp_degeneratePerturb
+module dftbp_rotateDegenerateOrbs
   use dftbp_accuracy, only : dp
   use dftbp_eigensolver, only : heev
   use dftbp_qm
@@ -333,4 +333,4 @@ contains
 
   end subroutine degeneracyRanges
 
-end module dftbp_degeneratePerturb
+end module dftbp_rotateDegenerateOrbs
