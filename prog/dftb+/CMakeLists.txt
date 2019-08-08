@@ -91,6 +91,8 @@ if(WITH_MPI)
   list(APPEND dftbplus-extlibs ${SCALAPACK_LIBRARIES})
 endif()
 
+list(APPEND dftbplus-extlibs ${LAPACK_LIBRARIES})
+
 target_link_libraries(dftbplus ${dftbplus-extlibs})
 
 dftbp_register_install_target(dftbplus)
@@ -124,6 +126,6 @@ dftbp_register_preprocessing(
 
 add_executable("dftb+" ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
-target_link_libraries(dftb+ dftbplus ${LAPACK_LIBRARIES} ${ARPACK_LIBRARIES})
+target_link_libraries(dftb+ dftbplus)
 
 dftbp_register_install_target(dftb+)
