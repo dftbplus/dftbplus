@@ -56,9 +56,8 @@ utils/srccheck/pylint/pylintrc-3.ini tools/dptools/bin/*
 Installation
 ============
 
-Please note, that the package needs at least **Python 2.6** or
-later. It should also work with Python 3.X. It additionally needs
-Numerical Python (the numpy module).
+Please note, that the package needs **Python 3.X**. It additionally
+needs Numerical Python (the numpy module).
 
 System install
 --------------

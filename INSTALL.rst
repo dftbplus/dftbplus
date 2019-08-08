@@ -42,7 +42,7 @@ models for the variables (same integer and floating point values).
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
 
-* Python (version >= 2.6) with NumPy
+* Python (version >= 3.X) with NumPy
 
 * The Slater-Koster data used in the tests (see below)
 

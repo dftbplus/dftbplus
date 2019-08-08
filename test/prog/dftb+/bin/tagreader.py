@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- Mode: Python -*-
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
