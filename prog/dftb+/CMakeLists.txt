@@ -28,41 +28,70 @@ add_subdirectory(lib_type)
 dftbp_register_preprocessing(
   "${FYPP}" "${fypp-opts}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
-add_library(dftbplus
-  ${ALL-SOURCES-F90}
-  ${all-sources-f90-preproc})
+set(dftbplus-components)
+set(dftbplus-extlibs)
+
+# Library components
+
+list(APPEND dftbplus-components ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
+
+if(MONOLITHIC_LIBDFTBPLUS)
+
+  list(APPEND dftbplus-components $<TARGET_OBJECTS:xmlf90_objlib>)
+
+  if(WITH_SOCKETS)
+    list(APPEND dftbplus-components $<TARGET_OBJECTS:fsockets_objlib>)
+  endif()
+
+  if(WITH_MPI)
+    list(APPEND dftbplus-components $<TARGET_OBJECTS:mpifx_objlib>)
+    list(APPEND dftbplus-components $<TARGET_OBJECTS:scalapackfx_objlib>)
+  endif()
+  
+endif()
+
+add_library(dftbplus ${dftbplus-components})
 
 set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${includedir})
 
-target_include_directories(dftbplus INTERFACE
+# External libraries
+
+if(NOT MONOLITHIC_LIBDFTBPLUS)
+  list(APPEND dftbplus-extlibs xmlf90)
+endif()
+
+target_include_directories(dftbplus PUBLIC
   $<TARGET_PROPERTY:xmlf90,INTERFACE_INCLUDE_DIRECTORIES>
   ${includedir})
 
-set(otherlibs xmlf90)
-
 if (WITH_SOCKETS)
-  target_include_directories(dftbplus INTERFACE
+  if(NOT MONOLITHIC_LIBDFTBPLUS)
+    list(APPEND dftbplus-extlibs fsockets)
+  endif()
+  target_include_directories(dftbplus PUBLIC
     $<TARGET_PROPERTY:fsockets,INTERFACE_INCLUDE_DIRECTORIES>)
-  list(APPEND otherlibs fsockets)
 endif()
 
 if(WITH_DFTD3)
-  target_include_directories(dftbplus INTERFACE
+  target_include_directories(dftbplus PUBLIC
     $<TARGET_PROPERTY:dftd3,INTERFACE_INCLUDE_DIRECTORIES>)
-  list(APPEND otherlibs dftd3)
+  list(APPEND dftbplus-extlibs dftd3)
 endif()
 
 if(WITH_MPI)
-  target_include_directories(dftbplus INTERFACE
+  target_include_directories(dftbplus PUBLIC
     $<TARGET_PROPERTY:mpifx,INTERFACE_INCLUDE_DIRECTORIES>)
-  target_include_directories(dftbplus INTERFACE
-    $<TARGET_PROPERTY:scalapackfx,INTERFACE_INCLUDE_DIRECTORIES>)
-  list(APPEND otherlibs mpifx scalapackfx ${SCALAPACK_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+  target_include_directories(dftbplus PUBLIC
+    $<TARGET_PROPERTY:scalapackfx_objlib,INTERFACE_INCLUDE_DIRECTORIES>)
+  if(NOT MONOLITHIC_LIBDFTBPLUS)
+    list(APPEND dftbplus-extlibs mpifx scalapackfx)
+  endif()
+  list(APPEND dftbplus-extlibs ${SCALAPACK_LIBRARIES})
 endif()
 
-target_link_libraries(dftbplus ${otherlibs})
+target_link_libraries(dftbplus ${dftbplus-extlibs})
 
 dftbp_register_install_target(dftbplus)
 dftbp_register_install_mod_dirs(${includedir})

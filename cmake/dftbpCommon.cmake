@@ -148,3 +148,41 @@ endfunction()
 function (dftbp_reset_file file)
   file(WRITE ${file} "")
 endfunction()
+
+
+# Sets the default build type.
+#
+# Args:
+#     default_build_type [in]: Default build type to use, if none was specified so far.
+#
+function (set_default_build_type default_build_type)
+  if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(STATUS "Setting build type to '${default_build_type}' (none was specified).")
+    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Build type")
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
+  endif()
+endfunction()
+
+
+# Finds libraries and turns them into imported library targets
+#
+# Args:
+#     libraries [in]: List of the library names to look for.
+#     libpaths [in]: List of the paths to be used as hints when looking for the libraries.
+#
+function (create_library_targets libraries libpaths)
+  foreach(lib IN LISTS libraries)
+    if(NOT TARGET ${lib})
+      find_library(LIBPATH_FOUND ${lib} HINTS ${libpaths})
+      IF(LIBPATH_FOUND)
+	message(STATUS "Found library ${LIBPATH_FOUND}")
+        add_library(${lib} UNKNOWN IMPORTED)
+        set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${LIBPATH_FOUND})
+      else()
+        message(FATAL_ERROR
+	  "Could not find library '${lib}' using library path hints '${libpaths}'")
+      endif()
+      unset(LIBPATH_FOUND CACHE)
+    endif()
+  endforeach()
+endfunction()
