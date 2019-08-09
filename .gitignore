@@ -12,7 +12,6 @@ make.config
 custom.cmake
 __pycache__
 .idea
-test/prog/dftb+/transtests
-test/prog/dftb+/alltests
 RELEASE
-srun.sh
+tools/dptools/build
+test/prog/dftb+/transtests

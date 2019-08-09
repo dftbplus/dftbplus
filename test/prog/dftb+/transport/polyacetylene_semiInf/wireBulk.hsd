@@ -1,0 +1,54 @@
+Geometry = GenFormat {
+    <<< Ordered_PL.gen
+}
+
+Transport{
+  Device{
+    AtomRange = 1 48
+    FirstLayerAtoms = 1 9 17 25 33 41
+  }
+  Contact{
+    Id = "wire"
+    AtomRange = 49 64
+  }
+  Task= contactHamiltonian{
+    contactId = "wire"
+  }
+}
+
+Hamiltonian = DFTB {
+    MaxAngularMomentum = {
+      C = p
+      H = s
+    }
+    Filling = Fermi {
+      Temperature [Kelvin] = 300
+    }
+    SlaterKosterFiles = Type2Filenames {
+      Separator = "-"
+      Suffix = ".skf"
+    }
+    KPointsAndWeights = SupercellFolding {
+      1000 0 0
+      0 1 0
+      0 0 1
+      0.5 0.0 0.0
+    }
+    # Note: on some ScaLAPACK version we have experienced dead-locks with
+    # the RelativelyRobust solver for this case.
+    Solver = DivideAndConquer {}
+}
+
+Parallel{
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 7
+}

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,14 +11,14 @@
 !> Periodic summation from the following references:
 !> N. Karasawa et al., J. Phys. Chem. 93, 7320-7327 (1989)
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
-module dispcommon
-  use assert
-  use accuracy
-  use constants, only : pi
-  use message
-  use sorting
-  use simplealgebra, only : cross3
-  use errorfunction
+module dftbp_dispcommon
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants, only : pi
+  use dftbp_message
+  use dftbp_sorting
+  use dftbp_simplealgebra, only : cross3
+  use dftbp_errorfunction
   implicit none
   private
 
@@ -297,7 +297,7 @@ contains
 
     vecLens(:) = sqrt(sum(latVecs**2, dim=1))
     call index_heap_sort(indx, vecLens)
-    call cross3(tmp, latVecs(:,indx(1)), latVecs(:,indx(2)))
+    tmp(:) = cross3(latVecs(:,indx(1)), latVecs(:,indx(2)))
     eta = sqrt(vecLens(indx(1)) * vol / (pi * sqrt(sum(tmp**2))))
 
   end function getOptimalEta
@@ -484,4 +484,4 @@ contains
 
   end function getDispReciprocalError
 
-end module dispcommon
+end module dftbp_dispcommon

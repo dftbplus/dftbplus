@@ -1,177 +1,186 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
+#! Template paramters: (data type, suffix name, data type name in the tagged output, format string)
+#:set TEMPLATE_PARAMS = [('real(dp)', 'Real', 'real', 'formReal'),&
+    & ('complex(dp)', 'Cplx', 'complex', 'formCmplx'),&
+    & ('integer', 'Integer', 'integer', 'formInt'),&
+    & ('logical', 'Logical', 'logical', 'formLogical')]
+
+#! Maximal rank to include into the interface (string from 0 - scalar)
+#:set MAX_RANK = 4
+
+
 !> Contains routines to write out various data structures in a comprehensive tagged format.
-module taggedoutput
-  use assert
-  use accuracy, only : dp
+module dftbp_taggedoutput
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
   implicit none
   private
 
-  public :: initTaggedWriter, writeTagged
+  public :: tagLabels
+  public :: TTaggedWriter, TTaggedWriter_init
 
 
-  !> Writes objects in standardized form to the output
-  interface writeTagged
-    module procedure writeTaggedRealR0
-    module procedure writeTaggedRealR1
-    module procedure writeTaggedRealR2
-    module procedure writeTaggedRealR3
-    module procedure writeTaggedRealR4
-    module procedure writeTaggedComplexR0
-    module procedure writeTaggedComplexR1
-    module procedure writeTaggedComplexR2
-    module procedure writeTaggedComplexR3
-    module procedure writeTaggedComplexR4
-    module procedure writeTaggedIntegerR0
-    module procedure writeTaggedIntegerR1
-    module procedure writeTaggedIntegerR2
-    module procedure writeTaggedIntegerR3
-    module procedure writeTaggedIntegerR4
-    module procedure writeTaggedLogicalR0
-    module procedure writeTaggedLogicalR1
-    module procedure writeTaggedLogicalR2
-    module procedure writeTaggedLogicalR3
-    module procedure writeTaggedLogicalR4
-  end interface writeTagged
-
-  !> Length of permissible tag labels. Tag names (Should be shorter than lenLabel!)
+  !> Length of permissible tag labels. Tag names should be shorter than lenLabel!
   integer, parameter :: lenLabel = 20
 
-  !> unit cell volume (periodic)
-  character(*), parameter, public :: tag_volume = 'cell_volume'
-
-  !> final geometry
-  character(*), parameter, public :: tag_endCoord = 'end_coords'
-
-  !> excitation energies in Casida formalism
-  character(*), parameter, public :: tag_excEgy = 'exc_energies_sqr'
-
-  !> excited state force contributions
-  character(*), parameter, public :: tag_excForce = 'exc_forces'
-
-  !> oscillator strength for excitations
-  character(*), parameter, public :: tag_excOsc = 'exc_oscillator'
-
-  !> ground state total forces
-  character(*), parameter, public :: tag_forceTot = 'forces'
-
-  !> forces on any external charges present
-  character(*), parameter, public :: tag_chrgForces = 'forces_ext_charges'
-
-  !> Gibbs free energy for finite pressure periodic systems
-  character(*), parameter, public :: tag_Gibbsfree = 'gibbs_energy'
-
-  !> Gross atomic charges
-  character(*), parameter, public :: tag_qOutAtGross  = 'gross_atomic_charges'
-
-  !> numerically calculated second derivatives matrix
-  character(*), parameter, public :: tag_HessianNum = 'hessian_numerical'
-
-  !> total energy including electron TS contribution
-  character(*), parameter, public :: tag_freeEgy = 'mermin_energy'
-
-  !> Mulliken charges
-  character(*), parameter, public :: tag_qOutput = 'orbital_charges'
-
-  !> Pipek-Mezey localisation score of single particle levels
-  character(*), parameter, public :: tag_pmlocalise = 'pm_localisation'
-
-  !> total stress tensor for periodic geometries
-  character(*), parameter, public :: tag_stressTot = 'stress'
-
-  !> total tunneling vector
-  character(*), parameter, public :: tag_tunn = 'total_tunneling'
-
-  !> total projected DOS vector
-  character(*), parameter, public :: tag_ldos = 'total_localdos'
-
-  !> total internal energy
-  character(*), parameter, public :: tag_egyTotal   = 'total_energy'
-
-  !> total internal energy extrapolated to 0 K
-  character(*), parameter, public :: tag_egy0Total   = 'extrapolated0_energy'
-
-  !> Energy, which if differentiated gives - force
-  character(*), parameter, public :: tag_egyforcerelated = 'forcerelated_energy'
-
-  !> Internal electric field
-  character(*), parameter, public :: tag_internfield = 'internal_efield'
-
-  !> External electric field
-  character(*), parameter, public :: tag_externfield = 'external_efield'
-
-  ! general format strings
-
-  !> real string format
-  character(len=lenLabel) :: formReal
-
-  !> complex  string format
-  character(len=lenLabel) :: formCmplx
-
-  !> integer string format
-  character(len=lenLabel) :: formInt
-
-  !> logical string format
-  character(len=lenLabel) :: formLogical
+  !> Max length of the format strings for individual items
+  integer, parameter :: lenFormStr = 20
 
 
-  !> is the write initialised? required to get relevant machine/compiler constants. Should all be
-  !> stored as a derived type
-  logical :: initialized = .false.
+  !> Contains a writer to write data in tagged form.
+  type :: TTaggedWriter
+    private
+    ! Format strings
+    character(len=lenFormStr) :: formReal
+    character(len=lenFormStr) :: formCmplx
+    character(len=lenFormStr) :: formInt
+    character(len=lenFormStr) :: formLogical
+    logical :: initialized = .false.
+  contains
+    #:for _, SUFFIX, _, _ in TEMPLATE_PARAMS
+      #:for RANK in range(MAX_RANK + 1)
+        procedure, private :: write${SUFFIX}$${RANK}$ => TTaggedWriter_write${SUFFIX}$${RANK}$
+        generic :: write => write${SUFFIX}$${RANK}$
+      #:endfor
+    #:endfor
+  end type TTaggedWriter
+
+
+  !> Enumeration of the possible tag labels
+  type :: TTagLabelsEnum
+
+    !> unit cell volume (periodic)
+    character(lenLabel) :: volume = 'cell_volume'
+
+    !> final geometry
+    character(lenLabel) :: endCoord = 'end_coords'
+
+    !> excitation energies in Casida formalism
+    character(lenLabel) :: excEgy = 'exc_energies_sqr'
+
+    !> excited state force contributions
+    character(lenLabel) :: excForce = 'exc_forces'
+
+    !> oscillator strength for excitations
+    character(lenLabel) :: excOsc = 'exc_oscillator'
+
+    !> ground state total forces
+    character(lenLabel) :: forceTot = 'forces'
+
+    !> forces on any external charges present
+    character(lenLabel) :: chrgForces = 'forces_ext_charges'
+
+    !> Gibbs free energy for finite pressure periodic systems
+    character(lenLabel) :: gibbsFree = 'gibbs_energy'
+
+    !> Gross atomic charges
+    character(lenLabel) :: qOutAtGross  = 'gross_atomic_charges'
+
+    !> numerically calculated second derivatives matrix
+    character(lenLabel) :: hessianNum = 'hessian_numerical'
+
+    !> total energy including electron TS contribution
+    character(lenLabel) :: freeEgy = 'mermin_energy'
+
+    !> Mulliken charges
+    character(lenLabel) :: qOutput = 'orbital_charges'
+
+    !> Pipek-Mezey localisation score of single particle levels
+    character(lenLabel) :: pmlocalise = 'pm_localisation'
+
+    !> total stress tensor for periodic geometries
+    character(lenLabel) :: stressTot = 'stress'
+
+    !> total tunneling vector
+    character(lenLabel) :: tunn = 'total_tunneling'
+
+    !> total projected DOS vector
+    character(lenLabel) :: ldos = 'total_localdos'
+
+    !> total bond currents 
+    character(lenLabel) :: localCurrents = 'local_currents'
+
+    !> total internal energy
+    character(lenLabel) :: egyTotal   = 'total_energy'
+
+    !> total internal energy extrapolated to 0 K
+    character(lenLabel) :: egy0Total   = 'extrapolated0_energy'
+
+    !> Energy, which if differentiated gives - force
+    character(lenLabel) :: egyForceRelated = 'forcerelated_energy'
+
+    !> Internal electric field
+    character(lenLabel) :: internField = 'internal_efield'
+
+    !> External electric field
+    character(lenLabel) :: externField = 'external_efield'
+
+  end type TTagLabelsEnum
+
+
+  !> Enum containing the tag labels used.
+  type(TTagLabelsEnum), parameter :: tagLabels = TTagLabelsEnum()
+
 
 contains
 
 
   !> initialise writer
-  subroutine initTaggedWriter()
+  subroutine TTaggedWriter_init(this)
+
+    !> Instance
+    type(TTaggedWriter), intent(out) :: this
 
     integer :: nDecDigit, nExpDigit, nChar, nField
 
-    if (initialized) then
+    if (this%initialized) then
       return
     end if
 
     !! "-3.1234567E-123 ": nDec = 7, nExpDigit = 3, nChar = 16
-    nExpDigit = ceiling(log(maxexponent(1.0_dp)/log(10.0))/log(10.0))
+    nExpDigit = ceiling(log(maxexponent(1.0_dp) / log(10.0)) / log(10.0))
     nDecDigit = precision(1.0_dp)
     nChar = nDecDigit + nExpDigit + 6
     nField = 80 / nChar
     if (nField == 0) then
       nField = 1
     end if
-99000 format ('(', I2.2, 'E', I2.2, '.', I2.2, 'E', I3.3, ')')
-    write (formReal, 99000) &
-        & nField, nChar, nDecDigit, nExpDigit
-99010 format ('(', I2.2, '(2E', I2.2, '.', I2.2, 'E', I3.3, '))')
-    write (formCmplx, 99010) &
-        & nField/2, nChar, nDecDigit, nExpDigit
 
-    !! "-12345 "
+    write (this%formReal, "('(', I2.2, 'E', I2.2, '.', I2.2, 'E', I3.3, ')')") nField, nChar,&
+        & nDecDigit, nExpDigit
+
+    write (this%formCmplx, "('(', I2.2, '(2E', I2.2, '.', I2.2, 'E', I3.3, '))')") nField / 2,&
+        & nChar, nDecDigit, nExpDigit
+
     nChar = digits(1) + 2
     nField = 80 / nChar
     if (nField == 0) then
       nField = 1
     end if
-99020 format ('(', I2.2, 'I', I2.2, ')')
-    write (formInt, 99020) nField, nChar
+    write (this%formInt, "('(', I2.2, 'I', I2.2, ')')") nField, nChar
+    write (this%formLogical, "('(40L2)')")
 
-99030 format ('(40L2)')
-    write (formLogical, 99030)
+    this%initialized = .true.
 
-    initialized = .true.
-
-  end subroutine initTaggedWriter
+  end subroutine TTaggedWriter_init
 
 
-  !> write single real values
-  subroutine writeTaggedRealR0(file, tag, value, optForm)
+#:for DATA_TYPE, SUFFIX, DATA_TYPE_TAG_NAME, FORMAT_STRING in TEMPLATE_PARAMS
+  #:for RANK in range(MAX_RANK + 1)
+
+  !> Write tagged data (data type: ${DATA_TYPE}$)
+  subroutine TTaggedWriter_write${SUFFIX}$${RANK}$(this, file, tag, data, optForm)
+
+    !> Instance
+    class(TTaggedWriter), intent(inout) :: this
 
     !> File ID
     integer, intent(in) :: file
@@ -179,681 +188,70 @@ contains
     !> tag label
     character(len=*), intent(in) :: tag
 
-    !> value to print
-    real(dp), intent(in) :: value
+    !> data to print
+    ${DATA_TYPE}$, intent(in) :: data${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
     !> optional formatting string
     character(len=*), optional, intent(in) :: optForm
 
     character(len=20) :: form
 
-    @:ASSERT(initialized)
+    @:ASSERT(this%initialized)
 
     if (present(optForm)) then
       form = getLabel(optForm)
     else
-      form = getLabel(formReal)
+      form = getLabel(this%${FORMAT_STRING}$)
     end if
+    #:if RANK
+      call writeTaggedHeader(file, tag, '${DATA_TYPE_TAG_NAME}$', shape(data))
+    #:else
+      call writeTaggedHeader(file, tag, '${DATA_TYPE_TAG_NAME}$')
+    #:endif
+    write(file, form) data
 
-99040 format (A, ':real:0:')
-    write (file, 99040) getLabel(tag)
-    write (file, form) value
+  end subroutine TTaggedWriter_write${SUFFIX}$${RANK}$
 
-  end subroutine writeTaggedRealR0
+  #:endfor
+#:endfor
 
 
-  !> write real vectors
-  subroutine writeTaggedRealR1(file, tag, value, optForm)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!  Private functions
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    !> file ID to write to
+
+  !> Writes the tagged header.
+  subroutine writeTaggedHeader(file, tag, dataType, dataShape)
+
+    !> File id to write to
     integer, intent(in) :: file
 
-    !> tag label
-    character(len=*), intent(in) :: tag
+    !> Tag name
+    character(*), intent(in) :: tag
 
-    !> data to write
-    real(dp), intent(in) :: value(:)
+    !> Form string to use
+    character(*), intent(in) :: dataType
 
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
+    !> Original shape of the data
+    integer, intent(in), optional :: dataShape(:)
 
-    integer :: ii
-    character(len=20) :: form
+    character(100) :: buffer
 
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
+    if (present(dataShape)) then
+      if (size(dataShape) == 1) then
+        write(buffer, "(5A,I0,4A)") '("', getLabel(tag), ":", trim(dataType), ":", size(dataShape),&
+            & ":", '",', 'I0', ')'
+      else
+        write(buffer, "(5A,I0,3A,I0,2A)") '("', getLabel(tag), ":", trim(dataType), ":",&
+            & size(dataShape), ":", '",', 'I0,', size(dataShape) - 1, '(",",I0)', ')'
+      end if
+      write(file, buffer) dataShape
     else
-      form = getLabel(formReal)
+      write(file, "(4A,I0,A)") getLabel(tag), ":", trim(dataType), ":", 0, ":"
     end if
 
-99050 format (A, ':real:1:', I0)
-    write (file, 99050) getLabel(tag), size(value)
-    write (file, form) (value(ii), ii = 1, size(value))
-  end subroutine writeTaggedRealR1
-
-
-  !> write real arrays
-  subroutine writeTaggedRealR2(file, tag, value, optForm)
-    integer, intent(in) :: file
-    character(len=*), intent(in) :: tag
-    real(dp), intent(in) :: value(:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formReal)
-    end if
-
-99060 format (A, ':real:2:', I0, ',', I0)
-    write (file, 99060) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2)
-    write (file, form) ((value(ii, jj), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2))
-  end subroutine writeTaggedRealR2
-
-
-  !> write 3d real arrays
-  subroutine writeTaggedRealR3(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    real(dp), intent(in) :: value(:,:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj, kk
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formReal)
-    end if
-
-99070 format (A, ':real:3:', I0, ',', I0, ',', I0)
-    write (file, 99070) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2), size(value, dim=3)
-    write (file, form) (((value(ii, jj, kk), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2)), &
-        & kk = 1, size(value, dim=3))
-  end subroutine writeTaggedRealR3
-
-
-  !> write 4d real arrays
-  subroutine writeTaggedRealR4(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    real(dp), intent(in) :: value(:,:,:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj, kk, ll
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formReal)
-    end if
-
-99080 format (A, ':real:4:', I0, ',', I0, ',', I0, ',', I0)
-    write (file, 99080) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
-        & size(value, dim=4)
-    write (file, form) ((((value(ii, jj, kk, ll), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2)), &
-        & kk = 1, size(value, dim=3)), &
-        & ll = 1, size(value, dim=4))
-  end subroutine writeTaggedRealR4
-
-
-  !> single complex values
-  subroutine writeTaggedComplexR0(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    complex(dp), intent(in) :: value
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formCmplx)
-    end if
-
-99090 format (A, ':complex:0:')
-    write (file, 99090) getLabel(tag)
-    write (file, form) value
-
-  end subroutine writeTaggedComplexR0
-
-
-  !> complex vectors
-  subroutine writeTaggedComplexR1(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    complex(dp), intent(in) :: value(:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formCmplx)
-    end if
-
-99100 format (A, ':complex:1:', I0)
-    write (file, 99100) getLabel(tag), size(value)
-    write (file, form) (value(ii), ii = 1, size(value))
-  end subroutine writeTaggedComplexR1
-
-
-  !> complex arrays
-  subroutine writeTaggedComplexR2(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    complex(dp), intent(in) :: value(:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formCmplx)
-    end if
-
-99110 format (A, ':complex:2:', I0, ',', I0)
-    write (file, 99110) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2)
-    write (file, form) ((value(ii, jj), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2))
-  end subroutine writeTaggedComplexR2
-
-
-  !> complex 3d arrays
-  subroutine writeTaggedComplexR3(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    complex(dp), intent(in) :: value(:,:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj, kk
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formCmplx)
-    end if
-
-99120 format (A, ':complex:3:', I0, ',', I0, ',', I0)
-    write (file, 99120) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2), size(value, dim=3)
-    write (file, form) (((value(ii, jj, kk), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2)), &
-        & kk = 1, size(value, dim=3))
-  end subroutine writeTaggedComplexR3
-
-
-  !> complex 4d arrays
-  subroutine writeTaggedComplexR4(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    complex(dp), intent(in) :: value(:,:,:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj, kk, ll
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formCmplx)
-    end if
-
-99130 format (A, ':complex:4:', I0, ',', I0, ',', I0, ',', I0)
-    write (file, 99130) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
-        & size(value, dim=4)
-    write (file, form) ((((value(ii, jj, kk, ll), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2)), &
-        & kk = 1, size(value, dim=3)), &
-        & ll = 1, size(value, dim=4))
-  end subroutine writeTaggedComplexR4
-
-
-  !> write integer values
-  subroutine writeTaggedIntegerR0(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    integer, intent(in) :: value
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formInt)
-    end if
-
-99140 format (A, ':integer:0:')
-    write (file, 99140) getLabel(tag)
-    write (file, form) value
-
-  end subroutine writeTaggedIntegerR0
-
-
-  !> write integer vectors
-  subroutine writeTaggedIntegerR1(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    integer, intent(in) :: value(:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formInt)
-    end if
-
-99150 format (A, ':integer:1:', I0)
-    write (file, 99150) getLabel(tag), size(value)
-    write (file, form) (value(ii), ii = 1, size(value))
-  end subroutine writeTaggedIntegerR1
-
-
-  !> write integer arrays
-  subroutine writeTaggedIntegerR2(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    integer, intent(in) :: value(:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formInt)
-    end if
-
-99160 format (A, ':integer:2:', I0, ',', I0)
-    write (file, 99160) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2)
-    write (file, form) ((value(ii, jj), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2))
-  end subroutine writeTaggedIntegerR2
-
-
-  !> write 3d integer arrays
-  subroutine writeTaggedIntegerR3(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    integer, intent(in) :: value(:,:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj, kk
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formInt)
-    end if
-
-99170 format (A, ':integer:3:', I0, ',', I0, ',', I0)
-    write (file, 99170) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2), size(value, dim=3)
-    write (file, form) (((value(ii, jj, kk), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2)), &
-        & kk = 1, size(value, dim=3))
-  end subroutine writeTaggedIntegerR3
-
-
-  !> write 4d integer arrays
-  subroutine writeTaggedIntegerR4(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    integer, intent(in) :: value(:,:,:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj, kk, ll
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formInt)
-    end if
-
-99180 format (A, ':integer:4:', I0, ',', I0, ',', I0, ',', I0)
-    write (file, 99180) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
-        & size(value, dim=4)
-    write (file, form) ((((value(ii, jj, kk, ll), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2)), &
-        & kk = 1, size(value, dim=3)), &
-        & ll = 1, size(value, dim=4))
-  end subroutine writeTaggedIntegerR4
-
-
-  !> write logical values
-  subroutine writeTaggedLogicalR0(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    logical, intent(in) :: value
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formLogical)
-    end if
-
-99190 format (A, ':logical:0:')
-    write (file, 99190) getLabel(tag)
-    write (file, form) value
-
-  end subroutine writeTaggedLogicalR0
-
-
-  !> write logical vectors
-  subroutine writeTaggedLogicalR1(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    logical, intent(in) :: value(:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formLogical)
-    end if
-
-99200 format (A, ':logical:1:', I0)
-    write (file, 99200) getLabel(tag), size(value)
-    write (file, form) (value(ii), ii = 1, size(value))
-  end subroutine writeTaggedLogicalR1
-
-
-  !> write logical arrays
-  subroutine writeTaggedLogicalR2(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    logical, intent(in) :: value(:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formLogical)
-    end if
-
-99210 format (A, ':logical:2:', I0, ',', I0)
-    write (file, 99210) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2)
-    write (file, form) ((value(ii, jj), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2))
-  end subroutine writeTaggedLogicalR2
-
-
-  !> write 3d logical arrays
-  subroutine writeTaggedLogicalR3(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    logical, intent(in) :: value(:,:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj, kk
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formLogical)
-    end if
-
-99220 format (A, ':logical:3:', I0, ',', I0, ',', I0)
-    write (file, 99220) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2), size(value, dim=3)
-    write (file, form) (((value(ii, jj, kk), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2)), &
-        & kk = 1, size(value, dim=3))
-  end subroutine writeTaggedLogicalR3
-
-
-  !> write 4d logical arrays
-  subroutine writeTaggedLogicalR4(file, tag, value, optForm)
-
-    !> file id
-    integer, intent(in) :: file
-
-    !> tag name
-    character(len=*), intent(in) :: tag
-
-    !> data to write
-    logical, intent(in) :: value(:,:,:,:)
-
-    !> optional formatting string
-    character(len=*), optional, intent(in) :: optForm
-
-    integer :: ii, jj, kk, ll
-    character(len=20) :: form
-
-    @:ASSERT(initialized)
-
-    if (present(optForm)) then
-      form = getLabel(optForm)
-    else
-      form = getLabel(formLogical)
-    end if
-
-99230 format (A, ':logical:4:', I0, ',', I0, ',', I0, ',', I0)
-    write (file, 99230) getLabel(tag), &
-        & size(value, dim=1), size(value, dim=2), size(value, dim=3), &
-        & size(value, dim=4)
-    write (file, form) ((((value(ii, jj, kk, ll), &
-        & ii = 1, size(value, dim=1)), &
-        & jj = 1, size(value, dim=2)), &
-        & kk = 1, size(value, dim=3)), &
-        & ll = 1, size(value, dim=4))
-  end subroutine writeTaggedLogicalR4
+  end subroutine writeTaggedHeader
 
 
   !> Extracts the label for a tag
@@ -867,8 +265,6 @@ contains
 
     integer :: lentrim
 
-    @:ASSERT(initialized)
-
     lentrim = len_trim(tag)
     if (lentrim >= lenLabel) then
       getLabel(:) = tag(1:lenLabel)
@@ -879,4 +275,5 @@ contains
 
   end function getLabel
 
-end module taggedoutput
+
+end module dftbp_taggedoutput

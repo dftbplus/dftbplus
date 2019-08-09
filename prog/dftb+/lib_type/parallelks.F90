@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,8 +8,8 @@
 #:include "common.fypp"
 
 !> Provides data structure for parallelising over k-points and spin.
-module parallelks
-  use environment
+module dftbp_parallelks
+  use dftbp_environment
   implicit none
   private
 
@@ -89,4 +89,4 @@ contains
   end subroutine TParallelKS_init
 
 
-end module parallelks
+end module dftbp_parallelks

@@ -1,12 +1,13 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2018  DFTB+ developers group                                  #
+#  Copyright (C) 2006 - 2019  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 
 .SUFFIXES:
 .SUFFIXES: .f .f90 .F90 .o
+
 #.PRECIOUS: %.f90
 
 FXXCLEAN = *.mod
@@ -79,7 +80,6 @@ endef
 _mod_%:
 	@[ -f $< ] && touch $@
 
-.PRECIOUS: %.f90
 
 ############################################################################
 # External libraries
@@ -89,7 +89,7 @@ _mod_%:
 #
 #  Technique: If any requisite occurs as _extlib_<library name> the according
 #  library will be linked. It must be already compiled at that point.
-#  Dependency of an object file on a library must be set in the 
+#  Dependency of an object file on a library must be set in the
 #  <sourcedir of object file >/make.extdeps as
 #    <name of object file>: _extlib_<library name>
 #    <name of object file> += _extlib_<library name>
@@ -132,30 +132,45 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
+# TRANSPORT
+ifeq ($(strip $(WITH_TRANSPORT)),1)
+  FYPPOPT += -DWITH_TRANSPORT
+
+  LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lnegf -lsparskit 
+  SYSCALLS_LIBS := -L$(BUILDROOT)/external/libnegf -lsyscalls #-lc
+  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(SYSCALLS_LIBS))
+  L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
+  L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
+  L_INCS += -I$(BUILDROOT)/external/libnegf/libnegf
+  COMPILED_EXTERNALS += _extlib_libnegf
+
+  POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
+  L_LIBS += $(if $(filter _extlib_poisson, $^), $(POISSON_LIBS))
+  L_INCS += -I$(BUILDROOT)/external/poisson
+  COMPILED_EXTERNALS += _extlib_poisson
+endif
+
 ifeq ($(strip $(WITH_MPI)),1)
   #
   # MPI settings
   #
   FYPPOPT += -DWITH_MPI -DWITH_SCALAPACK
 
-  # TRANSPORT
-  ifeq ($(strip $(WITH_TRANSPORT)),1)
-    L_INCS += -I$(BUILDROOT)/external/libnegf/libnegf
-    L_INCS += -I$(BUILDROOT)/external/libnegf/ext_system
-    L_INCS += -I$(BUILDROOT)/external/poisson
-    LIBNEGF_LIBS := -L$(BUILDROOT)/external/libnegf -lnegf -lsparskit -lsyscalls -lc
-    POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
-    COMPILED_EXTERNALS += _extlib_mudpack
-    L_LIBS += $(if $(filter _extlib_libnegf, $^), $(POISSON_LIBS))
-    COMPILED_EXTERNALS += _extlib_libnegf
-    L_LIBS += $(if $(filter _extlib_libnegf, $^), $(LIBNEGF_LIBS))
-    FYPPOPT += -DWITH_TRANSPORT
-  endif
-
   MPIFX_LIBS := -L$(BUILDROOT)/external/mpifx -lmpifx
   MPIFX_INCS := -I$(BUILDROOT)/external/mpifx
   L_LIBS += $(MPIFX_LIBS)
   L_INCS += $(MPIFX_INCS)
+
+  # ELSI library
+  ifeq ($(strip $(WITH_ELSI)),1)
+    L_INCS += -I$(ELSIINCDIR)
+    L_LIBS += $(LIB_ELSI)
+    FYPPOPT += -DWITH_ELSI
+    ifeq ($(strip $(WITH_PEXSI)),1)
+      FYPPOPT += -DWITH_PEXSI
+      L_LIBS += $(LIB_PEXSI)
+    endif
+  endif
 
   SCALAPACKFX_LIBS := -L$(BUILDROOT)/external/scalapackfx -lscalapackfx
   SCALAPACKFX_INCS := -I$(BUILDROOT)/external/scalapackfx
@@ -170,9 +185,31 @@ ifeq ($(strip $(WITH_MPI)),1)
   L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
   L_LIBS += $(L_LIBS_LAPACKBLAS)
 
+  ifeq ($(strip $(WITH_GPU)),1)
+    $(error 'GPU use currently not supported with MPI code')
+  endif
+
+else ifeq ($(strip $(WITH_GPU)),1)
+  #
+  # GPU-Settings
+  #
+  FYPPOPT += -DWITH_GPU
+
+  # extra helper routines
+  COMPILED_EXTERNALS += _extlib_magmahelper
+  LIB_MAGMAHELPER = -L$(BUILDROOT)/external/magmahelper -lCountDevice
+  INC_MAGMAHELPER = -I$(BUILDROOT)/external/magmahelper
+  L_LIBS += $(LIB_MAGMAHELPER)
+  L_INCS += $(INC_MAGMAHELPER)
+
+  # LAPACK/BLAS
+  PRESENT_EXTERNALS += _extlib_lapack _extlib_blas
+  L_LIBS_LAPACKBLAS += $(if $(filter _extlib_lapack, $^), $(LIB_LAPACK))
+  L_LIBS += $(L_LIBS_LAPACKBLAS)
+
 else
   #
-  # NON-MPI settings
+  # NON-MPI NON-GPU settings
   #
 
   # LAPACK/BLAS
@@ -195,6 +232,7 @@ else
     L_LIBS += $(L_LIBS_LAPACKBLAS) $(L_LIBS_ARPACK)
   endif
 endif
+  
 
 $(COMPILED_EXTERNALS): __FORCE__
 	touch -r $(BUILDROOT)/external/$(subst _extlib_,,$@)/BUILD_TIMESTAMP $@
@@ -207,7 +245,7 @@ $(PRESENT_EXTERNALS):
 #  Targets
 ############################################################################
 
-clean: 
+clean:
 	-rm -f *.o *.f90 _mod_* $(FXXCLEAN) _dependencies _extlib_*
 
 ############################################################################
