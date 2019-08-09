@@ -1,36 +1,36 @@
 set(sources
+  buffer.f90
+  charset.f90
+  converters.f90
+  debug.f90
+  dictionary.f90
+  dom_attribute.f90
+  dom_debug.f90
+  dom_document.f90
+  dom_element.f90
+  dom_error.f90
+  dom_namednodemap.f90
+  dom_node.f90
+  dom_nodelist.f90
+  dom_parse.f90
+  dom_types.f90
+  dom_utils.f90
+  elstack.f90
+  entities.f90
   flib_dom.f90
   flib_sax.f90
   flib_wxml.f90
-  m_buffer.f90
-  m_charset.f90
-  m_converters.f90
-  m_debug.f90
-  m_dictionary.f90
-  m_dom_attribute.f90
-  m_dom_debug.f90
-  m_dom_document.f90
-  m_dom_element.f90
-  m_dom_error.f90
-  m_dom_namednodemap.f90
-  m_dom_node.f90
-  m_dom_nodelist.f90
-  m_dom_parse.f90
-  m_dom_types.f90
-  m_dom_utils.f90
-  m_elstack.f90
-  m_entities.f90
-  m_fsm.f90
-  m_io.f90
-  m_reader.f90
-  m_strings.f90
-  m_wxml_buffer.f90
-  m_wxml_core.f90
-  m_wxml_dictionary.f90
-  m_wxml_elstack.f90
-  m_wxml_text.f90
-  m_xml_error.f90
-  m_xml_parser.f90)
+  fsm.f90
+  io.f90
+  reader.f90
+  strings.f90
+  wxml_buffer.f90
+  wxml_core.f90
+  wxml_dictionary.f90
+  wxml_elstack.f90
+  wxml_text.f90
+  xml_error.f90
+  xml_parser.f90)
 
 add_library(xmlf90_objlib OBJECT ${sources})
 add_library(xmlf90 $<TARGET_OBJECTS:xmlf90_objlib>)

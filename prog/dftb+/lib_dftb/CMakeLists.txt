@@ -21,11 +21,13 @@ set(sources-fpp
   ${curdir}/forces.F90
   ${curdir}/h5correction.F90
   ${curdir}/nonscc.F90
+  ${curdir}/onscorrection.F90
   ${curdir}/orbitalequiv.F90
   ${curdir}/periodic.F90
   ${curdir}/pmlocalisation.F90
   ${curdir}/populations.F90
   ${curdir}/potentials.F90
+  ${curdir}/rangeseparated.F90
   ${curdir}/repcont.F90
   ${curdir}/reppoly.F90
   ${curdir}/repspline.F90

@@ -6,11 +6,25 @@ set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (Release|Debug)")
 set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
   "Directory to install the compiled code into")
 
+
+option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-library" FALSE)
+
+option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
+
+option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
+
+option(WITH_PEXSI "Whether the ELSI libraries are compiled  with PEXSI support" FALSE)
+
+option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
+
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
+
+option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
 
 option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 
-option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
+
+option(BUILD_API "Whether the high-level API to the DFTB+ library should be built" FALSE)
 
 option(MONOLITHIC_LIBDFTBPLUS
   "Whether the DFTB+ library built should contain some of the libraries it depends on" FALSE)

@@ -15,7 +15,7 @@ set(sources-fpp
   ${curdir}/unitconversion.F90)
 
 if(WITH_MPI)
-  set(sources-fpp ${sources-fpp}
+  list(APPEND sources-fpp
     ${curdir}/blacsenv.F90
     ${curdir}/mpienv.F90)
 endif()

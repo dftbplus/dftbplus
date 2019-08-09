@@ -16,6 +16,8 @@ set(ALL-SOURCES-FPP)
 add_subdirectory(lib_common)
 add_subdirectory(lib_derivs)
 add_subdirectory(lib_dftb)
+add_subdirectory(lib_dftbplus)
+add_subdirectory(lib_elecsolvers)
 add_subdirectory(lib_extlibs)
 add_subdirectory(lib_geoopt)
 add_subdirectory(lib_io)
@@ -55,6 +57,7 @@ add_library(dftbplus ${dftbplus-components})
 set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${includedir})
+target_include_directories(dftbplus PUBLIC ${includedir})
 
 # External libraries
 
