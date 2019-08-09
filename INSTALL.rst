@@ -12,7 +12,9 @@ In order to compile DFTB+, you need the following software components:
 
 * A C-compiler
 
-* GNU make (version >= 3.79.1)
+* CMake (version 3.5 or newer)
+
+* GNU make
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
@@ -35,6 +37,7 @@ results, you will additionally need:
 
 * The Slater-Koster data used in the tests (see below)
 
+
 Obtaining the source
 ====================
 
@@ -50,6 +53,7 @@ downloaded ::
   git clone https://github.com/dftbplus/dftbplus.git
   cd dftbplus
   git submodule update --init --recursive
+
 
 Optional extra components
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -84,37 +88,48 @@ For more information see the detailed help for this tool by issuing
 Compiling
 =========
 
-* Look at the makefiles in the `sys/` folder and find the one closest to your
-  system. The suffix of the makefiles indicate the architecture, operating
-  system and the compiler they have been written for. Copy the most suitable
-  makefile to ``make.arch`` in the root directory of the source tree, e.g.::
+* Look at the `config.cmake` file and customise the global build parameters if
+  necessary. (If you are unsure, leave the defaults as they are.)
 
-      cp sys/make.x86_64-linux-gnu make.arch
+* Customise the ``ARCH`` variable at the bottom of then `config.cmake` file. It
+  should correspond to the prefix of one of the cmake config files in the `sys/`
+  folder. Take the one which is closest to your system (and customise it
+  according to your needs). Alternatively, you can also create your own file in
+  the `sys/` folder.
 
-* Adjust the settings in `make.arch` according to your system. Note that there
-  are often separate settings in `make.arch` for compiling with and without
-  MPI. The code is also usually compiled with openMP enabled.
+  The build system will include the architecture dependent settings from the
+  file `sys/${ARCH}.cmake` where ``${ARCH}`` is the value of the ``ARCH``
+  variable you set in `config.cmake`.
 
-* Open the file `make.config` and check the configuration options set there. In
-  this file binary choices are defined as either 0 (false) or 1 (true).
+* Create a build folder **outside** of the DFTB+ source tree and change to that
+  that folder, e.g.::
 
-* Build the binaries by issuing ::
+    mkdir /tmp/build_dftb+
+    cd /tmp/build_dftb+
 
-     make
+* From the build folder Invoke CMake to configure the build. Pass the folder
+  with the DFTB+ source code as argument, e.g. assuming the DFTB+ source is
+  located in `~/dftbplus`, issue::
 
-  in the root directory of your source tree. DFTB+ can be built in parallel, so
-  you may use the ``-j`` option of `make` to specify the number of parallel
-  build processes, e.g.::
+    cmake ~/dftbplus
 
-    make -j4
+* If the configuration was successful, invoke (from within the build folder)
+  `make` to compile the code::
 
-  The build takes place in a separate directory `_build`. You can customise the
-  build directory location within the `make.config` file (variable
-  ``BUILDDIR``), but the default location is inside the root of the source tree.
+    make -j
 
-* The code can be compiled with distributed memory parallelism (MPI), but for
-  smaller shared memory machines, you may find that the performance is better
-  when using OpenMP parallelism only and an optimised thread aware BLAS library.
+  This will compile the code using several threads and showing only the most
+  relevant information.
+
+  If for debugging purposes you wish to see the exact compiling commands, you
+  can execute a serial build with verbosity turned on, instead::
+
+    make VERBOSE=1
+  
+* Note: The code can be compiled with distributed memory parallelism (MPI), but
+  for smaller shared memory machines, you may find that the performance is
+  better when using OpenMP parallelism only and an optimised thread aware BLAS
+  library.
 
 
 Testing DFTB+
@@ -124,32 +139,45 @@ Testing DFTB+
 
     make test
 
-  You can also run the tests in parallel (option ``-j``) in order to speed this
-  up.  If you use parallel testing, ensure that the number of OpenMP threads is
-  reduced accordingly. As an example, assuming your workstation has 4 cores, you
-  could use::
+  You can also run the tests in parallel in order to speed this up.  If you use
+  parallel testing, ensure that the number of OpenMP threads is reduced
+  accordingly. As an example, assuming your workstation has 4 cores and you have
+  set up the ``TEST_OMP_THREADS`` variable to ``2`` (in `config.cmake`), issue
+  ::
 
-    make -j2 test TEST_OMP_THREADS=2
+    make test ARGS="-j2"
 
   for an OpenMP compiled binary running two tests simultaneously, each using 2
   cores.
 
   If you want to test the MPI enabled binary with more than one MPI-process, you
-  can set the TEST_MPI_PROCS variable accordingly e.g::
-
-    make test TEST_MPI_PROCS=2
+  should set the ``TEST_MPI_PROCS`` variable accordingly.
 
   Testing with hybrid (MPI/OpenMP) parallelism can be specified by setting both,
   the ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` variables, e.g::
 
-    make test TEST_MPI_PROCS=2 TEST_OMP_THREADS=2
+    set(TEST_MPI_PROCS "2" CACHE STRING "Nr. of processes used for testing")
+    set(TEST_OMP_THREADS "2" CACHE STRING "Nr. of OpeMP-threads used for testing")
 
   Note that efficient production use of the code in this mode may require
   process affinity (settings will depend on your specific MPI implementation).
 
-* The compiled executables can be copied into an installation directory by ::
+  The ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` cache variables can also be
+  updated dynamically just before starting the testing by invoking CMake with
+  the appropriate ``-D`` options, e.g.::
+
+    cmake -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 ~/dftbplus
+    make test
+
+
+Installing DFTB+
+================
+
+* The compiled executables, libraries, module files etc. can be copied into an
+  installation directory by ::
 
     make install
 
-  where the destination directory can be configured in the `make.config` file
-  (set by the variable ``INSTALLDIR``).
+  where the destination directory can be configured by the variable
+  ``CMAKE_INSTALL_PREFIX`` (in the `config.cmake` file). The default location is
+  the `_install` subdirectory within the build directory.

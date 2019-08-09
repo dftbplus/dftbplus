@@ -93,6 +93,10 @@ endif()
 
 list(APPEND dftbplus-extlibs ${LAPACK_LIBRARIES})
 
+if(WITH_ARPACK)
+  list(APPEND dftbplus-extlibs ${ARPACK_LIBRARIES})
+endif()
+
 target_link_libraries(dftbplus ${dftbplus-extlibs})
 
 dftbp_register_install_target(dftbplus)

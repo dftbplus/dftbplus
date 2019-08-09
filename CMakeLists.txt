@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.5)
 
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-include(dftbpCommon)
-
 include(${CMAKE_SOURCE_DIR}/config.cmake)
 
 project(dftbplus VERSION 19.2 LANGUAGES Fortran C)
+
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+include(dftbpCommon)
 
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 
@@ -31,15 +31,18 @@ string(APPEND CMAKE_EXE_LINKER_FLAGS " ${OpenMP_EXE_LINKER_FLAGS}")
 #
 # Check external libraries
 #
+convert_to_list(SCALAPACK_LIBRARIES SCALAPACK_LIBRARY_DIRS LAPACK_LIBRARIES LAPACK_LIBRARY_DIRS
+  ARPACK_LIBRARIES ARPACK_LIBRARY_DIRS OTHER_LIBRARIES OTHER_LIBRARY_DIRS)
+
 if(WITH_MPI)
-  create_library_targets("${SCALAPACK_LIBRARIES}" "${SCALAPACK_LIBRARY_PATHS}")
+  create_library_targets("${SCALAPACK_LIBRARIES}" "${SCALAPACK_LIBRARY_DIRS}")
 endif()
 
-create_library_targets("${LAPACK_LIBRARIES}" "${LAPACK_LIBRARY_PATHS}")
-create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_PATHS}")
+create_library_targets("${LAPACK_LIBRARIES}" "${LAPACK_LIBRARY_DIRS}")
+#create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
 
 if(WITH_ARPACK)
-  create_library_targets("${ARPACK_LIBRARIES}" "${ARPACK_LIBRARY_PATHS}")
+  create_library_targets("${ARPACK_LIBRARIES}" "${ARPACK_LIBRARY_DIRS}")
 endif()
 
 

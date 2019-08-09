@@ -186,3 +186,18 @@ function (create_library_targets libraries libpaths)
     endif()
   endforeach()
 endfunction()
+
+
+# Converts a space separated string into a list.
+#
+# Args:
+#     * [in]: Name of the variables to convert. On exit the variables contain
+#         the converted values.
+#
+function (convert_to_list)
+  foreach(varname IN LISTS ARGN)
+    set(buffer "${${varname}}")
+    separate_arguments(buffer)
+    set(${varname} "${buffer}" PARENT_SCOPE)
+  endforeach()
+endfunction()

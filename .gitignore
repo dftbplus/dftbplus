@@ -9,6 +9,7 @@ _build*
 _install
 make.arch
 make.config
+custom.cmake
 __pycache__
 .idea
 test/prog/dftb+/transtests
