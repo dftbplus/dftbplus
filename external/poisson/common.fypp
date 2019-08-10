@@ -19,7 +19,6 @@
 
 #:set WITH_ASSERT = defined('WITH_ASSERT') or DEBUG > 0
 #:set WITH_MPI = defined('WITH_MPI')
-#:set WITH_POISSON = defined('WITH_POISSON')
 
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

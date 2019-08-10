@@ -7,10 +7,13 @@ else()
   set(CMAKE_Fortran_COMPILER "pgfortran" CACHE STRING "Fortran compiler")
 endif()
 
+# Make sure '-Mallocatable=03' is among the options
 set(CMAKE_Fortran_FLAGS "-Mallocatable=03" CACHE STRING "General Fortran flags")
 
 set(CMAKE_Fortran_FLAGS_RELEASE "-O2" CACHE STRING
   "Specific Fortran flags for Release (production) mode")
+
+set(FYPP_FLAGS "-DEMULATE_F08_MATH" CACHE STRING "Flags for the preprocessor")
 
 
 #
@@ -22,52 +25,59 @@ set(CMAKE_C_FLAGS "" CACHE STRING "General C flags")
 
 set(CMAKE_C_FLAGS_RELEASE "-O2" CACHE STRING "Specific C flags for Release mode")
 
-
 #
 # External libraries
 #
 set(PGI_LIBDIR "/opt/pgi/linux86-64/18.10/lib" CACHE STRING
   "Directory containing PGI libraries")
 
-if(WITH_MPI)
+# LAPACK and BLAS
+set(LAPACK_LIBRARIES "lapack blas" CACHE STRING "LAPACK and BLAS libraries to link")
+set(LAPACK_LIBRARY_DIRS "${PGI_LIBDIR}" CACHE STRING
+  "Directories where LAPACK and BLAS libraries can be found")
 
-  set(SCALAPACK_LIBRARIES "scalapack" CACHE STRING "Scalapack libraries to link")
-  set(SCALAPACK_LIBRARY_DIRS "${PGI_LIBDIR}/scalapack/scalapack-2.0.2/openmpi-2.1.2/lib"
-    CACHE STRING "Directories where Scalapack libraries can be found")
+# ARPACK -- only needed when built with ARPACK support
+set(ARPACK_LIBRARIES "arpack" CACHE STRING "Arpack library")
+set(ARPACK_LIBRARY_DIRS "" CACHE STRING "Directories where Arpack library can be found")
 
-  set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
-  set(LAPACK_LIBRARY_DIRS "${PGI_LIBDIR}" CACHE STRING
-    "Directories where LAPACK and BLAS libraries can be found")
+# ScaLAPACK -- only needed for MPI-parallel build
+set(SCALAPACK_LIBRARIES "scalapack" CACHE STRING "Scalapack libraries to link")
+set(SCALAPACK_LIBRARY_DIRS "${PGI_LIBDIR}/scalapack/scalapack-2.0.2/openmpi-2.1.2/lib"
+  CACHE STRING "Directories where Scalapack libraries can be found")
 
-  set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
-  set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
+#
+# NOTE: PGI can not compile the ELSI library, therefore, no ELSI settings are
+# given here. If you manage to set up an ELSI library with the PGI-compiler and link it agains
+# DFTB+, let us know, so that we can include appropriate settings here.
+#
 
-else(WITH_MPI)
-
-  set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
-  set(LAPACK_LIBRARY_DIRS "${PGI_LIBDIR}" CACHE STRING
-    "Directories where LAPACK and BLAS libraries can be found")
-  
-  set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
-  set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
-
-endif(WITH_MPI)
+# Any other library needed to be linked or considered as include
+set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
+set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
 
 
-if(WITH_ARPACK)
-  set(ARPACK_LIBRARIES "arpack" CACHE STRING "Arpack library")
-  set(ARPACK_LIBRARY_DIRS "" CACHE STRING "Directories where Arpack library can be found")
-endif(WITH_ARPACK)
+#
+# Test settings
+#
 
+# Number of OMP-threads used by one test process
 set(TEST_OMP_THREADS "1" CACHE STRING "Number of threads to use for each test")
 
+# Number of MPI-processed launched for each test
 set(TEST_MPI_PROCS "1" CACHE STRING "Number of mpi processes to use for each test")
+
+# Command line used to launch the test code
+if(WITH_MPI)
+  set(TEST_RUNNER "env OMP_NUM_THREADS=${TEST_OMP_THREADS} mpiexec -n ${TEST_MPI_PROCS}")
+else()
+  set(TEST_RUNNER "env OMP_NUM_THREADS=${TEST_OMP_THREADS}")
+endif()
 
 
 #
 # Debug settings
 #
-set(CMAKE_Fortran_FLAGS_DEBUG "-g -C -Mchkptr -traceback -Mallocatable=03" CACHE STRING
+set(CMAKE_Fortran_FLAGS_DEBUG "-g -C -Mchkptr -traceback" CACHE STRING
   "Specific Fortran flags for Debug mode")
 
 set(CMAKE_C_FLAGS_DEBUG "-g" CACHE STRING "Specific C flags for Debug mode")

@@ -1,12 +1,12 @@
 set(builddir ${CMAKE_CURRENT_BINARY_DIR})
 set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 
-dftbp_get_fypp_defines(fypp-opts)
+dftbp_add_fypp_defines(FYPP_FLAGS)
 
 # execute_process is verbatim, therefore ";" must be replaced with " "
 string(REGEX REPLACE ";" " " releasename "${RELEASE}")
 
-list(APPEND fypp-opts -I${CMAKE_SOURCE_DIR}/prog/dftb+/include -DRELEASE="'${releasename}'")
+list(APPEND FYPP_FLAGS -I${CMAKE_SOURCE_DIR}/prog/dftb+/include -DRELEASE="'${releasename}'")
 
 execute_process(
   COMMAND ${CMAKE_SOURCE_DIR}/utils/test/testlist_to_fypp
@@ -14,7 +14,7 @@ execute_process(
   OUTPUT_FILE ${builddir}/_dftbplus_tests.fypp)
 
 execute_process(
-  COMMAND ${FYPP} ${fypp-opts} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
+  COMMAND ${FYPP} ${FYPP_FLAGS} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
   INPUT_FILE ${builddir}/_dftbplus_tests.fypp
   OUTPUT_FILE ${builddir}/_dftbplus_tests)
 

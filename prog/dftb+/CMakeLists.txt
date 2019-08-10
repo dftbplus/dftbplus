@@ -2,8 +2,8 @@
 # General options for all targets
 #
 
-dftbp_get_fypp_defines(fypp-opts)
-list(APPEND fypp-opts -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
+dftbp_add_fypp_defines(FYPP_FLAGS)
+list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
 
 #
@@ -28,10 +28,11 @@ add_subdirectory(lib_timedep)
 add_subdirectory(lib_type)
 
 dftbp_register_preprocessing(
-  "${FYPP}" "${fypp-opts}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
+  "${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 set(dftbplus-components)
 set(dftbplus-extlibs)
+set(dftbplus-includedirs)
 
 # Library components
 
@@ -83,6 +84,16 @@ if(WITH_DFTD3)
   list(APPEND dftbplus-extlibs dftd3)
 endif()
 
+if(WITH_ELSI)
+  list(APPEND dftbplus-extlibs ${ELSI_LIBRARIES})
+  target_include_directories(dftbplus PUBLIC ${ELSI_INCLUDE_DIRS})
+endif()
+
+if(WITH_PEXSI)
+  list(APPEND dftbplus-extlibs ${PEXSI_LIBRARIES})
+  target_include_directories(dftbplus PUBLIC ${PEXSI_INCLUDE_DIRS})
+endif()
+
 if(WITH_MPI)
   target_include_directories(dftbplus PUBLIC
     $<TARGET_PROPERTY:mpifx,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -99,6 +110,9 @@ list(APPEND dftbplus-extlibs ${LAPACK_LIBRARIES})
 if(WITH_ARPACK)
   list(APPEND dftbplus-extlibs ${ARPACK_LIBRARIES})
 endif()
+
+list(APPEND dftbplus-extlibs ${OTHER_LIBRARIES})
+target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 
 target_link_libraries(dftbplus ${dftbplus-extlibs})
 
@@ -129,7 +143,7 @@ set(ALL-SOURCES-FPP)
 add_subdirectory(prg_dftb)
 
 dftbp_register_preprocessing(
-  "${FYPP}" "${fypp-opts}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
+  "${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 add_executable("dftb+" ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 

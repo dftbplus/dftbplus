@@ -68,32 +68,51 @@ function(dftbp_register_install_mod_dirs moddirs)
 endfunction()
 
 
-# Build -D command line arguments for Fypp preprocessor based on current settings
+# Build -D command line arguments for Fypp preprocessor based on current configuration
 #
 # Args:
-#     fyppdefines [out]: Command line option with -D defines
+#     fyppflags [inout]: Current Fypp flags on enter, with -D options extended flags on exit.
 #
-function (dftbp_get_fypp_defines fyppdefines)
+function (dftbp_add_fypp_defines fyppflags)
 
-  set(_fyppdefines)
+  set(_fyppflags "${${fyppflags}}")
+  if(WITH_OMP)
+    list(APPEND _fyppflags -DWITH_OMP)
+  endif()
 
   if(WITH_ARPACK)
-    list(APPEND _fyppdefines -DWITH_ARPACK)
+    list(APPEND _fyppflags -DWITH_ARPACK)
   endif()
 
   if(WITH_DFTD3)
-    list(APPEND _fyppdefines -DWITH_DFTD3)
+    list(APPEND _fyppflags -DWITH_DFTD3)
   endif()
 
   if(WITH_MPI)
-    list(APPEND _fyppdefines -DWITH_MPI -DWITH_SCALAPACK)
+    list(APPEND _fyppflags -DWITH_MPI -DWITH_SCALAPACK)
   endif()
 
   if(WITH_SOCKETS)
-    list(APPEND _fyppdefines -DWITH_SOCKETS)
+    list(APPEND _fyppflags -DWITH_SOCKETS)
   endif()
 
-  set(${fyppdefines} ${_fyppdefines} PARENT_SCOPE)
+  if(WITH_ELSI)
+    list(APPEND _fyppflags -DWITH_ELSI)
+  endif()
+
+  if(WITH_PEXSI)
+    list(APPEND _fyppflags -DWITH_PEXSI)
+  endif()
+
+  if(WITH_GPU)
+    list(APPEND _fyppflags -DWITH_GPU)
+  endif()
+
+  if(WITH_TRANSPORT)
+    list(APPEND _fyppflags -DWITH_TRANSPORT)
+  endif()
+
+  set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
 
 endfunction()
 
@@ -150,33 +169,19 @@ function (dftbp_reset_file file)
 endfunction()
 
 
-# Sets the default build type.
-#
-# Args:
-#     default_build_type [in]: Default build type to use, if none was specified so far.
-#
-function (set_default_build_type default_build_type)
-  if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "Setting build type to '${default_build_type}' (none was specified).")
-    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Build type")
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release")
-  endif()
-endfunction()
-
-
 # Finds libraries and turns them into imported library targets
 #
 # Args:
 #     libraries [in]: List of the library names to look for.
 #     libpaths [in]: List of the paths to be used as hints when looking for the libraries.
 #
-function (create_library_targets libraries libpaths)
+function (dftbp_create_library_targets libraries libpaths)
   foreach(lib IN LISTS libraries)
-    if(NOT TARGET ${lib})
+    if(NOT (TARGET ${lib}))
       find_library(LIBPATH_FOUND ${lib} HINTS ${libpaths})
       IF(LIBPATH_FOUND)
 	message(STATUS "Found library ${LIBPATH_FOUND}")
-        add_library(${lib} UNKNOWN IMPORTED)
+        add_library(${lib} IMPORTED UNKNOWN)
         set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${LIBPATH_FOUND})
       else()
         message(FATAL_ERROR
@@ -194,10 +199,44 @@ endfunction()
 #     * [in]: Name of the variables to convert. On exit the variables contain
 #         the converted values.
 #
-function (convert_to_list)
+function (dftbp_convert_to_list)
   foreach(varname IN LISTS ARGN)
     set(buffer "${${varname}}")
     separate_arguments(buffer)
     set(${varname} "${buffer}" PARENT_SCOPE)
   endforeach()
+endfunction()
+
+
+# Checks the build configuration on consistency and stops in case of inconsistencies
+function (dftbp_ensure_config_consistency)
+
+  if(WITH_ELSI AND NOT WITH_MPI)
+    message(FATAL_ERROR "Buliding with ELSI requires MPI-parallel build enabled")
+  endif()
+
+  if(WITH_PEXSI AND (NOT WITH_MPI OR NOT WITH_ELSI))
+    message(FATAL_ERROR "Building with PEXSI requires MPI-parallel build and ELSI enabled")
+  endif()
+
+  if(WITH_ARPACK AND WITH_MPI)
+    message(FATAL_ERROR "Bulding with ARPACK requires MPI-parallel build disabled")
+  endif()
+
+  if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG") AND WITH_OMP)
+    message(FATAL_ERROR
+      "NAG compiler usually creates crashing binary with OpenMP-parallelisation in debug mode. \
+Disable OpenMP (WITH_OMP) when compiling in debug mode")
+  endif()
+
+  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
+    string(FIND "${CMAKE_Fortran_FLAGS}" "-standard-semantics" pos1)
+    string(FIND "${CMAKE_Fortran_FLAGS}" "realloc_lhs" pos2)
+    string(FIND "${CMAKE_Fortran_FLAGS}" "norealloc_lhs" pos3)
+    if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
+      message(FATAL_ERROR "Intel compiler needs either the '-standard-semantics' or the '-assume \
+realloc_lhs' option to produce correctly behaving (Fortran standard complying) code")
+    endif()
+  endif()
+
 endfunction()

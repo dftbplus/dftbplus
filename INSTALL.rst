@@ -174,8 +174,8 @@ Testing DFTB+
   process affinity (settings will depend on your specific MPI implementation).
 
   The ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` cache variables can also be
-  updated dynamically just before starting the testing by invoking CMake with
-  the appropriate ``-D`` options, e.g.::
+  updated or changed also after the compilation just before starting the testing
+  by invoking CMake with the appropriate ``-D`` options, e.g.::
 
     cmake -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 ~/dftbplus
     make test
