@@ -102,7 +102,7 @@ Compiling
 * Look at the `config.cmake` file and customise the global build parameters if
   necessary. (If you are unsure, leave the defaults as they are.)
 
-* Customise the ``ARCH`` variable at the bottom of then `config.cmake` file. It
+* Customise the ``ARCH`` variable at the bottom of the `config.cmake` file. It
   should correspond to the prefix of one of the cmake config files in the `sys/`
   folder. Take the one which is closest to your system (and customise it
   according to your needs). Alternatively, you can also create your own file in
@@ -132,7 +132,7 @@ Compiling
   This will compile the code using several threads and showing only the most
   relevant information.
 
-  If for debugging purposes you wish to see the exact compiling commands, you
+  If, for debugging purposes, you wish to see the exact compiling commands, you
   can execute a serial build with verbosity turned on, instead::
 
     make VERBOSE=1
