@@ -10,6 +10,8 @@ project(dftbplus VERSION 19.2 LANGUAGES Fortran C)
 dftbp_ensure_config_consistency()
 
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
+dftbp_convert_to_list(FYPP_FLAGS)
+dftbp_add_fypp_defines(FYPP_FLAGS)
 
 set(PYTHON_INTERPRETER "python" CACHE STRING
   "Python interpreter to use for installing and test python components")
@@ -34,7 +36,7 @@ dftbp_get_release_name(RELEASE)
 dftbp_convert_to_list(SCALAPACK_LIBRARIES SCALAPACK_LIBRARY_DIRS LAPACK_LIBRARIES
   LAPACK_LIBRARY_DIRS ARPACK_LIBRARIES ARPACK_LIBRARY_DIRS ELSI_LIBRARIES ELSI_LIBRARY_DIRS
   ELSI_INCLUDE_DIRS PEXSI_LIBRARIES PEXSI_LIBRARY_DIRS PEXSI_INCLUDE_DIRS OTHER_LIBRARIES
-  OTHER_LIBRARY_DIRS FYPP_FLAGS)
+  OTHER_LIBRARY_DIRS)
 
 if(WITH_MPI)
   dftbp_create_library_targets("${SCALAPACK_LIBRARIES}" "${SCALAPACK_LIBRARY_DIRS}")

@@ -21,8 +21,6 @@ set(sources-f77
   mudpack/dmud3sp.f
   mudpack/dmudcom.f)
 
-dftbp_add_fypp_defines(FYPP_FLAGS)
-
 dftbp_register_preprocessing(
   "${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${sources-fpp}" sources-f90-preproc)
 

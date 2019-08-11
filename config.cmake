@@ -15,7 +15,7 @@ option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
 # Works only with MPI-parallel build.
 
-option(WITH_PEXSI "Whether the ELSI libraries are compiled  with PEXSI support" FALSE)
+option(WITH_PEXSI "Whether the ELSI libraries are compiled with PEXSI support" FALSE)
 # Works only with MPI-parallel build and ELSI enabled.
 
 option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-library" FALSE)
@@ -56,14 +56,14 @@ set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
 #
 # NOTE FOR DEVELOPERS: Do not customise any settings here or in any of the sys/${ARCH}.cmake files
 # as they contain the official defaults DFTB+ is shipped with. (Except you have a good reason to
-# change such a default for some reasons). If you need to customise any of the settings for your
-# system, create a custom cmake file (e.g. custom.cmake) containing (only) the settings you would
-# like to override. For an example, see
+# change such a default). If you need to customise any of the settings for your system, create a
+# custom cmake file (e.g. custom.cmake) containing (only) the settings you would like to
+# override. For an example, see
 #
 #     https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7
 #
-# When invoking CMake, pre-populate its cache with your custom settings using the
-# -C option. For example, assuming the DFTB+ source is in ~/dftbplus, issue:
+# When invoking CMake, pre-populate its cache with your custom settings using the -C option. For
+# example, assuming the DFTB+ source is in ~/dftbplus, issue:
 #
 #     cmake -C ~/dftbplus/custom.cmake ~/dftbplus
 #

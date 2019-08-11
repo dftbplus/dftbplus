@@ -1,8 +1,6 @@
 set(builddir ${CMAKE_CURRENT_BINARY_DIR})
 set(srcdir ${CMAKE_CURRENT_SOURCE_DIR})
 
-dftbp_add_fypp_defines(FYPP_FLAGS)
-
 # execute_process is verbatim, therefore ";" must be replaced with " "
 string(REGEX REPLACE ";" " " releasename "${RELEASE}")
 

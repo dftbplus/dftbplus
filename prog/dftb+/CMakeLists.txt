@@ -1,8 +1,6 @@
 #
 # General options for all targets
 #
-
-dftbp_add_fypp_defines(FYPP_FLAGS)
 list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
 
@@ -34,7 +32,7 @@ dftbp_register_preprocessing(
   "${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 set(dftbplus-components)
-set(dftbplus-extlibs)
+#set(dftbplus-extlibs)
 set(dftbplus-includedirs)
 
 # Library components
@@ -68,68 +66,62 @@ endif()
 
 # External libraries
 
-if(NOT MONOLITHIC_LIBDFTBPLUS)
-  list(APPEND dftbplus-extlibs xmlf90)
+if(MONOLITHIC_LIBDFTBPLUS)
+  target_include_directories(dftbplus PUBLIC
+    $<TARGET_PROPERTY:xmlf90,INTERFACE_INCLUDE_DIRECTORIES>
+    ${includedir})
+else()
+  target_link_libraries(dftbplus PUBLIC xmlf90)
 endif()
 
-target_include_directories(dftbplus PUBLIC
-  $<TARGET_PROPERTY:xmlf90,INTERFACE_INCLUDE_DIRECTORIES>
-  ${includedir})
-
-if (WITH_SOCKETS)
-  if(NOT MONOLITHIC_LIBDFTBPLUS)
-    list(APPEND dftbplus-extlibs fsockets)
+if(WITH_SOCKETS)
+  if(MONOLITHIC_LIBDFTBPLUS)
+    target_include_directories(dftbplus PUBLIC
+      $<TARGET_PROPERTY:fsockets,INTERFACE_INCLUDE_DIRECTORIES>)
+  else()
+    target_link_libraries(dftbplus PUBLIC fsockets)
   endif()
-  target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:fsockets,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 
 if(WITH_DFTD3)
-  target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:dftd3,INTERFACE_INCLUDE_DIRECTORIES>)
-  list(APPEND dftbplus-extlibs dftd3)
+  target_link_libraries(dftbplus PUBLIC dftd3)
 endif()
 
 if(WITH_TRANSPORT)
-  target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:poisson,INTERFACE_INCLUDE_DIRECTORIES>)
-  #target_include_directories(dftbplus PUBLIC
-  #  $<TARGET_PROPERTY:libnegf,INTERFACE_INCLUDE_DIRECTORIES>)
-  list(APPEND dftbplus-extlibs poisson libnegf)
-  add_dependencies(dftbplus libnegf)
+  target_link_libraries(dftbplus PUBLIC libnegf poisson)
 endif()
 
 if(WITH_ELSI)
-  list(APPEND dftbplus-extlibs ${ELSI_LIBRARIES})
+  target_link_libraries(dftbplus PUBLIC ${ELSI_LIBRARIES})
   target_include_directories(dftbplus PUBLIC ${ELSI_INCLUDE_DIRS})
 endif()
 
 if(WITH_PEXSI)
-  list(APPEND dftbplus-extlibs ${PEXSI_LIBRARIES})
+  target_link_libraries(dftbplus PUBLIC ${PEXSI_LIBRARIES})
   target_include_directories(dftbplus PUBLIC ${PEXSI_INCLUDE_DIRS})
 endif()
 
 if(WITH_MPI)
-  target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:mpifx,INTERFACE_INCLUDE_DIRECTORIES>)
-  target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:scalapackfx_objlib,INTERFACE_INCLUDE_DIRECTORIES>)
-  if(NOT MONOLITHIC_LIBDFTBPLUS)
-    list(APPEND dftbplus-extlibs mpifx scalapackfx)
+  if(MONOLITHIC_LIBDFTBPLUS)
+    target_include_directories(dftbplus PUBLIC
+      $<TARGET_PROPERTY:mpifx,INTERFACE_INCLUDE_DIRECTORIES>)
+    target_include_directories(dftbplus PUBLIC
+      $<TARGET_PROPERTY:scalapackfx_objlib,INTERFACE_INCLUDE_DIRECTORIES>)
+  else()
+    target_link_libraries(dftbplus PUBLIC mpifx scalapackfx)
   endif()
-  list(APPEND dftbplus-extlibs ${SCALAPACK_LIBRARIES})
+  target_link_libraries(dftbplus PUBLIC ${SCALAPACK_LIBRARIES})
 endif()
 
-list(APPEND dftbplus-extlibs ${LAPACK_LIBRARIES})
+target_link_libraries(dftbplus PUBLIC ${LAPACK_LIBRARIES})
 
 if(WITH_ARPACK)
-  list(APPEND dftbplus-extlibs ${ARPACK_LIBRARIES})
+  target_link_libraries(dftbplus PUBLIC ${ARPACK_LIBRARIES})
 endif()
 
-list(APPEND dftbplus-extlibs ${OTHER_LIBRARIES})
-target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
+target_link_libraries(dftbplus PUBLIC ${OTHER_LIBRARIES})
 
-target_link_libraries(dftbplus ${dftbplus-extlibs})
+target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 
 dftbp_register_install_target(dftbplus)
 dftbp_register_install_mod_dirs(${includedir})
