@@ -83,6 +83,11 @@ if(WITH_MPI)
   add_subdirectory(external/scalapackfx/origin EXCLUDE_FROM_ALL)
 endif()
 
+if(WITH_TRANSPORT)
+  add_subdirectory(external/poisson EXCLUDE_FROM_ALL)
+  add_subdirectory(external/libnegf EXCLUDE_FROM_ALL)
+endif()
+
 
 #
 # Add internal components

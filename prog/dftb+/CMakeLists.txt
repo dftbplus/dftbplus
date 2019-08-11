@@ -90,6 +90,15 @@ if(WITH_DFTD3)
   list(APPEND dftbplus-extlibs dftd3)
 endif()
 
+if(WITH_TRANSPORT)
+  target_include_directories(dftbplus PUBLIC
+    $<TARGET_PROPERTY:poisson,INTERFACE_INCLUDE_DIRECTORIES>)
+  #target_include_directories(dftbplus PUBLIC
+  #  $<TARGET_PROPERTY:libnegf,INTERFACE_INCLUDE_DIRECTORIES>)
+  list(APPEND dftbplus-extlibs poisson libnegf)
+  add_dependencies(dftbplus libnegf)
+endif()
+
 if(WITH_ELSI)
   list(APPEND dftbplus-extlibs ${ELSI_LIBRARIES})
   target_include_directories(dftbplus PUBLIC ${ELSI_INCLUDE_DIRS})
