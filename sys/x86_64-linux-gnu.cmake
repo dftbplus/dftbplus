@@ -12,7 +12,7 @@ set(CMAKE_Fortran_FLAGS "" CACHE STRING "General Fortran flags")
 set(CMAKE_Fortran_FLAGS_RELEASE "-O2 -mavx -funroll-all-loops" CACHE STRING
   "Specific Fortran flags for Release (production) mode")
 
-set(FYPP_FLAGS "-n --line-marker-format=gfortran5" CACHE STRING "Flags for the preprocessor")
+set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 
 
 #

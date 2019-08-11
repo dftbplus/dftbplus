@@ -220,7 +220,11 @@ function (dftbp_ensure_config_consistency)
   endif()
 
   if(WITH_ARPACK AND WITH_MPI)
-    message(FATAL_ERROR "Bulding with ARPACK requires MPI-parallel build disabled")
+    message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
+  endif()
+
+  if(BUILD_API AND WITH_MPI)
+    message(FATAL_ERROR "Currently API can only be built if MPI-parallel build is disabled")
   endif()
 
   if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG") AND WITH_OMP)

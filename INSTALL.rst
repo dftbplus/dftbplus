@@ -25,8 +25,8 @@ Additionally there are optional requirements for some DFTB+ features:
   want to build the MPI-parallelised version of the code
 
 * In addition to ScaLAPACK, the `ELSI
-  <https://wordpress.elsi-interchange.org/>`_ library for large scale systems can
-  optionally also be used.
+  <https://wordpress.elsi-interchange.org/>`_ library for large scale systems
+  can optionally also be used.
 
 * The M4 preprocessor, if you want to build the MPI-parallelised version of the
   code
@@ -148,7 +148,7 @@ Testing DFTB+
 
 * After successful compilation, execute the code tests with ::
 
-    make test
+    ctest
 
   You can also run the tests in parallel in order to speed this up.  If you use
   parallel testing, ensure that the number of OpenMP threads is reduced
@@ -156,7 +156,7 @@ Testing DFTB+
   set up the ``TEST_OMP_THREADS`` variable to ``2`` (in `config.cmake`), issue
   ::
 
-    make test ARGS="-j2"
+    ctest -j2
 
   for an OpenMP compiled binary running two tests simultaneously, each using 2
   cores.
@@ -168,17 +168,17 @@ Testing DFTB+
   the ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` variables, e.g::
 
     set(TEST_MPI_PROCS "2" CACHE STRING "Nr. of processes used for testing")
-    set(TEST_OMP_THREADS "2" CACHE STRING "Nr. of OpeMP-threads used for testing")
+    set(TEST_OMP_THREADS "2" CACHE STRING "Nr. of OMP-threads used for testing")
 
   Note that efficient production use of the code in this mode may require
   process affinity (settings will depend on your specific MPI implementation).
 
-  The ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` cache variables can also be
-  updated or changed also after the compilation just before starting the testing
-  by invoking CMake with the appropriate ``-D`` options, e.g.::
+  The ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` cache variables can be updated
+  or changed also after the compilation just before starting the testing by
+  invoking CMake with the appropriate ``-D`` options, e.g.::
 
     cmake -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 ~/dftbplus
-    make test
+    ctest
 
 
 Installing DFTB+
