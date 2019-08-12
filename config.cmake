@@ -32,10 +32,15 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
 
 option(BUILD_API "Whether the high-level API to the DFTB+ library should be built" FALSE)
-# Turn this on, if you want to use DFTB+ as a library (instead of a standalone program)
+# Turn this on, if you want to use libdftbplus.a to integrate DFTB+ into other software
+# packages. (Otherwise the library only contains DFTB+ internal routines, no public API and
+# would not be installed.)
 
 option(MONOLITHIC_LIBDFTBPLUS
-  "Whether the DFTB+ library built should contain some of the libraries it depends on" FALSE)
+  "Whether the DFTB+ library should contain some of the external libraries it depends on" FALSE)
+# Reduces the dependencies of libdftbplus.a by adding some of the external components (e.g. xmlf90,
+# fsockets) to the library. Useful, if you use DFTB+ as library in other software packages (see
+# BUILD_API option) and want to simplify linking.
 
 #
 # Architecture dependent build settings

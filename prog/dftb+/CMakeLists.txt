@@ -31,30 +31,25 @@ endif()
 dftbp_register_preprocessing(
   "${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
-set(dftbplus-components)
-#set(dftbplus-extlibs)
-set(dftbplus-includedirs)
 
 # Library components
 
-list(APPEND dftbplus-components ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
+add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
 if(MONOLITHIC_LIBDFTBPLUS)
 
-  list(APPEND dftbplus-components $<TARGET_OBJECTS:xmlf90_objlib>)
+  target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
 
   if(WITH_SOCKETS)
-    list(APPEND dftbplus-components $<TARGET_OBJECTS:fsockets_objlib>)
+    target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
   endif()
 
   if(WITH_MPI)
-    list(APPEND dftbplus-components $<TARGET_OBJECTS:mpifx_objlib>)
-    list(APPEND dftbplus-components $<TARGET_OBJECTS:scalapackfx_objlib>)
+    target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:mpifx_objlib>)
+    target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:scalapackfx_objlib>)
   endif()
   
 endif()
-
-add_library(dftbplus ${dftbplus-components})
 
 set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 
@@ -63,6 +58,7 @@ target_include_directories(dftbplus PUBLIC ${includedir})
 if(BUILD_API)
   target_include_directories(dftbplus INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/api/mm)
 endif()
+
 
 # External libraries
 

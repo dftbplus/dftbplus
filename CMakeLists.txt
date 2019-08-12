@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
-include(dftbpCommon)
+include(dftbpUtils)
 
 include(${CMAKE_SOURCE_DIR}/config.cmake)
 
