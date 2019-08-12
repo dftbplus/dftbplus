@@ -9,13 +9,12 @@ foreach(target IN LISTS targets)
 
   set(sources-fpp "${target}.F90")
 
-  dftbp_register_preprocessing(
-    "${FYPP}" "${fypp-opts}" "F90" "f90" "${sources-fpp}" sources-f90-preproc)
+  dftbp_preprocess("${FYPP}" "${fypp-opts}" "F90" "f90" "${sources-fpp}" sources-f90-preproc)
 
   add_executable(${target} ${sources-f90-preproc})
 
   target_link_libraries("${target}" dftbplus ${LAPACK_LIBRARIES})
 
-  dftbp_register_install_target(${target})
+  dftbp_install_target(${target})
 
 endforeach()

@@ -28,33 +28,22 @@ if(BUILD_API)
   add_subdirectory(api/mm)
 endif()
 
-dftbp_register_preprocessing(
-  "${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
+dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
-set(dftbplus-components)
-#set(dftbplus-extlibs)
-set(dftbplus-includedirs)
 
 # Library components
 
-list(APPEND dftbplus-components ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
+add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
 if(MONOLITHIC_LIBDFTBPLUS)
 
-  list(APPEND dftbplus-components $<TARGET_OBJECTS:xmlf90_objlib>)
+  target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
 
   if(WITH_SOCKETS)
-    list(APPEND dftbplus-components $<TARGET_OBJECTS:fsockets_objlib>)
+    target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
   endif()
 
-  if(WITH_MPI)
-    list(APPEND dftbplus-components $<TARGET_OBJECTS:mpifx_objlib>)
-    list(APPEND dftbplus-components $<TARGET_OBJECTS:scalapackfx_objlib>)
-  endif()
-  
 endif()
-
-add_library(dftbplus ${dftbplus-components})
 
 set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 
@@ -63,6 +52,7 @@ target_include_directories(dftbplus PUBLIC ${includedir})
 if(BUILD_API)
   target_include_directories(dftbplus INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/api/mm)
 endif()
+
 
 # External libraries
 
@@ -102,14 +92,7 @@ if(WITH_PEXSI)
 endif()
 
 if(WITH_MPI)
-  if(MONOLITHIC_LIBDFTBPLUS)
-    target_include_directories(dftbplus PUBLIC
-      $<TARGET_PROPERTY:mpifx,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_include_directories(dftbplus PUBLIC
-      $<TARGET_PROPERTY:scalapackfx_objlib,INTERFACE_INCLUDE_DIRECTORIES>)
-  else()
-    target_link_libraries(dftbplus PUBLIC mpifx scalapackfx)
-  endif()
+  target_link_libraries(dftbplus PUBLIC mpifx scalapackfx)
   target_link_libraries(dftbplus PUBLIC ${SCALAPACK_LIBRARIES})
 endif()
 
@@ -123,20 +106,57 @@ target_link_libraries(dftbplus PUBLIC ${OTHER_LIBRARIES})
 
 target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 
-dftbp_register_install_target(dftbplus)
-dftbp_register_install_mod_dirs(${includedir})
 
-get_target_property(moddirs xmlf90 INTERFACE_INCLUDE_DIRECTORIES)
-dftbp_register_install_mod_dirs(${moddirs})
+# Installation
 
-if (WITH_SOCKETS)
-  get_target_property(moddirs fsockets INTERFACE_INCLUDE_DIRECTORIES)
-  dftbp_register_install_mod_dirs(${moddirs})
-endif()
+if(BUILD_API)
+  dftbp_install_target(dftbplus)
+  dftbp_install_mod_dirs(${includedir})
+  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h DESTINATION ${INSTALL_INC_DIR})
 
-if (WITH_DFTD3)
-  get_target_property(moddirs dftd3 INTERFACE_INCLUDE_DIRECTORIES)
-  dftbp_register_install_mod_dirs(${moddirs})
+  if(NOT MONOLITHIC_LIBDFTBPLUS)
+    dftbp_install_library_files($<TARGET_FILE:xmlf90>)
+  endif()
+  get_target_property(moddirs xmlf90 INTERFACE_INCLUDE_DIRECTORIES)
+  dftbp_install_mod_dirs(${moddirs})
+
+  if (WITH_SOCKETS)
+    if(NOT MONOLITHIC_LIBDFTBPLUS)
+      dftbp_install_library_files($<TARGET_FILE:fsockets>)
+    endif()
+    get_target_property(moddirs fsockets INTERFACE_INCLUDE_DIRECTORIES)
+    dftbp_install_mod_dirs(${moddirs})
+  endif()
+  
+  if(WITH_DFTD3)
+    dftbp_install_library_files($<TARGET_FILE:dftd3>)
+    get_target_property(moddirs dftd3 INTERFACE_INCLUDE_DIRECTORIES)
+    dftbp_install_mod_dirs(${moddirs})
+  endif()
+
+  if(WITH_TRANSPORT)
+    dftbp_install_library_files($<TARGET_FILE:poisson>)
+    get_target_property(moddirs poisson INTERFACE_INCLUDE_DIRECTORIES)
+    dftbp_install_mod_dirs(${moddirs})
+    
+    dftbp_install_library_files($<TARGET_PROPERTY:libnegf,INTERFACE_LINK_LIBRARIES>)
+    get_target_property(moddirs libnegf INTERFACE_INCLUDE_DIRECTORIES)
+    foreach(moddir IN LISTS moddirs)
+      install(
+        DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}" FILES_MATCHING PATTERN "*.mod")
+    endforeach()
+  endif()
+
+  if(WITH_MPI)
+    dftbp_install_library_files($<TARGET_FILE:mpifx>)
+    get_target_property(moddirs mpifx INTERFACE_INCLUDE_DIRECTORIES)
+    dftbp_install_mod_dirs(${moddirs})
+
+    dftbp_install_library_files($<TARGET_FILE:scalapackfx>)
+    get_target_property(moddirs scalapackfx INTERFACE_INCLUDE_DIRECTORIES)
+    dftbp_install_mod_dirs(${moddirs})
+  endif()
+  
 endif()
 
 
@@ -149,11 +169,10 @@ set(ALL-SOURCES-FPP)
 
 add_subdirectory(prg_dftb)
 
-dftbp_register_preprocessing(
-  "${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
+dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 add_executable("dftb+" ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
 target_link_libraries(dftb+ dftbplus)
 
-dftbp_register_install_target(dftb+)
+dftbp_install_target(dftb+)

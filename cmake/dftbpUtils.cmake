@@ -24,7 +24,7 @@ endfunction()
 #     oldfiles [in]: List of unpreprocessed file names.
 #     newfiles [out]: List of preprocessed file names.
 #
-function(dftbp_register_preprocessing preproc preprocopts oldext newext oldfiles newfiles)
+function(dftbp_preprocess preproc preprocopts oldext newext oldfiles newfiles)
 
   set(_newfiles)
   foreach(oldfile IN LISTS oldfiles)
@@ -45,7 +45,7 @@ endfunction()
 # Args:
 #     target [in]: Target to register for installation
 #
-function(dftbp_register_install_target target)
+function(dftbp_install_target target)
 
   install(TARGETS ${target}
     RUNTIME DESTINATION ${INSTALL_BIN_DIR}
@@ -57,7 +57,11 @@ endfunction()
 
 
 # Registers a directory with modfiles for installation
-function(dftbp_register_install_mod_dirs moddirs)
+#
+# Args:
+#     moddirs [in]: List of module directories to install
+#
+function(dftbp_install_mod_dirs moddirs)
 
   foreach(moddir IN LISTS moddirs)
     install(
@@ -65,6 +69,16 @@ function(dftbp_register_install_mod_dirs moddirs)
       DESTINATION "${INSTALL_MOD_DIR}")
   endforeach()
 
+endfunction()
+
+
+# Installs library files (instead of targets) to the library destination folder.
+#
+# Args:
+#     libfiles [in]: List of library files.
+#
+function(dftbp_install_library_files libfiles)
+  install(FILES ${libfiles} DESTINATION ${INSTALL_LIB_DIR})
 endfunction()
 
 
@@ -223,9 +237,9 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
-  if(BUILD_API AND WITH_MPI)
-    message(FATAL_ERROR "Currently API can only be built if MPI-parallel build is disabled")
-  endif()
+  #if(BUILD_API AND WITH_MPI)
+  #  message(FATAL_ERROR "Currently API can only be built if MPI-parallel build is disabled")
+  #endif()
 
   if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG") AND WITH_OMP)
     message(FATAL_ERROR
