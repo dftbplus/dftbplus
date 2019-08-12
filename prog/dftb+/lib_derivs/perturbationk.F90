@@ -31,7 +31,7 @@ module dftbp_perturbkderivs
   use dftbp_periodic
   use dftbp_densedescr
   use dftbp_sparse2dense
-  use dftbp_rotateDegenerateOrbs, only : degenerateTransform
+  use dftbp_rotateDegenerateOrbs, only : TDegeneracyTransform
   use dftbp_taggedoutput
   use dftbp_wrappedintr
   use dftbp_taggedoutput, only : TTaggedWriter
@@ -142,13 +142,15 @@ contains
     real(dp), allocatable :: dHam(:,:), dOver(:), dEi(:,:,:)
     real(dp) :: vec(3)
     complex(dp), allocatable :: dPsi(:,:,:,:), dHamSqr(:,:), dOverSqr(:,:), workLocal(:,:)
-    complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:,:), eCi(:,:)
+    complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:,:), eCi(:,:), work2Local(:,:), work3Local(:,:)
 
     integer :: fdResults
 
-    complex(dp), allocatable :: U(:,:)
-    type(wrappedCmplx2), allocatable :: UBlock(:)
-    integer, allocatable :: blockRange(:,:)
+    !complex(dp), allocatable :: U(:,:)
+    !type(wrappedCmplx2), allocatable :: UBlock(:)
+    !integer, allocatable :: blockRange(:,:)
+
+    type(TDegeneracyTransform) :: transform
 
   #:if WITH_SCALAPACK
     ! need distributed matrix descriptors
@@ -176,6 +178,10 @@ contains
     allocate(dEi(nOrbs, parallelKS%nLocalKS, 3))
 
     allocate(workLocal(nOrbs, nOrbs))
+    allocate(work2Local(nOrbs, nOrbs))
+    allocate(work3Local(nOrbs, nOrbs))
+
+    call transform%init()
 
     do iKS = 1, parallelKS%nLocalKS
 
@@ -199,7 +205,8 @@ contains
         call hemm(workLocal, 'l', dOverSqr, eCi, alpha=(-1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
         workLocal(:,:) = matmul(transpose(conjg(eigVecsCplx(:,:,iKS))), workLocal)
 
-        call degenerateTransform(workLocal, eigvals(:,iK,iS), U, UBlock, blockRange)
+        call transform%generateUnitary(workLocal, eigvals(:,iK,iS))
+        call transform%degenerateTransform(workLocal)
 
         ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
         if (allocated(dEi)) then
@@ -208,24 +215,55 @@ contains
           end do
         end if
 
-        ! ! symmetrise
-        ! do iOrb = 1, nOrbs
-        !   dOverSqr(iOrb, iOrb+1:) = conjg(dOverSqr(iOrb+1:, iOrb))
-        !   dHamSqr(iOrb, iOrb+1:) = conjg(dHamSqr(iOrb+1:, iOrb))
-        !   ! diagonal is real (hemitian matrix at this stage)
-        !   dOverSqr(iOrb, iOrb) = real(dOverSqr(iOrb, iOrb))
-        !   dHamSqr(iOrb, iOrb) = real(dHamSqr(iOrb, iOrb))
-        ! end do
-        !
-        ! workLocal = real(matmul(transpose(conjg(eigvecsCplx(:,:,iKS))),&
-        !     & matmul(dHamSqr(:,:), eigvecsCplx(:,:,iKS)) - matmul(dOverSqr(:,:), eCi)))
-        ! do iOrb = 1, nOrbs
-        !   dEi(iOrb,iKS, iCart) = workLocal(iOrb,iOrb)
-        ! end do
+        do ii = 1, nOrbs
+          write(*,"(16E12.2)")workLocal(:,ii)
+        end do
+        write(*,*)
+        write(*,*)
+
+        work2Local(:,:) = eigVecsCplx(:,:,iKS)
+        call transform%applyUnitary(work2Local)
+
+        write(*,*)'X'
+        do ii = 1, nOrbs
+          write(*,"(16E12.2)")work2Local(:,ii)
+        end do
+        write(*,*)
+        write(*,*)
+
+
+        do ii = 1, nOrbs
+          workLocal(:,ii) = work2Local(:,ii) * eigvals(ii,iK,iS)
+        end do
+
+        ! form |c> H' - e S' <c|
+        call hemm(work3Local, 'l', dHamSqr, work2local)
+        call hemm(work3Local, 'l', dOverSqr,worklocal , alpha=(-1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+        work2Local(:,:) = matmul(transpose(conjg(work2local)), work2Local)
+
+        do ii = 1, nOrbs
+          write(*,"(16E12.2)")work2Local(:,ii)
+        end do
+        write(*,*)
+        write(*,*)
+
+
+        do ii = 1, nOrbs
+          do jj = ii + 1, nOrbs
+            if (abs(workLocal(jj,ii)) > epsilon(0.0_dp)) then
+              workLocal(jj,ii) = workLocal(jj,ii) / (eigvals(ii,iK,iS) - eigvals(jj,iK,iS))
+              workLocal(ii, jj) = -workLocal(jj,ii)
+            end if
+          end do
+        end do
+
+        work2Local(:,:) = matmul(work2Local, workLocal)
 
       end do
 
     end do
+
+    call transform%destroy()
 
     if (tWriteAutoTest) then
       open(newunit=fdResults, file=trim(autoTestTagFile), position="append")

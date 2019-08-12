@@ -18,11 +18,11 @@ module dftbp_rotateDegenerateOrbs
   implicit none
   private
 
-  public :: degenerateUnitary, degenerateTransform, TDegeneracyTransform
+  public :: TDegeneracyTransform
 
 #:set FLAVOURS = [('cmplx', 'complex', 'Cmplx'), ('real', 'real', 'Real')]
 
-  !> type for resolving degenerate orbitals in perturbation expressions
+  !> Data type for resolving degenerate orbitals in perturbation expressions
   type :: TDegeneracyTransform
     private
 #:for NAME, TYPE, LABEL in FLAVOURS
@@ -33,35 +33,71 @@ module dftbp_rotateDegenerateOrbs
     !> Individual sub-blocks of unitary matrices to transform orbitals, if much smaller than U
     type(wrapped${LABEL}$2), allocatable :: ${LABEL}$UBlock(:)
 
-    !> Block ranges as needed in UBlock, deallocated again by time of return if dense U case
-    integer, allocatable :: ${LABEL}$blockRange(:,:)
-
 #:endfor
+
+    !> Block ranges as needed in UBlock, deallocated again by time of return if dense U case
+    integer, allocatable :: blockRange(:,:)
+
+    !> numerical tolerance for deciding degeneracy
+    real(dp) :: tolerance
+
+    !> Sub-range of states if needed
+    integer :: eiRange(2)
+
+    !> Denominator for fraction of states in a degenerate group before the using dense transforms
+    integer :: minDegenerateFraction
+
+    !> Minimum number of states in a degenerate group before the using dense transforms
+    integer :: minDegenerateStates
+
+    !> Should the order of states (derivatives) be reversed compared to the eigensolver return
+    logical :: tReverseOrder = .false.
+
+    ! redundant variables (could test from allocation status and size), but makes code simpler to
+    ! read in a few places:
+
+    !> Number of groups of degenerate orbitals
+    integer :: nGrp = -1
+
+    !> Stores data structure for a real unitary transform
+    logical :: tReal = .false.
+
+    !> Stores data structure for a complex unitary transform
+    logical :: tComplx = .false.
+
+    !> Is any storage allocated
+    logical :: tAllocateStorage = .false.
+
+    !> Order of matrix
+    integer :: nOrb = -1
+
+    logical :: tFullUMatrix = .false.
+
+  contains
+
+    !> Initialises instance and set some optional parameters
+    procedure :: init
+
+    !> Generate unitary matrix for degenerate perturbation
+    procedure :: generateCmplxUnitary
+    procedure :: generateRealUnitary
+    generic :: generateUnitary => generateCmplxUnitary, generateRealUnitary
+
+    !> Transform a matrix to be suitable for degenerate perturbation
+    procedure :: degenerateCmplxTransform
+    procedure :: degenerateRealTransform
+    generic :: degenerateTransform => degenerateCmplxTransform, degenerateRealTransform
+
+    !> Applys a unitary transformation to a matrix
+    procedure :: applyCmplxUnitary
+    procedure :: applyRealUnitary
+    generic :: applyUnitary => applyCmplxUnitary, applyRealUnitary
+
+    !> Release memory and cleans up
+    procedure :: destroy
 
   end type TDegeneracyTransform
 
-
-#:if WITH_SCALAPACK
-
-  ! to do
-
-#:else
-
-  !> Generate unitary matrix for degenerate perturbation
-  interface degenerateUnitary
-  #:for NAME, _, _ in FLAVOURS
-    module procedure ${NAME}$DegenerateUnitary
-  #:endfor
-  end interface degenerateUnitary
-
-  !> Transform a matrix to be suitable for degenerate perturbation
-  interface degenerateTransform
-  #:for NAME, _ in FLAVOURS
-    module procedure ${NAME}$Transform
-  #:endfor
-  end interface degenerateTransform
-
-#:endif
 
 #:if WITH_SCALAPACK
 #:else
@@ -71,6 +107,51 @@ module dftbp_rotateDegenerateOrbs
 
 contains
 
+  !> Initialise the structure
+  subroutine init(self, smallestBlock, smallestFraction, tolerance, eiRange)
+
+    !> Instance
+    class(TDegeneracyTransform), intent(inout) :: self
+
+    !> Smallest number of degenerate orbitals at which the dense algorithm should be used
+    integer, intent(in), optional :: smallestBlock
+
+    !> Smallest fraction of the matrix at which the dense algorithm should be used
+    integer, intent(in), optional :: smallestFraction
+
+    !> Tolerance for degeneracy testing
+    real(dp), intent(in), optional :: tolerance
+
+    !> Sub-range of states if needed, for example for metallic finite temperature in parallel gauge
+    integer, intent(in), optional :: eiRange(2)
+
+    if (present(smallestBlock)) then
+      self%minDegenerateStates = smallestBlock
+    else
+      self%minDegenerateStates = 500
+    end if
+
+    if (present(smallestFraction)) then
+      self%minDegenerateFraction = smallestFraction
+    else
+      self%minDegenerateFraction = 4 ! a quarter of the matrix
+    end if
+
+    if (present(tolerance)) then
+      self%tolerance = tolerance
+    else
+      self%tolerance = sqrt(epsilon(0.0_dp))
+    end if
+
+    if (present(eiRange)) then
+      self%eiRange(:) = eiRange
+    else
+      self%eiRange(:) = -1
+    end if
+
+  end subroutine init
+
+
 #:if WITH_SCALAPACK
 
   ! to do
@@ -78,77 +159,13 @@ contains
 #:else
 
 #:for NAME, TYPE, LABEL in FLAVOURS
-  !> ${NAME}$ case of orthogonalising against degenerate perturbation operation cases
-  subroutine ${NAME}$Transform(matrixToProcess, ei, U, UBlock, blockRange, tol, eiRange)
 
-    !> Matrix elements between (potentially degenerate) orbitals
-    ${TYPE}$(dp), intent(inout) :: matrixToProcess(:,:)
+  !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
+  !> orthogonal under the action of the matrix. This is the ${TYPE}$ case.
+  subroutine generate${LABEL}$Unitary(self, matrixToProcess, ei)
 
-    !> Eigenvalues of states
-    real(dp), intent(in) :: ei(:)
-
-    !> Unitary matrix to transform orbitals
-    ${TYPE}$(dp), allocatable, intent(inout) :: U(:,:)
-
-    !> Individual sub-blocks of unitary matrices to transform orbitals, if much smaller than U
-    type(wrapped${LABEL}$2), allocatable, intent(inout) :: UBlock(:)
-
-    !> Block ranges as needed in UBlock, deallocated again by time of return if dense U case
-    integer, allocatable, intent(inout) :: blockRange(:,:)
-
-    !> sub range of eigenvalues to process, for example relevant for parallel gauge in metallic
-    !> systems where only partially filled states are dangerous wrt to degeneration
-    integer, intent(in), optional :: eiRange(2)
-
-    !> Optional tolerance for comparisions between states
-    real(dp), intent(in), optional :: tol
-
-    integer :: iGrp, nGrp, iS, iE
-
-    call degenerateUnitary(U, UBlock, blockRange, matrixToProcess, ei, tol, eiRange)
-
-    if (allocated(U)) then
-      call makeSimiliarityTrans(matrixToProcess, U, 'R')
-    else if (allocated(UBlock)) then
-      nGrp = size(UBlock)
-      do iGrp = 1, nGrp
-        iS = blockRange(1,iGrp)
-        iE = blockRange(2,iGrp)
-        if (iS == iE) then
-          cycle
-        end if
-        matrixToProcess(:,iS:iE) = matmul(matrixToProcess(:,iS:iE), UBlock(iGrp)%data)
-      end do
-      do iGrp = 1, nGrp
-        iS = blockRange(1,iGrp)
-        iE = blockRange(2,iGrp)
-        if (iS == iE) then
-          cycle
-        end if
-      #:if TYPE == 'real'
-        matrixToProcess(iS:iE,:) = matmul(transpose(UBlock(iGrp)%data), matrixToProcess(iS:iE,:))
-      #:else
-        matrixToProcess(iS:iE,:) = matmul(transpose(conjg(UBlock(iGrp)%data)),&
-            & matrixToProcess(iS:iE,:))
-      #:endif
-      end do
-    end if
-
-  end subroutine ${NAME}$Transform
-
-
-  !> Transform matrix for degenerate states into combinations that are orthogonal under the action
-  !> of the matrix
-  subroutine ${NAME}$DegenerateUnitary(U, UBlock, blockRange, matrixToProcess, ei, tol, eiRange)
-
-    !> Unitary matrix to transform orbitals
-    ${TYPE}$(dp), intent(inout), allocatable :: U(:,:)
-
-    !> Individual sub-blocks of unitary matrices to transform orbitals
-    type(wrapped${LABEL}$2), intent(inout), allocatable :: UBlock(:)
-
-    !> Block ranges as needed in UBlock, deallocated again by time of return if dense U case
-    integer, intent(inout), allocatable :: blockRange(:,:)
+    !> Instance
+    class(TDegeneracyTransform), intent(inout) :: self
 
     !> Matrix elements between (potentially degenerate) orbitals
     ${TYPE}$(dp), intent(in) :: matrixToProcess(:,:)
@@ -156,18 +173,12 @@ contains
     !> Eigenvalues of local block of degenerate matrix
     real(dp), intent(in) :: ei(:)
 
-    !> Tolerance for comparisions between states
-    real(dp), intent(in), optional :: tol
-
-    !> sub range of eigenvalues to process, for example relevant for parallel gauge in metallic
-    !> systems where only partially filled states are dangerous wrt to degeneration
-    integer, intent(in), optional :: eiRange(2)
-
-    integer :: ii, nOrb, nGrp, iGrp, maxRange, nInBlock, iS, iE
+    integer :: ii, nGrp, iGrp, maxRange, nInBlock, iS, iE
     integer, allocatable :: degeneracies(:)
     ${TYPE}$(dp), allocatable :: subBlock(:,:)
     real(dp), allocatable :: eigenvals(:)
     logical :: tFullU
+    integer :: eiRange(2)
 
   #:if TYPE == 'real'
     real(dp), parameter :: one = 1.0_dp
@@ -177,62 +188,72 @@ contains
     real(dp), parameter :: zero = (0.0_dp, 0.0_dp)
   #:endif
 
-    nOrb = size(ei)
+    self%nOrb = size(ei)
+    if (all(self%eiRange == [-1,-1] )) then
+      eiRange(:) = [1, self%nOrb]
+    else
+      eiRange(:) = self%eiRange
+    end if
 
-    if (allocated(blockRange)) then
-      if (any(shape(blockRange) /= [2,nOrb])) then
-        deallocate(blockRange)
+    if (allocated(self%blockRange)) then
+      if (any(shape(self%blockRange) /= [2, self%nOrb])) then
+        deallocate(self%blockRange)
       end if
     end if
-    if (.not.allocated(blockRange)) then
-      allocate(blockRange(2,nOrb))
+    if (.not.allocated(self%blockRange)) then
+      allocate(self%blockRange(2, self%nOrb))
     end if
-    blockRange(:,:) = 0
+    self%blockRange(:,:) = 0
 
-    call degeneracyRanges(blockRange, nGrp, Ei, tol, eiRange)
+    call degeneracyRanges(self%blockRange, self%nGrp, Ei, self%tolerance, eiRange)
 
-    maxRange = maxval(blockRange(2,:) - blockRange(1,:)) + 1
-
+    maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
     if (maxRange == 1) then
       ! no transformations required
+      ! also nGrp == nOrb
       return
     end if
 
-    ! decide if the full matrix or sub-blocks to be used
-    tFullU = maxRange < nOrb / maxBlockFraction
+    ! decide if the full matrix or sub-blocks are to be used
+    self%tFullUMatrix = maxRange < self%nOrb / self%minDegenerateFraction&
+        & .or. maxRange > self%minDegenerateStates
 
-    if (tFullU) then
+    ! memory set-up if needed and set to unit matrix for transformation
+    if (self%tFullUMatrix) then
+
       ! make whole matrix as U
-      tFullU = .true.
-      if (allocated(U)) then
-        if (any(shape(U) /= [nOrb,nOrb])) then
-          deallocate(U)
+
+      if (allocated(self%${LABEL}$U)) then
+        if (any(shape(self%${LABEL}$U) /= [self%nOrb, self%nOrb])) then
+          deallocate(self%${LABEL}$U)
         end if
       end if
-      if (.not.allocated(U)) then
-        allocate(U(nOrb, nOrb))
+      if (.not.allocated(self%${LABEL}$U)) then
+        allocate(self%${LABEL}$U(self%nOrb, self%nOrb))
       end if
-      U(:,:) = zero
-      do ii = 1, nOrb
-        U(ii,ii) = one
+      self%${LABEL}$U(:,:) = zero
+      do ii = 1, self%nOrb
+        self%${LABEL}$U(ii,ii) = one
       end do
+
     else
+
       ! just make individual blocks, as much smaller and faster to use
-      tFullU = .false.
-      if (allocated(UBlock)) then
-        do iGrp = 1, size(UBlock)
-          deallocate(UBlock(iGrp)%data)
+
+      if (allocated(self%${LABEL}$UBlock)) then
+        do iGrp = 1, size(self%${LABEL}$UBlock)
+          deallocate(self%${LABEL}$UBlock(iGrp)%data)
         end do
-        deallocate(UBlock)
+        deallocate(self%${LABEL}$UBlock)
       end if
-      allocate(UBlock(nGrp))
-      do iGrp = 1, nGrp
-        nInBlock = blockRange(2,iGrp) - blockRange(1,iGrp) + 1
-        allocate(UBlock(iGrp)%data(nInBlock,nInBlock))
+      allocate(self%${LABEL}$UBlock(self%nGrp))
+      do iGrp = 1, self%nGrp
+        nInBlock = self%blockRange(2,iGrp) - self%blockRange(1,iGrp) + 1
+        allocate(self%${LABEL}$UBlock(iGrp)%data(nInBlock,nInBlock))
         if (nInBlock > 1) then
-          UBlock(iGrp)%data = zero
+          self%${LABEL}$UBlock(iGrp)%data = zero
         else
-          UBlock(iGrp)%data = one
+          self%${LABEL}$UBlock(iGrp)%data = one
         end if
       end do
     end if
@@ -240,30 +261,191 @@ contains
     allocate(subBlock(maxRange,maxRange))
     allocate(eigenvals(maxRange))
 
-    do iGrp = 1, nGrp
+    ! Form the unitary elements
+    do iGrp = 1, self%nGrp
       subBlock(:,:) = zero
       eigenvals(:) = 0.0_dp
-      iS = blockRange(1,iGrp)
-      iE = blockRange(2,iGrp)
+      iS = self%blockRange(1,iGrp)
+      iE = self%blockRange(2,iGrp)
       nInBlock = iE - iS + 1
       if (nInBlock == 1) then
         cycle
       end if
       subBlock(:nInBlock, :nInBlock) = matrixToProcess(iS:iE, iS:iE)
       call heev(subBlock(:nInBlock, :nInBlock), eigenvals, 'L', 'V')
-      if (tFullU) then
-        U(iS:iE, iS:iE) = subBlock(:nInBlock, :nInBlock)
+      if (self%tFullUMatrix) then
+        if (self%tReverseOrder) then
+          self%${LABEL}$U(iS:iE, iS:iE) = subBlock(:nInBlock, nInBlock:1:-1)
+        else
+          self%${LABEL}$U(iS:iE, iS:iE) = subBlock(:nInBlock, :nInBlock)
+        end if
       else
-        UBlock(iGrp)%data = subBlock(:nInBlock, :nInBlock)
+        if (self%tReverseOrder) then
+          self%${LABEL}$UBlock(iGrp)%data = subBlock(:nInBlock, nInBlock:1:-1)
+        else
+          self%${LABEL}$UBlock(iGrp)%data = subBlock(:nInBlock, :nInBlock)
+        end if
       end if
     end do
 
-  end subroutine ${NAME}$DegenerateUnitary
+  end subroutine generate${LABEL}$Unitary
+
+
+  !> ${TYPE}$ case of orthogonalising a hermitian/symmetric matrix against degenerate perturbation
+  !> operations by applying a (stored) unitary transform
+  subroutine degenerate${LABEL}$Transform(self, matrixToProcess)
+
+    !> Instance
+    class(TDegeneracyTransform), intent(in) :: self
+
+    !> Matrix elements between (potentially degenerate) orbitals
+    ${TYPE}$(dp), intent(inout) :: matrixToProcess(:,:)
+
+    integer :: iGrp, nGrp, iS, iE, ii, jj
+
+    if (self%tFullUMatrix) then
+
+      call makeSimiliarityTrans(matrixToProcess, self%${LABEL}$U, 'R')
+
+    else if (allocated(self%${LABEL}$UBlock)) then
+
+      do iGrp = 1, self%nGrp
+
+        iS = self%blockRange(1,iGrp)
+        iE = self%blockRange(2,iGrp)
+        if (iS == iE) then
+          cycle
+        end if
+
+        matrixToProcess(:,iS:iE) = matmul(matrixToProcess(:,iS:iE), self%${LABEL}$UBlock(iGrp)%data)
+
+      end do
+
+      do iGrp = 1, self%nGrp
+
+        iS = self%blockRange(1,iGrp)
+        iE = self%blockRange(2,iGrp)
+        if (iS == iE) then
+          matrixToProcess(iS,iS) = cmplx(real(matrixToProcess(iS,iS),dp), 0.0_dp, dp)
+          cycle
+        end if
+
+      #:if TYPE == 'real'
+        matrixToProcess(iS:iE,:) = matmul(transpose(self%RealUBlock(iGrp)%data),&
+            & matrixToProcess(iS:iE,:))
+      #:else
+        matrixToProcess(iS:iE,:) = matmul(transpose(conjg(self%CmplxUBlock(iGrp)%data)),&
+            & matrixToProcess(iS:iE,:))
+      #:endif
+
+        do ii = iS, iE
+          matrixToProcess(ii,ii) = cmplx(real(matrixToProcess(ii,ii),dp), 0.0_dp, dp)
+          do jj = ii + 1, iE
+            matrixToProcess(jj,ii) = 0.0_dp
+            matrixToProcess(ii,jj) = 0.0_dp
+          end do
+        end do
+
+      end do
+
+    end if
+
+  end subroutine degenerate${LABEL}$Transform
+
+
+  !> ${TYPE}$ case of transforming a unitary matrix against degenerate perturbation operations
+  subroutine apply${LABEL}$Unitary(self, matrixToProcess)
+
+    !> Instance
+    class(TDegeneracyTransform), intent(in) :: self
+
+    !> Matrix elements
+    ${TYPE}$(dp), intent(inout) :: matrixToProcess(:,:)
+
+    integer :: iGrp, nGrp, iS, iE
+
+    if (self%tFullUMatrix) then
+
+      !! might be transpose conjg at this stage
+      !matrixToProcess(:,:) = matmul(matrixToProcess, self%${LABEL}$U)
+
+      #:if TYPE == 'real'
+        matrixToProcess(:,:) = matmul(matrixToProcess(:,:), transpose(self%RealU))
+      #:else
+        matrixToProcess(:,:) = matmul(matrixToProcess(:,:), transpose(conjg(self%CmplxU)))
+      #:endif
+
+
+    else if (allocated(self%${LABEL}$UBlock)) then
+
+      do iGrp = 1, self%nGrp
+
+        iS = self%blockRange(1,iGrp)
+        iE = self%blockRange(2,iGrp)
+        if (iS == iE) then
+          cycle
+        end if
+
+        !! might be transpose conjg at this stage
+        !matrixToProcess(:,iS:iE) = matmul(matrixToProcess(:,iS:iE),&
+        ! & self%${LABEL}$UBlock(iGrp)%data)
+
+     #:if TYPE == 'real'
+        matrixToProcess(iS:iE,:) = matmul(matrixToProcess(iS:iE,:),&
+            & transpose(self%RealUBlock(iGrp)%data))
+      #:else
+        matrixToProcess(iS:iE,:) = matmul(matrixToProcess(iS:iE,:),&
+            & transpose(conjg(self%CmplxUBlock(iGrp)%data)))
+      #:endif
+
+      end do
+
+    end if
+
+  end subroutine apply${LABEL}$Unitary
+
 #:endfor
+
+  subroutine destroy(self)
+
+    !> Instance
+    class(TDegeneracyTransform), intent(inout) :: self
+
+    integer :: iGrp
+
+    if (allocated(self%blockRange)) then
+      deallocate(self%blockRange)
+    end if
+
+    if (self%tFullUMatrix) then
+
+    #:for _, _, LABEL in FLAVOURS
+      if (allocated(self%${LABEL}$U)) then
+        deallocate(self%${LABEL}$U)
+      end if
+    #:endfor
+
+    else
+
+    #:for _, _, LABEL in FLAVOURS
+      if (allocated(self%${LABEL}$UBlock)) then
+        do iGrp = 1, size(self%${LABEL}$UBlock)
+          deallocate(self%${LABEL}$UBlock(iGrp)%data)
+        end do
+        deallocate(self%${LABEL}$UBlock)
+      end if
+   #:endfor
+
+    end if
+
+  end subroutine destroy
 
 #:endif
 
+
   !> Find which groups of eigenvales are degenerate to within a tolerance
+  !> Note, similar process is used in Casida excited state calculations, so should spin off as its
+  !> own module at some point
   subroutine degeneracyRanges(blockRange, nGrp, Ei, tol, eiRange)
 
     !> Index array for lower and upper states in degenerate group
@@ -275,7 +457,7 @@ contains
     !> Eigenvalues for degeneracy testing
     real(dp), intent(in) :: Ei(:)
 
-    !> Tolerance of testing
+    !> Tolerance for degeneracy testing
     real(dp), intent(in), optional :: tol
 
     !> sub range of eigenvalues to process
@@ -287,7 +469,7 @@ contains
     if (present(tol)) then
       localTol = tol
     else
-      localTol = epsilon(0.0_dp)
+      localTol = sqrt(epsilon(0.0_dp))
     end if
     nOrb = size(ei)
     blockRange(:,:) = 0
