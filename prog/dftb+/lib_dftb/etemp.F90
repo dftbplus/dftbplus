@@ -24,7 +24,7 @@ module dftbp_etemp
   implicit none
   private
 
-  public :: Efilling, electronFill, Fermi, Gaussian, Methfessel, fillingSwap
+  public :: Efilling, electronFill, Fermi, Gaussian, Methfessel, fillingSwap, momFillingSwap
 
 
   !> Definition of a type of broadening function - Fermi-Dirac in this case
@@ -491,7 +491,6 @@ contains
 
   subroutine fillingSwap(tSpinPurify, iDet, filling, nEl)
 
-
     !> Is this a spin purified calculation? - MYD
     logical, intent(in) :: tSpinPurify
 
@@ -504,23 +503,74 @@ contains
     !> Nuber of electrons
     real(dp), intent(in) :: nEl(:)
 
-    integer :: iSpin =1
+    integer :: iSpin = 1
     real(dp) :: swapfill
- 
+    integer :: i = 1
+    integer :: j
+    j = size(nEl, DIM=1)
+    write(*,*) 'fillingswap', nEl
     if (iDet == 1 .and. tSpinPurify) then
-      swapfill = filling(int(nEl(1)) + 1, iSpin, iSpin) ! S = alpha LUMO
-      filling(int(nEl(1)) + 1, iSpin, iSpin) = filling(int(nEl(2)), iSpin, iSpin + 1) ! alpha LUMO = beta HOMO
-      filling(int(nEl(2)), iSpin, iSpin + 1)  = swapfill ! beta HOMO = S
+      swapfill = filling(int(nEl(1)) + 1, iSpin, iSpin)
+      filling(int(nEl(1)) + 1, iSpin, iSpin) = filling(int(nEl(2)), iSpin, iSpin + 1)
+      filling(int(nEl(2)), iSpin, iSpin + 1)  = swapfill
     else
-      swapfill = filling(int(nEl(1)) + 1, iSpin, iSpin) ! S = alpha LUMO
-      filling(int(nEl(1)) + 1, iSpin, iSpin) = filling(int(nEl(1)), iSpin, iSpin) ! alpha LUMO = alpha HOMO
-      filling(int(nEl(1)), iSpin, iSpin)  = swapfill ! alpha HOMO = S
+      swapfill = filling(int(nEl(1)) + 1, iSpin, iSpin) 
+      filling(int(nEl(1)) + 1, iSpin, iSpin) = filling(int(nEl(1)), iSpin, iSpin)
+      filling(int(nEl(1)), iSpin, iSpin)  = swapfill
     end if
 
-
-
+    write (*,*) 'Filling****************************delta'
+    do i=1,ubound(filling,1)
+       print *, i, filling(i, :, :)
+    enddo
 
   end subroutine fillingSwap
+
+  subroutine momFillingSwap(indxMOM, prjMOM, filling, fillMOM, nEl)
+
+    !> Index of projection values MOM
+    integer, intent(in) :: indxMOM(:)
+
+    !> Projection vector to be sorted
+    real(dp), intent(in) :: prjMOM(:)
+
+
+    !> occupations (level, kpoint, spin)
+    real(dp), intent(inout) :: filling(:,:,:)
+
+    !> Temporary filling
+    real(dp), intent(inout) :: fillMOM(:)
+
+    !> Nuber of electrons
+    real(dp), intent(in) :: nEl(:)
+
+    integer :: i
+    integer :: j
+    integer :: k
+    integer :: n
+    integer :: iSpin
+
+    n = size(nEl, DIM=1) !2
+    i = size(filling, DIM=1) !90
+    j = size(filling, DIM=2) !1 maybe is the k points... eh? its one for now
+                             ! just dont want ones floating around
+    do iSpin = 1, n
+      k = 0
+      do while (k < i)
+        fillMOM(1 + k) = filling(indxMOM(i - k), 1, iSpin)
+        k = k + j
+      end do
+      filling(:, 1, iSpin) = fillMOM(:)
+    end do
+
+
+    write (*,*) 'Filling****************************mom'
+    do i=1,ubound(filling,1)
+       print *, i, filling(i, :, :)
+    enddo
+
+
+  end subroutine momFillingSwap
 
 
 

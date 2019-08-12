@@ -16,6 +16,7 @@ module dftbp_sparse2dense
   use dftbp_constants, only : pi, imag
   use dftbp_commontypes
   use dftbp_memman
+  use dftbp_sorting
   use dftbp_periodic, only : TNeighbourList
   use dftbp_densedescr
 #:if WITH_SCALAPACK
@@ -28,6 +29,7 @@ module dftbp_sparse2dense
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
+  public :: momOverlapComp, momStoreH, momStoreS
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -2369,5 +2371,93 @@ contains
   end subroutine packERhoPauliBlacs
 
 #:endif
+
+
+  subroutine momOverlapComp(tMOM, HSqrReal, OldHSqrReal, Otemp, overlapM, SSqrRealStorage,&
+          & indxMOM, prjMOM, nEl)
+
+
+    !> Is this a spin purified calculation? - MYD
+    logical, intent(in) :: tMOM
+
+    !> Large square matrix for the resulting eigenvectors
+    real(dp), intent(in) :: HSqrReal(:,:)
+
+    !> Large square matrix for the resulting eigenvectors
+    real(dp), intent(inout) :: OldHSqrReal(:,:)
+ 
+    !> MOM temporary matrix storage
+    real(dp), intent(inout) :: Otemp(:,:)
+
+    !>MOM Overlap matrix storage
+    real(dp), intent(inout) :: overlapM(:,:)
+
+    !> Square S matrix Storage
+    real(dp), intent(in) :: SSqrRealStorage(:,:)
+
+    !> Index of projection values MOM
+    integer, intent(out) :: indxMOM(:)
+
+    !> Projection vector to be sorted
+    real(dp), intent(out) :: prjMOM(:)
+
+    !> nr. of electrons
+    real(dp), intent(in) :: nEl(:)
+
+
+    integer :: i
+    i = int(nEl(1))
+
+
+
+    Otemp = matmul(SSqrRealStorage, HSqrReal)
+    overlapM = matmul(transpose(OldHSqrReal), Otemp)
+    prjMOM = sum((overlapM(:,1:i)**2), DIM=2)
+    call index_heap_sort(indxMOM, prjMOM)
+
+    write (*,*) 'prjMOM****************************mom'
+    do i=1,ubound(prjMOM,1)
+       print *, i, prjMOM(i)
+    enddo
+
+  end subroutine momOverlapComp
+
+  subroutine momStoreH(HSqrReal, OldHSqrReal)
+
+    !> Large square matrix for the resulting eigenvectors
+    real(dp), intent(in) :: HSqrReal(:,:)
+
+    !> Large square matrix for the resulting eigenvectors
+    real(dp), intent(inout) :: OldHSqrReal(:,:)
+
+    OldHSqrReal(:,:) = HSqrReal(:,:)
+
+  end subroutine momStoreH
+
+  subroutine momStoreS(SSqrReal, SSqrRealStorage, SSqrTranspose, identityM)
+
+    !> Square S matrix
+    real(dp), intent(in) :: SSqrReal(:,:)
+
+    !> Square S matrix
+    real(dp), intent(out) :: SSqrRealStorage(:,:)
+
+    !> Save transpose of S matrix
+    real(dp), intent(out) :: SSqrTranspose(:,:)
+ 
+    !> Save an identity mayrix
+    real(dp), intent(out) :: identityM(:,:)
+
+    integer :: i
+    integer :: j
+    integer :: n
+
+
+    SSqrTranspose = transpose(SSqrReal)
+    n = int(sqrt(real(size(SSqrReal))))
+    forall( i = 1:n, j = 1:n) identityM(i,j) = (i/j)*(j/i)
+    SSqrRealStorage = SSqrReal+SSqrTranspose-identityM
+
+  end subroutine momStoreS
 
 end module dftbp_sparse2dense

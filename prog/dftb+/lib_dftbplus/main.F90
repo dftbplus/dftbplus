@@ -486,11 +486,13 @@ contains
         write (*,*) '					        1 = Triplet		1 = Mixed'
         write (*,*) '					        2 = Mixed'
         write (*,*) '________________________________________________________________________________________'
+
+
       end if
 
-   !   if (tMOM .or. tIMOM) then
-   !     call initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
-   !   end if
+      if (tMOM .or. tIMOM) then
+        call initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
+      end if
  
       lpSCC: do iSccIter = 1, maxSccIter
  
@@ -635,7 +637,9 @@ contains
                 & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
                 & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
                 & iEqBlockOnSite, iEqBlockOnSiteLS)
+
           else
+
             call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
                 & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
                 & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
@@ -1682,6 +1686,49 @@ contains
   end subroutine initTIDFTB
 
 
+  !> Initialized Maximum Overlap 
+  subroutine initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
+
+  !> Is this a spin purified calculation? - MYD
+  logical, intent(in) :: tSpinPurify
+  logical, intent(in) :: tNonAufbau
+
+  !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
+  integer, intent(out) :: iDet
+
+  !> Is this a maximum overlap calculation (MOM)
+  logical, intent(inout) :: tMOM
+
+  !> Is this an initial maximum overlap calculation? (IMOM)
+  logical, intent(in) :: tIMOM
+
+  !> On which SCC iteration should the maximum overlap calculation start?
+  integer, intent(out) :: nMOM
+
+  !> Is this a descision augmented diagonalization calculation? (DAD) If so, when should (I)MOM start and for which det?
+  integer, intent(in) :: nDADt
+  integer, intent(in) :: nDADm
+
+
+
+write (*,*) 'initMOM called,	DAD T=', nDADt, '	DAD M=', nDADm
+
+      if (tSpinPurify .and. tNonAufbau) then !myd
+        if (iDet == 2) then
+          nMOM = nDADm
+        else if (iDet == 1) then
+          nMOM = nDADt
+        end if
+      else
+write(*,*) 'Non SpinPurified calculation detected, nMOM set by MixedDAD.'
+          nMOM = nDADm
+write(*,*) 'nMOM =', nMOM
+      end if
+
+
+  end subroutine initMOM
+
+
 
 
   !> Reset internal potential related quantities
@@ -1800,11 +1847,12 @@ contains
     real(dp), allocatable :: shellPot(:,:,:)
     real(dp), allocatable, save :: shellPotBk(:,:)
     integer, pointer :: pSpecies0(:)
-    integer :: nAtom, nSpin
+    integer :: nAtom, nSpin, i
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
     pSpecies0 => species(1:nAtom)
+
 
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
@@ -1957,7 +2005,7 @@ contains
     !> image atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> potential acting on sustem
+    !> potential acting on system
     type(TPotentials), intent(in) :: potential
 
     !> resulting hamitonian (sparse)
@@ -1972,11 +2020,13 @@ contains
 
     ham(:,:) = 0.0_dp
     ham(:,1) = h0
+write (*,*) 'GetSCCHam A - calls  add_shift_block'
     call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
 
     if (allocated(iHam)) then
       iHam(:,:) = 0.0_dp
+write (*,*) 'GetSCCHam B'
       call add_shift(iHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
           & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
     end if
@@ -2518,7 +2568,7 @@ contains
     integer, intent(in) :: nMOM
 
     integer :: nSpin
-
+    integer :: i
     nSpin = size(ham, dim=2)
 
     call env%globalTimer%startTimer(globalTimers%diagonalization)
@@ -2526,7 +2576,8 @@ contains
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep,&
-            & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:))
+            & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:),&
+            & SSqrRealStorage, SSqrTranspose, identityM, tMOM, tIMOM, iSccIter, nMOM)
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
@@ -2537,14 +2588,34 @@ contains
           & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
           & parallelKS, eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
     end if
+
+    if ((tMOM .or. tIMOM) .and. iSccIter >= (nMOM+1) .and. iDet >= 1) then
+      call momOverlapComp(tMOM, HSqrReal, OldHSqrReal, Otemp, overlapM, SSqrRealStorage,&
+          & indxMOM, prjMOM, nEl)
+    end if
+    if (tMOM .and. iDet>=1) then
+      if (iSccIter >= nMOM) then
+        call momStoreH(HSqrReal, OldHSqrReal)
+      end if
+    else if (tIMOM .and. iSccIter == nMOM .and. iDet>=1) then
+        call momStoreH(HSqrReal, OldHSqrReal)   
+    end if
+
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
 
-    if (tNonAufbau .and. .not. (tGroundGuess .and. iDet==0)) then 
+    if (tNonAufbau .and. .not. (tGroundGuess .and. iDet==0) .and. .not. (tMOM .or. tIMOM)) then 
+      call fillingSwap(tSpinPurify, iDet, filling, nEl)
+    else if ((tMOM .or. tIMOM) .and. iDet>0) then
+      if (iSccIter>= (nMOM+1)) then
+        call momFillingSwap(indxMOM, prjMOM, filling, fillMOM, nEl)
+      else
         call fillingSwap(tSpinPurify, iDet, filling, nEl)
+      end if
     end if
+
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
@@ -2575,7 +2646,8 @@ contains
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep, deltaRhoInSqr,&
-      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen)
+      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, &
+      & SSqrRealStorage, SSqrTranspose, identityM, tMOM, tIMOM, iSccIter, nMOM)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2635,10 +2707,33 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
+    !> Square S matrix storage for MOM
+    real(dp), intent(out):: SSqrRealStorage(:,:)
+
+    !> Save transpose of S matrix
+    real(dp), intent(out) :: SSqrTranspose(:,:)
+ 
+    !> Save an identity matrix
+    real(dp), intent(out) :: identityM(:,:)
+
+    !> Is this a maximum overlap calculation?
+    logical, intent(in) :: tMOM
+
+    !> Is this an initial maximum overlap calculation? (IMOM)
+    logical, intent(in) :: tIMOM
+
+    !> Number of current SCC step
+    integer, intent(in) :: iSccIter
+
+    !> On which SCC iteration should the maximum overlap calculation start?
+    integer, intent(in) :: nMOM
+
     integer :: iKS, iSpin, ii
+    integer :: i
 
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
+
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -2658,6 +2753,12 @@ contains
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
 
+      if ((tMOM .or. tIMOM) .and. iSccIter == 1) then
+        call momStoreS(SSqrReal, SSqrRealStorage, SSqrTranspose, identityM)
+      end if
+
+
+
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
       ! Add rangeseparated contribution
@@ -2672,8 +2773,11 @@ contains
 
       call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
+     ! OldHSqrReal = HSqrReal
     #:endif
     end do
+
+
 
   #:if WITH_SCALAPACK
     ! Distribute all eigenvalues to all nodes via global summation
@@ -2942,7 +3046,16 @@ contains
     !> Change in density matrix during this SCC step for rangesep
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
-    integer :: iKS, iSpin
+    integer :: iKS, iSpin, i
+
+
+    write (*,*) 'Filling****************************Dense From real eigvects'
+    do i=1,ubound(filling,1)
+       print *, filling(i, :)
+    enddo
+
+! Filling called in NAuf
+
 
     rhoPrim(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
@@ -3794,7 +3907,7 @@ contains
     integer, intent(in), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
     real(dp), allocatable :: qDiffRed(:)
-    integer :: nSpin
+    integer :: nSpin, i
 
     nSpin = size(qOutput, dim=3)
 
@@ -3830,6 +3943,8 @@ contains
             & iEqBlockOnSiteLS)
       end if
     end if
+
+
 
   end subroutine getNextInputCharges
 
@@ -4559,7 +4674,7 @@ contains
       dipole(:,:) = 0.0_dp
       call add_shift(hprime, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
           & iSparseStart, nAtom, img2CentCell, potentialDerivative)
-
+      write(*,*) '! Potential from dH/dE in checkDipoleViaHellmannFeynman'
       ! evaluate <psi| dH/dE | psi>
       call mulliken(dipole, hprime(:,1), rhoPrim(:,1), orb, neighbourList%iNeighbour, nNeighbourSK,&
           & img2CentCell, iSparseStart)
