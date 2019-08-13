@@ -9,7 +9,7 @@ endif()
 
 set(CMAKE_Fortran_FLAGS "" CACHE STRING "General Fortran flags")
 
-set(CMAKE_Fortran_FLAGS_RELEASE "-O2 -mavx -funroll-all-loops" CACHE STRING
+set(CMAKE_Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops" CACHE STRING
   "Specific Fortran flags for Release (production) mode")
 
 set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
