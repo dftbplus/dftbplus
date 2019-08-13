@@ -90,6 +90,10 @@ if(WITH_TRANSPORT)
   add_subdirectory(external/libnegf EXCLUDE_FROM_ALL)
 endif()
 
+if(WITH_GPU)
+  add_subdirectory(external/magmahelper EXCLUDE_FROM_ALL)
+endif()
+
 
 #
 # Add internal components

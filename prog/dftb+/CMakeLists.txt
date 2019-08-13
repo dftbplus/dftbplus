@@ -81,6 +81,15 @@ if(WITH_TRANSPORT)
   target_link_libraries(dftbplus PUBLIC libnegf poisson)
 endif()
 
+if(WITH_GPU)
+  if(MONOLITHIC_LIBDFTBPLUS)
+    target_include_directories(dftbplus PUBLIC
+      $<TARGET_PROPERTY:magmahelper,INTERFACE_INCLUDE_DIRECTORIES>)
+  else()
+    target_link_libraries(dftbplus PUBLIC magmahelper)
+  endif()
+endif()  
+
 if(WITH_ELSI)
   target_link_libraries(dftbplus PUBLIC ${ELSI_LIBRARIES})
   target_include_directories(dftbplus PUBLIC ${ELSI_INCLUDE_DIRS})
@@ -145,6 +154,14 @@ if(BUILD_API)
       install(
         DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}" FILES_MATCHING PATTERN "*.mod")
     endforeach()
+  endif()
+
+  if (WITH_GPU)
+    if(NOT MONOLITHIC_LIBDFTBPLUS)
+      dftbp_install_library_files($<TARGET_FILE:magmahelper>)
+    endif()
+    get_target_property(moddirs magmahelper INTERFACE_INCLUDE_DIRECTORIES)
+    dftbp_install_mod_dirs(${moddirs})
   endif()
 
   if(WITH_MPI)

@@ -33,8 +33,8 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 
 option(BUILD_API "Whether the high-level API to the DFTB+ library should be built" FALSE)
 # Turn this on, if you want to use libdftbplus.a to integrate DFTB+ into other software
-# packages. (Otherwise the library only contains DFTB+ internal routines, no public API and
-# would not be installed.)
+# packages. (Otherwise the library would not contain the public API, and neither the library nor the
+# module files would be installed automatically.)
 
 option(MONOLITHIC_LIBDFTBPLUS
   "Whether the DFTB+ library should contain some of the external libraries it depends on" FALSE)

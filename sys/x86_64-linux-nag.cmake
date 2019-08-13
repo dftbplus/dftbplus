@@ -12,7 +12,7 @@ set(CMAKE_Fortran_FLAGS "-ieee=full" CACHE STRING "General Fortran flags")
 set(CMAKE_Fortran_FLAGS_RELEASE "-O2" CACHE STRING
   "Specific Fortran flags for Release (production) mode")
 
-set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
+set(FYPP_FLAGS "-DINTERNAL_ERFC -DEXP_TRAP" CACHE STRING "Flags for the preprocessor")
 
 
 #
