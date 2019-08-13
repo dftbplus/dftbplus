@@ -133,7 +133,7 @@ endif
 .PHONY: api_lib_mm
 api_lib_mm:
 	mkdir -p $(BUILDDIR)/api/mm
-	$(MAKE) -C $(BUILDDIR)/api/mm -f $(ROOT)/api/mm/make.build \
+	$(MAKE) -C $(BUILDDIR)/api/mm -f $(ROOT)/prog/dftb+/api/mm/make.build \
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR)
 
 api_lib_mm: $(DFTBPLUS_DEPS)
