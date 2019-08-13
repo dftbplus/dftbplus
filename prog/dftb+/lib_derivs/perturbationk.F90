@@ -142,7 +142,8 @@ contains
     real(dp), allocatable :: dHam(:,:), dOver(:), dEi(:,:,:)
     real(dp) :: vec(3)
     complex(dp), allocatable :: dPsi(:,:,:,:), dHamSqr(:,:), dOverSqr(:,:), workLocal(:,:)
-    complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:,:), eCi(:,:), work2Local(:,:), work3Local(:,:)
+    complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:,:), eCi(:,:), work2Local(:,:)
+    complex(dp), allocatable :: work3Local(:,:)
 
     integer :: fdResults
 
@@ -215,49 +216,33 @@ contains
           end do
         end if
 
-        do ii = 1, nOrbs
-          write(*,"(16E12.2)")workLocal(:,ii)
-        end do
-        write(*,*)
-        write(*,*)
-
         work2Local(:,:) = eigVecsCplx(:,:,iKS)
         call transform%applyUnitary(work2Local)
 
-        write(*,*)'X'
         do ii = 1, nOrbs
-          write(*,"(16E12.2)")work2Local(:,ii)
-        end do
-        write(*,*)
-        write(*,*)
-
-
-        do ii = 1, nOrbs
-          workLocal(:,ii) = work2Local(:,ii) * eigvals(ii,iK,iS)
-        end do
-
-        ! form |c> H' - e S' <c|
-        call hemm(work3Local, 'l', dHamSqr, work2local)
-        call hemm(work3Local, 'l', dOverSqr,worklocal , alpha=(-1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
-        work2Local(:,:) = matmul(transpose(conjg(work2local)), work2Local)
-
-        do ii = 1, nOrbs
-          write(*,"(16E12.2)")work2Local(:,ii)
-        end do
-        write(*,*)
-        write(*,*)
-
-
-        do ii = 1, nOrbs
+          workLocal(ii,ii) = 0.0_dp
           do jj = ii + 1, nOrbs
-            if (abs(workLocal(jj,ii)) > epsilon(0.0_dp)) then
+            if (.not.transform%degenerate(ii,jj)) then
               workLocal(jj,ii) = workLocal(jj,ii) / (eigvals(ii,iK,iS) - eigvals(jj,iK,iS))
               workLocal(ii, jj) = -workLocal(jj,ii)
             end if
           end do
         end do
 
-        work2Local(:,:) = matmul(work2Local, workLocal)
+        work3Local(:,:) = matmul(work2Local, workLocal)
+
+        write(stdOut,*)'Derivatives of ci'
+        do ii = 1, nOrbs
+          write(stdOut,"(16E12.2)")work3Local(:,ii)
+        end do
+        write(stdOut,*)
+
+        work2Local(:,1) = sum(conjg(eigVecsCplx(:,:,iKS)) * work3Local, dim = 1)
+        write(stdOut,*)'product'
+        do ii = 1, nOrbs
+          write(stdOut,*)ii, work2Local(ii,1)
+        end do
+        write(stdOut,*)
 
       end do
 

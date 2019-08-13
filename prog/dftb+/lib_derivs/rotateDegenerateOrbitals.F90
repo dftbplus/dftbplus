@@ -38,6 +38,9 @@ module dftbp_rotateDegenerateOrbs
     !> Block ranges as needed in UBlock, deallocated again by time of return if dense U case
     integer, allocatable :: blockRange(:,:)
 
+    !> To which group of states any particular one belongs
+    integer, allocatable :: degenerateGroup(:)
+
     !> numerical tolerance for deciding degeneracy
     real(dp) :: tolerance
 
@@ -93,6 +96,9 @@ module dftbp_rotateDegenerateOrbs
     procedure :: applyRealUnitary
     generic :: applyUnitary => applyCmplxUnitary, applyRealUnitary
 
+    !> Are a pair of states in the same degenerate group
+    procedure :: degenerate
+
     !> Release memory and cleans up
     procedure :: destroy
 
@@ -140,7 +146,8 @@ contains
     if (present(tolerance)) then
       self%tolerance = tolerance
     else
-      self%tolerance = sqrt(epsilon(0.0_dp))
+      ! a few times eps, just in case of minor symmetry breaking
+      self%tolerance = 128.0_dp*epsilon(0.0_dp)
     end if
 
     if (present(eiRange)) then
@@ -204,8 +211,19 @@ contains
       allocate(self%blockRange(2, self%nOrb))
     end if
     self%blockRange(:,:) = 0
+    if (allocated(self%degenerateGroup)) then
+      if (size(self%degenerateGroup) /= self%nOrb) then
+        deallocate(self%degenerateGroup)
+      end if
+    end if
+    if (.not.allocated(self%degenerateGroup)) then
+      allocate(self%degenerateGroup(self%nOrb))
+    end if
 
-    call degeneracyRanges(self%blockRange, self%nGrp, Ei, self%tolerance, eiRange)
+    call degeneracyRanges(self%blockRange, self%nGrp, Ei, self%tolerance, eiRange,&
+        & self%degenerateGroup)
+
+    write(*,*)'groups',self%degenerateGroup
 
     maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
     if (maxRange == 1) then
@@ -350,6 +368,13 @@ contains
 
     end if
 
+    ! clean up to exact symmetry
+  #:if TYPE == 'real'
+    matrixToProcess(:,:) = 0.5_dp * (matrixToProcess + transpose(matrixToProcess))
+  #:else
+    matrixToProcess(:,:) = 0.5_dp * (matrixToProcess + transpose(conjg(matrixToProcess)))
+  #:endif
+
   end subroutine degenerate${LABEL}$Transform
 
 
@@ -366,15 +391,11 @@ contains
 
     if (self%tFullUMatrix) then
 
-      !! might be transpose conjg at this stage
-      !matrixToProcess(:,:) = matmul(matrixToProcess, self%${LABEL}$U)
-
       #:if TYPE == 'real'
-        matrixToProcess(:,:) = matmul(matrixToProcess(:,:), transpose(self%RealU))
+        matrixToProcess(:,:) = matmul(matrixToProcess, self%RealU)
       #:else
-        matrixToProcess(:,:) = matmul(matrixToProcess(:,:), transpose(conjg(self%CmplxU)))
+        matrixToProcess(:,:) = matmul(matrixToProcess, self%CmplxU)
       #:endif
-
 
     else if (allocated(self%${LABEL}$UBlock)) then
 
@@ -386,16 +407,10 @@ contains
           cycle
         end if
 
-        !! might be transpose conjg at this stage
-        !matrixToProcess(:,iS:iE) = matmul(matrixToProcess(:,iS:iE),&
-        ! & self%${LABEL}$UBlock(iGrp)%data)
-
-     #:if TYPE == 'real'
-        matrixToProcess(iS:iE,:) = matmul(matrixToProcess(iS:iE,:),&
-            & transpose(self%RealUBlock(iGrp)%data))
+      #:if TYPE == 'real'
+        matrixToProcess(:, iS:iE) = matmul(matrixToProcess(:, iS:iE), self%RealUBlock(iGrp)%data)
       #:else
-        matrixToProcess(iS:iE,:) = matmul(matrixToProcess(iS:iE,:),&
-            & transpose(conjg(self%CmplxUBlock(iGrp)%data)))
+        matrixToProcess(:, iS:iE) = matmul(matrixToProcess(:, iS:iE), self%CmplxUBlock(iGrp)%data)
       #:endif
 
       end do
@@ -415,6 +430,9 @@ contains
 
     if (allocated(self%blockRange)) then
       deallocate(self%blockRange)
+    end if
+    if (allocated(self%degenerateGroup)) then
+      deallocate(self%degenerateGroup)
     end if
 
     if (self%tFullUMatrix) then
@@ -442,11 +460,30 @@ contains
 
 #:endif
 
+  !> Returns whether states are in the same degenerate group
+  pure function degenerate(self, ii, jj)
+
+    !> Instance
+    class(TDegeneracyTransform), intent(in) :: self
+
+    !> First state
+    integer, intent(in) :: ii
+
+    !> second state
+    integer, intent(in) :: jj
+
+    !> Resulting test
+    logical :: degenerate
+
+    degenerate = (self%degenerateGroup(ii) == self%degenerateGroup(jj))
+
+  end function degenerate
+
 
   !> Find which groups of eigenvales are degenerate to within a tolerance
   !> Note, similar process is used in Casida excited state calculations, so should spin off as its
   !> own module at some point
-  subroutine degeneracyRanges(blockRange, nGrp, Ei, tol, eiRange)
+  subroutine degeneracyRanges(blockRange, nGrp, Ei, tol, eiRange, grpMembership)
 
     !> Index array for lower and upper states in degenerate group
     integer, intent(out) :: blockRange(:,:)
@@ -463,13 +500,16 @@ contains
     !> sub range of eigenvalues to process
     integer, intent(in), optional :: eiRange(2)
 
+    integer, intent(out), optional :: grpMembership(:)
+
     integer :: ii, jj, nOrb, iS, iE
     real(dp) :: localTol
 
     if (present(tol)) then
       localTol = tol
     else
-      localTol = sqrt(epsilon(0.0_dp))
+      ! a few times eps, just in case of minor symmetry breaking
+      localTol = 128.0_dp * epsilon(0.0_dp)
     end if
     nOrb = size(ei)
     blockRange(:,:) = 0
@@ -491,18 +531,24 @@ contains
     end if
     nGrp = nGrp + iS - 1
 
+    do ii = 1, nGrp
+      grpMembership(ii) = ii
+    end do
+
     ii = iS
     do while (ii <= iE)
       nGrp = nGrp + 1
       blockRange(1, nGrp) = ii
+      grpMembership(ii) = nGrp
       do jj = ii + 1, iE
         ! assume sorted:
         if ( abs(ei(jj) - ei(jj-1)) > localTol) then
           exit
         end if
+        grpMembership(jj) = nGrp
       end do
       ii = jj
-      blockRange(2, nGrp) = jj -1
+      blockRange(2, nGrp) = jj - 1
     end do
 
     if (present(eiRange)) then
@@ -510,6 +556,7 @@ contains
       do ii = iE + 1, nOrb
         nGrp = nGrp + 1
         blockRange(:, nGrp) = ii
+        grpMembership(ii) = nGrp
       end do
     end if
 
