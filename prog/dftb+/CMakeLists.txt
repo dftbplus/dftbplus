@@ -35,14 +35,10 @@ dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-
 
 add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
-if(MONOLITHIC_LIBDFTBPLUS)
+target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
 
-  target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
-
-  if(WITH_SOCKETS)
-    target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
-  endif()
-
+if(WITH_SOCKETS)
+  target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
 endif()
 
 set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
@@ -56,21 +52,13 @@ endif()
 
 # External libraries
 
-if(MONOLITHIC_LIBDFTBPLUS)
-  target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:xmlf90,INTERFACE_INCLUDE_DIRECTORIES>
-    ${includedir})
-else()
-  target_link_libraries(dftbplus PUBLIC xmlf90)
-endif()
+target_include_directories(dftbplus PUBLIC
+  $<TARGET_PROPERTY:xmlf90,INTERFACE_INCLUDE_DIRECTORIES>
+  ${includedir})
 
 if(WITH_SOCKETS)
-  if(MONOLITHIC_LIBDFTBPLUS)
-    target_include_directories(dftbplus PUBLIC
-      $<TARGET_PROPERTY:fsockets,INTERFACE_INCLUDE_DIRECTORIES>)
-  else()
-    target_link_libraries(dftbplus PUBLIC fsockets)
-  endif()
+  target_include_directories(dftbplus PUBLIC
+    $<TARGET_PROPERTY:fsockets,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
 
 if(WITH_DFTD3)
@@ -82,12 +70,8 @@ if(WITH_TRANSPORT)
 endif()
 
 if(WITH_GPU)
-  if(MONOLITHIC_LIBDFTBPLUS)
-    target_include_directories(dftbplus PUBLIC
-      $<TARGET_PROPERTY:magmahelper,INTERFACE_INCLUDE_DIRECTORIES>)
-  else()
-    target_link_libraries(dftbplus PUBLIC magmahelper)
-  endif()
+  target_include_directories(dftbplus PUBLIC
+    $<TARGET_PROPERTY:magmahelper,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()  
 
 if(WITH_ELSI)
@@ -123,16 +107,10 @@ if(BUILD_API)
   dftbp_install_mod_dirs(${includedir})
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h DESTINATION ${INSTALL_INC_DIR})
 
-  if(NOT MONOLITHIC_LIBDFTBPLUS)
-    dftbp_install_library_files($<TARGET_FILE:xmlf90>)
-  endif()
   get_target_property(moddirs xmlf90 INTERFACE_INCLUDE_DIRECTORIES)
   dftbp_install_mod_dirs(${moddirs})
 
   if (WITH_SOCKETS)
-    if(NOT MONOLITHIC_LIBDFTBPLUS)
-      dftbp_install_library_files($<TARGET_FILE:fsockets>)
-    endif()
     get_target_property(moddirs fsockets INTERFACE_INCLUDE_DIRECTORIES)
     dftbp_install_mod_dirs(${moddirs})
   endif()
@@ -157,9 +135,6 @@ if(BUILD_API)
   endif()
 
   if (WITH_GPU)
-    if(NOT MONOLITHIC_LIBDFTBPLUS)
-      dftbp_install_library_files($<TARGET_FILE:magmahelper>)
-    endif()
     get_target_property(moddirs magmahelper INTERFACE_INCLUDE_DIRECTORIES)
     dftbp_install_mod_dirs(${moddirs})
   endif()

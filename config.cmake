@@ -36,12 +36,6 @@ option(BUILD_API "Whether the high-level API to the DFTB+ library should be buil
 # packages. (Otherwise the library would not contain the public API, and neither the library nor the
 # module files would be installed automatically.)
 
-option(MONOLITHIC_LIBDFTBPLUS
-  "Whether the DFTB+ library should contain some of the external libraries it depends on" FALSE)
-# Reduces the dependencies of libdftbplus.a by adding some of the external components (e.g. xmlf90,
-# fsockets) to the library. Useful, if you use DFTB+ as library in other software packages (see
-# BUILD_API option) and want to simplify linking.
-
 #
 # Architecture dependent build settings
 #
