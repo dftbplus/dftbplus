@@ -58,14 +58,6 @@ endif()
 
 dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
 
-#
-# Set up installation paths
-#
-set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin")
-set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib")
-set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+")
-set(INSTALL_MOD_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+/mods")
-
 
 #
 # Add optional external components
@@ -77,17 +69,22 @@ if(WITH_SOCKETS)
 endif()
 
 if(WITH_DFTD3)
-  add_subdirectory(external/dftd3/origin EXCLUDE_FROM_ALL)
+  add_subdirectory(external/dftd3)
 endif()
 
 if(WITH_MPI)
-  add_subdirectory(external/mpifx/origin EXCLUDE_FROM_ALL)
-  add_subdirectory(external/scalapackfx/origin EXCLUDE_FROM_ALL)
+  add_subdirectory(external/mpifx)
+  add_subdirectory(external/scalapackfx)
 endif()
 
 if(WITH_TRANSPORT)
-  add_subdirectory(external/poisson EXCLUDE_FROM_ALL)
-  add_subdirectory(external/libnegf EXCLUDE_FROM_ALL)
+  if(BUILD_API)
+    add_subdirectory(external/poisson)
+    add_subdirectory(external/libnegf)
+  else()
+    add_subdirectory(external/poisson EXCLUDE_FROM_ALL)
+    add_subdirectory(external/libnegf EXCLUDE_FROM_ALL)
+  endif()
 endif()
 
 if(WITH_GPU)

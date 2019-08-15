@@ -20,15 +20,24 @@ add_library(libnegf INTERFACE)
 
 add_dependencies(libnegf build_libnegf)
 
-target_include_directories(libnegf INTERFACE
-  ${CMAKE_CURRENT_BINARY_DIR}/libnegf ${CMAKE_CURRENT_BINARY_DIR}/ext_system)
-
-target_link_libraries(libnegf INTERFACE
+set(moddirs ${CMAKE_CURRENT_BINARY_DIR}/libnegf ${CMAKE_CURRENT_BINARY_DIR}/ext_system)
+set(libfiles
   ${CMAKE_CURRENT_BINARY_DIR}/libnegf-${ARCH}.a
   ${CMAKE_CURRENT_BINARY_DIR}/libsparskit.a
   ${CMAKE_CURRENT_BINARY_DIR}/libsyscalls.a)
+
+target_include_directories(libnegf INTERFACE ${moddirs})
+target_link_libraries(libnegf INTERFACE ${libfiles})
 
 if(WITH_MPI)
   add_dependencies(build_libnegf mpifx)
   target_link_libraries(libnegf INTERFACE mpifx)
 endif()
+
+foreach(libfile IN LISTS libfiles)
+  install(FILES ${libfile} DESTINATION ${INSTALL_LIB_DIR})
+endforeach()
+
+foreach(moddir IN LISTS moddirs)
+  install(DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}" FILES_MATCHING PATTERN "*.mod")
+endforeach()

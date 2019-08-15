@@ -32,3 +32,7 @@ target_include_directories(poisson PUBLIC ${includedir})
 if(WITH_MPI)
   target_link_libraries(poisson PUBLIC mpifx)
 endif()
+
+
+install(TARGETS poisson DESTINATION ${INSTALL_LIB_DIR})
+install(DIRECTORY ${includedir}/ DESTINATION ${INSTALL_MOD_DIR})

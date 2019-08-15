@@ -41,6 +41,10 @@ if(WITH_SOCKETS)
   target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
 endif()
 
+if(WITH_GPU)
+  target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:magmahelper_objlib>)
+endif()
+
 set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${includedir})
@@ -53,13 +57,17 @@ endif()
 # External libraries
 
 target_include_directories(dftbplus PUBLIC
-  $<TARGET_PROPERTY:xmlf90,INTERFACE_INCLUDE_DIRECTORIES>
-  ${includedir})
+  $<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES> ${includedir})
 
 if(WITH_SOCKETS)
   target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:fsockets,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
+
+if(WITH_GPU)
+  target_include_directories(dftbplus PUBLIC
+    $<TARGET_PROPERTY:magmahelper_objlib,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()  
 
 if(WITH_DFTD3)
   target_link_libraries(dftbplus PUBLIC dftd3)
@@ -68,11 +76,6 @@ endif()
 if(WITH_TRANSPORT)
   target_link_libraries(dftbplus PUBLIC libnegf poisson)
 endif()
-
-if(WITH_GPU)
-  target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:magmahelper,INTERFACE_INCLUDE_DIRECTORIES>)
-endif()  
 
 if(WITH_ELSI)
   target_link_libraries(dftbplus PUBLIC ${ELSI_LIBRARIES})
@@ -103,52 +106,29 @@ target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 # Installation
 
 if(BUILD_API)
-  dftbp_install_target(dftbplus)
-  dftbp_install_mod_dirs(${includedir})
+  install(TARGETS dftbplus DESTINATION ${INSTALL_LIB_DIR})
+  install(DIRECTORY ${includedir}/ DESTINATION ${INSTALL_MOD_DIR})
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h DESTINATION ${INSTALL_INC_DIR})
 
-  get_target_property(moddirs xmlf90 INTERFACE_INCLUDE_DIRECTORIES)
-  dftbp_install_mod_dirs(${moddirs})
+  get_target_property(moddirs xmlf90_objlib INTERFACE_INCLUDE_DIRECTORIES)
+  foreach(moddir IN LISTS moddirs)
+    install(DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}")
+  endforeach()
 
   if (WITH_SOCKETS)
-    get_target_property(moddirs fsockets INTERFACE_INCLUDE_DIRECTORIES)
-    dftbp_install_mod_dirs(${moddirs})
+    get_target_property(moddirs fsockets_objlib INTERFACE_INCLUDE_DIRECTORIES)
+    foreach(moddir IN LISTS moddirs)
+      install(DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}")
+    endforeach()
   endif()
   
-  if(WITH_DFTD3)
-    dftbp_install_library_files($<TARGET_FILE:dftd3>)
-    get_target_property(moddirs dftd3 INTERFACE_INCLUDE_DIRECTORIES)
-    dftbp_install_mod_dirs(${moddirs})
-  endif()
-
-  if(WITH_TRANSPORT)
-    dftbp_install_library_files($<TARGET_FILE:poisson>)
-    get_target_property(moddirs poisson INTERFACE_INCLUDE_DIRECTORIES)
-    dftbp_install_mod_dirs(${moddirs})
-    
-    dftbp_install_library_files($<TARGET_PROPERTY:libnegf,INTERFACE_LINK_LIBRARIES>)
-    get_target_property(moddirs libnegf INTERFACE_INCLUDE_DIRECTORIES)
+  if (WITH_GPU)
+    get_target_property(moddirs magmahelper_objlib INTERFACE_INCLUDE_DIRECTORIES)
     foreach(moddir IN LISTS moddirs)
-      install(
-        DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}" FILES_MATCHING PATTERN "*.mod")
+      install(DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}")
     endforeach()
   endif()
 
-  if (WITH_GPU)
-    get_target_property(moddirs magmahelper INTERFACE_INCLUDE_DIRECTORIES)
-    dftbp_install_mod_dirs(${moddirs})
-  endif()
-
-  if(WITH_MPI)
-    dftbp_install_library_files($<TARGET_FILE:mpifx>)
-    get_target_property(moddirs mpifx INTERFACE_INCLUDE_DIRECTORIES)
-    dftbp_install_mod_dirs(${moddirs})
-
-    dftbp_install_library_files($<TARGET_FILE:scalapackfx>)
-    get_target_property(moddirs scalapackfx INTERFACE_INCLUDE_DIRECTORIES)
-    dftbp_install_mod_dirs(${moddirs})
-  endif()
-  
 endif()
 
 

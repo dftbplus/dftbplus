@@ -36,19 +36,38 @@ option(BUILD_API "Whether the high-level API to the DFTB+ library should be buil
 # packages. (Otherwise the library would not contain the public API, and neither the library nor the
 # module files would be installed automatically.)
 
+
 #
-# Architecture dependent build settings
+# Architecture/compiler specific build settings
 #
 set(ARCH "x86_64-linux-gnu" CACHE STRING
   "Selects which architecture dependent settings should be used")
 
-# Include architecture dependant build settings from the sys-directory
+# Include compiler dependent build settings from the sys-directory
 include(${CMAKE_SOURCE_DIR}/sys/${ARCH}.cmake)
 
 
+# Test environment settings
 set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
 
 set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
+
+
+# Installation paths
+set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH
+  "Installation directory for executables")
+
+set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH
+  "Installation directory for libraries")
+
+set(INSTALL_MOD_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+/modfiles" CACHE PATH
+  "Installation directory for Fortran module files")
+
+set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+" CACHE PATH
+  "Installation directory for header files")
+
+set(INSTALL_CMAKE_DIR "${CMAKE_INSTALL_PREFIX}/lib/cmake" CACHE PATH
+  "Installation directory for CMake package export files")
 
 
 ####################################################################################################
