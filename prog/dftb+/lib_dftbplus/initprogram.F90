@@ -747,6 +747,9 @@ module dftbp_initprogram
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
 
+  !> Whether plumed is being used
+  logical :: tPlumed
+
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
 
@@ -2172,6 +2175,20 @@ contains
       end if
       allocate(pMDIntegrator)
       call init(pMDIntegrator, pVelocityVerlet)
+    end if
+
+    ! Initialising plumed
+    tPlumed = input%ctrl%tPlumed
+    if (tPlumed) then
+      call plumed_f_gcreate()
+      call plumed_f_gcmd("setNatoms"//char(0),nAtom)
+      call plumed_f_gcmd("setPlumedDat"//char(0),"plumed.dat"//char(0))
+      call plumed_f_gcmd("setNoVirial"//char(0),0)
+      call plumed_f_gcmd("setTimestep"//char(0),deltaT)
+      call plumed_f_gcmd("setMDEnergyUnits"//char(0),Hartree__kJ_mol)
+      call plumed_f_gcmd("setMDLengthUnits"//char(0),Bohr__nm)
+      call plumed_f_gcmd("setMDTimeUnits"//char(0),au__ps)
+      call plumed_f_gcmd("init"//char(0),0)
     end if
 
     ! Check for extended Born-Oppenheimer MD
