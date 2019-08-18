@@ -488,7 +488,7 @@ contains
         call this%extCharge%setCoordinates(env, this%coord)
       end if
     end if
-    
+
   end subroutine updateCoords
 
 
@@ -890,7 +890,7 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    
+
     shift = this%shiftPerL
 
   end subroutine getShiftPerL
@@ -906,7 +906,7 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
-    
+
     this%shiftPerAtom = shift
 
   end subroutine setShiftPerAtom
@@ -917,13 +917,13 @@ contains
     !> Instance
     class(TScc), intent(inout) :: this
 
-    !> Contains the input shifts (shell, Atom) 
+    !> Contains the input shifts (shell, Atom)
     real(dp), intent(in) :: shift(:,:)
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    
+
     this%shiftPerL = shift
 
   end subroutine setShiftPerL
@@ -1180,16 +1180,16 @@ contains
   #:if WITH_SCALAPACK
     real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
   #:endif
-   
+
     integer :: ll
 
     this%shiftPerAtom(:) = 0.0_dp
 
   #:if WITH_SCALAPACK
     if (env%blacs%atomGrid%iproc /= -1) then
-      ll = size(this%deltaQAtom)    
+      ll = size(this%deltaQAtom)
       deltaQAtom2D(1:1, 1:ll) => this%deltaQAtom
-      ll = size(this%shiftPerAtom)    
+      ll = size(this%shiftPerAtom)
       shiftPerAtom2D(1:1, 1:ll) => this%shiftPerAtom
       call scalafx_cpl2g(env%blacs%atomGrid, deltaQAtom2D, this%descQVec, 1, 1, this%qGlobal)
       call pblasfx_psymv(this%invRMat, this%descInvRMat, this%qGlobal, this%descQVec,&
@@ -1598,6 +1598,11 @@ contains
     !> resulting gross charges
     real(dp), intent(out) :: deltaQ(:,:)
 
+    integer :: i
+
+
+
+
     deltaQ(:,:) = qOrbital(:,:) - q0(:,:)
 
   end subroutine getSummedChargesPerOrbital_
@@ -1635,7 +1640,7 @@ contains
     !> gross charge per atomic shell
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
-    integer :: iAt, iSp, iSh, iStart, iend
+    integer :: iAt, iSp, iSh, iStart, iend, i
 
     deltaQPerLShell(:,:) = 0.0_dp
     do iAt = 1, nAtom
@@ -1646,6 +1651,7 @@ contains
         deltaQPerLShell(iSh, iAt) = sum(deltaQ(iStart:iEnd, iAt))
       end do
     end do
+
 
   end subroutine getSummedChargesPerLShell_
 

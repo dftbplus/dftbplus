@@ -461,7 +461,7 @@ contains
       call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
     end if
 
-    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
+    !call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
@@ -473,29 +473,22 @@ contains
 
 
     ! TI-DFTB Determinant loop, set to pass through if not needed. - MYD, TDK, RAS
-    ! Will be made more universally useful in the future... 
+    ! Will be made more universally useful in the future...
 
-    lpDets : do iDet = det, nDet 
+    lpDets : do iDet = det, nDet
+
       if (tNonAufbau) then
-        write (*,*) '_______________________________________DELTA DFTB_______________________________________'
-        write (*,*) 'Start of lpDets : do iDet = det, nDet'
-        write (*,*) '		nDet=', nDet, '		Spin Purify = 2 	Not Spin Purified = 1'
-        write (*,*) ' '
-        write (*,*) '		iDet=', iDet, '		If Spin Purified	If not Spin Purified'
-        write (*,*) '					        0 = Ground		0 = Ground'
-        write (*,*) '					        1 = Triplet		1 = Mixed'
-        write (*,*) '					        2 = Mixed'
-        write (*,*) '________________________________________________________________________________________'
-
-
+        call reset(pChrgMixer, nMixElements)
       end if
 
       if (tMOM .or. tIMOM) then
         call initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
       end if
- 
+
+      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
+
       lpSCC: do iSccIter = 1, maxSccIter
- 
+
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
         if (tSccCalc) then
@@ -546,7 +539,7 @@ contains
               & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec,&
               & cellVec, ham, iHam)
         end if
- 
+
         call convertToUpDownRepr(ham, iHam)
 
         call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
@@ -666,7 +659,7 @@ contains
 
         if (tWriteDetailedOut) then
     ! Has a hard time opening this twice..... Fixing? IDK if this is OK
-            call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
+          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
               & pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species, tDFTBU,&
@@ -689,7 +682,7 @@ contains
     end if
     end do lpDets
 
-    if (tNonAufbau .and. tSpinPurify) then 
+    if (tNonAufbau .and. tSpinPurify) then
       call ZieglerSum(energy)
     end if
 
@@ -1681,12 +1674,12 @@ contains
         nDet = 2
       else
         nDet = 1
-      end if     
+      end if
 
   end subroutine initTIDFTB
 
 
-  !> Initialized Maximum Overlap 
+  !> Initialized Maximum Overlap
   subroutine initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
 
   !> Is this a spin purified calculation? - MYD
@@ -1711,8 +1704,6 @@ contains
 
 
 
-write (*,*) 'initMOM called,	DAD T=', nDADt, '	DAD M=', nDADm
-
       if (tSpinPurify .and. tNonAufbau) then !myd
         if (iDet == 2) then
           nMOM = nDADm
@@ -1720,9 +1711,7 @@ write (*,*) 'initMOM called,	DAD T=', nDADt, '	DAD M=', nDADm
           nMOM = nDADt
         end if
       else
-write(*,*) 'Non SpinPurified calculation detected, nMOM set by MixedDAD.'
           nMOM = nDADm
-write(*,*) 'nMOM =', nMOM
       end if
 
 
@@ -1767,6 +1756,7 @@ write(*,*) 'nMOM =', nMOM
 
   !> Replace charges with those from the stored contact values
   subroutine overrideContactCharges(qInput, chargeUp, transpar)
+
     !> input charges
     real(dp), intent(inout) :: qInput(:,:,:)
 
@@ -1789,7 +1779,7 @@ write(*,*) 'nMOM =', nMOM
 #:endif
 
 
-  !> Add potentials comming from point charges.
+  !> Add potentials coming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
       & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics, tPoisson,&
       & tUpload, shiftPerLUp)
@@ -2020,13 +2010,13 @@ write(*,*) 'nMOM =', nMOM
 
     ham(:,:) = 0.0_dp
     ham(:,1) = h0
-write (*,*) 'GetSCCHam A - calls  add_shift_block'
+
+    !GetSCCHam - calls  add_shift_block'
     call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
 
     if (allocated(iHam)) then
       iHam(:,:) = 0.0_dp
-write (*,*) 'GetSCCHam B'
       call add_shift(iHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
           & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
     end if
@@ -2040,8 +2030,8 @@ write (*,*) 'GetSCCHam B'
   !> (Vq, uB*Bz*σz) -> (Vq + uB*Bz*σz, Vq - uB*Bz*σz)
   !> For non-collinear spin-orbit, all blocks are multiplied by 1/2:
   !> (Vq/2, uL* Lx*σx/2, uL* Ly*σy/2, uL* Lz*σz/2)
-  subroutine convertToUpDownRepr(Ham, iHam)
-    real(dp), intent(inout) :: Ham(:,:)
+  subroutine convertToUpDownRepr(ham, iHam)
+    real(dp), intent(inout) :: ham(:,:)
     real(dp), intent(inout), allocatable :: iHam(:,:)
 
     integer :: nSpinBlocks
@@ -2286,7 +2276,7 @@ write (*,*) 'GetSCCHam B'
 
     !> Save transpose of S matrix
     real(dp), intent(out) :: SSqrTranspose(:,:)
- 
+
     !> Save an identity mayrix
     real(dp), intent(out) :: identityM(:,:)
 
@@ -2543,7 +2533,6 @@ write (*,*) 'GetSCCHam B'
     !> Which state is being calculated?
     integer, intent(in) :: iDet
 
-
     !> Index of projection values MOM
     integer, intent(out) :: indxMOM(:)
 
@@ -2560,7 +2549,7 @@ write (*,*) 'GetSCCHam B'
 
     !> Save transpose of S matrix
     real(dp), intent(out) :: SSqrTranspose(:,:)
- 
+
     !> Save an identity mayrix
     real(dp), intent(out) :: identityM(:,:)
 
@@ -2578,6 +2567,7 @@ write (*,*) 'GetSCCHam B'
             & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep,&
             & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:),&
             & SSqrRealStorage, SSqrTranspose, identityM, tMOM, tIMOM, iSccIter, nMOM)
+      write(*,*) 'Why'
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
@@ -2598,24 +2588,14 @@ write (*,*) 'GetSCCHam B'
         call momStoreH(HSqrReal, OldHSqrReal)
       end if
     else if (tIMOM .and. iSccIter == nMOM .and. iDet>=1) then
-        call momStoreH(HSqrReal, OldHSqrReal)   
+        call momStoreH(HSqrReal, OldHSqrReal)
     end if
 
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
-        & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0)
-
-    if (tNonAufbau .and. .not. (tGroundGuess .and. iDet==0) .and. .not. (tMOM .or. tIMOM)) then 
-      call fillingSwap(tSpinPurify, iDet, filling, nEl)
-    else if ((tMOM .or. tIMOM) .and. iDet>0) then
-      if (iSccIter>= (nMOM+1)) then
-        call momFillingSwap(indxMOM, prjMOM, filling, fillMOM, nEl)
-      else
-        call fillingSwap(tSpinPurify, iDet, filling, nEl)
-      end if
-    end if
-
+        & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, &
+        & tSpinPurify, iDet, nEl)
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
@@ -2639,6 +2619,11 @@ write (*,*) 'GetSCCHam B'
       filling(:,:,1) = 0.5_dp * filling(:,:,1)
     end if
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
+
+
+    do i=1,ubound(filling,1)
+       print *, i, filling(i, :, :)
+    enddo
 
   end subroutine getDensityFromDenseDiag
 
@@ -2712,7 +2697,7 @@ write (*,*) 'GetSCCHam B'
 
     !> Save transpose of S matrix
     real(dp), intent(out) :: SSqrTranspose(:,:)
- 
+
     !> Save an identity matrix
     real(dp), intent(out) :: identityM(:,:)
 
@@ -2757,7 +2742,7 @@ write (*,*) 'GetSCCHam B'
         call momStoreS(SSqrReal, SSqrRealStorage, SSqrTranspose, identityM)
       end if
 
-
+write(*,*) 'SPIN?'
 
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
@@ -3049,12 +3034,10 @@ write (*,*) 'GetSCCHam B'
     integer :: iKS, iSpin, i
 
 
-    write (*,*) 'Filling****************************Dense From real eigvects'
-    do i=1,ubound(filling,1)
-       print *, filling(i, :)
-    enddo
-
-! Filling called in NAuf
+   ! write (*,*) 'Filling****************************Dense From real eigvects' !! MYD
+   ! do i=1,ubound(filling,1)
+   !    print *, filling(i, :)
+   ! enddo
 
 
     rhoPrim(:,:) = 0.0_dp
@@ -3075,7 +3058,14 @@ write (*,*) 'GetSCCHam B'
           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
               & neighbourlist%iNeighbour, nNeighbourSK, orb, denseDesc%iAtomStart, img2CentCell)
         else
+! FIxed
           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
+         !shoulbuild good work mtx
+write(*,*) 'Work!'
+       do i=1,ubound(Work,1)
+         print *, i, Work(i,1)
+       enddo
+!This one
         end if
 
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
@@ -3379,10 +3369,11 @@ write (*,*) 'GetSCCHam B'
 
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
-      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0)
+      & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, tNonAufbau, &
+      & tSpinPurify, iDet, nEl)
 
     !> Eigenvalue of each level, kpoint and spin channel
-    real(dp), intent(in) :: eigvals(:,:,:)
+    real(dp), intent(inout) :: eigvals(:,:,:)
 
     !> Nr. of electrons for each spin channel
     real(dp), intent(in) :: nElectrons(:)
@@ -3424,6 +3415,18 @@ write (*,*) 'GetSCCHam B'
     !> Band energies extrapolated to zero Kelvin
     real(dp), intent(out) :: E0(:)
 
+    !> Is this a non-Aufbau calculation?
+    logical, intent(in) :: tNonAufbau
+
+    !> Is this a spin purified calculation? - MYD
+    logical, intent(in) :: tSpinPurify
+
+    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
+    integer, intent(in) :: iDet
+
+    !> Nuber of electrons
+    real(dp), intent(in) :: nEl(:)
+
 
     real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1)
     real(dp) :: EfTmp
@@ -3437,22 +3440,29 @@ write (*,*) 'GetSCCHam B'
     if (nSpinBlocks == 1) then
       ! Filling functions assume one electron per level, but for spin unpolarised we have two
       nElecFill(1) = nElectrons(1) / 2.0_dp
+    write(*,*) 'nSpjnBlocks=1'
     else
       nElecFill(1:nSpinHams) = nElectrons(1:nSpinHams)
+    write(*,*) 'Other nElectronFill' , nElecFill(:)
+    write(*,*) 'Other nElectrons' , nElectrons(:)
     end if
 
     if (tFixEf) then
       ! Fixed value of the Fermi level for each spin channel
+      !write(*,*) 'tFixEf' ! Not called MYD
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
-            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights)
+            & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, tNonAufbau, &
+            & tSpinPurify, iDet, nEl, iS)
       end do
     else if (nSpinHams == 2 .and. tSpinSharedEf) then
+      !write(*,*) 'tSpinSharedEf' !Not called MYD
       ! Common Fermi level across two colinear spin channels
       call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
-          & iDistribFn)
+          & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS)
       Ef(2) = Ef(1)
     else if (tFillKSep) then
+    !write(*,*) 'tFillKSep' , tFillKSep !Also Not Called MYD
       ! Every spin channel and every k-point filled up individually.
       Eband(:) = 0.0_dp
       Ef(:) = 0.0_dp
@@ -3461,7 +3471,8 @@ write (*,*) 'GetSCCHam B'
       do iS = 1, nSpinHams
         do iK = 1, nKPoints
           call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
-              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn)
+              & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn, tNonAufbau, &
+              & tSpinPurify, iDet, nEl, iS)
           Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
           Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
           TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
@@ -3470,9 +3481,11 @@ write (*,*) 'GetSCCHam B'
       end do
     else
       ! Every spin channel (but no the k-points) filled up individually
+      write (*,*) 'Fucking This One???  Chyeah.'
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
-            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn)
+            & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn, tNonAufbau,&
+            & tSpinPurify, iDet, nEl, iS)
       end do
     end if
 

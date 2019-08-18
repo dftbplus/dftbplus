@@ -68,23 +68,49 @@ contains
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    integer :: ii, nLevels
+    integer :: ii, nLevels, i
     real(dp) :: shift
+    real(dp), allocatable :: tmpMtx(:)
+    integer :: mixIndx
+    logical :: tNonAufbau
 
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     @:ASSERT(size(eigenvecs,dim=1) == size(filling))
+write(*,*) 'TEST A'
 
+! Eigenvecs comes in w/ zero alph homo.....
+
+
+   ! tmpMtx=eigenvecs
+    tNonAufbau = .false.
     dm(:,:) = 0.0_dp
     do ii =  size(filling), 1, -1
       nLevels = ii
+!write(*,*)'ok?',abs(filling(ii)), ii,epsilon(1.0_dp)
       if (abs(filling(ii)) >= epsilon(1.0_dp)) then
         exit
       end if
     end do
+    mixIndx=nLevels-1 !sets to HOMO-1 index
+    if (filling(mixIndx)==0.0_dp) then
+      tNonAufbau=.true.
+       write(*,*)'*************************************************'
+       do i=1,ubound(filling,1)
+         print *, i, filling(i)
+       enddo
+    end if
+    write(*,*) 'TNA',tNonAufbau
+    if (tNonAufbau) then
+      allocate(tmpMtx(size(eigenvecs, dim=1)))
+      write(*,*) 'nLevels',nLevels
+      write(*,*) 'mixIndx',mixIndx
+      tmpMtx=eigenVecs(:,mixIndx)
+      write(*,*)'tmpMtx',tmpMtx(1)
+    endif
     shift = minval(filling(1:nLevels))
-    if (shift > epsilon(1.0_dp)) then
-      ! all fillings are definitely positive
+    if (shift >= 0.0_dp) then
+      ! all fillings are positive - changed MYD
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
@@ -92,12 +118,17 @@ contains
       end do
       !$OMP  END PARALLEL DO
 
+
+
       call herk(dm, eigenvecs(:,1:nLevels))
+
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii))
       end do
       !$OMP  END PARALLEL DO
+
+
 
     else
 
@@ -118,6 +149,13 @@ contains
       !$OMP  END PARALLEL DO
 
     end if
+    if (tNonAufbau) then
+       eigenvecs(:,mixIndx)=tmpMtx !temporary hack, deletes empty homo in mixed state, could makeloop to save first zero index eigen vec... replace when over? not a whole array so thats tight. also must save index
+       write(*,*)'*************************************************'
+       do i=1,ubound(eigenvecs,1)
+         print *, i, eigenvecs(1, i)
+       enddo
+    endif
   end subroutine fullDensityMatrix_real
 
 

@@ -36,7 +36,7 @@ module dftbp_populations
     module procedure skewMullikenPerBlock
   end interface skewMulliken
 
-  
+
   !> Interface to subtract superposition of atomic densities from dense density matrix.
   !> Required for rangeseparated calculations
   interface denseSubtractDensityOfAtoms
@@ -372,11 +372,11 @@ contains
 
   !> Subtracts superposition of atomic densities from dense density matrix.
   !> The spin unrestricted version
-  !> RangeSep: for spin-unrestricted calculation 
+  !> RangeSep: for spin-unrestricted calculation
   !> the initial guess should be equally distributed to
-  !> alpha and beta density matrices 
+  !> alpha and beta density matrices
   subroutine denseSubtractDensityOfAtoms_spin(q0, iSquare, rho, iSpin)
- 
+
     !> Rerence atom populations
     real(dp), intent(in) :: q0(:,:,:)
 
@@ -393,7 +393,7 @@ contains
 
     nAtom = size(iSquare) - 1
     nSpin = size(rho, dim=3)
-    
+
     do iAtom = 1, nAtom
        iStart = iSquare(iAtom)
        iEnd = iSquare(iAtom + 1) - 1
@@ -427,7 +427,7 @@ contains
     real(dp), intent(in), optional :: qRef(:,:,:)
 
     real(dp), allocatable :: qq(:,:,:)
-    integer :: iAt, iSp, iSh
+    integer :: iAt, iSp, iSh, i
     integer :: nAtom, nSpin
 
     if (present(qRef)) then
@@ -436,6 +436,8 @@ contains
       qq = qOrb
     end if
 
+
+write(*,*) 'Hi Jackie!'
     nAtom = size(chargePerShell, dim=2)
     nSpin = size(chargePerShell, dim=3)
     chargePerShell(:,:,:) = 0.0_dp
