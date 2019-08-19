@@ -732,7 +732,8 @@ contains
 
         ! Using plumed to modify forces IF plumed is used
         if (tPlumed) then
-          call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass)
+          call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass,&
+              & tPeriodic, latVec)
           ! Also, if this is the final geometry, kill plumed
           if (iGeoStep >= nGeoSteps) then
             call plumed_f_gfinalize()
@@ -5233,7 +5234,7 @@ contains
   end subroutine getGradients
 
   !> use plumed to update derivatives
-  subroutine updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy, coord0, mass)
+  subroutine updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy, coord0, mass, tPeriodic, latVecs)
 
 
     !> number of atoms
@@ -5254,12 +5255,19 @@ contains
     !> atomic masses array
     real(dp), intent(in) :: mass(nAtom)
 
+    !> periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> lattice vectors
+    real(dp), intent(in) :: latVecs(:,:)
+
     derivs = -1 * derivs
     call plumed_f_gcmd("setStep"//char(0),iGeoStep)
     call plumed_f_gcmd("setForces"//char(0),derivs)
     call plumed_f_gcmd("setEnergy"//char(0),energy)
     call plumed_f_gcmd("setPositions"//char(0),coord0)
     call plumed_f_gcmd("setMasses"//char(0),mass)
+    if (tPeriodic) call plumed_f_gcmd("setBox"//char(0),latVecs)
     call plumed_f_gcmd("calc"//char(0),0)
     derivs = -1 * derivs
 
