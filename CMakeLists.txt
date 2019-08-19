@@ -62,6 +62,12 @@ dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
 #
 # Add optional external components
 #
+if(BUILD_API)
+  set(exclude)
+else()
+  set(exclude EXCLUDE_FROM_ALL)
+endif()
+
 add_subdirectory(external/xmlf90 EXCLUDE_FROM_ALL)
 
 if(WITH_SOCKETS)
@@ -69,26 +75,17 @@ if(WITH_SOCKETS)
 endif()
 
 if(WITH_DFTD3)
-  add_subdirectory(external/dftd3)
+  add_subdirectory(external/dftd3 ${exclude})
 endif()
 
 if(WITH_MPI)
-  add_subdirectory(external/mpifx)
-  add_subdirectory(external/scalapackfx)
+  add_subdirectory(external/mpifx ${exclude})
+  add_subdirectory(external/scalapackfx ${exclude})
 endif()
 
 if(WITH_TRANSPORT)
-  if(BUILD_API)
-    add_subdirectory(external/poisson)
-    add_subdirectory(external/libnegf)
-  else()
-    add_subdirectory(external/poisson EXCLUDE_FROM_ALL)
-    add_subdirectory(external/libnegf EXCLUDE_FROM_ALL)
-  endif()
-endif()
-
-if(WITH_GPU)
-  add_subdirectory(external/magmahelper EXCLUDE_FROM_ALL)
+  add_subdirectory(external/mudpack ${exclude})
+  add_subdirectory(external/libnegf ${exclude})
 endif()
 
 
@@ -100,3 +97,7 @@ add_subdirectory(tools/dptools)
 
 enable_testing()
 add_subdirectory(test)
+
+if(BUILD_API)
+  install(EXPORT dftbplus-targets FILE DftbPlusConfig.cmake NAMESPACE DftbPlus:: DESTINATION ${INSTALL_CMAKE_DIR})
+endif()

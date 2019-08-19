@@ -15,6 +15,6 @@ foreach(target IN LISTS targets)
 
   target_link_libraries("${target}" dftbplus ${LAPACK_LIBRARIES})
 
-  dftbp_install_target(${target})
+  install(TARGETS ${target} DESTINATION ${INSTALL_BIN_DIR})
 
 endforeach()

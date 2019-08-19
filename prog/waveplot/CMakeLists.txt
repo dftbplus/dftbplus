@@ -13,4 +13,4 @@ add_executable("waveplot" ${sources-f90-preproc})
 
 target_link_libraries(waveplot dftbplus ${LAPACK_LIBRARIES})
 
-dftbp_install_target(waveplot)
+install(TARGETS waveplot DESTINATION ${INSTALL_BIN_DIR})

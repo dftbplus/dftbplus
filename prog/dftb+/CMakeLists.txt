@@ -10,6 +10,7 @@ list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEA
 
 set(ALL-SOURCES-F90)
 set(ALL-SOURCES-FPP)
+set(ALL-SOURCES-C)
 
 add_subdirectory(lib_common)
 add_subdirectory(lib_derivs)
@@ -27,13 +28,19 @@ add_subdirectory(lib_type)
 if(BUILD_API)
   add_subdirectory(api/mm)
 endif()
+if(WITH_TRANSPORT)
+  add_subdirectory(lib_poisson)
+endif()
+if(WITH_GPU)
+  add_subdirectory(lib_magmahelper)
+endif()
 
 dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
 
 # Library components
 
-add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
+add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc} ${ALL-SOURCES-C})
 
 target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
 
@@ -41,40 +48,33 @@ if(WITH_SOCKETS)
   target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:fsockets_objlib>)
 endif()
 
-if(WITH_GPU)
-  target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:magmahelper_objlib>)
-endif()
-
 set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${includedir})
-target_include_directories(dftbplus PUBLIC ${includedir})
+target_include_directories(dftbplus PUBLIC
+  $<BUILD_INTERFACE:${includedir}> $<INSTALL_INTERFACE:${INSTALL_MOD_DIR}>)
 if(BUILD_API)
-  target_include_directories(dftbplus INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/api/mm)
+  target_include_directories(dftbplus INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api/mm> $<INSTALL_INTERFACE:${INSTALL_INC_DIR}>)
 endif()
 
 
 # External libraries
 
 target_include_directories(dftbplus PUBLIC
-  $<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES> ${includedir})
+  $<BUILD_INTERFACE:$<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 
 if(WITH_SOCKETS)
   target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>)
+    $<BUILD_INTERFACE:$<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
-
-if(WITH_GPU)
-  target_include_directories(dftbplus PUBLIC
-    $<TARGET_PROPERTY:magmahelper_objlib,INTERFACE_INCLUDE_DIRECTORIES>)
-endif()  
 
 if(WITH_DFTD3)
   target_link_libraries(dftbplus PUBLIC dftd3)
 endif()
 
 if(WITH_TRANSPORT)
-  target_link_libraries(dftbplus PUBLIC libnegf poisson)
+  target_link_libraries(dftbplus PUBLIC libnegf mudpack)
 endif()
 
 if(WITH_ELSI)
@@ -106,7 +106,7 @@ target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 # Installation
 
 if(BUILD_API)
-  install(TARGETS dftbplus DESTINATION ${INSTALL_LIB_DIR})
+  install(TARGETS dftbplus DESTINATION ${INSTALL_LIB_DIR} EXPORT dftbplus-targets)
   install(DIRECTORY ${includedir}/ DESTINATION ${INSTALL_MOD_DIR})
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h DESTINATION ${INSTALL_INC_DIR})
 
@@ -122,13 +122,6 @@ if(BUILD_API)
     endforeach()
   endif()
   
-  if (WITH_GPU)
-    get_target_property(moddirs magmahelper_objlib INTERFACE_INCLUDE_DIRECTORIES)
-    foreach(moddir IN LISTS moddirs)
-      install(DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}")
-    endforeach()
-  endif()
-
 endif()
 
 
@@ -143,8 +136,8 @@ add_subdirectory(prg_dftb)
 
 dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-sources-f90-preproc)
 
-add_executable("dftb+" ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
+add_executable(dftb+ ${ALL-SOURCES-F90} ${all-sources-f90-preproc})
 
 target_link_libraries(dftb+ dftbplus)
 
-dftbp_install_target(dftb+)
+install(TARGETS dftb+ DESTINATION ${INSTALL_BIN_DIR})

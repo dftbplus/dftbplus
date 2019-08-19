@@ -11,4 +11,4 @@ add_executable("modes" ${sources-f90-preproc})
 
 target_link_libraries(modes dftbplus ${LAPACK_LIBRARIES})
 
-dftbp_install_target(modes)
+install(TARGETS modes DESTINATION ${INSTALL_BIN_DIR})

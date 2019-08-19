@@ -8,4 +8,4 @@ add_executable("skderivs" ${sources-f90-preproc})
 
 target_link_libraries(skderivs dftbplus ${LAPACK_LIBRARIES})
 
-dftbp_install_target(skderivs)
+install(TARGETS skderivs DESTINATION ${INSTALL_BIN_DIR})

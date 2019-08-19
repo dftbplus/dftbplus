@@ -31,10 +31,12 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
 # GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
 
-option(BUILD_API "Whether the high-level API to the DFTB+ library should be built" FALSE)
-# Turn this on, if you want to use libdftbplus.a to integrate DFTB+ into other software
-# packages. (Otherwise the library would not contain the public API, and neither the library nor the
-# module files would be installed automatically.)
+option(BUILD_API "Whether DFTB+ library with high-level API should be built and installed" FALSE)
+# Turn this on, if you want to use DFTB+ as a library (libdftbplus.a) in order to integrate it into
+# other software packages. (Otherwise only a stripped down version of the library without the public
+# API would be built, and neither the library nor the module files would be installed.) When
+# enabled, also the external libraries will be installed, which were compiled during the build
+# process and are need when linking DFTB+ with other applications.
 
 
 #
@@ -57,16 +59,15 @@ set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH
   "Installation directory for executables")
 
-set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH
-  "Installation directory for libraries")
-
-set(INSTALL_MOD_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+/modfiles" CACHE PATH
-  "Installation directory for Fortran module files")
+set(INSTALL_LIB_DIR "${CMAKE_INSTALL_PREFIX}/lib" CACHE PATH "Installation directory for libraries")
 
 set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+" CACHE PATH
-  "Installation directory for header files")
+  "Installation directory for header and include files")
 
-set(INSTALL_CMAKE_DIR "${CMAKE_INSTALL_PREFIX}/lib/cmake" CACHE PATH
+set(INSTALL_MOD_DIR "${INSTALL_INC_DIR}/modfiles" CACHE PATH
+  "Installation directory for Fortran module files")
+
+set(INSTALL_CMAKE_DIR "${INSTALL_LIB_DIR}/cmake" CACHE PATH
   "Installation directory for CMake package export files")
 
 

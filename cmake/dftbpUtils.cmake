@@ -40,48 +40,6 @@ function(dftbp_preprocess preproc preprocopts oldext newext oldfiles newfiles)
 endfunction()
 
 
-# Registers a target as install target with default install directory locations
-#
-# Args:
-#     target [in]: Target to register for installation
-#
-function(dftbp_install_target target)
-
-  install(TARGETS ${target}
-    RUNTIME DESTINATION ${INSTALL_BIN_DIR}
-    LIBRARY DESTINATION ${INSTALL_LIB_DIR}
-    ARCHIVE DESTINATION ${INSTALL_LIB_DIR}
-    INCLUDES DESTINATION ${INSTALL_INC_DIR})
-
-endfunction()
-
-
-# Registers a directory with modfiles for installation
-#
-# Args:
-#     moddirs [in]: List of module directories to install
-#
-function(dftbp_install_mod_dirs moddirs)
-
-  foreach(moddir IN LISTS moddirs)
-    install(
-      DIRECTORY "${moddir}/"
-      DESTINATION "${INSTALL_MOD_DIR}")
-  endforeach()
-
-endfunction()
-
-
-# Installs library files (instead of targets) to the library destination folder.
-#
-# Args:
-#     libfiles [in]: List of library files.
-#
-function(dftbp_install_library_files libfiles)
-  install(FILES ${libfiles} DESTINATION ${INSTALL_LIB_DIR})
-endfunction()
-
-
 # Build -D command line arguments for Fypp preprocessor based on current configuration
 #
 # Args:
@@ -154,32 +112,6 @@ function(dftbp_get_release_name release)
   separate_arguments(_release)
   set(${release} "${_release}" PARENT_SCOPE)
 
-endfunction()
-
-
-# Logs settings to file
-#
-# Args:
-#     file [in]: Name of the file to write the log to.
-#     * [in]: Any variable name, for which name and value should be logged
-#
-function (dftbp_log_settings file)
-
-  foreach(var IN LISTS ARGN)
-    set(msg "SET(${var} \"${${var}}\")")
-    file(APPEND ${file} "${msg}\n")
-  endforeach()
-
-endfunction()
-
-
-# Resets a file to have empty content
-#
-# Args:
-#     file [in]: Name of the file to reset.
-#
-function (dftbp_reset_file file)
-  file(WRITE ${file} "")
 endfunction()
 
 
@@ -259,3 +191,18 @@ realloc_lhs' option to produce correctly behaving (Fortran standard complying) c
 
 endfunction()
 
+
+# Prepends a given path to a list of iles
+#
+# Args:
+#     result [out]: Variable containing the results
+#     prefix [in]: Prefix to add to each item
+#     * [in]: List of items to be prefixed
+#
+function(dftbp_prepend_path result path)
+  set(_result)
+  foreach(var IN LISTS ARGN)
+    list(APPEND _result "${path}/${var}")
+  endforeach()
+   set(${result} "${_result}" PARENT_SCOPE)
+endfunction()
