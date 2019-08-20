@@ -85,11 +85,9 @@ ifeq ($(strip $(WITH_MPI)),1)
   DFTBPLUS_DEPS += external_mpifx external_scalapackfx
 endif
 ifeq ($(strip $(WITH_TRANSPORT)),1)
-  DFTBPLUS_DEPS += external_libnegf external_poisson
-  external_poisson: external_libnegf
+  DFTBPLUS_DEPS += external_libnegf external_mudpack
   ifeq ($(strip $(WITH_MPI)),1)
     external_libnegf: external_mpifx
-    external_poisson: external_mpifx
   endif
 endif
 dftb+: $(DFTBPLUS_DEPS)
@@ -112,7 +110,7 @@ EXTERNAL_NAME = $(subst external_,,$@)
 
 EXTERNALS = external_xmlf90 external_fsockets external_dftd3	\
     external_mpifx external_scalapackfx external_magmahelper	\
-    external_poisson external_libnegf
+    external_mudpack external_libnegf
 
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):
