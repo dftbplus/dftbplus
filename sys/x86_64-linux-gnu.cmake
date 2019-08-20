@@ -30,7 +30,11 @@ set(CMAKE_C_FLAGS_RELEASE "-O2 -funroll-all-loops" CACHE STRING "Specific C flag
 #
 
 # LAPACK and BLAS
-set(LAPACK_LIBRARIES "lapack blas" CACHE STRING "LAPACK and BLAS libraries to link")
+if(WITH_MPI)
+  set(LAPACK_LIBRARIES "lapack blas" CACHE STRING "LAPACK and BLAS libraries to link")
+else()
+  set(LAPACK_LIBRARIES "openblas" CACHE STRING "LAPACK and BLAS libraries to link")
+endif()
 set(LAPACK_LIBRARY_DIRS "" CACHE STRING
   "Directories where LAPACK and BLAS libraries can be found")
 

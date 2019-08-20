@@ -1,16 +1,15 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(DFTBPLUS_VERSION "19.2")
-set(API_VERSION "0.2")
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
 include(${CMAKE_SOURCE_DIR}/config.cmake)
 
-project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
-
 dftbp_ensure_config_consistency()
+
+project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 dftbp_convert_to_list(FYPP_FLAGS)
@@ -18,6 +17,9 @@ dftbp_add_fypp_defines(FYPP_FLAGS)
 
 set(PYTHON_INTERPRETER "python" CACHE STRING
   "Python interpreter to use for installing and test python components")
+
+dftbp_get_release_name(RELEASE)
+
 
 if(WITH_MPI)
   find_package(MPI REQUIRED)
@@ -30,8 +32,6 @@ if(WITH_OMP)
   string(APPEND CMAKE_EXE_LINKER_FLAGS " ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-dftbp_get_release_name(RELEASE)
-
 
 #
 # Check external libraries
@@ -41,8 +41,12 @@ dftbp_convert_to_list(SCALAPACK_LIBRARIES SCALAPACK_LIBRARY_DIRS LAPACK_LIBRARIE
   ELSI_EXTERNAL_LIBRARY_DIRS PEXSI_EXTERNAL_LIBRARIES PEXSI_EXTERNAL_LIBRARY_DIRS
   OTHER_LIBRARIES OTHER_LIBRARY_DIRS)
 
+set(EXTERNAL_LIBRARIES)
+set(EXTERNAL_LIBRARY_DIRS)
 if(WITH_MPI)
   dftbp_create_library_targets("${SCALAPACK_LIBRARIES}" "${SCALAPACK_LIBRARY_DIRS}")
+  list(APPEND EXTERNAL_LIBRARIES ${SCALAPACK_LIBRARIES})
+  list(APPEND EXTERNAL_LIBRARY_DIRS ${SCALAPACK_LIBRARY_DIRS})
 endif()
 
 if(WITH_ELSI)
@@ -55,16 +59,24 @@ if(WITH_ELSI)
   endif()
   if(ELSI_WITH_PEXSI)
     dftbp_create_library_targets("${PEXSI_EXTERNAL_LIBRARIES}" "${PEXSI_EXTERNAL_LIBRARY_DIRS}")
+    list(APPEND EXTERNAL_LIBRARIES ${PEXSI_EXTERNAL_LIBRARIES})
+    list(APPEND EXTERNAL_LIBRARY_DIRS ${PEXSI_EXTERNAL_LIBRARY_DIRS})
   endif()
 endif()
 
 dftbp_create_library_targets("${LAPACK_LIBRARIES}" "${LAPACK_LIBRARY_DIRS}")
+list(APPEND EXTERNAL_LIBRARIES ${LAPACK_LIBRARIES})
+list(APPEND EXTERNAL_LIBRARY_DIRS ${LAPACK_LIBRARY_DIRS})
 
 if(WITH_ARPACK)
   dftbp_create_library_targets("${ARPACK_LIBRARIES}" "${ARPACK_LIBRARY_DIRS}")
+  list(APPEND EXTERNAL_LIBRARIES ${ARPACK_LIBRARIES})
+  list(APPEND EXTERNAL_LIBRARY_DIRS ${ARPACK_LIBRARY_DIRS})
 endif()
 
 dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
+list(APPEND EXTERNAL_LIBRARIES ${OTHER_LIBRARIES})
+list(APPEND EXTERNAL_LIBRARY_DIRS ${OTHER_LIBRARY_DIRS})
 
 
 #
@@ -106,6 +118,7 @@ add_subdirectory(tools/dptools)
 enable_testing()
 add_subdirectory(test)
 
+
 #
 # Export CMake package info
 # 
@@ -113,12 +126,12 @@ if(BUILD_API)
   install(EXPORT dftbplus-targets FILE DftbPlusTargets.cmake NAMESPACE DftbPlus::
     DESTINATION ${INSTALL_CMAKE_DIR})
   configure_file(cmake/DftbPlusConfig.cmake.in ${INSTALL_CMAKE_DIR}/DftbPlusConfig.cmake @ONLY)
-  
-  include(CMakePackageConfigHelpers)
-  write_basic_package_version_file(
-    ${INSTALL_CMAKE_DIR}/DftbPlusConfigVersion.cmake
-    VERSION ${API_VERSION}
-    #COMPATIBILITY SameMajorVersion)
-    COMPATIBILITY ExactVersion)
+
+  #set(API_VERSION "0.2")
+  #include(CMakePackageConfigHelpers)
+  #write_basic_package_version_file(
+  #  ${INSTALL_CMAKE_DIR}/DftbPlusConfigVersion.cmake
+  #  VERSION ${API_VERSION}
+  #  COMPATIBILITY SameMajorVersion)
 endif()
 
