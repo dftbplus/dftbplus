@@ -78,13 +78,11 @@ if(WITH_TRANSPORT)
 endif()
 
 if(WITH_ELSI)
-  target_link_libraries(dftbplus PUBLIC ${ELSI_LIBRARIES})
-  target_include_directories(dftbplus PUBLIC ${ELSI_INCLUDE_DIRS})
-endif()
-
-if(WITH_PEXSI)
-  target_link_libraries(dftbplus PUBLIC ${PEXSI_LIBRARIES})
-  target_include_directories(dftbplus PUBLIC ${PEXSI_INCLUDE_DIRS})
+  target_link_libraries(dftbplus PUBLIC elsi::elsi)
+  target_link_libraries(dftbplus PUBLIC ${ELSI_EXTERNAL_LIBRARIES})
+  if(ELSI_WITH_PEXSI)
+    target_link_libraries(dftbplus PUBLIC ${PEXSI_EXTERNAL_LIBRARIES})
+  endif()
 endif()
 
 if(WITH_MPI)

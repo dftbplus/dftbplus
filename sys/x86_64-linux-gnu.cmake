@@ -45,21 +45,19 @@ set(SCALAPACK_LIBRARY_DIRS "" CACHE STRING
 
 # ELSI -- only needed when compiled with ELSI support
 set(ELSI_ROOT "/opt/elsi" CACHE STRING "Root directory of the ELSI installation")
-set(ELSI_LIBRARIES "elsi OMM MatrixSwitch elpa NTPoly fortjson" CACHE STRING
-  "ELSI libraries to link")
-set(ELSI_LIBRARY_DIRS "${ELSI_ROOT}/lib" CACHE STRING "Directories with ELSI libraries")
-set(ELSI_INCLUDE_DIRS "${ELSI_ROOT}/include" CACHE STRING "ELSI include directories")
 
-# PEXSI -- only needed when compiled with PEXSI support
+set(ELSI_EXTERNAL_LIBRARIES "" CACHE STRING
+  "Any EXTERNAL libraries ELSI needs apart of its own libraries (and scalapack)")
+set(ELSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING
+  "Directories where ELSI external libraries can be found")
+
+# PEXSI -- only needed when ELSI was compiled with PEXSI support
 # Note: PEXSI usually needs explicit linking of the standard C++ library. Make sure to
-#     provide the library path to that C++ standard library, which was used when PEXSI was
-#     compiled.
-set(PEXSI_LIBRARIES
-  "pexsi superlu_dist ptscotchparmetis ptscotch ptscotcherr scotchmetis scotch scotcherr stdc++"
-  CACHE STRING "PEXSI libraries to link")
-set(PEXSI_LIBRARY_DIRS "${ELSI_ROOT}/lib /usr/lib/gcc/x86_64-linux-gnu/7" CACHE STRING
-  "Directories with PEXSI libraries")
-set(PEXSI_INCLUDE_DIRS "${ELSI_ROOT}/include" CACHE STRING "PEXSI include directories")
+#     provide the library path to that C++ standard library, which was used to compile PEXSI.
+set(PEXSI_EXTERNAL_LIBRARIES "stdc++" CACHE STRING
+  "Any EXTERNAL libraries PEXSI needs apart of its own libraries")
+set(PEXSI_EXTERNAL_LIBRARY_DIRS "/usr/lib/gcc/x86_64-linux-gnu/7" CACHE STRING
+  "Directories with PEXSI external libraries")
 
 # Any other library needed to be linked or considered as include
 set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")

@@ -15,7 +15,7 @@ option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
 # Works only with MPI-parallel build.
 
-option(WITH_PEXSI "Whether the ELSI libraries are compiled with PEXSI support" FALSE)
+option(ELSI_WITH_PEXSI "Whether the ELSI libraries are compiled with PEXSI support" FALSE)
 # Works only with MPI-parallel build and ELSI enabled.
 
 option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-library" FALSE)
