@@ -15,9 +15,6 @@ option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
 # Works only with MPI-parallel build.
 
-option(ELSI_WITH_PEXSI "Whether the ELSI libraries are compiled with PEXSI support" FALSE)
-# Works only with MPI-parallel build and ELSI enabled.
-
 option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-library" FALSE)
 
 option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
@@ -67,7 +64,7 @@ set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+" CACHE PATH
 set(INSTALL_MOD_DIR "${INSTALL_INC_DIR}/modfiles" CACHE PATH
   "Installation directory for Fortran module files")
 
-set(INSTALL_CMAKE_DIR "${INSTALL_LIB_DIR}/cmake" CACHE PATH
+set(INSTALL_CMAKE_DIR "${INSTALL_LIB_DIR}/cmake/DftbPlus" CACHE PATH
   "Installation directory for CMake package export files")
 
 

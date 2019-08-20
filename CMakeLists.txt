@@ -1,11 +1,14 @@
 cmake_minimum_required(VERSION 3.5)
 
+set(DFTBPLUS_VERSION "19.2")
+set(API_VERSION "0.2")
+
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
 include(${CMAKE_SOURCE_DIR}/config.cmake)
 
-project(dftbplus VERSION 19.2 LANGUAGES Fortran C)
+project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 
 dftbp_ensure_config_consistency()
 
@@ -45,6 +48,11 @@ endif()
 if(WITH_ELSI)
   find_package(elsi REQUIRED PATHS ${ELSI_ROOT})
   dftbp_create_library_targets("${ELSI_EXTERNAL_LIBRARIES}" "${ELSI_EXTERNAL_LIBRARY_DIRS}")
+  if(TARGET elsi::pexsi)
+    set(ELSI_WITH_PEXSI TRUE)
+  else()
+    set(ELSI_WITH_PEXSI FALSE)
+  endif()
   if(ELSI_WITH_PEXSI)
     dftbp_create_library_targets("${PEXSI_EXTERNAL_LIBRARIES}" "${PEXSI_EXTERNAL_LIBRARY_DIRS}")
   endif()
@@ -98,7 +106,19 @@ add_subdirectory(tools/dptools)
 enable_testing()
 add_subdirectory(test)
 
+#
+# Export CMake package info
+# 
 if(BUILD_API)
-  install(EXPORT dftbplus-targets FILE DftbPlusConfig.cmake NAMESPACE DftbPlus::
+  install(EXPORT dftbplus-targets FILE DftbPlusTargets.cmake NAMESPACE DftbPlus::
     DESTINATION ${INSTALL_CMAKE_DIR})
+  configure_file(cmake/DftbPlusConfig.cmake.in ${INSTALL_CMAKE_DIR}/DftbPlusConfig.cmake @ONLY)
+  
+  include(CMakePackageConfigHelpers)
+  write_basic_package_version_file(
+    ${INSTALL_CMAKE_DIR}/DftbPlusConfigVersion.cmake
+    VERSION ${API_VERSION}
+    #COMPATIBILITY SameMajorVersion)
+    COMPATIBILITY ExactVersion)
 endif()
+
