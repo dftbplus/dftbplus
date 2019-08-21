@@ -125,7 +125,10 @@ add_subdirectory(test)
 if(BUILD_API)
   install(EXPORT dftbplus-targets FILE DftbPlusTargets.cmake NAMESPACE DftbPlus::
     DESTINATION ${INSTALL_CMAKE_DIR})
-  configure_file(cmake/DftbPlusConfig.cmake.in ${INSTALL_CMAKE_DIR}/DftbPlusConfig.cmake @ONLY)
+  
+  configure_file(cmake/DftbPlusConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake
+    @ONLY)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake DESTINATION ${INSTALL_CMAKE_DIR})
 
   #set(API_VERSION "0.2")
   #include(CMakePackageConfigHelpers)
