@@ -29,7 +29,7 @@ contains
   !> Returns the value of a polynomial of 5th degree at x.
   !> The polynomial is created with the following boundary conditions: Its value, and its 1st and
   !> 2nd derivatives are zero at x = 0 and agree with the provided values at x = dx.
-  function poly5ToZero(y0, y0p, y0pp, xx, dx) result(yy)
+  pure function poly5ToZero(y0, y0p, y0pp, xx, dx, invdx) result(yy)
 
     !> Value of the polynom at x = dx.
     real(dp), intent(in) :: y0
@@ -39,6 +39,9 @@ contains
 
     !> Value of the 2nd derivative at x = dx.
     real(dp), intent(in) :: y0pp
+
+    !> Reciprocal of dx
+    real(dp), intent(in) :: invdx
 
     !> The point where the polynomial should be calculated
     real(dp), intent(in) :: xx
@@ -58,7 +61,8 @@ contains
     dd =  10.0_dp * y0 - 4.0_dp * dx1 + 0.5_dp * dx2
     ee = -15.0_dp * y0 + 7.0_dp * dx1 - 1.0_dp * dx2
     ff =   6.0_dp * y0 - 3.0_dp * dx1 + 0.5_dp * dx2
-    xr = xx / dx
+    !xr = xx / dx
+    xr = xx * invdx
     yy = ((ff*xr + ee)*xr + dd)*xr*xr*xr
 
   end function poly5ToZero
