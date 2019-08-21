@@ -9,3 +9,4 @@
 [submodule "external/mpifx/origin"]
 	path = external/mpifx/origin
 	url = https://github.com/aradi/mpifx.git
+	branch = fypp
