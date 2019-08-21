@@ -197,6 +197,8 @@ contains
     integer :: leng, ind, iLast
     integer :: ii
 
+    real(dp), parameter :: invdistFudge = -1.0_dp / distFudge
+
     leng = self%nGrid
     incr = self%dist
     rMax = real(leng, dp) * incr + distFudge
@@ -236,7 +238,7 @@ contains
         y1 = ya(nInterNew_)
         y1p = (y2(ii) - y0(ii)) / (2.0_dp * deltaR_)
         y1pp = (y2(ii) + y0(ii) - 2.0_dp * y1) / (deltaR_ * deltaR_)
-        dd(ii) = poly5ToZero(y1, y1p, y1pp, dr, -1.0_dp * distFudge)
+        dd(ii) = poly5ToZero(y1, y1p, y1pp, dr, -1.0_dp * distFudge, invDistFudge)
       end do
     end if
 
@@ -260,11 +262,14 @@ contains
     integer :: leng, ind, mInd, iLast
     integer :: ii
     real(dp) :: r1, r2
+    real(dp) :: invdistFudge
 
     leng = self%nGrid
     incr = self%dist
     mInd = leng + floor(distFudgeOld/incr)
     ind = floor(rr / incr)
+
+    invdistFudge = -1.0_dp / (real(mInd - leng -1, dp) * incr)
 
     !! Sanity check, if SK-table contains enough entries
     if (leng < nInterOld_ + 1) then
@@ -302,8 +307,8 @@ contains
         r1 = (y2 - y0) / (2.0_dp * incr)
         r2 = (y2 + y0 - 2.0_dp * y1) / incr**2
         call freeCubicSpline(y1, r1, r2, incr, y2, incr, yp=y1p, ypp=y1pp)
-        dd(ii) = poly5ToZero(y2, y1p, y1pp, dr, &
-            &-1.0_dp * real(mInd - leng -1, dp)*incr)
+        dd(ii) = poly5ToZero(y2, y1p, y1pp, dr,&
+            & -1.0_dp * real(mInd - leng -1, dp)*incr, invdistFudge)
       end do
     else
       !! Dist. greater than tabulated sk range + distFudge => no interaction
