@@ -20,12 +20,12 @@ all: libmpifx
 libmpifx:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/lib/make.build \
 	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" INCLUDES="$(INCLUDES)" \
-            FYPP="$(FYPP)" FYPPOPT="$(FYPPOPT)" SRCDIR="$(SRCDIR)/origin/lib"
+      FYPP="$(FYPP)" FYPPOPT="$(FYPPOPT)" SRCDIR="$(SRCDIR)/origin/lib"
 
 clean:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/make.build \
 	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" \
-            FYPP="$(FYPP)" FYPPOPT="$(FYPPOPT)" SRCDIR="$(SRCDIR)/origin/lib" clean
+      FYPP="$(FYPP)" FYPPOPT="$(FYPPOPT)" SRCDIR="$(SRCDIR)/origin/lib" clean
 
 ### Local Variables:
 ### mode:makefile
