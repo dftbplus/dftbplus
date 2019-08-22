@@ -6,7 +6,3 @@
 	path = external/libnegf/origin
 	url = https://bitbucket.org/pecchia/libnegf.git
 	branch = master
-[submodule "external/mpifx/origin"]
-	path = external/mpifx/origin
-	url = https://github.com/aradi/mpifx.git
-	branch = fypp
