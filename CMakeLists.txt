@@ -56,6 +56,8 @@ if(WITH_ELSI)
   find_package(elsi REQUIRED PATHS ${ELSI_ROOT})
   dftbp_create_library_targets("${ELSI_EXTERNAL_LIBRARIES}" "${ELSI_EXTERNAL_LIBRARY_DIRS}")
   list(APPEND EXPORTED_EXTERNAL_PACKAGES elsi)
+  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${ELSI_EXTERNAL_LIBRARIES})
+  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${ELSI_EXTERNAL_LIBRARY_DIRS})
   if(TARGET elsi::pexsi)
     set(ELSI_WITH_PEXSI TRUE)
   else()
@@ -63,6 +65,8 @@ if(WITH_ELSI)
   endif()
   if(ELSI_WITH_PEXSI)
     dftbp_create_library_targets("${PEXSI_EXTERNAL_LIBRARIES}" "${PEXSI_EXTERNAL_LIBRARY_DIRS}")
+    list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${PEXSI_EXTERNAL_LIBRARIES})
+    list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${PEXSI_EXTERNAL_LIBRARY_DIRS})
   endif()
 endif()
 
@@ -125,6 +129,7 @@ add_subdirectory(test)
 # Export package info
 # 
 if(BUILD_API)
+
   install(EXPORT dftbplus-targets FILE DftbPlusTargets.cmake NAMESPACE DftbPlus::
     DESTINATION ${INSTALL_LIB_DIR}/cmake/DftbPlus)
   
@@ -133,25 +138,9 @@ if(BUILD_API)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/DftbPlusConfig.cmake DESTINATION
     ${INSTALL_LIB_DIR}/cmake/DftbPlus)
 
-  set(PKGCONFIG_LIBS -ldftbplus)
-  foreach(complib IN LISTS EXPORTED_COMPILED_LIBRARIES)
-    set(PKGCONFIG_LIBS "${PKGCONFIG_LIBS} -l${complib}")
-  endforeach()
-  set(PKGCONFIG_LIBS_PRIVATE)
-  foreach(extlibdir IN LISTS EXPORTED_EXTERNAL_LIBRARY_DIRS)
-    set(PKGCONFIG_LIBS_PRIVATE "${PKGCONFIG_LIBS_PRIVATE} -L${extlibdir}")
-  endforeach()
-  foreach(extlib IN LISTS EXPORTED_EXTERNAL_LIBRARIES)
-    set(PKGCONFIG_LIBS_PRIVATE "${PKGCONFIG_LIBS_PRIVATE} -l${extlib}")
-  endforeach()
-  string(REPLACE ";" " " PKGCONFIG_REQUIRES "${EXPORTED_EXTERNAL_PACKAGES}")
+  dftbp_get_pkgconfig_params(PKGCONFIG_REQUIRES PKGCONFIG_LIBS PKGCONFIG_LIBS_PRIVATE
+    PKGCONFIG_C_FLAGS)
   configure_file(utils/export/dftbplus.pc.in ${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc @ONLY)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/dftbplus.pc DESTINATION ${INSTALL_LIB_DIR}/pkgconfig)
   
-  #set(API_VERSION "0.2")
-  #include(CMakePackageConfigHelpers)
-  #write_basic_package_version_file(
-  #  ${INSTALL_CMAKE_DIR}/DftbPlusConfigVersion.cmake
-  #  VERSION ${API_VERSION}
-  #  COMPATIBILITY SameMajorVersion)
 endif()

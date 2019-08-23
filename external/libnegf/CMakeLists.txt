@@ -47,7 +47,7 @@ endif()
 
 
 set(libfiles libnegf-${ARCH}.a libsparskit.a libsyscalls.a)
-dftbp_prepend_path(libfiles_build ${CMAKE_CURRENT_BINARY_DIR} ${libfiles})
+dftbp_add_prefix(${CMAKE_CURRENT_BINARY_DIR}/ "${libfiles}" libfiles_build)
 foreach(libfile IN LISTS libfiles_build)
   install(FILES ${libfile} DESTINATION ${INSTALL_LIB_DIR})
 endforeach()

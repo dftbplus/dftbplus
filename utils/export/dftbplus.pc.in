@@ -1,13 +1,9 @@
-libdir=@INSTALL_LIB_DIR@
-includedir=@INSTALL_INC_DIR@
-moddir=@INSTALL_MOD_DIR@
-
 Name: DFTB+
 Description: Library interface to DFTB+, a fast and efficient atomistic quantum mechanical simulation tool
 Version: @PROJECT_VERSION@
 URL: https://www.dftbplus.org
 
 Requires: @PKGCONFIG_REQUIRES@
-Libs: -L${libdir} @PKGCONFIG_LIBS@
+Libs: @PKGCONFIG_LIBS@
 Libs.private: @PKGCONFIG_LIBS_PRIVATE@
-Cflags: -I${includedir} -I${moddir}$
+Cflags: @PKGCONFIG_C_FLAGS@

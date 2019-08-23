@@ -70,6 +70,13 @@ option(EXPORT_EXTLIBS_WITH_PATH
 # the library in an other CMake project. It does not play well with the CMake export file of
 # the ELSI library.
 
+set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
+  "Compiler and Linker language to assume when creating the pkg-config export file (C or Fortran)")
+# The pkg-config export file (lib/pkgconfig/dftbplus.pc) contains the compiler and linker options
+# needed to link the DFTB+ library to an application. (It can be queried with the pkg-config tool.)
+# Depending on the language setting ("C" or "Fortran") you would get the flags for the case of using
+# that compiler for the linking.
+
 
 ####################################################################################################
 #

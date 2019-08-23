@@ -195,20 +195,117 @@ realloc_lhs' option to produce correctly behaving (Fortran standard complying) c
     endif()
   endif()
 
+  set(pkgconfig_languages C Fortran)
+  list(FIND pkgconfig_languages "${PKGCONFIG_LANGUAGE}" pos)
+  if(pos EQUAL -1)
+    string(REPLACE ";" "\", \"" pkgconfig_languages_str "${pkgconfig_languages}")
+    set(pkgconfig_languages_str "\"${pkgconfig_languages_str}\"")
+    message(FATAL_ERROR
+      "Invalid language \"${PKGCONFIG_LANGUAGE}\" for PKGCONFIG_LANGUAGE (possible choices: ${pkgconfig_languages_str})")
+  endif()
+
 endfunction()
 
 
-# Prepends a given path to a list of iles
+# Prepends a given prefix to a list of items.
 #
 # Args:
 #     result [out]: Variable containing the results
 #     prefix [in]: Prefix to add to each item
 #     * [in]: List of items to be prefixed
 #
-function(dftbp_prepend_path result path)
+function(dftbp_add_prefix prefix itemlist result)
   set(_result)
-  foreach(var IN LISTS ARGN)
-    list(APPEND _result "${path}/${var}")
+  foreach(var IN LISTS itemlist)
+    list(APPEND _result "${prefix}${var}")
   endforeach()
-   set(${result} "${_result}" PARENT_SCOPE)
+  set(${result} "${_result}" PARENT_SCOPE)
+endfunction()
+
+
+# Returns the parameters needed to create a pkg-config export file
+#
+# Args:
+#     pkgconfig_requires [out]: Value for the Requires field.
+#     pkgconfig_libs [out]: Value for the Libs field.
+#     pkgconfig_libs_private [out]: Value for the Libs.private field.
+#     pkgconfig_c_flags [out]: value for the cflags field.
+#
+function(dftbp_get_pkgconfig_params pkgconfig_requires pkgconfig_libs pkgconfig_libs_private
+    pkgconfig_c_flags)
+
+  set(_pkgconfig_libs "-L${INSTALL_LIB_DIR} -ldftbplus")
+  set(_pkgconfig_libs_private)
+
+  dftbp_add_prefix("-l" "${EXPORTED_COMPILED_LIBRARIES}" complibs)
+  list(APPEND _pkgconfig_libs "${complibs}")
+
+  dftbp_add_prefix("-L" "${EXPORTED_EXTERNAL_LIBRARY_DIRS}" extlibdirs)
+  list(APPEND _pkgconfig_libs_private "${extlibdirs}")
+
+  dftbp_add_prefix("-l" "${EXPORTED_EXTERNAL_LIBRARIES}" extlibs)
+  list(APPEND _pkgconfig_libs_private "${extlibs}")
+
+  if(PKGCONFIG_LANGUAGE STREQUAL "C")
+
+    set(implibdirs "${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES}")
+    list(REMOVE_ITEM implibdirs ${CMAKE_C_IMPLICIT_LINK_DIRECTORIES})
+    dftbp_add_prefix("-L" "${implibdirs}" implibdirs)
+    list(APPEND _pkgconfig_libs_private "${implibdirs}")
+
+    set(implibs "${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES}")
+    list(REMOVE_ITEM implibs ${CMAKE_C_IMPLICIT_LINK_LIBRARIES})
+    dftbp_library_linking_flags("${implibs}" implibs)
+    list(APPEND _pkgconfig_libs_private "${implibs}")
+
+    set(_pkgconfig_c_flags "-I${INSTALL_INC_DIR} ${CMAKE_C_FLAGS}")
+
+  else()
+
+    set(implibdirs "${CMAKE_C_IMPLICIT_LINK_DIRECTORIES}")
+    list(REMOVE_ITEM implibdirs ${CMAKE_Fortran_IMPLICIT_LINK_DIRECTORIES})
+    dftbp_add_prefix("-L" "${implibdirs}" implibdirs)
+    list(APPEND _pkgconfig_libs_private "${implibdirs}")
+
+    set(implibs "${CMAKE_C_IMPLICIT_LINK_LIBRARIES}")
+    list(REMOVE_ITEM implibs ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+    dftbp_library_linking_flags("${implibs}" implibs)
+    list(APPEND _pkgconfig_libs_private "${implibs}")
+
+    set(_pkgconfig_c_flags "-I${INSTALL_MOD_DIR} ${CMAKE_Fortran_FLAGS}")
+
+  endif()
+
+  string(REPLACE ";" " " _pkgconfig_libs "${_pkgconfig_libs}")
+  string(REPLACE ";" " " _pkgconfig_libs_private "${_pkgconfig_libs_private}")
+
+  set(_pkgconfig_libs_private "${_pkgconfig_libs_private} ${CMAKE_EXE_LINKER_FLAGS}")
+  string(REPLACE ";" " " _pkgconfig_requires "${EXPORTED_EXTERNAL_PACKAGES}")
+
+  set(${pkgconfig_requires} "${_pkgconfig_requires}" PARENT_SCOPE)
+  set(${pkgconfig_libs} "${_pkgconfig_libs}" PARENT_SCOPE)
+  set(${pkgconfig_libs_private} "${_pkgconfig_libs_private}" PARENT_SCOPE)
+  set(${pkgconfig_c_flags} "${_pkgconfig_c_flags}" PARENT_SCOPE)
+
+endfunction()
+
+
+# Returns library linking flags for given libraries.
+#
+# If the library is a full path, it is linked directly, otherwise with the "-l" option
+#
+# Args:
+#     libraries [in]: List of libraries to check.
+#     linkflags [out]: List of flags to link the libraries
+#
+function(dftbp_library_linking_flags libraries linkflags)
+  set(_linkflags)
+  foreach(library IN LISTS libraries)
+    if(IS_ABSOLUTE "${library}" AND EXISTS "${library}")
+      list(APPEND _linkflags "${library}")
+    else()
+      list(APPEND _linkflags "-l${library}")
+    endif()
+  endforeach()
+  set(${linkflags} "${_linkflags}" PARENT_SCOPE)
 endfunction()
