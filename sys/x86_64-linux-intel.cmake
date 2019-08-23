@@ -96,5 +96,5 @@ endif()
 set(CMAKE_Fortran_FLAGS_DEBUG "-g -warn all -stand f08 -check -diag-error-limit 1 -traceback"
   CACHE STRING "Specific Fortran flags for Debug mode")
 
-set(CMAKE_C_FLAGS_DEBUG "-g -warn all -check")
+set(CMAKE_C_FLAGS_DEBUG "-g -Wall")
 

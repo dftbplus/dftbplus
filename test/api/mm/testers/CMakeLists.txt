@@ -10,6 +10,7 @@ target_link_libraries(test_fileinit dftbplus)
 
 add_executable(test_fileinitc test_fileinitc.c $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_fileinitc dftbplus)
+set_target_properties(test_fileinitc PROPERTIES LINKER_LANGUAGE C)
 
 add_executable(test_treeinit test_treeinit.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_treeinit dftbplus)
@@ -28,3 +29,4 @@ target_link_libraries(test_qdepextpot dftbplus)
 
 add_executable(test_qdepextpotc test_qdepextpotc.c $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_qdepextpotc dftbplus)
+set_target_properties(test_qdepextpotc PROPERTIES LINKER_LANGUAGE C)
