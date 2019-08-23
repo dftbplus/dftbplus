@@ -64,9 +64,6 @@ set(INSTALL_INC_DIR "${CMAKE_INSTALL_PREFIX}/include/dftb+" CACHE PATH
 set(INSTALL_MOD_DIR "${INSTALL_INC_DIR}/modfiles" CACHE PATH
   "Installation directory for Fortran module files")
 
-set(INSTALL_CMAKE_DIR "${INSTALL_LIB_DIR}/cmake/DftbPlus" CACHE PATH
-  "Installation directory for CMake package export files")
-
 option(EXPORT_EXTLIBS_WITH_PATH
   "Whether external libraries in the CMake export file should contain their full path" FALSE)
 # For CMake experts only: It allows to link exact the same external libraries when using

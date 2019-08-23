@@ -58,3 +58,14 @@ foreach(moddir IN LISTS moddirs)
 endforeach()
 
 install(TARGETS libnegf EXPORT dftbplus-targets)
+
+set(exported_compiled_libraries negf-${ARCH} sparskit syscalls)
+# Make sure, mpifx also appears after libnegf in the export file when compiled with MPI support.
+# (it will appear twice, but that does hopefully less harm, than only once at the wrong location)
+if(WITH_MPI)
+  set(exported_compiled_libraries ${exported_compiled_libraries} mpifx)
+endif()
+
+set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} ${exported_compiled_libraries}
+  PARENT_SCOPE)
+

@@ -26,3 +26,6 @@ target_include_directories(dftd3 INTERFACE
   $<INSTALL_INTERFACE:${INSTALL_MOD_DIR}>)
 
 install(TARGETS dftd3 EXPORT dftbplus-targets)
+
+
+set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} dftd3 PARENT_SCOPE)

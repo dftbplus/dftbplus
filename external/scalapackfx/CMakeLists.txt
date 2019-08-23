@@ -26,3 +26,5 @@ target_include_directories(scalapackfx INTERFACE
   $<INSTALL_INTERFACE:${INSTALL_MOD_DIR}>)
 
 install(TARGETS scalapackfx EXPORT dftbplus-targets)
+
+set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} scalapackfx PARENT_SCOPE)
