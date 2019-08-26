@@ -11,17 +11,25 @@ ExternalProject_Add(
     -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
     -DCMAKE_Fortran_FLAGS=${CMAKE_Fortran_FLAGS}
     -DLIBRARY_ONLY=TRUE
+    -DINSTALL_INCLUDE_FILES=${INSTALL_INCLUDE_FILES}
     -DINSTALL_LIB_DIR=${INSTALL_LIB_DIR}
     -DINSTALL_MOD_DIR=${INSTALL_MOD_DIR}
+    -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
   INSTALL_COMMAND cmake -E echo
   EXCLUDE_FROM_ALL TRUE)
 
 add_library(mpifx INTERFACE)
 add_dependencies(mpifx MpifxProject)
 
-target_link_libraries(mpifx INTERFACE
-  $<BUILD_INTERFACE:${builddir}/src/libmpifx.a>
-  $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libmpifx.a>)
+if(BUILD_SHARED_LIBS)
+  target_link_libraries(mpifx INTERFACE
+    $<BUILD_INTERFACE:${builddir}/src/libmpifx.so>
+    $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libmpifx.so>)
+else()
+  target_link_libraries(mpifx INTERFACE
+    $<BUILD_INTERFACE:${builddir}/src/libmpifx.a>
+    $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libmpifx.a>)
+endif()
 
 target_include_directories(mpifx INTERFACE 
   $<BUILD_INTERFACE:${builddir}/src/include>

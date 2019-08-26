@@ -90,8 +90,13 @@ list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${OTHER_LIBRARY_DIRS})
 #
 if(BUILD_API)
   set(exclude)
+  set(INSTALL_INCLUDE_FILES TRUE)
+elseif(BUILD_SHARED_LIBS)
+  set(exclude)
+  set(INSTALL_INCLUDE_FILES FALSE)
 else()
   set(exclude EXCLUDE_FROM_ALL)
+  set(INSTALL_INCLUDE_FILES FALSE)
 endif()
 
 add_subdirectory(external/xmlf90 EXCLUDE_FROM_ALL)

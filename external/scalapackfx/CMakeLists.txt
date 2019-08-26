@@ -9,17 +9,25 @@ ExternalProject_Add(
     -DCMAKE_Fortran_COMPILER=${CMAKE_Fortran_COMPILER}
     -DCMAKE_Fortran_FLAGS=${CMAKE_Fortran_FLAGS}
     -DLIBRARY_ONLY=TRUE
+    -DINSTALL_INCLUDE_FILES=${INSTALL_INCLUDE_FILES}
     -DINSTALL_LIB_DIR=${INSTALL_LIB_DIR}
     -DINSTALL_MOD_DIR=${INSTALL_MOD_DIR}
+    -DBUILD_SHARED_LIBS=${BUILD_SHARED_LIBS}
   INSTALL_COMMAND ""
   EXCLUDE_FROM_ALL TRUE)
 
 add_library(scalapackfx INTERFACE)
 add_dependencies(scalapackfx ScalapackfxProject)
 
-target_link_libraries(scalapackfx INTERFACE
-  $<BUILD_INTERFACE:${builddir}/src/libscalapackfx.a>
-  $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libscalapackfx.a>)
+if(BUILD_SHARED_LIBS)
+  target_link_libraries(scalapackfx INTERFACE
+    $<BUILD_INTERFACE:${builddir}/src/libscalapackfx.so>
+    $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libscalapackfx.so>)
+else()
+  target_link_libraries(scalapackfx INTERFACE
+    $<BUILD_INTERFACE:${builddir}/src/libscalapackfx.so>
+    $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libscalapackfx.so>)
+endif()
 
 target_include_directories(scalapackfx INTERFACE 
   $<BUILD_INTERFACE:${builddir}/src/include>

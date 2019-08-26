@@ -103,8 +103,11 @@ target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 
 # Installation
 
-if(BUILD_API)
+if(BUILD_API OR BUILD_SHARED_LIBS)
   install(TARGETS dftbplus DESTINATION ${INSTALL_LIB_DIR} EXPORT dftbplus-targets)
+endif()
+
+if(INSTALL_INCLUDE_FILES)
   install(DIRECTORY ${includedir}/ DESTINATION ${INSTALL_MOD_DIR})
   install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h DESTINATION ${INSTALL_INC_DIR})
 
@@ -119,7 +122,6 @@ if(BUILD_API)
       install(DIRECTORY "${moddir}/" DESTINATION "${INSTALL_MOD_DIR}")
     endforeach()
   endif()
-  
 endif()
 
 

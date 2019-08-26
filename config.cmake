@@ -18,6 +18,7 @@ option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI librari
 option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-library" FALSE)
 
 option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
+# Works only when building static libraries (see option BUILD_SHARED_LIBS)
 
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
@@ -28,12 +29,19 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
 # GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
 
+option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
+# Turn this on, if the DFTB+ library (and other compiled libraries) should be shared libraries and
+# dynamically linked to their applications. This results in smaller applications, but the libraries
+# must be present at run-time (and the correct LD_LIBRARY_PATH environment variable must be set, so
+# that they can be found by the operating system). If you want use the DFTB+ library from other
+# software packages (see BUILD_API option below), they may also require a shared library (e.g.
+# calling DFTB+ functions from Python or Julia).
+
 option(BUILD_API "Whether DFTB+ library with high-level API should be built and installed" FALSE)
-# Turn this on, if you want to use DFTB+ as a library (libdftbplus.a) in order to integrate it into
-# other software packages. (Otherwise only a stripped down version of the library without the public
-# API would be built, and neither the library nor the module files would be installed.) When
-# enabled, also the external libraries will be installed, which were compiled during the build
-# process and are need when linking DFTB+ with other applications.
+# Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
+# packages. (Otherwise only a stripped down version of the library without the public API is built.)
+# This will also install necessary include and module files and further libraries needed to link the
+# DFTB+ library.
 
 
 #
