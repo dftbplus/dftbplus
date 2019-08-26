@@ -78,25 +78,25 @@ if(WITH_TRANSPORT)
 endif()
 
 if(WITH_ELSI)
-  target_link_libraries(dftbplus PUBLIC elsi::elsi)
-  target_link_libraries(dftbplus PUBLIC ${ELSI_EXTERNAL_LIBRARIES})
+  target_link_libraries(dftbplus PRIVATE elsi::elsi)
+  target_link_libraries(dftbplus PRIVATE ${ELSI_EXTERNAL_LIBRARIES})
   if(ELSI_WITH_PEXSI)
-    target_link_libraries(dftbplus PUBLIC ${PEXSI_EXTERNAL_LIBRARIES})
+    target_link_libraries(dftbplus PRIVATE ${PEXSI_EXTERNAL_LIBRARIES})
   endif()
 endif()
 
 if(WITH_MPI)
   target_link_libraries(dftbplus PUBLIC mpifx scalapackfx)
-  target_link_libraries(dftbplus PUBLIC ${SCALAPACK_LIBRARIES})
+  target_link_libraries(dftbplus PRIVATE ${SCALAPACK_LIBRARIES})
 endif()
 
-target_link_libraries(dftbplus PUBLIC ${LAPACK_LIBRARIES})
+target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
 
 if(WITH_ARPACK)
-  target_link_libraries(dftbplus PUBLIC ${ARPACK_LIBRARIES})
+  target_link_libraries(dftbplus PRIVATE ${ARPACK_LIBRARIES})
 endif()
 
-target_link_libraries(dftbplus PUBLIC ${OTHER_LIBRARIES})
+target_link_libraries(dftbplus PRIVATE ${OTHER_LIBRARIES})
 
 target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 

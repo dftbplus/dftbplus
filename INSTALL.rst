@@ -192,3 +192,89 @@ Installing DFTB+
   where the destination directory can be configured by the variable
   ``CMAKE_INSTALL_PREFIX`` (in the `config.cmake` file). The default location is
   the `_install` subdirectory within the build directory.
+
+
+
+Using DFTB+ as a library
+========================
+
+DFTB+ can be also used as a library and linked with other simulation software
+packages. In order to compile the library with the public API, make sure to set
+the ``BUILD_API`` option to ``TRUE`` in the CMake config file
+`config.cmake`. When you install the program, it will also install the DFTB+
+library (`libdftbplus.a`), the C-include file and the Fortran module files,
+which are necessary for linking DFTB+ with C and Fortran programs.
+
+
+Linking the library in non-CMake based builds
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Depending on the choice of external components and whether you want to link
+DFTB+ to a C or a Fortran binary, you may need different compilation flags and
+linker options. You can look up the necessary compiler flags and linker options
+in the `dftbplus.pc` pkg-config file, which is usually installed into the
+`lib/pkgconfig` folder in the installation directory. You can either inspect the
+file directly, or use the ``pkg-config`` tool::
+
+  export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:DFTBPLUS_INSTALL_FOLDER/lib/pkgconfig
+  pkg-config --cflags   # gives you compilation flags (e.g. include options)
+  pkg-config --libs     # shows library linking options
+  pkg-config --static --libs   # shows library linking options for static linking
+
+Note, that the flags and libraries shown are either for linking with Fortran or
+with C, depending on the value of the configuration option
+``PKGCONFIG_LANGUAGE``.
+
+If you compiled DFTB+ with ELSI-support, make sure, that pkg-config can find the
+ELSIs own pkgconfig file, as it is declared as dependency in the DFTB+
+pkg-config file.
+
+
+Linking the library in CMake based builds
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you use CMake to build your project, you can directly use the CMake
+configuration file installed by DFTB+ into the `lib/cmake/DftbPlus/` folder in
+the installation root directory. It exports the target ``DftbPlus::dftbplus``
+which you can use to obtain compiler and linking options. For example, in your
+projects `CMakeLists.txt`, you could have something like::
+
+  project(dftbplus_libtest LANGUAGES Fortran C)
+  find_package(DftbPlus REQUIRED)
+  add_executable(testprogram testprogram.f90)
+  target_link(testprogram DftbPlus::dftbplus)
+
+Note, that this will link all libraries in the correct order, which where
+compiled during the DFTB+ build (e.g. libdftd3, libnegf, etc.). It will also
+contain the link dependencies on the external libraries needed to create
+standalone applications with DFTB+ (e.g. lapack, scalapack). You must make sure,
+that CMake can find those libraries, when linking the
+application. Alternatively, you may use CMake to find them at the locations,
+where they were found during the DFTB+ build. The variables
+``DftbPlus_EXTERNAL_LIBRARIES`` and ``DftbPlus_EXTERNAL_LIBRARY_DIRS`` contain
+all external libraries and the directories, where they have been found. In order
+to make sure, CMake finds them, you could turn them into targets in your CMake::
+
+  project(dftbplus_libtest LANGUAGES Fortran)
+
+  find_package(DftbPlus REQUIRED)
+
+  foreach(lib IN LISTS DftbPlus_EXTERNAL_LIBRARIES)
+    find_library(LIBPATH ${lib} HINTS ${DftbPlus_EXTERNAL_LIBRARY_DIRS})
+    if(LIBPATH)
+      message(STATUS "Found library ${LIBPATH}")
+      add_library(${lib} IMPORTED UNKNOWN)
+      set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${LIBPATH})
+    else()
+      message(FATAL_ERROR
+        "Could not find library '${lib}' using library path hints '${libpaths}'")
+    endif()
+    unset(LIBPATH CACHE)
+  endforeach()
+
+  add_executable(testprogram testprogram.f90)
+  target_link_libraries(testprogram DftbPlus::dftbplus)
+
+If you compiled DFTB+ with ELSI support, make sure, that CMake can find ELSIs
+own CMake configuration file, as it is declared as dependency in the DFTB+ Cmake
+config file.
