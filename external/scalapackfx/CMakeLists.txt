@@ -25,8 +25,8 @@ if(BUILD_SHARED_LIBS)
     $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libscalapackfx.so>)
 else()
   target_link_libraries(scalapackfx INTERFACE
-    $<BUILD_INTERFACE:${builddir}/src/libscalapackfx.so>
-    $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libscalapackfx.so>)
+    $<BUILD_INTERFACE:${builddir}/src/libscalapackfx.a>
+    $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libscalapackfx.a>)
 endif()
 
 target_include_directories(scalapackfx INTERFACE 
