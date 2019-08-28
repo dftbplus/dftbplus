@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
+cmake_policy(VERSION 3.5)
 
 set(DFTBPLUS_VERSION "19.2")
 
@@ -126,6 +127,10 @@ endif()
 add_subdirectory(prog)
 add_subdirectory(tools/dptools)
 
+#
+# Testing
+#
+string(CONFIGURE "${TEST_RUNNER_TEMPLATE}" TEST_RUNNER)
 enable_testing()
 add_subdirectory(test)
 
