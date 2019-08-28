@@ -309,3 +309,20 @@ function(dftbp_library_linking_flags libraries linkflags)
   endforeach()
   set(${linkflags} "${_linkflags}" PARENT_SCOPE)
 endfunction()
+
+
+# Stops the code if the source and the build folders are identical.
+#
+function(dftbp_ensure_out_of_source_build)
+
+  get_filename_component(srcdir "${CMAKE_SOURCE_DIR}" REALPATH)
+  get_filename_component(bindir "${CMAKE_BINARY_DIR}" REALPATH)
+
+  if("${srcdir}" STREQUAL "${bindir}")
+    message(FATAL_ERROR
+      "It is not allowed to configure and build DFTB+ from its source folder. Please, create a \
+separate build directory and invoke CMake from that directory. See the INSTALL.rst file for \
+detailed build instructions.")
+  endif()
+  
+endfunction()

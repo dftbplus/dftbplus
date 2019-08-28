@@ -6,6 +6,8 @@ set(DFTBPLUS_VERSION "19.2")
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
+dftbp_ensure_out_of_source_build()
+
 include(${CMAKE_SOURCE_DIR}/config.cmake)
 
 dftbp_ensure_config_consistency()
