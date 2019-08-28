@@ -186,7 +186,6 @@ class BranchBlock(object):
           filedeps.append(depName)
           vardeps.append("$(%s)" % depName)
       if fsrc:
-        #print("%s.o: %s%s" % (fbase, fbase, fext), file=fp, end=' ')
         print("%s.o:" % (fbase), file=fp, end=' ')
         if filedeps:
           print(" ".join(filedeps), file=fp, end=' ')
@@ -329,7 +328,7 @@ def main():
       if PAT_FILE.search(fname):
         pathName = os.path.join(dirname, fname)
         print("Processing: %s" % pathName)
-        txt = open(pathName, "rU").read()
+        txt = open(pathName, "r", newline=None).read()
         tree = buildDependencyTree(txt)
         if tree:
           fbase, fext = os.path.splitext(os.path.basename(fname))

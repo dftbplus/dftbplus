@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 ################################################################################
 #
 # Replaces (in place) the name of a given module with a new one in all the files
