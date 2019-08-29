@@ -165,7 +165,7 @@ class TaggedEntry(object):
                                      }
 
     # Valid types
-    __validTypes = __strToValue.keys()
+    __validTypes = list(__strToValue.keys())
 
 
     def __init__(self, name, type, rank, shape, strValue):
