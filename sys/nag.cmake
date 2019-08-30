@@ -66,27 +66,6 @@ set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries ca
 
 
 #
-# Test settings
-#
-
-# Number of OMP-threads used by one test process
-set(TEST_OMP_THREADS "1" CACHE STRING "Number of threads to use for each test")
-
-# Number of MPI-processed launched for each test
-set(TEST_MPI_PROCS "1" CACHE STRING "Number of mpi processes to use for each test")
-
-# Command line used to launch the test code.
-# The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.
-if(WITH_MPI)
-  set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS} mpiexec -n \${TEST_MPI_PROCS}"
-    CACHE STRING "How to run the tests")
-else()
-  set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
-    "How to run the tests")
-endif()
-
-
-#
 # Debug settings (for developers)
 #
 set(CMAKE_Fortran_FLAGS_DEBUG "-f2008 -g -nan -C=all" CACHE STRING

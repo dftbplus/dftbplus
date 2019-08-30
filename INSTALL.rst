@@ -102,27 +102,24 @@ Compiling
 * Look at the `config.cmake` file and customise the global build parameters if
   necessary. (If you are unsure, leave the defaults as they are.)
 
-* Customise the ``ARCH`` variable at the bottom of the `config.cmake` file. It
-  should correspond to the prefix of one of the cmake config files in the `sys/`
-  folder. Take the one which is closest to your system (and customise it
-  according to your needs). Alternatively, you can also create your own file in
-  the `sys/` folder.
+* Since the CMake auto-detection of compilers, flags and libraries may easily
+  end up in non-standard environments with an inconsistent choice, you have to
+  provide those settings manually. You can use (and customise) one of the cmake
+  toolchain templates in the `sys/` folder (e.g. `gnu.cmake`, `intel.cmake`) or
+  create your own one, if you wish.
 
-  The build system will include the architecture dependent settings from the
-  file `sys/${ARCH}.cmake` where ``${ARCH}`` is the value of the ``ARCH``
-  variable you set in `config.cmake`.
+* Create a build folder (e.g. `_build`) either in the DFTB+ source tree or
+  somewhere else outside of it and change to the build folder::
 
-* Create a build folder **outside** of the DFTB+ source tree and change to that
-  that folder, e.g.::
+    mkdir _build
+    cd _build
 
-    mkdir /tmp/build_dftb+
-    cd /tmp/build_dftb+
+* From the build folder invoke CMake to configure the build. Pass the toolchain
+  file name with the ``-DCMAKE_TOOLCHAIN_FILE`` option and the DFTB+ source code
+  folder as arguments. If for example your build folder has been created within
+  the DFTB+ source tree and you use the `sys/gnu.cmake` toolchain file, issue::
 
-* From the build folder Invoke CMake to configure the build. Pass the folder
-  with the DFTB+ source code as argument, e.g. assuming the DFTB+ source is
-  located in `~/dftbplus`, issue::
-
-    cmake ~/dftbplus
+    cmake -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
 
 * If the configuration was successful, invoke (from within the build folder)
   `make` to compile the code::
@@ -133,7 +130,7 @@ Compiling
   relevant information.
 
   If, for debugging purposes, you wish to see the exact compiling commands, you
-  can execute a serial build with verbosity turned on, instead::
+  should execute a serial build with verbosity turned on instead::
 
     make VERBOSE=1
   
@@ -174,10 +171,10 @@ Testing DFTB+
   process affinity (settings will depend on your specific MPI implementation).
 
   The ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` cache variables can be updated
-  or changed also after the compilation just before starting the testing by
-  invoking CMake with the appropriate ``-D`` options, e.g.::
+  or changed also after the compilation by invoking CMake with the appropriate
+  ``-D`` options, e.g.::
 
-    cmake -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 ~/dftbplus
+    cmake -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 ..
     ctest
 
 

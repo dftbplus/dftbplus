@@ -21,7 +21,7 @@ ExternalProject_Add(
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/origin
   BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}
   CONFIGURE_COMMAND ""
-  BUILD_COMMAND make -C ${CMAKE_CURRENT_BINARY_DIR} -f ${CMAKE_CURRENT_SOURCE_DIR}/origin/Makefile.lib MPI=${mpi} FPP=${FYPP} FPPOPT=${fypp_flags} FXX=${CMAKE_Fortran_COMPILER} FXXOPT=${CMAKE_Fortran_FLAGS} SRCDIR=${CMAKE_CURRENT_SOURCE_DIR}/origin OBJDIR=${CMAKE_CURRENT_BINARY_DIR} INCLUDES=${includes} ARCH=${ARCH}
+  BUILD_COMMAND make -C ${CMAKE_CURRENT_BINARY_DIR} -f ${CMAKE_CURRENT_SOURCE_DIR}/origin/Makefile.lib MPI=${mpi} FPP=${FYPP} FPPOPT=${fypp_flags} FXX=${CMAKE_Fortran_COMPILER} FXXOPT=${CMAKE_Fortran_FLAGS} SRCDIR=${CMAKE_CURRENT_SOURCE_DIR}/origin OBJDIR=${CMAKE_CURRENT_BINARY_DIR} INCLUDES=${includes} ARCH=dftbplus
   INSTALL_COMMAND ""
   TEST_COMMAND "")
 
@@ -34,10 +34,10 @@ target_include_directories(libnegf INTERFACE
   $<INSTALL_INTERFACE:${INSTALL_MOD_DIR}>)
 
 target_link_libraries(libnegf INTERFACE 
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libnegf-${ARCH}.a>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libnegf-dftbplus.a>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libsparskit.a>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/libsyscalls.a>
-  $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libnegf-${ARCH}.a>
+  $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libnegf-dftbplus.a>
   $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libsparskit.a>
   $<INSTALL_INTERFACE:${INSTALL_LIB_DIR}/libsyscalls.a>)
 
@@ -46,7 +46,7 @@ if(WITH_MPI)
 endif()
 
 
-set(libfiles libnegf-${ARCH}.a libsparskit.a libsyscalls.a)
+set(libfiles libnegf-dftbplus.a libsparskit.a libsyscalls.a)
 dftbp_add_prefix(${CMAKE_CURRENT_BINARY_DIR}/ "${libfiles}" libfiles_build)
 foreach(libfile IN LISTS libfiles_build)
   install(FILES ${libfile} DESTINATION ${INSTALL_LIB_DIR})
@@ -59,7 +59,7 @@ endforeach()
 
 install(TARGETS libnegf EXPORT dftbplus-targets)
 
-set(exported_compiled_libraries negf-${ARCH} sparskit syscalls)
+set(exported_compiled_libraries negf-dftbplus sparskit syscalls)
 # Make sure, mpifx also appears after libnegf in the export file when compiled with MPI support.
 # (it will appear twice, but that does hopefully less harm, than only once at the wrong location)
 if(WITH_MPI)

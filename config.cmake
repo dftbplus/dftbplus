@@ -45,22 +45,26 @@ option(BUILD_API "Whether DFTB+ library with high-level API should be built and 
 
 
 #
-# Architecture/compiler specific build settings
-#
-set(ARCH "x86_64-linux-gnu" CACHE STRING
-  "Selects which architecture dependent settings should be used")
-
-# Include compiler dependent build settings from the sys-directory
-include(${CMAKE_SOURCE_DIR}/sys/${ARCH}.cmake)
-
-
 # Test environment settings
+#
 set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
 
 set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
 
+# Command line used to launch the test code.
+# The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.
+if(WITH_MPI)
+  set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS} mpiexec -n \${TEST_MPI_PROCS}"
+    CACHE STRING "How to run the tests")
+else()
+  set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
+    "How to run the tests")
+endif()
 
-# Installation paths
+
+#
+# Installation options
+#
 set(INSTALL_BIN_DIR "${CMAKE_INSTALL_PREFIX}/bin" CACHE PATH
   "Installation directory for executables")
 
@@ -88,24 +92,24 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 
 ####################################################################################################
 #
-# NOTE FOR DEVELOPERS: Do not customise any settings here or in any of the sys/${ARCH}.cmake files
-# as they contain the official defaults DFTB+ is shipped with. (Except you have a good reason to
-# change such a default). If you need to customise any of the settings for your system, create a
-# custom cmake file (e.g. custom.cmake) containing (only) the settings you would like to
-# override. For an example, see
+# NOTE FOR DEVELOPERS: Do not customise any settings here or in any of the sys/*.cmake files as they
+# contain the official defaults DFTB+ is shipped with. If you need to customise any of the settings
+# for your system, create a custom cmake file (e.g. custom.cmake) containing (only) the settings you
+# would like to override. For an example, see
 #
 #     https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7
 #
 # When invoking CMake, pre-populate its cache with your custom settings using the -C option. For
-# example, assuming the DFTB+ source is in ~/dftbplus, issue:
+# example, assuming your build folder is a subdirectory within the DFTB+ source directory and you
+# wish to override the settings in config.cmake and in sys/gnu.cmake, issue:
 #
-#     cmake -C ~/dftbplus/custom.cmake ~/dftbplus
+#     cmake -C ../custom.cmake -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
 #
-# The settings in custom.cmake will take precedence over the corresponding settings in config.cmake
-# and sys/${ARCH}.cmake. Make sure, you do *not* put your customised makefile under version control.
+# The settings in custom.cmake will pre-populate the cache and suppress the corresponding cache
+# variables in config.cmake and sys/*.cmake.
 #
 # Alternatively, you may also override settings on the command line, e.g.:
 #
-#     cmake -DWITH_SOCKETS=1 ~/dftbplus
+#     cmake -DWITH_MPI=1 -DWITH_TRANSPORT=1 -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
 #
 ####################################################################################################
