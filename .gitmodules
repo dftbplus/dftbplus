@@ -1,7 +1,7 @@
 [submodule "external/scalapackfx/origin"]
 	path = external/scalapackfx/origin
 	url = git@github.com:kris299/scalapackfx.git
-	branch = fypp-scalapackfx
+	branch = fypp-merge
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
 	url = https://bitbucket.org/pecchia/libnegf.git
@@ -9,4 +9,4 @@
 [submodule "external/mpifx/origin"]
 	path = external/mpifx/origin
 	url = git@github.com:kris299/mpifx.git
-	branch = fyppFixScatter
+	branch = fypp-merge
