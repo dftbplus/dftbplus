@@ -78,7 +78,8 @@ if(WITH_TRANSPORT)
 endif()
 
 if(WITH_ELSI)
-  target_link_libraries(dftbplus PRIVATE elsi::elsi)
+  # Some compilers need all mod files (also indirect ones), so include dir must be exported
+  target_link_libraries(dftbplus PUBLIC elsi::elsi)
   target_link_libraries(dftbplus PRIVATE ${ELSI_EXTERNAL_LIBRARIES})
   if(ELSI_WITH_PEXSI)
     target_link_libraries(dftbplus PRIVATE ${PEXSI_EXTERNAL_LIBRARIES})
