@@ -12,7 +12,15 @@ include(${CMAKE_SOURCE_DIR}/config.cmake)
 
 dftbp_ensure_config_consistency()
 
-project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
+project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES NONE)
+
+if(NOT DEFINED CMAKE_Fortran_COMPILER)
+  message(FATAL_ERROR "Undefined Fortran compiler. The automatic detection of compilers, flags and \
+libraries is disabled. Please, provide the configuration parameters explicitely. See the \
+INSTALL.rst file for detailed instructions.")
+endif()
+enable_language(Fortran)
+enable_language(C)
 
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 dftbp_convert_to_list(FYPP_FLAGS)
