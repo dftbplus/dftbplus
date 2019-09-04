@@ -19,6 +19,7 @@ if(NOT DEFINED CMAKE_Fortran_COMPILER)
 libraries is disabled. Please, provide the configuration parameters explicitely. See the \
 INSTALL.rst file for detailed instructions.")
 endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 enable_language(Fortran)
 enable_language(C)
 
