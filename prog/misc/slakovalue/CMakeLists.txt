@@ -13,7 +13,7 @@ foreach(target IN LISTS targets)
 
   add_executable(${target} ${sources-f90-preproc})
 
-  target_link_libraries("${target}" dftbplus ${LAPACK_LIBRARIES})
+  target_link_libraries(${target} dftbplus)
 
   install(TARGETS ${target} DESTINATION ${INSTALL_BIN_DIR})
 

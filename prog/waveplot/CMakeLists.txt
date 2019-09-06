@@ -9,8 +9,8 @@ set(fypp-opts -I${CMAKE_SOURCE_DIR}/prog/dftb+/include)
 
 dftbp_preprocess("${FYPP}" "${fypp-opts}" "F90" "f90" "${sources-fpp}" sources-f90-preproc)
 
-add_executable("waveplot" ${sources-f90-preproc})
+add_executable(waveplot ${sources-f90-preproc})
 
-target_link_libraries(waveplot dftbplus ${LAPACK_LIBRARIES})
+target_link_libraries(waveplot dftbplus)
 
 install(TARGETS waveplot DESTINATION ${INSTALL_BIN_DIR})
