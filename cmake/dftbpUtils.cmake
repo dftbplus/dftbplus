@@ -84,6 +84,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_TRANSPORT)
   endif()
 
+  if(WITH_C_EXECUTABLES)
+    list(APPEND _fyppflags -DWITH_C_EXECUTABLES)
+  endif()
+
   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
 
 endfunction()

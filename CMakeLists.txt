@@ -23,6 +23,13 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 enable_language(Fortran)
 enable_language(C)
 
+# Neither CMake nor us have an idea, how gcc could link NAG-compiled Fortran code with OMP.
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
+  set(WITH_C_EXECUTABLES FALSE)
+else()
+  set(WITH_C_EXECUTABLES TRUE)
+endif()
+
 set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
 dftbp_convert_to_list(FYPP_FLAGS)
 dftbp_add_fypp_defines(FYPP_FLAGS)
