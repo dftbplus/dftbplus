@@ -30,15 +30,7 @@ else()
   set(WITH_C_EXECUTABLES TRUE)
 endif()
 
-set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
-dftbp_convert_to_list(FYPP_FLAGS)
-dftbp_add_fypp_defines(FYPP_FLAGS)
-
-set(PYTHON_INTERPRETER "python" CACHE STRING
-  "Python interpreter to use for installing and test python components")
-
 dftbp_get_release_name(RELEASE)
-
 
 if(WITH_MPI)
   find_package(MPI REQUIRED)
@@ -102,6 +94,17 @@ endif()
 dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
 list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${OTHER_LIBRARIES})
 list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${OTHER_LIBRARY_DIRS})
+
+
+#
+# Preprocessor details
+#
+set(FYPP "${PROJECT_SOURCE_DIR}/external/fypp/bin/fypp" CACHE FILEPATH "Fypp preprocessor")
+dftbp_convert_to_list(FYPP_FLAGS)
+dftbp_add_fypp_defines(FYPP_FLAGS)
+
+set(PYTHON_INTERPRETER "python3" CACHE STRING
+  "Python interpreter to use for installing and test python components")
 
 
 #
