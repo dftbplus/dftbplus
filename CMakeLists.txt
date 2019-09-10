@@ -10,25 +10,21 @@ dftbp_ensure_out_of_source_build()
 
 include(${CMAKE_SOURCE_DIR}/config.cmake)
 
-dftbp_ensure_config_consistency()
-
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES NONE)
-
-if(NOT DEFINED CMAKE_Fortran_COMPILER)
-  message(FATAL_ERROR "Undefined Fortran compiler. The automatic detection of compilers, flags and \
-libraries is disabled. Please, provide the configuration parameters explicitely. See the \
-INSTALL.rst file for detailed instructions.")
-endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+dftbp_ensure_compiler_def(Fortran)
 enable_language(Fortran)
+dftbp_ensure_compiler_def(C)
 enable_language(C)
 
-# Neither CMake nor us have an idea, how gcc could link NAG-compiled Fortran code with OMP.
+# Neither CMake nor we have any ideas, how gcc could link NAG-compiled Fortran code with OMP.
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
   set(WITH_C_EXECUTABLES FALSE)
 else()
   set(WITH_C_EXECUTABLES TRUE)
 endif()
+
+dftbp_ensure_config_consistency()
 
 dftbp_get_release_name(RELEASE)
 

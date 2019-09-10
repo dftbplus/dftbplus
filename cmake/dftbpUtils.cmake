@@ -192,7 +192,9 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Transport is currently only possible with static libraries")
   endif()
 
-  if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG") AND WITH_OMP)
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+  if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
+      AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)
     message(FATAL_ERROR
       "NAG compiler usually creates crashing binary with OpenMP-parallelisation in debug mode. \
 Disable OpenMP (WITH_OMP) when compiling in debug mode")
@@ -341,4 +343,20 @@ separate build directory and invoke CMake from that directory. See the INSTALL.r
 detailed build instructions.")
   endif()
   
+endfunction()
+
+
+# Makes sure, that a compiler has been already defined for a given language
+#
+# Args:
+#     language [in]: The language to look at.
+#
+function(dftbp_ensure_compiler_def language)
+
+  if(NOT DEFINED CMAKE_${language}_COMPILER)
+    message(FATAL_ERROR "Undefined ${language} compiler. The automatic detection of compilers, \
+flags and libraries is disabled. You must provide configuration parameters explicitely (e.g. in a \
+toolchain file). See the INSTALL.rst file for detailed instructions.")
+  endif()
+
 endfunction()
