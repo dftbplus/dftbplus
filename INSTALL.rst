@@ -197,7 +197,7 @@ Using DFTB+ as a library
 
 DFTB+ can be also used as a library and linked with other simulation software
 packages. In order to compile the library with the public API, make sure to set
-the ``BUILD_API`` option to ``TRUE`` in the CMake config file
+the ``WITH_API`` option to ``TRUE`` in the CMake config file
 `config.cmake`. When you install the program, it will also install the DFTB+
 library (`libdftbplus.a`), the C-include file and the Fortran module files,
 which are necessary for linking DFTB+ with C and Fortran programs.

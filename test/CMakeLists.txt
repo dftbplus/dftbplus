@@ -1,5 +1,5 @@
 add_subdirectory(prog/dftb+)
-if(BUILD_API)
+if(WITH_API)
   add_subdirectory(api/mm)
 endif()
 add_subdirectory(tools/dptools)

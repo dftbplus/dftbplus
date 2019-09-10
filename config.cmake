@@ -29,19 +29,20 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
 # GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
 
+option(WITH_API "Whether public API should be included and the DFTB+ library installed" FALSE)
+# Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
+# packages. (Otherwise only a stripped down version of the library without the public API is built.)
+# This will also install necessary include and module files and further libraries needed to link the
+# DFTB+ library.
+
 option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 # Turn this on, if the DFTB+ library (and other compiled libraries) should be shared libraries and
 # dynamically linked to their applications. This results in smaller applications, but the libraries
 # must be present at run-time (and the correct LD_LIBRARY_PATH environment variable must be set, so
 # that they can be found by the operating system). If you want use the DFTB+ library from other
-# software packages (see BUILD_API option below), they may also require a shared library (e.g.
+# software packages (see WITH_API option above), they may also require a shared library (e.g.
 # calling DFTB+ functions from Python or Julia).
 
-option(BUILD_API "Whether DFTB+ library with high-level API should be built and installed" FALSE)
-# Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
-# packages. (Otherwise only a stripped down version of the library without the public API is built.)
-# This will also install necessary include and module files and further libraries needed to link the
-# DFTB+ library.
 
 
 #

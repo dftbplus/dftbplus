@@ -25,7 +25,7 @@ add_subdirectory(lib_md)
 add_subdirectory(lib_mixer)
 add_subdirectory(lib_timedep)
 add_subdirectory(lib_type)
-if(BUILD_API)
+if(WITH_API)
   add_subdirectory(api/mm)
 endif()
 if(WITH_TRANSPORT)
@@ -53,7 +53,7 @@ set(includedir ${CMAKE_CURRENT_BINARY_DIR}/include)
 set_target_properties(dftbplus PROPERTIES Fortran_MODULE_DIRECTORY ${includedir})
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:${includedir}> $<INSTALL_INTERFACE:${INSTALL_MOD_DIR}>)
-if(BUILD_API)
+if(WITH_API)
   target_include_directories(dftbplus INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api/mm> $<INSTALL_INTERFACE:${INSTALL_INC_DIR}>)
 endif()
@@ -104,7 +104,7 @@ target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})
 
 # Installation
 
-if(BUILD_API OR BUILD_SHARED_LIBS)
+if(WITH_API OR BUILD_SHARED_LIBS)
   install(TARGETS dftbplus DESTINATION ${INSTALL_LIB_DIR} EXPORT dftbplus-targets)
 endif()
 

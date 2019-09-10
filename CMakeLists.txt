@@ -106,7 +106,7 @@ set(PYTHON_INTERPRETER "python3" CACHE STRING
 #
 # Add optional external components
 #
-if(BUILD_API)
+if(WITH_API)
   set(exclude)
   set(INSTALL_INCLUDE_FILES TRUE)
 elseif(BUILD_SHARED_LIBS)
@@ -155,7 +155,7 @@ add_subdirectory(test)
 #
 # Export package info
 # 
-if(BUILD_API)
+if(WITH_API)
 
   install(EXPORT dftbplus-targets FILE DftbPlusTargets.cmake NAMESPACE DftbPlus::
     DESTINATION ${INSTALL_LIB_DIR}/cmake/DftbPlus)
