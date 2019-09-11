@@ -188,10 +188,6 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
-  if(BUILD_SHARED_LIBS AND WITH_TRANSPORT)
-    message(FATAL_ERROR "Transport is currently only possible with static libraries")
-  endif()
-
   string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
   if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
       AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)
