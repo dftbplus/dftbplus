@@ -3,4 +3,6 @@ set(MPIFX_INCLUDE_DIR "${CMAKE_BINARY_DIR}/external/mpifx/origin/src/include" CA
   "Where to find the MPIFX include directory")
 add_subdirectory(origin)
 set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} negf sparskit syscalls PARENT_SCOPE)
-add_dependencies(negf mpifx)
+if(WITH_MPI)
+  add_dependencies(negf mpifx)
+endif()
