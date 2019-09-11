@@ -108,13 +108,13 @@ set(PYTHON_INTERPRETER "python3" CACHE STRING
 #
 if(WITH_API)
   set(exclude)
-  set(INSTALL_INCLUDE_FILES TRUE)
+  option(INSTALL_INCLUDE_FILES "Whether include files should be installed" TRUE)
 elseif(BUILD_SHARED_LIBS)
   set(exclude)
-  set(INSTALL_INCLUDE_FILES FALSE)
+  option(INSTALL_INCLUDE_FILES "Whether include files should be installed" FALSE)
 else()
   set(exclude EXCLUDE_FROM_ALL)
-  set(INSTALL_INCLUDE_FILES FALSE)
+  option(INSTALL_INCLUDE_FILES "Whether include files should be installed" FALSE)
 endif()
 
 add_subdirectory(external/xmlf90 EXCLUDE_FROM_ALL)
