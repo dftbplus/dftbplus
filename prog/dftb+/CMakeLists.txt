@@ -74,7 +74,7 @@ if(WITH_DFTD3)
 endif()
 
 if(WITH_TRANSPORT)
-  target_link_libraries(dftbplus PUBLIC negf sparskit syscalls mudpack)
+  target_link_libraries(dftbplus PUBLIC negf sparskit mudpack)
 endif()
 
 if(WITH_ELSI)
