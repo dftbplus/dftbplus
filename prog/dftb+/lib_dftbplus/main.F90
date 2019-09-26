@@ -148,7 +148,7 @@ contains
 
 
     call initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep,&
-        & iLatGeoStep)
+        & iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, nDet, det)
 
     ! If the geometry is periodic, need to update lattice information in geometry loop
     tLatticeChanged = tPeriodic
@@ -161,8 +161,28 @@ contains
       tWriteRestart = env%tGlobalMaster&
           & .and. needsRestartWriting(tGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
-      call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
-          & tExitGeoOpt)
+
+
+    ! TI-DFTB Determinant loop, set to pass through if not needed. - MYD, TDK, RAS
+
+      lpDets : do iDet = det, nDet
+        if (tMOM .or. tIMOM) then
+          call initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
+        end if
+        call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
+            & tExitGeoOpt)
+        if (tGroundGuess .and. iDet==0) then
+          call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
+        end if
+        if (iDet == nDet) then
+          exit lpDets
+        end if
+      end do lpDets
+
+      if (tNonAufbau .and. tSpinPurify) then
+        call ZieglerSum(energy)
+        call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
+      end if
       if (tExitGeoOpt) then
         exit geoOpt
       end if
@@ -467,23 +487,7 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%scc)
 
-    if (tNonAufbau) then
-      call initTIDFTB(tSpinPurify, tGroundGuess, nDet, det, iGeoStep)
-    end if
 
-
-    ! TI-DFTB Determinant loop, set to pass through if not needed. - MYD, TDK, RAS
-    ! Will be made more universally useful in the future...
-
-    lpDets : do iDet = det, nDet
-
-      if (tNonAufbau) then
-        call reset(pChrgMixer, nMixElements)
-      end if
-
-      if (tMOM .or. tIMOM) then
-        call initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
-      end if
 
       call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
 
@@ -549,9 +553,8 @@ contains
             & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
             & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
             & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices, tNonAufbau, &
-            & tSpinPurify, tMOM, tIMOM, OldHSqrReal, SSqrRealStorage, Otemp, overlapM, iDet, &
-            & indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, SSqrTranspose, &
-            & identityM, nMOM)
+            & tSpinPurify, tMOM, tIMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, SSqrRealStorage, &
+            & iDet, indxMOM, iSccIter, tGroundGuess, nMOM)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (tRangeSep) then
@@ -674,17 +677,7 @@ contains
         end if
       end do lpSCC
 
-    if (tGroundGuess .and. iDet==0) then
-      call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
-    end if
-    if (iDet == nDet) then
-      exit lpDets
-    end if
-    end do lpDets
 
-    if (tNonAufbau .and. tSpinPurify) then
-      call ZieglerSum(energy)
-    end if
 
     call env%globalTimer%stopTimer(globalTimers%scc)
 
@@ -747,9 +740,9 @@ contains
           & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
           & nSpin, qOutput, velocities)
     end if
-
-    call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
-
+    if (.not. tNonAufbau) then
+      call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau)
+    end if
     if (tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)
       call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
@@ -986,7 +979,7 @@ contains
 
   !> Initialises some parameters before geometry loop starts.
   subroutine initGeoOptParameters(tCoordOpt, nGeoSteps, tGeomEnd, tCoordStep, tStopDriver, iGeoStep&
-      &, iLatGeoStep)
+      &, iLatGeoStep, tNonAufbau, tSpinPurify, tGroundGuess, nDet, det)
 
     !> Are atomic coordinates changing
     logical, intent(in) :: tCoordOpt
@@ -1009,6 +1002,13 @@ contains
     !> Number of steps changing the lattice vectors
     integer, intent(out) :: iLatGeoStep
 
+    !> Is this a spin purified calculation?
+    logical, intent(in) :: tNonAufbau
+    logical, intent(in) :: tSpinPurify
+    logical, intent(in) :: tGroundGuess
+    integer, intent(out) :: nDet
+    integer, intent(out) :: det
+
     tGeomEnd = (nGeoSteps == 0)
 
     tCoordStep = .false.
@@ -1019,6 +1019,10 @@ contains
 
     iGeoStep = 0
     iLatGeoStep = 0
+
+    if (tNonAufbau) then
+      call initTIDFTB(tSpinPurify, tGroundGuess, nDet, det)
+    end if
 
   end subroutine initGeoOptParameters
 
@@ -1648,7 +1652,7 @@ contains
 
 
   !> Initialized TI-DFTB conditions for determinant loop
-  subroutine initTIDFTB(tSpinPurify, tGroundGuess, nDet, det, iGeoStep)
+  subroutine initTIDFTB(tSpinPurify, tGroundGuess, nDet, det)
 
   !> Is this a spin purified calculation?
   logical, intent(in) :: tSpinPurify
@@ -1661,10 +1665,10 @@ contains
   integer, intent(out) :: det
 
   !> Step of the geometry driver
-  integer, intent(in) :: iGeoStep
+!  integer, intent(in) :: iGeoStep
 
 
-      if (tGroundGuess .and. iGeoStep == 0) then
+      if (tGroundGuess) then
         det = 0
       else
         det = 1
@@ -2067,9 +2071,8 @@ contains
       & tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen, filling, rhoPrim, Eband, TS,&
       & E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
       & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
-      & tLargeDenseMatrices, tNonAufbau, tSpinPurify, tMOM, tIMOM, OldHSqrReal, SSqrRealStorage, &
-      &  Otemp, overlapM, iDet, indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, &
-      & SSqrTranspose, identityM, nMOM)
+      & tLargeDenseMatrices, tNonAufbau, tSpinPurify, tMOM, tIMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, &
+      & SSqrRealStorage, iDet, indxMOM, iSccIter, tGroundGuess, nMOM)
 
 
     !> Environment settings
@@ -2245,40 +2248,24 @@ contains
     logical, intent(in) :: tIMOM
 
     !> Saving old C matrix
-    real(dp), allocatable, intent(inout) :: OldHSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: aOldHSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: bOldHSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: momOrbE(:,:)
 
     !> Square S matrix
     real(dp), allocatable, intent(inout) :: SSqrRealStorage(:,:)
-
-    !> MOM temporary matrix storage
-    real(dp), allocatable, intent(inout) :: Otemp(:,:)
-
-    !>MOM Overlap matrix storage
-    real(dp), allocatable, intent(inout) :: overlapM(:,:)
 
     !> Which state is being calculated?
     integer, intent(in) :: iDet
 
 
     !> Index of projection values MOM
-    integer, intent(out) :: indxMOM(:)
-
-    !> Projection vector to be sorted
-    real(dp), intent(out) :: prjMOM(:)
-
-    !> Temporary var for updating filling for MOM
-    real(dp), intent(out) :: fillMOM(:)
+    integer, intent(out) :: indxMOM(:,:)
 
     !> Number of current SCC step
     integer, intent(in) :: iSccIter
 
     logical, intent(in) :: tGroundGuess
-
-    !> Save transpose of S matrix
-    real(dp), intent(out) :: SSqrTranspose(:,:)
-
-    !> Save an identity mayrix
-    real(dp), intent(out) :: identityM(:,:)
 
     !> On which SCC iteration should the maximum overlap calculation start?
     integer, intent(in) :: nMOM
@@ -2326,9 +2313,8 @@ contains
           & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen,&
           & filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
           & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
-          & qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, tMOM, tIMOM, OldHSqrReal, &
-          &  SSqrRealStorage, Otemp, overlapM, iDet, indxMOM, prjMOM, fillMOM, &
-          & iSccIter, tGroundGuess, SSqrTranspose, identityM, nMOM)
+          & qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, tMOM, tIMOM, aOldHSqrReal, bOldHSqrReal, &
+          & momOrbE, SSqrRealStorage, iDet, indxMOM, iSccIter, tGroundGuess, nMOM)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
 
@@ -2351,9 +2337,8 @@ contains
       & tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling,&
       & rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
-      & nNeighbourLC, tNonAufbau, tSpinPurify, tMOM, tIMOM, OldHSqrReal, SSqrRealStorage, &
-      & Otemp, overlapM, iDet, indxMOM, prjMOM, fillMOM, iSccIter, tGroundGuess, &
-      & SSqrTranspose, identityM, nMOM)
+      & nNeighbourLC, tNonAufbau, tSpinPurify, tMOM, tIMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, &
+      & SSqrRealStorage, iDet, indxMOM, iSccIter, tGroundGuess, nMOM)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2519,55 +2504,42 @@ contains
     logical, intent(in) :: tIMOM
 
     !> Saving old C matrix
-    real(dp), allocatable, intent(inout) :: OldHSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: aOldHSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: bOldHSqrReal(:,:)
+    real(dp), allocatable, intent(inout) :: momOrbE(:,:)
 
     !> Square S matrix
     real(dp), allocatable, intent(inout) :: SSqrRealStorage(:,:)
-
-    !> MOM temporary matrix storage
-    real(dp), allocatable, intent(inout) :: Otemp(:,:)
-
-    !>MOM Overlap matrix storage
-    real(dp), allocatable, intent(inout) :: overlapM(:,:)
 
     !> Which state is being calculated?
     integer, intent(in) :: iDet
 
     !> Index of projection values MOM
-    integer, intent(out) :: indxMOM(:)
-
-    !> Projection vector to be sorted
-    real(dp), intent(out) :: prjMOM(:)
-
-    !> Temporary var for updating filling for MOM
-    real(dp), intent(out) :: fillMOM(:)
+    integer, intent(out) :: indxMOM(:,:)
 
     !> Number of current SCC step
     integer, intent(in) :: iSccIter
 
     logical, intent(in) :: tGroundGuess
 
-    !> Save transpose of S matrix
-    real(dp), intent(out) :: SSqrTranspose(:,:)
-
-    !> Save an identity mayrix
-    real(dp), intent(out) :: identityM(:,:)
-
     !> On which SCC iteration should the maximum overlap calculation start?
     integer, intent(in) :: nMOM
+
+
 
     integer :: nSpin
     integer :: i
     nSpin = size(ham, dim=2)
 
     call env%globalTimer%startTimer(globalTimers%diagonalization)
+
     if (nSpin /= 4) then
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep,&
             & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:),&
-            & SSqrRealStorage, SSqrTranspose, identityM, tMOM, tIMOM, iSccIter, nMOM)
-      write(*,*) 'Why'
+            & nEl, SSqrRealStorage, tMOM, tIMOM, iSccIter, nMOM, aOldHSqrReal, &
+            & bOldHSqrReal, momOrbE, iDet, indxMOM)
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
@@ -2579,17 +2551,7 @@ contains
           & parallelKS, eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
     end if
 
-    if ((tMOM .or. tIMOM) .and. iSccIter >= (nMOM+1) .and. iDet >= 1) then
-      call momOverlapComp(tMOM, HSqrReal, OldHSqrReal, Otemp, overlapM, SSqrRealStorage,&
-          & indxMOM, prjMOM, nEl)
-    end if
-    if (tMOM .and. iDet>=1) then
-      if (iSccIter >= nMOM) then
-        call momStoreH(HSqrReal, OldHSqrReal)
-      end if
-    else if (tIMOM .and. iSccIter == nMOM .and. iDet>=1) then
-        call momStoreH(HSqrReal, OldHSqrReal)
-    end if
+
 
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
@@ -2621,9 +2583,6 @@ contains
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
 
-    do i=1,ubound(filling,1)
-       print *, i, filling(i, :, :)
-    enddo
 
   end subroutine getDensityFromDenseDiag
 
@@ -2631,8 +2590,8 @@ contains
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep, deltaRhoInSqr,&
-      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, &
-      & SSqrRealStorage, SSqrTranspose, identityM, tMOM, tIMOM, iSccIter, nMOM)
+      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, nEl, &
+      & SSqrRealStorage, tMOM, tIMOM, iSccIter, nMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, iDet, indxMOM)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2692,14 +2651,11 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
+    !> nr. of electrons
+    real(dp), intent(in) :: nEl(:)
+
     !> Square S matrix storage for MOM
     real(dp), intent(out):: SSqrRealStorage(:,:)
-
-    !> Save transpose of S matrix
-    real(dp), intent(out) :: SSqrTranspose(:,:)
-
-    !> Save an identity matrix
-    real(dp), intent(out) :: identityM(:,:)
 
     !> Is this a maximum overlap calculation?
     logical, intent(in) :: tMOM
@@ -2713,11 +2669,25 @@ contains
     !> On which SCC iteration should the maximum overlap calculation start?
     integer, intent(in) :: nMOM
 
+    !> Large square matrix for the resulting eigenvectors
+    real(dp), intent(inout) :: aOldHSqrReal(:,:)
+    real(dp), intent(inout) :: bOldHSqrReal(:,:)
+    real(dp), intent(inout) :: momOrbE(:,:)
+
+
+    !> Which state is being calculated?
+    integer, intent(in) :: iDet
+
+    !> Index of projection values MOM
+    integer, intent(out) :: indxMOM(:,:)
+
+
+
     integer :: iKS, iSpin, ii
     integer :: i
 
     eigen(:,:) = 0.0_dp
-    do iKS = 1, parallelKS%nLocalKS
+    do iKS = 1, parallelKS%nLocalKS !2
 
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
@@ -2732,6 +2702,7 @@ contains
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
           & eigen(:,iSpin), eigvecsReal(:,:,iKS))
     #:else
+write(*,*) 'iSpin', iSpin
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrReal, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -2739,12 +2710,12 @@ contains
           & iSparseStart, img2CentCell)
 
       if ((tMOM .or. tIMOM) .and. iSccIter == 1) then
-        call momStoreS(SSqrReal, SSqrRealStorage, SSqrTranspose, identityM)
+        call momStoreS(SSqrReal, SSqrRealStorage)
       end if
 
-write(*,*) 'SPIN?'
-
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
+
 
       ! Add rangeseparated contribution
       ! Assumes deltaRhoInSqr only used by rangeseparation
@@ -2760,6 +2731,30 @@ write(*,*) 'SPIN?'
       eigvecsReal(:,:,iKS) = HSqrReal
      ! OldHSqrReal = HSqrReal
     #:endif
+
+!MYD
+
+
+      if ((tMOM .or. tIMOM) .and. iSccIter >= (nMOM+1) .and. iDet >= 1) then
+        call momOverlapComp(tMOM, HSqrReal, aOldHSqrReal, bOldHSqrReal, momOrbE, eigen, SSqrRealStorage,&
+            & indxMOM, nEl, iKS)
+
+  write(*,*) 'indxmom'
+  do i=1,ubound(indxmom,1)
+    print *, i, indxmom(i,:)
+  enddo
+
+      end if
+      if (tMOM .and. iDet>=1) then
+        if (iSccIter >= nMOM) then
+          call storeMOM(HSqrReal, bOldHSqrReal, iKS, aOldHSqrReal)
+       !   call storeMOM(eigen, momOrbE, iKS)
+        end if
+      else if (tIMOM .and. iSccIter == nMOM .and. iDet>=1) then
+          call storeMOM(HSqrReal, bOldHSqrReal, iKS, aOldHSqrReal)
+write (*,*) "OK"
+      !    call storeMOM(eigen, momOrbE, iKS)
+      end if
     end do
 
 
@@ -3061,10 +3056,7 @@ write(*,*) 'SPIN?'
 ! FIxed
           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
          !shoulbuild good work mtx
-write(*,*) 'Work!'
-       do i=1,ubound(Work,1)
-         print *, i, Work(i,1)
-       enddo
+
 !This one
         end if
 
@@ -3440,11 +3432,10 @@ write(*,*) 'Work!'
     if (nSpinBlocks == 1) then
       ! Filling functions assume one electron per level, but for spin unpolarised we have two
       nElecFill(1) = nElectrons(1) / 2.0_dp
-    write(*,*) 'nSpjnBlocks=1'
+
     else
       nElecFill(1:nSpinHams) = nElectrons(1:nSpinHams)
-    write(*,*) 'Other nElectronFill' , nElecFill(:)
-    write(*,*) 'Other nElectrons' , nElectrons(:)
+
     end if
 
     if (tFixEf) then
@@ -3481,7 +3472,7 @@ write(*,*) 'Work!'
       end do
     else
       ! Every spin channel (but no the k-points) filled up individually
-      write (*,*) 'Fucking This One???  Chyeah.'
+
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
             & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn, tNonAufbau,&
@@ -3681,7 +3672,7 @@ write(*,*) 'Work!'
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
-    integer :: nSpin
+    integer :: nSpin, i
     real(dp) :: nEl(2)
 
     !> Is this a non-Aufbau calculation?
@@ -3762,6 +3753,12 @@ write(*,*) 'Work!'
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
         & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
+
+  do i=1,ubound(qOrb,1)
+    print *, i, qOrb(:, i, 1)
+  end do
+
+!MYD
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
     energy%EMermin = energy%Etotal - sum(TS)
     ! extrapolated to 0 K

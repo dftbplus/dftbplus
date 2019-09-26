@@ -551,53 +551,52 @@ contains
       TS(:) = TS * kT
       E0(:) = Eband - 0.5_dp * TS
     end if
+  write(*,*) 'TNA'
+  do i=1,ubound(filling,1)
+    print *, i, filling(i,:,:)
+  end do
 
 
   end subroutine electronFill
 
 
-  subroutine momFillingSwap(indxMOM, prjMOM, filling, fillMOM, nEl)
+  subroutine momFillingSwap(indxMOM, filling, nEl)
 
     !> Index of projection values MOM
     integer, intent(in) :: indxMOM(:)
 
     !> Projection vector to be sorted
-    real(dp), intent(in) :: prjMOM(:)
+
 
 
     !> occupations (level, kpoint, spin)
     real(dp), intent(inout) :: filling(:,:,:)
 
-    !> Temporary filling
-    real(dp), intent(inout) :: fillMOM(:)
-
     !> Nuber of electrons
     real(dp), intent(in) :: nEl(:)
-
     integer :: i
     integer :: j
     integer :: k
     integer :: n
     integer :: iSpin
 
+    real(dp), allocatable :: fillMOM(:)
+
+    allocate(fillMOM(size(filling,dim=1)))
     n = size(nEl, DIM=1) !2
     i = size(filling, DIM=1) !90
-    j = size(filling, DIM=2) !1 maybe is the k points... eh? its one for now
+    !j = size(filling, DIM=2) !1 maybe is the k points... eh? its one for now
                              ! just dont want ones floating around
     do iSpin = 1, n
       k = 0
       do while (k < i)
         fillMOM(1 + k) = filling(indxMOM(i - k), 1, iSpin)
-        k = k + j
+        k = k + 1
       end do
       filling(:, 1, iSpin) = fillMOM(:)
     end do
 
 
-    write (*,*) 'Filling****************************mom'
-    do i=1,ubound(filling,1)
-       print *, i, filling(i, :, :)
-    enddo
 
 
   end subroutine momFillingSwap

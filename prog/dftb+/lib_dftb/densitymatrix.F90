@@ -77,7 +77,7 @@ contains
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     @:ASSERT(size(eigenvecs,dim=1) == size(filling))
-write(*,*) 'TEST A'
+
 
 ! Eigenvecs comes in w/ zero alph homo.....
 
@@ -87,7 +87,7 @@ write(*,*) 'TEST A'
     dm(:,:) = 0.0_dp
     do ii =  size(filling), 1, -1
       nLevels = ii
-!write(*,*)'ok?',abs(filling(ii)), ii,epsilon(1.0_dp)
+
       if (abs(filling(ii)) >= epsilon(1.0_dp)) then
         exit
       end if
@@ -95,18 +95,14 @@ write(*,*) 'TEST A'
     mixIndx=nLevels-1 !sets to HOMO-1 index
     if (filling(mixIndx)==0.0_dp) then
       tNonAufbau=.true.
-       write(*,*)'*************************************************'
-       do i=1,ubound(filling,1)
-         print *, i, filling(i)
-       enddo
+
     end if
-    write(*,*) 'TNA',tNonAufbau
+
     if (tNonAufbau) then
       allocate(tmpMtx(size(eigenvecs, dim=1)))
-      write(*,*) 'nLevels',nLevels
-      write(*,*) 'mixIndx',mixIndx
+
       tmpMtx=eigenVecs(:,mixIndx)
-      write(*,*)'tmpMtx',tmpMtx(1)
+
     endif
     shift = minval(filling(1:nLevels))
     if (shift >= 0.0_dp) then
@@ -151,10 +147,7 @@ write(*,*) 'TEST A'
     end if
     if (tNonAufbau) then
        eigenvecs(:,mixIndx)=tmpMtx !temporary hack, deletes empty homo in mixed state, could makeloop to save first zero index eigen vec... replace when over? not a whole array so thats tight. also must save index
-       write(*,*)'*************************************************'
-       do i=1,ubound(eigenvecs,1)
-         print *, i, eigenvecs(1, i)
-       enddo
+
     endif
   end subroutine fullDensityMatrix_real
 

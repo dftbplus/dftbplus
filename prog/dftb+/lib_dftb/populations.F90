@@ -437,7 +437,6 @@ contains
     end if
 
 
-write(*,*) 'Hi Jackie!'
     nAtom = size(chargePerShell, dim=2)
     nSpin = size(chargePerShell, dim=3)
     chargePerShell(:,:,:) = 0.0_dp

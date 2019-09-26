@@ -3575,8 +3575,8 @@ contains
     end if
 
     close(fdHS)
-      
-    write(stdOut,*) 'shiftcont_'//trim(filename)//".dat written to file"     
+
+    write(stdOut,*) 'shiftcont_'//trim(filename)//".dat written to file"
 
   end subroutine writeContShifts
 
@@ -3861,17 +3861,20 @@ contains
     logical, intent(in) :: tNonAufbau
 
     !> Is this a spin purified calculation? - MYD
-    logical, intent(in) :: tSpinPurify
+    logical, intent(in), optional :: tSpinPurify
 
     !> Should there be a ground state intial guess before Non-Aufbau calc?
-    logical, intent(in) :: tGroundGuess
-    integer, intent(in) :: iDet
+    logical, intent(in), optional :: tGroundGuess
+    integer, intent(in), optional :: iDet
 
 
 
     write(stdOut, *)
     if (tNonAufbau) then
-      if (tSpinPurify) then
+      if (tGroundGuess .and. iDet==0) then
+        write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
+          & Hartree__eV * energy%Egroundguess, "eV"
+      else if (tSpinPurify) then
         write (stdOut, format2U) 'Triplet Energy', energy%Etriplet, "H", Hartree__eV * energy%Etriplet, "eV"
         write (stdOut, format2U) 'Mixed Energy', energy%Emixed, "H", Hartree__eV * energy%Emixed, "eV"
         write (stdOut, format2U) 'Spin Purified Energy', energy%Etotal, "H", &

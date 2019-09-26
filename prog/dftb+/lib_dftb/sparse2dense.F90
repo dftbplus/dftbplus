@@ -29,7 +29,7 @@ module dftbp_sparse2dense
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
-  public :: momOverlapComp, momStoreH, momStoreS
+  public :: momOverlapComp, storeMOM, momStoreS
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -197,7 +197,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     integer :: nAtom
-    integer :: iOrig, ii, jj
+    integer :: iOrig, ii, jj, i
     integer :: iNeigh
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
@@ -209,6 +209,8 @@ contains
     @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
     @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
+
+  write(*,*) 'nAtom', nAtom
 
     square(:, :) = 0.0_dp
 
@@ -229,7 +231,7 @@ contains
 
   end subroutine unpackHS_real
 
-    
+
   !> Unpacks sparse matrices to square form (2 component version for k-points)
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
@@ -2373,68 +2375,104 @@ contains
 #:endif
 
 
-  subroutine momOverlapComp(tMOM, HSqrReal, OldHSqrReal, Otemp, overlapM, SSqrRealStorage,&
-          & indxMOM, prjMOM, nEl)
+  subroutine momOverlapComp(tMOM, cMatCurr, cMatPrevA, cMatPrevB, orbEngPrev, orbEngCurr, sMat,&
+          & indxMOM, nEl, iKS)
 
 
     !> Is this a spin purified calculation? - MYD
     logical, intent(in) :: tMOM
 
     !> Large square matrix for the resulting eigenvectors
-    real(dp), intent(in) :: HSqrReal(:,:)
+    real(dp), intent(in) ::cMatCurr(:,:)
 
     !> Large square matrix for the resulting eigenvectors
-    real(dp), intent(inout) :: OldHSqrReal(:,:)
- 
-    !> MOM temporary matrix storage
-    real(dp), intent(inout) :: Otemp(:,:)
-
-    !>MOM Overlap matrix storage
-    real(dp), intent(inout) :: overlapM(:,:)
+    real(dp), intent(inout) :: cMatPrevA(:,:)
+    real(dp), intent(inout) :: cMatPrevB(:,:)
+    real(dp), intent(inout) :: orbEngPrev(:,:)
+    real(dp), intent(inout) :: orbEngCurr(:,:)
 
     !> Square S matrix Storage
-    real(dp), intent(in) :: SSqrRealStorage(:,:)
+    real(dp), intent(in) :: sMat(:,:)
 
     !> Index of projection values MOM
-    integer, intent(out) :: indxMOM(:)
-
-    !> Projection vector to be sorted
-    real(dp), intent(out) :: prjMOM(:)
+    integer, intent(inout) :: indxMOM(:,:)
 
     !> nr. of electrons
     real(dp), intent(in) :: nEl(:)
 
+    !> Spin Index
+    logical :: weightMOM  !!
+    integer, intent(in) :: iKS
+    real(dp), allocatable :: prjMOM(:)
+    real(dp), allocatable :: overlapM(:,:)
+    real(dp), allocatable :: Otemp(:,:)
+    real(dp), allocatable :: prjMOMprim(:)
+    real(dp) :: sigmaMOM = 0.75_dp !!
+    integer :: i, j, n
 
-    integer :: i
-    i = int(nEl(1))
+    i = int(nEl(iKS))
+    n = size(cMatCurr, dim=1)
+
+! remove all temp matrices, allocate and deallocate within subroutines!!!!!!
+!fix
+   weightMOM = .true.
+
+write(*,*) "sigma" , sigmaMOM
 
 
+    allocate(prjMOM(size(cMatCurr, dim=1)))
+    if (weightMOM) then
+      allocate(prjMOMprim(size(cMatCurr, dim=1)))
+    endif
+    allocate(Otemp(size(cMatCurr, dim=1),size(cMatCurr, dim=2)))
+    allocate(overlapM(size(cMatCurr, dim=1),size(cMatCurr, dim=2)))
 
-    Otemp = matmul(SSqrRealStorage, HSqrReal)
-    overlapM = matmul(transpose(OldHSqrReal), Otemp)
+    Otemp = matmul(sMat,cMatCurr)
+    if (iKS==1) then
+      overlapM = matmul(transpose(cMatPrevA), Otemp)
+    else if (iKS==2) then
+      overlapM = matmul(transpose(cMatPrevB), Otemp)
+    endif
     prjMOM = sum((overlapM(:,1:i)**2), DIM=2)
-    call index_heap_sort(indxMOM, prjMOM)
+    if (weightMOM) then
+      do j = 1, n
+     !   prjMOMprim(j) = prjMOM(j)*exp((orbEngCurr(j, iKS)-orbEngPrev(j, iKS))**2)/(dble(2)*sigmaMOM**2))
+     !   prjMOM=prjMOMprim
+      enddo
+    endif
 
-    write (*,*) 'prjMOM****************************mom'
-    do i=1,ubound(prjMOM,1)
-       print *, i, prjMOM(i)
-    enddo
+
+    call index_heap_sort(indxMOM(:,iKS), prjMOM)
 
   end subroutine momOverlapComp
 
-  subroutine momStoreH(HSqrReal, OldHSqrReal)
+  subroutine storeMOM(source, B, c, A)
 
-    !> Large square matrix for the resulting eigenvectors
-    real(dp), intent(in) :: HSqrReal(:,:)
+    !> Input Matrix
+    real(dp), intent(in) :: source(:,:)
 
-    !> Large square matrix for the resulting eigenvectors
-    real(dp), intent(inout) :: OldHSqrReal(:,:)
+    !> Output Spin dependant Matrices
 
-    OldHSqrReal(:,:) = HSqrReal(:,:)
+    real(dp), intent(out) :: B(:,:)
 
-  end subroutine momStoreH
+    !> Spin Index
+    integer, intent(in) :: c
+!fix
+    real(dp), intent(out), optional :: A(:,:)
+    integer :: i
 
-  subroutine momStoreS(SSqrReal, SSqrRealStorage, SSqrTranspose, identityM)
+    if (c==1) then
+      A(:,:) = source(:,:)
+    else if (c==2) then
+      B(:,:) = source(:,:)
+    endif
+
+
+
+
+  end subroutine storeMOM
+
+  subroutine momStoreS(SSqrReal, SSqrRealStorage)
 
     !> Square S matrix
     real(dp), intent(in) :: SSqrReal(:,:)
@@ -2442,17 +2480,13 @@ contains
     !> Square S matrix
     real(dp), intent(out) :: SSqrRealStorage(:,:)
 
-    !> Save transpose of S matrix
-    real(dp), intent(out) :: SSqrTranspose(:,:)
- 
-    !> Save an identity mayrix
-    real(dp), intent(out) :: identityM(:,:)
-
+    real(dp), allocatable :: identityM(:,:)
+    real(dp), allocatable :: SSqrTranspose(:,:)
     integer :: i
     integer :: j
     integer :: n
-
-
+    allocate(SSqrTranspose(size(SSqrReal, dim=1),size(SSqrReal, dim=2)))
+    allocate(identityM(size(SSqrReal, dim=1),size(SSqrReal, dim=2)))
     SSqrTranspose = transpose(SSqrReal)
     n = int(sqrt(real(size(SSqrReal))))
     forall( i = 1:n, j = 1:n) identityM(i,j) = (i/j)*(j/i)

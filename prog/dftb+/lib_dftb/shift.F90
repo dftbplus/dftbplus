@@ -73,7 +73,7 @@ contains
     integer :: iAt1, iAt2, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
     integer :: iNeigh, iSpin, nSpin
 
-write(*,*) 'add_shift_atom'
+!write(*,*) 'add_shift_atom'
 
 
     @:ASSERT(size(ham,dim=1)==size(over))
@@ -146,7 +146,7 @@ write(*,*) 'add_shift_atom'
     integer :: iAt1, iAt2f, iOrig, iSp1, iSp2, nOrb1, nOrb2
     integer :: iSh1, iSh2, iNeigh, iSpin, nSpin
     real(dp) :: tmpH(orb%mOrb,orb%mOrb), rTmp
-write(*,*) 'add_shift_lshell'
+!write(*,*) 'add_shift_lshell'
     @:ASSERT(size(ham,dim=1)==size(over))
     @:ASSERT(size(nNeighbour)==nAtom)
     @:ASSERT(size(iNeighbour,dim=2)==nAtom)
@@ -286,7 +286,7 @@ write(*,*) 'add_shift_lshell'
     integer, intent(in) :: species(:)
 
     integer iAtom, iSpin, nAtom, nSpin
-write(*,*) 'addatom_shell'
+!write(*,*) 'addatom_shell'
     nAtom = size(atom, dim=1)
     nSpin = size(atom, dim=2)
 
@@ -332,7 +332,7 @@ write(*,*) 'addatom_shell'
     @:ASSERT(size(shell, dim=2) == nAtom)
     @:ASSERT(size(shell, dim=3) == nSpin)
     @:ASSERT(size(species) >= nAtom)
-write(*,*) 'addshell_block'
+!write(*,*) 'addshell_block'
     do iSpin = 1, nSpin
       do iAt = 1, nAtom
         iSp = species(iAt)
