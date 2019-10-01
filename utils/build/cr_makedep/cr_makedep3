@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
 #  Copyright (C) 2006 - 2019  DFTB+ developers group                           #
@@ -161,18 +161,18 @@ class BranchBlock(object):
     # fext: extension of the processed file
     # fsrc: flags if processed file was a fortran source file
 
-    newDeps = deps + self._dependencies.keys()
-    newDfns = dfns + self._definitions.keys()
+    newDeps = deps + list(self._dependencies.keys())
+    newDfns = dfns + list(self._definitions.keys())
 
     if self._hasBranch:
       # We have a branch point, dive into the true and false branch
-      print >>fp, "#:if %s" % self._condition
+      print("#:if %s" % self._condition, file=fp)
       self._trueChild._printTreeRecursive(fp, newDeps, newDfns, fbase, fext,
                                           fsrc)
-      print >>fp, "#:else"
+      print("#:else", file=fp)
       self._falseChild._printTreeRecursive(fp, newDeps, newDfns, fbase, fext,
                                            fsrc)
-      print >>fp, "#:endif"
+      print("#:endif", file=fp)
     else:
       # No further branch points: print all dependencies in the right order
       filedeps = []
@@ -186,29 +186,28 @@ class BranchBlock(object):
           filedeps.append(depName)
           vardeps.append("$(%s)" % depName)
       if fsrc:
-        #print >>fp, "%s.o: %s%s" % (fbase, fbase, fext),
-        print >>fp, "%s.o:" % (fbase),
+        print("%s.o:" % (fbase), file=fp, end=' ')
         if filedeps:
-          print >>fp, " ".join(filedeps),
-        print >>fp
-        print >>fp, "%s.o = %s.o" % (fbase, fbase),
+          print(" ".join(filedeps), file=fp, end=' ')
+        print("", file=fp)
+        print("%s.o = %s.o" % (fbase, fbase), file=fp, end=' ')
         if vardeps:
-          print >>fp, " ".join(vardeps),
-        print >>fp
+          print(" ".join(vardeps), file=fp, end=' ')
+        print("", file=fp)
       else:
         if filedeps:
-	  print >>fp, "%s%s:" % (fbase, fext),
-	  print >>fp, " ".join(filedeps)
-        print >>fp, "%s%s =" % (fbase, fext),
+          print("%s%s:" % (fbase, fext), file=fp, end=' ')
+          print(" ".join(filedeps), file=fp, end=' ')
+        print("%s%s =" % (fbase, fext), file=fp, end=' ')
         if vardeps:
-          print >>fp, " ".join(vardeps),
-        print >>fp
+          print(" ".join(vardeps), file=fp, end=' ')
+        print("", file=fp)
 
       # Print definitions:
       for (dfnName, dfnType) in newDfns:
         if dfnType == DFN_MODULE:
-          print >>fp, "%s%s: %s.o" % (MODULE_PREFIX, dfnName, fbase)
-          print >>fp, "%s%s = $(%s.o)" % (MODULE_PREFIX, dfnName, fbase)
+          print("%s%s: %s.o" % (MODULE_PREFIX, dfnName, fbase), file=fp)
+          print("%s%s = $(%s.o)" % (MODULE_PREFIX, dfnName, fbase), file=fp)
 
 
 
@@ -328,15 +327,15 @@ def main():
     for fname in fnames:
       if PAT_FILE.search(fname):
         pathName = os.path.join(dirname, fname)
-        print "Processing: %s" % pathName
-        txt = open(pathName, "rU").read()
+        print("Processing: %s" % pathName)
+        txt = open(pathName, "r", newline=None).read()
         tree = buildDependencyTree(txt)
         if tree:
           fbase, fext = os.path.splitext(os.path.basename(fname))
           fextLow = fext.lower()
           fsrc =  (fextLow == ".f90" or fextLow == ".f")
           tree.printTree(fp, fbase, fext, fsrc)
-          print >>fp
+          print("", file=fp)
     fp.close()
 
 

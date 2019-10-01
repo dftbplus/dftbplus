@@ -197,7 +197,7 @@ install_misc_skderivs install_misc_slakovalue:
 	    ROOT=$(ROOT) BUILDROOT=$(BUILDDIR) install
 
 
-PYTHON := python
+PYTHON := python3
 .PHONY: install_dptools
 install_dptools:
 	cd $(ROOT)/tools/dptools \
