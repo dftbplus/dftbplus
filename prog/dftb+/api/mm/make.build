@@ -11,7 +11,7 @@ TARGETS = libdftb+.a
 all: $(TARGETS)
 
 # Include common makefile
-SRCDIRS := $(ROOT)/api/mm
+SRCDIRS := $(ROOT)/prog/dftb+/api/mm
 SRCDIRS += $(wildcard $(ROOT)/prog/dftb+/lib_*)
 SRCDIRS += $(ROOT)/prog/dftb+/include
 INCDIRS := $(ROOT)/prog/dftb+/include

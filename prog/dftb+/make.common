@@ -144,10 +144,10 @@ ifeq ($(strip $(WITH_TRANSPORT)),1)
   L_INCS += -I$(BUILDROOT)/external/libnegf/libnegf
   COMPILED_EXTERNALS += _extlib_libnegf
 
-  POISSON_LIBS := -L$(BUILDROOT)/external/poisson -lpoisson -lmudpack
-  L_LIBS += $(if $(filter _extlib_poisson, $^), $(POISSON_LIBS))
-  L_INCS += -I$(BUILDROOT)/external/poisson
-  COMPILED_EXTERNALS += _extlib_poisson
+  MUDPACK_LIBS := -L$(BUILDROOT)/external/mudpack -lmudpack
+  L_LIBS += $(if $(filter _extlib_mudpack, $^), $(MUDPACK_LIBS))
+  L_INCS += -I$(BUILDROOT)/external/mudpack
+  COMPILED_EXTERNALS += _extlib_mudpack
 endif
 
 ifeq ($(strip $(WITH_MPI)),1)

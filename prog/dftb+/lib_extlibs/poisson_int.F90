@@ -202,7 +202,7 @@ contains
   #:if WITH_MPI
     call poiss_mpi_init(mpicomm)
     call poiss_mpi_split(min(poissoninfo%maxNumNodes, mpicomm%size))
-    call mpi_barrier(mpicomm, iErr)
+    call mpifx_barrier(mpicomm, iErr)
   !#:else
     !call error("The Poisson solver currently requires MPI parallelism to be enabled")
   #:endif
