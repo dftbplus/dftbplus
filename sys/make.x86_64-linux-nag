@@ -149,6 +149,6 @@ ifeq ($(strip $(DEBUG)),1)
     CCOPT = =C -g -gline -mismatch
 endif
 ifeq ($(strip $(DEBUG)),2)
-    FXXOPT = -ieee=full -f2008 -g -gline -C=all -nan -mtrace=all -mismatch
+    FXXOPT = -ieee=full -f2008 -g  -C=all -nan -mtrace=all -mismatch
     CCOPT = =C -ieee=full -f2008 -g -gline -C=all -nan -mtrace=all -mismatch
 endif

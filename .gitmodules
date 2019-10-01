@@ -1,10 +1,12 @@
 [submodule "external/mpifx/origin"]
 	path = external/mpifx/origin
-	url = https://github.com/dftbplus/mpifx.git
+	url = https://github.com/aradi/mpifx.git
+	branch = cmake
 [submodule "external/scalapackfx/origin"]
 	path = external/scalapackfx/origin
-	url = https://github.com/dftbplus/scalapackfx.git
+	url = https://github.com/aradi/scalapackfx.git
+	branch = cmake
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
-	url = https://bitbucket.org/pecchia/libnegf.git
-	branch = master
+	url = https://github.com/aradi/libnegf.git
+	branch = cmake
