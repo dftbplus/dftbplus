@@ -8,5 +8,4 @@
 	branch = cmake
 [submodule "external/libnegf/origin"]
 	path = external/libnegf/origin
-	url = https://github.com/aradi/libnegf.git
-	branch = cmake
+	url = https://github.com/libnegf/libnegf.git
