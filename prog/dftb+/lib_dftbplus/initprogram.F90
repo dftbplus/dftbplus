@@ -1103,6 +1103,7 @@ contains
     integer :: nBufferedCholesky
 
     character(sc), allocatable :: shellNamesTmp(:)
+    logical :: tRequireDerivator
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
@@ -1727,8 +1728,19 @@ contains
     end if
     if (forceType == forceTypes%dynamicT0 .and. tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
-    end if
-!    if (tForces) then ! why is this commented out? BH
+     end if
+
+     tRequireDerivator = .false.
+     if (tForces) then
+       tRequireDerivator = .true.
+     else
+       if (allocated(input%ctrl%elecDynInp)) then
+         if (input%ctrl%elecDynInp%tIons) then
+           tRequireDerivator = .true.
+         end if
+       end if
+     end if
+     if (tRequireDerivator) then
       select case(input%ctrl%iDerivMethod)
       case (1)
         ! set step size from input
@@ -1741,7 +1753,7 @@ contains
       case (2)
         call NonSccDiff_init(nonSccDeriv, diffTypes%richardson)
       end select
-!    end if
+    end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
