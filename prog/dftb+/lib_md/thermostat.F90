@@ -1,17 +1,17 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains wrapper for all thermostats.
-module thermostat
-  use accuracy
-  use dummytherm
-  use andersentherm
-  use berendsentherm
-  use nhctherm
+module dftbp_thermostat
+  use dftbp_accuracy
+  use dftbp_dummytherm
+  use dftbp_andersentherm
+  use dftbp_berendsentherm
+  use dftbp_nhctherm
   implicit none
   private
 
@@ -206,4 +206,4 @@ contains
 
   end subroutine Thermostat_state
 
-end module thermostat
+end module dftbp_thermostat

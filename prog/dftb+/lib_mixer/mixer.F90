@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,14 +8,14 @@
 #:include 'common.fypp'
 
 !> Provides a general mixer which contains the desired actual mixer.
-module mixer
-  use assert
-  use accuracy
-  use simplemixer
-  use andersonmixer
-  use broydenmixer
-  use diismixer
-  use message
+module dftbp_mixer
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_simplemixer
+  use dftbp_andersonmixer
+  use dftbp_broydenmixer
+  use dftbp_diismixer
+  use dftbp_message
   implicit none
   private
 
@@ -246,4 +246,4 @@ contains
 
   end subroutine Mixer_getInverseJacobian
 
-end module mixer
+end module dftbp_mixer

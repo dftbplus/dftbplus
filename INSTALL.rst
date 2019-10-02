@@ -10,9 +10,12 @@ In order to compile DFTB+, you need the following software components:
 
 * A Fortran 2003 compliant compiler
 
-* A C-compiler
+* A C-compiler (required if building with the socket interface enabled or if C
+  language API bindings are required)
 
-* GNU make (version >= 3.79.1)
+* CMake (version 3.5 or newer)
+
+* GNU make
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
@@ -22,8 +25,8 @@ Additionally there are optional requirements for some DFTB+ features:
   want to build the MPI-parallelised version of the code
 
 * In addition to ScaLAPACK, the `ELSI
-  <https://wordpress.elsi-interchange.org/>`_ library for large scale systems can
-  optionally also be used.
+  <https://wordpress.elsi-interchange.org/>`_ library for large scale systems
+  can optionally also be used.
 
 * The M4 preprocessor, if you want to build the MPI-parallelised version of the
   code
@@ -32,12 +35,19 @@ Additionally there are optional requirements for some DFTB+ features:
 
 * The DftD3 dispersion library (if you need this dispersion model).
 
+* The `MAGMA <http://icl.cs.utk.edu/magma/>_` library for GPU accelerated
+  computation.
+
+For external libraries, make sure that they are compiled with the same precision
+models for the variables (same integer and floating point values).
+
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
 
 * Python (version >= 2.6) with NumPy
 
 * The Slater-Koster data used in the tests (see below)
+
 
 Obtaining the source
 ====================
@@ -54,6 +64,7 @@ downloaded ::
   git clone https://github.com/dftbplus/dftbplus.git
   cd dftbplus
   git submodule update --init --recursive
+
 
 Optional extra components
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -88,37 +99,45 @@ For more information see the detailed help for this tool by issuing
 Compiling
 =========
 
-* Look at the makefiles in the `sys/` folder and find the one closest to your
-  system. The suffix of the makefiles indicate the architecture, operating
-  system and the compiler they have been written for. Copy the most suitable
-  makefile to ``make.arch`` in the root directory of the source tree, e.g.::
+* Look at the `config.cmake` file and customise the global build parameters if
+  necessary. (If you are unsure, leave the defaults as they are.)
 
-      cp sys/make.x86_64-linux-gnu make.arch
+* Since the CMake auto-detection of compilers, flags and libraries may easily
+  end up in non-standard environments with an inconsistent choice, you have to
+  provide those settings manually. You can use (and customise) one of the cmake
+  toolchain templates in the `sys/` folder (e.g. `gnu.cmake`, `intel.cmake`) or
+  create your own one, if you wish.
 
-* Adjust the settings in `make.arch` according to your system. Note that there
-  are often separate settings in `make.arch` for compiling with and without
-  MPI. The code is also usually compiled with openMP enabled.
+* Create a build folder (e.g. `_build`) either in the DFTB+ source tree or
+  somewhere else outside of it and change to the build folder::
 
-* Open the file `make.config` and check the configuration options set there. In
-  this file binary choices are defined as either 0 (false) or 1 (true).
+    mkdir _build
+    cd _build
 
-* Build the binaries by issuing ::
+* From the build folder invoke CMake to configure the build. Pass the toolchain
+  file name with the ``-DCMAKE_TOOLCHAIN_FILE`` option and the DFTB+ source code
+  folder as arguments. If for example your build folder has been created within
+  the DFTB+ source tree and you use the `sys/gnu.cmake` toolchain file, issue::
 
-     make
+    cmake -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
 
-  in the root directory of your source tree. DFTB+ can be built in parallel, so
-  you may use the ``-j`` option of `make` to specify the number of parallel
-  build processes, e.g.::
+* If the configuration was successful, invoke (from within the build folder)
+  `make` to compile the code::
 
-    make -j4
+    make -j
 
-  The build takes place in a separate directory `_build`. You can customise the
-  build directory location within the `make.config` file (variable
-  ``BUILDDIR``), but the default location is inside the root of the source tree.
+  This will compile the code using several threads and showing only the most
+  relevant information.
 
-* The code can be compiled with distributed memory parallelism (MPI), but for
-  smaller shared memory machines, you may find that the performance is better
-  when using OpenMP parallelism only and an optimised thread aware BLAS library.
+  If, for debugging purposes, you wish to see the exact compiling commands, you
+  should execute a serial build with verbosity turned on instead::
+
+    make VERBOSE=1
+  
+* Note: The code can be compiled with distributed memory parallelism (MPI), but
+  for smaller shared memory machines, you may find that the performance is
+  better when using OpenMP parallelism only and an optimised thread aware BLAS
+  library.
 
 
 Testing DFTB+
@@ -126,34 +145,133 @@ Testing DFTB+
 
 * After successful compilation, execute the code tests with ::
 
-    make test
+    ctest
 
-  You can also run the tests in parallel (option ``-j``) in order to speed this
-  up.  If you use parallel testing, ensure that the number of OpenMP threads is
-  reduced accordingly. As an example, assuming your workstation has 4 cores, you
-  could use::
+  You can also run the tests in parallel in order to speed this up.  If you use
+  parallel testing, ensure that the number of OpenMP threads is reduced
+  accordingly. As an example, assuming your workstation has 4 cores and you have
+  set up the ``TEST_OMP_THREADS`` variable to ``2`` (in `config.cmake`), issue
+  ::
 
-    make -j2 test TEST_OMP_THREADS=2
+    ctest -j2
 
   for an OpenMP compiled binary running two tests simultaneously, each using 2
   cores.
 
   If you want to test the MPI enabled binary with more than one MPI-process, you
-  can set the TEST_MPI_PROCS variable accordingly e.g::
-
-    make test TEST_MPI_PROCS=2
+  should set the ``TEST_MPI_PROCS`` variable accordingly.
 
   Testing with hybrid (MPI/OpenMP) parallelism can be specified by setting both,
   the ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` variables, e.g::
 
-    make test TEST_MPI_PROCS=2 TEST_OMP_THREADS=2
+    set(TEST_MPI_PROCS "2" CACHE STRING "Nr. of processes used for testing")
+    set(TEST_OMP_THREADS "2" CACHE STRING "Nr. of OMP-threads used for testing")
 
   Note that efficient production use of the code in this mode may require
   process affinity (settings will depend on your specific MPI implementation).
 
-* The compiled executables can be copied into an installation directory by ::
+  The ``TEST_MPI_PROCS`` and ``TEST_OMP_THREADS`` cache variables can be updated
+  or changed also after the compilation by invoking CMake with the appropriate
+  ``-D`` options, e.g.::
+
+    cmake -DTEST_MPI_PROCS=2 -DTEST_OMP_THREADS=2 ..
+    ctest
+
+
+Installing DFTB+
+================
+
+* The compiled executables, libraries, module files etc. can be copied into an
+  installation directory by ::
 
     make install
 
-  where the destination directory can be configured in the `make.config` file
-  (set by the variable ``INSTALLDIR``).
+  where the destination directory can be configured by the variable
+  ``CMAKE_INSTALL_PREFIX`` (in the `config.cmake` file). The default location is
+  the `_install` subdirectory within the build directory.
+
+
+
+Using DFTB+ as a library
+========================
+
+DFTB+ can be also used as a library and linked with other simulation software
+packages. In order to compile the library with the public API, make sure to set
+the ``WITH_API`` option to ``TRUE`` in the CMake config file
+`config.cmake`. When you install the program, it will also install the DFTB+
+library (`libdftbplus.a`), the C-include file and the Fortran module files,
+which are necessary for linking DFTB+ with C and Fortran programs.
+
+
+Linking the library in non-CMake based builds
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Depending on the choice of external components and whether you want to link
+DFTB+ to a C or a Fortran binary, you may need different compilation flags and
+linker options. You can look up the necessary compiler flags and linker options
+in the `dftbplus.pc` pkg-config file, which is usually installed into the
+`lib/pkgconfig` folder in the installation directory. You can either inspect the
+file directly, or use the ``pkg-config`` tool::
+
+  export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:DFTBPLUS_INSTALL_FOLDER/lib/pkgconfig
+  pkg-config --cflags   # gives you compilation flags (e.g. include options)
+  pkg-config --libs     # shows library linking options
+  pkg-config --static --libs   # shows library linking options for static linking
+
+Note, that the flags and libraries shown are either for linking with Fortran or
+with C, depending on the value of the configuration option
+``PKGCONFIG_LANGUAGE``.
+
+If you compiled DFTB+ with ELSI-support, make sure, that pkg-config can find the
+ELSIs own pkgconfig file, as it is declared as dependency in the DFTB+
+pkg-config file.
+
+
+Linking the library in CMake based builds
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you use CMake to build your project, you can directly use the CMake
+configuration file installed by DFTB+ into the `lib/cmake/DftbPlus/` folder in
+the installation root directory. It exports the target ``DftbPlus::dftbplus``
+which you can use to obtain compiler and linking options. For example, in your
+projects `CMakeLists.txt`, you could have something like::
+
+  project(dftbplus_libtest LANGUAGES Fortran C)
+  find_package(DftbPlus REQUIRED)
+  add_executable(testprogram testprogram.f90)
+  target_link(testprogram DftbPlus::dftbplus)
+
+Note, that this will link all libraries in the correct order, which where
+compiled during the DFTB+ build (e.g. libdftd3, libnegf, etc.). It will also
+contain the link dependencies on the external libraries needed to create
+standalone applications with DFTB+ (e.g. lapack, scalapack). You must make sure,
+that CMake can find those libraries, when linking the
+application. Alternatively, you may use CMake to find them at the locations,
+where they were found during the DFTB+ build. The variables
+``DftbPlus_EXTERNAL_LIBRARIES`` and ``DftbPlus_EXTERNAL_LIBRARY_DIRS`` contain
+all external libraries and the directories, where they have been found. In order
+to make sure, CMake finds them, you could turn them into targets in your CMake::
+
+  project(dftbplus_libtest LANGUAGES Fortran)
+
+  find_package(DftbPlus REQUIRED)
+
+  foreach(lib IN LISTS DftbPlus_EXTERNAL_LIBRARIES)
+    find_library(LIBPATH ${lib} HINTS ${DftbPlus_EXTERNAL_LIBRARY_DIRS})
+    if(LIBPATH)
+      message(STATUS "Found library ${LIBPATH}")
+      add_library(${lib} IMPORTED UNKNOWN)
+      set_target_properties(${lib} PROPERTIES IMPORTED_LOCATION ${LIBPATH})
+    else()
+      message(FATAL_ERROR
+        "Could not find library '${lib}' using library path hints '${libpaths}'")
+    endif()
+    unset(LIBPATH CACHE)
+  endforeach()
+
+  add_executable(testprogram testprogram.f90)
+  target_link_libraries(testprogram DftbPlus::dftbplus)
+
+If you compiled DFTB+ with ELSI support, make sure, that CMake can find ELSIs
+own CMake configuration file, as it is declared as dependency in the DFTB+ Cmake
+config file.

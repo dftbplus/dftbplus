@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,10 +14,10 @@
 !> The modification based on from Kovalenko et al. (J. Comput. Chem., 20: 928–936 1999) and Patrick
 !> Briddon to add a contribution from the gradient vector as well is also used
 !> In order to use the mixer you have to create and reset it.
-module diismixer
-  use assert
-  use accuracy
-  use lapackroutines, only : gesv
+module dftbp_diismixer
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_lapackroutines, only : gesv
   implicit none
 
   private
@@ -276,4 +276,4 @@ contains
 
   end subroutine storeVectors
 
-end module diismixer
+end module dftbp_diismixer

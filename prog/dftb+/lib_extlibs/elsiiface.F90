@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,22 +10,22 @@
 
 !> Interface wrapper for the ELSI library
 !>
-module elsiiface
-  use accuracy, only : dp
+module dftbp_elsiiface
+  use dftbp_accuracy, only : dp
 #:if WITH_ELSI
   use elsi
 #:else
   use iso_c_binding, only : r8 => c_double, i4 => c_int32_t
-  use message, only : error
+  use dftbp_message, only : error
 #:endif
   implicit none
   private
 
   public :: withElsi, withPexsi
   public :: elsi_handle, elsi_rw_handle
-  public :: elsi_init, elsi_finalize
+  public :: elsi_init, elsi_reinit, elsi_finalize
   public :: elsi_init_rw, elsi_finalize_rw
-  public :: elsi_set_csc, elsi_set_csc_blk
+  public :: elsi_set_csc, elsi_set_csc_blk, elsi_set_zero_def, elsi_set_rw_zero_def
   public :: elsi_dm_real, elsi_dm_complex
   public :: elsi_dm_real_sparse, elsi_dm_complex_sparse
   public :: elsi_get_edm_real, elsi_get_edm_complex
@@ -100,6 +100,10 @@ contains
     call stubError("elsi_init")
   end subroutine elsi_init
 
+  subroutine elsi_reinit(eh)
+    type(elsi_handle), intent(inout) :: eh
+    call stubError("elsi_reinit")
+  end subroutine elsi_reinit
 
   subroutine elsi_finalize(eh)
     type(elsi_handle), intent(inout) :: eh
@@ -123,6 +127,17 @@ contains
     integer(i4), intent(in) :: blk
     call stubError("elsi_set_csc_blk")
   end subroutine elsi_set_csc_blk
+
+
+  subroutine elsi_set_zero_def(eh, zero)
+    type(elsi_handle), intent(inout) :: eh
+    real(r8), intent(in) :: zero
+  end subroutine elsi_set_zero_def
+
+  subroutine elsi_set_rw_zero_def(eh, zero)
+    type(elsi_rw_handle), intent(inout) :: eh
+    real(r8), intent(in) :: zero
+  end subroutine elsi_set_rw_zero_def
 
 
   subroutine elsi_dm_real(eh, ham, ovlp, dm, ebs)
@@ -505,4 +520,4 @@ contains
 
 #:endif
 
-end module elsiiface
+end module dftbp_elsiiface

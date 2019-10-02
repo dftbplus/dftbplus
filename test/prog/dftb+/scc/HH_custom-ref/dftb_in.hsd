@@ -1,0 +1,46 @@
+Geometry = GenFormat {
+  2 C
+  H
+  1 1  0.0000000 0.00000000 0.00000000
+  2 1  1.0000000 0.00000000 0.00000000
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-8
+  MaxAngularMomentum {
+    H = SelectedShells{"s" "s" }
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 0
+  }
+  SlaterKosterFiles = {
+    H-H = "./H1-H1.skf" "./H1-H2.skf" "./H2-H1.skf" "./H2-H2.skf"
+  }
+
+  CustomisedOccupations{
+    ReferenceOccupation{
+      Atoms = {1 2} 
+      s = 0.5
+      s2 = 0.5 
+    }
+  }  
+
+  Eigensolver=DivideAndConquer{}
+
+}
+
+Parallel = {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+Options {
+  WriteAutotestTag = Yes
+  #WriteHS = Yes
+}
+
+ParserOptions {
+  ParserVersion = 6
+}
