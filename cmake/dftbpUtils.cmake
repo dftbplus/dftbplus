@@ -158,21 +158,6 @@ function (dftbp_create_library_targets libraries libpaths)
 endfunction()
 
 
-# Converts a space separated string into a list.
-#
-# Args:
-#     * [in]: Name of the variables to convert. On exit the variables contain
-#         the converted values.
-#
-function (dftbp_convert_to_list)
-  foreach(varname IN LISTS ARGN)
-    set(buffer "${${varname}}")
-    separate_arguments(buffer)
-    set(${varname} "${buffer}" PARENT_SCOPE)
-  endforeach()
-endfunction()
-
-
 # Checks the build configuration on consistency and stops in case of inconsistencies
 function (dftbp_ensure_config_consistency)
 
