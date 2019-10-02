@@ -28,12 +28,7 @@ Additionally there are optional requirements for some DFTB+ features:
   <https://wordpress.elsi-interchange.org/>`_ library for large scale systems
   can optionally also be used.
 
-* The M4 preprocessor, if you want to build the MPI-parallelised version of the
-  code
-
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
-
-* The DftD3 dispersion library (if you need this dispersion model).
 
 * The `MAGMA <http://icl.cs.utk.edu/magma/>_` library for GPU accelerated
   computation.
@@ -44,7 +39,7 @@ models for the variables (same integer and floating point values).
 In order to execute the code tests and validate them against precalculated
 results, you will additionally need:
 
-* Python (version >= 2.6) with NumPy
+* Python (version >= 3.2) with NumPy
 
 * The Slater-Koster data used in the tests (see below)
 
