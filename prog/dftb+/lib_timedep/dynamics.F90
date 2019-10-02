@@ -15,51 +15,53 @@
 !> 2) Negre, C. F. A, Fuertes, V. C., Oviedo, M. B., Oliva, F. Y. & Sanchez, C. G.
 !> Journal of Physical Chemistry C, 116(28), 14748–14753 (2012) https://doi.org/10.1021/jp210248k
 
-module timeprop_module
-  use globalenv
-  use commontypes
-  use potentials
-  use scc
-  use shift
-  use accuracy
-  use constants
-  use sparse2dense
-  use densitymatrix
-  use blasroutines
-  use lapackroutines
-  use populations
-  use blas
-  use lapack
-  use spin
-  use forces
-  use repulsive
-  use slakocont
-  use repcont
-  use thermostat
-  use mdintegrator
-  use dummytherm
-  use mdcommon
-  use ranlux
-  use periodic
-  use velocityverlet
-  use nonscc
-  use energies, only: TEnergies, init
-  use evaluateenergies
-  use thirdorder_module, only : ThirdOrder
-  use populations
-  use eigenvects
-  use sk
-  use dispiface
-  use environment
-  use repcont
-  use timer
-  use taggedoutput
-  use hamiltonian
+module dftbp_timeprop
+  use dftbp_globalenv
+  use dftbp_commontypes
+  use dftbp_potentials
+  use dftbp_scc
+  use dftbp_shift
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_sparse2dense
+  use dftbp_densitymatrix
+  use dftbp_blasroutines
+  use dftbp_lapackroutines
+  use dftbp_populations
+  use dftbp_blas
+  use dftbp_lapack
+  use dftbp_spin
+  use dftbp_forces
+  use dftbp_repulsive
+  use dftbp_slakocont
+  use dftbp_repcont
+  use dftbp_thermostat
+  use dftbp_mdintegrator
+  use dftbp_dummytherm
+  use dftbp_mdcommon
+  use dftbp_ranlux
+  use dftbp_periodic
+  use dftbp_velocityverlet
+  use dftbp_nonscc
+  use dftbp_energies, only: TEnergies, init
+  use dftb_evaluateenergies
+  use dftbp_thirdorder_module, only : ThirdOrder
+  use dftbp_populations
+  use dftbp_eigenvects
+  use dftbp_sk
+  use dftbp_dispiface
+  use dftbp_environment
+  use dftbp_repcont
+  use dftbp_timer
+  use dftbp_taggedoutput
+  use dftbp_hamiltonian
   use dftbp_elstattypes
-  use onsitecorrection
-  use message
-  use elecsolvers, only : TElectronicSolver
-  use simplealgebra
+  use dftbp_onsitecorrection
+  use dftbp_message
+  use dftbp_elecsolvers, only : TElectronicSolver
+  use dftbp_simplealgebra
+  use dftbp_RangeSeparated, only : RangeSepFunc
+  use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   implicit none
   private
 
@@ -425,9 +427,9 @@ contains
   !> Driver of time dependent propagation to calculate wither spectrum or laser
   subroutine runDynamics(this, Hsq, ham, H0, speciesAll, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
-      & env, tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
-      & tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec,&
-      & rCellVec, electronicSolver)
+      & env, tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+      & iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont, latVec,&
+      & invLatVec, iCellVec, rCellVec, electronicSolver, taggedWriter, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -500,6 +502,12 @@ contains
     !> 3rd order settings
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
+    !> Range separation contributions
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Proxy for querying Q-dependant external potentials
+    type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
+
     !> which DFTB+U functional (if used)
     integer, intent(in), optional :: nDftbUFunc
 
@@ -543,6 +551,12 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    !> Reference external potential (usual provided via API)
+    type(TRefExtPot) :: refExtPot
+
     integer :: iPol, iCall
     logical :: tWriteAutotest
 
@@ -572,17 +586,17 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList,&
             & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-            & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+            & tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-            & skOverCont, iCall, electronicSolver)
+            & skOverCont, iCall, electronicSolver, taggedWriter, refExtPot)
         iCall = iCall + 1
       end do
     else
       call doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
           & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
-          & xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef,&
-          & tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont, iCall,&
-          & electronicSolver)
+          & xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
+          & tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont, iCall,&
+          & electronicSolver, taggedWriter, refExtPot)
     end if
 
   end subroutine runDynamics
@@ -591,9 +605,9 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, Hsq, ham, H0, q0, over, filling, neighbourList,&
       & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-      & tDualSpinOrbit, xi, thirdOrd, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+      & tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
       & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-      & skOverCont, iCall, electronicSolver)
+      & skOverCont, iCall, electronicSolver, taggedWriter, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -679,6 +693,12 @@ contains
     !> 3rd order settings
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
+    !> Range separation contributions
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Proxy for querying Q-dependant external potentials
+    type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
+
     !> Atoms over which to sum the total energies
     integer, intent(in) :: iAtInCentralRegion(:)
 
@@ -700,6 +720,12 @@ contains
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    !> Reference external potential (usual provided via API)
+    type(TRefExtPot) :: refExtPot
 
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs), Sinv(this%nOrbs,this%nOrbs)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%nSpin), rhoOld(this%nOrbs,this%nOrbs,this%nSpin)
@@ -785,7 +811,7 @@ contains
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
-        & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements)
+        & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements, refExtPot)
 
     if (this%tForces) then
        totalForce(:,:) = 0.0_dp
@@ -814,8 +840,8 @@ contains
 
     call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList, nNeighbourSK, orb,&
          & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
-         & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, nDftbUFunc,&
-         & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+         & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, rangeSep, qDepExtPot, qBlock,&
+         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     if (this%tBondE) then
       call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
@@ -868,7 +894,7 @@ contains
      call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
-          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements)
+          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements, refExtPot)
 
      if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
         call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
@@ -890,8 +916,8 @@ contains
 
      call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
           & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
-          & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, nDftbUFunc,&
-          & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+          & coordAll, pRepCont, energyKin, tDualSpinOrbit, thirdOrd, rangeSep, qDepExtPot, qBlock,&
+          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
      if (this%tBondE) then
        call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
@@ -942,7 +968,7 @@ contains
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
     if (tWriteAutotest) then
-      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce)
+      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, taggedWriter)
     end if
 
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
@@ -960,7 +986,7 @@ contains
   subroutine updateH(this, H1, ham, over, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
       & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ,&
-      & niUJ, onSiteElements)
+      & niUJ, onSiteElements, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1052,6 +1078,9 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
+    !> Reference external potential (usual provided via API)
+    type(TRefExtPot) :: refExtPot
+
     real(dp), allocatable :: qiBlock(:,:,:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: iHam(:,:) ! not allocated since no imaginary ham
     real(dp) :: T2(this%nOrbs,this%nOrbs)
@@ -1074,7 +1103,7 @@ contains
     end if
     tImHam = .false. ! for the moment
 
-    call resetExternalPotentials(potential)
+    call resetExternalPotentials(refExtPot, potential)
     call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
@@ -1372,8 +1401,8 @@ contains
   !> Calculate energy - modify to include new way to calculate energy
   subroutine getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
        & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, coordAll, &
-       & pRepCont, energyKin, tDualSpinOrbit, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ,&
-       & niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+       & pRepCont, energyKin, tDualSpinOrbit, thirdOrd, rangeSep, qDepExtPot, qBlock, nDftbUFunc,&
+       & UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1432,8 +1461,14 @@ contains
     !> Is dual spin orbit being used
     logical, intent(in) :: tDualSpinOrbit
 
-        !> 3rd order settings
+    !> 3rd order settings
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Range separation contributions
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Proxy for querying Q-dependant external potentials
+    type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
 
     !> block (dual) atomic populations
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
@@ -1498,8 +1533,9 @@ contains
     TS = 0.0_dp
     call getEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
          & .false., tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, qBlock, qiBlock,&
-         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, rangeSep, qDepExtPot,&
+         & qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
+         & onSiteElements)
     ! getEnergies returns the total energy Etotal including repulsive and dispersions energies
 
     ! Calculate nuclear kinetic energy
@@ -2284,7 +2320,7 @@ contains
 
 
   !> Write time-dependent tagged information to autotestTag file
-  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce)
+  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, taggedWriter)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2304,19 +2340,22 @@ contains
     !> forces (3, nAtom)
     real(dp), intent(in) :: totalForce(:,:)
 
+    !> Tagged writer object
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
     integer :: fdAutotest
 
     open(newunit=fdAutotest, file=trim(this%autotestTag), position="append")
 
-    call writeTagged(fdAutotest, tag_tdenergy, energy%eSCC)
-    call writeTagged(fdAutotest, tag_tddipole, dipole)
-    call writeTagged(fdAutotest, tag_tdcharges, deltaQ)
+    call taggedWriter%write(fdAutotest, tagLabels%tdenergy, energy%eSCC)
+    call taggedWriter%write(fdAutotest, tagLabels%tddipole, dipole)
+    call taggedWriter%write(fdAutotest, tagLabels%tdcharges, deltaQ)
     if (this%tIons) then
-      call writeTagged(fdAutotest, tag_ehrencoords, coord)
-      call writeTagged(fdAutotest, tag_ehrenvelos, this%movedVelo)
+      call taggedWriter%write(fdAutotest, tagLabels%ehrencoords, coord)
+      call taggedWriter%write(fdAutotest, tagLabels%ehrenvelos, this%movedVelo)
     end if
     if (this%tForces) then
-      call writeTagged(fdAutotest, tag_ehrenforces, totalForce)
+      call taggedWriter%write(fdAutotest, tagLabels%ehrenforces, totalForce)
    end if
 
     close(fdAutotest)
@@ -2868,4 +2907,4 @@ contains
 
   end subroutine reallocateTDSparseArrays
 
-end module timeprop_module
+end module dftbp_timeprop

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,17 +10,17 @@
 !> Contains subroutines for packing/unpacking Hamiltonian-like matrices between the square and
 !> 1-dimensional representations
 !>
-module sparse2dense
-  use assert
-  use accuracy
-  use constants, only : pi, imag
-  use commontypes
-  use memman
-  use periodic, only : TNeighbourList
-  use densedescr
+module dftbp_sparse2dense
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants, only : pi, imag
+  use dftbp_commontypes
+  use dftbp_memman
+  use dftbp_periodic, only : TNeighbourList
+  use dftbp_densedescr
 #:if WITH_SCALAPACK
-  use scalapackfx
-  use blacsenv
+  use dftbp_scalapackfx
+  use dftbp_blacsenv
 #:endif
   implicit none
   private
@@ -2439,4 +2439,4 @@ contains
 
 #:endif
 
-end module sparse2dense
+end module dftbp_sparse2dense

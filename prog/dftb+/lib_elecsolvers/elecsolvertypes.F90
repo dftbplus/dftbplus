@@ -1,11 +1,11 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module elecsolvertypes
+module dftbp_elecsolvertypes
   implicit none
   private
 
@@ -32,10 +32,13 @@ module elecsolvertypes
     integer :: gf = 10
     integer :: onlyTransport = 11
 
+    ! GPU accellerated solvers using MAGMA
+    integer :: magma_gvd = 12
+
   end type TElecSolverTypesEnum
 
 
   !> Actual values for elecSolverTypes.
   type(TElecSolverTypesEnum), parameter :: electronicSolverTypes = TElecSolverTypesEnum()
 
-end module elecsolvertypes
+end module dftbp_elecsolvertypes

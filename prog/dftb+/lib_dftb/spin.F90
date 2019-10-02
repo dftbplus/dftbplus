@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,12 +9,12 @@
 
 !> Module containing various routines for spin polarised calculations. Intended to be used with SCC
 !> switched on!
-module spin
-  use assert
-  use accuracy
-  use message
-  use commontypes
-  use shift
+module dftbp_spin
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_commontypes
+  use dftbp_shift
   implicit none
   private
 
@@ -321,4 +321,4 @@ contains
 
   end subroutine ud2qm4
 
-end module spin
+end module dftbp_spin

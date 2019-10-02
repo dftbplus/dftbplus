@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,15 +9,15 @@
 
 !> Contains code to calculate the H0 Hamiltonian and overlap matrix and their
 !> derivatives.
-module nonscc
-  use assert
-  use accuracy, only : dp
-  use sk
-  use slakocont
-  use commontypes
-  use message
-  use schedule
-  use environment
+module dftbp_nonscc
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_sk
+  use dftbp_slakocont
+  use dftbp_commontypes
+  use dftbp_message
+  use dftbp_schedule
+  use dftbp_environment
   implicit none
   private
 
@@ -542,4 +542,4 @@ contains
 
   end subroutine getSecondDerivFiniteDiff
 
-end module nonscc
+end module dftbp_nonscc

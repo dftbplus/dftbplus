@@ -1,0 +1,110 @@
+\chapter{\setupgeom}
+
+The program utility \setupgeom{} can help in preparing the input geometry 
+for transport calculations, following the rules specified in the Transport section.
+Starting from a geometry that can be the output of a previous relaxation step or 
+any other building step, \setupgeom{} can be used to specify the system partitioning 
+into \emph{contacts} and \emph{device} regions and reorder the atom numbers such that
+the \emph{device} is placed before the \emph{contacts}. Additionally the tool reorders the
+atoms of the two PLs of each contact or can create the second PL if only one is specified.
+Finally, the \emph{device} region is reordered and partitioned into PLs for more
+efficient Green's function calculations.
+A practical example is discussed in \dftbp{} recipes.
+
+\section{Input for \setupgeom}
+
+The input of the code must be named \verb|setup_in.hsd| and should be a
+Human-friendly Structured Data (HSD) formatted file (see Appendix \ref{sec:hsd}).
+
+The file is similar to the \dftbp{} input, where just 2 sections are needed. 
+The table below contains the list of the properties, that must occur in the
+input file:
+
+\begin{ptableh}
+  \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
+  \kw{Transport} & p & & \cb & \\
+\end{ptableh}
+
+\begin{description}
+\item[\is{Geometry}] Specifies the geometry for the system to be
+  calculated.  See p.~\pref{sec:dftbp.Geometry}.
+\end{description}
+
+\subsection{Transport\{\}}
+\label{sec:setup.Transport}
+
+The transport block must specify the atoms in each contact.  
+An example of the \verb|Transport| section is reported below:
+
+\begin{verbatim}
+Transport {
+    Contact {
+      Id = "source"
+     	Atoms [zeroBased] = {9:24 56:78}
+     	ContactVector = 0.0 0.0 3.78
+     	SpecifiedPLs = 2
+    }
+    Contact {
+      Id = "drain"
+      Atoms [zeroBased] = {81:100}
+     	ContactVector = 0.0 0.0 3.78
+      SpecifiedPLs = 2
+    }
+    Task = SetupGeometry{
+      SlaterKosterFiles = type2names{
+        ...
+      }
+      TruncateSKRange = {
+        SKMaxDistance [AA] = 5.0
+        HardCutOff = Yes
+      }
+    }
+}
+\end{verbatim}
+  
+
+\begin{ptable}
+ \kw{Id}    & s & &   &  \\
+ \kw{Atoms} &l i& & - &  \\
+ \kw{SpecifiedPLs} &i & 1 or 2 & 2 & \\	
+ \kw{ContactVector} & 3r & & - & \\	
+ \kw{TruncateSKRange} & p & & & \\
+ \kw{SlaterKosterFiles} & p & & & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Id}] Specifies a unique contact name.
+\item[\is{Atoms}] Sets the list of atoms belonging to the named contact. This list can
+	be easily obtained using some external atomic manipulation tool like for instance Jmol. \\ 
+	NOTE the modifier $[zeroBased]$ specifing that the defined atom numbers starts from $0$
+	rather than $1$. Use $[oneBased]$ or no modifier for normal numbering starting from $1$.
+	In general follows the rules for \is{MovedAtoms} in section \ref{sec:dftbp.SteepestDescent}.
+\item[\is{SpecifiedPLs}] Specifies the number of PLs given for the named contact. If this value 
+	is 2 (default) the total number of atoms in the contact are divided by 2 and the 2nd PL
+	is reordered according to the 1st with the help of \kw{ContactVector}. 
+	If this value is 1, the correct numbers of PLs are created according to the interaction cutoff
+	distance. 
+\item[\is{ContactVector}] Sets the translation vector connecting the 2 PLs along the transport direction. 
+	Since contact must be aligned to a cartesian axis, so must be this vector. Different contact
+      can be in different directions. Also notice that the vector must be specified along the positive axis 
+      direction.
+\item[\is{TruncateSKRange}]  This section is the same as that described in section \ref{sec:dftbp.Hamiltonian}.
+\item[\is{SlaterKosterFiles}]  This section is the same as that described in section 
+	\ref{sec:dftbp.Hamiltonian}. The SK files are used to compute the cutoff distance.
+
+\end{description}
+
+\subsection{Code output}
+
+The code writes two files, \verb|processed.gen| and \verb|transport.hsd|. The first file is the 
+processed geometry, reordered according to the needs of transport calculations. 
+NOTE that coordinates are folded to the unit cell such that all fractional coordinates are in the 
+range 0 to 1. The structure is first translated such that all absolute coordinates have posive 
+values. 
+This step is important in order to take properly into account the periodic images.
+The file \verb|transport.hsd| contains the details of the geometry partitioning for transport, 
+as described in the Transport section and that can be included in the input file.
+For convenience this file also contains the block \verb|TruncateSKRange| in order to 
+make the Hamiltonian consistent with the \kw{MaxSKCutoff} set in there. 
+
+

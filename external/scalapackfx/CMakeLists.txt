@@ -1,0 +1,4 @@
+set(LIBRARY_ONLY TRUE)
+set(INSTALL_EXPORT_NAME dftbplus-targets)
+add_subdirectory(origin)
+set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} scalapackfx PARENT_SCOPE)

@@ -43,7 +43,7 @@ hamiltonian = dftb {
    1 0 0
    0 16 0 
    0 0 1 
-   0.50 0.50 0.50
+   0.0 0.50 0.0
   }
   #!KPointsAndWeights = {
   #  0.0000 0.0 0.0 1.0

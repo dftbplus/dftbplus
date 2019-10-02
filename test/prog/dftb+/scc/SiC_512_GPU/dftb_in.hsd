@@ -1,0 +1,46 @@
+Geometry = GenFormat {
+    <<< 512.gen
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-9 # Extremely small!
+    MaxAngularMomentum = {
+        Si = "p"
+        C = "p"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 100.0
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    Eigensolver = MAGMA {}
+    KPointsAndWeights = SupercellFolding {
+        2 0 0
+        0 2 0
+        0 0 2
+        0.5 0.5 0.5
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    CalculateForces = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 6
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

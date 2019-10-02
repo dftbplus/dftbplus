@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Contains subroutines to calculate repulsive pair contributions to energy and forces
-module repulsive
-  use assert
-  use accuracy, only : dp
-  use repcont
+module dftbp_repulsive
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_repcont
   implicit none
   private
 
@@ -114,4 +114,4 @@ contains
 
   end subroutine getERepDeriv
 
-end module repulsive
+end module dftbp_repulsive
