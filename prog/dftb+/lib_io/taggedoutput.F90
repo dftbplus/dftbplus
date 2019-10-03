@@ -104,6 +104,9 @@ module taggedoutput
   !> final velocities after real-time (Ehrenfest) propagation
   character(*), parameter, public :: tag_ehrenvelos = 'final_ehrenfest_velo'
 
+  !> final velocities after real-time (Ehrenfest) propagation
+  character(*), parameter, public :: tag_tdprojocc = 'final_td_proj_occupations'
+
   !> total tunneling vector
   character(*), parameter, public :: tag_tunn = 'total_tunneling'
 

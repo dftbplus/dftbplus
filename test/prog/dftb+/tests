@@ -10,6 +10,8 @@ timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/GNR_kpoint_kick               #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/GNR_kpoint_laser              #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/H2_singlet                    #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/H2_triplet                    #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI
