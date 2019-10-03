@@ -1,4 +1,13 @@
 #
+# Toolchain file example for
+#
+# GNU compiler
+#
+# Note the CMake format: Command line options (e.g. compiler flags) space separated, other kind
+# of lists semicolon separated.
+#
+
+#
 # Fortran compiler settings
 #
 if(WITH_MPI)
@@ -31,7 +40,7 @@ set(CMAKE_C_FLAGS_RELEASE "-O2 -funroll-all-loops" CACHE STRING "Specific C flag
 
 # LAPACK and BLAS
 if(WITH_MPI)
-  set(LAPACK_LIBRARIES "lapack blas" CACHE STRING "LAPACK and BLAS libraries to link")
+  set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
 else()
   set(LAPACK_LIBRARIES "openblas" CACHE STRING "LAPACK and BLAS libraries to link")
 endif()

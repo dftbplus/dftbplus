@@ -1,4 +1,13 @@
 #
+# Toolchain file example for
+#
+# Intel compiler, MKL library
+#
+# Note the CMake format: Command line options (e.g. compiler flags) space separated, other kind
+# of lists semicolon separated.
+#
+
+#
 # Fortran compiler settings
 #
 if(WITH_MPI)
