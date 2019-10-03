@@ -767,10 +767,10 @@ contains
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp) :: rhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp) :: H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS), T1(this%nOrbs,this%nOrbs)
-    complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
+    complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:), H1rsCplx(:,:)
     real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
     real(dp) :: dipole(3,this%nSpin), chargePerShell(orb%mShell,this%nAtom,this%nSpin)
-    real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:)
+    real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:), SSqrReal(:,:), H1rsReal(:,:,:)
     real(dp) :: time, startTime, timeElec
     integer :: dipoleDat, qDat, energyDat, populDat(2), forceDat, coorDat, ePBondDat
     integer ::  iStep, iSpin, iKS
@@ -787,6 +787,15 @@ contains
     logical :: tProbeFrameWrite
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
+
+    if (allocated(rangeSep)) then
+      allocate(SSqrReal(this%nOrbs,this%nOrbs))
+      allocate(H1rsReal(this%nOrbs,this%nOrbs,this%nSpin))
+      allocate(H1rsCplx(this%nOrbs,this%nOrbs))
+      call unpackHS(sSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+          & img2CentCell)
+      call blockSymmetrizeHS(sSqrReal, iSquare)
+    end if
 
     iStep = 0
     startTime = 0.0_dp
@@ -850,6 +859,28 @@ contains
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0,&
         & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements, refExtPot)
+
+    if (allocated(rangeSep)) then
+      do iSpin = 1, this%nSpin
+        H1rsReal(:,:,iSpin) = real(rho(:,:,iSpin))
+        select case(this%nSpin)
+        case(2)
+          call denseSubtractDensityOfAtoms(q0, iSquare, H1rsReal, iSpin)
+        case(1)
+          call denseSubtractDensityOfAtoms(q0, iSquare, H1rsReal)
+        case default
+          call error("Range separation not implemented for non-colinear spin")
+        end select
+        ! should be neighbours from LC not SK :
+        H1rsCplx(:,:) = H1rsReal(:,:,iSpin)
+        H1rsReal(:,:,iSpin) = 0.0_dp
+        call rangeSep%addLRHamiltonian(env, real(H1rsCplx), over, neighbourList%iNeighbour,&
+            & nNeighbourSK, iSquare, iSparseStart, orb, H1rsReal(:,:,iSpin), sSqrReal)
+        call blockSymmetrizeHS(H1rsReal(:,:,iSpin), iSquare)
+        H1(:,:,iSpin) = H1(:,:,iSpin) + H1rsReal(:,:,iSpin)
+
+      end do
+    end if
 
     if (this%tForces) then
        totalForce(:,:) = 0.0_dp
@@ -933,6 +964,28 @@ contains
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
           & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements, refExtPot)
+
+     if (allocated(rangeSep)) then
+       do iSpin = 1, this%nSpin
+         H1rsReal(:,:,iSpin) = real(rho(:,:,iSpin))
+         select case(this%nSpin)
+         case(2)
+           call denseSubtractDensityOfAtoms(q0, iSquare, H1rsReal, iSpin)
+         case(1)
+           call denseSubtractDensityOfAtoms(q0, iSquare, H1rsReal)
+         case default
+           call error("Range separation not implemented for non-colinear spin")
+         end select
+         ! should be neighbours from LC not SK :
+         H1rsCplx(:,:) = H1rsReal(:,:,iSpin)
+         H1rsReal(:,:,iSpin) = 0.0_dp
+         call rangeSep%addLRHamiltonian(env, real(H1rsCplx), over, neighbourList%iNeighbour,&
+             & nNeighbourSK, iSquare, iSparseStart, orb, H1rsReal(:,:,iSpin), sSqrReal)
+         call blockSymmetrizeHS(H1rsReal(:,:,iSpin), iSquare)
+         H1(:,:,iSpin) = H1(:,:,iSpin) + H1rsReal(:,:,iSpin)
+       end do
+     end if
+
 
 !     if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
 !        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
