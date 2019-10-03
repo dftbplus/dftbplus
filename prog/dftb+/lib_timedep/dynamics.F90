@@ -1507,6 +1507,7 @@ contains
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iSpin
     real(dp) :: TS(this%nSpin)
+    logical :: tDFTBU
 
     rhoPrim(:,:) = 0.0_dp
     do iSpin = 1, this%nSpin
@@ -1521,6 +1522,11 @@ contains
          & pRepCont, img2CentCell)
     energy%Erep = sum(energy%atomRep)
 
+    tDFTBU = .false.
+    if (size(UJ) > 0) then
+      tDFTBU = .true.
+    end if
+
     ! Calculate dispersion component
     if (this%tDispersion) then
        call this%dispersion%getEnergies(energy%atomDisp)
@@ -1532,7 +1538,7 @@ contains
 
     TS = 0.0_dp
     call getEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
-         & .false., tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
+         & tDFTBU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
          & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, rangeSep, qDepExtPot,&
          & qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
          & onSiteElements)
