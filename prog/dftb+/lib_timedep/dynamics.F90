@@ -2554,8 +2554,7 @@ contains
       call taggedWriter%write(fdAutotest, tagLabels%ehrenforces, totalForce)
     end if
     if (this%tPopulations) then
-      call taggedWriter%write(fdAutotest, tagLabels%ehrenforces, totalForce)
-      call writeTagged(fdAutotest, tag_tdprojocc, occ)
+      call taggedWriter%write(fdAutotest, tagLabels%tdprojocc, occ)
     end if
 
     close(fdAutotest)
