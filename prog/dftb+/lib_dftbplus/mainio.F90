@@ -2079,8 +2079,6 @@ contains
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
 
-    @:ASSERT(tPeriodic .eqv. tStress)
-
     open(newunit=fd, file=fileName, action="write", status="replace")
 
     call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)

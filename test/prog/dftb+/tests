@@ -5,6 +5,7 @@
 #:include 'common.fypp'
 
 timeprop/benzene_kick                  #? OMP_THREADS <= 4 and not WITH_MPI
+timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI 
 timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
@@ -14,12 +15,12 @@ timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/C60_triplet                   #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/NO_onsite                     #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_kick_periodic         #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/GNR_periodic_kick             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/CH3_dftbu_singlet             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/GNR_periodic_laser            #? OMP_THREADS == 1 and not WITH_MPI
 
 timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI 
 timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI
 
