@@ -381,6 +381,9 @@ contains
     this%tPeriodic = tPeriodic
 
     if (this%tIons) then
+       if (.not. this%tRealHS) then
+          call error("Ion dynamics is not implemented yet for imaginary Hamiltonians.")
+       end if
        this%tForces = .true.
        this%indMovedAtom = inp%indMovedAtom
        this%nMovedAtom = inp%nMovedAtom
@@ -739,13 +742,15 @@ contains
     complex(dp) :: Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp) :: rho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp) :: rhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
-    complex(dp) :: H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS), T1(this%nOrbs,this%nOrbs)
+    complex(dp) :: H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
+    complex(dp) :: T1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
     real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
     real(dp) :: dipole(3,this%nSpin), chargePerShell(orb%mShell,this%nAtom,this%nSpin)
     real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:)
     real(dp) :: time, startTime, timeElec
-    integer :: dipoleDat, qDat, energyDat, populDat(2), forceDat, coorDat, ePBondDat
+    integer :: dipoleDat, qDat, energyDat, populDat(this%parallelKS%nLocalKS)
+    integer :: forceDat, coorDat, ePBondDat
     integer ::  iStep, iSpin, iKS
     type(TPotentials) :: potential
     type(TEnergies) :: energy
@@ -923,6 +928,10 @@ contains
         coordNew(:, this%indMovedAtom) = new3Coord
         call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
              &neighbourList, nNeighbourSK, iSquare)
+        if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
+           call updateBasisMatrices(this, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr, T1)
+        end if
+
      end if
 
      call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb,&
@@ -961,8 +970,7 @@ contains
 
         call swap(rhoOld(:,:,iKS), rho(:,:,iKS))
         if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-          call getTDPopulations(this, electronicSolver, rho, Eiginv, EiginvAdj, T1, H1, Ssqr,&
-              & populDat, time, iKS)
+           call getTDPopulations(this, rho, Eiginv, EiginvAdj, T1(:,:,1), populDat, time, iKS)
         end if
 
      end do
@@ -1758,15 +1766,11 @@ contains
     end if
 
     if (this%tPopulations) then
-      if (this%tRealHS) then
-        allocate(Eiginv(this%nOrbs, this%nOrbs, this%nSpin))
-        allocate(EiginvAdj(this%nOrbs, this%nOrbs, this%nSpin))
-        do iSpin = 1, this%nSpin
-          call tdPopulInit(this, Eiginv, EiginvAdj, eigvecsReal, iSpin)
-        end do
-      else
-        call error("Populations and imaginary Hamiltonian not implemented yet.")
-      end if
+       allocate(Eiginv(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS))
+       allocate(EiginvAdj(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS))
+       do iKS = 1, this%parallelKS%nLocalKS
+          call tdPopulInit(this, Eiginv, EiginvAdj, eigvecsReal, eigvecsCplx, iKS)
+       end do
     end if
 
     if (this%tFillingsFromFile) then
@@ -1986,7 +1990,7 @@ contains
     integer, intent(out) :: energyDat
 
     !> Populations  output file ID
-    integer, intent(out) :: populDat(2)
+    integer, intent(out) :: populDat(:)
 
     !> Forces output file ID
     integer, intent(out) :: forceDat
@@ -1999,7 +2003,8 @@ contains
 
     character(20) :: dipoleFileName, bondEOName, newBondEOName
     character(1) :: strSpin, strCount
-    integer :: iSpin, count
+    character(3) :: strK
+    integer :: iSpin, iKS, iK, count
     logical :: exist=.false.
 
     if (this%tKick) then
@@ -2050,9 +2055,17 @@ contains
     end if
 
     if (this%tPopulations) then
-       do iSpin=1,this%nSpin
+       do iKS = 1, this%parallelKS%nLocalKS
+          iSpin = this%parallelKS%localKS(2, iKS)
           write(strSpin,'(i1)')iSpin
-          call openFile(this, populDat(iSpin), 'molpopul' // trim(strSpin) // '.dat')
+          if (this%tRealHS) then
+            call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '.dat')
+          else
+            iK = this%parallelKS%localKS(1, iKS)
+            write(strK,'(i0.3)')iK
+            call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '-' // trim(strK) //&
+                 & '.dat')
+          end if
        end do
     end if
 
@@ -2076,7 +2089,7 @@ contains
     integer, intent(in) :: energyDat
 
     !> Populations output file ID
-    integer, intent(in) :: populDat(2)
+    integer, intent(in) :: populDat(:)
 
     !> Forces output file ID
     integer, intent(in) :: forceDat
@@ -2087,7 +2100,7 @@ contains
     !> Pairwise bond energy or order output file ID
     integer, intent(in) :: ePBondDat
 
-    integer :: iSpin
+    integer :: iSpin, iKS
 
     close(dipoleDat)
     if (.not. this%tKick) then
@@ -2096,8 +2109,8 @@ contains
     end if
 
     if (this%tPopulations) then
-       do iSpin = 1, this%nSpin
-          close(populDat(iSpin))
+       do iKS = 1, this%parallelKS%nLocalKS
+          close(populDat(iKS))
        end do
     end if
 
@@ -2321,58 +2334,107 @@ contains
 
   !> Initialize matrices for populations
   !> Note, this will need to get generalised for complex eigenvectors
-  subroutine tdPopulInit(this, Eiginv, EiginvAdj, eigvecsReal, iSpin)
+  subroutine tdPopulInit(this, Eiginv, EiginvAdj, eigvecsReal, eigvecsCplx, iKS)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
     !> Inverse of eigenvectors matrix (for populations)
-    complex(dp), intent(out), allocatable :: Eiginv(:,:,:)
+    complex(dp), intent(out) :: Eiginv(:,:,:)
 
     !> Adjoint of the inverse of eigenvectors matrix (for populations)
-    complex(dp), intent(inout), allocatable :: EiginvAdj(:,:,:)
+    complex(dp), intent(out) :: EiginvAdj(:,:,:)
 
     !> Eigenvectors
     real(dp), intent(in) :: eigvecsReal(:,:,:)
 
-    !> Spin index
-    integer, intent(in) :: iSpin
+    !> Complex Eigevenctors
+    complex(dp), intent(in) :: eigvecsCplx(:,:,:)
 
-    real(dp), allocatable :: T2(:,:), T3(:,:)
+    !> K-Spin mixed index
+    integer, intent(in) :: iKS
+
+    complex(dp), allocatable :: T2(:,:), T3(:,:)
     integer :: iOrb
 
     allocate(T2(this%nOrbs, this%nOrbs), T3(this%nOrbs, this%nOrbs))
 
-    T2 = eigvecsReal(:,:,iSpin)
-    T3 = 0.0_dp
-    do iOrb = 1, this%nOrbs
-      T3(iOrb, iOrb) = 1.0_dp
-    end do
-    call gesv(T2,T3)
-    Eiginv(:, :, iSpin) = cmplx(T3, 0, dp)
+    if (this%tRealHS) then
+       T2 = cmplx(eigvecsReal(:,:,iKS))
+    else
+       T2 = eigvecsCplx(:,:,iKS)
+    end if
 
-    T2(:,:) = transpose(eigvecsReal(:,:,iSpin))
     T3 = 0.0_dp
     do iOrb = 1, this%nOrbs
       T3(iOrb, iOrb) = 1.0_dp
     end do
     call gesv(T2,T3)
-    EiginvAdj(:, :, iSpin) = cmplx(T3, 0, dp)
+    Eiginv(:,:,iKS) = T3
+
+    if (this%tRealHS) then
+       T2 = cmplx(transpose(eigvecsReal(:,:,iKS)))
+    else
+       T2 = conjg(transpose(eigvecsCplx(:,:,iKS)))
+    end if
+
+    T3 = 0.0_dp
+    do iOrb = 1, this%nOrbs
+      T3(iOrb, iOrb) = 1.0_dp
+    end do
+    call gesv(T2,T3)
+    EiginvAdj(:,:,iKS) = T3
 
     deallocate(T2, T3)
 
   end subroutine tdPopulInit
 
 
-  !> Calculate populations at each time step
-  subroutine getTDPopulations(this, electronicSolver, rho, Eiginv, EiginvAdj, T1, H1, Ssqr,&
-      & populDat, time, iSpin)
-
+  ! updates Eiginv and EiginvAdj if nuclear dynamics is done
+  ! important to call after H1 has been updated with new charges and before D is included in H1
+  subroutine updateBasisMatrices(this, electronicSolver, Eiginv, EiginvAdj, H1, Ssqr, T1)
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> Inverse of eigenvectors matrix (for populations)
+    complex(dp), intent(inout), allocatable :: Eiginv(:,:,:)
+
+    !> Adjoint of the inverse of eigenvectors matrix (for populations)
+    complex(dp), intent(inout), allocatable :: EiginvAdj(:,:,:)
+
+    !> Square hamiltonian
+    complex(dp), intent(in) :: H1(:,:,:)
+
+    !> Square overlap matrix
+    complex(dp), intent(inout) :: Ssqr(:,:,:)
+
+    !> Auxiliary matrix
+    complex(dp), intent(inout) :: T1(:,:,:)
+
+    !> K-Spin mixed index
+    integer :: iKS
+
+    real(dp) :: eigen(this%nOrbs)
+
+    T1(:,:,:) = 0.0_dp
+    do iKS = 1, this%parallelKS%nLocalKS
+       !check if this works with both complex and real
+       T1(:,:,iKS) = H1(:,:,iKS)
+       call diagDenseMtx(electronicSolver, 'V', T1(:,:,iKS), Ssqr(:,:,iKS), eigen)
+       call tdPopulInit(this, Eiginv, EiginvAdj, real(T1(:,:,:)), T1(:,:,:), iKS)
+    end do
+
+  end subroutine updateBasisMatrices
+
+
+  !> Calculate populations at each time step
+  subroutine getTDPopulations(this, rho, Eiginv, EiginvAdj, T1, populDat, time, iKS)
+
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(in) :: this
 
     !> Density Matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -2390,38 +2452,23 @@ contains
     real(dp), intent(in) :: time
 
     !> Populations output file ID
-    integer, intent(in) :: populDat(2)
+    integer, intent(in) :: populDat(:)
 
-    !> Spin index
-    integer, intent(in) :: iSpin
-
-    !> Square hamiltonian (multiplied by imag unit)
-    complex(dp), intent(inout) :: H1(:,:,:)
-
-    !> Square overlap matrix
-    complex(dp), intent(inout) :: Ssqr(:,:,:)
+    !> K-Spin mixed index
+    integer, intent(in) :: iKS
 
     real(dp) :: occ(size(T1,dim=2))
     integer :: ii
-    real(dp) :: eigen(this%nOrbs)
 
-    if (this%tIons) then
-       H1(:,:,iSpin) = -imag * H1(:,:,iSpin) ! change back to real H1 (careful, included D matrix!)
-       ! only do previous step because of using other propagateRho for frozen nuclei.
-       !should be real(H1):
-       call diagDenseMtx(electronicSolver, 'V', H1(:,:,iSpin), Ssqr(:,:,iSpin), eigen)
-       call tdPopulInit(this, Eiginv, EiginvAdj, real(H1), iSpin)
-    end if
-
-    call gemm(T1, rho(:,:,iSpin), EiginvAdj(:,:,iSpin))
-    T1 = transpose(Eiginv(:,:,iSpin)) * T1
+    call gemm(T1, rho(:,:,iKS), EiginvAdj(:,:,iKS))
+    T1 = transpose(Eiginv(:,:,iKS)) * T1
 
     occ = real(sum(T1,dim=1))
-    write(populDat(iSpin),'(*(2x,F25.15))', advance='no') time * au__fs
+    write(populDat(iKS),'(*(2x,F25.15))', advance='no') time * au__fs
     do ii = 1, size(occ)
-      write(populDat(iSpin),'(*(2x,F25.15))', advance='no')occ(ii)
+      write(populDat(iKS),'(*(2x,F25.15))', advance='no')occ(ii)
     end do
-    write(populDat(iSpin),*)
+    write(populDat(iKS),*)
 
   end subroutine getTDPopulations
 
