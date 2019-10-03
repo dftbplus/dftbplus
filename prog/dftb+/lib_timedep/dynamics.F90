@@ -761,6 +761,7 @@ contains
     real(dp) :: coordNew(3, this%nAtom), totalForce(3, this%nAtom), ePerBond(this%nAtom, this%nAtom)
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
     real(dp) :: cellVol, recVecs(3,3), recVecs2p(3,3)
+    real(dp) :: occ(this%nOrbs)
     character(4) :: dumpIdx
     logical :: tProbeFrameWrite
 
@@ -970,7 +971,7 @@ contains
 
         call swap(rhoOld(:,:,iKS), rho(:,:,iKS))
         if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-           call getTDPopulations(this, rho, Eiginv, EiginvAdj, T1(:,:,1), populDat, time, iKS)
+           call getTDPopulations(this, occ, rho, Eiginv, EiginvAdj, T1(:,:,1), populDat, time, iKS)
         end if
 
      end do
@@ -987,7 +988,7 @@ contains
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
     if (tWriteAutotest) then
-      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce)
+      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ)
     end if
 
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
@@ -2431,7 +2432,7 @@ contains
 
 
   !> Calculate populations at each time step
-  subroutine getTDPopulations(this, rho, Eiginv, EiginvAdj, T1, populDat, time, iKS)
+  subroutine getTDPopulations(this, occ, rho, Eiginv, EiginvAdj, T1, populDat, time, iKS)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2457,7 +2458,9 @@ contains
     !> K-Spin mixed index
     integer, intent(in) :: iKS
 
-    real(dp) :: occ(size(T1,dim=2))
+    !> Molecular orbital occupations
+    real(dp), intent(inout) :: occ(:)
+
     integer :: ii
 
     call gemm(T1, rho(:,:,iKS), EiginvAdj(:,:,iKS))
@@ -2474,7 +2477,7 @@ contains
 
 
   !> Write time-dependent tagged information to autotestTag file
-  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce)
+  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2494,6 +2497,9 @@ contains
     !> forces (3, nAtom)
     real(dp), intent(in) :: totalForce(:,:)
 
+    !> molecular orbital projected populations
+    real(dp), intent(in) :: occ(:)
+
     integer :: fdAutotest
 
     open(newunit=fdAutotest, file=trim(this%autotestTag), position="append")
@@ -2507,8 +2513,10 @@ contains
     end if
     if (this%tForces) then
       call writeTagged(fdAutotest, tag_ehrenforces, totalForce)
-   end if
-
+    end if
+    if (this%tPopulations) then
+      call writeTagged(fdAutotest, tag_tdprojocc, occ)
+    end if
     close(fdAutotest)
 
   end subroutine writeTDAutotest

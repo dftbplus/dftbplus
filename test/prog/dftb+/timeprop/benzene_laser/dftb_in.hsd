@@ -49,6 +49,7 @@ ParserOptions = {
         LaserEnergy [eV] = 6.795
       }
       FieldStrength [v/a] = 0.01
+      Populations = Yes
     }
  }
 
