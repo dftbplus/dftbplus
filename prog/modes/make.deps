@@ -1,13 +1,13 @@
-initmodes.o: _mod_hsdparser common.fypp _mod_fileid _mod_xmlutils _mod_charmanip _mod_oldskdata _mod_typegeometryhsd _mod_assert _mod_constants _mod_linkedlist _mod_message _mod_hsdutils2 _mod_flib_dom _mod_unitconversion _mod_accuracy _mod_io _mod_hsdutils
-initmodes.o = initmodes.o $(_mod_hsdparser) $(common.fypp) $(_mod_fileid) $(_mod_xmlutils) $(_mod_charmanip) $(_mod_oldskdata) $(_mod_typegeometryhsd) $(_mod_assert) $(_mod_constants) $(_mod_linkedlist) $(_mod_message) $(_mod_hsdutils2) $(_mod_flib_dom) $(_mod_unitconversion) $(_mod_accuracy) $(_mod_io) $(_mod_hsdutils)
-_mod_initmodes: initmodes.o
-_mod_initmodes = $(initmodes.o)
+initmodes.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_typegeometryhsd _mod_xmlf90_flib_dom _mod_dftbp_hsdutils2 _mod_dftbp_xmlutils _mod_dftbp_io _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_fileid _mod_dftbp_charmanip _mod_dftbp_linkedlist _mod_dftbp_oldskdata _mod_dftbp_hsdparser _mod_dftbp_hsdutils _mod_dftbp_unitconversion
+initmodes.o = initmodes.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_typegeometryhsd) $(_mod_xmlf90_flib_dom) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_xmlutils) $(_mod_dftbp_io) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_fileid) $(_mod_dftbp_charmanip) $(_mod_dftbp_linkedlist) $(_mod_dftbp_oldskdata) $(_mod_dftbp_hsdparser) $(_mod_dftbp_hsdutils) $(_mod_dftbp_unitconversion)
+_mod_dftbp_initmodes: initmodes.o
+_mod_dftbp_initmodes = $(initmodes.o)
 
-modeprojection.o: common.fypp _mod_message _mod_blasroutines _mod_simplealgebra _mod_eigensolver _mod_accuracy _mod_typegeometry
-modeprojection.o = modeprojection.o $(common.fypp) $(_mod_message) $(_mod_blasroutines) $(_mod_simplealgebra) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_typegeometry)
-_mod_modeprojection: modeprojection.o
-_mod_modeprojection = $(modeprojection.o)
+modeprojection.o: _mod_dftbp_eigensolver common.fypp _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_message _mod_dftbp_typegeometry _mod_dftbp_simplealgebra
+modeprojection.o = modeprojection.o $(_mod_dftbp_eigensolver) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_message) $(_mod_dftbp_typegeometry) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_modeprojection: modeprojection.o
+_mod_dftbp_modeprojection = $(modeprojection.o)
 
-modes.o: common.fypp _mod_constants _mod_message _mod_assert _mod_taggedoutput _mod_modeprojection _mod_initmodes _mod_eigensolver _mod_accuracy _mod_io _mod_typegeometry
-modes.o = modes.o $(common.fypp) $(_mod_constants) $(_mod_message) $(_mod_assert) $(_mod_taggedoutput) $(_mod_modeprojection) $(_mod_initmodes) $(_mod_eigensolver) $(_mod_accuracy) $(_mod_io) $(_mod_typegeometry)
+modes.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_modeprojection _mod_dftbp_taggedoutput _mod_dftbp_eigensolver _mod_dftbp_io _mod_dftbp_typegeometry _mod_dftbp_initmodes _mod_dftbp_message _mod_dftbp_constants
+modes.o = modes.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_modeprojection) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_eigensolver) $(_mod_dftbp_io) $(_mod_dftbp_typegeometry) $(_mod_dftbp_initmodes) $(_mod_dftbp_message) $(_mod_dftbp_constants)
 

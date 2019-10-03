@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,8 +9,8 @@
 !> during run time.
 !> Provides routines to call with a string or array of strings if problems occur of a fatal (error)
 !> or recoverable (warning) nature.
-module message
-  use globalenv
+module dftbp_message
+  use dftbp_globalenv
   implicit none
   private
 
@@ -47,7 +47,7 @@ contains
     !> Warning message to print to standard out.
     character (len=*), intent(in) :: message
 
-    write(stdOut, '(1a)') 'WARNING!'
+    write(stdOut, '(1a)') 'WARNING!' 
     write(stdOut, '(2a)') '-> ', trim(message)
 
   end subroutine warning_single
@@ -79,7 +79,7 @@ contains
     write(stdOut, '(2a)') '-> ', trim(message)
     flush(stdOut)
     call synchronizeAll()
-    call abort()
+    call abortProgram()
 
   end subroutine error_single
 
@@ -98,7 +98,7 @@ contains
     end do
     flush(stdOut)
     call synchronizeAll()
-    call abort()
+    call abortProgram()
 
   end subroutine error_array
 
@@ -112,7 +112,7 @@ contains
     write(stdOut, '(A)') trim(message)
     flush(stdOut)
     call synchronizeAll()
-    call abort()
+    call abortProgram()
 
   end subroutine shutdown_single
 
@@ -130,8 +130,8 @@ contains
     end do
     flush(stdOut)
     call synchronizeAll()
-    call abort()
+    call abortProgram()
 
   end subroutine shutdown_array
 
-end module message
+end module dftbp_message

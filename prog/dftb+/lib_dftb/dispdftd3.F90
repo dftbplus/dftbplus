@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,14 +8,14 @@
 #:include 'common.fypp'
 
 !> DFT-D3 dispersion model.
-module dispdftd3_module
-  use assert
-  use accuracy
-  use dispiface
-  use dftd3_module
-  use periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use simplealgebra, only : determinant33
-  use constants
+module dftbp_dispdftd3_module
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_dispiface
+  use dftbp_dftd3_module
+  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_simplealgebra, only : determinant33
+  use dftbp_constants
   implicit none
   private
 
@@ -361,4 +361,4 @@ contains
 
   end subroutine addHHRepulsion
 
-end module dispdftd3_module
+end module dftbp_dispdftd3_module

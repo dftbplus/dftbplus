@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Module to wrap around the different energy components in the DFTB total energy expression
-module energies
-  use assert
-  use accuracy
+module dftbp_energies
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
   private
 
@@ -187,4 +187,4 @@ contains
 
   end subroutine Energies_init
 
-end module energies
+end module dftbp_energies

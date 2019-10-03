@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> data type and associated routines for specifying atomic geometry and boundary conditions
-module typegeometry
-  use accuracy
-  use lapackroutines
+module dftbp_typegeometry
+  use dftbp_accuracy
+  use dftbp_lapackroutines
   implicit none
   private
 
@@ -180,4 +180,4 @@ contains
   end subroutine setLattice_Geometry
 
 
-end module typegeometry
+end module dftbp_typegeometry

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Contains computer environment settings
-module environment
-  use globalenv, only : shutdown, stdOut
-  use timerarray
-  use fileregistry
+module dftbp_environment
+  use dftbp_globalenv, only : shutdown, stdOut
+  use dftbp_timerarray
+  use dftbp_fileregistry
 #:if WITH_MPI
-  use mpienv
+  use dftbp_mpienv
 #:endif
 #:if WITH_SCALAPACK
-  use blacsenv
+  use dftbp_blacsenv
 #:endif
   implicit none
   private
@@ -39,7 +39,7 @@ module environment
     integer, public :: myGroup = 0
 
     !> Global timers
-    type(TTimerArray), public :: globalTimer
+    type(TTimerArray), public, allocatable :: globalTimer
 
     !> Registry of files, which may be open and must be closed when environment is shut down
     type(TFileRegistry), public :: fileFinalizer
@@ -66,7 +66,7 @@ module environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(16) = [&
+  type(TTimerItem), parameter :: globalTimerItems(18) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -74,7 +74,9 @@ module environment
       & TTimerItem("Diagonalisation", 2),&
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
+      & TTimerItem("Range separated Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
+      & TTimerItem("Energy evaluation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
       & TTimerItem("Eigenvector writing", 2),&
       & TTimerItem("Energy-density matrix creation", 2),&
@@ -93,15 +95,17 @@ module environment
     integer :: diagonalization = 5
     integer :: sparseToDense = 6
     integer :: denseToSparse = 7
-    integer :: densityMatrix = 8
-    integer :: postScc = 9
-    integer :: eigvecWriting = 10
-    integer :: energyDensityMatrix = 11
-    integer :: forceCalc = 12
-    integer :: stressCalc = 13
-    integer :: postGeoOpt = 14
-    integer :: elecDynInit = 15
-    integer :: elecDynLoop = 16
+    integer :: rangeSeparatedH = 8
+    integer :: densityMatrix = 9
+    integer :: energyEval = 10
+    integer :: postScc = 11
+    integer :: eigvecWriting = 12
+    integer :: energyDensityMatrix = 13
+    integer :: forceCalc = 14
+    integer :: stressCalc = 15
+    integer :: postGeoOpt = 16
+    integer :: elecDynInit = 17
+    integer :: elecDynLoop = 18
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()
@@ -126,7 +130,9 @@ contains
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    call this%globalTimer%writeTimings()
+    if (allocated(this%globalTimer)) then
+      call this%globalTimer%writeTimings()
+    end if
     call this%fileFinalizer%closeAll()
     flush(stdOut)
 
@@ -163,6 +169,7 @@ contains
     !> File unit into which the table should be written
     integer, intent(in) :: unit
 
+    allocate(this%globalTimer)
     call TTimerArray_init(this%globalTimer, globalTimerItems, maxLevel=timingLevel, header=header,&
         & unit=unit)
 
@@ -219,4 +226,4 @@ contains
 #:endif
 
 
-end module environment
+end module dftbp_environment

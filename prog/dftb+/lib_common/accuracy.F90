@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,7 +9,7 @@
 !! calculation, both for the fortran numerical model and defaults for the various algorithms in the
 !! code.
 !! Not all routines use the string length specifications to set their character string lengths.
-module accuracy
+module dftbp_accuracy
   implicit none
 
   !> precision of the real data type
@@ -128,4 +128,4 @@ module accuracy
   !> Tolerance for electron chemical potential differences being considered equivalent (1E-6 eV)
   real(dp), parameter :: tolEfEquiv = 3.675E-7_dp
 
-end module accuracy
+end module dftbp_accuracy

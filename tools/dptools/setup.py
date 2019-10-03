@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from distutils.core import setup
 
 setup(
     name="dptools",
-    version='18.2',
+    version='19.1',
     description="Tools to process DFTB+ related data",
     author="DFTB+ developers",
     url="http://www.dftbplus.org",
