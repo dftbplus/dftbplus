@@ -1,4 +1,13 @@
 #
+# Toolchain file example for
+#
+# NAG compiler
+#
+# Note the CMake format: Command line options (e.g. compiler flags) space separated, other kind
+# of lists semicolon separated.
+#
+
+#
 # Fortran compiler settings
 #
 if(WITH_MPI)
@@ -63,6 +72,7 @@ set(PEXSI_EXTERNAL_LIBRARY_DIRS "/usr/lib/gcc/x86_64-linux-gnu/7" CACHE STRING
 # Any other library needed to be linked or considered as include
 set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
 set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
+set(OTHER_INCLUDE_DIRS "" CACHE STRING "Other include directories to consider")
 
 
 #

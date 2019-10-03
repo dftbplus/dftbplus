@@ -1,5 +1,5 @@
 set(INSTALL_EXPORT_NAME dftbplus-targets)
-set(MPIFX_INCLUDE_DIR "${CMAKE_BINARY_DIR}/external/mpifx/origin/src/include" CACHE STRING 
+set(MPIFX_INCLUDE_DIR "${CMAKE_BINARY_DIR}/external/mpifx/origin/lib/include" CACHE STRING
   "Where to find the MPIFX include directory")
 add_subdirectory(origin)
 set(EXPORTED_COMPILED_LIBRARIES ${EXPORTED_COMPILED_LIBRARIES} negf sparskit PARENT_SCOPE)

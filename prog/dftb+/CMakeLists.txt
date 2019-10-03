@@ -3,7 +3,6 @@
 #
 list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
-
 #
 # Compile and install library
 #
