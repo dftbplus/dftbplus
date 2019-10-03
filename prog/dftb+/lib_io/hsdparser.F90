@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,12 +16,12 @@
 !> detected during the processing of the DOM-tree.
 !>
 !> For the specification of the HSD format see the sample input
-module hsdparser
-  use assert
-  use message
-  use charmanip
-  use xmlutils
-  use xmlf90
+module dftbp_hsdparser
+  use dftbp_assert
+  use dftbp_message
+  use dftbp_charmanip
+  use dftbp_xmlutils
+  use dftbp_xmlf90
   implicit none
   private
 
@@ -677,7 +677,7 @@ contains
     character(len=*), intent(in) :: message
 
     !> Name of the current file
-    character(len=lc), intent(in) :: file
+    character(*), intent(in) :: file
 
     !> Number of current line
     integer, intent(in) :: line
@@ -685,7 +685,11 @@ contains
     character(len=lc) :: msgArray(2)
 
     !! Watch out to trunk away enough from the file name to prevent overflow
-    write (msgArray(1), 9991) trim(file(1:lc-40)), line
+    if (len_trim(file) > lc - 40) then
+      write (msgArray(1), 9991) trim(file(1:lc-40)), line
+    else
+      write (msgArray(1), 9991) trim(file), line
+    end if
 9991 format("HSD parser error: File '",A,"', Line",I5,".")
     write (msgArray(2), "(A)") trim(message(:min(lc, len(message))))
     call error(msgArray)
@@ -791,13 +795,17 @@ contains
 
 
   !> Dumps a HSD tree in a file.
-  subroutine dumpHSD_file(myDoc, file)
+  subroutine dumpHSD_file(myDoc, file, subnode)
 
     !> The DOM tree
     type(fnode), pointer :: myDoc
 
     !> Name of the file
     character(len=*), intent(in) :: file
+
+    !> Whether passed node is an arbitrary node within the tree (or the tree top node otherwise).
+    !> Default: .false.
+    logical, optional, intent(in) :: subnode
 
     integer :: fd
     integer :: iostat
@@ -808,14 +816,14 @@ contains
       fileName = file
       call parsingError("Error in opening file for the HSD output.", fileName, -1)
     end if
-    call dumpHSD_opened(myDoc, fd)
+    call dumpHSD_opened(myDoc, fd, subnode)
     close(fd)
 
   end subroutine dumpHSD_file
 
 
   !> Dumps a DOM-tree representing a HSD input in HSD format to an opened file.
-  subroutine dumpHSD_opened(myDoc, fd)
+  subroutine dumpHSD_opened(myDoc, fd, subnode)
 
     !> The DOM tree
     type(fnode), pointer :: myDoc
@@ -823,11 +831,25 @@ contains
     !> File descriptor for an open file where output should go.
     integer, intent(in) :: fd
 
+    !> Whether passed node is an arbitrary node within the tree (or the tree top node otherwise).
+    !> Default: .false.
+    logical, optional, intent(in) :: subnode
+
     type(fnode), pointer :: rootNode
     type(fnode), pointer :: child
     type(string) :: buffer
+    logical :: subnode_
 
-    rootNode => getFirstChild(myDoc)
+    if (present(subnode)) then
+      subnode_ = subnode
+    else
+      subnode_ = .false.
+    end if
+    if (subnode_) then
+      rootNode => myDoc
+    else
+      rootNode => getFirstChild(myDoc)
+    end if
     if (.not. associated(rootNode)) then
       return
     end if
@@ -1025,4 +1047,4 @@ contains
 
   end subroutine getHSDPath_recursive
 
-end module hsdparser
+end module dftbp_hsdparser

@@ -1,19 +1,19 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
-module onsitecorrection
-  use accuracy
-  use assert
-  use commontypes
-  use message
-  use nonscc, only : NonSccDiff
-  use slakocont
+module dftbp_onsitecorrection
+  use dftbp_accuracy
+  use dftbp_assert
+  use dftbp_commontypes
+  use dftbp_message
+  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_slakocont
   implicit none
   private
 
@@ -29,7 +29,7 @@ contains
     real(dp), intent(inout) :: potential(:,:,:,:)
 
     !> resulting onsite matrix elements (imaginary part)
-    real(dp), intent(inout) :: iPotential(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: iPotential(:,:,:,:)
 
     !> Block charges
     real(dp), intent(in) :: qBlock(:,:,:,:)
@@ -431,4 +431,4 @@ contains
 
   end subroutine onsblock_expand
 
-end module onsitecorrection
+end module dftbp_onsitecorrection

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,17 +9,16 @@
 
 !> Interface to libPoisson routines
 module poisson_init
-
-  use accuracy, only : dp
-  use constants, only : pi
-  use libnegf_vars, only : TTransPar
-  use commonTypes, only : TOrbitals
-  use globalenv, only : stdOut
-  use poisson
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : pi
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_globalenv, only : stdOut
+  use dftbp_message
 #:if WITH_MPI
   use libmpifx_module
 #:endif
-  use message
+  use poisson
+  use libnegf_vars, only : TTransPar
   use system_calls, only: create_directory
   implicit none
   private
@@ -168,8 +167,11 @@ module poisson_init
 contains
 
   !> Initialise gDFTB environment and variables
+#:if WITH_MPI
   subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, mpicomm, initinfo)
-
+#:else
+  subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, initinfo)
+#:endif
     !> initialisation choices for poisson solver
     Type(TPoissonStructure), intent(in) :: structure
 
@@ -184,10 +186,10 @@ contains
 
     !> Transport parameters
     Type(TTransPar), intent(in) :: transpar
-
+#:if WITH_MPI
     !> MPI details
     Type(mpifx_comm), intent(in) :: mpicomm
-
+#:endif
     !> Success of initialisation
     logical, intent(out) :: initinfo
 
@@ -200,9 +202,9 @@ contains
   #:if WITH_MPI
     call poiss_mpi_init(mpicomm)
     call poiss_mpi_split(min(poissoninfo%maxNumNodes, mpicomm%size))
-    call mpi_barrier(mpicomm, iErr)
-  #:else
-    call error("The Poisson solver currently requires MPI parallelism to be enabled")
+    call mpifx_barrier(mpicomm, iErr)
+  !#:else
+    !call error("The Poisson solver currently requires MPI parallelism to be enabled")
   #:endif
 
     write(stdOut,*)

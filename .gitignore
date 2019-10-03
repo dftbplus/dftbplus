@@ -9,12 +9,9 @@ _build*
 _install
 make.arch
 make.config
+custom.cmake
 __pycache__
 .idea
-test/prog/dftb+/transtests
-test/prog/dftb+/alltests
 RELEASE
-srun.sh
-doc/dftb+/manual/*
-!doc/dftb+/manual/*.tex
-!doc/dftb+/manual/Fig*
+tools/dptools/build
+test/prog/dftb+/transtests

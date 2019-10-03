@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,20 +9,20 @@
 
 !> Calculates the first and second derivatives of matrix elements
 program skderivs
-  use assert
-  use io
-  use Accuracy
-  use Constants
-  use Message
-  use flib_dom
-  use HSDParser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
-  use HSDUtils
-  use HSDUtils2
-  use CharManip
-  use LinkedList
-  use SlakoEqGrid
-  use OldSKData
-  use FileId
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_message
+  use xmlf90_flib_dom
+  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use dftbp_charmanip
+  use dftbp_linkedlist
+  use dftbp_slakoeqgrid
+  use dftbp_oldskdata
+  use dftbp_fileid
   implicit none
 
 
@@ -167,7 +167,7 @@ contains
     character(lc) :: strTmp
     logical :: isHSD, inputMissing, useOldInter
     type(string) :: buffer
-    integer :: angShellOrdered(size(orbitalNames))
+    integer :: angShellOrdered(size(shellNames))
     type(listIntR1) :: angShells(2)
     type(listInt), allocatable :: lIntTmp
     real(dp), allocatable :: skHam(:,:), skOver(:,:)
@@ -199,8 +199,8 @@ contains
     call getChildValue(root, "MaxAngularMomentum1", buffer, child=child)
     strTmp = unquote(char(buffer))
     call init(angShells(1))
-    do jj = 1, size(orbitalNames)
-      if (trim(strTmp) == trim(orbitalNames(jj))) then
+    do jj = 1, size(shellNames)
+      if (trim(strTmp) == trim(shellNames(jj))) then
         call append(angShells(1), angShellOrdered(:jj))
       end if
     end do
@@ -218,8 +218,8 @@ contains
       call getChildValue(root, "MaxAngularMomentum2", buffer, child=child)
       strTmp = unquote(char(buffer))
       call init(angShells(2))
-      do jj = 1, size(orbitalNames)
-        if (trim(strTmp) == trim(orbitalNames(jj))) then
+      do jj = 1, size(shellNames)
+        if (trim(strTmp) == trim(shellNames(jj))) then
           call append(angShells(2), angShellOrdered(:jj))
         end if
       end do
@@ -252,13 +252,18 @@ contains
     call init(inp%skHam, skData12(1,1)%dist, skHam, skInterMeth)
     call init(inp%skOver, skData12(1,1)%dist, skOver, skInterMeth)
 
-    call getChildValue(root, "Start", inp%from)
-    call getChildValue(root, "End", inp%to)
     call getChildValue(root, "Step", inp%step)
     call getChildValue(root, "Value", inp%value)
     call getChildValue(root, "FirstDerivative", inp%first)
     call getChildValue(root, "SecondDerivative", inp%second)
     call getChildValue(root, "Displacement", inp%displ)
+    call getChildValue(root, "Start", inp%from, child=child)
+    if (inp%from - inp%displ < skData12(1, 1)%dist) then
+      write(strTmp, "(A, F8.4)") "With given displacement, start point must be larger than ",&
+          & skData12(1, 1)%dist + inp%displ
+      call detailedError(child, trim(strTmp))
+    end if
+    call getChildValue(root, "End", inp%to, child=child)
     call getChildValue(root, "OutputPrefix", buffer)
     inp%output = unquote(char(buffer))
 

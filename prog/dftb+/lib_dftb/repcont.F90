@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,11 +12,11 @@
 !> This module contains the repulsive functions. It decides, which one to call for which type
 !> pairs. It can be easily extended to contain different repulsive schemes for different pairs. At
 !> the moment, it handles only repulsive with spline interpolation.
-module repcont
-  use assert
-  use accuracy
-  use repspline
-  use reppoly
+module dftbp_repcont
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_repspline
+  use dftbp_reppoly
   implicit none
   private
 
@@ -236,4 +236,4 @@ contains
 
   end subroutine RepCont_getEnergyDeriv
 
-end module repcont
+end module dftbp_repcont

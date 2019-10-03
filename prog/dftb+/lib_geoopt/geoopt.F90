@@ -1,17 +1,17 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> General interface for the optimization algorithms
-module geoopt
-  use accuracy
-  use conjgrad
-  use steepdesc
-  use gdiis
-  use lbfgs
+module dftbp_geoopt
+  use dftbp_accuracy
+  use dftbp_conjgrad
+  use dftbp_steepdesc
+  use dftbp_gdiis
+  use dftbp_lbfgs
   implicit none
   private
 
@@ -179,4 +179,4 @@ contains
 
   end subroutine GeoOpt_next
 
-end module geoopt
+end module dftbp_geoopt

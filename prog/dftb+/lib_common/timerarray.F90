@@ -1,17 +1,17 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
-module timerarray
-  use globalenv, only : stdOut
-  use accuracy, only : dp
-  use assert
-  use timer
+module dftbp_timerarray
+  use dftbp_globalenv, only : stdOut
+  use dftbp_accuracy, only : dp
+  use dftbp_assert
+  use dftbp_timer
   implicit none
   private
 
@@ -208,4 +208,4 @@ contains
   end subroutine writeTimings
 
 
-end module timerarray
+end module dftbp_timerarray

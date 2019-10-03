@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Helper routines for the linear response modules.
-module linrespcommon
-  use assert
-  use accuracy
-  use blasroutines
-  use sorting
-  use message
-  use commontypes
-  use onsitecorrection, only : getOnsME
-  use transcharges
+module dftbp_linrespcommon
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_blasroutines
+  use dftbp_sorting
+  use dftbp_message
+  use dftbp_commontypes
+  use dftbp_transcharges
+  use dftbp_onsitecorrection, only : getOnsME
   implicit none
   public
 
@@ -119,44 +119,6 @@ contains
   end subroutine dipSelect
 
 
-  !> counts number of transition involving either the HOMO or LUMO levels.  Used to find number of
-  !> states in the occupied and empty spaces.
-  subroutine getNorb_r(nxov, win, getij, homo, no, nv)
-
-    !> number of excitations
-    integer, intent(in) :: nxov
-
-    !> index array after sorting of eigenvalues
-    integer, intent(in) :: win(:)
-
-    !> Index array of transitions
-    integer, intent(in) :: getij(:,:)
-
-    !> index of highest occupied level
-    integer, intent(in) :: homo
-
-    !> number of occupied states with transitions into LUMO
-    integer, intent(out) :: no
-
-    !> number of virtual states involved in transitions from HOMO
-    integer, intent(out) :: nv
-
-    integer :: ia, ii, jj
-
-    no = 0
-    nv = 0
-
-    !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia,ii,jj) SCHEDULE(RUNTIME) REDUCTION(+:nv,no)
-    do ia = 1, nxov
-      call indxov(win, ia, getij, ii, jj)
-      if (ii == homo) nv = nv +1
-      if (jj == homo +1) no = no +1
-    end do
-    !$OMP  END PARALLEL DO
-
-  end subroutine getNorb_r
-
-
   !> Computes individual indices from the compound occ-virt excitation index.
   pure subroutine indxov(win, indx, getij, ii, jj)
 
@@ -185,13 +147,7 @@ contains
 
 
   !> Computes individual indices from the compound occ-occ excitation index.
-  subroutine indxoo(nocc, nocc_r, indx, ii, jj)
-
-    !> number of occupied states
-    integer, intent(in) :: nocc
-
-    !> number of required occupied-occupied transitions states
-    integer, intent(in) :: nocc_r
+  subroutine indxoo(indx, ii, jj)
 
     !> Compound excitation index.
     integer, intent(in) :: indx
@@ -202,7 +158,7 @@ contains
     !> Final state.
     integer, intent(out) :: jj
 
-    call indxvv(nocc - nocc_r, indx, ii, jj)
+    call indxvv(0, indx, ii, jj)
 
   end subroutine indxoo
 
@@ -329,8 +285,8 @@ contains
 
     !mu = iAtomStart(iAt)
     qq_ij(:,:) = 0.0_dp
-    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss), stimc(mu:mu+nOrb-1,jj,ss))
-    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss), stimc(mu:mu+nOrb-1,ii,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,ii,ss),stimc(mu:mu+nOrb-1,jj,ss))
+    !call ger(qq_ij(:nOrb,:nOrb), 0.5_dp, grndEigVecs(mu:mu+nOrb-1,jj,ss),stimc(mu:mu+nOrb-1,ii,ss))
     !qq_ij(:nOrb,:nOrb) = 0.5_dp * (qq_ij(:nOrb,:nOrb) + transpose(qq_ij(:nOrb,:nOrb)))
 
     do iOrb1 = 1, nOrb
@@ -857,4 +813,4 @@ contains
 
   end subroutine transitionDipole
 
-end module linrespcommon
+end module dftbp_linrespcommon

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,13 +9,13 @@
 
 !> Module containing various routines for DFTB+U calculations
 !> Intended to be used with SCC switched on !
-module dftbplusu
-  use assert
-  use accuracy
-  use message
-  use fileid
-  use commontypes
-  use spin
+module dftbp_dftbplusu
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_fileid
+  use dftbp_commontypes
+  use dftbp_spin
   implicit none
   private
 
@@ -692,4 +692,4 @@ contains
 
   end subroutine Block_expand
 
-end module dftbplusu
+end module dftbp_dftbplusu

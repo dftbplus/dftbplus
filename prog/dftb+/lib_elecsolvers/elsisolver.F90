@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,27 +8,27 @@
 #:include 'common.fypp'
 
 !> Contains the interface to the ELSI solvers
-module elsisolver
+module dftbp_elsisolver
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
-  use accuracy, only : dp, lc
-  use environment, only : TEnvironment, globalTimers
-  use elecsolvertypes, only : electronicSolverTypes
-  use elsiiface
-  use elsicsc
-  use densedescr
-  use periodic
-  use orbitals
-  use message, only : error, cleanshutdown
-  use commontypes, only : TParallelKS, TOrbitals
-  use energies, only : TEnergies
-  use sparse2dense
-  use assert
-  use spin, only : ud2qm
-  use angmomentum, only : getLOnsite
-  use spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
-  use potentials, only : TPotentials
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_environment, only : TEnvironment, globalTimers
+  use dftbp_elecsolvertypes, only : electronicSolverTypes
+  use dftbp_elsiiface
+  use dftbp_elsicsc
+  use dftbp_densedescr
+  use dftbp_periodic
+  use dftbp_orbitals
+  use dftbp_message, only : error, cleanshutdown
+  use dftbp_commontypes, only : TParallelKS, TOrbitals
+  use dftbp_energies, only : TEnergies
+  use dftbp_sparse2dense
+  use dftbp_assert
+  use dftbp_spin, only : ud2qm
+  use dftbp_angmomentum, only : getLOnsite
+  use dftbp_spinorbit, only : addOnsiteSpinOrbitHam, getOnsiteSpinOrbitEnergy
+  use dftbp_potentials, only : TPotentials
   implicit none
   private
 
@@ -81,6 +81,10 @@ module elsisolver
     !> Use sparse CSR format
     logical :: elsiCsr = .false.
 
+    !> Tolerance for converting from dense matrices to internal sparse storage for libOMM, PEXSI and
+    !> NTPoly.
+    real(dp) :: elsi_zero_def
+
   end type TElsiSolverInp
 
 
@@ -104,6 +108,10 @@ module elsisolver
 
     !> Use sparse CSR format
     logical, public :: isSparse = .false.
+
+    !> Tolerance for converting from dense matrices to internal sparse storage for libOMM, PEXSI and
+    !> NTPoly.
+    real(dp) :: elsi_zero_def
 
     !> ELSI Solver choice
     integer :: solver
@@ -165,8 +173,8 @@ module elsisolver
     !> If Meth-Paxton, order of scheme
     integer :: muMpOrder
 
-    !> count of the number of times ELSI has been reset (usually every geometry step)
-    integer :: nResets = 0
+    !> Whether solver had been already initialised
+    logical :: tSolverInitialised = .false.
 
     !> Has overlap been factorized
     logical :: tCholeskyDecomposed
@@ -345,7 +353,8 @@ contains
       this%spinDegeneracy = 0.0_dp
     end if
 
-    this%nSpin = nSpin
+    ! Number of spin channels passed to the ELSI library
+    this%nSpin = min(nSpin, 2)
     this%iSpin = iSpin
     this%nKPoint = nKPoint
     this%iKPoint = iKPoint
@@ -393,6 +402,8 @@ contains
     this%ntpolyTolerance = inp%ntpolyTolerance
 
     this%isSparse = inp%elsiCsr
+
+    this%elsi_zero_def = inp%elsi_zero_def
 
     ! data as dense BLACS blocks
     if (this%isSparse) then
@@ -458,122 +469,139 @@ contains
 
   #:if WITH_ELSI
 
-    if (this%nResets > 0) then
-      ! destroy previous instance of solver if called before
-      call elsi_finalize(this%handle)
+    if (this%tSolverInitialised) then
+
+      ! reset previous instance of solver
+      call elsi_reinit(this%handle)
+
+      if (this%iSolver == electronicSolverTypes%pexsi) then
+        ! reset PEXSI chemical potential search
+        this%pexsiMuMin = -10.0_dp
+        this%pexsiMuMax = 10.0_dp
+        this%pexsiDeltaVMin = 0.0_dp
+        this%pexsiDeltaVMax = 0.0_dp
+      end if
+
+    else
+
+      ! initialise solver
+
+      call elsi_init(this%handle, this%solver, this%parallel, this%denseBlacs, this%nBasis,&
+          & this%nElectron, this%nState)
+
+      call elsi_set_mpi_global(this%handle, this%mpiCommWorld)
+      call elsi_set_sing_check(this%handle, 0) ! disable singularity check
+      call elsi_set_mpi(this%handle, this%myCommWorld)
+
+      if (this%isSparse) then
+        call elsi_set_csc_blk(this%handle, this%csrBlockSize)
+      else
+        call elsi_set_zero_def(this%handle, this%elsi_zero_def)
+      end if
+      call elsi_set_blacs(this%handle, this%myBlacsCtx, this%BlacsBlockSize)
+
+      if (this%tWriteHS) then
+        ! setup to write a matrix
+        call elsi_init_rw(this%rwHandle, 1, this%parallel, this%nBasis, this%nElectron)
+        ! MPI comm
+        call elsi_set_rw_mpi(this%rwHandle, this%mpiCommWorld)
+        if (.not.this%isSparse) then
+          ! dense matrices
+          call elsi_set_rw_blacs(this%rwHandle, this%myBlacsCtx, this%BlacsBlockSize)
+          ! use default of 1E-15 for the moment, but could be over-ridden if needed, probably with a
+          ! different variable name:
+          !call elsi_set_rw_zero_def(this%rwHandle, this%elsi_zero_def)
+        end if
+      end if
+
+
+      select case(this%iSolver)
+      case(electronicSolverTypes%elpa)
+
+        select case(this%elpaSolverOption)
+        case(1)
+          ! single stage
+          call elsi_set_elpa_solver(this%handle, 1)
+        case(2)
+          ! two stage
+          call elsi_set_elpa_solver(this%handle, 2)
+        case default
+          call error("Unknown ELPA solver modes")
+        end select
+
+      case(electronicSolverTypes%omm)
+        ! libOMM
+        if (this%ommCholesky) then
+          call elsi_set_omm_flavor(this%handle, 2)
+        else
+          call elsi_set_omm_flavor(this%handle, 0)
+        end if
+        call elsi_set_omm_n_elpa(this%handle, this%ommIter)
+        call elsi_set_omm_tol(this%handle, this%ommTolerance)
+
+      case(electronicSolverTypes%pexsi)
+
+        this%pexsiMuMin = -10.0_dp
+        this%pexsiMuMax = 10.0_dp
+        this%pexsiDeltaVMin = 0.0_dp
+        this%pexsiDeltaVMax = 0.0_dp
+
+        ! processors per pole to invert for
+        call elsi_set_pexsi_np_per_pole(this%handle, this%pexsiNpPerPole)
+
+        call elsi_set_pexsi_mu_min(this%handle, this%pexsiMuMin +this%pexsiDeltaVMin)
+        call elsi_set_pexsi_mu_max(this%handle, this%pexsiMuMax +this%pexsiDeltaVMax)
+
+        ! number of poles for the expansion
+        call elsi_set_pexsi_n_pole(this%handle, this%pexsiNPole)
+
+        ! number of interpolation points for mu
+        call elsi_set_pexsi_n_mu(this%handle, this%pexsiNMu)
+
+        ! number of processors for symbolic factorisation task
+        call elsi_set_pexsi_np_symbo(this%handle, this%pexsiNpSymbo)
+
+        ! spectral radius (range of eigenspectrum, if known, otherwise default usually fine)
+        call elsi_set_pexsi_delta_e(this%handle, this%pexsiDeltaE)
+
+      case(electronicSolverTypes%ntpoly)
+
+        ! NTPoly
+        ! set purification method
+        call elsi_set_ntpoly_method(this%handle, this%ntpolyMethod)
+
+        ! set truncation tolerance for sparse matrix multiplications
+        call elsi_set_ntpoly_filter(this%handle, this%ntpolyTruncation)
+
+        ! set purification convergence threshold
+        call elsi_set_ntpoly_tol(this%handle, this%ntpolyTolerance)
+
+      end select
+
+      if (any(this%iSolver == [electronicSolverTypes%omm,&
+          & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
+        ! density matrix build needs to know the number of spin channels to normalize against
+        select case(this%nSpin)
+        case(1)
+          call elsi_set_spin(this%handle, 1, this%iSpin)
+        case(2)
+          call elsi_set_spin(this%handle, 2, this%iSpin)
+        case(4)
+          call elsi_set_spin(this%handle, 2, this%iSpin)
+        end select
+        if (this%nKPoint > 1) then
+          call elsi_set_kpoint(this%handle, this%nKPoint, this%iKPoint, this%kWeight)
+        end if
+      end if
+
+      call elsi_set_output(this%handle, this%OutputLevel)
+      if (this%OutputLevel == 3) then
+        call elsi_set_output_log(this%handle, 1)
+      end if
+      this%tSolverInitialised = .true.
     end if
-    this%nResets = this%nResets + 1
 
     this%tCholeskyDecomposed = .false.
-
-    call elsi_init(this%handle, this%solver, this%parallel, this%denseBlacs, this%nBasis,&
-        & this%nElectron, this%nState)
-
-    call elsi_set_mpi_global(this%handle, this%mpiCommWorld)
-    call elsi_set_sing_check(this%handle, 0) ! disable singularity check
-    call elsi_set_mpi(this%handle, this%myCommWorld)
-
-    if (this%isSparse) then
-      call elsi_set_csc_blk(this%handle, this%csrBlockSize)
-    end if
-    call elsi_set_blacs(this%handle, this%myBlacsCtx, this%BlacsBlockSize)
-
-    if (this%tWriteHS) then
-      ! setup to write a matrix
-      call elsi_init_rw(this%rwHandle, 1, this%parallel, this%nBasis, this%nElectron)
-      ! MPI comm
-      call elsi_set_rw_mpi(this%rwHandle, this%mpiCommWorld)
-      if (.not.this%isSparse) then
-        ! dense matrices
-        call elsi_set_rw_blacs(this%rwHandle, this%myBlacsCtx, this%BlacsBlockSize)
-      end if
-    end if
-
-
-    select case(this%iSolver)
-    case(electronicSolverTypes%elpa)
-
-      select case(this%elpaSolverOption)
-      case(1)
-        ! single stage
-        call elsi_set_elpa_solver(this%handle, 1)
-      case(2)
-        ! two stage
-        call elsi_set_elpa_solver(this%handle, 2)
-      case default
-        call error("Unknown ELPA solver modes")
-      end select
-
-    case(electronicSolverTypes%omm)
-      ! libOMM
-      if (this%ommCholesky) then
-        call elsi_set_omm_flavor(this%handle, 2)
-      else
-        call elsi_set_omm_flavor(this%handle, 0)
-      end if
-      call elsi_set_omm_n_elpa(this%handle, this%ommIter)
-      call elsi_set_omm_tol(this%handle, this%ommTolerance)
-
-    case(electronicSolverTypes%pexsi)
-
-      this%pexsiMuMin = -10.0_dp
-      this%pexsiMuMax = 10.0_dp
-      this%pexsiDeltaVMin = 0.0_dp
-      this%pexsiDeltaVMax = 0.0_dp
-
-      ! processors per pole to invert for
-      call elsi_set_pexsi_np_per_pole(this%handle, this%pexsiNpPerPole)
-
-      call elsi_set_pexsi_mu_min(this%handle, this%pexsiMuMin +this%pexsiDeltaVMin)
-      call elsi_set_pexsi_mu_max(this%handle, this%pexsiMuMax +this%pexsiDeltaVMax)
-
-      ! number of poles for the expansion
-      call elsi_set_pexsi_n_pole(this%handle, this%pexsiNPole)
-
-      ! number of interpolation points for mu
-      call elsi_set_pexsi_n_mu(this%handle, this%pexsiNMu)
-
-      ! number of processors for symbolic factorisation task
-      call elsi_set_pexsi_np_symbo(this%handle, this%pexsiNpSymbo)
-
-      ! spectral radius (range of eigenspectrum, if known, otherwise default usually fine)
-      call elsi_set_pexsi_delta_e(this%handle, this%pexsiDeltaE)
-
-    case(electronicSolverTypes%ntpoly)
-
-      ! NTPoly
-      ! set purification method
-      call elsi_set_ntpoly_method(this%handle, this%ntpolyMethod)
-
-      ! set truncation tolerance for sparse matrix multiplications
-      call elsi_set_ntpoly_filter(this%handle, this%ntpolyTruncation)
-
-      ! set purification convergence threshold
-      call elsi_set_ntpoly_tol(this%handle, this%ntpolyTolerance)
-
-    end select
-
-    if (any(this%iSolver == [electronicSolverTypes%omm,&
-        & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
-      ! density matrix build needs to know the number of spin channels to normalize against
-      select case(this%nSpin)
-      case(1)
-        call elsi_set_spin(this%handle, 1, this%iSpin)
-      case(2)
-        call elsi_set_spin(this%handle, 2, this%iSpin)
-      case(4)
-        call elsi_set_spin(this%handle, 2, this%iSpin)
-      end select
-      if (this%nKPoint > 1) then
-        call elsi_set_kpoint(this%handle, this%nKPoint, this%iKPoint, this%kWeight)
-      end if
-    end if
-
-    call elsi_set_output(this%handle, this%OutputLevel)
-    if (this%OutputLevel == 3) then
-      call elsi_set_output_log(this%handle, 1)
-    end if
-
     this%tFirstCalc = .true.
 
   #:else
@@ -841,6 +869,18 @@ contains
       call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
     end if
 
+    if (tSpinOrbit) then
+      call mpifx_allreduceip(env%mpi%globalComm, energy%atomLS, MPI_SUM)
+      energy%atomLS(:) = 2.0_dp * energy%atomLS
+    end if
+    if (tMulliken .and. tSpinOrbit .and. .not. tDualSpinOrbit) then
+      call mpifx_allreduceip(env%mpi%globalComm, orbitalL, MPI_SUM)
+      orbitalL(:,:,:) = 2.0_dp * orbitalL
+    end if
+    if (tSpinOrbit .and. .not. tDualSpinOrbit) then
+      energy%ELS = sum(energy%atomLS)
+    end if
+
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
   #:else
@@ -1056,6 +1096,7 @@ contains
   #:else
 
     solverName = ""
+
     call error("Internal error: TElsiSolver_getSolverName() called despite missing ELSI support")
 
   #:endif
@@ -1795,4 +1836,4 @@ contains
 
 #:endif
 
-end module elsisolver
+end module dftbp_elsisolver

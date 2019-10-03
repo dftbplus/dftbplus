@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,9 +10,9 @@
 !> Various types of sorting routines, and related stuff
 !> To do: add other algorithms, radix? definitely not quicksort though,
 !> but adaptive heap sorts?
-module sorting
-  use assert
-  use accuracy, only : dp
+module dftbp_sorting
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
   implicit none
   private
 
@@ -800,4 +800,4 @@ contains
 
   end function unique_int
 
-end module sorting
+end module dftbp_sorting
