@@ -17,7 +17,7 @@ module dftbp_mmapi
   use dftbp_parser
   use dftbp_hsdutils
   use dftbp_hsdhelpers, only : doPostParseJobs
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_xmlf90
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init

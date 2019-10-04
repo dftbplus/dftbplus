@@ -13,7 +13,7 @@ module dftbp_parser
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_constants
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_typegeometryhsd
   use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
   use dftbp_hsdutils
