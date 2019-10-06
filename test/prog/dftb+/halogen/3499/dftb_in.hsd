@@ -25,6 +25,7 @@ Hamiltonian = DFTB {
             a1 = 0.746
             a2 = 4.191
         }
+        s6 = 1.000
         s8 = 3.209
     }
     ThirdOrderFull = Yes
