@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- Mode: Python -*-
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
@@ -165,7 +165,7 @@ class TaggedEntry(object):
                                      }
 
     # Valid types
-    __validTypes = __strToValue.keys()
+    __validTypes = list(__strToValue.keys())
 
 
     def __init__(self, name, type, rank, shape, strValue):
