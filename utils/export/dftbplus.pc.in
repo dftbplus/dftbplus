@@ -1,0 +1,9 @@
+Name: DFTB+
+Description: Library interface to DFTB+, a fast and efficient atomistic quantum mechanical simulation tool
+Version: @PROJECT_VERSION@
+URL: https://www.dftbplus.org
+
+Requires: @PKGCONFIG_REQUIRES@
+Libs: @PKGCONFIG_LIBS@
+Libs.private: @PKGCONFIG_LIBS_PRIVATE@
+Cflags: @PKGCONFIG_C_FLAGS@

@@ -10,7 +10,9 @@
 
 !> Global variables and initialization for the main program.
 module dftbp_initprogram
+#:if WITH_OMP
   use omp_lib
+#:endif
   use dftbp_mainio, only : initOutputFile
   use dftbp_assert
   use dftbp_globalenv
@@ -953,7 +955,7 @@ module dftbp_initprogram
   !> Tunneling, local DOS and current
   real(dp), allocatable :: tunneling(:,:), ldos(:,:), current(:,:)
   real(dp), allocatable :: leadCurrents(:)
-  !> Array storing local (bond) currents 
+  !> Array storing local (bond) currents
   real(dp), allocatable :: lCurrArray(:,:)
 
   !> Poisson Derivatives (forces)
@@ -1678,16 +1680,11 @@ contains
 
     referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
 
-    ! Allocate charge arrays
-    if (tMulliken) then ! automatically true if tSccCalc
-      allocate(q0(orb%mOrb, nAtom, nSpin))
-      q0(:,:,:) = 0.0_dp
-      allocate(qShell0(orb%mShell, nAtom))
-      qShell0(:,:) = 0.0_dp
-    else
-      allocate(q0(0,0,0))
-      allocate(qShell0(0,0))
-    end if
+    ! Allocate reference charge arrays
+    allocate(q0(orb%mOrb, nAtom, nSpin))
+    q0(:,:,:) = 0.0_dp
+    allocate(qShell0(orb%mShell, nAtom))
+    qShell0(:,:) = 0.0_dp
 
     ! Initialize reference neutral atoms.
     if (tLinResp .and. allocated(input%ctrl%customOccAtoms)) then
@@ -1784,10 +1781,12 @@ contains
         call error(tmpStr)
       end if
 
-      if (omp_get_max_threads() > 1) then
-        call error("The ELSI-solvers should not be run with multiple threads. Set the&
-            & environment variable OMP_NUM_THREADS to 1 in order to disable multi-threading.")
-      end if
+      #:if WITH_OMP
+        if (omp_get_max_threads() > 1) then
+          call error("The ELSI-solvers should not be run with multiple threads. Set the&
+              & environment variable OMP_NUM_THREADS to 1 in order to disable multi-threading.")
+        end if
+      #:endif
 
       if (tSpinOrbit .and. .not.&
           & any(electronicSolver%iSolver==[electronicSolverTypes%omm,electronicSolverTypes%elpa]))&
@@ -2699,9 +2698,11 @@ contains
     end if
   #:endif
 
+  #:if WITH_OMP
     write(stdOut, "('OpenMP threads: ', T30, I0)") omp_get_max_threads()
+  #:endif
 
-  #:if WITH_MPI
+  #:if WITH_MPI and WITH_OMP
     if (omp_get_max_threads() > 1 .and. .not. input%ctrl%parallelOpts%tOmpThreads) then
       write(stdOut, *)
       call error("You must explicitely enable OpenMP threads (UseOmpThreads = Yes) if you wish to&
