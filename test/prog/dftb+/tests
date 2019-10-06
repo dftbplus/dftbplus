@@ -24,6 +24,9 @@ timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI
 
+timeprop/benzene_rangesep              #? OMP_THREADS <= 1 and not WITH_MPI
+
+
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
