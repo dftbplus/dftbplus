@@ -3114,7 +3114,7 @@ calculation and/or calculate properties.
   \kw{ProjectStates} & m & & \cb & \\
   \kw{Localise} & m & & \cb & \\
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
-  \kw{EigenvectorsAsTxt} & l & WriteEigenvectors = Yes & No & \\
+  \kw{EigenvectorsAsText} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
@@ -3235,7 +3235,7 @@ method which {\em may} have better scaling properties.
   \verb|eigenvec.bin|. For a description of the file format see
   p.~\pref{sec:dftbp.eigenvec}.
 
-\item[\is{EigenvectorsAsTxt}] If eigenvectors are being written, specifies if a
+\item[\is{EigenvectorsAsText}] If eigenvectors are being written, specifies if a
   text version of the data should be printed in \verb|eigenvec.out|. For a
   description of the file format see p.~\pref{sec:dftbp.eigenvec}.
 
@@ -3743,7 +3743,7 @@ are printed in this order, followed by the data for a second channel if spin
 polarised.
 
 The files are produced if requested by setting \is{WriteEigenvectors} =
-\is{Yes}, with \is{EigenvectorsAsTxt} being also required to produce the plain
+\is{Yes}, with \is{EigenvectorsAsText} being also required to produce the plain
 text file (see section~\ref{kw:dftbp.WriteEigenvectors} for details).
 
 \section{charges.bin / charges.dat}
