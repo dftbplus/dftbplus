@@ -16,7 +16,7 @@
 !> * Only for closed shell or colinear spin polarization (excitation energies only in that
 !>   case).
 !> * Onsite corrections are not included in this version
-module dftbp_linresp_module
+module dftbp_linresp
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_message
@@ -477,4 +477,4 @@ contains
 
   end subroutine LinResp_addGradients
 
-end module dftbp_linresp_module
+end module dftbp_linresp

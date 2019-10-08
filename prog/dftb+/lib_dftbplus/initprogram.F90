@@ -18,7 +18,7 @@ module dftbp_initprogram
   use dftbp_globalenv
   use dftbp_environment
   use dftbp_scalapackfx
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_densedescr
   use dftbp_constants
   use dftbp_elecsolvers
@@ -67,8 +67,8 @@ module dftbp_initprogram
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftbplusu
   use dftbp_dispersions
-  use dftbp_thirdorder_module
-  use dftbp_linresp_module
+  use dftbp_thirdorder
+  use dftbp_linresp
   use dftbp_RangeSeparated, only : RangeSepFunc, RangeSepFunc_init
   use dftbp_stress
   use dftbp_orbitalequiv
@@ -77,7 +77,7 @@ module dftbp_initprogram
   use dftbp_sorting, only : heap_sort
   use dftbp_linkedlist
   use dftbp_wrappedintr
-  use dftbp_xlbomd_module
+  use dftbp_xlbomd
   use dftbp_etemp, only : Fermi
 #:if WITH_SOCKETS
   use dftbp_mainio, only : receiveGeometryFromSocket
