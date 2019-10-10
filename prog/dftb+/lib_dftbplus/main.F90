@@ -25,7 +25,7 @@ module dftbp_main
   use dftbp_globalenv
   use dftbp_environment
   use dftbp_densedescr
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_nonscc
   use dftbp_eigenvects
   use dftbp_repulsive
@@ -60,17 +60,17 @@ module dftbp_main
   use dftbp_angmomentum
   use dftbp_elecconstraints
   use dftbp_pmlocalisation, only : TPipekMezey
-  use dftbp_linresp_module
+  use dftbp_linresp
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : DispersionIface
   use dftbp_xmlf90
-  use dftbp_thirdorder_module, only : ThirdOrder
+  use dftbp_thirdorder, only : ThirdOrder
   use dftbp_rangeseparated, only : RangeSepFunc
   use dftbp_simplealgebra
   use dftbp_message
   use dftbp_repcont
-  use dftbp_xlbomd_module
+  use dftbp_xlbomd
   use dftbp_slakocont
   use dftbp_linkedlist
   use dftbp_lapackroutines

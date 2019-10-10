@@ -13,7 +13,7 @@ module dftbp_parser
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_constants
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_typegeometryhsd
   use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
   use dftbp_hsdutils
@@ -64,7 +64,7 @@ module dftbp_parser
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
   !> Version of the current parser
-  integer, parameter :: parserVersion = 7
+  integer, parameter :: parserVersion = 8
 
 
   !> Version of the oldest parser for which compatibility is still maintained
@@ -3713,8 +3713,7 @@ contains
     type(control), intent(inout) :: ctrl
 
     if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
-      call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
-          & .false.)
+      call getChildValue(node, "EigenvectorsAsText", ctrl%tPrintEigVecsTxt, .false.)
     end if
 
   end subroutine readLaterAnalysis
