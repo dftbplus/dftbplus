@@ -69,7 +69,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
-  use dftbp_RangeSeparated, only : RangeSepFunc, RangeSepFunc_init
+  use dftbp_RangeSeparated
   use dftbp_stress
   use dftbp_orbitalequiv
   use dftbp_orbitals
@@ -3036,6 +3036,24 @@ contains
       end if
     end if
 
+    if (tRangeSep) then
+      write(stdOut, "(A,':',T30,A)") "Range separated hybrid", "Yes"
+      write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
+          & input%ctrl%rangeSepInp%omega
+
+      select case(input%ctrl%rangeSepInp%rangeSepAlg)
+      case (rangeSepTypes%neighbour)
+        write(stdOut, "(2X,A,':',T30,E14.6,A)") "Spatially cutoff at",&
+            & input%ctrl%rangeSepInp%cutoffRed * Bohr__AA," A"
+      case (rangeSepTypes%threshold)
+        write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
+            & input%ctrl%rangeSepInp%screeningThreshold
+      case default
+        call error("Unknown range separated hybrid method")
+      end select
+    end if
+
+
     write(stdOut, "(A,':')") "Extra options"
     if (tPrintMulliken) then
       write(stdOut, "(T30,A)") "Mulliken analysis"
@@ -4387,7 +4405,7 @@ contains
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
     end if
-    if (tReadChrg .and. rangeSepInp%rangeSepAlg == "tr") then
+    if (tReadChrg .and. rangeSepInp%rangeSepAlg == rangeSepTypes%threshold) then
       call error("Restart on thresholded range separation not working correctly")
     end if
     if (tShellResolved) then
