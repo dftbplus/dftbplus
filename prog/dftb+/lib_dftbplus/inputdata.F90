@@ -81,7 +81,7 @@ module dftbp_inputdata_module
     real(dp) :: screeningThreshold
     real(dp) :: cutoffRed
     real(dp) :: omega
-    character(lc) :: rangeSepAlg
+    integer :: rangeSepAlg
   end type TRangeSepInp
 
 

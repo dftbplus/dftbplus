@@ -5586,12 +5586,12 @@ contains
       call getNodeName(value2, buffer)
       select case(char(buffer))
       case ("neighbourbased")
-        input%rangeSepAlg = "nb"
+        input%rangeSepAlg = rangeSepTypes%neighbour
         call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
         call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
       case ("thresholded")
-        input%rangeSepAlg = "tr"
+        input%rangeSepAlg = rangeSepTypes%threshold
         call getChildValue(value2, "Threshold", input%screeningThreshold, 1e-6_dp)
         call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
