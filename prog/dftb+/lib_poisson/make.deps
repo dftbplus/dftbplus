@@ -1,10 +1,10 @@
-bulkpot.o: _mod_gewald _mod_gprecision _mod_structure _mod_mpi_poisson _mod_parameters _mod_gallocation _mod_gconstants
-bulkpot.o = bulkpot.o $(_mod_gewald) $(_mod_gprecision) $(_mod_structure) $(_mod_mpi_poisson) $(_mod_parameters) $(_mod_gallocation) $(_mod_gconstants)
+bulkpot.o: _mod_gprecision _mod_gconstants _mod_gallocation _mod_parameters _mod_structure _mod_mpi_poisson _mod_gewald
+bulkpot.o = bulkpot.o $(_mod_gprecision) $(_mod_gconstants) $(_mod_gallocation) $(_mod_parameters) $(_mod_structure) $(_mod_mpi_poisson) $(_mod_gewald)
 _mod_bulkpot: bulkpot.o
 _mod_bulkpot = $(bulkpot.o)
 
-fancybc.o: _mod_mpi_poisson _mod_bulkpot _mod_gprecision _mod_parameters
-fancybc.o = fancybc.o $(_mod_mpi_poisson) $(_mod_bulkpot) $(_mod_gprecision) $(_mod_parameters)
+fancybc.o: _mod_gprecision _mod_parameters _mod_bulkpot _mod_mpi_poisson
+fancybc.o = fancybc.o $(_mod_gprecision) $(_mod_parameters) $(_mod_bulkpot) $(_mod_mpi_poisson)
 _mod_fancybc: fancybc.o
 _mod_fancybc = $(fancybc.o)
 
@@ -55,13 +55,13 @@ parameters.o = parameters.o $(_mod_gprecision) $(_mod_gconstants)
 _mod_parameters: parameters.o
 _mod_parameters = $(parameters.o)
 
-parcheck.o: _mod_gprecision _mod_structure _mod_mpi_poisson _mod_std_io _mod_parameters _mod_gconstants
-parcheck.o = parcheck.o $(_mod_gprecision) $(_mod_structure) $(_mod_mpi_poisson) $(_mod_std_io) $(_mod_parameters) $(_mod_gconstants)
+parcheck.o: _mod_gprecision _mod_parameters _mod_structure _mod_mpi_poisson _mod_std_io _mod_gconstants
+parcheck.o = parcheck.o $(_mod_gprecision) $(_mod_parameters) $(_mod_structure) $(_mod_mpi_poisson) $(_mod_std_io) $(_mod_gconstants)
 _mod_parcheck: parcheck.o
 _mod_parcheck = $(parcheck.o)
 
-poisson.o: _mod_gewald _mod_gclock common.fypp _mod_gprecision _mod_structure _mod_bulkpot _mod_mpi_poisson _mod_std_io _mod_parameters _mod_gallocation _mod_gconstants _mod_parcheck _mod_fancybc
-poisson.o = poisson.o $(_mod_gewald) $(_mod_gclock) $(common.fypp) $(_mod_gprecision) $(_mod_structure) $(_mod_bulkpot) $(_mod_mpi_poisson) $(_mod_std_io) $(_mod_parameters) $(_mod_gallocation) $(_mod_gconstants) $(_mod_parcheck) $(_mod_fancybc)
+poisson.o: common.fypp _mod_gconstants _mod_gprecision _mod_gallocation _mod_parameters _mod_structure _mod_parcheck _mod_gewald _mod_bulkpot _mod_gclock _mod_fancybc _mod_mpi_poisson _mod_std_io
+poisson.o = poisson.o $(common.fypp) $(_mod_gconstants) $(_mod_gprecision) $(_mod_gallocation) $(_mod_parameters) $(_mod_structure) $(_mod_parcheck) $(_mod_gewald) $(_mod_bulkpot) $(_mod_gclock) $(_mod_fancybc) $(_mod_mpi_poisson) $(_mod_std_io)
 _mod_poisson: poisson.o
 _mod_poisson = $(poisson.o)
 
@@ -70,8 +70,8 @@ std_io.o = std_io.o
 _mod_std_io: std_io.o
 _mod_std_io = $(std_io.o)
 
-structure.o: _mod_mpi_poisson _mod_gprecision _mod_gallocation
-structure.o = structure.o $(_mod_mpi_poisson) $(_mod_gprecision) $(_mod_gallocation)
+structure.o: _mod_gprecision _mod_gallocation _mod_mpi_poisson
+structure.o = structure.o $(_mod_gprecision) $(_mod_gallocation) $(_mod_mpi_poisson)
 _mod_structure: structure.o
 _mod_structure = $(structure.o)
 
