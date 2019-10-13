@@ -32,6 +32,7 @@ module dftbp_sparse2dense
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
   public :: packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs, packERhoPauliBlacs
+  public :: unpackHSdkBlacs
 #:endif
 
 
@@ -1423,6 +1424,91 @@ contains
   end subroutine blockAntiSymmetrizeHS_real
 
 
+  !> Derivative wrt to k of Unpacked sparse matrix to square form (complex version) Note the non
+  !> on-site blocks are only filled in the lower triangle part of the matrix. To fill the matrix
+  !> completely, apply the blockSymmetrizeHS subroutine.
+  subroutine unpackHSdk(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
+      & iAtomStart, iPair, img2CentCell, iDir)
+
+    !> Square form matrix on exit wrt to k_(x,y,z)
+    complex(dp), intent(out) :: square(:, :)
+
+    !> Sparse matrix
+    real(dp), intent(in) :: orig(:)
+
+    !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index of the cell translation vector for each atom.
+    integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
+    real(dp), intent(in) :: cellVec(:, :)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Map from images of atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Direction in which to calculate derivatives
+    integer, intent(in) :: iDir
+
+    complex(dp) :: phase
+    integer :: nAtom
+    integer :: iOrig, ii, jj
+    integer :: iNeigh
+    integer :: iOldVec, iVec
+    integer :: iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2
+    real(dp) :: kPoint2p(3)
+
+    nAtom = size(iNeighbour, dim=2)
+
+    @:ASSERT(nAtom > 0)
+    @:ASSERT(size(square, dim=1) == size(square, dim=2))
+    @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
+    @:ASSERT(all(shape(kPoint) == [3]))
+    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
+    @:ASSERT(size(iAtomStart) == nAtom + 1)
+
+    square(:, :) = cmplx(0, 0, dp)
+    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    iOldVec = 0
+    phase = 1.0_dp
+    do iAtom1 = 1, nAtom
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = iAtomStart(iAtom2f)
+        @:ASSERT(jj >= ii)
+        nOrb2 = iAtomStart(iAtom2f + 1) - jj
+        iVec = iCellVec(iAtom2)
+        if (iVec /= iOldVec) then
+          phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
+          iOldVec = iVec
+        end if
+        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
+            & + imag * 2.0_dp * pi * cellVec(iDir, iVec) * phase *&
+            & reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
+      end do
+    end do
+
+  end subroutine unpackHSdk
+
+
 #:if WITH_SCALAPACK
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Scalapack routines
@@ -2368,19 +2454,18 @@ contains
 
   end subroutine packERhoPauliBlacs
 
-#:endif
 
+  !> Unpacks sparse H into distributed dense matrix (complex)
+  !>
+  !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
+  !>
+  subroutine unpackHSdkBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
+      & iPair, img2CentCell, desc, square, iDir)
 
-  !> Derivative wrt to k of Unpacked sparse matrix to square form (complex version) Note the non
-  !> on-site blocks are only filled in the lower triangle part of the matrix. To fill the matrix
-  !> completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackHSdk(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iAtomStart, iPair, img2CentCell, iK)
+    !> BLACS matrix descriptor
+    type(TBlacsEnv), intent(in) :: myBlacs
 
-    !> Square form matrix on exit wrt to k_(x,y,z)
-    complex(dp), intent(out) :: square(:, :)
-
-    !> Sparse matrix
+    !> sparse matrix
     real(dp), intent(in) :: orig(:)
 
     !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
@@ -2398,62 +2483,71 @@ contains
     !> Relative coordinates of the cell translation vectors.
     real(dp), intent(in) :: cellVec(:, :)
 
-    !> Atom offset for the squared Hamiltonian
-    integer, intent(in) :: iAtomStart(:)
-
     !> indexing array for the sparse Hamiltonian
     integer, intent(in) :: iPair(0:, :)
 
-    !> Map from images of atoms to central cell atoms
+    !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
+    !> Dense matrix description
+    type(TDenseDescr), intent(in) :: desc
+
+    !> dense matrix part of distributed whole
+    complex(dp), intent(out) :: square(:, :)
+
     !> Direction in which to calculate derivatives
-    integer, intent(in) :: iK
+    integer, intent(in) :: iDir
 
     complex(dp) :: phase
     integer :: nAtom
-    integer :: iOrig, ii, jj
+    integer :: iOrig, nOrb1, nOrb2, ii, jj
     integer :: iNeigh
     integer :: iOldVec, iVec
     integer :: iAtom1, iAtom2, iAtom2f
-    integer :: nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
 
     nAtom = size(iNeighbour, dim=2)
 
     @:ASSERT(nAtom > 0)
-    @:ASSERT(size(square, dim=1) == size(square, dim=2))
-    @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
-    @:ASSERT(all(shape(kPoint) == [3]))
-    @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
-    @:ASSERT(size(iAtomStart) == nAtom + 1)
+    @:ASSERT(size(kPoint) == 3)
+    @:ASSERT(size(nNeighbourSK) == nAtom)
+    @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
     square(:, :) = cmplx(0, 0, dp)
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
-      ii = iAtomStart(iAtom1)
-      nOrb1 = iAtomStart(iAtom1 + 1) - ii
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = iAtomStart(iAtom2f)
-        @:ASSERT(jj >= ii)
-        nOrb2 = iAtomStart(iAtom2f + 1) - jj
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
           phase = exp(imag * dot_product(kPoint2p, cellVec(:, iVec)))
           iOldVec = iVec
         end if
-        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
-            & + imag * 2.0_dp * pi * cellVec(iK, iVec) * phase *&
-            & reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])
+        call scalafx_addl2g(myBlacs%orbitalGrid,&
+            & imag * 2.0_dp * pi * cellVec(iDir, iVec) * phase *&
+            & reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1]),&
+            & desc%blacsOrbSqr, jj, ii, square)
+        if (iAtom1 /= iAtom2f) then
+          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(&
+              & imag * 2.0_dp * pi * cellVec(iDir, iVec) * phase *&
+              & reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1]))),&
+              & desc%blacsOrbSqr, ii, jj, square)
+        end if
       end do
     end do
 
-  end subroutine unpackHSdk
+  end subroutine unpackHSdkBlacs
+
+
+#:endif
 
 
 end module dftbp_sparse2dense

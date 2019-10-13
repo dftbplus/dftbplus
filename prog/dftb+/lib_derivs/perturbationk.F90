@@ -139,12 +139,12 @@ contains
 
     integer :: nIndepHam, nSpin, nOrbs, nKpts, iAt1, iNeigh, iAt2, iAt2f, ii, jj, kk, iCell, iSpin
     integer :: iDir, iK, iOrb, iKS, iS, iCart
-    real(dp), allocatable :: dHam(:,:), dOver(:), dEi(:,:,:)
+    real(dp), allocatable :: dHam(:,:), dOver(:), dEi(:,:,:,:)
     real(dp) :: vec(3)
     complex(dp), allocatable :: dPsi(:,:,:,:), dHamSqr(:,:), dOverSqr(:,:), workLocal(:,:)
     complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:,:), eCi(:,:), work2Local(:,:)
-    complex(dp), allocatable :: work3Local(:,:)
-
+    complex(dp), allocatable :: work3Local(:,:), eigvecsTransformed(:,:)
+    logical :: tTransformed
     integer :: fdResults
 
     !complex(dp), allocatable :: U(:,:)
@@ -157,26 +157,142 @@ contains
     ! need distributed matrix descriptors
     integer :: desc(DLEN_), nn
 
-    nn = denseDesc%fullSize
-    call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
-        & env%blacs%columnBlockSize, desc)
+    type(blocklist) :: blocks
+    integer :: iLoc, iGlob, jGlob, blockSize
+
+
   #:endif
 
     if (.not.allocated(eigVecsCplx)) then
       call error("Missing complex eigenvectors")
     end if
 
-  #:if WITH_SCALAPACK
-  #:else
+    nOrbs = size(eigVals,dim=1)
+    nSpin = size(eigVals,dim=3)
+    nKpts = size(eigVals,dim=2)
 
-    nSpin = size(ham, dim=2)
-    nOrbs = size(eigVecsCplx,dim=1)
-    nKpts = size(kpoint, dim=2)
+    allocate(dEi(nOrbs, nKpts, nSpin, 3))
+    dEi(:,:,:,:) = 0.0_dp
+
+  #:if WITH_SCALAPACK
+
+
+    nn = denseDesc%fullSize
+    call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
+        & env%blacs%columnBlockSize, desc)
+
+    allocate(dHamSqr(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
+    allocate(dOverSqr(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
+    allocate(eCi(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
+    allocate(workLocal(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
+    allocate(work2local(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
+
+    call transform%init()
+
+    do iKS = 1, parallelKS%nLocalKS
+
+
+      iK = parallelKS%localKS(1, iKS)
+      iS = parallelKS%localKS(2, iKS)
+
+
+      call blocks%init(env%blacs%orbitalGrid, desc, "c")
+
+      do iCart = 1, 3
+
+        eigvecsTransformed = eigVecsCplx(:,:,iKS)
+
+        call unpackHSdkBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, dHamSqr,&
+            & iCart)
+
+        call unpackHSdkBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, dOverSqr,&
+            & iCart)
+
+        ! e_i |c_i>
+        do ii = 1, size(blocks)
+          call blocks%getblock(ii, iGlob, iLoc, blockSize)
+          do jj = 0, min(blockSize - 1, nOrbs - iGlob)
+            eCi(:, iLoc + jj) = eigVals(iGlob + jj, iK, iS) * eigVecsCplx(:, iLoc + jj, iKS)
+          end do
+        end do
+
+        ! H' <c|
+        call pblasfx_phemm(dHamSqr, denseDesc%blacsOrbSqr, eigVecsCplx(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr)
+
+        ! H' - e S' <c|
+        call pblasfx_phemm(dOverSqr, denseDesc%blacsOrbSqr, eCi,&
+            & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, alpha=(-1.0_dp,0.0_dp),&
+            & beta=(1.0_dp,0.0_dp))
+
+        ! |c> H' - e S' <c|
+        call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr, eigVecsCplx(:,:,iKS),&
+            & denseDesc%blacsOrbSqr, work2local, denseDesc%blacsOrbSqr, transa="C")
+
+        call transform%generateUnitary(env, work2local, eigvals(:,iK,iS),&
+            & eigVecsTransformed, denseDesc, tTransformed)
+
+        ! now have states orthogonalised agains the operator in degenerate cases, |c~>
+
+        !if (tTransformed) then
+          ! re-form |c> H' - e S' <c| with the transformed vectors
+
+          ! e_i |c~_i>
+          do ii = 1, size(blocks)
+            call blocks%getblock(ii, iGlob, iLoc, blockSize)
+            do jj = 0, min(blockSize - 1, nOrbs - iGlob)
+              eCi(:, iLoc + jj) = eigVals(iGlob + jj, iK, iS) * eigVecsTransformed(:, iLoc + jj)
+            end do
+          end do
+
+          ! H' <c~|
+          call pblasfx_phemm(dHamSqr, denseDesc%blacsOrbSqr, eigVecsTransformed,&
+              & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr)
+
+          ! H' - e S' <c~|
+          call pblasfx_phemm(dOverSqr, denseDesc%blacsOrbSqr, eCi,&
+              & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, alpha=(-1.0_dp,0.0_dp),&
+              & beta=(1.0_dp,0.0_dp))
+
+          ! |c~> H' - e S' <c~|
+          call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr, eigVecsTransformed,&
+              & denseDesc%blacsOrbSqr, work2local, denseDesc%blacsOrbSqr, transa="C")
+        !end if
+
+        if (allocated(dEi)) then
+          ! derivative of eigenvalues stored in diagonal of matrix work2Local, from <c|h'|c>
+          do jj = 1, size(work2Local,dim=2)
+            jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+                & env%blacs%orbitalGrid%ncol)
+            do ii = 1, size(work2Local,dim=1)
+              iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+                  & env%blacs%orbitalGrid%nrow)
+              if (iGlob == jGlob) then
+                write(*,*)iGlob,real(work2Local(ii,jj),dp) * Hartree__eV
+                dEi(iGlob, iK, iS, iCart) = real(work2Local(ii,jj),dp)
+              end if
+            end do
+          end do
+        end if
+        write(*,*)
+
+
+
+      end do
+
+    end do
+
+    if (allocated(dEi)) then
+      call mpifx_allreduceip(env%mpi%globalComm, dEi, MPI_SUM)
+    end if
+
+  #:else
 
     allocate(dHamSqr(nOrbs, nOrbs))
     allocate(dOverSqr(nOrbs, nOrbs))
     allocate(eCi(nOrbs, nOrbs))
-    allocate(dEi(nOrbs, parallelKS%nLocalKS, 3))
 
     allocate(workLocal(nOrbs, nOrbs))
     allocate(work2Local(nOrbs, nOrbs))
@@ -188,6 +304,8 @@ contains
 
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
+
+      ! e_i <c_i|
       do iOrb = 1, nOrbs
         eCi(:,iOrb) = eigvals(iOrb,iK,iS) * eigvecsCplx(:,iOrb,iKS)
       end do
@@ -212,7 +330,7 @@ contains
         ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
         if (allocated(dEi)) then
           do ii = 1, nOrbs
-            dEi(ii, iKS, iCart) = real(workLocal(ii,ii), dp)
+            dEi(ii, iK, iS, iCart) = real(workLocal(ii,ii), dp)
           end do
         end if
 
@@ -250,32 +368,33 @@ contains
 
     call transform%destroy()
 
-    if (tWriteAutoTest) then
-      open(newunit=fdResults, file=trim(autoTestTagFile), position="append")
-      call taggedWriter%write(fdResults, tagLabels%dEigenDk, dEi)
-      close(fdResults)
-    end if
-    if (tWriteTaggedOut) then
-      open(newunit=fdResults, file=trim(taggedResultsFile), action="write", status="old",&
-          & position="append")
-      call taggedWriter%write(fdResults, tagLabels%dEigenDk, dEi)
-      close(fdResults)
-    end if
-
-    if (tWriteDetailedOut) then
-      write(fdDetailedOut,*)'Linear response derivatives or eigenvalues (eV) wrt to k(x,y,z)'
-      do iKS = 1, parallelKS%nLocalKS
-        iK = parallelKS%localKS(1, iKS)
-        iS = parallelKS%localKS(2, iKS)
-        write(fdDetailedOut,"(1X,A,I2,A,I0)")'Spin ',iS,' kpoint ', iK
-        do iOrb = 1, nOrbs
-          write(fdDetailedOut,"(I6,3F10.3)")iOrb, Hartree__eV * dEi(iOrb, iKS, :)
-        end do
-      end do
-      write(fdDetailedOut,*)
-    end if
-
   #:endif
+
+    if (allocated(dEi) .and. env%tGlobalMaster) then
+      if (tWriteAutoTest) then
+        open(newunit=fdResults, file=trim(autoTestTagFile), position="append")
+        call taggedWriter%write(fdResults, tagLabels%dEigenDk, dEi)
+        close(fdResults)
+      end if
+      if (tWriteTaggedOut) then
+        open(newunit=fdResults, file=trim(taggedResultsFile), action="write", status="old",&
+            & position="append")
+        call taggedWriter%write(fdResults, tagLabels%dEigenDk, dEi)
+        close(fdResults)
+      end if
+      if (tWriteDetailedOut) then
+        write(fdDetailedOut,*)'Linear response derivatives or eigenvalues (eV) wrt to k(x,y,z)'
+        do iK = 1, nKpts
+          do iS = 1, nSpin
+            write(fdDetailedOut,"(1X,A,I2,A,I0)")'Spin ',iS,' kpoint ', iK
+            do iOrb = 1, nOrbs
+              write(fdDetailedOut,"(I6,3F10.3)")iOrb, Hartree__eV * dEi(iOrb, iK, iS, :)
+            end do
+          end do
+        end do
+        write(fdDetailedOut,*)
+      end if
+    end if
 
   end subroutine dPsidK
 

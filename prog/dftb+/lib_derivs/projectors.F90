@@ -13,6 +13,8 @@ module dftbp_projectBLACS
   use dftbp_message
   use dftbp_commontypes
   use dftbp_blasroutines
+  use dftbp_periodic, only : TNeighbourList
+  use dftbp_densedescr
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx
   use dftbp_blacsenv
@@ -335,13 +337,13 @@ contains
       call gemm(Pct(:,:,iSpin),Pc(:,:,iSpin),SSqrReal,transA='T')
     end do
     !PcT = matmul(Pc,SSqrReal)
-    ALLOCATE_(arrayTmp,(size(ci,dim=1),size(ci,dim=2)))
+    allocate(arrayTmp(size(ci,dim=1),size(ci,dim=2)))
     !Pc = matmul(SSqrReal,Pc)
     do iSpin = 1, nSpin
       call gemm(arrayTmp,SSqrReal,Pc(:,:,iSpin),transA='T')
       Pc(:,:,iSpin) = arrayTmp
     end do
-    DEALLOCATE_(arrayTmp)
+    deallocate(arrayTmp)
 
     do iSpin = 1, nSpin
       do ii = 1, size(ci,dim=2)

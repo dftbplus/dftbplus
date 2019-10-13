@@ -15,6 +15,12 @@ module dftbp_rotateDegenerateOrbs
   use dftbp_qm
   use dftbp_message
   use dftbp_wrappedintr
+#:if WITH_SCALAPACK
+  use dftbp_environment
+  use libscalapackfx_module
+  use linecomm_module
+  use dftbp_densedescr
+#:endif
   implicit none
   private
 
@@ -86,6 +92,7 @@ module dftbp_rotateDegenerateOrbs
     procedure :: generateRealUnitary
     generic :: generateUnitary => generateCmplxUnitary, generateRealUnitary
 
+  #:if not WITH_SCALAPACK
     !> Transform a matrix to be suitable for degenerate perturbation
     procedure :: degenerateCmplxTransform
     procedure :: degenerateRealTransform
@@ -95,6 +102,8 @@ module dftbp_rotateDegenerateOrbs
     procedure :: applyCmplxUnitary
     procedure :: applyRealUnitary
     generic :: applyUnitary => applyCmplxUnitary, applyRealUnitary
+
+  #:endif
 
     !> Are a pair of states in the same degenerate group
     procedure :: degenerate
@@ -161,7 +170,168 @@ contains
 
 #:if WITH_SCALAPACK
 
-  ! to do
+#:for NAME, TYPE, LABEL in FLAVOURS
+
+  !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
+  !> orthogonal under the action of the matrix. This is the ${TYPE}$ case.
+  subroutine generate${LABEL}$Unitary(self, env, matrixToProcess, ei, eigVecs, denseDesc,&
+      & tTransformed)
+
+    !> Instance
+    class(TDegeneracyTransform), intent(inout) :: self
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Matrix elements between (potentially degenerate) orbitals
+    ${TYPE}$(dp), intent(in) :: matrixToProcess(:,:)
+
+    !> Eigenvalues of local block of degenerate matrix
+    real(dp), intent(in) :: ei(:)
+
+    !> Eigenvectors for rotate
+    ${TYPE}$(dp), intent(inout) :: eigVecs(:,:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Are and vectors from degenerate eigenvalues, so transformed
+    logical, intent(out) :: tTransformed
+
+    integer, allocatable :: degeneracies(:)
+    integer :: eiRange(2), maxRange, nInBlock, iGrp, iEnd, iStart, iGet
+    type(linecomm) :: communicator
+    ${TYPE}$(dp), allocatable :: localMatrix(:,:), localMatrixCols(:,:)
+    real(dp), allocatable :: eigenvals(:)
+
+  #:if TYPE == 'real'
+    real(dp), parameter :: one = 1.0_dp
+    real(dp), parameter :: zero = 0.0_dp
+  #:else
+    real(dp), parameter :: one = (1.0_dp, 0.0_dp)
+    real(dp), parameter :: zero = (0.0_dp, 0.0_dp)
+  #:endif
+
+    self%nOrb = size(ei)
+    if (all(self%eiRange == [-1,-1] )) then
+      eiRange(:) = [1, self%nOrb]
+    else
+      eiRange(:) = self%eiRange
+    end if
+
+    if (allocated(self%blockRange)) then
+      if (any(shape(self%blockRange) /= [2, self%nOrb])) then
+        deallocate(self%blockRange)
+      end if
+    end if
+    if (.not.allocated(self%blockRange)) then
+      allocate(self%blockRange(2, self%nOrb))
+    end if
+    self%blockRange(:,:) = 0
+    if (allocated(self%degenerateGroup)) then
+      if (size(self%degenerateGroup) /= self%nOrb) then
+        deallocate(self%degenerateGroup)
+      end if
+    end if
+    if (.not.allocated(self%degenerateGroup)) then
+      allocate(self%degenerateGroup(self%nOrb))
+    end if
+
+    call degeneracyRanges(self%blockRange, self%nGrp, Ei, self%tolerance, eiRange,&
+        & self%degenerateGroup)
+
+    maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
+
+
+    if (maxRange > self%minDegenerateStates) then
+      call error("Degenerate group exceeds reasonable size for one node to process")
+      ! should add a dense case to cope with this -- blank out non-degenerate elements, diagonalise
+      ! whole matrix and then use pgemm with eigenvectors
+    end if
+
+    allocate(eigenvals(maxRange))
+
+    if (maxRange == 1) then
+      tTransformed = .false.
+      return
+    end if
+    tTransformed = .true.
+
+    call communicator%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
+
+    allocate(localMatrixCols(self%nOrb, maxRange))
+    allocate(localMatrix(maxRange, maxRange))
+    localMatrixCols(:,:) = 0.0_dp
+    localMatrix(:,:) = 0.0_dp
+
+    do iGrp = 1, self%nGrp
+      iStart = self%blockRange(1,iGrp)
+      iEnd = self%blockRange(2,iGrp)
+      nInBlock = iEnd - iStart + 1
+      if (nInBlock == 1) then
+        cycle
+      end if
+      localMatrix(:,:) = 0.0_dp
+      do iGet = iStart, iEnd
+
+        if (env%mpi%tGroupMaster) then
+
+          call communicator%getline_master(env%blacs%orbitalGrid, iGet, matrixToProcess,&
+              & localMatrixCols(:,iGet-iStart+1))
+
+          localMatrix(:iEnd-iStart+1,iGet-iStart+1) = localMatrixCols(iStart:iEnd,iGet-iStart+1)
+
+          ! now get eigenvectors into this structure
+          call communicator%getline_master(env%blacs%orbitalGrid, iGet, eigvecs,&
+              & localMatrixCols(:,iGet-iStart+1))
+
+        else
+
+          ! send matrix rows
+          call communicator%getline_slave(env%blacs%orbitalGrid, iGet, matrixToProcess)
+
+          ! send eigenvectors
+          call communicator%getline_slave(env%blacs%orbitalGrid, iGet, eigvecs)
+
+        end if
+
+      end do
+
+      if (env%mpi%tGroupMaster) then
+        call heev(localMatrix(:nInBlock, :nInBlock), eigenvals, 'L', 'V')
+
+        if (self%tReverseOrder) then
+          localMatrix(:nInBlock, :nInBlock) = localMatrix(:nInBlock, nInBlock:1:-1)
+        end if
+
+        localMatrixCols(:,:nInBlock) = matmul(localMatrixCols(:,:nInBlock),&
+            & localMatrix(:nInBlock, :nInBlock))
+      end if
+
+
+
+      do iGet = iStart, iEnd
+
+        if (env%mpi%tGroupMaster) then
+
+          ! now send transformed eigenvectors back
+          call communicator%setline_master(env%blacs%orbitalGrid, iGet,&
+              & localMatrixCols(:,iGet-iStart+1), eigvecs)
+
+        else
+
+          ! set relevant eigenvectors to the transformed ones
+          call communicator%setline_slave(env%blacs%orbitalGrid, iGet, eigvecs)
+
+        end if
+
+      end do
+
+    end do
+
+  end subroutine generate${LABEL}$Unitary
+
+#:endfor
 
 #:else
 
@@ -180,7 +350,7 @@ contains
     !> Eigenvalues of local block of degenerate matrix
     real(dp), intent(in) :: ei(:)
 
-    integer :: ii, nGrp, iGrp, maxRange, nInBlock, iS, iE
+    integer :: ii, nGrp, iGrp, maxRange, nInBlock, iStart, iEnd
     integer, allocatable :: degeneracies(:)
     ${TYPE}$(dp), allocatable :: subBlock(:,:)
     real(dp), allocatable :: eigenvals(:)
@@ -222,8 +392,6 @@ contains
 
     call degeneracyRanges(self%blockRange, self%nGrp, Ei, self%tolerance, eiRange,&
         & self%degenerateGroup)
-
-    write(*,*)'groups',self%degenerateGroup
 
     maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
     if (maxRange == 1) then
@@ -283,19 +451,19 @@ contains
     do iGrp = 1, self%nGrp
       subBlock(:,:) = zero
       eigenvals(:) = 0.0_dp
-      iS = self%blockRange(1,iGrp)
-      iE = self%blockRange(2,iGrp)
-      nInBlock = iE - iS + 1
+      iStart = self%blockRange(1,iGrp)
+      iEnd = self%blockRange(2,iGrp)
+      nInBlock = iEnd - iStart + 1
       if (nInBlock == 1) then
         cycle
       end if
-      subBlock(:nInBlock, :nInBlock) = matrixToProcess(iS:iE, iS:iE)
+      subBlock(:nInBlock, :nInBlock) = matrixToProcess(iStart:iEnd, iStart:iEnd)
       call heev(subBlock(:nInBlock, :nInBlock), eigenvals, 'L', 'V')
       if (self%tFullUMatrix) then
         if (self%tReverseOrder) then
-          self%${LABEL}$U(iS:iE, iS:iE) = subBlock(:nInBlock, nInBlock:1:-1)
+          self%${LABEL}$U(iStart:iEnd, iStart:iEnd) = subBlock(:nInBlock, nInBlock:1:-1)
         else
-          self%${LABEL}$U(iS:iE, iS:iE) = subBlock(:nInBlock, :nInBlock)
+          self%${LABEL}$U(iStart:iEnd, iStart:iEnd) = subBlock(:nInBlock, :nInBlock)
         end if
       else
         if (self%tReverseOrder) then
@@ -319,7 +487,7 @@ contains
     !> Matrix elements between (potentially degenerate) orbitals
     ${TYPE}$(dp), intent(inout) :: matrixToProcess(:,:)
 
-    integer :: iGrp, nGrp, iS, iE, ii, jj
+    integer :: iGrp, nGrp, iStart, iEnd, ii, jj
 
     if (self%tFullUMatrix) then
 
@@ -329,36 +497,38 @@ contains
 
       do iGrp = 1, self%nGrp
 
-        iS = self%blockRange(1,iGrp)
-        iE = self%blockRange(2,iGrp)
-        if (iS == iE) then
+        iStart = self%blockRange(1,iGrp)
+        iEnd = self%blockRange(2,iGrp)
+        if (iStart == iEnd) then
           cycle
         end if
 
-        matrixToProcess(:,iS:iE) = matmul(matrixToProcess(:,iS:iE), self%${LABEL}$UBlock(iGrp)%data)
+        matrixToProcess(:,iStart:iEnd) = matmul(matrixToProcess(:,iStart:iEnd),&
+            & self%${LABEL}$UBlock(iGrp)%data)
 
       end do
 
       do iGrp = 1, self%nGrp
 
-        iS = self%blockRange(1,iGrp)
-        iE = self%blockRange(2,iGrp)
-        if (iS == iE) then
-          matrixToProcess(iS,iS) = cmplx(real(matrixToProcess(iS,iS),dp), 0.0_dp, dp)
+        iStart = self%blockRange(1,iGrp)
+        iEnd = self%blockRange(2,iGrp)
+        if (iStart == iEnd) then
+          matrixToProcess(iStart,iStart) = cmplx(real(matrixToProcess(iStart,iStart),dp), 0.0_dp,&
+              & dp)
           cycle
         end if
 
       #:if TYPE == 'real'
-        matrixToProcess(iS:iE,:) = matmul(transpose(self%RealUBlock(iGrp)%data),&
-            & matrixToProcess(iS:iE,:))
+        matrixToProcess(iStart:iEnd,:) = matmul(transpose(self%RealUBlock(iGrp)%data),&
+            & matrixToProcess(iStart:iEnd,:))
       #:else
-        matrixToProcess(iS:iE,:) = matmul(transpose(conjg(self%CmplxUBlock(iGrp)%data)),&
-            & matrixToProcess(iS:iE,:))
+        matrixToProcess(iStart:iEnd,:) = matmul(transpose(conjg(self%CmplxUBlock(iGrp)%data)),&
+            & matrixToProcess(iStart:iEnd,:))
       #:endif
 
-        do ii = iS, iE
+        do ii = iStart, iEnd
           matrixToProcess(ii,ii) = cmplx(real(matrixToProcess(ii,ii),dp), 0.0_dp, dp)
-          do jj = ii + 1, iE
+          do jj = ii + 1, iEnd
             matrixToProcess(jj,ii) = 0.0_dp
             matrixToProcess(ii,jj) = 0.0_dp
           end do
@@ -387,7 +557,7 @@ contains
     !> Matrix elements
     ${TYPE}$(dp), intent(inout) :: matrixToProcess(:,:)
 
-    integer :: iGrp, nGrp, iS, iE
+    integer :: iGrp, nGrp, iStart, iEnd
 
     if (self%tFullUMatrix) then
 
@@ -401,16 +571,18 @@ contains
 
       do iGrp = 1, self%nGrp
 
-        iS = self%blockRange(1,iGrp)
-        iE = self%blockRange(2,iGrp)
-        if (iS == iE) then
+        iStart = self%blockRange(1,iGrp)
+        iEnd = self%blockRange(2,iGrp)
+        if (iStart == iEnd) then
           cycle
         end if
 
       #:if TYPE == 'real'
-        matrixToProcess(:, iS:iE) = matmul(matrixToProcess(:, iS:iE), self%RealUBlock(iGrp)%data)
+        matrixToProcess(:, iStart:iEnd) = matmul(matrixToProcess(:, iStart:iEnd),&
+            & self%RealUBlock(iGrp)%data)
       #:else
-        matrixToProcess(:, iS:iE) = matmul(matrixToProcess(:, iS:iE), self%CmplxUBlock(iGrp)%data)
+        matrixToProcess(:, iStart:iEnd) = matmul(matrixToProcess(:, iStart:iEnd),&
+            & self%CmplxUBlock(iGrp)%data)
       #:endif
 
       end do
@@ -420,6 +592,8 @@ contains
   end subroutine apply${LABEL}$Unitary
 
 #:endfor
+
+#:endif
 
   subroutine destroy(self)
 
@@ -458,7 +632,6 @@ contains
 
   end subroutine destroy
 
-#:endif
 
   !> Returns whether states are in the same degenerate group
   pure function degenerate(self, ii, jj)
@@ -502,7 +675,7 @@ contains
 
     integer, intent(out), optional :: grpMembership(:)
 
-    integer :: ii, jj, nOrb, iS, iE
+    integer :: ii, jj, nOrb, iStart, iEnd
     real(dp) :: localTol
 
     if (present(tol)) then
@@ -517,30 +690,30 @@ contains
 
     if (present(eiRange)) then
       ! set states before group as not of interest
-      iS = eiRange(1)
-      iE = eiRange(2)
-      if (iS == iE) then
+      iStart = eiRange(1)
+      iEnd = eiRange(2)
+      if (iStart == iEnd) then
         call error("Degeneracy range is itself degenerate, should not be here")
       end if
-      do ii = 1, iS - 1
+      do ii = 1, iStart - 1
         blockRange(:, ii) = ii
       end do
     else
-      iS = 1
-      iE = nOrb
+      iStart = 1
+      iEnd = nOrb
     end if
-    nGrp = nGrp + iS - 1
+    nGrp = nGrp + iStart - 1
 
     do ii = 1, nGrp
       grpMembership(ii) = ii
     end do
 
-    ii = iS
-    do while (ii <= iE)
+    ii = iStart
+    do while (ii <= iEnd)
       nGrp = nGrp + 1
       blockRange(1, nGrp) = ii
       grpMembership(ii) = nGrp
-      do jj = ii + 1, iE
+      do jj = ii + 1, iEnd
         ! assume sorted:
         if ( abs(ei(jj) - ei(jj-1)) > localTol) then
           exit
@@ -553,7 +726,7 @@ contains
 
     if (present(eiRange)) then
       ! set states after group as not of interest
-      do ii = iE + 1, nOrb
+      do ii = iEnd + 1, nOrb
         nGrp = nGrp + 1
         blockRange(:, nGrp) = ii
         grpMembership(ii) = nGrp

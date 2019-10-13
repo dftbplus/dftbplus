@@ -1004,13 +1004,13 @@ contains
 
     ! dH times c_i
     call pblasfx_psymm(workLocal, denseDesc%blacsOrbSqr, eigVecsReal(:,:,iKS),&
-        & denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr) !, mm=nFilled(iS))
+        & denseDesc%blacsOrbSqr, dRho, denseDesc%blacsOrbSqr)
 
     ! c_i times dH times c_i
     call pblasfx_pgemm(eigVecsReal(:,:,iKS), denseDesc%blacsOrbSqr, dRho,&
         & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="T")
 
-    ! derivative of eigenvalues stored diagonal of matrix workLocal, from <c|h'|c>
+    ! derivative of eigenvalues stored in diagonal of matrix workLocal, from <c|h'|c>
     if (allocated(dEi)) then
       if (iGlob == jGlob) then
         !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
@@ -1415,7 +1415,7 @@ contains
     call pblasfx_pgemm(eigVecsCplx(:,:,iKS), denseDesc%blacsOrbSqr, dRho,&
         & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="C")
 
-    ! derivative of eigenvalues stored diagonal of matrix workLocal, from <c|h'|c>
+    ! derivative of eigenvalues stored in diagonal of matrix workLocal, from <c|h'|c>
     if (allocated(dEi)) then
       do jj = 1, size(workLocal,dim=2)
         jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
