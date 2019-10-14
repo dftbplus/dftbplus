@@ -61,7 +61,7 @@ module dftbp_initprogram
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_h5correction
-  use dftbp_halogenX
+  use dftbp_halogenx
   use dftbp_slakocont
   use dftbp_repcont
   use dftbp_fileid

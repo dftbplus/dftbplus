@@ -42,6 +42,7 @@ module dftbp_parser
   use dftbp_forcetypes, only : forceTypes
   use dftbp_mixer, only : mixerTypes
   use dftbp_geoopt, only : geoOptTypes
+  use dftbp_halogenx, only : halogenXSpecies1, halogenXSpecies2
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IPI_PROTOCOLS
 #:endif
@@ -1201,7 +1202,6 @@ contains
     logical :: tBadIntegratingKPoints
     integer :: nElem
     real(dp) :: rSKCutOff
-    logical :: tHalogenAtoms
 
     !>For rangeseparation
     logical :: tRSep
@@ -2240,29 +2240,29 @@ contains
           ctrl%thirdOrderOn(:,1) = 0.0_dp
           ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geo%species)
         end if
+
         ! Halogen correction to the DFTB3 model
-        tHalogenAtoms = .false.
-        if (.not.geo%tPeriodic) then
-          do iSp1 = 1, geo%nSpecies
-            if (any(geo%speciesNames(iSp1) == ["N","O"])) then
-              tHalogenAtoms = .true.
-              exit
-            end if
-          end do
-          if (tHalogenAtoms) then
-            tHalogenAtoms = .false.
-            do iSp1 = 1, geo%nSpecies
-              if (any(geo%speciesNames(iSp1) == ["Cl","Br"]) .or. geo%speciesNames(iSp1) == "I")&
-                  & then
-                tHalogenAtoms = .true.
-                exit
+        block
+          logical :: tHalogenInteraction
+          integer :: interType, iSp1, iSp2
+
+          if (.not. geo%tPeriodic) then
+            tHalogenInteraction = .false.
+            iSp1Loop: do iSp1 = 1, geo%nSpecies
+              if (any(geo%speciesNames(iSp1) == halogenXSpecies1)) then
+                do iSp2 = 1, geo%nSpecies
+                  if (any(geo%speciesNames(iSp2) == halogenXSpecies2)) then
+                    tHalogenInteraction = .true.
+                    exit iSp1Loop
+                  end if
+                end do
               end if
-            end do
-            if (tHalogenAtoms) then
-              call getChildValue(node, "DFTB3X", ctrl%tHalogenX, .false.)
+            end do iSp1Loop
+            if (tHalogenInteraction) then
+              call getChildValue(node, "Dftb3X", ctrl%tHalogenX, .false.)
             end if
           end if
-        end if
+        end block
 
       end if
     end if
