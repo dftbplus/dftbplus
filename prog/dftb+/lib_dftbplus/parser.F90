@@ -2259,7 +2259,7 @@ contains
               end if
             end do iSp1Loop
             if (tHalogenInteraction) then
-              call getChildValue(node, "Dftb3X", ctrl%tHalogenX, .false.)
+              call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
             end if
           end if
         end block

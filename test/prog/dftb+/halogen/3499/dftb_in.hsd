@@ -38,7 +38,7 @@ Hamiltonian = DFTB {
     HCorrection = Damping {
         Exponent = 4.0
     }
-    DFTB3X = Yes
+    HalogenXCorr = Yes
     ShellResolvedSCC = No
 }
 

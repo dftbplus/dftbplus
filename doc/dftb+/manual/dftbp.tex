@@ -993,7 +993,7 @@ following properties:
   \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
   \kw{HCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hcorr}\\
-  \kw{DFTB3X} & l & ThirdOrder(Full) = Yes & No & \pref{sec:dftbp.xcorr}\\
+  \kw{HalogenXCorr} & l & ThirdOrder(Full) = Yes, DftD3 & No & \pref{sec:dftbp.xcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
   \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
@@ -2660,7 +2660,7 @@ Hamiltonian = DFTB {
 \subsection{Halogen corrections}
 \label{sec:dftbp.xcorr}
 
-The \kw{DFTB3X} keyword includes the halogen correction of
+The \kw{HalogenXCorr} keyword includes the halogen correction of
 Ref.~\cite{kubillus-jctc-11-332}. This is fitted for the DFTB3-D3 model and the
 {\tt 3ob-3-1} parameter set. The correction is only relevant for systems
 including interactions between \{O,N\}--\{Cl,Br,I\} pairs of atoms.
