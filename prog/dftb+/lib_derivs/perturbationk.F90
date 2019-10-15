@@ -51,6 +51,7 @@ module dftbp_perturbkderivs
 
 contains
 
+  !> Calculate derivatives with respect to k in periodic structures
   subroutine dPsidK(env, parallelKS, eigvals, eigVecsCplx, ham, over, orb, nAtom, species,&
       & neighbourList, nNeighbourSK, denseDesc, iSparseStart, img2CentCell, coord, kPoint, kWeight,&
       & cellVec, iCellVec, latVec, taggedWriter, tWriteAutoTest, autoTestTagFile, tWriteTaggedOut,&
@@ -142,24 +143,20 @@ contains
     real(dp), allocatable :: dHam(:,:), dOver(:), dEi(:,:,:,:)
     real(dp) :: vec(3)
     complex(dp), allocatable :: dPsi(:,:,:,:), dHamSqr(:,:), dOverSqr(:,:), workLocal(:,:)
-    complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:,:), eCi(:,:), work2Local(:,:)
+    complex(dp), allocatable :: hamSqr(:,:,:), overSqr(:,:), eCi(:,:), work2Local(:,:)
     complex(dp), allocatable :: work3Local(:,:), eigvecsTransformed(:,:)
     logical :: tTransformed
     integer :: fdResults
 
-    !complex(dp), allocatable :: U(:,:)
-    !type(wrappedCmplx2), allocatable :: UBlock(:)
-    !integer, allocatable :: blockRange(:,:)
-
     type(TDegeneracyTransform) :: transform
 
   #:if WITH_SCALAPACK
+
     ! need distributed matrix descriptors
     integer :: desc(DLEN_), nn
 
     type(blocklist) :: blocks
     integer :: iLoc, iGlob, jGlob, blockSize
-
 
   #:endif
 
@@ -176,25 +173,25 @@ contains
 
   #:if WITH_SCALAPACK
 
-
     nn = denseDesc%fullSize
     call scalafx_getdescriptor(env%blacs%orbitalGrid, nn, nn, env%blacs%rowBlockSize,&
         & env%blacs%columnBlockSize, desc)
 
     allocate(dHamSqr(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
     allocate(dOverSqr(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
+    allocate(overSqr(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
     allocate(eCi(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
     allocate(workLocal(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
     allocate(work2local(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
 
     call transform%init()
 
-    do iKS = 1, parallelKS%nLocalKS
 
+
+    do iKS = 1, parallelKS%nLocalKS
 
       iK = parallelKS%localKS(1, iKS)
       iS = parallelKS%localKS(2, iKS)
-
 
       call blocks%init(env%blacs%orbitalGrid, desc, "c")
 
@@ -236,7 +233,8 @@ contains
 
         ! now have states orthogonalised agains the operator in degenerate cases, |c~>
 
-        !if (tTransformed) then
+        if (tTransformed) then
+
           ! re-form |c> H' - e S' <c| with the transformed vectors
 
           ! e_i |c~_i>
@@ -259,7 +257,7 @@ contains
           ! |c~> H' - e S' <c~|
           call pblasfx_pgemm(workLocal, denseDesc%blacsOrbSqr, eigVecsTransformed,&
               & denseDesc%blacsOrbSqr, work2local, denseDesc%blacsOrbSqr, transa="C")
-        !end if
+        end if
 
         if (allocated(dEi)) then
           ! derivative of eigenvalues stored in diagonal of matrix work2Local, from <c|h'|c>
@@ -270,14 +268,34 @@ contains
               iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
                   & env%blacs%orbitalGrid%nrow)
               if (iGlob == jGlob) then
-                write(*,*)iGlob,real(work2Local(ii,jj),dp) * Hartree__eV
                 dEi(iGlob, iK, iS, iCart) = real(work2Local(ii,jj),dp)
               end if
             end do
           end do
         end if
-        write(*,*)
 
+        ! weight with inverse of energy differences
+        do jj = 1, size(workLocal,dim=2)
+          jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+              & env%blacs%orbitalGrid%ncol)
+          do ii = 1, size(workLocal,dim=1)
+            iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+                & env%blacs%orbitalGrid%nrow)
+            if (abs(eigvals(jGlob,iK,iS) - eigvals(iGlob,iK,iS)) < epsilon(0.0_dp)) then
+              ! degenerate, so no contribution
+              work2Local(ii,jj) = (0.0_dp,0.0_dp)
+            else
+              ! zero temperature form
+              work2Local(ii,jj) = work2Local(ii,jj) / (eigvals(jGlob,iK,iS) - eigvals(iGlob,iK,iS))
+            end if
+          end do
+        end do
+
+        ! Evaluate derivatives of states and store in work local
+        call pblasfx_pgemm(eigVecsTransformed, denseDesc%blacsOrbSqr, work2Local,&
+            & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr)
+
+        ! now evaluate <c_i | dc_i>
 
 
       end do
@@ -292,6 +310,7 @@ contains
 
     allocate(dHamSqr(nOrbs, nOrbs))
     allocate(dOverSqr(nOrbs, nOrbs))
+    allocate(overSqr(nOrbs, nOrbs))
     allocate(eCi(nOrbs, nOrbs))
 
     allocate(workLocal(nOrbs, nOrbs))
@@ -299,6 +318,9 @@ contains
     allocate(work3Local(nOrbs, nOrbs))
 
     call transform%init()
+
+    call unpackHS(overSqr, over, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK, iCellVec,&
+        & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
 
     do iKS = 1, parallelKS%nLocalKS
 
@@ -334,31 +356,39 @@ contains
           end do
         end if
 
-        work2Local(:,:) = eigVecsCplx(:,:,iKS)
-        call transform%applyUnitary(work2Local)
-
+        ! weight by inverse differences
         do ii = 1, nOrbs
           workLocal(ii,ii) = 0.0_dp
           do jj = ii + 1, nOrbs
             if (.not.transform%degenerate(ii,jj)) then
+              ! zero temperature form
               workLocal(jj,ii) = workLocal(jj,ii) / (eigvals(ii,iK,iS) - eigvals(jj,iK,iS))
               workLocal(ii, jj) = -workLocal(jj,ii)
             end if
           end do
         end do
 
+        ! eigenvectors in same basis
+        work2Local(:,:) = eigVecsCplx(:,:,iKS)
+        call transform%applyUnitary(work2Local)
+
+        ! d|c> / dk
         work3Local(:,:) = matmul(work2Local, workLocal)
 
-        write(stdOut,*)'Derivatives of ci'
-        do ii = 1, nOrbs
-          write(stdOut,"(16E12.2)")work3Local(:,ii)
-        end do
-        write(stdOut,*)
+        !write(stdOut,*)'Derivatives of ci'
+        !do ii = 1, nOrbs
+        !  write(stdOut,"(16E12.2)")work3Local(:,ii)
+        !end do
+        !write(stdOut,*)
 
-        work2Local(:,1) = sum(conjg(eigVecsCplx(:,:,iKS)) * work3Local, dim = 1)
-        write(stdOut,*)'product'
+        ! | S | c >
+        call hemm(workLocal, 'l', overSqr, work2Local)
+
+        ! < dc | S | c >
+        workLocal(:,1) = sum(conjg(work3Local) * workLocal, dim = 1)
+        write(stdOut,*)'product' ! expecting purely imaginary values, so something possibly wrong...
         do ii = 1, nOrbs
-          write(stdOut,*)ii, work2Local(ii,1)
+          write(stdOut,*)ii, workLocal(ii,1)
         end do
         write(stdOut,*)
 
