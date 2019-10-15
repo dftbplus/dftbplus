@@ -46,6 +46,7 @@ Added
 
 - Labelling of atomic orbital choices in output.
 
+- Halogen X correction.
 
 Changed
 -------

@@ -391,6 +391,8 @@ module dftbp_inputdata
     real(dp), allocatable :: h5ElementPara(:)
     ! H5 correction end
 
+    !> Halogen X correction
+    logical :: tHalogenX = .false.
 
     !> Old repulsive
     logical :: useBuggyRepSum

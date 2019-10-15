@@ -133,6 +133,11 @@ h5correction.o = h5correction.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dft
 _mod_dftbp_h5correction: h5correction.o
 _mod_dftbp_h5correction = $(h5correction.o)
 
+halogenx.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_vdwdata _mod_dftbp_constants _mod_dftbp_periodic _mod_dftbp_message
+halogenx.o = halogenx.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_vdwdata) $(_mod_dftbp_constants) $(_mod_dftbp_periodic) $(_mod_dftbp_message)
+_mod_dftbp_halogenx: halogenx.o
+_mod_dftbp_halogenx = $(halogenx.o)
+
 nonscc.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_sk _mod_dftbp_slakocont _mod_dftbp_commontypes _mod_dftbp_message _mod_dftbp_schedule _mod_dftbp_environment
 nonscc.o = nonscc.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_sk) $(_mod_dftbp_slakocont) $(_mod_dftbp_commontypes) $(_mod_dftbp_message) $(_mod_dftbp_schedule) $(_mod_dftbp_environment)
 _mod_dftbp_nonscc: nonscc.o
