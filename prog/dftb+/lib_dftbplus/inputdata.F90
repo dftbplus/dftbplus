@@ -525,7 +525,7 @@ contains
 
   !> Mark data structure as initialised
   subroutine InputData_init(self)
-    type(inputData), intent(inout) :: self
+    type(inputData), intent(out) :: self
 
     self%tInitialized = .true.
 

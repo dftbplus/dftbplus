@@ -9,7 +9,7 @@
 
 !> Contains subroutines to add addition to repulsive pair contributions involving halogens
 !> from doi: 10.1021/ct5009137
-module dftbp_halogenX
+module dftbp_halogenx
   use dftbp_assert
   use dftbp_accuracy, only : dp, mc
   use dftbp_vdwdata
@@ -20,6 +20,7 @@ module dftbp_halogenX
   private
 
   public :: THalogenX, THalogenX_init
+  public :: halogenXSpecies1, halogenXSpecies2
 
 
   !> Type for repulsive pairwise additions
@@ -27,7 +28,7 @@ module dftbp_halogenX
 
     private
 
-    integer, allocatable :: relevantSpecies(:,:)
+    integer, allocatable :: interactionType(:,:)
     real(dp), allocatable :: radii(:)
     real(dp) :: maxDab = 0.0_dp
     integer :: nAtom
@@ -42,6 +43,14 @@ module dftbp_halogenX
 
   end type THalogenX
 
+  !> Possible types for the first species in the interaction
+  character(*), parameter :: halogenXSpecies1(2) = [character(1) ::&
+      & 'O', 'N']
+
+  !> Possible types for the second species in the interaction
+  character(*), parameter :: halogenXSpecies2(3) = [character(2) ::&
+      & 'Cl', 'Br', 'I']
+
   !> energy in kcal/mol for pair truncation
   real(dp), parameter :: minInteraction = 1.0E-14_dp
 
@@ -50,7 +59,9 @@ module dftbp_halogenX
   real(dp), parameter :: R1 = 0.8_dp
 
   !> Parameters from table 3 of doi: 10.1021/ct5009137 in AA
-  real(dp), parameter :: dab(6) = [1.237_dp, 1.099_dp, 1.313_dp, 1.526_dp, 1.349_dp, 1.521_dp]
+  !> O-Cl, O-Br, O-I, N-Cl, N-Br, N-I
+  real(dp), parameter :: dab(size(halogenXSpecies1) * size(halogenXSpecies2)) =&
+      & [1.237_dp, 1.099_dp, 1.313_dp, 1.526_dp, 1.349_dp, 1.521_dp]
 
   !> c constants from table 3 of doi: 10.1021/ct5009137 in kcal/mol, some weird power of inverse
   !> distance and dimensionless respectively
@@ -71,55 +82,60 @@ contains
     !> Names of the atom types
     character(*), intent(in) :: speciesNames(:)
 
-    logical :: tHalogen
-    integer :: iSp1, iSp2, ii, jj, nSpecies
+    integer :: iSp1, iSp2, nSpecies
     character(mc) :: spName1, spName2
 
     nSpecies = maxval(species0)
     this%nAtom = size(species0)
-    allocate(this%relevantSpecies(nSpecies, nSpecies))
-    this%relevantSpecies(:,:) = 0
+    allocate(this%interactionType(nSpecies, nSpecies))
     allocate(this%radii(nSpecies))
-    this%radii(:) = 0.0_dp
 
-    tHalogen = .false.
-    this%maxDab = 0.0_dp
+    this%radii(:) = 0.0_dp
     do iSp1 = 1, nSpecies
       spName1 = speciesNames(iSp1)
-      if (any(spName1 == ["N","O","I"]) .or. any(spName1 == ["Cl","Br"])) then
+      if (any(spName1 == halogenXSpecies1) .or. any(spName1 == halogenXSpecies2)) then
         call getVdwData(spName1, this%radii(iSp1))
       end if
-      if (.not. any(spName1 == ["N","O"])) then
+    end do
+
+    this%maxDab = 0.0_dp
+    this%interactionType(:,:) = 0
+    do iSp1 = 1, nSpecies
+      spName1 = speciesNames(iSp1)
+      if (.not. any(spName1 == halogenXSpecies1)) then
         cycle
       end if
       do iSp2 = 1, nSpecies
         spName2 = speciesNames(iSp2)
-        if (.not. any(spName2 == ["Cl","Br"]) .and. spName2 /= "I") then
+        if (.not. any(spName2 == halogenXSpecies2)) then
           cycle
         end if
-        select case(trim(spName1)//trim(spName2))
+        select case(trim(spName1) // trim(spName2))
         case('OCl')
-          this%relevantSpecies(iSp1,iSp2) = 1
+          this%interactionType(iSp1,iSp2) = 1
         case('OBr')
-          this%relevantSpecies(iSp1,iSp2) = 2
+          this%interactionType(iSp1,iSp2) = 2
         case('OI')
-          this%relevantSpecies(iSp1,iSp2) = 3
+          this%interactionType(iSp1,iSp2) = 3
         case('NCl')
-          this%relevantSpecies(iSp1,iSp2) = 4
+          this%interactionType(iSp1,iSp2) = 4
         case('NBr')
-          this%relevantSpecies(iSp1,iSp2) = 5
+          this%interactionType(iSp1,iSp2) = 5
         case('NI')
-          this%relevantSpecies(iSp1,iSp2) = 6
+          this%interactionType(iSp1,iSp2) = 6
         end select
-        this%relevantSpecies(iSp2,iSp1) = this%relevantSpecies(iSp1,iSp2)
-        this%maxDab = max(this%maxDab, dab(this%relevantSpecies(iSp1,iSp2)))
-        tHalogen = .true.
+        this%interactionType(iSp2, iSp1) = this%interactionType(iSp1, iSp2)
+        this%maxDab = max(this%maxDab, dab(this%interactionType(iSp1, iSp2)))
       end do
     end do
 
-    if (.not. tHalogen) then
-      call error("No suitable O-X or N-X halogen combinations present for this correction")
+    if (all(this%interactionType == 0)) then
+      call error("No suitable (O-X or N-X) halogen combinations present for this correction")
     end if
+
+    ! Distance over which the interaction decays to minInteraction
+    this%cutoff = this%maxDab + (-log(2.0_dp * minInteraction / c(1)) / c(2))**(1.0_dp/c(3))
+    this%cutoff = this%cutoff * AA__Bohr ! in a.u.
 
   end subroutine THalogenX_init
 
@@ -133,9 +149,6 @@ contains
     !> Returned distance
     real(dp) :: getRCutOff
 
-    ! Distance over which the interaction decays to minInteraction
-    this%cutoff = this%maxDab + (-log(2.0_dp * minInteraction / c(1)) / c(2))**(1.0_dp/c(3))
-    this%cutoff = this%cutoff * AA__Bohr ! in a.u.
     getRCutOff = this%cutoff
 
   end function getRCutOff
@@ -178,15 +191,15 @@ contains
         iAt2 = neigh%iNeighbour(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
-        if (this%relevantSpecies(iSp1,iSp2) /= 0) then
+        if (this%interactionType(iSp1,iSp2) /= 0) then
 
           ! values in AA
           r = sqrt(neigh%neighDist2(iNeigh, iAt1)) * Bohr__AA
           rvdw = (this%radii(iSp1) + this%radii(iSp2)) * Bohr__AA
 
-          eTmp = halogenSigma(r,rvdw) * fx(r, dab(this%relevantSpecies(iSp1,iSp2)))
+          eTmp = halogenSigma(r,rvdw) * fx(r, dab(this%interactionType(iSp1,iSp2)))
           eTmp = eTmp&
-              & + (1.0_dp-halogenSigma(r,rvdw)) * fx(R0*rvdw, dab(this%relevantSpecies(iSp1,iSp2)))
+              & + (1.0_dp-halogenSigma(r,rvdw)) * fx(R0*rvdw, dab(this%interactionType(iSp1,iSp2)))
 
           ! convert back to a.u.
           eTmp = eTmp * kcal_mol__Hartree
@@ -239,12 +252,12 @@ contains
           cycle
         end if
         iSp2 = species(iAt2f)
-        if (this%relevantSpecies(iSp1,iSp2) /= 0) then
+        if (this%interactionType(iSp1,iSp2) /= 0) then
 
           rvdw = (this%radii(iSp1) + this%radii(iSp2))
 
           call getEnergyDeriv(fTmp, coords(:,iAt2) - coords(:,iAt1), rvdw,&
-              & this%relevantSpecies(iSp1,iSp2))
+              & this%interactionType(iSp1,iSp2))
 
           derivs(:,iAt1) = derivs(:,iAt1) + fTmp
           derivs(:,iAt2f) = derivs(:,iAt2f) - fTmp
@@ -280,7 +293,7 @@ contains
     fTmp = halogendSigma(r,rvdwAA) * fx(r, dab(iDab)) + halogenSigma(r,rvdwAA) * dfx(r, dab(iDab)) &
         & -halogendSigma(r,rvdwAA) * fx(R0*rvdwAA, dab(iDab))
 
-    intermed(:) = 2.0_dp * kcal_mol__Hartree * Bohr__AA * fTmp * vec(:) / rTmp
+    intermed(:) = 2.0_dp * kcal_mol__Hartree * Bohr__AA * fTmp * vec / rTmp
 
   end subroutine getEnergyDeriv
 
@@ -324,10 +337,10 @@ contains
         iAt2 = neigh%iNeighbour(iNeigh,iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
-        if (this%relevantSpecies(iSp1,iSp2) /= 0) then
+        if (this%interactionType(iSp1,iSp2) /= 0) then
           vect(:) = coords(:,iAt2) - coords(:,iAt1)
           rvdw = (this%radii(iSp1) + this%radii(iSp2))
-          call getEnergyDeriv(intermed, vect, rvdw, this%relevantSpecies(iSp1,iSp2))
+          call getEnergyDeriv(intermed, vect, rvdw, this%interactionType(iSp1,iSp2))
 
           if (iAt1 == iAt2f) then
             prefac = 0.5_dp
@@ -335,7 +348,7 @@ contains
             prefac = 1.0_dp
           end if
           do ii = 1, 3
-            st(:, ii) = st(:, ii) + prefac * intermed(:) * vect(ii)
+            st(:, ii) = st(:, ii) + prefac * intermed * vect(ii)
           end do
         end if
       end do
@@ -431,4 +444,4 @@ contains
 
   end function halogendSigma
 
-end module dftbp_halogenX
+end module dftbp_halogenx

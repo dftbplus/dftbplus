@@ -70,7 +70,7 @@ module dftbp_main
   use dftbp_simplealgebra
   use dftbp_message
   use dftbp_repcont
-  use dftbp_halogenX
+  use dftbp_halogenx
   use dftbp_xlbomd
   use dftbp_slakocont
   use dftbp_linkedlist
