@@ -24,7 +24,22 @@ module dftbp_rangeseparated
   implicit none
   private
 
-  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init
+  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init, rangeSepTypes
+
+
+  type :: TRangeSepTypesEnum
+
+    !> Neighbour based
+    integer :: neighbour = 0
+
+    !> Threshold based
+    integer :: threshold = 1
+
+  end type TRangeSepTypesEnum
+
+
+  !> Container for enumerated range separation types
+  type(TRangeSepTypesEnum), parameter :: rangeSepTypes = TRangeSepTypesEnum()
 
 
   !> Slater-Koster file RangeSep tag structure
@@ -79,7 +94,7 @@ module dftbp_rangeseparated
     logical :: tSpin
 
     !> algorithm for range separation screening
-    character(lc) :: rsAlg
+    integer :: rsAlg
 
     !> species of atoms
     integer, allocatable :: species(:)
@@ -130,7 +145,7 @@ contains
     logical, intent(in) :: tSpin
 
     !> lr-hamiltonian construction algorithm
-    character(lc), intent(in) :: rsAlg
+    integer, intent(in) :: rsAlg
 
     call initAndAllocate(this, nAtom, hubbu, species, screen, omega, rsAlg, tSpin)
     call checkRequirements(this)
@@ -160,7 +175,7 @@ contains
       real(dp), intent(in) :: omega
 
       !> Algorithm for range separation
-      character(lc), intent(in) :: rsAlg
+      integer, intent(in) :: rsAlg
 
       !> Is this spin restricted (F) or unrestricted (T)
       logical, intent(in) :: tSpin
@@ -189,12 +204,13 @@ contains
       class(RangeSepFunc), intent(inout) :: this
 
       ! Check for current restrictions
-      if (this%tSpin .and. this%rsAlg == "tr") then
+      if (this%tSpin .and. this%rsAlg == rangeSepTypes%threshold) then
         call error("Spin-unrestricted calculation for thresholding algorithm not yet implemented!")
       end if
 
-      if (.not. any(["nb", "tr"] == this%rsAlg)) then
-        call error("Invalid algorithm '" // trim(this%rsAlg) // "' for screening exchange")
+      if (.not. any([rangeSepTypes%neighbour, rangeSepTypes%threshold] == this%rsAlg)) then
+
+        call error("Unknown algorithm for screening the exchange")
       end if
 
     end subroutine checkRequirements
@@ -278,11 +294,11 @@ contains
     real(dp), intent(in) :: overlap(:,:)
 
     call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
-    select case(trim(this%rsAlg))
-    case ("tr")
+    select case(this%rsAlg)
+    case (rangeSepTypes%threshold)
       call addLrHamiltonianThreshold(this, env, overlap, densSqr, iNeighbour, nNeighbourLC,&
           & iSquare, HH, orb)
-    case ("nb")
+    case (rangeSepTypes%neighbour)
       call addLrHamiltonianNeighbour(this, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare,&
           & iPair, orb, HH)
     end select

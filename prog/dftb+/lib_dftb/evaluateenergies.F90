@@ -23,7 +23,7 @@ module dftb_evaluateenergies
   use dftbp_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftbplusu, only : getDftbUShift
   use dftbp_message, only : error
-  use dftbp_thirdorder_module, only : ThirdOrder
+  use dftbp_thirdorder, only : ThirdOrder
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
   use dftbp_rangeseparated, only : RangeSepFunc
@@ -227,8 +227,8 @@ contains
 
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
         & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
-    energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
-    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
+    energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
+    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
     energy%EMermin = energy%Etotal - sum(TS)
     ! extrapolated to 0 K
     energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)

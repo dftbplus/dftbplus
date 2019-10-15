@@ -14,7 +14,7 @@ module dftbp_hsdhelpers
   use dftbp_hsdparser
   use dftbp_hsdutils
   use dftbp_hsdutils2
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_message
   use dftbp_xmlf90, only : fnode, destroyNode
   implicit none
