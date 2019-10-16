@@ -1580,14 +1580,22 @@ contains
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
-    integer :: iSpin
+    integer :: iKS, iK, iSpin
     real(dp) :: TS(this%nSpin)
     logical :: tDFTBU
 
     rhoPrim(:,:) = 0.0_dp
-    do iSpin = 1, this%nSpin
-      call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-          & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+    do iKS = 1, this%parallelKS%nLocalKS
+      iSpin = this%parallelKS%localKS(2, iKS)
+      if (this%tRealHS) then
+         call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourlist%iNeighbour,&
+              & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+      else
+         iK = this%parallelKS%localKS(1, iKS)
+         call packHS(rhoPrim(:,iSpin), rho(:,:,iKS), this%kPoint(:,iK), this%kWeight(iK),&
+              & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, this%iCellVec, this%cellVec,&
+              & iSquare, iSparseStart, img2CentCell)
+      end if
     end do
 
     call ud2qm(rhoPrim)
