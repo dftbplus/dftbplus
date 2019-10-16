@@ -1463,16 +1463,23 @@ contains
         call error("Not implemented yet")
       end if
       qBlock(:,:,:,:) = 0.0_dp
-      do iSpin = 1, this%nSpin
+      do iKS = 1, this%parallelKS%nLocalKS
+        iK = this%parallelKS%localKS(1, iKS)
+        iSpin = this%parallelKS%localKS(2, iKS)
         do iAt = 1, this%nAtom
           iOrb1 = iSquare(iAt)
           iOrb2 = iSquare(iAt+1)
           nOrb = iOrb2 - iOrb1
-          qBlock(:nOrb,:nOrb,iAt,iSpin) = real(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin),&
-              & rho(:,iOrb1:iOrb2-1,iSpin)))
-          qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
-              & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
+          qBlock(:nOrb,:nOrb,iAt,iSpin) = qBlock(:nOrb,:nOrb,iAt,iSpin) + this%kWeight(iK) *&
+              & real(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin), rho(:,iOrb1:iOrb2-1,iSpin)))
         end do
+      end do
+      do iAt = 1, this%nAtom
+        iOrb1 = iSquare(iAt)
+        iOrb2 = iSquare(iAt+1)
+        nOrb = iOrb2 - iOrb1
+        qBlock(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qBlock(:nOrb,:nOrb,iAt,iSpin)&
+            & + transpose(qBlock(:nOrb,:nOrb,iAt,iSpin)) )
       end do
     end if
 
@@ -1761,8 +1768,8 @@ contains
           iK = this%parallelKS%localKS(1, iKS)
           iSpin = this%parallelKS%localKS(2, iKS)
           T4(:,:) = cmplx(0,0,dp)
-          call unpackHS(T4, over, this%kPoint(:,iK), iNeighbour, nNeighbourSK,&
-              & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
+          call unpackHS(T4, over, this%kPoint(:,iK), iNeighbour, nNeighbourSK, this%iCellVec,&
+              & this%cellVec, iSquare, iSparseStart, img2CentCell)
           call blockHermitianHS(T4, iSquare)
           Ssqr(:,:,iKS) = T4
           Sinv(:,:,iKS) = cmplx(0,0,dp)
@@ -2632,9 +2639,10 @@ contains
     !> Energy weighted density matrix
     real(dp), allocatable, intent(inout) :: ErhoPrim(:)
 
-    real(dp) :: Sreal(this%nOrbs,this%nOrbs), SinvReal(this%nOrbs,this%nOrbs)
+    real(dp), allocatable :: Sreal(:,:), SinvReal(:,:)
+    complex(dp), allocatable :: T4(:,:)
     real(dp) :: coord0Fold(3,this%nAtom)
-    integer :: nAllAtom, iSpin, sparseSize, iOrb, iKS
+    integer :: nAllAtom, iSpin, sparseSize, iOrb, iKS, iK
 
     coord0Fold(:,:) = coord
     if (this%tPeriodic) then
@@ -2667,23 +2675,46 @@ contains
     call buildS(env, over, skOverCont, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
          & this%speciesAll, iSparseStart, orb)
 
-    Sreal = 0.0_dp
-    call unpackHS(Sreal, over, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
-        & img2CentCell)
-    call blockSymmetrizeHS(Sreal, iSquare)
-    do iKS = 1, this%parallelKS%nLocalKS
-       Ssqr(:,:,iKS) = cmplx(Sreal, 0, dp)
-    end do
+    if (this%tRealHS) then
+      allocate(Sreal(this%nOrbs,this%nOrbs))
+      allocate(SinvReal(this%nOrbs,this%nOrbs))
+      Sreal = 0.0_dp
+      call unpackHS(Sreal, over, neighbourList%iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
+          & img2CentCell)
+      call blockSymmetrizeHS(Sreal, iSquare)
+      do iKS = 1, this%parallelKS%nLocalKS
+        Ssqr(:,:,iKS) = cmplx(Sreal, 0, dp)
+      end do
 
-    SinvReal = 0.0_dp
-    do iOrb = 1, this%nOrbs
-       SinvReal(iOrb, iOrb) = 1.0_dp
-    end do
-    call gesv(Sreal, SinvReal)
+      SinvReal = 0.0_dp
+      do iOrb = 1, this%nOrbs
+        SinvReal(iOrb, iOrb) = 1.0_dp
+      end do
+      call gesv(Sreal, SinvReal)
 
-    do iKS = 1, this%parallelKS%nLocalKS
-      Sinv(:,:,iKS) = cmplx(SinvReal, 0, dp)
-    end do
+      do iKS = 1, this%parallelKS%nLocalKS
+        Sinv(:,:,iKS) = cmplx(SinvReal, 0, dp)
+      end do
+
+    else
+
+      allocate(T4(this%nOrbs,this%nOrbs))
+      do iKS = 1, this%parallelKS%nLocalKS
+        iK = this%parallelKS%localKS(1, iKS)
+        iSpin = this%parallelKS%localKS(2, iKS)
+        sSqr(:,:,:) = cmplx(0,0,dp)
+        call unpackHS(T4, over, this%kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+            & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
+        call blockHermitianHS(T4, iSquare)
+        sSqr(:,:,iKS) = T4
+        sinv(:,:,iKS) = cmplx(0,0,dp)
+        do iOrb = 1, this%nOrbs
+          sInv(iOrb, iOrb, iKS) = cmplx(1,0,dp)
+        end do
+        call gesv(T4, sInv(:,:,iKS))
+      end do
+
+    end if
 
   end subroutine updateH0S
 
@@ -2762,26 +2793,48 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    real(dp) :: T1(this%nOrbs,this%nOrbs),T2(this%nOrbs,this%nOrbs)
+    real(dp), allocatable :: T1R(:,:), T2R(:,:)
+    complex(dp), allocatable :: T1C(:,:), T2C(:,:)
     real(dp) :: derivs(3,this%nAtom), repulsiveDerivs(3,this%nAtom), totalDeriv(3, this%nAtom)
-    integer :: iSpin, iDir
+    integer :: iSpin, iDir, iKS, iK
 
     ErhoPrim(:) = 0.0_dp
     rhoPrim(:,:) = 0.0_dp
 
-    do iSpin = 1, this%nSpin
-       call gemm(T1, real(rho(:,:,iSpin), dp), real(H1(:,:,iSpin), dp))
-       call her2k(T2, real(Sinv(:,:,iSpin), dp), T1, 0.5_dp)
-       !(C,A,B,alpha,beta,uplo,trans,n,k
-       !call gemm(T2, real(Sinv, dp), T1, 0.5_dp, 0.0_dp)
-       !call daxpy(this%nOrbs*this%nOrbs, 1.0_dp, transpose(T2), 1, T2, 1)
-       !T1 = T2 + transpose(T2)
-
-       call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
+    if (this%tRealHS) then
+      allocate(T1R(this%nOrbs,this%nOrbs))
+      allocate(T2R(this%nOrbs,this%nOrbs))
+      do iKS = 1, this%parallelKS%nLocalKS
+        iK = this%parallelKS%localKS(1, iKS)
+        iSpin = this%parallelKS%localKS(2, iKS)
+        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iKS), dp), neighbourList%iNeighbour,&
             & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-       call packHS(ErhoPrim, T2, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSquare,&
+        call gemm(T1R, real(rho(:,:,iKS), dp), real(H1(:,:,iKS), dp))
+        call her2k(T2R, real(Sinv(:,:,iKS), dp), T1R, 0.5_dp)
+        call packHS(ErhoPrim, T2R, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSquare,&
             & iSparseStart, img2CentCell)
-    end do
+      end do
+    else
+      allocate(T1C(this%nOrbs,this%nOrbs))
+      allocate(T2C(this%nOrbs,this%nOrbs))
+      do iKS = 1, this%parallelKS%nLocalKS
+        iK = this%parallelKS%localKS(1, iKS)
+        iSpin = this%parallelKS%localKS(2, iKS)
+        call packHS(rhoPrim(:,iSpin), rho(:,:,iKS), this%kPoint(:,iK), this%kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, this%iCellVec, this%cellVec,&
+            & iSquare, iSparseStart, img2CentCell)
+        call gemm(T1C, rho(:,:,iKS), H1(:,:,iKS))
+        call her2k(T2C, Sinv(:,:,iKS), T1C, (0.5_dp,0.0_dp))
+        call packHS(ErhoPrim, T2C, this%kPoint(:,iK), this%kWeight(iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, this%iCellVec, this%cellVec, iSquare, iSparseStart,&
+            & img2CentCell)
+      end do
+    end if
+
+    !(C,A,B,alpha,beta,uplo,trans,n,k
+    !call gemm(T2, real(Sinv, dp), T1, 0.5_dp, 0.0_dp)
+    !call daxpy(this%nOrbs*this%nOrbs, 1.0_dp, transpose(T2), 1, T2, 1)
+    !T1 = T2 + transpose(T2)
 
     call ud2qm(qq)
     call ud2qm(q0)
@@ -2795,7 +2848,7 @@ contains
          & img2CentCell, iSparseStart, orb, potential%intBlock)
     call this%sccCalc%updateCharges(env, qq, q0, orb, this%speciesAll)
     call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
-         & img2CentCell)
+        & img2CentCell)
     call getERepDeriv(repulsiveDerivs, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
          & this%speciesAll, pRepCont, img2CentCell)
 
