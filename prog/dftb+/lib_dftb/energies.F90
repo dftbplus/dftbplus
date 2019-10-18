@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Module to wrap around the different energy components in the DFTB total energy expression
-module energies
-  use assert
-  use accuracy
+module dftbp_energies
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
   private
 
@@ -51,6 +51,12 @@ module energies
     !> Many-body dispersion energy
     real(dp) :: eMbd = 0.0_dp
 
+    !> Onsite correction energy
+    real(dp) :: eOnSite = 0.0_dp
+
+    !> Halogen-X correction energy
+    real(dp) :: eHalogenX = 0.0_dp
+
     !> Total 3rd order
     real(dp) :: e3rd    = 0.0_dp
 
@@ -63,6 +69,9 @@ module energies
     !> Total Mermin energy
     real(dp) :: EMermin = 0.0_dp
 
+    !> Zero temperature extrapolated energy
+    real(dp) :: Ezero = 0.0_dp
+
     !> Gibbs free energy
     real(dp) :: EGibbs = 0.0_dp
 
@@ -74,6 +83,10 @@ module energies
 
     !> Gibbs free energy including kinetic energy
     real(dp) :: EGibbsKin = 0.0_dp
+
+    !> Energy or free energy which is related to the forces via the Helmann-Feynman theorem. This is
+    !> used for example in geometry optimisation or energetic comparisions.
+    real(dp) :: EForceRelated = 0.0_dp
 
     !> atom resolved repulsive
     real(dp), allocatable :: atomRep(:)
@@ -101,6 +114,12 @@ module energies
 
     !> atom resolved dispersion
     real(dp), allocatable :: atomDisp(:)
+
+    !> atom onsite correction energies
+    real(dp), allocatable :: atomOnSite(:)
+
+    !> atom halogen bond correction energies
+    real(dp), allocatable :: atomHalogenX(:)
 
     !> atom resolved 3rd order
     real(dp), allocatable :: atom3rd(:)
@@ -140,6 +159,8 @@ contains
     allocate(self%atomExt(nAtom))
     allocate(self%atomElec(nAtom))
     allocate(self%atomDisp(nAtom))
+    allocate(self%atomOnSite(nAtom))
+    allocate(self%atomHalogenX(nAtom))
     allocate(self%atom3rd(nAtom))
     allocate(self%atomTotal(nAtom))
     self%atomRep(:) = 0.0_dp
@@ -151,6 +172,8 @@ contains
     self%atomExt(:) = 0.0_dp
     self%atomElec(:) = 0.0_dp
     self%atomDisp(:) = 0.0_dp
+    self%atomOnSite(:) = 0.0_dp
+    self%atomHalogenX(:) = 0.0_dp
     self%atom3rd(:) = 0.0_dp
     self%atomTotal(:) = 0.0_dp
 
@@ -163,6 +186,8 @@ contains
     self%Eext = 0.0_dp
     self%Eelec = 0.0_dp
     self%EDisp = 0.0_dp
+    self%EOnSite = 0.0_dp
+    self%EHalogenX = 0.0_dp
     self%E3rd = 0.0_dp
     self%Etotal = 0.0_dp
     self%EMermin = 0.0_dp
@@ -173,4 +198,4 @@ contains
 
   end subroutine Energies_init
 
-end module energies
+end module dftbp_energies

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,12 +12,12 @@
 !> code. A detailed description of the method can be found in Johnson's paper.
 !> see D.D. Johnson, PRB 38, 12807 (1988)
 !> In order to use the mixer you have to create and reset it.
-module broydenmixer
-  use assert
-  use accuracy
-  use message
-  use blasroutines, only : ger
-  use lapackroutines, only : matinv
+module dftbp_broydenmixer
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_blasroutines, only : ger
+  use dftbp_lapackroutines, only : matinv
   implicit none
 
   private
@@ -399,4 +399,4 @@ contains
 
   end subroutine BroydenMixer_getInverseJacobian
 
-end module broydenmixer
+end module dftbp_broydenmixer

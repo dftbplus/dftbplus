@@ -34,3 +34,11 @@ scalapackfx.o += _extlib_scalapackfx _extlib_lapack
 mbd.o: _extlib_mbd
 mbd.o += _extlib_mbd
 #:endif
+
+
+#:if WITH_TRANSPORT
+negf_int.o: _extlib_libnegf 
+negf_int.o += _extlib_libnegf 
+poisson_int.o: _extlib_mudpack _extlib_libnegf 
+poisson_int.o += _extlib_mudpack _extlib_libnegf
+#:endif

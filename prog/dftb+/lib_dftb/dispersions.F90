@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,14 +9,16 @@
 
 !> Offers everything which is publicly available when dealing with dispersions.
 !!
-module dispersions
-  use dispiface
-  use dispuff_module
-  use dispuffdata
-  use dispslaterkirkw
-  use mbd, only : TMbdInit
+module dftbp_dispersions
+  use dftbp_dispiface
+  use dftbp_dispuff
+  use dftbp_dispuffdata
+  use dftbp_dispslaterkirkw
+#:if WITH_MBD
+  use dftbp_mbd, only : TMbdInit
+#:endif
 #:if WITH_DFTD3
-  use dispdftd3_module
+  use dftbp_dispdftd3
 #:endif
   implicit none
   public
@@ -43,4 +45,4 @@ module dispersions
 
   end type DispersionInp
 
-end module dispersions
+end module dftbp_dispersions

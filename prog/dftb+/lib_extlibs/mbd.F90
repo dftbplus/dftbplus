@@ -1,7 +1,7 @@
 #:include "common.fypp"
 
 !> Imports the functionality of libMBD.
-module mbd
+module dftbp_mbd
 #:if WITH_MBD
   use libmbd
 #:endif
@@ -25,4 +25,4 @@ module mbd
   end type TMbd
 #:endif
 
-end module mbd
+end module dftbp_mbd

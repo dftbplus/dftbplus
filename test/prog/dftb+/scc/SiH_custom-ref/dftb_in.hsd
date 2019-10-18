@@ -1,0 +1,51 @@
+Geometry = GenFormat {
+  <<< "geo.gen"
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-8
+  MaxAngularMomentum {
+    Si = p 
+    H = s
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 0
+  }
+  SlaterKosterFiles = Type2Filenames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+ 
+  kPointsAndWeights=supercellFolding{
+    1 0 0
+    0 1 0
+    0 0 32 
+    0 0 0
+  }
+
+  OldSKInterpolation = Yes
+
+  CustomisedOccupations{
+    ReferenceOccupation{
+      Atoms = {1 3 5 7} 
+      p = 2.1 
+    }
+  }  
+
+
+}
+
+Parallel = {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 6
+}

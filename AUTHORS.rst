@@ -25,6 +25,10 @@ The DFTB+ development is being lead and coordinated by:
 The following people (in alphabetic order by their family names) have
 contributed to DFTB+ :
 
+* Cristopher Camacho (University of Costa Rica)
+
+* Caterina Cevallos-Brenes (University of Costa Rica)
+
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
@@ -37,9 +41,12 @@ contributed to DFTB+ :
 * Gabriele Penazzi (formerly University of Bremen Germany (till 2016), now
   QuantumWise A/S, Denmark)
 
+* Jan Řezáč (Institute of Organic Chemistry and Biochemistry AS CR, Czech Republic)
+
 * Michael Sternberg (Argonne National Laboratory, USA)
 
 * Martin Stöhr (University of Luxembourg, Luxembourg)
 
 * Frank Stuckenberg (University of Bremen, Germany)
 
+* Victor Yu (Duke University, USA)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Implements a repulsive potential between two atoms represented by cubic splines.
-module repspline
-  use assert
-  use Accuracy
-  use Bisect
+module dftbp_repspline
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_bisect
   implicit none
   private
 
@@ -253,4 +253,4 @@ contains
 
   end subroutine RepSpline_getEnergyDeriv
 
-end module repspline
+end module dftbp_repspline

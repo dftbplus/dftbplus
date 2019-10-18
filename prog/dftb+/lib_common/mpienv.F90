@@ -1,15 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains MPI related environment settings
-module mpienv
-  use accuracy, only : lc
-  use mpifx
-  use message
+module dftbp_mpienv
+  use dftbp_accuracy, only : lc
+  use dftbp_mpifx
+  use dftbp_message
   implicit none
   private
 
@@ -92,4 +92,4 @@ contains
   end subroutine TMpiEnv_init
 
 
-end module mpienv
+end module dftbp_mpienv

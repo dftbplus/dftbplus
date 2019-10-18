@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,9 +10,9 @@
 !> Contains routines for the additional local potential, which should enforce charge constraints.
 !>
 !> Note: this also has the same functional form as 3rd order SCC contributions
-module chargeconstr
-  use assert
-  use accuracy
+module dftbp_chargeconstr
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
   private
 
@@ -152,4 +152,4 @@ contains
 
   end subroutine ChrgConstr_addEnergyPerAtom
 
-end module chargeconstr
+end module dftbp_chargeconstr

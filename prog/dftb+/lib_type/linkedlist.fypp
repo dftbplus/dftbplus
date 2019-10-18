@@ -1,10 +1,9 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2018  DFTB+ developers group                                                     !
+#!  Copyright (C) 2006 - 2019  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
-#!
 #:mute
 #:if not defined('_LINKEDLIST_FYPP_')
 #:set _LINKEDLIST_FYPP_
@@ -289,7 +288,7 @@ contains
   !!* @param index Index of the element (0 < index < length of the list)
   subroutine ${TYPE_NAME}$_get(list, data, index)
     type(${TYPE_NAME}$), intent(inout) :: list
-    ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(out) :: data
+    ${ITEM_TYPE}$${NODE_ATTRIB}$, intent(out) :: data
     integer, intent(in) :: index
 
     type(node), pointer :: pCur
@@ -298,9 +297,7 @@ contains
     @:ASSERT(index > 0 .and. index <= list%length)
 
     pCur => getNode(list, index)
-  #:if ITEM_RANK > 0
-    @:ASSERT(all(shape(pCur%data) == shape(data)))
-  #:endif
+    
     data = pCur%data
 
   end subroutine ${TYPE_NAME}$_get

@@ -8,15 +8,15 @@
 #:include "common.fypp"
 
 !> Dispersion with Many Body Dispersion method by Tkatchenko et al.
-module manybodydisp
-  use assert
-  use globalenv, only : stdOut, tIoProc
-  use mpifx, only : mpifx_comm
-  use accuracy
-  use constants, only: pi, Bohr__AA, AA__Bohr, eV__Hartree, Hartree__eV
-  use mbd
-  use commontypes, only : TOrbitals
-  use message, only: error
+module dftbp_manybodydisp
+  use dftbp_assert
+  use dftbp_globalenv, only : stdOut, tIoProc
+  use dftbp_mpifx, only : mpifx_comm
+  use dftbp_accuracy
+  use dftbp_constants, only: pi, Bohr__AA, AA__Bohr, eV__Hartree, Hartree__eV
+  use dftbp_mbd
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_message, only: error
   implicit none
   private
 
@@ -200,4 +200,4 @@ contains
 
   end subroutine MBDgetStress
 
-end module manybodydisp
+end module dftbp_manybodydisp

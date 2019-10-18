@@ -45,7 +45,7 @@ Functions:
 #include <sys/un.h>
 #include <netdb.h>
 
-void connect_inet_socket(int *psockfd, const char* host, int port)
+void fsockets_connect_inet_socket(int *psockfd, const char* host, int port)
 /* Opens an internet socket.
    
    Note that fortran passes an extra argument for the string length,
@@ -98,7 +98,7 @@ void connect_inet_socket(int *psockfd, const char* host, int port)
   *psockfd = sockfd;
 }
 
-void connect_unix_socket(int *psockfd, const char* pathname)
+void fsockets_connect_unix_socket(int *psockfd, const char* pathname)
 /* Opens a unix socket.
    
    Note that fortran passes an extra argument for the string length,
@@ -143,7 +143,7 @@ void connect_unix_socket(int *psockfd, const char* pathname)
   *psockfd = sockfd;
 }
 
-void writebuffer_socket(int sockfd, const void *data, int len)
+void fsockets_writebuffer_socket(int sockfd, const void *data, int len)
 /* Writes to a socket.
 
 Args:
@@ -162,7 +162,7 @@ Args:
 }
 
 
-void readbuffer_socket(int sockfd, void *data, int len)
+void fsockets_readbuffer_socket(int sockfd, void *data, int len)
 /* Reads from a socket.
 
 Args:
@@ -189,7 +189,7 @@ Args:
 }
 
 
-void close_socket(int sockfd)
+void fsockets_close_socket(int sockfd)
 /* Closes the socket.
 */
 {

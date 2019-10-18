@@ -19,7 +19,81 @@ Changed
 Fixed
 -----
 
-Compilation when socket interface disabled.
+
+19.1 (2019-07-01)
+=================
+
+Added
+-----
+
+- Non-equilibrium Green's function transport.
+
+- Use of the ELSI library.
+ 
+- Ability to perform ground state MD with excitation energies.
+
+- Caching for transition charges in excited state.
+
+- DFTB+ can be compiled as a library and accessed via high level API (version
+  number is in the file api/mm/API_VERSION below the main directory).
+
+- Onsite corrected hamiltonian for ground state energies.
+
+- Range-separated hybrid DFTB.
+ 
+- GPU acceleration using the MAGMA library for eigensolution. WARNING: this is
+  currently an experimental feature, so should be used with care.
+
+- Labelling of atomic orbital choices in output.
+
+- Halogen X correction.
+
+Changed
+-------
+
+- Updated parser version to 7.
+
+Fixed
+-----
+
+- Orbital-resolved projected eigenstates (shell-resolved were correct)
+
+- Corrected Orbital to Shell naming conventions
+
+
+18.2 (2018-08-19)
+=================
+
+Added
+-----
+
+- Option for removing translational and rotational degrees of freedom in modes.
+
+- H5 correction for hydrogen bonds.
+
+
+Changed
+-------
+
+- Updated parser version to 6.
+
+- Syntax for H5 and DampedHX corrections for hydrogen bonds unified.
+
+
+Fixed
+-----
+
+- Compilation when socket interface disabled.
+
+- Stress tensor evaluation for 3rd order DFTB.
+
+- Tollerance keyword typo.
+
+- Corrected erroneous Lennard-Jones-dispersion for periodic cases (broken since
+  release 1.3)
+
+- Forces/stresses for dual spin orbit.
+
 
 18.1 (2018-03-02)
 =================
