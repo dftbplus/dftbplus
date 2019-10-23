@@ -25,3 +25,8 @@ transcharges.o = transcharges.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp
 _mod_dftbp_transcharges: transcharges.o
 _mod_dftbp_transcharges = $(transcharges.o)
 
+rs_linresp.o: common.fypp _mod_dftbp_assert _mod_dftbp_arpack _mod_dftbp_linrespcommon _mod_dftbp_commontypes _mod_dftbp_slakocont _mod_dftbp_shortgamma _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_nonscc _mod_dftbp_scc _mod_dftbp_blasroutines _mod_dftbp_eigensolver _mod_dftbp_message _mod_dftbp_taggedoutput _mod_dftbp_sorting _mod_dftbp_qm _mod_dftbp_transcharges
+rs_linresp.o = linrespgrad.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_arpack) $(_mod_dftbp_linrespcommon) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont) $(_mod_dftbp_shortgamma) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_nonscc) $(_mod_dftbp_scc) $(_mod_dftbp_blasroutines) $(_mod_dftbp_eigensolver) $(_mod_dftbp_message) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_sorting) $(_mod_dftbp_qm) $(_mod_dftbp_transcharges)
+_mod_dftbp_rs_linearresponse: rs_linresp.o
+_mod_dftbp_rs_linearresponse = $(rs_linresp.o)
+

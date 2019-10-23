@@ -24,7 +24,7 @@ module dftbp_rangeseparated
   implicit none
   private
 
-  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init, rangeSepTypes
+  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init, getLrGammaEval, getSpecies, getGammaPrimeValue, rangeSepTypes
 
 
   type :: TRangeSepTypesEnum
@@ -109,6 +109,8 @@ module dftbp_rangeseparated
     procedure :: addLrEnergy
     procedure :: addLrGradients
     procedure :: evaluateLrEnergyDirect
+    procedure :: getLrGammaEval          ! TOMAS KUBAR
+    procedure :: getSpecies              ! TOMAS KUBAR
 
   end type RangeSepFunc
 
@@ -216,6 +218,35 @@ contains
     end subroutine checkRequirements
 
   end subroutine RangeSepFunc_init
+
+  !!! TOMAS KUBAR ADDED -- BEGIN
+  
+  subroutine getSpecies(this, targetArray)
+    integer, allocatable, intent(out) :: targetArray(:)
+    class(RangeSepFunc), intent(in) :: this
+    integer :: dim1
+
+    dim1 = size(this%species)
+    allocate(targetArray(dim1))
+
+    targetArray(:) = this%species
+
+  end subroutine getSpecies
+
+  subroutine getLrGammaEval(this, targetArray)
+    real(dp), allocatable, intent(out) :: targetArray(:,:)
+    class(RangeSepFunc), intent(in) :: this
+    integer :: dim1, dim2
+
+    dim1 = size(this%lrGammaEval, 1)
+    dim2 = size(this%lrGammaEval, 2)
+    allocate(targetArray(dim1, dim2))
+
+    targetArray(:,:) = this%lrGammaEval
+
+  end subroutine getLrGammaEval
+
+  !!! TOMAS KUBAR ADDED -- END
 
 
   !> update the rangeSep module on coordinate change
