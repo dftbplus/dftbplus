@@ -210,7 +210,7 @@ contains
     @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
-  write(*,*) 'nAtom', nAtom
+
 
     square(:, :) = 0.0_dp
 
@@ -2417,7 +2417,7 @@ contains
 !fix
    weightMOM = .true.
 
-write(*,*) "sigma" , sigmaMOM
+
 
 
     allocate(prjMOM(size(cMatCurr, dim=1)))
@@ -2443,6 +2443,11 @@ write(*,*) "sigma" , sigmaMOM
 
 
     call index_heap_sort(indxMOM(:,iKS), prjMOM)
+
+!write(*,*) 'indxMOM'
+!    do i=1,ubound(indxMOM,1)
+!      print *, i, indxMOM(i, iks)
+!    end do
 
   end subroutine momOverlapComp
 

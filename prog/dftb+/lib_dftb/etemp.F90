@@ -55,7 +55,7 @@ contains
   !>
   !> Note: If no electrons are present, the Fermi energy is set to zero per default.
   subroutine Efilling(Ebs, Ef, TS, E0, filling, eigenvals, nElectrons, kT, kWeight, distrib, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+             & tSpinPurify, iDet, nEl, iS, mom, indxMOM)
 
     !> Band structure energy at T
     real(dp), intent(out) :: Ebs(:)
@@ -86,6 +86,7 @@ contains
 
 
 
+
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
 
@@ -104,6 +105,10 @@ contains
     !> Number of electrons and spin channel index
     real(dp), intent(in) :: nEl(:)
     integer, intent(in) :: iS
+    logical, intent(in) :: mom
+
+    !> Index of projection values MOM
+    integer, intent(in) :: indxMOM(:,:)
 
 
 
@@ -143,7 +148,7 @@ contains
       nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
       if (abs(nElectrons - nElec) <= elecTolMax) then
         call electronFill(Ebs, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeight, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+             & tSpinPurify, iDet, nEl, iS, mom,indxMOM)
         return
       end if
     end if
@@ -217,7 +222,7 @@ contains
 
     nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
     call electronFill(Ebs,filling,TS,E0,Ef,eigenvals,kT,distrib,kWeight, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+             & tSpinPurify, iDet, nEl, iS,mom, indxMOM)
 
     ! re-scale to give exact number of electrons, this is a temporay hack
     if (nElec > epsilon(1.0_dp)) then
@@ -379,7 +384,7 @@ contains
   !> Ref: M. Methfessel and A. T. Paxton,, Phys. Rev. B vol 40, pp 3616 (1989).
   !> Ref: F. Wagner, Th.\ Laloyaux and M. Scheffler, Phys. Rev. B, vol 57 pp 2102 (1998).
   subroutine electronFill(Eband, filling, TS, E0, Ef, eigenvals, kT, distrib, kWeights, tNonAufbau, &
-             & tSpinPurify, iDet, nEl, iS)
+             & tSpinPurify, iDet, nEl, iS, mom, indxMOM)
 
     !> Band structure energy at T
     real(dp), intent(out) :: Eband(:)
@@ -423,6 +428,11 @@ contains
     !> Number of electrons and spin channel index
     real(dp), intent(in) :: nEl(:)
     integer, intent(in) :: iS
+    logical, intent(in) :: mom
+
+    !> Index of projection values MOM
+    integer, intent(in) :: indxMOM(:,:)
+
 
 
     real(dp) :: swapfill
@@ -496,7 +506,7 @@ contains
 
     else
 
-      if (tNonAufbau) then
+      if (tNonAufbau.and..not. mom) then
         allocate(tmpMtx(size(eigenvals, dim=1),kpts,size(eigenvals, dim=3)))
         tmpMtx=eigenvals
         do iSpin = 1, size(eigenvals, dim=3)
@@ -513,6 +523,8 @@ contains
           end do
         end do
       end if
+
+
       do iSpin = 1, size(eigenvals, dim=3)
         do i = 1, kpts
           do j = 1, size(eigenvals, dim=1)
@@ -528,11 +540,18 @@ contains
 #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
 #:endif
-            if (tNonAufbau .and. j/=1 .and. ((filling(j, i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
+
+
+            if ((tNonAufbau .and. .not. mom) .and. j/=1 .and. ((filling(j, i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
+
               exit
-            else if (filling(j, i, iSpin)<=elecTol .and. .not. tNonAufbau) then
-              exit
+
+            else if (filling(j, i, iSpin)<=elecTol .and. .not. (tNonAufbau .and. .not. mom)) then
+
+             exit
+
             end if
+
             if (filling(j, i, iSpin) > epsilon(0.0_dp) .and.&
                 & filling(j, i, iSpin) < (1.0_dp - epsilon(1.0_dp))) then
               ! Fermi-Dirac entropy :
@@ -545,16 +564,29 @@ contains
           end do
         end do
       end do
-      if (tNonAufbau) then
+
+
+
+
+      if (tNonAufbau .and. .not. mom) then
         eigenvals=tmpMtx
       end if
+
       TS(:) = TS * kT
       E0(:) = Eband - 0.5_dp * TS
     end if
-  write(*,*) 'TNA'
-  do i=1,ubound(filling,1)
-    print *, i, filling(i,:,:)
-  end do
+
+    if(mom) then
+      call momFillingSwap(indxMOM(:,iS), filling(:,1,iS), nEl)
+    endif
+
+
+
+!write(*,*) 'Filling spin', iS
+!    do i=1,ubound(filling,1)
+!      print *, i, filling(i, 1, 1)
+!    end do
+
 
 
   end subroutine electronFill
@@ -570,7 +602,7 @@ contains
 
 
     !> occupations (level, kpoint, spin)
-    real(dp), intent(inout) :: filling(:,:,:)
+    real(dp), intent(inout) :: filling(:)
 
     !> Nuber of electrons
     real(dp), intent(in) :: nEl(:)
@@ -587,14 +619,15 @@ contains
     i = size(filling, DIM=1) !90
     !j = size(filling, DIM=2) !1 maybe is the k points... eh? its one for now
                              ! just dont want ones floating around
-    do iSpin = 1, n
+   ! do iSpin = 1, n
       k = 0
       do while (k < i)
-        fillMOM(1 + k) = filling(indxMOM(i - k), 1, iSpin)
+
+        fillMOM(1 + k) = filling(indxMOM(i-k))
         k = k + 1
       end do
-      filling(:, 1, iSpin) = fillMOM(:)
-    end do
+      filling(:) = fillMOM(:)
+    !end do
 
 
 

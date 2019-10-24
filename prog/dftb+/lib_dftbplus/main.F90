@@ -1717,6 +1717,7 @@ contains
       else
           nMOM = nDADm
       end if
+     write(*,*) 'initmom', tSpinPurify,tNonAufbau,nMOM,nDADm,nDADt,iDet
 
 
   end subroutine initMOM
@@ -2275,6 +2276,7 @@ contains
     logical :: tImHam
     real(dp), allocatable :: rVecTemp(:)
 
+
     nSpin = size(ham, dim=2)
     tImHam = allocated(iRhoPrim)
 
@@ -2524,7 +2526,7 @@ contains
 
     !> On which SCC iteration should the maximum overlap calculation start?
     integer, intent(in) :: nMOM
-
+    logical :: mom=.false.
 
 
     integer :: nSpin
@@ -2539,7 +2541,8 @@ contains
             & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep,&
             & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:),&
             & nEl, SSqrRealStorage, tMOM, tIMOM, iSccIter, nMOM, aOldHSqrReal, &
-            & bOldHSqrReal, momOrbE, iDet, indxMOM)
+            & bOldHSqrReal, momOrbE, iDet, indxMOM, mom)
+
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
@@ -2557,7 +2560,21 @@ contains
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, &
-        & tSpinPurify, iDet, nEl)
+        & tSpinPurify, iDet, nEl, mom, indxMOM)
+
+write(*,*) 'Filling'
+
+if (iSccIter >= nMOM) then
+    do i=1,ubound(filling,1)
+      print *, (size(filling, dim=1) + 1-i), filling((size(filling, dim=1) + 1-i), 1, 1), &
+        & filling((size(filling, dim=1) + 1-i), 1, 2), indxMOM(i, 1), indxMOM(i, 2)
+    end do
+else
+    do i=1,ubound(filling,1)
+      print *, (size(filling, dim=1) + 1-i), filling((size(filling, dim=1) + 1-i), 1, 1), &
+        & filling((size(filling, dim=1) + 1-i), 1, 2)
+    end do
+endif
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
@@ -2591,7 +2608,8 @@ contains
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep, deltaRhoInSqr,&
       & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, nEl, &
-      & SSqrRealStorage, tMOM, tIMOM, iSccIter, nMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, iDet, indxMOM)
+      & SSqrRealStorage, tMOM, tIMOM, iSccIter, nMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, iDet, &
+      & indxMOM, mom)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2680,6 +2698,7 @@ contains
 
     !> Index of projection values MOM
     integer, intent(out) :: indxMOM(:,:)
+    logical, intent(inout) :: mom
 
 
 
@@ -2702,7 +2721,7 @@ contains
       call diagDenseMtxBlacs(electronicSolver, 1, 'V', denseDesc%blacsOrbSqr, HSqrReal, SSqrReal,&
           & eigen(:,iSpin), eigvecsReal(:,:,iKS))
     #:else
-write(*,*) 'iSpin', iSpin
+
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       call unpackHS(HSqrReal, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -2732,17 +2751,15 @@ write(*,*) 'iSpin', iSpin
      ! OldHSqrReal = HSqrReal
     #:endif
 
-!MYD
-
-
-      if ((tMOM .or. tIMOM) .and. iSccIter >= (nMOM+1) .and. iDet >= 1) then
+      if ((tMOM .or. tIMOM) .and. iSCCIter == (nMOM+1) .and. iDet>=1) then
+        mom=.true.
+      elseif (iSccIter==1) then
+        mom=.false.
+      endif
+      if (mom .and. iSccIter >= (nMOM+1)) then
         call momOverlapComp(tMOM, HSqrReal, aOldHSqrReal, bOldHSqrReal, momOrbE, eigen, SSqrRealStorage,&
             & indxMOM, nEl, iKS)
 
-  write(*,*) 'indxmom'
-  do i=1,ubound(indxmom,1)
-    print *, i, indxmom(i,:)
-  enddo
 
       end if
       if (tMOM .and. iDet>=1) then
@@ -2755,6 +2772,10 @@ write(*,*) 'iSpin', iSpin
 write (*,*) "OK"
       !    call storeMOM(eigen, momOrbE, iKS)
       end if
+
+
+
+
     end do
 
 
@@ -3362,7 +3383,7 @@ write (*,*) "OK"
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
       & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, tNonAufbau, &
-      & tSpinPurify, iDet, nEl)
+      & tSpinPurify, iDet, nEl, mom,indxMOM)
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(inout) :: eigvals(:,:,:)
@@ -3418,6 +3439,9 @@ write (*,*) "OK"
 
     !> Nuber of electrons
     real(dp), intent(in) :: nEl(:)
+    logical, intent(in) :: mom
+    !> Index of projection values MOM
+    integer, intent(in) :: indxMOM(:,:)
 
 
     real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1)
@@ -3444,13 +3468,13 @@ write (*,*) "OK"
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
             & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, tNonAufbau, &
-            & tSpinPurify, iDet, nEl, iS)
+            & tSpinPurify, iDet, nEl, iS, mom, indxMOM)
       end do
     else if (nSpinHams == 2 .and. tSpinSharedEf) then
       !write(*,*) 'tSpinSharedEf' !Not called MYD
       ! Common Fermi level across two colinear spin channels
       call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
-          & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS)
+          & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS, mom, indxMOM)
       Ef(2) = Ef(1)
     else if (tFillKSep) then
     !write(*,*) 'tFillKSep' , tFillKSep !Also Not Called MYD
@@ -3463,7 +3487,7 @@ write (*,*) "OK"
         do iK = 1, nKPoints
           call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
               & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn, tNonAufbau, &
-              & tSpinPurify, iDet, nEl, iS)
+              & tSpinPurify, iDet, nEl, iS, mom, indxMOM)
           Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
           Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
           TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
@@ -3476,7 +3500,7 @@ write (*,*) "OK"
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
             & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn, tNonAufbau,&
-            & tSpinPurify, iDet, nEl, iS)
+            & tSpinPurify, iDet, nEl, iS, mom, indxMOM)
       end do
     end if
 
@@ -3754,9 +3778,9 @@ write (*,*) "OK"
         & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
 
-  do i=1,ubound(qOrb,1)
-    print *, i, qOrb(:, i, 1)
-  end do
+!  do i=1,ubound(qOrb,1)
+!    print *, i, qOrb(:, i, 1)
+!  end do
 
 !MYD
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
