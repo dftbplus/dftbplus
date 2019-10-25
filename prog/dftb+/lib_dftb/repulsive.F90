@@ -15,7 +15,7 @@ module dftbp_repulsive
   implicit none
   private
 
-  public :: getERep, getERepDeriv
+  public :: getERep, getERepDeriv, getERepDeriv2nd
 
 
 contains
@@ -48,7 +48,7 @@ contains
     integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: vect(3), dist, intermed
 
-    @:ASSERT(size(reslt) == size(nNeighbourRep))
+  @:ASSERT(size(reslt) == size(nNeighbourRep))
 
     reslt(:) = 0.0_dp
     do iAt1 = 1, size(nNeighbourRep)
@@ -95,7 +95,7 @@ contains
     integer :: iAt1, iNeigh, iAt2, iAt2f
     real(dp) :: vect(3), intermed(3)
 
-    @:ASSERT(size(reslt,dim=1) == 3)
+  @:ASSERT(size(reslt,dim=1) == 3)
 
     reslt(:,:) = 0.0_dp
     do iAt1 = 1, size(nNeighbourRep)
@@ -113,5 +113,61 @@ contains
     end do
 
   end subroutine getERepDeriv
+
+
+  !> Subroutine for second derivative contributions from the repulsives.
+  subroutine getERepDeriv2nd(reslt,coords, nNeighbors, iNeighbors, species, repCont, img2CentCell)
+
+    !> Second derivatives for each atom.
+    real(dp), intent(out) :: reslt(:,:,:)
+
+    !> Coordinates (x,y,z, all atoms including possible images)
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Number of neighbors for atoms in the central cell
+    integer, intent(in) :: nNeighbors(:)
+
+    !> Index of neighbors for a given atom.
+    integer, intent(in) :: iNeighbors(0:,:)
+
+    !> Species of atoms in the central cell.
+    integer, intent(in) :: species(:)
+
+    !> Container for repulsive potentials.
+    type(ORepCont), intent(in) :: repCont
+
+    !> Index of each atom in the central cell which the atom is mapped on to.
+    integer, intent(in) :: img2CentCell(:)
+
+    integer  :: iAt1, iNeigh, iAt2, iAt2f
+    real(dp) :: vect(3), junk(3), intermed(3,3)
+
+  @:ASSERT(size(reslt,dim=1) == 3)
+  @:ASSERT(size(reslt,dim=2) == 3)
+  @:ASSERT(size(reslt,dim=3) == size(nNeighbors))
+
+    reslt = 0.0_dp
+    do iAt1 = 1, size(nNeighbors)
+      lpNeigh: do iNeigh = 1, nNeighbors(iAt1)
+        iAt2 = iNeighbors(iNeigh,iAt1)
+        iAt2f = img2CentCell(iAt2)
+
+        if (iAt2f == iAt1) then
+          ! q=0 case
+          cycle lpNeigh
+        end if
+
+        vect = coords(:,iAt1) - coords(:,iAt2)
+
+        call getEnergyDeriv(repCont, junk, vect, species(iAt1), species(iAt2),intermed)
+
+        reslt(:,:,iAt1) = reslt(:,:,iAt1) + intermed
+        reslt(:,:,iAt2f) = reslt(:,:,iAt2f) + intermed
+
+      end do lpNeigh
+    end do
+
+  end subroutine getERepDeriv2nd
+
 
 end module dftbp_repulsive

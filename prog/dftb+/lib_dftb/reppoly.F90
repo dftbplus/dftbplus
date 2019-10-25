@@ -150,58 +150,63 @@ contains
 
 
   !> Returns gradient of the repulsive for a given distance.
-  subroutine RepPoly_getEnergyDeriv(self, res, xx, d2)
+  subroutine RepPoly_getEnergyDeriv(self, xx, res, res2)
 
     !> Polynomial repulsive.
     type(ORepPoly), intent(in) :: self
 
-    !> Resulting contribution
-    real(dp), intent(out) :: res(3)
-
     !> Actual vector between atoms
     real(dp), intent(in) :: xx(3)
 
-    !> second derivative in direction of repulsive derivative
-    real(dp), intent(out), optional :: d2
+    !> Resulting contribution
+    real(dp), intent(out) :: res(3)
 
-    integer :: ii
-    real(dp) :: rr, rrr, xh
+    !> second derivatives
+    real(dp), intent(out), optional :: res2(3,3)
 
-    @:ASSERT(self%tInit)
+    integer :: ii, jj
+    real(dp) :: r2, rr, rrr, d1, d2
+
+  @:ASSERT(self%tInit)
+    r2 = sum(xx**2)
+    rr = sqrt(r2)
 
     res(:) = 0.0_dp
-    if (present(d2)) then
-      d2 = 0.0_dp
+    if (present(res2)) then
+      res2 = 0.0_dp
     end if
 
-    rr = sqrt(sum(xx**2))
-    if (rr >= self%cutoff) then
-      return
-    end if
+    if (rr < self%cutoff) then
+      rrr = self%cutoff - rr
 
-    rrr = self%cutoff - rr
-    ! ((n * c_n * x + (n-1) * c_{n-1}) * x + (n-2) * c_{n-2}) * x + ... c_2
-    xh = real(powMax, dp) * self%polyCoeffs(powMax)
-    do ii = powMax - 1, powMin1, -1
-      xh = xh * rrr + real(ii, dp) * self%polyCoeffs(ii)
-    end do
-    do ii = powMin1, 2, -1
-      xh = xh * rrr
-    end do
-    res(:) = -xh * xx(:) / rr
-
-    if (present(d2)) then
-      xh = real(powMax * (powMax -1), dp) * self%polyCoeffs(powMax)
-      do ii = powMax - 1, powMin1, -1
-        xh = xh * rrr + real(ii * (ii - 1), dp) * self%polyCoeffs(ii)
-      end do
-      ! reserved for future expansion for repulsive potentials using higher
-      ! order terms only:
-      ! Commented as it gives a warning
-      !do ii = powMin1, 3, -1
-      !  xh = xh * rrr
+      !do ii = powMin1, powMax
+      !  d1 = d1 + real(ii, dp) * self%polyCoeffs(ii) * rrr**(ii-1)
       !end do
-      d2 = xh
+      d1 = real(powMax, dp) * self%polyCoeffs(powMax)
+      do ii = powMax-1, powMin1, -1
+        d1 = d1 * rrr + real(ii, dp) * self%polyCoeffs(ii)
+      end do
+      do ii = powMin1, 2, -1
+        d1 = d1 * rrr
+      end do
+
+      res(:) = -d1 * xx(:) / rr
+
+      if (present(res2)) then
+        do ii = powMin1, powMax
+          d2 = d2 + real(ii*(ii-1), dp) * self%polyCoeffs(ii) * rrr**(ii-2)
+        end do
+        do ii = 1, 3
+          do jj = 1, 3
+            res2(ii,jj) = xx(ii)*xx(jj)
+          end do
+        end do
+        res2 = res2 * ( d2 / r2 + d1 / (rr*r2) )
+        do ii = 1, 3
+          res2(ii,ii) = res2(ii,ii) - d1 / rr
+        end do
+      end if
+
     end if
 
   end subroutine RepPoly_getEnergyDeriv

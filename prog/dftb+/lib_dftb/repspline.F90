@@ -184,34 +184,35 @@ contains
 
 
   !> Returns gradient of the repulsive for a given distance.
-  subroutine RepSpline_getEnergyDeriv(self, grad, xx, d2)
+  subroutine RepSpline_getEnergyDeriv(self, xx, grad, grad2)
 
     !> Spline repulsive.
     type(ORepSpline), intent(in) :: self
 
-    !> Resulting contribution
-    real(dp), intent(out) :: grad(3)
-
     !> Actual vector between atoms
     real(dp), intent(in) :: xx(3)
 
-    !> Second derivative in direction of xx, if needed.
-    real(dp), intent(out), optional :: d2
+    !> Resulting contribution
+    real(dp), intent(out) :: grad(3)
 
-    integer :: imatch, ii
-    real(dp) :: rr, xh, xv, d1
+    !> Second derivatives
+    real(dp), intent(out), optional :: grad2(3,3)
 
-    rr = sqrt(sum(xx**2))
+    integer :: imatch, ii, jj
+    real(dp) :: r2, rr, xh, xv, d1, d2
+
+    r2 = sum(xx**2)
+    rr = sqrt(r2)
+
     if (rr < minNeighDist .or. rr > self%cutoff) then
       d1 = 0.0_dp
-      if (present(d2)) then
+      if (present(grad2)) then
         d2 = 0.0_dp
       end if
     elseif (rr < self%xStart(1)) then
       d1 = -self%expCoeffs(1) * exp(-self%expCoeffs(1) * rr + self%expCoeffs(2))
-      if (present(d2)) then
-        d2 = self%expCoeffs(1)**2&
-            & * exp(-self%expCoeffs(1) * rr + self%expCoeffs(2))
+      if (present(grad2)) then
+        d2 = self%expCoeffs(1)**2 * exp(-self%expCoeffs(1) * rr + self%expCoeffs(2))
       end if
     else
       call bisection(imatch, self%xStart, rr)
@@ -223,12 +224,11 @@ contains
           d1 = d1 + real(ii-1, dp) * self%spCoeffs(ii, imatch) * xh
           xh = xh * xv
         end do
-        if (present(d2)) then
+        if (present(grad2)) then
           xh = 1.0_dp
           d2 = 0.0_dp
           do ii = 3, 4
-            d2 = d2 + real(ii-2, dp) * real(ii-1, dp)&
-                & * self%spCoeffs(ii, imatch) * xh
+            d2 = d2 + real(ii-2, dp) * real(ii-1, dp) * self%spCoeffs(ii, imatch) * xh
             xh = xh * xv
           end do
         end if
@@ -238,18 +238,30 @@ contains
           d1 = d1 + real(ii-1, dp) * self%spLastCoeffs(ii) * xh
           xh = xh * xv
         end do
-        if (present(d2)) then
+        if (present(grad2)) then
           xh = 1.0_dp
           d2 = 0.0_dp
           do ii = 3, 6
-            d2 = d2 + real(ii-2, dp) * real(ii-1, dp) * xh&
-                & * self%spLastCoeffs(ii)
+            d2 = d2 + real(ii-2, dp) * real(ii-1, dp) * xh * self%spLastCoeffs(ii)
             xh = xh * xv
           end do
         end if
       end if
     end if
     grad(:) = d1 * xx(:) / rr
+
+    if (present(grad2)) then
+      grad2 = 0.0_dp
+      do ii = 1, 3
+        do jj = 1, 3
+          grad2(ii,jj) = xx(ii)*xx(jj)
+        end do
+        end do
+        grad2 = grad2 * ( d2 / r2 - d1 / (rr*r2) )
+        do ii = 1, 3
+          grad2(ii,ii) = grad2(ii,ii) + d1 / rr
+        end do
+    end if
 
   end subroutine RepSpline_getEnergyDeriv
 

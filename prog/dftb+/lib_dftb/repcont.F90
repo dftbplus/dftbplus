@@ -206,7 +206,7 @@ contains
 
 
   !> Returns the repulsive gradient for a given distance and species pair.
-  subroutine RepCont_getEnergyDeriv(self, res, xx, sp1, sp2)
+  subroutine RepCont_getEnergyDeriv(self, res, xx, sp1, sp2, d2)
 
     !> Repulsive container.
     type(ORepCont), intent(in) :: self
@@ -223,15 +223,23 @@ contains
     !> Type of the second interacting atom
     integer, intent(in) :: sp2
 
+    !> Second derivatives, if needed.
+    real(dp), intent(out), optional :: d2(:,:)
+
     @:ASSERT(self%tInit .and. self%tDataOK)
     @:ASSERT(size(res) == 3)
     @:ASSERT(size(xx) == 3)
+  #:call ASSERT_CODE
+    if (present(d2)) then
+    @:ASSERT(shape(d2) == [3,3])
+    end if
+  #:endcall ASSERT_CODE
 
     select case (self%repulsives(sp2, sp1)%iType)
     case(typeRepSpline)
-      call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepSpline, res, xx)
+      call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepSpline, xx, res, d2)
     case(typeRepPoly)
-      call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepPoly, res, xx)
+      call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepPoly, xx, res, d2)
     end select
 
   end subroutine RepCont_getEnergyDeriv
