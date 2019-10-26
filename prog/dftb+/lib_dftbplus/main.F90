@@ -616,10 +616,13 @@ contains
               & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
               & iEqBlockOnSite, iEqBlockOnSiteLS)
         else
+          ! ... modified by islee
           call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
-              & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff)
+              & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff,&
+              & qBlockIn, qBlockOut)
+          ! ... modified by islee
         end if
 
         call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
@@ -3628,11 +3631,12 @@ contains
   end subroutine getNextInputCharges
 
 
+  ! ... modified by islee
   !> Update delta density matrix rather than merely q for rangeseparation
   subroutine getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK, iAtomStart,&
       & iSparseStart, img2CentCell, pChrgMixer, qOutput, orb, iGeoStep, iSccIter, minSccIter,&
       & maxSccIter, sccTol, tStopScc, tReadChrg, q0, qInput, sccErrorQ, tConverged, deltaRhoOut,&
-      & deltaRhoIn, deltaRhoDiff)
+      & deltaRhoIn, deltaRhoDiff, qBlockIn, qBlockOut)
 
     !> Square dense overlap storage
     real(dp), allocatable, intent(inout) :: SSqrReal(:,:)
@@ -3706,6 +3710,14 @@ contains
     !> difference of delta density matrix in and out
     real(dp), intent(inout) :: deltaRhoDiff(:)
 
+    ! ... added by islee
+    !> block charge input (if needed for orbital potentials)
+    real(dp), intent(inout), allocatable :: qBlockIn(:,:,:,:)
+
+    !> Dual output charges
+    real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
+    ! ... added by islee
+
 
     integer :: nSpin
     real(dp), pointer :: deltaRhoInSqr(:,:,:)
@@ -3721,12 +3733,22 @@ contains
       if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .and. .not. tReadChrg)) then
         deltaRhoIn(:) = deltaRhoOut
         qInput(:,:,:) = qOutput
+        ! ... added by islee
+        if (allocated(qBlockIn)) then
+          qBlockIn(:,:,:,:) = qBlockOut
+        end if
+        ! ... added by islee
       else
         call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
         call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
             & iSparseStart, img2CentCell)
         deltaRhoInSqr(1:orb%nOrb, 1:orb%nOrb, 1:nSpin) => deltaRhoIn
         call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
+        ! ... added by islee
+        if (allocated(qBlockIn)) then
+          call denseBlockMulliken(deltaRhoInSqr, SSqrReal, q0, iAtomStart, qBlockIn)
+        end if
+        ! ... added by islee
 
         ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
         ! distributed to alpha and beta density matrices
@@ -3737,10 +3759,16 @@ contains
           qInput(:,:,:) = qInput + q0
         end if
         call ud2qm(qInput)
+        ! ... added by islee
+        if (allocated(qBlockIn)) then
+          call ud2qm(qBlockIn)
+        end if
+        ! ... added by islee
       end if
     end if
 
   end subroutine getNextInputDensity
+  ! ... modified by islee
 
 
   !> Reduce charges according to orbital equivalency rules.

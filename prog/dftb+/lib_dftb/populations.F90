@@ -15,11 +15,17 @@ module dftbp_populations
   use dftbp_constants
   use dftbp_periodic
   use dftbp_commontypes
+  ! ... added by islee
+  use dftbp_blasroutines, only : gemm
+  ! ... added by islee
   implicit none
   private
 
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms,&
        &denseSubtractDensityOfAtoms_nospin, getChargePerShell
+  ! ... added by islee
+  public :: denseBlockMulliken
+  ! ... added by islee
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -450,6 +456,88 @@ contains
 
   end subroutine getChargePerShell
 
+
+  ! ... added by islee
+  subroutine denseBlockMulliken(rhoSqr, overSqr, q0, iSquare, qq)
+
+    !> Square (lower triangular) spin polarized density matrix
+    real(dp), intent(in) :: rhoSqr(:,:,:)
+
+    !> Square (lower triangular) overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> reference charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Mulliken block charges on output (mOrb, mOrb, nAtom, nSpin)
+    real(dp), intent(out) :: qq(:,:,:,:)
+
+    real(dp), allocatable :: tmpS(:,:)
+    real(dp), allocatable :: tmpD(:,:,:)
+    real(dp), allocatable :: tmp_mat(:,:)
+    real(dp), allocatable :: tmp_block(:,:)
+
+    integer :: nAOs, nat, nSpin, ii, jj, kk, iat, iS
+
+    nSpin = size(rhoSqr, dim=3)
+    nat = size(iSquare, dim=1) - 1
+    nAOs = size(rhoSqr, dim=1)
+
+    ALLOCATE(tmpS(nAOs,nAOs))
+    ALLOCATE(tmpD(nAOs,nAOs,nSpin))
+    ALLOCATE(tmp_mat(nAOs,nAOs))
+    ALLOCATE(tmp_block(nAOs,nAOs))
+
+    ! ... symmetrize overlap and density matrices
+    tmpS(:,:) = 0.0_dp
+    tmpS(:,:) = overSqr(:,:) + transpose(overSqr(:,:))
+    do ii = 1, nAOs
+      tmpS(ii,ii) = tmpS(ii,ii) - overSqr(ii,ii)
+    end do
+
+    ! ... tmpD has 1:alpha, 2:beta
+    do iS = 1, nSpin
+      tmpD(:,:,iS) = 0.0_dp
+      tmpD(:,:,iS) = rhoSqr(:,:,iS) + transpose(rhoSqr(:,:,iS))
+      do ii = 1, nAOs
+        tmpD(ii,ii,iS) = tmpD(ii,ii,iS) - rhoSqr(ii,ii,iS)
+      end do
+    end do
+
+    qq(:,:,:,:) = 0.0_dp
+    do iS = 1, nSpin
+
+      tmp_block(:,:) = 0.0_dp
+      tmp_mat(:,:) = 0.0_dp
+      call gemm(tmp_mat,tmpS,tmpD(:,:,iS),1.0_dp,0.0_dp,'N','N')
+      tmp_block(:,:) = tmp_block(:,:) + 0.5_dp * tmp_mat(:,:)
+
+      tmp_mat(:,:) = 0.0_dp
+      call gemm(tmp_mat,tmpD(:,:,iS),tmpS,1.0_dp,0.0_dp,'N','N')
+      tmp_block(:,:) = tmp_block(:,:) + 0.5_dp * tmp_mat(:,:)
+
+      do iat = 1, nat
+        ii = iSquare(iat)
+        jj = iSquare(iat+1) - 1
+        qq(1:jj-ii+1,1:jj-ii+1,iat,iS) = tmp_block(ii:jj,ii:jj)
+        do kk = 1, jj - ii + 1
+          qq(kk,kk,iat,iS) = qq(kk,kk,iat,iS) +&
+              & q0(kk,iat,1) / dble(nSpin)
+        end do
+      end do
+
+    end do
+
+    DEALLOCATE(tmpS)
+    DEALLOCATE(tmpD)
+    DEALLOCATE(tmp_mat)
+    DEALLOCATE(tmp_block)
+
+  end subroutine denseBlockMulliken
+  ! ... added by islee
 
 
 end module dftbp_populations
