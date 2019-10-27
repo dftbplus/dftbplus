@@ -481,14 +481,14 @@ contains
     nat = size(iSquare, dim=1) - 1
     nAOs = size(rhoSqr, dim=1)
 
-    ALLOCATE(tmpS(nAOs,nAOs))
-    ALLOCATE(tmpD(nAOs,nAOs,nSpin))
-    ALLOCATE(tmp_mat(nAOs,nAOs))
-    ALLOCATE(tmp_block(nAOs,nAOs))
+    allocate(tmpS(nAOs,nAOs))
+    allocate(tmpD(nAOs,nAOs,nSpin))
+    allocate(tmp_mat(nAOs,nAOs))
+    allocate(tmp_block(nAOs,nAOs))
 
     ! ... symmetrize overlap and density matrices
     tmpS(:,:) = 0.0_dp
-    tmpS(:,:) = overSqr(:,:) + transpose(overSqr(:,:))
+    tmpS(:,:) = overSqr + transpose(overSqr)
     do ii = 1, nAOs
       tmpS(ii,ii) = tmpS(ii,ii) - overSqr(ii,ii)
     end do
@@ -507,11 +507,11 @@ contains
 
       tmp_block(:,:) = 0.0_dp
       tmp_mat(:,:) = 0.0_dp
-      call gemm(tmp_mat,tmpS,tmpD(:,:,iS),1.0_dp,0.0_dp,'N','N')
+      call gemm(tmp_mat,tmpS,tmpD(:,:,iS),alpha=1.0_dp,beta=0.0_dp,transA='N',transB='N')
       tmp_block(:,:) = tmp_block(:,:) + 0.5_dp * tmp_mat(:,:)
 
       tmp_mat(:,:) = 0.0_dp
-      call gemm(tmp_mat,tmpD(:,:,iS),tmpS,1.0_dp,0.0_dp,'N','N')
+      call gemm(tmp_mat,tmpD(:,:,iS),tmpS,alpha=1.0_dp,beta=0.0_dp,transA='N',transB='N')
       tmp_block(:,:) = tmp_block(:,:) + 0.5_dp * tmp_mat(:,:)
 
       do iat = 1, nat
@@ -526,10 +526,10 @@ contains
 
     end do
 
-    DEALLOCATE(tmpS)
-    DEALLOCATE(tmpD)
-    DEALLOCATE(tmp_mat)
-    DEALLOCATE(tmp_block)
+    deallocate(tmpS)
+    deallocate(tmpD)
+    deallocate(tmp_mat)
+    deallocate(tmp_block)
 
   end subroutine denseBlockMulliken
 
