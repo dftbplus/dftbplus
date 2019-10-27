@@ -453,16 +453,13 @@ contains
 
 
   !> Block mulliken analysis with dense lower triangle matrices.
-  subroutine denseBlockMulliken(rhoSqr, overSqr, q0, iSquare, qq)
+  subroutine denseBlockMulliken(rhoSqr, overSqr, iSquare, qq)
 
     !> Square (lower triangular) spin polarized density matrix
     real(dp), intent(in) :: rhoSqr(:,:,:)
 
     !> Square (lower triangular) overlap matrix
     real(dp), intent(in) :: overSqr(:,:)
-
-    !> reference charges
-    real(dp), intent(in) :: q0(:,:,:)
 
     !> Atom positions in the row/column of square matrices
     integer, intent(in) :: iSquare(:)
@@ -471,65 +468,47 @@ contains
     real(dp), intent(out) :: qq(:,:,:,:)
 
     real(dp), allocatable :: tmpS(:,:)
-    real(dp), allocatable :: tmpD(:,:,:)
-    real(dp), allocatable :: tmp_mat(:,:)
-    real(dp), allocatable :: tmp_block(:,:)
+    real(dp), allocatable :: tmpD(:,:)
 
-    integer :: nAOs, nat, nSpin, ii, jj, kk, iat, iS
+    integer :: nAOs, nat, nSpin, ii, jj, kk, iat, iS, nOrb
 
     nSpin = size(rhoSqr, dim=3)
     nat = size(iSquare, dim=1) - 1
     nAOs = size(rhoSqr, dim=1)
 
     allocate(tmpS(nAOs,nAOs))
-    allocate(tmpD(nAOs,nAOs,nSpin))
-    allocate(tmp_mat(nAOs,nAOs))
-    allocate(tmp_block(nAOs,nAOs))
+    allocate(tmpD(nAOs,nAOs))
 
-    ! ... symmetrize overlap and density matrices
-    tmpS(:,:) = 0.0_dp
+    ! ... symmetrize overlap
     tmpS(:,:) = overSqr + transpose(overSqr)
     do ii = 1, nAOs
-      tmpS(ii,ii) = tmpS(ii,ii) - overSqr(ii,ii)
-    end do
-
-    ! ... tmpD has 1:alpha, 2:beta
-    do iS = 1, nSpin
-      tmpD(:,:,iS) = 0.0_dp
-      tmpD(:,:,iS) = rhoSqr(:,:,iS) + transpose(rhoSqr(:,:,iS))
-      do ii = 1, nAOs
-        tmpD(ii,ii,iS) = tmpD(ii,ii,iS) - rhoSqr(ii,ii,iS)
-      end do
+      tmpS(ii,ii) = overSqr(ii,ii)
     end do
 
     qq(:,:,:,:) = 0.0_dp
+
     do iS = 1, nSpin
 
-      tmp_block(:,:) = 0.0_dp
-      tmp_mat(:,:) = 0.0_dp
-      call gemm(tmp_mat,tmpS,tmpD(:,:,iS),alpha=1.0_dp,beta=0.0_dp,transA='N',transB='N')
-      tmp_block(:,:) = tmp_block(:,:) + 0.5_dp * tmp_mat(:,:)
-
-      tmp_mat(:,:) = 0.0_dp
-      call gemm(tmp_mat,tmpD(:,:,iS),tmpS,alpha=1.0_dp,beta=0.0_dp,transA='N',transB='N')
-      tmp_block(:,:) = tmp_block(:,:) + 0.5_dp * tmp_mat(:,:)
+      ! ... symmetrize density matrix for spin channel
+      tmpD(:,:) = rhoSqr(:,:,iS) + transpose(rhoSqr(:,:,iS))
+      do ii = 1, nAOs
+        tmpD(ii,ii) = rhoSqr(ii,ii,iS)
+      end do
 
       do iat = 1, nat
         ii = iSquare(iat)
-        jj = iSquare(iat+1) - 1
-        qq(1:jj-ii+1,1:jj-ii+1,iat,iS) = tmp_block(ii:jj,ii:jj)
-        do kk = 1, jj - ii + 1
-          qq(kk,kk,iat,iS) = qq(kk,kk,iat,iS) +&
-              & q0(kk,iat,1) / dble(nSpin)
-        end do
+        jj = iSquare(iat+1)
+        nOrb = jj - ii
+        qq(:nOrb,:nOrb,iAt,iS) = matmul(tmpS(ii:jj-1,:), tmpD(:,ii:jj-1))
+
+        qq(:nOrb,:nOrb,iAt,iS) = 0.5_dp * (qq(:nOrb,:nOrb,iAt,iS)&
+            & + transpose(qq(:nOrb,:nOrb,iAt,iS)))
       end do
 
     end do
 
     deallocate(tmpS)
     deallocate(tmpD)
-    deallocate(tmp_mat)
-    deallocate(tmp_block)
 
   end subroutine denseBlockMulliken
 
