@@ -54,6 +54,11 @@ module dftbp_coulomb
   end interface addInvRPrimeXlbomd
 
 
+  !> 1/r^3
+  interface adddRdx3
+    module procedure addInvR3Cluster
+  end interface adddRdx3
+
   !> Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
 
@@ -1796,6 +1801,61 @@ contains
 
   end subroutine addNeighbourContribsStress
 
+
+  !> Calculates the -1/R**3 deriv contribution for all atoms for the non-periodic case, without
+  !> storing anything.
+  subroutine addInvR3Cluster(env, nAtom, coord, deltaQAtom, deriv)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Number of atoms.
+    integer, intent(in) :: nAtom
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> List of charges on each atom.
+    real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Contains the second derivatives on exit.
+    real(dp), intent(inout) :: deriv(:,:,:)
+
+    integer :: ii, jj, kk
+    real(dp) :: dist, vect(3), mat(3,3)
+    real(dp), allocatable :: localDeriv(:,:,:)
+    integer :: iAtFirst, iAtLast
+
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    allocate(localDeriv(3, 3, nAtom))
+    localDeriv(:,:,:) = 0.0_dp
+
+    !$OMP PARALLEL DO&
+    !$OMP& DEFAULT(SHARED) PRIVATE(jj, kk, vect, dist, mat) REDUCTION(+:localDeriv) SCHEDULE(RUNTIME)
+    do ii = iAtFirst, iAtLast
+      do jj = ii + 1, nAtom
+        vect(:) = coord(:,ii) - coord(:,jj)
+        dist = sqrt(sum(vect(:)**2))
+        vect(:) = vect / dist
+        do kk = 1, 3
+          mat(:,kk) = vect(:) * vect(kk)
+        end do
+        mat(:,:) = 3.0_dp * mat / dist**3
+        do kk = 1, 3
+          mat(kk,kk) = mat(kk,kk) - 1.0_dp / dist**3
+        end do
+        localDeriv(:,:,ii) = localDeriv(:,:,ii) + mat
+        localDeriv(:,:,jj) = localDeriv(:,:,jj) + mat
+      end do
+    end do
+    !$OMP END PARALLEL DO
+
+    call assembleChunks(env, localDeriv)
+
+    deriv(:,:,:) = deriv + localDeriv
+
+  end subroutine addInvR3Cluster
 
 
 end module dftbp_coulomb

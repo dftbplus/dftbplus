@@ -251,16 +251,16 @@ contains
     grad(:) = d1 * xx(:) / rr
 
     if (present(grad2)) then
-      grad2 = 0.0_dp
+      grad2(:,:) = 0.0_dp
       do ii = 1, 3
         do jj = 1, 3
           grad2(ii,jj) = xx(ii)*xx(jj)
         end do
-        end do
-        grad2 = grad2 * ( d2 / r2 - d1 / (rr*r2) )
-        do ii = 1, 3
-          grad2(ii,ii) = grad2(ii,ii) + d1 / rr
-        end do
+      end do
+      grad2(:,:) = grad2 * ( d2 / r2 - d1 / (rr*r2) )
+      do ii = 1, 3
+        grad2(ii,ii) = grad2(ii,ii) + d1 / rr
+      end do
     end if
 
   end subroutine RepSpline_getEnergyDeriv

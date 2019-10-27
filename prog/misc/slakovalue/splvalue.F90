@@ -22,7 +22,7 @@ program splvalue
   type(orepspline) :: prepspline
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
-  real(dp) :: rr(3), energy, grad(3), d2
+  real(dp) :: rr(3), energy, grad(3), d2(3,3)
 
   if (command_argument_count() /= 1) then
     call error("Wrong number of arguments. Use 'splvalue -h' to obtain help.")
@@ -54,7 +54,7 @@ program splvalue
   do ii = 0, npoint
     rr(1) = rstart + real(ii, dp) * dr
     call getenergy(prepspline, energy, rr(1))
-    call getenergyderiv(prepspline, grad, rr, d2)
+    call getenergyderiv(prepspline, rr, grad, d2)
     write(stdout, "(4E23.15)") rr(1), energy, grad(1), d2
   end do
 
