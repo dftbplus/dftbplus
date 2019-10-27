@@ -15,17 +15,12 @@ module dftbp_populations
   use dftbp_constants
   use dftbp_periodic
   use dftbp_commontypes
-  ! ... added by islee
   use dftbp_blasroutines, only : gemm
-  ! ... added by islee
   implicit none
   private
 
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms,&
-       &denseSubtractDensityOfAtoms_nospin, getChargePerShell
-  ! ... added by islee
-  public :: denseBlockMulliken
-  ! ... added by islee
+       &denseSubtractDensityOfAtoms_nospin, getChargePerShell, denseBlockMulliken
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -457,7 +452,6 @@ contains
   end subroutine getChargePerShell
 
 
-  ! ... added by islee
   subroutine denseBlockMulliken(rhoSqr, overSqr, q0, iSquare, qq)
 
     !> Square (lower triangular) spin polarized density matrix
@@ -537,7 +531,6 @@ contains
     DEALLOCATE(tmp_block)
 
   end subroutine denseBlockMulliken
-  ! ... added by islee
 
 
 end module dftbp_populations
