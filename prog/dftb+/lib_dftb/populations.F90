@@ -452,6 +452,7 @@ contains
   end subroutine getChargePerShell
 
 
+  !> Block mulliken analysis with dense lower triangle matrices.
   subroutine denseBlockMulliken(rhoSqr, overSqr, q0, iSquare, qq)
 
     !> Square (lower triangular) spin polarized density matrix
