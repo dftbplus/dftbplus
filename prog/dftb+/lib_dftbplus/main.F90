@@ -3714,7 +3714,7 @@ contains
     real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
 
 
-    integer :: nSpin
+    integer :: nSpin, iSpin, iAt, iOrb
     real(dp), pointer :: deltaRhoInSqr(:,:,:)
 
     nSpin = size(qOutput, dim=3)
@@ -3737,9 +3737,6 @@ contains
             & iSparseStart, img2CentCell)
         deltaRhoInSqr(1:orb%nOrb, 1:orb%nOrb, 1:nSpin) => deltaRhoIn
         call denseMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qInput)
-        if (allocated(qBlockIn)) then
-          call denseBlockMulliken(deltaRhoInSqr, SSqrReal, q0, iAtomStart, qBlockIn)
-        end if
 
         ! RangeSep: for spin-unrestricted calculation the initial guess should be equally
         ! distributed to alpha and beta density matrices
@@ -3749,6 +3746,18 @@ contains
         else
           qInput(:,:,:) = qInput + q0
         end if
+
+        if (allocated(qBlockIn)) then
+          call denseBlockMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qBlockIn)
+          do iSpin = 1, nSpin
+            do iAt = 1, size(qInput, dim=2)
+              do iOrb = 1, size(qInput, dim=1)
+                qBlockIn(iOrb, iOrb, iAt, iSpin) = qInput(iOrb, iAt, iSpin)
+              end do
+            end do
+          end do
+        end if
+
         call ud2qm(qInput)
         if (allocated(qBlockIn)) then
           call ud2qm(qBlockIn)
