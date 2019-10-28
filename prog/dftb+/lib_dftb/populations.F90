@@ -15,7 +15,6 @@ module dftbp_populations
   use dftbp_constants
   use dftbp_periodic
   use dftbp_commontypes
-  use dftbp_blasroutines, only : gemm
   implicit none
   private
 
@@ -500,7 +499,6 @@ contains
         jj = iSquare(iat+1)
         nOrb = jj - ii
         qq(:nOrb,:nOrb,iAt,iS) = matmul(tmpS(ii:jj-1,:), tmpD(:,ii:jj-1))
-
         qq(:nOrb,:nOrb,iAt,iS) = 0.5_dp * (qq(:nOrb,:nOrb,iAt,iS)&
             & + transpose(qq(:nOrb,:nOrb,iAt,iS)))
       end do

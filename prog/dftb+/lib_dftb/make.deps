@@ -163,8 +163,8 @@ pmlocalisation.o = pmlocalisation.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_d
 _mod_dftbp_pmlocalisation: pmlocalisation.o
 _mod_dftbp_pmlocalisation = $(pmlocalisation.o)
 
-populations.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_periodic _mod_dftbp_commontypes _mod_dftbp_blasroutines
-populations.o = populations.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_periodic) $(_mod_dftbp_commontypes) $(_mod_dftbp_blasroutines)
+populations.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_periodic _mod_dftbp_commontypes
+populations.o = populations.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_periodic) $(_mod_dftbp_commontypes)
 _mod_dftbp_populations: populations.o
 _mod_dftbp_populations = $(populations.o)
 
