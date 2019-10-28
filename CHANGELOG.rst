@@ -19,6 +19,9 @@ Changed
 Fixed
 -----
 
+- Correct update of block mulliken population for onsite correction with
+  range-separation hybrid DFTB.
+
 
 19.1 (2019-07-01)
 =================
