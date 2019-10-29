@@ -1962,9 +1962,9 @@ contains
         tmp5 = shift_excited(iAt1) + shift_excited(iAt2)
         tmp7 = 2.0_dp * ( shxpyq(iAt1) + shxpyq(iAt2) )
 
-        call derivator%getFirstDeriv(dH0, skHamCont, coord0, species0,&
+        call derivator%getFirstDerivBlock(dH0, skHamCont, coord0, species0,&
             & iAt1, iAt2, orb)
-        call derivator%getFirstDeriv(dS, skOverCont, coord0, species0,&
+        call derivator%getFirstDerivBlock(dS, skOverCont, coord0, species0,&
             & iAt1, iAt2, orb)
 
         do xyz = 1, 3

@@ -3709,6 +3709,8 @@ contains
         call getChildValue(node, "KDerivs", ctrl%tKDerivs, .false.)
       end if
 
+      call getChildValue(node, "CoordDerivs", ctrl%tXDerivs, .false.)
+
       ! electric polarisability of system
       ctrl%tPolarisability = .false.
       call getChild(node, "Polarisability", child=child, requested=.false.)

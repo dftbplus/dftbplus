@@ -502,6 +502,9 @@ module dftbp_initprogram
   !> Should derivatives of eigenstates wrt to k be evaluated
   logical :: tKDerivs
 
+  !> Should derivatives wrt to atomic coordinates be evaluated
+  logical :: tXDerivs
+
   !> Frequencies at which to calculate polarizability
   real(dp), allocatable :: omegaPolarisability(:)
 
@@ -817,6 +820,12 @@ module dftbp_initprogram
 
   !> Eigenvalues
   real(dp), allocatable :: eigen(:,:,:)
+
+  !> Complex eigenvectors at q shifted k-points
+  complex(dp), allocatable :: eigvecsCplxDeltaq(:,:,:)
+
+  !> Eigenvalues at q shifted values (periodic only)
+  real(dp), allocatable :: eigValsDeltaq(:,:,:)
 
   !> density matrix
   real(dp), allocatable :: rhoSqrReal(:,:,:)
@@ -1739,7 +1748,7 @@ contains
     if (forceType == forceTypes%dynamicT0 .and. tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
     end if
-    if (tForces) then
+    if (tForces .or. input%ctrl%tXDerivs) then
       select case(input%ctrl%iDerivMethod)
       case (1)
         ! set step size from input
@@ -2026,6 +2035,9 @@ contains
     !> k derivatives (first steps for properties like one method of Berry phase evaluation or for
     !> dielectric tensors)
     tKDerivs = input%ctrl%tKDerivs
+
+    !> x derivatives (first steps for properties vibrational modes and dq/dx)
+    tXDerivs = input%ctrl%tXDerivs
 
     !> Polarisability of the system
     tPolarisability = input%ctrl%tPolarisability

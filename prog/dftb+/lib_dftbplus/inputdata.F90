@@ -174,6 +174,9 @@ module dftbp_inputdata_module
     !> Should derivatives wrt to k be evaluated for band states
     logical :: tKDerivs = .false.
 
+    !> Should derivatives wrt to coords be evaluated
+    logical :: tXDerivs = .false.
+
     !> Should static polarisability be calculated
     logical :: tStaticPolarisability = .false.
 

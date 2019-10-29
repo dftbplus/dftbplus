@@ -85,6 +85,7 @@ module dftbp_main
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_perturbderivs
   use dftbp_perturbkderivs
+  use dftbp_perturbxderivs
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -165,9 +166,19 @@ contains
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
       call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
           & tExitGeoOpt)
+
+      if (tXDerivs) then
+        call dPsidx(env, parallelKS, eigen, eigVecsReal, eigVecsCplx, ham, over, skHamCont,&
+            & skOverCont, nonSccDeriv, orb, nAtom, species, neighbourList, nNeighbourSK, denseDesc,&
+            & iSparseStart, img2CentCell, coord, kPoint, kWeight, cellVec, iCellVec, latVec,&
+            & taggedWriter, tWriteAutoTest, autoTestTag, tWriteResultsTag, resultsTag,&
+            & tWriteDetailedOut, fdDetailedOut, eigValsDeltaq, eigVecsCplxDeltaq)
+      end if
+
       if (tExitGeoOpt) then
         exit geoOpt
       end if
+
       call postProcessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
           & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
       call printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtom)
@@ -176,6 +187,7 @@ contains
         call sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
       end if
     #:endif
+
       tWriteCharges = tWriteRestart .and. tMulliken .and. tSccCalc .and. .not. tDerivs&
           & .and. maxSccIter > 1
       if (tWriteCharges) then
@@ -205,6 +217,7 @@ contains
         exit geoOpt
       end if
       call env%globalTimer%stopTimer(globalTimers%postSCC)
+
     end do geoOpt
 
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)

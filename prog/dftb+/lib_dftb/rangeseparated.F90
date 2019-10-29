@@ -1063,8 +1063,9 @@ contains
         sPrimeTmp2 = 0.0_dp
         sPrimeTmp = 0.0_dp
         if ( iAtK /= iAtC ) then
-          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtK, iAtC, orb)
-          call derivator%getFirstDeriv(sPrimeTmp2, skOverCont, coords, species, iAtC, iAtK, orb)
+          call derivator%getFirstDerivBlock(sPrimeTmp, skOverCont, coords, species, iAtK, iAtC, orb)
+          call derivator%getFirstDerivBlock(sPrimeTmp2, skOverCont, coords, species, iAtC, iAtK,&
+              & orb)
         end if
         loopB: do iAtB = 1, nAtom
           ! A > B
