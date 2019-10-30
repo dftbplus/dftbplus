@@ -469,44 +469,40 @@ contains
     real(dp), allocatable :: tmpS(:,:)
     real(dp), allocatable :: tmpD(:,:)
 
-    integer :: nAOs, nat, nSpin, ii, jj, kk, iat, iS, nOrb
+    integer :: nAOs, nAtom, nSpin, ii, jj, iAt, iSpin, nOrb
 
     nSpin = size(rhoSqr, dim=3)
-    nat = size(iSquare, dim=1) - 1
+    nAtom = size(iSquare, dim=1) - 1
     nAOs = size(rhoSqr, dim=1)
 
     allocate(tmpS(nAOs,nAOs))
     allocate(tmpD(nAOs,nAOs))
 
-    ! ... symmetrize overlap
+    ! Symmetrize overlap
     tmpS(:,:) = overSqr + transpose(overSqr)
     do ii = 1, nAOs
       tmpS(ii,ii) = overSqr(ii,ii)
     end do
 
     qq(:,:,:,:) = 0.0_dp
+    do iSpin = 1, nSpin
 
-    do iS = 1, nSpin
-
-      ! ... symmetrize density matrix for spin channel
-      tmpD(:,:) = rhoSqr(:,:,iS) + transpose(rhoSqr(:,:,iS))
+      ! Symmetrize density matrix for spin channel
+      tmpD(:,:) = rhoSqr(:,:,iSpin) + transpose(rhoSqr(:,:,iSpin))
       do ii = 1, nAOs
-        tmpD(ii,ii) = rhoSqr(ii,ii,iS)
+        tmpD(ii,ii) = rhoSqr(ii,ii,iSpin)
       end do
 
-      do iat = 1, nat
-        ii = iSquare(iat)
-        jj = iSquare(iat+1)
+      do iAt = 1, nAtom
+        ii = iSquare(iAt)
+        jj = iSquare(iAt+1)
         nOrb = jj - ii
-        qq(:nOrb,:nOrb,iAt,iS) = matmul(tmpS(ii:jj-1,:), tmpD(:,ii:jj-1))
-        qq(:nOrb,:nOrb,iAt,iS) = 0.5_dp * (qq(:nOrb,:nOrb,iAt,iS)&
-            & + transpose(qq(:nOrb,:nOrb,iAt,iS)))
+        qq(:nOrb,:nOrb,iAt,iSpin) = matmul(tmpS(ii:jj-1,:), tmpD(:,ii:jj-1))
+        qq(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qq(:nOrb,:nOrb,iAt,iSpin)&
+            & + transpose(qq(:nOrb,:nOrb,iAt,iSpin)))
       end do
 
     end do
-
-    deallocate(tmpS)
-    deallocate(tmpD)
 
   end subroutine denseBlockMulliken
 
