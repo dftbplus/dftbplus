@@ -4270,8 +4270,8 @@ contains
 
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call mbDispersion%get_lattice_derivs(tmpStress)
-      tmpStress = -matmul(latVec, tmpStress)/cellVol
+      call mbDispersion%get_lattice_stress(tmpStress)
+      tmpStress = -tmpStress/cellVol
       if (tIoProc) then
         write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD STRESS!!!!!!!!!!!!!!!!'
         write(stdOut,*) tmpStress(:, :)
