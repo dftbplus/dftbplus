@@ -29,7 +29,7 @@ module dftbp_coulomb
 
   public :: invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
-  public :: addInvRPrimeXlbomd
+  public :: addInvRPrimeXlbomd, invRPrime
 
   !> 1/r interaction for all atoms with another group
   interface sumInvR
@@ -58,6 +58,14 @@ module dftbp_coulomb
   interface adddRdx3
     module procedure addInvR3Cluster
   end interface adddRdx3
+
+
+  !> 1/r^2 potential
+  interface invRPrime
+    module procedure invRPrimeCluster
+    ! To do :
+    !module procedure invRPrimePeriodic
+  end interface invRPrime
 
   !> Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
@@ -867,6 +875,7 @@ contains
     deriv(:,:) = deriv + localDeriv
 
   end subroutine addInvRPrimePeriodic
+
 
   !> Neighbour summation with local scope for predictable OMP <= 4.0 behaviour
   subroutine addNeighbourContribsInvRP(iAtom1, pNeighList, coords, deltaQAtom, alpha, deriv)
@@ -1857,5 +1866,47 @@ contains
 
   end subroutine addInvR3Cluster
 
+
+  !> Calculates the -1/R**2 deriv contribution for potentials for the non-periodic case, without
+  !> storing anything.
+  subroutine invRPrimeCluster(nAtom, coord, deltaQAtom, iCart, iAt, vPrime)
+
+    !> Number of atoms.
+    integer, intent(in) :: nAtom
+
+    !> List of atomic coordinates.
+    real(dp), intent(in) :: coord(:,:)
+
+    !> List of charges on each atom.
+    real(dp), intent(in) :: deltaQAtom(:)
+
+    !> Component of derivative
+    integer, intent(in) :: iCart
+
+    !> Atom to differentiate wrt to
+    integer, intent(in) :: iAt
+
+    !> Contains the derivative of potential
+    real(dp), intent(inout) :: vprime(:)
+
+    integer :: jj
+    real(dp) :: dist, vect(3), fTmp
+
+    do jj = 1, nAtom
+
+      if (iAt == jj) then
+        cycle
+      end if
+
+      vect(:) = coord(:,iAt) - coord(:,jj)
+      dist = sqrt(sum(vect(:)**2))
+      fTmp = -vect(iCart) / (dist**3)
+
+      vprime(iAt) = vprime(iAt) + deltaQAtom(jj)*fTmp
+      vprime(jj) = vprime(jj) + deltaQAtom(iAt)*fTmp
+
+    end do
+
+  end subroutine invRPrimeCluster
 
 end module dftbp_coulomb

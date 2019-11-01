@@ -233,6 +233,7 @@ module dftbp_scc
     procedure :: getEnergyPerAtom
     procedure :: getEnergyPerAtomXlbomd
     procedure :: addForceDc
+    procedure :: addPotentialDeriv
     procedure :: addStressDc
     procedure :: getShiftPerAtom
     procedure :: getShiftPerL
@@ -800,6 +801,55 @@ contains
   end subroutine addForceDc
 
 
+  !> Derivative of the shift potentials with respect to atom positions
+  subroutine addPotentialDeriv(this, vAt, vShell, species, iNeighbour, img2CentCell, coord, orb,&
+      & iCart, iAt)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Atomic part of derivative
+    real(dp), intent(inout) :: vAt(:)
+
+    !> Shell part of derivative
+    real(dp), intent(inout) :: vShell(:,:,:)
+
+    !> Chemical species of atoms
+    integer,  intent(in) :: species(:)
+
+    !> List of neighbours for each atom.
+    integer,  intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer,  intent(in) :: img2CentCell(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Cartesian component of displacement
+    integer, intent(in) :: iCart
+
+    !> Atom displaced
+    integer, intent(in) :: iAt
+
+    ! Short-range part of gamma contribution
+    call GammaPrimeV_(this, vShell, this%coord, species, iNeighbour, img2CentCell, orb, iCart, iAt)
+
+    ! 1/R contribution
+    if (this%tPeriodic) then
+      call error("Missing at moment")
+    !  call invRPrime(vAt, nAtom_, coord, nNeighEwald_, iNeighbour, img2CentCell, gLatPoint_,&
+    !      & alpha_, volume_, deltaQAtom_, iCart, iAt)
+    else
+      call invRPrime(this%nAtom, this%coord, this%deltaQAtom, iCart, iAt, vAt)
+    end if
+
+  end subroutine addPotentialDeriv
+
+
   !> Calculates the contribution of the stress tensor which is not covered in the term with the
   !> shift vectors.
   subroutine addStressDc(this, st, env, species, iNeighbour, img2CentCell)
@@ -1118,7 +1168,6 @@ contains
 
     !> Neighbour list for the atoms in the system.
     type(TNeighbourList), intent(in) :: neighList
-
 
     integer :: iAt1, iSp2, iU1, iU2
 
@@ -1687,6 +1736,85 @@ contains
     end do
 
   end subroutine getSummedChargesPerUniqU_
+
+
+  !> Calculate the derivative of the potential from the short range part of Gamma.
+  subroutine GammaPrimeV_(this, vprime, coord, species, iNeighbour, img2CentCell, orb, iCart, iAt)
+
+    !> Instance of SCC solver
+    type(TScc), intent(in) :: this
+
+    !> Potential to add the contribution to
+    real(dp), intent(inout) :: vprime(:,:,:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Species for each atom.
+    integer,  intent(in) :: species(:)
+
+    !> List of neighbours for each atom.
+    integer,  intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer,  intent(in) :: img2CentCell(:)
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Direction of derivative
+    integer, intent(in) :: iCart
+
+    !> Differentiate with respect to position of this atom
+    integer, intent(in) :: iAt
+
+    integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, iSp1, iSp2
+    real(dp) :: rab, tmpGammaPrime, tmpGamma, u1, u2, invRab
+    integer :: iSh1, iSh2
+
+    ! some additional symmetry not used
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        if (iAt /= iAt2f .and. iAt /= iAt1) then
+          cycle
+        end if
+        iSp2 = species(iAt2f)
+        rab = sqrt(sum((coord(:,iAt1) - coord(:,iAt2))**2))
+        invRab = 1.0_dp / rab
+        do iSh1 = 1, orb%nShell(iSp1)
+          iU1 = this%iHubbU(iSh1, iSp1)
+          u1 = this%uniqHubbU(iU1, iSp1)
+          do iSh2 = 1, orb%nShell(iSp2)
+            iU2 = this%iHubbU(iSh2, iSp2)
+            if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
+              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
+                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+              else
+                tmpGammaPrime = expGammaPrime(rab, u2, u1)
+                if (this%tH5) then
+                  tmpGamma = expGamma(rab, u2, u1)
+                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, tmpGammaPrime, iSp1, iSp2,&
+                      & rab)
+                end if
+              end if
+              vprime(iSh1,iAt1,1) = vprime(iSh1,iAt1,1) &
+                  & +this%deltaQPerLShell(iSh2, iAt2f)*tmpGammaPrime &
+                  & *(coord(iCart,iAt1) - coord(iCart,iAt2)) * invRab
+              vprime(iSh2,iAt2f,1) = vprime(iSh2,iAt2f,1) &
+                  & -this%deltaQPerLShell(iSh1, iAt1)*tmpGammaPrime &
+                  & *(coord(iCart,iAt1) - coord(iCart,iAt2)) * invRab
+            end if
+          end do
+        end do
+      end do
+    end do
+
+    vprime(:,iAt,1) = -vprime(:,iAt,1)
+
+  end subroutine GammaPrimeV_
 
 
 end module dftbp_scc

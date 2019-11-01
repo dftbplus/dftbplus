@@ -264,7 +264,7 @@ contains
   end subroutine add_shift_block
 
 
-  !> Add a shift for atom resolved potetial to shell resolved potential
+  !> Add a shift for atom resolved potential to shell resolved potential
   subroutine addatom_shell(shiftshell, atom, orb, species)
 
     !> Shift to add at atomic shells
@@ -300,7 +300,7 @@ contains
   end subroutine addatom_shell
 
 
-  !> Add a shift for shell resolved potetial to block resolved potential
+  !> Add a shift for shell resolved potential to block resolved potential
   subroutine addshell_block(shiftblock, shell, orb, species)
 
     !> block resolved shift

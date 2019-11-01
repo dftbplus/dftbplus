@@ -244,8 +244,8 @@ contains
   end subroutine getFirstDerivBlock
 
 
-  !> Calculates the first derivative of H0 or S with respect to iAt1 position
-  subroutine getFirstDeriv(this, deriv, skCont, coords, species, iAt1, orb, nNeighbourSK,&
+  !> Calculates the first derivative of H0 or S with respect to iAt position
+  subroutine getFirstDeriv(this, deriv, env, skCont, coords, species, iAt, orb, nNeighbourSK,&
       & iNeighbours, iPair, img2centcell)
 
     !> Instance
@@ -253,6 +253,9 @@ contains
 
     !> Derivative of H0 or S diatomic block, with respect to x,y,z (last index).
     real(dp), intent(out) :: deriv(:,:)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Container for the SK integrals
     type(OSlakoCont), intent(in) :: skCont
@@ -264,7 +267,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> Atom to differentiate wrt
-    integer, intent(in) :: iAt1
+    integer, intent(in) :: iAt
 
     !> Orbital informations
     type(TOrbitals), intent(in) :: orb
@@ -281,23 +284,33 @@ contains
     !> indexing array for periodic image atoms
     integer, intent(in) :: img2CentCell(:)
 
-    integer :: iNeigh, iAt2, nOrb1, nOrb2, iSp1, iSp2, iAt2f, iOrig
-    real(dp) :: tmp(orb%mOrb, orb%mOrb, 3)
+    real(dp) :: tmp(size(deriv,dim=1))
+    real(dp), allocatable :: coordTmp(:,:)
+    integer :: ii, iCart
 
-    deriv(:,:) = 0.0_dp
+    select case (this%diffType)
+    case (diffTypes%finiteDiff)
 
-    iSp1 = species(iAt1)
-    nOrb1 = orb%nOrbSpecies(iSp1)
-    do iNeigh = 1, nNeighbourSK(iAt1)
-      iAt2 = iNeighbours(iNeigh, iAt1)
-      iAt2f = img2centcell(iAt2)
-      iSp2 = species(iAt2f)
-      nOrb2 = orb%nOrbSpecies(iSp2)
-      iOrig = iPair(iNeigh,iAt1) + 1
-      tmp(:, :, :) = 0.0_dp
-      call getFirstDerivBlock(this, tmp, skCont, coords, species, iAt1, iAt2, orb)
-      deriv(iOrig:iOrig+nOrb1*nOrb2,:) = reshape(tmp(:nOrb2, :nOrb1, :), [nOrb2 * nOrb1, 3])
-    end do
+      coordTmp = coords
+      do iCart = 1, 3
+        do ii = -1, 1
+          coordTmp(:,iAt) = coords(:,iAt)
+          coordTmp(iCart,iAt) = coords(iCart,iAt) + ii * this%deltaXDiff
+          if (ii == 1) then
+            ! onsites cancel, so can use build S for either H0 or S
+            call buildS(env, deriv(:,iCart), skCont, coordTmp, nNeighbourSK, iNeighbours, species,&
+                & iPair, orb)
+          else
+            call buildS(env, tmp, skCont, coordTmp, nNeighbourSK, iNeighbours, species, iPair, orb)
+          end if
+        end do
+        deriv(:,iCart) = (deriv(:,iCart) - tmp) / (2.0_dp * this%deltaXDiff)
+      end do
+
+    case default
+      call error("Method not currently implemented for full derivatives")
+    end select
+
 
   end subroutine getFirstDeriv
 
