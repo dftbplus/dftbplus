@@ -1487,7 +1487,7 @@ contains
     if (tSccCalc) then
       allocate(chargePerShell(orb%mShell,nAtom,nSpin))
     else
-       allocate(chargePerShell(0,0,0))
+      allocate(chargePerShell(0,0,0))
     end if
     allocate(ham(0, nSpin))
     if (tImHam) then
@@ -2285,7 +2285,7 @@ contains
       call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
           & input%ctrl%rangeSepInp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
-      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp, tSpin,&
+      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp, nSpin,&
           & rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr,&
           & nMixElements)
     end if
@@ -3063,11 +3063,15 @@ contains
 
       select case(input%ctrl%rangeSepInp%rangeSepAlg)
       case (rangeSepTypes%neighbour)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "NeighbourBased"
         write(stdOut, "(2X,A,':',T30,E14.6,A)") "Spatially cutoff at",&
             & input%ctrl%rangeSepInp%cutoffRed * Bohr__AA," A"
       case (rangeSepTypes%threshold)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "Thresholded"
         write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
             & input%ctrl%rangeSepInp%screeningThreshold
+      case (rangeSepTypes%matrixBased)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "MatrixBased"
       case default
         call error("Unknown range separated hybrid method")
       end select
@@ -4458,8 +4462,8 @@ contains
 
 
   !> Initialise range separated extension.
-  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin, rangeSep,&
-      & deltaRhoIn, deltarhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, nSpin, rangeSep,&
+      & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
 
     !> Number of atoms in the system
     integer, intent(in) :: nAtom
@@ -4476,8 +4480,8 @@ contains
     !> input for range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
 
-    !> Is this spin unrestricted
-    logical, intent(in) :: tSpin
+    !> Is this spin restricted (1) or unrestricted (2)
+    integer, intent(in) :: nSpin
 
     !> Resulting settings for range separation
     type(RangeSepFunc), allocatable, intent(out) :: rangeSep
@@ -4502,7 +4506,7 @@ contains
 
     allocate(rangeSep)
     call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, rangeSepInp%rangeSepAlg)
+        & rangeSepInp%screeningThreshold, rangeSepInp%omega, nSpin, rangeSepInp%rangeSepAlg)
     allocate(deltaRhoIn(nOrb * nOrb * nSpin))
     allocate(deltaRhoOut(nOrb * nOrb * nSpin))
     allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
