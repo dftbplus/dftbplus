@@ -480,9 +480,6 @@ contains
     call nonSccDeriv%getFirstDeriv(dH0, env, skHamCont, coord, species, iAt, orb, nNeighbourSK,&
         & neighbourList%iNeighbour, iSparseStart, img2centcell)
 
-    dOver(:,:) = 2.0_dp * dOver
-    dH0(:,:) = 2.0_dp * dH0
-
     dEi(:,:,:,:) = 0.0_dp
 
     ! perturbation direction
@@ -605,18 +602,12 @@ contains
 
           dHam(:,1) = dH0(:,iCart)
 
-          write(*,*)'A',dHam
-
           call add_shift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
               & iSparseStart, nAtom, img2CentCell, dPotential%intBlock)
-
-          write(*,*)'B',dHam
 
           if (tSccCalc) then
             dHam = dHam + sOmega(:,:,1) + sOmega(:,:,1)
           end if
-
-          write(*,*)'C',dHam
 
           if (nSpin > 1) then
             dHam(:,:) = 2.0_dp * dHam(:,:)
@@ -1116,14 +1107,9 @@ contains
 
     ! dH matrix in square form
 
+    dRho(:,:) = 0.0_dp
     call unpackHS(dRho, dHam(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-
-    write(*,*)'HERE0'
-    write(*,*)dham
-    write(*,*)
-    write(*,*)
-
 
     if (allocated(rangeSep)) then
       call unpackHS(workLocal, over, neighbourList%iNeighbour, nNeighbourSK,&
@@ -1135,11 +1121,6 @@ contains
     ! form H' |c>
     call symm(workLocal, 'l', dRho, eigVecsReal(:,:,iS))
 
-    write(*,*)'HERE1'
-    write(*,*)workLocal
-    write(*,*)
-    write(*,*)
-
     dRho(:,:) = 0.0_dp
     call unpackHS(dRho, dOver, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
         & iSparseStart, img2CentCell)
@@ -1147,11 +1128,6 @@ contains
 
     ! form |c> H' - e S' <c|
     workLocal(:,:) = matmul(transpose(eigVecsReal(:,:,iS)), workLocal)
-
-    write(*,*)'HERE2'
-    write(*,*)workLocal
-    write(*,*)
-    write(*,*)
 
     ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
     if (allocated(dEi)) then

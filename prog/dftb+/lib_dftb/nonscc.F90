@@ -288,12 +288,15 @@ contains
     real(dp), allocatable :: coordTmp(:,:)
     integer :: ii, iCart
 
+    deriv(:,:) = 0.0_dp
+
     select case (this%diffType)
     case (diffTypes%finiteDiff)
 
       coordTmp = coords
       do iCart = 1, 3
-        do ii = -1, 1
+        tmp(:) = 0.0_dp
+        do ii = -1, 1, 2
           coordTmp(:,iAt) = coords(:,iAt)
           coordTmp(iCart,iAt) = coords(iCart,iAt) + ii * this%deltaXDiff
           if (ii == 1) then
