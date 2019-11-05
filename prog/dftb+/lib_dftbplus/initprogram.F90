@@ -974,6 +974,9 @@ module dftbp_initprogram
   !> All of the excited energies actuall solved by Casida routines (if used)
   real(dp), allocatable :: energiesCasida(:)
 
+  !> Is this DFTB/SSR formalism
+  logical :: tREKS
+
 contains
 
 
@@ -1125,6 +1128,7 @@ contains
     tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
+    tREKS = .false.
     if (tSpin) then
       nSpin = 2
     else
@@ -2285,9 +2289,9 @@ contains
       call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
           & input%ctrl%rangeSepInp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
-      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp, nSpin,&
-          & rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr,&
-          & nMixElements)
+      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
+          & tSpin, tREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
+          & deltaRhoOutSqr, nMixElements)
     end if
 
     tReadShifts = input%ctrl%tReadShifts
@@ -4462,8 +4466,9 @@ contains
 
 
   !> Initialise range separated extension.
-  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, nSpin, rangeSep,&
-      & deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin,&
+      & tREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
+      & deltaRhoOutSqr, nMixElements)
 
     !> Number of atoms in the system
     integer, intent(in) :: nAtom
@@ -4480,8 +4485,11 @@ contains
     !> input for range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
 
-    !> Is this spin restricted (1) or unrestricted (2)
-    integer, intent(in) :: nSpin
+    !> Is this spin restricted (F) or unrestricted (T)
+    logical, intent(in) :: tSpin
+
+    !> Is this DFTB/SSR formalism
+    logical, intent(in) :: tREKS
 
     !> Resulting settings for range separation
     type(RangeSepFunc), allocatable, intent(out) :: rangeSep
@@ -4506,7 +4514,8 @@ contains
 
     allocate(rangeSep)
     call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-        & rangeSepInp%screeningThreshold, rangeSepInp%omega, nSpin, rangeSepInp%rangeSepAlg)
+        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, tREKS,&
+        & rangeSepInp%rangeSepAlg)
     allocate(deltaRhoIn(nOrb * nOrb * nSpin))
     allocate(deltaRhoOut(nOrb * nOrb * nSpin))
     allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
