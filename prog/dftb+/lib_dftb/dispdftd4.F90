@@ -1,0 +1,1124 @@
+!--------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations              !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                             !
+!                                                                                !
+!  See the LICENSE file for terms of usage and distribution.                     !
+!--------------------------------------------------------------------------------!
+
+#:include 'common.fypp'
+
+!> implementation of the D4 dispersion model
+module dftbp_dispdftd4
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_dispiface, only: DispersionIface
+  use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, &
+      & getLatticePoints
+  use dftbp_simplealgebra, only: determinant33, invert33
+  use dftbp_coulomb, only: getMaxREwald, getMaxGEwald, getOptimalAlphaEwald
+  use dftbp_constants, only: pi
+  use dftbp_dftd4param, only: DftD4Calculator, DispDftD4Inp, initializeCalculator
+  implicit none
+  private
+
+  public :: DispDftD4, DispDftD4Inp, init
+
+
+  !> Internal state of the DFT-D4 dispersion.
+  type, extends(DispersionIface) :: DispDftD4
+    private
+    !> calculator to evaluate dispersion
+    type(DftD4Calculator), allocatable :: calculator
+    !> number of atoms
+    integer :: nAtom
+    !> energy
+    real(dp), allocatable :: energies(:)
+    !> force contributions
+    real(dp), allocatable :: gradients(:,:)
+    !> lattice vectors if periodic
+    real(dp) :: latVecs(3, 3)
+    !> Volume of the unit cell
+    real(dp) :: vol
+    !> stress tensor
+    real(dp) :: stress(3, 3)
+    !> Contains the points included in the reciprocal sum.
+    !  The set should not include the origin or inversion related points.
+    real(dp), allocatable :: recPoint(:, :)
+    !> Parameter for Ewald summation.
+    real(dp) :: parEwald
+    !> atomic number
+    integer, allocatable :: izp(:)
+    !> is this periodic
+    logical :: tPeriodic
+    !> are the coordinates current?
+    logical :: tCoordsUpdated = .false.
+    !> evaluate Ewald parameter
+    logical :: tAutoEwald
+    !> if > 0 -> manual setting for alpha
+    real(dp) :: ewaldAlpha = 0.0_dp
+    !> Ewald tolerance
+    real(dp) :: tolEwald
+  contains
+    !> update internal store of coordinates
+    procedure :: updateCoords
+    !> update internal store of lattice vectors
+    procedure :: updateLatVecs
+    !> return energy contribution
+    procedure :: getEnergies
+    !> return force contribution
+    procedure :: addGradients
+    !> return stress tensor contribution
+    procedure :: getStress
+    !> cutoff distance in real space for dispersion
+    procedure :: getRCutoff
+  end type DispDftD4
+
+
+  interface init
+    module procedure :: DispDftD4_init
+  end interface init
+
+
+contains
+
+
+  !> Initialize DispDftD4 instance.
+  subroutine DispDftD4_init(this, inp, nAtom, species0, speciesNames, latVecs)
+
+    !> Initialized instance of D4 dispersion model.
+    type(DispDftD4), intent(out) :: this
+
+    !> Specific input parameters for damping function.
+    type(DispDftD4Inp), intent(in) :: inp
+
+    !> Nr. of atoms in the system.
+    integer, intent(in) :: nAtom
+
+    !> Species of every atom in the unit cell.
+    integer, intent(in) :: species0(:)
+
+    !> Names of species.
+    character(*), intent(in) :: speciesNames(:)
+
+    !> Lattice vectors, if the system is periodic.
+    real(dp), intent(in), optional :: latVecs(:, :)
+
+    real(dp) :: recVecs(3, 3), maxREwald, maxGEwald
+
+    this%tPeriodic = present(latVecs)
+
+    if (this%tPeriodic) then
+      this%latVecs = latVecs
+
+      this%vol = determinant33(latVecs)
+      call invert33(recVecs, latVecs, this%vol)
+      this%vol = abs(this%vol)
+      recVecs = 2.0_dp * pi * transpose(recVecs)
+
+      this%tAutoEwald = inp%parEwald <= 0.0_dp
+      this%tolEwald = inp%tolEwald
+      if (this%tAutoEwald) then
+        this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, &
+            & this%tolEwald)
+      else
+        this%parEwald = inp%parEwald
+      end if
+      maxREwald = getMaxREwald(this%parEwald, this%tolEwald)
+      maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
+      call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), &
+          & maxGEwald, onlyInside=.true., reduceByInversion=.true., &
+          & withoutOrigin=.true.)
+      this%recPoint = matmul(recVecs, this%recPoint)
+    end if
+
+    this%nAtom = nAtom
+
+    allocate(this%izp(nAtom), source=0)
+    call symbolToNumber(this%izp, speciesNames(species0))
+
+    allocate(this%energies(nAtom), source=0.0_dp)
+    allocate(this%gradients(3, nAtom), source=0.0_dp)
+
+    allocate(this%calculator)
+    call initializeCalculator(this%calculator, inp, this%nAtom, this%izp)
+
+  end subroutine DispDftD4_init
+
+
+  !> Notifies the objects about changed coordinates.
+  subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+    !> Instance of DFTD4 data
+    class(DispDftD4), intent(inout) :: this
+    !> Updated neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+    !> Updated mapping to central cell.
+    integer, intent(in) :: img2CentCell(:)
+    !> Updated coordinates.
+    real(dp), intent(in) :: coords(:,:)
+    !> Species of the atoms in the unit cell.
+    integer, intent(in) :: species0(:)
+
+    @:ASSERT(allocated(this%calculator))
+
+    if (this%tPeriodic) then
+      call dispersionEnergy(this%calculator, this%nAtom, coords, this%izp, &
+          & neigh, img2CentCell, this%recPoint, this%energies, this%gradients, &
+          & stress=this%stress, volume=this%vol, parEwald=this%parEwald)
+    else
+      call dispersionEnergy(this%calculator, this%nAtom, coords, this%izp, &
+          & neigh, img2CentCell, this%recPoint, this%energies, this%gradients)
+    end if
+
+    this%tCoordsUpdated = .true.
+
+  end subroutine updateCoords
+
+
+  !> Notifies the object about updated lattice vectors.
+  subroutine updateLatVecs(this, latVecs)
+
+    !> Instance of DFTD4 data
+    class(DispDftD4), intent(inout) :: this
+
+    !> New lattice vectors
+    real(dp), intent(in) :: latVecs(:, :)
+
+    real(dp) :: recVecs(3, 3), maxREwald, maxGEwald
+
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
+
+    this%latVecs = latVecs
+    this%vol = determinant33(latVecs)
+    call invert33(recVecs, latVecs, this%vol)
+    this%vol = abs(this%vol)
+    recVecs = 2.0_dp * pi * transpose(recVecs)
+
+    if (this%tAutoEwald) then
+      this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, &
+          & this%tolEwald)
+      maxREwald = getMaxREwald(this%parEwald, this%tolEwald)
+    end if
+    maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
+    call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), &
+        & maxGEwald, onlyInside=.true., reduceByInversion=.true., &
+        & withoutOrigin=.true.)
+    this%recPoint = matmul(recVecs, this%recPoint)
+
+    this%tCoordsUpdated = .false.
+
+  end subroutine updateLatVecs
+
+
+  !> Returns the atomic resolved energies due to the dispersion.
+  subroutine getEnergies(this, energies)
+
+    !> Instance of DFTD4 data
+    class(DispDftD4), intent(inout) :: this
+
+    !> Contains the atomic energy contributions on exit.
+    real(dp), intent(out) :: energies(:)
+
+    @:ASSERT(allocated(this%calculator))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
+
+    energies = this%energies
+
+  end subroutine getEnergies
+
+
+  !> Adds the atomic gradients to the provided vector.
+  subroutine addGradients(this, gradients)
+
+    !> Instance of DFTD4 data
+    class(DispDftD4), intent(inout) :: this
+
+    !> The vector to increase by the gradients.
+    real(dp), intent(inout) :: gradients(:,:)
+
+    @:ASSERT(allocated(this%calculator))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
+
+    gradients = gradients + this%gradients
+
+  end subroutine addGradients
+
+
+  !> Returns the stress tensor.
+  subroutine getStress(this, stress)
+
+    !> Instance of DFTD4 data
+    class(DispDftD4), intent(inout) :: this
+
+    !> stress tensor from the dispersion
+    real(dp), intent(out) :: stress(:,:)
+
+    @:ASSERT(allocated(this%calculator))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
+
+    stress = this%stress
+
+  end subroutine getStress
+
+
+  !> Estimates the real space cutoff of the dispersion interaction.
+  function getRCutoff(this) result(cutoff)
+
+    !> Instance of DFTD4 data
+    class(DispDftD4), intent(inout) :: this
+
+    !> Resulting cutoff
+    real(dp) :: cutoff
+
+    cutoff = max(this%calculator%cutoffInter, this%calculator%cutoffCount, &
+        &        this%calculator%cutoffEwald, this%calculator%cutoffThree)
+
+  end function getRCutoff
+
+
+  !> Error function based fractional coordination number.
+  subroutine getCoordinationNumber(nAtom, coords, species, nNeighbour, iNeighbour,&
+      & neighDist2, img2CentCell, covalentRadius, electronegativity, tENscale, &
+      & cn, dcndr, dcndL)
+    !> Nr. of atoms (without periodic images)
+    integer, intent(in) :: nAtom
+    !> Coordinates of the atoms (including images)
+    real(dp), intent(in) :: coords(:, :)
+    !> Species of every atom.
+    integer, intent(in) :: species(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbour(:)
+    !> Neighbourlist.
+    integer, intent(in) :: iNeighbour(0:, :)
+    !> Square distances of the neighbours.
+    real(dp), intent(in) :: neighDist2(0:, :)
+    !> Mapping into the central cell.
+    integer, intent(in) :: img2CentCell(:)
+    !> Use covalent coordination number by weighting with EN difference.
+    logical, intent(in) :: tENscale
+    !> Covalent Radii for counting function
+    real(dp), intent(in) :: covalentRadius(:)
+    !> Electronegativities for covalancy scaling
+    real(dp), intent(in) :: electronegativity(:)
+
+    !> Error function coordination number.
+    real(dp), intent(out) :: cn(:)
+    !> Derivative of the CN with respect to the Cartesian coordinates.
+    real(dp), intent(out) :: dcndr(:, :, :)
+    !> Derivative of the CN with respect to strain deformations.
+    real(dp), intent(out) :: dcndL(:, :, :)
+
+    !> Steepness of the counting function for the fractional coordination number.
+    real(dp), parameter :: kcn = 7.5_dp
+    !> EN scaling parameter
+    real(dp), parameter :: k4 = 4.10451_dp
+    real(dp), parameter :: k5 = 19.08857_dp
+    real(dp), parameter :: k6 = 2*11.28174_dp**2
+
+    integer :: iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh
+    real(dp) :: r2, r1, rc, vec(3), countf, countd(3), stress(3, 3), dEN, ENscale
+
+    cn(:) = 0.0_dp
+    dcndr(:, :, :) = 0.0_dp
+    dcndL(:, :, :) = 0.0_dp
+
+    do iAt1 = 1, nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, nNeighbour(iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        vec(:) = coords(:, iAt1) - coords(:, iAt2)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        r2 = neighDist2(iNeigh, iAt1)
+        r1 = sqrt(r2)
+
+        rc = covalentRadius(iSp1) + covalentRadius(iSp2)
+
+        if (tENScale) then
+          dEN = abs(electronegativity(iSp1) - electronegativity(iSp2))
+          dEN = k4 * exp(-(dEN + k5)**2 / k6)
+        else
+          dEN = 1.0_dp
+        endif
+
+        countf = dEN * erfCount(kcn, r1, rc)
+        countd = dEN * derfCount(kcn, r1, rc) * vec/r1
+
+        cn(iAt1) = cn(iAt1) + countf
+        if (iAt1 /= iAt2f) then
+          cn(iAt2f) = cn(iAt2f) + countf
+        endif
+
+        dcndr(:, iAt1, iAt1) = dcndr(:, iAt1, iAt1) + countd
+        dcndr(:, iAt2f, iAt2f) = dcndr(:, iAt2f, iAt2f) - countd
+        dcndr(:, iAt1, iAt2f) = dcndr(:, iAt1, iAt2f) + countd
+        dcndr(:, iAt2f, iAt1) = dcndr(:, iAt2f, iAt1) - countd
+
+        stress = spread(countd, 1, 3) * spread(vec, 2, 3)
+
+        dcndL(:, :, iAt1) = dcndL(:, :, iAt1) + stress
+        if (iAt1 /= iAt2f) then
+          dcndL(:, :, iAt2f) = dcndL(:, :, iAt2f) + stress
+        endif
+
+      enddo
+    enddo
+  end subroutine getCoordinationNumber
+
+  !> cutoff function for large coordination numbers
+  subroutine cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max)
+    !> number of atoms
+    integer, intent(in) :: nAtom
+    !> on input coordination number, on output modified CN
+    real(dp), intent(inout) :: cn(:)
+    !> on input derivative of CN w.r.t. cartesian coordinates,
+    !  on output derivative of modified CN
+    real(dp), intent(inout), optional :: dcndr(:, :, :)
+    !> on input derivative of CN w.r.t. strain deformation,
+    !  on output derivative of modified CN
+    real(dp), intent(inout), optional :: dcndL(:, :, :)
+    !> maximum CN (not strictly obeyed)
+    real(dp), intent(in), optional :: cn_max
+
+    real(dp) :: cnmax
+    integer :: iAt
+
+    if (present(cn_max)) then
+      cnmax = cn_max
+    else
+      cnmax = 4.5_dp
+    endif
+
+    if (cnmax <= 0.0_dp) return
+
+    if (present(dcndL)) then
+      do iAt = 1, nAtom
+        dcndL(:, :, iAt) = dcndL(:, :, iAt) * dCutCN(cn(iAt), cnmax)
+      enddo
+    endif
+
+    if (present(dcndr)) then
+      do iAt = 1, nAtom
+        dcndr(:, :, iAt) = dcndr(:, :, iAt) * dCutCN(cn(iAt), cnmax)
+      enddo
+    endif
+
+    cn(:) = cutCN(cn, cnmax)
+
+  end subroutine cutCoordinationNumber
+
+  !> Calculate the weights of the reference systems and scale them according
+  !  to their partial charge difference. It also saves the derivatives w.r.t.
+  !  coordination number and partial charge for later use.
+  !
+  !  This subroutine produces two sets of weighting and scaling vectors, one
+  !  for the input partial charges and one for the case of no charge fluctuations,
+  !  meaning q=0. The normal zeta-Vector is used to scale the pair-wise dispersion
+  !  terms while the so called zero-Vector is used for the non-additive terms in
+  !  the ATM dispersion energy.
+  subroutine weightReferences(calc, nAtom, species, cn, q, &
+      & zetaVec, zeroVec, zetadq, zetadcn, zerodcn)
+    use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
+    !> DFT-D dispersion model.
+    type(DftD4Calculator), intent(in) :: calc
+    !> Nr. of atoms (without periodic images)
+    integer, intent(in) :: nAtom
+    !> Species of every atom.
+    integer, intent(in) :: species(:)
+    !> Coordination number of every atom.
+    real(dp), intent(in) :: cn(:)
+    !> Partial charge of every atom.
+    real(dp), intent(in) :: q(:)
+    !> weighting and scaling function for the atomic reference systems
+    real(dp), intent(out) :: zetaVec(:, :)
+    !> weighting and scaling function for the atomic reference systems for q=0
+    real(dp), intent(out) :: zeroVec(:, :)
+    !> derivative of the weight'n'scale function w.r.t. the partial charges
+    real(dp), intent(out) :: zetadq(:, :)
+    !> derivative of the weight'n'scale function w.r.t. the coordination number
+    real(dp), intent(out) :: zetadcn(:, :)
+    !> derivative of the weight'n'scale function w.r.t. the CN for q=0
+    real(dp), intent(out) :: zerodcn(:, :)
+
+    integer :: iAt1, iSp1, iRef1, iCount1
+    real(dp) :: eta1, zEff1, qRef1
+    real(dp) :: norm, dnorm, wf, gw, expw, expd, gwk, dgwk
+
+    zetaVec = 0.0_dp
+    zetadq = 0.0_dp
+    zetadcn = 0.0_dp
+    zeroVec = 0.0_dp
+    zerodcn = 0.0_dp
+
+    do iAt1 = 1, nAtom
+      iSp1 = species(iAt1)
+      eta1 = calc%gc * calc%chemicalHardness(iSp1)
+      zEff1 = calc%effectiveNuclearCharge(iSp1)
+      norm = 0.0_dp
+      dnorm = 0.0_dp
+      do iRef1 = 1, calc%numberOfReferences(iSp1)
+        do iCount1 = 1, calc%countNumber(iRef1, iSp1)
+          wf = iCount1 * calc%wf
+          gw = weightCN(wf, cn(iAt1), calc%referenceCN(iRef1, iSp1))
+          norm = norm + gw
+          dnorm = dnorm + 2*wf*(calc%referenceCN(iRef1, iSp1) - cn(iAt1)) * gw
+        end do
+      end do
+      norm = 1.0_dp / norm
+      do iRef1 = 1, calc%numberOfReferences(iSp1)
+        expw = 0.0_dp
+        expd = 0.0_dp
+        do iCount1 = 1, calc%countNumber(iref1, iSp1)
+          wf = iCount1 * calc%wf
+          gw = weightCN(wf, cn(iAt1), calc%referenceCN(iRef1, iSp1))
+          expw = expw + gw
+          expd = expd + 2*wf*(calc%referenceCN(iRef1, iSp1) - cn(iAt1)) * gw
+        enddo
+
+        gwk = expw * norm
+        if (ieee_is_nan(gwk)) then
+          if (maxval(calc%referenceCN(:calc%numberOfReferences(iSp1), iSp1)) &
+            & == calc%referenceCN(iRef1, iSp1)) then
+            gwk = 1.0_dp
+          else
+            gwk = 0.0_dp
+          endif
+        endif
+        qRef1 = calc%referenceCharge(iRef1, iSp1) + zEff1
+        zetaVec(iRef1, iAt1) = zetaScale(calc%ga, eta1, qRef1, q(iAt1)+zEff1)*gwk
+        zeroVec(iRef1, iAt1) = zetaScale(calc%ga, eta1, qRef1, zEff1)*gwk
+
+        zetadq(iRef1, iAt1) = dzetaScale(calc%ga, eta1, qRef1, q(iAt1)+zEff1)*gwk
+
+        dgwk = expd*norm-expw*dnorm*norm**2
+        if (ieee_is_nan(dgwk)) then
+          dgwk = 0.0_dp
+        endif
+        zetadcn(iRef1, iAt1) = zetaScale(calc%ga, eta1, qRef1, q(iAt1)+zEff1)*dgwk
+        zerodcn(iRef1, iAt1) = zetaScale(calc%ga, eta1, qRef1, zEff1)*dgwk
+
+      end do
+    end do
+
+  end subroutine weightReferences
+
+  !> Actual implementation of the dispersion energy, gradients and stress tensor.
+  !
+  !  This subroutine is somewhat agnostic to the dispersion model, meaning that
+  !  it can be used for either D4 or D3(BJ), if the inputs like coordination
+  !  number, charges and scaling parameters are chosen accordingly.
+  subroutine dispersionGradient(calc, nAtom, coords, species, &
+      & neigh, img2CentCell, cn, dcndr, dcndL, q, dqdr, dqdL, &
+      & energies, gradients, stress)
+    !> DFT-D dispersion model.
+    type(DftD4Calculator), intent(in) :: calc
+    !> Nr. of atoms (without periodic images)
+    integer, intent(in) :: nAtom
+    !> Coordinates of the atoms (including images)
+    real(dp), intent(in) :: coords(:, :)
+    !> Species of every atom.
+    integer, intent(in) :: species(:)
+    !> Updated neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+    !> Mapping into the central cell.
+    integer, intent(in) :: img2CentCell(:)
+    !> Coordination number of every atom.
+    real(dp), intent(in) :: cn(:)
+    !> Derivative of coordination number w.r.t. the cartesian coordinates.
+    real(dp), intent(in) :: dcndr(:, :, :)
+    !> Derivative of coordination number w.r.t. the strain deformations.
+    real(dp), intent(in) :: dcndL(:, :, :)
+    !> Partial charges of every atom.
+    real(dp), intent(in) :: q(:)
+    !> Derivative of partial charges w.r.t. the cartesian coordinates.
+    real(dp), intent(in) :: dqdr(:, :, :)
+    !> Derivative of partial charges w.r.t. the strain deformations.
+    real(dp), intent(in) :: dqdL(:, :, :)
+    !> Updated energy vector at return
+    real(dp), intent(out) :: energies(:)
+    !> Updated gradient vector at return
+    real(dp), intent(out) :: gradients(:, :)
+    !> Updated stress tensor at return
+    real(dp), intent(out) :: stress(:, :)
+
+    integer :: nRef
+    integer :: iAt1, iSp1, iRef1, iNeigh, iAt2, iSp2, iAt2f, iRef2
+    real(dp) :: refc6, dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2
+    real(dp) :: vec(3), grad(3), dEr, dGr, sigma(3, 3)
+    real(dp) :: rc, r1, r2, r4, r5, r6, r8, r10, rc1, rc2, rc6, rc8, rc10
+    real(dp) :: f6, df6, f8, df8, f10, df10
+
+    !> Nr. of neighbours for each atom
+    integer, allocatable :: nNeighbour(:)
+    real(dp), allocatable :: zetaVec(:, :), zeroVec(:, :)
+    real(dp), allocatable :: zetadq(:, :), zerodq(:, :)
+    real(dp), allocatable :: zetadcn(:, :), zerodcn(:, :)
+    real(dp), allocatable :: dEdq(:), dEdcn(:)
+    real(dp), allocatable :: c6(:, :), dc6dq(:, :), dc6dcn(:, :)
+
+    energies(:) = 0.0_dp
+    gradients(:, :) = 0.0_dp
+    stress(:, :) = 0.0_dp
+
+    nRef = maxval(calc%numberOfReferences(species))
+    allocate(nNeighbour(nAtom), source=0)
+    allocate(zetaVec(nRef, nAtom), zeroVec(nRef, nAtom), zetadq(nRef, nAtom), &
+        & zetadcn(nRef, nAtom), zerodcn(nRef, nAtom), zerodq(nRef, nAtom), &
+        & c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom), &
+        & dEdq(nAtom), dEdcn(nAtom), source=0.0_dp)
+
+    call weightReferences(calc, nAtom, species, cn, q, zetaVec, zeroVec, zetadq, &
+        & zetadcn, zerodcn)
+
+    call getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, &
+        & c6, dc6dcn, dc6dq)
+
+    call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
+    do iAt1 = 1, nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, nNeighbour(iAt1)
+        iAt2 = neigh%iNeighbour(iNeigh, iAt1)
+        vec(:) = coords(:, iAt1) - coords(:, iAt2)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        r2 = neigh%neighDist2(iNeigh, iAt1)
+        r1 = sqrt(r2)
+        r4 = r2 * r2
+        r5 = r4 * r1
+        r6 = r2 * r4
+        r8 = r2 * r6
+        r10 = r2 * r8
+
+        rc = 3.0_dp * calc%sqrtZr4r2(iSp1) * calc%sqrtZr4r2(iSp2)
+        rc1 = calc%a1 * sqrt(rc) + calc%a2
+        rc2 = rc1 * rc1
+        rc6 = rc2 * rc2 * rc2
+        rc8 = rc2 * rc6
+        rc10 = rc2 * rc8
+
+        dc6 = c6(iAt1, iAt2f)
+        dc6dcn1 = dc6dcn(iAt1, iAt2f)
+        dc6dcn2 = dc6dcn(iAt2f, iAt1)
+        dc6dq1 = dc6dq(iAt1, iAt2f)
+        dc6dq2 = dc6dq(iAt2f, iAt1)
+
+        f6 = 1.0_dp / (r6 + rc6)
+        f8 = 1.0_dp / (r8 + rc8)
+        f10 = 1.0_dp / (r10 + rc10)
+
+        df6 = -6.0_dp * r5 * f6 * f6
+        df8 = -8.0_dp * r2 * r5 * f8 * f8
+        df10 = -10.0_dp * r4 * r5 * f10 * f10
+
+        dEr = calc%s6 * f6 + calc%s8 * f8 * rc &
+            & + calc%s10 * rc * rc * 49.0_dp/40.0_dp * f10
+        dGr = calc%s6 * df6 + calc%s8 * df8 * rc &
+            & + calc%s10 * rc * rc * 49.0_dp/40.0_dp * df10
+
+        energies(iAt1) = energies(iAt1) - dEr*dc6/2
+        if (iAt1 /= iAt2f) then
+          energies(iAt2f) = energies(iAt2f) - dEr*dc6/2
+        endif
+
+        grad = -dGr*dc6 * vec/r1
+        gradients(:, iAt1) = gradients(:, iAt1) + grad
+        gradients(:, iAt2f) = gradients(:, iAt2f) - grad
+
+        sigma = spread(grad, 1, 3) * spread(vec, 2, 3)
+        if (iAt1 /= iAt2f) then
+          stress = stress + sigma
+        else
+          stress = stress + 0.5_dp * sigma
+        endif
+
+        dEdcn(iAt1) = dEdcn(iAt1) - dc6dcn1 * dEr
+        dEdcn(iAt2f) = dEdcn(iAt2f) - dc6dcn2 * dEr
+        dEdq(iAt1) = dEdq(iAt1) - dc6dq1 * dEr
+        dEdq(iAt2f) = dEdq(iAt2f) - dc6dq2 * dEr
+
+      end do
+    end do
+
+    if (calc%s9 > 0.0_dp) then
+      zerodq = 0.0_dp  ! really make sure there is no q `dependency' from alloc
+      call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffThree)
+      call threeBodyDispersionGradient(calc, nAtom, coords, species, nNeighbour, &
+          & neigh%iNeighbour, neigh%neighDist2, img2CentCell, &
+          & zeroVec, zerodq, zerodcn, dEdq, dEdcn, energies, gradients, stress)
+    end if
+
+    ! handle CN and charge contributions to the gradient by matrix-vector operation
+    call dgemv('n', 3*nAtom, nAtom, 1.0_dp, dcndr, 3*nAtom, dEdcn, 1, 1.0_dp, &
+        &      gradients, 1)
+    call dgemv('n', 3*nAtom, nAtom, 1.0_dp, dqdr, 3*nAtom, dEdq, 1, 1.0_dp, &
+        &      gradients, 1)
+    ! handle CN and charge contributions to the stress tensor
+    call dgemv('n', 9, nAtom, 1.0_dp, dcndL, 9, dEdcn, 1, 1.0_dp, stress, 1)
+    call dgemv('n', 9, nAtom, 1.0_dp, dqdL, 9, dEdq, 1, 1.0_dp, stress, 1)
+
+  end subroutine dispersionGradient
+
+  !> calculate atomic dispersion coefficients and their derivatives w.r.t.
+  !  coordination number and partial charge.
+  subroutine getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, &
+      & c6, dc6dcn, dc6dq)
+    !> DFT-D dispersion model.
+    type(DftD4Calculator), intent(in) :: calc
+    !> Nr. of atoms (without periodic images)
+    integer, intent(in) :: nAtom
+    !> Species of every atom.
+    integer, intent(in) :: species(:)
+    !> weighting and scaling function for the atomic reference systems
+    real(dp), intent(in) :: zetaVec(:, :)
+    !> derivative of the weight'n'scale function w.r.t. the partial charges
+    real(dp), intent(in) :: zetadq(:, :)
+    !> derivative of the weight'n'scale function w.r.t. the coordination number
+    real(dp), intent(in) :: zetadcn(:, :)
+    !> C6 coefficients for all atom pairs.
+    real(dp), intent(out) :: c6(:, :)
+    !> derivative of the C6 w.r.t. the partial charges
+    real(dp), intent(out) :: dc6dq(:, :)
+    !> derivative of the C6 w.r.t. the coordination number
+    real(dp), intent(out) :: dc6dcn(:, :)
+
+    integer :: iAt1, iAt2, iSp1, iSp2, iRef1, iRef2
+    real(dp) :: refc6, dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2
+
+    c6 = 0.0_dp
+    dc6dcn = 0.0_dp
+    dc6dq = 0.0_dp
+
+    do iAt1 = 1, nAtom
+      iSp1 = species(iAt1)
+      do iAt2 = 1, iAt1
+        iSp2 = species(iAt2)
+        dc6 = 0.0_dp
+        dc6dcn1 = 0.0_dp
+        dc6dcn2 = 0.0_dp
+        dc6dq1 = 0.0_dp
+        dc6dq2 = 0.0_dp
+        do iRef1 = 1, calc%numberOfReferences(iSp1)
+          do iRef2 = 1, calc%numberOfReferences(iSp2)
+            refc6 = calc%referenceC6(iRef1, iRef2, iSp1, iSp2)
+            dc6 = dc6 + zetaVec(iRef1, iAt1) * zetaVec(iRef2, iAt2) * refc6
+            dc6dcn1 = dc6dcn1 + zetadcn(iRef1, iAt1) * zetaVec(iRef2, iAt2) * refc6
+            dc6dcn2 = dc6dcn2 + zetaVec(iRef1, iAt1) * zetadcn(iRef2, iAt2) * refc6
+            dc6dq1 = dc6dq1 + zetadq(iRef1, iAt1) * zetaVec(iRef2, iAt2) * refc6
+            dc6dq2 = dc6dq2 + zetaVec(iRef1, iAt1) * zetadq(iRef2, iAt2) * refc6
+          end do
+        end do
+        c6(iAt1, iAt2) = dc6
+        c6(iAt2, iAt1) = dc6
+        dc6dcn(iAt1, iAt2) = dc6dcn1
+        dc6dcn(iAt2, iAt1) = dc6dcn2
+        dc6dq(iAt1, iAt2) = dc6dq1
+        dc6dq(iAt2, iAt1) = dc6dq2
+      end do
+    end do
+  end subroutine getAtomicC6
+
+  !> Energies, derivatives and strain derivatives of the Axilrod-Teller-Muto
+  !  non-additive triple-dipole contribution.
+  subroutine threeBodyDispersionGradient(calc, nAtom, coords, species, nNeighbour,&
+      & iNeighbour, neighDist2, img2CentCell, zetaVec, zetadq, zetadcn, &
+      & dEdq, dEdcn, energies, gradients, stress)
+    !> DFT-D dispersion model.
+    type(DftD4Calculator), intent(in) :: calc
+    !> Nr. of atoms (without periodic images)
+    integer, intent(in) :: nAtom
+    !> Coordinates of the atoms (including images)
+    real(dp), intent(in) :: coords(:, :)
+    !> Species of every atom.
+    integer, intent(in) :: species(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbour(:)
+    !> Neighbourlist.
+    integer, intent(in) :: iNeighbour(0:, :)
+    !> Square distances of the neighbours.
+    real(dp), intent(in) :: neighDist2(0:, :)
+    !> Mapping into the central cell.
+    integer, intent(in) :: img2CentCell(:)
+    !> weighting and scaling function for the atomic reference systems
+    real(dp), intent(in) :: zetaVec(:, :)
+    !> derivative of the weight'n'scale function w.r.t. the partial charges
+    real(dp), intent(in) :: zetadq(:, :)
+    !> derivative of the weight'n'scale function w.r.t. the coordination number
+    real(dp), intent(in) :: zetadcn(:, :)
+    !> derivative of the energy w.r.t. the partial charges
+    real(dp), intent(inout) :: dEdq(:)
+    !> derivative of the energy w.r.t. the coordination number
+    real(dp), intent(inout) :: dEdcn(:)
+    !> Updated energy vector at return (misses CN and q contributions)
+    real(dp), intent(inout) :: energies(:)
+    !> Updated gradient vector at return (misses CN and q contributions)
+    real(dp), intent(inout) :: gradients(:, :)
+    !> Updated stress tensor at return (misses CN and q contributions)
+    real(dp), intent(inout) :: stress(:, :)
+
+    integer :: iAt1, iAt2, iAt3, iAt2f, iAt3f, iSp1, iSp2, iSp3
+    integer :: iNeigh2, iNeigh3
+    real(dp) :: vec12(3), vec13(3), vec23(3), dist12, dist13, dist23
+    real(dp) :: c9, c6_12, c6_13, c6_23, rc12, rc13, rc23, rc
+    real(dp) :: r1, r2, r3, r5, rr, fdmp, dfdmp, ang, dang
+    real(dp) :: dEr, dG12(3), dG13(3), dG23(3), sigma(3, 3)
+    real(dp) :: dc9dcn1, dc9dcn2, dc9dcn3, dc9dq1, dc9dq2, dc9dq3
+    real(dp), allocatable :: c6(:, :), dc6dq(:, :), dc6dcn(:, :)
+
+    allocate(c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom), &
+        &    source=0.0_dp)
+
+    call getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, &
+        & c6, dc6dcn, dc6dq)
+
+    do iAt1 = 1, nAtom
+      iSp1 = species(iAt1)
+      do iNeigh2 = 1, nNeighbour(iAt1)
+        iAt2 = iNeighbour(iNeigh2, iAt1)
+        vec12 = coords(:, iAt2) - coords(:, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        dist12 = neighDist2(iNeigh2, iAt1)
+        do iNeigh3 = 1, iNeigh2-1
+          iAt3 = iNeighbour(iNeigh3, iAt1)
+          vec13 = coords(:, iAt3) - coords(:, iAt1)
+          iAt3f = img2CentCell(iAt3)
+          iSp3 = species(iAt3f)
+          dist13 = neighDist2(iNeigh3, iAt1)
+          vec23 = coords(:, iAt3) - coords(:, iAt2)
+          dist23 = sum(vec23**2)
+
+          c6_12 = c6(iAt2f, iAt1)
+          c6_13 = c6(iAt3f, iAt1)
+          c6_23 = c6(iAt3f, iAt2f)
+          c9 = -sqrt(c6_12 * c6_13 * c6_23)
+
+          rc12 = calc%a1*sqrt(3*calc%sqrtZr4r2(iSp1)*calc%sqrtZr4r2(iSp2))+calc%a2
+          rc13 = calc%a1*sqrt(3*calc%sqrtZr4r2(iSp1)*calc%sqrtZr4r2(iSp3))+calc%a2
+          rc23 = calc%a1*sqrt(3*calc%sqrtZr4r2(iSp2)*calc%sqrtZr4r2(iSp3))+calc%a2
+          rc = rc12 * rc13 * rc23
+
+          r2 = dist12 * dist13 * dist23
+          r1 = sqrt(r2)
+          r3 = r2 * r1
+          r5 = r3 * r2
+
+          fdmp = 1.0_dp/(1.0_dp + 6.0_dp*(rc/r1)**(calc%alpha/3.0_dp))
+          ang = 0.375_dp*(dist12 + dist23 - dist13)*(dist12 - dist23 + dist13) &
+              & *(-dist12 + dist23 + dist13)/r5 + 1.0_dp/r3
+
+          rr = ang*fdmp
+
+          dfdmp = -2.0_dp*calc%alpha * (rc/r1)**(calc%alpha/3.0_dp) * fdmp**2
+
+          ! d/dr12
+          dang = -0.375_dp * (dist12**3 + dist12**2 * (dist23 + dist13) &
+              & + dist12*(3*dist23**2 + 2*dist23*dist13 + 3*dist13**2) &
+              & - 5*(dist23 - dist13)**2 * (dist23 + dist13)) / r5
+          dG12 = calc%s9 * c9 * (-dang*fdmp + ang*dfdmp) / dist12*vec12
+
+          ! d/dr13
+          dang = -0.375_dp * (dist13**3 + dist13**2 * (dist23 + dist12) &
+              & + dist13*(3*dist23**2 + 2*dist23*dist12 + 3*dist12**2) &
+              & - 5*(dist23 - dist12)**2 * (dist23 + dist12)) / r5
+          dG13 = calc%s9 * c9 * (-dang*fdmp + ang*dfdmp) / dist13*vec13
+
+          ! d/dr23
+          dang = -0.375_dp * (dist23**3 + dist23**2*(dist13 + dist12) &
+              & + dist23*(3*dist13**2+2*dist13*dist12 + 3*dist12**2) &
+              & - 5*(dist13 - dist12)**2 * (dist13 + dist12)) / r5
+          dG23 = calc%s9 * c9 * (-dang*fdmp + ang*dfdmp) / dist23*vec23
+
+          dEr = calc%s9 * rr * c9 * tripleScale(iAt1, iAt2f, iAt3f)
+          energies(iAt1) = energies(iAt1) - dEr/3.0_dp
+          energies(iAt2f) = energies(iAt2f) - dEr/3.0_dp
+          energies(iAt3f) = energies(iAt3f) - dEr/3.0_dp
+
+          gradients(:, iAt1) = gradients(:, iAt1) - dG12 - dG13
+          gradients(:, iAt2f) = gradients(:, iAt2f) + dG12 - dG23
+          gradients(:, iAt3f) = gradients(:, iAt3f) + dG13 + dG23
+
+          sigma = spread(dG12, 1, 3) * spread(vec12, 2, 3) &
+              & + spread(dG13, 1, 3) * spread(vec13, 2, 3) &
+              & + spread(dG23, 1, 3) * spread(vec23, 2, 3)
+
+          stress = stress + sigma
+
+          dc9dcn1 = (dc6dcn(iAt1, iAt2f)/c6_12 + dc6dcn(iAt1, iAt3f)/c6_13)*0.5_dp
+          dc9dcn2 = (dc6dcn(iAt2f, iAt1)/c6_12 + dc6dcn(iAt2f, iAt3f)/c6_23)*0.5_dp
+          dc9dcn3 = (dc6dcn(iAt3f, iAt1)/c6_13 + dc6dcn(iAt3f, iAt2f)/c6_23)*0.5_dp
+          dEdcn(iAt1) = dEdcn(iAt1) - dc9dcn1*dEr
+          dEdcn(iAt2f) = dEdcn(iAt2f) - dc9dcn2*dEr
+          dEdcn(iAt3f) = dEdcn(iAt3f) - dc9dcn3*dEr
+
+          dc9dq1 = (dc6dq(iAt1, iAt2f)/c6_12 + dc6dq(iAt1, iAt3f)/c6_13)*0.5_dp
+          dc9dq2 = (dc6dq(iAt2f, iAt1)/c6_12 + dc6dq(iAt2f, iAt3f)/c6_23)*0.5_dp
+          dc9dq3 = (dc6dq(iAt3f, iAt1)/c6_13 + dc6dq(iAt3f, iAt2f)/c6_23)*0.5_dp
+          dEdq(iAt1) = dEdq(iAt1) - dc9dq1*dEr
+          dEdq(iAt2f) = dEdq(iAt2f) - dc9dq2*dEr
+          dEdq(iAt3f) = dEdq(iAt3f) - dc9dq3*dEr
+
+        end do
+      end do
+    end do
+
+  end subroutine threeBodyDispersionGradient
+
+  !> Driver for the calculation of DFT-D4 dispersion related properties.
+  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, &
+      & img2CentCell, recPoint, energies, gradients, stress, volume, parEwald)
+    use dftbp_encharges, only: getEEQcharges
+    !> DFT-D dispersion model.
+    type(DftD4Calculator), intent(in) :: calculator
+    !> Nr. of atoms (without periodic images)
+    integer, intent(in) :: nAtom
+    !> Coordinates of the atoms (including images)
+    real(dp), intent(in) :: coords(:, :)
+    !> Species of every atom.
+    integer, intent(in) :: species(:)
+    !> Updated neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+    !> Mapping into the central cell.
+    integer, intent(in) :: img2CentCell(:)
+    !> Contains the points included in the reciprocal sum.
+    !  The set should not include the origin or inversion related points.
+    real(dp), allocatable, intent(in) :: recPoint(:, :)
+    !> Parameter for Ewald summation.
+    real(dp), intent(in), optional :: parEwald
+    !> Updated energy vector at return
+    real(dp), intent(out) :: energies(:)
+    !> Updated gradient vector at return
+    real(dp), intent(out) :: gradients(:, :)
+    real(dp), intent(out), optional :: stress(:, :)
+    real(dp), intent(in), optional :: volume
+
+    integer, allocatable :: nNeigh(:)
+
+    real(dp) :: sigma(3, 3)
+    real(dp) :: vol, parEwald0
+    real(dp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
+    real(dp), allocatable :: q(:), dqdr(:, :, :), dqdL(:, :, :)
+
+    if (present(volume)) then
+      vol = volume
+    else
+      vol = 0.0_dp
+    endif
+
+    if (present(parEwald)) then
+       parEwald0 = parEwald
+    else
+       parEwald0 = 0.0_dp
+    endif
+
+    energies = 0.0_dp
+    gradients = 0.0_dp
+    sigma = 0.0_dp
+
+    allocate(cn(nAtom), dcndr(3, nAtom, nAtom), dcndL(3, 3, nAtom), source=0.0_dp)
+    allocate(nNeigh(nAtom), source=0)
+
+    call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffCount)
+
+    call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, &
+        & neigh%neighDist2, img2CentCell, calculator%covalentRadius, &
+        & calculator%electronegativity, .false., cn, dcndr, dcndL)
+    call cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max=8.0_dp)
+
+    allocate(q(nAtom), dqdr(3, nAtom, nAtom), dqdL(3, 3, nAtom), source=0.0_dp)
+
+    call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffEwald)
+
+    call getEEQCharges(nAtom, coords, species, nNeigh, neigh%iNeighbour, &
+        & neigh%neighDist2, img2CentCell, recPoint, parEwald0, &
+        & vol, calculator%chi, calculator%kcn, calculator%gam, calculator%rad, &
+        & cn, dcndr, dcndL, qAtom=q, dqdr=dqdr, dqdL=dqdL)
+
+    call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, &
+        & neigh%neighDist2, img2CentCell, calculator%covalentRadius, &
+        & calculator%electronegativity, .true., cn, dcndr, dcndL)
+
+    call dispersionGradient(calculator, nAtom, coords, species, &
+        & neigh, img2CentCell, cn, dcndr, dcndL, q, dqdr, dqdL, &
+        & energies, gradients, sigma)
+
+    if (present(stress)) then
+      stress(:, :) = sigma / volume
+    end if
+
+  end subroutine dispersionEnergy
+
+  !> Error function counting function for coordination number constributions.
+  pure elemental function erfCount(k, r, r0) result(count)
+    !> Steepness of the counting function.
+    real(dp), intent(in) :: k
+    !> Current distance.
+    real(dp), intent(in) :: r
+    !> Cutoff radius.
+    real(dp), intent(in) :: r0
+    real(dp) :: count
+    count = 0.5_dp * (1.0_dp + erf(-k*(r-r0)/r0))
+  end function erfCount
+
+  !> Derivative of the counting function w.r.t. the distance.
+  pure elemental function derfCount(k, r, r0) result(count)
+    use dftbp_constants, only: pi
+    real(dp), parameter :: sqrtpi = sqrt(pi)
+    !> Steepness of the counting function.
+    real(dp), intent(in) :: k
+    !> Current distance.
+    real(dp), intent(in) :: r
+    !> Cutoff radius.
+    real(dp), intent(in) :: r0
+    real(dp) :: count
+    count = -k/sqrtpi/r0*exp(-k**2*(r-r0)**2/r0**2)
+  end function derfCount
+
+  !> Cutting function for the coordination number.
+  elemental function cutCN(cn, cut) result(cnp)
+    !> Current coordination number.
+    real(dp), intent(in) :: cn
+    !> Cutoff for the CN, this is not the maximum value.
+    real(dp), intent(in) :: cut
+    real(dp) :: cnp
+    cnp = log(1.0_dp + exp(cut)) - log(1.0_dp + exp(cut - cn))
+  end function cutCN
+
+  !> Derivative of the cutting function w.r.t. coordination number
+  elemental function dCutCN(cn, cut) result(dcnpdcn)
+    !> Current coordination number.
+    real(dp), intent(in) :: cn
+    !> Cutoff for the CN, this is not the maximum value.
+    real(dp), intent(in) :: cut
+    real(dp) :: dcnpdcn
+    dcnpdcn = exp(cut)/(exp(cut) + exp(cn))
+  end function dCutCn
+
+  !> charge scaling function
+  elemental function zetaScale(beta1, gamma1, zref, z1) result(zeta)
+    !> current effective nuclear charge
+    real(dp), intent(in) :: z1
+    !> reference effective nuclear charge
+    real(dp), intent(in) :: zref
+    !> maximum scaling
+    real(dp), intent(in) :: beta1
+    !> steepness of the scaling function.
+    real(dp), intent(in) :: gamma1
+    real(dp) :: zeta
+    if (z1 < 0.0_dp) then
+      zeta = exp(beta1)
+    else
+      zeta = exp(beta1 * (1.0_dp - exp(gamma1 * (1.0_dp - zref/z1))))
+    endif
+  end function zetaScale
+
+  !> derivative of charge scaling function w.r.t. charge
+  elemental function dzetaScale(beta1, gamma1, zref, z1) result(dzeta)
+    !> current effective nuclear charge
+    real(dp), intent(in) :: z1
+    !> reference effective nuclear charge
+    real(dp), intent(in) :: zref
+    !> maximum scaling
+    real(dp), intent(in) :: beta1
+    !> steepness of the scaling function.
+    real(dp), intent(in) :: gamma1
+    real(dp) :: dzeta
+    if (z1 < 0.0_dp) then
+      dzeta = 0.0_dp
+    else
+      dzeta = - beta1 * gamma1 * exp(gamma1 * (1.0_dp - zref/z1)) &
+        &    * zetaScale(beta1, gamma1, zref, z1) * zref / (z1**2)
+    endif
+  end function dzetaScale
+
+  !> Gaussian weight based on coordination number difference
+  elemental function weightCN(wf, cn, cnref) result(cngw)
+    !> weighting factor / width of the gaussian function
+    real(dp), intent(in) :: wf
+    !> current coordination number
+    real(dp), intent(in) :: cn
+    !> reference coordination number
+    real(dp), intent(in) :: cnref
+    real(dp) :: cngw ! CN-gaussian-weight
+    cngw = exp(-wf * (cn - cnref)**2)
+  end function weightCN
+
+  !> Logic exercise to distribute a triple energy to atomwise energies.
+  !
+  !  The logic problem is outsourced to this routine to determine the factor
+  !  based on the three indices so code doesn't look too overloaded.
+  !  There is of course the problem that E /= 3 * E/3.0_dp for the ii'i" case,
+  !  but numerics won't hit that hard and there are not to many of such triples.
+  elemental function tripleScale(ii, jj, kk) result(triple)
+    integer, intent(in) :: ii, jj, kk
+    real(dp) :: triple
+    if (ii == jj) then
+      if (ii == kk) then ! ii'i" -> 1/6
+        triple = 1.0_dp/6.0_dp
+      else ! ii'j -> 1/2
+        triple = 0.5_dp
+      end if
+    else
+      if (ii /= kk .and. jj /= kk) then ! ijk -> 1 (full)
+        triple = 1.0_dp
+      else ! ijj' and iji' -> 1/2
+        triple = 0.5_dp
+      end if
+    end if
+  end function tripleScale
+
+  !> get atomic number from element symbol.
+  elemental subroutine symbolToNumber(number, symbol)
+    character(len=2), parameter :: pse(118) = [ &
+      & 'h ','he', &
+      & 'li','be','b ','c ','n ','o ','f ','ne', &
+      & 'na','mg','al','si','p ','s ','cl','ar', &
+      & 'k ','ca', &
+      & 'sc','ti','v ','cr','mn','fe','co','ni','cu','zn', &
+      &           'ga','ge','as','se','br','kr', &
+      & 'rb','sr', &
+      & 'y ','zr','nb','mo','tc','ru','rh','pd','ag','cd', &
+      &           'in','sn','sb','te','i ','xe', &
+      & 'cs','ba','la', &
+      & 'ce','pr','nd','pm','sm','eu','gd','tb','dy','ho','er','tm','yb', &
+      & 'lu','hf','ta','w ','re','os','ir','pt','au','hg', &
+      &           'tl','pb','bi','po','at','rn', &
+      & 'fr','ra','ac', &
+      & 'th','pa','u ','np','pu','am','cm','bk','cf','es','fm','md','no', &
+      & 'lr','rf','db','sg','bh','hs','mt','ds','rg','cn', &
+      &           'nh','fl','mc','lv','ts','og' ]
+    character(len=*), intent(in) :: symbol
+    integer, intent(out) :: number
+    character(len=2) :: lc_symbol
+    integer :: i, j, k, l
+    integer, parameter :: offset = iachar('a')-iachar('A')
+
+    number = 0
+    lc_symbol = '  '
+
+    k = 0
+    do j = 1, len_trim(symbol)
+      if (k > 2) exit
+      l = iachar(symbol(j:j))
+      if (k >= 1 .and. l == iachar(' ')) exit
+      if (k >= 1 .and. l == 9) exit
+      if (l >= iachar('A') .and. l <= iachar('Z')) l = l + offset
+      if (l >= iachar('a') .and. l <= iachar('z')) then
+        k = k+1
+        lc_symbol(k:k) = achar(l)
+      endif
+    enddo
+
+    do i = 1, size(pse)
+      if (lc_symbol == pse(i)) then
+        number = i
+        exit
+      endif
+    enddo
+
+  end subroutine symbolToNumber
+
+
+end module dftbp_dispdftd4
