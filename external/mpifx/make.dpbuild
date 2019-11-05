@@ -18,14 +18,14 @@ all: libmpifx
 	touch -r $(OBJDIR)/libmpifx.a $(STAMPFILE)
 
 libmpifx:
-	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/Makefile.lib \
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/lib/make.build \
 	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" INCLUDES="$(INCLUDES)" \
-            M4="$(M4)" M4OPT="$(M4OPT)" SRCDIR="$(SRCDIR)/origin/src"
+      FYPP="$(FYPP)" FYPPOPT="$(FYPPOPT)" SRCDIR="$(SRCDIR)/origin/lib"
 
 clean:
-	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/Makefile.lib \
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/make.build \
 	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" \
-            M4="$(M4)" M4OPT="$(M4OPT)" SRCDIR="$(SRCDIR)/origin/src" clean
+      FYPP="$(FYPP)" FYPPOPT="$(FYPPOPT)" SRCDIR="$(SRCDIR)/origin/lib" clean
 
 ### Local Variables:
 ### mode:makefile

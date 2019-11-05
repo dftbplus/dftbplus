@@ -1,55 +1,55 @@
-andersentherm.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_mdcommon _mod_dftbp_tempprofile _mod_dftbp_ranlux
-andersentherm.o = andersentherm.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_mdcommon) $(_mod_dftbp_tempprofile) $(_mod_dftbp_ranlux)
+andersentherm.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_mdcommon _mod_dftbp_ranlux _mod_dftbp_tempprofile
+andersentherm.o = andersentherm.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_mdcommon) $(_mod_dftbp_ranlux) $(_mod_dftbp_tempprofile)
 _mod_dftbp_andersentherm: andersentherm.o
 _mod_dftbp_andersentherm = $(andersentherm.o)
 
-berendsentherm.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_mdcommon _mod_dftbp_tempprofile _mod_dftbp_ranlux
-berendsentherm.o = berendsentherm.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_mdcommon) $(_mod_dftbp_tempprofile) $(_mod_dftbp_ranlux)
+berendsentherm.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_mdcommon _mod_dftbp_ranlux _mod_dftbp_tempprofile
+berendsentherm.o = berendsentherm.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_mdcommon) $(_mod_dftbp_ranlux) $(_mod_dftbp_tempprofile)
 _mod_dftbp_berendsentherm: berendsentherm.o
 _mod_dftbp_berendsentherm = $(berendsentherm.o)
 
-dummytherm.o: _mod_dftbp_ranlux _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_mdcommon
-dummytherm.o = dummytherm.o $(_mod_dftbp_ranlux) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_mdcommon)
+dummytherm.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_mdcommon _mod_dftbp_ranlux
+dummytherm.o = dummytherm.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_mdcommon) $(_mod_dftbp_ranlux)
 _mod_dftbp_dummytherm: dummytherm.o
 _mod_dftbp_dummytherm = $(dummytherm.o)
 
-extlagrangian.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_message
-extlagrangian.o = extlagrangian.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
-_mod_dftbp_extlagrangian_module: extlagrangian.o
-_mod_dftbp_extlagrangian_module = $(extlagrangian.o)
+extlagrangian.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_message
+extlagrangian.o = extlagrangian.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
+_mod_dftbp_extlagrangian: extlagrangian.o
+_mod_dftbp_extlagrangian = $(extlagrangian.o)
 
-mdcommon.o: _mod_dftbp_ranlux _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_constants
-mdcommon.o = mdcommon.o $(_mod_dftbp_ranlux) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants)
+mdcommon.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_ranlux
+mdcommon.o = mdcommon.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_ranlux)
 _mod_dftbp_mdcommon: mdcommon.o
 _mod_dftbp_mdcommon = $(mdcommon.o)
 
-mdintegrator.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_velocityverlet
-mdintegrator.o = mdintegrator.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_velocityverlet)
+mdintegrator.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_velocityverlet
+mdintegrator.o = mdintegrator.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_velocityverlet)
 _mod_dftbp_mdintegrator: mdintegrator.o
 _mod_dftbp_mdintegrator = $(mdintegrator.o)
 
-nhctherm.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_mdcommon _mod_dftbp_energies _mod_dftbp_tempprofile _mod_dftbp_ranlux _mod_dftbp_message
-nhctherm.o = nhctherm.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_mdcommon) $(_mod_dftbp_energies) $(_mod_dftbp_tempprofile) $(_mod_dftbp_ranlux) $(_mod_dftbp_message)
+nhctherm.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_mdcommon _mod_dftbp_ranlux _mod_dftbp_tempprofile _mod_dftbp_energies _mod_dftbp_message
+nhctherm.o = nhctherm.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_mdcommon) $(_mod_dftbp_ranlux) $(_mod_dftbp_tempprofile) $(_mod_dftbp_energies) $(_mod_dftbp_message)
 _mod_dftbp_nhctherm: nhctherm.o
 _mod_dftbp_nhctherm = $(nhctherm.o)
 
-tempprofile.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
-tempprofile.o = tempprofile.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+tempprofile.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy
+tempprofile.o = tempprofile.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy)
 _mod_dftbp_tempprofile: tempprofile.o
 _mod_dftbp_tempprofile = $(tempprofile.o)
 
-thermostat.o: _mod_dftbp_berendsentherm _mod_dftbp_andersentherm _mod_dftbp_accuracy _mod_dftbp_dummytherm _mod_dftbp_nhctherm
-thermostat.o = thermostat.o $(_mod_dftbp_berendsentherm) $(_mod_dftbp_andersentherm) $(_mod_dftbp_accuracy) $(_mod_dftbp_dummytherm) $(_mod_dftbp_nhctherm)
+thermostat.o: _mod_dftbp_accuracy _mod_dftbp_dummytherm _mod_dftbp_andersentherm _mod_dftbp_berendsentherm _mod_dftbp_nhctherm
+thermostat.o = thermostat.o $(_mod_dftbp_accuracy) $(_mod_dftbp_dummytherm) $(_mod_dftbp_andersentherm) $(_mod_dftbp_berendsentherm) $(_mod_dftbp_nhctherm)
 _mod_dftbp_thermostat: thermostat.o
 _mod_dftbp_thermostat = $(thermostat.o)
 
-velocityverlet.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_fileid _mod_dftbp_thermostat _mod_dftbp_message
-velocityverlet.o = velocityverlet.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_fileid) $(_mod_dftbp_thermostat) $(_mod_dftbp_message)
+velocityverlet.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_thermostat _mod_dftbp_fileid _mod_dftbp_message
+velocityverlet.o = velocityverlet.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_thermostat) $(_mod_dftbp_fileid) $(_mod_dftbp_message)
 _mod_dftbp_velocityverlet: velocityverlet.o
 _mod_dftbp_velocityverlet = $(velocityverlet.o)
 
-xlbomd.o: _mod_dftbp_extlagrangian_module _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_io _mod_dftbp_message
-xlbomd.o = xlbomd.o $(_mod_dftbp_extlagrangian_module) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_io) $(_mod_dftbp_message)
-_mod_dftbp_xlbomd_module: xlbomd.o
-_mod_dftbp_xlbomd_module = $(xlbomd.o)
+xlbomd.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_io _mod_dftbp_message _mod_dftbp_extlagrangian
+xlbomd.o = xlbomd.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_io) $(_mod_dftbp_message) $(_mod_dftbp_extlagrangian)
+_mod_dftbp_xlbomd: xlbomd.o
+_mod_dftbp_xlbomd = $(xlbomd.o)
 

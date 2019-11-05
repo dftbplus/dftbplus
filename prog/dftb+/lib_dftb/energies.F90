@@ -51,6 +51,9 @@ module dftbp_energies
     !> Onsite correction energy
     real(dp) :: eOnSite = 0.0_dp
 
+    !> Halogen-X correction energy
+    real(dp) :: eHalogenX = 0.0_dp
+
     !> Total 3rd order
     real(dp) :: e3rd    = 0.0_dp
 
@@ -112,6 +115,8 @@ module dftbp_energies
     !> atom onsite correction energies
     real(dp), allocatable :: atomOnSite(:)
 
+    !> atom halogen bond correction energies
+    real(dp), allocatable :: atomHalogenX(:)
 
     !> atom resolved 3rd order
     real(dp), allocatable :: atom3rd(:)
@@ -152,6 +157,7 @@ contains
     allocate(self%atomElec(nAtom))
     allocate(self%atomDisp(nAtom))
     allocate(self%atomOnSite(nAtom))
+    allocate(self%atomHalogenX(nAtom))
     allocate(self%atom3rd(nAtom))
     allocate(self%atomTotal(nAtom))
     self%atomRep(:) = 0.0_dp
@@ -164,6 +170,7 @@ contains
     self%atomElec(:) = 0.0_dp
     self%atomDisp(:) = 0.0_dp
     self%atomOnSite(:) = 0.0_dp
+    self%atomHalogenX(:) = 0.0_dp
     self%atom3rd(:) = 0.0_dp
     self%atomTotal(:) = 0.0_dp
 
@@ -177,6 +184,7 @@ contains
     self%Eelec = 0.0_dp
     self%EDisp = 0.0_dp
     self%EOnSite = 0.0_dp
+    self%EHalogenX = 0.0_dp
     self%E3rd = 0.0_dp
     self%Etotal = 0.0_dp
     self%EMermin = 0.0_dp

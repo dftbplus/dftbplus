@@ -8,7 +8,7 @@ extcharges          #? not WITH_MPI
 extpot              #? not WITH_MPI
 extpot2             #? not WITH_MPI
 fileinit            #? not WITH_MPI
-fileinitc           #? WITH_C and not WITH_MPI
+fileinitc           #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 qdepextpot          #? not WITH_MPI
-qdepextpotc         #? WITH_C and not WITH_MPI
+qdepextpotc         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 treeinit            #? not WITH_MPI

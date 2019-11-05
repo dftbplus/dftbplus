@@ -863,6 +863,9 @@ module negf_int
 
 
   !> Debug routine to dump H and S as a file in Matlab format
+  !>
+  !> NOTE: This routine is not MPI-aware, call it only on MPI-master!
+  !>
   subroutine negf_dumpHS(HH,SS)
 
     !> hamiltonian in CSR format
@@ -1929,69 +1932,75 @@ module negf_int
       call mpifx_allreduceip(mpicomm, csrEDens%nzval, MPI_SUM)
 #:endif
 
-      write(skp,'(I3.3)') iK
-      open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
+      if (tIoProc) then
+        write(skp,'(I3.3)') iK
+        open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
 
-      ! loop on central cell atoms and write local currents to all other 
-      ! interacting atoms within the cell and neighbour cells
-      do mm = 1, nAtom
+        ! loop on central cell atoms and write local currents to all other 
+        ! interacting atoms within the cell and neighbour cells
+        do mm = 1, nAtom
 
-        mOrb = orb%nOrbAtom(mm)
-        iRow = iAtomStart(mm)
+          mOrb = orb%nOrbAtom(mm)
+          iRow = iAtomStart(mm)
 
-        write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
+          write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
 
-        do inn = 1, lc_neigh%nNeighbour(mm)
-          nn = lc_neigh%iNeighbour(inn, mm) 
-          n0 = lc_img2CentCell(nn)
-          startn = iAtomStart(n0)
-          endn = startn + orb%nOrbAtom(n0) - 1
-          Im = 0.0_dp
-          ! tracing orbitals of atoms  n  m
-          ! More efficient without getel ?
-          do mu = iRow, iRow+mOrb-1
-            do nu = startn, endn
-              c1 = conjg(getel(csrDens,mu,nu))
-              c2 = conjg(getel(csrEDens,mu,nu))
-              Im = Im + aimag(getel(csrHam,mu,nu)*c1 - getel(csrOver,mu,nu)*c2)
-            enddo
-          enddo
-          ! pi-factor  comes from  Gn = rho * pi
-          Im = Im * 2.0_dp*params%g_spin*pi*eovh*kWeights(iK)
-          write(fdUnit,'(I5,ES17.8)',advance='NO') nn, Im 
-          lcurr(inn, mm, iS) = lcurr(inn, mm, iS) + Im
-        enddo
+          do inn = 1, lc_neigh%nNeighbour(mm)
+            nn = lc_neigh%iNeighbour(inn, mm) 
+            n0 = lc_img2CentCell(nn)
+            startn = iAtomStart(n0)
+            endn = startn + orb%nOrbAtom(n0) - 1
+            Im = 0.0_dp
+            ! tracing orbitals of atoms  n  m
+            ! More efficient without getel ?
+            do mu = iRow, iRow+mOrb-1
+              do nu = startn, endn
+                c1 = conjg(getel(csrDens,mu,nu))
+                c2 = conjg(getel(csrEDens,mu,nu))
+                Im = Im + aimag(getel(csrHam,mu,nu)*c1 - getel(csrOver,mu,nu)*c2)
+              end do
+            end do
+            ! pi-factor  comes from  Gn = rho * pi
+            Im = Im * 2.0_dp*params%g_spin*pi*eovh*kWeights(iK)
+            write(fdUnit,'(I5,ES17.8)',advance='NO') nn, Im 
+            lcurr(inn, mm, iS) = lcurr(inn, mm, iS) + Im
+          end do
 
-        write(fdUnit,*)
-      enddo
-        
-      close(fdUnit)
+          write(fdUnit,*)
+        end do
+
+        close(fdUnit)
+      end if
 
       call destruct(csrDens)
       call destruct(csrEDens)
 
-    enddo
-
-    allocate(testArray(maxval(lc_neigh%nNeighbour),nAtom*nSpin))
-    testArray=0.0_dp
-    ! Write the total current per spin channel  
-    do iS = 1, nSpin
-      open(newUnit = fdUnit, file = 'lcurrents_'//spin2ch(iS)//'.dat')
-      do mm = 1, nAtom
-        write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
-        do inn = 1, lc_neigh%nNeighbour(mm)
-          write(fdUnit,'(I5,ES17.8)',advance='NO') lc_neigh%iNeighbour(inn, mm), lcurr(inn,mm,iS)
-          testArray(inn,(iS-1)*nAtom+mm) = lcurr(inn,mm,iS) 
-        end do
-        write(fdUnit,*)
-      end do  
     end do
-    close(fdUnit)
+
+    if (tIoProc) then
+      allocate(testArray(maxval(lc_neigh%nNeighbour),nAtom*nSpin))
+      testArray=0.0_dp
+      ! Write the total current per spin channel  
+      do iS = 1, nSpin
+        open(newUnit = fdUnit, file = 'lcurrents_'//spin2ch(iS)//'.dat')
+        do mm = 1, nAtom
+          write(fdUnit,'(I5,3(F12.6),I4)',advance='NO') mm, lc_coord(:,mm), lc_neigh%nNeighbour(mm)
+          do inn = 1, lc_neigh%nNeighbour(mm)
+            write(fdUnit,'(I5,ES17.8)',advance='NO') lc_neigh%iNeighbour(inn, mm), lcurr(inn,mm,iS)
+            testArray(inn,(iS-1)*nAtom+mm) = lcurr(inn,mm,iS) 
+          end do
+          write(fdUnit,*)
+        end do
+      end do
+      close(fdUnit)
+    end if
     deallocate(lcurr)
 
-    write(stdOut,*) 
-    call writeXYZFormat("supercell.xyz", lc_coord, lc_species, speciesName)
-    write(stdOut,*) " <<< supercell.xyz written on file"
+    if (tIoProc) then
+      write(stdOut,*) 
+      call writeXYZFormat("supercell.xyz", lc_coord, lc_species, speciesName)
+      write(stdOut,*) " <<< supercell.xyz written on file"
+    end if
 
   contains
 

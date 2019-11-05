@@ -36,7 +36,7 @@ endif
 
 LIBOPTS += $(LIB_LAPACK)
 
-CINCOPTS := -I$(ROOT)/api/mm
+CINCOPTS := -I$(ROOT)/prog/dftb+/api/mm
 
 
 #
