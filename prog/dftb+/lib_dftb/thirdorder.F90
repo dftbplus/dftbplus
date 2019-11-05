@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Routines implementing the full 3rd order DFTB.
-module dftbp_thirdorder_module
+module dftbp_thirdorder
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_commontypes, only : TOrbitals
@@ -1079,4 +1079,4 @@ contains
 
   end function hpUpR
 
-end module dftbp_thirdorder_module
+end module dftbp_thirdorder

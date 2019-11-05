@@ -18,7 +18,7 @@ module dftbp_initprogram
   use dftbp_globalenv
   use dftbp_environment
   use dftbp_scalapackfx
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_densedescr
   use dftbp_constants
   use dftbp_elecsolvers
@@ -61,15 +61,16 @@ module dftbp_initprogram
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_h5correction
+  use dftbp_halogenx
   use dftbp_slakocont
   use dftbp_repcont
   use dftbp_fileid
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftbplusu
   use dftbp_dispersions
-  use dftbp_thirdorder_module
-  use dftbp_linresp_module
-  use dftbp_RangeSeparated, only : RangeSepFunc, RangeSepFunc_init
+  use dftbp_thirdorder
+  use dftbp_linresp
+  use dftbp_RangeSeparated
   use dftbp_stress
   use dftbp_orbitalequiv
   use dftbp_orbitals
@@ -77,7 +78,7 @@ module dftbp_initprogram
   use dftbp_sorting, only : heap_sort
   use dftbp_linkedlist
   use dftbp_wrappedintr
-  use dftbp_xlbomd_module
+  use dftbp_xlbomd
   use dftbp_etemp, only : Fermi
 #:if WITH_SOCKETS
   use dftbp_mainio, only : receiveGeometryFromSocket
@@ -985,6 +986,9 @@ module dftbp_initprogram
   !> list of atoms in the central cell (or device region if transport)
   integer, allocatable :: iAtInCentralRegion(:)
 
+  !> Correction for {O,N}-X bonds
+  type(THalogenX), allocatable :: halogenXCorrection
+
   !> All of the excited energies actuall solved by Casida routines (if used)
   real(dp), allocatable :: energiesCasida(:)
 
@@ -1393,6 +1397,7 @@ contains
         sccInp%h5Correction = pH5Correction
       end if
 
+
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
       if (tExtChrg) then
@@ -1462,6 +1467,17 @@ contains
     allocate(species0(nAtom))
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
+
+    if (input%ctrl%tHalogenX) then
+      if (.not. (t3rd .or. t3rdFull)) then
+        call error("Halogen correction only fitted for 3rd order models")
+      end if
+      if (tPeriodic) then
+        call error("Halogen correction was not fitted in periodic systems in original paper")
+      end if
+      allocate(halogenXCorrection)
+      call THalogenX_init(halogenXCorrection, species0, speciesName)
+    end if
 
     allocate(referenceN0(orb%mShell, nType))
     allocate(mass(nAtom))
@@ -2008,7 +2024,11 @@ contains
 
     end if
 
-    if ((.not.tPeriodic) .and. tMulliken) then
+    if (allocated(halogenXCorrection)) then
+      cutOff%mCutOff = max(cutOff%mCutOff, halogenXCorrection%getRCutOff())
+    end if
+
+    if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then
       tDipole = .true.
     else
       tDipole = .false.
@@ -3096,6 +3116,24 @@ contains
         write(stdOut, "(A,T30,A)") "H-H repulsion correction:", "H5"
       end if
     end if
+
+    if (tRangeSep) then
+      write(stdOut, "(A,':',T30,A)") "Range separated hybrid", "Yes"
+      write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
+          & input%ctrl%rangeSepInp%omega
+
+      select case(input%ctrl%rangeSepInp%rangeSepAlg)
+      case (rangeSepTypes%neighbour)
+        write(stdOut, "(2X,A,':',T30,E14.6,A)") "Spatially cutoff at",&
+            & input%ctrl%rangeSepInp%cutoffRed * Bohr__AA," A"
+      case (rangeSepTypes%threshold)
+        write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
+            & input%ctrl%rangeSepInp%screeningThreshold
+      case default
+        call error("Unknown range separated hybrid method")
+      end select
+    end if
+
 
     write(stdOut, "(A,':')") "Extra options"
     if (tPrintMulliken) then
@@ -4448,7 +4486,7 @@ contains
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
     end if
-    if (tReadChrg .and. rangeSepInp%rangeSepAlg == "tr") then
+    if (tReadChrg .and. rangeSepInp%rangeSepAlg == rangeSepTypes%threshold) then
       call error("Restart on thresholded range separation not working correctly")
     end if
     if (tShellResolved) then

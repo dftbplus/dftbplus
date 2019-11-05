@@ -13,7 +13,7 @@ module dftbp_parser
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_constants
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_typegeometryhsd
   use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
   use dftbp_hsdutils
@@ -42,6 +42,7 @@ module dftbp_parser
   use dftbp_forcetypes, only : forceTypes
   use dftbp_mixer, only : mixerTypes
   use dftbp_geoopt, only : geoOptTypes
+  use dftbp_halogenx, only : halogenXSpecies1, halogenXSpecies2
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IPI_PROTOCOLS
 #:endif
@@ -64,7 +65,7 @@ module dftbp_parser
   character(len=*), parameter :: rootTag = "dftbplusinput"
 
   !> Version of the current parser
-  integer, parameter :: parserVersion = 7
+  integer, parameter :: parserVersion = 8
 
 
   !> Version of the oldest parser for which compatibility is still maintained
@@ -2239,6 +2240,30 @@ contains
           ctrl%thirdOrderOn(:,1) = 0.0_dp
           ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geo%species)
         end if
+
+        ! Halogen correction to the DFTB3 model
+        block
+          logical :: tHalogenInteraction
+          integer :: interType, iSp1, iSp2
+
+          if (.not. geo%tPeriodic) then
+            tHalogenInteraction = .false.
+            iSp1Loop: do iSp1 = 1, geo%nSpecies
+              if (any(geo%speciesNames(iSp1) == halogenXSpecies1)) then
+                do iSp2 = 1, geo%nSpecies
+                  if (any(geo%speciesNames(iSp2) == halogenXSpecies2)) then
+                    tHalogenInteraction = .true.
+                    exit iSp1Loop
+                  end if
+                end do
+              end if
+            end do iSp1Loop
+            if (tHalogenInteraction) then
+              call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
+            end if
+          end if
+        end block
+
       end if
     end if
 
@@ -3795,8 +3820,7 @@ contains
     type(control), intent(inout) :: ctrl
 
     if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
-      call getChildValue(node, "EigenvectorsAsTxt", ctrl%tPrintEigVecsTxt, &
-          & .false.)
+      call getChildValue(node, "EigenvectorsAsText", ctrl%tPrintEigVecsTxt, .false.)
     end if
 
   end subroutine readLaterAnalysis
@@ -5668,12 +5692,12 @@ contains
       call getNodeName(value2, buffer)
       select case(char(buffer))
       case ("neighbourbased")
-        input%rangeSepAlg = "nb"
+        input%rangeSepAlg = rangeSepTypes%neighbour
         call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
         call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
       case ("thresholded")
-        input%rangeSepAlg = "tr"
+        input%rangeSepAlg = rangeSepTypes%threshold
         call getChildValue(value2, "Threshold", input%screeningThreshold, 1e-6_dp)
         call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
