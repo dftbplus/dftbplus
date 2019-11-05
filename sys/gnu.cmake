@@ -81,7 +81,7 @@ set(OTHER_INCLUDE_DIRS "" CACHE STRING "Other include directories to consider")
 #
 # Debug settings (for developers)
 #
-set(CMAKE_Fortran_FLAGS_DEBUG "-g -Wall -std=f2008 -pedantic -fbounds-check" CACHE STRING
+set(CMAKE_Fortran_FLAGS_DEBUG "-g -Wall -std=f2008ts -pedantic -fbounds-check" CACHE STRING
   "Specific Fortran flags for Debug mode")
 
 set(CMAKE_C_FLAGS_DEBUG "-g -Wall -pedantic -fall-intrinsics -fbounds-check" CACHE STRING
