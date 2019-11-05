@@ -241,7 +241,7 @@ contains
     !> list of atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    integer :: nAtom, iAtom1,iAtom2,ii,iSp1,iSp2
+    integer :: nAtom, iAtom1, iAtom2, ii, iSp1, iSp2
     real(dp) :: dist
 
     this%coords(:,:) = coords
@@ -730,9 +730,13 @@ contains
     !> Orbital information.
     type(TOrbitals), intent(in) :: orb
 
+    !> Square (unpacked) overlap matrix.
     real(dp), intent(in) :: overlap(:,:)
+
+    !> Square (unpacked) density matrix
     real(dp), intent(in) :: densSqr(:,:)
 
+    !> Square (unpacked) Hamiltonian to be updated.
     real(dp), intent(inout) :: HH(:,:)
 
     real(dp), allocatable :: Smat(:,:)
@@ -767,13 +771,22 @@ contains
       !> Orbital information.
       type(TOrbitals), intent(in) :: orb
 
+      !> Square (unpacked) overlap matrix.
       real(dp), intent(in) :: overlap(:,:)
+
+      !> Square (unpacked) density matrix
       real(dp), intent(in) :: densSqr(:,:)
 
+      !> Square (unpacked) Hamiltonian to be updated.
       real(dp), intent(inout) :: HH(:,:)
 
+      !> Symmetrized square overlap matrix
       real(dp), intent(out) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
       real(dp), intent(out) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
       real(dp), intent(out) :: LRgammaAO(:,:)
 
       integer, allocatable :: get_iat(:)
@@ -820,10 +833,16 @@ contains
       !> class instance
       type(RangeSepFunc), intent(inout) :: this
 
+      !> Symmetrized square overlap matrix
       real(dp), intent(in) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
       real(dp), intent(in) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
       real(dp), intent(in) :: LRgammaAO(:,:)
 
+      !> Symmetrized long-range Hamiltonian matrix
       real(dp), intent(out) :: Hlr(:,:)
 
       real(dp), allocatable :: Hmat(:,:)
