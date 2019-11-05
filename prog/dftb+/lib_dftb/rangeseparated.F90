@@ -316,7 +316,7 @@ contains
       call addLrHamiltonianNeighbour(this, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare,&
           & iPair, orb, HH)
     case (rangeSepTypes%matrixBased)
-      call addLrHamiltonianMatrix(this, iSquare, orb, overlap, densSqr, HH)
+      call addLrHamiltonianMatrix(this, iSquare, overlap, densSqr, HH)
     end select
     call env%globalTimer%stopTimer(globalTimers%rangeSeparatedH)
 
@@ -719,16 +719,13 @@ contains
 
   end subroutine addLrHamiltonianNeighbour
 
-  subroutine addLrHamiltonianMatrix(this, iSquare, orb, overlap, densSqr, HH)
+  subroutine addLrHamiltonianMatrix(this, iSquare, overlap, densSqr, HH)
 
     !> class instance
     type(RangeSepFunc), intent(inout) :: this
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, dimension(:), intent(in) :: iSquare
-
-    !> Orbital information.
-    type(TOrbitals), intent(in) :: orb
 
     !> Square (unpacked) overlap matrix.
     real(dp), intent(in) :: overlap(:,:)
@@ -753,23 +750,20 @@ contains
     allocate(LRgammaAO(nOrb,nOrb))
     allocate(Hlr(nOrb,nOrb))
 
-    call allocateAndInit(this, iSquare, orb, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
+    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
     call evaluateHamiltonian(this, Smat, Dmat, LRgammaAO, Hlr)
     HH(:,:) = HH + Hlr
-    this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat*Hlr)
+    this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat * Hlr)
 
   contains
 
-    subroutine allocateAndInit(this, iSquare, orb, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
+    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
 
       !> class instance
       type(RangeSepFunc), intent(inout) :: this
 
       !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
       integer, dimension(:), intent(in) :: iSquare
-
-      !> Orbital information.
-      type(TOrbitals), intent(in) :: orb
 
       !> Square (unpacked) overlap matrix.
       real(dp), intent(in) :: overlap(:,:)
@@ -789,15 +783,9 @@ contains
       !> Symmetrized long-range gamma matrix
       real(dp), intent(out) :: LRgammaAO(:,:)
 
-      integer, allocatable :: get_iat(:)
+      integer :: nAtom, iAt, jAt
 
-      integer :: nAtom, nOrb
-      integer :: iAt, G1, G2, mu, nu
-
-      nAtom = size(orb%nOrbAtom,dim=1)
-      nOrb = size(overlap,dim=1)
-
-      allocate(get_iat(nOrb))
+      nAtom = size(this%lrGammaEval,dim=1)
 
       ! Symmetrize Hamiltonian, overlap, density matrices
       call symmetrizeSquareMatrix(HH)
@@ -806,23 +794,12 @@ contains
       Dmat(:,:) = densSqr
       call symmetrizeSquareMatrix(Dmat)
 
-      do mu = 1, nOrb
-        do iAt = 1, nAtom
-          if (mu > iSquare(iAt)-1 .and. mu <= iSquare(iAt+1)-1) then
-            get_iat(mu) = iAt
-          end if
-        end do
-      end do
-
       ! Get long-range gamma variable
       LRgammaAO(:,:) = 0.0_dp
-      do mu = 1, nOrb
-        do nu = mu, nOrb
-          ! Find proper atom index
-          G1 = get_iat(mu)
-          G2 = get_iat(nu)
-          LRgammaAO(nu,mu) = this%lrGammaEval(G2,G1)
-          if (nu /= mu) LRgammaAO(mu,nu) = LRgammaAO(nu,mu)
+      do iAt = 1, nAtom
+        do jAt = 1, nAtom
+          LRgammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
+              & this%lrGammaEval(jAt,iAt)
         end do
       end do
 
@@ -857,31 +834,20 @@ contains
 
       Hlr(:,:) = 0.0_dp
 
-      tmpMat(:,:) = 0.0_dp
       call gemm(tmpMat, Smat, Dmat)
-      Hmat(:,:) = 0.0_dp
-      call gemm(Hmat, tmpMat, Smat)
-      Hmat(:,:) = Hmat * LRgammaAO
-      Hlr(:,:) = Hlr + Hmat
+      call gemm(Hlr, tmpMat, Smat)
+      Hlr(:,:) = Hlr * LRgammaAO
 
       tmpMat(:,:) = tmpMat * LRgammaAO
-      Hmat(:,:) = 0.0_dp
-      call gemm(Hmat, tmpMat, Smat)
-      Hlr(:,:) = Hlr + Hmat
+      call gemm(Hlr, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
 
       Hmat(:,:) = Dmat * LRgammaAO
-      tmpMat(:,:) = 0.0_dp
       call gemm(tmpMat, Smat, Hmat)
-      Hmat(:,:) = 0.0_dp
-      call gemm(Hmat, tmpMat, Smat)
-      Hlr(:,:) = Hlr + Hmat
+      call gemm(Hlr, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
 
-      tmpMat(:,:) = 0.0_dp
       call gemm(tmpMat, Dmat, Smat)
       tmpMat(:,:) = tmpMat * LRgammaAO
-      Hmat(:,:) = 0.0_dp
-      call gemm(Hmat, Smat, tmpMat)
-      Hlr(:,:) = Hlr + Hmat
+      call gemm(Hlr, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
       if (this%tSpin) then
         Hlr(:,:) = -0.25_dp * Hlr
@@ -918,7 +884,7 @@ contains
     integer :: ii, matSize
 
     matSize = size(matrix, dim = 1)
-    do ii = 1, matSize
+    do ii = 1, matSize - 1
       matrix(ii, ii + 1 : matSize) = matrix(ii + 1 : matSize, ii)
     end do
 
