@@ -17,6 +17,7 @@ module dftbp_dispersions
 #:if WITH_DFTD3
   use dftbp_dispdftd3
 #:endif
+  use dftbp_dispdftd4
   implicit none
   public
 
@@ -34,6 +35,9 @@ module dftbp_dispersions
     !> Grimme DFT-D3
     type(DispDftD3Inp), allocatable :: dftd3
   #:endif
+
+    !> D4 dispersion model.
+    type(DispDftD4Inp), allocatable :: dftd4
   
   end type DispersionInp
 

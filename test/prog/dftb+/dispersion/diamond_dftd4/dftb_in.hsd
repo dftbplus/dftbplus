@@ -1,0 +1,62 @@
+Geometry = GenFormat {
+   8 S
+ C 
+ 1 1  0.0000  0.0000  0.0000
+ 1 1  0.8925  0.8925  0.8925
+ 1 1  1.7850  1.7850  0.0000
+ 1 1  2.6775  2.6775  0.8925
+ 1 1  1.7850  0.0000  1.7850
+ 1 1  2.6775  0.8925  2.6775
+ 1 1  0.0000  1.7850  1.7850
+ 1 1  0.8925  2.6775  2.6775
+     0.00    0.00    0.00
+     3.57    0.00    0.00
+     0.00    3.57    0.00
+     0.00    0.00    3.57
+}
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-5
+  MaxSCCIterations = 100
+  Filling = Fermi {
+    Temperature [K] = 300
+  }
+  KPointsAndWeights {
+    0.0 0.0 0.0  1.0
+  }
+  MaxAngularMomentum {
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  # Warning, the DftD4 parameters below are fake ones for test purposes only!
+  Dispersion = DftD4 {
+    a1 = 0.52
+    a2 = 3.6
+    s9 = 1.0
+    s6 = 1.0
+    s8 = 0.61
+    CutoffInter = 60
+    CutoffCount = 34 
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 4
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

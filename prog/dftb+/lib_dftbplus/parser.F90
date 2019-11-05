@@ -3140,6 +3140,9 @@ contains
   #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
   #:endif
+    case ("dftd4")
+      allocate(input%dftd4)
+      call readDispDFTD4(dispModel, input%dftd4)
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
@@ -3378,6 +3381,55 @@ contains
   end subroutine readDispDFTD3
 
 #:endif
+
+
+  !> Reads in initialization data for the D4 dispersion model.
+  !
+  !  The D4 dispersion model is usually constructed in a failsafe way, so
+  !  it only requires to know the damping parameters s8, a1 and a2.
+  !  Here we additionally require a s9, since the non-addititive contributions
+  !  tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
+  !  will disable the calculation.
+  subroutine readDispDFTD4(node, input)
+
+    !> Node to process.
+    type(fnode), pointer :: node
+
+    !> Filled input structure on exit.
+    type(DispDftD4Inp), intent(out) :: input
+
+    type(fnode), pointer :: child, childval
+    type(string) :: buffer
+
+    call getChildValue(node, "s6", input%s6, default=1.0_dp)
+    call getChildValue(node, "s8", input%s8)
+    call getChildValue(node, "s9", input%s9)
+    call getChildValue(node, "s10", input%s10, default=0.0_dp)
+    call getChildValue(node, "a1", input%a1)
+    call getChildValue(node, "a2", input%a2)
+    call getChildValue(node, "alpha", input%alpha, default=16.0_dp)
+    call getChildValue(node, "weightingFactor", input%weightingFactor, &
+        &              default=6.0_dp)
+    call getChildValue(node, "chargeSteepness", input%chargeSteepness, &
+        &              default=2.0_dp)
+    call getChildValue(node, "chargeScale", input%chargeScale, default=3.0_dp)
+    call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, &
+        &              modifier=buffer, child=child)
+    call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
+    call getChildValue(node, "cutoffCount", input%cutoffCount, default=40.0_dp, &
+        &              modifier=buffer, child=child)
+    call convertByMul(char(buffer), lengthUnits, child, input%cutoffCount)
+    call getChildValue(node, "cutoffEwald", input%cutoffEwald, default=40.0_dp, &
+        &              modifier=buffer, child=child)
+    call convertByMul(char(buffer), lengthUnits, child, input%cutoffEwald)
+    call getChildValue(node, "cutoffThree", input%cutoffThree, default=40.0_dp, &
+        &              modifier=buffer, child=child)
+    call convertByMul(char(buffer), lengthUnits, child, input%cutoffThree)
+
+    call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)
+    call getChildValue(node, "EwaldTolerance", input%tolEwald, 1.0e-9_dp)
+
+  end subroutine readDispDFTD4
 
 
   !> reads in value of temperature for MD with sanity checking of the input
