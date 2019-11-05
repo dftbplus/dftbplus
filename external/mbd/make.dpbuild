@@ -19,11 +19,11 @@ all: libmbd
 
 libmbd:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/scalapack-mpi.make \
-	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" VPATH="$(SRCDIR)/origin/src"
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" VPATH="$(SRCDIR)/origin/src" LIBMBD_C_API=0
 
 clean:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/origin/src/scalapack-mpi.make \
-	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" VPATH="$(SRCDIR)/origin/src" clean
+	    FXX="$(FXX)" FXXOPT="$(FXXOPT)" VPATH="$(SRCDIR)/origin/src" LIBMBD_C_API=0 clean
 
 ### Local Variables:
 ### mode:makefile
