@@ -848,9 +848,9 @@ contains
       real(dp), allocatable :: Hmat(:,:)
       real(dp), allocatable :: tmpMat(:,:)
 
-      integer :: nOrb, mu, nu
+      integer :: nOrb
 
-      nOrb = size(overlap,dim=1)
+      nOrb = size(Smat,dim=1)
 
       allocate(Hmat(nOrb,nOrb))
       allocate(tmpMat(nOrb,nOrb))
