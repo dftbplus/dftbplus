@@ -473,13 +473,15 @@ contains
 
     dEi(:,:,:,:) = 0.0_dp
 
-    do iAt = 1, nAtom
+    ! Displaced atom to differentiate wrt
+    lpAtom: do iAt = 1, nAtom
 
-      call nonSccDeriv%getFirstDeriv(dOver, env, skOverCont, coord, species, iAt, orb, nNeighbourSK,&
-          & neighbourList%iNeighbour, iSparseStart, img2centcell)
+      call nonSccDeriv%getFirstDeriv(dOver, env, skOverCont, coord, species, iAt, orb,&
+          & nNeighbourSK, neighbourList%iNeighbour, iSparseStart, img2centcell)
 
       call nonSccDeriv%getFirstDeriv(dH0, env, skHamCont, coord, species, iAt, orb, nNeighbourSK,&
           & neighbourList%iNeighbour, iSparseStart, img2centcell)
+
 
       ! perturbation direction
       ! note, could MPI parallelise over this
@@ -496,6 +498,7 @@ contains
 
           vdgamma = 0.0_dp
           vat = 0.0_dp
+          call sccCalc%updateCoords(env, coord, species, neighbourList)
           call sccCalc%updateCharges(env, qOrb, orb, species, q0)
           call sccCalc%addPotentialDeriv(vAt(:,1), vdgamma, species, neighbourList%iNeighbour,&
               & img2CentCell, coord, orb, iCart, iAt)
@@ -532,6 +535,9 @@ contains
           end if
         end if
 
+        write(stdOut,*)'Calculating derivative for displacement along ', &
+            & trim(direction(iCart)),' for atom', iAt
+
         if (tSccCalc) then
           write(stdOut,"(1X,A,T12,A)")'SCC Iter','Error'
         end if
@@ -549,7 +555,7 @@ contains
           end if
 
           if (tSccCalc .and. iSCCiter>1) then
-            call sccCalc%updateCharges(env, dqIn, orb, species)
+            call sccCalc%updateCharges(env, dqIn+dqNonVariational, orb, species)
             call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
             call sccCalc%getShiftPerAtom(dPotential%intAtom(:,1))
             call sccCalc%getShiftPerL(dPotential%intShell(:,:,1))
@@ -591,6 +597,7 @@ contains
           dPotential%intBlock(:,:,:,:) = dPotential%intBlock + dPotential%extBlock
 
           if (tSccCalc) then
+            sOmega(:,:,2) = 0.0_dp
             ! add the (Delta q) * d gamma / dx term and gamma * d (Delta q) / dx
             call add_shift(sOmega(:,:,2), over, nNeighbourSK, neighbourList%iNeighbour,&
                 & species, orb, iSparseStart, nAtom, img2CentCell, vdgamma)
@@ -602,11 +609,8 @@ contains
 
           dHam(:,1) = dH0(:,iCart)
 
-          call add_shift(dHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-              & iSparseStart, nAtom, img2CentCell, dPotential%intBlock)
-
           if (tSccCalc) then
-            dHam = dHam + sOmega(:,:,1) + sOmega(:,:,2)
+            dHam(:,:) = dHam + sOmega(:,:,1) + sOmega(:,:,2)
           end if
 
           if (nSpin > 1) then
@@ -615,6 +619,7 @@ contains
               idHam(:,:) = 2.0_dp * idHam(:,:)
             end if
           end if
+
           call qm2ud(dHam)
           if (allocated(idHam)) then
             call qm2ud(idHam)
@@ -627,7 +632,7 @@ contains
 
           ! evaluate derivative of density matrix
           if (allocated(eigVecsReal)) then
-
+            drho(:,:) = 0.0_dp
             do iKS = 1, parallelKS%nLocalKS
 
               iS = parallelKS%localKS(2, iKS)
@@ -641,9 +646,9 @@ contains
                   & iSparseStart, img2CentCell, denseDesc, iKS, parallelKS, nFilled(:,1),&
                   & nEmpty(:,1), eigVecsReal, eigVals, Ef, tempElec, orb, drho(:,iS), iCart,&
                   & dRhoOutSqr, rangeSep, over, nNeighbourLC, eCiReal, &
-#:if WITH_SCALAPACK
+                #:if WITH_SCALAPACK
                   & desc,&
-#:endif
+                #:endif
                   & dEi, dPsiReal, iAt)
             end do
 
@@ -657,9 +662,9 @@ contains
                   & iSparseStart, img2CentCell, denseDesc, parallelKS, nFilled(:, iK),&
                   & nEmpty(:, iK), eigvecsCplx, eigVals, Ef, tempElec, orb, dRho, idRho, kPoint,&
                   & kWeight, iCellVec, cellVec, iKS, iCart,&
-#:if WITH_SCALAPACK
+                #:if WITH_SCALAPACK
                   & desc,&
-#:endif
+                #:endif
                   & dEi, dPsiCmplx, iAt)
 
             end do
@@ -670,10 +675,10 @@ contains
 
           end if
 
-#:if WITH_SCALAPACK
+        #:if WITH_SCALAPACK
           ! Add up and distribute density matrix contributions from each group
           call mpifx_allreduceip(env%mpi%globalComm, dRho, MPI_SUM)
-#:endif
+        #:endif
 
           dRhoExtra = 0.0_dp
           if (tMetallic) then
@@ -699,9 +704,9 @@ contains
                       & neighbourList, nNeighbourSK, img2CentCell, iSparseStart, dEf, Ef,&
                       & nFilled(:,iK), nEmpty(:,iK), eigVecsReal, orb, denseDesc, tempElec,&
                       & eigVals, dRhoOutSqr&
-#:if WITH_SCALAPACK
+                    #:if WITH_SCALAPACK
                       &, desc&
-#:endif
+                    #:endif
                       &)
 
                 elseif (nSpin > 2) then
@@ -711,9 +716,9 @@ contains
                       & kPoint, kWeight, iCellVec, cellVec, neighbourList, nNEighbourSK,&
                       & img2CentCell, iSparseStart, dEf, Ef, nFilled(:,iK), nEmpty(:,iK),&
                       & eigVecsCplx, orb, denseDesc, tempElec, eigVals&
-#:if WITH_SCALAPACK
+                    #:if WITH_SCALAPACK
                       &, desc&
-#:endif
+                    #:endif
                       &)
 
                 else
@@ -727,10 +732,10 @@ contains
 
             end do
 
-#:if WITH_SCALAPACK
+          #:if WITH_SCALAPACK
             ! Add up and distribute density matrix contribution from each group
             call mpifx_allreduceip(env%mpi%globalComm, dRhoExtra, MPI_SUM)
-#:endif
+          #:endif
             dRho(:,:) = dRho + dRhoExtra
 
           end if
@@ -748,8 +753,8 @@ contains
 
           dqOut(:,:,:) = 0.0_dp
           do iS = 1, nSpin
-            call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, &
-                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+            call mulliken(dqOut(:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
+                & nNeighbourSK, img2CentCell, iSparseStart)
             if (tDFTBU .or. allocated(onsMEs)) then
               dqBlockOut(:,:,:,iS) = 0.0_dp
               call mulliken(dqBlockOut(:,:,:,iS), over, drho(:,iS), orb, neighbourList%iNeighbour,&
@@ -757,8 +762,8 @@ contains
             end if
           end do
 
-          if (tMulliken) then
-            dqOut(:,:,:) = dqOut + dqNonVariational
+          if (tMulliken .or. tSccCalc) then
+            !dqOut(:,:,:) = dqOut + dqNonVariational
 
             if (tDFTBU .or. allocated(onsMEs)) then
               call error("Missing block population analogue")
@@ -771,8 +776,7 @@ contains
               dqDiffRed(:) = dRhoOut - dRhoIn
             else
               dqOutRed = 0.0_dp
-              call OrbitalEquiv_reduce(dqOut, iEqOrbitals, orb,&
-                  & dqOutRed(:nIneqMixElements))
+              call OrbitalEquiv_reduce(dqOut, iEqOrbitals, orb, dqOutRed(:nIneqMixElements))
               if (tDFTBU) then
                 call AppendBlock_reduce(dqBlockOut, iEqBlockDFTBU, orb, dqOutRed )
               end if
@@ -806,11 +810,11 @@ contains
                   call denseMulliken(dRhoInSqr, SSqrReal, denseDesc%iAtomStart, dqIn)
                 else
                   call mix(pChrgMixer, dqInpRed, dqDiffRed)
-#:if WITH_MPI
+                #:if WITH_MPI
                   ! Synchronise charges in order to avoid mixers that store a history drifting apart
                   call mpifx_allreduceip(env%mpi%globalComm, dqInpRed, MPI_SUM)
                   dqInpRed(:) = dqInpRed / env%mpi%globalComm%size
-#:endif
+                #:endif
 
                   call OrbitalEquiv_expand(dqInpRed(:nIneqMixElements), iEqOrbitals, orb, dqIn)
 
@@ -864,26 +868,28 @@ contains
         end if
 
 
-        write(stdOut, *)'dq', iAt, direction(iCart)
+        write(stdOut, *)'Charge derivatives'
         do iS = 1, nSpin
           do jAt = 1, nAtom
-            write(stdOut, *)jAt, sum(dqOut(:, jAt, iS)), ':', dqOut(:orb%nOrbAtom(jAt), jAt, iS)
+            write(stdOut, *)jAt, sum(dqOut(:, jAt, iS)+dqNonVariational(:, jAt, iS)), ':',&
+                & dqOut(:orb%nOrbAtom(jAt), jAt, iS)+dqNonVariational(:orb%nOrbAtom(jAt), jAt, iS)
           end do
         end do
+        write(stdOut, *)
 
       end do lpCart
 
-      end do
+    end do lpAtom
 
-      write(stdOut, *)'dEi'
-      do iCart = 1, 3
-        write(stdOut, *)iCart
-        do iS = 1, nSpin
-          do iAt = 1, nAtom
-            write(stdOut, *) dEi(:, iAt, iS, iCart) ! *Hartree__eV
-          end do
+    write(stdOut, *)'dEi'
+    do iCart = 1, 3
+      write(stdOut, *)iCart
+      do iS = 1, nSpin
+        do iAt = 1, nAtom
+          write(stdOut, *) dEi(:, iAt, iS, iCart) ! *Hartree__eV
         end do
       end do
+    end do
 
   #:if WITH_SCALAPACK
     if (allocated(dEi)) then

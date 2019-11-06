@@ -1737,7 +1737,6 @@ contains
 
   end subroutine getSummedChargesPerUniqU_
 
-
   !> Calculate the derivative of the potential from the short range part of Gamma.
   subroutine GammaPrimeV_(this, vprime, coord, species, iNeighbour, img2CentCell, orb, iCart, iAt)
 
@@ -1789,6 +1788,7 @@ contains
           u1 = this%uniqHubbU(iU1, iSp1)
           do iSh2 = 1, orb%nShell(iSp2)
             iU2 = this%iHubbU(iSh2, iSp2)
+            u2 = this%uniqHubbU(iU2, iSp2)
             if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
               if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
                 tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
