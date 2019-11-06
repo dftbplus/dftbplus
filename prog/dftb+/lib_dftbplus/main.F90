@@ -738,16 +738,13 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
 
-        ! Using plumed to modify forces IF plumed is used
-        if (tPlumed) then
-          call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass,&
-              & tPeriodic, latVec)
-          ! Also, if this is the final geometry, kill plumed
-          if (iGeoStep >= nGeoSteps) then
-            call plumed_f_gfinalize()
-          end if
-
+      if (tPlumed) then
+        call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass, tPeriodic,&
+          & latVec)
+        if (iGeoStep >= nGeoSteps) then
+          call plumed_f_gfinalize()
         end if
+      end if
 
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
@@ -5272,9 +5269,9 @@ contains
 
   end subroutine getGradients
 
+
   !> use plumed to update derivatives
   subroutine updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy, coord0, mass, tPeriodic, latVecs)
-
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -5283,16 +5280,16 @@ contains
     integer, intent(in) :: iGeoStep
 
     !> the derivatives array
-    real(dp), intent(inout) :: derivs(3,nAtom)
+    real(dp), intent(inout) :: derivs(:,:)
 
     !> current energy
     real(dp), intent(inout) :: energy
 
     !> current atomic positions
-    real(dp), intent(inout) :: coord0(3,nAtom)
+    real(dp), intent(inout) :: coord0(:,:)
 
     !> atomic masses array
-    real(dp), intent(in) :: mass(nAtom)
+    real(dp), intent(in) :: mass(:)
 
     !> periodic?
     logical, intent(in) :: tPeriodic
@@ -5300,17 +5297,20 @@ contains
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    derivs = -1 * derivs
-    call plumed_f_gcmd("setStep"//char(0),iGeoStep)
-    call plumed_f_gcmd("setForces"//char(0),derivs)
-    call plumed_f_gcmd("setEnergy"//char(0),energy)
-    call plumed_f_gcmd("setPositions"//char(0),coord0)
-    call plumed_f_gcmd("setMasses"//char(0),mass)
-    if (tPeriodic) call plumed_f_gcmd("setBox"//char(0),latVecs)
-    call plumed_f_gcmd("calc"//char(0),0)
-    derivs = -1 * derivs
+    derivs = -derivs
+    call plumed_f_gcmd("setStep" // char(0), iGeoStep)
+    call plumed_f_gcmd("setForces" // char(0), -derivs)
+    call plumed_f_gcmd("setEnergy" // char(0), energy)
+    call plumed_f_gcmd("setPositions" // char(0), coord0)
+    call plumed_f_gcmd("setMasses" // char(0), mass)
+    if (tPeriodic) then
+      call plumed_f_gcmd("setBox" // char(0), latVecs)
+    end if
+    call plumed_f_gcmd("calc" // char(0), 0)
+    derivs = -derivs
 
   end subroutine updateDerivsByPlumed
+
 
   !> Calculates stress tensor and lattice derivatives.
   subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
