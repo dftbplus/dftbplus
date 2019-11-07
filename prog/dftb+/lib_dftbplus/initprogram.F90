@@ -3999,8 +3999,8 @@ contains
       call error("Mismatch between array charges and shifts")
     endif
 
-    shiftPerL = 0.0_dp
-    charges = 0.0_dp
+    shiftPerL(:,:) = 0.0_dp
+    charges(:,:,:) = 0.0_dp
 
     do iCont = 1, tp%ncont
       inquire(file="shiftcont_"// trim(tp%contacts(iCont)%name) // ".dat", exist = iexist)
