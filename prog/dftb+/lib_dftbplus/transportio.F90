@@ -113,7 +113,7 @@ contains
 
 
   !> Writes the contact potential shifts per shell (for transport)
-  subroutine writeContactShifts(filename, orb, shiftPerL, charges, Ef)
+  subroutine writeContactShifts(filename, orb, shiftPerL, charges, Ef, blockShift, blockCharges)
 
     !> filename where shifts are written
     character(*), intent(in) :: filename
@@ -130,7 +130,13 @@ contains
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
 
-    integer :: fdHS, nAtom, nSpin
+    !> block shifts (for DFTB+U etc.)
+    real(dp), allocatable, intent(in) :: blockShift(:,:,:,:)
+
+    !> block charge populations
+    real(dp), allocatable, intent(in) :: blockCharges(:,:,:,:)
+
+    integer :: fdHS, nAtom, nSpin, iAt, iSp
 
     nSpin = size(shiftPerL, dim=3)
     nAtom = size(shiftPerL, dim=2)
@@ -140,10 +146,24 @@ contains
     ! now with a version number on the top of the file:
     write(fdHS, *) contactFormatVersion
 
-    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
+    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin, allocated(blockCharges)
     write(fdHS, *) orb%nOrbAtom
     write(fdHS, *) shiftPerL
     write(fdHS, *) charges
+
+    if (allocated(blockShift)) then
+      do iSp = 1, nSpin
+        do iAt = 1, nAtom
+          write(fdHS, *) blockShift(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+        end do
+      end do
+      do iSp = 1, nSpin
+        do iAt = 1, nAtom
+          write(fdHS, *) blockCharges(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+        end do
+      end do
+    end if
+
     if (nSpin == 2) then
       write(fdHS, *) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
       write(fdHS, *) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2), 'eV'
@@ -161,7 +181,7 @@ contains
 #:if WITH_TRANSPORT
 
   !> Read contact potential shifts from file
-  subroutine readContactShifts(shiftPerL, charges, tp, orb, species)
+  subroutine readContactShifts(shiftPerL, charges, tp, orb, species, shiftBlockUp, blockUp)
 
     !> shifts for atoms in contacts
     real(dp), intent(out) :: shiftPerL(:,:)
@@ -178,21 +198,36 @@ contains
     !> species of atoms in the system
     integer, intent(in) :: species(:)
 
+    !> uploded block per atom
+    real(dp), allocatable, intent(inout) :: shiftBlockUp(:,:,:,:)
+
+    !> uploaded block charges for atoms
+    real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
+
     real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
     integer, allocatable :: nOrbAtom(:)
     integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
-    integer :: iCont, iStart, iEnd, ii
+    integer :: iCont, iStart, iEnd, ii, iAt, iSp
 
     integer :: fdH, iErr, iBuffer(5), fileVersion
     character(lc) :: strTmp
-    logical :: iexist
+    logical :: iexist, tBlock
     character(lc) :: buffer
     character(sc) :: shortBuffer
+
+  @:ASSERT(allocated(shiftBlockUp) .eqv. allocated(blockUp))
+
+    tBlock = .false.
 
     nSpin = size(charges, dim=3)
 
     shiftPerL(:,:) = 0.0_dp
     charges(:,:,:) = 0.0_dp
+
+    if (allocated(shiftBlockUp)) then
+      shiftblockUp(:,:,:,:) = 0.0_dp
+      blockUp(:,:,:,:) = 0.0_dp
+    end if
 
     do iCont = 1, tp%ncont
 
@@ -233,8 +268,7 @@ contains
         end if
 
         if (fileVersion == 1) then
-          ! next line is the version 0 format start line of:
-          read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+          read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt, tBlock
         end if
 
       case(4)
@@ -249,6 +283,10 @@ contains
             & trim(tp%contacts(iCont)%name) // ".dat, first line is unexpected:"
         call error(trim(buffer))
       end select
+
+      if (fileVersion == 0 .and. allocated(shiftBlockUp)) then
+        call error("Orbital potentials not supported for this contact")
+      end if
 
       select case(fileVersion)
       case(0,1)
@@ -276,6 +314,25 @@ contains
         read(fdH, *) shiftPerLSt(:,:,:)
         allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
         read(fdH, *) chargesSt
+
+        if (tBlock .neqv. allocated(blockUp)) then
+          call error("Shift and orbital potential mismatch for "//trim(tp%contacts(iCont)%name))
+        end if
+        if (tBlock) then
+          do iSp = 1, size(shiftBlockUp,dim=4)
+            do ii = 0, iEnd-iStart
+              iAt = iStart + ii
+              read(fdH, *) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
+            end do
+          end do
+          do iSp = 1, size(blockUp,dim=4)
+            do ii = 0, iEnd-iStart
+              iAt = iStart + ii
+              read(fdH, *) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSp)
+            end do
+          end do
+        end if
+
         close(fdH)
 
         if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then

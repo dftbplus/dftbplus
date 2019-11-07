@@ -960,6 +960,12 @@ module dftbp_initprogram
   !> Orbital-resolved charges uploaded from contacts
   real(dp), allocatable :: chargeUp(:,:,:)
 
+  !> Shell-resolved block potential shifts uploaded from contacts
+  real(dp), allocatable :: shiftBlockUp(:,:,:,:)
+
+  !> Block populations uploaded from contacts
+  real(dp), allocatable :: blockUp(:,:,:,:)
+
   !> Details of energy interval for tunneling used in output
   real(dp) :: Emin, Emax, Estep
 
@@ -1842,9 +1848,6 @@ contains
       if (tSpin) then
         call error("Spin polarization temporarily disabled for transport calculations.")
       end if
-      if (tDFTBU) then
-        call error("Orbital potentials temporarily disabled for transport calculations.")
-      end if
       if (tExtChrg) then
         call error("External charges temporarily disabled for transport calculations&
             & (electrostatic gates are available).")
@@ -2529,7 +2532,7 @@ contains
     ! note, this has the side effect of setting up module variable transpar as copy of
     ! input%transpar
     call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
-        & shiftPerLUp, chargeUp, poissonDerivs)
+        & shiftPerLUp, chargeUp, poissonDerivs, allocated(qBlockIn), blockUp, shiftBlockUp)
 
     if (tUpload) then
       ! check geometry details are consistent with transport with contacts
@@ -3923,7 +3926,7 @@ contains
 
   !> initialize arrays for tranpsport
   subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb, nAtom, nSpin,&
-      & shiftPerLUp, chargeUp, poissonDerivs)
+      & shiftPerLUp, chargeUp, poissonDerivs, tBlockUp, blockUp, shiftBlockUp)
 
     !> Are contacts being uploaded
     logical, intent(in) :: tUpload
@@ -3955,10 +3958,23 @@ contains
     !> Poisson Derivatives (needed for forces)
     real(dp), allocatable, intent(out) :: poissonDerivs(:,:)
 
+    !> Are block charges and potentials present?
+    logical, intent(in) :: tBlockUp
+
+    !> uploded potential per shell per atom
+    real(dp), allocatable, intent(inout) :: shiftblockUp(:,:,:,:)
+
+    !> uploaded charges for atoms
+    real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
+
     if (tUpload) then
       allocate(shiftPerLUp(orb%mShell, nAtom))
       allocate(chargeUp(orb%mOrb, nAtom, nSpin))
-      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, species0)
+      if (tBlockUp) then
+        allocate(shiftBlockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
+      end if
+      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, species0, shiftBlockUp, blockUp)
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))
