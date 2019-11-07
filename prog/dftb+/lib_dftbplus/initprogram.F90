@@ -2287,7 +2287,7 @@ contains
 
     if (tRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
-          & input%ctrl%rangeSepInp)
+          & tAtomicEnergy, input%ctrl%rangeSepInp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
           & tSpin, tREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
@@ -4415,7 +4415,7 @@ contains
 
 
   !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, rangeSepInp)
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, tAtomicEnergy, rangeSepInp)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4425,6 +4425,9 @@ contains
 
     !> Is this a shell resolved calculation
     logical, intent(in) :: tShellResolved
+
+    !> Do we need atom resolved E?
+    logical, intent(inout) :: tAtomicEnergy
 
     !> Parameters for the range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
@@ -4438,6 +4441,11 @@ contains
     end if
     if (tShellResolved) then
       call error("Range separated functionality currently does not yet support shell-resolved scc")
+    end if
+    if (tAtomicEnergy) then
+      call warning("Atomic resolved energies cannot be calculated with range-separation&
+          & hybrid functional.")
+      tAtomicEnergy = .false.
     end if
 
   end subroutine ensureRangeSeparatedReqs
