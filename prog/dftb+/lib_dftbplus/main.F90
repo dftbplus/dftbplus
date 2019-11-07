@@ -89,7 +89,7 @@ module dftbp_main
   use negf_int
   use poisson_init
 #:endif
-
+  use dftbp_transportio
 
   implicit none
   private
@@ -243,7 +243,7 @@ contains
   #:if WITH_TRANSPORT
     if (tContCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
-      call writeContShifts(transpar%contacts(transpar%taskContInd)%output, orb, &
+      call writeContactShifts(transpar%contacts(transpar%taskContInd)%output, orb, &
           & potential%intShell, qOutput, Ef)
     end if
 
@@ -442,7 +442,7 @@ contains
     call resetExternalPotentials(refExtPot, potential)
 
     if (tReadShifts) then
-      call uploadShiftPerL(fShifts, orb, nAtom, nSpin, potential%extShell)
+      call readShifts(fShifts, orb, nAtom, nSpin, potential%extShell)
     end if
 
     call setUpExternalElectricField(tEField, tTDEField, tPeriodic, EFieldStrength,&

@@ -105,6 +105,7 @@ module dftbp_initprogram
   use negf_int
   use poisson_init
 #:endif
+  use dftbp_transportio
   implicit none
 
 #:if WITH_GPU
@@ -3918,7 +3919,6 @@ contains
 
   end subroutine initArrays
 
-
 #:if WITH_TRANSPORT
 
   !> initialize arrays for tranpsport
@@ -3958,103 +3958,13 @@ contains
     if (tUpload) then
       allocate(shiftPerLUp(orb%mShell, nAtom))
       allocate(chargeUp(orb%mOrb, nAtom, nSpin))
-      call uploadContShiftPerL(shiftPerLUp, chargeUp, transpar, orb, species0)
+      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, species0)
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))
     end if
 
   end subroutine initTransportArrays
-
-
-  !> Read contact potential shifts from file
-  subroutine uploadContShiftPerL(shiftPerL, charges, tp, orb, species)
-
-    !> shifts for atoms in contacts
-    real(dp), intent(out) :: shiftPerL(:,:)
-
-    !> charges for atoms in contacts
-    real(dp), intent(out) :: charges(:,:,:)
-
-    !> transport parameters
-    type(TTransPar), intent(in) :: tp
-
-    !> atomic orbital parameters
-    type(TOrbitals), intent(in) :: orb
-
-    !> species of atoms in the system
-    integer, intent(in) :: species(:)
-
-    real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
-    integer, allocatable :: nOrbAtom(:)
-    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
-    integer :: iCont, iStart, iEnd, ii
-    integer :: fdH
-    character(lc) :: strTmp
-    logical :: iexist
-
-    nSpin = size(charges, dim=3)
-
-    if (size(shiftPerL,dim=2) /= size(charges, dim=2)) then
-      call error("Mismatch between array charges and shifts")
-    endif
-
-    shiftPerL(:,:) = 0.0_dp
-    charges(:,:,:) = 0.0_dp
-
-    do iCont = 1, tp%ncont
-      inquire(file="shiftcont_"// trim(tp%contacts(iCont)%name) // ".dat", exist = iexist)
-      if (.not.iexist) then
-        call error("Contact shift file shiftcont_"// trim(tp%contacts(iCont)%name) &
-            &  // ".dat is missing"//new_line('a')//"Run ContactHamiltonian calculations first.")
-      end if
-
-      open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat",&
-          & form="formatted", status="OLD", action="READ")
-      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
-      iStart = tp%contacts(iCont)%idxrange(1)
-      iEnd = tp%contacts(iCont)%idxrange(2)
-      nContAtom = iEnd - iStart + 1
-
-      if (nAtomSt /= nContAtom) then
-        call error("Upload Contacts: Mismatch in number of atoms.")
-      end if
-      if (mShellSt /= orb%mShell) then
-        call error("Upload Contacts: Mismatch in max shell per atom.")
-      end if
-      if (mOrbSt /= orb%mOrb) then
-        call error("Upload Contacts: Mismatch in orbitals per atom.")
-      end if
-      if (nSpin /= nSpinSt) then
-        write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Spin channels ',nSpin
-        call error(trim(strTmp))
-      end if
-
-      allocate(nOrbAtom(nAtomSt))
-      read(fdH, *) nOrbAtom
-      allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
-      read(fdH, *) shiftPerLSt(:,:,:)
-      allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
-      read(fdH, *) chargesSt
-      close(fdH)
-
-      if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
-        call error("Incompatible orbitals in the upload file!")
-      end if
-
-      !if (nSpin == 1) then
-      shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
-      !else
-      !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
-      !endif
-
-      charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
-      deallocate(nOrbAtom)
-      deallocate(shiftPerLSt)
-      deallocate(chargesSt)
-    end do
-
-  end subroutine uploadContShiftPerL
 
 #:endif
 
