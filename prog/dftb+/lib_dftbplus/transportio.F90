@@ -19,7 +19,12 @@ module dftbp_transportio
   implicit none
 
   private
-  public :: writeShifts, readShifts, writeContactShifts, readContactShifts
+  public :: writeShifts, readShifts, writeContactShifts
+#:if WITH_TRANSPORT
+  public :: readContactShifts
+#:endif
+
+  integer, parameter :: contactFormatVersion = 1
 
 contains
 
@@ -130,19 +135,11 @@ contains
     nSpin = size(shiftPerL, dim=3)
     nAtom = size(shiftPerL, dim=2)
 
-    if (size(shiftPerL, dim=1) /= orb%mShell) then
-      call error("Internal error in writeContactShifts: size(shiftPerL,1)")
-    endif
-
-    if (size(orb%nOrbAtom) /= nAtom) then
-      call error("Internal error in writeContactShifts: size(shiftPerL,2)")
-    endif
-
-    if (all(shape(charges) /= (/ orb%mOrb, nAtom, nSpin /))) then
-      call error("Internal error in writeContShift: shape(charges)")
-    endif
-
     open(newunit=fdHS, file=trim(filename), form="formatted")
+
+    ! now with a version number on the top of the file:
+    write(fdHS, *) contactFormatVersion
+
     write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
     write(fdHS, *) orb%nOrbAtom
     write(fdHS, *) shiftPerL
@@ -185,20 +182,20 @@ contains
     integer, allocatable :: nOrbAtom(:)
     integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
     integer :: iCont, iStart, iEnd, ii
-    integer :: fdH
+
+    integer :: fdH, iErr, iBuffer(5), fileVersion
     character(lc) :: strTmp
     logical :: iexist
+    character(lc) :: buffer
+    character(sc) :: shortBuffer
 
     nSpin = size(charges, dim=3)
-
-    if (size(shiftPerL,dim=2) /= size(charges, dim=2)) then
-      call error("Mismatch between array charges and shifts")
-    endif
 
     shiftPerL(:,:) = 0.0_dp
     charges(:,:,:) = 0.0_dp
 
     do iCont = 1, tp%ncont
+
       inquire(file="shiftcont_"// trim(tp%contacts(iCont)%name) // ".dat", exist = iexist)
       if (.not.iexist) then
         call error("Contact shift file shiftcont_"// trim(tp%contacts(iCont)%name) &
@@ -207,47 +204,96 @@ contains
 
       open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat",&
           & form="formatted", status="OLD", action="READ")
-      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
-      iStart = tp%contacts(iCont)%idxrange(1)
-      iEnd = tp%contacts(iCont)%idxrange(2)
-      nContAtom = iEnd - iStart + 1
 
-      if (nAtomSt /= nContAtom) then
-        call error("Upload Contacts: Mismatch in number of atoms.")
-      end if
-      if (mShellSt /= orb%mShell) then
-        call error("Upload Contacts: Mismatch in max shell per atom.")
-      end if
-      if (mOrbSt /= orb%mOrb) then
-        call error("Upload Contacts: Mismatch in orbitals per atom.")
-      end if
-      if (nSpin /= nSpinSt) then
-        write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Spin channels ',nSpin
-        call error(trim(strTmp))
-      end if
+      read(fdH,'(A)',iostat=iErr) buffer
+      if (iErr/=0) then
+        call error("Error reading file contact file shiftcont_"// trim(tp%contacts(iCont)%name) //&
+            & ".dat")
+      endif
 
-      allocate(nOrbAtom(nAtomSt))
-      read(fdH, *) nOrbAtom
-      allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
-      read(fdH, *) shiftPerLSt(:,:,:)
-      allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
-      read(fdH, *) chargesSt
-      close(fdH)
+      ! count the integers in the first line and store them
+      ! looking for either a version number or the old format start line
+      do ii = 1, 5
+        read(buffer, *, iostat=iErr) iBuffer(:ii)
+        if (iErr==-1) then
+          exit
+        end if
+      end do
 
-      if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
-        call error("Incompatible orbitals in the upload file!")
-      end if
+      ! version number of format
+      select case (ii-1)
+      case(1)
+        ! single value present - use it as the format version
+        fileVersion = iBuffer(1)
 
-      !if (nSpin == 1) then
-      shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
-      !else
-      !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
-      !endif
+        if (fileVersion > contactFormatVersion) then
+          write(shortBuffer, "(I0)")fileVersion
+          call error("Unknown contact version number in file shiftcont_" //&
+              & trim(tp%contacts(iCont)%name) // ".dat : " // trim(shortBuffer))
+        end if
 
-      charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
-      deallocate(nOrbAtom)
-      deallocate(shiftPerLSt)
-      deallocate(chargesSt)
+        if (fileVersion == 1) then
+          ! next line is the version 0 format start line of:
+          read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+        end if
+
+      case(4)
+        ! old format, directly start of data
+        nAtomSt = iBuffer(1)
+        mShellSt = iBuffer(2)
+        mOrbSt = iBuffer(3)
+        nSpinSt = iBuffer(4)
+        fileVersion = 0
+      case default
+        write(stdOut,*) "Error reading file contact file shiftcont_" //&
+            & trim(tp%contacts(iCont)%name) // ".dat, first line is unexpected:"
+        call error(trim(buffer))
+      end select
+
+      select case(fileVersion)
+      case(0,1)
+        iStart = tp%contacts(iCont)%idxrange(1)
+        iEnd = tp%contacts(iCont)%idxrange(2)
+        nContAtom = iEnd - iStart + 1
+
+        if (nAtomSt /= nContAtom) then
+          call error("Upload Contacts: Mismatch in number of atoms.")
+        end if
+        if (mShellSt /= orb%mShell) then
+          call error("Upload Contacts: Mismatch in max shell per atom.")
+        end if
+        if (mOrbSt /= orb%mOrb) then
+          call error("Upload Contacts: Mismatch in orbitals per atom.")
+        end if
+        if (nSpin /= nSpinSt) then
+          write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Spin channels ',nSpin
+          call error(trim(strTmp))
+        end if
+
+        allocate(nOrbAtom(nAtomSt))
+        read(fdH, *) nOrbAtom
+        allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
+        read(fdH, *) shiftPerLSt(:,:,:)
+        allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
+        read(fdH, *) chargesSt
+        close(fdH)
+
+        if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
+          call error("Incompatible orbitals in the upload file!")
+        end if
+
+        !if (nSpin == 1) then
+        shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
+        !else
+        !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
+        !endif
+
+        charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
+        deallocate(nOrbAtom)
+        deallocate(shiftPerLSt)
+        deallocate(chargesSt)
+      end select
+
     end do
 
   end subroutine readContactShifts
