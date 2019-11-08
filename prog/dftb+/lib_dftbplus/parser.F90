@@ -3902,8 +3902,6 @@ contains
       contact = getContactByName(transpar%contacts(:)%name, tolower(trim(unquote(char(buffer)))),&
           & pTmp)
       transpar%taskContInd = contact
-      transpar%contacts(contact)%output = "shiftcont_" // trim(transpar%contacts(contact)%name) //&
-          & ".dat"
       if (.not. geom%tPeriodic) then
         call getChildValue(pTaskType, "ContactSeparation", lateralContactSeparation, 1000.0_dp,&
             & modifier=modif, child=field)

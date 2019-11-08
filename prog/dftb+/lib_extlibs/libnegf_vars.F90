@@ -48,6 +48,7 @@ module libnegf_vars
     ! Beginning (1) and end (2) of contact in atoms (?)
     integer :: idxrange(2)
 
+    !> Contact name
     !> Note: a contact id is specifically defined because, with multiple definition of contacts in
     !> the input file, relying on contact ordering to assign an integer can be inconsistent
     character(mc) :: name
@@ -74,9 +75,6 @@ module libnegf_vars
     logical :: wideBand = .false.
 
     real(dp) :: wideBandDos = 0.0_dp
-
-    !> Filename for contact infos (shiftcont_) TO BE MOVED?
-    character(lc) :: output
 
     logical :: tWriteSelfEnergy = .false.
     logical :: tReadSelfEnergy = .false.

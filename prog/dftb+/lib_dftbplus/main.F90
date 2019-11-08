@@ -243,7 +243,7 @@ contains
   #:if WITH_TRANSPORT
     if (tContCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
-      call writeContactShifts(transpar%contacts(transpar%taskContInd)%output, orb, &
+      call writeContactShifts(transpar%contacts(transpar%taskContInd)%name, orb, &
           & potential%intShell, qOutput, Ef, potential%intBlock, qBlockOut)
     end if
 

@@ -141,7 +141,7 @@ contains
     nSpin = size(shiftPerL, dim=3)
     nAtom = size(shiftPerL, dim=2)
 
-    open(newunit=fdHS, file=trim(filename), form="formatted")
+    open(newunit=fdHS, file="shiftcont_"//trim(filename)//".dat", form="formatted")
 
     ! now with a version number on the top of the file:
     write(fdHS, *) contactFormatVersion
@@ -173,7 +173,7 @@ contains
 
     close(fdHS)
 
-    write(stdOut,*) 'shiftcont_'//trim(filename)//".dat written to file"
+    write(stdOut,*) 'shiftcont_'//trim(filename)//'.dat written to file'
 
   end subroutine writeContactShifts
 
