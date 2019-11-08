@@ -84,6 +84,7 @@ module dftbp_main
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
+  use dftbp_plumed, only : plumedGlobalCmdVal, plumedGlobalCmdPtr, plumedFinal
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -742,7 +743,7 @@ contains
         call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass, tPeriodic,&
           & latVec)
         if (iGeoStep >= nGeoSteps) then
-          call plumed_f_gfinalize()
+          call plumedFinal()
         end if
       end if
 
@@ -5280,33 +5281,33 @@ contains
     integer, intent(in) :: iGeoStep
 
     !> the derivatives array
-    real(dp), intent(inout) :: derivs(:,:)
+    real(dp), intent(inout), target, contiguous :: derivs(:,:)
 
     !> current energy
-    real(dp), intent(inout) :: energy
+    real(dp), intent(in) :: energy
 
     !> current atomic positions
-    real(dp), intent(inout) :: coord0(:,:)
+    real(dp), intent(in), target, contiguous :: coord0(:,:)
 
     !> atomic masses array
-    real(dp), intent(in) :: mass(:)
+    real(dp), intent(in), target, contiguous :: mass(:)
 
     !> periodic?
     logical, intent(in) :: tPeriodic
 
     !> lattice vectors
-    real(dp), intent(in) :: latVecs(:,:)
+    real(dp), intent(in), target, contiguous :: latVecs(:,:)
 
     derivs = -derivs
-    call plumed_f_gcmd("setStep" // char(0), iGeoStep)
-    call plumed_f_gcmd("setForces" // char(0), -derivs)
-    call plumed_f_gcmd("setEnergy" // char(0), energy)
-    call plumed_f_gcmd("setPositions" // char(0), coord0)
-    call plumed_f_gcmd("setMasses" // char(0), mass)
+    call plumedGlobalCmdVal("setStep", iGeoStep)
+    call plumedGlobalCmdPtr("setForces", derivs)
+    call plumedGlobalCmdVal("setEnergy", energy)
+    call plumedGlobalCmdPtr("setPositions", coord0)
+    call plumedGlobalCmdPtr("setMasses", mass)
     if (tPeriodic) then
-      call plumed_f_gcmd("setBox" // char(0), latVecs)
+      call plumedGlobalCmdPtr("setBox", latVecs)
     end if
-    call plumed_f_gcmd("calc" // char(0), 0)
+    call plumedGlobalCmdVal("calc", 0)
     derivs = -derivs
 
   end subroutine updateDerivsByPlumed

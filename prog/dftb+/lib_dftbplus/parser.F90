@@ -49,6 +49,7 @@ module dftbp_parser
   use dftbp_elsiiface
   use dftbp_elecsolvers, only : electronicSolverTypes
   use dftbp_wrappedintr
+  use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
   use poisson_init
   use libnegf_vars
@@ -759,7 +760,11 @@ contains
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
 
-      call getChildValue(node, "Plumed", ctrl%tPlumed, .false.)
+      call getChildValue(node, "Plumed", ctrl%tPlumed, default=.false., child=child)
+      if (ctrl%tPlumed .and. .not. withPlumed) then
+        call detailedError(child, "Plumed can not be used since code has been compiled without&
+            & PLUMED support")
+      end if
 
       if (geom%tPeriodic) then
 

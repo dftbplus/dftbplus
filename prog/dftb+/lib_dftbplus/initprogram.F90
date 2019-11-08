@@ -93,7 +93,7 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
-
+  use dftbp_plumed, only : withPlumed, plumedInit, plumedFinal, plumedGlobalCmdVal
   use dftbp_magmahelper
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
@@ -2203,16 +2203,19 @@ contains
 
     ! Initialising plumed
     tPlumed = input%ctrl%tPlumed
+    if (tPlumed .and. .not. withPlumed) then
+      call error("Code was compiled without PLUMED support")
+    end if
     if (tPlumed) then
-      call plumed_f_gcreate()
-      call plumed_f_gcmd("setNatoms"//char(0),nAtom)
-      call plumed_f_gcmd("setPlumedDat"//char(0),"plumed.dat"//char(0))
-      call plumed_f_gcmd("setNoVirial"//char(0),0)
-      call plumed_f_gcmd("setTimestep"//char(0),deltaT)
-      call plumed_f_gcmd("setMDEnergyUnits"//char(0),Hartree__kJ_mol)
-      call plumed_f_gcmd("setMDLengthUnits"//char(0),Bohr__nm)
-      call plumed_f_gcmd("setMDTimeUnits"//char(0),au__ps)
-      call plumed_f_gcmd("init"//char(0),0)
+      call plumedInit()
+      call plumedGlobalCmdVal("setNatoms", nAtom)
+      call plumedGlobalCmdVal("setPlumedDat", "plumed.dat")
+      call plumedGlobalCmdVal("setNoVirial", 0)
+      call plumedGlobalCmdVal("setTimestep", deltaT)
+      call plumedGlobalCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
+      call plumedGlobalCmdVal("setMDLengthUnits", Bohr__nm)
+      call plumedGlobalCmdVal("setMDTimeUnits", au__ps)
+      call plumedGlobalCmdVal("init", 0)
     end if
 
     ! Check for extended Born-Oppenheimer MD

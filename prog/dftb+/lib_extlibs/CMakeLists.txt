@@ -17,6 +17,10 @@ if(WITH_DFTD3)
   list(APPEND sources-fpp ${curdir}/dftd3.F90)
 endif()
 
+if(WITH_PLUMED)
+  list(APPEND sources-fpp ${curdir}/plumed.F90)
+endif()
+
 if(WITH_SOCKETS)
   list(APPEND sources-fpp ${curdir}/fsockets.F90)
 endif(WITH_SOCKETS)
