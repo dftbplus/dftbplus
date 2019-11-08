@@ -182,7 +182,7 @@ scc/10-0Ctube-extfield                 #? MPI_PROCS <= 4
 scc/SiC_64                             #? MPI_PROCS <= 4
 scc/SiC_32-extchrg-blur                #? MPI_PROCS <= 2
 md/H3                                  #? MPI_PROCS <= 1
-md/H3-plmd                             #? MPI_PROCS <= 1
+md/H3-plumed                           #? MPI_PROCS <= 1
 
 
 dispersion/DNA_dftd3_zero              #? WITH_DFTD3 and MPI_PROCS <= 4
@@ -212,7 +212,7 @@ spinorbit/EuN_customU                  #? MPI_PROCS <= 2
 dispersion/DNA                         #? MPI_PROCS <= 4
 spinorbit/Si2_dual                     #? MPI_PROCS <= 1
 md/Si_8                                #? MPI_PROCS <= 1
-md/Si_8-plmd                           #? MPI_PROCS <= 1
+md/Si_8-plumed                         #? MPI_PROCS <= 1
 md/Si_8-thermostat2                    #? MPI_PROCS <= 1
 geoopt/GaAs_8_latconst_lbfgs           #? MPI_PROCS <= 2
 geoopt/GaAs_8_latconst                 #? MPI_PROCS <= 2
