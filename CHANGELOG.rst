@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- Support for meta-dynamics via the Plumed library.
+
 
 Changed
 -------
@@ -51,10 +53,12 @@ Added
 
 - Halogen X correction.
 
+
 Changed
 -------
 
 - Updated parser version to 7.
+
 
 Fixed
 -----

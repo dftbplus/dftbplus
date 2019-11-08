@@ -34,6 +34,8 @@ contributed to DFTB+ :
 
 * In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
 
+* Izaac Mitchell (University of Newcastle, Australia)
+  
 * Thomas Niehaus (University of Lyon, France)
 
 * Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
