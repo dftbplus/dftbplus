@@ -174,6 +174,9 @@ contains
         if (tGroundGuess .and. iDet==0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
         end if
+        if (tDips) then
+          call tDipStore(iDet,nDet,HSqrReal)
+        end if
         if (iDet == nDet) then
           exit lpDets
         end if
@@ -182,6 +185,9 @@ contains
       if (tNonAufbau .and. tSpinPurify) then
         call ZieglerSum(energy)
         call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
+      end if
+      if (tDips) then
+        call correspondingOrbitalTransformation
       end if
       if (tExitGeoOpt) then
         exit geoOpt
@@ -2564,7 +2570,7 @@ contains
 
 write(*,*) 'Filling'
 
-if (iSccIter >= nMOM) then
+if (iSccIter >= nMOM .and. (tMOM .or. tIMOM)) then
     do i=1,ubound(filling,1)
       print *, (size(filling, dim=1) + 1-i), filling((size(filling, dim=1) + 1-i), 1, 1), &
         & filling((size(filling, dim=1) + 1-i), 1, 2), indxMOM(i, 1), indxMOM(i, 2)

@@ -1003,6 +1003,9 @@ module dftbp_initprogram
   !> Should there be a ground state intial guess before Non-Aufbau calc?
   logical :: tGroundGuess
 
+  !> Calculate transition dipole moment (TDM)?
+  logical :: tDips
+
   !> Saving old C and eigen matrices
   real(dp), allocatable :: aOldHSqrReal(:,:)
   real(dp), allocatable :: bOldHSqrReal(:,:)

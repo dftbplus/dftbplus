@@ -463,7 +463,7 @@ module dftbp_inputdata_module
 
     !> Maximal timing level to show in output
     integer :: timingLevel
-    
+
     ! Custom occupations
     type(WrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
@@ -490,6 +490,9 @@ module dftbp_inputdata_module
     !> (Triplet or Mixed)DAD
     integer :: nDADt = 1
     integer :: nDADm = 1
+
+    !> TDM Calculation
+    logical :: tDips = .false.
 
 
 

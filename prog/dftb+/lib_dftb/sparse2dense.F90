@@ -29,7 +29,7 @@ module dftbp_sparse2dense
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
-  public :: momOverlapComp, storeMOM, momStoreS
+  public :: momOverlapComp, storeMOM, momStoreS, tDipStore, correspondingOrbitalTransformation
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -2498,5 +2498,25 @@ contains
     SSqrRealStorage = SSqrReal+SSqrTranspose-identityM
 
   end subroutine momStoreS
+
+
+  subroutine tDipStore(iDet,nDet,HSqrReal)
+
+  integer, intent(in) :: iDet
+  integer, intent(in) :: nDet
+  !> Hamiltonian
+  real (dp), intent(in) :: HSqrReal(:,:)
+
+
+  end subroutine tDipStore
+
+
+  subroutine correspondingOrbitalTransformation
+
+
+
+  end subroutine correspondingOrbitalTransformation
+
+
 
 end module dftbp_sparse2dense
