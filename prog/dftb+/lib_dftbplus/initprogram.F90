@@ -3974,7 +3974,7 @@ contains
         allocate(shiftBlockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
         allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
       end if
-      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, species0, shiftBlockUp, blockUp)
+      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, shiftBlockUp, blockUp)
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))
