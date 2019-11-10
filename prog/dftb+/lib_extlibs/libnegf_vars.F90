@@ -68,6 +68,9 @@ module libnegf_vars
     !> for colinear spin we may need two Fermi levels (up and down)
     real(dp) :: eFermi(2) = [0.0_dp, 0.0_dp]
 
+    !> has the fermi level been set for this contact
+    logical :: tFermiSet = .false.
+
     !> contact temperature
     real(dp) :: kbT = 0.0_dp
 

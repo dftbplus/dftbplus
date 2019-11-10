@@ -2533,7 +2533,6 @@ contains
     ! input%transpar
     call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
         & shiftPerLUp, chargeUp, poissonDerivs, allocated(qBlockIn), blockUp, shiftBlockUp)
-
     if (tUpload) then
       ! check geometry details are consistent with transport with contacts
       call checkTransportRanges(nAtom, input%transpar)
@@ -3935,7 +3934,7 @@ contains
     logical, intent(in) :: tPoisson
 
     !> Transport parameters
-    type(TTransPar), intent(in) :: transpar
+    type(TTransPar), intent(inout) :: transpar
 
     !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
@@ -3967,6 +3966,13 @@ contains
     !> uploaded charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
 
+    logical :: tReEvalMus
+    integer :: iSpin, iCont
+    real(dp), allocatable :: pot(:)
+
+    !> Format for two values with units
+    character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+
     if (tUpload) then
       allocate(shiftPerLUp(orb%mShell, nAtom))
       allocate(chargeUp(orb%mOrb, nAtom, nSpin))
@@ -3974,7 +3980,35 @@ contains
         allocate(shiftBlockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
         allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
       end if
+      tReEvalMus = any(.not.transpar%contacts(:)%tFermiSet)
       call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, shiftBlockUp, blockUp)
+      if (tReEvalMus) then
+        ! re-set values of mu using contact Fermi energies
+        write(stdOut,*) 'Setting contact Fermi level(s) from their shift file(s)'
+        mu = 0.0_dp
+        do iSpin = 1, nSpin
+          mu(:transpar%ncont, iSpin) = minval(transpar%contacts(:transpar%ncont)%eFermi(iSpin))&
+              & - transpar%contacts(:transpar%ncont)%potential
+        end do
+        pot = transpar%contacts(:transpar%ncont)%potential
+        do iCont = 1, transpar%ncont
+
+          ! Built-in potential to equilibrate Fermi levels, note, spin unpolarized at the moment
+          pot(iCont) = pot(iCont) + transpar%contacts(iCont)%eFermi(1)&
+              & - minval(transpar%contacts(:)%eFermi(1))
+          ! Define electrochemical potentials
+          mu(iCont, 1) = transpar%contacts(iCont)%eFermi(1) - pot(iCont)
+
+          write(stdOut,*) 'Contact "'//trim(transpar%contacts(iCont)%name)//'"'
+          write(stdOut,format2U)'Potential (with built-in)', pot(iCont), 'H',&
+              & Hartree__eV*pot(iCont), 'eV'
+          write(stdOut,format2U)'eFermi', transpar%contacts(iCont)%eFermi(:nSpin), 'H',&
+              & Hartree__eV*transpar%contacts(iCont)%eFermi(:nSpin), 'eV'
+          write(stdOut,format2U)'Electro-chemical potential', mu(iCont,:nSpin), 'H',&
+              & Hartree__eV*mu(iCont,:nSpin), 'eV'
+        end do
+        write(stdOut,*)
+      end if
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))

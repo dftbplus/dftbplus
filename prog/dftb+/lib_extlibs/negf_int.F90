@@ -82,6 +82,9 @@ module negf_int
   !> non wrapped direct calls
   private :: negf_density, negf_current, negf_ldos
 
+  !> Format for two values with units
+  character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+
   contains
 
   !> Init gDFTB environment and variables
@@ -227,7 +230,8 @@ module negf_int
         params%FictCont(i) = transpar%contacts(i)%wideBand
         params%contact_DOS(i) = transpar%contacts(i)%wideBandDOS
 
-        write(stdOut,*) '(negf_init) CONTACT INFO #',i
+        write(stdOut,"(1X,A,I0,A)") '(negf_init) CONTACT INFO #', i,&
+            & ' "'//trim(transpar%contacts(i)%name)//'"'
 
         if (params%FictCont(i)) then
           write(stdOut,*) 'FICTITIOUS CONTACT '
@@ -235,16 +239,23 @@ module negf_int
         end if
         write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
         write(stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
-        write(stdOut,*) 'Potential (with built-in): ', pot(i)
-        write(stdOut,*) 'eFermi: ', eFermi(i)
+        if (transpar%contacts(i)%tFermiSet) then
+          write(stdOut,format2U)'Potential (with built-in)', pot(i), 'H', Hartree__eV*pot(i), 'eV'
+          write(stdOut,format2U)'eFermi', eFermi(i), 'H', Hartree__eV*eFermi(i), 'eV'
+        end if
         write(stdOut,*)
+
+        ! Define electrochemical potentials
+        params%mu(i) = eFermi(i) - pot(i)
+
+        if (transpar%contacts(i)%tFermiSet) then
+          write(stdOut,format2U)'Electro-chemical potentials', params%mu(i), 'H',&
+              & Hartree__eV*params%mu(i), 'eV'
+          write(stdOut,*)
+        end if
 
       enddo
 
-      ! Define electrochemical potentials
-      params%mu(1:ncont) = eFermi(1:ncont) - pot(1:ncont)
-      write(stdOut,*) 'Electro-chemical potentials: ', params%mu(1:ncont)
-      write(stdOut,*)
       deallocate(pot)
 
     else

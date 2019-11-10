@@ -230,7 +230,7 @@ contains
 
   !> Read contact potential shifts from file
   subroutine readContactShifts(shiftPerL, charges, tp, orb, shiftBlockUp, blockUp,&
-      & tReadAscii, fermiEnergy)
+      & tReadAscii)
 
     !> shifts for atoms in contacts
     real(dp), intent(out) :: shiftPerL(:,:)
@@ -239,7 +239,7 @@ contains
     real(dp), intent(out) :: charges(:,:,:)
 
     !> transport parameters
-    type(TTransPar), intent(in) :: tp
+    type(TTransPar), intent(inout) :: tp
 
     !> atomic orbital parameters
     type(TOrbitals), intent(in) :: orb
@@ -253,9 +253,6 @@ contains
     !> Should a text or binary file be read?
     logical, intent(in), optional :: tReadAscii
 
-    !> Fermi energies of the contacts, organised by spin, contact
-    real(dp), intent(out), optional :: fermiEnergy(:, :)
-
     real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
     integer, allocatable :: nOrbAtom(:)
     integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
@@ -268,12 +265,6 @@ contains
     character(sc) :: shortBuffer
 
   @:ASSERT(allocated(shiftBlockUp) .eqv. allocated(blockUp))
-
-    if (present(fermiEnergy)) then
-  @:ASSERT(all(shape(fermiEnergy) == [size(charges, dim=3), tp%ncont]))
-      fermiEnergy = huge(1.0_dp) ! just to make sure its initialised to something
-    end if
-
 
     tAsciiFile = .true.
     if (present(tReadAscii)) then
@@ -464,19 +455,20 @@ contains
         select case(fileVersion)
         case (0)
           ! unformatted Fermi energy line(s)
-          if (present(fermiEnergy)) then
+          if (.not. tp%contacts(iCont)%tFermiSet) then
             call error("File format of " // trim(fileName) //&
                 & " is too early to read the Fermi energy")
           end if
         case (1)
-          if (present(fermiEnergy)) then
+          if (.not. tp%contacts(iCont)%tFermiSet) then
             if (tAsciiFile) then
               do iSpin = 1, nSpin
-                read(fdH, formatFermiRead) fermiEnergy(iSpin, iCont)
+                read(fdH, formatFermiRead) tp%contacts(iCont)%eFermi(iSpin)
               end do
             else
-              read(fdH) fermiEnergy(:,iCont)
+              read(fdH) tp%contacts(iCont)%eFermi
             end if
+            tp%contacts(iCont)%tFermiSet = .true.
           end if
         case default
           call error("Unknown format")
