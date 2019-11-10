@@ -335,9 +335,7 @@ contains
          write(stdOut,'(a,I3)') 'CONTACT #',i
          write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
          write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
-         write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
-         write(stdOut,*) 'mu=',mu(i)*hartree,'V'
-         write(stdOut,*) 
+         write(stdOut,*)
 
       end do !ncont
    endif !cluster
