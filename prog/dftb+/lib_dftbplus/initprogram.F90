@@ -2484,6 +2484,25 @@ contains
     if (tLatOpt .and. tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
+
+    ! These two checks are redundant, I check if they are equal
+    if (input%poisson%defined .neqv. input%ctrl%tPoisson) then
+      call error("Mismatch in ctrl and ginfo fields")
+    end if
+    tPoisson = input%poisson%defined
+    tPoissonTwice = input%poisson%solveTwice
+
+    tUpload = input%transpar%taskUpload
+    ! NOTE: originally EITHER 'contact calculations' OR 'upload' was possible
+    !       introducing 'TransportOnly' option the logic is bit more
+    !       involved: Contacts are not uploded in case of non-scc calculations
+    if (electronicSolver%iSolver == electronicSolverTypes%OnlyTransport .and. .not.tSccCalc) then
+      tUpload = .false.
+    end if
+
+    call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
+        & shiftPerLUp, chargeUp, poissonDerivs, allocated(qBlockIn), blockUp, shiftBlockUp)
+
     call initTransport(env, input, tDefinedFreeE)
   #:else
     tPoisson = .false.
@@ -2531,8 +2550,7 @@ contains
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
     ! input%transpar
-    call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
-        & shiftPerLUp, chargeUp, poissonDerivs, allocated(qBlockIn), blockUp, shiftBlockUp)
+
     if (tUpload) then
       ! check geometry details are consistent with transport with contacts
       call checkTransportRanges(nAtom, input%transpar)
@@ -3404,21 +3422,6 @@ contains
     integer :: nSpinChannels, iCont, jCont
     real(dp) :: mu1, mu2
 
-    ! These two checks are redundant, I check if they are equal
-    if (input%poisson%defined .neqv. input%ctrl%tPoisson) then
-      call error("Mismatch in ctrl and ginfo fields")
-    end if
-    tPoisson = input%poisson%defined
-    tPoissonTwice = input%poisson%solveTwice
-
-    tUpload = input%transpar%taskUpload
-    ! NOTE: originally EITHER 'contact calculations' OR 'upload' was possible
-    !       introducing 'TransportOnly' option the logic is bit more
-    !       involved: Contacts are not uploded in case of non-scc calculations
-    if (electronicSolver%iSolver == electronicSolverTypes%OnlyTransport .and. .not.tSccCalc) then
-      tUpload = .false.
-    end if
-
     ! contact calculation in case some contact is computed
     tContCalc = (input%transpar%taskContInd /= 0)
 
@@ -3966,7 +3969,6 @@ contains
     !> uploaded charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
 
-    logical :: tReEvalMus
     integer :: iSpin, iCont
     real(dp), allocatable :: pot(:)
 
@@ -3980,35 +3982,7 @@ contains
         allocate(shiftBlockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
         allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
       end if
-      tReEvalMus = any(.not.transpar%contacts(:)%tFermiSet)
       call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, shiftBlockUp, blockUp)
-      if (tReEvalMus) then
-        ! re-set values of mu using contact Fermi energies
-        write(stdOut,*) 'Setting contact Fermi level(s) from their shift file(s)'
-        mu = 0.0_dp
-        do iSpin = 1, nSpin
-          mu(:transpar%ncont, iSpin) = minval(transpar%contacts(:transpar%ncont)%eFermi(iSpin))&
-              & - transpar%contacts(:transpar%ncont)%potential
-        end do
-        pot = transpar%contacts(:transpar%ncont)%potential
-        do iCont = 1, transpar%ncont
-
-          ! Built-in potential to equilibrate Fermi levels, note, spin unpolarized at the moment
-          pot(iCont) = pot(iCont) + transpar%contacts(iCont)%eFermi(1)&
-              & - minval(transpar%contacts(:)%eFermi(1))
-          ! Define electrochemical potentials
-          mu(iCont, 1) = transpar%contacts(iCont)%eFermi(1) - pot(iCont)
-
-          write(stdOut,*) 'Contact "'//trim(transpar%contacts(iCont)%name)//'"'
-          write(stdOut,format2U)'Potential (with built-in)', pot(iCont), 'H',&
-              & Hartree__eV*pot(iCont), 'eV'
-          write(stdOut,format2U)'eFermi', transpar%contacts(iCont)%eFermi(:nSpin), 'H',&
-              & Hartree__eV*transpar%contacts(iCont)%eFermi(:nSpin), 'eV'
-          write(stdOut,format2U)'Electro-chemical potential', mu(iCont,:nSpin), 'H',&
-              & Hartree__eV*mu(iCont,:nSpin), 'eV'
-        end do
-        write(stdOut,*)
-      end if
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))
