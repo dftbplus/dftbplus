@@ -3535,23 +3535,28 @@ contains
 
   !> Writes the contact potential shifts per shell (for transport)
   subroutine writeContShifts(filename, orb, shiftPerL, charges, Ef)
+
     !> filename where shifts are written
     character(*), intent(in) :: filename
+
     !> orbital structure
     type(TOrbitals), intent(in) :: orb
+
     !> array of shifts per shell and spin
     real(dp), intent(in) :: shiftPerL(:,:,:)
+
     !> array of charges per shell and spin
     real(dp), intent(in) :: charges(:,:,:)
+
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
 
     integer :: fdHS, nAtom, nSpin
 
-    nSpin = size(shiftPerL,3)
-    nAtom = size(shiftPerL,2)
+    nSpin = size(shiftPerL, dim=3)
+    nAtom = size(shiftPerL, dim=2)
 
-    if (size(shiftPerL,1) /= orb%mShell) then
+    if (size(shiftPerL, dim=1) /= orb%mShell) then
       call error("Internal error in writeContShifts: size(shiftPerL,1)")
     endif
 
