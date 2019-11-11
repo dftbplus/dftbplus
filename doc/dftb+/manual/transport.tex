@@ -198,8 +198,8 @@ PLs (tolerance for rule~\ref{rule4} of structures, i.e.\ that accuracy to which
 \item[\is{Temperature}]\modif{\modtype{energy}} Specifies the electronic
   temperature of the contact (see a more detailed discussion after the section 
   \"Analysis\").
-\item[\is{FermiLevel}]\modif{\modtype{energy}} Specifies the Fermi level of the
-  contact.
+\item[\is{FermiLevel}]\modif{\modtype{energy}} Optional over-riding of the Fermi
+  energy specified in ther appropriate contact shift file.
 \item[\is{Potential}]\modif{\modtype{energy}} Specifies any additional
   electrostatic potential applied to the contact. The natural units of this
   quantity are a potential energy.
@@ -456,7 +456,7 @@ only (see section~\ref{sec:transport.geometry}).
 
 \item[\is{FermiLevel}]\modif{\modtype{energy}} Required to set the Fermi level
   used by the Green's solver to fill up the electronic states, unless already
-  specified by there being contacts already present.
+  specified by contacts being already present.
 
 \item[\is{LocalCurrents}] if set to Yes, local bond-currents are computed using
   the non-equilibrium density matrix.  This task is currently limited to
