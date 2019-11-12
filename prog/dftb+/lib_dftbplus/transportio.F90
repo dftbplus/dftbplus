@@ -229,8 +229,7 @@ contains
 #:if WITH_TRANSPORT
 
   !> Read contact potential shifts from file
-  subroutine readContactShifts(shiftPerL, charges, tp, orb, shiftBlockUp, blockUp,&
-      & tReadAscii)
+  subroutine readContactShifts(shiftPerL, charges, tp, orb, shiftBlockUp, blockUp)
 
     !> shifts for atoms in contacts
     real(dp), intent(out) :: shiftPerL(:,:)
@@ -250,9 +249,6 @@ contains
     !> uploaded block charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
 
-    !> Should a text or binary file be read?
-    logical, intent(in), optional :: tReadAscii
-
     real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
     integer, allocatable :: nOrbAtom(:)
     integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
@@ -266,12 +262,8 @@ contains
 
   @:ASSERT(allocated(shiftBlockUp) .eqv. allocated(blockUp))
 
-    tAsciiFile = .true.
-    if (present(tReadAscii)) then
-      tAsciiFile = tReadAscii
-    end if
-
     tBlock = .false.
+    tAsciiFile = .not.tp%tReadBinShift
 
     nSpin = size(charges, dim=3)
 

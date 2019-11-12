@@ -230,6 +230,12 @@ module libnegf_vars
     !> False: run the full OBC calculation / True: upload contact phase
     logical :: taskUpload = .false.
 
+    !> Should contacts be written in binary format
+    logical :: tWriteBinShift = .false.
+
+    !> Should contacts be read in binary format
+    logical :: tReadBinShift = .false.
+
     !> Index of contact for contact hamiltonian task, if any
     integer :: taskContInd = 0
 

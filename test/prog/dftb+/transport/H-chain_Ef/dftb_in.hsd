@@ -16,6 +16,7 @@ Transport {
         AtomRange = 22 31
         Potential [eV] = 2.0
     }
+    ReadBinaryContact = No
 }
 
 Hamiltonian = DFTB {
