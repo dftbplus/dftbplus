@@ -19,6 +19,8 @@ set(sources-fpp
   ${curdir}/etemp.F90
   ${curdir}/externalcharges.F90
   ${curdir}/forces.F90
+  ${curdir}/gtocont.F90
+  ${curdir}/gtoints.F90
   ${curdir}/h5correction.F90
   ${curdir}/halogenx.F90
   ${curdir}/nonscc.F90
