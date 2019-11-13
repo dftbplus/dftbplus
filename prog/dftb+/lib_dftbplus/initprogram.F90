@@ -3958,7 +3958,7 @@ contains
     if (tUpload) then
       allocate(shiftPerLUp(orb%mShell, nAtom))
       allocate(chargeUp(orb%mOrb, nAtom, nSpin))
-      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, species0)
+      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb)
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))
