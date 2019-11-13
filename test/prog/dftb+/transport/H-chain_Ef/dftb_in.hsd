@@ -10,6 +10,7 @@ Transport {
         Id = "Source"
         AtomRange = 12 21
         Potential [eV] = 0.0
+	FermiLevel = -0.238600399999999713
     }
     Contact {
         Id = "Drain"
