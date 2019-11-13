@@ -246,6 +246,7 @@ transport/CNT                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CNT_GF                       #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2
+transport/SiH-chain_bin                #? WITH_TRANSPORT and MPI_PROCS <= 2 
 transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-chain_Ef                   #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-sheet                      #? WITH_TRANSPORT and MPI_PROCS <= 4

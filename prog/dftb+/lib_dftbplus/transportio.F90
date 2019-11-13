@@ -458,7 +458,7 @@ contains
                 read(fdH, formatFermiRead) tp%contacts(iCont)%eFermi(iSpin)
               end do
             else
-              read(fdH) tp%contacts(iCont)%eFermi
+              read(fdH) tp%contacts(iCont)%eFermi(:nSpin)
             end if
             tp%contacts(iCont)%tFermiSet = .true.
           end if
