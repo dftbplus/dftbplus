@@ -460,14 +460,14 @@ contains
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSpin)
+            read(fdH, *) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSpin)
           end do
         end do
       else
         do iSpin = 1, nSpin
           do ii = 0, iEnd-iStart
             iAt = iStart + ii
-            read(fdH, *) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSpin)
+            read(fdH) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSpin)
           end do
         end do
         do iSpin = 1, nSpin
