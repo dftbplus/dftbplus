@@ -33,6 +33,7 @@ set(sources-fpp
   ${curdir}/rangeseparated.F90
   ${curdir}/repcont.F90
   ${curdir}/reppoly.F90
+  ${curdir}/repsimple.F90
   ${curdir}/repspline.F90
   ${curdir}/repulsive.F90
   ${curdir}/scc.F90

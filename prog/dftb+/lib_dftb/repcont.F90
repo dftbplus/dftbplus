@@ -17,6 +17,7 @@ module dftbp_repcont
   use dftbp_accuracy
   use dftbp_repspline
   use dftbp_reppoly
+  use dftbp_repsimple
   implicit none
   private
 
@@ -28,6 +29,7 @@ module dftbp_repcont
   integer, parameter :: typeRepInvalid = 0
   integer, parameter :: typeRepSpline = 1
   integer, parameter :: typeRepPoly = 2
+  integer, parameter :: typeRepSimple = 3
 
 
   !> Contains repulsive types.
@@ -35,6 +37,7 @@ module dftbp_repcont
     integer :: iType = typeRepInvalid
     type(ORepSpline), allocatable :: pRepSpline
     type(ORepPoly), allocatable :: pRepPoly
+    type(ORepSimple), allocatable :: pRepSimple
   end type PRep_
 
 
@@ -69,6 +72,7 @@ module dftbp_repcont
   interface addRepulsive
     module procedure RepCont_addRepSpline
     module procedure RepCont_addRepPoly
+    module procedure RepCont_addRepSimple
   end interface addRepulsive
 
 
@@ -160,6 +164,30 @@ contains
   end subroutine RepCont_addRepPoly
 
 
+  !> Adds a simple repulsive function to the container for a given species pair.
+  subroutine RepCont_addRepSimple(self, pRep, iSp1, iSp2)
+
+    !> Repulsive container.
+    type(ORepCont), intent(inout) :: self
+
+    !> Repulsive function to add.
+    type(ORepSimple), intent(in) :: pRep
+
+    !> Nr. of the first interacting species.
+    integer, intent(in) :: iSp1
+
+    !> Nr. of the second interacting species.
+    integer, intent(in) :: iSp2
+
+    @:ASSERT(self%tInit)
+    self%repulsives(iSp2, iSp1)%iType = typeRepSimple
+    self%repulsives(iSp2, iSp1)%pRepSimple = pRep
+    self%tDataOK = all(self%repulsives(:,:)%iType /= typeRepInvalid)
+    self%cutoff = max(self%cutoff, getCutoff(pRep))
+
+  end subroutine RepCont_addRepSimple
+
+
   !> Returns a global cutoff for all repulive functions.
   function RepCont_getCutoff(self) result(cutoff)
 
@@ -200,6 +228,8 @@ contains
       call getEnergy(self%repulsives(sp2, sp1)%pRepSpline, res, rr)
     case(typeRepPoly)
       call getEnergy(self%repulsives(sp2, sp1)%pRepPoly, res, rr)
+    case(typeRepSimple)
+      call getEnergy(self%repulsives(sp2, sp1)%pRepSimple, res, rr)
     end select
 
   end subroutine RepCont_getEnergy
@@ -232,6 +262,8 @@ contains
       call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepSpline, res, xx)
     case(typeRepPoly)
       call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepPoly, res, xx)
+    case(typeRepSimple)
+      call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepSimple, res, xx)
     end select
 
   end subroutine RepCont_getEnergyDeriv
