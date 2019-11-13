@@ -33,6 +33,7 @@ contains
 
   !> Write the Hamiltonian self consistent shifts to file
   subroutine writeShifts(fShifts, orb, shiftPerL)
+
     !> filename where shifts are stored
     character(*), intent(in) :: fShifts
 
@@ -42,7 +43,6 @@ contains
     !> shifts organized per (shell , atom,  spin)
     real(dp), intent(in) :: shiftPerL(:,:,:)
 
-    ! locals
     integer :: fdHS, nSpin, nAtom, ii, jj
 
     nSpin = size(shiftPerL, dim=3)
@@ -56,7 +56,7 @@ contains
       call error("Internal error in writeshift size(shiftPerL,2)")
     endif
 
-    open(newunit=fdHS, file=trim(fShifts), form="formatted")
+    open(newunit=fdHS, file=fShifts, form="formatted")
     write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
     do ii = 1, nAtom
       write(fdHS, *) orb%nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
@@ -71,6 +71,7 @@ contains
 
   !> Read the Hamiltonian potential shifts from file
   subroutine readShifts(fShifts, orb, nAtom, nSpin, shiftPerL)
+
     !> filename where shifts are stored
     character(*), intent(in) :: fShifts
 
@@ -83,7 +84,6 @@ contains
     !> potential shifts (shell,atom,spin) charge/mag is used
     real(dp), intent(inout) :: shiftPerL(:,:,:)
 
-    !Locals
     integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii, jj
     integer, allocatable :: nOrbAtom(:)
 
@@ -106,11 +106,9 @@ contains
 
     close(fdH)
 
-    if (any(nOrbAtom(:) /= orb%nOrbAtom(:))) then
+    if (any(nOrbAtom /= orb%nOrbAtom)) then
       call error("Incompatible orbitals in the upload file!")
     end if
-
-    deallocate(nOrbAtom)
 
   end subroutine readShifts
 
@@ -156,8 +154,7 @@ contains
 
     if (tAsciiFile) then
 
-      open(newunit=fdHS, file="shiftcont_"//trim(filename)//".dat", position="rewind",&
-          & status="replace", form="formatted")
+      open(newunit=fdHS, file="shiftcont_" // trim(filename) // ".dat", form="formatted")
 
       ! now with a version number on the top of the file:
       write(fdHS, *) contactFormatVersion
@@ -187,12 +184,11 @@ contains
         write(fdHS, formatFermiWrite) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
       end if
 
-      write(stdOut,*) 'shiftcont_'//trim(filename)//'.dat written to file'
+      write(stdOut,*) 'shiftcont_' // trim(filename) // '.dat written to file'
 
     else
 
-      open(newunit=fdHS, file="shiftcont_"//trim(filename)//".bin", position="rewind",&
-          & status="replace", form="unformatted")
+      open(newunit=fdHS, file="shiftcont_" // trim(filename) // ".bin", form="unformatted")
 
       ! now with a version number on the top of the file:
       write(fdHS) contactFormatVersion
@@ -217,11 +213,12 @@ contains
 
       write(fdHS) Ef(:)
 
-      write(stdOut,*) 'shiftcont_'//trim(filename)//'.bin written to file'
+      write(stdOut,*) 'shiftcont_' // trim(filename) // '.bin written to file'
 
     end if
 
     close(fdHS)
+
 
   end subroutine writeContactShifts
 
@@ -249,246 +246,259 @@ contains
     !> uploaded block charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
 
-    real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
-    integer, allocatable :: nOrbAtom(:)
-    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
-    integer :: iCont, iStart, iEnd, ii, iAt, iSp
-
-    integer :: fdH, iErr, iBuffer(5), fileVersion, iSpin, iEntries
-    character(lc) :: strTmp
-    logical :: iexist, tBlock, tAsciiFile
-    character(lc) :: buffer, fileName
-    character(sc) :: shortBuffer
-
-  @:ASSERT(allocated(shiftBlockUp) .eqv. allocated(blockUp))
+    integer :: fdH
+    integer :: iCont
+    logical :: tExist, tBlock, tAsciiFile
+    character(lc) :: buffer
+    integer :: iBuffer(5), fileVersion
+    integer :: ii, iErr
 
     tBlock = .false.
     tAsciiFile = .not.tp%tReadBinShift
 
-    nSpin = size(charges, dim=3)
-
     shiftPerL(:,:) = 0.0_dp
     charges(:,:,:) = 0.0_dp
 
+  @:ASSERT(allocated(blockUp) .eqv. allocated(shiftBlockUp))
     if (allocated(shiftBlockUp)) then
       shiftblockUp(:,:,:,:) = 0.0_dp
       blockUp(:,:,:,:) = 0.0_dp
+      tBlock = .true.
     end if
 
     do iCont = 1, tp%ncont
 
-      iStart = tp%contacts(iCont)%idxrange(1)
-      iEnd = tp%contacts(iCont)%idxrange(2)
-      nContAtom = iEnd - iStart + 1
-
-      if (tAsciiFile) then
-        fileName = "shiftcont_"// trim(tp%contacts(iCont)%name) // ".dat"
-      else
-        fileName = "shiftcont_"// trim(tp%contacts(iCont)%name) // ".bin"
-      end if
-
-      inquire(file = trim(fileName), exist = iexist)
-      if (.not.iexist) then
-        call error("Contact shift file shiftcont_" // trim(tp%contacts(iCont)%name) &
-            &  // ".dat is missing"//new_line('a') // "Run ContactHamiltonian calculations first.")
-      end if
-
-      if (tAsciiFile) then
-        open(newunit=fdH, file=trim(fileName), form="formatted", status="OLD", action = "READ",&
-            & iostat=iErr)
-      else
-        open(newunit=fdH, file=trim(fileName), form="unformatted", status="OLD", action = "READ",&
-            & iostat=iErr)
-      end if
-      if (iErr /= 0) then
-        write(strTmp, *) "Failure to open contact shift file " // trim(fileName)
-        call error(strTmp)
-      end if
-      rewind(fdH)
-
       if (tAsciiFile) then
 
-        ! need to check for original unversioned format if ascii, so dump first line into a buffer
-        ! and then post process to work out what this file is
-        read(fdH,'(A)',iostat=iErr) buffer
-        if (iErr/=0) then
-          call error("Error reading file contact file "//trim(fileName))
+        inquire(file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat", exist=tExist)
+        if (.not. tExist) then
+          call error("Contact shift file shiftcont_" // trim(tp%contacts(iCont)%name) &
+              &  // ".dat is missing"// new_line('a') // "Run ContactHamiltonian calculations&
+              & first.")
+        end if
+
+        open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat",&
+            & form="formatted", status="old", action="read")
+
+        read(fdH, '(A)', iostat=iErr) buffer
+        if (iErr /= 0) then
+          call error("Error reading file contact file shiftcont_" // trim(tp%contacts(iCont)%name)&
+              & // ".dat")
         endif
 
         ! count the integers in the first line and store them
         ! looking for either a version number or the old format start line
-        do iEntries = 1, 6
-          read(buffer, *, iostat=iErr) iBuffer(:iEntries)
-          if (iErr==-1) then
+        do ii = 1, 5
+          read(buffer, *, iostat=iErr) iBuffer(:ii)
+          if (iErr /= 0) then
             exit
           end if
         end do
-        iEntries = iEntries - 1
+
+        select case (ii - 1)
+
+        case (1)
+          ! New file format with version number
+          fileVersion = iBuffer(1)
+          select case (fileVersion)
+          case (1)
+            ! Same format as old version (apart of the version number)
+            call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, shiftBlockUp,&
+                & blockUp)
+          case default
+            write(buffer, "(I0)") fileVersion
+            call error("Unknown contact version number in file shiftcont_" //&
+                & trim(tp%contacts(iCont)%name) // ".dat : " // trim(buffer))
+          end select
+
+        case (4)
+
+          ! Old version without format version number
+          ! Re-read first line, since it contains relevant data instead of version number
+
+          if (tBlock) then
+            call error("File format of the " // trim(tp%contacts(iCont)%name) //&
+                & " contact is too early for orbital potential support")
+          end if
+
+          if (.not. tp%contacts(iCont)%tFermiSet) then
+            call error("File format of the " // trim(tp%contacts(iCont)%name) //&
+                & " contact is too early to read the Fermi energy")
+          end if
+
+          rewind(fdH)
+          call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, shiftBlockUp, blockUp)
+
+        case default
+
+          write(stdOut,*) "Error reading file contact file shiftcont_" //&
+              & trim(tp%contacts(iCont)%name) // ".dat"
+          call error(trim(buffer))
+
+        end select
 
       else
 
-        ! binary format only avalable from format 1 of the contact file
-        iBuffer(:) = 0
-        read(fdH) iBuffer(1)
-        iEntries = 1
-
-      end if
-
-      ! version number of the format
-      select case (iEntries)
-      case(1)
-
-        ! single value present - use it as the format version
-        fileVersion = iBuffer(1)
-
-        select case(fileVersion)
-        case(1)
-
-          if (tAsciiFile) then
-            read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt, tBlock
-          else
-            read(fdH) nAtomSt, mShellSt, mOrbSt, nSpinSt, tBlock
-          end if
-
-        case default
-
-          write(shortBuffer, "(I0)")fileVersion
-          call error("Unknown contact version number in file shiftcont_" //&
-              & trim(tp%contacts(iCont)%name) // ".dat : " // trim(shortBuffer))
-
-        end select
-
-      case(4)
-
-        ! old format, directly start of data at top of file
-        fileVersion = 0
-        nAtomSt = iBuffer(1)
-        mShellSt = iBuffer(2)
-        mOrbSt = iBuffer(3)
-        nSpinSt = iBuffer(4)
-
-      case default
-        write(stdOut,*) "Error reading file contact file " // trim(fileName) //&
-            & ", first line is unexpected:"
-        call error(trim(buffer))
-      end select
-
-      if (fileVersion == 0 .and. allocated(shiftBlockUp)) then
-        call error("Orbital potentials not supported for this contact file")
-      end if
-
-
-      select case(fileVersion)
-
-      case(0,1)
-
-        if (nAtomSt /= nContAtom) then
-          call error("Upload Contacts: Mismatch in number of atoms.")
-        end if
-        if (mShellSt /= orb%mShell) then
-          call error("Upload Contacts: Mismatch in max shell per atom.")
-        end if
-        if (mOrbSt /= orb%mOrb) then
-          call error("Upload Contacts: Mismatch in orbitals per atom.")
-        end if
-        if (nSpin /= nSpinSt) then
-          write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Spin channels ',nSpin
-          call error(trim(strTmp))
+        inquire(file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".bin", exist=tExist)
+        if (.not. tExist) then
+          call error("Contact shift file shiftcont_" // trim(tp%contacts(iCont)%name) &
+              &  // ".bin is missing"// new_line('a') // "Run ContactHamiltonian calculations&
+              & first.")
         end if
 
-        allocate(nOrbAtom(nAtomSt))
-        allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
-        allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
+        open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".bin",&
+            & form="unformatted", status="old", action="read")
 
-        if (tAsciiFile) then
-          read(fdH, *) nOrbAtom
-          read(fdH, *) shiftPerLSt(:,:,:)
-          read(fdH, *) chargesSt
-        else
-          read(fdH) nOrbAtom
-          read(fdH) shiftPerLSt(:,:,:)
-          read(fdH) chargesSt
-        end if
+        read(fdH) fileVersion
 
-        if (tBlock .neqv. allocated(blockUp)) then
-          call error("Shift and orbital potential mismatch for "//trim(tp%contacts(iCont)%name))
-        end if
-
-        if (tBlock) then
-          if (tAsciiFile) then
-            do iSp = 1, size(shiftBlockUp,dim=4)
-              do ii = 0, iEnd-iStart
-                iAt = iStart + ii
-                read(fdH, *) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
-              end do
-            end do
-            do iSp = 1, size(blockUp,dim=4)
-              do ii = 0, iEnd-iStart
-                iAt = iStart + ii
-                read(fdH, *) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSp)
-              end do
-            end do
-          else
-            do iSp = 1, size(shiftBlockUp,dim=4)
-              do ii = 0, iEnd-iStart
-                iAt = iStart + ii
-                read(fdH) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSp)
-              end do
-            end do
-            do iSp = 1, size(blockUp,dim=4)
-              do ii = 0, iEnd-iStart
-                iAt = iStart + ii
-                read(fdH) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSp)
-              end do
-            end do
-          end if
-        end if
-
-        select case(fileVersion)
-        case (0)
-          ! unformatted Fermi energy line(s)
-          if (.not. tp%contacts(iCont)%tFermiSet) then
-            call error("File format of " // trim(fileName) //&
-                & " is too early to read the Fermi energy")
-          end if
+        select case (fileVersion)
         case (1)
-          if (.not. tp%contacts(iCont)%tFermiSet) then
-            if (tAsciiFile) then
-              do iSpin = 1, nSpin
-                read(fdH, formatFermiRead) tp%contacts(iCont)%eFermi(iSpin)
-              end do
-            else
-              read(fdH) tp%contacts(iCont)%eFermi(:nSpin)
-            end if
-            tp%contacts(iCont)%tFermiSet = .true.
-          end if
+          ! From version 1, binary format supported, no need to check for earlier versions
+          call readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, shiftBlockUp,&
+              & blockUp)
         case default
-          call error("Unknown format")
+          write(buffer, "(I0)") fileVersion
+          call error("Unknown contact version number in file shiftcont_" //&
+              & trim(tp%contacts(iCont)%name) // ".bin : " // trim(buffer))
         end select
 
-        if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
-          call error("Incompatible orbitals in the upload file!")
-        end if
-
-        !if (nSpin == 1) then
-        shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
-        !else
-        !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
-        !endif
-
-        charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
-
-        deallocate(nOrbAtom)
-        deallocate(shiftPerLSt)
-        deallocate(chargesSt)
-
-      end select
+      end if
 
       close(fdH)
 
     end do
 
   end subroutine readContactShifts
+
+
+  !> Reads in contact shift data (format 1, ascii)
+  subroutine readContactShiftData1(fdH, orb, tp, iCont, shiftPerL, charges, shiftBlockUp, blockUp)
+
+    !> File handler
+    integer, intent(in) :: fdH
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Transport parameters
+    type(TTransPar), intent(inout) :: tp
+
+    !> Contact to read
+    integer, intent(in) :: iCont
+
+    !> Shifts for atoms in contacts
+    real(dp), intent(inout) :: shiftPerL(:,:)
+
+    !> Charges for atoms in contacts
+    real(dp), intent(inout) :: charges(:,:,:)
+
+    !> uploded block per atom
+    real(dp), allocatable, intent(inout) :: shiftBlockUp(:,:,:,:)
+
+    !> uploaded block charges for atoms
+    real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
+
+    real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
+    integer, allocatable :: nOrbAtom(:)
+    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt
+    integer :: iStart, iEnd, iSpin, nSpin, iAt, ii
+    character(lc) :: strTmp
+    logical :: tAsciiFile
+
+    nSpin = size(charges, dim=3)
+
+    tAsciiFile = .not.tp%tReadBinShift
+
+    if (tAsciiFile) then
+      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
+    else
+      read(fdH) nAtomSt, mShellSt, mOrbSt, nSpinSt
+    end if
+    iStart = tp%contacts(iCont)%idxrange(1)
+    iEnd = tp%contacts(iCont)%idxrange(2)
+    nContAtom = iEnd - iStart + 1
+
+    if (nAtomSt /= nContAtom) then
+      call error("Upload Contacts: Mismatch in number of atoms.")
+    end if
+    if (mShellSt /= orb%mShell) then
+      call error("Upload Contacts: Mismatch in max shell per atom.")
+    end if
+    if (mOrbSt /= orb%mOrb) then
+      call error("Upload Contacts: Mismatch in orbitals per atom.")
+    end if
+    if (nSpinSt /= nSpin) then
+      write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Expected spin channels ',nSpin
+      call error(trim(strTmp))
+    end if
+
+    allocate(nOrbAtom(nAtomSt))
+    allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
+    allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
+    if (tAsciiFile) then
+      read(fdH, *) nOrbAtom
+      read(fdH, *) shiftPerLSt
+      read(fdH, *) chargesSt
+    else
+      read(fdH) nOrbAtom
+      read(fdH) shiftPerLSt
+      read(fdH) chargesSt
+    end if
+
+    if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
+      call error("Incompatible orbitals in the upload file!")
+    end if
+
+    if (allocated(shiftBlockUp)) then
+      if (tAsciiFile) then
+        do iSpin = 1, nSpin
+          do ii = 0, iEnd-iStart
+            iAt = iStart + ii
+            read(fdH, *) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSpin)
+          end do
+        end do
+        do iSpin = 1, nSpin
+          do ii = 0, iEnd-iStart
+            iAt = iStart + ii
+            read(fdH) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSpin)
+          end do
+        end do
+      else
+        do iSpin = 1, nSpin
+          do ii = 0, iEnd-iStart
+            iAt = iStart + ii
+            read(fdH, *) shiftBlockUp(:orb%nOrbAtom(iAt), :orb%nOrbAtom(iAt), iAt, iSpin)
+          end do
+        end do
+        do iSpin = 1, nSpin
+          do ii = 0, iEnd-iStart
+            iAt = iStart + ii
+            read(fdH) blockUp(:orb%nOrbAtom(iAt),:orb%nOrbAtom(iAt),iAt,iSpin)
+          end do
+        end do
+      end if
+    end if
+
+    if (.not. tp%contacts(iCont)%tFermiSet) then
+      if (tAsciiFile) then
+        do iSpin = 1, nSpin
+          read(fdH, formatFermiRead) tp%contacts(iCont)%eFermi(iSpin)
+        end do
+      else
+        read(fdH) tp%contacts(iCont)%eFermi(:nSpin)
+      end if
+      tp%contacts(iCont)%tFermiSet = .true.
+    end if
+
+    !if (nSpin == 1) then
+    shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
+    !else
+    !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
+    !endif
+
+    charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
+
+  end subroutine readContactShiftData1
 
 #:endif
 
