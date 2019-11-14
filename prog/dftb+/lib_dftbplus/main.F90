@@ -25,7 +25,7 @@ module dftbp_main
   use dftbp_globalenv
   use dftbp_environment
   use dftbp_densedescr
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_nonscc
   use dftbp_eigenvects
   use dftbp_repulsive
@@ -62,17 +62,18 @@ module dftbp_main
   use dftbp_angmomentum
   use dftbp_elecconstraints
   use dftbp_pmlocalisation, only : TPipekMezey
-  use dftbp_linresp_module
+  use dftbp_linresp
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : DispersionIface
   use dftbp_xmlf90
-  use dftbp_thirdorder_module, only : ThirdOrder
+  use dftbp_thirdorder, only : ThirdOrder
   use dftbp_rangeseparated, only : RangeSepFunc
   use dftbp_simplealgebra
   use dftbp_message
   use dftbp_repcont
-  use dftbp_xlbomd_module
+  use dftbp_halogenx
+  use dftbp_xlbomd
   use dftbp_slakocont
   use dftbp_linkedlist
   use dftbp_lapackroutines
@@ -90,7 +91,7 @@ module dftbp_main
   use negf_int
   use poisson_init
 #:endif
-
+  use dftbp_transportio
 
   implicit none
   private
@@ -254,7 +255,7 @@ contains
   #:if WITH_TRANSPORT
     if (tContCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
-      call writeContShifts(transpar%contacts(transpar%taskContInd)%output, orb, &
+      call writeContactShifts(transpar%contacts(transpar%taskContInd)%output, orb, &
           & potential%intShell, qOutput, Ef)
     end if
 
@@ -444,10 +445,16 @@ contains
       call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
     end if
 
+    if (allocated(halogenXCorrection)) then
+      call halogenXCorrection%getEnergies(energy%atomHalogenX, coord, species, neighbourList,&
+          & img2CentCell)
+      energy%EHalogenX = sum(energy%atomHalogenX(iAtInCentralRegion))
+    end if
+
     call resetExternalPotentials(refExtPot, potential)
 
     if (tReadShifts) then
-      call uploadShiftPerL(fShifts, orb, nAtom, nSpin, potential%extShell)
+      call readShifts(fShifts, orb, nAtom, nSpin, potential%extShell)
     end if
 
     call setUpExternalElectricField(tEField, tTDEField, tPeriodic, EFieldStrength,&
@@ -624,7 +631,8 @@ contains
           call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
               & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
-              & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff)
+              & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff,&
+              & qBlockIn, qBlockOut)
         end if
 
         call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
@@ -653,7 +661,8 @@ contains
             & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
             & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
             & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-            & iAtInCentralRegion, electronicSolver, tDefinedFreeE)
+            & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
+            & tRangeSep, allocated(thirdOrd))
       end if
 
       if (tConverged .or. tStopScc) then
@@ -735,7 +744,7 @@ contains
           & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
           & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
           & iRhoPrim, thirdOrd, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over,&
-          & denseDesc, deltaRhoOutSqr, tPoisson)
+          & denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection)
 
       if (tCasidaForces) then
         derivs(:,:) = derivs + excitedDerivs
@@ -748,7 +757,7 @@ contains
             & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep,&
             & species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
             & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
-            & dispersion)
+            & dispersion, halogenXCorrection)
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
         call printVolume(cellVol)
 
@@ -2830,8 +2839,6 @@ contains
   end subroutine getMullikenPopulation
 
 
-
-
   !> Checks for the presence of a stop file on disc.
   function hasStopFile(fileName) result(tStop)
 
@@ -2993,7 +3000,7 @@ contains
   subroutine getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK, iAtomStart,&
       & iSparseStart, img2CentCell, pChrgMixer, qOutput, orb, iGeoStep, iSccIter, minSccIter,&
       & maxSccIter, sccTol, tStopScc, tReadChrg, q0, qInput, sccErrorQ, tConverged, deltaRhoOut,&
-      & deltaRhoIn, deltaRhoDiff)
+      & deltaRhoIn, deltaRhoDiff, qBlockIn, qBlockOut)
 
     !> Square dense overlap storage
     real(dp), allocatable, intent(inout) :: SSqrReal(:,:)
@@ -3067,8 +3074,14 @@ contains
     !> difference of delta density matrix in and out
     real(dp), intent(inout) :: deltaRhoDiff(:)
 
+    !> block charge input (if needed for orbital potentials)
+    real(dp), intent(inout), allocatable :: qBlockIn(:,:,:,:)
 
-    integer :: nSpin
+    !> Dual output charges
+    real(dp), intent(inout), allocatable :: qBlockOut(:,:,:,:)
+
+
+    integer :: nSpin, iSpin, iAt, iOrb
     real(dp), pointer :: deltaRhoInSqr(:,:,:)
 
     nSpin = size(qOutput, dim=3)
@@ -3082,6 +3095,9 @@ contains
       if ((iSCCIter + iGeoStep) == 1 .and. (nSpin > 1 .and. .not. tReadChrg)) then
         deltaRhoIn(:) = deltaRhoOut
         qInput(:,:,:) = qOutput
+        if (allocated(qBlockIn)) then
+          qBlockIn(:,:,:,:) = qBlockOut
+        end if
       else
         call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
         call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
@@ -3097,7 +3113,22 @@ contains
         else
           qInput(:,:,:) = qInput + q0
         end if
+
+        if (allocated(qBlockIn)) then
+          call denseBlockMulliken(deltaRhoInSqr, SSqrReal, iAtomStart, qBlockIn)
+          do iSpin = 1, nSpin
+            do iAt = 1, size(qInput, dim=2)
+              do iOrb = 1, size(qInput, dim=1)
+                qBlockIn(iOrb, iOrb, iAt, iSpin) = qInput(iOrb, iAt, iSpin)
+              end do
+            end do
+          end do
+        end if
+
         call ud2qm(qInput)
+        if (allocated(qBlockIn)) then
+          call ud2qm(qBlockIn)
+        end if
       end if
     end if
 
@@ -4374,7 +4405,7 @@ contains
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
       & qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
-      & tPoisson)
+      & tPoisson, halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4478,6 +4509,9 @@ contains
     !> whether Poisson solver is used
     logical, intent(in) :: tPoisson
 
+    !> Correction for halogen bonds
+    type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
+
     ! Locals
     real(dp), allocatable :: tmpDerivs(:,:)
     real(dp), allocatable :: dummyArray(:,:)
@@ -4572,6 +4606,10 @@ contains
       call dispersion%addGradients(derivs)
     end if
 
+    if (allocated(halogenXCorrection)) then
+      call halogenXCorrection%addGradients(derivs, coord, species, neighbourList, img2CentCell)
+    end if
+
     if (allocated(rangeSep)) then
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
@@ -4596,7 +4634,7 @@ contains
   subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion)
+      & totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion, halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4688,6 +4726,9 @@ contains
     !> dispersion interactions
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
+    !> Correction for halogen bonds
+    type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
+
     real(dp) :: tmpStress(3, 3)
     logical :: tImHam
 
@@ -4721,6 +4762,12 @@ contains
 
     if (allocated(dispersion)) then
       call dispersion%getStress(tmpStress)
+      totalStress(:,:) = totalStress + tmpStress
+    end if
+
+    if (allocated(halogenXCorrection)) then
+      call halogenXCorrection%getStress(tmpStress, coord, neighbourList, species, img2CentCell,&
+          & cellVol)
       totalStress(:,:) = totalStress + tmpStress
     end if
 

@@ -45,7 +45,7 @@ module dftbp_timeprop
   use dftbp_nonscc
   use dftbp_energies, only: TEnergies, init
   use dftb_evaluateenergies
-  use dftbp_thirdorder_module, only : ThirdOrder
+  use dftbp_thirdorder, only : ThirdOrder
   use dftbp_populations
   use dftbp_eigenvects
   use dftbp_sk

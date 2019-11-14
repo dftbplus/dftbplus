@@ -19,7 +19,7 @@ module dftbp_populations
   private
 
   public :: mulliken, skewMulliken, denseMulliken, denseSubtractDensityOfAtoms,&
-       &denseSubtractDensityOfAtoms_nospin, getChargePerShell
+       &denseSubtractDensityOfAtoms_nospin, getChargePerShell, denseBlockMulliken
 
 
   !> Provides an interface to calculate Mulliken populations, either dual basis atomic block,
@@ -450,6 +450,61 @@ contains
 
   end subroutine getChargePerShell
 
+
+  !> Block mulliken analysis with dense lower triangle matrices.
+  subroutine denseBlockMulliken(rhoSqr, overSqr, iSquare, qq)
+
+    !> Square (lower triangular) spin polarized density matrix
+    real(dp), intent(in) :: rhoSqr(:,:,:)
+
+    !> Square (lower triangular) overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Atom positions in the row/column of square matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> Mulliken block charges on output (mOrb, mOrb, nAtom, nSpin)
+    real(dp), intent(out) :: qq(:,:,:,:)
+
+    real(dp), allocatable :: tmpS(:,:)
+    real(dp), allocatable :: tmpD(:,:)
+
+    integer :: nAOs, nAtom, nSpin, ii, jj, iAt, iSpin, nOrb
+
+    nSpin = size(rhoSqr, dim=3)
+    nAtom = size(iSquare, dim=1) - 1
+    nAOs = size(rhoSqr, dim=1)
+
+    allocate(tmpS(nAOs,nAOs))
+    allocate(tmpD(nAOs,nAOs))
+
+    ! Symmetrize overlap
+    tmpS(:,:) = overSqr + transpose(overSqr)
+    do ii = 1, nAOs
+      tmpS(ii,ii) = overSqr(ii,ii)
+    end do
+
+    qq(:,:,:,:) = 0.0_dp
+    do iSpin = 1, nSpin
+
+      ! Symmetrize density matrix for spin channel
+      tmpD(:,:) = rhoSqr(:,:,iSpin) + transpose(rhoSqr(:,:,iSpin))
+      do ii = 1, nAOs
+        tmpD(ii,ii) = rhoSqr(ii,ii,iSpin)
+      end do
+
+      do iAt = 1, nAtom
+        ii = iSquare(iAt)
+        jj = iSquare(iAt+1)
+        nOrb = jj - ii
+        qq(:nOrb,:nOrb,iAt,iSpin) = matmul(tmpS(ii:jj-1,:), tmpD(:,ii:jj-1))
+        qq(:nOrb,:nOrb,iAt,iSpin) = 0.5_dp * (qq(:nOrb,:nOrb,iAt,iSpin)&
+            & + transpose(qq(:nOrb,:nOrb,iAt,iSpin)))
+      end do
+
+    end do
+
+  end subroutine denseBlockMulliken
 
 
 end module dftbp_populations
