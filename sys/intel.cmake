@@ -11,6 +11,7 @@
 # Fortran compiler settings
 #
 if(WITH_MPI)
+  # Depending on your MPI environment, your Fortran compiler wrapper may be called "mpiifort"
   set(CMAKE_Fortran_COMPILER "mpifort" CACHE STRING "Fortran compiler")
 else()
   set(CMAKE_Fortran_COMPILER "ifort" CACHE STRING "Fortran compiler")

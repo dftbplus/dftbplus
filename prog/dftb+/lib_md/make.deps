@@ -15,8 +15,8 @@ _mod_dftbp_dummytherm = $(dummytherm.o)
 
 extlagrangian.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_message 
 extlagrangian.o = extlagrangian.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_message) 
-_mod_dftbp_extlagrangian_module: extlagrangian.o
-_mod_dftbp_extlagrangian_module = $(extlagrangian.o)
+_mod_dftbp_extlagrangian: extlagrangian.o
+_mod_dftbp_extlagrangian = $(extlagrangian.o)
 
 mdcommon.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_ranlux 
 mdcommon.o = mdcommon.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_ranlux) 
@@ -48,8 +48,8 @@ velocityverlet.o = velocityverlet.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_d
 _mod_dftbp_velocityverlet: velocityverlet.o
 _mod_dftbp_velocityverlet = $(velocityverlet.o)
 
-xlbomd.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_io _mod_dftbp_message _mod_dftbp_extlagrangian_module 
-xlbomd.o = xlbomd.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_io) $(_mod_dftbp_message) $(_mod_dftbp_extlagrangian_module) 
-_mod_dftbp_xlbomd_module: xlbomd.o
-_mod_dftbp_xlbomd_module = $(xlbomd.o)
+xlbomd.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_io _mod_dftbp_message _mod_dftbp_extlagrangian 
+xlbomd.o = xlbomd.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_io) $(_mod_dftbp_message) $(_mod_dftbp_extlagrangian) 
+_mod_dftbp_xlbomd: xlbomd.o
+_mod_dftbp_xlbomd = $(xlbomd.o)
 
