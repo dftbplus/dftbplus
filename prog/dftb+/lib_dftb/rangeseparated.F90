@@ -721,6 +721,10 @@ contains
 
 
   !> Update Hamiltonian with long-range contribution using matrix-matrix multiplications
+  !>
+  !> The routine provides a matrix-matrix multiplication based implementation of
+  !> the 3rd term in Eq. 26 in https://doi.org/10.1063/1.4935095
+  !>
   subroutine addLrHamiltonianMatrix(this, iSquare, overlap, densSqr, HH)
 
     !> class instance
