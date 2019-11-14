@@ -2206,6 +2206,9 @@ contains
     if (tPlumed .and. .not. withPlumed) then
       call error("Code was compiled without PLUMED support")
     end if
+    if (tPlumed .and. .not. tMD) then
+      call error("Metadynamics via PLUMED is only possible in MD-simulations")
+    end if
     if (tPlumed) then
       call plumedInit()
       call plumedGlobalCmdVal("setNatoms", nAtom)

@@ -5298,7 +5298,7 @@ contains
     !> lattice vectors
     real(dp), intent(in), target, contiguous :: latVecs(:,:)
 
-    derivs = -derivs
+    derivs(:,:) = -derivs
     call plumedGlobalCmdVal("setStep", iGeoStep)
     call plumedGlobalCmdPtr("setForces", derivs)
     call plumedGlobalCmdVal("setEnergy", energy)
@@ -5308,7 +5308,7 @@ contains
       call plumedGlobalCmdPtr("setBox", latVecs)
     end if
     call plumedGlobalCmdVal("calc", 0)
-    derivs = -derivs
+    derivs(:,:) = -derivs
 
   end subroutine updateDerivsByPlumed
 

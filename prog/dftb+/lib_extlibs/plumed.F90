@@ -41,9 +41,11 @@ module dftbp_plumed
   end interface plumedGlobalCmdPtr
 
 
+  !> Whether package was build with PLUMED support
   logical, parameter :: withPlumed = ${FORTRAN_LOGICAL(WITH_PLUMED)}$
 
 
+  ! Explicit interfaces for the API provided by PLUMED
   interface
     subroutine plumed_f_gcreate() bind(C, name='plumed_f_gcreate')
     end subroutine plumed_f_gcreate
@@ -53,16 +55,23 @@ module dftbp_plumed
 
     subroutine plumed_f_gcmd(key, val) bind(C, name='plumed_f_gcmd')
       import :: c_char, c_ptr
+      implicit none
       character(kind=c_char), intent(in) :: key(*)
       type(c_ptr), value :: val
     end subroutine plumed_f_gcmd
   end interface
 
-
+  ! Number of global instances (should be 0 or 1)
   integer :: instances = 0
 
 contains
 
+  !> Initializes plumed.
+  !>
+  !> Note: Currently the global PLUMED interfaces is used, which only allows
+  !> one PLUMED instance at a time. Once plumedInit() had been called, it should not be called
+  !> again until the instance had been destroyed by calling plumedFinal().
+  !>
   subroutine plumedInit()
     #:if WITH_PLUMED
       if (instances == 0) then
@@ -77,6 +86,7 @@ contains
   end subroutine plumedInit
 
 
+  !> Destroys the PLUMED instance.
   subroutine plumedFinal()
     #:if WITH_PLUMED
     if (instances == 1) then
@@ -96,8 +106,18 @@ contains
     #:for RANK in GCMD_RANKS
       #:set CONTIGUOUS = ", contiguous" if RANK > 0 else ""
 
+      !> Wrapper for passing a value to a global PLUMED instance.
+      !>
+      !> NOTE: This wrapper should only be used to pass values to PLUMED which are
+      !> are immediately COPIED in PLUMED before returning, as the argument may contain
+      !> temporary expression
+      !>
       subroutine plumedGlobalCmdVal${SUFFIX}$${RANK}$(key, val)
+
+        !> Key (will be automatically extended with the necessary termination character).
         character(len=*, kind=c_char), intent(in) :: key
+
+        !> Value to pass.
         ${TYPE}$, target, intent(in) ${CONTIGUOUS}$ :: val${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
         #:if WITH_PLUMED
@@ -112,8 +132,18 @@ contains
   #:endfor
 
 
+  !> Wrapper for passing a value to a global PLUMED instance (character version).
+  !>
+  !> NOTE: This wrapper should only be used to pass values to PLUMED which are
+  !> are immediately COPIED in PLUMED before returning, as the argument may contain
+  !> temporary expression.
+  !>
   subroutine plumedGlobalCmdValChar(key, val)
+
+    !> Key (will be automatically extended with the necessary termination character)
     character(len=*, kind=c_char), intent(in) :: key
+
+    !> Value to pass (will be automatically extended with the necessary termination character)
     character(len=*, kind=c_char), intent(in) :: val
 
     character(len=(len(val) + 1), kind=c_char), target :: buffer
@@ -132,8 +162,17 @@ contains
     #:for RANK in GCMD_RANKS
       #:set CONTIGUOUS = ", contiguous" if RANK > 0 else ""
 
+      !> Wrapper for passing a reference to a global PLUMED instance.
+      !>
+      !> NOTE: This wrapper passes the adress of the value object. Make sure, the object
+      !> exists long enough, that PLUMED can access and eventually modify it when necessary.
+      !>
       subroutine plumedGlobalCmdPtr${SUFFIX}$${RANK}$(key, val)
+
+        !> Key (will be automatically extended with the necessary termination character)
         character(len=*, kind=c_char), intent(in) :: key
+
+        !> Object which should be passed as a reference.
         ${TYPE}$, pointer, intent(in) ${CONTIGUOUS}$ :: val${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
         #:if WITH_PLUMED
@@ -149,14 +188,19 @@ contains
 
 
   #:if not WITH_PLUMED
-   subroutine stubError(name)
-     character(*), intent(in) :: name
 
-     call error("Internal error: Function '" // name // "' called but code was compiled without&
-         & PLUMED support")
+    !> Raises an error signalizing the call of a stub-function.
+    subroutine stubError(name)
 
-   end subroutine stubError
- #:endif
+      !> Name of the stub function which was called.
+      character(*), intent(in) :: name
+
+      call error("Internal error: Function '" // name // "' called but code was compiled without&
+          & PLUMED support")
+
+    end subroutine stubError
+
+  #:endif
 
 
 end module dftbp_plumed

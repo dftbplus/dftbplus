@@ -762,8 +762,8 @@ contains
 
       call getChildValue(node, "Plumed", ctrl%tPlumed, default=.false., child=child)
       if (ctrl%tPlumed .and. .not. withPlumed) then
-        call detailedError(child, "Plumed can not be used since code has been compiled without&
-            & PLUMED support")
+        call detailedError(child, "Metadynamics can not be used since code has been compiled&
+            & without PLUMED support")
       end if
 
       if (geom%tPeriodic) then
