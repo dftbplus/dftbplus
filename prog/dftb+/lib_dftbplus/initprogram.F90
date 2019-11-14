@@ -987,35 +987,9 @@ module dftbp_initprogram
   !> Is this a spin purified calculation?
   logical :: tSpinPurify
 
-  !> Is this a maximum overlap calculation? (MOM)
-  logical :: tMOM
-
-  !> Is this an initial maximum overlap calculation? (IMOM)
-  logical :: tIMOM
-
-  !> Is this a descision augmented diagonalization calculation? (DAD) If so, when should (I)MOM start and for which det?
-  integer :: nDADt
-  integer :: nDADm
-
-  !> On which SCC iteration should the maximum overlap calculation start?
-  integer :: nMOM
-
   !> Should there be a ground state intial guess before Non-Aufbau calc?
   logical :: tGroundGuess
 
-  !> Calculate transition dipole moment (TDM)?
-  logical :: tDips
-
-  !> Saving old C and eigen matrices
-  real(dp), allocatable :: aOldHSqrReal(:,:)
-  real(dp), allocatable :: bOldHSqrReal(:,:)
-  real(dp), allocatable :: momOrbE(:,:)
-
-  !> Square S matrix storage for MOM
-  real(dp), allocatable :: SSqrRealStorage(:,:)
-
-  !> Index of projection values MOM
-  integer, allocatable :: indxMOM(:,:)
 
   !> Which state is being calculated in the determinant loop?
   integer :: iDet
@@ -1213,12 +1187,8 @@ contains
 
 
     ! TI-DFTB related variables - MYD, TDK, RAS
-    tIMOM = input%ctrl%tIMOM
-    nDADt = input%ctrl%nDADt + 1
-    nDADm = input%ctrl%nDADm + 1
     tNonAufbau = input%ctrl%tNonAufbau
     tSpinPurify = input%ctrl%tSpinPurify
-    tMOM = input%ctrl%tMOM
     tGroundGuess = input%ctrl%tGroundGuess
 
 
@@ -2573,9 +2543,7 @@ contains
         & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
         & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
         & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-        & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment,&
-        & aOldHSqrReal, bOldHSqrReal, momOrbE, indxMOM, SSqrRealStorage,  &
-        & tIMOM, nDADt, nDADm)
+        & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -3643,9 +3611,7 @@ contains
       & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
       & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
       & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-      & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment,&
-      & aOldHSqrReal, bOldHSqrReal, momOrbE, indxMOM, SSqrRealStorage, &
-      & tIMOM, nDADt, nDADm)
+      & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -3816,29 +3782,6 @@ contains
     real(dp), intent(out), allocatable :: dipoleMoment(:)
 
 
-    ! TI-DFTB Arrays to be allocated (sent to allocateDenseMatrices) - MYD, TDK, RAS
-
-    !> Previous C matrix
-    real(dp), intent(out), allocatable :: aOldHSqrReal(:,:)
-    real(dp), intent(out), allocatable :: bOldHSqrReal(:,:)
-    real(dp), intent(out), allocatable :: momOrbE(:,:)
-
-
-    !> Index of projection values MOM
-    integer, intent(out), allocatable  :: indxMOM(:,:)
-
-    !> Square S matrix storage
-    real(dp), intent(out), allocatable :: SSqrRealStorage(:,:)
-
-    !> Is this an initial maximum overlap calculation? (IMOM)
-    logical, intent(in) :: tIMOM
-
-    !> Is this a descision augmented diagonalization calculation? (DAD)
-    !> If so, when should (I)MOM start and for which det?
-    integer, intent(in) :: nDADt
-    integer, intent(in) :: nDADm
-
-
     integer :: nSpinHams, sqrHamSize
 
     allocate(rhoPrim(0, nSpin))
@@ -3889,9 +3832,6 @@ contains
       allocate(eigen(0, nKPoint, nSpinHams))
       allocate(filling(0, nKpoint, nSpinHams))
     end if
-    if (tMOM .or. tIMOM) then
-      allocate(momOrbE(sqrHamSize, nSpinHams))
-    end if
     eigen(:,:,:) = 0.0_dp
     filling(:,:,:) = 0.0_dp
 
@@ -3924,9 +3864,7 @@ contains
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
-          & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal, aOldHSqrReal,&
-          & bOldHSqrReal, momOrbE, tMOM, indxMOM, SSqrRealStorage, &
-          & tIMOM, nDADt, nDADm)
+          & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
     if (tRangeSep) then
@@ -4124,8 +4062,7 @@ contains
 
   !> Set up storage for dense matrices, either on a single processor, or as BLACS matrices
   subroutine allocateDenseMatrices(env, denseDesc, localKS, t2Component, tRealHS, HSqrCplx,&
-      & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, aOldHSqrReal, bOldHSqrReal,&
-      & momOrbE, tMOM, indxMOM, SSqrRealStorage, tIMOM, nDADt, nDADm)
+      & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal)
 
     !> Computing environment
     type(TEnvironment), intent(in) :: env
@@ -4160,28 +4097,6 @@ contains
     !> Eigenvectors for real eigenproblem
     real(dp), allocatable, intent(out) :: eigvecsReal(:,:,:)
 
-    ! TI-DFTB arrays to be allocated - MYD, TDK, RAS
-
-    !> Previous C matrix - MYD
-    real(dp), allocatable, intent(out) :: aOldHSqrReal(:,:)
-    real(dp), allocatable, intent(out) :: bOldHSqrReal(:,:)
-    real(dp), allocatable, intent(out) :: momOrbE(:,:)
-
-    !> Is this a maximum overlap calculation?
-    logical, intent(in) :: tMOM
-
-    !> Index of projection values MOM -MYD does it need to be allocated? yes?
-    integer, allocatable, intent(out) :: indxMOM(:,:)
-
-    !> Square S matrix for MOM
-    real(dp), allocatable, intent(out) :: SSqrRealStorage(:,:)
-
-    !> Is this an initial maximum overlap calculation? (IMOM)
-    logical, intent(in) :: tIMOM
-
-    !> Is this a descision augmented diagonalization calculation? (DAD) If so, when should MOM start?
-    integer, intent(in) :: nDADt
-    integer, intent(in) :: nDADm
 
     integer :: nLocalCols, nLocalRows, nLocalKS, i
 
@@ -4201,13 +4116,6 @@ contains
       allocate(HSqrReal(nLocalRows, nLocalCols))
       allocate(SSqrReal(nLocalRows, nLocalCols))
       allocate(eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
-    end if
-    if (tMOM .or. tIMOM) then
-      allocate(aOldHSqrReal(nLocalRows, nLocalCols))
-      allocate(bOldHSqrReal(nLocalRows, nLocalCols))
-
-      allocate(SSqrRealStorage(nLocalRows, nLocalCols))
-      allocate(indxMOM(nLocalCols, nLocalKS))
     end if
 
   end subroutine allocateDenseMatrices

@@ -166,17 +166,13 @@ contains
     ! TI-DFTB Determinant loop, set to pass through if not needed. - MYD, TDK, RAS
 
       lpDets : do iDet = det, nDet
-        if (tMOM .or. tIMOM) then
-          call initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
-        end if
+
         call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
             & tExitGeoOpt)
         if (tGroundGuess .and. iDet==0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
         end if
-        if (tDips) then
-          call tDipStore(iDet,nDet,HSqrReal)
-        end if
+
         if (iDet == nDet) then
           exit lpDets
         end if
@@ -186,9 +182,7 @@ contains
         call ZieglerSum(energy)
         call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
       end if
-      if (tDips) then
-        call correspondingOrbitalTransformation
-      end if
+
       if (tExitGeoOpt) then
         exit geoOpt
       end if
@@ -559,8 +553,7 @@ contains
             & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
             & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
             & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices, tNonAufbau, &
-            & tSpinPurify, tMOM, tIMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, SSqrRealStorage, &
-            & iDet, indxMOM, iSccIter, tGroundGuess, nMOM)
+            & tSpinPurify, iDet)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
         if (tRangeSep) then
@@ -1688,49 +1681,6 @@ contains
 
   end subroutine initTIDFTB
 
-
-  !> Initialized Maximum Overlap
-  subroutine initMOM(tSpinPurify, tNonAufbau, iDet, tMOM, tIMOM, nMOM, nDADt, nDADm)
-
-  !> Is this a spin purified calculation? - MYD
-  logical, intent(in) :: tSpinPurify
-  logical, intent(in) :: tNonAufbau
-
-  !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
-  integer, intent(out) :: iDet
-
-  !> Is this a maximum overlap calculation (MOM)
-  logical, intent(inout) :: tMOM
-
-  !> Is this an initial maximum overlap calculation? (IMOM)
-  logical, intent(in) :: tIMOM
-
-  !> On which SCC iteration should the maximum overlap calculation start?
-  integer, intent(out) :: nMOM
-
-  !> Is this a descision augmented diagonalization calculation? (DAD) If so, when should (I)MOM start and for which det?
-  integer, intent(in) :: nDADt
-  integer, intent(in) :: nDADm
-
-
-
-      if (tSpinPurify .and. tNonAufbau) then !myd
-        if (iDet == 2) then
-          nMOM = nDADm
-        else if (iDet == 1) then
-          nMOM = nDADt
-        end if
-      else
-          nMOM = nDADm
-      end if
-     write(*,*) 'initmom', tSpinPurify,tNonAufbau,nMOM,nDADm,nDADt,iDet
-
-
-  end subroutine initMOM
-
-
-
-
   !> Reset internal potential related quantities
   subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
@@ -2078,8 +2028,7 @@ contains
       & tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep, eigen, filling, rhoPrim, Eband, TS,&
       & E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx,&
       & eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC,&
-      & tLargeDenseMatrices, tNonAufbau, tSpinPurify, tMOM, tIMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, &
-      & SSqrRealStorage, iDet, indxMOM, iSccIter, tGroundGuess, nMOM)
+      & tLargeDenseMatrices, tNonAufbau, tSpinPurify, iDet)
 
 
     !> Environment settings
@@ -2247,35 +2196,7 @@ contains
 
     !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
-
-    !> Is this a maximum overlap calculation?
-    logical, intent(in) :: tMOM
-
-    !> Is this a maximum overlap calculation?
-    logical, intent(in) :: tIMOM
-
-    !> Saving old C matrix
-    real(dp), allocatable, intent(inout) :: aOldHSqrReal(:,:)
-    real(dp), allocatable, intent(inout) :: bOldHSqrReal(:,:)
-    real(dp), allocatable, intent(inout) :: momOrbE(:,:)
-
-    !> Square S matrix
-    real(dp), allocatable, intent(inout) :: SSqrRealStorage(:,:)
-
-    !> Which state is being calculated?
     integer, intent(in) :: iDet
-
-
-    !> Index of projection values MOM
-    integer, intent(out) :: indxMOM(:,:)
-
-    !> Number of current SCC step
-    integer, intent(in) :: iSccIter
-
-    logical, intent(in) :: tGroundGuess
-
-    !> On which SCC iteration should the maximum overlap calculation start?
-    integer, intent(in) :: nMOM
 
     integer :: nSpin, iKS, iSp, iK, nAtom
     complex(dp), allocatable :: rhoSqrCplx(:,:)
@@ -2321,8 +2242,7 @@ contains
           & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen,&
           & filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
           & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
-          & qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, tMOM, tIMOM, aOldHSqrReal, bOldHSqrReal, &
-          & momOrbE, SSqrRealStorage, iDet, indxMOM, iSccIter, tGroundGuess, nMOM)
+          & qOutput, nNeighbourLC, tNonAufbau, tSpinPurify, iDet)
 
     case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
 
@@ -2345,8 +2265,7 @@ contains
       & tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen, filling,&
       & rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal, iRhoPrim,&
       & HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr, qOutput,&
-      & nNeighbourLC, tNonAufbau, tSpinPurify, tMOM, tIMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, &
-      & SSqrRealStorage, iDet, indxMOM, iSccIter, tGroundGuess, nMOM)
+      & nNeighbourLC, tNonAufbau, tSpinPurify, iDet)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2504,36 +2423,7 @@ contains
 
     !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
-
-    !> Is this a maximum overlap calculation?
-    logical, intent(in) :: tMOM
-
-    !> Is this a maximum overlap calculation?
-    logical, intent(in) :: tIMOM
-
-    !> Saving old C matrix
-    real(dp), allocatable, intent(inout) :: aOldHSqrReal(:,:)
-    real(dp), allocatable, intent(inout) :: bOldHSqrReal(:,:)
-    real(dp), allocatable, intent(inout) :: momOrbE(:,:)
-
-    !> Square S matrix
-    real(dp), allocatable, intent(inout) :: SSqrRealStorage(:,:)
-
-    !> Which state is being calculated?
     integer, intent(in) :: iDet
-
-    !> Index of projection values MOM
-    integer, intent(out) :: indxMOM(:,:)
-
-    !> Number of current SCC step
-    integer, intent(in) :: iSccIter
-
-    logical, intent(in) :: tGroundGuess
-
-    !> On which SCC iteration should the maximum overlap calculation start?
-    integer, intent(in) :: nMOM
-    logical :: mom=.false.
-
 
     integer :: nSpin
     integer :: i
@@ -2546,8 +2436,7 @@ contains
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep,&
             & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:),&
-            & nEl, SSqrRealStorage, tMOM, tIMOM, iSccIter, nMOM, aOldHSqrReal, &
-            & bOldHSqrReal, momOrbE, iDet, indxMOM, mom)
+            & nEl)
 
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighbourList,&
@@ -2566,21 +2455,7 @@ contains
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, &
-        & tSpinPurify, iDet, nEl, mom, indxMOM)
-
-write(*,*) 'Filling'
-
-if (iSccIter >= nMOM .and. (tMOM .or. tIMOM)) then
-    do i=1,ubound(filling,1)
-      print *, (size(filling, dim=1) + 1-i), filling((size(filling, dim=1) + 1-i), 1, 1), &
-        & filling((size(filling, dim=1) + 1-i), 1, 2), indxMOM(i, 1), indxMOM(i, 2)
-    end do
-else
-    do i=1,ubound(filling,1)
-      print *, (size(filling, dim=1) + 1-i), filling((size(filling, dim=1) + 1-i), 1, 1), &
-        & filling((size(filling, dim=1) + 1-i), 1, 2)
-    end do
-endif
+        & tSpinPurify, iDet, nEl)!
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
@@ -2613,9 +2488,7 @@ endif
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep, deltaRhoInSqr,&
-      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, nEl, &
-      & SSqrRealStorage, tMOM, tIMOM, iSccIter, nMOM, aOldHSqrReal, bOldHSqrReal, momOrbE, iDet, &
-      & indxMOM, mom)
+      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, nEl)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2678,36 +2551,6 @@ endif
     !> nr. of electrons
     real(dp), intent(in) :: nEl(:)
 
-    !> Square S matrix storage for MOM
-    real(dp), intent(out):: SSqrRealStorage(:,:)
-
-    !> Is this a maximum overlap calculation?
-    logical, intent(in) :: tMOM
-
-    !> Is this an initial maximum overlap calculation? (IMOM)
-    logical, intent(in) :: tIMOM
-
-    !> Number of current SCC step
-    integer, intent(in) :: iSccIter
-
-    !> On which SCC iteration should the maximum overlap calculation start?
-    integer, intent(in) :: nMOM
-
-    !> Large square matrix for the resulting eigenvectors
-    real(dp), intent(inout) :: aOldHSqrReal(:,:)
-    real(dp), intent(inout) :: bOldHSqrReal(:,:)
-    real(dp), intent(inout) :: momOrbE(:,:)
-
-
-    !> Which state is being calculated?
-    integer, intent(in) :: iDet
-
-    !> Index of projection values MOM
-    integer, intent(out) :: indxMOM(:,:)
-    logical, intent(inout) :: mom
-
-
-
     integer :: iKS, iSpin, ii
     integer :: i
 
@@ -2734,9 +2577,7 @@ endif
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
 
-      if ((tMOM .or. tIMOM) .and. iSccIter == 1) then
-        call momStoreS(SSqrReal, SSqrRealStorage)
-      end if
+
 
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
@@ -2756,31 +2597,6 @@ endif
       eigvecsReal(:,:,iKS) = HSqrReal
      ! OldHSqrReal = HSqrReal
     #:endif
-
-      if ((tMOM .or. tIMOM) .and. iSCCIter == (nMOM+1) .and. iDet>=1) then
-        mom=.true.
-      elseif (iSccIter==1) then
-        mom=.false.
-      endif
-      if (mom .and. iSccIter >= (nMOM+1)) then
-        call momOverlapComp(tMOM, HSqrReal, aOldHSqrReal, bOldHSqrReal, momOrbE, eigen, SSqrRealStorage,&
-            & indxMOM, nEl, iKS)
-
-
-      end if
-      if (tMOM .and. iDet>=1) then
-        if (iSccIter >= nMOM) then
-          call storeMOM(HSqrReal, bOldHSqrReal, iKS, aOldHSqrReal)
-       !   call storeMOM(eigen, momOrbE, iKS)
-        end if
-      else if (tIMOM .and. iSccIter == nMOM .and. iDet>=1) then
-          call storeMOM(HSqrReal, bOldHSqrReal, iKS, aOldHSqrReal)
-write (*,*) "OK"
-      !    call storeMOM(eigen, momOrbE, iKS)
-      end if
-
-
-
 
     end do
 
@@ -3389,7 +3205,7 @@ write (*,*) "OK"
   !> Calculates electron fillings and resulting band energy terms.
   subroutine getFillingsAndBandEnergies(eigvals, nElectrons, nSpinBlocks, tempElec, kWeights,&
       & tSpinSharedEf, tFillKSep, tFixEf, iDistribFn, Ef, fillings, Eband, TS, E0, tNonAufbau, &
-      & tSpinPurify, iDet, nEl, mom,indxMOM)
+      & tSpinPurify, iDet, nEl)
 
     !> Eigenvalue of each level, kpoint and spin channel
     real(dp), intent(inout) :: eigvals(:,:,:)
@@ -3442,13 +3258,7 @@ write (*,*) "OK"
 
     !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
     integer, intent(in) :: iDet
-
-    !> Nuber of electrons
     real(dp), intent(in) :: nEl(:)
-    logical, intent(in) :: mom
-    !> Index of projection values MOM
-    integer, intent(in) :: indxMOM(:,:)
-
 
     real(dp) :: EbandTmp(1), TSTmp(1), E0Tmp(1)
     real(dp) :: EfTmp
@@ -3474,13 +3284,13 @@ write (*,*) "OK"
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
             & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, tNonAufbau, &
-            & tSpinPurify, iDet, nEl, iS, mom, indxMOM)
+            & tSpinPurify, iDet, nEl, iS)
       end do
     else if (nSpinHams == 2 .and. tSpinSharedEf) then
       !write(*,*) 'tSpinSharedEf' !Not called MYD
       ! Common Fermi level across two colinear spin channels
       call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
-          & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS, mom, indxMOM)
+          & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS)
       Ef(2) = Ef(1)
     else if (tFillKSep) then
     !write(*,*) 'tFillKSep' , tFillKSep !Also Not Called MYD
@@ -3493,7 +3303,7 @@ write (*,*) "OK"
         do iK = 1, nKPoints
           call Efilling(EbandTmp, EfTmp, TSTmp, E0Tmp, fillings(:, iK:iK, iS:iS),&
               & eigvals(:, iK:iK, iS:iS), nElecFill(iS), tempElec, [1.0_dp], iDistribFn, tNonAufbau, &
-              & tSpinPurify, iDet, nEl, iS, mom, indxMOM)
+              & tSpinPurify, iDet, nEl, iS)
           Eband(iS) = Eband(iS) + EbandTmp(1) * kWeights(iK)
           Ef(iS) = Ef(iS) + EfTmp * kWeights(iK)
           TS(iS) = TS(iS) + TSTmp(1) * kWeights(iK)
@@ -3506,7 +3316,7 @@ write (*,*) "OK"
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
             & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn, tNonAufbau,&
-            & tSpinPurify, iDet, nEl, iS, mom, indxMOM)
+            & tSpinPurify, iDet, nEl, iS)
       end do
     end if
 

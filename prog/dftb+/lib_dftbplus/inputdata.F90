@@ -481,19 +481,6 @@ module dftbp_inputdata_module
     !> GroundGuess
     logical :: tGroundGuess = .false.
 
-    !> MOM
-    logical :: tMOM = .false.
-
-    !> IMOM
-    logical :: tIMOM = .false.
-
-    !> (Triplet or Mixed)DAD
-    integer :: nDADt = 1
-    integer :: nDADm = 1
-
-    !> TDM Calculation
-    logical :: tDips = .false.
-
 
 
 
