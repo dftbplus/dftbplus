@@ -23,10 +23,15 @@ contains
  ! ---------------------------------------------------------------------------
  ! Perform parameters checks
  ! ---------------------------------------------------------------------------
- subroutine check_poisson_box()
+ subroutine check_poisson_box(iError)
+
+   integer, intent(out), optional :: iError
 
    integer i
-   
+
+   if (present(iError)) then
+     iError = 0
+   end if
 
    if(period) then
       !cheks that the latt vect are directed along x,y,z
@@ -53,8 +58,13 @@ contains
       if (.not.FoundBox) then
          if (verbose > 30) then
             write(stdOut,*) 'Box for Poisson not Found'
-         end if
-         stop 'ERROR: No way to build box for Poisson'
+          end if
+          if (present(iError)) then
+            iError = -1
+            return
+          else
+            stop 'ERROR: No way to build box for Poisson'
+          end if
       end if
    end if
 
@@ -70,9 +80,15 @@ contains
  end subroutine check_poisson_box
 
  
- subroutine check_biasdir()
-  
+ subroutine check_biasdir(iError)
+
+   integer, intent(out), optional :: iError
+
    integer i,m
+
+   if (present(iError)) then
+     iError = 0
+   end if
 
    if (.not.cluster) then
      !-OLD Bias,BiasDir compatibility -----------------
@@ -83,12 +99,22 @@ contains
          if (localBC(1).eq.0) then
            write(stdOut,*) 'ERROR: local BC should be used when &
                & contacts are in different directions'
-           stop        
+           if (present(iError)) then
+             iError = -1
+             return
+           else
+             stop
+           end if
          endif
          if(DoCilGate) then
            write(stdOut,*) 'ERROR: contacts must be in the same &
                & direction when using cylindrical gate'
-           stop
+           if (present(iError)) then
+             iError = -2
+             return
+           else
+             stop
+           end if
          endif
 
        end if
@@ -122,8 +148,13 @@ contains
    
    if (period_dir(3) .and. numprocs>1) then
      write(stdOut,*) 'ERROR: periodicity along z is incompatible with &
-                & grid parallelization strategy'
-     stop
+         & grid parallelization strategy'
+     if (present(iError)) then
+       iError = -3
+       return
+     else
+       stop
+     end if
    end if
 
  end subroutine check_biasdir
@@ -283,14 +314,21 @@ contains
       write(stdOut,*) 'has been disregarded !'
       write(stdOut,*)
    endif
-   
 
  end subroutine check_localbc
-   !--- WRITE INFOS ABOUT THE CONTACT STRUCTURES ---------------
- subroutine check_contacts()
+
+
+ !--- WRITE INFOS ABOUT THE CONTACT STRUCTURES ---------------
+ subroutine check_contacts(iError)
+
+   integer, intent(out), optional :: iError
 
    integer i,ncdim_max
-    
+
+   if (present(iError)) then
+     iError = 0
+   end if
+
    if(cluster) then
       if (id0) then
           write(stdOut,'(1x,a)',advance='NO') 'System Type: UNCONTACTED '
@@ -349,29 +387,48 @@ contains
    if (.not.cluster) then
       do i=1,ncont
          if (iatc(1,i).lt.iatm(2)) then 
-            write(stdOut,*) 'ERROR: The contacts MUST be defined after the scattering region'
-            stop
+           write(stdOut,*) 'ERROR: The contacts MUST be defined after the scattering region'
+           if (present(iError)) then
+             iError = -1
+             return
+           else
+             stop
+           end if
          endif
       enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
       write(stdOut,*) 'ERROR: The number of atoms in the scattering region is higer'
       write(stdOut,*) '       than the total number of atoms'
-      stop
+      if (present(iError)) then
+        iError = -2
+        return
+      else
+        stop
+      end if
    endif
    if (DoGate) then
-      if (gatedir.ne.2) then 
-         write(stdOut,*) "ERROR: gate direction must be along y"
+     if (gatedir.ne.2) then
+       write(stdOut,*) "ERROR: gate direction must be along y"
+       if (present(iError)) then
+         iError = -3
+         return
+       else
          stop
+       end if
       endif
       if(any(abs(contdir(:)).eq.gatedir)) then
-         write(stdOut,*) "ERROR: gate direction along contacts!?"
-         stop
+        write(stdOut,*) "ERROR: gate direction along contacts!?"
+        if (present(iError)) then
+          iError = -4
+          return
+        else
+          stop
+        end if
       endif
    endif
-
-   !    Checks if the number of mouvable atoms is set correctly
 
  end subroutine check_contacts
 
- end module parcheck
+
+end module parcheck

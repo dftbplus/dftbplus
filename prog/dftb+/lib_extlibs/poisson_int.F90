@@ -348,15 +348,24 @@ contains
       fixed_renorm = .not.(poissoninfo%numericNorm)
 
       ! Performs parameters checks
-      call check_biasdir()
-      call check_poisson_box()
+      call check_biasdir(iErr)
+      if  (iErr /= 0) then
+        call error("Unable to build box for Poisson solver")
+      end if
+      call check_poisson_box(iErr)
+      if  (iErr /= 0) then
+        call error("Unable to build box for Poisson solver")
+      end if
       if (any(overrideBC.ne.0)) then
         period = .false.
       end if
       call check_parameters()
       call check_localbc()
       call write_parameters()
-      call check_contacts()
+      call check_contacts(iErr)
+      if  (iErr /= 0) then
+        call error("Unable to build contact potentials for Poisson solver")
+      end if
 
       !-----------------------------------------------------------------------------+
       ! Parameters from old PAR.in not yet parsed:
