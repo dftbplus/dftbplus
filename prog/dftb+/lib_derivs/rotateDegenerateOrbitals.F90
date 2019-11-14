@@ -513,8 +513,10 @@ contains
         iStart = self%blockRange(1,iGrp)
         iEnd = self%blockRange(2,iGrp)
         if (iStart == iEnd) then
+        #:if TYPE == 'complex'
           matrixToProcess(iStart,iStart) = cmplx(real(matrixToProcess(iStart,iStart),dp), 0.0_dp,&
               & dp)
+        #:endif
           cycle
         end if
 
