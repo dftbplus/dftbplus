@@ -2878,6 +2878,10 @@ enables the following option:
     \item[CutoffReduction]\modif{\modtype{length}} See description in the
       \is{Thresholded} block.
     \end{description}
+
+
+  \item[MatrixBased] Uses a matrix-matrix multiplication based algorithm. This
+    algorithm is usually faster than other two algorithms.
   \end{description}
 \end{description}
 
@@ -2896,6 +2900,13 @@ RangeSeparated = LC {
   Screening = NeighbourBased {
     CutoffReduction [AA] = 2.0
   }
+}
+\end{verbatim}
+
+Example for matrix-matrix multiplication based method:
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = MatrixBased {}
 }
 \end{verbatim}
 
