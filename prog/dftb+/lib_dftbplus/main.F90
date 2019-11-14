@@ -649,7 +649,8 @@ contains
             & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
             & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
             & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-            & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection))
+            & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
+            & tRangeSep, allocated(thirdOrd))
       end if
 
       if (tConverged .or. tStopScc) then
@@ -3441,7 +3442,9 @@ contains
 
     !> Add exchange conribution for range separated calculations
     if (allocated(rangeSep)) then
-       call rangeSep%addLREnergy(energy%Eelec)
+      energy%Efock = 0.0_dp
+      call rangeSep%addLREnergy(energy%Efock)
+      energy%Eelec = energy%Eelec + energy%Efock
     end if
 
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&

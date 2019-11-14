@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- New algorithm for long-range corrected Hamiltonian
+
 
 Changed
 -------
