@@ -719,6 +719,8 @@ contains
 
   end subroutine addLrHamiltonianNeighbour
 
+
+  !> Update Hamiltonian with long-range contribution using matrix-matrix multiplications
   subroutine addLrHamiltonianMatrix(this, iSquare, overlap, densSqr, HH)
 
     !> class instance
@@ -804,6 +806,7 @@ contains
       end do
 
     end subroutine allocateAndInit
+
 
     subroutine evaluateHamiltonian(this, Smat, Dmat, LRgammaAO, Hlr)
 
