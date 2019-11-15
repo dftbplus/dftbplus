@@ -178,8 +178,10 @@ contains
         end if
       end do lpDets
 
-      if (tNonAufbau .and. tSpinPurify) then
-        call ZieglerSum(energy)
+      if (tNonAufbau) then
+        if (tSpinPurify) then
+          call ZieglerSum(energy)
+        end if
         call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
       end if
 

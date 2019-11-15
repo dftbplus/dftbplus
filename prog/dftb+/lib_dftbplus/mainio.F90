@@ -3886,8 +3886,10 @@ contains
       else
         write (stdOut, format2U) 'Non-Aufbau Singlet Energy', energy%Etotal, "H", Hartree__eV * energy%Etotal,&
           & "eV"
-        write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
+        if (tGroundGuess) then
+          write (stdOut, format2U) 'Ground State Energy Guess', energy%Egroundguess, "H", &
           & Hartree__eV * energy%Etotal, "eV"
+        endif
       end if
     else
       write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
