@@ -3875,30 +3875,6 @@ contains
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
-    if (tRangeSep) then
-      if (withMpi) then
-        call error("Range separated calculations do not work with MPI yet")
-      end if
-      if (nSpin > 2) then
-        call error("Range separated calculations not implemented for non-colinear calculations")
-      end if
-      if (tXlbomd) then
-        call error("Range separated calculations not currently implemented for XLBOMD")
-      end if
-      if (t3rd) then
-        call error("Range separated calculations not currently implemented for 3rd order DFTB")
-      end if
-      if (tLinResp) then
-        call error("Range separated calculations not currently implemented for linear response")
-      end if
-      if (tSpinOrbit) then
-        call error("Range separated calculations not currently implemented for spin orbit")
-      end if
-      if (tDFTBU) then
-        call error("Range separated calculations not currently implemented for DFTB+U")
-      end if
-    end if
-
     if (tLinResp) then
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
@@ -4325,7 +4301,8 @@ contains
 
 
   !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, tAtomicEnergy, rangeSepInp)
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, tAtomicEnergy,&
+      & rangeSepInp)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4346,16 +4323,47 @@ contains
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
     end if
+
     if (tReadChrg .and. rangeSepInp%rangeSepAlg == rangeSepTypes%threshold) then
       call error("Restart on thresholded range separation not working correctly")
     end if
+
     if (tShellResolved) then
       call error("Range separated functionality currently does not yet support shell-resolved scc")
     end if
+
     if (tAtomicEnergy) then
-      call warning("Atomic resolved energies cannot be calculated with range-separation&
-          & hybrid functional.")
+      call warning("Atomic resolved energies cannot be calculated with the range-separation&
+          & hybrid functional at the moment")
       tAtomicEnergy = .false.
+    end if
+
+    if (withMpi) then
+      call error("Range separated calculations do not work with MPI yet")
+    end if
+
+    if (nSpin > 2) then
+      call error("Range separated calculations not implemented for non-colinear calculations")
+    end if
+
+    if (tSpinOrbit) then
+      call error("Range separated calculations not currently implemented for spin orbit")
+    end if
+
+    if (tXlbomd) then
+      call error("Range separated calculations not currently implemented for XLBOMD")
+    end if
+
+    if (t3rd) then
+      call error("Range separated calculations not currently implemented for 3rd order DFTB")
+    end if
+
+    if (tLinResp) then
+      call error("Range separated calculations not currently implemented for linear response")
+    end if
+
+    if (tDFTBU) then
+      call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
   end subroutine ensureRangeSeparatedReqs

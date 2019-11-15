@@ -763,6 +763,7 @@ contains
 
   contains
 
+    !> Set up storage and get orbital-by-orbital gamma matrix
     subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
 
       !> class instance
@@ -812,6 +813,7 @@ contains
     end subroutine allocateAndInit
 
 
+    !> Evaluate the hamiltonian using GEMM operations
     subroutine evaluateHamiltonian(this, Smat, Dmat, LRgammaAO, Hlr)
 
       !> class instance
@@ -1158,9 +1160,6 @@ contains
 
     !> list of all atomic species
     integer, intent(in) :: species(:)
-
-    !!> finite difference choice
-    !real(dp), parameter :: deltaXDiff = epsilon(1.0_dp)**0.25_dp
 
     integer :: sp1, sp2, jj, ii
     real(dp) :: vect(3), tmp(3),tmp2(3), dist
