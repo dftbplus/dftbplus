@@ -3247,8 +3247,8 @@ contains
 
      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName,&
          & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, cutOff%skCutoff,&
-         & cutOff%mCutoff, atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS, tRealHS,&
-         & kPoint, kWeight)
+         & cutOff%mCutoff, atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS,&
+         & tRealHS, kPoint, kWeight)
 
    end if
 
