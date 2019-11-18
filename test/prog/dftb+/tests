@@ -5,8 +5,8 @@
 #:include 'common.fypp'
 
 dispersion/2C6H6_MBD                   #? WITH_MBD and MPI_PROCS <= 4
-dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
-dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
+#!dispersion/CO2_bulk_TS                 #? WITH_MBD and MPI_PROCS <= 4
+#!dispersion/2C6H6_TS                    #? WITH_MBD and MPI_PROCS <= 4
 dispersion/CO2_bulk_MBD                #? WITH_MBD and MPI_PROCS <= 4
 
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
