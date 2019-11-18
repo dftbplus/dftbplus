@@ -84,13 +84,12 @@ module dftbp_main
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
-  use dftbp_manybodydisp
+  use dftbp_mbd, only : TMbd
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
   use poisson_init
 #:endif
-
   implicit none
   private
 
@@ -1064,7 +1063,7 @@ contains
     end if
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call mbdUpdateLatVecs(mbDispersion, latVecs, cellVol)
+      call mbDispersion%update_lattice_vectors(latVecs)
     end if
   #:endif
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutoff)
@@ -1226,7 +1225,7 @@ contains
 
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call mbdUpdateCoords(mbDispersion, coord0)
+      call mbDispersion%update_coords(coord0)
     end if
   #:endif
 
@@ -3562,6 +3561,9 @@ contains
 
   subroutine getManyBodyDispEnergy(rhoPrim, over, orb, neighbourList, nNeighbour, img2CentCell,&
       & iSparseStart, mbDispersion, eMbd)
+    ! TODO these shouldn't be here
+    use dftbp_initprogram, only: referenceN0, speciesName, species0
+    use mbd_vdw_param, only: species_index
 
     !> Density matrix in sparse storage
     real(dp), intent(in) :: rhoPRim(:,:)
@@ -3591,14 +3593,30 @@ contains
     real(dp), intent(out) :: eMbd
 
     real(dp), allocatable :: cpa(:)
-    integer :: nAtom
+    real(dp), allocatable :: free_charges(:)
+    integer :: nAtom, i_atom, i_spec
 
     nAtom = size(nNeighbour)
     allocate(cpa(nAtom))
     call getOnsitePopulation(rhoPrim(:,1), orb, iSparseStart, cpa)
-    call MBDcalculateCPA(mbDispersion, cpa)
+
+    allocate(free_charges(nAtom))
+    do i_atom = 1, nAtom
+        i_spec = species0(i_atom)
+        free_charges(i_atom) = sum(referenceN0(1:orb%nShell(i_spec), i_spec))
+        ! if (inp%mbd_debug.and. tIoProc) then
+        !   write(stdOut,*) i_atom, free_charges(i_atom)
+        ! end if
+    end do
+    cpa = 1d0 + (cpa-free_charges)/dble(species_index(speciesName(species0)))
     print *, "CPA:", cpa
-    call MBDgetEnergy(mbDispersion, eMbd)
+    call mbDispersion%update_vdw_params_from_ratios(cpa)
+
+    call mbDispersion%evaluate_vdw_method(eMbd)
+
+    if (tIoProc) then
+      write(stdOut,*) 'MBD energy ', eMbd, ' ', eMbd * Hartree__eV
+    end if
 
   end subroutine getManyBodyDispEnergy
 
@@ -5351,9 +5369,8 @@ contains
 
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call MBDgetGradients(mbDispersion, tmpDerivs)
-      ! sign flip: vdW modules return forces not gradients
-      derivs(:,:) = derivs - tmpDerivs
+      call mbDispersion%get_gradients(tmpDerivs)
+      derivs(:,:) = derivs + tmpDerivs
     end if
   #:endif
 
@@ -5521,7 +5538,12 @@ contains
 
   #:if WITH_MBD
     if (allocated(mbDispersion)) then
-      call MBDgetStress(mbDispersion, tmpStress)
+      call mbDispersion%get_lattice_stress(tmpStress)
+      tmpStress = -tmpStress/cellVol
+      if (tIoProc) then
+        write(stdOut,*) '!!!!!!!!!!!!!!!CALCULATING MBD STRESS!!!!!!!!!!!!!!!!'
+        write(stdOut,*) tmpStress(:, :)
+      endif
       totalStress(:,:) = totalStress + tmpStress
     end if
   #:endif

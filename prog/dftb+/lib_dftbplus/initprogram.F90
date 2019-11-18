@@ -68,7 +68,6 @@ module dftbp_initprogram
   use dftbp_spin, only: Spin_getOrbitalEquiv, ud2qm, qm2ud
   use dftbp_dftbplusu
   use dftbp_dispersions
-  use dftbp_manybodydisp
   use dftbp_thirdorder
   use dftbp_linresp
   use dftbp_RangeSeparated
@@ -81,6 +80,7 @@ module dftbp_initprogram
   use dftbp_wrappedintr
   use dftbp_xlbomd
   use dftbp_etemp, only : Fermi
+  use dftbp_mbd, only: TMbdInit, TMbd
 #:if WITH_SOCKETS
   use dftbp_mainio, only : receiveGeometryFromSocket
   use dftbp_ipisocket
@@ -2019,15 +2019,14 @@ contains
     #:if WITH_MBD
       elseif (allocated(input%ctrl%dispInp%mbdInp)) then
         tManyBodyDisp = .true.
-        allocate(mbDispersion)
-        input%ctrl%dispInp%mbdInp%calculate_forces = tForces
-        if (tPeriodic) then
-          call mbdInit(mbDispersion, input%ctrl%dispInp%mbdInp, env%mpi%globalComm, nAtom,&
-              & species0, referenceN0, orb%nShell, speciesName, latVec)
-        else
-          call mbdInit(mbDispersion, input%ctrl%dispInp%mbdInp, env%mpi%globalComm, nAtom,&
-              & species0, referenceN0, orb%nShell, speciesName)
-        end if
+        allocate (mbDispersion)
+        associate (inp => input%ctrl%dispInp%mbdInp)
+            inp%calculate_forces = tForces
+            inp%atom_types = speciesName(species0)
+            inp%coords = coord0
+            if (tPeriodic) inp%lattice_vectors = latVec
+            call mbDispersion%init(inp)
+        end associate
      #:endif
       end if
     end if
@@ -4257,11 +4256,11 @@ contains
 
     character(80) :: tmpStr
 
-    write(stdOut, "(A)") ""
-    if (input%only_ts_energy) then
+    write(stdOut, "(A)") ''
+    if (input%method == 'ts') then
       write(stdOut, "(A)") "Using TS from SEDC module [Phys. Rev. B 80, 205414 (2009)]"
       write(stdOut, "(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
-      select case (trim(input%params))
+      select case (trim(input%vdw_params_kind))
       case ('tssurf')
         write(tmpStr, "(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
       case ('TSSURF')
@@ -4278,10 +4277,10 @@ contains
       write(stdOut, "(A)") '  TSForceAccuracy           ' // trim(adjustl(tmpStr))
       write(tmpStr, "(E18.6)") input%ts_ene_acc
       write(stdOut, "(A)") '  TSEnergyAccuracy          ' // trim(adjustl(tmpStr))
-    else
+  else if (input%method == 'mbd-rsscs') then
       write(stdOut,"(A)") "Using MBD model [Phys. Rev. Lett. 108, 236402 (2012)]"
       write(stdOut,"(A)") "PLEASE CITE: J. Chem. Phys. 144, 151101 (2016)"
-      select case (trim(input%params))
+      select case (trim(input%vdw_params_kind))
       case ('tssurf')
         write(tmpStr,"(A)") "vdw-surf [Phys. Rev. Lett. 108, 146103 (2012)] "
       case ('TSSURF')
@@ -4296,24 +4295,18 @@ contains
       write(stdOut,"(A)") "  Parameters                "//trim(adjustl(tmpStr))
       write(stdOut,"(A)") '  Module                    mbdvdw'
       write(stdOut,"(A)") '  MBD eigensolver           QR (LAPACK)'
-      if (all(input%vacuum_axis)) then
-        write(stdOut,"(A)") "  PBC for MBD               No"
-      else
-        write(tmpStr,"(3(L2,1X))") .not. input%vacuum_axis
-        write(stdOut,"(A)") "  PBC for MBD (x,y,z)       "//trim(adjustl(tmpStr))
-        write(tmpStr, "(3(I3,1X))") input%k_grid
-        write(stdOut,"(A)") "  MBD k-Grid                "//trim(adjustl(tmpStr))
-        write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
-        write(stdOut,"(A)") "  MBD k-Grid shift          "//trim(adjustl(tmpStr))
-      end if
+      write(tmpStr, "(3(I3,1X))") input%k_grid
+      write(stdOut,"(A)") "  MBD k-Grid                "//trim(adjustl(tmpStr))
+      write(tmpStr, "(3(F4.3,1X))") input%k_grid_shift
+      write(stdOut,"(A)") "  MBD k-Grid shift          "//trim(adjustl(tmpStr))
       write(tmpStr, "(I3)") input%n_omega_grid
       write(stdOut, "(A)") "  Gridsize (frequencies)    "//trim(adjustl(tmpStr))
     end if
-    if (input%mbd_debug) then
-      write(stdOut,"(A)") "  Full Debug printing       Yes"
-    else
-      write(stdOut,"(A)") "  Full Debug printing       No"
-    endif
+    ! if (input%mbd_debug) then
+    !   write(stdOut,"(A)") "  Full Debug printing       Yes"
+    ! else
+    !   write(stdOut,"(A)") "  Full Debug printing       No"
+    ! endif
     write(stdOut,"(A)") ""
 
   end subroutine writeMbdInfo

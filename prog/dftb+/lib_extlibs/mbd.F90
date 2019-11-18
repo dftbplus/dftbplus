@@ -3,17 +3,12 @@
 !> Imports the functionality of libMBD.
 module dftbp_mbd
 #:if WITH_MBD
-  use libmbd
+  use mbd, TMbdInit => mbd_input_t, TMbd => mbd_calc_t
 #:endif
   implicit none
   private
 
-#:if WITH_MBD
   public:: TMbdInit, TMbd
-  public:: TMbd_init, TMbd_destruct
-#:else
-  public :: TMbd, TMbdInit
-#:endif
 
 #:if not WITH_MBD
   ! Dummy empty type

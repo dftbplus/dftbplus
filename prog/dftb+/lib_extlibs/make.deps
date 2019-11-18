@@ -58,8 +58,8 @@ _mod_dftbp_matconv: matconv.o
 _mod_dftbp_matconv = $(matconv.o)
 
 #:if WITH_MBD
-mbd.o: common.fypp _mod_libmbd 
-mbd.o = mbd.o $(common.fypp) $(_mod_libmbd) 
+mbd.o: common.fypp _mod_mbd 
+mbd.o = mbd.o $(common.fypp) $(_mod_mbd) 
 _mod_dftbp_mbd: mbd.o
 _mod_dftbp_mbd = $(mbd.o)
 #:else

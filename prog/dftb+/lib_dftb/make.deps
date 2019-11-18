@@ -152,11 +152,6 @@ halogenx.o = halogenx.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accurac
 _mod_dftbp_halogenx: halogenx.o
 _mod_dftbp_halogenx = $(halogenx.o)
 
-manybodydisp.o: common.fypp _mod_dftbp_assert _mod_dftbp_globalenv _mod_dftbp_mpifx _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_mbd _mod_dftbp_commontypes _mod_dftbp_message 
-manybodydisp.o = manybodydisp.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_globalenv) $(_mod_dftbp_mpifx) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_mbd) $(_mod_dftbp_commontypes) $(_mod_dftbp_message) 
-_mod_dftbp_manybodydisp: manybodydisp.o
-_mod_dftbp_manybodydisp = $(manybodydisp.o)
-
 nonscc.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_sk _mod_dftbp_slakocont _mod_dftbp_commontypes _mod_dftbp_message _mod_dftbp_schedule _mod_dftbp_environment 
 nonscc.o = nonscc.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_sk) $(_mod_dftbp_slakocont) $(_mod_dftbp_commontypes) $(_mod_dftbp_message) $(_mod_dftbp_schedule) $(_mod_dftbp_environment) 
 _mod_dftbp_nonscc: nonscc.o
