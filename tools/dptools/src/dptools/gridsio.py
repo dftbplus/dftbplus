@@ -25,7 +25,7 @@ def scalarvtk(fname, griddata, varname='var'):
         fh = fname
         closefh = False
     elif isinstance(fname, str):
-        fh = open(fname, 'wb')
+        fh = open(fname, 'w')
         closefh = True
     else:
         raise ValueError('Cannot open fname as file')
@@ -82,7 +82,7 @@ def cube(fname, griddata, header='dptools cube file'):
         fh = fname
         closefh = False
     elif isinstance(fname, str):
-        fh = open(fname, 'wb')
+        fh = open(fname, 'w')
         closefh = True
     else:
         raise ValueError('Cannot open fname as file')
