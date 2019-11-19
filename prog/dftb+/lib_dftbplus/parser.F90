@@ -5620,6 +5620,10 @@ contains
         call getChildValue(value2, "CutoffReduction", input%cutoffRed, 0.0_dp,&
             & modifier=modifier, child=child3)
         call convertByMul(char(modifier), lengthUnits, child3, input%cutoffRed)
+      case ("matrixbased")
+        input%rangeSepAlg = rangeSepTypes%matrixBased
+        ! In this case, CutoffRedunction is not used so it should be set to zero.
+        input%cutoffRed = 0.0_dp
       case default
         call getNodeHSdName(value2, buffer)
         call detailedError(child2, "Invalid screening method '" // char(buffer) // "'")

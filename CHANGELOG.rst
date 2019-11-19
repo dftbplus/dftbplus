@@ -11,6 +11,10 @@ Unreleased
 Added
 -----
 
+- New algorithm for long-range corrected Hamiltonian
+
+- Option to set mass of atoms in modes input file (syntax matches existing DFTB+
+  feature)
 
 Changed
 -------

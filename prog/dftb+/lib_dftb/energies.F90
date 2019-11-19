@@ -33,6 +33,9 @@ module dftbp_energies
     !> spin energy
     real(dp) :: Espin   = 0.0_dp
 
+    !> range-separation energy
+    real(dp) :: Efock   = 0.0_dp
+
     !> spin orbit energy
     real(dp) :: ELS     = 0.0_dp
 
@@ -178,6 +181,7 @@ contains
     self%EnonSCC = 0.0_dp
     self%ESCC = 0.0_dp
     self%Espin = 0.0_dp
+    self%Efock = 0.0_dp
     self%ELS = 0.0_dp
     self%Edftbu = 0.0_dp
     self%Eext = 0.0_dp
