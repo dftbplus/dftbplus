@@ -19,7 +19,7 @@ workdir=$(abspath $workdir)
 if [ $# -gt 0 ]; then
   pythons=$*
 else
-  pythons="python"
+  pythons="python3"
 fi
 
 pythonpath="$packagedir/src"

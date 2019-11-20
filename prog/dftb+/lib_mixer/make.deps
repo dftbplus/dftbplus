@@ -1,25 +1,25 @@
-andersonmixer.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines
-andersonmixer.o = andersonmixer.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines)
+andersonmixer.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_lapackroutines
+andersonmixer.o = andersonmixer.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines)
 _mod_dftbp_andersonmixer: andersonmixer.o
 _mod_dftbp_andersonmixer = $(andersonmixer.o)
 
-broydenmixer.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines _mod_dftbp_blasroutines _mod_dftbp_message
-broydenmixer.o = broydenmixer.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_blasroutines) $(_mod_dftbp_message)
+broydenmixer.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_message _mod_dftbp_blasroutines _mod_dftbp_lapackroutines
+broydenmixer.o = broydenmixer.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_message) $(_mod_dftbp_blasroutines) $(_mod_dftbp_lapackroutines)
 _mod_dftbp_broydenmixer: broydenmixer.o
 _mod_dftbp_broydenmixer = $(broydenmixer.o)
 
-diismixer.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_dftbp_lapackroutines
-diismixer.o = diismixer.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines)
+diismixer.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_lapackroutines
+diismixer.o = diismixer.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_lapackroutines)
 _mod_dftbp_diismixer: diismixer.o
 _mod_dftbp_diismixer = $(diismixer.o)
 
-mixer.o: _mod_dftbp_andersonmixer _mod_dftbp_broydenmixer common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_simplemixer _mod_dftbp_diismixer _mod_dftbp_message
-mixer.o = mixer.o $(_mod_dftbp_andersonmixer) $(_mod_dftbp_broydenmixer) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_simplemixer) $(_mod_dftbp_diismixer) $(_mod_dftbp_message)
+mixer.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_simplemixer _mod_dftbp_andersonmixer _mod_dftbp_broydenmixer _mod_dftbp_diismixer _mod_dftbp_message
+mixer.o = mixer.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_simplemixer) $(_mod_dftbp_andersonmixer) $(_mod_dftbp_broydenmixer) $(_mod_dftbp_diismixer) $(_mod_dftbp_message)
 _mod_dftbp_mixer: mixer.o
 _mod_dftbp_mixer = $(mixer.o)
 
-simplemixer.o: _mod_dftbp_assert common.fypp _mod_dftbp_accuracy
-simplemixer.o = simplemixer.o $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy)
+simplemixer.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy
+simplemixer.o = simplemixer.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy)
 _mod_dftbp_simplemixer: simplemixer.o
 _mod_dftbp_simplemixer = $(simplemixer.o)
 

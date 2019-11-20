@@ -26,11 +26,10 @@ class FreeSepString(str):
                                             characters)
 
         Exceptions:
-            TypeError -- if strSeparator is not string or unicode instance.
+            TypeError -- if strSeparator is not string instance.
         """
         if strSeparator:
-            if not (isinstance(strSeparator, str)
-                            or isinstance(strSeparator, unicode)):
+            if not (isinstance(strSeparator, str)):
                 raise TypeError("expected a character buffer object")
             splitted = self.split(strSeparator)
             empties = [ len(x) == 0 for x in splitted ]

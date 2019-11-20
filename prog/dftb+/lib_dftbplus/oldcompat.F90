@@ -59,6 +59,9 @@ contains
       case (6)
         call convert_6_7(root)
         version = 7
+      case (7)
+        call convert_7_8(root)
+        version = 8
       end select
     end do
 
@@ -391,7 +394,7 @@ contains
   end subroutine convert_5_6
 
 
-  !> Converts input from version 6 to 7. (Version 7 introcuded in April 2019)
+  !> Converts input from version 6 to 7. (Version 7 introduced in April 2019)
   subroutine convert_6_7(root)
 
     !> Root tag of the HSD-tree
@@ -413,8 +416,25 @@ contains
       call setNodeName(ch1, "Solver")
     end if
 
-
   end subroutine convert_6_7
+
+
+  !> Converts input from version 7 to 8. (Version 8 introduced in October 2019)
+  subroutine convert_7_8(root)
+
+    !> Root tag of the HSD-tree
+    type(fnode), pointer :: root
+
+    type(fnode), pointer :: ch1, par
+    logical :: tVal
+
+    call getDescendant(root, "Analysis/EigenvectorsAsTxt", ch1)
+    if (associated(ch1)) then
+      call detailedWarning(ch1, "Keyword converted to 'EigenvectorsAsText'.")
+      call setNodeName(ch1, "EigenvectorsAsText")
+    end if
+
+  end subroutine convert_7_8
 
 
   !> Update values in the DftD3 block to match behaviour of v6 parser

@@ -8,20 +8,20 @@
 #:include 'common.fypp'
 
 !> Contains data type representing the input data for DFTB
-module dftbp_inputdata_module
+module dftbp_inputdata
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_typegeometry
   use dftbp_message
   use dftbp_dispersions, only : DispersionInp
-  use dftbp_linresp_module, only : linrespini
+  use dftbp_linresp, only : linrespini
   use dftbp_slakocont
   use dftbp_commontypes
   use dftbp_repcont
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_elecsolvers, only : TElectronicSolverInp
-  use dftbp_xlbomd_module
+  use dftbp_xlbomd
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IpiSocketCommInp
 #:endif
@@ -81,7 +81,7 @@ module dftbp_inputdata_module
     real(dp) :: screeningThreshold
     real(dp) :: cutoffRed
     real(dp) :: omega
-    character(lc) :: rangeSepAlg
+    integer :: rangeSepAlg
   end type TRangeSepInp
 
 
@@ -391,6 +391,8 @@ module dftbp_inputdata_module
     real(dp), allocatable :: h5ElementPara(:)
     ! H5 correction end
 
+    !> Halogen X correction
+    logical :: tHalogenX = .false.
 
     !> Old repulsive
     logical :: useBuggyRepSum
@@ -549,4 +551,4 @@ contains
 
   end subroutine Control_destruct
 
-end module dftbp_inputdata_module
+end module dftbp_inputdata
