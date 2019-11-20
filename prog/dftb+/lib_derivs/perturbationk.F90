@@ -32,9 +32,8 @@ module dftbp_perturbkderivs
   use dftbp_densedescr
   use dftbp_sparse2dense
   use dftbp_rotateDegenerateOrbs, only : TDegeneracyTransform
-  use dftbp_taggedoutput
   use dftbp_wrappedintr
-  use dftbp_taggedoutput, only : TTaggedWriter
+  use dftbp_taggedoutput
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -185,8 +184,6 @@ contains
     allocate(work2local(size(eigVecsCplx,dim=1), size(eigVecsCplx,dim=2)))
 
     call transform%init()
-
-
 
     do iKS = 1, parallelKS%nLocalKS
 
@@ -402,12 +399,12 @@ contains
 
     if (allocated(dEi) .and. env%tGlobalMaster) then
       if (tWriteAutoTest) then
-        open(newunit=fdResults, file=trim(autoTestTagFile), position="append")
+        open(newunit=fdResults, file=autoTestTagFile, position="append")
         call taggedWriter%write(fdResults, tagLabels%dEigenDk, dEi)
         close(fdResults)
       end if
       if (tWriteTaggedOut) then
-        open(newunit=fdResults, file=trim(taggedResultsFile), action="write", status="old",&
+        open(newunit=fdResults, file=taggedResultsFile, action="write", status="old",&
             & position="append")
         call taggedWriter%write(fdResults, tagLabels%dEigenDk, dEi)
         close(fdResults)

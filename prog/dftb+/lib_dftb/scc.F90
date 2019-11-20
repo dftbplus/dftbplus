@@ -802,11 +802,14 @@ contains
 
 
   !> Derivative of the shift potentials with respect to atom positions
-  subroutine addPotentialDeriv(this, vAt, vShell, species, iNeighbour, img2CentCell, coord, orb,&
-      & iCart, iAt)
+  subroutine addPotentialDeriv(this, env, vAt, vShell, species, iNeighbour, img2CentCell, coord,&
+      & orb, iCart, iAt)
 
     !> Instance
     class(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Atomic part of derivative
     real(dp), intent(inout) :: vAt(:)
@@ -836,7 +839,8 @@ contains
     integer, intent(in) :: iAt
 
     ! Short-range part of gamma contribution
-    call GammaPrimeV_(this, vShell, this%coord, species, iNeighbour, img2CentCell, orb, iCart, iAt)
+    call GammaPrimeV_(this, env, vShell, this%coord, species, iNeighbour, img2CentCell, orb, iCart,&
+        & iAt)
 
     ! 1/R contribution
     if (this%tPeriodic) then
@@ -1737,11 +1741,16 @@ contains
 
   end subroutine getSummedChargesPerUniqU_
 
+
   !> Calculate the derivative of the potential from the short range part of Gamma.
-  subroutine GammaPrimeV_(this, vprime, coord, species, iNeighbour, img2CentCell, orb, iCart, iAt)
+  subroutine GammaPrimeV_(this, env, vprime, coord, species, iNeighbour, img2CentCell, orb, iCart,&
+      & iAt)
 
     !> Instance of SCC solver
     type(TScc), intent(in) :: this
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Potential to add the contribution to
     real(dp), intent(inout) :: vprime(:,:,:)
@@ -1769,10 +1778,23 @@ contains
 
     integer :: iAt1, iAt2, iAt2f, iU1, iU2, iNeigh, iSp1, iSp2
     real(dp) :: rab, tmpGammaPrime, tmpGamma, u1, u2, invRab
-    integer :: iSh1, iSh2
+    integer :: iSh1, iSh2, iAt1Start, iAt1End
 
-    ! some additional symmetry not used
-    do iAt1 = 1, this%nAtom
+  #:if WITH_SCALAPACK
+    if (env%blacs%atomGrid%iProc /= -1) then
+      iAt1Start = env%blacs%atomGrid%iproc * this%nAtom / env%blacs%atomGrid%nproc + 1
+      iAt1End = (env%blacs%atomGrid%iproc + 1) * this%nAtom / env%blacs%atomGrid%nproc
+    else
+      ! Do not calculate anything if process is not part of the atomic grid
+      iAt1Start = 0
+      iAt1End = -1
+    end if
+  #:else
+    iAt1Start = 1
+    iAt1End = this%nAtom
+  #:endif
+
+    do iAt1 = iAt1Start, iAt1End
       iSp1 = species(iAt1)
       do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
         iAt2 = iNeighbour(iNeigh, iAt1)
@@ -1813,6 +1835,10 @@ contains
     end do
 
     vprime(:,iAt,1) = -vprime(:,iAt,1)
+
+  #:if WITH_SCALAPACK
+    call mpifx_allreduceip(env%mpi%groupComm, vprime, MPI_SUM)
+  #:endif
 
   end subroutine GammaPrimeV_
 
