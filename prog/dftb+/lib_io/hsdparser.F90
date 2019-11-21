@@ -606,31 +606,32 @@ contains
     if (iType == 0) then
       !! Create and append new node
       tCreate = .true.
+    else if (iType == 6) then
+      newChild => null()
+      return
     else
       !! Look for already present node with the same name
       sameChild => getFirstChildByName(parentNode, trim(lowerName))
       if (associated(sameChild)) then
         !! We have found a block with the same name
-        if (iType == 4) then
+        select case (iType)
+        case(1,2,3)
+          newChild => sameChild
+        case(4) 
           newChild => null()
           return
-        elseif (iType == 5) then
+        case(5)
           dummy => removeChild(parentNode, sameChild)
           call destroyNode(sameChild)
           tCreate = .true.
-        elseif (iType == 6) then
-          newChild => null()
-          return
-        else
-          newChild => sameChild
-        end if
+        end select
       else
         !! We did not found a child with the same name
         select case (iType)
         case(1)
           call parsingError("Containing block does not contain a(n) '" &
               &// trim(truncName) // "' block yet.", file, curLine)
-        case(2,6)
+        case(2)
           newChild => null()
           return
         case(3,4,5)

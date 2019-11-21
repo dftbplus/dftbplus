@@ -16,8 +16,8 @@ module dftbp_hsdhelpers
   use dftbp_hsdutils2
   use dftbp_inputdata_module
   use dftbp_message
-  use dftbp_xmlf90, only : fnode, createElement, fnodeList, append, &
-                     &      destroyNode, getLength
+  use dftbp_xmlf90, only : fnode, createElement, fnodeList, append
+  use dftbp_xmlf90, only : destroyNode, getLength
   implicit none
   private
 
