@@ -73,8 +73,14 @@ module dftbp_mmapi
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
+    !> set the shell-resolved DFTB+ partial charges
+    procedure :: setShellResolvedCharges => TDftbPlus_setShellResolvedCharges
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    !> Check that the list of species names has not changed  
+    procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
+    !> Replace species and redefine all quantities that depend on it 
+    procedure :: setSpeciesAndDependents => TDftbPlus_setSpeciesAndDependents
     procedure, private :: checkInit => TDftbPlus_checkInit
   end type TDftbPlus
 
@@ -114,7 +120,7 @@ contains
     !> Unit where to write the output (note: also error messages are written here)
     integer, intent(in), optional :: outputUnit
 
-    !> MPI-communicator to use (placholder only, the API does not work with MPI yet)
+    !> MPI-communicator to use
     integer, intent(in), optional :: mpiComm
 
     integer :: stdOut
@@ -224,7 +230,7 @@ contains
     !> Atomic coordinates in Bohr units. Shape: (3, nAtom).
     real(dp), intent(in) :: coords(:,:)
 
-    !> Lattice vectors in Borh units. Shape: (3, 3).
+    !> Lattice vectors in Bohr units, stored column-wise. Shape: (3, 3).
     real(dp), intent(in), optional :: latVecs(:,:)
 
     call this%checkInit()
@@ -467,6 +473,64 @@ contains
 
   end subroutine convertAtomTypesToSpecies
 
+  !TODO(Alex) Consider whether this should be a member function or free function
+  !> Checks speciesNames has not changed between calls to DFTB+
+  subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
+    !TODO(Alex) Establish how to set len of inputSpeciesNames
+    !use dftbp_accuracy,    only: mc
+    use dftbp_message, only: error
+    class(TDftbPlus),               intent(inout) :: this
+    character(len=3),  allocatable, intent(in)    :: inputSpeciesNames(:)
+    logical                                       :: tSpeciesNameChanged
+
+    call this%checkInit()
+    
+    tSpeciesNameChanged = checkSpeciesNames(inputSpeciesNames)
+    
+    if(tSpeciesNameChanged)then
+       call error('speciesNames has changed between calls to DFTB+. This will cause erroneous results.')
+    else
+       continue
+    endif
+
+  end subroutine TDftbPlus_checkSpeciesNames
+
+  !> Set species and all variables/data dependent on it   
+  subroutine TDftbPlus_setSpeciesAndDependents(this, inputSpeciesNames, inputSpecies)
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+    
+    !> Type of each atom (nAllAtom) 
+    integer, allocatable, intent(in) :: inputSpecies(:)
+    
+    !> Labels of atomic species (nSpecies)
+    character(mc), allocatable, intent(in) :: inputSpeciesNames(:)
+    
+    call this%checkInit()
+    !TODO(Alex) May not want this call here 
+    call this%checkSpeciesNames(inputSpeciesNames)
+    call updateDataDependentOnSpeciesOrdering(this%env, inputSpecies)
+
+  end subroutine TDftbPlus_setSpeciesAndDependents
+
+  !> Set shell-resolved partial charges.
+  !> If no argument given, the final charges from the prior calculation are used 
+  subroutine TDftbPlus_setShellResolvedCharges(this, qSeed)
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Shell-resolved partial charge 
+    real(dp), allocatable, intent(in), optional :: qSeed(:, :, :)
+
+    call this%checkInit()
+    if (present(qSeed)) then
+       call setShellResolvedCharges(qSeed)
+    else
+       ! Uses final charges from prior calculation 
+       call setShellResolvedCharges()
+    endif
+    
+  end subroutine TDftbPlus_setShellResolvedCharges
 
 
 end module dftbp_mmapi
