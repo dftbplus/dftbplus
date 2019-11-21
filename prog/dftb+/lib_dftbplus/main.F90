@@ -2587,7 +2587,7 @@ contains
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
-
+  
   #:if WITH_SCALAPACK
     call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif
