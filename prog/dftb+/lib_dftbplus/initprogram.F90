@@ -3240,15 +3240,15 @@ contains
      if (tMD) then
        call error("Electron dynamics does not work with MD")
      end if
-
-     !if (abs(input%ctrl%nrChrg) > epsilon(0.0_dp)) then
-     !  call error("Electron dynamics does not work with charge system")
-     !end if
+     
+     if (tPeriodic .and. tRangeSep) then
+       call error("Range separated calculations do not work with periodic systems yet.")
+     end if
 
      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName,&
          & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, cutOff%skCutoff,&
          & cutOff%mCutoff, atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS,&
-         & tRealHS, kPoint, kWeight)
+         & tRealHS, kPoint, kWeight, tRangeSep)
 
    end if
 
