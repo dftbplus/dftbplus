@@ -42,7 +42,7 @@ set(CMAKE_C_FLAGS_RELEASE "-O2 -funroll-all-loops" CACHE STRING "Specific C flag
 if(WITH_MPI)
   set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
 else()
-  set(LAPACK_LIBRARIES "openblas" CACHE STRING "LAPACK and BLAS libraries to link")
+  set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
 endif()
 set(LAPACK_LIBRARY_DIRS "" CACHE STRING
   "Directories where LAPACK and BLAS libraries can be found")
@@ -81,7 +81,7 @@ set(OTHER_INCLUDE_DIRS "" CACHE STRING "Other include directories to consider")
 #
 # Debug settings (for developers)
 #
-set(CMAKE_Fortran_FLAGS_DEBUG "-g -Wall -std=f2008 -pedantic -fbounds-check" CACHE STRING
+set(CMAKE_Fortran_FLAGS_DEBUG "-g -Wall -std=f2008ts -pedantic -fbounds-check" CACHE STRING
   "Specific Fortran flags for Debug mode")
 
 set(CMAKE_C_FLAGS_DEBUG "-g -Wall -pedantic -fall-intrinsics -fbounds-check" CACHE STRING

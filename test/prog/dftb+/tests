@@ -26,17 +26,23 @@ timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI
 
+timeprop/benzene_rangesep              #? OMP_THREADS <= 1 and not WITH_MPI
+
+
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
 rangesep/C18H12-force                  #? not WITH_MPI
 rangesep/C18H12-nbscreening            #? not WITH_MPI
+rangesep/C18H12-matrix                 #? not WITH_MPI
 rangesep/CH3                           #? not WITH_MPI
+rangesep/CH3-matrix                    #? not WITH_MPI
 rangesep/C60-nb                        #? not WITH_MPI
 rangesep/C60-nb-cutoff                 #? not WITH_MPI
 rangesep/Thymine-T1-force              #? not WITH_MPI
 rangesep/cyclopropene_nb_restart       #? not WITH_MPI
 rangesep/C240_tn                       #? not WITH_MPI
+rangesep/Thymine-T1_onsite             #? not WITH_MPI
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8 and OMP_THREADS == 1
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
@@ -171,6 +177,13 @@ dangerous/C_SkCutoff_soft_default      #? MPI_PROCS <= 4
 dangerous/C_SkCutoff_hard_default      #? MPI_PROCS <= 4
 dangerous/C_SkCutoff_soft_old          #? MPI_PROCS <= 4
 dangerous/C_SkCutoff_hard_old          #? MPI_PROCS <= 4
+
+halogen/3492                           #? WITH_DFTD3 and MPI_PROCS <= 1
+halogen/3499                           #? WITH_DFTD3 and MPI_PROCS <= 1
+halogen/3500                           #? WITH_DFTD3 and MPI_PROCS <= 1
+halogen/3501                           #? WITH_DFTD3 and MPI_PROCS <= 1
+halogen/3502                           #? WITH_DFTD3 and MPI_PROCS <= 1
+halogen/3518                           #? WITH_DFTD3 and MPI_PROCS <= 1
 
 timedep/cyclopentadienyl               #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C6H6-Sym                       #? WITH_ARPACK and MPI_PROCS <= 1
