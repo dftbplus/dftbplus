@@ -56,19 +56,19 @@ dispcommon.o = dispcommon.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_acc
 _mod_dftbp_dispcommon: dispcommon.o
 _mod_dftbp_dispcommon = $(dispcommon.o)
 
-dispdftd3.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_dispiface _mod_dftbp_dftd3_module _mod_dftbp_periodic _mod_dftbp_simplealgebra _mod_dftbp_constants 
-dispdftd3.o = dispdftd3.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_dispiface) $(_mod_dftbp_dftd3_module) $(_mod_dftbp_periodic) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_constants) 
-_mod_dftbp_dispdftd3_module: dispdftd3.o
-_mod_dftbp_dispdftd3_module = $(dispdftd3.o)
+dispdftd3.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_dispiface _mod_dftbp_dftd3 _mod_dftbp_periodic _mod_dftbp_simplealgebra _mod_dftbp_constants 
+dispdftd3.o = dispdftd3.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_dispiface) $(_mod_dftbp_dftd3) $(_mod_dftbp_periodic) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_constants) 
+_mod_dftbp_dispdftd3: dispdftd3.o
+_mod_dftbp_dispdftd3 = $(dispdftd3.o)
 
 #:if WITH_DFTD3
-dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff_module _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw _mod_dftbp_dispdftd3_module 
-dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff_module) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_dispdftd3_module) 
+dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw _mod_dftbp_dispdftd3 
+dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_dispdftd3) 
 _mod_dftbp_dispersions: dispersions.o
 _mod_dftbp_dispersions = $(dispersions.o)
 #:else
-dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff_module _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw 
-dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff_module) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) 
+dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw 
+dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) 
 _mod_dftbp_dispersions: dispersions.o
 _mod_dftbp_dispersions = $(dispersions.o)
 #:endif
@@ -85,8 +85,8 @@ _mod_dftbp_dispslaterkirkw = $(dispslaterkirkw.o)
 
 dispuff.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_simplealgebra _mod_dftbp_lapackroutines _mod_dftbp_periodic _mod_dftbp_constants _mod_dftbp_dispiface _mod_dftbp_dispcommon 
 dispuff.o = dispuff.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_periodic) $(_mod_dftbp_constants) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispcommon) 
-_mod_dftbp_dispuff_module: dispuff.o
-_mod_dftbp_dispuff_module = $(dispuff.o)
+_mod_dftbp_dispuff: dispuff.o
+_mod_dftbp_dispuff = $(dispuff.o)
 
 dispuffdata.o: _mod_dftbp_accuracy _mod_dftbp_message _mod_dftbp_charmanip _mod_dftbp_constants 
 dispuffdata.o = dispuffdata.o $(_mod_dftbp_accuracy) $(_mod_dftbp_message) $(_mod_dftbp_charmanip) $(_mod_dftbp_constants) 
@@ -118,8 +118,8 @@ etemp.o = etemp.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_
 _mod_dftbp_etemp: etemp.o
 _mod_dftbp_etemp = $(etemp.o)
 
-evaluateenergies.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_energies _mod_dftbp_populations _mod_dftbp_dftbplusu _mod_dftbp_spinorbit _mod_dftbp_commontypes _mod_dftbp_periodic _mod_dftbp_potentials _mod_dftbp_shift _mod_dftbp_spin _mod_dftbp_message _mod_dftbp_thirdorder_module _mod_dftbp_environment _mod_dftbp_scc _mod_dftbp_rangeseparated _mod_dftbp_qdepextpotproxy _mod_dftbp_onsitecorrection 
-evaluateenergies.o = evaluateenergies.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_energies) $(_mod_dftbp_populations) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_spinorbit) $(_mod_dftbp_commontypes) $(_mod_dftbp_periodic) $(_mod_dftbp_potentials) $(_mod_dftbp_shift) $(_mod_dftbp_spin) $(_mod_dftbp_message) $(_mod_dftbp_thirdorder_module) $(_mod_dftbp_environment) $(_mod_dftbp_scc) $(_mod_dftbp_rangeseparated) $(_mod_dftbp_qdepextpotproxy) $(_mod_dftbp_onsitecorrection) 
+evaluateenergies.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_energies _mod_dftbp_populations _mod_dftbp_dftbplusu _mod_dftbp_spinorbit _mod_dftbp_commontypes _mod_dftbp_periodic _mod_dftbp_potentials _mod_dftbp_shift _mod_dftbp_spin _mod_dftbp_message _mod_dftbp_thirdorder _mod_dftbp_environment _mod_dftbp_scc _mod_dftbp_rangeseparated _mod_dftbp_qdepextpotproxy _mod_dftbp_onsitecorrection 
+evaluateenergies.o = evaluateenergies.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_energies) $(_mod_dftbp_populations) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_spinorbit) $(_mod_dftbp_commontypes) $(_mod_dftbp_periodic) $(_mod_dftbp_potentials) $(_mod_dftbp_shift) $(_mod_dftbp_spin) $(_mod_dftbp_message) $(_mod_dftbp_thirdorder) $(_mod_dftbp_environment) $(_mod_dftbp_scc) $(_mod_dftbp_rangeseparated) $(_mod_dftbp_qdepextpotproxy) $(_mod_dftbp_onsitecorrection) 
 _mod_dftb_evaluateenergies: evaluateenergies.o
 _mod_dftb_evaluateenergies = $(evaluateenergies.o)
 
@@ -138,14 +138,19 @@ h5correction.o = h5correction.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dft
 _mod_dftbp_h5correction: h5correction.o
 _mod_dftbp_h5correction = $(h5correction.o)
 
+halogenx.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_vdwdata _mod_dftbp_constants _mod_dftbp_periodic _mod_dftbp_message 
+halogenx.o = halogenx.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_vdwdata) $(_mod_dftbp_constants) $(_mod_dftbp_periodic) $(_mod_dftbp_message) 
+_mod_dftbp_halogenx: halogenx.o
+_mod_dftbp_halogenx = $(halogenx.o)
+
 #:if WITH_TRANSPORT
-hamitonian.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_commontypes _mod_dftbp_periodic _mod_dftbp_potentials _mod_dftbp_shift _mod_dftbp_spin _mod_dftbp_spinorbit _mod_dftbp_dftbplusu _mod_dftbp_message _mod_dftbp_thirdorder_module _mod_dftbp_environment _mod_dftbp_scc _mod_dftbp_elstattypes _mod_poisson_init 
-hamitonian.o = hamitonian.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_commontypes) $(_mod_dftbp_periodic) $(_mod_dftbp_potentials) $(_mod_dftbp_shift) $(_mod_dftbp_spin) $(_mod_dftbp_spinorbit) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_message) $(_mod_dftbp_thirdorder_module) $(_mod_dftbp_environment) $(_mod_dftbp_scc) $(_mod_dftbp_elstattypes) $(_mod_poisson_init) 
+hamitonian.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_commontypes _mod_dftbp_periodic _mod_dftbp_potentials _mod_dftbp_shift _mod_dftbp_spin _mod_dftbp_spinorbit _mod_dftbp_dftbplusu _mod_dftbp_message _mod_dftbp_thirdorder _mod_dftbp_environment _mod_dftbp_scc _mod_dftbp_elstattypes _mod_poisson_init 
+hamitonian.o = hamitonian.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_commontypes) $(_mod_dftbp_periodic) $(_mod_dftbp_potentials) $(_mod_dftbp_shift) $(_mod_dftbp_spin) $(_mod_dftbp_spinorbit) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_message) $(_mod_dftbp_thirdorder) $(_mod_dftbp_environment) $(_mod_dftbp_scc) $(_mod_dftbp_elstattypes) $(_mod_poisson_init) 
 _mod_dftbp_hamiltonian: hamitonian.o
 _mod_dftbp_hamiltonian = $(hamitonian.o)
 #:else
-hamitonian.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_commontypes _mod_dftbp_periodic _mod_dftbp_potentials _mod_dftbp_shift _mod_dftbp_spin _mod_dftbp_spinorbit _mod_dftbp_dftbplusu _mod_dftbp_message _mod_dftbp_thirdorder_module _mod_dftbp_environment _mod_dftbp_scc _mod_dftbp_elstattypes 
-hamitonian.o = hamitonian.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_commontypes) $(_mod_dftbp_periodic) $(_mod_dftbp_potentials) $(_mod_dftbp_shift) $(_mod_dftbp_spin) $(_mod_dftbp_spinorbit) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_message) $(_mod_dftbp_thirdorder_module) $(_mod_dftbp_environment) $(_mod_dftbp_scc) $(_mod_dftbp_elstattypes) 
+hamitonian.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_commontypes _mod_dftbp_periodic _mod_dftbp_potentials _mod_dftbp_shift _mod_dftbp_spin _mod_dftbp_spinorbit _mod_dftbp_dftbplusu _mod_dftbp_message _mod_dftbp_thirdorder _mod_dftbp_environment _mod_dftbp_scc _mod_dftbp_elstattypes 
+hamitonian.o = hamitonian.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_commontypes) $(_mod_dftbp_periodic) $(_mod_dftbp_potentials) $(_mod_dftbp_shift) $(_mod_dftbp_spin) $(_mod_dftbp_spinorbit) $(_mod_dftbp_dftbplusu) $(_mod_dftbp_message) $(_mod_dftbp_thirdorder) $(_mod_dftbp_environment) $(_mod_dftbp_scc) $(_mod_dftbp_elstattypes) 
 _mod_dftbp_hamiltonian: hamitonian.o
 _mod_dftbp_hamiltonian = $(hamitonian.o)
 #:endif
@@ -185,8 +190,8 @@ potentials.o = potentials.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_acc
 _mod_dftbp_potentials: potentials.o
 _mod_dftbp_potentials = $(potentials.o)
 
-rangeseparated.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_environment _mod_dftbp_assert _mod_dftbp_message _mod_dftbp_nonscc _mod_dftbp_slakocont _mod_dftbp_commontypes _mod_dftbp_sorting _mod_dftbp_sparse2dense _mod_dftbp_globalenv _mod_dftbp_f08math 
-rangeseparated.o = rangeseparated.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(_mod_dftbp_message) $(_mod_dftbp_nonscc) $(_mod_dftbp_slakocont) $(_mod_dftbp_commontypes) $(_mod_dftbp_sorting) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_globalenv) $(_mod_dftbp_f08math) 
+rangeseparated.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_environment _mod_dftbp_assert _mod_dftbp_message _mod_dftbp_nonscc _mod_dftbp_slakocont _mod_dftbp_commontypes _mod_dftbp_sorting _mod_dftbp_sparse2dense _mod_dftbp_globalenv _mod_dftbp_f08math _mod_dftbp_blasroutines 
+rangeseparated.o = rangeseparated.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_environment) $(_mod_dftbp_assert) $(_mod_dftbp_message) $(_mod_dftbp_nonscc) $(_mod_dftbp_slakocont) $(_mod_dftbp_commontypes) $(_mod_dftbp_sorting) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_globalenv) $(_mod_dftbp_f08math) $(_mod_dftbp_blasroutines) 
 _mod_dftbp_rangeseparated: rangeseparated.o
 _mod_dftbp_rangeseparated = $(rangeseparated.o)
 
@@ -288,8 +293,8 @@ _mod_dftbp_stress = $(stress.o)
 
 thirdorder.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_commontypes _mod_dftbp_shortgamma _mod_dftbp_periodic _mod_dftbp_charges 
 thirdorder.o = thirdorder.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_commontypes) $(_mod_dftbp_shortgamma) $(_mod_dftbp_periodic) $(_mod_dftbp_charges) 
-_mod_dftbp_thirdorder_module: thirdorder.o
-_mod_dftbp_thirdorder_module = $(thirdorder.o)
+_mod_dftbp_thirdorder: thirdorder.o
+_mod_dftbp_thirdorder = $(thirdorder.o)
 
 vdwdata.o: _mod_dftbp_accuracy _mod_dftbp_message _mod_dftbp_charmanip _mod_dftbp_constants 
 vdwdata.o = vdwdata.o $(_mod_dftbp_accuracy) $(_mod_dftbp_message) $(_mod_dftbp_charmanip) $(_mod_dftbp_constants) 

@@ -11,11 +11,11 @@
 !!
 module dftbp_dispersions
   use dftbp_dispiface
-  use dftbp_dispuff_module
+  use dftbp_dispuff
   use dftbp_dispuffdata
   use dftbp_dispslaterkirkw
 #:if WITH_DFTD3
-  use dftbp_dispdftd3_module
+  use dftbp_dispdftd3
 #:endif
   implicit none
   public

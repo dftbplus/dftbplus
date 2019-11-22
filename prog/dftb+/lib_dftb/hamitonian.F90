@@ -19,7 +19,7 @@ module dftbp_hamiltonian
   use dftbp_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftbplusu, only : getDftbUShift
   use dftbp_message, only : error
-  use dftbp_thirdorder_module, only : ThirdOrder
+  use dftbp_thirdorder, only : ThirdOrder
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
   use dftbp_elstattypes

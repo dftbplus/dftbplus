@@ -21,10 +21,29 @@ module dftbp_rangeseparated
   use dftbp_sparse2dense, only : blockSymmetrizeHS
   use dftbp_globalenv, only : stdOut
   use dftbp_f08math
+  use dftbp_blasroutines, only : gemm
   implicit none
   private
 
-  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init
+  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init, rangeSepTypes
+
+
+  type :: TRangeSepTypesEnum
+
+    !> Neighbour based
+    integer :: neighbour = 0
+
+    !> Threshold based
+    integer :: threshold = 1
+
+    !> Matrix based
+    integer :: matrixBased = 2
+
+  end type TRangeSepTypesEnum
+
+
+  !> Container for enumerated range separation types
+  type(TRangeSepTypesEnum), parameter :: rangeSepTypes = TRangeSepTypesEnum()
 
 
   !> Slater-Koster file RangeSep tag structure
@@ -75,11 +94,14 @@ module dftbp_rangeseparated
     !> spin down part of energy
     real(dp) :: lrEnergyDn
 
-    !> is the system spin unrestricted or restricted
+    !> Is this spin restricted (F) or unrestricted (T)
     logical :: tSpin
 
+    !> Is this DFTB/SSR formalism
+    logical :: tREKS
+
     !> algorithm for range separation screening
-    character(lc) :: rsAlg
+    integer :: rsAlg
 
     !> species of atoms
     integer, allocatable :: species(:)
@@ -91,6 +113,7 @@ module dftbp_rangeseparated
 
     procedure :: updateCoords
     procedure :: addLrHamiltonian
+    procedure :: addLrHamiltonianMatrixCmplx
     procedure :: addLrEnergy
     procedure :: addLrGradients
     procedure :: evaluateLrEnergyDirect
@@ -102,8 +125,8 @@ contains
 
 
   !> Intitialize the range-sep module
-  subroutine RangeSepFunc_init(this, nAtom, species, speciesNames, hubbu, screen, omega, tSpin,&
-      & rsAlg)
+  subroutine RangeSepFunc_init(this, nAtom, species, speciesNames, hubbu, screen, omega,&
+      & tSpin, tREKS, rsAlg)
 
     !> class instance
     type(RangeSepFunc), intent(out) :: this
@@ -126,20 +149,23 @@ contains
     !> range separation parameter
     real(dp), intent(in) :: omega
 
-    !> spin unrestricted?
+    !> Is this spin restricted (F) or unrestricted (T)
     logical, intent(in) :: tSpin
 
-    !> lr-hamiltonian construction algorithm
-    character(lc), intent(in) :: rsAlg
+    !> Is this DFTB/SSR formalism
+    logical, intent(in) :: tREKS
 
-    call initAndAllocate(this, nAtom, hubbu, species, screen, omega, rsAlg, tSpin)
+    !> lr-hamiltonian construction algorithm
+    integer, intent(in) :: rsAlg
+
+    call initAndAllocate(this, nAtom, hubbu, species, screen, omega, rsAlg, tSpin, tREKS)
     call checkRequirements(this)
 
   contains
 
 
     !> initialise data structures and allocate storage
-    subroutine initAndAllocate(this, nAtom, hubbu, species, screen, omega, rsAlg, tSpin)
+    subroutine initAndAllocate(this, nAtom, hubbu, species, screen, omega, rsAlg, tSpin, tREKS)
 
       !> Instance
       class(RangeSepFunc), intent(out) :: this
@@ -160,10 +186,13 @@ contains
       real(dp), intent(in) :: omega
 
       !> Algorithm for range separation
-      character(lc), intent(in) :: rsAlg
+      integer, intent(in) :: rsAlg
 
       !> Is this spin restricted (F) or unrestricted (T)
       logical, intent(in) :: tSpin
+
+      !> Is this DFTB/SSR formalism
+      logical, intent(in) :: tREKS
 
       this%tScreeningInited = .false.
       this%pScreeningThreshold = screen
@@ -171,6 +200,7 @@ contains
       this%lrEnergy = 0.0_dp
       this%rsAlg = rsAlg
       this%tSpin = tSpin
+      this%tREKS = tREKS
 
       allocate(this%coords(3, nAtom))
       allocate(this%species(nAtom))
@@ -189,12 +219,13 @@ contains
       class(RangeSepFunc), intent(inout) :: this
 
       ! Check for current restrictions
-      if (this%tSpin .and. this%rsAlg == "tr") then
+      if (this%tSpin .and. this%rsAlg == rangeSepTypes%threshold) then
         call error("Spin-unrestricted calculation for thresholding algorithm not yet implemented!")
       end if
 
-      if (.not. any(["nb", "tr"] == this%rsAlg)) then
-        call error("Invalid algorithm '" // trim(this%rsAlg) // "' for screening exchange")
+      if (.not. any([rangeSepTypes%neighbour, rangeSepTypes%threshold,&
+            & rangeSepTypes%matrixBased] == this%rsAlg)) then
+        call error("Unknown algorithm for screening the exchange")
       end if
 
     end subroutine checkRequirements
@@ -211,7 +242,7 @@ contains
     !> list of atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    integer :: nAtom, iAtom1,iAtom2,ii,iSp1,iSp2
+    integer :: nAtom, iAtom1, iAtom2, ii, iSp1, iSp2
     real(dp) :: dist
 
     this%coords(:,:) = coords
@@ -278,13 +309,15 @@ contains
     real(dp), intent(in) :: overlap(:,:)
 
     call env%globalTimer%startTimer(globalTimers%rangeSeparatedH)
-    select case(trim(this%rsAlg))
-    case ("tr")
+    select case(this%rsAlg)
+    case (rangeSepTypes%threshold)
       call addLrHamiltonianThreshold(this, env, overlap, densSqr, iNeighbour, nNeighbourLC,&
           & iSquare, HH, orb)
-    case ("nb")
+    case (rangeSepTypes%neighbour)
       call addLrHamiltonianNeighbour(this, env, densSqr, over, iNeighbour, nNeighbourLC, iSquare,&
           & iPair, orb, HH)
+    case (rangeSepTypes%matrixBased)
+      call addLrHamiltonianMatrix(this, iSquare, overlap, densSqr, HH)
     end select
     call env%globalTimer%stopTimer(globalTimers%rangeSeparatedH)
 
@@ -402,7 +435,7 @@ contains
           nOrb1 = orb%nOrbSpecies(iSp1)
           prb = pbound * testOvr(iAt1, iAtMu)
           if(abs(prb) < this%pScreeningThreshold) then
-            exit
+            exit loopKK
           end if
           loopNu: do iAtNu = 1, iAtMu
             descN = getDescriptor(iAtNu, iSquare)
@@ -413,7 +446,7 @@ contains
               nOrb2 = orb%nOrbSpecies(iSp2)
               tstbound = prb * testOvr(iAt2, iAtNu)
               if(abs(tstbound) < this%pScreeningThreshold) then
-                exit
+                exit loopLL
               end if
               desc2 = getDescriptor(iAt2, iSquare)
               gammabatch = (this%lrGammaEval(iAtMu, iAt2) + this%lrGammaEval(iAt1, iAt2)&
@@ -677,7 +710,7 @@ contains
       real(dp), dimension(:,:), pointer :: pHmn
 
       pHmn => tmpHH(descM(iStart):descM(iEnd), descN(iStart):descN(iEnd))
-      if(this%tSpin) then
+      if (this%tSpin) then
         pHmn(:,:) = pHmn - 0.25_dp * gammaTot * matmul(matmul(pSma, pPab), pSbn)
       else
         pHmn(:,:) = pHmn - 0.125_dp * gammaTot * matmul(matmul(pSma, pPab), pSbn)
@@ -686,6 +719,310 @@ contains
     end subroutine updateHamiltonianBlock
 
   end subroutine addLrHamiltonianNeighbour
+
+
+  !> Update Hamiltonian with long-range contribution using matrix-matrix multiplications
+  !>
+  !> The routine provides a matrix-matrix multiplication based implementation of
+  !> the 3rd term in Eq. 26 in https://doi.org/10.1063/1.4935095
+  !>
+  subroutine addLrHamiltonianMatrixCmplx(this, iSquare, overlap, densSqr, HH)
+
+    !> class instance
+    class(RangeSepFunc), intent(inout) :: this
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, dimension(:), intent(in) :: iSquare
+
+    !> Square (unpacked) overlap matrix.
+    complex(dp), intent(in) :: overlap(:,:)
+
+    !> Square (unpacked) density matrix
+    complex(dp), intent(in) :: densSqr(:,:)
+
+    !> Square (unpacked) Hamiltonian to be updated.
+    complex(dp), intent(inout) :: HH(:,:)
+
+    complex(dp), allocatable :: Smat(:,:)
+    complex(dp), allocatable :: Dmat(:,:)
+    real(dp), allocatable :: LRgammaAO(:,:)
+    complex(dp), allocatable :: gammaCmplx(:,:)
+    complex(dp), allocatable :: Hlr(:,:)
+
+    integer :: nOrb
+
+    nOrb = size(overlap,dim=1)
+
+    allocate(Smat(nOrb,nOrb))
+    allocate(Dmat(nOrb,nOrb))
+    allocate(LRgammaAO(nOrb,nOrb))
+    allocate(gammaCmplx(nOrb,nOrb))
+    allocate(Hlr(nOrb,nOrb))
+
+    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO, gammaCmplx)
+
+    call evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hlr)
+
+    HH(:,:) = HH + Hlr
+
+    this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat * Hlr)
+
+  contains
+
+    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO,&
+        & gammaCmplx)
+
+      !> class instance
+      type(RangeSepFunc), intent(inout) :: this
+
+      !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+      integer, dimension(:), intent(in) :: iSquare
+
+      !> Square (unpacked) overlap matrix.
+      complex(dp), intent(in) :: overlap(:,:)
+
+      !> Square (unpacked) density matrix
+      complex(dp), intent(in) :: densSqr(:,:)
+
+      !> Square (unpacked) Hamiltonian to be updated.
+      complex(dp), intent(inout) :: HH(:,:)
+
+      !> Symmetrized square overlap matrix
+      complex(dp), intent(out) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
+      complex(dp), intent(out) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      real(dp), intent(out) :: LRgammaAO(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      complex(dp), intent(out) :: gammaCmplx(:,:)
+
+      integer :: nAtom, iAt, jAt
+
+      nAtom = size(this%lrGammaEval,dim=1)
+
+      !! Symmetrize Hamiltonian, overlap, density matrices
+      call hermitianSquareMatrix(HH)
+      Smat(:,:) = overlap
+      call hermitianSquareMatrix(Smat)
+      Dmat(:,:) = densSqr
+      call hermitianSquareMatrix(Dmat)
+
+      ! Get long-range gamma variable
+      LRgammaAO(:,:) = 0.0_dp
+      do iAt = 1, nAtom
+        do jAt = 1, nAtom
+          LRgammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
+              & this%lrGammaEval(jAt,iAt)
+        end do
+      end do
+      gammaCmplx = LRgammaAO
+
+    end subroutine allocateAndInit
+
+
+    subroutine evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hlr)
+
+      !> class instance
+      type(RangeSepFunc), intent(inout) :: this
+
+      !> Symmetrized square overlap matrix
+      complex(dp), intent(in) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
+      complex(dp), intent(in) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      complex(dp), intent(in) :: gammaCmplx(:,:)
+
+      !> Symmetrized long-range Hamiltonian matrix
+      complex(dp), intent(out) :: Hlr(:,:)
+
+      complex(dp), allocatable :: Hmat(:,:)
+      complex(dp), allocatable :: tmpMat(:,:)
+
+      integer :: nOrb
+
+      nOrb = size(Smat,dim=1)
+
+      allocate(Hmat(nOrb,nOrb))
+      allocate(tmpMat(nOrb,nOrb))
+
+      Hlr(:,:) = cmplx(0.0_dp,0.0_dp,dp)
+
+      call gemm(tmpMat, Smat, Dmat)
+      call gemm(Hlr, tmpMat, Smat)
+      Hlr(:,:) = Hlr * gammaCmplx
+
+      tmpMat(:,:) = tmpMat * gammaCmplx
+      call gemm(Hlr, tmpMat, Smat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+
+      Hmat(:,:) = Dmat * gammaCmplx
+      call gemm(tmpMat, Smat, Hmat)
+      call gemm(Hlr, tmpMat, Smat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+
+      call gemm(tmpMat, Dmat, Smat)
+      tmpMat(:,:) = tmpMat * gammaCmplx
+      call gemm(Hlr, Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+
+      if (this%tSpin) then
+        Hlr(:,:) = -0.25_dp * Hlr
+      else
+        Hlr(:,:) = -0.125_dp * Hlr
+      end if
+
+    end subroutine evaluateHamiltonian
+
+  end subroutine addLrHamiltonianMatrixCmplx
+
+
+  !> Update Hamiltonian with long-range contribution using matrix-matrix multiplications
+  !>
+  !> The routine provides a matrix-matrix multiplication based implementation of
+  !> the 3rd term in Eq. 26 in https://doi.org/10.1063/1.4935095
+  !>
+  subroutine addLrHamiltonianMatrix(this, iSquare, overlap, densSqr, HH)
+
+    !> class instance
+    type(RangeSepFunc), intent(inout) :: this
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, dimension(:), intent(in) :: iSquare
+
+    !> Square (unpacked) overlap matrix.
+    real(dp), intent(in) :: overlap(:,:)
+
+    !> Square (unpacked) density matrix
+    real(dp), intent(in) :: densSqr(:,:)
+
+    !> Square (unpacked) Hamiltonian to be updated.
+    real(dp), intent(inout) :: HH(:,:)
+
+    real(dp), allocatable :: Smat(:,:)
+    real(dp), allocatable :: Dmat(:,:)
+    real(dp), allocatable :: LRgammaAO(:,:)
+    real(dp), allocatable :: Hlr(:,:)
+
+    integer :: nOrb
+
+    nOrb = size(overlap,dim=1)
+
+    allocate(Smat(nOrb,nOrb))
+    allocate(Dmat(nOrb,nOrb))
+    allocate(LRgammaAO(nOrb,nOrb))
+    allocate(Hlr(nOrb,nOrb))
+
+    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
+    call evaluateHamiltonian(this, Smat, Dmat, LRgammaAO, Hlr)
+    HH(:,:) = HH + Hlr
+    this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat * Hlr)
+
+  contains
+
+    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
+
+      !> class instance
+      type(RangeSepFunc), intent(inout) :: this
+
+      !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+      integer, dimension(:), intent(in) :: iSquare
+
+      !> Square (unpacked) overlap matrix.
+      real(dp), intent(in) :: overlap(:,:)
+
+      !> Square (unpacked) density matrix
+      real(dp), intent(in) :: densSqr(:,:)
+
+      !> Square (unpacked) Hamiltonian to be updated.
+      real(dp), intent(inout) :: HH(:,:)
+
+      !> Symmetrized square overlap matrix
+      real(dp), intent(out) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
+      real(dp), intent(out) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      real(dp), intent(out) :: LRgammaAO(:,:)
+
+      integer :: nAtom, iAt, jAt
+
+      nAtom = size(this%lrGammaEval,dim=1)
+
+      ! Symmetrize Hamiltonian, overlap, density matrices
+      call symmetrizeSquareMatrix(HH)
+      Smat(:,:) = overlap
+      call symmetrizeSquareMatrix(Smat)
+      Dmat(:,:) = densSqr
+      call symmetrizeSquareMatrix(Dmat)
+
+      ! Get long-range gamma variable
+      LRgammaAO(:,:) = 0.0_dp
+      do iAt = 1, nAtom
+        do jAt = 1, nAtom
+          LRgammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
+              & this%lrGammaEval(jAt,iAt)
+        end do
+      end do
+
+    end subroutine allocateAndInit
+
+
+    subroutine evaluateHamiltonian(this, Smat, Dmat, LRgammaAO, Hlr)
+
+      !> class instance
+      type(RangeSepFunc), intent(inout) :: this
+
+      !> Symmetrized square overlap matrix
+      real(dp), intent(in) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
+      real(dp), intent(in) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      real(dp), intent(in) :: LRgammaAO(:,:)
+
+      !> Symmetrized long-range Hamiltonian matrix
+      real(dp), intent(out) :: Hlr(:,:)
+
+      real(dp), allocatable :: Hmat(:,:)
+      real(dp), allocatable :: tmpMat(:,:)
+
+      integer :: nOrb
+
+      nOrb = size(Smat,dim=1)
+
+      allocate(Hmat(nOrb,nOrb))
+      allocate(tmpMat(nOrb,nOrb))
+
+      Hlr(:,:) = 0.0_dp
+
+      call gemm(tmpMat, Smat, Dmat)
+      call gemm(Hlr, tmpMat, Smat)
+      Hlr(:,:) = Hlr * LRgammaAO
+
+      tmpMat(:,:) = tmpMat * LRgammaAO
+      call gemm(Hlr, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
+
+      Hmat(:,:) = Dmat * LRgammaAO
+      call gemm(tmpMat, Smat, Hmat)
+      call gemm(Hlr, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
+
+      call gemm(tmpMat, Dmat, Smat)
+      tmpMat(:,:) = tmpMat * LRgammaAO
+      call gemm(Hlr, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
+
+      if (this%tSpin) then
+        Hlr(:,:) = -0.25_dp * Hlr
+      else
+        Hlr(:,:) = -0.125_dp * Hlr
+      end if
+
+    end subroutine evaluateHamiltonian
+
+  end subroutine addLRHamiltonianMatrix
 
 
   !> Add the LR-Energy contribution to the total energy
@@ -712,11 +1049,26 @@ contains
     integer :: ii, matSize
 
     matSize = size(matrix, dim = 1)
-    do ii = 1, matSize
+    do ii = 1, matSize - 1
       matrix(ii, ii + 1 : matSize) = matrix(ii + 1 : matSize, ii)
     end do
 
   end subroutine symmetrizeSquareMatrix
+
+
+  !> copy lower triangle to upper for a square matrix
+  subroutine hermitianSquareMatrix(matrix)
+
+    !> matrix to symmetrize
+    complex(dp), intent(inout) :: matrix(:,:)
+    integer :: ii, matSize
+
+    matSize = size(matrix, dim = 1)
+    do ii = 1, matSize - 1
+      matrix(ii, ii + 1 : matSize) = conjg(matrix(ii + 1 : matSize, ii))
+    end do
+
+  end subroutine hermitianSquareMatrix
 
 
   !> location of relevant atomic block indices in a dense matrix
@@ -1126,7 +1478,7 @@ contains
       end do loopC
     end do loopK
 
-    gradients(:,:) = gradients -0.25_dp * nSpin * tmpderiv
+    gradients(:,:) = gradients - 0.25_dp * nSpin * tmpderiv
 
     deallocate(tmpOvr, tmpRho, gammaPrimeTmp, tmpderiv)
 
@@ -1162,7 +1514,6 @@ contains
         call symmetrizeSquareMatrix(tmpRho(:,:,iSpin))
       enddo
       ! precompute the gamma derivatives
-      write(stdOut,'(a)') "precomputing the lr-gamma derivatives"
       gammaPrimeTmp = 0.0_dp
       do iAt1 = 1, nAtom
         do iAt2 = 1, nAtom

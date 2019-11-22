@@ -15,7 +15,7 @@
 !>
 !> To Do: Take the reciprocal lattice vectors from outside.
 !>
-module dftbp_dispuff_module
+module dftbp_dispuff
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_simplealgebra, only : determinant33
@@ -445,4 +445,4 @@ contains
 
   end subroutine getDispEnergyAndGrad_cluster
 
-end module dftbp_dispuff_module
+end module dftbp_dispuff

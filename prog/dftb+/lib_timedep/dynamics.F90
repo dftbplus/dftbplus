@@ -45,7 +45,7 @@ module dftbp_timeprop
   use dftbp_nonscc
   use dftbp_energies, only: TEnergies, init
   use dftb_evaluateenergies
-  use dftbp_thirdorder_module, only : ThirdOrder
+  use dftbp_thirdorder, only : ThirdOrder
   use dftbp_populations
   use dftbp_eigenvects
   use dftbp_sk
@@ -446,11 +446,11 @@ contains
 
   !> Driver of time dependent propagation to calculate with either spectrum or laser
   subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, over, filling, neighbourList,&
-      & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, sccCalc,&
-      & env, tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-      & iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont, skOverCont, latVec,&
-      & invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx, taggedWriter,&
-      & refExtPot)
+      & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
+      & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ,&
+      & nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont,&
+      & skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
+      & taggedWriter, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -490,6 +490,9 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(inout) :: nNeighbourSK(:)
+
+    !> Number of neighbours for each of the atoms with the range separated hybrid
+    integer, intent(inout) :: nNeighbourLC(:)
 
     !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iSparseStart(:,:)
@@ -597,11 +600,15 @@ contains
       call qm2ud(q0)
     end if
 
+
     if (this%tRealHS) then
       this%nOrbs = size(eigvecs, dim=1)
     else
-      this%nOrbs = size(eigvecsCplx, dim=1)
+      if (allocated(rangeSep)) then
+        this%nOrbs = size(eigvecsCplx, dim=1)
+      end if
     endif
+
     this%nAtom = size(coord, dim=2)
     this%latVec = latVec
     this%invLatVec = invLatVec
@@ -618,8 +625,8 @@ contains
         this%currPolDir = this%polDirs(iPol)
         ! Make sure only last component enters autotest
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
-        call doDynamics(this, eigvecs, ham, H0, q0, over, filling, neighbourList,&
-            & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
+        call doDynamics(this, eigvecs, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
+            & nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
             & tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
             & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
             & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
@@ -627,10 +634,10 @@ contains
       end do
     else
       call doDynamics(this, eigvecs, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
-          & iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env, tDualSpinOrbit,&
-          & xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
-          & tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont, skOverCont, iCall,&
-          & electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+          & nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
+          & tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+          & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
+          & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
     end if
 
   end subroutine runDynamics
@@ -638,10 +645,10 @@ contains
 
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, eigvecsReal, ham, H0, q0, over, filling, neighbourList,&
-      & nNeighbourSK, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-      & tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-      & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+      & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
+      & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ,&
+      & iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements,&
+      & skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -678,6 +685,9 @@ contains
 
     !> Number of neighbours for each of the atoms
     integer, intent(inout) :: nNeighbourSK(:)
+
+    !> Number of neighbours for each of the atoms with the range separated hybrid
+    integer, intent(inout) :: nNeighbourLC(:)
 
     !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iSparseStart(:,:)
@@ -773,6 +783,7 @@ contains
     real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
     real(dp) :: dipole(3,this%nSpin), chargePerShell(orb%mShell,this%nAtom,this%nSpin)
     real(dp), allocatable :: rhoPrim(:,:), ham0(:), ErhoPrim(:)
+    complex(dp), allocatable :: H1LC(:,:), deltaRho(:,:,:)
     real(dp) :: time, startTime, timeElec
     integer :: dipoleDat, qDat, energyDat, populDat(this%parallelKS%nLocalKS)
     integer :: forceDat, coorDat, ePBondDat
@@ -790,6 +801,10 @@ contains
     logical :: tProbeFrameWrite
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
+
+    if (allocated(rangeSep)) then
+      allocate(H1LC(this%nOrbs,this%nOrbs))
+    end if
 
     iStep = 0
     startTime = 0.0_dp
@@ -842,11 +857,32 @@ contains
         & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
         & onSiteElements, refExtPot)
 
+    if (allocated(rangeSep)) then
+      deltaRho = rho
+      select case(this%nSpin)
+      case(2)
+        do iSpin = 1, this%nSpin
+          call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho, iSpin)
+        end do
+      case(1)
+        call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
+      case default
+        call error("Range separation not implemented for non-colinear spin")
+      end select
+      do iSpin = 1, this%nSpin
+        H1LC(:,:) = (0.0_dp,0.0_dp)
+        call rangeSep%addLrHamiltonianMatrixCmplx(iSquare, sSqr(:,:,iSpin), deltaRho(:,:,iSpin),&
+            & H1LC)
+        call blockHermitianHS(H1LC, iSquare)
+        H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
+      end do
+    end if
+
     if (this%tForces) then
        totalForce(:,:) = 0.0_dp
        call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK, &
             & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0, &
-            & pRepCont, coordAll, rhoPrim, ErhoPrim, 0, env)
+            & pRepCont, coordAll, rhoPrim, ErhoPrim, 0, env, rangeSep, deltaRho)
        if (this%tIons) then
           call initIonDynamics(this, coordNew, coord, movedAccel)
        end if
@@ -864,7 +900,7 @@ contains
       ! rhoOld is now the GS DM, rho will be the DM at time=dt
       rhoOld(:,:,:) = rho
       call initializePropagator(this, this%dt, rhoOld, rho, H1, Sinv, coordAll, skHamCont,&
-         & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare)
+         & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
     end if
 
     call getPositionDependentEnergy(this, energy, coordAll, img2CentCell, nNeighbourSK,&
@@ -928,14 +964,38 @@ contains
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
           & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements, refExtPot)
 
+     if (allocated(rangeSep)) then
+       deltaRho = rho
+       select case(this%nSpin)
+       case(2)
+         do iSpin = 1, this%nSpin
+           call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho, iSpin)
+         end do
+       case(1)
+         call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
+       case default
+         call error("Range separation not implemented for non-colinear spin")
+       end select
+       do iSpin = 1, this%nSpin
+         H1LC(:,:) = (0.0_dp,0.0_dp)
+         call rangeSep%addLrHamiltonianMatrixCmplx(iSquare, sSqr(:,:,iSpin), deltaRho(:,:,iSpin),&
+             & H1LC)
+         call blockHermitianHS(H1LC, iSquare)
+         H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
+       end do
+     end if
+
+
 !     if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
 !        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
 !     end if
 
+
      if (this%tForces) then
-        call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
-             & nNeighbourSK, img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, &
-             & skOverCont, qq, q0, pRepCont, coordAll, rhoPrim, ErhoPrim, iStep, env)
+       call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
+           & nNeighbourSK, img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, &
+           & skOverCont, qq, q0, pRepCont, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep,&
+           & deltaRho)
      end if
 
      if (this%tIons) then
@@ -966,7 +1026,7 @@ contains
      end if
 
      do iKS = 1, this%parallelKS%nLocalKS
-        if (this%tIons .or. (.not. this%tRealHS)) then
+        if (this%tIons .or. (.not. this%tRealHS) .or. allocated(rangeSep)) then
            H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
 !           call scal(H1(:,:,iSpin), imag)
 !           call zaxpy(this%nOrbs*this%nOrbs, 1.0_dp, RdotSprime, 1, H1(:,:,iSpin), 1)
@@ -980,7 +1040,7 @@ contains
                    & 2.0_dp * this%dt)
            end if
         else
-           !The following is commented for the fast popagate that considers a real H
+           !The following is commented for the fast propagate that considers a real H
            !call scal(H1(:,:,iSpin), imag)
            call propagateRhoRealH(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
                 & 2.0_dp * this%dt)
@@ -1839,7 +1899,7 @@ contains
   !> Perfoms a step backwards to boot the dynamics using the Euler algorithm.
   !> Output is rho(deltaT) called rhoNew, input is rho(t=0) (ground state) called rho
   subroutine initializePropagator(this, step, rho, rhoNew, H1, Sinv, coordAll, skHamCont,&
-         & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare)
+         & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1883,6 +1943,9 @@ contains
     !> image atoms to their equivalent in the central cell
     integer, intent(in) :: img2CentCell(:)
 
+    !> Range separation contributions
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+
     integer :: iSpin, iKS
     complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
 
@@ -1896,7 +1959,7 @@ contains
     end if
 
     do iKS = 1, this%parallelKS%nLocalKS
-       if (this%tIons .or. (.not. this%tRealHS)) then
+       if (this%tIons .or. (.not. this%tRealHS) .or. allocated(rangeSep)) then
           H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
           call propagateRho(this, rhoNew(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS), step)
        else
@@ -2704,7 +2767,7 @@ contains
 
     if (this%tDispersion) then
        call this%dispersion%updateCoords(neighbourList, img2CentCell, coordAll, this%speciesAll)
-    end if
+     end if
 
     call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
          & neighbourList%iNeighbour, this%speciesAll, iSparseStart, orb)
@@ -2735,7 +2798,7 @@ contains
   !> Calculates force
   subroutine getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK,&
        & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0,&
-       & pRepCont, coordAll, rhoPrim, ErhoPrim, iStep, env)
+       & pRepCont, coordAll, rhoPrim, ErhoPrim, iStep, env, rangeSep, deltaRho)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -2806,6 +2869,12 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
+    !> Range separation contributions
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> Real part of density matrix, adjusted by reference charges
+    complex(dp), allocatable, intent(inout) :: deltaRho(:,:,:)
+
     real(dp) :: T1(this%nOrbs,this%nOrbs),T2(this%nOrbs,this%nOrbs)
     real(dp) :: derivs(3,this%nAtom), repulsiveDerivs(3,this%nAtom), totalDeriv(3, this%nAtom)
     integer :: iSpin, iDir
@@ -2822,9 +2891,9 @@ contains
        !T1 = T2 + transpose(T2)
 
        call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-            & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+           & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
        call packHS(ErhoPrim, T2, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iSquare,&
-            & iSparseStart, img2CentCell)
+           & iSparseStart, img2CentCell)
     end do
 
     call ud2qm(qq)
@@ -2839,9 +2908,14 @@ contains
          & img2CentCell, iSparseStart, orb, potential%intBlock)
     call this%sccCalc%updateCharges(env, qq, q0, orb, this%speciesAll)
     call this%sccCalc%addForceDc(env, derivs, this%speciesAll, neighbourList%iNeighbour, &
-         & img2CentCell)
+        & img2CentCell)
     call getERepDeriv(repulsiveDerivs, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
          & this%speciesAll, pRepCont, img2CentCell)
+
+    if (allocated(rangeSep)) then
+!      call rangeSep%addLRGradients(derivs, this%derivator, deltaRho, skHamCont, skOverCont,&
+!          & coordAll, this%speciesAll, orb, iSquare, sSqr, neighbourList%iNeighbour, nNeighbourSK)
+    end if
 
     if (this%tLaser) then
       do iDir = 1, 3

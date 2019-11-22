@@ -10,8 +10,8 @@ _mod_dftbp_blas = $(blas.o)
 
 dftd3.o: _mod_dftd3_api 
 dftd3.o = dftd3.o $(_mod_dftd3_api) 
-_mod_dftbp_dftd3_module: dftd3.o
-_mod_dftbp_dftd3_module = $(dftd3.o)
+_mod_dftbp_dftd3: dftd3.o
+_mod_dftbp_dftd3 = $(dftd3.o)
 
 #:if WITH_ELSI
 elsiiface.o: common.fypp _mod_dftbp_accuracy _mod_elsi 
