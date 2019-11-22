@@ -211,7 +211,7 @@ type TElecDynamics
    real(dp), allocatable :: atomEigVal(:,:), onsiteGrads(:,:,:,:)
    integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PpFreq, PpIni, PpEnd
    integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
-   logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe, tRealHS
+   logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe, tRealHS, tRangeSep
    logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondO = .false.
    logical :: tCalcOnsiteGradients = .false., tPeriodic = .false., tFillingsFromFile = .false.
    type(OThermostat), allocatable :: pThermostat
@@ -241,7 +241,7 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
        & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-       & tPeriodic, parallelKS, tRealHS, kPoint, kWeight)
+       & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, tRangeSep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -305,6 +305,9 @@ contains
 
     !> weight of the K-Points
     real(dp) :: KWeight(:)
+
+    !> LC correction
+    logical, intent(in) :: tRangeSep
 
     real(dp) :: norm, tempAtom
     logical :: tMDstill, tDispersion
@@ -381,10 +384,13 @@ contains
     this%tCalcOnsiteGradients = inp%tOnsiteGradients
     this%species = species
     this%tPeriodic = tPeriodic
-
+    this%tRangeSep = tRangeSep
+    
     if (this%tIons) then
        if (.not. this%tRealHS) then
           call error("Ion dynamics is not implemented yet for imaginary Hamiltonians.")
+       elseif (tRangeSep) then
+          call error("Ion dynamics is not implemented yet for range separated calculations.")
        end if
        this%tForces = .true.
        this%indMovedAtom = inp%indMovedAtom
@@ -600,13 +606,14 @@ contains
       call qm2ud(q0)
     end if
 
-
     if (this%tRealHS) then
-      this%nOrbs = size(eigvecs, dim=1)
-    else
-      if (allocated(rangeSep)) then
+      if (this%tRangeSep) then
         this%nOrbs = size(eigvecsCplx, dim=1)
-      end if
+      else   
+        this%nOrbs = size(eigvecs, dim=1)
+      endif
+    else
+      this%nOrbs = size(eigvecsCplx, dim=1)
     endif
 
     this%nAtom = size(coord, dim=2)
@@ -802,10 +809,6 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
-    if (allocated(rangeSep)) then
-      allocate(H1LC(this%nOrbs,this%nOrbs))
-    end if
-
     iStep = 0
     startTime = 0.0_dp
     timeElec = 0.0_dp
@@ -835,7 +838,7 @@ contains
     call initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
         & filling, orb, rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare,&
         & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, UJ,&
-        & onSiteElements, eigvecsCplx)
+        & onSiteElements, eigvecsCplx, H1LC)
 
     call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
     if (this%tDispersion) then
@@ -855,28 +858,7 @@ contains
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
         & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-        & onSiteElements, refExtPot)
-
-    if (allocated(rangeSep)) then
-      deltaRho = rho
-      select case(this%nSpin)
-      case(2)
-        do iSpin = 1, this%nSpin
-          call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho, iSpin)
-        end do
-      case(1)
-        call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
-      case default
-        call error("Range separation not implemented for non-colinear spin")
-      end select
-      do iSpin = 1, this%nSpin
-        H1LC(:,:) = (0.0_dp,0.0_dp)
-        call rangeSep%addLrHamiltonianMatrixCmplx(iSquare, sSqr(:,:,iSpin), deltaRho(:,:,iSpin),&
-            & H1LC)
-        call blockHermitianHS(H1LC, iSquare)
-        H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
-      end do
-    end if
+        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, rho)
 
     if (this%tForces) then
        totalForce(:,:) = 0.0_dp
@@ -961,35 +943,12 @@ contains
 
      call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
-          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock,&
-          & nDftbUFunc, UJ, nUJ, iUJ, niUJ, onSiteElements, refExtPot)
-
-     if (allocated(rangeSep)) then
-       deltaRho = rho
-       select case(this%nSpin)
-       case(2)
-         do iSpin = 1, this%nSpin
-           call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho, iSpin)
-         end do
-       case(1)
-         call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
-       case default
-         call error("Range separation not implemented for non-colinear spin")
-       end select
-       do iSpin = 1, this%nSpin
-         H1LC(:,:) = (0.0_dp,0.0_dp)
-         call rangeSep%addLrHamiltonianMatrixCmplx(iSquare, sSqr(:,:,iSpin), deltaRho(:,:,iSpin),&
-             & H1LC)
-         call blockHermitianHS(H1LC, iSquare)
-         H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
-       end do
-     end if
-
+          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
+          & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, rho)
 
 !     if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
 !        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
 !     end if
-
 
      if (this%tForces) then
        call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
@@ -1026,7 +985,7 @@ contains
      end if
 
      do iKS = 1, this%parallelKS%nLocalKS
-        if (this%tIons .or. (.not. this%tRealHS) .or. allocated(rangeSep)) then
+        if (this%tIons .or. (.not. this%tRealHS) .or. this%tRangeSep) then
            H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
 !           call scal(H1(:,:,iSpin), imag)
 !           call zaxpy(this%nOrbs*this%nOrbs, 1.0_dp, RdotSprime, 1, H1(:,:,iSpin), 1)
@@ -1083,7 +1042,7 @@ contains
   subroutine updateH(this, H1, ham, over, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
       & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ,&
-      & niUJ, onSiteElements, refExtPot)
+      & niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, rho)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1178,6 +1137,21 @@ contains
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
 
+    !> Change in density matrix
+    complex(dp), allocatable, intent(inout) :: deltaRho(:,:,:)
+
+    !> LC contribution to hamiltonian
+    complex(dp), allocatable, intent(inout) :: H1LC(:,:)
+
+    !> Square overlap
+    complex(dp), intent(in) :: Ssqr(:,:,:)
+
+    !> Range separation contributions
+    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+ 
+    !> Density matrix
+    complex(dp), intent(in) :: rho(:,:,:)
+
     real(dp), allocatable :: qiBlock(:,:,:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: iHam(:,:) ! not allocated since no imaginary ham
     real(dp) :: T2(this%nOrbs,this%nOrbs)
@@ -1208,10 +1182,6 @@ contains
         & neighbourList, img2CentCell, spinW, thirdOrd, potential, elstatTypes%gammaFunc, .false.,&
         & .false., dummy)
 
-    ! Build spin contribution (if necessary)
-!    if (this%tSpinPol) then
-!       call getSpinShift(shellPot, chargePerShell, this%species, orb, W)
-!       potential%intShell = potential%intShell + shellPot
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
      ! convert to qm representation
       call ud2qm(qBlock)
@@ -1264,7 +1234,28 @@ contains
       end if
     end do
 
-  end subroutine updateH
+    ! add LC correction
+    if (this%tRangeSep) then
+      deltaRho = rho
+      select case(this%nSpin)
+      case(2)
+        do iSpin = 1, this%nSpin
+          call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho, iSpin)
+        end do
+      case(1)
+        call denseSubtractDensityOfAtoms(q0, iSquare, deltaRho)
+      case default
+        call error("Range separation not implemented for non-colinear spin")
+      end select
+      do iSpin = 1, this%nSpin
+        H1LC(:,:) = (0.0_dp, 0.0_dp)
+        call rangeSep%addLrHamiltonianMatrixCmplx(iSquare, sSqr(:,:,iSpin), deltaRho(:,:,iSpin), H1LC)
+        call blockHermitianHS(H1LC, iSquare)
+        H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
+      end do
+    end if
+
+ end subroutine updateH
 
 
   !> Kick the density matrix for spectrum calculations
@@ -1687,7 +1678,7 @@ contains
   subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
        & filling, orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
        & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, UJ, onSiteElements,&
-       & eigvecsCplx)
+       & eigvecsCplx, H1LC)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1772,6 +1763,9 @@ contains
 
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> LC contribution to hamiltonian
+    complex(dp), allocatable, intent(inout) :: H1LC(:,:)
 
     real(dp), allocatable :: T2(:,:), T3(:,:)
     complex(dp), allocatable :: T4(:,:)
@@ -1891,6 +1885,10 @@ contains
 
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
        allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
+    end if
+
+    if (this%tRangeSep) then
+       allocate(H1LC(this%nOrbs, this%nOrbs))
     end if
 
   end subroutine initializeTDVariables
@@ -2912,7 +2910,8 @@ contains
     call getERepDeriv(repulsiveDerivs, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
          & this%speciesAll, pRepCont, img2CentCell)
 
-    if (allocated(rangeSep)) then
+    if (this%tRangeSep) then
+       call error("Ehrenfest forces not implemented yet with range separated calculations.")
 !      call rangeSep%addLRGradients(derivs, this%derivator, deltaRho, skHamCont, skOverCont,&
 !          & coordAll, this%speciesAll, orb, iSquare, sSqr, neighbourList%iNeighbour, nNeighbourSK)
     end if
