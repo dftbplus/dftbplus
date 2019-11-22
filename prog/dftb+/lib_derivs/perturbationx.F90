@@ -493,8 +493,7 @@ contains
     tMetallic = (.not.all(nFilled == nEmpty -1))
 
     if (tMetallic) then
-      write(stdOut,*)'Metallic system'
-      call error("Not currently implemented")
+      call error("Metallic system! Not currently implemented")
     end if
 
     dqOut(:,:,:,:,:) = 0.0_dp
@@ -1003,11 +1002,14 @@ contains
     integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iS, iK, nOrb
     real(dp) :: workLocal(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
     real(dp) :: work2Local(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
-  #:if WITH_SCALAPACK
     real(dp) :: work3Local(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
+  #:if WITH_SCALAPACK
     real(dp) :: work4Local(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
   #:endif
     real(dp), allocatable :: dRho(:,:)
+    type(TDegeneracyTransform) :: transform
+
+    call transform%init()
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
@@ -1122,6 +1124,9 @@ contains
     ! form |c> H' - e S' <c|
     workLocal(:,:) = matmul(transpose(eigVecsReal(:,:,iS)), workLocal)
 
+    call transform%generateUnitary(workLocal, eigvals(:,iK,iS))
+    call transform%degenerateTransform(workLocal)
+
     ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
     if (allocated(dEi)) then
       do ii = 1, nOrb
@@ -1129,11 +1134,14 @@ contains
       end do
     end if
 
+    work3Local = eigVecsReal(:,:,iS)
+    call transform%applyUnitary(work3Local)
+
     dRho(:,:) = 0.0_dp
     call unpackHS(dRho, dOver, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
         & iSparseStart, img2CentCell)
-    call symm(work2Local, 'l', dRho, eigVecsReal(:,:,iS))
-    work2Local(:,:) = work2Local * eigVecsReal(:,:,iS)
+    call symm(work2Local, 'l', dRho, work3Local)
+    work2Local(:,:) = work2Local * work3Local
 
     ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
     ! the elements
@@ -1142,26 +1150,29 @@ contains
         if (iFilled == iEmpty) then
           workLocal(iFilled, iFilled) = -0.5_dp * sum(work2Local(:, iFilled))
         else
-          workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled)&
-              & / (eigvals(iFilled, iK, iS) - eigvals(iEmpty, iK, iS))
+          if (.not.transform%degenerate(iFilled,iEmpty)) then
+            workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled)&
+                & / (eigvals(iFilled, iK, iS) - eigvals(iEmpty, iK, iS))
+          else
+          end if
         end if
       end do
     end do
 
     ! calculate the derivatives of the eigenvectors
     workLocal(:, :nFilled(iS)) =&
-        & matmul(eigVecsReal(:, :, iS), workLocal(:, :nFilled(iS)))
+        & matmul(work3Local, workLocal(:, :nFilled(iS)))
 
     if (allocated(dPsi)) then
-      dPsi(:, :, iS, iCart) = workLocal
+      dPsi(:, :, iS, iCart) = work3Local
     end if
 
     ! zero the uncalculated virtual states
     workLocal(:, nFilled(iS)+1:) = 0.0_dp
 
     ! form the derivative of the density matrix
-    dRho(:,:) = matmul(workLocal(:, :nFilled(iS)), transpose(eigVecsReal(:, :nFilled(iS), iS)))&
-        & + matmul(eigVecsReal(:, :nFilled(iS), iS), transpose(workLocal(:, :nFilled(iS))))
+    dRho(:,:) = matmul(workLocal(:, :nFilled(iS)), transpose(work3Local(:, :nFilled(iS))))&
+        & + matmul(work3Local(:, :nFilled(iS)), transpose(workLocal(:, :nFilled(iS))))
 
   #:endif
 
@@ -1177,6 +1188,8 @@ contains
     if (associated(dRhoSqr)) then
       dRhoSqr(:,:,iS) = dRho
     end if
+
+    call transform%destroy()
 
   end subroutine dRhoReal
 
