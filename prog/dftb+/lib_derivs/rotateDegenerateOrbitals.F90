@@ -540,13 +540,6 @@ contains
 
     end if
 
-    ! clean up to exact symmetry
-  #:if TYPE == 'real'
-    matrixToProcess(:,:) = 0.5_dp * (matrixToProcess + transpose(matrixToProcess))
-  #:else
-    matrixToProcess(:,:) = 0.5_dp * (matrixToProcess + transpose(conjg(matrixToProcess)))
-  #:endif
-
   end subroutine degenerate${LABEL}$Transform
 
 
