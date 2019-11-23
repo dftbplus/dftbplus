@@ -73,7 +73,7 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> Filling
+    !> Fillings of unperturbed system
     real(dp), intent(in) :: filling(:,:,:)
 
     !> Eigenvalue of each level, kpoint and spin channel
@@ -293,7 +293,8 @@ contains
 
     real(dp), allocatable :: shellPot(:,:,:), atomPot(:,:)
 
-    logical :: tSccCalc, tMetallic, tConverged
+    logical :: tSccCalc, tConverged
+    logical, allocatable :: tMetallic(:)
 
     real(dp), allocatable :: dEi(:,:,:,:)
     real(dp), allocatable :: dPsiReal(:,:,:,:)
@@ -342,6 +343,8 @@ contains
     case(2,4)
       maxFill = 1.0_dp
     end select
+
+    allocate(tMetallic(nIndepHam))
 
     nOrbs = size(filling,dim=1)
 
@@ -490,11 +493,13 @@ contains
       end do
     end do
 
-    tMetallic = (.not.all(nFilled == nEmpty -1))
-
-    if (tMetallic) then
-      call error("Metallic system! Not currently implemented")
-    end if
+    do iS = 1, nIndepHam
+      tMetallic(iS) = (.not.all(nFilled(iS,:) == nEmpty(iS,:) -1))
+      !write(stdOut,*)'Fractionally filled range'
+      !do iK = 1, nKpts
+      !  write(stdOut,*) nEmpty(:,iK), ':', nFilled(:,iK)
+      !end do
+    end do
 
     dqOut(:,:,:,:,:) = 0.0_dp
     dEi(:,:,:,:) = 0.0_dp
@@ -678,7 +683,8 @@ contains
               call dRhoReal(env, dHam, dOver(:,iCart), neighbourList, nNeighbourSK,&
                   & iSparseStart, img2CentCell, denseDesc, iKS, parallelKS, nFilled(:,1),&
                   & nEmpty(:,1), eigVecsReal, eigVals, Ef, tempElec, orb, drho(:,iS), iCart,&
-                  & dRhoOutSqr, rangeSep, over, nNeighbourLC, eCiReal, &
+                  & dRhoOutSqr, rangeSep, over, nNeighbourLC, eCiReal, tMetallic,&
+                  & filling / maxFill,&
                 #:if WITH_SCALAPACK
                   & desc,&
                 #:endif
@@ -842,9 +848,7 @@ contains
     end do lpAtom
 
   #:if WITH_SCALAPACK
-    if (allocated(dEi)) then
-      call mpifx_allreduceip(env%mpi%globalComm, dEi, MPI_SUM)
-    end if
+    call mpifx_allreduceip(env%mpi%globalComm, dEi, MPI_SUM)
   #:endif
 
     write(stdOut, *)'dEi'
@@ -906,7 +910,8 @@ contains
   !> q=0, k=0
   subroutine dRhoReal(env, dHam, dOver, neighbourList, nNeighbourSK, iSparseStart,&
       & img2CentCell, denseDesc, iKS, parallelKS, nFilled, nEmpty, eigVecsReal, eigVals, Ef,&
-      & tempElec, orb, dRhoSparse, iCart, dRhoSqr, rangeSep, over, nNeighbourLC, eCiReal, &
+      & tempElec, orb, dRhoSparse, iCart, dRhoSqr, rangeSep, over, nNeighbourLC, eCiReal,&
+      & tMetallic, filling,&
     #:if WITH_SCALAPACK
       & desc,&
     #:endif
@@ -985,8 +990,11 @@ contains
     !> Eigenvalue weighted eigenvectors
     real(dp), intent(in) :: eCiReal(:,:,:)
 
-    !> Atom with which the the derivative is being calculated
-    integer, intent(in) :: iAtom
+    !> Is this a metallic system
+    logical, intent(in) :: tMetallic(:)
+
+    !> Fillings of unperturbed system
+    real(dp), intent(in) :: filling(:,:,:)
 
   #:if WITH_SCALAPACK
     !> BLACS matrix descriptor
@@ -994,10 +1002,13 @@ contains
   #:endif
 
     !> Derivative of single particle eigenvalues
-    real(dp), allocatable, intent(inout) :: dEi(:,:,:,:)
+    real(dp), intent(out) :: dEi(:,:,:,:)
 
     !> Optional derivatives of single particle wavefunctions
     real(dp), allocatable, intent(inout) :: dPsi(:,:,:,:)
+
+    !> Atom with which the the derivative is being calculated
+    integer, intent(in) :: iAtom
 
     integer :: ii, jj, iGlob, jGlob, iFilled, iEmpty, iS, iK, nOrb
     real(dp) :: workLocal(size(eigVecsReal,dim=1), size(eigVecsReal,dim=2))
@@ -1009,14 +1020,18 @@ contains
     real(dp), allocatable :: dRho(:,:)
     type(TDegeneracyTransform) :: transform
 
-    call transform%init()
+    real(dp), allocatable :: dFilling(:)
 
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
 
-    if (allocated(dEi)) then
-      dEi(:, iAtom, iS, iCart) = 0.0_dp
+    if (tMetallic(iS)) then
+      allocate(dFilling(size(dEi, dim=1)))
     end if
+
+    call transform%init()
+
+    dEi(:, iAtom, iS, iCart) = 0.0_dp
     if (allocated(dPsi)) then
       dPsi(:, :, iS, iCart) = 0.0_dp
     end if
@@ -1062,11 +1077,9 @@ contains
         iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
             & env%blacs%orbitalGrid%nrow)
         ! derivative of eigenvalues stored in diagonal of matrix workLocal, from <c|h'|c>
-        if (allocated(dEi)) then
-          if (iGlob == jGlob) then
-            !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
-            dEi(iGlob, iAtom, iS, iCart) = workLocal(ii,jj)
-          end if
+        if (iGlob == jGlob) then
+          !if (iGlob == jGlob) then workLocal(ii,jj) contains a derivative of an eigenvalue
+          dEi(iGlob, iAtom, iS, iCart) = workLocal(ii,jj)
         end if
         if (iGlob == jGlob) then
           workLocal(ii,jj) = -0.5_dp * work4Local(ii, jj)
@@ -1127,11 +1140,15 @@ contains
     call transform%generateUnitary(workLocal, eigvals(:,iK,iS))
     call transform%degenerateTransform(workLocal)
 
-    ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
-    if (allocated(dEi)) then
-      do ii = 1, nOrb
-        dEi(ii, iAtom, iS, iCart) = workLocal(ii,ii)
-      end do
+    ! diagonal elements of workLocal are now derivatives of eigenvalues
+    do ii = 1, nOrb
+      dEi(ii, iAtom, iS, iCart) = workLocal(ii,ii)
+    end do
+
+    if  (tMetallic(iS)) then
+      call dEida(dFilling, filling(:,iK,iS), dEi(:,iAtom, iS, iCart), tempElec)
+      !write(stdOut,*)'dEf', dEfda(filling(:,iK,iS), dEi(:,iAtom, iS, iCart))
+      !write(stdOut,*)dFilling
     end if
 
     work3Local = eigVecsReal(:,:,iS)
@@ -1143,8 +1160,7 @@ contains
     call symm(work2Local, 'l', dRho, work3Local)
     work2Local(:,:) = work2Local * work3Local
 
-    ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by weighting
-    ! the elements
+    ! Form actual perturbation U matrix for eigenvectors by weighting the elements
     do iFilled = 1, nFilled(iS)
       do iEmpty = 1, nOrb
         if (iFilled == iEmpty) then
@@ -1154,25 +1170,37 @@ contains
             workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled)&
                 & / (eigvals(iFilled, iK, iS) - eigvals(iEmpty, iK, iS))
           else
+            workLocal(iEmpty, iFilled) = 0.0_dp
+            workLocal(iFilled, iEmpty) = 0.0_dp
           end if
         end if
       end do
     end do
 
     ! calculate the derivatives of the eigenvectors
-    workLocal(:, :nFilled(iS)) =&
-        & matmul(work3Local, workLocal(:, :nFilled(iS)))
+    workLocal(:, :nFilled(iS)) = matmul(work3Local, workLocal(:, :nFilled(iS)))
 
     if (allocated(dPsi)) then
       dPsi(:, :, iS, iCart) = work3Local
     end if
 
-    ! zero the uncalculated virtual states
-    workLocal(:, nFilled(iS)+1:) = 0.0_dp
+    do iFilled = 1, nOrb
+      workLocal(:, iFilled) = workLocal(:, iFilled) * filling(iFilled, iK, iS)
+    end do
 
     ! form the derivative of the density matrix
-    dRho(:,:) = matmul(workLocal(:, :nFilled(iS)), transpose(work3Local(:, :nFilled(iS))))&
-        & + matmul(work3Local(:, :nFilled(iS)), transpose(workLocal(:, :nFilled(iS))))
+    dRho(:,:) = matmul(workLocal, transpose(work3Local)) + matmul(work3Local, transpose(workLocal))
+
+    if (tMetallic(iS)) then
+      ! extra contribution from change in Fermi level leading to change in occupations
+      do iFilled = nEmpty(iS), nFilled(iS)
+        workLocal(:, iFilled) = work3Local(:, iFilled) * dFilling(iFilled)
+      end do
+      dRho(:,:) = dRho + 0.5_dp * matmul(workLocal(:, nEmpty(iS):nFilled(iS)),&
+          & transpose(work3Local(:, nEmpty(iS):nFilled(iS))))&
+          & + 0.5 * matmul(work3Local(:, nEmpty(iS):nFilled(iS)),&
+          & transpose(workLocal(:, nEmpty(iS):nFilled(iS))))
+    end if
 
   #:endif
 
@@ -1284,7 +1312,7 @@ contains
   #:endif
 
     !> Derivative of single particle eigenvalues
-    real(dp), allocatable, intent(inout) :: dEi(:,:,:,:)
+    real(dp), intent(out) :: dEi(:,:,:,:)
 
     !> Optional derivatives of single particle wavefunctions
     complex(dp), allocatable, intent(inout) :: dPsi(:,:,:,:,:)
@@ -1299,9 +1327,7 @@ contains
     iK = parallelKS%localKS(1, iKS)
     iS = parallelKS%localKS(2, iKS)
 
-    if (allocated(dEi)) then
-      dEi(:, iAtom, iS, iCart) = 0.0_dp
-    end if
+    dEi(:, iAtom, iS, iCart) = 0.0_dp
     if (allocated(dPsi)) then
       dPsi(:, :, iK, iS, iCart) = cmplx(0,0,dp)
     end if
@@ -1331,19 +1357,17 @@ contains
         & denseDesc%blacsOrbSqr, workLocal, denseDesc%blacsOrbSqr, transa="C")
 
     ! derivative of eigenvalues stored in diagonal of matrix workLocal, from <c|h'|c>
-    if (allocated(dEi)) then
-      do jj = 1, size(workLocal,dim=2)
-        jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
-            & env%blacs%orbitalGrid%ncol)
-        do ii = 1, size(workLocal,dim=1)
-          iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
-              & env%blacs%orbitalGrid%nrow)
-          if (iGlob == jGlob) then
-            dEi(iGlob, iAtom, iS, iCart) = real(workLocal(ii,jj),dp)
-          end if
-        end do
+    do jj = 1, size(workLocal,dim=2)
+      jGlob = scalafx_indxl2g(jj, desc(NB_), env%blacs%orbitalGrid%mycol, desc(CSRC_),&
+          & env%blacs%orbitalGrid%ncol)
+      do ii = 1, size(workLocal,dim=1)
+        iGlob = scalafx_indxl2g(ii, desc(MB_), env%blacs%orbitalGrid%myrow, desc(RSRC_),&
+            & env%blacs%orbitalGrid%nrow)
+        if (iGlob == jGlob) then
+          dEi(iGlob, iAtom, iS, iCart) = real(workLocal(ii,jj),dp)
+        end if
       end do
-    end if
+    end do
 
     ! weight matrix with inverse of energy differences
     do jj = 1, size(workLocal,dim=2)
@@ -1401,40 +1425,38 @@ contains
     workLocal(:,:) = matmul(transpose(conjg(eigVecsCplx(:,:,iKS))), workLocal)
 
     ! diagonal elements of workLocal are now derivatives of eigenvalues if needed
-    if (allocated(dEi)) then
-      do ii = 1, nOrb
-        dEi(ii, iAtom, iS, iCart) = real(workLocal(ii,ii),dp)
+    do ii = 1, nOrb
+      dEi(ii, iAtom, iS, iCart) = real(workLocal(ii,ii),dp)
+    end do
+
+    ! static case
+
+    ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
+    ! weighting the elements
+    do iFilled = 1, nFilled(1)
+      do iEmpty = nEmpty(1), nOrb
+        workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
+            & invDiff(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), Ef(1), tempElec)&
+            & *theta(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), tempElec)
       end do
+    end do
+
+    ! calculate the derivatives of ci
+    workLocal(:, :nFilled(1)) =&
+        & matmul(eigVecsCplx(:, nEmpty(1):, iKS), workLocal(nEmpty(1):, :nFilled(1)))
+
+    if (allocated(dPsi)) then
+      dPsi(:, :, iK, iS, iCart) = workLocal
     end if
 
-      ! static case
+    ! zero the uncalculated virtual states
+    workLocal(:, nFilled(1)+1:) = 0.0_dp
 
-      ! Form actual perturbation U matrix for eigenvectors (potentially at finite T) by
-      ! weighting the elements
-      do iFilled = 1, nFilled(1)
-        do iEmpty = nEmpty(1), nOrb
-          workLocal(iEmpty, iFilled) = workLocal(iEmpty, iFilled) * &
-              & invDiff(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), Ef(1), tempElec)&
-              & *theta(eigvals(iFilled, iK, 1), eigvals(iEmpty, iK, 1), tempElec)
-        end do
-      end do
-
-      ! calculate the derivatives of ci
-      workLocal(:, :nFilled(1)) =&
-          & matmul(eigVecsCplx(:, nEmpty(1):, iKS), workLocal(nEmpty(1):, :nFilled(1)))
-
-      if (allocated(dPsi)) then
-        dPsi(:, :, iK, iS, iCart) = workLocal
-      end if
-
-      ! zero the uncalculated virtual states
-      workLocal(:, nFilled(1)+1:) = 0.0_dp
-
-      ! form the derivative of the density matrix
-      dRho(:,:) = matmul(workLocal(:, :nFilled(1)),&
-          & transpose(conjg(eigVecsCplx(:, :nFilled(1), iKS))) )&
-          & + matmul(eigVecsCplx(:, :nFilled(1), iKS),&
-          & transpose(conjg(workLocal(:, :nFilled(iKS)))) )
+    ! form the derivative of the density matrix
+    dRho(:,:) = matmul(workLocal(:, :nFilled(1)),&
+        & transpose(conjg(eigVecsCplx(:, :nFilled(1), iKS))) )&
+        & + matmul(eigVecsCplx(:, :nFilled(1), iKS),&
+        & transpose(conjg(workLocal(:, :nFilled(iKS)))) )
 
 
   #:endif

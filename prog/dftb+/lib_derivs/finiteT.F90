@@ -114,5 +114,44 @@ contains
     delta  = 1.0_dp / (2.0_dp * (1.0_dp + cosh(x)))
     
   end function deltaTilde
+
+
+  !> Evaluates the derivative of the Fermi energy
+  pure function dEfda(f, dei)
+
+    real(dp), intent(in) :: f(:)
+
+    real(dp), intent(in) :: dei(:)
+
+    real(dp) :: dEfda
+
+    dEfda = sum(f * (1.0_dp-f) * dei) / sum(f * (1.0_dp-f))
+
+  end function dEfda
+
+
+  !> Evaluates the derivative of level fillings
+  pure subroutine dEida(dfill, f, dEi, kT)
+
+    real(dp), intent(out) :: dfill(:)
+
+    real(dp), intent(in) :: f(:)
+
+    real(dp), intent(in) :: dEi(:)
+
+    real(dp), intent(in) :: kT
+
+    integer :: ii
+    real(dp) :: dEf
+
+    dEf = dEfda(f, dEi)
+
+    do ii = 1, size(f)
+
+      dfill(ii) = -(dEi(ii) - deF) * f(ii) * (1.0_dp - f(ii)) / kT
+
+    end do
+
+  end subroutine dEida
   
 end module dftbp_finiteTHelper

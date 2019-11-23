@@ -2028,7 +2028,7 @@ contains
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, electronicSolver, tStress,&
       & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
-      & tDefinedFreeE, eigen, dipoleMoment)
+      & tDefinedFreeE, eigen, filling, dipoleMoment)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2078,6 +2078,9 @@ contains
     !> eigenvalues (level, kpoint, spin)
     real(dp), intent(in) :: eigen(:,:,:)
 
+    !> fillings (level, kpoint, spin)
+    real(dp), intent(in) :: filling(:,:,:)
+
     !> Dipole moment
     real(dp), intent(in), allocatable :: dipoleMoment(:)
 
@@ -2091,6 +2094,8 @@ contains
 
     if (electronicSolver%providesEigenvals) then
       call taggedWriter%write(fd, tagLabels%eigenVals, eigen)
+
+      call taggedWriter%write(fd, tagLabels%fillings, filling)
 
       call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
       ! extrapolated zero temperature energy

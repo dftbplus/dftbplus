@@ -132,6 +132,9 @@ module dftbp_taggedoutput
     !> Ground state single particle eigenvalues
     character(lenLabel) :: eigenVals = 'eigenvalues'
 
+    !> Ground state single particle fillings
+    character(lenLabel) :: fillings = 'fillings'
+
     !> Derivatives of ground state single particle eigenvalues wrt. k
     character(lenLabel) :: dEigenDk  = 'dEidk'
 
