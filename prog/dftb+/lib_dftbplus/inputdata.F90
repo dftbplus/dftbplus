@@ -468,7 +468,7 @@ module dftbp_inputdata
 
     !> Maximal timing level to show in output
     integer :: timingLevel
-    
+
     ! Custom occupations
     type(WrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)

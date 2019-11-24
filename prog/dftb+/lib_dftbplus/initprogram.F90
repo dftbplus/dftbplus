@@ -3240,7 +3240,7 @@ contains
      if (tMD) then
        call error("Electron dynamics does not work with MD")
      end if
-     
+
      if (tPeriodic .and. tRangeSep) then
        call error("Range separated calculations do not work with periodic systems yet.")
      end if
