@@ -51,7 +51,7 @@ Analysis = {
         Steps = 20000
         TimeStep [au] = 0.2
         Perturbation = Kick {
-            PolarizationDirection = 4
+            PolarizationDirection = "all"
             Spintype = Singlet
         }
         FieldStrength [v/a] = 0.001

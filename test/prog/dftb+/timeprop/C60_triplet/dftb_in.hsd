@@ -101,7 +101,7 @@ Analysis = {
         Steps = 4000
         TimeStep [au] = 0.2
         Perturbation = Kick {
-            PolarizationDirection = 1
+            PolarizationDirection = "x"
             SpinType = Triplet
         }
         FieldStrength [v/a] = 0.001
