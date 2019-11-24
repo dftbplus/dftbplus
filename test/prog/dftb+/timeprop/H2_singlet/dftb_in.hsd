@@ -45,7 +45,7 @@ ParserOptions = {
       Steps = 20000
       TimeStep = 0.2
       Perturbation = Kick {
-        PolarizationDirection = 3
+        PolarizationDirection = "z"
         SpinType = singlet
       }
       FieldStrength [v/a] = 0.001

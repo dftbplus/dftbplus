@@ -337,21 +337,22 @@ contains
       this%time1 = inp%time1
     end if
 
-    if (inp%pertType == iLaser) then
+    select case(inp%pertType)
+    case(iLaser)
       this%tLaser = .true.
-    else if (inp%pertType == iKick) then
+    case(iKick)
       this%tKick = .true.
-    else if (inp%pertType == iKickAndLaser) then
+    case(iKickAndLaser)
       this%tKick = .true.
       this%tLaser = .true.
       this%laserField = inp%tdLaserField
       this%tKickAndLaser = .true.
-    else if (inp%pertType == iNoTDPert) then
+    case(iNoTDPert)
       this%tKick = .false.
       this%tLaser = .false.
-    else
+    case default
       call error("Wrong type of perturbation.")
-    end if
+    end select
 
     if (this%tLaser) then
       this%omega = inp%omega

@@ -73,7 +73,7 @@ Hamiltonian = DFTB {
       TimeStep [au] = 0.2
       FieldStrength [v/a] = 0.0100
       Perturbation = kick {
-       PolarizationDirection = 4
+       PolarizationDirection = "all"
       }	
    }
  }

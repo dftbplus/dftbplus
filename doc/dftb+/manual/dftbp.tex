@@ -404,7 +404,7 @@ properties.\footnote{This approach is distinct from
 \end{ptable}
 
 Specific properties for this method are:
-\begin{description}  
+\begin{description}
 \item[\is{Memory}] Number of last steps which are saved and used to calculate
   the next step via the LBFGS algorithm. The literature recommends that
   \is{Memory} should between 3 and 20~\cite{NoceWrig06}.
@@ -1241,7 +1241,7 @@ following properties:
 
 \item[\is{OnSiteCorrection}] Used to include the on-site matrix elements of
   Dom\'inguez {\it et al.}~\cite{dominguez15}. See p.~\pref{sec:dftbp.Onsites}.
-  
+
 \item[\is{Differentiation}] Specifies how to calculate finite difference
   derivatives in the force routines. See p.~\pref{sec:dftbp.Differentiation}.
 
@@ -1286,7 +1286,7 @@ following properties:
     }
   }
   \end{verbatim}
-  
+
   The example above sets a filling population of +0.01e or -0.01e in the p shell
   of the corresponding atom indices. When the states are filled up, the electron
   excess or depletion results in a shift of the Fermi level in the bands.
@@ -1299,12 +1299,12 @@ following properties:
 
 \item[\is{TruncateSKRange}] Enables overriding of the number of elements to be
   read from the Slater-Koster parameters, shortening the interaction range of
-  atoms. 
+  atoms.
 
   \textbf{Warning:} This option is for experts only! Overriding values stored in
   the SK-files may result in \textbf{inconsistent results}. Make sure you
   understand the consequences when using this option.
-  
+
   \begin{ptable}
     \kw{SKMaxDistance} & r &  & -- & \\
     \kw{HardCutOff} & l &  & No & \\
@@ -1321,7 +1321,7 @@ following properties:
       i.e., no interactions occur beyond that distance. In the case of \kw{No}
       this zeroing tail extends slightly beyond the \kw{HardCutOff} distance.
   \end{description}
-  
+
   Example:
   \begin{verbatim}
   TruncateSKRange = {
@@ -2838,7 +2838,7 @@ enables the following option:
 \begin{description}
 \item[\is{Screening}] Choice of the screening method. The following choices are
   allowed:
-  
+
   \begin{description}
   \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
     terms. This is the recommended choice for speed and accuracy but does not
@@ -2863,10 +2863,10 @@ enables the following option:
       SK-files.
     \end{description}
 
-    
+
   \item[NeighbourBased] Uses a purely neighbour-list based algorithm. This
     algorithm is usually considerably slower than the \is{Thresholded}.
-    
+
     \begin{ptable}
       %%\multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
       %% Screeing / Thresholded /}}} \\
@@ -2905,7 +2905,7 @@ RangeSeparated = LC {
 
 This block enables corrections for on-site matrix elements which improve the
 description of multi-centre integrals~\cite{garcia14Thesis} leading to, for
-example, improved hydrogen-bond energies~\cite{dominguez15}. 
+example, improved hydrogen-bond energies~\cite{dominguez15}.
 
 For each chemical species, the spin-same-spin and spin-different-spin constants
 should be specified for all combinations of atomic shells. {\bf note:} the
@@ -3219,7 +3219,7 @@ Analysis = {
        # These are the default options, which are also set if the bracket is left empty.
        Tolerance = 1.0E-4
        MaxIterations = 100
-    }  
+    }
   }
 }
 \end{verbatim}
@@ -3258,9 +3258,9 @@ method which {\em may} have better scaling properties.
 
 \end{description}
 
-\subsection{ElectronDynamics} 
+\subsection{ElectronDynamics}
 
-\label{sec:dftbp.ElectronDynamics} 
+\label{sec:dftbp.ElectronDynamics}
 
 Calculate the real-time propagation of the electronic state of the system in the presence of an external time-dependent perturbation and time-dependent properties.
 \begin{ptable}
@@ -3273,7 +3273,7 @@ Calculate the real-time propagation of the electronic state of the system in the
   \kw{Restart} & l & & No & \\
   \kw{ReadDensityMatrix} & m & & \cb & \pref{sec:dftbp.tdreaddm} \\
   \kw{WriteRestart} & l & & Yes & \\
-  \kw{WriteFrequency} & i & & 50 & \\  
+  \kw{WriteFrequency} & i & & 50 & \\
   \kw{RestartFrequency} & i & & Steps/10 & \\
   \kw{Forces} & l & & No & \\
   \kw{IonDynamics} & l & & No & \\
@@ -3317,17 +3317,17 @@ Calculate the real-time propagation of the electronic state of the system in the
 
 \item[\is{Velocities}]\modif{\modtype{velocity}}  Specified atomic velocities for all the atoms of the given structure (including ``velocities'' for any stationary atoms, which are silently ignored). (\textbf{Note:} if the velocities from a previous (MD or Ehrenfest) run are used, the velocities printed in the XYZ files are specified in {\AA}/ps, so this should be set in the input). See section \ref{sec:dftbp.VelocityVerlet}.
 
-\item[\is{Pump}] If this trajectory corresponds to the dynamics under a pump pulse, with the intention to probe the system afterwards at different delay times, to simulate a pump-probe transient absorption experiment. The effect of the keyword is to write dump files named \textit{i}\verb|ppdump.bin| ($i=0,\dots,\mathrm{PumpProbeFrames}$) containing the state of the system (density matrix, coordinates, velocities) every a given number of steps. 
+\item[\is{Pump}] If this trajectory corresponds to the dynamics under a pump pulse, with the intention to probe the system afterwards at different delay times, to simulate a pump-probe transient absorption experiment. The effect of the keyword is to write dump files named \textit{i}\verb|ppdump.bin| ($i=0,\dots,\mathrm{PumpProbeFrames}$) containing the state of the system (density matrix, coordinates, velocities) every a given number of steps.
 
 \item[\is{PumpProbeFrames}] Number of total snapshots of the system in the pump trajectory that will be saved for future probe simulations.
 
 \item[\is{PumpProbeRange}]\modif{\modtype{time}} The time range (initial time and final time, separated by a space) between which the snapshots will be dumped to file.
-  
+
 \item[\is{Probe}] If this is the simulation of a probe. If set to yes, then automatically \is{Restart} = Yes, \is{WriteRestart} = No, and only the dipole moment output files will be written, since this keyword is used together with a \is{Kick} perturbation to probe the system. Notice that the dump file that contains the state of the system that wants to be probed must be present and renamed to \verb|tddump.bin|.
 
 \item[\is{EulerFrequency}] Number of steps every which an Euler integration step is done in the electronic propagation (that normally uses the Leapfrog algorithm). The default value ensures no Euler steps are done during the dynamics. If used, must be set to something larger than 50.
 
-\item[\is{WriteBondEnergy}] If the pairwise, time-dependent bond energy $BE(t)$, calculated as 
+\item[\is{WriteBondEnergy}] If the pairwise, time-dependent bond energy $BE(t)$, calculated as
 $$ BE_{AB}(t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) H^0_{\mu \nu}(t),$$
 should be written to the \verb|bondenergy.bin| file. This is written every \is{WriteFrequency} steps, and in binary format because of the large amount of data. Currently incompatible with \is{WriteBondOrder}.
 
@@ -3349,13 +3349,13 @@ No time-dependent perturbation is included, free dynamics are calculated.
 Perform Dirac-delta perturbation (or \textit{kick}) to the density matrix.
 
 \begin{ptable}
-  \kw{PolarizationDirection} & i &  & - & \\
+  \kw{PolarizationDirection} & s &  & - & \\
   \kw{SpinType} & s & SpinPolarisation = Colinear \cb & Singlet & \\
 \end{ptable}
 
 \begin{description}
- \item[\is{PolarizationDirection}] Number to indicate the cartesian axis for the kick where $1=x$, $2=y$ and $3=z$. If set to 4, calculates the three directions $x,y,z$ consecutively. For polarization direction 1,2,3 the dipole moment output file will be named \verb|mux.dat|, \verb|muy.dat|, \verb|muz.dat|, respectively.
- 
+ \item[\is{PolarizationDirection}] The cartesian axis for the kick: \verb|"x"|, \verb|"y"| or \verb|"z"|. If set to \verb|"all"|, calculates the three directions $x,y,z$ consecutively. For polarization direction  \verb|x,y,z| the dipole moment output file will be named \verb|mux.dat|, \verb|muy.dat|, \verb|muz.dat|, respectively.
+
  \item[\is{SpinType}] Must be eiher ``Singlet'' or ``Triplet'' for singlet or triplet spectra, respectively. Only implemented for collinear spin polarisation.
 \end{description}
 
@@ -3373,13 +3373,13 @@ Apply time-dependent sinusoidal perturbation to the system.
 
 \begin{description}
  \item[\is{PolarizationDirection}] Vector along which the electric field is polarized.
- 
+
  \item[\is{ImagPolarizationDirection}] Imaginary part of the polarization vector. Useful for circularly polarized fields.
- 
+
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Energy $\hbar \omega$ of the laser.
- 
+
  \item[\is{Phase}] Optional initial phase of laser field in radians, such that sinusoidal component of the field is described by $\sin(\omega t + \phi)$.
- 
+
  \item[\is{ExcitedAtoms}] List of atoms that will be excited by the laser. The format is the same as the \is{MovedAtoms} keyword.
 
 \end{description}
@@ -3399,19 +3399,19 @@ Apply a \is{Kick} plus a \is{Laser} to the system. Useful for probing the excite
 
 \begin{description}
  \item[\is{KickPolDir}] Same as PolarizationDirection in \is{Kick}.
- 
+
  \item[\is{SpinType}] Same as \is{Kick}.
 
  \item[\is{LaserPolDir}] Same as PolarizationDirection in \is{Laser}.
- 
+
  \item[\is{LaserImagPolDir}] Same as ImagPolarizationDirection in \is{Laser}.
- 
+
  \item[\is{LaserEnergy }] \modif{\modtype{energy}} Same as in \is{Laser}.
- 
+
  \item[\is{LaserStrength}] Peak intensity of the applied laser (in this mode, \is{FieldStrength} is the kick intensity).
- 
+
  \item[\is{Phase}] Same as in \is{Laser}.
- 
+
  \item[\is{ExcitedAtoms}] Same as in \is{Laser}.
 \end{description}
 
@@ -3444,7 +3444,7 @@ Applies a Gaussian envelope function $f(t) = \exp (-(t-t_m)^2 / \beta^2)$, where
 
 Applies a sin$^2$ envelope function:
 
-$$ f(t) = 
+$$ f(t) =
  \begin{cases}
     \sin^2 (\pi(t-t_0)/\tau) & t_0 \leq t \leq t_0+\tau  \\
     0 & t < t_0 \text{  or  } t > t_0 + \tau \\
@@ -3741,7 +3741,7 @@ fractional occupations. The specifications for this block have the following pro
     on the fly during the excited states calculation, instead of being
     cached. This makes the calculation considerably slower, but can help to
     decrease memory use substantially, if you are short on memory.
-    
+
   \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -4351,7 +4351,7 @@ time (in fs), $E_x$, $E_y$, $E_z$
 
 \subsection{molpopul1.dat/molpopul2.dat}
 
-Created if \kw{Populations} = Yes. The number $i$ in molPopul$i$.dat indicates the spin channel for spin polarised calculations (if spin unpolarised, only molPopul1.dat is written). It contains the populations projected onto the ground state molecular orbitals (GSMO), written every \kw{WriteFrequency} steps. The projection is done by calculating first the change of basis matrix $\Lambda$ from the coefficients matrix of the GSMO, $\Lambda = C^{-1}$, and then projecting the time-dependent density matrix of the system in the atomic orbital basis: 
+Created if \kw{Populations} = Yes. The number $i$ in molPopul$i$.dat indicates the spin channel for spin polarised calculations (if spin unpolarised, only molPopul1.dat is written). It contains the populations projected onto the ground state molecular orbitals (GSMO), written every \kw{WriteFrequency} steps. The projection is done by calculating first the change of basis matrix $\Lambda$ from the coefficients matrix of the GSMO, $\Lambda = C^{-1}$, and then projecting the time-dependent density matrix of the system in the atomic orbital basis:
 $$\rho^{GSMO}(t) = \Lambda \rho^{AO}(t) \Lambda^{\dagger} $$
 The diagonal elements of $\rho^{GSMO}$ are the seeked populations. The first column is the time (in fs), and from the second one the populations starting from the lowest lying orbital.
 
@@ -4359,7 +4359,7 @@ The diagonal elements of $\rho^{GSMO}$ are the seeked populations. The first col
 
 Time-dependent forces, calculated within the Ehrenfest approach and ignoring velocity-dependent terms, printed every \kw{WriteFrequency} steps, if \is{Forces} = Yes. The file has $3N +1$ columns where $N$ is the number of atoms, in the following order:
 
-time (in fs), $F_1^x$, $F_1^y$, $F_1^z$, $F_2^x$, $\dots$, $F_N^x$, $F_N^y$, $F_N^z$ 
+time (in fs), $F_1^x$, $F_1^y$, $F_1^z$, $F_2^x$, $\dots$, $F_N^x$, $F_N^y$, $F_N^z$
 
 \subsection{tdcoords.xyz}
 

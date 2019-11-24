@@ -83,7 +83,7 @@
       TimeStep [au] = 0.2
       FieldStrength [v/a] = 0.001
       Perturbation = kick {
-       PolarizationDirection = 2
+       PolarizationDirection = "y"
        }	
    }
  }
