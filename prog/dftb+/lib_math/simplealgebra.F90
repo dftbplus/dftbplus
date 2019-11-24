@@ -18,9 +18,8 @@ module dftbp_simplealgebra
 
 contains
 
-
   !> Cross product
-  function cross3(v1, v2) result(res)
+  pure function cross3(v1, v2) result(res)
 
     !> Resulting vector.
     real(dp) :: res(3)

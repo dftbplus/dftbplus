@@ -18,6 +18,7 @@ module dftbp_sparse2dense
   use dftbp_memman
   use dftbp_periodic, only : TNeighbourList
   use dftbp_densedescr
+  use dftbp_angmomentum, only : rotateZ
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx
   use dftbp_blacsenv
@@ -32,6 +33,8 @@ module dftbp_sparse2dense
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
   public :: packRhoRealBlacs, packRhoCplxBlacs, packRhoPauliBlacs, packERhoPauliBlacs
+  public :: unpackHSHelicalRealBlacs, unpackHSHelicalCplxBlacs
+  public :: packRhoHelicalRealBlacs, packRhoHelicalCplxBlacs
 #:endif
 
 
@@ -39,6 +42,8 @@ module dftbp_sparse2dense
   interface unpackHS
     module procedure unpackHS_real
     module procedure unpackHS_cmplx
+    module procedure unpackHSHelical_real
+    module procedure unpackHSHelical_cmplx
   end interface unpackHS
 
 
@@ -48,6 +53,8 @@ module dftbp_sparse2dense
     module procedure packHS_cmplx
     module procedure packHSPauli
     module procedure packHSPauli_kpts
+    module procedure packHShelical_real
+    module procedure packHShelical_cmplx
   end interface packHS
 
 
@@ -141,7 +148,7 @@ contains
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
     square(:, :) = cmplx(0, 0, dp)
-    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
@@ -227,7 +234,174 @@ contains
 
   end subroutine unpackHS_real
 
-    
+
+  !> Unpacks sparse matrix to square form (complex version) for helical geometries. Note the non
+  !> on-site blocks are only filled in the lower triangle part of the matrix. To fill the matrix
+  !> completely, apply the blockSymmetrizeHS subroutine.
+  subroutine unpackHSHelical_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
+      & cellVec, iAtomStart, iPair, img2CentCell, orb, species, iSquare, coords)
+
+    !> Square form matrix on exit.
+    complex(dp), intent(out) :: square(:, :)
+
+    !> Sparse matrix
+    real(dp), intent(in) :: orig(:)
+
+    !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index of the cell translation vector for each atom.
+    integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
+    real(dp), intent(in) :: cellVec(:, :)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Map from images of atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Dense matrix indexing
+    integer :: iSquare(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    complex(dp) :: phase
+    integer :: nAtom, iOrig, ii, jj, iNeigh, iOldVec, iVec, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, iSh, iSp
+    real(dp) :: kPoint2p(2), rotZ(orb%mOrb,orb%mOrb), theta, tmpSqr(orb%mOrb,orb%mOrb)
+    integer  :: lShellVals(orb%mShell)
+
+    nAtom = size(iNeighbour, dim=2)
+    square(:, :) = cmplx(0, 0, dp)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
+    iOldVec = 0
+    phase = 1.0_dp
+    lShellVals(:) = 0
+    rotZ(:,:) = 0.0_dp
+    do iAtom1 = 1, nAtom
+      ii = iSquare(iAtom1)
+      nOrb1 = iSquare(iAtom1+1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh,iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = iSquare(iAtom2f)
+        nOrb2 = iSquare(iAtom2f+1) - jj
+        iVec = iCellVec(iAtom2)
+        if (iVec /= iOldVec) then
+          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p(:2), cellVec(:2, iVec)) )
+          iOldVec = iVec
+        end if
+        tmpSqr(:nOrb2,:nOrb1) = reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), (/nOrb2, nOrb1/))
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = -atan2(coords(2,iAtom2),coords(1,iAtom2))&
+            & + atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) = matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
+            & + phase * tmpSqr(:nOrb2,:nOrb1)
+      end do
+    end do
+
+  end subroutine unpackHSHelical_cmplx
+
+
+  !> Unpacks sparse matrix to square form (real version for Gamma point) for helical geometry
+  !>
+  !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
+  !> the matrix completely, apply the blockSymmetrizeHS subroutine.
+  subroutine unpackHSHelical_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iPair,&
+      & img2CentCell, orb, species, iSquare, coords)
+
+    !> Square form matrix on exit.
+    real(dp), intent(out) :: square(:, :)
+
+    !> Sparse matrix
+    real(dp), intent(in) :: orig(:)
+
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Atom offset for the squared Hamiltonian
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Map from images of atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Dense matrix indexing
+    integer :: iSquare(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    integer :: nAtom, iOrig, ii, jj, iNeigh, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2
+    real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta, tmpSqr(orb%mOrb,orb%mOrb)
+    integer  :: lShellVals(orb%mShell), iSh, iSp
+
+    nAtom = size(iNeighbour, dim=2)
+    square(:, :) = 0.0_dp
+
+    lShellVals(:) = 0
+    rotZ(:,:) = 0.0_dp
+    do iAtom1 = 1, nAtom
+      ii = iSquare(iAtom1)
+      nOrb1 = iSquare(iAtom1+1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh,iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = iSquare(iAtom2f)
+        nOrb2 = iSquare(iAtom2f+1) - jj
+        tmpSqr(:nOrb2,:nOrb1) = reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), (/nOrb2,nOrb1/))
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = -atan2(coords(2,iAtom2),coords(1,iAtom2))&
+            & + atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ,lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) = matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+        square(jj:jj+nOrb2-1, ii:ii+nOrb1-1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)&
+            & + tmpSqr(:nOrb2,:nOrb1)
+      end do
+    end do
+
+  end subroutine unpackHSHelical_real
+
+
   !> Unpacks sparse matrices to square form (2 component version for k-points)
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
@@ -474,7 +648,7 @@ contains
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(iAtomStart) == nAtom + 1)
 
-    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
@@ -584,6 +758,186 @@ contains
     end do
 
   end subroutine packHS_real
+
+
+  !> Pack squared matrix in the sparse form (complex version) for helical boundary conditions.
+  subroutine packHShelical_cmplx(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
+      & mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell, orb, species, iSquare, coords)
+
+    !> Sparse matrix
+    real(dp), intent(inout) :: primitive(:)
+
+    !> Squared form matrix
+    complex(dp), intent(in) :: square(:, :)
+
+    !> Relative coordinates of the K-point
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Weight of the K-point
+    real(dp), intent(in) :: kweight
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Maximal number of orbitals on an atom.
+    integer, intent(in) :: mOrb
+
+    !> Index of the cell translation vector for each atom.
+    integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
+    real(dp), intent(in) :: cellVec(:, :)
+
+    !> Atom offset for the squared matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Dense matrix indexing
+    integer :: iSquare(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    complex(dp) :: phase
+    integer :: nAtom, iOrig, ii, jj, kk, iNeigh, iOldVec, iVec, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, lShellVals(orb%mShell), iSh, iSp
+    real(dp) :: kPoint2p(2), tmpSqrR(mOrb, mOrb), rotZ(orb%mOrb,orb%mOrb), theta
+    complex(dp) :: tmpSqr(mOrb, mOrb)
+
+    nAtom = size(iNeighbour, dim=2)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
+    iOldVec = 0
+    phase = 1.0_dp
+    lShellVals(:) = 0
+    do iAtom1 = 1, nAtom
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = iAtomStart(iAtom2f)
+        nOrb2 = iAtomStart(iAtom2f + 1) - jj
+        iVec = iCellVec(iAtom2)
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = atan2(coords(2,iAtom2),coords(1,iAtom2)) &
+            & - atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ,lShellVals(:iSh), theta)
+        if (iVec /= iOldVec) then
+          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          iOldVec = iVec
+        end if
+        tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
+        ! Hermitian the on-site block before packing, just in case
+        if (iAtom1 == iAtom2f) then
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk+1:nOrb1) = conjg(tmpSqr(kk+1:nOrb1, kk))
+          end do
+        end if
+        ! rotate
+        tmpSqrR(:nOrb2,:nOrb1) = real(phase*tmpSqr(:nOrb2,:nOrb1))
+        tmpSqrR(:nOrb2,:nOrb1) = matmul(rotZ(:nOrb2,:nOrb2),tmpSqrR(:nOrb2,:nOrb1))
+        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1*nOrb2 - 1)&
+            & + kWeight * reshape(tmpSqrR(1:nOrb2, 1:nOrb1), [nOrb1*nOrb2])
+      end do
+    end do
+
+  end subroutine packHShelical_cmplx
+
+
+  !> Pack squared matrix in the sparse form (real version).
+  subroutine packHShelical_real(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
+      & iPair, img2CentCell, orb, species, iSquare, coords)
+
+    !> Sparse matrix
+    real(dp), intent(inout) :: primitive(:)
+
+    !> Squared form matrix
+    real(dp), intent(in) :: square(:, :)
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Maximal number of orbitals on an atom.
+    integer, intent(in) :: mOrb
+
+    !> Atom offset for the squared matrix
+    integer, intent(in) :: iAtomStart(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Dense matrix indexing
+    integer :: iSquare(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    integer :: nAtom, iOrig, ii, jj, kk, iNeigh, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, iSp, iSh, lShellVals(orb%mShell)
+    real(dp) :: tmpSqr(mOrb, mOrb), rotZ(orb%mOrb,orb%mOrb), theta
+
+    nAtom = size(iNeighbour, dim=2)
+    lShellVals(:) = 0
+    do iAtom1 = 1, nAtom
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = iAtomStart(iAtom2f)
+        nOrb2 = iAtomStart(iAtom2f + 1) - jj
+        tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = atan2(coords(2,iAtom2),coords(1,iAtom2)) &
+            & - atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+        ! Symmetrize the on-site block before packing, just in case
+        if (iAtom1 == iAtom2f) then
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk+1:nOrb1, kk)
+          end do
+        end if
+        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+            & + reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2])
+      end do
+    end do
+
+  end subroutine packHShelical_real
 
 
   !> Pack squared matrix in the sparse form (real Pauli version).
@@ -766,7 +1120,7 @@ contains
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(primitive, dim=2)==4)
 
-    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
 
     ! sigma_I and sigma_z blocks
     do iBlock = 0, 1
@@ -1039,7 +1393,7 @@ contains
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(primitive, dim=2)==4)
 
-    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
 
     ! sigma_I and sigma_z blocks
     do iBlock = 0, 1
@@ -1274,7 +1628,7 @@ contains
     @:ASSERT(size(iAtomStart) == nAtom + 1)
     @:ASSERT(kWeight > 0.0_dp)
 
-    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
 
     do iBlock = 0, 1
       iOldVec = 0
@@ -1552,7 +1906,7 @@ contains
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
     square(:, :) = cmplx(0, 0, dp)
-    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
@@ -1997,7 +2351,7 @@ contains
     @:ASSERT(kWeight > 0.0_dp)
     @:ASSERT(size(desc%iAtomStart) == nAtom + 1)
 
-    kPoint2p(:) = 2.0_dp * pi * kPoint(:)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
     iOldVec = 0
     phase = 1.0_dp
     do iAtom1 = 1, nAtom
@@ -2343,7 +2697,6 @@ contains
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = desc%iAtomStart(iAtom2f)
-          @:ASSERT(jj >= ii)
           nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
           iVec = iCellVec(iAtom2)
           if (iVec /= iOldVec) then
@@ -2367,6 +2720,374 @@ contains
     end do
 
   end subroutine packERhoPauliBlacs
+
+
+  !> Unpacks sparse H or S into dense (real, blacs) for helical geometry.
+  !>
+  !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
+  !>
+  subroutine unpackHSHelicalRealBlacs(myBlacs, orig, iNeighbour, nNeighbourSK, iPair, img2CentCell,&
+      & orb, species, iSquare, coords, desc, square)
+
+    !> BLACS matrix descriptor
+    type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> sparse matrix
+    real(dp), intent(in) :: orig(:)
+
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Map from images of atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Dense matrix indexing
+    integer :: iSquare(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Dense matrix description
+    type(TDenseDescr), intent(in) :: desc
+
+    !> dense matrix part of distributed whole
+    real(dp), intent(out) :: square(:, :)
+
+    integer :: nAtom, iOrig, ii, jj, nOrb1, nOrb2, iNeigh, iAtom1, iAtom2, iAtom2f
+    real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta, tmpSqr(orb%mOrb,orb%mOrb)
+    integer  :: lShellVals(orb%mShell), iSh, iSp
+
+    nAtom = size(iNeighbour, dim=2)
+    square(:, :) = 0.0_dp
+    do iAtom1 = 1, nAtom
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        tmpSqr(:nOrb2,:nOrb1) = reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), (/nOrb2, nOrb1/))
+        theta = -atan2(coords(2,iAtom2),coords(1,iAtom2))&
+            & + atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) = matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+        call scalafx_addl2g(myBlacs%orbitalGrid, tmpSqr(:nOrb2,:nOrb1), desc%blacsOrbSqr,&
+            & jj, ii, square)
+        if (iAtom1 /= iAtom2f) then
+          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(tmpSqr(:nOrb2,:nOrb1)),&
+              & desc%blacsOrbSqr, ii, jj, square)
+        end if
+      end do
+    end do
+
+  end subroutine unpackHSHelicalRealBlacs
+
+
+  !> Unpacks sparse H into distributed dense matrix (complex) for helical geometry
+  !>
+  !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
+  !>
+  subroutine unpackHSHelicalCplxBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
+      & cellVec, iPair, img2CentCell, orb, species, iSquare, coords, desc, square)
+
+    !> BLACS matrix descriptor
+    type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> sparse matrix
+    real(dp), intent(in) :: orig(:)
+
+    !> Relative coordinates of the K-point where the sparse matrix should be unfolded.
+    real(dp), intent(in) :: kPoint(:)
+
+    !> Neighbour list for each atom (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for each atom (incl. itself).
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index of the cell translation vector for each atom.
+    integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
+    real(dp), intent(in) :: cellVec(:, :)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Dense matrix indexing
+    integer :: iSquare(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Dense matrix description
+    type(TDenseDescr), intent(in) :: desc
+
+    !> dense matrix part of distributed whole
+    complex(dp), intent(out) :: square(:, :)
+
+    complex(dp) :: phase, tmpSqr(orb%mOrb,orb%mOrb)
+    integer :: nAtom, iOrig, nOrb1, nOrb2, ii, jj, iNeigh, iOldVec, iVec, iAtom1, iAtom2, iAtom2f
+    real(dp) :: kPoint2p(2), rotZ(orb%mOrb,orb%mOrb), theta
+    integer  :: iSh, iSp, lShellVals(orb%mShell)
+
+    nAtom = size(iNeighbour, dim=2)
+    square(:, :) = cmplx(0, 0, dp)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
+    iOldVec = 0
+    phase = 1.0_dp
+    lShellVals(:) = 0
+    rotZ(:,:) = 0.0_dp
+    do iAtom1 = 1, nAtom
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+        iVec = iCellVec(iAtom2)
+        if (iVec /= iOldVec) then
+          phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p, cellVec(:, iVec)))
+          iOldVec = iVec
+        end if
+
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+
+        tmpSqr(:nOrb2,:nOrb1) = reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), (/nOrb2, nOrb1/))
+        theta = -atan2(coords(2,iAtom2),coords(1,iAtom2))&
+            & + atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) = phase * matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+
+        call scalafx_addl2g(myBlacs%orbitalGrid, tmpSqr(:nOrb2,:nOrb1), desc%blacsOrbSqr, jj,&
+            & ii, square)
+
+        if (iAtom1 /= iAtom2f) then
+
+          call scalafx_addl2g(myBlacs%orbitalGrid, transpose(conjg(tmpSqr(:nOrb2,:nOrb1))),&
+              & desc%blacsOrbSqr, ii, jj, square)
+
+        end if
+
+      end do
+    end do
+
+  end subroutine unpackHSHelicalCplxBlacs
+
+
+  !> Packs distributed dense real matrix into sparse form (real) for helical boundary conditions.
+  subroutine packRhoHelicalRealBlacs(myBlacs, desc, square, iNeighbour, nNeighbourSK, iPair,&
+      & img2CentCell, orb, species, iSquare, coords, primitive)
+
+    !> BLACS matrix descriptor
+    type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> Dense matrix description
+    type(TDenseDescr), intent(in) :: desc
+
+    !> distributed dense matrix to pack
+    real(dp), intent(in) :: square(:, :)
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Dense matrix indexing
+    integer :: iSquare(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    !> sparse matrix to add this contribution into
+    real(dp), intent(inout) :: primitive(:)
+
+    integer :: nAtom, iOrig, ii, jj, kk, iNeigh, iAtom1, iAtom2, iAtom2f, nOrb1, nOrb2
+    integer :: iSp, iSh, lShellVals(orb%mShell)
+    real(dp) :: tmpSqr(orb%mOrb, orb%mOrb), rotZ(orb%mOrb,orb%mOrb), theta
+
+    nAtom = size(iNeighbour, dim=2)
+    lShellVals(:) = 0
+    do iAtom1 = 1, nAtom
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
+            & tmpSqr(1:nOrb2, 1:nOrb1))
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = atan2(coords(2,iAtom2),coords(1,iAtom2)) &
+            & - atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+        ! Symmetrize the on-site block before packing, just in case
+        if (iAtom1 == iAtom2f) then
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk + 1 : nOrb1, kk)
+          end do
+        end if
+        primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) =&
+            & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
+            & + reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2])
+      end do
+    end do
+
+  end subroutine packRhoHelicalRealBlacs
+
+
+  !> Packs distributed dense real matrix into sparse form (real).
+  subroutine packRhoHelicalCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbour,&
+      & nNeighbourSK, iCellVec, cellVec, iPair, img2CentCell, orb, species, iSquare, coords,&
+      & primitive)
+
+    !> BLACS matrix descriptor
+    type(TBlacsEnv), intent(in) :: myBlacs
+
+    !> Dense matrix description
+    type(TDenseDescr), intent(in) :: desc
+
+    !> Distributed dense matrix to pack
+    complex(dp), intent(in) :: square(:, :)
+
+    !> k-point at which to pack
+    real(dp), intent(in) :: kPoint(:)
+
+    !> weight for this k-point
+    real(dp), intent(in) :: kWeight
+
+    !> Neighbour list for the atoms (First index from 0!)
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Nr. of neighbours for the atoms.
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index of the cell translation vector for each atom.
+    integer, intent(in) :: iCellVec(:)
+
+    !> Relative coordinates of the cell translation vectors.
+    real(dp), intent(in) :: cellVec(:, :)
+
+    !> indexing array for the sparse Hamiltonian
+    integer, intent(in) :: iPair(0:, :)
+
+    !> Mapping between image atoms and corresponding atom in the central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Dense matrix indexing
+    integer :: iSquare(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:,:)
+
+    !> sparse matrix to add this contribution into
+    real(dp), intent(inout) :: primitive(:)
+
+    complex(dp) :: phase
+    integer :: nAtom, iOrig, ii, jj, kk, iNeigh, iOldVec, iVec, iAtom1, iAtom2, iAtom2f
+    integer :: nOrb1, nOrb2, iSp, iSh, lShellVals(orb%mShell)
+    real(dp) :: kPoint2p(2), rotZ(orb%mOrb,orb%mOrb), theta
+    complex(dp) :: tmpSqr(orb%mOrb, orb%mOrb)
+
+    nAtom = size(iNeighbour, dim=2)
+    kPoint2p(:) = 2.0_dp * pi * kPoint
+    lShellVals(:) = 0
+    iOldVec = 0
+    phase = 1.0_dp
+    do iAtom1 = 1, nAtom
+      ii = desc%iAtomStart(iAtom1)
+      nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
+      do iNeigh = 0, nNeighbourSK(iAtom1)
+        iOrig = iPair(iNeigh, iAtom1) + 1
+        iAtom2 = iNeighbour(iNeigh, iAtom1)
+        iAtom2f = img2CentCell(iAtom2)
+        jj = desc%iAtomStart(iAtom2f)
+        nOrb2 = desc%iAtomStart(iAtom2f + 1) - jj
+        iVec = iCellVec(iAtom2)
+        if (iVec /= iOldVec) then
+          phase = exp(cmplx(0, -1, dp) * dot_product(kPoint2p(:), cellVec(:, iVec)))
+          iOldVec = iVec
+        end if
+        call scalafx_cpg2l(myBlacs%orbitalGrid, desc%blacsOrbSqr, jj, ii, square,&
+            & tmpSqr(1:nOrb2, 1:nOrb1))
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = atan2(coords(2,iAtom2),coords(1,iAtom2)) &
+            & - atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+        ! Hermitian the on-site block before packing, just in case
+        if (iAtom1 == iAtom2f) then
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk + 1 : nOrb1) = conjg(tmpSqr(kk + 1 : nOrb1, kk))
+          end do
+        end if
+        primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) =&
+            & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1)&
+            & + kWeight * real(phase * reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2]), dp)
+      end do
+    end do
+
+  end subroutine packRhoHelicalCplxBlacs
 
 #:endif
 

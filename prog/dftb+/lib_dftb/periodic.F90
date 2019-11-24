@@ -20,6 +20,7 @@ module dftbp_periodic
   use dftbp_commontypes
   use dftbp_memman
   use dftbp_latpointiter
+  use dftbp_quaternions, only : rotate3
   implicit none
 
   private
@@ -30,7 +31,7 @@ module dftbp_periodic
   public :: updateNeighbourList, updateNeighbourListAndSpecies
   public :: getNrOfNeighbours, getNrOfNeighboursForAll
   public :: getSuperSampling
-  public :: frac2cart, cart2frac
+  public :: frac2cart, cart2frac, cyl2cart, cart2cyl
   public :: getSparseDescriptor
 
 
@@ -59,6 +60,17 @@ module dftbp_periodic
     module procedure cartesianFractional
   end interface cart2frac
 
+  !> routine to convert from cylindrical to cartesian coordinate systems
+  interface cyl2cart
+    module procedure cyl2cart_
+    module procedure cyl2cart_array
+  end interface cyl2cart
+
+  !> routine to convert from cartesian to cylindrical coordinate systems
+  interface cart2cyl
+    module procedure cart2cyl_
+  end interface cart2cyl
+
 
   !> Contains essential data for the neighbourlist
   type TNeighbourList
@@ -78,6 +90,8 @@ module dftbp_periodic
     !> initialised data
     logical :: initialized = .false.
   end type TNeighbourList
+
+  real(dp), parameter :: zAxis(3) = (/0.0_dp,0.0_dp,1.0_dp/)
 
 contains
 
@@ -254,7 +268,7 @@ contains
 
   !> Updates the neighbour list and the species arrays.
   subroutine updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neigh, nAllAtom,&
-      & coord0, species0, cutoff, rCellVec, symmetric)
+      & coord0, species0, cutoff, rCellVec, symmetric, latVec)
 
     !> Coordinates of all interacting atoms on exit
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -289,8 +303,11 @@ contains
     !> Whether the neighbour list should be symmetric or not (default)
     logical, intent(in), optional :: symmetric
 
+    !> Helical translation and angle, if neccessary, along z axis
+    real(dp), intent(in), optional :: latVec(:,:)
+
     call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-        & rCellVec, symmetric)
+        & rCellVec, symmetric, latVec)
 
     if (size(species) /= nAllAtom) then
       deallocate(species)
@@ -306,7 +323,7 @@ contains
   !> neighbour list determination is a simple N^2 algorithm, calculating the distance between the
   !> possible atom pairs.
   subroutine updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-      & rCellVec, symmetric)
+      & rCellVec, symmetric, latVec)
 
     !> Coordinates of the objects interacting with the objects in the central cell (on exit).
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -337,19 +354,22 @@ contains
     !> Optional, whether the map should be symmetric (dftb default = .false.)
     logical, intent(in), optional :: symmetric
 
-    !> Nr. of atoms in the system
+    !> Helical translation and angle, if neccessary, along z axis
+    real(dp), intent(in), optional :: latVec(:,:)
+
+    ! Nr. of atoms in the system
     integer :: nAtom
 
-    !> Max. nr. of atom without reallocation
+    ! Max. nr. of atom without reallocation
     integer :: mAtom
 
-    !> Max. nr. of neighbours without reallocation
+    ! Max. nr. of neighbours without reallocation
     integer :: maxNeighbour
 
-    !> Nr. of cell translation vectors
+    ! Nr. of cell translation vectors
     integer :: nCellVec
 
-    !> Square of the diatomic interaction cutoffs
+    ! Square of the diatomic interaction cutoffs
     real(dp) :: cutoff2
 
     real(dp) :: dist2
@@ -394,13 +414,21 @@ contains
     end do
     neigh%neighDist2(:,:) = 0.0_dp
 
+    rCell(:) = 0.0_dp
+
     ! Loop over all possible neighbours for all atoms in the central cell.
     ! Only those neighbours are considered which map on atom with a higher
     ! or equal index in the central cell.
     ! Outer two loops: all atoms in all cells.
     ! Inner loop: all atoms in the central cell.
     lpCellVec: do ii = 1, nCellVec
-      rCell(:) = rCellVec(:, ii)
+      if (present(latVec)) then
+        ! helical structure
+        rCell(:) = 0.0_dp
+        rCell(3) = rCellVec(1, ii)
+      else
+        rCell(:) = rCellVec(:, ii)
+      end if
       oldIAtom1 = 0
       lpIAtom1: do iAtom1 = 1, nAtom
         rr(:) = coord0(:, iAtom1) + rCell(:)
@@ -408,6 +436,16 @@ contains
           iAtom2End = nAtom
         else
           iAtom2End = iAtom1
+        end if
+        if (present(latVec)) then
+          ! helical geometry
+          if (size(latvec,dim=1)==3) then
+            ! an additional C rotation operation
+            call rotate3(rr,2.0_dp*pi*rCellVec(2, ii)/latvec(3,1), zAxis)
+          end if
+          ! helical operation, note nint() not floor() as roundoff can cause problems for floor
+          ! here.
+          call rotate3(rr,latvec(2,1)*nint(rCellVec(1, ii)/latvec(1,1)), zAxis)
         end if
         lpIAtom2: do iAtom2 = 1, iAtom2End
           !  If distance greater than cutoff -> skip
@@ -1074,5 +1112,58 @@ contains
     cartCoords = matmul(invLatvecs, cartCoords)
 
   end subroutine cartesianFractional
+
+
+  !> Convert from cylindrical to Cartesian coordinate systems
+  subroutine cyl2cart_(x,r)
+
+    !> Cartesian coordinates
+    real(dp), intent(out) :: x(3)
+
+    !> Cylindrical coordinates stored as (radius, height, angle)
+    real(dp), intent(in) :: r(3)
+
+    x = 0.0_dp
+    x(1) = r(1)*cos(r(3))
+    x(2) = r(1)*sin(r(3))
+    x(3) = r(2)
+
+  end subroutine cyl2cart_
+
+
+  !> Convert from Cartesian to cylindrical coordinate systems
+  subroutine cart2cyl_(r,x)
+
+    !> Cartesian coordinates
+    real(dp), intent(out) :: r(3)
+
+    !> Cylindrical coordinates stored as (radius, height, angle)
+    real(dp), intent(in) :: x(3)
+
+    r = 0.0_dp
+    r(1) = sqrt(sum(x(:2)**2))
+    r(2) = x(3)
+    r(3) = atan2(x(2),x(1))
+
+  end subroutine cart2cyl_
+
+
+  !> Convert from cylindrical to Cartesian coordinate systems
+  subroutine cyl2cart_array(x,r)
+
+    !> Cartesian coordinates
+    real(dp), intent(out) :: x(:,:)
+
+    !> Cylindrical coordinates stored as (radius, height, angle)
+    real(dp), intent(in) :: r(:,:)
+
+  @:ASSERT(all(shape(x)==shape(r)))
+  @:ASSERT(size(x,dim=1)==3)
+    x = 0.0_dp
+    x(1,:) = r(1,:)*cos(r(3,:))
+    x(2,:) = r(1,:)*sin(r(3,:))
+    x(3,:) = r(2,:)
+
+  end subroutine cyl2cart_array
 
 end module dftbp_periodic
