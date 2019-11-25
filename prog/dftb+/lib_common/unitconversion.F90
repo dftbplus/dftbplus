@@ -213,4 +213,15 @@ module dftbp_unitconversion
       &unit("dalton              ", amu__au ) &
       &/)
 
+  !> Number of angular units
+  integer, parameter :: nAngularUnit = 4
+
+  !> angular units
+  type(unit), parameter :: angularUnits(nAngularUnit) = (/ &
+      &unit("degrees             ", pi / 180.0_dp ), &
+      &unit("deg                 ", pi / 180.0_dp ), &
+      &unit("radian              ", 1.0_dp ), &
+      &unit("rad                 ", 1.0_dp ) &
+      &/)
+
 end module dftbp_unitconversion
