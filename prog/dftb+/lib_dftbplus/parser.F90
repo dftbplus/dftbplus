@@ -3959,9 +3959,9 @@ contains
        call getChildValue(value1, "SpinType", buffer2, "Singlet")
        select case(unquote(char(buffer2)))
        case ("singlet", "Singlet")
-          input%spType = iTDSinglet
+          input%spType = tdSpinTypes%singlet
        case ("triplet", "Triplet")
-          input%spType = iTDTriplet
+          input%spType = tdSpinTypes%triplet
        case default
           call detailedError(value1, "Unknown spectrum spin type " // char(buffer2))
        end select
@@ -3991,7 +3991,7 @@ contains
        if ( input%polDir < 1 .or. input%polDir > 4) then
           call detailedError(child, "Wrong specified polarization direction")
        end if
-       call getChildValue(value1, "SpinType", input%spType, iTDSinglet)
+       call getChildValue(value1, "SpinType", input%spType, tdSpinTypes%singlet)
 
        call getChildValue(value1, "LaserPolDir", input%reFieldPolVec)
        call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, &
@@ -4031,10 +4031,10 @@ contains
     select case(char(buffer))
 
     case("constant")
-       input%envType = iTDConstant
+       input%envType = envTypes%constant
 
     case("gaussian")
-       input%envType = iTDGaussian
+       input%envType = envTypes%gaussian
        call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
        call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
@@ -4042,7 +4042,7 @@ contains
        call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("sin2")
-       input%envType = iTDSin2
+       input%envType = envTypes%sin2
        call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
        call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
@@ -4050,7 +4050,7 @@ contains
        call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("fromfile")
-       input%envType = iTDFromFile
+       input%envType = envTypes%fromFile
        call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
        call convertByMul(char(modifier), timeUnits, child, input%Time0)
 

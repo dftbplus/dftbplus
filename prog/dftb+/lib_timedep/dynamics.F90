@@ -67,9 +67,7 @@ module dftbp_timeprop
 
   public :: runDynamics, TElecDynamics_init
   public :: TElecDynamicsInp, TElecDynamics
-  public :: pertTypes !iKick, iLaser, iNoTDPert, iKickAndLaser
-  public :: iTDConstant, iTDGaussian, iTDSin2, iTDFromFile
-  public :: iTDSinglet, iTDTriplet
+  public :: pertTypes, envTypes, tdSpinTypes
 
   !> Data type to  initialize electronic dynamics variables from parser
   type TElecDynamicsInp
@@ -244,15 +242,38 @@ end type TElecDynamics
      
   !> Container for enumerated available types of perturbation
   type(TDPertTypeEnum), parameter :: pertTypes = TDPertTypeEnum()
+
+  type :: TDEnvelopeFunctionEnum
+
+     !> Constant envelope
+     integer :: constant = 1
+
+     !> Gaussian envelope
+     integer :: gaussian = 2
+
+     !> Sin^2 envelope
+     integer :: sin2 = 3
+
+     !> Read field from file
+     integer :: fromFile = 4
      
-! !> Enumerating available types of perturbation
-!  integer, parameter :: iKick = 1, iLaser = 2, iNoTDPert = 3, iKickAndLaser = 4
+  end type TDEnvelopeFunctionEnum
+  
+  !> Container for enumerated available types of envelope function
+  type(TDEnvelopeFunctionEnum), parameter :: envTypes = TDEnvelopeFunctionEnum()
 
-  !> Enumerating available types of envelope function
-  integer, parameter :: iTDConstant = 1, iTDGaussian = 2, iTDSin2 = 3, iTDFromFile = 4
+  type :: TDSpinTypesEnum
+     
+     ! only singlet excitations (no change of total spin)
+     integer :: singlet = 1
 
-  !> Enumerating available types of spin polarized spectra
-  integer, parameter :: iTDSinglet = 1, iTDTriplet = 2
+     ! only triplet excitations (with change of total spin = 1)
+     integer :: triplet = 2
+     
+  end type TDSpinTypesEnum
+
+  !> Container for enumerated types of spin polarized spectra 
+  type(TDSpinTypesEnum), parameter :: tdSpinTypes = TDSpinTypesEnum()
 
 contains
 
@@ -350,7 +371,7 @@ contains
     this%KWeight = KWeight
     allocate(this%parallelKS, source=parallelKS)
 
-    if (inp%envType /= iTDConstant) then
+    if (inp%envType /= envTypes%constant) then
       this%time0 = inp%time0
       this%time1 = inp%time1
     end if
@@ -378,7 +399,7 @@ contains
       norm = sqrt(abs(dot_product(this%fieldDir,this%fieldDir)))
       this%fieldDir = this%fieldDir / norm
       allocate(this%tdFunction(3, 0:this%nSteps))
-      this%tEnvFromFile = (this%envType == iTDFromFile)
+      this%tEnvFromFile = (this%envType == envTypes%fromFile)
       this%indExcitedAtom = inp%indExcitedAtom
       this%nExcitedAtom = inp%nExcitedAtom
     end if
@@ -1316,13 +1337,13 @@ contains
 
     character(1), parameter :: localDir(3) = ['x', 'y', 'z']
 
-    pkick(1) = this%field ! check units
+    pkick(1) = this%field 
 
     if (this%nSpin == 2) then
       select case(this%spType)
-      case (iTDSinglet)
+      case (tdSpinTypes%singlet)
         pkick(2) = pkick(1)
-      case(iTDTriplet)
+      case(tdSpinTypes%triplet)
         pkick(2) = -pkick(1)
       end select
     end if
@@ -1387,11 +1408,11 @@ contains
     do iStep = 0,this%nSteps
       time = iStep * this%dt + startTime
 
-      if (this%envType == iTDConstant) then
+      if (this%envType == envTypes%constant) then
         envelope = 1.0_dp
-      else if (this%envType == iTDGaussian) then
+      else if (this%envType == envTypes%gaussian) then
         envelope = exp(-4.0_dp*pi*(time-midPulse)**2 / deltaT**2)
-      else if (this%envType == iTDSin2 .and. (time >= this%time0) .and. (time <= this%time1)) then
+      else if (this%envType == envTypes%sin2 .and. (time >= this%time0) .and. (time <= this%time1)) then
         envelope = sin(pi*(time-this%time0)/deltaT)**2
       else
         envelope = 0.0_dp
