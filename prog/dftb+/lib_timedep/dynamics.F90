@@ -67,7 +67,7 @@ module dftbp_timeprop
 
   public :: runDynamics, TElecDynamics_init
   public :: TElecDynamicsInp, TElecDynamics
-  public :: iKick, iLaser, iNoTDPert, iKickAndLaser
+  public :: pertTypes !iKick, iLaser, iNoTDPert, iKickAndLaser
   public :: iTDConstant, iTDGaussian, iTDSin2, iTDFromFile
   public :: iTDSinglet, iTDTriplet
 
@@ -227,8 +227,26 @@ type TElecDynamics
 
 end type TElecDynamics
 
-  !> Enumerating available types of perturbation
-  integer, parameter :: iKick = 1, iLaser = 2, iNoTDPert = 3, iKickAndLaser = 4
+  type :: TDPertTypeEnum
+     !> Dirac delta kick to DM
+     integer :: kick = 1
+
+     !> Sinusoidal external field
+     integer :: laser = 2
+
+     !> No external perturbation, free dynamics
+     integer :: noTDPert = 3
+
+     !> Simultaneous kick (at t=0) and external monochromatic field
+     integer :: kickAndLaser = 4
+
+  end type TDPertTypeEnum
+     
+  !> Container for enumerated available types of perturbation
+  type(TDPertTypeEnum), parameter :: pertTypes = TDPertTypeEnum()
+     
+! !> Enumerating available types of perturbation
+!  integer, parameter :: iKick = 1, iLaser = 2, iNoTDPert = 3, iKickAndLaser = 4
 
   !> Enumerating available types of envelope function
   integer, parameter :: iTDConstant = 1, iTDGaussian = 2, iTDSin2 = 3, iTDFromFile = 4
@@ -338,16 +356,16 @@ contains
     end if
 
     select case(inp%pertType)
-    case(iLaser)
+    case(pertTypes%laser)
       this%tLaser = .true.
-    case(iKick)
+    case(pertTypes%kick)
       this%tKick = .true.
-    case(iKickAndLaser)
+    case(pertTypes%kickAndLaser)
       this%tKick = .true.
       this%tLaser = .true.
       this%laserField = inp%tdLaserField
       this%tKickAndLaser = .true.
-    case(iNoTDPert)
+    case(pertTypes%noTDPert)
       this%tKick = .false.
       this%tLaser = .false.
     case default
@@ -854,8 +872,7 @@ contains
 
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
 
-    call getChargeDipole(this, deltaQ, qq, dipole, q0, trho, Ssqr, coord, iSquare, qBlock,&
-         & over, rhoPrim, neighbourlist, nNeighbourSK, orb, iSparseStart, img2CentCell)
+    call getChargeDipole(this, deltaQ, qq, dipole, q0, trho, Ssqr, coord, iSquare, qBlock)
 
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
@@ -943,8 +960,7 @@ contains
             & trim(dumpIdx) // 'ppdump.bin')
      end if
 
-     call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock,&
-          & over, rhoPrim, neighbourlist, nNeighbourSK, orb, iSparseStart, img2CentCell)
+     call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock)
 
      call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
@@ -1398,8 +1414,7 @@ contains
 
 
   !> Calculate charges, dipole moments
-  subroutine getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock,&
-       & over, rhoPrim, neighbourlist, nNeighbourSK, orb, iSparseStart, img2CentCell)
+  subroutine getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -1428,27 +1443,6 @@ contains
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
 
-    !> sparse density matrix
-    real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
-
-    !> neighbour list
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> index array for location of atomic blocks in large sparse arrays
-    integer, intent(in) :: iSparseStart(0:,:)
-
-    !> image atoms to their equivalent in the central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> overlap (sparse)
-    real(dp), allocatable, intent(in) :: over(:)
-
     !> Mulliken block charges
     real(dp), allocatable, intent(inout) :: qBlock(:,:,:,:)
 
@@ -1469,17 +1463,6 @@ contains
 
     else
 
-      !rhoPrim(:,:) = 0.0_dp
-      !do iKS = 1, this%parallelKS%nLocalKS
-      !  iK = this%parallelKS%localKS(1, iKS)
-      !  iSpin = this%parallelKS%localKS(2, iKS)
-      !  call packHS(rhoPrim(:,iSpin), rho(:,:,iKS), this%kPoint(:,iK), this%kWeight(iK),&
-      !      & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, this%iCellVec, this%rCellVec, &
-      !      & iSquare, iSparseStart, img2CentCell)
-      !end do
-      !call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
-      !    & nNeighbourSK, img2CentCell, iSparseStart)
-
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
@@ -1487,39 +1470,16 @@ contains
         do iAt = 1, this%nAtom
           iOrb1 = iSquare(iAt)
           iOrb2 = iSquare(iAt+1)-1
-          ! only real part only is needed
+          ! only real part is needed
           qq(:iOrb2-iOrb1+1,iAt,iSpin) = qq(:iOrb2-iOrb1+1,iAt,iSpin) + this%kWeight(iK) * &
               & real(sum(rho(:,iOrb1:iOrb2,iKS) * conjg(Ssqr(:,iOrb1:iOrb2,iKS)), dim=1), dp)
         end do
       end do
 
     end if
-    !call ud2qm(rhoPrim)
-
-    ! sparse way to calculate charge and dipole
-    !qq(:,:,:) = 0.0_dp
-    !do iSpin = 1, this%nSpin
-    !  call mulliken(qq(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
-    !      & nNeighbourSK, img2CentCell, iSparseStart)
-    !end do
 
     deltaQ(:,:) = sum((qq - q0), dim=1)
     dipole(:,:) = -matmul(coord, deltaQ)
-
-    ! sparse way to calculate block populations
-    !if (allocated(qBlock)) then
-    !  rhoPrim(:,:) = 0.0_dp
-    !  do iSpin = 1, this%nSpin
-    !    call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourList%iNeighbour,&
-    !         & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-    !  end do
-    !
-    !  qBlock(:,:,:,:) = 0.0_dp
-    !  do iSpin = 1, this%nSpin
-    !    call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
-    !         & nNeighbourSK, img2CentCell, iSparseStart)
-    !  end do
-    !end if
 
     if (allocated(qBlock)) then
       if (.not. this%tRealHS) then
@@ -1655,20 +1615,23 @@ contains
     real(dp) :: TS(this%nSpin)
     logical :: tDFTBU
 
-    rhoPrim(:,:) = 0.0_dp
-    do iKS = 1, this%parallelKS%nLocalKS
-      iSpin = this%parallelKS%localKS(2, iKS)
-      if (this%tRealHS) then
-         call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourlist%iNeighbour,&
-              & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
-      else
-         iK = this%parallelKS%localKS(1, iKS)
-         call packHS(rhoPrim(:,iSpin), rho(:,:,iKS), this%kPoint(:,iK), this%kWeight(iK),&
-              & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, this%iCellVec, this%cellVec,&
-              & iSquare, iSparseStart, img2CentCell)
-      end if
-    end do
-
+    ! if Forces are calculated, rhoPrim has already been calculated
+    ! check allways that getEnergy is called AFTER getForces
+    if (.not. this%tForces) then
+       rhoPrim(:,:) = 0.0_dp
+       do iKS = 1, this%parallelKS%nLocalKS
+          iSpin = this%parallelKS%localKS(2, iKS)
+          if (this%tRealHS) then
+             call packHS(rhoPrim(:,iSpin), real(rho(:,:,iSpin), dp), neighbourlist%iNeighbour,&
+                  & nNeighbourSK, orb%mOrb, iSquare, iSparseStart, img2CentCell)
+          else
+             iK = this%parallelKS%localKS(1, iKS)
+             call packHS(rhoPrim(:,iSpin), rho(:,:,iKS), this%kPoint(:,iK), this%kWeight(iK),&
+                  & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, this%iCellVec, this%cellVec,&
+                  & iSquare, iSparseStart, img2CentCell)
+          end if
+       end do
+    end if
     call ud2qm(rhoPrim)
 
     tDFTBU = .false.
@@ -1967,8 +1930,6 @@ contains
 
     integer :: iSpin, iKS
     complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
-
-    !rhoNew(:,:,:) = rho(:,:,:)
 
     if (this%tIons) then
        call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
