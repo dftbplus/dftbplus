@@ -3937,7 +3937,7 @@ contains
     select case(char(buffer))
 
     case ("kick")
-       input%pertType = iKick
+       input%pertType = pertTypes%kick
        call getChildValue(value1, "PolarizationDirection", buffer2)
        select case(unquote(char(buffer2)))
        case ("x", "X")
@@ -3967,7 +3967,7 @@ contains
        end select
 
     case ("laser")
-       input%pertType = iLaser
+       input%pertType = pertTypes%laser
        call getChildValue(value1, "PolarizationDirection", input%reFieldPolVec)
        call getChildValue(value1, "ImagPolarizationDirection", input%imFieldPolVec, &
             & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
@@ -3986,7 +3986,7 @@ contains
        end if
 
     case ("kickandlaser")
-       input%pertType = iKickAndLaser
+       input%pertType = pertTypes%kickAndLaser
        call getChildValue(value1, "KickPolDir", input%polDir)
        if ( input%polDir < 1 .or. input%polDir > 4) then
           call detailedError(child, "Wrong specified polarization direction")
@@ -4014,7 +4014,7 @@ contains
        end if
 
     case ("none")
-       input%pertType = iNoTDPert
+       input%pertType = pertTypes%noTDPert
        tNeedFieldStrength = .false.
     case default
        call detailedError(child, "Unknown perturbation type " // char(buffer))
