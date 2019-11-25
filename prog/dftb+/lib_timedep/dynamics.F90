@@ -400,13 +400,13 @@ contains
        tMDstill = .false.
        allocate(this%initialVelocities(3, this%nMovedAtom))
 
-       if (allocated(inp%initialVelocities)) then
+       this%ReadMDVelocities = allocated(inp%initialVelocities)
+       if (this%ReadMDVelocities) then
           this%initialVelocities(:,:) = inp%initialVelocities
        end if
 
        allocate(this%movedVelo(3, this%nMovedAtom))
        allocate(this%movedMass(3, this%nMovedAtom))
-       this%ReadMDVelocities = inp%tReadMDVelocities
        this%movedMass(:,:) = spread(mass(this%indMovedAtom), 1, 3)
        allocate(this%pThermostat)
        allocate(pMDFrame)
