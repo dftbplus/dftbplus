@@ -84,9 +84,6 @@ contains
     !> k-point weightings
     real(dp), intent(in) :: kWeight(:)
 
-
-
-
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
 
@@ -96,10 +93,10 @@ contains
     !> Is this a non-Aufbau calculation?
     logical, intent(in) :: tNonAufbau
 
-    !> Is this a spin purified calculation? - MYD
+    !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
 
-    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
+    !> Which TI-DFTB state is being calculated? 1 = triplet, 2 = mixed
     integer, intent(in) :: iDet
 
     !> Number of electrons and spin channel index
@@ -286,16 +283,11 @@ contains
           end do
         end do
       end do
-
-
     else
-
-
-      do ispin = 1, size(eigenvals,dim=3) !1-1
-        do i = 1, size(kWeight) !1-1
-          do j = 1, size(eigenvals,dim=1) !1-22
+      do ispin = 1, size(eigenvals,dim=3)
+        do i = 1, size(kWeight)
+          do j = 1, size(eigenvals,dim=1)
             x = ( eigenvals(j,i,ispin) - Ef ) / kT
-!write(*,*)'x',x
             ! Where the compiler does not handle inf gracefully, trap the exponential function for
             ! small input values
 #:if EXP_TRAP
@@ -304,7 +296,6 @@ contains
             end if
 #:else
             electronCount = electronCount + kWeight(i)/(1.0_dp + exp(x))
-
 #:endif
           end do
         end do
@@ -413,10 +404,10 @@ contains
     !> Is this a non-Aufbau calculation?
     logical, intent(in) :: tNonAufbau
 
-    !> Is this a spin purified calculation? - MYD
+    !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
 
-    !> Which state is being calculated? 1 = triplet, 2 = mixed !-MYD
+    !> Which state is being calculated? 1 = triplet, 2 = mixed
     integer, intent(in) :: iDet
 
     !> Number of electrons and spin channel index
@@ -428,7 +419,8 @@ contains
     integer :: kpts
     real(dp) :: w
     real(dp), allocatable :: A(:)
-    real(dp), allocatable :: hermites(:), tmpMtx(:,:,:)
+    real(dp), allocatable :: hermites(:)
+    real(dp), allocatable :: tmpMtx(:,:,:)
     integer :: i, j , k, l, iSpin
     real(dp) :: occ, x
 
@@ -446,7 +438,6 @@ contains
 
     ! The Gaussian and Methfessel-Paxton broadening functions first
     if (distrib /= Fermi) then
-!Not this one
       MPorder = distrib - 1
       allocate(A(0:MPorder))
       allocate(hermites(0 : 2 * MPorder))
@@ -489,11 +480,8 @@ contains
       end do
       TS = TS * kT
       E0(:) = (real(MPorder + 1,dp) * (Eband - TS) + Eband) / real(MPorder + 2, dp)
-
-
-
     else
-
+! TI-DFTB Non-Aufbau filling routine
       if (tNonAufbau) then
         allocate(tmpMtx(size(eigenvals, dim=1),kpts,size(eigenvals, dim=3)))
         tmpMtx=eigenvals
@@ -511,8 +499,6 @@ contains
           end do
         end do
       end if
-
-
       do iSpin = 1, size(eigenvals, dim=3)
         do i = 1, kpts
           do j = 1, size(eigenvals, dim=1)
@@ -528,18 +514,11 @@ contains
 #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
 #:endif
-
-
             if (tNonAufbau .and. j/=1 .and. ((filling(j, i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
-
               exit
-
             else if (filling(j, i, iSpin)<=elecTol .and. .not. tNonAufbau) then
-
              exit
-
             end if
-
             if (filling(j, i, iSpin) > epsilon(0.0_dp) .and.&
                 & filling(j, i, iSpin) < (1.0_dp - epsilon(1.0_dp))) then
               ! Fermi-Dirac entropy :
@@ -552,14 +531,9 @@ contains
           end do
         end do
       end do
-
-
-
-
       if (tNonAufbau) then
         eigenvals=tmpMtx
       end if
-
       TS(:) = TS * kT
       E0(:) = Eband - 0.5_dp * TS
     end if
@@ -623,7 +597,6 @@ contains
       iSpin = (iLev - 1) / (size1 * size2) + 1
       nElec = nElec + kWeight(iKpt)
       ind = ind + 1
-
     end do
 
     ! just in case the system has all levels filled, but eventually this means Ef has to be above
@@ -634,7 +607,6 @@ contains
     jKpt = mod((iLev - 1) / size1, size2) + 1
     jSpin = (iLev - 1) / (size1 * size2) + 1
     middleGap = 0.5_dp * (eigenvals(jOrb, jKpt, jSpin) + eigenvals(iOrb, iKpt, iSpin))
-
 
   end function middleGap
 

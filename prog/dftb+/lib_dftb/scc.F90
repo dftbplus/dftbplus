@@ -1598,11 +1598,6 @@ contains
     !> resulting gross charges
     real(dp), intent(out) :: deltaQ(:,:)
 
-    integer :: i
-
-
-
-
     deltaQ(:,:) = qOrbital(:,:) - q0(:,:)
 
   end subroutine getSummedChargesPerOrbital_
@@ -1640,7 +1635,7 @@ contains
     !> gross charge per atomic shell
     real(dp), intent(out) :: deltaQPerLShell(:,:)
 
-    integer :: iAt, iSp, iSh, iStart, iend, i
+    integer :: iAt, iSp, iSh, iStart, iend
 
     deltaQPerLShell(:,:) = 0.0_dp
     do iAt = 1, nAtom
@@ -1651,7 +1646,6 @@ contains
         deltaQPerLShell(iSh, iAt) = sum(deltaQ(iStart:iEnd, iAt))
       end do
     end do
-
 
   end subroutine getSummedChargesPerLShell_
 

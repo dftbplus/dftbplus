@@ -68,36 +68,28 @@ contains
     !> the occupation numbers of the orbitals
     real(dp), intent(in) :: filling(:)
 
-    integer :: ii, nLevels, i
+    integer :: ii, nLevels
     real(dp) :: shift
     real(dp), allocatable :: tmpMtx(:)
     integer :: mixIndx
-    logical :: tNonAufbau
+    logical :: tNonAufbau = .false.
 
     @:ASSERT(all(shape(eigenvecs) == shape(dm)))
     @:ASSERT(size(eigenvecs,dim=1) == size(eigenvecs,dim=2))
     @:ASSERT(size(eigenvecs,dim=1) == size(filling))
 
 
-! Eigenvecs comes in w/ zero alph homo.....
-
-
-   ! tmpMtx=eigenvecs
-    tNonAufbau = .false.
     dm(:,:) = 0.0_dp
     do ii =  size(filling), 1, -1
       nLevels = ii
-
       if (abs(filling(ii)) >= epsilon(1.0_dp)) then
         exit
       end if
     end do
-    mixIndx=nLevels-1 !sets to HOMO-1 index
+    mixIndx=nLevels-1 !sets to HOMO-1
     if (filling(mixIndx)==0.0_dp) then
       tNonAufbau=.true.
-
     end if
-
     if (tNonAufbau) then
       allocate(tmpMtx(size(eigenvecs, dim=1)))
 
@@ -105,16 +97,14 @@ contains
 
     endif
     shift = minval(filling(1:nLevels))
-    if (shift >= 0.0_dp) then
-      ! all fillings are positive - changed MYD
+    if (shift >epsilon(1.0_dp)) then
+    ! all fillings are positive
 
       !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii) SCHEDULE(RUNTIME)
       do ii = 1, nLevels
         eigenvecs(:,ii) = sqrt(filling(ii)) * eigenvecs(:,ii)
       end do
       !$OMP  END PARALLEL DO
-
-
 
       call herk(dm, eigenvecs(:,1:nLevels))
 
@@ -123,8 +113,6 @@ contains
         eigenvecs(:,ii) = eigenvecs(:,ii) / sqrt(filling(ii))
       end do
       !$OMP  END PARALLEL DO
-
-
 
     else
 
@@ -145,10 +133,11 @@ contains
       !$OMP  END PARALLEL DO
 
     end if
-    if (tNonAufbau) then
-       eigenvecs(:,mixIndx)=tmpMtx !temporary hack, deletes empty homo in mixed state, could makeloop to save first zero index eigen vec... replace when over? not a whole array so thats tight. also must save index
 
+    if (tNonAufbau) then
+       eigenvecs(:,mixIndx)=tmpMtx
     endif
+
   end subroutine fullDensityMatrix_real
 
 

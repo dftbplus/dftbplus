@@ -1207,10 +1207,9 @@ contains
     real(dp) :: screeningThreshold
     type(TRangeSepSKTag) :: rangeSepSK
 
-    !> TI-DFTB varibles dictated in the DFTB Hamiltonian block of dftb_in.hsd - MYD, TDK, RAS
-
-    call getChildValue(node, "NonAufbau", ctrl%tNonAufbau, .false.) !MYD
-    call getChildValue(node, "SpinPurify", ctrl%tSpinPurify, .true.) !MYD
+    !> TI-DFTB varibles for full deltaDFTB w/out MOM
+    call getChildValue(node, "NonAufbau", ctrl%tNonAufbau, .false.)
+    call getChildValue(node, "SpinPurify", ctrl%tSpinPurify, .true.)
     call getChildValue(node, "GroundGuess", ctrl%tGroundGuess, .false.)
 
     ! Read in maximal angular momenta or selected shells

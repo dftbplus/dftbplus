@@ -891,11 +891,6 @@ module dftbp_initprogram
   !> Sign convention: Positive diagonal elements expand the supercell
   real(dp) :: totalStress(3,3)
 
-
-
-
-
-
   ! Tagged writer
   type(TTaggedWriter) :: taggedWriter
 
@@ -973,13 +968,7 @@ module dftbp_initprogram
   !> All of the excited energies actuall solved by Casida routines (if used)
   real(dp), allocatable :: energiesCasida(:)
 
-
-
-
-
-  !> TI-DFTB Variables - MYD, TDK, RAS
-
-
+  !> TI-DFTB Variables - Full deltaDFTB w/out MOM
 
   !> Is this a non-Aufbau calculation?
   logical :: tNonAufbau
@@ -995,12 +984,6 @@ module dftbp_initprogram
   integer :: iDet
   integer :: nDet =1
   integer :: det =1
-
-
-
-
-
-
 
 contains
 
@@ -1185,12 +1168,10 @@ contains
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
 
-
     ! TI-DFTB related variables - MYD, TDK, RAS
     tNonAufbau = input%ctrl%tNonAufbau
     tSpinPurify = input%ctrl%tSpinPurify
     tGroundGuess = input%ctrl%tGroundGuess
-
 
     ! Brillouin zone sampling
     if (tPeriodic) then
@@ -4098,7 +4079,7 @@ contains
     real(dp), allocatable, intent(out) :: eigvecsReal(:,:,:)
 
 
-    integer :: nLocalCols, nLocalRows, nLocalKS, i
+    integer :: nLocalCols, nLocalRows, nLocalKS
 
     nLocalKS = size(localKS, dim=2)
   #:if WITH_SCALAPACK
@@ -4514,8 +4495,5 @@ contains
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated
-
-
-
 
 end module dftbp_initprogram

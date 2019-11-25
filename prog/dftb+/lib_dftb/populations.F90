@@ -427,7 +427,7 @@ contains
     real(dp), intent(in), optional :: qRef(:,:,:)
 
     real(dp), allocatable :: qq(:,:,:)
-    integer :: iAt, iSp, iSh, i
+    integer :: iAt, iSp, iSh
     integer :: nAtom, nSpin
 
     if (present(qRef)) then

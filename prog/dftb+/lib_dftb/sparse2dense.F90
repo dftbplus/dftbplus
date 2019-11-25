@@ -196,7 +196,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     integer :: nAtom
-    integer :: iOrig, ii, jj, i
+    integer :: iOrig, ii, jj
     integer :: iNeigh
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
@@ -208,8 +208,6 @@ contains
     @:ASSERT(size(square, dim=1) == iAtomStart(nAtom+1) - 1)
     @:ASSERT(all(shape(nNeighbourSK) == [nAtom]))
     @:ASSERT(size(iAtomStart) == nAtom + 1)
-
-
 
     square(:, :) = 0.0_dp
 
@@ -2372,6 +2370,5 @@ contains
   end subroutine packERhoPauliBlacs
 
 #:endif
-
 
 end module dftbp_sparse2dense
