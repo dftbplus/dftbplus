@@ -14,6 +14,7 @@ module dftbp_typegeometryhsd
   use dftbp_unitconversion
   use dftbp_linkedlist
   use dftbp_charmanip
+  use dftbp_message
   use dftbp_simplealgebra, only : invert33, determinant33
   use dftbp_xmlf90, flib_normalize => normalize
   implicit none
@@ -57,6 +58,7 @@ contains
     if (geo%tPeriodic) then
       call setChildValue(node, "LatticeVectors", geo%latVecs, .false.)
     end if
+    call setChildValue(node, "Helical", geo%tHelical, .false.)
 
   end subroutine writeTGeometryHSD_dom
 
@@ -74,7 +76,8 @@ contains
     call writeChildValue(xf, "TypesAndCoordinates", &
         &reshape(geo%species, (/ 1, size(geo%species) /)), geo%coords)
     call writeChildValue(xf, "Periodic", geo%tPeriodic)
-    if (geo%tPeriodic) then
+    call writeChildValue(xf, "Helical", geo%tHelical)
+    if (geo%tPeriodic .or. geo%tHelical) then
       call writeChildValue(xf, "LatticeVectors", geo%latVecs)
     end if
 
@@ -100,6 +103,10 @@ contains
     real(dp) :: latvec(9), det
 
     call getChildValue(node, "Periodic", geo%tPeriodic, default=.false.)
+    call getChildValue(node, "Helical", geo%tHelical, default=.false.)
+    if (geo%tPeriodic .and. geo%tHelical) then
+      call error("Periodic and helical boundary conditions mutually exclusive.")
+    end if
     call init(stringBuffer)
     call getChildValue(node, "TypeNames", stringBuffer)
     geo%nSpecies = len(stringBuffer)
@@ -220,12 +227,19 @@ contains
     case("S","s")
       geo%tPeriodic = .true.
       geo%tFracCoord = .false.
+      geo%tHelical = .false.
     case("F","f")
       geo%tPeriodic = .true.
       geo%tFracCoord = .true.
+      geo%tHelical = .false.
     case("C", "c")
       geo%tPeriodic = .false.
       geo%tFracCoord = .false.
+      geo%tHelical = .false.
+    case("H", "h")
+      geo%tPeriodic = .false.
+      geo%tFracCoord = .false.
+      geo%tHelical = .true.
     case default
       call detailedError(node, "Unknown boundary condition type '" &
           &// char(txt) // "'")
@@ -296,6 +310,16 @@ contains
         call checkError(node, iErr, "Invalid lattice vectors in geometry.")
         iStart = iEnd + 1
       end do
+    end if
+
+    if (geo%tHelical) then
+      allocate(geo%latVecs(3, 1))
+      call getNextToken(text, geo%latVecs(:, 1), iStart, iErr)
+      call checkError(node, iErr, "Invalid helical vector.")
+      geo%latVecs(1,1) = geo%latVecs(1,1) * AA__Bohr
+      geo%latVecs(2,1) = geo%latVecs(2,1) * pi / 180.0_dp
+      allocate(geo%recVecs2p(1, 1))
+      geo%recVecs2p = 1.0_dp / (geo%latVecs(1,1) * 2.0_dp * pi)
     end if
 
     ! Check if any data remains in the geometry - should be nothing left now
@@ -425,6 +449,7 @@ contains
     ! original xyz files are always molecular boundary conditions
     geo%tPeriodic = .false.
     geo%tFracCoord = .false.
+    geo%tHelical = .false.
 
     call normalize(geo)
 
@@ -619,6 +644,7 @@ contains
     end if
 
     geo%tPeriodic = .true.
+    geo%tHelical = .false.
 
     call normalize(geo)
 
