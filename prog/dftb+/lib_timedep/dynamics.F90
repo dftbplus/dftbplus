@@ -784,8 +784,9 @@ contains
 
     complex(dp) :: Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp) :: Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
-    complex(dp) :: rho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
-    complex(dp) :: rhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
+    complex(dp), target :: trho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
+    complex(dp), target :: trhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
+    complex(dp), pointer :: rho(:,:,:), rhoOld(:,:,:)
     complex(dp) :: H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
     real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
@@ -816,7 +817,7 @@ contains
     RdotSprime(:,:) = 0.0_dp
 
     if (this%tRestart) then
-      call readRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, startTime)
+      call readRestart(trho, trhoOld, Ssqr, coord, this%movedVelo, startTime)
       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
           & ErhoPrim, coordAll)
@@ -836,7 +837,7 @@ contains
       call getTDFunction(this, startTime)
     end if
 
-    call initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
+    call initializeTDVariables(this, trho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
         & filling, orb, rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare,&
         & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, UJ,&
         & onSiteElements, eigvecsCplx, H1LC)
@@ -853,17 +854,17 @@ contains
 
     call initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
 
-    call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock,&
+    call getChargeDipole(this, deltaQ, qq, dipole, q0, trho, Ssqr, coord, iSquare, qBlock,&
          & over, rhoPrim, neighbourlist, nNeighbourSK, orb, iSparseStart, img2CentCell)
 
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
         & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, rho)
+        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, trho)
 
     if (this%tForces) then
        totalForce(:,:) = 0.0_dp
-       call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList, nNeighbourSK, &
+       call getForces(this, movedAccel, totalForce, trho, H1, Sinv, neighbourList, nNeighbourSK, &
             & img2CentCell, iSparseStart, iSquare, potential, orb, skHamCont, skOverCont, qq, q0, &
             & pRepCont, coordAll, rhoPrim, ErhoPrim, 0, env, rangeSep, deltaRho)
        if (this%tIons) then
@@ -873,7 +874,7 @@ contains
 
     ! Apply kick to rho if necessary
     if (this%tKick) then
-      call kickDM(this, rho, Ssqr, Sinv, iSquare, coord)
+      call kickDM(this, trho, Ssqr, Sinv, iSquare, coord)
     end if
 
     ! had to add the "or tKick" option to override rhoOld if tRestart = yes, otherwise it will be
@@ -881,15 +882,15 @@ contains
     if (.not.this%tRestart .or. this%tKick) then
       ! Initialize electron dynamics
       ! rhoOld is now the GS DM, rho will be the DM at time=dt
-      rhoOld(:,:,:) = rho
-      call initializePropagator(this, this%dt, rhoOld, rho, H1, Sinv, coordAll, skHamCont,&
+      trhoOld(:,:,:) = trho
+      call initializePropagator(this, this%dt, trhoOld, trho, H1, Sinv, coordAll, skHamCont,&
          & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
     end if
 
     call getPositionDependentEnergy(this, energy, coordAll, img2CentCell, nNeighbourSK,&
         & neighbourList, pRepCont, iAtInCentralRegion)
 
-    call getTDEnergy(this, energy, rhoPrim, rhoOld, neighbourList, nNeighbourSK, orb,&
+    call getTDEnergy(this, energy, rhoPrim, trhoOld, neighbourList, nNeighbourSK, orb,&
          & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
          & energyKin, tDualSpinOrbit, thirdOrd, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
          & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
@@ -915,6 +916,9 @@ contains
     call loopTime%start()
 
     write(stdOut, "(A)") 'Starting dynamics'
+
+    rho => trho
+    rhoOld => trhoOld
 
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
@@ -1005,13 +1009,21 @@ contains
            call propagateRhoRealH(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
                 & 2.0_dp * this%dt)
         end if
-
-        call swap(rhoOld(:,:,iKS), rho(:,:,iKS))
-        if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
-           call getTDPopulations(this, occ, rho, Eiginv, EiginvAdj, populDat, time, iKS)
-        end if
-
      end do
+     
+     if (mod(iStep, 2) == 1) then
+        rho => trho
+        rhoOld => trhoOld
+     else
+        rho => trhoOld
+        rhoOld => trho
+     end if
+
+     if ((this%tPopulations) .and. (mod(iStep, this%writeFreq) == 0)) then
+       do iKS = 1, this%parallelKS%nLocalKS
+         call getTDPopulations(this, occ, rho, Eiginv, EiginvAdj, populDat, time, iKS)
+       end do
+     end if
 
      if (mod(iStep, max(this%nSteps / 10, 1)) == 0) then
         call loopTime%stop()
