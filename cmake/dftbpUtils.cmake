@@ -60,6 +60,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_DFTD3)
   endif()
 
+  if(WITH_MBD)
+      list(APPEND _fyppflags -DWITH_MBD)
+  endif()
+
   if(WITH_MPI)
     list(APPEND _fyppflags -DWITH_MPI -DWITH_SCALAPACK)
   endif()

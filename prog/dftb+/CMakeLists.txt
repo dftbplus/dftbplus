@@ -72,6 +72,10 @@ if(WITH_DFTD3)
   target_link_libraries(dftbplus PUBLIC dftd3)
 endif()
 
+if(WITH_MBD)
+  target_link_libraries(dftbplus PUBLIC mbd)
+endif()
+
 if(WITH_TRANSPORT)
   target_link_libraries(dftbplus PUBLIC negf sparskit mudpack)
 endif()

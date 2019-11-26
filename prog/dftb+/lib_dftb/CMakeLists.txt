@@ -21,7 +21,6 @@ set(sources-fpp
   ${curdir}/forces.F90
   ${curdir}/h5correction.F90
   ${curdir}/halogenx.F90
-  ${curdir}/manybodydisp.F90
   ${curdir}/nonscc.F90
   ${curdir}/onscorrection.F90
   ${curdir}/orbitalequiv.F90

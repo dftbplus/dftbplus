@@ -7,7 +7,8 @@ set(sources-fpp
   ${curdir}/magmahelper.F90
   ${curdir}/mpifx.F90
   ${curdir}/scalapackfx.F90
-  ${curdir}/xmlf90.F90)
+  ${curdir}/xmlf90.F90
+  ${curdir}/mbd.F90)
 
 if(WITH_ARPACK)
   list(APPEND sources-fpp ${curdir}/arpack.F90)
@@ -27,10 +28,6 @@ if(WITH_TRANSPORT)
     ${curdir}/matconv.F90
     ${curdir}/negf_int.F90
     ${curdir}/poisson_int.F90)
-endif()
-
-if(WITH_MBD)
-  list(APPEND sources-fpp ${curdir}/mbd.F90)
 endif()
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
