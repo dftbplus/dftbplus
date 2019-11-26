@@ -3559,6 +3559,7 @@ contains
   end subroutine getPostSccEnergies
 
 
+#:if WITH_MBD
   subroutine getManyBodyDispEnergy(rhoPrim, over, orb, neighbourList, nNeighbour, img2CentCell,&
       & iSparseStart, mbDispersion, eMbd)
     ! TODO these shouldn't be here
@@ -3619,6 +3620,7 @@ contains
     end if
 
   end subroutine getManyBodyDispEnergy
+#:endif
 
 
   !> Checks for the presence of a stop file on disc.

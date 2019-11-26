@@ -4256,6 +4256,7 @@ contains
 
     character(80) :: tmpStr
 
+#:if WITH_MBD
     write(stdOut, "(A)") ''
     if (input%method == 'ts') then
       write(stdOut, "(A)") "Using TS from SEDC module [Phys. Rev. B 80, 205414 (2009)]"
@@ -4308,6 +4309,7 @@ contains
     !   write(stdOut,"(A)") "  Full Debug printing       No"
     ! endif
     write(stdOut,"(A)") ""
+#:endif
 
   end subroutine writeMbdInfo
 
