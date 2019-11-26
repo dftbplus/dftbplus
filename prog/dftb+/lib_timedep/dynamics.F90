@@ -396,7 +396,8 @@ contains
     if (this%tLaser) then
       this%omega = inp%omega
       this%fieldDir = inp%reFieldPolVec + imag * inp%imFieldPolVec
-      norm = sqrt(abs(dot_product(this%fieldDir,this%fieldDir)))
+      norm = sqrt(dot_product(real(this%fieldDir, dp),real(this%fieldDir, dp)))
+      print *,'norm', norm
       this%fieldDir = this%fieldDir / norm
       allocate(this%tdFunction(3, 0:this%nSteps))
       this%tEnvFromFile = (this%envType == envTypes%fromFile)
