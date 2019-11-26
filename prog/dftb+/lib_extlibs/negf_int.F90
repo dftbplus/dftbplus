@@ -88,10 +88,11 @@ module negf_int
   !>
   !> Note: mpicomm should be the global commworld here
 #:if WITH_MPI
-  subroutine negf_init(transpar, greendens, tundos, mpicomm, tempElec, solver)
+  subroutine negf_init(transpar, greendens, tundos, mpicomm, tIOproc, tempElec, solver)
 
     !> MPI communicator
     type(mpifx_comm), intent(in) :: mpicomm
+    logical, intent(in) :: tIOproc
 #:else
   subroutine negf_init(transpar, greendens, tundos, tempElec, solver)
 #:endif
@@ -121,7 +122,7 @@ module negf_int
     ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(mpicomm, tIOproc)
 #:endif
 
     if (transpar%defined) then
@@ -993,12 +994,13 @@ module negf_int
 
   !> Calculates density matrix with Green's functions
 #:if WITH_MPI
-  subroutine calcdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
+  subroutine calcdensity_green(iSCCIter, mpicomm, tIOproc, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
       & Ef, E0, TS)
 
     !> MPI communicator
     type(mpifx_comm), intent(in) :: mpicomm
+    logical, intent(in) :: tIOproc
 #:else
   subroutine calcdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
@@ -1072,7 +1074,7 @@ module negf_int
     pCsrDens => csrDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(mpicomm, tIOproc)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1143,11 +1145,12 @@ module negf_int
 
   !> Calculates energy-weighted density matrix with Green's functions
 #:if WITH_MPI
-  subroutine calcEdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
+  subroutine calcEdensity_green(iSCCIter, mpicomm, tIOproc, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
 
     !> MPI communicator
     type(mpifx_comm), intent(in) :: mpicomm
+    logical, intent(in) :: tIOproc
 #:else
   subroutine calcEdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
@@ -1208,7 +1211,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(mpicomm, tIOproc)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1276,12 +1279,13 @@ module negf_int
 
   !> Calculate the current and optionally density of states
 #:if WITH_MPI
-  subroutine calc_current(mpicomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
+  subroutine calc_current(mpicomm, tIOproc, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
       & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
 
     !> MPI communicator
     type(mpifx_comm), intent(in) :: mpicomm
+    logical, intent(in) :: tIOproc
 #:else
   subroutine calc_current(groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
@@ -1370,7 +1374,7 @@ module negf_int
     character(:), allocatable :: filename
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(mpicomm, tIOproc)
 #:endif
     call get_params(negf, params)
 
@@ -1769,13 +1773,14 @@ module negf_int
   ! NOTE: Limited to non-periodic systems             s !!!!!!!!!!!
   ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #:if WITH_MPI
-  subroutine local_currents(mpicomm, groupKS, ham, over, &
+  subroutine local_currents(mpicomm, tIOproc, groupKS, ham, over, &
       & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
       & testArray)
 
     !> MPI communicator
     type(mpifx_comm), intent(in) :: mpicomm
+    logical, intent(in) :: tIOproc
 #:else
   subroutine local_currents(groupKS, ham, over, &
       & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
@@ -1859,7 +1864,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(mpicomm, tIOproc)
 #:endif
     call get_params(negf, params)
 

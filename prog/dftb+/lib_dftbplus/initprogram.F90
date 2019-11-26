@@ -1828,12 +1828,6 @@ contains
     ! Do we use any part of negf (solver, tunnelling etc.)?
     tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn .or. tLocalCurrents
 
-  #:if WITH_MPI
-    if (tNegf .and. env%mpi%nGroup > 1) then
-      call error("At the moment NEGF solvers cannot be used for multiple processor groups")
-    end if
-  #:endif
-
   #:else
 
     tTunn = .false.
@@ -3503,7 +3497,7 @@ contains
       ! Some sanity checks and initialization of GDFTB/NEGF
     #:if WITH_MPI
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
-          & tempElec, electronicSolver%iSolver)
+          & tIOproc, tempElec, electronicSolver%iSolver)
     #:else
       call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, &
           & tempElec, electronicSolver%iSolver)
