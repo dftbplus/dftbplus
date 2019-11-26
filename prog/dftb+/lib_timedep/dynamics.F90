@@ -2187,7 +2187,7 @@ contains
     integer :: iSpin, iKS
 
     close(dipoleDat)
-    if (.not. this%tKick) then
+    if ((.not. this%tKick) .or. (this%tKickAndLaser)) then
       close(qDat)
       close(energyDat)
     end if
@@ -2375,7 +2375,7 @@ contains
          & iSpin=1, this%nSpin)
 
     ! for kick simulations we only need the dipole moment
-    if (.not. this%tKick) then
+    if ((.not. this%tKick) .or. this%tKickAndLaser) then
 
        write(energydat, '(9F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
             & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
@@ -2411,8 +2411,27 @@ contains
           write(ePBondDat) time * au__fs, sum(ePerBond(:,:)), &
                & ((ePerBond(iAtom, iAtom2), iAtom=1,this%nAtom), iAtom2=1,this%nAtom)
        end if
-
+       
     end if
+
+    ! Flush output every 5% of the simulation
+    if (mod(iStep, max(this%nSteps / 20, 1)) == 0) then
+       flush(dipoleDat)
+       if ((.not. this%tKick) .or. this%tKickAndLaser) then
+          flush(energyDat)
+          flush(qDat)
+       end if
+       if (this%tIons) then
+          flush(coorDat)
+       end if
+       if (this%tForces) then
+          flush(forceDat)
+       end if
+       if (this%tBondE .or. this%tBondO) then
+          flush(ePBondDat)
+       end if
+    end if
+
   end subroutine writeTDOutputs
 
 
