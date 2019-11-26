@@ -57,17 +57,10 @@ matconv.o = matconv.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy)
 _mod_dftbp_matconv: matconv.o
 _mod_dftbp_matconv = $(matconv.o)
 
-#:if WITH_MBD
-mbd.o: common.fypp _mod_mbd 
-mbd.o = mbd.o $(common.fypp) $(_mod_mbd) 
-_mod_dftbp_mbd: mbd.o
-_mod_dftbp_mbd = $(mbd.o)
-#:else
 mbd.o: common.fypp 
 mbd.o = mbd.o $(common.fypp) 
 _mod_dftbp_mbd: mbd.o
 _mod_dftbp_mbd = $(mbd.o)
-#:endif
 
 #:if WITH_MPI
 mpifx.o: common.fypp _mod_libmpifx_module 

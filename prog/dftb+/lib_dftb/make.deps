@@ -61,19 +61,6 @@ dispdftd3.o = dispdftd3.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accur
 _mod_dftbp_dispdftd3: dispdftd3.o
 _mod_dftbp_dispdftd3 = $(dispdftd3.o)
 
-#:if WITH_MBD
-#:if WITH_DFTD3
-dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw _mod_dftbp_mbd _mod_dftbp_dispdftd3 
-dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_mbd) $(_mod_dftbp_dispdftd3) 
-_mod_dftbp_dispersions: dispersions.o
-_mod_dftbp_dispersions = $(dispersions.o)
-#:else
-dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw _mod_dftbp_mbd 
-dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_mbd) 
-_mod_dftbp_dispersions: dispersions.o
-_mod_dftbp_dispersions = $(dispersions.o)
-#:endif
-#:else
 #:if WITH_DFTD3
 dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw _mod_dftbp_dispdftd3 
 dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_dispdftd3) 
@@ -84,7 +71,6 @@ dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_di
 dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) 
 _mod_dftbp_dispersions: dispersions.o
 _mod_dftbp_dispersions = $(dispersions.o)
-#:endif
 #:endif
 
 dispiface.o: _mod_dftbp_accuracy _mod_dftbp_periodic 

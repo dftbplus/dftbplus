@@ -56,13 +56,6 @@ ifeq ($(filter 0 1 2,$(strip $(DEBUG))),)
   $(error 'Invalid value $(DEBUG) for DEBUG (must be 0, 1 or 2)')
 endif
 
-# Whether MPI is turned on when using MBD
-ifeq ($(strip $(WITH_MBD)),1)
-  ifneq ($(strip $(WITH_MPI)),1)
-    $(error 'Code must be compiled with MPI for many-body dispersion support')
-  endif
-endif
-
 ################################################################################
 # Build targets
 ################################################################################
@@ -100,9 +93,6 @@ ifeq ($(strip $(WITH_TRANSPORT)),1)
   ifeq ($(strip $(WITH_MPI)),1)
     external_libnegf: external_mpifx
   endif
-endif
-ifeq ($(strip $(WITH_MBD)),1)
-  DFTBPLUS_DEPS += external_mbd
 endif
 
 dftb+: $(DFTBPLUS_DEPS)
