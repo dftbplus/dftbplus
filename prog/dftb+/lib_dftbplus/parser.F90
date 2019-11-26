@@ -3987,12 +3987,22 @@ contains
 
     case ("kickandlaser")
        input%pertType = pertTypes%kickAndLaser
-       call getChildValue(value1, "KickPolDir", input%polDir)
-       if ( input%polDir < 1 .or. input%polDir > 4) then
-          call detailedError(child, "Wrong specified polarization direction")
-       end if
+       input%pertType = pertTypes%kick
+       call getChildValue(value1, "KickPolDir", buffer2)
+       select case(unquote(char(buffer2)))
+       case ("x", "X")
+         input%polDir = 1
+       case ("y", "Y")
+         input%polDir = 2
+       case ("z", "Z")
+         input%polDir = 3
+       case ("all", "All", "ALL")
+         input%polDir = 4
+       case default
+         call detailedError(value1, "Wrong specified polarization direction " // char(buffer2) &
+             & // ". Must be x, y, z or all.")
+       end select
        call getChildValue(value1, "SpinType", input%spType, tdSpinTypes%singlet)
-
        call getChildValue(value1, "LaserPolDir", input%reFieldPolVec)
        call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, &
             & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
