@@ -30,7 +30,7 @@ Additionally there are optional requirements for some DFTB+ features:
 
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 
-* The `MAGMA <http://icl.cs.utk.edu/magma/>_` library for GPU accelerated
+* The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
   computation.
 
 For external libraries, make sure that they are compiled with the same precision
