@@ -1206,7 +1206,7 @@ contains
     real(dp), allocatable :: qiBlock(:,:,:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: iHam(:,:) ! not allocated since no imaginary ham
     real(dp) :: T2(this%nOrbs,this%nOrbs)
-    integer :: iAtom, iSpin, iKS, iK
+    integer :: iAtom, iEatom, iSpin, iKS, iK
     logical :: tDFTBU, tImHam
 
     ! left over from Poisson shift upload from transport being messy
@@ -1249,8 +1249,9 @@ contains
 
     ! Add time dependent field if necessary
     if (this%tLaser) then
-      do iAtom = 1, this%nAtom
-         potential%extAtom(iAtom, 1) = dot_product(coord(:,iAtom), this%tdFunction(:, iStep))
+      do iAtom = 1, this%nExcitedAtom
+        iEatom = this%indExcitedAtom(iAtom)
+        potential%extAtom(iEatom, 1) = dot_product(coord(:,iEatom), this%tdFunction(:, iStep))
       end do
       call total_shift(potential%extShell, potential%extAtom, orb, speciesAll)
       call total_shift(potential%extBlock, potential%extShell, orb, speciesAll)
