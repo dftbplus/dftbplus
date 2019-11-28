@@ -13,6 +13,7 @@ timeprop/GNR_kpoint_kick               #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/GNR_kpoint_laser              #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/H2_singlet                    #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/H2_triplet                    #? OMP_THREADS <= 1 and not WITH_MPI
+timeprop/H2_exc_atoms                  #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/C60_triplet                   #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
@@ -24,7 +25,7 @@ timeprop/GNR_periodic_laser            #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_ions_pulse            #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/GNR_periodic_ions             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/graphite_dispersion_pulse     #? OMP_THREADS == 1 and not WITH_MPI
-timeprop/PDI_Charged                   #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/PDI_charged                   #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_circpol               #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_rangesep              #? OMP_THREADS <= 1 and not WITH_MPI
 
