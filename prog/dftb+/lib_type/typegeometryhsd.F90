@@ -93,14 +93,14 @@ contains
     !> Contains the geometry on exit
     type(TGeometry), intent(out) :: geo
 
-    type(string) :: modifier
+    type(string) :: modifier, modifs(2)
     integer :: ind
     type(listString) :: stringBuffer
     type(listRealR1) :: realBuffer
     type(listIntR1) :: intBuffer
     type(fnode), pointer :: child, typesAndCoords
     integer, allocatable :: tmpInt(:,:)
-    real(dp) :: latvec(9), det
+    real(dp) :: latvec(9), det, helVec(2)
 
     call getChildValue(node, "Periodic", geo%tPeriodic, default=.false.)
     call getChildValue(node, "Helical", geo%tHelical, default=.false.)
@@ -176,6 +176,19 @@ contains
       call invert33(geo%recVecs2p, geo%latVecs, det)
       geo%recVecs2p(:,:) = reshape(geo%recVecs2p, (/3, 3/), order=(/2, 1/))
     end if
+
+    if (geo%tHelical) then
+      call getChildValue(node, "LatticeVectors", helVec, modifier=modifier, child=child)
+      geo%latVecs(:2,1) = helVec
+      if (len(modifier) > 0) then
+        call splitModifier(char(modifier), child, modifs)
+        call convertByMul(char(modifs(1)), lengthUnits, child, helVec(1), .false.)
+        call convertByMul(char(modifs(2)), angularUnits, child, helVec(2), .false.)
+      end if
+      allocate(geo%recVecs2p(1, 1))
+      geo%recVecs2p = 2.0_dp * pi / geo%latVecs(1,1)
+    end if
+
     call normalize(geo)
 
   end subroutine readTGeometryHSD
@@ -237,8 +250,6 @@ contains
       geo%tFracCoord = .false.
       geo%tHelical = .false.
     case("H", "h")
-      geo%tPeriodic = .false.
-      geo%tFracCoord = .false.
       geo%tHelical = .true.
     case default
       call detailedError(node, "Unknown boundary condition type '" &

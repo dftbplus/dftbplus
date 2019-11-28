@@ -1203,14 +1203,14 @@ contains
     integer, allocatable :: pTmpI1(:)
     real(dp), allocatable :: tmpR1(:)
     real(dp), allocatable :: tmpR2(:,:)
-    real(dp) :: rTmp, rTmp3(3)
+    real(dp) :: rTmp, rTmp3(3), rTmp22(2,2)
     integer, allocatable :: iTmpN(:)
     real(dp) :: coeffsAndShifts(3, 4)
     integer :: nShell, skInterMeth
     character(1) :: tmpCh
     logical :: tShellIncl(4), tFound
     integer :: angShell(maxL+1), angShellOrdered(maxL+1)
-    integer :: fp, iErr
+    integer :: fp, iErr, iTmp, iTmp2(2)
     logical :: tBadIntegratingKPoints
     integer :: nElem
     real(dp) :: rSKCutOff
@@ -2046,6 +2046,96 @@ contains
       case default
         call detailedError(value1, "Invalid K-point scheme")
       end select
+
+    else if (geo%tHelical) then
+
+      ! assume the user knows what they are doing
+      tBadIntegratingKPoints = .false.
+
+      call getChildValue(node, "KPointsAndWeights", value1, child=child, modifier=modifier)
+      call getNodeName(value1, buffer)
+      select case(char(buffer))
+      case ("uniform")
+        call getChildValue(child, "uniform", rTmp3(:2))
+        if (abs(modulo(rTmp3(1) + 0.5_dp, 1.0_dp) - 0.5_dp) > 1e-6_dp) then
+          call detailedError(value1, "The k-point grid must be integer values.")
+        end if
+        iTmp = nint(rTmp3(1))
+        if (iTmp < 1) then
+          call detailedError(node, "Number of grid points must be above 0")
+        end if
+        if (.not.ctrl%tSpinOrbit) then
+          ctrl%nKPoint = iTmp * nint(geo%latvecs(3,1))
+          allocate(ctrl%kPoint(2, ctrl%nKPoint))
+          ctrl%kPoint = 0.0_dp
+          allocate(ctrl%kWeight(ctrl%nKPoint))
+          ctrl%kWeight = 1.0_dp / real(iTmp,dp)
+          do ii = 0, iTmp-1
+            ctrl%kPoint(1,ii+1) = ii * 0.5_dp*ctrl%kWeight(ii+1) + 0.5_dp*rTmp3(2)/rTmp3(1)
+          end do
+          ctrl%kWeight = 1.0_dp / real(ctrl%nKPoint,dp)
+          do ii = 2, nint(geo%latvecs(3,1))
+            ctrl%kPoint(1,(ii-1)*iTmp+1:ii*iTmp) = ctrl%kPoint(1,1:iTmp)
+            ctrl%kPoint(2,(ii-1)*iTmp+1:ii*iTmp) = real(ii-1,dp)/nint(geo%latvecs(3,1))
+          end do
+        else
+          call error("Helical boundaries not yet added for spin-orbit")
+        end if
+      case ("sampled")
+        call getChildValue(child, "sampled", rTmp22)
+        iTmp2 = nint(rTmp22(:,1))
+        if (any(abs(iTmp2-rTmp22(:,1)) > 1e-6_dp)) then
+          call detailedError(value1, "The k-point grid must be integers.")
+        end if
+
+        if (any(iTmp2 < 1)) then
+          call detailedError(node, "Number of grid points must be above 0")
+        end if
+        if (.not.ctrl%tSpinOrbit) then
+          ctrl%nKPoint = product(iTmp2)
+          allocate(ctrl%kPoint(2, ctrl%nKPoint))
+          ctrl%kPoint = 0.0_dp
+          allocate(ctrl%kWeight(ctrl%nKPoint))
+
+          kk = 1
+          do ii = 0, iTmp2(1)-1
+            do jj = 0, iTmp2(2)-1
+
+              ctrl%kPoint(1,kk) = ii * 0.5_dp / rTmp22(1,1) + 0.5_dp*rTmp22(1,2)/rTmp22(1,1)
+
+              ctrl%kPoint(2,kk) = jj * 1.0_dp / rTmp22(2,1) + 0.5_dp*rTmp22(2,2)/rTmp22(2,1)
+
+              kk = kk + 1
+
+            end do
+          end do
+
+          ctrl%kWeight = 1.0_dp / real(ctrl%nKPoint,dp)
+
+        else
+          call error("Helical boundaries not yet added for spin-orbit")
+        end if
+      case (textNodeName)
+        call init(lr1)
+        call getChildValue(child, "", 3, lr1)
+        if (len(lr1) < 1) then
+          call detailedError(child, "At least one k-point must be defined.")
+        end if
+        ctrl%nKPoint = len(lr1)
+        allocate(kpts(3, ctrl%nKPoint))
+        call asArray(lr1, kpts)
+        call destruct(lr1)
+        allocate(ctrl%kPoint(2, ctrl%nKPoint))
+        allocate(ctrl%kWeight(ctrl%nKPoint))
+        ! first two are point values
+        ctrl%kPoint(:2,:) = kpts(:2, :)
+        ! last one is the weight
+        ctrl%kWeight(:) = kpts(3, :)
+        deallocate(kpts)
+      case default
+        call detailedError(value1, "Invalid K-point scheme")
+      end select
+
     end if
 
     if (ctrl%tSCC) then

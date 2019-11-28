@@ -239,7 +239,7 @@ contains
   !> on-site blocks are only filled in the lower triangle part of the matrix. To fill the matrix
   !> completely, apply the blockSymmetrizeHS subroutine.
   subroutine unpackHSHelical_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-      & cellVec, iAtomStart, iPair, img2CentCell, orb, species, iSquare, coords)
+      & cellVec, iAtomStart, iPair, img2CentCell, orb, species, coords)
 
     !> Square form matrix on exit.
     complex(dp), intent(out) :: square(:, :)
@@ -277,9 +277,6 @@ contains
     !> Species of each atom
     integer :: species(:)
 
-    !> Dense matrix indexing
-    integer :: iSquare(:)
-
     !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
 
@@ -297,14 +294,14 @@ contains
     lShellVals(:) = 0
     rotZ(:,:) = 0.0_dp
     do iAtom1 = 1, nAtom
-      ii = iSquare(iAtom1)
-      nOrb1 = iSquare(iAtom1+1) - ii
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1+1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = iSquare(iAtom2f)
-        nOrb2 = iSquare(iAtom2f+1) - jj
+        jj = iAtomStart(iAtom2f)
+        nOrb2 = iAtomStart(iAtom2f+1) - jj
         iVec = iCellVec(iAtom2)
         if (iVec /= iOldVec) then
           phase = exp((0.0_dp, 1.0_dp) * dot_product(kPoint2p(:2), cellVec(:2, iVec)) )
@@ -332,7 +329,7 @@ contains
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
   subroutine unpackHSHelical_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iPair,&
-      & img2CentCell, orb, species, iSquare, coords)
+      & img2CentCell, orb, species, coords)
 
     !> Square form matrix on exit.
     real(dp), intent(out) :: square(:, :)
@@ -361,9 +358,6 @@ contains
     !> Species of each atom
     integer :: species(:)
 
-    !> Dense matrix indexing
-    integer :: iSquare(:)
-
     !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
 
@@ -377,14 +371,14 @@ contains
     lShellVals(:) = 0
     rotZ(:,:) = 0.0_dp
     do iAtom1 = 1, nAtom
-      ii = iSquare(iAtom1)
-      nOrb1 = iSquare(iAtom1+1) - ii
+      ii = iAtomStart(iAtom1)
+      nOrb1 = iAtomStart(iAtom1+1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iPair(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
-        jj = iSquare(iAtom2f)
-        nOrb2 = iSquare(iAtom2f+1) - jj
+        jj = iAtomStart(iAtom2f)
+        nOrb2 = iAtomStart(iAtom2f+1) - jj
         tmpSqr(:nOrb2,:nOrb1) = reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), (/nOrb2,nOrb1/))
         iSp = species(iAtom2f)
         iSh = orb%nShell(iSp)
@@ -762,7 +756,7 @@ contains
 
   !> Pack squared matrix in the sparse form (complex version) for helical boundary conditions.
   subroutine packHShelical_cmplx(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell, orb, species, iSquare, coords)
+      & mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell, orb, species, coords)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
@@ -805,9 +799,6 @@ contains
 
     !> Species of each atom
     integer :: species(:)
-
-    !> Dense matrix indexing
-    integer :: iSquare(:)
 
     !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
@@ -863,8 +854,8 @@ contains
 
 
   !> Pack squared matrix in the sparse form (real version).
-  subroutine packHShelical_real(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
-      & iPair, img2CentCell, orb, species, iSquare, coords)
+  subroutine packHShelical_real(primitive, square, iNeighbour, nNeighbourSK, iAtomStart,&
+      & iPair, img2CentCell, orb, species, coords)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
@@ -877,9 +868,6 @@ contains
 
     !> Nr. of neighbours for the atoms.
     integer, intent(in) :: nNeighbourSK(:)
-
-    !> Maximal number of orbitals on an atom.
-    integer, intent(in) :: mOrb
 
     !> Atom offset for the squared matrix
     integer, intent(in) :: iAtomStart(:)
@@ -896,15 +884,12 @@ contains
     !> Species of each atom
     integer :: species(:)
 
-    !> Dense matrix indexing
-    integer :: iSquare(:)
-
     !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
 
     integer :: nAtom, iOrig, ii, jj, kk, iNeigh, iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2, iSp, iSh, lShellVals(orb%mShell)
-    real(dp) :: tmpSqr(mOrb, mOrb), rotZ(orb%mOrb,orb%mOrb), theta
+    real(dp) :: tmpSqr(orb%mOrb, orb%mOrb), rotZ(orb%mOrb,orb%mOrb), theta
 
     nAtom = size(iNeighbour, dim=2)
     lShellVals(:) = 0
@@ -2727,7 +2712,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackHSHelicalRealBlacs(myBlacs, orig, iNeighbour, nNeighbourSK, iPair, img2CentCell,&
-      & orb, species, iSquare, coords, desc, square)
+      & orb, species, iAtomStart, coords, desc, square)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2754,7 +2739,7 @@ contains
     integer :: species(:)
 
     !> Dense matrix indexing
-    integer :: iSquare(:)
+    integer :: iAtomStart(:)
 
     !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
@@ -2806,7 +2791,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackHSHelicalCplxBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-      & cellVec, iPair, img2CentCell, orb, species, iSquare, coords, desc, square)
+      & cellVec, iPair, img2CentCell, orb, species, iAtomStart, coords, desc, square)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2842,7 +2827,7 @@ contains
     integer :: species(:)
 
     !> Dense matrix indexing
-    integer :: iSquare(:)
+    integer :: iAtomStart(:)
 
     !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
@@ -2909,7 +2894,7 @@ contains
 
   !> Packs distributed dense real matrix into sparse form (real) for helical boundary conditions.
   subroutine packRhoHelicalRealBlacs(myBlacs, desc, square, iNeighbour, nNeighbourSK, iPair,&
-      & img2CentCell, orb, species, iSquare, coords, primitive)
+      & img2CentCell, orb, species, iAtomStart, coords, primitive)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2939,7 +2924,7 @@ contains
     integer :: species(:)
 
     !> Dense matrix indexing
-    integer :: iSquare(:)
+    integer :: iAtomStart(:)
 
     !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)
@@ -2989,7 +2974,7 @@ contains
 
   !> Packs distributed dense real matrix into sparse form (real).
   subroutine packRhoHelicalCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbour,&
-      & nNeighbourSK, iCellVec, cellVec, iPair, img2CentCell, orb, species, iSquare, coords,&
+      & nNeighbourSK, iCellVec, cellVec, iPair, img2CentCell, orb, species, iAtomStart, coords,&
       & primitive)
 
     !> BLACS matrix descriptor
@@ -3032,7 +3017,7 @@ contains
     integer :: species(:)
 
     !> Dense matrix indexing
-    integer :: iSquare(:)
+    integer :: iAtomStart(:)
 
     !> Coordinates of all atoms
     real(dp), intent(in) :: coords(:,:)

@@ -144,17 +144,33 @@ contains
     !> Global cutoff for the diatomic interactions
     real(dp), intent(in) :: cutoff
 
-    integer :: ii
+    integer :: ii, maxCells
 
-    @:ASSERT(all(shape(latVec) == [3, 3]))
-    @:ASSERT(all(shape(recVec2p) == [3, 3]))
-    @:ASSERT(cutoff >= 0.0_dp)
-
-    call getLatticePoints(cellVec, latVec, recVec2p, cutoff, posExtension=1, negExtension=1)
-    allocate(rCellVec(3, size(cellVec, dim=2)))
-    do ii = 1, size(rCellVec, dim=2)
-      rCellVec(:,ii) = matmul(latVec, cellVec(:,ii))
-    end do
+    if (all(shape(latVec) == (/3, 3/))) then
+      call getLatticePoints(cellVec, latVec, recVec2p, cutoff, posExtension=1, negExtension=1)
+      allocate(rCellVec(3, size(cellVec, dim=2)))
+      do ii = 1, size(rCellVec, dim=2)
+        rCellVec(:,ii) = matmul(latVec, cellVec(:,ii))
+      end do
+    else if (all(shape(latVec) == (/3, 1/))) then
+      ! Helical
+      maxCells = ceiling(cutoff / latVec(1,1))+1
+      allocate(cellVec(2,nint(latVec(3,1)) * (2*maxCells+1)))
+      allocate(rCellVec(2,nint(latVec(3,1)) * (2*maxCells+1)))
+      cellVec(:,:) = 0.0_dp
+      do ii = 2, 2 * maxCells, 2
+        cellVec(1,ii) = real(ii / 2,dp)
+        cellVec(1,ii+1) = real(-ii / 2,dp)
+      end do
+      do ii = 2, nint(latVec(3,1))
+        cellVec(1,(ii-1)*(2*maxCells+1)+1:(ii)*(2*maxCells+1)) = cellVec(1,:2*maxCells+1)
+        cellVec(2,(ii-1)*(2*maxCells+1)+1:(ii)*(2*maxCells+1)) = ii - 1
+      end do
+      rCellVec(1,:) =  latVec(1,1) * cellVec(1,:)
+      rCellVec(2,:) = cellVec(2,:)
+    else
+      call error("Miss-shaped cell vectors in getCellTranslations.")
+    end if
 
   end subroutine getCellTranslations
 
@@ -244,24 +260,48 @@ contains
     integer :: nAtom
 
     integer :: ii, jj
-    real(dp) :: frac(3), frac2(3), tmp3(3), vecLen(3)
+    real(dp) :: frac(3), frac2(3), tmp3(3), vecLen(3), thetaNew, thetaOld
 
     nAtom = size(coord, dim=2)
 
     @:ASSERT(size(coord, dim=1) == 3)
-    @:ASSERT(all(shape(latVec) == (/3, 3/)))
-    @:ASSERT(all(shape(recVec2p) == (/3, 3/)))
+    @:ASSERT(all(shape(latVec) == (/3, 3/)) or all(shape(latVec) == (/3, 1/)))
+    @:ASSERT(all(shape(recVec2p) == (/3, 3/)) or all(shape(recVec2p) == (/1, 1/)))
 
-    vecLen(:) = sqrt(sum(latVec(:,:)**2, dim=1))
-    do ii = 1, nAtom
-      do jj = 1, 3
-        frac(jj) = dot_product(recVec2p(:,jj), coord(:,ii))
+    if (all(shape(latVec) == (/3, 3/))) then
+
+      vecLen(:) = sqrt(sum(latVec(:,:)**2, dim=1))
+      do ii = 1, nAtom
+        do jj = 1, 3
+          frac(jj) = dot_product(recVec2p(:,jj), coord(:,ii))
+        end do
+        tmp3(:) = coord(:,ii)
+        frac2(:) = frac(:) - real(floor(frac(:)), dp)
+        where (abs(vecLen*(1.0_dp - frac2)) < 1e-12_dp) frac2 = 0.0_dp
+        coord(:, ii) = matmul(latVec, frac2)
       end do
-      tmp3(:) = coord(:,ii)
-      frac2(:) = frac(:) - real(floor(frac(:)), dp)
-      where (abs(vecLen*(1.0_dp - frac2)) < 1e-12_dp) frac2 = 0.0_dp
-      coord(:, ii) = matmul(latVec, frac2)
-    end do
+
+    else if (all(shape(latVec) == (/3, 1/))) then
+
+      do ii = 1, nAtom
+
+        jj = floor(coord(3,ii)/latVec(1,1))
+        ! want coordinate in eventual range 0..latVec(1,1) hence floor
+
+        tmp3(:) = coord(:,ii)
+        coord(3,ii) = coord(3,ii) - jj * latVec(1,1)
+        call rotate3(coord(:,ii),-jj*latVec(2,1),zAxis)
+        thetaOld = atan2(coord(2,ii),coord(1,ii))
+        thetaNew = mod(thetaOld+2.0_dp*pi,2.0_dp*pi/latvec(3,1))
+        call rotate3(coord(:,ii),-thetaOld+thetaNew,zAxis)
+
+      end do
+
+    else
+
+      call error("Miss-shaped cell vectors in foldCoordToUnitCell.")
+
+    end if
 
   end subroutine foldCoordToUnitCell
 
