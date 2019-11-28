@@ -84,7 +84,7 @@ contains
     character(mc),    intent(in) :: speciesName(:)
 
     !> Lattice vectors
-    real(dp), intent(in), optional :: latVec(3,3)
+    real(dp), intent(in), optional :: latVec(:,:)
 
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
@@ -140,13 +140,15 @@ contains
     integer :: nAtom, nSpecies
     character(6) :: formatSpecies
     integer :: ii, jj
-    logical :: tFractional
+    logical :: tFractional, tHelical
     real(dp) :: invLatVec(3,3)
 
 100 format(I5," ",A2)
 101 format("(",I2.2,"A3)")
 102 format(I5,I2,3E20.10)
 103 format(3E20.10)
+104 format(E20.10,F14.8)
+105 format(E20.10,F14.8,1X,I0)
 
     nAtom = size(coord, dim=2)
     nSpecies = maxval(species)
@@ -156,24 +158,37 @@ contains
     @:ASSERT(size(speciesName) == nSpecies)
 #:call ASSERT_CODE
     if (present(latVec)) then
-      @:ASSERT(all(shape(latVec) == (/3, 3 /)))
+      @:ASSERT(all(shape(latVec) == [3,3]) or all(shape(latVec) == [2,1])&
+          & or all(shape(latVec) == [3,1]))
+      @:ASSERT(not(present(tFracCoord) and&
+          & (all(shape(latVec) == [2, 1]) or all(shape(latVec) == [2, 1]) ) ) )
     end if
 #:endcall ASSERT_CODE
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
     tFractional = .false.
+    tHelical = .false.
+
     if (present(latVec)) then
       if (present(tFracCoord) ) then
         tFractional = tFracCoord
       end if
+      if (all(shape(latVec) == [2, 1]) .or. all(shape(latVec) == [3,1])) then
+        tHelical = .true.
+      end if
       if (tFractional) then
         write(fd, 100) nAtom, "F"
-      else
+      else if (tHelical) then
+        write(fd, 100) nAtom, "H"
+      else if (tHelical) then
         write(fd, 100) nAtom, "S"
+      else
+        call error("Unknown boundary conditions")
       end if
     else
       write(fd, 100) nAtom, "C"
     end if
+
     write(formatSpecies, 101) nSpecies
     write(fd, formatSpecies) (trim(speciesName(ii)), ii = 1, nSpecies)
 
@@ -189,11 +204,21 @@ contains
       end do
     end if
     if (present(latVec)) then
-      write(fd, 103) 0.0_dp, 0.0_dp, 0.0_dp
-      do ii = 1, 3
-        write(fd, 103) (latVec(jj, ii) * Bohr__AA, jj = 1, 3)
-      end do
+      if (tHelical) then
+        if (size(latvec,dim=1)==2) then
+          write(fd, 104) latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi
+        else
+          write(fd, 105) latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi, &
+              & nint(latVec(3,1))
+        end if
+      else
+        write(fd, 103) 0.0_dp, 0.0_dp, 0.0_dp
+        do ii = 1, 3
+          write(fd, 103) (latVec(jj, ii) * Bohr__AA, jj = 1, 3)
+        end do
+      end if
     end if
+
   end subroutine writeGenFormat_fid
 
 

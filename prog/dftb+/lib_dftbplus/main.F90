@@ -715,8 +715,8 @@ contains
     ! MD geometry files are written only later, once velocities for the current geometry are known
     if (isGeoOpt .and. tWriteRestart) then
       call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-          & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
-          & nSpin, qOutput, velocities)
+          & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec,&
+          & iGeoStep, iLatGeoStep, nSpin, qOutput, velocities)
     end if
 
     call printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
@@ -726,14 +726,14 @@ contains
       call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
       call getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling, eigen,&
           & kPoint, kWeight, neighbourList, nNeighbourSk, orb, iSparseStart, img2CentCell,&
-          & iCellVec, cellVec, tRealHS, ham, over, parallelKS, iSccIter, mu, ERhoPrim, eigvecsReal,&
-          & SSqrReal, eigvecsCplx, SSqrCplx)
+          & iCellVec, cellVec, tRealHS, ham, over, parallelKS, tHelical, species, coord, iSccIter,&
+          & mu, ERhoPrim, eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
       call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
       call getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
           & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
           & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
           & iRhoPrim, thirdOrd, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over,&
-          & denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection)
+          & denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection, tHelical, coord0)
 
       if (tCasidaForces) then
         derivs(:,:) = derivs + excitedDerivs
@@ -936,7 +936,7 @@ contains
             & energy, energiesCasida, latVec, cellVol, intPressure, extPressure, tempIon,&
             & absEField, qOutput, q0, dipoleMoment)
         call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
-            & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
+            & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
             & nSpin, qOutput, velocities)
       end if
       coord0(:,:) = newCoords
@@ -4472,8 +4472,8 @@ contains
   !>
   subroutine getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling,&
       & eigen, kPoint, kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell,&
-      & iCellVEc, cellVec, tRealHS, ham, over, parallelKS, iSCC, mu, ERhoPrim, HSqrReal, SSqrReal,&
-      & HSqrCplx, SSqrCplx)
+      & iCellVEc, cellVec, tRealHS, ham, over, parallelKS, tHelical, species, coord, iSCC, mu,&
+      & ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4532,6 +4532,15 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> species of atoms
+    integer, intent(in), optional :: species(:)
+
+    !> all coordinates
+    real(dp), intent(in) :: coord(:,:)
+
     !> iteration counter
     integer, intent(in) :: iSCC
 
@@ -4586,7 +4595,8 @@ contains
 
       call getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
-          & tRealHS, ham, over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+          & tRealHS, ham, over, parallelKS, tHelical, species, coord, ERhoPrim, HSqrReal, SSqrReal,&
+          & HSqrCplx, SSqrCplx)
 
     case (electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         &electronicSolverTypes%elpadm)
@@ -4610,7 +4620,8 @@ contains
   !> Calculates the energy weighted density matrix using eigenvectors
   subroutine getEDensityMtxFromEigvecs(env, denseDesc, forceType, filling, eigen, kPoint, kWeight,&
       & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS,&
-      & ham, over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
+      & ham, over, parallelKS, tHelical, species, coord, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx,&
+      & SSqrCplx)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4666,6 +4677,15 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> species of atoms
+    integer, intent(in), optional :: species(:)
+
+    !> all coordinates
+    real(dp), intent(in) :: coord(:,:)
+
     !> Energy weighted sparse matrix
     real(dp), intent(out) :: ERhoPrim(:)
 
@@ -4693,7 +4713,7 @@ contains
       if (tRealHS) then
         call getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
             & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ham, over,&
-            & parallelKS, HSqrReal, SSqrReal, ERhoPrim)
+            & parallelKS, tHelical, species, coord, HSqrReal, SSqrReal, ERhoPrim)
       else
         call getEDensityMtxFromComplexEigvecs(env, denseDesc, forceType, filling, eigen, kPoint,&
             & kWeight, neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec,&
@@ -4707,7 +4727,7 @@ contains
   !> Calculates density matrix from real eigenvectors.
   subroutine getEDensityMtxFromRealEigvecs(env, denseDesc, forceType, filling, eigen,&
       & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, ham, over, parallelKS,&
-      & eigvecsReal, work, ERhoPrim)
+      & tHelical, species, coord, eigvecsReal, work, ERhoPrim)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4747,6 +4767,15 @@ contains
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
+
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> species of atoms
+    integer, intent(in), optional :: species(:)
+
+    !> all coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Eigenvectors (NOTE: they will be rewritten with work data on exit!)
     real(dp), intent(inout) :: eigvecsReal(:,:,:)
@@ -4799,8 +4828,13 @@ contains
         call pblasfx_psymm(work2, denseDesc%blacsOrbSqr, eigvecsReal(:,:,iKS),&
             & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
       #:else
-        call unpackHS(work, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
-            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        if (tHelical) then
+          call unpackHS(work, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+        else
+          call unpackHS(work, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        end if
         call blockSymmetrizeHS(work, denseDesc%iAtomStart)
         call makeDensityMatrix(work2, eigvecsReal(:,:,iKS), filling(:,1,iS))
         ! D H
@@ -4828,8 +4862,13 @@ contains
             & beta=1.0_dp)
       #:else
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
-        call unpackHS(work2, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
-            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        if (tHelical) then
+          call unpackHS(work2, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+        else
+          call unpackHS(work2, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        end if
         call blocksymmetrizeHS(work2, denseDesc%iAtomStart)
         call symm(eigvecsReal(:,:,iKS), "L", work, work2)
         call unpackHS(work, over, neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
@@ -4844,8 +4883,13 @@ contains
       call packRhoRealBlacs(env%blacs, denseDesc, work, neighbourList%iNeighbour, nNeighbourSK,&
           & orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
     #:else
-      call packHS(ERhoPrim, work, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      if (tHelical) then
+        call packHS(ERhoPrim, work, neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+      else
+        call packHS(ERhoPrim, work, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      end if
     #:endif
     end do
 
@@ -5120,7 +5164,9 @@ contains
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
       & qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
-      & tPoisson, halogenXCorrection)
+      & tPoisson, halogenXCorrection, tHelical, coord0)
+
+    use dftbp_quaternions, only : rotate3
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5227,6 +5273,12 @@ contains
     !> Correction for halogen bonds
     type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
+    !> Central cell atomic coordinates
+    real(dp), intent(in) :: coord0(:,:)
+
     ! Locals
     real(dp), allocatable :: tmpDerivs(:,:)
     real(dp), allocatable :: dummyArray(:,:)
@@ -5234,6 +5286,9 @@ contains
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom, iAt
     integer :: ii
+
+    real(dp), parameter :: zAxis(3) = (/0.0_dp,0.0_dp,1.0_dp/)
+
 
     tSccCalc = allocated(sccCalc)
     tImHam = allocated(iRhoPrim)
@@ -5253,7 +5308,7 @@ contains
       else
         call derivative_shift(env, derivs, nonSccDeriv, rhoPrim(:,1), ERhoPrim, skHamCont,&
             & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
-            & iSparseStart, orb)
+            & iSparseStart, orb, tHelical)
       end if
     else
       if (tImHam) then
@@ -5338,8 +5393,18 @@ contains
     end if
 
     call getERepDeriv(tmpDerivs, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
-        & img2CentCell)
+        & img2CentCell, tHelical)
+
     derivs(:,:) = derivs + tmpDerivs
+
+    if (tHelical) then
+      ! correct for folding to unit cell
+      do ii = 1, nAtom
+        call rotate3( derivs(:,ii), -atan2(coord(2,ii),coord(1,ii))&
+            & +atan2(coord0(2,ii),coord0(1,ii)), zAxis)
+      end do
+    end if
+
 
   end subroutine getGradients
 
