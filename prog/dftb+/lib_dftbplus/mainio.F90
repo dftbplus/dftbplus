@@ -3507,8 +3507,8 @@ contains
 
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-      & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep, nSpin,&
-      & qOutput, velocities)
+      & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
+      & nSpin, qOutput, velocities)
 
     !>  file for geometry output
     character(*), intent(in) :: geoOutFile
@@ -3530,6 +3530,9 @@ contains
 
     !> Is the geometry periodic?
     logical, intent(in) :: tPeriodic
+
+    !> Is the geometry helical?
+    logical, intent(in) :: tHelical
 
     !> should Mulliken charges be printed
     logical, intent(in) :: tPrintMulliken
@@ -3566,7 +3569,7 @@ contains
     nAtom = size(pCoord0Out, dim=2)
 
     fname = trim(geoOutFile) // ".gen"
-    if (tPeriodic) then
+    if (tPeriodic .or. tHelical) then
       call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, tFracCoord)
     else
       call writeGenFormat(fname, pCoord0Out, species0, speciesName)

@@ -111,50 +111,43 @@ contains
 
     call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
 
-
     if (tHelix) then
 
-      !$OMP PARALLEL DO PRIVATE(iAtom1,nOrb1,iNeigh,iAtom2,iAtom2f,nOrb2,iOrig,sqrDMTmp,sqrEDMTmp, &
-      !$OMP& hPrimeTmp,sPrimeTmp,ii,intermed,theta) DEFAULT(SHARED) SCHEDULE(RUNTIME)&
-      !$OMP& REDUCTION(+:deriv)
       do iAtom1 = iAtFirst, iAtLast
         nOrb1 = orb%nOrbAtom(iAtom1)
         !! loop from 1 as no contribution from the atom itself
         do iNeigh = 1, nNeighbourSK(iAtom1)
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
+          nOrb2 = orb%nOrbAtom(iAtom2f)
+          iOrig = iPair(iNeigh,iAtom1)
+          sqrDMTmp(:,:) = 0.0_dp
+          sqrEDMTmp(:,:) = 0.0_dp
+          hPrimeTmp(:,:,:) = 0.0_dp
+          sPrimeTmp(:,:,:) = 0.0_dp
+          sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+          sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+          call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
+          call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
+              & orb)
+          ! note factor of 2 for implicit summation over lower triangle of density matrix:
+          do ii = 1, 3
+            intermed(ii) = &
+                & + sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
+                & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
+          end do
+          deriv(:,iAtom1) = deriv(:, iAtom1) + intermed
           if (iAtom1 /= iAtom2f) then
-            nOrb2 = orb%nOrbAtom(iAtom2f)
-            iOrig = iPair(iNeigh,iAtom1)
-            sqrDMTmp(:,:) = 0.0_dp
-            sqrEDMTmp(:,:) = 0.0_dp
-            hPrimeTmp(:,:,:) = 0.0_dp
-            sPrimeTmp(:,:,:) = 0.0_dp
-            sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-            sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-            call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAtom1, iAtom2, orb)
-            call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAtom1, iAtom2,&
-                & orb)
-            ! note factor of 2 for implicit summation over lower triangle of density matrix:
-            do ii = 1, 3
-              intermed(ii) = &
-                  & + sum(sqrDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*hPrimeTmp(1:nOrb2,1:nOrb1,ii))&
-                  & - sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * 2.0_dp*sPrimeTmp(1:nOrb2,1:nOrb1,ii))
-            end do
-            deriv(:,iAtom1) = deriv(:, iAtom1) + intermed
-            if (iAtom1 /= iAtom2f) then
-              theta = - atan2(coords(2,iAtom2),coords(1,iAtom2))&
-                  & + atan2(coords(2,iAtom2f),coords(1,iAtom2f))
-              theta = mod(theta,2.0_dp*pi)
-              call rotate3(intermed,theta, zAxis)
-              ! Add contribution to the force from atom 1 onto atom 2f using the symmetry in the
-              ! blocks, and note that the skew symmetry in the derivatives is being used
-              deriv(:,iAtom2f) = deriv(:,iAtom2f) - intermed
-            end if
+            theta = - atan2(coords(2,iAtom2),coords(1,iAtom2))&
+                & + atan2(coords(2,iAtom2f),coords(1,iAtom2f))
+            theta = mod(theta,2.0_dp*pi)
+            call rotate3(intermed, theta, zAxis)
+            ! Add contribution to the force from atom 1 onto atom 2f using the symmetry in the
+            ! blocks, and note that the skew symmetry in the derivatives is being used
+            deriv(:,iAtom2f) = deriv(:,iAtom2f) - intermed
           end if
         end do
       end do
-      !$OMP END PARALLEL DO
 
     else
 

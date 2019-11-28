@@ -97,7 +97,7 @@ contains
   !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
   !> blockSymmetrizeHS subroutine.
   subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iAtomStart, iPair, img2CentCell)
+      & iAtomStart, iSparseStart, img2CentCell)
 
     !> Square form matrix on exit.
     complex(dp), intent(out) :: square(:, :)
@@ -124,7 +124,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -155,7 +155,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -178,7 +178,8 @@ contains
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackHS_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell)
+  subroutine unpackHS_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+      & img2CentCell)
 
     !> Square form matrix on exit.
     real(dp), intent(out) :: square(:, :)
@@ -196,7 +197,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -221,7 +222,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -239,7 +240,7 @@ contains
   !> on-site blocks are only filled in the lower triangle part of the matrix. To fill the matrix
   !> completely, apply the blockSymmetrizeHS subroutine.
   subroutine unpackHSHelical_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-      & cellVec, iAtomStart, iPair, img2CentCell, orb, species, coords)
+      & cellVec, iAtomStart, iSparseStart, img2CentCell, orb, species, coords)
 
     !> Square form matrix on exit.
     complex(dp), intent(out) :: square(:, :)
@@ -266,7 +267,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -297,7 +298,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1+1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh,iAtom1) + 1
+        iOrig = iSparseStart(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -328,7 +329,7 @@ contains
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackHSHelical_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iPair,&
+  subroutine unpackHSHelical_real(square, orig, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
       & img2CentCell, orb, species, coords)
 
     !> Square form matrix on exit.
@@ -347,7 +348,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -374,7 +375,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1+1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh,iAtom1) + 1
+        iOrig = iSparseStart(iNeigh,iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -400,8 +401,8 @@ contains
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackHPauli(ham, kPoint, iNeighbour, nNeighbourSK, iPair, iAtomStart, img2CentCell,&
-      & iCellVec, cellVec, HSqrCplx, iHam)
+  subroutine unpackHPauli(ham, kPoint, iNeighbour, nNeighbourSK, iSparseStart, iAtomStart,&
+      & img2CentCell, iCellVec, cellVec, HSqrCplx, iHam)
 
     !> sparse hamiltonian
     real(dp), intent(in) :: ham(:, :)
@@ -416,7 +417,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(:, :)
+    integer, intent(in) :: iSparseStart(:, :)
 
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -449,12 +450,12 @@ contains
     ! 1 0 charge part
     ! 0 1
     call unpackHS(work, ham(:, 1), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-        & cellVec, iAtomStart, iPair, img2CentCell)
+        & cellVec, iAtomStart, iSparseStart, img2CentCell)
     HSqrCplx(1:nOrb, 1:nOrb) = 0.5_dp*work(1:nOrb, 1:nOrb)
     HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) = 0.5_dp*work(1:nOrb, 1:nOrb)
     if (present(iHam)) then
       call unpackHS(work, iHam(:, 1), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-          & cellVec, iAtomStart, iPair, img2CentCell)
+          & cellVec, iAtomStart, iSparseStart, img2CentCell)
       HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
           & + 0.5_dp*cmplx(0, 1, dp)*work(1:nOrb, 1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) =&
@@ -465,7 +466,7 @@ contains
     ! 0 1 x part
     ! 1 0
     call unpackHS(work, ham(:, 2), kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart,&
-        & iPair, img2CentCell)
+        & iSparseStart, img2CentCell)
     do ii = 1, nOrb
       work(ii, ii+1:) = conjg(work(ii+1:, ii))
     end do
@@ -474,7 +475,7 @@ contains
         & + 0.5_dp * work(1:nOrb, 1:nOrb)
     if (present(iHam)) then
       call unpackHS(work, iHam(:, 2), kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-          & iAtomStart, iPair, img2CentCell)
+          & iAtomStart, iSparseStart, img2CentCell)
       do ii = 1, nOrb
         work(ii, ii+1:) = -conjg(work(ii+1:, ii))
       end do
@@ -485,7 +486,7 @@ contains
     ! 0 -i y part
     ! i  0
     call unpackHS(work, ham(:, 3), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-        & cellVec, iAtomStart, iPair, img2CentCell)
+        & cellVec, iAtomStart, iSparseStart, img2CentCell)
     do ii = 1, nOrb
       work(ii, ii+1:) = conjg(work(ii+1:, ii))
     end do
@@ -494,7 +495,7 @@ contains
         & + cmplx(0.0, 0.5, dp) * work(1:nOrb, 1:nOrb)
     if (present(iHam)) then
       call unpackHS(work, iHam(:, 3), kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-          & iAtomStart, iPair, img2CentCell)
+          & iAtomStart, iSparseStart, img2CentCell)
 
       ! Apply hermitian symmetry just in case
       do ii = 1, nOrb
@@ -508,14 +509,14 @@ contains
     ! 1  0 z part
     ! 0 -1
     call unpackHS(work, ham(:, 4), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-        & cellVec, iAtomStart, iPair, img2CentCell)
+        & cellVec, iAtomStart, iSparseStart, img2CentCell)
     HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
         & + 0.5_dp * work(1:nOrb, 1:nOrb)
     HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) = HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
         & - 0.5_dp * work(1:nOrb, 1:nOrb)
     if (present(iHam)) then
       call unpackHS(work, iHam(:, 4), kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-          & cellVec, iAtomStart, iPair, img2CentCell)
+          & cellVec, iAtomStart, iSparseStart, img2CentCell)
       HSqrCplx(1:nOrb, 1:nOrb) = HSqrCplx(1:nOrb, 1:nOrb)&
           & + 0.5_dp * cmplx(0, 1, dp) * work(1:nOrb, 1:nOrb)
       HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb) = HSqrCplx(nOrb+1:2*nOrb, nOrb+1:2*nOrb)&
@@ -529,8 +530,8 @@ contains
   !>
   !> Note: The non on-site blocks are only filled in the lower triangle part of the matrix. To fill
   !> the matrix completely, apply the blockSymmetrizeHS subroutine.
-  subroutine unpackSPauli(over, kPoint, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell,&
-      & iCellVec, cellVec, SSqrCplx)
+  subroutine unpackSPauli(over, kPoint, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart,&
+      & img2CentCell, iCellVec, cellVec, SSqrCplx)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
@@ -548,7 +549,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(:, :)
+    integer, intent(in) :: iSparseStart(:, :)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -569,7 +570,7 @@ contains
     allocate(work(nOrb, nOrb))
     SSqrCplx(:, :) = 0.0_dp
     call unpackHS(work, over, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec, iAtomStart,&
-        & iPair, img2CentCell)
+        & iSparseStart, img2CentCell)
     SSqrCplx(1:nOrb, 1:nOrb) = work(1:nOrb, 1:nOrb)
     SSqrCplx(nOrb + 1 : 2 * nOrb, nOrb + 1 : 2 * nOrb) = work(1:nOrb, 1:nOrb)
 
@@ -578,7 +579,7 @@ contains
 
   !> Pack squared matrix in the sparse form (complex version).
   subroutine packHS_cmplx(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
-      & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+      & iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
@@ -611,7 +612,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -649,7 +650,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -679,8 +680,8 @@ contains
 
 
   !> Pack squared matrix in the sparse form (real version).
-  subroutine packHS_real(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
-      & img2CentCell)
+  subroutine packHS_real(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
+      & iSparseStart, img2CentCell)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
@@ -701,7 +702,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -730,7 +731,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -756,7 +757,7 @@ contains
 
   !> Pack squared matrix in the sparse form (complex version) for helical boundary conditions.
   subroutine packHShelical_cmplx(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell, orb, species, coords)
+      & mOrb, iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell, orb, species, coords)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
@@ -789,7 +790,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -818,7 +819,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -855,7 +856,7 @@ contains
 
   !> Pack squared matrix in the sparse form (real version).
   subroutine packHShelical_real(primitive, square, iNeighbour, nNeighbourSK, iAtomStart,&
-      & iPair, img2CentCell, orb, species, coords)
+      & iSparseStart, img2CentCell, orb, species, coords)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
@@ -873,7 +874,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -897,12 +898,18 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
         nOrb2 = iAtomStart(iAtom2f + 1) - jj
         tmpSqr(1:nOrb2, 1:nOrb1) = square(jj:jj+nOrb2-1, ii:ii+nOrb1-1)
+        ! Symmetrize the on-site block before packing, just in case
+        if (iAtom1 == iAtom2f) then
+          do kk = 1, nOrb2
+            tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk+1:nOrb1, kk)
+          end do
+        end if
         iSp = species(iAtom2f)
         iSh = orb%nShell(iSp)
         lShellVals(:iSh) = orb%angShell(:iSh,iSp)
@@ -911,12 +918,7 @@ contains
         theta = mod(theta,2.0_dp*pi)
         call rotateZ(rotZ, lShellVals(:iSh), theta)
         tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
-        ! Symmetrize the on-site block before packing, just in case
-        if (iAtom1 == iAtom2f) then
-          do kk = 1, nOrb2
-            tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk+1:nOrb1, kk)
-          end do
-        end if
+
         primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
             & + reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2])
       end do
@@ -926,8 +928,8 @@ contains
 
 
   !> Pack squared matrix in the sparse form (real Pauli version).
-  subroutine packHSPauli(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
-      & img2CentCell)
+  subroutine packHSPauli(primitive, square, iNeighbour, nNeighbourSK, mOrb,&
+      & iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:, :)
@@ -948,7 +950,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -983,7 +985,7 @@ contains
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iPair(iNeigh, iAtom1) + 1
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
@@ -1013,7 +1015,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -1037,7 +1039,7 @@ contains
 
   !> Pack squared matrix into the sparse form (complex Pauli version).
   subroutine packHSPauli_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
-      & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+      & iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:, :)
@@ -1070,7 +1072,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1115,7 +1117,7 @@ contains
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iPair(iNeigh, iAtom1) + 1
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
@@ -1153,7 +1155,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -1196,8 +1198,8 @@ contains
 
 
   !> Pack imaginary coefficient part of Pauli square matrix into the sparse form.
-  subroutine packHSPauliImag(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
-      & img2CentCell)
+  subroutine packHSPauliImag(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
+      & iSparseStart, img2CentCell)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:, :)
@@ -1218,7 +1220,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1254,7 +1256,7 @@ contains
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iPair(iNeigh, iAtom1) + 1
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
@@ -1284,7 +1286,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -1310,7 +1312,7 @@ contains
 
   !> Pack imaginary coefficient part of Pauli square matrix into the sparse form (complex version).
   subroutine packHSPauliImag_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+      & mOrb, iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:, :)
@@ -1343,7 +1345,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1388,7 +1390,7 @@ contains
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iPair(iNeigh, iAtom1) + 1
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
@@ -1427,7 +1429,7 @@ contains
       ii = iAtomStart(iAtom1)
       nOrb1 = iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = iAtomStart(iAtom2f)
@@ -1464,8 +1466,8 @@ contains
 
 
   !> Pack only the charge (spin channel 1) part of a 2 component matrix
-  subroutine packHSPauliERho(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
-      & img2CentCell)
+  subroutine packHSPauliERho(primitive, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
+      & iSparseStart, img2CentCell)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
@@ -1486,7 +1488,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1520,7 +1522,7 @@ contains
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iPair(iNeigh, iAtom1) + 1
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
@@ -1546,7 +1548,7 @@ contains
 
   !> Pack squared matrix in the sparse form (real version).
   subroutine packHSPauliERho_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+      & mOrb, iCellVec, cellVec, iAtomStart, iSparseStart, img2CentCell)
 
     !> Sparse matrix
     real(dp), intent(inout) :: primitive(:)
@@ -1579,7 +1581,7 @@ contains
     integer, intent(in) :: iAtomStart(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1622,7 +1624,7 @@ contains
         ii = iAtomStart(iAtom1)
         nOrb1 = iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iPair(iNeigh, iAtom1) + 1
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = iAtomStart(iAtom2f)
@@ -1772,8 +1774,8 @@ contains
   !>
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
-  subroutine unpackHSRealBlacs(myBlacs, orig, iNeighbour, nNeighbourSK, iPair, img2CentCell, desc,&
-      & square)
+  subroutine unpackHSRealBlacs(myBlacs, orig, iNeighbour, nNeighbourSK, iSparseStart, img2CentCell,&
+      & desc, square)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1788,7 +1790,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -1816,7 +1818,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -1840,7 +1842,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackHSCplxBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iPair, img2CentCell, desc, square)
+      & iSparseStart, img2CentCell, desc, square)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1864,7 +1866,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1898,7 +1900,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -1927,7 +1929,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackHPauliBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iPair, img2CentCell, mOrb, desc, square, iorig)
+      & iSparseStart, img2CentCell, mOrb, desc, square, iorig)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -1951,7 +1953,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -1970,10 +1972,11 @@ contains
 
     square(:, :) = cmplx(0, 0, dp)
     call unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-        & cellVec, iPair, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc, square)
+        & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(1, 0, dp), cmplx(1, 0, dp), desc, square)
     if (present(iorig)) then
       call unpackHPauliBlacsHelper(myBlacs, iorig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-          & cellVec, iPair, img2CentCell, mOrb, cmplx(0, 1, dp), cmplx(-1, 0, dp), desc, square)
+          & cellVec, iSparseStart, img2CentCell, mOrb, cmplx(0, 1, dp), cmplx(-1, 0, dp), desc,&
+          & square)
     end if
 
   end subroutine unpackHPauliBlacs
@@ -1985,7 +1988,7 @@ contains
   !! 1*orig(:, 1) + sigma1*orig(:, 2) + sigma2*orig(:, 3) + sigma3*orig(:, 4).
   !!
   subroutine unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-      & cellVec, iPair, img2CentCell, mOrb, imagPrefac, hermPrefac, desc, square)
+      & cellVec, iSparseStart, img2CentCell, mOrb, imagPrefac, hermPrefac, desc, square)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2009,7 +2012,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2045,7 +2048,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -2109,7 +2112,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackSPauliBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
-      & iPair, img2CentCell, mOrb, desc, square)
+      & iSparseStart, img2CentCell, mOrb, desc, square)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2133,7 +2136,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2164,7 +2167,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -2194,7 +2197,7 @@ contains
 
 
   !> Packs distributed dense real matrix into sparse form (real).
-  subroutine packRhoRealBlacs(myBlacs, desc, square, iNeighbour, nNeighbourSK, mOrb, iPair,&
+  subroutine packRhoRealBlacs(myBlacs, desc, square, iNeighbour, nNeighbourSK, mOrb, iSparseStart,&
       & img2CentCell, primitive)
 
     !> BLACS matrix descriptor
@@ -2216,7 +2219,7 @@ contains
     integer, intent(in) :: mOrb
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2245,7 +2248,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -2271,7 +2274,7 @@ contains
 
   !> Packs distributed dense real matrix into sparse form (real).
   subroutine packRhoCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iPair, img2CentCell, primitive)
+      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2304,7 +2307,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2343,7 +2346,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -2374,7 +2377,7 @@ contains
 
   !> Pack squared matrix into the sparse form (complex Pauli version).
   subroutine packRhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iPair, img2CentCell, primitive, iprimitive)
+      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive, iprimitive)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2407,7 +2410,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2419,11 +2422,11 @@ contains
     real(dp), intent(inout), optional :: iprimitive(:, :)
 
     call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-        & mOrb, iCellVec, cellVec, iPair, img2CentCell, cmplx(1, 0, dp), .true., primitive)
+        & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(1, 0, dp), .true., primitive)
     if (present(iprimitive)) then
       call packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour,&
-          & nNeighbourSK, mOrb, iCellVec, cellVec, iPair, img2CentCell, cmplx(0, -1, dp), .false.,&
-          & iprimitive)
+          & nNeighbourSK, mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, cmplx(0, -1, dp),&
+          & .false., iprimitive)
     end if
 
   end subroutine packRhoPauliBlacs
@@ -2431,7 +2434,7 @@ contains
 
   !> Helper routine for the Pauli packing.
   subroutine packRhoPauliBlacsHelper(myBlacs, desc, square, kPoint, kWeight, iNeighbour,&
-      & nNeighbourSK, mOrb, iCellVec, cellVec, iPair, img2CentCell, imagprefac, symmetrize,&
+      & nNeighbourSK, mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, imagprefac, symmetrize,&
       & primitive)
 
     !> BLACS matrix descriptor
@@ -2465,7 +2468,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2521,7 +2524,7 @@ contains
         ii = desc%iAtomStart(iAtom1)
         nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iPair(iNeigh, iAtom1) + 1
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = desc%iAtomStart(iAtom2f)
@@ -2559,7 +2562,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -2603,7 +2606,7 @@ contains
 
   !> Pack only the charge (spin channel 1) part of a 2 component matrix.
   subroutine packERhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
-      & mOrb, iCellVec, cellVec, iPair, img2CentCell, primitive)
+      & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2636,7 +2639,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2678,7 +2681,7 @@ contains
         ii = desc%iAtomStart(iAtom1)
         nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
         do iNeigh = 0, nNeighbourSK(iAtom1)
-          iOrig = iPair(iNeigh, iAtom1) + 1
+          iOrig = iSparseStart(iNeigh, iAtom1) + 1
           iAtom2 = iNeighbour(iNeigh, iAtom1)
           iAtom2f = img2CentCell(iAtom2)
           jj = desc%iAtomStart(iAtom2f)
@@ -2711,8 +2714,8 @@ contains
   !>
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
-  subroutine unpackHSHelicalRealBlacs(myBlacs, orig, iNeighbour, nNeighbourSK, iPair, img2CentCell,&
-      & orb, species, iAtomStart, coords, desc, square)
+  subroutine unpackHSHelicalRealBlacs(myBlacs, orig, iNeighbour, nNeighbourSK, iSparseStart,&
+      & img2CentCell, orb, species, iAtomStart, coords, desc, square)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2727,7 +2730,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Map from images of atoms to central cell atoms
     integer, intent(in) :: img2CentCell(:)
@@ -2760,7 +2763,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -2791,7 +2794,7 @@ contains
   !> Note: In contrast to the serial routines, both triangles of the resulting matrix are filled.
   !>
   subroutine unpackHSHelicalCplxBlacs(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
-      & cellVec, iPair, img2CentCell, orb, species, iAtomStart, coords, desc, square)
+      & cellVec, iSparseStart, img2CentCell, orb, species, iAtomStart, coords, desc, square)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -2815,7 +2818,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2854,7 +2857,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -2893,7 +2896,7 @@ contains
 
 
   !> Packs distributed dense real matrix into sparse form (real) for helical boundary conditions.
-  subroutine packRhoHelicalRealBlacs(myBlacs, desc, square, iNeighbour, nNeighbourSK, iPair,&
+  subroutine packRhoHelicalRealBlacs(myBlacs, desc, square, iNeighbour, nNeighbourSK, iSparseStart,&
       & img2CentCell, orb, species, iAtomStart, coords, primitive)
 
     !> BLACS matrix descriptor
@@ -2912,7 +2915,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -2942,7 +2945,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -2956,13 +2959,13 @@ contains
             & - atan2(coords(2,iAtom2f),coords(1,iAtom2f))
         theta = mod(theta,2.0_dp*pi)
         call rotateZ(rotZ, lShellVals(:iSh), theta)
-        tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
         ! Symmetrize the on-site block before packing, just in case
         if (iAtom1 == iAtom2f) then
           do kk = 1, nOrb2
             tmpSqr(kk, kk+1:nOrb1) = tmpSqr(kk + 1 : nOrb1, kk)
           end do
         end if
+        tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
         primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) =&
             & primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
             & + reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2])
@@ -2974,8 +2977,8 @@ contains
 
   !> Packs distributed dense real matrix into sparse form (real).
   subroutine packRhoHelicalCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbour,&
-      & nNeighbourSK, iCellVec, cellVec, iPair, img2CentCell, orb, species, iAtomStart, coords,&
-      & primitive)
+      & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb, species, iAtomStart,&
+      & coords, primitive)
 
     !> BLACS matrix descriptor
     type(TBlacsEnv), intent(in) :: myBlacs
@@ -3005,7 +3008,7 @@ contains
     real(dp), intent(in) :: cellVec(:, :)
 
     !> indexing array for the sparse Hamiltonian
-    integer, intent(in) :: iPair(0:, :)
+    integer, intent(in) :: iSparseStart(0:, :)
 
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
@@ -3040,7 +3043,7 @@ contains
       ii = desc%iAtomStart(iAtom1)
       nOrb1 = desc%iAtomStart(iAtom1 + 1) - ii
       do iNeigh = 0, nNeighbourSK(iAtom1)
-        iOrig = iPair(iNeigh, iAtom1) + 1
+        iOrig = iSparseStart(iNeigh, iAtom1) + 1
         iAtom2 = iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
         jj = desc%iAtomStart(iAtom2f)
@@ -3059,13 +3062,13 @@ contains
             & - atan2(coords(2,iAtom2f),coords(1,iAtom2f))
         theta = mod(theta,2.0_dp*pi)
         call rotateZ(rotZ, lShellVals(:iSh), theta)
-        tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
         ! Hermitian the on-site block before packing, just in case
         if (iAtom1 == iAtom2f) then
           do kk = 1, nOrb2
             tmpSqr(kk, kk + 1 : nOrb1) = conjg(tmpSqr(kk + 1 : nOrb1, kk))
           end do
         end if
+        tmpSqr(:nOrb2,:nOrb1) = matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
         primitive(iOrig : iOrig + nOrb1*nOrb2 - 1) =&
             & primitive(iOrig : iOrig + nOrb1*nOrb2 - 1)&
             & + kWeight * real(phase * reshape(tmpSqr(1:nOrb2, 1:nOrb1), [nOrb1 * nOrb2]), dp)
