@@ -394,6 +394,13 @@ contains
     end select
 
     if (this%tLaser) then
+      if (tPeriodic) then
+         call warning('Polarization components of the laser in a periodic direction do not work. &
+             & Make sure you are polarizing the field in non-periodic directions.')
+         if (any(inp%imFieldPolVec > epsilon(1.0_dp))) then
+            call warning('Using circular or elliptical polarization with periodic structures might not work.')
+         end if
+      end if 
       this%omega = inp%omega
       this%fieldDir = inp%reFieldPolVec + imag * inp%imFieldPolVec
       norm = sqrt(dot_product(real(this%fieldDir, dp),real(this%fieldDir, dp)))
@@ -464,6 +471,10 @@ contains
        end if
        allocate(this%movedVelo(3, nAtom))
        this%movedVelo(:,:) = 0.0_dp
+    end if
+
+    if (this%tIons .or. this%tForces .and. (this%nExcitedAtom /= nAtom)) then
+       call error("Ion dynamics and forces are not implemented for excitation of a subgroup of atoms")
     end if
 
     tDispersion = allocated(dispersion)
@@ -1029,8 +1040,6 @@ contains
      do iKS = 1, this%parallelKS%nLocalKS
         if (this%tIons .or. (.not. this%tRealHS) .or. this%tRangeSep) then
            H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
-!           call scal(H1(:,:,iSpin), imag)
-!           call zaxpy(this%nOrbs*this%nOrbs, 1.0_dp, RdotSprime, 1, H1(:,:,iSpin), 1)
 
            if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, this%eulerFreq) == 0)) then
               call zcopy(this%nOrbs*this%nOrbs, rho(:,:,iKS), 1, rhoOld(:,:,iKS), 1)
@@ -1041,8 +1050,6 @@ contains
                    & 2.0_dp * this%dt)
            end if
         else
-           !The following is commented for the fast propagate that considers a real H
-           !call scal(H1(:,:,iSpin), imag)
            call propagateRhoRealH(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
                 & 2.0_dp * this%dt)
         end if
