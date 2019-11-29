@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+################################################################################
+#
+# Extracts the name of the define modules in the files passed as arguments
+#
+# get_module_names file1 file2 file3 ...
+#
+################################################################################
+from __future__ import print_function
+import sys
+import re
+
+MODDEF_PATTERN = r'''^(?P<indent>\s*)
+                      (?P<moddef>(?:end\s+)?module\s+)
+                      (?P<modname>\w+)
+                      \b(?P<suffix>.*)$'''
+
+regexp_moddef = re.compile(MODDEF_PATTERN,
+                           re.IGNORECASE | re.MULTILINE | re.VERBOSE)
+
+sourcefiles = sys.argv
+modnames = set()
+for sourcefile in sourcefiles:
+    with open(sourcefile, 'r') as fp:
+        txt = fp.read()
+    match = regexp_moddef.search(txt)
+    if match:
+        modname = match.group('modname')
+        modname = modname.lower()
+        modnames.add(modname)
+for modname in modnames:
+    print(modname)

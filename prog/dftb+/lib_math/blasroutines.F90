@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,10 +9,10 @@
 
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
-module blasroutines
-  use assert
-  use accuracy
-  use blas
+module dftbp_blasroutines
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_blas
   implicit none
 
 
@@ -27,7 +27,7 @@ module blasroutines
 
 
   !> Rank 1 update of a matrix A := alpha*x*y' + A
-  !> Wrapper for the level 2 blas routine xger to perform the rank 1 update of the chosen triangle
+  !> Wrapper for the level 2 blas routine xger to perform the rank 1 update of a general matrix
   interface ger
     module procedure ger_real
     module procedure ger_cmplx
@@ -566,9 +566,12 @@ contains
       iBeta = 0.0_rsp
     end if
 
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
-    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or.&
+        & iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=1) == size(x)))
+    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=2) == size(y)))
 
     m = size(a,dim=1)
     n = size(a,dim=2)
@@ -619,9 +622,12 @@ contains
       iBeta = 0.0_rdp
     end if
 
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
-    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or.&
+        & iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=1) == size(x)))
+    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=2) == size(y)))
 
     m = size(a,dim=1)
     n = size(a,dim=2)
@@ -1902,4 +1908,4 @@ contains
 
   end subroutine hemm_dblecmplx
 
-end module blasroutines
+end module dftbp_blasroutines

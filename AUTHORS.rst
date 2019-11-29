@@ -27,8 +27,14 @@ contributed to DFTB+ :
 
 * Franco Bonafé (Universidad Nacional de Córdoba, Argentina)
 
+* Cristopher Camacho (University of Costa Rica)
+
+* Caterina Cevallos-Brenes (University of Costa Rica)
+
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
+
+* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
 
 * Thomas Niehaus (University of Lyon, France)
 
@@ -39,7 +45,10 @@ contributed to DFTB+ :
 
 * Cristián G. Sánchez (Universidad Nacional de Córdoba, Argentina)
 
+* Jan Řezáč (Institute of Organic Chemistry and Biochemistry AS CR, Czech Republic)
+
 * Michael Sternberg (Argonne National Laboratory, USA)
 
 * Frank Stuckenberg (University of Bremen, Germany)
 
+* Victor Yu (Duke University, USA)

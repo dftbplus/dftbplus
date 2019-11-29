@@ -1,0 +1,29 @@
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
+
+#:include 'common.fypp'
+
+program setupGeometry 
+  use dftbp_globalenv
+  use dftbp_formatout, only : printDftbHeader
+  use dftbp_inputsetup, only : inputData
+  use dftbp_parsersetup, only : parseHsdInput
+  implicit none
+
+  character(len=*), parameter :: releaseName = ''
+  integer, parameter :: releaseYear = 2019
+
+  type(inputData), allocatable :: input
+
+  call initGlobalEnv()
+  call printDftbHeader(releaseName, releaseYear)
+  allocate(input)
+  call parseHsdInput(input)
+  deallocate(input)
+  call destructGlobalEnv()
+
+end program setupGeometry

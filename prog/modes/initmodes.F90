@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,29 +8,29 @@
 #:include 'common.fypp'
 
 !> Contains the routines for initialising modes.
-module initmodes
-  use assert
-  use io
-  use hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
-  use xmlutils
-  use hsdutils
-  use hsdutils2
-  use flib_dom
-  use linkedlist
-  use charmanip
-  use accuracy
-  use constants
-  use typegeometryhsd
-  use message
-  use fileid
-  use unitconversion
-  use oldskdata
+module dftbp_initmodes
+  use dftbp_assert
+  use dftbp_io
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_xmlutils
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use xmlf90_flib_dom
+  use dftbp_linkedlist
+  use dftbp_charmanip
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_typegeometryhsd
+  use dftbp_message
+  use dftbp_fileid
+  use dftbp_unitconversion
+  use dftbp_oldskdata
   implicit none
   private
 
 
   !> program version
-  character(len=*), parameter :: version =  "0.02"
+  character(len=*), parameter :: version =  "0.03"
 
   !> root node name of the input tree
   character(len=*), parameter :: rootTag = "modes"
@@ -111,8 +111,6 @@ module initmodes
   !> Number of derivatives
   integer, public :: nDerivs
 
-  !! Locally created variables
-
 contains
 
 
@@ -128,7 +126,7 @@ contains
     integer :: inputVersion
     integer :: ii, iSp1, iAt
     logical :: tHSD
-    real(dp), allocatable :: speciesMass(:)
+    real(dp), allocatable :: speciesMass(:), replacementMasses(:)
     type(listCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
@@ -255,6 +253,8 @@ contains
       call destruct(skFiles(iSp1))
     end do
 
+    call getInputMasses(root, geo, replacementMasses)
+
     allocate(dynMatrix(nDerivs,nDerivs))
     call getChildValue(root, "Hessian", value, "", child=child, &
         & allowEmptyValue=.true.)
@@ -299,6 +299,13 @@ contains
     do iAt = 1, nMovedAtom
       atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
     end do
+    if (allocated(replacementMasses)) then
+      do iAt = 1, nMovedAtom
+        if (replacementMasses(iMovedAtoms(iAt)) >= 0.0_dp) then
+          atomicMasses(iAt) = replacementMasses(iMovedAtoms(iAt))
+        end if
+      end do
+    end if
 
   end subroutine initProgramVariables
 
@@ -328,4 +335,55 @@ contains
 
   end subroutine readGeometry
 
-end module initmodes
+
+  !> Reads atomic masses from input file, overwriting those from the SK files
+  subroutine getInputMasses(node, geo, masses)
+
+    !> relevant node of input data
+    type(fnode), pointer :: node
+
+    !> geometry object, which contains atomic species information
+    type(TGeometry), intent(in) :: geo
+
+    !> masses to be returned
+    real(dp), allocatable, intent(out) :: masses(:)
+
+    type(fnode), pointer :: child, child2, child3, val
+    type(fnodeList), pointer :: children
+    integer, allocatable :: pTmpI1(:)
+    type(string) :: buffer, modifier
+    real(dp) :: rTmp
+    integer :: ii, jj, iAt
+
+    call getChildValue(node, "Masses", val, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true., list=.true.)
+
+    ! Read individual atom specifications
+    call getChildren(child, "Mass", children)
+    if (getLength(children) == 0) then
+      return
+    end if
+
+    allocate(masses(geo%nAtom))
+    masses(:) = -1.0_dp
+    do ii = 1, getLength(children)
+      call getItem1(children, ii, child2)
+      call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child3, pTmpI1)
+      call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), massUnits, child, rTmp)
+      do jj = 1, size(pTmpI1)
+        iAt = pTmpI1(jj)
+        if (masses(iAt) >= 0.0_dp) then
+          call detailedWarning(child3, "Previous setting for the mass  of atom" // i2c(iAt) //&
+              & " overwritten")
+        end if
+        masses(iAt) = rTmp
+      end do
+      deallocate(pTmpI1)
+    end do
+    call destroyNodeList(children)
+
+  end subroutine getInputMasses
+
+end module dftbp_initmodes

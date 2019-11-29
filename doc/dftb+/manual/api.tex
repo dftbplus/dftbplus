@@ -1,0 +1,52 @@
+\chapter{\dftbp{} API}
+
+You can compile \dftbp{} into a library and access some of its functionality via
+an API. Currently the API offers high level access only: you can set the current
+geometry and extract energy and forces for that geometry.
+
+\section{Building the library}
+
+In order to compile the \dftbp{} library with the public API, set the
+\verb|WITH_API| option to \verb|TRUE| in the \verb|config.cmake| configuration
+file. Then (from a separate build folder) build and install the code as ususal
+\begin{verbatim}
+cmake /PATH/TO/DFTBPLUS/SOURCE/FOLDER
+make -j
+\end{verbatim}
+
+After compilation, you can test the api functionality specifically with
+\begin{verbatim}
+ctest -R 'api_'
+\end{verbatim}
+
+Finally, you can install the library with the usual install command
+\begin{verbatim}
+make install
+\end{verbatim}
+
+After the installation, the library (\verb|libdftbplus.a|) can be found in the
+\verb|lib/| folder of the installation directory. Depending on the build options
+this folder may contain several other libraries as well, which must be linked
+additional to \verb|libdftbplus.a| to your binary.
+
+\section{General guidelines}
+
+Although the DFTB+ library contains nearly all internal routines of the DFTB+
+code, you should access the code functionality only via the provided API and not
+by calling internal routines directly. We aim to keep the API stable over time,
+but the internal routines themselves can change without notice between
+releases. The API version can be found in the \verb|API_VERSION| file in the
+\verb|prog/dftb+/api/mm| folder. We use semantic versioning, a change in the
+major (first) version number indicates backwards incompatible changes, while
+changes in the minor (second) version number indicate backwards compatible
+extensions of the API.
+
+When using the API, we suggest that \kw{ParserVersion} should be set in order to
+ensure that you can maintain backwards compatibility with later versions of
+DFTB+.
+
+The Fortran interface is documented in the source code file
+\verb|prog/dftb+/api/mm/mmapi.F90|, while \verb|prog/dftb+/api/mm/capi.F90|
+gives the bindings for calling from C. DFTB+ uses atomic units internally, hence
+exchanged values should be in this unit system (however HSD formatted data can
+carry unit modifiers, see examples of input parsing for details).

@@ -1,0 +1,77 @@
+Geometry = GenFormat {
+# structure similar to doi:10.1088/1742-6596/720/1/012034
+   13  C
+ Au
+    1 1   -0.1411141395E+01    0.4033483664E+01    0.1020177918E+00
+    2 1    0.1012614077E+01    0.3829545896E+01    0.8724492617E-01
+    3 1   -0.2763215639E+01    0.2055831495E+01    0.3752963912E-01
+    4 1   -0.3759942486E+00    0.1866850075E+01    0.2341713714E-01
+    5 1    0.2014327369E+01    0.1651301205E+01    0.8582105889E-02
+    6 1   -0.4147455224E+01    0.1001229448E+00   -0.2707452046E-01
+    7 1   -0.1755706068E+01   -0.1102385770E+00   -0.4180156710E-01
+    8 1    0.6410923930E+00   -0.3031136507E+00   -0.5535833615E-01
+    9 1    0.3037309624E+01   -0.5218515191E+00   -0.7003894775E-01
+   10 1   -0.3120269199E+01   -0.2095568082E+01   -0.1089771429E+00
+   11 1   -0.7288894462E+00   -0.2258338793E+01   -0.1203139273E+00
+   12 1    0.1644489925E+01   -0.2472884145E+01   -0.1338829541E+00
+   13 1    0.2659278345E+00   -0.4444300514E+01   -0.1997442044E+00
+}
+
+Driver = LBFGS {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-10
+    OrbitalResolvedSCC = Yes
+    MaxAngularMomentum = {
+        Au = "d"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 100
+    }
+    OnSiteCorrection= {
+        Auuu = {
+            0.00000  0.03752  0.00073
+            0.03752 -0.00505 -0.00002
+            0.00073 -0.00002  0.00531
+        }
+        Auud = {
+            0.00000  0.06928  0.01339
+            0.06928  0.01677  0.01228
+            0.01339  0.01228  0.02519
+        }
+    }
+    OrbitalPotential = {
+        Functional = {pSIC}
+        Au = {
+            Shells = {3} # d shell
+            UJ = 0.0639 # (U)/4
+        }
+    }
+    SpinOrbit = {
+        # values from DFT data of https://doi.org/10.1016/0166-1280(95)04297-0
+        Au = {0.0 0.42815 0.0274}
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    CalculateForces = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 6
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

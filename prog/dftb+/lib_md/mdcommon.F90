@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Common routines for MD calculations
-module mdcommon
-  use assert
-  use accuracy
-  use constants
-  use ranlux
+module dftbp_mdcommon
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_ranlux
   implicit none
   private
 
@@ -253,4 +253,4 @@ contains
 
   end subroutine MaxwellBoltzmann
 
-end module mdcommon
+end module dftbp_mdcommon

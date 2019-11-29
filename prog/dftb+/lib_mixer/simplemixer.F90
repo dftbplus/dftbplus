@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Simple mixer for mixing charges
-module simplemixer
-  use assert
-  use accuracy
+module dftbp_simplemixer
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
 
   private
@@ -96,4 +96,4 @@ contains
 
   end subroutine SimpleMixer_mix
 
-end module simplemixer
+end module dftbp_simplemixer

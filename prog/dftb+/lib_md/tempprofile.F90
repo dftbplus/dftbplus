@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Contains simple temperature profiles for molecular dynamics.
-module tempprofile
-  use assert
-  use accuracy
+module dftbp_tempprofile
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
   private
 
@@ -190,4 +190,4 @@ contains
 
   end subroutine TempProfile_getTemperature
 
-end module tempprofile
+end module dftbp_tempprofile

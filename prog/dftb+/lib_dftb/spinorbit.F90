@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,17 +8,17 @@
 #:include 'common.fypp'
 
 !> Routines for spin orbit coupling
-module spinorbit
+module dftbp_spinorbit
 #:if WITH_SCALAPACK
-  use scalapackfx
+  use dftbp_scalapackfx
 #:endif
-  use environment
-  use assert
-  use accuracy, only : dp
-  use constants, only : imag
-  use angmomentum, only : getLOperators
-  use commontypes, only : TOrbitals
-  use densedescr
+  use dftbp_environment
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : imag
+  use dftbp_angmomentum, only : getLOperators
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_densedescr
   implicit none
   private
 
@@ -38,7 +38,7 @@ contains
     !> returned energy for each atom
     real(dp), intent(out) :: Eatom(:)
 
-    !> Density matrix in Packed format
+    !> Density matrix in dense format
     complex(dp), intent(in) :: rho(:,:)
 
     !> Offset array in the square matrix.
@@ -332,6 +332,9 @@ contains
     speciesPlus(:,:) = 0.0_dp
     do iShell = 1, orb%nShell(iSpecies)
       ll = orb%angShell(iShell, iSpecies)
+      if (ll == 0) then
+        cycle
+      end if
       nOrbShell = 2 * ll + 1
       iOrbStart = orb%posShell(iShell, iSpecies)
       iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
@@ -345,4 +348,4 @@ contains
   end subroutine getLSOperatorsForSpecies
 
 
-end module spinorbit
+end module dftbp_spinorbit

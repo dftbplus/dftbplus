@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Contains subroutines for formatted output of data
-module formatout
-  use globalenv
-  use environment
-  use message
-  use assert
-  use accuracy
-  use constants
-  use lapackroutines, only: matinv
-  use sparse2dense
+module dftbp_formatout
+  use dftbp_globalenv
+  use dftbp_environment
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_constants
+  use dftbp_lapackroutines, only: matinv
+  use dftbp_sparse2dense
   implicit none
   private
 
@@ -69,7 +69,7 @@ contains
 
 
   !> A wrapper around writeGenFormat_fid to open a file first.
-  subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, tFracCoord)
+  subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, tFracCoord, append)
 
     !> File name of the file which should be created
     character(len=*), intent(in) :: fileName
@@ -89,11 +89,27 @@ contains
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
 
+    !> Whether geometry should be appended (default: it is overwritten)
+    logical, intent(in), optional :: append
+
     integer :: fd
+
+    logical :: append0
+
+    if (present(append)) then
+      append0 = append
+    else
+      append0 = .false.
+    end if
 
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
-    open(newunit=fd, file=fileName, form="formatted", action="write", status="replace")
+    if (append0) then
+      open(newunit=fd, file=fileName, form="formatted", action="write", status="old",&
+          & position="append")
+    else
+      open(newunit=fd, file=fileName, form="formatted", action="write", status="replace")
+    end if
     call writeGenFormat(fd, coord, species, speciesName, latVec, tFracCoord)
     close(fd)
 
@@ -182,7 +198,7 @@ contains
 
 
   !> Writes coordinates in the XYZ format
-  subroutine writeXYZFormat_fname(fileName, coord, species, speciesName, charges, velocities, &
+  subroutine writeXYZFormat_fname(fileName, coord, species, speciesName, charges, velocities,&
       & comment, append)
 
     !> File name of a file to be created
@@ -217,7 +233,8 @@ contains
     else
       append0 = .false.
     end if
-    if (append) then
+
+    if (append0) then
       open(newunit=fd, file=fileName, action="write", form="formatted", status="old",&
           & position="append")
     else
@@ -264,7 +281,6 @@ contains
 
     nAtom = size(coords, dim=2)
     nSpecies = maxval(species)
-
     @:ASSERT(size(coords, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesNames) == nSpecies)
@@ -287,19 +303,16 @@ contains
     end if
 
     if (present(charges) .and. present(velocities)) then
-      write(fd, 204) (trim(speciesNames(species(ii))), &
-          &coords(:, ii) * Bohr__AA, charges(ii), &
-          &velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+      write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, charges(ii),&
+          & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
     elseif (present(charges) .and. .not. present(velocities)) then
-      write(fd, 203) (trim(speciesNames(species(ii))), &
-          &coords(:, ii) * Bohr__AA, &
-          &charges(ii), ii = 1, nAtom)
+      write(fd, 203) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+          & charges(ii), ii = 1, nAtom)
     elseif (.not. present(charges) .and. present(velocities)) then
-      write(fd, 202) (trim(speciesNames(species(ii))), &
-          &coords(:, ii) * Bohr__AA, &
-          &velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+      write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+          & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
     else
-      write(fd, 201) (trim(speciesNames(species(ii))), &
+      write(fd, 201) (trim(speciesNames(species(ii))),&
           & (coords(jj, ii) * Bohr__AA, jj = 1, 3), ii = 1, nAtom)
     end if
 
@@ -315,37 +328,38 @@ contains
     !> release year
     integer, intent(in) :: year
 
-    character, parameter :: vbar = '|'
-    character, parameter :: hbar = '='
+    character, parameter :: verticalBar = '|'
+    character, parameter :: horizontalBar = '='
     integer, parameter :: headerWidth = 80
 
-    write(stdOut, '(2A,/,A)') vbar, repeat(hbar, headerWidth - 1), vbar
-    write(stdOut, '(3A)') vbar, '  DFTB+ ', trim(release)
-    write(stdOut, '(A)') vbar
-    write(stdOut, '(2A,I0,A)') vbar, '  Copyright (C) ', year, '  DFTB+ developers group'
-    write(stdOut, '(A,/,2A,/,A)') vbar, vbar, repeat(hbar, headerWidth - 1), vbar
-    write(stdOut, '(2A)') vbar,&
-        & '  When publishing results obtained with DFTB+, please cite the following',&
-        & vbar, '  reference:'
-    write(stdOut, '(A)') vbar
-    write(stdOut, '(2A)') vbar,'  * B. Aradi, B. Hourahine and T. Frauenheim,',&
-        & vbar, '    DFTB+, a Sparse Matrix-Based Implementation of the DFTB Method,',&
-        & vbar, '    J. Phys. Chem. A, 111 5678 (2007).  [doi: 10.1021/jp070186p]'
-    write(stdOut, '(A)') vbar
-    write(stdOut, '(2A,2(/,2A))') vbar,&
+    write(stdOut, '(2A,/,A)') verticalBar, repeat(horizontalBar, headerWidth - 1), verticalBar
+    write(stdOut, '(3A)') verticalBar, '  DFTB+ ', trim(release)
+    write(stdOut, '(A)') verticalBar
+    write(stdOut, '(2A,I0,A)') verticalBar, '  Copyright (C) 2006 - ', year,&
+        & '  DFTB+ developers group'
+    write(stdOut, '(A,/,2A,/,A)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1),&
+        & verticalBar
+    write(stdOut, '(2A)') verticalBar,&
+        & '  When publishing results obtained with DFTB+, please cite the following', verticalBar,&
+        & '  reference:'
+    write(stdOut, '(A)') verticalBar
+    write(stdOut, '(2A)') verticalBar,'  * B. Aradi, B. Hourahine and T. Frauenheim,', verticalBar,&
+        & '    DFTB+, a Sparse Matrix-Based Implementation of the DFTB Method,', verticalBar,&
+        & '    J. Phys. Chem. A, 111 5678 (2007).  [doi: 10.1021/jp070186p]'
+    write(stdOut, '(A)') verticalBar
+    write(stdOut, '(2A,2(/,2A))') verticalBar,&
         & '  You should also cite additional publications crediting the parametrization',&
-        & vbar,&
-        & '  data you use. Please consult the documentation of the SK-files for the',&
-        & vbar,&
+        & verticalBar,&
+        & '  data you use. Please consult the documentation of the SK-files for the', verticalBar,&
         & '  references.'
-    write(stdOut, '(A,/,2A,/)') vbar, vbar, repeat(hbar, headerWidth - 1)
+    write(stdOut, '(A,/,2A,/)') verticalBar, verticalBar, repeat(horizontalBar, headerWidth - 1)
 
   end subroutine printDFTBHeader
 
 
   !> Converts a sparse matrix to its square form and write it to a file.
-  subroutine writeSparseAsSquare_real(env, fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, &
-      & img2CentCell)
+  subroutine writeSparseAsSquare_real(env, fname, sparse, iNeighbour, nNeighbourSK, iAtomStart,&
+      & iPair, img2CentCell)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -356,11 +370,11 @@ contains
     !> Sparse matrix.
     real(dp), intent(in) :: sparse(:)
 
-    !> Neighbor list index.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbour list index.
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Number of neighbors.
-    integer, intent(in) :: nNeighbor(:)
+    !> Number of neighbours.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Offset array in the square matrix.
     integer, intent(in) :: iAtomStart(:)
@@ -380,7 +394,7 @@ contains
       call error("Writing of HS not working with MPI yet")
     end if
 
-    nOrb = iAtomStart(size(nNeighbor) + 1) - 1
+    nOrb = iAtomStart(size(nNeighbourSK) + 1) - 1
 
     allocate(square(nOrb, nOrb))
     open(newunit=fd, file=fname, form="formatted", status="replace")
@@ -388,8 +402,7 @@ contains
     write(fd, "(1X,L10,I10,I10,I10)") .true., nOrb, 1
 
     write (strForm, "(A,I0,A)") "(", nOrb, "ES24.15)"
-    call unpackHS(square, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, &
-        &img2CentCell)
+    call unpackHS(square, sparse, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell)
     call blockSymmetrizeHS(square, iAtomStart)
     write(fd, "(A1,A10,A10)") "#", "IKPOINT"
     write(fd, "(1X,I10,I10)") 1
@@ -401,7 +414,7 @@ contains
 
 
   !> Converts a sparse matrix to its square form and write it to a file.
-  subroutine writeSparseAsSquare_cplx(env, fname, sparse, kPoints, iNeighbor, nNeighbor,&
+  subroutine writeSparseAsSquare_cplx(env, fname, sparse, kPoints, iNeighbour, nNeighbourSK,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec)
 
     !> Environment settings
@@ -416,11 +429,11 @@ contains
     !> List of k-points.
     real(dp), intent(in) :: kPoints(:,:)
 
-    !> Neighbor list index.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbour list index.
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Number of neighbors.
-    integer, intent(in) :: nNeighbor(:)
+    !> Number of neighbours.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Offset array in the square matrix.
     integer, intent(in) :: iAtomStart(:)
@@ -446,7 +459,7 @@ contains
       call error("Writing of HS not working with MPI yet")
     end if
 
-    nOrb = iAtomStart(size(nNeighbor) + 1) - 1
+    nOrb = iAtomStart(size(nNeighbourSK) + 1) - 1
     nKPoint = size(kPoints, dim =2)
 
     allocate(square(nOrb, nOrb))
@@ -456,8 +469,8 @@ contains
 
     write (strForm, "(A,I0,A)") "(", 2 * nOrb, "ES24.15)"
     do iK = 1, nKPoint
-      call unpackHS(square, sparse, kPoints(:,iK), iNeighbor, nNeighbor, &
-          &iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
+      call unpackHS(square, sparse, kPoints(:,iK), iNeighbour, nNeighbourSK, iCellVec, cellVec,&
+          & iAtomStart, iPair, img2CentCell)
       call blockHermitianHS(square, iAtomStart)
       write(fd, "(A1,A10,A10)") "#", "IKPOINT"
       write(fd, "(1X,I10,I10)") iK
@@ -470,7 +483,7 @@ contains
 
 
   !> Writes a sparse matrix to a file.
-  subroutine writeSparse(fname, sparse, iNeighbor, nNeighbor, iAtomStart, iPair, img2CentCell,&
+  subroutine writeSparse(fname, sparse, iNeighbour, nNeighbourSK, iAtomStart, iPair, img2CentCell,&
       & iCellVec, cellVec)
 
     !> Name of the file to write the matrix to.
@@ -479,11 +492,11 @@ contains
     !> Sparse matrix.
     real(dp), intent(in) :: sparse(:)
 
-    !> Neighbor list index.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbour list index.
+    integer, intent(in) :: iNeighbour(0:,:)
 
-    !> Number of neighbors.
-    integer, intent(in) :: nNeighbor(:)
+    !> Number of neighbours.
+    integer, intent(in) :: nNeighbourSK(:)
 
     !> Offset array in the square matrix.
     integer, intent(in) :: iAtomStart(:)
@@ -508,29 +521,28 @@ contains
       return
     end if
 
-    nAtom = size(nNeighbor)
+    nAtom = size(nNeighbourSK)
 
     open(newunit=fd, file=fname, form="formatted", status="replace")
     write(fd, "(A1,A10)") "#", "NATOM"
     write(fd, "(1X,I10)") nAtom
     write(fd, "(A1,A10,A10,A10)") "#", "IATOM", "NNEIGH", "NORB"
     do iAt1 = 1, nAtom
-      write(fd, "(1X,I10,I10,I10)") iAt1, nNeighbor(iAt1) + 1, &
-          &iAtomStart(iAt1+1) - iAtomStart(iAt1)
+      write(fd, "(1X,I10,I10,I10)") iAt1, nNeighbourSK(iAt1) + 1, iAtomStart(iAt1+1)&
+          & - iAtomStart(iAt1)
     end do
 
     do iAt1 = 1, nAtom
       nOrb1 = iAtomStart(iAt1+1) - iAtomStart(iAt1)
-      do iNeigh = 0, nNeighbor(iAt1)
+      do iNeigh = 0, nNeighbourSK(iAt1)
         iOrig = iPair(iNeigh,iAt1) + 1
-        iAt2 = iNeighbor(iNeigh, iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
         nOrb2 = iAtomStart(iAt2f+1) - iAtomStart(iAt2f)
         write(strForm, "(A,I0,A)") "(", nOrb2, "ES24.15)"
-        write(fd, "(A1,A10,A10,A10,3A10)") "#", "IATOM1", "INEIGH", "IATOM2F", &
-            &"ICELL(1)", "ICELL(2)", "ICELL(3)"
-        write(fd, "(1X,I10,I10,I10,3I10)") iAt1, iNeigh, iAt2f, &
-            &int(cellVec(:,iCellVec(iAt2)))
+        write(fd, "(A1,A10,A10,A10,3A10)") "#", "IATOM1", "INEIGH", "IATOM2F", "ICELL(1)",&
+            & "ICELL(2)", "ICELL(3)"
+        write(fd, "(1X,I10,I10,I10,3I10)") iAt1, iNeigh, iAt2f, int(cellVec(:,iCellVec(iAt2)))
         write(fd, "(A1,A)") "#", " MATRIX"
         write(fd, strForm) sparse(iOrig:iOrig+nOrb1*nOrb2-1)
       end do
@@ -539,4 +551,4 @@ contains
 
   end subroutine writeSparse
 
-end module formatout
+end module dftbp_formatout

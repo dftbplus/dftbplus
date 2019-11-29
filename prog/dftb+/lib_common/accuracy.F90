@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,7 +9,7 @@
 !! calculation, both for the fortran numerical model and defaults for the various algorithms in the
 !! code.
 !! Not all routines use the string length specifications to set their character string lengths.
-module accuracy
+module dftbp_accuracy
   implicit none
 
   !> precision of the real data type
@@ -70,14 +70,14 @@ module accuracy
   real(dp), parameter :: tolSameDist2 = tolSameDist**2
 
 
-  !> Minimal distance between neihbors. (Neighbor distances smaller than that
+  !> Minimal distance between neighbours. (Neighbour distances smaller than that
   !> are meaningless because the parametrisation usually do not cover this
 
   !> region.)
   real(dp), parameter :: minNeighDist = 1.0e-2_dp
 
 
-  !> Minimal square distance between neighbors
+  !> Minimal square distance between neighbours
   real(dp), parameter :: minNeighDist2 = minNeighDist**2
 
 
@@ -125,4 +125,7 @@ module accuracy
   !> Tolerance for the dispersion damping function being considered 1
   real(dp), parameter :: tolDispDamp = 1.0e-10_dp
 
-end module accuracy
+  !> Tolerance for electron chemical potential differences being considered equivalent (1E-6 eV)
+  real(dp), parameter :: tolEfEquiv = 3.675E-7_dp
+
+end module dftbp_accuracy

@@ -1,0 +1,22 @@
+********************************************************************************
+*                       EXAMPLE SCRIPT FOR jmol                                * 
+********************************************************************************
+
+It can be used to plot potentials or charge_densities as .cube files
+
+First convert the output file 'potential.dat' or 'charge_density.dat' into
+a cube file using the program makecube (source makecube.f90) 
+
+Then you need specific jmol commands 
+
+Example:
+
+script colormap128.jmol
+load "structure.xyz"
+isosurface pl1 fullplane plane {-1.2 0.8 0 0} color range all colorscheme 'user' 'potential.cube'
+
+Edit with appropriate changes. 
+NOTE: jmol cannot read .gen files. The structure should be converted to xyz
+
+Refer to the jmol documentation 
+

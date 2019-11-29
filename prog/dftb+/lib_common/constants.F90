@@ -1,13 +1,13 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a list of physical constants for the code
-module constants
-  use accuracy
+module dftbp_constants
+  use dftbp_accuracy
 
   !! Natural constants
 
@@ -60,7 +60,7 @@ module constants
   real(dp), parameter :: J__Hartree = 1.0_dp / Hartree__J
 
   !> hbar in SI units
-  real(dp), parameter :: hbar = 1.054571726e10-34_dp
+  real(dp), parameter :: hbar = 1.054571726e-34_dp
 
   !> electron g factor
   real(dp), parameter :: gfac = 2.00231930436153_dp
@@ -118,12 +118,12 @@ module constants
   integer, parameter :: maxL = 3
 
 
-  !> Number of orbital names
-  integer, parameter :: nOrbitalName = maxL + 1
+  !> Number of shell names
+  integer, parameter :: nShellName = maxL + 1
 
 
-  !> Name of the orbitals
-  character(len=1), parameter :: orbitalNames(nOrbitalName) = ["s", "p", "d", "f"]
+  !> Names of the atomic shells
+  character(len=1), parameter :: shellNames(nShellName) = ["s", "p", "d", "f"]
 
 
   !> Names of the spin directions
@@ -136,4 +136,4 @@ module constants
   complex(dp), parameter :: imag = (0.0_dp,1.0_dp)
 
 
-end module constants
+end module dftbp_constants

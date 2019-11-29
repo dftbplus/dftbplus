@@ -23,7 +23,7 @@ all: libxmlf90.a
 vpath % $(SRCDIR)
 include $(SRCDIR)/make.deps
 
-libxmlf90.a: $(flib_dom.o) $(flib_wxml.o) $(m_strings.o)
+libxmlf90.a: $(flib_dom.o) $(flib_wxml.o) $(strings.o)
 	  ar rcs $@ $^
 
 PHONY: clean

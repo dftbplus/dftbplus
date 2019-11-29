@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,12 +8,12 @@
 #:include 'common.fypp'
 
 !> Velocity Verlet intergrator.
-module velocityverlet
-  use assert
-  use accuracy
-  use thermostat
-  use fileid
-  use message
+module dftbp_velocityverlet
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_thermostat
+  use dftbp_fileid
+  use dftbp_message
   implicit none
   private
 
@@ -402,4 +402,4 @@ contains
 
   end subroutine VelocityVerlet_state
 
-end module velocityverlet
+end module dftbp_velocityverlet

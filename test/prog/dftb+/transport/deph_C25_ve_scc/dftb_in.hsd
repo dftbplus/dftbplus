@@ -1,0 +1,90 @@
+Geometry = GenFormat {
+<<< 'C25.gen'
+}
+
+Transport {
+  Device {
+    AtomRange = 1 5
+    FirstLayerAtoms =  1
+  }
+  Contact {
+    Id = "source"
+    AtomRange = 6 15
+    FermiLevel [eV] = -5.6407  
+    Potential [eV] = 1.
+    ReadSurfaceGF = Yes
+  }
+  Contact {
+    Id = "drain"
+    AtomRange = 16 25
+    FermiLevel [eV] = -5.6407  
+    Potential [eV] = -1.
+    ReadSelfEnergy = Yes
+  }    
+  Task = UploadContacts {}
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-01
+  MaxAngularMomentum = {
+    C = "p"
+  }  
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = ""
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  Electrostatics = Poisson {
+    Poissonbox [Angstrom] = 45.0 10.0 10.0
+  }
+  Eigensolver = GreensFunction {}
+}
+
+# ************************************
+# NOTE: Dephasing is not working yet
+# ************************************ 
+Dephasing = {
+  VibronicElastic{ 
+    AtomBlock = Yes
+    Coupling [eV] = AtomCoupling { 
+      AtomList { Atoms = 1
+                 Value = 0.1
+      } 
+      AtomList { Atoms = 2 3
+                 Value = 0.01
+      }           
+      AtomList { Atoms = 4 5
+                 Value = 0.03
+      }
+    }
+  }
+}
+
+
+Analysis = {
+  TunnelingAndDos {
+    Verbosity = 101
+    EnergyRange [eV] = -9.  -2.   
+    EnergyStep [eV] =0.02
+    ContactTemperature = 0.00001 0.00001
+    Region = {
+    Atoms = 1:5
+    }
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 6
+}
+
+Parallel = {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

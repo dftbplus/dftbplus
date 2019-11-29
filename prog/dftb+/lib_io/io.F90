@@ -1,11 +1,11 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-module io
+module dftbp_io
   use, intrinsic :: iso_fortran_env
   implicit none
   private
@@ -22,4 +22,4 @@ module io
   !> File id of standard error
   integer, parameter :: stdErr = error_unit
 
-end module io
+end module dftbp_io

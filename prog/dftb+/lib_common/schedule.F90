@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,12 +12,12 @@
     & ('complex(dp)', 2, 'C2')]
 
 !> Contains routines helpful for mpi-parallelisation.
-module schedule
+module dftbp_schedule
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
-  use environment
-  use accuracy
+  use dftbp_environment
+  use dftbp_accuracy
   implicit none
   private
 
@@ -175,4 +175,4 @@ contains
   end subroutine getChunkRanges
 
 
-end module schedule
+end module dftbp_schedule
