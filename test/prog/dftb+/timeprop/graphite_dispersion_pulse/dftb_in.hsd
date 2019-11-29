@@ -87,7 +87,7 @@
 
  Analysis = {
     ElectronDynamics = {
-      Steps = 1000
+      Steps = 5000
       TimeStep [au] = 0.2
       FieldStrength [v/a] = 0.0
       Perturbation = Laser {

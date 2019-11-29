@@ -61,7 +61,7 @@
  
  Analysis = {
     ElectronDynamics = {
-      Steps = 20000
+      Steps = 2000
       TimeStep [au] = 0.2
       FieldStrength [v/a] = 0.0001
       Perturbation = Kick {

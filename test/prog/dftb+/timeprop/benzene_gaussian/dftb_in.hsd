@@ -43,7 +43,7 @@ ParserOptions = {
 
  Analysis = {
     ElectronDynamics = {
-      Steps = 20000
+      Steps = 2000
       TimeStep [au] = 0.2
       Perturbation = Laser {
         PolarizationDirection = 0.0 1.0 1.0
