@@ -397,7 +397,6 @@ contains
       this%omega = inp%omega
       this%fieldDir = inp%reFieldPolVec + imag * inp%imFieldPolVec
       norm = sqrt(dot_product(real(this%fieldDir, dp),real(this%fieldDir, dp)))
-      print *,'norm', norm
       this%fieldDir = this%fieldDir / norm
       allocate(this%tdFunction(3, 0:this%nSteps))
       this%tEnvFromFile = (this%envType == envTypes%fromFile)
@@ -911,14 +910,14 @@ contains
        end if
     end if
 
-    ! Apply kick to rho if necessary
-    if (this%tKick) then
+    ! Apply kick to rho if necessary (in restart case, check it starttime is 0 or not)
+    if (this%tKick .and. startTime < this%dt / 10.0_dp) then
       call kickDM(this, trho, Ssqr, Sinv, iSquare, coord)
     end if
 
     ! had to add the "or tKick" option to override rhoOld if tRestart = yes, otherwise it will be
     ! badly initialised
-    if (.not.this%tRestart .or. this%tKick) then
+    if (.not.this%tRestart .or. (this%tKick .and. startTime < this%dt / 10.0_dp)) then
       ! Initialize electron dynamics
       ! rhoOld is now the GS DM, rho will be the DM at time=dt
       trhoOld(:,:,:) = trho
@@ -989,9 +988,9 @@ contains
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
           & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, rho)
 
-!     if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
-!        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
-!     end if
+     if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
+        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
+     end if
 
      if (this%tForces) then
        call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
@@ -1405,7 +1404,7 @@ contains
        E0 = 0.0_dp !this is to make sure we never sum the current field with the read from file
     end if
 
-    open(newunit=laserDat, file='laser.dat')
+    call openFile(this, laserDat, 'laser.dat')
 
     do iStep = 0,this%nSteps
       time = iStep * this%dt + startTime
@@ -2416,20 +2415,20 @@ contains
     end if
 
     ! Flush output every 5% of the simulation
-    if (mod(iStep, max(this%nSteps / 20, 1)) == 0) then
+    if (mod(iStep, max(this%nSteps / 20, 1)) == 0 .and. iStep > this%writeFreq) then
        flush(dipoleDat)
        if ((.not. this%tKick) .or. this%tKickAndLaser) then
-          flush(energyDat)
           flush(qDat)
-       end if
-       if (this%tIons) then
-          flush(coorDat)
-       end if
-       if (this%tForces) then
-          flush(forceDat)
-       end if
-       if (this%tBondE .or. this%tBondO) then
-          flush(ePBondDat)
+          flush(energyDat)
+          if (this%tIons) then
+             flush(coorDat)
+          end if
+          if (this%tForces) then
+             flush(forceDat)
+          end if
+          if (this%tBondE .or. this%tBondO) then
+             flush(ePBondDat)
+          end if
        end if
     end if
 
@@ -2821,20 +2820,22 @@ contains
     else
 
       allocate(T4(this%nOrbs,this%nOrbs))
+      Ssqr(:,:,:) = cmplx(0,0,dp)  
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
-        sSqr(:,:,:) = cmplx(0,0,dp)
+        T4(:,:) = cmplx(0,0,dp)
         call unpackHS(T4, over, this%kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
             & this%iCellVec, this%cellVec, iSquare, iSparseStart, img2CentCell)
         call blockHermitianHS(T4, iSquare)
-        sSqr(:,:,iKS) = T4
-        sinv(:,:,iKS) = cmplx(0,0,dp)
+        Ssqr(:,:,iKS) = T4
+        Sinv(:,:,iKS) = cmplx(0,0,dp)
         do iOrb = 1, this%nOrbs
-          sInv(iOrb, iOrb, iKS) = cmplx(1,0,dp)
+          Sinv(iOrb, iOrb, iKS) = cmplx(1,0,dp)
         end do
-        call gesv(T4, sInv(:,:,iKS))
+        call gesv(T4, Sinv(:,:,iKS))
       end do
+      deallocate(T4)
 
     end if
 

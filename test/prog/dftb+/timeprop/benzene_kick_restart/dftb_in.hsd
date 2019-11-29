@@ -42,12 +42,14 @@ ParserOptions = {
 
  Analysis = {
     ElectronDynamics = {
-      Steps = 20000
+      Steps = 10000
       TimeStep [au] = 0.2
       Perturbation = Kick {
         PolarizationDirection = "y"
       }
       FieldStrength [v/a] = 0.001
+      Restart = yes
+      WriteRestart = no
     }
  }
 
