@@ -249,14 +249,10 @@ contains
 
     if (tTunn) then
   #:if WITH_MPI
-      call calc_current(env%mpi%groupComm, tIOproc, parallelKS%localKS, ham, over,&
+      call calc_current(env%mpi%groupComm, env%mpi%interGroupComm, parallelKS%localKS, ham, over,&
           & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
           & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
-      call mpifx_allreduceip(env%mpi%globalComm, tunneling, MPI_SUM)
-      call mpifx_allreduceip(env%mpi%globalComm, ldos, MPI_SUM)
-      call mpifx_allreduceip(env%mpi%globalComm, current, MPI_SUM)
-      call mpifx_allreduceip(env%mpi%globalComm, leadCurrents, MPI_SUM)
   #:else
       call calc_current(parallelKS%localKS, ham, over,&
           & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
@@ -267,7 +263,7 @@ contains
 
     if (tLocalCurrents) then
   #:if WITH_MPI
-      call local_currents(env%mpi%groupComm, tIOproc, parallelKS%localKS, ham, over,&
+      call local_currents(env%mpi%groupComm, env%mpi%interGroupComm, parallelKS%localKS, ham, over,&
           & neighbourList, nNeighbourSK, cutOff%skCutoff, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoint, kWeight, coord0Fold, &
           & species0, speciesName, mu, lCurrArray)
@@ -2141,11 +2137,9 @@ contains
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
     #:if WITH_TRANSPORT
     #:if WITH_MPI
-      write(*,*) 'groupComm',env%mpi%groupComm%rank
-      call calcdensity_green(iSCC, env%mpi%groupComm, tIOproc, parallelKS%localKS, ham, over,&
-          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+      call calcdensity_green(iSCC, env%mpi%groupComm, env%mpi%interGroupComm, parallelKS%localKS, &
+          & ham, over, neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
-      call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
     #:else
       call calcdensity_green(iSCC, parallelKS%localKS, ham, over,&
           & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
@@ -4493,10 +4487,9 @@ contains
     #:if WITH_TRANSPORT
       if (electronicSolver%iSolver == electronicSolverTypes%GF) then
     #:if WITH_MPI
-        call calcEdensity_green(iSCC, env%mpi%groupComm, tIOproc, parallelKS%localKS, ham, over,&
-            & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-            & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
-        call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
+        call calcEdensity_green(iSCC, env%mpi%groupComm, env%mpi%interGroupComm, parallelKS%localKS, &
+          & ham, over, neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, ERhoPrim)
     #:else
         call calcEdensity_green(iSCC, parallelKS%localKS, ham, over,&
             & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&

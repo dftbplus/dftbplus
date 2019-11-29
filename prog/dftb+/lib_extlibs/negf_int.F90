@@ -29,7 +29,7 @@ module negf_int
   use dftbp_densedescr
   use dftbp_commontypes, only : TOrbitals
   use dftbp_formatout
-  use dftbp_globalenv
+  use dftbp_globalenv, only : stdOut, tIOproc
   use dftbp_message
   use dftbp_elecsolvertypes, only : electronicSolverTypes
   use dftbp_linkedlist
@@ -994,13 +994,13 @@ module negf_int
 
   !> Calculates density matrix with Green's functions
 #:if WITH_MPI
-  subroutine calcdensity_green(iSCCIter, mpicomm, tIOproc, groupKS, ham, over, iNeighbor, nNeighbor,&
+  subroutine calcdensity_green(iSCCIter, enecomm, kscomm, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
       & Ef, E0, TS)
 
     !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-    logical, intent(in) :: tIOproc
+    type(mpifx_comm), intent(in) :: enecomm
+    type(mpifx_comm), intent(in) :: kscomm
 #:else
   subroutine calcdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
@@ -1074,7 +1074,7 @@ module negf_int
     pCsrDens => csrDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm, tIOproc)
+    call negf_mpi_init(enecomm, tIOproc)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1129,8 +1129,9 @@ module negf_int
 #:if WITH_MPI
     do iS = 1, nSpin
       ! In place all-reduce of the density matrix
-      call mpifx_allreduceip(mpicomm, rho(:,iS), MPI_SUM)
+      call mpifx_allreduceip(enecomm, rho(:,iS), MPI_SUM)
     end do
+    call mpifx_allreduceip(kscomm, rho, MPI_SUM)
 #:endif
 
     ! Now SGFs can be read unless not stored 
@@ -1145,12 +1146,12 @@ module negf_int
 
   !> Calculates energy-weighted density matrix with Green's functions
 #:if WITH_MPI
-  subroutine calcEdensity_green(iSCCIter, mpicomm, tIOproc, groupKS, ham, over, iNeighbor, nNeighbor,&
+  subroutine calcEdensity_green(iSCCIter, enecomm, kscomm, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
 
     !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-    logical, intent(in) :: tIOproc
+    type(mpifx_comm), intent(in) :: enecomm
+    type(mpifx_comm), intent(in) :: kscomm
 #:else
   subroutine calcEdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
@@ -1211,7 +1212,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm, tIOproc)
+    call negf_mpi_init(enecomm, tIOproc)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1263,7 +1264,8 @@ module negf_int
 
     ! In place all-reduce of the density matrix
 #:if WITH_MPI
-    call mpifx_allreduceip(mpicomm, rhoE, MPI_SUM)
+    call mpifx_allreduceip(enecomm, rhoE, MPI_SUM)
+    call mpifx_allreduceip(kscomm, rhoE, MPI_SUM)
 #:endif
 
     ! Now SGFs can be read unless not stored 
@@ -1279,13 +1281,13 @@ module negf_int
 
   !> Calculate the current and optionally density of states
 #:if WITH_MPI
-  subroutine calc_current(mpicomm, tIOproc, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
+  subroutine calc_current(enecomm, kscomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
       & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
 
     !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-    logical, intent(in) :: tIOproc
+    type(mpifx_comm), intent(in) :: enecomm
+    type(mpifx_comm), intent(in) :: kscomm
 #:else
   subroutine calc_current(groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
@@ -1364,7 +1366,7 @@ module negf_int
     real(dp), pointer    :: currPMat(:,:)=>null()
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
-    integer :: iKS, iK, iS, nKS, ii, err, ncont, readSGFbkup
+    integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
     type(unit) :: unitOfEnergy        ! Set the units of H
     type(unit) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
@@ -1372,16 +1374,24 @@ module negf_int
     integer :: i, j, k, NumStates, icont
     real(dp), dimension(:,:), allocatable :: H_all, S_all
     character(:), allocatable :: filename
+    character(2) :: id1, id2
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm, tIOproc)
+    call negf_mpi_init(enecomm, tIOproc)
 #:endif
     call get_params(negf, params)
 
     unitOfEnergy%name = "H"
     unitOfCurrent%name = "A"
 
+    ! groupKS is local, hence nKS il local
     nKS = size(groupKS, dim=2)
+#:if WITH_MPI
+    call mpifx_allreduce(kscomm, nKS, nTotKS, MPI_SUM)
+#:else
+    nTotKS = nKS
+#:endif
+    nS = nTotKS/size(kpoints, 2)
     ncont = size(mu,1)
 
     if (params%verbose.gt.30) then
@@ -1457,9 +1467,10 @@ module negf_int
       !       tunnSKRes stores tunneling for all k-points and spin: T(iE, i->j, iSK)
 
 #:if WITH_MPI
-      call add_partial_results(mpicomm, tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
-      call add_partial_results(mpicomm, currPMat, currMat, currSKRes, iKS, nKS)
-      call add_partial_results(mpicomm, ldosPMat, ldosMat, ldosSKRes, iKS, nKS)
+      ii = (iS-1)*size(kpoints,2) + iK
+      call add_partial_results(enecomm, tunnPMat, tunnMat, tunnSKRes, ii, nTotKS)
+      call add_partial_results(enecomm, currPMat, currMat, currSKRes, ii, nTotKS)
+      call add_partial_results(enecomm, ldosPMat, ldosMat, ldosSKRes, ii, nTotKS)
 #:else
       call add_partial_results(tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
       call add_partial_results(currPMat, currMat, currSKRes, iKS, nKS)
@@ -1469,8 +1480,11 @@ module negf_int
     end do
 
 #:if WITH_MPI
-    call mpifx_allreduceip(mpicomm, currLead, MPI_SUM)
-    call mpifx_barrier(mpicomm)
+    call mpifx_reduceip(enecomm, currLead, MPI_SUM, 0)
+    call mpifx_reduceip(kscomm, currLead, MPI_SUM, 0)
+    call add_ks_results(kscomm, tunnMat, tunnSKRes)
+    call add_ks_results(kscomm, currMat, currSKRes)
+    call add_ks_results(kscomm, ldosMat, ldosSKRes)
 #:endif
 
     ! converts from internal atomic units into amperes
@@ -1486,51 +1500,42 @@ module negf_int
     if (allocated(tunnMat)) then
       filename = 'transmission'
       if (tIOProc .and. writeTunn) then
-        call write_file(negf, tunnMat, tunnSKRes, filename, groupKS, kpoints, kWeights)
-      end if
-      if (allocated(tunnSKRes)) then
-        deallocate(tunnSKRes)
+        call write_file(negf, tunnMat, tunnSKRes, filename, nS, kpoints, kWeights)
       end if
     else
       ! needed to avoid some segfault
-      if (allocated(tunnMat)) then
-          deallocate(tunnMat)
-        end if
       allocate(tunnMat(0,0))
+    end if
+    if (allocated(tunnSKRes)) then
+      deallocate(tunnSKRes)
     end if
 
     ! Write Total lead current, I_i(E), on a separate file (optional)
     if (allocated(currMat)) then
       filename = 'current'
       if (tIOProc .and. writeTunn) then
-        call write_file(negf, currMat, currSKRes, filename, groupKS, kpoints, kWeights)
-      end if
-      if (allocated(currSKRes)) then
-        deallocate(currSKRes)
+        call write_file(negf, currMat, currSKRes, filename, nS, kpoints, kWeights)
       end if
     else
       ! needed to avoid some segfault
-      if (allocated(currMat)) then
-          deallocate(currMat)
-        end if
       allocate(currMat(0,0))
     endif
+    if (allocated(currSKRes)) then
+      deallocate(currSKRes)
+    end if
 
     if (allocated(ldosMat)) then
       ! Write Total localDOS on a separate file (optional)
       if (tIoProc .and. tWriteLDOS) then
     @:ASSERT(allocated(regionLabelLDOS))
-        call write_files(negf, ldosMat, ldosSKRes, groupKS, kpoints, kWeights, regionLabelLDOS)
-        if (allocated(ldosSKRes)) then
-          deallocate(ldosSKRes)
-        end if
-      else
-        ! needed to avoid some segfault
-        if (allocated(ldosMat)) then
-          deallocate(ldosMat)
-        end if
-        allocate(ldosMat(0,0))
+        call write_files(negf, ldosMat, ldosSKRes, nS, kpoints, kWeights, regionLabelLDOS)
       end if
+    else
+        ! needed to avoid some segfault
+        allocate(ldosMat(0,0))
+    end if
+    if (allocated(ldosSKRes)) then
+      deallocate(ldosSKRes)
     end if
     
   end subroutine calc_current
@@ -1572,7 +1577,7 @@ module negf_int
       end if
 
       tmpMat = pMat
-      call mpifx_allreduceip(mpicomm, tmpMat, MPI_SUM)
+      call mpifx_reduceip(mpicomm, tmpMat, MPI_SUM, 0)
 #:endif
       if(.not.allocated(matTot)) then
         allocate(matTot(size(pMat,1), size(pMat,2)), stat=err)
@@ -1614,8 +1619,33 @@ module negf_int
 
   end subroutine add_partial_results
 
+#:if WITH_MPI
+  !> utility to sum up partial results over SK communicator
+  subroutine add_ks_results(kscomm, mat, matSKRes)
+
+    !> MPI communicator
+    type(mpifx_comm), intent(in) :: kscomm
+
+    !> sum total
+    real(dp), allocatable, intent(inout) :: mat(:,:)
+
+    !> k-resolved sum
+    real(dp), allocatable, intent(inout)  :: matSKRes(:,:,:)
+
+
+    if (allocated(mat)) then
+      call mpifx_reduceip(kscomm, mat, MPI_SUM, 0)
+    endif
+
+    if (allocated(matSKRes)) then
+      call mpifx_reduceip(kscomm, matSKRes, MPI_SUM, 0)
+    endif
+
+  end subroutine add_ks_results
+#:endif
+
   !> utility to write tunneling files
-  subroutine write_file(negf, matTot, matSKRes, filename, groupKS, kpoints, kWeights)
+  subroutine write_file(negf, matTot, matSKRes, filename, nS, kpoints, kWeights)
 
     !> Contains input data, runtime quantities and output data
     type(TNegf) :: negf
@@ -1629,8 +1659,8 @@ module negf_int
     !> file to print out to
     character(*), intent(in) :: filename
 
-    !> local k-points and spins on this processor
-    integer, intent(in) :: groupKS(:,:)
+    !> number of spins 
+    integer, intent(in) :: nS
 
     !> k-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -1638,14 +1668,12 @@ module negf_int
     !> Weights for k-points
     real(dp), intent(in) :: kWeights(:)
 
-    integer :: ii, jj, nKS, iKS, nK, nS, iK, iS, fdUnit
+    integer :: ii, jj, nK, iK, iS, iKS, fdUnit
     type(lnParams) :: params
 
     call get_params(negf, params)
 
-    nKS = size(groupKS, dim=2)
     nK = size(kpoints, dim=2)
-    nS = nKS/nK
 
     open(newunit=fdUnit, file=trim(filename)//'.dat')
     do ii=1,size(matTot, dim=1)
@@ -1657,7 +1685,7 @@ module negf_int
     enddo
     close(fdUnit)
 
-    if (nKS > 1) then
+    if (nK*nS > 1) then
 
       open(newunit=fdUnit, file=trim(filename)//'_kpoints.dat')
       write(fdUnit,*)'# NKpoints = ', nK
@@ -1665,19 +1693,23 @@ module negf_int
       write(fdUnit,*)'# Energy [eV], <spin k1 k2 k3 weight> '
       write(fdUnit,'(A1)', ADVANCE='NO') '# '
 
-      do iKS = 1, nKS
-        iK = groupKS(1,iKS)
-        iS = groupKS(2,iKS)
-        write(fdUnit,'(i5.2)', ADVANCE='NO') iS
-        write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
-      end do
+      ! iKS = 1 2 3 4 5 6 7 8 9 10
+      ! iK=groupKS(1,iKS), iS=groupKS(2,iKS)
+      ! iK  = 1 2 3 4 5 1 2 3 4 5  
+      ! iS  = 1 1 1 1 1 2 2 2 2 2 
+      do iS = 1, nS
+        do iK = 1, nK
+          write(fdUnit,'(i5.2)', ADVANCE='NO') iS
+          write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
+        end do
+      end do  
       write(fdUnit,*)
 
       if (allocated(matSKRes)) then
         do ii = 1, size(matSKRes(:,:,:), dim=1)
           write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
           do jj = 1, size(matSKRes(:,:,:), dim=2)
-            do iKS = 1,nKS
+            do iKS = 1, nK*nS
               write(fdUnit,'(es20.8)',ADVANCE='NO') matSKRes(ii,jj, iKS)
             enddo
             write(fdUnit,*)
@@ -1692,7 +1724,7 @@ module negf_int
 
 
   !> utility to write tunneling/ldos files with names from labels
-  subroutine write_files(negf, matTot, matSKRes, groupKS, kpoints, kWeights, regionLabels)
+  subroutine write_files(negf, matTot, matSKRes, nS, kpoints, kWeights, regionLabels)
 
     !> Contains input data, runtime quantities and output data
     type(TNegf) :: negf
@@ -1703,8 +1735,8 @@ module negf_int
     !> k- and spin-resolved quantities, if allocated
     real(dp), intent(in), allocatable :: matSKRes(:,:,:)
 
-    !> local k-points and spins on this processor
-    integer, intent(in) :: groupKS(:,:)
+    !> number of spins
+    integer, intent(in) :: nS
 
     !> k-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -1715,14 +1747,13 @@ module negf_int
     !> Labels for the separate regions
     character(lc), intent(in) :: regionLabels(:)
 
-    integer :: ii, jj, nKS, iKS, nK, nS, iK, iS, fdUnit
+    integer :: ii, jj, nKS, iKS, nK, iK, iS, fdUnit
     type(lnParams) :: params
 
     call get_params(negf, params)
 
-    nKS = size(groupKS, dim=2)
     nK = size(kpoints, dim=2)
-    nS = nKS/nK
+    nKS = nK*nS
 
     do jj=1,size(matTot, dim=2)
       open(newunit=fdUnit, file=trim(regionLabels(jj))//'.dat')
@@ -1742,12 +1773,12 @@ module negf_int
           write(fdUnit,"(A,I1)")'# NSpin = ', nS
           write(fdUnit,"(A)")'# <spin k1 k2 k3 weight> '
           write(fdUnit,'(A1)', ADVANCE='NO') '# '
-          do iKS = 1, nKS
-            iK = groupKS(1,iKS)
-            iS = groupKS(2,iKS)
-            write(fdUnit,'(i5.1)', ADVANCE='NO') iS
-            write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
-                & kWeights(iK)
+          do iS = 1, nS
+            do iK = 1, nK
+              write(fdUnit,'(i5.1)', ADVANCE='NO') iS
+              write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
+                  & kWeights(iK)
+            end do
           end do
           write(fdUnit,*)
 
@@ -1773,14 +1804,14 @@ module negf_int
   ! NOTE: Limited to non-periodic systems             s !!!!!!!!!!!
   ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #:if WITH_MPI
-  subroutine local_currents(mpicomm, tIOproc, groupKS, ham, over, &
+  subroutine local_currents(enecomm, kscomm, groupKS, ham, over, &
       & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
       & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
       & testArray)
 
     !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-    logical, intent(in) :: tIOproc
+    type(mpifx_comm), intent(in) :: enecomm
+    type(mpifx_comm), intent(in) :: kscomm
 #:else
   subroutine local_currents(groupKS, ham, over, &
       & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
@@ -1864,7 +1895,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm, tIOproc)
+    call negf_mpi_init(enecomm, tIOproc)
 #:endif
     call get_params(negf, params)
 
@@ -1933,11 +1964,11 @@ module negf_int
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
 #:if WITH_MPI
-      call mpifx_allreduceip(mpicomm, csrDens%nzval, MPI_SUM)
-      call mpifx_allreduceip(mpicomm, csrEDens%nzval, MPI_SUM)
+      call mpifx_allreduceip(enecomm, csrDens%nzval, MPI_SUM)
+      call mpifx_allreduceip(enecomm, csrEDens%nzval, MPI_SUM)
 #:endif
 
-      if (tIoProc) then
+      if (enecomm%rank == 0) then
         write(skp,'(I3.3)') iK
         open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
 
@@ -1980,7 +2011,11 @@ module negf_int
       call destruct(csrDens)
       call destruct(csrEDens)
 
-    end do
+    end do !loop on KS
+
+#:if WITH_MPI
+    call mpifx_allreduceip(kscomm, lcurr, MPI_SUM)
+#:endif
 
     if (tIoProc) then
       allocate(testArray(maxval(lc_neigh%nNeighbour),nAtom*nSpin))
