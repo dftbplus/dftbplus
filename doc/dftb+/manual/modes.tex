@@ -23,13 +23,14 @@ input file \verb|modes_in.hsd|:
 \end{ptableh}
 
 Additionally optional definitions may be present:
-\begin{ptableh}  
+\begin{ptableh}
   \kw{DisplayModes} & p & & - & \pref{sec:modes.DisplayModes} \\
   \kw{Atoms} & i+|m &  & 1:-1 & \\
   \kw{WriteHSDInput} & l & & No & \\
   \kw{WriteXMLInput} & l & & No & \\
   \kw{RemoveTranslation} & l & & No & \\
   \kw{RemoveRotation} & l & & No & \\
+  \kw{Masses} & p & & & \pref{sec:modes.Masses} \\
 \end{ptableh}
 
 \begin{description}
@@ -55,6 +56,8 @@ Additionally optional definitions may be present:
 \item[\is{RemoveRotation}] Explicitly set the rotation modes of the system to be
   at 0 frequency. Note, for periodic systems, this is usually incorrect (if used
   for a molecule full inside the central cell, it may be harmless).
+\item[\is{Masses}] If present, replace the atomic masses from the Slater-Koster files. See
+  p.~\pref{sec:modes.Masses}
 \end{description}
 
 
@@ -97,3 +100,34 @@ Allows the eigenvectors of the system to be plotted out if present
 \item[\is{XMakeMol}] Adapt xyz format output for XMakeMol dialect xyz
   files.
 \end{description}
+
+\subsubsection{Masses}
+\label{sec:modes.Masses}
+
+Provides values of atomic masses for specified atoms, ranges of atoms or chemical species. This is
+useful for example to set isotopes for specific atoms in the system.
+
+\begin{ptable}
+  \kw{Mass} & p & & & \\
+\end{ptable}
+
+Any atoms not given specified masses will use the default values from the appropriate homonuclear
+Slater-Koster file. An example is given below:
+\begin{verbatim}
+  Masses {
+    Mass {
+      Atoms = H
+      MassPerAtom [amu] = 1.007825
+    }
+    Mass {
+      Atoms = C
+      MassPerAtom [amu] = 13.003355
+    }
+    Mass {
+      Atoms = 1:2
+      MassPerAtom [amu] = 2.014102
+    }
+
+  }
+\end{verbatim}
+where \kw{Atoms} specifies the atom or atoms which each have a mass of \kw{MassPerAtom} assigned.
