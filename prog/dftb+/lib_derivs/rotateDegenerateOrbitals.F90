@@ -339,7 +339,7 @@ contains
 
   !> Set up unitary transformation of matrix for degenerate states, producing combinations that are
   !> orthogonal under the action of the matrix. This is the ${TYPE}$ case.
-  subroutine generate${LABEL}$Unitary(self, matrixToProcess, ei)
+  subroutine generate${LABEL}$Unitary(self, matrixToProcess, ei, tDegenerate)
 
     !> Instance
     class(TDegeneracyTransform), intent(inout) :: self
@@ -349,6 +349,9 @@ contains
 
     !> Eigenvalues of local block of degenerate matrix
     real(dp), intent(in) :: ei(:)
+
+    !> Are degenerate pairs present requiring transformation
+    logical, intent(out), optional :: tDegenerate
 
     integer :: ii, nGrp, iGrp, maxRange, nInBlock, iStart, iEnd
     integer, allocatable :: degeneracies(:)
@@ -394,10 +397,16 @@ contains
         & self%degenerateGroup)
 
     maxRange = maxval(self%blockRange(2,:self%nGrp) - self%blockRange(1,:self%nGrp)) + 1
+    if (present(tDegenerate)) then
+      tDegenerate = .false.
+    end if
     if (maxRange == 1) then
       ! no transformations required
       ! also nGrp == nOrb
       return
+    end if
+    if (present(tDegenerate)) then
+      tDegenerate = .true.
     end if
 
     ! decide if the full matrix or sub-blocks are to be used
