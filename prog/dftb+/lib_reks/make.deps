@@ -1,0 +1,25 @@
+rekscommon.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densedescr _mod_dftbp_message _mod_dftbp_reksvar
+rekscommon.o = rekscommon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densedescr) $(_mod_dftbp_message) $(_mod_dftbp_reksvar)
+_mod_dftbp_rekscommon: rekscommon.o
+_mod_dftbp_rekscommon = $(rekscommon.o)
+
+reksen.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densedescr _mod_dftbp_eigenvects _mod_dftbp_elecsolvers _mod_dftbp_energies _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_mainio _mod_dftbp_message _mod_dftbp_periodic _mod_dftbp_sparse2dense _mod_dftbp_rekscommon _mod_dftbp_reksvar
+reksen.o = reksen.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densedescr) $(_mod_dftbp_eigenvects) $(_mod_dftbp_elecsolvers) $(_mod_dftbp_energies) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_mainio) $(_mod_dftbp_message) $(_mod_dftbp_periodic) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon) $(_mod_dftbp_reksvar)
+_mod_dftbp_reksen: reksen.o
+_mod_dftbp_reksen = $(reksen.o)
+
+reksfon.o: _mod_dftbp_accuracy _mod_dftbp_globalenv _mod_dftbp_message _mod_dftbp_reksvar
+reksfon.o = reksfon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_globalenv) $(_mod_dftbp_message) $(_mod_dftbp_reksvar)
+_mod_dftbp_reksfon: reksfon.o
+_mod_dftbp_reksfon = $(reksfon.o)
+
+reksproperty.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densitymatrix _mod_dftbp_mainio _mod_dftbp_message _mod_dftbp_reksvar
+reksproperty.o = reksproperty.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densitymatrix) $(_mod_dftbp_mainio) $(_mod_dftbp_message) $(_mod_dftbp_reksvar)
+_mod_dftbp_reksproperty: reksproperty.o
+_mod_dftbp_reksproperty = $(reksproperty.o)
+
+reksvar.o: _mod_dftbp_accuracy _mod_dftbp_message _mod_dftbp_orbitals
+reksvar.o = reksvar.o $(_mod_dftbp_accuracy) $(_mod_dftbp_message) $(_mod_dftbp_orbitals)
+_mod_dftbp_reksvar: reksvar.o
+_mod_dftbp_reksvar = $(reksvar.o)
+

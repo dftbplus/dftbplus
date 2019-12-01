@@ -222,6 +222,10 @@ contains
         call error("Spin-unrestricted calculation for thresholding algorithm not yet implemented!")
       end if
 
+      if (this%tREKS .and. this%rsAlg == rangeSepTypes%threshold) then
+        call error("REKS calculation with thresholding algorithm not yet implemented!")
+      end if
+
       if (.not. any([rangeSepTypes%neighbour, rangeSepTypes%threshold,&
             & rangeSepTypes%matrixBased] == this%rsAlg)) then
         call error("Unknown algorithm for screening the exchange")
@@ -709,7 +713,7 @@ contains
       real(dp), dimension(:,:), pointer :: pHmn
 
       pHmn => tmpHH(descM(iStart):descM(iEnd), descN(iStart):descN(iEnd))
-      if (this%tSpin) then
+      if (this%tSpin .or. this%tREKS) then
         pHmn(:,:) = pHmn - 0.25_dp * gammaTot * matmul(matmul(pSma, pPab), pSbn)
       else
         pHmn(:,:) = pHmn - 0.125_dp * gammaTot * matmul(matmul(pSma, pPab), pSbn)
@@ -856,7 +860,7 @@ contains
       tmpMat(:,:) = tmpMat * LRgammaAO
       call gemm(Hlr, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
-      if (this%tSpin) then
+      if (this%tSpin .or. this%tREKS) then
         Hlr(:,:) = -0.25_dp * Hlr
       else
         Hlr(:,:) = -0.125_dp * Hlr
@@ -1305,7 +1309,11 @@ contains
       end do loopC
     end do loopK
 
-    gradients(:,:) = gradients - 0.25_dp * nSpin * tmpderiv
+    if (this%tREKS) then
+      gradients(:,:) = gradients - 0.5_dp * tmpderiv
+    else
+      gradients(:,:) = gradients - 0.25_dp * nSpin * tmpderiv
+    end if
 
     deallocate(tmpOvr, tmpRho, gammaPrimeTmp, tmpderiv)
 
