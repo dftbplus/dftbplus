@@ -1874,7 +1874,7 @@ module negf_int
 
     ! Local stuff ---------------------------------------------------------
     integer :: n0, nn, mm,  mu, nu, nAtom, irow, nrow, ncont
-    integer :: nKS, nKPoint, nSpin, iK, iKS, iS, inn, startn, endn, morb
+    integer :: nKS, nK, nSpin, iKS, iK, iS, iKgl, inn, startn, endn, morb
     real(dp), dimension(:,:,:), allocatable :: lcurr 
     real(dp) :: Im
     type(TNeighbourList) :: lc_neigh
@@ -1884,7 +1884,8 @@ module negf_int
     real(dp) :: cutoff
     integer, parameter :: nInitNeigh=40
     complex(dp) :: c1,c2
-    character(3) :: skp
+    character(:), allocatable :: skp
+    character(6) :: fmtstring
     integer :: iSCCiter
     type(z_CSR), target :: csrDens, csrEDens
     type(z_CSR), pointer :: pCsrDens, pCsrEDens
@@ -1916,12 +1917,10 @@ module negf_int
     write(stdOut, *)
 
     nKS = size(groupKS, dim=2)
-    nKPoint = size(kPoints, dim=2)
+    nK = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
     nAtom = size(orb%nOrbAtom)
-    if (nKPoint > 999) then
-      call error("Too many kpoints > 999 for local currents")
-    end if
+    call get_fmtstring(nK, skp, fmtstring)
 
     ! Create a symmetrized neighbour list extended to periodic cell in lc_coord 
     if (any(iCellVec.ne.1)) then
@@ -1964,12 +1963,15 @@ module negf_int
       call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
 #:if WITH_MPI
-      call mpifx_allreduceip(enecomm, csrDens%nzval, MPI_SUM)
-      call mpifx_allreduceip(enecomm, csrEDens%nzval, MPI_SUM)
+      ! Reduce on node 0 as group master node
+      call mpifx_reduceip(enecomm, csrDens%nzval, MPI_SUM, 0)
+      call mpifx_reduceip(enecomm, csrEDens%nzval, MPI_SUM, 0)
 #:endif
 
+      ! Each group master node prints the local currents
       if (enecomm%rank == 0) then
-        write(skp,'(I3.3)') iK
+        iKgl = (iS-1) * nK + iK    
+        write(skp, fmtstring) iKgl
         open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
 
         ! loop on central cell atoms and write local currents to all other 
@@ -2014,7 +2016,7 @@ module negf_int
     end do !loop on KS
 
 #:if WITH_MPI
-    call mpifx_allreduceip(kscomm, lcurr, MPI_SUM)
+    call mpifx_reduceip(kscomm, lcurr, MPI_SUM, 0)
 #:endif
 
     if (tIoProc) then
@@ -2058,6 +2060,22 @@ module negf_int
       ch = labels(iS)
 
     end function spin2ch
+    
+    subroutine get_fmtstring(nK, skp, fmtstring)
+      integer, intent(in) :: nK
+      character(:), allocatable :: skp
+      character(6) :: fmtstring
+      integer :: nchars
+          
+      nchars = 3
+      do while (nK/(10**nchars) > 1 )
+        nchars = nchars + 1
+      end do 
+      allocate(character(len=nchars)::skp)    
+      ! create fmtstring = '(In.n)'
+      write(fmtstring, '( "(I",I1,".",I1,")" )') nchars, nchars
+
+    end subroutine get_fmtstring
 
   end subroutine local_currents
 
