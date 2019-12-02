@@ -2549,7 +2549,7 @@ contains
         & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
         & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
         & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-        & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+        & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     ! In this routine nSpin changes to 2
     if (tREKS) then
@@ -3815,7 +3815,7 @@ contains
       & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
       & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
       & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-      & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+      & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -3967,9 +3967,6 @@ contains
     !> density matrix dense storage
     real(dp), intent(out), allocatable :: rhoSqrReal(:,:,:)
 
-    !> Number of electron in each atomic shell
-    real(dp), intent(out), allocatable :: chargePerShell(:,:,:)
-
     !> Occupations for natural orbitals
     real(dp), intent(out), allocatable :: occNatural(:)
 
@@ -4108,8 +4105,6 @@ contains
         allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
       end if
     end if
-    ! TODO : chargePerShell is already allocated in 1501 line
-    allocate(chargePerShell(orb%mShell, nAtom, nSpin))
 
     if (tLinResp .and. tPrintExcitedEigVecs) then
       allocate(occNatural(orb%nOrb))
