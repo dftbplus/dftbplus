@@ -172,6 +172,7 @@ contains
         if (tGroundGuess .and. iDet==0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
         end if
+!test
 
         if (iDet == nDet) then
           exit lpDets
