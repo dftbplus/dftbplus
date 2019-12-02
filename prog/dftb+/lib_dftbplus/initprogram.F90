@@ -2574,6 +2574,8 @@ contains
 !        call error("REKS is not compatible with dispersion correction")
       else if (tLinResp) then
         call error("REKS is not compatible with linear response excitation")
+      else if (allocated(onSiteElements)) then
+        call error("REKS is not compatible with onsite correction")
       end if
 
       if (tPeriodic) then
