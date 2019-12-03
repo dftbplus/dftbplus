@@ -1109,7 +1109,7 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), DensMat=pCsrDens)
+      call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS), DensMat=pCsrDens)
 
       ! NOTE:
       ! unfold adds up to rho the csrDens(k) contribution
@@ -1250,7 +1250,7 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), EnMat=pCsrEDens)
+      call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS), EnMat=pCsrEDens)
 
       ! NOTE:
       ! unfold adds up to rhoEPrim the csrEDens(k) contribution
@@ -1953,14 +1953,14 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
           & nNeighbour, img2CentCell, iCellVec, CellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
+      call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
 
       ! Unless SGFs are not stored, read them from file
       if (negf%readOldDM_SGFs.ne.COMP_SGF) then
          call set_readOldDMsgf(negf, READ_SGF) 
       end if   
 
-      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
+      call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
 #:if WITH_MPI
       ! Reduce on node 0 as group master node

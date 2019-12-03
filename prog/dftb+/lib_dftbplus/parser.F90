@@ -5359,16 +5359,6 @@ contains
       call getChildValue(node, "Groups", input%ctrl%parallelOpts%nGroup, 1, child=pTmp)
       call getChildValue(node, "UseOmpThreads", input%ctrl%parallelOpts%tOmpThreads, .not. withMpi)
       call readBlacs(node, input%ctrl%parallelOpts%blacsOpts)
-    #:if WITH_TRANSPORT
-      if (input%ctrl%parallelOpts%nGroup>1 .and. input%ginfo%greendens%defined) then
-        if (input%ginfo%greendens%saveSGF) then
-          call error("SaveSurfaceGFs must be disabled when using groups")
-        end if
-        if (input%ginfo%greendens%readSGF) then
-          call error("ReadSurfaceGFs must be disabled when using groups")
-        end if
-      end if
-    #:endif
     end if
 
   end subroutine readParallel
