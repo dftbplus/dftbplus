@@ -190,7 +190,7 @@ module dftbp_initprogram
   !> if calculation is periodic
   logical :: tPeriodic
 
-  !> If the calculation is helical
+  !> If the calculation is helical geometry
   logical :: tHelical
 
   !> Should central cell coordinates be output?
@@ -1185,12 +1185,19 @@ contains
       kWeight(1) = 1.0_dp
     end if
 
-    if ((.not. tPeriodic .or. tHelical) .or.&
-        & (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])))&
-        & then
-      tRealHS = .true.
-    else
-      tRealHS = .false.
+    tRealHS = .true.
+    if (tPeriodic) then
+      if ( size(kPoint,dim=2) == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])) then
+        tRealHS = .true.
+      else
+        tRealHS = .false.
+      end if
+    else if (tHelical) then
+      if ( size(kPoint,dim=2) == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp])) then
+        tRealHS = .true.
+      else
+        tRealHS = .false.
+      end if
     end if
 
   #:if WITH_MPI
@@ -1964,6 +1971,10 @@ contains
       nGeoSteps = 0
     end if
 
+    if (tSocket .and. tHelical) then
+      call error("Socket protocol does not understand helical geometries")
+    end if
+
     ! Initialize constraints
     if (input%ctrl%nrConstr > 0) then
       allocate(conAtom(input%ctrl%nrConstr))
@@ -2078,8 +2089,8 @@ contains
         call error("excited state relaxation is not implemented yet for spin-polarized systems")
       elseif (tPeriodic .and. tCasidaForces) then
         call error("excited state relaxation is not implemented yet periodic systems")
-      elseif (tPeriodic .and. .not.tRealHS) then
-        call error("Linear response only works with non-periodic or gamma-point molecular crystals")
+      elseif ((tPeriodic .or. tHelical) .and. .not.tRealHS) then
+        call error("Linear response only works with non-periodic or gamma-point molecular systems")
       elseif (tSpinOrbit) then
         call error("Linear response does not support spin orbit coupling at the moment.")
       elseif (tDFTBU) then
@@ -2313,7 +2324,7 @@ contains
     tReadChrg = input%ctrl%tReadChrg
 
     if (tRangeSep) then
-      call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
+      call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
           & tAtomicEnergy, input%ctrl%rangeSepInp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
@@ -4348,11 +4359,14 @@ contains
 
 
   !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, tAtomicEnergy,&
-      & rangeSepInp)
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, tShellResolved,&
+      & tAtomicEnergy, rangeSepInp)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
+
+    !> If the calculation is helical geometry
+    logical :: tHelical
 
     !> Are charges read from disc
     logical, intent(in) :: tReadChrg
@@ -4368,6 +4382,11 @@ contains
 
     if (tPeriodic) then
       call error("Range separated functionality only works with non-periodic structures at the&
+          & moment")
+    end if
+
+    if (tHelical) then
+      call error("Range separated functionality only works with non-helical structures at the&
           & moment")
     end if
 
