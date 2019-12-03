@@ -247,20 +247,6 @@ contains
           & potential%intShell, qOutput, Ef)
     end if
 
-    if (tTunn) then
-  #:if WITH_MPI
-      call calc_current(env%mpi%groupComm, env%mpi%interGroupComm, parallelKS%localKS, ham, over,&
-          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
-          & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
-  #:else
-      call calc_current(parallelKS%localKS, ham, over,&
-          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
-          & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
-  #:endif
-    end if
-
     if (tLocalCurrents) then
   #:if WITH_MPI
       call local_currents(env%mpi%groupComm, env%mpi%interGroupComm, parallelKS%localKS, ham, over,&
@@ -275,6 +261,20 @@ contains
   #:endif
     end if
   #:endif
+
+    if (tTunn) then
+  #:if WITH_MPI
+      call calc_current(env%mpi%groupComm, env%mpi%interGroupComm, parallelKS%localKS, ham, over,&
+          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
+          & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
+  #:else
+      call calc_current(parallelKS%localKS, ham, over,&
+          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
+          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
+          & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
+  #:endif
+    end if
 
     if (allocated(pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
