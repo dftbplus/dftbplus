@@ -140,7 +140,7 @@ contains
     integer :: nAtom, nSpecies
     character(6) :: formatSpecies
     integer :: ii, jj
-    logical :: tFractional, tHelical
+    logical :: tFractional, tHelical, tPeriodic
     real(dp) :: invLatVec(3,3)
 
 100 format(I5," ",A2)
@@ -175,12 +175,14 @@ contains
       end if
       if (all(shape(latVec) == [2, 1]) .or. all(shape(latVec) == [3,1])) then
         tHelical = .true.
+      else
+        tPeriodic = .true.
       end if
       if (tFractional) then
         write(fd, 100) nAtom, "F"
       else if (tHelical) then
         write(fd, 100) nAtom, "H"
-      else if (tHelical) then
+      else if (tPeriodic) then
         write(fd, 100) nAtom, "S"
       else
         call error("Unknown boundary conditions")
@@ -211,11 +213,13 @@ contains
           write(fd, 105) latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi, &
               & nint(latVec(3,1))
         end if
-      else
+      else if (tPeriodic) then
         write(fd, 103) 0.0_dp, 0.0_dp, 0.0_dp
         do ii = 1, 3
           write(fd, 103) (latVec(jj, ii) * Bohr__AA, jj = 1, 3)
         end do
+      else
+        call error("Unknown boundary conditions")
       end if
     end if
 

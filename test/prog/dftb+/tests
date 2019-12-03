@@ -5,6 +5,10 @@
 #:include 'common.fypp'
 #:set LONG_TEST = not defined('TRAVIS')
 
+helical/10-0Ctube                      #? MPI_PROCS <= 2
+helical/10-0CtubeC_10                  #? MPI_PROCS == 1
+helical/C6H6_stack                     #? MPI_PROCS == 1
+
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
