@@ -1501,7 +1501,7 @@ contains
       ! Make some guess for the nr. of all interacting atoms
       nAllAtom = int((real(nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
     else if (tHelical) then
-      ! 1D system, so much lower
+      ! 1D system, so much lower number of initial interactions
       nAllAtom = nAtom + 3
       if (size(latVec,dim=1)==3) then
         nAllAtom = nAllAtom * nint(latVec(3,1))
@@ -3224,6 +3224,10 @@ contains
 
     if (tHelical .and. tSpinOrbit) then
       call error("L.S coupling not yet supported for helical boundary conditions.")
+    end if
+
+    if (tHelical .and. nSpin > 2) then
+      call error("Non-collinear not yet supported for helical boundary conditions.")
     end if
 
     if (.not.tStress) then
