@@ -163,17 +163,14 @@ contains
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
 
 
-    ! TI-DFTB Determinant loop, set to pass through if not needed. - MYD, TDK, RAS
-
+    ! TI-DFTB Determinant Loop
+    ! Will pass though once if unless specified in input
       lpDets : do iDet = det, nDet
-
         call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
             & tExitGeoOpt)
         if (tGroundGuess .and. iDet==0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
         end if
-!test
-
         if (iDet == nDet) then
           exit lpDets
         end if
@@ -484,7 +481,6 @@ contains
       call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
     end if
 
-    !call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
@@ -663,7 +659,6 @@ contains
         end if
 
         if (tWriteDetailedOut) then
-    ! Has a hard time opening this twice..... Fixing? IDK if this is OK
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
               & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
@@ -1004,7 +999,7 @@ contains
     !> Number of steps changing the lattice vectors
     integer, intent(out) :: iLatGeoStep
 
-    !> Is this a spin purified calculation?
+    !> Is this a TI-DFTB calculation? If so, init
     logical, intent(in) :: tNonAufbau
     logical, intent(in) :: tSpinPurify
     logical, intent(in) :: tGroundGuess
@@ -1653,7 +1648,7 @@ contains
   end subroutine initSccLoop
 
 
-  !> Initialized TI-DFTB conditions for determinant loop
+  !> Initialised TI-DFTB conditions for determinant loop
   subroutine initTIDFTB(tSpinPurify, tGroundGuess, nDet, det)
 
   !> Is this a spin purified calculation?
@@ -1666,16 +1661,11 @@ contains
   integer, intent(out) :: nDet
   integer, intent(out) :: det
 
-  !> Step of the geometry driver
-!  integer, intent(in) :: iGeoStep
-
-
       if (tGroundGuess) then
         det = 0
       else
         det = 1
       end if
-
       if (tSpinPurify) then
         nDet = 2
       else
@@ -1801,7 +1791,7 @@ contains
     real(dp), allocatable :: shellPot(:,:,:)
     real(dp), allocatable, save :: shellPotBk(:,:)
     integer, pointer :: pSpecies0(:)
-    integer :: nAtom, nSpin, i
+    integer :: nAtom, nSpin
 
     nAtom = size(qInput, dim=2)
     nSpin = size(qInput, dim=3)
@@ -1816,11 +1806,10 @@ contains
     select case(electrostatics)
 
     case(elstatTypes%gammaFunc)
-
       call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
       call sccCalc%getShiftPerAtom(atomPot(:,1))
       call sccCalc%getShiftPerL(shellPot(:,:,1))
-
+      
     case(elstatTypes%poisson)
 
     #:if WITH_TRANSPORT
@@ -1974,8 +1963,7 @@ contains
 
     ham(:,:) = 0.0_dp
     ham(:,1) = h0
-
-    !GetSCCHam - calls  add_shift_block'
+    
     call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
 
@@ -2206,7 +2194,6 @@ contains
     logical :: tImHam
     real(dp), allocatable :: rVecTemp(:)
 
-
     nSpin = size(ham, dim=2)
     tImHam = allocated(iRhoPrim)
 
@@ -2427,9 +2414,8 @@ contains
     !> Is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
     integer, intent(in) :: iDet
-
     integer :: nSpin
-    integer :: i
+    
     nSpin = size(ham, dim=2)
 
     call env%globalTimer%startTimer(globalTimers%diagonalization)
@@ -2438,9 +2424,7 @@ contains
       if (tRealHS) then
         call buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep,&
-            & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:),&
-            & nEl)
-
+            & deltaRhoInSqr, qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigVecsReal, eigen(:,1,:))
       else
         call buildAndDiagDenseCplxHam(env, denseDesc, ham, over, kPoint, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, electronicSolver,&
@@ -2451,14 +2435,11 @@ contains
           & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, orb, electronicSolver,&
           & parallelKS, eigen(:,:,1), HSqrCplx, SSqrCplx, eigVecsCplx, iHam, xi, species)
     end if
-
-
-
     call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     call getFillingsAndBandEnergies(eigen, nEl, nSpin, tempElec, kWeight, tSpinSharedEf,&
         & tFillKSep, tFixEf, iDistribFn, Ef, filling, Eband, TS, E0, tNonAufbau, &
-        & tSpinPurify, iDet, nEl)!
+        & tSpinPurify, iDet, nEl)
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
     if (nSpin /= 4) then
@@ -2483,15 +2464,13 @@ contains
     end if
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
-
-
   end subroutine getDensityFromDenseDiag
 
 
   !> Builds and diagonalises dense Hamiltonians.
   subroutine buildAndDiagDenseRealHam(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, orb, electronicSolver, parallelKS, rangeSep, deltaRhoInSqr,&
-      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen, nEl)
+      & qOutput, nNeighbourLC, HSqrReal, SSqrReal, eigvecsReal, eigen)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2551,14 +2530,11 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
-    !> nr. of electrons
-    real(dp), intent(in) :: nEl(:)
 
     integer :: iKS, iSpin, ii
-    integer :: i
 
     eigen(:,:) = 0.0_dp
-    do iKS = 1, parallelKS%nLocalKS !2
+    do iKS = 1, parallelKS%nLocalKS
 
       iSpin = parallelKS%localKS(2, iKS)
     #:if WITH_SCALAPACK
@@ -2580,11 +2556,7 @@ contains
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
 
-
-
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-
-
 
       ! Add rangeseparated contribution
       ! Assumes deltaRhoInSqr only used by rangeseparation
@@ -2598,12 +2570,9 @@ contains
 
       call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,iSpin))
       eigvecsReal(:,:,iKS) = HSqrReal
-     ! OldHSqrReal = HSqrReal
     #:endif
 
     end do
-
-
 
   #:if WITH_SCALAPACK
     ! Distribute all eigenvalues to all nodes via global summation
@@ -2872,14 +2841,7 @@ contains
     !> Change in density matrix during this SCC step for rangesep
     real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
-    integer :: iKS, iSpin, i
-
-
-   ! write (*,*) 'Filling****************************Dense From real eigvects' !! MYD
-   ! do i=1,ubound(filling,1)
-   !    print *, filling(i, :)
-   ! enddo
-
+    integer :: iKS, iSpin
 
     rhoPrim(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
@@ -2899,11 +2861,7 @@ contains
           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin),&
               & neighbourlist%iNeighbour, nNeighbourSK, orb, denseDesc%iAtomStart, img2CentCell)
         else
-! FIxed
           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
-         !shoulbuild good work mtx
-
-!This one
         end if
 
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
@@ -3275,28 +3233,23 @@ contains
     if (nSpinBlocks == 1) then
       ! Filling functions assume one electron per level, but for spin unpolarised we have two
       nElecFill(1) = nElectrons(1) / 2.0_dp
-
     else
       nElecFill(1:nSpinHams) = nElectrons(1:nSpinHams)
-
     end if
 
     if (tFixEf) then
       ! Fixed value of the Fermi level for each spin channel
-      !write(*,*) 'tFixEf' ! Not called MYD
       do iS = 1, nSpinHams
         call electronFill(Eband(iS:iS), fillings(:,:,iS:iS), TS(iS:iS), E0(iS:iS), Ef(iS),&
             & eigvals(:,:,iS:iS), tempElec, iDistribFn, kWeights, tNonAufbau, &
             & tSpinPurify, iDet, nEl, iS)
       end do
     else if (nSpinHams == 2 .and. tSpinSharedEf) then
-      !write(*,*) 'tSpinSharedEf' !Not called MYD
       ! Common Fermi level across two colinear spin channels
       call Efilling(Eband, Ef(1), TS, E0, fillings, eigvals, sum(nElecFill), tempElec, kWeights,&
           & iDistribFn, tNonAufbau, tSpinPurify, iDet, nEl, iS)
       Ef(2) = Ef(1)
     else if (tFillKSep) then
-    !write(*,*) 'tFillKSep' , tFillKSep !Also Not Called MYD
       ! Every spin channel and every k-point filled up individually.
       Eband(:) = 0.0_dp
       Ef(:) = 0.0_dp
@@ -3515,13 +3468,13 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
-    integer :: nSpin, i
-    real(dp) :: nEl(2)
-
-    !> Is this a non-Aufbau calculation?
+    !> Is this a TI-DFTB calculation?
     logical, intent(in) :: tNonAufbau
     integer, intent(in) :: iDet
     logical, intent(in) :: tSpinPurify
+    
+    integer :: nSpin
+    real(dp) :: nEl(2)
 
     nSpin = size(rhoPrim, dim=2)
 
@@ -3596,12 +3549,6 @@ contains
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
         & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
-
-!  do i=1,ubound(qOrb,1)
-!    print *, i, qOrb(:, i, 1)
-!  end do
-
-!MYD
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
     energy%EMermin = energy%Etotal - sum(TS)
     ! extrapolated to 0 K
@@ -3760,7 +3707,7 @@ contains
     integer, intent(in), allocatable :: iEqBlockOnSiteLS(:,:,:,:)
 
     real(dp), allocatable :: qDiffRed(:)
-    integer :: nSpin, i
+    integer :: nSpin
 
     nSpin = size(qOutput, dim=3)
 
@@ -3796,8 +3743,6 @@ contains
             & iEqBlockOnSiteLS)
       end if
     end if
-
-
 
   end subroutine getNextInputCharges
 
@@ -4527,7 +4472,6 @@ contains
       dipole(:,:) = 0.0_dp
       call add_shift(hprime, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
           & iSparseStart, nAtom, img2CentCell, potentialDerivative)
-      write(*,*) '! Potential from dH/dE in checkDipoleViaHellmannFeynman'
       ! evaluate <psi| dH/dE | psi>
       call mulliken(dipole, hprime(:,1), rhoPrim(:,1), orb, neighbourList%iNeighbour, nNeighbourSK,&
           & img2CentCell, iSparseStart)

@@ -2180,10 +2180,9 @@ contains
     real(dp), pointer :: pOccNatural(:,:)
 
 
-    write (*,*) 'mainio A' !MYD
+
     call xml_OpenFile("detailed.xml", xf, indent=.true.)
     call xml_ADDXMLDeclaration(xf)
-    write (*,*) 'mainio B' !MYD
     call xml_NewElement(xf, "detailedout")
     call writeChildValue(xf, "identity", runId)
     call xml_NewElement(xf, "geometry")
@@ -2223,10 +2222,8 @@ contains
       call xml_EndElement(xf, "spin" // i2c(1))
       call xml_EndElement(xf, "excitedoccupations")
     end if
-    write (*,*) 'mainio C' !MYD
     call xml_EndElement(xf, "detailedout")
     call xml_Close(xf)
-    write (*,*) 'mainio D' !MYD
   end subroutine writeDetailedXml
 
 
@@ -3857,10 +3854,10 @@ contains
     !> Is the free energy correctly defined
     logical, intent(in) :: tDefinedFreeE
 
-    !> Is this a non-Aufbau calculation? - MYD
+    !> Is this a non-Aufbau calculation?
     logical, intent(in) :: tNonAufbau
 
-    !> Is this a spin purified calculation? - MYD
+    !> Is this a spin purified calculation?
     logical, intent(in), optional :: tSpinPurify
 
     !> Should there be a ground state intial guess before Non-Aufbau calc?
