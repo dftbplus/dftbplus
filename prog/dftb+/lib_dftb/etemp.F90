@@ -491,7 +491,7 @@ contains
               eigenvals(int(nEl(iS)) + 1, i, iSpin)=eigenvals(int(nEl(iS)), i, iSpin)
             else if (iDet == 1 .and. tSpinPurify .and. iS==2) then
               eigenvals(int(nEl(iS)), i, iSpin)=eigenvals(int(nEl(iS)) + 1, i, iSpin)
-            else if (iS==1) then
+            else if (iS==1 .and. iDet/=0) then
               swapfill = eigenvals(int(nEl(iS)) + 1, iSpin, iSpin)
               eigenvals(int(nEl(iS)) + 1, iSpin, iSpin) = eigenvals(int(nEl(iS)), iSpin, iSpin)
               eigenvals(int(nEl(iS)), iSpin, iSpin)  = swapfill
