@@ -1891,6 +1891,10 @@ p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
 case of collinear spin polarisation). Calculations without k-points can use
 either one or two groups in the case of collinear spin polarisation.
 
+This solver can optionally use the ELSI internal sparse interface (\kw{Sparse} =
+\is{Yes}), but this does not reduce memory usage and is mainly for testing
+purposes.
+
 \subsubsection{OMM}
 
 This method minimises the single particle density matrix, so does not make band

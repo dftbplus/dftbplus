@@ -2323,11 +2323,15 @@ contains
   #:endif
 
     case ("elpa")
-      ctrl%solver%isolver = electronicSolverTypes%elpa
       allocate(ctrl%solver%elsi)
+      call getChildValue(value1, "Sparse", ctrl%solver%elsi%elsiCsr, .false.)
+      if (ctrl%solver%elsi%elsiCsr) then
+        ctrl%solver%isolver = electronicSolverTypes%elpadm
+      else
+        ctrl%solver%isolver = electronicSolverTypes%elpa
+      end if
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
       call getChildValue(value1, "Mode", ctrl%solver%elsi%elpaSolver, 2)
-
     case ("omm")
       ctrl%solver%isolver = electronicSolverTypes%omm
       allocate(ctrl%solver%elsi)
