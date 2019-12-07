@@ -27,13 +27,14 @@ module dftbp_elecsolvertypes
     integer :: dummy1 = 7
     integer :: dummy2 = 8
     integer :: ntpoly = 9
+    integer :: elpadm = 10
 
     ! transport related
-    integer :: gf = 10
-    integer :: onlyTransport = 11
+    integer :: gf = 11
+    integer :: onlyTransport = 12
 
     ! GPU accellerated solvers using MAGMA
-    integer :: magma_gvd = 12
+    integer :: magma_gvd = 13
 
   end type TElecSolverTypesEnum
 
