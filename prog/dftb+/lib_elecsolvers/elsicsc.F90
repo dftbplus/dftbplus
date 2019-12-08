@@ -403,7 +403,7 @@ contains
     integer :: iNext, iVec
     integer, allocatable :: blockList(:,:)
     logical, allocatable :: tRowTrans(:)
-    real(dp) :: kPoint2p(3), tmpSqr(orb%mOrb,orb%mOrb)
+    real(dp) :: kPoint2p(size(kpoint)), tmpSqr(orb%mOrb,orb%mOrb)
     complex(dp) :: phase
   #:if BCS == 'Helical'
     real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta
@@ -696,7 +696,7 @@ contains
     integer :: iAt, iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
     complex(dp) :: tmpSqr(orb%mOrb,orb%mOrb)
-    real(dp) :: kPoint2p(3)
+    real(dp) :: kPoint2p(size(kpoint))
     complex(dp) :: phase
   #:if BCS == 'Helical'
     real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta
