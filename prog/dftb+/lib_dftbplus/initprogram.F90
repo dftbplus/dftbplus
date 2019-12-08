@@ -4202,7 +4202,7 @@ contains
 
     ! Temporary error test for PEXSI bug (July 2019)
     if (iSolver == electronicSolverTypes%pexsi .and. any(kPoints /= 0.0_dp)) then
-      call error("A temporary bug prevents correct evaluation with PEXSI at general k-points.&
+      call warning("A temporary PEXSI bug may prevent correct evaluation at general k-points.&
           & This should be fixed soon.")
     end if
 
