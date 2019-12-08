@@ -4494,20 +4494,23 @@ contains
 
     real(dp), intent(out) :: eigenvecs(:,:)
 
-    character(len=16), parameter :: fname = "/eigenvec.bin"
-    character(len=255) :: cwd
+    character(len=16), parameter :: fname = "eigenvec.bin"
+    !character(len=255) :: cwd
     integer, parameter :: funit = 105
     logical :: exst
     integer :: iAO, iMO, nAOs
     integer :: dummy
 
-    call getcwd(cwd)
+    ! extension to standard
+    !call getcwd(cwd)
 
     nAOs = size(eigenvecs,dim=1)
 
-    inquire(file=trim(cwd)//fname,exist=exst)
+    !inquire(file=trim(cwd)//fname,exist=exst)
+    inquire(file=fname,exist=exst)
     if (exst) then
-      open(unit=funit,file=trim(cwd)//fname,action="read",form="unformatted",access="direct",recl=dp)
+      !open(unit=funit,file=trim(cwd)//fname,action="read",form="unformatted",access="direct",recl=dp)
+      open(unit=funit,file=fname,action="read",form="unformatted",access="direct",recl=dp)
       read(funit,rec=1) dummy
       do iMO = 1, nAOs
         read(funit,rec=2+(nAOs+1)*(iMO-1)) dummy
@@ -4839,8 +4842,8 @@ contains
 
     real(dp), intent(in) :: tdp(:,:)
 
-    character(len=16), parameter :: fname = "/tdp.dat"
-    character(len=255) :: cwd
+    character(len=16), parameter :: fname = "tdp.dat"
+    !character(len=255) :: cwd
     integer, parameter :: funit = 108
 
     real(dp) :: tmp
@@ -4851,9 +4854,11 @@ contains
     tmp = 0.5_dp * (1.0_dp + dsqrt(1.0_dp + 8.0_dp*dble(nstHalf)))
     nstates = int(real(tmp))
 
-    call getcwd(cwd)
+    ! extension to standard
+    !call getcwd(cwd)
 
-    open(unit=funit,file=trim(cwd)//fname,position="rewind",status="replace")
+    !open(unit=funit,file=trim(cwd)//fname,position="rewind",status="replace")
+    open(unit=funit,file=fname,position="rewind",status="replace")
     write(funit,*)
     do ist = 1, nstHalf
 
