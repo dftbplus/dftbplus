@@ -3201,6 +3201,10 @@ contains
         call error("Linear response does not support k-points")
       end if
 
+      if (t3rd .or. t3rdFull) then
+        call error ("Third order DFTB is not currently compatible with linear response excitations")
+      end if
+
     end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
