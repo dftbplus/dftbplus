@@ -93,10 +93,10 @@ contains
     !> Is this a non-Aufbau calculation?
     logical, intent(in) :: tNonAufbau
 
-    !> Is this a spin purified calculation?
+    !> If non-Aufbau, is this a spin purified calculation?
     logical, intent(in) :: tSpinPurify
 
-    !> Which TI-DFTB state is being calculated? 1 = triplet, 2 = mixed
+    !> Which TI-DFTB determinant is being calculated? 1 = triplet, 2 = mixed
     integer, intent(in) :: iDet
 
     !> Number of electrons and spin channel index
