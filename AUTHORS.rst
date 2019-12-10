@@ -34,6 +34,8 @@ contributed to DFTB+ :
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
+* Tim Kowalczyk (Western Washington University) 
+
 * Thomas Niehaus (University of Lyon, France)
 
 * Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
