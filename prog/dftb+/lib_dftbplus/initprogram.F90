@@ -1733,11 +1733,13 @@ contains
       if (any(ceiling(nEl(:)) > nOrb)) then
         call error("More electrons than basis functions!")
       end if
+
     end if
 
     if (.not.all(nEl(:) >= 0.0_dp)) then
       call error("Less than 0 electrons!")
     end if
+    
 
     if (tForces) then
       tCasidaForces = input%ctrl%tCasidaForces

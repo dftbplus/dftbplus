@@ -486,193 +486,188 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%scc)
 
+    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
 
+    lpSCC: do iSccIter = 1, maxSccIter
 
-      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
+      call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
 
-      lpSCC: do iSccIter = 1, maxSccIter
+      if (tSccCalc) then
 
+        call getChargePerShell(qInput, orb, species, chargePerShell)
+
+      #:if WITH_TRANSPORT
+        ! Overrides input charges with uploaded contact charges
+        if (tUpload) then
+          call overrideContactCharges(qInput, chargeUp, transpar)
+        end if
+      #:endif
+
+        call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
+            & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics, tPoisson,&
+            & tUpload, shiftPerLUp)
+
+        call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
+            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
+
+        if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
+          call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockIn, qiBlockIn, q0,&
+              & onSiteElements, species, orb)
+        end if
+
+      end if
+
+      ! All potentials are added up into intBlock
+      potential%intBlock = potential%intBlock + potential%extBlock
+
+      if (allocated(qDepExtPot)) then
+        call getChargePerShell(qInput, orb, species, dQ, qRef=q0)
+        call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
+              & potential%intBlock)
+      end if
+
+      if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. tSccCalc) then
+        call electronicSolver%elsi%updatePexsiDeltaVRanges(potential)
+      end if
+
+      call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
+          & img2CentCell, potential, ham, iHam)
+
+      if (tWriteRealHS .or. tWriteHS .and. any(electronicSolver%iSolver ==&
+          & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+          & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd])) then
+        call writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList,&
+            & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec,&
+            & cellVec, ham, iHam)
+      end if
+
+      call convertToUpDownRepr(ham, iHam)
+
+      call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
+          & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
+          & electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
+          & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep,&
+          & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
+          & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
+          & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices, tNonAufbau, &
+          & tSpinPurify, iDet)
+
+      !> For rangeseparated calculations deduct atomic charges from deltaRho
+      if (tRangeSep) then
+        select case(nSpin)
+        case(2)
+          do iSpin = 1, 2
+            call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr, iSpin)
+          end do
+        case(1)
+          call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
+        case default
+          call error("Range separation not implemented for non-colinear spin")
+        end select
+      end if
+
+      if (tWriteBandDat) then
+        call writeBandOut(bandOut, eigen, filling, kWeight)
+      end if
+
+      if (tMulliken) then
+        call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
+             & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
+      end if
+
+      #:if WITH_TRANSPORT
+        ! Override charges with uploaded contact charges
+        if (tUpload) then
+          call overrideContactCharges(qOutput, chargeUp, transpar)
+        end if
+      #:endif
+       ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
+      if (tDualSpinOrbit) then
+        call getLDual(orbitalL, qiBlockOut, orb, species)
+      end if
+
+      ! Note: if XLBOMD is active, potential created with input charges is needed later,
+      ! therefore it should not be overwritten here.
+      if (tSccCalc .and. .not. tXlbomd) then
         call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+        call getChargePerShell(qOutput, orb, species, chargePerShell)
+        call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
+            & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
+            & tPoissonTwice, tUpload, shiftPerLUp)
 
-        if (tSccCalc) then
+        call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
+            & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
 
-          call getChargePerShell(qInput, orb, species, chargePerShell)
-
-        #:if WITH_TRANSPORT
-          ! Overrides input charges with uploaded contact charges
-          if (tUpload) then
-            call overrideContactCharges(qInput, chargeUp, transpar)
-          end if
-        #:endif
-
-          call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-              & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics, tPoisson,&
-              & tUpload, shiftPerLUp)
-
-          call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
-              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
-
-          if (allocated(onSiteElements) .and. (iSCCIter > 1 .or. tReadChrg)) then
-            call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockIn, qiBlockIn, q0,&
-                & onSiteElements, species, orb)
-          end if
-
+        if (allocated(onSiteElements)) then
+          call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockOut, qiBlockOut,&
+              & q0, onSiteElements, species, orb)
         end if
-
-        ! All potentials are added up into intBlock
         potential%intBlock = potential%intBlock + potential%extBlock
+      end if
 
-        if (allocated(qDepExtPot)) then
-          call getChargePerShell(qInput, orb, species, dQ, qRef=q0)
-          call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
-              & potential%intBlock)
+      if (allocated(qDepExtPot)) then
+        call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
+        call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
+            & potential%intBlock)
+      end if
+      call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
+          & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
+          & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep,&
+          & qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
+          & iAtInCentralRegion, tFixEf, Ef, onSiteElements, tNonAufbau, iDet, tSpinPurify)
+
+      tStopScc = hasStopFile(fStopScc)
+
+      ! Mix charges Input/Output
+      if (tSccCalc) then
+        if(.not. tRangeSep) then
+          call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
+              & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
+              & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
+              & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
+              & iEqBlockOnSite, iEqBlockOnSiteLS)
+
+        else
+
+          call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
+              & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
+              & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff)
         end if
 
-        if (electronicSolver%iSolver == electronicSolverTypes%pexsi .and. tSccCalc) then
-          call electronicSolver%elsi%updatePexsiDeltaVRanges(potential)
+        call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
+        if (tNegf) then
+          call printSccHeader()
+        end if
+        call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
+
+        if (tNegf) then
+          call printBlankLine()
         end if
 
-        call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
-            & img2CentCell, potential, ham, iHam)
-
-        if (tWriteRealHS .or. tWriteHS .and. any(electronicSolver%iSolver ==&
-            & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-            & electronicSolverTypes%relativelyrobust, electronicSolverTypes%magma_gvd])) then
-          call writeHSAndStop(env, tWriteHS, tWriteRealHS, tRealHS, over, neighbourList,&
-              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec,&
-              & cellVec, ham, iHam)
+        tWriteSccRestart = env%tGlobalMaster .and. &
+            & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
+            & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
+        if (tWriteSccRestart) then
+          call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
         end if
+      end if
 
-        call convertToUpDownRepr(ham, iHam)
+      if (tWriteDetailedOut) then
+        call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
+        call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
+            & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
+            & pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species, tDFTBU,&
+            & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
+            & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
+            & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
+            & iAtInCentralRegion, electronicSolver, tDefinedFreeE)
+      end if
 
-        call getDensity(env, iSccIter, denseDesc, ham, over, neighbourList, nNeighbourSk,&
-            & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
-            & electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
-            & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, mu, energy, rangeSep,&
-            & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
-            & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
-            & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices, tNonAufbau, &
-            & tSpinPurify, iDet)
-
-        !> For rangeseparated calculations deduct atomic charges from deltaRho
-        if (tRangeSep) then
-          select case(nSpin)
-          case(2)
-            do iSpin = 1, 2
-              call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr, iSpin)
-            end do
-          case(1)
-            call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
-          case default
-            call error("Range separation not implemented for non-colinear spin")
-          end select
-        end if
-
-        if (tWriteBandDat) then
-          call writeBandOut(bandOut, eigen, filling, kWeight)
-        end if
-
-        if (tMulliken) then
-          call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
-              & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
-        end if
-
-        #:if WITH_TRANSPORT
-          ! Override charges with uploaded contact charges
-          if (tUpload) then
-            call overrideContactCharges(qOutput, chargeUp, transpar)
-          end if
-        #:endif
-
-        ! For non-dual spin-orbit orbitalL is determined during getDensity() call above
-        if (tDualSpinOrbit) then
-          call getLDual(orbitalL, qiBlockOut, orb, species)
-        end if
-
-        ! Note: if XLBOMD is active, potential created with input charges is needed later,
-        ! therefore it should not be overwritten here.
-        if (tSccCalc .and. .not. tXlbomd) then
-          call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-          call getChargePerShell(qOutput, orb, species, chargePerShell)
-
-          call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
-              & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
-              & tPoissonTwice, tUpload, shiftPerLUp)
-
-          call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
-              & nDftbUFunc, UJ, nUJ, iUJ, niUJ, potential)
-
-          if (allocated(onSiteElements)) then
-            call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlockOut, qiBlockOut,&
-                & q0, onSiteElements, species, orb)
-          end if
-
-          potential%intBlock = potential%intBlock + potential%extBlock
-        end if
-
-        if (allocated(qDepExtPot)) then
-          call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
-          call qDepExtPot%addPotential(sum(dQ(:,:,1), dim=1), dQ(:,:,1), orb, species,&
-              & potential%intBlock)
-        end if
-        call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
-            & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
-            & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep,&
-            & qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
-            & iAtInCentralRegion, tFixEf, Ef, onSiteElements, tNonAufbau, iDet, tSpinPurify)
-
-        tStopScc = hasStopFile(fStopScc)
-
-        ! Mix charges Input/Output
-        if (tSccCalc) then
-          if(.not. tRangeSep) then
-            call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
-                & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
-                & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
-                & qBlockIn, qiBlockOut, iEqBlockDftbULS, species0, nUJ, iUJ, niUJ, qiBlockIn,&
-                & iEqBlockOnSite, iEqBlockOnSiteLS)
-
-          else
-
-            call getNextInputDensity(SSqrReal, over, neighbourList, nNeighbourSK,&
-                & denseDesc%iAtomStart, iSparseStart, img2CentCell, pChrgMixer, qOutput, orb,&
-                & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tReadChrg, q0,&
-                & qInput, sccErrorQ, tConverged, deltaRhoOut, deltaRhoIn, deltaRhoDiff)
-          end if
-
-          call getSccInfo(iSccIter, energy%Eelec, Eold, diffElec)
-          if (tNegf) then
-            call printSccHeader()
-          end if
-          call printSccInfo(tDftbU, iSccIter, energy%Eelec, diffElec, sccErrorQ)
-
-          if (tNegf) then
-            call printBlankLine()
-          end if
-
-          tWriteSccRestart = env%tGlobalMaster .and. &
-              & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
-              & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
-          if (tWriteSccRestart) then
-            call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
-          end if
-        end if
-
-        if (tWriteDetailedOut) then
-          call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter, iDet)
-          call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
-              & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
-              & pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species, tDFTBU,&
-              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
-              & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
-              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-              & iAtInCentralRegion, electronicSolver, tDefinedFreeE)
-        end if
-
-        if (tConverged .or. tStopScc) then
-          exit lpSCC
-        end if
-      end do lpSCC
+      if (tConverged .or. tStopScc) then
+        exit lpSCC
+      end if
+    end do lpSCC
 
 
 

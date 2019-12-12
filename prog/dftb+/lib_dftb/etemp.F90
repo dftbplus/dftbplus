@@ -514,10 +514,10 @@ contains
 #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
 #:endif
-            if (tNonAufbau .and. j/=1 .and. ((filling(j, i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
+            if (tNonAufbau .and. j/=1 .and. ((filling(max(j-1,1), i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
               exit
             else if (filling(j, i, iSpin)<=elecTol .and. .not. tNonAufbau) then
-             exit
+              exit
             end if
             if (filling(j, i, iSpin) > epsilon(0.0_dp) .and.&
                 & filling(j, i, iSpin) < (1.0_dp - epsilon(1.0_dp))) then

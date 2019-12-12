@@ -1207,10 +1207,6 @@ contains
     real(dp) :: screeningThreshold
     type(TRangeSepSKTag) :: rangeSepSK
 
-    !> TI-DFTB varibles for full deltaDFTB w/out MOM
-    call getChildValue(node, "NonAufbau", ctrl%tNonAufbau, .false.)
-    call getChildValue(node, "SpinPurify", ctrl%tSpinPurify, .true.)
-    call getChildValue(node, "GroundGuess", ctrl%tGroundGuess, .false.)
 
     ! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1
@@ -1776,7 +1772,23 @@ contains
     if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
       call getChildValue(value1, "IndependentKFilling", ctrl%tFillKSep, .false.)
     end if
-
+    
+    !> TI-DFTB varibles for deltaDFTB w/ input stipulations
+    call getChildValue(node, "NonAufbau", ctrl%tNonAufbau, .false.)
+    call getChildValue(node, "SpinPurify", ctrl%tSpinPurify, .true.)
+    call getChildValue(node, "GroundGuess", ctrl%tGroundGuess, .false.)
+    if(ctrl%tNonAufbau) then
+      if (.not.(ctrl%tSpin .and. .not. ctrl%t2Component)) then
+        call error("Must specify colinear spin-polarisation for non-Aufbau.")
+      end if
+      if(mod(int(ctrl%nrChrg),2)/=0) then
+        call error("Must have system with even number of electrons for non-Aufbau.")
+      end if
+      if(ctrl%nrSpinPol/=0.0_dp) then
+        call error("Must have closed shell system for non-Aufbau.")
+      end if  
+    end if
+    
     ! Electronic solver
     call getChildValue(node, "Solver", value1, "RelativelyRobust")
     call getNodeName(value1, buffer)
