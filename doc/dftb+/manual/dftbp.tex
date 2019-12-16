@@ -1972,7 +1972,7 @@ significant.
 
 \subsubsection{$\Delta$DFTB}
 The time-independent approach $\Delta$DFTB modifies the SCC loop to allow variational relaxation of 
-the lowest singlet excited state of closed-shell singlet species.\cite{KowalczykIrle16} The KS spin
+the lowest singlet excited state of closed-shell singlet species.\cite{irle-JCTC-12-313} The KS spin
 orbitals are self-constently optimized under non-Aufbau orbital occupation constraints via promotion
 of an electron from the highest occupied molecular orbital (HOMO) of the ground state to lowest
 unoccupied molecular orbital (LUMO) at each SCC iteration. Specifically, the non-Aufbau keyword in 
@@ -1983,7 +1983,7 @@ $$\rho_e(r) = \sum_\sigma \sum_{i \epsilon occ(\sigma)}\mid\phi_i^\sigma(r)\mid^
 Because the constraint is placed on the spin orbitals rather than the MO's, this method 
 introduces heavy spin contamination to the system by the arbitrary promotion of $\alpha$ spin electrons.
 This issue is circumvented with spin purification, where the triplet state energy is subtracted from
-twice the mixed singlet state energy, in accordance with the Ziegler sum rule,\cite{ZieglerBaerends77}
+twice the mixed singlet state energy, in accordance with the Ziegler sum rule,\cite{baerends-TCA-43-261}
 $$E(S_1) = 2E[\{\phi_i^\sigma\}_m]-E[\{\phi_i^\sigma\}_t]$$
 A non-spin-purified calculation can be performed if \is{SpinPurify = No}.
 $\Delta$DFTB calculations can be more challenging to converge than their ground-state analogs.
