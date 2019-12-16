@@ -5716,8 +5716,6 @@ contains
 
     !> Calculate transition dipole moments
     call getChildValue(node, "TransitionDipole", ctrl%reksIni%tTDP, default=.false.)
-    !> Swap initial eigenvectors once compared with external file in 1st SCC cycle, 'eigenvec.bin'
-!    call getChildValue(node, "AdjustInitialMO", ctrl%reksIni%tAdjustMO, default=.false.)
 
     !> Algorithms to calculate analytic gradients
     !> 1: preconditioned conjugate gradient (PCG)

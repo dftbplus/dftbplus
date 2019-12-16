@@ -87,6 +87,7 @@ module dftbp_main
   use dftbp_rekscommon
   use dftbp_reksen
   use dftbp_reksfon
+  use dftbp_reksinterface
   use dftbp_reksproperty
   use dftbp_reksvar
 #:if WITH_TRANSPORT
@@ -523,7 +524,7 @@ contains
         call getSysDensityFromRealEigvecs(env, denseDesc, neighbourList, &
             & nNeighbourSK, iSparseStart, img2CentCell, orb, eigvecsReal, &
             & filling, rhoPrim, q0, deltaRhoOutSqr, reks)
-        call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSk, img2CentCell,&
+        call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
 
         ! check charge convergece and guess new eigenvectors
@@ -828,6 +829,13 @@ contains
     if (tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)
       if (tREKS) then
+        call getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
+            & neighbourList, nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, &
+            & orb, nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, coord0, &
+            & species, q0, eigvecsReal, chrgForces, over, spinW, derivs, reks)
+        call getReksGradProperties(env, denseDesc, neighbourList, nNeighbourSK, &
+            & iSparseStart, img2CentCell, eigvecsReal, orb, iAtInCentralRegion, &
+            & coord, coord0, over, rhoPrim, qOutput, q0, tDipole, dipoleMoment, chrgForces, reks)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling, eigen,&
@@ -850,6 +858,10 @@ contains
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
         if (tREKS) then
+          call getReksStress(env, denseDesc, sccCalc, nonSccDeriv, skHamCont, &
+              & skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, &
+              & species, img2CentCell, iSparseStart, orb, coord, q0, invLatVec, &
+              & cellVol, totalStress, totalLatDeriv, intPressure, reks)
         else
           call getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
               & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep,&
@@ -6297,9 +6309,9 @@ contains
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-    reks%over(:,:) = SSqrReal + transpose(SSqrReal)
+    reks%overSqr(:,:) = SSqrReal + transpose(SSqrReal)
     do ii = 1, size(SSqrReal,dim=1)
-      reks%over(ii,ii) = 0.5_dp * reks%over(ii,ii)
+      reks%overSqr(ii,ii) = 0.5_dp * reks%overSqr(ii,ii)
     end do
 
     call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1))
@@ -6350,9 +6362,9 @@ contains
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-    reks%over(:,:) = SSqrReal + transpose(SSqrReal)
+    reks%overSqr(:,:) = SSqrReal + transpose(SSqrReal)
     do ii = 1, size(SSqrReal,dim=1)
-      reks%over(ii,ii) = 0.5_dp * reks%over(ii,ii)
+      reks%overSqr(ii,ii) = 0.5_dp * reks%overSqr(ii,ii)
     end do
 
   end subroutine symmetrizeOverlap
@@ -6395,61 +6407,63 @@ contains
     real(dp), allocatable :: tmpRho(:,:)
     integer :: mu, nu, nOrb, iL
 
-    nOrb = size(reks%over,dim=1)
+    nOrb = size(reks%overSqr,dim=1)
 
-    if (.not. reks%tForces) allocate(tmpRho(nOrb,nOrb))
+    if (.not. reks%tForces) then
+      allocate(tmpRho(nOrb,nOrb))
+    end if
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
 
     if (reks%tForces) then
-      reks%dm_L(:,:,:,:) = 0.0_dp
+      reks%rhoSqrL(:,:,:,:) = 0.0_dp
     else
-      reks%dm_sp_L(:,:,:) = 0.0_dp
+      reks%rhoSpL(:,:,:) = 0.0_dp
     end if
 
     do iL = 1, reks%Lmax
 
       if (reks%tForces) then
-        ! reks%dm_L has (my_ud) component
-        call makeDensityMatrix(reks%dm_L(:,:,1,iL), eigvecs(:,:,1), &
-            & reks%filling_L(:,1,iL))
+        ! reks%rhoSqrL has (my_ud) component
+        call makeDensityMatrix(reks%rhoSqrL(:,:,1,iL), eigvecs(:,:,1), &
+            & reks%fillingL(:,1,iL))
         do nu = 1, nOrb
           do mu = nu + 1, nOrb
-            reks%dm_L(nu,mu,1,iL) = reks%dm_L(mu,nu,1,iL)
+            reks%rhoSqrL(nu,mu,1,iL) = reks%rhoSqrL(mu,nu,1,iL)
           end do
         end do
         if (reks%tRangeSep) then
-          ! reks%Deltadm_L has (my_ud) component
-          reks%Deltadm_L(:,:,1,iL) = reks%dm_L(:,:,1,iL)
+          ! reks%deltaRhoSqrL has (my_ud) component
+          reks%deltaRhoSqrL(:,:,1,iL) = reks%rhoSqrL(:,:,1,iL)
           call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
-              & reks%Deltadm_L(:,:,:,iL), 1)
+              & reks%deltaRhoSqrL(:,:,:,iL), 1)
         end if
       else
         tmpRho(:,:) = 0.0_dp
         call makeDensityMatrix(tmpRho, eigvecs(:,:,1), &
-            & reks%filling_L(:,1,iL))
+            & reks%fillingL(:,1,iL))
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
-        ! reks%dm_sp_L has (my_ud) component
-        call packHS(reks%dm_sp_L(:,1,iL), tmpRho, &
+        ! reks%rhoSpL has (my_ud) component
+        call packHS(reks%rhoSpL(:,1,iL), tmpRho, &
             & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
         if (reks%tRangeSep) then
-          ! reks%Deltadm_L has (my_ud) component
-          reks%Deltadm_L(:,:,1,iL) = tmpRho
+          ! reks%deltaRhoSqrL has (my_ud) component
+          reks%deltaRhoSqrL(:,:,1,iL) = tmpRho
           call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
-              & reks%Deltadm_L(:,:,:,iL), 1)
+              & reks%deltaRhoSqrL(:,:,:,iL), 1)
         end if
       end if
 
     end do
 
     if (reks%tForces) then
-      ! reks%dm_L has (my_qm) component
-      call ud2qmL(reks%dm_L, reks%Lpaired)
+      ! reks%rhoSqrL has (my_qm) component
+      call ud2qmL(reks%rhoSqrL, reks%Lpaired)
     else
-      ! reks%dm_sp_L has (my_qm) component
-      call ud2qmL(reks%dm_sp_L, reks%Lpaired)
+      ! reks%rhoSpL has (my_qm) component
+      call ud2qmL(reks%rhoSpL, reks%Lpaired)
     end if
 
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
@@ -6493,7 +6507,9 @@ contains
 
     sparseSize = size(over,dim=1)
 
-    if (reks%tForces) allocate(tmpRhoSp(sparseSize))
+    if (reks%tForces) then
+      allocate(tmpRhoSp(sparseSize))
+    end if
 
     do iL = 1, reks%Lmax
 
@@ -6501,29 +6517,29 @@ contains
 
         tmpRhoSp(:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
-        ! reks%dm_L has (my_qm) component
-        call packHS(tmpRhoSp, reks%dm_L(:,:,1,iL), &
+        ! reks%rhoSqrL has (my_qm) component
+        call packHS(tmpRhoSp, reks%rhoSqrL(:,:,1,iL), &
             & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-        ! reks%qOutput_L has (my_qm) component
-        reks%qOutput_L(:,:,:,iL) = 0.0_dp
-        call mulliken(reks%qOutput_L(:,:,1,iL), over, tmpRhoSp, &
+        ! reks%qOutputL has (my_qm) component
+        reks%qOutputL(:,:,:,iL) = 0.0_dp
+        call mulliken(reks%qOutputL(:,:,1,iL), over, tmpRhoSp, &
             & orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
       else
 
-        ! reks%qOutput_L has (my_qm) component
-        reks%qOutput_L(:,:,:,iL) = 0.0_dp
-        call mulliken(reks%qOutput_L(:,:,1,iL), over, reks%dm_sp_L(:,1,iL), &
+        ! reks%qOutputL has (my_qm) component
+        reks%qOutputL(:,:,:,iL) = 0.0_dp
+        call mulliken(reks%qOutputL(:,:,1,iL), over, reks%rhoSpL(:,1,iL), &
             & orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
 
       end if
 
     end do
 
-    ! reks%qOutput_L has (qm) component
-    call qmExpandL(reks%qOutput_L, reks%Lpaired)
+    ! reks%qOutputL has (qm) component
+    call qmExpandL(reks%qOutputL, reks%Lpaired)
 
   end subroutine getMullikenPopulationL
 
@@ -6608,7 +6624,7 @@ contains
     integer :: sparseSize, nOrb, ii, jj, iL
 
     sparseSize = size(over,dim=1)
-    nOrb = size(reks%over,dim=1)
+    nOrb = size(reks%overSqr,dim=1)
 
     if (reks%tRangeSep) then
       allocate(tmpHamSp(sparseSize,1))
@@ -6616,32 +6632,32 @@ contains
       allocate(tmpEn(reks%Lmax))
     end if
 
-    reks%intShell_L(:,:,:,:) = 0.0_dp
-    reks%intBlock_L(:,:,:,:,:) = 0.0_dp
+    reks%intShellL(:,:,:,:) = 0.0_dp
+    reks%intBlockL(:,:,:,:,:) = 0.0_dp
     do iL = 1, reks%Lmax
 
       reks%intAtom(:,:) = 0.0_dp
-      ! reks%qOutput_L, reks%chargePerShell_L has (qm) component
-      call getChargePerShell(reks%qOutput_L(:,:,:,iL), orb, species,&
-          & reks%chargePerShell_L(:,:,:,iL))
-      ! reks%intShell_L, reks%intBlock_L has (qm) component
-      call addReksChargePotentials(env, sccCalc, reks%qOutput_L(:,:,:,iL), &
-          & q0, reks%chargePerShell_L(:,:,:,iL), orb, species, &
+      ! reks%qOutputL, reks%chargePerShellL has (qm) component
+      call getChargePerShell(reks%qOutputL(:,:,:,iL), orb, species,&
+          & reks%chargePerShellL(:,:,:,iL))
+      ! reks%intShellL, reks%intBlockL has (qm) component
+      call addReksChargePotentials(env, sccCalc, reks%qOutputL(:,:,:,iL), &
+          & q0, reks%chargePerShellL(:,:,:,iL), orb, species, &
           & neighbourList, img2CentCell, spinW, thirdOrd, electrostatics, &
-          & reks%intAtom, reks%intShell_L(:,:,:,iL), reks%intBlock_L(:,:,:,:,iL))
+          & reks%intAtom, reks%intShellL(:,:,:,iL), reks%intBlockL(:,:,:,:,iL))
 
       ! Calculate Hamiltonian including SCC, spin
       if(.not. reks%tRangeSep) then
-        ! reks%ham_sp_L has (my_qm) component
+        ! reks%hamSpL has (my_qm) component
         call getReksSccHamiltonian(H0, over, nNeighbourSK, neighbourList, &
-            & species, orb, iSparseStart, img2CentCell, reks%ham_sp_L(:,:,iL), &
-            & reks%intBlock_L(:,:,:,:,iL), reks%Lpaired, iL)
+            & species, orb, iSparseStart, img2CentCell, reks%hamSpL(:,:,iL), &
+            & reks%intBlockL(:,:,:,:,iL), reks%Lpaired, iL)
       else
         ! tmpHamSp has (my_qm) component
         tmpHamSp(:,:) = 0.0_dp
         call getReksSccHamiltonian(H0, over, nNeighbourSK, neighbourList, &
             & species, orb, iSparseStart, img2CentCell, tmpHamSp, &
-            & reks%intBlock_L(:,:,:,:,iL), reks%Lpaired, iL)
+            & reks%intBlockL(:,:,:,:,iL), reks%Lpaired, iL)
         ! Convert Hamiltonian from sparse to dense to calculate
         ! rangeseparated contribution for each microstate
         ! tmpHam has (my_qm) component
@@ -6651,33 +6667,33 @@ contains
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         ! Fill the remaining symmetric part
-        ! reks%Deltadm_L has (my_ud) component
+        ! reks%deltaRhoSqrL has (my_ud) component
         do jj = 1, nOrb
           do ii = jj + 1, nOrb
             tmpHam(jj,ii) = tmpHam(ii,jj)
-            reks%Deltadm_L(jj,ii,1,iL) = reks%Deltadm_L(ii,jj,1,iL)
+            reks%deltaRhoSqrL(jj,ii,1,iL) = reks%deltaRhoSqrL(ii,jj,1,iL)
           end do
         end do
-        ! reks%ham_L has (my_qm) component
-        reks%ham_L(:,:,1,iL) = tmpHam
+        ! reks%hamSqrL has (my_qm) component
+        reks%hamSqrL(:,:,1,iL) = tmpHam
       end if
 
     end do
 
     if(.not. reks%tRangeSep) then
-      ! reks%ham_sp_L has (my_ud) component
-      call qm2udL(reks%ham_sp_L, reks%Lpaired)
+      ! reks%hamSpL has (my_ud) component
+      call qm2udL(reks%hamSpL, reks%Lpaired)
     else
-      ! reks%ham_L has (my_ud) component
-      call qm2udL(reks%ham_L, reks%Lpaired)
+      ! reks%hamSqrL has (my_ud) component
+      call qm2udL(reks%hamSqrL, reks%Lpaired)
       tmpEn(:) = 0.0_dp
       do iL = 1, reks%Lmax
         ! Add rangeseparated contribution
-        ! reks%ham_L has (my_ud) component
-        call rangeSep%addLRHamiltonian(env, reks%Deltadm_L(:,:,1,iL), &
+        ! reks%hamSqrL has (my_ud) component
+        call rangeSep%addLRHamiltonian(env, reks%deltaRhoSqrL(:,:,1,iL), &
             & over, neighbourList%iNeighbour, nNeighbourLC, &
             & denseDesc%iAtomStart, iSparseStart, orb, &
-            & reks%ham_L(:,:,1,iL), reks%over)
+            & reks%hamSqrL(:,:,1,iL), reks%overSqr)
         ! Calculate the long-range exchange energy for up spin
         call rangeSep%addLREnergy(tmpEn(iL))
       end do
@@ -6928,11 +6944,13 @@ contains
     integer, pointer :: pSpecies0(:)
     integer :: iL, tmpL, nAtom, nSpin
 
-    nAtom = size(reks%qOutput_L,dim=2)
-    nSpin = size(reks%chargePerShell_L,dim=3)
+    nAtom = size(reks%qOutputL,dim=2)
+    nSpin = size(reks%chargePerShellL,dim=3)
     pSpecies0 => species(1:nAtom)
 
-    if (reks%tForces) allocate(tmpRhoSp(sparseSize))
+    if (reks%tForces) then
+      allocate(tmpRhoSp(sparseSize))
+    end if
 
     ! set the long-range corrected energy for each microstate
     if (reks%tRangeSep) then
@@ -6946,7 +6964,7 @@ contains
             energy%Efock = tmpEn(iL) + tmpEn(iL-1)
           end if
         end if
-        reks%en_L_fock(iL) = energy%Efock
+        reks%enLfock(iL) = energy%Efock
       end do
     end if
 
@@ -6968,22 +6986,22 @@ contains
       if (reks%tForces) then
         tmpRhoSp(:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
-        ! reks%dm_L has (my_qm) component
-        call packHS(tmpRhoSp, reks%dm_L(:,:,1,tmpL), &
+        ! reks%rhoSqrL has (my_qm) component
+        call packHS(tmpRhoSp, reks%rhoSqrL(:,:,1,tmpL), &
             & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
         call mulliken(energy%atomNonSCC, tmpRhoSp, H0, orb, &
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       else
-        ! reks%dm_sp_L has (my_qm) component
-        call mulliken(energy%atomNonSCC, reks%dm_sp_L(:,1,tmpL), H0, orb, &
+        ! reks%rhoSpL has (my_qm) component
+        call mulliken(energy%atomNonSCC, reks%rhoSpL(:,1,tmpL), H0, orb, &
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end if
       energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
-      reks%en_L_nonSCC(iL) = energy%EnonSCC
+      reks%enLnonSCC(iL) = energy%EnonSCC
 
-      call sccCalc%updateCharges(env, reks%qOutput_L(:,:,:,iL), &
+      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), &
           & q0, orb, species)
       call sccCalc%updateShifts(env, orb, species, &
           & neighbourList%iNeighbour, img2CentCell)
@@ -6991,25 +7009,25 @@ contains
       energy%Escc = 0.0_dp
       call sccCalc%getEnergyPerAtom(energy%atomSCC)
       energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
-      reks%en_L_SCC(iL) = energy%Escc
+      reks%enLSCC(iL) = energy%Escc
 
       energy%atomSpin(:) = 0.0_dp
       energy%Espin = 0.0_dp
       if (iL > reks%Lpaired) then
-        energy%atomSpin(:) = 0.5_dp * sum(sum(reks%intShell_L(:,:,2:nSpin,iL)&
-            & * reks%chargePerShell_L(:,:,2:nSpin,iL), dim=1), dim=2)
+        energy%atomSpin(:) = 0.5_dp * sum(sum(reks%intShellL(:,:,2:nSpin,iL)&
+            & * reks%chargePerShellL(:,:,2:nSpin,iL), dim=1), dim=2)
         energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
-        reks%en_L_spin(iL) = energy%Espin
+        reks%enLspin(iL) = energy%Espin
       end if
 
       energy%atom3rd(:) = 0.0_dp
       energy%e3rd = 0.0_dp
       if (allocated(thirdOrd)) then
         call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-            & reks%qOutput_L(:,:,:,iL), q0, img2CentCell, orb)
+            & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
         call thirdOrd%getEnergyPerAtom(energy%atom3rd)
         energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
-        reks%en_L_3rd(iL) = energy%e3rd
+        reks%enL3rd(iL) = energy%e3rd
       end if
 
       energy%atomOnSite(:) = 0.0_dp
@@ -7017,7 +7035,7 @@ contains
 
       energy%Efock = 0.0_dp
       if (reks%tRangeSep) then
-        energy%Efock = reks%en_L_fock(iL)
+        energy%Efock = reks%enLfock(iL)
       end if
 
       energy%atomExt(:) = 0.0_dp
@@ -7035,7 +7053,7 @@ contains
           & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
       energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
       energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
-      reks%en_L_tot(iL) = energy%Etotal
+      reks%enLtot(iL) = energy%Etotal
 
       ! REKS is not affected by filling, so TS becmoes 0
       energy%EMermin = energy%Etotal
@@ -7125,7 +7143,7 @@ contains
     real(dp), allocatable :: tmpRho(:,:)
     integer :: nOrb
 
-    nOrb = size(reks%over,dim=1)
+    nOrb = size(reks%overSqr,dim=1)
 
     allocate(tmpRho(nOrb,nOrb))
 
@@ -7406,12 +7424,12 @@ contains
       call getUnrelaxedDMandTDP(eigenvecs(:,:,1), reks)
 
       if (reks%tTDP) then
-        call getDipoleIntegral(coord0, reks%over, reks%getAtomIndex, dipoleInt)
+        call getDipoleIntegral(coord0, reks%overSqr, reks%getAtomIndex, dipoleInt)
         ! Get the transition dipole moment between states
         ! For (SI-)SA-REKS dipole moment requires gradient info.
         ! But TDP use only zero-th part without gradient info.
         do ist = 1, nstHalf
-          call getDipoleMomentMatrix(reks%P_m_del_o(:,:,ist), dipoleInt, reks%tdp(:,ist))
+          call getDipoleMomentMatrix(reks%unrelTdm(:,:,ist), dipoleInt, reks%tdp(:,ist))
         end do
         call writeReksTDP(reks%tdp)
         call getReksOsc(reks%tdp, reks%energy)

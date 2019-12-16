@@ -242,6 +242,10 @@ module dftbp_scc
     procedure :: addForceDcXlbomd
     procedure :: getInternalElStatPotential
     procedure :: getExternalElStatPotential
+    procedure :: getPCcoordAndCharges
+    procedure :: getPeriodicInfo
+    procedure :: getGammaDeriv
+    procedure :: getShiftOfPC
   end type TScc
 
 
@@ -1685,4 +1689,148 @@ contains
   end subroutine getSummedChargesPerUniqU_
 
 
+  !> Get coordinates and charges for external point charges
+  subroutine getPCcoordAndCharges(this, extCharges)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> coordinates and charges of external point charges
+    real(dp), intent(out) :: extCharges(:,:)
+
+    call this%extCharge%getExternalCharges(extCharges)
+
+  end subroutine getPCcoordAndCharges
+
+  
+  !> Get the variables relate to periodic information
+  subroutine getPeriodicInfo(this, rVec, gVec, alpha, vol)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> real lattice points for Ewald-sum
+    real(dp), allocatable, intent(out) :: rVec(:,:)
+
+    !> lattice points for reciprocal Ewald
+    real(dp), allocatable, intent(out) :: gVec(:,:)
+
+    !> parameter for Ewald
+    real(dp), intent(out) :: alpha
+
+    !> parameter for cell volume
+    real(dp), intent(out) :: vol
+
+    integer :: ind1, ind2, ind3, ind4
+
+    ind1 = size(this%gLatPoint,dim=1)
+    ind2 = size(this%gLatPoint,dim=2)
+    ind3 = size(this%rCellVec,dim=1)
+    ind4 = size(this%rCellVec,dim=2)
+
+    ! TODO : no problem in geom opt case?
+    allocate(gVec(ind1,ind2))
+    allocate(rVec(ind3,ind4))
+
+    gVec(:,:) = this%gLatPoint
+    rVec(:,:) = this%rCellVec
+    alpha = this%alpha
+    vol = this%volume
+
+  end subroutine getPeriodicInfo
+
+
+  !> Calculate gamma integral derivatives in SCC part
+  subroutine getGammaDeriv(this, env, species, iNeighbour, img2CentCell, GammaDeriv)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> list of all atomic species
+    integer, intent(in) :: species(:)
+
+    !> neighbour list for atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> indexing array for periodic image atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atom resolved scc gamma derivative, \gamma_{A,B}
+    !> gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
+    real(dp), intent(out) :: GammaDeriv(:,:,:)
+
+    real(dp), allocatable :: shortGammaDeriv(:,:,:)
+    real(dp), allocatable :: invRDeriv(:,:,:)
+
+    real(dp) :: rab, u1, u2, tmpGamma, tmpGammaPrime
+    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, iU1, iU2, ii, jj
+
+    allocate(shortGammaDeriv(this%nAtom,this%nAtom,3))
+    allocate(invRDeriv(this%nAtom,this%nAtom,3))
+
+    ! shortGamma contribution to gamma derivative
+    shortGammaDeriv(:,:,:) = 0.0_dp
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
+        do iU1 = 1, this%nHubbU(species(iAt1))
+          u1 = this%uniqHubbU(iU1, iSp1)
+          do iU2 = 1, this%nHubbU(species(iAt2f))
+            u2 = this%uniqHubbU(iU2, species(iAt2f))
+            if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
+              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
+                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+              else
+                tmpGammaPrime = expGammaPrime(rab, u2, u1)
+                if (this%tH5) then
+                  tmpGamma = expGamma(rab, u2, u1)
+                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, &
+                      & tmpGammaPrime, iSp1, iSp2, rab)
+                end if
+              end if
+              do ii = 1,3
+                shortGammaDeriv(iAt2f,iAt1,ii) = -tmpGammaPrime * &
+                    & ( this%coord(ii,iAt1) - this%coord(ii,iAt2) ) / rab
+              end do
+            end if
+          end do
+        end do
+      end do
+    end do
+
+    ! 1/R contribution to gamma derivative
+    invRDeriv(:,:,:) = 0.0_dp
+    if (this%tPeriodic) then
+      call addInvRPrime(env, this%coord, this%ewaldNeighList, &
+          & this%gLatPoint, this%alpha, this%volume, invRDeriv)
+    else
+      call addInvRPrime(env, this%coord, invRDeriv)
+    end if
+
+    GammaDeriv(:,:,:) = invRDeriv + shortGammaDeriv
+
+  end subroutine getGammaDeriv
+
+
+  !> Get Q * inverse R contribution for the point charges
+  subroutine getShiftOfPC(this, QinvR)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> (Q * invR) contribution
+    real(dp), intent(out) :: QinvR(:)
+
+    call this%extCharge%copyInvRvec(QinvR)
+
+  end subroutine getShiftOfPC
+
+  
 end module dftbp_scc

@@ -75,10 +75,10 @@ module dftbp_mainio
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo, printBlankLine
   public :: printReksSccHeader, printReksSccInfo, printReksMicrostates, printSaReksEnergy
-  public :: printReksSaInfo, printReksSSRInfo
-  public :: printUnrelaxedFONs
+  public :: printReksSaInfo, printReksSSRInfo, printReksGradInfo
+  public :: printUnrelaxedFONs, printRelaxedFONs, printRelaxedFONsL
   public :: writeReksDetailedOut1
-  public :: readEigenvecs, writeReksTDP
+  public :: readEigenvecs, writeReksTDP, writeReksRelaxedCharge
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -4538,19 +4538,19 @@ contains
       write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
           & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
       do iL = 1, reks%Lmax
-        write(stdOut,'(I3,7(f13.8))',advance="no") iL, reks%en_L_nonSCC(iL), &
-            & reks%en_L_SCC(iL), reks%en_L_spin(iL)
+        write(stdOut,'(I3,7(f13.8))',advance="no") iL, reks%enLnonSCC(iL), &
+            & reks%enLSCC(iL), reks%enLspin(iL)
         if (reks%t3rd) then
-          write(stdOut,'(1(f13.8))',advance="no") reks%en_L_3rd(iL)
+          write(stdOut,'(1(f13.8))',advance="no") reks%enL3rd(iL)
         else
           write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
         end if
         if (reks%tRangeSep) then
-          write(stdOut,'(1(f13.8))',advance="no") reks%en_L_fock(iL)
+          write(stdOut,'(1(f13.8))',advance="no") reks%enLfock(iL)
         else
           write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
         end if
-        write(stdOut,'(2(f13.8))') Erep, reks%en_L_tot(iL)
+        write(stdOut,'(2(f13.8))') Erep, reks%enLtot(iL)
       end do
     end if
 
@@ -4643,7 +4643,7 @@ contains
       end do
       write(strTmp,'(A)') "Trip"
       write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
-          & trim(strTmp), reks%en_L_tot(5), 1.0_dp, 1.0_dp, 1.0_dp
+          & trim(strTmp), reks%enLtot(5), 1.0_dp, 1.0_dp, 1.0_dp
     end if
     write(stdOut, "(A)") repeat("-", 50)
 
@@ -4652,7 +4652,7 @@ contains
       write(stdOut, "(A)") repeat("-", 25)
       write(stdOut,'(1x,A20,2x,F15.8)') " Microstate Energies"
       do iL = 1, reks%Lmax
-        write(stdOut,"(1x,'L =',1x,I2,':',1x,F13.8)") iL, reks%en_L_tot(iL)
+        write(stdOut,"(1x,'L =',1x,I2,':',1x,F13.8)") iL, reks%enLtot(iL)
       end do
       write(stdOut, "(A)") repeat("-", 25)
     end if
@@ -4834,6 +4834,76 @@ contains
   end subroutine printUnrelaxedFONs
 
 
+  !> print Relaxed FONs for target state
+  subroutine printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
+
+    !> Occupation number matrix
+    real(dp), intent(in) :: tmpRho(:,:)
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    integer :: ii
+
+    write(stdOut,*)
+    if (useSSR == 1) then
+      write(stdOut,'(A23,I1,A1)',advance="no") " relaxed SSR FONs for S", &
+          & rstate - 1, ":"
+    else
+      write(stdOut,'(A27,I1,A1)',advance="no") " relaxed SA-REKS FONs for S", &
+          & rstate - 1, ":"
+    end if
+    do ii = 1, Na
+      if (ii == Na) then
+        write(stdOut,'(1(f10.6))') tmpRho(Nc+ii,Nc+ii)
+      else
+        write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
+      end if
+    end do
+
+  end subroutine printRelaxedFONs
+
+
+  !> print Relaxed FONs for target L-th microstate
+  subroutine printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
+
+    !> Occupation number matrix
+    real(dp), intent(in) :: tmpRho(:,:)
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    integer :: ii
+
+    write(stdOut,*)
+    write(*,'(A18,I1,A12)',advance="no") " relaxed FONs for ", &
+        & Lstate, " microstate:"
+    do ii = 1, Na
+      if (ii == Na) then
+        write(stdOut,'(1(f10.6))') tmpRho(Nc+ii,Nc+ii)
+      else
+        write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
+      end if
+    end do
+
+  end subroutine printRelaxedFONsL
+
+
   !> Write tdp.dat file with transidion dipole moment
   subroutine writeReksTDP(tdp)
 
@@ -4876,6 +4946,48 @@ contains
     close(funit)
 
   end subroutine writeReksTDP
+
+
+  !> Write relaxed_charge.dat file with relaxed charges for target state
+  subroutine writeReksRelaxedCharge(qOutput, q0, rstate, Lstate)
+
+    !> Output electrons
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    character(len=20), parameter :: fname = "/relaxed_charge.dat"
+    character(len=255) :: cwd
+    integer :: iAt, nAtom
+    integer, parameter :: funit = 109
+
+    nAtom = size(qOutput,dim=2)
+
+    call getcwd(cwd)
+
+    open(unit=funit,file=trim(cwd)//fname,position="rewind",status="replace")
+    write(funit,'(A13,1X,F15.8,A4)') "total charge:", &
+        & -sum(qOutput(:,:,1) - q0(:,:,1)), " (e)"
+    write(funit,'(1X)')
+    if (Lstate == 0) then
+      write(funit,'(A9,I1,A18)') "relaxed S", rstate - 1, " atomic charge (e)"
+    else
+      write(funit,'(I3,A11,A18)') Lstate, " microstate", " atomic charge (e)"
+    end if
+    write(funit,'(3X,A18)') "atom        charge"
+    do iAt = 1, nAtom
+      write(funit,'(2X,I5,2X,F15.8)') iAt, -sum(qOutput(:,iAt,1) - q0(:,iAt,1))
+    end do
+    close(funit)
+
+  end subroutine writeReksRelaxedCharge
 
 
   !> First group of data to go to detailed.out
@@ -5132,17 +5244,17 @@ contains
     energy%EForceRelated = energy%EGibbs
     ! get microstate energy values for target microstate
     if (reks%Lstate > 0) then
-      energy%Etotal = reks%en_L_tot(reks%Lstate)
-      energy%EnonSCC = reks%en_L_nonSCC(reks%Lstate)
-      energy%ESCC = reks%en_L_SCC(reks%Lstate)
-      energy%Espin = reks%en_L_spin(reks%Lstate)
+      energy%Etotal = reks%enLtot(reks%Lstate)
+      energy%EnonSCC = reks%enLnonSCC(reks%Lstate)
+      energy%ESCC = reks%enLSCC(reks%Lstate)
+      energy%Espin = reks%enLspin(reks%Lstate)
       energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin
       if (reks%tRangeSep) then
-        energy%Efock = reks%en_L_fock(reks%Lstate)
+        energy%Efock = reks%enLfock(reks%Lstate)
         energy%Eelec = energy%Eelec + energy%Efock
       end if
       if (reks%t3rd) then
-        energy%e3rd  = reks%en_L_3rd(reks%Lstate)
+        energy%e3rd  = reks%enL3rd(reks%Lstate)
         energy%Eelec = energy%Eelec + energy%e3rd
       end if
     end if
@@ -5220,6 +5332,137 @@ contains
     end if
 
   end subroutine writeReksDetailedOut1
+
+
+  !> print gradient results for REKS calculation
+  subroutine printReksGradInfo(derivs, SAgrad, SIgrad, SSRgrad, nacG, nacH, &
+      & Efunction, useSSR, nstates, rstate, Lstate, tNAC)
+
+    !> derivatives of energy wrt to atomic positions
+    real(dp), intent(in) :: derivs(:,:)
+
+    !> gradient of SA-REKS state
+    real(dp), intent(in) :: SAgrad(:,:,:)
+
+    !> gradient of state-interaction term
+    real(dp), intent(in) :: SIgrad(:,:,:)
+
+    !> gradient of SSR state
+    real(dp), intent(in) :: SSRgrad(:,:,:)
+
+    !> difference gradient vector, G
+    real(dp), intent(in) :: nacG(:,:,:)
+
+    !> nonadiabatic coupling vector, H
+    real(dp), intent(in) :: nacH(:,:,:)
+
+    !> Minimized energy functional
+    integer, intent(in) :: Efunction
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Number of states
+    integer, intent(in) :: nstates
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    !> Calculate nonadiabatic coupling vectors
+    logical, intent(in) :: tNAC
+
+    real(dp) :: tmp
+    integer :: ist, ia, ib, nstHalf
+
+    nstHalf = nstates * (nstates - 1) / 2
+
+    write(stdOut,*)
+    if (Efunction == 1) then
+
+      write(stdOut,"(A)") repeat("-", 50)
+      write(stdOut,"(A)") " Gradient Information"
+      write(stdOut,"(A)") repeat("-", 50)
+      write(stdOut,*) rstate, "state (single-state)"
+      write(stdOut,'(3(f15.8))') derivs(:,:)
+      write(stdOut,"(A)") repeat("-", 50)
+
+    else
+
+      if (tNAC) then
+
+        write(stdOut,"(A)") repeat("-", 50)
+        write(stdOut,"(A)") " Gradient Information"
+        write(stdOut,"(A)") repeat("-", 50)
+        do ist = 1, nstates
+          write(stdOut,*) ist, "st state (SSR)"
+          write(stdOut,'(3(f15.8))') SSRgrad(:,:,ist)
+          if (ist == nstates) then
+            write(stdOut,"(A)") repeat("-", 50)
+          else
+            write(stdOut,'(3(f15.8))')
+          end if
+        end do
+
+!        write(stdOut,*) "AVG state"
+!        write(stdOut,'(3(f15.8))') avgGrad(:,:)
+!        write(stdOut,'(3(f15.8))')
+
+        write(stdOut,"(A)") " Coupling Information"
+        do ist = 1, nstHalf
+
+          ! (ia,ib) = (1,2) (1,3) (2,3) ...
+          ! TODO
+          tmp = ( dble(2.0_dp*nstates+1.0_dp) - dsqrt( (2.0_dp*nstates+ &
+              & 1.0_dp)**2.0_dp - 8.0_dp*(nstates+ist) ) )/2.0_dp
+          ia = int( tmp )
+          if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
+          ib = ia**2/2 + ia/2 - nstates*ia + nstates + ist
+          if( mod(ia,2) == 1 ) ib = ib + 1
+
+          write(stdOut,"(A)") repeat("-", 50)
+          write(stdOut,'(" between ",I2," and ",I2," states")') ia, ib
+          write(stdOut,"(A)") repeat("-", 50)
+          write(stdOut,*) "g vector - difference gradient"
+          write(stdOut,'(3(f15.8))') (SAgrad(:,:,ia) - SAgrad(:,:,ib)) * 0.5_dp
+          write(stdOut,'(3(f15.8))')
+          write(stdOut,*) "h vector - derivative coupling"
+          write(stdOut,'(3(f15.8))') SIgrad(:,:,ist)
+          write(stdOut,'(3(f15.8))')
+          write(stdOut,*) "G vector - GDV"
+          write(stdOut,'(3(f15.8))') nacG(:,:,ist)
+          write(stdOut,'(3(f15.8))')
+          write(stdOut,*) "H vector - DCV - non-adiabatic coupling"
+          write(stdOut,'(3(f15.8))') nacH(:,:,ist)
+
+        end do
+        write(stdOut,"(A)") repeat("-", 50)
+
+      else
+
+        write(stdOut,"(A)") repeat("-", 50)
+        write(stdOut,"(A)") " Gradient Information"
+        write(stdOut,"(A)") repeat("-", 50)
+        if (Lstate == 0) then
+          if (useSSR == 1) then
+            write(stdOut,*) rstate, "state (SSR)"
+          else
+            write(stdOut,*) rstate, "state (SA-REKS)"
+          end if
+        else
+          write(stdOut,*) Lstate, "microstate"
+        end if
+        write(stdOut,'(3(f15.8))') derivs(:,:)
+        write(stdOut,"(A)") repeat("-", 50)
+
+      end if
+
+    end if
+    write(stdOut,*)
+
+  end subroutine printReksGradInfo
 
 
 end module dftbp_mainio

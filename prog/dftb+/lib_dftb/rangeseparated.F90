@@ -116,6 +116,8 @@ module dftbp_rangeseparated
     procedure :: addLrEnergy
     procedure :: addLrGradients
     procedure :: evaluateLrEnergyDirect
+    procedure :: getLrGamma
+    procedure :: getLrGammaDeriv
 
   end type RangeSepFunc
 
@@ -1420,5 +1422,51 @@ contains
     call env%globalTimer%stopTimer(globalTimers%energyEval)
 
   end function evaluateLrEnergyDirect
+
+
+  !> Get long-range gamma integrals
+  subroutine getLrGamma(self, LrGamma)
+
+    !> class instance
+    class(RangeSepFunc), intent(inout) :: self
+
+    !> long-range gamma integrals in AO basis
+    real(dp), intent(out) :: LrGamma(:,:)
+
+    LrGamma(:,:) = self%lrGammaEval
+
+  end subroutine getLrGamma
+
+
+  !> Calculate long-range gamma derivative integrals
+  subroutine getLrGammaDeriv(self, coords, species, LrGammaDeriv)
+
+    !> class instance
+    class(RangeSepFunc), intent(inout) :: self
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Species of all atoms including images
+    integer, intent(in) :: species(:)
+
+    !> long-range gamma derivative integrals
+    real(dp), intent(out) :: LrGammaDeriv(:,:,:)
+
+    real(dp) :: tmp(3)
+    integer :: nAtom, iAt1, iAt2
+
+    nAtom = size(LrGammaDeriv,dim=1)
+
+    do iAt1 = 1, nAtom
+      do iAt2 = 1, nAtom
+        if(iAt1 /= iAt2) then
+          call getGammaPrimeValue(self, tmp, iAt1, iAt2, coords, species)
+          LrGammaDeriv(iAt1,iAt2,:) = tmp
+        end if
+      end do
+    end do
+
+  end subroutine getLrGammaDeriv
 
 end module dftbp_rangeseparated

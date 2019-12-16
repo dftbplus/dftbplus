@@ -2607,9 +2607,6 @@ contains
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
 
-!        call REKS_init(reks, input%ctrl%reksIni, orb, referenceN0, species0, spinW,&
-!            & nSpin, nEl(1), nExtChrg, t3rd .or. t3rdFull, allocated(onSiteElements),&
-!            & tRangeSep, tForces, tPeriodic, tStress)
         call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1),&
             & nExtChrg, t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress)
 
