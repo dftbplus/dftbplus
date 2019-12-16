@@ -5,9 +5,6 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-! TODO
-!!!!#:include 'common.fypp'
-
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -130,28 +127,36 @@ module dftbp_reksen
     energy%EnonSCC = 0.0_dp
     energy%Escc = 0.0_dp
     energy%Espin = 0.0_dp
-    if (self%t3rd) energy%e3rd = 0.0_dp
-    if (self%tRangeSep) energy%Efock = 0.0_dp
+    if (self%t3rd) then
+      energy%e3rd = 0.0_dp
+    end if
+    if (self%tRangeSep) then
+      energy%Efock = 0.0_dp
+    end if
     do iL = 1, self%Lmax
-      energy%EnonSCC = energy%EnonSCC + self%weight_L(rst,iL) * self%en_L_nonSCC(iL)
-      energy%Escc = energy%Escc + self%weight_L(rst,iL) * self%en_L_SCC(iL)
-      energy%Espin = energy%Espin + self%weight_L(rst,iL) * self%en_L_spin(iL)
+      energy%EnonSCC = energy%EnonSCC + self%weightL(rst,iL) * self%enLnonSCC(iL)
+      energy%Escc = energy%Escc + self%weightL(rst,iL) * self%enLSCC(iL)
+      energy%Espin = energy%Espin + self%weightL(rst,iL) * self%enLspin(iL)
       if (self%t3rd) then
-        energy%e3rd = energy%e3rd + self%weight_L(rst,iL) * self%en_L_3rd(iL)
+        energy%e3rd = energy%e3rd + self%weightL(rst,iL) * self%enL3rd(iL)
       end if
       if (self%tRangeSep) then
-        energy%Efock = energy%Efock + self%weight_L(rst,iL) * self%en_L_fock(iL)
+        energy%Efock = energy%Efock + self%weightL(rst,iL) * self%enLfock(iL)
       end if
     end do
     energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin
-    if (self%t3rd) energy%Eelec = energy%Eelec + energy%e3rd
-    if (self%tRangeSep) energy%Eelec = energy%Eelec + energy%Efock
+    if (self%t3rd) then
+      energy%Eelec = energy%Eelec + energy%e3rd
+    end if
+    if (self%tRangeSep) then
+      energy%Eelec = energy%Eelec + energy%Efock
+    end if
 
     ! Compute the energy of SA-REKS states
     self%energy(:) = 0.0_dp
     do ist = 1, self%nstates
       do iL = 1, self%Lmax
-        self%energy(ist) = self%energy(ist) + self%weight_L(ist,iL) * self%en_L_tot(iL)
+        self%energy(ist) = self%energy(ist) + self%weightL(ist,iL) * self%enLtot(iL)
       end do
     end do
 
@@ -207,23 +212,23 @@ module dftbp_reksen
 
     integer :: ii, nOrb
 
-    nOrb = size(self%over,dim=1)
+    nOrb = size(self%overSqr,dim=1)
 
     allocate(orbFON(nOrb))
     allocate(tmpOver(nOrb,nOrb))
     allocate(tmpMat(nOrb,nOrb))
 
     call getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
-        & iSparseStart, img2CentCell, self%ham_L, self%ham_sp_L, &
-        & self%weight, self%filling_L, self%Nc, self%Na, self%Lpaired, &
-        & self%tRangeSep, orbFON, self%fock_Fc, self%fock_Fa)
+        & iSparseStart, img2CentCell, self%hamSqrL, self%hamSpL, &
+        & self%weight, self%fillingL, self%Nc, self%Na, self%Lpaired, &
+        & self%tRangeSep, orbFON, self%fockFc, self%fockFa)
 
-    call matAO2MO(self%fock_Fc, eigenvecs(:,:,1))
+    call matAO2MO(self%fockFc, eigenvecs(:,:,1))
     do ii = 1, self%Na
-      call matAO2MO(self%fock_Fa(:,:,ii), eigenvecs(:,:,1))
+      call matAO2MO(self%fockFa(:,:,ii), eigenvecs(:,:,1))
     end do
 
-    call getPseudoFock_(self%fock_Fc, self%fock_Fa, orbFON, &
+    call getPseudoFock_(self%fockFc, self%fockFa, orbFON, &
         & self%Nc, self%Na, self%fock)
 
     call levelShifting_(self%fock, self%shift, self%Nc, self%Na)
@@ -259,7 +264,7 @@ module dftbp_reksen
     allocate(tmpVec(nOrb,nOrb))
 
     tmpVec(:,:) = 0.0_dp
-    call gemm(tmpVec,eigenvecs,eigvecsFock,1.0_dp,0.0_dp,'N','N')
+    call gemm(tmpVec, eigenvecs, eigvecsFock)
     eigenvecs(:,:) = tmpVec
 
   end subroutine guessNewEigvecs
@@ -348,8 +353,8 @@ module dftbp_reksen
     allocate(tmpEn(self%nstates))
 
     call getLagrangians_(env, denseDesc, neighbourList, nNeighbourSK, &
-        & iSparseStart, img2CentCell, eigenvecs(:,:,1), self%ham_L, &
-        & self%ham_sp_L, self%weight, self%filling_L, self%Nc, self%Na, &
+        & iSparseStart, img2CentCell, eigenvecs(:,:,1), self%hamSqrL, &
+        & self%hamSpL, self%weight, self%fillingL, self%Nc, self%Na, &
         & self%Lpaired, self%tRangeSep, Wab)
 
     if (self%tSSR22) then
@@ -403,37 +408,37 @@ module dftbp_reksen
 
     integer :: iL, iSpin, ii, nSpin, Nc
 
-    nSpin = size(self%filling_L,dim=2)
+    nSpin = size(self%fillingL,dim=2)
     Nc = self%Nc
 
     ! Filling of core orbitals
     do iL = 1, self%Lmax
       do iSpin = 1, nSpin
         do ii = 1, Nc
-          self%filling_L(ii,iSpin,iL) = 1.0_dp
+          self%fillingL(ii,iSpin,iL) = 1.0_dp
         end do
       end do
     end do
 
     ! Filling of active orbitals for REKS(2,2) case
     ! 1 = a: up + down
-    self%filling_L(Nc+1,1,1) = 1.0_dp
-    self%filling_L(Nc+1,2,1) = 1.0_dp
+    self%fillingL(Nc+1,1,1) = 1.0_dp
+    self%fillingL(Nc+1,2,1) = 1.0_dp
     ! 2 = b: up + down
-    self%filling_L(Nc+2,1,2) = 1.0_dp
-    self%filling_L(Nc+2,2,2) = 1.0_dp
+    self%fillingL(Nc+2,1,2) = 1.0_dp
+    self%fillingL(Nc+2,2,2) = 1.0_dp
     ! 3 = a: up, b: down
-    self%filling_L(Nc+1,1,3) = 1.0_dp
-    self%filling_L(Nc+2,2,3) = 1.0_dp
+    self%fillingL(Nc+1,1,3) = 1.0_dp
+    self%fillingL(Nc+2,2,3) = 1.0_dp
     ! 4 = a: down, b: up
-    self%filling_L(Nc+2,1,4) = 1.0_dp
-    self%filling_L(Nc+1,2,4) = 1.0_dp
+    self%fillingL(Nc+2,1,4) = 1.0_dp
+    self%fillingL(Nc+1,2,4) = 1.0_dp
     ! 5 = a: up, b: up
-    self%filling_L(Nc+1,1,5) = 1.0_dp
-    self%filling_L(Nc+2,1,5) = 1.0_dp
+    self%fillingL(Nc+1,1,5) = 1.0_dp
+    self%fillingL(Nc+2,1,5) = 1.0_dp
     ! 6 = a: down, b: down
-    self%filling_L(Nc+1,2,6) = 1.0_dp
-    self%filling_L(Nc+2,2,6) = 1.0_dp
+    self%fillingL(Nc+1,2,6) = 1.0_dp
+    self%fillingL(Nc+2,2,6) = 1.0_dp
 
   end subroutine getFillingL22_
 
@@ -451,29 +456,29 @@ module dftbp_reksen
 
     fac = getFactor(n_a, n_b, self%delta)
 
-    self%weight_L(1,1) = 0.5_dp*n_a
-    self%weight_L(1,2) = 0.5_dp*n_b
-    self%weight_L(1,3) = fac
-    self%weight_L(1,4) = fac
-    self%weight_L(1,5) = -fac
-    self%weight_L(1,6) = -fac
+    self%weightL(1,1) = 0.5_dp*n_a
+    self%weightL(1,2) = 0.5_dp*n_b
+    self%weightL(1,3) = fac
+    self%weightL(1,4) = fac
+    self%weightL(1,5) = -fac
+    self%weightL(1,6) = -fac
 
     if(self%nstates >= 2) then
-      self%weight_L(2,1) = 0.0_dp
-      self%weight_L(2,2) = 0.0_dp
-      self%weight_L(2,3) = 1.0_dp
-      self%weight_L(2,4) = 1.0_dp
-      self%weight_L(2,5) = -0.5_dp
-      self%weight_L(2,6) = -0.5_dp
+      self%weightL(2,1) = 0.0_dp
+      self%weightL(2,2) = 0.0_dp
+      self%weightL(2,3) = 1.0_dp
+      self%weightL(2,4) = 1.0_dp
+      self%weightL(2,5) = -0.5_dp
+      self%weightL(2,6) = -0.5_dp
     end if
 
     if(self%nstates >= 3) then
-      self%weight_L(3,1) = 0.5_dp*n_b
-      self%weight_L(3,2) = 0.5_dp*n_a
-      self%weight_L(3,3) = -fac
-      self%weight_L(3,4) = -fac
-      self%weight_L(3,5) = fac
-      self%weight_L(3,6) = fac
+      self%weightL(3,1) = 0.5_dp*n_b
+      self%weightL(3,2) = 0.5_dp*n_a
+      self%weightL(3,3) = -fac
+      self%weightL(3,4) = -fac
+      self%weightL(3,5) = fac
+      self%weightL(3,6) = fac
     end if
 
     !> Decide which state will be optimized
@@ -482,7 +487,7 @@ module dftbp_reksen
     self%weight(:) = 0.0_dp
     do iL = 1, self%Lmax
       do ist = 1, self%SAstates
-        self%weight(iL) = self%weight(iL) + self%SAweight(ist)*self%weight_L(ist,iL)
+        self%weight(iL) = self%weight(iL) + self%SAweight(ist)*self%weightL(ist,iL)
       end do
     end do
 
@@ -565,8 +570,8 @@ module dftbp_reksen
 
   !> Calculate Fc and Fa from Hamiltonian of each microstate
   subroutine getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
-      & iSparseStart, img2CentCell, ham_L, ham_sp_L, weight, filling_L, &
-      & Nc, Na, Lpaired, tRangeSep, orbFON, Fc_ao, Fa_ao)
+      & iSparseStart, img2CentCell, hamSqrL, hamSpL, weight, fillingL, &
+      & Nc, Na, Lpaired, tRangeSep, orbFON, Fc, Fa)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -590,22 +595,22 @@ module dftbp_reksen
     real(dp), intent(inout) :: orbFON(:)
 
     !> dense fock matrix for core orbitals
-    real(dp), intent(out) :: Fc_ao(:,:)
+    real(dp), intent(out) :: Fc(:,:)
 
     !> dense fock matrix for active orbitals
-    real(dp), intent(out) :: Fa_ao(:,:,:)
+    real(dp), intent(out) :: Fa(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(inout) :: ham_L(:,:,:,:)
+    real(dp), intent(inout) :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: ham_sp_L(:,:,:)
+    real(dp), intent(in) :: hamSpL(:,:,:)
 
-    !> Weight of each microstate for state to be optimized; weight = weight_L * SAweight
+    !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
 
     !> Filling for each microstate
-    real(dp), intent(in) :: filling_L(:,:,:)
+    real(dp), intent(in) :: fillingL(:,:,:)
 
     !> Number of core orbitals
     integer, intent(in) :: Nc
@@ -623,31 +628,33 @@ module dftbp_reksen
 
     integer :: iL, ii, jj, Lmax, nOrb
 
-    nOrb = size(Fc_ao,dim=1)
+    nOrb = size(Fc,dim=1)
     Lmax = size(weight,dim=1)
 
-    if (.not. tRangeSep) ALLOCATE(tmpHam(nOrb,nOrb))
+    if (.not. tRangeSep) then
+      allocate(tmpHam(nOrb,nOrb))
+    end if
 
-    call fockFON_(filling_L, weight, orbFON)
+    call fockFON_(fillingL, weight, orbFON)
 
-    Fc_ao(:,:) = 0.0_dp
-    Fa_ao(:,:,:) = 0.0_dp
+    Fc(:,:) = 0.0_dp
+    Fa(:,:,:) = 0.0_dp
     do iL = 1, Lmax
 
       if (tRangeSep) then
         ! fill the remaining symmtric part
-        ! ham_L has (my_ud) component
+        ! hamSqrL has (my_ud) component
         do jj = 1, nOrb
           do ii = jj + 1, nOrb
-            ham_L(jj,ii,1,iL) = ham_L(ii,jj,1,iL)
+            hamSqrL(jj,ii,1,iL) = hamSqrL(ii,jj,1,iL)
           end do
         end do
       else
         tmpHam(:,:) = 0.0_dp
         ! convert from sparse to dense for ham_sp_L in AO basis
-        ! ham_sp_L has (my_ud) component
+        ! hamSpL has (my_ud) component
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
-        call unpackHS(tmpHam, ham_sp_L(:,1,iL), neighbourList%iNeighbour, nNeighbourSK, &
+        call unpackHS(tmpHam, hamSpL(:,1,iL), neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
         ! fill the remaining symmtric part
@@ -660,13 +667,13 @@ module dftbp_reksen
 
       ! compute the Fock operator with core, r, s orbitals in AO basis
       if (tRangeSep) then
-        call fockFcAO_(ham_L(:,:,1,iL), weight, Lpaired, iL, Fc_ao)
-        call fockFaAO_(ham_L(:,:,1,iL), weight, filling_L, orbFON, &
-            & Nc, Na, Lpaired, iL, Fa_ao)
+        call fockFcAO_(hamSqrL(:,:,1,iL), weight, Lpaired, iL, Fc)
+        call fockFaAO_(hamSqrL(:,:,1,iL), weight, fillingL, orbFON, &
+            & Nc, Na, Lpaired, iL, Fa)
       else
-        call fockFcAO_(tmpHam, weight, Lpaired, iL, Fc_ao)
-        call fockFaAO_(tmpHam, weight, filling_L, orbFON, &
-            & Nc, Na, Lpaired, iL, Fa_ao)
+        call fockFcAO_(tmpHam, weight, Lpaired, iL, Fc)
+        call fockFaAO_(tmpHam, weight, fillingL, orbFON, &
+            & Nc, Na, Lpaired, iL, Fa)
       end if
 
     end do
@@ -675,16 +682,16 @@ module dftbp_reksen
 
 
   !> Calculate pseudo-fock matrix from Fc and Fa
-  subroutine getPseudoFock_(fock_Fc, fock_Fa, orbFON, Nc, Na, fock)
+  subroutine getPseudoFock_(Fc, Fa, orbFON, Nc, Na, fock)
 
     !> dense pseudo-fock matrix
     real(dp), intent(out) :: fock(:,:)
 
     !> dense fock matrix for core orbitals
-    real(dp), intent(in) :: fock_Fc(:,:)
+    real(dp), intent(in) :: Fc(:,:)
 
     !> dense fock matrix for active orbitals
-    real(dp), intent(in) :: fock_Fa(:,:,:)
+    real(dp), intent(in) :: Fa(:,:,:)
 
     !> state-averaged occupation numbers
     real(dp), intent(in) :: orbFON(:)
@@ -703,28 +710,28 @@ module dftbp_reksen
     fock(:,:) = 0.0_dp
     do ii = 1, Nc
       do jj = ii, Nc
-        fock(ii,jj) = fock_Fc(ii,jj)
+        fock(ii,jj) = Fc(ii,jj)
       end do
       do jj = Nc + 1, Nc + Na
         ind1 = jj - Nc
-        call fockFijMO_(res, fock_Fc(ii,jj), fock_Fa(ii,jj,ind1), &
+        call fockFijMO_(res, Fc(ii,jj), Fa(ii,jj,ind1), &
             & orbFON(ii), orbFON(jj))
         fock(ii,jj) = res
       end do
       do jj = Nc + Na + 1, nOrb
-        fock(ii,jj) = fock_Fc(ii,jj)
+        fock(ii,jj) = Fc(ii,jj)
       end do
     end do
 
     do jj = Nc + Na + 1, nOrb
       do ii = Nc + 1, Nc + Na
         ind1 = ii - Nc
-        call fockFijMO_(res, fock_Fc(jj,ii), fock_Fa(jj,ii,ind1), &
+        call fockFijMO_(res, Fc(jj,ii), Fa(jj,ii,ind1), &
             & orbFON(jj), orbFON(ii))
         fock(ii,jj) = res
       end do
       do ii = jj, nOrb
-        fock(jj,ii) = fock_Fc(jj,ii)
+        fock(jj,ii) = Fc(jj,ii)
       end do
     end do
 
@@ -733,9 +740,9 @@ module dftbp_reksen
       do jj = Nc + 1, Nc + Na
         ind2 = jj - Nc
         if (ii == jj) then
-          fock(ii,jj) = fock_Fa(ii,jj,ind1)
+          fock(ii,jj) = Fa(ii,jj,ind1)
         else
-          call fockFijMO_(res, fock_Fa(ii,jj,ind1), fock_Fa(ii,jj,ind2), &
+          call fockFijMO_(res, Fa(ii,jj,ind1), Fa(ii,jj,ind2), &
               & orbFON(ii), orbFON(jj))
           fock(ii,jj) = res
         end if
@@ -786,15 +793,15 @@ module dftbp_reksen
 
 
   !> Calculate state-averaged FONs
-  subroutine fockFON_(filling_L, weight, orbFON)
+  subroutine fockFON_(fillingL, weight, orbFON)
 
     !> state-averaged occupation numbers
     real(dp), intent(out) :: orbFON(:)
 
     !> Filling for each microstate
-    real(dp), intent(in) :: filling_L(:,:,:)
+    real(dp), intent(in) :: fillingL(:,:,:)
 
-    !> Weight of each microstate for state to be optimized; weight = weight_L * SAweight
+    !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
 
     integer :: Lmax, iL
@@ -804,22 +811,22 @@ module dftbp_reksen
     orbFON(:) = 0.0_dp
     do iL = 1, Lmax
       orbFON(:) = orbFON(:) + 0.5_dp * weight(iL) * &
-          & ( filling_L(:,1,iL) + filling_L(:,2,iL) )
+          & ( fillingL(:,1,iL) + fillingL(:,2,iL) )
     end do
 
   end subroutine fockFON_
 
 
   !> Calculate fock matrix for core orbitals in AO basis
-  subroutine fockFcAO_(ham, weight, Lpaired, iL, Fc_ao)
+  subroutine fockFcAO_(hamSqr, weight, Lpaired, iL, Fc)
 
     !> dense fock matrix for core orbitals
-    real(dp), intent(out) :: Fc_ao(:,:)
+    real(dp), intent(out) :: Fc(:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: ham(:,:)
+    real(dp), intent(in) :: hamSqr(:,:)
 
-    !> Weight of each microstate for state to be optimized; weight = weight_L * SAweight
+    !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
 
     !> Number of spin-paired microstates
@@ -829,14 +836,14 @@ module dftbp_reksen
     integer, intent(in) :: iL
 
     if (iL <= Lpaired) then
-      Fc_ao(:,:) = Fc_ao(:,:) + 0.5_dp * ham(:,:) * &
+      Fc(:,:) = Fc + 0.5_dp * hamSqr * &
           & ( weight(iL) + weight(iL) )
     else
       if (mod(iL,2) == 1) then
-        Fc_ao(:,:) = Fc_ao(:,:) + 0.5_dp * ham(:,:) * &
+        Fc(:,:) = Fc + 0.5_dp * hamSqr * &
             & ( weight(iL) + weight(iL+1) )
       else
-        Fc_ao(:,:) = Fc_ao(:,:) + 0.5_dp * ham(:,:) * &
+        Fc(:,:) = Fc + 0.5_dp * hamSqr * &
             & ( weight(iL) + weight(iL-1) )
       end if
     end if
@@ -845,20 +852,20 @@ module dftbp_reksen
 
 
   !> Calculate fock matrix for active orbitals in AO basis
-  subroutine fockFaAO_(ham, weight, filling_L, orbFON, Nc, Na, &
-      & Lpaired, iL, Fa_ao)
+  subroutine fockFaAO_(hamSqr, weight, fillingL, orbFON, Nc, Na, &
+      & Lpaired, iL, Fa)
 
     !> dense fock matrix for active orbitals
-    real(dp), intent(out) :: Fa_ao(:,:,:)
+    real(dp), intent(out) :: Fa(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: ham(:,:)
+    real(dp), intent(in) :: hamSqr(:,:)
 
-    !> Weight of each microstate for state to be optimized; weight = weight_L * SAweight
+    !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
 
     !> Filling for each microstate
-    real(dp), intent(in) :: filling_L(:,:,:)
+    real(dp), intent(in) :: fillingL(:,:,:)
 
     !> state-averaged occupation numbers
     real(dp), intent(in) :: orbFON(:)
@@ -880,15 +887,15 @@ module dftbp_reksen
     do ind = 1, Na
       ind_a = Nc + ind
       if (iL <= Lpaired) then
-        Fa_ao(:,:,ind) = Fa_ao(:,:,ind) + 0.5_dp * filling_L(ind_a,1,iL) * &
-            & ( weight(iL) + weight(iL) ) * ham(:,:) / orbFON(ind_a)
+        Fa(:,:,ind) = Fa(:,:,ind) + 0.5_dp * fillingL(ind_a,1,iL) * &
+            & ( weight(iL) + weight(iL) ) * hamSqr / orbFON(ind_a)
       else
         if (mod(iL,2) == 1) then
-          Fa_ao(:,:,ind) = Fa_ao(:,:,ind) + 0.5_dp * filling_L(ind_a,1,iL) * &
-              & ( weight(iL) + weight(iL+1) ) * ham(:,:) / orbFON(ind_a)
+          Fa(:,:,ind) = Fa(:,:,ind) + 0.5_dp * fillingL(ind_a,1,iL) * &
+              & ( weight(iL) + weight(iL+1) ) * hamSqr / orbFON(ind_a)
         else
-          Fa_ao(:,:,ind) = Fa_ao(:,:,ind) + 0.5_dp * filling_L(ind_a,1,iL) * &
-              & ( weight(iL) + weight(iL-1) ) * ham(:,:) / orbFON(ind_a)
+          Fa(:,:,ind) = Fa(:,:,ind) + 0.5_dp * fillingL(ind_a,1,iL) * &
+              & ( weight(iL) + weight(iL-1) ) * hamSqr / orbFON(ind_a)
         end if
       end if
     end do
@@ -926,8 +933,8 @@ module dftbp_reksen
 
   !> Calculate converged Lagrangian values
   subroutine getLagrangians_(env, denseDesc, neighbourList, nNeighbourSK, &
-      & iSparseStart, img2CentCell, eigenvecs, ham_L, ham_sp_L, weight, &
-      & filling_L, Nc, Na, Lpaired, tRangeSep, Wab)
+      & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, weight, &
+      & fillingL, Nc, Na, Lpaired, tRangeSep, Wab)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -951,16 +958,16 @@ module dftbp_reksen
     real(dp), intent(in) :: eigenvecs(:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(inout) :: ham_L(:,:,:,:)
+    real(dp), intent(inout) :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), intent(inout) :: ham_sp_L(:,:,:)
+    real(dp), intent(inout) :: hamSpL(:,:,:)
 
-    !> Weight of each microstate for state to be optimized; weight = weight_L * SAweight
+    !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
 
     !> Filling for each microstate
-    real(dp), intent(in) :: filling_L(:,:,:)
+    real(dp), intent(in) :: fillingL(:,:,:)
 
     !> Number of core orbitals
     integer, intent(in) :: Nc
@@ -985,10 +992,12 @@ module dftbp_reksen
     integer :: ia, ib, ist, nActPair
 
     nOrb = size(eigenvecs,dim=1)
-    Lmax = size(filling_L,dim=3)
+    Lmax = size(fillingL,dim=3)
     nActPair = Na * (Na - 1) / 2
 
-    if (.not. tRangeSep) allocate(tmpHam(nOrb,nOrb))
+    if (.not. tRangeSep) then
+      allocate(tmpHam(nOrb,nOrb))
+    end if
     allocate(tmpHamL(nActPair,1,Lmax))
 
     tmpHamL(:,:,:) = 0.0_dp
@@ -1005,18 +1014,18 @@ module dftbp_reksen
       do iL = 1, Lmax
 
         if (tRangeSep) then
-          ! convert ham_L from AO basis to MO basis
-          ! ham_L has (my_ud) component
+          ! convert hamSqrL from AO basis to MO basis
+          ! hamSqrL has (my_ud) component
           if (ist == 1) then
-            call matAO2MO(ham_L(:,:,1,iL), eigenvecs)
+            call matAO2MO(hamSqrL(:,:,1,iL), eigenvecs)
           end if
-          tmpHamL(ist,1,iL) = ham_L(Nc+ia,Nc+ib,1,iL)
+          tmpHamL(ist,1,iL) = hamSqrL(Nc+ia,Nc+ib,1,iL)
         else
           tmpHam(:,:) = 0.0_dp
-          ! convert from sparse to dense for ham_sp_L in AO basis
-          ! ham_sp_L has (my_ud) component
+          ! convert from sparse to dense for hamSpL in AO basis
+          ! hamSpL has (my_ud) component
           call env%globalTimer%startTimer(globalTimers%sparseToDense)
-          call unpackHS(tmpHam, ham_sp_L(:,1,iL), &
+          call unpackHS(tmpHam, hamSpL(:,1,iL), &
               & neighbourList%iNeighbour, nNeighbourSK, &
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
           call env%globalTimer%stopTimer(globalTimers%sparseToDense)
@@ -1039,20 +1048,20 @@ module dftbp_reksen
       Wab(ist,2) = 0.0_dp
       do iL = 1, Lmax
         if (iL <= Lpaired) then
-          Wab(ist,1) = Wab(ist,1) + filling_L(Nc+ia,1,iL) * &
+          Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
               & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL) )
-          Wab(ist,2) = Wab(ist,2) + filling_L(Nc+ib,1,iL) * &
+          Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
               & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL) )
         else
           if (mod(iL,2) == 1) then
-            Wab(ist,1) = Wab(ist,1) + filling_L(Nc+ia,1,iL) * &
+            Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL+1) )
-            Wab(ist,2) = Wab(ist,2) + filling_L(Nc+ib,1,iL) * &
+            Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL+1) )
           else
-            Wab(ist,1) = Wab(ist,1) + filling_L(Nc+ia,1,iL) * &
+            Wab(ist,1) = Wab(ist,1) + fillingL(Nc+ia,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL-1) )
-            Wab(ist,2) = Wab(ist,2) + filling_L(Nc+ib,1,iL) * &
+            Wab(ist,2) = Wab(ist,2) + fillingL(Nc+ib,1,iL) * &
                 & tmpHamL(ist,1,iL) * ( weight(iL) + weight(iL-1) )
           end if
         end if

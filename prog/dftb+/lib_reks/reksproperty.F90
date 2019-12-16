@@ -5,9 +5,6 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-! TODO
-!!!!#:include 'common.fypp'
-
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -25,19 +22,21 @@ module dftbp_reksproperty
   use dftbp_densitymatrix
   use dftbp_mainio
   use dftbp_message
+  use dftbp_rekscommon
   use dftbp_reksvar
 
   implicit none
 
   private
 
-  public :: getUnrelaxedDMandTDP
+  public :: getUnrelaxedDMandTDP, getRelaxedDM, getRelaxedDML
   public :: getDipoleIntegral, getDipoleMomentMatrix, getReksOsc
 
   contains
 
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
+  ! TODO : variable name should be changed!
   subroutine getUnrelaxedDMandTDP(eigenvecs, self)
 
     !> Eigenvectors on eixt
@@ -113,7 +112,7 @@ module dftbp_reksproperty
             ii = self%Lstate - 1
           end if
         end if
-        P_X_o(:,:,1) = self%dm_L(:,:,1,ii)
+        P_X_o(:,:,1) = self%rhoSqrL(:,:,1,ii)
       end if
     end if
 
@@ -129,30 +128,30 @@ module dftbp_reksproperty
 
     ! Final unrelaxed density matrix for target state
     if (self%useSSR == 1) then
-      ! self%P_m_o is unrelaxed density matrix for target SSR state
+      ! self%unrelRhoSqr is unrelaxed density matrix for target SSR state
       kst = 0
-      self%P_m_o(:,:) = 0.0_dp
+      self%unrelRhoSqr(:,:) = 0.0_dp
       do ist = 1, self%nstates
         do jst = ist, self%nstates
           if (ist == jst) then
-            self%P_m_o(:,:) = self%P_m_o(:,:) + self%eigvecsSSR(ist,self%rstate)**2 * P_X_o(:,:,ist)
+            self%unrelRhoSqr(:,:) = self%unrelRhoSqr + self%eigvecsSSR(ist,self%rstate)**2 * P_X_o(:,:,ist)
           else
             kst = kst + 1
-            self%P_m_o(:,:) = self%P_m_o(:,:) + 2.0_dp * self%eigvecsSSR(ist,self%rstate) * &
+            self%unrelRhoSqr(:,:) = self%unrelRhoSqr + 2.0_dp * self%eigvecsSSR(ist,self%rstate) * &
                 & self%eigvecsSSR(jst,self%rstate) * P_X_del_o(:,:,kst)
           end if
         end do
       end do
     else
-      ! self%P_m_o is unrelaxed density matrix for target SA-REKS or L-th state
-      self%P_m_o(:,:) = P_X_o(:,:,1)
+      ! self%unrelRhoSqr is unrelaxed density matrix for target SA-REKS or L-th state
+      self%unrelRhoSqr(:,:) = P_X_o(:,:,1)
     end if
 
     ! Final unrelaxed transition density matrix between states
     if (self%tTDP .and. self%Lstate == 0) then
       if (self%useSSR == 1) then
-        ! self%P_m_del_o is unrelaxed transition density matrix between SSR states
-        self%P_m_del_o(:,:,:) = 0.0_dp
+        ! self%unrelTdm is unrelaxed transition density matrix between SSR states
+        self%unrelTdm(:,:,:) = 0.0_dp
         do lst = 1, nstHalf
 
           ! (ia,ib) = (1,2) (1,3) (2,3) ...
@@ -167,12 +166,12 @@ module dftbp_reksproperty
           do ist = 1, self%nstates
             do jst = ist, self%nstates
               if (ist == jst) then
-                self%P_m_del_o(:,:,lst) = self%P_m_del_o(:,:,lst) + P_X_o(:,:,ist) &
+                self%unrelTdm(:,:,lst) = self%unrelTdm(:,:,lst) + P_X_o(:,:,ist) &
                     & * self%eigvecsSSR(ist,ia) * self%eigvecsSSR(ist,ib)
               else
                 kst = kst + 1
                 ! <PPS|OSS> = <OSS|PPS>, etc
-                self%P_m_del_o(:,:,lst) = self%P_m_del_o(:,:,lst) + P_X_del_o(:,:,kst) &
+                self%unrelTdm(:,:,lst) = self%unrelTdm(:,:,lst) + P_X_del_o(:,:,kst) &
                     & * ( self%eigvecsSSR(ist,ia) * self%eigvecsSSR(jst,ib) &
                     & + self%eigvecsSSR(jst,ia) * self%eigvecsSSR(ist,ib) )
               end if
@@ -181,8 +180,8 @@ module dftbp_reksproperty
 
         end do
       else
-        ! self%P_m_del_o is unrelaxed transition density matrix between SA-REKS states
-        self%P_m_del_o(:,:,:) = P_X_del_o(:,:,:)
+        ! self%unrelTdm is unrelaxed transition density matrix between SA-REKS states
+        self%unrelTdm(:,:,:) = P_X_del_o(:,:,:)
       end if
     end if
 
@@ -191,9 +190,9 @@ module dftbp_reksproperty
     ! P: density matrix, C: eigenvector, N: occupation number,
     ! T: transpose(real), I: identity matrix.
     tmpMat(:,:) = 0.0_dp
-    call gemm(tmpMat, self%P_m_o, self%over)
+    call gemm(tmpMat, self%unrelRhoSqr, self%overSqr)
     tmpRho(:,:) = 0.0_dp
-    call gemm(tmpRho, self%over, tmpMat)
+    call gemm(tmpRho, self%overSqr, tmpMat)
     tmpMat(:,:) = 0.0_dp
     call gemm(tmpMat, tmpRho, eigenvecs)
     tmpRho(:,:) = 0.0_dp
@@ -203,6 +202,279 @@ module dftbp_reksproperty
         & self%Lstate, self%Nc, self%Na)
 
   end subroutine getUnrelaxedDMandTDP
+
+
+  !> Calculate relaxed density for target SA-REKS or SSR state
+  subroutine getRelaxedDM(eigenvecs, overSqr, unrelRhoSqr, ZT, omega, &
+      & FONs, eigvecsSSR, SAweight, Rab, G1, Nc, Na, rstate, useSSR, &
+      & tNAC, tSSR22, tSSR44, relRhoSqr)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> Dense overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> unrelaxed density matrix for target SSR or SA-REKS state
+    real(dp), intent(in) :: unrelRhoSqr(:,:)
+
+    !> solution of A * Z = X equation with X is XT
+    real(dp), intent(in) :: ZT(:,:)
+
+    !> anti-symmetric matrices originated from Hamiltonians
+    real(dp), intent(in) :: omega(:)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> eigenvectors from SA-REKS state
+    real(dp), intent(in) :: eigvecsSSR(:,:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> state-interaction term used in SSR gradients
+    real(dp), intent(in) :: Rab(:,:)
+
+    !> constant calculated from hessian and energy of microstates
+    real(dp), intent(in) :: G1
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Calculate nonadiabatic coupling vectors
+    logical, intent(in) :: tNAC
+
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    !> relaxed density matrix for target SSR or SA-REKS state
+    real(dp), intent(out) :: relRhoSqr(:,:)
+
+    real(dp), allocatable :: resRho(:,:)
+    real(dp), allocatable :: resTdm(:,:,:)
+    real(dp), allocatable :: tmpRho(:,:)
+    real(dp), allocatable :: tmpMat(:,:)
+
+    real(dp) :: fp, fq
+    integer :: Nv, superN, nOrb, nstates, nstHalf
+    integer :: ii, ist, jst, kst, pq, p, q
+
+    superN = size(ZT,dim=1)
+    nOrb = size(eigenvecs,dim=1)
+    Nv = nOrb - Nc - Na
+    nstates = size(eigvecsSSR,dim=1)
+    nstHalf = nstates * (nstates - 1) / 2
+
+    allocate(resRho(nOrb,nOrb))
+    if (useSSR == 1) then
+      allocate(resTdm(nOrb,nOrb,nstHalf))
+    end if
+    allocate(tmpRho(nOrb,nOrb))
+    allocate(tmpMat(nOrb,nOrb))
+
+    ! a part of transition density matrix originating from the
+    ! response of the orbital occupation numbers
+    if (useSSR == 1) then
+      resTdm(:,:,:) = 0.0_dp
+      if (tSSR22) then
+        call getResponseTDM22_(eigenvecs, FONs, SAweight, Rab, &
+            & G1, Nc, resTdm)
+      else if (tSSR44) then
+        call error("SSR(4,4) is not implemented yet")
+      end if
+    end if
+
+    ! a part of relaxed density matrix originating from the
+    ! response of the orbital occupation numbers with XT
+    resRho(:,:) = 0.0_dp
+
+    if (tNAC) then
+      ii = rstate
+    else
+      ii = 1
+    end if
+
+    tmpRho(:,:) = 0.0_dp
+    do pq = 1, superN
+      ! assign index p and q from pq
+      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)
+      ! assign average filling for pth orbital
+      call assignFilling(FONs, SAweight, Nc, p, tSSR22, tSSR44, fp)
+      ! assign average filling for qth orbital
+      call assignFilling(FONs, SAweight, Nc, q, tSSR22, tSSR44, fq)
+      tmpRho(p,q) = (fp - fq) * ZT(pq,ii)
+    end do
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, tmpRho, eigenvecs, transB='T')
+    tmpRho(:,:) = 0.0_dp
+    call gemm(tmpRho, eigenvecs, tmpMat)
+
+    if (tSSR22) then
+      call getResponseDM22_(eigenvecs, ZT(:,ii), tmpRho, omega, &
+          & SAweight, G1, Nc, resRho)
+    else if (tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+    ! Final relaxed density matrix for target state
+    relRhoSqr(:,:) = 0.0_dp
+    if (useSSR == 1) then
+      kst = 0
+      ! relRhoSqr is relaxed density matrix for target SSR state
+      relRhoSqr(:,:) = unrelRhoSqr - 2.0_dp * resRho
+      do ist = 1, nstates
+        do jst = ist + 1, nstates
+          kst = kst + 1
+          relRhoSqr(:,:) = relRhoSqr + 2.0_dp * eigvecsSSR(ist,rstate) * &
+              & eigvecsSSR(jst,rstate) * resTdm(:,:,kst)
+        end do
+      end do
+    else
+      ! relRhoSqr is relaxed density matrix for target SA-REKS state
+      relRhoSqr(:,:) = unrelRhoSqr - 2.0_dp * resRho
+    end if
+
+    ! just calculate C^T*S*P*S*C = N, this will be diagonal.
+    ! because, P = C*N*C^T, I = C^T*S*C, where
+    ! P: density matrix, C: eigenvector, N: occupation number,
+    ! T: transpose(real), I: identity matrix.
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, relRhosqr, overSqr)
+    tmpRho(:,:) = 0.0_dp
+    call gemm(tmpRho, overSqr, tmpMat)
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, tmpRho, eigenvecs)
+    tmpRho(:,:) = 0.0_dp
+    call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
+
+    call printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
+
+  end subroutine getRelaxedDM
+
+
+  !> Calculate relaxed density for target L-th microstate
+  subroutine getRelaxedDML(eigenvecs, rhoSqrL, overSqr, weight, &
+      & SAweight, unrelRhoSqr, RmatL, ZT, omega, weightIL, G1, orderRmatL, &
+      & Lpaired, Nc, Na, Lstate, tSSR22, tSSR44, relRhoSqr)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> Dense density matrix for each microstate
+    real(dp), intent(inout) :: rhoSqrL(:,:,:,:)
+
+    !> Dense overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
+    real(dp), intent(in) :: weight(:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> unrelaxed density matrix for target L-th state
+    real(dp), intent(in) :: unrelRhoSqr(:,:)
+
+    !> auxiliary matrix in AO basis related to SA-REKS term
+    real(dp), intent(in) :: RmatL(:,:,:,:)
+
+    !> solution of A * Z = X equation with X is XT
+    real(dp), intent(in) :: ZT(:,:)
+
+    !> anti-symmetric matrices originated from Hamiltonians
+    real(dp), intent(in) :: omega(:)
+
+    !> modified weight of each microstate
+    real(dp), intent(in) :: weightIL(:)
+
+    !> constant calculated from hessian and energy of microstates
+    real(dp), intent(in) :: G1
+
+    !> Ordering between RmatL and fillingL
+    integer, intent(in) :: orderRmatL(:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    !> relaxed density matrix for target L-th state
+    real(dp), intent(out) :: relRhoSqr(:,:)
+
+    real(dp), allocatable :: resRhoL(:,:)
+    real(dp), allocatable :: tmpRho(:,:)
+    real(dp), allocatable :: tmpMat(:,:)
+
+    integer :: nOrb, tmpL, ii, iL, Lmax
+
+    nOrb = size(rhoSqrL,dim=1)
+    Lmax = size(rhoSqrL,dim=4)
+
+    allocate(resRhoL(nOrb,nOrb))
+    allocate(tmpRho(nOrb,nOrb))
+    allocate(tmpMat(nOrb,nOrb))
+
+    ! resRhoL is response part for L-th state
+    resRhoL(:,:) = 0.0_dp
+
+    if (tSSR22) then
+      call getResponseDML22_(rhoSqrL, SAweight, ZT, omega, &
+          & weightIL, G1, Lpaired, resRhoL)
+    else if (tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+    do iL = 1, Lmax
+      ! find proper index for RmatL
+      tmpL = orderRmatL(iL)
+      resRhoL(:,:) = resRhoL - 2.0_dp * RmatL(:,:,tmpL,1) * weight(iL)
+    end do
+
+    ! relRhoSqr is relaxed density matrix for L-th state
+    relRhoSqr(:,:) = unrelRhoSqr + resRhoL
+
+    ! just calculate C^T*S*P*S*C = N, this will be diagonal.
+    ! because, P = C*N*C^T, I = C^T*S*C, where
+    ! P: density matrix, C: eigenvector, N: occupation number,
+    ! T: transpose(real), I: identity matrix.
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, relRhosqr, overSqr)
+    tmpRho(:,:) = 0.0_dp
+    call gemm(tmpRho, overSqr, tmpMat)
+    tmpMat(:,:) = 0.0_dp
+    call gemm(tmpMat, tmpRho, eigenvecs)
+    tmpRho(:,:) = 0.0_dp
+    call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
+
+    call printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
+
+  end subroutine getRelaxedDML
 
 
   !> Calculate dipole integral in DFTB formalism
@@ -269,6 +541,7 @@ module dftbp_reksproperty
 
 
   !> get the oscillator strength between the states
+  ! TODO : stdout
   subroutine getReksOsc(tdp, energy)
 
     !> transition dipole moment between states
@@ -390,6 +663,169 @@ module dftbp_reksproperty
     end if
 
   end subroutine getUnrelaxedTDM22_
+
+
+  !> Calculate response part of relaxed density for transition density contribution
+  subroutine getResponseTDM22_(eigenvecs, FONs, SAweight, Rab, &
+      & G1, Nc, resTdm)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> state-interaction term used in SSR gradients
+    real(dp), intent(in) :: Rab(:,:)
+
+    !> constant calculated from hessian and energy of microstates
+    real(dp), intent(in) :: G1
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> a part of transition density matrix originating from the
+    !> response of the orbital occupation numbers
+    real(dp), intent(out) :: resTdm(:,:,:)
+
+    real(dp) :: n_a, n_b
+    integer :: mu, nu, nOrb, a, b, nstHalf
+
+    nstHalf = size(resTdm,dim=3)
+    nOrb = size(eigenvecs,dim=1)
+
+    n_a = FONs(1,1); n_b = FONs(2,1)
+    a = Nc + 1; b = Nc + 2
+
+    do mu = 1, nOrb
+      do nu = 1, nOrb
+        resTdm(nu,mu,1) = resTdm(nu,mu,1) + SAweight(1) * &
+            & ( (n_a-1.0_dp)*dsqrt(n_a) - (n_b-1.0_dp)*dsqrt(n_b) ) * &
+            & eigenvecs(mu,a) * eigenvecs(nu,b)
+        resTdm(nu,mu,1) = resTdm(nu,mu,1) - 2.0_dp * G1 * &
+            & Rab(1,2) * ( eigenvecs(mu,a) * eigenvecs(nu,a) - &
+            & eigenvecs(mu,b) * eigenvecs(nu,b) )
+      end do
+    end do
+    if (nstHalf == 3) then
+      do mu = 1, nOrb
+        do nu = 1, nOrb
+          resTdm(nu,mu,3) = resTdm(nu,mu,3) + SAweight(1) * &
+              & ( (n_a-1.0_dp)*dsqrt(n_a) + (n_b-1.0_dp)*dsqrt(n_b) ) * &
+              & eigenvecs(mu,a) * eigenvecs(nu,b)
+          resTdm(nu,mu,3) = resTdm(nu,mu,3) - 2.0_dp * G1 * &
+              & Rab(2,3) * ( eigenvecs(mu,a) * eigenvecs(nu,a) - &
+              & eigenvecs(mu,b) * eigenvecs(nu,b) )
+        end do
+      end do
+    end if
+
+  end subroutine getResponseTDM22_
+
+
+  !> Calculate response part of relaxed density for density contribution
+  subroutine getResponseDM22_(eigenvecs, ZT, tmpZ, omega, &
+      & SAweight, G1, Nc, resRho)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:)
+
+    !> solution of A * Z = X equation with X is XT
+    real(dp), intent(in) :: ZT(:)
+
+    !> temporary matrix including ZT in MO basis
+    real(dp), intent(in) :: tmpZ(:,:)
+
+    !> anti-symmetric matrices originated from Hamiltonians
+    real(dp), intent(in) :: omega(:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> constant calculated from hessian and energy of microstates
+    real(dp), intent(in) :: G1
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> a part of relaxed density matrix originating from the
+    !> response of the orbital occupation numbers with XT
+    real(dp), intent(out) :: resRho(:,:)
+
+    real(dp) :: tmpValue
+    integer :: a, b, mu, nu, nOrb
+
+    nOrb = size(eigenvecs,dim=1)
+
+    a = Nc + 1
+    b = Nc + 2
+
+    tmpValue = sum(ZT(:)*omega(:))
+    do mu = 1, nOrb
+      do nu = 1, nOrb
+        resRho(nu,mu) = tmpZ(mu,nu) - SAweight(1) * G1 * tmpValue * &
+            & (eigenvecs(mu,a)*eigenvecs(nu,a) - eigenvecs(mu,b)*eigenvecs(nu,b))
+      end do
+    end do
+
+  end subroutine getResponseDM22_
+
+
+  !> Calculate response part of L-th relaxed density for density contribution
+  subroutine getResponseDML22_(rhoSqrL, SAweight, ZT, omega, &
+      & weightIL, G1, Lpaired, resRhoL)
+
+    !> Dense density matrix for each microstate
+    real(dp), intent(in) :: rhoSqrL(:,:,:,:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> solution of A * Z = X equation with X is XT
+    real(dp), intent(in) :: ZT(:,:)
+
+    !> anti-symmetric matrices originated from Hamiltonians
+    real(dp), intent(in) :: omega(:)
+
+    !> modified weight of each microstate
+    real(dp), intent(in) :: weightIL(:)
+
+    !> constant calculated from hessian and energy of microstates
+    real(dp), intent(in) :: G1
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
+    !> response part of relaxed density matrix for target L-th state
+    real(dp), intent(out) :: resRhoL(:,:)
+
+    real(dp) :: tmpValue
+    integer :: tmpL, iL, Lmax
+
+    Lmax = size(rhoSqrL,dim=4)
+
+    tmpValue = sum(ZT(:,1)*omega(:))
+    do iL = 1, Lmax
+
+      ! find proper index for down spin in rhoSqrL
+      if (iL <= Lpaired) then
+        tmpL = iL
+      else
+        if (mod(iL,2) == 1) then
+          tmpL = iL + 1
+        else
+          tmpL = iL - 1
+        end if
+      end if
+      resRhoL(:,:) = resRhoL + SAweight(1) * G1 * tmpValue * &
+          & weightIL(iL) * (rhoSqrL(:,:,1,iL) + rhoSqrL(:,:,1,tmpL))
+
+    end do
+
+  end subroutine getResponseDML22_
 
 
 end module dftbp_reksproperty

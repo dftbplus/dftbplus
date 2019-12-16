@@ -5,9 +5,6 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-! TODO
-!!!!#:include 'common.fypp'
-
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -23,7 +20,6 @@ module dftbp_reksvar
   use dftbp_accuracy
   use dftbp_message
   use dftbp_orbitals
-!  use dftbp_sccinit, only : initQFromShellChrg
 
   implicit none
 
@@ -80,9 +76,6 @@ module dftbp_reksvar
 
     !> Calculate transition dipole moments
     logical :: tTDP
-
-    !> Swap initial eigenvectors once compared with external file in 1st SCC cycle, 'eigenvec.bin'
-    logical :: tAdjustMO
 
     !> REKS: gradient variables
 
@@ -164,9 +157,6 @@ module dftbp_reksvar
     !> Calculate transition dipole moments
     logical :: tTDP
 
-    !> Swap initial eigenvectors once compared with external file in 1st SCC cycle, 'eigenvec.bin'
-    logical :: tAdjustMO
-
     !> REKS: gradient variables (input)
 
     !> Algorithms to calculate analytic gradients
@@ -197,6 +187,9 @@ module dftbp_reksvar
 
     !> Number of microstates
     integer :: Lmax
+
+    !> Number of independent R matrix used in gradient calculations
+    integer :: LmaxR
 
     !> Number of spin-paired microstates
     integer :: Lpaired
@@ -237,63 +230,73 @@ module dftbp_reksvar
     !> If external charges must be considered
     logical :: tExtChrg
 
+
     !> get atom index from AO index
+    ! TODO: getAtomIndex = get_iat
     integer, allocatable :: getAtomIndex(:)
 
     !> get dense AO index from sparse AO array
+    ! TODO: getDenseAO = get_AO_sp
     integer, allocatable :: getDenseAO(:,:)
 
     !> get dense atom index from sparse atom array
+    ! TODO: getDenseAtom = get_iat_sp
     integer, allocatable :: getDenseAtom(:,:)
 
+
     !> Dense overlap matrix
-    real(dp), allocatable :: over(:,:)
+    ! TODO: overSqr = over
+    real(dp), allocatable :: overSqr(:,:)
 
     !> Filling for each microstate
-    real(dp), allocatable :: filling_L(:,:,:)
+    real(dp), allocatable :: fillingL(:,:,:)
 
     !> Dense density matrix for each microstate
-    real(dp), allocatable :: dm_L(:,:,:,:)
+    ! TODO: rhoSqrL = dm_L
+    real(dp), allocatable :: rhoSqrL(:,:,:,:)
 
     !> Sparse density matrix for each microstate
-    real(dp), allocatable :: dm_sp_L(:,:,:)
+    ! TODO: rhoSpL = dm_sp_L
+    real(dp), allocatable :: rhoSpL(:,:,:)
 
     !> Dense delta density matrix for each microstate
-    real(dp), allocatable :: Deltadm_L(:,:,:,:)
+    ! TODO: deltaRhoSqrL = Deltadm_L
+    real(dp), allocatable :: deltaRhoSqrL(:,:,:,:)
 
     !> Mulliken population for each microstate
-    real(dp), allocatable :: qOutput_L(:,:,:,:)
-
-    ! TODO : it is not needed
-!    !> reference neutral atomic occupations
-!    real(dp), allocatable :: q0(:,:,:)
+    real(dp), allocatable :: qOutputL(:,:,:,:)
 
     !> charge per atomic shell for each microstate
-    real(dp), allocatable :: chargePerShell_L(:,:,:,:)
+    real(dp), allocatable :: chargePerShellL(:,:,:,:)
+
 
     !> internal atom and spin resolved potential
     real(dp), allocatable :: intAtom(:,:)
 
     !> internal shell and spin resolved potential for each microstate
-    real(dp), allocatable :: intShell_L(:,:,:,:)
+    real(dp), allocatable :: intShellL(:,:,:,:)
 
     !> internal block and spin resolved potential for each microstate
-    real(dp), allocatable :: intBlock_L(:,:,:,:,:)
+    real(dp), allocatable :: intBlockL(:,:,:,:,:)
+
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), allocatable :: ham_L(:,:,:,:)
+    ! TODO: hamSqrL = ham_L
+    real(dp), allocatable :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), allocatable :: ham_sp_L(:,:,:)
+    real(dp), allocatable :: hamSpL(:,:,:)
+
 
     !> Weight for each microstate per state
-    real(dp), allocatable :: weight_L(:,:)
+    real(dp), allocatable :: weightL(:,:)
 
     !> Weights used in state-averaging
     real(dp), allocatable :: SAweight(:)
 
-    !> Weight of each microstate for state to be optimized; weight = weight_L * SAweight
+    !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), allocatable :: weight(:)
+
 
     !> Fractional occupation numbers of active orbitals
     real(dp), allocatable :: FONs(:,:)
@@ -301,32 +304,35 @@ module dftbp_reksvar
     !> energy of states
     real(dp), allocatable :: energy(:)
 
+
     !> non SCC energy for each microstate
-    real(dp), allocatable :: en_L_nonscc(:)
+    real(dp), allocatable :: enLnonscc(:)
 
     !> SCC energy for each microstate
-    real(dp), allocatable :: en_L_scc(:)
+    real(dp), allocatable :: enLscc(:)
 
     !> spin-polarized energy for each microstate
-    real(dp), allocatable :: en_L_spin(:)
+    real(dp), allocatable :: enLspin(:)
 
     !> 3rd order SCC energy for each microstate
-    real(dp), allocatable :: en_L_3rd(:)
+    real(dp), allocatable :: enL3rd(:)
 
     !> Long-range corrected energy for each microstate
-    real(dp), allocatable :: en_L_fock(:)
+    real(dp), allocatable :: enLfock(:)
 
     !> total energy for each microstate
-    real(dp), allocatable :: en_L_tot(:)
+    real(dp), allocatable :: enLtot(:)
+
 
     !> dense fock matrix for core orbitals
-    real(dp), allocatable :: fock_Fc(:,:)
+    real(dp), allocatable :: fockFc(:,:)
 
     !> dense fock matrix for active orbitals
-    real(dp), allocatable :: fock_Fa(:,:,:)
+    real(dp), allocatable :: fockFa(:,:,:)
 
     !> dense pseudo-fock matrix
     real(dp), allocatable :: fock(:,:)
+
 
     !> eigenvectors from pesudo-fock matrix
     real(dp), allocatable :: eigvecsFock(:,:)
@@ -334,32 +340,198 @@ module dftbp_reksvar
     !> eigenvectors from SA-REKS state
     real(dp), allocatable :: eigvecsSSR(:,:)
 
-    !> Eigenvectors for previous step
-    ! TODO : this variable should be removed
-!    real(dp), allocatable :: eigvecs_be(:,:)
 
     !> REKS: gradient variables
 
-    !> Ordering between R_mat_L and filling_L
-    integer, allocatable :: orderRmat_L(:)
+    !> constant calculated from hessian and energy of microstates
+    real(dp) :: G1
+
+    !> Ordering between RmatL and fillingL
+    integer, allocatable :: orderRmatL(:)
+
+    !> Dense non-scc Hamiltonian derivative in AO basis
+    real(dp), allocatable :: Hderiv(:,:,:)
+
+    !> Dense overlap derivative in AO basis
+    real(dp), allocatable :: Sderiv(:,:,:)
+
+    !> sparse energy-weighted density matrix for each microstate
+    real(dp), allocatable :: edmSpL(:,:)
+
+    !> gradients for each microstate except orbital derivative terms
+    real(dp), allocatable :: gradL(:,:,:)
+
+
+    !> scc gamma integrals in AO basis
+    real(dp), allocatable :: GammaAO(:,:)
+
+    !> scc gamma derivative integrals
+    real(dp), allocatable :: GammaDeriv(:,:,:)
+
+    !> spin W in AO basis
+    real(dp), allocatable :: SpinAO(:,:)
+
+    !> long-range gamma integrals in AO basis
+    real(dp), allocatable :: LrGammaAO(:,:)
+
+    !> long-range gamma derivative integrals
+    real(dp), allocatable :: LrGammaDeriv(:,:,:)
+
+
+    !> Hartree-XC kernel with sparse form with same spin part
+    ! TODO: HxcSpS = Hxc_s_sp
+    real(dp), allocatable :: HxcSpS(:,:)
+
+    !> Hartree-XC kernel with sparse form with different spin part
+    ! TODO: HxcSpD = Hxc_d_sp
+    real(dp), allocatable :: HxcSpD(:,:)
+
+    !> Hartree-XC kernel with half dense form with same spin part
+    ! TODO: HxcHalfS = Hxc_s_half
+    real(dp), allocatable :: HxcHalfS(:,:)
+
+    !> Hartree-XC kernel with half dense form with different spin part
+    ! TODO: HxcHalfD = Hxc_d_half
+    real(dp), allocatable :: HxcHalfD(:,:)
+
+    !> Hartree-XC kernel with dense form with same spin part
+    ! TODO: HxcSqrS = Hxc_s
+    real(dp), allocatable :: HxcSqrS(:,:,:,:)
+
+    !> Hartree-XC kernel with dense form with different spin part
+    ! TODO: HxcSqrD = Hxc_d
+    real(dp), allocatable :: HxcSqrD(:,:,:,:)
+
+
+    !> modified weight of each microstate
+    real(dp), allocatable :: weightIL(:)
+
+    !> anti-symmetric matrices originated from Hamiltonians
+    real(dp), allocatable :: omega(:)
+
+    !> state-interaction term used in SSR gradients
+    real(dp), allocatable :: Rab(:,:)
+
+    !> super A hessian matrix in front of orbital derivatives
+    real(dp), allocatable :: Aall(:,:)
+
+    !> super A hessian matrix with one-electron term in front of orbital derivatives
+    real(dp), allocatable :: A1e(:,:)
+
+    !> preconditioner of super A hessian matrix with one-electron term in front of orbital derivatives
+    real(dp), allocatable :: A1ePre(:,:)
+
+
+    !> SA-REKS state vector
+    real(dp), allocatable :: XT(:,:)
+
+    !> state-interaction term vector
+    real(dp), allocatable :: XTdel(:,:)
+
+    !> auxiliary matrix in AO basis related to state-interaction term
+    real(dp), allocatable :: RdelL(:,:,:,:)
+
+    !> auxiliary matrix in AO basis related to state-interaction term
+    real(dp), allocatable :: ZdelL(:,:,:)
+
+    !> auxiliary matrix in AO basis related to state-interaction term
+    real(dp), allocatable :: Q1del(:,:,:)
+
+    !> auxiliary matrix in MO basis related to state-interaction term
+    real(dp), allocatable :: Q2del(:,:,:)
+
+
+    !> solution of A * Z = X equation with X is XT
+    real(dp), allocatable :: ZT(:,:)
+
+    !> auxiliary matrix in AO basis related to SA-REKS term
+    real(dp), allocatable :: RmatL(:,:,:,:)
+
+    !> auxiliary matrix in AO basis related to SA-REKS term
+    real(dp), allocatable :: ZmatL(:,:,:)
+
+    !> auxiliary matrix in MO basis related to SA-REKS term
+    real(dp), allocatable :: Q1mat(:,:)
+
+    !> auxiliary matrix in MO basis related to SA-REKS term
+    real(dp), allocatable :: Q2mat(:,:)
+
+
+    !> solution of A * Z = X equation with X is XTdel
+    real(dp), allocatable :: ZTdel(:,:)
+
+    !> auxiliary matrix in AO basis related to state-interaction term
+    real(dp), allocatable :: tmpRL(:,:,:,:)
+
+
+    !> gradient of SSR state
+    real(dp), allocatable :: SSRgrad(:,:,:)
+
+    !> gradient of SA-REKS state
+    real(dp), allocatable :: SAgrad(:,:,:)
+
+    !> gradient of state-interaction term
+    real(dp), allocatable :: SIgrad(:,:,:)
+
+    !> gradient of averaged state
+    real(dp), allocatable :: avgGrad(:,:)
+
+
+    !> difference gradient vector, G
+    real(dp), allocatable :: nacG(:,:,:)
+
+    !> nonadiabatic coupling vector, H
+    real(dp), allocatable :: nacH(:,:,:)
+
 
     !> REKS: relaxed density & transition dipole variables
 
     !> unrelaxed density matrix for target SSR or SA-REKS state
-    real(dp), allocatable :: P_m_o(:,:)
+    ! TODO: unrelaxedRhoSqr = P_m_o
+    real(dp), allocatable :: unrelRhoSqr(:,:)
 
     !> unrelaxed transition density matrix between SSR or SA-REKS states
-    real(dp), allocatable :: P_m_del_o(:,:,:)
+    ! TODO: unrelTdm = P_m_del_o
+    real(dp), allocatable :: unrelTdm(:,:,:)
+
+    !> relaxed density matrix for target SSR or SA-REKS state
+    ! TODO: relaxedRhoSqr = P_m
+    real(dp), allocatable :: relRhoSqr(:,:)
 
     !> transition dipole moment between states
     real(dp), allocatable :: tdp(:,:)
+
+
+    !> REKS: point charges (QM/MM) variables
+
+    !> coordinates and charges of external point charges
+    real(dp), allocatable :: extCharges(:,:)
+
+
+    !> REKS: periodic variables
+
+    !> parameter for Ewald
+    real(dp) :: alpha
+
+    !> parameter for cell volume
+    real(dp) :: volume
+
+    !> real lattice points for Ewald-sum
+    real(dp), allocatable :: rVec(:,:)
+
+    !> lattice points for reciprocal Ewald
+    real(dp), allocatable :: gVec(:,:)
+
+
+    !> REKS: stress variables
+
+    !> electronic stress part for lattice optimization
+    real(dp), allocatable :: elecStressL(:,:,:)
 
   end type TReksCalc
 
   contains
 
-!  subroutine REKS_init(self, ini, orb, referenceN0, species0, spinW, nSpin,&
-!      & nEl, nChrgs, t3rd, tOnSite, tRangeSep, tForces, tPeriodic, tStress)
   subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl,&
       & nChrgs, t3rd, tRangeSep, tForces, tPeriodic, tStress)
     
@@ -371,12 +543,6 @@ module dftbp_reksvar
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-!    !> reference n_0 charges for each atom
-!    real(dp), intent(in) :: referenceN0(:,:)
-!
-!    !> type of the atoms (nAtom)
-!    integer, intent(in) :: species0(:)
 
     !> Spin W values
     real(dp), intent(inout) :: spinW(:,:,:)
@@ -407,36 +573,35 @@ module dftbp_reksvar
 
     integer :: nOrb, mOrb, mShell, nOrbHalf
     integer :: nstates, SAstates, nstHalf
-    integer :: Nc, Na, Nv, superN, Lmax
+    integer :: Nc, Na, Nv, superN, LmaxR, Lmax
     integer :: iAt, nAtom, nType
 
     ! Set REKS input variables
 
-    self%tREKS      = ini%tREKS
-    self%tSSR22     = ini%tSSR22
-    self%tSSR44     = ini%tSSR44
+    self%tREKS = ini%tREKS
+    self%tSSR22 = ini%tSSR22
+    self%tSSR44 = ini%tSSR44
 
-    self%Efunction  = ini%Efunction
-    self%Elevel     = ini%Elevel
-    self%useSSR     = ini%useSSR
-    self%rstate     = ini%rstate
-    self%Lstate     = ini%Lstate
-    self%guess      = ini%guess
+    self%Efunction = ini%Efunction
+    self%Elevel = ini%Elevel
+    self%useSSR = ini%useSSR
+    self%rstate = ini%rstate
+    self%Lstate = ini%Lstate
+    self%guess = ini%guess
     self%FONmaxIter = ini%FONmaxIter
-    self%shift      = ini%shift
+    self%shift = ini%shift
 
-    self%Glevel     = ini%Glevel
-    self%CGmaxIter  = ini%CGmaxIter
-    self%Glimit     = ini%Glimit
+    self%Glevel = ini%Glevel
+    self%CGmaxIter = ini%CGmaxIter
+    self%Glimit = ini%Glimit
 
-    self%Plevel     = ini%Plevel
-    self%Mlevel     = ini%Mlevel
+    self%Plevel = ini%Plevel
+    self%Mlevel = ini%Mlevel
 
-    self%tTDP       = ini%tTDP
-    self%tAdjustMO  = ini%tAdjustMO
+    self%tTDP = ini%tTDP
 
-    self%tRD        = ini%tRD
-    self%tNAC       = ini%tNAC
+    self%tRD = ini%tRD
+    self%tNAC = ini%tNAC
 
     ! Set REKS variables
 
@@ -445,6 +610,7 @@ module dftbp_reksvar
       self%Nc = int(dble(nEl)) / 2 - 1
       self%Na = 2
       self%Lmax = 6
+      self%LmaxR = 4
       self%Lpaired = 2
       if (self%Efunction == 1) then
         ! Only PPS state is minimized; single-state REKS
@@ -479,24 +645,26 @@ module dftbp_reksvar
 
     end if
 
-    nOrb     = orb%nOrb
-    mOrb     = orb%mOrb      ! ... s px py pz ...
-    mShell   = orb%mShell    ! ... s p ...
-    nstates  = self%nstates
+    nOrb = orb%nOrb
+    mOrb = orb%mOrb
+    mShell = orb%mShell
+    nstates = self%nstates
     SAstates = self%SAstates
 
     ! Here, nSpin changes to two for calculation of microstates
-    nSpin    = 2
-    Lmax     = self%Lmax
-    Nc       = self%Nc
-    Na       = self%Na
-    Nv       = nOrb - Nc - Na
-    nOrbHalf = nOrb * (nOrb + 1) / 2 ! original nHalf
-    nstHalf  = nstates * (nstates - 1) / 2 ! original nst_h
-    superN   = Nc*Nv + Na*(Nc+Nv) + Na*(Na-1)/2
+    ! TODO : Is it ok for this? main.F90 -> no error?
+    nSpin = 2
+    Lmax = self%Lmax
+    LmaxR = self%LmaxR
+    Nc = self%Nc
+    Na = self%Na
+    Nv = nOrb - Nc - Na
+    nOrbHalf = nOrb * (nOrb + 1) / 2
+    nstHalf = nstates * (nstates - 1) / 2
+    superN = Nc*Nv + Na*(Nc+Nv) + Na*(Na-1)/2
 
-    nAtom  = size(orb%nOrbAtom,dim=1)
-    nType  = size(ini%Tuning,dim=1)
+    nAtom = size(orb%nOrbAtom,dim=1)
+    nType = size(ini%Tuning,dim=1)
 
     self%t3rd = t3rd
     self%tRangeSep = tRangeSep
@@ -518,10 +686,6 @@ module dftbp_reksvar
 
     ! Allocate REKS variables
 
-!    allocate(self%q0(mOrb,nAtom,nSpin))
-!    self%q0(:,:,:) = 0.0_dp
-!    call initQFromShellChrg(self%q0, referenceN0, species0, orb)
-
     allocate(self%Tuning(nType))
 
     ! REKS: energy variables
@@ -530,165 +694,348 @@ module dftbp_reksvar
     allocate(self%getDenseAO(0,2))
     allocate(self%getDenseAtom(0,2))
 
-    allocate(self%over(nOrb,nOrb))
-    allocate(self%filling_L(nOrb,nSpin,Lmax))
+    allocate(self%overSqr(nOrb,nOrb))
+    allocate(self%fillingL(nOrb,nSpin,Lmax))
 
     if (self%tForces) then
-      allocate(self%dm_L(nOrb,nOrb,1,Lmax))
+      allocate(self%rhoSqrL(nOrb,nOrb,1,Lmax))
     else
-      allocate(self%dm_sp_L(0,1,Lmax))
+      allocate(self%rhoSpL(0,1,Lmax))
     end if
 
     if (self%tRangeSep) then
-      allocate(self%Deltadm_L(nOrb,nOrb,1,Lmax))
+      allocate(self%deltaRhoSqrL(nOrb,nOrb,1,Lmax))
     end if
 
-    allocate(self%qOutput_L(mOrb,nAtom,nSpin,Lmax))
-    allocate(self%chargePerShell_L(mShell,nAtom,nSpin,Lmax))
+    allocate(self%qOutputL(mOrb,nAtom,nSpin,Lmax))
+    allocate(self%chargePerShellL(mShell,nAtom,nSpin,Lmax))
 
     allocate(self%intAtom(nAtom,nSpin))
-    allocate(self%intShell_L(mShell,nAtom,nSpin,Lmax))
-    allocate(self%intBlock_L(mOrb,mOrb,nAtom,nSpin,Lmax))
+    allocate(self%intShellL(mShell,nAtom,nSpin,Lmax))
+    allocate(self%intBlockL(mOrb,mOrb,nAtom,nSpin,Lmax))
 
     if (self%tRangeSep) then
-      allocate(self%ham_L(nOrb,nOrb,1,Lmax))
+      allocate(self%hamSqrL(nOrb,nOrb,1,Lmax))
     else
-      allocate(self%ham_sp_L(0,1,Lmax))
+      allocate(self%hamSpL(0,1,Lmax))
     end if
 
-    allocate(self%weight_L(nstates,Lmax))
+    allocate(self%weightL(nstates,Lmax))
     allocate(self%SAweight(SAstates))
     allocate(self%weight(Lmax))
 
     allocate(self%energy(nstates))
 
-    allocate(self%en_L_nonSCC(Lmax))
-    allocate(self%en_L_SCC(Lmax))
-    allocate(self%en_L_spin(Lmax))
+    allocate(self%enLnonSCC(Lmax))
+    allocate(self%enLSCC(Lmax))
+    allocate(self%enLspin(Lmax))
 
     if (self%t3rd) then
-      allocate(self%en_L_3rd(Lmax))
+      allocate(self%enL3rd(Lmax))
     end if
 
     if (self%tRangeSep) then
-      allocate(self%en_L_fock(Lmax))
+      allocate(self%enLfock(Lmax))
     end if
 
-    allocate(self%en_L_tot(Lmax))
+    allocate(self%enLtot(Lmax))
 
-    allocate(self%fock_Fc(nOrb,nOrb))
-    allocate(self%fock_Fa(nOrb,nOrb,Na))
+    allocate(self%fockFc(nOrb,nOrb))
+    allocate(self%fockFa(nOrb,nOrb,Na))
     allocate(self%fock(nOrb,nOrb))
 
     allocate(self%eigvecsFock(nOrb,nOrb))
     allocate(self%eigvecsSSR(nstates,nstates))
 
-!    if (self%tAdjustMO) then
-!      allocate(self%eigvecs_be(nOrb,nOrb))
-!    end if
-
     ! REKS: gradient variables
 
     if (self%tForces) then
 
-      allocate(self%orderRmat_L(Lmax))
+      allocate(self%Hderiv(nOrb,nOrb,3))
+      allocate(self%Sderiv(nOrb,nOrb,3))
+      allocate(self%edmSpL(0,Lmax))
+      allocate(self%gradL(3,nAtom,Lmax))
+
+      if (self%Efunction > 1) then
+
+        allocate(self%orderRmatL(Lmax))
+
+        allocate(self%GammaAO(nOrb,nOrb))
+        allocate(self%GammaDeriv(nAtom,nAtom,3))
+        allocate(self%SpinAO(nOrb,nOrb))
+
+        if (self%tRangeSep) then
+          allocate(self%LrGammaAO(nOrb,nOrb))
+          allocate(self%LrGammaDeriv(nAtom,nAtom,3))
+        end if
+
+        allocate(self%weightIL(Lmax))
+        allocate(self%omega(superN))
+        if (self%useSSR == 1) then
+          allocate(self%Rab(nstates,nstates))
+        end if
+
+        if (self%Glevel == 1 .or. self%Glevel == 2) then
+          if (self%Mlevel == 1) then
+            if (self%tRangeSep) then
+              allocate(self%HxcHalfS(nOrbHalf,nOrbHalf))
+              allocate(self%HxcHalfD(nOrbHalf,nOrbHalf))
+            else
+              allocate(self%HxcSpS(0,0))
+              allocate(self%HxcSpD(0,0))
+            end if
+            allocate(self%A1e(superN,superN))
+            allocate(self%A1ePre(superN,superN))
+          end if
+        else if (self%Glevel == 3) then
+          allocate(self%HxcSqrS(nOrb,nOrb,nOrb,nOrb))
+          allocate(self%HxcSqrD(nOrb,nOrb,nOrb,nOrb))
+          allocate(self%Aall(superN,superN))
+        end if
+
+        if (self%useSSR == 1) then
+          allocate(self%XT(superN,nstates))
+          allocate(self%XTdel(superN,nstHalf))
+          allocate(self%RdelL(nOrb,nOrb,LmaxR,nstHalf))
+          allocate(self%ZdelL(nOrb,nOrb,Lmax))
+          allocate(self%Q1del(nOrb,nOrb,nstHalf))
+          allocate(self%Q2del(nOrb,nOrb,nstHalf))
+        else
+          allocate(self%XT(superN,1))
+        end if
+
+        if (self%tNAC) then
+          allocate(self%ZT(superN,nstates))
+          allocate(self%RmatL(nOrb,nOrb,LmaxR,nstates))
+        else
+          allocate(self%ZT(superN,1))
+          allocate(self%RmatL(nOrb,nOrb,LmaxR,1))
+        end if
+        allocate(self%ZmatL(nOrb,nOrb,Lmax))
+        allocate(self%Q1mat(nOrb,nOrb))
+        allocate(self%Q2mat(nOrb,nOrb))
+
+        if (self%tNAC) then
+          allocate(self%ZTdel(superN,nstHalf))
+          allocate(self%tmpRL(nOrb,nOrb,LmaxR,nstHalf))
+        end if
+
+        if (self%tNAC) then
+          allocate(self%SSRgrad(3,nAtom,nstates))
+          allocate(self%SAgrad(3,nAtom,nstates))
+          allocate(self%SIgrad(3,nAtom,nstHalf))
+          allocate(self%avgGrad(3,nAtom))
+        else
+          allocate(self%SSRgrad(3,nAtom,1))
+        end if
+
+        if (self%tNAC) then
+          allocate(self%nacG(3,nAtom,nstHalf))
+          allocate(self%nacH(3,nAtom,nstHalf))
+        end if
+
+      end if
 
     end if
+
 
     ! REKS: relaxed density & transition dipole variables
 
-    allocate(self%P_m_o(nOrb,nOrb))
+    allocate(self%unrelRhoSqr(nOrb,nOrb))
 
     if (self%tTDP .and. self%Lstate == 0) then
-      allocate(self%P_m_del_o(nOrb,nOrb,nstHalf))
+      allocate(self%unrelTdm(nOrb,nOrb,nstHalf))
     end if
 
-    ! ... REKS: unrelaxed transition dipole variables
+    if (self%tRD) then
+      allocate(self%relRhoSqr(nOrb,nOrb))
+    end if
+
     if (self%tTDP .and. self%Lstate == 0) then
       allocate(self%tdp(3,nstHalf))
+    end if
+
+    ! REKS: point charges (QM/MM) variables
+
+    if (self%tExtChrg) then
+      allocate(self%extCharges(4,nChrgs))
+    end if
+
+    ! REKS: stress variables
+
+    if (self%tStress) then
+      allocate(self%elecStressL(3,3,Lmax))
     end if
 
 
     ! REKS: energy variables
 
-    self%getAtomIndex      = 0
-    self%getDenseAO        = 0
-    self%getDenseAtom      = 0
+    self%getAtomIndex = 0
+    self%getDenseAO = 0
+    self%getDenseAtom = 0
 
-    self%over              = 0.0_dp
-    self%filling_L         = 0.0_dp
+    self%overSqr = 0.0_dp
+    self%fillingL = 0.0_dp
 
     if (self%tForces) then
-      self%dm_L = 0.0_dp
+      self%rhoSqrL = 0.0_dp
     else
-      self%dm_sp_L = 0.0_dp
+      self%rhoSpL = 0.0_dp
     end if
 
     if (self%tRangeSep) then
-      self%Deltadm_L = 0.0_dp
+      self%deltaRhoSqrL = 0.0_dp
     end if
 
-    self%qOutput_L         = 0.0_dp
-    self%chargePerShell_L  = 0.0_dp
+    self%qOutputL = 0.0_dp
+    self%chargePerShellL = 0.0_dp
 
-    self%intAtom           = 0.0_dp
-    self%intShell_L        = 0.0_dp
-    self%intBlock_L        = 0.0_dp
+    self%intAtom = 0.0_dp
+    self%intShellL = 0.0_dp
+    self%intBlockL = 0.0_dp
 
     if (self%tRangeSep) then
-      self%ham_L = 0.0_dp
+      self%hamSqrL = 0.0_dp
     else
-      self%ham_sp_L = 0.0_dp
+      self%hamSpL = 0.0_dp
     end if
 
-    self%weight_L          = 0.0_dp
-    self%weight            = 0.0_dp
+    self%weightL = 0.0_dp
+    self%weight = 0.0_dp
 
-    self%FONs              = 0.0_dp
-    self%energy            = 0.0_dp
+    self%FONs = 0.0_dp
+    self%energy = 0.0_dp
 
-    self%en_L_nonSCC       = 0.0_dp
-    self%en_L_SCC          = 0.0_dp
-    self%en_L_spin         = 0.0_dp
+    self%enLnonSCC = 0.0_dp
+    self%enLSCC = 0.0_dp
+    self%enLspin = 0.0_dp
 
     if (self%t3rd) then
-      self%en_L_3rd      = 0.0_dp
+      self%enL3rd = 0.0_dp
     end if
 
     if (self%tRangeSep) then
-      self%en_L_fock   = 0.0_dp
+      self%enLfock = 0.0_dp
     end if
 
-    self%en_L_tot          = 0.0_dp
+    self%enLtot = 0.0_dp
 
-    self%fock_Fc           = 0.0_dp
-    self%fock_Fa           = 0.0_dp
-    self%fock              = 0.0_dp
+    self%fockFc = 0.0_dp
+    self%fockFa = 0.0_dp
+    self%fock = 0.0_dp
 
-    self%eigvecsFock       = 0.0_dp
-    self%eigvecsSSR        = 0.0_dp
-
-!    if (self%tAdjustMO) then
-!      self%eigvecs_be = 0.0_dp
-!    end if
+    self%eigvecsFock = 0.0_dp
+    self%eigvecsSSR = 0.0_dp
 
     ! REKS: gradient variables
 
     if (self%tForces) then
 
+      self%Hderiv = 0.0_dp
+      self%Sderiv = 0.0_dp
+      self%edmSpL = 0.0_dp
+      self%gradL = 0.0_dp
+
+      if (self%Efunction > 1) then
+
+        self%GammaAO = 0.0_dp
+        self%GammaDeriv = 0.0_dp
+        self%SpinAO = 0.0_dp
+
+        if (self%tRangeSep) then
+          self%LrGammaAO = 0.0_dp
+          self%LrGammaDeriv = 0.0_dp
+        end if
+
+        self%weightIL = 0.0_dp
+        self%omega = 0.0_dp
+        if (self%useSSR == 1) then
+          self%Rab = 0.0_dp
+        end if
+
+        if (self%Glevel == 1 .or. self%Glevel == 2) then
+          if (self%Mlevel == 1) then
+            if (self%tRangeSep) then
+              self%HxcHalfS = 0.0_dp
+              self%HxcHalfD = 0.0_dp
+            else
+              self%HxcSpS = 0.0_dp
+              self%HxcSpD = 0.0_dp
+            end if
+            self%A1e = 0.0_dp
+            self%A1ePre = 0.0_dp
+          end if
+        else if (self%Glevel == 3) then
+          self%HxcSqrS = 0.0_dp
+          self%HxcSqrD = 0.0_dp
+          self%Aall = 0.0_dp
+        end if
+
+        self%XT = 0.0_dp
+        if (self%useSSR == 1) then
+          self%XTdel = 0.0_dp
+          self%RdelL = 0.0_dp
+          self%ZdelL = 0.0_dp
+          self%Q1del = 0.0_dp
+          self%Q2del = 0.0_dp
+        end if
+
+        self%ZT = 0.0_dp
+        self%RmatL = 0.0_dp
+        self%ZmatL = 0.0_dp
+        self%Q1mat = 0.0_dp
+        self%Q2mat = 0.0_dp
+
+        if (self%tNAC) then
+          self%ZTdel = 0.0_dp
+          self%tmpRL = 0.0_dp
+        end if
+
+        self%SSRgrad = 0.0_dp
+        if (self%tNAC) then
+          self%SAgrad = 0.0_dp
+          self%SIgrad = 0.0_dp
+          self%avgGrad = 0.0_dp
+        end if
+
+        if (self%tNAC) then
+          self%nacG = 0.0_dp
+          self%nacH = 0.0_dp
+        end if
+
+      end if
+
     end if
+
 
     ! REKS: relaxed density & transition dipole variables
 
-    self%P_m_o     = 0.0_dp
+    self%unrelRhoSqr = 0.0_dp
 
     if (self%tTDP .and. self%Lstate == 0) then
-      self%P_m_del_o = 0.0_dp
+      self%unrelTdm = 0.0_dp
+    end if
+
+    if (self%tRD) then
+      self%relRhoSqr = 0.0_dp
     end if
 
     if (self%tTDP .and. self%Lstate == 0) then
       self%tdp = 0.0_dp
     end if
+
+    ! REKS: point charges (QM/MM) variables
+
+    if (self%tExtChrg) then
+      self%extCharges = 0.0_dp
+    end if
+
+    ! REKS: stress variables
+
+    if (self%tStress) then
+      self%elecStressL = 0.0_dp
+    end if
+
 
     ! REKS: initialize variables
 
@@ -708,7 +1055,7 @@ module dftbp_reksvar
     if (self%Efunction > 1 .and. self%tForces) then
       if (self%tSSR22) then
         ! R_mat_L has 4 elements and filling_L has 6 elements in (2,2) case
-        self%orderRmat_L(:) = [1, 2, 1, 2, 3, 4]
+        self%orderRmatL(:) = [1, 2, 1, 2, 3, 4]
       else if (self%tSSR44) then
         call error("SSR(4,4) not implemented yet")
       end if
@@ -725,6 +1072,12 @@ module dftbp_reksvar
 
       if (self%tTDP .and. self%Lstate > 0) then
         call error("Transition dipole is not compatible with L-th microstate")
+      end if
+
+      if (self%useSSR > 1 .or. self%useSSR < 0) then
+        call error("Wrong useSSRstate given, please select 0 or 1")
+      else if (self%guess > 2 .or. self%guess < 1) then
+        call error("Wrong InitialGuess given, please select 1 or 2")
       end if
 
       ! REKS gradient requirements
@@ -752,6 +1105,13 @@ module dftbp_reksvar
           end if
         end if
 
+        if (self%Glevel > 3 .or. self%Glevel < 1) then
+          call error("Wrong GradientLevel option, please write 1 to 3")
+        end if
+        if (self%Mlevel > 2 .or. self%Mlevel < 1) then
+          call error("Wrong memory option, please select 1 or 2")
+        end if
+
       else
 
         if (self%tNAC) then
@@ -769,6 +1129,12 @@ module dftbp_reksvar
         call error("Only single-state REKS can evaluate stress")
       end if
 
+      ! REKS system requirements
+
+      if (self%Plevel > 2 .or. self%Plevel < 0) then
+        call error("Wrong printing option, please write 0 to 2")
+      end if
+
     end subroutine checkReksRequirements
 
     subroutine checkSSR22Requirements(self)
@@ -782,27 +1148,6 @@ module dftbp_reksvar
         call error("Wrong TargetState given, please write 1 to 3")
       else if (self%Lstate > 6 .or. self%Lstate < 0) then
         call error("Wrong TargetStateL given, please write 0 to 6")
-      else if (self%useSSR > 1 .or. self%useSSR < 0) then
-        call error("Wrong useSSRstate given, please select 0 or 1")
-      else if (self%guess > 2 .or. self%guess < 1) then
-        call error("Wrong InitialGuess given, please select 1 or 2")
-      end if
-
-      ! REKS gradient requirements
-
-      if (self%tForces) then
-        if (self%Glevel > 3 .or. self%Glevel < 1) then
-          call error("Wrong GradientLevel option, please write 1 to 3")
-        end if
-        if (self%Mlevel > 2 .or. self%Mlevel < 1) then
-          call error("Wrong memory option, please select 1 or 2")
-        end if
-      end if
-
-      ! REKS system requirements
-
-      if (self%Plevel > 2 .or. self%Plevel < 0) then
-        call error("Wrong printing option, please write 0 to 2")
       end if
 
     end subroutine checkSSR22Requirements
@@ -820,16 +1165,70 @@ module dftbp_reksvar
     integer, intent(in) :: sparseSize
 
     deallocate(self%getDenseAO)
-    if (.not. self%tForces) deallocate(self%dm_sp_L)
-    if (.not. self%tRangeSep) deallocate(self%ham_sp_L)
+    if (.not. self%tForces) then
+      deallocate(self%rhoSpL)
+    end if
+    if (.not. self%tRangeSep) then
+      deallocate(self%hamSpL)
+    end if
+
+    if (self%tForces) then
+      deallocate(self%edmSpL)
+      if (self%Efunction > 1) then
+        if (self%Glevel == 1 .or. self%Glevel == 2) then
+          if (self%Mlevel == 1) then
+            if (.not. self%tRangeSep) then
+              deallocate(self%HxcSpS)
+              deallocate(self%HxcSpD)
+            end if
+          end if
+        end if
+      end if
+    end if
 
     allocate(self%getDenseAO(sparseSize,2))
-    if (.not. self%tForces) allocate(self%dm_sp_L(sparseSize,1,self%Lmax))
-    if (.not. self%tRangeSep) allocate(self%ham_sp_L(sparseSize,1,self%Lmax))
+    if (.not. self%tForces) then
+      allocate(self%rhoSpL(sparseSize,1,self%Lmax))
+    end if
+    if (.not. self%tRangeSep) then
+      allocate(self%hamSpL(sparseSize,1,self%Lmax))
+    end if
+
+    if (self%tForces) then
+      allocate(self%edmSpL(sparseSize,self%Lmax))
+      if (self%Efunction > 1) then
+        if (self%Glevel == 1 .or. self%Glevel == 2) then
+          if (self%Mlevel == 1) then
+            if (.not. self%tRangeSep) then
+              allocate(self%HxcSpS(sparseSize,sparseSize))
+              allocate(self%HxcSpD(sparseSize,sparseSize))
+            end if
+          end if
+        end if
+      end if
+    end if
 
     self%getDenseAO = 0
-    if (.not. self%tForces) self%dm_sp_L = 0.0_dp
-    if (.not. self%tRangeSep) self%ham_sp_L = 0.0_dp
+    if (.not. self%tForces) then
+      self%rhoSpL = 0.0_dp
+    end if
+    if (.not. self%tRangeSep) then
+      self%hamSpL = 0.0_dp
+    end if
+
+    if (self%tForces) then
+      self%edmSpL = 0.0_dp
+      if (self%Efunction > 1) then
+        if (self%Glevel == 1 .or. self%Glevel == 2) then
+          if (self%Mlevel == 1) then
+            if (.not. self%tRangeSep) then
+              self%HxcSpS = 0.0_dp
+              self%HxcSpD = 0.0_dp
+            end if
+          end if
+        end if
+      end if
+    end if
 
   end subroutine REKS_reallocate
 
@@ -841,8 +1240,6 @@ module dftbp_reksvar
 
     ! Deallocate REKS variables
 
-!    deallocate(self%q0)
-
     deallocate(self%Tuning)
 
     ! REKS: energy variables
@@ -851,82 +1248,176 @@ module dftbp_reksvar
     deallocate(self%getDenseAO)
     deallocate(self%getDenseAtom)
 
-    deallocate(self%over)
-    deallocate(self%filling_L)
+    deallocate(self%overSqr)
+    deallocate(self%fillingL)
 
     if (self%tForces) then
-      deallocate(self%dm_L)
+      deallocate(self%rhoSqrL)
     else
-      deallocate(self%dm_sp_L)
+      deallocate(self%rhoSpL)
     end if
 
     if (self%tRangeSep) then
-      deallocate(self%Deltadm_L)
+      deallocate(self%deltaRhoSqrL)
     end if
 
-    deallocate(self%qOutput_L)
-    deallocate(self%chargePerShell_L)
+    deallocate(self%qOutputL)
+    deallocate(self%chargePerShellL)
 
     deallocate(self%intAtom)
-    deallocate(self%intShell_L)
-    deallocate(self%intBlock_L)
+    deallocate(self%intShellL)
+    deallocate(self%intBlockL)
 
     if (self%tRangeSep) then
-      deallocate(self%ham_L)
+      deallocate(self%hamSqrL)
     else
-      deallocate(self%ham_sp_L)
+      deallocate(self%hamSpL)
     end if
 
-    deallocate(self%weight_L)
+    deallocate(self%weightL)
     deallocate(self%SAweight)
     deallocate(self%weight)
 
     deallocate(self%FONs)
     deallocate(self%energy)
 
-    deallocate(self%en_L_nonSCC)
-    deallocate(self%en_L_SCC)
-    deallocate(self%en_L_spin)
+    deallocate(self%enLnonSCC)
+    deallocate(self%enLSCC)
+    deallocate(self%enLspin)
 
     if (self%t3rd) then
-      deallocate(self%en_L_3rd)
+      deallocate(self%enL3rd)
     end if
 
     if (self%tRangeSep) then
-      deallocate(self%en_L_fock)
+      deallocate(self%enLfock)
     end if
 
-    deallocate(self%en_L_tot)
+    deallocate(self%enLtot)
 
-    deallocate(self%fock_Fc)
-    deallocate(self%fock_Fa)
+    deallocate(self%fockFc)
+    deallocate(self%fockFa)
     deallocate(self%fock)
 
     deallocate(self%eigvecsFock)
     deallocate(self%eigvecsSSR)
 
-!    if (self%tAdjustMO) then
-!      deallocate(self%eigvecs_be)
-!    end if
-
     ! REKS: gradient variables
 
     if (self%tForces) then
 
-      deallocate(self%orderRmat_L)
+      deallocate(self%Hderiv)
+      deallocate(self%Sderiv)
+      deallocate(self%edmSpL)
+      deallocate(self%gradL)
+
+      if (self%Efunction > 1) then
+
+        deallocate(self%orderRmatL)
+
+        deallocate(self%GammaAO)
+        deallocate(self%GammaDeriv)
+        deallocate(self%SpinAO)
+
+        if (self%tRangeSep) then
+          deallocate(self%LrGammaAO)
+          deallocate(self%LrGammaDeriv)
+        end if
+
+        deallocate(self%weightIL)
+        deallocate(self%omega)
+        if (self%useSSR == 1) then
+          deallocate(self%Rab)
+        end if
+
+        if (self%Glevel == 1 .or. self%Glevel == 2) then
+          if (self%Mlevel == 1) then
+            if (self%tRangeSep) then
+              deallocate(self%HxcHalfS)
+              deallocate(self%HxcHalfD)
+            else
+              deallocate(self%HxcSpS)
+              deallocate(self%HxcSpD)
+            end if
+            deallocate(self%A1e)
+            deallocate(self%A1ePre)
+          end if
+        else if (self%Glevel == 3) then
+          deallocate(self%HxcSqrS)
+          deallocate(self%HxcSqrD)
+          deallocate(self%Aall)
+        end if
+
+        deallocate(self%XT)
+        if (self%useSSR == 1) then
+          deallocate(self%XTdel)
+          deallocate(self%RdelL)
+          deallocate(self%ZdelL)
+          deallocate(self%Q1del)
+          deallocate(self%Q2del)
+        end if
+
+        deallocate(self%ZT)
+        deallocate(self%RmatL)
+        deallocate(self%ZmatL)
+        deallocate(self%Q1mat)
+        deallocate(self%Q2mat)
+
+        if (self%tNAC) then
+          deallocate(self%ZTdel)
+          deallocate(self%tmpRL)
+        end if
+
+        deallocate(self%SSRgrad)
+        if (self%tNAC) then
+          deallocate(self%SAgrad)
+          deallocate(self%SIgrad)
+          deallocate(self%avgGrad)
+        end if
+
+        if (self%tNAC) then
+          deallocate(self%nacG)
+          deallocate(self%nacH)
+        end if
+
+      end if
 
     end if
 
+
     ! REKS: relaxed density & transition dipole variables
 
-    deallocate(self%P_m_o)
+    deallocate(self%unrelRhoSqr)
 
     if (self%tTDP .and. self%Lstate == 0) then
-      deallocate(self%P_m_del_o)
+      deallocate(self%unrelTdm)
+    end if
+
+    if (self%tRD) then
+      deallocate(self%relRhoSqr)
     end if
 
     if (self%tTDP .and. self%Lstate == 0) then
       deallocate(self%tdp)
+    end if
+
+    ! REKS: point charges (QM/MM) variables
+
+    if (self%tExtChrg) then
+      deallocate(self%extCharges)
+    end if
+
+    ! REKS: periodic variables
+
+    if (self%tPeriodic) then
+      deallocate(self%rVec)
+      deallocate(self%gVec)
+    end if
+
+    ! REKS: stress variables
+
+    if (self%tStress) then
+      deallocate(self%elecStressL)
     end if
 
   end subroutine REKS_destroy

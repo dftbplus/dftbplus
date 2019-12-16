@@ -5,9 +5,6 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-! TODO
-!!!!#:include 'common.fypp'
-
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -21,7 +18,6 @@
 module dftbp_rekscommon
 
   use dftbp_accuracy
-!  use dftbp_assert
   use dftbp_blasroutines, only : gemm
   use dftbp_densedescr
   use dftbp_message
@@ -33,9 +29,11 @@ module dftbp_rekscommon
 
   public :: checkGammaPoint
   public :: qm2udL, ud2qmL
-  public :: qmExpandL
+  public :: qmExpandL, udExpandL
   public :: matAO2MO, matMO2AO
   public :: getSpaceSym
+  public :: findShellOfAO
+  public :: assignIndex, assignEpsilon, assignFilling
 
   !> Swap from charge/magnetisation to up/down in REKS
   interface qm2udL
@@ -55,10 +53,17 @@ module dftbp_rekscommon
     module procedure qmExpand4
   end interface qmExpandL
 
+  !> Set correct up/down in REKS
+  interface udExpandL
+    module procedure udExpand3
+    module procedure udExpand4
+  end interface udExpandL
+
   contains
 
   !> Check whether the cell size is proper to the Gamma point
   !> calculation or not, and set several convenient variables
+  ! TODO : this routine moved to main.F90?
   subroutine checkGammaPoint(denseDesc, iNeighbour, nNeighbourSK,&
       & iPair, img2CentCell, over, reks)
 
@@ -88,7 +93,7 @@ module dftbp_rekscommon
     integer :: nOrb1, nOrb2, ii, jj, kk, ll
 
     nAtom = size(denseDesc%iAtomStart,dim=1) - 1
-    nOrb = size(reks%over,dim=1)
+    nOrb = size(reks%overSqr,dim=1)
 
     nAtomSparse = 0
     do iAtom1 = 1, nAtom ! mu
@@ -128,7 +133,7 @@ module dftbp_rekscommon
           ! Find inconsistent index between dense and sparse
           ! It means that current lattice is not proper to Gamma point calculation
           ! TODO : add the condition of Gamma point using nKpoint and Kpoints?
-          if (reks%over(mu,nu) /= over(iOrig1+kk-1)) then
+          if (reks%overSqr(mu,nu) /= over(iOrig1+kk-1)) then
             call error("Inconsistent maching exists between sparse and dense.")
           end if
           reks%getDenseAO(iOrig1+kk-1,1) = mu
@@ -323,6 +328,62 @@ module dftbp_rekscommon
   end subroutine qmExpand4
 
 
+  !> Decide a correct up/down in REKS
+  subroutine udExpand3(x, Lpaired)
+
+    !> array of data, third index spin, fourth index Lmax
+    real(dp), intent(inout) :: x(:,:,:,:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
+    integer :: iL, Lmax
+
+    Lmax = size(x,dim=4)
+
+    do iL = 1, Lmax
+      if (iL <= Lpaired) then
+        x(:,:,2,iL) = x(:,:,1,iL)
+      else
+        if (mod(iL,2) == 1) then
+          x(:,:,2,iL) = x(:,:,1,iL+1)
+        else
+          x(:,:,2,iL) = x(:,:,1,iL-1)
+        end if
+      end if
+    end do
+
+  end subroutine udExpand3
+
+
+  !> Decide a correct up/down in REKS
+  subroutine udExpand4(x, Lpaired)
+
+    !> array of data, fourth index spin, fifth index Lmax
+    real(dp), intent(inout) :: x(:,:,:,:,:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
+    integer :: iL, Lmax
+
+    Lmax = size(x,dim=5)
+
+    do iL = 1, Lmax
+      if (iL <= Lpaired) then
+        x(:,:,:,2,iL) = x(:,:,:,1,iL)
+      else
+        if (mod(iL,2) == 1) then
+          x(:,:,:,2,iL) = x(:,:,:,1,iL+1)
+        else
+          x(:,:,:,2,iL) = x(:,:,:,1,iL-1)
+        end if
+      end if
+    end do
+
+  end subroutine udExpand4
+
+
   !> Convert the matrix from AO basis to MO basis
   subroutine matAO2MO(mat, eigenvecs)
 
@@ -390,6 +451,385 @@ module dftbp_rekscommon
     end if
 
   end subroutine getSpaceSym
+
+
+  !> Find shell of index alpha with respect to mu (reference)
+  subroutine findShellOfAO(al, mu, getAtomIndex, iSquare, iSpA, facP, facD)
+
+    !> input AO index
+    integer, intent(in) :: al
+
+    !> reference AO index (standard of atom)
+    integer, intent(in) :: mu
+
+    !> get atom index from AO index
+    integer, intent(in) :: getAtomIndex(:)
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, intent(in) :: iSquare(:)
+
+    !> output shell (s,p,d) for input AO index
+    integer, intent(out) :: iSpA
+
+    !> check whether al is included in p or d orbitals
+    real(dp), intent(out) :: facP, facD
+
+    integer :: iAtM, iAtA, iShA
+
+    ! set the orbital shell for al index w.r.t mu
+    iAtM = getAtomIndex(mu)
+    iAtA = getAtomIndex(al)
+    if (iAtA == iAtM) then
+      iShA = al - iSquare(iAtA) + 1
+      if (iShA == 1) then
+        iSpA = 1
+      else if (iShA > 1 .and. iShA <= 4) then
+        iSpA = 2
+        facP = 1.0_dp
+      else if (iShA > 4 .and. iShA <= 9) then
+        iSpA = 3
+        facD = 1.0_dp
+      end if
+    else
+      iSpA = 0
+    end if
+
+  end subroutine findShellOfAO
+
+
+  !> Assign index in terms of dense form from super matrix form
+  subroutine assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    !> Number of vacant orbitals
+    integer, intent(in) :: Nv
+
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    ! index for super matrix form
+    integer, intent(in) :: ij
+
+    ! index for dense form
+    integer, intent(out) :: i, j
+
+    if (tSSR22) then
+      call assignIndex22(Nc, Na, Nv, ij, i, j)
+    else if (tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+  end subroutine assignIndex
+
+
+  !> Assign converged epsilon value from fock matrix
+  subroutine assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, t, &
+      & chk, tSSR22, tSSR44, e1, e2)
+
+    !> dense fock matrix for core orbitals
+    real(dp), intent(in) :: Fc(:,:)
+
+    !> dense fock matrix for active orbitals
+    real(dp), intent(in) :: Fa(:,:,:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> MO index for converged fock matrix
+    integer, intent(in) :: i, j, t
+
+    !> choice of calculations for converged fock matrix
+    integer, intent(in) :: chk
+
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    !> output multiplier from converged fock matrix
+    real(dp), intent(out) :: e1, e2
+
+    if (tSSR22) then
+      call assignEpsilon22_(Fc, Fa, SAweight, FONs, Nc, i, j, &
+          & t, chk, e1, e2)
+    else if (tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+  end subroutine assignEpsilon
+
+
+  !> Assign average filling for i-th orbital
+  subroutine assignFilling(FONs, SAweight, Nc, i, tSSR22, tSSR44, fi)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> orbital index
+    integer, intent(in) :: i
+
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    !> output filling from fractional occupation numbers
+    real(dp), intent(out) :: fi
+
+    if (tSSR22) then
+      call assignFilling22_(FONs, SAweight, Nc, i, fi)
+    else if (tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+  end subroutine assignFilling
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Private routines
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  !> Assign index in terms of dense form from super matrix form in REKS(2,2)
+  subroutine assignIndex22(Nc, Na, Nv, ij, i, j)
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    !> Number of vacant orbitals
+    integer, intent(in) :: Nv
+
+    ! index for super matrix form
+    integer, intent(in) :: ij
+
+    ! index for dense form
+    integer, intent(out) :: i, j
+
+    ! (i,j) = (core,active)
+    if (ij <= Nc*Na) then
+      i = mod(ij,Nc)
+      j = ij / Nc + 1 + Nc
+      if (i == 0) then
+        i = i + Nc
+        j = j - 1
+      end if
+    ! (i,j) = (core,vacant)
+    else if (ij > Nc*Na .and. ij <= Nc*Na+Nc*Nv) then
+      i = (ij-Nc*Na) / Nv + 1
+      j = mod(ij-Nc*Na,Nv) + Nc + Na
+      if (j == Nc+Na) then
+        i = i - 1
+        j = j + Nv
+      end if
+    ! (i,j) = (active,active)
+    else if (ij > Nc*Na+Nc*Nv .and. ij <= Nc*Na+Nc*Nv+Na*(Na-1)*0.5_dp) then
+      i = Nc + 1
+      j = Nc + Na
+    ! (i,j) = (active,vacant)
+    else
+      i = ( ij-Nc*Na-Nc*Nv-Na*(Na-1)*0.5_dp ) / Nv + 1 + Nc
+      j = mod( int(ij-Nc*Na-Nc*Nv-Na*(Na-1)*0.5_dp) ,Nv) + Nc + Na
+      if (j == Nc+Na) then
+        i = i - 1
+        j = j + Nv
+      end if
+    end if
+
+  end subroutine assignIndex22
+
+
+  subroutine assignEpsilon22_(Fc, Fa, SAweight, FONs, Nc, i, j, &
+      & t, chk, e1, e2)
+
+    !> dense fock matrix for core orbitals
+    real(dp), intent(in) :: Fc(:,:)
+
+    !> dense fock matrix for active orbitals
+    real(dp), intent(in) :: Fa(:,:,:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> MO index for converged fock matrix
+    integer, intent(in) :: i, j, t
+
+    !> choice of calculations for converged fock matrix
+    integer, intent(in) :: chk
+
+    !> output multiplier from converged fock matrix
+    real(dp), intent(out) :: e1, e2
+
+    real(dp) :: n_a, n_b
+
+    n_a = FONs(1,1)
+    n_b = FONs(2,1)
+
+    if (chk == 1) then
+
+      if (i <= Nc) then
+        e1 = Fc(j,t) * 2.0_dp
+      else if (i == Nc + 1) then
+        e1 = Fa(j,t,1) * (SAweight(1)*n_a+SAweight(2))
+      else if (i == Nc + 2) then
+        e1 = Fa(j,t,2) * (SAweight(1)*n_b+SAweight(2))
+      else
+        e1 = Fc(j,t) * 0.0_dp
+      end if
+
+      if (j <= Nc) then
+        e2 = Fc(j,t) * 2.0_dp
+      else if (j == Nc + 1) then
+        e2 = Fa(j,t,1) * (SAweight(1)*n_a+SAweight(2))
+      else if (j == Nc + 2) then
+        e2 = Fa(j,t,2) * (SAweight(1)*n_b+SAweight(2))
+      else
+        e2 = Fc(j,t) * 0.0_dp
+      end if
+
+    else if (chk == 2) then
+
+      if (i <= Nc) then
+        e1 = Fc(i,t) * 2.0_dp
+      else if (i == Nc + 1) then
+        e1 = Fa(i,t,1) * (SAweight(1)*n_a+SAweight(2))
+      else if (i == Nc + 2) then
+        e1 = Fa(i,t,2) * (SAweight(1)*n_b+SAweight(2))
+      else
+        e1 = Fc(i,t) * 0.0_dp
+      end if
+
+      if (j <= Nc) then
+        e2 = Fc(i,t) * 2.0_dp
+      else if (j == Nc + 1) then
+        e2 = Fa(i,t,1) * (SAweight(1)*n_a+SAweight(2))
+      else if (j == Nc + 2) then
+        e2 = Fa(i,t,2) * (SAweight(1)*n_b+SAweight(2))
+      else
+        e2 = Fc(i,t) * 0.0_dp
+      end if
+
+    else if (chk == 3) then
+
+      if (i <= Nc) then
+        e1 = Fc(t,i) * 2.0_dp
+      else if (i == Nc + 1) then
+        e1 = Fa(t,i,1) * (SAweight(1)*n_a+SAweight(2))
+      else if (i == Nc + 2) then
+        e1 = Fa(t,i,2) * (SAweight(1)*n_b+SAweight(2))
+      else
+        e1 = Fc(t,i) * 0.0_dp
+      end if
+
+      if (j <= Nc) then
+        e2 = Fc(t,i) * 2.0_dp
+      else if (j == Nc + 1) then
+        e2 = Fa(t,i,1) * (SAweight(1)*n_a+SAweight(2))
+      else if (j == Nc + 2) then
+        e2 = Fa(t,i,2) * (SAweight(1)*n_b+SAweight(2))
+      else
+        e2 = Fc(t,i) * 0.0_dp
+      end if
+
+    end if
+
+  end subroutine assignEpsilon22_
+
+
+!  ! for only i < j case
+!  subroutine assign_index_inverse(ij,i,j,Nc,Na,Nv) ! TODO for only (2,2) case
+!
+!    integer, intent(out) :: ij
+!    integer, intent(in) :: i, j
+!    integer, intent(in) :: Nc, Na, Nv
+!
+!    if (i <= Nc) then
+!      ! (i,j) = (core,active)
+!      if (j > Nc .and. j <= Nc+Na) then
+!        ij = i + (j-Nc-1) * Nc
+!      end if
+!      ! (i,j) = (core,vacant)
+!      if (j > Nc+Na) then
+!        ij = (i-1) * Nv + Nc*Na + j - Nc - Na
+!      end if
+!    end if
+!    if (i > Nc .and. i <= Nc+Na) then
+!      ! (i,j) = (active,active) TODO for only (2,2) case
+!      if (j > Nc .and. j <= Nc+Na) then
+!        ij = (Na+Nv)*Nc + 1
+!      end if
+!      ! (i,j) = (active,vacant)
+!      if (j > Nc+Na) then
+!        ij = (i-1-Nc) * Nv + Nc*Na + Nc*Nv + Na*(Na-1)/DBLE(2) + j - Nc - Na
+!      end if
+!    end if
+!
+!  end subroutine assign_index_inverse
+
+
+  !> Assign average filling for i-th orbital in REKS(2,2)
+  subroutine assignFilling22_(FONs, SAweight, Nc, i, fi)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> Weights used in state-averaging
+    real(dp), intent(in) :: SAweight(:)
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> orbital index
+    integer, intent(in) :: i
+
+    !> output filling from fractional occupation numbers
+    real(dp), intent(out) :: fi
+
+    real(dp) :: n_a, n_b
+
+    n_a = FONs(1,1)
+    n_b = FONs(2,1)
+
+    if (i <= Nc) then
+      fi = 1.0_dp
+    else if (i == Nc + 1) then
+      fi = (SAweight(1)*n_a + SAweight(2)) * 0.5_dp
+    else if (i == Nc + 2) then
+      fi = (SAweight(1)*n_b + SAweight(2)) * 0.5_dp
+    else
+      fi = 0.0_dp
+    end if
+
+  end subroutine assignFilling22_
 
 
 end module dftbp_rekscommon

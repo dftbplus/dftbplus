@@ -5,9 +5,6 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-! TODO
-!!!!#:include 'common.fypp'
-
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -51,7 +48,7 @@ module dftbp_reksfon
 
     if (self%tSSR22) then
 
-      call getFONs22_(x, self%hess, self%en_L_tot, self%delta, &
+      call getFONs22_(x, self%hess, self%enLtot, self%delta, &
           & self%FONmaxIter, self%Plevel)
       ! FONs(1,1) = n_a, FONs(2,1) = n_b
       self%FONs(1,1) = 2.0_dp * x
@@ -71,7 +68,7 @@ module dftbp_reksfon
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Optimize FONs in REKS(2,2) case with Newton-Raphson method
-  subroutine getFONs22_(x, hess0, en_L_tot, delta, maxIter, opt)
+  subroutine getFONs22_(x, hess0, enLtot, delta, maxIter, opt)
 
     !> converged x (= n_a/2)
     real(dp), intent(out) :: x
@@ -80,7 +77,7 @@ module dftbp_reksfon
     real(dp), intent(out) :: hess0
 
     !> total energy for each microstate
-    real(dp), intent(in) :: en_L_tot(:)
+    real(dp), intent(in) :: enLtot(:)
 
     !> Smoothing factor used in FON optimization
     real(dp), intent(in) :: delta
@@ -99,12 +96,12 @@ module dftbp_reksfon
     integer :: iter
 
     ! Calculate Const in equation 13.c
-    ConDeno = en_L_tot(5) - en_L_tot(3)
+    ConDeno = enLtot(5) - enLtot(3)
     ! ConDeno should be negative
     ! In general, E2 - E1 > 0 due to the MO swap (always, n_a > n_b)
     ! So, negative ConDeno generates negative Const
     if (ConDeno > 0.0_dp) ConDeno = -ConDeno
-    Const = (en_L_tot(2) - en_L_tot(1)) / ConDeno
+    Const = (enLtot(2) - enLtot(1)) / ConDeno
 
     ! Set up the starting value for x, x0
     !
