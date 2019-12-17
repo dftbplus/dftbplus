@@ -6,6 +6,7 @@ set(sources-fpp
   ${curdir}/lapack.F90
   ${curdir}/magmahelper.F90
   ${curdir}/mpifx.F90
+  ${curdir}/plumed.F90
   ${curdir}/scalapackfx.F90
   ${curdir}/xmlf90.F90)
 
@@ -15,10 +16,6 @@ endif()
 
 if(WITH_DFTD3)
   list(APPEND sources-fpp ${curdir}/dftd3.F90)
-endif()
-
-if(WITH_PLUMED)
-  list(APPEND sources-fpp ${curdir}/plumed.F90)
 endif()
 
 if(WITH_SOCKETS)
