@@ -750,7 +750,7 @@ contains
 
     real(dp), allocatable :: Smat(:,:)
     real(dp), allocatable :: Dmat(:,:)
-    real(dp), allocatable :: LRgammaAO(:,:)
+    real(dp), allocatable :: LrGammaAO(:,:)
     real(dp), allocatable :: Hlr(:,:)
 
     integer :: nOrb
@@ -759,17 +759,17 @@ contains
 
     allocate(Smat(nOrb,nOrb))
     allocate(Dmat(nOrb,nOrb))
-    allocate(LRgammaAO(nOrb,nOrb))
+    allocate(LrGammaAO(nOrb,nOrb))
     allocate(Hlr(nOrb,nOrb))
 
-    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
-    call evaluateHamiltonian(this, Smat, Dmat, LRgammaAO, Hlr)
+    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LrGammaAO)
+    call evaluateHamiltonian(this, Smat, Dmat, LrGammaAO, Hlr)
     HH(:,:) = HH + Hlr
     this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat * Hlr)
 
   contains
 
-    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
+    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LrGammaAO)
 
       !> class instance
       type(RangeSepFunc), intent(inout) :: this
@@ -793,7 +793,7 @@ contains
       real(dp), intent(out) :: Dmat(:,:)
 
       !> Symmetrized long-range gamma matrix
-      real(dp), intent(out) :: LRgammaAO(:,:)
+      real(dp), intent(out) :: LrGammaAO(:,:)
 
       integer :: nAtom, iAt, jAt
 
@@ -807,10 +807,10 @@ contains
       call symmetrizeHS(Dmat)
 
       ! Get long-range gamma variable
-      LRgammaAO(:,:) = 0.0_dp
+      LrGammaAO(:,:) = 0.0_dp
       do iAt = 1, nAtom
         do jAt = 1, nAtom
-          LRgammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
+          LrGammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
               & this%lrGammaEval(jAt,iAt)
         end do
       end do
@@ -818,7 +818,7 @@ contains
     end subroutine allocateAndInit
 
 
-    subroutine evaluateHamiltonian(this, Smat, Dmat, LRgammaAO, Hlr)
+    subroutine evaluateHamiltonian(this, Smat, Dmat, LrGammaAO, Hlr)
 
       !> class instance
       type(RangeSepFunc), intent(inout) :: this
@@ -830,7 +830,7 @@ contains
       real(dp), intent(in) :: Dmat(:,:)
 
       !> Symmetrized long-range gamma matrix
-      real(dp), intent(in) :: LRgammaAO(:,:)
+      real(dp), intent(in) :: LrGammaAO(:,:)
 
       !> Symmetrized long-range Hamiltonian matrix
       real(dp), intent(out) :: Hlr(:,:)
@@ -849,17 +849,17 @@ contains
 
       call gemm(tmpMat, Smat, Dmat)
       call gemm(Hlr, tmpMat, Smat)
-      Hlr(:,:) = Hlr * LRgammaAO
+      Hlr(:,:) = Hlr * LrGammaAO
 
-      tmpMat(:,:) = tmpMat * LRgammaAO
+      tmpMat(:,:) = tmpMat * LrGammaAO
       call gemm(Hlr, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
 
-      Hmat(:,:) = Dmat * LRgammaAO
+      Hmat(:,:) = Dmat * LrGammaAO
       call gemm(tmpMat, Smat, Hmat)
       call gemm(Hlr, tmpMat, Smat, alpha=1.0_dp, beta=1.0_dp)
 
       call gemm(tmpMat, Dmat, Smat)
-      tmpMat(:,:) = tmpMat * LRgammaAO
+      tmpMat(:,:) = tmpMat * LrGammaAO
       call gemm(Hlr, Smat, tmpMat, alpha=1.0_dp, beta=1.0_dp)
 
       if (this%tSpin .or. this%tREKS) then
@@ -1445,9 +1445,9 @@ contains
 
     do iAt1 = 1, nAtom
       do iAt2 = 1, nAtom
-        if(iAt1 /= iAt2) then
+        if (iAt1 /= iAt2) then
           call getGammaPrimeValue(self, tmp, iAt1, iAt2, coords, species)
-          LrGammaDeriv(iAt1,iAt2,:) = tmp
+          LrGammaDeriv(iAt2,iAt1,:) = tmp
         end if
       end do
     end do

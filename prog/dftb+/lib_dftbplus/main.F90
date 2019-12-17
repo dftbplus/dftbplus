@@ -6405,7 +6405,7 @@ contains
     type(TReksCalc), intent(inout) :: reks
 
     real(dp), allocatable :: tmpRho(:,:)
-    integer :: mu, nu, nOrb, iL
+    integer :: nOrb, iL
 
     nOrb = size(reks%overSqr,dim=1)
 
@@ -6427,11 +6427,7 @@ contains
         ! reks%rhoSqrL has (my_ud) component
         call makeDensityMatrix(reks%rhoSqrL(:,:,1,iL), eigvecs(:,:,1), &
             & reks%fillingL(:,1,iL))
-        do nu = 1, nOrb
-          do mu = nu + 1, nOrb
-            reks%rhoSqrL(nu,mu,1,iL) = reks%rhoSqrL(mu,nu,1,iL)
-          end do
-        end do
+        call symmetrizeHS(reks%rhoSqrL(:,:,1,iL))
         if (reks%tRangeSep) then
           ! reks%deltaRhoSqrL has (my_ud) component
           reks%deltaRhoSqrL(:,:,1,iL) = reks%rhoSqrL(:,:,1,iL)
@@ -6451,6 +6447,7 @@ contains
         if (reks%tRangeSep) then
           ! reks%deltaRhoSqrL has (my_ud) component
           reks%deltaRhoSqrL(:,:,1,iL) = tmpRho
+          call symmetrizeHS(reks%deltaRhoSqrL(:,:,1,iL))
           call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
               & reks%deltaRhoSqrL(:,:,:,iL), 1)
         end if
@@ -6621,7 +6618,7 @@ contains
     real(dp), allocatable :: tmpHam(:,:)
     real(dp), allocatable :: tmpEn(:)
 
-    integer :: sparseSize, nOrb, ii, jj, iL
+    integer :: sparseSize, nOrb, iL
 
     sparseSize = size(over,dim=1)
     nOrb = size(reks%overSqr,dim=1)
@@ -6666,14 +6663,7 @@ contains
         call unpackHS(tmpHam, tmpHamSp(:,1), neighbourList%iNeighbour, &
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        ! Fill the remaining symmetric part
-        ! reks%deltaRhoSqrL has (my_ud) component
-        do jj = 1, nOrb
-          do ii = jj + 1, nOrb
-            tmpHam(jj,ii) = tmpHam(ii,jj)
-            reks%deltaRhoSqrL(jj,ii,1,iL) = reks%deltaRhoSqrL(ii,jj,1,iL)
-          end do
-        end do
+        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
         ! reks%hamSqrL has (my_qm) component
         reks%hamSqrL(:,:,1,iL) = tmpHam
       end if

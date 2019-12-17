@@ -65,7 +65,7 @@ module dftbp_rekscommon
   !> calculation or not, and set several convenient variables
   ! TODO : this routine moved to main.F90?
   subroutine checkGammaPoint(denseDesc, iNeighbour, nNeighbourSK,&
-      & iPair, img2CentCell, over, reks)
+      & iPair, img2CentCell, over, self)
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -86,26 +86,26 @@ module dftbp_rekscommon
     real(dp), intent(in) :: over(:)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
+    type(TReksCalc), intent(inout) :: self
 
     integer :: mu, nu, nAtom, nOrb, nAtomSparse
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh1, iOrig1
     integer :: nOrb1, nOrb2, ii, jj, kk, ll
 
     nAtom = size(denseDesc%iAtomStart,dim=1) - 1
-    nOrb = size(reks%overSqr,dim=1)
+    nOrb = size(self%overSqr,dim=1)
 
     nAtomSparse = 0
     do iAtom1 = 1, nAtom ! mu
       nAtomSparse = nAtomSparse + nNeighbourSK(iAtom1) + 1
     end do
 
-    deallocate(reks%getDenseAtom)
-    allocate(reks%getDenseAtom(nAtomSparse,2))
+    deallocate(self%getDenseAtom)
+    allocate(self%getDenseAtom(nAtomSparse,2))
 
     ll = 1
-    reks%getDenseAO(:,:) = 0
-    reks%getDenseAtom(:,:) = 0
+    self%getDenseAO(:,:) = 0
+    self%getDenseAtom(:,:) = 0
     do iAtom1 = 1, nAtom ! mu in A atom
       ii = denseDesc%iAtomStart(iAtom1)
       nOrb1 = denseDesc%iAtomStart(iAtom1 + 1) - ii
@@ -133,15 +133,16 @@ module dftbp_rekscommon
           ! Find inconsistent index between dense and sparse
           ! It means that current lattice is not proper to Gamma point calculation
           ! TODO : add the condition of Gamma point using nKpoint and Kpoints?
-          if (reks%overSqr(mu,nu) /= over(iOrig1+kk-1)) then
-            call error("Inconsistent maching exists between sparse and dense.")
+          ! TODO
+          if (self%overSqr(mu,nu) /= over(iOrig1+kk-1)) then
+            call error("Inconsistent maching exists between sparse and dense")
           end if
-          reks%getDenseAO(iOrig1+kk-1,1) = mu
-          reks%getDenseAO(iOrig1+kk-1,2) = nu
+          self%getDenseAO(iOrig1+kk-1,1) = mu
+          self%getDenseAO(iOrig1+kk-1,2) = nu
         end do
 
-        reks%getDenseAtom(ll,1) = iAtom1  ! A atom
-        reks%getDenseAtom(ll,2) = iAtom2f ! B atom
+        self%getDenseAtom(ll,1) = iAtom1  ! A atom
+        self%getDenseAtom(ll,2) = iAtom2f ! B atom
         ll = ll + 1
       end do
     end do
@@ -150,7 +151,7 @@ module dftbp_rekscommon
       do iAtom1 = 1, nAtom
         if (mu > denseDesc%iAtomStart(iAtom1)-1 .and.&
             & mu <= denseDesc%iAtomStart(iAtom1+1)-1) then
-          reks%getAtomIndex(mu) = iAtom1
+          self%getAtomIndex(mu) = iAtom1
         end if
       end do
     end do
@@ -400,10 +401,9 @@ module dftbp_rekscommon
 
     allocate(tmpMat(nOrb,nOrb))
 
-    ! ... use external blas library for matrix multiplication
     tmpMat(:,:) = 0.0_dp
-    call gemm(tmpMat,mat,eigenvecs,1.0_dp,0.0_dp,'N','N')
-    call gemm(mat,eigenvecs,tmpMat,1.0_dp,0.0_dp,'T','N')
+    call gemm(tmpMat, mat, eigenvecs)
+    call gemm(mat, eigenvecs, tmpMat, transA='T')
 
   end subroutine matAO2MO
 
@@ -425,8 +425,8 @@ module dftbp_rekscommon
     allocate(tmpMat(nOrb,nOrb))
 
     tmpMat(:,:) = 0.0_dp
-    call gemm(tmpMat,mat,eigenvecs,1.0_dp,0.0_dp,'N','T')
-    call gemm(mat,eigenvecs,tmpMat,1.0_dp,0.0_dp,'N','N')
+    call gemm(tmpMat, mat, eigenvecs, transB='T')
+    call gemm(mat, eigenvecs, tmpMat)
 
   end subroutine matMO2AO
 
@@ -522,7 +522,7 @@ module dftbp_rekscommon
     integer, intent(out) :: i, j
 
     if (tSSR22) then
-      call assignIndex22(Nc, Na, Nv, ij, i, j)
+      call assignIndex22_(Nc, Na, Nv, ij, i, j)
     else if (tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
@@ -612,7 +612,7 @@ module dftbp_rekscommon
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Assign index in terms of dense form from super matrix form in REKS(2,2)
-  subroutine assignIndex22(Nc, Na, Nv, ij, i, j)
+  subroutine assignIndex22_(Nc, Na, Nv, ij, i, j)
 
     !> Number of core orbitals
     integer, intent(in) :: Nc
@@ -659,9 +659,42 @@ module dftbp_rekscommon
       end if
     end if
 
-  end subroutine assignIndex22
+  end subroutine assignIndex22_
 
 
+!  !> Assign index in terms of super matrix form from dense form in REKS(2,2)
+!  !> for only i < j case
+!  subroutine assignIndexInverse22_(ij,i,j,Nc,Na,Nv)
+!
+!    integer, intent(out) :: ij
+!    integer, intent(in) :: i, j
+!    integer, intent(in) :: Nc, Na, Nv
+!
+!    if (i <= Nc) then
+!      ! (i,j) = (core,active)
+!      if (j > Nc .and. j <= Nc+Na) then
+!        ij = i + (j-Nc-1) * Nc
+!      end if
+!      ! (i,j) = (core,vacant)
+!      if (j > Nc+Na) then
+!        ij = (i-1) * Nv + Nc*Na + j - Nc - Na
+!      end if
+!    end if
+!    if (i > Nc .and. i <= Nc+Na) then
+!      ! (i,j) = (active,active)
+!      if (j > Nc .and. j <= Nc+Na) then
+!        ij = (Na+Nv)*Nc + 1
+!      end if
+!      ! (i,j) = (active,vacant)
+!      if (j > Nc+Na) then
+!        ij = (i-1-Nc) * Nv + Nc*Na + Nc*Nv + Na*(Na-1)/DBLE(2) + j - Nc - Na
+!      end if
+!    end if
+!
+!  end subroutine assignIndexInverse22_
+
+
+  !> Assign converged epsilon value from fock matrix in REKS(2,2)
   subroutine assignEpsilon22_(Fc, Fa, SAweight, FONs, Nc, i, j, &
       & t, chk, e1, e2)
 
@@ -763,37 +796,6 @@ module dftbp_rekscommon
     end if
 
   end subroutine assignEpsilon22_
-
-
-!  ! for only i < j case
-!  subroutine assign_index_inverse(ij,i,j,Nc,Na,Nv) ! TODO for only (2,2) case
-!
-!    integer, intent(out) :: ij
-!    integer, intent(in) :: i, j
-!    integer, intent(in) :: Nc, Na, Nv
-!
-!    if (i <= Nc) then
-!      ! (i,j) = (core,active)
-!      if (j > Nc .and. j <= Nc+Na) then
-!        ij = i + (j-Nc-1) * Nc
-!      end if
-!      ! (i,j) = (core,vacant)
-!      if (j > Nc+Na) then
-!        ij = (i-1) * Nv + Nc*Na + j - Nc - Na
-!      end if
-!    end if
-!    if (i > Nc .and. i <= Nc+Na) then
-!      ! (i,j) = (active,active) TODO for only (2,2) case
-!      if (j > Nc .and. j <= Nc+Na) then
-!        ij = (Na+Nv)*Nc + 1
-!      end if
-!      ! (i,j) = (active,vacant)
-!      if (j > Nc+Na) then
-!        ij = (i-1-Nc) * Nv + Nc*Na + Nc*Nv + Na*(Na-1)/DBLE(2) + j - Nc - Na
-!      end if
-!    end if
-!
-!  end subroutine assign_index_inverse
 
 
   !> Assign average filling for i-th orbital in REKS(2,2)

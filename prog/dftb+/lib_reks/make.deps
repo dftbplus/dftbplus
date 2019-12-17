@@ -3,8 +3,8 @@ rekscommon.o = rekscommon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(
 _mod_dftbp_rekscommon: rekscommon.o
 _mod_dftbp_rekscommon = $(rekscommon.o)
 
-rekscpeqn.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densedescr _mod_dftbp_environment _mod_dftbp_message _mod_dftbp_orbitals _mod_dftbp_periodic _mod_dftbp_rekscommon _mod_dftbp_reksgrad
-rekscpeqn.o = rekscpeqn.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densedescr) $(_mod_dftbp_environment) $(_mod_dftbp_message) $(_mod_dftbp_orbitals) $(_mod_dftbp_periodic) $(_mod_dftbp_rekscommon) $(_mod_dftbp_reksgrad)
+rekscpeqn.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densedescr _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_message _mod_dftbp_orbitals _mod_dftbp_periodic _mod_dftbp_rekscommon _mod_dftbp_reksgrad
+rekscpeqn.o = rekscpeqn.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densedescr) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_message) $(_mod_dftbp_orbitals) $(_mod_dftbp_periodic) $(_mod_dftbp_rekscommon) $(_mod_dftbp_reksgrad)
 _mod_dftbp_rekscpeqn: rekscpeqn.o
 _mod_dftbp_rekscpeqn = $(rekscpeqn.o)
 
@@ -18,8 +18,8 @@ reksfon.o = reksfon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_globalenv) $(_mod_dftb
 _mod_dftbp_reksfon: reksfon.o
 _mod_dftbp_reksfon = $(reksfon.o)
 
-reksgrad.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_coulomb _mod_dftbp_densedescr _mod_dftbp_environment _mod_dftbp_lapackroutines _mod_dftbp_message _mod_dftbp_nonscc _mod_dftbp_orbitals _mod_dftbp_periodic _mod_dftbp_rangeseparted _mod_dftbp_scc _mod_dftbp_schedule _mod_dftbp_slakocont _mod_dftbp_sparse2dense _mod_dftbp_rekscommon
-reksgrad.o = reksgrad.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_coulomb) $(_mod_dftbp_densedescr) $(_mod_dftbp_environment) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_message) $(_mod_dftbp_nonscc) $(_mod_dftbp_orbitals) $(_mod_dftbp_periodic) $(_mod_dftbp_rangeseparted) $(_mod_dftbp_scc) $(_mod_dftbp_schedule) $(_mod_dftbp_slakocont) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon)
+reksgrad.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_coulomb _mod_dftbp_densedescr _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_lapackroutines _mod_dftbp_message _mod_dftbp_nonscc _mod_dftbp_orbitals _mod_dftbp_periodic _mod_dftbp_rangeseparted _mod_dftbp_scc _mod_dftbp_schedule _mod_dftbp_slakocont _mod_dftbp_sparse2dense _mod_dftbp_rekscommon
+reksgrad.o = reksgrad.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_coulomb) $(_mod_dftbp_densedescr) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_message) $(_mod_dftbp_nonscc) $(_mod_dftbp_orbitals) $(_mod_dftbp_periodic) $(_mod_dftbp_rangeseparted) $(_mod_dftbp_scc) $(_mod_dftbp_schedule) $(_mod_dftbp_slakocont) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon)
 _mod_dftbp_reksgrad: reksgrad.o
 _mod_dftbp_reksgrad = $(reksgrad.o)
 
@@ -28,8 +28,8 @@ reksinterface.o = reksinterface.o $(_mod_dftbp_accuracy) $(_mod_dftbp_densedescr
 _mod_dftbp_reksinterface: reksinterface.o
 _mod_dftbp_reksinterface = $(reksinterface.o)
 
-reksproperty.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densitymatrix _mod_dftbp_mainio _mod_dftbp_message _mod_dftbp_rekscommon _mod_dftbp_reksvar
-reksproperty.o = reksproperty.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densitymatrix) $(_mod_dftbp_mainio) $(_mod_dftbp_message) $(_mod_dftbp_rekscommon) $(_mod_dftbp_reksvar)
+reksproperty.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densitymatrix _mod_dftbp_globalenv _mod_dftbp_mainio _mod_dftbp_message _mod_dftbp_sparse2dense _mod_dftbp_rekscommon _mod_dftbp_reksvar
+reksproperty.o = reksproperty.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densitymatrix) $(_mod_dftbp_globalenv) $(_mod_dftbp_mainio) $(_mod_dftbp_message) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon) $(_mod_dftbp_reksvar)
 _mod_dftbp_reksproperty: reksproperty.o
 _mod_dftbp_reksproperty = $(reksproperty.o)
 

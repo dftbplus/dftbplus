@@ -21,6 +21,7 @@ module dftbp_rekscpeqn
   use dftbp_blasroutines, only : gemm, gemv
   use dftbp_densedescr
   use dftbp_environment
+  use dftbp_globalenv
   use dftbp_message
   use dftbp_orbitals
   use dftbp_periodic
@@ -205,7 +206,8 @@ module dftbp_rekscpeqn
     allocate(z0(superN),z1(superN))
     allocate(p0(superN),p1(superN))
 
-    write(*,*)
+    ! TODO
+    write(stdOut,*)
     call cpu_time(t1)
 !    t1 = OMP_GET_WTIME()
 
@@ -253,7 +255,7 @@ module dftbp_rekscpeqn
     iter = 0; eps = 0.0_dp
     call cpu_time(t2)
 !    t2 = OMP_GET_WTIME()
-    write(*,'(2x,a,4x,24x,a,2x,F15.8)') &
+    write(stdOut,'(2x,a,4x,24x,a,2x,F15.8)') &
    & 'CG solver: Y initial guess', 'time =', t2 - t1
 
     CGsolver: do iter = 1, maxIter
@@ -313,7 +315,7 @@ module dftbp_rekscpeqn
 !      t2 = OMP_GET_WTIME()
 
       ! show current iteration
-      write(*,'(2x,a,1x,i4,4x,a,F18.12,2x,a,2x,F15.8)') &
+      write(stdOut,'(2x,a,1x,i4,4x,a,F18.12,2x,a,2x,F15.8)') &
      & 'CG solver: Iteration', iter, 'eps =', eps, 'time =', t2 - t1
 
       ! convergence check
@@ -323,14 +325,13 @@ module dftbp_rekscpeqn
         z0(:) = z1
         p0(:) = p1
         if (iter == maxIter) then
-          write(*,'(2x,a,i4,a)') &
+          write(stdOut,'(2x,a,i4,a)') &
          & 'Warning! Maximum number of iterations (', maxIter, &
          & ') is exceeded in CG solver'
-          write(*,*)
           call error("Increase the maximum number of iterations.")
         end if
       else
-        write(*,'(2x,a,1x,i4,1x,a)') &
+        write(stdOut,'(2x,a,1x,i4,1x,a)') &
        & 'Convergence reached in CG solver after', iter, 'iterations'
         exit CGsolver
       end if
@@ -349,7 +350,7 @@ module dftbp_rekscpeqn
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
     call cpu_time(t2)
 !    t2 = OMP_GET_WTIME()
-    write(*,'(2x,a,4x,14x,a,2x,F15.8)') &
+    write(stdOut,'(2x,a,4x,14x,a,2x,F15.8)') &
    & 'CG solver: converged R, Z, Q2 matrix', 'time =', t2 - t1
 
   end subroutine CGgrad
@@ -586,9 +587,9 @@ module dftbp_rekscpeqn
 
       ! check singularity for preconditioner
       if (dabs(tmpApre(ij)) <= epsilon(1.0_dp)) then
-        write(*,*)
-        write(*,'(A,f15.8)') " Current preconditioner value = ", tmpApre(ij)
-        write(*,*)
+        write(stdOut,*)
+        write(stdOut,'(A,f15.8)') " Current preconditioner value = ", tmpApre(ij)
+        write(stdOut,*)
         call error("A singularity exists in preconditioner for PCG, set GradientLevel = 2")
       end if
 

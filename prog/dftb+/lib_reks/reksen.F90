@@ -626,7 +626,7 @@ module dftbp_reksen
 
     real(dp), allocatable :: tmpHam(:,:)
 
-    integer :: iL, ii, jj, Lmax, nOrb
+    integer :: iL, Lmax, nOrb
 
     nOrb = size(Fc,dim=1)
     Lmax = size(weight,dim=1)
@@ -641,15 +641,7 @@ module dftbp_reksen
     Fa(:,:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (tRangeSep) then
-        ! fill the remaining symmtric part
-        ! hamSqrL has (my_ud) component
-        do jj = 1, nOrb
-          do ii = jj + 1, nOrb
-            hamSqrL(jj,ii,1,iL) = hamSqrL(ii,jj,1,iL)
-          end do
-        end do
-      else
+      if (.not. tRangeSep) then
         tmpHam(:,:) = 0.0_dp
         ! convert from sparse to dense for ham_sp_L in AO basis
         ! hamSpL has (my_ud) component
@@ -657,12 +649,7 @@ module dftbp_reksen
         call unpackHS(tmpHam, hamSpL(:,1,iL), neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        ! fill the remaining symmtric part
-        do jj = 1, nOrb
-          do ii = jj + 1, nOrb
-            tmpHam(jj,ii) = tmpHam(ii,jj)
-          end do
-        end do
+        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
       end if
 
       ! compute the Fock operator with core, r, s orbitals in AO basis
@@ -710,16 +697,16 @@ module dftbp_reksen
     fock(:,:) = 0.0_dp
     do ii = 1, Nc
       do jj = ii, Nc
-        fock(ii,jj) = Fc(ii,jj)
+        fock(jj,ii) = Fc(ii,jj)
       end do
       do jj = Nc + 1, Nc + Na
         ind1 = jj - Nc
         call fockFijMO_(res, Fc(ii,jj), Fa(ii,jj,ind1), &
             & orbFON(ii), orbFON(jj))
-        fock(ii,jj) = res
+        fock(jj,ii) = res
       end do
       do jj = Nc + Na + 1, nOrb
-        fock(ii,jj) = Fc(ii,jj)
+        fock(jj,ii) = Fc(ii,jj)
       end do
     end do
 
@@ -728,10 +715,10 @@ module dftbp_reksen
         ind1 = ii - Nc
         call fockFijMO_(res, Fc(jj,ii), Fa(jj,ii,ind1), &
             & orbFON(jj), orbFON(ii))
-        fock(ii,jj) = res
+        fock(jj,ii) = res
       end do
       do ii = jj, nOrb
-        fock(jj,ii) = Fc(jj,ii)
+        fock(ii,jj) = Fc(jj,ii)
       end do
     end do
 
@@ -740,21 +727,16 @@ module dftbp_reksen
       do jj = Nc + 1, Nc + Na
         ind2 = jj - Nc
         if (ii == jj) then
-          fock(ii,jj) = Fa(ii,jj,ind1)
+          fock(jj,ii) = Fa(ii,jj,ind1)
         else
           call fockFijMO_(res, Fa(ii,jj,ind1), Fa(ii,jj,ind2), &
               & orbFON(ii), orbFON(jj))
-          fock(ii,jj) = res
+          fock(jj,ii) = res
         end if
       end do
     end do
 
-    ! fill the remaining symmetric part
-    do jj = 1, nOrb
-      do ii = jj, nOrb
-        fock(ii,jj) = fock(jj,ii)
-      end do
-    end do
+    call symmetrizeHS(fock)
 
   end subroutine getPseudoFock_
 
@@ -988,7 +970,7 @@ module dftbp_reksen
     real(dp), allocatable :: tmpHamL(:,:,:)
 
     real(dp) :: tmp
-    integer :: mu, nu, nOrb, iL, Lmax
+    integer :: nOrb, iL, Lmax
     integer :: ia, ib, ist, nActPair
 
     nOrb = size(eigenvecs,dim=1)
@@ -1004,6 +986,7 @@ module dftbp_reksen
     do ist = 1, nActPair
 
       ! (ia,ib) = (1,2) (1,3) (2,3) ...
+      ! TODO
       tmp = ( dble(2.0_dp*(Na)+1.0_dp) - dsqrt( (2.0_dp*(Na)+ &
           & 1.0_dp)**2.0_dp - 8.0_dp*((Na)+ist) ) )/2.0_dp
       ia = int( tmp )
@@ -1029,12 +1012,7 @@ module dftbp_reksen
               & neighbourList%iNeighbour, nNeighbourSK, &
               & denseDesc%iAtomStart, iSparseStart, img2CentCell)
           call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-          ! fill the remaining symmtric part
-          do nu = 1, nOrb
-            do mu = nu + 1, nOrb
-              tmpHam(nu,mu) = tmpHam(mu,nu)
-            end do
-          end do
+          call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
           ! convert tmpHam from AO basis to MO basis
           call matAO2MO(tmpHam, eigenvecs)
           ! save F_{L,ab}^{\sigma} in MO basis

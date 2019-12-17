@@ -20,8 +20,10 @@ module dftbp_reksproperty
   use dftbp_accuracy
   use dftbp_blasroutines, only : gemm
   use dftbp_densitymatrix
+  use dftbp_globalenv
   use dftbp_mainio
   use dftbp_message
+  use dftbp_sparse2dense
   use dftbp_rekscommon
   use dftbp_reksvar
 
@@ -53,7 +55,7 @@ module dftbp_reksproperty
 
     real(dp) :: tmp
     integer :: nOrb, nstHalf
-    integer :: ii, ist, jst, kst, lst, mu, nu, ia, ib
+    integer :: ii, ist, jst, kst, lst, ia, ib
 
     nOrb = size(eigenvecs,dim=1)
     nstHalf = self%nstates * (self%nstates - 1) / 2
@@ -87,20 +89,12 @@ module dftbp_reksproperty
     if (self%useSSR == 1) then
       do ist = 1, self%nstates
         call makeDensityMatrix(P_X_o(:,:,ist), eigenvecs, tmpFilling(:,ist))
-        tmpRho(:,:) = P_X_o(:,:,ist) + transpose(P_X_o(:,:,ist))
-        do ii = 1, nOrb
-          tmpRho(ii,ii) = tmpRho(ii,ii) - P_X_o(ii,ii,ist)
-        end do
-        P_X_o(:,:,ist) = tmpRho(:,:)
+        call symmetrizeHS(P_X_o(:,:,ist))
       end do
     else
       if (self%Lstate == 0) then
         call makeDensityMatrix(P_X_o(:,:,1), eigenvecs, tmpFilling(:,self%rstate))
-        tmpRho(:,:) = P_X_o(:,:,1) + transpose(P_X_o(:,:,1))
-        do ii = 1, nOrb
-          tmpRho(ii,ii) = tmpRho(ii,ii) - P_X_o(ii,ii,1)
-        end do
-        P_X_o(:,:,1) = tmpRho(:,:)
+        call symmetrizeHS(P_X_o(:,:,ist))
       else
         ! find proper index for up+down in self%dm_L
         if (self%Lstate <= self%Lpaired) then
@@ -155,6 +149,7 @@ module dftbp_reksproperty
         do lst = 1, nstHalf
 
           ! (ia,ib) = (1,2) (1,3) (2,3) ...
+          ! TODO
           tmp = ( dble(2.0_dp*self%nstates+1.0_dp) - dsqrt( (2.0_dp*self%nstates+ &
               & 1.0_dp)**2.0_dp - 8.0_dp*(self%nstates+lst) ) )/2.0_dp
           ia = int( tmp )
@@ -541,7 +536,6 @@ module dftbp_reksproperty
 
 
   !> get the oscillator strength between the states
-  ! TODO : stdout
   subroutine getReksOsc(tdp, energy)
 
     !> transition dipole moment between states
@@ -556,11 +550,12 @@ module dftbp_reksproperty
     nstates = size(energy,dim=1)
     nstHalf = size(tdp,dim=2)
 
-    write(*,*)
-    write(*,'(A)') " Oscillator Strength (au)"
+    write(stdOut,*)
+    write(stdOut,'(A)') " Oscillator Strength (au)"
     do ist = 1, nstHalf
 
       ! ... (ia,ib) = (1,2) (1,3) (2,3) ...
+      ! TODO
       tmp = ( dble(2.0_dp*nstates+1.0_dp) - dsqrt( (2.0_dp*nstates+ &
           & 1.0_dp)**2.0_dp - 8.0_dp*(nstates+ist) ) )/2.0_dp
       ia = int( tmp )
@@ -570,8 +565,8 @@ module dftbp_reksproperty
 
       osc = 2.0_dp / 3.0_dp * (energy(ib) - energy(ia)) * sum(tdp(:,ist)**2)
 
-      write(*,'(A4,I1,A6,I1,A5)',advance="no") " ( S", ia - 1, " <-> S", ib - 1, " ) : "
-      write(*,'(1(f12.6))') osc
+      write(stdOut,'(A4,I1,A6,I1,A5)',advance="no") " ( S", ia - 1, " <-> S", ib - 1, " ) : "
+      write(stdOut,'(1(f12.6))') osc
 
     end do
 

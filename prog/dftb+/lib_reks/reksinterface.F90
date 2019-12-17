@@ -913,6 +913,7 @@ module dftbp_reksinterface
         do ist = 1, nstHalf
 
           ! (ia,ib) = (1,2) (1,3) (2,3) ...
+          ! TODO
           tmp = ( dble(2.0_dp*self%nstates+1.0_dp) - dsqrt( (2.0_dp*self%nstates+ &
               & 1.0_dp)**2.0_dp - 8.0_dp*(self%nstates+ist) ) )/2.0_dp
           ia = int( tmp )
@@ -1056,7 +1057,7 @@ module dftbp_reksinterface
           & self%tRangeSep, self%tSSR22, self%tSSR44, ZT, RmatL, ZmatL, Q2mat)
 !      t2 = OMP_GET_WTIME()
 !      print '("  Time - CG_grad = ",f15.8," seconds.")', t2 - t1
-      write(*,*)
+!      write(*,*)
 
     else if (self%Glevel == 3) then
 

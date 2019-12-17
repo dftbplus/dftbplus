@@ -18,11 +18,11 @@
 module dftbp_reksgrad
 
   use dftbp_accuracy
-!  use dftbp_assert
   use dftbp_blasroutines, only : gemm, gemv
   use dftbp_coulomb, only : addInvRPrime
   use dftbp_densedescr
   use dftbp_environment
+  use dftbp_globalenv
   use dftbp_lapackroutines, only : getrf, getri
   use dftbp_message
   use dftbp_nonscc
@@ -33,8 +33,6 @@ module dftbp_reksgrad
   use dftbp_schedule
   use dftbp_slakocont
   use dftbp_sparse2dense
-
-!  use dftbp_spin, only : qm2ud
   use dftbp_rekscommon
   ! TODO
   use omp_lib
@@ -139,12 +137,7 @@ module dftbp_reksgrad
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        ! Fill the remaining symmtric part
-        do j = 1, nOrb
-          do i = j + 1, nOrb
-            tmpHam(j,i) = tmpHam(i,j)
-          end do
-        end do
+        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
         ! convert the hamiltonians from AO basis to MO basis
         call matAO2MO(tmpHam, eigenvecs)
       end if
@@ -181,7 +174,6 @@ module dftbp_reksgrad
       call matMO2AO(tmpEps, eigenvecs)
 
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
-      ! TODO : sparse?
       call packHS(edmSpL(:,tmpL), tmpEps, neighbourlist%iNeighbour, &
           & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, &
           & img2CentCell)
@@ -376,10 +368,9 @@ module dftbp_reksgrad
       !$OMP END PARALLEL DO
 
       if (iL == 1) then
-        ! fill remaining symmetric part
         do ii = 1, 3
-          Hderiv(:,:,ii) = Hderiv(:,:,ii) + transpose(Hderiv(:,:,ii))
-          Sderiv(:,:,ii) = Sderiv(:,:,ii) + transpose(Sderiv(:,:,ii))
+          call blockSymmetrizeHS(Hderiv(:,:,ii), iSquare)
+          call blockSymmetrizeHS(Sderiv(:,:,ii), iSquare)
         end do
       end if
 
@@ -479,20 +470,20 @@ module dftbp_reksgrad
     nAtom = size(iSquare,dim=1) - 1
 
     allocate(tmpGamma(nAtom,nAtom))
-    if (tRangeSep) allocate(tmpLrGamma(nAtom,nAtom))
+    if (tRangeSep) then
+      allocate(tmpLrGamma(nAtom,nAtom))
+    end if
 
     ! get total gamma (gamma = 1/R - S)
     tmpGamma(:,:) = 0.0_dp
     call sccCalc%getAtomicGammaMatrix(tmpGamma, iNeighbour, img2CentCell)
+    call symmetrizeHS(tmpGamma)
     ! convert from atom to AO
     GammaAO(:,:) = 0.0_dp
-    do mu = 1, nOrb
-      do nu = mu, nOrb
-        ! find proper atom index
-        G1 = getAtomIndex(mu)
-        G2 = getAtomIndex(nu)
-        GammaAO(nu,mu) = tmpGamma(G2,G1)
-        if (nu /= mu) GammaAO(mu,nu) = GammaAO(nu,mu)
+    do iAt1 = 1, nAtom
+      do iAt2 = 1, nAtom
+        GammaAO(iSquare(iAt2):iSquare(iAt2+1)-1,iSquare(iAt1):iSquare(iAt1+1)-1) =&
+            & tmpGamma(iAt2,iAt1)
       end do
     end do
 
@@ -500,11 +491,7 @@ module dftbp_reksgrad
     GammaDeriv(:,:,:) = 0.0_dp
     call sccCalc%getGammaDeriv(env, species, iNeighbour, img2CentCell, GammaDeriv)
     do ii = 1, 3
-      do nu = 1, nAtom
-        do mu = nu + 1, nAtom
-          GammaDeriv(nu,mu,ii) = GammaDeriv(mu,nu,ii)
-        end do
-      end do
+      call symmetrizeHS(GammaDeriv(:,:,ii))
     end do
 
     ! get spinW with respect to AO
@@ -534,13 +521,10 @@ module dftbp_reksgrad
       call rangeSep%getLrGamma(tmpLrGamma)
       ! convert from atom to AO
       LrGammaAO(:,:) = 0.0_dp
-      do mu = 1, nOrb
-        do nu = mu, nOrb
-          ! find proper atom index
-          G1 = getAtomIndex(mu)
-          G2 = getAtomIndex(nu)
-          LrGammaAO(nu,mu) = tmpLrGamma(G2,G1)
-          if (nu /= mu) LrGammaAO(mu,nu) = LrGammaAO(nu,mu)
+      do iAt1 = 1, nAtom
+        do iAt2 = 1, nAtom
+          LrGammaAO(iSquare(iAt2):iSquare(iAt2+1)-1,iSquare(iAt1):iSquare(iAt1+1)-1) =&
+              & tmpLrGamma(iAt2,iAt1)
         end do
       end do
 
@@ -548,11 +532,7 @@ module dftbp_reksgrad
       LrGammaDeriv(:,:,:) = 0.0_dp
       call rangeSep%getLrGammaDeriv(coords, species, LrGammaDeriv)
       do ii = 1, 3
-        do mu = 1, nAtom
-          do nu = mu + 1, nAtom
-            LrGammaDeriv(nu,mu,ii) = LrGammaDeriv(mu,nu,ii)
-          end do
-        end do
+        call symmetrizeHS(LrGammaDeriv(:,:,ii))
       end do
 
     end if
@@ -799,12 +779,7 @@ module dftbp_reksgrad
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        ! fill the remaining symmtric part
-        do j = 1, nOrb
-          do i = j + 1, nOrb
-            tmpHam(j,i) = tmpHam(i,j)
-          end do
-        end do
+        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -1045,12 +1020,7 @@ module dftbp_reksgrad
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        ! fill the remaining symmtric part
-        do j = 1, nOrb
-          do i = j + 1, nOrb
-            tmpHam(j,i) = tmpHam(i,j)
-          end do
-        end do
+        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -1138,7 +1108,7 @@ module dftbp_reksgrad
     real(dp), intent(inout) :: XTdel(:)
 
     real(dp), allocatable :: tmpMat(:,:)
-    real(dp), allocatable :: Zmat(:,:)
+    real(dp), allocatable :: Zmo(:,:)
 
     real(dp) :: fac
     integer :: Lmax, nOrb, Nv, superN
@@ -1150,20 +1120,20 @@ module dftbp_reksgrad
     superN = size(XTdel,dim=1)
 
     allocate(tmpMat(nOrb,nOrb))
-    allocate(Zmat(nOrb,nOrb))
+    allocate(Zmo(nOrb,nOrb))
 
     ! 2-electron part
     XTdel(:) = 0.0_dp
     do iL = 1, Lmax
       ! convert ZdelL from AO basis to MO basis
       tmpMat(:,:) = 0.0_dp
-      call gemm(tmpMat,ZdelL(:,:,iL),eigenvecs(:,:,1),1.0_dp,0.0_dp,'N','N')
-      Zmat(:,:) = 0.0_dp
-      call gemm(Zmat,eigenvecs(:,:,1),tmpMat,1.0_dp,0.0_dp,'T','N')
+      call gemm(tmpMat, ZdelL(:,:,iL), eigenvecs(:,:,1))
+      Zmo(:,:) = 0.0_dp
+      call gemm(Zmo, eigenvecs(:,:,1), tmpMat, transA='T')
       do ij = 1, superN
         ! assign index p and q from pq
         call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
-        fac = 2.0_dp * weight(iL) * Zmat(i,j) &
+        fac = 2.0_dp * weight(iL) * Zmo(i,j) &
            & * (fillingL(i,1,iL) - fillingL(j,1,iL))
         XTdel(ij) = XTdel(ij) - fac
       end do
@@ -1293,12 +1263,7 @@ module dftbp_reksgrad
             & neighbourList%iNeighbour, nNeighbourSK, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        ! fill the remaining symmtric part
-        do j = 1, nOrb
-          do i = j + 1, nOrb
-            tmpHam(j,i) = tmpHam(i,j)
-          end do
-        end do
+        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
@@ -1679,13 +1644,15 @@ module dftbp_reksgrad
     do iL = 1, Lmax
       tmpMat(:,:) = 0.0_dp
       Zmo(:,:) = 0.0_dp
-      call gemm(tmpMat,ZmatL(:,:,iL),eigenvecs(:,:,1))
-      call gemm(Zmo,eigenvecs(:,:,1),tmpMat,transA='T')
+      call gemm(tmpMat, ZmatL(:,:,iL), eigenvecs(:,:,1))
+      call gemm(Zmo, eigenvecs(:,:,1), tmpMat, transA='T')
       do p = 1, nOrb
         do q = p, nOrb
           fac = 2.0_dp * weight(iL) * Zmo(p,q) * (fillingL(p,1,iL) + fillingL(q,1,iL))
           Q2mat(q,p) = Q2mat(q,p) + 0.5_dp * fac
-          if (p /= q) Q2mat(p,q) = Q2mat(q,p)
+          if (p /= q) then
+            Q2mat(p,q) = Q2mat(q,p)
+          end if
         end do
       end do
     end do
@@ -2037,6 +2004,7 @@ module dftbp_reksgrad
     Lmax = size(weightIL,dim=1)
 
     ! (ia,ib) = (1,2) (1,3) (2,3) ...
+    ! TODO
     tmp = ( dble(2.0_dp*nstates+1.0_dp) - dsqrt( (2.0_dp*nstates+ &
         & 1.0_dp)**2.0_dp - 8.0_dp*(nstates+ist) ) )/2.0_dp
     ia = int( tmp )
@@ -2459,7 +2427,7 @@ module dftbp_reksgrad
         do iL = 1, LmaxR
 
           ! RmatL
-          ! TODO : indexing?
+          ! TODO : onsite elements remain
           tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
           do mu = 1, nOrb
             tmpMat(mu,mu) = tmpMat(mu,mu) - RmatL(mu,mu,iL)
@@ -2500,7 +2468,7 @@ module dftbp_reksgrad
           ! RmatL
           tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
           do mu = 1, nOrb
-            tmpMat(mu,mu) = tmpMat(mu,mu) - RmatL(mu,mu,iL)
+            tmpMat(mu,mu) = RmatL(mu,mu,iL)
           end do
 
           do k = 1, nOrbHalf
@@ -2952,6 +2920,7 @@ module dftbp_reksgrad
 !$OMP& tmpL1,tmpL2,tmpL3,tmpL4,tmpvalue1,tmpvalue2) SCHEDULE(RUNTIME)
       do k = 1, nOrbHalf
 
+            ! TODO
         tmp11 = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
             & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+k) ) )/2.0_dp
         tmp11 = real( tmp11 )
@@ -2960,6 +2929,7 @@ module dftbp_reksgrad
 
         do l = 1, nOrbHalf
 
+            ! TODO
           tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
               & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+l) ) )/2.0_dp
           tmp22 = real( tmp22 )
@@ -3234,6 +3204,7 @@ module dftbp_reksgrad
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,i,j,pq,p,q,e1,e2,tmp) SCHEDULE(RUNTIME)
     do ijpq = 1, superNhalf
 
+      ! TODO
       tmp = ( dble(2.0_dp*superN+3.0_dp) - dsqrt( (2.0_dp*superN &
           & + 3.0_dp)**2.0_dp - 8.0_dp*(superN+ijpq) ) )/2.0_dp
       tmp = real( tmp )
@@ -3315,10 +3286,11 @@ module dftbp_reksgrad
       end if
 
       ! check singularity for preconditioner
+      ! TODO
       if (dabs(A1ePre(ij,ij)) <= epsilon(1.0_dp)) then
-        write(*,*)
-        write(*,'(A,f15.8)') " Current preconditioner value = ", A1ePre(ij,ij)
-        write(*,*)
+        write(stdOut,*)
+        write(stdOut,'(A,f15.8)') " Current preconditioner value = ", A1ePre(ij,ij)
+        write(stdOut,*)
         call error("A singularity exists in preconditioner for PCG, set GradientLevel = 2")
       end if
 
@@ -3764,8 +3736,8 @@ module dftbp_reksgrad
         end if
       end do
       tmpMat(:,:) = 0.0_dp
-      call gemm(tmpMat,tmpZT,eigenvecs(:,:,1),1.0_dp,0.0_dp,'N','T')
-      call gemm(RmatL(:,:,iL),eigenvecs(:,:,1),tmpMat,1.0_dp,0.0_dp,'N','N')
+      call gemm(tmpMat, tmpZT, eigenvecs(:,:,1), transB='T')
+      call gemm(RmatL(:,:,iL), eigenvecs(:,:,1), tmpMat)
     end do
 
   end subroutine getRmat22_
@@ -3875,6 +3847,7 @@ module dftbp_reksgrad
 !$OMP& tmpHxcS,tmpHxcD,tmp,tmp1,tmp2) SCHEDULE(RUNTIME)
     do ii = 1, nOrbHalf
 
+      ! TODO
       tmp = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb+3.0_dp)**2.0_dp &
           & - 8.0_dp*(nOrb+ii) ) )/2.0_dp
       gam = int( real(tmp) )
@@ -3970,9 +3943,10 @@ module dftbp_reksgrad
     do iL = 1, LmaxR
       tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
       do gam = 1, nOrb
-        tmpMat(gam,gam) = tmpMat(gam,gam) - RmatL(gam,gam,iL)
+        tmpMat(gam,gam) = RmatL(gam,gam,iL)
       end do
       do ii = 1, nOrbHalf
+      ! TODO
         tmp = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
             & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
         tmp = real( tmp )
@@ -3987,6 +3961,7 @@ module dftbp_reksgrad
 !$OMP& tmpHxcS,tmpHxcD,tmp,tmp1,tmp2) SCHEDULE(RUNTIME)
     do ii = 1, nOrbHalf
 
+      ! TODO
       tmp = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
           & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
       tmp = real( tmp )
@@ -4104,10 +4079,10 @@ module dftbp_reksgrad
     RmatSpL(:,:) = 0.0_dp
     do iL = 1, LmaxR
       tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
-      ! TODO : fill remaining directly?
       do gam = 1, nOrb
-        tmpMat(gam,gam) = tmpMat(gam,gam) - RmatL(gam,gam,iL)
+        tmpMat(gam,gam) = RmatL(gam,gam,iL)
       end do
+      ! TODO : onsite element remains
       ! convert from dense to sparse for RmatL in AO basis
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packHS(RmatSpL(:,iL), tmpMat, neighbourlist%iNeighbour, &
@@ -4165,16 +4140,12 @@ module dftbp_reksgrad
     ZmatL(:,:,:) = 0.0_dp
     do iL = 1, Lmax
       ! convert from sparse to dense for ZmatL in AO basis
-      tmpMat(:,:) = 0.0_dp
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
-      call unpackHS(tmpMat, ZmatSpL(:,iL), &
+      call unpackHS(ZMatL(:,:,iL), ZmatSpL(:,iL), &
           & neighbourList%iNeighbour, nNeighbourSK, &
           & denseDesc%iAtomStart, iSparseStart, img2CentCell)
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      ZmatL(:,:,iL) = tmpMat + transpose(tmpMat)
-      do gam = 1, nOrb
-        ZmatL(gam,gam,iL) = ZmatL(gam,gam,iL) - tmpMat(gam,gam)
-      end do
+      call blockSymmetrizeHS(ZmatL(:,:,iL), denseDesc%iAtomStart)
     end do
 
   end subroutine getZmatSparse_
@@ -4268,6 +4239,7 @@ module dftbp_reksgrad
       do mu = 1, nOrb
         tmpMat(mu,mu) = tmpMat(mu,mu) - RmatL(mu,mu,iL)
       end do
+      ! TODO : onsite element remains, same problem in sparse case
 
       ! convert from dense to sparse for RmatL in AO basis
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
@@ -4382,13 +4354,13 @@ module dftbp_reksgrad
       do iL = 1, LmaxR
 
         ! RmatL
-        tmpMat(:,:) = 0.0_dp
         tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
         do mu = 1, nOrb
-          tmpMat(mu,mu) = tmpMat(mu,mu) - RmatL(mu,mu,iL)
+          tmpMat(mu,mu) = RmatL(mu,mu,iL)
         end do
 
         do ii = 1, nOrbHalf
+          ! TODO
           tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - &
               & dsqrt( (2.0_dp*nOrb+3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
           tmp22 = real( tmp22 )
@@ -4404,6 +4376,7 @@ module dftbp_reksgrad
 !$OMP& tmpL2,tmpL3,tmpL4,tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
       do ii = 1, nOrbHalf
 
+          ! TODO
         tmp11 = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
             & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
         tmp11 = real( tmp11 )
@@ -4413,6 +4386,7 @@ module dftbp_reksgrad
         tmpHxcS(:) = 0.0_dp
         do jj = 1, nOrbHalf
 
+          ! TODO
           tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
               & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+jj) ) )/2.0_dp
           tmp22 = real( tmp22 )
@@ -5475,6 +5449,7 @@ module dftbp_reksgrad
 !$OMP& REDUCTION(+:deriv1) SCHEDULE(RUNTIME)
       do k = 1, nAtomPair
   
+            ! TODO
         tmp = ( dble(2.0_dp*nAtom+1.0_dp) - dsqrt( (2.0_dp*nAtom+1.0_dp)**2.0_dp - 8.0_dp*(nAtom+k) ) )/2.0_dp
         tmp = real(tmp)
         iAtom1 = int( tmp )

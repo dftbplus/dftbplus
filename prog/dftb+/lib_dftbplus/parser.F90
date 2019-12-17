@@ -5641,7 +5641,7 @@ contains
   end subroutine parseRangeSeparated
 
 
-  ! ... Reads the REKS block
+  !> Reads the REKS block
   subroutine readREKS(node, ctrl, geo)
 
     !> Node to parse
@@ -5676,7 +5676,7 @@ contains
   end subroutine readREKS
 
 
-  ! ... Reads the SSR(2,2) block
+  !> Reads the SSR(2,2) block
   subroutine readSSR22(node, ctrl, geo)
 
     !> Node to parse
