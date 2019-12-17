@@ -4495,27 +4495,21 @@ contains
     real(dp), intent(out) :: eigenvecs(:,:)
 
     character(len=16), parameter :: fname = "eigenvec.bin"
-    !character(len=255) :: cwd
     integer, parameter :: funit = 105
     logical :: exst
-    integer :: iAO, iMO, nAOs
+    integer :: iAO, iMO, nOrb
     integer :: dummy
 
-    ! extension to standard
-    !call getcwd(cwd)
+    nOrb = size(eigenvecs,dim=1)
 
-    nAOs = size(eigenvecs,dim=1)
-
-    !inquire(file=trim(cwd)//fname,exist=exst)
     inquire(file=fname,exist=exst)
     if (exst) then
-      !open(unit=funit,file=trim(cwd)//fname,action="read",form="unformatted",access="direct",recl=dp)
       open(unit=funit,file=fname,action="read",form="unformatted",access="direct",recl=dp)
       read(funit,rec=1) dummy
-      do iMO = 1, nAOs
-        read(funit,rec=2+(nAOs+1)*(iMO-1)) dummy
-        do iAO = 1, nAOs
-          read(funit,rec=2+iAO+(nAOs+1)*(iMO-1)) eigenvecs(iAO,iMO)
+      do iMO = 1, nOrb
+        read(funit,rec=2+(nOrb+1)*(iMO-1)) dummy
+        do iAO = 1, nOrb
+          read(funit,rec=2+iAO+(nOrb+1)*(iMO-1)) eigenvecs(iAO,iMO)
         end do
       end do
       close(funit)
@@ -4913,7 +4907,6 @@ contains
     real(dp), intent(in) :: tdp(:,:)
 
     character(len=16), parameter :: fname = "tdp.dat"
-    !character(len=255) :: cwd
     integer, parameter :: funit = 108
 
     real(dp) :: tmp
@@ -4924,15 +4917,12 @@ contains
     tmp = 0.5_dp * (1.0_dp + dsqrt(1.0_dp + 8.0_dp*dble(nstHalf)))
     nstates = int(real(tmp))
 
-    ! extension to standard
-    !call getcwd(cwd)
-
-    !open(unit=funit,file=trim(cwd)//fname,position="rewind",status="replace")
     open(unit=funit,file=fname,position="rewind",status="replace")
     write(funit,*)
     do ist = 1, nstHalf
 
-      ! ... (ia,ib) = (1,2) (1,3) (2,3) ...
+      ! (ia,ib) = (1,2) (1,3) (2,3) ...
+      ! TODO
       tmp = ( dble(2.0_dp*nstates+1.0_dp) - dsqrt( (2.0_dp*nstates+ &
           & 1.0_dp)**2.0_dp - 8.0_dp*(nstates+ist) ) )/2.0_dp
       ia = int( tmp )
@@ -4968,16 +4958,13 @@ contains
     !> Target microstate
     integer, intent(in) :: Lstate
 
-    character(len=20), parameter :: fname = "/relaxed_charge.dat"
-    character(len=255) :: cwd
+    character(len=20), parameter :: fname = "relaxed_charge.dat"
     integer :: iAt, nAtom
     integer, parameter :: funit = 109
 
     nAtom = size(qOutput,dim=2)
 
-    call getcwd(cwd)
-
-    open(unit=funit,file=trim(cwd)//fname,position="rewind",status="replace")
+    open(unit=funit,file=fname,position="rewind",status="replace")
     write(funit,'(A13,1X,F15.8,A4)') "total charge:", &
         & -sum(qOutput(:,:,1) - q0(:,:,1)), " (e)"
     write(funit,'(1X)')
