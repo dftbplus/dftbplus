@@ -26,7 +26,7 @@ module dftbp_sparse2dense
   private
 
   public :: unpackHS, packHS, iPackHS, packErho
-  public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS
+  public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS, symmetrizeHS
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
 
 #:if WITH_SCALAPACK
@@ -83,6 +83,12 @@ module dftbp_sparse2dense
   interface blockAntiSymmetrizeHS
     module procedure blockAntiSymmetrizeHS_real
   end interface blockAntiSymmetrizeHS
+
+
+  !> Symmetrize the square matrix including the on-site blocks
+  interface symmetrizeHS
+    module procedure symmetrizeHS_real
+  end interface symmetrizeHS
 
 contains
 
@@ -1421,6 +1427,21 @@ contains
     end do
 
   end subroutine blockAntiSymmetrizeHS_real
+
+
+  !> Copy lower triangle to upper for a square matrix. (Real version)
+  subroutine symmetrizeHS_real(matrix)
+
+    !> matrix to symmetrize
+    real(dp), intent(inout) :: matrix(:,:)
+    integer :: ii, matSize
+
+    matSize = size(matrix, dim = 1)
+    do ii = 1, matSize - 1
+      matrix(ii, ii + 1 : matSize) = matrix(ii + 1 : matSize, ii)
+    end do
+
+  end subroutine symmetrizeHS_real
 
 
 #:if WITH_SCALAPACK
