@@ -449,7 +449,8 @@ module dftbp_reksen
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    real(dp) :: n_a, n_b, fac, iL, ist
+    integer :: iL, ist
+    real(dp) :: n_a, n_b, fac
 
     n_a = self%FONs(1,1)
     n_b = self%FONs(2,1)
