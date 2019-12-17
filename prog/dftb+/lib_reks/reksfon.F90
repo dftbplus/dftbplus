@@ -112,19 +112,19 @@ module dftbp_reksfon
     ! else solve the equation:
     ! Const = (-2)*(2*x - 1)*(4*x*(1 - x))**(-1/2)
     !
-    if (dabs(Const) > Threshold) then
-      fac = (2.0_dp*(2.0_dp+delta)/((1.0_dp+delta)*dabs(Const))) &
+    if (abs(Const) > Threshold) then
+      fac = (2.0_dp*(2.0_dp+delta)/((1.0_dp+delta)*abs(Const))) &
          & **(2.0_dp*(1.0_dp+delta)/delta)
       if (Const > 0.0_dp) then
         ! x ~= 0 case
-        root = 0.5_dp * (1.0_dp - dsqrt(1.0_dp - fac))
+        root = 0.5_dp * (1.0_dp - sqrt(1.0_dp - fac))
       else
         ! x ~= 1 case
-        root = 0.5_dp * (1.0_dp + dsqrt(1.0_dp - fac))
+        root = 0.5_dp * (1.0_dp + sqrt(1.0_dp - fac))
       end if
     else
       ! x ~= near 1/2 case
-      root = 0.5_dp * (1.0_dp - Const/dsqrt(4.0_dp+Const**2))
+      root = 0.5_dp * (1.0_dp - Const/sqrt(4.0_dp+Const**2))
     end if
 
     xDownLim = 1.0E-14_dp
@@ -144,7 +144,7 @@ module dftbp_reksfon
       ! Calculate gradient of f(x)
       fac1 = 2.0_dp * (1.0_dp - 2.0_dp*x1) / (1.0_dp + delta)
       fac2 = -0.5_dp * (y + delta) / (1.0_dp + delta)
-      fac3 = 2.0_dp + delta - y - y*dlog(y)
+      fac3 = 2.0_dp + delta - y - y*log(y)
       grad = fac1 * fac3 * y**fac2
       ! Calculate hessian of f(x)
       fac1 = 4.0_dp / (1.0_dp + delta)**2
@@ -152,7 +152,7 @@ module dftbp_reksfon
       fac4 = -1.0_dp * delta**2 - y * ( 8.0_dp + (-8.0_dp+y)*y )
       fac5 = delta * ( -2.0_dp + 5.0_dp*(-1.0_dp+y)*y )
       fac6 = 4.0_dp + delta*(2.0_dp-3.0_dp*y) + y*(-7.0_dp+2.0_dp*y) + (-1.0_dp+y)*y*log(y)
-      fac3 = fac4 + fac5 - y*dlog(y)*fac6
+      fac3 = fac4 + fac5 - y*log(y)*fac6
       hess = fac1 * fac3 * y**fac2
       ! Update eps value
       eps = (Const - grad) / hess
@@ -162,7 +162,7 @@ module dftbp_reksfon
       end if
 
       ! Convergence check
-      if (dabs(eps) > ConvergeLimit) then
+      if (abs(eps) > ConvergeLimit) then
         x0 = x1
         if (iter == maxIter) then
           write(stdOut,'(2x,a,i4,a)') &

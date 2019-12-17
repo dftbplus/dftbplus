@@ -63,7 +63,6 @@ module dftbp_rekscommon
 
   !> Check whether the cell size is proper to the Gamma point
   !> calculation or not, and set several convenient variables
-  ! TODO : this routine moved to main.F90?
   subroutine checkGammaPoint(denseDesc, iNeighbour, nNeighbourSK,&
       & iPair, img2CentCell, over, self)
 
@@ -133,8 +132,7 @@ module dftbp_rekscommon
           ! Find inconsistent index between dense and sparse
           ! It means that current lattice is not proper to Gamma point calculation
           ! TODO : add the condition of Gamma point using nKpoint and Kpoints?
-          ! TODO
-          if (self%overSqr(mu,nu) /= over(iOrig1+kk-1)) then
+          if (abs(self%overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
             call error("Inconsistent maching exists between sparse and dense")
           end if
           self%getDenseAO(iOrig1+kk-1,1) = mu
@@ -515,10 +513,10 @@ module dftbp_rekscommon
     !> Calculate DFTB/SSR(4,4) formalism
     logical, intent(in) :: tSSR44
 
-    ! index for super matrix form
+    !> index for super matrix form
     integer, intent(in) :: ij
 
-    ! index for dense form
+    !> index for dense form
     integer, intent(out) :: i, j
 
     if (tSSR22) then
@@ -623,10 +621,10 @@ module dftbp_rekscommon
     !> Number of vacant orbitals
     integer, intent(in) :: Nv
 
-    ! index for super matrix form
+    !> index for super matrix form
     integer, intent(in) :: ij
 
-    ! index for dense form
+    !> index for dense form
     integer, intent(out) :: i, j
 
     ! (i,j) = (core,active)

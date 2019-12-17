@@ -6243,6 +6243,7 @@ contains
     else if (reks%guess == 2) then
 
       call readEigenvecs(eigvecsReal(:,:,1))
+      ! TODO : renormalize eigenvectors needed!
       call symmetrizeOverlap(env, denseDesc, over, neighbourList, &
           & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
           & SSqrReal, reks)
@@ -6299,8 +6300,6 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    integer :: ii
-
     eigen(:,:) = 0.0_dp
     call env%globalTimer%startTimer(globalTimers%sparseToDense)
     call unpackHS(HSqrReal, h0, neighbourList%iNeighbour, nNeighbourSK, &
@@ -6309,13 +6308,11 @@ contains
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-    reks%overSqr(:,:) = SSqrReal + transpose(SSqrReal)
-    do ii = 1, size(SSqrReal,dim=1)
-      reks%overSqr(ii,ii) = 0.5_dp * reks%overSqr(ii,ii)
-    end do
+    reks%overSqr(:,:) = SSqrReal
+    call blockSymmetrizeHS(reks%overSqr, denseDesc%iAtomStart)
 
     call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1))
-    eigvecsReal(:,:,1) = HSqrReal(:,:)
+    eigvecsReal(:,:,1) = HSqrReal
 
   end subroutine buildAndDiagDenseRealH0
 
@@ -6355,17 +6352,13 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    integer :: ii
-
     call env%globalTimer%startTimer(globalTimers%sparseToDense)
     call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, &
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-    reks%overSqr(:,:) = SSqrReal + transpose(SSqrReal)
-    do ii = 1, size(SSqrReal,dim=1)
-      reks%overSqr(ii,ii) = 0.5_dp * reks%overSqr(ii,ii)
-    end do
+    reks%overSqr(:,:) = SSqrReal
+    call blockSymmetrizeHS(reks%overSqr, denseDesc%iAtomStart)
 
   end subroutine symmetrizeOverlap
 
@@ -6752,7 +6745,6 @@ contains
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
     real(dp), allocatable :: shellPot(:,:,:)
-    real(dp), allocatable, save :: shellPotBk(:,:)
 
     integer, pointer :: pSpecies0(:)
     integer :: nAtom, nSpin
@@ -6838,7 +6830,6 @@ contains
     integer, intent(in) :: iL
 
     real(dp), allocatable :: tmpBlock(:,:,:,:)
-
     integer :: nAtom
 
     nAtom = size(orb%nOrbAtom)
@@ -7221,7 +7212,7 @@ contains
     tConverged = (sccErrorQ < sccTol) &
         & .and. (iSccIter >= minSccIter .or. (reks%guess == 2) .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
-      qInpRed(:) = qOutRed(:)
+      qInpRed(:) = qOutRed
       call guessNewEigvecs(eigvecs(:,:,1), reks%eigvecsFock)
     end if
 
@@ -7309,6 +7300,7 @@ contains
   end subroutine reduceReksCharges
 
 
+  !> Calculate SSR state from SA-REKS states and state-interaction terms
   subroutine getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, coord, iAtInCentralRegion, eigenvecs,&
       & electronicSolver, eigen, qOutput, q0, tDipole, dipoleMoment, reks)

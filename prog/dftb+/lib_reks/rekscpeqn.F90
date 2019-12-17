@@ -27,6 +27,7 @@ module dftbp_rekscpeqn
   use dftbp_periodic
   use dftbp_rekscommon
   use dftbp_reksgrad, only : getRmat, getZmat, getQ2mat
+  ! TODO
 !  use omp_lib
 
   implicit none
@@ -189,11 +190,11 @@ module dftbp_rekscpeqn
     real(dp), intent(out) :: Q2mat(:,:)
 
 
-    real(dp), allocatable :: shift1e(:)          ! ... A_1e * Z_T
-    real(dp), allocatable :: shift2e(:)          ! ... A_2e * Z_T
-    real(dp), allocatable :: r0(:), r1(:)         ! ... residual vector
-    real(dp), allocatable :: z0(:), z1(:)         ! ... PCG residual vector
-    real(dp), allocatable :: p0(:), p1(:)         ! ... direction vector
+    real(dp), allocatable :: shift1e(:)          ! A1e * ZT
+    real(dp), allocatable :: shift2e(:)          ! A2e * ZT
+    real(dp), allocatable :: r0(:), r1(:)        ! residual vector
+    real(dp), allocatable :: z0(:), z1(:)        ! PCG residual vector
+    real(dp), allocatable :: p0(:), p1(:)        ! direction vector
 
     real(dp) :: t1, t2
     real(dp) :: rNorm1, rNorm2, alpha, beta, eps
@@ -586,10 +587,8 @@ module dftbp_rekscpeqn
       end if
 
       ! check singularity for preconditioner
-      if (dabs(tmpApre(ij)) <= epsilon(1.0_dp)) then
-        write(stdOut,*)
+      if (abs(tmpApre(ij)) <= epsilon(1.0_dp)) then
         write(stdOut,'(A,f15.8)') " Current preconditioner value = ", tmpApre(ij)
-        write(stdOut,*)
         call error("A singularity exists in preconditioner for PCG, set GradientLevel = 2")
       end if
 
@@ -652,8 +651,8 @@ module dftbp_rekscpeqn
     do iL = 1, Lmax
       tmpMat(:,:) = 0.0_dp
       Zmo(:,:) = 0.0_dp
-      call gemm(tmpMat,ZmatL(:,:,iL),eigenvecs(:,:,1),1.0_dp,0.0_dp,'N','N')
-      call gemm(Zmo,eigenvecs(:,:,1),tmpMat,1.0_dp,0.0_dp,'T','N')
+      call gemm(tmpMat, ZmatL(:,:,iL), eigenvecs(:,:,1))
+      call gemm(Zmo, eigenvecs(:,:,1), tmpMat, transA='T')
       do pq = 1, superN
         ! assign index p and q from pq
         call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)

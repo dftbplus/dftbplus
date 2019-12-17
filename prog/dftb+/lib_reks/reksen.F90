@@ -291,12 +291,12 @@ module dftbp_reksen
 
     do ii = Nc + 1, Nc + Na
       ind = ii - Nc
-      eigen(ii,1,1) = eigen(ii,1,1) - real(ind) * shift
+      eigen(ii,1,1) = eigen(ii,1,1) - dble(ind) * shift
     end do
 
     do ii = Nc + Na + 1, nOrb
       ind = Na + 1
-      eigen(ii,1,1) = eigen(ii,1,1) - real(ind) * shift
+      eigen(ii,1,1) = eigen(ii,1,1) - dble(ind) * shift
     end do
 
   end subroutine adjustEigenval
@@ -482,9 +482,9 @@ module dftbp_reksen
       self%weightL(3,6) = fac
     end if
 
-    !> Decide which state will be optimized
-    !> SAstates = 1 -> PPS state is optimized
-    !> SAstates = 2 -> (PPS+OSS)/2 state (averaged state) is optimized
+    ! Decide which state will be optimized
+    ! SAstates = 1 -> PPS state is optimized
+    ! SAstates = 2 -> (PPS+OSS)/2 state (averaged state) is optimized
     self%weight(:) = 0.0_dp
     do iL = 1, self%Lmax
       do ist = 1, self%SAstates
@@ -1071,10 +1071,10 @@ module dftbp_reksen
     nstates = size(StateCoup,dim=1)
 
     StateCoup(:,:) = 0.0_dp
-    StateCoup(1,2) = dsqrt(n_a) * Wab(1,1) - dsqrt(n_b) * Wab(1,1)
+    StateCoup(1,2) = sqrt(n_a) * Wab(1,1) - sqrt(n_b) * Wab(1,1)
     StateCoup(2,1) = StateCoup(1,2)
     if (nstates == 3) then
-      StateCoup(2,3) = dsqrt(n_a) * Wab(1,1) + dsqrt(n_b) * Wab(1,1)
+      StateCoup(2,3) = sqrt(n_a) * Wab(1,1) + sqrt(n_b) * Wab(1,1)
       StateCoup(3,2) = StateCoup(2,3)
     end if
 

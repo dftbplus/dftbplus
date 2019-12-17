@@ -37,6 +37,7 @@ module dftbp_reksinterface
   use dftbp_reksgrad
   use dftbp_reksproperty
   use dftbp_reksvar
+  ! TODO
 !  use omp_lib
 
   implicit none

@@ -232,35 +232,28 @@ module dftbp_reksvar
 
 
     !> get atom index from AO index
-    ! TODO: getAtomIndex = get_iat
     integer, allocatable :: getAtomIndex(:)
 
     !> get dense AO index from sparse AO array
-    ! TODO: getDenseAO = get_AO_sp
     integer, allocatable :: getDenseAO(:,:)
 
     !> get dense atom index from sparse atom array
-    ! TODO: getDenseAtom = get_iat_sp
     integer, allocatable :: getDenseAtom(:,:)
 
 
     !> Dense overlap matrix
-    ! TODO: overSqr = over
     real(dp), allocatable :: overSqr(:,:)
 
     !> Filling for each microstate
     real(dp), allocatable :: fillingL(:,:,:)
 
     !> Dense density matrix for each microstate
-    ! TODO: rhoSqrL = dm_L
     real(dp), allocatable :: rhoSqrL(:,:,:,:)
 
     !> Sparse density matrix for each microstate
-    ! TODO: rhoSpL = dm_sp_L
     real(dp), allocatable :: rhoSpL(:,:,:)
 
     !> Dense delta density matrix for each microstate
-    ! TODO: deltaRhoSqrL = Deltadm_L
     real(dp), allocatable :: deltaRhoSqrL(:,:,:,:)
 
     !> Mulliken population for each microstate
@@ -281,7 +274,6 @@ module dftbp_reksvar
 
 
     !> Dense Hamiltonian matrix for each microstate
-    ! TODO: hamSqrL = ham_L
     real(dp), allocatable :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
@@ -379,27 +371,21 @@ module dftbp_reksvar
 
 
     !> Hartree-XC kernel with sparse form with same spin part
-    ! TODO: HxcSpS = Hxc_s_sp
     real(dp), allocatable :: HxcSpS(:,:)
 
     !> Hartree-XC kernel with sparse form with different spin part
-    ! TODO: HxcSpD = Hxc_d_sp
     real(dp), allocatable :: HxcSpD(:,:)
 
     !> Hartree-XC kernel with half dense form with same spin part
-    ! TODO: HxcHalfS = Hxc_s_half
     real(dp), allocatable :: HxcHalfS(:,:)
 
     !> Hartree-XC kernel with half dense form with different spin part
-    ! TODO: HxcHalfD = Hxc_d_half
     real(dp), allocatable :: HxcHalfD(:,:)
 
     !> Hartree-XC kernel with dense form with same spin part
-    ! TODO: HxcSqrS = Hxc_s
     real(dp), allocatable :: HxcSqrS(:,:,:,:)
 
     !> Hartree-XC kernel with dense form with different spin part
-    ! TODO: HxcSqrD = Hxc_d
     real(dp), allocatable :: HxcSqrD(:,:,:,:)
 
 
@@ -487,15 +473,12 @@ module dftbp_reksvar
     !> REKS: relaxed density & transition dipole variables
 
     !> unrelaxed density matrix for target SSR or SA-REKS state
-    ! TODO: unrelaxedRhoSqr = P_m_o
     real(dp), allocatable :: unrelRhoSqr(:,:)
 
     !> unrelaxed transition density matrix between SSR or SA-REKS states
-    ! TODO: unrelTdm = P_m_del_o
     real(dp), allocatable :: unrelTdm(:,:,:)
 
     !> relaxed density matrix for target SSR or SA-REKS state
-    ! TODO: relaxedRhoSqr = P_m
     real(dp), allocatable :: relRhoSqr(:,:)
 
     !> transition dipole moment between states
@@ -652,7 +635,6 @@ module dftbp_reksvar
     SAstates = self%SAstates
 
     ! Here, nSpin changes to two for calculation of microstates
-    ! TODO : Is it ok for this? main.F90 -> no error?
     nSpin = 2
     Lmax = self%Lmax
     LmaxR = self%LmaxR

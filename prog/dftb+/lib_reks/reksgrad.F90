@@ -2870,7 +2870,7 @@ module dftbp_reksgrad
       mu = getDenseAO(ii,1)
       nu = getDenseAO(ii,2)
 
-      if (mu <= nu .and. overSqr(mu,nu) /= 0.0_dp) then
+      if (mu <= nu .and. abs(overSqr(mu,nu)) >= epsilon(1.0_dp)) then
 
         ! calculate the index in terms of half dense form
         k = (mu-1)*nOrb - mu*(mu-1)/2 + nu
@@ -2881,7 +2881,7 @@ module dftbp_reksgrad
           tau = getDenseAO(jj,1)
           gam = getDenseAO(jj,2)
 
-          if (tau <= gam .and. overSqr(tau,gam) /= 0.0_dp) then
+          if (tau <= gam .and. abs(overSqr(tau,gam)) /= epsilon(1.0_dp)) then
 
             ! calculate the index in terms of half dense form
             l = (tau-1)*nOrb - tau*(tau-1)/2 + gam
@@ -2941,7 +2941,8 @@ module dftbp_reksgrad
 
             ! (mu,nu,tau,gam)
             tmpvalue1 = 0.0_dp
-            if (overSqr(mu,tau) /= 0.0_dp .and. overSqr(nu,gam) /= 0.0_dp) then
+            if (abs(overSqr(mu,tau)) >= epsilon(1.0_dp) .and. &
+                & abs(overSqr(nu,gam)) >= epsilon(1.0_dp)) then
               tmpL1 = LrGammaAO(mu,gam)
               tmpL2 = LrGammaAO(mu,nu)
               tmpL3 = LrGammaAO(tau,gam)
@@ -2952,7 +2953,8 @@ module dftbp_reksgrad
 
             ! (mu,nu,gam,tau)
             tmpvalue2 = 0.0_dp
-            if (overSqr(mu,gam) /= 0.0_dp .and. overSqr(nu,tau) /= 0.0_dp) then
+            if (abs(overSqr(mu,gam)) >= epsilon(1.0_dp) .and. &
+                & abs(overSqr(nu,tau)) >= epsilon(1.0_dp)) then
               tmpL1 = LrGammaAO(mu,tau)
               tmpL2 = LrGammaAO(mu,nu)
               tmpL3 = LrGammaAO(gam,tau)
@@ -3013,7 +3015,7 @@ module dftbp_reksgrad
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmpG1,tmpG2, &
 !$OMP& tmpG3,tmpG4,tmpS1,tmpS2,tmpS3,tmpS4) SCHEDULE(RUNTIME)
     do ii = 1, sparseSize
-      if (over(ii) /= 0.0_dp) then
+      if (abs(over(ii)) >= epsilon(1.0_dp)) then
 
         ! set the AO indices with respect to sparsity
         mu = getDenseAO(ii,1)
@@ -3022,7 +3024,7 @@ module dftbp_reksgrad
         if (mu <= nu) then
 
           do jj = 1, sparseSize
-            if (over(jj) /= 0.0_dp) then
+            if (abs(over(jj)) >= epsilon(1.0_dp)) then
 
               ! set the AO indices with respect to sparsity
               tau = getDenseAO(jj,1)
@@ -3098,12 +3100,12 @@ module dftbp_reksgrad
     b = Nc + 2
 
     Rab(1,2) = Rab(1,2) + 2.0_dp * SAweight(1) * weightIL(iL) * &
-        & ( dsqrt(n_a)*fillingL(a,1,iL)*hamSqr(b,a) &
-        & - dsqrt(n_b)*fillingL(b,1,iL)*hamSqr(a,b) )
+        & ( sqrt(n_a)*fillingL(a,1,iL)*hamSqr(b,a) &
+        & - sqrt(n_b)*fillingL(b,1,iL)*hamSqr(a,b) )
     if (nstates == 3) then
       Rab(2,3) = Rab(2,3) + 2.0_dp * SAweight(1) * weightIL(iL) * &
-          & ( dsqrt(n_a)*fillingL(a,1,iL)*hamSqr(b,a) &
-          & + dsqrt(n_b)*fillingL(b,1,iL)*hamSqr(a,b) )
+          & ( sqrt(n_a)*fillingL(a,1,iL)*hamSqr(b,a) &
+          & + sqrt(n_b)*fillingL(b,1,iL)*hamSqr(a,b) )
     end if
 
   end subroutine getRab22_1st_
@@ -3138,10 +3140,10 @@ module dftbp_reksgrad
     b = Nc + 2
 
     e1 = fockFa(b,a,1) * (SAweight(1)*n_a + SAweight(2))
-    Rab(1,2) = Rab(1,2) + (1.0_dp/dsqrt(n_a) + 1.0_dp/dsqrt(n_b)) * e1
+    Rab(1,2) = Rab(1,2) + (1.0_dp/sqrt(n_a) + 1.0_dp/sqrt(n_b)) * e1
     Rab(2,1) = Rab(1,2)
     if (nstates == 3) then
-      Rab(2,3) = Rab(2,3) + (1.0_dp/dsqrt(n_a) - 1.0_dp/dsqrt(n_b)) * e1
+      Rab(2,3) = Rab(2,3) + (1.0_dp/sqrt(n_a) - 1.0_dp/sqrt(n_b)) * e1
       Rab(3,2) = Rab(2,3)
     end if
 
@@ -3286,11 +3288,8 @@ module dftbp_reksgrad
       end if
 
       ! check singularity for preconditioner
-      ! TODO
-      if (dabs(A1ePre(ij,ij)) <= epsilon(1.0_dp)) then
-        write(stdOut,*)
+      if (abs(A1ePre(ij,ij)) <= epsilon(1.0_dp)) then
         write(stdOut,'(A,f15.8)') " Current preconditioner value = ", A1ePre(ij,ij)
-        write(stdOut,*)
         call error("A singularity exists in preconditioner for PCG, set GradientLevel = 2")
       end if
 
@@ -3566,6 +3565,7 @@ module dftbp_reksgrad
   end subroutine getHxcMo_
 
 
+  !> Calculate X^T_del vectors for 1e contribution in REKS(2,2)
   subroutine getInteraction1e22_(Fc, Fa, FONs, SAweight, omega, Rab, G1, &
       & Nc, Na, ia, ib, tSSR22, tSSR44, XTdel)
 
@@ -3630,48 +3630,48 @@ module dftbp_reksgrad
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, a, b, i, &
             & 3, tSSR22, tSSR44, e1, e2)
         if (ia == 1 .and. ib == 2) then
-          XTdel(ij) = XTdel(ij) + 0.5_dp*( dsqrt(n_a)*e1 - dsqrt(n_b)*e2 )
+          XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_a)*e1 - sqrt(n_b)*e2 )
         else if (ia == 2 .and. ib == 3) then
-          XTdel(ij) = XTdel(ij) + 0.5_dp*( dsqrt(n_a)*e1 + dsqrt(n_b)*e2 )
+          XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_a)*e1 + sqrt(n_b)*e2 )
         end if
       end if
       if (j == a) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, b, a, i, &
             & 3, tSSR22, tSSR44, e1, e2)
         if (ia == 1 .and. ib == 2) then
-          XTdel(ij) = XTdel(ij) + 0.5_dp*( dsqrt(n_a)*e2 - dsqrt(n_b)*e1 )
+          XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_a)*e2 - sqrt(n_b)*e1 )
         else if (ia == 2 .and. ib == 3) then
-          XTdel(ij) = XTdel(ij) + 0.5_dp*( dsqrt(n_a)*e2 + dsqrt(n_b)*e1 )
+          XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_a)*e2 + sqrt(n_b)*e1 )
         end if
       end if
 
-      ! TODO: the following parts are not written in REKS document (summary ver.)
+      ! the following parts are not written in REKS document (summary ver.)
       ! it is described in REKS full document (derivation ver.)
       if (i == a) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, b, a, j, &
             & 3, tSSR22, tSSR44, e1, e2)
         if (ia == 1 .and. ib == 2) then
-          XTdel(ij) = XTdel(ij) - 0.5_dp*( dsqrt(n_a)*e2 )
+          XTdel(ij) = XTdel(ij) - 0.5_dp*( sqrt(n_a)*e2 )
         else if (ia == 2 .and. ib == 3) then
-          XTdel(ij) = XTdel(ij) - 0.5_dp*( dsqrt(n_a)*e2 )
+          XTdel(ij) = XTdel(ij) - 0.5_dp*( sqrt(n_a)*e2 )
         end if
       end if
       if (i == b) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, a, b, j, &
             & 3, tSSR22, tSSR44, e1, e2)
         if (ia == 1 .and. ib == 2) then
-          XTdel(ij) = XTdel(ij) + 0.5_dp*( dsqrt(n_b)*e2 )
+          XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_b)*e2 )
         else if (ia == 2 .and. ib == 3) then
-          XTdel(ij) = XTdel(ij) - 0.5_dp*( dsqrt(n_b)*e2 )
+          XTdel(ij) = XTdel(ij) - 0.5_dp*( sqrt(n_b)*e2 )
         end if
       end if
       if (i == a .and. j == b) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, b, b, b, &
             & 3, tSSR22, tSSR44, e1, e2)
         if (ia == 1 .and. ib == 2) then
-          XTdel(ij) = XTdel(ij) + 0.5_dp*( dsqrt(n_b)*e1 )
+          XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_b)*e1 )
         else if (ia == 2 .and. ib == 3) then
-          XTdel(ij) = XTdel(ij) - 0.5_dp*( dsqrt(n_b)*e1 )
+          XTdel(ij) = XTdel(ij) - 0.5_dp*( sqrt(n_b)*e1 )
         end if
       end if
 
@@ -3780,30 +3780,30 @@ module dftbp_reksgrad
 
         ! 1st microstate (up) = 1st down = 3rd up = 4th down
         RdelL(nu,mu,1,1) = eigenvecs(nu,b,1) * eigenvecs(mu,a,1) * &
-          & ( dsqrt(n_a)*fillingL(a,1,1) - dsqrt(n_b)*fillingL(b,1,1) )
+          & ( sqrt(n_a)*fillingL(a,1,1) - sqrt(n_b)*fillingL(b,1,1) )
         ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
         RdelL(nu,mu,2,1) = eigenvecs(nu,b,1) * eigenvecs(mu,a,1) * &
-          & ( dsqrt(n_a)*fillingL(a,1,2) - dsqrt(n_b)*fillingL(b,1,2) )
+          & ( sqrt(n_a)*fillingL(a,1,2) - sqrt(n_b)*fillingL(b,1,2) )
         ! 5th microstate (up) = 6th down
         RdelL(nu,mu,3,1) = eigenvecs(nu,b,1) * eigenvecs(mu,a,1) * &
-          & ( dsqrt(n_a)*fillingL(a,1,5) - dsqrt(n_b)*fillingL(b,1,5) )
+          & ( sqrt(n_a)*fillingL(a,1,5) - sqrt(n_b)*fillingL(b,1,5) )
         ! 6th microstate (up) = 5th down
         RdelL(nu,mu,4,1) = eigenvecs(nu,b,1) * eigenvecs(mu,a,1) * &
-          & ( dsqrt(n_a)*fillingL(a,1,6) - dsqrt(n_b)*fillingL(b,1,6) )
+          & ( sqrt(n_a)*fillingL(a,1,6) - sqrt(n_b)*fillingL(b,1,6) )
 
         if (nstates == 3) then
           ! 1st microstate (up) = 1st down = 3rd up = 4th down
           RdelL(nu,mu,1,3) = eigenvecs(nu,b,1) * eigenvecs(mu,a,1) * &
-            & ( dsqrt(n_a)*fillingL(a,1,1) + dsqrt(n_b)*fillingL(b,1,1) )
+            & ( sqrt(n_a)*fillingL(a,1,1) + sqrt(n_b)*fillingL(b,1,1) )
           ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
           RdelL(nu,mu,2,3) = eigenvecs(nu,b,1) * eigenvecs(mu,a,1) * &
-            & ( dsqrt(n_a)*fillingL(a,1,2) + dsqrt(n_b)*fillingL(b,1,2) )
+            & ( sqrt(n_a)*fillingL(a,1,2) + sqrt(n_b)*fillingL(b,1,2) )
           ! 5th microstate (up) = 6th down
           RdelL(nu,mu,3,3) = eigenvecs(nu,b,1) * eigenvecs(mu,a,1) * &
-            & ( dsqrt(n_a)*fillingL(a,1,5) + dsqrt(n_b)*fillingL(b,1,5) )
+            & ( sqrt(n_a)*fillingL(a,1,5) + sqrt(n_b)*fillingL(b,1,5) )
           ! 6th microstate (up) = 5th down
           RdelL(nu,mu,4,3) = eigenvecs(nu,b,1) * eigenvecs(mu,a,1) * &
-            & ( dsqrt(n_a)*fillingL(a,1,6) + dsqrt(n_b)*fillingL(b,1,6) )
+            & ( sqrt(n_a)*fillingL(a,1,6) + sqrt(n_b)*fillingL(b,1,6) )
         end if
 
       end do
@@ -4095,7 +4095,7 @@ module dftbp_reksgrad
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
     do ii = 1, size(over,dim=1) ! tau and gam
 
-      if (over(ii) /= 0.0_dp) then
+      if (abs(over(ii)) >= epsilon(1.0_dp)) then
 
         tmpHxcS(:) = HxcSpS(:,ii)
         tmpHxcD(:) = HxcSpD(:,ii)
@@ -4263,7 +4263,7 @@ module dftbp_reksgrad
       tau = getDenseAO(ii,1)
       gam = getDenseAO(ii,2)
 
-      if (tau <= gam .and. overSqr(tau,gam) /= 0.0_dp) then
+      if (tau <= gam .and. abs(overSqr(tau,gam)) >= epsilon(1.0_dp)) then
 
         tmpHxcS(:) = 0.0_dp
         tmpHxcD(:) = 0.0_dp
@@ -4273,7 +4273,7 @@ module dftbp_reksgrad
           mu = getDenseAO(jj,1)
           nu = getDenseAO(jj,2)
 
-          if (mu <= nu .and. overSqr(mu,nu) /= 0.0_dp) then
+          if (mu <= nu .and. abs(overSqr(mu,nu)) /= epsilon(1.0_dp)) then
 
             tmpG1 = GammaAO(mu,tau)
             tmpG2 = GammaAO(nu,tau)
@@ -4521,20 +4521,20 @@ module dftbp_reksgrad
           e1 = 0.0_dp; e2 = 0.0_dp
           call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, a, b, t, &
               & 2, tSSR22, tSSR44, e1, e2)
-          Q1del(nu,mu,1) = Q1del(nu,mu,1) + ( dsqrt(n_a)*e1 - dsqrt(n_b)*e2 ) * &
+          Q1del(nu,mu,1) = Q1del(nu,mu,1) + ( sqrt(n_a)*e1 - sqrt(n_b)*e2 ) * &
             & eigenvecs(mu,t,1) * eigenvecs(nu,b,1) * 0.5_dp
           if (nstates == 3) then
-            Q1del(nu,mu,3) = Q1del(nu,mu,3) + ( dsqrt(n_a)*e1 + dsqrt(n_b)*e2 ) * &
+            Q1del(nu,mu,3) = Q1del(nu,mu,3) + ( sqrt(n_a)*e1 + sqrt(n_b)*e2 ) * &
               & eigenvecs(mu,t,1) * eigenvecs(nu,b,1) * 0.5_dp
           end if
 
           e1 = 0.0_dp; e2 = 0.0_dp
           call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, a, b, t, &
               & 1, tSSR22, tSSR44, e1, e2)
-          Q1del(nu,mu,1) = Q1del(nu,mu,1) + ( dsqrt(n_a)*e1 - dsqrt(n_b)*e2 ) * &
+          Q1del(nu,mu,1) = Q1del(nu,mu,1) + ( sqrt(n_a)*e1 - sqrt(n_b)*e2 ) * &
             & eigenvecs(mu,t,1) * eigenvecs(nu,a,1) * 0.5_dp
           if (nstates == 3) then
-            Q1del(nu,mu,3) = Q1del(nu,mu,3) + ( dsqrt(n_a)*e1 + dsqrt(n_b)*e2 ) * &
+            Q1del(nu,mu,3) = Q1del(nu,mu,3) + ( sqrt(n_a)*e1 + sqrt(n_b)*e2 ) * &
               & eigenvecs(mu,t,1) * eigenvecs(nu,a,1) * 0.5_dp
           end if
 
@@ -4788,8 +4788,7 @@ module dftbp_reksgrad
 
             ! calculate charge derivative part (overlap derivative in charge)
             ! this is non-zero for all (mu,nu) regardless of R_(alpha,beta) pair
-            ! TODO
-            if (overSqr(mu,nu) /= 0.0_dp) then
+            if (abs(overSqr(mu,nu)) >= epsilon(1.0_dp)) then
               tmpV1(:) = 0.0_dp
               tmpV1(:) = tmpV1 + (GammaQderiv(mu,1,:,iL) + GammaQderiv(nu,1,:,iL))
               tmpV1(:) = tmpV1 + (SpinQderiv(mu,1,:,iL) + SpinQderiv(nu,1,:,iL))
@@ -4797,8 +4796,7 @@ module dftbp_reksgrad
             end if
 
             ! calculate (gamma derivative) part
-            ! TODO
-            if (overSqr(mu,nu) /= 0.0_dp) then
+            if (abs(overSqr(mu,nu)) >= epsilon(1.0_dp)) then
               tmpG2(:) = 0.0_dp
               ! mu in alpha
               if (iAtom3 == iAtom1) then
@@ -5247,6 +5245,7 @@ module dftbp_reksgrad
         TderivL(:,:,:,id) = 0.0_dp
         loopLL: do l = 1, nOrbHalf
 
+          ! TODO
           tmp = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb + &
               & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+l) ) )/2.0_dp
           mu = int( real(tmp) )
@@ -5629,8 +5628,7 @@ module dftbp_reksgrad
         iAtom3 = getAtomIndex(mu)
         iAtom4 = getAtomIndex(nu)
 
-        ! TODO
-        if (overSqr(mu,nu) /= 0.0_dp) then
+        if (abs(overSqr(mu,nu)) >= epsilon(1.0_dp)) then
 
           tmpCoulombDeriv(:) = 0.0_dp
           ! mu in alpha

@@ -38,7 +38,6 @@ module dftbp_reksproperty
 
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
-  ! TODO : variable name should be changed!
   subroutine getUnrelaxedDMandTDP(eigenvecs, self)
 
     !> Eigenvectors on eixt
@@ -47,8 +46,8 @@ module dftbp_reksproperty
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    real(dp), allocatable :: P_X_o(:,:,:)
-    real(dp), allocatable :: P_X_del_o(:,:,:)
+    real(dp), allocatable :: rhoX(:,:,:)
+    real(dp), allocatable :: rhoXdel(:,:,:)
     real(dp), allocatable :: tmpRho(:,:)
     real(dp), allocatable :: tmpMat(:,:)
     real(dp), allocatable :: tmpFilling(:,:)
@@ -61,12 +60,12 @@ module dftbp_reksproperty
     nstHalf = self%nstates * (self%nstates - 1) / 2
 
     if (self%useSSR == 1) then
-      allocate(P_X_o(nOrb,nOrb,self%nstates))
+      allocate(rhoX(nOrb,nOrb,self%nstates))
     else
-      allocate(P_X_o(nOrb,nOrb,1))
+      allocate(rhoX(nOrb,nOrb,1))
     end if
     if (self%Lstate == 0) then
-      allocate(P_X_del_o(nOrb,nOrb,nstHalf))
+      allocate(rhoXdel(nOrb,nOrb,nstHalf))
     end if
     allocate(tmpRho(nOrb,nOrb))
     allocate(tmpMat(nOrb,nOrb))
@@ -85,16 +84,16 @@ module dftbp_reksproperty
     end if
 
     ! unrelaxed density matrix for SA-REKS or L-th state
-    P_X_o(:,:,:) = 0.0_dp
+    rhoX(:,:,:) = 0.0_dp
     if (self%useSSR == 1) then
       do ist = 1, self%nstates
-        call makeDensityMatrix(P_X_o(:,:,ist), eigenvecs, tmpFilling(:,ist))
-        call symmetrizeHS(P_X_o(:,:,ist))
+        call makeDensityMatrix(rhoX(:,:,ist), eigenvecs, tmpFilling(:,ist))
+        call symmetrizeHS(rhoX(:,:,ist))
       end do
     else
       if (self%Lstate == 0) then
-        call makeDensityMatrix(P_X_o(:,:,1), eigenvecs, tmpFilling(:,self%rstate))
-        call symmetrizeHS(P_X_o(:,:,ist))
+        call makeDensityMatrix(rhoX(:,:,1), eigenvecs, tmpFilling(:,self%rstate))
+        call symmetrizeHS(rhoX(:,:,ist))
       else
         ! find proper index for up+down in self%dm_L
         if (self%Lstate <= self%Lpaired) then
@@ -106,15 +105,15 @@ module dftbp_reksproperty
             ii = self%Lstate - 1
           end if
         end if
-        P_X_o(:,:,1) = self%rhoSqrL(:,:,1,ii)
+        rhoX(:,:,1) = self%rhoSqrL(:,:,1,ii)
       end if
     end if
 
     ! unrelaxed transition density matrix between SA-REKS states
     if (self%Lstate == 0) then
-      P_X_del_o(:,:,:) = 0.0_dp
+      rhoXdel(:,:,:) = 0.0_dp
       if (self%tSSR22) then
-        call getUnrelaxedTDM22_(eigenvecs, self%FONs, self%Nc, self%nstates, P_X_del_o)
+        call getUnrelaxedTDM22_(eigenvecs, self%FONs, self%Nc, self%nstates, rhoXdel)
       else if (self%tSSR44) then
         call error("SSR(4,4) is not implemented yet")
       end if
@@ -128,17 +127,17 @@ module dftbp_reksproperty
       do ist = 1, self%nstates
         do jst = ist, self%nstates
           if (ist == jst) then
-            self%unrelRhoSqr(:,:) = self%unrelRhoSqr + self%eigvecsSSR(ist,self%rstate)**2 * P_X_o(:,:,ist)
+            self%unrelRhoSqr(:,:) = self%unrelRhoSqr + self%eigvecsSSR(ist,self%rstate)**2 * rhoX(:,:,ist)
           else
             kst = kst + 1
             self%unrelRhoSqr(:,:) = self%unrelRhoSqr + 2.0_dp * self%eigvecsSSR(ist,self%rstate) * &
-                & self%eigvecsSSR(jst,self%rstate) * P_X_del_o(:,:,kst)
+                & self%eigvecsSSR(jst,self%rstate) * rhoXdel(:,:,kst)
           end if
         end do
       end do
     else
       ! self%unrelRhoSqr is unrelaxed density matrix for target SA-REKS or L-th state
-      self%unrelRhoSqr(:,:) = P_X_o(:,:,1)
+      self%unrelRhoSqr(:,:) = rhoX(:,:,1)
     end if
 
     ! Final unrelaxed transition density matrix between states
@@ -161,12 +160,12 @@ module dftbp_reksproperty
           do ist = 1, self%nstates
             do jst = ist, self%nstates
               if (ist == jst) then
-                self%unrelTdm(:,:,lst) = self%unrelTdm(:,:,lst) + P_X_o(:,:,ist) &
+                self%unrelTdm(:,:,lst) = self%unrelTdm(:,:,lst) + rhoX(:,:,ist) &
                     & * self%eigvecsSSR(ist,ia) * self%eigvecsSSR(ist,ib)
               else
                 kst = kst + 1
                 ! <PPS|OSS> = <OSS|PPS>, etc
-                self%unrelTdm(:,:,lst) = self%unrelTdm(:,:,lst) + P_X_del_o(:,:,kst) &
+                self%unrelTdm(:,:,lst) = self%unrelTdm(:,:,lst) + rhoXdel(:,:,kst) &
                     & * ( self%eigvecsSSR(ist,ia) * self%eigvecsSSR(jst,ib) &
                     & + self%eigvecsSSR(jst,ia) * self%eigvecsSSR(ist,ib) )
               end if
@@ -176,7 +175,7 @@ module dftbp_reksproperty
         end do
       else
         ! self%unrelTdm is unrelaxed transition density matrix between SA-REKS states
-        self%unrelTdm(:,:,:) = P_X_del_o(:,:,:)
+        self%unrelTdm(:,:,:) = rhoXdel(:,:,:)
       end if
     end if
 
@@ -615,7 +614,7 @@ module dftbp_reksproperty
 
 
   !> Calculate unrelaxed transition density between SA-REKS states in (2,2) case
-  subroutine getUnrelaxedTDM22_(eigenvecs, FONs, Nc, nstates, P_X_del_o)
+  subroutine getUnrelaxedTDM22_(eigenvecs, FONs, Nc, nstates, rhoXdel)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -630,7 +629,7 @@ module dftbp_reksproperty
     integer, intent(in) :: nstates
 
     !> unrelaxed transition density matrix between SA-REKS states
-    real(dp), intent(out) :: P_X_del_o(:,:,:)
+    real(dp), intent(out) :: rhoXdel(:,:,:)
 
     real(dp) :: n_a, n_b
     integer :: mu, nu, nOrb, a, b
@@ -644,14 +643,14 @@ module dftbp_reksproperty
 
     do mu = 1, nOrb
       do nu = 1, nOrb
-        P_X_del_o(nu,mu,1) = eigenvecs(mu,a)*eigenvecs(nu,b) * &
+        rhoXdel(nu,mu,1) = eigenvecs(mu,a)*eigenvecs(nu,b) * &
             & (dsqrt(n_a) - dsqrt(n_b))
       end do
     end do
     if (nstates == 3) then
       do mu = 1, nOrb
         do nu = 1, nOrb
-          P_X_del_o(nu,mu,3) = eigenvecs(mu,a)*eigenvecs(nu,b) * &
+          rhoXdel(nu,mu,3) = eigenvecs(mu,a)*eigenvecs(nu,b) * &
               & (dsqrt(n_a) + dsqrt(n_b))
         end do
       end do
