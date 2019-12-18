@@ -2834,6 +2834,7 @@ module dftbp_reksgrad
     real(dp), intent(out) :: HxcHalfD(:,:)
 
     ! common variables
+    real(dp) :: tmp22
     integer :: ii, jj, sparseSize, k, l, nOrbHalf
     integer :: mu, nu, tau, gam, nOrb
 
@@ -2908,7 +2909,7 @@ module dftbp_reksgrad
     ! LC terms
     if (tRangeSep) then
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam, &
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmp22, &
 !$OMP& tmpL1,tmpL2,tmpL3,tmpL4,tmpvalue1,tmpvalue2) SCHEDULE(RUNTIME)
       do k = 1, nOrbHalf
 
@@ -2916,7 +2917,14 @@ module dftbp_reksgrad
 
         do l = 1, nOrbHalf
 
-          call getTwoIndices(nOrb, l, tau, gam, 2)
+          ! TODO : use 'getTwoIndices' -> more times
+          !        use tmp22 part -> relatively less times
+          !        Why show different cost?
+          !call getTwoIndices(nOrb, l, tau, gam, 2)
+          tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
+              & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+l) ) )/2.0_dp
+          tau = int( dble(tmp22) )
+          gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + l
 
           ! LC terms
           if (tRangeSep) then
