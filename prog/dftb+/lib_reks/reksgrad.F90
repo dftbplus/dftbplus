@@ -4162,7 +4162,10 @@ module dftbp_reksgrad
     real(dp), allocatable :: tmpHxcD(:)
     real(dp), allocatable :: tmpMat(:,:)
 
+    real(dp), allocatable :: tmpZM(:,:)
+
     ! common variables
+    real(dp) :: tmp11, tmp22
     real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
     integer :: mu, nu, tau, gam, nOrb, iL, LmaxR
     integer :: ii, jj, sparseSize, nOrbHalf
@@ -4184,6 +4187,8 @@ module dftbp_reksgrad
     allocate(tmpHxcS(sparseSize))
     allocate(tmpHxcD(sparseSize))
     allocate(tmpMat(nOrb,nOrb))
+
+    allocate(tmpZM(2,LmaxR))
 
     ! pack R matrix
     tmpRmatL(:,:) = 0.0_dp
@@ -4212,9 +4217,12 @@ module dftbp_reksgrad
     ZmatL(:,:,:) = 0.0_dp
 
     ! calculate ZmatL for scc and spin term
+!!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmpG1,tmpG2, &
+!!$OMP& tmpG3,tmpG4,tmpS1,tmpS2,tmpS3,tmpS4,tmpHxcS,tmpHxcD, &
+!!$OMP& tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmpG1,tmpG2, &
 !$OMP& tmpG3,tmpG4,tmpS1,tmpS2,tmpS3,tmpS4,tmpHxcS,tmpHxcD, &
-!$OMP& tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
+!$OMP& tmpZM) SCHEDULE(RUNTIME)
     do ii = 1, sparseSize
 
       ! set the AO indices with respect to sparsity
@@ -4256,41 +4264,48 @@ module dftbp_reksgrad
 
         ! TODO : orderRmatL use!!!
 
-        ! calculate ZmatL
-        ! 1st microstate (up) = 1st down = 3rd up = 4th down
-        tmpZ1 = sum(tmpRmatL(:,1)*tmpHxcS)
-        tmpZ2 = sum(tmpRmatL(:,1)*tmpHxcD)
-        tmp1 = tmpZ1; tmp2 = tmpZ2
-        ZmatL(tau,gam,1) = ZmatL(tau,gam,1) + tmpZ1 + tmpZ2
-        if (tau /= gam) ZmatL(gam,tau,1) = ZmatL(tau,gam,1)
+!        ! calculate ZmatL
+!        ! 1st microstate (up) = 1st down = 3rd up = 4th down
+!        tmpZ1 = sum(tmpRmatL(:,1)*tmpHxcS)
+!        tmpZ2 = sum(tmpRmatL(:,1)*tmpHxcD)
+!        tmp1 = tmpZ1; tmp2 = tmpZ2
+!        ZmatL(tau,gam,1) = ZmatL(tau,gam,1) + tmpZ1 + tmpZ2
+!        if (tau /= gam) ZmatL(gam,tau,1) = ZmatL(tau,gam,1)
+!
+!        ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
+!        tmpZ1 = sum(tmpRmatL(:,2)*tmpHxcS)
+!        tmpZ2 = sum(tmpRmatL(:,2)*tmpHxcD)
+!        ZmatL(tau,gam,2) = ZmatL(tau,gam,2) + tmpZ1 + tmpZ2
+!        if (tau /= gam) ZmatL(gam,tau,2) = ZmatL(tau,gam,2)
+!
+!        ! 3rd microstate up
+!        ZmatL(tau,gam,3) = ZmatL(tau,gam,3) + tmp1 + tmpZ2
+!        if (tau /= gam) ZmatL(gam,tau,3) = ZmatL(tau,gam,3)
+!        ! 4th microstate up
+!        ZmatL(tau,gam,4) = ZmatL(tau,gam,4) + tmpZ1 + tmp2
+!        if (tau /= gam) ZmatL(gam,tau,4) = ZmatL(tau,gam,4)
+!
+!        ! 5th microstate (up) = 6th down
+!        tmpZ1 = sum(tmpRmatL(:,3)*tmpHxcS)
+!        tmpZ2 = sum(tmpRmatL(:,3)*tmpHxcD)
+!        tmp1 = tmpZ1; tmp2 = tmpZ2
+!        ! 6th microstate (up) = 5th down
+!        tmpZ1 = sum(tmpRmatL(:,4)*tmpHxcS)
+!        tmpZ2 = sum(tmpRmatL(:,4)*tmpHxcD)
+!
+!        ! 5th microstate up
+!        ZmatL(tau,gam,5) = ZmatL(tau,gam,5) + tmp1 + tmpZ2
+!        if (tau /= gam) ZmatL(gam,tau,5) = ZmatL(tau,gam,5)
+!        ! 6th microstate up
+!        ZmatL(tau,gam,6) = ZmatL(tau,gam,6) + tmpZ1 + tmp2
+!        if (tau /= gam) ZmatL(gam,tau,6) = ZmatL(tau,gam,6)
 
-        ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
-        tmpZ1 = sum(tmpRmatL(:,2)*tmpHxcS)
-        tmpZ2 = sum(tmpRmatL(:,2)*tmpHxcD)
-        ZmatL(tau,gam,2) = ZmatL(tau,gam,2) + tmpZ1 + tmpZ2
-        if (tau /= gam) ZmatL(gam,tau,2) = ZmatL(tau,gam,2)
-
-        ! 3rd microstate up
-        ZmatL(tau,gam,3) = ZmatL(tau,gam,3) + tmp1 + tmpZ2
-        if (tau /= gam) ZmatL(gam,tau,3) = ZmatL(tau,gam,3)
-        ! 4th microstate up
-        ZmatL(tau,gam,4) = ZmatL(tau,gam,4) + tmpZ1 + tmp2
-        if (tau /= gam) ZmatL(gam,tau,4) = ZmatL(tau,gam,4)
-
-        ! 5th microstate (up) = 6th down
-        tmpZ1 = sum(tmpRmatL(:,3)*tmpHxcS)
-        tmpZ2 = sum(tmpRmatL(:,3)*tmpHxcD)
-        tmp1 = tmpZ1; tmp2 = tmpZ2
-        ! 6th microstate (up) = 5th down
-        tmpZ1 = sum(tmpRmatL(:,4)*tmpHxcS)
-        tmpZ2 = sum(tmpRmatL(:,4)*tmpHxcD)
-
-        ! 5th microstate up
-        ZmatL(tau,gam,5) = ZmatL(tau,gam,5) + tmp1 + tmpZ2
-        if (tau /= gam) ZmatL(gam,tau,5) = ZmatL(tau,gam,5)
-        ! 6th microstate up
-        ZmatL(tau,gam,6) = ZmatL(tau,gam,6) + tmpZ1 + tmp2
-        if (tau /= gam) ZmatL(gam,tau,6) = ZmatL(tau,gam,6)
+        do iL = 1, LmaxR
+          tmpZM(1,iL) = sum(tmpRmatL(:,iL)*tmpHxcS)
+          tmpZM(2,iL) = sum(tmpRmatL(:,iL)*tmpHxcD)
+        end do
+        ! TODO : use tSSR22
+        call getZmat22_(tmpZM, tau, gam, ZmatL)
 
       end if
 
@@ -4323,17 +4338,30 @@ module dftbp_reksgrad
 
       end do
 
+!!!!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tau,gam, &
+!!!!$OMP& tmpHxcS,mu,nu,tmpvalue1,tmpvalue2,tmpL1, &
+!!!!$OMP& tmpL2,tmpL3,tmpL4,tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
+!!!!$OMP& tmpL2,tmpL3,tmpL4,tmpZ1,tmpZ2,tmp1,tmp2,tmp11,tmp22) SCHEDULE(RUNTIME)
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tau,gam, &
 !$OMP& tmpHxcS,mu,nu,tmpvalue1,tmpvalue2,tmpL1, &
-!$OMP& tmpL2,tmpL3,tmpL4,tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
+!$OMP& tmpL2,tmpL3,tmpL4,tmpZM,tmp11,tmp22) SCHEDULE(RUNTIME)
+!!$OMP& tmpL2,tmpL3,tmpL4,tmpZM) SCHEDULE(RUNTIME)
       do ii = 1, nOrbHalf
 
-        call getTwoIndices(nOrb, ii, tau, gam, 2)
+        !call getTwoIndices(nOrb, ii, tau, gam, 2)
+        tmp11 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
+            & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
+        tau = int( dble(tmp11) )
+        gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + ii
 
         tmpHxcS(:) = 0.0_dp
         do jj = 1, nOrbHalf
 
-          call getTwoIndices(nOrb, jj, mu, nu, 2)
+          !call getTwoIndices(nOrb, jj, mu, nu, 2)
+          tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
+              & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+jj) ) )/2.0_dp
+          mu = int( dble(tmp22) )
+          nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + jj
 
           ! calculate the Z matrix for LC term
           if (tRangeSep) then
@@ -4363,42 +4391,48 @@ module dftbp_reksgrad
 
         ! TODO : orderRmatL use!!!
 
-        ! calculate ZmatL
-        ! 1st microstate (up) = 1st down = 3rd up = 4th down
-        tmpZ1 = sum(tmpRmatL(:,1)*tmpHxcS)
-        tmpZ2 = 0.0_dp
-        tmp1 = tmpZ1; tmp2 = tmpZ2
-        ZmatL(tau,gam,1) = ZmatL(tau,gam,1) + tmpZ1 + tmpZ2
-        if (tau /= gam) ZmatL(gam,tau,1) = ZmatL(tau,gam,1)
+!        ! calculate ZmatL
+!        ! 1st microstate (up) = 1st down = 3rd up = 4th down
+!        tmpZ1 = sum(tmpRmatL(:,1)*tmpHxcS)
+!        tmpZ2 = 0.0_dp
+!        tmp1 = tmpZ1; tmp2 = tmpZ2
+!        ZmatL(tau,gam,1) = ZmatL(tau,gam,1) + tmpZ1 + tmpZ2
+!        if (tau /= gam) ZmatL(gam,tau,1) = ZmatL(tau,gam,1)
+!
+!        ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
+!        tmpZ1 = sum(tmpRmatL(:,2)*tmpHxcS)
+!        tmpZ2 = 0.0_dp
+!        ZmatL(tau,gam,2) = ZmatL(tau,gam,2) + tmpZ1 + tmpZ2
+!        if (tau /= gam) ZmatL(gam,tau,2) = ZmatL(tau,gam,2)
+!
+!        ! 3rd microstate up
+!        ZmatL(tau,gam,3) = ZmatL(tau,gam,3) + tmp1 + tmpZ2
+!        if (tau /= gam) ZmatL(gam,tau,3) = ZmatL(tau,gam,3)
+!        ! 4th microstate up
+!        ZmatL(tau,gam,4) = ZmatL(tau,gam,4) + tmpZ1 + tmp2
+!        if (tau /= gam) ZmatL(gam,tau,4) = ZmatL(tau,gam,4)
+!
+!        ! 5th microstate (up) = 6th down
+!        tmpZ1 = sum(tmpRmatL(:,3)*tmpHxcS)
+!        tmpZ2 = 0.0_dp
+!        tmp1 = tmpZ1; tmp2 = tmpZ2
+!        ! 6th microstate (up) = 5th down
+!        tmpZ1 = sum(tmpRmatL(:,4)*tmpHxcS)
+!        tmpZ2 = 0.0_dp
+!
+!        ! 5th microstate up
+!        ZmatL(tau,gam,5) = ZmatL(tau,gam,5) + tmp1 + tmpZ2
+!        if (tau /= gam) ZmatL(gam,tau,5) = ZmatL(tau,gam,5)
+!        ! 6th microstate up
+!        ZmatL(tau,gam,6) = ZmatL(tau,gam,6) + tmpZ1 + tmp2
+!        if (tau /= gam) ZmatL(gam,tau,6) = ZmatL(tau,gam,6)
 
-        ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
-        tmpZ1 = sum(tmpRmatL(:,2)*tmpHxcS)
-        tmpZ2 = 0.0_dp
-        ZmatL(tau,gam,2) = ZmatL(tau,gam,2) + tmpZ1 + tmpZ2
-        if (tau /= gam) ZmatL(gam,tau,2) = ZmatL(tau,gam,2)
-
-        ! 3rd microstate up
-        ZmatL(tau,gam,3) = ZmatL(tau,gam,3) + tmp1 + tmpZ2
-        if (tau /= gam) ZmatL(gam,tau,3) = ZmatL(tau,gam,3)
-        ! 4th microstate up
-        ZmatL(tau,gam,4) = ZmatL(tau,gam,4) + tmpZ1 + tmp2
-        if (tau /= gam) ZmatL(gam,tau,4) = ZmatL(tau,gam,4)
-
-        ! 5th microstate (up) = 6th down
-        tmpZ1 = sum(tmpRmatL(:,3)*tmpHxcS)
-        tmpZ2 = 0.0_dp
-        tmp1 = tmpZ1; tmp2 = tmpZ2
-        ! 6th microstate (up) = 5th down
-        tmpZ1 = sum(tmpRmatL(:,4)*tmpHxcS)
-        tmpZ2 = 0.0_dp
-
-        ! 5th microstate up
-        ZmatL(tau,gam,5) = ZmatL(tau,gam,5) + tmp1 + tmpZ2
-        if (tau /= gam) ZmatL(gam,tau,5) = ZmatL(tau,gam,5)
-        ! 6th microstate up
-        ZmatL(tau,gam,6) = ZmatL(tau,gam,6) + tmpZ1 + tmp2
-        if (tau /= gam) ZmatL(gam,tau,6) = ZmatL(tau,gam,6)
-
+        do iL = 1, LmaxR
+          tmpZM(1,iL) = sum(tmpRmatL(:,iL)*tmpHxcS)
+          tmpZM(2,iL) = 0.0_dp
+        end do
+        ! TODO : use tSSR22
+        call getZmat22_(tmpZM, tau, gam, ZmatL)
 
       end do
       ! end of loop tau, gam
@@ -4406,7 +4440,37 @@ module dftbp_reksgrad
 
     end if
 
+    ! TODO : use Lmax
+    do iL = 1, 6
+      call symmetrizeHS(ZmatL(:,:,iL))
+    end do
+
   end subroutine getZmatNoHxc_
+
+
+  !> Calculate ZmatL used in CP-REKS equations in REKS(2,2)
+  subroutine getZmat22_(tmpZM, gam, tau, ZmatL)
+
+    !> temporary matrix obtained from summation of RmatL and H-XC kernel
+    real(dp), intent(in) :: tmpZM(:,:)
+
+    !> current indices for ZmatL
+    integer, intent(in) :: gam, tau
+
+    !> auxiliary matrix in AO basis related to SA-REKS term
+    real(dp), intent(out) :: ZmatL(:,:,:)
+
+    ! TODO : this routine can be more generalized with Lpaired
+
+    ZmatL(tau,gam,1) = ZmatL(tau,gam,1) + tmpZM(1,1) + tmpZM(2,1)
+    ZmatL(tau,gam,2) = ZmatL(tau,gam,2) + tmpZM(1,2) + tmpZM(2,2)
+
+    ZmatL(tau,gam,3) = ZmatL(tau,gam,3) + tmpZM(1,1) + tmpZM(2,2)
+    ZmatL(tau,gam,4) = ZmatL(tau,gam,4) + tmpZM(1,2) + tmpZM(2,1)
+    ZmatL(tau,gam,5) = ZmatL(tau,gam,5) + tmpZM(1,3) + tmpZM(2,4)
+    ZmatL(tau,gam,6) = ZmatL(tau,gam,6) + tmpZM(1,4) + tmpZM(2,3)
+
+  end subroutine getZmat22_
 
 
   !> Calculate Q1del used in CP-REKS equations in REKS(2,2)
