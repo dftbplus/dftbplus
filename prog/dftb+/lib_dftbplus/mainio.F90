@@ -44,8 +44,10 @@ module dftbp_mainio
   use dftbp_sccinit, only : writeQToFile
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_message
+  ! ... added by islee
   use dftbp_rekscommon
   use dftbp_reksvar
+  ! ... added by islee
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -74,11 +76,13 @@ module dftbp_mainio
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo, printBlankLine
+  ! ... added by islee
   public :: printReksSccHeader, printReksSccInfo, printReksMicrostates, printSaReksEnergy
   public :: printReksSaInfo, printReksSSRInfo, printReksGradInfo
   public :: printUnrelaxedFONs, printRelaxedFONs, printRelaxedFONsL
   public :: writeReksDetailedOut1
   public :: readEigenvecs, writeReksTDP, writeReksRelaxedCharge
+  ! ... added by islee
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -3694,6 +3698,7 @@ contains
 
   end subroutine printSccHeader
 
+  ! ... added by islee
   !> Prints the line above the start of the REKS SCC cycle data
   subroutine printReksSccHeader(tSSR22, tSSR44)
 
@@ -3711,6 +3716,7 @@ contains
     end if
 
   end subroutine printReksSccHeader
+  ! ... added by islee
 
   subroutine printBlankLine()
     write(stdOut,*)
@@ -3743,6 +3749,7 @@ contains
   end subroutine printSccInfo
 
 
+  ! ... added by islee
   !> Prints info about scc convergence.
   subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, &
       & sccErrorQ, t1, t2, FONs, tSSR22, tSSR44)
@@ -3780,6 +3787,7 @@ contains
     end if
 
   end subroutine printReksSccInfo
+  ! ... added by islee
 
 
   !> Prints current total energies
@@ -4489,6 +4497,7 @@ contains
   end subroutine writeEsp
 
 
+  ! ... added by islee
   !> Read external eigenvector file (eigenvec.bin)
   subroutine readEigenvecs(eigenvecs)
 
@@ -4518,8 +4527,10 @@ contains
     end if
 
   end subroutine readEigenvecs
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> Print energy contribution for each microstate in SCC iteration
   subroutine printReksMicrostates(Erep, reks)
 
@@ -4552,8 +4563,10 @@ contains
     end if
 
   end subroutine printReksMicrostates
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> Print SA-REKS energy in SCC iteration
   subroutine printSaReksEnergy(reks)
 
@@ -4574,8 +4587,10 @@ contains
     end if
 
   end subroutine printSaReksEnergy
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> print SA-REKS result in standard output
   subroutine printReksSAInfo(Etotal, reks)
 
@@ -4592,8 +4607,10 @@ contains
     end if
 
   end subroutine printReksSAInfo
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> print SA-REKS(2,2) result in standard output
   subroutine printReksSAInfo22(Etotal, reks)
 
@@ -4655,8 +4672,10 @@ contains
     end if
 
   end subroutine printReksSAInfo22
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> print SI-SA-REKS result in standard output
   subroutine printReksSSRInfo(Wab, tmpEn, StateCoup, reks)
 
@@ -4679,8 +4698,10 @@ contains
     end if
 
   end subroutine printReksSSRInfo
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> print SI-SA-REKS(2,2) result in standard output
   subroutine printReksSSRInfo22(Wab, tmpEn, StateCoup, reks)
 
@@ -4696,7 +4717,6 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
-    real(dp) :: tmp
     integer :: ist, jst, ia, ib, nActPair
     character(len=8) :: strTmp
     character(len=1) :: stA, stB
@@ -4706,13 +4726,7 @@ contains
     write(stdOut,*)
     do ist = 1, nActPair
 
-      ! (ia,ib) = (1,2) (1,3) (2,3) ...
-      tmp = ( dble(2.0_dp*(reks%Na)+1.0_dp) - dsqrt( (2.0_dp*(reks%Na)+ &
-          & 1.0_dp)**2.0_dp - 8.0_dp*((reks%Na)+ist) ) )/2.0_dp
-      ia = int( tmp )
-      if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
-      ib = ia**2/2 + ia/2 - (reks%Na)*ia + (reks%Na) + ist
-      if( mod(ia,2) == 1 ) ib = ib + 1
+      call getTwoIndices(reks%Na, ist, ia, ib, 1)
 
       call getSpaceSym(ia, stA)
       call getSpaceSym(ib, stB)
@@ -4782,8 +4796,10 @@ contains
     end if
 
   end subroutine printReksSSRInfo22
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> print unrelaxed FONs for target state
   subroutine printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
 
@@ -4829,8 +4845,10 @@ contains
     end do
 
   end subroutine printUnrelaxedFONs
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> print Relaxed FONs for target state
   subroutine printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
 
@@ -4868,8 +4886,10 @@ contains
     end do
 
   end subroutine printRelaxedFONs
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> print Relaxed FONs for target L-th microstate
   subroutine printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
 
@@ -4899,8 +4919,10 @@ contains
     end do
 
   end subroutine printRelaxedFONsL
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> Write tdp.dat file with transidion dipole moment
   subroutine writeReksTDP(tdp)
 
@@ -4914,21 +4936,14 @@ contains
 
     nstHalf = size(tdp,dim=2)
 
-    tmp = 0.5_dp * (1.0_dp + dsqrt(1.0_dp + 8.0_dp*dble(nstHalf)))
-    nstates = int(real(tmp))
+    tmp = 0.5_dp * (1.0_dp + sqrt(1.0_dp + 8.0_dp*dble(nstHalf)))
+    nstates = int(dble(tmp))
 
     open(unit=funit,file=fname,position="rewind",status="replace")
     write(funit,*)
     do ist = 1, nstHalf
 
-      ! (ia,ib) = (1,2) (1,3) (2,3) ...
-      ! TODO
-      tmp = ( dble(2.0_dp*nstates+1.0_dp) - dsqrt( (2.0_dp*nstates+ &
-          & 1.0_dp)**2.0_dp - 8.0_dp*(nstates+ist) ) )/2.0_dp
-      ia = int( tmp )
-      if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
-      ib = ia**2/2 + ia/2 - nstates*ia + nstates + ist
-      if( mod(ia,2) == 1 ) ib = ib + 1
+      call getTwoIndices(nstates, ist, ia, ib, 1)
 
       write(funit,'(A4,I1,A8,I1,A2)') " < S", ia - 1, " | r | S", ib - 1, " >"
       write(funit,'(A)',advance="no") "Transition Dipole moment (au)    : "
@@ -4941,8 +4956,10 @@ contains
     close(funit)
 
   end subroutine writeReksTDP
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> Write relaxed_charge.dat file with relaxed charges for target state
   subroutine writeReksRelaxedCharge(qOutput, q0, rstate, Lstate)
 
@@ -4980,8 +4997,10 @@ contains
     close(funit)
 
   end subroutine writeReksRelaxedCharge
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> First group of data to go to detailed.out
   subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
@@ -5324,8 +5343,10 @@ contains
     end if
 
   end subroutine writeReksDetailedOut1
+  ! ... added by islee
 
 
+  ! ... added by islee
   !> print gradient results for REKS calculation
   subroutine printReksGradInfo(derivs, SAgrad, SIgrad, SSRgrad, nacG, nacH, &
       & Efunction, useSSR, nstates, rstate, Lstate, tNAC)
@@ -5366,7 +5387,6 @@ contains
     !> Calculate nonadiabatic coupling vectors
     logical, intent(in) :: tNAC
 
-    real(dp) :: tmp
     integer :: ist, ia, ib, nstHalf
 
     nstHalf = nstates * (nstates - 1) / 2
@@ -5405,14 +5425,7 @@ contains
         write(stdOut,"(A)") " Coupling Information"
         do ist = 1, nstHalf
 
-          ! (ia,ib) = (1,2) (1,3) (2,3) ...
-          ! TODO
-          tmp = ( dble(2.0_dp*nstates+1.0_dp) - dsqrt( (2.0_dp*nstates+ &
-              & 1.0_dp)**2.0_dp - 8.0_dp*(nstates+ist) ) )/2.0_dp
-          ia = int( tmp )
-          if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
-          ib = ia**2/2 + ia/2 - nstates*ia + nstates + ist
-          if( mod(ia,2) == 1 ) ib = ib + 1
+          call getTwoIndices(nstates, ist, ia, ib, 1)
 
           write(stdOut,"(A)") repeat("-", 50)
           write(stdOut,'(" between ",I2," and ",I2," states")') ia, ib
@@ -5455,6 +5468,7 @@ contains
     write(stdOut,*)
 
   end subroutine printReksGradInfo
+  ! ... added by islee
 
 
 end module dftbp_mainio
