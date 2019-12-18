@@ -1342,7 +1342,6 @@ module dftbp_reksgrad
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: RmatL(:,:,:)
 
-    ! TODO : is it possible to generalize the code using orderRmatL?
     if (tSSR22) then
       call getRmat22_(eigenvecs, ZT, fillingL, Nc, Na, &
           & tSSR22, tSSR44, RmatL)
@@ -2419,11 +2418,14 @@ module dftbp_reksgrad
 
         do iL = 1, LmaxR
 
-          ! RmatL
-          ! TODO : onsite elements remain
+          ! In this case onsite elements remain except diagonal
+          ! elements, but it does not affect the gradient
+          ! since T derivative for scc, spin, pc shows only 
+          ! diagonal elements in onsite block. Thus, tr(R*T)
+          ! can show correct values in sparse case
           tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
           do mu = 1, nOrb
-            tmpMat(mu,mu) = tmpMat(mu,mu) - RmatL(mu,mu,iL)
+            tmpMat(mu,mu) = RmatL(mu,mu,iL)
           end do
 
           ! convert from dense to sparse for RmatL in AO basis
@@ -2457,7 +2459,6 @@ module dftbp_reksgrad
 
         do iL = 1, LmaxR
 
-          ! RmatL
           tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
           do mu = 1, nOrb
             tmpMat(mu,mu) = RmatL(mu,mu,iL)
@@ -3786,6 +3787,7 @@ module dftbp_reksgrad
 
 
   !> Calculate ZmatL with dense form used in CP-REKS equations in REKS(2,2)
+      ! TODO : overSqr not needed
   subroutine getZmatDense_(overSqr, HxcSqrS, HxcSqrD, RmatL, ZmatL)
 
     !> Dense overlap matrix
@@ -4037,17 +4039,24 @@ module dftbp_reksgrad
     ! pack R matrix
     RmatSpL(:,:) = 0.0_dp
     do iL = 1, LmaxR
+
+      ! In this case onsite elements remain except diagonal
+      ! elements, but it does not affect the gradient
+      ! since H-XC kernel for scc, spin shows only 
+      ! diagonal elements in onsite block. Thus, sum(R*Hxc)
+      ! can show correct values in sparse case
       tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
       do gam = 1, nOrb
         tmpMat(gam,gam) = RmatL(gam,gam,iL)
       end do
-      ! TODO : onsite element remains
+
       ! convert from dense to sparse for RmatL in AO basis
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       call packHS(RmatSpL(:,iL), tmpMat, neighbourlist%iNeighbour, &
           & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, &
           & img2CentCell)
       call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+
     end do
 
     ZmatSpL(:,:) = 0.0_dp
@@ -4192,13 +4201,15 @@ module dftbp_reksgrad
     tmpRmatL(:,:) = 0.0_dp
     do iL = 1, LmaxR
 
-      ! RmatL
-      tmpMat(:,:) = 0.0_dp
+      ! In this case onsite elements remain except diagonal
+      ! elements, but it does not affect the gradient
+      ! since H-XC kernel for scc, spin shows only 
+      ! diagonal elements in onsite block. Thus, sum(R*Hxc)
+      ! can show correct values in sparse case
       tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
       do mu = 1, nOrb
-        tmpMat(mu,mu) = tmpMat(mu,mu) - RmatL(mu,mu,iL)
+        tmpMat(mu,mu) = RmatL(mu,mu,iL)
       end do
-      ! TODO : onsite element remains, same problem in sparse case
 
       ! convert from dense to sparse for RmatL in AO basis
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
@@ -4232,7 +4243,7 @@ module dftbp_reksgrad
           mu = getDenseAO(jj,1)
           nu = getDenseAO(jj,2)
 
-          if (mu <= nu .and. abs(overSqr(mu,nu)) /= epsilon(1.0_dp)) then
+          if (mu <= nu .and. abs(overSqr(mu,nu)) >= epsilon(1.0_dp)) then
 
             tmpG1 = GammaAO(mu,tau)
             tmpG2 = GammaAO(nu,tau)
@@ -4312,7 +4323,6 @@ module dftbp_reksgrad
       tmpRmatL(:,:) = 0.0_dp
       do iL = 1, LmaxR
 
-        ! RmatL
         tmpMat(:,:) = RmatL(:,:,iL) + transpose(RmatL(:,:,iL))
         do mu = 1, nOrb
           tmpMat(mu,mu) = RmatL(mu,mu,iL)
@@ -5541,25 +5551,27 @@ module dftbp_reksgrad
         iAtom3 = getAtomIndex(mu)
         iAtom4 = getAtomIndex(nu)
 
-        if (abs(overSqr(mu,nu)) >= epsilon(1.0_dp)) then
+        if (mu <= nu) then
+          if (abs(overSqr(mu,nu)) >= epsilon(1.0_dp)) then
 
-          tmpCoulombDeriv(:) = 0.0_dp
-          ! mu in alpha
-          if (iAtom3 == iAtom1) then
-            tmpCoulombDeriv(:) = tmpCoulombDeriv + QinvRderiv(:,iAtom1)
+            tmpCoulombDeriv(:) = 0.0_dp
+            ! mu in alpha
+            if (iAtom3 == iAtom1) then
+              tmpCoulombDeriv(:) = tmpCoulombDeriv + QinvRderiv(:,iAtom1)
+            end if
+            ! nu in alpha
+            if (iAtom4 == iAtom1) then
+              tmpCoulombDeriv(:) = tmpCoulombDeriv + QinvRderiv(:,iAtom1)
+            end if
+
+            ! calculate the contribution of external charges to T derivative
+            ! originally, the hamiltonian has minus sign, but
+            ! we already multiply -1 in externalcharges.F90 routine.
+            ! thus, we have to use + sign in the process of gradient
+            Tderiv(l,:,id) = Tderiv(l,:,id) &
+                & + 0.5_dp*overSqr(mu,nu)*tmpCoulombDeriv(:)
+
           end if
-          ! nu in alpha
-          if (iAtom4 == iAtom1) then
-            tmpCoulombDeriv(:) = tmpCoulombDeriv + QinvRderiv(:,iAtom1)
-          end if
-
-          ! calculate the contribution of external charges to T derivative
-          ! originally, the hamiltonian has minus sign, but
-          ! we already multiply -1 in externalcharges.F90 routine.
-          ! thus, we have to use + sign in the process of gradient
-          Tderiv(l,:,id) = Tderiv(l,:,id) &
-              & + 0.5_dp*overSqr(mu,nu)*tmpCoulombDeriv(:)
-
         end if
 
       end do
