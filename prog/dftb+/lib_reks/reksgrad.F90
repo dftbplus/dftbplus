@@ -1392,8 +1392,8 @@ module dftbp_reksgrad
   !> Calculate ZmatL or ZdelL used in CP-REKS equations
   subroutine getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, HxcHalfS, &
-      & HxcHalfD, HxcSpS, HxcSpD, overSqr, over, GammaAO, SpinAO, &
-      & LrGammaAO, orderRmatL, getDenseAO, Glevel, Mlevel, tRangeSep, ZmatL)
+      & HxcHalfD, HxcSpS, HxcSpD, overSqr, over, GammaAO, SpinAO, LrGammaAO, &
+      & orderRmatL, getDenseAO, Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1458,6 +1458,9 @@ module dftbp_reksgrad
     !> get dense AO index from sparse AO array
     integer, intent(in) :: getDenseAO(:,:)
 
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
@@ -1477,27 +1480,27 @@ module dftbp_reksgrad
 
         if (tRangeSep) then
 
-          call getZmatHalf_(HxcHalfS, HxcHalfD, RmatL, ZmatL)
+          call getZmatHalf_(HxcHalfS, HxcHalfD, orderRmatL, Lpaired, RmatL, ZmatL)
 
         else
 
-          call getZmatSparse_(env, denseDesc, neighbourList, &
-              & nNeighbourSK, iSparseStart, img2CentCell, orb, &
-              & over, HxcSpS, HxcSpD, RmatL, ZmatL)
+          call getZmatSparse_(env, denseDesc, neighbourList, nNeighbourSK, &
+              & iSparseStart, img2CentCell, orb, over, HxcSpS, HxcSpD, &
+              & orderRmatL, getDenseAO, Lpaired, RmatL, ZmatL)
 
         end if
 
       else if (Mlevel == 2) then
 
         call getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
-            & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, &
-            & SpinAO, LrGammaAO, overSqr, RmatL, tRangeSep, ZmatL)
+            & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
+            & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, tRangeSep, ZmatL)
 
       end if
 
     else if (Glevel == 3) then
 
-      call getZmatDense_(HxcSqrS, HxcSqrD, RmatL, ZmatL)
+      call getZmatDense_(HxcSqrS, HxcSqrD, orderRmatL, Lpaired, RmatL, ZmatL)
 
     end if
 
@@ -3787,13 +3790,19 @@ module dftbp_reksgrad
 
 
   !> Calculate ZmatL with dense form used in CP-REKS equations in REKS(2,2)
-  subroutine getZmatDense_(HxcSqrS, HxcSqrD, RmatL, ZmatL)
+  subroutine getZmatDense_(HxcSqrS, HxcSqrD, orderRmatL, Lpaired, RmatL, ZmatL)
 
     !> Hartree-XC kernel with dense form with same spin part
     real(dp), intent(in) :: HxcSqrS(:,:,:,:)
 
     !> Hartree-XC kernel with dense form with different spin part
     real(dp), intent(in) :: HxcSqrD(:,:,:,:)
+
+    !> Ordering between RmatL and fillingL
+    integer, intent(in) :: orderRmatL(:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(in) :: RmatL(:,:,:)
@@ -3803,77 +3812,61 @@ module dftbp_reksgrad
 
     real(dp), allocatable :: tmpHxcS(:,:)
     real(dp), allocatable :: tmpHxcD(:,:)
+    real(dp), allocatable :: tmpZM(:,:)
 
-    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
-    integer :: nOrb, nOrbHalf, gam, tau, ii
+    integer :: iL, Lmax, LmaxR, nOrb, nOrbHalf, gam, tau, ii
 
     nOrb = size(RmatL,dim=1)
     nOrbHalf = nOrb * (nOrb + 1) / 2
+    Lmax = size(ZmatL,dim=3)
+    LmaxR = size(RmatL,dim=3)
 
     allocate(tmpHxcS(nOrb,nOrb))
     allocate(tmpHxcD(nOrb,nOrb))
+    allocate(tmpZM(2,LmaxR))
 
     ZmatL(:,:,:) = 0.0_dp
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(gam,tau,tmpZ1,tmpZ2, &
-!$OMP& tmpHxcS,tmpHxcD,tmp1,tmp2) SCHEDULE(RUNTIME)
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(gam,tau, &
+!$OMP& tmpHxcS,tmpHxcD,tmpZM) SCHEDULE(RUNTIME)
     do ii = 1, nOrbHalf
 
       call getTwoIndices(nOrb, ii, gam, tau, 2)
 
-      ! TODO : orderRmatL use!!!
-
       tmpHxcS(:,:) = HxcSqrS(:,:,gam,tau) + HxcSqrS(:,:,tau,gam)
       tmpHxcD(:,:) = HxcSqrD(:,:,gam,tau) + HxcSqrD(:,:,tau,gam)
 
-      ! 1st microstate (up) = 1st down = 3rd up = 4th down
-      tmpZ1 = sum(RmatL(:,:,1)*tmpHxcS)
-      tmpZ2 = sum(RmatL(:,:,1)*tmpHxcD)
-      tmp1 = tmpZ1; tmp2 = tmpZ2
-      ZmatL(gam,tau,1) = (tmpZ1 + tmpZ2) * 0.5_dp
-      if (gam /= tau) ZmatL(tau,gam,1) = ZmatL(gam,tau,1)
-
-      ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
-      tmpZ1 = sum(RmatL(:,:,2)*tmpHxcS)
-      tmpZ2 = sum(RmatL(:,:,2)*tmpHxcD)
-      ZmatL(gam,tau,2) = (tmpZ1 + tmpZ2) * 0.5_dp
-      if (gam /= tau) ZmatL(tau,gam,2) = ZmatL(gam,tau,2)
-
-      ! 3rd microstate up
-      ZmatL(gam,tau,3) = (tmp1 + tmpZ2) * 0.5_dp
-      if (gam /= tau) ZmatL(tau,gam,3) = ZmatL(gam,tau,3)
-      ! 4th microstate up
-      ZmatL(gam,tau,4) = (tmpZ1 + tmp2) * 0.5_dp
-      if (gam /= tau) ZmatL(tau,gam,4) = ZmatL(gam,tau,4)
-
-      ! 5th microstate (up) = 6th down
-      tmpZ1 = sum(RmatL(:,:,3)*tmpHxcS)
-      tmpZ2 = sum(RmatL(:,:,3)*tmpHxcD)
-      tmp1 = tmpZ1; tmp2 = tmpZ2
-      ! 6th microstate (up) = 5th down
-      tmpZ1 = sum(RmatL(:,:,4)*tmpHxcS)
-      tmpZ2 = sum(RmatL(:,:,4)*tmpHxcD)
-
-      ! 5th microstate up
-      ZmatL(gam,tau,5) = (tmp1 + tmpZ2) * 0.5_dp
-      if (gam /= tau) ZmatL(tau,gam,5) = ZmatL(gam,tau,5)
-      ! 6th microstate up
-      ZmatL(gam,tau,6) = (tmpZ1 + tmp2) * 0.5_dp
-      if (gam /= tau) ZmatL(tau,gam,6) = ZmatL(gam,tau,6)
+      ! calculate the ZmatL
+      do iL = 1, LmaxR
+        tmpZM(1,iL) = sum(RmatL(:,:,iL)*tmpHxcS)
+        tmpZM(2,iL) = sum(RmatL(:,:,iL)*tmpHxcD)
+      end do
+      tmpZM(:,:) = 0.5_dp * tmpZM
+      call getZmatLoop_(tmpZM, orderRmatL, Lpaired, gam, tau, ZmatL)
 
     end do
 !$OMP END PARALLEL DO
+
+    do iL = 1, Lmax
+      call symmetrizeHS(ZmatL(:,:,iL))
+    end do
 
   end subroutine getZmatDense_
 
 
   !> Calculate ZmatL with half dense form used in CP-REKS equations in REKS(2,2)
-  subroutine getZmatHalf_(HxcHalfS, HxcHalfD, RmatL, ZmatL)
+  subroutine getZmatHalf_(HxcHalfS, HxcHalfD, orderRmatL, Lpaired, RmatL, ZmatL)
 
     !> Hartree-XC kernel with half dense form with same spin part
     real(dp), intent(in) :: HxcHalfS(:,:)
 
     !> Hartree-XC kernel with half dense form with different spin part
     real(dp), intent(in) :: HxcHalfD(:,:)
+
+    !> Ordering between RmatL and fillingL
+    integer, intent(in) :: orderRmatL(:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(in) :: RmatL(:,:,:)
@@ -3885,18 +3878,20 @@ module dftbp_reksgrad
     real(dp), allocatable :: tmpHxcD(:)
     real(dp), allocatable :: RmatHalfL(:,:)
     real(dp), allocatable :: tmpMat(:,:)
+    real(dp), allocatable :: tmpZM(:,:)
 
-    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
-    integer :: LmaxR, nOrb, nOrbHalf, iL, gam, tau, ii
+    integer :: Lmax, LmaxR, nOrb, nOrbHalf, iL, gam, tau, ii
 
     nOrb = size(RmatL,dim=1)
     LmaxR = size(RmatL,dim=3)
+    Lmax = size(ZmatL,dim=3)
     nOrbHalf = nOrb * (nOrb + 1) / 2
 
     allocate(tmpHxcS(nOrbHalf))
     allocate(tmpHxcD(nOrbHalf))
     allocate(RmatHalfL(nOrbHalf,LmaxR))
     allocate(tmpMat(nOrb,nOrb))
+    allocate(tmpZM(2,LmaxR))
 
     RmatHalfL(:,:) = 0.0_dp
     do iL = 1, LmaxR
@@ -3911,8 +3906,8 @@ module dftbp_reksgrad
     end do
 
     ZmatL(:,:,:) = 0.0_dp
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(gam,tau,tmpZ1,tmpZ2, &
-!$OMP& tmpHxcS,tmpHxcD,tmp1,tmp2) SCHEDULE(RUNTIME)
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(gam,tau, &
+!$OMP& tmpHxcS,tmpHxcD,tmpZM) SCHEDULE(RUNTIME)
     do ii = 1, nOrbHalf
 
       call getTwoIndices(nOrb, ii, gam, tau, 2)
@@ -3920,53 +3915,27 @@ module dftbp_reksgrad
       tmpHxcS(:) = HxcHalfS(:,ii)
       tmpHxcD(:) = HxcHalfD(:,ii)
 
-      ! TODO : orderRmatL use!!!
-
-      ! 1st microstate (up) = 1st down = 3rd up = 4th down
-      tmpZ1 = sum(RmatHalfL(:,1)*tmpHxcS)
-      tmpZ2 = sum(RmatHalfL(:,1)*tmpHxcD)
-      tmp1 = tmpZ1; tmp2 = tmpZ2
-      ZmatL(gam,tau,1) = tmpZ1 + tmpZ2
-      if (gam /= tau) ZmatL(tau,gam,1) = ZmatL(gam,tau,1)
-
-      ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
-      tmpZ1 = sum(RmatHalfL(:,2)*tmpHxcS)
-      tmpZ2 = sum(RmatHalfL(:,2)*tmpHxcD)
-      ZmatL(gam,tau,2) = tmpZ1 + tmpZ2
-      if (gam /= tau) ZmatL(tau,gam,2) = ZmatL(gam,tau,2)
-
-      ! 3rd microstate up
-      ZmatL(gam,tau,3) = tmp1 + tmpZ2
-      if (gam /= tau) ZmatL(tau,gam,3) = ZmatL(gam,tau,3)
-      ! 4th microstate up
-      ZmatL(gam,tau,4) = tmpZ1 + tmp2
-      if (gam /= tau) ZmatL(tau,gam,4) = ZmatL(gam,tau,4)
-
-      ! 5th microstate (up) = 6th down
-      tmpZ1 = sum(RmatHalfL(:,3)*tmpHxcS)
-      tmpZ2 = sum(RmatHalfL(:,3)*tmpHxcD)
-      tmp1 = tmpZ1; tmp2 = tmpZ2
-      ! 6th microstate (up) = 5th down
-      tmpZ1 = sum(RmatHalfL(:,4)*tmpHxcS)
-      tmpZ2 = sum(RmatHalfL(:,4)*tmpHxcD)
-
-      ! 5th microstate up
-      ZmatL(gam,tau,5) = tmp1 + tmpZ2
-      if (gam /= tau) ZmatL(tau,gam,5) = ZmatL(gam,tau,5)
-      ! 6th microstate up
-      ZmatL(gam,tau,6) = tmpZ1 + tmp2
-      if (gam /= tau) ZmatL(tau,gam,6) = ZmatL(gam,tau,6)
+      ! calculate the ZmatL
+      do iL = 1, LmaxR
+        tmpZM(1,iL) = sum(RmatHalfL(:,iL)*tmpHxcS)
+        tmpZM(2,iL) = sum(RmatHalfL(:,iL)*tmpHxcD)
+      end do
+      call getZmatLoop_(tmpZM, orderRmatL, Lpaired, gam, tau, ZmatL)
 
     end do
 !$OMP END PARALLEL DO
+
+    do iL = 1, Lmax
+      call symmetrizeHS(ZmatL(:,:,iL))
+    end do
 
   end subroutine getZmatHalf_
 
 
   !> Calculate ZmatL with sparse form used in CP-REKS equations in REKS(2,2)
   subroutine getZmatSparse_(env, denseDesc, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, orb, &
-      & over, HxcSpS, HxcSpD, RmatL, ZmatL)
+      & nNeighbourSK, iSparseStart, img2CentCell, orb, over, &
+      & HxcSpS, HxcSpD, orderRmatL, getDenseAO, Lpaired, RmatL, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -3998,6 +3967,15 @@ module dftbp_reksgrad
     !> Hartree-XC kernel with sparse form with different spin part
     real(dp), intent(in) :: HxcSpD(:,:)
 
+    !> Ordering between RmatL and fillingL
+    integer, intent(in) :: orderRmatL(:)
+
+    !> get dense AO index from sparse AO array
+    integer, intent(in) :: getDenseAO(:,:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(in) :: RmatL(:,:,:)
 
@@ -4007,11 +3985,10 @@ module dftbp_reksgrad
     real(dp), allocatable :: tmpHxcS(:)
     real(dp), allocatable :: tmpHxcD(:)
     real(dp), allocatable :: RmatSpL(:,:)
-    real(dp), allocatable :: ZmatSpL(:,:)
     real(dp), allocatable :: tmpMat(:,:)
+    real(dp), allocatable :: tmpZM(:,:)
 
-    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
-    integer :: ii, gam, nOrb, sparseSize, iL, LmaxR, Lmax
+    integer :: ii, tau, gam, nOrb, sparseSize, iL, LmaxR, Lmax
 
     nOrb = size(RmatL,dim=1)
     LmaxR = size(RmatL,dim=3)
@@ -4021,8 +3998,8 @@ module dftbp_reksgrad
     allocate(tmpHxcS(sparseSize))
     allocate(tmpHxcD(sparseSize))
     allocate(RmatSpL(sparseSize,LmaxR))
-    allocate(ZmatSpL(sparseSize,Lmax))
     allocate(tmpMat(nOrb,nOrb))
+    allocate(tmpZM(2,LmaxR))
 
     ! pack R matrix
     RmatSpL(:,:) = 0.0_dp
@@ -4047,61 +4024,33 @@ module dftbp_reksgrad
 
     end do
 
-    ZmatSpL(:,:) = 0.0_dp
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
+    ZmatL(:,:,:) = 0.0_dp
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tau,gam,tmpHxcS,tmpHxcD,tmpZM) SCHEDULE(RUNTIME)
     do ii = 1, size(over,dim=1) ! tau and gam
 
       if (abs(over(ii)) >= epsilon(1.0_dp)) then
 
+        ! set the AO indices with respect to sparsity
+        tau = getDenseAO(ii,1)
+        gam = getDenseAO(ii,2)
+
         tmpHxcS(:) = HxcSpS(:,ii)
         tmpHxcD(:) = HxcSpD(:,ii)
 
-        ! TODO : orderRmatL use!!!
-
-        ! 1st microstate (up) = 1st down = 3rd up = 4th down
-        tmpZ1 = sum(RmatSpL(:,1)*tmpHxcS)
-        tmpZ2 = sum(RmatSpL(:,1)*tmpHxcD)
-        tmp1 = tmpZ1; tmp2 = tmpZ2
-        ZmatSpL(ii,1) = tmpZ1 + tmpZ2
-
-        ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
-        tmpZ1 = sum(RmatSpL(:,2)*tmpHxcS)
-        tmpZ2 = sum(RmatSpL(:,2)*tmpHxcD)
-        ZmatSpL(ii,2) = tmpZ1 + tmpZ2
-
-        ! 3rd microstate up
-        ZmatSpL(ii,3) = tmp1 + tmpZ2
-        ! 4th microstate up
-        ZmatSpL(ii,4) = tmpZ1 + tmp2
-
-        ! 5th microstate (up) = 6th down
-        tmpZ1 = sum(RmatSpL(:,3)*tmpHxcS)
-        tmpZ2 = sum(RmatSpL(:,3)*tmpHxcD)
-        tmp1 = tmpZ1; tmp2 = tmpZ2
-        ! 6th microstate (up) = 5th down
-        tmpZ1 = sum(RmatSpL(:,4)*tmpHxcS)
-        tmpZ2 = sum(RmatSpL(:,4)*tmpHxcD)
-
-        ! 5th microstate up
-        ZmatSpL(ii,5) = tmp1 + tmpZ2
-        ! 6th microstate up
-        ZmatSpL(ii,6) = tmpZ1 + tmp2
+        ! calculate the ZmatL
+        do iL = 1, LmaxR
+          tmpZM(1,iL) = sum(RmatSpL(:,iL)*tmpHxcS)
+          tmpZM(2,iL) = sum(RmatSpL(:,iL)*tmpHxcD)
+        end do
+        call getZmatLoop_(tmpZM, orderRmatL, Lpaired, tau, gam, ZmatL)
 
       end if
 
     end do
 !$OMP END PARALLEL DO
 
-    ! unpack Z matrix
-    ZmatL(:,:,:) = 0.0_dp
     do iL = 1, Lmax
-      ! convert from sparse to dense for ZmatL in AO basis
-      call env%globalTimer%startTimer(globalTimers%sparseToDense)
-      call unpackHS(ZMatL(:,:,iL), ZmatSpL(:,iL), &
-          & neighbourList%iNeighbour, nNeighbourSK, &
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-      call blockSymmetrizeHS(ZmatL(:,:,iL), denseDesc%iAtomStart)
+      call symmetrizeHS(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatSparse_
@@ -4110,7 +4059,7 @@ module dftbp_reksgrad
   !> Calculate ZmatL without saving H-XC kernel used in CP-REKS equations in REKS(2,2)
   subroutine getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
-      & LrGammaAO, overSqr, RmatL, tRangeSep, ZmatL)
+      & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, tRangeSep, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4151,6 +4100,12 @@ module dftbp_reksgrad
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(in) :: RmatL(:,:,:)
 
+    !> Ordering between RmatL and fillingL
+    integer, intent(in) :: orderRmatL(:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
 
@@ -4161,13 +4116,12 @@ module dftbp_reksgrad
     real(dp), allocatable :: tmpHxcS(:)
     real(dp), allocatable :: tmpHxcD(:)
     real(dp), allocatable :: tmpMat(:,:)
-
     real(dp), allocatable :: tmpZM(:,:)
 
     ! common variables
-    real(dp) :: tmp11, tmp22
+    real(dp) :: tmp22!, tmp11
     real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
-    integer :: mu, nu, tau, gam, nOrb, iL, LmaxR
+    integer :: mu, nu, tau, gam, nOrb, iL, Lmax, LmaxR
     integer :: ii, jj, sparseSize, nOrbHalf
 
     ! scc/spin variables
@@ -4180,6 +4134,7 @@ module dftbp_reksgrad
 
     nOrb = size(RmatL,dim=1)
     LmaxR = size(RmatL,dim=3)
+    Lmax = size(ZmatL,dim=3)
     sparseSize = size(getDenseAO,dim=1)
     nOrbHalf = nOrb * (nOrb + 1) / 2
 
@@ -4187,7 +4142,6 @@ module dftbp_reksgrad
     allocate(tmpHxcS(sparseSize))
     allocate(tmpHxcD(sparseSize))
     allocate(tmpMat(nOrb,nOrb))
-
     allocate(tmpZM(2,LmaxR))
 
     ! pack R matrix
@@ -4217,12 +4171,10 @@ module dftbp_reksgrad
     ZmatL(:,:,:) = 0.0_dp
 
     ! calculate ZmatL for scc and spin term
-!!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmpG1,tmpG2, &
-!!$OMP& tmpG3,tmpG4,tmpS1,tmpS2,tmpS3,tmpS4,tmpHxcS,tmpHxcD, &
-!!$OMP& tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmpG1,tmpG2, &
-!$OMP& tmpG3,tmpG4,tmpS1,tmpS2,tmpS3,tmpS4,tmpHxcS,tmpHxcD, &
-!$OMP& tmpZM) SCHEDULE(RUNTIME)
+
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam, &
+!$OMP& tmpG1,tmpG2,tmpG3,tmpG4,tmpS1,tmpS2,tmpS3,tmpS4, &
+!$OMP& tmpHxcS,tmpHxcD,tmpZM) SCHEDULE(RUNTIME)
     do ii = 1, sparseSize
 
       ! set the AO indices with respect to sparsity
@@ -4239,6 +4191,7 @@ module dftbp_reksgrad
           mu = getDenseAO(jj,1)
           nu = getDenseAO(jj,2)
 
+          ! calculate the H-XC kernel for scc, spin term
           if (mu <= nu .and. abs(overSqr(mu,nu)) >= epsilon(1.0_dp)) then
 
             tmpG1 = GammaAO(mu,tau)
@@ -4262,50 +4215,12 @@ module dftbp_reksgrad
         end do
         ! end of loop mu, nu
 
-        ! TODO : orderRmatL use!!!
-
-!        ! calculate ZmatL
-!        ! 1st microstate (up) = 1st down = 3rd up = 4th down
-!        tmpZ1 = sum(tmpRmatL(:,1)*tmpHxcS)
-!        tmpZ2 = sum(tmpRmatL(:,1)*tmpHxcD)
-!        tmp1 = tmpZ1; tmp2 = tmpZ2
-!        ZmatL(tau,gam,1) = ZmatL(tau,gam,1) + tmpZ1 + tmpZ2
-!        if (tau /= gam) ZmatL(gam,tau,1) = ZmatL(tau,gam,1)
-!
-!        ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
-!        tmpZ1 = sum(tmpRmatL(:,2)*tmpHxcS)
-!        tmpZ2 = sum(tmpRmatL(:,2)*tmpHxcD)
-!        ZmatL(tau,gam,2) = ZmatL(tau,gam,2) + tmpZ1 + tmpZ2
-!        if (tau /= gam) ZmatL(gam,tau,2) = ZmatL(tau,gam,2)
-!
-!        ! 3rd microstate up
-!        ZmatL(tau,gam,3) = ZmatL(tau,gam,3) + tmp1 + tmpZ2
-!        if (tau /= gam) ZmatL(gam,tau,3) = ZmatL(tau,gam,3)
-!        ! 4th microstate up
-!        ZmatL(tau,gam,4) = ZmatL(tau,gam,4) + tmpZ1 + tmp2
-!        if (tau /= gam) ZmatL(gam,tau,4) = ZmatL(tau,gam,4)
-!
-!        ! 5th microstate (up) = 6th down
-!        tmpZ1 = sum(tmpRmatL(:,3)*tmpHxcS)
-!        tmpZ2 = sum(tmpRmatL(:,3)*tmpHxcD)
-!        tmp1 = tmpZ1; tmp2 = tmpZ2
-!        ! 6th microstate (up) = 5th down
-!        tmpZ1 = sum(tmpRmatL(:,4)*tmpHxcS)
-!        tmpZ2 = sum(tmpRmatL(:,4)*tmpHxcD)
-!
-!        ! 5th microstate up
-!        ZmatL(tau,gam,5) = ZmatL(tau,gam,5) + tmp1 + tmpZ2
-!        if (tau /= gam) ZmatL(gam,tau,5) = ZmatL(tau,gam,5)
-!        ! 6th microstate up
-!        ZmatL(tau,gam,6) = ZmatL(tau,gam,6) + tmpZ1 + tmp2
-!        if (tau /= gam) ZmatL(gam,tau,6) = ZmatL(tau,gam,6)
-
+        ! calculate the ZmatL
         do iL = 1, LmaxR
           tmpZM(1,iL) = sum(tmpRmatL(:,iL)*tmpHxcS)
           tmpZM(2,iL) = sum(tmpRmatL(:,iL)*tmpHxcD)
         end do
-        ! TODO : use tSSR22
-        call getZmat22_(tmpZM, tau, gam, ZmatL)
+        call getZmatLoop_(tmpZM, orderRmatL, Lpaired, tau, gam, ZmatL)
 
       end if
 
@@ -4338,32 +4253,31 @@ module dftbp_reksgrad
 
       end do
 
-!!!!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tau,gam, &
-!!!!$OMP& tmpHxcS,mu,nu,tmpvalue1,tmpvalue2,tmpL1, &
-!!!!$OMP& tmpL2,tmpL3,tmpL4,tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
-!!!!$OMP& tmpL2,tmpL3,tmpL4,tmpZ1,tmpZ2,tmp1,tmp2,tmp11,tmp22) SCHEDULE(RUNTIME)
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tau,gam, &
 !$OMP& tmpHxcS,mu,nu,tmpvalue1,tmpvalue2,tmpL1, &
-!$OMP& tmpL2,tmpL3,tmpL4,tmpZM,tmp11,tmp22) SCHEDULE(RUNTIME)
+!$OMP& tmpL2,tmpL3,tmpL4,tmpZM,tmp22) SCHEDULE(RUNTIME)
 !!$OMP& tmpL2,tmpL3,tmpL4,tmpZM) SCHEDULE(RUNTIME)
       do ii = 1, nOrbHalf
 
-        !call getTwoIndices(nOrb, ii, tau, gam, 2)
-        tmp11 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
-            & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
-        tau = int( dble(tmp11) )
-        gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + ii
+        call getTwoIndices(nOrb, ii, tau, gam, 2)
+        !tmp11 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
+        !    & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
+        !tau = int( dble(tmp11) )
+        !gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + ii
 
         tmpHxcS(:) = 0.0_dp
         do jj = 1, nOrbHalf
 
+          ! TODO : use 'getTwoIndices' -> 5.1 sec per 1 CG-loop
+          !        use tmp22 part -> 3.9 sec per 1 CG-loop
+          !        Why show different cost?
           !call getTwoIndices(nOrb, jj, mu, nu, 2)
           tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
               & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+jj) ) )/2.0_dp
           mu = int( dble(tmp22) )
           nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + jj
 
-          ! calculate the Z matrix for LC term
+          ! calculate the H-XC kernel for LC term
           if (tRangeSep) then
 
             ! (mu,nu,tau,gam)
@@ -4389,50 +4303,12 @@ module dftbp_reksgrad
         end do
         ! end of loop mu, nu
 
-        ! TODO : orderRmatL use!!!
-
-!        ! calculate ZmatL
-!        ! 1st microstate (up) = 1st down = 3rd up = 4th down
-!        tmpZ1 = sum(tmpRmatL(:,1)*tmpHxcS)
-!        tmpZ2 = 0.0_dp
-!        tmp1 = tmpZ1; tmp2 = tmpZ2
-!        ZmatL(tau,gam,1) = ZmatL(tau,gam,1) + tmpZ1 + tmpZ2
-!        if (tau /= gam) ZmatL(gam,tau,1) = ZmatL(tau,gam,1)
-!
-!        ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
-!        tmpZ1 = sum(tmpRmatL(:,2)*tmpHxcS)
-!        tmpZ2 = 0.0_dp
-!        ZmatL(tau,gam,2) = ZmatL(tau,gam,2) + tmpZ1 + tmpZ2
-!        if (tau /= gam) ZmatL(gam,tau,2) = ZmatL(tau,gam,2)
-!
-!        ! 3rd microstate up
-!        ZmatL(tau,gam,3) = ZmatL(tau,gam,3) + tmp1 + tmpZ2
-!        if (tau /= gam) ZmatL(gam,tau,3) = ZmatL(tau,gam,3)
-!        ! 4th microstate up
-!        ZmatL(tau,gam,4) = ZmatL(tau,gam,4) + tmpZ1 + tmp2
-!        if (tau /= gam) ZmatL(gam,tau,4) = ZmatL(tau,gam,4)
-!
-!        ! 5th microstate (up) = 6th down
-!        tmpZ1 = sum(tmpRmatL(:,3)*tmpHxcS)
-!        tmpZ2 = 0.0_dp
-!        tmp1 = tmpZ1; tmp2 = tmpZ2
-!        ! 6th microstate (up) = 5th down
-!        tmpZ1 = sum(tmpRmatL(:,4)*tmpHxcS)
-!        tmpZ2 = 0.0_dp
-!
-!        ! 5th microstate up
-!        ZmatL(tau,gam,5) = ZmatL(tau,gam,5) + tmp1 + tmpZ2
-!        if (tau /= gam) ZmatL(gam,tau,5) = ZmatL(tau,gam,5)
-!        ! 6th microstate up
-!        ZmatL(tau,gam,6) = ZmatL(tau,gam,6) + tmpZ1 + tmp2
-!        if (tau /= gam) ZmatL(gam,tau,6) = ZmatL(tau,gam,6)
-
+        ! calculate the ZmatL
         do iL = 1, LmaxR
           tmpZM(1,iL) = sum(tmpRmatL(:,iL)*tmpHxcS)
           tmpZM(2,iL) = 0.0_dp
         end do
-        ! TODO : use tSSR22
-        call getZmat22_(tmpZM, tau, gam, ZmatL)
+        call getZmatLoop_(tmpZM, orderRmatL, Lpaired, tau, gam, ZmatL)
 
       end do
       ! end of loop tau, gam
@@ -4440,19 +4316,24 @@ module dftbp_reksgrad
 
     end if
 
-    ! TODO : use Lmax
-    do iL = 1, 6
+    do iL = 1, Lmax
       call symmetrizeHS(ZmatL(:,:,iL))
     end do
 
   end subroutine getZmatNoHxc_
 
 
-  !> Calculate ZmatL used in CP-REKS equations in REKS(2,2)
-  subroutine getZmat22_(tmpZM, gam, tau, ZmatL)
+  !> Calculate ZmatL used in CP-REKS equations in REKS
+  subroutine getZmatLoop_(tmpZM, orderRmatL, Lpaired, gam, tau, ZmatL)
 
     !> temporary matrix obtained from summation of RmatL and H-XC kernel
     real(dp), intent(in) :: tmpZM(:,:)
+
+    !> Ordering between RmatL and fillingL
+    integer, intent(in) :: orderRmatL(:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
 
     !> current indices for ZmatL
     integer, intent(in) :: gam, tau
@@ -4460,17 +4341,27 @@ module dftbp_reksgrad
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: ZmatL(:,:,:)
 
-    ! TODO : this routine can be more generalized with Lpaired
+    integer :: iL, Lmax, tmpL1, tmpL2
 
-    ZmatL(tau,gam,1) = ZmatL(tau,gam,1) + tmpZM(1,1) + tmpZM(2,1)
-    ZmatL(tau,gam,2) = ZmatL(tau,gam,2) + tmpZM(1,2) + tmpZM(2,2)
+    Lmax = size(ZmatL,dim=3)
 
-    ZmatL(tau,gam,3) = ZmatL(tau,gam,3) + tmpZM(1,1) + tmpZM(2,2)
-    ZmatL(tau,gam,4) = ZmatL(tau,gam,4) + tmpZM(1,2) + tmpZM(2,1)
-    ZmatL(tau,gam,5) = ZmatL(tau,gam,5) + tmpZM(1,3) + tmpZM(2,4)
-    ZmatL(tau,gam,6) = ZmatL(tau,gam,6) + tmpZM(1,4) + tmpZM(2,3)
+    do iL = 1, Lmax
+      if (iL <= Lpaired) then
+        tmpL1 = iL
+        tmpL2 = iL
+      else
+        if (mod(iL,2) == 1) then
+          tmpL1 = orderRmatL(iL)
+          tmpL2 = orderRmatL(iL) + 1
+        else
+          tmpL1 = orderRmatL(iL)
+          tmpL2 = orderRmatL(iL) - 1
+        end if
+      end if
+      ZmatL(tau,gam,iL) = ZmatL(tau,gam,iL) + tmpZM(1,tmpL1) + tmpZM(2,tmpL2)
+    end do
 
-  end subroutine getZmat22_
+  end subroutine getZmatLoop_
 
 
   !> Calculate Q1del used in CP-REKS equations in REKS(2,2)

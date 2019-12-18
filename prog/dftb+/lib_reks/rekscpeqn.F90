@@ -28,7 +28,7 @@ module dftbp_rekscpeqn
   use dftbp_rekscommon
   use dftbp_reksgrad, only : getRmat, getZmat, getQ2mat
   ! TODO
-!  use omp_lib
+  use omp_lib
 
   implicit none
 
@@ -42,8 +42,8 @@ module dftbp_rekscpeqn
   subroutine CGgrad(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart, &
       & img2CentCell, orb, XT, A1e, A1ePre, HxcSqrS, HxcSqrD, HxcHalfS, &
       & HxcHalfD, HxcSpS, HxcSpD, Fc, Fa, omega, SAweight, FONs, G1, GammaAO, &
-      & SpinAO, LRgammaAO, overSqr, over, eigenvecs, fillingL, weight, &
-      & ConvergeLimit, orderRmatL, getDenseAO, Nc, Na, maxIter, Glevel, &
+      & SpinAO, LrGammaAO, overSqr, over, eigenvecs, fillingL, weight, &
+      & ConvergeLimit, orderRmatL, getDenseAO, Lpaired, Nc, Na, maxIter, Glevel, &
       & Mlevel, tRangeSep, tSSR22, tSSR44, ZT, RmatL, ZmatL, Q2mat)
 
     !> Environment settings
@@ -151,6 +151,9 @@ module dftbp_rekscpeqn
     integer, intent(in) :: getDenseAO(:,:)
 
 
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
     !> Number of core orbitals
     integer, intent(in) :: Nc
 
@@ -209,8 +212,8 @@ module dftbp_rekscpeqn
 
     ! TODO
     write(stdOut,*)
-    call cpu_time(t1)
-!    t1 = OMP_GET_WTIME()
+!    call cpu_time(t1)
+    t1 = OMP_GET_WTIME()
 
     ! initial guess for Z vector
     ! initial Z_initial = A_pre^{-1} * X
@@ -237,7 +240,7 @@ module dftbp_rekscpeqn
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Glevel, Mlevel, tRangeSep, ZmatL)
+        & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
     call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
         & Nc, Na, tSSR22, tSSR44, shift2e)
 
@@ -254,15 +257,15 @@ module dftbp_rekscpeqn
     p0(:) = z0
 
     iter = 0; eps = 0.0_dp
-    call cpu_time(t2)
-!    t2 = OMP_GET_WTIME()
+!    call cpu_time(t2)
+    t2 = OMP_GET_WTIME()
     write(stdOut,'(2x,a,4x,24x,a,2x,F15.8)') &
    & 'CG solver: Y initial guess', 'time =', t2 - t1
 
     CGsolver: do iter = 1, maxIter
 
-      call cpu_time(t1)
-!      t1 = OMP_GET_WTIME()
+!      call cpu_time(t1)
+      t1 = OMP_GET_WTIME()
       ! Construct (A1e + A2e) * P
       ! 1-electron part
       if (Mlevel == 1) then
@@ -278,7 +281,7 @@ module dftbp_rekscpeqn
           & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
           & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
           & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-          & Glevel, Mlevel, tRangeSep, ZmatL)
+          & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
       call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
           & Nc, Na, tSSR22, tSSR44, shift2e)
 
@@ -312,8 +315,8 @@ module dftbp_rekscpeqn
 
       ! calculate square residual for current iteration
       eps = sum( r1(:)*r1(:) )
-      call cpu_time(t2)
-!      t2 = OMP_GET_WTIME()
+!      call cpu_time(t2)
+      t2 = OMP_GET_WTIME()
 
       ! show current iteration
       write(stdOut,'(2x,a,1x,i4,4x,a,F18.12,2x,a,2x,F15.8)') &
@@ -340,17 +343,17 @@ module dftbp_rekscpeqn
     end do CGsolver
 
     ! converged R, Z, Q2 value
-    call cpu_time(t1)
-!    t1 = OMP_GET_WTIME()
+!    call cpu_time(t1)
+    t1 = OMP_GET_WTIME()
     call getRmat(eigenvecs, ZT, fillingL, Nc, Na, tSSR22, tSSR44, RmatL)
     call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Glevel, Mlevel, tRangeSep, ZmatL)
+        & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
-    call cpu_time(t2)
-!    t2 = OMP_GET_WTIME()
+!    call cpu_time(t2)
+    t2 = OMP_GET_WTIME()
     write(stdOut,'(2x,a,4x,14x,a,2x,F15.8)') &
    & 'CG solver: converged R, Z, Q2 matrix', 'time =', t2 - t1
 

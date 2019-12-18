@@ -915,7 +915,7 @@ module dftbp_reksinterface
               & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
               & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
               & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
-              & self%Glevel, self%Mlevel, self%tRangeSep, self%ZdelL)
+              & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, self%ZdelL)
 !          t2 = OMP_GET_WTIME()
           write(*,'("current indices: ",I2,4x,I1,2x,I1)') ist, ia, ib
 !          if (Glevel == 1 .or. Glevel == 2) then
@@ -1040,8 +1040,8 @@ module dftbp_reksinterface
           & self%fockFc, self%fockFa, self%omega, self%SAweight, self%FONs, &
           & self%G1, self%GammaAO, self%SpinAO, self%LrGammaAO, self%overSqr, &
           & over, eigenvecs, self%fillingL, self%weight, self%Glimit, self%orderRmatL, &
-          & self%getDenseAO, self%Nc, self%Na, self%CGmaxIter, self%Glevel, self%Mlevel, &
-          & self%tRangeSep, self%tSSR22, self%tSSR44, ZT, RmatL, ZmatL, Q2mat)
+          & self%getDenseAO, self%Lpaired, self%Nc, self%Na, self%CGmaxIter, self%Glevel, &
+          & self%Mlevel, self%tRangeSep, self%tSSR22, self%tSSR44, ZT, RmatL, ZmatL, Q2mat)
 !      t2 = OMP_GET_WTIME()
 !      print '("  Time - CG_grad = ",f15.8," seconds.")', t2 - t1
 !      write(*,*)
@@ -1064,7 +1064,7 @@ module dftbp_reksinterface
             & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
             & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
             & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
-            & self%Glevel, self%Mlevel, self%tRangeSep, ZmatL)
+            & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, ZmatL)
         call getQ2mat(eigenvecs, self%fillingL, self%weight, ZmatL, Q2mat)
       end if
 !      t2 = OMP_GET_WTIME()
