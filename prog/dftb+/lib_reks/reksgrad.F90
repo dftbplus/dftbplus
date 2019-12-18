@@ -1477,7 +1477,7 @@ module dftbp_reksgrad
 
         if (tRangeSep) then
 
-          call getZmatHalf_(overSqr, HxcHalfS, HxcHalfD, RmatL, ZmatL)
+          call getZmatHalf_(HxcHalfS, HxcHalfD, RmatL, ZmatL)
 
         else
 
@@ -1497,7 +1497,7 @@ module dftbp_reksgrad
 
     else if (Glevel == 3) then
 
-      call getZmatDense_(overSqr, HxcSqrS, HxcSqrD, RmatL, ZmatL)
+      call getZmatDense_(HxcSqrS, HxcSqrD, RmatL, ZmatL)
 
     end if
 
@@ -3787,11 +3787,7 @@ module dftbp_reksgrad
 
 
   !> Calculate ZmatL with dense form used in CP-REKS equations in REKS(2,2)
-      ! TODO : overSqr not needed
-  subroutine getZmatDense_(overSqr, HxcSqrS, HxcSqrD, RmatL, ZmatL)
-
-    !> Dense overlap matrix
-    real(dp), intent(in) :: overSqr(:,:)
+  subroutine getZmatDense_(HxcSqrS, HxcSqrD, RmatL, ZmatL)
 
     !> Hartree-XC kernel with dense form with same spin part
     real(dp), intent(in) :: HxcSqrS(:,:,:,:)
@@ -3826,47 +3822,43 @@ module dftbp_reksgrad
 
       ! TODO : orderRmatL use!!!
 
-!      if (over(tau,gam) /= 0.0_dp) then
+      tmpHxcS(:,:) = HxcSqrS(:,:,gam,tau) + HxcSqrS(:,:,tau,gam)
+      tmpHxcD(:,:) = HxcSqrD(:,:,gam,tau) + HxcSqrD(:,:,tau,gam)
 
-        tmpHxcS(:,:) = HxcSqrS(:,:,gam,tau) + HxcSqrS(:,:,tau,gam)
-        tmpHxcD(:,:) = HxcSqrD(:,:,gam,tau) + HxcSqrD(:,:,tau,gam)
+      ! 1st microstate (up) = 1st down = 3rd up = 4th down
+      tmpZ1 = sum(RmatL(:,:,1)*tmpHxcS)
+      tmpZ2 = sum(RmatL(:,:,1)*tmpHxcD)
+      tmp1 = tmpZ1; tmp2 = tmpZ2
+      ZmatL(gam,tau,1) = (tmpZ1 + tmpZ2) * 0.5_dp
+      if (gam /= tau) ZmatL(tau,gam,1) = ZmatL(gam,tau,1)
 
-        ! 1st microstate (up) = 1st down = 3rd up = 4th down
-        tmpZ1 = sum(RmatL(:,:,1)*tmpHxcS)
-        tmpZ2 = sum(RmatL(:,:,1)*tmpHxcD)
-        tmp1 = tmpZ1; tmp2 = tmpZ2
-        ZmatL(gam,tau,1) = (tmpZ1 + tmpZ2) * 0.5_dp
-        if (gam /= tau) ZmatL(tau,gam,1) = ZmatL(gam,tau,1)
+      ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
+      tmpZ1 = sum(RmatL(:,:,2)*tmpHxcS)
+      tmpZ2 = sum(RmatL(:,:,2)*tmpHxcD)
+      ZmatL(gam,tau,2) = (tmpZ1 + tmpZ2) * 0.5_dp
+      if (gam /= tau) ZmatL(tau,gam,2) = ZmatL(gam,tau,2)
 
-        ! 2nd microstate (up) = 2nd down = 3rd down = 4th up
-        tmpZ1 = sum(RmatL(:,:,2)*tmpHxcS)
-        tmpZ2 = sum(RmatL(:,:,2)*tmpHxcD)
-        ZmatL(gam,tau,2) = (tmpZ1 + tmpZ2) * 0.5_dp
-        if (gam /= tau) ZmatL(tau,gam,2) = ZmatL(gam,tau,2)
+      ! 3rd microstate up
+      ZmatL(gam,tau,3) = (tmp1 + tmpZ2) * 0.5_dp
+      if (gam /= tau) ZmatL(tau,gam,3) = ZmatL(gam,tau,3)
+      ! 4th microstate up
+      ZmatL(gam,tau,4) = (tmpZ1 + tmp2) * 0.5_dp
+      if (gam /= tau) ZmatL(tau,gam,4) = ZmatL(gam,tau,4)
 
-        ! 3rd microstate up
-        ZmatL(gam,tau,3) = (tmp1 + tmpZ2) * 0.5_dp
-        if (gam /= tau) ZmatL(tau,gam,3) = ZmatL(gam,tau,3)
-        ! 4th microstate up
-        ZmatL(gam,tau,4) = (tmpZ1 + tmp2) * 0.5_dp
-        if (gam /= tau) ZmatL(tau,gam,4) = ZmatL(gam,tau,4)
+      ! 5th microstate (up) = 6th down
+      tmpZ1 = sum(RmatL(:,:,3)*tmpHxcS)
+      tmpZ2 = sum(RmatL(:,:,3)*tmpHxcD)
+      tmp1 = tmpZ1; tmp2 = tmpZ2
+      ! 6th microstate (up) = 5th down
+      tmpZ1 = sum(RmatL(:,:,4)*tmpHxcS)
+      tmpZ2 = sum(RmatL(:,:,4)*tmpHxcD)
 
-        ! 5th microstate (up) = 6th down
-        tmpZ1 = sum(RmatL(:,:,3)*tmpHxcS)
-        tmpZ2 = sum(RmatL(:,:,3)*tmpHxcD)
-        tmp1 = tmpZ1; tmp2 = tmpZ2
-        ! 6th microstate (up) = 5th down
-        tmpZ1 = sum(RmatL(:,:,4)*tmpHxcS)
-        tmpZ2 = sum(RmatL(:,:,4)*tmpHxcD)
-
-        ! 5th microstate up
-        ZmatL(gam,tau,5) = (tmp1 + tmpZ2) * 0.5_dp
-        if (gam /= tau) ZmatL(tau,gam,5) = ZmatL(gam,tau,5)
-        ! 6th microstate up
-        ZmatL(gam,tau,6) = (tmpZ1 + tmp2) * 0.5_dp
-        if (gam /= tau) ZmatL(tau,gam,6) = ZmatL(gam,tau,6)
-
-!      end if
+      ! 5th microstate up
+      ZmatL(gam,tau,5) = (tmp1 + tmpZ2) * 0.5_dp
+      if (gam /= tau) ZmatL(tau,gam,5) = ZmatL(gam,tau,5)
+      ! 6th microstate up
+      ZmatL(gam,tau,6) = (tmpZ1 + tmp2) * 0.5_dp
+      if (gam /= tau) ZmatL(tau,gam,6) = ZmatL(gam,tau,6)
 
     end do
 !$OMP END PARALLEL DO
@@ -3875,11 +3867,7 @@ module dftbp_reksgrad
 
 
   !> Calculate ZmatL with half dense form used in CP-REKS equations in REKS(2,2)
-      ! TODO : overSqr not needed
-  subroutine getZmatHalf_(overSqr, HxcHalfS, HxcHalfD, RmatL, ZmatL)
-
-    !> Dense overlap matrix
-    real(dp), intent(in) :: overSqr(:,:)
+  subroutine getZmatHalf_(HxcHalfS, HxcHalfD, RmatL, ZmatL)
 
     !> Hartree-XC kernel with half dense form with same spin part
     real(dp), intent(in) :: HxcHalfS(:,:)
