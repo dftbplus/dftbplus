@@ -44,10 +44,8 @@ module dftbp_mainio
   use dftbp_sccinit, only : writeQToFile
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_message
-  ! ... added by islee
   use dftbp_rekscommon
   use dftbp_reksvar
-  ! ... added by islee
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -76,13 +74,11 @@ module dftbp_mainio
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo, printBlankLine
-  ! ... added by islee
   public :: printReksSccHeader, printReksSccInfo, printReksMicrostates, printSaReksEnergy
   public :: printReksSaInfo, printReksSSRInfo, printReksGradInfo
   public :: printUnrelaxedFONs, printRelaxedFONs, printRelaxedFONsL
   public :: writeReksDetailedOut1
   public :: readEigenvecs, writeReksTDP, writeReksRelaxedCharge
-  ! ... added by islee
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -3698,7 +3694,6 @@ contains
 
   end subroutine printSccHeader
 
-  ! ... added by islee
   !> Prints the line above the start of the REKS SCC cycle data
   subroutine printReksSccHeader(tSSR22, tSSR44)
 
@@ -3716,7 +3711,6 @@ contains
     end if
 
   end subroutine printReksSccHeader
-  ! ... added by islee
 
   subroutine printBlankLine()
     write(stdOut,*)
@@ -3749,7 +3743,6 @@ contains
   end subroutine printSccInfo
 
 
-  ! ... added by islee
   !> Prints info about scc convergence.
   subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, &
       & sccErrorQ, t1, t2, FONs, tSSR22, tSSR44)
@@ -3787,7 +3780,6 @@ contains
     end if
 
   end subroutine printReksSccInfo
-  ! ... added by islee
 
 
   !> Prints current total energies
@@ -4497,7 +4489,6 @@ contains
   end subroutine writeEsp
 
 
-  ! ... added by islee
   !> Read external eigenvector file (eigenvec.bin)
   subroutine readEigenvecs(eigenvecs)
 
@@ -4527,10 +4518,8 @@ contains
     end if
 
   end subroutine readEigenvecs
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> Print energy contribution for each microstate in SCC iteration
   subroutine printReksMicrostates(Erep, reks)
 
@@ -4563,10 +4552,8 @@ contains
     end if
 
   end subroutine printReksMicrostates
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> Print SA-REKS energy in SCC iteration
   subroutine printSaReksEnergy(reks)
 
@@ -4587,10 +4574,8 @@ contains
     end if
 
   end subroutine printSaReksEnergy
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> print SA-REKS result in standard output
   subroutine printReksSAInfo(Etotal, reks)
 
@@ -4607,10 +4592,8 @@ contains
     end if
 
   end subroutine printReksSAInfo
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> print SA-REKS(2,2) result in standard output
   subroutine printReksSAInfo22(Etotal, reks)
 
@@ -4672,10 +4655,8 @@ contains
     end if
 
   end subroutine printReksSAInfo22
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> print SI-SA-REKS result in standard output
   subroutine printReksSSRInfo(Wab, tmpEn, StateCoup, reks)
 
@@ -4698,10 +4679,8 @@ contains
     end if
 
   end subroutine printReksSSRInfo
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> print SI-SA-REKS(2,2) result in standard output
   subroutine printReksSSRInfo22(Wab, tmpEn, StateCoup, reks)
 
@@ -4796,10 +4775,8 @@ contains
     end if
 
   end subroutine printReksSSRInfo22
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> print unrelaxed FONs for target state
   subroutine printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
 
@@ -4845,10 +4822,8 @@ contains
     end do
 
   end subroutine printUnrelaxedFONs
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> print Relaxed FONs for target state
   subroutine printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
 
@@ -4886,10 +4861,8 @@ contains
     end do
 
   end subroutine printRelaxedFONs
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> print Relaxed FONs for target L-th microstate
   subroutine printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
 
@@ -4919,10 +4892,8 @@ contains
     end do
 
   end subroutine printRelaxedFONsL
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> Write tdp.dat file with transidion dipole moment
   subroutine writeReksTDP(tdp)
 
@@ -4956,10 +4927,8 @@ contains
     close(funit)
 
   end subroutine writeReksTDP
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> Write relaxed_charge.dat file with relaxed charges for target state
   subroutine writeReksRelaxedCharge(qOutput, q0, rstate, Lstate)
 
@@ -4997,10 +4966,8 @@ contains
     close(funit)
 
   end subroutine writeReksRelaxedCharge
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> First group of data to go to detailed.out
   subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
@@ -5343,10 +5310,8 @@ contains
     end if
 
   end subroutine writeReksDetailedOut1
-  ! ... added by islee
 
 
-  ! ... added by islee
   !> print gradient results for REKS calculation
   subroutine printReksGradInfo(derivs, SAgrad, SIgrad, SSRgrad, nacG, nacH, &
       & Efunction, useSSR, nstates, rstate, Lstate, tNAC)
@@ -5468,7 +5433,6 @@ contains
     write(stdOut,*)
 
   end subroutine printReksGradInfo
-  ! ... added by islee
 
 
 end module dftbp_mainio
