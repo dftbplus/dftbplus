@@ -5655,7 +5655,7 @@ contains
 
     type(fnode), pointer :: child22, child44
 
-    ! ... SSR(2,2) or SSR(4,4) stuff
+    ! SSR(2,2) or SSR(4,4) stuff
     call getChild(node, "SSR22", child22, requested=.false.)
     call getChild(node, "SSR44", child44, requested=.false.)
 
