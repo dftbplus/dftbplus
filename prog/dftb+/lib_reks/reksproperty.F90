@@ -52,7 +52,6 @@ module dftbp_reksproperty
     real(dp), allocatable :: tmpMat(:,:)
     real(dp), allocatable :: tmpFilling(:,:)
 
-    real(dp) :: tmp
     integer :: nOrb, nstHalf
     integer :: ii, ist, jst, kst, lst, ia, ib
 
@@ -147,14 +146,7 @@ module dftbp_reksproperty
         self%unrelTdm(:,:,:) = 0.0_dp
         do lst = 1, nstHalf
 
-          ! (ia,ib) = (1,2) (1,3) (2,3) ...
-          ! TODO
-          tmp = ( dble(2.0_dp*self%nstates+1.0_dp) - dsqrt( (2.0_dp*self%nstates+ &
-              & 1.0_dp)**2.0_dp - 8.0_dp*(self%nstates+lst) ) )/2.0_dp
-          ia = int( tmp )
-          if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
-          ib = ia**2/2 + ia/2 - self%nstates*ia + self%nstates + lst
-          if( mod(ia,2) == 1 ) ib = ib + 1
+          call getTwoIndices(self%nstates, lst, ia, ib, 1)
 
           kst = 0
           do ist = 1, self%nstates
