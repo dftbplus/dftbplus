@@ -33,6 +33,7 @@ module dftbp_reksinterface
   use dftbp_slakocont
   use dftbp_sparse2dense
   use dftbp_stress
+  use dftbp_rekscommon
   use dftbp_rekscpeqn
   use dftbp_reksgrad
   use dftbp_reksproperty
@@ -164,16 +165,8 @@ module dftbp_reksinterface
           & neighbourList, nNeighbourSK, iSparseStart, img2CentCell, &
           & eigenvecs, coord, species, over, spinW, self)
 
-      ! TODO: build XT and XTdel from RdelL and ZdelL
-      ! TODO: and calculate Q1del and Q2del from ZdelL
       call buildStateVectors_(env, denseDesc, neighbourList, nNeighbourSK, &
           & iSparseStart, img2CentCell, eigenvecs, orb, over, self)
-!      write(*,'(10(f15.8))') self%XT(:,self%rstate)
-!      write(*,*)
-!      write(*,'(10(f15.8))') self%XTdel(:,1)
-!      write(*,*)
-!      write(*,'(12(f15.8))') self%Q1del(:,:,1)
-!      write(*,*)
 
       if (self%tNAC) then
 
@@ -892,7 +885,7 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    real(dp) :: tmp!, t1, t2
+!    real(dp) :: t1, t2
     integer :: ia, ib, ist, nstHalf
 
     nstHalf = self%nstates * (self%nstates - 1) / 2
@@ -913,14 +906,7 @@ module dftbp_reksinterface
 
         do ist = 1, nstHalf
 
-          ! (ia,ib) = (1,2) (1,3) (2,3) ...
-          ! TODO
-          tmp = ( dble(2.0_dp*self%nstates+1.0_dp) - dsqrt( (2.0_dp*self%nstates+ &
-              & 1.0_dp)**2.0_dp - 8.0_dp*(self%nstates+ist) ) )/2.0_dp
-          ia = int( tmp )
-          if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
-          ib = ia**2/2 + ia/2 - self%nstates*ia + self%nstates + ist
-          if( mod(ia,2) == 1 ) ib = ib + 1
+          call getTwoIndices(self%nstates, ist, ia, ib, 1)
 
           ! get Z^delta values from R^delta values
 !          t1 = OMP_GET_WTIME()

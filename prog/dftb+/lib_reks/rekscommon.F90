@@ -28,6 +28,7 @@ module dftbp_rekscommon
   private
 
   public :: checkGammaPoint
+  public :: getTwoIndices
   public :: qm2udL, ud2qmL
   public :: qmExpandL, udExpandL
   public :: matAO2MO, matMO2AO
@@ -155,6 +156,51 @@ module dftbp_rekscommon
     end do
 
   end subroutine checkGammaPoint
+
+
+  !> Calculate two indices from single index with size of index
+  subroutine getTwoIndices(sizeInd, curInd, ind1, ind2, option)
+
+    !> size of index
+    integer, intent(in) :: sizeInd
+
+    !> current index (single index)
+    integer, intent(in) :: curInd
+
+    !> generated two indices
+    integer, intent(inout) :: ind1, ind2
+
+    !> option for generating two indices
+    !> 1: exclude diagonal elements, 2: include diagonal elements
+    integer, intent(in) :: option
+
+    real(dp) :: tmp
+
+    if (option == 1) then
+
+      ! when sizeInd = 3, (ind1,ind2) = (1,2) (1,3) (2,3)
+      tmp = ( dble(2.0_dp*sizeInd+1.0_dp) - sqrt( (2.0_dp*sizeInd+ &
+          & 1.0_dp)**2.0_dp - 8.0_dp*(sizeInd+curInd) ) )/2.0_dp
+      ind1 = int( dble(tmp) )
+      if ( dble(tmp)-dble(ind1) <= epsilon(1.0_dp) ) then
+        ind1 = ind1 - 1
+      end if
+      ind2 = ind1**2/2 + ind1/2 - sizeInd*ind1 + sizeInd + curInd
+      if (mod(ind1,2) == 1) then
+        ind2 = ind2 + 1
+      end if
+
+    else if (option == 2) then
+
+      ! when sizeInd = 3, (ind1,ind2) = (1,1) (1,2) (1,3) (2,2) (2,3) (3,3)
+      tmp = ( dble(2.0_dp*sizeInd+3.0_dp) - sqrt( (2.0_dp*sizeInd+ &
+          & 3.0_dp)**2.0_dp - 8.0_dp*(sizeInd+curInd) ) )/2.0_dp
+      ind1 = int( dble(tmp) )
+      ind2 = ind1**2/2 - ind1/2 - sizeInd*ind1 + sizeInd + curInd
+
+    end if
+
+  end subroutine getTwoIndices
 
 
   !> Converts charge/magnetization set into up/down in REKS

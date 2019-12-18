@@ -970,7 +970,6 @@ module dftbp_reksen
     real(dp), allocatable :: tmpHam(:,:)
     real(dp), allocatable :: tmpHamL(:,:,:)
 
-    real(dp) :: tmp
     integer :: nOrb, iL, Lmax
     integer :: ia, ib, ist, nActPair
 
@@ -986,14 +985,7 @@ module dftbp_reksen
     tmpHamL(:,:,:) = 0.0_dp
     do ist = 1, nActPair
 
-      ! (ia,ib) = (1,2) (1,3) (2,3) ...
-      ! TODO
-      tmp = ( dble(2.0_dp*(Na)+1.0_dp) - dsqrt( (2.0_dp*(Na)+ &
-          & 1.0_dp)**2.0_dp - 8.0_dp*((Na)+ist) ) )/2.0_dp
-      ia = int( tmp )
-      if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
-      ib = ia**2/2 + ia/2 - (Na)*ia + (Na) + ist
-      if( mod(ia,2) == 1 ) ib = ib + 1
+      call getTwoIndices(Na, ist, ia, ib, 1)
 
       do iL = 1, Lmax
 

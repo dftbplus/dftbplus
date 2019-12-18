@@ -1998,19 +1998,12 @@ module dftbp_reksgrad
     !> gradient from 1st(H-F term) and 3rd(Q*S) terms
     real(dp), intent(out) :: grad(:,:)
 
-    real(dp) :: tmp, tmpValue
+    real(dp) :: tmpValue
     integer :: iL, Lmax, ia, ib
 
     Lmax = size(weightIL,dim=1)
 
-    ! (ia,ib) = (1,2) (1,3) (2,3) ...
-    ! TODO
-    tmp = ( dble(2.0_dp*nstates+1.0_dp) - dsqrt( (2.0_dp*nstates+ &
-        & 1.0_dp)**2.0_dp - 8.0_dp*(nstates+ist) ) )/2.0_dp
-    ia = int( tmp )
-    if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
-    ib = ia**2/2 + ia/2 - nstates*ia + nstates + ist
-    if( mod(ia,2) == 1 ) ib = ib + 1
+    call getTwoIndices(nstates, ist, ia, ib, 1)
 
     ! tmp_Q1, tmp_Q2, Q2_del : MO index, Q1_del : AO index
     call matMO2AO(tmpQ1, eigenvecs(:,:,1))
@@ -2454,7 +2447,6 @@ module dftbp_reksgrad
         real(dp), intent(out) :: RmatHalfL(:,:)
 
         real(dp), allocatable :: tmpMat(:,:)
-        real(dp) :: tmp
         integer :: iL, LmaxR, mu, nu, nOrb, k, nOrbHalf
 
         nOrb = size(RmatL,dim=1)
@@ -2472,11 +2464,7 @@ module dftbp_reksgrad
           end do
 
           do k = 1, nOrbHalf
-            ! TODO
-            tmp = ( dble(2.0_dp*nOrb+3.0_dp) - &
-                & dsqrt( (2.0_dp*nOrb+3.0_dp)**2.0_dp - 8.0_dp*(nOrb+k) ) )/2.0_dp
-            mu = int( real(tmp) )
-            nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + k
+            call getTwoIndices(nOrb, k, mu, nu, 2)
             RmatHalfL(k,iL) = tmpMat(mu,nu)
           end do
 
@@ -2842,7 +2830,7 @@ module dftbp_reksgrad
     real(dp), intent(out) :: HxcHalfD(:,:)
 
     ! common variables
-    integer :: ii, jj, sparseSize, tmp11, tmp22, k, l, nOrbHalf
+    integer :: ii, jj, sparseSize, k, l, nOrbHalf
     integer :: mu, nu, tau, gam, nOrb
 
     ! scc/spin variables
@@ -2916,25 +2904,15 @@ module dftbp_reksgrad
     ! LC terms
     if (tRangeSep) then
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tmp11,mu,nu,tmp22,tau,gam, &
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam, &
 !$OMP& tmpL1,tmpL2,tmpL3,tmpL4,tmpvalue1,tmpvalue2) SCHEDULE(RUNTIME)
       do k = 1, nOrbHalf
 
-            ! TODO
-        tmp11 = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
-            & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+k) ) )/2.0_dp
-        tmp11 = real( tmp11 )
-        mu = int( tmp11 )
-        nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + k
+        call getTwoIndices(nOrb, k, mu, nu, 2)
 
         do l = 1, nOrbHalf
 
-            ! TODO
-          tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
-              & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+l) ) )/2.0_dp
-          tmp22 = real( tmp22 )
-          tau = int( tmp22 )
-          gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + l
+          call getTwoIndices(nOrb, l, tau, gam, 2)
 
           ! LC terms
           if (tRangeSep) then
@@ -3193,7 +3171,7 @@ module dftbp_reksgrad
     !> preconditioner of super A hessian matrix with one-electron term in front of orbital derivatives
     real(dp), intent(out) :: A1ePre(:,:)
 
-    real(dp) :: e1, e2, tmp
+    real(dp) :: e1, e2
     integer :: nOrb, superN, Nv, superNhalf
     integer :: ij, pq, i, j, p, q, ijpq
 
@@ -3203,15 +3181,10 @@ module dftbp_reksgrad
     superNhalf = superN * (superN + 1) / 2
 
     A1e(:,:) = 0.0_dp
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,i,j,pq,p,q,e1,e2,tmp) SCHEDULE(RUNTIME)
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,i,j,pq,p,q,e1,e2) SCHEDULE(RUNTIME)
     do ijpq = 1, superNhalf
 
-      ! TODO
-      tmp = ( dble(2.0_dp*superN+3.0_dp) - dsqrt( (2.0_dp*superN &
-          & + 3.0_dp)**2.0_dp - 8.0_dp*(superN+ijpq) ) )/2.0_dp
-      tmp = real( tmp )
-      ij = int( tmp )
-      pq = ij**2/2 - ij/2 - superN*ij + superN + ijpq
+      call getTwoIndices(superN, ijpq, ij, pq, 2)
 
       ! assign index i and j from ij
       call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
@@ -3833,7 +3806,7 @@ module dftbp_reksgrad
     real(dp), allocatable :: tmpHxcS(:,:)
     real(dp), allocatable :: tmpHxcD(:,:)
 
-    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2, tmp
+    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
     integer :: nOrb, nOrbHalf, gam, tau, ii
 
     nOrb = size(RmatL,dim=1)
@@ -3844,14 +3817,10 @@ module dftbp_reksgrad
 
     ZmatL(:,:,:) = 0.0_dp
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(gam,tau,tmpZ1,tmpZ2, &
-!$OMP& tmpHxcS,tmpHxcD,tmp,tmp1,tmp2) SCHEDULE(RUNTIME)
+!$OMP& tmpHxcS,tmpHxcD,tmp1,tmp2) SCHEDULE(RUNTIME)
     do ii = 1, nOrbHalf
 
-      ! TODO
-      tmp = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb+3.0_dp)**2.0_dp &
-          & - 8.0_dp*(nOrb+ii) ) )/2.0_dp
-      gam = int( real(tmp) )
-      tau = gam**2/2 - gam/2 - nOrb*gam + nOrb + ii
+      call getTwoIndices(nOrb, ii, gam, tau, 2)
 
       ! TODO : orderRmatL use!!!
 
@@ -3927,7 +3896,7 @@ module dftbp_reksgrad
     real(dp), allocatable :: RmatHalfL(:,:)
     real(dp), allocatable :: tmpMat(:,:)
 
-    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2, tmp
+    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
     integer :: LmaxR, nOrb, nOrbHalf, iL, gam, tau, ii
 
     nOrb = size(RmatL,dim=1)
@@ -3946,27 +3915,17 @@ module dftbp_reksgrad
         tmpMat(gam,gam) = RmatL(gam,gam,iL)
       end do
       do ii = 1, nOrbHalf
-      ! TODO
-        tmp = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
-            & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
-        tmp = real( tmp )
-        gam = int( tmp )
-        tau = gam**2/2 - gam/2 - nOrb*gam + nOrb + ii
+        call getTwoIndices(nOrb, ii, gam, tau, 2)
         RmatHalfL(ii,iL) = tmpMat(gam,tau)
       end do
     end do
 
     ZmatL(:,:,:) = 0.0_dp
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(gam,tau,tmpZ1,tmpZ2, &
-!$OMP& tmpHxcS,tmpHxcD,tmp,tmp1,tmp2) SCHEDULE(RUNTIME)
+!$OMP& tmpHxcS,tmpHxcD,tmp1,tmp2) SCHEDULE(RUNTIME)
     do ii = 1, nOrbHalf
 
-      ! TODO
-      tmp = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
-          & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
-      tmp = real( tmp )
-      gam = int( tmp )
-      tau = gam**2/2 - gam/2 - nOrb*gam + nOrb + ii
+      call getTwoIndices(nOrb, ii, gam, tau, 2)
 
       tmpHxcS(:) = HxcHalfS(:,ii)
       tmpHxcD(:) = HxcHalfD(:,ii)
@@ -4207,7 +4166,7 @@ module dftbp_reksgrad
     real(dp), allocatable :: tmpMat(:,:)
 
     ! common variables
-    real(dp) :: tmp11, tmp22, tmpZ1, tmpZ2, tmp1, tmp2
+    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
     integer :: mu, nu, tau, gam, nOrb, iL, LmaxR
     integer :: ii, jj, sparseSize, nOrbHalf
 
@@ -4360,38 +4319,23 @@ module dftbp_reksgrad
         end do
 
         do ii = 1, nOrbHalf
-          ! TODO
-          tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - &
-              & dsqrt( (2.0_dp*nOrb+3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
-          tmp22 = real( tmp22 )
-          mu = int( tmp22 )
-          nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + ii
+          call getTwoIndices(nOrb, ii, mu, nu, 2)
           tmpRmatL(ii,iL) = tmpMat(mu,nu)
         end do
 
       end do
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tmp11,tau,gam, &
-!$OMP& tmpHxcS,tmp22,mu,nu,tmpvalue1,tmpvalue2,tmpL1, &
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tau,gam, &
+!$OMP& tmpHxcS,mu,nu,tmpvalue1,tmpvalue2,tmpL1, &
 !$OMP& tmpL2,tmpL3,tmpL4,tmpZ1,tmpZ2,tmp1,tmp2) SCHEDULE(RUNTIME)
       do ii = 1, nOrbHalf
 
-          ! TODO
-        tmp11 = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
-            & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
-        tmp11 = real( tmp11 )
-        tau = int( tmp11 )
-        gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + ii
+        call getTwoIndices(nOrb, ii, tau, gam, 2)
 
         tmpHxcS(:) = 0.0_dp
         do jj = 1, nOrbHalf
 
-          ! TODO
-          tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb &
-              & + 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+jj) ) )/2.0_dp
-          tmp22 = real( tmp22 )
-          mu = int( tmp22 )
-          nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + jj
+          call getTwoIndices(nOrb, jj, mu, nu, 2)
 
           ! calculate the Z matrix for LC term
           if (tRangeSep) then
@@ -4642,7 +4586,7 @@ module dftbp_reksgrad
     real(dp), allocatable :: SpinQderiv(:,:,:,:)     ! nOrb, 1, 3, Lmax
     real(dp), allocatable :: TderivL(:,:,:,:)        ! sparseSize, 3, Lmax, Ncpu
 
-    real(dp) :: tmp, tmpCoulomb, tmpG1, tmpS1, tmpG2(3), tmpV1(3)
+    real(dp) :: tmpCoulomb, tmpG1, tmpS1, tmpG2(3), tmpV1(3)
     integer :: iAtom1, iAtom2, iAtom3, iAtom4, nAtom, k, nAtomPair
     integer :: ist, nstates, nstHalf, mOrb, mu, nu, nOrb, l, sparseSize
     integer :: iS, nSpin, iL, Lmax, id, Ncpu
@@ -4702,7 +4646,7 @@ module dftbp_reksgrad
 
     ! compute R*T shift with only up-spin part of TderivL due to symmetry
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(id,tmp,iAtom1,iAtom2,G1, &
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(id,iAtom1,iAtom2,G1, &
 !$OMP& G2,G3,G4,tmpS,tmpD,tmpGM,tmpPM,tmpQ1,tmpQ2,GammaQderiv, &
 !$OMP& SpinQderiv,mu,nu,iAtom3,iAtom4,tmpV1,tmpG2,tmpG1,tmpS1, &
 !$OMP& tmpCoulomb,ist) REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
@@ -4710,14 +4654,7 @@ module dftbp_reksgrad
 
       id = OMP_GET_THREAD_NUM() + 1
 
-            ! TODO
-      tmp = ( dble(2.0_dp*nAtom+1.0_dp) - dsqrt( (2.0_dp*nAtom+ &
-          & 1.0_dp)**2.0_dp - 8.0_dp*(nAtom+k) ) )/2.0_dp
-      tmp = real( tmp )
-      iAtom1 = int( tmp )
-      if( (tmp - dble(iAtom1)) < 1.0E-8_dp ) iAtom1 = iAtom1 - 1
-      iAtom2 = iAtom1**2/2 + iAtom1/2 - nAtom*iAtom1 + nAtom + k
-      if( mod(iAtom1,2) == 1 ) iAtom2 = iAtom2 + 1
+      call getTwoIndices(nAtom, k, iAtom1, iAtom2, 1)
 
       G1 = iSquare(iAtom1)
       G2 = iSquare(iAtom1+1)-1
@@ -5046,7 +4983,6 @@ module dftbp_reksgrad
     real(dp), allocatable :: shiftFM8(:,:,:,:)      ! nOrb, mOrb, 3, Lmax
     real(dp), allocatable :: TderivL(:,:,:,:)       ! nOrbHalf, 3, Lmax, Ncpu
 
-    real(dp) :: tmp
     integer :: iAtom1, iAtom2, k, nAtomSparse, ist, nstates, nstHalf
     integer :: mu, nu, al, be, nOrb, l, nOrbHalf
     integer :: iL, Lmax, id, Ncpu
@@ -5090,7 +5026,7 @@ module dftbp_reksgrad
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(id,iAtom1,iAtom2,G1,G2, &
 !$OMP& G3,G4,tmpS,shiftPP1,shiftPP2,shiftIM1,shiftIM2,shiftFM1,shiftFM2, &
 !$OMP& shiftFM3,shiftFM4,shiftFM5,shiftFM6,shiftFM7,shiftFM8,iL,ii,mu,nu, &
-!$OMP& al,be,l,tmp,ist) REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
+!$OMP& al,be,l,ist) REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
     loopKK: do k = 1, nAtomSparse
 
       id = OMP_GET_THREAD_NUM() + 1
@@ -5245,11 +5181,7 @@ module dftbp_reksgrad
         TderivL(:,:,:,id) = 0.0_dp
         loopLL: do l = 1, nOrbHalf
 
-          ! TODO
-          tmp = ( dble(2.0_dp*nOrb+3.0_dp) - dsqrt( (2.0_dp*nOrb + &
-              & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+l) ) )/2.0_dp
-          mu = int( real(tmp) )
-          nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + l
+          call getTwoIndices(nOrb, l, mu, nu, 2)
 
           if (mu >= G1 .and. mu <= G2) then
             do iL = 1, Lmax
@@ -5360,7 +5292,6 @@ module dftbp_reksgrad
     real(dp), allocatable :: RS(:,:,:)
     real(dp), allocatable :: SRS(:,:,:)
 
-    real(dp) :: tmp
     integer :: iAtom1, iAtom2, nAtom, k, nAtomPair
     integer :: ist, nstates, nstHalf, nOrb, LmaxR
 
@@ -5382,17 +5313,11 @@ module dftbp_reksgrad
 
           call getSRmatrices(RmatL(:,:,:,ist), overSqr, SR, RS, SRS)
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tmp,iAtom1,iAtom2) &
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2) &
 !$OMP& REDUCTION(+:deriv1) SCHEDULE(RUNTIME)
           do k = 1, nAtomPair
 
-            ! TODO
-            tmp = ( dble(2.0_dp*nAtom+1.0_dp) - dsqrt( (2.0_dp*nAtom+1.0_dp)**2.0_dp - 8.0_dp*(nAtom+k) ) )/2.0_dp
-            tmp = real(tmp)
-            iAtom1 = int( tmp )
-            if( (tmp - dble(iAtom1)) < 1.0E-8_dp ) iAtom1 = iAtom1 - 1
-            iAtom2 = iAtom1**2/2 + iAtom1/2 - nAtom*iAtom1 + nAtom + k
-            if( mod(iAtom1,2) == 1 ) iAtom2 = iAtom2 + 1
+            call getTwoIndices(nAtom, k, iAtom1, iAtom2, 1)
 
             call shiftRTgradLr1st_(deriv1(:,:,ist), RmatL(:,:,:,ist), SPS, LrGammaDeriv, &
                 & weight, iSquare, orderRmatL, mOrb, iAtom1, iAtom2)
@@ -5414,18 +5339,12 @@ module dftbp_reksgrad
         call getSRmatrices(RdelL(:,:,:,ist) + tmpRL(:,:,:,ist), &
             & overSqr, SR, RS, SRS)
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tmp,iAtom1,iAtom2) &
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2) &
 !$OMP& REDUCTION(+:deriv2) SCHEDULE(RUNTIME)
         do k = 1, nAtomPair
 
-          tmp = ( dble(2.0_dp*nAtom+1.0_dp) - dsqrt( (2.0_dp*nAtom+1.0_dp)**2.0_dp - 8.0_dp*(nAtom+k) ) )/2.0_dp
-          tmp = real(tmp)
-          iAtom1 = int( tmp )
-          if( (tmp - dble(iAtom1)) < 1.0E-8_dp ) iAtom1 = iAtom1 - 1
-          iAtom2 = iAtom1**2/2 + iAtom1/2 - nAtom*iAtom1 + nAtom + k
-          if( mod(iAtom1,2) == 1 ) iAtom2 = iAtom2 + 1
+          call getTwoIndices(nAtom, k, iAtom1, iAtom2, 1)
 
-            ! TODO
           call shiftRTgradLr1st_(deriv2(:,:,ist), RdelL(:,:,:,ist) + &
               & tmpRL(:,:,:,ist), SPS, LrGammaDeriv, weight, iSquare, &
               & orderRmatL, mOrb, iAtom1, iAtom2)
@@ -5444,17 +5363,11 @@ module dftbp_reksgrad
 
       call getSRmatrices(RmatL(:,:,:,1), overSqr, SR, RS, SRS)
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(tmp,iAtom1,iAtom2) &
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(iAtom1,iAtom2) &
 !$OMP& REDUCTION(+:deriv1) SCHEDULE(RUNTIME)
       do k = 1, nAtomPair
   
-            ! TODO
-        tmp = ( dble(2.0_dp*nAtom+1.0_dp) - dsqrt( (2.0_dp*nAtom+1.0_dp)**2.0_dp - 8.0_dp*(nAtom+k) ) )/2.0_dp
-        tmp = real(tmp)
-        iAtom1 = int( tmp )
-        if( (tmp - dble(iAtom1)) < 1.0E-8_dp ) iAtom1 = iAtom1 - 1
-        iAtom2 = iAtom1**2/2 + iAtom1/2 - nAtom*iAtom1 + nAtom + k
-        if( mod(iAtom1,2) == 1 ) iAtom2 = iAtom2 + 1
+        call getTwoIndices(nAtom, k, iAtom1, iAtom2, 1)
   
         call shiftRTgradLr1st_(deriv1(:,:,1), RmatL(:,:,:,1), SPS, LrGammaDeriv, &
             & weight, iSquare, orderRmatL, mOrb, iAtom1, iAtom2)

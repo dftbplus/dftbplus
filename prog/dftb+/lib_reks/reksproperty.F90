@@ -543,7 +543,7 @@ module dftbp_reksproperty
     !> energy of states
     real(dp), intent(in) :: energy(:)
 
-    real(dp) :: tmp, osc
+    real(dp) :: osc
     integer :: ia, ib, ist, nstates, nstHalf
 
     nstates = size(energy,dim=1)
@@ -553,14 +553,7 @@ module dftbp_reksproperty
     write(stdOut,'(A)') " Oscillator Strength (au)"
     do ist = 1, nstHalf
 
-      ! ... (ia,ib) = (1,2) (1,3) (2,3) ...
-      ! TODO
-      tmp = ( dble(2.0_dp*nstates+1.0_dp) - dsqrt( (2.0_dp*nstates+ &
-          & 1.0_dp)**2.0_dp - 8.0_dp*(nstates+ist) ) )/2.0_dp
-      ia = int( tmp )
-      if( (tmp - dble(ia)) < 1.0E-8_dp ) ia = ia - 1
-      ib = ia**2/2 + ia/2 - nstates*ia + nstates + ist
-      if( mod(ia,2) == 1 ) ib = ib + 1
+      call getTwoIndices(nstates, ist, ia, ib, 1)
 
       osc = 2.0_dp / 3.0_dp * (energy(ib) - energy(ia)) * sum(tdp(:,ist)**2)
 
