@@ -4972,8 +4972,8 @@ contains
   subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
-      & cellVol, tAtomicEnergy, tPeriodic, tScc, invLatVec, kPoints, iAtInCentralRegion, &
-      & electronicSolver, tDefinedFreeE, t1, t2, reks)
+      & cellVol, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, t1, t2, reks)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5041,8 +5041,8 @@ contains
     !> Are atom resolved energies required
     logical, intent(in) :: tAtomicEnergy
 
-!    !> Are dispersion interactions included
-!    logical, intent(in) :: tDispersion
+    !> Are dispersion interactions included
+    logical, intent(in) :: tDispersion
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -5253,11 +5253,10 @@ contains
         & energy%Eelec * Hartree__eV, 'eV'
     write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
 
-    ! TODO : dispersion
-!    if (tDispersion) then
-!      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
-!          & energy%eDisp * Hartree__eV, 'eV'
-!    end if
+    if (tDispersion) then
+      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
+          & energy%eDisp * Hartree__eV, 'eV'
+    end if
 
     write(fd, *)
     if (reks%nstates > 1) then

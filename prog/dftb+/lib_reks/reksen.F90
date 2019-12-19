@@ -13,8 +13,6 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-! TODO
-!> * Dispersion would be combined with REKS
 module dftbp_reksen
 
   use dftbp_accuracy

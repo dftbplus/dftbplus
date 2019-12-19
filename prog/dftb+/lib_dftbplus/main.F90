@@ -568,7 +568,7 @@ contains
                 & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, &
                 & energy, diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qOutput,&
                 & orb, species, tPrintMulliken, extPressure, cellVol, tAtomicEnergy,&
-                & tPeriodic, tSccCalc, invLatVec, kPoint, iAtInCentralRegion, &
+                & tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint, iAtInCentralRegion, &
                 & electronicSolver, tDefinedFreeE, t1/timeRate, t2/timeRate, reks)
           end if
           if (tWriteBandDat) then
@@ -862,8 +862,8 @@ contains
         if (tREKS) then
           call getReksStress(env, denseDesc, sccCalc, nonSccDeriv, skHamCont, &
               & skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, &
-              & species, img2CentCell, iSparseStart, orb, coord, q0, invLatVec, &
-              & cellVol, totalStress, totalLatDeriv, intPressure, reks)
+              & species, img2CentCell, iSparseStart, orb, dispersion, coord, q0, &
+              & invLatVec, cellVol, totalStress, totalLatDeriv, intPressure, reks)
         else
           call getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
               & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep,&

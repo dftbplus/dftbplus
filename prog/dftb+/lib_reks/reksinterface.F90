@@ -13,8 +13,6 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-! TODO
-!> * Dispersion would be combined with REKS
 module dftbp_reksinterface
 
   use dftbp_accuracy
@@ -443,8 +441,8 @@ module dftbp_reksinterface
   subroutine getReksStress(env, denseDesc, sccCalc, nonSccDeriv, &
       & skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, &
       & nNeighbourRep, species, img2CentCell, iSparseStart, orb, &
-      & coord, q0, invLatVec, cellVol, totalStress, totalLatDeriv, &
-      & intPressure, self)
+      & dispersion, coord, q0, invLatVec, cellVol, totalStress, &
+      & totalLatDeriv, intPressure, self)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -491,8 +489,8 @@ module dftbp_reksinterface
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
-!    !> dispersion interactions
-!    class(DispersionIface), intent(inout), allocatable :: dispersion
+    !> dispersion interactions
+    class(DispersionIface), intent(inout), allocatable :: dispersion
 
     !> coordinates of all atoms
     real(dp), intent(in) :: coord(:,:)
@@ -588,11 +586,11 @@ module dftbp_reksinterface
 
       call weightGradient(self%elecStressL, self%weight, totalStress)
 
-!      if (allocated(dispersion)) then
-!        tmpStress(:,:) = 0.0_dp
-!        call dispersion%getStress(tmpStress)
-!        totalStress(:,:) = totalStress + tmpStress
-!      end if
+      if (allocated(dispersion)) then
+        tmpStress(:,:) = 0.0_dp
+        call dispersion%getStress(tmpStress)
+        totalStress(:,:) = totalStress + tmpStress
+      end if
 
       tmpStress(:,:) = 0.0_dp
       call getRepulsiveStress(tmpStress, coord, nNeighbourRep, &

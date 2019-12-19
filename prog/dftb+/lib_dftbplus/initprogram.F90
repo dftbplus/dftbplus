@@ -2569,9 +2569,6 @@ contains
       else if (tEField) then
         call error("REKS is not compatible with external electric field, &
             & only point charge embedding is implemented")
-      ! TODO : dispersion may be added
-!      else if (tDispersion) then
-!        call error("REKS is not compatible with dispersion correction")
       else if (tLinResp) then
         call error("REKS is not compatible with linear response excitation")
       else if (allocated(onSiteElements)) then
@@ -3390,8 +3387,8 @@ contains
       end if
 
       write (stdOut,*)
-      print '(" Warning! REKS calculation is not affected by,")'
-      print '("          (mixer, filling) option")'
+      write (stdOut, "(A)") " Warning! REKS calculation is not affected by,"
+      write (stdOut, "(A)") "          (mixer, filling) option"
       write (stdOut,*)
 
     end if
