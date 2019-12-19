@@ -27,8 +27,6 @@ module dftbp_rekscpeqn
   use dftbp_periodic
   use dftbp_rekscommon
   use dftbp_reksgrad, only : getRmat, getZmat, getQ2mat
-  ! TODO
-  use omp_lib
 
   implicit none
 
@@ -199,9 +197,9 @@ module dftbp_rekscpeqn
     real(dp), allocatable :: z0(:), z1(:)        ! PCG residual vector
     real(dp), allocatable :: p0(:), p1(:)        ! direction vector
 
-    real(dp) :: t1, t2
-    real(dp) :: rNorm1, rNorm2, alpha, beta, eps
+    real(dp) :: timeRate, rNorm1, rNorm2, alpha, beta, eps
     integer :: iter, superN
+    integer(kind=8) :: countRate, t1, t2
 
     superN = size(XT,dim=1)
 
@@ -210,10 +208,11 @@ module dftbp_rekscpeqn
     allocate(z0(superN),z1(superN))
     allocate(p0(superN),p1(superN))
 
-    ! TODO
-    write(stdOut,*)
-!    call cpu_time(t1)
-    t1 = OMP_GET_WTIME()
+    write(stdOut,"(A)") repeat("-", 82)
+    call system_clock(count_rate=countRate)
+    timeRate = dble(countRate)
+
+    call system_clock(t1)
 
     ! initial guess for Z vector
     ! initial Z_initial = A_pre^{-1} * X
@@ -257,15 +256,13 @@ module dftbp_rekscpeqn
     p0(:) = z0
 
     iter = 0; eps = 0.0_dp
-!    call cpu_time(t2)
-    t2 = OMP_GET_WTIME()
+    call system_clock(t2)
     write(stdOut,'(2x,a,4x,24x,a,2x,F15.8)') &
-   & 'CG solver: Y initial guess', 'time =', t2 - t1
+        & 'CG solver: Y initial guess', 'time =', (t2 - t1) / timeRate
 
     CGsolver: do iter = 1, maxIter
 
-!      call cpu_time(t1)
-      t1 = OMP_GET_WTIME()
+      call system_clock(t1)
       ! Construct (A1e + A2e) * P
       ! 1-electron part
       if (Mlevel == 1) then
@@ -315,12 +312,11 @@ module dftbp_rekscpeqn
 
       ! calculate square residual for current iteration
       eps = sum( r1(:)*r1(:) )
-!      call cpu_time(t2)
-      t2 = OMP_GET_WTIME()
+      call system_clock(t2)
 
       ! show current iteration
       write(stdOut,'(2x,a,1x,i4,4x,a,F18.12,2x,a,2x,F15.8)') &
-     & 'CG solver: Iteration', iter, 'eps =', eps, 'time =', t2 - t1
+          & 'CG solver: Iteration', iter, 'eps =', eps, 'time =', (t2 - t1) / timeRate
 
       ! convergence check
       if (eps > ConvergeLimit) then
@@ -330,21 +326,20 @@ module dftbp_rekscpeqn
         p0(:) = p1
         if (iter == maxIter) then
           write(stdOut,'(2x,a,i4,a)') &
-         & 'Warning! Maximum number of iterations (', maxIter, &
-         & ') is exceeded in CG solver'
-          call error("Increase the maximum number of iterations.")
+              & 'Warning! Maximum number of iterations (', maxIter, &
+              & ') is exceeded in CG solver'
+          call error("Increase the maximum number of iterations")
         end if
       else
         write(stdOut,'(2x,a,1x,i4,1x,a)') &
-       & 'Convergence reached in CG solver after', iter, 'iterations'
+            & 'Convergence reached in CG solver after', iter, 'iterations'
         exit CGsolver
       end if
 
     end do CGsolver
 
     ! converged R, Z, Q2 value
-!    call cpu_time(t1)
-    t1 = OMP_GET_WTIME()
+    call system_clock(t1)
     call getRmat(eigenvecs, ZT, fillingL, Nc, Na, tSSR22, tSSR44, RmatL)
     call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
@@ -352,10 +347,10 @@ module dftbp_rekscpeqn
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
         & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
-!    call cpu_time(t2)
-    t2 = OMP_GET_WTIME()
+    call system_clock(t2)
     write(stdOut,'(2x,a,4x,14x,a,2x,F15.8)') &
-   & 'CG solver: converged R, Z, Q2 matrix', 'time =', t2 - t1
+        & 'CG solver: converged R, Z, Q2 matrix', 'time =', (t2 - t1) / timeRate
+    write(stdOut,"(A)") repeat("-", 82)
 
   end subroutine CGgrad
 

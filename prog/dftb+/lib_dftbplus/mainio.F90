@@ -4844,7 +4844,6 @@ contains
 
     integer :: ii
 
-    write(stdOut,*)
     if (useSSR == 1) then
       write(stdOut,'(A23,I1,A1)',advance="no") " relaxed SSR FONs for S", &
           & rstate - 1, ":"
@@ -4859,6 +4858,7 @@ contains
         write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
       end if
     end do
+    write(stdOut,*)
 
   end subroutine printRelaxedFONs
 
@@ -4880,7 +4880,6 @@ contains
 
     integer :: ii
 
-    write(stdOut,*)
     write(*,'(A18,I1,A12)',advance="no") " relaxed FONs for ", &
         & Lstate, " microstate:"
     do ii = 1, Na
@@ -4890,6 +4889,7 @@ contains
         write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
       end if
     end do
+    write(stdOut,*)
 
   end subroutine printRelaxedFONsL
 

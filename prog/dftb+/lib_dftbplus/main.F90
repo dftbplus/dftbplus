@@ -381,7 +381,11 @@ contains
     ! loop index
     integer :: iSpin
 
-    real(dp) :: t1, t2
+    real(dp) :: timeRate
+    integer(kind=8) :: countRate, t1, t2
+
+    call system_clock(count_rate=countRate)
+    timeRate = dble(countRate)
 
     call env%globalTimer%startTimer(globalTimers%preSccInit)
 
@@ -493,8 +497,7 @@ contains
     if (tREKS) then
       lpSCC_REKS: do iSccIter = 1, maxSccIter
 
-!        t1 = OMP_GET_WTIME()
-        call cpu_time(t1)
+        call system_clock(t1)
 
         if (iSccIter == 1) then
           call guessInitialEigvecs(env, denseDesc, h0, over, neighbourList, &
@@ -539,12 +542,11 @@ contains
               & minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecsReal, reks)
         end if
 
-!        t2 = OMP_GET_WTIME()
-        call cpu_time(t2)
+        call system_clock(t2)
 
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
         call printReksSccInfo(iSccIter, energy%Etotal, diffElec, &
-            & sccErrorQ, t1, t2, reks%FONs, reks%tSSR22, reks%tSSR44)
+            & sccErrorQ, t1/timeRate, t2/timeRate, reks%FONs, reks%tSSR22, reks%tSSR44)
 
         if (tConverged .or. tStopScc) then
 
@@ -567,7 +569,7 @@ contains
                 & energy, diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qOutput,&
                 & orb, species, tPrintMulliken, extPressure, cellVol, tAtomicEnergy,&
                 & tPeriodic, tSccCalc, invLatVec, kPoint, iAtInCentralRegion, &
-                & electronicSolver, tDefinedFreeE, t1, t2, reks)
+                & electronicSolver, tDefinedFreeE, t1/timeRate, t2/timeRate, reks)
           end if
           if (tWriteBandDat) then
             call writeBandOut(bandOut, eigen, filling, kWeight)

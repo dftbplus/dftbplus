@@ -21,6 +21,7 @@ module dftbp_reksinterface
   use dftbp_densedescr
   use dftbp_dispiface
   use dftbp_environment
+  use dftbp_globalenv
   use dftbp_mainio
   use dftbp_nonscc
   use dftbp_orbitals
@@ -38,8 +39,6 @@ module dftbp_reksinterface
   use dftbp_reksgrad
   use dftbp_reksproperty
   use dftbp_reksvar
-  ! TODO
-!  use omp_lib
 
   implicit none
 
@@ -132,8 +131,7 @@ module dftbp_reksinterface
     type(TReksCalc), intent(inout) :: self
 
     real(dp), allocatable :: Qmat(:,:)
-!    real(dp) :: t1, t2
-    integer :: ist, nstHalf, fac
+    integer :: ist, ia, ib, nstHalf, fac
 
     nstHalf = self%nstates * (self%nstates-1) / 2
 
@@ -147,14 +145,10 @@ module dftbp_reksinterface
       call sccCalc%getPeriodicInfo(self%rVec, self%gVec, self%alpha, self%volume)
     end if
 
-!    write(*,'(3(f15.8))')
-!    t1 = OMP_GET_WTIME()
     call getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
         & nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, orb, &
         & nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, species, q0, &
         & dispersion, rangeSep, chrgForces, eigenvecs, derivs, self)
-!    t2 = OMP_GET_WTIME()
-!    print '(" Time - getHellmannFeynmanGradientL = ",f15.8," seconds.")', t2 - t1
 
     if (self%Efunction == 1) then
       call weightGradient(self%gradL, self%weight, derivs)
@@ -173,6 +167,12 @@ module dftbp_reksinterface
         ! SA-REKS calculations
         do ist = 1, self%nstates
           if (ist /= self%SAstates) then
+
+            call printBlankLine()
+            write(stdOut,"(A)") repeat("-", 82)
+            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+                & 'Solving CP-REKS equation for', ist, 'state vector...'
+
             ! solve CP-REKS equation for SA-REKS state
             ! save information about ZT, RmatL
             call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
@@ -185,11 +185,19 @@ module dftbp_reksinterface
                 & self%ZT(:,ist), self%SAweight, self%weightL(ist,:), &
                 & self%omega, self%weightIL, self%G1, &
                 & denseDesc%iAtomStart, orb%mOrb, self%SAgrad(:,:,ist), 1)
+
           end if
         end do
 
         ! state-interaction calculations
         do ist = 1, nstHalf
+
+          call getTwoIndices(self%nstates, ist, ia, ib, 1)
+          call printBlankLine()
+          write(stdOut,"(A)") repeat("-", 82)
+          write(stdOut,'(1x,a,1x,I2,1x,a,1x,I2,1x,a)') &
+              & 'Solving CP-REKS equation for SI between', ia, 'and', ib, 'state vectors...'
+
           ! solve CP-REKS equation for state-interaction term
           ! save information about ZTdel, tmpRL
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
@@ -201,6 +209,7 @@ module dftbp_reksinterface
               & self%Sderiv, self%ZTdel(:,ist), self%SAweight, self%omega, &
               & self%weightIL, self%Rab, self%G1, denseDesc%iAtomStart, &
               & orb%mOrb, ist, self%nstates, self%SIgrad(:,:,ist))
+
         end do
 
       else
@@ -211,6 +220,11 @@ module dftbp_reksinterface
           call SaToSsrXT(self%XTdel, self%eigvecsSSR, self%rstate, self%XT)
           call SaToSsrWeight(self%Rab, self%weightIL, self%G1, &
               & self%eigvecsSSR, self%rstate, self%weightL)
+
+          call printBlankLine()
+          write(stdOut,"(A)") repeat("-", 82)
+          write(stdOut,'(1x,a,1x,I2,1x,a)') &
+              & 'Solving CP-REKS equation for', self%rstate, 'state vector...'
 
           ! solve CP-REKS equation for SSR state
           ! save information about ZT, RmatL, ZmatL, Q1mat, Q2mat
@@ -226,6 +240,16 @@ module dftbp_reksinterface
           fac = 2
 
         else
+
+          call printBlankLine()
+          write(stdOut,"(A)") repeat("-", 82)
+          if (self%Lstate == 0) then
+            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+                & 'Solving CP-REKS equation for', self%rstate, 'state vector...'
+          else
+            write(stdOut,'(1x,a,1x,I2,1x,a)') &
+                & 'Solving CP-REKS equation for', self%Lstate, 'microstate vector...'
+          end if
 
           ! solve CP-REKS equation for SA-REKS or L state
           ! save information about ZT, RmatL, ZmatL, Q1mat, Q2mat
@@ -335,6 +359,12 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
+    real(dp) :: timeRate
+    integer(kind=8) :: countRate, t1, t2
+
+    call system_clock(count_rate=countRate)
+    timeRate = dble(countRate)
+
     ! calculate the relaxed density matrix, dipole moment,
     !           the forces of external charges.
     if (self%tRD) then
@@ -391,9 +421,17 @@ module dftbp_reksinterface
       end if
 
       if (self%tExtChrg) then
+
+        call system_clock(t1)
         call getExtChrgGradients(env, coord0, self%extCharges(1:3,:), &
             & qOutput, q0, self%extCharges(4,:), self%rVec, self%gVec, &
             & self%alpha, self%volume, self%tPeriodic, chrgForces)
+        call system_clock(t2)
+        if (self%Plevel >= 2) then
+          write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
+              & 'Time - getExtChrgGradients =', (t2 - t1) / timeRate, 'sec'
+        end if
+
       end if
 
     end if
@@ -648,9 +686,16 @@ module dftbp_reksinterface
     real(dp), allocatable :: repDerivs(:,:)
     real(dp), allocatable :: dispDerivs(:,:)
     real(dp), allocatable :: lcDerivs(:,:,:)
-
 !    integer, pointer :: pSpecies0(:)
+
+    real(dp) :: timeRate
     integer :: nAtom, tmpL, iL
+    integer(kind=8) :: countRate, t1, t2
+
+    call system_clock(count_rate=countRate)
+    timeRate = dble(countRate)
+
+    call system_clock(t1)
 
     nAtom = size(self%gradL,dim=2)
 !    pSpecies0 => species(1:nat)
@@ -745,6 +790,13 @@ module dftbp_reksinterface
       end do
     end if
 
+    call system_clock(t2)
+    if (self%Plevel >= 2) then
+      call printBlankLine()
+      write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
+          & 'Time - getHellmannFeynmanGradientL =', (t2 - t1) / timeRate, 'sec'
+    end if
+
   end subroutine getHellmannFeynmanGradientL_
 
 
@@ -795,36 +847,26 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-!    real(dp) :: t1, t2
+    real(dp) :: timeRate
+    integer(kind=8) :: countRate, t1, t2
+
+    call system_clock(count_rate=countRate)
+    timeRate = dble(countRate)
+
+    call system_clock(t1)
 
     ! get gamma, spinW, gamma deriv, LR-gamma deriv, on-site constants
     ! LRgamma is already defined in 1st scc loop
-!    t1 = OMP_GET_WTIME()
     call getSccSpinLrPars(env, sccCalc, rangeSep, coord, species, &
         & neighbourList%iNeighbour, img2CentCell, denseDesc%iAtomStart, &
         & spinW, self%getAtomIndex, self%tRangeSep, self%GammaAO, &
         & self%GammaDeriv, self%SpinAO, self%LrGammaAO, self%LrGammaDeriv)
-!    t2 = OMP_GET_WTIME()
-!    print '(" Time - REKS_getSccSpinLRonSite = ",f15.8," seconds.")', t2 - t1
 
     ! get Hxc kernel -> (\mu,\nu|f_{Hxc}|\tau,\gam)
-!    t1 = OMP_GET_WTIME()
     call getHxcKernel(denseDesc%iAtomStart, self%getAtomIndex, self%getDenseAO, &
         & over, self%overSqr, self%GammaAO, self%SpinAO, self%LrGammaAO, &
         & self%tRangeSep, self%Glevel, self%Mlevel, self%HxcSpS, &
         & self%HxcSpD, self%HxcHalfS, self%HxcHalfD, self%HxcSqrS, self%HxcSqrD)
-!    t2 = OMP_GET_WTIME()
-!    if (Glevel == 1 .or. Glevel == 2) then
-!      if (Mlevel == 1) then
-!        if (tRangeSep .or. tOnSite) then
-!          print '(" Time - Hxc_Kernel_half = ",f15.8," seconds.")', t2 - t1
-!        else
-!          print '(" Time - Hxc_Kernel_sp = ",f15.8," seconds.")', t2 - t1
-!        end if
-!      end if
-!    else if (Glevel == 3) then
-!      print '(" Time - Hxc_Kernel = ",f15.8," seconds.")', t2 - t1
-!    end if
 
     ! get G1, weightIL, Omega, Rab values
     call getG1ILOmegaRab(env, denseDesc, neighbourList, nNeighbourSK, &
@@ -834,19 +876,16 @@ module dftbp_reksinterface
         & self%tRangeSep, self%G1, self%weightIL, self%omega, self%Rab)
 
     ! get A1e or Aall values based on GradOpt
-!    t1 = OMP_GET_WTIME()
     call getSuperAMatrix(eigenvecs, self%HxcSqrS, self%HxcSqrD, self%fockFc, &
         & self%fockFa, self%omega, self%fillingL, self%weight, self%SAweight, &
         & self%FONs, self%G1, self%Lpaired, self%Nc, self%Na, self%Glevel, &
         & self%Mlevel, self%tSSR22, self%tSSR44, self%A1e, self%A1ePre, self%Aall)
-!    t2 = OMP_GET_WTIME()
-!    if (Glevel == 1 .or. Glevel == 2) then
-!      if (Mlevel == 1) then
-!        print '(" Time - build_A_1e = ",f15.8," seconds.")', t2 - t1
-!      end if
-!    else if (Glevel == 3) then
-!      print '(" Time - build_A_all = ",f15.8," seconds.")', t2 - t1
-!    end if
+
+    call system_clock(t2)
+    if (self%Plevel >= 2) then
+      write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
+          & 'Time - getReksParameters =', (t2 - t1) / timeRate, 'sec'
+    end if
 
   end subroutine getReksParameters_
 
@@ -885,8 +924,14 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-!    real(dp) :: t1, t2
+    real(dp) :: timeRate
     integer :: ia, ib, ist, nstHalf
+    integer(kind=8) :: countRate, t1, t2
+
+    call system_clock(count_rate=countRate)
+    timeRate = dble(countRate)
+
+    call system_clock(t1)
 
     nstHalf = self%nstates * (self%nstates - 1) / 2
 
@@ -909,28 +954,12 @@ module dftbp_reksinterface
           call getTwoIndices(self%nstates, ist, ia, ib, 1)
 
           ! get Z^delta values from R^delta values
-!          t1 = OMP_GET_WTIME()
           call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
               & iSparseStart, img2CentCell, orb, self%RdelL(:,:,:,ist), &
               & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
               & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
               & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
               & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, self%ZdelL)
-!          t2 = OMP_GET_WTIME()
-          write(*,'("current indices: ",I2,4x,I1,2x,I1)') ist, ia, ib
-!          if (Glevel == 1 .or. Glevel == 2) then
-!            if (Mlevel == 1) then
-!              if (tRangeSep .or. tOnSite) then
-!                print '(" Time - get_Z_del_half = ",f15.8," seconds.")', t2 - t1
-!              else
-!                print '(" Time - get_Z_del_sp = ",f15.8," seconds.")', t2 - t1
-!              end if
-!            else if (Mlevel == 2) then
-!              print '(" Time - get_Z_del_no_Hxc = ",f15.8," seconds.")', t2 - t1
-!            end if
-!          else if (Glevel == 3) then
-!            print '(" Time - get_Z_del = ",f15.8," seconds.")', t2 - t1
-!          end if
 
           ! build XTdel with Z^delta values
           call buildInteractionVectors(eigenvecs, self%ZdelL, self%fockFc, &
@@ -945,11 +974,8 @@ module dftbp_reksinterface
         end do
 
         ! get Q1^delta values : AO index
-!        t1 = OMP_GET_WTIME()
         call getQ1del(eigenvecs, self%fockFc, self%fockFa, self%FONs, self%SAweight, &
             & self%Nc, self%nstates, self%tSSR22, self%tSSR44, self%Q1del)
-!        t2 = OMP_GET_WTIME()
-!        print '(" Time - REKS_get_Q1_del = ",f15.8," seconds.")', t2 - t1
 
       end if
 
@@ -961,6 +987,12 @@ module dftbp_reksinterface
           & self%fillingL, self%Nc, self%Na, self%Lstate, self%Lpaired, &
           & self%tSSR22, self%tSSR44, self%tRangeSep, self%XT(:,1))
 
+    end if
+
+    call system_clock(t2)
+    if (self%Plevel >= 2) then
+      write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
+          & 'Time - buildStateVectors =', (t2 - t1) / timeRate, 'sec'
     end if
 
   end subroutine buildStateVectors_
@@ -1022,18 +1054,17 @@ module dftbp_reksinterface
     !> option for relaxed properties (QM/MM) calculations
     logical, intent(in) :: optionQMMM
 
-!    real(dp) :: t1, t2
-
     if (self%Glevel == 1 .or. self%Glevel == 2) then
 
       ! solve linear equation A * Z = X using CG algorithm
       ! get converged R, Z, Q2 matrices & ZT vector
       ! RmatL : AO index, ZmatL : AO index, Q2mat : MO index
       if (optionQMMM) then
-        print '(" Warning! For calculating relaxed density for SSR state,")'
-        print '("          run CG again to obtain ZT solution in (nac) case.")'
+        write(stdOut,'(a)') &
+            & ' Warning! For calculating relaxed density for SSR state,'
+        write(stdOut,'(a)') &
+            & '          run CG again to obtain ZT solution in (nac) case.'
       end if
-!      t1 = OMP_GET_WTIME()
       call CGgrad(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart, &
           & img2CentCell, orb, XT, self%A1e, self%A1ePre, self%HxcSqrS, &
           & self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, self%HxcSpS, self%HxcSpD, &
@@ -1042,20 +1073,13 @@ module dftbp_reksinterface
           & over, eigenvecs, self%fillingL, self%weight, self%Glimit, self%orderRmatL, &
           & self%getDenseAO, self%Lpaired, self%Nc, self%Na, self%CGmaxIter, self%Glevel, &
           & self%Mlevel, self%tRangeSep, self%tSSR22, self%tSSR44, ZT, RmatL, ZmatL, Q2mat)
-!      t2 = OMP_GET_WTIME()
-!      print '("  Time - CG_grad = ",f15.8," seconds.")', t2 - t1
-!      write(*,*)
 
     else if (self%Glevel == 3) then
 
       ! solve A * Z = X using direct matrix inversion
-!      t1 = OMP_GET_WTIME()
       call solveZT(self%Aall, XT, ZT)
-!      t2 = OMP_GET_WTIME()
-!      print '(" Time - REKS_solve_ZT = ",f15.8," seconds.")', t2 - t1
 
       ! get direct R, Z, Q2 matrices
-!      t1 = OMP_GET_WTIME()
       if (.not. optionQMMM) then
         call getRmat(eigenvecs, ZT, self%fillingL, self%Nc, self%Na, &
             & self%tSSR22, self%tSSR44, RmatL)
@@ -1067,19 +1091,16 @@ module dftbp_reksinterface
             & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, ZmatL)
         call getQ2mat(eigenvecs, self%fillingL, self%weight, ZmatL, Q2mat)
       end if
-!      t2 = OMP_GET_WTIME()
-!      print '(" Time - direct R, Z, Q2 matirx = ",f15.8," seconds.")', t2 - t1
 
     end if
 
     ! get Q1 matrix from converged ZT vector : MO index
-!    t1 = OMP_GET_WTIME()
     if (.not. optionQMMM) then
       call getQ1mat(ZT, self%fockFc, self%fockFa, self%SAweight, &
           & self%FONs, self%Nc, self%Na, self%tSSR22, self%tSSR44, Q1mat)
+    else
+      call printBlankLine()
     end if
-!    t2 = OMP_GET_WTIME()
-!    print '(" Time - REKS_get_Q1_mat = ",f15.8," seconds.")', t2 - t1
 
   end subroutine solveCpReks_
 
@@ -1121,9 +1142,14 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-!    real(dp) :: t1, t2
+    real(dp) :: timeRate
+    integer(kind=8) :: countRate, t1, t2
 
-!    t1 = OMP_GET_WTIME()
+    call system_clock(count_rate=countRate)
+    timeRate = dble(countRate)
+
+    call system_clock(t1)
+
     call RTshift(env, sccCalc, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, orb, coord0, self%Hderiv, self%Sderiv, &
         & self%rhoSqrL, self%overSqr, self%deltaRhoSqrL, self%qOutputL, &
@@ -1133,8 +1159,13 @@ module dftbp_reksinterface
         & self%getDenseAO, self%getDenseAtom, self%getAtomIndex, self%orderRmatL, &
         & self%Lpaired, self%SAstates, self%tNAC, self%tRangeSep, self%tExtChrg, &
         & self%tPeriodic, self%SAgrad, self%SIgrad, self%SSRgrad)
-!    t2 = OMP_GET_WTIME()
-!    print '(" Time - REKS_RT_shift = ",f15.8," seconds.")', t2 - t1
+
+    call system_clock(t2)
+    if (self%Plevel >= 2) then
+      call printBlankLine()
+      write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
+          & 'Time - getRTGradient =', (t2 - t1) / timeRate, 'sec'
+    end if
 
   end subroutine getRTGradient_
 

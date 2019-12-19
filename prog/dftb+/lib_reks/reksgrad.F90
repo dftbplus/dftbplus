@@ -2650,7 +2650,6 @@ module dftbp_reksgrad
     real(dp), allocatable :: qmCharges(:)
     real(dp), allocatable :: deriv(:,:)
 
-!    real(dp) :: t1, t2
     integer :: iAt, nAtom, nAtomPc
     logical :: tBlur = .false.
 
@@ -2668,7 +2667,6 @@ module dftbp_reksgrad
       qmCharges(iAt) = sum(qOutput(:,iAt,1) - q0(:,iAt,1),dim=1)
     end do
 
-!    t1 = OMP_GET_WTIME()
     ! chrgForces is gradient, not force
     ! currently, qmCoords, extCharges : au, not A
     deriv(:,:) = 0.0_dp
@@ -2694,9 +2692,6 @@ module dftbp_reksgrad
             & pcCharges, deriv, chrgForces)
       end if
     end if
-!    t2 = OMP_GET_WTIME()
-!    print '(" Time - getExtChrgGradients = ",f15.8," seconds.")', t2 - t1
-!    write(*,*)
 
   end subroutine getExtChrgGradients
 
@@ -3460,7 +3455,7 @@ module dftbp_reksgrad
     real(dp), allocatable :: HxcSmo(:,:,:,:)
     real(dp), allocatable :: HxcDmo(:,:,:,:)
 
-    real(dp) :: tmpHxcS, tmpHxcD, t1, t2
+    real(dp) :: tmpHxcS, tmpHxcD
     integer :: nOrb, i, j, p, q, ij, pq
     integer :: Lmax, iL, Nv
 
@@ -3474,7 +3469,6 @@ module dftbp_reksgrad
 
     HxcSmo(:,:,:,:) = 0.0_dp
     HxcDmo(:,:,:,:) = 0.0_dp
-!    t1 = OMP_GET_WTIME()
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,tmpMat) SCHEDULE(RUNTIME)
     do i = 1, nOrb
     do j = 1, nOrb
@@ -3499,10 +3493,7 @@ module dftbp_reksgrad
     end do
     end do
 !$OMP END PARALLEL DO
-!    t2 = OMP_GET_WTIME()
-!    print '(" Time - build_A_all_1 = ",f15.8," seconds.")', t2 - t1
 
-!    t1 = OMP_GET_WTIME()
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,i,j,pq,p,q, &
 !$OMP& iL,tmpHxcS,tmpHxcD) SCHEDULE(RUNTIME)
     do ij = 1, superN
@@ -3544,8 +3535,6 @@ module dftbp_reksgrad
       end do
     end do
 !$OMP END PARALLEL DO
-!    t2 = OMP_GET_WTIME()
-!    print '(" Time - build_A_all_2 = ",f15.8," seconds.")', t2 - t1
 
   end subroutine getHxcMo_
 
@@ -4237,6 +4226,7 @@ module dftbp_reksgrad
 !$OMP END PARALLEL DO
 
     ! calculate the ZmatL for LC term
+
     if (tRangeSep) then
 
       deallocate(tmpRmatL)
