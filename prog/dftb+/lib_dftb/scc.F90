@@ -1728,9 +1728,15 @@ contains
     ind3 = size(this%rCellVec,dim=1)
     ind4 = size(this%rCellVec,dim=2)
 
-    ! TODO : no problem in geom opt case?
-    allocate(gVec(ind1,ind2))
-    allocate(rVec(ind3,ind4))
+    if (allocated(gVec)) then
+      deallocate(gVec)
+      deallocate(rVec)
+      allocate(gVec(ind1,ind2))
+      allocate(rVec(ind3,ind4))
+    else
+      allocate(gVec(ind1,ind2))
+      allocate(rVec(ind3,ind4))
+    end if
 
     gVec(:,:) = this%gLatPoint
     rVec(:,:) = this%rCellVec
