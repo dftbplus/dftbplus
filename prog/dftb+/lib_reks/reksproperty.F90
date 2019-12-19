@@ -92,7 +92,7 @@ module dftbp_reksproperty
     else
       if (self%Lstate == 0) then
         call makeDensityMatrix(rhoX(:,:,1), eigenvecs, tmpFilling(:,self%rstate))
-        call symmetrizeHS(rhoX(:,:,ist))
+        call symmetrizeHS(rhoX(:,:,1))
       else
         ! find proper index for up+down in self%dm_L
         if (self%Lstate <= self%Lpaired) then
