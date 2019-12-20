@@ -228,6 +228,9 @@ module dftbp_reksvar
     !> If external charges must be considered
     logical :: tExtChrg
 
+    !> If charges should be blured
+    logical :: tBlur
+
 
     !> get atom index from AO index
     integer, allocatable :: getAtomIndex(:)
@@ -488,6 +491,9 @@ module dftbp_reksvar
     !> coordinates and charges of external point charges
     real(dp), allocatable :: extCharges(:,:)
 
+    !> Width of the Gaussians if the charges are blurred
+    real(dp), allocatable :: blurWidths(:)
+
 
     !> REKS: periodic variables
 
@@ -514,7 +520,7 @@ module dftbp_reksvar
   contains
 
   subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl,&
-      & nChrgs, t3rd, tRangeSep, tForces, tPeriodic, tStress)
+      & nChrgs, blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: self
@@ -536,6 +542,9 @@ module dftbp_reksvar
 
     !> Nr. of external charges
     integer, intent(in) :: nChrgs
+
+    !> Width of the Gaussians if the charges are blurred
+    real(dp), intent(in), allocatable :: blurWidths(:)
 
     !> Third order DFTB
     logical, intent(in) :: t3rd
@@ -653,6 +662,12 @@ module dftbp_reksvar
     self%tPeriodic = tPeriodic
     self%tStress = tStress
     self%tExtChrg = (nChrgs > 0)
+    ! the standard 1.0e-7 is given in setExternalCharges routine of externalcharges.F90
+    if (allocated(blurWidths)) then
+      self%tBlur = any(blurWidths > 1.0e-7_dp)
+    else
+      self%tBlur = .false.
+    end if
 
     ! Check REKS requirements
 
@@ -839,6 +854,9 @@ module dftbp_reksvar
 
     if (self%tExtChrg) then
       allocate(self%extCharges(4,nChrgs))
+      if (self%tBlur) then
+        allocate(self%blurWidths(nChrgs))
+      end if
     end if
 
     ! REKS: stress variables
@@ -1008,6 +1026,9 @@ module dftbp_reksvar
 
     if (self%tExtChrg) then
       self%extCharges = 0.0_dp
+      if (self%tBlur) then
+        self%blurWidths = blurWidths
+      end if
     end if
 
     ! REKS: stress variables
@@ -1385,6 +1406,9 @@ module dftbp_reksvar
 
     if (self%tExtChrg) then
       deallocate(self%extCharges)
+      if (self%tBlur) then
+        deallocate(self%blurWidths)
+      end if
     end if
 
     ! REKS: periodic variables

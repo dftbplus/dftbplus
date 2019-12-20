@@ -2094,9 +2094,10 @@ module dftbp_reksgrad
   subroutine RTshift(env, sccCalc, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, coord0, Hderiv, Sderiv, rhoSqrL, overSqr, &
       & deltaRhoSqrL, qOutputL, q0, GammaAO, GammaDeriv, SpinAO, LrGammaAO, &
-      & LrGammaDeriv, RmatL, RdelL, tmpRL, weight, extCharges, rVec, gVec, &
-      & alpha, vol, getDenseAO, getDenseAtom, getAtomIndex, orderRmatL, &
-      & Lpaired, SAstates, tNAC, tRangeSep, tExtChrg, tPeriodic, SAgrad, SIgrad, SSRgrad)
+      & LrGammaDeriv, RmatL, RdelL, tmpRL, weight, extCharges, blurWidths, &
+      & rVec, gVec, alpha, vol, getDenseAO, getDenseAtom, getAtomIndex, &
+      & orderRmatL, Lpaired, SAstates, tNAC, tRangeSep, tExtChrg, tPeriodic, &
+      & tBlur, SAgrad, SIgrad, SSRgrad)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2180,6 +2181,9 @@ module dftbp_reksgrad
     !> coordinates and charges of external point charges
     real(dp), intent(in) :: extCharges(:,:)
 
+    !> Width of the Gaussians if the charges are blurred
+    real(dp), intent(in) :: blurWidths(:)
+
     !> real lattice points for Ewald-sum
     real(dp), intent(in) :: rVec(:,:)
 
@@ -2223,6 +2227,9 @@ module dftbp_reksgrad
 
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
+
+    !> If charges should be blured
+    logical, intent(in) :: tBlur
 
 
     !> gradient of SA-REKS state
@@ -2310,8 +2317,8 @@ module dftbp_reksgrad
     ! point charge term with sparse R and T variables
     if (tExtChrg) then
       call getPc2ndTerms_(env, coord0, overSqr, tmpRmatL, tmpRdelL, weight, &
-          & extCharges, rVec, gVec, alpha, vol, getDenseAO, getAtomIndex, &
-          & orderRmatL, SAstates, tNAC, tPeriodic, deriv1, deriv2)
+          & extCharges, blurWidths, rVec, gVec, alpha, vol, getDenseAO, getAtomIndex, &
+          & orderRmatL, SAstates, tNAC, tPeriodic, tBlur, deriv1, deriv2)
     end if
 
     if (tRangeSep) then
@@ -2605,7 +2612,7 @@ module dftbp_reksgrad
 
   !> Calculate external charge gradients for target state
   subroutine getExtChrgGradients(env, qmCoords, pcCoords, qOutput, q0, &
-      & pcCharges, rVec, gVec, alpha, vol, tPeriodic, chrgForces)
+      & pcCharges, blurWidths, rVec, gVec, alpha, vol, tPeriodic, tBlur, chrgForces)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2625,6 +2632,9 @@ module dftbp_reksgrad
     !> charges of external point charges
     real(dp), intent(in) :: pcCharges(:)
 
+    !> Width of the Gaussians if the charges are blurred
+    real(dp), intent(in) :: blurWidths(:)
+
     !> real lattice points for Ewald-sum
     real(dp), intent(in) :: rVec(:,:)
 
@@ -2640,7 +2650,8 @@ module dftbp_reksgrad
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
 
-!    logical, intent(in) :: tBlur
+    !> If charges should be blured
+    logical, intent(in) :: tBlur
 
     !> forces on external charges
     real(dp), intent(inout) :: chrgForces(:,:)
@@ -2649,7 +2660,6 @@ module dftbp_reksgrad
     real(dp), allocatable :: deriv(:,:)
 
     integer :: iAt, nAtom, nAtomPc
-    logical :: tBlur = .false.
 
     nAtom = size(qmCoords,dim=2)
     nAtomPc = size(pcCoords,dim=2)
@@ -2671,20 +2681,17 @@ module dftbp_reksgrad
     chrgForces(:,:) = 0.0_dp
     if (tPeriodic) then
       if (tBlur) then
-        ! TODO : Blurred case should be added?
-!        call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
-!            & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces, &
-!            & blurWidths1=this%blurWidths)
-        call error("Blurred point charges are not tested with REKS")
+        call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
+            & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces, &
+            & blurWidths1=blurWidths)
       else
         call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
             & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces)
       end if
     else
       if (tBlur) then
-!        call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
-!            & pcCharges, deriv, chrgForces, blurWidths1=this%blurWidths)
-        call error("Blurred point charges are not tested with REKS")
+        call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
+            & pcCharges, deriv, chrgForces, blurWidths1=blurWidths)
       else
         call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
             & pcCharges, deriv, chrgForces)
@@ -5383,8 +5390,8 @@ module dftbp_reksgrad
 
   !> Calculate R*T contribution of gradient from pc terms
   subroutine getPc2ndTerms_(env, coord0, overSqr, RmatSpL, RdelSpL, &
-      & weight, extCharges, rVec, gVec, alpha, vol, getDenseAO, &
-      & getAtomIndex, orderRmatL, SAstates, tNAC, tPeriodic, deriv1, deriv2)
+      & weight, extCharges, blurWidths, rVec, gVec, alpha, vol, getDenseAO, &
+      & getAtomIndex, orderRmatL, SAstates, tNAC, tPeriodic, tBlur, deriv1, deriv2)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -5406,6 +5413,9 @@ module dftbp_reksgrad
 
     !> coordinates and charges of external point charges
     real(dp), intent(in) :: extCharges(:,:)
+
+    !> Width of the Gaussians if the charges are blurred
+    real(dp), intent(in) :: blurWidths(:)
 
     !> real lattice points for Ewald-sum
     real(dp), intent(in) :: rVec(:,:)
@@ -5436,6 +5446,9 @@ module dftbp_reksgrad
 
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
+
+    !> If charges should be blured
+    logical, intent(in) :: tBlur
 
     !> computed tr(R*T) gradient for SA-REKS, SSR, or L state
     real(dp), intent(inout) :: deriv1(:,:,:)
@@ -5468,7 +5481,7 @@ module dftbp_reksgrad
     ! contributions related to gradient of external charges
     ! Q_{pc} * (-1/R**2) between QM and PC
     call getQinvRderiv(env, coord0, extCharges(1:3,:), extCharges(4,:), &
-        & rVec, gVec, alpha, vol, tPeriodic, QinvRderiv)
+        & blurWidths, rVec, gVec, alpha, vol, tPeriodic, tBlur, QinvRderiv)
 
     ! compute R*T shift with only up-spin part of Tderiv due to symmetry
     ! contribution for derivative of 1/r coulomb potential w.r.t. R_atom, not R_atompair
@@ -5540,7 +5553,7 @@ module dftbp_reksgrad
       !> contributions related to gradient of external charges
       !> Q_{pc} * (-1/R**2) between QM and PC
       subroutine getQinvRderiv(env, qmCoords, pcCoords, pcCharges, &
-          & rVec, gVec, alpha, vol, tPeriodic, QinvRderiv)
+          & blurWidths, rVec, gVec, alpha, vol, tPeriodic, tBlur, QinvRderiv)
 
         !> Environment settings
         type(TEnvironment), intent(inout) :: env
@@ -5553,6 +5566,9 @@ module dftbp_reksgrad
 
         !> charges of external point charges
         real(dp), intent(in) :: pcCharges(:)
+
+        !> Width of the Gaussians if the charges are blurred
+        real(dp), intent(in) :: blurWidths(:)
 
         !> real lattice points for Ewald-sum
         real(dp), intent(in) :: rVec(:,:)
@@ -5569,32 +5585,29 @@ module dftbp_reksgrad
         !> if calculation is periodic
         logical, intent(in) :: tPeriodic
 
-!        logical, intent(in) :: tBlur
+        !> If charges should be blured
+        logical, intent(in) :: tBlur
 
         !> Q_{pc} * (-1/R**2) between QM and PC
         real(dp), intent(out) :: QinvRderiv(:,:)
 
         integer :: nAtom, nAtomPc
-        logical :: tBlur = .false.
 
         nAtom = size(qmCoords,dim=2)
         nAtomPc = size(pcCoords,dim=2)
 
         if (tPeriodic) then
           if (tBlur) then
-            ! TODO : Blurred case should be added?
-!            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, pcCharges, &
-!                & rVec, gVec, alpha, vol, QinvRderiv, blurWidths1=this%blurWidths)
-            call error("Blurred point charges are not tested with REKS.")
+            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, pcCharges, &
+                & rVec, gVec, alpha, vol, QinvRderiv, blurWidths1=blurWidths)
           else
             call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, pcCharges, &
                 & rVec, gVec, alpha, vol, QinvRderiv)
           end if
         else
           if (tBlur) then
-!            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, &
-!                & pcCharges, QinvRderiv, blurWidths1=this%blurWidths)
-            call error("Blurred point charges are not tested with REKS.")
+            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, &
+                & pcCharges, QinvRderiv, blurWidths1=blurWidths)
           else
             call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, &
                 & pcCharges, QinvRderiv)

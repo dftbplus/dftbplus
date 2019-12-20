@@ -422,8 +422,8 @@ module dftbp_reksinterface
 
         call system_clock(t1)
         call getExtChrgGradients(env, coord0, self%extCharges(1:3,:), &
-            & qOutput, q0, self%extCharges(4,:), self%rVec, self%gVec, &
-            & self%alpha, self%volume, self%tPeriodic, chrgForces)
+            & qOutput, q0, self%extCharges(4,:), self%blurWidths, self%rVec, self%gVec, &
+            & self%alpha, self%volume, self%tPeriodic, self%tBlur, chrgForces)
         call system_clock(t2)
         if (self%Plevel >= 2) then
           write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
@@ -1153,10 +1153,10 @@ module dftbp_reksinterface
         & self%rhoSqrL, self%overSqr, self%deltaRhoSqrL, self%qOutputL, &
         & q0, self%GammaAO, self%GammaDeriv, self%SpinAO, self%LrGammaAO, &
         & self%LrGammaDeriv, self%RmatL, self%RdelL, self%tmpRL, self%weight, &
-        & self%extCharges, self%rVec, self%gVec, self%alpha, self%volume, &
+        & self%extCharges, self%blurWidths, self%rVec, self%gVec, self%alpha, self%volume, &
         & self%getDenseAO, self%getDenseAtom, self%getAtomIndex, self%orderRmatL, &
         & self%Lpaired, self%SAstates, self%tNAC, self%tRangeSep, self%tExtChrg, &
-        & self%tPeriodic, self%SAgrad, self%SIgrad, self%SSRgrad)
+        & self%tPeriodic, self%tBlur, self%SAgrad, self%SIgrad, self%SSRgrad)
 
     call system_clock(t2)
     if (self%Plevel >= 2) then
