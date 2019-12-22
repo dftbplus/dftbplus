@@ -41,3 +41,6 @@ negf_int.o += _extlib_libnegf
 poisson_int.o: _extlib_mudpack _extlib_libnegf 
 poisson_int.o += _extlib_mudpack _extlib_libnegf
 #:endif
+
+slatec.o: _extlib_slatec
+slatec.o += _extlib_slatec

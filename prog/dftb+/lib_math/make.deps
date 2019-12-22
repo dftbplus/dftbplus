@@ -91,6 +91,11 @@ qm.o = qm.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy)
 _mod_dftbp_qm: qm.o
 _mod_dftbp_qm = $(qm.o)
 
+quaternions.o: _mod_dftbp_accuracy _mod_dftbp_simplealgebra
+quaternions.o = quaternions.o $(_mod_dftbp_accuracy) $(_mod_dftbp_simplealgebra)
+_mod_dftbp_quaternions: quaternions.o
+_mod_dftbp_quaternions = $(quaternions.o)
+
 #:if WITH_MPI
 randomgenpool.o: common.fypp _mod_dftbp_environment _mod_dftbp_accuracy _mod_dftbp_ranlux _mod_dftbp_assert _mod_dftbp_mpifx
 randomgenpool.o = randomgenpool.o $(common.fypp) $(_mod_dftbp_environment) $(_mod_dftbp_accuracy) $(_mod_dftbp_ranlux) $(_mod_dftbp_assert) $(_mod_dftbp_mpifx)

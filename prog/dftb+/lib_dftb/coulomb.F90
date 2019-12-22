@@ -23,6 +23,7 @@ module dftbp_coulomb
   use dftbp_errorfunction
   use dftbp_constants, only : pi
   use dftbp_dynneighlist
+  use dftbp_slatec
   implicit none
 
   private

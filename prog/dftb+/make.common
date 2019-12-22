@@ -108,6 +108,10 @@ INC_XMLF90 := -I$(BUILDROOT)/external/xmlf90
 L_LIBS += $(if $(filter _extlib_xmlf90, $^), $(LIB_XMLF90))
 L_INCS += $(INC_XMLF90)
 
+COMPILED_EXTERNALS += _extlib_slatec
+LIB_SLATEC := -L$(BUILDROOT)/external/slatec -lslatec
+L_LIBS += $(if $(filter _extlib_slatec, $^), $(LIB_SLATEC))
+
 # FSOCKETS
 ifeq ($(strip $(WITH_SOCKETS)),1)
   COMPILED_EXTERNALS += _extlib_fsockets

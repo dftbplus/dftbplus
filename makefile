@@ -90,6 +90,7 @@ ifeq ($(strip $(WITH_TRANSPORT)),1)
     external_libnegf: external_mpifx
   endif
 endif
+DFTBPLUS_DEPS += external_slatec
 dftb+: $(DFTBPLUS_DEPS)
 
 modes: external_xmlf90
@@ -110,7 +111,7 @@ EXTERNAL_NAME = $(subst external_,,$@)
 
 EXTERNALS = external_xmlf90 external_fsockets external_dftd3	\
     external_mpifx external_scalapackfx external_magmahelper	\
-    external_mudpack external_libnegf
+    external_mudpack external_libnegf external_slatec
 
 .PHONY: $(EXTERNALS)
 $(EXTERNALS):

@@ -115,6 +115,11 @@ _mod_dftbp_scalapackfx: scalapackfx.o
 _mod_dftbp_scalapackfx = $(scalapackfx.o)
 #:endif
 
+slatec.o: common.fypp _mod_dftbp_accuracy
+slatec.o = slatec.o $(common.fypp) $(_mod_dftbp_accuracy)
+_mod_dftbp_slatec: slatec.o
+_mod_dftbp_slatec = $(slatec.o)
+
 xmlf90.o: _mod_xmlf90_strings _mod_xmlf90_flib_wxml _mod_xmlf90_flib_dom
 xmlf90.o = xmlf90.o $(_mod_xmlf90_strings) $(_mod_xmlf90_flib_wxml) $(_mod_xmlf90_flib_dom)
 _mod_dftbp_xmlf90: xmlf90.o

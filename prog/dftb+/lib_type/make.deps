@@ -83,8 +83,8 @@ typegeometry.o = typegeometry.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dft
 _mod_dftbp_typegeometry: typegeometry.o
 _mod_dftbp_typegeometry = $(typegeometry.o)
 
-typegeometryhsd.o: _mod_dftbp_typegeometry _mod_dftbp_hsdutils _mod_dftbp_hsdutils2 _mod_dftbp_tokenreader _mod_dftbp_unitconversion _mod_dftbp_linkedlist _mod_dftbp_charmanip _mod_dftbp_simplealgebra _mod_dftbp_xmlf90
-typegeometryhsd.o = typegeometryhsd.o $(_mod_dftbp_typegeometry) $(_mod_dftbp_hsdutils) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_tokenreader) $(_mod_dftbp_unitconversion) $(_mod_dftbp_linkedlist) $(_mod_dftbp_charmanip) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_xmlf90)
+typegeometryhsd.o: _mod_dftbp_typegeometry _mod_dftbp_hsdutils _mod_dftbp_hsdutils2 _mod_dftbp_tokenreader _mod_dftbp_unitconversion _mod_dftbp_linkedlist _mod_dftbp_charmanip _mod_dftbp_message _mod_dftbp_simplealgebra _mod_dftbp_xmlf90
+typegeometryhsd.o = typegeometryhsd.o $(_mod_dftbp_typegeometry) $(_mod_dftbp_hsdutils) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_tokenreader) $(_mod_dftbp_unitconversion) $(_mod_dftbp_linkedlist) $(_mod_dftbp_charmanip) $(_mod_dftbp_message) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_xmlf90)
 _mod_dftbp_typegeometryhsd: typegeometryhsd.o
 _mod_dftbp_typegeometryhsd = $(typegeometryhsd.o)
 

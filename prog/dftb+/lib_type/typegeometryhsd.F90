@@ -251,6 +251,8 @@ contains
       geo%tHelical = .false.
     case("H", "h")
       geo%tHelical = .true.
+      geo%tPeriodic = .false.
+      geo%tFracCoord = .false.
     case default
       call detailedError(node, "Unknown boundary condition type '" &
           &// char(txt) // "'")

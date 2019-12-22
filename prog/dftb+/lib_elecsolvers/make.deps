@@ -9,13 +9,13 @@ _mod_dftbp_elecsolvertypes: elecsolvertypes.o
 _mod_dftbp_elecsolvertypes = $(elecsolvertypes.o)
 
 #:if WITH_MPI
-elsicsc.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_environment _mod_dftbp_periodic _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_mpifx
-elsicsc.o = elsicsc.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_environment) $(_mod_dftbp_periodic) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_mpifx)
+elsicsc.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_environment _mod_dftbp_periodic _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_angmomentum _mod_dftbp_commontypes _mod_dftbp_mpifx
+elsicsc.o = elsicsc.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_environment) $(_mod_dftbp_periodic) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_angmomentum) $(_mod_dftbp_commontypes) $(_mod_dftbp_mpifx)
 _mod_dftbp_elsicsc: elsicsc.o
 _mod_dftbp_elsicsc = $(elsicsc.o)
 #:else
-elsicsc.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_environment _mod_dftbp_periodic _mod_dftbp_constants _mod_dftbp_message
-elsicsc.o = elsicsc.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_environment) $(_mod_dftbp_periodic) $(_mod_dftbp_constants) $(_mod_dftbp_message)
+elsicsc.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_assert _mod_dftbp_environment _mod_dftbp_periodic _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_angmomentum _mod_dftbp_commontypes
+elsicsc.o = elsicsc.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(_mod_dftbp_environment) $(_mod_dftbp_periodic) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_angmomentum) $(_mod_dftbp_commontypes)
 _mod_dftbp_elsicsc: elsicsc.o
 _mod_dftbp_elsicsc = $(elsicsc.o)
 #:endif
