@@ -9,6 +9,7 @@ set(sources-fpp
   ${curdir}/mpifx.F90
   ${curdir}/plumed.F90
   ${curdir}/scalapackfx.F90
+  ${curdir}/slatec.F90
   ${curdir}/xmlf90.F90)
 
 if(WITH_ARPACK)

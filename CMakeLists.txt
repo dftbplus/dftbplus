@@ -120,6 +120,8 @@ endif()
 
 add_subdirectory(external/xmlf90 EXCLUDE_FROM_ALL)
 
+add_subdirectory(external/slatec ${exclude})
+
 if(WITH_SOCKETS)
   add_subdirectory(external/fsockets EXCLUDE_FROM_ALL)
 endif()
@@ -137,7 +139,6 @@ if(WITH_TRANSPORT)
   add_subdirectory(external/mudpack ${exclude})
   add_subdirectory(external/libnegf ${exclude})
 endif()
-
 
 #
 # Add internal components
