@@ -519,8 +519,8 @@ module dftbp_reksvar
 
   contains
 
-  subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl,&
-      & nChrgs, blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress)
+  subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl, nChrgs, &
+      & extChrg, blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: self
@@ -542,6 +542,9 @@ module dftbp_reksvar
 
     !> Nr. of external charges
     integer, intent(in) :: nChrgs
+
+    !> coordinates and charges of external point charges
+    real(dp), intent(in) :: extChrg(:,:)
 
     !> Width of the Gaussians if the charges are blurred
     real(dp), intent(in), allocatable :: blurWidths(:)
@@ -1025,7 +1028,9 @@ module dftbp_reksvar
     ! REKS: point charges (QM/MM) variables
 
     if (self%tExtChrg) then
-      self%extCharges = 0.0_dp
+      self%extCharges(1:3,:) = extChrg(1:3,:)
+      ! Adapt to internal sign convention for potentials (electron has positive charge)
+      self%extCharges(4,:) = -extChrg(4,:)
       if (self%tBlur) then
         self%blurWidths = blurWidths
       end if

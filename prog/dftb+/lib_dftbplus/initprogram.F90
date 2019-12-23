@@ -2604,9 +2604,9 @@ contains
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
 
-        call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1),&
-            & nExtChrg, input%ctrl%extChrgBlurWidth, t3rd.or.t3rdFull, &
-            & tRangeSep, tForces, tPeriodic, tStress)
+        call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1), &
+            & nExtChrg, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, &
+            & t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress)
 
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
         call error("REKS is not compatible with ELSI-solver")

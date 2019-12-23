@@ -135,10 +135,7 @@ module dftbp_reksinterface
 
     allocate(Qmat(orb%nOrb,orb%nOrb))
 
-    ! get the external charges information with periodicity
-    if (self%tExtChrg) then
-      call sccCalc%getPCcoordAndCharges(self%extCharges)
-    end if
+    ! get the periodic information
     if (self%tPeriodic) then
       call sccCalc%getPeriodicInfo(self%rVec, self%gVec, self%alpha, self%volume)
     end if

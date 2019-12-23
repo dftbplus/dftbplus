@@ -87,9 +87,6 @@ module dftbp_externalcharges
     !> Returns the electrostatic potential on a grid
     generic, public :: getElStatPotential => getElStatPotentialCluster, getElStatPotentialPeriodic
 
-    !> Get coordinates and charges for external point charges
-    procedure, public :: getExternalCharges
-
     !> Copy Q * inverse R contribution for the point charges
     procedure, public :: copyInvRvec
     
@@ -467,23 +464,6 @@ contains
   end subroutine getElStatPotentialCluster
 
 
-  !> Get coordinates and charges for external point charges
-  subroutine getExternalCharges(this, extCharges)
-
-    !> Instance of SCC calculation
-    class(TExtCharge), intent(in) :: this
-
-    !> coordinates and charges of external point charges
-    real(dp), intent(out) :: extCharges(:,:)
-
-    extCharges(1,:) = this%coords(1,:)
-    extCharges(2,:) = this%coords(2,:)
-    extCharges(3,:) = this%coords(3,:)
-    extCharges(4,:) = this%charges
-
-  end subroutine getExternalCharges
-
-  
   !> Copy Q * inverse R contribution for the point charges
   subroutine copyInvRvec(this, QinvR)
 

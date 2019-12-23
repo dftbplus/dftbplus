@@ -242,7 +242,6 @@ module dftbp_scc
     procedure :: addForceDcXlbomd
     procedure :: getInternalElStatPotential
     procedure :: getExternalElStatPotential
-    procedure :: getPCcoordAndCharges
     procedure :: getPeriodicInfo
     procedure :: getGammaDeriv
     procedure :: getShiftOfPC
@@ -1689,20 +1688,6 @@ contains
   end subroutine getSummedChargesPerUniqU_
 
 
-  !> Get coordinates and charges for external point charges
-  subroutine getPCcoordAndCharges(this, extCharges)
-
-    !> Instance
-    class(TScc), intent(in) :: this
-
-    !> coordinates and charges of external point charges
-    real(dp), intent(out) :: extCharges(:,:)
-
-    call this%extCharge%getExternalCharges(extCharges)
-
-  end subroutine getPCcoordAndCharges
-
-  
   !> Get the variables relate to periodic information
   subroutine getPeriodicInfo(this, rVec, gVec, alpha, vol)
 
