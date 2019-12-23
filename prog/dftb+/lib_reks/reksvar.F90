@@ -853,19 +853,23 @@ module dftbp_reksvar
       allocate(self%tdp(3,nstHalf))
     end if
 
-    ! REKS: point charges (QM/MM) variables
+    if (self%tForces) then
 
-    if (self%tExtChrg) then
-      allocate(self%extCharges(4,nChrgs))
-      if (self%tBlur) then
-        allocate(self%blurWidths(nChrgs))
+      ! REKS: point charges (QM/MM) variables
+
+      if (self%tExtChrg) then
+        allocate(self%extCharges(4,nChrgs))
+        if (self%tBlur) then
+          allocate(self%blurWidths(nChrgs))
+        end if
       end if
-    end if
 
-    ! REKS: stress variables
+      ! REKS: stress variables
 
-    if (self%tStress) then
-      allocate(self%elecStressL(3,3,Lmax))
+      if (self%tStress) then
+        allocate(self%elecStressL(3,3,Lmax))
+      end if
+
     end if
 
 
@@ -1025,21 +1029,25 @@ module dftbp_reksvar
       self%tdp = 0.0_dp
     end if
 
-    ! REKS: point charges (QM/MM) variables
+    if (self%tForces) then
 
-    if (self%tExtChrg) then
-      self%extCharges(1:3,:) = extChrg(1:3,:)
-      ! Adapt to internal sign convention for potentials (electron has positive charge)
-      self%extCharges(4,:) = -extChrg(4,:)
-      if (self%tBlur) then
-        self%blurWidths = blurWidths
+      ! REKS: point charges (QM/MM) variables
+
+      if (self%tExtChrg) then
+        self%extCharges(1:3,:) = extChrg(1:3,:)
+        ! Adapt to internal sign convention for potentials (electron has positive charge)
+        self%extCharges(4,:) = -extChrg(4,:)
+        if (self%tBlur) then
+          self%blurWidths = blurWidths
+        end if
       end if
-    end if
 
-    ! REKS: stress variables
+      ! REKS: stress variables
 
-    if (self%tStress) then
-      self%elecStressL = 0.0_dp
+      if (self%tStress) then
+        self%elecStressL = 0.0_dp
+      end if
+
     end if
 
 
@@ -1407,26 +1415,30 @@ module dftbp_reksvar
       deallocate(self%tdp)
     end if
 
-    ! REKS: point charges (QM/MM) variables
+    if (self%tForces) then
 
-    if (self%tExtChrg) then
-      deallocate(self%extCharges)
-      if (self%tBlur) then
-        deallocate(self%blurWidths)
+      ! REKS: point charges (QM/MM) variables
+
+      if (self%tExtChrg) then
+        deallocate(self%extCharges)
+        if (self%tBlur) then
+          deallocate(self%blurWidths)
+        end if
       end if
-    end if
 
-    ! REKS: periodic variables
+      ! REKS: periodic variables
 
-    if (self%tPeriodic) then
-      deallocate(self%rVec)
-      deallocate(self%gVec)
-    end if
+      if (self%tPeriodic) then
+        deallocate(self%rVec)
+        deallocate(self%gVec)
+      end if
 
-    ! REKS: stress variables
+      ! REKS: stress variables
 
-    if (self%tStress) then
-      deallocate(self%elecStressL)
+      if (self%tStress) then
+        deallocate(self%elecStressL)
+      end if
+
     end if
 
   end subroutine REKS_destroy

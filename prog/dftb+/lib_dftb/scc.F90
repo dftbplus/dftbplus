@@ -1713,12 +1713,7 @@ contains
     ind3 = size(this%rCellVec,dim=1)
     ind4 = size(this%rCellVec,dim=2)
 
-    if (allocated(gVec)) then
-      deallocate(gVec)
-      deallocate(rVec)
-      allocate(gVec(ind1,ind2))
-      allocate(rVec(ind3,ind4))
-    else
+    if (.not. allocated(gVec)) then
       allocate(gVec(ind1,ind2))
       allocate(rVec(ind3,ind4))
     end if
