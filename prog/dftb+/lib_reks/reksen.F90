@@ -42,14 +42,23 @@ module dftbp_reksen
   contains
 
   !> Construct L, spin dependent microstates from identical KS orbitals
-  subroutine constructMicrostates(self)
+  subroutine constructMicrostates(Nc, tSSR22, tSSR44, fillingL)
 
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
 
-    if (self%tSSR22) then
-      call getFillingL22_(self)
-    else if (self%tSSR44) then
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    !> Filling for each microstate
+    real(dp), intent(out) :: fillingL(:,:,:)
+
+    if (tSSR22) then
+      call getFillingL22_(Nc, fillingL)
+    else if (tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
 
@@ -399,44 +408,47 @@ module dftbp_reksen
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> Calculate filling of each microstate in REKS(2,2)
-  subroutine getFillingL22_(self)
+  subroutine getFillingL22_(Nc, fillingL)
     
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
 
-    integer :: iL, iSpin, ii, nSpin, Nc
+    !> Filling for each microstate
+    real(dp), intent(out) :: fillingL(:,:,:)
 
-    nSpin = size(self%fillingL,dim=2)
-    Nc = self%Nc
+    integer :: iL, iSpin, ii, nSpin, Lmax
+
+    nSpin = size(fillingL,dim=2)
+    Lmax = size(fillingL,dim=3)
 
     ! Filling of core orbitals
-    do iL = 1, self%Lmax
+    do iL = 1, Lmax
       do iSpin = 1, nSpin
         do ii = 1, Nc
-          self%fillingL(ii,iSpin,iL) = 1.0_dp
+          fillingL(ii,iSpin,iL) = 1.0_dp
         end do
       end do
     end do
 
     ! Filling of active orbitals for REKS(2,2) case
     ! 1 = a: up + down
-    self%fillingL(Nc+1,1,1) = 1.0_dp
-    self%fillingL(Nc+1,2,1) = 1.0_dp
+    fillingL(Nc+1,1,1) = 1.0_dp
+    fillingL(Nc+1,2,1) = 1.0_dp
     ! 2 = b: up + down
-    self%fillingL(Nc+2,1,2) = 1.0_dp
-    self%fillingL(Nc+2,2,2) = 1.0_dp
+    fillingL(Nc+2,1,2) = 1.0_dp
+    fillingL(Nc+2,2,2) = 1.0_dp
     ! 3 = a: up, b: down
-    self%fillingL(Nc+1,1,3) = 1.0_dp
-    self%fillingL(Nc+2,2,3) = 1.0_dp
+    fillingL(Nc+1,1,3) = 1.0_dp
+    fillingL(Nc+2,2,3) = 1.0_dp
     ! 4 = a: down, b: up
-    self%fillingL(Nc+2,1,4) = 1.0_dp
-    self%fillingL(Nc+1,2,4) = 1.0_dp
+    fillingL(Nc+2,1,4) = 1.0_dp
+    fillingL(Nc+1,2,4) = 1.0_dp
     ! 5 = a: up, b: up
-    self%fillingL(Nc+1,1,5) = 1.0_dp
-    self%fillingL(Nc+2,1,5) = 1.0_dp
+    fillingL(Nc+1,1,5) = 1.0_dp
+    fillingL(Nc+2,1,5) = 1.0_dp
     ! 6 = a: down, b: down
-    self%fillingL(Nc+1,2,6) = 1.0_dp
-    self%fillingL(Nc+2,2,6) = 1.0_dp
+    fillingL(Nc+1,2,6) = 1.0_dp
+    fillingL(Nc+2,2,6) = 1.0_dp
 
   end subroutine getFillingL22_
 

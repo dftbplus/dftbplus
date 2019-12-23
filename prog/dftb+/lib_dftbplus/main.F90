@@ -500,12 +500,9 @@ contains
         call system_clock(t1)
 
         if (iSccIter == 1) then
-          call guessInitialEigvecs(env, denseDesc, h0, over, neighbourList, &
+          call getReksInitialSettings(env, denseDesc, h0, over, neighbourList, &
               & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
               & HSqrReal, SSqrReal, eigvecsReal, eigen, reks)
-          call checkGammaPoint(denseDesc, neighbourList%iNeighbour, &
-              & nNeighbourSK, iSparseStart, img2CentCell, over, reks)
-          call constructMicrostates(reks)
         end if
 
         call getDensityLFromRealEigvecs(env, denseDesc, neighbourList, &
@@ -6188,7 +6185,8 @@ contains
   !> Diagonalize H0 to obtain initial guess of eigenvectors
   !> or read eigenvectors in REKS
   !> Save dense overlap matrix elements
-  subroutine guessInitialEigvecs(env, denseDesc, h0, over, neighbourList, &
+  !> Check Gamma point condition and set filling information
+  subroutine getReksInitialSettings(env, denseDesc, h0, over, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
       & HSqrReal, SSqrReal, eigvecsReal, eigen, reks)
 
@@ -6252,7 +6250,13 @@ contains
 
     end if
 
-  end subroutine guessInitialEigvecs
+    call checkGammaPoint(denseDesc, neighbourList%iNeighbour, &
+        & nNeighbourSK, iSparseStart, img2CentCell, over, reks%overSqr, &
+        & reks%getAtomIndex, reks%getDenseAO, reks%getDenseAtom)
+
+    call constructMicrostates(reks%Nc, reks%tSSR22, reks%tSSR44, reks%fillingL)
+
+  end subroutine getReksInitialSettings
 
 
   !> Diagonalize H0 to obtain initial guess of eigenvectors
@@ -6509,7 +6513,6 @@ contains
 
         tmpRhoSp(:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
-        ! reks%rhoSqrL has (my_qm) component
         call packHS(tmpRhoSp, reks%rhoSqrL(:,:,1,iL), &
             & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)

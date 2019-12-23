@@ -19,7 +19,6 @@ module dftbp_rekscommon
   use dftbp_blasroutines, only : gemm
   use dftbp_densedescr
   use dftbp_message
-  use dftbp_reksvar
 
   implicit none
 
@@ -63,7 +62,8 @@ module dftbp_rekscommon
   !> Check whether the cell size is proper to the Gamma point
   !> calculation or not, and set several convenient variables
   subroutine checkGammaPoint(denseDesc, iNeighbour, nNeighbourSK,&
-      & iPair, img2CentCell, over, self)
+      & iPair, img2CentCell, over, overSqr, getAtomIndex, &
+      & getDenseAO, getDenseAtom)
 
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
@@ -83,27 +83,36 @@ module dftbp_rekscommon
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
 
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    !> Dense overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> get atom index from AO index
+    integer, intent(inout) :: getAtomIndex(:)
+
+    !> get dense AO index from sparse AO array
+    integer, intent(inout) :: getDenseAO(:,:)
+
+    !> get dense atom index from sparse atom array
+    integer, intent(inout), allocatable :: getDenseAtom(:,:)
 
     integer :: mu, nu, nAtom, nOrb, nAtomSparse
     integer :: iAtom1, iAtom2, iAtom2f, iNeigh1, iOrig1
     integer :: nOrb1, nOrb2, ii, jj, kk, ll
 
     nAtom = size(denseDesc%iAtomStart,dim=1) - 1
-    nOrb = size(self%overSqr,dim=1)
+    nOrb = size(overSqr,dim=1)
 
     nAtomSparse = 0
     do iAtom1 = 1, nAtom ! mu
       nAtomSparse = nAtomSparse + nNeighbourSK(iAtom1) + 1
     end do
 
-    deallocate(self%getDenseAtom)
-    allocate(self%getDenseAtom(nAtomSparse,2))
+    deallocate(getDenseAtom)
+    allocate(getDenseAtom(nAtomSparse,2))
 
     ll = 1
-    self%getDenseAO(:,:) = 0
-    self%getDenseAtom(:,:) = 0
+    getDenseAO(:,:) = 0
+    getDenseAtom(:,:) = 0
     do iAtom1 = 1, nAtom ! mu in A atom
       ii = denseDesc%iAtomStart(iAtom1)
       nOrb1 = denseDesc%iAtomStart(iAtom1 + 1) - ii
@@ -131,15 +140,15 @@ module dftbp_rekscommon
           ! Find inconsistent index between dense and sparse
           ! It means that current lattice is not proper to Gamma point calculation
           ! TODO : add the condition of Gamma point using nKpoint and Kpoints?
-          if (abs(self%overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
+          if (abs(overSqr(mu,nu)-over(iOrig1+kk-1)) >= epsilon(1.0_dp)) then
             call error("Inconsistent maching exists between sparse and dense")
           end if
-          self%getDenseAO(iOrig1+kk-1,1) = mu
-          self%getDenseAO(iOrig1+kk-1,2) = nu
+          getDenseAO(iOrig1+kk-1,1) = mu
+          getDenseAO(iOrig1+kk-1,2) = nu
         end do
 
-        self%getDenseAtom(ll,1) = iAtom1  ! A atom
-        self%getDenseAtom(ll,2) = iAtom2f ! B atom
+        getDenseAtom(ll,1) = iAtom1  ! A atom
+        getDenseAtom(ll,2) = iAtom2f ! B atom
         ll = ll + 1
       end do
     end do
@@ -148,7 +157,7 @@ module dftbp_rekscommon
       do iAtom1 = 1, nAtom
         if (mu > denseDesc%iAtomStart(iAtom1)-1 .and.&
             & mu <= denseDesc%iAtomStart(iAtom1+1)-1) then
-          self%getAtomIndex(mu) = iAtom1
+          getAtomIndex(mu) = iAtom1
         end if
       end do
     end do

@@ -1,5 +1,5 @@
-rekscommon.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densedescr _mod_dftbp_message _mod_dftbp_reksvar
-rekscommon.o = rekscommon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densedescr) $(_mod_dftbp_message) $(_mod_dftbp_reksvar)
+rekscommon.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densedescr _mod_dftbp_message
+rekscommon.o = rekscommon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densedescr) $(_mod_dftbp_message)
 _mod_dftbp_rekscommon: rekscommon.o
 _mod_dftbp_rekscommon = $(rekscommon.o)
 
