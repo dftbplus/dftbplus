@@ -45,7 +45,6 @@ module dftbp_mainio
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_message
   use dftbp_rekscommon
-  use dftbp_reksvar
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -5063,7 +5062,9 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, t1, t2, reks)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, FONs, reksEn, &
+      & rstate, Lstate, enLnonSCC, enLscc, enLspin, enL3rd, enLfock, enLtot, &
+      & t3rd, tRangeSep, t1, t2)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5155,13 +5156,46 @@ contains
     !> Is the free energy correctly defined
     logical, intent(in) :: tDefinedFreeE
 
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> energy of states: reks%energy
+    real(dp), intent(in) :: reksEn(:)
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    !> non SCC energy for each microstate
+    real(dp), intent(in) :: enLnonSCC(:)
+
+    !> SCC energy for each microstate
+    real(dp), intent(in) :: enLscc(:)
+
+    !> spin-polarized energy for each microstate
+    real(dp), intent(in) :: enLspin(:)
+
+    !> 3rd order SCC energy for each microstate
+    real(dp), intent(in) :: enL3rd(:)
+
+    !> Long-range corrected energy for each microstate
+    real(dp), intent(in) :: enLfock(:)
+
+    !> total energy for each microstate
+    real(dp), intent(in) :: enLtot(:)
+
+    !> Third order DFTB
+    logical, intent(in) :: t3rd
+
+    !> Whether to run a range separated calculation
+    logical, intent(in) :: tRangeSep
+
     !> the consumed time for calculating one iteration
     real(dp), intent(in) :: t1, t2
 
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
-
-    integer :: nAtom, nKPoint, nMovedAtom
+    integer :: nAtom, nKPoint, nMovedAtom, nstates
     integer :: ang, iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
     character(sc), allocatable :: shellNamesTmp(:)
     character(lc) :: strTmp
@@ -5169,6 +5203,7 @@ contains
     nAtom = size(q0, dim=2)
     nKPoint = size(kPoints, dim=2)
     nMovedAtom = size(indMovedAtom)
+    nstates = size(reksEn,dim=1)
 
     write(fd, "(A)") "REKS do not use any electronic distribution function"
     write(fd,*)
@@ -5197,7 +5232,7 @@ contains
       write(fd,"(1X,A5,A20,A20,A13,A12,A20)") "iSCC", "       reks energy  ", &
           & "      Diff energy   ", "      x_a    ", "    Time(s) ", "        SCC error   "
       write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F10.6,3x,F16.10)") &
-          & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, t2 - t1, sccErrorQ
+          & iSCCIter, energy%Etotal, diffElec, FONs(1,1)*0.5_dp, t2 - t1, sccErrorQ
 
       write(fd, "(A)") repeat("*", 92)
       write(fd, *)
@@ -5225,7 +5260,7 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
-      if (reks%nstates > 1) then
+      if (nstates > 1) then
         write(fd, "(A60)") " SA-REKS optimizes the avergaed state, not individual states"
         write(fd, "(A58)") " These charges do not mean the charges for S0 or S1 states"
         write(fd, "(A44)") " If you want to compute the relaxed density,"
@@ -5301,28 +5336,28 @@ contains
     end do lpSpinPrint3_REKS
 
     ! get correct energy values
-    energy%Etotal = reks%energy(reks%rstate)
+    energy%Etotal = reksEn(rstate)
     energy%Eexcited = 0.0_dp
-    if (reks%nstates > 1 .and. reks%Lstate == 0) then
-      energy%Eexcited = reks%energy(reks%rstate) - reks%energy(1)
+    if (nstates > 1 .and. Lstate == 0) then
+      energy%Eexcited = reksEn(rstate) - reksEn(1)
     end if
     energy%EMermin = energy%Etotal
     energy%Ezero = energy%Etotal
     energy%EGibbs = energy%EMermin + cellVol * pressure
     energy%EForceRelated = energy%EGibbs
     ! get microstate energy values for target microstate
-    if (reks%Lstate > 0) then
-      energy%Etotal = reks%enLtot(reks%Lstate)
-      energy%EnonSCC = reks%enLnonSCC(reks%Lstate)
-      energy%ESCC = reks%enLSCC(reks%Lstate)
-      energy%Espin = reks%enLspin(reks%Lstate)
+    if (Lstate > 0) then
+      energy%Etotal = enLtot(Lstate)
+      energy%EnonSCC = enLnonSCC(Lstate)
+      energy%ESCC = enLSCC(Lstate)
+      energy%Espin = enLspin(Lstate)
       energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin
-      if (reks%tRangeSep) then
-        energy%Efock = reks%enLfock(reks%Lstate)
+      if (tRangeSep) then
+        energy%Efock = enLfock(Lstate)
         energy%Eelec = energy%Eelec + energy%Efock
       end if
-      if (reks%t3rd) then
-        energy%e3rd  = reks%enL3rd(reks%Lstate)
+      if (t3rd) then
+        energy%e3rd  = enL3rd(Lstate)
         energy%Eelec = energy%Eelec + energy%e3rd
       end if
     end if
@@ -5331,10 +5366,10 @@ contains
     if (tSCC) then
       write(fd, format2U) 'Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV'
       write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
-      if (reks%t3rd) then
+      if (t3rd) then
         write (fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
       end if
-      if (reks%tRangeSep) then
+      if (tRangeSep) then
         write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
     end if
@@ -5349,7 +5384,7 @@ contains
     end if
 
     write(fd, *)
-    if (reks%nstates > 1) then
+    if (nstates > 1) then
       write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", &
           & Hartree__eV * energy%Eexcited, "eV"
       write(fd, *)

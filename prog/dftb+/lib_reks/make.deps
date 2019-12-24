@@ -28,8 +28,8 @@ reksinterface.o = reksinterface.o $(_mod_dftbp_accuracy) $(_mod_dftbp_densedescr
 _mod_dftbp_reksinterface: reksinterface.o
 _mod_dftbp_reksinterface = $(reksinterface.o)
 
-reksproperty.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densitymatrix _mod_dftbp_globalenv _mod_dftbp_mainio _mod_dftbp_message _mod_dftbp_sparse2dense _mod_dftbp_rekscommon _mod_dftbp_reksvar
-reksproperty.o = reksproperty.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densitymatrix) $(_mod_dftbp_globalenv) $(_mod_dftbp_mainio) $(_mod_dftbp_message) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon) $(_mod_dftbp_reksvar)
+reksproperty.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densitymatrix _mod_dftbp_globalenv _mod_dftbp_mainio _mod_dftbp_message _mod_dftbp_sparse2dense _mod_dftbp_rekscommon
+reksproperty.o = reksproperty.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densitymatrix) $(_mod_dftbp_globalenv) $(_mod_dftbp_mainio) $(_mod_dftbp_message) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon)
 _mod_dftbp_reksproperty: reksproperty.o
 _mod_dftbp_reksproperty = $(reksproperty.o)
 

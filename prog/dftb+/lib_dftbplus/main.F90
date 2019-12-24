@@ -570,7 +570,10 @@ contains
                 & energy, diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qOutput,&
                 & orb, species, tPrintMulliken, extPressure, cellVol, tAtomicEnergy,&
                 & tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint, iAtInCentralRegion, &
-                & electronicSolver, tDefinedFreeE, t1/timeRate, t2/timeRate, reks)
+                & electronicSolver, tDefinedFreeE, reks%FONs, reks%energy, reks%rstate, &
+                & reks%Lstate, reks%enLnonSCC, reks%enLscc, reks%enLspin, reks%enL3rd, &
+                & reks%enLfock, reks%enLtot, allocated(thirdOrd), tRangeSep, &
+                & t1/timeRate, t2/timeRate)
           end if
           if (tWriteBandDat) then
             call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -7085,11 +7088,10 @@ contains
     call getFilling(filling(:,1,1), reks%SAweight, reks%FONs, &
         & reks%Efunction, reks%Nc, reks%tSSR22, reks%tSSR44)
 
-    call calcSaReksEnergy(reks%SAweight, reks%weightL, reks%enLnonSCC, &
-        & reks%enLscc, reks%enLspin, reks%enL3rd, reks%enLfock, &
-        & reks%enLtot, reks%rstate, reks%t3rd, reks%tRangeSep, &
-        & reks%energy, energy%EnonSCC, energy%Escc, energy%Espin, &
-        & energy%e3rd, energy%Efock, energy%Eelec, energy%Etotal)
+    call calcSaReksEnergy(energy, reks%SAweight, reks%weightL, &
+        & reks%enLnonSCC, reks%enLscc, reks%enLspin, reks%enL3rd, &
+        & reks%enLfock, reks%enLtot, reks%rstate, reks%t3rd, &
+        & reks%tRangeSep, reks%energy)
 
     if (reks%Plevel >= 2) then
       call printSaReksEnergy(reks%energy)
@@ -7427,7 +7429,10 @@ contains
     ! gradient. Therefore, we can easily guess the behavior of the states.
     if (reks%nstates > 1) then
 
-      call getUnrelaxedDMandTDP(eigenvecs(:,:,1), reks)
+      call getUnrelaxedDMandTDP(eigenvecs(:,:,1), reks%overSqr, reks%rhoSqrL, &
+          & reks%FONs, reks%eigvecsSSR, reks%Lpaired, reks%Nc, reks%Na, &
+          & reks%rstate, reks%Lstate, reks%useSSR, reks%tTDP, reks%tSSR22, &
+          & reks%tSSR44, reks%unrelRhoSqr, reks%unrelTdm)
 
       if (reks%tTDP) then
         call getDipoleIntegral(coord0, reks%overSqr, reks%getAtomIndex, dipoleInt)

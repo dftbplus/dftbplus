@@ -166,9 +166,12 @@ module dftbp_reksen
 
 
   !> Calculate the energy of SA-REKS states and averaged state
-  subroutine calcSaReksEnergy(SAweight, weightL, enLnonSCC, enLscc, &
-      & enLspin, enL3rd, enLfock, enLtot, rstate, t3rd, tRangeSep, &
-      & energy, EnonSCC, Escc, Espin, e3rd, Efock, Eelec, Etotal)
+  subroutine calcSaReksEnergy(energy, SAweight, weightL, enLnonSCC, &
+      & enLscc, enLspin, enL3rd, enLfock, enLtot, rstate, t3rd, &
+      & tRangeSep, reksEn)
+
+    !> Energy terms in the system
+    type(TEnergies), intent(inout) :: energy
 
     !> Weights used in state-averaging
     real(dp), intent(in) :: SAweight(:)
@@ -203,29 +206,8 @@ module dftbp_reksen
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
 
-    !> energy of states
-    real(dp), intent(out) :: energy(:)
-
-    !> Non-SCC energy
-    real(dp), intent(inout) :: EnonSCC
-
-    !> SCC energy
-    real(dp), intent(inout) :: Escc
-
-    !> spin energy
-    real(dp), intent(inout) :: Espin
-
-    !> Total 3rd order
-    real(dp), intent(inout) :: e3rd
-
-    !> range-separation energy
-    real(dp), intent(inout) :: Efock
-
-    !> total electronic energy
-    real(dp), intent(inout) :: Eelec
-
-    !> energy of averaged state
-    real(dp), intent(out) :: Etotal
+    !> energy of states: self%energy
+    real(dp), intent(out) :: reksEn(:)
 
     integer :: ist, iL, SAstates, nstates, Lmax
 
@@ -235,47 +217,47 @@ module dftbp_reksen
 
     ! Compute the energy contributions of target SA-REKS state
     ! energy = nonSCC + scc + spin + 3rd + fock
-    EnonSCC = 0.0_dp
-    Escc = 0.0_dp
-    Espin = 0.0_dp
+    energy%EnonSCC = 0.0_dp
+    energy%Escc = 0.0_dp
+    energy%Espin = 0.0_dp
     if (t3rd) then
-      e3rd = 0.0_dp
+      energy%e3rd = 0.0_dp
     end if
     if (tRangeSep) then
-      Efock = 0.0_dp
+      energy%Efock = 0.0_dp
     end if
     do iL = 1, Lmax
-      EnonSCC = EnonSCC + weightL(rstate,iL) * enLnonSCC(iL)
-      Escc = Escc + weightL(rstate,iL) * enLSCC(iL)
-      Espin = Espin + weightL(rstate,iL) * enLspin(iL)
+      energy%EnonSCC = energy%EnonSCC + weightL(rstate,iL) * enLnonSCC(iL)
+      energy%Escc = energy%Escc + weightL(rstate,iL) * enLSCC(iL)
+      energy%Espin = energy%Espin + weightL(rstate,iL) * enLspin(iL)
       if (t3rd) then
-        e3rd = e3rd + weightL(rstate,iL) * enL3rd(iL)
+        energy%e3rd = energy%e3rd + weightL(rstate,iL) * enL3rd(iL)
       end if
       if (tRangeSep) then
-        Efock = Efock + weightL(rstate,iL) * enLfock(iL)
+        energy%Efock = energy%Efock + weightL(rstate,iL) * enLfock(iL)
       end if
     end do
-    Eelec = EnonSCC + Escc + Espin
+    energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin
     if (t3rd) then
-      Eelec = Eelec + e3rd
+      energy%Eelec = energy%Eelec + energy%e3rd
     end if
     if (tRangeSep) then
-      Eelec = Eelec + Efock
+      energy%Eelec = energy%Eelec + energy%Efock
     end if
 
     ! Compute the energy of SA-REKS states
-    energy(:) = 0.0_dp
+    reksEn(:) = 0.0_dp
     do ist = 1, nstates
       do iL = 1, Lmax
-        energy(ist) = energy(ist) + weightL(ist,iL) * enLtot(iL)
+        reksEn(ist) = reksEn(ist) + weightL(ist,iL) * enLtot(iL)
       end do
     end do
 
     ! In this step Etotal is energy of averaged state, not individual states
     ! From this energy we can check the variational principle
-    Etotal = 0.0_dp
+    energy%Etotal = 0.0_dp
     do ist = 1, SAstates
-      Etotal = Etotal + SAweight(ist) * energy(ist)
+      energy%Etotal = energy%Etotal + SAweight(ist) * reksEn(ist)
     end do
 
   end subroutine calcSaReksEnergy

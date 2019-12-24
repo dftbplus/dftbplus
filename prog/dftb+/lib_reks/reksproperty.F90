@@ -23,7 +23,6 @@ module dftbp_reksproperty
   use dftbp_message
   use dftbp_sparse2dense
   use dftbp_rekscommon
-  use dftbp_reksvar
 
   implicit none
 
@@ -36,13 +35,57 @@ module dftbp_reksproperty
 
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
-  subroutine getUnrelaxedDMandTDP(eigenvecs, self)
+  subroutine getUnrelaxedDMandTDP(eigenvecs, overSqr, rhoSqrL, FONs, &
+      & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, useSSR, tTDP, &
+      & tSSR22, tSSR44, unrelRhoSqr, unrelTdm)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
 
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    !> Dense overlap matrix
+    real(dp), intent(in) :: overSqr(:,:)
+
+    !> Dense density matrix for each microstate
+    real(dp), intent(in) :: rhoSqrL(:,:,:,:)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> eigenvectors from SA-REKS state
+    real(dp), intent(in) :: eigvecsSSR(:,:)
+
+    !> Number of spin-paired microstates
+    integer, intent(in) :: Lpaired
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Calculate transition dipole moments
+    logical, intent(in) :: tTDP
+
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    !> unrelaxed density matrix for target SSR or SA-REKS state
+    real(dp), intent(out) :: unrelRhoSqr(:,:)
+
+    !> unrelaxed transition density matrix between SSR or SA-REKS states
+    real(dp), intent(out) :: unrelTdm(:,:,:)
 
     real(dp), allocatable :: rhoX(:,:,:)
     real(dp), allocatable :: rhoXdel(:,:,:)
@@ -50,122 +93,123 @@ module dftbp_reksproperty
     real(dp), allocatable :: tmpMat(:,:)
     real(dp), allocatable :: tmpFilling(:,:)
 
-    integer :: nOrb, nstHalf
+    integer :: nOrb, nstates, nstHalf
     integer :: ii, ist, jst, kst, lst, ia, ib
 
     nOrb = size(eigenvecs,dim=1)
-    nstHalf = self%nstates * (self%nstates - 1) / 2
+    nstates = size(eigvecsSSR,dim=1)
+    nstHalf = nstates * (nstates - 1) / 2
 
-    if (self%useSSR == 1) then
-      allocate(rhoX(nOrb,nOrb,self%nstates))
+    if (useSSR == 1) then
+      allocate(rhoX(nOrb,nOrb,nstates))
     else
       allocate(rhoX(nOrb,nOrb,1))
     end if
-    if (self%Lstate == 0) then
+    if (Lstate == 0) then
       allocate(rhoXdel(nOrb,nOrb,nstHalf))
     end if
     allocate(tmpRho(nOrb,nOrb))
     allocate(tmpMat(nOrb,nOrb))
-    allocate(tmpFilling(nOrb,self%nstates))
+    allocate(tmpFilling(nOrb,nstates))
 
     ! core orbitals fillings
     tmpFilling(:,:) = 0.0_dp
-    do ii = 1, self%Nc
+    do ii = 1, Nc
       tmpFilling(ii,:) = 2.0_dp
     end do
     ! active orbitals fillings
-    if (self%tSSR22) then
-      call getActiveFilling22_(self%FONs, self%Nc, tmpFilling)
-    else if (self%tSSR44) then
+    if (tSSR22) then
+      call getActiveFilling22_(FONs, Nc, tmpFilling)
+    else if (tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
 
     ! unrelaxed density matrix for SA-REKS or L-th state
     rhoX(:,:,:) = 0.0_dp
-    if (self%useSSR == 1) then
-      do ist = 1, self%nstates
+    if (useSSR == 1) then
+      do ist = 1, nstates
         call makeDensityMatrix(rhoX(:,:,ist), eigenvecs, tmpFilling(:,ist))
         call symmetrizeHS(rhoX(:,:,ist))
       end do
     else
-      if (self%Lstate == 0) then
-        call makeDensityMatrix(rhoX(:,:,1), eigenvecs, tmpFilling(:,self%rstate))
+      if (Lstate == 0) then
+        call makeDensityMatrix(rhoX(:,:,1), eigenvecs, tmpFilling(:,rstate))
         call symmetrizeHS(rhoX(:,:,1))
       else
-        ! find proper index for up+down in self%dm_L
-        if (self%Lstate <= self%Lpaired) then
-          ii = self%Lstate
+        ! find proper index for up+down in rhoSqrL
+        if (Lstate <= Lpaired) then
+          ii = Lstate
         else
-          if (mod(self%Lstate,2) == 1) then
-            ii = self%Lstate
+          if (mod(Lstate,2) == 1) then
+            ii = Lstate
           else
-            ii = self%Lstate - 1
+            ii = Lstate - 1
           end if
         end if
-        rhoX(:,:,1) = self%rhoSqrL(:,:,1,ii)
+        rhoX(:,:,1) = rhoSqrL(:,:,1,ii)
       end if
     end if
 
     ! unrelaxed transition density matrix between SA-REKS states
-    if (self%Lstate == 0) then
+    if (Lstate == 0) then
       rhoXdel(:,:,:) = 0.0_dp
-      if (self%tSSR22) then
-        call getUnrelaxedTDM22_(eigenvecs, self%FONs, self%Nc, self%nstates, rhoXdel)
-      else if (self%tSSR44) then
+      if (tSSR22) then
+        call getUnrelaxedTDM22_(eigenvecs, FONs, Nc, nstates, rhoXdel)
+      else if (tSSR44) then
         call error("SSR(4,4) is not implemented yet")
       end if
     end if
 
     ! Final unrelaxed density matrix for target state
-    if (self%useSSR == 1) then
-      ! self%unrelRhoSqr is unrelaxed density matrix for target SSR state
+    if (useSSR == 1) then
+      ! unrelRhoSqr is unrelaxed density matrix for target SSR state
       kst = 0
-      self%unrelRhoSqr(:,:) = 0.0_dp
-      do ist = 1, self%nstates
-        do jst = ist, self%nstates
+      unrelRhoSqr(:,:) = 0.0_dp
+      do ist = 1, nstates
+        do jst = ist, nstates
           if (ist == jst) then
-            self%unrelRhoSqr(:,:) = self%unrelRhoSqr + self%eigvecsSSR(ist,self%rstate)**2 * rhoX(:,:,ist)
+            unrelRhoSqr(:,:) = unrelRhoSqr + eigvecsSSR(ist,rstate)**2 * rhoX(:,:,ist)
           else
             kst = kst + 1
-            self%unrelRhoSqr(:,:) = self%unrelRhoSqr + 2.0_dp * self%eigvecsSSR(ist,self%rstate) * &
-                & self%eigvecsSSR(jst,self%rstate) * rhoXdel(:,:,kst)
+            unrelRhoSqr(:,:) = unrelRhoSqr + 2.0_dp * eigvecsSSR(ist,rstate) * &
+                & eigvecsSSR(jst,rstate) * rhoXdel(:,:,kst)
           end if
         end do
       end do
     else
-      ! self%unrelRhoSqr is unrelaxed density matrix for target SA-REKS or L-th state
-      self%unrelRhoSqr(:,:) = rhoX(:,:,1)
+      ! unrelRhoSqr is unrelaxed density matrix for target SA-REKS or L-th state
+      unrelRhoSqr(:,:) = rhoX(:,:,1)
     end if
 
     ! Final unrelaxed transition density matrix between states
-    if (self%tTDP .and. self%Lstate == 0) then
-      if (self%useSSR == 1) then
-        ! self%unrelTdm is unrelaxed transition density matrix between SSR states
-        self%unrelTdm(:,:,:) = 0.0_dp
+    if (tTDP .and. Lstate == 0) then
+      if (useSSR == 1) then
+        ! unrelTdm is unrelaxed transition density matrix between SSR states
+        unrelTdm(:,:,:) = 0.0_dp
         do lst = 1, nstHalf
 
-          call getTwoIndices(self%nstates, lst, ia, ib, 1)
+          call getTwoIndices(nstates, lst, ia, ib, 1)
 
           kst = 0
-          do ist = 1, self%nstates
-            do jst = ist, self%nstates
+          do ist = 1, nstates
+            do jst = ist, nstates
               if (ist == jst) then
-                self%unrelTdm(:,:,lst) = self%unrelTdm(:,:,lst) + rhoX(:,:,ist) &
-                    & * self%eigvecsSSR(ist,ia) * self%eigvecsSSR(ist,ib)
+                unrelTdm(:,:,lst) = unrelTdm(:,:,lst) + rhoX(:,:,ist) &
+                    & * eigvecsSSR(ist,ia) * eigvecsSSR(ist,ib)
               else
                 kst = kst + 1
                 ! <PPS|OSS> = <OSS|PPS>, etc
-                self%unrelTdm(:,:,lst) = self%unrelTdm(:,:,lst) + rhoXdel(:,:,kst) &
-                    & * ( self%eigvecsSSR(ist,ia) * self%eigvecsSSR(jst,ib) &
-                    & + self%eigvecsSSR(jst,ia) * self%eigvecsSSR(ist,ib) )
+                unrelTdm(:,:,lst) = unrelTdm(:,:,lst) + rhoXdel(:,:,kst) &
+                    & * ( eigvecsSSR(ist,ia) * eigvecsSSR(jst,ib) &
+                    & + eigvecsSSR(jst,ia) * eigvecsSSR(ist,ib) )
               end if
             end do
           end do
 
         end do
       else
-        ! self%unrelTdm is unrelaxed transition density matrix between SA-REKS states
-        self%unrelTdm(:,:,:) = rhoXdel(:,:,:)
+        ! unrelTdm is unrelaxed transition density matrix between SA-REKS states
+        unrelTdm(:,:,:) = rhoXdel
       end if
     end if
 
@@ -174,16 +218,15 @@ module dftbp_reksproperty
     ! P: density matrix, C: eigenvector, N: occupation number,
     ! T: transpose(real), I: identity matrix.
     tmpMat(:,:) = 0.0_dp
-    call gemm(tmpMat, self%unrelRhoSqr, self%overSqr)
+    call gemm(tmpMat, unrelRhoSqr, overSqr)
     tmpRho(:,:) = 0.0_dp
-    call gemm(tmpRho, self%overSqr, tmpMat)
+    call gemm(tmpRho, overSqr, tmpMat)
     tmpMat(:,:) = 0.0_dp
     call gemm(tmpMat, tmpRho, eigenvecs)
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printUnrelaxedFONs(tmpRho, self%useSSR, self%rstate,&
-        & self%Lstate, self%Nc, self%Na)
+    call printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
 
   end subroutine getUnrelaxedDMandTDP
 
@@ -518,7 +561,7 @@ module dftbp_reksproperty
 
     dipole(:) = 0.0_dp
     do ii = 1, 3
-      dipole(ii) = -sum(dipoleInt(:,:,ii)*(Pmat(:,:)))
+      dipole(ii) = -sum(dipoleInt(:,:,ii)*Pmat(:,:))
     end do
 
   end subroutine getDipoleMomentMatrix
