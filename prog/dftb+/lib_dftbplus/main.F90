@@ -6244,7 +6244,7 @@ contains
       call env%globalTimer%startTimer(globalTimers%diagonalization)
       call buildAndDiagDenseRealH0(env, denseDesc, h0, over, neighbourList, &
           & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
-          & HSqrReal, SSqrReal, eigvecsReal, eigen(:,1,:), reks)
+          & HSqrReal, SSqrReal, eigvecsReal, eigen(:,1,:), reks%overSqr)
       call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
     else if (reks%guess == 2) then
@@ -6253,7 +6253,7 @@ contains
       ! TODO : renormalize eigenvectors needed!
       call symmetrizeOverlap(env, denseDesc, over, neighbourList, &
           & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
-          & SSqrReal, reks)
+          & SSqrReal, reks%overSqr)
 
     end if
 
@@ -6269,7 +6269,7 @@ contains
   !> Diagonalize H0 to obtain initial guess of eigenvectors
   subroutine buildAndDiagDenseRealH0(env, denseDesc, h0, over, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, HSqrReal, &
-      & SSqrReal, eigvecsReal, eigen, reks)
+      & SSqrReal, eigvecsReal, eigen, overSqr)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6310,8 +6310,8 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
+    !> Dense overlap matrix
+    real(dp), intent(out) :: overSqr(:,:)
 
     eigen(:,:) = 0.0_dp
     call env%globalTimer%startTimer(globalTimers%sparseToDense)
@@ -6321,8 +6321,8 @@ contains
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-    reks%overSqr(:,:) = SSqrReal
-    call blockSymmetrizeHS(reks%overSqr, denseDesc%iAtomStart)
+    overSqr(:,:) = SSqrReal
+    call blockSymmetrizeHS(overSqr, denseDesc%iAtomStart)
 
     call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1))
     eigvecsReal(:,:,1) = HSqrReal
@@ -6333,7 +6333,7 @@ contains
   !> Save dense overlap matrix elements
   subroutine symmetrizeOverlap(env, denseDesc, over, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
-      & SSqrReal, reks)
+      & SSqrReal, overSqr)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6362,16 +6362,16 @@ contains
     !> dense overlap matrix
     real(dp), intent(out) :: SSqrReal(:,:)
 
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
+    !> Dense overlap matrix
+    real(dp), intent(out) :: overSqr(:,:)
 
     call env%globalTimer%startTimer(globalTimers%sparseToDense)
     call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, &
         & denseDesc%iAtomStart, iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%sparseToDense)
 
-    reks%overSqr(:,:) = SSqrReal
-    call blockSymmetrizeHS(reks%overSqr, denseDesc%iAtomStart)
+    overSqr(:,:) = SSqrReal
+    call blockSymmetrizeHS(overSqr, denseDesc%iAtomStart)
 
   end subroutine symmetrizeOverlap
 
