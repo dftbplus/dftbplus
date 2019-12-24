@@ -8,13 +8,13 @@ rekscpeqn.o = rekscpeqn.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_m
 _mod_dftbp_rekscpeqn: rekscpeqn.o
 _mod_dftbp_rekscpeqn = $(rekscpeqn.o)
 
-reksen.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densedescr _mod_dftbp_eigenvects _mod_dftbp_elecsolvers _mod_dftbp_energies _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_mainio _mod_dftbp_message _mod_dftbp_periodic _mod_dftbp_sparse2dense _mod_dftbp_rekscommon _mod_dftbp_reksvar
-reksen.o = reksen.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densedescr) $(_mod_dftbp_eigenvects) $(_mod_dftbp_elecsolvers) $(_mod_dftbp_energies) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_mainio) $(_mod_dftbp_message) $(_mod_dftbp_periodic) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon) $(_mod_dftbp_reksvar)
+reksen.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_densedescr _mod_dftbp_eigenvects _mod_dftbp_elecsolvers _mod_dftbp_energies _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_mainio _mod_dftbp_message _mod_dftbp_periodic _mod_dftbp_sparse2dense _mod_dftbp_rekscommon
+reksen.o = reksen.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_densedescr) $(_mod_dftbp_eigenvects) $(_mod_dftbp_elecsolvers) $(_mod_dftbp_energies) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_mainio) $(_mod_dftbp_message) $(_mod_dftbp_periodic) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon)
 _mod_dftbp_reksen: reksen.o
 _mod_dftbp_reksen = $(reksen.o)
 
-reksfon.o: _mod_dftbp_accuracy _mod_dftbp_globalenv _mod_dftbp_message _mod_dftbp_reksvar
-reksfon.o = reksfon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_globalenv) $(_mod_dftbp_message) $(_mod_dftbp_reksvar)
+reksfon.o: _mod_dftbp_accuracy _mod_dftbp_globalenv _mod_dftbp_message
+reksfon.o = reksfon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_globalenv) $(_mod_dftbp_message)
 _mod_dftbp_reksfon: reksfon.o
 _mod_dftbp_reksfon = $(reksfon.o)
 

@@ -519,7 +519,10 @@ contains
 
         call getFockandDiag(env, denseDesc, neighbourList, &
             & nNeighbourSK, iSparseStart, img2CentCell, eigvecsReal, &
-            & electronicSolver, eigen, reks)
+            & electronicSolver, eigen, reks%hamSqrL, reks%hamSpL, &
+            & reks%weight, reks%fillingL, reks%shift, reks%Nc, reks%Na, &
+            & reks%Lpaired, reks%tRangeSep, reks%fockFc, reks%fockFa, &
+            & reks%fock, reks%eigvecsFock)
 
         call getSysDensityFromRealEigvecs(env, denseDesc, neighbourList, &
             & nNeighbourSK, iSparseStart, img2CentCell, orb, eigvecsReal, &
@@ -542,12 +545,13 @@ contains
         call system_clock(t2)
 
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
-        call printReksSccInfo(iSccIter, energy%Etotal, diffElec, &
-            & sccErrorQ, t1/timeRate, t2/timeRate, reks%FONs, reks%tSSR22, reks%tSSR44)
+        call printReksSccInfo(iSccIter, energy%Etotal, diffElec, sccErrorQ, &
+            & t1/timeRate, t2/timeRate, reks%FONs, reks%tSSR22, reks%tSSR44)
 
         if (tConverged .or. tStopScc) then
 
-          call printReksSAInfo(energy%Etotal, reks)
+          call printReksSAInfo(energy%Etotal, reks%enLtot, reks%energy, &
+              & reks%FONs, reks%Efunction, reks%Plevel, reks%tSSR22, reks%tSSR44)
 
           call getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK,&
               & iSparseStart, img2CentCell, coord, iAtInCentralRegion, eigvecsReal,&
@@ -6632,7 +6636,7 @@ contains
     do iL = 1, reks%Lmax
 
       reks%intAtom(:,:) = 0.0_dp
-      ! reks%qOutputL, reks%chargePerShellL has (qm) component
+      ! reks%chargePerShellL has (qm) component
       call getChargePerShell(reks%qOutputL(:,:,:,iL), orb, species,&
           & reks%chargePerShellL(:,:,:,iL))
       ! reks%intShellL, reks%intBlockL has (qm) component
@@ -6648,14 +6652,12 @@ contains
             & species, orb, iSparseStart, img2CentCell, reks%hamSpL(:,:,iL), &
             & reks%intBlockL(:,:,:,:,iL), reks%Lpaired, iL)
       else
-        ! tmpHamSp has (my_qm) component
         tmpHamSp(:,:) = 0.0_dp
         call getReksSccHamiltonian(H0, over, nNeighbourSK, neighbourList, &
             & species, orb, iSparseStart, img2CentCell, tmpHamSp, &
             & reks%intBlockL(:,:,:,:,iL), reks%Lpaired, iL)
         ! Convert Hamiltonian from sparse to dense to calculate
         ! rangeseparated contribution for each microstate
-        ! tmpHam has (my_qm) component
         tmpHam(:,:) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
         call unpackHS(tmpHam, tmpHamSp(:,1), neighbourList%iNeighbour, &
@@ -6677,7 +6679,6 @@ contains
       tmpEn(:) = 0.0_dp
       do iL = 1, reks%Lmax
         ! Add rangeseparated contribution
-        ! reks%hamSqrL has (my_ud) component
         call rangeSep%addLRHamiltonian(env, reks%deltaRhoSqrL(:,:,1,iL), &
             & over, neighbourList%iNeighbour, nNeighbourLC, &
             & denseDesc%iAtomStart, iSparseStart, orb, &
@@ -6692,7 +6693,11 @@ contains
         & iSparseStart, cellVol, extPressure, energy, q0, &
         & iAtInCentralRegion, thirdOrd, reks, tmpEn, sparseSize)
 
-    call printReksMicrostates(energy%Erep, reks)
+    if (reks%Plevel >= 2) then
+      call printReksMicrostates(reks%enLnonSCC, reks%enLscc, reks%enLspin, &
+          & reks%enL3rd, reks%enLfock, energy%Erep, reks%enLtot, &
+          & reks%t3rd, reks%tRangeSep)
+    end if
 
   end subroutine getHamiltonianLandEnergyL
 
@@ -7070,14 +7075,25 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    call optimizeFONs(reks)
-    call calcWeights(reks)
+    call optimizeFONs(reks%enLtot, reks%delta, reks%FONmaxIter, reks%Plevel, &
+        & reks%tSSR22, reks%tSSR44, reks%FONs, reks%hess)
+    call calcWeights(reks%FONs, reks%delta, reks%SAweight, reks%tSSR22, &
+        & reks%tSSR44, reks%weightL, reks%weight)
 
-    call activeOrbSwap(eigvecs(:,:,1), reks)
-    call getFilling(filling(:,1,1), reks)
-    call calcSaReksEnergy(energy, reks)
+    call activeOrbSwap(eigvecs(:,:,1), reks%SAweight, reks%FONs, &
+        & reks%Efunction, reks%Nc, reks%tSSR22, reks%tSSR44)
+    call getFilling(filling(:,1,1), reks%SAweight, reks%FONs, &
+        & reks%Efunction, reks%Nc, reks%tSSR22, reks%tSSR44)
 
-    call printSaReksEnergy(reks)
+    call calcSaReksEnergy(reks%SAweight, reks%weightL, reks%enLnonSCC, &
+        & reks%enLscc, reks%enLspin, reks%enL3rd, reks%enLfock, &
+        & reks%enLtot, reks%rstate, reks%t3rd, reks%tRangeSep, &
+        & reks%energy, energy%EnonSCC, energy%Escc, energy%Espin, &
+        & energy%e3rd, energy%Efock, energy%Eelec, energy%Etotal)
+
+    if (reks%Plevel >= 2) then
+      call printSaReksEnergy(reks%energy)
+    end if
 
   end subroutine optimizeFONsAndWeights
 
@@ -7362,7 +7378,10 @@ contains
 
     if (reks%Efunction > 1) then
       call solveSecularEqn(env, denseDesc, neighbourList, nNeighbourSK, &
-          & iSparseStart, img2CentCell, electronicSolver, eigenvecs, reks)
+          & iSparseStart, img2CentCell, electronicSolver, eigenvecs, &
+          & reks%hamSqrL, reks%hamSpL, reks%weight, reks%FONs, reks%fillingL, &
+          & reks%Elevel, reks%useSSR, reks%Lpaired, reks%Nc, reks%Na, &
+          & reks%tRangeSep, reks%tSSR22, reks%tSSR44, reks%energy, reks%eigvecsSSR)
     else
       ! Get the dipole moment for single-state REKS case
       ! In this case dipole moment can be calculated w/o gradient result

@@ -299,7 +299,7 @@ module dftbp_reksvar
 
 
     !> non SCC energy for each microstate
-    real(dp), allocatable :: enLnonscc(:)
+    real(dp), allocatable :: enLnonSCC(:)
 
     !> SCC energy for each microstate
     real(dp), allocatable :: enLscc(:)

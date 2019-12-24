@@ -4521,73 +4521,114 @@ contains
 
 
   !> Print energy contribution for each microstate in SCC iteration
-  subroutine printReksMicrostates(Erep, reks)
+  subroutine printReksMicrostates(enLnonSCC, enLscc, enLspin, enL3rd, &
+      & enLfock, Erep, enLtot, t3rd, tRangeSep)
+
+    !> non SCC energy for each microstate
+    real(dp), intent(in) :: enLnonSCC(:)
+
+    !> SCC energy for each microstate
+    real(dp), intent(in) :: enLscc(:)
+
+    !> spin-polarized energy for each microstate
+    real(dp), intent(in) :: enLspin(:)
+
+    !> 3rd order SCC energy for each microstate
+    real(dp), intent(in) :: enL3rd(:)
+
+    !> Long-range corrected energy for each microstate
+    real(dp), intent(in) :: enLfock(:)
 
     !> repulsive energy
     real(dp), intent(in) :: Erep
 
-    !> data type for REKS
-    type(TReksCalc), intent(in) :: reks
+    !> total energy for each microstate
+    real(dp), intent(in) :: enLtot(:)
 
-    integer :: iL
+    !> Third order DFTB
+    logical, intent(in) :: t3rd
 
-    if (reks%Plevel >= 2) then
-      write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
-          & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
-      do iL = 1, reks%Lmax
-        write(stdOut,'(I3,7(f13.8))',advance="no") iL, reks%enLnonSCC(iL), &
-            & reks%enLSCC(iL), reks%enLspin(iL)
-        if (reks%t3rd) then
-          write(stdOut,'(1(f13.8))',advance="no") reks%enL3rd(iL)
-        else
-          write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
-        end if
-        if (reks%tRangeSep) then
-          write(stdOut,'(1(f13.8))',advance="no") reks%enLfock(iL)
-        else
-          write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
-        end if
-        write(stdOut,'(2(f13.8))') Erep, reks%enLtot(iL)
-      end do
-    end if
+    !> Whether to run a range separated calculation
+    logical, intent(in) :: tRangeSep
+
+    integer :: iL, Lmax
+
+    Lmax = size(enLtot,dim=1)
+
+    write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
+        & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
+    do iL = 1, Lmax
+      write(stdOut,'(I3,7(f13.8))',advance="no") iL, enLnonSCC(iL), &
+          & enLscc(iL), enLspin(iL)
+      if (t3rd) then
+        write(stdOut,'(1(f13.8))',advance="no") enL3rd(iL)
+      else
+        write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
+      end if
+      if (tRangeSep) then
+        write(stdOut,'(1(f13.8))',advance="no") enLfock(iL)
+      else
+        write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
+      end if
+      write(stdOut,'(2(f13.8))') Erep, enLtot(iL)
+    end do
 
   end subroutine printReksMicrostates
 
 
   !> Print SA-REKS energy in SCC iteration
-  subroutine printSaReksEnergy(reks)
+  subroutine printSaReksEnergy(energy)
 
-    !> data type for REKS
-    type(TReksCalc), intent(in) :: reks
+    !> energy of states
+    real(dp), intent(in) :: energy(:)
 
-    integer :: ist
+    integer :: ist, nstates
 
-    if (reks%Plevel >= 2) then
-      write(stdOut,'(1x,A)') "SA-REKS state energies"
-      do ist = 1, reks%nstates
-        if (mod(ist,5) == 0 .or. ist == reks%nstates) then
-          write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')") ist, reks%energy(ist)
-        else
-          write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')",advance="no") ist, reks%energy(ist)
-        end if
-      end do
-    end if
+    nstates = size(energy,dim=1)
+
+    write(stdOut,'(1x,A)') "SA-REKS state energies"
+    do ist = 1, nstates
+      if (mod(ist,5) == 0 .or. ist == nstates) then
+        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')") ist, energy(ist)
+      else
+        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')",advance="no") ist, energy(ist)
+      end if
+    end do
 
   end subroutine printSaReksEnergy
 
 
   !> print SA-REKS result in standard output
-  subroutine printReksSAInfo(Etotal, reks)
+  subroutine printReksSAInfo(Etotal, enLtot, energy, FONs, Efunction, &
+      & Plevel, tSSR22, tSSR44)
 
     !> state-averaged energy
     real(dp), intent(in) :: Etotal
 
-    !> data type for REKS
-    type(TReksCalc), intent(in) :: reks
+    !> total energy for each microstate
+    real(dp), intent(in) :: enLtot(:)
 
-    if (reks%tSSR22) then
-      call printReksSAInfo22(Etotal, reks)
-    else if (reks%tSSR44) then
+    !> energy of states
+    real(dp), intent(in) :: energy(:)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> Minimized energy functional
+    integer, intent(in) :: Efunction
+
+    !> Print level in standard output file
+    integer, intent(in) :: Plevel
+
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    if (tSSR22) then
+      call printReksSAInfo22(Etotal, enLtot, energy, FONs, Efunction, Plevel)
+    else if (tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
 
@@ -4595,61 +4636,76 @@ contains
 
 
   !> print SA-REKS(2,2) result in standard output
-  subroutine printReksSAInfo22(Etotal, reks)
+  subroutine printReksSAInfo22(Etotal, enLtot, energy, FONs, Efunction, Plevel)
 
     !> state-averaged energy
     real(dp), intent(in) :: Etotal
 
-    !> data type for REKS
-    type(TReksCalc), intent(in) :: reks
+    !> total energy for each microstate
+    real(dp), intent(in) :: enLtot(:)
+
+    !> energy of states
+    real(dp), intent(in) :: energy(:)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> Minimized energy functional
+    integer, intent(in) :: Efunction
+
+    !> Print level in standard output file
+    integer, intent(in) :: Plevel
 
     real(dp) :: n_a, n_b
-    integer :: iL, ist
+    integer :: iL, Lmax, ist, nstates
     character(len=8) :: strTmp
 
-    n_a = reks%FONs(1,1)
-    n_b = reks%FONs(2,1)
+    nstates = size(energy,dim=1)
+    Lmax = size(enLtot,dim=1)
+
+    n_a = FONs(1,1)
+    n_b = FONs(2,1)
 
     write(stdOut,*) " "
     write(stdOut, "(A)") repeat("-", 50)
-    if (reks%Efunction == 1) then
+    if (Efunction == 1) then
       write(stdOut,'(A25,2x,F15.8)') " Final REKS(2,2) energy:", Etotal
       write(stdOut,*) " "
       write(stdOut,'(A46)') " State     Energy      FON(1)    FON(2)   Spin"
       write(strTmp,'(A)') "PPS"
       write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
-          & trim(strTmp), reks%energy(1), n_a, n_b, 0.0_dp
-    else if (reks%Efunction == 2) then
+          & trim(strTmp), energy(1), n_a, n_b, 0.0_dp
+    else if (Efunction == 2) then
       write(stdOut,'(A27,2x,F15.8)') " Final SA-REKS(2,2) energy:", Etotal
       write(stdOut,*) " "
       write(stdOut,'(A46)') " State     Energy      FON(1)    FON(2)   Spin"
-      do ist = 1, reks%nstates
+      do ist = 1, nstates
         if (ist == 1) then
           write(strTmp,'(A)') "PPS"
           write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
-              & trim(strTmp), reks%energy(1), n_a, n_b, 0.0_dp
+              & trim(strTmp), energy(1), n_a, n_b, 0.0_dp
         else if (ist == 2) then
           write(strTmp,'(A)') "OSS"
           write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
-              & trim(strTmp), reks%energy(2), 1.0_dp, 1.0_dp, 0.0_dp
+              & trim(strTmp), energy(2), 1.0_dp, 1.0_dp, 0.0_dp
         else if (ist == 3) then
           write(strTmp,'(A)') "DES"
           write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
-              & trim(strTmp), reks%energy(3), n_b, n_a, 0.0_dp
+              & trim(strTmp), energy(3), n_b, n_a, 0.0_dp
         end if
       end do
       write(strTmp,'(A)') "Trip"
       write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
-          & trim(strTmp), reks%enLtot(5), 1.0_dp, 1.0_dp, 1.0_dp
+          & trim(strTmp), enLtot(5), 1.0_dp, 1.0_dp, 1.0_dp
     end if
     write(stdOut, "(A)") repeat("-", 50)
 
-    if (reks%Plevel >= 2) then
+    if (Plevel >= 2) then
       write(stdOut,*) " "
       write(stdOut, "(A)") repeat("-", 25)
       write(stdOut,'(1x,A20,2x,F15.8)') " Microstate Energies"
-      do iL = 1, reks%Lmax
-        write(stdOut,"(1x,'L =',1x,I2,':',1x,F13.8)") iL, reks%enLtot(iL)
+      do iL = 1, Lmax
+        write(stdOut,"(1x,'L =',1x,I2,':',1x,F13.8)") iL, enLtot(iL)
       end do
       write(stdOut, "(A)") repeat("-", 25)
     end if
@@ -4658,7 +4714,8 @@ contains
 
 
   !> print SI-SA-REKS result in standard output
-  subroutine printReksSSRInfo(Wab, tmpEn, StateCoup, reks)
+  subroutine printReksSSRInfo(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
+      & Elevel, useSSR, Na, tSSR22, tSSR44)
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -4669,12 +4726,31 @@ contains
     !> state-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
-    !> data type for REKS
-    type(TReksCalc), intent(in) :: reks
+    !> energy of states
+    real(dp), intent(in) :: energy(:)
 
-    if (reks%tSSR22) then
-      call printReksSSRInfo22(Wab, tmpEn, StateCoup, reks)
-    else if (reks%tSSR44) then
+    !> eigenvectors from SA-REKS state
+    real(dp), intent(in) :: eigvecsSSR(:,:)
+
+    !> Calculated energy states in SA-REKS
+    integer, intent(in) :: Elevel
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    !> Calculate DFTB/SSR(2,2) formalism
+    logical, intent(in) :: tSSR22
+
+    !> Calculate DFTB/SSR(4,4) formalism
+    logical, intent(in) :: tSSR44
+
+    if (tSSR22) then
+      call printReksSSRInfo22(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
+          & Elevel, useSSR, Na)
+    else if (tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
 
@@ -4682,7 +4758,8 @@ contains
 
 
   !> print SI-SA-REKS(2,2) result in standard output
-  subroutine printReksSSRInfo22(Wab, tmpEn, StateCoup, reks)
+  subroutine printReksSSRInfo22(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
+      & Elevel, useSSR, Na)
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -4693,19 +4770,32 @@ contains
     !> state-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
-    !> data type for REKS
-    type(TReksCalc), intent(in) :: reks
+    !> energy of states
+    real(dp), intent(in) :: energy(:)
 
-    integer :: ist, jst, ia, ib, nActPair
+    !> eigenvectors from SA-REKS state
+    real(dp), intent(in) :: eigvecsSSR(:,:)
+
+    !> Calculated energy states in SA-REKS
+    integer, intent(in) :: Elevel
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    integer :: ist, jst, nstates, ia, ib, nActPair
     character(len=8) :: strTmp
     character(len=1) :: stA, stB
 
     nActPair = size(Wab,dim=1)
+    nstates = size(energy,dim=1)
 
     write(stdOut,*)
     do ist = 1, nActPair
 
-      call getTwoIndices(reks%Na, ist, ia, ib, 1)
+      call getTwoIndices(Na, ist, ia, ib, 1)
 
       call getSpaceSym(ia, stA)
       call getSpaceSym(ib, stB)
@@ -4717,15 +4807,15 @@ contains
 
     write(stdOut,*)
     write(stdOut, "(A)") repeat("-", 50)
-    if (reks%Elevel == 1) then
+    if (Elevel == 1) then
       write(stdOut,'(A)') " SSR: 2SI-2SA-REKS(2,2) Hamiltonian matrix"
       write(stdOut,'(15x,A3,11x,A3)') "PPS", "OSS"
-    else if (reks%Elevel == 2) then
+    else if (Elevel == 2) then
       write(stdOut,'(A)') " SSR: 3SI-2SA-REKS(2,2) Hamiltonian matrix"
       write(stdOut,'(15x,A3,11x,A3,11x,A3)') "PPS", "OSS", "DES"
     end if
 
-    do ist = 1, reks%nstates
+    do ist = 1, nstates
       if (ist == 1) then
         write(strTmp,'(A)') "PPS"
       else if (ist == 2) then
@@ -4734,15 +4824,15 @@ contains
         write(strTmp,'(A)') "DES"
       end if
       write(stdOut,'(1x,a5,1x)',advance="no") trim(strTmp)
-      do jst = 1, reks%nstates
+      do jst = 1, nstates
         if (ist == jst) then
-          if (jst == reks%nstates) then
+          if (jst == nstates) then
             write(stdOut,'(1x,f13.8)') tmpEn(ist)
           else
             write(stdOut,'(1x,f13.8)',advance="no") tmpEn(ist)
           end if
         else
-          if (jst == reks%nstates) then
+          if (jst == nstates) then
             write(stdOut,'(1x,f13.8)') StateCoup(ist,jst)
           else
             write(stdOut,'(1x,f13.8)',advance="no") StateCoup(ist,jst)
@@ -4752,23 +4842,23 @@ contains
     end do
     write(stdOut, "(A)") repeat("-", 50)
 
-    if (reks%useSSR == 1) then
+    if (useSSR == 1) then
       write(stdOut,*)
       write(stdOut, "(A)") repeat("-", 64)
-      if (reks%Elevel == 1) then
+      if (Elevel == 1) then
         write(stdOut,'(A)') " SSR: 2SI-2SA-REKS(2,2) states"
         write(stdOut,'(19x,A4,7x,A7,4x,A7)') "E_n", "C_{PPS}", "C_{OSS}"
-      else if (reks%Elevel == 2) then
+      else if (Elevel == 2) then
         write(stdOut,'(A)') " SSR: 3SI-2SA-REKS(2,2) states"
         write(stdOut,'(19x,A4,7x,A7,4x,A7,4x,A7)') "E_n", "C_{PPS}", "C_{OSS}", "C_{DES}"
       end if
-      do ist = 1, reks%nstates
-        if (reks%Elevel == 1) then
+      do ist = 1, nstates
+        if (Elevel == 1) then
           write(stdOut,'(1x,A,I2,1x,f13.8,1x,f10.6,1x,f10.6)') &
-              & "SSR state ", ist, reks%energy(ist), reks%eigvecsSSR(:,ist)
-        else if (reks%Elevel == 2) then
+              & "SSR state ", ist, energy(ist), eigvecsSSR(:,ist)
+        else if (Elevel == 2) then
           write(stdOut,'(1x,A,I2,1x,f13.8,1x,f10.6,1x,f10.6,1x,f10.6)') &
-              & "SSR state ", ist, reks%energy(ist), reks%eigvecsSSR(:,ist)
+              & "SSR state ", ist, energy(ist), eigvecsSSR(:,ist)
         end if
       end do
       write(stdOut, "(A)") repeat("-", 64)
