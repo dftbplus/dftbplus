@@ -4924,19 +4924,15 @@ module dftbp_reksgrad
     real(dp), intent(inout) :: deriv2(:,:,:)
 
     real(dp), allocatable :: tmpS(:,:,:)            ! mOrb, mOrb, 3
-    real(dp), allocatable :: shiftPP1(:,:,:)        ! mOrb, nOrb, Lmax
-    real(dp), allocatable :: shiftIM1(:,:,:,:)      ! mOrb, nOrb, 3, Lmax
-    real(dp), allocatable :: shiftFM1(:,:,:,:)      ! mOrb, nOrb, 3, Lmax
-    real(dp), allocatable :: shiftFM2(:,:,:,:)      ! mOrb, nOrb, 3, Lmax
-    real(dp), allocatable :: shiftFM3(:,:,:,:)      ! mOrb, nOrb, 3, Lmax
-    real(dp), allocatable :: shiftFM4(:,:,:,:)      ! mOrb, nOrb, 3, Lmax
 
-    real(dp), allocatable :: shiftPP2(:,:,:)        ! nOrb, mOrb, Lmax
-    real(dp), allocatable :: shiftIM2(:,:,:,:)      ! nOrb, mOrb, 3, Lmax
-    real(dp), allocatable :: shiftFM5(:,:,:,:)      ! nOrb, mOrb, 3, Lmax
-    real(dp), allocatable :: shiftFM6(:,:,:,:)      ! nOrb, mOrb, 3, Lmax
-    real(dp), allocatable :: shiftFM7(:,:,:,:)      ! nOrb, mOrb, 3, Lmax
-    real(dp), allocatable :: shiftFM8(:,:,:,:)      ! nOrb, mOrb, 3, Lmax
+    real(dp), allocatable :: shiftPP1(:,:)          ! mOrb, nOrb
+    real(dp), allocatable :: shiftIM1(:,:)          ! mOrb, nOrb
+    real(dp), allocatable :: shiftFM1(:,:,:,:)      ! mOrb, nOrb, 3, Lmax
+
+    real(dp), allocatable :: shiftPP2(:,:)          ! nOrb, mOrb
+    real(dp), allocatable :: shiftIM2(:,:)          ! nOrb, mOrb
+    real(dp), allocatable :: shiftFM2(:,:,:,:)      ! nOrb, mOrb, 3, Lmax
+
     real(dp), allocatable :: TderivL(:,:,:,:)       ! nOrbHalf, 3, Lmax, Ncpu
 
     integer :: iAtom1, iAtom2, k, nAtomSparse, ist, nstates, nstHalf
@@ -4959,30 +4955,23 @@ module dftbp_reksgrad
 !$OMP END PARALLEL
 
     allocate(tmpS(mOrb,mOrb,3))
-    allocate(shiftPP1(mOrb,nOrb,Lmax))
-    allocate(shiftIM1(mOrb,nOrb,3,Lmax))
-    allocate(shiftFM1(mOrb,nOrb,3,Lmax))
-    allocate(shiftFM2(mOrb,nOrb,3,Lmax))
-    allocate(shiftFM3(mOrb,nOrb,3,Lmax))
-    allocate(shiftFM4(mOrb,nOrb,3,Lmax))
 
-    allocate(shiftPP2(nOrb,mOrb,Lmax))
-    allocate(shiftIM2(nOrb,mOrb,3,Lmax))
-    allocate(shiftFM5(nOrb,mOrb,3,Lmax))
-    allocate(shiftFM6(nOrb,mOrb,3,Lmax))
-    allocate(shiftFM7(nOrb,mOrb,3,Lmax))
-    allocate(shiftFM8(nOrb,mOrb,3,Lmax))
+    allocate(shiftPP1(mOrb,nOrb))
+    allocate(shiftIM1(mOrb,nOrb))
+    allocate(shiftFM1(mOrb,nOrb,3,Lmax))
+
+    allocate(shiftPP2(nOrb,mOrb))
+    allocate(shiftIM2(nOrb,mOrb))
+    allocate(shiftFM2(nOrb,mOrb,3,Lmax))
+
     allocate(TderivL(nOrbHalf,3,Lmax,Ncpu))
 
-    ! TODO : maybe in this routine, memory will be more reduced
-    !      : tmp_FM1 + ~ tmp_FM4 = 1 memory allocation?
+    ! compute R*T shift with only up-spin part of TderivL due to symmetry
 
-    ! compute R*T shift with only up-spin part of T_deriv_L due to symmetry
-
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(id,iAtom1,iAtom2,G1,G2, &
-!$OMP& G3,G4,tmpS,shiftPP1,shiftPP2,shiftIM1,shiftIM2,shiftFM1,shiftFM2, &
-!$OMP& shiftFM3,shiftFM4,shiftFM5,shiftFM6,shiftFM7,shiftFM8,iL,ii,mu,nu, &
-!$OMP& al,be,l,ist) REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(id,iAtom1,iAtom2, &
+!$OMP& G1,G2,G3,G4,tmpS,shiftPP1,shiftPP2,shiftIM1,shiftIM2, &
+!$OMP& shiftFM1,shiftFM2,iL,ii,mu,nu,al,be,l,ist) &
+!$OMP& REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
     loopKK: do k = 1, nAtomSparse
 
       id = OMP_GET_THREAD_NUM() + 1
@@ -5004,131 +4993,121 @@ module dftbp_reksgrad
           tmpS(1:G2-G1+1,1:G4-G3+1,ii) = Sderiv(G1:G2,G3:G4,ii)
         end do
 
-        ! a-1
-        shiftPP1(:,:,:) = 0.0_dp
-        do iL = 1, Lmax
-          shiftPP1(1:G4-G3+1,:,iL) = deltaRhoSqrL(G3:G4,:,1,iL)
-        end do
-        shiftIM1(:,:,:,:) = 0.0_dp
+        ! zeroing for temporary shift
         shiftFM1(:,:,:,:) = 0.0_dp
+        shiftFM2(:,:,:,:) = 0.0_dp
+
+        ! a-1
         do iL = 1, Lmax
+          shiftPP1(:,:) = 0.0_dp
+          shiftPP1(1:G4-G3+1,:) = deltaRhoSqrL(G3:G4,:,1,iL)
           do ii = 1, 3
-            call gemm(shiftIM1(:,:,ii,iL), tmpS(:,:,ii), shiftPP1(:,:,iL))
+            shiftIM1(:,:) = 0.0_dp
+            call gemm(shiftIM1, tmpS(:,:,ii), shiftPP1)
             do mu = G1, G2
               do be = 1, nOrb
-                shiftIM1(mu-G1+1,be,ii,iL) = shiftIM1(mu-G1+1,be,ii,iL) * LrGammaAO(mu,be)
+                shiftIM1(mu-G1+1,be) = shiftIM1(mu-G1+1,be) * LrGammaAO(mu,be)
               end do
             end do
-            call gemm(shiftFM1(:,:,ii,iL), shiftIM1(:,:,ii,iL), overSqr)
+            call gemm(shiftFM1(:,:,ii,iL), shiftIM1, overSqr)
           end do
         end do
         ! b-1
-        shiftPP1(:,:,:) = 0.0_dp
         do iL = 1, Lmax
-          shiftPP1(1:G4-G3+1,:,iL) = transpose(SP(:,G3:G4,iL))
-        end do
-        shiftIM1(:,:,:,:) = 0.0_dp
-        shiftFM2(:,:,:,:) = 0.0_dp
-        do iL = 1, Lmax
+          shiftPP1(:,:) = 0.0_dp
+          shiftPP1(1:G4-G3+1,:) = transpose(SP(:,G3:G4,iL))
           do ii = 1, 3
-            call gemm(shiftIM1(:,:,ii,iL), tmpS(:,:,ii), shiftPP1(:,:,iL))
+            shiftIM1(:,:) = 0.0_dp
+            call gemm(shiftIM1, tmpS(:,:,ii), shiftPP1)
             do mu = G1, G2
               do nu = 1, nOrb
-                shiftFM2(mu-G1+1,nu,ii,iL) = shiftIM1(mu-G1+1,nu,ii,iL) * LrGammaAO(mu,nu)
+                shiftFM1(mu-G1+1,nu,ii,iL) = shiftFM1(mu-G1+1,nu,ii,iL) &
+                    & + shiftIM1(mu-G1+1,nu) * LrGammaAO(mu,nu)
               end do
             end do
           end do
         end do
         ! c-1
-        shiftPP1(:,:,:) = 0.0_dp
-        shiftIM1(:,:,1,:) = 0.0_dp
-        shiftFM3(:,:,:,:) = 0.0_dp
         do iL = 1, Lmax
+          shiftPP1(:,:) = 0.0_dp
           do al = G3, G4
             do be = 1, nOrb
-              shiftPP1(al-G3+1,be,iL) = deltaRhoSqrL(al,be,1,iL) * LrGammaAO(al,be)
+              shiftPP1(al-G3+1,be) = deltaRhoSqrL(al,be,1,iL) * LrGammaAO(al,be)
             end do
           end do
-          call gemm(shiftIM1(:,:,1,iL), shiftPP1(:,:,iL), overSqr)
+          shiftIM1(:,:) = 0.0_dp
+          call gemm(shiftIM1, shiftPP1, overSqr)
           do ii = 1, 3
-            call gemm(shiftFM3(:,:,ii,iL), tmpS(:,:,ii), shiftIM1(:,:,1,iL))
+            call gemm(shiftFM1(:,:,ii,iL), tmpS(:,:,ii), shiftIM1, alpha=1.0_dp, beta=1.0_dp)
           end do
         end do
         ! d-1
-        shiftIM1(:,:,1,:) = 0.0_dp
-        shiftFM4(:,:,:,:) = 0.0_dp
         do iL = 1, Lmax
+          shiftIM1(:,:) = 0.0_dp
           do al = G3, G4
             do nu = 1, nOrb
-              shiftIM1(al-G3+1,nu,1,iL) = SP(nu,al,iL) * LrGammaAO(al,nu)
+              shiftIM1(al-G3+1,nu) = SP(nu,al,iL) * LrGammaAO(al,nu)
             end do
           end do
           do ii = 1, 3
-            call gemm(shiftFM4(:,:,ii,iL), tmpS(:,:,ii), shiftIM1(:,:,1,iL))
+            call gemm(shiftFM1(:,:,ii,iL), tmpS(:,:,ii), shiftIM1, alpha=1.0_dp, beta=1.0_dp)
           end do
         end do
 
         ! a-2
-        shiftIM2(:,:,1,:) = 0.0_dp
-        shiftFM5(:,:,:,:) = 0.0_dp
         do iL = 1, Lmax
+          shiftIM2(:,:) = 0.0_dp
           do mu = 1, nOrb
             do be = G1, G2
-              shiftIM2(mu,be-G1+1,1,iL) = SP(mu,be,iL) * LrGammaAO(mu,be)
+              shiftIM2(mu,be-G1+1) = SP(mu,be,iL) * LrGammaAO(mu,be)
             end do
           end do
           do ii = 1, 3
-            call gemm(shiftFM5(:,:,ii,iL), shiftIM2(:,:,1,iL), tmpS(:,:,ii))
+            call gemm(shiftFM2(:,:,ii,iL), shiftIM2, tmpS(:,:,ii))
           end do
         end do
         ! b-2
-        shiftPP2(:,:,:) = 0.0_dp
         do iL = 1, Lmax
-          shiftPP2(:,1:G2-G1+1,iL) = SP(:,G1:G2,iL)
-        end do
-        shiftIM2(:,:,:,:) = 0.0_dp
-        shiftFM6(:,:,:,:) = 0.0_dp
-        do iL = 1, Lmax
+          shiftPP2(:,:) = 0.0_dp
+          shiftPP2(:,1:G2-G1+1) = SP(:,G1:G2,iL)
           do ii = 1, 3
-            call gemm(shiftIM2(:,:,ii,iL), shiftPP2(:,:,iL), tmpS(:,:,ii))
+            shiftIM2(:,:) = 0.0_dp
+            call gemm(shiftIM2, shiftPP2, tmpS(:,:,ii))
             do mu = 1, nOrb
               do nu = G3, G4
-                shiftFM6(mu,nu-G3+1,ii,iL) = shiftIM2(mu,nu-G3+1,ii,iL) * LrGammaAO(mu,nu)
+                shiftFM2(mu,nu-G3+1,ii,iL) = shiftFM2(mu,nu-G3+1,ii,iL) &
+                    & + shiftIM2(mu,nu-G3+1) * LrGammaAO(mu,nu)
               end do
             end do
           end do
         end do
         ! c-2
-        shiftPP2(:,:,:) = 0.0_dp
-        shiftIM2(:,:,1,:) = 0.0_dp
-        shiftFM7(:,:,:,:) = 0.0_dp
         do iL = 1, Lmax
+          shiftPP2(:,:) = 0.0_dp
           do al = 1, nOrb
             do be = G1, G2
-              shiftPP2(al,be-G1+1,iL) = deltaRhoSqrL(al,be,1,iL) * LrGammaAO(al,be)
+              shiftPP2(al,be-G1+1) = deltaRhoSqrL(al,be,1,iL) * LrGammaAO(al,be)
             end do
           end do
-          call gemm(shiftIM2(:,:,1,iL), overSqr, shiftPP2(:,:,iL))
+          shiftIM2(:,:) = 0.0_dp
+          call gemm(shiftIM2, overSqr, shiftPP2)
           do ii = 1, 3
-            call gemm(shiftFM7(:,:,ii,iL), shiftIM2(:,:,1,iL), tmpS(:,:,ii))
+            call gemm(shiftFM2(:,:,ii,iL), shiftIM2, tmpS(:,:,ii), alpha=1.0_dp, beta=1.0_dp)
           end do
         end do
         ! d-2
-        shiftPP2(:,:,:) = 0.0_dp
         do iL = 1, Lmax
-          shiftPP2(:,1:G2-G1+1,iL) = deltaRhoSqrL(:,G1:G2,1,iL)
-        end do
-        shiftIM2(:,:,:,:) = 0.0_dp
-        shiftFM8(:,:,:,:) = 0.0_dp
-        do iL = 1, Lmax
+          shiftPP2(:,:) = 0.0_dp
+          shiftPP2(:,1:G2-G1+1) = deltaRhoSqrL(:,G1:G2,1,iL)
           do ii = 1, 3
-            call gemm(shiftIM2(:,:,ii,iL), shiftPP2(:,:,iL), tmpS(:,:,ii))
+            shiftIM2(:,:) = 0.0_dp
+            call gemm(shiftIM2, shiftPP2, tmpS(:,:,ii))
             do al = 1, nOrb
               do nu = G3, G4
-                shiftIM2(al,nu-G3+1,ii,iL) = shiftIM2(al,nu-G3+1,ii,iL) * LrGammaAO(al,nu)
+                shiftIM2(al,nu-G3+1) = shiftIM2(al,nu-G3+1) * LrGammaAO(al,nu)
               end do
             end do
-            call gemm(shiftFM8(:,:,ii,iL), overSqr, shiftIM2(:,:,ii,iL))
+            call gemm(shiftFM2(:,:,ii,iL), overSqr, shiftIM2, alpha=1.0_dp, beta=1.0_dp)
           end do
         end do
 
@@ -5140,28 +5119,16 @@ module dftbp_reksgrad
           call getTwoIndices(nOrb, l, mu, nu, 2)
 
           if (mu >= G1 .and. mu <= G2) then
-            do iL = 1, Lmax
-              TderivL(l,:,iL,id) = TderivL(l,:,iL,id) + shiftFM1(mu-G1+1,nu,:,iL) &
-                & + shiftFM2(mu-G1+1,nu,:,iL) + shiftFM3(mu-G1+1,nu,:,iL) + shiftFM4(mu-G1+1,nu,:,iL)
-            end do
+            TderivL(l,:,:,id) = TderivL(l,:,:,id) + shiftFM1(mu-G1+1,nu,:,:)
           end if
           if (nu >= G1 .and. nu <= G2) then
-            do iL = 1, Lmax
-              TderivL(l,:,iL,id) = TderivL(l,:,iL,id) + shiftFM1(nu-G1+1,mu,:,iL) &
-                & + shiftFM2(nu-G1+1,mu,:,iL) + shiftFM3(nu-G1+1,mu,:,iL) + shiftFM4(nu-G1+1,mu,:,iL)
-            end do
+            TderivL(l,:,:,id) = TderivL(l,:,:,id) + shiftFM1(nu-G1+1,mu,:,:)
           end if
           if (mu >= G3 .and. mu <= G4) then
-            do iL = 1, Lmax
-              TderivL(l,:,iL,id) = TderivL(l,:,iL,id) + shiftFM5(nu,mu-G3+1,:,iL) &
-                & + shiftFM6(nu,mu-G3+1,:,iL) + shiftFM7(nu,mu-G3+1,:,iL) + shiftFM8(nu,mu-G3+1,:,iL)
-            end do
+            TderivL(l,:,:,id) = TderivL(l,:,:,id) + shiftFM2(nu,mu-G3+1,:,:)
           end if
           if (nu >= G3 .and. nu <= G4) then
-            do iL = 1, Lmax
-              TderivL(l,:,iL,id) = TderivL(l,:,iL,id) + shiftFM5(mu,nu-G3+1,:,iL) &
-                & + shiftFM6(mu,nu-G3+1,:,iL) + shiftFM7(mu,nu-G3+1,:,iL) + shiftFM8(mu,nu-G3+1,:,iL)
-            end do
+            TderivL(l,:,:,id) = TderivL(l,:,:,id) + shiftFM2(mu,nu-G3+1,:,:)
           end if
 
         end do loopLL
