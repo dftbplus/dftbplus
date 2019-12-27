@@ -2753,7 +2753,7 @@ contains
       end if
       if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
           & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-          & electronicSolverTypes%elpa])) then
+          & electronicSolverTypes%elpa, electronicSolverTypes%elpadm])) then
         write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
         write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
             & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
