@@ -214,7 +214,7 @@ contains
   !> Throw away the integer part of the relative coordinates of every atom. If the resulting
   !> coordinate is very near to 1.0 (closer than 1e-12 in absolute length), fold it to 0.0 to make
   !> the algorithm more predictable and independent of numerical noise.
-  subroutine foldCoordToUnitCell(coord, latVec, recVec2p, invShift)
+  subroutine foldCoordToUnitCell(coord, latVec, recVec2p)
 
     !> Contains the original coordinates on call and the folded ones on return.
     real(dp), intent(inout) :: coord(:,:)
@@ -224,9 +224,6 @@ contains
 
     !> Reciprocal vectors in units of 2pi (column format).
     real(dp), intent(in) :: recVec2p(:,:)
-
-    !> Contains difference vectors old_coords - new_coords.
-    real(dp), intent(out), optional :: invShift(:,:)
 
 
     !> Nr. of atoms in the cell.
@@ -240,11 +237,6 @@ contains
     @:ASSERT(size(coord, dim=1) == 3)
     @:ASSERT(all(shape(latVec) == (/3, 3/)))
     @:ASSERT(all(shape(recVec2p) == (/3, 3/)))
-  #:call ASSERT_CODE
-    if (present(invShift)) then
-      @:ASSERT(all(shape(invShift) == shape(coord)))
-    end if
-  #:endcall ASSERT_CODE
 
     vecLen(:) = sqrt(sum(latVec(:,:)**2, dim=1))
     do ii = 1, nAtom
@@ -255,9 +247,6 @@ contains
       frac2(:) = frac(:) - real(floor(frac(:)), dp)
       where (abs(vecLen*(1.0_dp - frac2)) < 1e-12_dp) frac2 = 0.0_dp
       coord(:, ii) = matmul(latVec, frac2)
-      if (present(invShift)) then
-        invShift(:,ii) = tmp3(:) - coord(:,ii)
-      end if
     end do
 
   end subroutine foldCoordToUnitCell
