@@ -11,7 +11,9 @@
 module dftbp_boundaryconditions
   use dftbp_angmomentum, only : rotateZ
   use dftbp_quaternions, only : rotate3
+  use dftbp_constants, only : pi
   use dftbp_accuracy, only : dp
+  use dftbp_commontypes, only : TOrbitals
   implicit none
 
   private
@@ -67,9 +69,6 @@ module dftbp_boundaryconditions
     !> Objective helical translation
     real(dp) :: T2
 
-    !> Objective operation rotational order
-    integer :: Nrot
-
   contains
 
     procedure :: foldOrbsToCell => foldOrbsToCell
@@ -79,48 +78,124 @@ module dftbp_boundaryconditions
 
   end type TBoundaryConditions
 
+  !> z direction vector for rotation
+  real(dp), parameter :: zAxis(3) = (/0.0_dp,0.0_dp,1.0_dp/)
+
 contains
 
-  !> Initialise the type of boundary condition on the geometry
-  subroutine BoundaryConditions_init()
 
+  !> Initialise the type of boundary condition on the geometry
+  subroutine BoundaryConditions_init(this)
+
+    type(TBoundaryConditions), intent(inout) :: this
 
   end subroutine BoundaryConditions_init
 
 
-  pure function foldCoordToCell(xIn) result xOut
+  !> Folds extended coordinates back into central unit cell
+  pure subroutine foldCoordToCell(this, x)
 
-    real(dp), intent(in) :: xIn(3)
+    class(TBoundaryConditions), intent(in) :: this
 
-    real(dp) :: xOut(3)
+    real(dp), intent(inout) :: x(3)
 
-  end function foldCoordToCell\
+    select case(this%boundaryType)
+    case(boundaryTypes%cluster)
+      return
+    case(boundaryTypes%periodic3D, boundaryTypes%periodic1D)
 
+    case(boundaryTypes%helical)
 
-  pure function foldCoordFromCell(xIn, rCellVec) result xOut
+    case(boundaryTypes%helical2Op)
 
-    real(dp), intent(in) :: xIn(3)
+    case(boundaryTypes%rotational)
 
-    real(dp) :: xOut(3)
+    end select
 
-  end function foldCoordFromCell
-
-
-  pure function foldOrbsToCell(orbsIn) result orbsOut
-
-    real(dp), intent(in) :: orbsIn(:,:)
-
-    real(dp) :: orbsOut(size(orbsIn,dim=1),size(orbsIn,dim=2))
-
-  end function foldOrbsToCell
+  end subroutine foldCoordToCell
 
 
-  pure function foldOrbsFromCell(orbsIn) result orbsOut
+  !> Unfolds coordinates from central unit cell to extended structure
+  pure subroutine foldCoordFromCell(this, x, cellVec)
 
-    real(dp), intent(in) :: orbsIn(:,:)
+    !> Instance
+    class(TBoundaryConditions), intent(in) :: this
 
-    real(dp) :: orbsOut(size(orbsIn,dim=1),size(orbsIn,dim=2))
+    !> Coordinate in central cell
+    real(dp), intent(inout) :: x(3)
 
-  end function foldOrbsFromCell
+    !> "vector" to unfolded cell in units of the boundary conditions
+    real(dp), intent(in) :: cellVec(:)
+
+    real(dp) :: theta
+
+    select case(this%boundaryType)
+    case(boundaryTypes%cluster)
+      return
+    case(boundaryTypes%periodic1D,boundaryTypes%periodic3D)
+      x(:) = x + matmul(this%latvec, cellVec)
+      return
+    case(boundaryTypes%helical)
+      x(3) = x(3) + this%T * cellVec(1)
+      theta = this%theta * cellVec(1)
+      call rotate3(x,theta, zAxis)
+    case(boundaryTypes%helical2Op)
+      x(3) = x(3) + this%T * cellVec(1) + this%T2 * cellVec(2)
+      theta = this%theta * cellVec(1) + this%theta2 * cellVec(2)
+      call rotate3(x,theta, zAxis)
+    case(boundaryTypes%rotational)
+      theta = this%theta * cellVec(1)
+      call rotate3(x,theta, zAxis)
+    end select
+
+  end subroutine foldCoordFromCell
+
+
+#:for NAME, TO, FROM in [('foldOrbsFromCell','iAtom2','iAtom2f'),&
+  & ('foldOrbsToCell','iAtom2f','iAtom2')]
+  !> maps orbitals between central cell and extended sparse structure
+  subroutine ${NAME}$(this, orbBlock, coords, orb, img2CentCell, species, iAtom2)
+
+    !> Instance
+    class(TBoundaryConditions), intent(in) :: this
+
+    !> Block of orbitals to fold out
+    real(dp), intent(inout) :: orbBlock(:,:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Map from images of atoms to central cell atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Species of each atom
+    integer, intent(in) :: species(:)
+
+    !> Atom being folded back
+    integer, intent(in) :: iAtom2
+
+    integer :: iAtom2f, nOrb2, lShellVals(orb%mShell), iSp, iSh
+    real(dp) :: theta, rotZ(size(orbBlock,dim=1),size(orbBlock,dim=1))
+
+    select case(this%boundaryType)
+    case(boundaryTypes%cluster, boundaryTypes%periodic3D, boundaryTypes%periodic1D)
+      return
+    case(boundaryTypes%helical,boundaryTypes%helical2Op,boundaryTypes%rotational)
+      iAtom2f = img2CentCell(iAtom2)
+      iSp = species(iAtom2f)
+      iSh = orb%nShell(iSp)
+      lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+      theta = atan2(coords(2,${TO}$),coords(1,${TO}$))&
+          & - atan2(coords(2,${FROM}$),coords(1,${FROM}$))
+      theta = mod(theta,2.0_dp*pi)
+      call rotateZ(rotZ,lShellVals(:iSh), theta)
+      orbBlock(:,:) = matmul(rotZ,orbBlock)
+    end select
+
+  end subroutine ${NAME}$
+#:endfor
 
 end module dftbp_boundaryconditions

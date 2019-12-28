@@ -167,7 +167,7 @@ contains
         cellVec(1,(ii-1)*(2*maxCells+1)+1:(ii)*(2*maxCells+1)) = cellVec(1,:2*maxCells+1)
         cellVec(2,(ii-1)*(2*maxCells+1)+1:(ii)*(2*maxCells+1)) = ii - 1
       end do
-      rCellVec(1,:) =  latVec(1,1) * cellVec(1,:)
+      rCellVec(1,:) = latVec(1,1) * cellVec(1,:)
       rCellVec(2,:) = cellVec(2,:)
     else
       call error("Miss-shaped cell vectors in getCellTranslations.")

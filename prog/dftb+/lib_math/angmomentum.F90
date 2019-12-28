@@ -351,7 +351,7 @@ contains
 
   !> Constructs a matrix to rotate tesseral spherical harmonic orbitals of angular momentum l around
   !> the z axis by phi radians
-  subroutine zrot_onel(zmat,l, phi)
+  pure subroutine zrot_onel(zmat,l, phi)
 
     !> resulting real unitary transformation matrix
     real(dp), intent(out) :: zmat(:,:)
@@ -363,9 +363,6 @@ contains
     real(dp), intent(in)  :: phi
 
     integer  :: m ! magnetic quantum number
-
-  @:ASSERT(l >= 0)
-  @:ASSERT(all(shape(zmat)>=(/2*l+1,2*l+1/)))
 
     zmat(:,:) = 0.0_dp
     zmat(l+1,l+1) = 1.0_dp ! l_z = 0
@@ -382,7 +379,7 @@ contains
 
   !> Constructs a matrix to rotate tesseral spherical harmonic orbitals of angular momentum l around
   !> the z axis by phi radians
-  subroutine zrot_manyl(zmat,l, phi)
+  pure subroutine zrot_manyl(zmat,l, phi)
 
     !> resulting real unitary transformation matrix
     real(dp), intent(out) :: zmat(:,:)
@@ -394,8 +391,6 @@ contains
     real(dp), intent(in)  :: phi
 
     integer :: il, iStart, iEnd
-
-  @:ASSERT(all(shape(zmat) >= (/sum(2*l+1),sum(2*l+1)/)))
 
     zmat(:,:) = 0.0_dp
 
