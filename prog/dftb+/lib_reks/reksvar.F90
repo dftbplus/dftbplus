@@ -1138,7 +1138,7 @@ module dftbp_reksvar
 
       ! REKS stress requirements
 
-      if (self%Efunction /= 1 .and. tStress) then
+      if (self%Efunction /= 1 .and. self%tStress) then
         ! tStress = tForces * tPeriodic * (not tExtChrg)
         call error("Only single-state REKS can evaluate stress")
       end if
