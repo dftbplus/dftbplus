@@ -467,6 +467,9 @@ module dftbp_reksproperty
     allocate(tmpRho(nOrb,nOrb))
     allocate(tmpMat(nOrb,nOrb))
 
+    ! rhoSqrL has (my_ud) component
+    call qm2udL(rhoSqrL, Lpaired)
+
     ! resRhoL is response part for L-th state
     resRhoL(:,:) = 0.0_dp
 
