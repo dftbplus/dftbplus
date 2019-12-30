@@ -5341,10 +5341,6 @@ contains
     if (nstates > 1 .and. Lstate == 0) then
       energy%Eexcited = reksEn(rstate) - reksEn(1)
     end if
-    energy%EMermin = energy%Etotal
-    energy%Ezero = energy%Etotal
-    energy%EGibbs = energy%EMermin + cellVol * pressure
-    energy%EForceRelated = energy%EGibbs
     ! get microstate energy values for target microstate
     if (Lstate > 0) then
       energy%Etotal = enLtot(Lstate)
@@ -5361,6 +5357,10 @@ contains
         energy%Eelec = energy%Eelec + energy%e3rd
       end if
     end if
+    energy%EMermin = energy%Etotal
+    energy%Ezero = energy%Etotal
+    energy%EGibbs = energy%EMermin + cellVol * pressure
+    energy%EForceRelated = energy%EGibbs
 
     write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
     if (tSCC) then
