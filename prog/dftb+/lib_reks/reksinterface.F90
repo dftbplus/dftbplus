@@ -1085,6 +1085,7 @@ module dftbp_reksinterface
             & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
             & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, ZmatL)
         call getQ2mat(eigenvecs, self%fillingL, self%weight, ZmatL, Q2mat)
+        write(stdOut,"(A)") repeat("-", 82)
       end if
 
     end if
