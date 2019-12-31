@@ -838,10 +838,12 @@ contains
         call getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
             & neighbourList, nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, &
             & orb, nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, coord0, &
-            & species, q0, eigvecsReal, chrgForces, over, spinW, derivs, reks)
+            & species, q0, eigvecsReal, chrgForces, over, spinW, derivs, tWriteAutotest, &
+            & autotestTag, taggedWriter, reks)
         call getReksGradProperties(env, denseDesc, neighbourList, nNeighbourSK, &
             & iSparseStart, img2CentCell, eigvecsReal, orb, iAtInCentralRegion, &
-            & coord, coord0, over, rhoPrim, qOutput, q0, tDipole, dipoleMoment, chrgForces, reks)
+            & coord, coord0, over, rhoPrim, qOutput, q0, tDipole, dipoleMoment, &
+            & chrgForces, reks)
       else
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling, eigen,&

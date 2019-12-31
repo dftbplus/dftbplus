@@ -32,6 +32,7 @@ module dftbp_reksinterface
   use dftbp_slakocont
   use dftbp_sparse2dense
   use dftbp_stress
+  use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_rekscommon
   use dftbp_rekscpeqn
   use dftbp_reksgrad
@@ -51,7 +52,8 @@ module dftbp_reksinterface
   subroutine getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
       & neighbourList, nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, &
       & orb, nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, coord0, &
-      & species, q0, eigenvecs, chrgForces, over, spinW, derivs, self)
+      & species, q0, eigenvecs, chrgForces, over, spinW, derivs, tWriteTagged, &
+      & autotestTag, taggedWriter, self)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -124,6 +126,15 @@ module dftbp_reksinterface
 
     !> derivatives of energy wrt to atomic positions
     real(dp), intent(out) :: derivs(:,:)
+
+    !> print tag information
+    logical, intent(in) :: tWriteTagged
+
+    !> File name for regression data
+    character(*), intent(in) :: autotestTag
+
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
@@ -276,7 +287,7 @@ module dftbp_reksinterface
       call getRTGradient_(env, sccCalc, denseDesc, neighbourList, &
           & nNeighbourSK, iSparseStart, img2CentCell, orb, q0, coord0, self)
       if (self%tNAC) then
-        call getReksNACinfo_(self)
+        call getReksNACinfo_(tWriteTagged, autotestTag, taggedWriter, self)
       end if
 
     end if
@@ -1167,10 +1178,21 @@ module dftbp_reksinterface
 
 
   !> Get the information related to non-adiabatic coupling
-  subroutine getReksNACinfo_(self)
+  subroutine getReksNACinfo_(tWriteTagged, autotestTag, taggedWriter, self)
+
+    !> print tag information
+    logical, intent(in) :: tWriteTagged
+
+    !> File name for regression data
+    character(*), intent(in) :: autotestTag
+
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
+
+    integer :: fdTagged
 
     call weightGradient(self%gradL, self%weight, self%avgGrad)
     call getOtherSAgrad(self%avgGrad, self%tSSR22, self%tSSR44, self%SAgrad)
@@ -1178,6 +1200,13 @@ module dftbp_reksinterface
 
     call getReksNAC(self%SAgrad, self%SIgrad, self%SSRgrad, self%eigvecsSSR, &
         & self%energy, self%nacG, self%nacH)
+
+    if (tWriteTagged) then
+      open(newUnit=fdTagged, file=autotestTag, position="append")
+      ! nonadiabatic coupling vector has a phase, just check the value not sign
+      call taggedWriter%write(fdTagged, tagLabels%nacH, abs(self%nacH))
+      close(fdTagged)
+    end if
 
   end subroutine getReksNACinfo_
 
