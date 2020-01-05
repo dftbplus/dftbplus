@@ -1084,8 +1084,16 @@ module dftbp_reksvar
 
       ! REKS energy requirements
 
-      if (self%tTDP .and. self%Lstate > 0) then
-        call error("Transition dipole is not compatible with L-th microstate")
+      if (self%tTDP) then
+        if (self%Lstate > 0) then
+          call error("Transition dipole is not compatible with L-th microstate")
+        else if (self%Efunction == 1) then
+          call error("Transition dipole is not compatible with single-state REKS")
+        end if
+      end if
+
+      if (self%useSSR == 1 .and. self%Efunction == 1) then
+        call error("Single-state REKS is not SSR state")
       end if
 
       if (self%useSSR > 1 .or. self%useSSR < 0) then
