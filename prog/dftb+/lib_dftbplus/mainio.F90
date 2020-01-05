@@ -5262,7 +5262,9 @@ contains
     if (tPrintMulliken) then
       if (nstates > 1) then
         write(fd, "(A60)") " SA-REKS optimizes the avergaed state, not individual states"
-        write(fd, "(A58)") " These charges do not mean the charges for S0 or S1 states"
+        write(fd, "(A60)") " These charges do not mean the charges for individual states"
+        write(fd, "(A56)") " Similarly to this, the values in band.out file indicate"
+        write(fd, "(A57)") " the band energies and occupations for the averaged state"
         write(fd, "(A44)") " If you want to compute the relaxed density,"
         write(fd, "(A42)") " please, set 'RelaxedDensity = Yes' option"
         write(fd, *)
