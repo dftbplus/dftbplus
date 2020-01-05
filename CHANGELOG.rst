@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- REKS calculations for a strongly correlated system
+
 - New algorithm for long-range corrected Hamiltonian
 
 
