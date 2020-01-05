@@ -1,0 +1,42 @@
+Geometry = GenFormat {
+    2  S
+    Si
+    1    1    0.0000000E+00   0.0000000E+00   0.0000000E+00
+    2    1    0.1356773E+01   0.1356773E+01   0.1356773E+01
+    0.0000000E+00   0.0000000E+00   0.0000000E+00
+    0.2713546E+01   0.2713546E+01   0.0000000E+00
+    0.0000000E+00   0.2713546E+01   0.2713546E+01
+    0.2713546E+01   0.0000000E+00   0.2713546E+01
+}
+
+Hamiltonian = DFTB {
+    SCC = No
+    MaxAngularMomentum = {
+        Si = "p"
+    }
+    SlaterKosterFiles = {
+        Si-Si = "./Si-Si.skf"
+    }
+    KPointsAndWeights = {
+         0.24995 0.25 0.25 1.0
+    }
+}
+
+Analysis = {
+  WriteBandOut = Yes
+  KDerivs = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+  WriteResultsTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}
+
+Parallel = {
+  UseOmpThreads = Yes
+  Groups = 1
+}
