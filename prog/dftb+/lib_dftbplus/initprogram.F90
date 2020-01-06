@@ -3506,6 +3506,7 @@ contains
     @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, poissonDerivs, shiftPerLUp, chargeUp)
     @:SAFE_DEALLOC(regionLabelLDOS)
     @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
+    @:SAFE_DEALLOC(reks)
 
   end subroutine destructProgramVariables
 
