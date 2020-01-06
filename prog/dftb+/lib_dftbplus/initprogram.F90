@@ -980,7 +980,7 @@ module dftbp_initprogram
   logical :: tREKS
 
   !> data type for REKS
-  type(TReksCalc) :: reks
+  type(TReksCalc), allocatable :: reks
 
 contains
 
@@ -2604,6 +2604,7 @@ contains
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
 
+        allocate(reks)
         call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1), &
             & nExtChrg, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, &
             & t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress)
