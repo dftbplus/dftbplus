@@ -421,8 +421,6 @@ module dftbp_reksinterface
         ! tDipole = (total charge = 0.0) * (non-periodic system) * (mulliken)
         if (tDipole) then
           call getDipoleMoment_(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
-        else
-          dipoleMoment(:) = 0.0_dp
         end if
       end if
 

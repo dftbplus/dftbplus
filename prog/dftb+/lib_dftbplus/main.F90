@@ -7393,8 +7393,6 @@ contains
       if (tDipole) then
         call getDipoleMoment(qOutput, q0, coord, &
             & dipoleMoment, iAtInCentralRegion)
-      else
-        dipoleMoment(:) = 0.0_dp
       end if
     end if
 
