@@ -410,7 +410,7 @@ contains
           & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, reks, img2CentCell, iCellVec,&
           & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSk,&
           & nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
-          & iSparseStart, tPoisson, tREKS)
+          & iSparseStart, tPoisson)
     end if
 
     #:if WITH_TRANSPORT
@@ -1195,7 +1195,7 @@ contains
       & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, reks, img2CentCell, iCellVec,&
       & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK,&
       & nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
-      & iSparseStart, tPoisson, tREKS)
+      & iSparseStart, tPoisson)
 
     use dftbp_initprogram, only : OCutoffs
 
@@ -1236,7 +1236,7 @@ contains
     type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
+    type(TReksCalc), allocatable, intent(inout) :: reks
 
     !> Image atoms to their equivalent in the central cell
     integer, allocatable, intent(inout) :: img2CentCell(:)
@@ -1299,9 +1299,6 @@ contains
     !> Transport variables
     logical, intent(in) :: tPoisson
 
-    !> Is this DFTB/SSR formalism
-    logical, intent(in) :: tREKS
-
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
     integer :: sparseSize
@@ -1318,7 +1315,7 @@ contains
 
     call getSparseDescriptor(neighbourList%iNeighbour, nNeighbourSK, img2CentCell, orb,&
         & iSparseStart, sparseSize)
-    call reallocateSparseArrays(sparseSize, reks, tREKS, ham, over, H0,&
+    call reallocateSparseArrays(sparseSize, reks, ham, over, H0,&
         & rhoPrim, iHam, iRhoPrim, ERhoPrim)
 
     ! count neighbours for repulsive interactions between atoms
@@ -1429,17 +1426,14 @@ contains
 
 
   !> Ensures that sparse array have enough storage to hold all necessary elements.
-  subroutine reallocateSparseArrays(sparseSize, reks, tREKS, ham, over,&
+  subroutine reallocateSparseArrays(sparseSize, reks, ham, over,&
       & H0, rhoPrim, iHam, iRhoPrim, ERhoPrim)
 
     !> Size of the sparse overlap
     integer, intent(in) :: sparseSize
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
-
-    !> Is this DFTB/SSR formalism
-    logical, intent(in) :: tREKS
+    type(TReksCalc), allocatable, intent(inout) :: reks
 
     !> Sparse storage for hamitonian (sparseSize,nSpin)
     real(dp), allocatable, intent(inout) :: ham(:,:)
@@ -1479,7 +1473,7 @@ contains
       end if
     #:endcall ASSERT_CODE
 
-    if (tREKS) then
+    if (allocated(reks)) then
       if (size(over, dim=1) == sparseSize) then
         ! When the size of sparse matrices are different,
         ! phase of MOs can affect gradient of REKS
@@ -1493,13 +1487,13 @@ contains
     end if
 
     nSpin = size(rhoPrim, dim=2)
-    if (.not.tREKS) then
+    if (.not. allocated(reks)) then
       deallocate(ham)
     end if
     deallocate(over)
     deallocate(H0)
     deallocate(rhoPrim)
-    if (.not.tREKS) then
+    if (.not. allocated(reks)) then
       allocate(ham(sparseSize, nSpin))
     end if
     allocate(over(sparseSize))
@@ -1515,7 +1509,7 @@ contains
       deallocate(ERhoPrim)
       allocate(ERhoPrim(sparseSize))
     end if
-    if (tREKS) then
+    if (allocated(reks)) then
       call REKS_reallocate(reks, sparseSize)
     end if
 
