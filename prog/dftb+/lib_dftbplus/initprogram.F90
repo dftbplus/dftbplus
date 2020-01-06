@@ -980,7 +980,7 @@ module dftbp_initprogram
   logical :: tREKS
 
   !> data type for REKS
-  type(TReksCalc), save :: reks
+  type(TReksCalc) :: reks
 
 contains
 
