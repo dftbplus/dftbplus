@@ -201,6 +201,9 @@ module dftbp_inputdata
     !> Molecular dynamics
     logical :: tMD         = .false.
 
+    !> Use Plumed
+    logical :: tPlumed = .false.
+
     !> Finite difference derivatives calculation?
     logical :: tDerivs     = .false.
 

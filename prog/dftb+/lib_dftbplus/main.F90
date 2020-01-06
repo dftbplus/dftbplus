@@ -84,6 +84,7 @@ module dftbp_main
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
+  use dftbp_plumed, only : plumedGlobalCmdVal, plumedGlobalCmdPtr, plumedFinal
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -738,6 +739,14 @@ contains
         derivs(:,:) = derivs + excitedDerivs
       end if
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
+
+      if (tPlumed) then
+        call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass, tPeriodic,&
+          & latVec)
+        if (iGeoStep >= nGeoSteps) then
+          call plumedFinal()
+        end if
+      end if
 
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
@@ -5263,6 +5272,48 @@ contains
     derivs(:,:) = derivs + tmpDerivs
 
   end subroutine getGradients
+
+
+  !> use plumed to update derivatives
+  subroutine updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy, coord0, mass, tPeriodic, latVecs)
+
+    !> number of atoms
+    integer, intent(in) :: nAtom
+
+    !> steps taken during simulation
+    integer, intent(in) :: iGeoStep
+
+    !> the derivatives array
+    real(dp), intent(inout), target, contiguous :: derivs(:,:)
+
+    !> current energy
+    real(dp), intent(in) :: energy
+
+    !> current atomic positions
+    real(dp), intent(in), target, contiguous :: coord0(:,:)
+
+    !> atomic masses array
+    real(dp), intent(in), target, contiguous :: mass(:)
+
+    !> periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> lattice vectors
+    real(dp), intent(in), target, contiguous :: latVecs(:,:)
+
+    derivs(:,:) = -derivs
+    call plumedGlobalCmdVal("setStep", iGeoStep)
+    call plumedGlobalCmdPtr("setForces", derivs)
+    call plumedGlobalCmdVal("setEnergy", energy)
+    call plumedGlobalCmdPtr("setPositions", coord0)
+    call plumedGlobalCmdPtr("setMasses", mass)
+    if (tPeriodic) then
+      call plumedGlobalCmdPtr("setBox", latVecs)
+    end if
+    call plumedGlobalCmdVal("calc", 0)
+    derivs(:,:) = -derivs
+
+  end subroutine updateDerivsByPlumed
 
 
   !> Calculates stress tensor and lattice derivatives.

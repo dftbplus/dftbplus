@@ -132,6 +132,13 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
+# PLUMED
+ifeq ($(strip $(WITH_PLUMED)),1)
+  PRESENT_EXTERNALS := _extlib_plumed
+  FYPPOPT += -DWITH_PLUMED
+  L_LIBS += $(if $(filter _extlib_plumed, $^), $(PLUMED_LIBS))
+endif
+
 # TRANSPORT
 ifeq ($(strip $(WITH_TRANSPORT)),1)
   FYPPOPT += -DWITH_TRANSPORT

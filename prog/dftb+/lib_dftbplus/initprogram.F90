@@ -93,7 +93,7 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
-
+  use dftbp_plumed, only : withPlumed, plumedInit, plumedFinal, plumedGlobalCmdVal
   use dftbp_magmahelper
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
@@ -750,6 +750,9 @@ module dftbp_initprogram
 
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
+
+  !> Whether plumed is being used
+  logical :: tPlumed
 
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
@@ -2201,6 +2204,26 @@ contains
       end if
       allocate(pMDIntegrator)
       call init(pMDIntegrator, pVelocityVerlet)
+    end if
+
+    ! Initialising plumed
+    tPlumed = input%ctrl%tPlumed
+    if (tPlumed .and. .not. withPlumed) then
+      call error("Code was compiled without PLUMED support")
+    end if
+    if (tPlumed .and. .not. tMD) then
+      call error("Metadynamics via PLUMED is only possible in MD-simulations")
+    end if
+    if (tPlumed) then
+      call plumedInit()
+      call plumedGlobalCmdVal("setNatoms", nAtom)
+      call plumedGlobalCmdVal("setPlumedDat", "plumed.dat")
+      call plumedGlobalCmdVal("setNoVirial", 0)
+      call plumedGlobalCmdVal("setTimestep", deltaT)
+      call plumedGlobalCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
+      call plumedGlobalCmdVal("setMDLengthUnits", Bohr__nm)
+      call plumedGlobalCmdVal("setMDTimeUnits", au__ps)
+      call plumedGlobalCmdVal("init", 0)
     end if
 
     ! Check for extended Born-Oppenheimer MD

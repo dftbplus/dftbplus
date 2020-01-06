@@ -33,6 +33,10 @@ Additionally there are optional requirements for some DFTB+ features:
 * The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
   computation.
 
+* The `PLUMED2 <https://github.com/plumed/plumed2>` library for metadynamics
+  simulations. (Use the non-MPI build for PLUMED2, even if you build DFTB+ with
+  MPI-support.)
+
 For external libraries, make sure that they are compiled with the same precision
 models for the variables (same integer and floating point values).
 
