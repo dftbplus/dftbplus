@@ -1,7 +1,8 @@
 set(curdir "lib_timedep")
 
 set(sources-fpp
-  ${curdir}/linresp.F90)
+  ${curdir}/linresp.F90
+  ${curdir}/pprpa.F90)
 
 if(WITH_ARPACK)
   list(APPEND sources-fpp
