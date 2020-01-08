@@ -682,6 +682,12 @@ contains
           & rhoSqrReal, excitedDerivs, occNatural)
     end if
 
+    if (tPpRPA) then
+      call ppRPAenergies(denseDesc, eigvecsReal, eigen(:,1,:), sccCalc,&
+          & coord0, RPA%nexc, RPA%sym, RPA%hhubbard, SSqrReal, species, nEl(1), neighbourList%iNeighbour,&
+          & img2CentCell, orb)
+    end if
+
     if (tXlbomd) then
       call getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
           & qInput, qInpRed, iEqBlockDftbU, qBlockIn, species0, nUJ, iUJ, niUJ, iEqBlockDftbuLs,&

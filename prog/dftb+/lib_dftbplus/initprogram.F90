@@ -70,6 +70,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
+  use dftbp_pprpa
   use dftbp_RangeSeparated
   use dftbp_stress
   use dftbp_orbitalequiv
@@ -660,6 +661,12 @@ module dftbp_initprogram
 
   !> calculate Z vector for excited properties
   logical :: tLinRespZVect
+
+  !> calculate PP-RPA excitation energies
+  logical :: tPpRPA
+
+  !> data type for pp-RPA
+  type(ppRPAcal), save :: RPA
 
   !> Print eigenvectors
   logical :: tPrintExcitedEigVecs = .false.
@@ -1690,6 +1697,8 @@ contains
     tForces = input%ctrl%tForces .or. tPrintForces
     tLinResp = input%ctrl%lrespini%tInit
 
+    tPpRPA = input%ctrl%pprpa%tInit
+
     referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
 
     ! Allocate reference charge arrays
@@ -2121,6 +2130,17 @@ contains
       end if
 
       call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
+
+    end if
+
+    ! ppRPA stuff
+    if (tPpRPA) then
+
+       RPA%nExc = input%ctrl%pprpa%nExc
+       RPA%sym = input%ctrl%pprpa%sym
+
+       call move_alloc(input%ctrl%pprpa%hhubbard, RPA%hhubbard)
+       RPA%hhubbard(:) = input%ctrl%pprpa%hhubbard
 
     end if
 

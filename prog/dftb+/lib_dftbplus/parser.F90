@@ -3567,6 +3567,40 @@ contains
 
   #:endif
 
+    !pp-RPA
+    call getChild(node, "PP-RPA", child, requested=.false.)
+
+    if (associated(child)) then
+
+      ctrl%pprpa%tInit = .true.
+
+      if (ctrl%tSpin) then
+        ctrl%pprpa%sym = ' '
+      else
+        call getChildValue(child, "Symmetry", buffer, child=child2)
+        select case (unquote(char(buffer)))
+        case ("Singlet" , "singlet")
+          ctrl%pprpa%sym = 'S'
+        case ("Triplet" , "triplet")
+          ctrl%pprpa%sym = 'T'
+        case ("Both" , "both")
+          ctrl%pprpa%sym = 'B'
+        case default
+          call detailedError(child2, "Invalid symmetry value '"  // char(buffer) // &
+              & "' (must be 'Singlet', 'Triplet' or 'Both').")
+        end select
+      end if
+
+      call getChildValue(child, "NrOfExcitations", ctrl%pprpa%nexc)
+
+      call getChildValue(child, "HHubbard", value, child=child2)
+      ALLOCATE(ctrl%pprpa%hhubbard, (geo%nSpecie))
+      do iSp1 = 1, geo%nSpecie
+        call getChildValue(child2, geo%specieNames(iSp1), ctrl%pprpa%hhubbard(iSp1))
+      end do
+
+    end if
+
   end subroutine readExcited
 
 

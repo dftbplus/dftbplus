@@ -15,6 +15,7 @@ module dftbp_inputdata
   use dftbp_message
   use dftbp_dispersions, only : DispersionInp
   use dftbp_linresp, only : linrespini
+  use dftbp_pprpa, only : ppRPAcal
   use dftbp_slakocont
   use dftbp_commontypes
   use dftbp_repcont
@@ -450,6 +451,8 @@ module dftbp_inputdata
 
     type(linrespini) :: lrespini
 
+    type(ppRPAcal) :: pprpa
+
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
 
@@ -465,7 +468,7 @@ module dftbp_inputdata
 
     !> Maximal timing level to show in output
     integer :: timingLevel
-    
+
     ! Custom occupations
     type(WrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)

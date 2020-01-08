@@ -539,7 +539,7 @@ contains
           & grndEigVecs, onsMEs, orb, vin, vout_ons)
       vout(:) = vout + vout_ons
     end if
-    
+
     vout(:) = vout(:) + ( wij**2 ) * vin
 
   end subroutine omegatvec
