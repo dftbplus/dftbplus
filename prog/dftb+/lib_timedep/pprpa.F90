@@ -10,7 +10,6 @@
 !> excitations energies according to the particle-particle Random Phase Approximation
 module dftbp_pprpa
   use dftbp_assert
-  use dftbp_arpack
   use dftbp_linrespcommon
   use dftbp_commontypes
   use dftbp_slakocont

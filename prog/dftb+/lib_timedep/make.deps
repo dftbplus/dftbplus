@@ -25,7 +25,7 @@ transcharges.o = transcharges.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp
 _mod_dftbp_transcharges: transcharges.o
 _mod_dftbp_transcharges = $(transcharges.o)
 
-pprpa.o: common.fypp _mod_dftbp_assert _mod_dftbp_arpack _mod_dftbp_linrespcommon _mod_dftbp_commontypes _mod_dftbp_slakocont _mod_dftbp_shortgamma _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_nonscc _mod_dftbp_scc _mod_dftbp_blasroutines _mod_dftbp_eigensolver _mod_dftbp_message _mod_dftbp_taggedoutput _mod_dftbp_sorting _mod_dftbp_qm _mod_dftbp_transcharges _mod_dftbp_densedescr _mod_dftbp_fileid
-pprpa.o = pprpa.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_arpack) $(_mod_dftbp_linrespcommon) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont) $(_mod_dftbp_shortgamma) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_nonscc) $(_mod_dftbp_scc) $(_mod_dftbp_blasroutines) $(_mod_dftbp_eigensolver) $(_mod_dftbp_message) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_sorting) $(_mod_dftbp_qm) $(_mod_dftbp_transcharges) $(_mod_dftbp_densedescr) $(_mod_dftbp_fileid)
+pprpa.o: common.fypp _mod_dftbp_assert _mod_dftbp_linrespcommon _mod_dftbp_commontypes _mod_dftbp_slakocont _mod_dftbp_shortgamma _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_nonscc _mod_dftbp_scc _mod_dftbp_blasroutines _mod_dftbp_eigensolver _mod_dftbp_message _mod_dftbp_taggedoutput _mod_dftbp_sorting _mod_dftbp_qm _mod_dftbp_transcharges _mod_dftbp_densedescr _mod_dftbp_fileid
+pprpa.o = pprpa.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_linrespcommon) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont) $(_mod_dftbp_shortgamma) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_nonscc) $(_mod_dftbp_scc) $(_mod_dftbp_blasroutines) $(_mod_dftbp_eigensolver) $(_mod_dftbp_message) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_sorting) $(_mod_dftbp_qm) $(_mod_dftbp_transcharges) $(_mod_dftbp_densedescr) $(_mod_dftbp_fileid)
 _mod_dftbp_pprpa: pprpa.o
 _mod_dftbp_pprpa = $(pprpa.o)
