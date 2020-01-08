@@ -115,7 +115,7 @@ contains
     !> file handle for excitation energies
     integer:: fdExc
 
-    integer :: iAtomStart
+    integer, allocatable :: iAtomStart(:)
     integer :: nocc, nvir, nxoo, nxvv
     integer :: norb, natom
     integer :: i, j, iSpin, isym
@@ -126,7 +126,7 @@ contains
     real(dp), allocatable :: pp_eval(:)
 
     !> ppRPA eigenvector
-    real(dp), allocatable :: vr(:)
+    real(dp), allocatable :: vr(:,:)
 
 
     @:ASSERT(fdExc > 0)
@@ -137,6 +137,8 @@ contains
     norb = orb%nOrb
     natom = size(species0)
     tSpin = (nSpin == 2)
+
+    ALLOCATE(iAtomStart(size(denseDesc%iAtomStart)))
     iAtomStart = denseDesc%iAtomStart
 
 
@@ -193,20 +195,17 @@ contains
       sym = symmetries(isym)
 
       if (sym == "S") then
-        ALLOCATE(pp_eval, (nxvv + nxoo))
-        ALLOCATE(vr, (nxvv + nxoo))
+        ALLOCATE(pp_eval(nxvv + nxoo))
+        ALLOCATE(vr(nxvv + nxoo, nxvv + nxoo))
       else
-        ALLOCATE(pp_eval, (nxvv + nxoo - nvir - nocc))
-        ALLOCATE(vr, (nxvv + nxoo - nvir - nocc))
+        ALLOCATE(pp_eval(nxvv + nxoo - nvir - nocc))
+        ALLOCATE(vr(nxvv + nxoo - nvir - nocc, nxvv + nxoo - nvir - nocc))
       end if
-
-      pp_eval(:) = 0.0_dp
-      vr(:) = 0.0_dp
 
       call buildAndDiagppRPAmatrix(sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, iAtomStart,&
           & gamma_eri, stimc, grndEigVecs, pp_eval, vr)
 
-      call writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo)
+      call writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc)
 
     end do
 
@@ -253,7 +252,7 @@ contains
     real(dp), intent(out):: pp_eval(:)
 
     !> pp-RPA eigenvectors
-    real(dp), intent(in) :: vr
+    real(dp), intent(out) :: vr(:,:)
 
     real(dp):: A_s(nxvv,nxvv), A_t(nxvv-nvir,nxvv-nvir)
     real(dp):: B_s(nxvv,nxoo), B_t(nxvv-nvir,nxoo-nocc)
@@ -261,18 +260,16 @@ contains
     integer :: a, b, c, d, i, j, k, l, ab, cd, ij, kl, ii
     integer :: ab_r, cd_r, ij_r, kl_r
     integer :: at1, at2, natom
-    integer, allocatable :: e_ind
     real(dp):: factor1, factor2
-    real(dp), allocatable :: norm
     logical :: updwn
     real(dp):: q_1(size(gamma_eri, dim=1))
     real(dp):: q_2(size(gamma_eri, dim=1))
     real(dp):: q_3(size(gamma_eri, dim=1))
     real(dp):: q_4(size(gamma_eri, dim=1))
     integer :: info, nRPA, nxvv_r, nxoo_r
-    real(dp), allocatable :: work
-    real(dp), allocatable :: wi, vl
-    real(dp), allocatable :: PP
+    real(dp), allocatable :: work(:)
+    real(dp), allocatable :: wi(:), vl(:)
+    real(dp), allocatable :: PP(:,:)
 
     natom  = size(gamma_eri, dim=1)
     nRPA   = size(pp_eval)
@@ -509,7 +506,7 @@ contains
 
 
   !> write pp-RPA excitation energies in output file
-  subroutine writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo)
+  subroutine writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc)
 
     !> symmetry to calculate transitions
     character, intent(in) :: sym
@@ -518,10 +515,10 @@ contains
     integer, intent(in) :: nexc
 
     !> pp-RPA eigenvalues
-    real(dp), intent(in) :: pp_eval
+    real(dp), intent(in) :: pp_eval(:)
 
     !> pp-RPA eigenvectors
-    real(dp), intent(in) :: vr
+    real(dp), intent(in) :: vr(:,:)
 
     !> number of occupied orbitals
     integer, intent(in)  :: nocc
@@ -535,8 +532,13 @@ contains
     !> number of occupied-occupied transitions
     integer, intent(in)  :: nxoo
 
-    integer, allocatable :: e_ind
-    real(dp), allocatable :: norm
+    !> file unit for excitation energies
+    integer, intent(in) :: fdExc
+
+    integer :: a, b, i, ii
+    integer :: nRPA, nxoo_r, nxvv_r
+    integer, allocatable :: e_ind(:)
+    real(dp), allocatable :: norm(:)
     real(dp):: eval_0
     real(dp):: wvr(size(pp_eval))
     integer :: wvin(size(pp_eval))
@@ -573,10 +575,10 @@ contains
           cycle
         endif
 
-        wvr(:) = vr(:,e_ind(i))**2
-        call argsort_inv(wvr, wvin)
+        !wvr(:) = vr(:,e_ind(i))**2
+        !call argsort_inv(wvr, wvin)
 
-        call indxvv(nocc, wvin(1), a, b)
+        !call indxvv(nocc, wvin(1), a, b)
 
         write(fdExc,'(1x,f10.3,4x,a)') Hartree__eV * (pp_eval(i) - eval_0), 'S'
         !print *, "energy(eV):", conv*(pp_eval(i) - eval_0), "S", a, b
