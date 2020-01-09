@@ -173,7 +173,8 @@ contains
         character(len=*, kind=c_char), intent(in) :: key
 
         !> Object which should be passed as a reference.
-        ${TYPE}$, pointer, intent(in) ${CONTIGUOUS}$ :: val${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
+        !> Contains workaround for bug in Intel 19 compiler (pointer => target)
+        ${TYPE}$, target, intent(in) ${CONTIGUOUS}$ :: val${FORTRAN_ARG_DIM_SUFFIX(RANK)}$
 
         #:if WITH_PLUMED
           call plumed_f_gcmd(key // char(0), c_loc(val))
