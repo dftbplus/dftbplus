@@ -193,7 +193,7 @@ contains
 
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readExcited(child, input%ctrl)
+    call readExcited(child, geom, input%ctrl)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -3463,18 +3463,22 @@ contains
 
 
   !> Reads the excited state data block
-  subroutine readExcited(node, ctrl)
+  subroutine readExcited(node, geo, ctrl)
 
     !> Node to parse
     type(fnode), pointer :: node
+
+    !> geometry object, which contains atomic species information
+    type(TGeometry), intent(in) :: geo
 
     !> Control structure to fill
     type(control), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-  #:if WITH_ARPACK
     type(fnode), pointer :: child2
     type(string) :: buffer
+
+  #:if WITH_ARPACK
     type(string) :: modifier
   #:endif
 
@@ -3594,9 +3598,9 @@ contains
       call getChildValue(child, "NrOfExcitations", ctrl%pprpa%nexc)
 
       call getChildValue(child, "HHubbard", value, child=child2)
-      ALLOCATE(ctrl%pprpa%hhubbard, (geo%nSpecie))
-      do iSp1 = 1, geo%nSpecie
-        call getChildValue(child2, geo%specieNames(iSp1), ctrl%pprpa%hhubbard(iSp1))
+      ALLOCATE(ctrl%pprpa%hhubbard(geo%nSpecies))
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child2, geo%speciesNames(iSp1), ctrl%pprpa%hhubbard(iSp1))
       end do
 
     end if
