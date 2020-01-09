@@ -193,7 +193,7 @@ contains
 
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readExcited(child, geom, input%ctrl)
+    call readExcited(child, input%geom, input%ctrl)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -3476,7 +3476,9 @@ contains
 
     type(fnode), pointer :: child
     type(fnode), pointer :: child2
+    type(fnode), pointer :: value
     type(string) :: buffer
+    integer :: iSp1
 
   #:if WITH_ARPACK
     type(string) :: modifier
