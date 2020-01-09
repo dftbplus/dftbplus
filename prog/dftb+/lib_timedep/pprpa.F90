@@ -564,7 +564,7 @@ contains
         norm(:) = norm(:) - (vr(nxvv+i,:))**2
       end do
 
-      call argsort(pp_eval,e_ind)
+      call index_heap_sort(e_ind, pp_eval)
 
       ii = 0
       do i = 1, nexc
@@ -595,7 +595,7 @@ contains
         norm(:) = norm(:) - (vr(nxvv_r+i,:))**2
       end do
 
-      call argsort(pp_eval,e_ind)
+      call index_heap_sort(e_ind, pp_eval)
 
       do i =1, nexc
         if (norm(e_ind(i)) < 0) cycle
