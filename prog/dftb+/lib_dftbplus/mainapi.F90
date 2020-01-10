@@ -17,6 +17,7 @@ module dftbp_mainapi
       & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot
   use dftbp_assert
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_message, only : error
   implicit none
   private
 
@@ -71,6 +72,11 @@ contains
 
     !> resulting gradients wrt atom positions
     real(dp), intent(out) :: gradients(:,:)
+
+    if (.not. tForces) then
+      call error("Forces not available, you must initialise your calculator&
+          & with forces enabled.")
+    end if
 
     call recalcGeometry(env)
     gradients(:,:) = derivs
