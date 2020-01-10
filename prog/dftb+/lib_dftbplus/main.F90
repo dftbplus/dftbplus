@@ -684,7 +684,7 @@ contains
 
     if (tPpRPA) then
       call ppRPAenergies(denseDesc, eigvecsReal, eigen(:,1,:), sccCalc,&
-          & coord0, RPA%nexc, RPA%sym, RPA%hhubbard, SSqrReal, species, nEl(1), neighbourList%iNeighbour,&
+          & RPA%nexc, RPA%sym, RPA%hhubbard, SSqrReal, species, nEl(1), neighbourList%iNeighbour,&
           & img2CentCell, orb)
     end if
 

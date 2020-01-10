@@ -2139,7 +2139,7 @@ contains
        RPA%nExc = input%ctrl%pprpa%nExc
        RPA%sym = input%ctrl%pprpa%sym
 
-       call move_alloc(input%ctrl%pprpa%hhubbard, RPA%hhubbard)
+       ALLOCATE(RPA%hhubbard(size(input%ctrl%pprpa%hhubbard)))
        RPA%hhubbard(:) = input%ctrl%pprpa%hhubbard
 
     end if

@@ -60,7 +60,7 @@ contains
   !> This subroutine analytically calculates excitations energies
   !> based on Time Dependent DFRT
   subroutine ppRPAenergies(denseDesc, grndEigVecs, grndEigVal, sccCalc,&
-      & coord0, nexc, symc, U_h, SSqr, species0, rnel, iNeighbour,&
+      & nexc, symc, U_h, SSqr, species0, rnel, iNeighbour,&
       & img2CentCell, orb)
 
     !> index vector for S and H matrices
@@ -74,9 +74,6 @@ contains
 
     !> Self-consistent charge module settings
     type(TScc), intent(in) :: sccCalc
-
-    !> atomic positions
-    real(dp), intent(in) :: coord0(:,:)
 
     !> number of excited states to solve for
     integer, intent(in) :: nexc
@@ -118,7 +115,7 @@ contains
     integer, allocatable :: iAtomStart(:)
     integer :: nocc, nvir, nxoo, nxvv
     integer :: norb, natom
-    integer :: i, j, iSpin, isym
+    integer :: iSpin, isym
     integer :: nSpin
     character :: sym
 
@@ -185,7 +182,7 @@ contains
     fdExc = getFileId()
     open(fdExc, file=excitationsOut, position="rewind", status="replace")
     write(fdExc,*)
-    write(fdExc,'(5x,a,7x,a)') 'w [eV]', 'Sym.'
+    write(fdExc,'(5x,a,4x,a)') 'w [eV]', 'Sym.'
     write(fdExc,*)
     write(fdExc,'(1x,25("="))')
     write(fdExc,*)
@@ -207,6 +204,8 @@ contains
 
       call writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc)
 
+      deallocate(pp_eval)
+      deallocate(vr)
     end do
 
     if (fdExc > 0) close(fdExc)
@@ -257,7 +256,7 @@ contains
     real(dp):: A_s(nxvv,nxvv), A_t(nxvv-nvir,nxvv-nvir)
     real(dp):: B_s(nxvv,nxoo), B_t(nxvv-nvir,nxoo-nocc)
     real(dp):: C_s(nxoo,nxoo), C_t(nxoo-nocc,nxoo-nocc)
-    integer :: a, b, c, d, i, j, k, l, ab, cd, ij, kl, ii
+    integer :: a, b, c, d, i, j, k, l, ab, cd, ij, kl
     integer :: ab_r, cd_r, ij_r, kl_r
     integer :: at1, at2, natom
     real(dp):: factor1, factor2
@@ -268,7 +267,7 @@ contains
     real(dp):: q_4(size(gamma_eri, dim=1))
     integer :: info, nRPA, nxvv_r, nxoo_r
     real(dp), allocatable :: work(:)
-    real(dp), allocatable :: wi(:), vl(:)
+    real(dp), allocatable :: wi(:), vl(:,:)
     real(dp), allocatable :: PP(:,:)
 
     natom  = size(gamma_eri, dim=1)
@@ -276,9 +275,9 @@ contains
     nxoo_r = nxoo - nocc
     nxvv_r = nxvv - nvir
 
-    ALLOCATE(work(nRPA))
+    ALLOCATE(work(5*nRPA))
     ALLOCATE(wi(nRPA))
-    ALLOCATE(vl(nRPA))
+    ALLOCATE(vl(nRPA,nRPA))
     ALLOCATE(PP(nRPA, nRPA))
 
     ! spin-up channel only for closed-shell systems
@@ -495,7 +494,7 @@ contains
 
     !diagonalize ppRPA matrix
     call dgeev('N','V',nRPA,PP,nRPA,pp_eval&
-        &        ,wi,vl,1,vr,nRPA,work,5*nRPA,info)
+        &        ,wi,vl,nRPA,vr,nRPA,work,5*nRPA,info)
 
     if (info /= 0) then
       print *, " Error with dgeev, info = ", info
@@ -511,11 +510,11 @@ contains
     !> symmetry to calculate transitions
     character, intent(in) :: sym
 
-    !> number of excited states to solve for
+    !> number of excitation energies to show
     integer, intent(in) :: nexc
 
     !> pp-RPA eigenvalues
-    real(dp), intent(in) :: pp_eval(:)
+    real(dp), intent(inout) :: pp_eval(:)
 
     !> pp-RPA eigenvectors
     real(dp), intent(in) :: vr(:,:)
@@ -535,74 +534,53 @@ contains
     !> file unit for excitation energies
     integer, intent(in) :: fdExc
 
-    integer :: a, b, i, ii
+    integer :: a, i, ii
     integer :: nRPA, nxoo_r, nxvv_r
     integer, allocatable :: e_ind(:)
     real(dp), allocatable :: norm(:)
     real(dp):: eval_0
-    real(dp):: wvr(size(pp_eval))
-    integer :: wvin(size(pp_eval))
 
     nRPA   = size(pp_eval)
-    nxoo_r = nxoo - nocc
-    nxvv_r = nxvv - nvir
-
     ALLOCATE(e_ind(nRPA))
     ALLOCATE(norm(nRPA))
 
 
-    if (sym == "S") then !------ singlets -------
-
-      !neglect negative-norm eigenvectors
-      norm(:) = 0.0_dp
-
-      do a = 1, nxvv
-        norm(:) = norm(:) + (vr(a,:))**2
-      end do
-
-      do i = 1, nxoo
-        norm(:) = norm(:) - (vr(nxvv+i,:))**2
-      end do
-
-      call index_heap_sort(e_ind, pp_eval)
-
-      ii = 0
-      do i = 1, nexc
-        if (norm(e_ind(i)) < 0) cycle
-        ii = ii + 1
-        if (ii == 1) then
-          eval_0 = pp_eval(i)
-          cycle
-        endif
-
-        !wvr(:) = vr(:,e_ind(i))**2
-        !call argsort_inv(wvr, wvin)
-
-        !call indxvv(nocc, wvin(1), a, b)
-
-        write(fdExc,'(1x,f10.3,4x,a)') Hartree__eV * (pp_eval(i) - eval_0), 'S'
-        !print *, "energy(eV):", conv*(pp_eval(i) - eval_0), "S", a, b
-      end do
-
-    else !-------- triplets ----------
-
-      !neglect negative-norm eigenvectors
-      norm(:) = 0.0_dp
-      do a = 1, nxvv_r
-        norm(:) = norm(:) + (vr(a,:))**2
-      end do
-      do i = 1, nxoo_r
-        norm(:) = norm(:) - (vr(nxvv_r+i,:))**2
-      end do
-
-      call index_heap_sort(e_ind, pp_eval)
-
-      do i =1, nexc
-        if (norm(e_ind(i)) < 0) cycle
-        write(fdExc,'(1x,f10.3,4x,a)') Hartree__eV * (pp_eval(i) - eval_0), 'T'
-      end do
-
+    if (sym == "S") then
+      nxoo_r = nxoo
+      nxvv_r = nxvv
+    else
+      nxoo_r = nxoo - nocc
+      nxvv_r = nxvv - nvir
     end if
+
+    !neglect negative-norm eigenvectors
+    norm(:) = 0.0_dp
+
+    do a = 1, nxvv_r
+      norm(:) = norm(:) + (vr(a,:))**2
+    end do
+
+    do i = 1, nxoo_r
+      norm(:) = norm(:) - (vr(nxvv_r+i,:))**2
+    end do
+
+    call index_heap_sort(e_ind, pp_eval)
+    pp_eval = pp_eval(e_ind)
+
+    ii = 0
+    do i = 1, nRPA
+      if (norm(e_ind(i)) < 0) cycle
+      ii = ii + 1
+      if (ii == 1) then
+        eval_0 = pp_eval(i)
+        cycle
+      endif
+
+      write(fdExc,'(1x,f10.3,4x,a)') Hartree__eV * (pp_eval(i) - eval_0), sym
+
+      if (ii > nExc) exit
+
+    end do
 
   end subroutine writeppRPAExcitations
 
