@@ -93,7 +93,7 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
-  use dftbp_plumed, only : withPlumed, plumedInit, plumedFinal, plumedGlobalCmdVal
+  use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
@@ -752,7 +752,7 @@ module dftbp_initprogram
   logical :: tCoordsChanged
 
   !> Whether plumed is being used
-  logical :: tPlumed
+  type(TPlumedCalc), allocatable :: plumedCalc
 
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
@@ -1119,6 +1119,7 @@ contains
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
+
 
     @:ASSERT(input%tInitialized)
 
@@ -2206,25 +2207,7 @@ contains
       call init(pMDIntegrator, pVelocityVerlet)
     end if
 
-    ! Initialising plumed
-    tPlumed = input%ctrl%tPlumed
-    if (tPlumed .and. .not. withPlumed) then
-      call error("Code was compiled without PLUMED support")
-    end if
-    if (tPlumed .and. .not. tMD) then
-      call error("Metadynamics via PLUMED is only possible in MD-simulations")
-    end if
-    if (tPlumed) then
-      call plumedInit()
-      call plumedGlobalCmdVal("setNatoms", nAtom)
-      call plumedGlobalCmdVal("setPlumedDat", "plumed.dat")
-      call plumedGlobalCmdVal("setNoVirial", 0)
-      call plumedGlobalCmdVal("setTimestep", deltaT)
-      call plumedGlobalCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
-      call plumedGlobalCmdVal("setMDLengthUnits", Bohr__nm)
-      call plumedGlobalCmdVal("setMDTimeUnits", au__ps)
-      call plumedGlobalCmdVal("init", 0)
-    end if
+    call initPlumed(input%ctrl%tPlumed, tMD, plumedCalc)
 
     ! Check for extended Born-Oppenheimer MD
     tXlbomd = allocated(input%ctrl%xlbomd)
@@ -4474,6 +4457,56 @@ contains
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated
+
+
+  !> Initializes PLUMED calculator.
+  subroutine initPlumed(tPlumed, tMD, plumedCalc)
+
+    !> Whether plumed should be used
+    logical, intent(in) :: tPlumed
+
+    !> Whether this is an MD-run
+    logical, intent(in) :: tMD
+
+    !> Plumed calculator (allocated only on demand)
+    type(TPlumedCalc), allocatable, intent(out) :: plumedCalc
+
+
+    ! Minimal plumed API version (as in Plumed 2.5.3)
+    ! Earlier versions may work but were not tested
+    integer, parameter :: minApiVersion = 6
+    
+    integer :: apiVersion
+    character(300) :: strTmp
+
+    if (.not. tPlumed) then
+      return
+    end if
+    if (.not. withPlumed) then
+      call error("Code was compiled without PLUMED support")
+    end if
+    if (.not. tMD) then
+      call error("Metadynamics via PLUMED is only possible in MD-simulations")
+    end if
+    allocate(plumedCalc)
+    call TPlumedCalc_init(plumedCalc)
+    call plumedCalc%sendCmdPtr("getApiVersion", apiVersion)
+    if (apiVersion < minApiVersion) then
+      write(strTmp, "(A,I0,A)") "PLUMED interface has not been tested with PLUMED API version < ",&
+          & minApiVersion, ". Your PLUMED library provides API version ", apiVersion, ". Check your&
+          & results carefully and consider to use a more recent PLUMED library if in doubt!"
+      call warning(strTmp)
+    end if
+    call plumedCalc%sendCmdVal("setNatoms", nAtom)
+    call plumedCalc%sendCmdVal("setPlumedDat", "plumed.dat")
+    call plumedCalc%sendCmdVal("setNoVirial", 0)
+    call plumedCalc%sendCmdVal("setTimestep", deltaT)
+    call plumedCalc%sendCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
+    call plumedCalc%sendCmdVal("setMDLengthUnits", Bohr__nm)
+    call plumedCalc%sendCmdVal("setMDTimeUnits", au__ps)
+    call plumedCalc%sendCmdVal("init", 0)
+
+  end subroutine initPlumed
 
 
 end module dftbp_initprogram
