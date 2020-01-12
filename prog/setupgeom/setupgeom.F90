@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,7 @@ program setupGeometry
   implicit none
 
   character(len=*), parameter :: releaseName = ''
-  integer, parameter :: releaseYear = 2019
+  integer, parameter :: releaseYear = 2020
 
   type(inputData), allocatable :: input
 

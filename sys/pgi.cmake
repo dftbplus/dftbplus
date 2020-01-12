@@ -61,6 +61,10 @@ set(SCALAPACK_LIBRARY_DIRS "${PGI_LIBDIR}/scalapack/scalapack-2.0.2/openmpi-2.1.
 # DFTB+, let us know, so that we can include appropriate settings here.
 #
 
+# PLUMED -- only needed when compiled with PLUMED support
+set(PLUMED_LIBRARIES "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")
+set(PLUMED_LIBRARY_DIRS "" CACHE STRING "Directories to scan for PLUMED libraries")
+
 # Any other library needed to be linked or considered as include
 set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
 set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")

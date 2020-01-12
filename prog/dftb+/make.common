@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2006 - 2019  DFTB+ developers group                           #
+#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -130,6 +130,13 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   FYPPOPT += -DWITH_DFTD3
   L_LIBS += $(if $(filter _extlib_dftd3, $^), $(DFTD3_LIBS))
   L_INCS += $(DFTD3_INCS)
+endif
+
+# PLUMED
+ifeq ($(strip $(WITH_PLUMED)),1)
+  PRESENT_EXTERNALS := _extlib_plumed
+  FYPPOPT += -DWITH_PLUMED
+  L_LIBS += $(if $(filter _extlib_plumed, $^), $(PLUMED_LIBS))
 endif
 
 # TRANSPORT
