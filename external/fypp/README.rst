@@ -37,20 +37,20 @@ Main features
 
 * Macro definitions and macro calls::
 
-    #:def assertTrue(cond)
-    #:if DEBUG > 0
-    if (.not. ${cond}$) then
-      print *, "Assert failed in file ${_FILE_}$, line ${_LINE_}$"
-      error stop
-    end if
-    #:endif
-    #:enddef assertTrue
+    #:def ASSERT(cond)
+      #:if DEBUG > 0
+        if (.not. ${cond}$) then
+          print *, "Assert failed in file ${_FILE_}$, line ${_LINE_}$"
+          error stop
+        end if
+      #:endif
+    #:enddef ASSERT
 
     ! Invoked via direct call (argument needs no quotation)
-    @:assertTrue(size(myArray) > 0)
+    @:ASSERT(size(myArray) > 0)
 
     ! Invoked as Python expression (argument needs quotation)
-    $:assertTrue('size(myArray) > 0')
+    $:ASSERT('size(myArray) > 0')
 
 * Conditional output::
 
@@ -93,30 +93,30 @@ Main features
 * Passing (unquoted) multiline string arguments to callables::
 
     #! Callable needs only string argument
-    #:def debug_code(code)
+    #:def DEBUG_CODE(code)
       #:if DEBUG > 0
         $:code
       #:endif
-    #:enddef debug_code
+    #:enddef DEBUG_CODE
 
     #! Pass code block as first positional argument
-    #:call debug_code
+    #:block DEBUG_CODE
       if (size(array) > 100) then
         print *, "DEBUG: spuriously large array"
       end if
-    #:endcall debug_code
+    #:endblock DEBUG_CODE
 
     #! Callable needs also non-string argument types
-    #:def repeat_code(code, repeat)
+    #:def REPEAT_CODE(code, repeat)
       #:for ind in range(repeat)
         $:code
       #:endfor
-    #:enddef repeat_code
+    #:enddef REPEAT_CODE
 
     #! Pass code block as positional argument and 3 as keyword argument "repeat"
-    #:call repeat_code(repeat=3)
+    #:block REPEAT_CODE(repeat=3)
     this will be repeated 3 times
-    #:endcall repeat_code
+    #:endblock REPEAT_CODE
 
 * Preprocessor comments::
 
