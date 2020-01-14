@@ -751,7 +751,7 @@ module dftbp_initprogram
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
 
-  !> Whether plumed is being used
+  !> Plumed calculator
   type(TPlumedCalc), allocatable :: plumedCalc
 
   !> Dense matrix descriptor for H and S
@@ -2207,7 +2207,7 @@ contains
       call init(pMDIntegrator, pVelocityVerlet)
     end if
 
-    call initPlumed(input%ctrl%tPlumed, tMD, plumedCalc)
+    call initPlumed(env, input%ctrl%tPlumed, tMD, plumedCalc)
 
     ! Check for extended Born-Oppenheimer MD
     tXlbomd = allocated(input%ctrl%xlbomd)
@@ -4460,7 +4460,10 @@ contains
 
 
   !> Initializes PLUMED calculator.
-  subroutine initPlumed(tPlumed, tMD, plumedCalc)
+  subroutine initPlumed(env, tPlumed, tMD, plumedCalc)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Whether plumed should be used
     logical, intent(in) :: tPlumed
@@ -4504,6 +4507,9 @@ contains
     call plumedCalc%sendCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
     call plumedCalc%sendCmdVal("setMDLengthUnits", Bohr__nm)
     call plumedCalc%sendCmdVal("setMDTimeUnits", au__ps)
+    #:if WITH_MPI
+      call plumedCalc%sendCmdVal("setMPIFComm", env%mpi%globalComm%id)
+    #:endif
     call plumedCalc%sendCmdVal("init", 0)
 
   end subroutine initPlumed

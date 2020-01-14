@@ -215,6 +215,10 @@ contains
     end if
   #:endif
 
+    if (allocated(plumedCalc)) then
+      call TPlumedCalc_final(plumedCalc)
+    end if
+
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
     if (env%tGlobalMaster) then
@@ -740,13 +744,8 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
 
-      if (allocated(plumedCalc)) then
-        call updateDerivsByPlumed(plumedCalc, nAtom, iGeoStep, derivs, energy%EMermin, coord0,&
-            & mass, tPeriodic, latVec)
-        if (iGeoStep >= nGeoSteps) then
-          call TPlumedCalc_final(plumedCalc)
-        end if
-      end if
+      call updateDerivsByPlumed(env, plumedCalc, nAtom, iGeoStep, derivs, energy%EMermin, coord0,&
+          & mass, tPeriodic, latVec)
 
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
@@ -5275,11 +5274,14 @@ contains
 
 
   !> use plumed to update derivatives
-  subroutine updateDerivsByPlumed(plumedCalc, nAtom, iGeoStep, derivs, energy, coord0, mass,&
+  subroutine updateDerivsByPlumed(env, plumedCalc, nAtom, iGeoStep, derivs, energy, coord0, mass,&
       & tPeriodic, latVecs)
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
     !> PLUMED calculator
-    type(TPlumedCalc), intent(inout) :: plumedCalc
+    type(TPlumedCalc), allocatable, intent(inout) :: plumedCalc
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -5305,6 +5307,9 @@ contains
     !> lattice vectors
     real(dp), intent(in), target, contiguous :: latVecs(:,:)
 
+    if (.not. allocated(plumedCalc)) then
+      return
+    end if
     derivs(:,:) = -derivs
     call plumedCalc%sendCmdVal("setStep", iGeoStep)
     call plumedCalc%sendCmdPtr("setForces", derivs)
@@ -5316,7 +5321,7 @@ contains
     end if
     call plumedCalc%sendCmdVal("calc", 0)
     derivs(:,:) = -derivs
-
+    
   end subroutine updateDerivsByPlumed
 
 
