@@ -5321,7 +5321,7 @@ contains
     end if
     call plumedCalc%sendCmdVal("calc", 0)
     derivs(:,:) = -derivs
-    
+
   end subroutine updateDerivsByPlumed
 
 
