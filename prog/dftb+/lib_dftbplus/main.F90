@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -84,6 +84,7 @@ module dftbp_main
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
+  use dftbp_plumed, only : plumedGlobalCmdVal, plumedGlobalCmdPtr, plumedFinal
   use dftbp_rekscommon
   use dftbp_reksen
   use dftbp_reksfon
@@ -316,7 +317,7 @@ contains
           & nKPoint, nSpin, size(eigen, dim=1), nOrb, kPoint, kWeight, filling, occNatural)
     end if
 
-    call env%globalTimer%startTimer(globalTimers%postGeoOpt)
+    call env%globalTimer%stopTimer(globalTimers%postGeoOpt)
 
     if (tREKS) then
       call REKS_destroy(reks)
@@ -862,6 +863,14 @@ contains
         end if
       end if
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
+
+      if (tPlumed) then
+        call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass, tPeriodic,&
+          & latVec)
+        if (iGeoStep >= nGeoSteps) then
+          call plumedFinal()
+        end if
+      end if
 
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
@@ -3349,7 +3358,7 @@ contains
         end do
       end do
     else
-      ! Every spin channel (but no the k-points) filled up individually
+      ! Every spin channel (but not the k-points) filled up individually
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
             & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn)
@@ -5437,6 +5446,48 @@ contains
     derivs(:,:) = derivs + tmpDerivs
 
   end subroutine getGradients
+
+
+  !> use plumed to update derivatives
+  subroutine updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy, coord0, mass, tPeriodic, latVecs)
+
+    !> number of atoms
+    integer, intent(in) :: nAtom
+
+    !> steps taken during simulation
+    integer, intent(in) :: iGeoStep
+
+    !> the derivatives array
+    real(dp), intent(inout), target, contiguous :: derivs(:,:)
+
+    !> current energy
+    real(dp), intent(in) :: energy
+
+    !> current atomic positions
+    real(dp), intent(in), target, contiguous :: coord0(:,:)
+
+    !> atomic masses array
+    real(dp), intent(in), target, contiguous :: mass(:)
+
+    !> periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> lattice vectors
+    real(dp), intent(in), target, contiguous :: latVecs(:,:)
+
+    derivs(:,:) = -derivs
+    call plumedGlobalCmdVal("setStep", iGeoStep)
+    call plumedGlobalCmdPtr("setForces", derivs)
+    call plumedGlobalCmdVal("setEnergy", energy)
+    call plumedGlobalCmdPtr("setPositions", coord0)
+    call plumedGlobalCmdPtr("setMasses", mass)
+    if (tPeriodic) then
+      call plumedGlobalCmdPtr("setBox", latVecs)
+    end if
+    call plumedGlobalCmdVal("calc", 0)
+    derivs(:,:) = -derivs
+
+  end subroutine updateDerivsByPlumed
 
 
   !> Calculates stress tensor and lattice derivatives.

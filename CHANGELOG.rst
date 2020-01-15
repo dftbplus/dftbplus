@@ -15,6 +15,11 @@ Added
 
 - New algorithm for long-range corrected Hamiltonian
 
+- Support for meta-dynamics via the Plumed library.
+
+- Option to set mass of atoms in modes input file (syntax matches existing DFTB+
+  feature)
+
 
 Changed
 -------
@@ -55,10 +60,12 @@ Added
 
 - Halogen X correction.
 
+
 Changed
 -------
 
 - Updated parser version to 7.
+
 
 Fixed
 -----

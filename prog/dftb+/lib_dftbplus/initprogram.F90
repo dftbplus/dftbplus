@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -93,8 +93,8 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
+  use dftbp_plumed, only : withPlumed, plumedInit, plumedFinal, plumedGlobalCmdVal
   use dftbp_reksvar
-
   use dftbp_magmahelper
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
@@ -751,6 +751,9 @@ module dftbp_initprogram
 
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
+
+  !> Whether plumed is being used
+  logical :: tPlumed
 
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
@@ -2213,6 +2216,26 @@ contains
       call init(pMDIntegrator, pVelocityVerlet)
     end if
 
+    ! Initialising plumed
+    tPlumed = input%ctrl%tPlumed
+    if (tPlumed .and. .not. withPlumed) then
+      call error("Code was compiled without PLUMED support")
+    end if
+    if (tPlumed .and. .not. tMD) then
+      call error("Metadynamics via PLUMED is only possible in MD-simulations")
+    end if
+    if (tPlumed) then
+      call plumedInit()
+      call plumedGlobalCmdVal("setNatoms", nAtom)
+      call plumedGlobalCmdVal("setPlumedDat", "plumed.dat")
+      call plumedGlobalCmdVal("setNoVirial", 0)
+      call plumedGlobalCmdVal("setTimestep", deltaT)
+      call plumedGlobalCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
+      call plumedGlobalCmdVal("setMDLengthUnits", Bohr__nm)
+      call plumedGlobalCmdVal("setMDTimeUnits", au__ps)
+      call plumedGlobalCmdVal("init", 0)
+    end if
+
     ! Check for extended Born-Oppenheimer MD
     tXlbomd = allocated(input%ctrl%xlbomd)
     if (tXlbomd) then
@@ -3305,6 +3328,10 @@ contains
         call error("Linear response does not support k-points")
       end if
 
+      if (t3rd .or. t3rdFull) then
+        call error ("Third order DFTB is not currently compatible with linear response excitations")
+      end if
+
     end if
 
     if (tREKS) then
@@ -4070,30 +4097,6 @@ contains
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
-    if (tRangeSep) then
-      if (withMpi) then
-        call error("Range separated calculations do not work with MPI yet")
-      end if
-      if (nSpin > 2) then
-        call error("Range separated calculations not implemented for non-colinear calculations")
-      end if
-      if (tXlbomd) then
-        call error("Range separated calculations not currently implemented for XLBOMD")
-      end if
-      if (t3rd) then
-        call error("Range separated calculations not currently implemented for 3rd order DFTB")
-      end if
-      if (tLinResp) then
-        call error("Range separated calculations not currently implemented for linear response")
-      end if
-      if (tSpinOrbit) then
-        call error("Range separated calculations not currently implemented for spin orbit")
-      end if
-      if (tDFTBU) then
-        call error("Range separated calculations not currently implemented for DFTB+U")
-      end if
-    end if
-
     if (tLinResp) then
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
@@ -4519,7 +4522,8 @@ contains
 
 
   !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, tAtomicEnergy, rangeSepInp)
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, tAtomicEnergy,&
+      & rangeSepInp)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4540,16 +4544,47 @@ contains
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
     end if
+
     if (tReadChrg .and. rangeSepInp%rangeSepAlg == rangeSepTypes%threshold) then
       call error("Restart on thresholded range separation not working correctly")
     end if
+
     if (tShellResolved) then
       call error("Range separated functionality currently does not yet support shell-resolved scc")
     end if
+
     if (tAtomicEnergy) then
-      call warning("Atomic resolved energies cannot be calculated with range-separation&
-          & hybrid functional.")
+      call warning("Atomic resolved energies cannot be calculated with the range-separation&
+          & hybrid functional at the moment")
       tAtomicEnergy = .false.
+    end if
+
+    if (withMpi) then
+      call error("Range separated calculations do not work with MPI yet")
+    end if
+
+    if (nSpin > 2) then
+      call error("Range separated calculations not implemented for non-colinear calculations")
+    end if
+
+    if (tSpinOrbit) then
+      call error("Range separated calculations not currently implemented for spin orbit")
+    end if
+
+    if (tXlbomd) then
+      call error("Range separated calculations not currently implemented for XLBOMD")
+    end if
+
+    if (t3rd) then
+      call error("Range separated calculations not currently implemented for 3rd order DFTB")
+    end if
+
+    if (tLinResp) then
+      call error("Range separated calculations not currently implemented for linear response")
+    end if
+
+    if (tDFTBU) then
+      call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
   end subroutine ensureRangeSeparatedReqs

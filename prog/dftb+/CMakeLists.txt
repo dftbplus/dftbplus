@@ -86,6 +86,11 @@ if(WITH_ELSI)
   endif()
 endif()
 
+if(WITH_PLUMED)
+  #target_link_libraries(dftbplus PRIVATE PkgConfig::PLUMED)
+  target_link_libraries(dftbplus PRIVATE ${PLUMED_LIBRARIES})
+endif()
+
 if(WITH_MPI)
   target_link_libraries(dftbplus PUBLIC mpifx scalapackfx)
   target_link_libraries(dftbplus PRIVATE ${SCALAPACK_LIBRARIES})
