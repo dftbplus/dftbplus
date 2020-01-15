@@ -61,7 +61,7 @@ endef
 #  otherwise -> compile in two steps
 
 %.f90: %.F90
-	$(FYPP) $(FYPPOPT) $(inc-opts) $< > $@
+	$(FYPP) $(FYPPOPT) $(inc-opts) $< $@
 
 %.o: %.f90
 	$(FXX) $(FXXOPT) $(L_INCS) -o $@ -c $<
