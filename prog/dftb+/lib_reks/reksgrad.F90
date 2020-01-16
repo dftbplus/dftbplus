@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,6 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
-
 module dftbp_reksgrad
 
 #:if WITH_OMP
