@@ -18,10 +18,17 @@ reksfon.o = reksfon.o $(_mod_dftbp_accuracy) $(_mod_dftbp_globalenv) $(_mod_dftb
 _mod_dftbp_reksfon: reksfon.o
 _mod_dftbp_reksfon = $(reksfon.o)
 
-reksgrad.o: _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_coulomb _mod_dftbp_densedescr _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_lapackroutines _mod_dftbp_message _mod_dftbp_nonscc _mod_dftbp_orbitals _mod_dftbp_periodic _mod_dftbp_rangeseparted _mod_dftbp_scc _mod_dftbp_schedule _mod_dftbp_slakocont _mod_dftbp_sparse2dense _mod_dftbp_rekscommon
-reksgrad.o = reksgrad.o $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_coulomb) $(_mod_dftbp_densedescr) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_message) $(_mod_dftbp_nonscc) $(_mod_dftbp_orbitals) $(_mod_dftbp_periodic) $(_mod_dftbp_rangeseparted) $(_mod_dftbp_scc) $(_mod_dftbp_schedule) $(_mod_dftbp_slakocont) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon)
+#:if WITH_OMP
+reksgrad.o: common.fypp _mod_omp_lib _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_coulomb _mod_dftbp_densedescr _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_lapackroutines _mod_dftbp_message _mod_dftbp_nonscc _mod_dftbp_orbitals _mod_dftbp_periodic _mod_dftbp_rangeseparted _mod_dftbp_scc _mod_dftbp_schedule _mod_dftbp_slakocont _mod_dftbp_sparse2dense _mod_dftbp_rekscommon
+reksgrad.o = reksgrad.o $(common.fypp) $(_mod_omp_lib) $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_coulomb) $(_mod_dftbp_densedescr) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_message) $(_mod_dftbp_nonscc) $(_mod_dftbp_orbitals) $(_mod_dftbp_periodic) $(_mod_dftbp_rangeseparted) $(_mod_dftbp_scc) $(_mod_dftbp_schedule) $(_mod_dftbp_slakocont) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon)
 _mod_dftbp_reksgrad: reksgrad.o
 _mod_dftbp_reksgrad = $(reksgrad.o)
+#:else
+reksgrad.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_blasroutines _mod_dftbp_coulomb _mod_dftbp_densedescr _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_lapackroutines _mod_dftbp_message _mod_dftbp_nonscc _mod_dftbp_orbitals _mod_dftbp_periodic _mod_dftbp_rangeseparted _mod_dftbp_scc _mod_dftbp_schedule _mod_dftbp_slakocont _mod_dftbp_sparse2dense _mod_dftbp_rekscommon
+reksgrad.o = reksgrad.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_blasroutines) $(_mod_dftbp_coulomb) $(_mod_dftbp_densedescr) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_lapackroutines) $(_mod_dftbp_message) $(_mod_dftbp_nonscc) $(_mod_dftbp_orbitals) $(_mod_dftbp_periodic) $(_mod_dftbp_rangeseparted) $(_mod_dftbp_scc) $(_mod_dftbp_schedule) $(_mod_dftbp_slakocont) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_rekscommon)
+_mod_dftbp_reksgrad: reksgrad.o
+_mod_dftbp_reksgrad = $(reksgrad.o)
+#:endif
 
 reksinterface.o: _mod_dftbp_accuracy _mod_dftbp_densedescr _mod_dftbp_dispiface _mod_dftbp_environment _mod_dftbp_globalenv _mod_dftbp_mainio _mod_dftbp_nonscc _mod_dftbp_orbitals _mod_dftbp_periodic _mod_dftbp_populations _mod_dftbp_rangeseparted _mod_dftbp_repcont _mod_dftbp_repulsive _mod_dftbp_scc _mod_dftbp_slakocont _mod_dftbp_sparse2dense _mod_dftbp_stress _mod_dftbp_taggedoutput _mod_dftbp_rekscommon _mod_dftbp_rekscpeqn _mod_dftbp_reksgrad _mod_dftbp_reksproperty _mod_dftbp_reksvar
 reksinterface.o = reksinterface.o $(_mod_dftbp_accuracy) $(_mod_dftbp_densedescr) $(_mod_dftbp_dispiface) $(_mod_dftbp_environment) $(_mod_dftbp_globalenv) $(_mod_dftbp_mainio) $(_mod_dftbp_nonscc) $(_mod_dftbp_orbitals) $(_mod_dftbp_periodic) $(_mod_dftbp_populations) $(_mod_dftbp_rangeseparted) $(_mod_dftbp_repcont) $(_mod_dftbp_repulsive) $(_mod_dftbp_scc) $(_mod_dftbp_slakocont) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_stress) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_rekscommon) $(_mod_dftbp_rekscpeqn) $(_mod_dftbp_reksgrad) $(_mod_dftbp_reksproperty) $(_mod_dftbp_reksvar)

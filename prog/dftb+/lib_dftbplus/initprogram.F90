@@ -2577,6 +2577,9 @@ contains
     ! In this routine nSpin changes to 2
     if (tREKS) then
 
+    #:if not WITH_OMP
+      call error("This binary has been compiled without support for OpenMP thread parallelization")
+    #:endif
       if (.not. tSccCalc) then
         call error("REKS requires SCC=Yes")
       end if

@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> REKS and SI-SA-REKS formulation in DFTB as developed by Lee et al.
 !>
 !> The functionality of the module has some limitation:
@@ -13,8 +15,12 @@
 !> * Orbital potentials or spin-orbit or external E-field does not work yet.
 !> * Only for closed shell system.
 !> * Onsite corrections are not included in this version
+
 module dftbp_reksgrad
 
+#:if WITH_OMP
+  use omp_lib
+#:endif
   use dftbp_accuracy
   use dftbp_blasroutines, only : gemm, gemv
   use dftbp_coulomb, only : addInvRPrime
@@ -32,8 +38,6 @@ module dftbp_reksgrad
   use dftbp_slakocont
   use dftbp_sparse2dense
   use dftbp_rekscommon
-  ! TODO
-  use omp_lib
 
   implicit none
 
@@ -4559,11 +4563,13 @@ module dftbp_reksgrad
 
     nSpin = size(qOutputL,dim=3)
     Lmax = size(qOutputL,dim=4)
-    Ncpu = 1
-            ! TODO
+  #:if WITH_OMP
 !$OMP PARALLEL
     Ncpu = OMP_GET_NUM_THREADS()
 !$OMP END PARALLEL
+  #:else
+    Ncpu = 1
+  #:endif
 
     allocate(q0AO(nOrb))
     allocate(qOutputAO(nOrb,Lmax))
@@ -4608,7 +4614,11 @@ module dftbp_reksgrad
 !$OMP& tmpCoulomb,ist) REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
     do k = 1, nAtomPair
 
+    #:if WITH_OMP
       id = OMP_GET_THREAD_NUM() + 1
+    #:else
+      id = 1
+    #:endif
 
       call getTwoIndices(nAtom, k, iAtom1, iAtom2, 1)
 
@@ -4948,11 +4958,13 @@ module dftbp_reksgrad
     nOrbHalf = size(RmatHalfL,dim=1)
 
     Lmax = size(deltaRhoSqrL,dim=4)
-    Ncpu = 1
-    ! TODO
+  #:if WITH_OMP
 !$OMP PARALLEL
     Ncpu = OMP_GET_NUM_THREADS()
 !$OMP END PARALLEL
+  #:else
+    Ncpu = 1
+  #:endif
 
     allocate(tmpS(mOrb,mOrb,3))
 
@@ -4974,7 +4986,11 @@ module dftbp_reksgrad
 !$OMP& REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
     loopKK: do k = 1, nAtomSparse
 
+    #:if WITH_OMP
       id = OMP_GET_THREAD_NUM() + 1
+    #:else
+      id = 1
+    #:endif
 
       ! set the atom indices with respect to sparsity
       iAtom1 = getDenseAtom(k,1)
@@ -5436,11 +5452,13 @@ module dftbp_reksgrad
 
     sparseSize = size(getDenseAO,dim=1)
 
-    Ncpu = 1
-    ! TODO
+  #:if WITH_OMP
 !$OMP PARALLEL
     Ncpu = OMP_GET_NUM_THREADS()
 !$OMP END PARALLEL
+  #:else
+    Ncpu = 1
+  #:endif
 
     allocate(QinvRderiv(3,nAtom))
     allocate(Tderiv(sparseSize,3,Ncpu))
@@ -5456,7 +5474,11 @@ module dftbp_reksgrad
 !$OMP& tmpCoulombDeriv) REDUCTION(+:deriv1,deriv2) SCHEDULE(RUNTIME)
     do iAtom1 = 1, nAtom
       
+    #:if WITH_OMP
       id = OMP_GET_THREAD_NUM() + 1
+    #:else
+      id = 1
+    #:endif
 
       ! zeroing for temporary Tderiv in each k atom pair
       ! calculate sparse Tderiv in AO basis
