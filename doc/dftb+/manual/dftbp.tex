@@ -2433,7 +2433,9 @@ description of the methods see the following subsections):
   code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
   section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
   strengths (see section \ref{sec:dftbp.hcorr}).
-\item \is{DftD4}: Dispersion is calculated using the D4 model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see section~\ref{sec:dftbp.DftD4}).
+\item \is{DftD4}: Dispersion is calculated using the D4
+  model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122,} (see
+  section~\ref{sec:dftbp.DftD4}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2708,7 +2710,9 @@ parameters are taken to be the same as in the dftd3 code.
 \subsubsection{DftD4}
 \label{sec:dftbp.DftD4}
 
-The DFT-D4 dispersion correction in \dftbp{} is an implementation of the D4 model by Stefan Grimme and coworkers. It is based on the method described in Ref.~\cite{caldeweyher-jcp-150-154122}.
+The DFT-D4 dispersion correction in \dftbp{} is an implementation of the D4
+model by Stefan Grimme and coworkers. It is based on the method described in
+Ref.~\cite{caldeweyher-jcp-150-154122}.
 
 This dispersion correction for DFTB adds a contribution to the general
 Kohn--Sham-like energy
@@ -2753,48 +2757,70 @@ non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
 can be used with all settings.
 
 \subsubsection{DftD4 optional settings}
-Apart from the functional dependent dispersion parameters, you can also adjust
+Apart from the , you can also adjust
 the additional parameters as shown below.
 
 \begin{ptable}
   \kw{s6} & r & & 1.0 & \\
+  \kw{s8} & r & & & \\
+  \kw{s9} & r & & & \\
   \kw{s10} & r & & 0.0 & \\
+  \kw{a1} & r & & & \\
+  \kw{a2} & r & & & \\
   \kw{alpha} & r & & 16.0 & \\
-  \kw{weightingFactor} & r & & 6.0 & \\
-  \kw{chargeSteepness} & r & & 2.0 & \\
-  \kw{chargeScale} & r & & 3.0 & \\
-  \kw{cutoffInter} & r & & 64 & \\
-  \kw{cutoffEwald} & r & & 40 & \\
-  \kw{cutoffCount} & r & & 40 & \\
-  \kw{cutoffThree} & r & & 40 & \\
+  \kw{WeightingFactor} & r & & 6.0 & \\
+  \kw{ChargeSteepness} & r & & 2.0 & \\
+  \kw{ChargeScale} & r & & 3.0 & \\
+  \kw{CutoffInter} & r & & 64 & \\
+  \kw{CutoffEwald} & r & & 40 & \\
+  \kw{CutoffCount} & r & & 40 & \\
+  \kw{CutoffThree} & r & & 40 & \\
   \kw{EwaldParameter} & r & & 0.0 & \\
   \kw{EwaldTolerance} & r & & 1.0e-9 & \\
 \end{ptable}
 
 \begin{description}
-  \item[\is{s6}] parameter for scaling pairwise dipole--dipole dispersion interaction, should always be set to 1.0
+\item[\is{s8}, \is{s9}, \is{a1}, \is{a2}] Functional dependent dispersion
+  parameters, see equations above.
+  
+\item[\is{s6}] Parameter for scaling pairwise dipole--dipole dispersion
+  interaction, should always be set to 1.0.
 
-  \item[\is{s10}] parameter for pairwise quadrupole--quadrupole dispersion interactions, should be kept set to 0.0
+\item[\is{s10}] Parameter for pairwise quadrupole--quadrupole dispersion
+  interactions, should be kept set to 0.0.
 
-  \item[\is{alpha}] zero damping exponent for three-body damping function, default is 16 as in DFT-D3.
+\item[\is{alpha}] Zero damping exponent for three-body damping function, default
+  is 16 as in DFT-D3.
 
-  \item[\is{weightingFactor}] for coordination number based interpolation, 4.0 used in DFT-D3, default for D4 is 6.0
+\item[\is{WeightingFactor}] Coordination number based interpolation, 4.0 used in
+  DFT-D3, default for D4 is 6.0.
 
-  \item[\is{chargeScale}] maximum possible charge scaling, used as exponential value, should be kept set to 3.0
+\item[\is{ChargeScale}] Maximum possible charge scaling, used as exponential
+  value, should be kept set to 3.0.
 
-  \item[\is{chargeSteepness}] steepness of the charge scaling function, should be kept set to 2.0
+\item[\is{ChargeSteepness}] Steepness of the charge scaling function, should be
+  kept set to 2.0.
 
-  \item[\is{CutoffInter}] \modif{\modtype{length}} Cutoff distance when calculating two-body interactions.
+\item[\is{CutoffInter}] \modif{\modtype{length}} Cutoff distance when
+  calculating two-body interactions.
 
-  \item[\is{CutoffEwald}] \modif{\modtype{length}} Cutoff distance when calculating electrostatics interactions under PBC.
+\item[\is{CutoffEwald}] \modif{\modtype{length}} Cutoff distance when
+  calculating electrostatics interactions under PBC.
 
-  \item[\is{CutoffCount}] \modif{\modtype{length}} Cutoff distance when calculating coordination numbers.
+\item[\is{CutoffCount}] \modif{\modtype{length}} Cutoff distance when
+  calculating coordination numbers.
 
-  \item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when calculating three-body interactions.
+\item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
+  calculating three-body interactions.
 
-  \item[\is{EwaldParameter}] Sets the splitting parameter in the Ewald electrostatic summation for periodic calculations. This controls the fraction of the Ewald summation occurring in real and reciprocal space. Setting it to zero or negative activates an automatic determination of this parameter (default and recommended behaviour).
+\item[\is{EwaldParameter}] Sets the splitting parameter in the Ewald
+  electrostatic summation for periodic calculations. This controls the fraction
+  of the Ewald summation occurring in real and reciprocal space. Setting it to
+  zero or negative activates an automatic determination of this parameter
+  (default and recommended behaviour).
 
-  \item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic systems.
+\item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
+  systems.
 
 \end{description}
 

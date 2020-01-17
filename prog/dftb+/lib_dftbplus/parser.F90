@@ -3408,22 +3408,20 @@ contains
     call getChildValue(node, "a1", input%a1)
     call getChildValue(node, "a2", input%a2)
     call getChildValue(node, "alpha", input%alpha, default=16.0_dp)
-    call getChildValue(node, "weightingFactor", input%weightingFactor, &
-        &              default=6.0_dp)
-    call getChildValue(node, "chargeSteepness", input%chargeSteepness, &
-        &              default=2.0_dp)
+    call getChildValue(node, "weightingFactor", input%weightingFactor, default=6.0_dp)
+    call getChildValue(node, "chargeSteepness", input%chargeSteepness, default=2.0_dp)
     call getChildValue(node, "chargeScale", input%chargeScale, default=3.0_dp)
-    call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, &
-        &              modifier=buffer, child=child)
+    call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
+        & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
-    call getChildValue(node, "cutoffCount", input%cutoffCount, default=40.0_dp, &
-        &              modifier=buffer, child=child)
+    call getChildValue(node, "cutoffCount", input%cutoffCount, default=40.0_dp, modifier=buffer,&
+        & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffCount)
-    call getChildValue(node, "cutoffEwald", input%cutoffEwald, default=40.0_dp, &
-        &              modifier=buffer, child=child)
+    call getChildValue(node, "cutoffEwald", input%cutoffEwald, default=40.0_dp, modifier=buffer,&
+        & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffEwald)
-    call getChildValue(node, "cutoffThree", input%cutoffThree, default=40.0_dp, &
-        &              modifier=buffer, child=child)
+    call getChildValue(node, "cutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
+        & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffThree)
 
     call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)

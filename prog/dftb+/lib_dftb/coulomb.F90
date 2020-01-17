@@ -30,6 +30,7 @@ module dftbp_coulomb
   public :: invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
+  public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
 
   !> 1/r interaction for all atoms with another group
   interface sumInvR
@@ -1452,6 +1453,52 @@ contains
     recSum(:) = 2.0_dp * recSum(:) * 4.0_dp * pi / vol
 
   end function derivEwaldReciprocal
+
+
+  !> Returns the derivative and stress of the reciprocal part of the Ewald sum
+  subroutine derivStressEwaldRec(rr, gVec, alpha, vol, recSum, sigma)
+
+    !> Vector where to calculate the Ewald sum.
+    real(dp), intent(in) :: rr(:)
+
+    !> Reciprocal space vectors to sum over.
+    !  Should not contain either origin nor inversion related points.
+    real(dp), intent(in) :: gVec(:, :)
+
+    !> Parameter for the Ewald summation.
+    real(dp), intent(in) :: alpha
+
+    !> Volume of the real space unit cell.
+    real(dp), intent(in) :: vol
+
+    !> contribution to the derivative value
+    real(dp), intent(out) :: recSum(3)
+
+    !> contribution to the derivative value
+    real(dp), intent(out) :: sigma(3, 3)
+
+    real(dp), parameter :: unity(3, 3) = reshape(&
+        & [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], [3, 3])
+
+    integer :: iG
+    real(dp) :: gg(3), g2, rg, eTerm, sTmp
+
+    recSum(:) = 0.0_dp
+    sigma(:,:) = 0.0_dp
+    do iG = 1, size(gVec, dim=2)
+      gg = gVec(:, iG)
+      g2 = sum(gg**2)
+      rg = dot_product(gg, rr)
+      eTerm = exp(-g2 / (4.0_dp * alpha**2)) / g2
+      recSum(:) = recSum - gg * sin(rg) * eTerm
+      sTmp = 2.0_dp * (1.0_dp / (4.0_dp * alpha * alpha) + 1.0_dp / g2)
+      sigma(:,:) = sigma + (-unity + sTmp * spread(gg, 1, 3)*spread(gg, 2, 3)) * cos(rg) * eTerm
+    end do
+    ! note factor of 2 as only summing over half of reciprocal space
+    recSum(:) = 2.0_dp * recSum * 4.0_dp * pi / vol
+    sigma(:,:) = 2.0_dp * sigma * 4.0_dp * pi / vol
+
+  end subroutine derivStressEwaldRec
 
 
   !> Returns the real space part of the Ewald sum.

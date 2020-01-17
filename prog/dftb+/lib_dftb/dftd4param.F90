@@ -21,71 +21,101 @@ module dftbp_dftd4param
 
   !> Damping parameters for DFT-D4 calculation.
   type :: DispDftD4Inp
+
     !> scaling parameter for dipole-dipole coefficients.
     real(dp) :: s6 = 1.0_dp
+
     !> scaling parameter for dipole-quadrupole coefficients.
     real(dp) :: s8
+
     !> scaling parameter for quadrupole-quadrupole coefficients.
     real(dp) :: s10 = 0.0_dp
+
     !> scaling parameter for non-additive triple dipole coefficients.
     real(dp) :: s9
+
     !> scaling parameter for <r4>/<r2> expectation value based critical radii.
     real(dp) :: a1
+
     !> constant offset of critical radii.
     real(dp) :: a2
+
     !> exponent of for the zero-damping function used for non-addititive
     !  triple dipole contributions.
     real(dp) :: alpha = 16.0_dp
+
     !> cutoff radius for dispersion interactions.
     real(dp) :: cutoffInter = 64.0_dp
+
     !> cutoff radius for CN counting function.
     real(dp) :: cutoffCount = 40.0_dp
+
     !> cutoff radius for real space Ewald summation.
     real(dp) :: cutoffEwald = 40.0_dp
+
     !> cutoff radius for three-body interactions.
     real(dp) :: cutoffThree = 40.0_dp
+
     !> Gaussian weighting factor for interpolation of dispersion coefficients.
     real(dp) :: weightingFactor = 6.0_dp
+
     !> maximum charge scaling height for partial charge extrapolation.
     real(dp) :: chargeScale = 3.0_dp
+
     !> charge scaling steepness for partial charge extrapolation.
     real(dp) :: chargeSteepness = 2.0_dp
+
     !> if > 0 -> manual setting for alpha
     real(dp) :: parEwald = 0.0_dp
+
     !> Ewald tolerance
     real(dp) :: tolEwald = 0.0_dp
+
   end type DispDftD4Inp
 
 
   type :: DftD4Calculator
+
     !> scaling parameter for dipole-dipole coefficients.
     real(dp) :: s6 = 1.0_dp
+
     !> scaling parameter for dipole-quadrupole coefficients.
     real(dp) :: s8
+
     !> scaling parameter for quadrupole-quadrupole coefficients.
     real(dp) :: s10 = 0.0_dp
+
     !> scaling parameter for non-additive triple dipole coefficients.
     real(dp) :: s9
+
     !> scaling parameter for <r4>/<r2> expectation value based critical radii.
     real(dp) :: a1
+
     !> constant offset of critical radii.
     real(dp) :: a2
+
     !> exponent of for the zero-damping function used for non-addititive
     !  triple dipole contributions.
     real(dp) :: alpha = 16.0_dp
+
     !> Gaussian weighting factor for interpolation of dispersion coefficients.
     real(dp) :: wf
+
     !> maximum charge scaling height for partial charge extrapolation.
     real(dp) :: ga
+
     !> charge scaling steepness for partial charge extrapolation.
     real(dp) :: gc
 
     !> cutoff radius for dispersion interactions.
     real(dp) :: cutoffInter
+
     !> cutoff radius for CN counting function.
     real(dp) :: cutoffCount
+
     !> cutoff radius for real space Ewald summation.
     real(dp) :: cutoffEwald
+
     !> cutoff radius for three-body interactions.
     real(dp) :: cutoffThree
 
@@ -107,6 +137,7 @@ module dftbp_dftd4param
     real(dp), allocatable :: referenceCharge(:, :)
     real(dp), allocatable :: referenceAlpha(:, :, :)
     real(dp), allocatable :: referenceC6(:, :, :, :)
+
   end type DftD4Calculator
 
 
@@ -323,6 +354,7 @@ module dftbp_dftd4param
     &             0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, & ! Lr-
     &             0.0000_dp, 0.0000_dp, 0.0000_dp, 0.0000_dp, 5.4929_dp, & ! -Cn
     &  6.7286_dp, 6.5144_dp,10.9169_dp,10.3600_dp, 9.4723_dp, 8.6641_dp]   ! Nh-Og
+
   integer :: iDummy
   real(dp), parameter :: sqrtZr4r2(118) = &
     &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iDummy, dp)), iDummy=1, 118)]))
@@ -334,17 +366,18 @@ contains
     real(dp),intent(in) :: qmod, qref
     real(dp),intent(in) :: a, c
     real(dp) :: zeta
+
     if (qmod < 0.0_dp) then
       zeta = exp(a)
     else
       zeta = exp(a * (1.0_dp - exp(c * (1.0_dp - qref/qmod))))
-    endif
+    end if
+
   end function zetaScale
 
 
   !> numerical Casimir--Polder integration
   pure function numIntegration(pol) result(trapzd)
-    implicit none
     real(dp), intent(in) :: pol(23)
     real(dp) :: trapzd
 
@@ -354,6 +387,7 @@ contains
       & 0.900000_dp, 1.000000_dp, 1.200000_dp, 1.400000_dp, 1.600000_dp, &
       & 1.800000_dp, 2.000000_dp, 2.500000_dp, 3.000000_dp, 4.000000_dp, &
       & 5.000000_dp, 7.500000_dp, 10.00000_dp ]
+
     !  just precalculate all weights and get the job done
     real(dp),parameter :: weights(23) = 0.5_dp * [ &
       & (freq (2) - freq (1)),  &
@@ -386,11 +420,16 @@ contains
 
 
   subroutine initializeCalculator(calculator, input, nAtom, izp)
-    use dftbp_constants, only: pi
+
+    !> Calculator
     type(DftD4Calculator), intent(inout) :: calculator
+
+    !> Input
     type(DispDftD4Inp), intent(in) :: input
+
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
+
     !> Atomic number of every atom.
     integer, intent(in) :: izp(:)
 
@@ -433,18 +472,18 @@ contains
 
     mAt = maxval(izp)
     allocate(calculator%numberOfReferences(mAt), calculator%atoms(mAt), &
-      &     calculator%countNumber(7, mAt), source=0)
+        & calculator%countNumber(7, mAt), source=0)
     allocate(calculator%referenceCN(7, mAt), &
-      &     calculator%referenceCharge(7, mAt), &
-      &     calculator%referenceAlpha(23, 7, mAt), &
-      &     calculator%referenceC6(7, 7, mAt, mAt), &
-      &     source=0.0_dp)
+        & calculator%referenceCharge(7, mAt), &
+        & calculator%referenceAlpha(23, 7, mAt), &
+        & calculator%referenceC6(7, 7, mAt, mAt), &
+        & source=0.0_dp)
 
     calculator%referenceCharge = clsq(:, :mAt)
-    tmp_hq = clsh
+    tmp_hq(:,:) = clsh
 
     do iAt1 = 1, nAtom
-      cncount = 0
+      cncount(:) = 0
       cncount(0) = 1
       iZp1 = izp(iAt1)
       if (calculator%atoms(iZp1) == 0) then
@@ -453,23 +492,22 @@ contains
           iSec = refsys(iRef1,iZp1)
           eta1 = calculator%gc * calculator%chemicalHardness(iSec)
           zEff1 = calculator%effectiveNuclearCharge(iSec)
-          alpha = sscale(iSec)*secaiw(:,iSec) &
-            &    * zetaScale(calculator%ga, eta1, &
-            &                zEff1,tmp_hq(iRef1,iZp1)+zEff1)
+          alpha = sscale(iSec) * secaiw(:,iSec) &
+              & * zetaScale(calculator%ga, eta1, zEff1, tmp_hq(iRef1,iZp1) + zEff1)
           iCN = nint(refcn(iRef1,iZp1))
           calculator%referenceCN(iRef1,iZp1) = refcovcn(iRef1,iZp1)
           cncount(iCN) = cncount(iCN) + 1
-          calculator%referenceAlpha(:,iRef1,iZp1) = max(0.0_dp, &
-            & ascale(iRef1,iZp1)*(alphaiw(:,iRef1,iZp1) &
-            &                     - hcount(iRef1,iZp1)*alpha))
-        enddo
+          calculator%referenceAlpha(:,iRef1,iZp1) = &
+              & max(0.0_dp,&
+              & ascale(iRef1,iZp1) * (alphaiw(:,iRef1,iZp1) - hcount(iRef1,iZp1)*alpha))
+        end do
         do iRef1 = 1, calculator%numberOfReferences(iZp1)
           iCN = cncount(nint(refcn(iRef1,iZp1)))
-          calculator%countNumber(iRef1,iZp1) = iCN*(iCN+1)/2
-        enddo
-      endif
-      calculator%atoms(iZp1) = calculator%atoms(iZp1)+1
-    enddo
+          calculator%countNumber(iRef1,iZp1) = iCN * (iCN + 1) / 2
+        end do
+      end if
+      calculator%atoms(iZp1) = calculator%atoms(iZp1) + 1
+    end do
 
     ! integrate C6 coefficients
     !$omp parallel default(none) &
