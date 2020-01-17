@@ -12,6 +12,7 @@ module dftbp_dftd4param
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_constants, only: pi, AA__Bohr
+  use dftbp_dftd4refs
   implicit none
 
   public :: DftD4Calculator, DispDftD4Inp, initializeCalculator
@@ -325,8 +326,6 @@ module dftbp_dftd4param
   integer :: iDummy
   real(dp), parameter :: sqrtZr4r2(118) = &
     &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iDummy, dp)), iDummy=1, 118)]))
-
-  #:include 'dftd4_references.fh'
 
 contains
 
