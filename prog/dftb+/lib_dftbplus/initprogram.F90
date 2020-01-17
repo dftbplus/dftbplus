@@ -2005,18 +2005,16 @@ contains
         end if
         call move_alloc(dftd3, dispersion)
     #:endif
-      elseif (allocated(input%ctrl%dispInp%dftd4)) then
+      else if (allocated(input%ctrl%dispInp%dftd4)) then
         allocate(dftd4)
         if (tPeriodic) then
-          call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, species0, speciesName, &
-             &      latVec)
+          call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, species0, speciesName, latVec)
         else
           call init(dftd4, input%ctrl%dispInp%dftd4, nAtom, species0, speciesName)
         end if
         call move_alloc(dftd4, dispersion)
       end if
       cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
-
     end if
 
     if (allocated(halogenXCorrection)) then
