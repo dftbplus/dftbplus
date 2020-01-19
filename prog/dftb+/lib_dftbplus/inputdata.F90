@@ -9,6 +9,7 @@
 
 !> Contains data type representing the input data for DFTB
 module dftbp_inputdata
+  use dftbp_hamiltoniantypes
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_typegeometry
@@ -88,6 +89,9 @@ module dftbp_inputdata
 
   !> Main control data for program as extracted by the parser
   type control
+
+    !> Choice of electronic hamiltonian
+    integer :: hamiltonian = hamiltonianTypes%none
 
     !> random number generator seed
     integer :: iSeed       = 0
