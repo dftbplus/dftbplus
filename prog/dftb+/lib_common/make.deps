@@ -61,6 +61,11 @@ _mod_dftbp_globalenv: globalenv.o
 _mod_dftbp_globalenv = $(globalenv.o)
 #:endif
 
+hamitoniantypes.o:
+hamitoniantypes.o = hamitoniantypes.o
+_mod_dftbp_hamiltoniantypes: hamitoniantypes.o
+_mod_dftbp_hamiltoniantypes = $(hamitoniantypes.o)
+
 memman.o: _mod_dftbp_accuracy
 memman.o = memman.o $(_mod_dftbp_accuracy)
 _mod_dftbp_memman: memman.o

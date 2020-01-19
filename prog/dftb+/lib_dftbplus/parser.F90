@@ -49,6 +49,7 @@ module dftbp_parser
   use dftbp_elsiiface
   use dftbp_elecsolvers, only : electronicSolverTypes
   use dftbp_etemp, only : fillingTypes
+  use dftbp_hamiltoniantypes
   use dftbp_wrappedintr
   use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
@@ -309,10 +310,10 @@ contains
     !> Parent of node (for error messages)
     type(fnode), pointer :: parent
 
-    !> Control structure to be filled
+    !> geometry of the system
     type(TGeometry), intent(in) :: geom
 
-    !> Nr. of atoms in the system
+    !> Control structure to be filled
     type(control), intent(inout) :: ctrl
 
   #:if WITH_TRANSPORT
@@ -1142,6 +1143,12 @@ contains
   #:else
       call readDFTBHam(node, ctrl, geo, slako)
   #:endif
+    case ("xtb")
+  #:if WITH_TRANSPORT
+      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+  #:else
+      call readXTBHam(node, ctrl, geo)
+  #:endif
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
@@ -1220,6 +1227,7 @@ contains
     real(dp) :: screeningThreshold
     type(TRangeSepSKTag) :: rangeSepSK
 
+    ctrl%hamiltonian = hamiltonianTypes%dftb
 
     ! Read in maximal angular momenta or selected shells
     do ii = 1, maxL+1
@@ -1477,85 +1485,17 @@ contains
     ! SCC parameters
     ifSCC: if (ctrl%tSCC) then
 
-      call getChildValue(node, "ReadInitialCharges", ctrl%tReadChrg, .false.)
-      if (.not. ctrl%tReadChrg) then
-        call getInitialCharges(node, geo, ctrl%initialCharges)
-      end if
-      call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
+      ! get charge mixing options
+      call sharedSccOptions(node, ctrl, geo)
 
-      ! temporararily removed until debugged
-      !call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
-      ctrl%tWriteShifts = .false.
-
-      call getChildValue(node, "Mixer", value1, "Broyden", child=child)
-      call getNodeName(value1, buffer)
-      select case(char(buffer))
-
-      case ("broyden")
-
-        ctrl%iMixSwitch = mixerTypes%broyden
-        call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
-        call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, &
-            &0.01_dp)
-        call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, &
-            &1.0_dp)
-        call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, &
-            &1.0e5_dp)
-        call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, &
-            &1.0e-2_dp)
-
-      case ("anderson")
-        ctrl%iMixSwitch = mixerTypes%anderson
-        call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-        call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
-        call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
-        call getChildValue(value1, "DynMixingParameters", value2, "", &
-            &child=child, allowEmptyValue=.true.)
-        call getNodeName2(value2, buffer2)
-        if (char(buffer2) == "") then
-          ctrl%andersonNrDynMix = 0
-        else
-          call init(lr1)
-          call getChildValue(child, "", 2, lr1, child=child2)
-          if (len(lr1) < 1) then
-            call detailedError(child2, "At least one dynamic mixing parameter&
-                & must be defined.")
-          end if
-          ctrl%andersonNrDynMix = len(lr1)
-          allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
-          call asArray(lr1, ctrl%andersonDynMixParams)
-          call destruct(lr1)
-        end if
-        call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, &
-            &1.0e-2_dp)
-
-      case ("simple")
-        ctrl%iMixSwitch = mixerTypes%simple
-        call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-
-      case("diis")
-        ctrl%iMixSwitch = mixerTypes%diis
-        call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
-        call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
-        call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
-
-      case default
-        call getNodeHSDName(value1, buffer)
-        call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
-      end select
-
-      if (geo%tPeriodic) then
-        call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
-        call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
-      end if
-
-      ctrl%tMulliken = .true.
+      ! DFTB hydrogen bond corrections
       call readHCorrection(node, geo, ctrl)
 
-      call readCustomReferenceOcc(node, slako%orb, slako%skOcc, geo, &
-            & ctrl%customOccAtoms, ctrl%customOccFillings)
-
     end if ifSCC
+
+    ! Customize the reference atomic charges for virtual doping
+    call readCustomReferenceOcc(node, slako%orb, slako%skOcc, geo, &
+        & ctrl%customOccAtoms, ctrl%customOccFillings)
 
     ! Spin calculation
     call getChildValue(node, "SpinPolarisation", value1, "", child=child, &
@@ -2209,8 +2149,7 @@ contains
 
   #:if WITH_TRANSPORT
     ! Read in which kind of electrostatics method to use.
-    call getChildValue(node, "Electrostatics", value1, "GammaFunctional", &
-        &child=child)
+    call getChildValue(node, "Electrostatics", value1, "GammaFunctional", child=child)
     call getNodeName(value1, buffer)
     select case (char(buffer))
     case ("gammafunctional")
@@ -2290,19 +2229,9 @@ contains
 
     call readDifferentiation(node, ctrl)
 
-    if (ctrl%tSCC) then ! Force type
-      call getChildValue(node, "ForceEvaluation", buffer, "Traditional", &
-          & child=child)
-      select case (tolower(unquote(char(buffer))))
-      case("traditional")
-        ctrl%forceType = forceTypes%orig
-      case("dynamicst0")
-        ctrl%forceType = forceTypes%dynamicT0
-      case("dynamics")
-        ctrl%forceType = forceTypes%dynamicTFinite
-      case default
-        call detailedError(child, "Invalid force evaluation method.")
-      end select
+    if (ctrl%tSCC) then
+      ! Force type
+      call sharedForceOptions(node, ctrl)
     else
       ctrl%forceType = forceTypes%orig
     end if
@@ -2310,6 +2239,166 @@ contains
     call readCustomisedHubbards(node, geo, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
 
   end subroutine readDFTBHam
+
+
+  !> Reads xTB-Hamiltonian
+#:if WITH_TRANSPORT
+  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+#:else
+  subroutine readXTBHam(node, ctrl, geo)
+#:endif
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+  #:if WITH_TRANSPORT
+    !> Transport parameters
+    type(TTransPar), intent(inout)  :: tp
+
+    !> Green's function paramenters
+    type(TNEGFGreenDensInfo), intent(inout) :: greendens
+
+    !> Poisson solver paramenters
+    type(TPoissonInfo), intent(inout) :: poisson
+  #:endif
+
+    ctrl%hamiltonian = hamiltonianTypes%gfn1_xtb
+
+    ctrl%tSCC = .true.
+    ctrl%tShellResolved = .true.
+
+    ctrl%t3rd = .true.
+    ctrl%t3rdFull = .false.
+
+    ! get charge mixing options etc.
+    call sharedSccOptions(node, ctrl, geo)
+
+    call sharedForceOptions(node, ctrl)
+
+    call error("Nothing much here so far...")
+
+  end subroutine
+
+
+  !> SCC options that are need for different hamiltonian choices
+  subroutine sharedSccOptions(node, ctrl, geo)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: value1, value2, child, child2, child3, field
+    type(string) :: buffer, buffer2
+    type(listRealR1) :: lr1
+
+    ctrl%tMulliken = .true.
+
+    call getChildValue(node, "ReadInitialCharges", ctrl%tReadChrg, .false.)
+    if (.not. ctrl%tReadChrg) then
+      call getInitialCharges(node, geo, ctrl%initialCharges)
+    end if
+
+    call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
+
+    call getChildValue(node, "Mixer", value1, "Broyden", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+
+    case ("broyden")
+
+      ctrl%iMixSwitch = mixerTypes%broyden
+      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
+      call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
+      call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
+      call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
+      call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
+
+    case ("anderson")
+      ctrl%iMixSwitch = mixerTypes%anderson
+      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+      call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
+      call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
+      call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
+          & allowEmptyValue=.true.)
+      call getNodeName2(value2, buffer2)
+      if (char(buffer2) == "") then
+        ctrl%andersonNrDynMix = 0
+      else
+        call init(lr1)
+        call getChildValue(child, "", 2, lr1, child=child2)
+        if (len(lr1) < 1) then
+          call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+        end if
+        ctrl%andersonNrDynMix = len(lr1)
+        allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
+        call asArray(lr1, ctrl%andersonDynMixParams)
+        call destruct(lr1)
+      end if
+      call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
+
+    case ("simple")
+      ctrl%iMixSwitch = mixerTypes%simple
+      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+
+    case("diis")
+      ctrl%iMixSwitch = mixerTypes%diis
+      call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
+      call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
+      call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
+
+    case default
+      call getNodeHSDName(value1, buffer)
+      call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
+    end select
+
+    ! temporararily removed until debugged
+    !call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
+    ctrl%tWriteShifts = .false.
+
+    if (geo%tPeriodic) then
+      call getChildValue(node, "EwaldParameter", ctrl%ewaldAlpha, 0.0_dp)
+      call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
+    end if
+
+  end subroutine sharedSccOptions
+
+
+  !> Force evaluation options that are need for different hamiltonian choices
+  subroutine sharedForceOptions(node, ctrl)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    type(fnode), pointer :: value1, value2, child, child2, child3, field
+    type(string) :: buffer, buffer2
+
+    call getChildValue(node, "ForceEvaluation", buffer, "Traditional", child=child)
+    select case (tolower(unquote(char(buffer))))
+    case("traditional")
+      ctrl%forceType = forceTypes%orig
+    case("dynamicst0")
+      ctrl%forceType = forceTypes%dynamicT0
+    case("dynamics")
+      ctrl%forceType = forceTypes%dynamicTFinite
+    case default
+      call detailedError(child, "Invalid force evaluation method.")
+    end select
+
+  end subroutine sharedForceOptions
 
 
   !> Options for truncation of the SK data sets at a fixed distance
