@@ -2750,11 +2750,15 @@ In order to adjust the dispersion for various energy functionals, the choice of
 $s_8$ and the damping parameters $a_1$ and $a_2$ are
 treated as functional-dependent values. All other parameters are fixed based on
 these parameters.
+Depending on the choice of the $s_9$ parameter non-additive triple-dipole
+contributions will be evaluated. Including non-additive effects usually improves
+the description of dispersion interactions, but is also more expensive.
 
 As the DFTB energy functional is largely determined by the underlying
 parameterisation (the Slater--Koster-files) and the chosen DFTB model (e.g.\
 non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
-can be used with all settings.
+can be used with all settings, but some relevant choices for various
+parameterisation are given in Appendix \ref{app:dftd4const}.
 
 \subsubsection{DftD4 optional settings}
 Apart from the , you can also adjust
@@ -2763,8 +2767,8 @@ the additional parameters as shown below.
 \begin{ptable}
   \kw{s6} & r & & 1.0 & \\
   \kw{s8} & r & & & \\
-  \kw{s9} & r & & & \\
   \kw{s10} & r & & 0.0 & \\
+  \kw{s9} & r & & & \\
   \kw{a1} & r & & & \\
   \kw{a2} & r & & & \\
   \kw{alpha} & r & & 16.0 & \\
