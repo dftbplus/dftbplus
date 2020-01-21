@@ -981,6 +981,10 @@ following properties:
   \pref{sec:dftbp.SpinOrbit} \\
   \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
+  \kw{NonAufbau} &l& SpinPolarisation = Colinear & No & 
+  \pref{sec:dftbp.NonAufbau} \\
+  \kw{SpinPurify} & l & NonAufbau = Yes & Yes & \pref{sec:dftbp.NonAufbau} \\
+  \kw{GroundGuess} & l & NonAufbau = Yes & No & \pref{sec:dftbp.NonAufbau} \\
   \kw{SlaterKosterFiles} &p|m&  & - & \pref{sec:dftbp.SlaterKosterFiles} \\
   \kw{OldSKInterpolation} & l & & No & \\
   \kw{PolynomialRepulsive} & p|m & & \cb & \\
@@ -1925,6 +1929,7 @@ options:
   stresses (if periodic).
 \end{description}
 
+
 \subsubsection{Fermi\{\}}
 \label{sec:dftbp.Fermi}
 
@@ -1962,6 +1967,50 @@ position of the Fermi-level is not necessary unique for a given number of electr
 different fillings, band entropies, and Mermin free energies may result, depending which one has
 been found by the Fermi-level search algorithm. The differences, however, are usually not physically
 significant.
+
+\subsection{Time-independent DFTB (TI-DFTB) excited states}
+
+\subsubsection{$\Delta$DFTB}
+The time-independent approach $\Delta$DFTB modifies the SCC loop to allow variational relaxation of 
+the lowest singlet excited state of closed-shell singlet species.\cite{irle-JCTC-12-313} The KS spin
+orbitals are self-constently optimized under non-Aufbau orbital occupation constraints via promotion
+of an electron from the highest occupied molecular orbital (HOMO) of the ground state to lowest
+unoccupied molecular orbital (LUMO) at each SCC iteration. Specifically, the non-Aufbau keyword in 
+\dftbp manipulates the electronic filling to emulate a singlet excited state. By modifying the
+occupation pattern, the target excited state density ($\rho_e$) is can be constructed according to
+the standard formula for obtaining the electron density from the occupied colinear spin orbitals,
+$$\rho_e(r) = \sum_\sigma \sum_{i \epsilon occ(\sigma)}\mid\phi_i^\sigma(r)\mid^2$$
+Because the constraint is placed on the spin orbitals rather than the MO's, this method 
+introduces heavy spin contamination to the system by the arbitrary promotion of $\alpha$ spin electrons.
+This issue is circumvented with spin purification, where the triplet state energy is subtracted from
+twice the mixed singlet state energy, in accordance with the Ziegler sum rule,\cite{baerends-TCA-43-261}
+$$E(S_1) = 2E[\{\phi_i^\sigma\}_m]-E[\{\phi_i^\sigma\}_t]$$
+A non-spin-purified calculation can be performed if \is{SpinPurify = No}.
+$\Delta$DFTB calculations can be more challenging to converge than their ground-state analogs.
+To aid convergence, one can first run a ground-state intial guess with \is{GroundGuess = Yes}.
+The DIIS mixer is often an effective alternative mixer for converging $\Delta$DFTB calculations
+in cases where the calculation fails to converge with the Broyden mixer.
+
+\label{sec:dftbp.NonAufbau}
+\begin{ptable}
+  \kw{NonAufbau} &l& SpinPolarisation = Colinear & No &  \\
+  \kw{SpinPurify} & l & NonAufbau = Yes & Yes &  \\
+  \kw{GroundGuess} & l & NonAufbau = Yes & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{NonAufbau}] Runs a non-Aufbau excited state energy calculation. \is{SpinPurify} is 
+automatically set to \is{Yes}. Therefore, the SCC loop will run twice: first to calculate 
+a triplet state, and second to calculate the ``mixed'' state. The energy is then spin-purified.
+\item[\is{SpinPurify}] Calculates both a triplet and mixed state for spin-purification. If set to
+\is{No}, only the mixed state is calculated. The mixed state is formed by promoting an $\alpha$ 
+electron from the HOMO to the LUMO.
+\item[\is{GroundGuess}] Calculates the ground state energy prior to a non-Aufbau calculation.
+The SCC loop will run three times if \is{NonAubau}, \is{SpinPurify}, and \is{GroundGuess} are set
+to \is{Yes}, but only twice if \is{SpinPurify = No}.
+\end{description}
+
+
+
 
 \subsection{SlaterKosterFiles}
 \label{sec:dftbp.SlaterKosterFiles}

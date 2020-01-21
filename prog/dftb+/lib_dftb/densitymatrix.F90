@@ -88,12 +88,13 @@ contains
         exit
       end if
     end do
-
-    ! determine whether fillings are non-Aufbau
-    mixIndx=nLevels-1 !sets to HOMO-1
-    if (filling(mixIndx)==0.0_dp) then
-      tNonAufbau=.true.
-    end if
+    ! Determine whether fillings are non-Aufbau
+    if (nLevels/=1)then 
+      mixIndx=nLevels-1 !sets to HOMO-1
+      if (filling(mixIndx)==0.0_dp) then
+        tNonAufbau=.true.
+      end if
+    end if 
     ! default density matrix build assumes Aufbau fillings;
     ! if non-Aufbau, store the HOMO-1 eigenvector for later
     if (tNonAufbau) then
