@@ -18,6 +18,14 @@ module dftbp_dftd4param
   public :: DftD4Calculator, DispDftD4Inp, initializeCalculator
   private
 
+  !> Maximum atomic number allowed in EEQ calculations
+  integer, parameter :: max_element_eeq = 86
+  !> Maximum atomic number allowed in D4 calculations
+  integer, parameter :: max_element_d4 = 118
+  !> Maximum allowed number of reference systems, arbitrary choice
+  integer, parameter :: max_references = 7
+  !> Number of frequencies used in Casimir-Polder integration
+  integer, parameter :: imag_frequencies = 23
 
   !> Damping parameters for DFT-D4 calculation.
   type :: DispDftD4Inp
@@ -143,7 +151,7 @@ module dftbp_dftd4param
 
   !> Element-specific electronegativity for the electronegativity equilibration
   !  charges used in DFT-D4.
-  real(dp), parameter :: chi(86) = [&
+  real(dp), parameter :: chi(max_element_eeq) = [&
     & 1.23695041_dp, 1.26590957_dp, 0.54341808_dp, 0.99666991_dp, 1.26691604_dp, &
     & 1.40028282_dp, 1.55819364_dp, 1.56866440_dp, 1.57540015_dp, 1.15056627_dp, &
     & 0.55936220_dp, 0.72373742_dp, 1.12910844_dp, 1.12306840_dp, 1.52672442_dp, &
@@ -165,7 +173,7 @@ module dftbp_dftd4param
 
   !> Element-specific chemical hardnesses for the electronegativity equilibration
   !  charges used in DFT-D4.
-  real(dp), parameter :: gam(86) = [&
+  real(dp), parameter :: gam(max_element_eeq) = [&
     &-0.35015861_dp, 1.04121227_dp, 0.09281243_dp, 0.09412380_dp, 0.26629137_dp, &
     & 0.19408787_dp, 0.05317918_dp, 0.03151644_dp, 0.32275132_dp, 1.30996037_dp, &
     & 0.24206510_dp, 0.04147733_dp, 0.11634126_dp, 0.13155266_dp, 0.15350650_dp, &
@@ -187,7 +195,7 @@ module dftbp_dftd4param
 
   !> Element-specific CN scaling constant for the electronegativity equilibration
   !  charges used in DFT-D4.
-  real(dp), parameter :: kcn(86) = [&
+  real(dp), parameter :: kcn(max_element_eeq) = [&
     & 0.04916110_dp, 0.10937243_dp,-0.12349591_dp,-0.02665108_dp,-0.02631658_dp, &
     & 0.06005196_dp, 0.09279548_dp, 0.11689703_dp, 0.15704746_dp, 0.07987901_dp, &
     &-0.10002962_dp,-0.07712863_dp,-0.02170561_dp,-0.04964052_dp, 0.14250599_dp, &
@@ -209,7 +217,7 @@ module dftbp_dftd4param
 
   !> Element-specific charge widths for the electronegativity equilibration
   !  charges used in DFT-D4.
-  real(dp), parameter :: rad(86) = [&
+  real(dp), parameter :: rad(max_element_eeq) = [&
     & 0.55159092_dp, 0.66205886_dp, 0.90529132_dp, 1.51710827_dp, 2.86070364_dp, &
     & 1.88862966_dp, 1.32250290_dp, 1.23166285_dp, 1.77503721_dp, 1.11955204_dp, &
     & 1.28263182_dp, 1.22344336_dp, 1.70936266_dp, 1.54075036_dp, 1.38200579_dp, &
@@ -231,7 +239,7 @@ module dftbp_dftd4param
 
   !> Element-specific chemical hardnesses for the charge scaling function used
   !  to extrapolate the C6 coefficients in DFT-D4.
-  real(dp), parameter :: chemicalHardness(118) = [ &
+  real(dp), parameter :: chemicalHardness(max_element_d4) = [ &
     & 0.47259288_dp, 0.92203391_dp, 0.17452888_dp, 0.25700733_dp, 0.33949086_dp, &
     & 0.42195412_dp, 0.50438193_dp, 0.58691863_dp, 0.66931351_dp, 0.75191607_dp, &
     & 0.17964105_dp, 0.22157276_dp, 0.26348578_dp, 0.30539645_dp, 0.34734014_dp, &
@@ -259,7 +267,7 @@ module dftbp_dftd4param
 
   !> Effective nuclear charges from the def2-ECPs used for calculating the
   !  reference polarizibilities for DFT-D4.
-  real(dp), parameter :: effectiveNuclearCharge(118) = [ &
+  real(dp), parameter :: effectiveNuclearCharge(max_element_d4) = [ &
     &   1,                                                 2,  & ! H-He
     &   3, 4,                               5, 6, 7, 8, 9,10,  & ! Li-Ne
     &  11,12,                              13,14,15,16,17,18,  & ! Na-Ar
@@ -273,7 +281,7 @@ module dftbp_dftd4param
 
   !> Covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009,
   !  188-197), values for metals decreased by 10%.
-  real(dp), parameter :: CovalentRadiusD3(118) = [ &
+  real(dp), parameter :: CovalentRadiusD3(max_element_d4) = [ &
     & 0.32_dp,0.46_dp, & ! H,He
     & 1.20_dp,0.94_dp,0.77_dp,0.75_dp,0.71_dp,0.63_dp,0.64_dp,0.67_dp, & ! Li-Ne
     & 1.40_dp,1.25_dp,1.13_dp,1.04_dp,1.10_dp,1.02_dp,0.99_dp,0.96_dp, & ! Na-Ar
@@ -300,7 +308,7 @@ module dftbp_dftd4param
     & * AA__Bohr * 4.0_dp / 3.0_dp
 
   !> Pauling electronegativities, used for the covalent coordination number.
-  real(dp), parameter :: paulingEN(118) = [ &
+  real(dp), parameter :: paulingEN(max_element_d4) = [ &
     & 2.20_dp,3.00_dp, & ! H,He
     & 0.98_dp,1.57_dp,2.04_dp,2.55_dp,3.04_dp,3.44_dp,3.98_dp,4.50_dp, & ! Li-Ne
     & 0.93_dp,1.31_dp,1.61_dp,1.90_dp,2.19_dp,2.58_dp,3.16_dp,3.50_dp, & ! Na-Ar
@@ -328,7 +336,7 @@ module dftbp_dftd4param
 
 
   !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values.
-  real(dp), parameter :: r4r2(118) = [ &
+  real(dp), parameter :: r4r2(max_element_d4) = [ &
     &  8.0589_dp, 3.4698_dp, & ! H,He
     & 29.0974_dp,14.8517_dp,11.8799_dp, 7.8715_dp, &
     &  5.5588_dp, 4.7566_dp, 3.8025_dp, 3.1036_dp, & ! Li-Ne
@@ -356,8 +364,8 @@ module dftbp_dftd4param
     &  6.7286_dp, 6.5144_dp,10.9169_dp,10.3600_dp, 9.4723_dp, 8.6641_dp]   ! Nh-Og
 
   integer :: iDummy
-  real(dp), parameter :: sqrtZr4r2(118) = &
-    &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iDummy, dp)), iDummy=1, 118)]))
+  real(dp), parameter :: sqrtZr4r2(max_element_d4) = &
+    &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iDummy, dp)), iDummy=1, max_element_d4)]))
 
 contains
 
@@ -378,10 +386,10 @@ contains
 
   !> numerical Casimir--Polder integration
   pure function numIntegration(pol) result(trapzd)
-    real(dp), intent(in) :: pol(23)
+    real(dp), intent(in) :: pol(imag_frequencies)
     real(dp) :: trapzd
 
-    real(dp),parameter  :: freq(23) = [ &
+    real(dp),parameter  :: freq(imag_frequencies) = [ &
       & 0.000001_dp, 0.050000_dp, 0.100000_dp, 0.200000_dp, 0.300000_dp, &
       & 0.400000_dp, 0.500000_dp, 0.600000_dp, 0.700000_dp, 0.800000_dp, &
       & 0.900000_dp, 1.000000_dp, 1.200000_dp, 1.400000_dp, 1.600000_dp, &
@@ -389,7 +397,7 @@ contains
       & 5.000000_dp, 7.500000_dp, 10.00000_dp ]
 
     !  just precalculate all weights and get the job done
-    real(dp),parameter :: weights(23) = 0.5_dp * [ &
+    real(dp),parameter :: weights(imag_frequencies) = 0.5_dp * [ &
       & (freq (2) - freq (1)),  &
       & (freq (2) - freq (1)) + (freq (3) - freq (2)), &
       & (freq (3) - freq (2)) + (freq (4) - freq (3)), &
@@ -436,8 +444,8 @@ contains
     integer :: mAt
     integer :: iAt1, iZp1, iSec, iCN, iZp2, iRef1, iRef2
     integer :: cncount(0:18)
-    real(dp) :: alpha(23), zEff1, c6, eta1
-    real(dp) :: tmp_hq(7, 118)
+    real(dp) :: alpha(imag_frequencies), zEff1, c6, eta1
+    real(dp) :: tmp_hq(max_references, max_element_d4)
 
     real(dp), parameter :: thopi = 3.0_dp/pi
 
@@ -472,16 +480,19 @@ contains
 
     mAt = maxval(izp)
     allocate(calculator%numberOfReferences(mAt), calculator%atoms(mAt), &
-        & calculator%countNumber(7, mAt), source=0)
-    allocate(calculator%referenceCN(7, mAt), &
-        & calculator%referenceCharge(7, mAt), &
-        & calculator%referenceAlpha(23, 7, mAt), &
-        & calculator%referenceC6(7, 7, mAt, mAt), &
+        & calculator%countNumber(max_references, mAt), source=0)
+    allocate(calculator%referenceCN(max_references, mAt), &
+        & calculator%referenceCharge(max_references, mAt), &
+        & calculator%referenceAlpha(imag_frequencies, max_references, mAt), &
+        & calculator%referenceC6(max_references, max_references, mAt, mAt), &
         & source=0.0_dp)
 
     calculator%referenceCharge = clsq(:, :mAt)
     tmp_hq(:,:) = clsh
 
+    ! evaluate α(Z) = 1/k·(α(ZkBn) - ζ(n, m) · n/m · α(Bm))
+    ! α(Z) is referenceAlpha, α(ZkBn) is alphaiw, α(Bm) is secaiw
+    ! 1/m is sscale, 1/k is ascale, n is hcount, ζ(n, m) is zetaScale
     do iAt1 = 1, nAtom
       cncount(:) = 0
       cncount(0) = 1
@@ -501,6 +512,7 @@ contains
               & max(0.0_dp,&
               & ascale(iRef1,iZp1) * (alphaiw(:,iRef1,iZp1) - hcount(iRef1,iZp1)*alpha))
         end do
+        ! setup the number of Gaussian functions for the weighting in countNumber
         do iRef1 = 1, calculator%numberOfReferences(iZp1)
           iCN = cncount(nint(refcn(iRef1,iZp1)))
           calculator%countNumber(iRef1,iZp1) = iCN * (iCN + 1) / 2
