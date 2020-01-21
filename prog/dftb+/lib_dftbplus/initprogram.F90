@@ -825,6 +825,12 @@ module dftbp_initprogram
   !> Energy derivative with respect to atomic positions
   real(dp), allocatable :: derivs(:,:)
 
+  !> Energy derivative for triplet determinant (TI-DFTB excited states)
+  real(dp), allocatable :: tripletderivs(:,:)
+
+  !> Energy derivative for mixed determinant (TI-DFTB excited states)
+  real(dp), allocatable :: mixedderivs(:,:)
+
   !> Forces on any external charges
   real(dp), allocatable :: chrgForces(:,:)
 
@@ -2522,9 +2528,10 @@ contains
         & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
         & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
         & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
-        & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
-        & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-        & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+        & tripletderivs, mixedderivs, chrgForces, energy, potential, TS, E0, Eband, eigen,&
+        & filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal,&
+        & SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural, velocities, movedVelo,&
+        & movedAccel, movedMass, dipoleMoment)
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -3282,8 +3289,8 @@ contains
     @:SAFE_DEALLOC(velocities, movedVelo, movedAccel, movedMass)
     @:SAFE_DEALLOC(rhoPrim, iRhoPrim, ERhoPrim, h0, filling, Eband, TS, E0)
     @:SAFE_DEALLOC(HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, eigen)
-    @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, chrgForces, excitedDerivs, dipoleMoment)
-    @:SAFE_DEALLOC(coord0Fold, newCoords, orbitalL, occNatural, mu)
+    @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, tripletderivs, mixedderivs, chrgForces)
+    @:SAFE_DEALLOC(excitedDerivs, dipoleMoment,coord0Fold, newCoords, orbitalL, occNatural, mu)
     @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, poissonDerivs, shiftPerLUp, chargeUp)
     @:SAFE_DEALLOC(regionLabelLDOS)
     @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
@@ -3590,9 +3597,10 @@ contains
       & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
       & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
       & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
-      & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
-      & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-      & chargePerShell, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+      & tripletderivs, mixedderivs, chrgForces, energy, potential, TS, E0, Eband, eigen,&
+      & filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal,&
+      & SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural, velocities, movedVelo,&
+      & movedAccel, movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -3687,6 +3695,12 @@ contains
     !> Derivatives of total energy with respect to atomic coordinates
     real(dp), intent(out), allocatable :: derivs(:,:)
 
+    !> Energy derivative for triplet determinant (TI-DFTB excited states)
+    real(dp), intent(out), allocatable :: tripletderivs(:,:)
+
+    !> Energy derivative for mixed determinant (TI-DFTB excited states)
+    real(dp), intent(out), allocatable :: mixedderivs(:,:)
+
     !> Forces on (any) external charges
     real(dp), intent(out), allocatable :: chrgForces(:,:)
 
@@ -3775,6 +3789,10 @@ contains
     if (tForces) then
       allocate(ERhoPrim(0))
       allocate(derivs(3, nAtom))
+      if (tNonAufbau) then
+        allocate(tripletderivs(3, nAtom))
+        allocate(mixedderivs(3, nAtom))
+      end if
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
       end if

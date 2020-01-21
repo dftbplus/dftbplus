@@ -171,6 +171,10 @@ contains
         if (tGroundGuess .and. iDet==0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
         end if
+        if (.not. tGroundguess) then
+          call postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
+              & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
+        end if
         if (iDet == nDet) then
           exit lpDets
         end if
@@ -178,7 +182,7 @@ contains
 
       if (tNonAufbau) then
         if (tSpinPurify) then
-          call ZieglerSum(energy)
+          call ZieglerSum(energy, derivs, tripletderivs, mixedderivs)
         end if
         call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
       end if
@@ -186,8 +190,8 @@ contains
       if (tExitGeoOpt) then
         exit geoOpt
       end if
-      call postProcessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
-          & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
+      !call postProcessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
+      !    & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
       call printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtom)
     #:if WITH_SOCKETS
       if (tSocket) then
@@ -751,8 +755,9 @@ contains
       call getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
           & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
           & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-          & iRhoPrim, thirdOrd, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over,&
-          & denseDesc, deltaRhoOutSqr, tPoisson)
+          & tripletderivs, mixedderivs, iRhoPrim, thirdOrd, qDepExtPot, chrgForces, dispersion,&
+          & rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr, tPoisson, tNonAufbau,&
+          & tSpinPurify, iDet)
 
       if (tCasidaForces) then
         derivs(:,:) = derivs + excitedDerivs
@@ -3862,17 +3867,25 @@ contains
   end subroutine getNextInputDensity
 
 
-  !> Spin Purifies Non-Aufbau excited state energy
-  subroutine ZieglerSum(energy)
+  !> Spin Purifies Non-Aufbau excited state energy and forces 
+  subroutine ZieglerSum(energy, derivs, tripletderivs, mixedderivs)
 
     !> energy components
     type(TEnergies), intent(inout) :: energy
 
+    !> derivative components
+    real(dp), intent(inout), allocatable :: derivs(:,:)
+    real(dp), intent(inout), allocatable :: tripletderivs(:,:)
+    real(dp), intent(inout), allocatable :: mixedderivs(:,:)
+
+        ! Ziegler sum rule: E_S1 = 2E_mix - E_triplet
         energy%Etotal = 2.0_dp*energy%Emixed-energy%Etriplet
         energy%EMermin = 2.0_dp*energy%EmixMermin-energy%EtripMermin
         energy%Ezero = 2.0_dp*energy%EmixZero-energy%EtripZero
         energy%EGibbs = 2.0_dp*energy%EmixGibbs-energy%EtripGibbs
         energy%EForceRelated = 2.0_dp*energy%EmixForceRelated-energy%EtripForceRelated
+        ! dE_S1 = 2dE_mix - dE_triplet
+        derivs(:,:) = 2.0_dp*mixedderivs-tripletderivs
 
   end subroutine ZieglerSum
 
@@ -5144,9 +5157,9 @@ contains
   !> Calculates the gradients
   subroutine getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
-      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
-      & qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
-      & tPoisson)
+      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, tripletderivs,&
+      & mixedderivs, iRhoPrim, thirdOrd, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal,&
+      & over, denseDesc, deltaRhoOutSqr, tPoisson, tNonAufbau, tSpinPurify, iDet)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5217,6 +5230,12 @@ contains
     !> derivatives of energy wrt to atomic positions
     real(dp), intent(out) :: derivs(:,:)
 
+    !> derivatives of triplet energy wrt to atomic positions (TI-DFTB excited states)
+    real(dp), intent(out) :: tripletderivs(:,:)
+    
+    !> derivatives of mixed energy wrt to atomic positions (TI-DFTB excited states)
+    real(dp), intent(out) :: mixedderivs(:,:)
+
     !> imaginary part of density matrix
     real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
@@ -5249,6 +5268,11 @@ contains
 
     !> whether Poisson solver is used
     logical, intent(in) :: tPoisson
+
+    !> Is this a TI-DFTB calculation?
+    logical, intent(in) :: tNonAufbau
+    integer, intent(in) :: iDet
+    logical, intent(in) :: tSpinPurify
 
     ! Locals
     real(dp), allocatable :: tmpDerivs(:,:)
@@ -5359,6 +5383,14 @@ contains
     call getERepDeriv(tmpDerivs, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
         & img2CentCell)
     derivs(:,:) = derivs + tmpDerivs
+
+    if(tNonAufbau) then
+      if (tSpinPurify.and.iDet==1) then
+        tripletderivs(:,:) = derivs
+      else if (iDet==2) then
+        mixedderivs(:,:) = derivs
+      end if
+    end if
 
   end subroutine getGradients
 
