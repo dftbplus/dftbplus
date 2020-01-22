@@ -7,6 +7,9 @@
 
 #:include 'common.fypp'
 
+#! suffix and kinds for real types
+#:set REAL_KIND_PARAMS = [('real', 'rsp'), ('dble', 'rdp')]
+
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
 module dftbp_blasroutines
@@ -51,6 +54,9 @@ module dftbp_blasroutines
   interface gemv
     module procedure gemv_real
     module procedure gemv_dble
+    #:for suffix, _ in REAL_KIND_PARAMS
+      module procedure gemv231_${suffix}$
+    #:endfor
   end interface gemv
 
 
@@ -79,6 +85,9 @@ module dftbp_blasroutines
     module procedure gemm_dble
     module procedure gemm_cmplx
     module procedure gemm_dblecmplx
+    #:for SUFFIX, _ in REAL_KIND_PARAMS
+      module procedure gemm332_${SUFFIX}$
+    #:endfor
   end interface gemm
 
 
@@ -635,6 +644,40 @@ contains
     call dgemv( iTrans, m, n, iAlpha, a, m, x, 1, iBeta, y, 1 )
 
   end subroutine gemv_dble
+
+  #:for suffix, kind in REAL_KIND_PARAMS
+
+    !> Generalized matrix vector product Cij = Aijk * Bk
+    subroutine gemv231_${suffix}$(y, a, x, alpha, beta, trans)
+
+      !> vector
+      real(${kind}$), intent(inout), contiguous, target :: y(:,:)
+
+      !> matrix
+      real(${kind}$), intent(in), contiguous, target :: a(:,:,:)
+
+      !> vector
+      real(${kind}$), intent(in) :: x(:)
+
+      !> optional scaling factor (defaults to 1)
+      real(${kind}$), intent(in), optional :: alpha
+
+      !> optional scaling factor (defaults to 0)
+      real(${kind}$), intent(in), optional :: beta
+
+      !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
+      character, intent(in), optional :: trans
+
+      real(${kind}$), pointer :: pY(:)
+      real(${kind}$), pointer :: pA(:,:)
+
+      pY(1 : size(y)) => y
+      pA(1 : size(a, dim=1) * size(a, dim=2), 1 : size(a, dim=3)) => a
+      call gemv(pY, pA, x, alpha, beta, trans)
+
+    end subroutine gemv231_${suffix}$
+
+  #:endfor
 
 
   !> real symmetric banded matrix*vector product
@@ -1373,6 +1416,45 @@ contains
     call zgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
 
   end subroutine gemm_dblecmplx
+
+
+  #:for suffix, kind in REAL_KIND_PARAMS
+
+    !> Generalized real matrix matrix product (Cijl = Aijk * Bkl)
+    subroutine gemm332_${suffix}$(C, A, B, alpha, beta, transA, transB)
+
+      !> general matrix output
+      real(${kind}$), intent(inout), target, contiguous :: C(:,:,:)
+
+      !> symmetric matrix
+      real(${kind}$), intent(in), target, contiguous :: A(:,:,:)
+
+      !> general matrix
+      real(${kind}$), intent(in) :: B(:,:)
+
+      !> defaults to 1 if not set
+      real(${kind}$), intent(in), optional :: alpha
+
+      !> defaults to 0 if not set
+      real(${kind}$), intent(in), optional :: beta
+
+      !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
+      !> 'c' and 'C'
+      character, intent(in), optional :: transA
+
+      !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
+      !> 'c' and 'C'
+      character, intent(in), optional :: transB
+
+      real(${kind}$), pointer :: pA(:,:), pC(:,:)
+
+      pA(1 : size(A, dim=1) * size(A, dim=2), 1 : size(A, dim=3)) => A
+      pC(1 : size(C, dim=1) * size(C, dim=2), 1 : size(C, dim=3)) => C
+      call gemm(pC, pA, B, alpha, beta, transA, transB)
+
+    end subroutine gemm332_${suffix}$
+
+  #:endfor
 
 
   !> real rank-k update
