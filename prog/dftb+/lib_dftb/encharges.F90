@@ -18,13 +18,13 @@ module dftbp_encharges
   use dftbp_constants, only: pi
   use dftbp_errorfunction, only: erfwrap
   use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec
-  use dftbp_blasroutines, only : hemv
+  use dftbp_blasroutines, only : hemv, gemv, gemm
   use dftbp_lapackroutines, only : sytrf, sytri
   implicit none
   private
 
   public :: getEEQcharges
- 
+
   real(dp), parameter :: sqrtpi = sqrt(pi)
   real(dp), parameter :: sqrt2pi = sqrt(2.0_dp/pi)
 
@@ -129,7 +129,7 @@ contains
 
   end subroutine getCoulombDerivsCluster
 
-  
+
   !> Generates full interaction matrix for Gaussian charge distributions.
   subroutine getCoulombMatrixPeriodic(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
       & img2CentCell, recPoint, gam, rad, alpha, volume, aMat)
@@ -185,11 +185,11 @@ contains
 
   end subroutine getCoulombMatrixPeriodic
 
-  
+
   !> Derivatives of interaction matrix for Gaussian charge distributions.
   subroutine getCoulombDerivsPeriodic(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
       & img2CentCell, recPoint, alpha, volume, rad, qVec, aMatdr, aMatdL, aTrace)
-    
+
     !> Number of atoms
     integer, intent(in) :: nAtom
 
@@ -251,7 +251,7 @@ contains
 
   end subroutine getCoulombDerivsPeriodic
 
-  
+
   !> Reciprocal space contributions to interaction matrix.
   subroutine addEwaldContribs(nAtom, coords, recPoint, alpha, volume, aMat)
 
@@ -358,37 +358,37 @@ contains
   !> Real space contributions to interaction matrix.
   subroutine addRealSpaceContribs(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
       & img2CentCell, gam, rad, alpha, aMat)
-    
+
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
-    
+
     !> Species of every atom.
     integer, intent(in) :: species(:)
-    
+
     !> List of atomic coordinates (all atoms).
     real(dp), intent(in) :: coords(:, :)
-    
+
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
-    
+
     !> Neighbourlist.
     integer, intent(in) :: iNeighbour(0:, :)
-    
+
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:, :)
-    
+
     !> Mapping into the central cell.
     integer, intent(in) :: img2CentCell(:)
-    
+
     !> Parameter for Ewald summation.
     real(dp), intent(in) :: alpha
-    
+
     !> element-specific chemical hardnesses
     real(dp), intent(in) :: gam(:)
-    
+
     !> element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
-    
+
     !> Interaction Matrix for each atom pair.
     real(dp), intent(inout) :: aMat(:, :)
 
@@ -421,43 +421,43 @@ contains
   !> Real space contributions to derivative of interaction matrix.
   subroutine addRealSpaceDerivs(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
       & img2CentCell, alpha, rad, qVec, aMatdr, aMatdL, aTrace)
-    
+
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
-    
+
     !> Species of every atom.
     integer, intent(in) :: species(:)
-    
+
     !> List of atomic coordinates (all atoms).
     real(dp), intent(in) :: coords(:, :)
-    
+
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
-    
+
     !> Neighbourlist.
     integer, intent(in) :: iNeighbour(0:, :)
-    
+
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:, :)
-    
+
     !> Mapping into the central cell.
     integer, intent(in) :: img2CentCell(:)
-    
+
     !> Parameter for Ewald summation.
     real(dp), intent(in) :: alpha
-    
+
     !> element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
-    
+
     !> List of charges on each atom.
     real(dp), intent(in) :: qVec(:)
-    
+
     !> Contains the derivative on exit.
     real(dp), intent(inout) :: aMatdr(:, :, :)
-    
+
     !> Contains the strain derivative on exit.
     real(dp), intent(inout) :: aMatdL(:, :, :)
-    
+
     !> Contains the `trace' derivative on exit.
     real(dp), intent(inout) :: aTrace(:, :)
 
@@ -496,58 +496,79 @@ contains
 
   end subroutine addRealSpaceDerivs
 
-  
+
   !> Electronegativity equilibration charge model
   subroutine getEEQCharges(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
       & img2CentCell, recPoint, alpha, volume, chi, kcn, gam, rad, cn, dcndr, dcndL, energies,&
       & gradients, stress, qAtom, dqdr, dqdL)
+
     !> number of atoms
     integer, intent(in) :: nAtom
+
     !> List of atomic coordinates.
     real(dp), intent(in) :: coords(:, :)
+
     !> Species of every atom.
     integer, intent(in) :: species(:)
+
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
+
     !> Neighbourlist.
     integer, intent(in) :: iNeighbour(0:, :)
+
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:, :)
+
     !> Mapping into the central cell.
     integer, intent(in) :: img2CentCell(:)
+
     !> Contains the points included in the reciprocal sum.
     !  The set should not include the origin or inversion related points.
     real(dp), allocatable, intent(in) :: recPoint(:, :)
+
     !> Parameter for Ewald summation.
     real(dp), intent(in) :: alpha
+
     !> Volume of the real space unit cell.
     real(dp), intent(in) :: volume
+
     !> element-specific electronegativity
     real(dp), intent(in) :: chi(:)
+
     !> element-specific chemical hardnesses
     real(dp), intent(in) :: gam(:)
+
     !> element-specific CN scaling constant
     real(dp), intent(in) :: kcn(:)
+
     !> element-specific charge widths / atomic radii
     real(dp), intent(in) :: rad(:)
+
     !> Error function coordination number.
     real(dp), intent(in) :: cn(:)
+
     !> Derivative of the CN with respect to the Cartesian coordinates.
     real(dp), intent(in) :: dcndr(:, :, :)
+
     !> Derivative of the CN with respect to strain deformations.
     real(dp), intent(in) :: dcndL(:, :, :)
 
     !> Updated energy vector at return
     real(dp), intent(out), optional :: energies(:)
+
     !> Updated gradient vector at return
     real(dp), intent(out), optional :: gradients(:, :)
+
     !> Updated stress tensor at return
     real(dp), intent(out), optional :: stress(:, :)
 
     !> Atomic partial charges.
     real(dp), intent(out), optional :: qAtom(:)
+
     !> Derivative of partial charges w.r.t. cartesian coordinates.
     real(dp), intent(out), optional :: dqdr(:, :, :)
+
     !> Derivative of partial charges w.r.t. strain deformations.
     real(dp), intent(out), optional :: dqdL(:, :, :)
 
@@ -574,9 +595,8 @@ contains
     tPeriodic = allocated(recPoint)
 
     nDim = nAtom + 1
-    allocate(xVec(nDim), xFac(nAtom), aMat(nDim, nDim), aInv(nDim, nDim), &
-        & qVec(nDim), aMatdr(3, nAtom, nDim), aMatdL(3, 3, nDim), &
-        & aTrace(3, nAtom), source=0.0_dp)
+    allocate(xVec(nDim), xFac(nAtom), aMatdr(3, nAtom), aMat(nDim, nDim), aInv(nDim, nDim), &
+        & qVec(nDim), aMatdL(3, 3, nDim), aTrace(3, nAtom), source=0.0_dp)
     allocate(ipiv(nDim), source=0)
 
     ! Step 1: contruct RHS for linear system
@@ -619,10 +639,10 @@ contains
 
     ! Step 5: get derivative of interaction matrix
     if (tPeriodic) then
-        call getCoulombDerivsPeriodic(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
-            & img2CentCell, recPoint, alpha, volume, rad, qVec, aMatdr, aMatdL, aTrace)
+      call getCoulombDerivsPeriodic(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
+          & img2CentCell, recPoint, alpha, volume, rad, qVec, aMatdr, aMatdL, aTrace)
     else
-        call GetCoulombDerivsCluster(nAtom, coords, species, rad, qVec, aMatdr, aTrace)
+      call getCoulombDerivsCluster(nAtom, coords, species, rad, qVec, aMatdr, aTrace)
     end if
     do iAt1 = 1, nAtom
       aMatdr(:, :, iAt1) = aMatdr(:, :, iAt1) + dcndr(:, :, iAt1) * Xfac(iAt1)
@@ -630,33 +650,30 @@ contains
     end do
 
     if (present(gradients)) then
-      ! avoid reshape and exploit dense matrix memory layout
-      call dgemv('n', 3 * nAtom, nDim, 1.0_dp, aMatdr, 3 * nAtom, qVec, 1, 1.0_dp, gradients, 1)
+      call gemv(gradients, aMatdr, qVec, beta=1.0_dp)
     end if
 
     if (present(stress)) then
-      call dgemv('n', 9, nDim, 1.0_dp, aMatdL, 9, qVec, 1, 1.0_dp, stress, 1)
+      call gemv(stress, aMatdL, qVec, beta=1.0_dp)
     end if
-    
+
     do iAt1 = 1, nAtom
       aMatdr(:, iAt1, iAt1) = aMatdr(:, iAt1, iAt1) + aTrace(:, iAt1)
     end do
 
     if (present(dqdr)) then
-      ! avoid reshape and exploit dense matrix memory layout
-      call dgemm('n', 'n', 3*nAtom, nAtom, nDim, -1.0_dp, aMatdr, 3*nAtom, aInv, nDim, 0.0_dp,&
-          & dqdr, 3*nAtom)
+      call gemm(dqdr, aMatdr, aInv, alpha=-1.0_dp)
     end if
 
     if (present(dqdL)) then
-      call dgemm('n', 'n', 9, nAtom, nDim, -1.0_dp, aMatdL, 9, aInv, nDim, 0.0_dp, dqdL, 9)
+      call gemm(dqdL, aMatdL, aInv, alpha=-1.0_dp)
     end if
 
     if (present(qAtom)) then
-      qAtom = qVec(:nAtom)
+      qAtom(:) = qVec(:nAtom)
     end if
 
   end subroutine getEEQCharges
 
-  
+
 end module dftbp_encharges
