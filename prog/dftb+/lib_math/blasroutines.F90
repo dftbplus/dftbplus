@@ -968,7 +968,7 @@ contains
     !> general matrix output
     real(rsp), intent(inout) :: C(:,:)
 
-    !> symmetric matrix
+    !> general matrix
     real(rsp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1082,7 +1082,7 @@ contains
     !> general matrix output
     real(rdp), intent(inout) :: C(:,:)
 
-    !> symmetric matrix
+    !> general matrix
     real(rdp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1196,7 +1196,7 @@ contains
     !> general matrix output
     complex(rsp), intent(inout) :: C(:,:)
 
-    !> symmetric matrix
+    !> general matrix
     complex(rsp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1310,7 +1310,7 @@ contains
     !> general matrix output
     complex(rdp), intent(inout) :: C(:,:)
 
-    !> symmetric matrix
+    !> general matrix
     complex(rdp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1426,7 +1426,7 @@ contains
       !> general matrix output
       real(${kind}$), intent(inout), target, contiguous :: C(:,:,:)
 
-      !> symmetric matrix
+      !> general matrix
       real(${kind}$), intent(in), target, contiguous :: A(:,:,:)
 
       !> general matrix
@@ -1439,7 +1439,7 @@ contains
       real(${kind}$), intent(in), optional :: beta
 
       !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
-      !> 'c' and 'C'
+      !> 'c' and 'C'. Note this acts on the compound index ij
       character, intent(in), optional :: transA
 
       !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
