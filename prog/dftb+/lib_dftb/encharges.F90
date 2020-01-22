@@ -555,13 +555,13 @@ contains
     real(dp), intent(in) :: dcndL(:, :, :)
 
     !> Updated energy vector at return
-    real(dp), intent(out), optional :: energies(:)
+    real(dp), intent(inout), optional :: energies(:)
 
     !> Updated gradient vector at return
-    real(dp), intent(out), optional :: gradients(:, :)
+    real(dp), intent(inout), optional :: gradients(:, :)
 
     !> Updated stress tensor at return
-    real(dp), intent(out), optional :: stress(:, :)
+    real(dp), intent(inout), optional :: stress(:, :)
 
     !> Atomic partial charges.
     real(dp), intent(out), optional :: qAtom(:)
@@ -634,7 +634,7 @@ contains
     ! Step 4: return atom resolved energies if requested
     if (present(energies)) then
       call hemv(xVec, aMat, qVec, alpha=0.5_dp, beta=-1.0_dp)
-      energies = xVec(:nAtom) * qVec(:nAtom)
+      energies(:) = energies(:) + xVec(:nAtom) * qVec(:nAtom)
     end if
 
     ! Step 5: get derivative of interaction matrix
