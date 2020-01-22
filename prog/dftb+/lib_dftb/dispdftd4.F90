@@ -19,6 +19,7 @@ module dftbp_dispdftd4
   use dftbp_constants, only: pi
   use dftbp_dftd4param, only: DftD4Calculator, DispDftD4Inp, initializeCalculator
   use dftbp_encharges, only: getEEQcharges
+  use dftbp_blasroutines, only : gemv
   implicit none
   private
 
@@ -715,12 +716,12 @@ contains
     end if
 
     ! handle CN and charge contributions to the gradient by matrix-vector operation
-    call dgemv('n', 3 * nAtom, nAtom, 1.0_dp, dcndr, 3 * nAtom, dEdcn, 1, 1.0_dp, gradients, 1)
-    call dgemv('n', 3 * nAtom, nAtom, 1.0_dp, dqdr, 3 * nAtom, dEdq, 1, 1.0_dp, gradients, 1)
+    call gemv(gradients, dcndr, dEdcn, beta=1.0_dp)
+    call gemv(gradients, dqdr, dEdq, beta=1.0_dp)
 
     ! handle CN and charge contributions to the stress tensor
-    call dgemv('n', 9, nAtom, 1.0_dp, dcndL, 9, dEdcn, 1, 1.0_dp, stress, 1)
-    call dgemv('n', 9, nAtom, 1.0_dp, dqdL, 9, dEdq, 1, 1.0_dp, stress, 1)
+    call gemv(stress, dcndL, dEdcn, beta=1.0_dp)
+    call gemv(stress, dqdL, dEdq, beta=1.0_dp)
 
   end subroutine dispersionGradient
 
@@ -1013,8 +1014,6 @@ contains
     end if
 
     energies(:) = 0.0_dp
-    gradients(:,:) = 0.0_dp
-    sigma(:,:) = 0.0_dp
 
     allocate(cn(nAtom), dcndr(3, nAtom, nAtom), dcndL(3, 3, nAtom), source=0.0_dp)
     allocate(nNeigh(nAtom), source=0)
