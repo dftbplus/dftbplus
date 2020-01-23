@@ -84,7 +84,7 @@ module dftbp_main
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
-  use dftbp_plumed, only : plumedGlobalCmdVal, plumedGlobalCmdPtr, plumedFinal
+  use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -214,6 +214,10 @@ contains
       call socket%shutdown()
     end if
   #:endif
+
+    if (allocated(plumedCalc)) then
+      call TPlumedCalc_final(plumedCalc)
+    end if
 
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
@@ -740,13 +744,8 @@ contains
       end if
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
 
-      if (tPlumed) then
-        call updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy%EMermin, coord0, mass, tPeriodic,&
-          & latVec)
-        if (iGeoStep >= nGeoSteps) then
-          call plumedFinal()
-        end if
-      end if
+      call updateDerivsByPlumed(env, plumedCalc, nAtom, iGeoStep, derivs, energy%EMermin, coord0,&
+          & mass, tPeriodic, latVec)
 
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
@@ -5275,7 +5274,14 @@ contains
 
 
   !> use plumed to update derivatives
-  subroutine updateDerivsByPlumed(nAtom, iGeoStep, derivs, energy, coord0, mass, tPeriodic, latVecs)
+  subroutine updateDerivsByPlumed(env, plumedCalc, nAtom, iGeoStep, derivs, energy, coord0, mass,&
+      & tPeriodic, latVecs)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> PLUMED calculator
+    type(TPlumedCalc), allocatable, intent(inout) :: plumedCalc
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -5301,16 +5307,19 @@ contains
     !> lattice vectors
     real(dp), intent(in), target, contiguous :: latVecs(:,:)
 
-    derivs(:,:) = -derivs
-    call plumedGlobalCmdVal("setStep", iGeoStep)
-    call plumedGlobalCmdPtr("setForces", derivs)
-    call plumedGlobalCmdVal("setEnergy", energy)
-    call plumedGlobalCmdPtr("setPositions", coord0)
-    call plumedGlobalCmdPtr("setMasses", mass)
-    if (tPeriodic) then
-      call plumedGlobalCmdPtr("setBox", latVecs)
+    if (.not. allocated(plumedCalc)) then
+      return
     end if
-    call plumedGlobalCmdVal("calc", 0)
+    derivs(:,:) = -derivs
+    call plumedCalc%sendCmdVal("setStep", iGeoStep)
+    call plumedCalc%sendCmdPtr("setForces", derivs)
+    call plumedCalc%sendCmdVal("setEnergy", energy)
+    call plumedCalc%sendCmdPtr("setPositions", coord0)
+    call plumedCalc%sendCmdPtr("setMasses", mass)
+    if (tPeriodic) then
+      call plumedCalc%sendCmdPtr("setBox", latVecs)
+    end if
+    call plumedCalc%sendCmdVal("calc", 0)
     derivs(:,:) = -derivs
 
   end subroutine updateDerivsByPlumed
