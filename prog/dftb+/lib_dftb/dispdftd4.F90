@@ -629,11 +629,11 @@ contains
     stress(:, :) = 0.0_dp
 
     nRef = maxval(calc%numberOfReferences(species))
-    allocate(nNeighbour(nAtom), source=0)
+    allocate(nNeighbour(nAtom))
     allocate(zetaVec(nRef, nAtom), zeroVec(nRef, nAtom), zetadq(nRef, nAtom),&
         & zetadcn(nRef, nAtom), zerodcn(nRef, nAtom), zerodq(nRef, nAtom),&
         & c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom),&
-        & dEdq(nAtom), dEdcn(nAtom), source=0.0_dp)
+        & dEdq(nAtom), dEdcn(nAtom))
 
     call weightReferences(calc, nAtom, species, cn, q, zetaVec, zeroVec, zetadq,&
         & zetadcn, zerodcn)
@@ -705,7 +705,7 @@ contains
     end do
 
     if (calc%s9 > 0.0_dp) then
-      zerodq = 0.0_dp  ! really make sure there is no q `dependency' from alloc
+      zerodq(:, :) = 0.0_dp  ! really make sure there is no q `dependency' from alloc
       call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffThree)
       call threeBodyDispersionGradient(calc, nAtom, coords, species, nNeighbour, neigh%iNeighbour,&
           & neigh%neighDist2, img2CentCell, zeroVec, zerodq, zerodcn, dEdq, dEdcn, energies,&
@@ -994,6 +994,7 @@ contains
     integer, allocatable :: nNeigh(:)
 
     real(dp) :: sigma(3, 3)
+    real(dp), parameter :: charge = 0.0_dp  ! FIXME
     real(dp) :: vol, parEwald0
     real(dp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
     real(dp), allocatable :: q(:), dqdr(:, :, :), dqdL(:, :, :)
@@ -1026,7 +1027,7 @@ contains
 
     call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffEwald)
 
-    call getEEQCharges(nAtom, coords, species, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
+    call getEEQCharges(nAtom, coords, species, charge, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, recPoint, parEwald0, vol, calculator%chi, calculator%kcn, calculator%gam,&
         & calculator%rad, cn, dcndr, dcndL, qAtom=q, dqdr=dqdr, dqdL=dqdL)
 

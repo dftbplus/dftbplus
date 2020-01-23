@@ -54,7 +54,7 @@ contains
     integer :: iAt1, iSp1, iAt2f, iSp2
     real(dp) :: dist, vec(3), eta12
 
-    aMat(:,:) = 0.0_dp
+    aMat(:, :) = 0.0_dp
 
     !$OMP PARALLEL DEFAULT(SHARED) &
     !$OMP PRIVATE(iSp1, iAt2f, iSp2, vec, dist, eta12)
@@ -174,7 +174,7 @@ contains
     !> Matrix of 1/R values for each atom pair.
     real(dp), intent(out) :: aMat(:, :)
 
-    aMat(:,:) = 0.0_dp
+    aMat(:, :) = 0.0_dp
 
     ! Real space part of the Ewald sum.
     call addRealSpaceContribs(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
@@ -238,9 +238,9 @@ contains
 
     @:ASSERT(volume > 0.0_dp)
 
-    aMatdr(:,:,:) = 0.0_dp
-    aMatdL(:,:,:) = 0.0_dp
-    aTrace(:,:) = 0.0_dp
+    aMatdr(:, :, :) = 0.0_dp
+    aMatdL(:, :, :) = 0.0_dp
+    aTrace(:, :) = 0.0_dp
 
     ! d(1/R)/dr real space
     call addRealSpaceDerivs(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
@@ -498,7 +498,7 @@ contains
 
 
   !> Electronegativity equilibration charge model
-  subroutine getEEQCharges(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
+  subroutine getEEQCharges(nAtom, coords, species, charge, nNeighbour, iNeighbour, neighDist2,&
       & img2CentCell, recPoint, alpha, volume, chi, kcn, gam, rad, cn, dcndr, dcndL, energies,&
       & gradients, stress, qAtom, dqdr, dqdL)
 
@@ -510,6 +510,9 @@ contains
 
     !> Species of every atom.
     integer, intent(in) :: species(:)
+
+    !> Total molecular charge.
+    real(dp), intent(in) :: charge
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -595,9 +598,9 @@ contains
     tPeriodic = allocated(recPoint)
 
     nDim = nAtom + 1
-    allocate(xVec(nDim), xFac(nAtom), aMatdr(3, nAtom), aMat(nDim, nDim), aInv(nDim, nDim), &
-        & qVec(nDim), aMatdL(3, 3, nDim), aTrace(3, nAtom), source=0.0_dp)
-    allocate(ipiv(nDim), source=0)
+    allocate(xVec(nDim), xFac(nAtom), aMatdr(3, nAtom, nDim), aMat(nDim, nDim), &
+        & aInv(nDim, nDim), qVec(nDim), aMatdL(3, 3, nDim), aTrace(3, nAtom))
+    allocate(ipiv(nDim))
 
     ! Step 1: contruct RHS for linear system
     do iAt1 = 1, nAtom
@@ -621,7 +624,7 @@ contains
     aMat(nDim, nDim) = 0.0_dp
 
     ! Step 3: invert linear system
-    aInv = aMat
+    aInv(:, :) = aMat
     call sytrf(aInv, ipiv)
     call sytri(aInv, ipiv)
     do ii = 1, nDim
