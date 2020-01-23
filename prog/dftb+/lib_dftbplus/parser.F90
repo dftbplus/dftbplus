@@ -3384,12 +3384,12 @@ contains
 
 
   !> Reads in initialization data for the D4 dispersion model.
-  !
-  !  The D4 dispersion model is usually constructed in a failsafe way, so
-  !  it only requires to know the damping parameters s8, a1 and a2.
-  !  Here we additionally require a s9, since the non-addititive contributions
-  !  tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
-  !  will disable the calculation.
+  !>
+  !> The D4 dispersion model is usually constructed in a failsafe way, so
+  !> it only requires to know the damping parameters s8, a1 and a2.
+  !> Here we additionally require a s9, since the non-addititive contributions
+  !> tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
+  !> will disable the calculation.
   subroutine readDispDFTD4(node, input)
 
     !> Node to process.
