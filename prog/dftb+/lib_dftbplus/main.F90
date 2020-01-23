@@ -763,7 +763,7 @@ contains
         end if
 
         ! MD case includes the atomic kinetic energy contribution, so print that later
-        if (.not. tMD) then
+        if (.not. (tMD .or. tHelical)) then
           call printPressureAndFreeEnergy(extPressure, intPressure, energy%EGibbs)
         end if
       end if
@@ -941,9 +941,9 @@ contains
           cellVol = abs(determinant33(latVec))
           energy%EGibbs = energy%EMermin + extPressure * cellVol
         end if
-        call writeMdOut2(fdMd, tStress, tBarostat, isLinResp, tEField, tFixEf, tPrintMulliken,&
-            & energy, energiesCasida, latVec, cellVol, intPressure, extPressure, tempIon,&
-            & absEField, qOutput, q0, dipoleMoment)
+        call writeMdOut2(fdMd, tStress, tBarostat, tPeriodic, isLinResp, tEField, tFixEf,&
+            & tPrintMulliken, energy, energiesCasida, latVec, cellVol, intPressure, extPressure,&
+            & tempIon, absEField, qOutput, q0, dipoleMoment)
         call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
             & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, iGeoStep,&
             & iLatGeoStep, nSpin, qOutput, velocities)
@@ -5964,7 +5964,11 @@ contains
     call getHelicalRepLatForce(derivRep, coord, nNeighbourRep, neighbourList%iNeighbour, species,&
         & img2CentCell, pRepCont, boundaryConds)
 
-    derivTotal(:) = derivRep(2) + derivNonSCC(2)
+    derivTotal(:) = derivRep + derivNonSCC
+
+    write(stdOut,*)derivRep
+    write(stdOut,*)derivNonSCC
+    write(stdOut,*)'Helical BC forces', -derivTotal
 
   end subroutine getHelicalBCDerivs
 

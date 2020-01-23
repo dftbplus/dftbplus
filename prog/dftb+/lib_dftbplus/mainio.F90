@@ -3188,15 +3188,18 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tBarostat, isLinResp, tEField, tFixEf, tPrintMulliken,&
-      & energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon, absEField,&
-      & qOutput, q0, dipoleMoment)
+  subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
+      & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
+      & absEField, qOutput, q0, dipoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
 
     !> Is the stress tensor to be printed?
     logical, intent(in) :: tStress
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: tPeriodic
 
     !> Is a barostat in use
     logical, intent(in) :: tBarostat
@@ -3257,12 +3260,14 @@ contains
         end do
         write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
       end if
-      write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
-      if (pressure /= 0.0_dp) then
-        write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
-            & Hartree__eV * energy%EGibbs,'eV'
-        write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-            & Hartree__eV * energy%EGibbsKin, 'eV'
+      if (tPeriodic) then
+        write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+        if (pressure /= 0.0_dp) then
+          write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
+              & Hartree__eV * energy%EGibbs,'eV'
+          write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+              & Hartree__eV * energy%EGibbsKin, 'eV'
+        end if
       end if
     end if
     if (isLinResp) then
