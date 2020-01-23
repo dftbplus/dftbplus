@@ -49,7 +49,7 @@ module dftbp_dftd4param
     real(dp) :: a2
 
     !> exponent of for the zero-damping function used for non-addititive
-    !  triple dipole contributions.
+    !>  triple dipole contributions.
     real(dp) :: alpha = 16.0_dp
 
     !> cutoff radius for dispersion interactions.
@@ -103,7 +103,7 @@ module dftbp_dftd4param
     real(dp) :: a2
 
     !> exponent of for the zero-damping function used for non-addititive
-    !  triple dipole contributions.
+    !>  triple dipole contributions.
     real(dp) :: alpha = 16.0_dp
 
     !> Gaussian weighting factor for interpolation of dispersion coefficients.
@@ -150,7 +150,7 @@ module dftbp_dftd4param
 
 
   !> Element-specific electronegativity for the electronegativity equilibration
-  !  charges used in DFT-D4.
+  !>  charges used in DFT-D4.
   real(dp), parameter :: chi(max_element_eeq) = [&
     & 1.23695041_dp, 1.26590957_dp, 0.54341808_dp, 0.99666991_dp, 1.26691604_dp, &
     & 1.40028282_dp, 1.55819364_dp, 1.56866440_dp, 1.57540015_dp, 1.15056627_dp, &
@@ -172,7 +172,7 @@ module dftbp_dftd4param
     & 1.27465977_dp]
 
   !> Element-specific chemical hardnesses for the electronegativity equilibration
-  !  charges used in DFT-D4.
+  !>  charges used in DFT-D4.
   real(dp), parameter :: gam(max_element_eeq) = [&
     &-0.35015861_dp, 1.04121227_dp, 0.09281243_dp, 0.09412380_dp, 0.26629137_dp, &
     & 0.19408787_dp, 0.05317918_dp, 0.03151644_dp, 0.32275132_dp, 1.30996037_dp, &
@@ -194,7 +194,7 @@ module dftbp_dftd4param
     & 0.10500484_dp]
 
   !> Element-specific CN scaling constant for the electronegativity equilibration
-  !  charges used in DFT-D4.
+  !>  charges used in DFT-D4.
   real(dp), parameter :: kcn(max_element_eeq) = [&
     & 0.04916110_dp, 0.10937243_dp,-0.12349591_dp,-0.02665108_dp,-0.02631658_dp, &
     & 0.06005196_dp, 0.09279548_dp, 0.11689703_dp, 0.15704746_dp, 0.07987901_dp, &
@@ -216,7 +216,7 @@ module dftbp_dftd4param
     & 0.05849285_dp]
 
   !> Element-specific charge widths for the electronegativity equilibration
-  !  charges used in DFT-D4.
+  !>  charges used in DFT-D4.
   real(dp), parameter :: rad(max_element_eeq) = [&
     & 0.55159092_dp, 0.66205886_dp, 0.90529132_dp, 1.51710827_dp, 2.86070364_dp, &
     & 1.88862966_dp, 1.32250290_dp, 1.23166285_dp, 1.77503721_dp, 1.11955204_dp, &
@@ -238,7 +238,7 @@ module dftbp_dftd4param
     & 2.82773085_dp]
 
   !> Element-specific chemical hardnesses for the charge scaling function used
-  !  to extrapolate the C6 coefficients in DFT-D4.
+  !>  to extrapolate the C6 coefficients in DFT-D4.
   real(dp), parameter :: chemicalHardness(max_element_d4) = [ &
     & 0.47259288_dp, 0.92203391_dp, 0.17452888_dp, 0.25700733_dp, 0.33949086_dp, &
     & 0.42195412_dp, 0.50438193_dp, 0.58691863_dp, 0.66931351_dp, 0.75191607_dp, &
@@ -266,7 +266,7 @@ module dftbp_dftd4param
     & 0.00000000_dp, 0.00000000_dp, 0.00000000_dp]
 
   !> Effective nuclear charges from the def2-ECPs used for calculating the
-  !  reference polarizibilities for DFT-D4.
+  !>  reference polarizibilities for DFT-D4.
   real(dp), parameter :: effectiveNuclearCharge(max_element_d4) = [ &
     &   1,                                                 2,  & ! H-He
     &   3, 4,                               5, 6, 7, 8, 9,10,  & ! Li-Ne
@@ -280,7 +280,7 @@ module dftbp_dftd4param
     &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26] ! Rf-Og
 
   !> Covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009,
-  !  188-197), values for metals decreased by 10%.
+  !>  188-197), values for metals decreased by 10%.
   real(dp), parameter :: CovalentRadiusD3(max_element_d4) = [ &
     & 0.32_dp,0.46_dp, & ! H,He
     & 1.20_dp,0.94_dp,0.77_dp,0.75_dp,0.71_dp,0.63_dp,0.64_dp,0.67_dp, & ! Li-Ne

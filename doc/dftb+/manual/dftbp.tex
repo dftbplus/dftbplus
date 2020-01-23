@@ -2434,7 +2434,7 @@ description of the methods see the following subsections):
   section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
   strengths (see section \ref{sec:dftbp.hcorr}).
 \item \is{DftD4}: Dispersion is calculated using the D4
-  model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122,} (see
+  model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
   section~\ref{sec:dftbp.DftD4}).
 \end{itemize}
 
@@ -2610,7 +2610,7 @@ with $E_{\text{DFTB}}$ being the DFTB total energy and $E_{\text{disp}}$ the
 dispersion energy. The latter contains two-body and optional three-body
 contributions:
 \begin{equation*}
-  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}
+  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}.
 \end{equation*}
 
 The form of the two-body contribution can change depending on the chosen damping
@@ -2715,15 +2715,15 @@ model by Stefan Grimme and coworkers. It is based on the method described in
 Ref.~\cite{caldeweyher-jcp-150-154122}.
 
 This dispersion correction for DFTB adds a contribution to the general
-Kohn--Sham-like energy
+Kohn--Sham-like energy,
 \begin{equation*}
-  E_{\text{DFTB-D4}} = E_{\text{DFTB}} + E_{\text{disp}}
+  E_{\text{DFTB-D4}} = E_{\text{DFTB}} + E_{\text{disp}},
 \end{equation*}
 with $E_{\text{DFTB}}$ being the DFTB total energy and $E_{\text{disp}}$ the
 dispersion energy. The latter contains two-body and optional three-body
 contributions:
 \begin{equation*}
-  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}
+  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}.
 \end{equation*}
 
 The D4 model uses the Becke--Johnson damping function for two-body contributions:
@@ -2736,14 +2736,14 @@ with
    f(R_0^{AB}) = a_1 R_0^{AB} + a_2 \text.
 \end{equation*}
 
-and the zero-damping function for three-body contributions:
+The zero-damping function for three-body contributions is:
 \begin{equation*}
    E_{\text{disp}}^{(3)} = -\sum_{A}\sum_{\substack{B \\B < A}}\sum_{\substack{C\\ C < B}} s_9
    \frac{  \left(3\cos\theta_A\cos\theta_B\cos\theta_C+1\right)\sqrt{C_6^{AB}C_6^{BC}C_6^{CA}}}{(r_{AB}r_{BC}r_{CA})^3} f^{(3)}(r_{AB})
 \end{equation*}
 with
 \begin{equation*}
-   f^{(3)} = \frac{1}{1 + 6\left(\frac{f(R_0^{AB})f(R_0^{BC})f(R_0^{CA})}{r_{AB}r_{BC}r_{CA}}\right)^{\alpha/3}}
+   f^{(3)} = \frac{1}{1 + 6\left(\frac{f(R_0^{AB})f(R_0^{BC})f(R_0^{CA})}{r_{AB}r_{BC}r_{CA}}\right)^{\alpha/3}}.
 \end{equation*}
 
 In order to adjust the dispersion for various energy functionals, the choice of

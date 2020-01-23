@@ -1,9 +1,9 @@
-!--------------------------------------------------------------------------------!
-!  DFTB+: general package for performing fast atomistic simulations              !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                             !
-!                                                                                !
-!  See the LICENSE file for terms of usage and distribution.                     !
-!--------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
@@ -47,12 +47,12 @@ module dftbp_dispdftd4
 
     !> Volume of the unit cell
     real(dp) :: vol
-    !> stress tensor
 
+    !> stress tensor
     real(dp) :: stress(3, 3)
 
     !> Contains the points included in the reciprocal sum.
-    !  The set should not include the origin or inversion related points.
+    !> The set should not include the origin or inversion related points.
     real(dp), allocatable :: recPoint(:, :)
 
     !> Parameter for Ewald summation.
@@ -297,7 +297,7 @@ contains
     !> Resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = max(this%calculator%cutoffInter, this%calculator%cutoffCount, &
+    cutoff = max(this%calculator%cutoffInter, this%calculator%cutoffCount,&
         & this%calculator%cutoffEwald, this%calculator%cutoffThree)
 
   end function getRCutoff
@@ -414,12 +414,11 @@ contains
     real(dp), intent(inout) :: cn(:)
 
     !> on input derivative of CN w.r.t. cartesian coordinates,
-    !  on output derivative of modified CN
+    !> on output derivative of modified CN
     real(dp), intent(inout), optional :: dcndr(:, :, :)
 
     !> on input derivative of CN w.r.t. strain deformation,
-    !  on output derivative of modified CN
-
+    !> on output derivative of modified CN
     real(dp), intent(inout), optional :: dcndL(:, :, :)
 
     !> maximum CN (not strictly obeyed)
@@ -454,15 +453,14 @@ contains
 
 
   !> Calculate the weights of the reference systems and scale them according
-  !  to their partial charge difference. It also saves the derivatives w.r.t.
-  !  coordination number and partial charge for later use.
-  !
-  !  This subroutine produces two sets of weighting and scaling vectors, one
-  !  for the input partial charges and one for the case of no charge fluctuations,
-  !  meaning q=0. The normal zeta-Vector is used to scale the pair-wise dispersion
-  !  terms while the so called zero-Vector is used for the non-additive terms in
-  !  the ATM dispersion energy.
-  !
+  !> to their partial charge difference. It also saves the derivatives w.r.t.
+  !> coordination number and partial charge for later use.
+  !>
+  !> This subroutine produces two sets of weighting and scaling vectors, one
+  !> for the input partial charges and one for the case of no charge fluctuations,
+  !> meaning q=0. The normal zeta-Vector is used to scale the pair-wise dispersion
+  !> terms while the so called zero-Vector is used for the non-additive terms in
+  !> the ATM dispersion energy.
   subroutine weightReferences(calc, nAtom, species, cn, q, zetaVec, zeroVec, zetadq, zetadcn,&
       & zerodcn)
 
@@ -559,11 +557,10 @@ contains
 
 
   !> Actual implementation of the dispersion energy, gradients and stress tensor.
-  !
-  !  This subroutine is somewhat agnostic to the dispersion model, meaning that
-  !  it can be used for either D4 or D3(BJ), if the inputs like coordination
-  !  number, charges and scaling parameters are chosen accordingly.
-  !
+  !>
+  !> This subroutine is somewhat agnostic to the dispersion model, meaning that
+  !> it can be used for either D4 or D3(BJ), if the inputs like coordination
+  !> number, charges and scaling parameters are chosen accordingly.
   subroutine dispersionGradient(calc, nAtom, coords, species, neigh, img2CentCell, cn, dcndr,&
       & dcndL, q, dqdr, dqdL, energies, gradients, stress)
 
@@ -633,15 +630,15 @@ contains
 
     nRef = maxval(calc%numberOfReferences(species))
     allocate(nNeighbour(nAtom), source=0)
-    allocate(zetaVec(nRef, nAtom), zeroVec(nRef, nAtom), zetadq(nRef, nAtom), &
-        & zetadcn(nRef, nAtom), zerodcn(nRef, nAtom), zerodq(nRef, nAtom), &
-        & c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom), &
+    allocate(zetaVec(nRef, nAtom), zeroVec(nRef, nAtom), zetadq(nRef, nAtom),&
+        & zetadcn(nRef, nAtom), zerodcn(nRef, nAtom), zerodq(nRef, nAtom),&
+        & c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom),&
         & dEdq(nAtom), dEdcn(nAtom), source=0.0_dp)
 
-    call weightReferences(calc, nAtom, species, cn, q, zetaVec, zeroVec, zetadq, &
+    call weightReferences(calc, nAtom, species, cn, q, zetaVec, zeroVec, zetadq,&
         & zetadcn, zerodcn)
 
-    call getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, &
+    call getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn,&
         & c6, dc6dcn, dc6dq)
 
     call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
@@ -727,7 +724,7 @@ contains
 
 
   !> calculate atomic dispersion coefficients and their derivatives w.r.t.
-  !  coordination number and partial charge.
+  !> coordination number and partial charge.
   subroutine getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
 
     !> DFT-D dispersion model.
@@ -795,7 +792,7 @@ contains
 
 
   !> Energies, derivatives and strain derivatives of the Axilrod-Teller-Muto
-  !  non-additive triple-dipole contribution.
+  !> non-additive triple-dipole contribution.
   subroutine threeBodyDispersionGradient(calc, nAtom, coords, species, nNeighbour, iNeighbour,&
       & neighDist2, img2CentCell, zetaVec, zetadq, zetadcn, dEdq, dEdcn, energies, gradients,&
       & stress)
@@ -893,7 +890,7 @@ contains
           r5 = r3 * r2
 
           fdmp = 1.0_dp / (1.0_dp + 6.0_dp * (rc / r1)**(calc%alpha / 3.0_dp))
-          ang = 0.375_dp*(dist12 + dist23 - dist13)*(dist12 - dist23 + dist13) &
+          ang = 0.375_dp*(dist12 + dist23 - dist13)*(dist12 - dist23 + dist13)&
               & *(-dist12 + dist23 + dist13) / r5 + 1.0_dp / r3
 
           rr = ang*fdmp
@@ -901,20 +898,20 @@ contains
           dfdmp = -2.0_dp * calc%alpha * (rc / r1)**(calc%alpha / 3.0_dp) * fdmp**2
 
           ! d/dr12
-          dang = -0.375_dp * (dist12**3 + dist12**2 * (dist23 + dist13) &
-              & + dist12 * (3 * dist23**2 + 2 * dist23*dist13 + 3 * dist13**2) &
+          dang = -0.375_dp * (dist12**3 + dist12**2 * (dist23 + dist13)&
+              & + dist12 * (3 * dist23**2 + 2 * dist23*dist13 + 3 * dist13**2)&
               & - 5 * (dist23 - dist13)**2 * (dist23 + dist13)) / r5
           dG12 = calc%s9 * c9 * (-dang*fdmp + ang*dfdmp) / dist12*vec12
 
           ! d/dr13
-          dang = -0.375_dp * (dist13**3 + dist13**2 * (dist23 + dist12) &
-              & + dist13 * (3 * dist23**2 + 2 * dist23 * dist12 + 3 * dist12**2) &
+          dang = -0.375_dp * (dist13**3 + dist13**2 * (dist23 + dist12)&
+              & + dist13 * (3 * dist23**2 + 2 * dist23 * dist12 + 3 * dist12**2)&
               & - 5 * (dist23 - dist12)**2 * (dist23 + dist12)) / r5
           dG13 = calc%s9 * c9 * (-dang * fdmp + ang * dfdmp) / dist13 * vec13
 
           ! d/dr23
-          dang = -0.375_dp * (dist23**3 + dist23**2*(dist13 + dist12) &
-              & + dist23 * (3 * dist13**2 + 2 * dist13 * dist12 + 3 * dist12**2) &
+          dang = -0.375_dp * (dist23**3 + dist23**2*(dist13 + dist12)&
+              & + dist23 * (3 * dist13**2 + 2 * dist13 * dist12 + 3 * dist12**2)&
               & - 5 * (dist13 - dist12)**2 * (dist13 + dist12)) / r5
           dG23 = calc%s9 * c9 * (-dang * fdmp + ang * dfdmp) / dist23 * vec23
 
@@ -927,8 +924,8 @@ contains
           gradients(:, iAt2f) = gradients(:, iAt2f) + dG12 - dG23
           gradients(:, iAt3f) = gradients(:, iAt3f) + dG13 + dG23
 
-          sigma = spread(dG12, 1, 3) * spread(vec12, 2, 3) &
-              & + spread(dG13, 1, 3) * spread(vec13, 2, 3) &
+          sigma = spread(dG12, 1, 3) * spread(vec12, 2, 3)&
+              & + spread(dG13, 1, 3) * spread(vec13, 2, 3)&
               & + spread(dG23, 1, 3) * spread(vec23, 2, 3)
 
           stress = stress + sigma
@@ -976,7 +973,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Contains the points included in the reciprocal sum.
-    !  The set should not include the origin or inversion related points.
+    !> The set should not include the origin or inversion related points.
     real(dp), allocatable, intent(in) :: recPoint(:, :)
 
     !> Parameter for Ewald summation.
@@ -1020,8 +1017,8 @@ contains
 
     call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffCount)
 
-    call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, &
-        & neigh%neighDist2, img2CentCell, calculator%covalentRadius, &
+    call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour,&
+        & neigh%neighDist2, img2CentCell, calculator%covalentRadius,&
         & calculator%electronegativity, .false., cn, dcndr, dcndL)
     call cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max=8.0_dp)
 
@@ -1168,7 +1165,7 @@ contains
     if (z1 < 0.0_dp) then
       dzeta = 0.0_dp
     else
-      dzeta = - beta1 * gamma1 * exp(gamma1 * (1.0_dp - zref/z1)) &
+      dzeta = - beta1 * gamma1 * exp(gamma1 * (1.0_dp - zref/z1))&
           & * zetaScale(beta1, gamma1, zref, z1) * zref / (z1**2)
     end if
 
@@ -1196,12 +1193,11 @@ contains
 
 
   !> Logic exercise to distribute a triple energy to atomwise energies.
-  !
-  !  The logic problem is outsourced to this routine to determine the factor
-  !  based on the three indices so code doesn't look too overloaded.
-  !  There is of course the problem that E /= 3 * E/3.0_dp for the ii'i" case,
-  !  but numerics won't hit that hard and there are not to many of such triples.
-  !
+  !>
+  !> The logic problem is outsourced to this routine to determine the factor
+  !> based on the three indices so code doesn't look too overloaded.
+  !> There is of course the problem that E /= 3 * E/3.0_dp for the ii'i" case,
+  !> but numerics won't hit that hard and there are not to many of such triples.
   elemental function tripleScale(ii, jj, kk) result(triple)
 
     integer, intent(in) :: ii, jj, kk
@@ -1237,23 +1233,23 @@ contains
     !> Atomic number
     integer, intent(out) :: number
 
-    character(len=2), parameter :: pse(118) = [ &
-      & 'h ','he', &
-      & 'li','be','b ','c ','n ','o ','f ','ne', &
-      & 'na','mg','al','si','p ','s ','cl','ar', &
-      & 'k ','ca', &
-      & 'sc','ti','v ','cr','mn','fe','co','ni','cu','zn', &
-      &           'ga','ge','as','se','br','kr', &
-      & 'rb','sr', &
-      & 'y ','zr','nb','mo','tc','ru','rh','pd','ag','cd', &
-      &           'in','sn','sb','te','i ','xe', &
-      & 'cs','ba','la', &
-      & 'ce','pr','nd','pm','sm','eu','gd','tb','dy','ho','er','tm','yb', &
-      & 'lu','hf','ta','w ','re','os','ir','pt','au','hg', &
-      &           'tl','pb','bi','po','at','rn', &
-      & 'fr','ra','ac', &
-      & 'th','pa','u ','np','pu','am','cm','bk','cf','es','fm','md','no', &
-      & 'lr','rf','db','sg','bh','hs','mt','ds','rg','cn', &
+    character(len=2), parameter :: pse(118) = [&
+      & 'h ','he',&
+      & 'li','be','b ','c ','n ','o ','f ','ne',&
+      & 'na','mg','al','si','p ','s ','cl','ar',&
+      & 'k ','ca',&
+      & 'sc','ti','v ','cr','mn','fe','co','ni','cu','zn',&
+      &           'ga','ge','as','se','br','kr',&
+      & 'rb','sr',&
+      & 'y ','zr','nb','mo','tc','ru','rh','pd','ag','cd',&
+      &           'in','sn','sb','te','i ','xe',&
+      & 'cs','ba','la',&
+      & 'ce','pr','nd','pm','sm','eu','gd','tb','dy','ho','er','tm','yb',&
+      & 'lu','hf','ta','w ','re','os','ir','pt','au','hg',&
+      &           'tl','pb','bi','po','at','rn',&
+      & 'fr','ra','ac',&
+      & 'th','pa','u ','np','pu','am','cm','bk','cf','es','fm','md','no',&
+      & 'lr','rf','db','sg','bh','hs','mt','ds','rg','cn',&
       &           'nh','fl','mc','lv','ts','og' ]
 
     integer, parameter :: offset = iachar('a') - iachar('A')
