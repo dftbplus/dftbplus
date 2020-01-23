@@ -69,7 +69,7 @@ endef
 #  otherwise -> compile in two steps
 
 %.f90: %.F90
-	$(FYPP) $(FYPPOPT) $(inc-opts) $< > $@
+	$(FYPP) $(FYPPOPT) $(inc-opts) $< $@
 
 %.o: %.f90
 	$(FXX) $(FXXOPT) $(L_INCS) -o $@ -c $<
@@ -155,6 +155,10 @@ ifeq ($(strip $(WITH_TRANSPORT)),1)
   L_LIBS += $(if $(filter _extlib_mudpack, $^), $(MUDPACK_LIBS))
   L_INCS += -I$(BUILDROOT)/external/mudpack
   COMPILED_EXTERNALS += _extlib_mudpack
+endif
+
+ifeq ($(strip $(WITH_OMP)),1)
+  FYPPOPT += -DWITH_OMP
 endif
 
 ifeq ($(strip $(WITH_MPI)),1)
