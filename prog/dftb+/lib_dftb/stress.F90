@@ -627,11 +627,11 @@ contains
     integer   :: nOrb1, nOrb2
     real(dp)  :: sqrDMTmp(orb%mOrb,orb%mOrb), sqrEDMTmp(orb%mOrb,orb%mOrb)
     real(dp)  :: hPrimeTmp(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
-    real(dp)  :: vect(3), intermed, prefac, theta, nTurns, rad
+    real(dp)  :: vect(3), intermed(3), prefac, theta, nTurns, rad
 
 
     nAtom = size(orb%nOrbAtom)
-    deriv = 0.0_dp
+    deriv(:) = 0.0_dp
 
     do iAt1 = 1, nAtom
       nOrb1 = orb%nOrbAtom(iAt1)
@@ -645,42 +645,27 @@ contains
         sqrEDMTmp(:,:) = 0.0_dp
         hPrimeTmp(:,:,:) = 0.0_dp
         sPrimeTmp(:,:,:) = 0.0_dp
-        sqrDMTmp(1:nOrb2,1:nOrb1) = &
-            & reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
-        sqrEDMTmp(1:nOrb2,1:nOrb1) = &
-            & reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+        sqrDMTmp(1:nOrb2,1:nOrb1) = reshape(DM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
+        sqrEDMTmp(1:nOrb2,1:nOrb1) = reshape(EDM(iOrig+1:iOrig+nOrb1*nOrb2), (/nOrb2,nOrb1/))
         call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAt1, iAt2, orb)
         call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAt1, iAt2, orb)
         ! note factor of 2 for implicit summation over lower triangle of
         ! density matrix:
-        intermed =  &
-            & 2.0_dp*(sum(sqrDMTmp(1:nOrb2,1:nOrb1)&
-            &* hPrimeTmp(1:nOrb2,1:nOrb1,3)) &
-            &- sum(sqrEDMTmp(1:nOrb2,1:nOrb1)&
-            &* sPrimeTmp(1:nOrb2,1:nOrb1,3)))
+        do ii = 1, 3
+          intermed(ii) = 2.0_dp*(sum(sqrDMTmp(1:nOrb2,1:nOrb1) * hPrimeTmp(1:nOrb2,1:nOrb1,ii)) &
+              & -sum(sqrEDMTmp(1:nOrb2,1:nOrb1) * sPrimeTmp(1:nOrb2,1:nOrb1,ii)))
+        end do
         vect(:) = coords(:,iAt1) - coords(:,iAt2)
+        rad = sqrt(sum(coords(:2,iAt2)**2))
+        theta = atan2(coords(2,iAt2),coords(1,iAt2))
         if (iAt1 == iAt2f) then
           prefac = 0.5_dp
         else
           prefac = 1.0_dp
         end if
         nTurns = vect(3)/latVecs(1)
-        deriv(1) = deriv(1) - prefac * intermed * nTurns
-
-        hPrimeTmp(:,:,:) = 0.0_dp
-        sPrimeTmp(:,:,:) = 0.0_dp
-
-        call derivator%getFirstDeriv(hPrimeTmp, skHamCont, coords, species, iAt1, iAt2, orb)
-        call derivator%getFirstDeriv(sPrimeTmp, skOverCont, coords, species, iAt1, iAt2, orb)
-        ! note factor of 2 for implicit summation over lower triangle of
-        ! density matrix:
-        deriv(2) = deriv(2) + 2.0_dp*prefac * ( &
-            & sum(sqrDMTmp(1:nOrb2,1:nOrb1)&
-            &* hPrimeTmp(1:nOrb2,1:nOrb1,1)) &
-            &- sum(sqrEDMTmp(1:nOrb2,1:nOrb1)&
-            &* sPrimeTmp(1:nOrb2,1:nOrb1,1)) &
-            & )
-
+        deriv(1) = deriv(1) - prefac * intermed(3) * nTurns
+        deriv(2) = deriv(2) - prefac*(-sin(theta)*intermed(1)+cos(theta)*intermed(2)) * rad * nTurns
       end do
     end do
 

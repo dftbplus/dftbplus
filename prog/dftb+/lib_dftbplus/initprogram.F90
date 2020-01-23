@@ -1884,7 +1884,7 @@ contains
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
-    tStress = (tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
+    tStress = ((tPeriodic .or. tHelical) .and. tForces .and. .not.tNegf .and. tStress)
 
     nMovedAtom = input%ctrl%nrMoved
     nMovedCoord = 3 * nMovedAtom
