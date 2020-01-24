@@ -635,6 +635,9 @@ contains
         & c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom),&
         & dEdq(nAtom), dEdcn(nAtom))
 
+    dEdq(:) = 0.0_dp
+    dEdcn(:) = 0.0_dp
+
     call weightReferences(calc, nAtom, species, cn, q, zetaVec, zeroVec, zetadq,&
         & zetadcn, zerodcn)
 
