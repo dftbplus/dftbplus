@@ -79,6 +79,9 @@ module dftbp_dftd4param
     !> Ewald tolerance
     real(dp) :: tolEwald = 0.0_dp
 
+    !> Net charge
+    real(dp) :: nrChrg = 0.0_dp
+
   end type DispDftD4Inp
 
 
@@ -126,6 +129,9 @@ module dftbp_dftd4param
 
     !> cutoff radius for three-body interactions.
     real(dp) :: cutoffThree
+
+    !> net charge
+    real(dp) :: nrChrg = 0.0_dp
 
     real(dp), allocatable :: chi(:)
     real(dp), allocatable :: gam(:)
@@ -468,6 +474,8 @@ contains
     calculator%a1 = input%a1
     calculator%a2 = input%a2
     calculator%alpha = input%alpha
+
+    calculator%nrChrg = input%nrChrg
 
     calculator%cutoffCount = input%cutoffCount
     calculator%cutoffInter = input%cutoffInter

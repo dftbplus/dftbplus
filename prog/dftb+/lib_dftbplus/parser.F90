@@ -2199,7 +2199,7 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
     if (associated(value1)) then
       allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp)
+      call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
     end if
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimization only applies for periodic structures.")
@@ -3110,7 +3110,7 @@ contains
 
 
   !> Reads in dispersion related settings
-  subroutine readDispersion(node, geo, input)
+  subroutine readDispersion(node, geo, input, nrChrg)
 
     !> Node to parse
     type(fnode), pointer :: node
@@ -3120,6 +3120,9 @@ contains
 
     !> dispersion data on exit
     type(DispersionInp), intent(out) :: input
+
+    !> net charge
+    real(dp), intent(in) :: nrChrg
 
     type(fnode), pointer :: dispModel
     type(string) :: buffer
@@ -3142,7 +3145,7 @@ contains
   #:endif
     case ("dftd4")
       allocate(input%dftd4)
-      call readDispDFTD4(dispModel, input%dftd4)
+      call readDispDFTD4(dispModel, input%dftd4, nrChrg)
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
@@ -3390,7 +3393,7 @@ contains
   !> Here we additionally require a s9, since the non-addititive contributions
   !> tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
   !> will disable the calculation.
-  subroutine readDispDFTD4(node, input)
+  subroutine readDispDFTD4(node, input, nrChrg)
 
     !> Node to process.
     type(fnode), pointer :: node
@@ -3398,8 +3401,13 @@ contains
     !> Filled input structure on exit.
     type(DispDftD4Inp), intent(out) :: input
 
+    !> Net charge of the system.
+    real(dp), intent(in) :: nrChrg
+
     type(fnode), pointer :: child, childval
     type(string) :: buffer
+
+    input%nrChrg = nrChrg
 
     call getChildValue(node, "s6", input%s6, default=1.0_dp)
     call getChildValue(node, "s8", input%s8)
