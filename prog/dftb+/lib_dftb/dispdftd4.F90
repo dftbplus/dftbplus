@@ -994,7 +994,6 @@ contains
     integer, allocatable :: nNeigh(:)
 
     real(dp) :: sigma(3, 3)
-    real(dp), parameter :: charge = 0.0_dp  ! FIXME
     real(dp) :: vol, parEwald0
     real(dp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
     real(dp), allocatable :: q(:), dqdr(:, :, :), dqdL(:, :, :)
@@ -1027,7 +1026,7 @@ contains
 
     call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffEwald)
 
-    call getEEQCharges(nAtom, coords, species, charge, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
+    call getEEQCharges(nAtom, coords, species, calculator%nrChrg, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, recPoint, parEwald0, vol, calculator%chi, calculator%kcn, calculator%gam,&
         & calculator%rad, cn, dcndr, dcndL, qAtom=q, dqdr=dqdr, dqdL=dqdL)
 
