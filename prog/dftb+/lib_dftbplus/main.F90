@@ -171,7 +171,7 @@ contains
         if (tGroundGuess .and. iDet==0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
         end if
-        if (.not. tGroundguess) then
+        if (.not. iDet==0) then
           call postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
               & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
         end if
@@ -190,8 +190,7 @@ contains
       if (tExitGeoOpt) then
         exit geoOpt
       end if
-      !call postProcessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
-      !    & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
+
       call printMaxForces(derivs, constrLatDerivs, tCoordOpt, tLatOpt, indMovedAtom)
     #:if WITH_SOCKETS
       if (tSocket) then
@@ -5382,7 +5381,7 @@ contains
     if(tNonAufbau) then
       if (tSpinPurify.and.iDet==1) then
         tripletderivs(:,:) = derivs
-      else if (iDet==2) then
+      else if (iDet/=0) then
         mixedderivs(:,:) = derivs
       end if
     end if
