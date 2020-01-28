@@ -56,7 +56,8 @@ contains
 
     aMat(:, :) = 0.0_dp
 
-    !$OMP PARALLEL DEFAULT(SHARED) &
+    !$OMP PARALLEL DEFAULT(NONE) &
+    !$OMP SHARED(nAtom, species, gam, rad, coords, aMat) &
     !$OMP PRIVATE(iSp1, iAt2f, iSp2, vec, dist, eta12)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
@@ -106,12 +107,13 @@ contains
     aMatdr(:,:,:) = 0.0_dp
     aTrace(:,:) = 0.0_dp
 
-    !$OMP PARALLEL DEFAULT(SHARED) REDUCTION(+:aTrace, aMatdr) &
+    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aTrace, aMatdr) &
+    !$OMP SHARED(nAtom, species, rad, coords, qVec) &
     !$OMP PRIVATE(iAt2f, iSp1, iSp2, vec, dist, aTmp, arg, eta12)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
-      do iAt2f = iAt1 + 1, nAtom
+      do iAt2f = 1, iAt1 - 1
         iSp2 = species(iAt2f)
         vec = coords(:, iAt1) - coords(:, iAt2f)
         dist = sqrt(sum(vec**2))
@@ -280,10 +282,11 @@ contains
     @:ASSERT(volume > 0.0_dp)
 
     ! Reciprocal space part of the Ewald sum.
-    !$OMP PARALLEL DEFAULT(SHARED) REDUCTION(+:aMat) PRIVATE(iAt2f, vec, rTerm)
+    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aMat) PRIVATE(iAt2f, vec, rTerm) &
+    !$OMP SHARED(nAtom, alpha, coords, recPoint, volume)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
-      aMat(iAt1, iAt1) = aMat(iAt1, iAt1) - 2.0_dp * alpha / sqrt(pi)
+      aMat(iAt1, iAt1) = aMat(iAt1, iAt1) - alpha / sqrt(pi) + pi / (volume * alpha**2)
       do iAt2f = iAt1, nAtom
         vec(:) = coords(:, iAt1)-coords(:, iAt2f)
         rTerm = ewaldReciprocal(vec, recPoint, alpha, volume) &
@@ -332,7 +335,8 @@ contains
     integer :: iAt1, iAt2f
     real(dp) :: vec(3), aTmp(3), sigma(3, 3)
 
-    !$OMP PARALLEL DEFAULT(SHARED) REDUCTION(+:aTrace, aMatdr, aMatdL) &
+    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aTrace, aMatdr, aMatdL) &
+    !$OMP SHARED(nAtom, coords, recPoint, alpha, volume, qVec) &
     !$OMP PRIVATE(iAt2f, vec, aTmp, sigma)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
@@ -395,7 +399,9 @@ contains
     real(dp) :: dist, eta12, rTerm
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh
 
-    !$OMP PARALLEL DEFAULT(SHARED) REDUCTION(+:aMat) &
+    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aMat) &
+    !$OMP SHARED(nAtom, species, gam, rad, nNeighbour, iNeighbour, img2CentCell) &
+    !$OMP SHARED(neighDist2, alpha) &
     !$OMP PRIVATE(iNeigh, iAt2, iAt2f, iSp1, iSp2, dist, rTerm, eta12)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
@@ -464,8 +470,10 @@ contains
     real(dp) :: dist, vec(3), aTmp(3), arg, eta12, ewl, sigma(3, 3)
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh
 
-    !$OMP PARALLEL DEFAULT(SHARED) REDUCTION(+:aTrace, aMatdr, aMatdL) &
-    !$OMP PRIVATE(iAt2, iSp1, iSp2, vec, dist, aTmp, arg, ewl, eta12, sigma)
+    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aTrace, aMatdr, aMatdL) &
+    !$OMP SHARED(nAtom, species, nNeighbour, iNeighbour, coords, img2CentCell) &
+    !$OMP SHARED(neighDist2, rad, qVec, alpha) &
+    !$OMP PRIVATE(iAt2, iAt2f, iSp1, iSp2, vec, dist, aTmp, arg, ewl, eta12, sigma)
     !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
@@ -609,7 +617,7 @@ contains
       xVec(iAt1) = -chi(iSp1) + tmp*cn(iAt1)
       xFac(iAt1) = -0.5_dp*tmp
     end do
-    xVec(nDim) = 0.0_dp ! should be charge
+    xVec(nDim) = charge
 
     ! Step 2: construct interaction matrix
     if (tPeriodic) then
@@ -632,13 +640,15 @@ contains
         aInv(ii, jj) = aInv(jj, ii)
       end do
     end do
+    qVec(:) = 0.0_dp
     call hemv(qVec, aInv, xVec)
 
-    ! Step 4: return atom resolved energies if requested
+    ! Step 4: return atom resolved energies if requested, xVec is scratch
     if (present(energies)) then
       call hemv(xVec, aMat, qVec, alpha=0.5_dp, beta=-1.0_dp)
       energies(:) = energies(:) + xVec(:nAtom) * qVec(:nAtom)
     end if
+    deallocate(xVec) ! free xVec to avoid using it later
 
     ! Step 5: get derivative of interaction matrix
     if (tPeriodic) then
@@ -648,8 +658,8 @@ contains
       call getCoulombDerivsCluster(nAtom, coords, species, rad, qVec, aMatdr, aTrace)
     end if
     do iAt1 = 1, nAtom
-      aMatdr(:, :, iAt1) = aMatdr(:, :, iAt1) + dcndr(:, :, iAt1) * Xfac(iAt1)
-      aMatdL(:, :, iAt1) = aMatdL(:, :, iAt1) + dcndL(:, :, iAt1) * Xvec(iAt1)
+      aMatdr(:, :, iAt1) = aMatdr(:, :, iAt1) + dcndr(:, :, iAt1) * xFac(iAt1)
+      aMatdL(:, :, iAt1) = aMatdL(:, :, iAt1) + dcndL(:, :, iAt1) * xFac(iAt1)
     end do
 
     if (present(gradients)) then
@@ -665,10 +675,12 @@ contains
     end do
 
     if (present(dqdr)) then
+      dqdr(:, :, :) = 0.0_dp
       call gemm(dqdr, aMatdr, aInv, alpha=-1.0_dp)
     end if
 
     if (present(dqdL)) then
+      dqdL(:, :, :) = 0.0_dp
       call gemm(dqdL, aMatdL, aInv, alpha=-1.0_dp)
     end if
 

@@ -129,6 +129,7 @@ contains
     real(dp), intent(in), optional :: latVecs(:, :)
 
     real(dp) :: recVecs(3, 3), maxGEwald
+    integer :: iAt1
 
     this%tPeriodic = present(latVecs)
 
@@ -156,7 +157,9 @@ contains
     this%nAtom = nAtom
 
     allocate(this%izp(nAtom))
-    call symbolToNumber(this%izp, speciesNames(species0))
+    do iAt1 = 1, nAtom
+      call symbolToNumber(this%izp(iAt1), speciesNames(species0(iAt1)))
+    end do
 
     allocate(this%energies(nAtom))
     allocate(this%gradients(3, nAtom))
@@ -360,6 +363,12 @@ contains
     dcndr(:, :, :) = 0.0_dp
     dcndL(:, :, :) = 0.0_dp
 
+    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:cn, dcndr, dcndL) &
+    !$OMP SHARED(nAtom, species, nNeighbour, iNeighbour, coords, img2CentCell) &
+    !$OMP SHARED(neighDist2, covalentRadius, tENScale, electronegativity) &
+    !$OMP PRIVATE(iAt1, iSp1, iAt2, vec, iAt2f, iSp2, r2, r1, rc, dEN, countf) &
+    !$OMP PRIVATE(countd, stress)
+    !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
@@ -394,13 +403,15 @@ contains
 
         stress = spread(countd, 1, 3) * spread(vec, 2, 3)
 
-        dcndL(:, :, iAt1) = dcndL(:, :, iAt1) + stress
+        dcndL(:, :, iAt1) = dcndL(:, :, iAt1) - stress
         if (iAt1 /= iAt2f) then
-          dcndL(:, :, iAt2f) = dcndL(:, :, iAt2f) + stress
+          dcndL(:, :, iAt2f) = dcndL(:, :, iAt2f) - stress
         end if
 
       end do
     end do
+    !$OMP END DO
+    !$OMP END PARALLEL
   end subroutine getCoordinationNumber
 
 
@@ -504,6 +515,11 @@ contains
     zeroVec(:,:) = 0.0_dp
     zerodcn(:,:) = 0.0_dp
 
+    !$OMP PARALLEL DEFAULT(NONE) &
+    !$OMP SHARED(zetaVec, zetadq, zetadcn, zeroVec, zerodcn, calc, nAtom, species, q, cn) &
+    !$OMP PRIVATE(iAt1, iSp1, eta1, zEff1, norm, dnorm, iRef1, iCount1, wf, gw) &
+    !$OMP PRIVATE(expw, expd, gwk, dgwk, qRef1)
+    !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       eta1 = calc%gc * calc%chemicalHardness(iSp1)
@@ -552,6 +568,8 @@ contains
         zerodcn(iRef1, iAt1) = zetaScale(calc%ga, eta1, qRef1, zEff1) * dgwk
       end do
     end do
+    !$OMP END DO
+    !$OMP END PARALLEL
 
   end subroutine weightReferences
 
@@ -601,13 +619,13 @@ contains
     real(dp), intent(in) :: dqdL(:, :, :)
 
     !> Updated energy vector at return
-    real(dp), intent(out) :: energies(:)
+    real(dp), intent(inout) :: energies(:)
 
     !> Updated gradient vector at return
-    real(dp), intent(out) :: gradients(:, :)
+    real(dp), intent(inout) :: gradients(:, :)
 
     !> Updated stress tensor at return
-    real(dp), intent(out) :: stress(:, :)
+    real(dp), intent(inout) :: stress(:, :)
 
     integer :: nRef
     integer :: iAt1, iSp1, iNeigh, iAt2, iSp2, iAt2f
@@ -623,10 +641,6 @@ contains
     real(dp), allocatable :: zetadcn(:, :), zerodcn(:, :)
     real(dp), allocatable :: dEdq(:), dEdcn(:)
     real(dp), allocatable :: c6(:, :), dc6dq(:, :), dc6dcn(:, :)
-
-    energies(:) = 0.0_dp
-    gradients(:, :) = 0.0_dp
-    stress(:, :) = 0.0_dp
 
     nRef = maxval(calc%numberOfReferences(species))
     allocate(nNeighbour(nAtom))
@@ -645,6 +659,12 @@ contains
         & c6, dc6dcn, dc6dq)
 
     call getNrOfNeighboursForAll(nNeighbour, neigh, calc%cutoffInter)
+    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:energies, gradients, stress, dEdq, dEdcn) &
+    !$OMP SHARED(nAtom, species, nNeighbour, neigh, coords, img2CentCell, c6, dc6dq, dc6dcn, calc) &
+    !$OMP PRIVATE(iAt1, iSp1, iNeigh, iAt2, vec, iAt2f, iSp2, r2, r1, r4, r5, r6, r8, r10) &
+    !$OMP PRIVATE(rc, rc1, rc2, rc6, rc8, rc10, dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2) &
+    !$OMP PRIVATE(dEr, dGr, grad, sigma, f6, f8, f10, df6, df8, df10)
+    !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
@@ -684,28 +704,27 @@ contains
         dEr = calc%s6 * f6 + calc%s8 * f8 * rc + calc%s10 * rc * rc * 49.0_dp / 40.0_dp * f10
         dGr = calc%s6 * df6 + calc%s8 * df8 * rc + calc%s10 * rc * rc * 49.0_dp / 40.0_dp * df10
 
-        energies(iAt1) = energies(iAt1) - dEr*dc6/2
-        if (iAt1 /= iAt2f) then
-          energies(iAt2f) = energies(iAt2f) - dEr*dc6/2
-        end if
-
         grad = -dGr*dc6 * vec / r1
-        gradients(:, iAt1) = gradients(:, iAt1) + grad
-        gradients(:, iAt2f) = gradients(:, iAt2f) - grad
-
         sigma = spread(grad, 1, 3) * spread(vec, 2, 3)
+
+        energies(iAt1) = energies(iAt1) - dEr*dc6/2
+        dEdcn(iAt1) = dEdcn(iAt1) - dc6dcn1 * dEr
+        dEdq(iAt1) = dEdq(iAt1) - dc6dq1 * dEr
         if (iAt1 /= iAt2f) then
-          stress = stress + sigma
+          stress = stress - sigma
+          energies(iAt2f) = energies(iAt2f) - dEr*dc6/2
+          gradients(:, iAt1) = gradients(:, iAt1) + grad
+          gradients(:, iAt2f) = gradients(:, iAt2f) - grad
+          dEdcn(iAt2f) = dEdcn(iAt2f) - dc6dcn2 * dEr
+          dEdq(iAt2f) = dEdq(iAt2f) - dc6dq2 * dEr
         else
-          stress = stress + 0.5_dp * sigma
+          stress = stress - 0.5_dp * sigma
         end if
 
-        dEdcn(iAt1) = dEdcn(iAt1) - dc6dcn1 * dEr
-        dEdcn(iAt2f) = dEdcn(iAt2f) - dc6dcn2 * dEr
-        dEdq(iAt1) = dEdq(iAt1) - dc6dq1 * dEr
-        dEdq(iAt2f) = dEdq(iAt2f) - dc6dq2 * dEr
       end do
     end do
+    !$OMP END DO
+    !$OMP END PARALLEL
 
     if (calc%s9 > 0.0_dp) then
       zerodq(:, :) = 0.0_dp  ! really make sure there is no q `dependency' from alloc
@@ -764,6 +783,11 @@ contains
     dc6dcn(:,:) = 0.0_dp
     dc6dq(:,:) = 0.0_dp
 
+    !$OMP PARALLEL DEFAULT(NONE) SHARED(c6, dc6dcn, dc6dq) &
+    !$OMP SHARED(calc, zetaVec, zetadq, zetadcn, nAtom, species) &
+    !$OMP PRIVATE(iAt1, iAt2, iSp1, iSp2, iRef1, iRef2, refc6) &
+    !$OMP PRIVATE(dc6, dc6dcn1, dc6dcn2, dc6dq1, dc6dq2)
+    !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       do iAt2 = 1, iAt1
@@ -791,6 +815,8 @@ contains
         dc6dq(iAt2, iAt1) = dc6dq2
       end do
     end do
+    !$OMP END DO
+    !$OMP END PARALLEL
   end subroutine getAtomicC6
 
 
@@ -860,6 +886,14 @@ contains
     allocate(c6(nAtom, nAtom), dc6dq(nAtom, nAtom), dc6dcn(nAtom, nAtom))
     call getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
 
+    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:energies, gradients, stress, dEdq, dEdcn) &
+    !$OMP SHARED(nAtom, species, nNeighbour, iNeighbour, coords, img2CentCell, neighDist2) &
+    !$OMP SHARED(c6, dc6dcn, dc6dq, calc) &
+    !$OMP PRIVATE(iAt1, iSp1, iNeigh2, iNeigh3, iAt2, iAt2f, iAt3, iAt3f, iSp2, iSp3) &
+    !$OMP PRIVATE(vec12, vec13, vec23, dist12, dist13, dist23, c6_12, c6_13, c6_23, c9, rr) &
+    !$OMP PRIVATE(rc12, rc13, rc23, rc, r2, r1, r3, r5, fdmp, ang, dfdmp, dang, dG12, dG13, dG23) &
+    !$OMP PRIVATE(dEr, sigma, dc9dcn1, dc9dcn2, dc9dcn3, dc9dq1, dc9dq2, dc9dq3)
+    !$OMP DO SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       do iNeigh2 = 1, nNeighbour(iAt1)
@@ -931,7 +965,7 @@ contains
               & + spread(dG13, 1, 3) * spread(vec13, 2, 3)&
               & + spread(dG23, 1, 3) * spread(vec23, 2, 3)
 
-          stress = stress + sigma
+          stress = stress - sigma
 
           dc9dcn1 = (dc6dcn(iAt1, iAt2f) / c6_12 + dc6dcn(iAt1, iAt3f) / c6_13) * 0.5_dp
           dc9dcn2 = (dc6dcn(iAt2f, iAt1) / c6_12 + dc6dcn(iAt2f, iAt3f) / c6_23) * 0.5_dp
@@ -949,6 +983,8 @@ contains
         end do
       end do
     end do
+    !$OMP END DO
+    !$OMP END PARALLEL
 
   end subroutine threeBodyDispersionGradient
 
@@ -1014,6 +1050,8 @@ contains
     end if
 
     energies(:) = 0.0_dp
+    gradients(:, :) = 0.0_dp
+    sigma(:, :) = 0.0_dp
 
     allocate(cn(nAtom), dcndr(3, nAtom, nAtom), dcndL(3, 3, nAtom), source=0.0_dp)
     allocate(nNeigh(nAtom), source=0)
