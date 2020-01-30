@@ -81,6 +81,11 @@ _mod_negf_int: negf_int.o
 _mod_negf_int = $(negf_int.o)
 #:endif
 
+plumed.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_message
+plumed.o = plumed.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
+_mod_dftbp_plumed: plumed.o
+_mod_dftbp_plumed = $(plumed.o)
+
 #:if WITH_MPI
 poisson_int.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_commontypes _mod_dftbp_globalenv _mod_dftbp_message _mod_poisson _mod_libnegf_vars _mod_system_calls _mod_libmpifx_module
 poisson_int.o = poisson_int.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_commontypes) $(_mod_dftbp_globalenv) $(_mod_dftbp_message) $(_mod_poisson) $(_mod_libnegf_vars) $(_mod_system_calls) $(_mod_libmpifx_module)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -84,6 +84,7 @@ module dftbp_main
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
+  use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
@@ -214,6 +215,10 @@ contains
     end if
   #:endif
 
+    if (allocated(plumedCalc)) then
+      call TPlumedCalc_final(plumedCalc)
+    end if
+
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
     if (env%tGlobalMaster) then
@@ -260,7 +265,6 @@ contains
           & species0, speciesName, mu, lCurrArray)
   #:endif
     end if
-  #:endif
 
     if (tTunn) then
   #:if WITH_MPI
@@ -269,12 +273,14 @@ contains
           & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
           & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
   #:else
-      call calc_current(parallelKS%localKS, ham, over,&
-          & neighbourList%iNeighbour, nNeighbourSK, densedesc%iAtomStart, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, tunneling, current, ldos,&
-          & leadCurrents, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
+      call calc_current(parallelKS%localKS, ham, over, neighbourList%iNeighbour, nNeighbourSK,&
+          & densedesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, orb, kPoint,&
+          & kWeight, tunneling, current, ldos, leadCurrents, writeTunn, tWriteLDOS,&
+          & regionLabelLDOS, mu)
   #:endif
     end if
+
+  #:endif
 
     if (allocated(pipekMezey)) then
       ! NOTE: the canonical DFTB ground state orbitals are over-written after this point
@@ -738,6 +744,9 @@ contains
         derivs(:,:) = derivs + excitedDerivs
       end if
       call env%globalTimer%stopTimer(globalTimers%forceCalc)
+
+      call updateDerivsByPlumed(env, plumedCalc, nAtom, iGeoStep, derivs, energy%EMermin, coord0,&
+          & mass, tPeriodic, latVec)
 
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
@@ -3169,7 +3178,7 @@ contains
         end do
       end do
     else
-      ! Every spin channel (but no the k-points) filled up individually
+      ! Every spin channel (but not the k-points) filled up individually
       do iS = 1, nSpinHams
         call Efilling(Eband(iS:iS), Ef(iS), TS(iS:iS), E0(iS:iS), fillings(:,:,iS:iS),&
             & eigvals(:,:,iS:iS), nElecFill(iS), tempElec, kWeights, iDistribFn)
@@ -5257,6 +5266,58 @@ contains
     derivs(:,:) = derivs + tmpDerivs
 
   end subroutine getGradients
+
+
+  !> use plumed to update derivatives
+  subroutine updateDerivsByPlumed(env, plumedCalc, nAtom, iGeoStep, derivs, energy, coord0, mass,&
+      & tPeriodic, latVecs)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> PLUMED calculator
+    type(TPlumedCalc), allocatable, intent(inout) :: plumedCalc
+
+    !> number of atoms
+    integer, intent(in) :: nAtom
+
+    !> steps taken during simulation
+    integer, intent(in) :: iGeoStep
+
+    !> the derivatives array
+    real(dp), intent(inout), target, contiguous :: derivs(:,:)
+
+    !> current energy
+    real(dp), intent(in) :: energy
+
+    !> current atomic positions
+    real(dp), intent(in), target, contiguous :: coord0(:,:)
+
+    !> atomic masses array
+    real(dp), intent(in), target, contiguous :: mass(:)
+
+    !> periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> lattice vectors
+    real(dp), intent(in), target, contiguous :: latVecs(:,:)
+
+    if (.not. allocated(plumedCalc)) then
+      return
+    end if
+    derivs(:,:) = -derivs
+    call plumedCalc%sendCmdVal("setStep", iGeoStep)
+    call plumedCalc%sendCmdPtr("setForces", derivs)
+    call plumedCalc%sendCmdVal("setEnergy", energy)
+    call plumedCalc%sendCmdPtr("setPositions", coord0)
+    call plumedCalc%sendCmdPtr("setMasses", mass)
+    if (tPeriodic) then
+      call plumedCalc%sendCmdPtr("setBox", latVecs)
+    end if
+    call plumedCalc%sendCmdVal("calc", 0)
+    derivs(:,:) = -derivs
+
+  end subroutine updateDerivsByPlumed
 
 
   !> Calculates stress tensor and lattice derivatives.

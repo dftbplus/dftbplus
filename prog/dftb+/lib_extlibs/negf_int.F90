@@ -1898,6 +1898,7 @@ module negf_int
     type(z_CSR), pointer :: pCsrDens, pCsrEDens
     type(lnParams) :: params
     integer :: fdUnit
+    logical :: tPrint
 
     pCsrDens => csrDens
     pCsrEDens => csrEDens
@@ -1969,14 +1970,22 @@ module negf_int
 
       call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
-#:if WITH_MPI
+    #:if WITH_MPI
       ! Reduce on node 0 as group master node
       call mpifx_reduceip(enecomm, csrDens%nzval, MPI_SUM)
       call mpifx_reduceip(enecomm, csrEDens%nzval, MPI_SUM)
-#:endif
 
       ! Each group master node prints the local currents
-      if (enecomm%master) then
+      tPrint = enecomm%master
+
+    #:else
+
+      tPrint = .true.
+
+    #:endif
+
+      if (tPrint) then
+        ! print local currents
         iKgl = (iS-1) * nK + iK    
         write(skp, fmtstring) iKgl
         open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')

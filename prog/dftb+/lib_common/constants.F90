@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -109,6 +109,17 @@ module dftbp_constants
   !>  a.u. to V/m
   real(dp), parameter :: au__V_m = 1.0_dp / V_m__au
 
+  !> Avogadros constant
+  real(dp), parameter :: avogadConst = 6.022140857e23_dp
+
+  !> hartree to kj/mol
+  real(dp), parameter :: Hartree__kJ_mol = (Hartree__J * avogadConst) / 1000.0_dp
+
+  !> bohr to nm
+  real(dp), parameter :: Bohr__nm = Bohr__AA / 10.0_dp
+
+  !> a.u. to ps
+  real(dp), parameter :: au__ps = au__fs / 1000.0_dp 
 
   !> Golden mean plus one
   real(dp), parameter :: goldenMeanP1 = 1.6180339887498949_dp

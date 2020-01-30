@@ -69,6 +69,10 @@ set(PEXSI_EXTERNAL_LIBRARIES "stdc++" CACHE STRING
 set(PEXSI_EXTERNAL_LIBRARY_DIRS "/usr/lib/gcc/x86_64-linux-gnu/7" CACHE STRING
   "Directories with PEXSI external libraries")
 
+# PLUMED -- only needed when compiled with PLUMED support
+set(PLUMED_LIBRARIES "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")
+set(PLUMED_LIBRARY_DIRS "" CACHE STRING "Directories to scan for PLUMED libraries")
+
 # Any other library needed to be linked or considered as include
 set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
 set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
