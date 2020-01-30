@@ -7,7 +7,7 @@
 !**************************************************************************
 module gconstants
   
-  use gprecision
+  use dftbp_accuracy, only : dp
   
   real(kind=dp), parameter    :: eovh = (1.05420882d-3)   ! A/H
   real(kind=dp), parameter    :: pi =  3.14159265358979323844_dp ! Greek p real

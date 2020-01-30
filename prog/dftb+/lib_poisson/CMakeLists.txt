@@ -7,7 +7,6 @@ set(sources-fpp
   ${curdir}/gclock.F90
   ${curdir}/gconstants.F90
   ${curdir}/gewald.F90
-  ${curdir}/gprecision.F90
   ${curdir}/mpi_poisson.F90
   ${curdir}/parameters.F90
   ${curdir}/parcheck.F90

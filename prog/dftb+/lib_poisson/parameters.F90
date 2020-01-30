@@ -7,7 +7,7 @@
 !**************************************************************************
 Module parameters
   
-  use gprecision
+  use dftbp_accuracy, only : dp
   use gconstants, only : HAR,ATU
 
   implicit none

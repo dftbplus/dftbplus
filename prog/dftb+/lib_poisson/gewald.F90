@@ -7,7 +7,7 @@
 !**************************************************************************
 module gewald
 
-  use gprecision
+  use dftbp_accuracy, only : dp
   use gconstants, only : Pi
   
   implicit none

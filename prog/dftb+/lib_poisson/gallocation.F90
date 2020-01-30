@@ -9,8 +9,10 @@
 
 module gallocation
   use std_io
-  use gprecision
+  use dftbp_accuracy, only : dp
+  use, intrinsic :: iso_fortran_env, only : int64
 
+  integer, parameter :: long = int64
   integer, save :: iolog
   INTEGER(long), SAVE :: alloc_mem, peak_mem
 

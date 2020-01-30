@@ -10,8 +10,7 @@
 module poisson
 
   use gconstants, only : Pi
-  use gprecision
-  use gallocation  
+  use gallocation
   use parameters
   use structure
   use parcheck                
@@ -20,11 +19,14 @@ module poisson
   use gclock
   use fancybc
   use mpi_poisson
-  use std_io 
+  use std_io
+  use dftbp_message
+  use dftbp_accuracy, only : lc, dp
   implicit none
   private
-  
-  integer, PARAMETER :: VBT=30
+
+  !> Verbosity threashold
+  integer, parameter :: VBT=30
 
   ! from parameters
   public :: MAXNCONT
@@ -155,6 +157,8 @@ module poisson
   real(kind=dp) :: tmp,Lx, xmax, xmin 
   integer :: tmpdir(3)
 
+  character(lc) :: strTmp
+
   if (present(iErr)) then
     iErr = 0
   end if
@@ -196,11 +200,13 @@ module poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
-         write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
+         write(strTmp,*)'ERROR: device and contact atoms overlap at contact', m
          if (present(iErr)) then
            iErr = -1
+           call warning(strTmp)
+           return
          else
-           stop
+           call error(strTmp)
          end if
        end if  
      else                          
@@ -209,13 +215,15 @@ module poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
-         write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
+         write(strTmp,*)'ERROR: device and contact atoms overlap at contact', m
          if (present(iErr)) then
            iErr = -1
+           call warning(strTmp)
+           return
          else
-           stop
+           call error(strTmp)
          end if
-       end if  
+       end if
      end if
   end do
 
@@ -233,11 +241,13 @@ module poisson
            tmpdir(f)=1
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
-           write(stdOut,*) 'ERROR: contacts in the same direction must be aligned'
+           write(strTmp,*) 'ERROR: contacts in the same direction must be aligned'
            if (present(iErr)) then
+             call warning(strTmp)
              iErr = -2
+             return
            else
-             stop
+             call error(strTmp)
            end if
         endif
      enddo
@@ -298,16 +308,16 @@ module poisson
   ! Checking Poisson Box
   !---- ---------------------------
   do i=1,3  
-     if(PoissBox(i,i).le.0.d0) then
-        write(stdOut,*) "----------------------------------------------------"
-        write(stdOut,*) "ERROR: PoissBox negative !                          "
-        write(stdOut,*) "----------------------------------------------------"
-        if (present(iErr)) then
-          iErr = -3
-        else
-          stop
-        end if
-     end if
+    if(PoissBox(i,i).le.0.d0) then
+      write(strTmp,*) "ERROR: PoissBox negative"
+      if (present(iErr)) then
+        iErr = -3
+        call warning(strTmp)
+        return
+      else
+        call error(strTmp)
+      end if
+    end if
   enddo
 
 
@@ -317,14 +327,14 @@ module poisson
   if (DoGate) then
      biasdir = abs(contdir(1))
      if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
-        write(stdOut,*) "----------------------------------------------------"
-        write(stdOut,*) "WARNING: Gate Distance too large!                   "
-        write(stdOut,*) "----------------------------------------------------"
-        if (present(iErr)) then
-          iErr = -4
-        else
-          stop
-        end if
+       write(strTmp,*) "WARNING: Gate Distance too large"
+       if (present(iErr)) then
+         iErr = -4
+         call warning(strTmp)
+         return
+       else
+         call error(strTmp)
+       end if
      end if
   endif
   
@@ -333,13 +343,13 @@ module poisson
      biasdir = abs(contdir(1))
 
      if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-        write(stdOut,*) "------------------------------------------"
-        write(stdOut,*) "Gate insulator is longer than Poisson box!"
-        write(stdOut,*) "------------------------------------------"
+        write(strTmp,*) "Gate insulator is longer than Poisson box!"
         if (present(iErr)) then
           iErr = -5
+          call warning(strTmp)
+          return
         else
-          stop
+          call error(strTmp)
         end if
      end if
      
@@ -348,16 +358,16 @@ module poisson
           cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
-           write(stdOut,*) "----------------------------------------------------"
-           write(stdOut,*) "Gate transversal section is bigger than Poisson box!"
-           write(stdOut,*) "----------------------------------------------------"
-           if (present(iErr)) then
-             iErr = -6
-           else
-             stop
-           end if
+          write(strTmp,*) "Gate transversal section is bigger than Poisson box!"
+          if (present(iErr)) then
+            iErr = -6
+            call warning(strTmp)
+            return
+          else
+            call error(strTmp)
+          end if
         end if
-     end do
+      end do
   end if
 
   !---------------------------------------
@@ -404,7 +414,9 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
  integer :: isx, jsy, ksz
  integer, save :: niter = 1
- 
+
+ character(lc) :: strTmp
+
  integer :: na,nb,nc, cont_mem
  character(10) :: bndtype 
  character(50) :: BCinfo
@@ -804,9 +816,8 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
         if (err.ne.0.and.err.ne.9) then
           if(err.gt.0) then
-             write(stdOut,*) 
-             write(stdOut,*) 'Fatal Error in poisson solver:',err
-             stop          
+            write(strTmp,*) 'Fatal Error in poisson solver:', err
+            call error(strTmp)
           end if
         end if
         if (err.eq.9) then
@@ -835,8 +846,8 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
       end if   
 
       if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
-        write(stdOut,*) 'ERROR: convergence not obtained'
-        stop
+        write(strTmp,*) 'ERROR: convergence not obtained'
+        call error(strTmp)
       end if
     end if
 

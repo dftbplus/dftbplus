@@ -7,7 +7,7 @@
 !**************************************************************************
 Module bulkpot
   
- use gprecision
+ use dftbp_accuracy, only : dp
  use gconstants, only: Pi
  use gallocation
  use parameters

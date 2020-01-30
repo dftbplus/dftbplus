@@ -7,7 +7,7 @@
 !**************************************************************************
 module parcheck
 
-  use gprecision
+  use dftbp_accuracy, only : dp
   use parameters
   use structure, only : natoms, x, boxsiz, period, period_dir
   use mpi_poisson, only : id0, numprocs
