@@ -214,9 +214,9 @@ in the `dftbplus.pc` pkg-config file, which is usually installed into the
 file directly, or use the ``pkg-config`` tool::
 
   export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:DFTBPLUS_INSTALL_FOLDER/lib/pkgconfig
-  pkg-config --cflags   # gives you compilation flags (e.g. include options)
-  pkg-config --libs     # shows library linking options
-  pkg-config --static --libs   # shows library linking options for static linking
+  pkg-config --cflags dftbplus   # compilation flags (e.g. include options)
+  pkg-config --libs dftbplus     # library linking options
+  pkg-config --static --libs dftbplus   # library linking options for static linking
 
 Note, that the flags and libraries shown are either for linking with Fortran or
 with C, depending on the value of the configuration option
