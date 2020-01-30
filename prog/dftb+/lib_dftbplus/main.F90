@@ -2136,15 +2136,9 @@ contains
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
     #:if WITH_TRANSPORT
-    #:if WITH_MPI
-      call calcdensity_green(iSCC, env%mpi%groupComm, env%mpi%interGroupComm, parallelKS%localKS, &
-          & ham, over, neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
-    #:else
-      call calcdensity_green(iSCC, parallelKS%localKS, ham, over,&
-          & neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart, iSparseStart,&
-          & img2CentCell, iCellVec, cellVec, orb, kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
-    #:endif
+      call calcdensity_green(iSCC, env, parallelKS%localKS, ham, over, neighbourlist%iNeighbour,&
+          & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, iCellVec, cellVec, orb,&
+          & kPoint, kWeight, mu, rhoPrim, Eband, Ef, E0, TS)
     #:else
       call error("Internal error: getDensity : GF-solver although code compiled without transport")
     #:endif
