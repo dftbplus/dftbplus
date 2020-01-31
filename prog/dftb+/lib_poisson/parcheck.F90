@@ -1,13 +1,27 @@
 !**************************************************************************
-!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
+!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
 !                                                                         *
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
+
+#! Macro to return an error flag if iError available or throw an error and shut down otherwise
+#:def error_handling(msg, number)
+  write(strTmp,*)${msg}$
+  if (present(iError)) then
+    iError = ${number}$
+    call warning(strTmp)
+    return
+  else
+    call error(strTmp)
+  end if
+#:enddef
+
 module parcheck
 
-  use dftbp_accuracy, only : dp
+  use dftbp_accuracy, only : lc, dp
+  use dftbp_message
   use parameters
   use structure, only : natoms, x, boxsiz, period, period_dir
   use mpi_poisson, only : id0, numprocs
@@ -18,6 +32,12 @@ private
 
  public :: check_poisson_box, check_contacts, check_localbc
  public :: check_parameters, write_parameters, check_biasdir
+
+ !> Error handling string
+ character(lc) :: strTmp
+
+ !> Verbosity threashold
+ integer, parameter :: VBT=30
 
 contains
  ! ---------------------------------------------------------------------------
@@ -41,8 +61,8 @@ contains
       !
       if (.not.FoundBox) then
          PoissBox(:,:)=boxsiz(:,:)
-         if (verbose > 30) then
-            write(stdOut,*) 'Box for Poisson not Found: Set equal to supercell box' 
+         if (verbose > VBT) then
+            call warning('Box for Poisson not Found: Set equal to supercell box')
             do i=1,3
                write(stdOut,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
             end do
@@ -56,21 +76,16 @@ contains
       end if
    else
       if (.not.FoundBox) then
-         if (verbose > 30) then
-            write(stdOut,*) 'Box for Poisson not Found'
-          end if
-          if (present(iError)) then
-            iError = -1
-            return
-          else
-            stop 'ERROR: No way to build box for Poisson'
-          end if
+        if (verbose > VBT) then
+          call warning('Box for Poisson not Found')
+        end if
+        @:error_handling('ERROR: No way to build box for Poisson',-1)
       end if
    end if
 
 
    !if(period.and.DoGate) then
-   !   if (verbose > 30) then
+   !   if (verbose > VBT) then
    !      if (id0) write(stdOut,*) 'Periodic system is not compatible with Gate'
    !      if (id0) write(stdOut,*) 'Periodicity set to F'
    !   end if
@@ -97,26 +112,13 @@ contains
        !if(mu(nf(1)).eq.0.d0) mu(nf(1))=bias
        if (contdir(1).ne.contdir(2)) then
          if (localBC(1).eq.0) then
-           write(stdOut,*) 'ERROR: local BC should be used when &
-               & contacts are in different directions'
-           if (present(iError)) then
-             iError = -1
-             return
-           else
-             stop
-           end if
+           @:error_handling('ERROR: local BC should be used when contacts are in different&
+               & directions',-1)
          endif
          if(DoCilGate) then
-           write(stdOut,*) 'ERROR: contacts must be in the same &
-               & direction when using cylindrical gate'
-           if (present(iError)) then
-             iError = -2
-             return
-           else
-             stop
-           end if
+           @:error_handling('ERROR: contacts must be in the same direction when using cylindrical&
+               & gate', -2)
          endif
-
        end if
      endif
 
@@ -147,14 +149,8 @@ contains
    end if
    
    if (period_dir(3) .and. numprocs>1) then
-     write(stdOut,*) 'ERROR: periodicity along z is incompatible with &
-         & grid parallelization strategy'
-     if (present(iError)) then
-       iError = -3
-       return
-     else
-       stop
-     end if
+     @:error_handling('ERROR: periodicity along z is incompatible with grid parallelization&
+         & strategy',-3)
    end if
 
  end subroutine check_biasdir
@@ -385,47 +381,23 @@ contains
 
    !-----CHECK IF SYSTEM STRUCTURE IS CONSISTENT-------!
    if (.not.cluster) then
-      do i=1,ncont
-         if (iatc(1,i).lt.iatm(2)) then 
-           write(stdOut,*) 'ERROR: The contacts MUST be defined after the scattering region'
-           if (present(iError)) then
-             iError = -1
-             return
-           else
-             stop
-           end if
-         endif
-      enddo
+     do i=1,ncont
+       if (iatc(1,i).lt.iatm(2)) then
+         @:error_handling('ERROR: The contacts MUST be defined after the scattering region', -1)
+       end if
+     enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-      write(stdOut,*) 'ERROR: The number of atoms in the scattering region is higer'
-      write(stdOut,*) '       than the total number of atoms'
-      if (present(iError)) then
-        iError = -2
-        return
-      else
-        stop
-      end if
+     @:error_handling('ERROR: The number of atoms in the scattering region is higer than the total&
+         & number of atoms', -2)
    endif
    if (DoGate) then
      if (gatedir.ne.2) then
-       write(stdOut,*) "ERROR: gate direction must be along y"
-       if (present(iError)) then
-         iError = -3
-         return
-       else
-         stop
-       end if
-      endif
-      if(any(abs(contdir(:)).eq.gatedir)) then
-        write(stdOut,*) "ERROR: gate direction along contacts!?"
-        if (present(iError)) then
-          iError = -4
-          return
-        else
-          stop
-        end if
-      endif
+       @:error_handling('ERROR: gate direction must be along y',-3)
+     end if
+     if(any(abs(contdir(:)).eq.gatedir)) then
+       @:error_handling('ERROR: gate direction along contacts!?',-4)
+     end if
    endif
 
  end subroutine check_contacts

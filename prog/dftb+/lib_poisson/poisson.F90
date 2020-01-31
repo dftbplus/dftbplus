@@ -1,11 +1,23 @@
 !**************************************************************************
-!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
+!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
 !                                                                         *
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
 #:include "common.fypp"
+
+#! Macro to return an error flag if iErr available or throw an error and shut down otherwise
+#:def error_handling(msg, number)
+  write(strTmp,*)${msg}$
+  if (present(iErr)) then
+    iErr = ${number}$
+    call warning(strTmp)
+    return
+  else
+    call error(strTmp)
+  end if
+#:enddef
 
 module poisson
 
@@ -65,6 +77,9 @@ module poisson
 
   public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha
   public :: poiss_updcoords, poiss_savepotential, poiss_freepoisson
+
+  !> Error string
+  character(lc) :: strTmp
 
  contains
 
@@ -157,8 +172,6 @@ module poisson
   real(kind=dp) :: tmp,Lx, xmax, xmin 
   integer :: tmpdir(3)
 
-  character(lc) :: strTmp
-
   if (present(iErr)) then
     iErr = 0
   end if
@@ -200,29 +213,17 @@ module poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
-         write(strTmp,*)'ERROR: device and contact atoms overlap at contact', m
-         if (present(iErr)) then
-           iErr = -1
-           call warning(strTmp)
-           return
-         else
-           call error(strTmp)
-         end if
-       end if  
+       @:error_handling(${','.join(['"ERROR: device and contact atoms overlap at contact"','m'])}$,&
+           & -1)
+       end if
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
        xmax = maxval(x(f,iatc(3,m):iatc(2,m)))
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
-         write(strTmp,*)'ERROR: device and contact atoms overlap at contact', m
-         if (present(iErr)) then
-           iErr = -1
-           call warning(strTmp)
-           return
-         else
-           call error(strTmp)
-         end if
+       @:error_handling(${','.join(['"ERROR: device and contact atoms overlap at contact"','m'])}$,&
+           & -1)
        end if
      end if
   end do
@@ -241,14 +242,7 @@ module poisson
            tmpdir(f)=1
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
-           write(strTmp,*) 'ERROR: contacts in the same direction must be aligned'
-           if (present(iErr)) then
-             call warning(strTmp)
-             iErr = -2
-             return
-           else
-             call error(strTmp)
-           end if
+          @:error_handling('ERROR: contacts in the same direction must be aligned',-2)
         endif
      enddo
      ! Adjust PoissonBox if there are no facing contacts
@@ -309,14 +303,7 @@ module poisson
   !---- ---------------------------
   do i=1,3  
     if(PoissBox(i,i).le.0.d0) then
-      write(strTmp,*) "ERROR: PoissBox negative"
-      if (present(iErr)) then
-        iErr = -3
-        call warning(strTmp)
-        return
-      else
-        call error(strTmp)
-      end if
+      @:error_handling('ERROR: PoissBox negative',-3)
     end if
   enddo
 
@@ -327,14 +314,7 @@ module poisson
   if (DoGate) then
      biasdir = abs(contdir(1))
      if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
-       write(strTmp,*) "WARNING: Gate Distance too large"
-       if (present(iErr)) then
-         iErr = -4
-         call warning(strTmp)
-         return
-       else
-         call error(strTmp)
-       end if
+       @:error_handling('WARNING: Gate Distance too large',-4)
      end if
   endif
   
@@ -343,14 +323,7 @@ module poisson
      biasdir = abs(contdir(1))
 
      if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-        write(strTmp,*) "Gate insulator is longer than Poisson box!"
-        if (present(iErr)) then
-          iErr = -5
-          call warning(strTmp)
-          return
-        else
-          call error(strTmp)
-        end if
+       @:error_handling('Gate insulator is longer than Poisson box!',-5)
      end if
      
      do i = 1,3
@@ -358,14 +331,7 @@ module poisson
           cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
-          write(strTmp,*) "Gate transversal section is bigger than Poisson box!"
-          if (present(iErr)) then
-            iErr = -6
-            call warning(strTmp)
-            return
-          else
-            call error(strTmp)
-          end if
+          @:error_handling('Gate transversal section is bigger than Poisson box!',-6)
         end if
       end do
   end if
@@ -414,8 +380,6 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
  integer :: isx, jsy, ksz
  integer, save :: niter = 1
-
- character(lc) :: strTmp
 
  integer :: na,nb,nc, cont_mem
  character(10) :: bndtype 
@@ -846,8 +810,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
       end if   
 
       if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
-        write(strTmp,*) 'ERROR: convergence not obtained'
-        call error(strTmp)
+        call error('ERROR: convergence not obtained')
       end if
     end if
 
