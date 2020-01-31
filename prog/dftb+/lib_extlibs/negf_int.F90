@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,6 +23,7 @@ module negf_int
   use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
   use libnegf, only : printcsr
   use dftbp_accuracy
+  use dftbp_environment
   use dftbp_constants
   use dftbp_matconv
   use dftbp_sparse2dense
@@ -261,7 +262,7 @@ module negf_int
       params%n_kt = greendens%nkt           ! n*kT for Fermi
 
       ! Real-axis points.
-      ! Override to 0 if bias is 0.0
+      ! Override to 0 real points if bias is 0.0
       params%Np_real = 0
       if (ncont > 0) then
         if (any(abs(params%mu(2:ncont)-params%mu(1)) > 1.0e-10_dp)) then
@@ -993,22 +994,14 @@ module negf_int
 
 
   !> Calculates density matrix with Green's functions
-#:if WITH_MPI
-  subroutine calcdensity_green(iSCCIter, enecomm, kscomm, groupKS, ham, over, iNeighbor, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
-      & Ef, E0, TS)
-
-    !> MPI communicator
-    type(mpifx_comm), intent(in) :: enecomm
-    type(mpifx_comm), intent(in) :: kscomm
-#:else
-  subroutine calcdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
-      & Ef, E0, TS)
-#:endif
+  subroutine calcdensity_green(iSCCIter, env, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
+      & iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband, Ef, E0, TS)
 
     !> SCC iteration
     integer, intent(in) :: iSCCIter
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1074,7 +1067,7 @@ module negf_int
     pCsrDens => csrDens
 
 #:if WITH_MPI
-    call negf_mpi_init(enecomm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm, tIOproc)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1097,12 +1090,17 @@ module negf_int
     write(stdOut, *) '                         COMPUTING DENSITY MATRIX      '
     write(stdOut, '(80("="))')
 
-
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
+    #:if WITH_MPI
+      if (env%mpi%nGroup == 1) then
+        write(stdOut,*) 'k-point',iK,'Spin',iS
+      end if
+    #:else
       write(stdOut,*) 'k-point',iK,'Spin',iS
+    #:endif
 
       call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
@@ -1129,9 +1127,9 @@ module negf_int
 #:if WITH_MPI
     do iS = 1, nSpin
       ! In place all-reduce of the density matrix
-      call mpifx_allreduceip(enecomm, rho(:,iS), MPI_SUM)
+      call mpifx_allreduceip(env%mpi%groupComm, rho(:,iS), MPI_SUM)
     end do
-    call mpifx_allreduceip(kscomm, rho, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%interGroupComm, rho, MPI_SUM)
 #:endif
 
     ! Now SGFs can be read unless not stored 
@@ -1146,12 +1144,16 @@ module negf_int
 
   !> Calculates energy-weighted density matrix with Green's functions
 #:if WITH_MPI
-  subroutine calcEdensity_green(iSCCIter, enecomm, kscomm, groupKS, ham, over, iNeighbor, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
+  subroutine calcEdensity_green(iSCCIter, enecomm, kscomm, groupKS, ham, over, iNeighbor,&
+      & nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu,&
+      & rhoE)
 
-    !> MPI communicator
+    !> MPI communicator over energy points
     type(mpifx_comm), intent(in) :: enecomm
+
+    !> MPI communicator over k and spin
     type(mpifx_comm), intent(in) :: kscomm
+
 #:else
   subroutine calcEdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
@@ -1262,7 +1264,7 @@ module negf_int
 
     end do
 
-    ! In place all-reduce of the density matrix
+    ! In place all-reduce of the energy-weighted density matrix
 #:if WITH_MPI
     call mpifx_allreduceip(enecomm, rhoE, MPI_SUM)
     call mpifx_allreduceip(kscomm, rhoE, MPI_SUM)
@@ -1281,13 +1283,16 @@ module negf_int
 
   !> Calculate the current and optionally density of states
 #:if WITH_MPI
-  subroutine calc_current(enecomm, kscomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
-      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
+  subroutine calc_current(enecomm, kscomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
+      & iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
       & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
 
-    !> MPI communicator
+    !> MPI communicator over energy points
     type(mpifx_comm), intent(in) :: enecomm
+
+    !> MPI communicator over k and spin
     type(mpifx_comm), intent(in) :: kscomm
+
 #:else
   subroutine calc_current(groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
@@ -1386,12 +1391,11 @@ module negf_int
 
     ! groupKS is local, hence nKS il local
     nKS = size(groupKS, dim=2)
-#:if WITH_MPI
-    call mpifx_allreduce(kscomm, nKS, nTotKS, MPI_SUM)
-#:else
-    nTotKS = nKS
-#:endif
-    nS = nTotKS/size(kpoints, 2)
+    nS=size(ham,2)
+    if (nS>2) then
+      nS=1
+    end if
+    nTotKS = nS * size(kpoints, dim=2)
     ncont = size(mu,1)
 
     if (params%verbose.gt.30) then
@@ -1480,8 +1484,8 @@ module negf_int
     end do
 
 #:if WITH_MPI
-    call mpifx_reduceip(enecomm, currLead, MPI_SUM, 0)
-    call mpifx_reduceip(kscomm, currLead, MPI_SUM, 0)
+    call mpifx_reduceip(enecomm, currLead, MPI_SUM)
+    call mpifx_reduceip(kscomm, currLead, MPI_SUM)
     call add_ks_results(kscomm, tunnMat, tunnSKRes)
     call add_ks_results(kscomm, currMat, currSKRes)
     call add_ks_results(kscomm, ldosMat, ldosSKRes)
@@ -1577,7 +1581,7 @@ module negf_int
       end if
 
       tmpMat = pMat
-      call mpifx_reduceip(mpicomm, tmpMat, MPI_SUM, 0)
+      call mpifx_reduceip(mpicomm, tmpMat, MPI_SUM)
 #:endif
       if(.not.allocated(matTot)) then
         allocate(matTot(size(pMat,1), size(pMat,2)), stat=err)
@@ -1634,11 +1638,11 @@ module negf_int
 
 
     if (allocated(mat)) then
-      call mpifx_reduceip(kscomm, mat, MPI_SUM, 0)
+      call mpifx_reduceip(kscomm, mat, MPI_SUM)
     endif
 
     if (allocated(matSKRes)) then
-      call mpifx_reduceip(kscomm, matSKRes, MPI_SUM, 0)
+      call mpifx_reduceip(kscomm, matSKRes, MPI_SUM)
     endif
 
   end subroutine add_ks_results
@@ -1809,9 +1813,12 @@ module negf_int
       & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
       & testArray)
 
-    !> MPI communicator
+    !> MPI communicator over energy points
     type(mpifx_comm), intent(in) :: enecomm
+
+    !> MPI communicator over k and spin
     type(mpifx_comm), intent(in) :: kscomm
+
 #:else
   subroutine local_currents(groupKS, ham, over, &
       & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
@@ -1891,6 +1898,7 @@ module negf_int
     type(z_CSR), pointer :: pCsrDens, pCsrEDens
     type(lnParams) :: params
     integer :: fdUnit
+    logical :: tPrint
 
     pCsrDens => csrDens
     pCsrEDens => csrEDens
@@ -1962,14 +1970,22 @@ module negf_int
 
       call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
-#:if WITH_MPI
+    #:if WITH_MPI
       ! Reduce on node 0 as group master node
-      call mpifx_reduceip(enecomm, csrDens%nzval, MPI_SUM, 0)
-      call mpifx_reduceip(enecomm, csrEDens%nzval, MPI_SUM, 0)
-#:endif
+      call mpifx_reduceip(enecomm, csrDens%nzval, MPI_SUM)
+      call mpifx_reduceip(enecomm, csrEDens%nzval, MPI_SUM)
 
       ! Each group master node prints the local currents
-      if (enecomm%rank == 0) then
+      tPrint = enecomm%master
+
+    #:else
+
+      tPrint = .true.
+
+    #:endif
+
+      if (tPrint) then
+        ! print local currents
         iKgl = (iS-1) * nK + iK    
         write(skp, fmtstring) iKgl
         open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
@@ -2016,7 +2032,7 @@ module negf_int
     end do !loop on KS
 
 #:if WITH_MPI
-    call mpifx_reduceip(kscomm, lcurr, MPI_SUM, 0)
+    call mpifx_reduceip(kscomm, lcurr, MPI_SUM)
 #:endif
 
     if (tIoProc) then

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -93,7 +93,7 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
-
+  use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
@@ -751,6 +751,9 @@ module dftbp_initprogram
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
 
+  !> Plumed calculator
+  type(TPlumedCalc), allocatable :: plumedCalc
+
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
 
@@ -1116,6 +1119,7 @@ contains
 
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
+
 
     @:ASSERT(input%tInitialized)
 
@@ -2197,6 +2201,8 @@ contains
       call init(pMDIntegrator, pVelocityVerlet)
     end if
 
+    call initPlumed(env, input%ctrl%tPlumed, tMD, plumedCalc)
+
     ! Check for extended Born-Oppenheimer MD
     tXlbomd = allocated(input%ctrl%xlbomd)
     if (tXlbomd) then
@@ -3193,6 +3199,10 @@ contains
 
       if (.not.tRealHS) then
         call error("Linear response does not support k-points")
+      end if
+
+      if (t3rd .or. t3rdFull) then
+        call error ("Third order DFTB is not currently compatible with linear response excitations")
       end if
 
     end if
@@ -4445,6 +4455,62 @@ contains
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated
+
+
+  !> Initializes PLUMED calculator.
+  subroutine initPlumed(env, tPlumed, tMD, plumedCalc)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Whether plumed should be used
+    logical, intent(in) :: tPlumed
+
+    !> Whether this is an MD-run
+    logical, intent(in) :: tMD
+
+    !> Plumed calculator (allocated only on demand)
+    type(TPlumedCalc), allocatable, intent(out) :: plumedCalc
+
+
+    ! Minimal plumed API version (as in Plumed 2.5.3)
+    ! Earlier versions may work but were not tested
+    integer, parameter :: minApiVersion = 6
+    
+    integer :: apiVersion
+    character(300) :: strTmp
+
+    if (.not. tPlumed) then
+      return
+    end if
+    if (.not. withPlumed) then
+      call error("Code was compiled without PLUMED support")
+    end if
+    if (.not. tMD) then
+      call error("Metadynamics via PLUMED is only possible in MD-simulations")
+    end if
+    allocate(plumedCalc)
+    call TPlumedCalc_init(plumedCalc)
+    call plumedCalc%sendCmdPtr("getApiVersion", apiVersion)
+    if (apiVersion < minApiVersion) then
+      write(strTmp, "(A,I0,A)") "PLUMED interface has not been tested with PLUMED API version < ",&
+          & minApiVersion, ". Your PLUMED library provides API version ", apiVersion, ". Check your&
+          & results carefully and consider to use a more recent PLUMED library if in doubt!"
+      call warning(strTmp)
+    end if
+    call plumedCalc%sendCmdVal("setNatoms", nAtom)
+    call plumedCalc%sendCmdVal("setPlumedDat", "plumed.dat")
+    call plumedCalc%sendCmdVal("setNoVirial", 0)
+    call plumedCalc%sendCmdVal("setTimestep", deltaT)
+    call plumedCalc%sendCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
+    call plumedCalc%sendCmdVal("setMDLengthUnits", Bohr__nm)
+    call plumedCalc%sendCmdVal("setMDTimeUnits", au__ps)
+    #:if WITH_MPI
+      call plumedCalc%sendCmdVal("setMPIFComm", env%mpi%globalComm%id)
+    #:endif
+    call plumedCalc%sendCmdVal("init", 0)
+
+  end subroutine initPlumed
 
 
 end module dftbp_initprogram
