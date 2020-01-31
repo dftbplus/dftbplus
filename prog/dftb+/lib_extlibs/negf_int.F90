@@ -88,18 +88,13 @@ module negf_int
   !> Init gDFTB environment and variables
   !>
   !> Note: mpicomm should be the global commworld here
-#:if WITH_MPI
-  subroutine negf_init(transpar, greendens, tundos, mpicomm, tIOproc, tempElec, solver)
-
-    !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-    logical, intent(in) :: tIOproc
-#:else
-  subroutine negf_init(transpar, greendens, tundos, tempElec, solver)
-#:endif
+  subroutine negf_init(transpar, env, greendens, tundos, tempElec, solver)
 
     !> Parameters for the transport calculation
     Type(TTranspar), intent(in) :: transpar
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Parameters for the Green's function calculation
     Type(TNEGFGreenDensInfo), intent(in) :: greendens
@@ -123,7 +118,7 @@ module negf_int
     ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm, tIOproc)
+    call negf_mpi_init(env%mpi%globalComm, tIOproc)
 #:endif
 
     if (transpar%defined) then

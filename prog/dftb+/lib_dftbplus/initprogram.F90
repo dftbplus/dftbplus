@@ -3505,13 +3505,8 @@ contains
       end if
 
       ! Some sanity checks and initialization of GDFTB/NEGF
-    #:if WITH_MPI
-      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
-          & tIOproc, tempElec, electronicSolver%iSolver)
-    #:else
-      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, &
-          & tempElec, electronicSolver%iSolver)
-    #:endif
+      call negf_init(input%transpar, env, input%ginfo%greendens, input%ginfo%tundos, tempElec,&
+          & electronicSolver%iSolver)
 
       ginfo = input%ginfo
 
