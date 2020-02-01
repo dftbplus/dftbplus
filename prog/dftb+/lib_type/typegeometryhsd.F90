@@ -466,7 +466,7 @@ contains
     iStart = 1
     iEnd = nextLine(text, iStart)
     call getNextToken(text(:iEnd), rScale, iStart, iErr)
-    ! seems like we found the `second' line already, to be sure we check for more token
+    ! seems like we found the `second' line already, to be sure we check for another token
     if (iErr == TOKEN_OK) then
       hasComment = iStart <= iEnd
     else
@@ -488,7 +488,7 @@ contains
       ! try to read the real `second' line now
       iEnd = nextLine(text, iStart)
       call getNextToken(text(:iEnd), rScale, iStart, iErr)
-      call checkError(node, iErr, "Bad scaling factor in line 2 of VASP input.")
+      call checkError(node, iErr, "Bad scaling factor in line 2 of VASP geometry")
       iStart = iEnd + 1
     end if
 
@@ -503,7 +503,7 @@ contains
     do ii = 1, 3
       iEnd = nextLine(text, iStart)
       call getNextToken(text, latVec, iStart, iErr)
-      call checkError(node, iErr, "Bad lattice vectors, please check lines 3-5 of the geometry.")
+      call checkError(node, iErr, "Bad lattice vectors, please check lines 3-5 of the geometry")
       geo%latVecs(:, ii) = latVec(:) * rScale
       iStart = iEnd + 1
     end do
@@ -512,7 +512,7 @@ contains
     iEnd = nextLine(text, iStart)
     iOldStart = iStart
     call getNextToken(text(:iEnd), iTmp, iOldStart, iErr)
-    ! Seems to be element symbols, so we prefer them over the once from the comment line
+    ! Seems to be element symbols, so we prefer them over the ones from the comment line
     if (iErr /= TOKEN_OK) then
       if (hasComment) then
         call destruct(speciesNames)
