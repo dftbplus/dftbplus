@@ -350,8 +350,8 @@ contains
 
     type(string) :: txt
     integer :: iStart, iOldStart, iErr, iEnd
-    integer :: ii, iSp, iTmp
-    real(dp) :: coords(3), rTmp, det
+    integer :: ii, iSp
+    real(dp) :: coords(3)
     type(listString) :: speciesNames
 
     ! Read first line of the xyz file: Number of atoms
