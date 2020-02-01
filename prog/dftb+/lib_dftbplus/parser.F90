@@ -283,6 +283,8 @@ contains
     select case (char(buffer))
     case ("genformat")
       call readTGeometryGen(value1, input%geom)
+    case ("xyzformat")
+      call readTGeometryXyz(value1, input%geom)
     case default
       call setUnprocessed(value1)
       call readTGeometryHSD(child, input%geom)
