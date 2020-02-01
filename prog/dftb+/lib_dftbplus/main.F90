@@ -64,6 +64,7 @@ module dftbp_main
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : DispersionIface
+  use dftbp_solvation, only : TSolvation
   use dftbp_xmlf90
   use dftbp_thirdorder, only : ThirdOrder
   use dftbp_rangeseparated, only : RangeSepFunc
@@ -376,13 +377,13 @@ contains
     end if
 
     if (tLatticeChanged) then
-      call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion,&
+      call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion, solvation, &
           & recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
     end if
 
     if (tCoordsChanged) then
       call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-          & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec,&
+          & tPeriodic, sccCalc, dispersion, solvation, thirdOrd, rangeSep, img2CentCell, iCellVec,&
           & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSk,&
           & nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
           & iSparseStart, tPoisson)
@@ -481,7 +482,7 @@ contains
       #:endif
 
         call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-            & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics, tPoisson,&
+            & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics, tPoisson,&
             & tUpload, shiftPerLUp)
 
         call addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb,&
@@ -570,7 +571,7 @@ contains
         call getChargePerShell(qOutput, orb, species, chargePerShell)
 
         call addChargePotentials(env, sccCalc, qOutput, q0, chargePerShell, orb, species,&
-            & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics,&
+            & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
             & tPoissonTwice, tUpload, shiftPerLUp)
 
         call addBlockChargePotentials(qBlockOut, qiBlockOut, tDftbU, tImHam, species, orb,&
@@ -592,7 +593,7 @@ contains
 
       call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, tXlbomd,&
           & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
-          & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep,&
+          & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep,&
           & qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
           & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
@@ -722,7 +723,7 @@ contains
       call getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
           & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
           & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
-          & iRhoPrim, thirdOrd, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over,&
+          & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over,&
           & denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection)
 
       if (tCasidaForces) then
@@ -739,7 +740,7 @@ contains
             & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep,&
             & species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
             & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
-            & dispersion, halogenXCorrection)
+            & solvation, dispersion, halogenXCorrection)
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
         call printVolume(cellVol)
 
@@ -988,7 +989,7 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
+  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion, solvation, &
       & recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
 
     !> lattice vectors
@@ -1008,6 +1009,9 @@ contains
 
     !> Dispersion interactions object
     class(DispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Reciprocal lattice vectors
     real(dp), intent(out) :: recVecs(:,:)
@@ -1048,6 +1052,10 @@ contains
       call dispersion%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, dispersion%getRCutOff())
     end if
+    if (allocated(solvation)) then
+      call solvation%updateLatVecs(latVecs)
+      mCutOff = max(mCutOff, solvation%getRCutOff())
+    end if
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutOff)
 
   end subroutine handleLatticeChange
@@ -1055,7 +1063,7 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-      & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec, neighbourList,&
+      & tPeriodic, sccCalc, dispersion, solvation, thirdOrd, rangeSep, img2CentCell, iCellVec, neighbourList,&
       & nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK, nNeighbourRep, nNeighbourLC,&
       & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson)
 
@@ -1090,6 +1098,9 @@ contains
 
     !> Dispersion interactions
     class(DispersionIface), allocatable, intent(inout) :: dispersion
+
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
@@ -1200,6 +1211,9 @@ contains
 
     if (allocated(dispersion)) then
       call dispersion%updateCoords(neighbourList, img2CentCell, coord, species0)
+    end if
+    if (allocated(solvation)) then
+      call solvation%updateCoords(neighbourList, img2CentCell, coord, species0)
     end if
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighbourList, species)
@@ -1671,7 +1685,7 @@ contains
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics, tPoisson,&
+      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics, tPoisson,&
       & tUpload, shiftPerLUp)
 
     !> Environment settings
@@ -1703,6 +1717,9 @@ contains
 
     !> spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
+
+    !> Solvation mode
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> third order SCC interactions
     type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
@@ -1785,6 +1802,13 @@ contains
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCharges(pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
       call thirdOrd%getShifts(atomPot(:,1), shellPot(:,:,1))
+      potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
+      potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
+    end if
+
+    if (allocated(solvation)) then
+      call solvation%updateCharges(pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
+      call solvation%getShifts(atomPot(:,1), shellPot(:,:,1))
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
     end if
@@ -3248,7 +3272,7 @@ contains
   !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, tXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep, qDepExtPot, qBlock,&
+      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock,&
       & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> SCC module internal variables
@@ -3316,6 +3340,9 @@ contains
 
     !> 3rd order settings
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Data from rangeseparated calculations
     type(RangeSepFunc), intent(inout), allocatable ::rangeSep
@@ -3404,6 +3431,11 @@ contains
       energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
     end if
 
+    if (allocated(solvation)) then
+      call solvation%getEnergies(energy%atomSolv)
+      energy%eSolv = sum(energy%atomSolv(iAtInCentralRegion(:)))
+    end if
+
     if (allocated(onSiteElements)) then
       call getEons(energy%atomOnSite, qBlock, qiBlock, q0, onSiteElements, species, orb)
       energy%eOnSite = sum(energy%atomOnSite)
@@ -3426,7 +3458,7 @@ contains
     end if
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd + energy%eOnSite
+        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv
 
     !> Add exchange conribution for range separated calculations
     if (allocated(rangeSep)) then
@@ -3436,7 +3468,8 @@ contains
     end if
 
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
+        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite &
+        & + energy%atomSolv
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
     energy%EMermin = energy%Etotal - sum(TS)
@@ -5021,7 +5054,7 @@ contains
   !> Calculates the gradients
   subroutine getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
-      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd,&
+      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, solvation,&
       & qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
       & tPoisson, halogenXCorrection)
 
@@ -5099,6 +5132,9 @@ contains
 
     !> Is 3rd order SCC being used
     type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Population dependant external potential
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -5220,6 +5256,14 @@ contains
       end if
     end if
 
+    if (allocated(solvation)) then
+      if (tXlbomd) then
+        call error("XLBOMD does not work with solvation yet!")
+      else
+        call solvation%addGradients(neighbourList, species, coord, img2CentCell, derivs)
+      end if
+    end if
+
     if (allocated(dispersion)) then
       call dispersion%addGradients(derivs)
     end if
@@ -5303,7 +5347,7 @@ contains
   subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim, dispersion, halogenXCorrection)
+      & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion, halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5392,6 +5436,9 @@ contains
     !> imaginary part of the density matrix (if present)
     real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
+
     !> dispersion interactions
     class(DispersionIface), allocatable, intent(inout) :: dispersion
 
@@ -5427,6 +5474,11 @@ contains
             & skOverCont, coord, species, neighbourList%iNeighbour, nNeighbourSK, img2CentCell,&
             & iSparseStart, orb, cellVol)
       end if
+    end if
+
+    if (allocated(solvation)) then
+      call solvation%getStress(tmpStress)
+      totalStress(:,:) = totalStress + tmpStress
     end if
 
     if (allocated(dispersion)) then

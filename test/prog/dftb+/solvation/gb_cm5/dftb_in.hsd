@@ -1,0 +1,38 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn {
+  }
+  SCC = Yes
+  SccTolerance = 1e-10
+  MaxAngularMomentum {
+    H = "s"
+    O = "p"
+    C = "p"
+  }
+  Charge = -1
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}
