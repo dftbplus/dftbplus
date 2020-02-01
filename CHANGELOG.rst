@@ -18,6 +18,7 @@ Added
 - Option to set mass of atoms in modes input file (syntax matches existing DFTB+
   feature)
 
+- Read input coordinates in XYZ format
 
 Changed
 -------
