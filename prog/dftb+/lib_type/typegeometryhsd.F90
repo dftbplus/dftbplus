@@ -33,6 +33,7 @@ module dftbp_typegeometryhsd
 
   !> Locally defined subroutines
   public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
+  public :: readTGeometryXyz
 
   !> makes public subroutines from typegeometry
   public :: reduce, setlattice
@@ -258,7 +259,7 @@ contains
     iStart = iOldStart
     do ii = 1, geo%nAtom
       call getNextToken(text, iTmp, iStart, iErr)
-      call checkError(node, iErr, "Bad sequentual number for an atom.")
+      call checkError(node, iErr, "Bad sequential number for an atom.")
       call getNextToken(text, geo%species(ii), iStart, iErr)
       call checkError(node, iErr, "Bad species number for an atom.")
       call getNextToken(text, coords, iStart, iErr)
@@ -316,5 +317,134 @@ contains
     call normalize(geo)
 
   end subroutine readTGeometryGen_help
+
+
+  !> Reads the geometry from a node in a HSD tree in XYZ format
+  subroutine readTGeometryXyz(node, geo)
+
+    !> Node containing the geometry in XYZ format
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(out) :: geo
+
+    type(string) :: text
+
+    call getFirstTextChild(node, text)
+    call readTGeometryXyz_help(node, geo, char(text))
+
+  end subroutine readTGeometryXyz
+
+
+  !> Helping routine for reading geometry from a HSD tree in GEN format
+  subroutine readTGeometryXyz_help(node, geo, text)
+
+    !> Node to parse (only needed to produce proper error messages)
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(out) :: geo
+
+    !> Text content of the node
+    character(len=*), intent(in) :: text
+
+    type(string) :: txt
+    integer :: iStart, iOldStart, iErr, iEnd
+    integer :: ii, iSp, iTmp
+    real(dp) :: coords(3), rTmp, det
+    type(listString) :: speciesNames
+    character(lc) :: errorStr
+
+    ! Read first line of the xyz file: Number of atoms
+    iStart = 1
+    iEnd = nextLine(text, iStart)
+    call getNextToken(text(:iEnd), geo%nAtom, iStart, iErr)
+    call checkError(node, iErr, "Bad number of atoms.")
+
+    ! advance to next line
+    iStart = iEnd + 1
+
+    ! The parser can strip empty comment lines, so we have to try to reconstruct
+    ! the original xyz file first...
+    iOldStart = iStart
+    iEnd = nextLine(text, iStart)
+
+    ! check `second' line
+    call getNextToken(text(:iEnd), txt, iStart, iErr)
+    if (iErr == TOKEN_OK) then
+      call getNextToken(text(:iEnd), coords, iStart, iErr)
+    end if
+    if (iErr == TOKEN_OK) then
+      iStart = iOldStart  ! second line was empty or HSD commented and therefore stripped
+    else
+      iStart = iEnd + 1  ! second line is an actual XYZ comment line, drop it
+    end if
+
+    ! Read in sequential and species indices.
+    call init(speciesNames)
+    allocate(geo%species(geo%nAtom))
+    allocate(geo%coords(3, geo%nAtom))
+    iSp = 0
+    do ii = 1, geo%nAtom
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text(:iEnd), txt, iStart, iErr)
+      write(errorStr,"(A,1X,I0)")"Bad species name for atom", ii
+      call checkError(node, iErr, trim(errorStr))
+      iSp = find(speciesNames, char(txt))
+      if (iSp == 0) then
+        call append(speciesNames, char(txt))
+        iSp = len(speciesNames)
+      end if
+      geo%species(ii) = iSp
+      call getNextToken(text(:iEnd), coords, iStart, iErr)
+      write(errorStr,"(A,1X,I0)")"Bad coordinates for atom", ii
+      call checkError(node, iErr, trim(errorStr))
+      geo%coords(:, ii) = coords(:)
+      iStart = iEnd + 1
+    end do
+
+    geo%nSpecies = len(speciesNames)
+    allocate(geo%speciesNames(geo%nSpecies))
+    call asArray(speciesNames, geo%speciesNames)
+    call destruct(speciesNames)
+
+    if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
+      call detailedError(node, "Nr. of species and nr. of specified elements do not match.")
+    end if
+
+    if (iStart <= len(text)) then
+      call detailedError(node, "Superfluous data found. Check if specified number of atoms matches&
+          & the number of actually entered positions.")
+    end if
+
+    ! convert coords to correct internal units
+    geo%coords = geo%coords * AA__Bohr
+
+    ! original xyz files are always molecular boundary conditions
+    geo%tPeriodic = .false.
+    geo%tFracCoord = .false.
+
+    call normalize(geo)
+
+  end subroutine readTGeometryXyz_help
+
+
+  !> Return index for next line ending within text after position iStart
+  pure function nextLine(text, iStart) result(iEnd)
+
+    !> Text content of the node
+    character(len=*), intent(in) :: text
+
+    !> Start of the text content consider
+    integer, intent(in) :: iStart
+
+    !> End of the line, as delimited by a new-line character
+    integer :: iEnd
+
+    iEnd = index(text(iStart:), new_line(text)) + iStart - 1
+    if (iEnd < iStart) iEnd = len(text)
+
+  end function nextLine
+
 
 end module dftbp_typegeometryhsd
