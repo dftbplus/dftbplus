@@ -329,6 +329,14 @@ contains
       call readTGeometryGen(child, geo)
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
+    case ("xyzformat")
+      call readTGeometryXyz(child, geo)
+      call removeChildNodes(geonode)
+      call writeTGeometryHSD(geonode, geo)
+    case ("vaspformat")
+      call readTGeometryVasp(child, geo)
+      call removeChildNodes(geonode)
+      call writeTGeometryHSD(geonode, geo)
     case default
       call readTGeometryHSD(geonode, geo)
     end select
