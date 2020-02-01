@@ -33,7 +33,7 @@ module dftbp_typegeometryhsd
 
   !> Locally defined subroutines
   public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
-  public :: readTGeometryXyz
+  public :: readTGeometryXyz, readTGeometryVasp
 
   !> makes public subroutines from typegeometry
   public :: reduce, setlattice
@@ -292,19 +292,7 @@ contains
 
     ! tests that are relevant to periodic geometries only
     if (geo%tPeriodic) then
-      geo%origin = geo%origin * AA__Bohr
-      geo%latVecs = geo%latVecs * AA__Bohr
-      if (geo%tFracCoord) then
-        if (any(abs(geo%coords) > 1.0_dp)) then
-          call detailedWarning(node, "Fractional coordinates with absolute value greater than one.")
-        end if
-      end if
-      allocate(geo%recVecs2p(3, 3))
-      det = determinant33(geo%latVecs)
-      if (abs(det) < 1e-12_dp) then
-        call detailedError(node, "Dependent lattice vectors")
-      end if
-      call invert33(geo%recVecs2p, geo%latVecs, det)
+      call setupPeriodicGeometry(node, geo)
     end if
 
     ! convert coords to correct internal units
@@ -427,6 +415,228 @@ contains
     call normalize(geo)
 
   end subroutine readTGeometryXyz_help
+
+
+  !> Reads the geometry from a node in a HSD tree in GEN format
+  subroutine readTGeometryVasp(node, geo)
+
+    !> Node containing the geometry in Gen format
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(out) :: geo
+
+    type(string) :: text
+
+    call getFirstTextChild(node, text)
+    call readTGeometryVasp_help(node, geo, char(text))
+
+  end subroutine readTGeometryVasp
+
+
+  !> Helping routine for reading geometry from a HSD tree in VASP format
+  subroutine readTGeometryVasp_help(node, geo, text)
+
+    !> Node to parse (only needed to produce proper error messages)
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(out) :: geo
+
+    !> Text content of the node
+    character(len=*), intent(in) :: text
+
+    type(string) :: txt
+    character(mc), allocatable :: vaspNames(:)
+    integer :: iStart, iOldStart, iErr, iEnd
+    integer :: ii, jj, iSp, iTmp
+    real(dp) :: coords(3), latVec(3), rTmp, rScale
+    integer, allocatable :: vaspSp(:)
+    integer, allocatable :: countSp(:)
+    type(listString) :: speciesNames
+    logical :: hasComment
+    character(lc) :: errorStr
+
+
+    ! Read `first' line of the POSCAR/CONTCAR file
+    ! This is actually a comment line, but contains by user convention the atomic symbols
+    ! In case it does not contain the atomic symbols, is empty or an HSD comment,
+    ! we have to ignore it, therefore we attempt to read it as `second' line first
+    hasComment = .false.
+    iStart = 1
+    iEnd = nextLine(text, iStart)
+    call getNextToken(text(:iEnd), rScale, iStart, iErr)
+    ! seems like we found the `second' line already, to be sure we check for another token
+    if (iErr == TOKEN_OK) then
+      hasComment = iStart <= iEnd
+    else
+      hasComment = .true.
+    end if
+
+    if (hasComment) then
+      iStart = 1
+      call init(speciesNames)
+      iErr = TOKEN_OK
+      do while(iErr == TOKEN_OK)
+        call getNextToken(text(:iEnd), txt, iStart, iErr)
+        if (iErr == TOKEN_OK) then
+          call append(speciesNames, char(txt))
+        end if
+      end do
+      iStart = iEnd + 1
+
+      ! try to read the real `second' line now
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text(:iEnd), rScale, iStart, iErr)
+      call checkError(node, iErr, "Bad scaling factor in line 2 of VASP geometry")
+      iStart = iEnd + 1
+    end if
+
+    if (rScale <= 0.0_dp) then
+      call detailedError(node, "Scaling factor for VASP geometry must be positive and non-zero")
+    end if
+
+    ! we expect the lattice information now
+    allocate(geo%origin(3))
+    allocate(geo%latVecs(3, 3))
+    geo%origin(:) = 0.0_dp
+    do ii = 1, 3
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text, latVec, iStart, iErr)
+      call checkError(node, iErr, "Bad lattice vectors, please check lines 3-5 of the geometry")
+      geo%latVecs(:, ii) = latVec(:) * rScale
+      iStart = iEnd + 1
+    end do
+
+    ! Here are the number of each species listed, or since Vasp >=5.1 element symbols
+    iEnd = nextLine(text, iStart)
+    iOldStart = iStart
+    call getNextToken(text(:iEnd), iTmp, iOldStart, iErr)
+    ! Seems to be element symbols, so we prefer them over the ones from the comment line
+    if (iErr /= TOKEN_OK) then
+      if (hasComment) then
+        call destruct(speciesNames)
+      end if
+      call init(speciesNames)
+      iErr = TOKEN_OK
+      do while(iErr == TOKEN_OK)
+        call getNextToken(text(:iEnd), txt, iStart, iErr)
+        if (iErr == TOKEN_OK) then
+          call append(speciesNames, char(txt))
+        end if
+      end do
+      iStart = iEnd + 1
+      iEnd = nextLine(text, iStart)
+    end if
+
+    ! Now we have to deal with repeating the same species in unsorted POSCARs
+    allocate(vaspNames(len(speciesNames)))
+    allocate(vaspSp(len(speciesNames)))
+    ! convert to array of strings, otherwise we have no reliable way to access the elements
+    call asArray(speciesNames, vaspNames)
+    ! reset speciesNames to be populated with the unique species present
+    call destruct(speciesNames)
+    call init(speciesNames)
+    iSp = 0
+    do ii = 1, size(vaspNames, dim=1)
+      iSp = find(speciesNames, trim(vaspNames(ii)))
+      if (iSp == 0) then
+        call append(speciesNames, trim(vaspNames(ii)))
+        iSp = len(speciesNames)
+      end if
+      vaspSp(ii) = iSp
+    end do
+
+    geo%nSpecies = len(speciesNames)
+    if (geo%nSpecies == 0) then
+      call detailedError(node, "Number of species in the VASP geometry equals zero.")
+    end if
+    allocate(geo%speciesNames(geo%nSpecies))
+    call asArray(speciesNames, geo%speciesNames)
+    call destruct(speciesNames)
+    allocate(countSp(size(vaspSp, dim=1)))
+    do iSp = 1, size(vaspSp, dim=1)
+      call getNextToken(text(:iEnd), countSp(iSp), iStart, iErr)
+      call checkError(node, iErr, "Could not read number of species in geometry")
+    end do
+    geo%nAtom = sum(countSp)
+    allocate(geo%species(geo%nAtom))
+    allocate(geo%coords(3, geo%nAtom))
+    ii = 0
+    do iSp = 1, size(vaspSp, dim=1)
+      geo%species(ii+1:ii+countSp(iSp)) = vaspSp(iSp)
+      ii = ii + countSp(iSp)
+    end do
+    iStart = iEnd + 1
+
+    ! Search for the selective dynamics keyword here
+    iEnd = nextLine(text, iStart)
+    call getNextToken(text(:iEnd), txt, iStart, iErr)
+    if (scan(char(txt), "sS") == 1) then
+      iStart = iEnd + 1
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text(:iEnd), txt, iStart, iErr)
+    end if
+    if (scan(char(txt), "cCkK") == 1) then
+      geo%tFracCoord = .false.
+    else if (scan(char(txt), "dD") == 1) then
+      geo%tFracCoord = .true.
+    else
+      call detailedError(node, "Unknown coordinate format '"// char(txt) // "'")
+    end if
+    iStart = iEnd + 1
+
+    do ii = 1, geo%nAtom
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text, coords, iStart, iErr)
+      write(errorStr,"(A,1X,I0)")"Bad coordinates for atom", ii
+      call checkError(node, iErr, trim(errorStr))
+      geo%coords(:, ii) = coords(:)
+      iStart = iEnd + 1
+    end do
+
+    call setupPeriodicGeometry(node, geo)
+
+    ! convert coords to correct internal units
+    if (geo%tFracCoord) then
+      geo%coords = matmul(geo%latVecs, geo%coords)
+    else
+      geo%coords = geo%coords * AA__Bohr * rScale
+    end if
+
+    geo%tPeriodic = .true.
+
+    call normalize(geo)
+
+  end subroutine readTGeometryVasp_help
+
+
+  !> Common checks for periodic input and generation of associated information
+  subroutine setupPeriodicGeometry(node, geo)
+
+    !> Node to parse (only needed to produce proper error messages)
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(inout) :: geo
+
+    real(dp) :: det
+
+    geo%origin = geo%origin * AA__Bohr
+    geo%latVecs = geo%latVecs * AA__Bohr
+    if (geo%tFracCoord) then
+      if (any(abs(geo%coords) > 1.0_dp)) then
+        call detailedWarning(node, "Fractional coordinates with absolute value greater than one.")
+      end if
+    end if
+    allocate(geo%recVecs2p(3, 3))
+    det = determinant33(geo%latVecs)
+    if (abs(det) < 1e-12_dp) then
+      call detailedError(node, "Dependent lattice vectors")
+    end if
+    call invert33(geo%recVecs2p, geo%latVecs, det)
+
+  end subroutine setupPeriodicGeometry
 
 
   !> Return index for next line ending within text after position iStart

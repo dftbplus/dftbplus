@@ -8,6 +8,8 @@ non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
 input/caffeine_xyz                     #? MPI_PROCS <= 1
+input/ammonia_poscar                   #? MPI_PROCS <= 1
+input/unsorted_contcar                 #? MPI_PROCS <= 1
 
 rangesep/C18H12-force                  #? not WITH_MPI
 rangesep/C18H12-nbscreening            #? not WITH_MPI
