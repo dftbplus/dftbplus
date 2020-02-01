@@ -1090,6 +1090,7 @@ following properties:
   \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
+  \kw{Solvation} & m & & - & \pref{sec:dftbp.Solvation}\\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
   \kw{CustomisedHubbards} & p & SCC = Yes & & \\
@@ -2967,6 +2968,88 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 \end{description}
+
+\subsection{Implicit Solvation Model}
+\label{sec:dftbp.solvation}
+
+\subsubsection{Generalized Born Model}
+\label{sec:dftbp.GeneralizedBorn}
+
+To use the generalized Born model in the SCC procedure use the
+\is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
+
+\begin{ptable}
+  \kw{Solvent} & m & & & \\
+  \kw{Shift} & r & & & \\
+  \kw{Temperature} & r & & 298.15 & \\
+  \kw{State} & s & & gsolv & \\
+  \kw{BornScale} & r & & & \\
+  \kw{BornOffset} & r & & & \\
+  \kw{OBC} & r & & 1.00, 0.80, 4.85 & \\
+  \kw{Radii} & m & & & \\
+  \kw{Descreening} & m & & & \\
+  \kw{Cutoff} & r & & & \\
+\end{ptable}
+
+\begin{description}
+  \item[\is{Solvent}] Descriptors of the solvent, can be load from a database
+    by providing the solvent name as string in the \is{FromName\cb} method or
+    by specifying the necessary values with the \is{FromConstants\cb} method.
+    \is{FromConstants\cb} requires the dielectric constant as real for \kw{Epsilon},
+    the molecular mass in \kw{MolecularMass} and the solvent density
+    in \kw{Density}.
+
+  \item[\is{Shift}] \modif{\modtype{energy}} Shift for free energy calculations.
+
+  \item[\is{Temperature}] Temperature for free energy calculations. Default is
+    ambient temperature: 298.15 K.
+
+  \item[\is{State}] Reference state for free energy calculations as string.
+    Takes \is{gsolv} (default).
+
+  \item[\is{BornScale}] Value for scaling of Born radii.
+
+  \item[\is{BornOffset}] \modif{\modtype{length}}
+    Offset value for Born radii calculation.
+
+  \item[\is{OBC}] Parameters for volume polynomial to correct Born radii
+    calculation.
+
+  \item[\is{Radii}] Atomic radii for each element in Bohr, either takes
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+    or requires to provide \is{Values\cb} for all species.
+
+  \item[\is{Descreening}] Descreening values for each elements.
+    Disabled by \is{Unity\cb} method or enabled by providing \is{Values\cb}
+    for each species.
+
+  \item[\is{Cutoff}] \modif{\modtype{length}}
+    Real space cutoff for the calculation of the Born radii.
+\end{description}
+
+Example for CS2 as solvent:
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
+    Solvent = fromName { "cs2" }
+    Temperature = 298.15
+    State = "gsolv"
+    Shift [kcal/mol] = 2.81072250
+    Radii = vanDerWaalsRadiiD3 {}
+    Descreening = Values {
+       H = 0.93699367
+       C = 0.83307834
+       N = 1.02661619
+       O = 0.96508008
+    }
+    BornScale = 1.40636177
+    BornOffset = 1.653719965215E-03
+    OBC = {1.00 0.80 4.85}
+    Cutoff = 40
+  }
+}
+\end{verbatim}
 
 \subsection{Halogen corrections}
 \label{sec:dftbp.xcorr}

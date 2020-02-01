@@ -59,6 +59,8 @@ module dftbp_parser
   use poisson_init
   use libnegf_vars
 #:endif
+  use dftbp_solvinput, only : TSolvationInp
+  use dftbp_solventdata, only : TSolventData, SolventFromName
   implicit none
   private
 
@@ -1760,6 +1762,14 @@ contains
     if (associated(value1)) then
       allocate(ctrl%dispInp)
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
+    end if
+
+    ! Solvation
+    call getChildValue(node, "Solvation", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%solvInp)
+      call readSolvation(child, geo, ctrl%solvInp)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -3516,6 +3526,136 @@ contains
     end if
 
   end subroutine readOptions
+
+
+  !> Reads in solvation related settings
+  subroutine readSolvation(node, geo, input)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> geometry, including atomic information
+    type(TGeometry), intent(in) :: geo
+
+    !> dispersion data on exit
+    type(TSolvationInp), intent(out) :: input
+
+    type(fnode), pointer :: solvModel
+    type(string) :: buffer
+
+    call getChildValue(node, "", solvModel)
+    call getNodeName(solvModel, buffer)
+
+    select case (char(buffer))
+    case default
+      call detailedError(node, "Invalid solvation model name.")
+    case ("generalizedborn")
+      allocate(input%GBInp)
+      call readSolvGB(solvModel, geo, input%GBInp)
+    end select
+  end subroutine readSolvation
+
+
+  !> Reads in generalized Born related settings
+  subroutine readSolvGB(node, geo, input)
+    use dftbp_born
+    use dftbp_borndata
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Geometry of the current system
+    type(TGeometry), intent(in) :: geo
+
+    !> Contains the input for the dispersion module on exit
+    type(TGBInput), intent(out) :: input
+
+    type(string) :: buffer, state, modifier
+    type(fnode), pointer :: child, value1, field, child2
+    integer :: iSp
+    logical :: found
+    real(dp) :: temperature, shift
+    real(dp), allocatable :: vdwRadDefault(:)
+    type(TSolventData) :: solvent
+
+    call getChildValue(node, "Solvent", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Invalid solvent method '" // char(buffer) // "'")
+    case('fromname')
+      call getChildValue(value1, "", buffer)
+      call SolventFromName(solvent, unquote(char(buffer)), found)
+      if (.not. found) then
+        call detailedError(value1, "Invalid solvent " // char(buffer))
+      end if
+    case('fromconstants')
+      call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
+      call getChildValue(value1, "MolecularMass", solvent%molecularMass)
+      call getChildValue(value1, "Density", solvent%density)
+    end select
+
+    input%keps = 1.0_dp / solvent%dielectricConstant - 1.0_dp
+
+    ! shift value for the free energy (usually fitted)
+    call getChildValue(node, "Shift", shift, modifier=modifier, child=field)
+    call convertByMul(char(modifier), energyUnits, field, shift)
+
+    ! temperature, influence depends on the reference state
+    call getChildValue(node, "Temperature", temperature, 298.15_dp)
+
+    ! reference state for free energy calculation
+    call getChildValue(node, "State", state, "gsolv", child=child)
+    select case(tolower(unquote(char(state))))
+    case default
+      call detailedError(child, "Unknown reference state: '"//char(state)//"'")
+    case("gsolv") ! just the bare shift
+      input%shift = shift
+    end select
+
+    call getChildValue(node, "BornScale", input%bornScale)
+    call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, shift)
+    call getChildValue(node, "OBC", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
+
+    allocate(input%vdwRad(geo%nSpecies))
+    call getChildValue(node, "Radii", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("vanderwaalsradiid3")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+            & vdwRadDefault(iSp), child=child2)
+      end do
+      deallocate(vdwRadDefault)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
+      end do
+    end select
+
+    allocate(input%sx(geo%nSpecies))
+    call getChildValue(node, "Descreening", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate descreening parameters")
+    case("unity")
+      input%sx(:) = 1.0_dp
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, trim(geo%speciesNames(iSp)), input%sx(iSp), child=child2)
+      end do
+    end select
+
+    call getChildValue(node, "Cutoff", input%rCutoff, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+
+  end subroutine readSolvGB
 
 
   !> Reads in dispersion related settings
