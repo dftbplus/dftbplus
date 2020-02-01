@@ -33,7 +33,7 @@ module dftbp_typegeometryhsd
 
   !> Locally defined subroutines
   public :: writeTGeometryHSD, readTGeometryHSD, readTGeometryGen
-  public :: readTGeometryXyz
+  public :: readTGeometryXyz, readTGeometryVasp
 
   !> makes public subroutines from typegeometry
   public :: reduce, setlattice
@@ -292,19 +292,7 @@ contains
 
     ! tests that are relevant to periodic geometries only
     if (geo%tPeriodic) then
-      geo%origin = geo%origin * AA__Bohr
-      geo%latVecs = geo%latVecs * AA__Bohr
-      if (geo%tFracCoord) then
-        if (any(abs(geo%coords) > 1.0_dp)) then
-          call detailedWarning(node, "Fractional coordinates with absolute value greater than one.")
-        end if
-      end if
-      allocate(geo%recVecs2p(3, 3))
-      det = determinant33(geo%latVecs)
-      if (abs(det) < 1e-12_dp) then
-        call detailedError(node, "Dependent lattice vectors")
-      end if
-      call invert33(geo%recVecs2p, geo%latVecs, det)
+      call setupPeriodicGeometry(node, geo)
     end if
 
     ! convert coords to correct internal units
@@ -427,6 +415,199 @@ contains
     call normalize(geo)
 
   end subroutine readTGeometryXyz_help
+
+
+  !> Reads the geometry from a node in a HSD tree in GEN format
+  subroutine readTGeometryVasp(node, geo)
+
+    !> Node containing the geometry in Gen format
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(out) :: geo
+
+    type(string) :: text
+
+    call getFirstTextChild(node, text)
+    call readTGeometryVasp_help(node, geo, char(text))
+
+  end subroutine readTGeometryVasp
+
+
+  !> Helping routine for reading geometry from a HSD tree in VASP format
+  subroutine readTGeometryVasp_help(node, geo, text)
+
+    !> Node to parse (only needed to produce proper error messages)
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(out) :: geo
+
+    !> Text content of the node
+    character(len=*), intent(in) :: text
+
+    type(string) :: txt
+    integer :: iStart, iOldStart, iErr, iEnd
+    integer :: ii, jj, iSp, iTmp
+    real(dp) :: coords(3), latVec(3), det, rScale
+    integer, allocatable :: countSp(:)
+    type(listString) :: speciesNames
+
+
+    ! Read first line of the POSCAR/CONTCAR file
+    ! This is actually a comment line, but contains by user convention the atomic symbols
+    iStart = 1
+    iEnd = nextLine(text, iStart)
+    print'(a)', "comment line"
+    print'("->",a)', text(iStart:iEnd-1)
+    call init(speciesNames)
+    iErr = TOKEN_OK
+    do while(iErr == TOKEN_OK)
+      call getNextToken(text(:iEnd), txt, iStart, iErr)
+      if (iErr == TOKEN_OK) then
+        call append(speciesNames, char(txt))
+      end if
+    end do
+    iStart = iEnd + 1
+
+    ! advance to next line, containing the scaling factor
+    print'(a)', "scaling factor"
+    iEnd = nextLine(text, iStart)
+    print'("->",a)', text(iStart:iEnd-1)
+    call getNextToken(text(:iEnd), rScale, iStart, iErr)
+    call checkError(node, iErr, "Could not read scaling factor")
+    iStart = iEnd + 1
+
+    ! we expect the lattice information now
+    print'(a)', "lattice"
+    allocate(geo%origin(3))
+    allocate(geo%latVecs(3, 3))
+    geo%origin(:) = 0.0_dp
+    do ii = 1, 3
+      iEnd = nextLine(text, iStart)
+      print'("->",a)', text(iStart:iEnd-1)
+      call getNextToken(text, latVec, iStart, iErr)
+      print'("-->",3es20.12)', latVec
+      call checkError(node, iErr, "Bad coordinates for an atom.")
+      geo%latVecs(:, ii) = latVec(:) * rScale
+      iStart = iEnd + 1
+    end do
+    print'("->",3es20.12)', geo%latVecs
+
+    ! Here are the number of each species listed, or since Vasp >=5.1 element symbols
+    print'(a)', "species assignment"
+    iEnd = nextLine(text, iStart)
+    iOldStart = iStart
+    print'("->",a)', text(iStart:iEnd-1)
+    call getNextToken(text(:iEnd), iTmp, iOldStart, iErr)
+    ! Seems to be element symbols, so we prefer them over the once from the comment line
+    if (iErr /= TOKEN_OK) then
+      call destruct(speciesNames)
+      call init(speciesNames)
+      do while(iErr /= TOKEN_EOS)
+        call getNextToken(text(:iEnd), txt, iStart, iErr)
+        call checkError(node, iErr, "Could not read species symbol")
+        call append(speciesNames, char(txt))
+      end do
+      iStart = iEnd + 1
+      iEnd = nextLine(text, iStart)
+      print'("->",a)', text(iStart:iEnd-1)
+    end if
+    geo%nSpecies = len(speciesNames)
+    if (geo%nSpecies == 0) then
+      call detailedError(node, "Number of species equals zero.")
+    end if
+    allocate(geo%speciesNames(geo%nSpecies))
+    call asArray(speciesNames, geo%speciesNames)
+    call destruct(speciesNames)
+    allocate(countSp(geo%nSpecies))
+    do iSp = 1, geo%nSpecies
+      call getNextToken(text(:iEnd), countSp(iSp), iStart, iErr)
+      call checkError(node, iErr, "Could not read number of species")
+    end do
+    geo%nAtom = sum(countSp)
+    allocate(geo%species(geo%nAtom))
+    allocate(geo%coords(3, geo%nAtom))
+    ii = 0
+    do iSp = 1, geo%nSpecies
+      geo%species(ii+1:ii+countSp(iSp)) = iSp
+      ii = ii + countSp(iSp)
+    end do
+    iStart = iEnd + 1
+
+    ! Search for the selective dynamics keyword here
+    print'(a)', "keywords"
+    iEnd = nextLine(text, iStart)
+    print'("->",a)', text(iStart:iEnd-1)
+    call getNextToken(text(:iEnd), txt, iStart, iErr)
+    if (scan(char(txt), "sS") == 1) then
+      iStart = iEnd + 1
+      iEnd = nextLine(text, iStart)
+      print'("->",a)', text(iStart:iEnd-1)
+      call getNextToken(text(:iEnd), txt, iStart, iErr)
+    end if
+    if (scan(char(txt), "cCkK") == 1) then
+      geo%tFracCoord = .false.
+    else if (scan(char(txt), "dD") == 1) then
+      geo%tFracCoord = .true.
+    else
+      call detailedError(node, "Unknown coordinate format '"// char(txt) // "'")
+    end if
+    iStart = iEnd + 1
+
+    print'(a)', "cartesian coordinates"
+    do ii = 1, geo%nAtom
+      iEnd = nextLine(text, iStart)
+      print'("->",a)', text(iStart:iEnd-1)
+      call getNextToken(text, coords, iStart, iErr)
+      print'("-->",3es20.12)', coords
+      call checkError(node, iErr, "Bad coordinates for an atom.")
+      geo%coords(:, ii) = coords(:)
+      iStart = iEnd + 1
+    end do
+
+    call setupPeriodicGeometry(node, geo)
+
+    ! convert coords to correct internal units
+    if (geo%tFracCoord) then
+      geo%coords = matmul(geo%latVecs, geo%coords)
+    else
+      geo%coords = geo%coords * AA__Bohr * rScale
+    end if
+
+    geo%tPeriodic = .true.
+
+    call normalize(geo)
+
+  end subroutine readTGeometryVasp_help
+
+
+  !> Common checks for periodic input and generation of associated information
+  subroutine setupPeriodicGeometry(node, geo)
+
+    !> Node to parse (only needed to produce proper error messages)
+    type(fnode), pointer :: node
+
+    !> Contains the geometry on exit
+    type(TGeometry), intent(inout) :: geo
+
+    real(dp) :: det
+
+    geo%origin = geo%origin * AA__Bohr
+    geo%latVecs = geo%latVecs * AA__Bohr
+    if (geo%tFracCoord) then
+      if (any(abs(geo%coords) > 1.0_dp)) then
+        call detailedWarning(node, "Fractional coordinates with absolute value greater than one.")
+      end if
+    end if
+    allocate(geo%recVecs2p(3, 3))
+    det = determinant33(geo%latVecs)
+    if (abs(det) < 1e-12_dp) then
+      call detailedError(node, "Dependent lattice vectors")
+    end if
+    call invert33(geo%recVecs2p, geo%latVecs, det)
+
+  end subroutine setupPeriodicGeometry
 
 
   !> Return index for next line ending within text after position iStart

@@ -20,6 +20,8 @@ Added
 
 - Read input coordinates in XYZ format
 
+- Read input coordinates in POSCAR format
+
 Changed
 -------
 
