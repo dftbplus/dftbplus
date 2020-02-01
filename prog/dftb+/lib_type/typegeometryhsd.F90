@@ -259,7 +259,7 @@ contains
     iStart = iOldStart
     do ii = 1, geo%nAtom
       call getNextToken(text, iTmp, iStart, iErr)
-      call checkError(node, iErr, "Bad sequentual number for an atom.")
+      call checkError(node, iErr, "Bad sequential number for an atom.")
       call getNextToken(text, geo%species(ii), iStart, iErr)
       call checkError(node, iErr, "Bad species number for an atom.")
       call getNextToken(text, coords, iStart, iErr)
@@ -353,15 +353,13 @@ contains
     integer :: ii, iSp, iTmp
     real(dp) :: coords(3), rTmp, det
     type(listString) :: speciesNames
+    character(lc) :: errorStr
 
     ! Read first line of the xyz file: Number of atoms
     iStart = 1
     iEnd = nextLine(text, iStart)
     call getNextToken(text(:iEnd), geo%nAtom, iStart, iErr)
     call checkError(node, iErr, "Bad number of atoms.")
-    ! xyz files are always molecular, and we are not going to support extensions to this
-    geo%tPeriodic = .false.
-    geo%tFracCoord = .false.
 
     ! advance to next line
     iStart = iEnd + 1
@@ -377,9 +375,9 @@ contains
       call getNextToken(text(:iEnd), coords, iStart, iErr)
     end if
     if (iErr == TOKEN_OK) then
-      iStart = iOldStart  ! second line was empty or commented and therefore stripped
+      iStart = iOldStart  ! second line was empty or HSD commented and therefore stripped
     else
-      iStart = iEnd + 1  ! second line is in actual comment line, drop it
+      iStart = iEnd + 1  ! second line is an actual XYZ comment line, drop it
     end if
 
     ! Read in sequential and species indices.
@@ -390,7 +388,8 @@ contains
     do ii = 1, geo%nAtom
       iEnd = nextLine(text, iStart)
       call getNextToken(text(:iEnd), txt, iStart, iErr)
-      call checkError(node, iErr, "Bad species name for an atom.")
+      write(errorStr,"(A,1X,I0)")"Bad species name for atom", ii
+      call checkError(node, iErr, trim(errorStr))
       iSp = find(speciesNames, char(txt))
       if (iSp == 0) then
         call append(speciesNames, char(txt))
@@ -398,7 +397,8 @@ contains
       end if
       geo%species(ii) = iSp
       call getNextToken(text(:iEnd), coords, iStart, iErr)
-      call checkError(node, iErr, "Bad coordinates for an atom.")
+      write(errorStr,"(A,1X,I0)")"Bad coordinates for atom", ii
+      call checkError(node, iErr, trim(errorStr))
       geo%coords(:, ii) = coords(:)
       iStart = iEnd + 1
     end do
@@ -409,8 +409,7 @@ contains
     call destruct(speciesNames)
 
     if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
-      call detailedError(node, &
-          &"Nr. of species and nr. of specified elements do not match.")
+      call detailedError(node, "Nr. of species and nr. of specified elements do not match.")
     end if
 
     if (iStart <= len(text)) then
@@ -421,20 +420,25 @@ contains
     ! convert coords to correct internal units
     geo%coords = geo%coords * AA__Bohr
 
+    ! original xyz files are always molecular boundary conditions
+    geo%tPeriodic = .false.
+    geo%tFracCoord = .false.
+
     call normalize(geo)
 
   end subroutine readTGeometryXyz_help
 
 
-  !> Advance to next line ending
+  !> Return index for next line ending within text after position iStart
   pure function nextLine(text, iStart) result(iEnd)
+
     !> Text content of the node
     character(len=*), intent(in) :: text
 
-    !> Start of the text content
+    !> Start of the text content consider
     integer, intent(in) :: iStart
 
-    !> End of the line
+    !> End of the line, as delimited by a new-line character
     integer :: iEnd
 
     iEnd = index(text(iStart:), new_line(text)) + iStart - 1
