@@ -20,6 +20,10 @@ Added
 
 - Use of processor groups with transport calculations
   
+- Read input coordinates in XYZ format
+
+- Read input coordinates in POSCAR format
+
 
 Changed
 -------
