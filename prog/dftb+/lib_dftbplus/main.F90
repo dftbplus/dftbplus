@@ -171,19 +171,23 @@ contains
         if (tGroundGuess .and. iDet==0) then
           call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
         end if
+        
         if (.not. iDet==0) then
           call postprocessDerivs(derivs, conAtom, conVec, tLatOpt, totalLatDeriv, extLatDerivs,&
               & normOrigLatVec, tLatOptFixAng, tLatOptFixLen, tLatOptIsotropic, constrLatDerivs)
         end if
+     
         if (iDet == nDet) then
           exit lpDets
         end if
       end do lpDets
 
+
       if (tNonAufbau) then
         if (tSpinPurify) then
-          call ZieglerSum(energy, derivs, tripletderivs, mixedderivs)
+          call ZieglerSum(energy, derivs, tripletderivs, mixedderivs, tGeoOpt)
         end if
+        
         call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau, tSpinPurify, tGroundGuess, iDet)
       end if
 
@@ -731,9 +735,11 @@ contains
 
     ! MD geometry files are written only later, once velocities for the current geometry are known
     if (tGeoOpt .and. tWriteRestart) then
-      call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-          & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
-          & nSpin, qOutput, velocities)
+      if (.not. (tSpinPurify.and.iDet==1)) then
+        call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
+            & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
+            & nSpin, qOutput, velocities)
+      endif
     end if
     if (.not. tNonAufbau) then
       call printEnergies(energy, TS, electronicSolver, tDefinedFreeE, tNonAufbau)
@@ -890,6 +896,7 @@ contains
 
     !> Has this completed?
     logical :: tCoordEnd
+    
 
     ! initially assume that coordinates and lattice vectors won't be updated
     tCoordsChanged = .false.
@@ -3862,15 +3869,17 @@ contains
 
 
   !> Spin Purifies Non-Aufbau excited state energy and forces 
-  subroutine ZieglerSum(energy, derivs, tripletderivs, mixedderivs)
+  subroutine ZieglerSum(energy, derivs, tripletderivs, mixedderivs, tGeoOpt)
 
     !> energy components
     type(TEnergies), intent(inout) :: energy
 
     !> derivative components
-    real(dp), intent(inout), allocatable :: derivs(:,:)
-    real(dp), intent(inout), allocatable :: tripletderivs(:,:)
-    real(dp), intent(inout), allocatable :: mixedderivs(:,:)
+    real(dp), intent(inout), allocatable, optional:: derivs(:,:)
+    real(dp), intent(inout), allocatable, optional :: tripletderivs(:,:)
+    real(dp), intent(inout), allocatable, optional :: mixedderivs(:,:)
+    logical, intent(in) :: tGeoOpt
+
 
         ! Ziegler sum rule: E_S1 = 2E_mix - E_triplet
         energy%Etotal = 2.0_dp*energy%Emixed-energy%Etriplet
@@ -3879,7 +3888,9 @@ contains
         energy%EGibbs = 2.0_dp*energy%EmixGibbs-energy%EtripGibbs
         energy%EForceRelated = 2.0_dp*energy%EmixForceRelated-energy%EtripForceRelated
         ! dE_S1 = 2dE_mix - dE_triplet
-        derivs(:,:) = 2.0_dp*mixedderivs-tripletderivs
+        if (tGeoOpt) then
+          derivs(:,:) = 2.0_dp*mixedderivs-tripletderivs
+        endif
 
   end subroutine ZieglerSum
 
