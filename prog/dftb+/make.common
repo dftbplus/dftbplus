@@ -8,7 +8,7 @@
 .SUFFIXES:
 .SUFFIXES: .f .f90 .F90 .o
 
-#.PRECIOUS: %.f90
+.PRECIOUS: %.f90
 
 FXXCLEAN = *.mod
 

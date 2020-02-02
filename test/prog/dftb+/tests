@@ -258,6 +258,9 @@ transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-sheet                      #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/H-sheet_grp2                 #? WITH_TRANSPORT and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0
+transport/H-sheet_grp4                 #? WITH_TRANSPORT and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0
+transport/H-sheet_grp8                 #? WITH_TRANSPORT and MPI_PROCS <= 32 and MPI_PROCS % 8 == 0
 transport/H-3conts                     #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/SiH-chain                    #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/SiH-chain-cont               #? WITH_TRANSPORT and MPI_PROCS <= 4
