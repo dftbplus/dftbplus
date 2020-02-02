@@ -36,6 +36,7 @@ module negf_int
   use dftbp_linkedlist
   use dftbp_periodic
   use dftbp_assert
+  use dftbp_eigensolver
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -53,8 +54,13 @@ module negf_int
   !> passing structure parameters
   public :: negf_init_str
 
+  !> initialisation of dephasing effects
   public :: negf_init_dephasing
+
+  !> electron-phonon coupling initialisation
   public :: negf_init_elph
+
+  !> clean up CSR matrices and the NEGF structure
   public :: negf_destroy
 
   !> wrapped functions passing dftb matrices. Needed for parallel
@@ -86,14 +92,12 @@ module negf_int
   contains
 
   !> Init gDFTB environment and variables
-  !>
-  !> Note: mpicomm should be the global commworld here
   subroutine negf_init(transpar, env, greendens, tundos, tempElec, solver)
 
     !> Parameters for the transport calculation
     Type(TTranspar), intent(in) :: transpar
 
-    !> Environment settings
+    !> Environment settings, suplying the global comm world
     type(TEnvironment), intent(in) :: env
 
     !> Parameters for the Green's function calculation
@@ -236,7 +240,7 @@ module negf_int
         write(stdOut,*) 'eFermi: ', eFermi(i)
         write(stdOut,*)
 
-      enddo
+      end do
 
       ! Define electrochemical potentials
       params%mu(1:ncont) = eFermi(1:ncont) - pot(1:ncont)
@@ -269,7 +273,7 @@ module negf_int
       ! NOTE: for the moment in tunneling and dos SGF are always   
       ! recomputed because bias may change points and errors are easy
 
-      ! Read G.F. from very first iter
+      ! Read G.F. from very first iteration
       if (greendens%readSGF) then
         params%readOldDM_SGFs = READ_SGF
       end if
@@ -388,7 +392,6 @@ module negf_int
          call error('Choose "Elastic = Yes" or "ManyBody = Yes"!')
     end if
 
-
   end subroutine negf_init
 
 
@@ -456,6 +459,7 @@ module negf_int
     end select
 
   end subroutine negf_init_bp
+
 
   !> Initialise compressed sparse row matrices
   subroutine negf_init_csr(iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
@@ -752,7 +756,7 @@ module negf_int
   end subroutine check_pls
 
 
-  !> Interface subroutine to call Density matrix computation
+  !> Interface subroutine to call density matrix computation
   subroutine negf_density(miter,spin,nkpoint,HH,SS,mu,DensMat,EnMat)
 
     !> SCC step (used in SGF)
@@ -987,7 +991,6 @@ module negf_int
   end subroutine negf_current
 
 
-
   !> Calculates density matrix with Green's functions
   subroutine calcdensity_green(iSCCIter, env, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
       & iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband, Ef, E0, TS)
@@ -1137,25 +1140,16 @@ module negf_int
 
   end subroutine calcdensity_green
 
+
   !> Calculates energy-weighted density matrix with Green's functions
-#:if WITH_MPI
-  subroutine calcEdensity_green(iSCCIter, enecomm, kscomm, groupKS, ham, over, iNeighbor,&
-      & nNeighbor, iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu,&
-      & rhoE)
-
-    !> MPI communicator over energy points
-    type(mpifx_comm), intent(in) :: enecomm
-
-    !> MPI communicator over k and spin
-    type(mpifx_comm), intent(in) :: kscomm
-
-#:else
-  subroutine calcEdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
+  subroutine calcEdensity_green(iSCCIter, env, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
-#:endif
 
     !> SCC iteration
     integer, intent(in) :: iSCCIter
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1209,7 +1203,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(enecomm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm, tIOproc)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1221,10 +1215,10 @@ module negf_int
       endif
     endif
 
-    ! We need this now for different fermi levels in colinear spin
-    ! Note: the spin polirized does not work with
-    ! built-int potentials (the unpolarized does) in the poisson
-    ! I do not set the fermi because it seems that in libnegf it is
+    ! We need this now for different Fermi energies in colinear spin
+    ! Note: the spin polarised does not work with
+    ! built-int potentials (the unpolarized does) in the Poisson
+    ! I do not set the Fermi because it seems that in libnegf it is
     ! not really needed
 
     nKS = size(groupKS, dim=2)
@@ -1261,8 +1255,8 @@ module negf_int
 
     ! In place all-reduce of the energy-weighted density matrix
 #:if WITH_MPI
-    call mpifx_allreduceip(enecomm, rhoE, MPI_SUM)
-    call mpifx_allreduceip(kscomm, rhoE, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%groupComm, rhoE, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%interGroupComm, rhoE, MPI_SUM)
 #:endif
 
     ! Now SGFs can be read unless not stored 
@@ -1277,22 +1271,12 @@ module negf_int
 
 
   !> Calculate the current and optionally density of states
-#:if WITH_MPI
-  subroutine calc_current(enecomm, kscomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
-      & iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
-      & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
-
-    !> MPI communicator over energy points
-    type(mpifx_comm), intent(in) :: enecomm
-
-    !> MPI communicator over k and spin
-    type(mpifx_comm), intent(in) :: kscomm
-
-#:else
-  subroutine calc_current(groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
+  subroutine calc_current(env, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
       & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
-#:endif
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1377,7 +1361,7 @@ module negf_int
     character(2) :: id1, id2
 
 #:if WITH_MPI
-    call negf_mpi_init(enecomm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm, tIOproc)
 #:endif
     call get_params(negf, params)
 
@@ -1417,8 +1401,7 @@ module negf_int
 
       !*** ORTHOGONALIZATIONS ***
       ! THIS MAKES SENSE ONLY FOR A REAL MATRICES, i.e. k==0 && collinear spin
-      if (all(kPoints(:,iK) .eq. 0.0_dp) .and. &
-         (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
+      if (all(kPoints(:,iK) == 0.0_dp) .and. (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
 
         NumStates = negf%NumStates
 
@@ -1455,9 +1438,9 @@ module negf_int
         if (err /= 0) then
           call error('Allocation error (currTot)')
         end if
-        currLead = 0.0_dp
+        currLead(:) = 0.0_dp
       endif
-      currLead = currLead + currPVec
+      currLead(:) = currLead + currPVec
 
       !GUIDE: tunnPMat libNEGF output stores Transmission, T(iE, i->j)
       !       tunnPMat is MPI distributed on energy points (0.0 on other nodes)
@@ -1467,9 +1450,9 @@ module negf_int
 
 #:if WITH_MPI
       ii = (iS-1)*size(kpoints,2) + iK
-      call add_partial_results(enecomm, tunnPMat, tunnMat, tunnSKRes, ii, nTotKS)
-      call add_partial_results(enecomm, currPMat, currMat, currSKRes, ii, nTotKS)
-      call add_partial_results(enecomm, ldosPMat, ldosMat, ldosSKRes, ii, nTotKS)
+      call add_partial_results(env%mpi%groupComm, tunnPMat, tunnMat, tunnSKRes, ii, nTotKS)
+      call add_partial_results(env%mpi%groupComm, currPMat, currMat, currSKRes, ii, nTotKS)
+      call add_partial_results(env%mpi%groupComm, ldosPMat, ldosMat, ldosSKRes, ii, nTotKS)
 #:else
       call add_partial_results(tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
       call add_partial_results(currPMat, currMat, currSKRes, iKS, nKS)
@@ -1479,15 +1462,15 @@ module negf_int
     end do
 
 #:if WITH_MPI
-    call mpifx_reduceip(enecomm, currLead, MPI_SUM)
-    call mpifx_reduceip(kscomm, currLead, MPI_SUM)
-    call add_ks_results(kscomm, tunnMat, tunnSKRes)
-    call add_ks_results(kscomm, currMat, currSKRes)
-    call add_ks_results(kscomm, ldosMat, ldosSKRes)
+    call mpifx_reduceip(env%mpi%groupComm, currLead, MPI_SUM)
+    call mpifx_reduceip(env%mpi%interGroupComm, currLead, MPI_SUM)
+    call add_ks_results(env%mpi%interGroupComm, tunnMat, tunnSKRes)
+    call add_ks_results(env%mpi%interGroupComm, currMat, currSKRes)
+    call add_ks_results(env%mpi%interGroupComm, ldosMat, ldosSKRes)
 #:endif
 
     ! converts from internal atomic units into amperes
-    currLead = currLead * convertCurrent(unitOfEnergy, unitOfCurrent)
+    currLead(:) = currLead * convertCurrent(unitOfEnergy, unitOfCurrent)
 
     do ii = 1, size(currLead)
       write(stdOut, *)
@@ -1539,7 +1522,8 @@ module negf_int
     
   end subroutine calc_current
 
-  !>   utility to allocate and sum partial results from different channels
+
+  !> utility to allocate and sum partial results from different channels
 #:if WITH_MPI
   subroutine add_partial_results(mpicomm, pMat, matTot, matSKRes, iK, nK)
 
@@ -1568,45 +1552,45 @@ module negf_int
     integer :: err
 
     if (associated(pMat)) then
-#:if WITH_MPI
-      allocate(tmpMat(size(pMat,1), size(pMat,2)), stat=err)
+    #:if WITH_MPI
+      allocate(tmpMat(size(pMat,dim=1), size(pMat,dim=2)), stat=err)
 
       if (err /= 0) then
         call error('Allocation error (tmpMat)')
       end if
 
-      tmpMat = pMat
+      tmpMat(:,:) = pMat
       call mpifx_reduceip(mpicomm, tmpMat, MPI_SUM)
-#:endif
+    #:endif
       if(.not.allocated(matTot)) then
-        allocate(matTot(size(pMat,1), size(pMat,2)), stat=err)
+        allocate(matTot(size(pMat,dim=1), size(pMat,dim=2)), stat=err)
 
         if (err /= 0) then
           call error('Allocation error (tunnTot)')
         end if
 
-        matTot = 0.0_dp
+        matTot(:,:) = 0.0_dp
       end if
-#:if WITH_MPI
-      matTot = matTot + tmpMat
-#:else
-      matTot = matTot + pMat
-#:endif
+    #:if WITH_MPI
+      matTot(:,:) = matTot + tmpMat
+    #:else
+      matTot(:,:) = matTot + pMat
+    #:endif
 
       if (nK > 1) then
         if (.not.allocated(matSKRes)) then
-          allocate(matSKRes(size(pMat,1), size(pMat,2), nK), stat=err)
+          allocate(matSKRes(size(pMat,dim=1), size(pMat,dim=2), nK), stat=err)
 
           if (err/=0) then
             call error('Allocation error (tunnSKRes)')
           end if
 
-          matSKRes = 0.0_dp
+          matSKRes(:,:,:) = 0.0_dp
         endif
 #:if WITH_MPI
-        matSKRes(:,:,iK) = tmpMat(:,:)
+        matSKRes(:,:,iK) = tmpMat
 #:else
-        matSKRes(:,:,iK) = pMat(:,:)
+        matSKRes(:,:,iK) = pMat
 #:endif
       end if
 
@@ -1617,6 +1601,7 @@ module negf_int
     end if
 
   end subroutine add_partial_results
+
 
 #:if WITH_MPI
   !> utility to sum up partial results over SK communicator
@@ -1631,7 +1616,6 @@ module negf_int
     !> k-resolved sum
     real(dp), allocatable, intent(inout)  :: matSKRes(:,:,:)
 
-
     if (allocated(mat)) then
       call mpifx_reduceip(kscomm, mat, MPI_SUM)
     endif
@@ -1642,6 +1626,7 @@ module negf_int
 
   end subroutine add_ks_results
 #:endif
+
 
   !> utility to write tunneling files
   subroutine write_file(negf, matTot, matSKRes, filename, nS, kpoints, kWeights)
@@ -1675,9 +1660,9 @@ module negf_int
     nK = size(kpoints, dim=2)
 
     open(newunit=fdUnit, file=trim(filename)//'.dat')
-    do ii=1,size(matTot, dim=1)
+    do ii = 1, size(matTot, dim=1)
       write(fdUnit,'(F20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
-      do jj=1,size(matTot, dim=2)
+      do jj = 1, size(matTot, dim=2)
         write(fdUnit,'(ES20.8)',ADVANCE='NO') matTot(ii,jj)
       enddo
       write(fdUnit,*)
@@ -1796,30 +1781,16 @@ module negf_int
   end subroutine write_files
 
 
-  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! THIS is a first version of local current computation.
+  !> THIS is a first version of local current computation.
   ! It has been placed here since it depends on internal representations of DFTB
   !
-  ! NOTE: Limited to non-periodic systems             s !!!!!!!!!!!
-  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#:if WITH_MPI
-  subroutine local_currents(enecomm, kscomm, groupKS, ham, over, &
-      & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
-      & testArray)
+  ! NOTE: Limited to non-periodic systems
+  subroutine local_currents(env, groupKS, ham, over, neighbourList, nNeighbour, skCutoff,&
+      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoints, kWeights,&
+      & coord0, species0, speciesName, chempot, testArray)
 
-    !> MPI communicator over energy points
-    type(mpifx_comm), intent(in) :: enecomm
-
-    !> MPI communicator over k and spin
-    type(mpifx_comm), intent(in) :: kscomm
-
-#:else
-  subroutine local_currents(groupKS, ham, over, &
-      & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
-      & testArray)
-#:endif
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1899,7 +1870,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(enecomm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm, tIOproc)
 #:endif
     call get_params(negf, params)
 
@@ -1941,10 +1912,9 @@ module negf_int
         & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, symmetric=.true.)
 
     allocate(lcurr(maxval(lc_neigh%nNeighbour), nAtom, nSpin))
-    lcurr = 0.0_dp
+    lcurr(:,:,:) = 0.0_dp
 
-    ! loop on k-points and spin
-    do iKS = 1, nKS
+    looppKS: do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
@@ -1967,11 +1937,11 @@ module negf_int
 
     #:if WITH_MPI
       ! Reduce on node 0 as group master node
-      call mpifx_reduceip(enecomm, csrDens%nzval, MPI_SUM)
-      call mpifx_reduceip(enecomm, csrEDens%nzval, MPI_SUM)
+      call mpifx_reduceip(env%mpi%groupComm, csrDens%nzval, MPI_SUM)
+      call mpifx_reduceip(env%mpi%groupComm, csrEDens%nzval, MPI_SUM)
 
       ! Each group master node prints the local currents
-      tPrint = enecomm%master
+      tPrint = env%mpi%groupComm%master
 
     #:else
 
@@ -2024,15 +1994,15 @@ module negf_int
       call destruct(csrDens)
       call destruct(csrEDens)
 
-    end do !loop on KS
+    end do looppKS
 
 #:if WITH_MPI
-    call mpifx_reduceip(kscomm, lcurr, MPI_SUM)
+    call mpifx_reduceip(env%mpi%interGroupComm, lcurr, MPI_SUM)
 #:endif
 
     if (tIoProc) then
       allocate(testArray(maxval(lc_neigh%nNeighbour),nAtom*nSpin))
-      testArray=0.0_dp
+      testArray(:,:) = 0.0_dp
       ! Write the total current per spin channel  
       do iS = 1, nSpin
         open(newUnit = fdUnit, file = 'lcurrents_'//spin2ch(iS)//'.dat')
@@ -2161,9 +2131,9 @@ module negf_int
     !> overlap matrix
     real(dp), intent(inout) :: S(:,:)
 
-    integer :: i,m,n1_first,n1_last,n2_first,n2_last
+    integer :: i, m, n1_first, n1_last, n2_first, n2_last
     integer :: INFO, N
-    real(dp), allocatable :: A(:,:), WORK(:), W(:)
+    real(dp), allocatable :: A(:,:), W(:)
     real(dp), allocatable :: B(:,:),C(:,:)
 
     N = size(H, dim=1)
@@ -2172,17 +2142,17 @@ module negf_int
       call error('orthogonalization: negf init NumStates error')
     end if
 
-    allocate(A(N,N),WORK(3*N),W(N))
+    allocate(A(N,N),W(N))
     allocate(B(N,N),C(N,N))
-    W=0.0_dp
-    WORK=0.0_dp
-    A=0.0_dp
-    B=0.0_dp
-    C=0.0_dp
+    W(:) = 0.0_dp
+    A(:,:) = 0.0_dp
+    B(:,:) = 0.0_dp
+    C(:,:) = 0.0_dp
 
-    A=S
+    A(:,:) = S
 
-    call DSYEV('V','U',N,A,N,W,WORK,3*N,INFO )
+    call heev(A, W, 'L', 'V')
+    !call DSYEV('V','U',N,A,N,W,WORK,3*N,INFO )
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N
@@ -2242,7 +2212,7 @@ module negf_int
     !   write(*,*) H(i,1:N)
     !end do
 
-    S = 0.0_dp
+    S(:,:) = 0.0_dp
     do i=1,N
       S(i,i) = 1.0_dp
     end do
@@ -2267,11 +2237,10 @@ module negf_int
     real(dp), intent(inout) :: S(:,:)
 
 
-    integer :: i,m,n1_first,n1_last,n2_first,n2_last
+    integer :: i, m, n1_first, n1_last, n2_first, n2_last
     integer :: INFO, N, N2
-    real(dp), allocatable :: A(:,:), WORK(:), W(:)
+    real(dp), allocatable :: A(:,:), W(:)
     real(dp), allocatable :: B(:,:), U(:,:), C(:,:)
-
 
     N = size(H, dim=1)
     if (N /= negf%NumStates) then
@@ -2280,15 +2249,15 @@ module negf_int
 
     N2=negf%str%central_dim
 
-    allocate(A(N2,N2),WORK(3*N2),W(N2))
+    allocate(A(N2,N2),W(N2))
     allocate(B(N2,N2), U(N2,N2))
-    W=0.0_dp
-    WORK=0.0_dp
+    W(:) = 0.0_dp
 
-    A = S(1:N2,1:N2)
-    U = A
+    A(:,:) = S(1:N2,1:N2)
+    U(:,:) = A
 
-    call DSYEV('V','U',N2,U,N2,W,WORK,3*N2,INFO )
+    call heev(U, W, 'L', 'V')
+    !call DSYEV('V','U',N2,U,N2,W,WORK,3*N2,INFO )
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N2
@@ -2304,15 +2273,15 @@ module negf_int
     !  end if
     !end do
 
-    B = matmul(transpose(U),matmul(A,U))
+    B(:,:) = matmul(transpose(U),matmul(A,U))
 
-    do i=1,N2
-      B(i,i)=1.0_dp/sqrt(B(i,i))
+    do i = 1, N2
+      B(i,i) = 1.0_dp / sqrt(B(i,i))
     end do
 
 
     ! Now A = S^-1/2
-    A = matmul(U,matmul(B,transpose(U)))
+    A(:,:) = matmul(U,matmul(B,transpose(U)))
     !print *,'sqrt(S) inverted'
     !do i=1,N2
     !  write(*,*) A(i,1:N2)
@@ -2321,9 +2290,9 @@ module negf_int
     deallocate(U, B)
 
     allocate(C(N,N))
-    C=0.0_dp
-    do i = N2+1,N
-      C(i,i)=1.0_dp
+    C(:,:) = 0.0_dp
+    do i = N2+1, N
+      C(i,i) = 1.0_dp
     end do
     C(1:N2,1:N2) = A
 
@@ -2340,8 +2309,8 @@ module negf_int
     !   write(*,*) H(i,1:N)
     !end do
 
-    H = matmul(transpose(C),matmul(H,C))
-    S = matmul(transpose(C),matmul(S,C))
+    H(:,:) = matmul(transpose(C),matmul(H,C))
+    S(:,:) = matmul(transpose(C),matmul(S,C))
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
@@ -2384,6 +2353,5 @@ module negf_int
     !close(12)
 
   end subroutine orthogonalization_dev
-
 
 end module negf_int
