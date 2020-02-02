@@ -19,8 +19,6 @@ set(sources-fpp
   ${curdir}/etemp.F90
   ${curdir}/externalcharges.F90
   ${curdir}/forces.F90
-  ${curdir}/gtocont.F90
-  ${curdir}/gtoints.F90
   ${curdir}/h5correction.F90
   ${curdir}/halogenx.F90
   ${curdir}/nonscc.F90
@@ -33,7 +31,6 @@ set(sources-fpp
   ${curdir}/rangeseparated.F90
   ${curdir}/repcont.F90
   ${curdir}/reppoly.F90
-  ${curdir}/repsimple.F90
   ${curdir}/repspline.F90
   ${curdir}/repulsive.F90
   ${curdir}/scc.F90

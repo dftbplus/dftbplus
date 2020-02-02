@@ -30,6 +30,8 @@ module dftbp_inputdata
   use dftbp_pmlocalisation, only : TPipekMezeyInp
   use dftbp_elstatpot, only : TElStatPotentialsInp
 
+  use dftbp_xtbinput, only : xtbInput
+
 #:if WITH_TRANSPORT
   use libnegf_vars
   use poisson_init
@@ -477,6 +479,9 @@ module dftbp_inputdata
     ! Custom occupations
     type(WrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
+
+
+    type(xtbInput) :: xtbInput
 
   end type control
 

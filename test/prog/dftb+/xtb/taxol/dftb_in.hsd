@@ -1,0 +1,22 @@
+Geometry = xyzFormat {
+ <<< "taxol.xyz"
+}
+
+Driver {}
+
+Hamiltonian = XTB {
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+

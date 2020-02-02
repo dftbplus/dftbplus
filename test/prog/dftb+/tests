@@ -100,6 +100,10 @@ scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
+xtb/caffeine                           #? MPI_PROCS <= 1
+xtb/generic1                           #? MPI_PROCS <= 2
+xtb/taxol                              #? MPI_PROCS <= 2
+
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 1

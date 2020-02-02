@@ -43,6 +43,7 @@ module dftbp_initprogram
   use dftbp_lbfgs
 
   use dftbp_hamiltoniantypes
+  use dftbp_xtbparam, only : xtbCalculator
 
   use dftbp_randomgenpool
   use dftbp_ranlux
@@ -270,6 +271,9 @@ module dftbp_initprogram
 
   !> Hamiltonian type
   integer :: hamiltonianType
+
+  !> xTB calculation data
+  type(xtbCalculator) :: xtbCalc
 
   !> Raw H^0 hamiltonian data
   type(OSlakoCont) :: skHamCont

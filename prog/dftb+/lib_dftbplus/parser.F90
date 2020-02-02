@@ -28,6 +28,9 @@ module dftbp_parser
   use dftbp_periodic
   use dftbp_dispersions
   use dftbp_simplealgebra, only: cross3, determinant33
+
+  use dftbp_xtbinput, only : setupGFN1Parameters
+
   use dftbp_slakocont
   use dftbp_slakoeqgrid
   use dftbp_repcont
