@@ -227,7 +227,7 @@ def print_forces(forces, forces0):
         print(("%25.12E" * 3) % tuple(atforce))
     if forces0 is not None:
         print("Reference forces:")
-        for iat, atforce in enumerate(forces):
+        for iat, atforce in enumerate(forces0):
             print(("%25.12E" * 3) % tuple(atforce))
         print("Difference between obtained and reference forces:")
         diff = forces - forces0
