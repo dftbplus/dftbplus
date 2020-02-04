@@ -56,7 +56,7 @@ module dftbp_parser
   use libnegf_vars
 #:endif
   use dftbp_solvinput, only : TSolvationInp
-  use dftbp_solventdata, only : TSolventData
+  use dftbp_solventdata, only : TSolventData, SolventFromName
   implicit none
   private
 
@@ -3173,8 +3173,12 @@ contains
     select case(char(buffer))
     case default
       call detailedError(child, "Invalid solvent method '" // char(buffer) // "'")
-    !case('fromname')
-      !call solvent%fromName
+    case('fromname')
+      call getChildValue(value1, "", buffer)
+      call SolventFromName(solvent, unquote(char(buffer)), found)
+      if (.not. found) then
+        call detailedError(value1, "Invalid solvent " // char(buffer) //)
+      end if
     case('fromconstants')
       call getChildValue(value1, "epsilon", solvent%dielectricConstant)
       call getChildValue(value1, "molecularmass", solvent%molecularMass)
@@ -3218,7 +3222,7 @@ contains
       input%vdwRad(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
     case("values")
       do iSp = 1, geo%nSpecies
-        call getChildValue(child, geo%speciesNames(iSp), input%vdwRad(iSp), child=field)
+        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=field)
         call convertByMul(char(modifier), lengthUnits, field, input%vdwRad(iSp))
       end do
     end select

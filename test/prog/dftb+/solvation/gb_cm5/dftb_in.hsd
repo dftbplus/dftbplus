@@ -5,7 +5,26 @@ Geometry = xyzFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn {
+  Solvation = GeneralizedBorn { # GFN1-xTB/GBSA(CS2)
+    solvent = fromConstants {
+      epsilon = 2.64  # Dielectric constant of the solvent
+      molecularMass = 76.14  # mass of the solvent molecule
+      density = 1.26  # mol density of the solvent
+    }
+    temperature = 298.15
+    state = "gsolv"
+    shift [kcal/mol] = 3.37941625
+    radii = vanDerWaalsRadiiD3 {}
+    descreening = values {
+       H = 0.97012484
+       C = 0.88983137
+       O = 1.05601217
+    }
+    CM5 = yes
+    bornScale = 1.18273365
+    bornOffset = 1.517063677302E-02
+    OBC = {1.00 0.80 4.85}
+    cutoff = 30
   }
   SCC = Yes
   SccTolerance = 1e-10

@@ -642,7 +642,7 @@ contains
             & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
             & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
             & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
-            & tRangeSep, allocated(thirdOrd))
+            & tRangeSep, allocated(thirdOrd), allocated(solvation))
       end if
 
       if (tConverged .or. tStopScc) then

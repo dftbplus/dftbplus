@@ -219,19 +219,19 @@ contains
   !> Update internal stored coordinates
   subroutine updateCoords(self, neighList, img2CentCell, coords, species0)
 
-    !> data structure
+    !> Data structure
     class(TGeneralizedBorn), intent(inout) :: self
 
-    !> list of neighbours to atoms
+    !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neighList
 
-    !> image to central cell atom index
+    !> Image to central cell atom index
     integer, intent(in) :: img2CentCell(:)
 
-    !> atomic coordinates
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> central cell chemical species
+    !> Central cell chemical species
     integer, intent(in) :: species0(:)
 
     integer, allocatable :: nNeigh(:)
@@ -251,13 +251,13 @@ contains
   end subroutine updateCoords
 
 
-  !> update internal copy of lattice vectors
+  !> Update internal copy of lattice vectors
   subroutine updateLatVecs(self, latVecs)
 
-    !> data structure
+    !> Data structure
     class(TGeneralizedBorn), intent(inout) :: self
 
-    !> lattice vectors
+    !> Lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
     @:ASSERT(self%tPeriodic)
@@ -276,7 +276,7 @@ contains
   end subroutine updateLatVecs
 
 
-  !> get energy contributions
+  !> Get energy contributions
   subroutine getEnergies(self, energies)
 
     !> data structure
@@ -295,25 +295,25 @@ contains
   end subroutine getEnergies
 
 
-  !> get force contributions
+  !> Get force contributions
   subroutine addGradients(self, neighList, species, coords, img2CentCell, gradients)
 
-    !> data structure
+    !> Data structure
     class(TGeneralizedBorn), intent(inout) :: self
 
-    !> Neighbour list.
+    !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Specie for each atom.
+    !> Specie for each atom
     integer, intent(in) :: species(:)
 
-    !> Coordinate of each atom.
+    !> Coordinate of each atom
     real(dp), intent(in) :: coords(:,:)
 
-    !> Mapping of atoms to cetnral cell.
+    !> Mapping of atoms to cetnral cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> gradient contributions for each atom
+    !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
     real(dp) :: iAt1
@@ -424,6 +424,7 @@ contains
     if (allocated(self%cm5)) then
       call self%cm5%addCharges(self%chargesPerAtom)
     end if
+
     self%shift(:) = 0.0_dp
     call hemv(self%shift, self%bornMat, self%chargesPerAtom)
 
@@ -447,9 +448,10 @@ contains
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(size(shiftPerAtom) == self%nAtoms)
+    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
 
     shiftPerAtom(:) = self%shift
-    shiftPerShell(:,:) = 0.0_dp
+    shiftPerShell(:,:) = 0.0_dp ! spread(self%shift, 1, size(shiftPerShell, dim=1))
 
   end subroutine getShifts
 
@@ -476,14 +478,7 @@ contains
     !> current atomic positions
     real(dp), intent(in) :: coords(:, :)
 
-    integer :: iAt1, iAt2, iAt2f, iNeigh
-    logical :: tOv12, tOv21
-    real(dp) :: vec(3),dist
-    real(dp) :: rhoi, rhoj
-    real(dp) :: gi, gj, ap, am, lnab, rhab, ab, dgi, dgj
-    real(dp) :: dGr(3), dSr(3, 3)
-    real(dp) :: rh1, rhr1, r24, rh2, r1, aprh1, r12
-    real(dp) :: rvdwi, rvdwj
+    integer :: iAt1
     real(dp) :: br
     real(dp) :: dpsi
     real(dp) :: svdwi,vdwri
@@ -553,14 +548,14 @@ contains
     !> current atomic positions
     real(dp), intent(in) :: coords(:, :)
 
-    real(dp),allocatable :: psi(:),dpsidr(:,:,:),dpsitr(:,:)
+    integer :: iAt1, iNeigh, iAt2, iAt2f
+    logical :: tOvij,tOvji
     real(dp) :: vec(3),dist,rhoi,rhoj
     real(dp) :: gi,gj,ap,am,lnab,rhab,ab,dgi,dgj
     real(dp) :: dGr(3), dSr(3, 3)
     real(dp) :: rh1,rhr1,r24,rh2,r1,aprh1,r12
     real(dp) :: rvdwi,rvdwj
-    logical :: tOvij,tOvji
-    integer :: iAt1, iNeigh, iAt2, iAt2f
+    real(dp), allocatable :: psi(:),dpsidr(:,:,:),dpsitr(:,:)
 
     allocate(psi(self%nAtom), dpsidr(3, self%nAtom, self%nAtom), dpsitr(3, self%nAtom))
     psi(:) = 0.0_dp
@@ -812,7 +807,7 @@ contains
     !> Mapping into the central cell
     real(dp), intent(in) :: neighDist2(0:, :)
 
-    integer  :: iAt1, iAt2, iAt2f, iNeigh
+    integer :: iAt1, iAt2, iAt2f, iNeigh
     real(dp) :: aa, dist2, dd, expd, dfgb, fgb
 
     self%bornMat(:, :) = 0.0_dp
@@ -873,10 +868,9 @@ contains
     real(dp), intent(inout) :: stress(:, :)
 
     integer :: iAt1, iAt2, iAt2f, iNeigh
-    real(dp), allocatable :: dEdbr(:)
     real(dp) :: aa, dist2, fgb, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
     real(dp) :: grddbi,grddbj, vec(3), dGr(3), dSr(3, 3)
-
+    real(dp), allocatable :: dEdbr(:)
     real(dp), allocatable :: derivs(:, :)
 
     allocate(dEdbr(self%nAtom), derivs(3, self%nAtom))
@@ -890,7 +884,7 @@ contains
           iAt2 = iNeighbour(iNeigh, iAt1)
           iAt2f = img2CentCell(iAt2)
           dist2 = neighDist2(iNeigh, iAt1)
-          vec(:) = coords(:, iAt2) - coords(:, iAt1)
+          vec(:) = coords(:, iAt1) - coords(:, iAt2)
 
           ! dielectric scaling of the charges
           qq = self%chargesPerAtom(iAt1)*self%chargesPerAtom(iAt2f)
@@ -930,9 +924,7 @@ contains
        end do
     end do
 
-    !print'(3es20.12)', derivs
-
-    gradients(:, :) = gradients - derivs
+    gradients(:, :) = gradients + derivs
 
     !> self-energy part
     do iAt1 = 1, self%nAtom
