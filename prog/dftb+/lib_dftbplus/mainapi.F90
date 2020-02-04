@@ -83,8 +83,9 @@ contains
     gradients(:,:) = derivs
 
   end subroutine getGradients
-  
-  !> get forces on atoms
+
+
+  !> get stress tensor for unit cell
   subroutine getStressTensor(env, stress)
 
     !> instance
@@ -94,8 +95,8 @@ contains
     real(dp), intent(out) :: stress(:,:)
 
     if (.not. tStress) then
-      call error("Stress tensor not available, you must initialise your&
-          & calculator with the calculation of this tensor enabled.")
+      call error("Stress tensor not available, you must initialise your calculator with&
+          & this property enabled.")
     end if
 
     call recalcGeometry(env)

@@ -284,14 +284,15 @@ contains
 
 
   !> Obtain the stress tensor of the periodic system
-  subroutine c_DftbPlus_getStressTensor(handler, stresstensor) bind(C, name='dftbp_get_stress_tensor')
+  subroutine c_DftbPlus_getStressTensor(handler, stresstensor)&
+      & bind(C, name='dftbp_get_stress_tensor')
 
     !> handler for the calculation
     type(c_DftbPlus), intent(inout) :: handler
 
     !> gradients, row major format
     real(c_double), intent(out) :: stresstensor(3, 3)
-    
+
     type(TDftbPlusC), pointer :: instance
 
     call c_f_pointer(handler%instance, instance)
