@@ -214,7 +214,7 @@ void dftbp_get_gradients(DftbPlus *instance, double *gradients);
  *
  * \param[out] stresstensor Stress Tensor for the periodic box. Shape [3, 3]. Unit: Pascals.
  */
-void dftbp_get_gradients(DftbPlus *instance, double *stresstensor);
+void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
 
 
 /**
