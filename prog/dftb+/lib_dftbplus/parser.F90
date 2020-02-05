@@ -1486,7 +1486,7 @@ contains
     ifSCC: if (ctrl%tSCC) then
 
       ! get charge mixing options
-      call sharedSccOptions(node, ctrl, geo)
+      call readSccOptions(node, ctrl, geo)
 
       ! DFTB hydrogen bond corrections
       call readHCorrection(node, geo, ctrl)
@@ -1498,6 +1498,470 @@ contains
         & ctrl%customOccAtoms, ctrl%customOccFillings)
 
     ! Spin calculation
+    call readSpinPolarisation(node, ctrl, geo)
+
+    ! temporararily removed until debugged
+    !if (.not. ctrl%tscc) then
+    !  !! In a non-SCC calculation it is possible to upload charge shifts
+    !  !! This is useful if the calculation can jump directly to the Analysis block
+    !  call getChildValue(node, "ReadShifts", ctrl%tReadShifts, .false.)
+    !end if
+    ctrl%tReadShifts = .false.
+
+    ! External electric field
+    call readExternal(node, ctrl, geo)
+
+    call getChild(node, "SpinOrbit", child, requested=.false.)
+    if (.not. associated(child)) then
+      ctrl%tSpinOrbit = .false.
+      allocate(ctrl%xi(0,0))
+    else
+      if (ctrl%tSpin .and. .not. ctrl%t2Component) then
+        call error("Spin-orbit coupling incompatible with collinear spin.")
+      end if
+
+      ctrl%tSpinOrbit = .true.
+      ctrl%t2Component = .true.
+
+      call getChildValue(child, "Dual", ctrl%tDualSpinOrbit, .true.)
+
+      allocate(ctrl%xi(slako%orb%mShell,geo%nSpecies))
+      ctrl%xi = 0.0_dp
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child, geo%speciesNames(iSp1), &
+            & ctrl%xi(:slako%orb%nShell(iSp1),iSp1), modifier=modifier, &
+            & child=child2 )
+        call convertByMul(char(modifier), energyUnits, child2, &
+            & ctrl%xi(:slako%orb%nShell(iSp1),iSp1))
+      end do
+    end if
+
+
+    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
+    ! thermostat.)
+    call readFilling(node, ctrl, geo, 0.0_dp)
+
+    ! Electronic solver
+  #:if WITH_TRANSPORT
+    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+  #:else
+    call readSolver(node, ctrl, geo)
+  #:endif
+
+    ! Charge
+    call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+
+    ! K-Points
+    call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+
+    call getChild(node, "OrbitalPotential", child, requested=.false.)
+    if (.not. associated(child)) then
+      ctrl%tDFTBU = .false.
+      ctrl%DFTBUfunc = 0
+    else
+      call getChildValue(child, "Functional", buffer, "fll")
+      select case(tolower(char(buffer)))
+      case ("fll")
+        ctrl%DFTBUfunc = plusUFunctionals%fll
+      case ("psic")
+        ctrl%DFTBUfunc = plusUFunctionals%pSic
+      case default
+        call detailedError(child,"Unknown orbital functional :"// char(buffer))
+      end select
+
+      allocate(ctrl%nUJ(geo%nSpecies))
+      ctrl%nUJ = 0
+
+      ! to hold list of U-J values for each atom
+      allocate(lrN(geo%nSpecies))
+      ! to hold count of U-J values for each atom
+      allocate(liN(geo%nSpecies))
+      ! to hold list of shells for each U-J block of values
+      allocate(li1N(geo%nSpecies))
+
+      do iSp1 = 1, geo%nSpecies
+        call init(lrN(iSp1))
+        call init(liN(iSp1))
+        call init(li1N(iSp1))
+        call getChildren(child, trim(geo%speciesNames(iSp1)), children)
+        ctrl%nUJ(iSp1) = getLength(children)
+        do ii = 1, ctrl%nUJ(iSp1)
+          call getItem1(children, ii, child2)
+
+          call init(li)
+          call getChildValue(child2,"Shells",li)
+          allocate(pTmpI1(len(li)))
+          call asArray(li,pTmpI1)
+          call append(li1N(iSp1),pTmpI1)
+          call append(liN(iSp1),size(pTmpI1))
+          deallocate(pTmpI1)
+          call destruct(li)
+
+          call getChildValue(child2, "uj", rTmp, 0.0_dp, modifier=modifier, &
+              & child=child3)
+          call convertByMul(char(modifier), energyUnits, child3, rTmp)
+          if (rTmp < 0.0_dp) then
+            write(errorStr,"(F12.8)")rTmp
+            call detailedError(child2,"Negative value of U-J:"//errorStr)
+          end if
+          if (rTmp <= 1.0E-10_dp) then
+            write(errorStr,"(F12.8)")rTmp
+            call detailedError(child2,"Invalid value of U-J, too small: " &
+                & //errorStr)
+          end if
+          call append(lrN(iSp1),rTmp)
+        end do
+      end do
+
+      do iSp1 = 1, geo%nSpecies
+        ctrl%nUJ(iSp1) = len(lrN(iSp1))
+      end do
+      allocate(ctrl%UJ(maxval(ctrl%nUJ),geo%nSpecies))
+      ctrl%UJ = 0.0_dp
+      allocate(ctrl%niUJ(maxval(ctrl%nUJ),geo%nSpecies))
+      ctrl%niUJ = 0
+      do iSp1 = 1, geo%nSpecies
+        call asArray(lrN(iSp1),ctrl%UJ(1:len(lrN(iSp1)),iSp1))
+        allocate(iTmpN(len(liN(iSp1))))
+        call asArray(liN(iSp1),iTmpN)
+        ctrl%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
+        deallocate(iTmpN)
+        call destruct(lrN(iSp1))
+        call destruct(liN(iSp1))
+      end do
+      allocate(ctrl%iUJ(maxval(ctrl%niUJ),maxval(ctrl%nUJ),geo%nSpecies))
+      ctrl%iUJ = 0
+      do iSp1 = 1, geo%nSpecies
+        do ii = 1, ctrl%nUJ(iSp1)
+          allocate(iTmpN(ctrl%niUJ(ii,iSp1)))
+          call get(li1N(iSp1),iTmpN,ii)
+          ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
+          deallocate(iTmpN)
+        end do
+        call destruct(li1N(iSp1))
+      end do
+
+      deallocate(li1N)
+      deallocate(lrN)
+      deallocate(liN)
+
+      ! sanity check time
+      allocate(iTmpN(slako%orb%mShell))
+      do iSp1 = 1, geo%nSpecies
+        iTmpN = 0
+        ! loop over number of blocks for that species
+        do ii = 1, ctrl%nUJ(iSp1)
+          iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) = &
+              & iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) + 1
+        end do
+        if (any(iTmpN(:)>1)) then
+          write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
+          write(stdout, "(A,A3,A,I2)") &
+              & 'The count for the occurance of shells of species ', &
+              & trim(geo%speciesNames(iSp1)),' are:'
+          write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
+          call abortProgram()
+        end if
+      end do
+      deallocate(iTmpN)
+
+      ctrl%tDFTBU = .true.
+
+    end if
+
+    ! On-site
+    call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
+            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
+        call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
+            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
+      end do
+    end if
+
+    ! Dispersion
+    call getChildValue(node, "Dispersion", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%dispInp)
+      call readDispersion(child, geo, ctrl%dispInp)
+    end if
+
+    if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
+      call error("Lattice optimization only applies for periodic structures.")
+    end if
+
+  #:if WITH_TRANSPORT
+    call readElectrostatics(node, ctrl, geo, tp, poisson)
+  #:else
+    call readElectrostatics(node, ctrl, geo)
+  #:endif
+
+    ! Third order stuff
+    ctrl%t3rd = .false.
+    ctrl%t3rdFull = .false.
+    if (ctrl%tSCC) then
+      call getChildValue(node, "ThirdOrder", ctrl%t3rd, .false.)
+      call getChildValue(node, "ThirdOrderFull", ctrl%t3rdFull, .false.)
+      if (ctrl%t3rd .and. ctrl%t3rdFull) then
+        call detailedError(node, "You must choose either ThirdOrder or&
+            & ThirdOrderFull")
+      end if
+      if (ctrl%t3rd .and. ctrl%tShellResolved) then
+        call error("Only full third-order DFTB is compatible with orbital&
+            & resolved SCC")
+      end if
+      if (ctrl%t3rd .or. ctrl%t3rdFull) then
+        call getChild(node, 'HubbardDerivs', child, requested=.true.)
+        allocate(ctrl%HubDerivs(slako%orb%mShell, geo%nSpecies))
+        ctrl%hubDerivs(:,:) = 0.0_dp
+        do iSp1 = 1, geo%nSpecies
+          nShell = slako%orb%nShell(iSp1)
+          if (ctrl%tShellResolved) then
+            call getChildValue(child, geo%speciesNames(iSp1),&
+                & ctrl%hubDerivs(1:nShell, iSp1))
+          else
+            call getChildValue(child, geo%speciesNames(iSp1),&
+                & ctrl%hubDerivs(1, iSp1))
+            ctrl%hubDerivs(2:nShell, iSp1) = ctrl%hubDerivs(1, iSp1)
+          end if
+        end do
+        if (ctrl%t3rd) then
+          allocate(ctrl%thirdOrderOn(geo%nAtom, 2))
+          ctrl%thirdOrderOn(:,1) = 0.0_dp
+          ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geo%species)
+        end if
+
+        ! Halogen correction to the DFTB3 model
+        block
+          logical :: tHalogenInteraction
+          integer :: interType, iSp1, iSp2
+
+          if (.not. geo%tPeriodic) then
+            tHalogenInteraction = .false.
+            iSp1Loop: do iSp1 = 1, geo%nSpecies
+              if (any(geo%speciesNames(iSp1) == halogenXSpecies1)) then
+                do iSp2 = 1, geo%nSpecies
+                  if (any(geo%speciesNames(iSp2) == halogenXSpecies2)) then
+                    tHalogenInteraction = .true.
+                    exit iSp1Loop
+                  end if
+                end do
+              end if
+            end do iSp1Loop
+            if (tHalogenInteraction) then
+              call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
+            end if
+          end if
+        end block
+
+      end if
+    end if
+
+    call readDifferentiation(node, ctrl)
+
+    if (ctrl%tSCC) then
+      ! Force type
+      call readForceOptions(node, ctrl)
+    else
+      ctrl%forceType = forceTypes%orig
+    end if
+
+    call readCustomisedHubbards(node, geo, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
+
+  end subroutine readDFTBHam
+
+
+  !> Reads xTB-Hamiltonian
+#:if WITH_TRANSPORT
+  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+#:else
+  subroutine readXTBHam(node, ctrl, geo)
+#:endif
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+  #:if WITH_TRANSPORT
+    !> Transport parameters
+    type(TTransPar), intent(inout)  :: tp
+
+    !> Green's function paramenters
+    type(TNEGFGreenDensInfo), intent(inout) :: greendens
+
+    !> Poisson solver paramenters
+    type(TPoissonInfo), intent(inout) :: poisson
+  #:endif
+
+    type(fnode), pointer :: value1, child
+    integer :: gfnLevel, ii
+    logical :: tBadIntegratingKPoints
+    logical :: tSCCdefault
+    character(lc) :: errorStr
+
+    ctrl%hamiltonian = hamiltonianTypes%xtb
+
+    call getChildValue(node, "gfn", gfnLevel, child=child)
+    select case(gfnLevel)
+    case default
+      call detailedError(child, "Invalid GFN level specified")
+    case(0)
+      tSCCdefault = .false.
+    case(1)
+      tSCCdefault = .true.
+    case(2)
+      tSCCdefault = .true.
+    end select
+
+    call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
+
+    ! SCC parameters
+    call getChildValue(node, "SCC", ctrl%tSCC, tSCCdefault)
+    ifSCC: if (ctrl%tSCC) then
+
+      ! get charge mixing options etc.
+      call readSccOptions(node, ctrl, geo)
+
+    end if ifSCC
+
+    ! Spin calculation
+    call readSpinPolarisation(node, ctrl, geo)
+
+    ! temporararily removed until debugged
+    !if (.not. ctrl%tscc) then
+    !  !! In a non-SCC calculation it is possible to upload charge shifts
+    !  !! This is useful if the calculation can jump directly to the Analysis block
+    !  call getChildValue(node, "ReadShifts", ctrl%tReadShifts, .false.)
+    !end if
+    ctrl%tReadShifts = .false.
+
+    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
+    ! thermostat.)
+    call readFilling(node, ctrl, geo, 300.0_dp)
+
+    ! Electronic solver
+  #:if WITH_TRANSPORT
+    call readSolver(node, ctrl, geo, tp, greendens, poisson)
+  #:else
+    call readSolver(node, ctrl, geo)
+  #:endif
+
+    ! Charge
+    call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+
+    ! K-Points
+    call readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+
+    ! Dispersion
+    call getChildValue(node, "Dispersion", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%dispInp)
+      call readDispersion(child, geo, ctrl%dispInp)
+    end if
+
+    if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
+      call error("Lattice optimization only applies for periodic structures.")
+    end if
+
+  #:if WITH_TRANSPORT
+    call readElectrostatics(node, ctrl, geo, tp, poisson)
+  #:else
+    call readElectrostatics(node, ctrl, geo)
+  #:endif
+
+    ! Third order stuff
+    ctrl%t3rd = .true.
+    ctrl%t3rdFull = .false.
+
+    call readDifferentiation(node, ctrl)
+
+    if (ctrl%tSCC) then
+      ! Force type
+      call readForceOptions(node, ctrl)
+    else
+      ctrl%forceType = forceTypes%orig
+    end if
+
+    call error("xTB calculation currently not supported")
+
+  end subroutine readXTBHam
+
+
+#:if WITH_TRANSPORT
+  subroutine readElectrostatics(node, ctrl, geo, tp, poisson)
+#:else
+  subroutine readElectrostatics(node, ctrl, geo)
+#:endif
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+  #:if WITH_TRANSPORT
+    !> Transport parameters
+    type(TTransPar), intent(inout)  :: tp
+
+    !> Poisson solver paramenters
+    type(TPoissonInfo), intent(inout) :: poisson
+  #:endif
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer
+
+    ctrl%tPoisson = .false.
+
+  #:if WITH_TRANSPORT
+    ! Read in which kind of electrostatics method to use.
+    call getChildValue(node, "Electrostatics", value1, "GammaFunctional", child=child)
+    call getNodeName(value1, buffer)
+    select case (char(buffer))
+    case ("gammafunctional")
+      if (tp%taskUpload .and. ctrl%tSCC) then
+        call detailedError(child, "GammaFunctional not available, if you upload contacts in an SCC&
+            & calculation.")
+      end if
+    case ("poisson")
+      ctrl%tPoisson = .true.
+      call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs)
+    case default
+      call getNodeHSDName(value1, buffer)
+      call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
+    end select
+  #:endif
+
+  end subroutine readElectrostatics
+
+
+  !> Spin calculation
+  subroutine readSpinPolarisation(node, ctrl, geo)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer
+
     call getChildValue(node, "SpinPolarisation", value1, "", child=child, &
         &allowEmptyValue=.true.)
     call getNodeName2(value1, buffer)
@@ -1529,22 +1993,42 @@ contains
           & char(buffer) // "'")
     end select
 
-#:if WITH_TRANSPORT
+  #:if WITH_TRANSPORT
     if (ctrl%tSpin .and. tp%ncont > 0) then
        call detailedError(child, "Spin-polarized transport is under development" //&
              & "and not currently available")
     end if
-#:endif
+  #:endif
 
-    ! temporararily removed until debugged
-    !if (.not. ctrl%tscc) then
-    !  !! In a non-SCC calculation it is possible to upload charge shifts
-    !  !! This is useful if the calculation can jump directly to the Analysis block
-    !  call getChildValue(node, "ReadShifts", ctrl%tReadShifts, .false.)
-    !end if
-    ctrl%tReadShifts = .false.
+  end subroutine readSpinPolarisation
 
-    ! External electric field
+
+  ! External electric field
+  subroutine readExternal(node, ctrl, geo)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: value1, child, child2, child3
+    type(fnodeList), pointer :: children
+    type(string) :: modifier
+    type(string) :: buffer, buffer2
+    real(dp) :: rTmp
+    integer :: ind, ii
+    integer :: fp, iErr
+    integer :: nElem
+    real(dp), allocatable :: tmpR1(:)
+    real(dp), allocatable :: tmpR2(:,:)
+    type(listRealR2) :: lCharges
+    type(listRealR1) :: lBlurs
+    type(listRealR1) :: lr1
+
     call getChildValue(node, "ElectricField", value1, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true., list=.true.)
 
@@ -1661,34 +2145,28 @@ contains
     end if
     call destroyNodeList(children)
 
-    call getChild(node, "SpinOrbit", child, requested=.false.)
-    if (.not. associated(child)) then
-      ctrl%tSpinOrbit = .false.
-      allocate(ctrl%xi(0,0))
-    else
-      if (ctrl%tSpin .and. .not. ctrl%t2Component) then
-        call error("Spin-orbit coupling incompatible with collinear spin.")
-      end if
-
-      ctrl%tSpinOrbit = .true.
-      ctrl%t2Component = .true.
-
-      call getChildValue(child, "Dual", ctrl%tDualSpinOrbit, .true.)
-
-      allocate(ctrl%xi(slako%orb%mShell,geo%nSpecies))
-      ctrl%xi = 0.0_dp
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(child, geo%speciesNames(iSp1), &
-            & ctrl%xi(:slako%orb%nShell(iSp1),iSp1), modifier=modifier, &
-            & child=child2 )
-        call convertByMul(char(modifier), energyUnits, child2, &
-            & ctrl%xi(:slako%orb%nShell(iSp1),iSp1))
-      end do
-    end if
+  end subroutine readExternal
 
 
-    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-    ! thermostat.)
+  !> Filling
+  subroutine readFilling(node, ctrl, geo, temperatureDefault)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    !> Default temperature for filling
+    real(dp), intent(in) :: temperatureDefault
+
+    type(fnode), pointer :: value1, child, child2, child3, field
+    type(string) :: buffer, modifier
+    character(lc) :: errorStr
+
     call getChildValue(node, "Filling", value1, "Fermi", child=child)
     call getNodeName(value1, buffer)
 
@@ -1711,7 +2189,7 @@ contains
     end select
 
     if (.not. ctrl%tSetFillingTemp) then
-      call getChildValue(value1, "Temperature", ctrl%tempElec, 0.0_dp, &
+      call getChildValue(value1, "Temperature", ctrl%tempElec, temperatureDefault, &
           &modifier=modifier, child=field)
       call convertByMul(char(modifier), energyUnits, field, ctrl%tempElec)
       if (ctrl%tempElec < minTemp) then
@@ -1734,6 +2212,39 @@ contains
     if (geo%tPeriodic .and. .not.ctrl%tFixEf) then
       call getChildValue(value1, "IndependentKFilling", ctrl%tFillKSep, .false.)
     end if
+
+  end subroutine readFilling
+
+
+  !> Electronic Solver
+#:if WITH_TRANSPORT
+  subroutine readSolver(node, ctrl, geo, tp, greendens, poisson)
+#:else
+  subroutine readSolver(node, ctrl, geo)
+#:endif
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+  #:if WITH_TRANSPORT
+    !> Transport parameters
+    type(TTransPar), intent(inout)  :: tp
+
+    !> Green's function paramenters
+    type(TNEGFGreenDensInfo), intent(inout) :: greendens
+
+    !> Poisson solver paramenters
+    type(TPoissonInfo), intent(inout) :: poisson
+  #:endif
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer, modifier
 
     ! Electronic solver
     call getChildValue(node, "Solver", value1, "RelativelyRobust")
@@ -1857,9 +2368,33 @@ contains
           & (GreensFunction or TransportOnly required)")
     end if
   #:endif
+  end subroutine readSolver
 
-    ! Charge
-    call getChildValue(node, "Charge", ctrl%nrChrg, 0.0_dp)
+
+  !> K-Points
+  subroutine readKPoints(node, ctrl, geo, tBadIntegratingKPoints)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    logical, intent(out) :: tBadIntegratingKPoints
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer, modifier
+    integer :: ind, ii, jj, kk
+    real(dp) :: coeffsAndShifts(3, 4)
+    real(dp) :: rTmp3(3)
+    type(listIntR1) :: li1
+    type(listRealR1) :: lr1
+    integer, allocatable :: tmpI1(:)
+    real(dp), allocatable :: kpts(:,:)
+    character(lc) :: errorStr
 
     ! Assume SCC can has usual default number of steps if needed
     tBadIntegratingKPoints = .false.
@@ -2006,288 +2541,11 @@ contains
       call warning("It is strongly suggested you use the ReadInitialCharges option.")
     end if
 
-    call getChild(node, "OrbitalPotential", child, requested=.false.)
-    if (.not. associated(child)) then
-      ctrl%tDFTBU = .false.
-      ctrl%DFTBUfunc = 0
-    else
-      call getChildValue(child, "Functional", buffer, "fll")
-      select case(tolower(char(buffer)))
-      case ("fll")
-        ctrl%DFTBUfunc = plusUFunctionals%fll
-      case ("psic")
-        ctrl%DFTBUfunc = plusUFunctionals%pSic
-      case default
-        call detailedError(child,"Unknown orbital functional :"// char(buffer))
-      end select
-
-      allocate(ctrl%nUJ(geo%nSpecies))
-      ctrl%nUJ = 0
-
-      ! to hold list of U-J values for each atom
-      allocate(lrN(geo%nSpecies))
-      ! to hold count of U-J values for each atom
-      allocate(liN(geo%nSpecies))
-      ! to hold list of shells for each U-J block of values
-      allocate(li1N(geo%nSpecies))
-
-      do iSp1 = 1, geo%nSpecies
-        call init(lrN(iSp1))
-        call init(liN(iSp1))
-        call init(li1N(iSp1))
-        call getChildren(child, trim(geo%speciesNames(iSp1)), children)
-        ctrl%nUJ(iSp1) = getLength(children)
-        do ii = 1, ctrl%nUJ(iSp1)
-          call getItem1(children, ii, child2)
-
-          call init(li)
-          call getChildValue(child2,"Shells",li)
-          allocate(pTmpI1(len(li)))
-          call asArray(li,pTmpI1)
-          call append(li1N(iSp1),pTmpI1)
-          call append(liN(iSp1),size(pTmpI1))
-          deallocate(pTmpI1)
-          call destruct(li)
-
-          call getChildValue(child2, "uj", rTmp, 0.0_dp, modifier=modifier, &
-              & child=child3)
-          call convertByMul(char(modifier), energyUnits, child3, rTmp)
-          if (rTmp < 0.0_dp) then
-            write(errorStr,"(F12.8)")rTmp
-            call detailedError(child2,"Negative value of U-J:"//errorStr)
-          end if
-          if (rTmp <= 1.0E-10_dp) then
-            write(errorStr,"(F12.8)")rTmp
-            call detailedError(child2,"Invalid value of U-J, too small: " &
-                & //errorStr)
-          end if
-          call append(lrN(iSp1),rTmp)
-        end do
-      end do
-
-      do iSp1 = 1, geo%nSpecies
-        ctrl%nUJ(iSp1) = len(lrN(iSp1))
-      end do
-      allocate(ctrl%UJ(maxval(ctrl%nUJ),geo%nSpecies))
-      ctrl%UJ = 0.0_dp
-      allocate(ctrl%niUJ(maxval(ctrl%nUJ),geo%nSpecies))
-      ctrl%niUJ = 0
-      do iSp1 = 1, geo%nSpecies
-        call asArray(lrN(iSp1),ctrl%UJ(1:len(lrN(iSp1)),iSp1))
-        allocate(iTmpN(len(liN(iSp1))))
-        call asArray(liN(iSp1),iTmpN)
-        ctrl%niUJ(1:len(liN(iSp1)),iSp1) = iTmpN(:)
-        deallocate(iTmpN)
-        call destruct(lrN(iSp1))
-        call destruct(liN(iSp1))
-      end do
-      allocate(ctrl%iUJ(maxval(ctrl%niUJ),maxval(ctrl%nUJ),geo%nSpecies))
-      ctrl%iUJ = 0
-      do iSp1 = 1, geo%nSpecies
-        do ii = 1, ctrl%nUJ(iSp1)
-          allocate(iTmpN(ctrl%niUJ(ii,iSp1)))
-          call get(li1N(iSp1),iTmpN,ii)
-          ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1) = iTmpN(:)
-          deallocate(iTmpN)
-        end do
-        call destruct(li1N(iSp1))
-      end do
-
-      deallocate(li1N)
-      deallocate(lrN)
-      deallocate(liN)
-
-      ! sanity check time
-      allocate(iTmpN(slako%orb%mShell))
-      do iSp1 = 1, geo%nSpecies
-        iTmpN = 0
-        ! loop over number of blocks for that species
-        do ii = 1, ctrl%nUJ(iSp1)
-          iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) = &
-              & iTmpN(ctrl%iUJ(1:ctrl%niUJ(ii,iSp1),ii,iSp1)) + 1
-        end do
-        if (any(iTmpN(:)>1)) then
-          write(stdout, *)'Multiple copies of shells present in OrbitalPotential!'
-          write(stdout, "(A,A3,A,I2)") &
-              & 'The count for the occurance of shells of species ', &
-              & trim(geo%speciesNames(iSp1)),' are:'
-          write(stdout, *)iTmpN(1:slako%orb%nShell(iSp1))
-          call abortProgram()
-        end if
-      end do
-      deallocate(iTmpN)
-
-      ctrl%tDFTBU = .true.
-
-    end if
-
-    ! On-site
-    call getChildValue(node, "OnSiteCorrection", value1, "", child=child, allowEmptyValue=.true.,&
-        & dummyValue=.true.)
-    if (associated(value1)) then
-      allocate(ctrl%onSiteElements(slako%orb%mShell, slako%orb%mShell, 2, geo%nSpecies))
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(child, trim(geo%speciesNames(iSp1))//"uu",&
-            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 1, iSp1))
-        call getChildValue(child, trim(geo%speciesNames(iSp1))//"ud",&
-            & ctrl%onSiteElements(:slako%orb%nShell(iSp1), :slako%orb%nShell(iSp1), 2, iSp1))
-      end do
-    end if
-
-    ! Dispersion
-    call getChildValue(node, "Dispersion", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
-    if (associated(value1)) then
-      allocate(ctrl%dispInp)
-      call readDispersion(child, geo, ctrl%dispInp)
-    end if
-    if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
-      call error("Lattice optimization only applies for periodic structures.")
-    end if
-
-    ctrl%tPoisson = .false.
-
-  #:if WITH_TRANSPORT
-    ! Read in which kind of electrostatics method to use.
-    call getChildValue(node, "Electrostatics", value1, "GammaFunctional", child=child)
-    call getNodeName(value1, buffer)
-    select case (char(buffer))
-    case ("gammafunctional")
-      if (tp%taskUpload .and. ctrl%tSCC) then
-        call detailedError(child, "GammaFunctional not available, if you upload contacts in an SCC&
-            & calculation.")
-      end if
-    case ("poisson")
-      ctrl%tPoisson = .true.
-      call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs)
-    case default
-      call getNodeHSDName(value1, buffer)
-      call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
-    end select
-  #:endif
-
-    ! Third order stuff
-    ctrl%t3rd = .false.
-    ctrl%t3rdFull = .false.
-    if (ctrl%tSCC) then
-      call getChildValue(node, "ThirdOrder", ctrl%t3rd, .false.)
-      call getChildValue(node, "ThirdOrderFull", ctrl%t3rdFull, .false.)
-      if (ctrl%t3rd .and. ctrl%t3rdFull) then
-        call detailedError(node, "You must choose either ThirdOrder or&
-            & ThirdOrderFull")
-      end if
-      if (ctrl%t3rd .and. ctrl%tShellResolved) then
-        call error("Only full third-order DFTB is compatible with orbital&
-            & resolved SCC")
-      end if
-      if (ctrl%t3rd .or. ctrl%t3rdFull) then
-        call getChild(node, 'HubbardDerivs', child, requested=.true.)
-        allocate(ctrl%HubDerivs(slako%orb%mShell, geo%nSpecies))
-        ctrl%hubDerivs(:,:) = 0.0_dp
-        do iSp1 = 1, geo%nSpecies
-          nShell = slako%orb%nShell(iSp1)
-          if (ctrl%tShellResolved) then
-            call getChildValue(child, geo%speciesNames(iSp1),&
-                & ctrl%hubDerivs(1:nShell, iSp1))
-          else
-            call getChildValue(child, geo%speciesNames(iSp1),&
-                & ctrl%hubDerivs(1, iSp1))
-            ctrl%hubDerivs(2:nShell, iSp1) = ctrl%hubDerivs(1, iSp1)
-          end if
-        end do
-        if (ctrl%t3rd) then
-          allocate(ctrl%thirdOrderOn(geo%nAtom, 2))
-          ctrl%thirdOrderOn(:,1) = 0.0_dp
-          ctrl%thirdOrderOn(:,2) = ctrl%hubDerivs(1, geo%species)
-        end if
-
-        ! Halogen correction to the DFTB3 model
-        block
-          logical :: tHalogenInteraction
-          integer :: interType, iSp1, iSp2
-
-          if (.not. geo%tPeriodic) then
-            tHalogenInteraction = .false.
-            iSp1Loop: do iSp1 = 1, geo%nSpecies
-              if (any(geo%speciesNames(iSp1) == halogenXSpecies1)) then
-                do iSp2 = 1, geo%nSpecies
-                  if (any(geo%speciesNames(iSp2) == halogenXSpecies2)) then
-                    tHalogenInteraction = .true.
-                    exit iSp1Loop
-                  end if
-                end do
-              end if
-            end do iSp1Loop
-            if (tHalogenInteraction) then
-              call getChildValue(node, "HalogenXCorr", ctrl%tHalogenX, .false.)
-            end if
-          end if
-        end block
-
-      end if
-    end if
-
-    call readDifferentiation(node, ctrl)
-
-    if (ctrl%tSCC) then
-      ! Force type
-      call sharedForceOptions(node, ctrl)
-    else
-      ctrl%forceType = forceTypes%orig
-    end if
-
-    call readCustomisedHubbards(node, geo, slako%orb, ctrl%tShellResolved, ctrl%hubbU)
-
-  end subroutine readDFTBHam
-
-
-  !> Reads xTB-Hamiltonian
-#:if WITH_TRANSPORT
-  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson)
-#:else
-  subroutine readXTBHam(node, ctrl, geo)
-#:endif
-
-    !> Node to get the information from
-    type(fnode), pointer :: node
-
-    !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
-
-    !> Geometry structure to be filled
-    type(TGeometry), intent(in) :: geo
-
-  #:if WITH_TRANSPORT
-    !> Transport parameters
-    type(TTransPar), intent(inout)  :: tp
-
-    !> Green's function paramenters
-    type(TNEGFGreenDensInfo), intent(inout) :: greendens
-
-    !> Poisson solver paramenters
-    type(TPoissonInfo), intent(inout) :: poisson
-  #:endif
-
-    ctrl%hamiltonian = hamiltonianTypes%gfn1_xtb
-
-    ctrl%tSCC = .true.
-    ctrl%tShellResolved = .true.
-
-    ctrl%t3rd = .true.
-    ctrl%t3rdFull = .false.
-
-    ! get charge mixing options etc.
-    call sharedSccOptions(node, ctrl, geo)
-
-    call sharedForceOptions(node, ctrl)
-
-    call error("Nothing much here so far...")
-
-  end subroutine
+  end subroutine readKPoints
 
 
   !> SCC options that are need for different hamiltonian choices
-  subroutine sharedSccOptions(node, ctrl, geo)
+  subroutine readSccOptions(node, ctrl, geo)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2371,11 +2629,11 @@ contains
       call getChildValue(node, "EwaldTolerance", ctrl%tolEwald, 1.0e-9_dp)
     end if
 
-  end subroutine sharedSccOptions
+  end subroutine readSccOptions
 
 
   !> Force evaluation options that are need for different hamiltonian choices
-  subroutine sharedForceOptions(node, ctrl)
+  subroutine readForceOptions(node, ctrl)
 
     !> Relevant node in input tree
     type(fnode), pointer :: node
@@ -2398,7 +2656,7 @@ contains
       call detailedError(child, "Invalid force evaluation method.")
     end select
 
-  end subroutine sharedForceOptions
+  end subroutine readForceOptions
 
 
   !> Options for truncation of the SK data sets at a fixed distance
