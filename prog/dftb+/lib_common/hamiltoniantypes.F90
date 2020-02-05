@@ -23,7 +23,7 @@ module dftbp_hamiltoniantypes
     integer :: dftb = 1
 
     !> XTB
-    integer :: gfn1_xtb = 2
+    integer :: xtb = 2
 
   end type THamiltonianTypesEnum
 
