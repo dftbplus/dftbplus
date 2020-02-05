@@ -42,6 +42,8 @@ module dftbp_initprogram
   use dftbp_gdiis
   use dftbp_lbfgs
 
+  use dftbp_hamiltoniantypes
+
   use dftbp_randomgenpool
   use dftbp_ranlux
   use dftbp_mdcommon
@@ -265,6 +267,9 @@ module dftbp_initprogram
 
   !> list of atomic masses for each species
   real(dp), allocatable :: speciesMass(:)
+
+  !> Hamiltonian type
+  integer :: hamiltonianType
 
   !> Raw H^0 hamiltonian data
   type(OSlakoCont) :: skHamCont
@@ -1128,6 +1133,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Basic variables
+    hamiltonianType = input%ctrl%hamiltonian
     tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
@@ -1156,7 +1162,15 @@ contains
 
     nAtom = input%geom%nAtom
     nType = input%geom%nSpecies
-    orb = input%slako%orb
+    select case(hamiltonianType)
+    case default
+      call error("Invalid Hamiltonian")
+    case(hamiltonianTypes%dftb)
+      orb = input%slako%orb
+    case(hamiltonianTypes%xtb)
+      ! TODO
+      call error("xTB calculation currently not supported")
+    end select
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
 
@@ -1251,20 +1265,28 @@ contains
       tLatticeChanged = .false.
     end if
 
-    ! Slater-Koster tables
-    skHamCont = input%slako%skHamCont
-    skOverCont = input%slako%skOverCont
-    pRepCont = input%slako%repCont
+    select case(hamiltonianType)
+    case default
+      call error("Invalid Hamiltonian")
+    case(hamiltonianTypes%dftb)
+      ! Slater-Koster tables
+      skHamCont = input%slako%skHamCont
+      skOverCont = input%slako%skOverCont
+      pRepCont = input%slako%repCont
 
-    allocate(atomEigVal(orb%mShell, nType))
-    @:ASSERT(size(input%slako%skSelf, dim=1) == orb%mShell)
-    @:ASSERT(size(input%slako%skSelf, dim=2) == size(atomEigVal, dim=2))
-    atomEigVal(:,:) = input%slako%skSelf(1:orb%mShell, :)
+      allocate(atomEigVal(orb%mShell, nType))
+      @:ASSERT(size(input%slako%skSelf, dim=1) == orb%mShell)
+      @:ASSERT(size(input%slako%skSelf, dim=2) == size(atomEigVal, dim=2))
+      atomEigVal(:,:) = input%slako%skSelf(1:orb%mShell, :)
 
-    @:ASSERT(size(input%slako%skOcc, dim=1) >= orb%mShell)
-    @:ASSERT(size(input%slako%mass) == nType)
-    allocate(speciesMass(nType))
-    speciesMass(:) = input%slako%mass(:)
+      @:ASSERT(size(input%slako%skOcc, dim=1) >= orb%mShell)
+      @:ASSERT(size(input%slako%mass) == nType)
+      allocate(speciesMass(nType))
+      speciesMass(:) = input%slako%mass(:)
+    case(hamiltonianTypes%xtb)
+      ! TODO
+      call error("xTB calculation currently not supported")
+    end select
 
     ! Spin W's !'
     if (allocated(input%ctrl%spinW)) then
@@ -1324,10 +1346,18 @@ contains
       allocate(iUJ(0,0,0))
     end if
 
-    ! Cut-offs for SlaKo, repulsive
-    cutOff%skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
-    cutOff%repCutOff = getCutOff(pRepCont)
-    cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
+    select case(hamiltonianType)
+    case default
+      call error("Invalid Hamiltonian")
+    case(hamiltonianTypes%dftb)
+      ! Cut-offs for SlaKo, repulsive
+      cutOff%skCutOff = max(getCutOff(skHamCont), getCutOff(skOverCont))
+      cutOff%repCutOff = getCutOff(pRepCont)
+      cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
+    case(hamiltonianTypes%xtb)
+      ! TODO
+      call error("xTB calculation currently not supported")
+    end select
 
     ! Get species names and output file
     geoOutFile = input%ctrl%outFile
@@ -1347,9 +1377,19 @@ contains
     ! artifical, since the copy for the main program is only used for dumping
     ! into the tagged format for autotest)
     allocate(hubbU(orb%mShell, nType))
-    @:ASSERT(size(input%slako%skHubbU, dim=1) >= orb%mShell)
-    @:ASSERT(size(input%slako%skHubbU, dim=2) == nType)
-    hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
+
+    select case(hamiltonianType)
+    case default
+      call error("Invalid Hamiltonian")
+    case(hamiltonianTypes%dftb)
+      @:ASSERT(size(input%slako%skHubbU, dim=1) >= orb%mShell)
+      @:ASSERT(size(input%slako%skHubbU, dim=2) == nType)
+      hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
+    case(hamiltonianTypes%xtb)
+      ! TODO
+      call error("xTB calculation currently not supported")
+    end select
+
     if (allocated(input%ctrl%hubbU)) then
       where (input%ctrl%hubbU > 0.0_dp)
         hubbU = input%ctrl%hubbU
@@ -1694,7 +1734,15 @@ contains
     tForces = input%ctrl%tForces .or. tPrintForces
     tLinResp = input%ctrl%lrespini%tInit
 
-    referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
+    select case(hamiltonianType)
+    case default
+      call error("Invalid Hamiltonian")
+    case(hamiltonianTypes%dftb)
+      referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
+    case(hamiltonianTypes%xtb)
+      ! TODO
+      call error("xTB calculation currently not supported")
+    end select
 
     ! Allocate reference charge arrays
     allocate(q0(orb%mOrb, nAtom, nSpin))
@@ -2089,7 +2137,7 @@ contains
       ! shell resolved)
       do iSp = 1, nType
         homoLoc = maxloc(atomEigVal(:orb%nShell(iSp), iSp),&
-            & mask=input%slako%skOcc(:orb%nShell(iSp), iSp) > 0.0_dp)
+            & mask=referenceN0(:orb%nShell(iSp), iSp) > 0.0_dp)
         input%ctrl%lrespini%HubbardU(iSp) = hubbU(homoLoc(1), iSp)
       end do
 
@@ -2102,7 +2150,7 @@ contains
         ! triplet or spin-polarised
         do iSp = 1, nType
           homoLoc = maxloc(atomEigVal(:orb%nShell(iSp), iSp),&
-              & mask=input%slako%skOcc(:orb%nShell(iSp), iSp) > 0.0_dp)
+              & mask=referenceN0(:orb%nShell(iSp), iSp) > 0.0_dp)
           input%ctrl%lrespini%spinW(iSp) = spinW(homoLoc(1), homoLoc(1), iSp)
         end do
       case default

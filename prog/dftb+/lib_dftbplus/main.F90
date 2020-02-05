@@ -26,6 +26,7 @@ module dftbp_main
   use dftbp_environment
   use dftbp_densedescr
   use dftbp_inputdata
+  use dftbp_hamiltoniantypes
   use dftbp_nonscc
   use dftbp_eigenvects
   use dftbp_repulsive
@@ -405,10 +406,18 @@ contains
     end if
 
     call env%globalTimer%startTimer(globalTimers%sparseH0S)
-    call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbourSk, neighbourList%iNeighbour,&
-        & species, iSparseStart, orb)
-    call buildS(env, over, skOverCont, coord, nNeighbourSk, neighbourList%iNeighbour, species,&
-        & iSparseStart, orb)
+    select case(hamiltonianType)
+    case default
+      call error("Invalid Hamiltonian")
+    case(hamiltonianTypes%dftb)
+      call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbourSk, neighbourList%iNeighbour,&
+          & species, iSparseStart, orb)
+      call buildS(env, over, skOverCont, coord, nNeighbourSk, neighbourList%iNeighbour, species,&
+          & iSparseStart, orb)
+    case(hamiltonianTypes%xtb)
+      ! TODO
+      call error("xTB calculation currently not supported")
+    end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
     if (tSetFillingTemp) then
