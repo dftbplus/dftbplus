@@ -83,13 +83,13 @@ int main()
   double mermin_energy, mermin_energy_total;
   double *gradients, *gradients_total, *gross_charges, *gross_charges_total;
   int natom, natom0, natom_total;
-  int si2;
+  int si2, ii;
 
   /* Collective variables will hold the summed up results of multiple test runs */
   init_collective_variables(&mermin_energy_total, &gradients_total, &gross_charges_total);
 
   /* Dummy loop to test subsequent initialisations / finalisations of the DFTB+ object */
-  for (int ii = 0; ii < NR_ITER; ++ii) {
+  for (ii = 0; ii < NR_ITER; ++ii) {
 
     /* Use input for Si2 and H2O alternatingly, starting with Si2 */
     si2 = !(ii % 2);
