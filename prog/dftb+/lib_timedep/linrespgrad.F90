@@ -1447,7 +1447,7 @@ contains
 
       tmp2 = dot_product(zkm1, rkm1)
 
-      ! Fletcher–Reeves update
+      ! Fletcher-Reeves update
       bkm1 = tmp2 / tmp1
 
       pkm1 = zkm1 + bkm1 * pkm1

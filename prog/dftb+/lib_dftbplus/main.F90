@@ -1914,9 +1914,9 @@ contains
   !> Transform the hamiltonian from QM to UD representation
   !> Hack due to not using Pauli-type structure for diagonalisation
   !> For collinear spin, qm2ud will produce the right potential:
-  !> (Vq, uB*Bz*σz) -> (Vq + uB*Bz*σz, Vq - uB*Bz*σz)
+  !> (Vq, uB*Bz*\sigma_z) -> (Vq + uB*Bz*\sigma_z, Vq - uB*Bz*\sigma_z)
   !> For non-collinear spin-orbit, all blocks are multiplied by 1/2:
-  !> (Vq/2, uL* Lx*σx/2, uL* Ly*σy/2, uL* Lz*σz/2)
+  !> (Vq/2, uL* Lx*\sigma_x/2, uL* Ly*\sigma_y/2, uL* Lz*\sigma_z/2)
   subroutine convertToUpDownRepr(Ham, iHam)
     real(dp), intent(inout) :: Ham(:,:)
     real(dp), intent(inout), allocatable :: iHam(:,:)
