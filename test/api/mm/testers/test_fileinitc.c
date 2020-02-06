@@ -162,7 +162,7 @@ int main()
     if (ii == NR_ITER - 1) {
       /* Save some data for the internal test system */
       dftbp_write_autotest_tag(MAX_ATOMS, 0, mermin_energy_total, gradients_total,
-                               gross_charges_total, NULL);
+                               NULL, gross_charges_total, NULL);
     }
 
     free(gradients);
