@@ -34,7 +34,7 @@ program test_treeinit
   type(TDftbPlusInput) :: input
 
   real(dp) :: merminEnergy
-  real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2)
+  real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2), stressTensor(3,3)
 
   ! pointers to the parts of the input tree that will be set
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pOptions, pParserOpts
@@ -101,6 +101,7 @@ program test_treeinit
   ! re-calculate energy and forces
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
+  call dftbp%getStressTensor(stressTensor)
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
 
@@ -108,6 +109,6 @@ program test_treeinit
   call TDftbPlus_destruct(dftbp)
 
   ! Write file for internal test system
-  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients)
+  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, stressTensor=stressTensor)
 
 end program test_treeinit
