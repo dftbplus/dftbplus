@@ -1190,33 +1190,22 @@ contains
     type(fnodeList), pointer :: children
     type(string) :: buffer, buffer2, modifier
     type(listInt) :: li
-    type(listIntR1) :: li1
-    type(listRealR1) :: lr1
     type(listInt), allocatable :: liN(:)
     type(listIntR1), allocatable :: li1N(:)
     type(listReal), allocatable :: lrN(:)
     type(listCharLc), allocatable :: skFiles(:,:)
     type(listString) :: lStr
     type(listIntR1), allocatable :: angShells(:)
-    type(listRealR2) :: lCharges
-    type(listRealR1) :: lBlurs
     logical, allocatable :: repPoly(:,:)
     integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
     character(lc) :: errorStr
     logical :: tLower, tExist
-    real(dp), allocatable :: kpts(:,:)
-    integer, allocatable :: tmpI1(:)
     integer, allocatable :: pTmpI1(:)
-    real(dp), allocatable :: tmpR1(:)
-    real(dp), allocatable :: tmpR2(:,:)
-    real(dp) :: rTmp, rTmp3(3)
+    real(dp) :: rTmp
     integer, allocatable :: iTmpN(:)
-    real(dp) :: coeffsAndShifts(3, 4)
     integer :: nShell, skInterMeth
-    character(1) :: tmpCh
-    logical :: tShellIncl(4), tFound
-    integer :: angShell(maxL+1), angShellOrdered(maxL+1)
+    integer :: angShell(maxL+1)
     integer :: fp, iErr
     logical :: tBadIntegratingKPoints
     integer :: nElem
@@ -1229,118 +1218,12 @@ contains
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
 
-    ! Read in maximal angular momenta or selected shells
-    do ii = 1, maxL+1
-      angShellOrdered(ii) = ii - 1
-    end do
-    call getChild(node, "MaxAngularMomentum", child)
-    allocate(angShells(geo%nSpecies))
-    do iSp1 = 1, geo%nSpecies
-      call init(angShells(iSp1))
-      call getChildValue(child, geo%speciesNames(iSp1), value1, child=child2)
-      call getNodeName(value1, buffer)
-      select case(char(buffer))
-      case("selectedshells")
-        call init(lStr)
-        call getChildValue(value1, "", lStr)
-        do ii = 1, len(lStr)
-          call get(lStr, strTmp, ii)
-          strTmp = tolower(unquote(trim(strTmp)))
-          if (len_trim(strTmp) > 4 .or. len_trim(strTmp) < 1) then
-            call detailedError(value1, "Invalid shell selection '" &
-                &// trim(strTmp) &
-                &// "'. Nr. of selected shells must be between 1 and 4.")
-          end if
-          tShellIncl(:) = .false.
-          nShell = len_trim(strTmp)
-          do jj = 1, nShell
-            tmpCh = strTmp(jj:jj)
-            tFound = .false.
-            do kk = 1, size(shellNames)
-              if (tmpCh == trim(shellNames(kk))) then
-                if (tShellIncl(kk)) then
-                  call detailedError(value1, "Double selection of the same shell&
-                      & '" // tmpCh // "' in shell selection block '" &
-                      &// trim(strTmp) // "'")
-                end if
-                tShellIncl(kk) = .true.
-                angShell(jj) = kk - 1
-                tFound = .true.
-                exit
-              end if
-            end do
-            if (.not. tFound) then
-              call detailedError(value1, "Invalid shell name '" // tmpCh // "'")
-            end if
-          end do
-          call append(angShells(iSp1), angShell(1:nShell))
-        end do
-        call destruct(lStr)
-
-      case(textNodeName)
-        call getChildValue(child2, "", buffer)
-        strTmp = unquote(char(buffer))
-        do jj = 1, size(shellNames)
-          if (trim(strTmp) == trim(shellNames(jj))) then
-            call append(angShells(iSp1), angShellOrdered(:jj))
-          end if
-        end do
-        if (len(angShells(iSp1)) < 1) then
-          call detailedError(child2, "Invalid orbital name '" // &
-              &trim(strTmp) // "'")
-        end if
-
-      case default
-        call getNodeHSDName(value1, buffer)
-        call detailedError(child2, "Invalid shell specification method '" //&
-            & char(buffer) // "'")
-      end select
-    end do
+    call readMaxAngularMomentum(node, ctrl, geo, angShells)
 
     ! Orbitals and angular momenta for the given shells (once the SK files contain the full
     ! information about the basis, this will be moved to the SK reading routine).
     allocate(slako%orb)
-    allocate(slako%orb%nShell(geo%nSpecies))
-    allocate(slako%orb%nOrbSpecies(geo%nSpecies))
-    allocate(slako%orb%nOrbAtom(geo%nAtom))
-    slako%orb%mOrb = 0
-    slako%orb%mShell = 0
-    do iSp1 = 1, geo%nSpecies
-      slako%orb%nShell(iSp1) = 0
-      slako%orb%nOrbSpecies(iSp1) = 0
-      do ii = 1, len(angShells(iSp1))
-        call intoArray(angShells(iSp1), angShell, nShell, ii)
-        slako%orb%nShell(iSp1) = slako%orb%nShell(iSp1) + nShell
-        do jj = 1, nShell
-          slako%orb%nOrbSpecies(iSp1) = slako%orb%nOrbSpecies(iSp1) &
-              &+ 2 * angShell(jj) + 1
-        end do
-      end do
-    end do
-    slako%orb%mShell = maxval(slako%orb%nShell)
-    slako%orb%mOrb = maxval(slako%orb%nOrbSpecies)
-    slako%orb%nOrbAtom(:) = slako%orb%nOrbSpecies(geo%species(:))
-    slako%orb%nOrb = sum(slako%orb%nOrbAtom)
-
-    allocate(slako%orb%angShell(slako%orb%mShell, geo%nSpecies))
-    allocate(slako%orb%iShellOrb(slako%orb%mOrb, geo%nSpecies))
-    allocate(slako%orb%posShell(slako%orb%mShell+1, geo%nSpecies))
-    slako%orb%angShell(:,:) = 0
-    do iSp1 = 1, geo%nSpecies
-      ind = 1
-      iSh1 = 1
-      do ii = 1, len(angShells(iSp1))
-        call intoArray(angShells(iSp1), angShell, nShell, ii)
-        do jj = 1, nShell
-          slako%orb%posShell(iSh1, iSp1) = ind
-          slako%orb%angShell(iSh1, iSp1) = angShell(jj)
-          slako%orb%iShellOrb(ind:ind+2*angShell(jj), iSp1) = iSh1
-          ind = ind + 2 * angShell(jj) + 1
-          iSh1 = iSh1 + 1
-        end do
-        slako%orb%posShell(iSh1, iSp1) = ind
-      end do
-    end do
+    call setupOrbitals(slako%orb, geo, angShells)
 
     ! Slater-Koster files
     allocate(skFiles(geo%nSpecies, geo%nSpecies))
@@ -1895,6 +1778,162 @@ contains
     call error("xTB calculation currently not supported")
 
   end subroutine readXTBHam
+
+
+  !> Read in maximal angular momenta or selected shells
+  subroutine readMaxAngularMomentum(node, ctrl, geo, angShells)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(control), intent(inout) :: ctrl
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    !> List containing the angular momenta of the shells
+    type(listIntR1), allocatable, intent(out) :: angShells(:)
+
+    type(fnode), pointer :: value1, child, child2
+    type(string) :: buffer
+    integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
+    character(lc) :: strTmp
+    integer :: nShell
+    character(1) :: tmpCh
+    type(listString) :: lStr
+    logical :: tShellIncl(4), tFound
+    integer :: angShell(maxL+1), angShellOrdered(maxL+1)
+
+    do ii = 1, maxL+1
+      angShellOrdered(ii) = ii - 1
+    end do
+    call getChild(node, "MaxAngularMomentum", child)
+    allocate(angShells(geo%nSpecies))
+    do iSp1 = 1, geo%nSpecies
+      call init(angShells(iSp1))
+      call getChildValue(child, geo%speciesNames(iSp1), value1, child=child2)
+      call getNodeName(value1, buffer)
+      select case(char(buffer))
+      case("selectedshells")
+        call init(lStr)
+        call getChildValue(value1, "", lStr)
+        do ii = 1, len(lStr)
+          call get(lStr, strTmp, ii)
+          strTmp = tolower(unquote(trim(strTmp)))
+          if (len_trim(strTmp) > 4 .or. len_trim(strTmp) < 1) then
+            call detailedError(value1, "Invalid shell selection '" &
+                &// trim(strTmp) &
+                &// "'. Nr. of selected shells must be between 1 and 4.")
+          end if
+          tShellIncl(:) = .false.
+          nShell = len_trim(strTmp)
+          do jj = 1, nShell
+            tmpCh = strTmp(jj:jj)
+            tFound = .false.
+            do kk = 1, size(shellNames)
+              if (tmpCh == trim(shellNames(kk))) then
+                if (tShellIncl(kk)) then
+                  call detailedError(value1, "Double selection of the same shell&
+                      & '" // tmpCh // "' in shell selection block '" &
+                      &// trim(strTmp) // "'")
+                end if
+                tShellIncl(kk) = .true.
+                angShell(jj) = kk - 1
+                tFound = .true.
+                exit
+              end if
+            end do
+            if (.not. tFound) then
+              call detailedError(value1, "Invalid shell name '" // tmpCh // "'")
+            end if
+          end do
+          call append(angShells(iSp1), angShell(1:nShell))
+        end do
+        call destruct(lStr)
+
+      case(textNodeName)
+        call getChildValue(child2, "", buffer)
+        strTmp = unquote(char(buffer))
+        do jj = 1, size(shellNames)
+          if (trim(strTmp) == trim(shellNames(jj))) then
+            call append(angShells(iSp1), angShellOrdered(:jj))
+          end if
+        end do
+        if (len(angShells(iSp1)) < 1) then
+          call detailedError(child2, "Invalid orbital name '" // &
+              &trim(strTmp) // "'")
+        end if
+
+      case default
+        call getNodeHSDName(value1, buffer)
+        call detailedError(child2, "Invalid shell specification method '" //&
+            & char(buffer) // "'")
+      end select
+    end do
+
+  end subroutine readMaxAngularMomentum
+
+
+  !> Setup information about the orbitals of the species/atoms from angShell lists
+  subroutine setupOrbitals(orb, geo, angShells)
+
+    !> Information about the orbitals of the species/atoms in the system
+    class(TOrbitals), intent(out) :: orb
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    !> List containing the angular momenta of the shells,
+    !> must be inout, since intoArray requires inout arguments
+    type(listIntR1), intent(inout) :: angShells(:)
+
+    integer :: nShell, iSp1, iSh1, ii, jj, ind
+    integer :: angShell(maxL+1)
+
+    allocate(orb%nShell(geo%nSpecies))
+    allocate(orb%nOrbSpecies(geo%nSpecies))
+    allocate(orb%nOrbAtom(geo%nAtom))
+    orb%mOrb = 0
+    orb%mShell = 0
+    do iSp1 = 1, geo%nSpecies
+      orb%nShell(iSp1) = 0
+      orb%nOrbSpecies(iSp1) = 0
+      do ii = 1, len(angShells(iSp1))
+        call intoArray(angShells(iSp1), angShell, nShell, ii)
+        orb%nShell(iSp1) = orb%nShell(iSp1) + nShell
+        do jj = 1, nShell
+          orb%nOrbSpecies(iSp1) = orb%nOrbSpecies(iSp1) &
+              &+ 2 * angShell(jj) + 1
+        end do
+      end do
+    end do
+    orb%mShell = maxval(orb%nShell)
+    orb%mOrb = maxval(orb%nOrbSpecies)
+    orb%nOrbAtom(:) = orb%nOrbSpecies(geo%species(:))
+    orb%nOrb = sum(orb%nOrbAtom)
+
+    allocate(orb%angShell(orb%mShell, geo%nSpecies))
+    allocate(orb%iShellOrb(orb%mOrb, geo%nSpecies))
+    allocate(orb%posShell(orb%mShell+1, geo%nSpecies))
+    orb%angShell(:,:) = 0
+    do iSp1 = 1, geo%nSpecies
+      ind = 1
+      iSh1 = 1
+      do ii = 1, len(angShells(iSp1))
+        call intoArray(angShells(iSp1), angShell, nShell, ii)
+        do jj = 1, nShell
+          orb%posShell(iSh1, iSp1) = ind
+          orb%angShell(iSh1, iSp1) = angShell(jj)
+          orb%iShellOrb(ind:ind+2*angShell(jj), iSp1) = iSh1
+          ind = ind + 2 * angShell(jj) + 1
+          iSh1 = iSh1 + 1
+        end do
+        orb%posShell(iSh1, iSp1) = ind
+      end do
+    end do
+
+  end subroutine setupOrbitals
 
 
 #:if WITH_TRANSPORT
