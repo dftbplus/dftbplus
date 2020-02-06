@@ -1172,8 +1172,7 @@ contains
     case(hamiltonianTypes%dftb)
       orb = input%slako%orb
     case(hamiltonianTypes%xtb)
-      ! TODO
-      call error("xTB calculation currently not supported")
+      orb = input%gauss%orb
     end select
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic

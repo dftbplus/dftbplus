@@ -156,8 +156,8 @@ contains
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
 
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%transpar,&
-        & input%ginfo%greendens, input%poisson)
+    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%gauss, &
+        & input%transpar, input%ginfo%greendens, input%poisson)
 
     call getChild(root, "Dephasing", child, requested=.false.)
     if (associated(child)) then
@@ -173,7 +173,7 @@ contains
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako)
+    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%gauss)
 
   #:endif
 
@@ -1108,9 +1108,9 @@ contains
 
   !> Reads Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson)
+  subroutine readHamiltonian(node, ctrl, geo, slako, gauss, tp, greendens, poisson)
 #:else
-  subroutine readHamiltonian(node, ctrl, geo, slako)
+  subroutine readHamiltonian(node, ctrl, geo, slako, gauss)
 #:endif
 
     !> Node to get the information from
@@ -1124,6 +1124,9 @@ contains
 
     !> Slater-Koster structure to be filled
     type(slater), intent(inout) :: slako
+
+    !> Gaussian basisset structure to be filled
+    type(TGauss), intent(inout) :: gauss
 
   #:if WITH_TRANSPORT
     !> Transport parameters
@@ -1148,9 +1151,9 @@ contains
   #:endif
     case ("xtb")
   #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+      call readXTBHam(node, ctrl, geo, gauss, tp, greendens, poisson)
   #:else
-      call readXTBHam(node, ctrl, geo)
+      call readXTBHam(node, ctrl, geo, gauss)
   #:endif
     case default
       call detailedError(node, "Invalid Hamiltonian")
@@ -1663,9 +1666,9 @@ contains
 
   !> Reads xTB-Hamiltonian
 #:if WITH_TRANSPORT
-  subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson)
+  subroutine readXTBHam(node, ctrl, geo, gauss, tp, greendens, poisson)
 #:else
-  subroutine readXTBHam(node, ctrl, geo)
+  subroutine readXTBHam(node, ctrl, geo, gauss)
 #:endif
 
     !> Node to get the information from
@@ -1676,6 +1679,9 @@ contains
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
+
+    !> Gaussian basisset structure to be filled
+    type(TGauss), intent(inout) :: gauss
 
   #:if WITH_TRANSPORT
     !> Transport parameters
@@ -1689,9 +1695,10 @@ contains
   #:endif
 
     type(fnode), pointer :: value1, child
-    integer :: gfnLevel, ii
+    integer :: gfnLevel, ii, iSp1, iSh1
     logical :: tBadIntegratingKPoints
     logical :: tSCCdefault
+    type(listIntR1), allocatable :: angShells(:)
     character(lc) :: errorStr
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
@@ -1702,13 +1709,39 @@ contains
       call detailedError(child, "Invalid GFN level specified")
     case(0)
       tSCCdefault = .false.
+      call detailedError(child, "GFN0-xTB parameters not available")
     case(1)
       tSCCdefault = .true.
+      call setupGFN1Parameters(ctrl%xtbInput, geo%speciesNames)
     case(2)
       tSCCdefault = .true.
+      call detailedError(child, "GFN2-xTB parameters not available")
     end select
 
+    call getChildValue(node, "MaxAngularMomentum", value1, "", child=child, &
+        & allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      call readMaxAngularMomentum(node, ctrl, geo, angShells)
+    else
+      allocate(angShells(geo%nSpecies))
+      associate(param => ctrl%xtbInput%param)
+        do iSp1 = 1, geo%nSpecies
+          call init(angShells(iSp1))
+          call append(angShells(iSp1), param(iSp1)%basis(:param(iSp1)%nSh)%l)
+        end do
+      end associate
+    end if
+
+    ! Orbitals and angular momenta for the given shells
+    allocate(gauss%orb)
+    call setupOrbitals(gauss%orb, geo, angShells)
+
     call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .true.)
+
+    do iSp1 = 1, geo%nSpecies
+      call destruct(angShells(iSp1))
+    end do
+    deallocate(angShells)
 
     ! SCC parameters
     call getChildValue(node, "SCC", ctrl%tSCC, tSCCdefault)

@@ -41,7 +41,8 @@ module dftbp_inputdata
   private
   save
 
-  public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
+  public :: control, TGeometry, TBasis, slater, TGauss, inputData
+  public :: XLBOMDInp, TParallelOpts
   public :: TBlacsOpts
   public :: TRangeSepInp
   public :: init, destruct
@@ -486,8 +487,15 @@ module dftbp_inputdata
   end type control
 
 
+  !> Basisset data
+  type :: TBasis
+    !> Information about the orbitals of the species/atoms in the system
+    type(TOrbitals), allocatable :: orb
+  end type TBasis
+
+
   !> Slater-Koster data
-  type slater
+  type, extends(TBasis) :: slater
     real(dp), allocatable :: skSelf(:, :)
     real(dp), allocatable :: skHubbU(:, :)
     real(dp), allocatable :: skOcc(:, :)
@@ -496,8 +504,13 @@ module dftbp_inputdata
     type(OSlakoCont), allocatable :: skHamCont
     type(OSlakoCont), allocatable :: skOverCont
     type(ORepCont), allocatable :: repCont
-    type(TOrbitals), allocatable :: orb
   end type slater
+
+
+  !> Gaussian basisset data
+  type, extends(TBasis) :: TGauss
+  end type TGauss
+
 
 #:if WITH_TRANSPORT
   !> container for data needed by libNEGF
@@ -514,6 +527,7 @@ module dftbp_inputdata
     type(control) :: ctrl
     type(TGeometry) :: geom
     type(slater) :: slako
+    type(TGauss) :: gauss
   #:if WITH_TRANSPORT
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
