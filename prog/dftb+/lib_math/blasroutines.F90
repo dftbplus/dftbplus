@@ -645,12 +645,13 @@ contains
 
   end subroutine gemv_dble
 
+
   #:for suffix, kind in REAL_KIND_PARAMS
 
-    !> Generalized matrix vector product Cij = Aijk * Bk
+    !> Generalized matrix vector contraction Cij = Aijk * Bk
     subroutine gemv231_${suffix}$(y, a, x, alpha, beta, trans)
 
-      !> vector
+      !> matrix
       real(${kind}$), intent(inout), contiguous, target :: y(:,:)
 
       !> matrix
@@ -1420,7 +1421,7 @@ contains
 
   #:for suffix, kind in REAL_KIND_PARAMS
 
-    !> Generalized real matrix matrix product (Cijl = Aijk * Bkl)
+    !> Generalized real matrix matrix contraction (Cijl = Aijk * Bkl)
     subroutine gemm332_${suffix}$(C, A, B, alpha, beta, transA, transB)
 
       !> general matrix output
