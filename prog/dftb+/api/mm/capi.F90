@@ -297,7 +297,7 @@ contains
 
     call c_f_pointer(handler%instance, instance)
 
-    call instance%getStressTensor(stresstensor(:, :))
+    call instance%getStressTensor(stresstensor(:, 1:3))
 
   end subroutine c_DftbPlus_getStressTensor
 
