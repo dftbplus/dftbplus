@@ -381,7 +381,7 @@ module dftbp_initprogram
   logical :: tSetFillingTemp
 
   !> Choice of electron distribution function, defaults to Fermi
-  integer :: iDistribFn = 0
+  integer :: iDistribFn
 
   !> atomic kinetic temperature
   real(dp) :: tempAtom
@@ -608,27 +608,26 @@ module dftbp_initprogram
   !> Nr. of external charges
   integer :: nExtChrg
 
-
   !> external electric field
-  logical :: tEField = .false.
+  logical :: tEField
 
   !> Arbitrary external field (including electric)
-  logical :: tExtField = .false.
+  logical :: tExtField
 
   !> field strength
-  real(dp) :: EFieldStrength = 0.0_dp
+  real(dp) :: EFieldStrength
 
   !> field direction
-  real(dp) :: EfieldVector(3) = 0.0_dp
+  real(dp) :: EfieldVector(3)
 
   !> time dependent
-  logical :: tTDEfield = .false.
+  logical :: tTDEfield
 
   !> angular frequency
-  real(dp) :: EfieldOmega = 0.0_dp
+  real(dp) :: EfieldOmega
 
   !> phase of field at step 0
-  integer :: EfieldPhase = 0
+  integer :: EfieldPhase
 
 
   !> Partial density of states (PDOS) projection regions
@@ -653,7 +652,7 @@ module dftbp_initprogram
   real(dp), allocatable :: onSiteDipole(:,:)
 
   !> Should block charges be mixed as well as charges
-  logical :: tMixBlockCharges = .false.
+  logical :: tMixBlockCharges
 
   !> Calculate Casida linear response excitations
   logical :: tLinResp
@@ -662,7 +661,7 @@ module dftbp_initprogram
   logical :: tLinRespZVect
 
   !> Print eigenvectors
-  logical :: tPrintExcitedEigVecs = .false.
+  logical :: tPrintExcitedEigVecs
 
   !> data type for linear response
   type(linresp), save :: lresp
@@ -733,8 +732,8 @@ module dftbp_initprogram
   !> dispersion data and calculations
   class(DispersionIface), allocatable :: dispersion
 
-  !> Can stress be calculated? - start by assuming it can
-  logical :: tStress = .true.
+  !> Can stress be calculated?
+  logical :: tStress
 
   !> should XLBOMD be used in MD
   logical :: tXlbomd
@@ -1120,7 +1119,6 @@ contains
     !> Format for two using exponential notation values with units
     character(len=*), parameter :: format2Ue = "(A, ':', T30, E14.6, 1X, A, T50, E14.6, 1X, A)"
 
-
     @:ASSERT(input%tInitialized)
 
     write(stdOut, "(/, A)") "Starting initialization..."
@@ -1161,6 +1159,9 @@ contains
     orb = input%slako%orb
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
+
+    ! start by assuming stress can be calculated if periodic
+    tStress = tPeriodic
 
     ! Brillouin zone sampling
     if (tPeriodic) then
@@ -1387,7 +1388,6 @@ contains
             & input%ctrl%h5ElementPara)
         sccInp%h5Correction = pH5Correction
       end if
-
 
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
