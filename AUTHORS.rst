@@ -34,6 +34,8 @@ contributed to DFTB+ :
 
 * In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
 
+* Izaac Mitchell (University of Newcastle, Australia)
+  
 * Thomas Niehaus (University of Lyon, France)
 
 * Alessandro Pecchia (University of Rome "Tor Vergata", Italy)
@@ -46,5 +48,7 @@ contributed to DFTB+ :
 * Michael Sternberg (Argonne National Laboratory, USA)
 
 * Frank Stuckenberg (University of Bremen, Germany)
+
+* Bo Thomsen (Japan Atomic Energy Agency, Japan)
 
 * Victor Yu (Duke University, USA)

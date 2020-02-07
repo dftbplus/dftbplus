@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -93,7 +93,7 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
-
+  use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
@@ -608,27 +608,26 @@ module dftbp_initprogram
   !> Nr. of external charges
   integer :: nExtChrg
 
-
   !> external electric field
-  logical :: tEField = .false.
+  logical :: tEField
 
   !> Arbitrary external field (including electric)
-  logical :: tExtField = .false.
+  logical :: tExtField
 
   !> field strength
-  real(dp) :: EFieldStrength = 0.0_dp
+  real(dp) :: EFieldStrength
 
   !> field direction
-  real(dp) :: EfieldVector(3) = 0.0_dp
+  real(dp) :: EfieldVector(3)
 
   !> time dependent
-  logical :: tTDEfield = .false.
+  logical :: tTDEfield
 
   !> angular frequency
-  real(dp) :: EfieldOmega = 0.0_dp
+  real(dp) :: EfieldOmega
 
   !> phase of field at step 0
-  integer :: EfieldPhase = 0
+  integer :: EfieldPhase
 
 
   !> Partial density of states (PDOS) projection regions
@@ -653,7 +652,7 @@ module dftbp_initprogram
   real(dp), allocatable :: onSiteDipole(:,:)
 
   !> Should block charges be mixed as well as charges
-  logical :: tMixBlockCharges = .false.
+  logical :: tMixBlockCharges
 
   !> Calculate Casida linear response excitations
   logical :: tLinResp
@@ -662,7 +661,7 @@ module dftbp_initprogram
   logical :: tLinRespZVect
 
   !> Print eigenvectors
-  logical :: tPrintExcitedEigVecs = .false.
+  logical :: tPrintExcitedEigVecs
 
   !> data type for linear response
   type(linresp), save :: lresp
@@ -733,8 +732,8 @@ module dftbp_initprogram
   !> dispersion data and calculations
   class(DispersionIface), allocatable :: dispersion
 
-  !> Can stress be calculated? - start by assuming it can
-  logical :: tStress = .true.
+  !> Can stress be calculated?
+  logical :: tStress
 
   !> should XLBOMD be used in MD
   logical :: tXlbomd
@@ -750,6 +749,9 @@ module dftbp_initprogram
 
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
+
+  !> Plumed calculator
+  type(TPlumedCalc), allocatable :: plumedCalc
 
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
@@ -1158,6 +1160,9 @@ contains
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
 
+    ! start by assuming stress can be calculated if periodic
+    tStress = tPeriodic
+
     ! Brillouin zone sampling
     if (tPeriodic) then
       nKPoint = input%ctrl%nKPoint
@@ -1383,7 +1388,6 @@ contains
             & input%ctrl%h5ElementPara)
         sccInp%h5Correction = pH5Correction
       end if
-
 
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
@@ -1828,12 +1832,6 @@ contains
     ! Do we use any part of negf (solver, tunnelling etc.)?
     tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn .or. tLocalCurrents
 
-  #:if WITH_MPI
-    if (tNegf .and. env%mpi%nGroup > 1) then
-      call error("At the moment NEGF solvers cannot be used for multiple processor groups")
-    end if
-  #:endif
-
   #:else
 
     tTunn = .false.
@@ -2202,6 +2200,8 @@ contains
       allocate(pMDIntegrator)
       call init(pMDIntegrator, pVelocityVerlet)
     end if
+
+    call initPlumed(env, input%ctrl%tPlumed, tMD, plumedCalc)
 
     ! Check for extended Born-Oppenheimer MD
     tXlbomd = allocated(input%ctrl%xlbomd)
@@ -3201,6 +3201,10 @@ contains
         call error("Linear response does not support k-points")
       end if
 
+      if (t3rd .or. t3rdFull) then
+        call error ("Third order DFTB is not currently compatible with linear response excitations")
+      end if
+
     end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
@@ -3501,13 +3505,8 @@ contains
       end if
 
       ! Some sanity checks and initialization of GDFTB/NEGF
-    #:if WITH_MPI
-      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
-          & tempElec, electronicSolver%iSolver)
-    #:else
-      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, &
-          & tempElec, electronicSolver%iSolver)
-    #:endif
+      call negf_init(input%transpar, env, input%ginfo%greendens, input%ginfo%tundos, tempElec,&
+          & electronicSolver%iSolver)
 
       ginfo = input%ginfo
 
@@ -4451,6 +4450,62 @@ contains
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated
+
+
+  !> Initializes PLUMED calculator.
+  subroutine initPlumed(env, tPlumed, tMD, plumedCalc)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Whether plumed should be used
+    logical, intent(in) :: tPlumed
+
+    !> Whether this is an MD-run
+    logical, intent(in) :: tMD
+
+    !> Plumed calculator (allocated only on demand)
+    type(TPlumedCalc), allocatable, intent(out) :: plumedCalc
+
+
+    ! Minimal plumed API version (as in Plumed 2.5.3)
+    ! Earlier versions may work but were not tested
+    integer, parameter :: minApiVersion = 6
+    
+    integer :: apiVersion
+    character(300) :: strTmp
+
+    if (.not. tPlumed) then
+      return
+    end if
+    if (.not. withPlumed) then
+      call error("Code was compiled without PLUMED support")
+    end if
+    if (.not. tMD) then
+      call error("Metadynamics via PLUMED is only possible in MD-simulations")
+    end if
+    allocate(plumedCalc)
+    call TPlumedCalc_init(plumedCalc)
+    call plumedCalc%sendCmdPtr("getApiVersion", apiVersion)
+    if (apiVersion < minApiVersion) then
+      write(strTmp, "(A,I0,A)") "PLUMED interface has not been tested with PLUMED API version < ",&
+          & minApiVersion, ". Your PLUMED library provides API version ", apiVersion, ". Check your&
+          & results carefully and consider to use a more recent PLUMED library if in doubt!"
+      call warning(strTmp)
+    end if
+    call plumedCalc%sendCmdVal("setNatoms", nAtom)
+    call plumedCalc%sendCmdVal("setPlumedDat", "plumed.dat")
+    call plumedCalc%sendCmdVal("setNoVirial", 0)
+    call plumedCalc%sendCmdVal("setTimestep", deltaT)
+    call plumedCalc%sendCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
+    call plumedCalc%sendCmdVal("setMDLengthUnits", Bohr__nm)
+    call plumedCalc%sendCmdVal("setMDTimeUnits", au__ps)
+    #:if WITH_MPI
+      call plumedCalc%sendCmdVal("setMPIFComm", env%mpi%globalComm%id)
+    #:endif
+    call plumedCalc%sendCmdVal("init", 0)
+
+  end subroutine initPlumed
 
 
 end module dftbp_initprogram

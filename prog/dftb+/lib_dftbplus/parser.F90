@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -50,6 +50,7 @@ module dftbp_parser
   use dftbp_elecsolvers, only : electronicSolverTypes
   use dftbp_etemp, only : fillingTypes
   use dftbp_wrappedintr
+  use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
   use poisson_init
   use libnegf_vars
@@ -283,6 +284,10 @@ contains
     select case (char(buffer))
     case ("genformat")
       call readTGeometryGen(value1, input%geom)
+    case ("xyzformat")
+      call readTGeometryXyz(value1, input%geom)
+    case ("vaspformat")
+      call readTGeometryVasp(value1, input%geom)
     case default
       call setUnprocessed(value1)
       call readTGeometryHSD(child, input%geom)
@@ -759,6 +764,12 @@ contains
 
       call getChildValue(node, "OutputPrefix", buffer2, "geo_end")
       ctrl%outFile = unquote(char(buffer2))
+
+      call getChildValue(node, "Plumed", ctrl%tPlumed, default=.false., child=child)
+      if (ctrl%tPlumed .and. .not. withPlumed) then
+        call detailedError(child, "Metadynamics can not be used since code has been compiled&
+            & without PLUMED support")
+      end if
 
       if (geom%tPeriodic) then
 
@@ -3490,6 +3501,9 @@ contains
           & response calculations (requires the ARPACK/ngARPACK library).')
     end if
 
+    ctrl%lrespini%tInit = .false.
+    ctrl%lrespini%tPrintEigVecs = .false.
+
   #:else
 
     if (associated(child)) then
@@ -5359,12 +5373,6 @@ contains
       end if
       allocate(input%ctrl%parallelOpts)
       call getChildValue(node, "Groups", input%ctrl%parallelOpts%nGroup, 1, child=pTmp)
-    #:if WITH_TRANSPORT
-      if (input%transpar%ncont > 0 .and. input%ctrl%parallelOpts%nGroup > 1) then
-        call detailedError(pTmp, "Multiple processor groups are currently incompatible with&
-            & transport.")
-      end if
-    #:endif
       call getChildValue(node, "UseOmpThreads", input%ctrl%parallelOpts%tOmpThreads, .not. withMpi)
       call readBlacs(node, input%ctrl%parallelOpts%blacsOpts)
     end if

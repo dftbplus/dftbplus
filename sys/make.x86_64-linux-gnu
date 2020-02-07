@@ -148,6 +148,10 @@ ARPACK_LIBS = -larpack
 # Whether ARPACK depends on the external LAPACK and BLAS libraries
 ARPACK_NEEDS_LAPACK = 0
 
+# PLUMED settings (ignore if WITH_PLUMED was disabled)
+PLUMED_LIBRARY_DIR = /opt/plumed/lib
+PLUMED_LIBS = -L$(PLUMED_LIBRARY_DIR) -lplumed -lplumedKernel
+
 
 ############################################################################
 # Developer settings
