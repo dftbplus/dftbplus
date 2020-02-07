@@ -113,6 +113,7 @@ test_qdepextpotc.o: testhelpers.o
 # Check for presence of a C compiler
 ifdef CC
 FYPPOPT += -DCC
+FYPPOPT += -DWITH_C_EXECUTABLES
 endif
 
 TESTDIR := $(ROOT)/test/api/mm
