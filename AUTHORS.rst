@@ -49,4 +49,6 @@ contributed to DFTB+ :
 
 * Frank Stuckenberg (University of Bremen, Germany)
 
+* Bo Thomsen (Japan Atomic Energy Agency, Japan)
+
 * Victor Yu (Duke University, USA)

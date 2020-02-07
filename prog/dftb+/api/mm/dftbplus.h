@@ -208,6 +208,16 @@ void dftbp_get_gradients(DftbPlus *instance, double *gradients);
 
 
 /**
+ * Queries the stress tensor of the current periodic box
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] stresstensor Stress Tensor for the periodic box. Shape [3, 3]. Unit: Pascals.
+ */
+void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
+
+
+/**
  * Queries the net populations on the atoms.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
