@@ -1139,9 +1139,6 @@ contains
     end if
     nIndepHam = nSpin
 
-    ! start by assuming stress can be calculated if periodic
-    tStress = .true.
-
     tSpinSharedEf = input%ctrl%tSpinSharedEf
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
@@ -1162,6 +1159,9 @@ contains
     orb = input%slako%orb
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
+
+    ! start by assuming stress can be calculated if periodic
+    tStress = tPeriodic
 
     ! Brillouin zone sampling
     if (tPeriodic) then
