@@ -3499,6 +3499,9 @@ contains
           & response calculations (requires the ARPACK/ngARPACK library).')
     end if
 
+    ctrl%lrespini%tInit = .false.
+    ctrl%lrespini%tPrintEigVecs = .false.
+
   #:else
 
     if (associated(child)) then
