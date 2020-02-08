@@ -1424,7 +1424,15 @@ contains
       end if
     end select
 
-    call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
+    ! SCC
+    call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+
+    if (ctrl%tSCC) then
+      call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
+    else
+      ctrl%tShellResolved = .false.
+    end if
+
     call getChildValue(node, "OldSKInterpolation", ctrl%oldSKInter, .false.)
     if (ctrl%oldSKInter) then
       skInterMeth = skEqGridOld
@@ -1466,8 +1474,8 @@ contains
     deallocate(repPoly)
 
     ! SCC parameters
-    call getChildValue(node, "SCC", ctrl%tSCC, .false.)
     ifSCC: if (ctrl%tSCC) then
+
       call getChildValue(node, "ReadInitialCharges", ctrl%tReadChrg, .false.)
       if (.not. ctrl%tReadChrg) then
         call getInitialCharges(node, geo, ctrl%initialCharges)
