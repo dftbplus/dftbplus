@@ -1,0 +1,31 @@
+os: linux
+dist: bionic
+
+language: python
+python: 3.7
+
+
+env:
+ - WITH_MPI=false
+ - WITH_MPI=true
+
+addons:
+   apt:
+      packages:
+      - cmake
+      - gfortran
+      - libblas-dev
+      - liblapack-dev
+      - libopenmpi-dev
+      - libscalapack-openmpi-dev
+
+install:
+- git submodule update --init --recursive
+- echo "y" | ./utils/get_opt_externals ALL
+
+script:
+- mkdir _build
+- cd _build
+- cmake -DWITH_DFTD3=true -DWITH_MPI=${WITH_MPI} -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
+- make -j 2
+- ctest -j 2

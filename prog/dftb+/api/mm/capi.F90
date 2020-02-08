@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -281,6 +281,25 @@ contains
     call instance%getGradients(gradients(:, 1:nAtom))
 
   end subroutine c_DftbPlus_getGradients
+
+
+  !> Obtain the stress tensor of the periodic system
+  subroutine c_DftbPlus_getStressTensor(handler, stresstensor)&
+      & bind(C, name='dftbp_get_stress_tensor')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> gradients, row major format
+    real(c_double), intent(out) :: stresstensor(3, 3)
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+
+    call instance%getStressTensor(stresstensor(:, 1:3))
+
+  end subroutine c_DftbPlus_getStressTensor
 
 
   !> Obtain gross (Mulliken) charges for atoms wrt to neutral references

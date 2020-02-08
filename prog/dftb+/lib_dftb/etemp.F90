@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -85,7 +85,6 @@ contains
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
-
     !> scheme
     integer, intent(in) :: distrib
 
@@ -210,24 +209,24 @@ contains
   !> Calculates the number of electrons for a given Fermi energy and distribution function
   function electronCount(Ef,eigenvals,kT,distrib,kWeight)
 
-    !> Fermi energy for given distribution
+    !> Electrons for this Fermi energy
     real(dp) :: electronCount
 
-    !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
+    !> Fermi energy for given distribution
     real(dp), intent(in) :: Ef
 
-    !> Thermal energy in atomic units
+    !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: eigenvals(:,:,:)
 
-    !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
-    !> supported. The flags is defined sumbolically, so (Methfessel + 2) gives the 2nd order M-P
-
-    !> scheme
+    !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
 
-    !> k-point weightings
+    !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
+    !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
+    !> scheme
     integer, intent(in) :: distrib
 
+    !> k-point weightings
     real(dp), intent(in) :: kWeight(:)
 
     integer :: MPorder
@@ -294,12 +293,13 @@ contains
   !> To do: support Methfestle-Paxton
   function derivElectronCount(Ef,eigenvals,kT,distrib,kWeight)
 
-    !> Fermi energy for given distribution
+    !> Derivative of electrons wrt to Ef
     real(dp) :: derivElectronCount
 
-    !> The eigenvalues of the levels, 1st index is energy
+    !> Fermi energy for given distribution
     real(dp), intent(in) :: Ef
 
+    !> The eigenvalues of the levels, 1st index is energy
     !> 2nd index is k-point and 3nd index is spin
     real(dp), intent(in) :: eigenvals(:,:,:)
 
@@ -377,7 +377,6 @@ contains
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
-
     !> scheme
     integer, intent(in) :: distrib
 
