@@ -18,6 +18,12 @@ Added
 - Option to set mass of atoms in modes input file (syntax matches existing DFTB+
   feature)
 
+- Use of processor groups with transport calculations
+  
+- Read input coordinates in XYZ format
+
+- Read input coordinates in POSCAR format
+
 
 Changed
 -------

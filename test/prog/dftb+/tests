@@ -7,6 +7,10 @@
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
+input/caffeine_xyz                     #? MPI_PROCS <= 1
+input/ammonia_poscar                   #? MPI_PROCS <= 1
+input/unsorted_contcar                 #? MPI_PROCS <= 1
+
 rangesep/C18H12-force                  #? not WITH_MPI
 rangesep/C18H12-nbscreening            #? not WITH_MPI
 rangesep/C18H12-matrix                 #? not WITH_MPI
@@ -184,7 +188,7 @@ scc/10-0Ctube-extfield                 #? MPI_PROCS <= 4
 scc/SiC_64                             #? MPI_PROCS <= 4
 scc/SiC_32-extchrg-blur                #? MPI_PROCS <= 2
 md/H3                                  #? MPI_PROCS <= 1
-md/H3-plumed                           #? MPI_PROCS <= 1
+md/H3-plumed                           #? WITH_PLUMED and MPI_PROCS <= 1
 
 
 dispersion/DNA_dftd3_zero              #? WITH_DFTD3 and MPI_PROCS <= 4
@@ -214,7 +218,7 @@ spinorbit/EuN_customU                  #? MPI_PROCS <= 2
 dispersion/DNA                         #? MPI_PROCS <= 4
 spinorbit/Si2_dual                     #? MPI_PROCS <= 1
 md/Si_8                                #? MPI_PROCS <= 1
-md/Si_8-plumed                         #? MPI_PROCS <= 1
+md/Si_8-plumed                         #? WITH_PLUMED and MPI_PROCS <= 1
 md/Si_8-thermostat2                    #? MPI_PROCS <= 1
 geoopt/GaAs_8_latconst_lbfgs           #? MPI_PROCS <= 2
 geoopt/GaAs_8_latconst                 #? MPI_PROCS <= 2
@@ -222,6 +226,7 @@ analysis/Ga4As4_ESP                    #? MPI_PROCS <= 2
 md/Si_8-thermostat                     #? MPI_PROCS <= 1
 md/ptcda-xlbomdfast-ldep               #? MPI_PROCS <= 4
 md/Si_8-tempprofile                    #? MPI_PROCS <= 1
+md/Vsi+O-plumed                        #? WITH_PLUMED and MPI_PROCS <= 4
 
 dispersion/DNA_dftd3_bj                #? WITH_DFTD3 and MPI_PROCS <= 4
 
@@ -253,6 +258,9 @@ transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-sheet                      #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/H-sheet_grp2                 #? WITH_TRANSPORT and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0
+transport/H-sheet_grp4                 #? WITH_TRANSPORT and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0
+transport/H-sheet_grp8                 #? WITH_TRANSPORT and MPI_PROCS <= 32 and MPI_PROCS % 8 == 0
 transport/H-3conts                     #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/SiH-chain                    #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/SiH-chain-cont               #? WITH_TRANSPORT and MPI_PROCS <= 4

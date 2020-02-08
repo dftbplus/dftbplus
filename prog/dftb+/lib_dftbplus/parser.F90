@@ -48,6 +48,7 @@ module dftbp_parser
 #:endif
   use dftbp_elsiiface
   use dftbp_elecsolvers, only : electronicSolverTypes
+  use dftbp_etemp, only : fillingTypes
   use dftbp_wrappedintr
   use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
@@ -283,6 +284,10 @@ contains
     select case (char(buffer))
     case ("genformat")
       call readTGeometryGen(value1, input%geom)
+    case ("xyzformat")
+      call readTGeometryXyz(value1, input%geom)
+    case ("vaspformat")
+      call readTGeometryVasp(value1, input%geom)
     case default
       call setUnprocessed(value1)
       call readTGeometryHSD(child, input%geom)
@@ -1420,7 +1425,15 @@ contains
       end if
     end select
 
-    call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
+    ! SCC
+    call getChildValue(node, "SCC", ctrl%tSCC, .false.)
+
+    if (ctrl%tSCC) then
+      call getChildValue(node, "ShellResolvedSCC", ctrl%tShellResolved, .false.)
+    else
+      ctrl%tShellResolved = .false.
+    end if
+
     call getChildValue(node, "OldSKInterpolation", ctrl%oldSKInter, .false.)
     if (ctrl%oldSKInter) then
       skInterMeth = skEqGridOld
@@ -1462,8 +1475,8 @@ contains
     deallocate(repPoly)
 
     ! SCC parameters
-    call getChildValue(node, "SCC", ctrl%tSCC, .false.)
     ifSCC: if (ctrl%tSCC) then
+
       call getChildValue(node, "ReadInitialCharges", ctrl%tReadChrg, .false.)
       if (.not. ctrl%tReadChrg) then
         call getInitialCharges(node, geo, ctrl%initialCharges)
@@ -1741,9 +1754,9 @@ contains
 
     select case (char(buffer))
     case ("fermi")
-      ctrl%iDistribFn = 0 ! Fermi function
+      ctrl%iDistribFn = fillingTypes%Fermi ! Fermi function
     case ("methfesselpaxton")
-      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2
+      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2nd order
       call getChildValue(value1, "Order", ctrl%iDistribFn, 2)
       if (ctrl%iDistribFn < 1) then
         call getNodeHSDName(value1, buffer)
@@ -1751,6 +1764,7 @@ contains
             & char(buffer),"' :",ctrl%iDistribFn
         call detailedError(child, errorStr)
       end if
+      ctrl%iDistribFn = fillingTypes%Methfessel + ctrl%iDistribFn
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Invalid filling method '" //char(buffer)// "'")
@@ -3500,6 +3514,9 @@ contains
       call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
           & response calculations (requires the ARPACK/ngARPACK library).')
     end if
+
+    ctrl%lrespini%tInit = .false.
+    ctrl%lrespini%tPrintEigVecs = .false.
 
   #:else
 
@@ -5404,12 +5421,6 @@ contains
       end if
       allocate(input%ctrl%parallelOpts)
       call getChildValue(node, "Groups", input%ctrl%parallelOpts%nGroup, 1, child=pTmp)
-    #:if WITH_TRANSPORT
-      if (input%transpar%ncont > 0 .and. input%ctrl%parallelOpts%nGroup > 1) then
-        call detailedError(pTmp, "Multiple processor groups are currently incompatible with&
-            & transport.")
-      end if
-    #:endif
       call getChildValue(node, "UseOmpThreads", input%ctrl%parallelOpts%tOmpThreads, .not. withMpi)
       call readBlacs(node, input%ctrl%parallelOpts%blacsOpts)
     end if
