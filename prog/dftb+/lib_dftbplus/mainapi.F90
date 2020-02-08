@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,15 +14,17 @@ module dftbp_mainapi
   use dftbp_main, only : processGeometry
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
       & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
-      & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot
+      & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot, tStress,&
+      & totalStress
   use dftbp_assert
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_message, only : error
   implicit none
   private
 
   public :: initProgramVariables, destructProgramVariables
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms
 
 contains
@@ -72,10 +74,35 @@ contains
     !> resulting gradients wrt atom positions
     real(dp), intent(out) :: gradients(:,:)
 
+    if (.not. tForces) then
+      call error("Forces not available, you must initialise your calculator&
+          & with forces enabled.")
+    end if
+
     call recalcGeometry(env)
     gradients(:,:) = derivs
 
   end subroutine getGradients
+
+
+  !> get stress tensor for unit cell
+  subroutine getStressTensor(env, stress)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> resulting gradients wrt atom positions
+    real(dp), intent(out) :: stress(:,:)
+
+    if (.not. tStress) then
+      call error("Stress tensor not available, you must initialise your calculator with&
+          & this property enabled.")
+    end if
+
+    call recalcGeometry(env)
+    stress(:,:) = totalStress
+
+  end subroutine getStressTensor
 
 
   !> get the gross (Mulliken projected) charges for atoms wrt neutral atoms

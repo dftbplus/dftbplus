@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -364,6 +364,14 @@ contains
     select case (char(buffer))
     case ("genformat")
       call readTGeometryGen(child, geo)
+      call removeChildNodes(geonode)
+      call writeTGeometryHSD(geonode, geo)
+    case ("xyzformat")
+      call readTGeometryXyz(child, geo)
+      call removeChildNodes(geonode)
+      call writeTGeometryHSD(geonode, geo)
+    case ("vaspformat")
+      call readTGeometryVasp(child, geo)
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
     case default

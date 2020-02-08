@@ -1,0 +1,44 @@
+Geometry = VaspFormat {
+ <<< "CONTCAR"
+}
+
+
+Driver {}
+
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SccTolerance = 1-10
+  MaxAngularMomentum {
+    Ga = "d"
+    As = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   1 0 0
+   0 1 0
+   0 0 1
+   0.0 0.0 0.0
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
