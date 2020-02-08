@@ -48,6 +48,7 @@ module dftbp_parser
 #:endif
   use dftbp_elsiiface
   use dftbp_elecsolvers, only : electronicSolverTypes
+  use dftbp_etemp, only : fillingTypes
   use dftbp_wrappedintr
   use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
@@ -1753,9 +1754,9 @@ contains
 
     select case (char(buffer))
     case ("fermi")
-      ctrl%iDistribFn = 0 ! Fermi function
+      ctrl%iDistribFn = fillingTypes%Fermi ! Fermi function
     case ("methfesselpaxton")
-      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2
+      ! Set the order of the Methfessel-Paxton step function approximation, defaulting to 2nd order
       call getChildValue(value1, "Order", ctrl%iDistribFn, 2)
       if (ctrl%iDistribFn < 1) then
         call getNodeHSDName(value1, buffer)
@@ -1763,6 +1764,7 @@ contains
             & char(buffer),"' :",ctrl%iDistribFn
         call detailedError(child, errorStr)
       end if
+      ctrl%iDistribFn = fillingTypes%Methfessel + ctrl%iDistribFn
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Invalid filling method '" //char(buffer)// "'")

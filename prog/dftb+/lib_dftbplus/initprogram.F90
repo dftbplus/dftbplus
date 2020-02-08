@@ -79,7 +79,7 @@ module dftbp_initprogram
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_xlbomd
-  use dftbp_etemp, only : Fermi
+  use dftbp_etemp, only : fillingTypes
 #:if WITH_SOCKETS
   use dftbp_mainio, only : receiveGeometryFromSocket
   use dftbp_ipisocket
@@ -381,7 +381,7 @@ module dftbp_initprogram
   logical :: tSetFillingTemp
 
   !> Choice of electron distribution function, defaults to Fermi
-  integer :: iDistribFn
+  integer :: iDistribFn = fillingTypes%Fermi
 
   !> atomic kinetic temperature
   real(dp) :: tempAtom
@@ -2214,7 +2214,7 @@ contains
         call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
       elseif (forceType /= forceTypes%dynamicT0 .and. forceType /= forceTypes%dynamicTFinite) then
         call error("Force evaluation method incompatible with XLBOMD")
-      elseif (iDistribFn /= Fermi) then
+      elseif (iDistribFn /= fillingTypes%Fermi) then
         call error("Filling function incompatible with XLBOMD")
       end if
       allocate(xlbomdIntegrator)
