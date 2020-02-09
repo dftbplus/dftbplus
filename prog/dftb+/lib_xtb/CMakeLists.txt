@@ -5,6 +5,8 @@ set(sources-fpp
   ${curdir}/gtocont.F90
   ${curdir}/gtoints.F90
   ${curdir}/repsimple.F90
+  ${curdir}/slater.F90
+  ${curdir}/xtbh0.F90
   ${curdir}/xtbinput.F90
   ${curdir}/xtbparam.F90)
 

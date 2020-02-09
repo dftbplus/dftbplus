@@ -43,6 +43,7 @@ module dftbp_initprogram
   use dftbp_lbfgs
 
   use dftbp_hamiltoniantypes
+  use dftbp_gtocont, only : TGaussCont
   use dftbp_xtbparam, only : xtbCalculator
 
   use dftbp_randomgenpool
@@ -274,6 +275,9 @@ module dftbp_initprogram
 
   !> xTB calculation data
   type(xtbCalculator) :: xtbCalc
+
+  !> Raw H^0 hamiltonian data
+  type(TGaussCont) :: gaussCont
 
   !> Raw H^0 hamiltonian data
   type(OSlakoCont) :: skHamCont
@@ -1287,8 +1291,10 @@ contains
       allocate(speciesMass(nType))
       speciesMass(:) = input%slako%mass(:)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      call error("xTB calculation currently not supported")
+      allocate(atomEigVal(orb%mShell, nType))
+      call setupAtomEigVal(input%ctrl%xtbInput%param, atomEigVal)
+      call gaussCont%initialize(orb%mShell, nType)
+      call setupGaussCont(input%ctrl%xtbInput, gaussCont)
     end select
 
     ! Spin W's !'
@@ -1358,7 +1364,9 @@ contains
       cutOff%repCutOff = getCutOff(pRepCont)
       cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
     case(hamiltonianTypes%xtb)
-      ! TODO
+      cutOff%skCutOff = gaussCont%getCutOff()
+      cutOff%repCutOff = getCutOff(pRepCont)
+      cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
       call error("xTB calculation currently not supported")
     end select
 

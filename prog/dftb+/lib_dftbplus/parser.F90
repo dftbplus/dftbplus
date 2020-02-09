@@ -1697,6 +1697,7 @@ contains
     type(fnode), pointer :: value1, child
     integer :: gfnLevel, ii, iSp1, iSh1
     logical :: tBadIntegratingKPoints
+    logical :: tExponentWeightingDefault
     logical :: tSCCdefault
     type(listIntR1), allocatable :: angShells(:)
     character(lc) :: errorStr
@@ -1709,12 +1710,15 @@ contains
       call detailedError(child, "Invalid GFN level specified")
     case(0)
       tSCCdefault = .false.
+      tExponentWeightingDefault = .true.
       call detailedError(child, "GFN0-xTB parameters not available")
     case(1)
       tSCCdefault = .true.
+      tExponentWeightingDefault = .false.
       call setupGFN1Parameters(ctrl%xtbInput, geo%speciesNames)
     case(2)
       tSCCdefault = .true.
+      tExponentWeightingDefault = .true.
       call detailedError(child, "GFN2-xTB parameters not available")
     end select
 
@@ -1811,7 +1815,7 @@ contains
       ctrl%forceType = forceTypes%orig
     end if
 
-    call error("xTB calculation currently not supported")
+    call getChildValue(node, "ExponentWeighting", ctrl%xtbInput%tExponentWeighting, tExponentWeightingDefault, child=child)
 
   end subroutine readXTBHam
 

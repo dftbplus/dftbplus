@@ -10,18 +10,23 @@
 !> Wrapper for xTB parametrisations
 module dftbp_xtbinput
   use dftbp_accuracy, only : dp
-  use dftbp_xtbparam, only : xtbCalculator, xtbParam, xtbGlobalParameter
+  use dftbp_constants, only : maxL
   use dftbp_gfn1param, only : getGFN1Param, gfn1Globals
+  use dftbp_gtocont, only : TGaussCont
+  use dftbp_gtoints, only : TGaussFunc
+  use dftbp_slater, only : gaussFromSlater
+  use dftbp_xtbparam, only : xtbCalculator, xtbParam, xtbGlobalParameter
   implicit none
   private
 
-  public :: setupGFN1Parameters
+  public :: setupGFN1Parameters, setupAtomEigVal
   public :: xtbInput
 
 
   type :: xtbInput
     type(xtbGlobalParameter) :: gPar
     type(xtbParam), allocatable :: param(:)
+    logical :: tExponentWeighting
   end type xtbInput
 
 
@@ -98,6 +103,74 @@ contains
     end do
 
   end subroutine setupXTBCalculator
+
+
+  subroutine setupAtomEigVal(param, atomEigVal)
+    type(xtbParam), intent(in) :: param(:)
+    real(dp), intent(out) :: atomEigVal(:, :)
+    integer :: iSp1, iSh1
+
+    do iSp1 = 1, size(atomEigVal, dim=1)
+      do iSh1 = 1, param(iSp1)%nSh
+        atomEigVal(iSh1, iSp1) = param(iSh1)%basis(iSh1)%h
+      end do
+    end do
+
+  end subroutine setupAtomEigVal
+
+  subroutine setupGaussCont(input, gaussCont)
+    type(xtbInput), intent(in) :: input
+    type(TGaussCont), intent(out) :: gaussCont
+
+    call setupGaussBasis(input%param, gaussCont)
+
+  end subroutine setupGaussCont
+
+  subroutine setupGaussBasis(param, gaussCont)
+    type(xtbParam), intent(in) :: param(:)
+    type(TGaussCont), intent(inout) :: gaussCont
+    type(TGaussFunc) :: cgto
+    integer :: ortho(maxval(param%nSh))
+    integer :: valSh(0:maxL)
+    integer :: info
+
+
+    do iSp1 = 1, size(param)
+      ortho(:) = 0
+      valSh(:) = 0
+      lpExpand: do iSh1 = 1, param(iSp1)%nSh
+        call cgtoFromBasis(cgto, param(iSp1)%basis(iSh1))
+        if (valSh(cgto%l) == 0 .and. param(iSp1)%basis(iSh1)%valence == 1) then
+          valSh(cgto%l) = iSh1
+        else
+          ortho(iSh1) = valSh(cgto%l)
+        end if
+        gaussCont%cgto(iSh1, iSp1) = cgto
+      end do lpExpand
+
+      lpOrtho: do iSh1 = 1, param(iSp1)%nSh
+        if (orthonormalize(iSh1) > 0) then
+          call gsOrtho(gaussCont%cgto(ortho(iSh1), iSp1), gaussCont%cgto(iSh1, iSp1))
+        end if
+      end do lpOrtho
+
+    end do
+
+  end subroutine setupGaussBasis
+
+  subroutine gsOrtho(val, pol)
+    type(gaussFunc), intent(inout) :: val
+    type(gaussFunc), intent(inout) :: pol
+  end subroutine gsOrtho
+
+  pure subroutine cgtoFromBasis(cgto, sto)
+    type(xtbBasis), intent(in) :: sto
+    type(gaussFunc), intent(out) :: cgto
+    call gaussFromSlater(sto%nGauss, sto%n, sto%l, sto%zeta, cgto%alpha, &
+        & cgto%coeff, .true., info)
+    cgto%nPrim = sto%nGauss
+    cgto%l = sto%l
+  end subroutine cgtoFromBasis
 
 
 end module dftbp_xtbinput

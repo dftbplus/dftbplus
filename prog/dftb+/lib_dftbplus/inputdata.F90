@@ -509,6 +509,8 @@ module dftbp_inputdata
 
   !> Gaussian basisset data
   type, extends(TBasis) :: TGauss
+    !> Atomic level information
+    real(dp), allocatable :: atomicLevel(:, :)
   end type TGauss
 
 
