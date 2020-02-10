@@ -275,3 +275,15 @@ to make sure, CMake finds them, you could turn them into targets in your CMake::
 If you compiled DFTB+ with ELSI support, make sure, that CMake can find ELSIs
 own CMake configuration file, as it is declared as dependency in the DFTB+ Cmake
 config file.
+
+
+Generating developer documentation
+==================================
+
+Developer documentation can be generated using the FORD source code
+documentation generator by issuing ::
+
+  cd doc/dftb+/ford && ford dftbplus-project-file.md
+
+in the main source directory. The documentation will be created in the
+`doc/dftb+/ford/doc` folder.
