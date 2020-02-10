@@ -44,8 +44,8 @@ module dftbp_initprogram
 
   use dftbp_hamiltoniantypes
   use dftbp_gtocont, only : TGaussCont
-  use dftbp_xtbparam, only : xtbCalculator
-  use dftbp_xtbinput, only : setupGaussCont, setupAtomEigVal
+  use dftbp_xtbcont, only : xtbCalculator
+  use dftbp_xtbinput, only : setupGaussCont, setupAtomEigVal, setupXTBCalculator
 
   use dftbp_randomgenpool
   use dftbp_ranlux
@@ -276,9 +276,6 @@ module dftbp_initprogram
 
   !> xTB calculation data
   type(xtbCalculator) :: xtbCalc
-
-  !> Raw H^0 hamiltonian data
-  type(TGaussCont) :: gaussCont
 
   !> Raw H^0 hamiltonian data
   type(OSlakoCont) :: skHamCont
@@ -1294,8 +1291,15 @@ contains
     case(hamiltonianTypes%xtb)
       allocate(atomEigVal(orb%mShell, nType))
       call setupAtomEigVal(input%ctrl%xtbInput%param, atomEigVal)
-      call gaussCont%initialize(orb%mShell, nType)
-      call setupGaussCont(input%ctrl%xtbInput, gaussCont)
+      call xtbCalc%gaussCont%initialize(orb%mShell, nType)
+      call error("xTB calculation currently not supported")
+      call setupGaussCont(input%ctrl%xtbInput, xtbCalc%gaussCont)
+      if (tPeriodic) then
+        call setupXTBCalculator(xtbCalc, input%geom%nAtom, input%ctrl%xtbInput, &
+            & input%geom%latVecs)
+      else
+        call setupXTBCalculator(xtbCalc, input%geom%nAtom, input%ctrl%xtbInput)
+      end if
     end select
 
     ! Spin W's !'
@@ -1365,7 +1369,7 @@ contains
       cutOff%repCutOff = getCutOff(pRepCont)
       cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
     case(hamiltonianTypes%xtb)
-      cutOff%skCutOff = gaussCont%getCutOff()
+      cutOff%skCutOff = xtbCalc%gaussCont%getCutOff()
       cutOff%repCutOff = getCutOff(pRepCont)
       cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
       call error("xTB calculation currently not supported")

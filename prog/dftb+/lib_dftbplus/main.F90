@@ -418,8 +418,8 @@ contains
     case(hamiltonianTypes%xtb)
       call xtbSelfEnergy(xtbCalc%level, species, orb, atomEigVal, xtbCalc%kcn, &
           & xtbCalc%cnCont%cn)
-      call buildSH0(env, over, H0, gaussCont, xtbCalc%level, coord, nNeighbourSk, &
-          & neighbourList%iNeighbour, species, iSparseStart, orb)
+      call buildSH0(env, over, H0, xtbCalc%gaussCont, xtbCalc%level, coord, &
+          & nNeighbourSk, neighbourList%iNeighbour, species, iSparseStart, orb)
     end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 

@@ -1746,6 +1746,7 @@ contains
       end associate
     end if
 
+    !> Read in coordination number settings
     call readCoordinationNumber(node, ctrl%xtbInput%cnInput, geo, cnDefault, cutDefault)
 
     ! Orbitals and angular momenta for the given shells
@@ -1880,9 +1881,13 @@ contains
       input%en(:) = getElectronegativity(geo%speciesNames)
     case("values")
       do iSp = 1, geo%nSpecies
-        call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), child=field)
+        call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), child=child2)
       end do
     end select
+
+    if (.not.all(input%en > 0.0_dp)) then
+      call detailedError(value1, "Electronegativities are not defined for all species")
+    end if
 
     allocate(input%covRad(geo%nSpecies))
     call getChildValue(value1, "radii", value2, "CovalentRadiiD3", modifier=modifier, child=child2)
@@ -1901,6 +1906,10 @@ contains
         call convertByMul(char(modifier), lengthUnits, field, input%covRad(iSp))
       end do
     end select
+
+    if (.not.all(input%covRad > 0.0_dp)) then
+      call detailedError(value1, "Covalent radii are not defined for all species")
+    end if
 
   end subroutine readCoordinationNumber
 

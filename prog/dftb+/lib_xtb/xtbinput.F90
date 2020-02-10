@@ -16,11 +16,12 @@ module dftbp_xtbinput
   use dftbp_gtocont, only : TGaussCont
   use dftbp_gtoints, only : TGaussFunc
   use dftbp_slater, only : gaussFromSlater
-  use dftbp_xtbparam, only : xtbCalculator, xtbParam, xtbBasis, xtbGlobalParameter
+  use dftbp_xtbparam, only : xtbParam, xtbBasis, xtbGlobalParameter
+  use dftbp_xtbcont, only : xtbCalculator
   implicit none
   private
 
-  public :: setupGFN1Parameters, setupAtomEigVal, setupGaussCont
+  public :: setupGFN1Parameters, setupAtomEigVal, setupGaussCont, setupXTBCalculator
   public :: xtbInput
 
 
@@ -71,16 +72,24 @@ contains
 
 
   !> Initialize parametrisation data from input
-  subroutine setupXTBCalculator(self, input)
+  subroutine setupXTBCalculator(self, nAtom, input, latVecs)
 
     !> Instance of the xTB parametrisation data
     type(xtbCalculator), intent(out) :: self
 
+    !> Nr. of atoms in the system
+    integer, intent(in) :: nAtom
+
     !> Instance of the xTB parametrisation data
     type(xtbInput), intent(in) :: input
 
-    integer :: iSp, nSpecies, mShell
+    !> Lattice vectors, if the system is periodic
+    real(dp), intent(in), optional :: latVecs(:,:)
 
+    integer :: iSp, nSpecies, mShell
+    logical :: tPeriodic
+
+    tPeriodic = present(latVecs)
     nSpecies = size(input%param, dim=1)
     mShell = maxval(input%param%nSh)
 
@@ -114,6 +123,12 @@ contains
       self%valenceShell(:self%nShell(iSp), iSp) = input%param(iSp)%basis(:self%nShell(iSp))%valence == 1
     end do
 
+    if (tPeriodic) then
+      call self%cnCont%initialize(nAtom, input%cnInput, latVecs)
+    else
+      call self%cnCont%initialize(nAtom, input%cnInput)
+    end if
+
   end subroutine setupXTBCalculator
 
 
@@ -145,7 +160,6 @@ contains
     integer :: ortho(maxval(param%nSh))
     integer :: valSh(0:maxL)
     integer :: iSp1, iSh1
-
 
     do iSp1 = 1, size(param)
       ortho(:) = 0

@@ -135,14 +135,6 @@ module dftbp_coordinationnumber
     !> Electronegativity
     real(dp), allocatable :: en(:)
 
-  contains
-
-    !> Populate electronegativity field from speciesNames
-    procedure :: enFromSpecies
-
-    !> Populate covalent radius field from speciesNames
-    procedure :: covRadFromSpecies
-
   end type cnInput
 
 
@@ -244,16 +236,13 @@ contains
 
 
   !> Initialize coordination number container
-  subroutine initialize(self, nAtom, species0, input, latVecs)
+  subroutine initialize(self, nAtom, input, latVecs)
 
     !> Initialised instance at return
     class(TCNCont), intent(out) :: self
 
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
-
-    !> Species of every atom in the unit cell
-    integer, intent(in) :: species0(:)
 
     !> Input for container
     type(cnInput), intent(in) :: input

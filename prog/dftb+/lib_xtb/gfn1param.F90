@@ -10,7 +10,8 @@
 module dftbp_gfn1param
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : eV => eV__Hartree, AA => AA__Bohr, symbolToNumber
-  use dftbp_xtbparam, only : xtbParam, xtbBasis, xtbCalculator, xtbGlobalParameter
+  use dftbp_xtbparam, only : xtbParam, xtbBasis, xtbGlobalParameter
+  use dftbp_xtbcont, only : xtbCalculator
   implicit none
   private
 

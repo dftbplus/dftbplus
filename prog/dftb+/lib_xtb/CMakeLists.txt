@@ -9,6 +9,7 @@ set(sources-fpp
   ${curdir}/slater.F90
   ${curdir}/xtbh0.F90
   ${curdir}/xtbinput.F90
+  ${curdir}/xtbcont.F90
   ${curdir}/xtbparam.F90)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
