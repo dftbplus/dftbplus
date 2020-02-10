@@ -10,18 +10,21 @@
 !> Wrapper for xTB parametrisations
 module dftbp_xtbinput
   use dftbp_accuracy, only : dp
-  use dftbp_constants, only : maxL
+  use dftbp_constants, only : maxL, pi
   use dftbp_coordinationnumber, only : cnInput
   use dftbp_gfn1param, only : getGFN1Param, gfn1Globals
-  use dftbp_gtocont, only : TGaussCont
+  use dftbp_gtocont, only : TGTOCont, gaussInput
   use dftbp_gtoints, only : TGaussFunc
+  use dftbp_repcont, only : ORepCont, addRepulsive, init
+  use dftbp_repsimple, only : ORepSimple, TRepSimpleIn, init
   use dftbp_slater, only : gaussFromSlater
   use dftbp_xtbparam, only : xtbParam, xtbBasis, xtbGlobalParameter
   use dftbp_xtbcont, only : xtbCalculator
   implicit none
   private
 
-  public :: setupGFN1Parameters, setupAtomEigVal, setupGaussCont, setupXTBCalculator
+  public :: setupGFN1Parameters, setupAtomEigVal, setupGaussCont, setupRepCont
+  public :: setupXTBCalculator
   public :: xtbInput
 
 
@@ -36,6 +39,9 @@ module dftbp_xtbinput
 
     !> Input for the coordination number container
     type(cnInput) :: cnInput
+
+    !> Input for the gaussian type orbital basisset
+    type(gaussInput) :: gaussInput
 
     !> Use weighting by exponent in the construction of H0
     logical :: tExponentWeighting
@@ -145,17 +151,47 @@ contains
 
   end subroutine setupAtomEigVal
 
-  subroutine setupGaussCont(input, gaussCont)
-    type(xtbInput), intent(in) :: input
-    type(TGaussCont), intent(out) :: gaussCont
 
-    call setupGaussBasis(input%param, gaussCont)
+  subroutine setupRepCont(input, repCont)
+    type(xtbInput), intent(in) :: input
+    type(ORepCont), intent(out) :: repCont
+    integer :: iSp1, iSp2
+    type(ORepSimple) :: rep
+    real(dp) :: zeff, alpha
+    integer :: nSpecies
+
+    nSpecies = size(input%param)
+    call init(repCont, nSpecies)
+    do iSp1 = 1, nSpecies
+      do iSp2 = 1, nSpecies
+        zeff = input%param(iSp1)%zeff * input%param(iSp2)%zeff
+        alpha = sqrt(input%param(iSp1)%alpha * input%param(iSp2)%alpha)
+        call init(rep, TRepSimpleIn(zeff, alpha, 1.5_dp, 1.0_dp, 40.0_dp))
+        call addRepulsive(repCont, rep, iSp1, iSp2)
+      end do
+    end do
+
+  end subroutine setupRepCont
+
+
+  subroutine setupGaussCont(input, gtoCont)
+    type(xtbInput), intent(in) :: input
+    type(TGTOCont), intent(inout) :: gtoCont
+
+    call setupGaussBasis(input%param, gtoCont)
 
   end subroutine setupGaussCont
 
-  subroutine setupGaussBasis(param, gaussCont)
+
+  !> Expand all STOs to Gaussian functions
+  subroutine setupGaussBasis(param, gtoCont)
+
+    !> xTB parametrisation data
     type(xtbParam), intent(in) :: param(:)
-    type(TGaussCont), intent(inout) :: gaussCont
+
+    !> Container for Gaussian type integrals
+    type(TGTOCont), intent(inout) :: gtoCont
+
     type(TGaussFunc) :: cgto
     integer :: ortho(maxval(param%nSh))
     integer :: valSh(0:maxL)
@@ -171,12 +207,12 @@ contains
         else
           ortho(iSh1) = valSh(cgto%l)
         end if
-        gaussCont%cgto(iSh1, iSp1) = cgto
+        gtoCont%cgto(iSh1, iSp1) = cgto
       end do lpExpand
 
       lpOrtho: do iSh1 = 1, param(iSp1)%nSh
         if (ortho(iSh1) > 0) then
-          call gsOrtho(gaussCont%cgto(ortho(iSh1), iSp1), gaussCont%cgto(iSh1, iSp1))
+          call gsOrtho(gtoCont%cgto(ortho(iSh1), iSp1), gtoCont%cgto(iSh1, iSp1))
         end if
       end do lpOrtho
 
@@ -184,19 +220,63 @@ contains
 
   end subroutine setupGaussBasis
 
+
+  !> Orthogonalize a polarisation shell against a valence shell
   subroutine gsOrtho(val, pol)
-    type(TGaussFunc), intent(inout) :: val
+
+    !> Valence shell to orthogonalize against
+    type(TGaussFunc), intent(in) :: val
+
+    !> Polarisation shell to orthogonalize
     type(TGaussFunc), intent(inout) :: pol
+
+    integer :: ii, jj
+    real(dp) :: ss, ab
+
+    @:ASSERT(val%l == pol%l)
+    @:ASSERT(val%l == 0)
+
+    ss = 0.0_dp
+    do ii = 1, val%nPrim
+      do jj = 1, pol%nPrim
+        ab = 1.0_dp / (val%alpha(ii) + pol%alpha(jj))
+        ss = ss + val%coeff(ii) * pol%coeff(jj) * sqrt(pi * ab)**3
+      end do
+    end do
+
+    pol%alpha(pol%nPrim+1:pol%nPrim+val%nPrim) = val%alpha(:val%nPrim)
+    pol%coeff(pol%nPrim+1:pol%nPrim+val%nPrim) = -ss*val%coeff(:val%nPrim)
+    pol%nPrim = pol%nPrim + val%nPrim
+
+    ss = 0.0_dp
+    do ii = 1, pol%nPrim
+      do jj = 1, pol%nPrim
+        ab = 1.0_dp / (pol%alpha(ii) + pol%alpha(jj))
+        ss = ss + pol%coeff(ii) * pol%coeff(jj) * sqrt(pi * ab)**3
+      end do
+    end do
+
+    pol%coeff(:pol%nPrim) = pol%coeff(:pol%nPrim) / sqrt(ss)
+
   end subroutine gsOrtho
 
-  pure subroutine cgtoFromBasis(cgto, sto)
+
+  !> Expand Slater type orbital to contracted Gaussian type orbital
+  subroutine cgtoFromBasis(cgto, sto)
+
+    !> xTB basisset information
     type(xtbBasis), intent(in) :: sto
+
+    !> Contracted Gaussian type orbital
     type(TGaussFunc), intent(out) :: cgto
+
     integer :: info
+
     call gaussFromSlater(sto%nGauss, sto%n, sto%l, sto%zeta, cgto%alpha, &
         & cgto%coeff, .true., info)
     cgto%nPrim = sto%nGauss
     cgto%l = sto%l
+
   end subroutine cgtoFromBasis
 
 

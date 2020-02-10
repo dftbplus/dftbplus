@@ -12,7 +12,7 @@ module dftbp_xtbh0
   use dftbp_accuracy, only : dp
   use dftbp_commontypes, only : TOrbitals
   use dftbp_environment, only : TEnvironment
-  use dftbp_gtocont, only : TGaussCont
+  use dftbp_gtocont, only : TGTOCont
   implicit none
   private
 
@@ -66,7 +66,7 @@ contains
   end subroutine xtbSelfEnergy
  
 
-  subroutine buildSH0(env, ovlp, ham, gaussCont, selfEnergy, coords, nNeighbour, &
+  subroutine buildSH0(env, ovlp, ham, gtoCont, selfEnergy, coords, nNeighbour, &
       & iNeighbours, species, iPair, orb)
 
     !> Computational environment settings
@@ -79,7 +79,7 @@ contains
     real(dp), intent(out) :: ham(:)
 
     !> Container for the SlaKo Hamiltonian integrals
-    type(TGaussCont), intent(in) :: gaussCont
+    type(TGTOCont), intent(in) :: gtoCont
 
     !> On-site energies for each atom
     real(dp), intent(in) :: selfEnergy(:, :)

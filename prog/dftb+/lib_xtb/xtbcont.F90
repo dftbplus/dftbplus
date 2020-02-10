@@ -11,7 +11,7 @@
 module dftbp_xtbcont
   use dftbp_accuracy, only : dp
   use dftbp_coordinationnumber, only : TCNCont
-  use dftbp_gtocont, only : TGaussCont
+  use dftbp_gtocont, only : TGTOCont
   use dftbp_periodic, only : TNeighbourList
   use dftbp_xtbparam, only : xtbGlobalParameter
   implicit none
@@ -35,7 +35,7 @@ module dftbp_xtbcont
     type(TCNCont) :: cnCont
 
     !> Gaussian type orbital basis set container
-    type(TGaussCont) :: gaussCont
+    type(TGTOCont) :: gtoCont
 
     !> Number of shells per species
     integer, allocatable :: nShell(:)
@@ -170,7 +170,6 @@ contains
 
     self%mShell = mShell
 
-    allocate(self%lShell(mShell, self%nSpecies))
     allocate(self%lShell(mShell, self%nSpecies))
     allocate(self%shellPoly(mShell, self%nSpecies))
     allocate(self%shellEta(mShell, self%nSpecies))

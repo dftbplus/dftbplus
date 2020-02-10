@@ -43,9 +43,9 @@ module dftbp_initprogram
   use dftbp_lbfgs
 
   use dftbp_hamiltoniantypes
-  use dftbp_gtocont, only : TGaussCont
   use dftbp_xtbcont, only : xtbCalculator
-  use dftbp_xtbinput, only : setupGaussCont, setupAtomEigVal, setupXTBCalculator
+  use dftbp_xtbinput, only : setupGaussCont, setupAtomEigVal, setupRepCont, &
+      & setupXTBCalculator
 
   use dftbp_randomgenpool
   use dftbp_ranlux
@@ -1291,15 +1291,15 @@ contains
     case(hamiltonianTypes%xtb)
       allocate(atomEigVal(orb%mShell, nType))
       call setupAtomEigVal(input%ctrl%xtbInput%param, atomEigVal)
-      call xtbCalc%gaussCont%initialize(orb%mShell, nType)
-      call error("xTB calculation currently not supported")
-      call setupGaussCont(input%ctrl%xtbInput, xtbCalc%gaussCont)
       if (tPeriodic) then
         call setupXTBCalculator(xtbCalc, input%geom%nAtom, input%ctrl%xtbInput, &
             & input%geom%latVecs)
       else
         call setupXTBCalculator(xtbCalc, input%geom%nAtom, input%ctrl%xtbInput)
       end if
+      call xtbCalc%gtoCont%initialize(orb%mShell, nType, input%ctrl%xtbInput%gaussInput)
+      call setupGaussCont(input%ctrl%xtbInput, xtbCalc%gtoCont)
+      call setupRepCont(input%ctrl%xtbInput, pRepCont)
     end select
 
     ! Spin W's !'
@@ -1369,10 +1369,9 @@ contains
       cutOff%repCutOff = getCutOff(pRepCont)
       cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
     case(hamiltonianTypes%xtb)
-      cutOff%skCutOff = xtbCalc%gaussCont%getCutOff()
+      cutOff%skCutOff = xtbCalc%gtoCont%getCutOff()
       cutOff%repCutOff = getCutOff(pRepCont)
       cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
-      call error("xTB calculation currently not supported")
     end select
 
     ! Get species names and output file

@@ -28,14 +28,8 @@ module dftbp_repsimple
   end type TRepSimpleIn
 
   !> Contains the simple representation of a repulsive.
-  type :: ORepSimple
+  type, extends(TRepSimpleIn) :: ORepSimple
     private
-    real(dp) :: zeff
-    real(dp) :: alpha
-    real(dp) :: kexp
-    real(dp) :: rexp
-    !> Cutoff of the last spline
-    real(dp) :: cutoff
     !> Initialisation status
     logical :: tInit = .false.
   end type ORepSimple
@@ -77,7 +71,8 @@ contains
     @:ASSERT(.not. self%tInit)
     @:ASSERT(inp%cutoff >= 0.0_dp)
 
-    self%cutoff = inp%cutoff
+    self%TRepSimpleIn = inp
+
     self%tInit = .true.
 
   end subroutine RepSimple_init

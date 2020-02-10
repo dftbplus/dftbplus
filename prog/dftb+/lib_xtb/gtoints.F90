@@ -17,8 +17,8 @@
 !  them separately, which saves a lot of logical overhead.
 module dftbp_gtoints
   use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_constants, only: pi
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : maxL, pi
   implicit none
 
 
@@ -27,9 +27,6 @@ module dftbp_gtoints
   !public :: shellPairMomentsIntegral, shellPairMomentsDeriv
   private
 
-
-  !> Allow up to d functions (l=2), for gradients l+1 is required.
-  integer, parameter :: maxL = 3
 
   !> Maximal contraction depth of contracted Gaussian type orbitals.
   integer, parameter :: maxPrim = 7
