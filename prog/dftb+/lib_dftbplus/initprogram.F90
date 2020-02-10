@@ -3857,17 +3857,6 @@ contains
     tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
     if (electronicSolver%isElsiSolver) then
       tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
-      if (.not.electronicSolver%elsi%isSparse .and. .not.(electronicSolver%providesEigenvals .or.&
-          & electronicSolver%iSolver == electronicSolverTypes%omm)) then
-        if (tDFTBU) then
-          call error("This dense ELSI solver is currently incompatible with DFTB+U, use the sparse&
-              & form")
-        end if
-        if (allocated(onSiteElements)) then
-          call error("This dense ELSI solver is currently incompatible with onsite correctios, use&
-              & the sparse form")
-        end if
-      end if
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&

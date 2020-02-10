@@ -508,6 +508,8 @@ contains
         call elsi_set_csc_blk(this%handle, this%csrBlockSize)
       else
         call elsi_set_zero_def(this%handle, this%elsi_zero_def)
+        ! sparsity of both H and S used as the pattern
+        call elsi_set_sparsity_mask(this%handle, 0)
       end if
       call elsi_set_blacs(this%handle, this%myBlacsCtx, this%BlacsBlockSize)
 
