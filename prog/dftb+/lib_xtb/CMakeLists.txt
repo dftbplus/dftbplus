@@ -1,6 +1,7 @@
 set(curdir "lib_xtb")
 
 set(sources-fpp
+  ${curdir}/coordinationnumber.F90
   ${curdir}/gfn1param.F90
   ${curdir}/gtocont.F90
   ${curdir}/gtoints.F90

@@ -16,12 +16,55 @@ module dftbp_xtbh0
   implicit none
   private
 
-  public :: buildSH0
+  public :: buildSH0, xtbSelfEnergy
 
   !> Maximal angular momentum, for which rotations are present
   integer, parameter :: mAngRot_ = 3
 
 contains
+
+  !> Calculate coordination number dependency of xTB self-energy
+  subroutine xtbSelfEnergy(selfEnergy, species, orb, atomEnergy, kcn, cn)
+
+    !> On-site energies for each atom
+    real(dp), intent(out) :: selfEnergy(:, :)
+
+    !> Chemical species of each atom
+    integer, intent(in) :: species(:)
+
+    !> Information about the orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> On-site energies for each species
+    real(dp), intent(in) :: atomEnergy(:, :)
+
+    !> Enhancement factor for the coordination number dependence
+    real(dp), intent(in) :: kcn(:, :)
+
+    !> Coordination number of every atom
+    real(dp), intent(in) :: cn(:)
+
+    integer :: nAtom
+    integer :: iAt1, iSp1, iSh1
+
+    nAtom = size(selfEnergy, dim=2)
+
+    @:ASSERT(size(atomEnergy, dim=1) == size(selfEnergy, dim=1))
+    @:ASSERT(size(atomEnergy, dim=2) == maxval(species))
+
+    !$omp parallel do schedule(runtime) default(none) &
+    !$omp shared(nAtom, species, orb, selfEnergy, atomEnergy, cn, kcn) &
+    !$omp private(iAt1, iSp1, iSh1)
+    do iAt1 = 1, nAtom
+      iSp1 = species(iAt1)
+      do iSh1 = 1, orb%nShell(iSp1)
+        selfEnergy(iSh1, iAt1) = atomEnergy(iSh1, iSp1) + cn(iAt1) * kcn(iSh1, iSp1)
+      end do
+    end do
+    !$omp end parallel do
+
+  end subroutine xtbSelfEnergy
+ 
 
   subroutine buildSH0(env, ovlp, ham, gaussCont, selfEnergy, coords, nNeighbour, &
       & iNeighbours, species, iPair, orb)
@@ -38,7 +81,7 @@ contains
     !> Container for the SlaKo Hamiltonian integrals
     type(TGaussCont), intent(in) :: gaussCont
 
-    !> On-site energies for each species
+    !> On-site energies for each atom
     real(dp), intent(in) :: selfEnergy(:, :)
 
     !> List of all coordinates, including possible periodic images of atoms
@@ -68,6 +111,8 @@ contains
     nAtom = size(nNeighbour)
     ham(:) = 0.0_dp
 
+    @:ASSERT(size(selfEnergy, dim=2) == nAtom)
+
     !$omp parallel do schedule(runtime) default(none) &
     !$omp shared(nAtom, species, iPair, orb, selfEnergy, ham) &
     !$omp private(iAt1, iSp1, ind, iOrb1)
@@ -75,7 +120,7 @@ contains
       iSp1 = species(iAt1)
       ind = iPair(0, iAt1) + 1
       do iOrb1 = 1, orb%nOrbAtom(iAt1)
-        ham(ind) = selfEnergy(orb%iShellOrb(iOrb1, iSp1), iSp1)
+        ham(ind) = selfEnergy(orb%iShellOrb(iOrb1, iSp1), iAt1)
         ind = ind + orb%nOrbAtom(iAt1) + 1
       end do
     end do

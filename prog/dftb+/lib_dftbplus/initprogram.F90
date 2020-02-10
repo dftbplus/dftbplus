@@ -45,6 +45,7 @@ module dftbp_initprogram
   use dftbp_hamiltoniantypes
   use dftbp_gtocont, only : TGaussCont
   use dftbp_xtbparam, only : xtbCalculator
+  use dftbp_xtbinput, only : setupGaussCont, setupAtomEigVal
 
   use dftbp_randomgenpool
   use dftbp_ranlux

@@ -15,11 +15,11 @@ module dftbp_xtbinput
   use dftbp_gtocont, only : TGaussCont
   use dftbp_gtoints, only : TGaussFunc
   use dftbp_slater, only : gaussFromSlater
-  use dftbp_xtbparam, only : xtbCalculator, xtbParam, xtbGlobalParameter
+  use dftbp_xtbparam, only : xtbCalculator, xtbParam, xtbBasis, xtbGlobalParameter
   implicit none
   private
 
-  public :: setupGFN1Parameters, setupAtomEigVal
+  public :: setupGFN1Parameters, setupAtomEigVal, setupGaussCont
   public :: xtbInput
 
 
@@ -132,7 +132,7 @@ contains
     type(TGaussFunc) :: cgto
     integer :: ortho(maxval(param%nSh))
     integer :: valSh(0:maxL)
-    integer :: info
+    integer :: iSp1, iSh1
 
 
     do iSp1 = 1, size(param)
@@ -149,7 +149,7 @@ contains
       end do lpExpand
 
       lpOrtho: do iSh1 = 1, param(iSp1)%nSh
-        if (orthonormalize(iSh1) > 0) then
+        if (ortho(iSh1) > 0) then
           call gsOrtho(gaussCont%cgto(ortho(iSh1), iSp1), gaussCont%cgto(iSh1, iSp1))
         end if
       end do lpOrtho
@@ -159,13 +159,14 @@ contains
   end subroutine setupGaussBasis
 
   subroutine gsOrtho(val, pol)
-    type(gaussFunc), intent(inout) :: val
-    type(gaussFunc), intent(inout) :: pol
+    type(TGaussFunc), intent(inout) :: val
+    type(TGaussFunc), intent(inout) :: pol
   end subroutine gsOrtho
 
   pure subroutine cgtoFromBasis(cgto, sto)
     type(xtbBasis), intent(in) :: sto
-    type(gaussFunc), intent(out) :: cgto
+    type(TGaussFunc), intent(out) :: cgto
+    integer :: info
     call gaussFromSlater(sto%nGauss, sto%n, sto%l, sto%zeta, cgto%alpha, &
         & cgto%coeff, .true., info)
     cgto%nPrim = sto%nGauss

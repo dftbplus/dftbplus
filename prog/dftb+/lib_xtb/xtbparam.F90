@@ -10,6 +10,8 @@
 !> xTB parameter types
 module dftbp_xtbparam
   use dftbp_accuracy, only : dp
+  use dftbp_coordinationnumber, only : TCNCont
+  use dftbp_periodic, only : TNeighbourList
   implicit none
   private
 
@@ -125,6 +127,9 @@ module dftbp_xtbparam
     !> Global parameters
     type(xtbGlobalParameter) :: gPar
 
+    !> Coordination number container
+    type(TCNCont) :: cnCont
+
     !> Number of shells per species
     integer, allocatable :: nShell(:)
 
@@ -193,9 +198,20 @@ module dftbp_xtbparam
 
   contains
 
+    !> Allocate space for species dependent parameters
     procedure :: allocateSpecies
 
+    !> Allocate space for basisset dependent parameters
     procedure :: allocateShells
+
+    !> update internal copy of coordinates
+    procedure :: updateCoords
+
+    !> update internal copy of lattice vectors
+    procedure :: updateLatVecs
+
+    !> get real space cutoff
+    procedure :: getRCutoff
 
   end type xtbCalculator
 
@@ -256,6 +272,58 @@ contains
     allocate(self%valenceShell(mShell, self%nSpecies))
 
   end subroutine allocateShells
+
+
+  !> Update internal stored coordinates
+  subroutine updateCoords(self, neighList, img2CentCell, coords, species0)
+
+    !> data structure
+    class(xtbCalculator), intent(inout) :: self
+
+    !> list of neighbours to atoms
+    type(TNeighbourList), intent(in) :: neighList
+
+    !> image to central cell atom index
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    call self%cnCont%updateCoords(neighList, img2CentCell, coords, species0)
+
+  end subroutine updateCoords
+
+
+  !> update internal copy of lattice vectors
+  subroutine updateLatVecs(self, latVecs)
+
+    !> data structure
+    class(xtbCalculator), intent(inout) :: self
+
+    !> lattice vectors
+    real(dp), intent(in) :: latVecs(:,:)
+
+    call self%cnCont%updateLatVecs(latVecs)
+
+  end subroutine updateLatVecs
+
+
+  !> Distance cut off for calculator
+  function getRCutoff(self) result(cutoff)
+
+    !> data structure
+    class(xtbCalculator), intent(inout) :: self
+
+    !> resulting cutoff
+    real(dp) :: cutoff
+
+    cutoff = self%cnCont%getRCutoff()
+
+  end function getRCutoff
+
 
   !> Serialize xTB-parameters to TOML
   subroutine xtbParamTOML(unit, param, gfn, root)

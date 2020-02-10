@@ -27,6 +27,7 @@ module dftbp_main
   use dftbp_densedescr
   use dftbp_inputdata
   use dftbp_hamiltoniantypes
+  use dftbp_xtbh0, only : buildSH0, xtbSelfEnergy
   use dftbp_nonscc
   use dftbp_eigenvects
   use dftbp_repulsive
@@ -415,8 +416,10 @@ contains
       call buildS(env, over, skOverCont, coord, nNeighbourSk, neighbourList%iNeighbour, species,&
           & iSparseStart, orb)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      call error("xTB calculation currently not supported")
+      call xtbSelfEnergy(xtbCalc%level, species, orb, atomEigVal, xtbCalc%kcn, &
+          & xtbCalc%cnCont%cn)
+      call buildSH0(env, over, H0, gaussCont, xtbCalc%level, coord, nNeighbourSk, &
+          & neighbourList%iNeighbour, species, iSparseStart, orb)
     end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
