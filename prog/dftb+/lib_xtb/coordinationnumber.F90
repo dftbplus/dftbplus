@@ -12,12 +12,13 @@ module dftbp_coordinationnumber
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
+  use dftbp_message, only : error
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_simplealgebra, only : determinant33
   implicit none
   private
 
-  public :: TCNCont
+  public :: TCNCont, cnInput, cnType
   public :: getElectronegativity, getCovalentRadius
 
 
@@ -113,7 +114,37 @@ module dftbp_coordinationnumber
   end type TCNCountEnum
 
   !> Enumerator for different coordination number types
-  type(TCNCountEnum), parameter :: TCNCount = TCNCountEnum()
+  type(TCNCountEnum), parameter :: cnType = TCNCountEnum()
+
+
+  !> Input to generate coordination number container
+  type :: cnInput
+
+    !> Coordination number type
+    integer :: cnType
+
+    !> Real space cutoff
+    real(dp) :: rCutoff
+
+    !> Upper bound for coordination number
+    real(dp) :: maxCN
+
+    !> Covalent radii
+    real(dp), allocatable :: covRad(:)
+
+    !> Electronegativity
+    real(dp), allocatable :: en(:)
+
+  contains
+
+    !> Populate electronegativity field from speciesNames
+    procedure :: enFromSpecies
+
+    !> Populate covalent radius field from speciesNames
+    procedure :: covRadFromSpecies
+
+  end type cnInput
+
 
   !> Coordination number container
   type :: TCNCont
@@ -140,10 +171,10 @@ module dftbp_coordinationnumber
     real(dp) :: kcn
 
     !> Cut coordination number
-    logical, allocatable :: tCutCN
+    logical :: tCutCN
 
     !> Upper bound for coordination number
-    real(dp), allocatable :: maxCN
+    real(dp) :: maxCN
 
     !> Covalent radii
     real(dp), allocatable :: covRad(:)
@@ -193,12 +224,16 @@ module dftbp_coordinationnumber
   !> Abstract interface for the counting function (and its derivative)
   pure function countFunction(k, r, r0)
     import :: dp
+
     !> Constant for counting function
     real(dp), intent(in) :: k
+
     !> Actual distance
     real(dp), intent(in) :: r
+
     !> Critical distance
     real(dp), intent(in) :: r0
+
     !> Value of the counting function in the range of [0,1]
     real(dp) :: countFunction
   end function countFunction
@@ -209,8 +244,7 @@ contains
 
 
   !> Initialize coordination number container
-  subroutine initialize(self, nAtom, species0, covRad, en, cnType, maxCN, &
-      & rCutoff, latVecs)
+  subroutine initialize(self, nAtom, species0, input, latVecs)
 
     !> Initialised instance at return
     class(TCNCont), intent(out) :: self
@@ -221,23 +255,14 @@ contains
     !> Species of every atom in the unit cell
     integer, intent(in) :: species0(:)
 
-    !> Real space cutoff
-    real(dp), intent(in) :: rCutoff
-
-    !> Covalent radii
-    real(dp), intent(in) :: covRad(:)
-
-    !> Electronegativities
-    real(dp), intent(in) :: en(:)
-
-    !> Coordination number type
-    integer, intent(in) :: cnType
-
-    !> Maximum CN
-    real(dp), intent(in) :: maxCN
+    !> Input for container
+    type(cnInput), intent(in) :: input
 
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
+
+    @:ASSERT(allocated(input%covRad))
+    @:ASSERT(allocated(input%en))
 
     self%tPeriodic = present(latVecs)
     if (self%tPeriodic) then
@@ -249,39 +274,40 @@ contains
     allocate(self%dcndr(3, nAtom, nAtom))
     allocate(self%dcndL(3, 3, nAtom))
 
-    self%rCutoff = rCutoff
+    self%rCutoff = input%rCutoff
 
-    select case(cnType)
+    select case(input%cnType)
     case default
-    case(TCNCount%erf)
+      call error("Fatal programming error in dftbp_coordinationnumber!")
+    case(cnType%erf)
       self%countFunc => erfCount
       self%countDeriv => derfCount
       self%kcn = 7.5_dp
       self%tENScale = .false.
-    case(TCNCount%exp)
+    case(cnType%exp)
       self%countFunc => expCount
       self%countDeriv => dexpCount
       self%kcn = 16.0_dp
       self%tENScale = .false.
-    case(TCNCount%cov)
+    case(cnType%cov)
       self%countFunc => erfCount
       self%countDeriv => derfCount
       self%kcn = 7.5_dp
       self%tENScale = .true.
-    case(TCNCount%gfn)
+    case(cnType%gfn)
       self%countFunc => gfnCount
       self%countDeriv => dgfnCount
       self%kcn = 10.0_dp
       self%tENScale = .false.
     end select
 
-    self%tCutCN = maxCN > 0.0_dp
-    self%maxCN = maxCN
+    self%tCutCN = input%maxCN > 0.0_dp
+    self%maxCN = input%maxCN
 
-    allocate(self%covRad(size(covRad)))
-    allocate(self%en(size(en)))
-    self%covRad(:) = covRad
-    self%en(:) = en
+    allocate(self%covRad(size(input%covRad)))
+    allocate(self%en(size(input%en)))
+    self%covRad(:) = input%covRad
+    self%en(:) = input%en
 
     self%tCoordsUpdated = .false.
 
@@ -718,6 +744,27 @@ contains
   end function dCutCn
 
 
+  !> Populate covalent radius field from speciesNames
+  subroutine covRadFromSpecies(self, speciesNames)
+
+    !> Instance of the CN input data
+    class(cnInput), intent(inout) :: self
+
+    !> Element symbols for all species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    integer :: iSp
+
+    @:ASSERT(.not.allocated(self%covRad))
+
+    allocate(self%covRad(size(speciesNames)))
+    do iSp = 1, size(speciesNames)
+      self%covRad(iSp) = getCovalentRadius(speciesNames(iSp))
+    end do
+
+  end subroutine covRadFromSpecies
+
+
   !> Get covalent radius for species with a given symbol
   elemental function getCovalentRadiusSymbol(symbol) result(radius)
 
@@ -748,6 +795,27 @@ contains
     end if
 
   end function getCovalentRadiusNumber
+
+
+  !> Populate electronegativity field from speciesNames
+  subroutine enFromSpecies(self, speciesNames)
+
+    !> Instance of the CN input data
+    class(cnInput), intent(inout) :: self
+
+    !> Element symbols for all species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    integer :: iSp
+
+    @:ASSERT(.not.allocated(self%en))
+
+    allocate(self%en(size(speciesNames)))
+    do iSp = 1, size(speciesNames)
+      self%en(iSp) = getElectronegativity(speciesNames(iSp))
+    end do
+
+  end subroutine enFromSpecies
 
 
   !> Get electronegativity for species with a given symbol

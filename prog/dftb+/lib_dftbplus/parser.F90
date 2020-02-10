@@ -30,6 +30,7 @@ module dftbp_parser
   use dftbp_simplealgebra, only: cross3, determinant33
 
   use dftbp_xtbinput, only : setupGFN1Parameters
+  use dftbp_coordinationnumber, only : cnInput, cnType, getCovalentRadius, getElectronegativity
 
   use dftbp_slakocont
   use dftbp_slakoeqgrid
@@ -1694,31 +1695,40 @@ contains
     type(TPoissonInfo), intent(inout) :: poisson
   #:endif
 
-    type(fnode), pointer :: value1, child
-    integer :: gfnLevel, ii, iSp1, iSh1
+    type(fnode), pointer :: value1, child, child2, field
+    type(string) :: xtbLevel, modifier
+    integer :: ii, iSp1, iSh1
     logical :: tBadIntegratingKPoints
     logical :: tExponentWeightingDefault
     logical :: tSCCdefault
+    real(dp) :: cutDefault
     type(listIntR1), allocatable :: angShells(:)
+    character(len=3) :: cnDefault
     character(lc) :: errorStr
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
-    call getChildValue(node, "gfn", gfnLevel, child=child)
-    select case(gfnLevel)
+    call getChildValue(node, "param", xtbLevel, child=child)
+    select case(tolower(unquote(char(xtbLevel))))
     case default
       call detailedError(child, "Invalid GFN level specified")
-    case(0)
+    case("gfn0")
       tSCCdefault = .false.
       tExponentWeightingDefault = .true.
+      cnDefault = "erf"
+      cutDefault = 8.0_dp
       call detailedError(child, "GFN0-xTB parameters not available")
-    case(1)
+    case("gfn1")
       tSCCdefault = .true.
       tExponentWeightingDefault = .false.
+      cnDefault = "exp"
+      cutDefault = 0.0_dp
       call setupGFN1Parameters(ctrl%xtbInput, geo%speciesNames)
-    case(2)
+    case("gfn2")
       tSCCdefault = .true.
       tExponentWeightingDefault = .true.
+      cnDefault = "gfn"
+      cutDefault = 0.0_dp
       call detailedError(child, "GFN2-xTB parameters not available")
     end select
 
@@ -1735,6 +1745,8 @@ contains
         end do
       end associate
     end if
+
+    call readCoordinationNumber(node, ctrl%xtbInput%cnInput, geo, cnDefault, cutDefault)
 
     ! Orbitals and angular momenta for the given shells
     allocate(gauss%orb)
@@ -1818,6 +1830,79 @@ contains
     call getChildValue(node, "ExponentWeighting", ctrl%xtbInput%tExponentWeighting, tExponentWeightingDefault, child=child)
 
   end subroutine readXTBHam
+
+
+  !> Read in coordination number settings
+  subroutine readCoordinationNumber(node, input, geo, cnDefault, cutDefault)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(cnInput), intent(inout) :: input
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    !> Default value for the coordination number type
+    character(len=*), intent(in) :: cnDefault
+
+    !> Default value for the maximum CN used for cutting (0 turns it off)
+    real(dp), intent(in) :: cutDefault
+
+    type(fnode), pointer :: value1, value2, child, child2, field
+    type(string) :: buffer, modifier
+    integer :: iSp
+
+    call getChildValue(node, "CoordinationNumber", value1, cnDefault, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Invalid coordination number type specified")
+  #:for cnType in ("exp", "erf", "cov", "gfn")
+    case("${cnType}$")
+      input%cnType = cnType%${cnType}$
+  #:endfor
+    end select
+    call getChildValue(value1, "CutCN", input%maxCN, cutDefault, &
+        & child=child2)
+    call getChildValue(value1, "cutoff", input%rCutoff, 40.0_dp, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+
+    allocate(input%en(geo%nSpecies))
+    call getChildValue(value1, "electronegativities", value2, "PaulingEN", child=child2)
+    call getNodeName(value2, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate electronegativities")
+    case("paulingen")
+      input%en(:) = getElectronegativity(geo%speciesNames)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), child=field)
+      end do
+    end select
+
+    allocate(input%covRad(geo%nSpecies))
+    call getChildValue(value1, "radii", value2, "CovalentRadiiD3", modifier=modifier, child=child2)
+    call getNodeName(value2, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("covalentradiid3")
+      if (len(modifier) > 0) then
+        call detailedError(child2, "No modifier is allowed if database values are loaded")
+      end if
+      input%covRad(:) = getCovalentRadius(geo%speciesNames)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), child=field)
+        call convertByMul(char(modifier), lengthUnits, field, input%covRad(iSp))
+      end do
+    end select
+
+  end subroutine readCoordinationNumber
 
 
   !> Read in maximal angular momenta or selected shells

@@ -11,6 +11,7 @@
 module dftbp_xtbinput
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : maxL
+  use dftbp_coordinationnumber, only : cnInput
   use dftbp_gfn1param, only : getGFN1Param, gfn1Globals
   use dftbp_gtocont, only : TGaussCont
   use dftbp_gtoints, only : TGaussFunc
@@ -23,10 +24,21 @@ module dftbp_xtbinput
   public :: xtbInput
 
 
+  !> Bundle of xTB related input
   type :: xtbInput
+
+    !> Global parameters for xTB
     type(xtbGlobalParameter) :: gPar
+
+    !> Element specific parameters for xTB
     type(xtbParam), allocatable :: param(:)
+
+    !> Input for the coordination number container
+    type(cnInput) :: cnInput
+
+    !> Use weighting by exponent in the construction of H0
     logical :: tExponentWeighting
+
   end type xtbInput
 
 
