@@ -20,12 +20,11 @@ module dftbp_gtoints
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : maxL, pi
   implicit none
-
+  private
 
   public :: TGaussFunc
-  public :: shellPairOverlapIntegral, shellPairOverlapDeriv
+  public :: shellPairOverlapIntegral, shellPairOverlapDeriv, gsOrtho
   !public :: shellPairMomentsIntegral, shellPairMomentsDeriv
-  private
 
 
   !> Maximal contraction depth of contracted Gaussian type orbitals.
@@ -96,8 +95,8 @@ contains
     real(dp), intent(in) :: vec(3)
     !> squared distance between atom 1 and 2
     real(dp), intent(in) :: dist
-    real(dp), intent(out) :: overlap(:)
-    real(dp) :: tmp(size(overlap, 1))
+    real(dp), intent(out) :: overlap(:, :)
+    real(dp) :: tmp(size(overlap, 1), size(overlap, 2))
     real(dp) :: rho, orho, est, k12
     integer :: iPrim1, iPrim2
 
@@ -173,22 +172,20 @@ contains
     real(dp), intent(in) :: alpha2
     !> distance vector between atom 1 and 2
     real(dp), intent(in) :: vec(3)
-    real(dp), intent(out) :: overlap(:)
+    real(dp), intent(out) :: overlap(:, :)
 
-    integer :: i, j, ij
+    integer :: ii, jj
     real(dp) :: tmp
 
     overlap = 0.0_dp
 
-    ij = 0
-    do i = lm(1, l1), lm(2, l1)
-      do j = lm(1, l2), lm(2, l2)
-        ij = ij+1
+    do ii = lm(1, l1), lm(2, l1)
+      do jj = lm(1, l2), lm(2, l2)
         call primOverlapIntegral(&
-            & [lx(i), ly(i), lz(i)], alpha1, &
-            & [lx(j), ly(j), lz(j)], alpha2, &
+            & [lx(ii), ly(ii), lz(ii)], alpha1, &
+            & [lx(jj), ly(jj), lz(jj)], alpha2, &
             & vec, tmp)
-        overlap(ij) = tmp * cnorm(i) * cnorm(j)
+        overlap(ii, jj) = tmp * cnorm(ii) * cnorm(jj)
       end do
     end do
   end subroutine shellPrimOverlapIntegral
@@ -429,5 +426,46 @@ contains
       s = (0.5_dp/rho)**lh * doubleFactorial(lh)
     endif
   end function primOverlap1D
+
+
+  !> Orthogonalize a polarisation shell against a valence shell
+  subroutine gsOrtho(val, pol)
+
+    !> Valence shell to orthogonalize against
+    type(TGaussFunc), intent(in) :: val
+
+    !> Polarisation shell to orthogonalize
+    type(TGaussFunc), intent(inout) :: pol
+
+    integer :: ii, jj
+    real(dp) :: ss, ab
+
+    @:ASSERT(val%l == pol%l)
+    @:ASSERT(val%l == 0)
+
+    ss = 0.0_dp
+    do ii = 1, val%nPrim
+      do jj = 1, pol%nPrim
+        ab = 1.0_dp / (val%alpha(ii) + pol%alpha(jj))
+        ss = ss + val%coeff(ii) * pol%coeff(jj) * sqrt(pi * ab)**3
+      end do
+    end do
+
+    pol%alpha(pol%nPrim+1:pol%nPrim+val%nPrim) = val%alpha(:val%nPrim)
+    pol%coeff(pol%nPrim+1:pol%nPrim+val%nPrim) = -ss*val%coeff(:val%nPrim)
+    pol%nPrim = pol%nPrim + val%nPrim
+
+    ss = 0.0_dp
+    do ii = 1, pol%nPrim
+      do jj = 1, pol%nPrim
+        ab = 1.0_dp / (pol%alpha(ii) + pol%alpha(jj))
+        ss = ss + pol%coeff(ii) * pol%coeff(jj) * sqrt(pi * ab)**3
+      end do
+    end do
+
+    pol%coeff(:pol%nPrim) = pol%coeff(:pol%nPrim) / sqrt(ss)
+
+  end subroutine gsOrtho
+
 
 end module dftbp_gtoints

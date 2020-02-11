@@ -66,7 +66,7 @@ contains
   end subroutine xtbSelfEnergy
  
 
-  subroutine buildSH0(env, ovlp, ham, gtoCont, selfEnergy, coords, nNeighbour, &
+  subroutine buildSH0(env, ovlp, ham, gtoCont, coords, nNeighbour, &
       & iNeighbours, species, iPair, orb)
 
     !> Computational environment settings
@@ -80,9 +80,6 @@ contains
 
     !> Container for the SlaKo Hamiltonian integrals
     type(TGTOCont), intent(in) :: gtoCont
-
-    !> On-site energies for each atom
-    real(dp), intent(in) :: selfEnergy(:, :)
 
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:, :)
@@ -111,23 +108,23 @@ contains
     nAtom = size(nNeighbour)
     ham(:) = 0.0_dp
 
-    @:ASSERT(size(selfEnergy, dim=2) == nAtom)
+    @:ASSERT(size(gtoCont%selfEnergy, dim=2) == nAtom)
 
     !$omp parallel do schedule(runtime) default(none) &
-    !$omp shared(nAtom, species, iPair, orb, selfEnergy, ham) &
+    !$omp shared(nAtom, species, iPair, orb, gtoCont, ham) &
     !$omp private(iAt1, iSp1, ind, iOrb1)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       ind = iPair(0, iAt1) + 1
       do iOrb1 = 1, orb%nOrbAtom(iAt1)
-        ham(ind) = selfEnergy(orb%iShellOrb(iOrb1, iSp1), iAt1)
+        ham(ind) = gtoCont%selfEnergy(orb%iShellOrb(iOrb1, iSp1), iAt1)
         ind = ind + orb%nOrbAtom(iAt1) + 1
       end do
     end do
     !$omp end parallel do
 
     ! Do the diatomic blocks for each of the atoms with its nNeighbour
-    !$omp parallel do schedule(runtime) default(none) shared(ham, ovlp) &
+    !$omp parallel do schedule(runtime) default(none) shared(ham, ovlp, gtoCont) &
     !$omp shared(nAtom, species, orb, nNeighbour, iNeighbours, iPair, coords) &
     !$omp private(iAt1, iSp1, nOrb1, iNeigh1, iAt2, iSp2, nOrb2, ind, vec, dist) &
     !$omp private(tmpH, tmpS)
@@ -140,22 +137,25 @@ contains
         nOrb2 = orb%nOrbSpecies(iSp2)
         ind = iPair(iNeigh1, iAt1)
         vec(:) = coords(:,iAt2) - coords(:,iAt1)
-        call getDiatomicShellBlock(tmpS, tmpH, iSp1, iSp2, orb, vec)
-        ham(ind + 1 : ind + nOrb2 * nOrb1) = reshape(tmpH(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
-        ovlp(ind + 1 : ind + nOrb2 * nOrb1) = reshape(tmpS(1:nOrb2, 1:nOrb1), [nOrb2 * nOrb1])
+        call getDiatomicShellBlock(tmpS, tmpH, gtoCont, iSp1, iSp2, orb, vec)
+        ham(ind+1:ind+nOrb2*nOrb1) = reshape(tmpH(1:nOrb2, 1:nOrb1), [nOrb2*nOrb1])
+        ovlp(ind+1:ind+nOrb2*nOrb1) = reshape(tmpS(1:nOrb2, 1:nOrb1), [nOrb2*nOrb1])
       end do
     end do
     !$omp end parallel do
 
   end subroutine buildSH0
 
-  subroutine getDiatomicShellBlock(ss, hh, iSp1, iSp2, orb, vec)
+  subroutine getDiatomicShellBlock(ss, hh, gtoCont, iSp1, iSp2, orb, vec)
 
     !> the rectangular matrix containing the resulting diatomic matrix elements
     real(dp), intent(out) :: hh(:,:)
 
     !> the rectangular matrix containing the resulting diatomic matrix elements
     real(dp), intent(out) :: ss(:,:)
+
+    !> Container for the SlaKo Hamiltonian integrals
+    type(TGTOCont), intent(in) :: gtoCont
 
     !> Chemical species of atom i
     integer, intent(in) :: iSp1
@@ -173,35 +173,68 @@ contains
 
     integer :: iCol, iRow, ind, iSh1, iSh2
     integer :: ang1, ang2, nOrb1, nOrb2
+    real(dp) :: h11, h22, h12, poly1, poly2, poly12, rad12, dEN, kEht
     real(dp) :: tmpS(2*mAngRot_+1,2*mAngRot_+1)
     real(dp) :: tmpH(2*mAngRot_+1,2*mAngRot_+1)
+
     dist = norm2(vec)
+    rad12 = gtoCont%atomicRad(iSp1) + gtoCont%atomicRad(iSp2)
+    dEN = (gtoCont%electronegativity(iSp1) - gtoCont%electronegativity(iSp2))**2
+    dEN = 1.0_dp - gtoCont%kENScale * dEN
 
     ind = 1
     iCol = 1
     do iSh1 = 1, orb%nShell(iSp1)
       ang1 = orb%angShell(iSh1, iSp1)
       nOrb1 = 2 * ang1 + 1
+      h11 = gtoCont%selfEnergy(iSh1, iSp1)
+      poly1 = gtoCont%shellPoly(iSh1, iSp1)
       iRow = 1
       do iSh2 = 1, orb%nShell(iSp2)
         ang2 = orb%angShell(iSh2, iSp2)
         nOrb2 = 2 * ang2 + 1
+        h22 = gtoCont%selfEnergy(iSh2, iSp2)
+        h12 = 0.5_dp * (h11 + h22)
+        poly2 = gtoCont%shellPoly(iSh1, iSp1)
+        call shellPoly(poly12, dist, rad12, poly1, poly2)
 
-        call hamiltonianFromOverlap(tmpH, tmpS)
+        call gtoCont%getOverlapIntegrals(tmpS, vec, dist, iSp1, iSh1, iSp2, iSh2)
+        tmpH(:, :) = tmpS * h12 * poly12 * gtoCont%h0Scale(iSh2, iSh1, iSp2, iSp1)
 
         ss(iRow:iRow+nOrb2-1,iCol:iCol+nOrb1-1) = tmpS(1:nOrb2,1:nOrb1)
         hh(iRow:iRow+nOrb2-1,iCol:iCol+nOrb1-1) = tmpH(1:nOrb2,1:nOrb1)
+        iRow = iRow + nOrb2
       end do
+      iCol = iCol + nOrb1
     end do
   end subroutine getDiatomicShellBlock
 
-  subroutine hamiltonianFromOverlap(hh, ss)
 
-    !> the rectangular matrix containing the resulting diatomic matrix elements
-    real(dp), intent(out) :: hh(:,:)
+  !> Enhancement factor for Hamiltonian integrals
+  elemental subroutine shellPoly(poly, dist, rad12, poly1, poly2)
 
-    !> the rectangular matrix containing the resulting diatomic matrix elements
-    real(dp), intent(in) :: ss(:,:)
-  end subroutine hamiltonianFromOverlap
+    !> Enhancement factor
+    real(dp), intent(out) :: poly
+
+    !> Actual distance between atom 1 and 2
+    real(dp), intent(in) :: dist
+
+    !> Sum of atomic radii between atom 1 and 2
+    real(dp), intent(in) :: rad12
+
+    !> Polynomial coefficient for atom 1
+    real(dp), intent(in) :: poly1
+
+    !> Polynomial coefficient for atom 2
+    real(dp), intent(in) :: poly2
+
+    real(dp) :: rr, rf1, rf2
+
+    rr = sqrt(dist/rad12)
+    rf1 = 1.0_dp + 0.01_dp * poly1 * rr
+    rf2 = 1.0_dp + 0.01_dp * poly1 * rr
+    poly = rf1 * rf2
+
+  end subroutine shellPoly
 
 end module dftbp_xtbh0

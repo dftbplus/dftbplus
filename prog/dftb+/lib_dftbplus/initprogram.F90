@@ -43,6 +43,7 @@ module dftbp_initprogram
   use dftbp_lbfgs
 
   use dftbp_hamiltoniantypes
+  use dftbp_atomicmass
   use dftbp_xtbcont, only : xtbCalculator
   use dftbp_xtbinput, only : setupGaussCont, setupAtomEigVal, setupRepCont, &
       & setupXTBCalculator
@@ -275,7 +276,7 @@ module dftbp_initprogram
   integer :: hamiltonianType
 
   !> xTB calculation data
-  type(xtbCalculator) :: xtbCalc
+  type(xtbCalculator), allocatable :: xtbCalc
 
   !> Raw H^0 hamiltonian data
   type(OSlakoCont) :: skHamCont
@@ -1289,6 +1290,8 @@ contains
       allocate(speciesMass(nType))
       speciesMass(:) = input%slako%mass(:)
     case(hamiltonianTypes%xtb)
+      write(stdOut, '(a)') "xTB-container setup"
+      allocate(xtbCalc)
       allocate(atomEigVal(orb%mShell, nType))
       call setupAtomEigVal(input%ctrl%xtbInput%param, atomEigVal)
       if (tPeriodic) then
@@ -1298,9 +1301,17 @@ contains
         call setupXTBCalculator(xtbCalc, input%geom%nAtom, input%ctrl%xtbInput)
       end if
       call xtbCalc%gtoCont%initialize(orb%mShell, nType, input%ctrl%xtbInput%gaussInput)
-      call setupGaussCont(input%ctrl%xtbInput, xtbCalc%gtoCont)
+      call setupGaussCont(input%ctrl%xtbInput, orb, xtbCalc%gtoCont)
       call setupRepCont(input%ctrl%xtbInput, pRepCont)
+      ! setup atomic masses
+      allocate(speciesMass(nType))
+      do iSp = 1, nType
+        speciesMass(iSp) = getAtomicMass(input%geom%speciesNames(iSp))
+      end do
     end select
+
+    @:ASSERT(allocated(speciesMass))
+    @:ASSERT(allocated(atomEigVal))
 
     ! Spin W's !'
     if (allocated(input%ctrl%spinW)) then
@@ -1369,9 +1380,9 @@ contains
       cutOff%repCutOff = getCutOff(pRepCont)
       cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
     case(hamiltonianTypes%xtb)
-      cutOff%skCutOff = xtbCalc%gtoCont%getCutOff()
+      cutOff%skCutOff = xtbCalc%gtoCont%getRCutOff()
       cutOff%repCutOff = getCutOff(pRepCont)
-      cutOff%mCutOff = maxval([cutOff%skCutOff, cutOff%repCutOff])
+      cutOff%mCutOff = max(cutOff%skCutOff, cutOff%repCutOff)
     end select
 
     ! Get species names and output file
@@ -1402,7 +1413,7 @@ contains
       hubbU(:,:) = input%slako%skHubbU(1:orb%mShell, :)
     case(hamiltonianTypes%xtb)
       ! TODO
-      call error("xTB calculation currently not supported")
+      call warning("xTB Hubbard Us currently not available")
     end select
 
     if (allocated(input%ctrl%hubbU)) then
@@ -1755,8 +1766,7 @@ contains
     case(hamiltonianTypes%dftb)
       referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
     case(hamiltonianTypes%xtb)
-      ! TODO
-      call error("xTB calculation currently not supported")
+      referenceN0(:,:) = xtbCalc%referenceN0(1:orb%mShell, :)
     end select
 
     ! Allocate reference charge arrays

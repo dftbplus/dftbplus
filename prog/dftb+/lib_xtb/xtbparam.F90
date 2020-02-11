@@ -10,6 +10,7 @@
 !> xTB parameter types
 module dftbp_xtbparam
   use dftbp_accuracy, only : dp
+  use dftbp_constants, only : maxL
   implicit none
   private
 
@@ -45,7 +46,11 @@ module dftbp_xtbparam
     !> Is valence or polarization shell.
     integer :: valence
 
+    !> Reference occupation
+    real(dp) :: referenceN0
+
   end type
+
 
   !> xTB-parameters
   type :: xtbParam
@@ -104,11 +109,20 @@ module dftbp_xtbparam
     !> Repulsive polynomial parameter
     real(dp) :: krep
 
+    !> Repulsive polynomial parameter
+    real(dp) :: rrep
+
     !> Halogen bonding parameter
     real(dp) :: xbondRad
 
     !> Halogen bonding parameter
     real(dp) :: xbondExp
+
+    !> Shell pair scaling parameters for the Hamiltonian
+    real(dp) :: kH0Scale(0:maxL, 0:maxL)
+
+    !> Shell pair scaling parameter for polarisation functions
+    real(dp) :: kPol
 
   end type xtbGlobalParameter
 

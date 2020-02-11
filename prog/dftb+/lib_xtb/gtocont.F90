@@ -20,25 +20,59 @@ module dftbp_gtocont
 
   !> Input to generate the integral container
   type :: gaussInput
+
+    !> Electronegativity scaling factor
+    real(dp) :: kENScale
+
+    !> Default for weighting the core Hamiltonian elements with the STO exponents
+    logical :: tExponentWeighting
+
+    !> Electronegativity for each species
+    real(dp), allocatable :: electronegativity(:)
+
+    !> Atomic radii for each species
+    real(dp), allocatable :: atomicRad(:)
+
+    !> Atomic energy for each shell and *species*
+    real(dp), allocatable :: atomEnergy(:, :)
+
+    !> Shell polynomials for each shell and species
+    real(dp), allocatable :: shellPoly(:, :)
+
+    !> Slater exponent of each shell and species
+    real(dp), allocatable :: slaterExp(:, :)
+
+    !> Status of valence character for each shell and species
+    logical, allocatable :: valenceShell(:, :)
   end type gaussInput
 
 
   !> Gaussian Integral Container
-  type :: TGTOCont
+  type, extends(gaussInput) :: TGTOCont
+    !> Contracted Gaussian basis functions
     type(TGaussFunc), allocatable :: cgto(:, :)
     integer :: moment = 0
     integer :: mShell = 0
     integer :: nSpecies = 0
     integer :: maxInt = 0
     real(dp) :: cutoff = 0.0_dp
-    real(dp), allocatable :: slaterExp(:, :)
-    real(dp), allocatable :: poly(:, :)
+
+    !> Atomic energy for each shell and *atom*
+    real(dp), allocatable :: selfEnergy(:, :)
+
+    !> Shell pair parameters
+    real(dp), allocatable :: h0Scale(:, :, :, :)
+
   contains
+
     !> Construct the integral container from input data
     procedure :: initialize
-    procedure :: getGaussIntegrals
+
+    procedure :: getOverlapIntegrals
+
     procedure :: getMaxIntegrals
-    procedure :: getCutoff
+
+    procedure :: getRCutoff
   end type TGTOCont
 
 
@@ -63,21 +97,15 @@ contains
     self%mShell = mShell
     self%nSpecies = nSpecies
     allocate(self%cgto(mShell, nSpecies), source=TGaussFunc())
+    allocate(self%h0Scale(mShell, mShell, nSpecies, nSpecies))
+
+    self%gaussInput = input
 
   end subroutine initialize
 
 
-  subroutine setGaussFunction(self, iSp1, iSh1, ang1)
-    !> Gaussian Integral Container
-    class(TGTOCont), intent(inout) :: self
-    !> Species
-    integer, intent(in) :: iSp1
-    integer, intent(in) :: iSh1
-    integer, intent(in) :: ang1
-  end subroutine setGaussFunction
-
   !> Returns the cutoff for all interactions
-  pure function getCutoff(self) result(cutoff)
+  pure function getRCutoff(self) result(cutoff)
     !> SlakoCont instance
     class(TGTOCont), intent(in) :: self
     !> Cutoff of interaction
@@ -85,12 +113,13 @@ contains
 
     cutoff = self%cutoff
 
-  end function getCutoff
+  end function getRCutoff
+
 
   !> Returns the maximal number of integrals needed for describing any of the
   !  interactions in the container
   pure function getMaxIntegrals(self) result(maxInt)
-    !> SlakoCont instance
+    !> Gaussian Integral Container
     class(TGTOCont), intent(in) :: self
     !> Max. number of integrals.
     integer :: maxInt
@@ -99,11 +128,11 @@ contains
 
   end function getMaxIntegrals
 
-  subroutine getGaussIntegrals(self, ints, vec, dist, iSp1, iSh1, iSp2, iSh2)
+  subroutine getOverlapIntegrals(self, ints, vec, dist, iSp1, iSh1, iSp2, iSh2)
     !> Gaussian Integral Container
     class(TGTOCont), intent(in) :: self
     !> Contains the integrals on exit
-    real(dp), intent(out) :: ints(:)
+    real(dp), intent(out) :: ints(:, :)
     !> Distance of the two atoms
     real(dp), intent(in) :: vec(3)
     !> Distance of the two atoms
@@ -122,6 +151,6 @@ contains
     call shellPairOverlapIntegral(self%cgto(iSh1, iSp1), self%cgto(iSh2, iSp2), &
         & vec, dist, ints)
 
-  end subroutine getGaussIntegrals
+  end subroutine getOverlapIntegrals
 
 end module dftbp_gtocont

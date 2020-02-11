@@ -29,7 +29,9 @@ module dftbp_parser
   use dftbp_dispersions
   use dftbp_simplealgebra, only: cross3, determinant33
 
+  use dftbp_xtbparam, only : xtbParam
   use dftbp_xtbinput, only : setupGFN1Parameters
+  use dftbp_gtocont, only : gaussInput
   use dftbp_coordinationnumber, only : cnInput, cnType, getCovalentRadius, getElectronegativity
 
   use dftbp_slakocont
@@ -1696,17 +1698,22 @@ contains
   #:endif
 
     type(fnode), pointer :: value1, child, child2, field
-    type(string) :: xtbLevel, modifier
-    integer :: ii, iSp1, iSh1
+    type(string) :: xtbLevel, modifier, buffer
+    integer :: ii, iSp1, iSh1, iSp2
     logical :: tBadIntegratingKPoints
     logical :: tExponentWeightingDefault
     logical :: tSCCdefault
     real(dp) :: cutDefault
+    real(dp), allocatable :: kPairParamDefault(:, :)
     type(listIntR1), allocatable :: angShells(:)
     character(len=3) :: cnDefault
     character(lc) :: errorStr
+    character(lc) :: elem1, elem2, strTmp
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
+
+    allocate(kPairParamDefault(geo%nSpecies, geo%nSpecies))
+    kPairParamDefault(:, :) = 1.0_dp
 
     call getChildValue(node, "param", xtbLevel, child=child)
     select case(tolower(unquote(char(xtbLevel))))
@@ -1724,6 +1731,7 @@ contains
       cnDefault = "exp"
       cutDefault = 0.0_dp
       call setupGFN1Parameters(ctrl%xtbInput, geo%speciesNames)
+      kPairParamDefault(:, :) = ctrl%xtbInput%pairParam
     case("gfn2")
       tSCCdefault = .true.
       tExponentWeightingDefault = .true.
@@ -1748,6 +1756,35 @@ contains
 
     !> Read in coordination number settings
     call readCoordinationNumber(node, ctrl%xtbInput%cnInput, geo, cnDefault, cutDefault)
+
+    call readGaussianBasisset(node, ctrl%xtbInput%gaussInput, geo, &
+        & ctrl%xtbInput%param, ctrl%xtbInput%gPar%kENScale, &
+        & tExponentWeightingDefault)
+
+    call getChildValue(node, "PairParameters", value1, "fromParam", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Invalid pair parameter type specified")
+    case("fromparam")
+      continue ! already done
+    case("values")
+      do iSp1 = 1, geo%nSpecies
+        elem1 = geo%speciesNames(iSp1)
+        do iSp2 = 1, geo%nSpecies
+          elem2 = geo%speciesNames(iSp2)
+          strTmp = trim(elem1) // "-" // trim(elem2)
+          call getChildValue(value1, trim(strTmp), ctrl%xtbInput%pairParam(iSp2, iSp1), &
+              & kPairParamDefault(iSp2, iSp1), child=child2)
+        end do
+      end do
+    end select
+
+    call getChildValue(node, "H0Scale", value1, "fromParam", child=child)
+    call getNodeName(value1, buffer)
+    if (char(buffer) /= "fromparam") then
+      call detailedError(child, "Invalid H0 scale parameter type specified")
+    end if
 
     ! Orbitals and angular momenta for the given shells
     allocate(gauss%orb)
@@ -1828,9 +1865,97 @@ contains
       ctrl%forceType = forceTypes%orig
     end if
 
-    call getChildValue(node, "ExponentWeighting", ctrl%xtbInput%tExponentWeighting, tExponentWeightingDefault, child=child)
-
   end subroutine readXTBHam
+
+
+  !> Read Gaussian basisset and core Hamiltonian data
+  !>
+  !> This routines currently just wraps copying parameters from the parametrisation
+  !> data to the input data. Allowing detailed user input is definitely a TODO.
+  subroutine readGaussianBasisset(node, input, geo, param, kENScaleDefault, &
+        & tExponentWeightingDefault)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(gaussInput), intent(inout) :: input
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    !> Element specific parameters for xTB
+    type(xtbParam), allocatable, intent(in) :: param(:)
+
+    !> Default for EN scaling factor
+    real(dp), intent(in) :: kENScaleDefault
+
+    !> Default for weighting the core Hamiltonian elements with the STO exponents
+    logical, intent(in) :: tExponentWeightingDefault
+
+    type(fnode), pointer :: value1, value2, child, child2, field
+    type(string) :: buffer, modifier
+    integer :: mShell, iSp
+    integer, allocatable :: nShell(:)
+
+    !> For now, just assume we always get parameters
+    @:ASSERT(allocated(param))
+
+    !> Currently we only support initialization from parameters
+    call getChildValue(node, "GaussianBasisset", value1, "fromParam", child=child)
+    call getNodeName(value1, buffer)
+    if (char(buffer) /= "fromparam") then
+      call detailedError(child, "Invalid method '"//char(buffer)//"' for basisset provided")
+    end if
+
+    allocate(nShell(geo%nSpecies))
+    nShell = param%nSh
+    mShell = maxval(nShell)
+
+    !> Electronegativity scaling factor for Hamiltonian elements
+    call getChildValue(value1, "ENScale", input%kENScale, kENScaleDefault, &
+        & child=child2)
+
+    !> Get electronegativity
+    !> this is in most cases just the Pauling EN, but not necessarily!
+    allocate(input%electronegativity(geo%nSpecies))
+    input%electronegativity(:) = param%en
+
+    !> Get atomic radii used in shell polynomials
+    allocate(input%atomicRad(geo%nSpecies))
+    input%atomicRad(:) = param%radius
+
+    !> Atomic level information
+    allocate(input%atomEnergy(mShell, geo%nSpecies))
+    do iSp = 1, geo%nSpecies
+      input%atomEnergy(:nShell(iSp), iSp) = param(iSp)%basis(:nShell(iSp))%h
+    end do
+
+    !> Shell polynomial data
+    allocate(input%shellPoly(mShell, geo%nSpecies))
+    do iSp = 1, geo%nSpecies
+      input%shellPoly(:nShell(iSp), iSp) = param(iSp)%basis(:nShell(iSp))%poly
+    end do
+
+    !> Slater exponents for weighting of Hamiltonian elements
+    call getChildValue(value1, "exponentWeighting", input%tExponentWeighting, &
+        & tExponentWeightingDefault, child=child2)
+    allocate(input%slaterExp(mShell, geo%nSpecies))
+    if (input%tExponentWeighting) then
+      do iSp = 1, geo%nSpecies
+        input%slaterExp(:nShell(iSp), iSp) = param(iSp)%basis(:nShell(iSp))%zeta
+      end do
+    else
+      input%slaterExp(:, :) = 1.0_dp
+    end if
+
+    !> Valence shell data, used in the shell pair enhancement factor
+    allocate(input%valenceShell(mShell, geo%nSpecies))
+    do iSp = 1, geo%nSpecies
+      input%valenceShell(:nShell(iSp), iSp) = param(iSp)%basis(:nShell(iSp))%valence == 1
+    end do
+
+  end subroutine readGaussianBasisset
 
 
   !> Read in coordination number settings

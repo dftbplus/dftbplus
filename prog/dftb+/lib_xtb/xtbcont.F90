@@ -43,12 +43,6 @@ module dftbp_xtbcont
     !> Angular momentum of each shell and species
     integer, allocatable :: lShell(:, :)
 
-    !> Electronegativity for each species
-    real(dp), allocatable :: electronegativity(:)
-
-    !> Atomic radius for each species
-    real(dp), allocatable :: atomicRad(:)
-
     !> Chemical hardness for each species
     real(dp), allocatable :: eta(:)
 
@@ -91,14 +85,11 @@ module dftbp_xtbcont
     !> Slater exponent of each shell and species
     real(dp), allocatable :: slaterExp(:, :)
 
-    !> Gaussian exponents of each shell and species
-    real(dp), allocatable :: gaussExp(:, :, :)
-
-    !> Gaussian contraction coefficents of each shell and species
-    real(dp), allocatable :: gaussCoeff(:, :, :)
-
     !> Status of valence character for each shell and species
     logical, allocatable :: valenceShell(:, :)
+
+    !> Reference occupation numbers
+    real(dp), allocatable :: referenceN0(:, :)
 
     !> Pair parameters for each species
     real(dp), allocatable :: pairParam(:, :)
@@ -140,8 +131,6 @@ contains
     self%nSpecies = nSpecies
 
     allocate(self%nShell(nSpecies))
-    allocate(self%electronegativity(nSpecies))
-    allocate(self%atomicRad(nSpecies))
     allocate(self%eta(nSpecies))
     allocate(self%gam(nSpecies))
     allocate(self%alpha(nSpecies))
@@ -177,6 +166,7 @@ contains
     allocate(self%kcn(mShell, self%nSpecies))
     allocate(self%slaterExp(mShell, self%nSpecies))
     allocate(self%valenceShell(mShell, self%nSpecies))
+    allocate(self%referenceN0(mShell, self%nSpecies))
 
   end subroutine allocateShells
 
@@ -227,7 +217,7 @@ contains
     !> resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = self%cnCont%getRCutoff()
+    cutoff = max(self%cnCont%getRCutoff(), self%gtoCont%getRCutoff())
 
   end function getRCutoff
 

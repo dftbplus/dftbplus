@@ -10,11 +10,12 @@
 !> Wrapper for xTB parametrisations
 module dftbp_xtbinput
   use dftbp_accuracy, only : dp
+  use dftbp_commontypes, only : TOrbitals
   use dftbp_constants, only : maxL, pi
   use dftbp_coordinationnumber, only : cnInput
-  use dftbp_gfn1param, only : getGFN1Param, gfn1Globals
+  use dftbp_gfn1param, only : getGFN1Param, gfn1Globals, getGFN1PairParam
   use dftbp_gtocont, only : TGTOCont, gaussInput
-  use dftbp_gtoints, only : TGaussFunc
+  use dftbp_gtoints, only : TGaussFunc, gsOrtho
   use dftbp_repcont, only : ORepCont, addRepulsive, init
   use dftbp_repsimple, only : ORepSimple, TRepSimpleIn, init
   use dftbp_slater, only : gaussFromSlater
@@ -36,6 +37,9 @@ module dftbp_xtbinput
 
     !> Element specific parameters for xTB
     type(xtbParam), allocatable :: param(:)
+
+    !> Pair parameters for each species
+    real(dp), allocatable :: pairParam(:, :)
 
     !> Input for the coordination number container
     type(cnInput) :: cnInput
@@ -61,7 +65,7 @@ contains
     !> Element symbols for all species
     character(len=*), intent(in) :: speciesNames(:)
 
-    integer :: iSp, nSpecies
+    integer :: iSp1, iSp2, nSpecies
 
     nSpecies = size(speciesNames, dim=1)
 
@@ -70,8 +74,16 @@ contains
 
     ! create a dummy array of parameters
     allocate(self%param(nSpecies))
-    do iSp = 1, nSpecies
-      self%param(iSp) = getGFN1Param(speciesNames(iSp))
+    do iSp1 = 1, nSpecies
+      self%param(iSp1) = getGFN1Param(speciesNames(iSp1))
+    end do
+
+    allocate(self%pairParam(nSpecies, nSpecies))
+    do iSp1 = 1, nSpecies
+      do iSp2 = 1, iSp1
+        self%pairParam(iSp2, iSp1) = getGFN1PairParam(speciesNames(iSp2), speciesNames(iSp1))
+        self%pairParam(iSp1, iSp2) = self%pairParam(iSp2, iSp1)
+      end do
     end do
 
   end subroutine setupGFN1Parameters
@@ -107,8 +119,6 @@ contains
     call self%allocateShells(mShell)
 
     self%nShell = input%param%nSh
-    self%electronegativity = input%param%en
-    self%atomicRad = input%param%radius
     self%eta = input%param%eta
     self%gam = input%param%gam
     self%alpha = input%param%alpha
@@ -127,6 +137,7 @@ contains
       self%kcn(:self%nShell(iSp), iSp) = input%param(iSp)%basis(:self%nShell(iSp))%kcn
       self%slaterExp(:self%nShell(iSp), iSp) = input%param(iSp)%basis(:self%nShell(iSp))%zeta
       self%valenceShell(:self%nShell(iSp), iSp) = input%param(iSp)%basis(:self%nShell(iSp))%valence == 1
+      self%referenceN0(:self%nShell(iSp), iSp) = input%param(iSp)%basis(:self%nShell(iSp))%referenceN0
     end do
 
     if (tPeriodic) then
@@ -166,7 +177,7 @@ contains
       do iSp2 = 1, nSpecies
         zeff = input%param(iSp1)%zeff * input%param(iSp2)%zeff
         alpha = sqrt(input%param(iSp1)%alpha * input%param(iSp2)%alpha)
-        call init(rep, TRepSimpleIn(zeff, alpha, 1.5_dp, 1.0_dp, 40.0_dp))
+        call init(rep, TRepSimpleIn(zeff, alpha, input%gPar%krep, input%gPar%rrep, 40.0_dp))
         call addRepulsive(repCont, rep, iSp1, iSp2)
       end do
     end do
@@ -174,13 +185,67 @@ contains
   end subroutine setupRepCont
 
 
-  subroutine setupGaussCont(input, gtoCont)
+  subroutine setupGaussCont(input, orb, gtoCont)
     type(xtbInput), intent(in) :: input
+    type(TOrbitals), intent(in) :: orb
     type(TGTOCont), intent(inout) :: gtoCont
 
     call setupGaussBasis(input%param, gtoCont)
 
+    call setupH0Scaling(input%pairParam, input%gPar, orb, gtoCont)
+
   end subroutine setupGaussCont
+
+
+  !> Expand all STOs to Gaussian functions
+  subroutine setupH0Scaling(pairParam, gPar, orb, gtoCont)
+
+    !> Pair parameters for each species pair
+    real(dp), intent(in) :: pairParam(:, :)
+
+    !> Global method parameters
+    type(xtbGlobalParameter), intent(in) :: gPar
+
+    !> Orbital data
+    type(TOrbitals), intent(in) :: orb
+
+    !> Container for Gaussian type integrals
+    type(TGTOCont), intent(inout) :: gtoCont
+
+    integer :: iSp1, iSp2, iSh1, iSh2, ang1, ang2
+    real(dp) :: dEN, kPair
+
+    @:ASSERT(size(pairParam, dim=1) == gtoCont%nSpecies)
+    @:ASSERT(size(pairParam, dim=2) == gtoCont%nSpecies)
+
+    do iSp1 = 1, gtoCont%nSpecies
+      do iSp2 = 1, gtoCont%nSpecies
+        dEN = gtoCont%electronegativity(iSp1) - gtoCont%electronegativity(iSp2)
+        dEN = 1.0_dp - gtoCont%kENScale * dEN**2
+        do iSh1 = 1, orb%nShell(iSp1)
+          ang1 = orb%angShell(iSh1, iSp1)
+          do iSh2 = 1, orb%nShell(iSp2)
+            ang2 = orb%angShell(iSh2, iSp2)
+            if (gtoCont%valenceShell(iSh2, iSp2)) then
+              if (gtoCont%valenceShell(iSh1, iSp1)) then
+                kPair = dEN * gPar%kH0Scale(ang1, ang2) * pairParam(iSp1, iSp2)
+              else
+                kPair = 0.5_dp * (gPar%kH0Scale(ang2, ang2) + gPar%kPol)
+              end if
+            else
+              if (gtoCont%valenceShell(iSh1, iSp1)) then
+                kPair = 0.5_dp * (gPar%kH0Scale(ang1, ang1) + gPar%kPol)
+              else
+                kPair = gPar%kPol
+              end if
+            end if
+            gtoCont%h0Scale(iSh2, iSh1, iSp2, iSp1) = kPair
+          end do
+        end do
+      end do
+    end do
+
+  end subroutine setupH0Scaling
 
 
   !> Expand all STOs to Gaussian functions
@@ -219,46 +284,6 @@ contains
     end do
 
   end subroutine setupGaussBasis
-
-
-  !> Orthogonalize a polarisation shell against a valence shell
-  subroutine gsOrtho(val, pol)
-
-    !> Valence shell to orthogonalize against
-    type(TGaussFunc), intent(in) :: val
-
-    !> Polarisation shell to orthogonalize
-    type(TGaussFunc), intent(inout) :: pol
-
-    integer :: ii, jj
-    real(dp) :: ss, ab
-
-    @:ASSERT(val%l == pol%l)
-    @:ASSERT(val%l == 0)
-
-    ss = 0.0_dp
-    do ii = 1, val%nPrim
-      do jj = 1, pol%nPrim
-        ab = 1.0_dp / (val%alpha(ii) + pol%alpha(jj))
-        ss = ss + val%coeff(ii) * pol%coeff(jj) * sqrt(pi * ab)**3
-      end do
-    end do
-
-    pol%alpha(pol%nPrim+1:pol%nPrim+val%nPrim) = val%alpha(:val%nPrim)
-    pol%coeff(pol%nPrim+1:pol%nPrim+val%nPrim) = -ss*val%coeff(:val%nPrim)
-    pol%nPrim = pol%nPrim + val%nPrim
-
-    ss = 0.0_dp
-    do ii = 1, pol%nPrim
-      do jj = 1, pol%nPrim
-        ab = 1.0_dp / (pol%alpha(ii) + pol%alpha(jj))
-        ss = ss + pol%coeff(ii) * pol%coeff(jj) * sqrt(pi * ab)**3
-      end do
-    end do
-
-    pol%coeff(:pol%nPrim) = pol%coeff(:pol%nPrim) / sqrt(ss)
-
-  end subroutine gsOrtho
 
 
   !> Expand Slater type orbital to contracted Gaussian type orbital

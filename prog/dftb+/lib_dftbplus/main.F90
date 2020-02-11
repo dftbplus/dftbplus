@@ -27,6 +27,7 @@ module dftbp_main
   use dftbp_densedescr
   use dftbp_inputdata
   use dftbp_hamiltoniantypes
+  use dftbp_xtbcont, only : xtbCalculator
   use dftbp_xtbh0, only : buildSH0, xtbSelfEnergy
   use dftbp_nonscc
   use dftbp_eigenvects
@@ -378,13 +379,13 @@ contains
     end if
 
     if (tLatticeChanged) then
-      call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion,&
+      call handleLatticeChange(latVec, sccCalc, xtbCalc, tStress, extPressure, cutOff%mCutOff, dispersion,&
           & recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
     end if
 
     if (tCoordsChanged) then
       call handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-          & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec,&
+          & tPeriodic, sccCalc, xtbCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec,&
           & neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSk,&
           & nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim,&
           & iSparseStart, tPoisson)
@@ -416,10 +417,10 @@ contains
       call buildS(env, over, skOverCont, coord, nNeighbourSk, neighbourList%iNeighbour, species,&
           & iSparseStart, orb)
     case(hamiltonianTypes%xtb)
-      call xtbSelfEnergy(xtbCalc%level, species, orb, atomEigVal, xtbCalc%kcn, &
-          & xtbCalc%cnCont%cn)
-      call buildSH0(env, over, H0, xtbCalc%gtoCont, xtbCalc%level, coord, &
-          & nNeighbourSk, neighbourList%iNeighbour, species, iSparseStart, orb)
+      call xtbSelfEnergy(xtbCalc%gtoCont%selfEnergy, species, orb, atomEigVal, &
+          & xtbCalc%kcn, xtbCalc%cnCont%cn)
+      call buildSH0(env, over, H0, xtbCalc%gtoCont, coord, nNeighbourSk, &
+          & neighbourList%iNeighbour, species, iSparseStart, orb)
     end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
@@ -1000,7 +1001,7 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
+  subroutine handleLatticeChange(latVecs, sccCalc, xtbCalc, tStress, extPressure, mCutOff, dispersion,&
       & recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
 
     !> lattice vectors
@@ -1008,6 +1009,9 @@ contains
 
     !> Module variables
     type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> xTB container instance
+    type(xtbCalculator), allocatable, intent(inout) :: xtbCalc
 
     !> evaluate stress
     logical, intent(in) :: tStress
@@ -1056,6 +1060,10 @@ contains
       call sccCalc%updateLatVecs(latVecs, recVecs, cellVol)
       mCutOff = max(mCutOff, sccCalc%getCutOff())
     end if
+    if (allocated(xtbCalc)) then
+      call xtbCalc%updateLatVecs(latVecs)
+      mCutOff = max(mCutoff, xtbCalc%getRCutOff())
+    end if
     if (allocated(dispersion)) then
       call dispersion%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, dispersion%getRCutOff())
@@ -1067,7 +1075,7 @@ contains
 
   !> Does the operations that are necessary after atomic coordinates change
   subroutine handleCoordinateChange(env, coord0, latVec, invLatVec, species0, cutOff, orb,&
-      & tPeriodic, sccCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec, neighbourList,&
+      & tPeriodic, sccCalc, xtbCalc, dispersion, thirdOrd, rangeSep, img2CentCell, iCellVec, neighbourList,&
       & nAllAtom, coord0Fold, coord, species, rCellVec, nNeighbourSK, nNeighbourRep, nNeighbourLC,&
       & ham, over, H0, rhoPrim, iRhoPrim, iHam, ERhoPrim, iSparseStart, tPoisson)
 
@@ -1099,6 +1107,9 @@ contains
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(inout) :: sccCalc
+
+    !> xTB container instance
+    type(xtbCalculator), allocatable, intent(inout) :: xtbCalc
 
     !> Dispersion interactions
     class(DispersionIface), allocatable, intent(inout) :: dispersion
@@ -1208,6 +1219,9 @@ contains
 
     if (allocated(sccCalc)) then
       call sccCalc%updateCoords(env, coord, species, neighbourList)
+    end if
+    if (allocated(xtbCalc)) then
+      call xtbCalc%updateCoords(neighbourList, img2CentCell, coord, species0)
     end if
 
     if (allocated(dispersion)) then
