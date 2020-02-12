@@ -21,7 +21,8 @@ module dftbp_mainapi
   private
 
   public :: initProgramVariables, destructProgramVariables
-  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges, setShellResolvedCharges
+  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges, setShellResolvedCharges,&
+            getShellResolvedCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges
   public :: nrOfAtoms
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
@@ -90,7 +91,6 @@ contains
     atomCharges(:) = sum(q0(:, :, 1) - qOutput(:, :, 1), dim=1)
 
   end subroutine getGrossCharges
-
 
   !> Sets up an external population independent electrostatic potential.
   !>
@@ -266,6 +266,13 @@ contains
     qOutRed = 0._dp
  
   end subroutine setShellResolvedCharges
+
+  subroutine getShellResolvedCharges(shell_charges) 
+    use dftbp_initprogram, only : qOutput
+    real(dp), intent(inout) :: shell_charges(:,:,:)
+    @:ASSERT(allocated(shell_charges))
+    shell_charges = qOutput 
+  end subroutine getShellResolvedCharges
 
    
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

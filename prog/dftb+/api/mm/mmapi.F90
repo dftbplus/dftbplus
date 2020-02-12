@@ -73,8 +73,10 @@ module dftbp_mmapi
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
-    !> set the shell-resolved DFTB+ partial charges
+    !> set the shell(orbital)-resolved DFTB+ partial charges
     procedure :: setShellResolvedCharges => TDftbPlus_setShellResolvedCharges
+    !> get the shell(orbital)-resolved DFTB+ partial charges
+    procedure :: getShellResolvedCharges => TDftbPlus_getShellResolvedCharges 
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
     !> Check that the list of species names has not changed  
@@ -368,7 +370,7 @@ contains
 
   end subroutine TDftbPlus_getGrossCharges
 
-
+  
   !> Returns the nr. of atoms in the system.
   function TDftbPlus_nrOfAtoms(this) result(nAtom)
 
@@ -531,6 +533,19 @@ contains
     endif
     
   end subroutine TDftbPlus_setShellResolvedCharges
+
+  !> Get shell-resolved partial charges.
+  subroutine TDftbPlus_getShellResolvedCharges(this, shell_charges)
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Shell-resolved partial charges 
+    real(dp), intent(inout) :: shell_charges(:, :, :)
+
+    call this%checkInit()
+    call getShellResolvedCharges(shell_charges)
+    
+  end subroutine TDftbPlus_getShellResolvedCharges
 
 
 end module dftbp_mmapi
