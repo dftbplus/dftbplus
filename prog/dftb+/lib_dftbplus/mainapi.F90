@@ -362,7 +362,7 @@ contains
   subroutine initialiseCharges(species0, speciesName, orb, nElectrons, iEqOrbitals, nIneqOrb, nMixElements, &
        q0, qShell0, qInput, qInpRed, qOutput, qOutRed, qDiffRed, initialSpins, initialCharges)    
 
-    use dftbp_initprogram, only: tMulliken, tSccCalc, tSpin, tReadChrg, tCustomOccAtoms, tMixBlockCharges, tRangeSep, &
+    use dftbp_initprogram, only: tMulliken, tSccCalc, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, &
                                  referenceN0, nSpin, nAtom  !, tImHam
     use dftbp_sccinit,     only: initQFromShellChrg, initQFromAtomChrg
     use dftbp_orbitalequiv,only: OrbitalEquiv_reduce
@@ -428,10 +428,6 @@ contains
 
     if(tRangeSep) then
        call error("Range-separated charges is not supported by DFTB+ API")
-    endif
-
-    if(tCustomOccAtoms) then
-       call error("Custom occupation is not supported by DFTB+ API")
     endif
 
     @:ASSERT(size(species0) == nAtom) 
