@@ -204,16 +204,18 @@ contains
     character(len=*), intent(in) :: text
 
     type(string) :: txt
-    integer :: iStart, iOldStart, iErr
-    integer :: ii, iTmp
-    real(dp) :: coords(3), rTmp, det
+    integer :: iStart, iErr, iEnd
+    integer :: ii, iTmp, iSp
+    real(dp) :: coords(3)
     type(listString) :: speciesNames
+    character(lc) :: errorStr
 
     ! Read first line of the gen file: Number of atoms, boundary conditions
     iStart = 1
-    call getNextToken(text, geo%nAtom, iStart, iErr)
-    call checkError(node, iErr, "Bad number of atoms.")
-    call getNextToken(text, txt, iStart, iErr)
+    iEnd = nextLine(text, iStart)
+    call getNextToken(text(:iEnd), geo%nAtom, iStart, iErr)
+    call checkError(node, iErr, "Bad number of atoms in the first line of geometry")
+    call getNextToken(text(:iEnd), txt, iStart, iErr)
     select case (char(txt))
     case("S","s")
       geo%tPeriodic = .true.
@@ -228,43 +230,52 @@ contains
       call detailedError(node, "Unknown boundary condition type '" &
           &// char(txt) // "'")
     end select
+    if (iStart < iEnd) then
+      call detailedError(node, "Found trailing characters in first line")
+    end if
+    iStart = iEnd + 1
 
     ! Reading the 2nd line of a gen file.
-    ! Since we cannot rely on line breaks, we try to read in integers. If that fails, we had a
-    ! species name instead so it will be read as string.
+    iEnd = nextLine(text, iStart)
     call init(speciesNames)
-    iErr = TOKEN_ERROR
-    iOldStart = iStart
-    call getNextToken(text, iTmp, iStart, iErr)
-    do while (iErr /= TOKEN_OK)
-      call getNextToken(text, txt, iStart, iErr)
-      if (iErr /= TOKEN_OK) then
-        call detailedError(node, "Unexpected end of geometry information.")
+    iErr = TOKEN_OK
+    iSp = 0
+    do while (iErr == TOKEN_OK)
+      call getNextToken(text(:iEnd), txt, iStart, iErr)
+      if (iErr == TOKEN_OK) then
+        if (find(speciesNames, char(txt)) > 0) then
+          call detailedError(node, "Species name '"//char(txt)//"' is not unique, check species names in second line")
+        end if
+        call append(speciesNames, char(txt))
       end if
-      call append(speciesNames, char(txt))
-      iOldStart = iStart
-      call getNextToken(text, iTmp, iStart, iErr)
     end do
     geo%nSpecies = len(speciesNames)
     if (geo%nSpecies == 0) then
-      call detailedError(node, "Number of species equals zero.")
+      call detailedError(node, "No species are given in second line of geometry.")
     end if
     allocate(geo%speciesNames(geo%nSpecies))
     call asArray(speciesNames, geo%speciesNames)
     call destruct(speciesNames)
+    iStart = iEnd + 1
 
     ! Read in sequential and species indices.
     allocate(geo%species(geo%nAtom))
     allocate(geo%coords(3, geo%nAtom))
-    iStart = iOldStart
     do ii = 1, geo%nAtom
-      call getNextToken(text, iTmp, iStart, iErr)
-      call checkError(node, iErr, "Bad sequential number for an atom.")
-      call getNextToken(text, geo%species(ii), iStart, iErr)
-      call checkError(node, iErr, "Bad species number for an atom.")
-      call getNextToken(text, coords, iStart, iErr)
-      call checkError(node, iErr, "Bad coordinates for an atom.")
+      ! save atom number as string for error printout
+      write(errorStr, '(i0)') ii
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text(:iEnd), iTmp, iStart, iErr)
+      call checkError(node, iErr, "Bad sequential number for atom "//trim(errorStr))
+      call getNextToken(text(:iEnd), geo%species(ii), iStart, iErr)
+      call checkError(node, iErr, "Bad species number for atom "//trim(errorStr))
+      call getNextToken(text(:iEnd), coords, iStart, iErr)
+      call checkError(node, iErr, "Bad coordinates for atom "//trim(errorStr))
       geo%coords(:, ii) = coords(:)
+      if (iStart < iEnd) then
+        call detailedError(node, "Found trailing characters for atom "//trim(errorStr))
+      end if
+      iStart = iEnd + 1
     end do
     if (geo%nSpecies /= maxval(geo%species) .or. minval(geo%species) /= 1) then
       call detailedError(node, &
@@ -273,19 +284,22 @@ contains
 
     ! Read in origin an lattice vectors, if the structure is periodic
     if (geo%tPeriodic) then
+      iEnd = nextLine(text, iStart)
       allocate(geo%origin(3))
       allocate(geo%latVecs(3, 3))
-      call getNextToken(text, geo%origin, iStart, iErr)
-      call checkError(node, iErr, "Invalid origin.")
+      call getNextToken(text(:iEnd), geo%origin, iStart, iErr)
+      call checkError(node, iErr, "Invalid origin given in geometry.")
+      iStart = iEnd + 1
       do ii = 1, 3
-        call getNextToken(text, geo%latVecs(:, ii), iStart, iErr)
-        call checkError(node, iErr, "Invalid lattice vectors.")
+        iEnd = nextLine(text, iStart)
+        call getNextToken(text(:iEnd), geo%latVecs(:, ii), iStart, iErr)
+        call checkError(node, iErr, "Invalid lattice vectors in geometry.")
+        iStart = iEnd + 1
       end do
     end if
 
     ! Check if any data remains in the geometry - should be nothing left now
-    call getNextToken(text, rTmp, iStart, iErr)
-    if (iErr /= TOKEN_EOS) then
+    if (iStart <= len(text)) then
       call detailedError(node, "Superfluous data found. Check if specified number of atoms matches&
           & the number of actually entered positions.")
     end if
