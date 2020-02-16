@@ -1,9 +1,9 @@
-!--------------------------------------------------------------------------------!
-!  DFTB+: general package for performing fast atomistic simulations              !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                             !
-!                                                                                !
-!  See the LICENSE file for terms of usage and distribution.                     !
-!--------------------------------------------------------------------------------!
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
@@ -20,10 +20,13 @@ module dftbp_dftd4param
 
   !> Maximum atomic number allowed in EEQ calculations
   integer, parameter :: max_element_eeq = 86
+
   !> Maximum atomic number allowed in D4 calculations
   integer, parameter :: max_element_d4 = 118
+
   !> Maximum allowed number of reference systems, arbitrary choice
   integer, parameter :: max_references = 7
+
   !> Number of frequencies used in Casimir-Polder integration
   integer, parameter :: imag_frequencies = 23
 
@@ -48,8 +51,8 @@ module dftbp_dftd4param
     !> constant offset of critical radii.
     real(dp) :: a2
 
-    !> exponent of for the zero-damping function used for non-addititive
-    !>  triple dipole contributions.
+    !> exponent of for the zero-damping function used for non-addititive triple dipole
+    !>  contributions.
     real(dp) :: alpha = 16.0_dp
 
     !> cutoff radius for dispersion interactions.
@@ -155,8 +158,8 @@ module dftbp_dftd4param
   end type DftD4Calculator
 
 
-  !> Element-specific electronegativity for the electronegativity equilibration
-  !>  charges used in DFT-D4.
+  !> Element-specific electronegativity for the electronegativity equilibration charges used in
+  !>  DFT-D4.
   real(dp), parameter :: chi(max_element_eeq) = [&
     & 1.23695041_dp, 1.26590957_dp, 0.54341808_dp, 0.99666991_dp, 1.26691604_dp, &
     & 1.40028282_dp, 1.55819364_dp, 1.56866440_dp, 1.57540015_dp, 1.15056627_dp, &
@@ -177,8 +180,8 @@ module dftbp_dftd4param
     & 1.12334192_dp, 1.01485321_dp, 1.12950808_dp, 1.30804834_dp, 1.33689961_dp, &
     & 1.27465977_dp]
 
-  !> Element-specific chemical hardnesses for the electronegativity equilibration
-  !>  charges used in DFT-D4.
+  !> Element-specific chemical hardnesses for the electronegativity equilibration charges used in
+  !>  DFT-D4.
   real(dp), parameter :: gam(max_element_eeq) = [&
     &-0.35015861_dp, 1.04121227_dp, 0.09281243_dp, 0.09412380_dp, 0.26629137_dp, &
     & 0.19408787_dp, 0.05317918_dp, 0.03151644_dp, 0.32275132_dp, 1.30996037_dp, &
@@ -199,8 +202,8 @@ module dftbp_dftd4param
     & 0.02522348_dp, 0.15263050_dp, 0.08042611_dp, 0.01878626_dp, 0.08715453_dp, &
     & 0.10500484_dp]
 
-  !> Element-specific CN scaling constant for the electronegativity equilibration
-  !>  charges used in DFT-D4.
+  !> Element-specific CN scaling constant for the electronegativity equilibration charges used in
+  !>  DFT-D4.
   real(dp), parameter :: kcn(max_element_eeq) = [&
     & 0.04916110_dp, 0.10937243_dp,-0.12349591_dp,-0.02665108_dp,-0.02631658_dp, &
     & 0.06005196_dp, 0.09279548_dp, 0.11689703_dp, 0.15704746_dp, 0.07987901_dp, &
@@ -221,8 +224,7 @@ module dftbp_dftd4param
     &-0.00894298_dp,-0.05864876_dp,-0.01817842_dp, 0.07721851_dp, 0.07936083_dp, &
     & 0.05849285_dp]
 
-  !> Element-specific charge widths for the electronegativity equilibration
-  !>  charges used in DFT-D4.
+  !> Element-specific charge widths for the electronegativity equilibration charges used in DFT-D4.
   real(dp), parameter :: rad(max_element_eeq) = [&
     & 0.55159092_dp, 0.66205886_dp, 0.90529132_dp, 1.51710827_dp, 2.86070364_dp, &
     & 1.88862966_dp, 1.32250290_dp, 1.23166285_dp, 1.77503721_dp, 1.11955204_dp, &
@@ -243,8 +245,8 @@ module dftbp_dftd4param
     & 1.78160840_dp, 2.47588882_dp, 2.37670734_dp, 1.76613217_dp, 2.66172302_dp, &
     & 2.82773085_dp]
 
-  !> Element-specific chemical hardnesses for the charge scaling function used
-  !>  to extrapolate the C6 coefficients in DFT-D4.
+  !> Element-specific chemical hardnesses for the charge scaling function used to extrapolate the C6
+  !>  coefficients in DFT-D4.
   real(dp), parameter :: chemicalHardness(max_element_d4) = [ &
     & 0.47259288_dp, 0.92203391_dp, 0.17452888_dp, 0.25700733_dp, 0.33949086_dp, &
     & 0.42195412_dp, 0.50438193_dp, 0.58691863_dp, 0.66931351_dp, 0.75191607_dp, &
@@ -271,8 +273,8 @@ module dftbp_dftd4param
     & 0.00000000_dp, 0.00000000_dp, 0.00000000_dp, 0.00000000_dp, 0.00000000_dp, &
     & 0.00000000_dp, 0.00000000_dp, 0.00000000_dp]
 
-  !> Effective nuclear charges from the def2-ECPs used for calculating the
-  !>  reference polarizibilities for DFT-D4.
+  !> Effective nuclear charges from the def2-ECPs used for calculating the reference
+  !>  polarizibilities for DFT-D4.
   real(dp), parameter :: effectiveNuclearCharge(max_element_d4) = [ &
     &   1,                                                 2,  & ! H-He
     &   3, 4,                               5, 6, 7, 8, 9,10,  & ! Li-Ne
@@ -285,8 +287,8 @@ module dftbp_dftd4param
     &   9,10,11,30,31,32,33,34,35,36,37,38,39,40,41,42,43,  & ! Fr-Lr
     &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26] ! Rf-Og
 
-  !> Covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009,
-  !>  188-197), values for metals decreased by 10%.
+  !> Covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197), values for
+  !>  metals decreased by 10%.
   real(dp), parameter :: CovalentRadiusD3(max_element_d4) = [ &
     & 0.32_dp,0.46_dp, & ! H,He
     & 1.20_dp,0.94_dp,0.77_dp,0.75_dp,0.71_dp,0.63_dp,0.64_dp,0.67_dp, & ! Li-Ne
@@ -390,9 +392,13 @@ contains
   end function zetaScale
 
 
-  !> numerical Casimir--Polder integration
+  !> numerical Casimir--Polder integration using trapezoidal rule
   pure function numIntegration(pol) result(trapzd)
+
+    !> polarizabilities at imaginary frequencies
     real(dp), intent(in) :: pol(imag_frequencies)
+
+    !> resulting integral
     real(dp) :: trapzd
 
     real(dp),parameter  :: freq(imag_frequencies) = [ &
@@ -488,14 +494,20 @@ contains
 
     mAt = maxval(izp)
     allocate(calculator%numberOfReferences(mAt), calculator%atoms(mAt), &
-        & calculator%countNumber(max_references, mAt), source=0)
+        & calculator%countNumber(max_references, mAt))
+    calculator%numberOfReferences(:) = 0
+    calculator%atoms(:) = 0
+    calculator%countNumber(:, :) = 0
     allocate(calculator%referenceCN(max_references, mAt), &
         & calculator%referenceCharge(max_references, mAt), &
         & calculator%referenceAlpha(imag_frequencies, max_references, mAt), &
-        & calculator%referenceC6(max_references, max_references, mAt, mAt), &
-        & source=0.0_dp)
+        & calculator%referenceC6(max_references, max_references, mAt, mAt))
+    calculator%referenceCN(:, :) = 0.0_dp
+    calculator%referenceCharge(:, :) = 0.0_dp
+    calculator%referenceAlpha(:, :, :) = 0.0_dp
+    calculator%referenceC6(:, :, :, :) = 0.0_dp
 
-    calculator%referenceCharge = clsq(:, :mAt)
+    calculator%referenceCharge(:,:) = clsq(:, :mAt)
     tmp_hq(:,:) = clsh
 
     ! evaluate α(Z) = 1/k·(α(ZkBn) - ζ(n, m) · n/m · α(Bm))
@@ -517,8 +529,7 @@ contains
           calculator%referenceCN(iRef1,iZp1) = refcovcn(iRef1,iZp1)
           cncount(iCN) = cncount(iCN) + 1
           calculator%referenceAlpha(:,iRef1,iZp1) = &
-              & max(0.0_dp,&
-              & ascale(iRef1,iZp1) * (alphaiw(:,iRef1,iZp1) - hcount(iRef1,iZp1)*alpha))
+              & max(0.0_dp, ascale(iRef1,iZp1) * (alphaiw(:,iRef1,iZp1) - hcount(iRef1,iZp1)*alpha))
         end do
         ! setup the number of Gaussian functions for the weighting in countNumber
         do iRef1 = 1, calculator%numberOfReferences(iZp1)
@@ -530,16 +541,16 @@ contains
     end do
 
     ! integrate C6 coefficients
-    !$omp parallel default(none) &
-    !$omp private(iZp1, iZp2, iRef1, iRef2, alpha, c6) shared(calculator, mAt)
-    !$omp do schedule(runtime)
+    !$OMP PARALLEL DEFAULT(NONE) &
+    !$OMP PRIVATE(iZp1, iZp2, iRef1, iRef2, alpha, c6) SHARED(calculator, mAt)
+    !$OMP DO SCHEDULE(RUNTIME)
     do iZp1 = 1, mAt
       do iZp2 = 1, iZp1
         if (calculator%atoms(iZp1) > 0 .and. calculator%atoms(iZp2) > 0) then
           do iRef1 = 1, calculator%numberOfReferences(iZp1)
             do iRef2 = 1, calculator%numberOfReferences(iZp2)
-              alpha = calculator%referenceAlpha(:,iRef1,iZp1) &
-                &  * calculator%referenceAlpha(:,iRef2,iZp2)
+              alpha = calculator%referenceAlpha(:,iRef1,iZp1)&
+                  & * calculator%referenceAlpha(:,iRef2,iZp2)
               c6 = thopi * numIntegration(alpha)
               calculator%referenceC6(iRef2,iRef1,iZp2,iZp1) = c6
               calculator%referenceC6(iRef1,iRef2,iZp1,iZp2) = c6
@@ -548,8 +559,8 @@ contains
         end if
       end do
     end do
-    !$omp end do
-    !$omp end parallel
+    !$OMP END DO
+    !$OMP END PARALLEL
 
   end subroutine initializeCalculator
 

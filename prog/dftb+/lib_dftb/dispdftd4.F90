@@ -65,13 +65,13 @@ module dftbp_dispdftd4
     logical :: tPeriodic
 
     !> are the coordinates current?
-    logical :: tCoordsUpdated = .false.
+    logical :: tCoordsUpdated
 
     !> evaluate Ewald parameter
     logical :: tAutoEwald
 
     !> if > 0 -> manual setting for alpha
-    real(dp) :: ewaldAlpha = 0.0_dp
+    real(dp) :: ewaldAlpha
 
     !> Ewald tolerance
     real(dp) :: tolEwald
@@ -133,14 +133,16 @@ contains
 
     this%tPeriodic = present(latVecs)
 
+    this%tCoordsUpdated = .false.
+
     if (this%tPeriodic) then
       this%latVecs(:,:) = latVecs
-
       this%vol = determinant33(latVecs)
       call invert33(recVecs, latVecs, this%vol)
       this%vol = abs(this%vol)
       recVecs = 2.0_dp * pi * transpose(recVecs)
 
+      this%ewaldAlpha = 0.0_dp
       this%tAutoEwald = inp%parEwald <= 0.0_dp
       this%tolEwald = inp%tolEwald
       if (this%tAutoEwald) then
@@ -636,6 +638,7 @@ contains
 
     !> Nr. of neighbours for each atom
     integer, allocatable :: nNeighbour(:)
+
     real(dp), allocatable :: zetaVec(:, :), zeroVec(:, :)
     real(dp), allocatable :: zetadq(:, :), zerodq(:, :)
     real(dp), allocatable :: zetadcn(:, :), zerodcn(:, :)
@@ -704,21 +707,21 @@ contains
         dEr = calc%s6 * f6 + calc%s8 * f8 * rc + calc%s10 * rc * rc * 49.0_dp / 40.0_dp * f10
         dGr = calc%s6 * df6 + calc%s8 * df8 * rc + calc%s10 * rc * rc * 49.0_dp / 40.0_dp * df10
 
-        grad = -dGr*dc6 * vec / r1
-        sigma = spread(grad, 1, 3) * spread(vec, 2, 3)
+        grad(:) = -dGr*dc6 * vec / r1
+        sigma(:,:) = spread(grad, 1, 3) * spread(vec, 2, 3)
 
         energies(iAt1) = energies(iAt1) - dEr*dc6/2
         dEdcn(iAt1) = dEdcn(iAt1) - dc6dcn1 * dEr
         dEdq(iAt1) = dEdq(iAt1) - dc6dq1 * dEr
         if (iAt1 /= iAt2f) then
-          stress = stress - sigma
+          stress(:,:) = stress - sigma
           energies(iAt2f) = energies(iAt2f) - dEr*dc6/2
           gradients(:, iAt1) = gradients(:, iAt1) + grad
           gradients(:, iAt2f) = gradients(:, iAt2f) - grad
           dEdcn(iAt2f) = dEdcn(iAt2f) - dc6dcn2 * dEr
           dEdq(iAt2f) = dEdq(iAt2f) - dc6dq2 * dEr
         else
-          stress = stress - 0.5_dp * sigma
+          stress(:,:) = stress - 0.5_dp * sigma
         end if
 
       end do
@@ -817,6 +820,7 @@ contains
     end do
     !$OMP END DO
     !$OMP END PARALLEL
+
   end subroutine getAtomicC6
 
 
@@ -898,17 +902,17 @@ contains
       iSp1 = species(iAt1)
       do iNeigh2 = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh2, iAt1)
-        vec12 = coords(:, iAt2) - coords(:, iAt1)
+        vec12(:) = coords(:, iAt2) - coords(:, iAt1)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species(iAt2f)
         dist12 = neighDist2(iNeigh2, iAt1)
         do iNeigh3 = 1, iNeigh2 - 1
           iAt3 = iNeighbour(iNeigh3, iAt1)
-          vec13 = coords(:, iAt3) - coords(:, iAt1)
+          vec13(:) = coords(:, iAt3) - coords(:, iAt1)
           iAt3f = img2CentCell(iAt3)
           iSp3 = species(iAt3f)
           dist13 = neighDist2(iNeigh3, iAt1)
-          vec23 = coords(:, iAt3) - coords(:, iAt2)
+          vec23(:) = coords(:, iAt3) - coords(:, iAt2)
           dist23 = sum(vec23**2)
 
           c6_12 = c6(iAt2f, iAt1)
@@ -916,9 +920,9 @@ contains
           c6_23 = c6(iAt3f, iAt2f)
           c9 = -sqrt(c6_12 * c6_13 * c6_23)
 
-          rc12 = calc%a1 * sqrt(3 * calc%sqrtZr4r2(iSp1) * calc%sqrtZr4r2(iSp2)) + calc%a2
-          rc13 = calc%a1 * sqrt(3 * calc%sqrtZr4r2(iSp1) * calc%sqrtZr4r2(iSp3)) + calc%a2
-          rc23 = calc%a1 * sqrt(3 * calc%sqrtZr4r2(iSp2) * calc%sqrtZr4r2(iSp3)) + calc%a2
+          rc12 = calc%a1 * sqrt(3.0_dp * calc%sqrtZr4r2(iSp1) * calc%sqrtZr4r2(iSp2)) + calc%a2
+          rc13 = calc%a1 * sqrt(3.0_dp * calc%sqrtZr4r2(iSp1) * calc%sqrtZr4r2(iSp3)) + calc%a2
+          rc23 = calc%a1 * sqrt(3.0_dp * calc%sqrtZr4r2(iSp2) * calc%sqrtZr4r2(iSp3)) + calc%a2
           rc = rc12 * rc13 * rc23
 
           r2 = dist12 * dist13 * dist23
@@ -936,21 +940,21 @@ contains
 
           ! d/dr12
           dang = -0.375_dp * (dist12**3 + dist12**2 * (dist23 + dist13)&
-              & + dist12 * (3 * dist23**2 + 2 * dist23*dist13 + 3 * dist13**2)&
-              & - 5 * (dist23 - dist13)**2 * (dist23 + dist13)) / r5
-          dG12 = calc%s9 * c9 * (-dang*fdmp + ang*dfdmp) / dist12*vec12
+              & + dist12 * (3.0_dp * dist23**2 + 2.0_dp * dist23*dist13 + 3.0_dp * dist13**2)&
+              & - 5.0_dp * (dist23 - dist13)**2 * (dist23 + dist13)) / r5
+          dG12(:) = calc%s9 * c9 * (-dang*fdmp + ang*dfdmp) / dist12 * vec12
 
           ! d/dr13
           dang = -0.375_dp * (dist13**3 + dist13**2 * (dist23 + dist12)&
-              & + dist13 * (3 * dist23**2 + 2 * dist23 * dist12 + 3 * dist12**2)&
-              & - 5 * (dist23 - dist12)**2 * (dist23 + dist12)) / r5
-          dG13 = calc%s9 * c9 * (-dang * fdmp + ang * dfdmp) / dist13 * vec13
+              & + dist13 * (3.0_dp * dist23**2 + 2.0_dp * dist23 * dist12 + 3.0_dp * dist12**2)&
+              & - 5.0_dp * (dist23 - dist12)**2 * (dist23 + dist12)) / r5
+          dG13(:) = calc%s9 * c9 * (-dang * fdmp + ang * dfdmp) / dist13 * vec13
 
           ! d/dr23
           dang = -0.375_dp * (dist23**3 + dist23**2*(dist13 + dist12)&
-              & + dist23 * (3 * dist13**2 + 2 * dist13 * dist12 + 3 * dist12**2)&
-              & - 5 * (dist13 - dist12)**2 * (dist13 + dist12)) / r5
-          dG23 = calc%s9 * c9 * (-dang * fdmp + ang * dfdmp) / dist23 * vec23
+              & + dist23 * (3.0_dp * dist13**2 + 2.0_dp * dist13 * dist12 + 3.0_dp * dist12**2)&
+              & - 5.0_dp * (dist13 - dist12)**2 * (dist13 + dist12)) / r5
+          dG23(:) = calc%s9 * c9 * (-dang * fdmp + ang * dfdmp) / dist23 * vec23
 
           dEr = calc%s9 * rr * c9 * tripleScale(iAt1, iAt2f, iAt3f)
           energies(iAt1) = energies(iAt1) - dEr / 3.0_dp
@@ -961,11 +965,11 @@ contains
           gradients(:, iAt2f) = gradients(:, iAt2f) + dG12 - dG23
           gradients(:, iAt3f) = gradients(:, iAt3f) + dG13 + dG23
 
-          sigma = spread(dG12, 1, 3) * spread(vec12, 2, 3)&
+          sigma(:,:) = spread(dG12, 1, 3) * spread(vec12, 2, 3)&
               & + spread(dG13, 1, 3) * spread(vec13, 2, 3)&
               & + spread(dG23, 1, 3) * spread(vec23, 2, 3)
 
-          stress = stress - sigma
+          stress(:,:) = stress - sigma
 
           dc9dcn1 = (dc6dcn(iAt1, iAt2f) / c6_12 + dc6dcn(iAt1, iAt3f) / c6_13) * 0.5_dp
           dc9dcn2 = (dc6dcn(iAt2f, iAt1) / c6_12 + dc6dcn(iAt2f, iAt3f) / c6_23) * 0.5_dp
@@ -1053,8 +1057,13 @@ contains
     gradients(:, :) = 0.0_dp
     sigma(:, :) = 0.0_dp
 
-    allocate(cn(nAtom), dcndr(3, nAtom, nAtom), dcndL(3, 3, nAtom), source=0.0_dp)
-    allocate(nNeigh(nAtom), source=0)
+    allocate(cn(nAtom), dcndr(3, nAtom, nAtom), dcndL(3, 3, nAtom))
+    cn(:) = 0.0_dp
+    dcndr(:, :, :) = 0.0_dp
+    dcndL(:, :, :) = 0.0_dp
+
+    allocate(nNeigh(nAtom))
+    nNeigh(:) = 0
 
     call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffCount)
 
@@ -1067,9 +1076,9 @@ contains
 
     call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffEwald)
 
-    call getEEQCharges(nAtom, coords, species, calculator%nrChrg, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
-        & img2CentCell, recPoint, parEwald0, vol, calculator%chi, calculator%kcn, calculator%gam,&
-        & calculator%rad, cn, dcndr, dcndL, qAtom=q, dqdr=dqdr, dqdL=dqdL)
+    call getEEQCharges(nAtom, coords, species, calculator%nrChrg, nNeigh, neigh%iNeighbour,&
+        & neigh%neighDist2, img2CentCell, recPoint, parEwald0, vol, calculator%chi, calculator%kcn,&
+        & calculator%gam, calculator%rad, cn, dcndr, dcndL, qAtom=q, dqdr=dqdr, dqdL=dqdL)
 
     call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, calculator%covalentRadius, calculator%electronegativity, .true., cn, dcndr,&
@@ -1085,7 +1094,7 @@ contains
   end subroutine dispersionEnergy
 
 
-  !> Error function counting function for coordination number constributions.
+  !> Error function counting function for coordination number contributions.
   pure elemental function erfCount(k, r, r0) result(count)
 
     !> Steepness of the counting function.
@@ -1153,7 +1162,7 @@ contains
     !> Derivative of the cutting function
     real(dp) :: dcnpdcn
 
-    dcnpdcn = exp(cut)/(exp(cut) + exp(cn))
+    dcnpdcn = exp(cut) / (exp(cut) + exp(cn))
 
   end function dCutCn
 
@@ -1241,7 +1250,10 @@ contains
   !> but numerics won't hit that hard and there are not to many of such triples.
   elemental function tripleScale(ii, jj, kk) result(triple)
 
+    !> Atom indices
     integer, intent(in) :: ii, jj, kk
+
+    !> Fraction of energy
     real(dp) :: triple
 
     if (ii == jj) then
