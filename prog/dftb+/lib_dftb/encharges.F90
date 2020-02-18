@@ -19,7 +19,7 @@ module dftbp_encharges
   use dftbp_errorfunction, only: erfwrap
   use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec
   use dftbp_blasroutines, only : hemv, gemv, gemm
-  use dftbp_lapackroutines, only : sytrf, sytri
+  use dftbp_lapackroutines, only : symmatinv
   implicit none
   private
 
@@ -115,7 +115,7 @@ contains
       iSp1 = species(iAt1)
       do iAt2f = 1, iAt1 - 1
         iSp2 = species(iAt2f)
-        vec = coords(:, iAt1) - coords(:, iAt2f)
+        vec(:) = coords(:, iAt1) - coords(:, iAt2f)
         dist = sqrt(sum(vec**2))
         eta12 = 1.0_dp / sqrt(rad(iSp1)**2 + rad(iSp2)**2)
         arg = dist * eta12
@@ -289,8 +289,7 @@ contains
       aMat(iAt1, iAt1) = aMat(iAt1, iAt1) - alpha / sqrt(pi) + pi / (volume * alpha**2)
       do iAt2f = iAt1, nAtom
         vec(:) = coords(:, iAt1)-coords(:, iAt2f)
-        rTerm = ewaldReciprocal(vec, recPoint, alpha, volume) &
-            & - pi / (volume * alpha**2)
+        rTerm = ewaldReciprocal(vec, recPoint, alpha, volume) - pi / (volume * alpha**2)
         aMat(iAt2f, iAt1) = aMat(iAt2f, iAt1) + rTerm
         aMat(iAt1, iAt2f) = aMat(iAt1, iAt2f) + rTerm
       end do
@@ -592,7 +591,6 @@ contains
     real(dp), allocatable :: qVec(:)
 
     real(dp), allocatable :: aInv(:, :)
-    integer, allocatable :: ipiv(:)
 
     real(dp), allocatable :: aMatdr(:, :, :)
     real(dp), allocatable :: aMatdL(:, :, :)
@@ -608,7 +606,6 @@ contains
     nDim = nAtom + 1
     allocate(xVec(nDim), xFac(nAtom), aMatdr(3, nAtom, nDim), aMat(nDim, nDim), &
         & aInv(nDim, nDim), qVec(nDim), aMatdL(3, 3, nDim), aTrace(3, nAtom))
-    allocate(ipiv(nDim))
 
     ! Step 1: contruct RHS for linear system
     do iAt1 = 1, nAtom
@@ -621,9 +618,8 @@ contains
 
     ! Step 2: construct interaction matrix
     if (tPeriodic) then
-      call getCoulombMatrixPeriodic(nAtom, coords, species, nNeighbour, &
-          & iNeighbour, neighDist2, img2CentCell, recPoint, gam, rad, alpha, &
-          & volume, aMat)
+      call getCoulombMatrixPeriodic(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
+          & img2CentCell, recPoint, gam, rad, alpha, volume, aMat)
     else
       call getCoulombMatrixCluster(nAtom, coords, species, gam, rad, aMat)
     end if
@@ -633,13 +629,7 @@ contains
 
     ! Step 3: invert linear system
     aInv(:, :) = aMat
-    call sytrf(aInv, ipiv)
-    call sytri(aInv, ipiv)
-    do ii = 1, nDim
-      do jj = ii+1, nDim
-        aInv(ii, jj) = aInv(jj, ii)
-      end do
-    end do
+    call symmatinv(aInv)
     qVec(:) = 0.0_dp
     call hemv(qVec, aInv, xVec)
 
@@ -673,6 +663,13 @@ contains
     do iAt1 = 1, nAtom
       aMatdr(:, iAt1, iAt1) = aMatdr(:, iAt1, iAt1) + aTrace(:, iAt1)
     end do
+
+    if (present(dqdr) .or. present(dqdL)) then
+      ! Symmetrise inverted matrix
+      do ii = 1, nDim
+        aInv(ii, ii+1:nDim) = aInv(ii+1:nDim, ii)
+      end do
+    end if
 
     if (present(dqdr)) then
       dqdr(:, :, :) = 0.0_dp
