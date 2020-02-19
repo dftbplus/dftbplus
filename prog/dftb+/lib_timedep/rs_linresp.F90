@@ -12,13 +12,13 @@ module dftbp_rs_linearresponse
   use dftbp_slakoCont
   use dftbp_shortgamma
   use dftbp_accuracy
-  use dftbp_constants, only : Hartree__eV, au__Debye
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_constants, only: Hartree__eV, au__Debye
+  use dftbp_nonscc, only: NonSccDiff
   use dftbp_scc, only: TScc
   use dftbp_blasroutines
   use dftbp_eigensolver
   use dftbp_message
-  use dftbp_taggedOutput, only : TTaggedWriter, tagLabels
+  use dftbp_taggedOutput, only: TTaggedWriter, tagLabels
   use dftbp_linresp
   use dftbp_linrespcommon
   use dftbp_linrespgrad,!only: calcTransitionDipoles, getExcSpin, writeSPExcitations, writeExcMulliken
@@ -31,18 +31,18 @@ module dftbp_rs_linearresponse
   private
   !!^-- Check: once done, see which modules are actually required
 
-  public :: LinResp_calcExcitations_rs
+  public :: linRespCalcExcitationsRS
 
   type :: rs_linresp
-     !> type to hold data required only for rangesep linresp but not linresp itself
-     !Check: If they turn out to be feq, consider adding them to linresp itself
+    !> type to hold data required only for rangesep linresp but not linresp itself
+    !Check: If they turn out to be feq, consider adding them to linresp itself
 
   end type rs_linresp
 
   interface incSize
-     module procedure incSizeInt
-     module procedure incSizeVec
-     module procedure incSizeMat
+    module procedure incSizeInt
+    module procedure incSizeVec
+    module procedure incSizeMat
   end interface 
 
   !> Names of output files
@@ -76,26 +76,26 @@ contains
  !!! \param ii  Initial state.
  !!! \param jj  Final state.
  !!! \param index  Compound excitation index.
- !subroutine rindxoo(nocc, nocc_r, ii, jj, index)
- !  integer, intent(in) ::  nocc, nocc_r, ii, jj
+ !subroutine rIndXoo(nOcc, nOcc_r, ii, jj, index)
+ !  integer, intent(in) ::  nOcc, nOcc_r, ii, jj
  !  integer, intent(out) :: index
 
  !  if (jj > ii) then  
- !     index = ii - nocc + nocc_r + ((jj - nocc + nocc_r - 1) * (jj - nocc + nocc_r)) / 2   
+ !     index = ii - nOcc + nOcc_r + ((jj - nOcc + nOcc_r - 1) * (jj - nOcc + nOcc_r)) / 2   
  !  else
- !     index = jj - nocc + nocc_r + ((ii - nocc + nocc_r - 1) * (ii - nocc + nocc_r)) / 2    
+ !     index = jj - nOcc + nOcc_r + ((ii - nOcc + nOcc_r - 1) * (ii - nOcc + nOcc_r)) / 2    
  !  end if
 
- !end subroutine rindxoo
+ !end subroutine rIndXoo
 
   !> Computes the occupied-occupied compound index from two individual indices; assume jj <= ii
-  pure subroutine rindxoo(nocc, nocc_r, ii, jj, indx)
+  pure subroutine rIndXoo(nOcc, nOcc_r, ii, jj, indX)
 
     !> Number of occupied states.
-    integer, intent(in) :: nocc
+    integer, intent(in) :: nOcc
 
     !> Number of "active" occupied states.
-    integer, intent(in) :: nocc_r
+    integer, intent(in) :: nOcc_r
 
     !> First (initial) occupied state.
     integer, intent(in) :: ii
@@ -104,11 +104,11 @@ contains
     integer, intent(in) :: jj
 
     !> Compound indx.
-    integer, intent(out) :: indx
+    integer, intent(out) :: indX
 
-    indx = jj - nocc + nocc_r + ((ii - nocc + nocc_r - 1) * (ii - nocc + nocc_r)) / 2
+    indX = jj - nOcc + nOcc_r + ((ii - nOcc + nOcc_r - 1) * (ii - nOcc + nOcc_r)) / 2
 
-  end subroutine rindxoo
+  end subroutine rIndXoo
 
   subroutine getSOffsite(coords1, coords2, iSp1, iSp2, orb, skOverCont, Sblock)
     implicit none
@@ -123,7 +123,7 @@ contains
 
     @:ASSERT(size(coords1) == 3)
     @:ASSERT(size(coords2) == 3)
-    @:ASSERT(all(shape(Sblock) >= [ orb%mOrb, orb%mOrb ]))
+    @:ASSERT(all(shape(Sblock) >= [orb%mOrb, orb%mOrb]))
 
     vect(:) = coords2 - coords1
     dist = sqrt(sum(vect**2))
@@ -203,19 +203,19 @@ contains
     real(dp), allocatable :: temp(:,:)
     
     allocate(temp(3 * sizeIn, 2 * sizeIn))
-    temp(1:sizeIn,1:sizeIn) = vec   !Check: would be nice if temo could become memory for vec, see if possible in fortran
+    temp(1:sizeIn, 1:sizeIn) = vec   !Check: would be nice if temo could become memory for vec, see if possible in fortran
     call move_alloc(temp, vec)
     
   end subroutine incSizeMatBoth
 
 
   !>Calculate square root and inverse of sqrt of a real, symmetric positive definite matrix
-  subroutine calcMatrixSqrt(MatIn, spaceDim, memDim, workArray, workDim, MatOut, MatInvOut)
+  subroutine calcMatrixSqrt(matIn, spaceDim, memDim, workArray, workDim, matOut, matInvOut)
 
     implicit none
-    real(dp), intent(in) :: MatIn(:,:)
+    real(dp), intent(in) :: matIn(:,:)
     integer, intent(in) :: spaceDim, memDim
-    real(dp), intent(out) :: MatOut(:,:), MatInvOut(:,:)
+    real(dp), intent(out) :: matOut(:,:), matInvOut(:,:)
     real(dp) :: workArray(:)
     integer :: workDim
     
@@ -224,23 +224,21 @@ contains
     integer :: info
     integer :: ii
 
-    dummyM(:,:) = MatIn(1:spaceDim,1:spaceDim)
- !   write(*,*) ,'Debug mmm ', dummyM(:,:)
+    dummyM(:,:) = matIn(1:spaceDim,1:spaceDim)
 
     call dsyev('V', 'U', spaceDim, dummyM, spaceDim, dummyEV, workArray, workDim, info)
     !calc. sqrt
-    do ii=1, spaceDim
-       dummyM2(:,ii)=sqrt(dummyEV(ii))*dummyM(:,ii)
+    do ii = 1, spaceDim
+      dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
     end do
 
-!    write(*,*), 'debug ev ', dummyEV(:)
-    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM, spaceDim, 0.0_dp, MatOut, memDim)
+    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM, spaceDim, 0.0_dp, matOut, memDim)
     !calc. inv. of sqrt
-        do ii=1, spaceDim
-       dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
+    do ii = 1, spaceDim
+      dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
     end do
 
-    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM, spaceDim, 0.0_dp, MatInvOut, memDim)
+    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM, spaceDim, 0.0_dp, matInvOut, memDim)
 
   end subroutine calcMatrixSqrt
 
@@ -264,525 +262,523 @@ contains
   end subroutine orthonormalizeVectors
 
   !>Calculate the product of the matrix A+B and a vector. A,B as usual in linear response TD-DFT.
- !subroutine multApBVecFast(spin, vin, wij, sym, win, nMatUp, homo, nocc, nvir, ind, &
- !    & sTimesGrndEigVecs, grndEigVecs, occNr, getij, gamma, lrGamma, species0, uhbuu, uhbud, orb, iatrans, &
- !    & gqvtmp, tqov, tqoo, tqvv, vout)
-  subroutine multApBVecFast(vin, wij, sym, win, nMatUp, homo, nocc, nvir, & ! sTimesGrndEigVecs,
-      & occNr, getij, gamma, lrGamma, species0, uhbuu, uhbud, iatrans, &
-      & gqvtmp, tqov, tqoo, tqvv, vout)
+ !subroutine multApBVecFast(spin, vin, wIJ, sym, win, nMatUp, homo, nOcc, nVir, ind, &
+ !    & sTimesGrndEigVecs, grndEigVecs, occNr, getIJ, gamma, lrGamma, species0, uHubbU, uHubbD, &
+ !    & orb, iaTrans, gqvTmp, tQov, tQoo, tQvv, vOut)
+  subroutine multApBVecFast(vin, wIJ, sym, win, nMatUp, homo, nOcc, nVir, occNr, getIJ, gamma, &
+      & lrGamma, species0, uHubbU, uHubbD, iaTrans, gqvTmp, tQov, tQoo, tQvv, vOut)
     implicit none
-   !logical, intent(in)   :: spin !for now ignore spin and assume unpolarized system
-    real(dp), intent(in)  :: vin(:)
-    real(dp), intent(in)  :: wij(:)
+   !logical, intent(in) :: spin ! for now ignore spin and assume unpolarized system
+    real(dp), intent(in) :: vin(:)
+    real(dp), intent(in) :: wIJ(:)
     character, intent(in) :: sym
-    integer, intent(in)   :: win(:), nMatUp, homo, nocc, nvir !, ind(:)
-   !real(dp), intent(in)  :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
-    real(dp), intent(in)  :: occNr(:,:)
-    real(dp), intent(in)  :: gamma(:,:), lrGamma(:,:)
-    integer,  intent(in)  :: getij(:,:)     
-    integer, intent(in)   :: species0(:)
-    real(dp), intent(in)  :: uhbuu(:), uhbud(:)
+    integer, intent(in) :: win(:), nMatUp, homo, nOcc, nVir !, ind(:)
+   !real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
+    real(dp), intent(in) :: occNr(:,:)
+    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
+    integer,  intent(in) :: getIJ(:,:)     
+    integer, intent(in) :: species0(:)
+    real(dp), intent(in) :: uHubbU(:), uHubbD(:)
    !type(TOrbitals), intent(in) :: orb    
-    real(dp), intent(in)  :: tqov(:,:), tqoo(:,:), tqvv(:,:)
-    integer, intent(in)   :: iatrans(1:,homo+1:)
-    real(dp), intent(out) :: vout(:)
-    real(dp), intent(out) :: gqvtmp(:,:)   !for faster, more memory intensive routine
+    real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
+    integer, intent(in) :: iaTrans(1:,homo+1:)
+    real(dp), intent(out) :: vOut(:)
+    real(dp), intent(out) :: gqvTmp(:,:)   !for faster, more memory intensive routine
 
-    integer :: izpalpha, nmat, natom
+    integer :: izpAlpha, nMat, nAtom
     integer :: ia, ib, ja, jb, alpha, ii, jj, ij, aa, bb, ab
     real(dp) :: tmp2
-    real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
-   !real(dp) :: qij(size(gamma, dim=1))
-    real(dp) :: wnij(size(wij))
+    real(dp) :: oTmp(size(gamma, dim=1)), gTmp(size(gamma, dim=1))
+   !real(dp) :: qIJ(size(gamma, dim=1))
+    real(dp) :: wnIJ(size(wIJ))
    !logical :: lUpDwn
 
-    nmat = size(vin) ! also known as nxov
-    natom = size(gamma, dim=1)
-    gtmp(:) = 0.0_dp  !used to be otmp before optimization
+    nMat = size(vin) ! also known as nXov
+    nAtom = size(gamma, dim=1)
+    gTmp(:) = 0.0_dp  !used to be oTmp before optimization
 
-    call wtdn(wij, occNr, win, nMatUp, nmat, getij, wnij)    
+    call wtdn(wIJ, occNr, win, nMatUp, nMat, getIJ, wnIJ)    
 
     !----only spin unpolarized case for now-------------------------------
     
     if (sym == 'S') then
-       !full range coupling matrix contribution
-       do ia = 1, nmat  
-          !call hemv(gtmp, gamma, tqov(:,ia)) 
-          !otmp(:) = otmp + vin(ia) * gtmp
-          gtmp(:) = gtmp + tqov(:,ia) * vin(ia) !gtmp=sum_jb q_B^jb * vin_jb
+      !full range coupling matrix contribution
+      do ia = 1, nMat  
+       !call hemv(gTmp, gamma, tQov(:,ia)) 
+       !oTmp(:) = oTmp + vin(ia) * gTmp
+        gTmp(:) = gTmp + tQov(:,ia) * vin(ia) !gTmp=sum_jb q_B^jb * vin_jb
+      end do
+      
+      call hemv(oTmp, gamma, gTmp)
 
-       end do
-       
-       call hemv(otmp, gamma, gtmp)
-
-       do ia= 1, nmat
-          !call indxov(win, ia, getij, ii, jj)
-          !lUpDwn = (win(ia) <= nMatUp)
-          !qij = transq(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-          vout(ia) = 4.0 * dot_product(tqov(:,ia), otmp) !Check: prefactor! need 4.0 * for symmetry reduced sum? 
-       end do
+      do ia= 1, nMat
+       !call indXov(win, ia, getIJ, ii, jj)
+       !lUpDwn = (win(ia) <= nMatUp)
+       !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        vOut(ia) = 4.0 * dot_product(tQov(:,ia), oTmp)
+        ! Check: prefactor! need 4.0 * for symmetry reduced sum? 
+      end do
 
     else
-       do ia = 1, nmat
-          !call indxov(win, ia, getij, ii, jj)
-          !lUpDwn = (win(ia) <= nMatUp)
-          !qij = transq(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-          otmp(:) = otmp + vin(ia) * tqov(:,ia)
-       end do
-       
-       do ia = 1, nmat
-          vout(ia) = 0.0_dp
-          !call indxov(win, ia, getij, ii, jj)
-          !lUpDwn = (win(ia) <= nMatUp)
-          !qij = transq(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-          do alpha = 1, natom
-             izpalpha = species0(alpha)
-             tmp2 = 2.0_dp * (uhbuu(izpalpha) - uhbud(izpalpha)) !== 2*magnetization
-             vout(ia) = vout(ia) + otmp(alpha) * tmp2 * tqov(alpha,ia) 
-          end do
-       end do
+      do ia = 1, nMat
+       !call indXov(win, ia, getIJ, ii, jj)
+       !lUpDwn = (win(ia) <= nMatUp)
+       !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        oTmp(:) = oTmp + vin(ia) * tQov(:,ia)
+      end do
+      
+      do ia = 1, nMat
+        vOut(ia) = 0.0_dp
+       !call indXov(win, ia, getIJ, ii, jj)
+       !lUpDwn = (win(ia) <= nMatUp)
+       !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        do alpha = 1, nAtom
+          izpAlpha = species0(alpha)
+          tmp2 = 2.0_dp * (uHubbU(izpAlpha) - uHubbD(izpAlpha)) !== 2*magnetization
+          vOut(ia) = vOut(ia) + oTmp(alpha) * tmp2 * tQov(alpha,ia) 
+        end do
+      end do
   
     end if
 
-!!!!Old implementation, probably slower, but need less memory 
-!!!!Reintroduce as option later on
+    !   Old implementation, probably slower, but need less memory 
+    !   Reintroduce as option later on
 
-    ! !long range coupling matrix contribution
-    ! do ia = 1, nmat   !adds -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB + q_ib^A * q_ja^B * Gamma_lr_AB  )
-    !    do jb = 1, nmat
-         
-    !       call indxov(win, ia, getij, ii, aa)
-    !       call indxov(win, jb, getij, jj, bb)  
+  ! !long range coupling matrix contribution
+  ! do ia = 1, nMat ! adds -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB + q_ib^A * q_ja^B * Gamma_lr_AB )
+  !   do jb = 1, nMat
+      
+  !     call indXov(win, ia, getIJ, ii, aa)
+  !     call indXov(win, jb, getIJ, jj, bb)  
 
-    !       lUpDwn = (win(iatrans(jj, aa)) <= nMatUp) ! UNTESTED
-    !       qij = transq(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !       call hemv(gtmp, lrGamma, qij)
+  !     lUpDwn = (win(iaTrans(jj, aa)) <= nMatUp) ! UNTESTED
+  !     qIJ = transQ(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+  !     call hemv(gTmp, lrGamma, qIJ)
 
-    !       lUpDwn = (win(iatrans(ii, bb)) <= nMatUp) ! UNTESTED
-    !       qij = transq(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !       vout(ia) = vout(ia) - dot_product(qij, gtmp) * vin(jb)  
+  !     lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
+  !     qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+  !     vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)  
 
-    !       lUpDwn = .true. ! ???
-    !       qij = transq(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !       call hemv(gtmp, lrGamma, qij)
+  !     lUpDwn = .true. ! ???
+  !     qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+  !     call hemv(gTmp, lrGamma, qIJ)
 
-    !       lUpDwn = .true. ! ???
-    !       qij = transq(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !       vout(ia) = vout(ia) - dot_product(qij, gtmp) * vin(jb)          
+  !     lUpDwn = .true. ! ???
+  !     qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+  !     vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)          
 
-    !    end do
-    ! end do
+  !   end do
+  ! end do
 
-!!!!End old implementation
+    ! End old implementation
 
-    !!!Faster but more memory intensive routine
+    ! Faster but more memory intensive routine
    
-    gqvtmp(:,:) = 0.0_dp
-    do jb = 1, nmat
-       call indxov(win, jb, getij, jj, bb)      
+    gqvTmp(:,:) = 0.0_dp
+    do jb = 1, nMat
+      call indXov(win, jb, getIJ, jj, bb)      
+      !lUpDwn = (win(jb) <= nMatUp)
+      do aa = homo + 1, homo + nVir 
+        !lUpDwn = .true.
+        !qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        if (bb < aa) then
+          call rIndXvv(homo, aa, bb, ab)
+        else
+          call rIndXvv(homo, bb, aa, ab)
+        end if
+        !call hemv(gTmp, lrGamma, tQvv(:,ab))
+        ja = nVir * (jj - 1) + aa - nOcc
+        gqvTmp(:,ja) = gqvTmp(:,ja) + tQvv(:,ab) * vin(jb)
+
+      end do
+    end do
+
+    do ja = 1, nMat
+      gTmp(:) = gqvTmp(:,ja)
+      call hemv(gqvTmp(:,ja), lrGamma, gTmp)
+    end do
+
+    do jj = 1, nOcc
+      do ia = 1, nMat
+        !would prefer to swap loops, but want to avoid calculation ia as unsure how implemented
+        call indXov(win, ia, getIJ, ii, aa)  
+       !lUpDwn = (win(ia) <= nMatUp)
+       !lUpDwn = .true.
+       !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        if (jj < ii) then
+          ! inverted indXoo function
+          ij = jj + ((ii - 1 - homo + nOcc) * (ii -homo + nOcc)) / 2 + homo - nOcc
+        else
+          ij = ii + ((jj - 1 - homo + nOcc) * (jj -homo + nOcc)) / 2 + homo - nOcc 
+        end if
+        ja = nVir * (jj - 1) + aa - nOcc
+        vOut(ia) = vOut(ia) - dot_product(tQoo(:,ij), gqvTmp(:,ja))
+
+      end do
+    end do
+  
+    gqvTmp(:,:) = 0.0_dp
+    do jb = 1, nMat
+      call indXov(win, jb, getIJ, jj, bb)      
+      do aa = homo + 1, homo + nVir
+        ab = (bb - nOcc - 1) * nVir + aa - nOcc
+        ja = iaTrans(jj, aa)
+       !if (ja <= nMat) then ! TOMAS KUBAR ADDED
+        gqvTmp(:,ab) = gqvTmp(:,ab) + tQov(:,ja) * vin(jb)
+       !end if
+      end do
+    end do
+
+    do ab = 1, nVir * nVir
+      gTmp(:) = gqvTmp(:,ab)
+      call hemv(gqvTmp(:,ab), lrGamma, gTmp) 
+    end do
+
+    do bb = homo + 1, homo + nVir
+      do ia = 1, nMat
+        call indXov(win, ia, getIJ, ii, aa)
+       !lUpDwn = (win(ia) <= nMatUp)
+        ib = iaTrans(ii,bb)
+       !if (ib <= nMat) then ! TOMAS KUBAR ADDED
        !lUpDwn = (win(jb) <= nMatUp)
-       do aa = homo + 1, homo + nvir 
-          !lUpDwn = .true.
-          !qij = transq(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-          if (bb < aa) then
-             call rindxvv(homo, aa, bb, ab)
-          else
-             call rindxvv(homo, bb, aa, ab)
-          end if
-          !call hemv(gtmp, lrGamma, tqvv(:,ab))
-          ja = nvir * (jj - 1) + aa - nocc
-          gqvtmp(:,ja) = gqvtmp(:,ja) + tqvv(:,ab) * vin(jb)
-
-       end do
-    end do
-
-    do ja = 1, nmat
-       gtmp(:) = gqvtmp(:,ja)
-       call hemv(gqvtmp(:,ja), lrGamma, gtmp)
-    end do
-
-    do jj = 1, nocc
-       do ia = 1, nmat
-          call indxov(win, ia, getij, ii, aa)  !would prefer to swap loops, but want to avoid calculation ia as unsure how implemted
-          !lUpDwn = (win(ia) <= nMatUp)
-          !lUpDwn = .true.
-          !qij = transq(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-          if (jj < ii) then
-             ij = jj + ((ii - 1 - homo + nocc) * (ii -homo + nocc)) / 2 + homo - nocc !inverted indxoo fct.
-          else
-             ij = ii + ((jj - 1 - homo + nocc) * (jj -homo + nocc)) / 2 + homo - nocc 
-          end if
-          ja = nvir * (jj - 1) + aa - nocc
-          vout(ia) = vout(ia) - dot_product(tqoo(:,ij), gqvtmp(:,ja))
-
-       end do
+       !qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        ab = (bb - nOcc - 1) * nVir + aa - nOcc 
+        vOut(ia) = vOut(ia) - dot_product(tQov(:,ib), gqvTmp(:,ab))
+       !end if
+      end do
     end do
   
-    gqvtmp(:,:) = 0.0_dp
-    do jb = 1, nmat
-       call indxov(win, jb, getij, jj, bb)      
-       do aa = homo + 1, homo + nvir
-          ab = (bb - nocc - 1) * nvir + aa - nocc
-          ja = iatrans(jj, aa)
-         !if (ja <= nmat) then ! TOMAS KUBAR ADDED
-             gqvtmp(:,ab) = gqvtmp(:,ab) + tqov(:,ja) * vin(jb)
-         !end if
-       end do
-    end do
-
-    do ab = 1, nvir * nvir
-       gtmp(:) = gqvtmp(:,ab)
-       call hemv(gqvtmp(:,ab), lrGamma, gtmp) 
-    end do
-
-    do bb = homo + 1, homo + nvir
-       do ia = 1, nmat
-          call indxov(win, ia, getij, ii, aa)
-          !lUpDwn = (win(ia) <= nMatUp)
-          ib = iatrans(ii,bb)
-         !if (ib <= nmat) then ! TOMAS KUBAR ADDED
-             !lUpDwn = (win(jb) <= nMatUp)
-             !qij = transq(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-             ab = (bb - nocc - 1) * nvir + aa - nocc 
-             vout(ia) = vout(ia) - dot_product(tqov(:,ib), gqvtmp(:,ab))
-         !end if
-       end do
-    end do
-  
-    !!!!end faster implementation
+    ! End faster implementation
 
     !----only spin unpolarized case for now------------------------------------
-   !vout(:) = vout + 0.5_dp * wnij * vin !orb. energy difference diagonal contribution
-    vout(:) = vout + 0.5_dp * wnij(1:nmat) * vin(1:nmat)
+   !vOut(:) = vOut + 0.5_dp * wnIJ * vin !orb. energy difference diagonal contribution
+    vOut(:) = vOut + 0.5_dp * wnIJ(1:nMat) * vin(1:nMat)
     !Check: What about the factor 0.5 introduced here? Check derivation!
 
   end subroutine multApBVecFast
 
 
   !>Calculate the product of A-B and a vector.
- !subroutine multAmBVecFast(spin, vin, wij, sym, win, nMatUp, homo, nocc, nvir, ind, &
- !    & sTimesGrndEigVecs, grndEigVecs, occNr, getij, gamma, lrGamma, species0, orb, iatrans, gqvtmp, tqov, tqoo, tqvv, vout)
-  subroutine multAmBVecFast(vin, wij, win, nMatUp, homo, nocc, nvir, &
-      & occNr, getij, gamma, lrGamma, iatrans, gqvtmp, tqov, tqoo, tqvv, vout)
+ !subroutine multAmBVecFast(spin, vin, wIJ, sym, win, nMatUp, homo, nOcc, nVir, ind, &
+ !    & sTimesGrndEigVecs, grndEigVecs, occNr, getIJ, gamma, lrGamma, species0, orb, iaTrans, gqvTmp, tQov, tQoo, tQvv, vOut)
+  subroutine multAmBVecFast(vin, wIJ, win, nMatUp, homo, nOcc, nVir, &
+      & occNr, getIJ, gamma, lrGamma, iaTrans, gqvTmp, tQov, tQoo, tQvv, vOut)
     implicit none
    !logical, intent(in) :: spin !for now ignore spin and assume unpolarized system
     real(dp), intent(in) :: vin(:)
-    real(dp), intent(in) :: wij(:)
+    real(dp), intent(in) :: wIJ(:)
    !character, intent(in) :: sym
-    integer, intent(in) :: win(:), nMatUp, homo, nocc, nvir !, ind(:)
+    integer, intent(in) :: win(:), nMatUp, homo, nOcc, nVir !, ind(:)
    !real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
     real(dp), intent(in) :: occNr(:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
-    integer,  intent(in) :: getij(:,:)     
+    integer,  intent(in) :: getIJ(:,:)     
    !integer, intent(in) :: species0(:)
    !type(TOrbitals), intent(in) :: orb
-    real(dp), intent(in) :: tqov(:,:), tqoo(:,:), tqvv(:,:)    
-    integer, intent(in) :: iatrans(1:,homo+1:)
-    real(dp), intent(out) :: vout(:)
+    real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)    
+    integer, intent(in) :: iaTrans(1:,homo+1:)
+    real(dp), intent(out) :: vOut(:)
 
-    real(dp) :: gqvtmp(:,:)   !for faster, more memory intensive routine
-    integer :: nmat, natom
+    real(dp) :: gqvTmp(:,:)   !for faster, more memory intensive routine
+    integer :: nMat, nAtom
     integer :: ia, ib, ja, jb, ii, jj, ij, aa, bb, ab
-   !real(dp) :: otmp(size(gamma, dim=1))
-    real(dp) :: gtmp(size(gamma, dim=1))    
-   !real(dp) :: qij(size(gamma, dim=1))
-    real(dp) :: wnij(size(wij))
+   !real(dp) :: oTmp(size(gamma, dim=1))
+    real(dp) :: gTmp(size(gamma, dim=1))    
+   !real(dp) :: qIJ(size(gamma, dim=1))
+    real(dp) :: wnIJ(size(wIJ))
    !logical :: lUpDwn
 
-    nmat = size(vin) ! also known as nxov
-    natom = size(gamma, dim=1)
+    nMat = size(vin) ! also known as nXov
+    nAtom = size(gamma, dim=1)
 
-    call wtdn(wij, occNr, win, nMatUp, nmat, getij, wnij)    
+    call wtdn(wIJ, occNr, win, nMatUp, nMat, getIJ, wnIJ)    
     
     !----only spin unpolarized case and singlet for now-------------------------------
 
-!!!!Old routine, reintroduce as option later on, see A+B fct
+    ! Old routine, reintroduce as option later on, see A+B fct
 
-    ! !long range coupling matrix contribution
-    ! do ia = 1, nmat   !calcs -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB - q_ib^A * q_ja^B * Gamma_lr_AB  )
-    !    vout(ia) = 0.0_dp
-    !    do jb = 1, nmat
+ !  ! Long range coupling matrix contribution
+ !  do ia = 1, nMat ! Calc -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB - q_ib^A * q_ja^B * Gamma_lr_AB )
+ !    vOut(ia) = 0.0_dp
+ !    do jb = 1, nMat
 
-    !       call indxov(win, ia, getij, ii, aa)
-    !       call indxov(win, jb, getij, jj, bb)  
+ !      call indXov(win, ia, getIJ, ii, aa)
+ !      call indXov(win, jb, getIJ, jj, bb)  
 
-    !       lUpDwn = (win(iatrans(jj, aa)) <= nMatUp) ! UNTESTED
-    !       qij = transq(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !       call hemv(gtmp, lrGamma, qij)
+ !      lUpDwn = (win(iaTrans(jj, aa)) <= nMatUp) ! UNTESTED
+ !      qIJ = transQ(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+ !      call hemv(gTmp, lrGamma, qIJ)
 
-    !       lUpDwn = (win(iatrans(ii, bb)) <= nMatUp) ! UNTESTED
-    !       qij = transq(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !       vout(ia) = vout(ia) + dot_product(qij, gtmp) * vin(jb)  
+ !      lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
+ !      qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+ !      vOut(ia) = vOut(ia) + dot_product(qIJ, gTmp) * vin(jb)  
 
-    !       lUpDwn = .true.
-    !       qij = transq(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !       call hemv(gtmp, lrGamma, qij)
+ !      lUpDwn = .true.
+ !      qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+ !      call hemv(gTmp, lrGamma, qIJ)
 
-    !       lUpDwn = .true.
-    !       qij = transq(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !       vout(ia) = vout(ia) - dot_product(qij, gtmp) * vin(jb)          
+ !      lUpDwn = .true.
+ !      qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+ !      vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)          
 
-    !    end do
-    ! end do
+ !    end do
+ !  end do
 
-!!!End old routine
+    ! End old routine
 
-    !!!Faster but more memory intensive routine
+    ! Faster but more memory intensive routine
    
-    gqvtmp(:,:) = 0.0_dp
-    do jb = 1, nmat
-       call indxov(win, jb, getij, jj, bb)      
-      !lUpDwn = (win(jb) <= nMatUp)
-       do aa = homo + 1, homo + nvir 
-          !lUpDwn = .true.
-          !qij = transq(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-          if (bb < aa) then
-             call rindxvv(homo, aa, bb, ab)
-          else
-             call rindxvv(homo, bb, aa, ab)
-          end if
-         ! call hemv(gtmp, lrGamma, tqvv(:,ab))
-          ja = nvir * (jj - 1) + aa - nocc
-          gqvtmp(:,ja) = gqvtmp(:,ja) + tqvv(:,ab) * vin(jb)
-       end do
+    gqvTmp(:,:) = 0.0_dp
+    do jb = 1, nMat
+      call indXov(win, jb, getIJ, jj, bb)      
+     !lUpDwn = (win(jb) <= nMatUp)
+      do aa = homo + 1, homo + nVir 
+       !lUpDwn = .true.
+       !qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        if (bb < aa) then
+           call rIndXvv(homo, aa, bb, ab)
+        else
+           call rIndXvv(homo, bb, aa, ab)
+        end if
+       !call hemv(gTmp, lrGamma, tQvv(:,ab))
+        ja = nVir * (jj - 1) + aa - nOcc
+        gqvTmp(:,ja) = gqvTmp(:,ja) + tQvv(:,ab) * vin(jb)
+      end do
     end do
 
-    do ja = 1, nmat
-       gtmp(:) = gqvtmp(:,ja)
-       call hemv(gqvtmp(:,ja), lrGamma, gtmp)
+    do ja = 1, nMat
+      gTmp(:) = gqvTmp(:,ja)
+      call hemv(gqvTmp(:,ja), lrGamma, gTmp)
     end do
 
-    do jj = 1, nocc
-       do ia = 1, nmat
-          call indxov(win, ia, getij, ii, aa)  !would prefer to swap loops, but want to avoid calculation ia as unsure how implemted
-          !lUpDwn = (win(ia) <= nMatUp)
-          !lUpDwn = .true.
-          !qij = transq(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-          if (jj < ii) then
-             ij = jj + ((ii - 1 - homo + nocc) * (ii -homo + nocc)) / 2 + homo - nocc !inverted indxoo fct.
-          else
-             ij = ii + ((jj - 1 - homo + nocc) * (jj -homo + nocc)) / 2 + homo - nocc 
-          end if
-          ja = nvir * (jj - 1) + aa - nocc
-          vout(ia) = vout(ia) - dot_product(tqoo(:,ij), gqvtmp(:,ja))
+    do jj = 1, nOcc
+      do ia = 1, nMat
+        ! would prefer to swap loops, but want to avoid calculation ia as unsure how implemted
+        call indXov(win, ia, getIJ, ii, aa) 
+       !lUpDwn = (win(ia) <= nMatUp)
+       !lUpDwn = .true.
+       !qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        if (jj < ii) then
+          ! inverted indXoo function
+          ij = jj + ((ii - 1 - homo + nOcc) * (ii - homo + nOcc)) / 2 + homo - nOcc
+        else
+          ij = ii + ((jj - 1 - homo + nOcc) * (jj - homo + nOcc)) / 2 + homo - nOcc 
+        end if
+        ja = nVir * (jj - 1) + aa - nOcc
+        vOut(ia) = vOut(ia) - dot_product(tQoo(:,ij), gqvTmp(:,ja))
 
-       end do
+      end do
     end do
 
-    gqvtmp(:,:) = 0.0_dp
-    do jb = 1, nmat
-       call indxov(win, jb, getij, jj, bb)      
-       do aa = homo + 1, homo + nvir
-          ab = (bb - nocc - 1) * nvir + aa - nocc
-          ja = iatrans(jj, aa)
-         !if (ja <= nmat) then ! TOMAS KUBAR ADDED
-             gqvtmp(:,ab) = gqvtmp(:,ab) + tqov(:,ja) * vin(jb)
-         !end if
-       end do
+    gqvTmp(:,:) = 0.0_dp
+    do jb = 1, nMat
+      call indXov(win, jb, getIJ, jj, bb)      
+      do aa = homo + 1, homo + nVir
+        ab = (bb - nOcc - 1) * nVir + aa - nOcc
+        ja = iaTrans(jj, aa)
+       !if (ja <= nMat) then ! TOMAS KUBAR ADDED
+        gqvTmp(:,ab) = gqvTmp(:,ab) + tQov(:,ja) * vin(jb)
+       !end if
+      end do
     end do
 
-    do ab = 1, nvir * nvir
-       gtmp(:) = gqvtmp(:,ab)
-       call hemv(gqvtmp(:,ab), lrGamma, gtmp)
+    do ab = 1, nVir * nVir
+      gTmp(:) = gqvTmp(:,ab)
+      call hemv(gqvTmp(:,ab), lrGamma, gTmp)
     end do
 
-    do bb = homo + 1, homo + nvir
-       do ia = 1, nmat
-          call indxov(win, ia, getij, ii, aa)
-          !lUpDwn = (win(ia) <= nMatUp)
-          !lUpDwn = (win(iatrans(ii, bb)) <= nMatUp) ! UNTESTED
-          !qij = transq(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-          ib = iatrans(ii,bb)
-         !if (ib <= nmat) then ! TOMAS KUBAR ADDED
-             ab = (bb - nocc - 1) * nvir + aa - nocc 
-             vout(ia) = vout(ia) + dot_product(tqov(:,ib), gqvtmp(:,ab))
-         !end if
-       end do
+    do bb = homo + 1, homo + nVir
+      do ia = 1, nMat
+        call indXov(win, ia, getIJ, ii, aa)
+       !lUpDwn = (win(ia) <= nMatUp)
+       !lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
+       !qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        ib = iaTrans(ii,bb)
+       !if (ib <= nMat) then ! TOMAS KUBAR ADDED
+        ab = (bb - nOcc - 1) * nVir + aa - nOcc 
+        vOut(ia) = vOut(ia) + dot_product(tQov(:,ib), gqvTmp(:,ab))
+       !end if
+      end do
     end do
 
-    !!!!end faster implementation
+    ! End faster implementation
 
-   !vout(:) = vout + 0.5_dp * wnij * vin ! orb. energy difference diagonal contribution
-    vout(:) = vout + 0.5_dp * wnij(1:nmat) * vin(1:nmat)
-    !Check: does wnij really contain the right thing?
+   !vOut(:) = vOut + 0.5_dp * wnIJ * vin ! orb. energy difference diagonal contribution
+    vOut(:) = vOut + 0.5_dp * wnIJ(1:nMat) * vin(1:nMat)
+    !Check: does wnIJ really contain the right thing?
 
   end subroutine multAmBVecFast
 
-!>Generates initial matrices Mm and Mp without calculating full Mat Vec product, not required for init. space.
+
+!>Generates initial matrices Mm and Mp without calculating full Mat Vec product,
+!>  not required for init. space.
 ! Use precalculated transition charges
-  subroutine setupInitMatFast(initDim, & ! spin,
-      & wij, sym, win, nMatUp, nocc, homo, & ! ind, sTimesGrndEigVecs, grndEigVecs,
-      & occNr, getij, iatrans, gamma, lrGamma, species0, uhbuu, uhbud, & ! orb,
-      & tqov, tqoo, tqvv, vp, vm, Mp,Mm)
+  subroutine setupInitMatFast(initDim, wIJ, sym, win, nMatUp, nOcc, homo, occNr, getIJ, iaTrans, &
+      & gamma, lrGamma, species0, uHubbU, uHubbD, tQov, tQoo, tQvv, vP, vM, mP, mM)
     implicit none
     integer, intent(in) :: initDim
    !logical, intent(in) :: spin !for now ignore spin and assume unpolarized system
-    real(dp), intent(in) :: wij(:)
+    real(dp), intent(in) :: wIJ(:)
     character, intent(in) :: sym
-    integer, intent(in) :: win(:), nMatUp, nocc, homo ! , ind(:)
+    integer, intent(in) :: win(:), nMatUp, nOcc, homo ! , ind(:)
    !real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
     real(dp), intent(in) :: occNr(:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
-    integer,  intent(in) :: getij(:,:)     
-    integer, intent(in) :: iatrans(1:,homo+1:)
+    integer,  intent(in) :: getIJ(:,:)     
+    integer, intent(in) :: iaTrans(1:, homo+1:)
     integer, intent(in) :: species0(:)
-    real(dp), intent(in) :: uhbuu(:), uhbud(:)
+    real(dp), intent(in) :: uHubbU(:), uHubbD(:)
    !type(TOrbitals), intent(in) :: orb    
-    real(dp), intent(in) :: tqov(:,:), tqoo(:,:), tqvv(:,:)
-    real(dp), intent(out) :: vp(:,:), vm(:,:)
-    real(dp), intent(out) :: Mp(:,:), Mm(:,:) 
+    real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
+    real(dp), intent(out) :: vP(:,:), vM(:,:)
+    real(dp), intent(out) :: mP(:,:), mM(:,:) 
 
-    integer :: izpalpha, nmat, natom, nw
-    integer :: ia, jb, alpha, ii, jj, aa, bb, aa_old, bb_old, jj_old, ij, ab
+    integer :: izpAlpha, nMat, nAtom, nw
+    integer :: ia, jb, alpha, ii, jj, aa, bb, aaOld, bbOld, jjOld, ij, ab
     real(dp) :: tmp2
-    real(dp), allocatable :: otmp(:), otmp2(:), qij(:), wnij(:)
+    real(dp), allocatable :: oTmp(:), oTmp2(:), qIJ(:), wnIJ(:)
     real(dp) :: dtmp, dtmp2    
 
-    nmat = size(vp, dim=1) ! also known as nxov
-    natom = size(gamma, dim=1)
-    nw = size(wij)
+    nMat = size(vP, dim=1) ! also known as nXov
+    nAtom = size(gamma, dim=1)
+    nw = size(wIJ)
     
-    allocate(otmp(natom))
-    allocate(otmp2(natom))
-    allocate(qij(natom))
-    allocate(wnij(nw))
+    allocate(oTmp(nAtom))
+    allocate(oTmp2(nAtom))
+    allocate(qIJ(nAtom))
+    allocate(wnIJ(nw))
    
-    call wtdn(wij, occNr, win, nMatUp, nmat, getij, wnij)    
+    call wtdn(wIJ, occNr, win, nMatUp, nMat, getIJ, wnIJ)    
 
-    !calc. vp, vm
+    !calc. vP, vM
     
-    vp(:,:) = 0.0_dp 
-    vm(:,:) = 0.0_dp
-    Mp(:,:) = 0.0_dp
-    Mm(:,:) = 0.0_dp
+    vP(:,:) = 0.0_dp 
+    vM(:,:) = 0.0_dp
+    mP(:,:) = 0.0_dp
+    mM(:,:) = 0.0_dp
     
-    otmp(:) = 0.0_dp
+    oTmp(:) = 0.0_dp
     
     !----only spin unpolarized case for now-------------------------------
 
     if (sym == 'S') then
-       !full range coupling matrix contribution
-       do jb = 1, initDim !calc 4* sum_A q^ia_A sum_B gamma_AB q^jb_B
-          call hemv(otmp, gamma, tqov(:,jb))
-          do ia = 1, nmat
-             vp(ia,jb) = 4.0 * dot_product(tqov(:,ia), otmp) 
-          end do
-       end do
+      ! full range coupling matrix contribution
+      do jb = 1, initDim ! calc 4* sum_A q^ia_A sum_B gamma_AB q^jb_B
+        call hemv(oTmp, gamma, tQov(:,jb))
+        do ia = 1, nMat
+          vP(ia,jb) = 4.0 * dot_product(tQov(:,ia), oTmp) 
+        end do
+      end do
     else
-       do jb = 1, initDim
-          otmp(:) = otmp + tqov(:,jb)
-          do ia = 1, nmat
-             vp(ia,jb) = 0.0_dp
-             do alpha = 1, natom
-                izpalpha = species0(alpha)
-                tmp2 = 2.0_dp * (uhbuu(izpalpha) - uhbud(izpalpha)) !== 2*magnetization
-                vp(ia,jb) = vp(ia,jb) + otmp(alpha) * tmp2 * tqov(alpha,jb) 
-             end do
+      do jb = 1, initDim
+        oTmp(:) = oTmp + tQov(:,jb)
+        do ia = 1, nMat
+          vP(ia,jb) = 0.0_dp
+          do alpha = 1, nAtom
+            izpAlpha = species0(alpha)
+            tmp2 = 2.0_dp * (uHubbU(izpAlpha) - uHubbD(izpAlpha)) !== 2*magnetization
+            vP(ia,jb) = vP(ia,jb) + oTmp(alpha) * tmp2 * tQov(alpha, jb) 
           end do
-       end do
+        end do
+      end do
     end if
 
-    aa_old = -1
-    bb_old = -1
-    jj_old = -1
+    aaOld = -1
+    bbOld = -1
+    jjOld = -1
 
-    !long range coupling matrix contribution
+    ! long range coupling matrix contribution
     do jb = 1, initDim
-       call indxov(win, jb, getij, jj, bb)
-       do ia = 1, nmat
-          call indxov(win, ia, getij, ii, aa)
-          if ((aa_old .ne. aa) .or. (bb_old .ne. bb)) then
-             if (bb < aa) then
-                call rindxvv(homo, aa, bb, ab)
-             else
-                call rindxvv(homo, bb, aa, ab)
-             end if
-             call hemv(otmp, lrGamma, tqvv(:,ab))
-          end if
-
-          if (jj < ii) then
-             ij = jj + ((ii - 1 - homo + nocc) * (ii - homo + nocc)) / 2 + homo - nocc
+      call indXov(win, jb, getIJ, jj, bb)
+      do ia = 1, nMat
+        call indXov(win, ia, getIJ, ii, aa)
+        if ((aaOld .ne. aa) .or. (bbOld .ne. bb)) then
+          if (bb < aa) then
+            call rIndXvv(homo, aa, bb, ab)
           else
-             ij = ii + ((jj - 1 - homo + nocc) * (jj - homo + nocc)) / 2 + homo - nocc
+            call rIndXvv(homo, bb, aa, ab)
           end if
+          call hemv(oTmp, lrGamma, tQvv(:,ab))
+        end if
 
-          dtmp = dot_product(tqoo(:,ij), otmp)
+        if (jj < ii) then
+          ij = jj + ((ii - 1 - homo + nOcc) * (ii - homo + nOcc)) / 2 + homo - nOcc
+        else
+          ij = ii + ((jj - 1 - homo + nOcc) * (jj - homo + nOcc)) / 2 + homo - nOcc
+        end if
 
-          vp(ia,jb) = vp(ia,jb) - dtmp
-          vm(ia,jb) = vm(ia,jb) - dtmp
+        dtmp = dot_product(tQoo(:,ij), oTmp)
 
-         !if (iatrans(jj,aa) <= nmat .and. iatrans(ii,bb) <= nmat) then ! TOMAS KUBAR ADDED
+        vP(ia,jb) = vP(ia,jb) - dtmp
+        vM(ia,jb) = vM(ia,jb) - dtmp
 
-             if ((jj_old .ne. jj) .or. (aa_old .ne. aa)) then
-                call hemv(otmp2, lrGamma, tqov(:,iatrans(jj,aa)))
-             end if
-             
-             dtmp2 = dot_product(tqov(:,iatrans(ii,bb)), otmp2)
-             
-             vp(ia,jb) = vp(ia,jb) - dtmp2
-             vm(ia,jb) = vm(ia,jb) + dtmp2
+       !if (iaTrans(jj,aa) <= nMat .and. iaTrans(ii,bb) <= nMat) then ! TOMAS KUBAR ADDED
 
-         !end if
+        if ((jjOld .ne. jj) .or. (aaOld .ne. aa)) then
+           call hemv(oTmp2, lrGamma, tQov(:,iaTrans(jj,aa)))
+        end if
+        
+        dtmp2 = dot_product(tQov(:,iaTrans(ii,bb)), oTmp2)
+        
+        vP(ia,jb) = vP(ia,jb) - dtmp2
+        vM(ia,jb) = vM(ia,jb) + dtmp2
 
-          aa_old = aa
-       end do
-       jj_old = jj
-       bb_old = bb
+       !end if
+
+        aaOld = aa
+      end do
+      jjOld = jj
+      bbOld = bb
     end do
 
     do jb = 1, initDim
-       vp(jb,jb) = vp(jb,jb) + 0.5_dp * wnij(jb)  !orb. energy difference diagonal contribution
-       vm(jb,jb) = vm(jb,jb) + 0.5_dp * wnij(jb)
+      vP(jb,jb) = vP(jb,jb) + 0.5_dp * wnIJ(jb)  !orb. energy difference diagonal contribution
+      vM(jb,jb) = vM(jb,jb) + 0.5_dp * wnIJ(jb)
     end do
-    !end calc. vp, vm
+    ! end calc. vP, vM
 
-    !calc. vm
-
-    !calc. matrices 
+    ! Calc. matrices 
     do ii = 1, initDim
-       do jj = ii, initDim
-          Mp(ii,jj) = vp(ii,jj)
-          Mp(jj,ii) = Mp(ii,jj)
-          Mm(ii,jj) = vm(ii,jj)
-          Mm(jj,ii) = Mm(ii,jj)
-       end do
+      do jj = ii, initDim
+        mP(ii,jj) = vP(ii,jj)
+        mP(jj,ii) = mP(ii,jj)
+        mM(ii,jj) = vM(ii,jj)
+        mM(jj,ii) = mM(ii,jj)
+      end do
     end do
 
-!    write(*,*), 'debug vm ', vm(:,1) ! seems to come out the same
-
-    deallocate(otmp)
-    deallocate(otmp2)
-    deallocate(qij)
-    deallocate(wnij)
+    deallocate(oTmp)
+    deallocate(oTmp2)
+    deallocate(qIJ)
+    deallocate(wnIJ)
 
   end subroutine setupInitMatFast
 
 
-!>Run Linear Response calc. The actual diagonalization of the RPA equation is outsourced to Rs_LinRespCalc. Most code copied from non range-separated version by A. Dominguez.
-  subroutine runRs_LinRespCalc(spin, tOnsite, natom, iAtomStart, grndEigVecs, grndEigVal, sccCalc, dQ, coord0,&
-      & nexc, nstat0, symc, SSqr, filling, species0, nbeweg, uhubb, uhbuu, uhbud, rnel,&
-      & iNeighbor, img2CentCell, orb, rs_data, tWriteTagged, fdTagged, taggedWriter,&
-     !& tMulliken, tCoeffs, tXplusY, tTrans, tTradip, tArnoldi,&
-      & fdMulliken, fdCoeffs, fdXplusY, fdTrans, fdSPTrans, fdTradip, fdTransQ, tArnoldi, fdArnoldi, fdExc,& !ons_en, ons_dip,
-      & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges,&
-      & omega, shift, skHamCont,&
-      & skOverCont, derivator, deltaRho, excgrad, dQAtomEx)
+  !> Run Linear Response calc. The actual diagonalization of the RPA equation
+  !> is outsourced to rsLinRespCalc. Most code copied from non range-separated
+  !> version by A. Dominguez.
+  subroutine runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, grndEigVecs, grndEigVal, sccCalc, &
+      & dQ, coord0, nExc, nStat0, cSym, SSqr, filling, species0, nBeweg, uHubb, uHubbU, uHubbD, &
+      & rNel, iNeighbor, img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter, &
+      & fdMulliken, fdCoeffs, fdXplusY, fdTrans, fdSPTrans, fdTraDip, fdTransQ, tArnoldi, &
+      & fdArnoldi, fdExc, tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, &
+      & tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     implicit none
     logical, intent(in) :: spin
-    logical, intent(inout) :: tOnsite !intent out so it can be forced to .false. for now
-    integer, intent(in) :: natom, iAtomStart(:)
+    logical, intent(inout) :: tOnsite ! intent out so it can be forced to .false. for now
+    integer, intent(in) :: nAtom, iAtomStart(:)
     real(dp), intent(in) :: grndEigVecs(:,:,:), grndEigVal(:,:), dQ(:), coord0(:,:)
-    !> Self-consistent charge module settings
     type(TScc), intent(in) :: sccCalc
-    integer, intent(in) :: nexc, nstat0
-    character, intent(in) :: symc
+    integer, intent(in) :: nExc, nStat0
+    character, intent(in) :: cSym
     real(dp), intent(in) :: SSqr(:,:)
     real(dp), intent(in) :: filling(:,:)
-    integer, intent(in) :: species0(:), nbeweg
-    real(dp), intent(in) :: uhubb(:), uhbuu(:), uhbud(:), rnel !maybe needed for gradients later on
+    integer, intent(in) :: species0(:), nBeweg
+    real(dp), intent(in) :: uHubb(:), uHubbU(:), uHubbD(:), rNel ! maybe needed for gradients later
     integer, intent(in) :: iNeighbor(0:,:), img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
-    type(RangeSepFunc), intent(inout) :: rs_data !contains long-range gamma
+    type(RangeSepFunc), intent(inout) :: rsData ! contains long-range gamma
     !> print tag information
     logical, intent(in) :: tWriteTagged
 
@@ -792,7 +788,7 @@ contains
     !> tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-   !logical :: tMulliken, tCoeffs, tXplusY, tTrans, tTradip, tArnoldi
+   !logical :: tMulliken, tCoeffs, tXplusY, tTrans, tTraDip, tArnoldi
 
     !> file unit for excited Mulliken populations?
     integer, intent(in) :: fdMulliken
@@ -805,7 +801,7 @@ contains
     !> File unit for single particle transition dipole strengths
     integer, intent(in) :: fdSPTrans
     !> File unit for transition dipole data
-    integer, intent(in) :: fdTradip
+    integer, intent(in) :: fdTraDip
     !> File unit for transition charges
     integer, intent(in) :: fdTransQ
     !> write state of Arnoldi solver to disc
@@ -823,25 +819,24 @@ contains
     real(dp), intent(in), optional :: shift(:)
     real(dp), intent(inout), optional :: deltaRho(:,:)
     type(OSlakoCont), intent(in), optional :: skHamCont, skOverCont
-    !> Differentiatior for the non-scc matrices
     class(NonSccDiff), intent(in), optional :: derivator
-    real(dp), intent(inout), optional :: excgrad(:,:)   !also may be needed for gradients later on
+    real(dp), intent(inout), optional :: excGrad(:,:)   !also may be needed for gradients later on
     real(dp), intent(inout), optional :: dQAtomEx(:)
 
-    real(dp) :: Ssq(nexc)
-    real(dp), allocatable :: gamma(:,:), lrGamma(:,:), snglPartTransDip(:,:), sTimesGrndEigVecs(:,:,:), wij(:)
-    real(dp), allocatable :: snglPartOscStrength(:), oscStrength(:), xmy(:), xpy(:), pc(:,:)
-    real(dp), allocatable :: t(:,:), rhs(:), woo(:), wvv(:), wov(:)
-    real(dp), allocatable :: evec(:,:), eval(:), xpyAll(:,:), transitionDipoles(:,:), atomicTransQ(:)
-    real(dp), allocatable :: tqov(:,:), tqoo(:,:), tqvv(:,:)!to hold precalculated transition charges, alloc and calc in rs calc
-    integer, allocatable :: win(:), iatrans(:,:), getij(:,:)
+    real(dp) :: Ssq(nExc)
+    real(dp), allocatable :: gamma(:,:), lrGamma(:,:), snglPartTransDip(:,:), sTimesGrndEigVecs(:,:,:), wIJ(:)
+    real(dp), allocatable :: snglPartOscStrength(:), oscStrength(:), vecXmY(:), vecXpY(:), pc(:,:)
+    real(dp), allocatable :: t(:,:), rhs(:), vWoo(:), vWvv(:), vWov(:)
+    real(dp), allocatable :: evec(:,:), eval(:), allXpY(:,:), transitionDipoles(:,:), atomicTransQ(:)
+    real(dp), allocatable :: tQov(:,:), tQoo(:,:), tQvv(:,:)!to hold precalculated transition charges, alloc and calc in rs calc
+    integer, allocatable :: win(:), iaTrans(:,:), getIJ(:,:)
     character, allocatable :: symmetries(:)
 
-    integer :: nstat, nocc, nocc_r, nvir_r, nxoo_r, nxvv_r
-    integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd, norb
+    integer :: nStat, nOcc, nOccR, nVirR, nXooR, nXvvR
+    integer :: nXov, nXovUD(2), nXovR, nXovD, nXovRD, nOrb
     integer :: i, j, isym
-    integer :: spin_dim
-    character :: sym
+    integer :: spinDim
+    character :: cSym2
     logical :: tGrads, tZVector
     real(dp) :: energyThreshold
     integer :: logfil
@@ -851,7 +846,7 @@ contains
     logical :: tSpin
     integer :: nSpin, iSpin
     !> control variables
-    logical :: tCoeffs, tTradip, tTransQ, tTrans, tXplusY !, tZVector
+    logical :: tCoeffs, tTraDip, tTransQ, tTrans, tXplusY !, tZVector
     !> printing data
     logical :: tMulliken
 
@@ -864,7 +859,6 @@ contains
     tSpin = .false. !For now, spin-polarized calculation not supported
     nSpin = 1
     tOnsite = .false. !For now, ons not supported with range separation
-   !logfil = 46
 
     ! ARPACK library variables
     ndigit = -3
@@ -881,26 +875,26 @@ contains
     else
       msaupd = 0
       msaup2 = 0
-    endif
+    end if
     ! End of ARPACK communication variables
 
-    spin_dim = size(grndEigVal, dim=2)
-    norb = orb%nOrb
+    spinDim = size(grndEigVal, dim=2)
+    nOrb = orb%nOrb
 
-    @:ASSERT(present(excgrad) .eqv. present(shift))
+    @:ASSERT(present(excGrad) .eqv. present(shift))
     @:ASSERT(present(shift) .eqv. present(skHamCont))
     @:ASSERT(present(skHamCont) .eqv. present(skOverCont))
 
     ! work out which data files are required, based on whether they have valid file IDs (>0)
     tMulliken = (fdMulliken > 0)
     tCoeffs = (fdCoeffs > 0)
-    tTradip = (fdTradip > 0)
+    tTraDip = (fdTraDip > 0)
     tTransQ = (fdTransQ > 0)
     tTrans = (fdTrans > 0)
     tXplusY = (fdXplusY > 0)
 
     if (tMulliken) then
-      open(fdMulliken, file=excitedQOut,position="rewind", status="replace")
+      open(fdMulliken, file=excitedQOut, position="rewind", status="replace")
       close(fdMulliken)
       open(fdMulliken, file=excitedDipoleOut, position="rewind", status="replace")
       close(fdMulliken)
@@ -913,195 +907,170 @@ contains
     
     ! Transition charges
     if (tTransQ) then
-       allocate(atomicTransQ(natom))
+       allocate(atomicTransQ(nAtom))
     end if
 
     ! count initial number of transitions from occupied to empty states
-    nxov_ud = 0
+    nXovUD = 0
     do iSpin = 1, nSpin
-      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j) SCHEDULE(RUNTIME) REDUCTION(+:nxov_ud)
-      do i = 1, norb - 1
-        do j = i, norb
-          if (filling(i,iSpin) > filling(j,iSpin) + elecTolMax) then
-            nxov_ud(iSpin) = nxov_ud(iSpin) + 1
+      !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j) SCHEDULE(RUNTIME) REDUCTION(+:nXovUD)
+      do i = 1, nOrb - 1
+        do j = i, nOrb
+          if (filling(i, iSpin) > filling(j, iSpin) + elecTolMax) then
+            nXovUD(iSpin) = nXovUD(iSpin) + 1
           end if
         end do
       end do
       !$OMP  END PARALLEL DO
     end do
-    nxov = sum(nxov_ud)
+    nXov = sum(nXovUD)
 
-    if (nexc + 1 >= nxov) then
-      write(tmpStr,"(' Insufficent single particle excitations, ',I0,&
-          & ', for required number of excited states ',I0)")nxov, nexc
+    if (nExc + 1 >= nXov) then
+      write(tmpStr,"(' Insufficent single particle excitations, ', I0, &
+          & ', for required number of excited states ', I0)") nXov, nExc
       call error(tmpStr)
     end if
 
     ! are gradients required?
-    tGrads = present(excgrad)  ! For now no gradients, but keep for later!
+    tGrads = present(excGrad)  ! For now no gradients, but keep for later!
     ! is a Z-vector required?
     tZVector = tGrads .or. tMulliken .or. tCoeffs
 
     ! Sanity checks
-    nstat = nstat0
-    if (nstat < 0 .and. symc /= "S") then
+    nStat = nStat0
+    if (nStat < 0 .and. cSym /= "S") then
       call error("Linresp: Brightest mode only for singlets.")
-    elseif (nstat /= 0 .and. symc == "B") then
-      call error("Linresp: Both symmetries not allowed if specific state is&
-          & excited")
-    elseif (nstat == 0 .and. (tGrads .or. tMulliken .or. tCoeffs)) then
-      call error("Linresp: Gradient, charges and coefficients only with&
-          & selected excitation.")
-    elseif (tGrads .and. nexc > nxov) then
-      call error("Linresp: With gradients nexc can be max. the number of&
-          & occupied-virtual excitations")
+    elseif (nStat /= 0 .and. cSym == "B") then
+      call error("Linresp: Both symmetries not allowed if specific state is excited")
+    elseif (nStat == 0 .and. (tGrads .or. tMulliken .or. tCoeffs)) then
+      call error("Linresp: Gradient, charges and coefficients only with selected excitation.")
+    elseif (tGrads .and. nExc > nXov) then
+      call error("Linresp: With gradients nExc can be max. the number of occ-virt excitations")
     end if
 
     ! Select symmetries to process
     !ADG: temporal solution for spin case.
     if (.not. spin) then
-      select case (symc)
+      select case (cSym)
       case ("B")
         allocate(symmetries(2))
-        symmetries(:) = [ "T", "S" ]
+        symmetries(:) = ["T", "S"]
       case ("S")
         allocate(symmetries(1))
-        symmetries(:) = [ "S" ]
+        symmetries(:) = ["S"]
       case ("T")
         allocate(symmetries(1))
-        symmetries(:) = [ "T" ]
+        symmetries(:) = ["T"]
       end select
     else 
       allocate(symmetries(1))
-      symmetries(:) = [ " " ]
+      symmetries(:) = [" "]
     end if
 
     ! Allocation for general arrays
-    allocate(gamma(natom, natom))
-    allocate(lrGamma(natom, natom))
-    allocate(snglPartTransDip(nxov, 3))
-    !allocate(sTimesGrndEigVecs(norb, norb))
-    allocate(sTimesGrndEigVecs(norb, norb, spin_dim))
-    allocate(wij(nxov))
-    allocate(win(nxov))
-!    allocate(evec(nxov, nexc))
-    allocate(eval(nexc))
-    allocate(getij(nxov, 2))
-    allocate(transitionDipoles(nxov, 3))
-    allocate(snglPartOscStrength(nxov))
+    allocate(gamma(nAtom, nAtom))
+    allocate(lrGamma(nAtom, nAtom))
+    allocate(snglPartTransDip(nXov, 3))
+   !allocate(sTimesGrndEigVecs(nOrb, nOrb))
+    allocate(sTimesGrndEigVecs(nOrb, nOrb, spinDim))
+    allocate(wIJ(nXov))
+    allocate(win(nXov))
+   !allocate(evec(nXov, nExc))
+    allocate(eval(nExc))
+    allocate(getIJ(nXov, 2))
+    allocate(transitionDipoles(nXov, 3))
+    allocate(snglPartOscStrength(nXov))
     
     ! Arrays for gradients and Mulliken analysis !Again not required for now
     if (tGrads .or. tMulliken) then
-      allocate(pc(norb, norb))
+      allocate(pc(nOrb, nOrb))
     end if
 
-    ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
-    ! remove the need to symmetrize the overlap and ground state density matrix in the main code if
-    ! this could be used everywhere in these routines)
+    ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle
+    ! (would remove the need to symmetrize the overlap and ground state density matrix
+    ! in the main code if this could be used everywhere in these routines)
     do iSpin = 1, nSpin
       call symm(sTimesGrndEigVecs(:,:,iSpin), "L", SSqr, grndEigVecs(:,:,iSpin))
     end do
 
-    ! TEST OK -- sTimesGrndEigVecs
-
     ! ground state Hubbard U softened coulombic interactions
     call sccCalc%getAtomicGammaMatrix(gamma, iNeighbor, img2CentCell)
     ! gamma is symmetric but still the upper triangle is not enough
-    do mu = 2, natom
-       do nu = 1, mu-1
-          gamma(nu, mu) = gamma(mu, nu)
-       enddo
-    enddo
-    call rs_data%getLrGammaEval(lrGamma)
-
-    ! TEST OK -- gamma, lrGamma (gamma was triangular only, previously)
+    do mu = 2, nAtom
+      do nu = 1, mu-1
+        gamma(nu, mu) = gamma(mu, nu)
+      end do
+    end do
+    call rsData%getLrGammaEval(lrGamma)
 
     ! Oscillator strengths for excited states, when needed.
-   !if (nstat <= 0) then
-      allocate(oscStrength(nexc))
+   !if (nStat <= 0) then
+    allocate(oscStrength(nExc))
    !end if
 
     ! Find all single particle transitions and KS energy differences
     !   for cases that go from filled to empty states
-    call getSPExcitations(grndEigVal, filling, wij, getij)
+    call getSPExcitations(grndEigVal, filling, wIJ, getIJ)
 
     ! put them in ascending energy order
     if (tOscillatorWindow) then
       ! use a stable sort so that degenerate transitions from the same single particle state are
       ! grouped together in the results, allowing these to be selected together (since how intensity
       ! is shared out over degenerate transitions is arbitrary between eigensolvers/platforms).
-      call merge_sort(win, wij, 1.0_dp*epsilon(1.0))
+      call merge_sort(win, wIJ, 1.0_dp * epsilon(1.0))
     else
       ! do not require stability, use the usual routine to sort, saving an O(N) workspace
-      call index_heap_sort(win, wij)
+      call index_heap_sort(win, wIJ)
     end if
-    wij = wij(win)
-
-    ! TEST OK -- wij, getij
+    wIJ = wIJ(win)
 
     ! dipole strength of transitions between K-S states
-    call calcTransitionDipoles(coord0, win, nxov_ud(1), getij, iAtomStart, sTimesGrndEigVecs, grndEigVecs, snglPartTransDip)
+    call calcTransitionDipoles(coord0, win, nXovUD(1), getIJ, iAtomStart, sTimesGrndEigVecs, grndEigVecs, snglPartTransDip)
 
     ! single particle excitation oscillator strengths
-    snglPartOscStrength(:) = twothird * wij(:) * sum(snglPartTransDip**2, dim=2)
-
-    ! TEST OK -- snglPartOscStrength
+    snglPartOscStrength(:) = twothird * wIJ(:) * sum(snglPartTransDip**2, dim=2)
 
     if (tOscillatorWindow .and. tZVector ) then
-      call error("Incompabilitity between excited state property evaluation and an oscillator&
-          & strength window at the moment.")
+      call error("Incompabilitity between excited state property evaluation &
+          & and an oscillator strength window at the moment.")
     end if
 
     if (tOscillatorWindow .or. tEnergyWindow) then
-
       if (.not. tEnergyWindow) then
-
         ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-        call dipselect(wij, snglPartOscStrength, win, snglPartTransDip, nxov_rd, oscillatorWindow, grndEigVal, getij)
-
+        call dipselect(wIJ, snglPartOscStrength, win, snglPartTransDip, nXovRD, oscillatorWindow, grndEigVal, getIJ)
       else
-
-        ! energy window above the lowest nexc single particle transitions
-        energyThreshold = wij(nexc) + energyWindow
-        nxov_r = count(wij <= energyThreshold)
-        nxov_d = 0
-
+        ! energy window above the lowest nExc single particle transitions
+        energyThreshold = wIJ(nExc) + energyWindow
+        nXovR = count(wIJ <= energyThreshold)
+        nXovD = 0
         if (tOscillatorWindow) then
-
           ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-          if (nxov_r < nxov) then
+          if (nXovR < nXov) then
             ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-            call dipselect(wij(nxov_r+1:), snglPartOscStrength(nxov_r+1:), win(nxov_r+1:),&
-                & snglPartTransDip(nxov_r+1:,:),nxov_d, oscillatorWindow,&
-                & grndEigVal, getij)
+            call dipselect(wIJ(nXovR+1:), snglPartOscStrength(nXovR+1:), win(nXovR+1:), &
+                & snglPartTransDip(nXovR+1:,:), nXovD, oscillatorWindow, grndEigVal, getIJ)
           end if
-
         end if
-
-        nxov_rd = nxov_r + nxov_d
-
+        nXovRD = nXovR + nXovD
       end if
-
     else
-
-      nxov_rd = nxov
-
+      nXovRD = nXov
     end if
 
     ! just in case energy/dipole windows add no extra states, and is due to an arpack solver
-    ! requirement combined with the need to get at least nexc states
-    nxov_rd = max(nxov_rd, min(nexc+1, nxov))
+    ! requirement combined with the need to get at least nExc states
+    nXovRD = max(nXovRD, min(nExc+1, nXov))
 
-    ! TEST OK -- nxov_rd
+    call TTransCharges_init(transChrg, iAtomStart, sTimesGrndEigVecs, grndEigVecs, &
+        & nXovRD, nXovUD(1), getIJ, win, tCacheCharges)
 
-    call TTransCharges_init(transChrg, iAtomStart, sTimesGrndEigVecs, grndEigVecs, nxov_rd, nxov_ud(1), getij,&
-        & win, tCacheCharges)
-
-   !if (nstat == 0) then
-   !   if(tTrans) then
-   !      call writeSPExcitations(wij, snglPartTransDip, win, nxov_ud(1), getij, tWriteTagged, fdTagged, taggedWriter, snglPartOscStrength)
-   !   endif
-   !   call openExcitationFiles(spin, tXplusY, tTrans, tTradip, tArnoldi, logfil)
+   !if (nStat == 0) then
+   !  if(tTrans) then
+   !    call writeSPExcitations(wIJ, snglPartTransDip, win, nXovUD(1), getIJ, &
+   !        & tWriteTagged, fdTagged, taggedWriter, snglPartOscStrength)
+   !  end if
+   !  call openExcitationFiles(spin, tXplusY, tTrans, tTraDip, tArnoldi, logfil)
    !end if
 
     if (tXplusY) then
@@ -1111,135 +1080,138 @@ contains
     if(tTrans) then
       open(fdTrans, file=transitionsOut, position="rewind", status="replace")
       write(fdTrans,*)
-    endif
+    end if
 
     ! single particle transition dipole file
-    if (tTradip) then
-      open(fdTradip, file=transDipOut, position="rewind", status="replace")
-      write(fdTradip,*)
-      write(fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
-      write(fdTradip,*)
-      write(fdTradip,'(1x,57("="))')
-      write(fdTradip,*)
-    endif
+    if (tTraDip) then
+      open(fdTraDip, file=transDipOut, position="rewind", status="replace")
+      write(fdTraDip,*)
+      write(fdTraDip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
+      write(fdTraDip,*)
+      write(fdTraDip,'(1x,57("="))')
+      write(fdTraDip,*)
+    end if
 
     ! excitation energies
     open(fdExc, file=excitationsOut, position="rewind", status="replace")
     write(fdExc,*)
     if (tSpin) then
-      write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]', 'Osc.Str.', 'Transition','Weight',&
-          & 'KS [eV]','D<S*S>'
+      write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') &
+          & 'w [eV]', 'Osc.Str.', 'Transition', 'Weight', 'KS [eV]', 'D<S*S>'
     else
-      write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') 'w [eV]','Osc.Str.', 'Transition','Weight',&
-          & 'KS [eV]','Sym.'
+      write(fdExc,'(5x,a,7x,a,9x,a,9x,a,6x,a,4x,a)') &
+          & 'w [eV]', 'Osc.Str.', 'Transition', 'Weight', 'KS [eV]', 'Sym.'
     end if
 
     write(fdExc,*)
     write(fdExc,'(1x,80("="))')
     write(fdExc,*)
 
-    ! single particle excitations (output file and tagged file if needed).  Was used for nxov_rd =
-    ! size(wij), but now for just states that are actually included in the excitation calculation.
-    call writeSPExcitations(wij, win, nxov_ud(1), getij, fdSPTrans, snglPartOscStrength, nxov_rd, tSpin)
+    ! single particle excitations (output file and tagged file if needed).  Was used for nXovRD =
+    ! size(wIJ), but now for just states that are actually included in the excitation calculation.
+    call writeSPExcitations(wIJ, win, nXovUD(1), getIJ, fdSPTrans, snglPartOscStrength, nXovRD, tSpin)
 
     ! redefine if needed (generalize it for spin-polarized and fractional occupancy)
-    nocc = nint(rnel) / 2
-    nocc_r = nOcc
-    nvir_r = nOrb - nOcc
+    nOcc = nint(rNel) / 2
+    nOccR = nOcc
+    nVirR = nOrb - nOcc
 
     ! elements in a triangle plus the diagonal of the occ-occ and virt-virt blocks
-    nxoo_r = (nocc_r * (nocc_r + 1)) / 2
-    nxvv_r = (nvir_r * (nvir_r + 1)) / 2
+    nXooR = (nOccR * (nOccR + 1)) / 2
+    nXvvR = (nVirR * (nVirR + 1)) / 2
 
-    allocate(evec(nxov_rd, nexc))
+    allocate(evec(nXovRD, nExc))
 
-   !allocate(xpyAll(nxov_ud(1), nexc)) ! allocate(xpyAll(nxov_rd, nexc))
-    allocate(xpyAll(nxov_rd, nexc))
+   !allocate(allXpY(nXovUD(1), nExc)) ! allocate(allXpY(nXovRD, nExc))
+    allocate(allXpY(nXovRD, nExc))
 
-    if (nstat > 0) then
-      !allocate(xmy(nxov_ud(1)))
-      !allocate(xpy(nxov_ud(1)))
-       allocate(xmy(nxov_rd))
-       allocate(xpy(nxov_rd))
+    if (nStat > 0) then
+      !allocate(vecXmY(nXovUD(1)))
+      !allocate(vecXpY(nXovUD(1)))
+       allocate(vecXmY(nXovRD))
+       allocate(vecXpY(nXovRD))
     end if
 
     ! Arrays needed for Z vector
     if (tZVector) then
-      allocate(t(norb, norb))
-      allocate(rhs(nxov_rd))
-      allocate(woo(nxoo_r))
-      allocate(wvv(nxvv_r))
-      allocate(wov(nxov_rd))
+      allocate(t(nOrb, nOrb))
+      allocate(rhs(nXovRD))
+      allocate(vWoo(nXooR))
+      allocate(vWvv(nXvvR))
+      allocate(vWov(nXovRD))
     end if
     
-    !for fast init. mat calc. need combined index
-    allocate(iatrans(1:nocc, nocc+1:norb))
-    call rindxov_array(win, nocc, nxov, getij, iatrans)
+    ! for fast init. mat calc. need combined index
+    allocate(iaTrans(1:nOcc, nOcc+1:nOrb))
+    call rIndXov_array(win, nOcc, nXov, getIJ, iaTrans)
 
-    !run lin. resp. calculation:
+    ! run lin. resp. calculation:
     do isym = 1, size(symmetries)
-      sym = symmetries(isym)
-      !call buildAndDiagExcMatrix(spin, tOnsite, wij, sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
-      !    & sTimesGrndEigVecs, grndEigVecs, filling, getij, gamma,&
-      !    & species0, uhbuu, uhbud, ons_en, orb, eval, evec)
+      cSym2 = symmetries(isym)
+     !call buildAndDiagExcMatrix(spin, tOnsite, wIJ, cSym2, win, nXovUD(1), nXovRD, iAtomStart,&
+     !    & sTimesGrndEigVecs, grndEigVecs, filling, getIJ, gamma,&
+     !    & species0, uHubbU, uHubbD, ons_en, orb, eval, evec)
 
-     !call Rs_LinRespCalc(spin, tZVector, wij, nexc, sym, win, nxov_ud(1), nxov_rd, nocc, nocc_r, nvir_r, iAtomStart,&
-     !      & sTimesGrndEigVecs, grndEigVecs, filling, getij, iatrans, gamma, lrGamma,&
-     !      & species0, uhbuu, uhbud, orb, eval, evec, xpyAll, nstat, xmy, tqov, tqoo, tqvv)
-      call Rs_LinRespCalc(tZVector, tTransQ, wij, nexc, sym, win, nxov_ud(1), nxov_rd, nocc, nocc_r, nvir_r, iAtomStart,&
-            & sTimesGrndEigVecs, grndEigVecs, filling, getij, iatrans, gamma, lrGamma,&
-            & species0, uhbuu, uhbud, eval, evec, xpyAll, nstat, xmy, tqov, tqoo, tqvv)
+     !call rsLinRespCalc(spin, tZVector, wIJ, nExc, cSym2, win, nXovUD(1), nXovRD, nOcc, nOccR, &
+     !    & nVirR, iAtomStart, sTimesGrndEigVecs, grndEigVecs, filling, getIJ, iaTrans, gamma, &
+     !    & lrGamma, species0, uHubbU, uHubbD, orb, eval, evec, allXpY, nStat, vecXmY, tQov, tQoo, &
+     !    & tQvv)
+      call rsLinRespCalc(tZVector, tTransQ, wIJ, nExc, cSym2, win, nXovUD(1), nXovRD, nOcc, nOccR, &
+          & nVirR, iAtomStart, sTimesGrndEigVecs, grndEigVecs, filling, getIJ, iaTrans, gamma, &
+          & lrGamma, species0, uHubbU, uHubbD, eval, evec, allXpY, nStat, vecXmY, tQov, tQoo, tQvv)
 
-    ! TEST OK -- eval, evec
-    ! TEST OK -- tqov, tqoo, tqvv
-
-     !do i=1,nexc
-     !write (*,'(I3,3X,F7.3)') i, eval(i)
+     !do i = 1, nExc
+     !  write (*,'(I3,3X,F7.3)') i, eval(i)
      !end do
 
-      write (*,*) "1st eigenstate and X+Y with energy", eval(1), "is:"
-       do i=1,size(evec,dim=1)
-          write (*,'(I5,F9.5)') i, evec(i,1)
-          write (*,'(I5,A,F9.5)') i, "          ", xpyAll(i,1)
-       end do
-
-     !do i=1,nxov_rd
-     !write (*,'(I3,3X,3F7.3)') i, snglPartTransDip(i,:)
+     !write (*,*) "1st eigenstate and X+Y with energy", eval(1), "is:"
+     !do i = 1, size(evec, dim=1)
+     !  write (*,'(I5,F9.5)') i, evec(i,1)
+     !  write (*,'(I5,A,F9.5)') i, "          ", allXpY(i,1)
      !end do
 
-      write (*,*) "xpyAll"
-      do i=1,nexc
-      write (*,'(I3,3X,200F7.3)') i, xpyAll(:,i)
-      end do
+     !do i = 1, nXovRD
+     !  write (*,'(I3,3X,3F7.3)') i, snglPartTransDip(i,:)
+     !end do
 
-     !if (nstat <= 0) then
-        call getOscillatorStrengths_rs(sym, snglPartTransDip(1:nxov_rd,:), eval, xpyAll, filling,&
-            & nstat, oscStrength, tTradip, transitionDipoles) 
-      write (*,*) "osc strengths"
-      do i=1,nexc
-      write (*,'(I3,3X,F7.3)') i, oscStrength(i)
-      end do
-       !if (nstat == 0) then
-          if (spin) then
-            call getExcSpin(Ssq, nxov_ud(1), getij, win, eval, evec, wij,&
-                & filling, sTimesGrndEigVecs, grndEigVecs)
-            call writeExcitations_rs(sym, oscStrength, nexc, nxov_ud(1), getij, win, eval,& ! evec,&
-                & xpyAll, wij(1:nxov_rd), fdXplusY, fdTrans, fdTradip, transitionDipoles,&
-                & tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
-          else
-            call writeExcitations_rs(sym, oscStrength, nexc, nxov_ud(1), getij, win, eval,& ! evec,&
-                & xpyAll, wij(1:nxov_rd), fdXplusY, fdTrans, fdTradip, transitionDipoles,&
-                & tWriteTagged, fdTagged, taggedWriter, fdExc)
-          end if
-       !end if
+     !write (*,*) "allXpY"
+     !do i = 1, nExc
+     !  if (size(evec, dim=1) < 200) then
+     !    write (*,'(I3,3X,200F7.3)') i, allXpY(:,i)
+     !  else
+     !    write (*,'(I3,3X,200F7.3)') i, allXpY(1:200,i)
+     !  end if
+     !end do
+
+     !if (nStat <= 0) then
+      call getOscillatorStrengthsRS(cSym2, snglPartTransDip(1:nXovRD,:), eval, allXpY, filling, &
+          & nStat, oscStrength, tTraDip, transitionDipoles) 
+     !write (*,*) "osc strengths"
+     !do i = 1, nExc
+     !  write (*,'(I3,3X,F7.3)') i, oscStrength(i)
+     !end do
+
+     !if (nStat == 0) then
+      if (spin) then
+        call getExcSpin(Ssq, nXovUD(1), getIJ, win, eval, evec, wIJ, filling, sTimesGrndEigVecs, &
+            & grndEigVecs)
+        call writeExcitationsRS(cSym2, oscStrength, nExc, nXovUD(1), getIJ, win, eval, & ! evec,&
+            & allXpY, wIJ(1:nXovRD), fdXplusY, fdTrans, fdTraDip, transitionDipoles, &
+            & tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
+      else
+        call writeExcitationsRS(cSym2, oscStrength, nExc, nXovUD(1), getIJ, win, eval, & ! evec,&
+            & allXpY, wIJ(1:nXovRD), fdXplusY, fdTrans, fdTraDip, transitionDipoles, &
+            & tWriteTagged, fdTagged, taggedWriter, fdExc)
+      end if
+     !end if
      !end if
 
       if (tTransQ) then
-         call transitionCharges_rs(xpyAll(:,nstat), tqov, atomicTransQ)
-         if (.not. tZVector) then
-            deallocate(tqov)
-         end if
-         call writeTransitionCharges_rs(fdTransQ, atomicTransQ)
+        call transitionChargesRS(allXpY(:,nStat), tQov, atomicTransQ)
+        if (.not. tZVector) then
+          deallocate(tQov)
+        end if
+        call writeTransitionChargesRS(fdTransQ, atomicTransQ)
       end if
 
     end do
@@ -1251,120 +1223,109 @@ contains
     if (fdTrans > 0) close(fdTrans)
     if (fdXplusY > 0) close(fdXplusY)
     if (fdExc > 0) close(fdExc)
-    if (fdTradip > 0) close(fdTradip)
+    if (fdTraDip > 0) close(fdTraDip)
 
-    if (nstat == 0) then
-     !call closeExcitationFiles(tXplusY, tTrans, tTradip, tArnoldi, logfil)
+    if (nStat == 0) then
+     !call closeExcitationFiles(tXplusY, tTrans, tTraDip, tArnoldi, logfil)
       omega = 0.0_dp
       return
     end if
 
-    omega = sqrt(eval(nstat))  !Attention: right now I take sqrt in Rs_LinRespCalc. May not want to do this!!!!!!!!!
+    ! Attention: right now I take sqrt in rsLinRespCalc. May not want to do this!!!
+    omega = sqrt(eval(nStat))
     
-    ! TEST OK -- omega
-
     if (tZVector) then
 
       ! Furche terms: X+Y, X-Y
-     !xmy(:) = sqrt(omega) / sqrt(wij) * evec(:,nstat)    ! xmy was set in Rs_LinRespCalc
-      xpy(:) = xpyAll(:,nstat)
+     !vecXmY(:) = sqrt(omega) / sqrt(wIJ) * evec(:,nStat)    ! vecXmY was set in rsLinRespCalc
+      vecXpY(:) = allXpY(:,nStat)
 
-      !call rindxov_array(win, nocc, nxov, getij, iatrans) ! already performed above (for efficient init mat calc)
+      ! already performed above (for efficient init mat calc)
+     !call rIndXov_array(win, nOcc, nXov, getIJ, iaTrans)
 
-      !!call cpu_time(t0)
-      call getZVectorEqRHS_rs(xpy, xmy, win, iAtomStart, nocc, nocc_r, nxov_ud(1), getij, iatrans, natom, species0,&
-           & grndEigVal(:,1), sTimesGrndEigVecs, grndEigVecs, gamma, lrGamma, uhbuu, uhbud, omega, sym,&
-           & rhs, t, wov, woo, wvv)
+     !call cpu_time(t0)
+      call getZVectorEqRhsRS(vecXpY, vecXmY, win, iAtomStart, nOcc, nOccR, nXovUD(1), getIJ, &
+           & iaTrans, nAtom, species0, grndEigVal(:,1), sTimesGrndEigVecs, grndEigVecs, gamma, &
+           & lrGamma, uHubbU, uHubbD, omega, cSym2, rhs, t, vWov, vWoo, vWvv)
 
-    ! TEST OK -- RHS, T, WOV, WOO, WVV
+     !call cpu_time(t1)
+      call solveZVectorEqRS(rhs, win, nXovUD(1), getIJ, filling, nAtom, species0, uHubbU, uHubbD, &
+           & gamma, lrGamma, wIJ, nOcc, nOccR, nVirR, iaTrans, tQov, tQoo, tQvv)
 
-      !!call cpu_time(t1)
-      call solveZVectorEq_rs(rhs, win, nxov_ud(1), getij, filling, natom, & ! iAtomStart, sTimesGrndEigVecs,
-           & species0, uhbuu, uhbud, gamma, lrGamma, wij, & ! grndEigVecs, orb,
-           & nocc, nocc_r, nvir_r, iatrans, tqov, tqoo, tqvv)
+     !call cpu_time(t2)
+      call calcWVectorZRS(rhs, win, nOcc, nOrb, nXovUD(1), getIJ, iAtomStart, sTimesGrndEigVecs, &
+           & grndEigVecs, gamma, lrGamma, grndEigVal(:,1), vWov, vWoo, vWvv, iaTrans)
 
-    ! TEST OK -- RHS SOLVED
+     !call cpu_time(t3)
+      call calcPMatrix(t, rhs, win, getIJ, pc)
 
-      !!call cpu_time(t2)
-      call calcWVectorZ_rs(rhs, win, nocc, norb, nxov_ud(1), getij, iAtomStart, sTimesGrndEigVecs, grndEigVecs,&
-           & gamma, lrGamma, grndEigVal(:,1), wov, woo, wvv, iatrans)
-
-    ! TEST OK -- WOV, WOO, WVV MODIF
-
-      !!call cpu_time(t3)
-      call calcPMatrix(t, rhs, win, getij, pc)
-
-    ! TEST OK -- PC
-
-      ! if (tCoeffs) then
-      ! !this has to be checked in case of orbital constraints 
-      !   call writeCoeffs(pc, grndEigVecs, filling, nocc)
-      ! end if
+     !if (tCoeffs) then
+     !!this has to be checked in case of orbital constraints 
+     !  call writeCoeffs(pc, grndEigVecs, filling, nOcc)
+     !end if
       call transformMO2AODense(pc, grndEigVecs(:,:,1))
-
-    ! TEST OK -- PC TRANSFORMED
 
       call getExcMulliken(iAtomStart, pc, SSqr, dQAtomEx)
       if (tMulliken) then
-        call writeExcMulliken(sym, nstat, dQ, dQAtomEx, coord0, fdMulliken)
+        call writeExcMulliken(cSym2, nStat, dQ, dQAtomEx, coord0, fdMulliken)
       end if
-
-      ! TEST OK -- DQEX
 
       if (tGrads) then
-      !call cpu_time(t4)
-         call addGradients_rs(sym, nxov_rd, natom, species0, iAtomStart, norb, nocc, nxov_ud(1), getij, win,& !iatrans,
-              & grndEigVecs, pc, dQ, dQAtomEx, gamma, lrGamma, rs_data, uhubb, uhbuu, uhbud,&
-              & shift, woo, wov, wvv, xpy, xmy, nbeweg, coord0, orb,&
-              & skHamCont, skOverCont, tqov, derivator, deltaRho, excgrad)
-
-      ! TEST OK -- EXGRAD
-
-      !!call cpu_time(t5)
-      !!write(*,'(a,2x,f18.10)') 'Time getZVectorEqRHS', t1-t0
-      !!write(*,'(a,2x,f18.10)') 'Time solveZVectorEq', t2-t1
-      !!write(*,'(a,2x,f18.10)') 'Time calcWVectorZ_rs', t3-t2
-      !!write(*,'(a,2x,f18.10)') 'Time addGradients', t5-t4
+     !call cpu_time(t4)
+        call addGradientsRS(cSym2, nXovRD, nAtom, species0, iAtomStart, nOrb, nOcc, nXovUD(1), &
+             & getIJ, win, grndEigVecs, pc, dQ, dQAtomEx, gamma, lrGamma, rsData, uHubb, &
+             & uHubbU, uHubbD, shift, vWoo, vWov, vWvv, vecXpY, vecXmY, nBeweg, coord0, orb, &
+             & skHamCont, skOverCont, tQov, derivator, deltaRho, excGrad)
+       !call cpu_time(t5)
+       !write(*,'(a,2x,f18.10)') 'Time getZVectorEqRHS', t1-t0
+       !write(*,'(a,2x,f18.10)') 'Time solveZVectorEq', t2-t1
+       !write(*,'(a,2x,f18.10)') 'Time calcWVectorZ_rs', t3-t2
+       !write(*,'(a,2x,f18.10)') 'Time addGradients', t5-t4
       end if
-   end if
-  end subroutine runRs_LinRespCalc
+    end if
+  end subroutine runRsLinRespCalc
 
 
 !>Perform linear response calculation with algorithm by Stratmann and Scuseria (JCP 1998)
-  subroutine Rs_LinRespCalc( & !spin,
-       & tZVector, tTransQ, wij, nexc, sym, win, nMatUp, nxov, homo, nocc, nvir, iAtomStart,&
-       & sTimesGrndEigVecs, grndEigVecs, occNr, getij, iatrans, gamma, lrGamma, species0, uhbuu, uhbud,& ! orb,
-       & eval, evec, xpy, nstat, xmy, tqov, tqoo, tqvv)
+ !subroutine rsLinRespCalc( spin, tZVector, tTransQ, wIJ, nExc, cSym, win, nMatUp, nXov, homo, &
+ !    & nOcc, nVir, iAtomStart, sTimesGrndEigVecs, grndEigVecs, occNr, getIJ, iaTrans, gamma, &
+ !    & lrGamma, species0, uHubbU, uHubbD, orb, eval, evec, vecXpY, nStat, vecXmY, tQov, tQoo, tQvv)
+  subroutine rsLinRespCalc(tZVector, tTransQ, wIJ, nExc, cSym, win, nMatUp, nXov, homo, nOcc, &
+       & nVir, iAtomStart, sTimesGrndEigVecs, grndEigVecs, occNr, getIJ, iaTrans, gamma, lrGamma, &
+       & species0, uHubbU, uHubbD, eval, evec, vecXpY, nStat, vecXmY, tQov, tQoo, tQvv)
     implicit none
     logical, intent(in) :: tZVector, tTransQ !, spin
-    real(dp),intent(in) :: wij(:)
-    character, intent(in) :: sym
-    integer, intent(in) :: nexc !desired number of excitations
-    integer, intent(in) :: win(:), nMatUp, nxov, homo, nocc, nvir, iAtomStart(:)
+    real(dp),intent(in) :: wIJ(:)
+    character, intent(in) :: cSym
+    integer, intent(in) :: nExc ! desired number of excitations
+    integer, intent(in) :: win(:), nMatUp, nXov, homo, nOcc, nVir, iAtomStart(:)
     real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)  
     real(dp), intent(in) :: occNr(:,:)
     real(dp), intent(in) :: gamma(:,:), lrGamma(:,:)
-    integer, intent(in) :: getij(:,:), species0(:)
-    integer, intent(in) :: iatrans(1:,homo+1:) !needed in fast setup of init mat
-    real(dp), intent(in) :: uhbuu(:), uhbud(:)
+    integer, intent(in) :: getIJ(:,:), species0(:)
+    integer, intent(in) :: iaTrans(1:,homo+1:) ! needed in fast setup of init mat
+    real(dp), intent(in) :: uHubbU(:), uHubbD(:)
    !type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: nstat
-    real(dp), intent(out) :: eval(:), evec(:,:), xpy(:,:) !lin. resp. eigenvalues and eigenvectors (F_I and X_I+Y_I)
-    real(dp), intent(out) :: xmy(:)
-    real(dp), allocatable, intent(out) :: tqov(:,:), tqoo(:,:), tqvv(:,:)!hold precalculated transition charges
+    integer, intent(in) :: nStat
+    ! lin. resp. eigenvalues and eigenvectors (F_I and X_I+Y_I)
+    real(dp), intent(out) :: eval(:), evec(:,:), vecXpY(:,:) 
+    real(dp), intent(out) :: vecXmY(:)
+    ! pre-calculated transition charges
+    real(dp), allocatable, intent(out) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
 
-    integer :: ii, jj, ia, ij, aa, bb, ab, nxov_act
-    integer :: subSpaceDim, prevSubSpaceDim, memDim, workDim !cur. size of subspace and memory for subspace vectors and matrices
-    real(dp), allocatable :: bvec(:,:) !basis of subspace
-    real(dp), allocatable :: Lvec(:,:), Rvec(:,:) !left and right eigenvectors of Mnh
-    real(dp), allocatable :: vp(:,:), vm(:,:) !vec. for (A+B)b_i, (A-B)b_i
-    real(dp), allocatable :: Mp(:,:), Mm(:,:), Mmsqrt(:,:), Mmsqrtinv(:,:),  Mh(:,:), xpy_test(:,:)
-           !Matrices M_plus, M_minus, M_minus^(1/2), M_minus^(-1/2) and M_herm~=resp. mat on subsapce
+    integer :: ii, jj, ia, ij, aa, bb, ab, nXovAct
+    ! cur. size of subspace and memory for subspace vectors and matrices
+    integer :: subSpaceDim, prevSubSpaceDim, memDim, workDim 
+    real(dp), allocatable :: vecB(:,:) ! basis of subspace
+    real(dp), allocatable :: evecL(:,:), evecR(:,:) ! left and right eigenvectors of Mnh
+    real(dp), allocatable :: vP(:,:), vM(:,:) ! vec. for (A+B)b_i, (A-B)b_i
+    ! matrices M_plus, M_minus, M_minus^(1/2), M_minus^(-1/2) and M_herm~=resp. mat on subsapce
+    real(dp), allocatable :: mP(:,:), mM(:,:), mMsqrt(:,:), mMsqrtInv(:,:), mH(:,:), vecXpYtest(:,:)
     real(dp), allocatable :: evalInt(:) !store eigenvectors within routine
     real(dp), allocatable :: dummyM(:,:), workArray(:)
     real(dp), allocatable :: vecNorm(:) !will hold norms of residual vectors
-    real(dp), allocatable :: gqvtmp(:,:) !work array used in matrix multiplications
-    real(dp), allocatable :: qij(:)
+    real(dp), allocatable :: gqvTmp(:,:) !work array used in matrix multiplications
+    real(dp), allocatable :: qIJ(:)
     real(dp) :: dummyReal
     logical :: lUpdwn
     integer :: info
@@ -1373,298 +1334,301 @@ contains
     real(dp), parameter :: convThreshold = 0.0001_dp 
     integer :: newVec
     integer :: initExc 
-    initExc = min(20 * nexc, nocc * nvir)
+    initExc = min(20 * nExc, nOcc * nVir)
 
-    nxov_act = nxov ! or nocc * nvir
-    allocate(xpy_test(size(evec,dim=1),size(evec,dim=2)))
+    nXovAct = nXov ! or nOcc * nVir
+    allocate(vecXpYtest(size(evec,dim=1), size(evec,dim=2)))
 
-    !initial allocations 
-    subSpaceDim = min(initExc, nxov) !start with lowest excitations. Inital number somewhat arbritary.
-    memDim = min(subSpaceDim + 6 * nexc, nxov) !memory available for subspace calcs.
+    ! initial allocations 
+    ! start with lowest excitations. Inital number somewhat arbritary.
+    subSpaceDim = min(initExc, nXov) 
+    memDim = min(subSpaceDim + 6 * nExc, nXov) ! memory available for subspace calcs.
     workDim = 3 * memDim + 1
-    allocate(bvec(nxov_act, memDim)) ! nxov, memDim))
-    allocate(vp(nxov_act, memDim)) ! nxov, memDim))
-    allocate(vm(nxov_act, memDim)) ! nxov, memDim))
-    allocate(Mp(memDim, memDim))
-    allocate(Mm(memDim, memDim))
-    allocate(Mmsqrt(memDim, memDim))
-    allocate(Mmsqrtinv(memDim, memDim))
-    allocate(Mh(memDim, memDim))
+    allocate(vecB(nXovAct, memDim)) ! nXov, memDim))
+    allocate(vP(nXovAct, memDim)) ! nXov, memDim))
+    allocate(vM(nXovAct, memDim)) ! nXov, memDim))
+    allocate(mP(memDim, memDim))
+    allocate(mM(memDim, memDim))
+    allocate(mMsqrt(memDim, memDim))
+    allocate(mMsqrtInv(memDim, memDim))
+    allocate(mH(memDim, memDim))
     allocate(dummyM(memDim, memDim))
     allocate(evalInt(memDim))
-    allocate(Lvec(memDim, nexc))
-    allocate(Rvec(memDim, nexc))
+    allocate(evecL(memDim, nExc))
+    allocate(evecR(memDim, nExc))
     allocate(workArray(3 * memDim + 1))
     allocate(vecNorm(2 * memDim))
 
- !!!Work array for faster implementation of (A+-B)*v. Make optional later!
-    allocate(gqvtmp(size(gamma, dim=1), max(nvir, nocc) * nvir)) !could use symmetry to improve nvir * nvir case
-    allocate(tqov(size(gamma, dim=1), nocc * nvir)) ! nxov -- TOMAS KUBAR CHANGED
-    allocate(tqoo(size(gamma, dim=1), nocc * (nocc + 1) / 2))
-    allocate(tqvv(size(gamma, dim=1), nvir * (nvir + 1) / 2))
-    allocate(qij(size(gamma, dim=1)))
- !   allocate(iatrans, (1:homo,homo+1:homo + nvir)) !maybe need nvir_unrestricted
-  !!precalculate transition charges
-    do ia = 1, nvir * nocc ! nxov ! nMatUp -- TOMAS KUBAR CHANGED
-       call indxov(win, ia, getij, ii, aa)
-       lUpdwn = (win(ia) <= nMatUp)
-       qij = transq(ii, aa, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
-       tqov(:,ia) = qij 
-    end do
-    do ij = 1, nocc * (nocc + 1) / 2 
-       call indxoo(ij, ii, jj)
-       lUpdwn = .true. ! UNTESTED
-       qij = transq(ii, jj, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
-       tqoo(:,ij) = qij
-    end do
-    do ab = 1, nvir * (nvir + 1) / 2
-       call indxvv(homo, ab, aa, bb)
-       lUpdwn = .true. ! UNTESTED
-       qij = transq(aa, bb, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
-       tqvv(:,ab) = qij
-    end do
-!!!calc. array with ia indices 
-!!   call rindxov_array(win, nMatUp, homo, nocc * nvir, getij, iatrans)
-!    call rindxov_array(win, homo, nocc * nvir, getij, iatrans)
+    ! Work array for faster implementation of (A+-B)*v. Make optional later!
+    !   for gwvTmp: could use symmetry to improve nVir * nVir case
+    allocate(gqvTmp(size(gamma, dim=1), max(nVir, nOcc) * nVir)) 
+    allocate(tQov(size(gamma, dim=1), nOcc * nVir)) ! nXov -- TOMAS KUBAR CHANGED
+    allocate(tQoo(size(gamma, dim=1), nOcc * (nOcc + 1) / 2))
+    allocate(tQvv(size(gamma, dim=1), nVir * (nVir + 1) / 2))
+    allocate(qIJ(size(gamma, dim=1)))
+   !allocate(iaTrans, (1:homo,homo+1:homo + nVir)) !maybe need nVir_unrestricted
 
-!    write(*,*) ' debug gamma  ', gamma(:,:)
+    ! Precalculate transition charges
+    do ia = 1, nVir * nOcc ! nXov ! nMatUp -- TOMAS KUBAR CHANGED
+      call indXov(win, ia, getIJ, ii, aa)
+      lUpdwn = (win(ia) <= nMatUp)
+      qIJ = transQ(ii, aa, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+      tQov(:,ia) = qIJ 
+    end do
+    do ij = 1, nOcc * (nOcc + 1) / 2 
+      call indXoo(ij, ii, jj)
+      lUpdwn = .true. ! UNTESTED
+      qIJ = transQ(ii, jj, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+      tQoo(:,ij) = qIJ
+    end do
+    do ab = 1, nVir * (nVir + 1) / 2
+      call indXvv(homo, ab, aa, bb)
+      lUpdwn = .true. ! UNTESTED
+      qIJ = transQ(aa, bb, iAtomStart, lUpdwn, sTimesGrndEigVecs, grndEigVecs)
+      tQvv(:,ab) = qIJ
+    end do
 
-    !set initial bs
-    bvec(:,:) = 0.0_dp
+    ! Calc. array with ia indices 
+   !call rIndXov_array(win, nMatUp, homo, nOcc * nVir, getIJ, iaTrans)
+   !call rIndXov_array(win, homo, nOcc * nVir, getIJ, iaTrans)
+
+    ! set initial bs
+    vecB(:,:) = 0.0_dp
     do ii = 1, subSpaceDim
-       bvec(ii, ii) = 1.0
+      vecB(ii, ii) = 1.0
     end do
    
-    !Could calc. init. matrix here, Due to special form of bs, matrix multiplication handles a lot of zeros.
-    !Add this latter!
+    ! Could calc. init. matrix here, Due to special form of bs, matrix multiplication
+    !   handles a lot of zeros.
+    ! Add this later!
 
     prevSubSpaceDim = 0
     didConverge = .false.
 
-    !solution of linear response problem. Iterative expansion of subspace:
+    ! Solve the linear response problem. Iterative expansion of subspace:
     solveLinResp: do
 
-       if (prevSubSpaceDim > 0) then
+      if (prevSubSpaceDim > 0) then
 
-          !extend subspace matrices:
-          do ii = prevSubSpaceDim + 1, subSpaceDim
-            !call multApBVecFast(spin, bvec(:,ii), wij, sym, win, nMatUp, homo, nocc, nvir, iAtomStart, &
-            !    & sTimesGrndEigVecs, grndEigVecs, occNr, getij, gamma, lrGamma, species0, uhbuu, uhbud, &
-            !    & orb, iatrans, gqvtmp, tqov, tqoo, tqvv, vp(:,ii))
-            !call multAmBVecFast(spin, bvec(:,ii), wij, sym, win, nMatUp, homo, nocc, nvir, iAtomStart, &
-            !    & sTimesGrndEigVecs, grndEigVecs, occNr, getij, gamma, lrGamma, species0, &
-            !    & orb, iatrans, gqvtmp, tqov, tqoo, tqvv, vm(:,ii))
-             call multApBVecFast(bvec(:,ii), wij, sym, win, nMatUp, homo, nocc, nvir, &
-                 & occNr, getij, gamma, lrGamma, species0, uhbuu, uhbud, iatrans, gqvtmp, tqov, tqoo, tqvv, vp(:,ii))
-             call multAmBVecFast(bvec(:,ii), wij, win,      nMatUp, homo, nocc, nvir, &
-                 & occNr, getij, gamma, lrGamma,                         iatrans, gqvtmp, tqov, tqoo, tqvv, vm(:,ii))
+        !extend subspace matrices:
+        do ii = prevSubSpaceDim + 1, subSpaceDim
+         !call multApBVecFast(spin, vecB(:,ii), wIJ, cSym, win, nMatUp, homo, nOcc, nVir, &
+         !    & iAtomStart, sTimesGrndEigVecs, grndEigVecs, occNr, getIJ, gamma, lrGamma, &
+         !    & species0, uHubbU, uHubbD, orb, iaTrans, gqvTmp, tQov, tQoo, tQvv, vP(:,ii))
+         !call multAmBVecFast(spin, vecB(:,ii), wIJ, cSym, win, nMatUp, homo, nOcc, nVir, &
+         !    & iAtomStart, sTimesGrndEigVecs, grndEigVecs, occNr, getIJ, gamma, lrGamma, &
+         !    & species0, orb, iaTrans, gqvTmp, tQov, tQoo, tQvv, vM(:,ii))
+          call multApBVecFast(vecB(:,ii), wIJ, cSym, win, nMatUp, homo, nOcc, nVir, occNr, getIJ, &
+              & gamma, lrGamma, species0, uHubbU, uHubbD, iaTrans, gqvTmp, tQov, tQoo, tQvv, &
+              & vP(:,ii))
+          call multAmBVecFast(vecB(:,ii), wIJ, win, nMatUp, homo, nOcc, nVir, occNr, getIJ, gamma, &
+              & lrGamma, iaTrans, gqvTmp, tQov, tQoo, tQvv, vM(:,ii))
+        end do
+
+        do ii = prevSubSpaceDim + 1, subSpaceDim
+          do jj = 1, ii
+            mP(ii,jj) = dot_product(vecB(:,jj), vP(:,ii))
+            mP(jj,ii) = mP(ii,jj)
+            mM(ii,jj) = dot_product(vecB(:,jj), vM(:,ii))
+            mM(jj,ii) = mM(ii,jj)
           end do
+        end do
 
-          do ii = prevSubSpaceDim + 1, subSpaceDim
-             do jj = 1, ii
-                Mp(ii,jj) = dot_product(bvec(:,jj), vp(:,ii))
-                Mp(jj,ii) = Mp(ii,jj)
-                Mm(ii,jj) = dot_product(bvec(:,jj), vm(:,ii))
-                Mm(jj,ii) = Mm(ii,jj)
-             end do
-          end do
-
-       else
-         
-          call setupInitMatFast(subSpaceDim, wij, sym, win, nMatUp, nocc, homo, &
-              & occNr, getij, iatrans, gamma, lrGamma, species0, uhbuu, uhbud, tqov, tqoo, tqvv, vp, vm, Mp, Mm)
-          !call setupInitMat(initExc, spin, wij, sym, win, nMatUp, iAtomStart, sTimesGrndEigVecs, &
-          !    &grndEigVecs, occNr, getij, gamma, lrGamma, species0, uhbuu, uhbud, orb, vp, vm, Mp, Mm)
-!          write(*,*), 'debug after init ', Mm 
-       end if
-!      write(*,*) 'debug mp ', mp(1:10,1:10)
+      else
+        
+        call setupInitMatFast(subSpaceDim, wIJ, cSym, win, nMatUp, nOcc, homo, occNr, getIJ, &
+            & iaTrans, gamma, lrGamma, species0, uHubbU, uHubbD, tQov, tQoo, tQvv, vP, vM, mP, mM)
+       !call setupInitMat(initExc, spin, wIJ, cSym, win, nMatUp, iAtomStart, sTimesGrndEigVecs, &
+       !    & grndEigVecs, occNr, getIJ, gamma, lrGamma, species0, uHubbU, uHubbD, orb, vP, vM, mP, mM)
+      end if
       
-      call calcMatrixSqrt(Mm, subSpaceDim, memDim, workArray, workDim,  Mmsqrt, Mmsqrtinv)
-      call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, Mp, memDim, Mmsqrt, memDim, 0.0_dp, dummyM, memDim)
-      call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, Mmsqrt, memDim, dummyM, memDim, 0.0_dp, Mh, memDim) 
-!      write(*,*) 'debug msqrt ', mmsqrt(1:10,1:10)     
+      call calcMatrixSqrt(mM, subSpaceDim, memDim, workArray, workDim, mMsqrt, mMsqrtInv)
+      call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mP, memDim, mMsqrt, memDim, &
+          & 0.0_dp, dummyM, memDim)
+      call dsymm('L', 'U', subSpaceDim, subSpaceDim, 1.0_dp, mMsqrt, memDim, dummyM, memDim, &
+          & 0.0_dp, mH, memDim) 
 
-!      write(*,*) ,' debug Mh: ', Mh(1:subspacedim,1:subspacedim)
-      !diagonalize in subspace
-      call dsyev('V', 'U', subSpaceDim, Mh, memDim, evalInt, workArray, workDim, info)
+      ! diagonalize in subspace
+      call dsyev('V', 'U', subSpaceDim, mH, memDim, evalInt, workArray, workDim, info)
      
-      !This yields T=(A-B)^(-1/2)|X+Y>. Calc. |R_n>=|X+Y>=(A-B)^(1/2)T |L_n>=|X-Y>=(A-B)^(-1/2)T. Transformation preserves orthonormality. 
-      !Only compute up to nexc index, because only that much needed.
-      call dsymm('L', 'U', subSpaceDim, nexc, 1.0_dp, Mmsqrt,    memDim, Mh, memDim, 0.0_dp, Rvec, memDim) 
-      call dsymm('L', 'U', subSpaceDim, nexc, 1.0_dp, Mmsqrtinv, memDim, Mh, memDim, 0.0_dp, Lvec, memDim)
-        !check if dsymm can actually be used
+      ! This yields T=(A-B)^(-1/2)|X+Y>.
+      ! Calc. |R_n>=|X+Y>=(A-B)^(1/2)T and |L_n>=|X-Y>=(A-B)^(-1/2)T.
+      ! Transformation preserves orthonormality. 
+      ! Only compute up to nExc index, because only that much needed.
+      call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrt, memDim, Mh, memDim, 0.0_dp, &
+          & evecR, memDim) 
+      call dsymm('L', 'U', subSpaceDim, nExc, 1.0_dp, Mmsqrtinv, memDim, Mh, memDim, 0.0_dp, &
+          & evecL, memDim)
+      ! check if dsymm can actually be used
 
-      !Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution to original EV problem
-      do ii = 1, nexc !only use first nexc vectors
+      ! Need |X-Y>=sqrt(w)(A-B)^(-1/2)T, |X+Y>=(A-B)^(1/2)T/sqrt(w) for proper solution
+      !   to original EV problem
+      do ii = 1, nExc ! only use first nExc vectors
          dummyReal = sqrt(sqrt(evalInt(ii)))
-         Rvec(:,ii) = Rvec(:,ii) / dummyReal
-         Lvec(:,ii) = dummyReal * Lvec(:,ii) 
+         evecR(:,ii) = evecR(:,ii) / dummyReal
+         evecL(:,ii) = evecL(:,ii) * dummyReal
       end do
      
       !see if more memory is needed to save extended basis. If so increase amount of memory.
-      if (subSpaceDim + 2 * nexc > memDim) then
-         call incSize(memDim, bvec)
-         call incSize(memDim, vp)
-         call incSize(memDim, vm)
-         call incSizeMatBoth(memDim, Mp)
-         call incSizeMatBoth(memDim, Mm)
-         call incSizeMatBoth(memDim, Mh)
-         call incSizeMatBoth(memDim, Mmsqrt)
-         call incSizeMatBoth(memDim, Mmsqrtinv)
-         call incSizeMatBoth(memDim, dummyM)
-         call incSize(memDim, evalInt)
-         call incSize(workDim, workArray)
-         call incSizeMatSwapped(memDim, Lvec)
-         call incSizeMatSwapped(memDim, Rvec)
-         call incSize(2 * memDim, vecNorm)
-         call incSize(memDim)
-         call incSize(workDim)
+      if (subSpaceDim + 2 * nExc > memDim) then
+        call incSize(memDim, vecB)
+        call incSize(memDim, vP)
+        call incSize(memDim, vM)
+        call incSizeMatBoth(memDim, mP)
+        call incSizeMatBoth(memDim, mM)
+        call incSizeMatBoth(memDim, mH)
+        call incSizeMatBoth(memDim, mMsqrt)
+        call incSizeMatBoth(memDim, mMsqrtInv)
+        call incSizeMatBoth(memDim, dummyM)
+        call incSize(memDim, evalInt)
+        call incSize(workDim, workArray)
+        call incSizeMatSwapped(memDim, evecL)
+        call incSizeMatSwapped(memDim, evecR)
+        call incSize(2 * memDim, vecNorm)
+        call incSize(memDim)
+        call incSize(workDim)
       end if
 
-      !Calculate the residual vectors
-        !calcs. all |R_n>
-     !call dgemm('N', 'N', nxov, nexc, subSpaceDim, 1.0_dp, bvec, nxov, Rvec, memDim, 0.0_dp, bvec(1,subSpaceDim+1),      nxov) 
-      call dgemm('N', 'N', nxov_act, nexc, subSpaceDim, 1.0_dp, bvec, nxov_act, &
-                & Rvec, memDim, 0.0_dp, bvec(1,subSpaceDim+1),      nxov_act) 
-        !calcs. all |L_n>
-     !call dgemm('N', 'N', nxov, nexc, subSpaceDim, 1.0_dp, bvec, nxov, Lvec, memDim, 0.0_dp, bvec(1,subSpaceDim+1+nexc), nxov) 
-      call dgemm('N', 'N', nxov_act, nexc, subSpaceDim, 1.0_dp, bvec, nxov_act, &
-                & Lvec, memDim, 0.0_dp, bvec(1,subSpaceDim+1+nexc), nxov_act) 
+      ! Calculate the residual vectors
+      !   calcs. all |R_n>
+     !call dgemm('N', 'N', nXov, nExc, subSpaceDim, 1.0_dp, vecB, nXov, evecR, memDim, 0.0_dp, &
+     !    & vecB(1,subSpaceDim+1), nXov) 
+      call dgemm('N', 'N', nXovAct, nExc, subSpaceDim, 1.0_dp, vecB, nXovAct, evecR, memDim, &
+          & 0.0_dp, vecB(1,subSpaceDim+1), nXovAct) 
+      !   calcs. all |L_n>
+     !call dgemm('N', 'N', nXov, nExc, subSpaceDim, 1.0_dp, vecB, nXov, evecL, memDim, 0.0_dp, &
+     !    & vecB(1,subSpaceDim+1+nExc), nXov) 
+      call dgemm('N', 'N', nXovAct, nExc, subSpaceDim, 1.0_dp, vecB, nXovAct, evecL, memDim, &
+          & 0.0_dp, vecB(1,subSpaceDim+1+nExc), nXovAct) 
    
-      do ii = 1, nexc
+      do ii = 1, nExc
          dummyReal = -sqrt(evalInt(ii))
-         bvec(:,subSpaceDim+ii)      = dummyReal * bvec(:,subSpaceDim+ii)
-         bvec(:,subSpaceDim+nexc+ii) = dummyReal * bvec(:,subSpaceDim+nexc+ii)
+         vecB(:,subSpaceDim + ii) = dummyReal * vecB(:, subSpaceDim + ii)
+         vecB(:,subSpaceDim + nExc + ii) = dummyReal * vecB(:, subSpaceDim + nExc + ii)
       end do
 
-      ! (A-B)|L_n> for all n=1,..,nexc 
-     !call dgemm('N', 'N', nxov, nexc, subSpaceDim, 1.0_dp, vm, nxov, Lvec, memDim, 1.0_dp, bvec(1,subSpaceDim+1),      nxov)
-      call dgemm('N', 'N', nxov_act, nexc, subSpaceDim, 1.0_dp, vm, nxov_act, &
-                & Lvec, memDim, 1.0_dp, bvec(1,subSpaceDim+1),      nxov_act)
-      ! (A+B)|R_n> for all n=1,..,nexc
-     !call dgemm('N', 'N', nxov, nexc, subSpaceDim, 1.0_dp, vp, nxov, Rvec, memDim, 1.0_dp, bvec(1,subSpaceDim+1+nexc), nxov)
-      call dgemm('N', 'N', nxov_act, nexc, subSpaceDim, 1.0_dp, vp, nxov_act, &
-                & Rvec, memDim, 1.0_dp, bvec(1,subSpaceDim+1+nexc), nxov_act)
+      ! (A-B)|L_n> for all n=1,..,nExc 
+     !call dgemm('N', 'N', nXov, nExc, subSpaceDim, 1.0_dp, vM, nXov, evecL, memDim, 1.0_dp, &
+     !    & vecB(1,subSpaceDim+1), nXov)
+      call dgemm('N', 'N', nXovAct, nExc, subSpaceDim, 1.0_dp, vM, nXovAct, evecL, memDim, 1.0_dp, &
+          & vecB(1, subSpaceDim + 1), nXovAct)
+      ! (A+B)|R_n> for all n=1,..,nExc
+     !call dgemm('N', 'N', nXov, nExc, subSpaceDim, 1.0_dp, vP, nXov, evecR, memDim, 1.0_dp, &
+     !    & vecB(1,subSpaceDim+1+nExc), nXov)
+      call dgemm('N', 'N', nXovAct, nExc, subSpaceDim, 1.0_dp, vP, nXovAct, evecR, memDim, 1.0_dp, &
+          & vecB(1, subSpaceDim + 1 + nExc), nXovAct)
      
-      !calc. norms of residual vectors to check for convergence
+      ! calc. norms of residual vectors to check for convergence
       didConverge = .true.
-     
-      do ii = subSpaceDim + 1, subSpaceDim + nexc
-         vecNorm(ii-subSpaceDim) = dot_product(bvec(:,ii),bvec(:,ii))
-         if (vecNorm(ii-subSpaceDim) .gt. convThreshold) then
-            didConverge = .false.
-         end if
+      do ii = subSpaceDim + 1, subSpaceDim + nExc
+        vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
+        if (vecNorm(ii-subSpaceDim) .gt. convThreshold) then
+          didConverge = .false.
+        end if
       end do
 
       if (didConverge) then
-         do ii = subSpaceDim + nexc + 1, subSpaceDim + 2 * nexc
-            vecNorm(ii-subSpaceDim) = dot_product(bvec(:,ii),bvec(:,ii))
-            if (vecNorm(ii-subSpaceDim) .gt. convThreshold) then
-               didConverge = .false.
-            end if
-         end do
+        do ii = subSpaceDim + nExc + 1, subSpaceDim + 2 * nExc
+          vecNorm(ii-subSpaceDim) = dot_product(vecB(:,ii), vecB(:,ii))
+          if (vecNorm(ii-subSpaceDim) .gt. convThreshold) then
+            didConverge = .false.
+          end if
+        end do
       end if
 
-      if ((.not. didConverge) .and. (subSpaceDim + 2 * nexc > nxov)) then
-         print *, 'Error: Linear Response calculation in subspace did not converge!'
-         stop
+      if ((.not. didConverge) .and. (subSpaceDim + 2 * nExc > nXov)) then
+        print *, 'Error: Linear Response calculation in subspace did not converge!'
+        stop
       end if
       
-      !if converged then exit loop:
+      ! if converged then exit loop:
       if (didConverge) then
-         !do some wrapup, e.g.:
-         write (*,'(A,I4)') 'Linear Response calculation converged. Required number of basis vectors: ', subSpaceDim 
-         eval(:) = evalInt(1:nexc) 
-      
-        write (*,*) "evec", size(evec, dim=1), size(evec, dim=2)
-        write (*,*) "xpy",  size(xpy,  dim=1), size(xpy,  dim=2)
-        write (*,*) "bvec", size(bvec, dim=1), size(bvec, dim=2)
-        write (*,*) "Mh",   size(Mh,   dim=1), size(Mh,   dim=2)
-        write (*,*) "Rvec", size(Rvec, dim=1), size(Rvec, dim=2)
-        write (*,*) "subSpaceDim", subSpaceDim
-        !call dgemm('N', 'N', nxov, nexc, subSpaceDim, 1.0_dp, bvec, nxov, Mh,   memDim, 0.0_dp, evec, nxov) !Calc. F_I
-        !call dgemm('N', 'N', nxov_act, nexc, subSpaceDim, 1.0_dp, bvec, nxov_act, Mh,   memDim, 0.0_dp, evec, nxov_act) !Calc. F_I
-        !xpy_test = matmul(bvec(:,1:subSpaceDim), Mh(1:subSpaceDim,1:nexc))
-         evec = matmul(bvec, Mh(:,1:nexc))
-        !call dgemm('N', 'N', nxov_act, nexc, subSpaceDim, 1.0_dp, bvec, nxov_act, Rvec, memDim, 0.0_dp, xpy,  nvir*nocc) !Calc. X+Y
-        !call dgemm('N', 'N', nxov, nexc, subSpaceDim, 1.0_dp, bvec, nxov, Rvec, memDim, 0.0_dp, xpy,  nxov) !Calc. X+Y
-         xpy = matmul(bvec(:,1:subSpaceDim), Rvec(1:subSpaceDim,:))
+        ! do some wrapup, e.g.:
+        write (*,'(A,I4)') &
+            & 'Linear Response calculation converged. Required no. of basis vectors: ', subSpaceDim
+        eval(:) = evalInt(1:nExc) 
+        ! Calc. F_I
+       !vecXpY_test = matmul(vecB(:,1:subSpaceDim), Mh(1:subSpaceDim,1:nExc))
+        evec = matmul(vecB, Mh(:,1:nExc))
+        ! Calc. X+Y
+        vecXpY = matmul(vecB(:,1:subSpaceDim), evecR(1:subSpaceDim,:))
+        ! Calc. X-Y for exc. nStat, will be used in force calculation
+        if (nStat > 0) then 
+          vecXmY(:) = 0.0_dp
+          do ii = 1, subSpaceDim
+            vecXmY(:) = vecXmY + evecL(ii,nStat) * vecB(:,ii)
+          end do
+        end if
 
-         if (nstat > 0) then !Calc. X-Y for exc. nstat, will be used in force calculation
-            xmy(:) = 0.0_dp
-            do ii = 1, subSpaceDim
-               xmy(:) = xmy + Lvec(ii,nstat) * bvec(:,ii)
-            end do
-         end if
-
-         exit solveLinResp !terminate diag. routine
+        exit solveLinResp ! terminate diag. routine
       end if
     
-      !Otherwise calculate new basis vectors and extend subspace with them
-      !only include new vectors if they add meaningful residue component
+      ! Otherwise calculate new basis vectors and extend subspace with them
+      ! only include new vectors if they add meaningful residue component
       newVec = 0
-      do ii = 1, nexc
-         if (vecNorm(ii) .gt. convThreshold) then
-            newVec = newVec + 1
-            dummyReal = sqrt(evalInt(ii))
-            info = subSpaceDim + ii
-            dummyInt = subSpaceDim + newVec
-            do jj = 1, nxov
-               bvec(jj,dummyInt) = bvec(jj,info) / (dummyReal - wij(jj))       
-            end do
-         end if
+      do ii = 1, nExc
+        if (vecNorm(ii) .gt. convThreshold) then
+          newVec = newVec + 1
+          dummyReal = sqrt(evalInt(ii))
+          info = subSpaceDim + ii
+          dummyInt = subSpaceDim + newVec
+          do jj = 1, nXov
+            vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wIJ(jj))       
+          end do
+        end if
       end do
 
-      do ii = 1, nexc
-         if (vecNorm(nexc+ii) .gt. convThreshold) then
-            newVec = newVec + 1
-            info = subSpaceDim + nexc + ii
-            dummyInt = subSpaceDim + newVec
-            do jj = 1, nxov
-               bvec(jj,dummyInt) = bvec(jj,info) / (dummyReal - wij(jj))
-            end do
-         end if
+      do ii = 1, nExc
+        if (vecNorm(nExc+ii) .gt. convThreshold) then
+          newVec = newVec + 1
+          info = subSpaceDim + nExc + ii
+          dummyInt = subSpaceDim + newVec
+          do jj = 1, nXov
+            vecB(jj,dummyInt) = vecB(jj,info) / (dummyReal - wIJ(jj))
+          end do
+        end if
       end do
 
       prevSubSpaceDim = subSpaceDim
       subSpaceDim = subSpaceDim + newVec
       
-      call orthonormalizeVectors(prevSubSpaceDim + 1, subSpaceDim, bvec) !create orthogonal basis
+      call orthonormalizeVectors(prevSubSpaceDim + 1, subSpaceDim, vecB) !create orthogonal basis
      
     end do solveLinResp
 
     if (.not. tZVector) then !not required anymore if gradient not computed
-       if (.not. tTransQ) then
-          deallocate(tqov)
-       end if
-       deallocate(tqoo)
-       deallocate(tqvv)
+      if (.not. tTransQ) then
+        deallocate(tQov)
+      end if
+      deallocate(tQoo)
+      deallocate(tQvv)
     end if
 
-  end subroutine Rs_LinRespCalc
+  end subroutine rsLinRespCalc
 
 
-  !> Write out transitions from ground to excited state along with single particle transitions and
-  !> dipole strengths
+  !> Write out transitions from ground to excited state along with single particle transitions
+  !>   and dipole strengths
   !> Modified routine because some expresions in original routine don't apply in the RS case
-  subroutine writeExcitations_rs(sym, oscStrength, nexc, nMatUp, getij, win, eval, & ! evec, 
-      & xplyAll, wij, fdXplusY, fdTrans, fdTradip, transitionDipoles, tWriteTagged, fdTagged, taggedWriter, fdExc, Ssq)
+  subroutine writeExcitationsRS(cSym, oscStrength, nExc, nMatUp, getIJ, win, eval, & ! evec, 
+      & mXpYall, wIJ, fdXplusY, fdTrans, fdTraDip, transitionDipoles, tWriteTagged, fdTagged, &
+      & taggedWriter, fdExc, Ssq)
     implicit none
 
     !> Symmetry label for the type of transition
-    character, intent(in) :: sym
+    character, intent(in) :: cSym
 
     !> oscillator strengths for transitions from ground to excited states
     real(dp), intent(in) :: oscStrength(:)
 
     !> number of excited states to solve for
-    integer, intent(in) :: nexc
+    integer, intent(in) :: nExc
 
     !> number of same spin excitations
     integer, intent(in) :: nMatUp
 
     !> index array between transitions in square and 1D representations
-    integer, intent(in) :: getij(:,:)
+    integer, intent(in) :: getIJ(:,:)
 
     !> index array for single particle excitions
     integer, intent(in) :: win(:)
@@ -1673,13 +1637,13 @@ contains
     real(dp), intent(in) :: eval(:)
 
     !> eigenvectors of excited states
-    !real(dp), intent(in) :: evec(:,:)
+   !real(dp), intent(in) :: evec(:,:)
 
     !> X+Y, all of them
-    real(dp), intent(in) :: xplyAll(:,:)
+    real(dp), intent(in) :: mXpYall(:,:)
 
     !> single particle excitation energies
-    real(dp), intent(in) :: wij(:)
+    real(dp), intent(in) :: wIJ(:)
 
     !> single particle transition dipole moments
     real(dp), intent(in) :: transitionDipoles(:,:)
@@ -1688,7 +1652,7 @@ contains
     logical, intent(in) :: tWriteTagged
 
     !> file unit for transition dipoles
-    integer, intent(in) :: fdTradip
+    integer, intent(in) :: fdTraDip
 
     !> file unit for X+Y data
     integer, intent(in) :: fdXplusY
@@ -1708,203 +1672,192 @@ contains
     !> For spin polarized systems, measure of spin
     real(dp), intent(in), optional :: Ssq(:)
 
-    integer :: nmat
-    integer :: i, j, iweight, indo, m, n
+    integer :: nMat
+    integer :: i, j, iWeight, indO, m, n
     integer :: iDeg
-    real(dp), allocatable :: wvec(:)
+    real(dp), allocatable :: vecW(:)
     real(dp), allocatable :: eDeg(:)
     real(dp), allocatable :: oDeg(:)
-    integer, allocatable :: wvin(:)
-    real(dp) :: weight, wvnorm !, rsqw
+    integer, allocatable :: vecWi(:)
+    real(dp) :: weight, vecWnorm !, rsqw
     logical :: lUpdwn, tSpin
-    character :: sign
+    character :: cSign
 
     @:ASSERT(fdExc > 0)
 
     tSpin = present(Ssq)
-    nmat = size(wij)
-    ALLOCATE(wvec(nmat))
-    ALLOCATE(wvin(nmat))
-    ALLOCATE(eDeg(nexc))
-    ALLOCATE(oDeg(nexc))
-    wvec = 0.0_dp
-    wvin = 0
+    nMat = size(wIJ)
+    allocate(vecW(nMat))
+    allocate(vecWi(nMat))
+    allocate(eDeg(nExc))
+    allocate(oDeg(nExc))
+    vecW = 0.0_dp
+    vecWi = 0
     eDeg = 0.0_dp
     oDeg = 0.0_dp
 
     if(fdXplusY > 0) then
-      write(fdXplusY,*) nmat, nexc
+      write(fdXplusY,*) nMat, nExc
     end if
 
-    do i = 1, nexc
+    do i = 1, nExc
       if (eval(i) > 0.0_dp) then
 
-        wvec(:) = xplyAll(:,i)**2
-        wvnorm = 1.0_dp / sqrt(sum(wvec**2))
-        wvec(:) = wvec(:) * wvnorm
+        vecW(:) = mXpYall(:,i)**2
+        vecWnorm = 1.0_dp / sqrt(sum(vecW**2))
+        vecW(:) = vecW(:) * vecWnorm
 
         ! find largest coefficient in CI - should use maxloc
-        call index_heap_sort(wvin,wvec)
-        wvin = wvin(size(wvin):1:-1)
-        wvec = wvec(wvin)
+        call index_heap_sort(vecWi, vecW)
+        vecWi = vecWi(size(vecWi):1:-1)
+        vecW = vecW(vecWi)
 
-        weight = wvec(1)
-        iweight = wvin(1)
+        weight = vecW(1)
+        iWeight = vecWi(1)
 
-        call indxov(win, iweight, getij, m, n)
-        sign = sym
+        call indXov(win, iWeight, getIJ, m, n)
+        cSign = cSym
         if (tSpin) then
-          sign = " "
-          write(fdExc,&
-              & '(1x,f10.3,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,4x,&
-              & f6.3)')&
-              & Hartree__eV * sqrt(eval(i)), oscStrength(i), m, '->', n, weight,&
-              & Hartree__eV * wij(iweight), Ssq(i)
+          cSign = " "
+          write (fdExc, '(1x,f10.3,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,4x,f6.3)') &
+              & Hartree__eV * sqrt(eval(i)), oscStrength(i), m, '->', n, weight, &
+              & Hartree__eV * wIJ(iWeight), Ssq(i)
         else
-          write(fdExc,&
-              & '(1x,f10.3,4x,f14.8,5x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
-              & Hartree__eV * sqrt(eval(i)), oscStrength(i), m, '->', n, weight,&
-              & Hartree__eV * wij(iweight), sign
+          write (fdExc, '(1x,f10.3,4x,f14.8,5x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)') &
+              & Hartree__eV * sqrt(eval(i)), oscStrength(i), m, '->', n, weight, &
+              & Hartree__eV * wIJ(iWeight), cSign
         end if
 
-        if(fdXplusY > 0) then
+        if (fdXplusY > 0) then
           if (tSpin) then
-            lUpdwn = (win(iweight) <= nMatUp)
-            sign = "D"
-            if (lUpdwn) sign = "U"
+            lUpdwn = (win(iWeight) <= nMatUp)
+            cSign = "D"
+            if (lUpdwn) cSign = "U"
           end if
-          write(fdXplusY,'(1x,i5,3x,a,3x,ES17.10)') i, sign, sqrt(eval(i))
-          write(fdXplusY,'(6(1x,ES17.10))') xplyAll(:,i)
-        endif
+          write(fdXplusY, '(1x,i5,3x,a,3x,ES17.10)') i, cSign, sqrt(eval(i))
+          write(fdXplusY, '(6(1x,ES17.10))') mXpYall(:,i)
+        end if
 
         if (fdTrans > 0) then
-          write(fdTrans, '(2x,a,T12,i5,T21,ES17.10,1x,a,2x,a)')&
-              & 'Energy ', i,  Hartree__eV * sqrt(eval(i)), 'eV', sign
-          write(fdTrans,*)
-          write(fdTrans,'(2x,a,9x,a,8x,a)')&
-              & 'Transition', 'Weight', 'KS [eV]'
-          write(fdTrans,'(1x,45("="))')
+          write(fdTrans, '(2x,a,T12,i5,T21,ES17.10,1x,a,2x,a)') &
+              & 'Energy ', i, Hartree__eV * sqrt(eval(i)), 'eV', cSign
+          write(fdTrans, *)
+          write(fdTrans, '(2x,a,9x,a,8x,a)') 'Transition', 'Weight', 'KS [eV]'
+          write(fdTrans, '(1x,45("="))')
 
-          sign = " "
-          do j = 1, nmat
-            !if (wvec(j) < 1e-4_dp) exit ! ??????
-            indo = wvin(j)
-            call indxov(win, indo, getij, m, n)
+          cSign = " "
+          do j = 1, nMat
+            !if (vecW(j) < 1e-4_dp) exit ! ??????
+            indO = vecWi(j)
+            call indXov(win, indO, getIJ, m, n)
             if (tSpin) then
-              lUpdwn = (win(indo) <= nMatUp)
-              sign = "D"
-              if (lUpdwn) sign = "U"
+              lUpdwn = (win(indO) <= nMatUp)
+              cSign = "D"
+              if (lUpdwn) cSign = "U"
             end if
-            write(fdTrans,&
-                & '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)')&
-                & m, '->', n, sign, wvec(j), Hartree__eV * wij(wvin(j))
+            write(fdTrans, '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)') &
+                & m, '->', n, cSign, vecW(j), Hartree__eV * wIJ(vecWi(j))
           end do
-          write(fdTrans,*)
+          write(fdTrans, *)
         end if
 
-        if(fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES13.6))')&
-              & i, Hartree__eV * sqrt(eval(i)), (transitionDipoles(i,j)&
-              & * au__Debye, j=1,3)
-        endif
+        if(fdTraDip > 0) then
+          write(fdTraDip, '(1x,i5,1x,f10.3,2x,3(ES13.6))') &
+              & i, Hartree__eV * sqrt(eval(i)), (transitionDipoles(i,j) * au__Debye, j=1,3)
+        end if
       else
 
         ! find largest coefficient in CI - should use maxloc
-        call index_heap_sort(wvin,wvec)
-        wvin = wvin(size(wvin):1:-1)
-        wvec = wvec(wvin)
+        call index_heap_sort(vecWi, vecW)
+        vecWi = vecWi(size(vecWi):1:-1)
+        vecW = vecW(vecWi)
 
-        weight = wvec(1)
-        iweight = wvin(1)
-        call indxov(win, iweight, getij, m, n)
-        sign = sym
+        weight = vecW(1)
+        iWeight = vecWi(1)
+        call indXov(win, iWeight, getIJ, m, n)
+        cSign = cSym
 
         if (tSpin) then
-          sign = " "
-          write(fdExc,&
-              & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,A,2x,f10.3,4x,f6.3)')&
-              & '< 0', oscStrength(i), m, '->', n, '-', Hartree__eV * wij(iweight),&
-              & Ssq(i)
+          cSign = " "
+          write(fdExc, '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,A,2x,f10.3,4x,f6.3)') &
+              & '< 0', oscStrength(i), m, '->', n, '-', Hartree__eV * wIJ(iWeight), Ssq(i)
         else
-          write(fdExc,&
-              & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
-              & '< 0', oscStrength(i), m, '->', n, weight,&
-              & Hartree__eV * wij(iweight), sign
+          write(fdExc, '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)') &
+              & '< 0', oscStrength(i), m, '->', n, weight, Hartree__eV * wIJ(iWeight), cSign
         end if
 
-        if(fdXplusY > 0) then
+        if (fdXplusY > 0) then
           if (tSpin) then
-            lUpdwn = (win(iweight) <= nMatUp)
-            sign = "D"
-            if (lUpdwn) sign = "U"
+            lUpdwn = (win(iWeight) <= nMatUp)
+            cSign = "D"
+            if (lUpdwn) cSign = "U"
           end if
-          write(fdXplusY,'(1x,i5,3x,a,3x,A)') i,sign, '-'
-        endif
+          write(fdXplusY, '(1x,i5,3x,a,3x,A)') i, cSign, '-'
+        end if
 
         if (fdTrans > 0) then
-          write(fdTrans, '(2x,a,1x,i5,5x,a,1x,a,3x,a)')&
-              & 'Energy ', i,  '-', 'eV', sign
-          write(fdTrans,*)
+          write (fdTrans, '(2x,a,1x,i5,5x,a,1x,a,3x,a)') 'Energy ', i,  '-', 'eV', cSign
+          write (fdTrans,*)
         end if
 
-        if(fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,A)') i, '-'
-        endif
+        if(fdTraDip > 0) then
+          write(fdTraDip, '(1x,i5,1x,A)') i, '-'
+        end if
 
       end if
-
     end do
 
     ! Determine degenerate levels and sum oscillator strength over any degenerate levels
     iDeg = 1
     eDeg(1) = eval(1)
     oDeg(1) = oscStrength(1)
-    do i = 2, nexc
-      if(abs(eval(i)-eval(i-1)) < elecTolMax) then
+    do i = 2, nExc
+      if(abs(eval(i) - eval(i-1)) < elecTolMax) then
         oDeg(iDeg) = oDeg(iDeg) + oscStrength(i)
       else
         iDeg = iDeg + 1
         eDeg(iDeg) = eval(i)
         oDeg(iDeg) = oscStrength(i)
-      endif
+      end if
     end do
+
     if (tWriteTagged) then
       call taggedWriter%write(fdTagged, tagLabels%excEgy, eDeg(:iDeg))
       call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg(:iDeg))
     end if
 
-  end subroutine writeExcitations_rs
+  end subroutine writeExcitationsRS
 
 
   !> Write atomic transition charges to file
-  subroutine writeTransitionCharges_rs(fdTransQ, atomicTransQ)
+  subroutine writeTransitionChargesRS(fdTransQ, atomicTransQ)
     !> file unit for transition charges
     integer, intent(in)  :: fdTransQ
     !> transition charges to write
     real(dp), intent(in) :: atomicTransQ(:)
 
-    integer :: natom, i
-    natom = size(atomicTransQ)
+    integer :: nAtom, i
+    nAtom = size(atomicTransQ)
 
     open(fdTransQ, file=transChargesOut, action="write", status="replace")
     write(fdTransQ, '(a)') "#"
     write(fdTransQ, '(a,2x,a,5x,a)') "#", "atom", "transition charge"
     write(fdTransQ, '(a)') "#"
 
-    do i = 1, natom
+    do i = 1, nAtom
        write(fdTransQ, '(2x,i5,5x,f12.9)') i, atomicTransQ(i)
     end do
 
     close(fdTransQ)
 
-  end subroutine writeTransitionCharges_rs
+  end subroutine writeTransitionChargesRS
 
 
   !> Computes excitation spectrum through range separated response calculation
-  subroutine LinResp_calcExcitations_rs(spin, tOnsite, self, iAtomStart, eigVec,&
+  subroutine linRespCalcExcitationsRS(spin, tOnsite, self, iAtomStart, eigVec, &
       & eigVal, sccCalc, SSqrReal, filling, coords0, dqAt, specie0, hubbUAtom, iNeighbor, &
-      & img2CentCell, orb, rs_data, tWriteTagged, fdTagged, taggedWriter, & ! ons_en, ons_dip,
-      & excEnergy, skHamCont, skOverCont, derivator, deltaRho, excgrad, dQAtomEx)
+      & img2CentCell, orb, rsData, tWriteTagged, fdTagged, taggedWriter, & ! ons_en, ons_dip,
+      & excEnergy, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     implicit none
     logical, intent(in) :: spin
     logical, intent(inout) :: tOnsite  
@@ -1921,7 +1874,7 @@ contains
     real(dp), intent(in) :: hubbUAtom(:)
     integer, intent(in) :: iNeighbor(0:,:), img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
-    type(RangeSepFunc), intent(inout) :: rs_data
+    type(RangeSepFunc), intent(inout) :: rsData
     !> print tag information
     logical, intent(in) :: tWriteTagged
 
@@ -1933,12 +1886,12 @@ contains
 
    !real(dp), intent(in) :: ons_en(:,:), ons_dip(:,:)
     real(dp), intent(out) :: excEnergy
-!    real(dp), intent(in), optional :: shift(:)
+   !real(dp), intent(in), optional :: shift(:)
     type(OSlakoCont), intent(in), optional :: skHamCont, skOverCont
     !> Differentiatior for the non-scc matrices
     class(NonSccDiff), intent(in), optional :: derivator
     real(dp), intent(inout), optional :: deltaRho(:,:)
-    real(dp), intent(inout), optional :: excgrad(:,:)
+    real(dp), intent(inout), optional :: excGrad(:,:)
     real(dp), intent(inout), optional :: dQAtomEx(:)
 
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
@@ -1949,7 +1902,7 @@ contains
 
     nAtom = size(orb%nOrbAtom)
     
-    allocate(occNr(size(filling,dim=1),size(filling,dim=2)))
+    allocate(occNr(size(filling,dim=1), size(filling,dim=2)))
     occNr = real(filling, 4)
 
    !allocate(hubbUDerivUp(8))
@@ -1957,61 +1910,51 @@ contains
    !hubbUDerivUp(:) = 0.
    !hubbUDerivDn(:) = 0.
 
-    if (.not. present(excgrad)) then 
-       call runRs_LinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec,&
-            & eigVal, sccCalc, dqAt, coords0, self%nExc, self%nStat, self%symmetry,&
-            & SSqrReal, occNr, specie0, self%nMoved,&
-            & hubbUAtom, self%hubbUDerivUp, self%hubbUDerivDn, self%nEl,&
-       !    & hubbUAtom, hubbUDerivUp, hubbUDerivDn, self%nEl,&
-            & iNeighbor, img2CentCell, orb, rs_data, tWriteTagged, fdTagged, taggedWriter, &
-       !    & self%tMulliken, self%tCoeffs, self%tXplusY, self%tTrans, self%tTradip, self%tArnoldi&
-            & self%fdMulliken, self%fdCoeffs, self%fdXplusY, self%fdTrans, self%fdSPTrans, &
-            & self%fdTradip, self%fdTransQ, self%tArnoldi, self%fdArnoldi, self%fdExc,& !ons_en, ons_dip,
-            & self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow, self%oscillatorWindow, &
-            & self%tCacheCharges, excEnergy)
- 
+    if (.not. present(excGrad)) then 
+      call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, &
+          & coords0, self%nExc, self%nStat, self%symmetry, SSqrReal, occNr, specie0, self%nMoved, &
+          & hubbUAtom, self%hubbUDerivUp, self%hubbUDerivDn, self%nEl, iNeighbor, img2CentCell, &
+          & orb, rsData, tWriteTagged, fdTagged, taggedWriter, self%fdMulliken, self%fdCoeffs, &
+          & self%fdXplusY, self%fdTrans, self%fdSPTrans, self%fdTraDip, self%fdTransQ, &
+          & self%tArnoldi, self%fdArnoldi, self%fdExc, & !ons_en, ons_dip,
+          & self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow, self%oscillatorWindow, &
+          & self%tCacheCharges, excEnergy)
     else
+      allocate(shiftPerAtom(nAtom))
+      allocate(shiftPerL(orb%mShell, nAtom))
+      call sccCalc%getShiftPerAtom(shiftPerAtom)
+      call sccCalc%getShiftPerL(shiftPerL)
+      shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
-       allocate(shiftPerAtom(nAtom))
-       allocate(shiftPerL(orb%mShell, nAtom))
-       call sccCalc%getShiftPerAtom(shiftPerAtom)
-       call sccCalc%getShiftPerL(shiftPerL)
-       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
-
-       call runRs_LinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec,&
-            & eigVal, sccCalc, dqAt, coords0, self%nExc, self%nStat, self%symmetry,&
-            & SSqrReal, occNr, specie0, self%nMoved,&
-            & hubbUAtom, self%hubbUDerivUp, self%hubbUDerivDn, self%nEl,&
-       !    & hubbUAtom, hubbUDerivUp, hubbUDerivDn, self%nEl,&
-            & iNeighbor, img2CentCell, orb, rs_data, tWriteTagged, fdTagged, taggedWriter, &
-       !    & self%tMulliken, self%tCoeffs, self%tXplusY, self%tTrans, self%tTradip, self%tArnoldi,&
-            & self%fdMulliken, self%fdCoeffs, self%fdXplusY, self%fdTrans, self%fdSPTrans, &
-            & self%fdTradip, self%fdTransQ, self%tArnoldi, self%fdArnoldi, self%fdExc,& ! ons_en, ons_dip,
-            & self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow, self%oscillatorWindow, &
-            & self%tCacheCharges, excEnergy,&
-       !    & shiftPerAtom(:,1), skHamCont, skOverCont, derivator, deltaRho, excgrad)
-            & shiftPerAtom, skHamCont, skOverCont, derivator, deltaRho, excgrad, dQAtomEx)
-
+      call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, &
+          & coords0, self%nExc, self%nStat, self%symmetry, SSqrReal, occNr, specie0, self%nMoved, &
+          & hubbUAtom, self%hubbUDerivUp, self%hubbUDerivDn, self%nEl, iNeighbor, img2CentCell, &
+          & orb, rsData, tWriteTagged, fdTagged, taggedWriter, self%fdMulliken, self%fdCoeffs, &
+          & self%fdXplusY, self%fdTrans, self%fdSPTrans, self%fdTraDip, self%fdTransQ, &
+          & self%tArnoldi, self%fdArnoldi, self%fdExc,& ! ons_en, ons_dip,
+          & self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow, self%oscillatorWindow, &
+          & self%tCacheCharges, excEnergy,&
+          & shiftPerAtom, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
 
-  end subroutine LinResp_calcExcitations_rs
+  end subroutine linRespCalcExcitationsRS
 
 
-!Functions for gradient calculations:
+  ! Functions for gradient calculations:
 
   ! Create P = T + 1/2 Z symmetric (paper has T + Z asymmetric)
   ! (Zab = Zij = 0, Tia = 0)
-  subroutine calcPMatrix(t, rhs, win, getij, pc)
+  subroutine calcPMatrix(t, rhs, win, getIJ, pc)
     implicit none
     real(dp), intent(in) :: t(:,:), rhs(:)
-    integer, intent(in) :: win(:), getij(:,:)
+    integer, intent(in) :: win(:), getIJ(:,:)
     real(dp), intent(out) :: pc(:,:)
 
     integer :: ia, i, a
 
     pc(:,:) = t(:,:)
     do ia = 1, size(rhs)
-      call indxov(win, ia, getij, i, a)
+      call indXov(win, ia, getIJ, i, a)
       ! shouldn't be pc = pc + 1/2 rhs?
       pc(i,a) = 0.5_dp * rhs(ia)
       pc(a,i) = 0.5_dp * rhs(ia)
@@ -2059,399 +2002,402 @@ contains
         end if
       end do
     end do
+
   end subroutine getExcMulliken
 
       
-  ! Build right hand side of the equation for the Z-vector and those parts
-  ! of the W-vectors which do not depend on Z.
-  subroutine getZVectorEqRHS_rs(xpy, xmy, win, iAtomStart, homo, nocc, nMatUp, getij, iatrans, natom,&
-        & species0, ev, sTimesGrndEigVecs, grndEigVecs, gamma, lrGamma, uhbuu, uhbud, omega, sym,& ! tqov, tqoo, tqvv
-        & rhs, t, wov, woo, wvv)
+  ! Build right hand side of the equation for the Z-vector and
+  !   those parts of the W-vectors which do not depend on Z.
+  subroutine getZVectorEqRhsRS(vecXpY, vecXmY, win, iAtomStart, homo, nOcc, nMatUp, getIJ, &
+      & iaTrans, nAtom, species0, ev, sTimesGrndEigVecs, grndEigVecs, gamma, lrGamma, &
+      & uHubbU, uHubbD, omega, cSym, rhs, t, vWov, vWoo, vWvv) ! tQov, tQoo, tQvv
     implicit none
-    real(dp), intent(in) :: xpy(:), xmy(:)
+    real(dp), intent(in) :: vecXpY(:), vecXmY(:)
     integer, intent(in) :: win(:), iAtomStart(:)
-    integer, intent(in) :: homo, nocc, nMatUp, getij(:,:), iatrans(1:,homo+1:), natom, species0(:)
-    real(dp), intent(in) :: ev(:), sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), gamma(:,:), lrGamma(:,:)
-    real(dp), intent(in) :: uhbuu(:), uhbud(:), omega
-    character, intent(in) :: sym
-   !real(dp), intent(in) :: tqov(:,:), tqoo(:,:), tqvv(:,:)
+    integer, intent(in) :: homo, nOcc, nMatUp, getIJ(:,:), iaTrans(1:,homo+1:), nAtom, species0(:)
+    real(dp), intent(in) :: ev(:), sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:)
+    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:), uHubbU(:), uHubbD(:), omega
+    character, intent(in) :: cSym
+   !real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
     real(dp), intent(out) :: rhs(:), t(:,:)
-    real(dp), intent(out) :: wov(:), woo(:), wvv(:)
+    real(dp), intent(out) :: vWov(:), vWoo(:), vWvv(:)
 
-    real(dp), allocatable :: xpyq(:), qij(:), gamxpyq(:), qgamxpyq(:), gamqt(:)
-    real(dp), allocatable :: HvvX(:), HvvY(:), HooX(:), HooY(:), HovT(:), HooT(:)
-    integer :: nvirt, norb, nxov, nxoo, nxvv
+    real(dp), allocatable :: vecXpYQ(:), qIJ(:), gamXpYQ(:), qGamXPyQ(:), gamQt(:)
+    real(dp), allocatable :: vecHvvX(:), vecHvvY(:), vecHooX(:), vecHooY(:), vecHovT(:), vecHooT(:)
+    integer :: nVirt, nOrb, nXov, nXoo, nXvv
     integer :: i, j, a, b, ia, ib, ij, ab, ja
     real(dp) :: tmp1, tmp2
     logical :: lUpDwn
 
-    nxov = size(rhs)
-    nxoo = size(woo)
-    nxvv = size(wvv)
-   !nvirt = nxov / nocc ! this does not work if there is energyWindow (nxov_rd applies and not nxov, and nxov_rd < nxov)
-   !norb = nocc + nvirt
-    norb = iAtomStart(natom+1) - 1
-    nvirt = norb - nocc
+    nXov = size(rhs)
+    nXoo = size(vWoo)
+    nXvv = size(vWvv)
+    ! the below does not work with energyWindow (nXovRD applies and not nXov, and nXovRD < nXov)
+   !nVirt = nXov / nOcc 
+   !nOrb = nOcc + nVirt
+    nOrb = iAtomStart(nAtom+1) - 1
+    nVirt = nOrb - nOcc
 
-    @:ASSERT(nxvv == nvirt * (nvirt + 1) / 2)
-    @:ASSERT(nxoo == nocc * (nocc + 1) / 2)
+    @:ASSERT(nXvv == nVirt * (nVirt + 1) / 2)
+    @:ASSERT(nXoo == nOcc * (nOcc + 1) / 2)
 
-    allocate(xpyq(natom))
-    allocate(qij(natom))
-    allocate(gamxpyq(natom))
-    allocate(gamqt(natom))
-    allocate(qgamxpyq(max(nxoo, nxvv) * norb)) !check how much memory is really required!
+    allocate(vecXpYQ(nAtom))
+    allocate(qIJ(nAtom))
+    allocate(gamXpYQ(nAtom))
+    allocate(gamQt(nAtom))
+    allocate(qGamXpYQ(max(nXoo, nXvv) * nOrb)) !check how much memory is really required!
    
     t(:,:) = 0.0_dp
     rhs(:) = 0.0_dp
-    wov(:) = 0.0_dp
-    woo(:) = 0.0_dp
-    wvv(:) = 0.0_dp
-    xpyq(:) = 0.0_dp
+    vWov(:) = 0.0_dp
+    vWoo(:) = 0.0_dp
+    vWvv(:) = 0.0_dp
+    vecXpYQ(:) = 0.0_dp
 
     ! optim code
     ! Build t_ab = 0.5 * sum_i (X+Y)_ia (X+Y)_ib + (X-Y)_ia (X-Y)_ib
     ! and w_ab = Q_ab with Q_ab as in (B16) but with corrected sign.
     ! factor 1 / (1 + delta_ab) follows later
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
       ! BA: Is T_aa = 0?
       do b = homo + 1, a
-        ib = iatrans(i, b) 
-       !if (ib <= nxov) then ! TOMAS KUBAR ADDED
-          ab = (b - homo) + (((a - homo) - 1) * (a - homo))/2
-          tmp1 = xpy(ia) * xpy(ib) + xmy(ia) * xmy(ib)
-          tmp2 = omega * (xpy(ia) * xmy(ib)+ xmy(ia) * xpy(ib))
-          t(a,b) = t(a,b) + 0.5_dp * tmp1
-          ! to prevent double counting            
-          if (a /= b) then
-            t(b,a) = t(b,a) + 0.5_dp * tmp1 
-          end if
-          ! Note: diagonal elements will be multiplied by 0.5 later.
-          wvv(ab) = wvv(ab) + ev(i) * tmp1 + tmp2
+        ib = iaTrans(i, b) 
+       !if (ib <= nXov) then ! TOMAS KUBAR ADDED
+        ab = (b - homo) + (((a - homo) - 1) * (a - homo)) / 2
+        tmp1 = vecXpY(ia) * vecXpY(ib) + vecXmY(ia) * vecXmY(ib)
+        tmp2 = omega * (vecXpY(ia) * vecXmY(ib)+ vecXmY(ia) * vecXpY(ib))
+        t(a,b) = t(a,b) + 0.5_dp * tmp1
+        ! to prevent double counting            
+        if (a /= b) then
+          t(b,a) = t(b,a) + 0.5_dp * tmp1 
+        end if
+        ! Note: diagonal elements will be multiplied by 0.5 later.
+        vWvv(ab) = vWvv(ab) + ev(i) * tmp1 + tmp2
        !end if
       end do
 
       ! Build t_ij = 0.5 * sum_a (X+Y)_ia (X+Y)_ja + (X-Y)_ia (X-Y)_ja
       ! and 1 / (1 + delta_ij) Q_ij with Q_ij as in eq. (B9) (1st part of w_ij)
       do j = i, homo
-        ja = iatrans(j,a) 
-       !if (ja <= nxov) then ! TOMAS KUBAR ADDED
-          ij = i-homo+nocc + ((j-homo+nocc - 1) * (j-homo+nocc)) / 2      
-          tmp1 = xpy(ia) * xpy(ja) + xmy(ia) * xmy(ja)
-          tmp2 = omega * (xpy(ia) * xmy(ja) + xmy(ia) * xpy(ja))
-          ! Note, there is a typo in Heringer et al. J. Comp Chem 28, 2589.
-          ! The sign must be negative see Furche, J. Chem. Phys, 117 7433 (2002).
-          t(i,j) = t(i,j) - 0.5_dp * tmp1
-          ! to prevent double counting
-          if (i /= j) then
-            t(j,i) = t(j,i) - 0.5_dp * tmp1
-          end if
-          woo(ij) = woo(ij) - ev(a) * tmp1 + tmp2
+        ja = iaTrans(j,a) 
+       !if (ja <= nXov) then ! TOMAS KUBAR ADDED
+        ij = i - homo + nOcc + ((j - homo + nOcc - 1) * (j - homo + nOcc)) / 2      
+        tmp1 = vecXpY(ia) * vecXpY(ja) + vecXmY(ia) * vecXmY(ja)
+        tmp2 = omega * (vecXpY(ia) * vecXmY(ja) + vecXmY(ia) * vecXpY(ja))
+        ! Note, there is a typo in Heringer et al. J. Comp Chem 28, 2589.
+        ! The sign must be negative see Furche, J. Chem. Phys, 117 7433 (2002).
+        t(i,j) = t(i,j) - 0.5_dp * tmp1
+        ! to prevent double counting
+        if (i /= j) then
+          t(j,i) = t(j,i) - 0.5_dp * tmp1
+        end if
+        vWoo(ij) = vWoo(ij) - ev(a) * tmp1 + tmp2
        !end if
       end do
     end do
 
     ! Build xpyq = sum_ia (X+Y)_ia 
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
-      qij = transq(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      xpyq(:) = xpyq + xpy(ia) * qij
+      qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      vecXpYQ(:) = vecXpYQ + vecXpY(ia) * qIJ
     end do
 
-    gamxpyq(:) = matmul(gamma, xpyq)
+    gamXpYQ(:) = matmul(gamma, vecXpYQ)
     
     ! qgamxpyq(ab) = sum_jc K_ab,jc (X+Y)_jc
-    do ab = 1, nxvv
-      call indxvv(homo, ab, a, b)
+    do ab = 1, nXvv
+      call indXvv(homo, ab, a, b)
       lUpDwn = .true. ! UNTESTED
-      qij = transq(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      if (sym == "S") then
-        qgamxpyq(ab) = 2.0_dp * sum(qij * gamxpyq)
+      qIJ = transQ(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      if (cSym == "S") then
+        qGamXpYQ(ab) = 2.0_dp * sum(qIJ * gamXpYQ)
       else
-        qgamxpyq(ab) = sum(qij * xpyq * (uhbuu(species0) - uhbud(species0)))
+        qGamXpYQ(ab) = sum(qIJ * vecXpYq * (uHubbU(species0) - uHubbD(species0)))
       end if
     end do
 
     ! rhs(ia) -= Qia = sum_b (X+Y)_ib * qgamxpyq(ab))
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
       do b = homo + 1, a
         ! TOMAS KUBAR -- CORRECTED:
-        !call rindxvv(homo, a, b, ab)
+        !call rIndXvv(homo, a, b, ab)
         if (b < a) then
-           call rindxvv(homo, a, b, ab)
+           call rIndXvv(homo, a, b, ab)
         else
-           call rindxvv(homo, b, a, ab)
+           call rIndXvv(homo, b, a, ab)
         end if
-        ib = iatrans(i,b)
-       !if (ib <= nxov) then ! TOMAS KUBAR ADDED
-          rhs(ia) = rhs(ia) - 2.0_dp * xpy(ib) * qgamxpyq(ab)
-          ! Since qgamxpyq has only upper triangle
-          if (a /= b) then
-            rhs(ib) = rhs(ib) - 2.0_dp * xpy(ia) * qgamxpyq(ab)
-          end if
+        ib = iaTrans(i,b)
+       !if (ib <= nXov) then ! TOMAS KUBAR ADDED
+        rhs(ia) = rhs(ia) - 2.0_dp * vecXpY(ib) * qGamXpYQ(ab)
+        ! Since qgamxpyq has only upper triangle
+        if (a /= b) then
+          rhs(ib) = rhs(ib) - 2.0_dp * vecXpY(ia) * qGamXpYQ(ab)
+        end if
        !end if
       end do
     end do
 
     ! -rhs = -rhs - sum_j (X + Y)_ja H + _ij[X + Y]
     ! qgamxpyq(ij) = sum_kb K_ij,kb (X+Y)_kb
-    do ij = 1, nxoo
-      qgamxpyq(ij) = 0.0_dp
-      call indxoo(ij, i, j)
+    do ij = 1, nXoo
+      qGamXpYQ(ij) = 0.0_dp
+      call indXoo(ij, i, j)
       lUpDwn = .true.
-      qij = transq(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      if (sym == "S") then
-        qgamxpyq(ij) = 2.0_dp * sum(qij * gamxpyq)
+      qIJ = transQ(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      if (cSym == "S") then
+        qGamXpYQ(ij) = 2.0_dp * sum(qIJ * gamXpYQ)
       else
-        qgamxpyq(ij) = sum(qij * xpyq * (uhbuu(species0) - uhbud(species0)))
+        qGamXpYQ(ij) = sum(qIJ * vecXpYQ * (uHubbU(species0) - uHubbD(species0)))
       end if
     end do
 
     ! rhs(ia) += Qai = sum_j (X+Y)_ja qgamxpyq(ij)
     ! add Qai to Wia as well.
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
      !lUpDwn = (win(ia) <= nMatUp)
       do j = i, homo
-        ja = iatrans(j, a)
-       !if (ja <= nxov) then ! TOMAS KUBAR ADDED
-          ij = i-homo+nocc + ((j-homo+nocc - 1) * (j-homo+nocc)) / 2
-          tmp1 = 2.0_dp * xpy(ja) * qgamxpyq(ij)
-          rhs(ia) = rhs(ia) + tmp1
-          wov(ia) = wov(ia) + tmp1
-          if (i /= j) then
-            tmp2 = 2.0_dp * xpy(ia) * qgamxpyq(ij)
-            rhs(ja) = rhs(ja) + tmp2
-            wov(ja) = wov(ja) + tmp2
-          end if
+        ja = iaTrans(j, a)
+       !if (ja <= nXov) then ! TOMAS KUBAR ADDED
+        ij = i - homo + nOcc + ((j - homo + nOcc - 1) * (j - homo + nOcc)) / 2
+        tmp1 = 2.0_dp * vecXpY(ja) * qGamXpYQ(ij)
+        rhs(ia) = rhs(ia) + tmp1
+        vWov(ia) = vWov(ia) + tmp1
+        if (i /= j) then
+          tmp2 = 2.0_dp * vecXpY(ia) * qGamXpYQ(ij)
+          rhs(ja) = rhs(ja) + tmp2
+          vWov(ja) = vWov(ja) + tmp2
+        end if
        !end if
       end do
     end do
 
     ! gamxpyq(beta) = sum_ij q_ij(beta) T_ij 
-    gamxpyq(:) = 0.0_dp
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
+    gamXpYQ(:) = 0.0_dp
+    do ij = 1, nXoo
+      call indXoo(ij, i, j)
       lUpDwn = .true.
-      qij = transq(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      qIJ = transQ(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
       if (i == j) then
-        gamxpyq(:) = gamxpyq(:) + t(i,j) * qij(:)
+        gamXpYQ(:) = gamXpYQ(:) + t(i,j) * qIJ(:)
       else
         ! factor 2 because of symmetry of the matrix
-        gamxpyq(:) = gamxpyq(:) + 2.0_dp  * t(i,j) * qij(:)
+        gamXpYQ(:) = gamXpYQ(:) + 2.0_dp  * t(i,j) * qIJ(:)
       end if
     end do
 
     ! gamxpyq(beta) += sum_ab q_ab(beta) T_ab 
-    do ab = 1, nxvv
-      call indxvv(homo, ab, a, b)
+    do ab = 1, nXvv
+      call indXvv(homo, ab, a, b)
       lUpDwn = .true.
-      qij = transq(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      qIJ = transQ(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
       if (a == b) then
-        gamxpyq(:) = gamxpyq(:) + t(a,b) * qij(:)
+        gamXpYQ(:) = gamXpYQ(:) + t(a,b) * qIJ(:)
       else
         ! factor 2 because of symmetry of the matrix
-        gamxpyq(:) = gamxpyq(:) + 2.0_dp * t(a,b) * qij(:)
+        gamXpYQ(:) = gamXpYQ(:) + 2.0_dp * t(a,b) * qIJ(:)
       end if
     end do
 
     ! gamqt(alpha) = sum_beta gamma_alpha,beta gamxpyq(beta)
-    gamqt(:) = matmul(gamma, gamxpyq)
+    gamQt(:) = matmul(gamma, gamXpYQ)
 
     ! rhs -= sum_q^ia(alpha) gamxpyq(alpha)
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
-      qij = transq(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      rhs(ia) = rhs(ia) - 4.0_dp * sum(qij * gamqt)
+      qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      rhs(ia) = rhs(ia) - 4.0_dp * sum(qIJ * gamQt)
     end do
     
     ! Furche vectors
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
+    do ij = 1, nXoo
+      call indXoo(ij, i, j)
       lUpDwn = .true.
-      qij = transq(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      woo(ij) = woo(ij) + 4.0_dp * sum(qij * gamqt)
+      qIJ = transQ(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      vWoo(ij) = vWoo(ij) + 4.0_dp * sum(qIJ * gamQt)
     end do
     
     ! Contributions due to range-separation
-    allocate(HvvX(nxvv))
-    allocate(HvvY(nxvv))
-    allocate(HooX(nxoo))
-    allocate(HooY(nxoo))
-    allocate(HovT(nxov))
+    allocate(vecHvvX(nXvv))
+    allocate(vecHvvY(nXvv))
+    allocate(vecHooX(nXoo))
+    allocate(vecHooY(nXoo))
+    allocate(vecHovT(nXov))
 
-    call GetHvvXY(  1, nxov, nxvv,       norb, homo, natom, nMatUp, iatrans, getij, win,&
-                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, xpy, HvvX)
-    call GetHvvXY( -1, nxov, nxvv,       norb, homo, natom, nMatUp, iatrans, getij, win,&
-                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, xmy, HvvY)
-    call GetHooXY(  1, nxov, nxoo,       norb, homo, natom, nMatUp, iatrans, getij, win,&
-                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, xpy, HooX)
-    call GetHooXY( -1, nxov, nxoo,       norb, homo, natom, nMatUp, iatrans, getij, win,&
-                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, xmy, HooY)
-    call GetHovT(nocc, nxov, nxoo, nxvv, norb, homo, natom, nMatUp, iatrans, getij, win,&
-                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t,   HovT)
+    call getHvvXY(1, nXov, nXvv, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, vecXpY, vecHvvX)
+    call getHvvXY(-1, nXov, nXvv, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, vecXmY, vecHvvY)
+    call getHooXY(1, nXov, nXoo, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, vecXpY, vecHooX)
+    call getHooXY(-1, nXov, nXoo, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, vecXmY, vecHooY)
+    call getHovT(nOcc, nXov, nXoo, nXvv, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+                & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHovT)
 
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
-      do b = homo + 1, norb
-         ib = iatrans(i, b)
-         if (ib <= nxov) then ! TOMAS KUBAR ADDED
-            ! TOMAS KUBAR -- CORRECTED
-            !call rindxvv(nocc, a, b, ab)
-            if (b < a) then
-               call rindxvv(homo, a, b, ab)
-            else
-               call rindxvv(homo, b, a, ab)
-            end if
-            rhs(ia) = rhs(ia) - xpy(ib)*HvvX(ab)
-            if (a >= b) then
-               rhs(ia) = rhs(ia) - xmy(ib)*HvvY(ab)
-            else
-               rhs(ia) = rhs(ia) + xmy(ib)*HvvY(ab)
-            endif
-         end if
-      enddo
+      do b = homo + 1, nOrb
+        ib = iaTrans(i, b)
+        if (ib <= nXov) then ! TOMAS KUBAR ADDED
+          ! TOMAS KUBAR -- CORRECTED
+          !call rIndXvv(nOcc, a, b, ab)
+          if (b < a) then
+             call rIndXvv(homo, a, b, ab)
+          else
+             call rIndXvv(homo, b, a, ab)
+          end if
+          rhs(ia) = rhs(ia) - vecXpY(ib) * vecHvvX(ab)
+          if (a >= b) then
+             rhs(ia) = rhs(ia) - vecXmY(ib) * vecHvvY(ab)
+          else
+             rhs(ia) = rhs(ia) + vecXmY(ib) * vecHvvY(ab)
+          end if
+        end if
+      end do
 
       do j = 1, homo
-         ja = iatrans(j, a)
-         if (ja <= nxov) then ! TOMAS KUBAR ADDED
-            !call rindxoo(homo, nocc, i, j, ij)
-            if (j < i) then
-               call rindxoo(homo, nocc, i, j, ij)
-            else
-               call rindxoo(homo, nocc, j, i, ij)
-            end if
-            rhs(ia) = rhs(ia) + xpy(ja)*HooX(ij)
-            wov(ia) = wov(ia) + xpy(ja)*HooX(ij)
-            if (i >= j) then
-               rhs(ia) = rhs(ia) + xmy(ja)*HooY(ij)
-               wov(ia) = wov(ia) + xmy(ja)*HooY(ij)
-            else
-               rhs(ia) = rhs(ia) - xmy(ja)*HooY(ij)
-               wov(ia) = wov(ia) - xmy(ja)*HooY(ij)
-            endif
-         end if
-      enddo
-      rhs(ia) = rhs(ia) - HovT(ia)  
-    enddo
-    deallocate(HvvX)
-    deallocate(HvvY)
-    deallocate(HooX)
-    deallocate(HooY)
-    deallocate(HovT)
+        ja = iaTrans(j, a)
+        if (ja <= nXov) then ! TOMAS KUBAR ADDED
+          !call rIndXoo(homo, nOcc, i, j, ij)
+          if (j < i) then
+            call rIndXoo(homo, nOcc, i, j, ij)
+          else
+            call rIndXoo(homo, nOcc, j, i, ij)
+          end if
+          rhs(ia) = rhs(ia) + vecXpY(ja)*vecHooX(ij)
+          vWov(ia) = vWov(ia) + vecXpY(ja)*vecHooX(ij)
+          if (i >= j) then
+            rhs(ia) = rhs(ia) + vecXmY(ja)*vecHooY(ij)
+            vWov(ia) = vWov(ia) + vecXmY(ja)*vecHooY(ij)
+          else
+            rhs(ia) = rhs(ia) - vecXmY(ja)*vecHooY(ij)
+            vWov(ia) = vWov(ia) - vecXmY(ja)*vecHooY(ij)
+          end if
+        end if
+      end do
+      rhs(ia) = rhs(ia) - vecHovT(ia)  
+    end do
 
-    allocate(HooT(nxoo))
-    call GetHooT(nocc, nxov, nxoo, norb, homo, natom, nMatUp, iatrans, getij, win,&
-               & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, HooT)
-    woo(:) = woo(:) + HooT(:) 
-    deallocate(HooT)
+    deallocate(vecHvvX)
+    deallocate(vecHvvY)
+    deallocate(vecHooX)
+    deallocate(vecHooY)
+    deallocate(vecHovT)
 
-    deallocate(xpyq)
-    deallocate(qij)
-    deallocate(gamxpyq)
-    deallocate(gamqt)
-    deallocate(qgamxpyq) 
-  end subroutine getZVectorEqRHS_rs
+    allocate(vecHooT(nXoo))
+    call getHooT(nOcc, nXov, nXoo, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+               & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHooT)
+    vWoo(:) = vWoo(:) + vecHooT(:) 
+    deallocate(vecHooT)
+
+    deallocate(vecXpYq)
+    deallocate(qIJ)
+    deallocate(gamXpYQ)
+    deallocate(gamQt)
+    deallocate(qGamXpYQ) 
+  end subroutine getZVectorEqRhsRS
 
 
-  ! Solving the (A+B) Z = -R equation via conjugate gradient optimization.
- !subroutine solveZVectorEq_rs(rhs, win, nMatUp, getij, occNr, natom, iAtomStart, sTimesGrndEigVecs,&
- !    & species0, uhbuu, uhbud, gamma, lrGamma, wij, grndEigVecs,&
- !    & orb, homo, nocc, nvir, iatrans, tqov, tqoo, tqvv)
-  subroutine solveZVectorEq_rs(rhs, win, nMatUp, getij, occNr, natom, &
-      & species0, uhbuu, uhbud, gamma, lrGamma, wij, &
-      & homo, nocc, nvir, iatrans, tqov, tqoo, tqvv)
+  ! Solve the (A+B) Z = -R equation via conjugate gradient optimization.
+ !subroutine solveZVectorEqRS(rhs, win, nMatUp, getIJ, occNr, nAtom, iAtomStart, &
+ !    & sTimesGrndEigVecs, species0, uHubbU, uHubbD, gamma, lrGamma, wIJ, grndEigVecs, &
+ !    & orb, homo, nOcc, nVir, iaTrans, tQov, tQoo, tQvv)
+  subroutine solveZVectorEqRS(rhs, win, nMatUp, getIJ, occNr, nAtom, species0, uHubbU, uHubbD, &
+      & gamma, lrGamma, wIJ, homo, nOcc, nVir, iaTrans, tQov, tQoo, tQvv)
     implicit none
     real(dp), intent(inout) :: rhs(:)
-    integer, intent(in) :: win(:), nMatUp, getij(:,:), natom !, iAtomStart(:)
+    integer, intent(in) :: win(:), nMatUp, getIJ(:,:), nAtom !, iAtomStart(:)
     real(dp), intent(in) :: occNr(:,:)
-    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:), wij(:) !, grndEigVecs(:,:,:), sTimesGrndEigVecs(:,:,:)
+    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:), wIJ(:)
+   !real(dp), intent(in) :: grndEigVecs(:,:,:), sTimesGrndEigVecs(:,:,:)
     integer, intent(in) :: species0(:)
-    real(dp), intent(in) :: uhbuu(:), uhbud(:)
+    real(dp), intent(in) :: uHubbU(:), uHubbD(:)
    !type(TOrbitals), intent(in) :: orb
-    integer, intent(in) :: homo, nocc, nvir
-    real(dp), intent(in) :: tqov(:,:), tqoo(:,:), tqvv(:,:)
-    integer, intent(in) :: iatrans(1:,homo+1:)
+    integer, intent(in) :: homo, nOcc, nVir
+    real(dp), intent(in) :: tQov(:,:), tQoo(:,:), tQvv(:,:)
+    integer, intent(in) :: iaTrans(1:,homo+1:)
 
-    integer :: nxov
+    integer :: nXov
     integer :: ia, i, a, k, ii, aa
-    real(dp), allocatable :: qij(:), gxqij(:), rhs2(:), rkm1(:), pkm1(:), apk(:)
+    real(dp), allocatable :: qIJ(:), gXqIJ(:), rhs2(:), rkm1(:), pkm1(:), apk(:)
     real(dp) :: rs, tmp1, tmp2
     logical :: lUpDwn
-    real(dp), allocatable :: gqvtmp(:,:)
+    real(dp), allocatable :: gqvTmp(:,:)
 
     !dummy variables to cal. (A+B)*vec
-    character :: sym
+    character :: cSym
     logical :: spin
-    sym = 'S'
+    cSym = 'S'
     spin = .false.
    
-    if (sum(rhs(:) * rhs(:)) .le. 0.000001) then !May actually be zero, for example for H_2
-       rhs(:) = 0.0_dp
-       return
+    if (sum(rhs(:) * rhs(:)) .le. 0.000001) then ! May actually be zero, for example for H_2
+      rhs(:) = 0.0_dp
+      return
     end if
 
-    nxov = size(rhs)
-    allocate(qij(natom))
-    allocate(gxqij(natom))
-    allocate(rhs2(nxov))
-    allocate(rkm1(nxov))
-    allocate(pkm1(nxov))
-    allocate(apk(nxov))
-    allocate(gqvtmp(size(gamma, dim=1), max(nvir, nocc) * nvir)) 
+    nXov = size(rhs)
+    allocate(qIJ(nAtom))
+    allocate(gXqIJ(nAtom))
+    allocate(rhs2(nXov))
+    allocate(rkm1(nXov))
+    allocate(pkm1(nXov))
+    allocate(apk(nXov))
+    allocate(gqvTmp(size(gamma, dim=1), max(nVir, nOcc) * nVir)) 
     
     ! Choosing a start value
     ! rhs2 = rhs / (A+B)_ia,ia (diagonal of the supermatrix sum A+B)
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
-   !   qij = transq(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      rs = 4.0_dp * dot_product(tqov(:,ia), matmul(gamma, tqov(:,ia))) + wij(ia)
-      rs = rs - dot_product(tqov(:,ia), matmul(lrGamma, tqov(:,ia))) !part of rs contirb
-      !!Bug here! ii = i - homo + nocc + ((i - homo + nocc + 1) * (i - homo + nocc))/2
-      ii = i - homo + nocc + ((i - homo + nocc - 1) * (i - homo + nocc))/2
-      !lUpDwn = .true.
-      !qij = transq(i, i, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      gxqij(:) = matmul(lrGamma, tqoo(:,ii))
-      call rindxvv(homo, a, a, aa)
-      !lUpDwn = .true.
-      !qij = transq(a, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      rs = rs - dot_product(tqvv(:,aa), gxqij)
+     !qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      rs = 4.0_dp * dot_product(tQov(:,ia), matmul(gamma, tQov(:,ia))) + wIJ(ia)
+      rs = rs - dot_product(tQov(:,ia), matmul(lrGamma, tQov(:,ia))) !part of rs contirb
+      !!Bug here! ii = i - homo + nOcc + ((i - homo + nOcc + 1) * (i - homo + nOcc))/2
+      ii = i - homo + nOcc + ((i - homo + nOcc - 1) * (i - homo + nOcc))/2
+     !lUpDwn = .true.
+     !qIJ = transQ(i, i, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      gXqIJ(:) = matmul(lrGamma, tQoo(:,ii))
+      call rIndXvv(homo, a, a, aa)
+     !lUpDwn = .true.
+     !qIJ = transQ(a, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      rs = rs - dot_product(tQvv(:,aa), gXqIJ)
       rhs2(ia) = rhs(ia) / rs
     end do
 
-    call multApBVecFast(rhs2, wij, sym, win, nMatUp, homo, nocc, nvir, & ! sTimesGrndEigVecs, 
-        & occNr, getij, gamma, lrGamma, species0, uhbuu, uhbud, iatrans, gqvtmp, tqov, tqoo, tqvv, rkm1)
+    call multApBVecFast(rhs2, wIJ, cSym, win, nMatUp, homo, nOcc, nVir, occNr, getIJ, gamma, &
+        & lrGamma, species0, uHubbU, uHubbD, iaTrans, gqvTmp, tQov, tQoo, tQvv, rkm1)
     
     rkm1(:) = rhs(:) - rkm1(:)
     pkm1(:) = rkm1(:)
     
-    ! Iteration:  should be convergent at most nxov steps
-    do k = 1, nxov
+    ! Iteration:  should be convergent at most nXov steps
+    do k = 1, nXov
 
-      call multApBVecFast(pkm1, wij, sym, win, nMatUp, homo, nocc, nvir, & ! sTimesGrndEigVecs,
-          & occNr, getij, gamma, lrGamma, species0, uhbuu, uhbud, iatrans, gqvtmp, tqov, tqoo, tqvv, apk)
+      call multApBVecFast(pkm1, wIJ, cSym, win, nMatUp, homo, nOcc, nVir, occNr, getIJ, gamma, &
+          & lrGamma, species0, uHubbU, uHubbD, iaTrans, gqvTmp, tQov, tQoo, tQvv, apk)
       tmp1 = dot_product(rkm1, rkm1)
       tmp2 = dot_product(pkm1, apk)
 
       rhs2(:) = rhs2(:) + (tmp1 / tmp2) * pkm1(:)
-      rkm1(:) = rkm1(:) - (tmp1 / tmp2) *  apk(:)
+      rkm1(:) = rkm1(:) - (tmp1 / tmp2) * apk(:)
 
+      ! Residual
       tmp2 = dot_product(rkm1, rkm1)
-!       print *, "residuo", tmp2 
 
       if (tmp2 <= 1.0e-14_dp) then
         exit
       end if
 
-      if (k == nxov) then
+      if (k == nXov) then
         call error("LrespoGrad : Z vector not converged!")
       end if
 
@@ -2461,147 +2407,146 @@ contains
 
     rhs(:) = rhs2(:)   
 
-    deallocate(qij)
-    deallocate(gxqij)
+    deallocate(qIJ)
+    deallocate(gXqIJ)
     deallocate(rhs2)
     deallocate(rkm1)
     deallocate(pkm1)
     deallocate(apk)
-    deallocate(gqvtmp)     
-  end subroutine solveZVectorEq_rs
+    deallocate(gqvTmp)     
+  end subroutine solveZVectorEqRS
 
   ! Calculate Z-dependent parts of the W-vectors including rs contributions 
-  !  and divide diagonal elements of W_ij and W_ab by 2.
-  !subroutine calcWVectorZ_rs(zz, win, homo, nocc, nvirt, norb, nMatUp, getij, iAtomStart, sTimesGrndEigVecs,&
-  !    & grndEigVecs, gamma, lrGamma, ev, wov, woo, wvv, tqov, tqoo, iatrans)
-  subroutine calcWVectorZ_rs(zz, win, homo, norb, nMatUp, getij, iAtomStart, sTimesGrndEigVecs,&
-      & grndEigVecs, gamma, lrGamma, ev, wov, woo, wvv, iatrans)
+  !   and divide diagonal elements of W_ij and W_ab by 2.
+ !subroutine calcWVectorZRS(zz, win, homo, nOcc, nVirt, nOrb, nMatUp, getIJ, iAtomStart, &
+ !    & sTimesGrndEigVecs, grndEigVecs, gamma, lrGamma, ev, vWov, vWoo, vWvv, tQov, tQoo, iaTrans)
+  subroutine calcWVectorZRS(zz, win, homo, nOrb, nMatUp, getIJ, iAtomStart, sTimesGrndEigVecs, &
+      & grndEigVecs, gamma, lrGamma, ev, vWov, vWoo, vWvv, iaTrans)
     implicit none
     real(dp), intent(in) :: zz(:)
-    integer, intent(in) :: win(:), homo, norb, nMatUp, getij(:,:), iAtomStart(:) !, nocc, nvirt
-    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), gamma(:,:), lrGamma(:,:), ev(:) !, tqov(:,:), tqoo(:,:)
-    real(dp), intent(inout) :: wov(:), woo(:), wvv(:)
-    integer, intent(in) :: iatrans(1:,homo+1:)
+    integer, intent(in) :: win(:), homo, nOrb, nMatUp, getIJ(:,:), iAtomStart(:) !, nOcc, nVirt
+    real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), gamma(:,:), lrGamma(:,:)
+    real(dp), intent(in) :: ev(:) !, tQov(:,:), tQoo(:,:)
+    real(dp), intent(inout) :: vWov(:), vWoo(:), vWvv(:)
+    integer, intent(in) :: iaTrans(1:,homo+1:)
 
-    integer :: nxov, nxoo, nxvv, natom
+    integer :: nXov, nXoo, nXvv, nAtom
     integer :: ij, ia, ab, i, j, a, b, alpha
-    real(dp), allocatable :: qij(:), gamxpyq(:), zq(:), HooZ(:)
+    real(dp), allocatable :: qIJ(:), gamXpYQ(:), zQ(:), vecHooZ(:)
     logical :: lUpDwn
 
-    nxov = size(zz)
-    natom = size(gamma, dim=1)   
-    nxoo = size(woo)
-    nxvv = size(wvv)
-    allocate(qij(natom))
-    allocate(gamxpyq(natom))
-    allocate(zq(natom))
-    !for rangesep contributions:
-    allocate(HooZ(nxoo))
+    nXov = size(zz)
+    nAtom = size(gamma, dim=1)   
+    nXoo = size(vWoo)
+    nXvv = size(vWvv)
+    allocate(qIJ(nAtom))
+    allocate(gamXpYQ(nAtom))
+    allocate(zQ(nAtom))
+    ! for rangesep contributions:
+    allocate(vecHooZ(nXoo))
 
     ! Adding missing epsilon_i * Z_ia term to W_ia
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
-      wov(ia) = wov(ia) + zz(ia) * ev(i)
+      vWov(ia) = vWov(ia) + zz(ia) * ev(i)
     end do
 
     ! Missing sum_kb 4 K_ijkb Z_kb term in W_ij:
     ! zq(alpha) = sum_kb q^kb(alpha) Z_kb
-    do alpha = 1, natom
-      zq(alpha) = 0.0_dp
-      do ia = 1, nxov
-        call indxov(win, ia, getij, i, a)
+    do alpha = 1, nAtom
+      zQ(alpha) = 0.0_dp
+      do ia = 1, nXov
+        call indXov(win, ia, getIJ, i, a)
         lUpDwn = (win(ia) <= nMatUp)
-        qij = transq(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-        zq(alpha) = zq(alpha) + zz(ia) * qij(alpha)
+        qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        zQ(alpha) = zQ(alpha) + zz(ia) * qIJ(alpha)
       end do
     end do
 
     ! gamxpyq(alpha) = sum_beta gamma(alpha, beta) zq(beta)
-    gamxpyq = matmul(gamma, zq)
+    gamXpYQ = matmul(gamma, zQ)
 
-    ! sum_alpha qij(alpha) gamxpyq(alpha)
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
+    ! sum_alpha qIJ(alpha) gamxpyq(alpha)
+    do ij = 1, nXoo
+      call indXoo(ij, i, j)
       lUpDwn = .true.
-      qij = transq(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      do alpha = 1, natom
+      qIJ = transQ(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      do alpha = 1, nAtom
         ! W contains 1/2 for i == j.
-        woo(ij) = woo(ij)&
-            & + 4.0_dp * qij(alpha) * gamxpyq(alpha)
+        vWoo(ij) = vWoo(ij) + 4.0_dp * qIJ(alpha) * gamXpYQ(alpha)
       end do
     end do
 
     ! Contributions due to range-separation
-    call GetHooXY(1, nxov, nxoo, norb, homo, natom, nMatUp, iatrans, getij, win, iAtomStart,&
-                & sTimesGrndEigVecs, grndEigVecs, lrGamma, zz, HooZ)
-    woo(:) = woo(:) + HooZ(:)
+    call getHooXY(1, nXov, nXoo, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, iAtomStart, &
+        & sTimesGrndEigVecs, grndEigVecs, lrGamma, zz, vecHooZ)
+    vWoo(:) = vWoo(:) + vecHooZ(:)
 
     ! Divide diagonal elements of W_ij by 2.
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
+    do ij = 1, nXoo
+      call indXoo(ij, i, j)
       if (i == j) then
-        woo(ij) = 0.5_dp * woo(ij)
+        vWoo(ij) = 0.5_dp * vWoo(ij)
       end if
     end do
 
     ! Divide diagonal elements of W_ab by 2.
-    do ab = 1, nxvv
-      call indxvv(homo, ab, a, b)
+    do ab = 1, nXvv
+      call indXvv(homo, ab, a, b)
       if (a == b) then
-        wvv(ab) = 0.5_dp * wvv(ab)
+        vWvv(ab) = 0.5_dp * vWvv(ab)
       end if
     end do
 
-    deallocate(HooZ)
-    deallocate(qij)
-    deallocate(gamxpyq)
-    deallocate(zq)
-  end subroutine calcWVectorZ_rs
+    deallocate(vecHooZ)
+    deallocate(qIJ)
+    deallocate(gamXpYQ)
+    deallocate(zQ)
+  end subroutine calcWVectorZRS
 
- !subroutine addGradients_rs(sym, nxov, natom, species0, iAtomStart, norb, homo, nocc, nMatUp, getij, win,& ! iatrans,
- !    & grndEigVecs, pc, sTimesGrndEigVecs, dQ, dQAtomEx, gamma, lrGamma, rs_data, uhubb, uhbuu, uhbud, shift,&
- !    & woo, wov, wvv, xpy, xmy, nbeweg, coord0, orb, skHamCont,&
- !    & skOverCont, tqov, tqoo, tqvv, derivator, deltaRho, excgrad)
-  subroutine addGradients_rs(sym, nxov, natom, species0, iAtomStart, norb, homo, nMatUp, getij, win,& ! iatrans,
-      & grndEigVecs, pc, dQ, dQAtomEx, gamma, lrGamma, rs_data, uhubb, uhbuu, uhbud, shift,&
-      & woo, wov, wvv, xpy, xmy, nbeweg, coord0, orb, skHamCont,&
-      & skOverCont, tqov, derivator, deltaRho, excgrad)
+ !subroutine addGradientsRS(cSym, nXov, nAtom, species0, iAtomStart, nOrb, homo, nOcc, nMatUp, &
+ !    & getIJ, win, iaTrans, grndEigVecs, pc, sTimesGrndEigVecs, dQ, dQAtomEx, gamma, lrGamma, &
+ !    & rsData, uHubb, uHubbU, uHubbD, shift, vWoo, vWov, vWvv, vecXpY, vecXmY, nBeweg, coord0, &
+ !    & orb, skHamCont, skOverCont, tQov, tQoo, tQvv, derivator, deltaRho, excGrad)
+  subroutine addGradientsRS(cSym, nXov, nAtom, species0, iAtomStart, nOrb, homo, nMatUp, getIJ, &
+      & win, grndEigVecs, pc, dQ, dQAtomEx, gamma, lrGamma, rsData, uHubb, uHubbU, uHubbD, shift, &
+      & vWoo, vWov, vWvv, vecXpY, vecXmY, nBeweg, coord0, orb, skHamCont, skOverCont, tQov, &
+      & derivator, deltaRho, excGrad)
     implicit none
-    character, intent(in) :: sym
-    integer, intent(in) :: nxov, natom, species0(:), iAtomStart(:), norb, homo, win(:) !, nocc
-    integer, intent(in) :: nMatUp, getij(:,:) !, iatrans(1:,homo+1:)
-    real(dp), intent(in) :: grndEigVecs(:,:,:), pc(:,:), dQ(:), dQAtomEx(:) !, sTimesGrndEigVecs(:,:,:)
-    real(dp), intent(in) :: gamma(:,:), lrGamma(:,:), uhubb(:), uhbuu(:), uhbud(:), shift(:)
-    type(RangeSepFunc), intent(inout) :: rs_data
-    real(dp), intent(in) :: woo(:), wov(:), wvv(:), xpy(:), xmy(:)
-    integer, intent(in) :: nbeweg
-    real(dp), intent(in) :: coord0(:,:)
+    character, intent(in) :: cSym
+    integer, intent(in) :: nXov, nAtom, species0(:), iAtomStart(:), nOrb, homo, win(:) !, nOcc
+    integer, intent(in) :: nMatUp, getIJ(:,:) !, iaTrans(1:,homo+1:)
+    real(dp), intent(in) :: grndEigVecs(:,:,:) !, sTimesGrndEigVecs(:,:,:)
+    real(dp), intent(in) :: pc(:,:), dQ(:), dQAtomEx(:), gamma(:,:), lrGamma(:,:) 
+    real(dp), intent(in) :: uHubb(:), uHubbU(:), uHubbD(:), shift(:), vWoo(:), vWov(:), vWvv(:)
+    real(dp), intent(in) :: vecXpY(:), vecXmY(:), coord0(:,:), tQov(:,:) !, tQoo(:,:), tQvv(:,:)
+    type(RangeSepFunc), intent(inout) :: rsData
+    integer, intent(in) :: nBeweg
     type(TOrbitals), intent(in) :: orb
     type(OSlakoCont), intent(in) :: skHamCont, skOverCont
-    real(dp), intent(in) :: tqov(:,:) !, tqoo(:,:), tqvv(:,:)
     !> Differentiatior for the non-scc matrices
     class(NonSccDiff), intent(in) :: derivator
-    real(dp), intent(inout) :: excgrad(:,:), deltaRho(:,:)
+    real(dp), intent(inout) :: excGrad(:,:), deltaRho(:,:)
     
-    real(dp), allocatable :: shex(:), xpyq(:), shxpyq(:), xpycc(:,:), xmycc(:,:), wcc(:,:)
-    real(dp), allocatable :: temp(:), qij(:), xpyas(:,:), xmyas(:,:)
+    real(dp), allocatable :: shEx(:), vecXpYq(:), shXpYQ(:), vecXpYcc(:,:), vecXmYcc(:,:), wcc(:,:)
+    real(dp), allocatable :: temp(:), qIJ(:), vecXpYas(:,:), vecXmYas(:,:)
    !real(dp), allocatable :: au(:,:), bu(:,:), auh(:,:), buh(:,:),
     real(dp), allocatable :: dmn(:,:)
     integer :: ia, i, j, a, b, ab, ij, m, n, mu, nu, xyz, alpha, beta
-    integer :: indalpha, indalpha1, indbeta, indbeta1, izpalpha, izpbeta
+    integer :: indAlpha, indAlpha1, indBeta, indBeta1, izpAlpha, izpBeta
     real(dp) :: tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmprs, tmprs2, rab !, xhelp
     real(dp) :: diffvec(3), dgab(3), tmp3a(3), tmp3b(3)
-    real(dp) :: dhmndr, dsmndr
-    real(dp), parameter :: deltax = epsilon(1.0_dp)**0.25_dp
-    real(dp), parameter :: rcdx = 1.0_dp / deltax
+    real(dp) :: dHMNdR, dSMNdR
+    real(dp), parameter :: deltaX = epsilon(1.0_dp)**0.25_dp
+    real(dp), parameter :: rcDX = 1.0_dp / deltaX
     !Working arrays for the Hamilton/Overlap builder to make things faster.
    !real(dp) :: interSKHam(getMIntegrals(skHamCont))
    !real(dp) :: interSKOver(getMIntegrals(skOverCont))
     real(dp), allocatable :: overlap(:,:), lrGammaOrb(:,:)
     real(dp), allocatable :: PS(:,:), DS(:,:), SPS(:,:), SDS(:,:), gammaLongRangePrime(:,:,:)
     real(dp), allocatable :: SX(:,:), XS(:,:), SXS(:,:), SY(:,:), YS(:,:), SYS(:,:)
-    real(dp) tmpura(3)
+    real(dp) tmp3vec(3)
     integer iAt1, iAt2, ka
 
     integer, allocatable :: species(:)
@@ -2610,341 +2555,305 @@ contains
     
     logical :: lUpDwn
     
-    integer :: nxoo, nxvv
-    allocate(shex(natom))
-    allocate(xpyq(natom))
-    allocate(shxpyq(natom))
-    allocate(xpycc(norb, norb))
-    allocate(xmycc(norb, norb))
-    allocate(xpyas(norb, norb))
-    allocate(xmyas(norb, norb))
-    allocate(wcc(norb, norb))
-    allocate(qij(natom))
-    allocate(temp(norb))
-    allocate(dmn(norb, norb))
+    integer :: nXoo, nXvv
+
+    allocate(shEx(nAtom))
+    allocate(vecXpYq(nAtom))
+    allocate(shXpYQ(nAtom))
+    allocate(vecXpYcc(nOrb, nOrb))
+    allocate(vecXmYcc(nOrb, nOrb))
+    allocate(vecXpYas(nOrb, nOrb))
+    allocate(vecXmYas(nOrb, nOrb))
+    allocate(wcc(nOrb, nOrb))
+    allocate(qIJ(nAtom))
+    allocate(temp(nOrb))
+    allocate(dmn(nOrb, nOrb))
 
 !!  RS matrices
-    allocate(PS(norb, norb))
-    allocate(DS(norb, norb))
-    allocate(SPS(norb, norb))    
-    allocate(SDS(norb, norb))
-    allocate(SX(norb, norb))
-    allocate(XS(norb, norb)) 
-    allocate(SXS(norb, norb))
-    allocate(SY(norb, norb))
-    allocate(YS(norb, norb))
-    allocate(SYS(norb, norb))
-    allocate(overlap(norb, norb))
-    allocate(lrGammaOrb(norb, norb))
-    allocate(gammaLongRangePrime(3,natom,natom))
+    allocate(PS(nOrb, nOrb))
+    allocate(DS(nOrb, nOrb))
+    allocate(SPS(nOrb, nOrb))    
+    allocate(SDS(nOrb, nOrb))
+    allocate(SX(nOrb, nOrb))
+    allocate(XS(nOrb, nOrb)) 
+    allocate(SXS(nOrb, nOrb))
+    allocate(SY(nOrb, nOrb))
+    allocate(YS(nOrb, nOrb))
+    allocate(SYS(nOrb, nOrb))
+    allocate(overlap(nOrb, nOrb))
+    allocate(lrGammaOrb(nOrb, nOrb))
+    allocate(gammaLongRangePrime(3, nAtom, nAtom))
 
     allocate(derH0(orb%mOrb, orb%mOrb, 3))
     allocate(derS(orb%mOrb, orb%mOrb, 3))
 
-    nxoo = size(woo)
-    nxvv = size(wvv)
+    nXoo = size(vWoo)
+    nXvv = size(vWvv)
 
-     !write (*,*) "C"
-     !write (*,'(10F12.8)') c
-     !write (*,*)
-
-    !Density matrix by rank k-update
-    !BA: density matrix should be provided from outside
+    ! Density matrix by rank k-update
+    ! BA: density matrix should be provided from outside
     dmn = 0._dp
     call herk(dmn, grndEigVecs(:,1:homo,1), alpha=2.0_dp)
 
-     !write (*,*) "HERK DMN"
-     !write (*,'(22F12.8)') dmn
-     !write (*,*)
+    ! Symmetrize deltaRho
+    do mu = 1, nOrb
+      do nu = mu + 1, nOrb
+        deltaRho(mu, nu) = deltaRho(nu, mu)
+      end do
+    end do
 
-    ! TEST OK -- DMN (UPPER TRIANGLE ONLY, WHICH IS FINE)
-
-    !! Symmetrize deltaRho
-    do mu = 1, norb
-       do nu = mu + 1, norb
-          deltaRho(mu, nu) = deltaRho(nu, mu)
-       enddo
-    enddo
-
-     !write (*,*) "DELTA RHO SYMM"
-     !write (*,'(22F12.8)') deltaRho
-     !write (*,*)
-
-    ! TEST OK -- DELTA RHO SYMM
-
-    !! Compute long-range gamma derivative
+    ! Compute long-range gamma derivative
     gammaLongRangePrime(:,:,:) = 0._dp
-    call rs_data%getSpecies(species)
-    do iAt1 = 1, natom
-       do iAt2 = 1, natom
-          if(iAt1 /= iAt2) then
-             call getGammaPrimeValue(rs_data, tmpura, iAt1, iAt2, coord0, species)
-             gammaLongRangePrime(:,iAt1, iAt2) = tmpura(:)
-          end if
-       end do
+    call rsData%getSpecies(species)
+    do iAt1 = 1, nAtom
+      do iAt2 = 1, nAtom
+        if(iAt1 /= iAt2) then
+          call getGammaPrimeValue(rsData, tmp3vec, iAt1, iAt2, coord0, species)
+          gammaLongRangePrime(:, iAt1, iAt2) = tmp3vec(:)
+        end if
+      end do
     end do
 
-     !write (*,*) "GAMMA LR PRIME"
-     !write (*,'(10F14.10)') gammaLongRangePrime
-     !write (*,*)
+    ! Symmetrize S
+   !call getSqrS(coord0, nAtom, skOverCont, interSKOver, orb, iAtomStart, species0, overlap)
+    call getSqrS(coord0, nAtom, skOverCont, orb, iAtomStart, species0, overlap)
+    call getSqrGamma(nAtom, lrGamma, iAtomStart, lrGammaOrb)
 
-     ! Symmetrize S
-   !call getSqrS(coord0, natom, skOverCont, interSKOver, orb, iAtomStart, species0, overlap)
-    call getSqrS(coord0, natom, skOverCont, orb, iAtomStart, species0, overlap)
-    call getSqrGamma(natom, lrGamma, iAtomStart, lrGammaOrb)
+    shEx(:) = matmul(dQAtomEx, gamma)
 
-     !write (*,*) "OVERLAP"
-     !write (*,'(10F12.8)') overlap
-     !write (*,*)
-
-     !write (*,*) "GAMMA LR ORB"
-     !write (*,'(10F12.8)') lrGammaOrb
-     !write (*,*)
-
-    shex(:) = matmul(dQAtomEx, gamma)
-
-     !write (*,*) "SHEX"
-     !write (*,'(10F12.8)') shex
-     !write (*,*)
-
-    ! TEST OK -- OVERLAP, GAMMA LR ORB, SHEX
-
-    !xypq(alpha) = sum_ia (X+Y)_ia q^ia(alpha)
-    !complexity norb * norb * norb
-    xpyq(:) = 0.0_dp
-    do ia = 1, nxov
-!      call indxov(win, ia, getij, i, a)
-!      lUpDwn = (win(ia) <= nMatUp)
-!      qij = transq(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, c)
-      xpyq(:) = xpyq(:) + xpy(ia) * tqov(:,ia)! * qij(:)
+    ! xypq(alpha) = sum_ia (X+Y)_ia q^ia(alpha)
+    ! complexity nOrb * nOrb * nOrb
+    vecXpYq(:) = 0.0_dp
+    do ia = 1, nXov
+     !call indXov(win, ia, getIJ, i, a)
+     !lUpDwn = (win(ia) <= nMatUp)
+     !qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, c)
+      vecXpYq(:) = vecXpYq(:) + vecXpY(ia) * tQov(:,ia) ! * qIJ(:)
     end do
 
-    !complexity norb * norb
-    shxpyq(:) = 0.0_dp
-    if (sym == "S") then
-      shxpyq(:) = matmul(xpyq, gamma)
+    ! complexity nOrb * nOrb
+    shXpYQ(:) = 0.0_dp
+    if (cSym == "S") then
+      shXpYQ(:) = matmul(vecXpYq, gamma)
     else
-      shxpyq(:) = 0.5_dp * xpyq(:) * (uhbuu(species0) - uhbud(species0))
+      shXpYQ(:) = 0.5_dp * vecXpYq(:) * (uHubbU(species0) - uHubbD(species0))
     end if
 
-    !calculate xpycc
-    !(xpycc)_{mu nu} = 
-    !=  sum_{ia} (X + Y)_{ia} (c(mu,i)c(nu,a) + c(nu,i)c(mu,a))
-    !complexity norb * norb * norb
-    xpycc(:,:) = 0.0_dp
-    xmycc(:,:) = 0.0_dp
-    xpyas(:,:) = 0.0_dp
-    xmyas(:,:) = 0.0_dp   
-
-    !xpycc(mu,nu) = sum_ia (X+Y)_ia c(mu,i) c(nu,a)
-    !xpycc(mu, nu) += sum_ia (X+Y)_ia c(mu,a) c(nu,i)    
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    ! calculate xpycc
+    ! (xpycc)_{mu nu} = sum_{ia} (X + Y)_{ia} (c(mu,i)c(nu,a) + c(nu,i)c(mu,a))
+    ! complexity nOrb * nOrb * nOrb
+    vecXpYcc(:,:) = 0.0_dp
+    vecXmYcc(:,:) = 0.0_dp
+    vecXpYas(:,:) = 0.0_dp
+    vecXmYas(:,:) = 0.0_dp   
+    ! xpycc(mu,nu) = sum_ia (X+Y)_ia c(mu,i) c(nu,a)
+    ! xpycc(mu, nu) += sum_ia (X+Y)_ia c(mu,a) c(nu,i)    
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
-      do nu = 1, norb
-        do mu = 1, norb
-          xpycc(mu,nu) = xpycc(mu,nu) + xpy(ia) *&
-           &( grndEigVecs(mu,i,1)*grndEigVecs(nu,a,1) + grndEigVecs(mu,a,1)*grndEigVecs(nu,i,1) )
-          xmycc(mu,nu) = xmycc(mu,nu) + xmy(ia) *&
-           &( grndEigVecs(mu,i,1)*grndEigVecs(nu,a,1) + grndEigVecs(mu,a,1)*grndEigVecs(nu,i,1) )
-          xpyas(mu,nu) = xpyas(mu,nu) + xpy(ia) * grndEigVecs(mu,i,1) * grndEigVecs(nu,a,1) 
-          xmyas(mu,nu) = xmyas(mu,nu) + xmy(ia) * grndEigVecs(mu,i,1) * grndEigVecs(nu,a,1) 
+      do nu = 1, nOrb
+        do mu = 1, nOrb
+          vecXpYcc(mu, nu) = vecXpYcc(mu, nu) + vecXpY(ia) * &
+              & (grndEigVecs(mu, i, 1) * grndEigVecs(nu, a, 1) + &
+              &  grndEigVecs(mu, a, 1) * grndEigVecs(nu, i, 1))
+          vecXmYcc(mu, nu) = vecXmYcc(mu, nu) + vecXmY(ia) * &
+              & (grndEigVecs(mu, i, 1) * grndEigVecs(nu, a, 1) + &
+              &  grndEigVecs(mu, a, 1) * grndEigVecs(nu, i, 1))
+          vecXpYas(mu, nu) = vecXpYas(mu, nu) + &
+              & vecXpY(ia) * grndEigVecs(mu, i, 1) * grndEigVecs(nu, a, 1)
+          vecXmYas(mu, nu) = vecXmYas(mu, nu) + &
+              & vecXmY(ia) * grndEigVecs(mu, i, 1) * grndEigVecs(nu, a, 1) 
         end do
       end do        
     end do
 
-    !calculate wcc = c_mu,i * W_ij * c_j,nu
-    !We have only W_ab b > a and W_ij j > i:
-    !wcc(m,n) = sum_{pq, p <= q} w_pq (c(mu,p)c(nu,q) + c(nu,p)c(mu,q))
-    !complexity norb * norb * norb
+    ! calculate wcc = c_mu,i * W_ij * c_j,nu
+    ! We have only W_ab b > a and W_ij j > i:
+    !   wcc(m,n) = sum_{pq, p <= q} w_pq (c(mu,p)c(nu,q) + c(nu,p)c(mu,q))
+    ! complexity nOrb * nOrb * nOrb
 
-    !calculate the occ-occ part
-    !BA: Does not the diagonal contain twice as much as needed?
+    ! calculate the occ-occ part
+    ! BA: Does not the diagonal contain twice as much as needed?
     wcc(:,:) = 0.0_dp
-    
-    do ij = 1, nxoo
-      call indxoo(ij, i, j)
-      do mu = 1, norb
-        do nu = 1, norb
-          wcc(mu,nu) = wcc(mu,nu) + woo(ij) *&
-           &( grndEigVecs(mu,i,1)*grndEigVecs(nu,j,1) + grndEigVecs(mu,j,1)*grndEigVecs(nu,i,1) )
+    do ij = 1, nXoo
+      call indXoo(ij, i, j)
+      do mu = 1, nOrb
+        do nu = 1, nOrb
+          wcc(mu, nu) = wcc(mu, nu) + vWoo(ij) * &
+              & (grndEigVecs(mu, i, 1) * grndEigVecs(nu, j, 1) + &
+              &  grndEigVecs(mu, j, 1)*grndEigVecs(nu, i, 1))
         end do
       end do  
     end do
 
-    !calculate the occ-virt part : the same way as for xpycc
-    
-    do ia = 1, nxov
-      call indxov(win, ia, getij, i, a)
+    ! calculate the occ-virt part : the same way as for xpycc
+    do ia = 1, nXov
+      call indXov(win, ia, getIJ, i, a)
       lUpDwn = (win(ia) <= nMatUp)
-      do nu = 1, norb
-        do mu = 1, norb
-          wcc(mu,nu) = wcc(mu,nu) + wov(ia) *&
-           &( grndEigVecs(mu,i,1)*grndEigVecs(nu,a,1) + grndEigVecs(mu,a,1)*grndEigVecs(nu,i,1) )
+      do nu = 1, nOrb
+        do mu = 1, nOrb
+          wcc(mu, nu) = wcc(mu, nu) + vWov(ia) * &
+              & (grndEigVecs(mu, i, 1) * grndEigVecs(nu, a, 1) + &
+              &  grndEigVecs(mu, a, 1) * grndEigVecs(nu, i, 1))
         end do
       end do        
     end do
     
     !calculate the virt - virt part
-    
-    do ab =1, nxvv
-      call indxvv(homo, ab, a, b)
-      do mu = 1, norb
-        do nu = 1, norb
-          wcc(mu,nu) = wcc(mu,nu) + wvv(ab) *&
-           &( grndEigVecs(mu,a,1)*grndEigVecs(nu,b,1) + grndEigVecs(mu,b,1)*grndEigVecs(nu,a,1) )
+    do ab =1, nXvv
+      call indXvv(homo, ab, a, b)
+      do mu = 1, nOrb
+        do nu = 1, nOrb
+          wcc(mu, nu) = wcc(mu, nu) + vWvv(ab) * &
+              & (grndEigVecs(mu, a, 1) * grndEigVecs(nu, b, 1) + &
+              &  grndEigVecs(mu, b, 1) * grndEigVecs(nu, a, 1))
         end do
       end do 
     end do  
 
-    !now calculating the force !
-    !complexity : norb * norb * 3
-
-    call symm( PS, 'R', overlap, pc,       'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm(SPS, 'L', overlap, PS,       'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm( DS, 'R', overlap, deltaRho, 'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm(SDS, 'L', overlap, DS,       'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm( XS, 'R', overlap, xpyas,    'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm(SX,  'L', overlap, xpyas,    'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm(SXS, 'L', overlap, XS,       'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm( YS, 'R', overlap, xmyas,    'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm(SY,  'L', overlap, xmyas,    'U', 1.0_dp, 0.0_dp, norb, norb)
-    call symm(SYS, 'L', overlap, YS,       'U', 1.0_dp, 0.0_dp, norb, norb)
+    ! now calculating the force !
+    ! complexity : nOrb * nOrb * 3
+    call symm(PS, 'R', overlap, pc, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(SPS, 'L', overlap, PS, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(DS, 'R', overlap, deltaRho, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(SDS, 'L', overlap, DS, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(XS, 'R', overlap, vecXpYas, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(SX, 'L', overlap, vecXpYas, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(SXS, 'L', overlap, XS, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(YS, 'R', overlap, vecXmYas, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(SY, 'L', overlap, vecXmYas, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
+    call symm(SYS, 'L', overlap, YS, 'U', 1.0_dp, 0.0_dp, nOrb, nOrb)
 
     !BA: only for non-periodic systems!
-    do alpha = 1, nbeweg
+    do alpha = 1, nBeweg
       ! TOMAS KUBAR MODIFIED
-      !indalpha = iAtomStart(alpha) + 1
-      !indalpha1 = iAtomStart(alpha + 1) 
-      indalpha = iAtomStart(alpha)
-      indalpha1 = iAtomStart(alpha + 1) - 1
-      izpalpha = species0(alpha)
+     !indAlpha = iAtomStart(alpha) + 1
+     !indAlpha1 = iAtomStart(alpha + 1) 
+      indAlpha = iAtomStart(alpha)
+      indAlpha1 = iAtomStart(alpha + 1) - 1
+      izpAlpha = species0(alpha)
       do beta = 1, alpha - 1
         ! TOMAS KUBAR MODIFIED
-        !indbeta = iAtomStart(beta) + 1
-        !indbeta1 = iAtomStart(beta + 1) 
-        indbeta = iAtomStart(beta)
-        indbeta1 = iAtomStart(beta + 1) - 1
-        izpbeta = species0(beta)
+       !indBeta = iAtomStart(beta) + 1
+       !indBeta1 = iAtomStart(beta + 1) 
+        indBeta = iAtomStart(beta)
+        indBeta1 = iAtomStart(beta + 1) - 1
+        izpBeta = species0(beta)
         diffvec = coord0(:,alpha) - coord0(:,beta)
         rab = sqrt(sum(diffvec**2))
-        !Note: Here dgamma/dr * 1/r is needed as returned by old gam121
-        tmp1 = (-1.0_dp / rab**2&
-            & - expGammaPrime(rab, uhubb(izpalpha), uhubb(izpbeta)))&
-            & / rab
-        !calculate the derivative of gamma 
+        ! Note: Here dgamma/dr * 1/r is needed as returned by old gam121
+        tmp1 = (-1.0_dp / rab**2 - expGammaPrime(rab, uHubb(izpAlpha), uHubb(izpBeta))) / rab
+        ! calculate the derivative of gamma 
         dgab(:) = diffvec(:) * tmp1
         tmp3a(:) = dgab(:) * (dQ(alpha) * dQAtomEx(beta) + dQAtomEx(alpha) * dQ(beta))
-        if (sym == "S") then
-          tmp3b(:) = 4.0_dp * dgab(:) * xpyq(alpha) * xpyq(beta)
+        if (cSym == "S") then
+          tmp3b(:) = 4.0_dp * dgab(:) * vecXpYq(alpha) * vecXpYq(beta)
         else
           tmp3b(:) = 0.0_dp
         end if
-        excgrad(:,alpha) = excgrad(:,alpha) + tmp3a + tmp3b
-        excgrad(:,beta) = excgrad(:,beta) - tmp3a - tmp3b
-        tmp5 = shex(beta) + shex(alpha)
-        tmp7 = 2.0_dp * shxpyq(beta) + 2.0_dp * shxpyq(alpha)
+        excGrad(:,alpha) = excGrad(:,alpha) + tmp3a + tmp3b
+        excGrad(:,beta) = excGrad(:,beta) - tmp3a - tmp3b
+        tmp5 = shEx(beta) + shEx(alpha)
+        tmp7 = 2.0_dp * shXpYQ(beta) + 2.0_dp * shXpYQ(alpha)
 
         tmprs = 0.0_dp
-        do mu = indalpha, indalpha1
-            do nu = indbeta, indbeta1
-               tmprs  = tmprs +           &
-                          &   ( 2.0_dp*(PS(mu,nu)*DS(nu,mu) + PS(nu,mu)*DS(mu,nu))      + &
-                          &     SPS(mu,nu)*deltaRho(mu,nu) + SPS(nu,mu)*deltaRho(nu,mu) + &
-                          &     pc(mu,nu)*SDS(mu,nu) + pc(nu,mu)*SDS(nu,mu)             )
-               tmprs  = tmprs +  2.0_dp * &
-                          &   ( xpyas(mu,nu)*SXS(mu,nu) + xpyas(nu,mu)*SXS(nu,mu)       + &
-                          &     SX(mu,nu)*XS(mu,nu) + SX(nu,mu)*XS(nu,mu)               ) 
-               tmprs  = tmprs +           &
-                          &   ( XS(mu,nu)*XS(nu,mu) + XS(nu,mu)*XS(mu,nu)               + &
-                          &     SXS(mu,nu)*xpyas(nu,mu) + SXS(nu,mu)*xpyas(mu,nu)       + &
-                          &     xpyas(mu,nu)*SXS(nu,mu) + xpyas(nu,mu)*SXS(mu,nu)       + &
-                          &     SX(mu,nu)*SX(nu,mu) + SX(nu,mu)*SX(mu,nu)               ) 
-               tmprs  = tmprs +  2.0_dp * &
-                          &   ( xmyas(mu,nu)*SYS(mu,nu) + xmyas(nu,mu)*SYS(nu,mu)       + &
-                          &     SY(mu,nu)*YS(mu,nu) + SY(nu,mu)*YS(nu,mu)               )
-               tmprs  = tmprs -           &
-                          &   ( YS(mu,nu)*YS(nu,mu) + YS(nu,mu)*YS(mu,nu)               + &
-                          &     SYS(mu,nu)*xmyas(nu,mu) + SYS(nu,mu)*xmyas(mu,nu)       + &
-                          &     xmyas(mu,nu)*SYS(nu,mu) + xmyas(nu,mu)*SYS(mu,nu)       + &
-                          &     SY(mu,nu)*SY(nu,mu) + SY(nu,mu)*SY(mu,nu) )                  
-            enddo 
-        enddo
+        do mu = indAlpha, indAlpha1
+          do nu = indBeta, indBeta1
+            tmprs = tmprs + &
+                & (2.0_dp * (PS(mu,nu) * DS(nu,mu) + PS(nu,mu) * DS(mu,nu)) + &
+                &   SPS(mu,nu) * deltaRho(mu,nu) + SPS(nu,mu) * deltaRho(nu,mu) + &
+                &   pc(mu,nu) * SDS(mu,nu) + pc(nu,mu) * SDS(nu,mu))
+            tmprs = tmprs + 2.0_dp * &
+                & (vecXpYas(mu,nu) * SXS(mu,nu) + vecXpYas(nu,mu) * SXS(nu,mu) + &
+                &   SX(mu,nu) * XS(mu,nu) + SX(nu,mu) * XS(nu,mu)) 
+            tmprs = tmprs + &
+                & (XS(mu,nu) * XS(nu,mu) + XS(nu,mu) * XS(mu,nu) + &
+                &   SXS(mu,nu) * vecXpYas(nu,mu) + SXS(nu,mu) * vecXpYas(mu,nu) + &
+                &   vecXpYas(mu,nu) * SXS(nu,mu) + vecXpYas(nu,mu) * SXS(mu,nu) + &
+                &   SX(mu,nu) * SX(nu,mu) + SX(nu,mu) * SX(mu,nu)) 
+            tmprs = tmprs + 2.0_dp * &
+                & (vecXmYas(mu,nu) * SYS(mu,nu) + vecXmYas(nu,mu) * SYS(nu,mu) + &
+                &   SY(mu,nu) * YS(mu,nu) + SY(nu,mu) * YS(nu,mu))
+            tmprs = tmprs - &
+                & (YS(mu,nu) * YS(nu,mu) + YS(nu,mu) * YS(mu,nu) + &
+                &   SYS(mu,nu) * vecXmYas(nu,mu) + SYS(nu,mu) * vecXmYas(mu,nu) + &
+                &   vecXmYas(mu,nu) * SYS(nu,mu) + vecXmYas(nu,mu) * SYS(mu,nu) + &
+                &   SY(mu,nu) * SY(nu,mu) + SY(nu,mu) * SY(mu,nu))                  
+          end do 
+        end do
 
-        excgrad(:,alpha) = excgrad(:,alpha) - 0.125_dp * tmprs * gammaLongRangePrime(:,alpha,beta)
-        excgrad(:,beta)  = excgrad(:,beta)  + 0.125_dp * tmprs * gammaLongRangePrime(:,alpha,beta)
+        excGrad(:,alpha) = excGrad(:,alpha) - 0.125_dp * tmprs * gammaLongRangePrime(:,alpha,beta)
+        excGrad(:,beta) = excGrad(:,beta) + 0.125_dp * tmprs * gammaLongRangePrime(:,alpha,beta)
 
         call derivator%getFirstDeriv(derH0, skHamCont, coord0, species0, alpha, beta, orb)
         call derivator%getFirstDeriv(derS, skOverCont, coord0, species0, alpha, beta, orb)
 
         do xyz = 1, 3
-
           tmp1 = 0.0_dp
           tmp2 = 0.0_dp
           tmp3 = 0.0_dp
           tmp4 = 0.0_dp
           tmp6 = 0.0_dp
           tmprs2 = 0.0_dp
-          do mu = indalpha, indalpha1
-            do nu = indbeta, indbeta1
-              m = mu - indalpha + 1
-              n = nu - indbeta + 1
+          do mu = indAlpha, indAlpha1
+            do nu = indBeta, indBeta1
+              m = mu - indAlpha + 1
+              n = nu - indBeta + 1
 
-              dhmndr = derH0(n,m,xyz)
-              dsmndr = derS(n,m,xyz)
+              dHMNdR = derH0(n,m,xyz)
+              dSMNdR = derS(n,m,xyz)
 
-              tmp1 = tmp1 + 2.0_dp * dhmndr * pc(mu,nu)
-              tmp2 = tmp2 + dsmndr * pc(mu,nu) *&
-                  & (shift(alpha) + shift(beta))
-              tmp3 = tmp3 - dsmndr * wcc(mu,nu)
-              tmp4 = tmp4 + tmp5 * dsmndr * dmn(mu,nu)
-              tmp6 = tmp6 + tmp7 * dsmndr * xpycc(mu,nu)
+              tmp1 = tmp1 + 2.0_dp * dHMNdR * pc(mu,nu)
+              tmp2 = tmp2 + dSMNdR * pc(mu,nu) * (shift(alpha) + shift(beta))
+              tmp3 = tmp3 - dSMNdR * wcc(mu,nu)
+              tmp4 = tmp4 + tmp5 * dSMNdR * dmn(mu,nu)
+              tmp6 = tmp6 + tmp7 * dSMNdR * vecXpYcc(mu,nu)
 
               tmprs = 0.0_dp
-              do ka = 1, norb
-                 tmprs = tmprs +   &
-                      &  ( PS(mu,ka)*deltaRho(nu,ka) + PS(nu,ka)*deltaRho(mu,ka)   + &
-                      &    pc(mu,ka)*DS(nu,ka) + pc(nu,ka)*DS(mu,ka)             ) * &
-                      &             (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) 
-                 tmprs = tmprs +   &
-                      &  ( xpyas(mu,ka)*XS(nu,ka) + xpyas(ka,mu)*SX(ka,nu)         + &
-                      &    xpyas(nu,ka)*XS(mu,ka) + xpyas(ka,nu)*SX(ka,mu)       ) * &
-                      &             (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) 
-                 tmprs = tmprs +   &
-                      &  ( xmyas(mu,ka)*YS(nu,ka) + xmyas(ka,mu)*SY(ka,nu)         + &
-                      &    xmyas(nu,ka)*YS(mu,ka) + xmyas(ka,nu)*SY(ka,mu)       ) * &
-                      &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))     
-                 tmprs = tmprs +   &
-                      &  ( XS(mu,ka)*xpyas(ka,nu) + XS(nu,ka)*xpyas(ka,mu)         + &
-                      &    xpyas(mu,ka)*SX(ka,nu) + xpyas(nu,ka)*SX(ka,mu)       ) * &
-                      &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) 
-                 tmprs = tmprs -   &
-                      &  ( YS(mu,ka)*xmyas(ka,nu) + YS(nu,ka)*xmyas(ka,mu)         + &
-                      &    xmyas(mu,ka)*SY(ka,nu) + xmyas(nu,ka)*SY(ka,mu)       ) * &
-                      &  (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) 
-              enddo  
-              tmprs2 = tmprs2 + dsmndr * tmprs 
+              do ka = 1, nOrb
+                tmprs = tmprs + &
+                    & (PS(mu,ka) * deltaRho(nu,ka) + PS(nu,ka) * deltaRho(mu,ka) + &
+                    &  pc(mu,ka) * DS(nu,ka) + pc(nu,ka) * DS(mu,ka)) * &
+                    & (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) 
+                tmprs = tmprs + &
+                    & (vecXpYas(mu,ka) * XS(nu,ka) + vecXpYas(ka,mu) * SX(ka,nu) + &
+                    &  vecXpYas(nu,ka) * XS(mu,ka) + vecXpYas(ka,nu) * SX(ka,mu)) * &
+                    & (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) 
+                tmprs = tmprs + &
+                    & (vecXmYas(mu,ka) * YS(nu,ka) + vecXmYas(ka,mu) * SY(ka,nu) + &
+                    &  vecXmYas(nu,ka) * YS(mu,ka) + vecXmYas(ka,nu) * SY(ka,mu)) * &
+                    & (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka))     
+                tmprs = tmprs + &
+                    & (XS(mu,ka) * vecXpYas(ka,nu) + XS(nu,ka) * vecXpYas(ka,mu) + &
+                    &  vecXpYas(mu,ka) * SX(ka,nu) + vecXpYas(nu,ka) * SX(ka,mu)) * &
+                    & (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) 
+                tmprs = tmprs - &
+                    & (YS(mu,ka) * vecXmYas(ka,nu) + YS(nu,ka) * vecXmYas(ka,mu) + &
+                    &  vecXmYas(mu,ka) * SY(ka,nu) + vecXmYas(nu,ka) * SY(ka,mu)) * &
+                    & (lrGammaOrb(mu,ka) + lrGammaOrb(nu,ka)) 
+              end do  
+              tmprs2 = tmprs2 + dSMNdR * tmprs 
             end do
           end do
 
-          excgrad(xyz,alpha) = excgrad(xyz,alpha) + tmp1 + tmp2 + tmp4 + tmp6 + tmp3 - 0.25_dp * tmprs2
-          excgrad(xyz,beta)  = excgrad(xyz,beta)  - tmp1 - tmp2 - tmp4 - tmp6 - tmp3 + 0.25_dp * tmprs2
+          excGrad(xyz,alpha) = excGrad(xyz,alpha) + tmp1 + tmp2 + tmp4 + tmp6 + tmp3 - 0.25_dp * tmprs2
+          excGrad(xyz,beta) = excGrad(xyz,beta) - tmp1 - tmp2 - tmp4 - tmp6 - tmp3 + 0.25_dp * tmprs2
         end do
       end do
     end do
 
-    deallocate(shex)
-    deallocate(xpyq)
-    deallocate(shxpyq)
+    deallocate(shEx)
+    deallocate(vecXpYq)
+    deallocate(shXpYQ)
     deallocate(wcc)
-    deallocate(qij)
+    deallocate(qIJ)
     deallocate(temp)
     deallocate(dmn)
 
-    deallocate(xpycc)
-    deallocate(xmycc)
-    deallocate(xpyas)
-    deallocate(xmyas)
+    deallocate(vecXpYcc)
+    deallocate(vecXmYcc)
+    deallocate(vecXpYas)
+    deallocate(vecXmYas)
     deallocate(gammaLongRangePrime)
     deallocate(overlap)
     deallocate(lrGammaOrb)
@@ -2959,40 +2868,40 @@ contains
     deallocate(YS)
     deallocate(SYS)
 
-  end subroutine addGradients_rs
+  end subroutine addGradientsRS
 
 
   ! Calculate oscillator strength for a given excitation range sep version
-  subroutine getOscillatorStrengths_rs(sym, snglPartTransDip, eval, xpy, occNr,&
-      & istat, oscStrength, tTradip, transDip)
+  subroutine getOscillatorStrengthsRS(cSym, snglPartTransDip, eval, vecXpY, occNr, &
+      & istat, oscStrength, tTraDip, transDip)
     implicit none
-    character, intent(in) :: sym
-    real(dp), intent(in) :: snglPartTransDip(:,:), eval(:), xpy(:,:)
+    character, intent(in) :: cSym
+    real(dp), intent(in) :: snglPartTransDip(:,:), eval(:), vecXpY(:,:)
     real(dp), intent(in) :: occNr(:,:)
-    logical :: tTradip
+    logical :: tTraDip
     integer, intent(inout) :: istat
     real(dp), intent(out) :: oscStrength(:), transDip(:,:)
 
-    integer :: ii, nmat
+    integer :: ii, nMat
     real(dp) :: oscStrength0
     logical :: spin
     
-    nmat = size(xpy, dim=1)
+    nMat = size(vecXpY, dim=1)
     spin = .false. 
     if (size(occNr, dim=2) == 2) spin = .true. 
 
     ! Triplet oscillator strength and transition dipole is zero
-    if ((.not. spin) .and. (sym == "T")) then
+    if ((.not. spin) .and. (cSym == "T")) then
       oscStrength = 0.0_dp
-      if (tTradip) transDip(:,:) = 0.0_dp
+      if (tTraDip) transDip(:,:) = 0.0_dp
       return
     end if
 
-    do ii = 1, size(xpy, dim=2)
-      oscStrength(ii) = oscillatorStrength_rs(snglPartTransDip, sqrt(eval(ii)), xpy(:,ii))
+    do ii = 1, size(vecXpY, dim=2)
+      oscStrength(ii) = oscillatorStrengthRS(snglPartTransDip, sqrt(eval(ii)), vecXpY(:,ii))
     end do
     
-    if (tTradip) call transitionDipole_rs(snglPartTransDip, xpy, transDip)
+    if (tTraDip) call transitionDipoleRS(snglPartTransDip, vecXpY, transDip)
 
     if (istat < 0) then
       istat = 1
@@ -3007,9 +2916,9 @@ contains
     
   contains
     
-    pure function oscillatorStrength_rs(snglPartTransDip, omega, xpy) result(oscStrength)
-     implicit none
-      real(dp), intent(in) :: snglPartTransDip(:,:), omega, xpy(:)
+    pure function oscillatorStrengthRS(snglPartTransDip, omega, vecXpY) result(oscStrength)
+      implicit none
+      real(dp), intent(in) :: snglPartTransDip(:,:), omega, vecXpY(:)
       real(dp) :: oscStrength
       
       real(dp) :: rtmp
@@ -3017,455 +2926,456 @@ contains
       
       oscStrength = 0.0_dp
       do ii = 1, 3
-        rtmp = sum(snglPartTransDip(:,ii) * xpy)
+        rtmp = sum(snglPartTransDip(:,ii) * vecXpY)
         oscStrength = oscStrength + rtmp * rtmp
       end do
       oscStrength = twothird * 2.0_dp * omega * oscStrength
       
-    end function oscillatorStrength_rs
+    end function oscillatorStrengthRS
     
-    pure subroutine transitionDipole_rs(snglPartTransDip, xpy, transDip) 
+    pure subroutine transitionDipoleRS(snglPartTransDip, vecXpY, transDip) 
       implicit none
-      real(dp), intent(in) :: snglPartTransDip(:,:), xpy(:,:)
+      real(dp), intent(in) :: snglPartTransDip(:,:), vecXpY(:,:)
       real(dp), intent(out) :: transDip(:,:)
       
       integer :: ii, ll
       
       transDip(:,:) = 0.0_dp
-      do ii = 1, size(xpy, dim=2)
+      do ii = 1, size(vecXpY, dim=2)
         do ll = 1, 3
-          transDip(ii,ll) = sum(snglPartTransDip(:,ll) * sqrt(2.0_dp) * xpy(:,ii))
-        enddo
+          transDip(ii,ll) = sum(snglPartTransDip(:,ll) * sqrt(2.0_dp) * vecXpY(:,ii))
+        end do
       end do
       
-    end subroutine transitionDipole_rs
+    end subroutine transitionDipoleRS
     
-  end subroutine getOscillatorStrengths_rs
+  end subroutine getOscillatorStrengthsRS
 
 
   !> Calculate transition charges for a given excitation
   !> (assumes singlet excitation for now, should set result to 0 for triplets)
-  subroutine transitionCharges_rs(xpy, tqov, atomicTransQ)
-    real(dp), intent(in) :: xpy(:), tqov(:,:)
+  subroutine transitionChargesRS(vecXpY, tQov, atomicTransQ)
+    real(dp), intent(in) :: vecXpY(:), tQov(:,:)
     real(dp), intent(out) :: atomicTransQ(:)
     real(dp) :: prefactor 
 
-    prefactor = sqrt(2.0_dp) !Check sqrt(2.0) !-> should be fine
-    atomicTransQ(:) = prefactor * matmul(tqov, xpy) 
+    prefactor = sqrt(2.0_dp) ! Check sqrt(2.0) !-> should be fine
+    atomicTransQ(:) = prefactor * matmul(tQov, vecXpY) 
 
-  end subroutine transitionCharges_rs
+  end subroutine transitionChargesRS
 
 
-!subroutine getSqrS(coord, natom, skOverCont, interSKOver, orb, iAtomStart, species0, S)
-subroutine getSqrS(coord, natom, skOverCont, orb, iAtomStart, species0, S)
-  real(dp), intent(in) :: coord(:,:)
-  integer,intent(in) :: natom, iAtomStart(:), species0(:)
-  type(OSlakoCont), intent(in) :: skOverCont
-  type(TOrbitals), intent(in) :: orb
-  real(dp), intent(out) :: S(:,:)
-
- !real(dp) :: interSKOver(:)
-  real(dp) :: SBlock(9,9)
-  integer :: iAt1, iAt2, mu, nu, m, n
+  !subroutine getSqrS(coord, nAtom, skOverCont, interSKOver, orb, iAtomStart, species0, S)
+  subroutine getSqrS(coord, nAtom, skOverCont, orb, iAtomStart, species0, S)
+    real(dp), intent(in) :: coord(:,:)
+    integer,intent(in) :: nAtom, iAtomStart(:), species0(:)
+    type(OSlakoCont), intent(in) :: skOverCont
+    type(TOrbitals), intent(in) :: orb
+    real(dp), intent(out) :: S(:,:)
   
-  S(:,:) = 0.0_dp
+   !real(dp) :: interSKOver(:)
+    real(dp) :: SBlock(9,9)
+    integer :: iAt1, iAt2, mu, nu, m, n
+    
+    S(:,:) = 0.0_dp
 
-  do iAt1 = 1, natom
-     do iAt2 = 1, iAt1-1  
+    do iAt1 = 1, nAtom
+      do iAt2 = 1, iAt1-1  
            
-        call getSOffsite(coord(:,iAt1), coord(:,iAt2), species0(iAt1), species0(iAt2),&
-            & orb, skOverCont, SBlock)
-           !& orb, skOverCont, SBlock, interSKOver)
+        call getSOffsite(coord(:,iAt1), coord(:,iAt2), species0(iAt1), species0(iAt2), orb, &
+            & skOverCont, SBlock) !, interSKOver)
         
-        do mu = iAtomStart(iAt1), iAtomStart(iAt1+1)-1
-           m = mu - iAtomStart(iAt1) + 1
-           do nu = iAtomStart(iAt2), iAtomStart(iAt2+1)-1
-              n = nu - iAtomStart(iAt2) + 1
-              S(mu,nu) = SBlock(n,m) 
-              S(nu,mu) = S(mu,nu)
-           end do
+        do mu = iAtomStart(iAt1), iAtomStart(iAt1+1) - 1
+          m = mu - iAtomStart(iAt1) + 1
+          do nu = iAtomStart(iAt2), iAtomStart(iAt2+1) - 1
+            n = nu - iAtomStart(iAt2) + 1
+            S(mu,nu) = SBlock(n,m) 
+            S(nu,mu) = S(mu,nu)
+          end do
         end do
 
-     end do
-  end do
+      end do
+    end do
 
-  do mu = 1, size(S,dim=1)
-     S(mu,mu) = 1.0_dp !Diagonal entries
-  end do
-
-end subroutine getSqrS
-
-
-subroutine getSqrGamma(natom, lrGamma, iAtomStart, lrGammaOrb)
-  implicit none
-  real(dp), intent(in) :: lrGamma(:,:)
-  integer,intent(in) :: natom, iAtomStart(:)
-!Hblock, SBlock pass au, bu
-!Hblock1, SBlock1 pass auh, buh
-  real(dp), intent(out) :: lrGammaOrb(:,:)
-  integer :: at1, at2, mu, nu, indat1, indat1p1, indat2, indat2p1
+    do mu = 1, size(S, dim=1)
+      S(mu,mu) = 1.0_dp !Diagonal entries
+    end do
   
-  lrGammaOrb(:,:) = 0.0_dp
+  end subroutine getSqrS
+  
 
-  do at1 = 1, natom
-     ! TOMAS KUBAR MODIFIED
-     !indat1 = iAtomStart(at1) + 1
-     !indat1p1 =iAtomStart(at1+1)
-     indat1 = iAtomStart(at1)
-     indat1p1 =iAtomStart(at1+1) - 1
-     do at2 = 1, at1
+  subroutine getSqrGamma(nAtom, lrGamma, iAtomStart, lrGammaOrb)
+    implicit none
+    real(dp), intent(in) :: lrGamma(:,:)
+    integer,intent(in) :: nAtom, iAtomStart(:)
+    ! Hblock, SBlock pass au, bu
+    ! Hblock1, SBlock1 pass auh, buh
+    real(dp), intent(out) :: lrGammaOrb(:,:)
+    integer :: at1, at2, mu, nu, indAt1, indAt1p1, indAt2, indAt2p1
+    
+    lrGammaOrb(:,:) = 0.0_dp
+  
+    do at1 = 1, nAtom
+      ! TOMAS KUBAR MODIFIED
+     !indAt1 = iAtomStart(at1) + 1
+     !indAt1p1 =iAtomStart(at1+1)
+      indAt1 = iAtomStart(at1)
+      indAt1p1 = iAtomStart(at1+1) - 1
+      do at2 = 1, at1
         ! TOMAS KUBAR MODIFIED
-        !indat2 = iAtomStart(at2) + 1
-        !indat2p1 = iAtomStart(at2+1)
-        indat2 = iAtomStart(at2)
-        indat2p1 = iAtomStart(at2+1) - 1
-        do mu = indat1, indat1p1
-           do nu = indat2, indat2p1
-              lrGammaOrb(mu,nu) = lrGamma(at1,at2) 
-              lrGammaOrb(nu,mu) = lrGammaOrb(mu,nu)
-           end do
+       !indAt2 = iAtomStart(at2) + 1
+       !indAt2p1 = iAtomStart(at2+1)
+        indAt2 = iAtomStart(at2)
+        indAt2p1 = iAtomStart(at2+1) - 1
+        do mu = indAt1, indAt1p1
+          do nu = indAt2, indAt2p1
+            lrGammaOrb(mu, nu) = lrGamma(at1, at2) 
+            lrGammaOrb(nu, mu) = lrGammaOrb(mu, nu)
+          end do
         end do
-     end do
+      end do
+    end do
+  
+  end subroutine getSqrGamma
+  
+  subroutine getHvvXY(ipm, nXov, nXvv, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+            & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, XorY, vecHvv)
+  implicit none
+  real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), XorY(:)
+  real(dp), intent(out) :: vecHvv(:) 
+  real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
+  integer, intent(in) :: ipm, nXov, nXvv, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
+  integer, intent(in) :: iaTrans(1:,homo+1:), getIJ(:,:)
+  
+  integer :: i, a, b, ia, ib, ab, nXovAct, nOcc, nVirt
+  logical :: lUpDwn
+  
+  nVirt = 0
+  do while (nVirt*(nVirt+1)/2 < nXvv)
+    nVirt = nVirt + 1
+  end do
+  nOcc = nOrb - nVirt
+  
+  nXovAct = nOcc * nVirt
+  
+  allocate(qIJ(nAtom))
+  allocate(gqIJ(nAtom))
+  allocate(qX(nAtom, nXovAct)) ! size(XorY))) ! allocate(qX(nAtom, nXov))
+  allocate(Gq(nAtom, nXovAct)) ! size(XorY))) ! allocate(Gq(nAtom, nXov))
+
+  qX(:,:) = 0.0_dp
+  do ia = 1, nXovAct ! size(XorY) ! nXov
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    do b = homo + 1, nOrb
+      ib = iaTrans(i, b)
+      if (ib <= nXov) then ! TOMAS KUBAR ADDED
+        lUpDwn = .true.
+        qIJ = transQ(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        qX(:,ia) = qX(:,ia) + qIJ(:)*XorY(ib)
+      end if
+    end do
   end do
 
-end subroutine getSqrGamma
+  Gq(:,:)  = 0.0_dp
+  do ia = 1, nXovAct ! size(XorY)
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+    Gq(:,ia) = gqIJ(:)
+  end do   
+  
+  vecHvv(:) = 0.0_dp
+  do ab = 1, nXvv
+    call indXvv(homo, ab, a, b)
+    do i = 1, homo
+      ia = iaTrans(i, a)
+      ib = iaTrans(i, b)
+     !if ((ia <= nXov) .and. (ib <= nXov)) then ! TOMAS KUBAR ADDED
+      vecHvv(ab) = vecHvv(ab) - ipm * &
+          & (dot_product(qX(:,ia), Gq(:,ib)) + ipm * dot_product(Gq(:,ia), qX(:,ib)))
+     !end if
+    end do
+  end do
 
-subroutine GetHvvXY(ipm, nxov, nxvv, norb, homo, natom, nMatUp, iatrans, getij, win, &
-          & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, XorY, Hvv)
-implicit none
-real(dp), intent(in)  :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), XorY(:)
-real(dp), intent(out) :: Hvv(:) 
-real(dp), allocatable :: qij(:), gqij(:), qX(:,:), Gq(:,:)
-integer, intent(in)   :: ipm, nxov, nxvv, norb, homo, natom, nMatUp, win(:), iAtomStart(:)
-integer, intent(in)   :: iatrans(1:,homo+1:), getij(:,:)
-
-integer               :: i, a, b, ia, ib, ab, nxov_act, nocc, nvirt
-logical               :: lUpDwn
-
-nvirt = 0
-do while (nvirt*(nvirt+1)/2 < nxvv)
-  nvirt = nvirt + 1
-end do
-nocc = norb - nvirt
-
-nxov_act = nocc * nvirt
-
-allocate(qij(natom))
-allocate(gqij(natom))
-allocate(qX(natom, nxov_act)) ! size(XorY))) ! allocate(qX(natom, nxov))
-allocate(Gq(natom, nxov_act)) ! size(XorY))) ! allocate(Gq(natom, nxov))
-
-qX(:,:) = 0.0_dp
-do ia = 1, nxov_act ! size(XorY) ! nxov
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   do b = homo + 1, norb
-      ib = iatrans(i, b)
-      if (ib <= nxov) then ! TOMAS KUBAR ADDED
-         lUpDwn = .true.
-         qij = transq(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-         qX(:,ia) = qX(:,ia) + qij(:)*XorY(ib)
+  deallocate(qIJ)
+  deallocate(gqIJ)
+  deallocate(qX)
+  deallocate(Gq)
+  
+  end subroutine getHvvXY
+  
+  subroutine getHooXY(ipm,& !nOcc,
+      & nXov, nXoo, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+      & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, XorY, vecHoo)
+  implicit none
+  real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), XorY(:)
+  integer, intent(in) :: ipm, nXov, nXoo, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:) !, nOcc
+  integer, intent(in) :: iaTrans(1:,homo+1:), getIJ(:,:)
+  real(dp), intent(out) :: vecHoo(:) 
+  
+  real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
+  integer :: i, a, j, ia, ja, ij, nXovAct, nOcc, nVirt
+  logical :: lUpDwn
+  
+  nOcc = 0
+  do while (nOcc*(nOcc+1)/2 < nXoo)
+    nOcc = nOcc + 1
+  end do
+  nVirt = nOrb - nOcc
+  
+  nXovAct = nOcc * nVirt
+  
+  allocate(qIJ(nAtom))
+  allocate(gqIJ(nAtom))
+  allocate(qX(nAtom, nXovAct)) ! size(XorY))) ! allocate(qX(nAtom, nXov))
+  allocate(Gq(nAtom, nXovAct)) ! size(XorY))) ! allocate(Gq(nAtom, nXov))
+  
+  qX(:,:) = 0.0_dp
+  do ia = 1, nXovAct ! size(XorY) ! nXov
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    do j = 1, homo
+      ja = iaTrans(j, a)
+      if (ja <= nXov) then ! TOMAS KUBAR ADDED
+        lUpDwn = .true.
+        qIJ = transQ(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+        qX(:,ia) = qX(:,ia) + qIJ(:)*XorY(ja)
       end if
-   enddo
-enddo
+    end do
+  end do
+  
+  Gq(:,:)  = 0.0_dp
+  do ia = 1, nXovAct ! size(XorY) ! nXov
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+    Gq(:,ia) = gqIJ(:)
+  end do   
 
-Gq(:,:)  = 0.0_dp
-do ia = 1, nxov_act ! size(XorY)
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   qij = transq(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-   call dsymv('U', natom, 1.0_dp, lrGamma, natom, qij, 1, 0.0_dp, gqij, 1)
-   Gq(:,ia) = gqij(:)
-enddo   
-
-Hvv(:) = 0.0_dp
-do ab = 1, nxvv
-   call indxvv(homo, ab, a, b)
-   do i = 1, homo
-      ia = iatrans(i, a)
-      ib = iatrans(i, b)
-     !if ((ia <= nxov) .and. (ib <= nxov)) then ! TOMAS KUBAR ADDED
-         Hvv(ab) = Hvv(ab) - ipm * ( dot_product(qX(:,ia), Gq(:,ib)) + ipm * dot_product(Gq(:,ia), qX(:,ib)) )  
+  vecHoo(:) = 0.0_dp
+  do ij = 1, nXoo
+    call indXoo(ij, i, j)
+    do a = homo + 1, nOrb
+      ia = iaTrans(i, a)
+      ja = iaTrans(j, a)
+     !if ((ia <= nXov) .and. (ja <= nXov)) then ! TOMAS KUBAR ADDED
+      vecHoo(ij) = vecHoo(ij) - ipm * &
+          & (dot_product(qX(:,ia), Gq(:,ja)) + ipm * dot_product(Gq(:,ia), qX(:,ja)))  
      !end if
-   enddo
-enddo
+    end do
+  end do
+  
+  deallocate(qIJ)
+  deallocate(gqIJ)
+  deallocate(qX)
+  deallocate(Gq)
+  
+  end subroutine getHooXY
+  
+  subroutine getHovT(nOcc, nXov, nXoo, nXvv, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+      & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHov)
+  implicit none
+  real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), t(:,:)
+  integer, intent(in) :: nOcc, nXov, nXoo, nXvv, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
+  integer, intent(in) :: iaTrans(1:,homo+1:), getIJ(:,:)
+  real(dp), intent(out) :: vecHov(:) 
 
-deallocate(qij)
-deallocate(gqij)
-deallocate(qX)
-deallocate(Gq)
-
-end subroutine GetHvvXY
-
-subroutine GetHooXY(ipm,& !nocc,
-          & nxov, nxoo, norb, homo, natom, nMatUp, iatrans, getij, win, &
-          & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, XorY, Hoo)
-implicit none
-real(dp), intent(in)  :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), XorY(:)
-integer, intent(in)   :: ipm, nxov, nxoo, norb, homo, natom, nMatUp, win(:), iAtomStart(:) !, nocc
-integer, intent(in)   :: iatrans(1:,homo+1:), getij(:,:)
-real(dp), intent(out) :: Hoo(:) 
-
-real(dp), allocatable :: qij(:), gqij(:), qX(:,:), Gq(:,:)
-integer               :: i, a, j, ia, ja, ij, nxov_act, nocc, nvirt
-logical               :: lUpDwn
-
-nocc = 0
-do while (nocc*(nocc+1)/2 < nxoo)
-  nocc = nocc + 1
-end do
-nvirt = norb - nocc
-
-nxov_act = nocc * nvirt
-
-allocate(qij(natom))
-allocate(gqij(natom))
-allocate(qX(natom, nxov_act)) ! size(XorY))) ! allocate(qX(natom, nxov))
-allocate(Gq(natom, nxov_act)) ! size(XorY))) ! allocate(Gq(natom, nxov))
-
-qX(:,:) = 0.0_dp
-do ia = 1, nxov_act ! size(XorY) ! nxov
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   do j = 1, homo
-      ja = iatrans(j, a)
-      if (ja <= nxov) then ! TOMAS KUBAR ADDED
-         lUpDwn = .true.
-         qij = transq(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-         qX(:,ia) = qX(:,ia) + qij(:)*XorY(ja)
-      end if
-   enddo
-enddo
-
-Gq(:,:)  = 0.0_dp
-do ia = 1, nxov_act ! size(XorY) ! nxov
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   qij = transq(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-   call dsymv('U', natom, 1.0_dp, lrGamma, natom, qij, 1, 0.0_dp, gqij, 1)
-   Gq(:,ia) = gqij(:)
-enddo   
-
-Hoo(:) = 0.0_dp
-do ij = 1, nxoo
-   call indxoo(ij, i, j)
-   do a = homo + 1, norb
-      ia = iatrans(i, a)
-      ja = iatrans(j, a)
-     !if ((ia <= nxov) .and. (ja <= nxov)) then ! TOMAS KUBAR ADDED
-         Hoo(ij) = Hoo(ij) - ipm * ( dot_product(qX(:,ia), Gq(:,ja)) + ipm * dot_product(Gq(:,ia), qX(:,ja)) )  
+  real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), Gq(:,:)
+  integer :: i, a, b, j, ia, ib, ab, ja, ij
+  logical :: lUpDwn
+  
+  allocate(qIJ(nAtom))
+  allocate(gqIJ(nAtom))
+  allocate(qX(nAtom, nOcc*(nOrb-nOcc))) ! allocate(qX(nAtom, nXov))
+  allocate(Gq(nAtom, max(nXoo,nXvv)))
+  
+  qX(:,:) = 0.0_dp
+  do ia = 1, nOcc*(nOrb-nOcc) ! nXov
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    do b = homo + 1, nOrb
+      ! TOMAS KUBAR -- SHOULD THE FOLLOWING BE if (iaTrans(i, b) <= nXov) then ???
+     !if (iaTrans(i,b) <= nXov) then
+      lUpDwn = (win(iaTrans(i, b)) <= nMatUp) ! UNTESTED
+      qIJ = transQ(i, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      qX(:,ia) = qX(:,ia) + qIJ(:)*t(a,b)
      !end if
-   enddo
-enddo
+    end do
+  end do
 
-deallocate(qij)
-deallocate(gqij)
-deallocate(qX)
-deallocate(Gq)
-
-end subroutine GetHooXY
-
-subroutine GetHovT(nocc, nxov, nxoo, nxvv, norb, homo, natom, nMatUp, iatrans, getij, win, &
-          & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, Hov)
-implicit none
-real(dp), intent(in)  :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), t(:,:)
-integer, intent(in)   :: nocc, nxov, nxoo, nxvv, norb, homo, natom, nMatUp, win(:), iAtomStart(:)
-integer, intent(in)   :: iatrans(1:,homo+1:), getij(:,:)
-real(dp), intent(out) :: Hov(:) 
-
-real(dp), allocatable :: qij(:), gqij(:), qX(:,:), Gq(:,:)
-integer               :: i, a, b, j, ia, ib, ab, ja, ij
-logical               :: lUpDwn
-
-allocate(qij(natom))
-allocate(gqij(natom))
-allocate(qX(natom, nocc*(norb-nocc))) ! allocate(qX(natom, nxov))
-allocate(Gq(natom, max(nxoo,nxvv)))
-
-qX(:,:) = 0.0_dp
-do ia = 1, nocc*(norb-nocc) ! nxov
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   do b = homo + 1, norb
-      ! TOMAS KUBAR -- SHOULD THE FOLLOWING BE if (iatrans(i, b) <= nxov) then ???
-     !if (iatrans(i,b) <= nxov) then
-         lUpDwn = (win(iatrans(i, b)) <= nMatUp) ! UNTESTED
-         qij = transq(i, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-         qX(:,ia) = qX(:,ia) + qij(:)*t(a,b)
-     !end if
-   enddo
-enddo
-
-Gq(:,:)  = 0.0_dp
-do ab = 1, nxvv
-   call indxvv(homo, ab, a, b) 
-   lUpDwn = .true.
-   qij = transq(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-   call dsymv('U', natom, 1.0_dp, lrGamma, natom, qij, 1, 0.0_dp, gqij, 1)
-   Gq(:,ab) = gqij(:)
-enddo   
-
-Hov(:) = 0.0_dp
-do ia = 1, nxov ! nocc*(norb-nocc)
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   do b = homo + 1, norb
-      ib = iatrans(i, b)
-     !if (ib <= nxov) then ! TOMAS KUBAR ADDED
-         ! TOMAS KUBAR -- CORRECTED:
-         !call rindxvv(nocc, a, b, ab)
-         if (b < a) then
-            call rindxvv(homo, a, b, ab)
-         else
-            call rindxvv(homo, b, a, ab)
-         end if
-         Hov(ia) = Hov(ia) - 2.0_dp * dot_product(qX(:,ib), Gq(:,ab)) 
-     !end if
-   enddo
-enddo
-
-qX(:,:) = 0.0_dp
-do ia = 1, nocc*(norb-nocc) ! nxov
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   do j = 1, homo
-      ! TOMAS KUBAR -- SHOULD THE FOLLOWING BE if (iatrans(j, a) <= nxov) then ???
-     !if (iatrans(j,a) <= nxov) then
-         lUpDwn = (win(iatrans(j, a)) <= nMatUp) ! UNTESTED
-         qij = transq(j, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-         qX(:,ia) = qX(:,ia) + qij(:)*t(i,j)
-     !end if
-   enddo
-enddo
-
-Gq(:,:)  = 0.0_dp
-do ij = 1, nxoo
-   call indxoo(ij, i, j)
-   lUpDwn = .true.
-   qij = transq(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-   call dsymv('U', natom, 1.0_dp, lrGamma, natom, qij, 1, 0.0_dp, gqij, 1)
-   Gq(:,ij) = gqij(:)
-enddo   
-
-do ia = 1, nxov ! nocc*(norb-nocc)
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   do j = 1, homo
-      ja = iatrans(j, a)
-     !if (ja <= nxov) then ! TOMAS KUBAR ADDED
-        !call rindxoo(homo, nocc, i, j, ij)
-         if (j < i) then
-            call rindxoo(homo, nocc, i, j, ij)
-         else
-            call rindxoo(homo, nocc, j, i, ij)
-         end if
-         Hov(ia) = Hov(ia) - 2.0_dp * dot_product(qX(:,ja), Gq(:,ij)) 
-     !end if
-   enddo
-enddo
-
-deallocate(qij)
-deallocate(gqij)
-deallocate(qX)
-deallocate(Gq)
-
-end subroutine GetHovT
-
-subroutine GetHooT(nocc, nxov, nxoo, norb, homo, natom, nMatUp, iatrans, getij, win, &
-          & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, Hoo)
-implicit none
-real(dp), intent(in)  :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), t(:,:)
-integer, intent(in)   :: nocc, nxov, nxoo, norb, homo, natom, nMatUp, win(:), iAtomStart(:)
-integer, intent(in)   :: iatrans(1:,homo+1:), getij(:,:)
-real(dp), intent(out) :: Hoo(:) 
-
-real(dp), allocatable :: qij(:), gqij(:), qX(:,:), qXa(:,:,:), Gq(:,:)
-integer               :: i, a, b, j, k, ia, ja, ij, jk, nxov_act !, ik
-logical               :: lUpDwn
-
-nxov_act = nocc*(norb-nocc)
-
-allocate(qij(natom))
-allocate(gqij(natom))
-allocate(qX(natom, nxov_act)) ! nxov))
-allocate(Gq(natom, max(nxoo, nxov_act))) ! nxov)))
-
-qX(:,:) = 0.0_dp
-do ia = 1, nxov_act ! nxov
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   do b = homo + 1, norb
-      ! TOMAS KUBAR -- SHOULD THE FOLLOWING BE if (iatrans(i, b) <= nxov) then ???
-     !if (iatrans(i,b) <= nxov) then
-         lUpDwn = (win(iatrans(i, b)) <= nMatUp) ! UNTESTED
-         qij = transq(i, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-         qX(:,ia) = qX(:,ia) + qij(:)*t(a,b)
-     !end if
-   enddo
-enddo
-
-Gq(:,:)  = 0.0_dp
-do ia = 1, nxov_act ! nxov
-   call indxov(win, ia, getij, i, a)
-   lUpDwn = (win(ia) <= nMatUp)
-   qij = transq(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-   call dsymv('U', natom, 1.0_dp, lrGamma, natom, qij, 1, 0.0_dp, gqij, 1)
-   Gq(:,ia) = gqij(:)
-enddo   
-
-Hoo(:) = 0.0_dp
-do ij = 1, nxoo
-   call indxoo(ij, i, j)
-   do a = homo + 1, norb
-      ia = iatrans(i, a)
-      ja = iatrans(j, a)
-     !if (ia <= nxov .and. ja <= nxov) then ! TOMAS KUBAR ADDED
-         Hoo(ij) = Hoo(ij) - 2.0_dp * dot_product(qX(:,ia), Gq(:,ja)) 
-     !end if
-   enddo
-enddo
-deallocate(qX)
-
-allocate(qXa(natom, nocc, nocc))
-qXa(:,:,:) = 0.0_dp
-do i = 1, homo
-   do k = 1, homo
-      lUpDwn = .true.
-      qij = transq(i, k, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-      do j = 1, homo
-         qXa(:,i,j) = qXa(:,i,j) + qij(:)*t(j,k)
-      enddo
-   enddo
-enddo
-
-Gq(:,:)  = 0.0_dp
-do ij = 1, nxoo
-   call indxoo(ij, i, j)
-   lUpDwn = .true.
-   qij = transq(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-   call dsymv('U', natom, 1.0_dp, lrGamma, natom, qij, 1, 0.0_dp, gqij, 1)
-   Gq(:,ij) = gqij(:)
-enddo   
-
-do ij = 1, nxoo
-   call indxoo(ij, i, j)
-   do k = 1, homo
-     !call rindxoo(homo, nocc, i, k, ik) -- NOT NEEDED
-     !call rindxoo(homo, nocc, j, k, jk)
-      if (k < j) then
-         call rindxoo(homo, nocc, j, k, jk)
+  Gq(:,:)  = 0.0_dp
+  do ab = 1, nXvv
+    call indXvv(homo, ab, a, b) 
+    lUpDwn = .true.
+    qIJ = transQ(a, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+    Gq(:,ab) = gqIJ(:)
+  end do   
+  
+  vecHov(:) = 0.0_dp
+  do ia = 1, nXov ! nOcc*(nOrb-nOcc)
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    do b = homo + 1, nOrb
+      ib = iaTrans(i, b)
+     !if (ib <= nXov) then ! TOMAS KUBAR ADDED
+      ! TOMAS KUBAR -- CORRECTED:
+      !call rIndXvv(nOcc, a, b, ab)
+      if (b < a) then
+        call rIndXvv(homo, a, b, ab)
       else
-         call rindxoo(homo, nocc, k, j, jk)
+        call rIndXvv(homo, b, a, ab)
       end if
-      Hoo(ij) = Hoo(ij) - 2.0_dp * dot_product(qXa(:,i,k), Gq(:,jk))
-   enddo
-enddo
+      vecHov(ia) = vecHov(ia) - 2.0_dp * dot_product(qX(:,ib), Gq(:,ab)) 
+      !end if
+    end do
+  end do
+  
+  qX(:,:) = 0.0_dp
+  do ia = 1, nOcc*(nOrb-nOcc) ! nXov
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    do j = 1, homo
+      ! TOMAS KUBAR -- SHOULD THE FOLLOWING BE if (iaTrans(j, a) <= nXov) then ???
+     !if (iaTrans(j,a) <= nXov) then
+      lUpDwn = (win(iaTrans(j, a)) <= nMatUp) ! UNTESTED
+      qIJ = transQ(j, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      qX(:,ia) = qX(:,ia) + qIJ(:)*t(i,j)
+     !end if
+    end do
+  end do
+  
+  Gq(:,:)  = 0.0_dp
+  do ij = 1, nXoo
+    call indXoo(ij, i, j)
+    lUpDwn = .true.
+    qIJ = transQ(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+    Gq(:,ij) = gqIJ(:)
+  end do   
+  
+  do ia = 1, nXov ! nOcc*(nOrb-nOcc)
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    do j = 1, homo
+      ja = iaTrans(j, a)
+     !if (ja <= nXov) then ! TOMAS KUBAR ADDED
+       !call rIndXoo(homo, nOcc, i, j, ij)
+        if (j < i) then
+          call rIndXoo(homo, nOcc, i, j, ij)
+        else
+          call rIndXoo(homo, nOcc, j, i, ij)
+        end if
+        vecHov(ia) = vecHov(ia) - 2.0_dp * dot_product(qX(:,ja), Gq(:,ij)) 
+     !end if
+    end do
+  end do
+  
+  deallocate(qIJ)
+  deallocate(gqIJ)
+  deallocate(qX)
+  deallocate(Gq)
 
-deallocate(qij)
-deallocate(gqij)
-deallocate(qXa)
-deallocate(Gq)
+  end subroutine getHovT
+  
+  subroutine getHooT(nOcc, nXov, nXoo, nOrb, homo, nAtom, nMatUp, iaTrans, getIJ, win, &
+      & iAtomStart, sTimesGrndEigVecs, grndEigVecs, lrGamma, t, vecHoo)
+  implicit none
+  real(dp), intent(in) :: sTimesGrndEigVecs(:,:,:), grndEigVecs(:,:,:), lrGamma(:,:), t(:,:)
+  integer, intent(in) :: nOcc, nXov, nXoo, nOrb, homo, nAtom, nMatUp, win(:), iAtomStart(:)
+  integer, intent(in) :: iaTrans(1:,homo+1:), getIJ(:,:)
+  real(dp), intent(out) :: vecHoo(:) 
+  
+  real(dp), allocatable :: qIJ(:), gqIJ(:), qX(:,:), qXa(:,:,:), Gq(:,:)
+  integer :: i, a, b, j, k, ia, ja, ij, jk, nXovAct !, ik
+  logical :: lUpDwn
+  
+  nXovAct = nOcc*(nOrb-nOcc)
+  
+  allocate(qIJ(nAtom))
+  allocate(gqIJ(nAtom))
+  allocate(qX(nAtom, nXovAct)) ! nXov))
+  allocate(Gq(nAtom, max(nXoo, nXovAct))) ! nXov)))
 
-end subroutine GetHooT
+  qX(:,:) = 0.0_dp
+  do ia = 1, nXovAct ! nXov
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    do b = homo + 1, nOrb
+      ! TOMAS KUBAR -- SHOULD THE FOLLOWING BE if (iaTrans(i, b) <= nXov) then ???
+     !if (iaTrans(i,b) <= nXov) then
+      lUpDwn = (win(iaTrans(i, b)) <= nMatUp) ! UNTESTED
+      qIJ = transQ(i, b, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      qX(:,ia) = qX(:,ia) + qIJ(:)*t(a,b)
+     !end if
+    end do
+  end do
+  
+  Gq(:,:)  = 0.0_dp
+  do ia = 1, nXovAct ! nXov
+    call indXov(win, ia, getIJ, i, a)
+    lUpDwn = (win(ia) <= nMatUp)
+    qIJ = transQ(i, a, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+    Gq(:,ia) = gqIJ(:)
+  end do   
+  
+  vecHoo(:) = 0.0_dp
+  do ij = 1, nXoo
+    call indXoo(ij, i, j)
+    do a = homo + 1, nOrb
+      ia = iaTrans(i, a)
+      ja = iaTrans(j, a)
+     !if (ia <= nXov .and. ja <= nXov) then ! TOMAS KUBAR ADDED
+      vecHoo(ij) = vecHoo(ij) - 2.0_dp * dot_product(qX(:,ia), Gq(:,ja)) 
+     !end if
+    end do
+  end do
+  deallocate(qX)
+  
+  allocate(qXa(nAtom, nOcc, nOcc))
+  qXa(:,:,:) = 0.0_dp
+  do i = 1, homo
+    do k = 1, homo
+      lUpDwn = .true.
+      qIJ = transQ(i, k, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+      do j = 1, homo
+        qXa(:,i,j) = qXa(:,i,j) + qIJ(:)*t(j,k)
+      end do
+    end do
+  end do
+
+  Gq(:,:)  = 0.0_dp
+  do ij = 1, nXoo
+    call indXoo(ij, i, j)
+    lUpDwn = .true.
+    qIJ = transQ(i, j, iAtomStart, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    call dsymv('U', nAtom, 1.0_dp, lrGamma, nAtom, qIJ, 1, 0.0_dp, gqIJ, 1)
+    Gq(:,ij) = gqIJ(:)
+  end do   
+  
+  do ij = 1, nXoo
+    call indXoo(ij, i, j)
+    do k = 1, homo
+     !call rIndXoo(homo, nOcc, i, k, ik) -- NOT NEEDED
+     !call rIndXoo(homo, nOcc, j, k, jk)
+      if (k < j) then
+        call rIndXoo(homo, nOcc, j, k, jk)
+      else
+        call rIndXoo(homo, nOcc, k, j, jk)
+      end if
+      vecHoo(ij) = vecHoo(ij) - 2.0_dp * dot_product(qXa(:,i,k), Gq(:,jk))
+    end do
+  end do
+
+  deallocate(qIJ)
+  deallocate(gqIJ)
+  deallocate(qXa)
+  deallocate(Gq)
+
+  end subroutine getHooT
 
 end module dftbp_rs_linearresponse

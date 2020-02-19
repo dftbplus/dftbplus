@@ -4367,7 +4367,7 @@ contains
      !    & energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
       ! WITH FORCES
       excitedDerivs = 0.0_dp
-      call LinResp_calcExcitations_rs(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
+      call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
            & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU, neighbourList%iNeighbour,&
            & img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest, taggedWriter,& ! ons_en, ons_dip,
            & energy%Eexcited, skHamCont, skOverCont, nonSccDeriv, deltaRhoOutSqr(:,:,1), excitedDerivs, dQAtomEx)
@@ -4381,7 +4381,7 @@ contains
      !    & sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
      !    & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
       ! NO FORCES
-      call LinResp_calcExcitations_rs(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
+      call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
            & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU, neighbourList%iNeighbour,&
            & img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest, taggedWriter,& ! ons_en, ons_dip,
            & energy%Eexcited)
