@@ -22,6 +22,7 @@
 #:set WITH_OMP = defined('WITH_OMP')
 #:set WITH_ELSI = defined('WITH_ELSI')
 #:set WITH_PEXSI = defined('WITH_PEXSI') and WITH_ELSI
+#:set WITH_ELSI_RCI = defined('WITH_ELSI_RCI')
 #:set WITH_SCALAPACK = defined('WITH_SCALAPACK')
 #:set WITH_DFTD3 = defined('WITH_DFTD3')
 #:set WITH_SOCKETS = defined('WITH_SOCKETS')

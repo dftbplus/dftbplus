@@ -76,6 +76,14 @@ set(PEXSI_EXTERNAL_LIBRARIES "" CACHE STRING
   "Any EXTERNAL libraries PEXSI needs apart of its own libraries")
 set(PEXSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING "Directories with PEXSI external libraries")
 
+# ELSI_RCI -- only needed when compiled with ELSI_RCI support
+set(ELSI_ROOT "/opt/elsi" CACHE STRING "Root directory of the ELSI_RCI installation")
+
+set(ELSI_RCI_EXTERNAL_LIBRARIES "" CACHE STRING
+  "Any EXTERNAL libraries ELSI_RCI needs apart from its own libraries (and lapack/blas)")
+set(ELSI_RCI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING
+  "Directories where ELSI_RCI external libraries can be found")
+
 # PLUMED -- only needed when compiled with PLUMED support
 set(PLUMED_LIBRARIES "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")
 set(PLUMED_LIBRARY_DIRS "" CACHE STRING "Directories to scan for PLUMED libraries")

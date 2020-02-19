@@ -15,6 +15,8 @@ option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
 # Works only with MPI-parallel build.
 
+option(WITH_ELSI_RCI "Whether DFTB+ should use the ELSI_RCI libraries" FALSE)
+
 option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-library" FALSE)
 
 option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)

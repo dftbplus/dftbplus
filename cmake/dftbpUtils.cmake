@@ -80,6 +80,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_PEXSI)
   endif()
 
+  if(WITH_ELSI_RCI)
+    list(APPEND _fyppflags -DWITH_ELSI_RCI)
+  endif()
+
   if(WITH_GPU)
     list(APPEND _fyppflags -DWITH_GPU)
   endif()
