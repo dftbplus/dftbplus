@@ -70,7 +70,8 @@ module dftbp_rekscpeqn
     !> super A hessian matrix with one-electron term in front of orbital derivatives
     real(dp), intent(in) :: A1e(:,:)
 
-    !> preconditioner of super A hessian matrix with one-electron term in front of orbital derivatives
+    !> preconditioner of super A hessian matrix with one-electron term in front of orbital
+    !> derivatives
     real(dp), intent(in) :: A1ePre(:,:)
 
     !> Hartree-XC kernel with dense form with same spin part

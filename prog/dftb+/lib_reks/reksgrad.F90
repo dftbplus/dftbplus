@@ -351,7 +351,8 @@ module dftbp_reksgrad
                       & sqrDMTmp(1:nOrb2,1:nOrb1) ) )
                 else
                   if (iL > Lpaired) then
-                    derivTmp(ii) = derivTmp(ii) + fac * 2.0_dp * ( sum( shiftSprime(1:nOrb2,1:nOrb1) *&
+                    derivTmp(ii) = derivTmp(ii)&
+                        & + fac * 2.0_dp * ( sum( shiftSprime(1:nOrb2,1:nOrb1) *&
                         & DM(iSquare(iAtom2f):iSquare(iAtom2f+1)-1, &
                         & iSquare(iAtom1):iSquare(iAtom1+1)-1,1,tmpLs) ) )
                   end if
@@ -880,7 +881,8 @@ module dftbp_reksgrad
     !> super A hessian matrix with one-electron term in front of orbital derivatives
     real(dp), intent(out) :: A1e(:,:)
 
-    !> preconditioner of super A hessian matrix with one-electron term in front of orbital derivatives
+    !> preconditioner of super A hessian matrix with one-electron term in front of orbital
+    !> derivatives
     real(dp), intent(out) :: A1ePre(:,:)
 
     !> super A hessian matrix in front of orbital derivatives
@@ -3183,7 +3185,8 @@ module dftbp_reksgrad
     !> super A hessian matrix with one-electron term in front of orbital derivatives
     real(dp), intent(out) :: A1e(:,:)
 
-    !> preconditioner of super A hessian matrix with one-electron term in front of orbital derivatives
+    !> preconditioner of super A hessian matrix with one-electron term in front of orbital
+    !> derivatives
     real(dp), intent(out) :: A1ePre(:,:)
 
     real(dp) :: e1, e2

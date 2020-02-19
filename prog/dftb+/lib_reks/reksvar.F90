@@ -405,7 +405,8 @@ module dftbp_reksvar
     !> super A hessian matrix with one-electron term in front of orbital derivatives
     real(dp), allocatable :: A1e(:,:)
 
-    !> preconditioner of super A hessian matrix with one-electron term in front of orbital derivatives
+    !> preconditioner of super A hessian matrix with one-electron term in front of orbital
+    !> derivatives
     real(dp), allocatable :: A1ePre(:,:)
 
 
