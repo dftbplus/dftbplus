@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -21,6 +21,7 @@ module dftbp_inputdata
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_elecsolvers, only : TElectronicSolverInp
+  use dftbp_etemp, only : fillingTypes
   use dftbp_xlbomd
 #:if WITH_SOCKETS
   use dftbp_ipisocket, only : IpiSocketCommInp
@@ -201,6 +202,9 @@ module dftbp_inputdata
     !> Molecular dynamics
     logical :: tMD         = .false.
 
+    !> Use Plumed
+    logical :: tPlumed = .false.
+
     !> Finite difference derivatives calculation?
     logical :: tDerivs     = .false.
 
@@ -274,7 +278,7 @@ module dftbp_inputdata
     logical :: tFixEf        = .false.
     real(dp), allocatable :: Ef(:)
     logical :: tFillKSep     = .false.
-    integer :: iDistribFn    = 0
+    integer :: iDistribFn    = fillingTypes%Fermi
     real(dp) :: wvScale       = 0.0_dp
 
     !> default chain length for Nose-Hoover

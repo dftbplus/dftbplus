@@ -15,6 +15,11 @@ lapack.o += _extlib_lapack
 dftd3.o: _extlib_dftd3
 dftd3.o += _extlib_dftd3
 
+#:if WITH_PLUMED
+plumed.o: _extlib_plumed
+plumed.o += _extlib_plumed
+#:endif
+
 #:if WITH_ARPACK
 arpack.o: _extlib_arpack
 arpack.o += _extlib_arpack
