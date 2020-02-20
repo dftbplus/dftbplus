@@ -2121,5 +2121,47 @@ module dftbp_lapack
     end subroutine zgesvd
 
   end interface zgesvd
-  
+
+
+#:for PREC, VAR in [('s','rsp'),('d','rdp')]
+  interface ${PREC}$sysvxx
+
+    subroutine ${PREC}$sysvxx(FACT, UPLO, N, NRHS, A, LDA, AF, LDAF, IPIV, EQUED, S, B, LDB, X,&
+        & LDX, RCOND, RPVGRW, BERR, N_ERR_BNDS, ERR_BNDS_NORM, ERR_BNDS_COMP, NPARAMS, PARAMS,&
+        & WORK, IWORK, INFO)
+
+      import ${VAR}$
+
+      character, intent(in) :: FACT
+      character, intent(in) :: UPLO
+      integer, intent(in) :: N
+      integer, intent(in) :: NRHS
+      real(${VAR}$), intent(inout) :: A(lda,*)
+      integer, intent(in) :: LDA
+      real(${VAR}$), intent(inout) :: AF(ldaf,*)
+      integer, intent(in) :: LDAF
+      integer, intent(inout) :: IPIV(*)
+      character, intent(inout) :: EQUED
+      real(${VAR}$), intent(inout) :: S(*)
+      real(${VAR}$), intent(inout) :: B(ldb,*)
+      integer, intent(in) :: LDB
+      real(${VAR}$), intent(out) :: X(ldx,*)
+      integer, intent(in) :: LDX
+      real(${VAR}$), intent(out) :: RCOND
+      real(${VAR}$), intent(out) :: RPVGRW
+      real(${VAR}$), intent(out) :: BERR(*)
+      integer, intent(in) :: N_ERR_BNDS
+      real(${VAR}$), intent(out) :: ERR_BNDS_NORM(nrhs,*)
+      real(${VAR}$), intent(out) :: ERR_BNDS_COMP(nrhs,*)
+      integer, intent(in) :: NPARAMS
+      real(${VAR}$), intent(inout) :: PARAMS(*)
+      real(${VAR}$), intent(out) :: WORK(*)
+      integer, intent(out) :: IWORK(*)
+      integer, intent(out) :: INFO
+
+    end subroutine ${PREC}$sysvxx
+
+  end interface ${PREC}$sysvxx
+#:endfor
+
 end module dftbp_lapack
