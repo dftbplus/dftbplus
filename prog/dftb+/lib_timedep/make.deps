@@ -1,5 +1,5 @@
-linresp.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_message _mod_dftbp_commontypes _mod_dftbp_slakocont _mod_dftbp_fileid _mod_dftbp_scc _mod_dftbp_nonscc _mod_dftbp_densedescr _mod_dftbp_taggedoutput _mod_dftbp_linrespgrad
-linresp.o = linresp.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_message) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont) $(_mod_dftbp_fileid) $(_mod_dftbp_scc) $(_mod_dftbp_nonscc) $(_mod_dftbp_densedescr) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_linrespgrad)
+linresp.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_message _mod_dftbp_commontypes _mod_dftbp_slakocont _mod_dftbp_fileid _mod_dftbp_scc _mod_dftbp_nonscc _mod_dftbp_densedescr _mod_dftbp_taggedoutput _mod_dftbp_linrespgrad _mod_dftbp_arpack
+linresp.o = linresp.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_message) $(_mod_dftbp_commontypes) $(_mod_dftbp_slakocont) $(_mod_dftbp_fileid) $(_mod_dftbp_scc) $(_mod_dftbp_nonscc) $(_mod_dftbp_densedescr) $(_mod_dftbp_taggedoutput) $(_mod_dftbp_linrespgrad) $(_mod_dftbp_arpack)
 _mod_dftbp_linresp: linresp.o
 _mod_dftbp_linresp = $(linresp.o)
 

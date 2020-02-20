@@ -28,6 +28,7 @@ module dftbp_linresp
   use dftbp_densedescr
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_linrespgrad
+  use dftbp_arpack, only : withArpack
   implicit none
   private
 
@@ -184,84 +185,84 @@ contains
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
 
-#:if WITH_ARPACK
-    this%nExc = ini%nExc
-    this%tEnergyWindow = ini%tEnergyWindow
-    this%energyWindow = ini%energyWindow
-    this%tOscillatorWindow = ini%tOscillatorWindow
-    this%oscillatorWindow = ini%oscillatorWindow
-    this%tCacheCharges = ini%tCacheCharges
-    this%nStat = ini%nStat
-    this%symmetry = ini%sym
+    if (withArpack) then
+      this%nExc = ini%nExc
+      this%tEnergyWindow = ini%tEnergyWindow
+      this%energyWindow = ini%energyWindow
+      this%tOscillatorWindow = ini%tOscillatorWindow
+      this%oscillatorWindow = ini%oscillatorWindow
+      this%tCacheCharges = ini%tCacheCharges
+      this%nStat = ini%nStat
+      this%symmetry = ini%sym
 
-    if (this%tOscillatorWindow .and. this%OscillatorWindow <= 0.0_dp) then
-      call error("Excited Oscillator window should be non-zero if used")
-    end if
-    if (this%tEnergyWindow .and. this%energyWindow <= 0.0_dp) then
-      call error("Excited energy window should be non-zero if used")
-    end if
+      if (this%tOscillatorWindow .and. this%OscillatorWindow <= 0.0_dp) then
+        call error("Excited Oscillator window should be non-zero if used")
+      end if
+      if (this%tEnergyWindow .and. this%energyWindow <= 0.0_dp) then
+        call error("Excited energy window should be non-zero if used")
+      end if
 
-    if (ini%tMulliken) then
-      this%fdMulliken = getFileId()
-    else
-      this%fdMulliken = -1
-    end if
-    if (ini%tCoeffs) then
-      this%fdCoeffs = getFileId()
-    else
-      this%fdCoeffs = -1
-    end if
-    this%tGrndState = ini%tGrndState
-    if (ini%tDiagnoseArnoldi) then
-      this%fdArnoldiDiagnosis = getFileId()
-    else
-      this%fdArnoldiDiagnosis = -1
-    end if
-    if (ini%tTrans) then
-      this%fdTrans = getFileId()
-    else
-      this%fdTrans = -1
-    end if
-    if (ini%tSPTrans) then
-      this%fdSPTrans = getFileId()
-    else
-      this%fdSPTrans = -1
-    end if
-    if (ini%tXplusY) then
-      this%fdXplusY = getFileId()
-    else
-      this%fdXplusY = -1
-    end if
-    if (ini%tTradip) then
-      this%fdTradip = getFileId()
-    else
-      this%fdTradip = -1
-    end if
+      if (ini%tMulliken) then
+        this%fdMulliken = getFileId()
+      else
+        this%fdMulliken = -1
+      end if
+      if (ini%tCoeffs) then
+        this%fdCoeffs = getFileId()
+      else
+        this%fdCoeffs = -1
+      end if
+      this%tGrndState = ini%tGrndState
+      if (ini%tDiagnoseArnoldi) then
+        this%fdArnoldiDiagnosis = getFileId()
+      else
+        this%fdArnoldiDiagnosis = -1
+      end if
+      if (ini%tTrans) then
+        this%fdTrans = getFileId()
+      else
+        this%fdTrans = -1
+      end if
+      if (ini%tSPTrans) then
+        this%fdSPTrans = getFileId()
+      else
+        this%fdSPTrans = -1
+      end if
+      if (ini%tXplusY) then
+        this%fdXplusY = getFileId()
+      else
+        this%fdXplusY = -1
+      end if
+      if (ini%tTradip) then
+        this%fdTradip = getFileId()
+      else
+        this%fdTradip = -1
+      end if
 
-    this%tArnoldi = ini%tArnoldi
-    this%fdArnoldi = getFileId()
-    this%nAtom = nAtom
-    this%nEl = nEl
-    this%nOcc = ceiling(nEl / 2.0_dp)
-    this%nVir = orb%nOrb - this%nOcc
-    this%fdExc = getFileId() ! file for excitations
+      this%tArnoldi = ini%tArnoldi
+      this%fdArnoldi = getFileId()
+      this%nAtom = nAtom
+      this%nEl = nEl
+      this%nOcc = ceiling(nEl / 2.0_dp)
+      this%nVir = orb%nOrb - this%nOcc
+      this%fdExc = getFileId() ! file for excitations
 
-    ! Write to disc
-    this%tPrintEigVecs = ini%tPrintEigVecs
+      ! Write to disc
+      this%tPrintEigVecs = ini%tPrintEigVecs
 
-    call move_alloc(ini%spinW, this%spinW)
-    call move_alloc(ini%hubbardU, this%HubbardU)
-    if (allocated(onSiteMatrixElements)) then
-      allocate(this%onSiteMatrixElements(size(onSiteMatrixElements,dim=1),&
-          & size(onSiteMatrixElements,dim=2), size(onSiteMatrixElements,dim=3),&
-          & size(onSiteMatrixElements,dim=4)))
-      this%onSiteMatrixElements(:,:,:,:) = onSiteMatrixElements
-    end if
-    this%tinit = .true.
-#:else
-    this%tinit = .false.
-    call error('Internal error: Illegal routine call to LinResp_init.')
-#:endif
+      call move_alloc(ini%spinW, this%spinW)
+      call move_alloc(ini%hubbardU, this%HubbardU)
+      if (allocated(onSiteMatrixElements)) then
+        allocate(this%onSiteMatrixElements(size(onSiteMatrixElements,dim=1),&
+            & size(onSiteMatrixElements,dim=2), size(onSiteMatrixElements,dim=3),&
+            & size(onSiteMatrixElements,dim=4)))
+        this%onSiteMatrixElements(:,:,:,:) = onSiteMatrixElements
+      end if
+      this%tinit = .true.
+    else
+      this%tinit = .false.
+      call error('Internal error: Illegal routine call to LinResp_init.')
+    endif
 
   end subroutine LinResp_init
 
@@ -328,21 +329,20 @@ contains
     !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
-#:if WITH_ARPACK
-    @:ASSERT(this%tInit)
-    @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
-    call LinRespGrad_old(tSpin, this%nAtom, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-        & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0,&
-        & this%HubbardU, this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged,&
-        & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
-        & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
-        & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
-        & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-        & allExcEnergies, this%onSiteMatrixElements)
-
-#:else
-    call error('Internal error: Illegal routine call to LinResp_calcExcitations')
-#:endif
+    if (withArpack) then
+      @:ASSERT(this%tInit)
+      @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
+      call LinRespGrad_old(tSpin, this%nAtom, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
+          & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0,&
+          & this%HubbardU, this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged,&
+          & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
+          & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
+          & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
+          & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
+          & allExcEnergies, this%onSiteMatrixElements)
+    else
+      call error('Internal error: Illegal routine call to LinResp_calcExcitations')
+    end if
 
   end subroutine LinResp_calcExcitations
 
@@ -432,45 +432,44 @@ contains
     !> matrix in the excited state
     real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
 
-#:if WITH_ARPACK
-
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
 
-    @:ASSERT(this%tInit)
-    @:ASSERT(this%nAtom == size(orb%nOrbAtom))
-    @:ASSERT(allocated(occNatural) .eqv. allocated(naturalOrbs))
+    if (withArpack) then
+      @:ASSERT(this%tInit)
+      @:ASSERT(this%nAtom == size(orb%nOrbAtom))
+      @:ASSERT(allocated(occNatural) .eqv. allocated(naturalOrbs))
 
-    allocate(shiftPerAtom(this%nAtom))
-    allocate(shiftPerL(orb%mShell, this%nAtom))
-    call sccCalc%getShiftPerAtom(shiftPerAtom)
-    call sccCalc%getShiftPerL(shiftPerL)
-    shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
+      allocate(shiftPerAtom(this%nAtom))
+      allocate(shiftPerL(orb%mShell, this%nAtom))
+      call sccCalc%getShiftPerAtom(shiftPerAtom)
+      call sccCalc%getShiftPerL(shiftPerL)
+      shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
-    if (allocated(occNatural)) then
-      call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
-          & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
-          & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-          & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
-          & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
-          & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
-          & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-          & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
-          & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+      if (allocated(occNatural)) then
+        call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+            & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
+            & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
+            & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
+            & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
+            & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
+            & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
+            & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
+            & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+      else
+        call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+            & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
+            & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
+            & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
+            & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
+            & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
+            & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
+            & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
+            & excgradient, derivator, rhoSqr)
+      end if
+
     else
-      call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
-          & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
-          & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-          & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
-          & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
-          & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
-          & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-          & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
-          & excgradient, derivator, rhoSqr)
-    end if
-
-#:else
-    call error('Internal error: Illegal routine call to LinResp_addGradients.')
-#:endif
+      call error('Internal error: Illegal routine call to LinResp_addGradients.')
+    endif
 
   end subroutine LinResp_addGradients
 

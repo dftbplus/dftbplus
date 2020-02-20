@@ -24,6 +24,8 @@ module dftbp_initprogram
   use dftbp_elecsolvers
   use dftbp_elsisolver, only : TElsiSolver_init, TElsiSolver_final
   use dftbp_elsiiface
+  use dftbp_arpack, only : withArpack
+  use dftbp_elsirciiface, only : withElsiRCI
   use dftbp_periodic
   use dftbp_accuracy
   use dftbp_intrinsicpr
@@ -2040,9 +2042,10 @@ contains
     if (tLinResp) then
 
       ! input sanity checking
-    #:if not WITH_ARPACK
-      call error("This binary has been compiled without support for linear response calculations.")
-    #:endif
+      if (.not. withArpack .or. withElsiRCI) then
+        call error("This binary has been compiled without support for linear response&
+            & calculations.")
+      end if
       if (.not. tSccCalc) then
         call error("Linear response excitation requires SCC=Yes")
       end if
