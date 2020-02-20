@@ -140,6 +140,8 @@ contains
       self%referenceN0(:self%nShell(iSp), iSp) = input%param(iSp)%basis(:self%nShell(iSp))%referenceN0
     end do
 
+    call self%gtoCont%initialize(nAtom, nSpecies, mShell, input%gaussInput)
+
     if (tPeriodic) then
       call self%cnCont%initialize(nAtom, input%cnInput, latVecs)
     else
@@ -154,9 +156,9 @@ contains
     real(dp), intent(out) :: atomEigVal(:, :)
     integer :: iSp1, iSh1
 
-    do iSp1 = 1, size(atomEigVal, dim=1)
+    do iSp1 = 1, size(atomEigVal, dim=2)
       do iSh1 = 1, param(iSp1)%nSh
-        atomEigVal(iSh1, iSp1) = param(iSh1)%basis(iSh1)%h
+        atomEigVal(iSh1, iSp1) = param(iSp1)%basis(iSh1)%h
       end do
     end do
 

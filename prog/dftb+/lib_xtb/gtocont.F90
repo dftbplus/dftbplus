@@ -51,9 +51,16 @@ module dftbp_gtocont
   type, extends(gaussInput) :: TGTOCont
     !> Contracted Gaussian basis functions
     type(TGaussFunc), allocatable :: cgto(:, :)
-    integer :: moment = 0
-    integer :: mShell = 0
-    integer :: nSpecies = 0
+
+    !> Nr. of atoms in the system
+    integer :: nAtom
+
+    !> Nr. of species in the system
+    integer :: nSpecies
+
+    !> Maximum number of shells per species in the system
+    integer :: mShell
+
     integer :: maxInt = 0
     real(dp) :: cutoff = 0.0_dp
 
@@ -80,23 +87,28 @@ contains
 
 
   !> Construct the integral container from input data
-  subroutine initialize(self, mShell, nSpecies, input)
+  subroutine initialize(self, nAtom, nSpecies, mShell, input)
 
     !> Gaussian integral container
     class(TGTOCont), intent(out) :: self
 
-    !> Nr. of species in the system.
+    !> Nr. of atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> Nr. of species in the system
     integer, intent(in) :: nSpecies
 
-    !> Maximum number of shells per species in the system.
+    !> Maximum number of shells per species in the system
     integer, intent(in) :: mShell
 
     !> Input to initialize integral container
     type(gaussInput), intent(in) :: input
 
+    self%nAtom = nAtom
     self%mShell = mShell
     self%nSpecies = nSpecies
-    allocate(self%cgto(mShell, nSpecies), source=TGaussFunc())
+    allocate(self%cgto(mShell, nSpecies))
+    allocate(self%selfEnergy(mShell, nAtom))
     allocate(self%h0Scale(mShell, mShell, nSpecies, nSpecies))
 
     self%gaussInput = input
@@ -106,8 +118,10 @@ contains
 
   !> Returns the cutoff for all interactions
   pure function getRCutoff(self) result(cutoff)
+
     !> SlakoCont instance
     class(TGTOCont), intent(in) :: self
+
     !> Cutoff of interaction
     real(dp) :: cutoff
 
@@ -119,8 +133,10 @@ contains
   !> Returns the maximal number of integrals needed for describing any of the
   !  interactions in the container
   pure function getMaxIntegrals(self) result(maxInt)
+
     !> Gaussian Integral Container
     class(TGTOCont), intent(in) :: self
+
     !> Max. number of integrals.
     integer :: maxInt
 
@@ -128,21 +144,30 @@ contains
 
   end function getMaxIntegrals
 
+
   subroutine getOverlapIntegrals(self, ints, vec, dist, iSp1, iSh1, iSp2, iSh2)
+
     !> Gaussian Integral Container
     class(TGTOCont), intent(in) :: self
+
     !> Contains the integrals on exit
     real(dp), intent(out) :: ints(:, :)
+
     !> Distance of the two atoms
     real(dp), intent(in) :: vec(3)
+
     !> Distance of the two atoms
     real(dp), intent(in) :: dist
+
     !> Index of the first interacting species
     integer, intent(in) :: iSp1
+
     !> Index of the first interacting shell
     integer, intent(in) :: iSh1
+
     !> Index of the second interacting species
     integer, intent(in) :: iSp2
+
     !> Index of the second interacting shell
     integer, intent(in) :: iSh2
 
@@ -152,5 +177,6 @@ contains
         & vec, dist, ints)
 
   end subroutine getOverlapIntegrals
+
 
 end module dftbp_gtocont

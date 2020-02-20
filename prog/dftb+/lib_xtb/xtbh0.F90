@@ -13,6 +13,7 @@ module dftbp_xtbh0
   use dftbp_commontypes, only : TOrbitals
   use dftbp_environment, only : TEnvironment
   use dftbp_gtocont, only : TGTOCont
+  use dftbp_schedule, only : distributeRangeInChunks, assembleChunks
   implicit none
   private
 
@@ -68,6 +69,7 @@ contains
 
   subroutine buildSH0(env, ovlp, ham, gtoCont, coords, nNeighbour, &
       & iNeighbours, species, iPair, orb)
+    use dftbp_constants
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -100,6 +102,7 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     integer :: nAtom, iAt1, iNeigh1, iSp1, iAt2, iSp2, ind
+    integer :: iAtFirst, iAtLast
     integer :: iOrb1, nOrb1, nOrb2
     real(dp) :: hDiag
     real(dp) :: tmpH(orb%mOrb, orb%mOrb), tmpS(orb%mOrb, orb%mOrb)
@@ -107,28 +110,36 @@ contains
 
     nAtom = size(nNeighbour)
     ham(:) = 0.0_dp
+    ovlp(:) = 0.0_dp
 
+    @:ASSERT(allocated(gtoCont%selfEnergy))
     @:ASSERT(size(gtoCont%selfEnergy, dim=2) == nAtom)
 
-    !$omp parallel do schedule(runtime) default(none) &
-    !$omp shared(nAtom, species, iPair, orb, gtoCont, ham) &
-    !$omp private(iAt1, iSp1, ind, iOrb1)
-    do iAt1 = 1, nAtom
+    call distributeRangeInChunks(env, 1, nAtom, iAtFirst, iAtLast)
+
+    ! Put the on-site energies into the Hamiltonian,
+    ! and <lm|l'm'> = delta_l,l' * delta_m',m' for the overlap
+    ! omp parallel do schedule(runtime) default(none) &
+    ! omp shared(iAtFirst, iAtLast, species, iPair, orb, gtoCont, ham, ovlp) &
+    ! omp private(iAt1, iSp1, ind, iOrb1)
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
-      ind = iPair(0, iAt1) + 1
       do iOrb1 = 1, orb%nOrbAtom(iAt1)
+        ind = iPair(0, iAt1) + 1 + (iOrb1 - 1) * (orb%nOrbAtom(iAt1) + 1)
+        print*, iSp1, gtoCont%selfEnergy(orb%iShellOrb(iOrb1, iSp1), iAt1) * Hartree__eV
         ham(ind) = gtoCont%selfEnergy(orb%iShellOrb(iOrb1, iSp1), iAt1)
-        ind = ind + orb%nOrbAtom(iAt1) + 1
+        ovlp(ind) = 1.0_dp
       end do
     end do
-    !$omp end parallel do
+    ! omp end parallel do
 
     ! Do the diatomic blocks for each of the atoms with its nNeighbour
-    !$omp parallel do schedule(runtime) default(none) shared(ham, ovlp, gtoCont) &
-    !$omp shared(nAtom, species, orb, nNeighbour, iNeighbours, iPair, coords) &
+    !$omp parallel do schedule(runtime) default(none) &
+    !$omp shared(iAtFirst, iAtLast, species, orb, nNeighbour, iNeighbours, iPair) &
+    !$omp shared(coords, ham, ovlp, gtoCont) &
     !$omp private(iAt1, iSp1, nOrb1, iNeigh1, iAt2, iSp2, nOrb2, ind, vec, dist) &
     !$omp private(tmpH, tmpS)
-    do iAt1 = 1, nAtom
+    do iAt1 = iAtFirst, iAtLast
       iSp1 = species(iAt1)
       nOrb1 = orb%nOrbSpecies(iSp1)
       do iNeigh1 = 1, nNeighbour(iAt1)
@@ -143,6 +154,9 @@ contains
       end do
     end do
     !$omp end parallel do
+
+    call assembleChunks(env, ham)
+    call assembleChunks(env, ovlp)
 
   end subroutine buildSH0
 

@@ -1300,7 +1300,6 @@ contains
       else
         call setupXTBCalculator(xtbCalc, input%geom%nAtom, input%ctrl%xtbInput)
       end if
-      call xtbCalc%gtoCont%initialize(orb%mShell, nType, input%ctrl%xtbInput%gaussInput)
       call setupGaussCont(input%ctrl%xtbInput, orb, xtbCalc%gtoCont)
       call setupRepCont(input%ctrl%xtbInput, pRepCont)
       ! setup atomic masses
