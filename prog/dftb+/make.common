@@ -132,6 +132,9 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
+# DFTD4
+L_INCS += -I$(ROOT)/external/dftd4refs
+
 # PLUMED
 ifeq ($(strip $(WITH_PLUMED)),1)
   PRESENT_EXTERNALS := _extlib_plumed
