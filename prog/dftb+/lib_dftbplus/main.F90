@@ -61,7 +61,9 @@ module dftbp_main
   use dftbp_elecconstraints
   use dftbp_pmlocalisation, only : TPipekMezey
   use dftbp_linresp
+#:if WITH_ARPACK
   use dftbp_RS_LinearResponse
+#:endif
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : DispersionIface
@@ -4383,10 +4385,12 @@ contains
      !    & energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
       ! WITH FORCES
       excitedDerivs = 0.0_dp
+    #:if WITH_ARPACK
       call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
            & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU, neighbourList%iNeighbour,&
            & img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest, taggedWriter,& ! ons_en, ons_dip,
            & energy%Eexcited, skHamCont, skOverCont, nonSccDeriv, deltaRhoOutSqr(:,:,1), excitedDerivs, dQAtomEx)
+    #:endif
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
             & img2CentCell, pSpecies0, speciesName, orb, over, parallelKS, tPrintExcEigvecsTxt,&
@@ -4397,11 +4401,14 @@ contains
      !    & sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
      !    & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
       ! NO FORCES
+    #:if WITH_ARPACK
       call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
            & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU, neighbourList%iNeighbour,&
            & img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest, taggedWriter,& ! ons_en, ons_dip,
            & energy%Eexcited)
+    #:endif
     end if
+
     energy%Etotal = energy%Etotal + energy%Eexcited
     energy%EMermin = energy%EMermin + energy%Eexcited
     energy%EGibbs = energy%EGibbs + energy%Eexcited
