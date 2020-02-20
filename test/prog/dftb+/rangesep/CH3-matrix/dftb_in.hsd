@@ -1,0 +1,45 @@
+Geometry = GenFormat {
+    <<< geo.gen
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-8  # Extremely small
+    MaxAngularMomentum = {
+        H = "s"
+        C = "p"
+    }
+    SlaterKosterFiles = {
+        C-C = "C-C.skf"
+        C-H = "C-H.skf"
+        H-C = "H-C.skf"
+        H-H = "H-H.skf"
+    }
+    SpinPolarisation = Colinear {
+        UnpairedElectrons = 1
+    }
+    SpinConstants = { # From C. Koehler thesis
+        C = {
+            -0.031 -0.025
+            -0.025 -0.023
+        }
+        H = {-0.072}
+        ShellResolvedSpin = Yes
+    }
+    RangeSeparated = LC {
+      Screening = MatrixBased {}
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis {
+    CalculateForces = No
+    AtomResolvedEnergies = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 6
+}

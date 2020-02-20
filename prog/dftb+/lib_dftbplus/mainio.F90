@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -2311,7 +2311,7 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2459,6 +2459,12 @@ contains
 
     !> Is there a halogen bond correction present?
     logical, intent(in) :: tHalogenX
+
+    !> Is this a range separation calculation?
+    logical, intent(in) :: tRangeSep
+
+    !> Is this a 3rd order scc calculation?
+    logical, intent(in) :: t3rd
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2720,7 +2726,7 @@ contains
           end do
           write(fd, *)
         end if
-        if (tDFTBU) then
+        if (tDFTBU .or. tOnSite) then
           write(fd, "(3A)") 'Block populations (', trim(spinName(iSpin)), ')'
           do ii = 1, size(iAtInCentralRegion)
             iAt = iAtInCentralRegion(ii)
@@ -2778,6 +2784,12 @@ contains
       write(fd, format2U) 'Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV'
       if (tSpin) then
         write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
+      end if
+      if (t3rd) then
+        write(fd, format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd * Hartree__eV, 'eV'
+      end if
+      if (tRangeSep) then
+        write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
       if (tDFTBU) then
         write(fd, format2U) 'Energy DFTB+U', energy%Edftbu, 'H', energy%Edftbu * Hartree__eV, 'eV'

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,6 +23,7 @@ module dftbp_elsisolver
   use dftbp_message, only : error, cleanshutdown
   use dftbp_commontypes, only : TParallelKS, TOrbitals
   use dftbp_energies, only : TEnergies
+  use dftbp_etemp, only : fillingTypes
   use dftbp_sparse2dense
   use dftbp_assert
   use dftbp_spin, only : ud2qm
@@ -373,12 +374,22 @@ contains
       this%csrBlockSize = this%csrBlockSize + 1
     end if
 
-    this%muBroadenScheme = min(iDistribFn,2)
-    if (iDistribFn > 1) then
+    this%muMpOrder = 0
+    if (iDistribFn == fillingTypes%Fermi) then
+      this%muBroadenScheme = 1
+    else if (iDistribFn == fillingTypes%Gaussian) then
+      this%muBroadenScheme = 0
+    else if (iDistribFn >= fillingTypes%Methfessel) then
+      this%muBroadenScheme = 2
       ! set Meth-Pax order
-      this%muMpOrder = iDistribFn - 2
+      this%muMpOrder = iDistribFn - fillingTypes%Methfessel - 1
     else
-      this%muMpOrder = 0
+      call error("Unknown electronic filling type")
+    end if
+
+    if (iDistribFn /= fillingTypes%Fermi .and.&
+        & any([electronicSolverTypes%pexsi,electronicSolverTypes%ntpoly] == this%iSolver)) then
+      call error("This electronic solver can only be used for Fermi function distributed electrons")
     end if
 
     ! ELPA settings

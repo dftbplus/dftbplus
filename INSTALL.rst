@@ -30,8 +30,13 @@ Additionally there are optional requirements for some DFTB+ features:
 
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 
-* The `MAGMA <http://icl.cs.utk.edu/magma/>_` library for GPU accelerated
+* The `MAGMA <http://icl.cs.utk.edu/magma/>`_ library for GPU accelerated
   computation.
+
+* The `PLUMED2 <https://github.com/plumed/plumed2>` library for metadynamics
+  simulations. If you build DFTB+ with MPI, the linked PLUMED library must be
+  also MPI-aware (and must have been built with the same MPI-framework as
+  DFTB+).
 
 For external libraries, make sure that they are compiled with the same precision
 models for the variables (same integer and floating point values).
@@ -209,9 +214,9 @@ in the `dftbplus.pc` pkg-config file, which is usually installed into the
 file directly, or use the ``pkg-config`` tool::
 
   export PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:DFTBPLUS_INSTALL_FOLDER/lib/pkgconfig
-  pkg-config --cflags   # gives you compilation flags (e.g. include options)
-  pkg-config --libs     # shows library linking options
-  pkg-config --static --libs   # shows library linking options for static linking
+  pkg-config --cflags dftbplus   # compilation flags (e.g. include options)
+  pkg-config --libs dftbplus     # library linking options
+  pkg-config --static --libs dftbplus   # library linking options for static linking
 
 Note, that the flags and libraries shown are either for linking with Fortran or
 with C, depending on the value of the configuration option
@@ -270,3 +275,15 @@ to make sure, CMake finds them, you could turn them into targets in your CMake::
 If you compiled DFTB+ with ELSI support, make sure, that CMake can find ELSIs
 own CMake configuration file, as it is declared as dependency in the DFTB+ Cmake
 config file.
+
+
+Generating developer documentation
+==================================
+
+Developer documentation can be generated using the FORD source code
+documentation generator by issuing ::
+
+  cd doc/dftb+/ford && ford dftbplus-project-file.md
+
+in the main source directory. The documentation will be created in the
+`doc/dftb+/ford/doc` folder.

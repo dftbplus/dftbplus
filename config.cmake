@@ -29,6 +29,8 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
 # GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
 
+option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allowed for" FALSE)
+
 option(WITH_API "Whether public API should be included and the DFTB+ library installed" FALSE)
 # Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
 # packages. (Otherwise only a stripped down version of the library without the public API is built.)

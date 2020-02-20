@@ -11,10 +11,24 @@ Unreleased
 Added
 -----
 
+- New algorithm for long-range corrected Hamiltonian
+
+- Support for meta-dynamics via the Plumed library.
+
+- Option to set mass of atoms in modes input file (syntax matches existing DFTB+
+  feature)
+
+- Use of processor groups with transport calculations
+  
+- Read input coordinates in XYZ format
+
+- Read input coordinates in POSCAR format
+
 
 Changed
 -------
 
+- Input in GEN format now strictly follows the format described in the manual
 
 Fixed
 -----
@@ -51,10 +65,12 @@ Added
 
 - Halogen X correction.
 
+
 Changed
 -------
 
 - Updated parser version to 7.
+
 
 Fixed
 -----
