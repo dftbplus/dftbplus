@@ -27,10 +27,7 @@ module dftbp_linresp
   use dftbp_nonscc, only : NonSccDiff
   use dftbp_densedescr
   use dftbp_taggedoutput, only : TTaggedWriter
-#:if WITH_ARPACK
-  ! code is compiled with arpack available
   use dftbp_linrespgrad
-#:endif
   implicit none
   private
 

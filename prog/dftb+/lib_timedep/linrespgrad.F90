@@ -11,6 +11,7 @@
 module dftbp_linrespgrad
   use dftbp_assert
   use dftbp_arpack
+  use dftbp_elsirciiface
   use dftbp_linrespcommon
   use dftbp_commontypes
   use dftbp_slakocont

@@ -234,16 +234,23 @@ else
     L_LIBS_ARPACK += $(if $(filter _extlib_arpack, $^), $(ARPACK_LIBS))
   endif
 
-  # If ARPACK was built without LAPACK/BLAS routines, they should be resolved from
-  # the main LAPACK/BLAS library . Otherwise link ARPACK as last to prevent its
-  # BLAS/LAPACK routines to interfere with the main libary (crashes in some cases)
+  # If ARPACK was built without LAPACK/BLAS routines, they should be
+  # resolved from the main LAPACK/BLAS library . Otherwise link ARPACK
+  # last to prevent its BLAS/LAPACK routines interfering with the main
+  # libary (crashes in some cases)
   ifeq ($(strip $(ARPACK_NEEDS_LAPACK)),1)
     L_LIBS += $(L_LIBS_ARPACK) $(L_LIBS_LAPACKBLAS)
   else
     L_LIBS += $(L_LIBS_LAPACKBLAS) $(L_LIBS_ARPACK)
   endif
 endif
-  
+
+# ELSI_RCI library
+ifeq ($(strip $(WITH_ELSI_RCI)),1)
+  L_INCS += -I$(ELSIRCIINCDIR)
+  L_LIBS += $(LIB_ELSI_RCI)
+  FYPPOPT += -DWITH_ELSI_RCI
+endif
 
 $(COMPILED_EXTERNALS): __FORCE__
 	touch -r $(BUILDROOT)/external/$(subst _extlib_,,$@)/BUILD_TIMESTAMP $@

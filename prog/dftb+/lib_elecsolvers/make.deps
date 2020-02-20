@@ -31,3 +31,4 @@ elsisolver.o = elsisolver.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_e
 _mod_dftbp_elsisolver: elsisolver.o
 _mod_dftbp_elsisolver = $(elsisolver.o)
 #:endif
+

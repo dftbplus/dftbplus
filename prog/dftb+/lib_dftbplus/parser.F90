@@ -51,6 +51,7 @@ module dftbp_parser
   use dftbp_etemp, only : fillingTypes
   use dftbp_wrappedintr
   use dftbp_plumed, only : withPlumed
+  use dftbp_arpack, only : withArpack
 #:if WITH_TRANSPORT
   use poisson_init
   use libnegf_vars
@@ -3493,26 +3494,20 @@ contains
     type(control), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-  #:if WITH_ARPACK
     type(fnode), pointer :: child2
     type(string) :: buffer
     type(string) :: modifier
-  #:endif
 
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
 
-  #:if not WITH_ARPACK
-
-    if (associated(child)) then
+    if (associated(child) .and. .not. withArpack) then
       call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
           & response calculations (requires the ARPACK/ngARPACK library).')
     end if
 
     ctrl%lrespini%tInit = .false.
     ctrl%lrespini%tPrintEigVecs = .false.
-
-  #:else
 
     if (associated(child)) then
 
@@ -3588,8 +3583,6 @@ contains
       end if
 
     end if
-
-  #:endif
 
   end subroutine readExcited
 
