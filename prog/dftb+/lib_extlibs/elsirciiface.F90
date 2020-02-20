@@ -21,6 +21,7 @@ module dftbp_elsirciiface
   private
 
   public :: withElsiRCI, rci_init, rci_solve_allocate, rci_solve, rci_solve_deallocate
+  public :: rci_handle, rci_instr
 
   !> Whether code was built with ELSI support
   logical, parameter :: withElsiRCI = #{if WITH_ELSI_RCI}# .true. #{else}# .false. #{endif}#
@@ -30,9 +31,29 @@ module dftbp_elsirciiface
   ! Placeholder types when compiled without ELSI_RCI support
 
   type :: rci_handle
+    ! Systems
+    integer(i4) :: n_basis, n_state, max_n
+    logical :: ovlp_is_unit
+    ! Iteration
+    integer(i4) :: solver, max_iter, n_res, verbose
+    real(r8) :: tol_iter
+    ! Output
+    integer(i4) :: total_iter
+    real(r8) :: total_energy
+    ! OMM
+    real(r8) :: omm_est_ub
+    ! PPCG
+    integer(i4) :: ppcg_sbsize, ppcg_rrstep
+    real(r8) :: ppcg_tol_lock
+    ! ChebFilter
+    real(r8) :: cheb_est_lb, cheb_est_ub
+    integer(i4) :: cheb_max_inneriter
   end type rci_handle
 
   type :: rci_instr
+    character :: jobz, uplo, side, trH, trS, trP, trA, trB
+    integer :: m, n, k, lda, ldb, ldc, rAoff, cAoff, rBoff, cBoff, Aidx, Bidx, Cidx
+    real(r8) :: alpha, beta
   end type rci_instr
 
 #:endif

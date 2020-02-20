@@ -73,7 +73,7 @@ set(PEXSI_EXTERNAL_LIBRARY_DIRS "/usr/lib/gcc/x86_64-linux-gnu/7" CACHE STRING
   "Directories with PEXSI external libraries")
 
 # ELSI_RCI -- only needed when compiled with ELSI_RCI support
-set(ELSI_ROOT "/opt/elsi" CACHE STRING "Root directory of the ELSI_RCI installation")
+set(ELSI_RCI_ROOT "/opt/elsi" CACHE STRING "Root directory of the ELSI_RCI installation")
 
 set(ELSI_RCI_EXTERNAL_LIBRARIES "" CACHE STRING
   "Any EXTERNAL libraries ELSI_RCI needs apart from its own libraries (and lapack/blas)")

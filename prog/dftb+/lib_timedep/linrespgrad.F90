@@ -32,20 +32,9 @@ module dftbp_linrespgrad
 
   public :: LinRespGrad_old
 
-
-  !> Tolerance for ARPACK solver.
-  real(dp), parameter :: ARTOL = epsilon(1.0_rsp)
-
-
-  !> Maximal allowed iteration in the ARPACK solver.
-  integer, parameter :: MAX_AR_ITER = 300
-
   character(lc) :: tmpStr
 
-
-  !> Names of output files
-  character(*), parameter :: arpackOut = "ARPACK.DAT"
-  character(*), parameter :: testArpackOut = "TEST_ARPACK.DAT"
+  !> Output files for results
   character(*), parameter :: transitionsOut = "TRA.DAT"
   character(*), parameter :: XplusYOut = "XplusY.DAT"
   character(*), parameter :: excitedQOut = "XCH.DAT"
@@ -56,12 +45,23 @@ module dftbp_linrespgrad
   character(*), parameter :: singlePartOut = "SPX.DAT"
 
 
+  ! ARPACK related variables
+
+  !> Tolerance for ARPACK solver.
+  real(dp), parameter :: ARTOL = epsilon(1.0_rsp)
+
+  !> Maximal allowed iteration in the ARPACK solver.
+  integer, parameter :: MAX_AR_ITER = 300
+
+  !> Names of output files
+  character(*), parameter :: arpackOut = "ARPACK.DAT"
+  character(*), parameter :: testArpackOut = "TEST_ARPACK.DAT"
+
   !> Communication with ARPACK for progress information
   integer :: logfil, ndigit, mgetv0
   integer :: msaupd, msaup2, msaitr, mseigt, msapps, msgets, mseupd
   integer :: mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd
   integer :: mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
-
 
   !> Common block of ARPACK variables
   common /debug/ logfil, ndigit, mgetv0,&
@@ -69,8 +69,18 @@ module dftbp_linrespgrad
       &    mnaupd, mnaup2, mnaitr, mneigh, mnapps, mngets, mneupd,&
       &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
 
-contains
+  ! ELSI_RCI related variables
+  type(rci_handle) :: r_h
+  type(rci_instr) :: iS
+  real(dp), allocatable :: resvec(:)
+  real(dp), allocatable :: Mattmp(:, :)
+  real(dp), allocatable :: Worktmp(:)
+  type :: matrix
+    real(dp), allocatable :: Mat(:, :)
+  end type matrix
+  type(matrix), allocatable :: Work(:)
 
+contains
 
   !> This subroutine analytically calculates excitations and gradients of excited state energies
   !> based on Time Dependent DFRT
@@ -271,23 +281,27 @@ contains
     type(TTransCharges) :: transChrg
 
 
-    ! ARPACK library variables
-    ndigit = -3
-    ! Output unit:
-    logfil = fdArnoldi
-    msgets = 0
-    msaitr = 0
-    msapps = 0
-    mseigt = 0
-    mseupd = 0
-    if(tArnoldi) then
-      msaupd = 1
-      msaup2 = 1
-    else
-      msaupd = 0
-      msaup2 = 0
-    endif
-    ! End of ARPACK communication variables
+    if (withArpack) then
+
+      ! ARPACK library variables
+      ndigit = -3
+      ! Output unit:
+      logfil = fdArnoldi
+      msgets = 0
+      msaitr = 0
+      msapps = 0
+      mseigt = 0
+      mseupd = 0
+      if(tArnoldi) then
+        msaupd = 1
+        msaup2 = 1
+      else
+        msaupd = 0
+        msaup2 = 0
+      endif
+      ! End of ARPACK communication variables
+
+    end if
 
     @:ASSERT(fdExc > 0)
 
@@ -349,7 +363,6 @@ contains
         tForces = .true.
       end if
     end if
-
 
     !> is a z vector required?
     tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs)
@@ -474,9 +487,13 @@ contains
 
     end if
 
-    ! just in case energy/dipole windows add no extra states, and is due to an arpack solver
-    ! requirement combined with the need to get at least nexc states
-    nxov_rd = max(nxov_rd,min(nexc+1,nxov))
+    if (withArpack) then
+      ! just in case energy/dipole windows add no extra states, and is due to an arpack solver
+      ! requirement combined with the need to get at least nexc states
+      nxov_rd = max(nxov_rd,min(nexc+1,nxov))
+    else
+
+    end if
 
     call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij,&
         & win, tCacheCharges)
@@ -524,9 +541,13 @@ contains
     do isym = 1, size(symmetries)
 
       sym = symmetries(isym)
-      call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
-          & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
-          & fdArnoldiDiagnosis, eval, evec, onsMEs, orb)
+      if (withArpack) then
+        call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
+            & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
+            & fdArnoldiDiagnosis, eval, evec, onsMEs, orb)
+      elseif (withELSIRCI) then
+
+      end if
 
       ! Excitation oscillator strengths for resulting states
       call getOscillatorStrengths(sym, snglPartTransDip(1:nxov_rd,:), wij(:nxov_rd), eval, evec,&
