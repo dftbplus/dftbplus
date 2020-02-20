@@ -7,6 +7,7 @@ if(WITH_ARPACK)
   list(APPEND sources-fpp
     ${curdir}/linrespcommon.F90
     ${curdir}/linrespgrad.F90
+    ${curdir}/rs_linresp.F90
     ${curdir}/transcharges.F90)
 endif()
 

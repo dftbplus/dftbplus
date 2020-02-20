@@ -687,6 +687,9 @@ module dftbp_initprogram
   !> DeltaRho output from range separation in matrix form
   real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
 
+  !> Linear response calculation with range-separated functional
+  logical :: tRS_LinResp
+
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
 
@@ -976,6 +979,9 @@ module dftbp_initprogram
 
   !> All of the excited energies actuall solved by Casida routines (if used)
   real(dp), allocatable :: energiesCasida(:)
+
+  !> atomic charge contribution in excited state
+  real(dp), allocatable :: dQAtomEx(:)
 
   !> Is this DFTB/SSR formalism
   logical :: tREKS
@@ -1701,6 +1707,10 @@ contains
     q0(:,:,:) = 0.0_dp
     allocate(qShell0(orb%mShell, nAtom))
     qShell0(:,:) = 0.0_dp
+    if (tLinResp) then
+       allocate(dQAtomEx(nAtom))
+       dQAtomEx(:) = 0.0_dp
+    end if
 
     ! Initialize reference neutral atoms.
     if (tLinResp .and. allocated(input%ctrl%customOccAtoms)) then
@@ -2118,9 +2128,12 @@ contains
             & corrections")
       end if
 
-      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
+      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements, nMovedAtom)
 
     end if
+
+    ! turn on if LinResp and RangSep turned on, no extra input required for now
+    tRS_LinResp = tLinResp .and. tRangeSep
 
     iSeed = input%ctrl%iSeed
     tRandomSeed = (iSeed < 1)
