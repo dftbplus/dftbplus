@@ -15,8 +15,8 @@
 module dftbp_encharges
   use dftbp_assert
   use dftbp_accuracy
-  use dftbp_constants, only: pi
-  use dftbp_errorfunction, only: erfwrap
+  use dftbp_constants, only : pi
+  use dftbp_errorfunction, only : erfwrap
   use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec
   use dftbp_blasroutines, only : hemv, gemv, gemm
   use dftbp_lapackroutines, only : symmatinv
