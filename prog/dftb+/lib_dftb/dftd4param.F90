@@ -11,72 +11,136 @@
 module dftbp_dftd4param
   use dftbp_assert
   use dftbp_accuracy
-  use dftbp_constants, only: pi, AA__Bohr
+  use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
   use dftbp_dftd4refs
   implicit none
 
   public :: DftD4Calculator, DispDftD4Inp, initializeCalculator
+  public :: getEeqChi, getEeqGam, getEeqKcn, getEeqRad
+  public :: getChemicalHardness, getEffectiveNuclearCharge, getSqrtZr4r2
+  public :: getCovalentRadiusD3, getPaulingEN
   private
 
+  !> Element-specific electronegativity for the electronegativity equilibration charges used in
+  !> DFT-D4.
+  interface getEeqChi
+    module procedure getEeqChiSymbol
+    module procedure getEeqChiNumber
+  end interface getEeqChi
+
+  !> Element-specific chemical hardnesses for the electronegativity equilibration charges used in
+  !> DFT-D4.
+  interface getEeqGam
+    module procedure :: getEeqGamSymbol
+    module procedure :: getEeqGamNumber
+  end interface getEeqGam
+
+  !> Element-specific CN scaling constant for the electronegativity equilibration charges used in
+  !> DFT-D4.
+  interface getEeqKcn
+    module procedure :: getEeqKcnSymbol
+    module procedure :: getEeqKcnNumber
+  end interface getEeqKcn
+
+  !> Element-specific charge widths for the electronegativity equilibration charges used in DFT-D4.
+  interface getEeqRad
+    module procedure :: getEeqRadSymbol
+    module procedure :: getEeqRadNumber
+  end interface getEeqRad
+
+  !> Element-specific chemical hardnesses for the charge scaling function used to extrapolate the C6
+  !> coefficients in DFT-D4.
+  interface getChemicalHardness
+    module procedure :: getChemicalHardnessSymbol
+    module procedure :: getChemicalHardnessNumber
+  end interface getChemicalHardness
+
+  !> Effective nuclear charges from the def2-ECPs used for calculating the reference
+  !> polarizibilities for DFT-D4.
+  interface getEffectiveNuclearCharge
+    module procedure :: getEffectiveNuclearChargeSymbol
+    module procedure :: getEffectiveNuclearChargeNumber
+  end interface getEffectiveNuclearCharge
+
+  !> Covalent radii used for coordination number.
+  interface getCovalentRadiusD3
+    module procedure :: getCovalentRadiusD3Symbol
+    module procedure :: getCovalentRadiusD3Number
+  end interface getCovalentRadiusD3
+
+  !> Pauling electronegativities, used for the covalent coordination number.
+  interface getPaulingEN
+    module procedure :: getPaulingENSymbol
+    module procedure :: getPaulingENNumber
+  end interface getPaulingEN
+
+  !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values.
+  interface getSqrtZr4r2
+    module procedure :: getSqrtZr4r2Symbol
+    module procedure :: getSqrtZr4r2Number
+  end interface getSqrtZr4r2
+
+
   !> Maximum atomic number allowed in EEQ calculations
-  integer, parameter :: max_element_eeq = 86
+  integer, parameter :: maxElementEeq = 86
 
   !> Maximum atomic number allowed in D4 calculations
-  integer, parameter :: max_element_d4 = 118
+  integer, parameter :: maxElementD4 = 118
 
   !> Maximum allowed number of reference systems, arbitrary choice
-  integer, parameter :: max_references = 7
+  integer, parameter :: maxReferences = 7
 
   !> Number of frequencies used in Casimir-Polder integration
-  integer, parameter :: imag_frequencies = 23
+  integer, parameter :: imagFrequencies = 23
+
 
   !> Damping parameters for DFT-D4 calculation.
   type :: DispDftD4Inp
 
-    !> scaling parameter for dipole-dipole coefficients.
+    !> Scaling parameter for dipole-dipole coefficients.
     real(dp) :: s6 = 1.0_dp
 
-    !> scaling parameter for dipole-quadrupole coefficients.
+    !> Scaling parameter for dipole-quadrupole coefficients.
     real(dp) :: s8
 
-    !> scaling parameter for quadrupole-quadrupole coefficients.
+    !> Scaling parameter for quadrupole-quadrupole coefficients.
     real(dp) :: s10 = 0.0_dp
 
-    !> scaling parameter for non-additive triple dipole coefficients.
+    !> Scaling parameter for non-additive triple dipole coefficients.
     real(dp) :: s9
 
-    !> scaling parameter for <r4>/<r2> expectation value based critical radii.
+    !> Scaling parameter for <r4>/<r2> expectation value based critical radii.
     real(dp) :: a1
 
-    !> constant offset of critical radii.
+    !> Constant offset of critical radii.
     real(dp) :: a2
 
-    !> exponent of for the zero-damping function used for non-addititive triple dipole
-    !>  contributions.
+    !> Exponent of for the zero-damping function used for non-addititive triple dipole
+    !> contributions.
     real(dp) :: alpha = 16.0_dp
 
-    !> cutoff radius for dispersion interactions.
+    !> Cutoff radius for dispersion interactions.
     real(dp) :: cutoffInter = 64.0_dp
 
-    !> cutoff radius for CN counting function.
+    !> Cutoff radius for CN counting function.
     real(dp) :: cutoffCount = 40.0_dp
 
-    !> cutoff radius for real space Ewald summation.
+    !> Cutoff radius for real space Ewald summation.
     real(dp) :: cutoffEwald = 40.0_dp
 
-    !> cutoff radius for three-body interactions.
+    !> Cutoff radius for three-body interactions.
     real(dp) :: cutoffThree = 40.0_dp
 
     !> Gaussian weighting factor for interpolation of dispersion coefficients.
     real(dp) :: weightingFactor = 6.0_dp
 
-    !> maximum charge scaling height for partial charge extrapolation.
+    !> Maximum charge scaling height for partial charge extrapolation.
     real(dp) :: chargeScale = 3.0_dp
 
-    !> charge scaling steepness for partial charge extrapolation.
+    !> Charge scaling steepness for partial charge extrapolation.
     real(dp) :: chargeSteepness = 2.0_dp
 
-    !> if > 0 -> manual setting for alpha
+    !> If > 0 -> manual setting for alpha
     real(dp) :: parEwald = 0.0_dp
 
     !> Ewald tolerance
@@ -90,50 +154,50 @@ module dftbp_dftd4param
 
   type :: DftD4Calculator
 
-    !> scaling parameter for dipole-dipole coefficients.
+    !> Scaling parameter for dipole-dipole coefficients.
     real(dp) :: s6 = 1.0_dp
 
-    !> scaling parameter for dipole-quadrupole coefficients.
+    !> Scaling parameter for dipole-quadrupole coefficients.
     real(dp) :: s8
 
-    !> scaling parameter for quadrupole-quadrupole coefficients.
+    !> Scaling parameter for quadrupole-quadrupole coefficients.
     real(dp) :: s10 = 0.0_dp
 
-    !> scaling parameter for non-additive triple dipole coefficients.
+    !> Scaling parameter for non-additive triple dipole coefficients.
     real(dp) :: s9
 
-    !> scaling parameter for <r4>/<r2> expectation value based critical radii.
+    !> Scaling parameter for <r4>/<r2> expectation value based critical radii.
     real(dp) :: a1
 
-    !> constant offset of critical radii.
+    !> Constant offset of critical radii.
     real(dp) :: a2
 
-    !> exponent of for the zero-damping function used for non-addititive
-    !>  triple dipole contributions.
+    !> Exponent of for the zero-damping function used for non-addititive
+    !> triple dipole contributions.
     real(dp) :: alpha = 16.0_dp
 
     !> Gaussian weighting factor for interpolation of dispersion coefficients.
     real(dp) :: wf
 
-    !> maximum charge scaling height for partial charge extrapolation.
+    !> Maximum charge scaling height for partial charge extrapolation.
     real(dp) :: ga
 
-    !> charge scaling steepness for partial charge extrapolation.
+    !> Charge scaling steepness for partial charge extrapolation.
     real(dp) :: gc
 
-    !> cutoff radius for dispersion interactions.
+    !> Cutoff radius for dispersion interactions.
     real(dp) :: cutoffInter
 
-    !> cutoff radius for CN counting function.
+    !> Cutoff radius for CN counting function.
     real(dp) :: cutoffCount
 
-    !> cutoff radius for real space Ewald summation.
+    !> Cutoff radius for real space Ewald summation.
     real(dp) :: cutoffEwald
 
-    !> cutoff radius for three-body interactions.
+    !> Cutoff radius for three-body interactions.
     real(dp) :: cutoffThree
 
-    !> net charge
+    !> Net charge
     real(dp) :: nrChrg = 0.0_dp
 
     real(dp), allocatable :: chi(:)
@@ -159,8 +223,8 @@ module dftbp_dftd4param
 
 
   !> Element-specific electronegativity for the electronegativity equilibration charges used in
-  !>  DFT-D4.
-  real(dp), parameter :: chi(max_element_eeq) = [&
+  !> DFT-D4.
+  real(dp), parameter :: eeqChi(maxElementEeq) = [&
     & 1.23695041_dp, 1.26590957_dp, 0.54341808_dp, 0.99666991_dp, 1.26691604_dp, &
     & 1.40028282_dp, 1.55819364_dp, 1.56866440_dp, 1.57540015_dp, 1.15056627_dp, &
     & 0.55936220_dp, 0.72373742_dp, 1.12910844_dp, 1.12306840_dp, 1.52672442_dp, &
@@ -181,8 +245,8 @@ module dftbp_dftd4param
     & 1.27465977_dp]
 
   !> Element-specific chemical hardnesses for the electronegativity equilibration charges used in
-  !>  DFT-D4.
-  real(dp), parameter :: gam(max_element_eeq) = [&
+  !> DFT-D4.
+  real(dp), parameter :: eeqGam(maxElementEeq) = [&
     &-0.35015861_dp, 1.04121227_dp, 0.09281243_dp, 0.09412380_dp, 0.26629137_dp, &
     & 0.19408787_dp, 0.05317918_dp, 0.03151644_dp, 0.32275132_dp, 1.30996037_dp, &
     & 0.24206510_dp, 0.04147733_dp, 0.11634126_dp, 0.13155266_dp, 0.15350650_dp, &
@@ -203,8 +267,8 @@ module dftbp_dftd4param
     & 0.10500484_dp]
 
   !> Element-specific CN scaling constant for the electronegativity equilibration charges used in
-  !>  DFT-D4.
-  real(dp), parameter :: kcn(max_element_eeq) = [&
+  !> DFT-D4.
+  real(dp), parameter :: eeqKcn(maxElementEeq) = [&
     & 0.04916110_dp, 0.10937243_dp,-0.12349591_dp,-0.02665108_dp,-0.02631658_dp, &
     & 0.06005196_dp, 0.09279548_dp, 0.11689703_dp, 0.15704746_dp, 0.07987901_dp, &
     &-0.10002962_dp,-0.07712863_dp,-0.02170561_dp,-0.04964052_dp, 0.14250599_dp, &
@@ -225,7 +289,7 @@ module dftbp_dftd4param
     & 0.05849285_dp]
 
   !> Element-specific charge widths for the electronegativity equilibration charges used in DFT-D4.
-  real(dp), parameter :: rad(max_element_eeq) = [&
+  real(dp), parameter :: eeqRad(maxElementEeq) = [&
     & 0.55159092_dp, 0.66205886_dp, 0.90529132_dp, 1.51710827_dp, 2.86070364_dp, &
     & 1.88862966_dp, 1.32250290_dp, 1.23166285_dp, 1.77503721_dp, 1.11955204_dp, &
     & 1.28263182_dp, 1.22344336_dp, 1.70936266_dp, 1.54075036_dp, 1.38200579_dp, &
@@ -246,8 +310,8 @@ module dftbp_dftd4param
     & 2.82773085_dp]
 
   !> Element-specific chemical hardnesses for the charge scaling function used to extrapolate the C6
-  !>  coefficients in DFT-D4.
-  real(dp), parameter :: chemicalHardness(max_element_d4) = [ &
+  !> coefficients in DFT-D4.
+  real(dp), parameter :: chemicalHardness(maxElementD4) = [ &
     & 0.47259288_dp, 0.92203391_dp, 0.17452888_dp, 0.25700733_dp, 0.33949086_dp, &
     & 0.42195412_dp, 0.50438193_dp, 0.58691863_dp, 0.66931351_dp, 0.75191607_dp, &
     & 0.17964105_dp, 0.22157276_dp, 0.26348578_dp, 0.30539645_dp, 0.34734014_dp, &
@@ -274,8 +338,8 @@ module dftbp_dftd4param
     & 0.00000000_dp, 0.00000000_dp, 0.00000000_dp]
 
   !> Effective nuclear charges from the def2-ECPs used for calculating the reference
-  !>  polarizibilities for DFT-D4.
-  real(dp), parameter :: effectiveNuclearCharge(max_element_d4) = [ &
+  !> polarizibilities for DFT-D4.
+  real(dp), parameter :: effectiveNuclearCharge(maxElementD4) = [ &
     &   1,                                                 2,  & ! H-He
     &   3, 4,                               5, 6, 7, 8, 9,10,  & ! Li-Ne
     &  11,12,                              13,14,15,16,17,18,  & ! Na-Ar
@@ -288,8 +352,8 @@ module dftbp_dftd4param
     &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26] ! Rf-Og
 
   !> Covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197), values for
-  !>  metals decreased by 10%.
-  real(dp), parameter :: CovalentRadiusD3(max_element_d4) = [ &
+  !> metals decreased by 10%.
+  real(dp), parameter :: CovalentRadiusD3(maxElementD4) = [ &
     & 0.32_dp,0.46_dp, & ! H,He
     & 1.20_dp,0.94_dp,0.77_dp,0.75_dp,0.71_dp,0.63_dp,0.64_dp,0.67_dp, & ! Li-Ne
     & 1.40_dp,1.25_dp,1.13_dp,1.04_dp,1.10_dp,1.02_dp,0.99_dp,0.96_dp, & ! Na-Ar
@@ -316,7 +380,7 @@ module dftbp_dftd4param
     & * AA__Bohr * 4.0_dp / 3.0_dp
 
   !> Pauling electronegativities, used for the covalent coordination number.
-  real(dp), parameter :: paulingEN(max_element_d4) = [ &
+  real(dp), parameter :: paulingEN(maxElementD4) = [ &
     & 2.20_dp,3.00_dp, & ! H,He
     & 0.98_dp,1.57_dp,2.04_dp,2.55_dp,3.04_dp,3.44_dp,3.98_dp,4.50_dp, & ! Li-Ne
     & 0.93_dp,1.31_dp,1.61_dp,1.90_dp,2.19_dp,2.58_dp,3.16_dp,3.50_dp, & ! Na-Ar
@@ -344,7 +408,7 @@ module dftbp_dftd4param
 
 
   !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values.
-  real(dp), parameter :: r4r2(max_element_d4) = [ &
+  real(dp), parameter :: r4r2(maxElementD4) = [ &
     &  8.0589_dp, 3.4698_dp, & ! H,He
     & 29.0974_dp,14.8517_dp,11.8799_dp, 7.8715_dp, &
     &  5.5588_dp, 4.7566_dp, 3.8025_dp, 3.1036_dp, & ! Li-Ne
@@ -372,8 +436,8 @@ module dftbp_dftd4param
     &  6.7286_dp, 6.5144_dp,10.9169_dp,10.3600_dp, 9.4723_dp, 8.6641_dp]   ! Nh-Og
 
   integer :: iDummy
-  real(dp), parameter :: sqrtZr4r2(max_element_d4) = &
-    &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iDummy, dp)), iDummy=1, max_element_d4)]))
+  real(dp), parameter :: sqrtZr4r2(maxElementD4) = &
+    &  sqrt(0.5_dp*(r4r2*[(sqrt(real(iDummy, dp)), iDummy=1, maxElementD4)]))
 
 contains
 
@@ -396,12 +460,12 @@ contains
   pure function numIntegration(pol) result(trapzd)
 
     !> polarizabilities at imaginary frequencies
-    real(dp), intent(in) :: pol(imag_frequencies)
+    real(dp), intent(in) :: pol(imagFrequencies)
 
     !> resulting integral
     real(dp) :: trapzd
 
-    real(dp),parameter  :: freq(imag_frequencies) = [ &
+    real(dp),parameter  :: freq(imagFrequencies) = [ &
       & 0.000001_dp, 0.050000_dp, 0.100000_dp, 0.200000_dp, 0.300000_dp, &
       & 0.400000_dp, 0.500000_dp, 0.600000_dp, 0.700000_dp, 0.800000_dp, &
       & 0.900000_dp, 1.000000_dp, 1.200000_dp, 1.400000_dp, 1.600000_dp, &
@@ -409,7 +473,7 @@ contains
       & 5.000000_dp, 7.500000_dp, 10.00000_dp ]
 
     !  just precalculate all weights and get the job done
-    real(dp),parameter :: weights(imag_frequencies) = 0.5_dp * [ &
+    real(dp),parameter :: weights(imagFrequencies) = 0.5_dp * [ &
       & (freq (2) - freq (1)),  &
       & (freq (2) - freq (1)) + (freq (3) - freq (2)), &
       & (freq (3) - freq (2)) + (freq (4) - freq (3)), &
@@ -439,7 +503,7 @@ contains
   end function numIntegration
 
 
-  subroutine initializeCalculator(calculator, input, nAtom, izp)
+  subroutine initializeCalculator(calculator, input, nAtom, speciesNames, izp)
 
     !> Calculator
     type(DftD4Calculator), intent(inout) :: calculator
@@ -450,22 +514,25 @@ contains
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
 
+    !> Names of species.
+    character(*), intent(in) :: speciesNames(:)
+
     !> Atomic number of every atom.
     integer, intent(in) :: izp(:)
 
     integer :: mAt
     integer :: iAt1, iZp1, iSec, iCN, iZp2, iRef1, iRef2
     integer :: cncount(0:18)
-    real(dp) :: alpha(imag_frequencies), zEff1, c6, eta1
-    real(dp) :: tmp_hq(max_references, max_element_d4)
+    real(dp) :: alpha(imagFrequencies), zEff1, c6, eta1
+    real(dp) :: tmp_hq(maxReferences, maxElementD4)
 
     real(dp), parameter :: thopi = 3.0_dp/pi
 
     ! initialize charge model
-    calculator%chi = chi
-    calculator%gam = gam
-    calculator%rad = rad
-    calculator%kcn = kcn
+    calculator%chi = getEeqChi(speciesNames)
+    calculator%gam = getEeqGam(speciesNames)
+    calculator%rad = getEeqRad(speciesNames)
+    calculator%kcn = getEeqKcn(speciesNames)
 
     calculator%sqrtZr4r2 = sqrtZr4r2
     calculator%covalentRadius = CovalentRadiusD3
@@ -494,14 +561,14 @@ contains
 
     mAt = maxval(izp)
     allocate(calculator%numberOfReferences(mAt), calculator%atoms(mAt), &
-        & calculator%countNumber(max_references, mAt))
+        & calculator%countNumber(maxReferences, mAt))
     calculator%numberOfReferences(:) = 0
     calculator%atoms(:) = 0
     calculator%countNumber(:, :) = 0
-    allocate(calculator%referenceCN(max_references, mAt), &
-        & calculator%referenceCharge(max_references, mAt), &
-        & calculator%referenceAlpha(imag_frequencies, max_references, mAt), &
-        & calculator%referenceC6(max_references, max_references, mAt, mAt))
+    allocate(calculator%referenceCN(maxReferences, mAt), &
+        & calculator%referenceCharge(maxReferences, mAt), &
+        & calculator%referenceAlpha(imagFrequencies, maxReferences, mAt), &
+        & calculator%referenceC6(maxReferences, maxReferences, mAt, mAt))
     calculator%referenceCN(:, :) = 0.0_dp
     calculator%referenceCharge(:, :) = 0.0_dp
     calculator%referenceAlpha(:, :, :) = 0.0_dp
@@ -563,6 +630,294 @@ contains
     !$OMP END PARALLEL
 
   end subroutine initializeCalculator
+
+
+  !> Get electronegativity for species with a given symbol
+  elemental function getEeqChiSymbol(symbol) result(chi)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> electronegativity
+    real(dp) :: chi
+
+    chi = getEeqChi(symbolToNumber(symbol))
+
+  end function getEeqChiSymbol
+
+
+  !> Get electronegativity for species with a given atomic number
+  elemental function getEeqChiNumber(number) result(chi)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> electronegativity
+    real(dp) :: chi
+
+    if (number > 0 .and. number <= size(eeqChi, dim=1)) then
+      chi = eeqChi(number)
+    else
+      chi = -1.0_dp
+    end if
+
+  end function getEeqChiNumber
+
+
+  !> Get hardness for species with a given symbol
+  elemental function getEeqGamSymbol(symbol) result(gam)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> hardness
+    real(dp) :: gam
+
+    gam = getEeqGam(symbolToNumber(symbol))
+
+  end function getEeqGamSymbol
+
+
+  !> Get hardness for species with a given atomic number
+  elemental function getEeqGamNumber(number) result(gam)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> hardness
+    real(dp) :: gam
+
+    if (number > 0 .and. number <= size(eeqGam, dim=1)) then
+      gam = eeqGam(number)
+    else
+      gam = -1.0_dp
+    end if
+
+  end function getEeqGamNumber
+
+
+  !> Get CN scaling for species with a given symbol
+  elemental function getEeqKcnSymbol(symbol) result(kcn)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> CN scaling
+    real(dp) :: kcn
+
+    kcn = getEeqKcn(symbolToNumber(symbol))
+
+  end function getEeqKcnSymbol
+
+
+  !> Get CN scaling for species with a given atomic number
+  elemental function getEeqKcnNumber(number) result(kcn)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> CN scaling
+    real(dp) :: kcn
+
+    if (number > 0 .and. number <= size(eeqKcn, dim=1)) then
+      kcn = eeqKcn(number)
+    else
+      kcn = -1.0_dp
+    end if
+
+  end function getEeqKcnNumber
+
+
+  !> Get charge width for species with a given symbol
+  elemental function getEeqRadSymbol(symbol) result(rad)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> charge width
+    real(dp) :: rad
+
+    rad = getEeqRad(symbolToNumber(symbol))
+
+  end function getEeqRadSymbol
+
+
+  !> Get charge width for species with a given atomic number
+  elemental function getEeqRadNumber(number) result(rad)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> Charge width
+    real(dp) :: rad
+
+    if (number > 0 .and. number <= size(eeqRad, dim=1)) then
+      rad = eeqRad(number)
+    else
+      rad = -1.0_dp
+    end if
+
+  end function getEeqRadNumber
+
+
+  !> Get chemical hardness for species with a given symbol
+  elemental function getChemicalHardnessSymbol(symbol) result(gam)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> Chemical hardness
+    real(dp) :: gam
+
+    gam = getChemicalHardness(symbolToNumber(symbol))
+
+  end function getChemicalHardnessSymbol
+
+
+  !> Get chemical hardness for species with a given atomic number
+  elemental function getChemicalHardnessNumber(number) result(gam)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> Chemical hardness
+    real(dp) :: gam
+
+    if (number > 0 .and. number <= size(chemicalHardness, dim=1)) then
+      gam = chemicalHardness(number)
+    else
+      gam = -1.0_dp
+    end if
+
+  end function getChemicalHardnessNumber
+
+
+  !> Get effective nuclear charge for species with a given symbol
+  elemental function getEffectiveNuclearChargeSymbol(symbol) result(zEff)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> Effective nuclear charge
+    real(dp) :: zEff
+
+    zEff = getEffectiveNuclearCharge(symbolToNumber(symbol))
+
+  end function getEffectiveNuclearChargeSymbol
+
+
+  !> Get effective nuclear charge for species with a given atomic number
+  elemental function getEffectiveNuclearChargeNumber(number) result(zEff)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> Effective nuclear charge
+    real(dp) :: zEff
+
+    if (number > 0 .and. number <= size(effectiveNuclearCharge, dim=1)) then
+      zEff = effectiveNuclearCharge(number)
+    else
+      zEff = -1.0_dp
+    end if
+
+  end function getEffectiveNuclearChargeNumber
+
+
+  !> Get covalent radius for species with a given symbol
+  elemental function getCovalentRadiusD3Symbol(symbol) result(rad)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> Covalent radius
+    real(dp) :: rad
+
+    rad = getCovalentRadiusD3(symbolToNumber(symbol))
+
+  end function getCovalentRadiusD3Symbol
+
+
+  !> Get covalent radius for species with a given atomic number
+  elemental function getCovalentRadiusD3Number(number) result(rad)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> Covalent radius
+    real(dp) :: rad
+
+    if (number > 0 .and. number <= size(covalentRadiusD3, dim=1)) then
+      rad = covalentRadiusD3(number)
+    else
+      rad = -1.0_dp
+    end if
+
+  end function getCovalentRadiusD3Number
+
+
+  !> Get electronegativity for species with a given symbol
+  elemental function getPaulingENSymbol(symbol) result(en)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> Electronegativity
+    real(dp) :: en
+
+    en = getPaulingEN(symbolToNumber(symbol))
+
+  end function getPaulingENSymbol
+
+
+  !> Get electronegativity for species with a given atomic number
+  elemental function getPaulingENNumber(number) result(en)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> Electronegativity
+    real(dp) :: en
+
+    if (number > 0 .and. number <= size(paulingEN, dim=1)) then
+      en = paulingEN(number)
+    else
+      en = -1.0_dp
+    end if
+
+  end function getPaulingENNumber
+
+
+  !> Get atomic expectation value for species with a given symbol
+  elemental function getSqrtZr4r2Symbol(symbol) result(r4r2)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> Atomic expectation value
+    real(dp) :: r4r2
+
+    r4r2 = getSqrtZr4r2(symbolToNumber(symbol))
+
+  end function getSqrtZr4r2Symbol
+
+
+  !> Get atomic expectation value for species with a given atomic number
+  elemental function getSqrtZr4r2Number(number) result(r4r2)
+
+    !> Atomic number
+    integer, intent(in) :: number
+
+    !> Atomic expectation value
+    real(dp) :: r4r2
+
+    if (number > 0 .and. number <= size(sqrtZr4r2, dim=1)) then
+      r4r2 = sqrtZr4r2(number)
+    else
+      r4r2 = -1.0_dp
+    end if
+
+  end function getSqrtZr4r2Number
 
 
 end module dftbp_dftd4param
