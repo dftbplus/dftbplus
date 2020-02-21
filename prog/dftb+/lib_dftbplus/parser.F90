@@ -3821,8 +3821,6 @@ contains
     type(string) :: buffer
     real(dp), allocatable :: d4Chi(:), d4Gam(:), d4Kcn(:), d4Rad(:)
 
-    input%nrChrg = nrChrg
-
     call getChildValue(node, "s6", input%s6, default=1.0_dp)
     call getChildValue(node, "s8", input%s8)
     call getChildValue(node, "s9", input%s9)
@@ -3839,15 +3837,9 @@ contains
     call getChildValue(node, "cutoffCount", input%cutoffCount, default=40.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffCount)
-    call getChildValue(node, "cutoffEwald", input%cutoffEwald, default=40.0_dp, modifier=buffer,&
-        & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffEwald)
     call getChildValue(node, "cutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffThree)
-
-    call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)
-    call getChildValue(node, "EwaldTolerance", input%tolEwald, 1.0e-9_dp)
 
     call getChildValue(node, "ChargeModel", value1, "EEQ", child=child)
     call getNodeName(value1, buffer)

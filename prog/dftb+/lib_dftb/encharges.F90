@@ -89,9 +89,11 @@ module dftbp_encharges
     !> Volume of the unit cell
     real(dp) :: vol
 
-    !> Contains the points included in the reciprocal sum.
-    !> The set should not include the origin or inversion related points.
-    real(dp), allocatable :: recPoint(:, :)
+    !> evaluate Ewald parameter
+    logical :: tAutoEwald
+
+    !> Ewald tolerance
+    real(dp) :: tolEwald
 
     !> Parameter for Ewald summation.
     real(dp) :: parEwald
@@ -99,17 +101,12 @@ module dftbp_encharges
     !> is this periodic
     logical :: tPeriodic
 
+    !> Contains the points included in the reciprocal sum.
+    !> The set should not include the origin or inversion related points.
+    real(dp), allocatable :: recPoint(:, :)
+
     !> are the coordinates current?
     logical :: tCoordsUpdated
-
-    !> evaluate Ewald parameter
-    logical :: tAutoEwald
-
-    !> if > 0 -> manual setting for alpha
-    real(dp) :: ewaldAlpha
-
-    !> Ewald tolerance
-    real(dp) :: tolEwald
 
     !> electrostatic energy
     real(dp), allocatable :: energies(:)
@@ -198,26 +195,15 @@ contains
     this%tPeriodic = present(latVecs)
 
     this%param = input%TEeqParam
+    this%cutoff = input%cutoff
+    this%nrChrg = input%nrChrg
 
     if (this%tPeriodic) then
-      this%latVecs(:,:) = latVecs
-      this%vol = determinant33(latVecs)
-      call invert33(recVecs, latVecs, this%vol)
-      this%vol = abs(this%vol)
-      recVecs = 2.0_dp * pi * transpose(recVecs)
-
-      this%ewaldAlpha = 0.0_dp
       this%tAutoEwald = input%parEwald <= 0.0_dp
       this%tolEwald = input%tolEwald
-      if (this%tAutoEwald) then
-        this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, this%tolEwald)
-      else
-        this%parEwald = input%parEwald
-      end if
-      maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
-      call getLatticePoints(this%recPoint, recVecs, latVecs / (2.0_dp*pi), maxGEwald,&
-          & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
-      this%recPoint = matmul(recVecs, this%recPoint)
+      this%parEwald = input%parEwald
+
+      call this%updateLatVecs(latVecs)
     end if
 
     this%nAtom = nAtom
@@ -288,7 +274,7 @@ contains
     real(dp) :: recVecs(3, 3), maxGEwald
 
     @:ASSERT(this%tPeriodic)
-    @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
+    @:ASSERT(all(shape(latVecs) == shape(this%latVecs)))
 
     this%latVecs = latVecs
     this%vol = determinant33(latVecs)

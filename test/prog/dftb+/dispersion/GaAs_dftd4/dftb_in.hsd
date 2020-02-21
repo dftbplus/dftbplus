@@ -28,9 +28,11 @@ Hamiltonian = DFTB {
     s9 = 1.0
     s6 = 1.0
     s8 = 0.61
-    EwaldParameter = 0.25165824
     CutoffInter = 60
     CutoffCount = 34 
+    ChargeModel = EEQ {
+       EwaldParameter = 0.25165824
+    }
   }
 }
 

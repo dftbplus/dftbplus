@@ -2780,11 +2780,9 @@ can be adjusted in the input.
   \kw{ChargeSteepness} & r & & 2.0 & \\
   \kw{ChargeScale} & r & & 3.0 & \\
   \kw{CutoffInter} & r & & 64 & \\
-  \kw{CutoffEwald} & r & & 40 & \\
   \kw{CutoffCount} & r & & 40 & \\
   \kw{CutoffThree} & r & & 40 & \\
-  \kw{EwaldParameter} & r & & 0.0 & \\
-  \kw{EwaldTolerance} & r & & 1.0e-9 & \\
+  \kw{ChargeModel} & m & & \is{EEQ} & \\
 \end{ptable}
 
 \begin{description}
@@ -2812,14 +2810,44 @@ can be adjusted in the input.
 \item[\is{CutoffInter}] \modif{\modtype{length}} Cutoff distance when
   calculating two-body interactions.
 
-\item[\is{CutoffEwald}] \modif{\modtype{length}} Cutoff distance when
-  calculating electrostatics interactions under PBC.
-
 \item[\is{CutoffCount}] \modif{\modtype{length}} Cutoff distance when
   calculating coordination numbers.
 
 \item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
   calculating three-body interactions.
+
+\end{description}
+
+\subsubsection{DftD4 ChargeModel}
+
+This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialize
+the charge model. For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn},
+and \kw{Rad}) have to be supplied in a \is{values\cb} method, since the model
+is instanciated inside the \is{DftD4\cb} method, defaults for all elements up to
+86 are supplied automatically.
+
+\begin{ptable}
+  \kw{Chi} & m & & \is{values} & \\
+  \kw{Gam} & m & & \is{values} & \\
+  \kw{Kcn} & m & & \is{values} & \\
+  \kw{Rad} & m & & \is{values} & \\
+  \kw{Cutoff} & r & & 40 & \\
+  \kw{EwaldParameter} & r & & 0.0 & \\
+  \kw{EwaldTolerance} & r & & 1.0e-9 & \\
+\end{ptable}
+
+\begin{description}
+
+\item[\is{Chi}] Electronegativities of all species.
+
+\item[\is{Gam}] Chemical hardnesses of all species.
+
+\item[\is{Kcn}] CN scaling factor of all species.
+
+\item[\is{Rad}] Charge width of all species in Bohr.
+
+\item[\is{CutoffEwald}] \modif{\modtype{length}} Cutoff distance when
+  calculating electrostatics interactions under PBC.
 
 \item[\is{EwaldParameter}] Sets the splitting parameter in the Ewald
   electrostatic summation for periodic calculations. This controls the fraction
