@@ -16,7 +16,7 @@ module dftbp_dispdftd4
   use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_simplealgebra, only: determinant33, invert33
   use dftbp_coulomb, only: getMaxGEwald, getOptimalAlphaEwald
-  use dftbp_constants, only: pi
+  use dftbp_constants, only: pi, symbolToNumber
   use dftbp_dftd4param, only: DftD4Calculator, DispDftD4Inp, initializeCalculator
   use dftbp_encharges, only: getEEQcharges
   use dftbp_blasroutines, only : gemv
@@ -160,7 +160,7 @@ contains
 
     allocate(this%izp(nAtom))
     do iAt1 = 1, nAtom
-      call symbolToNumber(this%izp(iAt1), speciesNames(species0(iAt1)))
+      this%izp(iAt1) = symbolToNumber(speciesNames(species0(iAt1)))
     end do
 
     allocate(this%energies(nAtom))
@@ -1275,65 +1275,6 @@ contains
     end if
 
   end function tripleScale
-
-
-  !> get atomic number from element symbol.
-  elemental subroutine symbolToNumber(number, symbol)
-
-    !> Element symbol
-    character(len=*), intent(in) :: symbol
-
-    !> Atomic number
-    integer, intent(out) :: number
-
-    character(len=2), parameter :: pse(118) = [&
-      & 'h ','he',&
-      & 'li','be','b ','c ','n ','o ','f ','ne',&
-      & 'na','mg','al','si','p ','s ','cl','ar',&
-      & 'k ','ca',&
-      & 'sc','ti','v ','cr','mn','fe','co','ni','cu','zn',&
-      &           'ga','ge','as','se','br','kr',&
-      & 'rb','sr',&
-      & 'y ','zr','nb','mo','tc','ru','rh','pd','ag','cd',&
-      &           'in','sn','sb','te','i ','xe',&
-      & 'cs','ba','la',&
-      & 'ce','pr','nd','pm','sm','eu','gd','tb','dy','ho','er','tm','yb',&
-      & 'lu','hf','ta','w ','re','os','ir','pt','au','hg',&
-      &           'tl','pb','bi','po','at','rn',&
-      & 'fr','ra','ac',&
-      & 'th','pa','u ','np','pu','am','cm','bk','cf','es','fm','md','no',&
-      & 'lr','rf','db','sg','bh','hs','mt','ds','rg','cn',&
-      &           'nh','fl','mc','lv','ts','og' ]
-
-    integer, parameter :: offset = iachar('a') - iachar('A')
-
-    character(len=2) :: lc_symbol
-    integer :: i, j, k, l
-
-    number = 0
-    lc_symbol = '  '
-
-    k = 0
-    do j = 1, len_trim(symbol)
-      if (k > 2) exit
-      l = iachar(symbol(j:j))
-      if (k >= 1 .and. l == iachar(' ')) exit
-      if (k >= 1 .and. l == 9) exit
-      if (l >= iachar('A') .and. l <= iachar('Z')) l = l + offset
-      if (l >= iachar('a') .and. l <= iachar('z')) then
-        k = k+1
-        lc_symbol(k:k) = achar(l)
-      end if
-    end do
-
-    do i = 1, size(pse)
-      if (lc_symbol == pse(i)) then
-        number = i
-        exit
-      end if
-    end do
-
-  end subroutine symbolToNumber
 
 
 end module dftbp_dispdftd4
