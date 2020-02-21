@@ -9,16 +9,16 @@
 
 !> implementation of the D4 dispersion model
 module dftbp_dispdftd4
-  use, intrinsic :: ieee_arithmetic, only: ieee_is_nan
+  use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_assert
   use dftbp_accuracy
-  use dftbp_dispiface, only: DispersionIface
-  use dftbp_periodic, only: TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_simplealgebra, only: determinant33, invert33
-  use dftbp_coulomb, only: getMaxGEwald, getOptimalAlphaEwald
-  use dftbp_constants, only: pi, symbolToNumber
-  use dftbp_dftd4param, only: DftD4Calculator, DispDftD4Inp, initializeCalculator
-  use dftbp_encharges, only: getEEQcharges
+  use dftbp_dispiface, only : DispersionIface
+  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_simplealgebra, only : determinant33, invert33
+  use dftbp_coulomb, only : getMaxGEwald, getOptimalAlphaEwald
+  use dftbp_constants, only : pi, symbolToNumber
+  use dftbp_dftd4param, only : DftD4Calculator, DispDftD4Inp, initializeCalculator
+  use dftbp_encharges, only : getEEQcharges
   use dftbp_blasroutines, only : gemv
   implicit none
   private
@@ -57,9 +57,6 @@ module dftbp_dispdftd4
 
     !> Parameter for Ewald summation.
     real(dp) :: parEwald
-
-    !> atomic number
-    integer, allocatable :: izp(:)
 
     !> is this periodic
     logical :: tPeriodic
@@ -158,16 +155,11 @@ contains
 
     this%nAtom = nAtom
 
-    allocate(this%izp(nAtom))
-    do iAt1 = 1, nAtom
-      this%izp(iAt1) = symbolToNumber(speciesNames(species0(iAt1)))
-    end do
-
     allocate(this%energies(nAtom))
     allocate(this%gradients(3, nAtom))
 
     allocate(this%calculator)
-    call initializeCalculator(this%calculator, inp, this%nAtom, speciesNames, this%izp)
+    call initializeCalculator(this%calculator, inp, this%nAtom, speciesNames)
 
   end subroutine DispDftD4_init
 
@@ -193,11 +185,11 @@ contains
     @:ASSERT(allocated(this%calculator))
 
     if (this%tPeriodic) then
-      call dispersionEnergy(this%calculator, this%nAtom, coords, species0, this%izp, neigh, img2CentCell,&
+      call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
           & this%recPoint, this%energies, this%gradients, stress=this%stress, volume=this%vol,&
           & parEwald=this%parEwald)
     else
-      call dispersionEnergy(this%calculator, this%nAtom, coords, species0, this%izp, neigh, img2CentCell,&
+      call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
           & this%recPoint, this%energies, this%gradients)
     end if
 
@@ -994,7 +986,7 @@ contains
 
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
-  subroutine dispersionEnergy(calculator, nAtom, coords, species, izp, neigh, img2CentCell, recPoint,&
+  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, img2CentCell, recPoint,&
       & energies, gradients, stress, volume, parEwald)
 
     !> DFT-D dispersion model.
@@ -1008,9 +1000,6 @@ contains
 
     !> Species of every atom.
     integer, intent(in) :: species(:)
-
-    !> Atomic numbers of every atom.
-    integer, intent(in) :: izp(:)
 
     !> Updated neighbour list.
     type(TNeighbourList), intent(in) :: neigh
@@ -1070,7 +1059,7 @@ contains
 
     call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffCount)
 
-    call getCoordinationNumber(nAtom, coords, izp, nNeigh, neigh%iNeighbour,&
+    call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour,&
         & neigh%neighDist2, img2CentCell, calculator%covalentRadius,&
         & calculator%electronegativity, .false., cn, dcndr, dcndL)
     call cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max=8.0_dp)
@@ -1083,11 +1072,11 @@ contains
         & neigh%neighDist2, img2CentCell, recPoint, parEwald0, vol, calculator%chi, calculator%kcn,&
         & calculator%gam, calculator%rad, cn, dcndr, dcndL, qAtom=q, dqdr=dqdr, dqdL=dqdL)
 
-    call getCoordinationNumber(nAtom, coords, izp, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
+    call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, calculator%covalentRadius, calculator%electronegativity, .true., cn, dcndr,&
         & dcndL)
 
-    call dispersionGradient(calculator, nAtom, coords, izp, neigh, img2CentCell, cn, dcndr,&
+    call dispersionGradient(calculator, nAtom, coords, species, neigh, img2CentCell, cn, dcndr,&
         & dcndL, q, dqdr, dqdL, energies, gradients, sigma)
 
     if (present(stress)) then

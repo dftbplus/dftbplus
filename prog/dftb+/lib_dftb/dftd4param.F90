@@ -152,6 +152,7 @@ module dftbp_dftd4param
   end type DispDftD4Inp
 
 
+  !> Dispersion calculator containing all important data for DFT-D4 calculations
   type :: DftD4Calculator
 
     !> Scaling parameter for dipole-dipole coefficients.
@@ -200,23 +201,55 @@ module dftbp_dftd4param
     !> Net charge
     real(dp) :: nrChrg = 0.0_dp
 
+    !> Number of distinct species
+    integer :: nSpecies
+
+    !> Electronegativities for EEQ model
     real(dp), allocatable :: chi(:)
+
+    !> Chemical hardnesses for EEQ model
     real(dp), allocatable :: gam(:)
+
+    !> Charge widths for EEQ model
     real(dp), allocatable :: rad(:)
+
+    !> CN scaling for EEQ model
     real(dp), allocatable :: kcn(:)
 
+    !> Atomic expectation values for extrapolation of C6 coefficients
     real(dp), allocatable :: sqrtZr4r2(:)
+
+    !> Electronegativities for covalent CN
     real(dp), allocatable :: electronegativity(:)
+
+    !> Covalent radius for coordination number
     real(dp), allocatable :: covalentRadius(:)
+
+    !> Chemical hardnesses for charge scaling function
     real(dp), allocatable :: chemicalHardness(:)
+
+    !> Effective nuclear charge for charge scaling function
     real(dp), allocatable :: effectiveNuclearCharge(:)
 
+    !> Number of reference systems per species
     integer, allocatable :: numberOfReferences(:)
+
+    !> Internal atom count FIXME
     integer, allocatable :: atoms(:)
+
+    !> Number of weighting functions per reference system and species
     integer, allocatable :: countNumber(:, :)
+
+    !> Coordination number per reference system and species
     real(dp), allocatable :: referenceCN(:, :)
+
+    !> Partial charge per reference system and species
     real(dp), allocatable :: referenceCharge(:, :)
+
+    !> Dynamic polarizibility per reference system and species
     real(dp), allocatable :: referenceAlpha(:, :, :)
+
+    !> C6 coefficients for each reference system and species pair
     real(dp), allocatable :: referenceC6(:, :, :, :)
 
   end type DftD4Calculator
@@ -503,7 +536,7 @@ contains
   end function numIntegration
 
 
-  subroutine initializeCalculator(calculator, input, nAtom, speciesNames, izp)
+  subroutine initializeCalculator(calculator, input, nAtom, speciesNames)
 
     !> Calculator
     type(DftD4Calculator), intent(inout) :: calculator
@@ -517,16 +550,16 @@ contains
     !> Names of species.
     character(*), intent(in) :: speciesNames(:)
 
-    !> Atomic number of every atom.
-    integer, intent(in) :: izp(:)
-
-    integer :: mAt
-    integer :: iAt1, iZp1, iSec, iCN, iZp2, iRef1, iRef2
+    integer :: nSpecies
+    integer :: iAt1, iZp1, iSec, iCN, iRef1, iRef2, iSp1, iSp2
     integer :: cncount(0:18)
     real(dp) :: alpha(imagFrequencies), zEff1, c6, eta1
     real(dp) :: tmp_hq(maxReferences, maxElementD4)
 
     real(dp), parameter :: thopi = 3.0_dp/pi
+
+    nSpecies = size(speciesNames)
+    calculator%nSpecies = nSpecies
 
     ! initialize charge model
     calculator%chi = getEeqChi(speciesNames)
@@ -534,11 +567,11 @@ contains
     calculator%rad = getEeqRad(speciesNames)
     calculator%kcn = getEeqKcn(speciesNames)
 
-    calculator%sqrtZr4r2 = sqrtZr4r2
-    calculator%covalentRadius = CovalentRadiusD3
-    calculator%electronegativity = paulingEN
-    calculator%ChemicalHardness = ChemicalHardness
-    calculator%EffectiveNuclearCharge = EffectiveNuclearCharge
+    calculator%sqrtZr4r2 = getSqrtZr4r2(speciesNames)
+    calculator%covalentRadius = getCovalentRadiusD3(speciesNames)
+    calculator%electronegativity = getPaulingEN(speciesNames)
+    calculator%ChemicalHardness = getChemicalHardness(speciesNames)
+    calculator%EffectiveNuclearCharge = getEffectiveNuclearCharge(speciesNames)
 
     calculator%s6 = input%s6
     calculator%s8 = input%s8
@@ -559,71 +592,65 @@ contains
     calculator%ga = input%chargeScale
     calculator%gc = input%chargeSteepness
 
-    mAt = maxval(izp)
-    allocate(calculator%numberOfReferences(mAt), calculator%atoms(mAt), &
-        & calculator%countNumber(maxReferences, mAt))
+    allocate(calculator%numberOfReferences(nSpecies), calculator%atoms(nSpecies), &
+        & calculator%countNumber(maxReferences, nSpecies))
     calculator%numberOfReferences(:) = 0
     calculator%atoms(:) = 0
     calculator%countNumber(:, :) = 0
-    allocate(calculator%referenceCN(maxReferences, mAt), &
-        & calculator%referenceCharge(maxReferences, mAt), &
-        & calculator%referenceAlpha(imagFrequencies, maxReferences, mAt), &
-        & calculator%referenceC6(maxReferences, maxReferences, mAt, mAt))
+    allocate(calculator%referenceCN(maxReferences, nSpecies), &
+        & calculator%referenceCharge(maxReferences, nSpecies), &
+        & calculator%referenceAlpha(imagFrequencies, maxReferences, nSpecies), &
+        & calculator%referenceC6(maxReferences, maxReferences, nSpecies, nSpecies))
     calculator%referenceCN(:, :) = 0.0_dp
     calculator%referenceCharge(:, :) = 0.0_dp
     calculator%referenceAlpha(:, :, :) = 0.0_dp
     calculator%referenceC6(:, :, :, :) = 0.0_dp
 
-    calculator%referenceCharge(:,:) = clsq(:, :mAt)
     tmp_hq(:,:) = clsh
 
     ! evaluate α(Z) = 1/k·(α(ZkBn) - ζ(n, m) · n/m · α(Bm))
     ! α(Z) is referenceAlpha, α(ZkBn) is alphaiw, α(Bm) is secaiw
     ! 1/m is sscale, 1/k is ascale, n is hcount, ζ(n, m) is zetaScale
-    do iAt1 = 1, nAtom
+    do iSp1 = 1, nSpecies
       cncount(:) = 0
       cncount(0) = 1
-      iZp1 = izp(iAt1)
-      if (calculator%atoms(iZp1) == 0) then
-        calculator%numberOfReferences(iZp1) = refn(iZp1)
-        do iRef1 = 1, calculator%numberOfReferences(iZp1)
-          iSec = refsys(iRef1,iZp1)
-          eta1 = calculator%gc * calculator%chemicalHardness(iSec)
-          zEff1 = calculator%effectiveNuclearCharge(iSec)
-          alpha = sscale(iSec) * secaiw(:,iSec) &
-              & * zetaScale(calculator%ga, eta1, zEff1, tmp_hq(iRef1,iZp1) + zEff1)
-          iCN = nint(refcn(iRef1,iZp1))
-          calculator%referenceCN(iRef1,iZp1) = refcovcn(iRef1,iZp1)
-          cncount(iCN) = cncount(iCN) + 1
-          calculator%referenceAlpha(:,iRef1,iZp1) = &
-              & max(0.0_dp, ascale(iRef1,iZp1) * (alphaiw(:,iRef1,iZp1) - hcount(iRef1,iZp1)*alpha))
-        end do
-        ! setup the number of Gaussian functions for the weighting in countNumber
-        do iRef1 = 1, calculator%numberOfReferences(iZp1)
-          iCN = cncount(nint(refcn(iRef1,iZp1)))
-          calculator%countNumber(iRef1,iZp1) = iCN * (iCN + 1) / 2
-        end do
-      end if
-      calculator%atoms(iZp1) = calculator%atoms(iZp1) + 1
+      iZp1 = symbolToNumber(speciesNames(iSp1))
+      calculator%numberOfReferences(iSp1) = refn(iZp1)
+      do iRef1 = 1, calculator%numberOfReferences(iSp1)
+        calculator%referenceCharge(iRef1, iSp1) = clsq(iRef1, iZp1)
+        iSec = refsys(iRef1,iZp1)
+        eta1 = calculator%gc * getChemicalHardness(iSec)
+        zEff1 = getEffectiveNuclearCharge(iSec)
+        alpha = sscale(iSec) * secaiw(:,iSec) &
+          & * zetaScale(calculator%ga, eta1, zEff1, tmp_hq(iRef1,iZp1) + zEff1)
+        iCN = nint(refcn(iRef1,iZp1))
+        calculator%referenceCN(iRef1,iSp1) = refcovcn(iRef1,iZp1)
+        cncount(iCN) = cncount(iCN) + 1
+        calculator%referenceAlpha(:,iRef1,iSp1) = &
+          & max(0.0_dp, ascale(iRef1,iZp1) * (alphaiw(:,iRef1,iZp1) - hcount(iRef1,iZp1)*alpha))
+      end do
+      ! setup the number of Gaussian functions for the weighting in countNumber
+      do iRef1 = 1, calculator%numberOfReferences(iSp1)
+        iCN = cncount(nint(refcn(iRef1,iZp1)))
+        calculator%countNumber(iRef1,iSp1) = iCN * (iCN + 1) / 2
+      end do
     end do
 
     ! integrate C6 coefficients
     !$OMP PARALLEL DEFAULT(NONE) &
-    !$OMP PRIVATE(iZp1, iZp2, iRef1, iRef2, alpha, c6) SHARED(calculator, mAt)
+    !$OMP PRIVATE(iSp1, iSp2, iRef1, iRef2, alpha, c6) SHARED(calculator, nSpecies)
     !$OMP DO SCHEDULE(RUNTIME)
-    do iZp1 = 1, mAt
-      do iZp2 = 1, iZp1
-        if (calculator%atoms(iZp1) > 0 .and. calculator%atoms(iZp2) > 0) then
-          do iRef1 = 1, calculator%numberOfReferences(iZp1)
-            do iRef2 = 1, calculator%numberOfReferences(iZp2)
-              alpha = calculator%referenceAlpha(:,iRef1,iZp1)&
-                  & * calculator%referenceAlpha(:,iRef2,iZp2)
-              c6 = thopi * numIntegration(alpha)
-              calculator%referenceC6(iRef2,iRef1,iZp2,iZp1) = c6
-              calculator%referenceC6(iRef1,iRef2,iZp1,iZp2) = c6
-            end do
+    do iSp1 = 1, nSpecies
+      do iSp2 = 1, iSp1
+        do iRef1 = 1, calculator%numberOfReferences(iSp1)
+          do iRef2 = 1, calculator%numberOfReferences(iSp2)
+            alpha = calculator%referenceAlpha(:,iRef1,iSp1)&
+              & * calculator%referenceAlpha(:,iRef2,iSp2)
+            c6 = thopi * numIntegration(alpha)
+            calculator%referenceC6(iRef2,iRef1,iSp2,iSp1) = c6
+            calculator%referenceC6(iRef1,iRef2,iSp1,iSp2) = c6
           end do
-        end if
+        end do
       end do
     end do
     !$OMP END DO
