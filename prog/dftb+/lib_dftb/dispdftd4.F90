@@ -19,7 +19,7 @@ module dftbp_dispdftd4
   use dftbp_coulomb, only : getMaxGEwald, getOptimalAlphaEwald
   use dftbp_constants, only : pi, symbolToNumber
   use dftbp_dftd4param, only : TDftD4Calculator, TDispDftD4Inp, initializeCalculator
-  use dftbp_encharges, only : getEEQcharges
+  use dftbp_encharges, only : getEEQcharges, TEeqCont
   use dftbp_blasroutines, only : gemv
   implicit none
   private
@@ -73,6 +73,9 @@ module dftbp_dispdftd4
 
     !> Ewald tolerance
     real(dp) :: tolEwald
+
+    !> EEQ model
+    type(TEeqCont) :: eeqCont
 
   contains
 
@@ -162,6 +165,12 @@ contains
     allocate(this%calculator)
     call initializeCalculator(this%calculator, inp, this%nAtom, speciesNames)
 
+    if (this%tPeriodic) then
+      call this%eeqCont%initialize(inp%eeqInput, .false., .true., nAtom, latVecs)
+    else
+      call this%eeqCont%initialize(inp%eeqInput, .false., .true., nAtom)
+    end if
+
   end subroutine DispDftD4_init
 
 
@@ -190,11 +199,11 @@ contains
 
     if (this%tPeriodic) then
       call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%recPoint, this%energies, this%gradients, stress=this%stress, volume=this%vol,&
+          & this%recPoint, this%eeqCont, this%energies, this%gradients, stress=this%stress, volume=this%vol,&
           & parEwald=this%parEwald)
     else
       call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%recPoint, this%energies, this%gradients)
+          & this%recPoint, this%eeqCont, this%energies, this%gradients)
     end if
 
     this%tCoordsUpdated = .true.
@@ -990,7 +999,7 @@ contains
 
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
-  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, img2CentCell, recPoint,&
+  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, img2CentCell, recPoint, eeqCont,&
       & energies, gradients, stress, volume, parEwald)
 
     !> DFT-D dispersion model.
@@ -1015,6 +1024,9 @@ contains
     !> The set should not include the origin or inversion related points.
     real(dp), allocatable, intent(in) :: recPoint(:, :)
 
+    !> EEQ model
+    type(TEeqCont), intent(inout) :: eeqCont
+
     !> Parameter for Ewald summation.
     real(dp), intent(in), optional :: parEwald
 
@@ -1035,7 +1047,7 @@ contains
     real(dp) :: sigma(3, 3)
     real(dp) :: vol, parEwald0
     real(dp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
-    real(dp), allocatable :: q(:), dqdr(:, :, :), dqdL(:, :, :)
+    real(dp), allocatable :: eDummy(:), gDummy(:, :), sDummy(:, :)
 
     if (present(volume)) then
       vol = volume
@@ -1068,20 +1080,19 @@ contains
         & calculator%electronegativity, .false., cn, dcndr, dcndL)
     call cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max=8.0_dp)
 
-    allocate(q(nAtom), dqdr(3, nAtom, nAtom), dqdL(3, 3, nAtom))
-
     call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffEwald)
 
     call getEEQCharges(nAtom, coords, species, calculator%nrChrg, nNeigh, neigh%iNeighbour,&
-        & neigh%neighDist2, img2CentCell, recPoint, parEwald0, vol, calculator%chi, calculator%kcn,&
-        & calculator%gam, calculator%rad, cn, dcndr, dcndL, qAtom=q, dqdr=dqdr, dqdL=dqdL)
+        & neigh%neighDist2, img2CentCell, recPoint, parEwald0, vol, eeqCont%param%chi, eeqCont%param%kcn,&
+        & eeqCont%param%gam, eeqCont%param%rad, cn, dcndr, dcndL, eDummy, gDummy, sDummy, &
+        & eeqCont%charges, eeqCont%dqdr, eeqCont%dqdL)
 
     call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, calculator%covalentRadius, calculator%electronegativity, .true., cn, dcndr,&
         & dcndL)
 
     call dispersionGradient(calculator, nAtom, coords, species, neigh, img2CentCell, cn, dcndr,&
-        & dcndL, q, dqdr, dqdL, energies, gradients, sigma)
+        & dcndL, eeqCont%charges, eeqCont%dqdr, eeqCont%dqdL, energies, gradients, sigma)
 
     if (present(stress)) then
       stress(:, :) = sigma / volume

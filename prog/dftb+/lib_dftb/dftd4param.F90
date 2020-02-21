@@ -12,6 +12,7 @@ module dftbp_dftd4param
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
+  use dftbp_encharges, only : TEeqInput
   use dftbp_dftd4refs
   implicit none
 
@@ -149,6 +150,9 @@ module dftbp_dftd4param
     !> Net charge
     real(dp) :: nrChrg = 0.0_dp
 
+    !> Input for EEQ charge model
+    type(TEeqInput) :: eeqInput
+
   end type TDispDftD4Inp
 
 
@@ -203,18 +207,6 @@ module dftbp_dftd4param
 
     !> Number of distinct species
     integer :: nSpecies
-
-    !> Electronegativities for EEQ model
-    real(dp), allocatable :: chi(:)
-
-    !> Chemical hardnesses for EEQ model
-    real(dp), allocatable :: gam(:)
-
-    !> Charge widths for EEQ model
-    real(dp), allocatable :: rad(:)
-
-    !> CN scaling for EEQ model
-    real(dp), allocatable :: kcn(:)
 
     !> Atomic expectation values for extrapolation of C6 coefficients
     real(dp), allocatable :: sqrtZr4r2(:)
@@ -557,12 +549,6 @@ contains
 
     nSpecies = size(speciesNames)
     calculator%nSpecies = nSpecies
-
-    ! initialize charge model
-    calculator%chi = getEeqChi(speciesNames)
-    calculator%gam = getEeqGam(speciesNames)
-    calculator%rad = getEeqRad(speciesNames)
-    calculator%kcn = getEeqKcn(speciesNames)
 
     calculator%sqrtZr4r2 = getSqrtZr4r2(speciesNames)
     calculator%covalentRadius = getCovalentRadiusD3(speciesNames)

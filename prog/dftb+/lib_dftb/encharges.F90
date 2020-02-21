@@ -8,27 +8,455 @@
 #:include 'common.fypp'
 
 !> Implementation of the electronegativity equilibration charge model used
-!  for the charge scaling in DFT-D4.
-!
-!  This implementation is general enough to be used outside of DFT-D4.
-!
+!> for the charge scaling in DFT-D4.
+!>
+!> This implementation is general enough to be used outside of DFT-D4.
 module dftbp_encharges
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_errorfunction, only : erfwrap
-  use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec
+  use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
+      & getMaxGEwald, getOptimalAlphaEwald
   use dftbp_blasroutines, only : hemv, gemv, gemm
   use dftbp_lapackroutines, only : symmatinv
+  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_simplealgebra, only : determinant33, invert33
   implicit none
   private
 
+  public :: TEeqCont, TEeqInput
   public :: getEEQcharges
 
   real(dp), parameter :: sqrtpi = sqrt(pi)
   real(dp), parameter :: sqrt2pi = sqrt(2.0_dp/pi)
 
+
+  !> EEQ parametrisation data
+  type :: TEeqParam
+
+    !> Electronegativities for EEQ model
+    real(dp), allocatable :: chi(:)
+
+    !> Chemical hardnesses for EEQ model
+    real(dp), allocatable :: gam(:)
+
+    !> Charge widths for EEQ model
+    real(dp), allocatable :: rad(:)
+
+    !> CN scaling for EEQ model
+    real(dp), allocatable :: kcn(:)
+
+  end type
+
+
+  !> Input for the EEQ model
+  type, extends(TEeqParam) :: TEeqInput
+
+    !> Net charge of the system.
+    real(dp) :: nrChrg
+
+    !> Parameter for Ewald summation.
+    real(dp) :: parEwald
+
+    !> Ewald tolerance
+    real(dp) :: tolEwald
+
+    !> Cutoff for real-space summation under PBCs
+    real(dp) :: cutoff
+
+  end type TEeqInput
+
+
+  !> Container containing all calculation data for the EEQ model
+  type :: TEeqCont
+
+    !> number of atoms
+    integer :: nAtom
+
+    !> EEQ parametrisation
+    type(TEeqParam) :: param
+
+    !> Net charge of the system.
+    real(dp) :: nrChrg
+
+    !> Cutoff for real-space summation under PBCs
+    real(dp) :: cutoff
+
+    !> lattice vectors if periodic
+    real(dp) :: latVecs(3, 3)
+
+    !> Volume of the unit cell
+    real(dp) :: vol
+
+    !> Contains the points included in the reciprocal sum.
+    !> The set should not include the origin or inversion related points.
+    real(dp), allocatable :: recPoint(:, :)
+
+    !> Parameter for Ewald summation.
+    real(dp) :: parEwald
+
+    !> is this periodic
+    logical :: tPeriodic
+
+    !> are the coordinates current?
+    logical :: tCoordsUpdated
+
+    !> evaluate Ewald parameter
+    logical :: tAutoEwald
+
+    !> if > 0 -> manual setting for alpha
+    real(dp) :: ewaldAlpha
+
+    !> Ewald tolerance
+    real(dp) :: tolEwald
+
+    !> electrostatic energy
+    real(dp), allocatable :: energies(:)
+
+    !> force contributions
+    real(dp), allocatable :: gradients(:, :)
+
+    !> stress tensor
+    real(dp), allocatable :: stress(:, :)
+
+    !> partial charges
+    real(dp), allocatable :: charges(:)
+
+    !> derivative of partial charges w.r.t. coordinates
+    real(dp), allocatable :: dqdr(:, :, :)
+
+    !> derivative of partial charges w.r.t. strain deformations
+    real(dp), allocatable :: dqdL(:, :, :)
+
+  contains
+
+    !> initialize container from input
+    procedure :: initialize
+
+    !> update internal store of coordinates
+    procedure :: updateCoords
+
+    !> update internal store of lattice vectors
+    procedure :: updateLatVecs
+
+    !> return energy contribution
+    procedure :: getEnergies
+
+    !> return energy contribution
+    procedure :: getCharges
+
+    !> return force contribution
+    generic :: addGradients => addGradientsEnergy, addGradientsCharges
+
+    !> return force contribution for electrostatic energy
+    procedure, private :: addGradientsEnergy
+
+    !> return force contribution for charge derivatives
+    procedure, private :: addGradientsCharges
+
+    !> return stress tensor contribution
+    generic :: addStress => addStressEnergy, addStressCharges
+
+    !> return stress tensor contribution for electrostatic energy
+    procedure, private :: addStressEnergy
+
+    !> return stress tensor contribution for charge derivatives
+    procedure, private :: addStressCharges
+
+    !> cutoff distance in real space for EEQ
+    procedure :: getRCutoff
+
+  end type TEeqCont
+
+
 contains
+
+
+  subroutine initialize(this, input, withEnergies, withCharges, nAtom, latVecs)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(out) :: this
+
+    !> Input for the EEQ model
+    type(TEeqInput), intent(in) :: input
+
+    !> Enable electrostatic energy calculation + derivatives
+    logical, intent(in) :: withEnergies
+
+    !> Enable partial charge calculation + derivatives
+    logical, intent(in) :: withCharges
+
+    !> Nr. of atoms in the system.
+    integer, intent(in) :: nAtom
+
+    !> Lattice vectors, if the system is periodic.
+    real(dp), intent(in), optional :: latVecs(:, :)
+
+    real(dp) :: recVecs(3, 3), maxGEwald
+
+    this%tPeriodic = present(latVecs)
+
+    this%param = input%TEeqParam
+
+    if (this%tPeriodic) then
+      this%latVecs(:,:) = latVecs
+      this%vol = determinant33(latVecs)
+      call invert33(recVecs, latVecs, this%vol)
+      this%vol = abs(this%vol)
+      recVecs = 2.0_dp * pi * transpose(recVecs)
+
+      this%ewaldAlpha = 0.0_dp
+      this%tAutoEwald = input%parEwald <= 0.0_dp
+      this%tolEwald = input%tolEwald
+      if (this%tAutoEwald) then
+        this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, this%tolEwald)
+      else
+        this%parEwald = input%parEwald
+      end if
+      maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
+      call getLatticePoints(this%recPoint, recVecs, latVecs / (2.0_dp*pi), maxGEwald,&
+          & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
+      this%recPoint = matmul(recVecs, this%recPoint)
+    end if
+
+    this%nAtom = nAtom
+
+    if (withEnergies) then
+      allocate(this%energies(nAtom))
+      allocate(this%gradients(3, nAtom))
+      allocate(this%stress(3, 3))
+    end if
+
+    if (withCharges) then
+      allocate(this%charges(nAtom))
+      allocate(this%dqdr(3, nAtom, nAtom))
+      allocate(this%dqdL(3, 3, nAtom))
+    end if
+
+    this%tCoordsUpdated = .false.
+
+  end subroutine initialize
+
+
+  !> Notifies the objects about changed coordinates.
+  subroutine updateCoords(this, neigh, img2CentCell, coords, species, &
+      & cn, dcndr, dcndL)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> Updated neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> Updated mapping to central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Updated coordinates.
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Species of the atoms in the unit cell.
+    integer, intent(in) :: species(:)
+
+    real(dp), intent(in) :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
+
+    integer, allocatable :: nNeigh(:)
+
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+
+    call getEEQCharges(this%nAtom, coords, species, this%nrChrg, nNeigh, &
+        & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%recPoint, this%parEwald, &
+        & this%vol, this%param%chi, this%param%kcn, this%param%gam, this%param%rad, cn, dcndr, dcndL, &
+        & this%energies, this%gradients, this%stress, &
+        & this%charges, this%dqdr, this%dqdL)
+
+    this%tCoordsUpdated = .true.
+
+  end subroutine updateCoords
+
+
+  !> Notifies the object about updated lattice vectors.
+  subroutine updateLatVecs(this, latVecs)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> New lattice vectors
+    real(dp), intent(in) :: latVecs(:, :)
+
+    real(dp) :: recVecs(3, 3), maxGEwald
+
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
+
+    this%latVecs = latVecs
+    this%vol = determinant33(latVecs)
+    call invert33(recVecs, latVecs, this%vol)
+    this%vol = abs(this%vol)
+    recVecs = 2.0_dp * pi * transpose(recVecs)
+
+    if (this%tAutoEwald) then
+      this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, this%tolEwald)
+    end if
+    maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
+    call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
+        & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
+    this%recPoint = matmul(recVecs, this%recPoint)
+
+    this%tCoordsUpdated = .false.
+
+  end subroutine updateLatVecs
+
+
+  !> Returns the atomic resolved energies due to the EEQ.
+  subroutine getEnergies(this, energies)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> Contains the atomic energy contributions on exit.
+    real(dp), intent(out) :: energies(:)
+
+    @:ASSERT(allocated(this%energies))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
+
+    energies(:) = this%energies
+
+  end subroutine getEnergies
+
+
+  !> Returns the atomic resolved energies due to the EEQ.
+  subroutine getCharges(this, charges)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> Contains the atomic partial charges on exit.
+    real(dp), intent(out) :: charges(:)
+
+    @:ASSERT(allocated(this%charges))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(size(charges) == this%nAtom)
+
+    charges(:) = this%charges
+
+  end subroutine getCharges
+
+
+  !> Adds the atomic gradients to the provided vector.
+  subroutine addGradientsEnergy(this, gradients)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> The vector to increase by the gradients.
+    real(dp), intent(inout) :: gradients(:,:)
+
+    @:ASSERT(allocated(this%gradients))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
+
+    gradients(:,:) = gradients + this%gradients
+
+  end subroutine addGradientsEnergy
+
+
+  !> Adds the atomic gradients to the provided vector.
+  subroutine addGradientsCharges(this, gradients, dEdq, beta)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> The vector to increase by the gradients.
+    real(dp), intent(inout) :: gradients(:,:)
+
+    !> Derivative of the energy expression w.r.t. the partial charges
+    real(dp), intent(in) :: dEdq(:)
+
+    !> Optional scaling factor
+    real(dp), intent(in), optional :: beta
+    real(dp) :: beta0
+
+    if (present(beta)) then
+      beta0 = beta
+    else
+      beta0 = 1.0_dp
+    end if
+
+    @:ASSERT(allocated(this%dqdr))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
+    @:ASSERT(size(dEdq) == this%nAtom)
+
+    call gemv(gradients, this%dqdr, dEdq, beta=beta0)
+
+  end subroutine addGradientsCharges
+
+
+  !> Returns the stress tensor.
+  subroutine addStressEnergy(this, stress)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> stress tensor from the EEQ
+    real(dp), intent(inout) :: stress(:,:)
+
+    @:ASSERT(allocated(this%stress))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
+
+    stress(:,:) = stress(:,:) + this%stress
+
+  end subroutine addStressEnergy
+
+
+  !> Returns the stress tensor.
+  subroutine addStressCharges(this, stress, dEdq, beta)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> stress tensor from the EEQ
+    real(dp), intent(inout) :: stress(:,:)
+
+    !> Derivative of the energy expression w.r.t. the partial charges
+    real(dp), intent(in) :: dEdq(:)
+
+    !> Optional scaling factor
+    real(dp), intent(in), optional :: beta
+    real(dp) :: beta0
+
+    if (present(beta)) then
+      beta0 = beta
+    else
+      beta0 = 1.0_dp
+    end if
+
+    @:ASSERT(allocated(this%dqdL))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
+    @:ASSERT(size(dEdq) == this%nAtom)
+
+    call gemv(stress, this%dqdL, dEdq, beta=beta0)
+
+  end subroutine addStressCharges
+
+
+  !> Estimates the real space cutoff of the EEQ interaction.
+  function getRCutoff(this) result(cutoff)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> Resulting cutoff
+    real(dp) :: cutoff
+
+    cutoff = this%cutoff
+
+  end function getRCutoff
 
   !> Generates full interaction matrix for Gaussian charge distributions.
   subroutine getCoulombMatrixCluster(nAtom, coords, species, gam, rad, aMat)
@@ -565,22 +993,22 @@ contains
     real(dp), intent(in) :: dcndL(:, :, :)
 
     !> Updated energy vector at return
-    real(dp), intent(inout), optional :: energies(:)
+    real(dp), intent(inout), allocatable :: energies(:)
 
     !> Updated gradient vector at return
-    real(dp), intent(inout), optional :: gradients(:, :)
+    real(dp), intent(inout), allocatable :: gradients(:, :)
 
     !> Updated stress tensor at return
-    real(dp), intent(inout), optional :: stress(:, :)
+    real(dp), intent(inout), allocatable :: stress(:, :)
 
     !> Atomic partial charges.
-    real(dp), intent(out), optional :: qAtom(:)
+    real(dp), intent(inout), allocatable :: qAtom(:)
 
     !> Derivative of partial charges w.r.t. cartesian coordinates.
-    real(dp), intent(out), optional :: dqdr(:, :, :)
+    real(dp), intent(inout), allocatable :: dqdr(:, :, :)
 
     !> Derivative of partial charges w.r.t. strain deformations.
-    real(dp), intent(out), optional :: dqdL(:, :, :)
+    real(dp), intent(inout), allocatable :: dqdL(:, :, :)
 
     real(dp), parameter :: small = 1.0e-14_dp
 
@@ -634,7 +1062,7 @@ contains
     call hemv(qVec, aInv, xVec)
 
     ! Step 4: return atom resolved energies if requested, xVec is scratch
-    if (present(energies)) then
+    if (allocated(energies)) then
       call hemv(xVec, aMat, qVec, alpha=0.5_dp, beta=-1.0_dp)
       energies(:) = energies(:) + xVec(:nAtom) * qVec(:nAtom)
     end if
@@ -652,11 +1080,11 @@ contains
       aMatdL(:, :, iAt1) = aMatdL(:, :, iAt1) + dcndL(:, :, iAt1) * xFac(iAt1)
     end do
 
-    if (present(gradients)) then
+    if (allocated(gradients)) then
       call gemv(gradients, aMatdr, qVec, beta=1.0_dp)
     end if
 
-    if (present(stress)) then
+    if (allocated(stress)) then
       call gemv(stress, aMatdL, qVec, beta=1.0_dp)
     end if
 
@@ -664,24 +1092,24 @@ contains
       aMatdr(:, iAt1, iAt1) = aMatdr(:, iAt1, iAt1) + aTrace(:, iAt1)
     end do
 
-    if (present(dqdr) .or. present(dqdL)) then
+    if (allocated(dqdr) .or. allocated(dqdL)) then
       ! Symmetrise inverted matrix
       do ii = 1, nDim
         aInv(ii, ii+1:nDim) = aInv(ii+1:nDim, ii)
       end do
     end if
 
-    if (present(dqdr)) then
+    if (allocated(dqdr)) then
       dqdr(:, :, :) = 0.0_dp
       call gemm(dqdr, aMatdr, aInv, alpha=-1.0_dp)
     end if
 
-    if (present(dqdL)) then
+    if (allocated(dqdL)) then
       dqdL(:, :, :) = 0.0_dp
       call gemm(dqdL, aMatdL, aInv, alpha=-1.0_dp)
     end if
 
-    if (present(qAtom)) then
+    if (allocated(qAtom)) then
       qAtom(:) = qVec(:nAtom)
     end if
 
