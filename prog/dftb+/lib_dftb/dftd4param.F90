@@ -234,9 +234,6 @@ module dftbp_dftd4param
     !> Number of reference systems per species
     integer, allocatable :: numberOfReferences(:)
 
-    !> Internal atom count FIXME
-    integer, allocatable :: atoms(:)
-
     !> Number of weighting functions per reference system and species
     integer, allocatable :: countNumber(:, :)
 
@@ -592,10 +589,9 @@ contains
     calculator%ga = input%chargeScale
     calculator%gc = input%chargeSteepness
 
-    allocate(calculator%numberOfReferences(nSpecies), calculator%atoms(nSpecies), &
+    allocate(calculator%numberOfReferences(nSpecies), &
         & calculator%countNumber(maxReferences, nSpecies))
     calculator%numberOfReferences(:) = 0
-    calculator%atoms(:) = 0
     calculator%countNumber(:, :) = 0
     allocate(calculator%referenceCN(maxReferences, nSpecies), &
         & calculator%referenceCharge(maxReferences, nSpecies), &
