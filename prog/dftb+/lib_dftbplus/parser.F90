@@ -26,6 +26,7 @@ module dftbp_parser
   use dftbp_inputconversion
   use dftbp_lapackroutines, only : matinv
   use dftbp_periodic
+  use dftbp_coordinationnumber
   use dftbp_dispersions
   use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_encharges, only : TEeqInput
@@ -3833,9 +3834,6 @@ contains
     call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
-    call getChildValue(node, "cutoffCount", input%cutoffCount, default=40.0_dp, modifier=buffer,&
-        & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffCount)
     call getChildValue(node, "cutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffThree)
@@ -3856,6 +3854,8 @@ contains
       d4Rad(:) = getEeqRad(geo%speciesNames)
       call readEeqModel(value1, input%eeqInput, geo, nrChrg, d4Chi, d4Gam, d4Kcn, d4Rad)
     end select
+
+    call readCoordinationNumber(node, input%cnInput, geo, "cov", 0.0_dp)
 
   end subroutine readDispDFTD4
 
@@ -3974,7 +3974,106 @@ contains
     call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)
     call getChildValue(node, "EwaldTolerance", input%tolEwald, 1.0e-9_dp)
 
+    call readCoordinationNumber(node, input%cnInput, geo, "erf", 8.0_dp)
+
   end subroutine readEeqModel
+
+
+  !> Read in coordination number settings
+  subroutine readCoordinationNumber(node, input, geo, cnDefault, cutDefault)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TCNInput), intent(inout) :: input
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    !> Default value for the coordination number type
+    character(len=*), intent(in) :: cnDefault
+
+    !> Default value for the maximum CN used for cutting (0 turns it off)
+    real(dp), intent(in) :: cutDefault
+
+    type(fnode), pointer :: value1, value2, child, child2, field
+    type(string) :: buffer, modifier
+    real(dp), allocatable :: kENDefault(:), kRadDefault(:)
+    integer :: iSp
+
+    call getChildValue(node, "CoordinationNumber", value1, cnDefault, child=child)
+    call getNodeName(value1, buffer)
+
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Invalid coordination number type specified")
+  #:for cnType in ("exp", "erf", "cov", "gfn")
+    case("${cnType}$")
+      input%cnType = cnType%${cnType}$
+  #:endfor
+    end select
+
+    call getChildValue(value1, "CutCN", input%maxCN, cutDefault, &
+        & child=child2)
+
+    call getChildValue(value1, "cutoff", input%rCutoff, 40.0_dp, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+
+    allocate(input%en(geo%nSpecies))
+    if (input%cnType == cnType%cov) then
+      call getChildValue(value1, "electronegativities", value2, "PaulingEN", child=child2)
+      call getNodeName(value2, buffer)
+      select case(char(buffer))
+      case default
+        call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate electronegativities")
+      case("paulingen")
+        allocate(kENDefault(geo%nSpecies))
+        kENDefault(:) = getElectronegativity(geo%speciesNames)
+        do iSp = 1, geo%nSpecies
+          call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), &
+              & kENDefault(iSp), child=child2)
+        end do
+        deallocate(kENDefault)
+      case("values")
+        do iSp = 1, geo%nSpecies
+          call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), child=child2)
+        end do
+      end select
+      if (any(input%en <= 0.0_dp)) then
+        call detailedError(value1, "Electronegativities are not defined for all species")
+      end if
+    else
+      ! array is not used, but should still be populated with dummies
+      input%en(:) = 0.0_dp
+    end if
+
+    allocate(input%covRad(geo%nSpecies))
+    call getChildValue(value1, "radii", value2, "CovalentRadiiD3", child=child2)
+    call getNodeName(value2, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("covalentradiid3")
+      allocate(kRadDefault(geo%nSpecies))
+      kRadDefault(:) = getCovalentRadius(geo%speciesNames)
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), &
+            & kRadDefault(iSp), child=child2)
+      end do
+      deallocate(kRadDefault)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), child=child2)
+      end do
+    end select
+
+    if (any(input%covRad <= 0.0_dp)) then
+      call detailedError(value1, "Covalent radii are not defined for all species")
+    end if
+
+  end subroutine readCoordinationNumber
 
 
   !> reads in value of temperature for MD with sanity checking of the input
