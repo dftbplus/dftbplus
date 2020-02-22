@@ -25,7 +25,7 @@ module dftbp_encharges
   implicit none
   private
 
-  public :: TEeqCont, TEeqInput
+  public :: TEeqCont, TEeqInput, init
   public :: getEEQcharges
 
   real(dp), parameter :: sqrtpi = sqrt(pi)
@@ -128,9 +128,6 @@ module dftbp_encharges
 
   contains
 
-    !> initialize container from input
-    procedure :: initialize
-
     !> update internal store of coordinates
     procedure :: updateCoords
 
@@ -167,13 +164,19 @@ module dftbp_encharges
   end type TEeqCont
 
 
+  !> initialize container from input
+  interface init
+    module procedure :: initialize
+  end interface init
+
+
 contains
 
 
   subroutine initialize(this, input, withEnergies, withCharges, nAtom, latVecs)
 
     !> Instance of EEQ container
-    class(TEeqCont), intent(out) :: this
+    type(TEeqCont), intent(out) :: this
 
     !> Input for the EEQ model
     type(TEeqInput), intent(in) :: input
@@ -253,8 +256,8 @@ contains
 
     call getEEQCharges(this%nAtom, coords, species, this%nrChrg, nNeigh, &
         & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%recPoint, this%parEwald, &
-        & this%vol, this%param%chi, this%param%kcn, this%param%gam, this%param%rad, cn, dcndr, dcndL, &
-        & this%energies, this%gradients, this%stress, &
+        & this%vol, this%param%chi, this%param%kcn, this%param%gam, this%param%rad, &
+        & cn, dcndr, dcndL, this%energies, this%gradients, this%stress, &
         & this%charges, this%dqdr, this%dqdL)
 
     this%tCoordsUpdated = .true.
@@ -276,11 +279,11 @@ contains
     @:ASSERT(this%tPeriodic)
     @:ASSERT(all(shape(latVecs) == shape(this%latVecs)))
 
-    this%latVecs = latVecs
+    this%latVecs(:, :) = latVecs
     this%vol = determinant33(latVecs)
     call invert33(recVecs, latVecs, this%vol)
     this%vol = abs(this%vol)
-    recVecs = 2.0_dp * pi * transpose(recVecs)
+    recVecs(:, :) = 2.0_dp * pi * transpose(recVecs)
 
     if (this%tAutoEwald) then
       this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, this%tolEwald)
@@ -288,7 +291,7 @@ contains
     maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
     call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
         & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
-    this%recPoint = matmul(recVecs, this%recPoint)
+    this%recPoint(:, :) = matmul(recVecs, this%recPoint)
 
     this%tCoordsUpdated = .false.
 
@@ -979,22 +982,22 @@ contains
     real(dp), intent(in) :: dcndL(:, :, :)
 
     !> Updated energy vector at return
-    real(dp), intent(inout), allocatable :: energies(:)
+    real(dp), intent(inout), optional :: energies(:)
 
     !> Updated gradient vector at return
-    real(dp), intent(inout), allocatable :: gradients(:, :)
+    real(dp), intent(inout), optional :: gradients(:, :)
 
     !> Updated stress tensor at return
-    real(dp), intent(inout), allocatable :: stress(:, :)
+    real(dp), intent(inout), optional :: stress(:, :)
 
     !> Atomic partial charges.
-    real(dp), intent(inout), allocatable :: qAtom(:)
+    real(dp), intent(out), optional :: qAtom(:)
 
     !> Derivative of partial charges w.r.t. cartesian coordinates.
-    real(dp), intent(inout), allocatable :: dqdr(:, :, :)
+    real(dp), intent(out), optional :: dqdr(:, :, :)
 
     !> Derivative of partial charges w.r.t. strain deformations.
-    real(dp), intent(inout), allocatable :: dqdL(:, :, :)
+    real(dp), intent(out), optional :: dqdL(:, :, :)
 
     real(dp), parameter :: small = 1.0e-14_dp
 
@@ -1048,7 +1051,7 @@ contains
     call hemv(qVec, aInv, xVec)
 
     ! Step 4: return atom resolved energies if requested, xVec is scratch
-    if (allocated(energies)) then
+    if (present(energies)) then
       call hemv(xVec, aMat, qVec, alpha=0.5_dp, beta=-1.0_dp)
       energies(:) = energies(:) + xVec(:nAtom) * qVec(:nAtom)
     end if
@@ -1066,11 +1069,11 @@ contains
       aMatdL(:, :, iAt1) = aMatdL(:, :, iAt1) + dcndL(:, :, iAt1) * xFac(iAt1)
     end do
 
-    if (allocated(gradients)) then
+    if (present(gradients)) then
       call gemv(gradients, aMatdr, qVec, beta=1.0_dp)
     end if
 
-    if (allocated(stress)) then
+    if (present(stress)) then
       call gemv(stress, aMatdL, qVec, beta=1.0_dp)
     end if
 
@@ -1078,24 +1081,24 @@ contains
       aMatdr(:, iAt1, iAt1) = aMatdr(:, iAt1, iAt1) + aTrace(:, iAt1)
     end do
 
-    if (allocated(dqdr) .or. allocated(dqdL)) then
+    if (present(dqdr) .or. present(dqdL)) then
       ! Symmetrise inverted matrix
       do ii = 1, nDim
         aInv(ii, ii+1:nDim) = aInv(ii+1:nDim, ii)
       end do
     end if
 
-    if (allocated(dqdr)) then
+    if (present(dqdr)) then
       dqdr(:, :, :) = 0.0_dp
       call gemm(dqdr, aMatdr, aInv, alpha=-1.0_dp)
     end if
 
-    if (allocated(dqdL)) then
+    if (present(dqdL)) then
       dqdL(:, :, :) = 0.0_dp
       call gemm(dqdL, aMatdL, aInv, alpha=-1.0_dp)
     end if
 
-    if (allocated(qAtom)) then
+    if (present(qAtom)) then
       qAtom(:) = qVec(:nAtom)
     end if
 

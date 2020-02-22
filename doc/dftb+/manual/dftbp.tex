@@ -2822,15 +2822,15 @@ can be adjusted in the input.
 
 This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialize
 the charge model. For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn},
-and \kw{Rad}) have to be supplied in a \is{values\cb} method, since the model
-is instanciated inside the \is{DftD4\cb} method, defaults for all elements up to
-86 are supplied automatically.
+and \kw{Rad}) have to be supplied in a \is{Values\cb} method, since the model
+is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
+up to 86 can be supplied automatically.
 
 \begin{ptable}
-  \kw{Chi} & m & & \is{values} & \\
-  \kw{Gam} & m & & \is{values} & \\
-  \kw{Kcn} & m & & \is{values} & \\
-  \kw{Rad} & m & & \is{values} & \\
+  \kw{Chi} & m & & \is{Defaults} & \\
+  \kw{Gam} & m & & \is{Defaults} & \\
+  \kw{Kcn} & m & & \is{Defaults} & \\
+  \kw{Rad} & m & & \is{Defaults} & \\
   \kw{Cutoff} & r & & 40 & \\
   \kw{EwaldParameter} & r & & 0.0 & \\
   \kw{EwaldTolerance} & r & & 1.0e-9 & \\
@@ -2846,7 +2846,7 @@ is instanciated inside the \is{DftD4\cb} method, defaults for all elements up to
 
 \item[\is{Rad}] Charge width of all species in Bohr.
 
-\item[\is{CutoffEwald}] \modif{\modtype{length}} Cutoff distance when
+\item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when
   calculating electrostatics interactions under PBC.
 
 \item[\is{EwaldParameter}] Sets the splitting parameter in the Ewald
@@ -2859,6 +2859,29 @@ is instanciated inside the \is{DftD4\cb} method, defaults for all elements up to
   systems.
 
 \end{description}
+
+\begin{verbatim}
+ChargeModel = EEQ {
+  EwaldParameter = 0.25165824
+  EwaldTolerance = 1.0E-9
+  Chi = Values {
+    Ga = 1.15018618
+    As = 1.36313743
+  }
+  Gam = Values {
+    Ga = 8.299615E-2
+    As = 0.19005278
+  }
+  Kcn = Values {
+    Ga = -1.05627E-002
+    As = 7.657769E-002
+  }
+  Rad = Values {
+    Ga = 1.76901636
+    As = 2.41244711
+  }
+}
+\end{verbatim}
 
 \subsection{DFTB3}
 \label{sec:dftbp.DFTB3}

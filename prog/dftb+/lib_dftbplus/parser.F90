@@ -27,6 +27,7 @@ module dftbp_parser
   use dftbp_lapackroutines, only : matinv
   use dftbp_periodic
   use dftbp_dispersions
+  use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_encharges, only : TEeqInput
   use dftbp_simplealgebra, only: cross3, determinant33
   use dftbp_slakocont
@@ -3802,8 +3803,6 @@ contains
   !> tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
   !> will disable the calculation.
   subroutine readDispDFTD4(node, geo, input, nrChrg)
-    !> Do not pollute the global namespace of the parser -> import locally
-    use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
 
     !> Node to process.
     type(fnode), pointer :: node
@@ -3848,13 +3847,13 @@ contains
       call detailedError(value1, "Unknown method '"//char(buffer)//"' for ChargeModel")
     case ("eeq")
       allocate(d4Chi(geo%nSpecies))
-      d4Chi = getEeqChi(geo%speciesNames)
+      d4Chi(:) = getEeqChi(geo%speciesNames)
       allocate(d4Gam(geo%nSpecies))
-      d4Gam = getEeqGam(geo%speciesNames)
+      d4Gam(:) = getEeqGam(geo%speciesNames)
       allocate(d4Kcn(geo%nSpecies))
-      d4Kcn = getEeqKcn(geo%speciesNames)
+      d4Kcn(:) = getEeqKcn(geo%speciesNames)
       allocate(d4Rad(geo%nSpecies))
-      d4Rad = getEeqRad(geo%speciesNames)
+      d4Rad(:) = getEeqRad(geo%speciesNames)
       call readEeqModel(value1, input%eeqInput, geo, nrChrg, d4Chi, d4Gam, d4Kcn, d4Rad)
     end select
 
@@ -3878,16 +3877,16 @@ contains
     real(dp), intent(in) :: nrChrg
 
     !> Electronegativities default values
-    real(dp), intent(in), optional :: kChiDefault(:)
+    real(dp), intent(in) :: kChiDefault(:)
 
     !> Chemical hardnesses default values
-    real(dp), intent(in), optional :: kGamDefault(:)
+    real(dp), intent(in) :: kGamDefault(:)
 
     !> CN scaling default values
-    real(dp), intent(in), optional :: kKcnDefault(:)
+    real(dp), intent(in) :: kKcnDefault(:)
 
     !> Charge widths default values
-    real(dp), intent(in), optional :: kRadDefault(:)
+    real(dp), intent(in) :: kRadDefault(:)
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -3906,9 +3905,6 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
     case ("defaults")
-      if (.not.present(kChiDefault)) then
-        call detailedError(child, "Parent method did not supply defaults")
-      end if
       do iSp1 = 1, geo%nSpecies
         call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
             & kChiDefault(iSp1), child=child)
@@ -3926,9 +3922,6 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
     case ("defaults")
-      if (.not.present(kGamDefault)) then
-        call detailedError(child, "Parent method did not supply defaults")
-      end if
       do iSp1 = 1, geo%nSpecies
         call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
             & kGamDefault(iSp1), child=child)
@@ -3946,9 +3939,6 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
     case ("defaults")
-      if (.not.present(kKcnDefault)) then
-        call detailedError(child, "Parent method did not supply defaults")
-      end if
       do iSp1 = 1, geo%nSpecies
         call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
             & kKcnDefault(iSp1), child=child)
@@ -3966,9 +3956,6 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
     case ("defaults")
-      if (.not.present(kRadDefault)) then
-        call detailedError(child, "Parent method did not supply defaults")
-      end if
       do iSp1 = 1, geo%nSpecies
         call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
             & kRadDefault(iSp1), child=child)

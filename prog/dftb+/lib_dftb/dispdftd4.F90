@@ -12,15 +12,14 @@ module dftbp_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_dispiface, only : TDispersionIface
   use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_simplealgebra, only : determinant33, invert33
-  use dftbp_coulomb, only : getMaxGEwald, getOptimalAlphaEwald
+  use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, symbolToNumber
   use dftbp_dftd4param, only : TDftD4Calculator, TDispDftD4Inp, initializeCalculator
-  use dftbp_encharges, only : getEEQcharges, TEeqCont
-  use dftbp_blasroutines, only : gemv
+  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_encharges, only : TEeqCont, init
+  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_simplealgebra, only : determinant33
   implicit none
   private
 
@@ -119,9 +118,9 @@ contains
     this%tPeriodic = present(latVecs)
 
     if (this%tPeriodic) then
-      call this%eeqCont%initialize(inp%eeqInput, .false., .true., nAtom, latVecs)
+      call init(this%eeqCont, inp%eeqInput, .false., .true., nAtom, latVecs)
     else
-      call this%eeqCont%initialize(inp%eeqInput, .false., .true., nAtom)
+      call init(this%eeqCont, inp%eeqInput, .false., .true., nAtom)
     end if
 
     this%tCoordsUpdated = .false.
@@ -1001,7 +1000,6 @@ contains
     real(dp) :: sigma(3, 3)
     real(dp) :: vol, parEwald0
     real(dp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
-    real(dp), allocatable :: eDummy(:), gDummy(:, :), sDummy(:, :)
 
     if (present(volume)) then
       vol = volume
