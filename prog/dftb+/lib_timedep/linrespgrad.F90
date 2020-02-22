@@ -952,10 +952,11 @@ contains
 
     n_state = size(evec, dim=2)
     tol_iter = 1.0E-6_dp
-    max_iter = 200
-    verbose = 10
+    max_iter = 1000
+    verbose = 0
 
-    call rci_init(r_h, RCI_SOLVER_DAVIDSON, n_basis, n_state, tol_iter, max_iter, verbose)
+    !call rci_init(r_h, RCI_SOLVER_DAVIDSON, n_basis, n_state, tol_iter, max_iter, verbose)
+    call rci_init(r_h, RCI_SOLVER_PPCG, n_basis, n_state, tol_iter, max_iter, verbose)
 
     r_h%ovlp_is_unit = .true.
 
@@ -980,6 +981,7 @@ contains
 
     ! First call, so supply a random guess
 
+    ! resulting eigenvalues
     allocate (resvec(r_h%n_res))
     resvec(:) = 0.0_dp
 
@@ -1009,8 +1011,6 @@ contains
         exit lpSolver
 
       case (RCI_H_MULTI)
-
-        call warning("RCI_H_MULTI")
 
         ! action of H on vectors
         select case(iS%TrH)
@@ -1055,8 +1055,6 @@ contains
 
       case (RCI_AXPY)
 
-        call warning("RCI_AXPY")
-
         !call daxpy(iS%m*iS%n, iS%alpha, work(iS%Aidx)%Mat, 1, &
         !    work(iS%Bidx)%Mat, 1)
 
@@ -1084,8 +1082,6 @@ contains
         resvec(1) = sum(work(iS%Aidx)%Mat(:iS%m, :iS%n)**2)
 
       case (RCI_HEGV)
-
-        call warning("Calling RCI_HEGV")
 
         call hegv(work(iS%Aidx)%Mat(:,:iS%n), work(iS%Bidx)%Mat(:,:iS%n), resvec(:iS%n),&
             & uplo=iS%uplo, jobz=iS%jobz)
@@ -1122,13 +1118,9 @@ contains
 
       case (RCI_POTRF)
 
-        call warning("RCI_POTRF")
-
         call potrf(work(iS%Aidx)%Mat(:, :iS%n), uplo=iS%uplo)
 
       case (RCI_TRSM)
-
-        call warning("RCI_TRSM")
 
         call trsm(iS%side, work(iS%Aidx)%Mat, work(iS%Bidx)%Mat, iS%m, iS%n, 'N', iS%alpha,&
             & transA=iS%trA, uplo=iS%uplo)
@@ -1141,6 +1133,9 @@ contains
       end select
 
     end do lpSolver
+
+    eval(:) = resvec
+    evec(:, :) = work(1)%Mat
 
     ! clean up
     ijob = RCI_INIT_IJOB
