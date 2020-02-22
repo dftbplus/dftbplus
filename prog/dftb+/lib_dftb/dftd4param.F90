@@ -10,7 +10,7 @@
 !> Necessary parameters to perform DFT-D4 calculations.
 module dftbp_dftd4param
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
   use dftbp_dftd4refs
   implicit none

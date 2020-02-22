@@ -14,7 +14,7 @@
 !
 module dftbp_encharges
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_errorfunction, only : erfwrap
   use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec

@@ -11,7 +11,7 @@
 module dftbp_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_assert
-  use dftbp_accuracy
+  use dftbp_accuracy, only : dp
   use dftbp_dispiface, only : DispersionIface
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_simplealgebra, only : determinant33, invert33
