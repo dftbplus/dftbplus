@@ -1034,12 +1034,7 @@ contains
         & calculator%electronegativity, .false., cn, dcndr, dcndL)
     call cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max=8.0_dp)
 
-    call getNrOfNeighboursForAll(nNeigh, neigh, eeqCont%cutoff)
-
-    call getEEQCharges(nAtom, coords, species, eeqCont%nrChrg, nNeigh, neigh%iNeighbour,&
-        & neigh%neighDist2, img2CentCell, eeqCont%recPoint, parEwald0, vol, eeqCont%param%chi, eeqCont%param%kcn,&
-        & eeqCont%param%gam, eeqCont%param%rad, cn, dcndr, dcndL, eDummy, gDummy, sDummy, &
-        & eeqCont%charges, eeqCont%dqdr, eeqCont%dqdL)
+    call eeqCont%updateCoords(neigh, img2CentCell, coords, species, cn, dcndr, dcndL)
 
     call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, calculator%covalentRadius, calculator%electronegativity, .true., cn, dcndr,&
