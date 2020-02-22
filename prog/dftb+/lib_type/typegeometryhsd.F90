@@ -244,7 +244,8 @@ contains
       call getNextToken(text(:iEnd), txt, iStart, iErr)
       if (iErr == TOKEN_OK) then
         if (find(speciesNames, char(txt)) > 0) then
-          call detailedError(node, "Species name '"//char(txt)//"' is not unique, check species names in second line")
+          call detailedError(node, "Species name '"//char(txt)//"' is not unique, check species'//&
+              &//' names in second line")
         end if
         call append(speciesNames, char(txt))
       end if
