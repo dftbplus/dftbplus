@@ -250,6 +250,9 @@ ifeq ($(strip $(WITH_ELSI_RCI)),1)
   L_INCS += -I$(ELSIRCIINCDIR)
   L_LIBS += $(LIB_ELSI_RCI)
   FYPPOPT += -DWITH_ELSI_RCI
+  ifeq ($(strip $(WITH_ARPACK)),1)
+    $(error 'ARPACK is incompatible with ELSI_RCI use')
+  endif
 endif
 
 $(COMPILED_EXTERNALS): __FORCE__
