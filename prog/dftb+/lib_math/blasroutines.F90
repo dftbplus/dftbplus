@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 #! suffix and kinds for real types
-#:set REAL_KIND_PARAMS = [('real', 'rsp'), ('dble', 'rdp')]
+#:set REAL_KIND_PARAMS = [('real', 's'), ('dble', 'd')]
 
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
@@ -652,25 +652,25 @@ contains
     subroutine gemv231_${suffix}$(y, a, x, alpha, beta, trans)
 
       !> matrix
-      real(${kind}$), intent(inout), contiguous, target :: y(:,:)
+      real(r${kind}$p), intent(inout), contiguous, target :: y(:,:)
 
       !> matrix
-      real(${kind}$), intent(in), contiguous, target :: a(:,:,:)
+      real(r${kind}$p), intent(in), contiguous, target :: a(:,:,:)
 
       !> vector
-      real(${kind}$), intent(in) :: x(:)
+      real(r${kind}$p), intent(in) :: x(:)
 
       !> optional scaling factor (defaults to 1)
-      real(${kind}$), intent(in), optional :: alpha
+      real(r${kind}$p), intent(in), optional :: alpha
 
       !> optional scaling factor (defaults to 0)
-      real(${kind}$), intent(in), optional :: beta
+      real(r${kind}$p), intent(in), optional :: beta
 
       !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
       character, intent(in), optional :: trans
 
-      real(${kind}$), pointer :: pY(:)
-      real(${kind}$), pointer :: pA(:,:)
+      real(r${kind}$p), pointer :: pY(:)
+      real(r${kind}$p), pointer :: pA(:,:)
 
       pY(1 : size(y)) => y
       pA(1 : size(a, dim=1) * size(a, dim=2), 1 : size(a, dim=3)) => a
@@ -963,23 +963,25 @@ contains
   end subroutine symm_dble
 
 
-  !> real matrix*matrix product
-  subroutine gemm_real(C,A,B,alpha,beta,transA,transB,n,m,k)
+#:for suffix, kind in REAL_KIND_PARAMS
+
+  !> ${suffix}$ matrix*matrix product
+  subroutine gemm_${suffix}$(C, A, B, alpha, beta, transA, transB, n, m, k, lda, ldb, ldc)
 
     !> general matrix output
-    real(rsp), intent(inout) :: C(:,:)
+    real(r${kind}$p), intent(inout) :: C(:,:)
 
     !> general matrix
-    real(rsp), intent(in) :: A(:,:)
+    real(r${kind}$p), intent(in) :: A(:,:)
 
     !> general matrix
-    real(rsp), intent(in) :: B(:,:)
+    real(r${kind}$p), intent(in) :: B(:,:)
 
     !> defaults to 1 if not set
-    real(rsp), intent(in), optional :: alpha
+    real(r${kind}$p), intent(in), optional :: alpha
 
     !> defaults to 0 if not set
-    real(rsp), intent(in), optional :: beta
+    real(r${kind}$p), intent(in), optional :: beta
 
     !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
     !> and 'C'
@@ -998,10 +1000,13 @@ contains
     !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
     integer, intent(in), optional :: k
 
-    integer :: lda, ldb, ldc
+    !> leading dimensions
+    integer, intent(in), optional :: lda, ldb, ldc
+
+    integer :: ilda, ildb, ildc
     integer :: in, im, ik
     character :: iTransA, iTransB
-    real(rsp) :: iAlpha, iBeta
+    real(r${kind}$p) :: iAlpha, iBeta
 
     if (present(transA)) then
       iTransA = transA
@@ -1022,17 +1027,21 @@ contains
     if (present(alpha)) then
       iAlpha = alpha
     else
-      iAlpha = 1.0_rsp
+      iAlpha = 1.0_r${kind}$p
     end if
     if (present(beta)) then
       iBeta = beta
     else
-      iBeta = 0.0_rsp
+      iBeta = 0.0_r${kind}$p
     end if
 
-    lda = size(a,dim=1)
-    ldb = size(b,dim=1)
-    ldc = size(c,dim=1)
+  #:for CASES in [('a'), ('b'), ('c')]
+    if (present(ld${CASES}$)) then
+      ild${CASES}$ = ld${CASES}$
+    else
+      ild${CASES}$ = size(${CASES}$,dim=1)
+    end if
+  #:endfor
 
     if (present(m)) then
       im = m
@@ -1061,134 +1070,22 @@ contains
     @:ASSERT(im>0)
     @:ASSERT(in>0)
     @:ASSERT(ik>0)
-    @:ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
+    @:ASSERT(((ilda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
         & .or. (size(a,dim=2)>=im))
-    @:ASSERT(ldc>=im)
+    @:ASSERT(ildc>=im)
     @:ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N'))&
-        & .or. (ldb>=in))
+        & .or. (ildb>=in))
     @:ASSERT(size(c,dim=2)>=in)
     @:ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N'))&
-        & .or. (lda>=ik))
-    @:ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
+        & .or. (ilda>=ik))
+    @:ASSERT(((ildb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
         & .or. (size(b,dim=2)>=ik))
 
-    call sgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
+    call ${kind}$gemm(iTransA,iTransB,im,in,ik,iAlpha,A,ilda,B,ildb,iBeta,C,ildc)
 
-  end subroutine gemm_real
+  end subroutine gemm_${suffix}$
 
-
-  !> Double precision matrix*matrix product
-  subroutine gemm_dble(C,A,B,alpha,beta,transA,transB,n,m,k)
-
-    !> general matrix output
-    real(rdp), intent(inout) :: C(:,:)
-
-    !> general matrix
-    real(rdp), intent(in) :: A(:,:)
-
-    !> general matrix
-    real(rdp), intent(in) :: B(:,:)
-
-    !> defaults to 1 if not set
-    real(rdp), intent(in), optional :: alpha
-
-    !> defaults to 0 if not set
-    real(rdp), intent(in), optional :: beta
-
-    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
-    !> and 'C'
-    character, intent(in), optional :: transA
-
-    !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
-    !> and 'C'
-    character, intent(in), optional :: transB
-
-    !> specifies the number of columns of the matrix C
-    integer, intent(in), optional :: n
-
-    !> specifies the number of rows of the matrix C
-    integer, intent(in), optional :: m
-
-    !> specifies the internal number of elements in Op(A)_ik Op(B)_kj
-    integer, intent(in), optional :: k
-
-    integer :: lda, ldb, ldc
-    integer :: in, im, ik
-    character :: iTransA, iTransB
-    real(rdp) :: iAlpha, iBeta
-
-    if (present(transA)) then
-      iTransA = transA
-    else
-      iTransA = 'n'
-    end if
-    if (present(transB)) then
-      iTransB = transB
-    else
-      iTransB = 'n'
-    end if
-
-    @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
-        & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
-    @:ASSERT(iTransB == 'n' .or. iTransB == 'N' .or. iTransB == 't'&
-        & .or. iTransB == 'T' .or. iTransB == 'c' .or. iTransB == 'C')
-
-    if (present(alpha)) then
-      iAlpha = alpha
-    else
-      iAlpha = 1.0_rdp
-    end if
-    if (present(beta)) then
-      iBeta = beta
-    else
-      iBeta = 0.0_rdp
-    end if
-
-    lda = size(a,dim=1)
-    ldb = size(b,dim=1)
-    ldc = size(c,dim=1)
-
-    if (present(m)) then
-      im = m
-    else
-      if (iTransA == 'n' .or. iTransA == 'N') then
-        im = size(A,dim=1)
-      else
-        im = size(A,dim=2)
-      end if
-    end if
-    if (present(n)) then
-      in = n
-    else
-      in = size(c,dim=2)
-    end if
-    if (present(k)) then
-      ik = k
-    else
-      if (iTransA == 'n' .or. iTransA == 'N') then
-        ik = size(A,dim=2)
-      else
-        ik = size(A,dim=1)
-      end if
-    end if
-
-    @:ASSERT(im>0)
-    @:ASSERT(in>0)
-    @:ASSERT(ik>0)
-    @:ASSERT(((lda>=im).and.(iTransA == 'n' .or. iTransA == 'N'))&
-        & .or. (size(a,dim=2)>=im))
-    @:ASSERT(ldc>=im)
-    @:ASSERT(((size(b,dim=2)>=in).and.(iTransB == 'n' .or. iTransB == 'N'))&
-        & .or. (ldb>=in))
-    @:ASSERT(size(c,dim=2)>=in)
-    @:ASSERT(((size(a,dim=2)>=ik).and.(iTransA == 'n' .or. iTransA == 'N'))&
-        & .or. (lda>=ik))
-    @:ASSERT(((ldb>=ik).and.(iTransB == 'n' .or. iTransB == 'N'))&
-        & .or. (size(b,dim=2)>=ik))
-
-    call dgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
-
-  end subroutine gemm_dble
+#:endfor
 
 
   !> complex matrix*matrix product
@@ -1425,19 +1322,19 @@ contains
     subroutine gemm332_${suffix}$(C, A, B, alpha, beta, transA, transB)
 
       !> general matrix output
-      real(${kind}$), intent(inout), target, contiguous :: C(:,:,:)
+      real(r${kind}$p), intent(inout), target, contiguous :: C(:,:,:)
 
       !> general matrix
-      real(${kind}$), intent(in), target, contiguous :: A(:,:,:)
+      real(r${kind}$p), intent(in), target, contiguous :: A(:,:,:)
 
       !> general matrix
-      real(${kind}$), intent(in) :: B(:,:)
+      real(r${kind}$p), intent(in) :: B(:,:)
 
       !> defaults to 1 if not set
-      real(${kind}$), intent(in), optional :: alpha
+      real(r${kind}$p), intent(in), optional :: alpha
 
       !> defaults to 0 if not set
-      real(${kind}$), intent(in), optional :: beta
+      real(r${kind}$p), intent(in), optional :: beta
 
       !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
       !> 'c' and 'C'. Note this acts on the compound index ij
@@ -1447,7 +1344,7 @@ contains
       !> 'c' and 'C'
       character, intent(in), optional :: transB
 
-      real(${kind}$), pointer :: pA(:,:), pC(:,:)
+      real(r${kind}$p), pointer :: pA(:,:), pC(:,:)
 
       pA(1 : size(A, dim=1) * size(A, dim=2), 1 : size(A, dim=3)) => A
       pC(1 : size(C, dim=1) * size(C, dim=2), 1 : size(C, dim=3)) => C
