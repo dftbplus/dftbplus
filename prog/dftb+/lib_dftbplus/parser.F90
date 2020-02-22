@@ -3900,80 +3900,84 @@ contains
     allocate(input%kcn(geo%nSpecies))
     allocate(input%rad(geo%nSpecies))
 
-    call getChildValue(node, "chi", value1, "values", child=child)
+    call getChildValue(node, "chi", value1, "defaults", child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
-    case ("values")
-      if (present(kChiDefault)) then
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
-              & kChiDefault(iSp1), child=child)
-        end do
-      else
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
-              & child=child)
-        end do
+    case ("defaults")
+      if (.not.present(kChiDefault)) then
+        call detailedError(child, "Parent method did not supply defaults")
       end if
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
+            & kChiDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
+            & child=child)
+      end do
     end select
 
-    call getChildValue(node, "gam", value1, "values", child=child)
+    call getChildValue(node, "gam", value1, "defaults", child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
-    case ("values")
-      if (present(kGamDefault)) then
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
-              & kGamDefault(iSp1), child=child)
-        end do
-      else
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
-              & child=child)
-        end do
+    case ("defaults")
+      if (.not.present(kGamDefault)) then
+        call detailedError(child, "Parent method did not supply defaults")
       end if
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
+            & kGamDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
+            & child=child)
+      end do
     end select
 
-    call getChildValue(node, "kcn", value1, "values", child=child)
+    call getChildValue(node, "kcn", value1, "defaults", child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
-    case ("values")
-      if (present(kKcnDefault)) then
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
-              & kKcnDefault(iSp1), child=child)
-        end do
-      else
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
-              & child=child)
-        end do
+    case ("defaults")
+      if (.not.present(kKcnDefault)) then
+        call detailedError(child, "Parent method did not supply defaults")
       end if
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
+            & kKcnDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
+            & child=child)
+      end do
     end select
 
-    call getChildValue(node, "rad", value1, "values", child=child)
+    call getChildValue(node, "rad", value1, "defaults", child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
-    case ("values")
-      if (present(kRadDefault)) then
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
-              & kRadDefault(iSp1), child=child)
-        end do
-      else
-        do iSp1 = 1, geo%nSpecies
-          call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
-              & child=child)
-        end do
+    case ("defaults")
+      if (.not.present(kRadDefault)) then
+        call detailedError(child, "Parent method did not supply defaults")
       end if
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
+            & kRadDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
+            & child=child)
+      end do
     end select
 
     call getChildValue(node, "cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
