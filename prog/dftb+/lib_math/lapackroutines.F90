@@ -107,8 +107,15 @@ module dftbp_lapackroutines
   #:endfor
   end interface potrf
 
+  interface trsm
+  #:for suffix, kind in REAL_KIND_PARAMS
+    module procedure ${kind}$trsm_${suffix}$
+  #:endfor
+  end interface trsm
+
+
   public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
-  public :: hermatinv, hetri, hetrf, gesvd, potrf
+  public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm
 
 contains
 
@@ -1470,6 +1477,63 @@ contains
     end if
 
   end subroutine ${kind}$potrf_${suffix}$
+
+#:endfor
+
+
+#:for suffix, kind in REAL_KIND_PARAMS
+
+  !> solve one of the matrix equations op( A )*X = alpha*B, or X*op( A ) = alpha*B
+  subroutine ${kind}$trsm_${suffix}$(side, A, B, m, n, diag, alpha, transa, uplo)
+
+    !> matrix A on 'l'eft or 'r'ight of X
+    character, intent(in) :: side
+
+    real(r${kind}$p), intent(inout) :: A(:,:)
+
+    real(r${kind}$p), intent(inout) :: B(:,:)
+
+    integer, intent(in) :: m
+
+    integer, intent(in) :: n
+
+    !> 'U'nit triangular or 'N'ot
+    character, intent(in) :: diag
+
+    real(r${kind}$p), intent(in) :: alpha
+
+    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
+    character, intent(in), optional :: transA
+
+    !> upper or lower triangle of the matrix, defaults to lower
+    character, intent(in), optional :: uplo
+
+    integer :: lda, ldb
+    character :: uplo0, iTransA
+
+    uplo0 = uploHelper(uplo)
+    lda = size(A, dim=1)
+    ldb = size(B, dim=1)
+  @:ASSERT(m > 0)
+  @:ASSERT(n > 0)
+  @:ASSERT(((side == 'r' .or. side == 'R') .and. lda > n) .or.&
+      & ((side == 'l' .or. side == 'L') .and. lda > m))
+  @:ASSERT(ldb >= m)
+  @:ASSERT(size(B,dim=2) >= n)
+  @:ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
+  @:ASSERT(diag == 'u' .or. diag == 'U' .or. diag == 'n' .or. diag == 'N')
+  if (present(transa)) then
+    iTransA = transA
+  else
+    iTransA = 'n'
+  end if
+  @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
+      & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
+
+    call dtrsm ( side, uplo, iTransa, diag, m, n, alpha, a, lda, b, ldb )
+
+  end subroutine ${kind}$trsm_${suffix}$
 
 #:endfor
 

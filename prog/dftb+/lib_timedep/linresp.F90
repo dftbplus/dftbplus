@@ -29,6 +29,7 @@ module dftbp_linresp
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_linrespgrad
   use dftbp_arpack, only : withArpack
+  use dftbp_elsirciiface, only : withElsiRCI
   implicit none
   private
 
@@ -184,8 +185,9 @@ contains
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
+    this%tinit = .false.
+    if (withArpack .or. withElsiRCI) then
 
-    if (withArpack) then
       this%nExc = ini%nExc
       this%tEnergyWindow = ini%tEnergyWindow
       this%energyWindow = ini%energyWindow
@@ -213,11 +215,7 @@ contains
         this%fdCoeffs = -1
       end if
       this%tGrndState = ini%tGrndState
-      if (ini%tDiagnoseArnoldi) then
-        this%fdArnoldiDiagnosis = getFileId()
-      else
-        this%fdArnoldiDiagnosis = -1
-      end if
+
       if (ini%tTrans) then
         this%fdTrans = getFileId()
       else
@@ -239,8 +237,6 @@ contains
         this%fdTradip = -1
       end if
 
-      this%tArnoldi = ini%tArnoldi
-      this%fdArnoldi = getFileId()
       this%nAtom = nAtom
       this%nEl = nEl
       this%nOcc = ceiling(nEl / 2.0_dp)
@@ -258,10 +254,27 @@ contains
             & size(onSiteMatrixElements,dim=4)))
         this%onSiteMatrixElements(:,:,:,:) = onSiteMatrixElements
       end if
+
       this%tinit = .true.
+    end if
+
+    if (withArpack) then
+
+      if (ini%tDiagnoseArnoldi) then
+        this%fdArnoldiDiagnosis = getFileId()
+      else
+        this%fdArnoldiDiagnosis = -1
+      end if
+      this%tArnoldi = ini%tArnoldi
+      this%fdArnoldi = getFileId()
+      this%tinit = .true.
+
+    elseif (withElsiRCI) then
+
     else
-      this%tinit = .false.
+
       call error('Internal error: Illegal routine call to LinResp_init.')
+
     endif
 
   end subroutine LinResp_init
@@ -329,7 +342,7 @@ contains
     !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
-    if (withArpack) then
+    if (withArpack .or. withElsiRCI) then
       @:ASSERT(this%tInit)
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(tSpin, this%nAtom, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&

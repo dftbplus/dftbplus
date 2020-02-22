@@ -52,6 +52,7 @@ module dftbp_parser
   use dftbp_wrappedintr
   use dftbp_plumed, only : withPlumed
   use dftbp_arpack, only : withArpack
+  use dftbp_elsirciiface, only : withElsiRCI
 #:if WITH_TRANSPORT
   use poisson_init
   use libnegf_vars
@@ -3501,9 +3502,9 @@ contains
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
 
-    if (associated(child) .and. .not. withArpack) then
+    if (associated(child) .and. .not. (withArpack .or. withElsiRCI)) then
       call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
-          & response calculations (requires the ARPACK/ngARPACK library).')
+          & response calculations (requires the ARPACK/ngARPACK or ELSI_rci libraries).')
     end if
 
     ctrl%lrespini%tInit = .false.

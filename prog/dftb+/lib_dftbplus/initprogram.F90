@@ -1048,7 +1048,7 @@ contains
 
     real(dp), allocatable :: tmpCoords(:), tmpWeight(:), tmp3Coords(:,:)
 
-    type(ORanlux), allocatable :: randomInit, randomThermostat
+    type(ORanlux), allocatable :: randomInit, randomThermostat, randomELSIRCI
     integer :: iSeed
 
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
@@ -2042,7 +2042,7 @@ contains
     if (tLinResp) then
 
       ! input sanity checking
-      if (.not. withArpack .or. withElsiRCI) then
+      if (.not. (withArpack .or. withElsiRCI)) then
         call error("This binary has been compiled without support for linear response&
             & calculations.")
       end if
@@ -2129,7 +2129,7 @@ contains
     tRandomSeed = (iSeed < 1)
     ! Note: This routine may not be called multiple times. If you need further random generators,
     ! extend the routine and create them within this call.
-    call createRandomGenerators(env, iSeed, randomInit, randomThermostat)
+    call createRandomGenerators(env, iSeed, randomInit, randomThermostat, randomELSIRCI)
 
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
@@ -3327,7 +3327,7 @@ contains
 
   !> Creates all random generators needed in the code.
   !!
-  subroutine createRandomGenerators(env, seed, randomInit, randomThermostat)
+  subroutine createRandomGenerators(env, seed, randomInit, randomThermostat, randomELSIRCI)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -3342,6 +3342,9 @@ contains
     !> Random generator for the actual thermostat.
     type(ORanlux), allocatable, intent(out) :: randomThermostat
 
+    !> Random generator for ELSI_RCI solver
+    type(ORanlux), allocatable, intent(out) :: randomELSIRCI
+
     type(ORandomGenPool) :: randGenPool
 
     call init(randGenPool, env, seed, oldCompat=.true.)
@@ -3352,6 +3355,7 @@ contains
     ! generated here.
     call randGenPool%getGenerator(env, randomThermostat)
     call randGenPool%getGenerator(env, randomInit)
+    call randGenPool%getGenerator(env, randomELSIRCI)
 
   end subroutine createRandomGenerators
 

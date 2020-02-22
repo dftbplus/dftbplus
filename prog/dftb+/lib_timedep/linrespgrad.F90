@@ -22,6 +22,7 @@ module dftbp_linrespgrad
   use dftbp_scc, only : TScc
   use dftbp_blasroutines
   use dftbp_eigensolver
+  use dftbp_lapackroutines
   use dftbp_message
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_sorting
@@ -70,15 +71,9 @@ module dftbp_linrespgrad
       &    mcaupd, mcaup2, mcaitr, mceigh, mcapps, mcgets, mceupd
 
   ! ELSI_RCI related variables
-  type(rci_handle) :: r_h
-  type(rci_instr) :: iS
-  real(dp), allocatable :: resvec(:)
-  real(dp), allocatable :: Mattmp(:, :)
-  real(dp), allocatable :: Worktmp(:)
   type :: matrix
     real(dp), allocatable :: Mat(:, :)
   end type matrix
-  type(matrix), allocatable :: Work(:)
 
 contains
 
@@ -492,7 +487,7 @@ contains
       ! requirement combined with the need to get at least nexc states
       nxov_rd = max(nxov_rd,min(nexc+1,nxov))
     else
-
+      nxov_rd = max(nxov_rd,min(nexc,nxov))
     end if
 
     call TTransCharges_init(transChrg, iAtomStart, stimc, grndEigVecs, nxov_rd, nxov_ud(1), getij,&
@@ -542,11 +537,15 @@ contains
 
       sym = symmetries(isym)
       if (withArpack) then
-        call buildAndDiagExcMatrix(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd, iAtomStart,&
-            & stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
+        call buildAndDiagExcMatrixArpack(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd,&
+            & iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
             & fdArnoldiDiagnosis, eval, evec, onsMEs, orb)
       elseif (withELSIRCI) then
-
+        call buildAndDiagExcMatrixRCI(tSpin, wij(:nxov_rd), sym, win, nxov_ud(1), nxov_rd,&
+            & iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg,&
+            & eval, evec, onsMEs, orb)
+      else
+        call error("No suitable eigensolver was compiled with this binary")
       end if
 
       ! Excitation oscillator strengths for resulting states
@@ -697,7 +696,7 @@ contains
 
 
   !> Builds and diagonalizes the excitation matrix via iterative technique.
-  subroutine buildAndDiagExcMatrix(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
+  subroutine buildAndDiagExcMatrixArpack(tSpin, wij, sym, win, nmatup, nxov, iAtomStart, stimc,&
       & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg, fdArnoldiDiagnosis,&
       & eval, evec, onsMEs, orb)
 
@@ -874,7 +873,293 @@ contains
       close(fdArnoldiDiagnosis)
     end if
 
-  end subroutine buildAndDiagExcMatrix
+  end subroutine buildAndDiagExcMatrixArpack
+
+
+  !> Builds and diagonalizes the excitation matrix via iterative techniques.
+  subroutine buildAndDiagExcMatrixRCI(tSpin, wij, sym, win, nmatup, n_basis, iAtomStart, stimc,&
+      & grndEigVecs, filling, getij, gammaMat, species0, spinW, transChrg, eval, evec, onsMEs, orb)
+
+    !> spin polarisation?
+    logical, intent(in) :: tSpin
+
+    !> single particle excitation energies
+    real(dp), intent(in) :: wij(:)
+
+    !> symmetry to calculate transitions
+    character, intent(in) :: sym
+
+    !> index array for single particle excitions
+    integer, intent(in) :: win(:)
+
+    !> number of same spin excitations
+    integer, intent(in) :: nmatup
+
+    !> number of occupied-virtual transitions
+    integer, intent(in) :: n_basis
+
+    !> indexing array for square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> overlap times ground state eigenvectors
+    real(dp), intent(in) :: stimc(:,:,:)
+
+    !> ground state eigenvectors
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> occupation numbers
+    real(dp), intent(in) :: filling(:,:)
+
+    !> electrostatic matrix
+    real(dp), intent(in) :: gammaMat(:,:)
+
+    !> index array for for single particle excitations
+    integer, intent(in) :: getij(:,:)
+
+    !> central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    !> atomic resolved spin constants
+    real(dp), intent(in) :: spinW(:)
+
+    !> machinery for transition charges between single particle levels
+    type(TTransCharges), intent(in) :: transChrg
+
+    !> resulting eigenvalues for transitions
+    real(dp), intent(out) :: eval(:)
+
+    !> eigenvectors for transitions
+    real(dp), intent(out) :: evec(:,:)
+
+    !> onsite corrections if in use
+    real(dp), allocatable :: onsMEs(:,:,:,:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    type(rci_handle) :: r_h
+    type(rci_instr) :: iS
+    real(dp), allocatable :: resvec(:)
+    real(dp), allocatable :: mattmp(:, :)
+    real(dp), allocatable :: worktmp(:)
+
+    type(matrix), allocatable :: work(:)
+    integer :: n_state, max_iter, verbose, ijob, task
+    real(dp) :: tol_iter
+    integer, parameter :: maxVectors = 100
+
+    integer :: ii, jj
+
+    n_state = size(evec, dim=2)
+    tol_iter = 1.0E-6_dp
+    max_iter = 200
+    verbose = 10
+
+    call rci_init(r_h, RCI_SOLVER_DAVIDSON, n_basis, n_state, tol_iter, max_iter, verbose)
+
+    r_h%ovlp_is_unit = .true.
+
+    allocate(work(maxVectors))
+    ijob = RCI_INIT_IJOB
+
+    ! initialize solver
+    initSolver : do
+      call rci_solve_allocate(r_h, ijob, iS, task)
+      select case (task)
+      case (RCI_NULL)
+      case (RCI_STOP)
+        exit initSolver
+      case (RCI_ALLOCATE)
+        allocate (work(iS%Aidx)%Mat(iS%m, iS%n))
+        work(iS%Aidx)%Mat(:,:) = 0.0_dp
+      case default
+        write(tmpStr,"(' Internal ELSI_RCI allocation error, unknown task = ',I0,' requested')")task
+        call error(tmpStr)
+      end select
+    end do initSolver
+
+    ! First call, so supply a random guess
+
+    allocate (resvec(r_h%n_res))
+    resvec(:) = 0.0_dp
+
+    ! Initialize wave functions
+    ! replace with DFTB internal generator
+    call random_number(work(1)%mat)
+    do ii = 1, n_state
+      work(1)%mat(:,ii) = work(1)%mat(:,ii) / sqrt(dot_product(work(1)%mat(:,ii),work(1)%mat(:,ii)))
+    end do
+
+    ijob = RCI_INIT_IJOB
+    lpSolver : do ! event loop
+
+      call rci_solve(r_h, ijob, iS, task, resvec)
+
+      select case (task)
+
+      case (RCI_NULL)
+
+      case (RCI_STOP)
+
+        write(tmpStr,"(' Maximum ELSI_RCI iterations, ', I0, ', have been reached')") max_iter
+        call error(tmpStr)
+
+      case (RCI_CONVERGE)
+
+        exit lpSolver
+
+      case (RCI_H_MULTI)
+
+        call warning("RCI_H_MULTI")
+
+        ! action of H on vectors
+        select case(iS%TrH)
+        case ("N")
+          do ii = 1, iS%n
+            call omegatvec(tSpin, work(iS%Aidx)%Mat(:, ii), work(iS%Bidx)%Mat(:, ii), wij, sym,&
+                & win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat, species0,&
+                & spinW, onsMEs, orb, transChrg)
+          end do
+        case ("T", "C")
+          do ii = 1, iS%n
+            call omegatvec(tSpin, work(iS%Aidx)%Mat(ii, :), work(iS%Bidx)%Mat(:, ii), wij, sym,&
+                & win, nmatup, iAtomStart, stimc, grndEigVecs, filling, getij, gammaMat, species0,&
+                & spinW, onsMEs, orb, transChrg)
+          end do
+        case default
+          write(tmpStr,"(' RCI_H_MULT error unknown matrix operation: ',A)") iS%trA
+          call error(tmpStr)
+        end select
+
+      case (RCI_P_MULTI)
+
+        ! Identity matrix (i.e. no) preconditioner, should try diagonal or something else in future
+        work(iS%Bidx)%Mat(:,:) = work(iS%Aidx)%Mat
+
+      case (RCI_COPY)
+
+        select case(iS%trA)
+        case ("N")
+          work(iS%Bidx)%Mat(:,:) = work(iS%Aidx)%Mat
+        case("T", "C")
+          work(iS%Bidx)%Mat(:,:) = transpose(work(iS%Aidx)%Mat)
+        case default
+          write(tmpStr,"(' RCI_COPY error unknown operation: ',A)") iS%trA
+          call error(tmpStr)
+        end select
+
+      case (RCI_GEMM)
+
+        call gemm(work(iS%Cidx)%Mat, work(iS%Aidx)%Mat, work(iS%Bidx)%Mat, alpha=iS%alpha,&
+            & beta=iS%beta, transA=iS%trA, transB=iS%trB, m=iS%m, n=iS%n, k=iS%k)
+
+      case (RCI_AXPY)
+
+        call warning("RCI_AXPY")
+
+        !call daxpy(iS%m*iS%n, iS%alpha, work(iS%Aidx)%Mat, 1, &
+        !    work(iS%Bidx)%Mat, 1)
+
+        work(iS%Bidx)%Mat(:iS%m,:iS%n) = work(iS%Bidx)%Mat(:iS%m,:iS%n)&
+            & + iS%alpha * work(iS%Aidx)%Mat(:iS%m,:iS%n)
+
+      case (RCI_SUBCOPY)
+
+        work(iS%Bidx)%Mat(iS%rBoff + 1:iS%rBoff + iS%m, iS%cBoff + 1:iS%cBoff + iS%n) =&
+            & work(iS%Aidx)%Mat(iS%rAoff + 1:iS%rAoff + iS%m, iS%cAoff + 1:iS%cAoff + iS%n)
+
+      case (RCI_SCALE)
+
+        work(iS%Aidx)%Mat(:,:) = iS%alpha*work(iS%Aidx)%Mat
+
+      case (RCI_TRACE)
+
+        resvec(1) = 0.0_dp
+        do ii = 1, iS%n
+          resvec(1) = resvec(1) + work(iS%Aidx)%Mat(ii, ii)
+        enddo
+
+      case (RCI_DOT)
+
+        resvec(1) = sum(work(iS%Aidx)%Mat(:iS%m, :iS%n)**2)
+
+      case (RCI_HEGV)
+
+        call warning("Calling RCI_HEGV")
+
+        call hegv(work(iS%Aidx)%Mat(:,:iS%n), work(iS%Bidx)%Mat(:,:iS%n), resvec(:iS%n),&
+            & uplo=iS%uplo, jobz=iS%jobz)
+
+      case (RCI_COLSCALE)
+
+        do ii = 1, iS%n
+          work(iS%Aidx)%Mat(:, ii) = resvec(ii) * work(iS%Aidx)%Mat(:, ii)
+        enddo
+
+      case (RCI_COL_NORM)
+
+        resvec(:) = norm2(work(iS%Aidx)%Mat(:iS%m, :), dim=1)
+
+      case (RCI_SUBCOL)
+
+        ii = 0
+        do jj = 1, iS%n
+          if (resvec(jj) > 0.5_dp) then
+            ii = ii + 1
+            work(iS%Bidx)%Mat(:, ii) = work(iS%Aidx)%Mat(:, jj)
+          end if
+        enddo
+
+      case (RCI_SUBROW)
+
+        ii = 0
+        do jj = 1, iS%m
+          if (resvec(jj) > 0.5_dp) then
+            ii = ii + 1
+            work(iS%Bidx)%Mat(ii,:) = work(iS%Aidx)%Mat(jj,:)
+          end if
+        enddo
+
+      case (RCI_POTRF)
+
+        call warning("RCI_POTRF")
+
+        call potrf(work(iS%Aidx)%Mat(:, :iS%n), uplo=iS%uplo)
+
+      case (RCI_TRSM)
+
+        call warning("RCI_TRSM")
+
+        call trsm(iS%side, work(iS%Aidx)%Mat, work(iS%Bidx)%Mat, iS%m, iS%n, 'N', iS%alpha,&
+            & transA=iS%trA, uplo=iS%uplo)
+
+      case default
+
+        write(tmpStr,"(' Internal ELSI_RCI error, unknown task = ',I0,' requested')")task
+        call error(tmpStr)
+
+      end select
+
+    end do lpSolver
+
+    ! clean up
+    ijob = RCI_INIT_IJOB
+    destroySolver: do
+      call rci_solve_deallocate(r_h, ijob, iS, task)
+      select case (task)
+      case (RCI_NULL)
+      case (RCI_STOP)
+        exit destroySolver
+      case (RCI_DEALLOCATE)
+        deallocate (work(iS%Aidx)%Mat)
+      case default
+        write(tmpStr,"(' Internal ELSI_RCI deallocation error, unknown task = ',I0,' requested')")&
+            &task
+        call error(tmpStr)
+      end select
+    end do destroySolver
+
+  end subroutine buildAndDiagExcMatrixRCI
 
 
   !> Calculate oscillator strength for a given excitation between KS states
