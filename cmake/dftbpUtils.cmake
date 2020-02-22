@@ -181,6 +181,14 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
+  if(WITH_ARPACK AND WITH_ELSI_RCI)
+    message(FATAL_ERROR "Building with both ARPACK and ELSI_RCI support is not possible at present")
+  endif()
+
+  if(WITH_ELSI_RCI AND WITH_MPI)
+    message(FATAL_ERROR "Building with ELSI_RCI temporarily disabled")
+  endif()
+
   string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
   if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
       AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)
