@@ -131,6 +131,7 @@ spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 solvation/gb_ionpair                   #? MPI_PROCS <= 1
 solvation/gb_reference                 #? MPI_PROCS <= 1
 solvation/gb_mol1bar                   #? MPI_PROCS <= 1
+solvation/gb_cm5                       #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1

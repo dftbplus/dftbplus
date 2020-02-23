@@ -5,27 +5,26 @@ Geometry = xyzFormat {
 Driver {}
 
 Hamiltonian = DFTB {
-  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
+  Solvation = GeneralizedBorn { # GFN1-xTB/GBSA(CS2)
     Solvent = fromConstants {
       Epsilon = 2.64  # Dielectric constant of the solvent
-      MolecularMass [amu] = 76.14  # mass of the solvent molecule
-      Density [kg/l] = 1.26  # mol density of the solvent
+      MolecularMass = 76.14  # mass of the solvent molecule
+      Density = 1.26  # mol density of the solvent
     }
-    Temperature [K] = 298.15
-    State = "gsolv"
-    FreeEnergyShift [kcal/mol] = 2.81072250
+    # temperature = 298.15
+    # state = "gsolv"
+    FreeEnergyShift [kcal/mol] = 3.37941625
     Radii = vanDerWaalsRadiiD3 {}
     Descreening = values {
-       H = 0.93699367
-       C = 0.83307834
-       N = 1.02661619
-       O = 0.96508008
+       H = 0.97012484
+       C = 0.88983137
+       O = 1.05601217
     }
-    BornScale = 1.40636177
-    BornOffset = 1.653719965215E-03
+    CM5 = yes
+    BornScale = 1.18273365
+    BornOffset = 1.517063677302E-02
     OBCCorrection = {1.00 0.80 4.85}
     Cutoff = 30
-    CM5 = No
   }
   SCC = Yes
   SccTolerance = 1e-10
@@ -33,8 +32,8 @@ Hamiltonian = DFTB {
     H = "s"
     O = "p"
     C = "p"
-    N = "p"
   }
+  Charge = -1
   SlaterKosterFiles = Type2FileNames {
     Separator = "-"
     Suffix = ".skf"

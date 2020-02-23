@@ -12,6 +12,7 @@ module dftbp_born
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : hemv, gemv
   use dftbp_charges, only : getSummedCharges
+  use dftbp_cm5, only : TChargeModel5, init
   use dftbp_commontypes, only : TOrbitals
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
@@ -54,6 +55,9 @@ module dftbp_born
 
     !> Real space cutoff
     real(dp) :: rCutoff = 0.0_dp
+
+    !> Use charge model 5
+    logical :: TCM5 = .false.
   end type TGBInput
 
 
@@ -90,6 +94,9 @@ module dftbp_born
 
     !> Model parameters
     type(TGBParameters) :: param
+
+    !> Correction to charges with CM5
+    type(TChargeModel5), allocatable :: cm5
 
     !> Born shifts to the hamiltonian
     real(dp), allocatable :: shift(:)
@@ -194,6 +201,15 @@ contains
 
     self%rCutoff = input%rCutoff
 
+    if (input%tCM5) then
+      allocate(self%cm5)
+      if (self%tPeriodic) then
+        call init(self%cm5, nAtom, species0, speciesNames, input%rCutoff, latVecs)
+      else
+        call init(self%cm5, nAtom, species0, speciesNames, input%rCutoff)
+      end if
+    end if
+
     self%tCoordsUpdated = .false.
     self%tChargesUpdated = .false.
 
@@ -229,6 +245,10 @@ contains
         & neighList%neighDist2, species0, coords)
     call getBornMatrixCluster(self, coords)
 
+    if (allocated(self%cm5)) then
+      call self%cm5%updateCoords(neighList, img2CentCell, coords, species0)
+    end if
+
     self%tCoordsUpdated = .true.
     self%tChargesUpdated = .false.
 
@@ -249,6 +269,10 @@ contains
 
     self%volume = abs(determinant33(latVecs))
     self%latVecs(:,:) = latVecs
+
+    if (allocated(self%cm5)) then
+      call self%cm5%updateLatVecs(LatVecs)
+    end if
 
     self%tCoordsUpdated = .false.
     self%tChargesUpdated = .false.
@@ -299,7 +323,9 @@ contains
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
+    real(dp) :: iAt1
     real(dp) :: sigma(3, 3)
+    real(dp), allocatable :: dEdcm5(:)
     integer, allocatable :: nNeigh(:)
 
     @:ASSERT(self%tCoordsUpdated)
@@ -312,6 +338,14 @@ contains
 
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
     call getBornEGCluster(self, coords, self%energies, gradients, sigma)
+
+    if (allocated(self%cm5)) then
+      allocate(dEdcm5(self%nAtom))
+      dEdcm5(:) = 0.0_dp
+      call hemv(dEdcm5, self%bornMat, self%chargesPerAtom)
+      call self%cm5%addGradients(dEdcm5, gradients)
+      call self%cm5%addStress(dEdcm5, sigma)
+    end if
 
     self%energies = self%energies + self%param%freeEnergyShift / real(self%nAtom, dp)
 
@@ -352,6 +386,9 @@ contains
     real(dp) :: cutoff
 
     cutoff = self%rCutoff
+    if (allocated(self%cm5)) then
+      cutoff = max(cutoff, self%cm5%getRCutoff())
+    end if
 
   end function getRCutoff
 
@@ -386,6 +423,9 @@ contains
     @:ASSERT(self%tCoordsUpdated)
 
     call getSummedCharges(species, orb, qq, q0, dQAtom=self%chargesPerAtom)
+    if (allocated(self%cm5)) then
+      call self%cm5%addCharges(self%chargesPerAtom)
+    end if
 
     self%shift(:) = 0.0_dp
     call hemv(self%shift, self%bornMat, self%chargesPerAtom)

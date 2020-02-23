@@ -3651,6 +3651,7 @@ contains
     call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)
     call convertByMul(char(modifier), lengthUnits, field, input%bornOffset)
     call getChildValue(node, "OBCCorrection", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
+    call getChildValue(node, "CM5", input%tCM5)
 
     conv = 1.0_dp
     allocate(input%vdwRad(geo%nSpecies))

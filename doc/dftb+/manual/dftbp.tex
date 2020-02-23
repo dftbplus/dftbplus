@@ -3039,6 +3039,7 @@ systems.
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
+  \kw{CM5} & l & & & \\
   \kw{Radii} & m & & & \\
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & 35 AA & \\
@@ -3082,7 +3083,10 @@ systems.
     The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
     alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
 
-  \item[\is{Radii}] Atomic radii for each element, either takes
+  \item[\is{CM5}] Use the charge model 5 to correct the atomic partial charges
+    before evaluating the Born energy.
+
+  \item[\is{Radii}] Atomic radii for each element in Bohr, either takes
     \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
     or requires to provide \is{Values\cb} for all species.
     Both methods accept \modif{\modtype{length}} units.
