@@ -2594,7 +2594,7 @@ contains
       ! assume the user knows what they are doing
       tBadIntegratingKPoints = .false.
 
-      call getChildValue(node, "KPointsAndWeights", value1, child=child, modifier=modifier)
+      call getChildValue(node, "KPointsAndWeights", value1, child=child)
       call getNodeName(value1, buffer)
       select case(char(buffer))
       case ("uniform")
@@ -2629,9 +2629,13 @@ contains
         if (any(abs(iTmp2-rTmp22(:,1)) > 1e-6_dp)) then
           call detailedError(value1, "The k-point grid must be integers.")
         end if
-
         if (any(iTmp2 < 1)) then
           call detailedError(node, "Number of grid points must be above 0")
+        end if
+        if (iTmp2(2) > nint(geo%latvecs(3,1))) then
+          write(errorStr, '("The k-point grid for the helix rotational operation (",I0,&
+              & ") is larger than the rotation order (",I0,").")')iTmp2(2), nint(geo%latvecs(3,1))
+          call detailedError(node, errorStr)
         end if
         if (.not.ctrl%tSpinOrbit) then
           ctrl%nKPoint = product(iTmp2)
