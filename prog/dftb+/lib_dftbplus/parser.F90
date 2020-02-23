@@ -1581,6 +1581,14 @@ contains
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
     end if
 
+    ! Solvation
+    call getChildValue(node, "Solvation", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%solvInp)
+      call readSolvation(child, geo, ctrl%solvInp)
+    end if
+
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimization only applies for periodic structures.")
     end if
