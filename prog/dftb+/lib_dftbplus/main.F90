@@ -2694,9 +2694,6 @@ contains
       call env%globalTimer%stopTimer(globalTimers%sparseToDense)
       call diagDenseMtx(electronicSolver, 'V', HSqrCplx, SSqrCplx, eigen(:,iK,iSpin))
       eigvecsCplx(:,:,iKS) = HSqrCplx
-      write(345,*)
-      write(345,*)eigen(:,iK,iSpin)
-      write(345,*)
     #:endif
     end do
   
