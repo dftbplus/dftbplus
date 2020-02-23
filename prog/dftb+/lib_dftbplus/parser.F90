@@ -3703,6 +3703,9 @@ contains
   #:else
       call detailedError(node, "Program had been compiled without DFTD3 support")
   #:endif
+    case ("simpledftd3")
+      allocate(input%sdftd3)
+      call readSimpleDFTD3(dispModel, geo, input%sdftd3)
     case ("dftd4")
       allocate(input%dftd4)
       call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
@@ -3999,6 +4002,37 @@ contains
   end subroutine readDispDFTD3
 
 #:endif
+
+
+  !> Reads in initialization data for the simple D3 dispersion model.
+  subroutine readSimpleDFTD3(node, geo, input)
+
+    !> Node to process.
+    type(fnode), pointer :: node
+
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Filled input structure on exit.
+    type(TSimpleDftD3Input), intent(out) :: input
+
+    type(fnode), pointer :: value1, child, childval
+    type(string) :: buffer
+
+    call getChildValue(node, "s6", input%s6, default=1.0_dp)
+    call getChildValue(node, "s8", input%s8)
+    call getChildValue(node, "s10", input%s10, default=0.0_dp)
+    call getChildValue(node, "a1", input%a1)
+    call getChildValue(node, "a2", input%a2)
+    call getChildValue(node, "alpha", input%alpha, default=14.0_dp)
+    call getChildValue(node, "weightingFactor", input%weightingFactor, default=4.0_dp)
+    call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
+        & child=child)
+    call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
+
+    call readCoordinationNumber(node, input%cnInput, geo, "exp", 0.0_dp)
+
+  end subroutine readSimpleDFTD3
 
 
   !> Reads in initialization data for the D4 dispersion model.

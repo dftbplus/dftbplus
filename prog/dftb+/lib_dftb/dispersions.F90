@@ -17,6 +17,7 @@ module dftbp_dispersions
 #:if WITH_DFTD3
   use dftbp_dispdftd3
 #:endif
+  use dftbp_simpledftd3
   use dftbp_dispdftd4
 #:if WITH_MBD
   use dftbp_dispmbd
@@ -38,6 +39,9 @@ module dftbp_dispersions
     !> Grimme DFT-D3
     type(TDispDftD3Inp), allocatable :: dftd3
   #:endif
+
+    !> Simple D3 dispersion model.
+    type(TSimpleDftD3Input), allocatable :: sdftd3
 
     !> D4 dispersion model.
     type(TDispDftD4Inp), allocatable :: dftd4
