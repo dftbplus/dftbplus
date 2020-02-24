@@ -13,6 +13,7 @@ module dftbp_dispdftd4
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_dispiface, only : DispersionIface
+  use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_simplealgebra, only : determinant33, invert33
   use dftbp_coulomb, only : getMaxGEwald, getOptimalAlphaEwald
@@ -165,13 +166,16 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
 
     !> Instance of DFTD4 data
     class(DispDftD4), intent(inout) :: this
 
     !> Updated neighbour list.
     type(TNeighbourList), intent(in) :: neigh
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)
