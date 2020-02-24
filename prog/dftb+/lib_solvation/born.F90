@@ -39,16 +39,17 @@ module dftbp_born
 
     !> Onufriev--Bashford--Case correction to Born radii
     real(dp) :: obc(3) = [1.00_dp, 0.80_dp, 4.85_dp]
+
+    !> Van-der-Waals radii
+    real(dp), allocatable :: vdwRad(:)
+
   end type TGBParameters
 
   !> Input parameters to initialize generalized Born model
   type, extends(TGBParameters) :: TGBInput
 
-    !> Van-der-Waals radii
-    real(dp), allocatable :: vdwRad(:)
-
     !> Dielectric descreening parameter
-    real(dp), allocatable :: sx(:)
+    real(dp), allocatable :: descreening(:)
 
     !> Real space cutoff
     real(dp) :: rCutoff = 0.0_dp
@@ -103,9 +104,6 @@ module dftbp_born
 
     !> Pair descreening approximation radii
     real(dp), allocatable :: rho(:)
-
-    !> Van-der-Waals radii
-    real(dp), allocatable :: vdwRad(:)
 
     !> Gradient of the Born radii
     real(dp), allocatable :: dbrdr(:, :, :)
@@ -168,7 +166,9 @@ contains
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
-    integer :: iAt1, iSp1
+    integer :: nSpecies
+
+    nSpecies = size(speciesNames)
 
     self%tPeriodic = present(latVecs)
     if (self%tPeriodic) then
@@ -181,19 +181,14 @@ contains
     allocate(self%chargesPerAtom(nAtom))
     allocate(self%bornRad(nAtom))
     allocate(self%bornMat(nAtom, nAtom))
-    allocate(self%rho(nAtom))
-    allocate(self%vdwRad(nAtom))
+    allocate(self%rho(nSpecies))
     allocate(self%dbrdr(3, nAtom, nAtom))
     allocate(self%dbrdL(3, 3, nAtom))
 
     self%param = input%TGBParameters
-    self%rCutoff = input%rCutoff
+    self%rho(:) = input%vdwRad(:) * input%descreening(:)
 
-    do iAt1 = 1, nAtom
-      iSp1 = species0(iAt1)
-      self%vdwRad(iAt1) = input%vdwRad(iSp1)
-      self%rho(iAt1) = input%vdwRad(iSp1) * input%sx(iSp1)
-    end do
+    self%rCutoff = input%rCutoff
 
     self%tCoordsUpdated = .false.
     self%tChargesUpdated = .false.
@@ -222,8 +217,10 @@ contains
 
     allocate(nNeigh(self%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
-    call getBornRadii(self, nNeigh, neighList%iNeighbour, img2CentCell, neighList%neighDist2, coords)
-    call getBornMatrix(self, nNeigh, neighList%iNeighbour, img2CentCell, neighList%neighDist2)
+    call getBornRadii(self, nNeigh, neighList%iNeighbour, img2CentCell, &
+        & neighList%neighDist2, species0, coords)
+    call getBornMatrix(self, nNeigh, neighList%iNeighbour, img2CentCell, &
+        & neighList%neighDist2)
 
     self%tCoordsUpdated = .true.
     self%tChargesUpdated = .false.
@@ -410,7 +407,7 @@ contains
 
   !> Calculate Born radii for a given geometry
   pure subroutine getBornRadii(self, nNeighbour, iNeighbour, img2CentCell, &
-      & neighDist2, coords)
+      & neighDist2, species, coords)
 
     !> data structure
     type(TGeneralizedBorn), intent(inout) :: self
@@ -427,10 +424,13 @@ contains
     !> Square distances of the neighbours
     real(dp), intent(in) :: neighDist2(0:, :)
 
+    !> Central cell chemical species
+    integer, intent(in) :: species(:)
+
     !> current atomic positions
     real(dp), intent(in) :: coords(:, :)
 
-    integer :: iAt1
+    integer :: iAt1, iSp1
     real(dp) :: br
     real(dp) :: dpsi
     real(dp) :: svdwi,vdwri
@@ -439,15 +439,16 @@ contains
 
     self%bornRad(:) = 0.0_dp
 
-    call getPsi(self, nNeighbour, iNeighbour, img2CentCell, &
-      & neighDist2, coords)
+    call getPsi(self, nNeighbour, iNeighbour, img2CentCell, neighDist2, &
+        & species, coords)
 
     do iAt1 = 1, self%nAtom
+      iSp1 = species(iAt1)
 
       br = self%bornRad(iAt1)
 
-      svdwi = self%vdwRad(iAt1) - self%param%bornOffset
-      vdwri = self%vdwRad(iAt1)
+      svdwi = self%param%vdwRad(iSp1) - self%param%bornOffset
+      vdwri = self%param%vdwRad(iSp1)
       s1 = 1.0_dp/svdwi
       v1 = 1.0_dp/vdwri
       s2 = 0.5_dp*svdwi
@@ -473,14 +474,14 @@ contains
       self%dbrdr(:, :, iAt1) = self%dbrdr(:, :, iAt1) * dpsi
       self%dbrdL(:, :, iAt1) = self%dbrdL(:, :, iAt1) * dpsi
 
-    enddo
+    end do
 
   end subroutine getBornRadii
 
 
   !> Evaluate volume integrals, intermediate values are stored in Born radii fields
   pure subroutine getPsi(self, nNeighbour, iNeighbour, img2CentCell, &
-      & neighDist2, coords)
+      & neighDist2, species, coords)
 
     !> data structure
     class(TGeneralizedBorn), intent(inout) :: self
@@ -497,10 +498,13 @@ contains
     !> Square distances of the neighbours
     real(dp), intent(in) :: neighDist2(0:, :)
 
+    !> Central cell chemical species
+    integer, intent(in) :: species(:)
+
     !> current atomic positions
     real(dp), intent(in) :: coords(:, :)
 
-    integer :: iAt1, iNeigh, iAt2, iAt2f
+    integer :: iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
     logical :: tOvij,tOvji
     real(dp) :: vec(3),dist,rhoi,rhoj
     real(dp) :: gi,gj,ap,am,lnab,rhab,ab,dgi,dgj
@@ -515,16 +519,18 @@ contains
     dpsitr(:, :) = 0.0_dp
 
     do iAt1 = 1, self%nAtom
+      iSp1 = species(iAt1)
       do iNeigh = 1, nNeighbour(iAt1)
         iAt2 = iNeighbour(iNeigh, iAt1)
         iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
         vec(:) = coords(:, iAt1) - coords(:, iAt2)
         dist = sqrt(neighDist2(iNeigh, iAt1))
 
-        rhoi = self%rho(iAt1)
-        rhoj = self%rho(iAt2f)
-        rvdwi = self%vdwRad(iAt1)
-        rvdwj = self%vdwRad(iAt2f)
+        rhoi = self%rho(iSp1)
+        rhoj = self%rho(iSp2)
+        rvdwi = self%param%vdwRad(iSp1)
+        rvdwj = self%param%vdwRad(iSp2)
 
         tOvij = dist < (rvdwi + rhoj)
         tOvji = dist < (rhoi + rvdwj)
@@ -580,7 +586,7 @@ contains
             dGr(:) = dgj*vec(:)
             dpsitr(:,iAt2f) = dpsitr(:,iAt2f)-dGr(:)
             dpsidr(:,iAt1,iAt2f) = dpsidr(:,iAt1,iAt2f)+dGr(:)
-          endif
+          end if
 
         else if (.not. tOvij .and. tOvji) then tOverlap ! ij do not overlap; ji overlap
 
@@ -624,7 +630,7 @@ contains
             dGr(:) = dgj*vec(:)
             dpsitr(:,iAt2f) = dpsitr(:,iAt2f)-dGr(:)
             dpsidr(:,iAt1,iAt2f) = dpsidr(:,iAt1,iAt2f)+dGr(:)
-          endif
+          end if
 
         else if (tOvij .and. .not. tOvji) then ! ij overlap; ji do not overlap
 
@@ -652,7 +658,7 @@ contains
             dGr(:) = dgi*vec(:)
             dpsitr(:,iAt1) = dpsitr(:,iAt1)+dGr(:)
             dpsidr(:,iAt2f,iAt1) = dpsidr(:,iAt2f,iAt1)-dGr(:)
-          endif
+          end if
 
           ! ji contribution
           ap = dist+rhoi
@@ -695,7 +701,7 @@ contains
             dGr(:) = dgi*vec(:)
             dpsitr(:,iAt1) = dpsitr(:,iAt1)+dGr(:)
             dpsidr(:,iAt2f,iAt1) = dpsidr(:,iAt2f,iAt1)-dGr(:)
-          endif
+          end if
 
           if((dist+rhoi) > rvdwj) then
             ! ji contribution
@@ -721,12 +727,12 @@ contains
             dGr(:) = dgj*vec(:)
             dpsitr(:,iAt2f) = dpsitr(:,iAt2f)-dGr(:)
             dpsidr(:,iAt1,iAt2f) = dpsidr(:,iAt1,iAt2f)+dGr(:)
-          endif
+          end if
 
         end if tOverlap
 
-      enddo
-    enddo
+      end do
+    end do
 
     ! save Born radii
     self%bornRad(:) = psi
@@ -735,7 +741,7 @@ contains
     ! save one-center terms
     do iAt1 = 1, self%nAtom
       self%dbrdr(:,iAt1,iAt1) = self%dbrdr(:,iAt1,iAt1) + dpsitr(:,iAt1)
-    enddo
+    end do
 
   end subroutine getPsi
 
@@ -783,7 +789,7 @@ contains
     !> self-energy part
     do iAt1 = 1, self%nAtom
        self%bornMat(iAt1, iAt1) = self%param%keps/self%bornRad(iAt1)
-    enddo
+    end do
 
   end subroutine getBornMatrix
 
@@ -885,7 +891,7 @@ contains
        energies(iAt1) = energies(iAt1) + 0.5_dp*self%chargesPerAtom(iAt1)*qq*self%param%keps
        grddbi = -0.5_dp*self%param%keps*qq*bp
        dEdbr(iAt1) = dEdbr(iAt1) + grddbi*self%chargesPerAtom(iAt1)
-    enddo
+    end do
 
     !> contract with the Born radii derivatives
     call gemv(gradients, self%dbrdr, dEdbr, beta=1.0_dp)

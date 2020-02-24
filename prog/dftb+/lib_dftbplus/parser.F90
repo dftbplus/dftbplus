@@ -3646,17 +3646,17 @@ contains
       end do
     end select
 
-    allocate(input%sx(geo%nSpecies))
+    allocate(input%descreening(geo%nSpecies))
     call getChildValue(node, "Descreening", value1, child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' to generate descreening parameters")
     case("unity")
-      input%sx(:) = 1.0_dp
+      input%descreening(:) = 1.0_dp
     case("values")
       do iSp = 1, geo%nSpecies
-        call getChildValue(value1, trim(geo%speciesNames(iSp)), input%sx(iSp), child=child2)
+        call getChildValue(value1, trim(geo%speciesNames(iSp)), input%descreening(iSp), child=child2)
       end do
     end select
 
