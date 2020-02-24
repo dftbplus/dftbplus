@@ -10,7 +10,7 @@
 !> Helper routines to handle input to solvation models
 module dftbp_solvinput
   use dftbp_accuracy, only : dp
-  use dftbp_born, only : TGeneralizedBorn, TGBInput, init
+  use dftbp_born, only : TGeneralizedBorn, TGBInput, TGeneralizedBorn_init
   use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init
   use dftbp_solvation, only : TSolvation
   implicit none
@@ -80,7 +80,7 @@ contains
 
     allocate(model)
 
-    call init(model, input, nAtom, species0, speciesNames, latVecs)
+    call TGeneralizedBorn_init(model, input, nAtom, species0, speciesNames, latVecs)
 
     call move_alloc(model, solvation)
 

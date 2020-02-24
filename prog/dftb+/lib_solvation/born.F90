@@ -16,12 +16,13 @@ module dftbp_born
   use dftbp_commontypes, only : TOrbitals
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
   implicit none
   private
 
-  public :: TGeneralizedBorn, TGBInput, init
+  public :: TGeneralizedBorn, TGBInput, TGeneralizedBorn_init
 
 
   !> Global parameters for the solvation
@@ -58,6 +59,12 @@ module dftbp_born
 
     !> Use charge model 5
     type(TCM5Input), allocatable :: cm5Input
+
+    !> Input for solvent accessible surface area model
+    type(TSASAInput), allocatable :: sasaInput
+
+    !> Parameter for H-bond correction
+    real(dp), allocatable :: hBondPar(:)
 
   end type TGBInput
 
@@ -120,6 +127,12 @@ module dftbp_born
     !> Strain derivative of the Born radii
     real(dp), allocatable :: dbrdL(:, :, :)
 
+    !> Solvent accessible surface area model
+    type(TSASACont), allocatable :: sasaCont
+
+    !> Parameter for H-bond correction
+    real(dp), allocatable :: hBondStrength(:)
+
   contains
 
     !> update internal copy of coordinates
@@ -148,17 +161,12 @@ module dftbp_born
   end type TGeneralizedBorn
 
 
-  !> Initialize generalized Born model from input data
-  interface init
-    module procedure :: initialize
-  end interface init
-
-
 contains
 
 
   !> Initialize generalized Born model from input data
-  subroutine initialize(self, input, nAtom, species0, speciesNames, latVecs)
+  subroutine TGeneralizedBorn_init(self, input, nAtom, species0, speciesNames, &
+      & latVecs)
 
     !> Initialised instance at return
     type(TGeneralizedBorn), intent(out) :: self
@@ -179,10 +187,22 @@ contains
     real(dp), intent(in), optional :: latVecs(:,:)
 
     integer :: nSpecies
+    integer :: iAt1, iSp1
 
     nSpecies = size(speciesNames)
-
     self%tPeriodic = present(latVecs)
+
+    if (allocated(input%sasaInput)) then
+       allocate(self%sasaCont)
+       if (self%tPeriodic) then
+         call TSASACont_init(self%sasaCont, input%sasaInput, nAtom, species0, &
+             & speciesNames, latVecs)
+       else
+         call TSASACont_init(self%sasaCont, input%sasaInput, nAtom, species0, &
+             & speciesNames)
+       end if
+    end if
+
     if (self%tPeriodic) then
       call self%updateLatVecs(LatVecs)
     end if
@@ -200,6 +220,16 @@ contains
     self%param = input%TGBParameters
     self%rho(:) = input%vdwRad(:) * input%descreening(:)
 
+    if (allocated(self%sasaCont) .and. allocated(input%hBondPar)) then
+      if (any(input%hBondPar /= 0.0_dp)) then
+        allocate(self%hBondStrength(nAtom))
+        do iAt1 = 1, nAtom
+          iSp1 = species0(iAt1)
+          self%hBondStrength(iAt1) = input%hBondPar(iSp1) / self%sasaCont%probeRad(iSp1)**2
+        end do
+      end if
+    end if
+
     self%rCutoff = input%rCutoff
 
     if (allocated(input%cm5Input)) then
@@ -216,7 +246,7 @@ contains
     self%tCoordsUpdated = .false.
     self%tChargesUpdated = .false.
 
-  end subroutine initialize
+  end subroutine TGeneralizedBorn_init
 
 
   !> Update internal stored coordinates
@@ -241,6 +271,10 @@ contains
     integer, intent(in) :: species0(:)
 
     integer, allocatable :: nNeigh(:)
+
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%updateCoords(env, neighList, img2CentCell, coords, species0)
+    end if
 
     allocate(nNeigh(self%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
@@ -270,6 +304,10 @@ contains
     @:ASSERT(self%tPeriodic)
     @:ASSERT(all(shape(latvecs) == shape(self%latvecs)))
 
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%updateLatVecs(latVecs)
+    end if
+
     self%volume = abs(determinant33(latVecs))
     self%latVecs(:,:) = latVecs
 
@@ -296,7 +334,13 @@ contains
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(size(energies) == self%nAtom)
 
-    energies(:) = 0.5_dp * (self%shift * self%chargesPerAtom) &
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%getEnergies(energies)
+    else
+      energies(:) = 0.0_dp
+    end if
+
+    energies(:) = energies + 0.5_dp * (self%shift * self%chargesPerAtom) &
        & + self%param%freeEnergyShift / real(self%nAtom, dp)
 
   end subroutine getEnergies
@@ -330,10 +374,21 @@ contains
     real(dp) :: sigma(3, 3)
     real(dp), allocatable :: dEdcm5(:)
     integer, allocatable :: nNeigh(:)
+    real(dp), allocatable :: dhbds(:)
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
+
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
+      if (allocated(self%hBondStrength)) then
+        allocate(dhbds(self%nAtom))
+        dhbds(:) = self%hBondStrength * self%chargesPerAtom**2
+        call gemv(gradients, self%sasaCont%dsdr, dhbds, beta=1.0_dp)
+        deallocate(dhbds)
+      end if
+    end if
 
     allocate(nNeigh(self%nAtom))
     sigma(:, :) = 0.0_dp
@@ -374,7 +429,13 @@ contains
     @:ASSERT(self%tPeriodic)
     @:ASSERT(self%volume > 0.0_dp)
 
-    stress(:,:) = self%stress / self%volume
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%getStress(stress)
+    else
+      stress(:, :) = 0.0_dp
+    end if
+
+    stress(:,:) = stress + self%stress / self%volume
 
   end subroutine getStress
 
@@ -391,6 +452,10 @@ contains
     cutoff = self%rCutoff
     if (allocated(self%cm5)) then
       cutoff = max(cutoff, self%cm5%getRCutoff())
+    end if
+
+    if (allocated(self%sasaCont)) then
+      cutoff = max(cutoff, self%sasaCont%getRCutoff())
     end if
 
   end function getRCutoff
@@ -425,13 +490,21 @@ contains
 
     @:ASSERT(self%tCoordsUpdated)
 
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb)
+    end if
+
     call getSummedCharges(species, orb, qq, q0, dQAtom=self%chargesPerAtom)
     if (allocated(self%cm5)) then
       call self%cm5%addCharges(self%chargesPerAtom)
     end if
 
-    self%shift(:) = 0.0_dp
-    call hemv(self%shift, self%bornMat, self%chargesPerAtom)
+    if (allocated(self%sasaCont) .and. allocated(self%hBondStrength)) then
+      self%shift(:) = 2.0_dp * self%sasaCont%sasa * self%hBondStrength * self%chargesPerAtom
+    else
+      self%shift(:) = 0.0_dp
+    end if
+    call hemv(self%shift, self%bornMat, self%chargesPerAtom, beta=1.0_dp)
 
     self%tChargesUpdated = .true.
 
@@ -455,8 +528,14 @@ contains
     @:ASSERT(size(shiftPerAtom) == self%nAtoms)
     @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
 
-    shiftPerAtom(:) = self%shift
-    shiftPerShell(:,:) = 0.0_dp ! spread(self%shift, 1, size(shiftPerShell, dim=1))
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%getShifts(shiftPerAtom, shiftPerShell)
+    else
+      shiftPerAtom(:) = 0.0_dp
+      shiftPerShell(:,:) = 0.0_dp
+    end if
+
+    shiftPerAtom(:) = shiftPerAtom + self%shift
 
   end subroutine getShifts
 

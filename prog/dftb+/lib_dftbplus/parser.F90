@@ -3591,7 +3591,7 @@ contains
     type(string) :: buffer, state, modifier
     type(fnode), pointer :: child, value1, field, child2, value2, dummy
     integer :: iSp
-    logical :: found
+    logical :: found, tHBondCorr
     real(dp) :: temperature, shift, conv
     real(dp), allocatable :: vdwRadDefault(:)
     type(TSolventData) :: solvent
@@ -3713,6 +3713,29 @@ contains
     call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
         & modifier=modifier, child=field)
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+
+    call getChildValue(node, "SASA", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(input%sasaInput)
+      call readSolvSASA(child, geo, input%sasaInput)
+
+      call getChildValue(node, "HBondCorr", tHBondCorr, child=child)
+
+      if (tHBondCorr) then
+        allocate(input%hBondPar(geo%nSpecies))
+        call getChildValue(node, "HBondStrength", value1, child=child)
+        call getNodeName(value1, buffer)
+        select case(char(buffer))
+        case default
+          call detailedError(child, "Unknown method '"//char(buffer)//"' to generate H-bond parameters")
+        case("values")
+          do iSp = 1, geo%nSpecies
+            call getChildValue(value1, trim(geo%speciesNames(iSp)), input%hBondPar(iSp), child=child2)
+          end do
+        end select
+      end if
+    end if
 
   end subroutine readSolvGB
 

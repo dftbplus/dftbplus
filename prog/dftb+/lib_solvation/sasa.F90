@@ -252,6 +252,7 @@ contains
 
   end subroutine getIntegrationParam
 
+
   !> Update internal stored coordinates
   subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
 

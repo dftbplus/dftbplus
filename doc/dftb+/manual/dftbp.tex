@@ -3028,7 +3028,10 @@ approach.
 
 To use the generalized Born model in the SCC procedure use the
 \is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
-Note that the GB model implemented is only available for finite
+The non-polar solvent area model can be combinded with the GB model
+enabling to additionally correct for hydrogen bonding, the resulting
+model is called GBSA.
+Note that the GB(SA) model implemented is only available for finite
 systems.
 
 \begin{ptable}
@@ -3043,6 +3046,9 @@ systems.
   \kw{Radii} & m & & & \\
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & 35 AA & \\
+  \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
+  \kw{HBondCorr} & has \kw{SASA} & & \\
+  \kw{HBondStrength} & HBondCorr = Yes & & \\
 \end{ptable}
 
 \begin{description}
@@ -3097,9 +3103,18 @@ systems.
 
   \item[\is{Cutoff}] \modif{\modtype{length}}
     Real space cutoff for the calculation of the Born radii.
+
+  \item[\is{HBondCorr}]
+    Include an empirical hydrogen bond correction.
+    Only available for GBSA models.
+
+  \item[\is{HBondStrength}]
+    Hydrogen bonding strength for each species used in the empirical hydrogen
+    bond correction. To disable the correction for species not involved
+    in hydrogen bonding, set the value to zero.
 \end{description}
 
-Example for CS2 as solvent:
+Example for a GB model with CS2 as solvent:
 
 \begin{verbatim}
 Hamiltonian = DFTB {
@@ -3117,6 +3132,47 @@ Hamiltonian = DFTB {
     BornOffset [Bohr] = 1.653719965215E-03
     OBCCorrection = {1.00 0.80 4.85}
     Cutoff = 40
+  }
+}
+\end{verbatim}
+
+Example for a GBSA model for water
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(water)
+    Solvent = fromConstants {
+      Epsilon = 80.2
+      MolecularMass [amu] = 18.0
+      Density [kg/l] = 1.0
+    }
+    FreeEnergyShift [kcal/mol] = 1.16556316
+    BornScale = 1.55243817
+    BornOffset = 2.462811043694508E-02
+    Radii = vanDerWaalsRadiiD3 {}
+    Descreening = Values {
+      H = 0.71893869
+      C = 0.74298311
+      N = 0.90261230
+      O = 0.75369019
+    }
+    SASA {
+      ProbeRad = 1.843075777670416
+      Radii = vanDerWaalsRadiiD3 {}
+      SurfaceTension = Values {
+        H = -3.34983060E-01
+        C = -7.47690650E-01
+        N = -2.31291292E+00
+        O =  9.17979110E-01
+      }
+    }
+    HBondCorr = Yes
+    HBondStrength = Values {
+        H = -7.172800544988973E-02
+        C = -2.548469535762511E-03
+        N = -1.976849501504001E-02
+        O = -8.462476828587280E-03
+    }
   }
 }
 \end{verbatim}
