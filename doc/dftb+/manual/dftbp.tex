@@ -3500,8 +3500,10 @@ fractional occupations. The specifications for this block have the following pro
     the complex eigenvectors (molecular orbital coefficient) for the excited state of interest. They
     are derived from the relaxed excited state density matrix.
 
-  \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is created. This file
-    contains the natural orbitals for the specified excited state.
+  \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is
+    created (and excitedOrbs.out depending on whether \is{EigenvectorsAsText} is
+    true). This file contains the natural orbitals for the specified excited
+    state.
 
   \item[\is{TotalStateCoeffs}] Option to control data from
     \is{WriteCoefficients} or \is{WriteEigenvectors}. If set to \is{No} the
