@@ -1185,7 +1185,7 @@ contains
     tHelical = input%geom%tHelical
 
     ! start by assuming stress can be calculated if periodic
-    tStress = tPeriodic
+    tStress = tPeriodic .or. tHelical
 
     ! Brillouin zone sampling
     if (tPeriodic .or. tHelical) then
