@@ -30,6 +30,9 @@ Changed
 
 - Input in GEN format now strictly follows the format described in the manual
 
+- New build system using CMake (the old makefile system will be supported for 1
+  further release)
+
 Fixed
 -----
 
