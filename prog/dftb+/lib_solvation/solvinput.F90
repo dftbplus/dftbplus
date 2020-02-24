@@ -10,8 +10,8 @@
 !> Helper routines to handle input to solvation models
 module dftbp_solvinput
   use dftbp_accuracy, only : dp
-  use dftbp_solvation, only : TSolvation
   use dftbp_born, only : TGeneralizedBorn, TGBInput
+  use dftbp_solvation, only : TSolvation
   implicit none
   private
 

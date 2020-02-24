@@ -59,6 +59,8 @@ module dftbp_parser
   use poisson_init
   use libnegf_vars
 #:endif
+  use dftbp_born, only : TGBInput
+  use dftbp_borndata, only : getVanDerWaalsRadiusD3
   use dftbp_solvinput, only : TSolvationInp
   use dftbp_solventdata, only : TSolventData, SolventFromName
   implicit none
@@ -3566,8 +3568,6 @@ contains
 
   !> Reads in generalized Born related settings
   subroutine readSolvGB(node, geo, input)
-    use dftbp_born
-    use dftbp_borndata
 
     !> Node to process
     type(fnode), pointer :: node
