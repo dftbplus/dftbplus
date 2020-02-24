@@ -64,8 +64,10 @@ module dftbp_parser
   use dftbp_born, only : TGBInput
   use dftbp_borndata, only : getVanDerWaalsRadiusD3
   use dftbp_cm5, only : TCM5Input
+  use dftbp_sasa, only : TSASAInput
   use dftbp_solvinput, only : TSolvationInp
   use dftbp_solventdata, only : TSolventData, SolventFromName
+  use dftbp_lebedev, only : gridSize
   implicit none
   private
 
@@ -3566,6 +3568,9 @@ contains
     case ("generalizedborn")
       allocate(input%GBInp)
       call readSolvGB(solvModel, geo, input%GBInp)
+    case ("sasa")
+      allocate(input%SASAInp)
+      call readSolvSASA(solvModel, geo, input%SASAInp)
     end select
   end subroutine readSolvation
 
@@ -3709,6 +3714,85 @@ contains
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
 
   end subroutine readSolvGB
+
+
+  subroutine readSolvSASA(node, geo, input)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Geometry of the current system
+    type(TGeometry), intent(in) :: geo
+
+    !> Contains the input for the dispersion module on exit
+    type(TSASAInput), intent(out) :: input
+
+    type(string) :: buffer, modifier
+    type(fnode), pointer :: child, value1, field, child2
+    integer :: iSp, ii, gridPoints
+    real(dp), allocatable :: vdwRadDefault(:)
+
+    if (geo%tPeriodic) then
+      call detailedError(node, "SASA model currently not available with PBCs")
+    end if
+
+    call getChildValue(node, "ProbeRad", input%probeRad, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%probeRad)
+
+    call getChildValue(node, "Smoothing", input%smoothingPar, 0.3_dp*AA__Bohr, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%smoothingPar)
+
+    call getChildValue(node, "Tolerance", input%tolerance, 1.0e-6_dp, child=child)
+
+    call getChildValue(node, "AngularGrid", gridPoints, child=child)
+    input%gridSize = 0
+    do ii = 1, size(gridSize)
+      if (gridPoints == gridSize(ii)) then
+        input%gridSize = ii
+      end if
+    end do
+    if (input%gridSize == 0) then
+      call detailedError(child, "Illegal number of grid points for numerical integration")
+    end if
+
+    allocate(input%vdwRad(geo%nSpecies))
+    call getChildValue(node, "Radii", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("vanderwaalsradiid3")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+            & vdwRadDefault(iSp), child=child2)
+      end do
+      deallocate(vdwRadDefault)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
+      end do
+    end select
+
+    allocate(input%surfaceTension(geo%nSpecies))
+    call getChildValue(node, "SurfaceTension", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate surface tension")
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%surfaceTension(iSp), child=child2)
+      end do
+    end select
+
+    call getChildValue(node, "Offset", input%sOffset, 2.0_dp * AA__Bohr, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%sOffset)
+
+  end subroutine readSolvSASA
 
 
   subroutine readCM5(node, input, geo)

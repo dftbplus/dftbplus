@@ -11,6 +11,7 @@
 module dftbp_sasa
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
+  use dftbp_constants, only : pi
   use dftbp_commontypes, only : TOrbitals
   use dftbp_environment, only : TEnvironment
   use dftbp_lebedev, only : getAngGrid, gridSize
@@ -21,20 +22,35 @@ module dftbp_sasa
   implicit none
   private
 
-  public :: TSASACont, TSASAInput
+  public :: TSASACont, TSASAInput, init
 
-
-  !> Global parameters for the solvent accessible surface area model
-  type :: TSASAParameters
-  end type TSASAParameters
 
   !> Input parameters to initialize the solvent accessible surface area model
-  type, extends(TSASAParameters) :: TSASAInput
+  type :: TSASAInput
 
     !> Real space cutoff
-    real(dp) :: rCutoff = 0.0_dp
+    real(dp) :: sOffset = 0.0_dp
+
+    !> Grid for numerical integration of atomic surfaces
+    integer :: gridSize
+
+    !> Probe radius for solvent molecules in atomic surfaces calculations
+    real(dp) :: probeRad
+
+    !> Smoothing dielectric function parameters
+    real(dp) :: smoothingPar
+
+    !> Real space cut-offs for surface area contribution
+    real(dp) :: tolerance
+
+    !> Van-der-Waals radii
+    real(dp), allocatable :: vdwRad(:)
+
+    !> Surface tension for each species
+    real(dp), allocatable :: surfaceTension(:)
 
   end type TSASAInput
+
 
   !> Data for the solvent accessible surface area model
   type, extends(TSolvation) :: TSASACont
@@ -64,10 +80,31 @@ module dftbp_sasa
     logical :: tChargesUpdated = .false.
 
     !> Real space cutoff
-    real(dp) :: rCutoff = 0.0_dp
+    real(dp) :: sCutoff = 0.0_dp
 
-    !> Model parameters
-    type(TSASAParameters) :: param
+    !> Real space cut-offs for surface area contribution
+    real(dp) :: tolerance
+
+    !> Smoothing dielectric function parameters
+    real(dp) :: smoothingPar(3)
+
+    !> Van-der-Waals radii + probe radius
+    real(dp), allocatable :: probeRad(:)
+
+    !> Surface tension for each species
+    real(dp), allocatable :: surfaceTension(:)
+
+    !> Thresholds for smooth numerical integration
+    real(dp), allocatable :: thresholds(:, :)
+
+    !> Radial weight
+    real(dp), allocatable :: radWeight(:)
+
+    !> Angular grid for surface integration
+    real(dp), allocatable :: angGrid(:, :)
+
+    !> Weights of grid points for surface integration
+    real(dp), allocatable :: angWeight(:)
 
     !> Solvent accessible surface area
     real(dp), allocatable :: sasa(:)
@@ -79,9 +116,6 @@ module dftbp_sasa
     real(dp), allocatable :: dsdL(:, :, :)
 
   contains
-
-    !> Initialize solvent accessible surface area model from input data
-    procedure :: initialize
 
     !> update internal copy of coordinates
     procedure :: updateCoords
@@ -110,16 +144,22 @@ module dftbp_sasa
   end type TSASACont
 
 
+  !> Initialize solvent accessible surface area model from input data
+  interface init
+    module procedure :: initialize
+  end interface init
+
+
 contains
 
 
-  !> Initialize generalized Born model from input data
+  !> Initialize solvent accessible surface area model from input data
   subroutine initialize(self, input, nAtom, species0, speciesNames, latVecs)
 
     !> Initialised instance at return
-    class(TSASACont), intent(out) :: self
+    type(TSASACont), intent(out) :: self
 
-    !> Specific input parameters for generalized Born
+    !> Specific input parameters for solvent accessible surface area model
     type(TSASAInput), intent(in) :: input
 
     !> Nr. of atoms in the system
@@ -134,7 +174,9 @@ contains
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
-    integer :: iAt1, iSp1
+    integer :: iAt1, iSp1, nSpecies, stat
+
+    nSpecies = size(speciesNames)
 
     self%tPeriodic = present(latVecs)
     if (self%tPeriodic) then
@@ -147,13 +189,74 @@ contains
     allocate(self%dsdr(3, nAtom, nAtom))
     allocate(self%dsdL(3, 3, nAtom))
 
-    self%param = input%TSASAParameters
-    self%rCutoff = input%rCutoff
+    allocate(self%angGrid(3, gridSize(input%gridSize)))
+    allocate(self%angWeight(gridSize(input%gridSize)))
+    call getAngGrid(input%gridSize, self%angGrid, self%angWeight, stat)
+    if (stat /= 0) then
+      call error("Could not initialize angular grid for SASA model")
+    end if
+
+    allocate(self%probeRad(nSpecies))
+    allocate(self%surfaceTension(nAtom))
+    allocate(self%thresholds(2, nSpecies))
+    allocate(self%radWeight(nSpecies))
+    self%probeRad(:) = input%probeRad + input%vdwRad
+    do iAt1 = 1, nAtom
+      iSp1 = species0(iAt1)
+      self%surfaceTension(iAt1) = input%surfaceTension(iSp1) * 4.0e-5_dp * pi
+    end do
+    call getIntegrationParam(nSpecies, input%smoothingPar, self%smoothingPar, &
+        & self%probeRad, self%thresholds, self%radWeight)
+
+    self%sCutoff = 2.0_dp * (maxval(self%probeRad) + input%smoothingPar) + input%sOffset
+    self%tolerance = input%tolerance
 
     self%tCoordsUpdated = .false.
     self%tChargesUpdated = .false.
 
   end subroutine initialize
+
+
+  !> Get parameters for smooth numerical integration
+  subroutine getIntegrationParam(nSpecies, w, ah, rad, thr, wrp)
+
+    !> Number of species
+    integer, intent(in) :: nSpecies
+
+    !> Smoothing parameter
+    real(dp), intent(in) :: w
+
+    !> Smoothing parameters
+    real(dp), intent(out) :: ah(3)
+
+    !> Probe radii
+    real(dp), intent(in) :: rad(:)
+
+    !> Numerical thresholds
+    real(dp), intent(out) :: thr(:, :)
+
+    !> Radial weight
+    real(dp), intent(out) :: wrp(:)
+
+    integer :: iSp1
+    real(dp) :: w3, rm, rp
+
+    ah(1) = 0.5_dp
+    ah(2) = 3.0_dp/(4.0_dp*w)
+    ah(3) = -1.0_dp/(4.0_dp*w*w*w)
+
+    do iSp1 = 1, nSpecies
+      rm = rad(iSp1) - w
+      rp = rad(iSp1) + w
+      thr(1, iSp1) = rm**2
+      thr(2, iSp1) = rp**2
+      wrp(iSp1) = (0.25_dp/w + 3.0_dp*ah(3)*(0.2_dp*rp*rp-0.5_dp*rp*rad(iSp1) &
+          & + rad(iSp1)*rad(iSp1)/3.0_dp))*rp*rp*rp - (0.25_dp/w &
+          & + 3.0_dp*ah(3)*(0.2_dp*rm*rm - 0.5_dp*rm*rad(iSp1) &
+          & + rad(iSp1)*rad(iSp1)/3.0_dp))*rm*rm*rm
+    end do
+
+  end subroutine getIntegrationParam
 
   !> Update internal stored coordinates
   subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
@@ -179,7 +282,10 @@ contains
     integer, allocatable :: nNeigh(:)
 
     allocate(nNeigh(self%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
+    call getNrOfNeighboursForAll(nNeigh, neighList, self%sCutoff)
+
+    call getSASA(self, nNeigh, neighList%iNeighbour, img2CentCell, species0, coords)
+    self%energies(:) = self%sasa * self%surfaceTension
 
     self%tCoordsUpdated = .true.
     self%tChargesUpdated = .false.
@@ -254,6 +360,8 @@ contains
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
 
+    call gemv(gradients, self%dsdr, self%surfaceTension, beta=1.0_dp)
+
   end subroutine addGradients
 
 
@@ -286,7 +394,7 @@ contains
     !> resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = self%rCutoff
+    cutoff = self%sCutoff
 
   end function getRCutoff
 
@@ -339,13 +447,174 @@ contains
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(shiftPerAtom) == self%nAtoms)
-    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
+    @:ASSERT(size(shiftPerAtom) == self%nAtom)
+    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtom)
 
     shiftPerAtom(:) = 0.0_dp
     shiftPerShell(:,:) = 0.0_dp
 
   end subroutine getShifts
+
+
+  !> Calculate solvent accessible surface area for every atom
+  pure subroutine getSASA(self, nNeighbour, iNeighbour, img2CentCell, &
+      & species, coords)
+
+    !> Data structure
+    class(TSASACont), intent(inout) :: self
+
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbour(:)
+
+    !> Neighbourlist
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Mapping into the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Species, shape: [nAtom]
+    integer, intent(in) :: species(:)
+
+    !> Current atomic positions
+    real(dp), intent(in) :: coords(:,:)
+
+    integer iAt1, iSp1, iAt2f, iNeigh, ip
+    integer :: mNeighbour, nNeighs, nEval
+    real(dp) :: rsas, sasai, point(3), sasap, wsa, dGr(3)
+    real(dp), allocatable :: grds(:,:), derivs(:,:)
+    integer, allocatable :: grdi(:)
+
+    mNeighbour = maxval(nNeighbour)
+
+    allocate(derivs(3,self%nAtom))
+    allocate(grds(3,mNeighbour))
+    allocate(grdi(mNeighbour))
+
+    do iAt1 = 1, self%nAtom
+      iSp1 = species(iAt1)
+
+      rsas = self%probeRad(iAt1)
+      ! allocate space for the gradient storage
+      nNeighs = nNeighbour(iAt1)
+
+      ! initialize storage
+      derivs(:, :) = 0.0_dp
+      sasai = 0.0_dp
+
+      ! loop over grid points
+      do ip = 1, size(self%angGrid, dim=2)
+        ! grid point position
+        point(:) = coords(:,iAt1) + rsas * self%angGrid(:, ip)
+        ! atomic surface function at the grid point
+        call getWSp(nNeighs, iNeighbour(:, iAt1), img2CentCell, species, &
+          & self%smoothingPar, self%thresholds, self%probeRad, coords, point, &
+          & sasap, grds, nEval, grdi)
+
+        if (sasap > self%tolerance) then
+          ! numerical quadrature weight
+          wsa = self%angWeight(ip)*self%radWeight(iSp1)*sasap
+          ! accumulate the surface area
+          sasai = sasai + wsa
+          ! accumulate the surface gradient
+          do iNeigh = 1, nEval
+            iAt2f = grdi(iNeigh)
+            dGr(:) = wsa * grds(:, iNeigh)
+            derivs(:, iAt1) = derivs(:, iAt1) + dGr(:)
+            derivs(:, iAt2f) = derivs(:, iAt2f) - dGr(:)
+          end do
+        end if
+      end do
+
+      self%sasa(iAt1) = sasai
+      self%dsdr(:,:,iAt1) = derivs
+
+    end do
+
+  end subroutine getSASA
+
+  !> Calculate the SASA for the current grid point
+  pure subroutine getWSp(nNeigh, iNeighbour, img2CentCell, species, ah, &
+      & thresholds, probeRad, coords, point, sasap, grds, nni, grdi)
+
+    !> Number of neighbours of this atom
+    integer, intent(in) :: nNeigh
+
+    !> Neighbours of this atom
+    integer, intent(in) :: iNeighbour(0:)
+
+    !> Mapping of neighbours to central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Species of all atoms
+    integer, intent(in) :: species(:)
+
+    !> Smoothing parameters
+    real(dp), intent(in) :: ah(3)
+
+    !> Thresholds for integration
+    real(dp), intent(in) :: thresholds(:,:)
+
+    !> Probe radius of all species
+    real(dp), intent(in) :: probeRad(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coords(:, :)
+
+    !> Current grid point
+    real(dp), intent(in) :: point(3)
+
+    !> SASA value
+    real(dp), intent(out) :: sasap
+
+    !> Derivative of SASA w.r.t. cartesian coordinates
+    real(dp), intent(out) :: grds(:,:)
+
+    !> Number of evaluated and contributing neighbours
+    integer, intent(out) :: nni
+
+    !> Mapping from neighbours to folded back atoms
+    integer, intent(out) :: grdi(:)
+
+    integer  :: iNeigh, iAt2, iAt2f, iSp2
+    real(dp) :: vec(3), dist2, dist
+    real(dp) :: uj, uj3, ah3uj2
+    real(dp) :: sasaij, dsasaij
+
+    ! initialize storage
+    nni = 0
+    sasap = 1.0_dp
+
+    do iNeigh = 1, nNeigh
+      iAt2 = iNeighbour(iNeigh)
+      iAt2f = img2CentCell(iAt2)
+      iSp2 = species(iAt2f)
+      ! compute the distance to the atom
+      vec(:) = point(:) - coords(:,iAt2)
+      dist2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+      ! if within the outer cut-off compute
+      if (dist2 < thresholds(2,iSp2)) then
+        if (dist2 < thresholds(1,iSp2)) then
+          sasap = 0.0_dp
+          exit
+        else
+          dist = sqrt(dist2)
+          uj = dist - probeRad(iSp2)
+          ah3uj2 = ah(3)*uj*uj
+          dsasaij = ah(2)+3.0_dp*ah3uj2
+          sasaij =  ah(1)+(ah(2)+ah3uj2)*uj
+
+          ! accumulate the molecular surface
+          sasap = sasap*sasaij
+          ! compute the gradient wrt the neighbor
+          dsasaij = dsasaij/(sasaij*dist)
+          nni = nni+1
+          grdi(nni) = iAt2f
+          grds(:, nni) = dsasaij*vec(:)
+        end if
+      end if
+    end do
+
+  end subroutine getWSp
 
 
 end module dftbp_sasa

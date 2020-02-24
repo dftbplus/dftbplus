@@ -128,6 +128,7 @@ scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
+solvation/sasa_i10e                    #? MPI_PROCS <= 1
 solvation/gb_ionpair                   #? MPI_PROCS <= 1
 solvation/gb_reference                 #? MPI_PROCS <= 1
 solvation/gb_mol1bar                   #? MPI_PROCS <= 1
