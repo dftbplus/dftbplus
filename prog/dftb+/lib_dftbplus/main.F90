@@ -61,6 +61,7 @@ module dftbp_main
   use dftbp_elecconstraints
   use dftbp_pmlocalisation, only : TPipekMezey
   use dftbp_linresp
+  use dftbp_linresptypes
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : DispersionIface
@@ -660,12 +661,12 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%postSCC)
 
-    if (tLinResp) then
+    if (allocated(linearResponse)) then
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
       end if
       call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tCasidaForces)
-      call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
+      call calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0, over,&
           & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
           & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
           & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
@@ -752,9 +753,10 @@ contains
     end if
 
     if (tWriteDetailedOut) then
-      call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, tXlbomd, tLinResp, tGeoOpt,&
-          & tMD, tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, &
-          & chrgForces, indMovedAtom, cellVol, intPressure, geoOutFile, iAtInCentralRegion)
+      call writeDetailedOut2(fdDetailedOut, tSccCalc, tConverged, tXlbomd,&
+          & allocated(linearResponse), tGeoOpt, tMD, tPrintForces, tStress, tPeriodic, energy,&
+          & totalStress, totalLatDeriv, derivs,  chrgForces, indMovedAtom, cellVol, intPressure,&
+          & geoOutFile, iAtInCentralRegion)
     end if
 
     if (tSccCalc .and. .not. tXlbomd .and. .not. tConverged) then
@@ -922,9 +924,9 @@ contains
           cellVol = abs(determinant33(latVec))
           energy%EGibbs = energy%EMermin + extPressure * cellVol
         end if
-        call writeMdOut2(fdMd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
-            & energy, energiesCasida, latVec, cellVol, intPressure, extPressure, tempIon,&
-            & absEField, qOutput, q0, dipoleMoment)
+        call writeMdOut2(fdMd, tStress, tBarostat, allocated(linearResponse), tEField, tFixEf,&
+            & tPrintMulliken, energy, energiesCasida, latVec, cellVol, intPressure, extPressure,&
+            & tempIon, absEField, qOutput, q0, dipoleMoment)
         call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
             & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
             & nSpin, qOutput, velocities)
@@ -4025,10 +4027,10 @@ contains
 
 
   !> Do the linear response excitation calculation.
-  subroutine calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-      & eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont, skOverCont,&
-      & autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc, iSparseStart,&
-      & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+  subroutine calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+      & over, eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont,&
+      & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
+      & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, energies, work, rhoSqrReal, excitedDerivs,&
       & occNatural)
 
@@ -4036,7 +4038,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> excited state settings
-    type(LinResp), intent(inout) :: lresp
+    type(TLinResp), intent(inout), allocatable :: linearResponse
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -4170,9 +4172,9 @@ contains
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-      call addGradients(tSpin, lresp, denseDesc%iAtomStart, eigvecsReal, eigen, work, filling,&
-          & coord0, sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
-          & skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited,&
+      call addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen, work,&
+          & filling, coord0, sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell,&
+          & orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited,&
           & energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
@@ -4180,8 +4182,8 @@ contains
             & naturalOrbs, work, fileName="excitedOrbs")
       end if
     else
-      call calcExcitations(lresp, tSpin, denseDesc, eigvecsReal, eigen, work, filling, coord0,&
-          & sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
+      call calcExcitations(linearResponse, tSpin, denseDesc, eigvecsReal, eigen, work, filling,&
+          & coord0, sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
           & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
     end if
     energy%Etotal = energy%Etotal + energy%Eexcited

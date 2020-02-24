@@ -30,12 +30,12 @@ module dftbp_linresp
   use dftbp_linrespgrad
   use dftbp_arpack, only : withArpack
   use dftbp_elsirciiface, only : withElsiRCI
+  use dftbp_linresptypes
   implicit none
   private
 
-  public :: linresp, linrespini
+  public :: linrespini
   public :: init, calcExcitations, addGradients
-
 
   !> Data type for initial values for linear response calculations
   type :: linrespini
@@ -106,41 +106,6 @@ module dftbp_linresp
 
   end type linrespini
 
-
-  !> Data type for linear response internal settings
-  type :: linresp
-    integer :: nExc, nStat
-    logical :: tEnergyWindow
-    real(dp) :: energyWindow
-    logical :: tOscillatorWindow
-    real(dp) :: oscillatorWindow
-    real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
-    logical :: tCacheCharges
-    integer :: nOcc, nVir, nAtom
-    real(dp) :: nEl
-    character :: symmetry
-    real(dp), allocatable :: spinW(:)
-    real(dp), allocatable :: HubbardU(:)
-    integer :: fdXplusY = -1
-    integer :: fdCoeffs = -1
-    logical :: tGrndState = .true.
-    integer :: fdMulliken = -1
-    integer :: fdTrans = -1
-    integer :: fdSPTrans = -1
-    integer :: fdExc = -1
-    integer :: fdTradip = -1
-    logical :: tArnoldi
-
-
-    !> file unit for Arnoldi solver file unit for tests on output of Arnoldi solver
-    integer :: fdArnoldi = -1
-
-    integer :: fdArnoldiDiagnosis = -1
-    logical :: tPrintEigVecs
-    logical :: tInit = .false.
-  end type linresp
-
-
   !> Initialise data structure
   interface init
     module procedure LinResp_init
@@ -165,7 +130,7 @@ contains
   subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements)
 
     !> data structure for linear response
-    type(linresp), intent(out) :: this
+    type(TLinResp), intent(out) :: this
 
     !> initial values for setting parameters
     type(linrespini), intent(inout) :: ini
@@ -239,12 +204,7 @@ contains
 
       this%nAtom = nAtom
       this%nEl = nEl
-      this%nOcc = ceiling(nEl / 2.0_dp)
-      this%nVir = orb%nOrb - this%nOcc
       this%fdExc = getFileId() ! file for excitations
-
-      ! Write to disc
-      this%tPrintEigVecs = ini%tPrintEigVecs
 
       call move_alloc(ini%spinW, this%spinW)
       call move_alloc(ini%hubbardU, this%HubbardU)
@@ -286,7 +246,7 @@ contains
       & taggedWriter, excEnergy, allExcEnergies)
 
     !> data structure with additional linear response values
-    type(linresp), intent(inout) :: this
+    type(TLinResp), intent(inout) :: this
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -345,14 +305,9 @@ contains
     if (withArpack .or. withElsiRCI) then
       @:ASSERT(this%tInit)
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
-      call LinRespGrad_old(tSpin, this%nAtom, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0,&
-          & this%HubbardU, this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged,&
-          & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
-          & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
-          & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
-          & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-          & allExcEnergies, this%onSiteMatrixElements)
+      call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
+          & coords0, SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged,&
+          & fdTagged, taggedWriter, excEnergy, allExcEnergies)
     else
       call error('Internal error: Illegal routine call to LinResp_calcExcitations')
     end if
@@ -370,7 +325,7 @@ contains
     logical, intent(in) :: tSpin
 
     !> data for the actual calculation
-    type(linresp), intent(inout) :: this
+    type(TLinResp), intent(inout) :: this
 
     !> indexing array for ground state square matrices
     integer, intent(in) :: iAtomStart(:)
@@ -459,24 +414,14 @@ contains
       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
       if (allocated(occNatural)) then
-        call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
-            & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
-            & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
-            & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
-            & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-            & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
+        call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
+            & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
             & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
       else
-        call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
-            & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
-            & this%spinW, this%nEl, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
-            & taggedWriter, this%fdMulliken, this%fdCoeffs, this%tGrndState, this%fdXplusY,&
-            & this%fdTrans, this%fdSPTrans, this%fdTradip, this%tArnoldi, this%fdArnoldi,&
-            & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
-            & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
-            & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
+        call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
+            & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
+            & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
             & excgradient, derivator, rhoSqr)
       end if
 

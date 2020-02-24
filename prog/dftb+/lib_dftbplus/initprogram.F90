@@ -72,6 +72,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
+  use dftbp_linresptypes
   use dftbp_RangeSeparated
   use dftbp_stress
   use dftbp_orbitalequiv
@@ -656,9 +657,6 @@ module dftbp_initprogram
   !> Should block charges be mixed as well as charges
   logical :: tMixBlockCharges
 
-  !> Calculate Casida linear response excitations
-  logical :: tLinResp
-
   !> calculate Z vector for excited properties
   logical :: tLinRespZVect
 
@@ -666,7 +664,7 @@ module dftbp_initprogram
   logical :: tPrintExcitedEigVecs
 
   !> data type for linear response
-  type(linresp), save :: lresp
+  type(TLinResp), allocatable :: linearResponse
 
   !> Whether to run a range separated calculation
   logical :: tRangeSep
@@ -1694,7 +1692,9 @@ contains
 
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
-    tLinResp = input%ctrl%lrespini%tInit
+    if (input%ctrl%lrespini%tInit) then
+      allocate(linearResponse)
+    end if
 
     referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)
 
@@ -1705,12 +1705,12 @@ contains
     qShell0(:,:) = 0.0_dp
 
     ! Initialize reference neutral atoms.
-    if (tLinResp .and. allocated(input%ctrl%customOccAtoms)) then
+    if (allocated(linearResponse) .and. allocated(input%ctrl%customOccAtoms)) then
        call error("Custom occupation not compatible with linear response")
     end if
     if (tMulliken) then
       if (allocated(input%ctrl%customOccAtoms)) then
-        if (tLinResp) then
+        if (allocated(linearResponse)) then
           call error("Custom occupation not compatible with linear response")
         end if
         call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
@@ -2039,7 +2039,7 @@ contains
           & spin orbit calculations")
     end if
 
-    if (tLinResp) then
+    if (allocated(linearResponse)) then
 
       ! input sanity checking
       if (.not. (withArpack .or. withElsiRCI)) then
@@ -2121,7 +2121,8 @@ contains
             & corrections")
       end if
 
-      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
+      call init(linearResponse, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces,&
+          & onSiteElements)
 
     end if
 
@@ -2499,7 +2500,7 @@ contains
       if (tDispersion) then
         call error("Dispersion not currently avalable with transport calculations")
       end if
-      if (tLinResp) then
+      if (allocated(linearResponse)) then
         call error("Linear response is not compatible with transport calculations")
       end if
       if (nSpin > 2) then
@@ -2524,7 +2525,7 @@ contains
     end associate
   #:endif
 
-    call initArrays(env, electronicSolver, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd,&
+    call initArrays(env, electronicSolver, tForces, tExtChrg, linearResponse, tLinRespZVect, tMd,&
         & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
         & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
         & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
@@ -3183,7 +3184,7 @@ contains
       call error("Writing of Hamiltonian currently not possible with spin orbit coupling enabled.")
     end if
 
-    if (tLinResp) then
+    if (allocated(linearResponse)) then
       if (tDFTBU) then
         call error("Linear response is not compatible with Orbitally dependant functionals yet")
       end if
@@ -3619,8 +3620,8 @@ contains
 
 
   !> Allocates most of the large arrays needed during the DFTB run.
-  subroutine initArrays(env, electronicSolver, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd,&
-      & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
+  subroutine initArrays(env, electronicSolver, tForces, tExtChrg, linearResponse, tLinRespZVect,&
+      & tMd, tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
       & tPrintExcitedEigvecs, tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
       & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
       & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
@@ -3640,7 +3641,7 @@ contains
     logical, intent(in) :: tExtChrg
 
     !> Are excitation energies being calculated
-    logical, intent(in) :: tLinResp
+    type(TLinResp), intent(in), allocatable :: linearResponse
 
     !> Are excited state properties being calculated
     logical, intent(in) :: tLinRespZVect
@@ -3881,7 +3882,7 @@ contains
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
-    if (tLinResp) then
+    if (allocated(linearResponse)) then
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
       end if
@@ -3891,7 +3892,7 @@ contains
     end if
     allocate(chargePerShell(orb%mShell, nAtom, nSpin))
 
-    if (tLinResp .and. tPrintExcitedEigVecs) then
+    if (allocated(linearResponse) .and. tPrintExcitedEigVecs) then
       allocate(occNatural(orb%nOrb))
     end if
 
@@ -4364,7 +4365,7 @@ contains
       call error("Range separated calculations not currently implemented for 3rd order DFTB")
     end if
 
-    if (tLinResp) then
+    if (allocated(linearResponse)) then
       call error("Range separated calculations not currently implemented for linear response")
     end if
 

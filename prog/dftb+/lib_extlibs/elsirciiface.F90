@@ -46,7 +46,7 @@ module dftbp_elsirciiface
     logical :: ovlp_is_unit
     ! Iteration
     integer(i4) :: solver, max_iter
-    integer(i4), parameter :: n_res = 0
+    integer(i4) :: n_res = 0
     real(r8) :: tol_iter
     ! Output
     integer(i4) :: total_iter

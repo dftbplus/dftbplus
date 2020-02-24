@@ -2,6 +2,7 @@ set(curdir "lib_timedep")
 
 set(sources-fpp
   ${curdir}/linresp.F90
+  ${curdir}/linresptypes.F90
   ${curdir}/linrespcommon.F90
   ${curdir}/linrespgrad.F90
   ${curdir}/transcharges.F90)
