@@ -3586,6 +3586,10 @@ contains
     real(dp), allocatable :: vdwRadDefault(:)
     type(TSolventData) :: solvent
 
+    if (geo%tPeriodic) then
+      call detailedError(node, "Generalized Born model currently not available with PBCs")
+    end if
+
     call getChildValue(node, "Solvent", value1, child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
