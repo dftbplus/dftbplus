@@ -24,6 +24,7 @@ module dftbp_dispuff
   use dftbp_constants, only: pi
   use dftbp_dispiface
   use dftbp_dispcommon
+  use dftbp_environment, only : TEnvironment
   implicit none
   private
 
@@ -188,13 +189,16 @@ contains
   end subroutine DispUff_init
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
 
     !> Instance of dispersion to update
     class(DispUff), intent(inout) :: this
 
     !> Updated neighbour list.
     type(TNeighbourList), intent(in) :: neigh
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Updated mapping to central cell.
     integer, intent(in) :: img2CentCell(:)

@@ -1208,7 +1208,7 @@ contains
     end if
 
     if (allocated(dispersion)) then
-      call dispersion%updateCoords(neighbourList, img2CentCell, coord, species0)
+      call dispersion%updateCoords(env, neighbourList, img2CentCell, coord, species0)
     end if
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighbourList, species)

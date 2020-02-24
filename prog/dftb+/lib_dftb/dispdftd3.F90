@@ -13,6 +13,7 @@ module dftbp_dispdftd3
   use dftbp_accuracy
   use dftbp_dispiface
   use dftbp_dftd3
+  use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_simplealgebra, only : determinant33
   use dftbp_constants
@@ -158,10 +159,13 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
 
     !> Instance of DFTD3 data
     class(DispDftD3), intent(inout) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Updated neighbour list.
     type(TNeighbourList), intent(in) :: neigh
