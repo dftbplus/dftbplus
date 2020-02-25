@@ -1223,7 +1223,7 @@ contains
       call dispersion%updateCoords(env, neighbourList, img2CentCell, coord, species0)
     end if
     if (allocated(solvation)) then
-      call solvation%updateCoords(neighbourList, img2CentCell, coord, species0)
+      call solvation%updateCoords(env, neighbourList, img2CentCell, coord, species0)
     end if
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighbourList, species)
@@ -1833,7 +1833,7 @@ contains
     end if
 
     if (allocated(solvation)) then
-      call solvation%updateCharges(pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
+      call solvation%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
       call solvation%getShifts(atomPot(:,1), shellPot(:,:,1))
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
@@ -5290,7 +5290,7 @@ contains
       if (isXlbomd) then
         call error("XLBOMD does not work with solvation yet!")
       else
-        call solvation%addGradients(neighbourList, species, coord, img2CentCell, derivs)
+        call solvation%addGradients(env, neighbourList, species, coord, img2CentCell, derivs)
       end if
     end if
 

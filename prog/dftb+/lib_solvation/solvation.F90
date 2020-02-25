@@ -11,6 +11,7 @@
 module dftbp_solvation
   use dftbp_accuracy, only : dp
   use dftbp_commontypes, only : TOrbitals
+  use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList
   implicit none
   private
@@ -48,11 +49,14 @@ module dftbp_solvation
 
   abstract interface
     !> Update internal stored coordinates
-    subroutine updateCoords(self, neighList, img2CentCell, coords, species0)
-      import :: TSolvation, TNeighbourList, dp
+    subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
+      import :: TSolvation, TEnvironment, TNeighbourList, dp
 
       !> Data structure
       class(TSolvation), intent(inout) :: self
+
+      !> Computational environment settings
+      type(TEnvironment), intent(in) :: env
 
       !> List of neighbours to atoms
       type(TNeighbourList), intent(in) :: neighList
@@ -93,11 +97,14 @@ module dftbp_solvation
 
 
     !> Get force contributions
-    subroutine addGradients(self, neighList, species, coords, img2CentCell, gradients)
-      import :: TSolvation, TNeighbourList, dp
+    subroutine addGradients(self, env, neighList, species, coords, img2CentCell, gradients)
+      import :: TSolvation, TEnvironment, TNeighbourList, dp
 
       !> Data structure
       class(TSolvation), intent(inout) :: self
+
+      !> Computational environment settings
+      type(TEnvironment), intent(in) :: env
 
       !> Neighbour list.
       type(TNeighbourList), intent(in) :: neighList
@@ -141,11 +148,14 @@ module dftbp_solvation
 
 
     !> Updates with changed charges for the instance.
-    subroutine updateCharges(self, species, neighList, qq, q0, img2CentCell, orb)
-      import :: TSolvation, TNeighbourList, TOrbitals, dp
+    subroutine updateCharges(self, env, species, neighList, qq, q0, img2CentCell, orb)
+      import :: TSolvation, TEnvironment, TNeighbourList, TOrbitals, dp
 
       !> Data structure
       class(TSolvation), intent(inout) :: self
+
+      !> Computational environment settings
+      type(TEnvironment), intent(in) :: env
 
       !> Species, shape: [nAtom]
       integer, intent(in) :: species(:)

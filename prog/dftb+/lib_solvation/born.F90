@@ -13,6 +13,7 @@ module dftbp_born
   use dftbp_blasroutines, only : hemv, gemv
   use dftbp_charges, only : getSummedCharges
   use dftbp_commontypes, only : TOrbitals
+  use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
@@ -196,10 +197,13 @@ contains
   end subroutine initialize
 
   !> Update internal stored coordinates
-  subroutine updateCoords(self, neighList, img2CentCell, coords, species0)
+  subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
 
     !> Data structure
     class(TGeneralizedBorn), intent(inout) :: self
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neighList
@@ -268,10 +272,13 @@ contains
 
 
   !> Get force contributions
-  subroutine addGradients(self, neighList, species, coords, img2CentCell, gradients)
+  subroutine addGradients(self, env, neighList, species, coords, img2CentCell, gradients)
 
     !> Data structure
     class(TGeneralizedBorn), intent(inout) :: self
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Neighbour list
     type(TNeighbourList), intent(in) :: neighList
@@ -347,10 +354,13 @@ contains
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(self, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(self, env, species, neighList, qq, q0, img2CentCell, orb)
 
     !> Data structure
     class(TGeneralizedBorn), intent(inout) :: self
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Species, shape: [nAtom]
     integer, intent(in) :: species(:)

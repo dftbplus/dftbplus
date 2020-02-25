@@ -3664,7 +3664,8 @@ contains
       end do
     end select
 
-    call getChildValue(node, "Cutoff", input%rCutoff, modifier=modifier, child=field)
+    call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
+        & modifier=modifier, child=field)
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
 
   end subroutine readSolvGB
