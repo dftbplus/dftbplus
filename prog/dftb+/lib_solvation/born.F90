@@ -20,7 +20,7 @@ module dftbp_born
   implicit none
   private
 
-  public :: TGeneralizedBorn, TGBInput
+  public :: TGeneralizedBorn, TGBInput, init
 
 
   !> Global parameters for the solvation
@@ -114,9 +114,6 @@ module dftbp_born
 
   contains
 
-    !> Initialize generalized Born model from input data
-    procedure :: initialize
-
     !> update internal copy of coordinates
     procedure :: updateCoords
 
@@ -143,6 +140,12 @@ module dftbp_born
   end type TGeneralizedBorn
 
 
+  !> Initialize generalized Born model from input data
+  interface init
+    module procedure :: initialize
+  end interface init
+
+
 contains
 
 
@@ -150,7 +153,7 @@ contains
   subroutine initialize(self, input, nAtom, species0, speciesNames, latVecs)
 
     !> Initialised instance at return
-    class(TGeneralizedBorn), intent(out) :: self
+    type(TGeneralizedBorn), intent(out) :: self
 
     !> Specific input parameters for generalized Born
     type(TGBinput), intent(in) :: input
@@ -195,6 +198,7 @@ contains
     self%tChargesUpdated = .false.
 
   end subroutine initialize
+
 
   !> Update internal stored coordinates
   subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
