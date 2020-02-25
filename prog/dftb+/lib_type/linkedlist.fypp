@@ -42,10 +42,10 @@
 #:endif
   
 
-  type :: node
+  type :: TNode
     ${NODE_TYPE}$${NODE_ATTRIB}$ :: data
-    type(node), pointer :: pNext
-  end type node
+    type(TNode), pointer :: pNext
+  end type TNode
   
 
   type :: ${TYPE_NAME}$
@@ -55,10 +55,10 @@
     integer :: elemShape(${ITEM_RANK}$)
   #:endif
     logical :: tUnishaped
-    type(node), pointer :: pFirst
-    type(node), pointer :: pLast
+    type(TNode), pointer :: pFirst
+    type(TNode), pointer :: pLast
     integer :: iCache
-    type(node), pointer :: pCache
+    type(TNode), pointer :: pCache
     logical :: tInitialized = .false.
   end type ${TYPE_NAME}$
 
@@ -148,7 +148,7 @@ contains
   subroutine ${TYPE_NAME}$_destruct(list)
     type(${TYPE_NAME}$), intent(inout) :: list
 
-    type(node), pointer :: pCur, pNext
+    type(TNode), pointer :: pCur, pNext
 
     if (.not. list%tInitialized) then
       return
@@ -229,7 +229,7 @@ contains
     type(${TYPE_NAME}$), intent(inout) :: list
     ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(in) :: data
 
-    type(node), pointer :: pCur
+    type(TNode), pointer :: pCur
     integer :: ii
 
     @:ASSERT(list%tInitialized)
@@ -291,7 +291,7 @@ contains
     ${ITEM_TYPE}$${NODE_ATTRIB}$, intent(out) :: data
     integer, intent(in) :: index
 
-    type(node), pointer :: pCur
+    type(TNode), pointer :: pCur
 
     @:ASSERT(list%tInitialized)
     @:ASSERT(index > 0 .and. index <= list%length)
@@ -312,7 +312,7 @@ contains
     ${ITEM_TYPE}$${ITEM_ATTRIB}$, intent(in) :: data
     integer, intent(in) :: index
 
-    type(node), pointer :: pCur
+    type(TNode), pointer :: pCur
 
     @:ASSERT(list%tInitialized)
     @:ASSERT(index > 0 .and. index <= list%length)
@@ -352,7 +352,7 @@ contains
     type(${TYPE_NAME}$), intent(in) :: list
     ${ITEM_TYPE}$${ITEM_ARRAY_ATTRIB}$, intent(out) :: val
 
-    type(node), pointer :: pCur
+    type(TNode), pointer :: pCur
     integer :: lenVal
     integer :: ii
 
@@ -394,7 +394,7 @@ contains
     integer, intent(out) :: valshape(:)
     integer, intent(in) :: index
 
-    type(node), pointer :: pCur
+    type(TNode), pointer :: pCur
 
     @:ASSERT(list%tInitialized)
     @:ASSERT(index > 0 .and. index <= list%length)
@@ -425,7 +425,7 @@ contains
     integer, intent(out) :: nElem
     integer, intent(in) :: index
 
-    type(node), pointer :: pCur
+    type(TNode), pointer :: pCur
 
     @:ASSERT(list%tInitialized)
     @:ASSERT(index > 0 .and. index <= list%length)
@@ -461,7 +461,7 @@ contains
     type(${TYPE_NAME}$), intent(in) :: list
     ${ITEM_TYPE}$, dimension(:), intent(out) :: val
 
-    type(node), pointer :: pCur
+    type(TNode), pointer :: pCur
     integer :: lenVal, lenElem
     integer :: ii
 
@@ -493,7 +493,7 @@ contains
   !!* @param pNode Pointer to set to the wanted node.
   !!* @param index Index of the wanted node.
   function getNode(list, index)
-    type(node), pointer :: getNode
+    type(TNode), pointer :: getNode
     type(${TYPE_NAME}$), intent(inout) :: list
     integer, intent(in) :: index
 

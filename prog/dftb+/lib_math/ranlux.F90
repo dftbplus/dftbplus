@@ -49,7 +49,7 @@ module dftbp_ranlux
 
 
   !> Internal variables for the luxury pseudorandom generator
-  type ORanlux
+  type TRanlux
     integer :: next(24)
     integer :: luxlev
     integer :: nskip
@@ -60,7 +60,7 @@ module dftbp_ranlux
     integer :: icarry
     real(dp) :: twom24
     real(dp) :: twom12
-  end type ORanlux
+  end type TRanlux
 
 
   !> Creates a ranlux random number generator
@@ -83,7 +83,7 @@ module dftbp_ranlux
     module procedure Ranlux_getState
   end interface getState
 
-  public :: ORanlux
+  public :: TRanlux
   public :: init, getRandom, getState
 
 
@@ -125,7 +125,7 @@ contains
   subroutine Ranlux_init_default(self, luxlev, initSeed)
 
     !> Initialized random generator on exit
-    type(ORanlux), intent(out) :: self
+    type(TRanlux), intent(out) :: self
 
     !> Luxury level. Possible values: 0, 1, 2, 3, 4. (Default: 3)
     integer, intent(in), optional :: luxlev
@@ -193,7 +193,7 @@ contains
   subroutine Ranlux_init_restart(self, isdext)
 
     !> Initialized random generator instance on exit
-    type(ORanlux), intent(out) :: self
+    type(TRanlux), intent(out) :: self
 
     !> Contains the state of a saved generator as produced by Ranlux_getState.
     integer, intent(in) :: isdext(:)
@@ -239,7 +239,7 @@ contains
   subroutine Ranlux_getRandomVector(self, rvec)
 
     !> Ranlux instance
-    type(ORanlux), intent(inout) :: self
+    type(TRanlux), intent(inout) :: self
 
     !> Vector containing the random numbers on exit.
     real(dp), intent(out) :: rvec(:)
@@ -254,7 +254,7 @@ contains
   subroutine Ranlux_getRandom2DArray(self, r2Darray)
 
     !> Ranlux instance
-    type(ORanlux), intent(inout) :: self
+    type(TRanlux), intent(inout) :: self
 
     !> Vector containing the random numbers on exit.
     real(dp), intent(out) :: r2Darray(:,:)
@@ -273,7 +273,7 @@ contains
   subroutine Ranlux_getRandomNumber(self, rnum)
 
     !> Ranlux instance
-    type(ORanlux), intent(inout) :: self
+    type(TRanlux), intent(inout) :: self
 
     !> Contains the random number on exit.
     real(dp), intent(out) :: rnum
@@ -373,7 +373,7 @@ contains
   subroutine Ranlux_getState(self, isdext)
 
     !> Ranlux instance.
-    type(ORanlux), intent(in) :: self
+    type(TRanlux), intent(in) :: self
 
     !> Contains the state of the generator as integer array.
     integer, intent(out) :: isdext(:)

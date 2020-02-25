@@ -21,7 +21,7 @@ module dftbp_randomgenpool
   implicit none
   private
 
-  public :: ORandomGenPool, init
+  public :: TRandomGenPool, init
 
 
   !> Random generator pool
@@ -29,11 +29,11 @@ module dftbp_randomgenpool
   !> Note: To ensure random numbers being independent from the nr. of processes being used,
   !> all random generator pool methods must always be called collectively by all processes.
   !>
-  type :: ORandomGenPool
+  type :: TRandomGenPool
     private
 
     !> random number generator for pool
-    type(ORanlux), allocatable :: generator
+    type(TRanlux), allocatable :: generator
 
     !> Random values that have been generated
     integer :: served = -1
@@ -44,7 +44,7 @@ module dftbp_randomgenpool
 
     !> returns a random generator
     procedure :: getGenerator
-  end type ORandomGenPool
+  end type TRandomGenPool
 
 
   !> initialise the generator
@@ -63,7 +63,7 @@ contains
   subroutine RandomGenPool_init(this, env, seed, oldCompat)
 
     !> Instance.
-    class(ORandomGenPool), intent(out) :: this
+    class(TRandomGenPool), intent(out) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -124,13 +124,13 @@ contains
   subroutine getGenerator(this, env, randomGenerator)
 
     !> Instance.
-    class(ORandomGenPool), intent(inout) :: this
+    class(TRandomGenPool), intent(inout) :: this
 
     !> Environment settings.
     type(TEnvironment), intent(in) :: env
 
     !> Initialised random generator.
-    type(ORanlux), allocatable, intent(out) :: randomGenerator
+    type(TRanlux), allocatable, intent(out) :: randomGenerator
 
     integer :: seed
     real(dp) :: randomPool(OLDCOMPAT_POOL_SIZE)

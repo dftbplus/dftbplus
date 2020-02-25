@@ -16,19 +16,19 @@ module dftbp_geoopt
   private
 
 
-  public :: OGeoOpt
+  public :: Tgeoopt
   public :: init, reset, next
   public :: geoOptTypes
 
   !> Interface type for the various geometry optimization algorithms
-  type OGeoOpt
+  type Tgeoopt
     private
     integer :: iGeoOpt
-    type(OConjGrad), allocatable :: pConjGrad
-    type(OSteepDesc), allocatable :: pSteepDesc
-    type(ODiis), allocatable :: pDiis
+    type(tConjGrad), allocatable :: pConjGrad
+    type(tSteepDesc), allocatable :: pSteepDesc
+    type(tDiis), allocatable :: pDiis
     type(TLbfgs), allocatable :: pLbfgs
-  end type OGeoOpt
+  end type Tgeoopt
 
 
   !> Creates a geometry optimizer
@@ -70,10 +70,10 @@ contains
   subroutine GeoOpt_initConjGrad(self, pConjGrad)
 
     !> GeoOpt instance
-    type(OGeoOpt), intent(out) :: self
+    type(Tgeoopt), intent(out) :: self
 
     !> An already initialized conjugate gradient instance
-    type(OConjGrad), allocatable, intent(inout) :: pConjGrad
+    type(tConjGrad), allocatable, intent(inout) :: pConjGrad
 
     self%iGeoOpt = geoOptTypes%conjugateGrad
     call move_alloc(pConjGrad, self%pConjGrad)
@@ -85,10 +85,10 @@ contains
   subroutine GeoOpt_initSteepDesc(self, pSteepDesc)
 
     !> GeoOpt instance
-    type(OGeoOpt), intent(out) :: self
+    type(Tgeoopt), intent(out) :: self
 
     !> An already initialized steepest descent instance
-    type(OSteepDesc), allocatable, intent(inout) :: pSteepDesc
+    type(tSteepDesc), allocatable, intent(inout) :: pSteepDesc
 
     self%iGeoOpt = geoOptTypes%steepestDesc
     call move_alloc(pSteepDesc, self%pSteepDesc)
@@ -100,10 +100,10 @@ contains
   subroutine GeoOpt_initDiis(self, pDiis)
 
     !> GeoOpt instance
-    type(OGeoOpt), intent(out) :: self
+    type(Tgeoopt), intent(out) :: self
 
     !> An already initialized modified DIIS instance
-    type(ODiis), allocatable, intent(inout) :: pDiis
+    type(tDiis), allocatable, intent(inout) :: pDiis
 
     self%iGeoOpt = geoOptTypes%diis
     call move_alloc(pDiis, self%pDiis)
@@ -114,7 +114,7 @@ contains
   subroutine GeoOpt_initLbfgs(self, pLbfgs)
 
     !> GeoOpt instance
-    type(OGeoOpt), intent(out) :: self
+    type(Tgeoopt), intent(out) :: self
 
     !> An already initialized modified LBFGS
     type(Tlbfgs), allocatable, intent(inout) :: pLbfgs
@@ -128,7 +128,7 @@ contains
   subroutine GeoOpt_reset(self, x0)
 
     !> GeoOpt instance
-    type(OGeoOpt), intent(inout) :: self
+    type(Tgeoopt), intent(inout) :: self
 
     !> Initial coordinates
     real(dp), intent(in) :: x0(:)
@@ -152,7 +152,7 @@ contains
   subroutine GeoOpt_next(self, fx, dx, xNew, tConverged)
 
     !> Optimiser object
-    type(OGeoOpt), intent(inout) :: self
+    type(Tgeoopt), intent(inout) :: self
 
     !> Function value for last point returned by this routine
     real(dp), intent(in) :: fx

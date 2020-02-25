@@ -17,7 +17,7 @@ module dftbp_steepdesc
 
 
   !> Contains data for the steepest descent minimizer
-  type OSteepDesc
+  type TSteepDesc
     private
 
     !> Dimensionality of the space
@@ -40,7 +40,7 @@ module dftbp_steepdesc
 
     !> If object is initialized
     logical :: tInitialized
-  end type OSteepDesc
+  end type TSteepDesc
 
 
   !> Creates SD instance
@@ -60,7 +60,7 @@ module dftbp_steepdesc
     module procedure SteepDesc_next
   end interface
 
-  public :: OSteepDesc
+  public :: TSteepDesc
   public :: init, reset, next
 
 contains
@@ -70,7 +70,7 @@ contains
   subroutine SteepDesc_init(self, nElem, tol, maxDisp, weight)
 
     !> Steepest descent instance on exit
-    type(OSteepDesc), intent(out) :: self
+    type(TSteepDesc), intent(out) :: self
 
     !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
@@ -104,7 +104,7 @@ contains
   subroutine SteepDesc_reset(self, x0)
 
     !> minimizer object
-    type(OSteepDesc), intent(inout) :: self
+    type(TSteepDesc), intent(inout) :: self
 
     !> Point to start from
     real(dp), intent(in) :: x0(:)
@@ -125,7 +125,7 @@ contains
   subroutine SteepDesc_next(self, dx, xNew, tConverged)
 
     !> CG minimizer
-    type(OSteepDesc), intent(inout) :: self
+    type(TSteepDesc), intent(inout) :: self
 
     !> Gradient in the last point
     real(dp), intent(in) :: dx(:)

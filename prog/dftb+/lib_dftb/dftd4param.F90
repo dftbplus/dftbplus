@@ -15,7 +15,7 @@ module dftbp_dftd4param
   use dftbp_dftd4refs
   implicit none
 
-  public :: DftD4Calculator, DispDftD4Inp, initializeCalculator
+  public :: TDftD4Calculator, TDispDftD4Inp, initializeCalculator
   public :: getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   public :: getChemicalHardness, getEffectiveNuclearCharge, getSqrtZr4r2
   public :: getCovalentRadiusD3, getPaulingEN
@@ -95,7 +95,7 @@ module dftbp_dftd4param
 
 
   !> Damping parameters for DFT-D4 calculation.
-  type :: DispDftD4Inp
+  type :: TDispDftD4Inp
 
     !> Scaling parameter for dipole-dipole coefficients.
     real(dp) :: s6 = 1.0_dp
@@ -149,11 +149,11 @@ module dftbp_dftd4param
     !> Net charge
     real(dp) :: nrChrg = 0.0_dp
 
-  end type DispDftD4Inp
+  end type TDispDftD4Inp
 
 
   !> Dispersion calculator containing all important data for DFT-D4 calculations
-  type :: DftD4Calculator
+  type :: TDftD4Calculator
 
     !> Scaling parameter for dipole-dipole coefficients.
     real(dp) :: s6 = 1.0_dp
@@ -249,7 +249,7 @@ module dftbp_dftd4param
     !> C6 coefficients for each reference system and species pair
     real(dp), allocatable :: referenceC6(:, :, :, :)
 
-  end type DftD4Calculator
+  end type TDftD4Calculator
 
 
   !> Element-specific electronegativity for the electronegativity equilibration charges used in
@@ -536,10 +536,10 @@ contains
   subroutine initializeCalculator(calculator, input, nAtom, speciesNames)
 
     !> Calculator
-    type(DftD4Calculator), intent(inout) :: calculator
+    type(TDftD4Calculator), intent(inout) :: calculator
 
     !> Input
-    type(DispDftD4Inp), intent(in) :: input
+    type(TDispDftD4Inp), intent(in) :: input
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom

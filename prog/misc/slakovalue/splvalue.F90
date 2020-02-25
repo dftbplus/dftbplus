@@ -19,7 +19,7 @@ program splvalue
   character(*), parameter :: fname = "test.skf"
   character(lc) :: arg
   type(trepsplinein) :: repsplinein
-  type(orepspline) :: prepspline
+  type(trepspline) :: prepspline
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr(3), energy, grad(3), d2

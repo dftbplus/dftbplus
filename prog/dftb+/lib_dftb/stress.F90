@@ -11,7 +11,7 @@
 module dftbp_stress
   use dftbp_assert
   use dftbp_accuracy
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_scc
   use dftbp_commontypes
   use dftbp_slakocont
@@ -49,7 +49,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Container for repulsive potentials.
-    type(ORepCont), intent(in) :: repCont
+    type(TRepCont), intent(in) :: repCont
 
     !> cell volume.
     real(dp), intent(in) :: cellVol
@@ -134,7 +134,7 @@ contains
     real(dp), intent(out) :: st(:,:)
 
     !> Derivative calculator for (H0,S)
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> density matrix in packed format
     real(dp), intent(in) :: DM(:)
@@ -143,10 +143,10 @@ contains
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> Container for SK overlap integrals
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -244,7 +244,7 @@ contains
     real(dp), intent(out) :: st(:,:)
 
     !> density matrix in packed format
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> energy-weighted density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
@@ -253,10 +253,10 @@ contains
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK overlap integrals
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> list of all atomic coordinates
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> list of all atomic species
     real(dp), intent(in) :: coords(:,:)
@@ -379,7 +379,7 @@ contains
     real(dp), intent(out) :: st(:,:)
 
     !> density matrix in packed format
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> imaginary part of density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
@@ -391,10 +391,10 @@ contains
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK overlap integrals
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> list of all atomic coordinates
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> list of all atomic species
     real(dp), intent(in) :: coords(:,:)

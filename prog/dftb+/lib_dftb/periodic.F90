@@ -937,7 +937,7 @@ contains
     integer :: imgRange(2,3), itmp3(3)
     integer :: nAllKPoint, nKPoint
     integer :: i1, i2, i3
-    type(listRealR1) :: lr1
+    type(TListRealR1) :: lr1
 
     real(dp), parameter :: tol = 1e-4_dp
     real(dp), parameter :: minLim = -tol, maxLim = 1.0_dp - tol

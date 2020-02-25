@@ -17,13 +17,13 @@ module dftbp_slakoeqgrid
   implicit none
   private
 
-  public :: OSlakoEqGrid, init
+  public :: TSlakoEqGrid, init
   public :: getSKIntegrals, getNIntegrals, getCutoff
   public :: skEqGridOld, skEqGridNew
 
 
   !> Represents an equally spaced Slater-Koster grid
-  type OSlakoEqGrid
+  type TSlakoEqGrid
     private
     integer :: nGrid
     integer :: nInteg
@@ -31,7 +31,7 @@ module dftbp_slakoeqgrid
     real(dp), allocatable :: skTab(:,:)
     integer :: skIntMethod
     logical :: tInit = .false.
-  end type OSlakoEqGrid
+  end type TSlakoEqGrid
 
 
   !> Initialises SlakoEqGrid.
@@ -96,7 +96,7 @@ contains
   subroutine SlakoEqGrid_init(self, dist, table, skIntMethod)
 
     !> SlakoEqGrid instance.
-    type(OSlakoEqGrid), intent(out) :: self
+    type(TSlakoEqGrid), intent(out) :: self
 
     !> Distance between the grid points.
     real(dp), intent(in) :: dist
@@ -126,7 +126,7 @@ contains
   subroutine SlakoEqGrid_getSKIntegrals(self, sk, dist)
 
     !> SlakoEqGrid instance.
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> Contains the interpolated integrals on exit
     real(dp), intent(out) :: sk(:)
@@ -151,7 +151,7 @@ contains
   function SlakoEqGrid_getNIntegrals(self) result(nInt)
 
     !> SlakoEqGrid instance.
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> Number of integrals.
     integer :: nInt
@@ -165,7 +165,7 @@ contains
   function SlakoEqGrid_getCutoff(self) result(cutoff)
 
     !>  SlakoEqGrid instance.
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> grid cutoff
     real(dp) :: cutoff
@@ -184,7 +184,7 @@ contains
   subroutine SlakoEqGrid_interNew_(self, dd, rr)
 
     !> SlakoEqGrid table on equiv. grid
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
@@ -249,7 +249,7 @@ contains
   subroutine SlakoEqGrid_interOld_(self, dd, rr)
 
     !> Data structure for SK interpolation
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)

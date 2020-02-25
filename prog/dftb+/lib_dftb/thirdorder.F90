@@ -18,11 +18,11 @@ module dftbp_thirdorder
   implicit none
   private
 
-  public :: ThirdOrderInp, ThirdOrder, ThirdOrder_init
+  public :: TThirdOrderInp, TThirdOrder, ThirdOrder_init
 
 
   !> Input for the 3rd order module
-  type ThirdOrderInp
+  type TThirdOrderInp
 
     !> Orbital information
     type(TOrbitals), pointer :: orb
@@ -43,11 +43,11 @@ module dftbp_thirdorder
     !> atom in hubbUs and hubbUDerivs is used.
     logical :: shellResolved
 
-  end type ThirdOrderInp
+  end type TThirdOrderInp
 
 
   !> Internal status of third order.
-  type ThirdOrder
+  type TThirdOrder
     integer :: nSpecies, nAtoms, mShells, mShellsReal
     logical :: shellResolved
     integer, allocatable :: nShells(:)
@@ -72,7 +72,7 @@ module dftbp_thirdorder
     procedure :: addGradientDc
     procedure :: addGradientDcXlbomd
     procedure :: addStressDc
-  end type ThirdOrder
+  end type TThirdOrder
 
 contains
 
@@ -81,10 +81,10 @@ contains
   subroutine ThirdOrder_init(this, inp)
 
     !> Instance.
-    type(ThirdOrder), intent(out) :: this
+    type(TThirdOrder), intent(out) :: this
 
     !> Input data.
-    type(ThirdOrderInp), intent(in) :: inp
+    type(TThirdOrderInp), intent(in) :: inp
 
     this%nAtoms = size(inp%orb%nOrbAtom)
     this%mShellsReal = inp%orb%mShell
@@ -127,7 +127,7 @@ contains
   function getCutoff(this) result(cutoff)
 
     !> Instance
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
 
     !> Cutoff
     real(dp) :: cutoff
@@ -141,7 +141,7 @@ contains
   subroutine updateCoords(this, neighList, species)
 
     !> Instance.
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
 
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neighList
@@ -197,7 +197,7 @@ contains
   subroutine updateCharges(this, species, neighList, qq, q0, img2CentCell, orb)
 
     !> Instance
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
 
     !> Species, shape: [nAtom]
     integer, intent(in) :: species(:)
@@ -281,7 +281,7 @@ contains
   subroutine getShifts(this, shiftPerAtom, shiftPerShell)
 
     !> Instance.
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
 
     !> Shift per atom.
     real(dp), intent(out) :: shiftPerAtom(:)
@@ -305,7 +305,7 @@ contains
 
   !> Returns energy per atom.
   subroutine getEnergyPerAtom(this, energyPerAtom)
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
     real(dp), intent(out) :: energyPerAtom(:)
 
     @:ASSERT(size(energyPerAtom) == this%nAtoms)
@@ -325,7 +325,7 @@ contains
   subroutine getEnergyPerAtomXlbomd(this, qOut, q0, species, orb, energyPerAtom)
 
     !> Instance.
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
 
     !> Output populations determined after the diagonalization.
     real(dp), intent(in) :: qOut(:,:,:)
@@ -365,7 +365,7 @@ contains
   subroutine addGradientDc(this, neighList, species, coords, img2CentCell, derivs)
 
     !> Instance.
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
 
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neighList
@@ -424,7 +424,7 @@ contains
       & derivs)
 
     !> Instance.
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
 
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neighList
@@ -521,7 +521,7 @@ contains
   subroutine addStressDc(this, neighList, species, coords, img2CentCell, cellVol, st)
 
     !> Instance.
-    class(ThirdOrder), intent(inout) :: this
+    class(TThirdOrder), intent(inout) :: this
 
     !> Neighbour list.
     type(TNeighbourList), intent(in) :: neighList

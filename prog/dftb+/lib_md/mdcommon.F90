@@ -16,19 +16,19 @@ module dftbp_mdcommon
   implicit none
   private
 
-  public :: OMDCommon, init, restFrame, evalKT, rescaleToKT
+  public :: TMDCommon, init, restFrame, evalKT, rescaleToKT
   public :: evalKE, BoxMueller, MaxwellBoltzmann
 
 
   !> Contains necessary data for the MD framework
-  type OMDCommon
+  type TMDCommon
 
     !> Nr. of degrees of freedom
     real(dp) :: Nf
 
     !> Should transform to rest frame?
     logical :: tStationary
-  end type OMDCommon
+  end type TMDCommon
 
 
   !> initialise thermostat
@@ -61,7 +61,7 @@ contains
   subroutine MDCommon_init(sf, nMovedAtom, nAllAtom, tStationary)
 
     !> MD Framework instance.
-    type(OMDCommon), intent(out) :: sf
+    type(TMDCommon), intent(out) :: sf
 
     !> Number of moving atoms in the system
     integer, intent(in) :: nMovedAtom
@@ -90,7 +90,7 @@ contains
   subroutine  MDCommon_restFrame(sf, velocity, mass)
 
     !> MD Framework instance.
-    type(OMDCommon), intent(in) :: sf
+    type(TMDCommon), intent(in) :: sf
 
     !> Particle velocities
     real(dp), intent(inout) :: velocity(:,:)
@@ -118,7 +118,7 @@ contains
   subroutine MDCommon_evalKT(sf, kT, velocity, mass)
 
     !> MD Framework instance.
-    type(OMDCommon), intent(in) :: sf
+    type(TMDCommon), intent(in) :: sf
 
     !> resulting thermal energy
     real(dp),intent(out) :: kT
@@ -145,7 +145,7 @@ contains
   subroutine MDCommon_rescaleTokT(sf, velocity, mass, kTtarget)
 
     !> MD Framework instance.
-    type(OMDCommon), intent(in) :: sf
+    type(TMDCommon), intent(in) :: sf
 
     !> particle velocities
     real(dp), intent(inout) :: velocity(:,:)
@@ -226,7 +226,7 @@ contains
     real(dp), intent(in) :: kT
 
     !> Random number generator
-    type(ORanlux), intent(inout) :: pRanlux
+    type(TRanlux), intent(inout) :: pRanlux
 
     real(dp) :: ranvals(7)
     real(dp) :: junk

@@ -12,7 +12,7 @@ module dftbp_onsitecorrection
   use dftbp_assert
   use dftbp_commontypes
   use dftbp_message
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_slakocont
   implicit none
   private
