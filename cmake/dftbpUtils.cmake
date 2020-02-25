@@ -166,7 +166,7 @@ endfunction()
 function (dftbp_ensure_config_consistency)
 
   if(WITH_ELSI AND NOT WITH_MPI)
-    message(FATAL_ERROR "Buliding with ELSI requires MPI-parallel build enabled")
+    message(FATAL_ERROR "Building with ELSI requires MPI-parallel build enabled")
   endif()
 
   if(WITH_PEXSI AND (NOT WITH_MPI OR NOT WITH_ELSI))

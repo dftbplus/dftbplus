@@ -30,6 +30,7 @@ module dftbp_dispslaterkirkw
   use dftbp_constants, only : pi
   use dftbp_dispiface
   use dftbp_dispcommon
+  use dftbp_environment, only : TEnvironment
   use dftbp_message
   implicit none
   private
@@ -217,10 +218,13 @@ end subroutine DispSlaKirk_init
 
 
 !> Notifies the objects about changed coordinates.
-subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
 
   !> The data object for dispersion
   class(DispSlaKirk), intent(inout) :: this
+
+  !> Computational environment settings
+  type(TEnvironment), intent(in) :: env
 
   !> Updated neighbour list.
   type(TNeighbourList), intent(in) :: neigh

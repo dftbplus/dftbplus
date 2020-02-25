@@ -1891,6 +1891,10 @@ p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
 case of collinear spin polarisation). Calculations without k-points can use
 either one or two groups in the case of collinear spin polarisation.
 
+This solver can optionally use the ELSI internal sparse interface (\kw{Sparse} =
+\is{Yes}), but this does not reduce memory usage and is mainly for testing
+purposes.
+
 \subsubsection{OMM}
 
 This method minimises the single particle density matrix, so does not make band
@@ -2417,7 +2421,7 @@ The \kw{External} field keyword has the following options
 
 The \is{Dispersion} block controls whether DFTB interactions should be
 empirically corrected for van der Waals interactions, since DFTB (and
-SCC-DFTB) does not include these effects. Currently, three different
+SCC-DFTB) does not include these effects. Currently, four different
 dispersion correction schemes are implemented (for the detailed
 description of the methods see the following subsections):
 \begin{itemize}
@@ -2433,6 +2437,9 @@ description of the methods see the following subsections):
   code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
   section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
   strengths (see section \ref{sec:dftbp.hcorr}).
+\item \is{DftD4}: Dispersion is calculated using the D4
+  model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
+  section~\ref{sec:dftbp.DftD4}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2607,7 +2614,7 @@ with $E_{\text{DFTB}}$ being the DFTB total energy and $E_{\text{disp}}$ the
 dispersion energy. The latter contains two-body and optional three-body
 contributions:
 \begin{equation*}
-  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}
+  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}.
 \end{equation*}
 
 The form of the two-body contribution can change depending on the chosen damping
@@ -2702,6 +2709,127 @@ parameters are taken to be the same as in the dftd3 code.
   enables an additional short range repulsion term in all hydrogen--hydrogen
   pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
   closely together.
+\end{description}
+
+\subsubsection{DftD4}
+\label{sec:dftbp.DftD4}
+
+The DFT-D4 dispersion correction in \dftbp{} is an implementation of the D4
+model by Stefan Grimme and coworkers. It is based on the method described in
+Ref.~\cite{caldeweyher-jcp-150-154122}.
+
+This dispersion correction for DFTB adds a contribution to the general
+Kohn--Sham-like energy,
+\begin{equation*}
+  E_{\text{DFTB-D4}} = E_{\text{DFTB}} + E_{\text{disp}},
+\end{equation*}
+with $E_{\text{DFTB}}$ being the DFTB total energy and $E_{\text{disp}}$ the
+dispersion energy. The latter contains two-body and optional three-body
+contributions:
+\begin{equation*}
+  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}.
+\end{equation*}
+
+The D4 model uses the Becke--Johnson damping function for two-body contributions:
+\begin{equation*}
+   E_{\text{disp}}^{(2)} = -\frac{1}{2} \sum_{A\neq B} \sum_{n=6,8,10} s_n
+   \frac{C_n^{AB}}{r_{AB}^n + f(R_0^{AB})}
+\end{equation*}
+with
+\begin{equation*}
+   f(R_0^{AB}) = a_1 R_0^{AB} + a_2.
+\end{equation*}
+
+The zero-damping function for three-body contributions is:
+\begin{equation*}
+   E_{\text{disp}}^{(3)} = -\sum_{A}\sum_{\substack{B \\B < A}}\sum_{\substack{C\\ C < B}} s_9
+   \frac{  \left(3\cos\theta_A\cos\theta_B\cos\theta_C+1\right)\sqrt{C_6^{AB}C_6^{BC}C_6^{CA}}}{(r_{AB}r_{BC}r_{CA})^3} f^{(3)}(r_{AB})
+\end{equation*}
+with
+\begin{equation*}
+   f^{(3)} = \frac{1}{1 + 6\left(\frac{f(R_0^{AB})f(R_0^{BC})f(R_0^{CA})}{r_{AB}r_{BC}r_{CA}}\right)^{\alpha/3}}.
+\end{equation*}
+
+In order to adjust the dispersion for various energy functionals, the choice of
+$s_8$ and the damping parameters $a_1$ and $a_2$ are
+treated as functional-dependent values. All other parameters are fixed based on
+these parameters.
+Depending on the choice of the $s_9$ parameter non-additive triple-dipole
+contributions will be evaluated. Including non-additive effects usually improves
+the description of dispersion interactions, but is also more expensive.
+
+As the DFTB energy functional is largely determined by the underlying
+parameterisation (the Slater--Koster-files) and the chosen DFTB model (e.g.\
+non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
+can be used with all settings, but some relevant choices for various
+parameterisation are given in Appendix \ref{app:dftd4const}.
+
+\subsubsection{DftD4 settings}
+Beside the functional dependent dispersion parameters, the options shown below
+can be adjusted in the input.
+
+\begin{ptable}
+  \kw{s6} & r & & 1.0 & \\
+  \kw{s8} & r & & & \\
+  \kw{s10} & r & & 0.0 & \\
+  \kw{s9} & r & & & \\
+  \kw{a1} & r & & & \\
+  \kw{a2} & r & & & \\
+  \kw{alpha} & r & & 16.0 & \\
+  \kw{WeightingFactor} & r & & 6.0 & \\
+  \kw{ChargeSteepness} & r & & 2.0 & \\
+  \kw{ChargeScale} & r & & 3.0 & \\
+  \kw{CutoffInter} & r & & 64 & \\
+  \kw{CutoffEwald} & r & & 40 & \\
+  \kw{CutoffCount} & r & & 40 & \\
+  \kw{CutoffThree} & r & & 40 & \\
+  \kw{EwaldParameter} & r & & 0.0 & \\
+  \kw{EwaldTolerance} & r & & 1.0e-9 & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{s8}, \is{s9}, \is{a1}, \is{a2}] Functional dependent dispersion
+  parameters, see equations above.
+  
+\item[\is{s6}] Parameter for scaling pairwise dipole--dipole dispersion
+  interaction, should always be set to 1.0.
+
+\item[\is{s10}] Parameter for pairwise quadrupole--quadrupole dispersion
+  interactions, should be kept set to 0.0.
+
+\item[\is{alpha}] Zero damping exponent for three-body damping function, default
+  is 16 as in DFT-D3.
+
+\item[\is{WeightingFactor}] Coordination number based interpolation, 4.0 used in
+  DFT-D3, default for D4 is 6.0.
+
+\item[\is{ChargeScale}] Maximum possible charge scaling, used as exponential
+  value, should be kept set to 3.0.
+
+\item[\is{ChargeSteepness}] Steepness of the charge scaling function, should be
+  kept set to 2.0.
+
+\item[\is{CutoffInter}] \modif{\modtype{length}} Cutoff distance when
+  calculating two-body interactions.
+
+\item[\is{CutoffEwald}] \modif{\modtype{length}} Cutoff distance when
+  calculating electrostatics interactions under PBC.
+
+\item[\is{CutoffCount}] \modif{\modtype{length}} Cutoff distance when
+  calculating coordination numbers.
+
+\item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
+  calculating three-body interactions.
+
+\item[\is{EwaldParameter}] Sets the splitting parameter in the Ewald
+  electrostatic summation for periodic calculations. This controls the fraction
+  of the Ewald summation occurring in real and reciprocal space. Setting it to
+  zero or negative activates an automatic determination of this parameter
+  (default and recommended behaviour).
+
+\item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
+  systems.
+
 \end{description}
 
 \subsection{DFTB3}

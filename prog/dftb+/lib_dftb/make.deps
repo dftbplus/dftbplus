@@ -51,6 +51,11 @@ dftbplusu.o = dftbplusu.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accur
 _mod_dftbp_dftbplusu: dftbplusu.o
 _mod_dftbp_dftbplusu = $(dftbplusu.o)
 
+dftd4param.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_dftd4refs
+dftd4param.o = dftd4param.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_dftd4refs)
+_mod_dftbp_dftd4param: dftd4param.o
+_mod_dftbp_dftd4param = $(dftd4param.o)
+
 dispcommon.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_message _mod_dftbp_sorting _mod_dftbp_simplealgebra _mod_dftbp_errorfunction
 dispcommon.o = dispcommon.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_message) $(_mod_dftbp_sorting) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_errorfunction)
 _mod_dftbp_dispcommon: dispcommon.o
@@ -61,14 +66,19 @@ dispdftd3.o = dispdftd3.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accur
 _mod_dftbp_dispdftd3: dispdftd3.o
 _mod_dftbp_dispdftd3 = $(dispdftd3.o)
 
+dispdftd4.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_dispiface _mod_dftbp_periodic _mod_dftbp_simplealgebra _mod_dftbp_coulomb _mod_dftbp_constants _mod_dftbp_dftd4param _mod_dftbp_encharges _mod_dftbp_blasroutines
+dispdftd4.o = dispdftd4.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_dispiface) $(_mod_dftbp_periodic) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_coulomb) $(_mod_dftbp_constants) $(_mod_dftbp_dftd4param) $(_mod_dftbp_encharges) $(_mod_dftbp_blasroutines)
+_mod_dftbp_dispdftd4: dispdftd4.o
+_mod_dftbp_dispdftd4 = $(dispdftd4.o)
+
 #:if WITH_DFTD3
-dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw _mod_dftbp_dispdftd3
-dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_dispdftd3)
+dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw _mod_dftbp_dispdftd4 _mod_dftbp_dispdftd3
+dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_dispdftd4) $(_mod_dftbp_dispdftd3)
 _mod_dftbp_dispersions: dispersions.o
 _mod_dftbp_dispersions = $(dispersions.o)
 #:else
-dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw
-dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw)
+dispersions.o: common.fypp _mod_dftbp_dispiface _mod_dftbp_dispuff _mod_dftbp_dispuffdata _mod_dftbp_dispslaterkirkw _mod_dftbp_dispdftd4
+dispersions.o = dispersions.o $(common.fypp) $(_mod_dftbp_dispiface) $(_mod_dftbp_dispuff) $(_mod_dftbp_dispuffdata) $(_mod_dftbp_dispslaterkirkw) $(_mod_dftbp_dispdftd4)
 _mod_dftbp_dispersions: dispersions.o
 _mod_dftbp_dispersions = $(dispersions.o)
 #:endif
@@ -107,6 +117,11 @@ emfields.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_constan
 emfields.o = emfields.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_io) $(_mod_dftbp_angmomentum) $(_mod_dftbp_simplealgebra) $(_mod_dftbp_commontypes)
 _mod_dftbp_emfields: emfields.o
 _mod_dftbp_emfields = $(emfields.o)
+
+encharges.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy _mod_dftbp_constants _mod_dftbp_errorfunction _mod_dftbp_coulomb _mod_dftbp_blasroutines _mod_dftbp_lapackroutines
+encharges.o = encharges.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy) $(_mod_dftbp_constants) $(_mod_dftbp_errorfunction) $(_mod_dftbp_coulomb) $(_mod_dftbp_blasroutines) $(_mod_dftbp_lapackroutines)
+_mod_dftbp_encharges: encharges.o
+_mod_dftbp_encharges = $(encharges.o)
 
 energies.o: common.fypp _mod_dftbp_assert _mod_dftbp_accuracy
 energies.o = energies.o $(common.fypp) $(_mod_dftbp_assert) $(_mod_dftbp_accuracy)

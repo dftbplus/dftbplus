@@ -7,6 +7,7 @@ set(sources-fpp
   ${curdir}/environment.F90
   ${curdir}/fileregistry.F90
   ${curdir}/globalenv.F90
+  ${curdir}/hamiltoniantypes.F90
   ${curdir}/memman.F90
   ${curdir}/optarg.F90
   ${curdir}/schedule.F90

@@ -26,6 +26,7 @@ module dftbp_main
   use dftbp_environment
   use dftbp_densedescr
   use dftbp_inputdata
+  use dftbp_hamiltoniantypes
   use dftbp_nonscc
   use dftbp_eigenvects
   use dftbp_repulsive
@@ -405,10 +406,18 @@ contains
     end if
 
     call env%globalTimer%startTimer(globalTimers%sparseH0S)
-    call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbourSk, neighbourList%iNeighbour,&
-        & species, iSparseStart, orb)
-    call buildS(env, over, skOverCont, coord, nNeighbourSk, neighbourList%iNeighbour, species,&
-        & iSparseStart, orb)
+    select case(hamiltonianType)
+    case default
+      call error("Invalid Hamiltonian")
+    case(hamiltonianTypes%dftb)
+      call buildH0(env, H0, skHamCont, atomEigVal, coord, nNeighbourSk, neighbourList%iNeighbour,&
+          & species, iSparseStart, orb)
+      call buildS(env, over, skOverCont, coord, nNeighbourSk, neighbourList%iNeighbour, species,&
+          & iSparseStart, orb)
+    case(hamiltonianTypes%xtb)
+      ! TODO
+      call error("xTB calculation currently not supported")
+    end select
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
     if (tSetFillingTemp) then
@@ -1199,7 +1208,7 @@ contains
     end if
 
     if (allocated(dispersion)) then
-      call dispersion%updateCoords(neighbourList, img2CentCell, coord, species0)
+      call dispersion%updateCoords(env, neighbourList, img2CentCell, coord, species0)
     end if
     if (allocated(thirdOrd)) then
       call thirdOrd%updateCoords(neighbourList, species)
@@ -2155,9 +2164,11 @@ contains
           & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
           & qOutput, nNeighbourLC)
 
-    case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
+    case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+        &electronicSolverTypes%elpadm)
 
       call env%globalTimer%startTimer(globalTimers%densityMatrix)
+
       call electronicSolver%elsi%getDensity(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
           & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, tRealHS,&
           & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, Ef, energy, rhoPrim,&
@@ -4492,7 +4503,8 @@ contains
           & neighbourList, nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec,&
           & tRealHS, ham, over, parallelKS, ERhoPrim, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx)
 
-    case (electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
+    case (electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+        &electronicSolverTypes%elpadm)
 
       if (forceType /= forceTypes%orig) then
         call error("Alternative force evaluation methods are not supported by this electronic&
