@@ -14,8 +14,8 @@ module dftbp_rangeseparated
   use dftbp_environment
   use dftbp_assert
   use dftbp_message
-  use dftbp_nonscc, only : NonSccDiff
-  use dftbp_slakocont, only : OSlakoCont
+  use dftbp_nonscc, only : TNonSccDiff
+  use dftbp_slakocont, only : TSlakoCont
   use dftbp_commontypes
   use dftbp_sorting
   use dftbp_sparse2dense, only : blockSymmetrizeHS
@@ -25,7 +25,7 @@ module dftbp_rangeseparated
   implicit none
   private
 
-  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init, rangeSepTypes
+  public :: TRangeSepSKTag, TRangeSepFunc, RangeSepFunc_init, rangeSepTypes
 
 
   type :: TRangeSepTypesEnum
@@ -56,7 +56,7 @@ module dftbp_rangeseparated
 
 
   !> Range-Sep module structure
-  type :: RangeSepFunc
+  type :: TRangeSepFunc
     private
 
     !> coordinates of the atom
@@ -117,7 +117,7 @@ module dftbp_rangeseparated
     procedure :: addLrGradients
     procedure :: evaluateLrEnergyDirect
 
-  end type RangeSepFunc
+  end type TRangeSepFunc
 
 
 contains
@@ -128,7 +128,7 @@ contains
       & tSpin, tREKS, rsAlg)
 
     !> class instance
-    type(RangeSepFunc), intent(out) :: this
+    type(TRangeSepFunc), intent(out) :: this
 
     !> number of atoms
     integer, intent(in) :: nAtom
@@ -167,7 +167,7 @@ contains
     subroutine initAndAllocate(this, nAtom, hubbu, species, screen, omega, rsAlg, tSpin, tREKS)
 
       !> Instance
-      class(RangeSepFunc), intent(out) :: this
+      class(TRangeSepFunc), intent(out) :: this
 
       !> Number of atoms
       integer, intent(in) :: nAtom
@@ -215,7 +215,7 @@ contains
     subroutine checkRequirements(this)
 
       !> instance
-      class(RangeSepFunc), intent(inout) :: this
+      class(TRangeSepFunc), intent(inout) :: this
 
       ! Check for current restrictions
       if (this%tSpin .and. this%rsAlg == rangeSepTypes%threshold) then
@@ -236,7 +236,7 @@ contains
   subroutine updateCoords(this, coords)
 
     !> class instance
-    class(RangeSepFunc), intent(inout) :: this
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> list of atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -270,7 +270,7 @@ contains
       & orb, HH, overlap)
 
     !> class instance
-    class(RangeSepFunc), intent(inout) :: this
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -328,7 +328,7 @@ contains
       & iSquare, hamiltonian, orb)
 
     !> class instance
-    type(RangeSepFunc), intent(inout) :: this
+    type(TRangeSepFunc), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -477,7 +477,7 @@ contains
     subroutine checkAndInitScreening(this, matrixSize, tmpDRho)
 
       !> Instance
-      class(RangeSepFunc), intent(inout) :: this
+      class(TRangeSepFunc), intent(inout) :: this
 
       !> linear dimension of matrix
       integer, intent(in) :: matrixSize
@@ -503,7 +503,7 @@ contains
       & iPair, orb, HH)
 
     !> instance of object
-    type(RangeSepFunc), intent(inout) :: this
+    type(TRangeSepFunc), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -728,7 +728,7 @@ contains
   subroutine addLrHamiltonianMatrix(this, iSquare, overlap, densSqr, HH)
 
     !> class instance
-    type(RangeSepFunc), intent(inout) :: this
+    type(TRangeSepFunc), intent(inout) :: this
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, dimension(:), intent(in) :: iSquare
@@ -767,7 +767,7 @@ contains
     subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO)
 
       !> class instance
-      type(RangeSepFunc), intent(inout) :: this
+      type(TRangeSepFunc), intent(inout) :: this
 
       !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
       integer, dimension(:), intent(in) :: iSquare
@@ -817,7 +817,7 @@ contains
     subroutine evaluateHamiltonian(this, Smat, Dmat, LRgammaAO, Hlr)
 
       !> class instance
-      type(RangeSepFunc), intent(inout) :: this
+      type(TRangeSepFunc), intent(inout) :: this
 
       !> Symmetrized square overlap matrix
       real(dp), intent(in) :: Smat(:,:)
@@ -873,7 +873,7 @@ contains
   subroutine addLrEnergy(this, energy)
 
     !> RangeSep class instance
-    class(RangeSepFunc), intent(inout) :: this
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> total energy
     real(dp), intent(inout) :: energy
@@ -945,7 +945,7 @@ contains
   function getAnalyticalGammaValue(this, Sp1, Sp2, dist)
 
     !> RangeSepFunc instance
-    class(RangeSepFunc), intent(inout) :: this
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> first species
     integer, intent(in) :: Sp1
@@ -1040,7 +1040,7 @@ contains
   function getdAnalyticalGammaDeriv(this, Sp1, Sp2, dist)
 
     !> RangeSepFunc instance
-    class(RangeSepFunc), intent(inout) :: this
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> first species
     integer, intent(in) :: Sp1
@@ -1144,7 +1144,7 @@ contains
   subroutine getGammaPrimeValue(this, grad, iAtom1, iAtom2, coords, species)
 
     !> class instance
-    class(RangeSepFunc), intent(inout) :: this
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> gradient of gamma between atoms
     real(dp), intent(out) :: grad(3)
@@ -1182,7 +1182,7 @@ contains
       & species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
 
     !> class instance
-    class(RangeSepFunc), intent(inout) :: this
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> energy gradients
     real(dp), intent(inout) :: gradients(:,:)
@@ -1191,10 +1191,10 @@ contains
     real(dp), intent(in) :: deltaRho(:,:,:)
 
     !> sparse hamiltonian (non-scc)
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> sparse overlap part
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -1218,7 +1218,7 @@ contains
     integer, intent(in) :: nNeighbourSK(:)
 
     !> differentiation object
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     integer :: nAtom, iAtK, iNeighK, iAtB, iNeighB, iAtC, iAtA, kpa
     real(dp) :: tmpgamma1, tmpgamma2
@@ -1358,7 +1358,7 @@ contains
   function evaluateLrEnergyDirect(this, env, deltaRho, ovrlap, iSquare) result (energy)
 
     !> instance of LR
-    class(RangeSepFunc), intent(inout) :: this
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env

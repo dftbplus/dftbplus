@@ -12,27 +12,27 @@ module dftbp_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_dispiface, only : DispersionIface
+  use dftbp_dispiface, only : TDispersionIface
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
   use dftbp_simplealgebra, only : determinant33, invert33
   use dftbp_coulomb, only : getMaxGEwald, getOptimalAlphaEwald
   use dftbp_constants, only : pi, symbolToNumber
-  use dftbp_dftd4param, only : DftD4Calculator, DispDftD4Inp, initializeCalculator
+  use dftbp_dftd4param, only : TDftD4Calculator, TDispDftD4Inp, initializeCalculator
   use dftbp_encharges, only : getEEQcharges
   use dftbp_blasroutines, only : gemv
   implicit none
   private
 
-  public :: DispDftD4, DispDftD4Inp, init
+  public :: TDispDftD4, TDispDftD4Inp, init
 
 
   !> Internal state of the DFT-D4 dispersion.
-  type, extends(DispersionIface) :: DispDftD4
+  type, extends(TDispersionIface) :: TDispDftD4
     private
 
     !> calculator to evaluate dispersion
-    type(DftD4Calculator), allocatable :: calculator
+    type(TDftD4Calculator), allocatable :: calculator
 
     !> number of atoms
     integer :: nAtom
@@ -94,7 +94,7 @@ module dftbp_dispdftd4
     !> cutoff distance in real space for dispersion
     procedure :: getRCutoff
 
-  end type DispDftD4
+  end type TDispDftD4
 
 
   interface init
@@ -109,10 +109,10 @@ contains
   subroutine DispDftD4_init(this, inp, nAtom, species0, speciesNames, latVecs)
 
     !> Initialized instance of D4 dispersion model.
-    type(DispDftD4), intent(out) :: this
+    type(TDispDftD4), intent(out) :: this
 
     !> Specific input parameters for damping function.
-    type(DispDftD4Inp), intent(in) :: inp
+    type(TDispDftD4Inp), intent(in) :: inp
 
     !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
@@ -169,7 +169,7 @@ contains
   subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
 
     !> Instance of DFTD4 data
-    class(DispDftD4), intent(inout) :: this
+    class(TDispDftD4), intent(inout) :: this
 
     !> Updated neighbour list.
     type(TNeighbourList), intent(in) :: neigh
@@ -206,7 +206,7 @@ contains
   subroutine updateLatVecs(this, latVecs)
 
     !> Instance of DFTD4 data
-    class(DispDftD4), intent(inout) :: this
+    class(TDispDftD4), intent(inout) :: this
 
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:, :)
@@ -239,7 +239,7 @@ contains
   subroutine getEnergies(this, energies)
 
     !> Instance of DFTD4 data
-    class(DispDftD4), intent(inout) :: this
+    class(TDispDftD4), intent(inout) :: this
 
     !> Contains the atomic energy contributions on exit.
     real(dp), intent(out) :: energies(:)
@@ -257,7 +257,7 @@ contains
   subroutine addGradients(this, gradients)
 
     !> Instance of DFTD4 data
-    class(DispDftD4), intent(inout) :: this
+    class(TDispDftD4), intent(inout) :: this
 
     !> The vector to increase by the gradients.
     real(dp), intent(inout) :: gradients(:,:)
@@ -275,7 +275,7 @@ contains
   subroutine getStress(this, stress)
 
     !> Instance of DFTD4 data
-    class(DispDftD4), intent(inout) :: this
+    class(TDispDftD4), intent(inout) :: this
 
     !> stress tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
@@ -293,7 +293,7 @@ contains
   function getRCutoff(this) result(cutoff)
 
     !> Instance of DFTD4 data
-    class(DispDftD4), intent(inout) :: this
+    class(TDispDftD4), intent(inout) :: this
 
     !> Resulting cutoff
     real(dp) :: cutoff
@@ -474,7 +474,7 @@ contains
       & zerodcn)
 
     !> DFT-D dispersion model.
-    type(DftD4Calculator), intent(in) :: calc
+    type(TDftD4Calculator), intent(in) :: calc
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -581,7 +581,7 @@ contains
       & dcndL, q, dqdr, dqdL, energies, gradients, stress)
 
     !> DFT-D dispersion model.
-    type(DftD4Calculator), intent(in) :: calc
+    type(TDftD4Calculator), intent(in) :: calc
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -749,7 +749,7 @@ contains
   subroutine getAtomicC6(calc, nAtom, species, zetaVec, zetadq, zetadcn, c6, dc6dcn, dc6dq)
 
     !> DFT-D dispersion model.
-    type(DftD4Calculator), intent(in) :: calc
+    type(TDftD4Calculator), intent(in) :: calc
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -827,7 +827,7 @@ contains
       & stress)
 
     !> DFT-D dispersion model.
-    type(DftD4Calculator), intent(in) :: calc
+    type(TDftD4Calculator), intent(in) :: calc
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom
@@ -994,7 +994,7 @@ contains
       & energies, gradients, stress, volume, parEwald)
 
     !> DFT-D dispersion model.
-    type(DftD4Calculator), intent(in) :: calculator
+    type(TDftD4Calculator), intent(in) :: calculator
 
     !> Nr. of atoms (without periodic images)
     integer, intent(in) :: nAtom

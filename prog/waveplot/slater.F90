@@ -18,7 +18,7 @@ module dftbp_slater
 
 
   !> Data for STOs
-  type OSlaterOrbital
+  type TSlaterOrbital
     private
     integer :: nPow
     integer :: nAlpha
@@ -28,7 +28,7 @@ module dftbp_slater
     real(dp), allocatable :: gridValue(:)
     real(dp) :: gridDist
     integer :: nGrid
-  end type OSlaterOrbital
+  end type TSlaterOrbital
 
 
   !> Initialises a SlaterOrbital
@@ -49,7 +49,7 @@ module dftbp_slater
   end interface
 
   public :: RealTessY
-  public :: OSlaterOrbital, init, getValue, assignment(=)
+  public :: TSlaterOrbital, init, getValue, assignment(=)
 
 contains
 
@@ -167,7 +167,7 @@ contains
   subroutine SlaterOrbital_init(self, aa, alpha, ll, resolution, cutoff)
 
     !> SlaterOrbital instance to initialise
-    type(OSlaterOrbital), intent(inout) :: self
+    type(TSlaterOrbital), intent(inout) :: self
 
     !> Summation coefficients (nCoeffPerAlpha, nAlpha)
     real(dp), intent(in) :: aa(:,:)
@@ -224,7 +224,7 @@ contains
   subroutine SlaterOrbital_getValue(self, rr, sto)
 
     !> SlaterOrbital instance
-    type(OSlaterOrbital), intent(in) :: self
+    type(TSlaterOrbital), intent(in) :: self
 
     !> Distance, where STO should be calculated
     real(dp), intent(in) :: rr
@@ -304,10 +304,10 @@ contains
   elemental subroutine SlaterOrbital_assign(left, right)
 
     !> Left value of the assignment
-    type(OSlaterOrbital), intent(inout) :: left
+    type(TSlaterOrbital), intent(inout) :: left
 
     !> Right value of the assignment
-    type(OSlaterOrbital), intent(in) :: right
+    type(TSlaterOrbital), intent(in) :: right
 
     if (allocated(left%aa)) then
       deallocate(left%aa)

@@ -120,7 +120,7 @@ module libnegf_vars
     integer, allocatable :: nf(:)
 
     !> Orbitals in regions
-    type(WrappedInt1), allocatable :: dosOrbitals(:)
+    type(TWrappedInt1), allocatable :: dosOrbitals(:)
 
     !> Labels of regions for LDOS calculations
     character(lc), allocatable :: dosLabels(:)

@@ -23,22 +23,22 @@ module dftbp_dispersions
 
 
   !> Types of dispersion model
-  type :: DispersionInp
+  type :: TDispersionInp
 
     !> Based on universal force-field
-    type(DispUffInp), allocatable :: uff
+    type(TDispUffInp), allocatable :: uff
 
     !> Slater-Kirkwood
-    type(DispSlaKirkInp), allocatable :: slakirk
+    type(TDispSlaKirkInp), allocatable :: slakirk
 
   #:if WITH_DFTD3
     !> Grimme DFT-D3
-    type(DispDftD3Inp), allocatable :: dftd3
+    type(TDispDftD3Inp), allocatable :: dftd3
   #:endif
 
     !> D4 dispersion model.
-    type(DispDftD4Inp), allocatable :: dftd4
+    type(TDispDftD4Inp), allocatable :: dftd4
   
-  end type DispersionInp
+  end type TDispersionInp
 
 end module dftbp_dispersions

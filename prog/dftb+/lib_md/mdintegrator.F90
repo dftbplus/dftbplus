@@ -17,20 +17,20 @@ module dftbp_mdintegrator
   implicit none
   private
 
-  public :: OMDIntegrator
+  public :: TMDIntegrator
   public :: init, next, rescale, state
 
 
   !> Data for the MD integrator.
-  type OMDIntegrator
+  type TMDIntegrator
     private
 
     !> Integrator type
     integer :: integrator
 
     !> Verlet case
-    type(OVelocityVerlet), allocatable :: pVelocityVerlet
-  end type OMDIntegrator
+    type(TVelocityVerlet), allocatable :: pVelocityVerlet
+  end type TMDIntegrator
 
 
   !> Initialise integrator
@@ -67,10 +67,10 @@ contains
   subroutine MDIntegrator_init_VVerlet(self, pIntegrator)
 
     !> Integrator wrapper instance on exit.
-    type(OMDIntegrator), intent(out) :: self
+    type(TMDIntegrator), intent(out) :: self
 
     !> Velocity Verlet integrator.
-    type(OVelocityVerlet), allocatable, intent(inout) :: pIntegrator
+    type(TVelocityVerlet), allocatable, intent(inout) :: pIntegrator
 
     self%integrator = velocityVerlet_
     call move_alloc(pIntegrator, self%pVelocityVerlet)
@@ -82,7 +82,7 @@ contains
   subroutine MDIntegrator_next(self, accel, newCoord, newVelocity)
 
     !> Integrator wrapper instance on exit.
-    type(OMDIntegrator), intent(inout) :: self
+    type(TMDIntegrator), intent(inout) :: self
 
     !> Accelerations.
     real(dp), intent(in) :: accel(:,:)
@@ -106,7 +106,7 @@ contains
   subroutine MDIntegrator_rescale(self,coord,latVecs,stress)
 
     !> Integrator instance
-    type(OMDIntegrator), intent(inout) :: self
+    type(TMDIntegrator), intent(inout) :: self
 
     !> coordinates of atoms
     real(dp),intent(inout) :: coord(:,:)
@@ -126,7 +126,7 @@ contains
   subroutine MDIntegrator_state(self,fd)
 
     !> Integrator instance
-    type(OMDIntegrator), intent(in) :: self
+    type(TMDIntegrator), intent(in) :: self
 
     !> file handle to write to
     integer,intent(in) :: fd
