@@ -884,7 +884,7 @@ contains
     type(fnode), pointer :: node
 
     !> extracted settings on exit
-    type(TXlbomdInp), allocatable, intent(out) :: input
+    type(TXLBOMDInp), allocatable, intent(out) :: input
 
     type(fnode), pointer :: pXlbomd, pXlbomdFast, pRoot, pChild
     integer :: nKappa

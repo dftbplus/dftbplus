@@ -45,7 +45,7 @@ module dftbp_berendsentherm
     real(dp) :: couplingParameter
 
     !> MD Framework.
-    type(tMDCommon) :: pMDFrame
+    type(TMDCommon) :: pMDFrame
   end type TBerendsenThermostat
 
 

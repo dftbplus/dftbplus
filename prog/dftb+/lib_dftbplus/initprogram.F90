@@ -547,7 +547,7 @@ module dftbp_initprogram
   type(TTempProfile), allocatable, target :: temperatureProfile
 
   !> geometry optimiser
-  type(TnumDerivs), allocatable, target :: derivDriver
+  type(TNumDerivs), allocatable, target :: derivDriver
 
   !> reference neutral atomic occupations
   real(dp), allocatable :: q0(:, :, :)
@@ -744,7 +744,7 @@ module dftbp_initprogram
   logical :: isXlbomd
 
   !> XLBOMD related parameters
-  type(TXlbomd), allocatable :: xlbomdIntegrator
+  type(TXLBOMD), allocatable :: xlbomdIntegrator
 
   !> Differentiation method for (H^0,S)
   type(TNonSccDiff), save :: nonSccDeriv
