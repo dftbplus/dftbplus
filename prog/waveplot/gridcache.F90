@@ -28,7 +28,7 @@ module dftbp_gridcache
   type TgridCache
 
     !> Molecular orbital calculator
-    type(tMolecularOrbital), pointer :: molorb
+    type(TMolecularOrbital), pointer :: molorb
 
     !> Grid vectors
     real(dp) :: gridVec(3,3)
@@ -165,7 +165,7 @@ contains
     logical, intent(in) :: tReal
 
     !> Molecular orbital calculator
-    type(tMolecularOrbital), pointer, intent(in) :: molorb
+    type(TMolecularOrbital), pointer, intent(in) :: molorb
 
     integer ::nAll
     integer :: iSpin, iKPoint, iLevel, ind, ii, iostat

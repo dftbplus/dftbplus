@@ -1591,7 +1591,7 @@ contains
     logical, intent(in) :: tSccCalc
 
     !> Details for extended Lagrange integrator (of used)
-    type(TXlbomd), allocatable, intent(inout) :: xlbomdIntegrator
+    type(TXLBOMD), allocatable, intent(inout) :: xlbomdIntegrator
 
     !> Minimum number of SCC cycles that can be used
     integer, intent(inout) :: minSccIter
@@ -4212,7 +4212,7 @@ contains
       & qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
 
     !> integrator for the extended Lagrangian
-    type(TXlbomd), intent(inout) :: xlbomdIntegrator
+    type(TXLBOMD), intent(inout) :: xlbomdIntegrator
 
     !> output charges, reduced by equivalences
     real(dp), intent(in) :: qOutRed(:)

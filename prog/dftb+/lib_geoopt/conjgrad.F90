@@ -91,7 +91,7 @@ module dftbp_conjgrad
     module procedure conjGrad_getMinGrad
   end interface getMinGrad
 
-  public :: Tconjgrad
+  public :: TConjGrad
   public :: init, reset, next, getMinX, getMinY, getMinGrad
 
 
@@ -105,7 +105,7 @@ contains
   subroutine conjGrad_init(self, nElem, tol, maxDisp)
 
     !> conjugate gradient instance on exit
-    type(Tconjgrad), intent(out) :: self
+    type(TConjGrad), intent(out) :: self
 
     !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
@@ -139,7 +139,7 @@ contains
   subroutine conjGrad_reset(self, x0)
 
     !> CG minimizer
-    type(Tconjgrad), intent(inout) :: self
+    type(TConjGrad), intent(inout) :: self
 
     !> Point to start from
     real(dp), intent(in) :: x0(:)
@@ -160,7 +160,7 @@ contains
   subroutine conjGrad_next(self, fx, dx, xNew, tConverged)
 
     !> CG minimizer
-    type(Tconjgrad), intent(inout) :: self
+    type(TConjGrad), intent(inout) :: self
 
     !> Function value for last point returned by this routine
     real(dp), intent(in) :: fx
@@ -279,7 +279,7 @@ contains
   subroutine conjGrad_getMinX(self, minX)
 
     !> CG minimizer
-    type(Tconjgrad), intent(in) :: self
+    type(TConjGrad), intent(in) :: self
 
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minX(:)
@@ -297,7 +297,7 @@ contains
   subroutine conjGrad_getMinY(self, minY)
 
     !> CG minimizer
-    type(Tconjgrad), intent(in) :: self
+    type(TConjGrad), intent(in) :: self
 
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minY
@@ -314,7 +314,7 @@ contains
   subroutine conjGrad_getMinGrad(self, minGrad)
 
     !> CG minimizer
-    type(Tconjgrad), intent(in) :: self
+    type(TConjGrad), intent(in) :: self
 
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minGrad(:)
