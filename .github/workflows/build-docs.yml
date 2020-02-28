@@ -1,0 +1,20 @@
+name: docs
+
+on: [push, pull_request]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - uses: dante-ev/latex-action@v0.2.0
+      with:
+        root_file: manual.tex
+        working_directory: doc/dftb+/manual
+    - uses: actions/upload-artifact@v1
+      if: ${{ github.repository == 'dftbplus/dftbplus' && github.event_name == 'push' }}
+      with:
+        name: dftbplus-manual
+        path: doc/dftb+/manual/manual.pdf
