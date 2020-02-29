@@ -23,14 +23,115 @@ module dftbp_coulomb
   use dftbp_errorfunction
   use dftbp_constants, only : pi
   use dftbp_dynneighlist
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_periodic, only : TNeighbourList
   implicit none
 
   private
 
+  public :: boundaryCondition, TCoulombInput, TCoulombCont, init
   public :: invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald
   public :: getMaxREwald, invRStress
   public :: addInvRPrimeXlbomd
   public :: ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
+
+
+  !> Possible boundary conditions for evaluating coulombic interactions.
+  type :: TBoundaryConditionEnum
+
+    !> Finite molecular cluster
+    integer :: cluster = 0
+
+    !> Three dimensional infinite periodic boundary conditions
+    integer :: pbc3d = 3
+
+  end type TBoundaryConditionEnum
+
+  !> Actual instance of the boundary condition enumerator
+  type(TBoundaryConditionEnum), parameter :: boundaryCondition = TBoundaryConditionEnum()
+
+
+  !> Input data for coulombic interaction container
+  type :: TCoulombInput
+  end type TCoulombInput
+
+
+  !> Calculates the coulombic interaction in non-periodic and periodic systems.
+  type :: TCoulombCont
+
+    !> number of atoms
+    integer :: nAtom
+
+    !> Boundary condition for coulombic interaction evaluation
+    integer :: boundaryCondition
+
+    !> lattice vectors if periodic
+    real(dp) :: latVecs(3, 3)
+
+    !> Lattice points for reciprocal Ewald
+    real(dp), allocatable :: gLatPoint(:,:)
+
+    !> Real lattice points for asymmetric Ewald sum
+    real(dp), allocatable :: rCellVec(:,:)
+
+    !> Dynamic neighbour list for the real space Ewald summation
+    type(TDynNeighList), allocatable :: neighListGen
+
+    !> Parameter for Ewald
+    real(dp) :: alpha
+
+    !> Ewald tolerance
+    real(dp) :: tolEwald
+
+    !> Cell volume
+    real(dp) :: volume
+
+    !> are the coordinates current?
+    logical :: tCoordsUpdated
+
+    !> are the charges current?
+    logical :: tChargesUpdated
+
+    !> Stores 1/r between atom pairs
+    real(dp), allocatable :: invRMat(:,:)
+
+    !> Shift vector per atom
+    real(dp), allocatable :: shiftPerAtom(:)
+
+    !> Negative gross charge per atom
+    real(dp), allocatable :: deltaQAtom(:)
+
+  contains
+
+    !> update internal copy of coordinates
+    procedure :: updateCoords
+
+    !> update internal copy of lattice vectors
+    procedure :: updateLatVecs
+
+    !> get energy contributions
+    procedure :: getEnergies
+
+    !> get force contributions
+    procedure :: addGradients
+
+    !> get stress tensor contributions
+    procedure :: getStress
+
+    !> Updates with changed charges for the instance.
+    procedure :: updateCharges
+
+    !> Returns shifts per atom
+    procedure :: getShifts
+
+  end type TCoulombCont
+
+
+  !> Initialize coulombic interaction container from input data
+  interface init
+    module procedure :: initialize
+  end interface init
+
 
   !> 1/r interaction for all atoms with another group
   interface sumInvR
@@ -63,6 +164,191 @@ module dftbp_coulomb
 
 
 contains
+
+
+  subroutine initialize(self, input, nAtom, latVecs)
+
+    !> Data structure
+    class(TCoulombCont), intent(out) :: self
+
+    !> Input data for coulombic interaction container
+    class(TCoulombInput), intent(in) :: input
+
+    !> Nr. of atoms in the system
+    integer, intent(in) :: nAtom
+
+    !> Lattice vectors, if the system is periodic
+    real(dp), intent(in), optional :: latVecs(:,:)
+
+    if (present(latVecs)) then
+      self%boundaryCondition = boundaryCondition%pbc3d
+      call self%updateLatVecs(latVecs)
+    else
+      self%boundaryCondition = boundaryCondition%cluster
+    end if
+
+  end subroutine initialize
+
+
+  !> Update internal stored coordinates
+  subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
+
+    !> Data structure
+    class(TCoulombCont), intent(inout) :: self
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> List of neighbours to atoms
+    type(TNeighbourList), intent(in) :: neighList
+
+    !> Image to central cell atom index
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Central cell chemical species
+    integer, intent(in) :: species0(:)
+
+    self%tCoordsUpdated = .true.
+    self%tChargesUpdated = .false.
+
+  end subroutine updateCoords
+
+
+  !> Update internal copy of lattice vectors
+  subroutine updateLatVecs(self, latVecs)
+
+    !> Data structure
+    class(TCoulombCont), intent(inout) :: self
+
+    !> Lattice vectors
+    real(dp), intent(in) :: latVecs(:,:)
+
+    @:ASSERT(all(shape(latVecs) == shape(self%latVecs)))
+
+    self%tCoordsUpdated = .false.
+    self%tChargesUpdated = .false.
+
+  end subroutine updateLatVecs
+
+
+  !> Get energy contributions
+  subroutine getEnergies(self, energies)
+
+    !> Data structure
+    class(TCoulombCont), intent(inout) :: self
+
+    !> Energy contributions for each atom
+    real(dp), intent(out) :: energies(:)
+
+    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(self%tChargesUpdated)
+    @:ASSERT(size(energies) == self%nAtom)
+
+  end subroutine getEnergies
+
+
+  !> Get force contributions
+  subroutine addGradients(self, env, neighList, species, coords, img2CentCell, gradients)
+
+    !> Data structure
+    class(TCoulombCont), intent(inout) :: self
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighList
+
+    !> Specie for each atom.
+    integer, intent(in) :: species(:)
+
+    !> Coordinate of each atom.
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Mapping of atoms to cetnral cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Gradient contributions for each atom
+    real(dp), intent(inout) :: gradients(:,:)
+    
+    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(self%tChargesUpdated)
+    @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
+
+  end subroutine addGradients
+
+
+  !> Get stress tensor contributions
+  subroutine getStress(self, stress)
+
+    !> Data structure
+    class(TCoulombCont), intent(inout) :: self
+
+    !> Stress tensor contributions
+    real(dp), intent(out) :: stress(:,:)
+
+    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(self%tChargesUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
+
+  end subroutine getStress
+
+
+  !> Updates with changed charges for the instance.
+  subroutine updateCharges(self, env, species, neighList, qq, q0, img2CentCell, orb)
+
+    !> Data structure
+    class(TCoulombCont), intent(inout) :: self
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Species, shape: [nAtom]
+    integer, intent(in) :: species(:)
+
+    !> Neighbour list.
+    type(TNeighbourList), intent(in) :: neighList
+
+    !> Orbital charges.
+    real(dp), intent(in) :: qq(:,:,:)
+
+    !> Reference orbital charges.
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Mapping on atoms in central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    @:ASSERT(self%tCoordsUpdated)
+
+    self%tChargesUpdated = .true.
+
+  end subroutine updateCharges
+
+
+  !> Returns shifts per atom
+  subroutine getShifts(self, shiftPerAtom, shiftPerShell)
+
+    !> Data structure
+    class(TCoulombCont), intent(inout) :: self
+
+    !> Shift per atom
+    real(dp), intent(out) :: shiftPerAtom(:)
+
+    !> Shift per shell
+    real(dp), intent(out) :: shiftPerShell(:,:)
+
+    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(self%tChargesUpdated)
+    @:ASSERT(size(shiftPerAtom) == self%nAtoms)
+    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
+
+  end subroutine getShifts
 
 
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is
