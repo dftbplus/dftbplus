@@ -1460,8 +1460,8 @@ contains
         sccInp%thirdOrderOn = input%ctrl%thirdOrderOn
       end if
 
-      sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
-      sccInp%tolEwald = input%ctrl%tolEwald
+      sccInp%coulombInput%ewaldAlpha = input%ctrl%ewaldAlpha
+      sccInp%coulombInput%tolEwald = input%ctrl%tolEwald
       call initialize(sccCalc, env, sccInp)
       deallocate(sccInp)
 

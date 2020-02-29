@@ -18,9 +18,7 @@ module dftbp_scc
   use dftbp_accuracy
   use dftbp_message
   use dftbp_coulomb, only : TCoulombCont, TCoulombInput, init, &
-      & invRCluster, invRPeriodic, sumInvR, addInvRPrime, getOptimalAlphaEwald, getMaxGEwald, &
-      & getMaxREwald, invRStress, addInvRPrimeXlbomd, &
-      & ewaldReal, ewaldReciprocal, derivEwaldReal, derivEwaldReciprocal, derivStressEwaldRec
+      & sumInvR, addInvRPrime, invRStress, addInvRPrimeXlbomd
   use dftbp_shortgamma
   use dftbp_fileid
   use dftbp_constants
@@ -73,12 +71,6 @@ module dftbp_scc
 
     !> third order energy contributions
     real(dp), allocatable :: thirdOrderOn(:,:)
-
-    !> if > 0 -> manual setting for alpha
-    real(dp) :: ewaldAlpha = 0.0_dp
-
-    !> Ewald tolerance
-    real(dp) :: tolEwald = 0.0_dp
 
     !> H5 correction object
     type(TH5Corr), allocatable :: h5Correction
@@ -183,25 +175,8 @@ module dftbp_scc
     !> Shifts due to 3rd order
     type(TChrgConstr), allocatable :: thirdOrder
 
-    !> evaluate Ewald parameter
-    logical :: tAutoEwald
-
     !> External charges
     type(TExtCharge), allocatable :: extCharge
-
-#:if WITH_SCALAPACK
-    !> Descriptor for 1/R matrix
-    integer :: descInvRMat(DLEN_)
-
-    !> Descriptor for charge vector
-    integer :: descQVec(DLEN_)
-
-    !> Distributed shift per atom vector
-    real(dp), allocatable :: shiftPerAtomGlobal(:,:)
-
-    !> Distributed charge vector
-    real(dp), allocatable :: qGlobal(:,:)
-#:endif
 
     !> Flag for activating the H5 H-bond correction
     logical :: tH5
@@ -256,10 +231,6 @@ contains
     type(TSccInp), intent(in) :: inp
 
     integer :: iSp1, iSp2, iU1, iU2, iL
-    real(dp) :: maxREwald, maxGEwald
-  #:if WITH_SCALAPACK
-    integer :: nRowLoc, nColLoc
-  #:endif
 
     @:ASSERT(.not. this%tInitialised)
 
@@ -273,26 +244,12 @@ contains
     @:ASSERT(allocated(inp%extCharges) .or. .not. allocated(inp%blurWidths))
 
     if (allocated(inp%latVecs)) then
-      call init(this%coulombCont, inp%coulombInput, this%nAtom, inp%latVecs)
+      call init(this%coulombCont, inp%coulombInput, env, this%nAtom, &
+          & inp%latVecs, inp%recVecs, inp%volume)
     else
-      call init(this%coulombCont, inp%coulombInput, this%nAtom)
+      call init(this%coulombCont, inp%coulombInput, env, this%nAtom)
     end if
 
-  #:if WITH_SCALAPACK
-    if (env%blacs%atomGrid%iproc /= -1) then
-      call scalafx_getdescriptor(env%blacs%atomGrid, this%nAtom, this%nAtom,&
-          & env%blacs%rowBlockSize, env%blacs%columnBlockSize, this%descInvRMat)
-      call scalafx_getlocalshape(env%blacs%atomGrid, this%descInvRMat, nRowLoc, nColLoc)
-      allocate(this%coulombCont%invRMat(nRowLoc, nColLoc))
-      call scalafx_getdescriptor(env%blacs%atomGrid, 1, this%nAtom, env%blacs%rowBlockSize,&
-          & env%blacs%columnBlockSize, this%descQVec)
-      call scalafx_getlocalshape(env%blacs%atomGrid, this%descQVec, nRowLoc, nColLoc)
-      allocate(this%shiftPerAtomGlobal(nRowLoc, nColLoc))
-      allocate(this%qGlobal(nRowLoc, nColLoc))
-    end if
-  #:else
-    allocate(this%coulombCont%invRMat(this%nAtom, this%nAtom))
-  #:endif
     allocate(this%shiftPerAtom(this%nAtom))
     allocate(this%shiftPerL(this%mShell, this%nAtom))
     allocate(this%shortGamma(0, 0, 0, 0))
@@ -340,31 +297,14 @@ contains
     end do
     this%cutoff = maxval(this%shortCutOff)
 
-    ! Initialize Ewald summation for the periodic case
     if (this%tPeriodic) then
       this%latVecs = inp%latVecs
       this%recVecs = inp%recVecs
       this%volume = inp%volume
-      this%tAutoEwald = inp%ewaldAlpha <= 0.0_dp
-      this%coulombCont%tolEwald = inp%tolEwald
-      if (this%tAutoEwald) then
-        this%coulombCont%alpha = getOptimalAlphaEwald(inp%latVecs, inp%recVecs, this%volume, this%coulombCont%tolEwald)
-      else
-        this%coulombCont%alpha = inp%ewaldAlpha
-      end if
-      maxREwald = getMaxREwald(this%coulombCont%alpha, this%coulombCont%tolEwald)
-      maxGEwald = getMaxGEwald(this%coulombCont%alpha, this%volume, this%coulombCont%tolEwald)
-      call getLatticePoints(this%coulombCont%gLatPoint, inp%recVecs, inp%latVecs/(2.0_dp*pi), maxGEwald,&
-          & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
-      this%coulombCont%gLatPoint(:,:) = matmul(inp%recVecs, this%coulombCont%gLatPoint)
     end if
 
     ! Number of neighbours for short range cutoff and real part of Ewald
     allocate(this%nNeighShort(this%mHubbU, this%mHubbU, this%nSpecies, this%nAtom))
-    if (this%tPeriodic) then
-      allocate(this%coulombCont%neighListGen)
-      call TDynNeighList_init(this%coulombCont%neighListGen, maxREwald, this%nAtom, this%tPeriodic)
-    end if
 
     ! Initialise external charges
     if (allocated(inp%extCharges)) then
@@ -460,20 +400,9 @@ contains
 
     this%coord = coord
 
-    call updateNNeigh_(this, species, neighList)
-    if (this%tPeriodic) then
-      call this%coulombCont%neighListGen%updateCoords(coord(:, 1:this%nAtom))
-    end if
+    call this%coulombCont%updateCoords(env, neighList, coord, species)
 
-    ! If process is outside of atom grid, skip invRMat calculation
-    if (allocated(this%coulombCont%invRMat)) then
-      if (this%tPeriodic) then
-        call invRPeriodic(env, this%nAtom, this%coord, this%coulombCont%neighListGen, this%coulombCont%gLatPoint,&
-            & this%coulombCont%alpha, this%volume, this%coulombCont%invRMat)
-      else
-        call invRCluster(env, this%nAtom, this%coord, this%coulombCont%invRMat)
-      end if
-    end if
+    call updateNNeigh_(this, species, neighList)
 
     call initGamma_(this, species, neighList%iNeighbour)
 
@@ -504,29 +433,15 @@ contains
     !> New volume
     real(dp), intent(in) :: vol
 
-    real(dp), allocatable :: dummy(:,:)
-    real(dp) :: maxREwald, maxGEwald
-
     @:ASSERT(this%tInitialised)
     @:ASSERT(this%tPeriodic)
 
-    this%volume = vol
-    if (this%tAutoEwald) then
-      this%coulombCont%alpha = getOptimalAlphaEwald(latVec, recVec, this%volume, this%coulombCont%tolEwald)
-      maxREwald = getMaxREwald(this%coulombCont%alpha, this%coulombCont%tolEwald)
-    end if
-    maxGEwald = getMaxGEwald(this%coulombCont%alpha, this%volume, this%coulombCont%tolEwald)
-    call getLatticePoints(this%coulombCont%gLatPoint, recVec, latVec/(2.0_dp*pi), maxGEwald,&
-        &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
-    this%coulombCont%gLatPoint = matmul(recVec, this%coulombCont%gLatPoint)
+    call this%coulombCont%updateLatVecs(latVec, recVec, vol)
 
+    this%volume = vol
     this%latVecs(:,:) = latVec
     this%recVecs(:,:) = recVec
 
-    ! Fold charges back to unit cell
-    call getCellTranslations(dummy, this%coulombCont%rCellVec, latVec, recVec / (2.0_dp * pi), maxREwald)
-
-    call this%coulombCont%neighListGen%updateLatVecs(latVec, recVec / (2.0_dp * pi))
     if (allocated(this%extCharge)) then
       call this%extCharge%setLatticeVectors(latVec, recVec)
     end if
@@ -1188,11 +1103,13 @@ contains
       deltaQAtom2D(1:1, 1:ll) => this%deltaQAtom
       ll = size(this%shiftPerAtom)    
       shiftPerAtom2D(1:1, 1:ll) => this%shiftPerAtom
-      call scalafx_cpl2g(env%blacs%atomGrid, deltaQAtom2D, this%descQVec, 1, 1, this%qGlobal)
-      call pblasfx_psymv(this%coulombCont%invRMat, this%descInvRMat, this%qGlobal, this%descQVec,&
-          & this%shiftPerAtomGlobal, this%descQVec)
-      call scalafx_cpg2l(env%blacs%atomGrid, this%descQVec, 1, 1, this%shiftPerAtomGlobal,&
-          & shiftPerAtom2D)
+      call scalafx_cpl2g(env%blacs%atomGrid, deltaQAtom2D, &
+          & this%coulombCont%descQVec, 1, 1, this%coulombCont%qGlobal)
+      call pblasfx_psymv(this%coulombCont%invRMat, this%coulombCont%descInvRMat, &
+          & this%coulombCont%qGlobal, this%coulombCont%descQVec,&
+          & this%coulombCont%shiftPerAtomGlobal, this%coulombCont%descQVec)
+      call scalafx_cpg2l(env%blacs%atomGrid, this%coulombCont%descQVec, 1, 1, &
+          & this%coulombCont%shiftPerAtomGlobal, shiftPerAtom2D)
     end if
     call mpifx_allreduceip(env%mpi%groupComm, this%shiftPerAtom, MPI_SUM)
   #:else

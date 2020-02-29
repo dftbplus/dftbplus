@@ -24,7 +24,7 @@ module dftbp_coulomb
   use dftbp_constants, only : pi
   use dftbp_dynneighlist
   use dftbp_commontypes, only : TOrbitals
-  use dftbp_periodic, only : TNeighbourList
+  use dftbp_periodic, only : TNeighbourList, getLatticePoints, getCellTranslations
   implicit none
 
   private
@@ -53,6 +53,13 @@ module dftbp_coulomb
 
   !> Input data for coulombic interaction container
   type :: TCoulombInput
+
+    !> if > 0 -> manual setting for alpha
+    real(dp) :: ewaldAlpha = 0.0_dp
+
+    !> Ewald tolerance
+    real(dp) :: tolEwald = 0.0_dp
+
   end type TCoulombInput
 
 
@@ -68,6 +75,12 @@ module dftbp_coulomb
     !> lattice vectors if periodic
     real(dp) :: latVecs(3, 3)
 
+    !> reciprocal lattice vectors
+    real(dp) :: recVecs(3, 3)
+
+    !> Cell volume
+    real(dp) :: volume
+
     !> Lattice points for reciprocal Ewald
     real(dp), allocatable :: gLatPoint(:,:)
 
@@ -77,14 +90,14 @@ module dftbp_coulomb
     !> Dynamic neighbour list for the real space Ewald summation
     type(TDynNeighList), allocatable :: neighListGen
 
+    !> evaluate Ewald parameter
+    logical :: tAutoEwald
+
     !> Parameter for Ewald
     real(dp) :: alpha
 
     !> Ewald tolerance
     real(dp) :: tolEwald
-
-    !> Cell volume
-    real(dp) :: volume
 
     !> are the coordinates current?
     logical :: tCoordsUpdated
@@ -100,6 +113,20 @@ module dftbp_coulomb
 
     !> Negative gross charge per atom
     real(dp), allocatable :: deltaQAtom(:)
+
+#:if WITH_SCALAPACK
+    !> Descriptor for 1/R matrix
+    integer :: descInvRMat(DLEN_)
+
+    !> Descriptor for charge vector
+    integer :: descQVec(DLEN_)
+
+    !> Distributed shift per atom vector
+    real(dp), allocatable :: shiftPerAtomGlobal(:,:)
+
+    !> Distributed charge vector
+    real(dp), allocatable :: qGlobal(:,:)
+#:endif
 
   contains
 
@@ -166,7 +193,7 @@ module dftbp_coulomb
 contains
 
 
-  subroutine initialize(self, input, nAtom, latVecs)
+  subroutine initialize(self, input, env, nAtom, latVecs, recVecs, volume)
 
     !> Data structure
     class(TCoulombCont), intent(out) :: self
@@ -174,24 +201,78 @@ contains
     !> Input data for coulombic interaction container
     class(TCoulombInput), intent(in) :: input
 
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
 
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
-    if (present(latVecs)) then
+    !> reciprocal lattice vectors
+    real(dp), intent(in), optional :: recVecs(:,:)
+
+    !> Cell volume
+    real(dp), intent(in), optional :: volume
+
+    real(dp) :: maxREwald, maxGEwald
+  #:if WITH_SCALAPACK
+    integer :: nRowLoc, nColLoc
+  #:endif
+
+    @:ASSERT(present(latVecs) .eqv. present(recVecs))
+    @:ASSERT(present(recVecs) .eqv. present(volume))
+
+    self%nAtom = nAtom
+
+    if (present(latVecs) .and. present(recVecs) .and. present(volume)) then
       self%boundaryCondition = boundaryCondition%pbc3d
-      call self%updateLatVecs(latVecs)
+      self%latVecs(:, :) = latVecs
+      self%recVecs(:, :) = recVecs
+      self%volume = volume
+
+      ! Initialize Ewald summation for the periodic case
+      self%tAutoEwald = input%ewaldAlpha <= 0.0_dp
+      self%tolEwald = input%tolEwald
+      if (self%tAutoEwald) then
+        self%alpha = getOptimalAlphaEwald(latVecs, recVecs, volume, self%tolEwald)
+      else
+        self%alpha = input%ewaldAlpha
+      end if
+      maxREwald = getMaxREwald(self%alpha, self%tolEwald)
+      maxGEwald = getMaxGEwald(self%alpha, volume, self%tolEwald)
+      call getLatticePoints(self%gLatPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
+          & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
+      self%gLatPoint(:,:) = matmul(recVecs, self%gLatPoint)
+
+      allocate(self%neighListGen)
+      call TDynNeighList_init(self%neighListGen, maxREwald, nAtom, .true.)
     else
       self%boundaryCondition = boundaryCondition%cluster
     end if
+
+  #:if WITH_SCALAPACK
+    if (env%blacs%atomGrid%iproc /= -1) then
+      call scalafx_getdescriptor(env%blacs%atomGrid, nAtom, nAtom,&
+          & env%blacs%rowBlockSize, env%blacs%columnBlockSize, self%descInvRMat)
+      call scalafx_getlocalshape(env%blacs%atomGrid, self%descInvRMat, nRowLoc, nColLoc)
+      allocate(self%invRMat(nRowLoc, nColLoc))
+      call scalafx_getdescriptor(env%blacs%atomGrid, 1, nAtom, env%blacs%rowBlockSize,&
+          & env%blacs%columnBlockSize, self%descQVec)
+      call scalafx_getlocalshape(env%blacs%atomGrid, self%descQVec, nRowLoc, nColLoc)
+      allocate(self%shiftPerAtomGlobal(nRowLoc, nColLoc))
+      allocate(self%qGlobal(nRowLoc, nColLoc))
+    end if
+  #:else
+    allocate(self%invRMat(nAtom, nAtom))
+  #:endif
 
   end subroutine initialize
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
+  subroutine updateCoords(self, env, neighList, coords, species)
 
     !> Data structure
     class(TCoulombCont), intent(inout) :: self
@@ -202,14 +283,25 @@ contains
     !> List of neighbours to atoms
     type(TNeighbourList), intent(in) :: neighList
 
-    !> Image to central cell atom index
-    integer, intent(in) :: img2CentCell(:)
-
     !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
     !> Central cell chemical species
-    integer, intent(in) :: species0(:)
+    integer, intent(in) :: species(:)
+
+    if (self%boundaryCondition == boundaryCondition%pbc3d) then
+      call self%neighListGen%updateCoords(coords(:, 1:self%nAtom))
+    end if
+
+    ! If process is outside of atom grid, skip invRMat calculation
+    if (allocated(self%invRMat)) then
+      if (self%boundaryCondition == boundaryCondition%pbc3d) then
+        call invRPeriodic(env, self%nAtom, coords, self%neighListGen, self%gLatPoint,&
+            & self%alpha, self%volume, self%invRMat)
+      else
+        call invRCluster(env, self%nAtom, coords, self%invRMat)
+      end if
+    end if
 
     self%tCoordsUpdated = .true.
     self%tChargesUpdated = .false.
@@ -218,15 +310,43 @@ contains
 
 
   !> Update internal copy of lattice vectors
-  subroutine updateLatVecs(self, latVecs)
+  subroutine updateLatVecs(self, latVecs, recVecs, volume)
 
     !> Data structure
     class(TCoulombCont), intent(inout) :: self
 
-    !> Lattice vectors
+    !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
+    !> New reciprocal lattice vectors
+    real(dp), intent(in) :: recVecs(:,:)
+
+    !> New volume
+    real(dp), intent(in) :: volume
+
+    real(dp) :: maxREwald, maxGEwald
+
+    real(dp), allocatable :: dummy(:,:)
+
     @:ASSERT(all(shape(latVecs) == shape(self%latVecs)))
+
+    if (self%tAutoEwald) then
+      self%alpha = getOptimalAlphaEwald(latVecs, recVecs, volume, self%tolEwald)
+      maxREwald = getMaxREwald(self%alpha, self%tolEwald)
+    end if
+    maxGEwald = getMaxGEwald(self%alpha, volume, self%tolEwald)
+    call getLatticePoints(self%gLatPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
+        &onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
+    self%gLatPoint = matmul(recVecs, self%gLatPoint)
+
+    self%latVecs(:, :) = latVecs
+    self%recVecs(:, :) = recVecs
+    self%volume = volume
+
+    ! Fold charges back to unit cell
+    call getCellTranslations(dummy, self%rCellVec, latVecs, recVecs / (2.0_dp * pi), maxREwald)
+
+    call self%neighListGen%updateLatVecs(latVecs, recVecs / (2.0_dp * pi))
 
     self%tCoordsUpdated = .false.
     self%tChargesUpdated = .false.
