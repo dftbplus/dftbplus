@@ -17,6 +17,7 @@ module dftbp_scc
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_message
+  use dftbp_charges, only : getSummedCharges
   use dftbp_coulomb, only : TCoulombCont, TCoulombInput, init, &
       & sumInvR, addInvRPrime, invRStress, addInvRPrimeXlbomd
   use dftbp_shortgamma
@@ -35,6 +36,7 @@ module dftbp_scc
   private
 
   public :: TSccInp, TScc, initialize
+
 
   !> Data necessary to initialize the SCC module
   type TSccInp
@@ -188,29 +190,71 @@ module dftbp_scc
     type(TCoulombCont) :: coulombCont
 
   contains
+
+    !> Returns a minimal cutoff for the neighbourlist
     procedure :: getCutOff
+
+    !> Returns the currenty used alpha parameter of the Ewald-summation
     procedure :: getEwaldPar
+
+    !> Updates the atom coordinates for the SCC module
     procedure :: updateCoords
+
+    !> Updates the SCC module, if the lattice vectors had been changed
     procedure :: updateLatVecs
+
+    !> Updates the SCC module, if the charges have been changed
     procedure :: updateCharges
+
+    !> TODO
     procedure :: setExternalCharges
+
+    !> Update potential shifts
     procedure :: updateShifts
+
+    !> Routine for returning lower triangle of atomic resolved gamma as a matrix
     procedure :: getAtomicGammaMatrix
+
+    !> Calculates the contribution of the SCC to the energy per atom
     procedure :: getEnergyPerAtom
+
+    !> Calculates SCC energy contribution using the linearized XLBOMD form
     procedure :: getEnergyPerAtomXlbomd
+
+    !> Calculates the contribution of the SCC to the forces
     procedure :: addForceDc
+
+    !> Calculates the contribution of the stress tensor
     procedure :: addStressDc
+
+    !> Returns the shift per atom coming from the SCC part
     procedure :: getShiftPerAtom
+
+    !> Returns the shift per L contribution of the SCC.
     procedure :: getShiftPerL
+
+    !> set electrostatic shifts (e.g. Poisson solver)
     procedure :: setShiftPerAtom
+
+    !> set the shifts from outside (e.g. Poisson solver)
     procedure :: setShiftPerL
+
+    !> Returns the equivalency relations between orbitals of the atoms
     procedure :: getOrbitalEquiv
+
+    !> Calculate the "double counting" force term using linearized XLBOMD form
     procedure :: addForceDcXlbomd
+
+    !> Returns potential from DFTB charges
     procedure :: getInternalElStatPotential
+
+    !> Returns potential from external charges
     procedure :: getExternalElStatPotential
+
   end type TScc
 
 
+  !> TODO
   interface initialize
     module procedure Scc_initialize
   end interface initialize
@@ -219,6 +263,7 @@ module dftbp_scc
 contains
 
 
+  !> TODO
   subroutine Scc_initialize(this, env, inp)
 
     !> Resulting instance
@@ -472,10 +517,11 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbital, q0, this%deltaQ,&
+    call getSummedCharges(species, orb, qOrbital, q0, this%iHubbU, this%deltaQ, &
         & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
 
   end subroutine updateCharges
+
 
   !> Update potential shifts. Call after updateCharges
   subroutine updateShifts(this, env, orb, species, iNeighbor, img2CentCell)
@@ -511,10 +557,20 @@ contains
 
   end subroutine updateShifts
 
+
+  !> TODO
   subroutine setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
+
+    !> TODO
     class(TScc), intent(inout) :: this
+
+    !> TODO
     real(dp), intent(in) :: chargeCoords(:,:)
+
+    !> TODO
     real(dp), intent(in) :: chargeQs(:)
+
+    !> TODO
     real(dp), intent(in), optional :: blurWidths(:)
 
     if (.not. allocated(this%extCharge)) then
@@ -635,8 +691,8 @@ contains
     allocate(dQOutAtom(this%nAtom))
     allocate(dQOutShell(this%mShell, this%nAtom))
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOut, q0, dQOut, dQOutAtom,&
-        & dQOutShell)
+    call getSummedCharges(species, orb, qOut, q0, this%iHubbU, dQOut, &
+        & dQOutAtom, dQOutShell)
 
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
     eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
@@ -823,6 +879,7 @@ contains
 
   end subroutine setShiftPerAtom
 
+
   !> set the shifts from outside (e.g. Poisson solver)
   subroutine setShiftPerL(this, shift)
 
@@ -925,7 +982,7 @@ contains
     allocate(dQOutLShell(this%mShell, this%nAtom))
     allocate(dQOutUniqU(this%mHubbU, this%nAtom))
 
-    call getSummedCharges_(this%nAtom, this%iHubbU, species, orb, qOrbitalOut, q0, dQOut,&
+    call getSummedCharges(species, orb, qOrbitalOut, q0, this%iHubbU, dQOut, &
         & dQOutAtom, dQOutLShell, dQOutUniqU)
 
     ! Short-range part of gamma contribution
@@ -1454,149 +1511,6 @@ contains
     st(:,:) = st(:,:) / this%volume
 
   end subroutine addSTGammaPrime_
-
-
-  !> Calculates various gross charges needed by the SCC module.
-  subroutine getSummedCharges_(nAtom, iHubbU, species, orb, qOrbital, q0, dQ, dQAtom, dQShell,&
-      & dQUniqU)
-
-    !> Number of atoms in the system
-    integer, intent(in) :: nAtom
-
-    !> Mapping L-shell -> uniq U
-    integer, intent(in) :: iHubbU(:,:)
-
-    !> chemical species for atoms
-    integer, intent(in) :: species(:)
-
-    !> Contains information about the atomic orbitals in the system
-    type(TOrbitals), intent(in) :: orb
-
-    !> Orbital resolved charges
-    real(dp), intent(in) :: qOrbital(:,:,:)
-
-    !> Reference charge distribution (neutral atoms)
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> gross charge for each orbital
-    real(dp), intent(out) :: dQ(:,:)
-
-    !> gross charge for each atom
-    real(dp), intent(out) :: dQAtom(:)
-
-    !> gross charge for each atomic shell
-    real(dp), intent(out) :: dQShell(:,:)
-
-    !> gross charge for shells with the same U value on atoms
-    real(dp), intent(out), optional :: dQUniqU(:,:)
-
-    call getSummedChargesPerOrbital_(qOrbital(:,:,1), q0(:,:,1), dQ)
-    call getSummedChargesPerAtom_(dQ, dQAtom)
-    call getSummedChargesPerLShell_(nAtom,species, orb, dQ, dQShell)
-    if (present(dQUniqU)) then
-      call getSummedChargesPerUniqU_(nAtom, iHubbU, species, orb, dQShell, dQUniqU)
-    end if
-
-  end subroutine getSummedCharges_
-
-
-  !> gross charges for each atomic orbital
-  subroutine getSummedChargesPerOrbital_(qOrbital, q0, deltaQ)
-
-    !> orbital charges
-    real(dp), intent(in) :: qOrbital(:,:)
-
-    !> reference charges
-    real(dp), intent(in) :: q0(:,:)
-
-    !> resulting gross charges
-    real(dp), intent(out) :: deltaQ(:,:)
-
-    deltaQ(:,:) = qOrbital(:,:) - q0(:,:)
-
-  end subroutine getSummedChargesPerOrbital_
-
-
-  !> gross charges per atom
-  subroutine getSummedChargesPerAtom_(deltaQ, deltaQAtom)
-
-    !> gross charges
-    real(dp), intent(in) :: deltaQ(:,:)
-
-    !> gross charge per atom
-    real(dp), intent(out) :: deltaQAtom(:)
-
-    deltaQAtom(:) = sum(deltaQ(:,:), dim=1)
-
-  end subroutine getSummedChargesPerAtom_
-
-
-  !> gross charge per atomic shell
-  subroutine getSummedChargesPerLShell_(nAtom,species, orb, deltaQ, deltaQPerLShell)
-
-    !> species of atom
-    integer, intent(in) :: nAtom
-
-    !> species of atom
-    integer, intent(in) :: species(:)
-
-    !> orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> gross charge for orbitals
-    real(dp), intent(in) :: deltaQ(:,:)
-
-    !> gross charge per atomic shell
-    real(dp), intent(out) :: deltaQPerLShell(:,:)
-
-    integer :: iAt, iSp, iSh, iStart, iend
-
-    deltaQPerLShell(:,:) = 0.0_dp
-    do iAt = 1, nAtom
-      iSp = species(iAt)
-      do iSh = 1, orb%nShell(iSp)
-        iStart = orb%posShell(iSh,iSp)
-        iEnd = orb%posShell(iSh+1,iSp)-1
-        deltaQPerLShell(iSh, iAt) = sum(deltaQ(iStart:iEnd, iAt))
-      end do
-    end do
-
-  end subroutine getSummedChargesPerLShell_
-
-
-  !> gross charges for orbitals with the same hubard U value on an atom
-  subroutine getSummedChargesPerUniqU_(nAtom, iHubbU, species, orb, deltaQPerLShell, deltaQUniqU)
-
-    !> species of atom
-    integer, intent(in) :: nAtom
-
-    !> Mapping L-shell -> uniq U
-    integer, intent(in) :: iHubbU(:,:)
-
-    !> chemical species
-    integer, intent(in) :: species(:)
-
-    !> orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Summed charge over l-shell of atom
-    real(dp), intent(in) :: deltaQPerLShell(:,:)
-
-    !> Charge for unique groups of orbitals
-    real(dp), intent(out) :: deltaQUniqU(:,:)
-
-    integer :: iAt, iSp, iSh
-
-    deltaQUniqU(:,:) = 0.0_dp
-    do iAt = 1, nAtom
-      iSp = species(iAt)
-      do iSh = 1, orb%nShell(iSp)
-        deltaQUniqU(iHubbU(iSh, iSp), iAt) =  deltaQUniqU(iHubbU(iSh, iSp), iAt)&
-            & + deltaQPerLShell(iSh, iAt)
-      end do
-    end do
-
-  end subroutine getSummedChargesPerUniqU_
 
 
 end module dftbp_scc
