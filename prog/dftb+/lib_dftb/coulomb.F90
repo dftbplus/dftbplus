@@ -144,7 +144,7 @@ module dftbp_coulomb
     procedure :: addGradients
 
     !> get stress tensor contributions
-    procedure :: getStress
+    procedure :: addStress
 
     !> Updates with changed charges for the instance
     procedure :: updateCharges
@@ -403,50 +403,106 @@ contains
 
 
   !> Get force contributions
-  subroutine addGradients(self, env, neighList, species, coords, img2CentCell, gradients)
+  subroutine addGradients(self, env, coords, species, iNeighbour, img2CentCell, &
+      & gradients, dQOut, dQOutAtom, dQOutShell)
 
     !> Data structure
-    class(TCoulombCont), intent(inout) :: self
+    class(TCoulombCont), intent(in) :: self
 
-    !> Computational environment settings
+    !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> Neighbour list.
-    type(TNeighbourList), intent(in) :: neighList
-
-    !> Specie for each atom.
-    integer, intent(in) :: species(:)
-
-    !> Coordinate of each atom.
+    !> Atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    !> Mapping of atoms to cetnral cell.
+    !> Species for each atom
+    integer, intent(in) :: species(:)
+
+    !> List of neighbours for each atom
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell
     integer, intent(in) :: img2CentCell(:)
 
-    !> Gradient contributions for each atom
+    !> Gradient contributions
     real(dp), intent(inout) :: gradients(:,:)
+
+    !> Negative gross charge (present for XLBOMD)
+    real(dp), intent(in), optional :: dQOut(:,:)
+
+    !> Negative gross charge per atom (present for XLBOMD)
+    real(dp), intent(in), optional :: dQOutAtom(:)
+
+    !> Negative gross charge per shell (present for XLBOMD)
+    real(dp), intent(in), optional :: dQOutShell(:,:)
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
+    @:ASSERT(present(dQOut) .eqv. present(dQOutAtom))
+    @:ASSERT(present(dQOut) .eqv. present(dQOutShell))
     @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
+
+    ! 1/R contribution
+    if (present(dQOutAtom)) then
+      if (self%boundaryCondition == boundaryCondition%pbc3d) then
+        call addInvRPrimeXlbomd(env, self%nAtom, coords, self%neighListGen, &
+            & self%gLatPoint, self%alpha, self%volume, self%deltaQAtom, &
+            & dQOutAtom, gradients)
+      else
+        call addInvRPrimeXlbomd(env, self%nAtom, coords, self%deltaQAtom, &
+            & dQOutAtom, gradients)
+      end if
+    else
+      if (self%boundaryCondition == boundaryCondition%pbc3d) then
+        call addInvRPrime(env, self%nAtom, coords, self%neighListGen, &
+            & self%gLatPoint, self%alpha, self%volume, self%deltaQAtom, gradients)
+      else
+        call addInvRPrime(env, self%nAtom, coords, self%deltaQAtom, gradients)
+      end if
+    end if
 
   end subroutine addGradients
 
 
   !> Get stress tensor contributions
-  subroutine getStress(self, stress)
+  subroutine addStress(self, env, coords, species, iNeighbour, img2CentCell, &
+      & stress)
 
     !> Data structure
-    class(TCoulombCont), intent(inout) :: self
+    class(TCoulombCont), intent(in) :: self
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Atomic coordinates
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Species for each atom.
+    integer, intent(in) :: species(:)
+
+    !> List of neighbours for each atom.
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Indexing of images of the atoms in the central cell.
+    integer, intent(in) :: img2CentCell(:)
 
     !> Stress tensor contributions
-    real(dp), intent(out) :: stress(:,:)
+    real(dp), intent(inout) :: stress(:,:)
+
+    real(dp) :: stTmp(3,3)
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(all(shape(stress) == [3, 3]))
 
-  end subroutine getStress
+    ! 1/R contribution
+    stTmp = 0.0_dp
+    call invRStress(env, self%nAtom, coords, self%neighListGen, self%gLatPoint, self%alpha,&
+        & self%volume, self%deltaQAtom, stTmp)
+
+    stress(:,:) = stress(:,:) - 0.5_dp * stTmp(:,:)
+
+  end subroutine addStress
 
 
   !> Updates with changed charges for the instance.

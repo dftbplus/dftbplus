@@ -529,7 +529,7 @@ contains
 
 
   !> Update potential shifts. Call after updateCharges
-  subroutine updateShifts(this, env, orb, species, iNeighbor, img2CentCell)
+  subroutine updateShifts(this, env, orb, species, iNeighbour, img2CentCell)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
@@ -543,17 +543,17 @@ contains
     !> Species of the atoms (should not change during run)
     integer, intent(in) :: species(:)
 
-    !> Neighbor indexes
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbour indexes
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Mapping on atoms in the central cell
     integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(this%tInitialised)
 
-    call buildShifts_(this, env, orb, species, iNeighbor, img2CentCell)
+    call buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
 
-    call this%coulombCont%updateShifts(env, orb, species, iNeighbor, img2CentCell)
+    call this%coulombCont%updateShifts(env, orb, species, iNeighbour, img2CentCell)
 
     if (this%tChrgConstr) then
       call buildShift(this%chrgConstr, this%deltaQAtom)
@@ -758,13 +758,8 @@ contains
     ! Short-range part of gamma contribution
     call addGammaPrime_(this, force, species, iNeighbour, img2CentCell)
 
-    ! 1/R contribution
-    if (this%tPeriodic) then
-      call addInvRPrime(env, this%nAtom, this%coord, this%coulombCont%neighListGen, this%coulombCont%gLatPoint,&
-          & this%coulombCont%alpha, this%volume, this%deltaQAtom, force)
-    else
-      call addInvRPrime(env, this%nAtom, this%coord, this%deltaQAtom, force)
-    end if
+    call this%coulombCont%addGradients(env, this%coord, species, iNeighbour, &
+        & img2CentCell, force)
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
@@ -814,13 +809,8 @@ contains
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
 
     ! 1/R contribution
-    ! call invRstress
-
-    stTmp = 0.0_dp
-    call invRStress(env, this%nAtom, this%coord, this%coulombCont%neighListGen, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
-        & this%volume, this%deltaQAtom, stTmp)
-
-    st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
+    call this%coulombCont%addStress(env, this%coord, species, iNeighbour, &
+        & img2CentCell, st)
 
     ! if (tExtChrg_) then
     ! ????
@@ -1001,13 +991,8 @@ contains
     call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour,&
         & img2CentCell, force)
 
-    ! 1/R contribution
-    if (this%tPeriodic) then
-      call addInvRPrimeXlbomd(env, this%nAtom, this%coord, this%coulombCont%neighListGen, this%coulombCont%gLatPoint,&
-          & this%coulombCont%alpha, this%volume, this%deltaQAtom, dQOutAtom, force)
-    else
-      call addInvRPrimeXlbomd(env, this%nAtom, this%coord, this%deltaQAtom, dQOutAtom, force)
-    end if
+    call this%coulombCont%addGradients(env, this%coord, species, iNeighbour, &
+        & img2CentCell, force, dQOut, dQOutAtom, dQOutLShell)
 
     if (allocated(this%extCharge)) then
       call error("XLBOMD with external charges does not work yet!")
