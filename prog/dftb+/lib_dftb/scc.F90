@@ -16,8 +16,7 @@ module dftbp_scc
   use dftbp_chargeconstr
   use dftbp_commontypes
   use dftbp_constants
-  use dftbp_coulomb, only : TCoulombCont, TCoulombInput, init, &
-      & sumInvR, addInvRPrime, invRStress, addInvRPrimeXlbomd
+  use dftbp_coulomb, only : TCoulombCont, TCoulombInput, init, sumInvR
   use dftbp_dynneighlist
   use dftbp_environment
   use dftbp_fileid
