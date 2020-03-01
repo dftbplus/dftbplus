@@ -9,22 +9,23 @@
 
 !> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
 module dftbp_coulomb
-#:if WITH_SCALAPACK
-  use dftbp_scalapackfx
-#:endif
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_blasroutines, only : hemv
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_constants, only : pi
+  use dftbp_dynneighlist
+  use dftbp_environment
+  use dftbp_errorfunction
+  use dftbp_message
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
-  use dftbp_schedule
-  use dftbp_environment
-  use dftbp_assert
-  use dftbp_accuracy
-  use dftbp_message
-  use dftbp_errorfunction
-  use dftbp_constants, only : pi
-  use dftbp_dynneighlist
-  use dftbp_commontypes, only : TOrbitals
   use dftbp_periodic, only : TNeighbourList, getLatticePoints, getCellTranslations
+#:if WITH_SCALAPACK
+  use dftbp_scalapackfx
+#:endif
+  use dftbp_schedule
   implicit none
 
   private
@@ -137,7 +138,7 @@ module dftbp_coulomb
     procedure :: updateLatVecs
 
     !> get energy contributions
-    procedure :: getEnergies
+    procedure :: addEnergy
 
     !> get force contributions
     procedure :: addGradients
@@ -145,11 +146,17 @@ module dftbp_coulomb
     !> get stress tensor contributions
     procedure :: getStress
 
-    !> Updates with changed charges for the instance.
+    !> Updates with changed charges for the instance
     procedure :: updateCharges
 
+    !> Update potential shifts for the instance
+    procedure :: updateShifts
+
     !> Returns shifts per atom
-    procedure :: getShifts
+    procedure :: addShiftPerAtom
+
+    !> Returns shifts per shell
+    procedure :: addShiftPerShell
 
   end type TCoulombCont
 
@@ -268,6 +275,12 @@ contains
     allocate(self%invRMat(nAtom, nAtom))
   #:endif
 
+    ! Initialise arrays for charge differences
+    allocate(self%deltaQAtom(nAtom))
+
+    ! Initialise arrays for potential shifts
+    allocate(self%shiftPerAtom(nAtom))
+
   end subroutine initialize
 
 
@@ -354,20 +367,39 @@ contains
   end subroutine updateLatVecs
 
 
-  !> Get energy contributions
-  subroutine getEnergies(self, energies)
+  !> Get energy contributions from coulombic interactions
+  subroutine addEnergy(self, energies, dQOut, dQOutAtom, dQOutShell)
 
     !> Data structure
-    class(TCoulombCont), intent(inout) :: self
+    class(TCoulombCont), intent(in) :: self
 
     !> Energy contributions for each atom
-    real(dp), intent(out) :: energies(:)
+    real(dp), intent(inout) :: energies(:)
+
+    !> Negative gross charge (present for XLBOMD)
+    real(dp), intent(in), optional :: dQOut(:,:)
+
+    !> Negative gross charge per atom (present for XLBOMD)
+    real(dp), intent(in), optional :: dQOutAtom(:)
+
+    !> Negative gross charge per shell (present for XLBOMD)
+    real(dp), intent(in), optional :: dQOutShell(:,:)
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
+    @:ASSERT(present(dQOut) .eqv. present(dQOutAtom))
+    @:ASSERT(present(dQOut) .eqv. present(dQOutShell))
     @:ASSERT(size(energies) == self%nAtom)
 
-  end subroutine getEnergies
+    if (present(dQOutAtom)) then
+      ! XLBOMD: 1/2 sum_A (2 q_A - n_A) * shift(n_A)
+      energies(:) = energies + 0.5_dp * self%shiftPerAtom * (2.0_dp * dQOutAtom &
+          & - self%deltaQAtom)
+    else
+      energies(:) = energies + 0.5_dp * self%shiftPerAtom * self%deltaQAtom
+    end if
+
+  end subroutine addEnergy
 
 
   !> Get force contributions
@@ -393,7 +425,7 @@ contains
 
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
-    
+
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
@@ -418,57 +450,133 @@ contains
 
 
   !> Updates with changed charges for the instance.
-  subroutine updateCharges(self, env, species, neighList, qq, q0, img2CentCell, orb)
+  subroutine updateCharges(self, env, qOrbital, q0, orb, species, deltaQ, &
+        & deltaQAtom, deltaQPerLShell, deltaQUniqU)
 
     !> Data structure
     class(TCoulombCont), intent(inout) :: self
 
-    !> Computational environment settings
+    !> Environment settings
     type(TEnvironment), intent(in) :: env
+
+    !> Orbital resolved charges
+    real(dp), intent(in) :: qOrbital(:,:,:)
+
+    !> Reference charge distribution (neutral atoms)
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
 
     !> Species, shape: [nAtom]
     integer, intent(in) :: species(:)
 
-    !> Neighbour list.
-    type(TNeighbourList), intent(in) :: neighList
+    !> Negative gross charge
+    real(dp), intent(in) :: deltaQ(:,:)
 
-    !> Orbital charges.
-    real(dp), intent(in) :: qq(:,:,:)
+    !> Negative gross charge per shell
+    real(dp), intent(in) :: deltaQPerLShell(:,:)
 
-    !> Reference orbital charges.
-    real(dp), intent(in) :: q0(:,:,:)
+    !> Negative gross charge per atom
+    real(dp), intent(in) :: deltaQAtom(:)
 
-    !> Mapping on atoms in central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Orbital information
-    type(TOrbitals), intent(in) :: orb
+    !> Negative gross charge per U
+    real(dp), intent(in) :: deltaQUniqU(:,:)
 
     @:ASSERT(self%tCoordsUpdated)
+
+    self%deltaQAtom(:) = deltaQAtom
 
     self%tChargesUpdated = .true.
 
   end subroutine updateCharges
 
 
-  !> Returns shifts per atom
-  subroutine getShifts(self, shiftPerAtom, shiftPerShell)
+  !> Update potential shifts. Call after updateCharges
+  subroutine updateShifts(self, env, orb, species, iNeighbour, img2CentCell)
 
     !> Data structure
-    class(TCoulombCont), intent(inout) :: self
+    class(TCoulombCont), intent(inout), target :: self
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Contains information about the atomic orbitals in the system
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species of the atoms (should not change during run)
+    integer, intent(in) :: species(:)
+
+    !> Neighbor indexes
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> Mapping on atoms in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+  #:if WITH_SCALAPACK
+    real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
+  #:endif
+
+    integer :: ll
+
+    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(self%tChargesUpdated)
+
+    self%shiftPerAtom(:) = 0.0_dp
+
+  #:if WITH_SCALAPACK
+    if (env%blacs%atomGrid%iproc /= -1) then
+      ll = size(self%deltaQAtom)
+      deltaQAtom2D(1:1, 1:ll) => self%deltaQAtom
+      ll = size(self%shiftPerAtom)
+      shiftPerAtom2D(1:1, 1:ll) => self%shiftPerAtom
+      call scalafx_cpl2g(env%blacs%atomGrid, deltaQAtom2D, self%descQVec, 1, 1, &
+          & self%qGlobal)
+      call pblasfx_psymv(self%invRMat, self%descInvRMat, self%qGlobal, &
+          & self%descQVec, self%shiftPerAtomGlobal, self%descQVec)
+      call scalafx_cpg2l(env%blacs%atomGrid, self%descQVec, 1, 1, &
+          & self%shiftPerAtomGlobal, shiftPerAtom2D)
+    end if
+    call mpifx_allreduceip(env%mpi%groupComm, self%shiftPerAtom, MPI_SUM)
+  #:else
+    call hemv(self%shiftPerAtom, self%invRMat, self%deltaQAtom, 'L')
+  #:endif
+
+  end subroutine updateShifts
+
+
+  !> Returns shifts per atom
+  subroutine addShiftPerAtom(self, shiftPerAtom)
+
+    !> Data structure
+    class(TCoulombCont), intent(in) :: self
 
     !> Shift per atom
-    real(dp), intent(out) :: shiftPerAtom(:)
-
-    !> Shift per shell
-    real(dp), intent(out) :: shiftPerShell(:,:)
+    real(dp), intent(inout) :: shiftPerAtom(:)
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(size(shiftPerAtom) == self%nAtoms)
+
+    shiftPerAtom(:) = shiftPerAtom + self%shiftPerAtom
+
+  end subroutine addShiftPerAtom
+
+
+  !> Returns shifts per atom
+  subroutine addShiftPerShell(self, shiftPerShell)
+
+    !> Data structure
+    class(TCoulombCont), intent(in) :: self
+
+    !> Shift per shell
+    real(dp), intent(inout) :: shiftPerShell(:,:)
+
+    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(self%tChargesUpdated)
     @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
 
-  end subroutine getShifts
+  end subroutine addShiftPerShell
 
 
   !> Calculates the 1/R Matrix for all atoms for the non-periodic case.  Only the lower triangle is

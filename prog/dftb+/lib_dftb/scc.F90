@@ -9,28 +9,30 @@
 
 !> Functions and local variables for the SCC calculation.
 module dftbp_scc
-#:if WITH_SCALAPACK
-  use dftbp_mpifx
-  use dftbp_scalapackfx
-#:endif
-  use dftbp_environment
   use dftbp_assert
   use dftbp_accuracy
-  use dftbp_message
+  use dftbp_blasroutines
   use dftbp_charges, only : getSummedCharges
+  use dftbp_chargeconstr
+  use dftbp_commontypes
+  use dftbp_constants
   use dftbp_coulomb, only : TCoulombCont, TCoulombInput, init, &
       & sumInvR, addInvRPrime, invRStress, addInvRPrimeXlbomd
-  use dftbp_shortgamma
-  use dftbp_fileid
-  use dftbp_constants
-  use dftbp_periodic
-  use dftbp_externalcharges
-  use dftbp_blasroutines
-  use dftbp_commontypes
-  use dftbp_chargeconstr
-  use dftbp_shift
   use dftbp_dynneighlist
+  use dftbp_environment
+  use dftbp_fileid
+  use dftbp_externalcharges
   use dftbp_h5correction
+  use dftbp_message
+#:if WITH_MPI
+  use dftbp_mpifx
+#:endif
+  use dftbp_periodic
+#:if WITH_SCALAPACK
+  use dftbp_scalapackfx
+#:endif
+  use dftbp_shift
+  use dftbp_shortgamma
   implicit none
 
   private
@@ -520,6 +522,9 @@ contains
     call getSummedCharges(species, orb, qOrbital, q0, this%iHubbU, this%deltaQ, &
         & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
 
+    call this%coulombCont%updateCharges(env, qOrbital, q0, orb, species, &
+        & this%deltaQ, this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
+
   end subroutine updateCharges
 
 
@@ -547,6 +552,8 @@ contains
     @:ASSERT(this%tInitialised)
 
     call buildShifts_(this, env, orb, species, iNeighbor, img2CentCell)
+
+    call this%coulombCont%updateShifts(env, orb, species, iNeighbor, img2CentCell)
 
     if (this%tChrgConstr) then
       call buildShift(this%chrgConstr, this%deltaQAtom)
@@ -644,6 +651,7 @@ contains
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom&
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
 
+    call this%coulombCont%addEnergy(eScc)
     if (allocated(this%extCharge)) then
       call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
@@ -697,6 +705,8 @@ contains
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
     eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
         & + sum(this%shiftPerL * (2.0_dp * dQOutShell - this%deltaQPerLShell), dim=1))
+
+    call this%coulombCont%addEnergy(eScc, dQOut, dQOutAtom, dQOutShell)
 
     if (allocated(this%extCharge)) then
       call error("XLBOMD not working with external charges yet")
@@ -831,7 +841,8 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
-    shift = this%shiftPerAtom
+    shift(:) = this%shiftPerAtom
+    call this%coulombCont%addShiftPerAtom(shift)
     if (allocated(this%extCharge)) then
       call this%extCharge%addShiftPerAtom(shift)
     end if
@@ -859,7 +870,8 @@ contains
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
     
-    shift = this%shiftPerL
+    shift(:, :) = this%shiftPerL
+    call this%coulombCont%addShiftPerShell(shift)
 
   end subroutine getShiftPerL
 
@@ -875,7 +887,7 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
     
-    this%shiftPerAtom = shift
+    this%shiftPerAtom(:) = shift
 
   end subroutine setShiftPerAtom
 
@@ -893,7 +905,7 @@ contains
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
     
-    this%shiftPerL = shift
+    this%shiftPerL(:, :) = shift
 
   end subroutine setShiftPerL
 
@@ -1146,32 +1158,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-  #:if WITH_SCALAPACK
-    real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
-  #:endif
-   
-    integer :: ll
-
     this%shiftPerAtom(:) = 0.0_dp
-
-  #:if WITH_SCALAPACK
-    if (env%blacs%atomGrid%iproc /= -1) then
-      ll = size(this%deltaQAtom)    
-      deltaQAtom2D(1:1, 1:ll) => this%deltaQAtom
-      ll = size(this%shiftPerAtom)    
-      shiftPerAtom2D(1:1, 1:ll) => this%shiftPerAtom
-      call scalafx_cpl2g(env%blacs%atomGrid, deltaQAtom2D, &
-          & this%coulombCont%descQVec, 1, 1, this%coulombCont%qGlobal)
-      call pblasfx_psymv(this%coulombCont%invRMat, this%coulombCont%descInvRMat, &
-          & this%coulombCont%qGlobal, this%coulombCont%descQVec,&
-          & this%coulombCont%shiftPerAtomGlobal, this%coulombCont%descQVec)
-      call scalafx_cpg2l(env%blacs%atomGrid, this%coulombCont%descQVec, 1, 1, &
-          & this%coulombCont%shiftPerAtomGlobal, shiftPerAtom2D)
-    end if
-    call mpifx_allreduceip(env%mpi%groupComm, this%shiftPerAtom, MPI_SUM)
-  #:else
-    call hemv(this%shiftPerAtom, this%coulombCont%invRMat, this%deltaQAtom, 'L')
-  #:endif
 
   end subroutine buildShiftPerAtom_
 
