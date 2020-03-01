@@ -2602,6 +2602,9 @@ contains
       if (nSpin > 2) then
         call error("Non-colinear spin not currently compatible with transport calculations")
       end if
+      if (allocated(solvation)) then
+        call error("Solvation is currently not available with transport calculations")
+      end if
     end if
 
     if (env%tGlobalMaster) then

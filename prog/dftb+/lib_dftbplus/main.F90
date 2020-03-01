@@ -675,6 +675,9 @@ contains
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
       end if
+      if (allocated(solvation)) then
+        call error("Solvation model do not work with linear response yet.")
+      end if
       call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tCasidaForces)
       call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
           & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
