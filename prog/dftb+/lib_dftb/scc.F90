@@ -207,7 +207,7 @@ module dftbp_scc
     !> Updates the SCC module, if the charges have been changed
     procedure :: updateCharges
 
-    !> TODO
+    !> Set external charge field
     procedure :: setExternalCharges
 
     !> Update potential shifts
@@ -255,7 +255,7 @@ module dftbp_scc
   end type TScc
 
 
-  !> TODO
+  !> Initialize SCC container from input data
   interface initialize
     module procedure Scc_initialize
   end interface initialize
@@ -264,7 +264,7 @@ module dftbp_scc
 contains
 
 
-  !> TODO
+  !> Initialize SCC container from input data
   subroutine Scc_initialize(this, env, inp)
 
     !> Resulting instance
@@ -564,19 +564,19 @@ contains
   end subroutine updateShifts
 
 
-  !> TODO
+  !> set external charge field
   subroutine setExternalCharges(this, chargeCoords, chargeQs, blurWidths)
 
-    !> TODO
+    !> Instance
     class(TScc), intent(inout) :: this
 
-    !> TODO
+    !> Coordinates of external charges
     real(dp), intent(in) :: chargeCoords(:,:)
 
-    !> TODO
+    !> Magnitude of external charges
     real(dp), intent(in) :: chargeQs(:)
 
-    !> TODO
+    !> Spatial extension of external charge distribution
     real(dp), intent(in), optional :: blurWidths(:)
 
     if (.not. allocated(this%extCharge)) then
