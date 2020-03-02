@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -69,8 +69,6 @@ module dftbp_mainio
   public :: writeEsp
   public :: writeCurrentGeometry, writeFinalDriverStatus
   public :: writeHSAndStop, writeHS
-  public :: writeShifts, writeContShifts
-  public :: uploadShiftPerL
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo, printBlankLine
@@ -2313,7 +2311,7 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2461,6 +2459,12 @@ contains
 
     !> Is there a halogen bond correction present?
     logical, intent(in) :: tHalogenX
+
+    !> Is this a range separation calculation?
+    logical, intent(in) :: tRangeSep
+
+    !> Is this a 3rd order scc calculation?
+    logical, intent(in) :: t3rd
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2722,7 +2726,7 @@ contains
           end do
           write(fd, *)
         end if
-        if (tDFTBU) then
+        if (tDFTBU .or. tOnSite) then
           write(fd, "(3A)") 'Block populations (', trim(spinName(iSpin)), ')'
           do ii = 1, size(iAtInCentralRegion)
             iAt = iAtInCentralRegion(ii)
@@ -2780,6 +2784,12 @@ contains
       write(fd, format2U) 'Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV'
       if (tSpin) then
         write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
+      end if
+      if (t3rd) then
+        write(fd, format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd * Hartree__eV, 'eV'
+      end if
+      if (tRangeSep) then
+        write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
       if (tDFTBU) then
         write(fd, format2U) 'Energy DFTB+U', energy%Edftbu, 'H', energy%Edftbu * Hartree__eV, 'eV'
@@ -3493,141 +3503,6 @@ contains
     end if
 
   end subroutine writeHS
-
-
-  !> Write the Hamiltonian self consistent shifts to file
-  subroutine writeShifts(fShifts, orb, shiftPerL)
-    !> filename where shifts are stored
-    character(*), intent(in) :: fShifts
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> shifts organized per (shell , atom,  spin)
-    real(dp), intent(in) :: shiftPerL(:,:,:)
-
-    ! locals
-    integer :: fdHS, nSpin, nAtom, ii, jj
-
-    nSpin = size(shiftPerL, dim=3)
-    nAtom = size(shiftPerL, dim=2)
-
-    if (size(shiftPerL, dim=1) /= orb%mShell ) then
-      call error("Internal error in writeshift: size(shiftPerL,1)")
-    endif
-
-    if (size(shiftPerL, dim=2) /= size(orb%nOrbAtom) ) then
-      call error("Internal error in writeshift size(shiftPerL,2)")
-    endif
-
-    open(newunit=fdHS, file=trim(fShifts), form="formatted")
-    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
-    do ii = 1, nAtom
-      write(fdHS, *) orb%nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
-    end do
-
-    close(fdHS)
-
-    write(stdOut,*) ">> Shifts saved for restart in shifts.dat"
-
-  end subroutine writeShifts
-
-
-  !> Writes the contact potential shifts per shell (for transport)
-  subroutine writeContShifts(filename, orb, shiftPerL, charges, Ef)
-    !> filename where shifts are written
-    character(*), intent(in) :: filename
-    !> orbital structure
-    type(TOrbitals), intent(in) :: orb
-    !> array of shifts per shell and spin
-    real(dp), intent(in) :: shiftPerL(:,:,:)
-    !> array of charges per shell and spin
-    real(dp), intent(in) :: charges(:,:,:)
-    !> Fermi level
-    real(dp), intent(in) :: Ef(:)
-
-    integer :: fdHS, nAtom, nSpin
-
-    nSpin = size(shiftPerL,3)
-    nAtom = size(shiftPerL,2)
-
-    if (size(shiftPerL,1) /= orb%mShell) then
-      call error("Internal error in writeContShifts: size(shiftPerL,1)")
-    endif
-
-    if (size(orb%nOrbAtom) /= nAtom) then
-      call error("Internal error in writeContShifts: size(shiftPerL,2)")
-    endif
-
-    if (all(shape(charges) /= (/ orb%mOrb, nAtom, nSpin /))) then
-      call error("Internal error in writeContShift: shape(charges)")
-    endif
-
-    open(newunit=fdHS, file=trim(filename), form="formatted")
-    write(fdHS, *) nAtom, orb%mShell, orb%mOrb, nSpin
-    write(fdHS, *) orb%nOrbAtom
-    write(fdHS, *) shiftPerL
-    write(fdHS, *) charges
-    if (nSpin == 2) then
-      write(fdHS, *) 'Fermi level (up):', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
-      write(fdHS, *) 'Fermi level (down):', Ef(2), "H", Hartree__eV * Ef(2), 'eV'
-    else
-      write(fdHS, *) 'Fermi level :', Ef(1), "H", Hartree__eV * Ef(1), 'eV'
-    end if
-
-    close(fdHS)
-      
-    write(stdOut,*) 'shiftcont_'//trim(filename)//".dat written to file"     
-
-  end subroutine writeContShifts
-
-
-  !> Read the potential shifts from file
-  subroutine uploadShiftPerL(fShifts, orb, nAtom, nSpin, shiftPerL)
-    !> filename where shifts are stored
-    character(*), intent(in) :: fShifts
-
-    !> orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> number of atoms and spin blocks
-    integer, intent(in) :: nAtom, nSpin
-
-    !> potential shifts (shell,atom,spin) charge/mag is used
-    real(dp), intent(inout) :: shiftPerL(:,:,:)
-
-    !Locals
-    integer :: fdH, nAtomSt, nSpinSt, mOrbSt, mShellSt, ii, jj
-    integer, allocatable :: nOrbAtom(:)
-
-    shiftPerL(:,:,:) = 0.0_dp
-
-    open(newunit=fdH, file=fShifts, form="formatted")
-    read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
-
-    if (nAtomSt /= nAtom .or. mShellSt /= orb%mShell .or. mOrbSt /= orb%mOrb) then
-      call error("Shift upload error: Mismatch in number of atoms or max shell per atom.")
-    end if
-    if (nSpin /= nSpinSt) then
-      call error("Shift upload error: Mismatch in number of spin channels.")
-    end if
-
-    allocate(nOrbAtom(nAtomSt))
-    do ii = 1, nAtom
-      read(fdH, *) nOrbAtom(ii), (shiftPerL(:,ii,jj), jj = 1, nSpin)
-    end do
-
-    close(fdH)
-
-    if (any(nOrbAtom(:) /= orb%nOrbAtom(:))) then
-      call error("Incompatible orbitals in the upload file!")
-    end if
-
-    deallocate(nOrbAtom)
-
-  end subroutine uploadShiftPerL
-
-
 
 
   !> Write current geometry to disc

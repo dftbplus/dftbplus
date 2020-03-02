@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -79,7 +79,7 @@ module dftbp_initprogram
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_xlbomd
-  use dftbp_etemp, only : Fermi
+  use dftbp_etemp, only : fillingTypes
 #:if WITH_SOCKETS
   use dftbp_mainio, only : receiveGeometryFromSocket
   use dftbp_ipisocket
@@ -93,7 +93,7 @@ module dftbp_initprogram
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_forcetypes, only : forceTypes
   use dftbp_elstattypes, only : elstatTypes
-
+  use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
@@ -105,6 +105,7 @@ module dftbp_initprogram
   use negf_int
   use poisson_init
 #:endif
+  use dftbp_transportio
   implicit none
 
 #:if WITH_GPU
@@ -380,7 +381,7 @@ module dftbp_initprogram
   logical :: tSetFillingTemp
 
   !> Choice of electron distribution function, defaults to Fermi
-  integer :: iDistribFn = 0
+  integer :: iDistribFn = fillingTypes%Fermi
 
   !> atomic kinetic temperature
   real(dp) :: tempAtom
@@ -607,27 +608,26 @@ module dftbp_initprogram
   !> Nr. of external charges
   integer :: nExtChrg
 
-
   !> external electric field
-  logical :: tEField = .false.
+  logical :: tEField
 
   !> Arbitrary external field (including electric)
-  logical :: tExtField = .false.
+  logical :: tExtField
 
   !> field strength
-  real(dp) :: EFieldStrength = 0.0_dp
+  real(dp) :: EFieldStrength
 
   !> field direction
-  real(dp) :: EfieldVector(3) = 0.0_dp
+  real(dp) :: EfieldVector(3)
 
   !> time dependent
-  logical :: tTDEfield = .false.
+  logical :: tTDEfield
 
   !> angular frequency
-  real(dp) :: EfieldOmega = 0.0_dp
+  real(dp) :: EfieldOmega
 
   !> phase of field at step 0
-  integer :: EfieldPhase = 0
+  integer :: EfieldPhase
 
 
   !> Partial density of states (PDOS) projection regions
@@ -652,7 +652,7 @@ module dftbp_initprogram
   real(dp), allocatable :: onSiteDipole(:,:)
 
   !> Should block charges be mixed as well as charges
-  logical :: tMixBlockCharges = .false.
+  logical :: tMixBlockCharges
 
   !> Calculate Casida linear response excitations
   logical :: tLinResp
@@ -661,7 +661,7 @@ module dftbp_initprogram
   logical :: tLinRespZVect
 
   !> Print eigenvectors
-  logical :: tPrintExcitedEigVecs = .false.
+  logical :: tPrintExcitedEigVecs
 
   !> data type for linear response
   type(linresp), save :: lresp
@@ -735,8 +735,8 @@ module dftbp_initprogram
   !> dispersion data and calculations
   class(DispersionIface), allocatable :: dispersion
 
-  !> Can stress be calculated? - start by assuming it can
-  logical :: tStress = .true.
+  !> Can stress be calculated?
+  logical :: tStress
 
   !> should XLBOMD be used in MD
   logical :: tXlbomd
@@ -752,6 +752,9 @@ module dftbp_initprogram
 
   !> Whether atomic coordindates have changed since last geometry iteration
   logical :: tCoordsChanged
+
+  !> Plumed calculator
+  type(TPlumedCalc), allocatable :: plumedCalc
 
   !> Dense matrix descriptor for H and S
   type(TDenseDescr) :: denseDesc
@@ -980,6 +983,9 @@ module dftbp_initprogram
   !> atomic charge contribution in excited state
   real(dp), allocatable :: dQAtomEx(:)
 
+  !> Is this DFTB/SSR formalism
+  logical :: tREKS
+
 contains
 
 
@@ -1131,6 +1137,7 @@ contains
     tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
+    tREKS = .false.
     if (tSpin) then
       nSpin = 2
     else
@@ -1158,6 +1165,9 @@ contains
     orb = input%slako%orb
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
+
+    ! start by assuming stress can be calculated if periodic
+    tStress = tPeriodic
 
     ! Brillouin zone sampling
     if (tPeriodic) then
@@ -1385,7 +1395,6 @@ contains
         sccInp%h5Correction = pH5Correction
       end if
 
-
       nExtChrg = input%ctrl%nExtChrg
       tExtChrg = (nExtChrg > 0)
       if (tExtChrg) then
@@ -1493,7 +1502,7 @@ contains
     if (tSccCalc) then
       allocate(chargePerShell(orb%mShell,nAtom,nSpin))
     else
-       allocate(chargePerShell(0,0,0))
+      allocate(chargePerShell(0,0,0))
     end if
     allocate(ham(0, nSpin))
     if (tImHam) then
@@ -1832,12 +1841,6 @@ contains
 
     ! Do we use any part of negf (solver, tunnelling etc.)?
     tNegf = (electronicSolver%iSolver == electronicSolverTypes%GF) .or. tTunn .or. tLocalCurrents
-
-  #:if WITH_MPI
-    if (tNegf .and. env%mpi%nGroup > 1) then
-      call error("At the moment NEGF solvers cannot be used for multiple processor groups")
-    end if
-  #:endif
 
   #:else
 
@@ -2211,6 +2214,8 @@ contains
       call init(pMDIntegrator, pVelocityVerlet)
     end if
 
+    call initPlumed(env, input%ctrl%tPlumed, tMD, plumedCalc)
+
     ! Check for extended Born-Oppenheimer MD
     tXlbomd = allocated(input%ctrl%xlbomd)
     if (tXlbomd) then
@@ -2222,7 +2227,7 @@ contains
         call error("XLBOMD does not work for spin, DFTB+U or onsites yet")
       elseif (forceType /= forceTypes%dynamicT0 .and. forceType /= forceTypes%dynamicTFinite) then
         call error("Force evaluation method incompatible with XLBOMD")
-      elseif (iDistribFn /= Fermi) then
+      elseif (iDistribFn /= fillingTypes%Fermi) then
         call error("Filling function incompatible with XLBOMD")
       end if
       allocate(xlbomdIntegrator)
@@ -2296,11 +2301,11 @@ contains
 
     if (tRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
-          & input%ctrl%rangeSepInp)
+          & tAtomicEnergy, input%ctrl%rangeSepInp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
-      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp, tSpin,&
-          & rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr,&
-          & nMixElements)
+      call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
+          & tSpin, tREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
+          & deltaRhoOutSqr, nMixElements)
     end if
 
     tReadShifts = input%ctrl%tReadShifts
@@ -3076,11 +3081,15 @@ contains
 
       select case(input%ctrl%rangeSepInp%rangeSepAlg)
       case (rangeSepTypes%neighbour)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "NeighbourBased"
         write(stdOut, "(2X,A,':',T30,E14.6,A)") "Spatially cutoff at",&
             & input%ctrl%rangeSepInp%cutoffRed * Bohr__AA," A"
       case (rangeSepTypes%threshold)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "Thresholded"
         write(stdOut, "(2X,A,':',T30,E14.6)") "Thresholded to",&
             & input%ctrl%rangeSepInp%screeningThreshold
+      case (rangeSepTypes%matrixBased)
+        write(stdOut, "(2X,A,':',T30,2X,A)") "Range separated algorithm", "MatrixBased"
       case default
         call error("Unknown range separated hybrid method")
       end select
@@ -3203,6 +3212,10 @@ contains
 
       if (.not.tRealHS) then
         call error("Linear response does not support k-points")
+      end if
+
+      if (t3rd .or. t3rdFull) then
+        call error ("Third order DFTB is not currently compatible with linear response excitations")
       end if
 
     end if
@@ -3505,13 +3518,8 @@ contains
       end if
 
       ! Some sanity checks and initialization of GDFTB/NEGF
-    #:if WITH_MPI
-      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, env%mpi%globalComm,&
-          & tempElec, electronicSolver%iSolver)
-    #:else
-      call negf_init(input%transpar, input%ginfo%greendens, input%ginfo%tundos, &
-          & tempElec, electronicSolver%iSolver)
-    #:endif
+      call negf_init(input%transpar, env, input%ginfo%greendens, input%ginfo%tundos, tempElec,&
+          & electronicSolver%iSolver)
 
       ginfo = input%ginfo
 
@@ -3879,30 +3887,6 @@ contains
           & HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigvecsReal)
     end if
 
-    if (tRangeSep) then
-      if (withMpi) then
-        call error("Range separated calculations do not work with MPI yet")
-      end if
-      if (nSpin > 2) then
-        call error("Range separated calculations not implemented for non-colinear calculations")
-      end if
-      if (tXlbomd) then
-        call error("Range separated calculations not currently implemented for XLBOMD")
-      end if
-      if (t3rd) then
-        call error("Range separated calculations not currently implemented for 3rd order DFTB")
-      end if
-     !if (tLinResp) then
-     !  call error("Range separated calculations not currently implemented for linear response")
-     !end if
-      if (tSpinOrbit) then
-        call error("Range separated calculations not currently implemented for spin orbit")
-      end if
-      if (tDFTBU) then
-        call error("Range separated calculations not currently implemented for DFTB+U")
-      end if
-    end if
-
     if (tLinResp) then
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
@@ -3930,7 +3914,6 @@ contains
     end if
 
   end subroutine initArrays
-
 
 #:if WITH_TRANSPORT
 
@@ -3971,103 +3954,13 @@ contains
     if (tUpload) then
       allocate(shiftPerLUp(orb%mShell, nAtom))
       allocate(chargeUp(orb%mOrb, nAtom, nSpin))
-      call uploadContShiftPerL(shiftPerLUp, chargeUp, transpar, orb, species0)
+      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb)
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))
     end if
 
   end subroutine initTransportArrays
-
-
-  !> Read contact potential shifts from file
-  subroutine uploadContShiftPerL(shiftPerL, charges, tp, orb, species)
-
-    !> shifts for atoms in contacts
-    real(dp), intent(out) :: shiftPerL(:,:)
-
-    !> charges for atoms in contacts
-    real(dp), intent(out) :: charges(:,:,:)
-
-    !> transport parameters
-    type(TTransPar), intent(in) :: tp
-
-    !> atomic orbital parameters
-    type(TOrbitals), intent(in) :: orb
-
-    !> species of atoms in the system
-    integer, intent(in) :: species(:)
-
-    real(dp), allocatable :: shiftPerLSt(:,:,:), chargesSt(:,:,:)
-    integer, allocatable :: nOrbAtom(:)
-    integer :: nAtomSt, mShellSt, nContAtom, mOrbSt, nSpinSt, nSpin
-    integer :: iCont, iStart, iEnd, ii
-    integer :: fdH
-    character(lc) :: strTmp
-    logical :: iexist
-
-    nSpin = size(charges, dim=3)
-
-    if (size(shiftPerL,dim=2) /= size(charges, dim=2)) then
-      call error("Mismatch between array charges and shifts")
-    endif
-
-    shiftPerL = 0.0_dp
-    charges = 0.0_dp
-
-    do iCont = 1, tp%ncont
-      inquire(file="shiftcont_"// trim(tp%contacts(iCont)%name) // ".dat", exist = iexist)
-      if (.not.iexist) then
-        call error("Contact shift file shiftcont_"// trim(tp%contacts(iCont)%name) &
-            &  // ".dat is missing"//new_line('a')//"Run ContactHamiltonian calculations first.")
-      end if
-
-      open(newunit=fdH, file="shiftcont_" // trim(tp%contacts(iCont)%name) // ".dat",&
-          & form="formatted", status="OLD", action="READ")
-      read(fdH, *) nAtomSt, mShellSt, mOrbSt, nSpinSt
-      iStart = tp%contacts(iCont)%idxrange(1)
-      iEnd = tp%contacts(iCont)%idxrange(2)
-      nContAtom = iEnd - iStart + 1
-
-      if (nAtomSt /= nContAtom) then
-        call error("Upload Contacts: Mismatch in number of atoms.")
-      end if
-      if (mShellSt /= orb%mShell) then
-        call error("Upload Contacts: Mismatch in max shell per atom.")
-      end if
-      if (mOrbSt /= orb%mOrb) then
-        call error("Upload Contacts: Mismatch in orbitals per atom.")
-      end if
-      if (nSpin /= nSpinSt) then
-        write(strTmp,"(A,I0,A,I0)")'Contact spin ',nSpinSt,'. Spin channels ',nSpin
-        call error(trim(strTmp))
-      end if
-
-      allocate(nOrbAtom(nAtomSt))
-      read(fdH, *) nOrbAtom
-      allocate(shiftPerLSt(orb%mShell, nAtomSt, nSpin))
-      read(fdH, *) shiftPerLSt(:,:,:)
-      allocate(chargesSt(orb%mOrb, nAtomSt, nSpin))
-      read(fdH, *) chargesSt
-      close(fdH)
-
-      if (any(nOrbAtom /= orb%nOrbAtom(iStart:iEnd))) then
-        call error("Incompatible orbitals in the upload file!")
-      end if
-
-      !if (nSpin == 1) then
-      shiftPerL(:,iStart:iEnd) = ShiftPerLSt(:,:,1)
-      !else
-      !  shiftPerL(:,iStart:iEnd) = sum(ShiftPerLSt, dim=3)
-      !endif
-
-      charges(:,iStart:iEnd,:) = chargesSt(:,:,:)
-      deallocate(nOrbAtom)
-      deallocate(shiftPerLSt)
-      deallocate(chargesSt)
-    end do
-
-  end subroutine uploadContShiftPerL
 
 #:endif
 
@@ -4420,7 +4313,8 @@ contains
 
 
   !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, rangeSepInp)
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, tAtomicEnergy,&
+      & rangeSepInp)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4431,6 +4325,9 @@ contains
     !> Is this a shell resolved calculation
     logical, intent(in) :: tShellResolved
 
+    !> Do we need atom resolved E?
+    logical, intent(inout) :: tAtomicEnergy
+
     !> Parameters for the range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
 
@@ -4438,11 +4335,47 @@ contains
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
     end if
+
     if (tReadChrg .and. rangeSepInp%rangeSepAlg == rangeSepTypes%threshold) then
       call error("Restart on thresholded range separation not working correctly")
     end if
+
     if (tShellResolved) then
       call error("Range separated functionality currently does not yet support shell-resolved scc")
+    end if
+
+    if (tAtomicEnergy) then
+      call warning("Atomic resolved energies cannot be calculated with the range-separation&
+          & hybrid functional at the moment")
+      tAtomicEnergy = .false.
+    end if
+
+    if (withMpi) then
+      call error("Range separated calculations do not work with MPI yet")
+    end if
+
+    if (nSpin > 2) then
+      call error("Range separated calculations not implemented for non-colinear calculations")
+    end if
+
+    if (tSpinOrbit) then
+      call error("Range separated calculations not currently implemented for spin orbit")
+    end if
+
+    if (tXlbomd) then
+      call error("Range separated calculations not currently implemented for XLBOMD")
+    end if
+
+    if (t3rd) then
+      call error("Range separated calculations not currently implemented for 3rd order DFTB")
+    end if
+
+    if (tLinResp) then
+      call error("Range separated calculations not currently implemented for linear response")
+    end if
+
+    if (tDFTBU) then
+      call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
   end subroutine ensureRangeSeparatedReqs
@@ -4471,8 +4404,9 @@ contains
 
 
   !> Initialise range separated extension.
-  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin, rangeSep,&
-      & deltaRhoIn, deltarhoOut, deltaRhoDiff, deltaRhoInSqr, deltaRhoOutSqr, nMixElements)
+  subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin,&
+      & tREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
+      & deltaRhoOutSqr, nMixElements)
 
     !> Number of atoms in the system
     integer, intent(in) :: nAtom
@@ -4489,8 +4423,11 @@ contains
     !> input for range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
 
-    !> Is this spin unrestricted
+    !> Is this spin restricted (F) or unrestricted (T)
     logical, intent(in) :: tSpin
+
+    !> Is this DFTB/SSR formalism
+    logical, intent(in) :: tREKS
 
     !> Resulting settings for range separation
     type(RangeSepFunc), allocatable, intent(out) :: rangeSep
@@ -4515,7 +4452,8 @@ contains
 
     allocate(rangeSep)
     call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, rangeSepInp%rangeSepAlg)
+        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, tREKS,&
+        & rangeSepInp%rangeSepAlg)
     allocate(deltaRhoIn(nOrb * nOrb * nSpin))
     allocate(deltaRhoOut(nOrb * nOrb * nSpin))
     allocate(deltaRhoDiff(nOrb * nOrb * nSpin))
@@ -4525,6 +4463,62 @@ contains
     deltaRhoInSqr(:,:,:) = 0.0_dp
 
   end subroutine initRangeSeparated
+
+
+  !> Initializes PLUMED calculator.
+  subroutine initPlumed(env, tPlumed, tMD, plumedCalc)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Whether plumed should be used
+    logical, intent(in) :: tPlumed
+
+    !> Whether this is an MD-run
+    logical, intent(in) :: tMD
+
+    !> Plumed calculator (allocated only on demand)
+    type(TPlumedCalc), allocatable, intent(out) :: plumedCalc
+
+
+    ! Minimal plumed API version (as in Plumed 2.5.3)
+    ! Earlier versions may work but were not tested
+    integer, parameter :: minApiVersion = 6
+    
+    integer :: apiVersion
+    character(300) :: strTmp
+
+    if (.not. tPlumed) then
+      return
+    end if
+    if (.not. withPlumed) then
+      call error("Code was compiled without PLUMED support")
+    end if
+    if (.not. tMD) then
+      call error("Metadynamics via PLUMED is only possible in MD-simulations")
+    end if
+    allocate(plumedCalc)
+    call TPlumedCalc_init(plumedCalc)
+    call plumedCalc%sendCmdPtr("getApiVersion", apiVersion)
+    if (apiVersion < minApiVersion) then
+      write(strTmp, "(A,I0,A)") "PLUMED interface has not been tested with PLUMED API version < ",&
+          & minApiVersion, ". Your PLUMED library provides API version ", apiVersion, ". Check your&
+          & results carefully and consider to use a more recent PLUMED library if in doubt!"
+      call warning(strTmp)
+    end if
+    call plumedCalc%sendCmdVal("setNatoms", nAtom)
+    call plumedCalc%sendCmdVal("setPlumedDat", "plumed.dat")
+    call plumedCalc%sendCmdVal("setNoVirial", 0)
+    call plumedCalc%sendCmdVal("setTimestep", deltaT)
+    call plumedCalc%sendCmdVal("setMDEnergyUnits", Hartree__kJ_mol)
+    call plumedCalc%sendCmdVal("setMDLengthUnits", Bohr__nm)
+    call plumedCalc%sendCmdVal("setMDTimeUnits", au__ps)
+    #:if WITH_MPI
+      call plumedCalc%sendCmdVal("setMPIFComm", env%mpi%globalComm%id)
+    #:endif
+    call plumedCalc%sendCmdVal("init", 0)
+
+  end subroutine initPlumed
 
 
 end module dftbp_initprogram

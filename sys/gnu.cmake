@@ -42,7 +42,7 @@ set(CMAKE_C_FLAGS_RELEASE "-O2 -funroll-all-loops" CACHE STRING "Specific C flag
 if(WITH_MPI)
   set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
 else()
-  set(LAPACK_LIBRARIES "openblas" CACHE STRING "LAPACK and BLAS libraries to link")
+  set(LAPACK_LIBRARIES "lapack;blas" CACHE STRING "LAPACK and BLAS libraries to link")
 endif()
 set(LAPACK_LIBRARY_DIRS "" CACHE STRING
   "Directories where LAPACK and BLAS libraries can be found")
@@ -72,6 +72,10 @@ set(PEXSI_EXTERNAL_LIBRARIES "stdc++" CACHE STRING
 set(PEXSI_EXTERNAL_LIBRARY_DIRS "/usr/lib/gcc/x86_64-linux-gnu/7" CACHE STRING
   "Directories with PEXSI external libraries")
 
+# PLUMED -- only needed when compiled with PLUMED support
+set(PLUMED_LIBRARIES "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")
+set(PLUMED_LIBRARY_DIRS "" CACHE STRING "Directories to scan for PLUMED libraries")
+
 # Any other library needed to be linked or considered as include
 set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")
 set(OTHER_LIBRARY_DIRS "" CACHE STRING "Directories where the other libraries can be found")
@@ -81,7 +85,7 @@ set(OTHER_INCLUDE_DIRS "" CACHE STRING "Other include directories to consider")
 #
 # Debug settings (for developers)
 #
-set(CMAKE_Fortran_FLAGS_DEBUG "-g -Wall -std=f2008 -pedantic -fbounds-check" CACHE STRING
+set(CMAKE_Fortran_FLAGS_DEBUG "-g -Wall -std=f2008ts -pedantic -fbounds-check" CACHE STRING
   "Specific Fortran flags for Debug mode")
 
 set(CMAKE_C_FLAGS_DEBUG "-g -Wall -pedantic -fall-intrinsics -fbounds-check" CACHE STRING
