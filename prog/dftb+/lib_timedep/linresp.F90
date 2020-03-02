@@ -147,11 +147,11 @@ module dftbp_linresp
     logical :: tPrintEigVecs
     logical :: tInit = .false.
 
-    !> for RS-linresp (TOMAS KUBAR)
+    !> for linear response calculations with range-separated functionals
     integer :: nMoved
     logical :: tMulliken, tCoeffs, tXplusY, tTrans, tTradip
-   !real(dp) :: e_wind, os_wind
     real(dp), allocatable :: hubbUDerivUp(:), hubbUDerivDn(:)
+
   end type linresp
 
 

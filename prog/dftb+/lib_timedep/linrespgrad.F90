@@ -238,7 +238,7 @@ contains
     real(dp) :: Ssq(nexc)
     real(dp), allocatable :: gammaMat(:,:), snglPartTransDip(:,:)
     real(dp), allocatable :: stimc(:,:,:), wij(:)
-    real(dp), allocatable :: sposz(:), osz(:), xpy(:), xmy(:), pc(:,:)! , dqex(:)
+    real(dp), allocatable :: sposz(:), osz(:), xpy(:), xmy(:), pc(:,:)
     real(dp), allocatable :: t(:,:), rhs(:), woo(:), wvv(:), wov(:)
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
@@ -624,7 +624,6 @@ contains
 
       ! Arrays for gradients and Mulliken analysis
       if (tZVector) then
-       !ALLOCATE(dqex(natom))
         ALLOCATE(pc(norb, norb))
       end if
 

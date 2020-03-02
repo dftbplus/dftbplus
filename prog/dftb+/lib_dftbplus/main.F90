@@ -692,7 +692,6 @@ contains
           & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
           & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
           & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida, SSqrReal,&
-         !& rhoSqrReal, excitedDerivs, occNatural,&
           & deltaRhoOutSqr, excitedDerivs, dQAtomEx, occNatural,&
           & rangeSep)
     end if
@@ -4327,7 +4326,7 @@ contains
     integer :: iSpin, nSpin, nAtom, fdAutotest
     logical :: tSpin
     ! Onsite corrections -- remain dummy as they are not calculated
-    logical :: tOnsite = .false.
+    logical, parameter :: tOnsite = .false.
     real(dp), allocatable :: ons_en(:,:), ons_dip(:,:)
     integer :: i, norb
 

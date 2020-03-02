@@ -24,7 +24,8 @@ module dftbp_rangeseparated
   implicit none
   private
 
-  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init, getLrGammaEval, getSpecies, getGammaPrimeValue, rangeSepTypes
+  public :: TRangeSepSKTag, RangeSepFunc, RangeSepFunc_init, getLrGammaEval, getSpecies,&
+      &  getGammaPrimeValue, rangeSepTypes
 
 
   type :: TRangeSepTypesEnum
@@ -109,8 +110,8 @@ module dftbp_rangeseparated
     procedure :: addLrEnergy
     procedure :: addLrGradients
     procedure :: evaluateLrEnergyDirect
-    procedure :: getLrGammaEval          ! TOMAS KUBAR
-    procedure :: getSpecies              ! TOMAS KUBAR
+    procedure :: getLrGammaEval
+    procedure :: getSpecies
 
   end type RangeSepFunc
 
@@ -219,11 +220,17 @@ contains
 
   end subroutine RangeSepFunc_init
 
-  !!! TOMAS KUBAR ADDED -- BEGIN
-  
+
+  !> obtain the array of atomic species
   subroutine getSpecies(this, targetArray)
+
+    !> 1D array for output, will be allocated
     integer, allocatable, intent(out) :: targetArray(:)
+
+    !> instance
     class(RangeSepFunc), intent(in) :: this
+
+    !> dimension of the species array
     integer :: dim1
 
     dim1 = size(this%species)
@@ -233,9 +240,17 @@ contains
 
   end subroutine getSpecies
 
+
+  !> obtain the long-range gamma matrix
   subroutine getLrGammaEval(this, targetArray)
+
+    !> 2D array for output, will be allocated
     real(dp), allocatable, intent(out) :: targetArray(:,:)
+
+    !> instance
     class(RangeSepFunc), intent(in) :: this
+
+    !> dimensions of the gamma matrix
     integer :: dim1, dim2
 
     dim1 = size(this%lrGammaEval, 1)
@@ -245,8 +260,6 @@ contains
     targetArray(:,:) = this%lrGammaEval
 
   end subroutine getLrGammaEval
-
-  !!! TOMAS KUBAR ADDED -- END
 
 
   !> update the rangeSep module on coordinate change
