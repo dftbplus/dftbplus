@@ -20,7 +20,7 @@ Hamiltonian = DFTB {
        C = 0.88983137
        O = 1.05601217
     }
-    CM5 = yes
+    CM5 {}
     BornScale = 1.18273365
     BornOffset = 1.517063677302E-02
     OBCCorrection = {1.00 0.80 4.85}

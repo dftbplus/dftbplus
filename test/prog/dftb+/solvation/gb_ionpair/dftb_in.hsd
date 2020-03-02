@@ -25,7 +25,6 @@ Hamiltonian = DFTB {
     BornOffset = 1.653719965215E-03
     OBCCorrection = {1.00 0.80 4.85}
     Cutoff = 30
-    CM5 = No
   }
   SCC = Yes
   SccTolerance = 1e-10

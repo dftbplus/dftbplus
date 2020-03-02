@@ -12,7 +12,7 @@ module dftbp_born
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : hemv, gemv
   use dftbp_charges, only : getSummedCharges
-  use dftbp_cm5, only : TChargeModel5, init
+  use dftbp_cm5, only : TChargeModel5, TCM5Input, init
   use dftbp_commontypes, only : TOrbitals
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
@@ -57,7 +57,8 @@ module dftbp_born
     real(dp) :: rCutoff = 0.0_dp
 
     !> Use charge model 5
-    logical :: TCM5 = .false.
+    type(TCM5Input), allocatable :: cm5Input
+
   end type TGBInput
 
 
@@ -201,12 +202,12 @@ contains
 
     self%rCutoff = input%rCutoff
 
-    if (input%tCM5) then
+    if (allocated(input%cm5Input)) then
       allocate(self%cm5)
       if (self%tPeriodic) then
-        call init(self%cm5, nAtom, species0, speciesNames, input%rCutoff, latVecs)
+        call init(self%cm5, input%cm5Input, nAtom, speciesNames, .true., latVecs)
       else
-        call init(self%cm5, nAtom, species0, speciesNames, input%rCutoff)
+        call init(self%cm5, input%cm5Input, nAtom, speciesNames, .true.)
       end if
     end if
 

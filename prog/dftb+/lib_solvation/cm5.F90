@@ -9,7 +9,9 @@
 
 !> Implementation of the charge model 5 (CM5)
 module dftbp_cm5
+  use dftbp_assert
   use dftbp_accuracy, only : dp
+  use dftbp_atomicrad, only : getAtomicRad
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : AA__Bohr, symbolToNumber
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
@@ -17,7 +19,22 @@ module dftbp_cm5
   implicit none
   private
 
-  public :: TChargeModel5, init
+  public :: TChargeModel5, TCM5Input, init
+
+
+  !> Charge model 5 input data
+  type :: TCM5Input
+
+    !> Real space cutoff
+    real(dp) :: rCutoff
+
+    !> Global parameter
+    real(dp) :: alpha
+
+    !> Atomic radii
+    real(dp), allocatable :: atomicRad(:)
+
+  end type TCM5Input
 
 
   !> Charge model 5 class
@@ -25,22 +42,22 @@ module dftbp_cm5
     private
 
     !> number of atoms
-    integer :: nAtom = 0
+    integer :: nAtom
 
     !> lattice vectors if periodic
-    real(dp) :: latVecs(3, 3) = 0.0_dp
+    real(dp) :: latVecs(3, 3)
 
     !> is this periodic
     logical :: tPeriodic
 
     !> are the coordinates current?
-    logical :: tCoordsUpdated = .false.
+    logical :: tCoordsUpdated
 
     !> Real space cutoff
-    real(dp) :: rCutoff = 0.0_dp
+    real(dp) :: rCutoff
 
     !> Global parameter
-    real(dp) :: alpha = 2.4740_dp / AA__Bohr
+    real(dp) :: alpha
 
     !> Atomic radii
     real(dp), allocatable :: atomicRad(:)
@@ -86,37 +103,6 @@ module dftbp_cm5
   end interface init
 
 
-  !> Get atomic radius for a species
-  interface getAtomicRadius
-    module procedure :: getAtomicRadiusSymbol
-    module procedure :: getAtomicRadiusNumber
-  end interface getAtomicRadius
-
-
-  !> Covalent radii
-  !>
-  !> based on "Atomic Radii of the Elements," M. Mantina, R. Valero, C. J. Cramer, and D. G. Truhlar,
-  !> in CRC Handbook of Chemistry and Physics, 91st Edition (2010-2011),
-  !> edited by W. M. Haynes (CRC Press, Boca Raton, FL, 2010), pages 9-49-9-50;
-  !> corrected Nov. 17, 2010 for the 92nd edition.
-  real(dp), parameter :: atomicRadii(1:118) = AA__Bohr * [ &
-      & 0.32_dp, 0.37_dp, 1.30_dp, 0.99_dp, 0.84_dp, 0.75_dp, 0.71_dp, 0.64_dp, &
-      & 0.60_dp, 0.62_dp, 1.60_dp, 1.40_dp, 1.24_dp, 1.14_dp, 1.09_dp, 1.04_dp, &
-      & 1.00_dp, 1.01_dp, 2.00_dp, 1.74_dp, 1.59_dp, 1.48_dp, 1.44_dp, 1.30_dp, &
-      & 1.29_dp, 1.24_dp, 1.18_dp, 1.17_dp, 1.22_dp, 1.20_dp, 1.23_dp, 1.20_dp, &
-      & 1.20_dp, 1.18_dp, 1.17_dp, 1.16_dp, 2.15_dp, 1.90_dp, 1.76_dp, 1.64_dp, &
-      & 1.56_dp, 1.46_dp, 1.38_dp, 1.36_dp, 1.34_dp, 1.30_dp, 1.36_dp, 1.40_dp, &
-      & 1.42_dp, 1.40_dp, 1.40_dp, 1.37_dp, 1.36_dp, 1.36_dp, 2.38_dp, 2.06_dp, &
-      & 1.94_dp, 1.84_dp, 1.90_dp, 1.88_dp, 1.86_dp, 1.85_dp, 1.83_dp, 1.82_dp, &
-      & 1.81_dp, 1.80_dp, 1.79_dp, 1.77_dp, 1.77_dp, 1.78_dp, 1.74_dp, 1.64_dp, &
-      & 1.58_dp, 1.50_dp, 1.41_dp, 1.36_dp, 1.32_dp, 1.30_dp, 1.30_dp, 1.32_dp, &
-      & 1.44_dp, 1.45_dp, 1.50_dp, 1.42_dp, 1.48_dp, 1.46_dp, 2.42_dp, 2.11_dp, &
-      & 2.01_dp, 1.90_dp, 1.84_dp, 1.83_dp, 1.80_dp, 1.80_dp, 1.73_dp, 1.68_dp, &
-      & 1.68_dp, 1.68_dp, 1.65_dp, 1.67_dp, 1.73_dp, 1.76_dp, 1.61_dp, 1.57_dp, &
-      & 1.49_dp, 1.43_dp, 1.41_dp, 1.34_dp, 1.29_dp, 1.28_dp, 1.21_dp, 1.22_dp, &
-      & 1.36_dp, 1.43_dp, 1.62_dp, 1.75_dp, 1.65_dp, 1.57_dp]
-
-
   !> Get pair parameters for two species
   interface getPairParameter
     module procedure :: getPairParameterSymbol
@@ -152,28 +138,32 @@ contains
 
 
   !> Initialize generalized charge model 5 from geometry
-  subroutine initialize(self, nAtom, species0, speciesNames, rCutoff, latVecs)
+  subroutine initialize(self, input, nAtom, speciesNames, tDerivs, latVecs)
 
     !> Initialised instance at return
     type(TChargeModel5), intent(out) :: self
 
+    !> Charge model 5 input data
+    type(TCM5Input), intent(in) :: input
+
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
-
-    !> Species of every atom in the unit cell
-    integer, intent(in) :: species0(:)
 
     !> Symbols of the species
     character(len=*), intent(in) :: speciesNames(:)
 
-    !> Real space cutoff
-    real(dp), intent(in) :: rCutoff
+    !> Setup container to evaluate derivatives
+    logical, intent(in) :: tDerivs
 
     !> Lattice vectors, if the system is periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    integer :: nSpecies
     integer :: iSp1, iSp2
 
+    @:ASSERT(allocated(input%atomicRad))
+
+    nSpecies = size(speciesNames)
     self%tPeriodic = present(latVecs)
     if (self%tPeriodic) then
       call self%updateLatVecs(LatVecs)
@@ -181,17 +171,20 @@ contains
     self%nAtom = nAtom
 
     allocate(self%cm5(nAtom))
-    allocate(self%dcm5dr(3, nAtom, nAtom))
-    allocate(self%dcm5dL(3, 3, nAtom))
+    if (tDerivs) then
+      allocate(self%dcm5dr(3, nAtom, nAtom))
+      allocate(self%dcm5dL(3, 3, nAtom))
+    end if
 
-    self%rCutoff = rCutoff
+    self%rCutoff = input%rCutoff
 
-    allocate(self%atomicRad(size(species0)))
-    allocate(self%pairParam(size(species0), size(species0)))
+    allocate(self%atomicRad(nSpecies))
+    allocate(self%pairParam(nSpecies, nSpecies))
+    self%atomicRad(:) = input%atomicRad
 
-    do iSp1 = 1, size(species0)
-      self%atomicRad(iSp1) = getAtomicRadius(speciesNames(iSp1))
-      do iSp2 = 1, size(species0)
+    self%alpha = input%alpha
+    do iSp1 = 1, nSpecies
+      do iSp2 = 1, nSpecies
         self%pairParam(iSp1, iSp2) = getPairParameter(speciesNames(iSp1), speciesnames(iSp2))
       end do
       self%pairParam(iSp1, iSp1) = 0.0_dp
@@ -224,7 +217,13 @@ contains
 
     allocate(nNeigh(self%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
-    call getCorrection(self, nNeigh, neighList%iNeighbour, img2CentCell, neighList%neighDist2, species0, coords)
+    if (allocated(self%dcm5dr) .and. allocated(self%dcm5dL)) then
+      call getCorrectionDerivs(self, nNeigh, neighList%iNeighbour, img2CentCell, &
+          & neighList%neighDist2, species0, coords)
+    else
+      call getCorrection(self, nNeigh, neighList%iNeighbour, img2CentCell, &
+          & neighList%neighDist2, species0, coords)
+    end if
 
     self%tCoordsUpdated = .true.
 
@@ -260,6 +259,7 @@ contains
     real(dp), intent(inout) :: charges(:)
 
     @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(allocated(self%cm5))
     @:ASSERT(size(charges) == self%nAtom)
 
     charges(:) = charges + self%cm5
@@ -280,7 +280,8 @@ contains
     real(dp), intent(inout) :: gradients(:,:)
 
     @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(all(shape(stress) == [3, self%nAtom]))
+    @:ASSERT(allocated(self%dcm5dr))
+    @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
 
     call gemv(gradients, self%dcm5dr, dEdcm5, beta=1.0_dp)
 
@@ -300,6 +301,7 @@ contains
     real(dp), intent(inout) :: stress(:,:)
 
     @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(allocated(self%dcm5dL))
     @:ASSERT(all(shape(stress) == [3, 3]))
 
     call gemv(stress, self%dcm5dL, dEdcm5, beta=1.0_dp)
@@ -322,10 +324,63 @@ contains
 
 
   !> Calculate CM5 correction for this geometry
-  subroutine getCorrection(self, nNeighbour, iNeighbour, img2CentCell, neighDist2, species, coords)
+  subroutine getCorrection(self, nNeighbour, iNeighbour, img2CentCell, neighDist2, &
+      & species, coords)
 
     !> data structure
-    class(TChargeModel5), intent(inout) :: self
+    type(TChargeModel5), intent(inout) :: self
+
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbour(:)
+
+    !> Neighbourlist
+    integer, intent(in) :: iNeighbour(0:, :)
+
+    !> Square distances of the neighbours
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Square distances of the neighbours
+    real(dp), intent(in) :: neighDist2(0:, :)
+
+    !> Species of each atom
+    integer, intent(in) :: species(:)
+
+    !> Current atomic positions
+    real(dp), intent(in) :: coords(:, :)
+
+    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2
+    real(dp) :: dist, dEr, p12, p21
+
+    self%cm5(:) = 0.0_dp
+
+    do iAt1 = 1, self%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, nNeighbour(iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        if (iSp1 == iSp2) cycle  ! includes iAt1 == iAt2f case
+        dist = sqrt(neighDist2(iNeigh, iAt1))
+        p12 = self%pairParam(iSp1, iSp2)
+        p21 = self%pairParam(iSp2, iSp1)
+
+        dEr = exp(-self%alpha*(dist-self%atomicRad(iSp1)-self%atomicRad(iSp2)))
+
+        self%cm5(iAt1) = self%cm5(iAt1) + dEr * p12
+        self%cm5(iAt2f) = self%cm5(iAt2f) + dEr * p21
+
+      end do
+    end do
+
+  end subroutine getCorrection
+
+
+  !> Calculate CM5 correction for this geometry
+  subroutine getCorrectionDerivs(self, nNeighbour, iNeighbour, img2CentCell, &
+      & neighDist2, species, coords)
+
+    !> data structure
+    type(TChargeModel5), intent(inout) :: self
 
     !> Nr. of neighbours for each atom
     integer, intent(in) :: nNeighbour(:)
@@ -382,39 +437,7 @@ contains
       end do
     end do
 
-  end subroutine getCorrection
-
-
-  !> Get atomic radius for species with a given symbol
-  elemental function getAtomicRadiusSymbol(symbol) result(radius)
-
-    !> Element symbol
-    character(len=*), intent(in) :: symbol
-
-    !> atomic radius
-    real(dp) :: radius
-
-    radius = getAtomicRadius(symbolToNumber(symbol))
-
-  end function getAtomicRadiusSymbol
-
-
-  !> Get atomic radius for species with a given atomic number
-  elemental function getAtomicRadiusNumber(number) result(radius)
-
-    !> Atomic number
-    integer, intent(in) :: number
-
-    !> atomic radius
-    real(dp) :: radius
-
-    if (number > 0 .and. number <= size(atomicRadii, dim=1)) then
-      radius = AtomicRadii(number)
-    else
-      radius = -1.0_dp
-    end if
-
-  end function getAtomicRadiusNumber
+  end subroutine getCorrectionDerivs
 
 
   !> Get pair parameter for species with a given symbols

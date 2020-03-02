@@ -30,6 +30,7 @@ module dftbp_inputdata
   use dftbp_pmlocalisation, only : TPipekMezeyInp
   use dftbp_elstatpot, only : TElStatPotentialsInp
   use dftbp_reks
+  use dftbp_cm5, only : TCM5Input
   use dftbp_solvinput, only : TSolvationInp
 
 #:if WITH_TRANSPORT
@@ -175,6 +176,9 @@ module dftbp_inputdata
 
     !> printout of Mulliken
     logical :: tPrintMulliken   = .false.
+
+    !> Input for CM5 corrected Mulliken charges
+    type(TCM5Input), allocatable :: cm5Input
 
     !> electrostatic potential evaluation and printing
     type(TElStatPotentialsInp), allocatable :: elStatPotentialsInp
