@@ -478,8 +478,11 @@ contains
     !> Current atomic positions
     real(dp), intent(in) :: coords(:,:)
 
-    integer iAt1, iSp1, iAt2f, iNeigh, ip
+    integer iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh, ip
     integer :: mNeighbour, nNeighs, nEval
+    real(dp) :: vec(3), dist2, dist
+    real(dp) :: uj, uj3, ah3uj2
+    real(dp) :: sasaij, dsasaij
     real(dp) :: rsas, sasai, point(3), sasap, wsa, dGr(3)
     real(dp), allocatable :: grds(:,:), derivs(:,:)
     integer, allocatable :: grdi(:)
@@ -493,9 +496,7 @@ contains
     do iAt1 = 1, self%nAtom
       iSp1 = species(iAt1)
 
-      rsas = self%probeRad(iAt1)
-      ! allocate space for the gradient storage
-      nNeighs = nNeighbour(iAt1)
+      rsas = self%probeRad(iSp1)
 
       ! initialize storage
       derivs(:, :) = 0.0_dp
@@ -505,10 +506,41 @@ contains
       do ip = 1, size(self%angGrid, dim=2)
         ! grid point position
         point(:) = coords(:,iAt1) + rsas * self%angGrid(:, ip)
+
         ! atomic surface function at the grid point
-        call getWSp(nNeighs, iNeighbour(:, iAt1), img2CentCell, species, &
-          & self%smoothingPar, self%thresholds, self%probeRad, coords, point, &
-          & sasap, grds, nEval, grdi)
+        nEval = 0
+        grds(:, :) = 0.0_dp
+        grdi(:) = 0
+        sasap = 1.0_dp
+        do iNeigh = 1, nNeighbour(iAt1)
+          iAt2 = iNeighbour(iNeigh, iAt1)
+          iAt2f = img2CentCell(iAt2)
+          iSp2 = species(iAt2f)
+          ! compute the distance to the atom
+          vec(:) = point(:) - coords(:, iAt2)
+          dist2 = vec(1)**2 + vec(2)**2 + vec(3)**2
+          ! if within the outer cut-off compute
+          if (dist2 < self%thresholds(2,iSp2)) then
+            if (dist2 < self%thresholds(1,iSp2)) then
+              sasap = 0.0_dp
+              exit
+            else
+              dist = sqrt(dist2)
+              uj = dist - self%probeRad(iSp2)
+              ah3uj2 = self%smoothingPar(3)*uj*uj
+              dsasaij = self%smoothingPar(2)+3.0_dp*ah3uj2
+              sasaij =  self%smoothingPar(1)+(self%smoothingPar(2)+ah3uj2)*uj
+
+              ! accumulate the molecular surface
+              sasap = sasap*sasaij
+              ! compute the gradient wrt the neighbor
+              dsasaij = dsasaij/(sasaij*dist)
+              nEval = nEval+1
+              grdi(nEval) = iAt2f
+              grds(:, nEval) = dsasaij*vec(:)
+            end if
+          end if
+        end do
 
         if (sasap > self%tolerance) then
           ! numerical quadrature weight
@@ -531,90 +563,6 @@ contains
     end do
 
   end subroutine getSASA
-
-  !> Calculate the SASA for the current grid point
-  pure subroutine getWSp(nNeigh, iNeighbour, img2CentCell, species, ah, &
-      & thresholds, probeRad, coords, point, sasap, grds, nni, grdi)
-
-    !> Number of neighbours of this atom
-    integer, intent(in) :: nNeigh
-
-    !> Neighbours of this atom
-    integer, intent(in) :: iNeighbour(0:)
-
-    !> Mapping of neighbours to central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Species of all atoms
-    integer, intent(in) :: species(:)
-
-    !> Smoothing parameters
-    real(dp), intent(in) :: ah(3)
-
-    !> Thresholds for integration
-    real(dp), intent(in) :: thresholds(:,:)
-
-    !> Probe radius of all species
-    real(dp), intent(in) :: probeRad(:)
-
-    !> Coordinates of all atoms
-    real(dp), intent(in) :: coords(:, :)
-
-    !> Current grid point
-    real(dp), intent(in) :: point(3)
-
-    !> SASA value
-    real(dp), intent(out) :: sasap
-
-    !> Derivative of SASA w.r.t. cartesian coordinates
-    real(dp), intent(out) :: grds(:,:)
-
-    !> Number of evaluated and contributing neighbours
-    integer, intent(out) :: nni
-
-    !> Mapping from neighbours to folded back atoms
-    integer, intent(out) :: grdi(:)
-
-    integer  :: iNeigh, iAt2, iAt2f, iSp2
-    real(dp) :: vec(3), dist2, dist
-    real(dp) :: uj, uj3, ah3uj2
-    real(dp) :: sasaij, dsasaij
-
-    ! initialize storage
-    nni = 0
-    sasap = 1.0_dp
-
-    do iNeigh = 1, nNeigh
-      iAt2 = iNeighbour(iNeigh)
-      iAt2f = img2CentCell(iAt2)
-      iSp2 = species(iAt2f)
-      ! compute the distance to the atom
-      vec(:) = point(:) - coords(:,iAt2)
-      dist2 = vec(1)**2 + vec(2)**2 + vec(3)**2
-      ! if within the outer cut-off compute
-      if (dist2 < thresholds(2,iSp2)) then
-        if (dist2 < thresholds(1,iSp2)) then
-          sasap = 0.0_dp
-          exit
-        else
-          dist = sqrt(dist2)
-          uj = dist - probeRad(iSp2)
-          ah3uj2 = ah(3)*uj*uj
-          dsasaij = ah(2)+3.0_dp*ah3uj2
-          sasaij =  ah(1)+(ah(2)+ah3uj2)*uj
-
-          ! accumulate the molecular surface
-          sasap = sasap*sasaij
-          ! compute the gradient wrt the neighbor
-          dsasaij = dsasaij/(sasaij*dist)
-          nni = nni+1
-          grdi(nni) = iAt2f
-          grds(:, nni) = dsasaij*vec(:)
-        end if
-      end if
-    end do
-
-  end subroutine getWSp
 
 
 end module dftbp_sasa
