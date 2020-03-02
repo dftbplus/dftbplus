@@ -2975,6 +2975,56 @@ Hamiltonian = DFTB {
 \subsubsection{Generalized Born Model}
 \label{sec:dftbp.GeneralizedBorn}
 
+In generalized Born (GB) theory,\cite{onufriev} a molecule is considered as
+continuous region with a dielectric constant~$\epsilon_\text{in}$ surrounded by
+infinite solvent with a dielectric constant~$\epsilon_\text{out}$.
+Charges~$q_\text{A}$ are located at the atomic sites~$\vec R_\text{A}$
+and their interaction in the presence of a polarized solvent can be
+expressed as the solvation energy
+%
+\begin{equation}
+  \Delta G_\text{GB} =
+  -\frac12 \left(\frac1{\epsilon_\text{in}}-\frac1{\epsilon_\text{out}}\right)
+  \sum_{\text{A}=1}^N\sum_{\text{B}=1}^N\frac{q_\text{A}q_\text{B}}
+  {\left(R^2_\text{AB} + a_\text{A}a_\text{B}\exp\left[-\frac{R^2_\text{AB}}
+  {4a_\text{A}a_\text{B}}\right]\right)^{\frac12}}.
+\end{equation}
+
+where $a_\text{A/B}$ are the effective Born radii of the atoms A/B.
+The GB model is added to the Hamiltonian as second order fluctuation
+in the charge density, similar to the coulombic interactions.
+
+The Born radii are evaluated by an Onufriev--Bashford--Case~(OBC) corrected
+pairwise approximation to the molecular volume given as
+%
+\begin{equation}
+  \frac1{a_\text{A}} = \frac1a_\text{scale}\left(
+  \frac1{R^\text{cov}_\text{A} - R_\text{offset}}
+  - \frac1{R^\text{cov}_\text{A}}
+  \cdot \tanh\left[b_\text{OBC}\Psi_\text{A}
+  - c_\text{OBC}\Psi_\text{A}^2 + d_\text{OBC}\Psi_\text{A}^3\right]
+  \right)
+\end{equation}
+
+where $a_\text{scale}$ is a scaling factor for the Born radii,
+$R_\text{offset}$ is a global shift parameter for the covalent radii and
+$a/b/c_\text{OBC}$ are the coefficients for the volume polynomial in
+the OBC correction to the Born radii.
+$\Psi_\text{A}$ is the pairwise approximation to the volume integral
+given by
+%
+\begin{equation}
+  \Psi_\text{A} = \frac{R^\text{cov}_\text{A} - R_\text{offset}}2
+  \sum_\text{B} \Omega(R_\text{AB}, R^\text{cov}_\text{A}, s_\text{B}R^\text{cov}_\text{A})
+\end{equation}
+
+with $\Omega$ being the pairwise function used to approximate the
+volume integral, which is only dependent on the distance and the
+covalent radii. Note that, the covalent radius of the second atom
+is scaled by the element-specific descreening value~$s_\text{B}$
+to compensate the systematic overestimation of the volume by this
+approach.
+
 To use the generalized Born model in the SCC procedure use the
 \is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
 
