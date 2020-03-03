@@ -684,6 +684,9 @@ contains
     end if
 
     if (tPpRPA) then
+      call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
+          & iSparseStart, img2CentCell)
+      call blockSymmetrizeHS(SSqrReal, denseDesc%iAtomStart)
       call ppRPAenergies(denseDesc, eigvecsReal, eigen(:,1,:), sccCalc,&
           & RPA%nexc, RPA%sym, RPA%hhubbard, SSqrReal, species, nEl(1), neighbourList%iNeighbour,&
           & img2CentCell, orb)
