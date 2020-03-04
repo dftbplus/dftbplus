@@ -10,13 +10,25 @@
 !> main module for the DFTB+ API
 module dftbp_mainapi
   use dftbp_environment, only : TEnvironment
-  use dftbp_accuracy, only : dp
-  use dftbp_main, only : processGeometry
-  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
-      & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
-      & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot
+  use dftbp_accuracy,    only : dp, mc
+  use dftbp_main,        only : processGeometry
+  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables,                   &
+       & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,             &
+       & nAtom, nSpin, nEl, speciesName, speciesMass, coord0, latVec, species0, mass              &
+       & tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,         &
+       & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS           &
+       & q0, qShell0, qInput, qOutput, qInpRed, qOutRed, iEqOrbitals, nIneqOrb, nMixElements,     &
+       & referenceN0, qDiffRed, onSiteElements, denseDesc, initQFromShellChrg, initQFromAtomChrg, &
+       & HSqrCplx, SSqrCplx,  eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon,   &
+       & getDenseDescBlacs, parallelKS       
   use dftbp_assert
+  use dftbp_message,         only : error
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_spin,            only : qm2ud, ud2qm, Spin_getOrbitalEquiv
+  use dftbp_orbitalequiv,    only : OrbitalEquiv_reduce, OrbitalEquiv_merge
+  use dftbp_orbitals,        only : TOrbitals
+  use dftbp_densedescr,      only : TDenseDescr
+  use dftbp_scalapackfx,     only : scalafx_getlocalshape
   implicit none
   private
 
@@ -195,8 +207,7 @@ contains
   !> Keeping speciesNames constant avoids the need to reset:
   !> atomEigVal, referenceN0, speciesMass and SK parameters 
   function checkSpeciesNames(inputSpeciesName) result(tSpeciesNameChanged)
-    use dftbp_initprogram, only: speciesName
-    use dftbp_accuracy, only: mc
+   
 
     !> Labels of atomic species from external program
     character(mc),  allocatable, intent(in) :: inputSpeciesName(:)
@@ -211,12 +222,7 @@ contains
   !> When order of atoms changes, update arrays containing atom type indices,
   !> and all subsequent dependencies. Updated data returned via use statements
   subroutine updateDataDependentOnSpeciesOrdering(env, inputSpecies)
-    !TODO(Alex) These will go to the top of the module
-    use dftbp_environment, only: TEnvironment
-    use dftbp_accuracy,    only: mc
-    use dftbp_initprogram, only: species0, mass, orb, iEqOrbitals, nIneqOrb, nMixElements, &
-         denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, &
-         q0, qShell0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, nEl, speciesName
+  
 
     !> dftb+ environment 
     type(TEnvironment),   intent(in) :: env
@@ -242,9 +248,7 @@ contains
   !> Set shell-resolved partial charges.
   !> If no argument is given, the final charges from the prior calculation are used 
   subroutine setShellResolvedCharges(qSeed)
-    use dftbp_initprogram, only: qInput, qOutput, qInpRed, qOutRed, iEqOrbitals, nIneqOrb, orb 
-    use dftbp_spin,        only: qm2ud,ud2qm
-    use dftbp_orbitalequiv,only: OrbitalEquiv_reduce
+   
     
     real(dp), allocatable, intent(in), optional :: qSeed(:, :, :)
     
@@ -268,7 +272,6 @@ contains
   end subroutine setShellResolvedCharges
 
   subroutine getShellResolvedCharges(shell_charges) 
-    use dftbp_initprogram, only : qOutput
     real(dp), intent(inout) :: shell_charges(:,:,:)
     @:ASSERT(allocated(shell_charges))
     shell_charges = qOutput 
@@ -279,10 +282,8 @@ contains
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  
   !> Update order of nr. atomic orbitals for each atom, orb%nOrbAtom
   function updateAtomicOrbitals(species0) result(nOrbAtomReordered)
-    use dftbp_initprogram, only: orb, nAtom
     !> Type of the atoms (nAtom)
     integer,         allocatable,  intent(in) :: species0(:)
     !> Nr. of orbitals for each atom (nAtom)  
@@ -296,7 +297,6 @@ contains
   
   !> Update atomic masses
   function updateAtomicMasses(species0) result(massReordered)
-    use dftbp_initprogram, only: speciesMass, nAtom
     !> Type of the atoms (nAtom)
     integer,  allocatable,   intent(in) :: species0(:)
     !> List of atomic masses (nAtom)
@@ -314,11 +314,6 @@ contains
   !> Update equivalency relations
   !> Required for partial charge initialisation
   subroutine updateEquivalencyRelations(species0, iEqOrbitals, nIneqOrb, nMixElements)
-    use dftbp_initprogram,        only: tSccCalc, orb ,nAtom, nSpin, sccCalc, tDFTBU, onSiteElements
-    use dftbp_spin,               only: Spin_getOrbitalEquiv
-    use dftbp_orbitalequiv,       only: OrbitalEquiv_merge
-    use dftbp_message,            only: error
-    
     !> Type of the atoms (nAtom)
     integer,   allocatable, intent(in) :: species0(:)
     !> Orbital equivalence relations
@@ -331,7 +326,6 @@ contains
     ! Local data 
     integer,   allocatable  :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
 
-    integer :: i,j
     
     if (tSccCalc) then
        if(.not. allocated(iEqOrbitals)) allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
@@ -368,16 +362,6 @@ contains
   !> Initialise partial charges
   subroutine initialiseCharges(species0, speciesName, orb, nElectrons, iEqOrbitals, nIneqOrb, nMixElements, &
        q0, qShell0, qInput, qInpRed, qOutput, qOutRed, qDiffRed, initialSpins, initialCharges)    
-
-    use dftbp_initprogram, only: tMulliken, tSccCalc, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, &
-                                 referenceN0, nSpin, nAtom  !, tImHam
-    use dftbp_sccinit,     only: initQFromShellChrg, initQFromAtomChrg
-    use dftbp_orbitalequiv,only: OrbitalEquiv_reduce
-    use dftbp_spin,        only: qm2ud,ud2qm
-    use dftbp_orbitals,    only: TOrbitals
-    use dftbp_accuracy,    only: mc
-    use dftbp_message,     only: error
-    
     !> Type of the atoms (nAtom)
     integer,  allocatable, intent(in) :: species0(:)
     character(mc),  allocatable, intent(in) :: speciesName(:)
@@ -539,10 +523,6 @@ contains
   !
   !> Update dense matrix descriptor for H and S in BLACS decomposition
   subroutine updateBLACSDecomposition(env, denseDesc)
-    use dftbp_initprogram, only: orb, nAtom, t2Component, getDenseDescCommon, getDenseDescBlacs
-    use dftbp_environment, only: TEnvironment
-    use dftbp_densedescr,  only: TDenseDescr
-
     !> Environment settings
     type(TEnvironment), intent(in)    :: env
     !> Dense matrix descriptor for H and S
@@ -564,11 +544,6 @@ contains
   !
   !> Reassign Hamiltonian, overlap and eigenvector arrays
   subroutine reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal ,eigVecsReal)
-    use dftbp_initprogram, only: t2Component, tRealHS, parallelKS
-    use dftbp_scalapackfx, only: scalafx_getlocalshape
-    use dftbp_environment, only: TEnvironment
-    use dftbp_densedescr,  only: TDenseDescr
-    
     !> Environment instance
     type(TEnvironment), intent(in) :: env
     !> Dense matrix descriptor for H and S
