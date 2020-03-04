@@ -206,7 +206,7 @@ contains
     type(TDftbPlusInput), intent(inout) :: input
 
     type(TParserFlags) :: parserFlags
-    type(inputData) :: inpData
+    type(TInputData) :: inpData
 
     call this%checkInit()
 

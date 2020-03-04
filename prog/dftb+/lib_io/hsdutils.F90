@@ -787,7 +787,7 @@ contains
     character(len=*), intent(in) :: name
 
     !> Value on return
-    type(listString), intent(inout) :: variableValue
+    type(TListString), intent(inout) :: variableValue
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -827,7 +827,7 @@ contains
     character(len=*), intent(in) :: text
 
     !> Contains the value of the parsed text
-    type(listString), intent(inout) :: variableValue
+    type(TListString), intent(inout) :: variableValue
 
     !> node for error handling
     type(fnode), pointer :: node
@@ -863,7 +863,7 @@ contains
     character(len=*), intent(in) :: name
 
     !> Value on return
-    type(listReal), intent(inout) :: variableValue
+    type(TListReal), intent(inout) :: variableValue
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -904,7 +904,7 @@ contains
     character(len=*), intent(in) :: text
 
     !> value Contains the value of the parsed text
-    type(listReal), intent(inout) :: variableValue
+    type(TListReal), intent(inout) :: variableValue
     type(fnode), pointer :: node
 
     integer :: iStart, iErr
@@ -941,7 +941,7 @@ contains
     integer, intent(in) :: dim
 
     !> Value on return
-    type(listRealR1), intent(inout) :: variableValue
+    type(TListRealR1), intent(inout) :: variableValue
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -985,7 +985,7 @@ contains
     integer, intent(in) :: dim
 
     !> Contains the value of the parsed text
-    type(listRealR1), intent(inout) :: variableValue
+    type(TListRealR1), intent(inout) :: variableValue
 
     !> nodes for error handling
     type(fnode), pointer :: node
@@ -1024,7 +1024,7 @@ contains
     character(len=*), intent(in) :: name
 
     !> Value on return
-    type(listInt), intent(inout) :: variableValue
+    type(TListInt), intent(inout) :: variableValue
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1065,7 +1065,7 @@ contains
     character(len=*), intent(in) :: text
 
     !> Contains the value of the parsed text
-    type(listInt), intent(inout) :: variableValue
+    type(TListInt), intent(inout) :: variableValue
 
     !> node for error handling
     type(fnode), pointer :: node
@@ -1104,7 +1104,7 @@ contains
     integer, intent(in) :: dim
 
     !> Modifier of the child on return
-    type(listIntR1), intent(inout) :: variableValue
+    type(TListIntR1), intent(inout) :: variableValue
 
     !> Pointer to the child node (with the spec. name) on return
     type(string), intent(inout), optional :: modifier
@@ -1148,7 +1148,7 @@ contains
     integer, intent(in) :: dim
 
     !> Contains the value of the parsed text
-    type(listIntR1), intent(inout) :: variableValue
+    type(TListIntR1), intent(inout) :: variableValue
 
     !> node for error handling
     type(fnode), pointer :: node
@@ -1195,10 +1195,10 @@ contains
     integer, intent(in) :: dimReal
 
     !> Dimensio of the real arrays in the list
-    type(listIntR1), intent(inout) :: valueInt
+    type(TListIntR1), intent(inout) :: valueInt
 
     !> List of real array on return
-    type(listRealR1), intent(inout) :: valueReal
+    type(TListRealR1), intent(inout) :: valueReal
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1248,13 +1248,13 @@ contains
     integer, intent(in) :: dimInt
 
     !> Contains the value of the integer in the parsed text
-    type(listIntR1), intent(inout) :: valueInt
+    type(TListIntR1), intent(inout) :: valueInt
 
     !> real buffer dimensioning
     integer, intent(in) :: dimReal
 
     !> Contains the value of the real in the parsed text
-    type(listRealR1), intent(inout) :: valueReal
+    type(TListRealR1), intent(inout) :: valueReal
 
     !> for error handling
     type(fnode), pointer :: node
@@ -1303,19 +1303,19 @@ contains
     character(len=*), intent(in) :: name
 
     !> List of strings on return.
-    type(listString), intent(inout) :: valueStr
+    type(TListString), intent(inout) :: valueStr
 
     !> Dimension of the integer arrays in the list
     integer, intent(in) :: dimInt
 
     !> List of integer arrays on return
-    type(listIntR1), intent(inout) :: valueInt
+    type(TListIntR1), intent(inout) :: valueInt
 
     !> Dimension of the real arrays in the list
     integer, intent(in) :: dimReal
 
     !> List of real array on return
-    type(listRealR1), intent(inout) :: valueReal
+    type(TListRealR1), intent(inout) :: valueReal
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1364,19 +1364,19 @@ contains
     character(len=*), intent(in) :: text
 
     !> Contains the string part of the parsed text
-    type(listString), intent(inout) :: valueStr
+    type(TListString), intent(inout) :: valueStr
 
     !> integer buffer dimensioning
     integer, intent(in) :: dimInt
 
     !> Contains the integer part of the parsed text
-    type(listIntR1), intent(inout) :: valueInt
+    type(TListIntR1), intent(inout) :: valueInt
 
     !> integer buffer dimensioning
     integer, intent(in) :: dimReal
 
     !> Contains the real value part of the parsed text
-    type(listRealR1), intent(inout) :: valueReal
+    type(TListRealR1), intent(inout) :: valueReal
 
     !> for error handling
     type(fnode), pointer :: node
@@ -1542,7 +1542,7 @@ contains
     integer, intent(in), optional :: maxRange
 
     type(string) :: buffer
-    type(ListInt) :: li
+    type(TListInt) :: li
     integer :: nAtom, iStart, iostat, shift
 
     shift = 0
@@ -1589,7 +1589,7 @@ contains
     type(fnode), pointer :: node
 
     !> List of the converted atom numbers
-    type(ListInt), intent(inout) :: li
+    type(TListInt), intent(inout) :: li
 
     !> Shift in lower range of index
     integer, intent(in) :: shift 
@@ -1677,7 +1677,7 @@ contains
     integer, intent(in) :: nMax
 
     type(string) :: buffer
-    type(ListInt) :: li
+    type(TListInt) :: li
     integer :: iStart, iostat
 
     call init(li)
@@ -1700,7 +1700,7 @@ contains
     character(len=*), intent(in) :: cbuffer
     integer, intent(in) :: nMax
     type(fnode), pointer :: node
-    type(ListInt), intent(inout) :: li
+    type(TListInt), intent(inout) :: li
 
     integer :: iPos, bounds(2), ii
     integer :: iStart1, iStart2, iost(2)

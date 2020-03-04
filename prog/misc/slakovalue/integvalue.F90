@@ -23,7 +23,7 @@ program integvalue
   real(dp), parameter :: deltaXDiff = epsilon(1.0_dp)**0.25_dp
 
   type(TOldSKData) :: skdata
-  type(OSlakoEqGrid) :: skgrid
+  type(TSlakoEqGrid) :: skgrid
   character(lc) :: fname
   logical :: homo, extended
   integer :: nPoint, col
@@ -163,7 +163,7 @@ contains
   subroutine writeValues(skgrid, rStart, dr, nPoint)
 
     !> SK data grid
-    type(OSlakoEqGrid), intent(in) :: skgrid
+    type(TSlakoEqGrid), intent(in) :: skgrid
 
     !> starting distance
     real(dp), intent(in) :: rStart

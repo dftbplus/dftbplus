@@ -24,7 +24,7 @@ module dftbp_linresp
   use dftbp_slakocont
   use dftbp_fileid
   use dftbp_scc, only : TScc
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_densedescr
   use dftbp_taggedoutput, only : TTaggedWriter
 #:if WITH_ARPACK
@@ -34,12 +34,12 @@ module dftbp_linresp
   implicit none
   private
 
-  public :: linresp, linrespini
+  public :: TLinresp, TLinrespini
   public :: init, calcExcitations, addGradients
 
 
   !> Data type for initial values for linear response calculations
-  type :: linrespini
+  type :: TLinrespini
 
     !> number of excitations to be found
     integer :: nExc
@@ -105,11 +105,11 @@ module dftbp_linresp
     !> Initialised data structure?
     logical :: tInit = .false.
 
-  end type linrespini
+  end type TLinrespini
 
 
   !> Data type for linear response internal settings
-  type :: linresp
+  type :: TLinResp
     integer :: nExc, nStat
     logical :: tEnergyWindow
     real(dp) :: energyWindow
@@ -139,7 +139,7 @@ module dftbp_linresp
     integer :: fdArnoldiDiagnosis = -1
     logical :: tPrintEigVecs
     logical :: tInit = .false.
-  end type linresp
+  end type TLinResp
 
 
   !> Initialise data structure
@@ -166,10 +166,10 @@ contains
   subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements)
 
     !> data structure for linear response
-    type(linresp), intent(out) :: this
+    type(TLinresp), intent(out) :: this
 
     !> initial values for setting parameters
-    type(linrespini), intent(inout) :: ini
+    type(TLinrespini), intent(inout) :: ini
 
     !> number of atoms in central cell
     integer, intent(in) :: nAtom
@@ -275,7 +275,7 @@ contains
       & taggedWriter, excEnergy, allExcEnergies)
 
     !> data structure with additional linear response values
-    type(linresp), intent(inout) :: this
+    type(TLinresp), intent(inout) :: this
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -360,7 +360,7 @@ contains
     logical, intent(in) :: tSpin
 
     !> data for the actual calculation
-    type(linresp), intent(inout) :: this
+    type(TLinresp), intent(inout) :: this
 
     !> indexing array for ground state square matrices
     integer, intent(in) :: iAtomStart(:)
@@ -399,13 +399,13 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> non-SCC H0 data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> method for calculating derivatives of S and H0 matrices
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix (square matrix plus spin index)
     real(dp), intent(in)  :: rhoSqr(:,:,:)

@@ -27,7 +27,7 @@ contains
 
     !> Array of 1D arrays. Each 1D array represents one region. Elements in the 1D array gives the
     !> index of the atoms in the region
-    type(WrappedInt1), intent(in) :: iAtInregion(:)
+    type(TWrappedInt1), intent(in) :: iAtInregion(:)
 
     !> Whether a region must be treated shell resolved.
     logical, intent(in) :: tShellResInRegion(:)
@@ -43,7 +43,7 @@ contains
 
     !> Array of 1D arrays, each containing the list of orbitals which must be summed up in the given
     !> region
-    type(WrappedInt1), allocatable, intent(out) :: iOrbRegion(:)
+    type(TWrappedInt1), allocatable, intent(out) :: iOrbRegion(:)
 
     !> File name for each region
     character(lc), allocatable, intent(out) :: regionLabels(:)
@@ -80,7 +80,7 @@ contains
 
     !> Array of 1D arrays. Each 1D array represents one region. Elements in the 1D array gives the
     !> index of the atoms in the region
-    type(WrappedInt1), intent(in) :: iAtInRegion(:)
+    type(TWrappedInt1), intent(in) :: iAtInRegion(:)
 
     !> Whether a region must be treated shell resolved.
     logical, intent(in) :: tShellResInRegion(:)
@@ -130,7 +130,7 @@ contains
 
     !> Array of 1D arrays, each containing the list of orbitals which must be summed up in the given
     !> region
-    type(WrappedInt1), intent(inout) :: iOrbRegion(:)
+    type(TWrappedInt1), intent(inout) :: iOrbRegion(:)
 
     !> File name for each region
     character(*), intent(inout) :: regionLabels(:)
@@ -182,7 +182,7 @@ contains
 
     !> Array of 1D arrays, each containing the list of orbitals which must be summed up in the given
     !> region
-    type(WrappedInt1), intent(inout) :: iOrbRegion(:)
+    type(TWrappedInt1), intent(inout) :: iOrbRegion(:)
 
     !> File name for each region
     character(*), intent(inout) :: regionLabels(:)
