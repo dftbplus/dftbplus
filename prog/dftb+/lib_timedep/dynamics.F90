@@ -411,10 +411,6 @@ contains
       this%nExcitedAtom = inp%nExcitedAtom
     end if
 
-    print *, 'inp%indExcitedAtom', inp%indExcitedAtom
-    print *, 'inp%nExcitedAtom', inp%nExcitedAtom
-    print *, 'nAtom', nAtom
-
     if (this%tKick) then
       if (inp%polDir == 4) then
         this%polDirs = [1, 2, 3]
