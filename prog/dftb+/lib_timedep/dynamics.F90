@@ -239,7 +239,7 @@ end type TElecDynamics
      integer :: kickAndLaser = 4
 
   end type TDPertTypeEnum
-     
+
   !> Container for enumerated available types of perturbation
   type(TDPertTypeEnum), parameter :: pertTypes = TDPertTypeEnum()
 
@@ -256,23 +256,23 @@ end type TElecDynamics
 
      !> Read field from file
      integer :: fromFile = 4
-     
+
   end type TDEnvelopeFunctionEnum
-  
+
   !> Container for enumerated available types of envelope function
   type(TDEnvelopeFunctionEnum), parameter :: envTypes = TDEnvelopeFunctionEnum()
 
   type :: TDSpinTypesEnum
-     
+
      ! only singlet excitations (no change of total spin)
      integer :: singlet = 1
 
      ! only triplet excitations (with change of total spin = 1)
      integer :: triplet = 2
-     
+
   end type TDSpinTypesEnum
 
-  !> Container for enumerated types of spin polarized spectra 
+  !> Container for enumerated types of spin polarized spectra
   type(TDSpinTypesEnum), parameter :: tdSpinTypes = TDSpinTypesEnum()
 
 contains
@@ -400,7 +400,7 @@ contains
          if (any(inp%imFieldPolVec > epsilon(1.0_dp))) then
             call warning('Using circular or elliptical polarization with periodic structures might not work.')
          end if
-      end if 
+      end if
       this%omega = inp%omega
       this%fieldDir = inp%reFieldPolVec + imag * inp%imFieldPolVec
       norm = sqrt(dot_product(real(this%fieldDir, dp),real(this%fieldDir, dp)))
@@ -410,6 +410,10 @@ contains
       this%indExcitedAtom = inp%indExcitedAtom
       this%nExcitedAtom = inp%nExcitedAtom
     end if
+
+    print *, 'inp%indExcitedAtom', inp%indExcitedAtom
+    print *, 'inp%nExcitedAtom', inp%nExcitedAtom
+    print *, 'nAtom', nAtom
 
     if (this%tKick) then
       if (inp%polDir == 4) then
@@ -473,7 +477,7 @@ contains
        this%movedVelo(:,:) = 0.0_dp
     end if
 
-    if (this%tIons .or. this%tForces .and. (this%nExcitedAtom /= nAtom)) then
+    if ((this%tIons .or. this%tForces) .and. (this%nExcitedAtom /= nAtom)) then
        call error("Ion dynamics and forces are not implemented for excitation of a subgroup of atoms")
     end if
 
@@ -1054,7 +1058,7 @@ contains
                 & 2.0_dp * this%dt)
         end if
      end do
-     
+
      if (mod(iStep, 2) == 1) then
         rho => trho
         rhoOld => trhoOld
@@ -1345,7 +1349,7 @@ contains
 
     character(1), parameter :: localDir(3) = ['x', 'y', 'z']
 
-    pkick(1) = this%field 
+    pkick(1) = this%field
 
     if (this%nSpin == 2) then
       select case(this%spType)
@@ -2418,7 +2422,7 @@ contains
           write(ePBondDat) time * au__fs, sum(ePerBond(:,:)), &
                & ((ePerBond(iAtom, iAtom2), iAtom=1,this%nAtom), iAtom2=1,this%nAtom)
        end if
-       
+
     end if
 
     ! Flush output every 5% of the simulation
@@ -2827,7 +2831,7 @@ contains
     else
 
       allocate(T4(this%nOrbs,this%nOrbs))
-      Ssqr(:,:,:) = cmplx(0,0,dp)  
+      Ssqr(:,:,:) = cmplx(0,0,dp)
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)
