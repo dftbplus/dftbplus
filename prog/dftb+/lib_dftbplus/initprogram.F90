@@ -547,6 +547,9 @@ module dftbp_initprogram
   !> Total charge
   real(dp) :: nrChrg
 
+  !> Is the check-sum for charges read externally be used?                                                     
+  logical :: tSkipChrgChecksum
+
   !> reference neutral atomic occupations
   real(dp), allocatable :: q0(:, :, :)
 
@@ -1042,7 +1045,8 @@ contains
     integer :: iSeed
 
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
-
+    real(dp) :: rTmp
+    
     ! Dispersion
     type(DispSlaKirk), allocatable :: slaKirk
     type(DispUFF), allocatable :: uff
@@ -1088,10 +1092,7 @@ contains
 
     !> First guess for nr. of neighbours.
     integer, parameter :: nInitNeighbour = 40
-
-    !> Is the check-sum for charges read externally be used?
-    logical :: tSkipChrgChecksum
-
+    
     !> Spin loop index
     integer :: iSpin
 
@@ -2980,10 +2981,10 @@ contains
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
     !> Correction to energy from on-site matrix elements
-    real(dp), intent(in) :: onSiteElements(:,:,:,:)
+    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
     
     !> Orbital equivalence relations
-    integer, allocatable intent(inout) :: iEqOrbitals(:,:,:)
+    integer, allocatable, intent(inout) :: iEqOrbitals(:,:,:)
     !> nr. of inequivalent orbitals
     integer, intent(inout) :: nIneqOrb
     !> nr. of elements to go through the mixer
@@ -3050,7 +3051,7 @@ contains
        
        if (allocated(onSiteElements)) then
           ! all onsite blocks are full of unique elements
-          if(.not allocated(iEqBlockOnSite)) then
+          if(.not. allocated(iEqBlockOnSite)) then
              allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
           endif
           if (tImHam) then
@@ -3117,9 +3118,9 @@ contains
     !> (if tDFTBU or onsite corrections)                                           
     integer, intent(in) :: nMixElements
     !> Initial spins
-    real(dp), intent(in) :: initialSpins(:,:)
+    real(dp), allocatable, intent(in) :: initialSpins(:,:)
     !> Set of atom-resolved atomic charges 
-    real(dp), intent(in) :: initialCharges(:)
+    real(dp), allocatable, intent(in) :: initialCharges(:)
     !> Total charge
     real(dp), intent(in) :: nrChrg 
     
@@ -3146,9 +3147,10 @@ contains
     !> Imaginary part of output Mulliken block charges
     real(dp), allocatable :: qiBlockOut(:, :, :, :)
 
-    integer :: iAt,iSp,iSh,ii,jj,i,j, iStart,iStop
+    integer :: iAt,iSp,iSh,ii,jj,i,j, iStart,iStop,iEnd,iS
     real(dp) :: rTmp
-
+    character(lc) :: message 
+    
     ! Charge arrays may have already been initialised
     @:ASSERT(size(species0) == nAtom)
     if(.not. allocated(qInput)) allocate(qInput(orb%mOrb, nAtom, nSpin))
@@ -3199,10 +3201,10 @@ contains
 
        if (allocated(initialCharges)) then
           if (abs(sum(initialCharges) - nrChrg) > 1e-4_dp) then
-             write(strTmp, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match specified&
+             write(message, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match specified&
                   & total charge. (", sum(initialCharges), " vs. ", nrChrg,&
                   & ") ", "Your initial charge distribution will be rescaled."
-             call warning(strTmp)
+             call warning(message)
           end if
           call initQFromAtomChrg(qInput, initialCharges, referenceN0, species0, speciesName, orb)
        else
@@ -3411,7 +3413,7 @@ contains
     #:endif
     @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
     @:SAFE_DEALLOC(temperatureProfile, derivDriver)
-    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput)   
     @:SAFE_DEALLOC(qInpRed, qOutRed, qDiffRed)
     @:SAFE_DEALLOC(iEqOrbitals, iEqBlockDftbU, iEqBlockOnSite, iEqBlockDftbULs, iEqBlockOnSiteLs)
     @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
