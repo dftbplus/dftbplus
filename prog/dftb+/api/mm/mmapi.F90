@@ -21,6 +21,7 @@ module dftbp_mmapi
   use dftbp_xmlf90
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
+  use dftbp_message, only: error
   implicit none
   private
 
@@ -473,22 +474,22 @@ contains
 
   end subroutine convertAtomTypesToSpecies
 
-  !TODO(Alex) Consider whether this should be a member function or free function
+
   !> Checks speciesNames has not changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
-    !TODO(Alex) Establish how to set len of inputSpeciesNames
-    !use dftbp_accuracy,    only: mc
-    use dftbp_message, only: error
-    class(TDftbPlus),               intent(inout) :: this
-    character(len=3),  allocatable, intent(in)    :: inputSpeciesNames(:)
-    logical                                       :: tSpeciesNameChanged
+
+    class(TDftbPlus),  intent(inout) :: this
+    character, intent(in) :: inputSpeciesNames(*)
+
+    logical :: tSpeciesNameChanged
 
     call this%checkInit()
     
     tSpeciesNameChanged = checkSpeciesNames(inputSpeciesNames)
     
     if(tSpeciesNameChanged)then
-       call error('speciesNames has changed between calls to DFTB+. This will cause erroneous results.')
+       call error('speciesNames has changed between calls to DFTB+. This will cause erroneous&
+           & results.')
     else
        continue
     endif
@@ -507,7 +508,7 @@ contains
     character(mc), allocatable, intent(in) :: inputSpeciesNames(:)
     
     call this%checkInit()
-    !TODO(Alex) May not want this call here 
+
     call this%checkSpeciesNames(inputSpeciesNames)
     call updateDataDependentOnSpeciesOrdering(this%env, inputSpecies)
 
