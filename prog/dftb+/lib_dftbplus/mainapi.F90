@@ -17,10 +17,11 @@ module dftbp_mainapi
        & nAtom, nSpin, nEl, speciesName, speciesMass, coord0, latVec, species0, mass              &
        & tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,         &
        & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS           &
-       & q0, qShell0, qInput, qOutput, qInpRed, qOutRed, iEqOrbitals, nIneqOrb, nMixElements,     &
-       & referenceN0, qDiffRed, onSiteElements, denseDesc, initQFromShellChrg, initQFromAtomChrg, &
+       & q0, qInput, qOutput, qInpRed, qOutRed, referenceN0, qDiffRed, initialCharges, nrChrg,    &
+       & initQFromShellChrg, initQFromAtomChrg, create_equivalency_relations, iEqOrbitals,        &
+       & nIneqOrb, nMixElements, onSiteElements, denseDesc, getDenseDescBlacs, parallelKS,        &
        & HSqrCplx, SSqrCplx,  eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon,   &
-       & getDenseDescBlacs, parallelKS       
+       & initialSpins, initializeCharges
   use dftbp_assert
   use dftbp_message,         only : error
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
@@ -237,10 +238,14 @@ contains
     call updateEquivalencyRelations(species0, iEqOrbitals, nIneqOrb, nMixElements)
     call updateBLACSDecomposition(env, denseDesc)
     call reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal)
-    !If atomic order changes, partial charges need to be initialised, else wrong charge will be associated
-    !with each atom
-    call initialiseCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements,&
-         q0, qShell0, qInput, qInpRed, qOutput, qOutRed, qDiffRed)
+
+    !Does nEl also need resetting?
+    
+    !If atomic order changes, partial charges need to be initialised,
+    !else wrong charge will be associated with each atom
+    call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements, &
+         initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed)  
+    !Would be better to update with a redistribution of the last set of charges
     
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -308,11 +313,8 @@ contains
   end function updateAtomicMasses
 
   
-  ! TODO(Alex) This contains copy and pasted code from initprogram.F90
-  ! Could be adapted into a function that is also called in initprogram.F90
-  !
   !> Update equivalency relations
-  !> Required for partial charge initialisation
+  !> iEqOrbitals data required for partial charge initialisation
   subroutine updateEquivalencyRelations(species0, iEqOrbitals, nIneqOrb, nMixElements)
     !> Type of the atoms (nAtom)
     integer,   allocatable, intent(in) :: species0(:)
@@ -323,198 +325,18 @@ contains
     !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks
     !> (if tDFTBU or onsite corrections)
     integer,   intent(inout) :: nMixElements
-    ! Local data 
-    integer,   allocatable  :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
-
     
-    if (tSccCalc) then
-       if(.not. allocated(iEqOrbitals)) allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
-       if(.not. allocated(iEqOrbSCC))   allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
-       call sccCalc%getOrbitalEquiv(orb, species0, iEqOrbSCC)
+    if(tDFTBU) then
+       call error("DFTB+U is not supported by DFTB+ API")
+    elseif(allocated(onSiteElements)) then
+       call error("User-specified onsite elements is not supported by DFTB+ API")
+    endif
        
-       if (nSpin == 1) then
-          iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
-       else
-          allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
-          call Spin_getOrbitalEquiv(orb, species0, iEqOrbSpin)
-          call OrbitalEquiv_merge(iEqOrbSCC, iEqOrbSpin, orb, iEqOrbitals)
-          deallocate(iEqOrbSpin)
-       end if
-
-       deallocate(iEqOrbSCC)
-       nIneqOrb = maxval(iEqOrbitals)
-       nMixElements = nIneqOrb
-
-       if(tDFTBU) then
-          call error("DFTB+U is not supported by DFTB+ API")
-       elseif(allocated(onSiteElements)) then
-          call error("User-specified onsite elements is not supported by DFTB+ API")
-       endif
-       
-    elseif(.not. tSccCalc)then
-       nIneqOrb = orb%nOrb
-       nMixElements = 0
-    end if
-
+    call create_equivalency_relations(species0, orb, onSiteElements,       &
+                                      iEqOrbitals, nIneqOrb, nMixElements, &
+                                      iEqBlockOnSite,iEqBlockOnSiteLS,iEqBlockDFTBULS)
+    
   end subroutine updateEquivalencyRelations
-
-
-  !> Initialise partial charges
-  subroutine initialiseCharges(species0, speciesName, orb, nElectrons, iEqOrbitals, nIneqOrb, nMixElements, &
-       q0, qShell0, qInput, qInpRed, qOutput, qOutRed, qDiffRed, initialSpins, initialCharges)    
-    !> Type of the atoms (nAtom)
-    integer,  allocatable, intent(in) :: species0(:)
-    character(mc),  allocatable, intent(in) :: speciesName(:)
-    !> Data type for atomic orbitals
-    type(TOrbitals),       intent(in) :: orb
-    !> Number of electrons
-    real(dp),              intent(in) :: nElectrons(:)
-    !> Orbital equivalence relations
-    integer,  allocatable, intent(in) :: iEqOrbitals(:,:,:)
-    !> nr. of inequivalent orbitals
-    integer,               intent(in) :: nIneqOrb
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks                
-    !> (if tDFTBU or onsite corrections)                                           
-    integer, intent(in) :: nMixElements
-
-    !> Initial spins
-    real(dp), allocatable, intent(in), optional :: initialSpins(:,:)
-    !> Set of atom-resolved atomic charges 
-    real(dp), allocatable, intent(in), optional :: initialCharges(:)
- 
-    !> reference neutral atomic occupations
-    real(dp), allocatable, intent(inout) :: q0(:, :, :)
-    !> shell resolved neutral reference
-    real(dp), allocatable, intent(inout) :: qShell0(:,:)
-    !> input charges (for potentials)
-    real(dp), allocatable, intent(inout) :: qInput(:, :, :)
-    !> output charges
-    real(dp), allocatable, intent(inout) :: qOutput(:, :, :)
-    !> input charges packed into unique equivalence elements
-    real(dp), allocatable, intent(inout) :: qInpRed(:)
-    !> output charges packed into unique equivalence elements
-    real(dp), allocatable, intent(inout) :: qOutRed(:)
-    !> charge differences packed into unique equivalence elements
-    real(dp), allocatable, intent(inout) :: qDiffRed(:)
-
-    !> TODO(Alex) Not global in initprogram. Currently hard-coded
-    !> Is check-sum for charges read externally to be used?
-    logical  :: tSkipChrgChecksum = .false.
-
-    !Local variables 
-    integer        :: iAt,iSp,iSh,ii,jj,   i,j
-
-    if (.not. tMulliken .or. .not. tSccCalc) then
-       return
-    endif
-
-    !Support to be added 
-    if(tReadChrg) then
-       call error("Reading charges from file is not supported by DFTB+ API")
-    endif
-    
-    if(tMixBlockCharges) then
-       call error("Mixing block charges is not supported by DFTB+ API")
-    endif
-
-    if(tRangeSep) then
-       call error("Range-separated charges is not supported by DFTB+ API")
-    endif
-
-    @:ASSERT(size(species0) == nAtom) 
-    !call error("Number of atoms in species array differ from current state of DFTB+")
-
-    ! Initialise reference neutral atoms 
-    if(.not. allocated(q0)) allocate(q0(orb%mOrb, nAtom, nSpin))
-    q0(:,:,:) = 0.0_dp
-    !referenceN0 consistent as long as speciesName remains constant
-    call initQFromShellChrg(q0, referenceN0, species0, orb)
-
-    !TODO(Alex) This does not appear to get used in any instance in DFTB+. Remove?
-    ! Shell resolved neutral reference
-    if(.not. allocated(qShell0)) allocate(qShell0(orb%mShell, nAtom))
-    qShell0(:,:) = 0.0_dp
-
-    do iAt = 1, nAtom
-       iSp = species0(iAt)
-       do iSh = 1, orb%nShell(iSp)
-          qShell0(iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
-       end do
-    end do
-    
-    !Input charges for potentials 
-    if(.not. allocated(qInput))  allocate(qInput(orb%mOrb, nAtom, nSpin))
-    qInput(:,:,:) = 0.0_dp
-    
-    if (present(initialCharges) .and. allocated(initialCharges)) then
-       call initQFromAtomChrg(qInput, initialCharges, referenceN0, species0, &
-            & speciesName, orb)
-    else
-       qInput(:,:,:) = q0
-    endif
-    
-    !Rescaling to ensure correct number of electrons in the system
-    if (.not. tSkipChrgChecksum) then
-       qInput(:,:,1) = qInput(:,:,1) *  sum(nElectrons) / sum(qInput(:,:,1))
-    endif
-    
-    !Fill additional spin channels 
-    select case (nSpin)
-    case (1)
-       write(*,*) 'case1'
-       continue 
-     
-    case (2)
-       if (present(initialSpins) .and. allocated(initialSpins)) then   
-          do ii = 1, nAtom
-             qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                  * initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
-          end do
-       elseif(.not. tSkipChrgChecksum) then
-          do ii = 1, nAtom
-             qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                  * (nElectrons(1)-nElectrons(2))/sum(qInput(:,:,1))
-          end do
-       end if
-       
-    case (4)
-       if (tSpin) then
-          if ((.not. present(initialSpins)) .or. (.not. allocated(initialSpins))) then
-             call error("Missing initial spins!")
-             
-          elseif (any(shape(initialSpins)/=(/3,nAtom/))) then
-             call error("Incorrect shape initialSpins array!")
-
-          elseif (.not. tSkipChrgChecksum) then
-             do ii = 1, nAtom
-                do jj = 1, 3
-                   qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                        & * initialSpins(jj,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
-                end do
-             end do
-          end if
-       endif
-    end select
-
-    !Input charges packed into unique equivalence elements
-    if(.not. allocated(qInpRed))   allocate(qInpRed(nMixElements))
-    qInpRed = 0.0_dp
-  
-    !Swap from charge/magnetisation to up/down 
-    if (nSpin == 2) call qm2ud(qInput)
-    call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
-    !Converts up/down set back to charge/magnetization                                                              
-    if (nSpin == 2) call ud2qm(qInput)
-    
-    !Only reinitialised, not assigned specific values
-    if(.not. allocated(qOutput))   allocate(qOutput(orb%mOrb, nAtom, nSpin))
-    if(.not. allocated(qOutRed))   allocate(qOutRed(nMixElements))
-    if(.not. allocated(qDiffRed))  allocate(qDiffRed(nMixElements))
-    qOutput  = 0._dp
-    qOutRed  = 0.0_dp
-    qDiffRed = 0.0_dp
-
-  end subroutine initialiseCharges
 
   
   ! TODO(Alex) Not sure this actually requires calling as long as the total
