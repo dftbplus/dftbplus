@@ -34,8 +34,7 @@ module dftbp_mainapi
   private
 
   public :: initProgramVariables, destructProgramVariables
-  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges, setShellResolvedCharges,&
-            getShellResolvedCharges
+  public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges
   public :: nrOfAtoms
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
@@ -223,15 +222,16 @@ contains
   !> When order of atoms changes, update arrays containing atom type indices,
   !> and all subsequent dependencies. Updated data returned via use statements
   subroutine updateDataDependentOnSpeciesOrdering(env, inputSpecies)
-  
-
+    
     !> dftb+ environment 
     type(TEnvironment),   intent(in) :: env
     !> types of the atoms (nAllAtom) 
     integer, allocatable, intent(in) :: inputSpecies(:)
     
     !Number of atoms must be conserved    
-    @:ASSERT(size(inputSpecies) == nAtom) 
+    if(size(inputSpecies) /= nAtom)then
+       call error("Number of atoms must be keep constant in simulation")
+    endif
     species0 = inputSpecies
     mass =  updateAtomicMasses(species0)
     orb%nOrbAtom = updateAtomicOrbitals(species0)
@@ -245,42 +245,8 @@ contains
     !else wrong charge will be associated with each atom
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements, &
          initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed)  
-    !Would be better to update with a redistribution of the last set of charges
     
   end subroutine updateDataDependentOnSpeciesOrdering
-
-  
-  !> Set shell-resolved partial charges.
-  !> If no argument is given, the final charges from the prior calculation are used 
-  subroutine setShellResolvedCharges(qSeed)
-   
-    
-    real(dp), allocatable, intent(in), optional :: qSeed(:, :, :)
-    
-    if(present(qSeed)) then
-       @:ASSERT(size(qSeed,1) == size(qInput,1))
-       @:ASSERT(size(qSeed,2) == size(qInput,2))
-       @:ASSERT(size(qSeed,3) == size(qInput,3))
-       qInput = qSeed
-       !Fill qInpRed
-       if (nSpin == 2) call qm2ud(qInput)
-       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
-       if (nSpin == 2) call ud2qm(qInput)
-    else
-       qInput  = qOutput
-       qInpRed = qOutRed 
-    endif
-    
-    qOutput = 0._dp
-    qOutRed = 0._dp
- 
-  end subroutine setShellResolvedCharges
-
-  subroutine getShellResolvedCharges(shell_charges) 
-    real(dp), intent(inout) :: shell_charges(:,:,:)
-    @:ASSERT(allocated(shell_charges))
-    shell_charges = qOutput 
-  end subroutine getShellResolvedCharges
 
    
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -339,10 +305,6 @@ contains
   end subroutine updateEquivalencyRelations
 
   
-  ! TODO(Alex) Not sure this actually requires calling as long as the total
-  ! number of orbitals and processes remains constant - CHECK
-  ! Will certainly change if nAtom changes 
-  !
   !> Update dense matrix descriptor for H and S in BLACS decomposition
   subroutine updateBLACSDecomposition(env, denseDesc)
     !> Environment settings
@@ -358,12 +320,7 @@ contains
     
   end subroutine updateBLACSDecomposition
 
-
-  ! TODO(Alex) Check if these quantities change per MD step 
-  ! My assumption is that if the total number of orbitals and the number of MPI processes is
-  ! fixed, then nLocalRows and nLocalCols will also stay constant
-  ! Hence will change if nAtom changes 
-  !
+  
   !> Reassign Hamiltonian, overlap and eigenvector arrays
   subroutine reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal ,eigVecsReal)
     !> Environment instance
@@ -393,7 +350,6 @@ contains
   
     if (t2Component .or. .not. tRealHS) then
        if( (size(HSqrCplx,1) /= nLocalRows) .or. (size(HSqrCplx,2) /= nLocalCols) )then
-          write(*,*) 'Complex arrays reallocated - see mainapi.F90' 
           deallocate(HSqrCplx)
           deallocate(SSqrCplx)
           deallocate(eigVecsCplx)
@@ -404,7 +360,6 @@ contains
        
     else
        if( (size(HSqrReal,1) /= nLocalRows) .or. (size(HSqrReal,2) /= nLocalCols) )then
-          write(*,*) 'Real arrays reallocated - see mainapi.F90' 
           deallocate(HSqrReal)
           deallocate(SSqrReal)
           deallocate(eigVecsReal)
