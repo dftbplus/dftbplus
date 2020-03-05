@@ -21,14 +21,13 @@ _mod_dftbp_elsicsc = $(elsicsc.o)
 #:endif
 
 #:if WITH_MPI
-elsisolver.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_environment _mod_dftbp_elecsolvertypes _mod_dftbp_elsiiface _mod_dftbp_elsicsc _mod_dftbp_densedescr _mod_dftbp_periodic _mod_dftbp_orbitals _mod_dftbp_message _mod_dftbp_commontypes _mod_dftbp_energies _mod_dftbp_sparse2dense _mod_dftbp_assert _mod_dftbp_spin _mod_dftbp_angmomentum _mod_dftbp_spinorbit _mod_dftbp_potentials _mod_dftbp_mpifx
-elsisolver.o = elsisolver.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_environment) $(_mod_dftbp_elecsolvertypes) $(_mod_dftbp_elsiiface) $(_mod_dftbp_elsicsc) $(_mod_dftbp_densedescr) $(_mod_dftbp_periodic) $(_mod_dftbp_orbitals) $(_mod_dftbp_message) $(_mod_dftbp_commontypes) $(_mod_dftbp_energies) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_assert) $(_mod_dftbp_spin) $(_mod_dftbp_angmomentum) $(_mod_dftbp_spinorbit) $(_mod_dftbp_potentials) $(_mod_dftbp_mpifx)
+elsisolver.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_environment _mod_dftbp_elecsolvertypes _mod_dftbp_elsiiface _mod_dftbp_elsicsc _mod_dftbp_densedescr _mod_dftbp_periodic _mod_dftbp_orbitals _mod_dftbp_message _mod_dftbp_commontypes _mod_dftbp_energies _mod_dftbp_etemp _mod_dftbp_sparse2dense _mod_dftbp_assert _mod_dftbp_spin _mod_dftbp_angmomentum _mod_dftbp_spinorbit _mod_dftbp_potentials _mod_dftbp_mpifx
+elsisolver.o = elsisolver.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_environment) $(_mod_dftbp_elecsolvertypes) $(_mod_dftbp_elsiiface) $(_mod_dftbp_elsicsc) $(_mod_dftbp_densedescr) $(_mod_dftbp_periodic) $(_mod_dftbp_orbitals) $(_mod_dftbp_message) $(_mod_dftbp_commontypes) $(_mod_dftbp_energies) $(_mod_dftbp_etemp) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_assert) $(_mod_dftbp_spin) $(_mod_dftbp_angmomentum) $(_mod_dftbp_spinorbit) $(_mod_dftbp_potentials) $(_mod_dftbp_mpifx)
 _mod_dftbp_elsisolver: elsisolver.o
 _mod_dftbp_elsisolver = $(elsisolver.o)
 #:else
-elsisolver.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_environment _mod_dftbp_elecsolvertypes _mod_dftbp_elsiiface _mod_dftbp_elsicsc _mod_dftbp_densedescr _mod_dftbp_periodic _mod_dftbp_orbitals _mod_dftbp_message _mod_dftbp_commontypes _mod_dftbp_energies _mod_dftbp_sparse2dense _mod_dftbp_assert _mod_dftbp_spin _mod_dftbp_angmomentum _mod_dftbp_spinorbit _mod_dftbp_potentials
-elsisolver.o = elsisolver.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_environment) $(_mod_dftbp_elecsolvertypes) $(_mod_dftbp_elsiiface) $(_mod_dftbp_elsicsc) $(_mod_dftbp_densedescr) $(_mod_dftbp_periodic) $(_mod_dftbp_orbitals) $(_mod_dftbp_message) $(_mod_dftbp_commontypes) $(_mod_dftbp_energies) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_assert) $(_mod_dftbp_spin) $(_mod_dftbp_angmomentum) $(_mod_dftbp_spinorbit) $(_mod_dftbp_potentials)
+elsisolver.o: common.fypp _mod_dftbp_accuracy _mod_dftbp_environment _mod_dftbp_elecsolvertypes _mod_dftbp_elsiiface _mod_dftbp_elsicsc _mod_dftbp_densedescr _mod_dftbp_periodic _mod_dftbp_orbitals _mod_dftbp_message _mod_dftbp_commontypes _mod_dftbp_energies _mod_dftbp_etemp _mod_dftbp_sparse2dense _mod_dftbp_assert _mod_dftbp_spin _mod_dftbp_angmomentum _mod_dftbp_spinorbit _mod_dftbp_potentials
+elsisolver.o = elsisolver.o $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_dftbp_environment) $(_mod_dftbp_elecsolvertypes) $(_mod_dftbp_elsiiface) $(_mod_dftbp_elsicsc) $(_mod_dftbp_densedescr) $(_mod_dftbp_periodic) $(_mod_dftbp_orbitals) $(_mod_dftbp_message) $(_mod_dftbp_commontypes) $(_mod_dftbp_energies) $(_mod_dftbp_etemp) $(_mod_dftbp_sparse2dense) $(_mod_dftbp_assert) $(_mod_dftbp_spin) $(_mod_dftbp_angmomentum) $(_mod_dftbp_spinorbit) $(_mod_dftbp_potentials)
 _mod_dftbp_elsisolver: elsisolver.o
 _mod_dftbp_elsisolver = $(elsisolver.o)
 #:endif
-

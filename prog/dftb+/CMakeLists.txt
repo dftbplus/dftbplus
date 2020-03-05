@@ -63,6 +63,8 @@ endif()
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 
+target_include_directories(dftbplus PRIVATE ${CMAKE_SOURCE_DIR}/external/dftd4refs)
+
 if(WITH_SOCKETS)
   target_include_directories(dftbplus PUBLIC
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
@@ -83,6 +85,11 @@ if(WITH_ELSI)
   if(ELSI_WITH_PEXSI)
     target_link_libraries(dftbplus PRIVATE ${PEXSI_EXTERNAL_LIBRARIES})
   endif()
+endif()
+
+if(WITH_PLUMED)
+  #target_link_libraries(dftbplus PRIVATE PkgConfig::PLUMED)
+  target_link_libraries(dftbplus PRIVATE ${PLUMED_LIBRARIES})
 endif()
 
 if(WITH_MPI)

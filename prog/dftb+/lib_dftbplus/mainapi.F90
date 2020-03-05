@@ -20,7 +20,7 @@ module dftbp_mainapi
       & qInpRed, qInput, qOutput, qOutRed, qShell0, referenceN0, refExtPot, sccCalc, species0,&
       & speciesMass, speciesName, SSqrCplx, SSqrReal, t2Component, tCoordsChanged, tDFTBU,&
       & tExtChrg, tExtField, tForces, tLatticeChanged, tMixBlockCharges, tMulliken, tRangeSep,&
-      & tReadChrg, tRealHS, TRefExtPot, tSccCalc, tSpin
+      & tReadChrg, tRealHS, TRefExtPot, tSccCalc, tSpin, tStress, totalStress
   use dftbp_main, only : processGeometry
   use dftbp_message, only : error
   use dftbp_orbitalequiv, only : orbitalEquiv_merge, orbitalEquiv_reduce
@@ -35,7 +35,7 @@ module dftbp_mainapi
   public :: initProgramVariables, destructProgramVariables
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: setShellResolvedCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
 
@@ -87,11 +87,37 @@ contains
     !> resulting gradients wrt atom positions
     real(dp), intent(out) :: gradients(:,:)
 
+    if (.not. tForces) then
+      call error("Forces not available, you must initialise your calculator&
+          & with forces enabled.")
+    end if
+
     @:ASSERT(size(gradients,1) == 3)
+
     call recalcGeometry(env)
     gradients(:,:) = derivs
 
   end subroutine getGradients
+
+
+  !> get stress tensor for unit cell
+  subroutine getStressTensor(env, stress)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> resulting gradients wrt atom positions
+    real(dp), intent(out) :: stress(:,:)
+
+    if (.not. tStress) then
+      call error("Stress tensor not available, you must initialise your calculator with&
+          & this property enabled.")
+    end if
+
+    call recalcGeometry(env)
+    stress(:,:) = totalStress
+
+  end subroutine getStressTensor
 
 
   !> get the gross (Mulliken projected) charges for atoms wrt neutral atoms

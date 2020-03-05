@@ -932,7 +932,7 @@ Subroutine mix_bndyc(kbdy,xory,yorz,alfa,gbdy)
           R=sqrt((zz-cntr_cont(i_z,m))**2+(yy-cntr_cont(i_y,m))**2)
           if(R.le.R_cont(m)) then
              alfa = 1.d6
-             gbdy = 1.d6 !* bulk_pot(m)%val(ii,jj,1)
+             gbdy = 1.d6 ! bulk_pot(m)%val(ii,jj,1)
           endif
           
        case(2) 
@@ -941,7 +941,7 @@ Subroutine mix_bndyc(kbdy,xory,yorz,alfa,gbdy)
              yy.ge.cntr_cont(i_y,m)-R_cont(m).and.yy.le.cntr_cont(i_y,m)+R_cont(m)) then
 
              alfa = 1.d6
-             gbdy = 1.d6 !* bulk_pot(m)%val(ii,jj,1)             
+             gbdy = 1.d6 ! bulk_pot(m)%val(ii,jj,1)
              
           endif
           
