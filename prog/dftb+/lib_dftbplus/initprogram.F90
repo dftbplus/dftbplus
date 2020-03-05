@@ -1068,11 +1068,6 @@ contains
     !> Flag if some files do exist or not
     logical :: tExist
 
-    ! Orbital equivalency for SCC and Spin
-    integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
-    ! Orbital equivalency for orbital potentials
-    integer, allocatable :: iEqOrbDFTBU(:,:,:)
-
     ! Damped interactions
     logical, allocatable, target :: tDampedShort(:)
     type(ThirdOrderInp) :: thirdInp
@@ -1515,79 +1510,11 @@ contains
     deltaT = input%ctrl%deltaT
 
 
-    ! Create equivalency relations
-    if (tSccCalc) then
-      allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
-      allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
-      call sccCalc%getOrbitalEquiv(orb, species0, iEqOrbSCC)
-      if (nSpin == 1) then
-        iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
-      else
-        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
-        call Spin_getOrbitalEquiv(orb, species0, iEqOrbSpin)
-        call OrbitalEquiv_merge(iEqOrbSCC, iEqOrbSpin, orb, iEqOrbitals)
-        deallocate(iEqOrbSpin)
-      end if
-      deallocate(iEqOrbSCC)
-      nIneqOrb = maxval(iEqOrbitals)
-      nMixElements = nIneqOrb
+    ! Orbital equivalency relations 
+    call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
+         & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
 
-      if (tDFTBU) then
-        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
-        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
-        call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU,orb, species0, nUJ, niUJ, iUJ)
-        call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
-        iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
-        nIneqOrb = maxval(iEqOrbitals)
-        deallocate(iEqOrbSpin)
-        deallocate(iEqOrbDFTBU)
-      end if
-
-      if (allocated(onSiteElements)) then
-        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
-        iEqOrbSpin(:,:,:) = 0.0_dp
-        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
-        iEqOrbDFTBU(:,:,:) = 0.0_dp
-        call Ons_getOrbitalEquiv(iEqOrbDFTBU,orb, species0)
-        call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
-        iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
-        nIneqOrb = maxval(iEqOrbitals)
-        deallocate(iEqOrbSpin)
-        deallocate(iEqOrbDFTBU)
-      end if
-
-      if (allocated(onSiteElements)) then
-        ! all onsite blocks are full of unique elements
-        allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        if (tImHam) then
-          allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        end if
-        call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
-        nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
-        if (allocated(iEqBlockOnSiteLS)) then
-          nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
-        end if
-      else if (tDFTBU) then
-        ! only a sub-set of onsite blocks are reduced/expanded
-        allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
-        nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
-        !  iEqBlockDFTBU does not include diagonal elements, so in the case of
-        !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
-        !  return 0
-        if (tImHam) then
-          allocate(iEqBlockDFTBULS(orb%mOrb, orb%mOrb, nAtom, nSpin))
-          call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, orb, species0, nUJ, niUJ, iUJ)
-          nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
-        end if
-      end if
-
-
-    else
-      nIneqOrb = nOrb
-      nMixElements = 0
-    end if
-
+    
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
@@ -3039,6 +2966,129 @@ contains
     call env%globalTimer%stopTimer(globalTimers%globalInit)
 
   end subroutine initProgramVariables
+
+  
+  !> Initialize equivalency relations 
+  ! Data available from module: nUJ, niUJ, iUJ, nAtom, nSpin, nOrb and logicals 
+  subroutine setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
+       & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
+    
+    !> Type of the atoms (nAtom)
+    integer,  intent(in) :: species0(:)
+    !> SCC module internal variables
+    type(TScc), intent(in) :: sccCalc
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+    !> Correction to energy from on-site matrix elements
+    real(dp), intent(in) :: onSiteElements(:,:,:,:)
+    
+    !> Orbital equivalence relations
+    integer, allocatable intent(inout) :: iEqOrbitals(:,:,:)
+    !> nr. of inequivalent orbitals
+    integer, intent(inout) :: nIneqOrb
+    !> nr. of elements to go through the mixer
+    !> - may contain reduced orbitals and also orbital blocks
+    !> (if tDFTBU or onsite corrections)
+    integer, intent(inout) :: nMixElements
+    !> Orbital equivalency for orbital blocks
+    integer, allocatable, intent(inout) :: iEqBlockDFTBU(:,:,:,:)
+    !> Orbital equivalency for orbital blocks with spin-orbit
+    integer, allocatable, intent(inout) :: iEqBlockDFTBULS(:,:,:,:)
+    !> Equivalences for onsite block corrections if needed
+    integer, allocatable, intent(inout) :: iEqBlockOnSite(:,:,:,:)
+    !> Equivalences for onsite block corrections if needed with spin orbit
+    integer, allocatable, intent(inout) :: iEqBlockOnSiteLS(:,:,:,:)
+
+    ! Orbital equivalency for SCC and Spin
+    integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
+    ! Orbital equivalency for orbital potentials
+    integer, allocatable :: iEqOrbDFTBU(:,:,:)
+    
+
+    ! Create equivalency relations
+    if (tSccCalc) then
+       if(.not. allocated(iEqOrbitals)) then
+          allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
+       endif
+       allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
+       call sccCalc%getOrbitalEquiv(orb, species0, iEqOrbSCC)
+       if (nSpin == 1) then
+          iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
+       else
+          allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+          call Spin_getOrbitalEquiv(orb, species0, iEqOrbSpin)
+          call OrbitalEquiv_merge(iEqOrbSCC, iEqOrbSpin, orb, iEqOrbitals)
+          deallocate(iEqOrbSpin)
+       end if
+       deallocate(iEqOrbSCC)
+       nIneqOrb = maxval(iEqOrbitals)
+       nMixElements = nIneqOrb
+       
+       if (tDFTBU) then
+          allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+          allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
+          call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU,orb, species0, nUJ, niUJ, iUJ)
+          call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
+          iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+          nIneqOrb = maxval(iEqOrbitals)
+          deallocate(iEqOrbSpin)
+          deallocate(iEqOrbDFTBU)
+       end if
+       
+       if (allocated(onSiteElements)) then
+          allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+          iEqOrbSpin(:,:,:) = 0.0_dp
+          allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
+          iEqOrbDFTBU(:,:,:) = 0.0_dp
+          call Ons_getOrbitalEquiv(iEqOrbDFTBU,orb, species0)
+          call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
+          iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+          nIneqOrb = maxval(iEqOrbitals)
+          deallocate(iEqOrbSpin)
+          deallocate(iEqOrbDFTBU)
+       end if
+       
+       if (allocated(onSiteElements)) then
+          ! all onsite blocks are full of unique elements
+          if(.not allocated(iEqBlockOnSite)) then
+             allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          endif
+          if (tImHam) then
+             if(.not. allocated(iEqBlockOnSiteLS))then
+                allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
+             endif
+          end if
+          call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
+          nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
+          if (allocated(iEqBlockOnSiteLS)) then
+             nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
+          end if
+       else if (tDFTBU) then
+          ! only a sub-set of onsite blocks are reduced/expanded
+          if(.not. allocated(iEqBlockDFTBU))then
+             allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          endif
+          call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
+          nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
+          !  iEqBlockDFTBU does not include diagonal elements, so in the case of
+          !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
+          !  return 0
+          if (tImHam) then
+             if(.not. allocated(iEqBlockDFTBULS))then
+                allocate(iEqBlockDFTBULS(orb%mOrb, orb%mOrb, nAtom, nSpin))
+             endif
+             call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, orb, species0, nUJ, niUJ, iUJ)
+             nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
+          end if
+       end if
+
+    !Non-SCC
+    else
+       nIneqOrb = nOrb
+       nMixElements = 0
+    end if
+   
+ end subroutine setEquivalencyRelations
 
 
   !> Initialise partial charges

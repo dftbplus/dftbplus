@@ -18,7 +18,7 @@ module dftbp_mainapi
        & tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,         &
        & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS           &
        & q0, qInput, qOutput, qInpRed, qOutRed, referenceN0, qDiffRed, initialCharges, nrChrg,    &
-       & initQFromShellChrg, initQFromAtomChrg, create_equivalency_relations, iEqOrbitals,        &
+       & initQFromShellChrg, initQFromAtomChrg, setEquivalencyRelations, iEqOrbitals,        &
        & nIneqOrb, nMixElements, onSiteElements, denseDesc, getDenseDescBlacs, parallelKS,        &
        & HSqrCplx, SSqrCplx,  eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon,   &
        & initialSpins, initializeCharges
@@ -235,10 +235,12 @@ contains
     species0 = inputSpecies
     mass =  updateAtomicMasses(species0)
     orb%nOrbAtom = updateAtomicOrbitals(species0)
-    call updateEquivalencyRelations(species0, iEqOrbitals, nIneqOrb, nMixElements)
+    !iEqOrbitals data required for partial charge initialisation
+    call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
+         & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)    
     call updateBLACSDecomposition(env, denseDesc)
-    call reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal)
-
+    call reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, &
+         & SSqrReal, eigVecsReal)
     !Does nEl also need resetting?
     
     !If atomic order changes, partial charges need to be initialised,
@@ -278,33 +280,7 @@ contains
     massReordered = speciesMass(species0)
   end function updateAtomicMasses
 
-  
-  !> Update equivalency relations
-  !> iEqOrbitals data required for partial charge initialisation
-  subroutine updateEquivalencyRelations(species0, iEqOrbitals, nIneqOrb, nMixElements)
-    !> Type of the atoms (nAtom)
-    integer,   allocatable, intent(in) :: species0(:)
-    !> Orbital equivalence relations
-    integer,   allocatable, intent(inout) :: iEqOrbitals(:,:,:)
-    !> nr. of inequivalent orbitals
-    integer,   intent(inout) :: nIneqOrb
-    !> nr. of elements to go through the mixer - may contain reduced orbitals and also orbital blocks
-    !> (if tDFTBU or onsite corrections)
-    integer,   intent(inout) :: nMixElements
     
-    if(tDFTBU) then
-       call error("DFTB+U is not supported by DFTB+ API")
-    elseif(allocated(onSiteElements)) then
-       call error("User-specified onsite elements is not supported by DFTB+ API")
-    endif
-       
-    call create_equivalency_relations(species0, orb, onSiteElements,       &
-                                      iEqOrbitals, nIneqOrb, nMixElements, &
-                                      iEqBlockOnSite,iEqBlockOnSiteLS,iEqBlockDFTBULS)
-    
-  end subroutine updateEquivalencyRelations
-
-  
   !> Update dense matrix descriptor for H and S in BLACS decomposition
   subroutine updateBLACSDecomposition(env, denseDesc)
     !> Environment settings
@@ -322,7 +298,8 @@ contains
 
   
   !> Reassign Hamiltonian, overlap and eigenvector arrays
-  subroutine reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal ,eigVecsReal)
+  subroutine reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, &
+       & HSqrReal, SSqrReal ,eigVecsReal)
     !> Environment instance
     type(TEnvironment), intent(in) :: env
     !> Dense matrix descriptor for H and S
