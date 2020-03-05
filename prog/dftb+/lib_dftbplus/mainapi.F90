@@ -14,19 +14,24 @@ module dftbp_mainapi
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
   use dftbp_initprogram, only : chrgForces, coord0, denseDesc, derivs, destructProgramVariables,&
-      & eigVecsCplx, eigVecsReal, energy, getDenseDescBlacs, getDenseDescCommon, HSqrCplx,&
+      & eigVecsCplx, eigVecsReal, energy, getDenseDescCommon, HSqrCplx,&
       & HSqrReal, iEqOrbitals, initProgramVariables, latVec, mass, nAtom, nEl, nIneqOrb,&
       & nMixElements, nSpin, onSiteElements, orb, orb , parallelKS, q0, qDepExtPot, qDiffRed,&
       & qInpRed, qInput, qOutput, qOutRed, qShell0, referenceN0, refExtPot, sccCalc, species0,&
       & speciesMass, speciesName, SSqrCplx, SSqrReal, t2Component, tCoordsChanged, tDFTBU,&
       & tExtChrg, tExtField, tForces, tLatticeChanged, tMixBlockCharges, tMulliken, tRangeSep,&
       & tReadChrg, tRealHS, TRefExtPot, tSccCalc, tSpin, tStress, totalStress
+#:if WITH_SCALAPACK
+  use dftbp_initprogram, only : getDenseDescBlacs
+#:endif
   use dftbp_main, only : processGeometry
   use dftbp_message, only : error
   use dftbp_orbitalequiv, only : orbitalEquiv_merge, orbitalEquiv_reduce
   use dftbp_orbitals, only : TOrbitals
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
+#:if WITH_SCALAPACK
   use dftbp_scalapackfx, only : scalafx_getlocalshape
+#:endif
   use dftbp_sccinit, only : initQFromShellChrg, initQFromAtomChrg
   use dftbp_spin, only : qm2ud, ud2qm, spin_getOrbitalEquiv
   implicit none
@@ -262,9 +267,11 @@ contains
     mass =  updateAtomicMasses(species0)
     orb%nOrbAtom = updateAtomicOrbitals(species0)
     call updateEquivalencyRelations(species0, iEqOrbitals, nIneqOrb, nMixElements)
+  #:if WITH_SCALAPACK
     call updateBLACSDecomposition(env, denseDesc)
     call reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal,&
         & eigVecsReal)
+  #:endif
     ! If atomic order changes, partial charges need to be initialised, else wrong charge will be
     ! associated with each atom
     call initialiseCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements,&
@@ -600,9 +607,18 @@ contains
     !Retrieved from index array for spin and k-point index
     nLocalKS = size(parallelKS%localKS, dim=2)
 
+  #:if WITH_SCALAPACK
     !Get nLocalRows and nLocalCols
     call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
-
+  #:else
+    if (t2Component .or. .not. tRealHS) then
+      nLocalRows = size(HSqrCplx,1)
+      nLocalCols = size(HSqrCplx,2)
+    else
+      nLocalRows = size(HSqrReal,1)
+      nLocalCols = size(HSqrReal,2)
+    end if
+  #:endif
     if (t2Component .or. .not. tRealHS) then
        if( (size(HSqrCplx,1) /= nLocalRows) .or. (size(HSqrCplx,2) /= nLocalCols) )then
           deallocate(HSqrCplx)
@@ -612,7 +628,6 @@ contains
           allocate(SSqrCplx(nLocalRows, nLocalCols))
           allocate(eigVecsCplx(nLocalRows, nLocalCols, nLocalKS))
        endif
-
     else
        if( (size(HSqrReal,1) /= nLocalRows) .or. (size(HSqrReal,2) /= nLocalCols) )then
           deallocate(HSqrReal)
