@@ -14,14 +14,15 @@ module dftbp_mainapi
   use dftbp_main,        only : processGeometry
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables,                   &
        & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,             &
-       & nAtom, nSpin, nEl, speciesName, speciesMass, coord0, latVec, species0, mass              &
+       & nAtom, nSpin, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,             &
        & tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,         &
-       & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS           &
-       & q0, qInput, qOutput, qInpRed, qOutRed, referenceN0, qDiffRed, initialCharges, nrChrg,    &
-       & initQFromShellChrg, initQFromAtomChrg, setEquivalencyRelations, iEqOrbitals,        &
-       & nIneqOrb, nMixElements, onSiteElements, denseDesc, getDenseDescBlacs, parallelKS,        &
-       & HSqrCplx, SSqrCplx,  eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon,   &
-       & initialSpins, initializeCharges
+       & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS,          &
+       & q0, qInput, qOutput, qInpRed, qOutRed, referenceN0, qDiffRed, nrChrg, initQFromShellChrg,&
+       & initQFromAtomChrg, setEquivalencyRelations, iEqOrbitals, nIneqOrb, nMixElements,         &
+       & onSiteElements, denseDesc, getDenseDescBlacs, parallelKS, HSqrCplx, SSqrCplx,            &
+       & eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon,                        &
+       & initializeCharges, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut, iEqBlockDFTBU,            &
+       & iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS
   use dftbp_assert
   use dftbp_message,         only : error
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
@@ -205,14 +206,17 @@ contains
 
   !> Check that the order of speciesName remains constant
   !> Keeping speciesNames constant avoids the need to reset:
-  !> atomEigVal, referenceN0, speciesMass and SK parameters 
+  !> atomEigVal, referenceN0, speciesMass and SK parameters
+  !
+  !  Even if nAtom is not conserved, it should be possible to know the
+  !  total number of species types, nTypes, in a simulation and hence
+  !  always keep speciesName constant 
   function checkSpeciesNames(inputSpeciesName) result(tSpeciesNameChanged)
    
-
     !> Labels of atomic species from external program
-    character(mc),  allocatable, intent(in) :: inputSpeciesName(:)
+    character(mc), intent(in) :: inputSpeciesName(:)
     !> Has speciesName changed?
-    logical                                 :: tSpeciesNameChanged
+    logical                   :: tSpeciesNameChanged
     
     tSpeciesNameChanged = any(speciesName /= inputSpeciesName)
  
@@ -220,33 +224,36 @@ contains
 
   
   !> When order of atoms changes, update arrays containing atom type indices,
-  !> and all subsequent dependencies. Updated data returned via use statements
+  !> and all subsequent dependencies.
+  !  Updated data returned via use statements
   subroutine updateDataDependentOnSpeciesOrdering(env, inputSpecies)
     
     !> dftb+ environment 
     type(TEnvironment),   intent(in) :: env
     !> types of the atoms (nAllAtom) 
-    integer, allocatable, intent(in) :: inputSpecies(:)
+    integer,              intent(in) :: inputSpecies(:)
+    !> Dummy arguments. Won't be used if not allocated
+    real(dp), allocatable :: initialCharges(:), initialSpins(:,:)
     
-    !Number of atoms must be conserved    
     if(size(inputSpecies) /= nAtom)then
        call error("Number of atoms must be keep constant in simulation")
     endif
+    
     species0 = inputSpecies
     mass =  updateAtomicMasses(species0)
     orb%nOrbAtom = updateAtomicOrbitals(species0)
-    !iEqOrbitals data required for partial charge initialisation
+    
+    !Used in partial charge initialisation
     call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
-         & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)    
+         & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
     call updateBLACSDecomposition(env, denseDesc)
     call reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, &
          & SSqrReal, eigVecsReal)
-    !Does nEl also need resetting?
-    
     !If atomic order changes, partial charges need to be initialised,
-    !else wrong charge will be associated with each atom
-    call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements, &
-         initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed)  
+    !else wrong partial charge will be associated with each atom
+    call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
+         & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, &
+         & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)  
     
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -258,9 +265,9 @@ contains
   !> Update order of nr. atomic orbitals for each atom, orb%nOrbAtom
   function updateAtomicOrbitals(species0) result(nOrbAtomReordered)
     !> Type of the atoms (nAtom)
-    integer,         allocatable,  intent(in) :: species0(:)
+    integer,  intent(in)  :: species0(:)
     !> Nr. of orbitals for each atom (nAtom)  
-    integer,         allocatable :: nOrbAtomReordered(:)
+    integer,  allocatable :: nOrbAtomReordered(:)
 
     @:ASSERT(nAtom == size(species0))
     allocate(nOrbAtomReordered(nAtom))
@@ -271,12 +278,12 @@ contains
   !> Update atomic masses
   function updateAtomicMasses(species0) result(massReordered)
     !> Type of the atoms (nAtom)
-    integer,  allocatable,   intent(in) :: species0(:)
+    integer,  intent(in)  :: species0(:)
     !> List of atomic masses (nAtom)
     real(dp), allocatable :: massReordered(:)
 
     @:ASSERT(nAtom == size(speciesMass))
-    allocate(massReordered(size(speciesMass)))
+    allocate(massReordered(nAtom))
     massReordered = speciesMass(species0)
   end function updateAtomicMasses
 
@@ -307,24 +314,26 @@ contains
     !> Square dense hamiltonian storage for cases with k-points
     complex(dp), allocatable, intent(inout) :: HSqrCplx(:,:)
     !> Square dense overlap storage for cases with k-points
-    complex(dp), allocatable, intent(inout)  :: SSqrCplx(:,:)
+    complex(dp), allocatable, intent(inout) :: SSqrCplx(:,:)
     !> Complex eigenvectors
-    complex(dp), allocatable :: eigvecsCplx(:,:,:)
+    complex(dp), allocatable, intent(inout) :: eigvecsCplx(:,:,:)
     !> Square dense hamiltonian storage
-    real(dp),    allocatable :: HSqrReal(:,:)
+    real(dp),    allocatable, intent(inout) :: HSqrReal(:,:)
     !> Square dense overlap storage
-    real(dp),    allocatable :: SSqrReal(:,:)
+    real(dp),    allocatable, intent(inout) :: SSqrReal(:,:)
     !> Real eigenvectors
-    real(dp),    allocatable :: eigvecsReal(:,:,:)
+    real(dp),    allocatable, intent(inout) :: eigvecsReal(:,:,:)
     ! Local variables 
-    integer                  :: nLocalRows, nLocalCols, nLocalKS
+    integer :: nLocalRows, nLocalCols, nLocalKS
 
     !Retrieved from index array for spin and k-point index
     nLocalKS = size(parallelKS%localKS, dim=2)
     
     !Get nLocalRows and nLocalCols 
-    call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, nLocalRows, nLocalCols)
-  
+    call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
+                               nLocalRows, nLocalCols)
+
+    !Complex
     if (t2Component .or. .not. tRealHS) then
        if( (size(HSqrCplx,1) /= nLocalRows) .or. (size(HSqrCplx,2) /= nLocalCols) )then
           deallocate(HSqrCplx)
@@ -334,7 +343,7 @@ contains
           allocate(SSqrCplx(nLocalRows, nLocalCols))
           allocate(eigVecsCplx(nLocalRows, nLocalCols, nLocalKS))
        endif
-       
+    !Real   
     else
        if( (size(HSqrReal,1) /= nLocalRows) .or. (size(HSqrReal,2) /= nLocalCols) )then
           deallocate(HSqrReal)

@@ -74,16 +74,13 @@ module dftbp_mmapi
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
-    !> set the shell(orbital)-resolved DFTB+ partial charges
-    procedure :: setShellResolvedCharges => TDftbPlus_setShellResolvedCharges
-    !> get the shell(orbital)-resolved DFTB+ partial charges
-    procedure :: getShellResolvedCharges => TDftbPlus_getShellResolvedCharges 
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
     !> Check that the list of species names has not changed  
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
     !> Replace species and redefine all quantities that depend on it 
     procedure :: setSpeciesAndDependents => TDftbPlus_setSpeciesAndDependents
+    !> Check instance of DFTB+ is initialised 
     procedure, private :: checkInit => TDftbPlus_checkInit
   end type TDftbPlus
 
@@ -479,8 +476,8 @@ contains
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
     class(TDftbPlus),  intent(inout) :: this
-    character(len=*),  intent(in)    :: inputSpeciesNames(:)
-    logical                          :: tSpeciesNameChanged
+    character(len=*),  intent(in) :: inputSpeciesNames(:)
+    logical :: tSpeciesNameChanged
 
     call this%checkInit()
     
@@ -504,45 +501,12 @@ contains
     integer, intent(in) :: inputSpecies(:)
     
     !> Labels of atomic species (nSpecies)
-    character(mc), intent(in) :: inputSpeciesNames(:)
+    character(len=*), intent(in) :: inputSpeciesNames(:)
     
     call this%checkInit()
     call this%checkSpeciesNames(inputSpeciesNames)
     call updateDataDependentOnSpeciesOrdering(this%env, inputSpecies)
 
   end subroutine TDftbPlus_setSpeciesAndDependents
-
-  !> Set shell-resolved partial charges.
-  !> If no argument given, the final charges from the prior calculation are used 
-  subroutine TDftbPlus_setShellResolvedCharges(this, qSeed)
-    !> Instance
-    class(TDftbPlus), intent(inout) :: this
-
-    !> Shell-resolved partial charge 
-    real(dp), allocatable, intent(in), optional :: qSeed(:, :, :)
-
-    call this%checkInit()
-    if (present(qSeed)) then
-       call setShellResolvedCharges(qSeed)
-    else
-       ! Uses final charges from prior calculation 
-       call setShellResolvedCharges()
-    endif
-    
-  end subroutine TDftbPlus_setShellResolvedCharges
-
-  !> Get shell-resolved partial charges.
-  subroutine TDftbPlus_getShellResolvedCharges(this, shell_charges)
-    !> Instance
-    class(TDftbPlus), intent(inout) :: this
-
-    !> Shell-resolved partial charges 
-    real(dp), intent(inout) :: shell_charges(:, :, :)
-
-    call this%checkInit()
-    call getShellResolvedCharges(shell_charges)
-    
-  end subroutine TDftbPlus_getShellResolvedCharges
-
 
 end module dftbp_mmapi

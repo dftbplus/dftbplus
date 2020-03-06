@@ -562,6 +562,18 @@ module dftbp_initprogram
   !> output charges
   real(dp), allocatable :: qOutput(:, :, :)
 
+  !> input Mulliken block charges (diagonal part == Mulliken charges)                                  
+  real(dp), allocatable :: qBlockIn(:, :, :, :)
+
+  !> Output Mulliken block charges                                                                     
+  real(dp), allocatable :: qBlockOut(:, :, :, :)
+
+  !> Imaginary part of input Mulliken block charges                                                    
+  real(dp), allocatable :: qiBlockIn(:, :, :, :)
+
+  !> Imaginary part of output Mulliken block charges                                                   
+  real(dp), allocatable :: qiBlockOut(:, :, :, :)
+  
   !> input charges packed into unique equivalence elements
   real(dp), allocatable :: qInpRed(:)
 
@@ -2173,7 +2185,6 @@ contains
       EfieldPhase = 0
     end if
 
- 
     !Initialise charges 
     tReadChrg = input%ctrl%tReadChrg
 
@@ -2197,10 +2208,10 @@ contains
     tWriteChrgAscii = input%ctrl%tWriteChrgAscii
     tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
 
-    call initialiseCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,  &
-         & nMixElements, input%ctrl%initialSpins, input%ctrl%initialCharges, nrChrg,&
-         & q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed)   
-
+    call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
+         & nMixElements, input%ctrl%initialSpins, input%ctrl%initialCharges, nrChrg, &
+         & q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, &
+         & qiBlockIn, qiBlockOut)
     
     ! Initialise images (translations)
     if (tPeriodic) then
@@ -3099,7 +3110,8 @@ contains
   !  iEqBlockDFTBULS and all logicals present
   !
   subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements, &
-       initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed)    
+       & initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, &
+       & qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
     !> Type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
@@ -3136,16 +3148,14 @@ contains
     real(dp), allocatable, intent(inout) :: qOutRed(:)
     !> charge differences packed into unique equivalence elements
     real(dp), allocatable, intent(inout) :: qDiffRed(:)
-
-    !Local data 
     !> input Mulliken block charges (diagonal part == Mulliken charges)
-    real(dp), allocatable :: qBlockIn(:, :, :, :)
+    real(dp), allocatable, intent(inout) :: qBlockIn(:, :, :, :)
     !> Output Mulliken block charges
-    real(dp), allocatable :: qBlockOut(:, :, :, :)
+    real(dp), allocatable, intent(inout) :: qBlockOut(:, :, :, :)
     !> Imaginary part of input Mulliken block charges
-    real(dp), allocatable :: qiBlockIn(:, :, :, :)
+    real(dp), allocatable, intent(inout) :: qiBlockIn(:, :, :, :)
     !> Imaginary part of output Mulliken block charges
-    real(dp), allocatable :: qiBlockOut(:, :, :, :)
+    real(dp), allocatable, intent(inout) :: qiBlockOut(:, :, :, :)
 
     integer :: iAt,iSp,iSh,ii,jj,i,j, iStart,iStop,iEnd,iS
     real(dp) :: rTmp
@@ -3159,18 +3169,22 @@ contains
     qOutput(:,:,:) = 0.0_dp
 
     if (tMixBlockCharges) then
-       allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-       allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       if(.not. allocated(qBlockIn)) allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       if(.not. allocated(qBlockOut))allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
        qBlockIn(:,:,:,:) = 0.0_dp
        qBlockOut(:,:,:,:) = 0.0_dp
        if (tImHam) then
-          allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          if(.not. allocated(qiBlockIn)) then
+             allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          endif
           qiBlockIn(:,:,:,:) = 0.0_dp
        end if
     end if
     
     if (tImHam) then
-       allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       if(.not. allocated(qiBlockOut))then
+          allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       endif
        qiBlockOut(:,:,:,:) = 0.0_dp
     end if
     
