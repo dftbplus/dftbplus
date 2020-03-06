@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -78,7 +78,7 @@ module dftbp_scc
     real(dp) :: tolEwald = 0.0_dp
 
     !> H5 correction object
-    type(H5Corr), allocatable :: h5Correction
+    type(TH5Corr), allocatable :: h5Correction
 
   end type TSccInp
 
@@ -187,13 +187,13 @@ module dftbp_scc
     logical :: tChrgConstr
 
     !> Object for charge constraints
-    type(OChrgConstr), allocatable :: chrgConstr
+    type(TChrgConstr), allocatable :: chrgConstr
 
     !> use third order contributions
     logical :: tThirdOrder
 
     !> Shifts due to 3rd order
-    type(OChrgConstr), allocatable :: thirdOrder
+    type(TChrgConstr), allocatable :: thirdOrder
 
     !> evaluate Ewald parameter
     logical :: tAutoEwald
@@ -219,7 +219,7 @@ module dftbp_scc
     logical :: tH5
 
     !> H5 correction object
-    type(H5Corr), allocatable :: h5Correction
+    type(TH5Corr), allocatable :: h5Correction
 
   contains
     procedure :: getCutOff

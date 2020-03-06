@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------------------------------*/
 /*  DFTB+: general package for performing fast atomistic simulations                              */
-/*  Copyright (C) 2006 - 2019  DFTB+ developers group                                             */
+/*  Copyright (C) 2006 - 2020  DFTB+ developers group                                             */
 /*                                                                                                */
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
@@ -205,6 +205,16 @@ void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
  * \param[out] gradients Gradients (not forces!) on each atom. Shape [natom, 3]. Unit: Hartree/Bohr.
  */
 void dftbp_get_gradients(DftbPlus *instance, double *gradients);
+
+
+/**
+ * Queries the stress tensor of the current periodic box
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] stresstensor Stress Tensor for the periodic box. Shape [3, 3]. Unit: Pascals.
+ */
+void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
 
 
 /**

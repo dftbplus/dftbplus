@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -734,7 +734,7 @@ contains
 
     type(string) :: txt, name, nodeValue
     type(fnode), pointer :: fp
-    type(fnamedNodeMap), pointer :: attribs
+    type(fNamedNodeMap), pointer :: attribs
     integer :: ii
 
     call getNodeName(node, txt)

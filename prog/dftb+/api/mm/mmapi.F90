@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -22,6 +22,7 @@ module dftbp_mmapi
   use dftbp_xmlf90
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
+  use dftbp_message, only: error
   implicit none
   private
 
@@ -70,6 +71,8 @@ module dftbp_mmapi
     procedure :: getEnergy => TDftbPlus_getEnergy
     !> obtain the DFTB+ gradients
     procedure :: getGradients => TDftbPlus_getGradients
+    !> obtain the DFTB+ stress tensor
+    procedure :: getStressTensor => TDftbPlus_getStressTensor
     !> obtain the gradients of the external charges
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges
@@ -210,7 +213,7 @@ contains
     type(TDftbPlusInput), intent(inout) :: input
 
     type(TParserFlags) :: parserFlags
-    type(inputData) :: inpData
+    type(TInputData) :: inpData
 
     call this%checkInit()
 
@@ -333,6 +336,21 @@ contains
 
   end subroutine TDftbPlus_getGradients
 
+
+     !> Returns the stress tensor of the periodic system.
+  subroutine TDftbPlus_getStressTensor(this, stresstensor)
+
+    !> Instance.
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Gradients on the atoms.
+    real(dp), intent(out) :: stresstensor(:,:)
+
+    call this%checkInit()
+
+    call getStressTensor(this%env, stresstensor)
+
+  end subroutine TDftbPlus_getStressTensor
 
   !> Returns the gradients on the external charges.
   !>
@@ -476,7 +494,8 @@ contains
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
     class(TDftbPlus),  intent(inout) :: this
-    character(len=*),  intent(in) :: inputSpeciesNames(:)
+    character, intent(in) :: inputSpeciesNames(*)
+
     logical :: tSpeciesNameChanged
 
     call this%checkInit()

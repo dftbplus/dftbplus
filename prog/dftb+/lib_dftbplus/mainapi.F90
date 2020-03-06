@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,9 +9,10 @@
 
 !> main module for the DFTB+ API
 module dftbp_mainapi
+  use dftbp_accuracy, only : dp, mc
+  use dftbp_assert
+  use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
-  use dftbp_accuracy,    only : dp, mc
-  use dftbp_main,        only : processGeometry
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables,                   &
        & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,             &
        & nAtom, nSpin, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,             &
@@ -19,24 +20,29 @@ module dftbp_mainapi
        & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS,          &
        & q0, qInput, qOutput, qInpRed, qOutRed, referenceN0, qDiffRed, nrChrg, initQFromShellChrg,&
        & initQFromAtomChrg, setEquivalencyRelations, iEqOrbitals, nIneqOrb, nMixElements,         &
-       & onSiteElements, denseDesc, getDenseDescBlacs, parallelKS, HSqrCplx, SSqrCplx,            &
+       & onSiteElements, denseDesc, parallelKS, HSqrCplx, SSqrCplx,            &
        & eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon,                        &
        & initializeCharges, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut, iEqBlockDFTBU,            &
-       & iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS
-  use dftbp_assert
-  use dftbp_message,         only : error
+       & iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, tStress, totalStress
+#:if WITH_SCALAPACK
+  use dftbp_initprogram,  only : getDenseDescBlacs
+#:endif
+  use dftbp_main,         only : processGeometry
+  use dftbp_message,      only : error
+  use dftbp_orbitalequiv, only : orbitalEquiv_merge, orbitalEquiv_reduce
+  use dftbp_orbitals,     only : TOrbitals
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
-  use dftbp_spin,            only : qm2ud, ud2qm, Spin_getOrbitalEquiv
-  use dftbp_orbitalequiv,    only : OrbitalEquiv_reduce, OrbitalEquiv_merge
-  use dftbp_orbitals,        only : TOrbitals
-  use dftbp_densedescr,      only : TDenseDescr
-  use dftbp_scalapackfx,     only : scalafx_getlocalshape
+#:if WITH_SCALAPACK
+  use dftbp_scalapackfx,  only : scalafx_getlocalshape
+#:endif
+  use dftbp_sccinit,      only : initQFromShellChrg, initQFromAtomChrg
+  use dftbp_spin,         only : qm2ud, ud2qm, spin_getOrbitalEquiv
   implicit none
   private
 
   public :: initProgramVariables, destructProgramVariables
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
-  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges
+  public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
   public :: nrOfAtoms
   public :: updateDataDependentOnSpeciesOrdering, checkSpeciesNames
 
@@ -88,11 +94,37 @@ contains
     !> resulting gradients wrt atom positions
     real(dp), intent(out) :: gradients(:,:)
 
+    if (.not. tForces) then
+      call error("Forces not available, you must initialise your calculator&
+          & with forces enabled.")
+    end if
+
     @:ASSERT(size(gradients,1) == 3)
+
     call recalcGeometry(env)
     gradients(:,:) = derivs
 
   end subroutine getGradients
+
+
+  !> get stress tensor for unit cell
+  subroutine getStressTensor(env, stress)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> resulting gradients wrt atom positions
+    real(dp), intent(out) :: stress(:,:)
+
+    if (.not. tStress) then
+      call error("Stress tensor not available, you must initialise your calculator with&
+          & this property enabled.")
+    end if
+
+    call recalcGeometry(env)
+    stress(:,:) = totalStress
+
+  end subroutine getStressTensor
 
 
   !> get the gross (Mulliken projected) charges for atoms wrt neutral atoms
@@ -219,10 +251,10 @@ contains
     logical                   :: tSpeciesNameChanged
     
     tSpeciesNameChanged = any(speciesName /= inputSpeciesName)
- 
+
   end function checkSpeciesNames
 
-  
+
   !> When order of atoms changes, update arrays containing atom type indices,
   !> and all subsequent dependencies.
   !  Updated data returned via use statements
@@ -246,9 +278,11 @@ contains
     !Used in partial charge initialisation
     call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
          & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
+#:if WITH_SCALAPACK
     call updateBLACSDecomposition(env, denseDesc)
     call reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, &
          & SSqrReal, eigVecsReal)
+#:endif
     !If atomic order changes, partial charges need to be initialised,
     !else wrong partial charge will be associated with each atom
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
@@ -257,7 +291,7 @@ contains
     
   end subroutine updateDataDependentOnSpeciesOrdering
 
-   
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!  Private routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -268,13 +302,13 @@ contains
     integer,  intent(in)  :: species0(:)
     !> Nr. of orbitals for each atom (nAtom)  
     integer,  allocatable :: nOrbAtomReordered(:)
-
+    
     @:ASSERT(nAtom == size(species0))
     allocate(nOrbAtomReordered(nAtom))
-    nOrbAtomReordered(:) = orb%nOrbSpecies(species0(:)) 
+    nOrbAtomReordered(:) = orb%nOrbSpecies(species0(:))
   end function updateAtomicOrbitals
 
-  
+
   !> Update atomic masses
   function updateAtomicMasses(species0) result(massReordered)
     !> Type of the atoms (nAtom)
@@ -290,6 +324,7 @@ contains
     
   !> Update dense matrix descriptor for H and S in BLACS decomposition
   subroutine updateBLACSDecomposition(env, denseDesc)
+
     !> Environment settings
     type(TEnvironment), intent(in)    :: env
     !> Dense matrix descriptor for H and S
@@ -300,17 +335,20 @@ contains
   #:if WITH_SCALAPACK
     call getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize, denseDesc)
   #:endif
-    
+
   end subroutine updateBLACSDecomposition
 
   
   !> Reassign Hamiltonian, overlap and eigenvector arrays
+  ! if nAtom is constant and one is running with one process, this should not be required
+  ! hence preprocessed out 
   subroutine reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, &
        & HSqrReal, SSqrReal ,eigVecsReal)
+
     !> Environment instance
     type(TEnvironment), intent(in) :: env
     !> Dense matrix descriptor for H and S
-    type(TDenseDescr),  intent(in) :: denseDesc 
+    type(TDenseDescr),  intent(in) :: denseDesc
     !> Square dense hamiltonian storage for cases with k-points
     complex(dp), allocatable, intent(inout) :: HSqrCplx(:,:)
     !> Square dense overlap storage for cases with k-points
@@ -329,10 +367,11 @@ contains
     !Retrieved from index array for spin and k-point index
     nLocalKS = size(parallelKS%localKS, dim=2)
     
+#:if WITH_SCALAPACK 
     !Get nLocalRows and nLocalCols 
     call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
                                nLocalRows, nLocalCols)
-
+    
     !Complex
     if (t2Component .or. .not. tRealHS) then
        if( (size(HSqrCplx,1) /= nLocalRows) .or. (size(HSqrCplx,2) /= nLocalCols) )then
@@ -353,9 +392,10 @@ contains
           allocate(SSqrReal(nLocalRows, nLocalCols))
           allocate(eigVecsReal(nLocalRows, nLocalCols, nLocalKS))
        endif
-       
+
     end if
-    
+
+#:endif
   end subroutine reallocateHSArrays
 
 
