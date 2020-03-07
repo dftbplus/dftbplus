@@ -3361,15 +3361,16 @@ contains
         end if
       end if
 
-      !Swap from charge/magnetisation to up/down
-      if (nSpin == 2) then
-        call qm2ud(qInput)
-        if (tMixBlockCharges) call qm2ud(qBlockIn)
-      end if
-
     endif notChrgRead
     ! Closes if (.not. tReadChrg)
 
+    !Swap from charge/magnetisation to up/down
+    if (nSpin == 2) then
+      call qm2ud(qInput)
+      if (tMixBlockCharges) then
+        call qm2ud(qBlockIn)
+      end if
+    end if
 
     call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
 
