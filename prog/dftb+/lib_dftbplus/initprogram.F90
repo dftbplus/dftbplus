@@ -3272,12 +3272,12 @@ contains
     endif
 
     !Input charges packed into unique equivalence elements
-    if(.not. allocated(qDiffRed)) allocate(qDiffRed(nMixElements))
-    if(.not. allocated(qInpRed))  allocate(qInpRed(nMixElements))
-    if(.not. allocated(qOutRed))  allocate(qOutRed(nMixElements))
-    qDiffRed = 0.0_dp
-    qInpRed = 0.0_dp
-    qOutRed = 0.0_dp
+  #:for NAME in [('qDiffRed'),('qInpRed'),('qOutRed')]
+    if (.not. allocated(${NAME}$)) then
+      allocate(${NAME}$(nMixElements))
+    end if
+    ${NAME}$(:) = 0.0_dp
+  #:endfor
 
     ! Charges not read from file
     if (.not. tReadChrg) then
