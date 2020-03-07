@@ -3271,6 +3271,13 @@ contains
        end if
     endif
 
+    !Input charges packed into unique equivalence elements
+    if(.not. allocated(qDiffRed)) allocate(qDiffRed(nMixElements))
+    if(.not. allocated(qInpRed))  allocate(qInpRed(nMixElements))
+    if(.not. allocated(qOutRed))  allocate(qOutRed(nMixElements))
+    qDiffRed = 0.0_dp
+    qInpRed = 0.0_dp
+    qOutRed = 0.0_dp
 
     ! Charges not read from file
     if (.not. tReadChrg) then
@@ -3353,14 +3360,6 @@ contains
             qiBlockIn = 0.0_dp
           end if
        end if
-       
-       !Input charges packed into unique equivalence elements
-       if(.not. allocated(qDiffRed)) allocate(qDiffRed(nMixElements))
-       if(.not. allocated(qInpRed))  allocate(qInpRed(nMixElements))
-       if(.not. allocated(qOutRed))  allocate(qOutRed(nMixElements))
-       qDiffRed = 0.0_dp
-       qInpRed = 0.0_dp
-       qOutRed = 0.0_dp
 
        !Swap from charge/magnetisation to up/down 
        if (nSpin == 2) then
