@@ -22,7 +22,6 @@ module dftbp_mmapi
   use dftbp_xmlf90
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
-  use dftbp_message, only: error
   implicit none
   private
 
