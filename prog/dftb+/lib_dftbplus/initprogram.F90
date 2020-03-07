@@ -3280,115 +3280,116 @@ contains
   #:endfor
 
     ! Charges not read from file
-    if (.not. tReadChrg) then
+    notChrgRead: if (.not. tReadChrg) then
 
-       if (allocated(initialCharges)) then
-          if (abs(sum(initialCharges) - nrChrg) > 1e-4_dp) then
-             write(message, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match specified&
-                  & total charge. (", sum(initialCharges), " vs. ", nrChrg,&
-                  & ") ", "Your initial charge distribution will be rescaled."
-             call warning(message)
+      if (allocated(initialCharges)) then
+        if (abs(sum(initialCharges) - nrChrg) > elecTolMax) then
+          write(message, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match specified&
+              & total charge. (", sum(initialCharges), " vs. ", nrChrg, ") ",&
+              & "Your initial charge distribution will be rescaled."
+          call warning(message)
+        end if
+        call initQFromAtomChrg(qInput, initialCharges, referenceN0, species0, speciesName, orb)
+      else
+        qInput(:,:,:) = q0
+      end if
+
+      if (.not. tSkipChrgChecksum) then
+        ! Rescaling to ensure correct number of electrons in the system
+        qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
+      end if
+
+
+      select case (nSpin)
+      case (1)
+        continue
+      case (2)
+        if (allocated(initialSpins)) then
+          do ii = 1, nAtom
+            ! does not actually matter if additional spin polarization pushes
+            ! charges to <0 as the initial charges are not mixed in to later
+            ! iterations
+            qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
+                & * initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+          end do
+        else
+          if (.not. tSkipChrgChecksum) then
+            do ii = 1, nAtom
+              qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
+                  & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
+            end do
           end if
-          call initQFromAtomChrg(qInput, initialCharges, referenceN0, species0, speciesName, orb)
-       else
-          qInput(:,:,:) = q0
-       end if
-       
-       if (.not. tSkipChrgChecksum) then
+        end if
+      case (4)
+        if (tSpin) then
+          if (.not. allocated(initialSpins)) then
+            call error("Missing initial spins!")
+          end if
+          if (any(shape(initialSpins)/=(/3,nAtom/))) then
+            call error("Incorrect shape initialSpins array!")
+          end if
           ! Rescaling to ensure correct number of electrons in the system
-          qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
-       end if
-
-       
-       select case (nSpin)
-       case (1)
-          continue
-       case (2)
-          if (allocated(initialSpins)) then
-             do ii = 1, nAtom
-                ! does not actually matter if additional spin polarization pushes
-                ! charges to <0 as the initial charges are not mixed in to later
-                ! iterations
-                qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                     & * initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
-             end do
-          else
-             if (.not. tSkipChrgChecksum) then
-                do ii = 1, nAtom
-                   qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                        & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
-                end do
-             end if
+          if (.not. tSkipChrgChecksum) then
+            do ii = 1, nAtom
+              do jj = 1, 3
+                qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
+                    & * initialSpins(jj,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+              end do
+            end do
           end if
-       case (4)
-          if (tSpin) then
-             if (.not. allocated(initialSpins)) then
-                call error("Missing initial spins!")
-             end if
-             if (any(shape(initialSpins)/=(/3,nAtom/))) then
-                call error("Incorrect shape initialSpins array!")
-             end if
-             ! Rescaling to ensure correct number of electrons in the system
-             if (.not. tSkipChrgChecksum) then
-                do ii = 1, nAtom
-                   do jj = 1, 3
-                      qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                           & * initialSpins(jj,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
-                   end do
-                end do
-             end if
-          end if
-       end select
+        end if
+      end select
 
-       if (tMixBlockCharges) then
-          qBlockIn = 0.0_dp
-          do iS = 1, nSpin
-             do iAt = 1, nAtom
-                iSp = species0(iAt)
-                do iSh = 1, orb%nShell(iSp)
-                   iStart = orb%posShell(iSh,iSp)
-                   iEnd = orb%posShell(iSh+1,iSp)-1
-                rTmp = sum(qInput(iStart:iEnd,iAt,iS))
-                rTmp = rTmp / real(iEnd+1-iStart,dp)
-                do ii = iStart, iEnd
-                  qBlockIn(ii,ii,iAt,iS) = rTmp
-                end do
+      if (tMixBlockCharges) then
+        qBlockIn = 0.0_dp
+        do iS = 1, nSpin
+          do iAt = 1, nAtom
+            iSp = species0(iAt)
+            do iSh = 1, orb%nShell(iSp)
+              iStart = orb%posShell(iSh,iSp)
+              iEnd = orb%posShell(iSh+1,iSp)-1
+              rTmp = sum(qInput(iStart:iEnd,iAt,iS))
+              rTmp = rTmp / real(iEnd+1-iStart,dp)
+              do ii = iStart, iEnd
+                qBlockIn(ii,ii,iAt,iS) = rTmp
               end do
             end do
           end do
-          if (tImHam) then
-            qiBlockIn = 0.0_dp
-          end if
-       end if
-
-       !Swap from charge/magnetisation to up/down 
-       if (nSpin == 2) then
-          call qm2ud(qInput)
-          if (tMixBlockCharges) call qm2ud(qBlockIn)
-       end if       
-
-       call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
-
-       if (allocated(onSiteElements)) then
-        call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
+        end do
         if (tImHam) then
-          call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, skew=.true. )
-        end if
-      else if (tDFTBU) then
-        call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
-        if (tImHam) then
-          call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
+          qiBlockIn = 0.0_dp
         end if
       end if
-       
-      !Convert up/down set back to charge/magnetization                          
-       if (nSpin == 2) then
-          call ud2qm(qInput)
-          if (tMixBlockCharges) call ud2qm(qBlockIn)
-       end if
-       
-    endif
+
+      !Swap from charge/magnetisation to up/down
+      if (nSpin == 2) then
+        call qm2ud(qInput)
+        if (tMixBlockCharges) call qm2ud(qBlockIn)
+      end if
+
+    endif notChrgRead
     ! Closes if (.not. tReadChrg)
+
+
+    call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
+
+    if (allocated(onSiteElements)) then
+      call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
+      if (tImHam) then
+        call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, skew=.true. )
+      end if
+    else if (tDFTBU) then
+      call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
+      if (tImHam) then
+        call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
+      end if
+    end if
+
+    !Convert up/down set back to charge/magnetization
+    if (nSpin == 2) then
+      call ud2qm(qInput)
+      if (tMixBlockCharges) call ud2qm(qBlockIn)
+    end if
 
   end subroutine initializeCharges
 
