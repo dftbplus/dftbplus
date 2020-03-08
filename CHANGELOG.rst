@@ -32,7 +32,7 @@ Changed
 
 - Input in GEN format now strictly follows the format described in the manual
 
-- New build system using CMake (the old makefile system to be retired)
+- New build system using CMake (the old makefile system has been retired)
 
 Fixed
 -----
