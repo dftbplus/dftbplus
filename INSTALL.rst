@@ -19,6 +19,8 @@ In order to compile DFTB+, you need the following software components:
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
+* Python (version >= 3.2) for the source preprocessor
+
 Additionally there are optional requirements for some DFTB+ features:
 
 * ScaLAPACK (version 2.0 or later) and an MPI aware Fortran compiler, if you
