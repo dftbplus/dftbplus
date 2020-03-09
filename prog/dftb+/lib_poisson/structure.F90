@@ -97,11 +97,15 @@ module structure
          endif
          if(boxsiz(i,i)<0.d0) boxsiz(i,:)=-boxsiz(i,:)
       enddo
-  
-      call inversebox()
-    
+
       period=st_isperiodic
-  
+
+      if (period) then
+        call inversebox()
+      else
+        xinvbox(:,:) = 0.0_dp
+      end if
+
       call log_gallocate(x,3,natoms)
       x(1:3,1:natoms)=st_x0(1:3,1:natoms)
   
