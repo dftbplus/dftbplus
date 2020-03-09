@@ -190,6 +190,9 @@ module dftbp_scc
     !> Coulombic interaction container
     type(TCoulombCont) :: coulombCont
 
+    !> Whether shift vector had been set externally -> skip internal shift calculation
+    logical :: hasExternalShifts
+
   contains
 
     !> Returns a minimal cutoff for the neighbourlist
@@ -386,6 +389,8 @@ contains
     if (this%tH5) then
       this%h5Correction = inp%h5Correction
     end if
+
+    this%hasExternalShifts = .false.
 
     this%tInitialised = .true.
 
@@ -650,7 +655,10 @@ contains
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom&
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
 
-    call this%coulombCont%addEnergy(eScc)
+    if (.not. this%hasExternalShifts) then
+      call this%coulombCont%addEnergy(eScc)
+    end if
+
     if (allocated(this%extCharge)) then
       call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
@@ -705,7 +713,9 @@ contains
     eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
         & + sum(this%shiftPerL * (2.0_dp * dQOutShell - this%deltaQPerLShell), dim=1))
 
-    call this%coulombCont%addEnergy(eScc, dQOut, dQOutAtom, dQOutShell)
+    if (.not. this%hasExternalShifts) then
+      call this%coulombCont%addEnergy(eScc, dQOut, dQOutAtom, dQOutShell)
+    end if
 
     if (allocated(this%extCharge)) then
       call error("XLBOMD not working with external charges yet")
@@ -831,7 +841,9 @@ contains
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
     shift(:) = this%shiftPerAtom
-    call this%coulombCont%addShiftPerAtom(shift)
+    if (.not. this%hasExternalShifts) then
+      call this%coulombCont%addShiftPerAtom(shift)
+    end if
     if (allocated(this%extCharge)) then
       call this%extCharge%addShiftPerAtom(shift)
     end if
@@ -860,9 +872,12 @@ contains
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
     
     shift(:, :) = this%shiftPerL
-    call this%coulombCont%addShiftPerShell(shift)
+    if (.not. this%hasExternalShifts) then
+      call this%coulombCont%addShiftPerShell(shift)
+    end if
 
   end subroutine getShiftPerL
+
 
   !> set electrostatic shifts (e.g. Poisson solver)
   subroutine setShiftPerAtom(this, shift)
@@ -875,7 +890,8 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
-    
+
+    this%hasExternalShifts = .true.
     this%shiftPerAtom(:) = shift
 
   end subroutine setShiftPerAtom
@@ -894,6 +910,7 @@ contains
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
     
+    this%hasExternalShifts = .true.
     this%shiftPerL(:, :) = shift
 
   end subroutine setShiftPerL
