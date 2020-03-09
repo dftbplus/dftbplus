@@ -4,9 +4,10 @@ if(NOT BUILD_EXPORTED_TARGETS_ONLY)
   add_subdirectory(modes)
   add_subdirectory(waveplot)
 
-  if(WITH_TRANSPORT)
-    add_subdirectory(transporttools)
-  endif()
+if(WITH_TRANSPORT)
+  add_subdirectory(setupgeom)
+  add_subdirectory(transporttools)
+  add_subdirectory(phonons)
 endif()
 
 # Propagate PKG_CONFIG_LIBS upwards
