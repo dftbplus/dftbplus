@@ -81,6 +81,9 @@ module dftbp_scc
     !> Coulomb input
     type(TCoulombInput) :: coulombInput
 
+    !> Whether shift vector had been set externally -> skip internal shift calculation
+    logical :: hasExternalShifts
+
   end type TSccInp
 
 
@@ -390,7 +393,7 @@ contains
       this%h5Correction = inp%h5Correction
     end if
 
-    this%hasExternalShifts = .false.
+    this%hasExternalShifts = inp%hasExternalShifts
 
     this%tInitialised = .true.
 
@@ -890,8 +893,8 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
+    @:ASSERT(hasExternalShifts)
 
-    this%hasExternalShifts = .true.
     this%shiftPerAtom(:) = shift
 
   end subroutine setShiftPerAtom
@@ -909,8 +912,8 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    
-    this%hasExternalShifts = .true.
+    @:ASSERT(this%hasExternalShifts)
+
     this%shiftPerL(:, :) = shift
 
   end subroutine setShiftPerL
