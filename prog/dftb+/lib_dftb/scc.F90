@@ -557,6 +557,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(this%tInitialised)
+    @:ASSERT(.not. this%hasExternalShifts)
 
     call buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
 
@@ -893,7 +894,7 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
-    @:ASSERT(hasExternalShifts)
+    @:ASSERT(this%hasExternalShifts)
 
     this%shiftPerAtom(:) = shift
 
