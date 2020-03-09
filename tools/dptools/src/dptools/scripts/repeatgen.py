@@ -47,6 +47,8 @@ def parse_cmdline_args(cmdlineargs=None):
         '-l', '--lattice-file', action='store', help=msg, dest='latticefile')
     msg = 'output file to store the resulting geometry'
     parser.add_option('-o', '--output', action='store', default='-', help=msg)
+    msg = 'flag to create a repeat geometry for phonon bandstructure'
+    parser.add_option('-p', '--phonons', action='store', default='-', help=msg)
     options, args = parser.parse_args(cmdlineargs)
 
     if len(args) != 4:
@@ -91,7 +93,11 @@ def repeatgen(infile, repeats, options):
         msg = 'No lattice vectors found (neither in gen nor in external file)'
         raise ScriptError(msg)
 
-    newgeo = _repeatgeo(geo, latvecs, repeats)
+    if options.phonons:
+        newgeo = _repeatgeo2(geo, latvecs, repeats)
+    else
+        newgeo = _repeatgeo(geo, latvecs, repeats)
+
     newgen = Gen(newgeo, gen.fractional)
     outfile = options.output
     if outfile == '-':
@@ -125,3 +131,37 @@ def _repeatgeo(geo, latvecs, repeats):
     newgeo = Geometry(geo.specienames, allinds, allcoords, latvecs=newlatvecs,
                       origin=geo.origin)
     return newgeo
+
+def _repeatgeo2(geo, latvecs, repeats):
+    '''Repeats geometry along given lattice vectors for phonon calculations'''
+    natoms = geo.natom
+    coords = geo.coords
+    inds = geo.indexes
+    images = (2*repeats[0]+1) * (2*repeats[1]+1) * (2*repeats[2]+1)
+    allcoords = np.empty((images * natoms, 3), dtype=float)
+    allcoords[0:natoms, :] = coords    
+    ind = 1
+    currepeats = np.zeros(3, dtype=int)
+    for currepeats[2] in range(-repeats[2],repeats[2],1):
+        for currepeats[1] in range(-repeats[1],repeats[1],1):
+            for currepeats[0] in range(-repeats[0],repeats[0],1):
+                if (currepeats[0]==0 and currepeats[1]==0 and currepeats[2]==0):
+                    continue
+                shift = np.sum(latvecs * currepeats[:, np.newaxis], axis=0)
+                shiftedcoords = coords + shift
+                allcoords[ind * natoms : (ind + 1) * natoms, :] = shiftedcoords
+                ind += 1
+    allinds = np.tile(inds, images)
+    repeats[0] = 2*repeats[0]+1
+    repeats[1] = 2*repeats[1]+1
+    repeats[2] = 2*repeats[2]+1
+    repeats = np.array(repeats)
+    if geo.periodic:
+        newlatvecs = latvecs * repeats[:, np.newaxis]
+    else:
+        newlatvecs = None
+    newgeo = Geometry(geo.specienames, allinds, allcoords, latvecs=newlatvecs,
+                      origin=geo.origin)
+    return newgeo
+
+
