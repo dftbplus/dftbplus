@@ -20,12 +20,11 @@ addons:
       - libscalapack-openmpi-dev
 
 install:
-- git submodule update --init --recursive
 - echo "y" | ./utils/get_opt_externals ALL
 
 script:
 - mkdir _build
 - cd _build
-- cmake -DWITH_DFTD3=true -DWITH_MPI=${WITH_MPI} -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
+- cmake -DWITH_DFTD3=true -DWITH_TRANSPORT=true -DWITH_MPI=${WITH_MPI} -DFYPP_FLAGS="-DTRAVIS" -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
 - make -j 2
 - ctest -j 2

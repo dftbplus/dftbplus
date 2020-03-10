@@ -1402,10 +1402,22 @@ contains
         hubbU = input%ctrl%hubbU
       end where
     end if
+
+    tPoisson = input%ctrl%tPoisson
+  #:if not WITH_TRANSPORT
+    if (tPoisson) then
+      ! note: should eventually refactor to allow Poisson solution without transport requirements
+      call error("Poisson solver requires transport support to be compiled in")
+    end if
+  #:endif
+
     if (tSccCalc) then
       allocate(sccInp)
       allocate(sccCalc)
       sccInp%orb => orb
+
+      sccInp%hasExternalShifts = tPoisson
+
       if (tPeriodic) then
         sccInp%latVecs = latVec
         sccInp%recVecs = recVec
@@ -1466,8 +1478,8 @@ contains
         sccInp%thirdOrderOn = input%ctrl%thirdOrderOn
       end if
 
-      sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
-      sccInp%tolEwald = input%ctrl%tolEwald
+      sccInp%coulombInput%ewaldAlpha = input%ctrl%ewaldAlpha
+      sccInp%coulombInput%tolEwald = input%ctrl%tolEwald
       call initialize(sccCalc, env, sccInp)
       deallocate(sccInp)
 
@@ -2545,13 +2557,6 @@ contains
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
 
-    ! These two checks are redundant, I check if they are equal
-    if (input%poisson%defined .neqv. input%ctrl%tPoisson) then
-      call error("Mismatch in ctrl and ginfo fields")
-    end if
-    tPoisson = input%poisson%defined
-    tPoissonTwice = input%poisson%solveTwice
-
     tUpload = input%transpar%taskUpload
     ! NOTE: originally EITHER 'contact calculations' OR 'upload' was possible
     !       introducing 'TransportOnly' option the logic is bit more
@@ -2565,7 +2570,6 @@ contains
 
     call initTransport(env, input, tDefinedFreeE)
   #:else
-    tPoisson = .false.
     tNegf = .false.
   #:endif
 
@@ -3491,6 +3495,12 @@ contains
     integer :: iSpin, isz
     integer :: nSpinChannels, iCont, jCont
     real(dp) :: mu1, mu2
+
+    ! These two checks are redundant, I check if they are equal
+    if (input%poisson%defined .neqv. tPoisson) then
+      call error("Mismatch in ctrl and ginfo fields")
+    end if
+    tPoissonTwice = input%poisson%solveTwice
 
     ! contact calculation in case some contact is computed
     tContCalc = (input%transpar%taskContInd /= 0)

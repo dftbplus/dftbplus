@@ -1,5 +1,0 @@
-#:if WITH_TRANSPORT
-poisson.o: _extlib_mudpack
-poisson.o += _extlib_mudpack
-#:endif
-
