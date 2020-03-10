@@ -48,7 +48,8 @@ def parse_cmdline_args(cmdlineargs=None):
     msg = 'output file to store the resulting geometry'
     parser.add_option('-o', '--output', action='store', default='-', help=msg)
     msg = 'flag to create a repeat geometry for phonon bandstructure'
-    parser.add_option('-p', '--phonons', action='store', default='-', help=msg)
+    parser.add_option('-p', '--phonons', action='store_true', dest='phonons',
+            default=False, help=msg)
     options, args = parser.parse_args(cmdlineargs)
 
     if len(args) != 4:
@@ -63,6 +64,10 @@ def parse_cmdline_args(cmdlineargs=None):
             raise ScriptError(msg)
     if not (reps[0] > 0 and reps[1] > 0 and reps[2] > 0):
         raise ScriptError('Repetition numbers must be greater than zero')
+    if options.phonons:
+        if (reps[0] % 2 ==0 or reps[1] % 2 == 0 or reps[2] % 2 == 0):
+            raise ScriptError('Repetition numbers must be odd numbers')
+
 
     return infile, (reps[0], reps[1], reps[2]), options
 
@@ -95,7 +100,7 @@ def repeatgen(infile, repeats, options):
 
     if options.phonons:
         newgeo = _repeatgeo2(geo, latvecs, repeats)
-    else
+    else:
         newgeo = _repeatgeo(geo, latvecs, repeats)
 
     newgen = Gen(newgeo, gen.fractional)
@@ -137,14 +142,15 @@ def _repeatgeo2(geo, latvecs, repeats):
     natoms = geo.natom
     coords = geo.coords
     inds = geo.indexes
-    images = (2*repeats[0]+1) * (2*repeats[1]+1) * (2*repeats[2]+1)
+    rep = np.array([(repeats[0]-1)/2, (repeats[1]-1)/2, (repeats[2]-1)/2])
+    images = (repeats[0] * repeats[1] * repeats[2])
     allcoords = np.empty((images * natoms, 3), dtype=float)
     allcoords[0:natoms, :] = coords    
     ind = 1
     currepeats = np.zeros(3, dtype=int)
-    for currepeats[2] in range(-repeats[2],repeats[2],1):
-        for currepeats[1] in range(-repeats[1],repeats[1],1):
-            for currepeats[0] in range(-repeats[0],repeats[0],1):
+    for currepeats[2] in range(-rep[2],rep[2]+1):
+        for currepeats[1] in range(-rep[1],rep[1]+1):
+            for currepeats[0] in range(-rep[0],rep[0]+1):
                 if (currepeats[0]==0 and currepeats[1]==0 and currepeats[2]==0):
                     continue
                 shift = np.sum(latvecs * currepeats[:, np.newaxis], axis=0)
@@ -152,9 +158,6 @@ def _repeatgeo2(geo, latvecs, repeats):
                 allcoords[ind * natoms : (ind + 1) * natoms, :] = shiftedcoords
                 ind += 1
     allinds = np.tile(inds, images)
-    repeats[0] = 2*repeats[0]+1
-    repeats[1] = 2*repeats[1]+1
-    repeats[2] = 2*repeats[2]+1
     repeats = np.array(repeats)
     if geo.periodic:
         newlatvecs = latvecs * repeats[:, np.newaxis]
