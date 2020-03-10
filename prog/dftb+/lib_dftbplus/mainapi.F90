@@ -246,7 +246,7 @@ contains
   function checkSpeciesNames(inputSpeciesName) result(tSpeciesNameChanged)
    
     !> Labels of atomic species from external program
-    character(mc), intent(in) :: inputSpeciesName(:)
+    character(len=*), intent(in) :: inputSpeciesName(:)
     !> Has speciesName changed?
     logical                   :: tSpeciesNameChanged
     

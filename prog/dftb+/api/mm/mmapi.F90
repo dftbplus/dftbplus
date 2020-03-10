@@ -493,7 +493,7 @@ contains
   !> Check whether speciesNames has changed between calls to DFTB+
   subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
     class(TDftbPlus),  intent(inout) :: this
-    character, intent(in) :: inputSpeciesNames(*)
+    character(len=*), intent(in) :: inputSpeciesNames(:)
 
     logical :: tSpeciesNameChanged
 
