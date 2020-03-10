@@ -1,0 +1,13 @@
+.SECONDEXPANSION:
+
+phonons.o: allocate.h $$(_modobj_libnegf_int) assert.h $$(_modobj_initprogram) $$(_modobj_mpiglobal) $$(_modobj_message) $$(_modobj_eigensolver) $$(_modobj_typegeometry) $$(_modobj_accuracy) $$(_modobj_constants)
+phonons.o = phonons.o $(allocate.h) $($(_modobj_libnegf_int)) $(assert.h) $($(_modobj_initprogram)) $($(_modobj_mpiglobal)) $($(_modobj_message)) $($(_modobj_eigensolver)) $($(_modobj_typegeometry)) $($(_modobj_accuracy)) $($(_modobj_constants))
+
+initprogram.o: $$(_modobj_libnegf_vars) $$(_modobj_hsdparser) $$(_modobj_oldskdata) $$(_modobj_accuracy) $$(_modobj_periodic) allocate.h $$(_modobj_charmanip) $$(_modobj_message) $$(_modobj_fileid) $$(_modobj_stringlist) $$(_modobj_typegeometryhsd) $$(_modobj_mpiglobal) $$(_modobj_xmlutils) $$(_modobj_linkedlist) $$(_modobj_constants) $$(_modobj_hsdutils2) $$(_modobj_flib_dom) $$(_modobj_unitconversion) assert.h $$(_modobj_wrappedintrinsics) $$(_modobj_hsdutils)
+initprogram.o = initprogram.o $($(_modobj_libnegf_vars)) $($(_modobj_hsdparser)) $($(_modobj_oldskdata)) $($(_modobj_accuracy)) $($(_modobj_periodic)) $(allocate.h) $($(_modobj_charmanip)) $($(_modobj_message)) $($(_modobj_fileid)) $($(_modobj_stringlist)) $($(_modobj_typegeometryhsd)) $($(_modobj_mpiglobal)) $($(_modobj_xmlutils)) $($(_modobj_linkedlist)) $($(_modobj_constants)) $($(_modobj_hsdutils2)) $($(_modobj_flib_dom)) $($(_modobj_unitconversion)) $(assert.h) $($(_modobj_wrappedintrinsics)) $($(_modobj_hsdutils))
+_modobj_initprogram = initprogram.o
+
+libnegf_int.o: $$(_modobj_ln_precision) $$(_modobj_libnegf_vars) $$(_modobj_commontypes) $$(_modobj_libnegf) $$(_modobj_lib_param) $$(_modobj_ln_allocation) $$(_modobj_ln_constants) $$(_modobj_sparsekit_drv) $$(_modobj_ln_structure) $$(_modobj_mat_conv) $$(_modobj_mpi_globals) $$(_modobj_initprogram) $$(_modobj_mat_def) $$(_modobj_ln_extract) $$(_modobj_libmpifx_module)
+libnegf_int.o = libnegf_int.o $($(_modobj_ln_precision)) $($(_modobj_libnegf_vars)) $($(_modobj_commontypes)) $($(_modobj_libnegf)) $($(_modobj_lib_param)) $($(_modobj_ln_allocation)) $($(_modobj_ln_constants)) $($(_modobj_sparsekit_drv)) $($(_modobj_ln_structure)) $($(_modobj_mat_conv)) $($(_modobj_mpi_globals)) $($(_modobj_initprogram)) $($(_modobj_mat_def)) $($(_modobj_ln_extract)) $($(_modobj_libmpifx_module))
+_modobj_libnegf_int = libnegf_int.o
+
