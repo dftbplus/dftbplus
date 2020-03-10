@@ -979,9 +979,6 @@ module dftbp_initprogram
   !> All of the excited energies actuall solved by Casida routines (if used)
   real(dp), allocatable :: energiesCasida(:)
 
-  !> Is this DFTB/SSR formalism
-  logical :: tREKS
-
   !> data type for REKS
   type(TReksCalc), allocatable :: reks
 
@@ -1136,11 +1133,15 @@ contains
     tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
-    tREKS = input%ctrl%reksIni%tREKS
-    ! REKS follows spin-restricted open-shell scheme so
-    ! nSpin should be two but some variables such as qOutput
-    ! should be treated in restricted scheme. Here nSpin
-    ! is one and changes to two in the latter part.
+    if (input%ctrl%reksIni%tREKS) then
+      ! REKS follows spin-restricted open-shell scheme so nSpin should be two but some variables
+      ! such as qOutput should be treated in restricted scheme. Here nSpin is one and changes to two
+      ! in the latter part.
+      allocate(reks)
+      if (tSpin) then
+        call error("REKS is not compatible with standard spin polarization")
+      end if
+    end if
     if (tSpin) then
       nSpin = 2
     else
@@ -1500,12 +1501,12 @@ contains
 
     ! Intialize Hamilton and overlap
     tImHam = tDualSpinOrbit .or. (tSpinOrbit .and. tDFTBU) ! .or. tBField
-    if (tSccCalc .and. .not.tREKS) then
+    if (tSccCalc .and. .not.allocated(reks)) then
       allocate(chargePerShell(orb%mShell,nAtom,nSpin))
     else
       allocate(chargePerShell(0,0,0))
     end if
-    if (.not.tREKS) then
+    if (.not.allocated(reks)) then
       allocate(ham(0, nSpin))
     end if
     if (tImHam) then
@@ -1613,7 +1614,7 @@ contains
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
-    if (tSccCalc .and. .not.tREKS) then
+    if (tSccCalc .and. .not.allocated(reks)) then
       allocate(pChrgMixer)
       iMixer = input%ctrl%iMixSwitch
       nGeneration = input%ctrl%iGenerations
@@ -2287,7 +2288,7 @@ contains
       EfieldPhase = 0
     end if
 
-    if (.not.tREKS) then
+    if (.not.allocated(reks)) then
       allocate(qInput(orb%mOrb, nAtom, nSpin))
       qInput(:,:,:) = 0.0_dp
     end if
@@ -2295,7 +2296,7 @@ contains
     qOutput(:,:,:) = 0.0_dp
 
     if (tMixBlockCharges) then
-      if (.not.tREKS) then
+      if (.not.allocated(reks)) then
         allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
         qBlockIn(:,:,:,:) = 0.0_dp
       end if
@@ -2328,7 +2329,7 @@ contains
           & tAtomicEnergy, input%ctrl%rangeSepInp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
-          & tSpin, tREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
+          & tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
           & deltaRhoOutSqr, nMixElements)
     end if
 
@@ -2351,7 +2352,7 @@ contains
         end do
       end do
 
-      if (.not.tREKS) then
+      if (.not.allocated(reks)) then
 
         if (tReadChrg) then
           if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
@@ -2568,72 +2569,73 @@ contains
 
     call initArrays(env, electronicSolver, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd,&
         & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
-        & tPrintExcitedEigvecs, tDipole, tREKS, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
-        & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
-        & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
-        & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
-        & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+        & tPrintExcitedEigvecs, tDipole, allocated(reks), orb, nAtom, nMovedAtom, nKPoint, nSpin,&
+        & nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim,&
+        & derivs, chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold,&
+        & newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal,&
+        & rhoSqrReal, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
-    ! In this routine nSpin changes to 2
-    if (tREKS) then
+
+    if (allocated(reks)) then
+      ! here, nSpin changes to 2 for REKS
 
       if (.not. tSccCalc) then
         call error("REKS requires SCC=Yes")
       end if
       if (tSpin) then
-        call error("REKS is not compatible with spin polarization, &
-            & only SpinConstants block is required")
+        call error("REKS is not compatible with standard DFTB spin polarization, only the&
+            & SpinConstants block is required")
       end if
 
       if (tSpinOrbit) then
-        call error("REKS is not compatible with spin-orbit (RS-coupliong) calculation")
+        call error("REKS is not compatible with spin-orbit (LS-coupling) calculation")
       else if (tDFTBU) then
         call error("REKS is not compatible with DFTB+U calculation")
       else if (tEField) then
-        call error("REKS is not compatible with external electric field, &
-            & only point charge embedding is implemented")
+        call error("REKS is not compatible with external electric field, only point charge&
+            & embedding is implemented")
       else if (tLinResp) then
-        call error("REKS is not compatible with linear response excitation")
+        call error("REKS is not compatible with standard linear response excitation")
       else if (allocated(onSiteElements)) then
-        call error("REKS is not compatible with onsite correction")
+        call error("REKS is not compatible with onsite corrections")
       end if
 
       if (tPeriodic) then
-        if ( .not. (nKPoint == 1 .and. &
-          & all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])) ) then
+        if ( .not. (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])) ) then
           call error("REKS can compute only gamma-point in periodic case")
         end if
       end if
+
       if (input%ctrl%reksIni%Efunction /= 1 .and. tLatOpt) then
         call error("Lattice optimization is only possible&
             & with single-state REKS, not SA-REKS or SI-SA-REKS")
       end if
 
       if (tReadChrg) then
-        call error("Read initial charges currently incompatible with REKS calculations")
+        call error("Reading of initial charges is currently incompatible with REKS calculations")
       end if
 
-      ! REKS can treat only closed system.
-      if (mod(int(dble(nEl(1))),2) /= 0) then
-        call error("Current system is not closed system, please check charge")
+      ! REKS can treat only closed shell systems.
+      if (mod(nint(nEl(1)),2) /= 0) then
+        call error("Current system is not a closed shell system, please check charge if using REKS")
+      end if
+      if (abs(nint(nEl(1)) - nEl(1)) >= elecTolMax) then
+        call error("Current system is fractionally charged, please check charge if using REKS")
       end if
 
       ! Condition for electronicSolver
       select case (electronicSolver%iSolver)
       case (electronicSolverTypes%GF)
-        call error("REKS is not compatible with GF-solver")
+        call error("REKS is not compatible with Green's function solver")
       case (electronicSolverTypes%onlyTransport)
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-
-        allocate(reks)
-        call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1), &
-            & nExtChrg, input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, &
-            & t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress)
-
+        call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1), nExtChrg,&
+            & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, t3rd.or.t3rdFull, tRangeSep,&
+            & tForces, tPeriodic, tStress)
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
-        call error("REKS is not compatible with ELSI-solver")
+        call error("REKS is not compatible with density matrix ELSI-solvers")
       end select
 
     end if
@@ -2900,7 +2902,7 @@ contains
       write(stdOut, "(A,':',T30,A)") "Self consistent charges", "No"
     end if
 
-    if (tREKS) then
+    if (allocated(reks)) then
       write(stdOut, "(A,':',T30,A)") "Spin polarisation", "No"
       write(stdOut, "(A,':',T30,F12.6,/,A,':',T30,F12.6)") "Nr. of up electrons", 0.5_dp*nEl(1),&
           & "Nr. of down electrons", 0.5_dp*nEl(1)
@@ -2947,7 +2949,7 @@ contains
     endif
 
     if (tSccCalc) then
-      if (.not. tREKS) then
+      if (.not. allocated(reks)) then
         select case (iMixer)
         case(mixerTypes%simple)
           write (strTmp, "(A)") "Simple"
@@ -3002,9 +3004,10 @@ contains
       end do
     end if
 
-    if (.not. tREKS) then
+    if (.not. allocated(reks)) then
       if (.not.input%ctrl%tSetFillingTemp) then
-        write(stdOut, format2Ue) "Electronic temperature", tempElec, 'H', Hartree__eV * tempElec, 'eV'
+        write(stdOut, format2Ue) "Electronic temperature", tempElec, 'H', Hartree__eV * tempElec,&
+            & 'eV'
       end if
     end if
     if (tMD) then
@@ -3112,7 +3115,7 @@ contains
     end if
 
     tFirst = .true.
-    if (tSpin .or. tREKS) then
+    if (tSpin .or. allocated(reks)) then
       do iSp = 1, nType
         do jj = 1, orb%nShell(iSp)
           do kk = 1, orb%nShell(iSp)
@@ -3122,7 +3125,7 @@ contains
             else
               write(strTmp, "(A)") ""
             end if
-            if (tREKS) then
+            if (allocated(reks)) then
               write(stdOut, "(A,T30,A2,2X,I1,'(',A1,')-',I1,'(',A1,'): ',E14.6)")trim(strTmp),&
                   & speciesName(iSp), jj, shellNames(orb%angShell(jj, iSp)+1), kk,&
                   & shellNames(orb%angShell(kk, iSp)+1), spinW(kk, jj, iSp) / reks%Tuning(iSp)
@@ -3334,7 +3337,7 @@ contains
 
     end if
 
-    if (tREKS) then
+    if (allocated(reks)) then
 
       write (stdOut,*)
       write (stdOut,*)
@@ -3835,7 +3838,7 @@ contains
   !> Allocates most of the large arrays needed during the DFTB run.
   subroutine initArrays(env, electronicSolver, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd,&
       & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
-      & tPrintExcitedEigvecs, tDipole, tREKS, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
+      & tPrintExcitedEigvecs, tDipole, isREKS, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg,&
       & indMovedAtom, mass, denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs,&
       & chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords,&
       & orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal,&
@@ -3890,7 +3893,7 @@ contains
     logical, intent(in) :: tDipole
 
     !> Is this DFTB/SSR formalism
-    logical, intent(in) :: tREKS
+    logical, intent(in) :: isREKS
 
     !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -4020,7 +4023,7 @@ contains
 
     allocate(excitedDerivs(0,0))
     if (tForces) then
-      if (.not.tREKS) then
+      if (.not.isREKS) then
         allocate(ERhoPrim(0))
       end if
       allocate(derivs(3, nAtom))
@@ -4614,7 +4617,7 @@ contains
 
   !> Initialise range separated extension.
   subroutine initRangeSeparated(nAtom, species0, speciesName, hubbU, rangeSepInp, tSpin,&
-      & tREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
+      & isREKS, rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
       & deltaRhoOutSqr, nMixElements)
 
     !> Number of atoms in the system
@@ -4636,7 +4639,7 @@ contains
     logical, intent(in) :: tSpin
 
     !> Is this DFTB/SSR formalism
-    logical, intent(in) :: tREKS
+    logical, intent(in) :: isREKS
 
     !> Resulting settings for range separation
     type(RangeSepFunc), allocatable, intent(out) :: rangeSep
@@ -4661,8 +4664,7 @@ contains
 
     allocate(rangeSep)
     call RangeSepFunc_init(rangeSep, nAtom, species0, speciesName, hubbU(1,:),&
-        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, tREKS,&
-        & rangeSepInp%rangeSepAlg)
+        & rangeSepInp%screeningThreshold, rangeSepInp%omega, tSpin, isREKS, rangeSepInp%rangeSepAlg)
     allocate(deltaRhoIn(nOrb * nOrb * nSpin))
     allocate(deltaRhoOut(nOrb * nOrb * nSpin))
     allocate(deltaRhoDiff(nOrb * nOrb * nSpin))

@@ -319,7 +319,7 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%postGeoOpt)
 
-    if (tREKS) then
+    if (allocated(reks)) then
       call REKS_destroy(reks)
     end if
 
@@ -386,7 +386,7 @@ contains
     integer(kind=8) :: countRate, t1, t2
 
     call system_clock(count_rate=countRate)
-    timeRate = dble(countRate)
+    timeRate = 1.0_dp / real(countRate, dp)
 
     call env%globalTimer%startTimer(globalTimers%preSccInit)
 
@@ -421,7 +421,7 @@ contains
       end if
     #:endif
 
-    if (tSccCalc .and. .not.tREKS) then
+    if (tSccCalc .and. .not.allocated(reks)) then
       call reset(pChrgMixer, nMixElements)
     end if
 
@@ -485,78 +485,75 @@ contains
       call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
     end if
 
-    if (tREKS) then
+    if (allocated(reks)) then
       call initReksSccLoop(tSccCalc, tConverged, reks)
     else
-      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged, tNegf)
+      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
+          & tNegf)
     end if
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
     call env%globalTimer%startTimer(globalTimers%scc)
 
-    if (tREKS) then
+    if (allocated(reks)) then
       lpSCC_REKS: do iSccIter = 1, maxSccIter
 
         call system_clock(t1)
 
         if (iSccIter == 1) then
-          call getReksInitialSettings(env, denseDesc, h0, over, neighbourList, &
-              & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
-              & HSqrReal, SSqrReal, eigvecsReal, eigen, reks)
+          call getReksInitialSettings(env, denseDesc, h0, over, neighbourList, nNeighbourSK,&
+              & iSparseStart, img2CentCell, electronicSolver, HSqrReal, SSqrReal, eigvecsReal,&
+              & eigen, reks)
         end if
 
-        call getDensityLFromRealEigvecs(env, denseDesc, neighbourList, &
-            & nNeighbourSK, iSparseStart, img2CentCell, orb, eigvecsReal, q0, reks)
-        call getMullikenPopulationL(env, denseDesc, neighbourList, &
-            & nNeighbourSK, img2CentCell, iSparseStart, orb, over, reks)
+        call getDensityLFromRealEigvecs(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
+            & img2CentCell, orb, eigvecsReal, q0, reks)
+        call getMullikenPopulationL(env, denseDesc, neighbourList, nNeighbourSK, img2CentCell,&
+            & iSparseStart, orb, over, reks)
 
-        call getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, &
-            & species, neighbourList, nNeighbourSK, iSparseStart, &
-            & img2CentCell, electrostatics, H0, over, spinW, cellVol, &
-            & extPressure, energy, q0, iAtInCentralRegion, thirdOrd, &
-            & rangeSep, nNeighbourLC, reks)
+        call getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, species, neighbourList,&
+            & nNeighbourSK, iSparseStart, img2CentCell, electrostatics, H0, over, spinW, cellVol, &
+            & extPressure, energy, q0, iAtInCentralRegion, thirdOrd, rangeSep, nNeighbourLC, reks)
         call optimizeFONsAndWeights(eigvecsReal, filling, energy, reks)
 
-        call getFockandDiag(env, denseDesc, neighbourList, &
-            & nNeighbourSK, iSparseStart, img2CentCell, eigvecsReal, &
-            & electronicSolver, eigen, reks%hamSqrL, reks%hamSpL, &
-            & reks%weight, reks%fillingL, reks%shift, reks%Nc, reks%Na, &
-            & reks%Lpaired, reks%tRangeSep, reks%fockFc, reks%fockFa, &
-            & reks%fock, reks%eigvecsFock)
+        call getFockandDiag(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
+            & img2CentCell, eigvecsReal, electronicSolver, eigen, reks%hamSqrL, reks%hamSpL, &
+            & reks%weight, reks%fillingL, reks%shift, reks%Nc, reks%Na, reks%Lpaired,&
+            & reks%tRangeSep, reks%fockFc, reks%fockFa, reks%fock, reks%eigvecsFock)
 
-        call getSysDensityFromRealEigvecs(env, denseDesc, neighbourList, &
-            & nNeighbourSK, iSparseStart, img2CentCell, orb, eigvecsReal, &
-            & filling, rhoPrim, q0, deltaRhoOutSqr, reks)
+        call getSysDensityFromRealEigvecs(env, denseDesc, neighbourList, nNeighbourSK,&
+            & iSparseStart, img2CentCell, orb, eigvecsReal, filling, rhoPrim, q0, deltaRhoOutSqr,&
+            & reks)
         call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
 
         ! check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
         if (tRangeSep) then
-          call getReksNextInputDensity(sccErrorQ, sccTol, tConverged, &
-              & iSccIter, minSccIter, maxSccIter, iGeoStep, tStopScc, &
-              & eigvecsReal, deltaRhoOut, deltaRhoIn, deltaRhoDiff, reks)
+          call getReksNextInputDensity(sccErrorQ, sccTol, tConverged, iSccIter, minSccIter,&
+              & maxSccIter, iGeoStep, tStopScc, eigvecsReal, deltaRhoOut, deltaRhoIn, deltaRhoDiff,&
+              & reks)
         else
-          call getReksNextInputCharges(orb, nIneqOrb, iEqOrbitals, qOutput,&
-              & qOutRed, qInpRed, qDiffRed, sccErrorQ, sccTol, tConverged, iSccIter,&
-              & minSccIter, maxSccIter, iGeoStep, tStopScc, eigvecsReal, reks)
+          call getReksNextInputCharges(orb, nIneqOrb, iEqOrbitals, qOutput, qOutRed, qInpRed,&
+              & qDiffRed, sccErrorQ, sccTol, tConverged, iSccIter, minSccIter, maxSccIter,&
+              & iGeoStep, tStopScc, eigvecsReal, reks)
         end if
 
         call system_clock(t2)
 
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
-        call printReksSccInfo(iSccIter, energy%Etotal, diffElec, sccErrorQ, &
-            & t1/timeRate, t2/timeRate, reks%FONs, reks%tSSR22, reks%tSSR44)
+        call printReksSccInfo(iSccIter, energy%Etotal, diffElec, sccErrorQ,&
+            & real(t2-t1,dp)*timeRate, reks)
 
         if (tConverged .or. tStopScc) then
 
-          call printReksSAInfo(energy%Etotal, reks%enLtot, reks%energy, &
-              & reks%FONs, reks%Efunction, reks%Plevel, reks%tSSR22, reks%tSSR44)
+          call printReksSAInfo(energy%Etotal, reks%enLtot, reks%energy, reks%FONs, reks%Efunction,&
+              & reks%Plevel, reks%tSSR22, reks%tSSR44)
 
-          call getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK,&
-              & iSparseStart, img2CentCell, coord, iAtInCentralRegion, eigvecsReal,&
-              & electronicSolver, eigen, qOutput, q0, tDipole, dipoleMoment, reks)
+          call getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
+              & img2CentCell, coord, iAtInCentralRegion, eigvecsReal, electronicSolver, eigen,&
+              & qOutput, q0, tDipole, dipoleMoment, reks)
 
           call getReksEnProperties(eigvecsReal, coord0, reks)
 
@@ -564,17 +561,13 @@ contains
             ! In this routine the correct Etotal is evaluated.
             ! If TargetStateL > 0, certain microstate
             ! is optimized. If not, SSR state is optimized.
-            call openDetailedOut(fdDetailedOut, userOut, &
-                & tAppendDetailedOut, iGeoStep, iSccIter)
-            call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, &
-                & tMD, tDerivs, tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, &
-                & energy, diffElec, sccErrorQ, indMovedAtom, pCoord0Out, q0, qOutput,&
-                & orb, species, tPrintMulliken, extPressure, cellVol, tAtomicEnergy,&
-                & tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint, iAtInCentralRegion, &
-                & electronicSolver, tDefinedFreeE, reks%FONs, reks%energy, reks%rstate, &
-                & reks%Lstate, reks%enLnonSCC, reks%enLscc, reks%enLspin, reks%enL3rd, &
-                & reks%enLfock, reks%enLtot, allocated(thirdOrd), tRangeSep, &
-                & t1/timeRate, t2/timeRate)
+            call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
+            call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
+                & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
+                & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol,&
+                & tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
+                & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, allocated(thirdOrd),&
+                & tRangeSep, real(t2-t1,dp)*timeRate)
           end if
           if (tWriteBandDat) then
             call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -748,18 +741,19 @@ contains
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, tGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
-            call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn, deltaRhoIn)
+            call writeCharges(fCharges, tWriteChrgAscii, orb, qInput, qBlockIn, qiBlockIn,&
+                & deltaRhoIn)
           end if
         end if
 
         if (tWriteDetailedOut) then
           call openDetailedOut(fdDetailedOut, userOut, tAppendDetailedOut, iGeoStep, iSccIter)
           call writeDetailedOut1(fdDetailedOut, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs,&
-              & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
-              & pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species, tDFTBU,&
-              & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
-              & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
-              & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
+              & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ,&
+              & indMovedAtom, pCoord0Out, q0, qInput, qOutput, eigen, filling, orb, species,&
+              & tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
+              & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
+              & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
               & tRangeSep, allocated(thirdOrd))
         end if
@@ -835,7 +829,7 @@ contains
 
     if (tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)
-      if (tREKS) then
+      if (allocated(reks)) then
         call getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
             & neighbourList, nNeighbourSK, nNeighbourRep, iSparseStart, img2CentCell, &
             & orb, nonSccDeriv, skHamCont, skOverCont, pRepCont, coord, coord0, &
@@ -849,8 +843,8 @@ contains
         call env%globalTimer%startTimer(globalTimers%energyDensityMatrix)
         call getEnergyWeightedDensity(env, electronicSolver, denseDesc, forceType, filling, eigen,&
             & kPoint, kWeight, neighbourList, nNeighbourSk, orb, iSparseStart, img2CentCell,&
-            & iCellVec, cellVec, tRealHS, ham, over, parallelKS, iSccIter, mu, ERhoPrim, eigvecsReal,&
-            & SSqrReal, eigvecsCplx, SSqrCplx)
+            & iCellVec, cellVec, tRealHS, ham, over, parallelKS, iSccIter, mu, ERhoPrim,&
+            & eigvecsReal, SSqrReal, eigvecsCplx, SSqrCplx)
         call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
         call getGradients(env, sccCalc, tExtField, tXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
             & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
@@ -874,15 +868,15 @@ contains
 
       if (tStress) then
         call env%globalTimer%startTimer(globalTimers%stressCalc)
-        if (tREKS) then
+        if (allocated(reks)) then
           call getReksStress(env, denseDesc, sccCalc, nonSccDeriv, skHamCont, &
               & skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, &
               & species, img2CentCell, iSparseStart, orb, dispersion, coord, q0, &
               & invLatVec, cellVol, totalStress, totalLatDeriv, intPressure, reks)
         else
-          call getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
-              & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep,&
-              & species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
+          call getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim,&
+              & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
+              & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
               & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
               & dispersion, halogenXCorrection)
         end if

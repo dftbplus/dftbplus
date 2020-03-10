@@ -45,6 +45,7 @@ module dftbp_mainio
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_message
   use dftbp_rekscommon
+  use dftbp_reksvar, only : TReksCalc
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -3743,8 +3744,7 @@ contains
 
 
   !> Prints info about scc convergence.
-  subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, &
-      & sccErrorQ, t1, t2, FONs, tSSR22, tSSR44)
+  subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, sccErrorQ, deltaT, reks)
 
     !> Iteration count
     integer, intent(in) :: iSccIter
@@ -3759,22 +3759,16 @@ contains
     real(dp), intent(in) :: sccErrorQ
 
     !> the consumed time for calculating one iteration
-    real(dp), intent(in) :: t1, t2
+    real(dp), intent(in) :: deltaT
 
-    !> Fractional occupation numbers of active orbitals
-    real(dp), intent(in) :: FONs(:,:)
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: reks
 
     ! print out the iteration information
-    if (tSSR22) then
-      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F10.6,3x,F16.10)") &
-          & iSCCIter, Etotal, diffTotal, FONs(1,1) * 0.5_dp, t2 - t1, sccErrorQ
-    else if (tSSR44) then
+    if (reks%tSSR22) then
+      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F10.6,3x,F10.6)") iSCCIter, Etotal,&
+          & diffTotal, reks%FONs(1,1) * 0.5_dp, deltaT, sccErrorQ
+    else if (reks%tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
 
@@ -4494,7 +4488,7 @@ contains
     real(dp), intent(out) :: eigenvecs(:,:)
 
     character(len=16), parameter :: fname = "eigenvec.bin"
-    integer, parameter :: funit = 105
+    integer :: funit
     logical :: exst
     integer :: iAO, iMO, nOrb
     integer :: dummy
@@ -4503,7 +4497,7 @@ contains
 
     inquire(file=fname,exist=exst)
     if (exst) then
-      open(unit=funit,file=fname,action="read",form="unformatted",access="direct",recl=dp)
+      open(newunit=funit,file=fname,action="read",form="unformatted",access="direct",recl=dp)
       read(funit,rec=1) dummy
       do iMO = 1, nOrb
         read(funit,rec=2+(nOrb+1)*(iMO-1)) dummy
@@ -4989,17 +4983,17 @@ contains
     real(dp), intent(in) :: tdp(:,:)
 
     character(len=16), parameter :: fname = "tdp.dat"
-    integer, parameter :: funit = 108
+    integer :: funit
 
     real(dp) :: tmp
     integer :: ia, ib, ist, nstates, nstHalf
 
     nstHalf = size(tdp,dim=2)
 
-    tmp = 0.5_dp * (1.0_dp + sqrt(1.0_dp + 8.0_dp*dble(nstHalf)))
-    nstates = int(dble(tmp))
+    tmp = 0.5_dp * (1.0_dp + sqrt(1.0_dp + 8.0_dp*real(nstHalf,dp)))
+    nstates = nint(tmp)
 
-    open(unit=funit,file=fname,position="rewind",status="replace")
+    open(newunit=funit,file=fname,position="rewind",status="replace")
     write(funit,*)
     do ist = 1, nstHalf
 
@@ -5035,11 +5029,11 @@ contains
 
     character(len=20), parameter :: fname = "relaxed_charge.dat"
     integer :: iAt, nAtom
-    integer, parameter :: funit = 109
+    integer :: funit
 
     nAtom = size(qOutput,dim=2)
 
-    open(unit=funit,file=fname,position="rewind",status="replace")
+    open(newunit=funit,file=fname,position="rewind",status="replace")
     write(funit,'(A13,1X,F15.8,A4)') "total charge:", &
         & -sum(qOutput(:,:,1) - q0(:,:,1)), " (e)"
     write(funit,'(1X)')
@@ -5062,9 +5056,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, FONs, reksEn, &
-      & rstate, Lstate, enLnonSCC, enLscc, enLspin, enL3rd, enLfock, enLtot, &
-      & t3rd, tRangeSep, t1, t2)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, tRangeSep, deltaT)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5156,44 +5148,17 @@ contains
     !> Is the free energy correctly defined
     logical, intent(in) :: tDefinedFreeE
 
-    !> Fractional occupation numbers of active orbitals
-    real(dp), intent(in) :: FONs(:,:)
-
-    !> energy of states: reks%energy
-    real(dp), intent(in) :: reksEn(:)
-
-    !> Target SSR state
-    integer, intent(in) :: rstate
-
-    !> Target microstate
-    integer, intent(in) :: Lstate
-
-    !> non SCC energy for each microstate
-    real(dp), intent(in) :: enLnonSCC(:)
-
-    !> SCC energy for each microstate
-    real(dp), intent(in) :: enLscc(:)
-
-    !> spin-polarized energy for each microstate
-    real(dp), intent(in) :: enLspin(:)
-
-    !> 3rd order SCC energy for each microstate
-    real(dp), intent(in) :: enL3rd(:)
-
-    !> Long-range corrected energy for each microstate
-    real(dp), intent(in) :: enLfock(:)
-
-    !> total energy for each microstate
-    real(dp), intent(in) :: enLtot(:)
-
     !> Third order DFTB
     logical, intent(in) :: t3rd
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
 
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: reks
+
     !> the consumed time for calculating one iteration
-    real(dp), intent(in) :: t1, t2
+    real(dp), intent(in) :: deltaT
 
     integer :: nAtom, nKPoint, nMovedAtom, nstates
     integer :: ang, iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
@@ -5203,7 +5168,7 @@ contains
     nAtom = size(q0, dim=2)
     nKPoint = size(kPoints, dim=2)
     nMovedAtom = size(indMovedAtom)
-    nstates = size(reksEn,dim=1)
+    nstates = size(reks%energy,dim=1)
 
     write(fd, "(A)") "REKS do not use any electronic distribution function"
     write(fd,*)
@@ -5231,8 +5196,8 @@ contains
       write(fd, "(A)") repeat("*", 92)
       write(fd,"(1X,A5,A20,A20,A13,A12,A20)") "iSCC", "       reks energy  ", &
           & "      Diff energy   ", "      x_a    ", "    Time(s) ", "        SCC error   "
-      write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F10.6,3x,F16.10)") &
-          & iSCCIter, energy%Etotal, diffElec, FONs(1,1)*0.5_dp, t2 - t1, sccErrorQ
+      write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F10.6,3x,F10.6)") &
+          & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, deltaT, sccErrorQ
 
       write(fd, "(A)") repeat("*", 92)
       write(fd, *)
@@ -5338,24 +5303,24 @@ contains
     end do lpSpinPrint3_REKS
 
     ! get correct energy values
-    energy%Etotal = reksEn(rstate)
+    energy%Etotal = reks%energy(reks%rstate)
     energy%Eexcited = 0.0_dp
-    if (nstates > 1 .and. Lstate == 0) then
-      energy%Eexcited = reksEn(rstate) - reksEn(1)
+    if (nstates > 1 .and. reks%Lstate == 0) then
+      energy%Eexcited = reks%energy(reks%rstate) - reks%energy(1)
     end if
     ! get microstate energy values for target microstate
-    if (Lstate > 0) then
-      energy%Etotal = enLtot(Lstate)
-      energy%EnonSCC = enLnonSCC(Lstate)
-      energy%ESCC = enLSCC(Lstate)
-      energy%Espin = enLspin(Lstate)
+    if (reks%Lstate > 0) then
+      energy%Etotal = reks%enLtot(reks%Lstate)
+      energy%EnonSCC = reks%enLnonSCC(reks%Lstate)
+      energy%ESCC = reks%enLSCC(reks%Lstate)
+      energy%Espin = reks%enLspin(reks%Lstate)
       energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin
       if (tRangeSep) then
-        energy%Efock = enLfock(Lstate)
+        energy%Efock = reks%enLfock(reks%Lstate)
         energy%Eelec = energy%Eelec + energy%Efock
       end if
       if (t3rd) then
-        energy%e3rd  = enL3rd(Lstate)
+        energy%e3rd  = reks%enL3rd(reks%Lstate)
         energy%Eelec = energy%Eelec + energy%e3rd
       end if
     end if
