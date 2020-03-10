@@ -81,7 +81,7 @@ module dftbp_scc
     !> Coulomb input
     type(TCoulombInput) :: coulombInput
 
-    !> Whether shift vector had been set externally -> skip internal shift calculation
+    !> Whether shift vector is set externally -> skip internal shift calculation
     logical :: hasExternalShifts
 
   end type TSccInp
@@ -193,7 +193,7 @@ module dftbp_scc
     !> Coulombic interaction container
     type(TCoulombCont) :: coulombCont
 
-    !> Whether shift vector had been set externally -> skip internal shift calculation
+    !> Whether shift vector is set externally -> skip internal shift calculation
     logical :: hasExternalShifts
 
   contains
@@ -462,8 +462,8 @@ contains
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
-        call this%extCharge%setCoordinates(env, this%coord, this%coulombCont%rCellVec, this%coulombCont%gLatPoint,&
-            & this%coulombCont%alpha, this%volume)
+        call this%extCharge%setCoordinates(env, this%coord, this%coulombCont%rCellVec,&
+            & this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume)
       else
         call this%extCharge%setCoordinates(env, this%coord)
       end if
@@ -777,7 +777,8 @@ contains
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
-            & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume)
+            & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
+            & this%volume)
       else
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom)
       end if
@@ -814,7 +815,7 @@ contains
     @:ASSERT(this%tPeriodic)
     @:ASSERT(all(shape(st)==(/3,3/)))
 
-    stTmp = 0.0_dp
+    stTmp(:,:) = 0.0_dp
 
     ! Short-range part of gamma contribution
     call addSTGammaPrime_(stTmp,this,species,iNeighbour,img2CentCell)
@@ -1046,7 +1047,8 @@ contains
 
     if (this%tPeriodic) then
       call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-          & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume, V, epsSoften=epsSoften)
+          & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
+          & this%volume, V, epsSoften=epsSoften)
     else
       call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
           & epsSoften=epsSoften)
@@ -1077,8 +1079,9 @@ contains
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
-        call this%extCharge%getElStatPotential(env, locations, this%coulombCont%rCellVec, this%coulombCont%gLatPoint,&
-            & this%coulombCont%alpha, this%volume, V, epsSoften=epsSoften)
+        call this%extCharge%getElStatPotential(env, locations, this%coulombCont%rCellVec,&
+            & this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume, V,&
+            & epsSoften=epsSoften)
       else
         call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
       end if
@@ -1148,24 +1151,11 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    call buildShiftPerAtom_(this, env)
+    this%shiftPerAtom(:) = 0.0_dp
+
     call buildShiftPerShell_(this, env, orb, species, iNeighbour, img2CentCell)
 
   end subroutine buildShifts_
-
-
-  !> Builds 1/R contribution [shiftAtom(A) = sum_B 1 / R_AB * (Q_B - Q0_B)]
-  subroutine buildShiftPerAtom_(this, env)
-
-    !> Resulting module variables
-    type(TScc), intent(inout), target :: this
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    this%shiftPerAtom(:) = 0.0_dp
-
-  end subroutine buildShiftPerAtom_
 
 
   !> Builds the short range shell resolved part of the shift vector
