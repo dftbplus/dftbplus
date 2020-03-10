@@ -693,7 +693,7 @@ module dftbp_reksinterface
 !    integer, pointer :: pSpecies0(:)
 
     real(dp) :: timeRate
-    integer :: nAtom, tmpL, iL
+    integer :: nAtom, iL
     integer(kind=8) :: countRate, t1, t2
 
     call system_clock(count_rate=countRate)
