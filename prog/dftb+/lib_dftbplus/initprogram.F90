@@ -1132,6 +1132,7 @@ contains
     ! Basic variables
     tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
+    tSpin = input%ctrl%tSpin
     nSpin = 1
     if (input%ctrl%reksIni%tREKS) then
       ! REKS follows spin-restricted open-shell scheme so nSpin should be two in the main code, but
