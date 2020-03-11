@@ -24,7 +24,7 @@ module dftbp_broydenmixer
 
 
   !> Contains the necessary data for a Broyden mixer.
-  type OBroydenMixer
+  type TBroydenMixer
     private
 
     !> Actual iteration
@@ -68,7 +68,7 @@ module dftbp_broydenmixer
 
     !> uu vectors
     real(dp), allocatable :: uu(:,:)
-  end type OBroydenMixer
+  end type TBroydenMixer
 
 
   !> Creates Broyden mixer
@@ -94,7 +94,7 @@ module dftbp_broydenmixer
     module procedure BroydenMixer_getInverseJacobian
   end interface getInverseJacobian
 
-  public :: OBroydenMixer
+  public :: TBroydenMixer
   public :: init, reset, mix, getInverseJacobian
 
 contains
@@ -108,7 +108,7 @@ contains
       &maxWeight, weightFac)
 
     !> an initialized Broyden mixer on exit
-    type(OBroydenMixer), intent(out) :: self
+    type(TBroydenMixer), intent(out) :: self
 
     !> Maximum nr. of iterations (max. nr. of vectors to store)
     integer, intent(in) :: mIter
@@ -153,7 +153,7 @@ contains
   subroutine BroydenMixer_reset(self, nElem)
 
     !> Broyden mixer instance
-    type(OBroydenMixer), intent(inout) :: self
+    type(TBroydenMixer), intent(inout) :: self
 
     !> Length of the vectors to mix
     integer, intent(in) :: nElem
@@ -182,7 +182,7 @@ contains
   subroutine BroydenMixer_mix(self, qInpResult, qDiff)
 
     !> The Broyden mixer
-    type(OBroydenMixer), intent(inout) :: self
+    type(TBroydenMixer), intent(inout) :: self
 
     !> Input charges on entry, mixed charges on exit.
     real(dp), intent(inout) :: qInpResult(:)
@@ -348,7 +348,7 @@ contains
   subroutine BroydenMixer_getInverseJacobian(self, invJac)
 
     !> Broyden mixer
-    type(OBroydenMixer), intent(inout) :: self
+    type(TBroydenMixer), intent(inout) :: self
 
     !> Inverse of the Jacobian
     real(dp), intent(out) :: invJac(:,:)

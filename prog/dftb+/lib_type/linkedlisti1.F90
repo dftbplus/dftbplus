@@ -14,7 +14,7 @@ module dftbp_linkedlisti1
   private
 
   $:define_list(&
-      & TYPE_NAME='listIntR1',&
+      & TYPE_NAME='TListIntR1',&
       & ITEM_TYPE='integer',&
       & ITEM_RANK=1,&
       & PADDING='0')

@@ -115,7 +115,7 @@ contains
     type(fnode), pointer :: hsdTree
 
     !> Returns initialised input variables on exit
-    type(inputData), intent(out) :: input
+    type(TInputData), intent(out) :: input
 
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
@@ -275,7 +275,7 @@ contains
     type(fnode), pointer :: node
 
     !> Input structure to be filled
-    type(inputData), intent(inout) :: input
+    type(TInputData), intent(inout) :: input
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -314,7 +314,7 @@ contains
     type(TGeometry), intent(in) :: geom
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
   #:if WITH_TRANSPORT
     !> Transport parameters
@@ -339,7 +339,7 @@ contains
     end if
   #:endif
 
-    ctrl%tGeoOpt = .false.
+    ctrl%isGeoOpt = .false.
     ctrl%tCoordOpt = .false.
     ctrl%tLatOpt = .false.
 
@@ -410,7 +410,7 @@ contains
               & lattice optimisation.")
         end if
       end if
-      ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+      ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
     case ("conjugategradient")
       ! Conjugate gradient location optimisation
@@ -463,7 +463,7 @@ contains
               & lattice optimisation.")
         end if
       end if
-      ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+      ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
     case("gdiis")
       ! Gradient DIIS optimisation, only stable in the quadratic region
@@ -515,7 +515,7 @@ contains
               & lattice optimisation.")
         end if
       end if
-      ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+      ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
     case ("lbfgs")
 
@@ -568,7 +568,7 @@ contains
               & lattice optimisation.")
         end if
       end if
-      ctrl%tGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
+      ctrl%isGeoOpt = ctrl%tLatOpt .or. ctrl%tCoordOpt
 
       allocate(ctrl%lbfgsInp)
       call getChildValue(node, "Memory", ctrl%lbfgsInp%memory, 20)
@@ -884,7 +884,7 @@ contains
     type(fnode), pointer :: node
 
     !> extracted settings on exit
-    type(XlbomdInp), allocatable, intent(out) :: input
+    type(TXLBOMDInp), allocatable, intent(out) :: input
 
     type(fnode), pointer :: pXlbomd, pXlbomdFast, pRoot, pChild
     integer :: nKappa
@@ -971,15 +971,15 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
-    type(listIntR1) :: intBuffer
-    type(listRealR1) :: realBuffer
+    type(TListIntR1) :: intBuffer
+    type(TListRealR1) :: realBuffer
 
     call getChildValue(node, "Constraints", value1, "", child=child, &
         &allowEmptyValue=.true.)
@@ -1012,14 +1012,14 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Total number of all atoms
     integer, intent(in) :: nAtom
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
-    type(listRealR1) :: realBuffer
+    type(TListRealR1) :: realBuffer
     integer :: nVelocities
     real(dp), allocatable :: tmpVelocities(:,:)
 
@@ -1114,13 +1114,13 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
 
     !> Slater-Koster structure to be filled
-    type(slater), intent(inout) :: slako
+    type(TSlater), intent(inout) :: slako
 
   #:if WITH_TRANSPORT
     !> Transport parameters
@@ -1167,13 +1167,13 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
 
     !> Slater-Koster structure to be filled
-    type(slater), intent(inout) :: slako
+    type(TSlater), intent(inout) :: slako
 
   #:if WITH_TRANSPORT
     !> Transport parameters
@@ -1189,13 +1189,13 @@ contains
     type(fnode), pointer :: value1, value2, child, child2, child3, field
     type(fnodeList), pointer :: children
     type(string) :: buffer, buffer2, modifier
-    type(listInt) :: li
-    type(listInt), allocatable :: liN(:)
-    type(listIntR1), allocatable :: li1N(:)
-    type(listReal), allocatable :: lrN(:)
-    type(listCharLc), allocatable :: skFiles(:,:)
-    type(listString) :: lStr
-    type(listIntR1), allocatable :: angShells(:)
+    type(TListInt) :: li
+    type(TListInt), allocatable :: liN(:)
+    type(TListIntR1), allocatable :: li1N(:)
+    type(TListReal), allocatable :: lrN(:)
+    type(TListCharLc), allocatable :: skFiles(:,:)
+    type(TListString) :: lStr
+    type(TListIntR1), allocatable :: angShells(:)
     logical, allocatable :: repPoly(:,:)
     integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
@@ -1673,7 +1673,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -1795,13 +1795,13 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
 
     !> List containing the angular momenta of the shells
-    type(listIntR1), allocatable, intent(out) :: angShells(:)
+    type(TListIntR1), allocatable, intent(out) :: angShells(:)
 
     type(fnode), pointer :: value1, child, child2
     type(string) :: buffer
@@ -1809,7 +1809,7 @@ contains
     character(lc) :: strTmp
     integer :: nShell
     character(1) :: tmpCh
-    type(listString) :: lStr
+    type(TListString) :: lStr
     logical :: tShellIncl(4), tFound
     integer :: angShell(maxL+1), angShellOrdered(maxL+1)
 
@@ -1894,7 +1894,7 @@ contains
 
     !> List containing the angular momenta of the shells,
     !> must be inout, since intoArray requires inout arguments
-    type(listIntR1), intent(inout) :: angShells(:)
+    type(TListIntR1), intent(inout) :: angShells(:)
 
     integer :: nShell, iSp1, iSh1, ii, jj, ind
     integer :: angShell(maxL+1)
@@ -1954,7 +1954,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -2005,7 +2005,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -2066,7 +2066,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -2081,9 +2081,9 @@ contains
     integer :: nElem
     real(dp), allocatable :: tmpR1(:)
     real(dp), allocatable :: tmpR2(:,:)
-    type(listRealR2) :: lCharges
-    type(listRealR1) :: lBlurs
-    type(listRealR1) :: lr1
+    type(TListRealR2) :: lCharges
+    type(TListRealR1) :: lBlurs
+    type(TListRealR1) :: lr1
 
     call getChildValue(node, "ElectricField", value1, "", child=child, &
         &allowEmptyValue=.true., dummyValue=.true., list=.true.)
@@ -2211,7 +2211,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -2283,7 +2283,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -2374,7 +2374,7 @@ contains
       ! fixEf also avoids checks of total charge in initQFromFile
       ctrl%tFixEf = .true.
     case ("transportonly")
-      if (ctrl%tGeoOpt .or. ctrl%tMD) then
+      if (ctrl%isGeoOpt .or. ctrl%tMD) then
         call detailederror(node, "transportonly cannot be used with relaxations or md")
       end if
       if (tp%defined .and. .not.tp%taskUpload) then
@@ -2438,7 +2438,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
@@ -2450,8 +2450,8 @@ contains
     integer :: ind, ii, jj, kk
     real(dp) :: coeffsAndShifts(3, 4)
     real(dp) :: rTmp3(3)
-    type(listIntR1) :: li1
-    type(listRealR1) :: lr1
+    type(TListIntR1) :: li1
+    type(TListRealR1) :: lr1
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
     character(lc) :: errorStr
@@ -2611,14 +2611,14 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
 
     type(fnode), pointer :: value1, value2, child, child2, child3, field
     type(string) :: buffer, buffer2
-    type(listRealR1) :: lr1
+    type(TListRealR1) :: lr1
 
     ctrl%tMulliken = .true.
 
@@ -2699,7 +2699,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to be filled
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: value1, value2, child, child2, child3, field
     type(string) :: buffer, buffer2
@@ -2879,7 +2879,7 @@ contains
     type(fnode), pointer, intent(in) :: node
 
     !> control structure to fill
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
 
     !> default of a reasonable choice for round off when using a second order finite difference
@@ -2920,7 +2920,7 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Control structure
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: value1, child, child2
     type(string) :: buffer
@@ -2980,20 +2980,20 @@ contains
       & truncationCutOff, rangeSepSK)
 
     !> List of SK file names to read in for every interaction
-    type(ListCharLc), intent(inout) :: skFiles(:,:)
+    type(TListCharLc), intent(inout) :: skFiles(:,:)
 
     !> Nr. of species in the system
     integer, intent(in) :: nSpecies
 
     !> Data type for slako information
-    type(slater), intent(inout) :: slako
+    type(TSlater), intent(inout) :: slako
 
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
     !> For every species, a list of rank one arrays. Each array contains the angular momenta to pick
     !> from the appropriate SK-files.
-    type(listIntR1), intent(inout) :: angShells(:)
+    type(TListIntR1), intent(inout) :: angShells(:)
 
     !> Are the Hubbard Us different for each l-shell?
     logical, intent(in) :: orbRes
@@ -3017,11 +3017,11 @@ contains
     real(dp), allocatable, target :: skHam(:,:), skOver(:,:)
     real(dp) :: dist
     type(TOldSKData), allocatable :: skData12(:,:), skData21(:,:)
-    type(OSlakoEqGrid), allocatable :: pSlakoEqGrid1, pSlakoEqGrid2
+    type(TSlakoEqGrid), allocatable :: pSlakoEqGrid1, pSlakoEqGrid2
     type(TRepSplineIn) :: repSplineIn1, repSplineIn2
     type(TRepPolyIn) :: repPolyIn1, repPolyIn2
-    type(ORepSpline), allocatable :: pRepSpline
-    type(ORepPoly), allocatable :: pRepPoly
+    type(TRepSpline), allocatable :: pRepSpline
+    type(TRepPoly), allocatable :: pRepPoly
 
     ! if artificially cutting the SK tables
     integer :: nEntries
@@ -3395,10 +3395,10 @@ contains
     type(TOldSKData), intent(in), target :: skData21(:,:)
 
     !> Angular momenta to pick from the SK-files for species A
-    type(listIntR1), intent(inout) :: angShells1
+    type(TListIntR1), intent(inout) :: angShells1
 
     !> Angular momenta to pick from the SK-files for species B
-    type(listIntR1), intent(inout) :: angShells2
+    type(TListIntR1), intent(inout) :: angShells2
 
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm
     integer :: angShell1(maxL+1), angShell2(maxL+1)
@@ -3459,7 +3459,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to fill
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
     logical :: tWriteDetailedOutDef
@@ -3478,7 +3478,7 @@ contains
         &.false.)
 
 
-    if (.not.(ctrl%tMD.or.ctrl%tGeoOpt)) then
+    if (.not.(ctrl%tMD.or.ctrl%isGeoOpt)) then
       if (ctrl%tSCC) then
         call getChildValue(node, "RestartFrequency", ctrl%restartFreq, 20)
       else
@@ -3526,7 +3526,7 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> dispersion data on exit
-    type(DispersionInp), intent(out) :: input
+    type(TDispersionInp), intent(out) :: input
 
     !> net charge
     real(dp), intent(in) :: nrChrg
@@ -3570,7 +3570,7 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Contains the input for the dispersion module on exit
-    type(DispSlaKirkInp), intent(out) :: input
+    type(TDispSlaKirkInp), intent(out) :: input
 
     type(fnode), pointer :: value1, value2, child, child2, child3
     type(string) :: buffer, modif, modif2, modifs(3)
@@ -3698,7 +3698,7 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Filled input structure on exit
-    type(DispUffInp), intent(out) :: input
+    type(TDispUffInp), intent(out) :: input
 
     type(string) :: buffer
     type(fnode), pointer :: child, value1, child2
@@ -3746,7 +3746,7 @@ contains
     type(fnode), pointer :: node
 
     !> Filled input structure on exit.
-    type(DispDftD3Inp), intent(out) :: input
+    type(TDispDftD3Inp), intent(out) :: input
 
     type(fnode), pointer :: child, childval
     type(string) :: buffer
@@ -3806,7 +3806,7 @@ contains
     type(fnode), pointer :: node
 
     !> Filled input structure on exit.
-    type(DispDftD4Inp), intent(out) :: input
+    type(TDispDftD4Inp), intent(out) :: input
 
     !> Net charge of the system.
     real(dp), intent(in) :: nrChrg
@@ -3852,7 +3852,7 @@ contains
     type(fnode), pointer :: node
 
     !> control data coming back
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     type(string) :: modifier
 
@@ -3883,15 +3883,15 @@ contains
     character(len=*), intent(in) :: modifier
 
     !> Control structure to populate
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Names of thermal profiles
     character(len=*), parameter :: tempMethodNames(3) = (/ 'constant   ', &
         &'linear     ', 'exponential' /)
 
-    type(listString) :: ls
-    type(listIntR1) :: li1
-    type(listRealR1) :: lr1
+    type(TListString) :: ls
+    type(TListIntR1) :: li1
+    type(TListRealR1) :: lr1
     character(len=20), allocatable :: tmpC1(:)
     integer :: ii, jj
 
@@ -3955,7 +3955,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to fill
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
   #:if WITH_ARPACK
@@ -4070,7 +4070,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to fill
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     !> Geometry of the system
     type(TGeometry), intent(in) :: geo
@@ -4092,7 +4092,7 @@ contains
     type(string) :: buffer
     integer :: nReg, iReg
     character(lc) :: strTmp
-    type(listRealR1) :: lr1
+    type(TListRealR1) :: lr1
     logical :: tPipekDense
     logical :: tWriteBandDatDef, tHaveEigenDecomposition
 
@@ -4224,7 +4224,7 @@ contains
     type(fnode), pointer :: node
 
     !> Control structure to fill
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     if (ctrl%tPrintEigVecs .or. ctrl%lrespini%tPrintEigVecs) then
       call getChildValue(node, "EigenvectorsAsText", ctrl%tPrintEigVecsTxt, .false.)
@@ -4243,10 +4243,10 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Slater-Koster structure
-    type(slater), intent(in) :: slako
+    type(TSlater), intent(in) :: slako
 
     !> control structure
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
     logical :: tLRNeedsSpinConstants, tShellResolvedW
@@ -4354,8 +4354,8 @@ contains
     type(fnodeList), pointer :: pNodeList
     integer :: ii, contact
     real(dp) :: acc, contactRange(2), lateralContactSeparation, plCutoff
-    type(listInt) :: li
-    type(WrappedInt1), allocatable :: iAtInRegion(:)
+    type(TListInt) :: li
+    type(TWrappedInt1), allocatable :: iAtInRegion(:)
     real(dp), allocatable :: contVec(:,:)
     integer, allocatable :: nPLs(:)
 
@@ -4505,7 +4505,7 @@ contains
     logical, optional, intent(in) :: check
 
 
-    type(listInt) :: li
+    type(TListInt) :: li
     logical :: checkidx
 
     checkidx = .true.
@@ -4557,8 +4557,8 @@ contains
     type(string) :: buffer, modif
     logical :: realAxisConv, equilibrium
 
-    type(listInt) :: li
-    type(listReal) :: fermiBuffer
+    type(TListInt) :: li
+    type(TListReal) :: fermiBuffer
 
     greendens%defined = .true.
 
@@ -4878,7 +4878,7 @@ contains
     integer :: bctype, iBC
     integer :: faceBC, oppositeBC
     integer :: ii
-    type(listString) :: lStr
+    type(TListString) :: lStr
     type(fnode), pointer :: pNode2, pChild
     character(lc) :: strTmp
 
@@ -5308,10 +5308,10 @@ contains
     integer :: ii, jj, ind, ncont, nKT
     real(dp) :: eRange(2), eRangeDefault(2)
     type(string) :: buffer, modif
-    type(WrappedInt1), allocatable :: iAtInRegion(:)
+    type(TWrappedInt1), allocatable :: iAtInRegion(:)
     logical, allocatable :: tShellResInRegion(:)
     character(lc), allocatable :: regionLabelPrefixes(:)
-    type(listReal) :: temperature
+    type(TListReal) :: temperature
 
     tundos%defined = .true.
 
@@ -5441,7 +5441,7 @@ contains
     integer :: ii, jj
     type(fnode), pointer :: field, pNode, pTmp, pWide
     type(string) :: buffer, modif
-    type(listReal) :: fermiBuffer
+    type(TListReal) :: fermiBuffer
 
     do ii = 1, size(contacts)
 
@@ -5575,7 +5575,7 @@ contains
     !> Labels of contacts
     character(len=*), intent(in) :: contactNames(:)
 
-    type(listString) :: lString
+    type(TListString) :: lString
     character(len=mc) :: buffer
     integer :: ind
     logical :: tFound
@@ -5638,7 +5638,7 @@ contains
     integer, intent(in) :: idxdevice(2)
 
     !> Atoms in a given region
-    type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+    type(TWrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
 
     !> Is the region to be projected by shell
     logical, allocatable, intent(out) :: tShellResInRegion(:)
@@ -5697,7 +5697,7 @@ contains
   subroutine finalizeNegf(input)
 
     !> Input structure for DFTB+
-    type(inputData), intent(inout) :: input
+    type(TInputData), intent(inout) :: input
 
     integer :: ii
 
@@ -5769,13 +5769,13 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Atom indices corresponding to user defined reference atomic charges
-    type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+    type(TWrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
 
     !> User-defined reference atomic charges
     real(dp), allocatable, intent(out) :: customOcc(:,:)
 
     type(fnode), pointer :: node, container, child
-    type(fNodeList), pointer :: nodes
+    type(fnodeList), pointer :: nodes
     type(string) :: buffer
     integer :: nCustomOcc, iCustomOcc, iShell, iSpecie, nAtom
     character(sc), allocatable :: shellNamesTmp(:)
@@ -5831,7 +5831,7 @@ contains
     type(fnode), pointer, intent(in) :: root
 
     !> Input structure to be filled
-    type(inputData), intent(inout) :: input
+    type(TInputData), intent(inout) :: input
 
     type(fnode), pointer :: node, pTmp
 
@@ -5889,11 +5889,11 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Control structure
-    type(control), intent(inout) :: ctrl
+    type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child, child2, child3
     type(string) :: buffer, modifier
-    type(listRealR1) :: lr1
+    type(TListRealR1) :: lr1
 
     call getChild(node, "ElectrostaticPotential", child, requested=.false.)
     if (.not. associated(child)) then
@@ -5907,7 +5907,7 @@ contains
     call getChildValue(child, "OutputFile", buffer, "ESP.dat")
     ctrl%elStatPotentialsInp%espOutFile = unquote(char(buffer))
     ctrl%elStatPotentialsInp%tAppendEsp = .false.
-    if (ctrl%tGeoOpt .or. ctrl%tMD) then
+    if (ctrl%isGeoOpt .or. ctrl%tMD) then
       call getChildValue(child, "AppendFile", ctrl%elStatPotentialsInp%tAppendEsp, .false.)
     end if
     call init(lr1)

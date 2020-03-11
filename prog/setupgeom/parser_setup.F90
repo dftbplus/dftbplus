@@ -96,7 +96,7 @@ contains
   subroutine parseHsdInput(input)
 
     !> Returns initialised input variables on exit
-    type(inputData), intent(out) :: input
+    type(TInputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
     type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
@@ -236,7 +236,7 @@ contains
     type(fnode), pointer :: node
 
     !> Input structure to be filled
-    type(inputData), intent(inout) :: input
+    type(TInputData), intent(inout) :: input
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -272,8 +272,8 @@ contains
     type(fnodeList), pointer :: pNodeList
     integer :: ii, contact
     real(dp) :: acc, contactRange(2), lateralContactSeparation, skCutoff
-    type(listInt) :: li
-    type(WrappedInt1), allocatable :: iAtInRegion(:)
+    type(TListInt) :: li
+    type(TWrappedInt1), allocatable :: iAtInRegion(:)
     integer, allocatable :: nPLs(:)
     logical :: printDebug
 
@@ -326,14 +326,14 @@ contains
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     character(*), intent(in) :: task
-    type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+    type(TWrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
     integer, intent(out), allocatable :: nPLs(:)
 
     real(dp) :: contactLayerTol, vec(3)
     integer :: ii, jj
     type(fnode), pointer :: field, pNode, pTmp, pWide
     type(string) :: buffer, modif
-    type(listReal) :: fermiBuffer, vecBuffer
+    type(TListReal) :: fermiBuffer, vecBuffer
     integer, allocatable :: tmpI1(:)
 
     allocate(iAtInRegion(size(contacts)+1))
@@ -424,7 +424,7 @@ contains
     real(dp), intent(inout), allocatable :: translVec(:)    
     
     type(fnode), pointer :: pVal, pChild
-    type(listReal) :: vecBuffer
+    type(TListReal) :: vecBuffer
     type(string) :: modif, buffer
 
     allocate(translVec(3))
@@ -458,7 +458,7 @@ contains
     real(dp), intent(out) :: mSKCutoff
 
     ! Locals
-    type(fnode), pointer :: child 
+    type(fnode), pointer :: child
     integer :: skInterMeth
     logical :: oldSKInter
 
@@ -502,10 +502,10 @@ contains
     !> Maximum SK cutoff distance obtained from SK files  
     real(dp), intent(out) :: maxSKcutoff
 
-    type(fnode), pointer :: value1, child, child2 
+    type(fnode), pointer :: value1, child, child2
     type(string) :: buffer, buffer2
-    type(listString) :: lStr
-    type(listCharLc), allocatable :: skFiles(:,:)
+    type(TListString) :: lStr
+    type(TListCharLc), allocatable :: skFiles(:,:)
     type(TOldSKData) :: skData
     integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp

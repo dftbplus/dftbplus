@@ -92,9 +92,9 @@ contains
 
     type(string) :: modifier
     integer :: ind
-    type(listString) :: stringBuffer
-    type(listRealR1) :: realBuffer
-    type(listIntR1) :: intBuffer
+    type(TListString) :: stringBuffer
+    type(TListRealR1) :: realBuffer
+    type(TListIntR1) :: intBuffer
     type(fnode), pointer :: child, typesAndCoords
     integer, allocatable :: tmpInt(:,:)
     real(dp) :: latvec(9), det
@@ -207,7 +207,7 @@ contains
     integer :: iStart, iErr, iEnd
     integer :: ii, iTmp, iSp
     real(dp) :: coords(3)
-    type(listString) :: speciesNames
+    type(TListString) :: speciesNames
     character(lc) :: errorStr
 
     ! Read first line of the gen file: Number of atoms, boundary conditions
@@ -355,7 +355,7 @@ contains
     integer :: iStart, iOldStart, iErr, iEnd
     integer :: ii, iSp
     real(dp) :: coords(3)
-    type(listString) :: speciesNames
+    type(TListString) :: speciesNames
     character(lc) :: errorStr
 
     ! Read first line of the xyz file: Number of atoms
@@ -468,7 +468,7 @@ contains
     real(dp) :: coords(3), latVec(3), rTmp, rScale
     integer, allocatable :: vaspSp(:)
     integer, allocatable :: countSp(:)
-    type(listString) :: speciesNames
+    type(TListString) :: speciesNames
     logical :: hasComment
     character(lc) :: errorStr
 

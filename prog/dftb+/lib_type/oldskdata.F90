@@ -206,7 +206,7 @@ contains
     !! Name of the file (for printing help messages).
     character(*), intent(in) :: fname
     !! Input structure for the spline repulsives
-    type(trepsplinein), intent(inout) :: repsplinein
+    type(TRepSplinein), intent(inout) :: repsplinein
     !! Index of the first species in the repulsive (for messages)
     integer, intent(in), optional :: isp1
     !! Index of the second species in the repulsive (for messsages)
