@@ -1132,20 +1132,15 @@ contains
     ! Basic variables
     tSccCalc = input%ctrl%tScc
     tDFTBU = input%ctrl%tDFTBU
-    tSpin = input%ctrl%tSpin
+    nSpin = 1
     if (input%ctrl%reksIni%tREKS) then
-      ! REKS follows spin-restricted open-shell scheme so nSpin should be two but some variables
-      ! such as qOutput should be treated in restricted scheme. Here nSpin is one and changes to two
-      ! in the latter part.
+      ! REKS follows spin-restricted open-shell scheme so nSpin should be two in the main code, but
+      ! some variables such as qOutput should be treated in a restricted scheme. Here nSpin is set
+      ! to one and changes to two later in the initialization.
       allocate(reks)
-      if (tSpin) then
-        call error("REKS is not compatible with standard spin polarization")
-      end if
-    end if
-    if (tSpin) then
+    else if (tSpin) then
+      ! unrestricted spin polarisation
       nSpin = 2
-    else
-      nSpin = 1
     end if
     nIndepHam = nSpin
 
