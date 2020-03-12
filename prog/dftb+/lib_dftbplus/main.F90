@@ -3400,6 +3400,7 @@ contains
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
       energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
+
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
