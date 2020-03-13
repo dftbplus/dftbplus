@@ -203,7 +203,7 @@ module poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
-         @:formatted_error_handling(iErr, -1, "(A,I0)",&
+         @:FORMATTED_ERROR_HANDLING(iErr, -1, "(A,I0)",&
              & "Device and contact atoms overlap at contact", m)
        end if
      else                          
@@ -212,7 +212,7 @@ module poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
-         @:formatted_error_handling(iErr, -2, "(A,I0)",&
+         @:FORMATTED_ERROR_HANDLING(iErr, -2, "(A,I0)",&
              & "Device and contact atoms overlap at contact", m)
        end if
      end if
@@ -232,7 +232,7 @@ module poisson
            tmpdir(f)=1
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
-          @:error_handling(iErr, -3, 'Contacts in the same direction must be aligned')
+          @:ERROR_HANDLING(iErr, -3, 'Contacts in the same direction must be aligned')
         endif
      enddo
      ! Adjust PoissonBox if there are no facing contacts
@@ -293,7 +293,7 @@ module poisson
   !---- ---------------------------
   do i=1,3  
     if(PoissBox(i,i) .le. 0.0_dp) then
-      @:formatted_error_handling(iErr, -4, '(A,A)', 'PoissBox negative along ', dir(i))
+      @:FORMATTED_ERROR_HANDLING(iErr, -4, '(A,A)', 'PoissBox negative along ', dir(i))
     end if
   enddo
 
@@ -304,7 +304,7 @@ module poisson
   if (DoGate) then
      biasdir = abs(contdir(1))
      if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
-       @:error_handling(iErr, -5, 'Gate Distance too large')
+       @:ERROR_HANDLING(iErr, -5, 'Gate Distance too large')
      end if
   endif
   
@@ -313,7 +313,7 @@ module poisson
      biasdir = abs(contdir(1))
 
      if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-       @:error_handling(iErr, -6, 'Gate insulator is longer than Poisson box!')
+       @:ERROR_HANDLING(iErr, -6, 'Gate insulator is longer than Poisson box!')
      end if
      
      do i = 1,3
@@ -321,7 +321,7 @@ module poisson
           cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
-          @:error_handling(iErr, -7, 'Gate transversal section is bigger than Poisson box!')
+          @:ERROR_HANDLING(iErr, -7, 'Gate transversal section is bigger than Poisson box!')
         end if
       end do
   end if

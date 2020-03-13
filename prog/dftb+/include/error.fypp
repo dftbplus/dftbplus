@@ -12,7 +12,7 @@
 
 #! Macro to return an error flag if return variable available or throw
 #! an error and shut down otherwise
-#:def error_handling(errVar, errNumber, msg)
+#:def ERROR_HANDLING(errVar, errNumber, msg)
   write(strTmp,"(A)")${msg}$
   if (present(${errVar}$)) then
     ${errVar}$ = ${errNumber}$
@@ -21,12 +21,12 @@
   else
     call error(strTmp)
   end if
-#:enddef error_handling
+#:enddef ERROR_HANDLING
 
 
 #! Macro to return an error flag if return variable available or throw
 #! an error and shut down otherwise
-#:def formatted_error_handling(errVar, errNumber, formating, *variables)
+#:def FORMATTED_ERROR_HANDLING(errVar, errNumber, formating, *variables)
   write(strTmp,${formating}$) ${ ",".join(variables) }$
   if (present(${errVar}$)) then
     ${errVar}$ = ${errNumber}$
@@ -35,4 +35,4 @@
   else
     call error(strTmp)
   end if
-#:enddef formatted_error_handling
+#:enddef FORMATTED_ERROR_HANDLING

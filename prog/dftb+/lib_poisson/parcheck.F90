@@ -69,7 +69,7 @@ contains
         if (verbose > VBT) then
           call warning('Box for Poisson not Found')
         end if
-        @:error_handling(iErr, -1, 'No way to build box for Poisson')
+        @:ERROR_HANDLING(iErr, -1, 'No way to build box for Poisson')
       end if
    end if
 
@@ -102,11 +102,11 @@ contains
        !if(mu(nf(1)).eq.0.d0) mu(nf(1))=bias
        if (contdir(1).ne.contdir(2)) then
          if (localBC(1).eq.0) then
-           @:error_handling(iErr, -1,&
+           @:ERROR_HANDLING(iErr, -1,&
                & 'Local BC should be used when contacts are in different directions')
          endif
          if(DoCilGate) then
-           @:error_handling(iErr, -2,&
+           @:ERROR_HANDLING(iErr, -2,&
                & 'Contacts must be in the same direction when using cylindrical gate')
          endif
        end if
@@ -139,7 +139,7 @@ contains
    end if
    
    if (period_dir(3) .and. numprocs>1) then
-     @:error_handling(iErr, -3,&
+     @:ERROR_HANDLING(iErr, -3,&
          & 'Periodicity along z is incompatible with grid parallelization strategy')
    end if
 
@@ -373,21 +373,21 @@ contains
    if (.not.cluster) then
      do i=1,ncont
        if (iatc(1,i).lt.iatm(2)) then
-         @:error_handling(iErr, -1,&
+         @:ERROR_HANDLING(iErr, -1,&
              & 'The contacts MUST be defined after the scattering region')
        end if
      enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-     @:error_handling(iErr, -2, 'The number of atoms in the scattering region is higer than&
+     @:ERROR_HANDLING(iErr, -2, 'The number of atoms in the scattering region is higer than&
          & the total number of atoms')
    endif
    if (DoGate) then
      if (gatedir.ne.2) then
-       @:error_handling(iErr, -3, 'Gate direction must be along y')
+       @:ERROR_HANDLING(iErr, -3, 'Gate direction must be along y')
      end if
      if(any(abs(contdir(:)).eq.gatedir)) then
-       @:error_handling(iErr, -4, 'Gate direction along contacts!?')
+       @:ERROR_HANDLING(iErr, -4, 'Gate direction along contacts!?')
      end if
    endif
 

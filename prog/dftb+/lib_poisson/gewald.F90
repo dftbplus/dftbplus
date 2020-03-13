@@ -84,7 +84,7 @@ contains
     END DO
 
     IF(abs(lastshell) .gt. tol) THEN
-      @:error_handling(iError, -1, 'tolerance in subroutine short_pot not reached')
+      @:ERROR_HANDLING(iError, -1, 'tolerance in subroutine short_pot not reached')
     END IF
 
   END subroutine short_pot
@@ -137,7 +137,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:error_handling(iError, -1, 'tolerance in long_pot not reached in reciprocal space')
+      @:ERROR_HANDLING(iError, -1, 'tolerance in long_pot not reached in reciprocal space')
     END IF
 
     reciprocal=(4._dp*Pi*reciprocal)/vol
@@ -178,7 +178,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:error_handling(iError, -2, 'tolerance in long_pot not reached in real space')
+      @:ERROR_HANDLING(iError, -2, 'tolerance in long_pot not reached in real space')
     END IF
 
 
@@ -266,7 +266,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:error_handling(iError, -1, "tolerance in phi not reached in reciprocal space")
+      @:ERROR_HANDLING(iError, -1, "tolerance in phi not reached in reciprocal space")
     END IF
 
     reciprocal=(4._dp*Pi*reciprocal)/vol
@@ -307,7 +307,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:error_handling(iError, -2, "tolerance in phi not reached in real space")
+      @:ERROR_HANDLING(iError, -2, "tolerance in phi not reached in real space")
     END IF
 
 
@@ -402,7 +402,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:error_handling(iError, -1, "tolerance in phi1 not reached in reciprocal space")
+      @:ERROR_HANDLING(iError, -1, "tolerance in phi1 not reached in reciprocal space")
     END IF
 
     reciprocal(1)=(4._dp*Pi*reciprocal(1))/vol
@@ -449,7 +449,7 @@ contains
 
     ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      @:error_handling(iError, -2, "tolerance in phi1 not reached in real space")
+      @:ERROR_HANDLING(iError, -2, "tolerance in phi1 not reached in real space")
     END IF
 
 
@@ -695,7 +695,7 @@ contains
     END DO
 
     IF (nopt .ge. 20) THEN
-      @:error_handling(iError, -1, "Gmax could not be determined in getGRmax")
+      @:ERROR_HANDLING(iError, -1, "Gmax could not be determined in getGRmax")
     END IF
 
     !       now find best value of R by refining the interval [Rl,Rr]
@@ -716,7 +716,7 @@ contains
     END DO
 
     IF (nopt .ge. 20) THEN
-      @:error_handling(iError, -2, "Rmax could not be determined in getGRmax")
+      @:ERROR_HANDLING(iError, -2, "Rmax could not be determined in getGRmax")
     END IF
 
     Gmax = G
