@@ -6,18 +6,7 @@
 !  under the LGPL licence.                                                *
 !**************************************************************************
 #:include "common.fypp"
-
-#! Macro to return an error flag if iErr available or throw an error and shut down otherwise
-#:def error_handling(msg, number)
-  write(strTmp,*)${msg}$
-  if (present(iErr)) then
-    iErr = ${number}$
-    call warning(strTmp)
-    return
-  else
-    call error(strTmp)
-  end if
-#:enddef
+#:include "error.fypp"
 
 module poisson
 
@@ -116,8 +105,8 @@ module poisson
    if(allocated(lmax)) call log_gdeallocate(lmax)
    if(allocated(renorm)) call log_gdeallocate(renorm)
    if (id0) then
-     call writePeakInfo(6)
-     call writeMemInfo(6)
+     call writePoissPeakInfo(stdOut)
+     call writePoissMemInfo(stdOut)
    endif
    
  end subroutine poiss_freepoisson
@@ -171,6 +160,7 @@ module poisson
   real(kind=dp) :: bound(MAXNCONT) 
   real(kind=dp) :: tmp,Lx, xmax, xmin 
   integer :: tmpdir(3)
+  character, parameter :: dir(3) = ['x', 'y', 'z']
 
   if (present(iErr)) then
     iErr = 0
@@ -213,8 +203,8 @@ module poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
-       @:error_handling(${','.join(['"ERROR: device and contact atoms overlap at contact"','m'])}$,&
-           & -1)
+         @:formatted_error_handling(iErr, -1, "(A,I0)",&
+             & "ERROR: device and contact atoms overlap at contact", m)
        end if
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
@@ -222,8 +212,8 @@ module poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
-       @:error_handling(${','.join(['"ERROR: device and contact atoms overlap at contact"','m'])}$,&
-           & -1)
+         @:formatted_error_handling(iErr, -2, "(A,I0)",&
+             & "ERROR: device and contact atoms overlap at contact", m)
        end if
      end if
   end do
@@ -242,7 +232,7 @@ module poisson
            tmpdir(f)=1
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
-          @:error_handling('ERROR: contacts in the same direction must be aligned',-2)
+          @:error_handling(iErr, -3, 'ERROR: contacts in the same direction must be aligned')
         endif
      enddo
      ! Adjust PoissonBox if there are no facing contacts
@@ -302,8 +292,8 @@ module poisson
   ! Checking Poisson Box
   !---- ---------------------------
   do i=1,3  
-    if(PoissBox(i,i).le.0.d0) then
-      @:error_handling('ERROR: PoissBox negative',-3)
+    if(PoissBox(i,i) .le. 0.0_dp) then
+      @:formatted_error_handling(iErr, -4, '(A,A)', 'ERROR: PoissBox negative along ', dir(i))
     end if
   enddo
 
@@ -314,7 +304,7 @@ module poisson
   if (DoGate) then
      biasdir = abs(contdir(1))
      if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
-       @:error_handling('WARNING: Gate Distance too large',-4)
+       @:error_handling(iErr, -5, 'WARNING: Gate Distance too large')
      end if
   endif
   
@@ -323,7 +313,7 @@ module poisson
      biasdir = abs(contdir(1))
 
      if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-       @:error_handling('Gate insulator is longer than Poisson box!',-5)
+       @:error_handling(iErr, -6, 'Gate insulator is longer than Poisson box!')
      end if
      
      do i = 1,3
@@ -331,7 +321,7 @@ module poisson
           cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
-          @:error_handling('Gate transversal section is bigger than Poisson box!',-6)
+          @:error_handling(iErr, -7, 'Gate transversal section is bigger than Poisson box!')
         end if
       end do
   end if

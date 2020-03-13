@@ -6,17 +6,7 @@
 !  under the LGPL licence.                                                *
 !**************************************************************************
 
-#! Macro to return an error flag if iError available or throw an error and shut down otherwise
-#:def error_handling(msg, number)
-  write(strTmp,*)${msg}$
-  if (present(iError)) then
-    iError = ${number}$
-    call warning(strTmp)
-    return
-  else
-    call error(strTmp)
-  end if
-#:enddef
+#:include "error.fypp"
 
 module parcheck
 
@@ -43,20 +33,20 @@ contains
  ! ---------------------------------------------------------------------------
  ! Perform parameters checks
  ! ---------------------------------------------------------------------------
- subroutine check_poisson_box(iError)
+ subroutine check_poisson_box(iErr)
 
-   integer, intent(out), optional :: iError
+   integer, intent(out), optional :: iErr
 
    integer i
 
-   if (present(iError)) then
-     iError = 0
+   if (present(iErr)) then
+     iErr = 0
    end if
 
    if(period) then
-      !cheks that the latt vect are directed along x,y,z
+      !checks that the latt vect are directed along x,y,z
       !if (boxsiz(1,2).ne.0.d0 .or. boxsiz(1,3).ne. 0.d0 .or. boxsiz(2,3).ne. 0.d0) then
-      !   stop 'ERROR: Supercell box is not compatible with Poisson solver'
+      !   call error('ERROR: Supercell box is not compatible with Poisson solver')
       !end if   
       !
       if (.not.FoundBox) then
@@ -79,7 +69,7 @@ contains
         if (verbose > VBT) then
           call warning('Box for Poisson not Found')
         end if
-        @:error_handling('ERROR: No way to build box for Poisson',-1)
+        @:error_handling(iErr, -1, 'ERROR: No way to build box for Poisson')
       end if
    end if
 
@@ -95,14 +85,14 @@ contains
  end subroutine check_poisson_box
 
  
- subroutine check_biasdir(iError)
+ subroutine check_biasdir(iErr)
 
-   integer, intent(out), optional :: iError
+   integer, intent(out), optional :: iErr
 
    integer i,m
 
-   if (present(iError)) then
-     iError = 0
+   if (present(iErr)) then
+     iErr = 0
    end if
 
    if (.not.cluster) then
@@ -112,12 +102,12 @@ contains
        !if(mu(nf(1)).eq.0.d0) mu(nf(1))=bias
        if (contdir(1).ne.contdir(2)) then
          if (localBC(1).eq.0) then
-           @:error_handling('ERROR: local BC should be used when contacts are in different&
-               & directions',-1)
+           @:error_handling(iErr, -1,&
+               & 'ERROR: local BC should be used when contacts are in different directions')
          endif
          if(DoCilGate) then
-           @:error_handling('ERROR: contacts must be in the same direction when using cylindrical&
-               & gate', -2)
+           @:error_handling(iErr, -2,&
+               & 'ERROR: contacts must be in the same direction when using cylindrical gate')
          endif
        end if
      endif
@@ -149,8 +139,8 @@ contains
    end if
    
    if (period_dir(3) .and. numprocs>1) then
-     @:error_handling('ERROR: periodicity along z is incompatible with grid parallelization&
-         & strategy',-3)
+     @:error_handling(iErr, -3,&
+         & 'ERROR: periodicity along z is incompatible with grid parallelization strategy')
    end if
 
  end subroutine check_biasdir
@@ -315,14 +305,14 @@ contains
 
 
  !--- WRITE INFOS ABOUT THE CONTACT STRUCTURES ---------------
- subroutine check_contacts(iError)
+ subroutine check_contacts(iErr)
 
-   integer, intent(out), optional :: iError
+   integer, intent(out), optional :: iErr
 
    integer i,ncdim_max
 
-   if (present(iError)) then
-     iError = 0
+   if (present(iErr)) then
+     iErr = 0
    end if
 
    if(cluster) then
@@ -383,20 +373,21 @@ contains
    if (.not.cluster) then
      do i=1,ncont
        if (iatc(1,i).lt.iatm(2)) then
-         @:error_handling('ERROR: The contacts MUST be defined after the scattering region', -1)
+         @:error_handling(iErr, -1,&
+             & 'ERROR: The contacts MUST be defined after the scattering region')
        end if
      enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-     @:error_handling('ERROR: The number of atoms in the scattering region is higer than the total&
-         & number of atoms', -2)
+     @:error_handling(iErr, -2, 'ERROR: The number of atoms in the scattering region is higer than&
+         & the total number of atoms')
    endif
    if (DoGate) then
      if (gatedir.ne.2) then
-       @:error_handling('ERROR: gate direction must be along y',-3)
+       @:error_handling(iErr, -3, 'ERROR: gate direction must be along y')
      end if
      if(any(abs(contdir(:)).eq.gatedir)) then
-       @:error_handling('ERROR: gate direction along contacts!?',-4)
+       @:error_handling(iErr, -4, 'ERROR: gate direction along contacts!?')
      end if
    endif
 

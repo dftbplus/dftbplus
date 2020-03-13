@@ -5,10 +5,14 @@
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
+
+#:include "error.fypp"
+
 Module bulkpot
   
- use dftbp_accuracy, only : dp
- use gconstants, only: Pi
+ use dftbp_accuracy, only : dp, lc
+ use dftbp_constants, only: pi
+ use dftbp_message
  use gallocation
  use parameters
  use structure
@@ -16,6 +20,7 @@ Module bulkpot
  use gewald
 
  implicit none
+
  private
 
  public :: super_array, create_super_array,destroy_super_array
@@ -35,8 +40,12 @@ Module bulkpot
    logical :: doEwald
  end type  super_array
 
+ !> Error handling string
+ character(lc) :: strTmp
 
- contains
+
+contains
+
  !%--------------------------------------------------------------------------
  subroutine create_super_array(SA,na,nb,nc)
 
@@ -305,8 +314,10 @@ end subroutine destroy_phi_bulk
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 !%--------------------------------------------------------------------------  
-Subroutine readbulk_pot(phi_bulk)
+Subroutine readbulk_pot(phi_bulk, iErr)
   type(super_array) :: phi_bulk(:)
+
+  integer, intent(out), optional :: iErr
 
   integer :: i,j,k,m
   character(2) :: m_id
@@ -315,14 +326,17 @@ Subroutine readbulk_pot(phi_bulk)
   integer :: a,b,c, fp
   logical :: lex
 
+  if (present(iErr)) then
+    iErr = 0
+  end if
+
   do m = 1, ncont
    
     write(m_id,'(i2.2)') m
     inquire(file='contacts/BulkPot_'//m_id//'.dat',exist=lex)
     if (.not.lex) then
-      write(*,*) 'ERROR: file contacts/BulkPot_'//m_id//'.dat not found'
-      STOP
-    else    
+      @:error_handling(iErr, -1, 'ERROR: file contacts/BulkPot_'//m_id//'.dat not found')
+    else
       open(newunit=fp,file='contacts/BulkPot_'//m_id//'.dat',form='formatted')
     endif   
     
@@ -533,15 +547,21 @@ subroutine save_bulkpot(phi_bulk,m)
   close(fp)
  
 end subroutine save_bulkpot
+
+
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm)
+Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
   type(super_array) :: phi_bulk(:)
   integer :: iparm(23)
   real(kind=dp) :: fparm(8)
+  integer, intent(out), optional :: iErr
  
   integer :: m,err,mgopt(4), a, b, c, i, cont
   real(dp), allocatable, dimension(:) :: work
 
+  if (present(iErr)) then
+    iErr = 0
+  end if
 
   do m =1, ncont
 
@@ -606,9 +626,7 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm)
                 &  bulk_bndyc,phi_bulk(m)%rhs,phi_bulk(m)%val,mgopt,err )
       
       if (err.ne.0 .and. err.ne.9) then
-         write(*,*)
-         write(*,*) 'ERROR in Poisson solver n.',err
-         STOP
+        @:formatted_error_handling(iErr, -1, '(A,I0)', 'ERROR in Poisson solver n.', err)
       endif
       if(err.eq.9) then
          call log_gdeallocate(work)
@@ -619,9 +637,8 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm)
     call log_gdeallocate(work)
 
     if (phi_bulk(m)%iparm(22).eq.phi_bulk(m)%iparm(18)) then
-      if (id0) write(*,*) 'BULK POTENTIAL NOT CONVERGED! Error:',phi_bulk(m)&
-          &%fparm(8)
-      STOP
+      @:formatted_error_handling(iErr, -2, '(A,E12.4)', 'BULK POTENTIAL NOT CONVERGED! Error:',&
+          & phi_bulk(m)%fparm(8))
     endif
 
     if (id0) call save_bulkpot(phi_bulk,cont)
@@ -798,15 +815,23 @@ subroutine set_bulk_rhs(phi_bulk,cont)
 end subroutine set_bulk_rhs
 !%--------------------------------------------------------------------------
 
-subroutine rec_pot(r,uhatm,basis,recbasis,vol,tol,nit,potential)
-  real(dp) ::  r(3), basis(3,3), recbasis(3,3),  vol, tol
-  real(dp) ::  potential,uhatm
+
+subroutine rec_pot(r,uhatm,basis,recbasis,vol,tol,nit,potential, iErr)
+  real(dp) ::  r(3)
+  real(dp) ::  uhatm
+  real(dp) ::  basis(3,3), recbasis(3,3),  vol, tol
   integer :: nit
+  real(dp) ::  potential
+  integer, intent(out), optional :: iErr
 
   real(dp) ::  G(3),help 
-  real(dp) :: lastshell,butlast,error,uhatm2
+  real(dp) :: lastshell,butlast,err,uhatm2
   integer nrezi, nreal, nmax, nmin
   integer i,j,k
+
+  if (present(iErr)) then
+    iErr = 0
+  end if
 
   nmax = 100
   nmin = 2
@@ -814,14 +839,14 @@ subroutine rec_pot(r,uhatm,basis,recbasis,vol,tol,nit,potential)
   !evaluate reciprocal space term ( sum over G <> 0) ...  
   !/* sum over G until tolerance is reached */
   nrezi = 1
-  error=1.0d8
+  err=1.0d8
   lastshell = 0.d0
   butlast=0.d0  
   uhatm2=10.24*uhatm*uhatm
   potential = 0.d0
 
   do WHILE (   (nrezi .le. nmax) .and. &
-              ((nrezi .le. nmin).or.(error.gt.tol))  )
+              ((nrezi .le. nmin).or.(err.gt.tol))  )
 
     lastshell = 0.d0  
   
@@ -888,16 +913,17 @@ subroutine rec_pot(r,uhatm,basis,recbasis,vol,tol,nit,potential)
     end do
 
     potential = potential + lastshell
-    error=abs(lastshell/potential)
+    err=abs(lastshell/potential)
     !butlast=lastshell
     nrezi = nrezi + 1
   end do
   potential=(4.d0*Pi*potential)/vol
   nit=nrezi-1
 
-  !stop if tolerance not reached
-  if ( error .gt. tol ) then
-    stop 'tolerance in rec_pot not reached in reciprocal space'     
+  ! Halt if tolerance not reached
+  if ( err .gt. tol ) then
+    @:formatted_error_handling(iErr, -1, '(A,E12.4,1X,A,1X,E12.4)',&
+        & 'tolerance in rec_pot not reached in reciprocal space:', err, 'vs', tol)
   end if
 
 end subroutine
