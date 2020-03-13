@@ -518,9 +518,7 @@ contains
         call optimizeFONsAndWeights(eigvecsReal, filling, energy, reks)
 
         call getFockandDiag(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
-            & img2CentCell, eigvecsReal, electronicSolver, eigen, reks%hamSqrL, reks%hamSpL, &
-            & reks%weight, reks%fillingL, reks%shift, reks%Nc, reks%Na, reks%Lpaired,&
-            & reks%tRangeSep, reks%fockFc, reks%fockFa, reks%fock, reks%eigvecsFock)
+            & img2CentCell, eigvecsReal, electronicSolver, eigen, reks)
 
         call getSysDensityFromRealEigvecs(env, denseDesc, neighbourList, nNeighbourSK,&
             & iSparseStart, img2CentCell, orb, eigvecsReal, filling, rhoPrim, q0, deltaRhoOutSqr,&
@@ -548,8 +546,7 @@ contains
 
         if (tConverged .or. tStopScc) then
 
-          call printReksSAInfo(energy%Etotal, reks%enLtot, reks%energy, reks%FONs, reks%Efunction,&
-              & reks%Plevel, reks%tSSR22, reks%tSSR44)
+          call printReksSAInfo(reks, energy%Etotal)
 
           call getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
               & img2CentCell, coord, iAtInCentralRegion, eigvecsReal, electronicSolver, eigen,&
@@ -1790,7 +1787,7 @@ contains
     tConverged = (.not. tSccCalc)
 
     if (tSccCalc) then
-      call printReksSccHeader(reks%tSSR22, reks%tSSR44)
+      call printReksSccHeader(reks)
     end if
 
   end subroutine initReksSccLoop
@@ -6299,10 +6296,9 @@ contains
     end if
 
     call checkGammaPoint(denseDesc, neighbourList%iNeighbour, &
-        & nNeighbourSK, iSparseStart, img2CentCell, over, reks%overSqr, &
-        & reks%getAtomIndex, reks%getDenseAO, reks%getDenseAtom)
+        & nNeighbourSK, iSparseStart, img2CentCell, over, reks)
 
-    call constructMicrostates(reks%Nc, reks%tSSR22, reks%tSSR44, reks%fillingL)
+    call constructMicrostates(reks)
 
   end subroutine getReksInitialSettings
 
@@ -6738,9 +6734,7 @@ contains
         & iAtInCentralRegion, thirdOrd, reks, tmpEn, sparseSize)
 
     if (reks%Plevel >= 2) then
-      call printReksMicrostates(reks%enLnonSCC, reks%enLscc, reks%enLspin, &
-          & reks%enL3rd, reks%enLfock, energy%Erep, reks%enLtot, &
-          & reks%t3rd, reks%tRangeSep)
+      call printReksMicrostates(reks, energy%Erep)
     end if
 
   end subroutine getHamiltonianLandEnergyL
@@ -7119,23 +7113,16 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    call optimizeFONs(reks%enLtot, reks%delta, reks%FONmaxIter, reks%Plevel, &
-        & reks%tSSR22, reks%tSSR44, reks%FONs, reks%hess)
-    call calcWeights(reks%FONs, reks%delta, reks%SAweight, reks%tSSR22, &
-        & reks%tSSR44, reks%weightL, reks%weight)
+    call optimizeFONs(reks)
+    call calcWeights(reks)
 
-    call activeOrbSwap(eigvecs(:,:,1), reks%SAweight, reks%FONs, &
-        & reks%Efunction, reks%Nc, reks%tSSR22, reks%tSSR44)
-    call getFilling(filling(:,1,1), reks%SAweight, reks%FONs, &
-        & reks%Efunction, reks%Nc, reks%tSSR22, reks%tSSR44)
+    call activeOrbSwap(reks, eigvecs(:,:,1))
+    call getFilling(reks, filling(:,1,1))
 
-    call calcSaReksEnergy(energy, reks%SAweight, reks%weightL, &
-        & reks%enLnonSCC, reks%enLscc, reks%enLspin, reks%enL3rd, &
-        & reks%enLfock, reks%enLtot, reks%rstate, reks%t3rd, &
-        & reks%tRangeSep, reks%energy)
+    call calcSaReksEnergy(reks, energy)
 
     if (reks%Plevel >= 2) then
-      call printSaReksEnergy(reks%energy)
+      call printSaReksEnergy(reks)
     end if
 
   end subroutine optimizeFONsAndWeights
@@ -7417,14 +7404,11 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    call adjustEigenval(eigen, reks%shift, reks%Nc, reks%Na)
+    call adjustEigenval(reks, eigen)
 
     if (reks%Efunction > 1) then
       call solveSecularEqn(env, denseDesc, neighbourList, nNeighbourSK, &
-          & iSparseStart, img2CentCell, electronicSolver, eigenvecs, &
-          & reks%hamSqrL, reks%hamSpL, reks%weight, reks%FONs, reks%fillingL, &
-          & reks%Elevel, reks%useSSR, reks%Lpaired, reks%Nc, reks%Na, &
-          & reks%tRangeSep, reks%tSSR22, reks%tSSR44, reks%energy, reks%eigvecsSSR)
+          & iSparseStart, img2CentCell, electronicSolver, eigenvecs, reks)
     else
       ! Get the dipole moment for single-state REKS case
       ! In this case dipole moment can be calculated w/o gradient result

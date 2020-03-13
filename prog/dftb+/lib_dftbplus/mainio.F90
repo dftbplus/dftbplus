@@ -3695,18 +3695,15 @@ contains
   end subroutine printSccHeader
 
   !> Prints the line above the start of the REKS SCC cycle data
-  subroutine printReksSccHeader(tSSR22, tSSR44)
+  subroutine printReksSccHeader(reks)
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: reks
 
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
-
-    if (tSSR22) then
+    if (reks%tSSR22) then
       write(stdOut,"(1X,A5,A20,A20,A13,A12,A20)") "iSCC", "       reks energy  ", &
           & "      Diff energy   ", "      x_a    ", "    Time(s) ", "        SCC error   "
-    else if (tSSR44) then
+    else if (reks%tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
 
@@ -4514,77 +4511,51 @@ contains
 
 
   !> Print energy contribution for each microstate in SCC iteration
-  subroutine printReksMicrostates(enLnonSCC, enLscc, enLspin, enL3rd, &
-      & enLfock, Erep, enLtot, t3rd, tRangeSep)
+  subroutine printReksMicrostates(reks, Erep)
 
-    !> non SCC energy for each microstate
-    real(dp), intent(in) :: enLnonSCC(:)
-
-    !> SCC energy for each microstate
-    real(dp), intent(in) :: enLscc(:)
-
-    !> spin-polarized energy for each microstate
-    real(dp), intent(in) :: enLspin(:)
-
-    !> 3rd order SCC energy for each microstate
-    real(dp), intent(in) :: enL3rd(:)
-
-    !> Long-range corrected energy for each microstate
-    real(dp), intent(in) :: enLfock(:)
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
 
     !> repulsive energy
     real(dp), intent(in) :: Erep
 
-    !> total energy for each microstate
-    real(dp), intent(in) :: enLtot(:)
-
-    !> Third order DFTB
-    logical, intent(in) :: t3rd
-
-    !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
-
-    integer :: iL, Lmax
-
-    Lmax = size(enLtot,dim=1)
+    integer :: iL
 
     write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
         & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
-    do iL = 1, Lmax
-      write(stdOut,'(I3,7(f13.8))',advance="no") iL, enLnonSCC(iL), &
-          & enLscc(iL), enLspin(iL)
-      if (t3rd) then
-        write(stdOut,'(1(f13.8))',advance="no") enL3rd(iL)
+    do iL = 1, reks%Lmax
+      write(stdOut,'(I3,7(f13.8))',advance="no") iL, reks%enLnonSCC(iL), &
+          & reks%enLscc(iL), reks%enLspin(iL)
+      if (reks%t3rd) then
+        write(stdOut,'(1(f13.8))',advance="no") reks%enL3rd(iL)
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      if (tRangeSep) then
-        write(stdOut,'(1(f13.8))',advance="no") enLfock(iL)
+      if (reks%tRangeSep) then
+        write(stdOut,'(1(f13.8))',advance="no") reks%enLfock(iL)
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      write(stdOut,'(2(f13.8))') Erep, enLtot(iL)
+      write(stdOut,'(2(f13.8))') Erep, reks%enLtot(iL)
     end do
 
   end subroutine printReksMicrostates
 
 
   !> Print SA-REKS energy in SCC iteration
-  subroutine printSaReksEnergy(energy)
+  subroutine printSaReksEnergy(reks)
 
-    !> energy of states
-    real(dp), intent(in) :: energy(:)
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
 
-    integer :: ist, nstates
-
-    nstates = size(energy,dim=1)
+    integer :: ist
 
     write(stdOut,'(1x,A)') "SA-REKS state energies"
-    do ist = 1, nstates
-      if (mod(ist,5) == 0 .or. ist == nstates) then
-        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')") ist, energy(ist)
+    do ist = 1, reks%nstates
+      if (mod(ist,5) == 0 .or. ist == reks%nstates) then
+        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')") ist, reks%energy(ist)
       else
-        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')",advance="no") ist, energy(ist)
+        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')",advance="no") ist, reks%energy(ist)
       end if
     end do
 
@@ -4592,36 +4563,17 @@ contains
 
 
   !> print SA-REKS result in standard output
-  subroutine printReksSAInfo(Etotal, enLtot, energy, FONs, Efunction, &
-      & Plevel, tSSR22, tSSR44)
+  subroutine printReksSAInfo(reks, Etotal)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
 
     !> state-averaged energy
     real(dp), intent(in) :: Etotal
 
-    !> total energy for each microstate
-    real(dp), intent(in) :: enLtot(:)
-
-    !> energy of states
-    real(dp), intent(in) :: energy(:)
-
-    !> Fractional occupation numbers of active orbitals
-    real(dp), intent(in) :: FONs(:,:)
-
-    !> Minimized energy functional
-    integer, intent(in) :: Efunction
-
-    !> Print level in standard output file
-    integer, intent(in) :: Plevel
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
-
-    if (tSSR22) then
-      call printReksSAInfo22(Etotal, enLtot, energy, FONs, Efunction, Plevel)
-    else if (tSSR44) then
+    if (reks%tSSR22) then
+      call printReksSAInfo22(Etotal, reks%enLtot, reks%energy, reks%FONs, reks%Efunction, reks%Plevel)
+    else if (reks%tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
 
@@ -4707,8 +4659,10 @@ contains
 
 
   !> print SI-SA-REKS result in standard output
-  subroutine printReksSSRInfo(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
-      & Elevel, useSSR, Na, tSSR22, tSSR44)
+  subroutine printReksSSRInfo(reks, Wab, tmpEn, StateCoup)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -4719,31 +4673,10 @@ contains
     !> state-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
-    !> energy of states
-    real(dp), intent(in) :: energy(:)
-
-    !> eigenvectors from SA-REKS state
-    real(dp), intent(in) :: eigvecsSSR(:,:)
-
-    !> Calculated energy states in SA-REKS
-    integer, intent(in) :: Elevel
-
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
-
-    !> Number of active orbitals
-    integer, intent(in) :: Na
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
-
-    if (tSSR22) then
-      call printReksSSRInfo22(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
-          & Elevel, useSSR, Na)
-    else if (tSSR44) then
+    if (reks%tSSR22) then
+      call printReksSSRInfo22(Wab, tmpEn, StateCoup, reks%energy, reks%eigvecsSSR, &
+          & reks%Elevel, reks%useSSR, reks%Na)
+    else if (reks%tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
 

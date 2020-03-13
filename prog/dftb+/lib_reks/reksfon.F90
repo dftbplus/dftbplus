@@ -18,6 +18,7 @@ module dftbp_reksfon
   use dftbp_accuracy
   use dftbp_globalenv
   use dftbp_message
+  use dftbp_reksvar, only : TReksCalc
 
   implicit none
 
@@ -36,43 +37,21 @@ module dftbp_reksfon
   contains
 
   !> Optimize the fractional occupation numbers (FONs) in REKS
-  subroutine optimizeFONs(enLtot, delta, FONmaxIter, &
-      & Plevel, tSSR22, tSSR44, FONs, hess)
+  subroutine optimizeFONs(self)
 
-    !> total energy for each microstate
-    real(dp), intent(in) :: enLtot(:)
-
-    !> Smoothing factor used in FON optimization
-    real(dp), intent(in) :: delta
-
-    !> Maximum iteration used in FON optimization
-    integer, intent(in) :: FONmaxIter
-
-    !> Print level in standard output file
-    integer, intent(in) :: Plevel
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
-
-    !> Fractional occupation numbers of active orbitals
-    real(dp), intent(out) :: FONs(:,:)
-
-    !> Hessian of FONs
-    real(dp), intent(out) :: hess
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: self
 
     real(dp) :: x
 
-    if (tSSR22) then
+    if (self%tSSR22) then
 
-      call getFONs22_(x, hess, enLtot, delta, FONmaxIter, Plevel)
+      call getFONs22_(x, self%hess, self%enLtot, self%delta, self%FONmaxIter, self%Plevel)
       ! FONs(1,1) = n_a, FONs(2,1) = n_b
-      FONs(1,1) = 2.0_dp * x
-      FONs(2,1) = 2.0_dp - FONs(1,1)
+      self%FONs(1,1) = 2.0_dp * x
+      self%FONs(2,1) = 2.0_dp - self%FONs(1,1)
 
-    else if (tSSR44) then
+    else if (self%tSSR44) then
 
       call error("SSR(4,4) not implemented yet")
 
