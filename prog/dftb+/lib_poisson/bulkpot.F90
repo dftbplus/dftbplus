@@ -335,7 +335,7 @@ Subroutine readbulk_pot(phi_bulk, iErr)
     write(m_id,'(i2.2)') m
     inquire(file='contacts/BulkPot_'//m_id//'.dat',exist=lex)
     if (.not.lex) then
-      @:error_handling(iErr, -1, 'ERROR: file contacts/BulkPot_'//m_id//'.dat not found')
+      @:error_handling(iErr, -1, 'File contacts/BulkPot_'//m_id//'.dat not found')
     else
       open(newunit=fp,file='contacts/BulkPot_'//m_id//'.dat',form='formatted')
     endif   
@@ -626,7 +626,7 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
                 &  bulk_bndyc,phi_bulk(m)%rhs,phi_bulk(m)%val,mgopt,err )
       
       if (err.ne.0 .and. err.ne.9) then
-        @:formatted_error_handling(iErr, -1, '(A,I0)', 'ERROR in Poisson solver n.', err)
+        @:formatted_error_handling(iErr, -1, '(A,I0)', 'Poisson solver error n=', err)
       endif
       if(err.eq.9) then
          call log_gdeallocate(work)
@@ -637,7 +637,7 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
     call log_gdeallocate(work)
 
     if (phi_bulk(m)%iparm(22).eq.phi_bulk(m)%iparm(18)) then
-      @:formatted_error_handling(iErr, -2, '(A,E12.4)', 'BULK POTENTIAL NOT CONVERGED! Error:',&
+      @:formatted_error_handling(iErr, -2, '(A,E12.4)', 'Bulk potential not converged! Error:',&
           & phi_bulk(m)%fparm(8))
     endif
 
@@ -923,7 +923,7 @@ subroutine rec_pot(r,uhatm,basis,recbasis,vol,tol,nit,potential, iErr)
   ! Halt if tolerance not reached
   if ( err .gt. tol ) then
     @:formatted_error_handling(iErr, -1, '(A,E12.4,1X,A,1X,E12.4)',&
-        & 'tolerance in rec_pot not reached in reciprocal space:', err, 'vs', tol)
+        & 'Tolerance in rec_pot not reached in reciprocal space:', err, 'vs', tol)
   end if
 
 end subroutine

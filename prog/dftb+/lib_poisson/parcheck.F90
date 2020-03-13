@@ -69,7 +69,7 @@ contains
         if (verbose > VBT) then
           call warning('Box for Poisson not Found')
         end if
-        @:error_handling(iErr, -1, 'ERROR: No way to build box for Poisson')
+        @:error_handling(iErr, -1, 'No way to build box for Poisson')
       end if
    end if
 
@@ -103,11 +103,11 @@ contains
        if (contdir(1).ne.contdir(2)) then
          if (localBC(1).eq.0) then
            @:error_handling(iErr, -1,&
-               & 'ERROR: local BC should be used when contacts are in different directions')
+               & 'Local BC should be used when contacts are in different directions')
          endif
          if(DoCilGate) then
            @:error_handling(iErr, -2,&
-               & 'ERROR: contacts must be in the same direction when using cylindrical gate')
+               & 'Contacts must be in the same direction when using cylindrical gate')
          endif
        end if
      endif
@@ -140,7 +140,7 @@ contains
    
    if (period_dir(3) .and. numprocs>1) then
      @:error_handling(iErr, -3,&
-         & 'ERROR: periodicity along z is incompatible with grid parallelization strategy')
+         & 'Periodicity along z is incompatible with grid parallelization strategy')
    end if
 
  end subroutine check_biasdir
@@ -374,20 +374,20 @@ contains
      do i=1,ncont
        if (iatc(1,i).lt.iatm(2)) then
          @:error_handling(iErr, -1,&
-             & 'ERROR: The contacts MUST be defined after the scattering region')
+             & 'The contacts MUST be defined after the scattering region')
        end if
      enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-     @:error_handling(iErr, -2, 'ERROR: The number of atoms in the scattering region is higer than&
+     @:error_handling(iErr, -2, 'The number of atoms in the scattering region is higer than&
          & the total number of atoms')
    endif
    if (DoGate) then
      if (gatedir.ne.2) then
-       @:error_handling(iErr, -3, 'ERROR: gate direction must be along y')
+       @:error_handling(iErr, -3, 'Gate direction must be along y')
      end if
      if(any(abs(contdir(:)).eq.gatedir)) then
-       @:error_handling(iErr, -4, 'ERROR: gate direction along contacts!?')
+       @:error_handling(iErr, -4, 'Gate direction along contacts!?')
      end if
    endif
 

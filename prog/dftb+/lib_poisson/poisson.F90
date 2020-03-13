@@ -204,7 +204,7 @@ module poisson
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
          @:formatted_error_handling(iErr, -1, "(A,I0)",&
-             & "ERROR: device and contact atoms overlap at contact", m)
+             & "Device and contact atoms overlap at contact", m)
        end if
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
@@ -213,7 +213,7 @@ module poisson
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
          @:formatted_error_handling(iErr, -2, "(A,I0)",&
-             & "ERROR: device and contact atoms overlap at contact", m)
+             & "Device and contact atoms overlap at contact", m)
        end if
      end if
   end do
@@ -232,7 +232,7 @@ module poisson
            tmpdir(f)=1
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
-          @:error_handling(iErr, -3, 'ERROR: contacts in the same direction must be aligned')
+          @:error_handling(iErr, -3, 'Contacts in the same direction must be aligned')
         endif
      enddo
      ! Adjust PoissonBox if there are no facing contacts
@@ -293,7 +293,7 @@ module poisson
   !---- ---------------------------
   do i=1,3  
     if(PoissBox(i,i) .le. 0.0_dp) then
-      @:formatted_error_handling(iErr, -4, '(A,A)', 'ERROR: PoissBox negative along ', dir(i))
+      @:formatted_error_handling(iErr, -4, '(A,A)', 'PoissBox negative along ', dir(i))
     end if
   enddo
 
@@ -304,7 +304,7 @@ module poisson
   if (DoGate) then
      biasdir = abs(contdir(1))
      if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
-       @:error_handling(iErr, -5, 'WARNING: Gate Distance too large')
+       @:error_handling(iErr, -5, 'Gate Distance too large')
      end if
   endif
   

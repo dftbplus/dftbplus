@@ -695,7 +695,7 @@ contains
     END DO
 
     IF (nopt .ge. 20) THEN
-      @:error_handling(iError, -1, "Gmax COULD NOT BE DETERMINED IN getGRmax")
+      @:error_handling(iError, -1, "Gmax could not be determined in getGRmax")
     END IF
 
     !       now find best value of R by refining the interval [Rl,Rr]
@@ -716,7 +716,7 @@ contains
     END DO
 
     IF (nopt .ge. 20) THEN
-      @:error_handling(iError, -2, "Rmax COULD NOT BE DETERMINED IN getGRmax")
+      @:error_handling(iError, -2, "Rmax could not be determined in getGRmax")
     END IF
 
     Gmax = G
