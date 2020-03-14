@@ -10,7 +10,7 @@
 
 module poisson
 
-  use gconstants, only : Pi
+  use dftbp_constants, only : pi
   use gallocation
   use parameters
   use structure

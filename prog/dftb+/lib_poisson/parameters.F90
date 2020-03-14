@@ -8,7 +8,6 @@
 Module parameters
   
   use dftbp_accuracy, only : dp
-  use gconstants, only : HAR,ATU
 
   implicit none
   private
@@ -46,7 +45,6 @@ Module parameters
   integer,  public :: overrBulkBC(6)
   integer,  public :: maxpoissiter
   
-  real(kind=dp),  public :: hartree, a_u
   real(kind=dp),  public :: Temp
   real(kind=dp),  public :: telec
   real(kind=dp),  public :: deltaR_max
@@ -131,8 +129,6 @@ Module parameters
     mixed = .false.
     maxpoissiter=60
     
-    hartree=HAR      ! this sets the conversion factors as set 
-    a_u=ATU           ! in constants.F90
     Temp=0.0_dp
     deltaR_max=9.0_dp
     LmbMax=0.50_dp
