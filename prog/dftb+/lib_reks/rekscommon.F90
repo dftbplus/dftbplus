@@ -496,7 +496,6 @@ module dftbp_rekscommon
 
 
   !> Find shell of index alpha with respect to mu (reference)
-  ! TODO : should change to reks!
   subroutine findShellOfAO(al, mu, getAtomIndex, iSquare, iSpA, facP, facD)
 
     !> input AO index
@@ -541,7 +540,6 @@ module dftbp_rekscommon
 
 
   !> Assign index in terms of dense form from super matrix form
-  ! TODO : should change to reks!
   subroutine assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
 
     !> Number of core orbitals
@@ -575,7 +573,6 @@ module dftbp_rekscommon
 
 
   !> Assign converged epsilon value from fock matrix
-  ! TODO : should change to reks!
   subroutine assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, t, &
       & chk, tSSR22, tSSR44, e1, e2)
 
@@ -620,7 +617,6 @@ module dftbp_rekscommon
 
 
   !> Assign average filling for i-th orbital
-  ! TODO : should change to reks!
   subroutine assignFilling(FONs, SAweight, Nc, i, tSSR22, tSSR44, fi)
 
     !> Fractional occupation numbers of active orbitals
