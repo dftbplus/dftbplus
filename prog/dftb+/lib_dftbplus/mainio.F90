@@ -3701,8 +3701,8 @@ contains
     type(TReksCalc), intent(in) :: reks
 
     if (reks%tSSR22) then
-      write(stdOut,"(1X,A5,A20,A20,A13,A12,A20)") "iSCC", "       reks energy  ", &
-          & "      Diff energy   ", "      x_a    ", "    Time(s) ", "        SCC error   "
+      write(stdOut,"(1X,A5,A20,A20,A13,A12,A15)") "iSCC", "       reks energy  ", &
+          & "      Diff energy   ", "      x_a    ", "    Time(s) ", "   SCC error   "
     else if (reks%tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
@@ -5127,8 +5127,8 @@ contains
 
     if (tSCC) then
       write(fd, "(A)") repeat("*", 92)
-      write(fd,"(1X,A5,A20,A20,A13,A12,A20)") "iSCC", "       reks energy  ", &
-          & "      Diff energy   ", "      x_a    ", "    Time(s) ", "        SCC error   "
+      write(fd,"(1X,A5,A20,A20,A13,A12,A15)") "iSCC", "       reks energy  ", &
+          & "      Diff energy   ", "      x_a    ", "    Time(s) ", "   SCC error   "
       write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F10.6,3x,F10.6)") &
           & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, deltaT, sccErrorQ
 
