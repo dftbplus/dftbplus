@@ -527,19 +527,19 @@ subroutine save_bulkpot(phi_bulk,m)
   open(newunit=fp,file='contacts/Xvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(14) 
      xk = phi_bulk(m)%fparm(1)+(k-1)*phi_bulk(m)%dla
-     write(fp,'(E17.8)',ADVANCE='NO') xk * Hartree__eV
+     write(fp,'(E17.8)',ADVANCE='NO') xk * Bohr__AA
   enddo
   close(fp)
   open(newunit=fp,file='contacts/Yvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(15)
      xk = phi_bulk(m)%fparm(3)+(k-1)*phi_bulk(m)%dlb
-     write(fp,'(E17.8)',ADVANCE='NO') xk * Hartree__eV
+     write(fp,'(E17.8)',ADVANCE='NO') xk * Bohr__AA
   enddo
   close(fp)
   open(newunit=fp,file='contacts/Zvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(16)    
      xk = phi_bulk(m)%fparm(5)+(k-1)*phi_bulk(m)%dlc
-     write(fp,'(E17.8)',ADVANCE='NO') xk * Hartree__eV
+     write(fp,'(E17.8)',ADVANCE='NO') xk * Bohr__AA
   enddo
   close(fp)
   open(newunit=fp,file='contacts/box3d_'//m_id//'.dat') 
@@ -591,13 +591,13 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
     !   if (phi_bulk(m)%doEwald) then
     !       write(*,*) 'BC = all periodic solved with Ewalds on two planes'  
     !   endif  
-    !   write(*,*) 'X(a)=',phi_bulk(m)%fparm(1)*Hartree__eV,phi_bulk(m)%fparm(2)*Hartree__eV, &
+    !   write(*,*) 'X(a)=',phi_bulk(m)%fparm(1)*Bohr__AA,phi_bulk(m)%fparm(2)*Bohr__AA, &
     !   &   boundary2string(phi_bulk(m)%iparm(2)), boundary2string(phi_bulk(m)%iparm(3))
-    !   write(*,*) 'X(b)=',phi_bulk(m)%fparm(3)*Hartree__eV,phi_bulk(m)%fparm(4)*Hartree__eV, &
+    !   write(*,*) 'X(b)=',phi_bulk(m)%fparm(3)*Bohr__AA,phi_bulk(m)%fparm(4)*Bohr__AA, &
     !   &   boundary2string(phi_bulk(m)%iparm(4)), boundary2string(phi_bulk(m)%iparm(5))
-    !   write(*,*) 'X(c)=',phi_bulk(m)%fparm(5)*Hartree__eV,phi_bulk(m)%fparm(6)*Hartree__eV, &
+    !   write(*,*) 'X(c)=',phi_bulk(m)%fparm(5)*Bohr__AA,phi_bulk(m)%fparm(6)*Bohr__AA, &
     !   &   boundary2string(phi_bulk(m)%iparm(6)), boundary2string(phi_bulk(m)%iparm(7))
-    !   write(*,*) 'L(c)=',phi_bulk(m)%L_PL*Hartree__eV
+    !   write(*,*) 'L(c)=',phi_bulk(m)%L_PL*Bohr__AA
     !   write(*,*) 'na=',phi_bulk(m)%iparm(14)
     !   write(*,*) 'nb=',phi_bulk(m)%iparm(15)
     !   write(*,*) 'nc=',phi_bulk(m)%iparm(16)
