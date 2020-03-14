@@ -11,7 +11,7 @@
 Module bulkpot
   
  use dftbp_accuracy, only : dp, lc
- use dftbp_constants, only: pi
+ use dftbp_constants
  use dftbp_message
  use gallocation
  use parameters
@@ -289,9 +289,9 @@ contains
    
    !if(id0.and.verbose.gt.80) then
    !   write(*,*) 'Bulk Potential Contact #',m,nstart,nlast
-   !   write(*,*) 'N(a)=',phi_bulk(m)%iparm(14),'dla=',phi_bulk(m)%dla*a_u
-   !   write(*,*) 'N(b)=',phi_bulk(m)%iparm(15),'dlb=',phi_bulk(m)%dlb*a_u
-   !   write(*,*) 'N(c)=',phi_bulk(m)%iparm(16),'dlc=',phi_bulk(m)%dlc*a_u
+   !   write(*,*) 'N(a)=',phi_bulk(m)%iparm(14),'dla=',phi_bulk(m)%dla*Bohr__AA
+   !   write(*,*) 'N(b)=',phi_bulk(m)%iparm(15),'dlb=',phi_bulk(m)%dlb*Bohr__AA
+   !   write(*,*) 'N(c)=',phi_bulk(m)%iparm(16),'dlc=',phi_bulk(m)%dlc*Bohr__AA
    !endif
 
   enddo
@@ -526,20 +526,20 @@ subroutine save_bulkpot(phi_bulk,m)
  
   open(newunit=fp,file='contacts/Xvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(14) 
-     xk=  phi_bulk(m)%fparm(1)+(k-1)*phi_bulk(m)%dla  
-     write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
+     xk = phi_bulk(m)%fparm(1)+(k-1)*phi_bulk(m)%dla
+     write(fp,'(E17.8)',ADVANCE='NO') xk * Hartree__eV
   enddo
   close(fp)
   open(newunit=fp,file='contacts/Yvector_'//m_id//'.dat')
-  do k = 1,phi_bulk(m)%iparm(15)    
-     xk=  phi_bulk(m)%fparm(3)+(k-1)*phi_bulk(m)%dlb 
-     write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
+  do k = 1,phi_bulk(m)%iparm(15)
+     xk = phi_bulk(m)%fparm(3)+(k-1)*phi_bulk(m)%dlb
+     write(fp,'(E17.8)',ADVANCE='NO') xk * Hartree__eV
   enddo
   close(fp)
   open(newunit=fp,file='contacts/Zvector_'//m_id//'.dat')
   do k = 1,phi_bulk(m)%iparm(16)    
-     xk=  phi_bulk(m)%fparm(5)+(k-1)*phi_bulk(m)%dlc 
-     write(fp,'(E17.8)',ADVANCE='NO') xk*a_u
+     xk = phi_bulk(m)%fparm(5)+(k-1)*phi_bulk(m)%dlc
+     write(fp,'(E17.8)',ADVANCE='NO') xk * Hartree__eV
   enddo
   close(fp)
   open(newunit=fp,file='contacts/box3d_'//m_id//'.dat') 
@@ -591,13 +591,13 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
     !   if (phi_bulk(m)%doEwald) then
     !       write(*,*) 'BC = all periodic solved with Ewalds on two planes'  
     !   endif  
-    !   write(*,*) 'X(a)=',phi_bulk(m)%fparm(1)*a_u,phi_bulk(m)%fparm(2)*a_u, &
+    !   write(*,*) 'X(a)=',phi_bulk(m)%fparm(1)*Hartree__eV,phi_bulk(m)%fparm(2)*Hartree__eV, &
     !   &   boundary2string(phi_bulk(m)%iparm(2)), boundary2string(phi_bulk(m)%iparm(3))
-    !   write(*,*) 'X(b)=',phi_bulk(m)%fparm(3)*a_u,phi_bulk(m)%fparm(4)*a_u, &
+    !   write(*,*) 'X(b)=',phi_bulk(m)%fparm(3)*Hartree__eV,phi_bulk(m)%fparm(4)*Hartree__eV, &
     !   &   boundary2string(phi_bulk(m)%iparm(4)), boundary2string(phi_bulk(m)%iparm(5))
-    !   write(*,*) 'X(c)=',phi_bulk(m)%fparm(5)*a_u,phi_bulk(m)%fparm(6)*a_u, &
+    !   write(*,*) 'X(c)=',phi_bulk(m)%fparm(5)*Hartree__eV,phi_bulk(m)%fparm(6)*Hartree__eV, &
     !   &   boundary2string(phi_bulk(m)%iparm(6)), boundary2string(phi_bulk(m)%iparm(7))
-    !   write(*,*) 'L(c)=',phi_bulk(m)%L_PL*a_u 
+    !   write(*,*) 'L(c)=',phi_bulk(m)%L_PL*Hartree__eV
     !   write(*,*) 'na=',phi_bulk(m)%iparm(14)
     !   write(*,*) 'nb=',phi_bulk(m)%iparm(15)
     !   write(*,*) 'nc=',phi_bulk(m)%iparm(16)

@@ -11,6 +11,7 @@
 module parcheck
 
   use dftbp_accuracy, only : lc, dp
+  use dftbp_constants
   use dftbp_message
   use parameters
   use structure, only : natoms, x, boxsiz, period, period_dir
@@ -166,15 +167,15 @@ contains
    if (id0.and.verbose.gt.40) then
       
       !if (DoTransport.or.DoGreenDens) then
-      !   write(stdOut,*) 'Conversion factor Ang/a.u.',a_u
-      !   write(stdOut,*) 'Conversion factor eV/a.u.',hartree
-      !   write(stdOut,*) "Delta for Green's function=",delta*hartree 
+      !   write(stdOut,*) 'Conversion factor Ang/a.u.',Bohr__AA
+      !   write(stdOut,*) 'Conversion factor eV/a.u.',hartree__eV
+      !   write(stdOut,*) "Delta for Green's function=",delta*hartree__eV
       !end if
  
       !if (DoGreenDens) then
       !   write(stdOut,*) 'Contour integration parameters:'
       !   write(stdOut,'(a4,4(i4))') 'Np=',Np(1),Np(2),Np(3)
-      !   write(stdOut,*) 'nPoles=',nPoles,' LmbMax=',LmbMax*hartree
+      !   write(stdOut,*) 'nPoles=',nPoles,' LmbMax=',LmbMax*hartree__eV
       !   write(stdOut,*) 'N_omega=',N_omega
       !   write(stdOut,*) "ReadOld Surface Green=",Readold
       !end if 
@@ -184,8 +185,8 @@ contains
       !endif
 
       if (DoPoisson) then
-         write(stdOut,'(a,3(f10.4),a)') ' Input PoissonBox=',PoissBox(1,1)*a_u,PoissBox(2,2)*a_u,&
-              PoissBox(3,3)*a_u, '  A'
+        write(stdOut,'(a,3(f10.4),a)') ' Input PoissonBox=',PoissBox(1,1)*Bohr__AA,&
+            & PoissBox(2,2)*Bohr__AA, PoissBox(3,3)*Bohr__AA, '  A'
          write(stdOut,*) 'PoissAcc=',PoissAcc
          if(initPot) then
             write(stdOut,*) 'Bulk Boundary Potential:    Yes'
@@ -193,30 +194,30 @@ contains
             write(stdOut,*) 'Bulk Boundary Potential:    No'
          endif
    
-         write(stdOut,*) 'Atomic cutoff radius=', deltaR_max*a_u,'A'
+         write(stdOut,*) 'Atomic cutoff radius=', deltaR_max*Bohr__AA,'A'
          
          if (DoGate) then
             write(stdOut,*) 'Gate: Planar'
-            write(stdOut,*) 'Gate bias=',gate*hartree,'V'
-            write(stdOut,*) 'Gate length l=',GateLength_l*a_u,'A'
-            write(stdOut,*) 'Gate length t=',GateLength_t*a_u,'A'
-            write(stdOut,*) 'Gate distance=',Rmin_Gate*a_u,'A'           
+            write(stdOut,*) 'Gate bias=',gate*hartree__eV,'V'
+            write(stdOut,*) 'Gate length l=',GateLength_l*Bohr__AA,'A'
+            write(stdOut,*) 'Gate length t=',GateLength_t*Bohr__AA,'A'
+            write(stdOut,*) 'Gate distance=',Rmin_Gate*Bohr__AA,'A'
          endif
          if (DoCilGate) then
             write(stdOut,*) 'Gate: Cylindrical'
-            write(stdOut,*) 'Gate bias=',gate*hartree,'V'
-            write(stdOut,*) 'Gate length=',GateLength_l*a_u,'A'
-            write(stdOut,*) 'Oxide length=',OxLength*a_u,'A'
-            write(stdOut,*) 'Inner gate radius=',Rmin_Gate*a_u,'A'
-            write(stdOut,*) 'Inner oxide radius=',Rmin_Ins*a_u,'A'    
+            write(stdOut,*) 'Gate bias=',gate*hartree__eV,'V'
+            write(stdOut,*) 'Gate length=',GateLength_l*Bohr__AA,'A'
+            write(stdOut,*) 'Oxide length=',OxLength*Bohr__AA,'A'
+            write(stdOut,*) 'Inner gate radius=',Rmin_Gate*Bohr__AA,'A'
+            write(stdOut,*) 'Inner oxide radius=',Rmin_Ins*Bohr__AA,'A'
             write(stdOut,*) 'Dielectric constant of gate insulator=',eps_r
-            write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*a_u)
+            write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
          end if
          if (any(localBC.gt.0)) then
             do i=1,ncont
                if (localBC(i).eq.1) write(stdOut,*) 'Local Boundary Conditions= Circular'
                if (localBC(i).eq.2) write(stdOut,*) 'Local Boundary Conditions= Squared'
-               write(stdOut,'(a9,i2,a2,f8.3,a1)') ' dR_cont(',i,')=',dR_cont(i)*a_u,'A'
+               write(stdOut,'(a9,i2,a2,f8.3,a1)') ' dR_cont(',i,')=',dR_cont(i)*Bohr__AA,'A'
             enddo
          endif
          write(stdOut,*)
@@ -356,8 +357,8 @@ contains
          write(stdOut,'(a,I3)') 'CONTACT #',i
          write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
          write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
-         write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
-         write(stdOut,*) 'mu=',mu(i)*hartree,'V'
+         write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree__eV,'eV'
+         write(stdOut,*) 'mu=',mu(i)*hartree__eV,'V'
          write(stdOut,*) 
 
       end do !ncont
