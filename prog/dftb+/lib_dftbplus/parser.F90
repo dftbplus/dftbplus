@@ -27,6 +27,8 @@ module dftbp_parser
   use dftbp_lapackroutines, only : matinv
   use dftbp_periodic
   use dftbp_dispersions
+  use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
+  use dftbp_encharges, only : TEeqInput
   use dftbp_simplealgebra, only: cross3, determinant33
   use dftbp_slakocont
   use dftbp_slakoeqgrid
@@ -3552,7 +3554,7 @@ contains
   #:endif
     case ("dftd4")
       allocate(input%dftd4)
-      call readDispDFTD4(dispModel, input%dftd4, nrChrg)
+      call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
@@ -3800,10 +3802,13 @@ contains
   !> Here we additionally require a s9, since the non-addititive contributions
   !> tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
   !> will disable the calculation.
-  subroutine readDispDFTD4(node, input, nrChrg)
+  subroutine readDispDFTD4(node, geo, input, nrChrg)
 
     !> Node to process.
     type(fnode), pointer :: node
+
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
 
     !> Filled input structure on exit.
     type(TDispDftD4Inp), intent(out) :: input
@@ -3811,10 +3816,9 @@ contains
     !> Net charge of the system.
     real(dp), intent(in) :: nrChrg
 
-    type(fnode), pointer :: child, childval
+    type(fnode), pointer :: value1, child, childval
     type(string) :: buffer
-
-    input%nrChrg = nrChrg
+    real(dp), allocatable :: d4Chi(:), d4Gam(:), d4Kcn(:), d4Rad(:)
 
     call getChildValue(node, "s6", input%s6, default=1.0_dp)
     call getChildValue(node, "s8", input%s8)
@@ -3832,17 +3836,145 @@ contains
     call getChildValue(node, "cutoffCount", input%cutoffCount, default=40.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffCount)
-    call getChildValue(node, "cutoffEwald", input%cutoffEwald, default=40.0_dp, modifier=buffer,&
-        & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffEwald)
     call getChildValue(node, "cutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffThree)
 
+    call getChildValue(node, "ChargeModel", value1, "EEQ", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(value1, "Unknown method '"//char(buffer)//"' for ChargeModel")
+    case ("eeq")
+      allocate(d4Chi(geo%nSpecies))
+      d4Chi(:) = getEeqChi(geo%speciesNames)
+      allocate(d4Gam(geo%nSpecies))
+      d4Gam(:) = getEeqGam(geo%speciesNames)
+      allocate(d4Kcn(geo%nSpecies))
+      d4Kcn(:) = getEeqKcn(geo%speciesNames)
+      allocate(d4Rad(geo%nSpecies))
+      d4Rad(:) = getEeqRad(geo%speciesNames)
+      call readEeqModel(value1, input%eeqInput, geo, nrChrg, d4Chi, d4Gam, d4Kcn, d4Rad)
+    end select
+
+  end subroutine readDispDFTD4
+
+
+  !> Read settings regarding the EEQ charge model
+  subroutine readEeqModel(node, input, geo, nrChrg, kChiDefault, kGamDefault, &
+      & kKcnDefault, kRadDefault)
+
+    !> Node to process.
+    type(fnode), pointer :: node
+
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Filled input structure on exit.
+    type(TEeqInput), intent(out) :: input
+
+    !> Net charge of the system.
+    real(dp), intent(in) :: nrChrg
+
+    !> Electronegativities default values
+    real(dp), intent(in) :: kChiDefault(:)
+
+    !> Chemical hardnesses default values
+    real(dp), intent(in) :: kGamDefault(:)
+
+    !> CN scaling default values
+    real(dp), intent(in) :: kKcnDefault(:)
+
+    !> Charge widths default values
+    real(dp), intent(in) :: kRadDefault(:)
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer
+    integer :: iSp1
+
+    input%nrChrg = nrChrg
+
+    allocate(input%chi(geo%nSpecies))
+    allocate(input%gam(geo%nSpecies))
+    allocate(input%kcn(geo%nSpecies))
+    allocate(input%rad(geo%nSpecies))
+
+    call getChildValue(node, "chi", value1, "defaults", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
+    case ("defaults")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
+            & kChiDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
+            & child=child)
+      end do
+    end select
+
+    call getChildValue(node, "gam", value1, "defaults", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
+    case ("defaults")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
+            & kGamDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
+            & child=child)
+      end do
+    end select
+
+    call getChildValue(node, "kcn", value1, "defaults", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
+    case ("defaults")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
+            & kKcnDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
+            & child=child)
+      end do
+    end select
+
+    call getChildValue(node, "rad", value1, "defaults", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
+    case ("defaults")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
+            & kRadDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
+            & child=child)
+      end do
+    end select
+
+    call getChildValue(node, "cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
+        & child=child)
+    call convertByMul(char(buffer), lengthUnits, child, input%cutoff)
+
     call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)
     call getChildValue(node, "EwaldTolerance", input%tolEwald, 1.0e-9_dp)
 
-  end subroutine readDispDFTD4
+  end subroutine readEeqModel
 
 
   !> reads in value of temperature for MD with sanity checking of the input
