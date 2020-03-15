@@ -294,9 +294,7 @@ module dftbp_reksinterface
 
     call setReksGradients_(derivs, self)
     if (self%Plevel >= 1) then
-      call printReksGradInfo(derivs, self%SAgrad, self%SIgrad, self%SSRgrad, &
-          & self%nacG, self%nacH, self%Efunction, self%useSSR, self%nstates, &
-          & self%rstate, self%Lstate, self%tNAC)
+      call printReksGradInfo(self, derivs)
     end if
 
   end subroutine getReksGradients

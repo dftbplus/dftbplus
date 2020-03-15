@@ -5337,70 +5337,39 @@ contains
 
 
   !> print gradient results for REKS calculation
-  subroutine printReksGradInfo(derivs, SAgrad, SIgrad, SSRgrad, nacG, nacH, &
-      & Efunction, useSSR, nstates, rstate, Lstate, tNAC)
+  subroutine printReksGradInfo(reks, derivs)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
 
     !> derivatives of energy wrt to atomic positions
     real(dp), intent(in) :: derivs(:,:)
 
-    !> gradient of SA-REKS state
-    real(dp), intent(in) :: SAgrad(:,:,:)
-
-    !> gradient of state-interaction term
-    real(dp), intent(in) :: SIgrad(:,:,:)
-
-    !> gradient of SSR state
-    real(dp), intent(in) :: SSRgrad(:,:,:)
-
-    !> difference gradient vector, G
-    real(dp), intent(in) :: nacG(:,:,:)
-
-    !> nonadiabatic coupling vector, H
-    real(dp), intent(in) :: nacH(:,:,:)
-
-    !> Minimized energy functional
-    integer, intent(in) :: Efunction
-
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
-
-    !> Number of states
-    integer, intent(in) :: nstates
-
-    !> Target SSR state
-    integer, intent(in) :: rstate
-
-    !> Target microstate
-    integer, intent(in) :: Lstate
-
-    !> Calculate nonadiabatic coupling vectors
-    logical, intent(in) :: tNAC
-
     integer :: ist, ia, ib, nstHalf
 
-    nstHalf = nstates * (nstates - 1) / 2
+    nstHalf = reks%nstates * (reks%nstates - 1) / 2
 
     write(stdOut,*)
-    if (Efunction == 1) then
+    if (reks%Efunction == 1) then
 
       write(stdOut,"(A)") repeat("-", 50)
       write(stdOut,"(A)") " Gradient Information"
       write(stdOut,"(A)") repeat("-", 50)
-      write(stdOut,*) rstate, "state (single-state)"
+      write(stdOut,*) reks%rstate, "state (single-state)"
       write(stdOut,'(3(f15.8))') derivs(:,:)
       write(stdOut,"(A)") repeat("-", 50)
 
     else
 
-      if (tNAC) then
+      if (reks%tNAC) then
 
         write(stdOut,"(A)") repeat("-", 50)
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
-        do ist = 1, nstates
+        do ist = 1, reks%nstates
           write(stdOut,*) ist, "st state (SSR)"
-          write(stdOut,'(3(f15.8))') SSRgrad(:,:,ist)
-          if (ist == nstates) then
+          write(stdOut,'(3(f15.8))') reks%SSRgrad(:,:,ist)
+          if (ist == reks%nstates) then
             write(stdOut,"(A)") repeat("-", 50)
           else
             write(stdOut,'(3(f15.8))')
@@ -5408,28 +5377,37 @@ contains
         end do
 
 !        write(stdOut,*) "AVG state"
-!        write(stdOut,'(3(f15.8))') avgGrad(:,:)
+!        write(stdOut,'(3(f15.8))') reks%avgGrad(:,:)
 !        write(stdOut,'(3(f15.8))')
+!        do ist = 1, reks%nstates
+!          write(stdOut,*) ist, "st state (SA-REKS)"
+!          write(stdOut,'(3(f15.8))') reks%SAgrad(:,:,ist)
+!          if (ist == reks%nstates) then
+!            write(stdOut,"(A)") repeat("-", 50)
+!          else
+!            write(stdOut,'(3(f15.8))')
+!          end if
+!        end do
 
         write(stdOut,"(A)") " Coupling Information"
         do ist = 1, nstHalf
 
-          call getTwoIndices(nstates, ist, ia, ib, 1)
+          call getTwoIndices(reks%nstates, ist, ia, ib, 1)
 
           write(stdOut,"(A)") repeat("-", 50)
           write(stdOut,'(" between ",I2," and ",I2," states")') ia, ib
           write(stdOut,"(A)") repeat("-", 50)
           write(stdOut,*) "g vector - difference gradient"
-          write(stdOut,'(3(f15.8))') (SAgrad(:,:,ia) - SAgrad(:,:,ib)) * 0.5_dp
+          write(stdOut,'(3(f15.8))') (reks%SAgrad(:,:,ia) - reks%SAgrad(:,:,ib)) * 0.5_dp
           write(stdOut,'(3(f15.8))')
           write(stdOut,*) "h vector - derivative coupling"
-          write(stdOut,'(3(f15.8))') SIgrad(:,:,ist)
+          write(stdOut,'(3(f15.8))') reks%SIgrad(:,:,ist)
           write(stdOut,'(3(f15.8))')
           write(stdOut,*) "G vector - GDV"
-          write(stdOut,'(3(f15.8))') nacG(:,:,ist)
+          write(stdOut,'(3(f15.8))') reks%nacG(:,:,ist)
           write(stdOut,'(3(f15.8))')
           write(stdOut,*) "H vector - DCV - non-adiabatic coupling"
-          write(stdOut,'(3(f15.8))') nacH(:,:,ist)
+          write(stdOut,'(3(f15.8))') reks%nacH(:,:,ist)
 
         end do
         write(stdOut,"(A)") repeat("-", 50)
@@ -5439,14 +5417,14 @@ contains
         write(stdOut,"(A)") repeat("-", 50)
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
-        if (Lstate == 0) then
-          if (useSSR == 1) then
-            write(stdOut,*) rstate, "state (SSR)"
+        if (reks%Lstate == 0) then
+          if (reks%useSSR == 1) then
+            write(stdOut,*) reks%rstate, "state (SSR)"
           else
-            write(stdOut,*) rstate, "state (SA-REKS)"
+            write(stdOut,*) reks%rstate, "state (SA-REKS)"
           end if
         else
-          write(stdOut,*) Lstate, "microstate"
+          write(stdOut,*) reks%Lstate, "microstate"
         end if
         write(stdOut,'(3(f15.8))') derivs(:,:)
         write(stdOut,"(A)") repeat("-", 50)
