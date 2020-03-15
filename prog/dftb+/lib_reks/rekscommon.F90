@@ -177,10 +177,10 @@ module dftbp_rekscommon
     if (option == 1) then
 
       ! when sizeInd = 3, (ind1,ind2) = (1,2) (1,3) (2,3)
-      tmp = ( dble(2.0_dp*sizeInd+1.0_dp) - sqrt( (2.0_dp*sizeInd+ &
+      tmp = ( real(2.0_dp*sizeInd+1.0_dp, dp) - sqrt( (2.0_dp*sizeInd+ &
           & 1.0_dp)**2.0_dp - 8.0_dp*(sizeInd+curInd) ) )/2.0_dp
-      ind1 = int( dble(tmp) )
-      if ( dble(tmp)-dble(ind1) <= epsilon(1.0_dp) ) then
+      ind1 = int( real(tmp, dp) )
+      if ( real(tmp, dp)-real(ind1, dp) <= epsilon(1.0_dp) ) then
         ind1 = ind1 - 1
       end if
       ind2 = ind1**2/2 + ind1/2 - sizeInd*ind1 + sizeInd + curInd
@@ -191,9 +191,9 @@ module dftbp_rekscommon
     else if (option == 2) then
 
       ! when sizeInd = 3, (ind1,ind2) = (1,1) (1,2) (1,3) (2,2) (2,3) (3,3)
-      tmp = ( dble(2.0_dp*sizeInd+3.0_dp) - sqrt( (2.0_dp*sizeInd+ &
+      tmp = ( real(2.0_dp*sizeInd+3.0_dp, dp) - sqrt( (2.0_dp*sizeInd+ &
           & 3.0_dp)**2.0_dp - 8.0_dp*(sizeInd+curInd) ) )/2.0_dp
-      ind1 = int( dble(tmp) )
+      ind1 = int( real(tmp, dp) )
       ind2 = ind1**2/2 - ind1/2 - sizeInd*ind1 + sizeInd + curInd
 
     end if

@@ -367,7 +367,7 @@ module dftbp_reksinterface
     integer(kind=8) :: countRate, t1, t2
 
     call system_clock(count_rate=countRate)
-    timeRate = dble(countRate)
+    timeRate = real(countRate, dp)
 
     ! calculate the relaxed density matrix, dipole moment,
     !           the forces of external charges.
@@ -695,7 +695,7 @@ module dftbp_reksinterface
     integer(kind=8) :: countRate, t1, t2
 
     call system_clock(count_rate=countRate)
-    timeRate = dble(countRate)
+    timeRate = real(countRate, dp)
 
     call system_clock(t1)
 
@@ -853,7 +853,7 @@ module dftbp_reksinterface
     integer(kind=8) :: countRate, t1, t2
 
     call system_clock(count_rate=countRate)
-    timeRate = dble(countRate)
+    timeRate = real(countRate, dp)
 
     call system_clock(t1)
 
@@ -931,7 +931,7 @@ module dftbp_reksinterface
     integer(kind=8) :: countRate, t1, t2
 
     call system_clock(count_rate=countRate)
-    timeRate = dble(countRate)
+    timeRate = real(countRate, dp)
 
     call system_clock(t1)
 
@@ -1149,7 +1149,7 @@ module dftbp_reksinterface
     integer(kind=8) :: countRate, t1, t2
 
     call system_clock(count_rate=countRate)
-    timeRate = dble(countRate)
+    timeRate = real(countRate, dp)
 
     call system_clock(t1)
 

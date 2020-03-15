@@ -2926,9 +2926,9 @@ module dftbp_reksgrad
           !        use tmp22 part -> relatively less times
           !        Why show different cost?
           !call getTwoIndices(nOrb, l, tau, gam, 2)
-          tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
+          tmp22 = ( real(2.0_dp*nOrb+3.0_dp, dp) - sqrt( (2.0_dp*nOrb+ &
               & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+l) ) )/2.0_dp
-          tau = int( dble(tmp22) )
+          tau = int( real(tmp22, dp) )
           gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + l
 
           ! LC terms
@@ -4269,9 +4269,9 @@ module dftbp_reksgrad
       do ii = 1, nOrbHalf
 
         call getTwoIndices(nOrb, ii, tau, gam, 2)
-        !tmp11 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
+        !tmp11 = ( real(2.0_dp*nOrb+3.0_dp, dp) - sqrt( (2.0_dp*nOrb+ &
         !    & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+ii) ) )/2.0_dp
-        !tau = int( dble(tmp11) )
+        !tau = int( real(tmp11, dp) )
         !gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + ii
 
         tmpHxcS(:) = 0.0_dp
@@ -4281,9 +4281,9 @@ module dftbp_reksgrad
           !        use tmp22 part -> 3.9 sec per 1 CG-loop
           !        Why show different cost?
           !call getTwoIndices(nOrb, jj, mu, nu, 2)
-          tmp22 = ( dble(2.0_dp*nOrb+3.0_dp) - sqrt( (2.0_dp*nOrb+ &
+          tmp22 = ( real(2.0_dp*nOrb+3.0_dp, dp) - sqrt( (2.0_dp*nOrb+ &
               & 3.0_dp)**2.0_dp - 8.0_dp*(nOrb+jj) ) )/2.0_dp
-          mu = int( dble(tmp22) )
+          mu = int( real(tmp22, dp) )
           nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + jj
 
           ! calculate the H-XC kernel for LC term

@@ -280,12 +280,12 @@ module dftbp_reksen
 
     do ii = self%Nc + 1, self%Nc + self%Na
       ind = ii - self%Nc
-      eigen(ii,1,1) = eigen(ii,1,1) - dble(ind) * self%shift
+      eigen(ii,1,1) = eigen(ii,1,1) - real(ind, dp) * self%shift
     end do
 
     do ii = self%Nc + self%Na + 1, nOrb
       ind = self%Na + 1
-      eigen(ii,1,1) = eigen(ii,1,1) - dble(ind) * self%shift
+      eigen(ii,1,1) = eigen(ii,1,1) - real(ind, dp) * self%shift
     end do
 
   end subroutine adjustEigenval
@@ -790,12 +790,12 @@ module dftbp_reksen
 
     do ii = Nc + 1, Nc + Na
       ind = ii - Nc
-      fock(ii,ii) = fock(ii,ii) + dble(ind) * shift
+      fock(ii,ii) = fock(ii,ii) + real(ind, dp) * shift
     end do
 
     do ii = Nc + Na + 1, nOrb
       ind = Na + 1
-      fock(ii,ii) = fock(ii,ii) + dble(ind) * shift
+      fock(ii,ii) = fock(ii,ii) + real(ind, dp) * shift
     end do
 
   end subroutine levelShifting_

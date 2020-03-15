@@ -209,7 +209,7 @@ module dftbp_rekscpeqn
 
     write(stdOut,"(A)") repeat("-", 82)
     call system_clock(count_rate=countRate)
-    timeRate = dble(countRate)
+    timeRate = real(countRate, dp)
 
     call system_clock(t1)
 

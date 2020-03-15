@@ -601,7 +601,7 @@ module dftbp_reksvar
 
     if (self%tSSR22) then
 
-      self%Nc = int(dble(nEl)) / 2 - 1
+      self%Nc = int(real(nEl, dp)) / 2 - 1
       self%Na = 2
       self%Lmax = 6
       self%LmaxR = 4
@@ -1054,7 +1054,7 @@ module dftbp_reksvar
 
     ! REKS: initialize variables
 
-    self%SAweight(:) = 1.0_dp / dble(self%SAstates)
+    self%SAweight(:) = 1.0_dp / real(self%SAstates, dp)
 
     self%Tuning(:) = ini%Tuning(:)
     deallocate(ini%Tuning)
