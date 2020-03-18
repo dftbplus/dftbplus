@@ -61,7 +61,7 @@ contains
   !> based on Time Dependent DFRT
   subroutine ppRPAenergies(denseDesc, grndEigVecs, grndEigVal, sccCalc,&
       & nexc, symc, U_h, SSqr, species0, rnel, iNeighbour,&
-      & img2CentCell, orb)
+      & img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter)
 
     !> index vector for S and H matrices
     type(TDenseDescr), intent(in) :: denseDesc
@@ -102,6 +102,16 @@ contains
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
+    !> print tag information
+    logical, intent(in) :: tWriteTagged
+
+    !> File name for regression data
+    character(*), intent(in) :: autotestTag
+
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+
     logical :: tSpin
 
     real(dp), allocatable :: stimc(:,:,:)
@@ -117,6 +127,7 @@ contains
     integer :: norb, natom
     integer :: iSpin, isym
     integer :: nSpin
+    integer :: fdTagged
     character :: sym
 
     !> ppRPA eigenvalues (two-electron addition/removal energies)
@@ -160,6 +171,9 @@ contains
     ALLOCATE(gamma_eri(natom, natom))
     ALLOCATE(stimc(norb, norb, nSpin))
 
+    if (tWriteTagged) then
+      open(newUnit=fdTagged, file=autotestTag, position="append")
+    end if
 
     ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
     ! remove the need to symmetrize the overlap and ground state density matrix in the main code if
@@ -202,13 +216,18 @@ contains
       call buildAndDiagppRPAmatrix(sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, iAtomStart,&
           & gamma_eri, stimc, grndEigVecs, pp_eval, vr)
 
-      call writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc)
+      call writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
+          & tWriteTagged, fdTagged, taggedWriter)
 
       deallocate(pp_eval)
       deallocate(vr)
     end do
 
     if (fdExc > 0) close(fdExc)
+
+    if (tWriteTagged) then
+      close(fdTagged)
+    end if
 
   end subroutine ppRPAenergies
 
@@ -505,7 +524,8 @@ contains
 
 
   !> write pp-RPA excitation energies in output file
-  subroutine writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc)
+  subroutine writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
+      & tWriteTagged, fdTagged, taggedWriter)
 
     !> symmetry to calculate transitions
     character, intent(in) :: sym
@@ -533,6 +553,15 @@ contains
 
     !> file unit for excitation energies
     integer, intent(in) :: fdExc
+
+    !> print tag information
+    logical, intent(in) :: tWriteTagged
+
+    !> file unit for tagged output (> -1 for write out)
+    integer, intent(in) :: fdTagged
+
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
 
     integer :: a, i, ii
     integer :: nRPA, nxoo_r, nxvv_r
@@ -581,6 +610,10 @@ contains
       if (ii > nExc) exit
 
     end do
+
+    if (tWriteTagged) then
+      call taggedWriter%write(fdTagged, tagLabels%egyppRPA, pp_eval(:nRPA))
+    end if
 
   end subroutine writeppRPAExcitations
 

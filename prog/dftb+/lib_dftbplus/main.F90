@@ -687,9 +687,12 @@ contains
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
       call blockSymmetrizeHS(SSqrReal, denseDesc%iAtomStart)
+      if (withMpi) then
+        call error("pp-RPA calc. does not work with MPI yet")
+      end if
       call ppRPAenergies(denseDesc, eigvecsReal, eigen(:,1,:), sccCalc,&
           & RPA%nexc, RPA%sym, RPA%hhubbard, SSqrReal, species, nEl(1), neighbourList%iNeighbour,&
-          & img2CentCell, orb)
+          & img2CentCell, orb, tWriteAutotest, autotestTag, taggedWriter)
     end if
 
     if (tXlbomd) then

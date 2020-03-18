@@ -105,7 +105,7 @@ module dftbp_taggedoutput
     !> total projected DOS vector
     character(lenLabel) :: ldos = 'total_localdos'
 
-    !> total bond currents 
+    !> total bond currents
     character(lenLabel) :: localCurrents = 'local_currents'
 
     !> total internal energy
@@ -122,6 +122,9 @@ module dftbp_taggedoutput
 
     !> External electric field
     character(lenLabel) :: externField = 'external_efield'
+
+    !> two-electron addition/removal energies in ppRPA formalism
+    character(lenLabel) :: egyppRPA = '2e_add-rem_energies'
 
   end type TTagLabelsEnum
 
