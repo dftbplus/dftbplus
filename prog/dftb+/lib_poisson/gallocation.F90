@@ -9,7 +9,7 @@
 #!#:set MEMLOG = 1
 
 #! (LABEL, TYPE, ARRAY, ARGS) tuple for all logged arrays
-#:set ALLOC_CASES = [('l','logical',':', 'length'),&
+#:set ALLOC_CASES = [&
   & ('i', 'integer', ':', 'length'),&
   & ('d', 'real(dp)', ':', 'length'),&
   & ('z', 'complex(dp)', ':', 'length'),&
@@ -22,10 +22,11 @@
   & ('d4', 'real(dp)', ':,:,:,:', 'row,col,dep,qep')]
 
 module gallocation
+  use, intrinsic :: iso_fortran_env, only : int64
+  use, intrinsic :: iso_c_binding, only : c_sizeof
   use std_io
   use dftbp_accuracy, only : dp, lc
   use dftbp_message
-  use, intrinsic :: iso_fortran_env, only : int64
 
   integer, parameter :: long = int64
   integer, save :: iolog
@@ -53,10 +54,11 @@ contains
   !---------------------------------------------------------------
   subroutine allocate_${LABEL}$(array, ${ARGS}$)
 
-    ${TYPE}$, allocatable, intent(inout) :: array(${ARRAY}$)
+    ${TYPE}$, allocatable, target, intent(inout) :: array(${ARRAY}$)
 
     integer, intent(in) :: ${ARGS}$
 
+    ${TYPE}$, pointer :: pArrayFlat(:)
     integer :: iErr
     character(lc) :: strTmp
 
@@ -71,10 +73,13 @@ contains
         write(strTmp, "(A,I0)")'Poisson allocation error: ', iErr
         call error(strTmp)
       else
-        alloc_mem= alloc_mem + sizeof(array)
-        if (alloc_mem > peak_mem) then
-          peak_mem = alloc_mem
-        endif
+        if (size(array) > 0) then
+          pArrayFlat(1 : size(array)) => array
+          alloc_mem= alloc_mem + c_sizeof(pArrayFlat(1)) * size(pArrayFlat)
+          if (alloc_mem > peak_mem) then
+            peak_mem = alloc_mem
+          endif
+        end if
       #:if defined('MEMLOG')
         call writePoissMemInfo()
       #:endif
@@ -91,10 +96,15 @@ contains
   !---------------------------------------------------------------
   subroutine deallocate_${LABEL}$(array)
 
-    ${TYPE}$, allocatable, intent(inout) :: array(${ARRAY}$)
+    ${TYPE}$, allocatable, target, intent(inout) :: array(${ARRAY}$)
 
+    ${TYPE}$, pointer :: pArrayFlat(:)
+    
     if (allocated(array)) then
-      alloc_mem= alloc_mem - sizeof(array)
+      if (size(array) > 0) then
+        pArrayFlat(1 : size(array)) => array
+        alloc_mem= alloc_mem - c_sizeof(pArrayFlat(1)) * size(pArrayFlat)
+      end if
       deallocate(array)
      #:if defined('MEMLOG')
       call writePoissMemInfo()
@@ -154,13 +164,13 @@ contains
     real(dp), intent(out) :: dec
     character(3), intent(out) :: str
 
-    if (mem < 1000) then
+    if (mem < 1000_int64) then
       str = ' bt'
       dec = 1.0_dp
-    else if (mem < 1E7_int64) then
+    else if (mem < 10000000_int64) then
       str = ' kb'
       dec = 1.0E-3_dp
-    else if (mem < 1E10_int64) then
+    else if (mem < 10000000000_int64) then
       str = ' Mb'
       dec = 1.0E-6_dp
     else
