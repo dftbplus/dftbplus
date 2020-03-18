@@ -196,9 +196,9 @@ contains
     fdExc = getFileId()
     open(fdExc, file=excitationsOut, position="rewind", status="replace")
     write(fdExc,*)
-    write(fdExc,'(5x,a,4x,a)') 'w [eV]', 'Sym.'
+    write(fdExc,'(5x,a,6x,a,14x,a,6x,a,12x,a)') 'w [eV]', 'Transitions', 'Weight', 'KS [eV]', 'Symm.'
     write(fdExc,*)
-    write(fdExc,'(1x,25("="))')
+    write(fdExc,'(1x,80("="))')
     write(fdExc,*)
 
     do isym = 1, size(symmetries)
@@ -216,7 +216,7 @@ contains
       call buildAndDiagppRPAmatrix(sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, iAtomStart,&
           & gamma_eri, stimc, grndEigVecs, pp_eval, vr)
 
-      call writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
+      call writeppRPAExcitations(sym, grndEigVal(:,1), nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
           & tWriteTagged, fdTagged, taggedWriter)
 
       deallocate(pp_eval)
@@ -524,11 +524,14 @@ contains
 
 
   !> write pp-RPA excitation energies in output file
-  subroutine writeppRPAExcitations(sym, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
+  subroutine writeppRPAExcitations(sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
       & tWriteTagged, fdTagged, taggedWriter)
 
     !> symmetry to calculate transitions
     character, intent(in) :: sym
+
+    !> ground state MO-energies
+    real(dp), intent(in) :: eigVal(:)
 
     !> number of excitation energies to show
     integer, intent(in) :: nexc
@@ -563,15 +566,21 @@ contains
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    integer :: a, i, ii
+    integer :: a, i, ii, aa, bb, homo, lumo, diff_a, diff_b
     integer :: nRPA, nxoo_r, nxvv_r
     integer, allocatable :: e_ind(:)
     real(dp), allocatable :: norm(:)
-    real(dp):: eval_0
+    real(dp), allocatable :: wvr(:), wvnorm(:)
+    integer, allocatable :: wvin(:)
+    real(dp):: eval_0, weight
+    real(dp):: ks_ener_a, ks_ener_b
 
     nRPA   = size(pp_eval)
     ALLOCATE(e_ind(nRPA))
     ALLOCATE(norm(nRPA))
+    ALLOCATE(wvr(nRPA))
+    ALLOCATE(wvnorm(nRPA))
+    ALLOCATE(wvin(nRPA))
 
 
     if (sym == "S") then
@@ -599,13 +608,39 @@ contains
     ii = 0
     do i = 1, nRPA
       if (norm(e_ind(i)) < 0) cycle
+
+      wvr(:) = vr(:,e_ind(i))**2
+      wvnorm = 1.0_dp / sqrt(sum(wvr**2))
+      wvr(:) = wvr(:) * wvnorm
+
+      call index_heap_sort(wvin, wvr)
+      wvin = wvin(size(wvin):1:-1)
+      wvr = wvr(wvin)
+
+      call indxvv(nocc, wvin(1), aa, bb)
+      weight = wvr(1)
+
       ii = ii + 1
       if (ii == 1) then
         eval_0 = pp_eval(i)
+        homo = aa
+        lumo = homo + 1
         cycle
       endif
 
-      write(fdExc,'(1x,f10.3,4x,a)') Hartree__eV * (pp_eval(i) - eval_0), sym
+      diff_a = aa - lumo
+      diff_b = bb - lumo
+      ks_ener_a = Hartree__eV * (eigVal(aa) - eigVal(homo))
+      ks_ener_b = Hartree__eV * (eigVal(bb) - eigVal(homo))
+
+      !> double excitations
+      if (diff_b /= -1) then
+        write(fdExc,'(1x,f10.3,6x,a,i2,a,i2,5x,f6.3,6x,f7.3,a,f7.3,7x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
+           & 'HOMO -> LUMO +', diff_b,',', diff_a, weight, ks_ener_b, ',', ks_ener_a, sym
+      else
+        write(fdExc,'(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
+          & 'HOMO -> LUMO +', diff_a, weight, ks_ener_a, sym
+      endif
 
       if (ii > nExc) exit
 
