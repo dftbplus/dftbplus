@@ -21,14 +21,14 @@ rangesep/C60-nb                        #? not WITH_MPI
 rangesep/C60-nb-cutoff                 #? not WITH_MPI
 rangesep/Thymine-T1-force              #? not WITH_MPI
 rangesep/cyclopropene_nb_restart       #? not WITH_MPI
-rangesep/C240_tn                       #? not WITH_MPI
+rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
 rangesep/Thymine-T1_onsite             #? not WITH_MPI
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
 reks/C2H4_nosave                       #? not WITH_MPI
-reks/HBI+H2O_periodic_stress           #? not WITH_MPI
-reks/HBI+H2O_periodic_stress_disp      #? not WITH_MPI
+reks/HBI+H2O_periodic_stress           #? not WITH_MPI and LONG_TEST
+reks/HBI+H2O_periodic_stress_disp      #? not WITH_MPI and LONG_TEST
 reks/PSB3_2SSR                         #? not WITH_MPI
 reks/PSB3_2SSR_extchrg_periodic        #? not WITH_MPI
 reks/PSB3_2SSR_rangesep                #? not WITH_MPI
