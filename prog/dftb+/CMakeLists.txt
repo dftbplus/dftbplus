@@ -64,6 +64,8 @@ endif()
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 
+target_include_directories(dftbplus PRIVATE ${CMAKE_SOURCE_DIR}/external/dftd4refs)
+
 if(WITH_SOCKETS)
   target_include_directories(dftbplus PUBLIC
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)

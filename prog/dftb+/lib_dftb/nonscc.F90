@@ -22,7 +22,7 @@ module dftbp_nonscc
   private
 
   public :: buildH0, buildS
-  public :: NonSccDiff, NonSccDiff_init
+  public :: TNonSccDiff, NonSccDiff_init
   public :: diffTypes
 
   ! Workaround: pgfortran 16.5
@@ -31,7 +31,7 @@ module dftbp_nonscc
   real(dp), parameter :: DELTA_X_DIFF_DEFAULT = epsilon(1.0_dp)**0.25_dp
 
   !> Contains settings for the derivation of the non-scc contribution.
-  type :: NonSccDiff
+  type :: TNonSccDiff
     private
     ! default of a reasonable choice for round off and a second order formula
     real(dp) :: deltaXDiff = DELTA_X_DIFF_DEFAULT
@@ -43,16 +43,16 @@ module dftbp_nonscc
 
     !> evaluate second derivative
     procedure :: getSecondDeriv
-  end type NonSccDiff
+  end type TNonSccDiff
 
   !> Namespace for possible differentiation methods
-  type :: diffTypesEnum
+  type :: TDiffTypesEnum
     integer :: finiteDiff
     integer :: richardson
-  end type diffTypesEnum
+  end type TDiffTypesEnum
 
   !> Actual values for diffTypes.
-  type(diffTypesEnum), parameter :: diffTypes = diffTypesEnum(1, 2)
+  type(TDiffTypesEnum), parameter :: diffTypes = TDiffTypesEnum(1, 2)
 
 contains
 
@@ -67,7 +67,7 @@ contains
     real(dp), intent(out) :: ham(:)
 
     !> Container for the SlaKo Hamiltonian integrals
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> On-site energies for each species
     real(dp), intent(in) :: selfegy(:,:)
@@ -127,7 +127,7 @@ contains
     real(dp), intent(out) :: over(:)
 
     !> Container for the SlaKo overlap integrals
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
@@ -179,7 +179,7 @@ contains
   subroutine NonSccDiff_init(this, diffType, deltaXDiff)
 
     !> Initialised instance on exit.
-    type(NonSccDiff), intent(out) :: this
+    type(TNonSccDiff), intent(out) :: this
 
     !> Type of the differentiator: diffTypes%finiteDiff or diffTypes%richardson
     integer, intent(in) :: diffType
@@ -201,13 +201,13 @@ contains
   subroutine getFirstDeriv(this, deriv, skCont,coords, species, atomI, atomJ, orb)
 
     !> Instance
-    class(NonSccDiff), intent(in) :: this
+    class(TNonSccDiff), intent(in) :: this
 
     !> Derivative of H or S diatomic block, with respect to x,y,z (last index).
     real(dp), intent(out) :: deriv(:,:,:)
 
     !> Container for the SK integrals
-    type(OSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(in) :: skCont
 
     !> List of all coordinates, including possible periodic images of atoms
     real(dp), intent(in) :: coords(:,:)
@@ -238,13 +238,13 @@ contains
   subroutine getSecondDeriv(this, deriv, skCont, coords, species, atomI, atomJ, orb)
 
     !> Instance.
-    class(NonSccDiff), intent(in) :: this
+    class(TNonSccDiff), intent(in) :: this
 
     !> Derivative of the diatomic block, with respect to x,y,z (last 2 indices)
     real(dp), intent(out) :: deriv(:,:,:,:)
 
     !> Container for SK Hamiltonian integrals
-    type(OSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(in) :: skCont
 
     !> List of all coordinates, including possible  periodic images of atoms.
     real(dp), intent(in) :: coords(:,:)
@@ -280,7 +280,7 @@ contains
       & species, iPair, orb, out)
     integer, intent(in) :: firstAtom
     integer, intent(in) :: lastAtom
-    type(OSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(in) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: nNeighbourSK(:)
     integer, intent(in) :: iNeighbours(0:,:)
@@ -322,7 +322,7 @@ contains
   !> Calculates the numerical derivative of a diatomic block H0 or S by finite differences.
   subroutine getFirstDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
     real(dp), intent(out) :: deriv(:,:,:)
-    type(OSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(in) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
@@ -364,7 +364,7 @@ contains
   !> Calculates the numerical derivative of a diatomic block H0 or S by Richardsons method.
   subroutine getFirstDerivRichardson(deriv, skCont, coords, species, atomI, atomJ, orb)
     real(dp), intent(out) :: deriv(:,:,:)
-    type(OSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(in) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ
@@ -465,7 +465,7 @@ contains
   !> Hamiltonian and overlap.
   subroutine getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb, deltaXDiff)
     real(dp), intent(out) :: deriv(:,:,:,:)
-    type(OSlakoCont), intent(in) :: skCont
+    type(TSlakoCont), intent(in) :: skCont
     real(dp), intent(in) :: coords(:,:)
     integer, intent(in) :: species(:)
     integer, intent(in) :: atomI, atomJ

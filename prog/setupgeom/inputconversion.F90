@@ -38,12 +38,12 @@ contains
   !!
   subroutine transformPdosRegionInfo(iAtInRegion, tShellResInRegion, &
       & regionLabelPrefixes, orb, specie0, iOrbRegion, regionLabels)
-    type(WrappedInt1), intent(in) :: iAtInregion(:)
+    type(TWrappedInt1), intent(in) :: iAtInregion(:)
     logical, intent(in) :: tShellResInRegion(:)
     character(lc), intent(in) :: regionLabelPrefixes(:)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: specie0(:)
-    type(WrappedInt1), allocatable, intent(out) :: iOrbRegion(:)
+    type(TWrappedInt1), allocatable, intent(out) :: iOrbRegion(:)
     character(lc), allocatable, intent(out) :: regionLabels(:)
 
     integer, allocatable :: iAtomStart(:)
@@ -78,7 +78,7 @@ contains
   !! Determines nr. of regions when shell resolution is also considered.
   function countRegionsWithShellResolution(iAtInRegion, tShellResInRegion, &
       & specie0, orb) result(nRegShell)
-    type(WrappedInt1), intent(in) :: iAtInRegion(:)
+    type(TWrappedInt1), intent(in) :: iAtInRegion(:)
     logical, intent(in) :: tShellResInRegion(:)
     integer, intent(in) :: specie0(:)
     type(TOrbitals), intent(in) :: orb
@@ -107,7 +107,7 @@ contains
     integer, intent(in) :: specie0(:)
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: iAtomStart(:)
-    type(WrappedInt1), intent(inout) :: iOrbRegion(:)
+    type(TWrappedInt1), intent(inout) :: iOrbRegion(:)
     character(*), intent(inout) :: regionLabels(:)
     integer, intent(inout) :: curReg
 
@@ -144,7 +144,7 @@ contains
     character(*), intent(in) :: regionLabelPrefix
     type(TOrbitals), intent(in) :: orb
     integer, intent(in) :: iAtomStart(:)
-    type(WrappedInt1), intent(inout) :: iOrbRegion(:)
+    type(TWrappedInt1), intent(inout) :: iOrbRegion(:)
     character(*), intent(inout) :: regionLabels(:)
     integer, intent(inout) :: curReg
 

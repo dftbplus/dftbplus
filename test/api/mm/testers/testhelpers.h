@@ -24,6 +24,9 @@ extern "C" {
  *
  * \param gradients[in]  Pointer to the array with the gradients. Pass NULL if not available.
  *
+ * \param stress_tensor[in]  Pointer to the array with the stress tensor of the periodic system.
+ *     Pass NULL if not available.
+ *
  * \param gross_charges[in]  Pointer to the array with the gross charges. Pass NULL if not
  *     available.
  *
@@ -31,7 +34,7 @@ extern "C" {
  *     Pass NULL if not available.
  */
 void dftbp_write_autotest_tag(int n_atom, int n_ext_charge, double mermin_energy, double *gradients,
-                              double *gross_charges, double * ext_charge_gradients);
+                              double *stress_tensor, double *gross_charges, double * ext_charge_gradients);
 
 #ifdef __cplusplus
 }

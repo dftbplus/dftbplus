@@ -20,7 +20,7 @@ module dftbp_repcont
   implicit none
   private
 
-  public :: ORepCont, init
+  public :: TRepCont, init
   public :: addRepulsive, getCutoff, getEnergy, getEnergyDeriv
 
 
@@ -33,13 +33,13 @@ module dftbp_repcont
   !> Contains repulsive types.
   type PRep_
     integer :: iType = typeRepInvalid
-    type(ORepSpline), allocatable :: pRepSpline
-    type(ORepPoly), allocatable :: pRepPoly
+    type(TRepSpline), allocatable :: pRepSpline
+    type(TRepPoly), allocatable :: pRepPoly
   end type PRep_
 
 
   !> Contains the repulsive interactions for the species pairs.
-  type ORepCont
+  type TRepCont
     private
 
     !> repulsive functions
@@ -56,7 +56,7 @@ module dftbp_repcont
 
     !> Is structure initialised?
     logical :: tInit = .false.
-  end type ORepCont
+  end type TRepCont
 
 
   !> Initialises the repulsive container.
@@ -96,7 +96,7 @@ contains
   subroutine RepCont_init(self, nSpecies)
 
     !> Repulsive container.
-    type(ORepCont), intent(out) :: self
+    type(TRepCont), intent(out) :: self
 
     !> Nr. of species.
     integer, intent(in) :: nSpecies
@@ -116,10 +116,10 @@ contains
   subroutine RepCont_addRepSpline(self, pRep, iSp1, iSp2)
 
     !> Repulsive container.
-    type(ORepCont), intent(inout) :: self
+    type(TRepCont), intent(inout) :: self
 
     !> Repulsive function to add.
-    type(ORepSpline), intent(in) :: pRep
+    type(TRepSpline), intent(in) :: pRep
 
     !> Nr. of the first interacting species.
     integer, intent(in) :: iSp1
@@ -140,10 +140,10 @@ contains
   subroutine RepCont_addRepPoly(self, pRep, iSp1, iSp2)
 
     !> Repulsive container.
-    type(ORepCont), intent(inout) :: self
+    type(TRepCont), intent(inout) :: self
 
     !> Repulsive function to add.
-    type(ORepPoly), intent(in) :: pRep
+    type(TRepPoly), intent(in) :: pRep
 
     !> Nr. of the first interacting species.
     integer, intent(in) :: iSp1
@@ -164,7 +164,7 @@ contains
   function RepCont_getCutoff(self) result(cutoff)
 
     !> Repulsive container.
-    type(ORepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: self
 
     !> Global cutoff.
     real(dp) :: cutoff
@@ -179,7 +179,7 @@ contains
   subroutine RepCont_getEnergy(self, res, rr, sp1, sp2)
 
     !> Repulsive container.
-    type(ORepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: self
 
     !> Energy contribution.
     real(dp), intent(out) :: res
@@ -209,7 +209,7 @@ contains
   subroutine RepCont_getEnergyDeriv(self, res, xx, sp1, sp2)
 
     !> Repulsive container.
-    type(ORepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: self
 
     !> Gradient on exit.
     real(dp), intent(out) :: res(:)

@@ -41,7 +41,7 @@ module dftbp_linemin
 
 
   !> Holds data for the line minimalizer
-  type OLineMin
+  type TLineMin
     private
 
     !> Number of vector elements
@@ -89,7 +89,7 @@ module dftbp_linemin
     !> If converged
     logical :: tConverged
 
-  end type OLineMin
+  end type TLineMin
 
 
   !> Creates a line minimizer
@@ -133,7 +133,7 @@ module dftbp_linemin
     module procedure LineMin_getMinLambda
   end interface
 
-  public :: OLineMin
+  public :: TLineMin
   public :: init, reset, next, getMinX, getMinY, getMinGrad
   public :: getMinLambda
 
@@ -148,7 +148,7 @@ contains
   subroutine LineMin_init(self, nElem, mIter, tolerance, maxDisp)
 
     !> Valid line minimizer instance on exit
-    type(OLineMin), intent(out) :: self
+    type(TLineMin), intent(out) :: self
 
     !> Nr. of elements in the coordinate/gradient vectors
     integer, intent(in) :: nElem
@@ -181,7 +181,7 @@ contains
   subroutine LineMin_reset(self, x0, d0, firstStep)
 
     !> Line minimizer instance
-    type(OLineMin), intent(inout) :: self
+    type(TLineMin), intent(inout) :: self
 
     !> New starting point
     real(dp), intent(in) :: x0(:)
@@ -222,7 +222,7 @@ contains
   subroutine LineMin_next(self, fx, dx, xNew, tConverged)
 
     !> Line minimizer instance
-    type(OLineMin), intent(inout) :: self
+    type(TLineMin), intent(inout) :: self
 
     !> Function value for the last returned point
     real(dp), intent(in) :: fx
@@ -433,7 +433,7 @@ contains
   subroutine LineMin_getMinX(self, minX)
 
     !> Line minimizer
-    type(OLineMin), intent(in) :: self
+    type(TLineMin), intent(in) :: self
 
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minX(:)
@@ -449,7 +449,7 @@ contains
   subroutine LineMin_getMinY(self, minY)
 
     !> Line minimizer
-    type(OLineMin), intent(in) :: self
+    type(TLineMin), intent(in) :: self
 
     !> Function value in the minimal point
     real(dp), intent(out) :: minY
@@ -465,7 +465,7 @@ contains
   subroutine LineMin_getMinGrad(self, minGrad)
 
     !> Line minimizer
-    type(OLineMin), intent(in) :: self
+    type(TLineMin), intent(in) :: self
 
     !> Gradient in the minimal point
     real(dp), intent(out) :: minGrad(:)
@@ -481,7 +481,7 @@ contains
   subroutine LineMin_getMinLambda(self, minLambda)
 
     !> Line minimizer
-    type(OLineMin), intent(in) :: self
+    type(TLineMin), intent(in) :: self
 
     !> Displacement along the line to the minimum
     real(dp), intent(out) :: minLambda

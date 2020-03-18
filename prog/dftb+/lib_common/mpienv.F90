@@ -52,6 +52,31 @@ module dftbp_mpienv
 contains
 
   !> Initializes MPI environment.
+  ! ---------------------------------------------------------------
+  ! Initializes global communicator and group communicators
+  ! Example:
+  ! globalSize = 10
+  ! nGroup = 2
+  ! groupSize = 5 
+  !                        rank
+  ! globalComm:      0 1 2 3 4 5 6 7 8 9
+  ! groupComm:       0 1 2 3 4 0 1 2 3 4
+  ! interGroupComm:  0 0 0 0 0 1 1 1 1 1
+  ! ---------------------------------------------------------------
+  ! SCALAPACK
+  ! Different groups handle different kpoints/spin (iKS)
+  ! All procs within a group know eigenval(:,iKS)
+  ! These are distributed to all other nodes using interGroupComm
+  ! eigenvec(:,:,iKS) are used to build the density matrix, DM(:,:,iKS)
+  ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
+  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM 
+  ! ---------------------------------------------------------------
+  ! LIBNEGF
+  ! Different groups handle different kpoints/spin (iKS)
+  ! All procs within a group know densMat(:,:,iKS)
+  ! DM(:,:,iKS) contains kWeight(iK) and occupation(iKS)
+  ! total DM(:,:) is obtained by mpiallreduce with MPI_SUM 
+  ! ---------------------------------------------------------------
   subroutine TMpiEnv_init(this, nGroup)
 
     !> Initialised instance on exit

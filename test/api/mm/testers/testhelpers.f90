@@ -19,13 +19,17 @@ module testhelpers
 contains
 
   !> Writes an autotest.tag file with the basic quantities
-  subroutine writeAutotestTag(merminEnergy, gradients, grossCharges, extChargeGradients)
+  subroutine writeAutotestTag(merminEnergy, gradients, stressTensor, &
+      & grossCharges, extChargeGradients)
 
     !> Mermin energy
     real(dp), optional, intent(in) :: merminEnergy
 
     !> Gradients
     real(dp), optional, intent(in) :: gradients(:,:)
+
+    !> Stress tensor of the periodic system.
+    real(dp), optional, intent(in) :: stressTensor(:,:)
 
     !> Gross mulliken charges
     real(dp), optional, intent(in) :: grossCharges(:)
@@ -51,14 +55,17 @@ contains
     if (present(extChargeGradients)) then
       call taggedWriter%write(autotestTag, tagLabels%chrgForces, -extChargeGradients)
     end if
+    if(present(stressTensor)) then
+      call taggedWriter%write(autotestTag, tagLabels%stressTot, stressTensor)
+    end if
     close(autotestTag)
 
   end subroutine writeAutotestTag
 
 
   !> C wrapper for the write autotest tag routine.
-  subroutine c_writeAutotestTag(nAtom, nExtCharge, merminEnergy, gradients, grossCharges,&
-      & extChargeGradients) bind(C, name='dftbp_write_autotest_tag')
+  subroutine c_writeAutotestTag(nAtom, nExtCharge, merminEnergy, gradients, stressTensor, &
+      & grossCharges, extChargeGradients) bind(C, name='dftbp_write_autotest_tag')
 
     !> Number of atoms
     integer(c_int), intent(in), value :: nAtom
@@ -72,18 +79,28 @@ contains
     !> Gradients or null pointer, if not avaialable.
     type(c_ptr), intent(in), value :: gradients
 
+    !> Stress tensor or null pointer, if not avaialable.
+    type(c_ptr), intent(in), value :: stressTensor
+
     !> Gross Mulliken charges or null pointer, if not avaialable.
     type(c_ptr), intent(in), value :: grossCharges
 
     !> Gradients on the external charges or null pointer, if not avaialable.
     type(c_ptr), intent(in), value :: extChargeGradients
 
-    real(dp), pointer :: pGradients(:,:), pGrossCharges(:), pExtChargeGradients(:,:)
+    real(dp), pointer :: pGradients(:,:), pGrossCharges(:), &
+      & pExtChargeGradients(:,:), pStressTensor(:,:)
 
     if (c_associated(gradients)) then
       call c_f_pointer(gradients, pGradients, [3, nAtom])
     else
       pGradients => null()
+    end if
+    
+    if (c_associated(stressTensor)) then
+      call c_f_pointer(stressTensor, pStressTensor, [3, 3])
+    else
+      pStressTensor => null()
     end if
 
     if (c_associated(grossCharges)) then
@@ -98,8 +115,9 @@ contains
       pExtChargeGradients => null()
     end if
 
-    call writeAutotestTag(merminEnergy=merminEnergy, gradients=pGradients,&
-        & grossCharges=pGrossCharges, extChargeGradients=pExtChargeGradients)
+    call writeAutotestTag(merminEnergy=merminEnergy, gradients=pGradients, &
+        & stressTensor=pStressTensor, grossCharges=pGrossCharges, &
+        & extChargeGradients=pExtChargeGradients)
 
   end subroutine c_writeAutotestTag
 

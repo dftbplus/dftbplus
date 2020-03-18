@@ -23,6 +23,7 @@ module dftbp_elsisolver
   use dftbp_message, only : error, cleanshutdown
   use dftbp_commontypes, only : TParallelKS, TOrbitals
   use dftbp_energies, only : TEnergies
+  use dftbp_etemp, only : fillingTypes
   use dftbp_sparse2dense
   use dftbp_assert
   use dftbp_spin, only : ud2qm
@@ -333,6 +334,11 @@ contains
       ! ignored by NTPoly, but set anyway:
       this%nState = nBasisFn
 
+    case (electronicSolverTypes%elpadm)
+      this%solver = 1
+      ! ignored by density matrix from ELPA, but set anyway:
+      this%nState = nBasisFn
+
     end select
 
     ! parallelism with multiple processes
@@ -373,12 +379,22 @@ contains
       this%csrBlockSize = this%csrBlockSize + 1
     end if
 
-    this%muBroadenScheme = min(iDistribFn,2)
-    if (iDistribFn > 1) then
+    this%muMpOrder = 0
+    if (iDistribFn == fillingTypes%Fermi) then
+      this%muBroadenScheme = 1
+    else if (iDistribFn == fillingTypes%Gaussian) then
+      this%muBroadenScheme = 0
+    else if (iDistribFn >= fillingTypes%Methfessel) then
+      this%muBroadenScheme = 2
       ! set Meth-Pax order
-      this%muMpOrder = iDistribFn - 2
+      this%muMpOrder = iDistribFn - fillingTypes%Methfessel - 1
     else
-      this%muMpOrder = 0
+      call error("Unknown electronic filling type")
+    end if
+
+    if (iDistribFn /= fillingTypes%Fermi .and.&
+        & any([electronicSolverTypes%pexsi,electronicSolverTypes%ntpoly] == this%iSolver)) then
+      call error("This electronic solver can only be used for Fermi function distributed electrons")
     end if
 
     ! ELPA settings
@@ -516,7 +532,7 @@ contains
 
 
       select case(this%iSolver)
-      case(electronicSolverTypes%elpa)
+      case(electronicSolverTypes%elpa, electronicSolverTypes%elpadm)
 
         select case(this%elpaSolverOption)
         case(1)
@@ -578,8 +594,8 @@ contains
 
       end select
 
-      if (any(this%iSolver == [electronicSolverTypes%omm,&
-          & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
+      if (any(this%iSolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+          & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])) then
         ! density matrix build needs to know the number of spin channels to normalize against
         select case(this%nSpin)
         case(1)

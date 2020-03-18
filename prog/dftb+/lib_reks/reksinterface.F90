@@ -65,10 +65,10 @@ module dftbp_reksinterface
     type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> dispersion interactions
-    class(DispersionIface), intent(inout), allocatable :: dispersion
+    class(TDispersionIface), intent(inout), allocatable :: dispersion
 
     !> neighbours to atoms
     type(TNeighbourList), intent(in) :: neighbourList
@@ -89,16 +89,16 @@ module dftbp_reksinterface
     type(TOrbitals), intent(in) :: orb
 
     !> method for calculating derivatives of S and H0
-    type(NonSccDiff), intent(in) :: nonSccDeriv
+    type(TNonSccDiff), intent(in) :: nonSccDeriv
 
     !> non-SCC hamiltonian information
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -148,7 +148,7 @@ module dftbp_reksinterface
 
     ! get the periodic information
     if (self%tPeriodic) then
-      call sccCalc%getPeriodicInfo(self%rVec, self%gVec, self%alpha, self%volume)
+      call sccCalc%coulombCont%getPeriodicInfo(self%rVec, self%gVec, self%alpha, self%volume)
     end if
 
     call getHellmannFeynmanGradientL_(env, denseDesc, sccCalc, neighbourList, &
@@ -461,16 +461,16 @@ module dftbp_reksinterface
 !    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> method for calculating derivatives of S and H0
-    type(NonSccDiff), intent(in) :: nonSccDeriv
+    type(TNonSccDiff), intent(in) :: nonSccDeriv
 
     !> non-SCC hamitonian information
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -494,7 +494,7 @@ module dftbp_reksinterface
     type(TOrbitals), intent(in) :: orb
 
     !> dispersion interactions
-    class(DispersionIface), intent(inout), allocatable :: dispersion
+    class(TDispersionIface), intent(inout), allocatable :: dispersion
 
     !> coordinates of all atoms
     real(dp), intent(in) :: coord(:,:)
@@ -647,16 +647,16 @@ module dftbp_reksinterface
     type(TOrbitals), intent(in) :: orb
 
     !> method for calculating derivatives of S and H0
-    type(NonSccDiff), intent(in) :: nonSccDeriv
+    type(TNonSccDiff), intent(in) :: nonSccDeriv
 
     !> non-SCC hamiltonian information
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -668,10 +668,10 @@ module dftbp_reksinterface
     real(dp), intent(in) :: q0(:,:,:)
 
     !> dispersion interactions
-    class(DispersionIface), intent(inout), allocatable :: dispersion
+    class(TDispersionIface), intent(inout), allocatable :: dispersion
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> forces on external charges
     real(dp), intent(inout) :: chrgForces(:,:)
@@ -817,7 +817,7 @@ module dftbp_reksinterface
     type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> neighbours to atoms
     type(TNeighbourList), intent(in) :: neighbourList

@@ -202,7 +202,7 @@ module dftbp_reksgrad
     real(dp), intent(out) :: deriv(:,:)
 
     !> Differentiatior for the non-scc components
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> density matrix in unpacked format
     real(dp), intent(in) :: DM(:,:,:,:)
@@ -211,10 +211,10 @@ module dftbp_reksgrad
     real(dp), intent(in) :: EDM(:,:)
 
     !> Container for SK Hamiltonian integrals
-    type(OSlakoCont) :: skHamCont
+    type(TSlakoCont) :: skHamCont
 
     !> Container for SK overlap integrals
-    type(OSlakoCont) :: skOverCont
+    type(TSlakoCont) :: skOverCont
 
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -421,7 +421,7 @@ module dftbp_reksgrad
     type(TScc), allocatable, intent(inout) :: sccCalc
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
