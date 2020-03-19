@@ -15,28 +15,26 @@ module dftbp_mainapi
   use dftbp_environment, only : TEnvironment
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables,                   &
        & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,             &
-       & nAtom, nSpin, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,             &
+       & nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,       &
        & tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,         &
        & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS,          &
-       & q0, qInput, qOutput, qInpRed, qOutRed, referenceN0, qDiffRed, nrChrg, initQFromShellChrg,&
-       & initQFromAtomChrg, setEquivalencyRelations, iEqOrbitals, nIneqOrb, nMixElements,         &
-       & onSiteElements, denseDesc, parallelKS, HSqrCplx, SSqrCplx,            &
-       & eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon,                        &
-       & initializeCharges, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut, iEqBlockDFTBU,            &
-       & iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, tStress, totalStress
+       & q0, qInput, qOutput, qInpRed, qOutRed, referenceN0, qDiffRed, nrChrg, nrSpinPol,         &
+       & setEquivalencyRelations, iEqOrbitals, nIneqOrb, nMixElements, onSiteElements, denseDesc, &
+       & parallelKS, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon, &
+       & initializeReferenceCharges, setNElectrons, initializeCharges, qBlockIn, qBlockOut,       &
+       & qiBlockIn, qiBlockOut, iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, &
+       & tStress, totalStress
 #:if WITH_SCALAPACK
   use dftbp_initprogram,  only : getDenseDescBlacs
 #:endif
   use dftbp_main,         only : processGeometry
   use dftbp_message,      only : error
-  use dftbp_orbitalequiv, only : orbitalEquiv_merge, orbitalEquiv_reduce
   use dftbp_orbitals,     only : TOrbitals
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
 #:if WITH_SCALAPACK
   use dftbp_scalapackfx,  only : scalafx_getlocalshape
 #:endif
-  use dftbp_sccinit,      only : initQFromShellChrg, initQFromAtomChrg
-  use dftbp_spin,         only : qm2ud, ud2qm, spin_getOrbitalEquiv
+  use dftbp_wrappedintr
   implicit none
   private
 
@@ -257,7 +255,7 @@ contains
 
   !> When order of atoms changes, update arrays containing atom type indices,
   !> and all subsequent dependencies.
-  !  Updated data returned via use statements
+  !  Updated data returned via module use statements
   subroutine updateDataDependentOnSpeciesOrdering(env, inputSpecies)
     
     !> dftb+ environment 
@@ -266,7 +264,9 @@ contains
     integer,              intent(in) :: inputSpecies(:)
     !> Dummy arguments. Won't be used if not allocated
     real(dp), allocatable :: initialCharges(:), initialSpins(:,:)
-    
+    type(TWrappedInt1), allocatable :: customOccAtoms(:)
+    real(dp), allocatable :: customOccFillings(:,:)
+
     if(size(inputSpecies) /= nAtom)then
        call error("Number of atoms must be keep constant in simulation")
     endif
@@ -283,11 +283,14 @@ contains
     call reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, &
          & SSqrReal, eigVecsReal)
 #:endif
-    !If atomic order changes, partial charges need to be initialised,
-    !else wrong partial charge will be associated with each atom
+    !If atomic order changes, partial charges need to be initialised,                                                   
+    !else wrong charge will be associated with each atom                                                                
+    call initializeReferenceCharges(species0, referenceN0, orb, customOccAtoms, &
+         & customOccFillings, q0)
+    call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
          & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, &
-         & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)  
+         & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
     
   end subroutine updateDataDependentOnSpeciesOrdering
 
@@ -330,9 +333,9 @@ contains
     !> Dense matrix descriptor for H and S
     type(TDenseDescr),  intent(inout) :: denseDesc
 
+  #:if WITH_SCALAPACK
     ! Specificaly, denseDesc uses orb%nOrbAtom
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
-  #:if WITH_SCALAPACK
     call getDenseDescBlacs(env, env%blacs%rowBlockSize, env%blacs%columnBlockSize, denseDesc)
   #:endif
 
@@ -340,8 +343,10 @@ contains
 
   
   !> Reassign Hamiltonian, overlap and eigenvector arrays
-  ! if nAtom is constant and one is running with one process, this should not be required
+  !
+  ! If nAtom is constant and one is running without BLACS, this should not be required
   ! hence preprocessed out 
+  ! May require extending if ((nAtom not constant) and (not BLACS))
   subroutine reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, &
        & HSqrReal, SSqrReal ,eigVecsReal)
 
@@ -364,10 +369,10 @@ contains
     ! Local variables 
     integer :: nLocalRows, nLocalCols, nLocalKS
 
+#:if WITH_SCALAPACK 
     !Retrieved from index array for spin and k-point index
     nLocalKS = size(parallelKS%localKS, dim=2)
-    
-#:if WITH_SCALAPACK 
+  
     !Get nLocalRows and nLocalCols 
     call scalafx_getlocalshape(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, &
                                nLocalRows, nLocalCols)
