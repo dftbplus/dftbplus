@@ -2663,19 +2663,29 @@ contains
         call error("Current system is fractionally charged, please check charge if using REKS")
       end if
 
-      ! Condition for electronicSolver
-      select case (electronicSolver%iSolver)
-      case (electronicSolverTypes%GF)
-        call error("REKS is not compatible with Green's function solver")
-      case (electronicSolverTypes%onlyTransport)
-        call error("REKS is not compatible with OnlyTransport-solver")
-      case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-          & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-        call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1), nExtChrg,&
-            & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, t3rd.or.t3rdFull, tRangeSep,&
-            & tForces, tPeriodic, tStress)
-      case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
-        call error("REKS is not compatible with density matrix ELSI-solvers")
+      ! Condition for Hamiltonian types
+      select case(hamiltonianType)
+      case default
+        call error("Invalid Hamiltonian")
+      case(hamiltonianTypes%dftb)
+
+        ! Condition for electronicSolver
+        select case (electronicSolver%iSolver)
+        case (electronicSolverTypes%GF)
+          call error("REKS is not compatible with Green's function solver")
+        case (electronicSolverTypes%onlyTransport)
+          call error("REKS is not compatible with OnlyTransport-solver")
+        case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+            & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
+          call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1), nExtChrg,&
+              & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, t3rd.or.t3rdFull, tRangeSep,&
+              & tForces, tPeriodic, tStress)
+        case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
+          call error("REKS is not compatible with density matrix ELSI-solvers")
+        end select
+
+      case(hamiltonianTypes%xtb)
+        call error("xTB calculation currently not supported for REKS")
       end select
 
     end if
