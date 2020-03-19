@@ -29,6 +29,9 @@ target_link_libraries(test_extcharges dftbplus)
 add_executable(test_qdepextpot test_qdepextpot.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_qdepextpot dftbplus)
 
+add_executable(test_setspeciesanddependents test_setspeciesanddependents.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
+target_link_libraries(test_setspeciesanddependents dftbplus)
+
 if(WITH_C_EXECUTABLES)
   add_executable(test_qdepextpotc test_qdepextpotc.c $<TARGET_OBJECTS:test_api_mm_utils>)
   target_link_libraries(test_qdepextpotc dftbplus)
