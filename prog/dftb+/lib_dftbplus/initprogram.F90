@@ -552,6 +552,9 @@ module dftbp_initprogram
   !> Total charge
   real(dp) :: nrChrg
 
+  !> Spin polarisation                                                                                                       
+  real(dp) :: nrSpinPol
+  
   !> Is the check-sum for charges read externally be used?                                                     
   logical :: tSkipChrgChecksum
 
@@ -1676,49 +1679,12 @@ contains
       call error("xTB calculation currently not supported")
     end select
 
-    ! Allocate reference charge arrays
-    allocate(q0(orb%mOrb, nAtom, nSpin))
-    q0(:,:,:) = 0.0_dp
- 
-    ! Initialize reference neutral atoms.
-    if (isLinResp .and. allocated(input%ctrl%customOccAtoms)) then
-       call error("Custom occupation not compatible with linear response")
-    end if
-    if (tMulliken) then
-      if (allocated(input%ctrl%customOccAtoms)) then
-        if (isLinResp) then
-          call error("Custom occupation not compatible with linear response")
-        end if
-        call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
-            & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
-      else
-        call initQFromShellChrg(q0, referenceN0, species0, orb)
-      end if
-    end if
-
-    nrChrg = input%ctrl%nrChrg
-
-    nEl0 = sum(q0(:,:,1))
-    if (abs(nEl0 - nint(nEl0)) < elecTolMax) then
-      nEl0 = nint(nEl0)
-    end if
-    nEl(:) = 0.0_dp
-    if (nSpin == 1 .or. nSpin == 4) then
-      nEl(1) = nEl0 - input%ctrl%nrChrg
-      if(ceiling(nEl(1)) > 2.0_dp*nOrb) then
-        call error("More electrons than basis functions!")
-      end if
-    else
-      nEl(1) = 0.5_dp * (nEl0 - nrChrg + input%ctrl%nrSpinPol)
-      nEl(2) = 0.5_dp * (nEl0 - nrChrg - input%ctrl%nrSpinPol)
-      if (any(ceiling(nEl(:)) > nOrb)) then
-        call error("More electrons than basis functions!")
-      end if
-    end if
-
-    if (.not.all(nEl(:) >= 0.0_dp)) then
-      call error("Less than 0 electrons!")
-    end if
+    referenceN0(:,:) = input%slako%skOcc(1:orb%mShell, :)                                                                    
+    nrChrg = input%ctrl%nrChrg                                                                                               
+    nrSpinPol = input%ctrl%nrSpinPol                                                                                         
+    call initializeReferenceCharges(species0, referenceN0, orb, input%ctrl%customOccAtoms, &
+         & input%ctrl%customOccFillings, q0)
+    call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
 
     if (tForces) then
       tCasidaForces = input%ctrl%tCasidaForces
@@ -3395,6 +3361,87 @@ contains
   end subroutine initializeCharges
 
   
+  !> Assign reference charge arrays, q0                                                                                      
+  !                                                                                                                          
+  ! Data available in module: nAtom, nSpin, isLinResp, tMulliken                                                              
+  subroutine initializeReferenceCharges(species0, referenceN0, orb, customOccAtoms, &
+       & customOccFillings, q0)
+
+    !> type of the atoms (nAtom)                                                                                             
+    integer, intent(in) :: species0(:)
+    !> reference n_0 charges for each atom, from the Slater-Koster file                                                      
+    real(dp), intent(in) :: referenceN0(:,:)
+    !> Data type for atomic orbitals                                                                                         
+    type(TOrbitals), intent(in) :: orb 
+    !> Atom indices corresponding to user defined reference atomic charges                                                   
+    !  Array of occupation arrays, one for each atom                                                                         
+    type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
+    !> User-defined reference atomic shell charges                                                                           
+    real(dp), allocatable, intent(in) :: customOccFillings(:,:)
+    !> reference neutral atomic occupations                                                                                  
+    real(dp), allocatable, intent(inout) :: q0(:, :, :)
+
+    if(.not. allocated(q0))then
+       allocate(q0(orb%mOrb, nAtom, nSpin))
+    endif
+    q0(:,:,:) = 0.0_dp
+
+    ! Initialize reference neutral atoms.                                                                                    
+    if (isLinResp .and. allocated(customOccAtoms)) then
+       call error("Custom occupation not compatible with linear response")
+    end if
+    if (tMulliken) then
+       if (allocated(customOccAtoms)) then
+          if (isLinResp) then
+             call error("Custom occupation not compatible with linear response")
+          end if
+          call applyCustomReferenceOccupations(customOccAtoms, customOccFillings, &
+               & species0, orb, referenceN0, q0)
+       else
+          call initQFromShellChrg(q0, referenceN0, species0, orb)
+       end if
+    end if
+
+  end subroutine initializeReferenceCharges
+
+  
+  !> Set number of electrons                                                                                                 
+  ! Data available via module: elecTolMax, nSpin, nOrb                                                                       
+  subroutine setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
+    !> reference neutral atomic occupations                                                                                  
+    real(dp), intent(in) :: q0(:, :, :)
+    !> Total charge                                                                                                          
+    real(dp), intent(in) :: nrChrg
+    real(dp), intent(in) :: nrSpinPol 
+    !> nr. of electrons                                                                                                      
+    real(dp), intent(inout) :: nEl(:)  
+    !> Nr. of all electrons if neutral                                                                                       
+    real(dp), intent(inout) :: nEl0
+
+    nEl0 = sum(q0(:,:,1))
+    if (abs(nEl0 - nint(nEl0)) < elecTolMax) then
+      nEl0 = nint(nEl0)
+    end if
+    nEl(:) = 0.0_dp
+    if (nSpin == 1 .or. nSpin == 4) then
+      nEl(1) = nEl0 - nrChrg
+      if(ceiling(nEl(1)) > 2.0_dp*nOrb) then
+        call error("More electrons than basis functions!")
+      end if
+    else
+      nEl(1) = 0.5_dp * (nEl0 - nrChrg + nrSpinPol)
+      nEl(2) = 0.5_dp * (nEl0 - nrChrg - nrSpinPol)
+      if (any(ceiling(nEl(:)) > nOrb)) then
+        call error("More electrons than basis functions!")
+      end if
+    end if
+
+    if (.not.all(nEl >= 0.0_dp)) then
+      call error("Less than 0 electrons!")
+    end if
+
+  end subroutine setNElectrons
+
   
 #:if WITH_TRANSPORT
   !> Check for inconsistencies in transport atom region definitions
