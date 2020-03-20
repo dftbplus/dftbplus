@@ -12,15 +12,14 @@ module dftbp_dispdftd4
   use, intrinsic :: ieee_arithmetic, only : ieee_is_nan
   use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_dispiface, only : TDispersionIface
   use dftbp_environment, only : TEnvironment
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
-  use dftbp_simplealgebra, only : determinant33, invert33
-  use dftbp_coulomb, only : getMaxGEwald, getOptimalAlphaEwald
+  use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, symbolToNumber
   use dftbp_dftd4param, only : TDftD4Calculator, TDispDftD4Inp, initializeCalculator
-  use dftbp_encharges, only : getEEQcharges
-  use dftbp_blasroutines, only : gemv
+  use dftbp_dispiface, only : TDispersionIface
+  use dftbp_encharges, only : TEeqCont, init
+  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_simplealgebra, only : determinant33
   implicit none
   private
 
@@ -52,27 +51,14 @@ module dftbp_dispdftd4
     !> stress tensor
     real(dp) :: stress(3, 3)
 
-    !> Contains the points included in the reciprocal sum.
-    !> The set should not include the origin or inversion related points.
-    real(dp), allocatable :: recPoint(:, :)
-
-    !> Parameter for Ewald summation.
-    real(dp) :: parEwald
-
     !> is this periodic
     logical :: tPeriodic
 
     !> are the coordinates current?
     logical :: tCoordsUpdated
 
-    !> evaluate Ewald parameter
-    logical :: tAutoEwald
-
-    !> if > 0 -> manual setting for alpha
-    real(dp) :: ewaldAlpha
-
-    !> Ewald tolerance
-    real(dp) :: tolEwald
+    !> EEQ model
+    type(TEeqCont) :: eeqCont
 
   contains
 
@@ -131,27 +117,16 @@ contains
 
     this%tPeriodic = present(latVecs)
 
+    if (this%tPeriodic) then
+      call init(this%eeqCont, inp%eeqInput, .false., .true., nAtom, latVecs)
+    else
+      call init(this%eeqCont, inp%eeqInput, .false., .true., nAtom)
+    end if
+
     this%tCoordsUpdated = .false.
 
     if (this%tPeriodic) then
-      this%latVecs(:,:) = latVecs
-      this%vol = determinant33(latVecs)
-      call invert33(recVecs, latVecs, this%vol)
-      this%vol = abs(this%vol)
-      recVecs = 2.0_dp * pi * transpose(recVecs)
-
-      this%ewaldAlpha = 0.0_dp
-      this%tAutoEwald = inp%parEwald <= 0.0_dp
-      this%tolEwald = inp%tolEwald
-      if (this%tAutoEwald) then
-        this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, this%tolEwald)
-      else
-        this%parEwald = inp%parEwald
-      end if
-      maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
-      call getLatticePoints(this%recPoint, recVecs, latVecs / (2.0_dp*pi), maxGEwald,&
-          & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
-      this%recPoint = matmul(recVecs, this%recPoint)
+      call this%updateLatVecs(latVecs)
     end if
 
     this%nAtom = nAtom
@@ -190,11 +165,11 @@ contains
 
     if (this%tPeriodic) then
       call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%recPoint, this%energies, this%gradients, stress=this%stress, volume=this%vol,&
-          & parEwald=this%parEwald)
+          & this%eeqCont, this%energies, this%gradients, stress=this%stress, volume=this%vol,&
+          & parEwald=this%eeqCont%parEwald)
     else
       call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%recPoint, this%energies, this%gradients)
+          & this%eeqCont, this%energies, this%gradients)
     end if
 
     this%tCoordsUpdated = .true.
@@ -217,18 +192,9 @@ contains
     @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
 
     this%latVecs = latVecs
-    this%vol = determinant33(latVecs)
-    call invert33(recVecs, latVecs, this%vol)
-    this%vol = abs(this%vol)
-    recVecs = 2.0_dp * pi * transpose(recVecs)
+    this%vol = abs(determinant33(latVecs))
 
-    if (this%tAutoEwald) then
-      this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, this%tolEwald)
-    end if
-    maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
-    call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
-        & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
-    this%recPoint = matmul(recVecs, this%recPoint)
+    call this%eeqCont%updateLatVecs(latVecs)
 
     this%tCoordsUpdated = .false.
 
@@ -299,7 +265,7 @@ contains
     real(dp) :: cutoff
 
     cutoff = max(this%calculator%cutoffInter, this%calculator%cutoffCount,&
-        & this%calculator%cutoffEwald, this%calculator%cutoffThree)
+        & this%eeqCont%getRCutoff(), this%calculator%cutoffThree)
 
   end function getRCutoff
 
@@ -990,7 +956,7 @@ contains
 
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
-  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, img2CentCell, recPoint,&
+  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, img2CentCell, eeqCont,&
       & energies, gradients, stress, volume, parEwald)
 
     !> DFT-D dispersion model.
@@ -1011,9 +977,8 @@ contains
     !> Mapping into the central cell.
     integer, intent(in) :: img2CentCell(:)
 
-    !> Contains the points included in the reciprocal sum.
-    !> The set should not include the origin or inversion related points.
-    real(dp), allocatable, intent(in) :: recPoint(:, :)
+    !> EEQ model
+    type(TEeqCont), intent(inout) :: eeqCont
 
     !> Parameter for Ewald summation.
     real(dp), intent(in), optional :: parEwald
@@ -1035,7 +1000,6 @@ contains
     real(dp) :: sigma(3, 3)
     real(dp) :: vol, parEwald0
     real(dp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
-    real(dp), allocatable :: q(:), dqdr(:, :, :), dqdL(:, :, :)
 
     if (present(volume)) then
       vol = volume
@@ -1068,20 +1032,14 @@ contains
         & calculator%electronegativity, .false., cn, dcndr, dcndL)
     call cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max=8.0_dp)
 
-    allocate(q(nAtom), dqdr(3, nAtom, nAtom), dqdL(3, 3, nAtom))
-
-    call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffEwald)
-
-    call getEEQCharges(nAtom, coords, species, calculator%nrChrg, nNeigh, neigh%iNeighbour,&
-        & neigh%neighDist2, img2CentCell, recPoint, parEwald0, vol, calculator%chi, calculator%kcn,&
-        & calculator%gam, calculator%rad, cn, dcndr, dcndL, qAtom=q, dqdr=dqdr, dqdL=dqdL)
+    call eeqCont%updateCoords(neigh, img2CentCell, coords, species, cn, dcndr, dcndL)
 
     call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
         & img2CentCell, calculator%covalentRadius, calculator%electronegativity, .true., cn, dcndr,&
         & dcndL)
 
     call dispersionGradient(calculator, nAtom, coords, species, neigh, img2CentCell, cn, dcndr,&
-        & dcndL, q, dqdr, dqdL, energies, gradients, sigma)
+        & dcndL, eeqCont%charges, eeqCont%dqdr, eeqCont%dqdL, energies, gradients, sigma)
 
     if (present(stress)) then
       stress(:, :) = sigma / volume

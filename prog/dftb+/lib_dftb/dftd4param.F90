@@ -12,6 +12,7 @@ module dftbp_dftd4param
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
+  use dftbp_encharges, only : TEeqInput
   use dftbp_dftd4refs
   implicit none
 
@@ -125,9 +126,6 @@ module dftbp_dftd4param
     !> Cutoff radius for CN counting function.
     real(dp) :: cutoffCount = 40.0_dp
 
-    !> Cutoff radius for real space Ewald summation.
-    real(dp) :: cutoffEwald = 40.0_dp
-
     !> Cutoff radius for three-body interactions.
     real(dp) :: cutoffThree = 40.0_dp
 
@@ -140,14 +138,8 @@ module dftbp_dftd4param
     !> Charge scaling steepness for partial charge extrapolation.
     real(dp) :: chargeSteepness = 2.0_dp
 
-    !> If > 0 -> manual setting for alpha
-    real(dp) :: parEwald = 0.0_dp
-
-    !> Ewald tolerance
-    real(dp) :: tolEwald = 0.0_dp
-
-    !> Net charge
-    real(dp) :: nrChrg = 0.0_dp
+    !> Input for EEQ charge model
+    type(TEeqInput) :: eeqInput
 
   end type TDispDftD4Inp
 
@@ -192,29 +184,11 @@ module dftbp_dftd4param
     !> Cutoff radius for CN counting function.
     real(dp) :: cutoffCount
 
-    !> Cutoff radius for real space Ewald summation.
-    real(dp) :: cutoffEwald
-
     !> Cutoff radius for three-body interactions.
     real(dp) :: cutoffThree
 
-    !> Net charge
-    real(dp) :: nrChrg = 0.0_dp
-
     !> Number of distinct species
     integer :: nSpecies
-
-    !> Electronegativities for EEQ model
-    real(dp), allocatable :: chi(:)
-
-    !> Chemical hardnesses for EEQ model
-    real(dp), allocatable :: gam(:)
-
-    !> Charge widths for EEQ model
-    real(dp), allocatable :: rad(:)
-
-    !> CN scaling for EEQ model
-    real(dp), allocatable :: kcn(:)
 
     !> Atomic expectation values for extrapolation of C6 coefficients
     real(dp), allocatable :: sqrtZr4r2(:)
@@ -558,12 +532,6 @@ contains
     nSpecies = size(speciesNames)
     calculator%nSpecies = nSpecies
 
-    ! initialize charge model
-    calculator%chi = getEeqChi(speciesNames)
-    calculator%gam = getEeqGam(speciesNames)
-    calculator%rad = getEeqRad(speciesNames)
-    calculator%kcn = getEeqKcn(speciesNames)
-
     calculator%sqrtZr4r2 = getSqrtZr4r2(speciesNames)
     calculator%covalentRadius = getCovalentRadiusD3(speciesNames)
     calculator%electronegativity = getPaulingEN(speciesNames)
@@ -578,12 +546,9 @@ contains
     calculator%a2 = input%a2
     calculator%alpha = input%alpha
 
-    calculator%nrChrg = input%nrChrg
-
     calculator%cutoffCount = input%cutoffCount
     calculator%cutoffInter = input%cutoffInter
     calculator%cutoffThree = input%cutoffThree
-    calculator%cutoffEwald = input%cutoffEwald
 
     calculator%wf = input%weightingFactor
     calculator%ga = input%chargeScale

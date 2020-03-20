@@ -1,0 +1,38 @@
+#!-------------------------------------------------------------------------------------------------!
+#!  DFTB+: general package for performing fast atomistic simulations                               !
+#!  Copyright (C) 2006 - 2020  DFTB+ developers group                                              !
+#!                                                                                                 !
+#!  See the LICENSE file for terms of usage and distribution.                                      !
+#!-------------------------------------------------------------------------------------------------!
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#! Error string handling wrappers for returns from routinese
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+#! Macro to return an error flag if return variable available or throw
+#! an error and shut down otherwise
+#:def ERROR_HANDLING(errVar, errNumber, msg)
+  write(strTmp,"(A)")${msg}$
+  if (present(${errVar}$)) then
+    ${errVar}$ = ${errNumber}$
+    call warning(strTmp)
+    return
+  else
+    call error(strTmp)
+  end if
+#:enddef ERROR_HANDLING
+
+
+#! Macro to return an error flag if return variable available or throw
+#! an error and shut down otherwise
+#:def FORMATTED_ERROR_HANDLING(errVar, errNumber, formating, *variables)
+  write(strTmp,${formating}$) ${ ",".join(variables) }$
+  if (present(${errVar}$)) then
+    ${errVar}$ = ${errNumber}$
+    call warning(strTmp)
+    return
+  else
+    call error(strTmp)
+  end if
+#:enddef FORMATTED_ERROR_HANDLING
