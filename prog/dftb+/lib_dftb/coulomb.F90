@@ -158,10 +158,13 @@ module dftbp_coulomb
     !> Returns shifts per shell
     procedure :: addShiftPerShell
 
-    procedure, public :: getPeriodicInfo
+    !> Get the variables relate to periodic information
+    procedure :: getPeriodicInfo
 
+    ! TODO
     procedure, public :: addInvRPrimeClusterMat
 
+    ! TODO
     procedure, public :: addInvRPrimePeriodicMat
 
   end type TCoulombCont

@@ -258,8 +258,10 @@ module dftbp_scc
     !> Returns potential from external charges
     procedure :: getExternalElStatPotential
 
+    !> Calculate gamma integral derivatives in SCC part
     procedure :: getGammaDeriv
 
+    !> Get Q * inverse R contribution for the point charges
     procedure :: getShiftOfPC
 
   end type TScc
