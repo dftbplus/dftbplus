@@ -6,6 +6,8 @@
 !  under the LGPL licence.                                                *
 !**************************************************************************
 
+#:include "error.fypp"
+
 #!#:set MEMLOG = 1
 
 #! (LABEL, TYPE, ARRAY, ARGS) tuple for all logged arrays
@@ -25,8 +27,7 @@ module gallocation
   use, intrinsic :: iso_fortran_env, only : int64
   use, intrinsic :: iso_c_binding, only : c_sizeof
   use std_io
-  use dftbp_accuracy, only : dp, lc
-  use dftbp_message
+  use dftbp_accuracy, only : dp
 
   integer, parameter :: long = int64
   integer, save :: iolog
@@ -52,26 +53,31 @@ contains
 #:for LABEL, TYPE, ARRAY, ARGS in ALLOC_CASES
 
   !---------------------------------------------------------------
-  subroutine allocate_${LABEL}$(array, ${ARGS}$)
+  subroutine allocate_${LABEL}$(array, ${ARGS}$, err)
 
     ${TYPE}$, allocatable, target, intent(inout) :: array(${ARRAY}$)
 
     integer, intent(in) :: ${ARGS}$
 
+    !> Error code, 0 if no problems
+    integer, intent(out), optional :: err
+
     ${TYPE}$, pointer :: pArrayFlat(:)
     integer :: iErr
-    character(lc) :: strTmp
+
+    if (present(err)) then
+      err = 0
+    end if
 
     !Allocation control: if array is already allocated STOP and write error statement
     if (allocated(array)) then
-      call error('ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is already allocated')
+      @:ERROR_HANDLING(err,-1,"ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is already allocated")
     endif
 
     if(.not. allocated(array)) then
       allocate(array(${ARGS}$), stat=iErr)
       if (ierr /= 0) then
-        write(strTmp, "(A,I0)")'Poisson allocation error: ', iErr
-        call error(strTmp)
+        @:FORMATTED_ERROR_HANDLING(err, iErr, "(A,I0)", "Poisson allocation error: ", iErr)
       else
         if (size(array) > 0) then
           pArrayFlat(1 : size(array)) => array
@@ -94,12 +100,19 @@ contains
 #:for LABEL, TYPE, ARRAY, _ in ALLOC_CASES
 
   !---------------------------------------------------------------
-  subroutine deallocate_${LABEL}$(array)
+  subroutine deallocate_${LABEL}$(array, err)
 
     ${TYPE}$, allocatable, target, intent(inout) :: array(${ARRAY}$)
 
+    !> Error code, 0 if no problems
+    integer, intent(out), optional :: err
+
     ${TYPE}$, pointer :: pArrayFlat(:)
-    
+
+    if (present(err)) then
+      err = 0
+    end if
+
     if (allocated(array)) then
       if (size(array) > 0) then
         pArrayFlat(1 : size(array)) => array
@@ -110,7 +123,7 @@ contains
       call writePoissMemInfo()
      #:endif
     else
-      call error('ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is not allocated')
+      @:ERROR_HANDLING(err, -1, 'ALLOCATION ERROR: ${TYPE}$ (${LABEL}$) array is not allocated')
     endif
 
   end subroutine deallocate_${LABEL}$
