@@ -1,98 +1,46 @@
-# Geometry passed to DFTB+ via API
+#Geometry =  GenFormat {
+#  <<< "structure_1.gen" 
+#}
 
+Driver = {}
+    
 Hamiltonian = DFTB {
   SCC = Yes
-  MaxSCCIterations = 5
-  
-  MaxAngularMomentum = {
-    C = "p"
+  SCCTolerance = 1.00E-8
+  MaxAngularMomentum {
     H = "s"
+    C = "p"
   }
-  
-  Filling = Fermi {
-    Temperature [Kelvin] = 300
-    IndependentKFilling = No
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "/home/alex/SK_Parameter_Sets/mio/mio-1-1/"
+    Separator = "-"
+    Suffix  = ".skf"
   }
-
-  SlaterKosterFiles = {
-    H-H = "./H-H.skf"
-    C-C = "./C-C.skf"
-    C-H = "./C-H.skf"
-  }
-  
   KPointsAndWeights = SuperCellFolding {
-1 0 0
-0 1 0
-0 0 1
-0. 0. 0.
+    1 0 0
+    0 1 0
+    0 0 1
+    0. 0. 0.
   }
-  
-  PolynomialRepulsive = {}
-  ShellResolvedSCC = No
-  OldSKInterpolation = No
-  RangeSeparated = None {}
-  ReadInitialCharges = No
-  InitialCharges = {}
-  SCCTolerance = 1.0000000000000001E-005
-  Mixer = Broyden {
-    MixingParameter = 0.20000000000000001
-    InverseJacobiWeight = 1.0000000000000000E-002
-    MinimalWeight = 1.0000000000000000
-    MaximalWeight = 100000.00000000000
-    WeightFactor = 1.0000000000000000E-002
-  }
-  
-  EwaldParameter = 0.0000000000000000
-  EwaldTolerance = 1.0000000000000001E-009
-  HCorrection = None {}
-  SpinPolarisation = {}
-  ElectricField = {}
-  Solver = RelativelyRobust {}
-  Charge = 0.0000000000000000
-  OnSiteCorrection = {}
-  Dispersion = {}
-  ThirdOrder = No
-  ThirdOrderFull = No
-  Differentiation = FiniteDiff {
-    Delta = 1.2207031250000000E-004
-  }
-  ForceEvaluation = "Traditional"
 }
 
 Options = {
-  WriteResultsTag = No
-  WriteDetailedOut = No
-  TimingVerbosity = 0
   WriteAutotestTag = Yes
-  WriteDetailedXML = No
-  RestartFrequency = 20
-  RandomSeed = 0
-  WriteHS = No
-  WriteRealHS = No
-  MinimiseMemoryUsage = No
-  ShowFoldedCoords = No
-  WriteChargesAsText = No
-}
-
-ParserOptions = {
-  ParserVersion = 8
-  WriteHSDInput = No
-  WriteXMLInput = No
-  StopAfterParsing = No
-  IgnoreUnprocessedNodes = No
+   WriteDetailedOut=Yes
+   TimingVerbosity = 1
 }
 
 Analysis = {
   CalculateForces = Yes
-  ProjectStates = {}
-  WriteEigenvectors = No
-  WriteBandOut = No
-  MullikenAnalysis = Yes
-  AtomResolvedEnergies = No
 }
 
-Driver = {}
-ExcitedState = {}
-Parallel = {
+ParserOptions = {
+  ParserVersion = 6
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
+

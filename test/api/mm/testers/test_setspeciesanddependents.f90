@@ -2,25 +2,23 @@
 ! Test 'setSpeciesAndDependents' when order of species changes
 !--------------------------------------------------------------------
 !
-! Test API subroutine 'setSpeciesAndDependents' which can
+! Test subroutine 'setSpeciesAndDependents' which can
 ! be used to reset quantities that depend on the global ordering of 
-! atomic species. 
+! atoms species. I.e.
 !
-! If species(1:nAtoms) = (/1,2,2,1,...,1/) -> (/1,2,2,1,...,2/),  
-! following an MD step, reset equivalency relations and partial charges.
-! This situation can arise in molecular dynamics packages that use domain
-! decomposition as an MPI parallelisation scheme.
+! species(1:nAtoms) = (/1,2,2,1,...,1/) -> (/1,2,2,1,...,2/),  
+! following an MD step. A situation that arises in molecular dynamics
+! packages that uses domain decomposition as a parallelisation scheme.
 !
 ! All processes read in geometry and all processes contain all atoms.
-! nAtoms is conserved.
+! nAtoms conserved.
 !
 ! Forces are not used to update atomic positions, rather two sets
-! of atomic positions are read from files and forces are computed
-! for each of them, sequentially. Forces of the 2nd geometry are evaluated
-! by the test framework. 
+! of atomic positions are read from file and forces are computed
+! for them
 !
-! If 'setSpeciesAndDependents' is not called, species data from structure1.gen
-! will be used for the structure2.gen calculation, resulting in erroneous forces. 
+! NOTE: count_substrings function requires no leading white space
+! for species names in structure.gen
 !
 ! Author: A. Buccheri. 2020. University of Bristol.
 ! alexanderbuccheri@googlemail.com
@@ -33,7 +31,7 @@ program test_setSpeciesAndDependents
   use dftbp_mmapi,  only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput
   use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, &
                           setChildValue, dumpHsd
-  use testhelpers,  only: writeAutotestTag
+  !use testhelpers,  only: writeAutotestTag
   implicit none
 
   !> Precision and unit conversion
@@ -45,10 +43,8 @@ program test_setSpeciesAndDependents
   type(TDftbPlus)      :: dftb
   type(TDftbPlusInput) :: hsd_tree, input
   Character(len=11), parameter :: dftb_fname = 'dftb_in.hsd'
-  !> Print more data for debugging
-  Logical              :: suppressIO = .true.
 
-  !> Type containing geometrical information
+  !> Type for containing geometrical information
   !  One can write their own type, rather than copy DTFB+'s 
   type TGeometry
     integer :: nAtom
@@ -76,12 +72,12 @@ program test_setSpeciesAndDependents
   logical            :: IO
 
   !Local
-  integer, parameter :: nAtoms = 568
+  integer, parameter :: nAtoms = 8
   integer, parameter :: Nsteps = 2  
 
   type(MDstatus_type):: MDstatus
   type(TGeometry)    :: geo
-  integer            :: imd, ia, i
+  integer            :: imd, ia
   real(dp)           :: merminEnergy
   character(len=2)   :: imd_lab
   character(len=100) :: fname
@@ -103,13 +99,13 @@ program test_setSpeciesAndDependents
      !Equivalent to obtaining data from MD package 
      write(imd_lab, '(I2)') imd 
      fname = 'structure_'//trim(adjustl(imd_lab))//'.gen'
-     call read_in_geo(trim(adjustl(fname)), geo, header=1)
+     call read_in_geo(trim(adjustl(fname)), geo)
      
      if(imd == MDstatus%initial_step) then
         Call TDftbPlus_init(dftb, output_unit, MPI_COMM_WORLD)
         Call initialise_dftbplus_tree(geo, dftb, hsd_tree)
         !Dump hsd tree to fort.1
-        if(.not. suppressIO) Call dumpHsd(hsd_tree%hsdTree, 001)
+        !Call dumpHsd(hsd_tree%hsdTree, 001)
         Call dftb%setupCalculator(hsd_tree)
      endif
 
@@ -123,16 +119,15 @@ program test_setSpeciesAndDependents
      !Do a total energy calculation
      call dftb%getEnergy(merminEnergy)     
      call dftb%getGradients(gradients)
-     if(.not. suppressIO)then
-        call output_forces_per_process(gradients, imd_lab)
-     endif
+     call output_forces_per_process(gradients, imd_lab)
+   
   enddo
 
   !Clean up
   call TDftbPlus_destruct(dftb)
 
   ! Write file for internal test system                                                                    
-  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients) 
+  !call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients) 
 
   call mpi_finalize(ierr)
 
@@ -150,12 +145,13 @@ contains
   !! @param[in]   input_fname Optional DFTB+ input file name 
   !
   Subroutine initialise_dftbplus_tree(geo, dftb, hsd_tree, input_fname)
-
+    !Arguments 
     Type(tGeometry), Intent( In    ) :: geo
     Type(TDftbPlus),          Intent( InOut ) :: dftb
     Type(TDftbPlusInput),     Intent(   Out ) :: hsd_tree
     Character(Len=*),         Intent( In    ),   Optional :: input_fname
 
+    !Local data
     !> DFTB+ input file name 
     Character(Len=100) :: fname
     !> Pointers to the parts of the input tree that will be set                                
@@ -186,18 +182,7 @@ contains
     !Always compute forces
     Call setChild(pRoot, "Analysis", pAnalysis, replace=.True.)
     Call setChildValue(pAnalysis, "CalculateForces", .True.)
-
-    !More info for debugging 
-    If(.not. suppressIO) Then
-       !Call setChildValue(pAnalysis, "WriteBandOut", .False.)
-       !Call setChildValue(pAnalysis, "MullikenAnalysis", .True.)
-       Call setChild(pRoot, "ParserOptions", pParserOpts, replace=.True.)
-       Call setChildValue(pParserOpts, "ParserVersion", 8)
-       Call setChildValue(pParserOpts, 'WriteResultsTag', .True.)
-       Call setChildValue(pParserOpts, "WriteDetailedOut", .True.)
-       Call setChildValue(pParserOpts, "WriteHSDInput", .True.)
-    Endif
-      
+   
   End Subroutine initialise_dftbplus_tree
 
   
