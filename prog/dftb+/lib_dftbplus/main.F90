@@ -5851,13 +5851,13 @@ contains
     type(TScc), allocatable, intent(in) :: sccCalc
 
     !> Is 3rd order SCC being used
-    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+    type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> External field
     logical, intent(in) :: tExtField
 
     !> method for calculating derivatives of S and H0
-    type(NonSccDiff), intent(in) :: nonSccDeriv
+    type(TNonSccDiff), intent(in) :: nonSccDeriv
 
     !> density matrix
     real(dp), intent(in) :: rhoPrim(:,:)
@@ -5872,13 +5872,13 @@ contains
     real(dp), intent(in) :: q0(:,:,:)
 
     !> non-SCC hamitonian information
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> repulsive information
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> list of neighbours for each atom
     type(TNeighbourList), intent(in) :: neighbourList
@@ -5911,7 +5911,7 @@ contains
     real(dp), intent(in), allocatable :: iRhoPrim(:,:)
 
     !> dispersion interactions
-    class(DispersionIface), allocatable, intent(inout) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Correction for halogen bonds
     type(THalogenX), allocatable, intent(inout) :: halogenXCorrection

@@ -1207,13 +1207,13 @@ contains
     integer, allocatable :: pTmpI1(:)
     real(dp), allocatable :: tmpR1(:)
     real(dp), allocatable :: tmpR2(:,:)
-    real(dp) :: rTmp, rTmp3(3), rTmp22(2,2)
+    real(dp) :: rTmp, rTmp3(3)
     integer, allocatable :: iTmpN(:)
     integer :: nShell, skInterMeth
     character(1) :: tmpCh
     logical :: tShellIncl(4), tFound
     integer :: angShell(maxL+1), angShellOrdered(maxL+1)
-    integer :: fp, iErr, iTmp, iTmp2(2)
+    integer :: fp, iErr
     logical :: tBadIntegratingKPoints
     integer :: nElem
     real(dp) :: rSKCutOff
@@ -2462,6 +2462,8 @@ contains
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
     character(lc) :: errorStr
+    integer :: iTmp, iTmp2(2)
+    real(dp) :: rTmp22(2,2)
 
     ! Assume SCC can has usual default number of steps if needed
     tBadIntegratingKPoints = .false.
