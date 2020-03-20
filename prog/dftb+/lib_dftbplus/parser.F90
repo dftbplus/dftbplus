@@ -3612,6 +3612,8 @@ contains
         call getChildValue(child2, geo%speciesNames(iSp1), ctrl%pprpa%hhubbard(iSp1))
       end do
 
+      call getChildValue(child, "TammDancoff", ctrl%pprpa%tTDA, default=.false.)
+
     end if
 
   end subroutine readExcited

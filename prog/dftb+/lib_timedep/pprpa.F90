@@ -48,6 +48,9 @@ module dftbp_pprpa
     !> Initialised data structure?
     logical :: tInit = .false.
 
+    !> Tamm Dancoff Approximation?
+    logical :: tTDA 
+
   end type ppRPAcal
 
   !> Name of output file
@@ -59,9 +62,12 @@ contains
 
   !> This subroutine analytically calculates excitations energies
   !> based on Time Dependent DFRT
-  subroutine ppRPAenergies(denseDesc, grndEigVecs, grndEigVal, sccCalc,&
+  subroutine ppRPAenergies(tTDA, denseDesc, grndEigVecs, grndEigVal, sccCalc,&
       & nexc, symc, U_h, SSqr, species0, rnel, iNeighbour,&
       & img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter)
+
+    !> Tamm-Dancoff approximation?
+    logical, intent(in) :: tTDA
 
     !> index vector for S and H matrices
     type(TDenseDescr), intent(in) :: denseDesc
@@ -123,7 +129,7 @@ contains
     integer:: fdExc
 
     integer, allocatable :: iAtomStart(:)
-    integer :: nocc, nvir, nxoo, nxvv
+    integer :: nocc, nvir, nxoo, nxvv, dim_rpa
     integer :: norb, natom
     integer :: iSpin, isym
     integer :: nSpin
@@ -206,17 +212,26 @@ contains
       sym = symmetries(isym)
 
       if (sym == "S") then
-        ALLOCATE(pp_eval(nxvv + nxoo))
-        ALLOCATE(vr(nxvv + nxoo, nxvv + nxoo))
+        if (.not. tTDA) then
+          dim_rpa = nxvv + nxoo
+        else
+          dim_rpa = nxvv
+        end if
       else
-        ALLOCATE(pp_eval(nxvv + nxoo - nvir - nocc))
-        ALLOCATE(vr(nxvv + nxoo - nvir - nocc, nxvv + nxoo - nvir - nocc))
+        if (.not. tTDA) then
+          dim_rpa = nxvv + nxoo - nvir - nocc
+        else
+          dim_rpa = nxvv - nvir
+        end if
       end if
 
-      call buildAndDiagppRPAmatrix(sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, iAtomStart,&
+      ALLOCATE(pp_eval(dim_rpa))
+      ALLOCATE(vr(dim_rpa, dim_rpa))
+
+      call buildAndDiagppRPAmatrix(tTDA, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, iAtomStart,&
           & gamma_eri, stimc, grndEigVecs, pp_eval, vr)
 
-      call writeppRPAExcitations(sym, grndEigVal(:,1), nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
+      call writeppRPAExcitations(tTDA, sym, grndEigVal(:,1), nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
           & tWriteTagged, fdTagged, taggedWriter)
 
       deallocate(pp_eval)
@@ -233,8 +248,11 @@ contains
 
 
   !> Builds and diagonalizes the pp-RPA matrix
-  subroutine buildAndDiagppRPAmatrix(sym, eigVal, nocc, nvir, nxvv, nxoo, ind,&
+  subroutine buildAndDiagppRPAmatrix(tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, ind,&
       & gamma_eri, stimc, cc, pp_eval, vr)
+
+    !> Tamm-Dancoff approximation?
+    logical, intent(in) :: tTDA
 
     !> symmetry to calculate transitions
     character, intent(in) :: sym
@@ -338,72 +356,76 @@ contains
 
       end do
 
-      ! build Matrix B
-      B_s(:,:) = 0.0_dp
+      if (.not. tTDA) then
+        ! build Matrix B
+        B_s(:,:) = 0.0_dp
 
-      do ab = 1, nxvv
-        call indxvv(nocc, ab, a, b)
-        factor1 = 1.0_dp
-        if (a == b) factor1 = 1/sqrt(2.0_dp)
-        do kl = 1, nxoo
-          call indxoo(kl, k, l)
-          factor2 = 1.0_dp
-          if (k == l) factor2 = 1/sqrt(2.0_dp)
+        do ab = 1, nxvv
+          call indxvv(nocc, ab, a, b)
+          factor1 = 1.0_dp
+          if (a == b) factor1 = 1/sqrt(2.0_dp)
+          do kl = 1, nxoo
+            call indxoo(kl, k, l)
+            factor2 = 1.0_dp
+            if (k == l) factor2 = 1/sqrt(2.0_dp)
 
-          q_1(:) = transq(k, a, ind, updwn, stimc, cc)
-          q_2(:) = transq(l, b, ind, updwn, stimc, cc)
-          q_3(:) = transq(l, a, ind, updwn, stimc, cc)
-          q_4(:) = transq(k, b, ind, updwn, stimc, cc)
+            q_1(:) = transq(k, a, ind, updwn, stimc, cc)
+            q_2(:) = transq(l, b, ind, updwn, stimc, cc)
+            q_3(:) = transq(l, a, ind, updwn, stimc, cc)
+            q_4(:) = transq(k, b, ind, updwn, stimc, cc)
 
-          do at1 = 1, natom
-            do at2 = 1, natom
-              B_s(ab,kl) = B_s(ab,kl) + gamma_eri(at1,at2)&
-                 &             *(q_1(at1)*q_2(at2) + q_3(at1)*q_4(at2))&
-                 &             *factor1*factor2
+            do at1 = 1, natom
+              do at2 = 1, natom
+                B_s(ab,kl) = B_s(ab,kl) + gamma_eri(at1,at2)&
+                   &             *(q_1(at1)*q_2(at2) + q_3(at1)*q_4(at2))&
+                   &             *factor1*factor2
+              end do
             end do
+
+          end do
+        end do
+
+        ! build Matrix C
+        C_s(:,:) = 0.0_dp
+
+        do ij = 1, nxoo
+          call indxoo(ij, i, j)
+          factor1 = 1.0_dp
+          if (i == j) factor1 = 1/sqrt(2.0_dp)
+
+          C_s(ij,ij) = C_s(ij,ij) - eigVal(i) - eigVal(j)
+
+          do kl = ij, nxoo
+            call indxoo(kl, k, l)
+            factor2 = 1.0_dp
+            if (k == l) factor2 = 1/sqrt(2.0_dp)
+
+            q_1(:) = transq(i, k, ind, updwn, stimc, cc)
+            q_2(:) = transq(j, l, ind, updwn, stimc, cc)
+            q_3(:) = transq(i, l, ind, updwn, stimc, cc)
+            q_4(:) = transq(j, k, ind, updwn, stimc, cc)
+
+            do at1 = 1, natom
+              do at2 = 1, natom
+                C_s(ij,kl) = C_s(ij,kl) + gamma_eri(at1,at2)&
+                &                *(q_1(at1)*q_2(at2) + q_3(at1)*q_4(at2))&
+                &                *factor1*factor2
+              end do
+            end do
+
+            if (ij /= kl) C_s(kl,ij) = C_s(kl,ij) + C_s(ij,kl)
           end do
 
         end do
-      end do
 
-      ! build Matrix C
-      C_s(:,:) = 0.0_dp
-
-      do ij = 1, nxoo
-        call indxoo(ij, i, j)
-        factor1 = 1.0_dp
-        if (i == j) factor1 = 1/sqrt(2.0_dp)
-
-        C_s(ij,ij) = C_s(ij,ij) - eigVal(i) - eigVal(j)
-
-        do kl = ij, nxoo
-          call indxoo(kl, k, l)
-          factor2 = 1.0_dp
-          if (k == l) factor2 = 1/sqrt(2.0_dp)
-
-          q_1(:) = transq(i, k, ind, updwn, stimc, cc)
-          q_2(:) = transq(j, l, ind, updwn, stimc, cc)
-          q_3(:) = transq(i, l, ind, updwn, stimc, cc)
-          q_4(:) = transq(j, k, ind, updwn, stimc, cc)
-
-          do at1 = 1, natom
-            do at2 = 1, natom
-              C_s(ij,kl) = C_s(ij,kl) + gamma_eri(at1,at2)&
-              &                *(q_1(at1)*q_2(at2) + q_3(at1)*q_4(at2))&
-              &                *factor1*factor2
-            end do
-          end do
-
-          if (ij /= kl) C_s(kl,ij) = C_s(kl,ij) + C_s(ij,kl)
-        end do
-
-      end do
-
-      !build ppRPA matrix
-      PP(1:nxvv,1:nxvv)   =  A_s(:,:)
-      PP(1:nxvv,nxvv+1:)  =  B_s(:,:)
-      PP(nxvv+1:,1:nxvv)  = -transpose(B_s)
-      PP(nxvv+1:,nxvv+1:) = -C_s(:,:)
+        !build ppRPA matrix
+        PP(1:nxvv,1:nxvv)   =  A_s(:,:)
+        PP(1:nxvv,nxvv+1:)  =  B_s(:,:)
+        PP(nxvv+1:,1:nxvv)  = -transpose(B_s)
+        PP(nxvv+1:,nxvv+1:) = -C_s(:,:)
+      else
+        PP(:,:) = A_s(:,:)
+      end if
 
     else !-------- triplets ----------
 
@@ -441,74 +463,77 @@ contains
 
       end do
 
-      ! build Matrix B
-      B_t(:,:) = 0.0_dp
-      ab_r = 0
-      do ab = 1, nxvv
-        call indxvv(nocc, ab, a, b)
-        if (a == b) cycle
-        ab_r = ab_r + 1
+      if (.not. tTDA) then
+        ! build Matrix B
+        B_t(:,:) = 0.0_dp
+        ab_r = 0
+        do ab = 1, nxvv
+          call indxvv(nocc, ab, a, b)
+          if (a == b) cycle
+          ab_r = ab_r + 1
 
-        kl_r = 0
-        do kl = 1, nxoo
-          call indxoo(kl, k, l)
-          if (k == l) cycle
-          kl_r = kl_r + 1
+          kl_r = 0
+          do kl = 1, nxoo
+            call indxoo(kl, k, l)
+            if (k == l) cycle
+            kl_r = kl_r + 1
 
-          q_1(:) = transq(k, a, ind, updwn, stimc, cc)
-          q_2(:) = transq(l, b, ind, updwn, stimc, cc)
-          q_3(:) = transq(l, a, ind, updwn, stimc, cc)
-          q_4(:) = transq(k, b, ind, updwn, stimc, cc)
+            q_1(:) = transq(k, a, ind, updwn, stimc, cc)
+            q_2(:) = transq(l, b, ind, updwn, stimc, cc)
+            q_3(:) = transq(l, a, ind, updwn, stimc, cc)
+            q_4(:) = transq(k, b, ind, updwn, stimc, cc)
 
-          do at1 = 1, natom
-            do at2 = 1, natom
-              B_t(ab_r,kl_r) = B_t(ab_r,kl_r) + gamma_eri(at1,at2)&
-                 &             *(q_1(at1)*q_2(at2) - q_3(at1)*q_4(at2))
+            do at1 = 1, natom
+              do at2 = 1, natom
+                B_t(ab_r,kl_r) = B_t(ab_r,kl_r) + gamma_eri(at1,at2)&
+                   &             *(q_1(at1)*q_2(at2) - q_3(at1)*q_4(at2))
+              end do
             end do
+
+          end do
+        end do
+
+        ! build Matrix C
+        C_t(:,:) = 0.0_dp
+        ij_r = 0
+        do ij = 1, nxoo
+          call indxoo(ij, i, j)
+          if (i == j) cycle
+          ij_r = ij_r + 1
+
+          C_t(ij_r,ij_r) = C_t(ij_r,ij_r) - eigVal(i) - eigVal(j)
+
+          kl_r = ij_r - 1
+          do kl = ij, nxoo
+            call indxoo(kl, k, l)
+            if (k == l) cycle
+            kl_r = kl_r + 1
+
+            q_1(:) = transq(i, k, ind, updwn, stimc, cc)
+            q_2(:) = transq(j, l, ind, updwn, stimc, cc)
+            q_3(:) = transq(i, l, ind, updwn, stimc, cc)
+            q_4(:) = transq(j, k, ind, updwn, stimc, cc)
+
+            do at1 = 1, natom
+              do at2 = 1, natom
+                C_t(ij_r,kl_r) = C_t(ij_r,kl_r) + gamma_eri(at1,at2)&
+                &                *(q_1(at1)*q_2(at2) - q_3(at1)*q_4(at2))
+              end do
+            end do
+
+            if (ij_r /= kl_r) C_t(kl_r,ij_r) = C_t(kl_r,ij_r) + C_t(ij_r,kl_r)
           end do
 
         end do
-      end do
 
-      ! build Matrix C
-      C_t(:,:) = 0.0_dp
-      ij_r = 0
-      do ij = 1, nxoo
-        call indxoo(ij, i, j)
-        if (i == j) cycle
-        ij_r = ij_r + 1
-
-        C_t(ij_r,ij_r) = C_t(ij_r,ij_r) - eigVal(i) - eigVal(j)
-
-        kl_r = ij_r - 1
-        do kl = ij, nxoo
-          call indxoo(kl, k, l)
-          if (k == l) cycle
-          kl_r = kl_r + 1
-
-          q_1(:) = transq(i, k, ind, updwn, stimc, cc)
-          q_2(:) = transq(j, l, ind, updwn, stimc, cc)
-          q_3(:) = transq(i, l, ind, updwn, stimc, cc)
-          q_4(:) = transq(j, k, ind, updwn, stimc, cc)
-
-          do at1 = 1, natom
-            do at2 = 1, natom
-              C_t(ij_r,kl_r) = C_t(ij_r,kl_r) + gamma_eri(at1,at2)&
-              &                *(q_1(at1)*q_2(at2) - q_3(at1)*q_4(at2))
-            end do
-          end do
-
-          if (ij_r /= kl_r) C_t(kl_r,ij_r) = C_t(kl_r,ij_r) + C_t(ij_r,kl_r)
-        end do
-
-      end do
-
-      !build ppRPA matrix
-      PP(1:nxvv_r,1:nxvv_r)   =  A_t(:,:)
-      PP(1:nxvv_r,nxvv_r+1:)  =  B_t(:,:)
-      PP(nxvv_r+1:,1:nxvv_r)  = -transpose(B_t)
-      PP(nxvv_r+1:,nxvv_r+1:) = -C_t(:,:)
-
+        !build ppRPA matrix
+        PP(1:nxvv_r,1:nxvv_r)   =  A_t(:,:)
+        PP(1:nxvv_r,nxvv_r+1:)  =  B_t(:,:)
+        PP(nxvv_r+1:,1:nxvv_r)  = -transpose(B_t)
+        PP(nxvv_r+1:,nxvv_r+1:) = -C_t(:,:)
+      else
+        PP(:,:) = A_t(:,:)
+      end if
     end if
 
     !diagonalize ppRPA matrix
@@ -524,8 +549,11 @@ contains
 
 
   !> write pp-RPA excitation energies in output file
-  subroutine writeppRPAExcitations(sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
+  subroutine writeppRPAExcitations(tTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
       & tWriteTagged, fdTagged, taggedWriter)
+
+    !> Tamm-Dancoff approximation?
+    logical, intent(in) :: tTDA
 
     !> symmetry to calculate transitions
     character, intent(in) :: sym
@@ -594,13 +622,14 @@ contains
     !neglect negative-norm eigenvectors
     norm(:) = 0.0_dp
 
-    do a = 1, nxvv_r
-      norm(:) = norm(:) + (vr(a,:))**2
-    end do
-
-    do i = 1, nxoo_r
-      norm(:) = norm(:) - (vr(nxvv_r+i,:))**2
-    end do
+    if (.not. tTDA) then
+      do a = 1, nxvv_r
+        norm(:) = norm(:) + (vr(a,:))**2
+      end do
+      do i = 1, nxoo_r
+        norm(:) = norm(:) - (vr(nxvv_r+i,:))**2
+      end do
+    end if
 
     call index_heap_sort(e_ind, pp_eval)
     pp_eval = pp_eval(e_ind)
