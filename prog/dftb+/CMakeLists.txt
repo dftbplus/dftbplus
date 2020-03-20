@@ -65,8 +65,6 @@ target_include_directories(dftbplus PUBLIC
 
 target_include_directories(dftbplus PRIVATE ${CMAKE_SOURCE_DIR}/external/dftd4refs)
 
-target_link_libraries(dftbplus PUBLIC slatec)
-
 if(WITH_SOCKETS)
   target_include_directories(dftbplus PUBLIC
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)

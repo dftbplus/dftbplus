@@ -1185,7 +1185,7 @@ contains
     tHelical = input%geom%tHelical
 
     ! start by assuming stress can be calculated if periodic
-    tStress = tPeriodic .or. tHelical
+    tStress = tPeriodic ! .or. tHelical
 
     ! Brillouin zone sampling
     if (tPeriodic .or. tHelical) then
@@ -1947,7 +1947,7 @@ contains
 
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
-    tStress = ((tPeriodic .or. tHelical) .and. tForces .and. .not.tNegf .and. tStress)
+    tStress = (tPeriodic .and. tForces .and. .not.tNegf .and. tStress)
 
     nMovedAtom = input%ctrl%nrMoved
     nMovedCoord = 3 * nMovedAtom

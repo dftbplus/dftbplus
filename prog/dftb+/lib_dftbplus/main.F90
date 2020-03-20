@@ -744,23 +744,14 @@ contains
           & mass, tPeriodic, latVec)
 
       if (tStress) then
-        if (tHelical) then
-          call env%globalTimer%startTimer(globalTimers%stressCalc)
-          call getHelicalBCDerivs(env, latvec(:2,1), sccCalc, thirdOrd, tExtField, nonSccDeriv,&
-              & rhoPrim, ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList,&
-              & nNeighbourSk, nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential,&
-              & coord, iRhoPrim, dispersion, halogenXCorrection)
-          call env%globalTimer%stopTimer(globalTimers%stressCalc)
-        else
-          call env%globalTimer%startTimer(globalTimers%stressCalc)
-          call getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim,&
-              & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
-              & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
-              & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
-              & dispersion, halogenXCorrection)
-          call env%globalTimer%stopTimer(globalTimers%stressCalc)
-          call printVolume(cellVol)
-        end if
+        call env%globalTimer%startTimer(globalTimers%stressCalc)
+        call getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim,&
+            & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
+            & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
+            & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
+            & dispersion, halogenXCorrection)
+        call env%globalTimer%stopTimer(globalTimers%stressCalc)
+        call printVolume(cellVol)
 
         ! MD case includes the atomic kinetic energy contribution, so print that later
         if (.not. (tMD .or. tHelical)) then
