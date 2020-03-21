@@ -310,10 +310,6 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%postGeoOpt)
 
-    if (allocated(reks)) then
-      call REKS_destroy(reks)
-    end if
-
   #:if WITH_TRANSPORT
     if (tPoisson) then
       call poiss_destroy()
