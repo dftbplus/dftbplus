@@ -23,8 +23,7 @@ module dftbp_reksvar
 
   private
 
-  public :: TReksIni, TReksCalc
-  public :: REKS_init, REKS_reallocate
+  public :: TReksIni, TReksCalc, REKS_init
 
   !> Data type for initial values for REKS calculations
   type :: TReksIni
@@ -516,10 +515,16 @@ module dftbp_reksvar
     !> electronic stress part for lattice optimization
     real(dp), allocatable :: elecStressL(:,:,:)
 
+  contains
+
+    !> Reallocate sparse arrays used in REKS
+    procedure :: reallocate
+
   end type TReksCalc
 
   contains
 
+  !> Initialize REKS data from REKS input
   subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl, nChrgs, &
       & extChrg, blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress)
     
@@ -1078,6 +1083,7 @@ module dftbp_reksvar
 
   contains
 
+    !> Check REKS common requirements
     subroutine checkReksRequirements(self)
 
       !> data type for REKS
@@ -1160,6 +1166,7 @@ module dftbp_reksvar
 
     end subroutine checkReksRequirements
 
+    !> Check REKS(2,2) requirements
     subroutine checkSSR22Requirements(self)
 
       !> data type for REKS
@@ -1178,10 +1185,11 @@ module dftbp_reksvar
   end subroutine REKS_init
 
 
-  subroutine REKS_reallocate(self, sparseSize)
+  !> Reallocate sparse arrays used in REKS
+  subroutine reallocate(self, sparseSize)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    class(TReksCalc), intent(inout) :: self
 
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
@@ -1253,7 +1261,7 @@ module dftbp_reksvar
       end if
     end if
 
-  end subroutine REKS_reallocate
+  end subroutine reallocate
 
 
 end module dftbp_reksvar

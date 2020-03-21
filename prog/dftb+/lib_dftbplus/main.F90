@@ -1502,7 +1502,7 @@ contains
       allocate(ERhoPrim(sparseSize))
     end if
     if (allocated(reks)) then
-      call REKS_reallocate(reks, sparseSize)
+      call reks%reallocate(sparseSize)
     end if
 
   end subroutine reallocateSparseArrays
