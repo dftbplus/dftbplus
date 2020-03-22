@@ -1206,14 +1206,8 @@ contains
     end if
 
     tRealHS = .true.
-    if (tPeriodic) then
-      if ( size(kPoint,dim=2) == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])) then
-        tRealHS = .true.
-      else
-        tRealHS = .false.
-      end if
-    else if (tHelical) then
-      if ( size(kPoint,dim=2) == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp])) then
+    if (tPeriodic .or. tHelical) then
+      if ( size(kPoint,dim=2) == 1 .and. all(kPoint(:, 1) == 0.0_dp)) then
         tRealHS = .true.
       else
         tRealHS = .false.
@@ -1437,7 +1431,7 @@ contains
         sccInp%recVecs = recVec
         sccInp%volume = CellVol
       else if (tHelical) then
-        call error("to do")
+        call error("Scc calculations not currently supported for helical boundary conditions")
       end if
       sccInp%hubbU = hubbU
       allocate(tDampedShort(nType))
@@ -2035,7 +2029,7 @@ contains
     end if
 
     if (tSocket .and. tHelical) then
-      call error("Socket protocol does not understand helical geometries")
+      call error("The socket protocol does not understand helical geometries")
     end if
 
     ! Initialize constraints
@@ -2053,6 +2047,9 @@ contains
     tHHRepulsion = .false.
     tDispersion = allocated(input%ctrl%dispInp)
     if (tDispersion) then
+      if (tHelical) then
+        call error("Dispersion not currently supported for helical boundary conditions")
+      end if
       if (allocated(input%ctrl%dispInp%slakirk)) then
 
         tStress = .false.
