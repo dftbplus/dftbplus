@@ -1,6 +1,7 @@
 set(curdir "lib_reks")
 
 set(sources-fpp
+  ${curdir}/reks.F90
   ${curdir}/rekscommon.F90
   ${curdir}/rekscpeqn.F90
   ${curdir}/reksen.F90

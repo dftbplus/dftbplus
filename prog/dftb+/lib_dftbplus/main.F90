@@ -85,12 +85,7 @@ module dftbp_main
   use dftbp_initprogram, only : TRefExtPot
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
-  use dftbp_rekscommon
-  use dftbp_reksen
-  use dftbp_reksfon
-  use dftbp_reksinterface
-  use dftbp_reksproperty
-  use dftbp_reksvar
+  use dftbp_reks
   use dftbp_plumed, only : TPlumedCalc, TPlumedCalc_final
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
