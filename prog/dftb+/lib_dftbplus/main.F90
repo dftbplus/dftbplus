@@ -692,7 +692,7 @@ contains
       end if
       call ppRPAenergies(RPA%tTDA, denseDesc, eigvecsReal, eigen(:,1,:), sccCalc,&
           & RPA%nexc, RPA%sym, RPA%hhubbard, SSqrReal, species, nEl(1), neighbourList%iNeighbour,&
-          & img2CentCell, orb, tWriteAutotest, autotestTag, taggedWriter)
+          & img2CentCell, orb, tWriteAutotest, autotestTag, taggedWriter, RPA%tConstVir, RPA%nvirtual)
     end if
 
     if (tXlbomd) then

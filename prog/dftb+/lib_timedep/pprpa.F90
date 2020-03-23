@@ -49,7 +49,13 @@ module dftbp_pprpa
     logical :: tInit = .false.
 
     !> Tamm Dancoff Approximation?
-    logical :: tTDA 
+    logical :: tTDA
+
+    !> virtual orbital constraint?
+    logical :: tConstVir
+
+    !> number of virtual orbitals
+    integer :: nvirtual
 
   end type ppRPAcal
 
@@ -64,7 +70,7 @@ contains
   !> based on Time Dependent DFRT
   subroutine ppRPAenergies(tTDA, denseDesc, grndEigVecs, grndEigVal, sccCalc,&
       & nexc, symc, U_h, SSqr, species0, rnel, iNeighbour,&
-      & img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter)
+      & img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter, tConst, nConst)
 
     !> Tamm-Dancoff approximation?
     logical, intent(in) :: tTDA
@@ -116,6 +122,12 @@ contains
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    !> virtual orbital constraint?
+    logical, intent(in) :: tConst
+
+    !> number of virtual orbitals
+    integer, intent(in) :: nConst
 
 
     logical :: tSpin
@@ -189,7 +201,12 @@ contains
     end do
 
     nocc = nint(rnel) / 2
-    nvir = nOrb - nocc
+
+    if ((.not. tConst) .or. ( (tConst) .and. (nConst > nOrb-nocc) )) then
+      nvir = nOrb - nocc
+    else
+      nvir = nConst
+    end if
 
     ! elements in a triangle plus the diagonal of the occ-occ and virt-virt blocks
     nxoo = (nocc * (nocc + 1)) / 2

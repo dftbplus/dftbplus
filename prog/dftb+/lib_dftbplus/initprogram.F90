@@ -2141,6 +2141,10 @@ contains
 
        RPA%nExc = input%ctrl%pprpa%nExc
        RPA%sym = input%ctrl%pprpa%sym
+       RPA%tTDA = input%ctrl%pprpa%tTDA
+
+       RPA%tConstVir = input%ctrl%pprpa%tConstVir
+       RPA%nvirtual = input%ctrl%pprpa%nvirtual
 
        ALLOCATE(RPA%hhubbard(size(input%ctrl%pprpa%hhubbard)))
        RPA%hhubbard(:) = input%ctrl%pprpa%hhubbard

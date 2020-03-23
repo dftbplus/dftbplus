@@ -3614,6 +3614,16 @@ contains
 
       call getChildValue(child, "TammDancoff", ctrl%pprpa%tTDA, default=.false.)
 
+      call getChild(child, "NrOfVirtualStates", child2, requested=.false.)
+      if (.not. associated(child2)) then      
+        ctrl%pprpa%nvirtual = 0
+        ctrl%pprpa%tConstVir = .false.
+        call setChildValue(child, "NrOfVirtualStates", 0)
+      else
+        call getChildValue(child2, "", ctrl%pprpa%nvirtual)
+        ctrl%pprpa%tConstVir = .true.
+      end if
+
     end if
 
   end subroutine readExcited
