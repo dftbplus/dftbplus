@@ -161,11 +161,12 @@ module dftbp_coulomb
     !> Get the variables relate to periodic information
     procedure :: getPeriodicInfo
 
-    ! TODO
-    procedure, public :: addInvRPrimeClusterMat
+    !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
+    !> storing anything.
+    procedure :: addInvRPrimeClusterMat
 
-    ! TODO
-    procedure, public :: addInvRPrimePeriodicMat
+    !> Calculates the -1/R**2 deriv contribution for the periodic case, without storing anything.
+    procedure :: addInvRPrimePeriodicMat
 
   end type TCoulombCont
 
