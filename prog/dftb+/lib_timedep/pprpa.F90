@@ -148,6 +148,9 @@ contains
     integer :: fdTagged
     character :: sym
 
+    integer :: homo = 0
+    real(dp) :: eval_0 = 0.0_dp
+
     !> ppRPA eigenvalues (two-electron addition/removal energies)
     real(dp), allocatable :: pp_eval(:)
 
@@ -173,13 +176,14 @@ contains
       select case (symc)
       case ("B")
         ALLOCATE(symmetries(2))
-        symmetries(:) = [ "T", "S" ]
+        symmetries(:) = [ "S", "T" ]
       case ("S")
         ALLOCATE(symmetries(1))
         symmetries(:) = [ "S" ]
       case ("T")
-        ALLOCATE(symmetries(1))
-        symmetries(:) = [ "T" ]
+        ! like B. Triplet calculation requires first singlet exc. energy
+        ALLOCATE(symmetries(2))
+        symmetries(:) = [ "S", "T" ]
       end select
     else
       call error("spin-unrestricted calculations currently not possible with pp-RPA ")
@@ -249,7 +253,7 @@ contains
           & gamma_eri, stimc, grndEigVecs, pp_eval, vr)
 
       call writeppRPAExcitations(tTDA, sym, grndEigVal(:,1), nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
-          & tWriteTagged, fdTagged, taggedWriter)
+          & tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
 
       deallocate(pp_eval)
       deallocate(vr)
@@ -567,7 +571,7 @@ contains
 
   !> write pp-RPA excitation energies in output file
   subroutine writeppRPAExcitations(tTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
-      & tWriteTagged, fdTagged, taggedWriter)
+      & tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
 
     !> Tamm-Dancoff approximation?
     logical, intent(in) :: tTDA
@@ -611,13 +615,19 @@ contains
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    integer :: a, i, ii, aa, bb, homo, lumo, diff_a, diff_b
+    !> first eigenvalue (considers singlet ground state of N-system)
+    real(dp), intent(inout) :: eval_0
+
+    !> HOMO of N-system
+    integer, intent(inout) :: homo
+
+    integer :: a, i, ii, aa, bb, diff_a, diff_b
     integer :: nRPA, nxoo_r, nxvv_r
     integer, allocatable :: e_ind(:)
     real(dp), allocatable :: norm(:)
     real(dp), allocatable :: wvr(:), wvnorm(:)
     integer, allocatable :: wvin(:)
-    real(dp):: eval_0, weight
+    real(dp):: weight
     real(dp):: ks_ener_a, ks_ener_b
 
     nRPA   = size(pp_eval)
@@ -667,15 +677,14 @@ contains
       weight = wvr(1)
 
       ii = ii + 1
-      if (ii == 1) then
+      if ((ii == 1) .and. (sym == "S")) then
         eval_0 = pp_eval(i)
         homo = aa
-        lumo = homo + 1
         cycle
       endif
 
-      diff_a = aa - lumo
-      diff_b = bb - lumo
+      diff_a = aa - homo - 1
+      diff_b = bb - homo - 1
       ks_ener_a = Hartree__eV * (eigVal(aa) - eigVal(homo))
       ks_ener_b = Hartree__eV * (eigVal(bb) - eigVal(homo))
 
@@ -684,8 +693,13 @@ contains
         write(fdExc,'(1x,f10.3,6x,a,i2,a,i2,5x,f6.3,6x,f7.3,a,f7.3,7x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
            & 'HOMO -> LUMO +', diff_b,',', diff_a, weight, ks_ener_b, ',', ks_ener_a, sym
       else
-        write(fdExc,'(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
-          & 'HOMO -> LUMO +', diff_a, weight, ks_ener_a, sym
+        if (diff_a /= -1) then
+          write(fdExc,'(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
+            & 'HOMO -> LUMO +', diff_a, weight, ks_ener_a, sym
+        else !S_0 -> T_0 
+          write(fdExc,'(1x,f10.3,6x,a,12x,f6.3,6x,f7.3,15x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
+            & 'HOMO -> HOMO', weight, ks_ener_a, sym
+        end if
       endif
 
       if (ii > nExc) exit
