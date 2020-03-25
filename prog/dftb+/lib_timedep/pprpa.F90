@@ -674,6 +674,10 @@ contains
       wvr = wvr(wvin)
 
       call indxvv(nocc, wvin(1), aa, bb)
+      if (sym == "T") then
+        aa = aa + 1
+      end if
+
       weight = wvr(1)
 
       ii = ii + 1
@@ -693,16 +697,13 @@ contains
         write(fdExc,'(1x,f10.3,6x,a,i2,a,i2,5x,f6.3,6x,f7.3,a,f7.3,7x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
            & 'HOMO -> LUMO +', diff_b,',', diff_a, weight, ks_ener_b, ',', ks_ener_a, sym
       else
-        if (diff_a /= -1) then
-          write(fdExc,'(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
-            & 'HOMO -> LUMO +', diff_a, weight, ks_ener_a, sym
-        else !S_0 -> T_0 
-          write(fdExc,'(1x,f10.3,6x,a,12x,f6.3,6x,f7.3,15x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
-            & 'HOMO -> HOMO', weight, ks_ener_a, sym
-        end if
+        write(fdExc,'(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
+           & 'HOMO -> LUMO +', diff_a, weight, ks_ener_a, sym
       endif
 
-      if (ii > nExc) exit
+      if ( ((ii > nExc) .and. (sym == "S")) .or. ((ii == nExc) .and. (sym == "T")) ) then
+         exit
+      end if
 
     end do
 
