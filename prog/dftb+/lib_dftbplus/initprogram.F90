@@ -1271,6 +1271,7 @@ contains
       latVec(:,:) = input%geom%latVecs(:,:)
       allocate(recVec(1, 1))
       recVec = 1.0_dp / latVec(1,1)
+      allocate(invLatVec(0, 0))
     else
       allocate(latVec(0, 0))
       allocate(recVec(0, 0))
