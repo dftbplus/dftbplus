@@ -496,16 +496,11 @@ module negf_int
   !> Destroy (module stored!) CSR matrices
   subroutine negf_destroy()
 
+    write(stdOut, *)
+    write(stdOut, *) 'Release NEGF memory:'
     call destruct(csrHam)
     call destruct(csrOver)
     call destroy_negf(negf)
-
-    write(stdOut, *)
-    write(stdOut, *) 'Release NEGF memory:'
-    !if (tIoProc) then
-    !  call writePeakInfo(6)
-    !  call writeMemInfo(6)
-    !end if
     call writePeakInfo(stdOut)
     call writeMemInfo(stdOut)
 
@@ -1273,7 +1268,7 @@ module negf_int
   !> Calculate the current and optionally density of states
   subroutine calc_current(env, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
-      & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
+      & currLead, tWriteTunn, tWriteLDOS, regionLabelLDOS, mu)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1330,7 +1325,7 @@ module negf_int
     real(dp), allocatable, intent(inout) :: currLead(:)
 
     !> should tunneling data be written
-    logical, intent(in) :: writeTunn
+    logical, intent(in) :: tWriteTunn
 
     !> should DOS data be written
     logical, intent(in) :: tWriteLDOS
@@ -1481,7 +1476,7 @@ module negf_int
     ! Write Total transmission, T(E), on a separate file (optional)
     if (allocated(tunnMat)) then
       filename = 'transmission'
-      if (tIOProc .and. writeTunn) then
+      if (tIOProc .and. twriteTunn) then
         call write_file(negf, tunnMat, tunnSKRes, filename, nS, kpoints, kWeights)
       end if
     else
@@ -1495,7 +1490,7 @@ module negf_int
     ! Write Total lead current, I_i(E), on a separate file (optional)
     if (allocated(currMat)) then
       filename = 'current'
-      if (tIOProc .and. writeTunn) then
+      if (tIOProc .and. tWriteTunn) then
         call write_file(negf, currMat, currSKRes, filename, nS, kpoints, kWeights)
       end if
     else

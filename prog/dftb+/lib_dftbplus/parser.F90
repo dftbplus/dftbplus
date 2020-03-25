@@ -15,7 +15,7 @@ module dftbp_parser
   use dftbp_constants
   use dftbp_inputdata
   use dftbp_typegeometryhsd
-  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
+  use dftbp_hsdparser, only : getNodeHSDName, parseHSD
   use dftbp_hsdutils
   use dftbp_hsdutils2
   use dftbp_charmanip
