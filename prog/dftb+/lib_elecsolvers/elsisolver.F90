@@ -1927,13 +1927,14 @@ contains
       allocate(EDMnzValLocal(this%elsiCsc%nnzLocal))
       call elsi_get_edm_complex_sparse(this%handle, EDMnzValLocal)
       if (tHelical) then
-        call this%elsiCsc%convertElsiToPackedCmplx(neighbourList%iNeighbour, nNeighbourSK,&
-            & orb, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint(:,iK), kWeight(iK),&
-            & iCellVec, cellVec, EDMnzValLocal, ERhoPrim)
-      else
-        call this%elsiCsc%convertElsiToPackedCmplx(neighbourList%iNeighbour, nNeighbourSK,&
-            & orb, species, coord, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint(:,iK),&
+        call this%elsiCsc%convertElsiToPackedCmplx(neighbourList%iNeighbour, nNeighbourSK, orb,&
+            & species, coord, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint(:,iK),&
             & kWeight(iK), iCellVec, cellVec, EDMnzValLocal, ERhoPrim)
+      else
+        call this%elsiCsc%convertElsiToPackedCmplx(neighbourList%iNeighbour, nNeighbourSK, orb,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint(:,iK), kWeight(iK),&
+            & iCellVec, cellVec, EDMnzValLocal, ERhoPrim)
+
       end if
     else
       call elsi_get_edm_complex(this%handle, SSqrCplx)
