@@ -7,8 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Contains routines to calculate the coulombic interaction in non periodic, periodic and helical
-!> systems.
+!> Contains routines to calculate the coulombic interaction in non periodic and periodic systems.
 module dftbp_coulomb
   use dftbp_assert
   use dftbp_accuracy
