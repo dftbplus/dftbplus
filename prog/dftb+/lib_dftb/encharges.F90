@@ -8,27 +8,444 @@
 #:include 'common.fypp'
 
 !> Implementation of the electronegativity equilibration charge model used
-!  for the charge scaling in DFT-D4.
-!
-!  This implementation is general enough to be used outside of DFT-D4.
-!
+!> for the charge scaling in DFT-D4.
+!>
+!> This implementation is general enough to be used outside of DFT-D4.
 module dftbp_encharges
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
   use dftbp_errorfunction, only : erfwrap
-  use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec
+  use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
+      & getMaxGEwald, getOptimalAlphaEwald
   use dftbp_blasroutines, only : hemv, gemv, gemm
   use dftbp_lapackroutines, only : symmatinv
+  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
+  use dftbp_simplealgebra, only : determinant33, invert33
   implicit none
   private
 
+  public :: TEeqCont, TEeqInput, init
   public :: getEEQcharges
 
   real(dp), parameter :: sqrtpi = sqrt(pi)
   real(dp), parameter :: sqrt2pi = sqrt(2.0_dp/pi)
 
+
+  !> EEQ parametrisation data
+  type :: TEeqParam
+
+    !> Electronegativities for EEQ model
+    real(dp), allocatable :: chi(:)
+
+    !> Chemical hardnesses for EEQ model
+    real(dp), allocatable :: gam(:)
+
+    !> Charge widths for EEQ model
+    real(dp), allocatable :: rad(:)
+
+    !> CN scaling for EEQ model
+    real(dp), allocatable :: kcn(:)
+
+  end type
+
+
+  !> Input for the EEQ model
+  type, extends(TEeqParam) :: TEeqInput
+
+    !> Net charge of the system.
+    real(dp) :: nrChrg
+
+    !> Parameter for Ewald summation.
+    real(dp) :: parEwald
+
+    !> Ewald tolerance
+    real(dp) :: tolEwald
+
+    !> Cutoff for real-space summation under PBCs
+    real(dp) :: cutoff
+
+  end type TEeqInput
+
+
+  !> Container containing all calculation data for the EEQ model
+  type :: TEeqCont
+
+    !> number of atoms
+    integer :: nAtom
+
+    !> EEQ parametrisation
+    type(TEeqParam) :: param
+
+    !> Net charge of the system.
+    real(dp) :: nrChrg
+
+    !> Cutoff for real-space summation under PBCs
+    real(dp) :: cutoff
+
+    !> lattice vectors if periodic
+    real(dp) :: latVecs(3, 3)
+
+    !> Volume of the unit cell
+    real(dp) :: vol
+
+    !> evaluate Ewald parameter
+    logical :: tAutoEwald
+
+    !> Ewald tolerance
+    real(dp) :: tolEwald
+
+    !> Parameter for Ewald summation.
+    real(dp) :: parEwald
+
+    !> is this periodic
+    logical :: tPeriodic
+
+    !> Contains the points included in the reciprocal sum.
+    !> The set should not include the origin or inversion related points.
+    real(dp), allocatable :: recPoint(:, :)
+
+    !> are the coordinates current?
+    logical :: tCoordsUpdated
+
+    !> electrostatic energy
+    real(dp), allocatable :: energies(:)
+
+    !> force contributions
+    real(dp), allocatable :: gradients(:, :)
+
+    !> stress tensor
+    real(dp), allocatable :: stress(:, :)
+
+    !> partial charges
+    real(dp), allocatable :: charges(:)
+
+    !> derivative of partial charges w.r.t. coordinates
+    real(dp), allocatable :: dqdr(:, :, :)
+
+    !> derivative of partial charges w.r.t. strain deformations
+    real(dp), allocatable :: dqdL(:, :, :)
+
+  contains
+
+    !> update internal store of coordinates
+    procedure :: updateCoords
+
+    !> update internal store of lattice vectors
+    procedure :: updateLatVecs
+
+    !> return energy contribution
+    procedure :: getEnergies
+
+    !> return energy contribution
+    procedure :: getCharges
+
+    !> return force contribution
+    generic :: addGradients => addGradientsEnergy, addGradientsCharges
+
+    !> return force contribution for electrostatic energy
+    procedure, private :: addGradientsEnergy
+
+    !> return force contribution for charge derivatives
+    procedure, private :: addGradientsCharges
+
+    !> return stress tensor contribution
+    generic :: addStress => addStressEnergy, addStressCharges
+
+    !> return stress tensor contribution for electrostatic energy
+    procedure, private :: addStressEnergy
+
+    !> return stress tensor contribution for charge derivatives
+    procedure, private :: addStressCharges
+
+    !> cutoff distance in real space for EEQ
+    procedure :: getRCutoff
+
+  end type TEeqCont
+
+
+  !> initialize container from input
+  interface init
+    module procedure :: initialize
+  end interface init
+
+
 contains
+
+
+  subroutine initialize(this, input, withEnergies, withCharges, nAtom, latVecs)
+
+    !> Instance of EEQ container
+    type(TEeqCont), intent(out) :: this
+
+    !> Input for the EEQ model
+    type(TEeqInput), intent(in) :: input
+
+    !> Enable electrostatic energy calculation + derivatives
+    logical, intent(in) :: withEnergies
+
+    !> Enable partial charge calculation + derivatives
+    logical, intent(in) :: withCharges
+
+    !> Nr. of atoms in the system.
+    integer, intent(in) :: nAtom
+
+    !> Lattice vectors, if the system is periodic.
+    real(dp), intent(in), optional :: latVecs(:, :)
+
+    real(dp) :: recVecs(3, 3), maxGEwald
+
+    this%tPeriodic = present(latVecs)
+
+    this%param = input%TEeqParam
+    this%cutoff = input%cutoff
+    this%nrChrg = input%nrChrg
+
+    if (this%tPeriodic) then
+      this%tAutoEwald = input%parEwald <= 0.0_dp
+      this%tolEwald = input%tolEwald
+      this%parEwald = input%parEwald
+
+      call this%updateLatVecs(latVecs)
+    end if
+
+    this%nAtom = nAtom
+
+    if (withEnergies) then
+      allocate(this%energies(nAtom))
+      allocate(this%gradients(3, nAtom))
+      allocate(this%stress(3, 3))
+    end if
+
+    if (withCharges) then
+      allocate(this%charges(nAtom))
+      allocate(this%dqdr(3, nAtom, nAtom))
+      allocate(this%dqdL(3, 3, nAtom))
+    end if
+
+    this%tCoordsUpdated = .false.
+
+  end subroutine initialize
+
+
+  !> Notifies the objects about changed coordinates.
+  subroutine updateCoords(this, neigh, img2CentCell, coords, species, &
+      & cn, dcndr, dcndL)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> Updated neighbour list.
+    type(TNeighbourList), intent(in) :: neigh
+
+    !> Updated mapping to central cell.
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Updated coordinates.
+    real(dp), intent(in) :: coords(:,:)
+
+    !> Species of the atoms in the unit cell.
+    integer, intent(in) :: species(:)
+
+    real(dp), intent(in) :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
+
+    integer, allocatable :: nNeigh(:)
+
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
+
+    call getEEQCharges(this%nAtom, coords, species, this%nrChrg, nNeigh, &
+        & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%recPoint, this%parEwald, &
+        & this%vol, this%param%chi, this%param%kcn, this%param%gam, this%param%rad, &
+        & cn, dcndr, dcndL, this%energies, this%gradients, this%stress, &
+        & this%charges, this%dqdr, this%dqdL)
+
+    this%tCoordsUpdated = .true.
+
+  end subroutine updateCoords
+
+
+  !> Notifies the object about updated lattice vectors.
+  subroutine updateLatVecs(this, latVecs)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> New lattice vectors
+    real(dp), intent(in) :: latVecs(:, :)
+
+    real(dp) :: recVecs(3, 3), maxGEwald
+
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latVecs) == shape(this%latVecs)))
+
+    this%latVecs(:, :) = latVecs
+    this%vol = determinant33(latVecs)
+    call invert33(recVecs, latVecs, this%vol)
+    this%vol = abs(this%vol)
+    recVecs(:, :) = 2.0_dp * pi * transpose(recVecs)
+
+    if (this%tAutoEwald) then
+      this%parEwald = getOptimalAlphaEwald(latVecs, recVecs, this%vol, this%tolEwald)
+    end if
+    maxGEwald = getMaxGEwald(this%parEwald, this%vol, this%tolEwald)
+    call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
+        & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
+    this%recPoint(:, :) = matmul(recVecs, this%recPoint)
+
+    this%tCoordsUpdated = .false.
+
+  end subroutine updateLatVecs
+
+
+  !> Returns the atomic resolved energies due to the EEQ.
+  subroutine getEnergies(this, energies)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> Contains the atomic energy contributions on exit.
+    real(dp), intent(out) :: energies(:)
+
+    @:ASSERT(allocated(this%energies))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(size(energies) == this%nAtom)
+
+    energies(:) = this%energies
+
+  end subroutine getEnergies
+
+
+  !> Returns the atomic resolved energies due to the EEQ.
+  subroutine getCharges(this, charges)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> Contains the atomic partial charges on exit.
+    real(dp), intent(out) :: charges(:)
+
+    @:ASSERT(allocated(this%charges))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(size(charges) == this%nAtom)
+
+    charges(:) = this%charges
+
+  end subroutine getCharges
+
+
+  !> Adds the atomic gradients to the provided vector.
+  subroutine addGradientsEnergy(this, gradients)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> The vector to increase by the gradients.
+    real(dp), intent(inout) :: gradients(:,:)
+
+    @:ASSERT(allocated(this%gradients))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
+
+    gradients(:,:) = gradients + this%gradients
+
+  end subroutine addGradientsEnergy
+
+
+  !> Adds the atomic gradients to the provided vector.
+  subroutine addGradientsCharges(this, gradients, dEdq, beta)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> The vector to increase by the gradients.
+    real(dp), intent(inout) :: gradients(:,:)
+
+    !> Derivative of the energy expression w.r.t. the partial charges
+    real(dp), intent(in) :: dEdq(:)
+
+    !> Optional scaling factor
+    real(dp), intent(in), optional :: beta
+    real(dp) :: beta0
+
+    if (present(beta)) then
+      beta0 = beta
+    else
+      beta0 = 1.0_dp
+    end if
+
+    @:ASSERT(allocated(this%dqdr))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(gradients) == [3, this%nAtom]))
+    @:ASSERT(size(dEdq) == this%nAtom)
+
+    call gemv(gradients, this%dqdr, dEdq, beta=beta0)
+
+  end subroutine addGradientsCharges
+
+
+  !> Returns the stress tensor.
+  subroutine addStressEnergy(this, stress)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> stress tensor from the EEQ
+    real(dp), intent(inout) :: stress(:,:)
+
+    @:ASSERT(allocated(this%stress))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
+
+    stress(:,:) = stress(:,:) + this%stress
+
+  end subroutine addStressEnergy
+
+
+  !> Returns the stress tensor.
+  subroutine addStressCharges(this, stress, dEdq, beta)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> stress tensor from the EEQ
+    real(dp), intent(inout) :: stress(:,:)
+
+    !> Derivative of the energy expression w.r.t. the partial charges
+    real(dp), intent(in) :: dEdq(:)
+
+    !> Optional scaling factor
+    real(dp), intent(in), optional :: beta
+    real(dp) :: beta0
+
+    if (present(beta)) then
+      beta0 = beta
+    else
+      beta0 = 1.0_dp
+    end if
+
+    @:ASSERT(allocated(this%dqdL))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, 3]))
+    @:ASSERT(size(dEdq) == this%nAtom)
+
+    call gemv(stress, this%dqdL, dEdq, beta=beta0)
+
+  end subroutine addStressCharges
+
+
+  !> Estimates the real space cutoff of the EEQ interaction.
+  function getRCutoff(this) result(cutoff)
+
+    !> Instance of EEQ container
+    class(TEeqCont), intent(inout) :: this
+
+    !> Resulting cutoff
+    real(dp) :: cutoff
+
+    cutoff = this%cutoff
+
+  end function getRCutoff
 
   !> Generates full interaction matrix for Gaussian charge distributions.
   subroutine getCoulombMatrixCluster(nAtom, coords, species, gam, rad, aMat)

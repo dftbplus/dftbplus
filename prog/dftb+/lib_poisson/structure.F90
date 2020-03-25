@@ -7,7 +7,7 @@
 !**************************************************************************
 module structure
 
-  use gprecision
+  use dftbp_accuracy, only : dp
   use gallocation
   use mpi_poisson
    
