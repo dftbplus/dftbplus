@@ -78,3 +78,43 @@ While for a pseudo-SIC calculation, where the net spin is 0:
 \end{tiny}
 Note the 0 blocks for the spin polarisation in channel 2, and also that the
 diagonal of the block charges matches the orbital charges for the atoms.
+
+\subsection{contact.bin / contact.dat}
+\label{app:contactfiles}
+
+Self-consistent transport calculations require contact potential shifts. The
+format of the \verb|shiftcont_*| files are either ascii (.dat) or binary
+(.bin). The \verb|shiftcont_*.dat| files have the following format:
+
+The first two lines of the file are:
+\begin{verbatim}
+  version
+  nContactAtoms maxShells spinChannels tBlockCharges
+\end{verbatim}
+
+\begin{itemize}
+\item version: The file format is currently version 1
+\item nContactAtoms: Number of atoms in the contact
+\item maxShells: Maximum number of angular shells on the contact atoms
+\item spinChannels: Number of spin channels in the system (1 for spin free, 2
+  for spin polarized)
+\item tBlockCharges: a logical flag (T/F) as to whether block charges are
+  present in the file (these are required for +U calculations).
+\end{itemize}
+This is then followed by lines for
+\begin{itemize}
+\item The number of orbitals on the atoms
+\item Shifts for the shells of the atoms
+\item Charges for individual orbitals
+\end{itemize}
+
+If tBlockCharges is true, the block shifts and charges are then given for each
+spin channel and atom.
+
+Finally the Fermi level(s) for the contact are printed (this can be over-ridden
+in the input at calculation time, see the \is{FermiLevel} keyword in section
+\ref{kw:transport.FermiLevel}).
+
+An earlier format for contacts is also supported. This lacks the first line
+containing the the version number, along with the logical flag and sections
+relating to block charges.
