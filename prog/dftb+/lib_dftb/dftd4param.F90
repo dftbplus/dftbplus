@@ -13,13 +13,13 @@ module dftbp_dftd4param
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
   use dftbp_encharges, only : TEeqInput
+  use dftbp_coordnumber, only : TCNCont, TCNInput, cnType
   use dftbp_dftd4refs
   implicit none
 
   public :: TDftD4Calculator, TDispDftD4Inp, initializeCalculator
   public :: getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   public :: getChemicalHardness, getEffectiveNuclearCharge, getSqrtZr4r2
-  public :: getCovalentRadiusD3, getPaulingEN
   private
 
   !> Element-specific electronegativity for the electronegativity equilibration charges used in
@@ -62,18 +62,6 @@ module dftbp_dftd4param
     module procedure :: getEffectiveNuclearChargeSymbol
     module procedure :: getEffectiveNuclearChargeNumber
   end interface getEffectiveNuclearCharge
-
-  !> Covalent radii used for coordination number.
-  interface getCovalentRadiusD3
-    module procedure :: getCovalentRadiusD3Symbol
-    module procedure :: getCovalentRadiusD3Number
-  end interface getCovalentRadiusD3
-
-  !> Pauling electronegativities, used for the covalent coordination number.
-  interface getPaulingEN
-    module procedure :: getPaulingENSymbol
-    module procedure :: getPaulingENNumber
-  end interface getPaulingEN
 
   !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values.
   interface getSqrtZr4r2
@@ -123,9 +111,6 @@ module dftbp_dftd4param
     !> Cutoff radius for dispersion interactions.
     real(dp) :: cutoffInter = 64.0_dp
 
-    !> Cutoff radius for CN counting function.
-    real(dp) :: cutoffCount = 40.0_dp
-
     !> Cutoff radius for three-body interactions.
     real(dp) :: cutoffThree = 40.0_dp
 
@@ -140,6 +125,9 @@ module dftbp_dftd4param
 
     !> Input for EEQ charge model
     type(TEeqInput) :: eeqInput
+
+    !> Coordination number specific input
+    type(TCNInput) :: cnInput
 
   end type TDispDftD4Inp
 
@@ -181,9 +169,6 @@ module dftbp_dftd4param
     !> Cutoff radius for dispersion interactions.
     real(dp) :: cutoffInter
 
-    !> Cutoff radius for CN counting function.
-    real(dp) :: cutoffCount
-
     !> Cutoff radius for three-body interactions.
     real(dp) :: cutoffThree
 
@@ -192,12 +177,6 @@ module dftbp_dftd4param
 
     !> Atomic expectation values for extrapolation of C6 coefficients
     real(dp), allocatable :: sqrtZr4r2(:)
-
-    !> Electronegativities for covalent CN
-    real(dp), allocatable :: electronegativity(:)
-
-    !> Covalent radius for coordination number
-    real(dp), allocatable :: covalentRadius(:)
 
     !> Chemical hardnesses for charge scaling function
     real(dp), allocatable :: chemicalHardness(:)
@@ -355,61 +334,6 @@ module dftbp_dftd4param
     &   9,10,11,30,31,32,33,34,35,36,37,38,39,40,41,42,43,  & ! Fr-Lr
     &  12,13,14,15,16,17,18,19,20,21,22,23,24,25,26] ! Rf-Og
 
-  !> Covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197), values for
-  !> metals decreased by 10%.
-  real(dp), parameter :: CovalentRadiusD3(maxElementD4) = [ &
-    & 0.32_dp,0.46_dp, & ! H,He
-    & 1.20_dp,0.94_dp,0.77_dp,0.75_dp,0.71_dp,0.63_dp,0.64_dp,0.67_dp, & ! Li-Ne
-    & 1.40_dp,1.25_dp,1.13_dp,1.04_dp,1.10_dp,1.02_dp,0.99_dp,0.96_dp, & ! Na-Ar
-    & 1.76_dp,1.54_dp, & ! K,Ca
-    &                 1.33_dp,1.22_dp,1.21_dp,1.10_dp,1.07_dp, & ! Sc-
-    &                 1.04_dp,1.00_dp,0.99_dp,1.01_dp,1.09_dp, & ! -Zn
-    &                 1.12_dp,1.09_dp,1.15_dp,1.10_dp,1.14_dp,1.17_dp, & ! Ga-Kr
-    & 1.89_dp,1.67_dp, & ! Rb,Sr
-    &                 1.47_dp,1.39_dp,1.32_dp,1.24_dp,1.15_dp, & ! Y-
-    &                 1.13_dp,1.13_dp,1.08_dp,1.15_dp,1.23_dp, & ! -Cd
-    &                 1.28_dp,1.26_dp,1.26_dp,1.23_dp,1.32_dp,1.31_dp, & ! In-Xe
-    & 2.09_dp,1.76_dp, & ! Cs,Ba
-    &         1.62_dp,1.47_dp,1.58_dp,1.57_dp,1.56_dp,1.55_dp,1.51_dp, & ! La-Eu
-    &         1.52_dp,1.51_dp,1.50_dp,1.49_dp,1.49_dp,1.48_dp,1.53_dp, & ! Gd-Yb
-    &                 1.46_dp,1.37_dp,1.31_dp,1.23_dp,1.18_dp, & ! Lu-
-    &                 1.16_dp,1.11_dp,1.12_dp,1.13_dp,1.32_dp, & ! -Hg
-    &                 1.30_dp,1.30_dp,1.36_dp,1.31_dp,1.38_dp,1.42_dp, & ! Tl-Rn
-    & 2.01_dp,1.81_dp, & ! Fr,Ra
-    &         1.67_dp,1.58_dp,1.52_dp,1.53_dp,1.54_dp,1.55_dp,1.49_dp, & ! Ac-Am
-    &         1.49_dp,1.51_dp,1.51_dp,1.48_dp,1.50_dp,1.56_dp,1.58_dp, & ! Cm-No
-    &                 1.45_dp,1.41_dp,1.34_dp,1.29_dp,1.27_dp, & ! Lr-
-    &                 1.21_dp,1.16_dp,1.15_dp,1.09_dp,1.22_dp, & ! -Cn
-    &                 1.36_dp,1.43_dp,1.46_dp,1.58_dp,1.48_dp,1.57_dp] & ! Nh-Og
-    & * AA__Bohr * 4.0_dp / 3.0_dp
-
-  !> Pauling electronegativities, used for the covalent coordination number.
-  real(dp), parameter :: paulingEN(maxElementD4) = [ &
-    & 2.20_dp,3.00_dp, & ! H,He
-    & 0.98_dp,1.57_dp,2.04_dp,2.55_dp,3.04_dp,3.44_dp,3.98_dp,4.50_dp, & ! Li-Ne
-    & 0.93_dp,1.31_dp,1.61_dp,1.90_dp,2.19_dp,2.58_dp,3.16_dp,3.50_dp, & ! Na-Ar
-    & 0.82_dp,1.00_dp, & ! K,Ca
-    &                 1.36_dp,1.54_dp,1.63_dp,1.66_dp,1.55_dp, & ! Sc-
-    &                 1.83_dp,1.88_dp,1.91_dp,1.90_dp,1.65_dp, & ! -Zn
-    &                 1.81_dp,2.01_dp,2.18_dp,2.55_dp,2.96_dp,3.00_dp, & ! Ga-Kr
-    & 0.82_dp,0.95_dp, & ! Rb,Sr
-    &                 1.22_dp,1.33_dp,1.60_dp,2.16_dp,1.90_dp, & ! Y-
-    &                 2.20_dp,2.28_dp,2.20_dp,1.93_dp,1.69_dp, & ! -Cd
-    &                 1.78_dp,1.96_dp,2.05_dp,2.10_dp,2.66_dp,2.60_dp, & ! In-Xe
-    & 0.79_dp,0.89_dp, & ! Cs,Ba
-    &         1.10_dp,1.12_dp,1.13_dp,1.14_dp,1.15_dp,1.17_dp,1.18_dp, & ! La-Eu
-    &         1.20_dp,1.21_dp,1.22_dp,1.23_dp,1.24_dp,1.25_dp,1.26_dp, & ! Gd-Yb
-    &                 1.27_dp,1.30_dp,1.50_dp,2.36_dp,1.90_dp, & ! Lu-
-    &                 2.20_dp,2.20_dp,2.28_dp,2.54_dp,2.00_dp, & ! -Hg
-    &                 1.62_dp,2.33_dp,2.02_dp,2.00_dp,2.20_dp,2.20_dp, & ! Tl-Rn
-    ! only dummies below
-    & 1.50_dp,1.50_dp, & ! Fr,Ra
-    &         1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp, & ! Ac-Am
-    &         1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp, & ! Cm-No
-    &                 1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp, & ! Rf-
-    &                 1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp, & ! Rf-Cn
-    &                 1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp,1.50_dp ] ! Nh-Og
-
 
   !> PBE0/def2-QZVP atomic <r⁴>/<r²> expectation values.
   real(dp), parameter :: r4r2(maxElementD4) = [ &
@@ -533,8 +457,6 @@ contains
     calculator%nSpecies = nSpecies
 
     calculator%sqrtZr4r2 = getSqrtZr4r2(speciesNames)
-    calculator%covalentRadius = getCovalentRadiusD3(speciesNames)
-    calculator%electronegativity = getPaulingEN(speciesNames)
     calculator%ChemicalHardness = getChemicalHardness(speciesNames)
     calculator%EffectiveNuclearCharge = getEffectiveNuclearCharge(speciesNames)
 
@@ -546,7 +468,6 @@ contains
     calculator%a2 = input%a2
     calculator%alpha = input%alpha
 
-    calculator%cutoffCount = input%cutoffCount
     calculator%cutoffInter = input%cutoffInter
     calculator%cutoffThree = input%cutoffThree
 
@@ -810,70 +731,6 @@ contains
     end if
 
   end function getEffectiveNuclearChargeNumber
-
-
-  !> Get covalent radius for species with a given symbol
-  elemental function getCovalentRadiusD3Symbol(symbol) result(rad)
-
-    !> Element symbol
-    character(len=*), intent(in) :: symbol
-
-    !> Covalent radius
-    real(dp) :: rad
-
-    rad = getCovalentRadiusD3(symbolToNumber(symbol))
-
-  end function getCovalentRadiusD3Symbol
-
-
-  !> Get covalent radius for species with a given atomic number
-  elemental function getCovalentRadiusD3Number(number) result(rad)
-
-    !> Atomic number
-    integer, intent(in) :: number
-
-    !> Covalent radius
-    real(dp) :: rad
-
-    if (number > 0 .and. number <= size(covalentRadiusD3, dim=1)) then
-      rad = covalentRadiusD3(number)
-    else
-      rad = -1.0_dp
-    end if
-
-  end function getCovalentRadiusD3Number
-
-
-  !> Get electronegativity for species with a given symbol
-  elemental function getPaulingENSymbol(symbol) result(en)
-
-    !> Element symbol
-    character(len=*), intent(in) :: symbol
-
-    !> Electronegativity
-    real(dp) :: en
-
-    en = getPaulingEN(symbolToNumber(symbol))
-
-  end function getPaulingENSymbol
-
-
-  !> Get electronegativity for species with a given atomic number
-  elemental function getPaulingENNumber(number) result(en)
-
-    !> Atomic number
-    integer, intent(in) :: number
-
-    !> Electronegativity
-    real(dp) :: en
-
-    if (number > 0 .and. number <= size(paulingEN, dim=1)) then
-      en = paulingEN(number)
-    else
-      en = -1.0_dp
-    end if
-
-  end function getPaulingENNumber
 
 
   !> Get atomic expectation value for species with a given symbol

@@ -18,6 +18,7 @@ module dftbp_encharges
   use dftbp_errorfunction, only : erfwrap
   use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
       & getMaxGEwald, getOptimalAlphaEwald
+  use dftbp_coordnumber, only : TCNCont, TCNInput, init
   use dftbp_blasroutines, only : hemv, gemv, gemm
   use dftbp_lapackroutines, only : symmatinv
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
@@ -65,6 +66,9 @@ module dftbp_encharges
     !> Cutoff for real-space summation under PBCs
     real(dp) :: cutoff
 
+    !> Input for coordination number
+    type(TCNInput) :: cnInput
+
   end type TEeqInput
 
 
@@ -104,6 +108,9 @@ module dftbp_encharges
     !> Contains the points included in the reciprocal sum.
     !> The set should not include the origin or inversion related points.
     real(dp), allocatable :: recPoint(:, :)
+
+    !> Coordination number container
+    type(TCNCont) :: cnCont
 
     !> are the coordinates current?
     logical :: tCoordsUpdated
@@ -197,6 +204,12 @@ contains
 
     this%tPeriodic = present(latVecs)
 
+    if (this%tPeriodic) then
+      call init(this%cnCont, input%cnInput, nAtom, latVecs)
+    else
+      call init(this%cnCont, input%cnInput, nAtom)
+    end if
+
     this%param = input%TEeqParam
     this%cutoff = input%cutoff
     this%nrChrg = input%nrChrg
@@ -229,8 +242,7 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species, &
-      & cn, dcndr, dcndL)
+  subroutine updateCoords(this, neigh, img2CentCell, coords, species)
 
     !> Instance of EEQ container
     class(TEeqCont), intent(inout) :: this
@@ -247,9 +259,9 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species(:)
 
-    real(dp), intent(in) :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
-
     integer, allocatable :: nNeigh(:)
+
+    call this%cnCont%updateCoords(neigh, img2CentCell, coords, species)
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
@@ -257,7 +269,8 @@ contains
     call getEEQCharges(this%nAtom, coords, species, this%nrChrg, nNeigh, &
         & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%recPoint, this%parEwald, &
         & this%vol, this%param%chi, this%param%kcn, this%param%gam, this%param%rad, &
-        & cn, dcndr, dcndL, this%energies, this%gradients, this%stress, &
+        & this%cnCont%cn, this%cnCont%dcndr, this%cnCont%dcndL, &
+        & this%energies, this%gradients, this%stress, &
         & this%charges, this%dqdr, this%dqdL)
 
     this%tCoordsUpdated = .true.
@@ -292,6 +305,8 @@ contains
     call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
         & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%recPoint(:, :) = matmul(recVecs, this%recPoint)
+
+    call this%cnCont%updateLatVecs(LatVecs)
 
     this%tCoordsUpdated = .false.
 
@@ -443,7 +458,7 @@ contains
     !> Resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = this%cutoff
+    cutoff = max(this%cutoff, this%cnCont%getRCutoff())
 
   end function getRCutoff
 
