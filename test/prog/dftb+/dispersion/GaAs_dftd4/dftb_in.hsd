@@ -29,12 +29,12 @@ Hamiltonian = DFTB {
     s6 = 1.0
     s8 = 0.61
     CutoffInter = 60
-    CoordinationNumber = cov {
+    CoordinationNumber = Cov {
        Cutoff = 34
     }
     ChargeModel = EEQ {
        EwaldParameter = 0.25165824
-       CoordinationNumber = erf {
+       CoordinationNumber = Erf {
           Cutoff = 34
        }
     }

@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Coordination number implementation
-module dftbp_coordinationnumber
+module dftbp_coordnumber
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
@@ -140,6 +140,7 @@ module dftbp_coordinationnumber
 
   !> Coordination number container
   type :: TCNCont
+    private
 
     !> number of atoms
     integer :: nAtom = 0
@@ -175,13 +176,13 @@ module dftbp_coordinationnumber
     real(dp), allocatable :: en(:)
 
     !> Coordination number
-    real(dp), allocatable :: cn(:)
+    real(dp), public, allocatable :: cn(:)
 
     !> Derivative of coordination numbers w.r.t. coordinates
-    real(dp), allocatable :: dcndr(:, :, :)
+    real(dp), public, allocatable :: dcndr(:, :, :)
 
     !> Derivative of coordination numbers w.r.t. strain deformations
-    real(dp), allocatable :: dcndL(:, :, :)
+    real(dp), public, allocatable :: dcndL(:, :, :)
 
     !> Counting function for CN
     procedure(countFunction), nopass, pointer :: countFunc => null()
@@ -210,22 +211,22 @@ module dftbp_coordinationnumber
 
 
   abstract interface
-  !> Abstract interface for the counting function (and its derivative)
-  pure function countFunction(k, r, r0)
-    import :: dp
+    !> Abstract interface for the counting function (and its derivative)
+    pure function countFunction(k, r, r0)
+      import :: dp
 
-    !> Constant for counting function
-    real(dp), intent(in) :: k
+      !> Constant for counting function
+      real(dp), intent(in) :: k
 
-    !> Actual distance
-    real(dp), intent(in) :: r
+      !> Actual distance
+      real(dp), intent(in) :: r
 
-    !> Critical distance
-    real(dp), intent(in) :: r0
+      !> Critical distance
+      real(dp), intent(in) :: r0
 
-    !> Value of the counting function in the range of [0,1]
-    real(dp) :: countFunction
-  end function countFunction
+      !> Value of the counting function in the range of [0,1]
+      real(dp) :: countFunction
+    end function countFunction
   end interface
 
   !> Initialize container from geometry
@@ -238,10 +239,10 @@ contains
 
 
   !> Initialize coordination number container
-  subroutine initialize(self, input, nAtom, latVecs)
+  subroutine initialize(this, input, nAtom, latVecs)
 
     !> Initialised instance at return
-    type(TCNCont), intent(out) :: self
+    type(TCNCont), intent(out) :: this
 
     !> Nr. of atoms in the system
     integer, intent(in) :: nAtom
@@ -255,61 +256,61 @@ contains
     @:ASSERT(allocated(input%covRad))
     @:ASSERT(allocated(input%en))
 
-    self%tPeriodic = present(latVecs)
-    if (self%tPeriodic) then
-      call self%updateLatVecs(LatVecs)
+    this%tPeriodic = present(latVecs)
+    if (this%tPeriodic) then
+      call this%updateLatVecs(LatVecs)
     end if
-    self%nAtom = nAtom
+    this%nAtom = nAtom
 
-    allocate(self%cn(nAtom))
-    allocate(self%dcndr(3, nAtom, nAtom))
-    allocate(self%dcndL(3, 3, nAtom))
+    allocate(this%cn(nAtom))
+    allocate(this%dcndr(3, nAtom, nAtom))
+    allocate(this%dcndL(3, 3, nAtom))
 
-    self%rCutoff = input%rCutoff
+    this%rCutoff = input%rCutoff
 
     select case(input%cnType)
     case default
-      call error("Fatal programming error in dftbp_coordinationnumber!")
+      call error("Fatal programming error in dftbp_coordnumber!")
     case(cnType%erf)
-      self%countFunc => erfCount
-      self%countDeriv => derfCount
-      self%kcn = 7.5_dp
-      self%tENScale = .false.
+      this%countFunc => erfCount
+      this%countDeriv => derfCount
+      this%kcn = 7.5_dp
+      this%tENScale = .false.
     case(cnType%exp)
-      self%countFunc => expCount
-      self%countDeriv => dexpCount
-      self%kcn = 16.0_dp
-      self%tENScale = .false.
+      this%countFunc => expCount
+      this%countDeriv => dexpCount
+      this%kcn = 16.0_dp
+      this%tENScale = .false.
     case(cnType%cov)
-      self%countFunc => erfCount
-      self%countDeriv => derfCount
-      self%kcn = 7.5_dp
-      self%tENScale = .true.
+      this%countFunc => erfCount
+      this%countDeriv => derfCount
+      this%kcn = 7.5_dp
+      this%tENScale = .true.
     case(cnType%gfn)
-      self%countFunc => gfnCount
-      self%countDeriv => dgfnCount
-      self%kcn = 10.0_dp
-      self%tENScale = .false.
+      this%countFunc => gfnCount
+      this%countDeriv => dgfnCount
+      this%kcn = 10.0_dp
+      this%tENScale = .false.
     end select
 
-    self%tCutCN = input%maxCN > 0.0_dp
-    self%maxCN = input%maxCN
+    this%tCutCN = input%maxCN > 0.0_dp
+    this%maxCN = input%maxCN
 
-    allocate(self%covRad(size(input%covRad)))
-    allocate(self%en(size(input%en)))
-    self%covRad(:) = input%covRad
-    self%en(:) = input%en
+    allocate(this%covRad(size(input%covRad)))
+    allocate(this%en(size(input%en)))
+    this%covRad(:) = input%covRad
+    this%en(:) = input%en
 
-    self%tCoordsUpdated = .false.
+    this%tCoordsUpdated = .false.
 
   end subroutine initialize
 
 
   !> Update internal stored coordinates
-  subroutine updateCoords(self, neighList, img2CentCell, coords, species0)
+  subroutine updateCoords(this, neighList, img2CentCell, coords, species0)
 
     !> data structure
-    class(TCNCont), intent(inout) :: self
+    class(TCNCont), intent(inout) :: this
 
     !> list of neighbours to atoms
     type(TNeighbourList), intent(in) :: neighList
@@ -325,47 +326,47 @@ contains
 
     integer, allocatable :: nNeigh(:)
 
-    allocate(nNeigh(self%nAtom))
-    call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
-    call getCoordinationNumber(self%nAtom, coords, species0, nNeigh, &
+    allocate(nNeigh(this%nAtom))
+    call getNrOfNeighboursForAll(nNeigh, neighList, this%rCutoff)
+    call getCoordinationNumber(this%nAtom, coords, species0, nNeigh, &
         & neighList%iNeighbour, neighList%neighDist2, img2CentCell, &
-        & self%covRad, self%en, self%tENScale, self%kcn, self%countFunc, &
-        & self%countDeriv, self%cn, self%dcndr, self%dcndL)
+        & this%covRad, this%en, this%tENScale, this%kcn, this%countFunc, &
+        & this%countDeriv, this%cn, this%dcndr, this%dcndL)
 
-    if (self%tCutCN) then
-      call cutCoordinationNumber(self%nAtom, self%cn, self%dcndr, self%dcndL, &
-          & self%maxCN)
+    if (this%tCutCN) then
+      call cutCoordinationNumber(this%nAtom, this%cn, this%dcndr, this%dcndL, &
+          & this%maxCN)
     end if
 
-    self%tCoordsUpdated = .true.
+    this%tCoordsUpdated = .true.
 
   end subroutine updateCoords
 
 
   !> update internal copy of lattice vectors
-  subroutine updateLatVecs(self, latVecs)
+  subroutine updateLatVecs(this, latVecs)
 
     !> data structure
-    class(TCNCont), intent(inout) :: self
+    class(TCNCont), intent(inout) :: this
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
 
-    @:ASSERT(self%tPeriodic)
-    @:ASSERT(all(shape(latvecs) == shape(self%latvecs)))
+    @:ASSERT(this%tPeriodic)
+    @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
 
-    self%latVecs(:,:) = latVecs
+    this%latVecs(:,:) = latVecs
 
-    self%tCoordsUpdated = .false.
+    this%tCoordsUpdated = .false.
 
   end subroutine updateLatVecs
 
 
   !> get force contributions
-  subroutine addGradients(self, dEdcn, gradients)
+  subroutine addGradients(this, dEdcn, gradients)
 
     !> data structure
-    class(TCNCont), intent(inout) :: self
+    class(TCNCont), intent(inout) :: this
 
     !> Derivative w.r.t. CM5 correction
     real(dp), intent(in) :: dEdcn(:)
@@ -373,19 +374,19 @@ contains
     !> gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
-    @:ASSERT(all(shape(stress) == [3, self%nAtom]))
+    @:ASSERT(this%tCoordsUpdated)
+    @:ASSERT(all(shape(stress) == [3, this%nAtom]))
 
-    call gemv(gradients, self%dcndr, dEdcn, beta=1.0_dp)
+    call gemv(gradients, this%dcndr, dEdcn, beta=1.0_dp)
 
   end subroutine addGradients
 
 
   !> get stress tensor contributions
-  subroutine addStress(self, dEdcn, stress)
+  subroutine addStress(this, dEdcn, stress)
 
     !> data structure
-    class(TCNCont), intent(inout) :: self
+    class(TCNCont), intent(inout) :: this
 
     !> Derivative w.r.t. CM5 correction
     real(dp), intent(in) :: dEdcn(:)
@@ -393,24 +394,24 @@ contains
     !> Stress tensor contributions (not volume scaled)
     real(dp), intent(inout) :: stress(:,:)
 
-    @:ASSERT(self%tCoordsUpdated)
+    @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(all(shape(stress) == [3, 3]))
 
-    call gemv(stress, self%dcndL, dEdcn, beta=1.0_dp)
+    call gemv(stress, this%dcndL, dEdcn, beta=1.0_dp)
 
   end subroutine addStress
 
 
   !> Distance cut off for coordination number
-  function getRCutoff(self) result(cutoff)
+  function getRCutoff(this) result(cutoff)
 
     !> data structure
-    class(TCNCont), intent(inout) :: self
+    class(TCNCont), intent(inout) :: this
 
     !> resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = self%rCutoff
+    cutoff = this%rCutoff
 
   end function getRCutoff
 
@@ -736,21 +737,21 @@ contains
 
 
   !> Populate covalent radius field from speciesNames
-  subroutine covRadFromSpecies(self, speciesNames)
+  subroutine covRadFromSpecies(this, speciesNames)
 
     !> Instance of the CN input data
-    class(TCNInput), intent(inout) :: self
+    class(TCNInput), intent(inout) :: this
 
     !> Element symbols for all species
     character(len=*), intent(in) :: speciesNames(:)
 
     integer :: iSp
 
-    @:ASSERT(.not.allocated(self%covRad))
+    @:ASSERT(.not.allocated(this%covRad))
 
-    allocate(self%covRad(size(speciesNames)))
+    allocate(this%covRad(size(speciesNames)))
     do iSp = 1, size(speciesNames)
-      self%covRad(iSp) = getCovalentRadius(speciesNames(iSp))
+      this%covRad(iSp) = getCovalentRadius(speciesNames(iSp))
     end do
 
   end subroutine covRadFromSpecies
@@ -789,21 +790,21 @@ contains
 
 
   !> Populate electronegativity field from speciesNames
-  subroutine enFromSpecies(self, speciesNames)
+  subroutine enFromSpecies(this, speciesNames)
 
     !> Instance of the CN input data
-    class(TCNInput), intent(inout) :: self
+    class(TCNInput), intent(inout) :: this
 
     !> Element symbols for all species
     character(len=*), intent(in) :: speciesNames(:)
 
     integer :: iSp
 
-    @:ASSERT(.not.allocated(self%en))
+    @:ASSERT(.not.allocated(this%en))
 
-    allocate(self%en(size(speciesNames)))
+    allocate(this%en(size(speciesNames)))
     do iSp = 1, size(speciesNames)
-      self%en(iSp) = getElectronegativity(speciesNames(iSp))
+      this%en(iSp) = getElectronegativity(speciesNames(iSp))
     end do
 
   end subroutine enFromSpecies
@@ -841,4 +842,4 @@ contains
   end function getElectronegativityNumber
 
 
-end module dftbp_coordinationnumber
+end module dftbp_coordnumber

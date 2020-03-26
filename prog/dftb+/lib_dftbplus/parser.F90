@@ -26,7 +26,7 @@ module dftbp_parser
   use dftbp_inputconversion
   use dftbp_lapackroutines, only : matinv
   use dftbp_periodic
-  use dftbp_coordinationnumber
+  use dftbp_coordnumber
   use dftbp_dispersions
   use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
   use dftbp_encharges, only : TEeqInput
@@ -3828,13 +3828,13 @@ contains
     call getChildValue(node, "a1", input%a1)
     call getChildValue(node, "a2", input%a2)
     call getChildValue(node, "alpha", input%alpha, default=16.0_dp)
-    call getChildValue(node, "weightingFactor", input%weightingFactor, default=6.0_dp)
-    call getChildValue(node, "chargeSteepness", input%chargeSteepness, default=2.0_dp)
-    call getChildValue(node, "chargeScale", input%chargeScale, default=3.0_dp)
-    call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
+    call getChildValue(node, "WeightingFactor", input%weightingFactor, default=6.0_dp)
+    call getChildValue(node, "ChargeSteepness", input%chargeSteepness, default=2.0_dp)
+    call getChildValue(node, "ChargeScale", input%chargeScale, default=3.0_dp)
+    call getChildValue(node, "CutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
-    call getChildValue(node, "cutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
+    call getChildValue(node, "CutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffThree)
 
@@ -3855,7 +3855,7 @@ contains
       call readEeqModel(value1, input%eeqInput, geo, nrChrg, d4Chi, d4Gam, d4Kcn, d4Rad)
     end select
 
-    call readCoordinationNumber(node, input%cnInput, geo, "cov", 0.0_dp)
+    call readCoordinationNumber(node, input%cnInput, geo, "Cov", 0.0_dp)
 
   end subroutine readDispDFTD4
 
@@ -3899,7 +3899,7 @@ contains
     allocate(input%kcn(geo%nSpecies))
     allocate(input%rad(geo%nSpecies))
 
-    call getChildValue(node, "chi", value1, "defaults", child=child)
+    call getChildValue(node, "Chi", value1, "Defaults", child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -3916,7 +3916,7 @@ contains
       end do
     end select
 
-    call getChildValue(node, "gam", value1, "defaults", child=child)
+    call getChildValue(node, "Gam", value1, "Defaults", child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -3933,7 +3933,7 @@ contains
       end do
     end select
 
-    call getChildValue(node, "kcn", value1, "defaults", child=child)
+    call getChildValue(node, "Kcn", value1, "Defaults", child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -3950,7 +3950,7 @@ contains
       end do
     end select
 
-    call getChildValue(node, "rad", value1, "defaults", child=child)
+    call getChildValue(node, "Rad", value1, "Defaults", child=child)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -3967,14 +3967,14 @@ contains
       end do
     end select
 
-    call getChildValue(node, "cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
+    call getChildValue(node, "Cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoff)
 
     call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)
     call getChildValue(node, "EwaldTolerance", input%tolEwald, 1.0e-9_dp)
 
-    call readCoordinationNumber(node, input%cnInput, geo, "erf", 8.0_dp)
+    call readCoordinationNumber(node, input%cnInput, geo, "Erf", 8.0_dp)
 
   end subroutine readEeqModel
 
@@ -4008,22 +4008,26 @@ contains
     select case(char(buffer))
     case default
       call detailedError(child, "Invalid coordination number type specified")
-  #:for cnType in ("exp", "erf", "cov", "gfn")
-    case("${cnType}$")
-      input%cnType = cnType%${cnType}$
-  #:endfor
+    case("exp")
+      input%cnType = cnType%exp
+    case("erf")
+      input%cnType = cnType%erf
+    case("cov")
+      input%cnType = cnType%cov
+    case("gfn")
+      input%cnType = cnType%gfn
     end select
 
     call getChildValue(value1, "CutCN", input%maxCN, cutDefault, &
         & child=child2)
 
-    call getChildValue(value1, "cutoff", input%rCutoff, 40.0_dp, &
+    call getChildValue(value1, "Cutoff", input%rCutoff, 40.0_dp, &
         & modifier=modifier, child=field)
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
 
     allocate(input%en(geo%nSpecies))
     if (input%cnType == cnType%cov) then
-      call getChildValue(value1, "electronegativities", value2, "PaulingEN", child=child2)
+      call getChildValue(value1, "Electronegativities", value2, "PaulingEN", child=child2)
       call getNodeName(value2, buffer)
       select case(char(buffer))
       case default
@@ -4050,7 +4054,7 @@ contains
     end if
 
     allocate(input%covRad(geo%nSpecies))
-    call getChildValue(value1, "radii", value2, "CovalentRadiiD3", child=child2)
+    call getChildValue(value1, "Radii", value2, "CovalentRadiiD3", child=child2)
     call getNodeName(value2, buffer)
     select case(char(buffer))
     case default

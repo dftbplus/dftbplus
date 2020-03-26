@@ -15,7 +15,7 @@ module dftbp_dispdftd4
   use dftbp_environment, only : TEnvironment
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, symbolToNumber
-  use dftbp_coordinationnumber, only : TCNCont, init
+  use dftbp_coordnumber, only : TCNCont, init
   use dftbp_dftd4param, only : TDftD4Calculator, TDispDftD4Inp, initializeCalculator
   use dftbp_dispiface, only : TDispersionIface
   use dftbp_encharges, only : TEeqCont, init

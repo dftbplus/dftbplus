@@ -13,7 +13,7 @@ module dftbp_dftd4param
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
   use dftbp_encharges, only : TEeqInput
-  use dftbp_coordinationnumber, only : TCNCont, TCNInput, cnType
+  use dftbp_coordnumber, only : TCNCont, TCNInput, cnType
   use dftbp_dftd4refs
   implicit none
 

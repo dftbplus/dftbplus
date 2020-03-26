@@ -18,7 +18,7 @@ module dftbp_encharges
   use dftbp_errorfunction, only : erfwrap
   use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
       & getMaxGEwald, getOptimalAlphaEwald
-  use dftbp_coordinationnumber, only : TCNCont, TCNInput, init
+  use dftbp_coordnumber, only : TCNCont, TCNInput, init
   use dftbp_blasroutines, only : hemv, gemv, gemm
   use dftbp_lapackroutines, only : symmatinv
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
