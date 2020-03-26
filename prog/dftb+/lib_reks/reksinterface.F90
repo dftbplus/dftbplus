@@ -363,12 +363,6 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    real(dp) :: timeRate
-    integer(kind=8) :: countRate, t1, t2
-
-    call system_clock(count_rate=countRate)
-    timeRate = real(countRate, dp)
-
     ! calculate the relaxed density matrix, dipole moment,
     !           the forces of external charges.
     if (self%tRD) then
@@ -424,15 +418,9 @@ module dftbp_reksinterface
 
       if (self%tExtChrg) then
 
-        call system_clock(t1)
         call getExtChrgGradients(env, coord0, self%extCharges(1:3,:), &
             & qOutput, q0, self%extCharges(4,:), self%blurWidths, self%rVec, self%gVec, &
             & self%alpha, self%volume, self%tPeriodic, self%tBlur, chrgForces)
-        call system_clock(t2)
-        if (self%Plevel >= 2) then
-          write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
-              & 'Time - getExtChrgGradients =', (t2 - t1) / timeRate, 'sec'
-        end if
 
       end if
 
@@ -690,14 +678,7 @@ module dftbp_reksinterface
     real(dp), allocatable :: lcDerivs(:,:,:)
 !    integer, pointer :: pSpecies0(:)
 
-    real(dp) :: timeRate
     integer :: nAtom, iL
-    integer(kind=8) :: countRate, t1, t2
-
-    call system_clock(count_rate=countRate)
-    timeRate = real(countRate, dp)
-
-    call system_clock(t1)
 
     nAtom = size(self%gradL,dim=2)
 !    pSpecies0 => species(1:nat)
@@ -792,13 +773,6 @@ module dftbp_reksinterface
       end do
     end if
 
-    call system_clock(t2)
-    if (self%Plevel >= 2) then
-      call printBlankLine()
-      write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
-          & 'Time - getHellmannFeynmanGradientL =', (t2 - t1) / timeRate, 'sec'
-    end if
-
   end subroutine getHellmannFeynmanGradientL_
 
 
@@ -849,14 +823,6 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    real(dp) :: timeRate
-    integer(kind=8) :: countRate, t1, t2
-
-    call system_clock(count_rate=countRate)
-    timeRate = real(countRate, dp)
-
-    call system_clock(t1)
-
     ! get gamma, spinW, gamma deriv, LR-gamma deriv, on-site constants
     ! LRgamma is already defined in 1st scc loop
     call getSccSpinLrPars(env, sccCalc, rangeSep, coord, species, &
@@ -882,12 +848,6 @@ module dftbp_reksinterface
         & self%fockFa, self%omega, self%fillingL, self%weight, self%SAweight, &
         & self%FONs, self%G1, self%Lpaired, self%Nc, self%Na, self%Glevel, &
         & self%Mlevel, self%tSSR22, self%tSSR44, self%A1e, self%A1ePre, self%Aall)
-
-    call system_clock(t2)
-    if (self%Plevel >= 2) then
-      write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
-          & 'Time - getReksParameters =', (t2 - t1) / timeRate, 'sec'
-    end if
 
   end subroutine getReksParameters_
 
@@ -926,14 +886,7 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    real(dp) :: timeRate
     integer :: ia, ib, ist, nstHalf
-    integer(kind=8) :: countRate, t1, t2
-
-    call system_clock(count_rate=countRate)
-    timeRate = real(countRate, dp)
-
-    call system_clock(t1)
 
     nstHalf = self%nstates * (self%nstates - 1) / 2
 
@@ -989,12 +942,6 @@ module dftbp_reksinterface
           & self%fillingL, self%Nc, self%Na, self%Lstate, self%Lpaired, &
           & self%tSSR22, self%tSSR44, self%tRangeSep, self%XT(:,1))
 
-    end if
-
-    call system_clock(t2)
-    if (self%Plevel >= 2) then
-      write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
-          & 'Time - buildStateVectors =', (t2 - t1) / timeRate, 'sec'
     end if
 
   end subroutine buildStateVectors_
@@ -1145,14 +1092,6 @@ module dftbp_reksinterface
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    real(dp) :: timeRate
-    integer(kind=8) :: countRate, t1, t2
-
-    call system_clock(count_rate=countRate)
-    timeRate = real(countRate, dp)
-
-    call system_clock(t1)
-
     call RTshift(env, sccCalc, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, orb, coord0, self%Hderiv, self%Sderiv, &
         & self%rhoSqrL, self%overSqr, self%deltaRhoSqrL, self%qOutputL, &
@@ -1162,13 +1101,6 @@ module dftbp_reksinterface
         & self%getDenseAO, self%getDenseAtom, self%getAtomIndex, self%orderRmatL, &
         & self%Lpaired, self%SAstates, self%tNAC, self%tRangeSep, self%tExtChrg, &
         & self%tPeriodic, self%tBlur, self%SAgrad, self%SIgrad, self%SSRgrad)
-
-    call system_clock(t2)
-    if (self%Plevel >= 2) then
-      call printBlankLine()
-      write(stdOut,'(1x,a,1x,F15.8,1x,a)') &
-          & 'Time - getRTGradient =', (t2 - t1) / timeRate, 'sec'
-    end if
 
   end subroutine getRTGradient_
 

@@ -364,12 +364,6 @@ contains
     ! loop index
     integer :: iSpin
 
-    real(dp) :: timeRate
-    integer(kind=8) :: countRate, t1, t2
-
-    call system_clock(count_rate=countRate)
-    timeRate = 1.0_dp / real(countRate, dp)
-
     call env%globalTimer%startTimer(globalTimers%preSccInit)
 
     if (allocated(qDepExtPot)) then
@@ -490,8 +484,6 @@ contains
 
       lpSCC_REKS: do iSccIter = 1, maxSccIter
 
-        call system_clock(t1)
-
         if (iSccIter == 1) then
           call getReksInitialSettings(env, denseDesc, h0, over, neighbourList, nNeighbourSK,&
               & iSparseStart, img2CentCell, electronicSolver, HSqrReal, SSqrReal, eigvecsReal,&
@@ -529,11 +521,8 @@ contains
               & iGeoStep, tStopScc, eigvecsReal, reks)
         end if
 
-        call system_clock(t2)
-
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
-        call printReksSccInfo(iSccIter, energy%Etotal, diffElec, sccErrorQ,&
-            & real(t2-t1,dp)*timeRate, reks)
+        call printReksSccInfo(iSccIter, energy%Etotal, diffElec, sccErrorQ, reks)
 
         if (tConverged .or. tStopScc) then
 
@@ -555,7 +544,7 @@ contains
                 & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol,&
                 & tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
                 & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, allocated(thirdOrd),&
-                & tRangeSep, real(t2-t1,dp)*timeRate)
+                & tRangeSep)
           end if
           if (tWriteBandDat) then
             call writeBandOut(bandOut, eigen, filling, kWeight)

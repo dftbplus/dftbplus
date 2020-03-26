@@ -3701,8 +3701,8 @@ contains
     type(TReksCalc), intent(in) :: reks
 
     if (reks%tSSR22) then
-      write(stdOut,"(1X,A5,A20,A20,A13,A12,A15)") "iSCC", "       reks energy  ", &
-          & "      Diff energy   ", "      x_a    ", "    Time(s) ", "   SCC error   "
+      write(stdOut,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
+          & "      Diff energy   ", "      x_a    ", "   SCC error   "
     else if (reks%tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
@@ -3741,7 +3741,7 @@ contains
 
 
   !> Prints info about scc convergence.
-  subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, sccErrorQ, deltaT, reks)
+  subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, sccErrorQ, reks)
 
     !> Iteration count
     integer, intent(in) :: iSccIter
@@ -3755,16 +3755,13 @@ contains
     !> Maximum charge difference between input and output
     real(dp), intent(in) :: sccErrorQ
 
-    !> the consumed time for calculating one iteration
-    real(dp), intent(in) :: deltaT
-
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
     ! print out the iteration information
     if (reks%tSSR22) then
-      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F10.6,3x,F10.6)") iSCCIter, Etotal,&
-          & diffTotal, reks%FONs(1,1) * 0.5_dp, deltaT, sccErrorQ
+      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.6)") iSCCIter, Etotal,&
+          & diffTotal, reks%FONs(1,1) * 0.5_dp, sccErrorQ
     else if (reks%tSSR44) then
       call error("SSR(4,4) is not implemented yet")
     end if
@@ -4989,7 +4986,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, tRangeSep, deltaT)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, tRangeSep)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5090,9 +5087,6 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
-    !> the consumed time for calculating one iteration
-    real(dp), intent(in) :: deltaT
-
     integer :: nAtom, nKPoint, nMovedAtom, nstates
     integer :: ang, iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
     character(sc), allocatable :: shellNamesTmp(:)
@@ -5127,11 +5121,10 @@ contains
 
     if (tSCC) then
       write(fd, "(A)") repeat("*", 92)
-      write(fd,"(1X,A5,A20,A20,A13,A12,A15)") "iSCC", "       reks energy  ", &
-          & "      Diff energy   ", "      x_a    ", "    Time(s) ", "   SCC error   "
-      write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F10.6,3x,F10.6)") &
-          & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, deltaT, sccErrorQ
-
+      write(fd,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
+          & "      Diff energy   ", "      x_a    ", "   SCC error   "
+      write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.6)") &
+          & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, sccErrorQ
       write(fd, "(A)") repeat("*", 92)
       write(fd, *)
     end if
