@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,10 +16,10 @@ module dftbp_h5correction
   implicit none
   private
 
-  public :: H5Corr, H5Corr_init
+  public :: TH5Corr, H5Corr_init
 
   !> Internal data of the H5 correction
-  type :: H5Corr
+  type :: TH5Corr
     private
 
     !> distance scale of correction
@@ -39,7 +39,7 @@ module dftbp_h5correction
     procedure :: scaleShortGamma
     procedure :: scaleShortGammaDeriv
 
-  end type H5Corr
+  end type TH5Corr
 
 
   ! Conversion from full-width-at-half-maximum to c 2.35482 == 2*sqrt(2*ln(2))
@@ -51,7 +51,7 @@ contains
   subroutine H5Corr_init(this, speciesNames, rr, ww, elementParams)
 
     !> Initialised instance at return.
-    type(H5Corr), intent(out) :: this
+    type(TH5Corr), intent(out) :: this
 
     !> Names of the species
     character(mc), allocatable, intent(in) :: speciesNames(:)
@@ -82,7 +82,7 @@ contains
   subroutine scaleShortGamma(this, shortGamma, iSp1, iSp2, rab)
 
     !> instance of the correction
-    class(H5Corr), intent(in) :: this
+    class(TH5Corr), intent(in) :: this
 
     !> short range gamma value
     real(dp), intent(inout) :: shortGamma
@@ -115,7 +115,7 @@ contains
   subroutine scaleShortGammaDeriv(this, shortGamma, shortGammaDeriv, iSp1, iSp2, rab)
 
     !> instance of the correction
-    class(H5Corr), intent(in) :: this
+    class(TH5Corr), intent(in) :: this
 
     !> short range gamma
     real(dp), intent(in) :: shortGamma

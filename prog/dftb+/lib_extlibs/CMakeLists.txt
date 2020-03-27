@@ -2,10 +2,12 @@ set(curdir "lib_extlibs")
 
 set(sources-fpp
   ${curdir}/blas.F90
+  ${curdir}/dftd4refs.F90
   ${curdir}/elsiiface.F90
   ${curdir}/lapack.F90
   ${curdir}/magmahelper.F90
   ${curdir}/mpifx.F90
+  ${curdir}/plumed.F90
   ${curdir}/scalapackfx.F90
   ${curdir}/xmlf90.F90)
 

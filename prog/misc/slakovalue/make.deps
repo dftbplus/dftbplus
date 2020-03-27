@@ -1,9 +1,0 @@
-integvalue.o: _mod_dftbp_slakoeqgrid _mod_dftbp_accuracy _mod_dftbp_io _mod_dftbp_oldskdata _mod_dftbp_fileid _mod_dftbp_message
-integvalue.o = integvalue.o $(_mod_dftbp_slakoeqgrid) $(_mod_dftbp_accuracy) $(_mod_dftbp_io) $(_mod_dftbp_oldskdata) $(_mod_dftbp_fileid) $(_mod_dftbp_message)
-
-polyvalue.o: _mod_dftbp_reppoly _mod_dftbp_fileid _mod_dftbp_io _mod_dftbp_accuracy _mod_dftbp_message
-polyvalue.o = polyvalue.o $(_mod_dftbp_reppoly) $(_mod_dftbp_fileid) $(_mod_dftbp_io) $(_mod_dftbp_accuracy) $(_mod_dftbp_message)
-
-splvalue.o: _mod_dftbp_repspline _mod_dftbp_accuracy _mod_dftbp_oldskdata _mod_dftbp_fileid _mod_dftbp_io _mod_dftbp_message
-splvalue.o = splvalue.o $(_mod_dftbp_repspline) $(_mod_dftbp_accuracy) $(_mod_dftbp_oldskdata) $(_mod_dftbp_fileid) $(_mod_dftbp_io) $(_mod_dftbp_message)
-
