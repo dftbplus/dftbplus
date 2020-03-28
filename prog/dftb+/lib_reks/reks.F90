@@ -41,14 +41,14 @@ module dftbp_reks
   public :: adjustEigenval, solveSecularEqn
 
   !> dftbp_reksfon module used in main.F90
-  public :: optimizeFONs
+  public :: optimizeFons
 
   !> dftbp_reksinterface modules used in main.F90
   public :: getReksGradients, getReksGradProperties
   public :: getReksStress
 
   !> dftbp_rekspreoperty modules used in main.F90
-  public :: getUnrelaxedDMandTDP
+  public :: getUnrelaxedDensMatAndTdp
   public :: getDipoleIntegral, getDipoleMomentMatrix, getReksOsc
 
   !> dftbp_reksvar module used in main.F90, mainio.F90, inputdata.F90, initprogram.F90

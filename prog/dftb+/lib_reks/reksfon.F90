@@ -24,7 +24,7 @@ module dftbp_reksfon
 
   private
 
-  public :: optimizeFONs
+  public :: optimizeFons
 
   !> Parameter to distinguish between two asymptotic regimes
   !> in the behavior of the derivative of the REKS coefficient, fx
@@ -37,7 +37,7 @@ module dftbp_reksfon
   contains
 
   !> Optimize the fractional occupation numbers (FONs) in REKS
-  subroutine optimizeFONs(self)
+  subroutine optimizeFons(self)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
@@ -46,7 +46,7 @@ module dftbp_reksfon
 
     if (self%tSSR22) then
 
-      call getFONs22_(x, self%hess, self%enLtot, self%delta, self%FONmaxIter, self%Plevel)
+      call getFONs22_(x, self%hess, self%enLtot, self%delta, self%FonMaxIter, self%Plevel)
       ! FONs(1,1) = n_a, FONs(2,1) = n_b
       self%FONs(1,1) = 2.0_dp * x
       self%FONs(2,1) = 2.0_dp - self%FONs(1,1)
@@ -57,7 +57,7 @@ module dftbp_reksfon
 
     end if
 
-  end subroutine optimizeFONs
+  end subroutine optimizeFons
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

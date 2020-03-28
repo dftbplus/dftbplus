@@ -63,7 +63,7 @@ module dftbp_reksvar
     integer :: guess
 
     !> Maximum iteration used in FON optimization
-    integer :: FONmaxIter
+    integer :: FonMaxIter
 
     !> Shift value in SCC cycle
     real(dp) :: shift
@@ -143,7 +143,7 @@ module dftbp_reksvar
     integer :: guess
 
     !> Maximum iteration used in FON optimization
-    integer :: FONmaxIter
+    integer :: FonMaxIter
 
     !> Shift value in SCC cycle
     real(dp) :: shift
@@ -587,7 +587,7 @@ module dftbp_reksvar
     self%rstate = ini%rstate
     self%Lstate = ini%Lstate
     self%guess = ini%guess
-    self%FONmaxIter = ini%FONmaxIter
+    self%FonMaxIter = ini%FonMaxIter
     self%shift = ini%shift
 
     self%Glevel = ini%Glevel

@@ -28,14 +28,14 @@ module dftbp_reksproperty
 
   private
 
-  public :: getUnrelaxedDMandTDP, getRelaxedDM, getRelaxedDML
+  public :: getUnrelaxedDensMatAndTdp, getRelaxedDM, getRelaxedDML
   public :: getDipoleIntegral, getDipoleMomentMatrix, getReksOsc
 
   contains
 
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
-  subroutine getUnrelaxedDMandTDP(eigenvecs, overSqr, rhoSqrL, FONs, &
+  subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoSqrL, FONs, &
       & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, useSSR, tTDP, &
       & tSSR22, tSSR44, unrelRhoSqr, unrelTdm)
 
@@ -228,7 +228,7 @@ module dftbp_reksproperty
 
     call printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
 
-  end subroutine getUnrelaxedDMandTDP
+  end subroutine getUnrelaxedDensMatAndTdp
 
 
   !> Calculate relaxed density for target SA-REKS or SSR state

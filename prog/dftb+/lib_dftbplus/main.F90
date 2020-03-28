@@ -7091,7 +7091,7 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    call optimizeFONs(reks)
+    call optimizeFons(reks)
     call calcWeights(reks)
 
     call activeOrbSwap(reks, eigvecs(:,:,1))
@@ -7430,7 +7430,7 @@ contains
     ! gradient. Therefore, we can easily guess the behavior of the states.
     if (reks%nstates > 1) then
 
-      call getUnrelaxedDMandTDP(eigenvecs(:,:,1), reks%overSqr, reks%rhoSqrL, &
+      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), reks%overSqr, reks%rhoSqrL, &
           & reks%FONs, reks%eigvecsSSR, reks%Lpaired, reks%Nc, reks%Na, &
           & reks%rstate, reks%Lstate, reks%useSSR, reks%tTDP, reks%tSSR22, &
           & reks%tSSR44, reks%unrelRhoSqr, reks%unrelTdm)

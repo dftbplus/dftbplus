@@ -200,9 +200,9 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%ctrl)
 
-    call getChildValue(root, "REKS", dummy, "", child=child, list=.true., &
+    call getChildValue(root, "Reks", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readREKS(child, input%ctrl, input%geom)
+    call readReks(child, input%ctrl, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -6257,7 +6257,7 @@ contains
 
 
   !> Reads the REKS block
-  subroutine readREKS(node, ctrl, geo)
+  subroutine readReks(node, ctrl, geo)
 
     !> Node to parse
     type(fnode), pointer, intent(in) :: node
@@ -6288,7 +6288,7 @@ contains
 
     end if
 
-  end subroutine readREKS
+  end subroutine readReks
 
 
   !> Reads the SSR(2,2) block
@@ -6311,7 +6311,7 @@ contains
     call getChildValue(node, "EnergyLevel", ctrl%reksIni%Elevel, default=1)
     !> Calculate SSR state (SI term is included)
     !> 1: calculate SSR state, 0: calculate SA-REKS state
-    call getChildValue(node, "UseSSRstate", ctrl%reksIni%useSSR, default=1)
+    call getChildValue(node, "UseSsrState", ctrl%reksIni%useSSR, default=1)
 
     !> Target SSR state
     call getChildValue(node, "TargetState", ctrl%reksIni%rstate, default=1)
@@ -6322,7 +6322,7 @@ contains
     !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
     call getChildValue(node, "InitialGuess", ctrl%reksIni%guess, default=1)
     !> Maximum iteration used in FON optimization
-    call getChildValue(node, "FONmaxIter", ctrl%reksIni%FONmaxIter, default=20)
+    call getChildValue(node, "FonMaxIter", ctrl%reksIni%FonMaxIter, default=20)
     !> Shift value in SCC cycle
     call getChildValue(node, "Shift", ctrl%reksIni%shift, default=0.3_dp)
 

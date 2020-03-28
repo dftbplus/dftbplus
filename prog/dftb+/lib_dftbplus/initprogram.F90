@@ -3424,7 +3424,7 @@ contains
       write (stdOut, "(A,':',T30,I14)") "State of Interest", reks%rstate
 
       write (stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
-      write (stdOut, "(A,':',T30,I14)") "NR max. Iterations", reks%FONmaxIter
+      write (stdOut, "(A,':',T30,I14)") "NR max. Iterations", reks%FonMaxIter
       write (stdOut, "(A,':',T30,A)") "Level Shifting", "Yes"
       write (stdOut, "(A,':',T30,F12.6)") "Shift Value", reks%shift
 
