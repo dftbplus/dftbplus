@@ -3753,9 +3753,9 @@ lattice optimization. The specifications for this block have the following prope
   \begin{ptable}
     \kw{EnergyFunctional}                   & i & & 2 & \\
     \kw{EnergyLevel}                          & i & & 1 & \\
-    \kw{UseSSRstate}                         & i & EnergyFunctional $\neq$ 1 & 1 & \\
+    \kw{UseSsrState}                         & i & EnergyFunctional $\neq$ 1 & 1 & \\
     \kw{TargetState}                           & i & & 1 & \\
-    \kw{TargetStateL}                          & i & EnergyFunctional $\neq$ 1, UseSSRstate = 0 & 0 & \\
+    \kw{TargetStateL}                          & i & EnergyFunctional $\neq$ 1, UseSsrState = 0 & 0 & \\
     \kw{InitialGuess}                           & i & & 1 & \\
     \kw{FONmaxIter}                           & i & & 20 & \\
     \kw{Shift}                                     & r & & 0.3 & \\
@@ -3765,7 +3765,7 @@ lattice optimization. The specifications for this block have the following prope
     \kw{CGmaxIter}                            & i & & 20 & \\
     \kw{GradientTolerance}                 & r & & 1e-8 & \\
     \kw{RelaxedDensity}                     & l & & No & \\
-    \kw{NonAdiabaticCoupling}            & l & EnergyFunctional $\neq$ 1, UseSSRstate = 1 & No & \\
+    \kw{NonAdiabaticCoupling}            & l & EnergyFunctional $\neq$ 1, UseSsrState = 1 & No & \\
     \kw{PrintLevel}                             & i & & 1 & \\
     \kw{MemoryLevel}                        & i & & 2 & \\
   \end{ptable}
@@ -3776,7 +3776,7 @@ lattice optimization. The specifications for this block have the following prope
     The minimized energy functionals can be PPS (\is{EnergyFunctional} = 1) or (PPS+OSS)/2
     (\is{EnergyFunctional} = 2) state in DFTB/SSR(2,2) case. The former considers only
     single-state REKS and the latter considers SA-REKS or SI-SA-REKS. The inclusion of
-    state-interaction term is determined by \is{UseSSRstate} option.
+    state-interaction term is determined by \is{UseSsrState} option.
 
   \item[\is{EnergyLevel}] Specifies the computable energy level with respect to \is{EnergyFunctional}
     in DFTB/SSR. \is{EnergyLevel} should be 1 or 2, which calculate the states only included in
@@ -3786,7 +3786,7 @@ lattice optimization. The specifications for this block have the following prope
     can be calculated with the value of 2. The detailed explanation about PPS, OSS and DES states
     is given in the Ref.~\cite{Lee_JCTC_2019}
 
-  \item[\is{UseSSRstate}] Determines the inclusion of state-interaction terms. \is{UseSSRstate}
+  \item[\is{UseSsrState}] Determines the inclusion of state-interaction terms. \is{UseSsrState}
     should be 1 or 0, which calculate SA-REKS state or SI-SA-REKS state, respectively. In general,
     SI-SA-REKS state can provide more reliable state when you want to include the excited state.
 
@@ -3857,7 +3857,7 @@ Example for 3state SI-SA-REKS calculation using nonadiabatic couplings and modif
 REKS = SSR22 {
   EnergyFunctional = 2
   EnergyLevel = 2
-  UseSSRstate = 1
+  UseSsrState = 1
   TargetState = 2
   TargetStateL = 0
   SpinTuning = { 3.0 3.0 }
@@ -4438,7 +4438,7 @@ particular settings from section~\ref{sec:dftbp.REKS}.
 
 
 \subsection{tdp.dat}
-\index{tdp.dat.reks}
+\index{tdp-reks.dat}
 
 Detail of the magnitude and direction of the transition dipole between all electronic states.
 
