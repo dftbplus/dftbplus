@@ -177,6 +177,10 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
+  if(WITH_GPU AND WITH_MPI)
+    message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
+  endif()
+
   string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
   if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
       AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)

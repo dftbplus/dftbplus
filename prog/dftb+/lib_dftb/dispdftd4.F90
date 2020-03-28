@@ -15,6 +15,7 @@ module dftbp_dispdftd4
   use dftbp_environment, only : TEnvironment
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, symbolToNumber
+  use dftbp_coordnumber, only : TCNCont, init
   use dftbp_dftd4param, only : TDftD4Calculator, TDispDftD4Inp, initializeCalculator
   use dftbp_dispiface, only : TDispersionIface
   use dftbp_encharges, only : TEeqCont, init
@@ -59,6 +60,9 @@ module dftbp_dispdftd4
 
     !> EEQ model
     type(TEeqCont) :: eeqCont
+
+    !> Coordination number
+    type(TCNCont) :: cnCont
 
   contains
 
@@ -119,8 +123,10 @@ contains
 
     if (this%tPeriodic) then
       call init(this%eeqCont, inp%eeqInput, .false., .true., nAtom, latVecs)
+      call init(this%cnCont, inp%cnInput, nAtom, latVecs)
     else
       call init(this%eeqCont, inp%eeqInput, .false., .true., nAtom)
+      call init(this%cnCont, inp%cnInput, nAtom)
     end if
 
     this%tCoordsUpdated = .false.
@@ -165,11 +171,11 @@ contains
 
     if (this%tPeriodic) then
       call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%eeqCont, this%energies, this%gradients, stress=this%stress, volume=this%vol,&
-          & parEwald=this%eeqCont%parEwald)
+          & this%eeqCont, this%cnCont, this%energies, this%gradients, &
+          & stress=this%stress, volume=this%vol, parEwald=this%eeqCont%parEwald)
     else
       call dispersionEnergy(this%calculator, this%nAtom, coords, species0, neigh, img2CentCell,&
-          & this%eeqCont, this%energies, this%gradients)
+          & this%eeqCont, this%cnCont, this%energies, this%gradients)
     end if
 
     this%tCoordsUpdated = .true.
@@ -195,6 +201,7 @@ contains
     this%vol = abs(determinant33(latVecs))
 
     call this%eeqCont%updateLatVecs(latVecs)
+    call this%cnCont%updateLatVecs(LatVecs)
 
     this%tCoordsUpdated = .false.
 
@@ -264,167 +271,10 @@ contains
     !> Resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = max(this%calculator%cutoffInter, this%calculator%cutoffCount,&
+    cutoff = max(this%calculator%cutoffInter, this%cnCont%getRCutoff(),&
         & this%eeqCont%getRCutoff(), this%calculator%cutoffThree)
 
   end function getRCutoff
-
-
-  !> Error function based fractional coordination number.
-  subroutine getCoordinationNumber(nAtom, coords, species, nNeighbour, iNeighbour, neighDist2,&
-      & img2CentCell, covalentRadius, electronegativity, tENscale, cn, dcndr, dcndL)
-
-    !> Nr. of atoms (without periodic images)
-    integer, intent(in) :: nAtom
-
-    !> Coordinates of the atoms (including images)
-    real(dp), intent(in) :: coords(:, :)
-
-    !> Species of every atom.
-    integer, intent(in) :: species(:)
-
-    !> Nr. of neighbours for each atom
-    integer, intent(in) :: nNeighbour(:)
-
-    !> Neighbourlist.
-    integer, intent(in) :: iNeighbour(0:, :)
-
-    !> Square distances of the neighbours.
-    real(dp), intent(in) :: neighDist2(0:, :)
-
-    !> Mapping into the central cell.
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Use covalent coordination number by weighting with EN difference.
-    logical, intent(in) :: tENscale
-
-    !> Covalent Radii for counting function
-    real(dp), intent(in) :: covalentRadius(:)
-
-    !> Electronegativities for covalancy scaling
-    real(dp), intent(in) :: electronegativity(:)
-
-    !> Error function coordination number.
-    real(dp), intent(out) :: cn(:)
-
-    !> Derivative of the CN with respect to the Cartesian coordinates.
-    real(dp), intent(out) :: dcndr(:, :, :)
-
-    !> Derivative of the CN with respect to strain deformations.
-    real(dp), intent(out) :: dcndL(:, :, :)
-
-    !> Steepness of the counting function for the fractional coordination number.
-    real(dp), parameter :: kcn = 7.5_dp
-    !> EN scaling parameter
-    real(dp), parameter :: k4 = 4.10451_dp
-    real(dp), parameter :: k5 = 19.08857_dp
-    real(dp), parameter :: k6 = 2*11.28174_dp**2
-
-    integer :: iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh
-    real(dp) :: r2, r1, rc, vec(3), countf, countd(3), stress(3, 3), dEN
-
-    cn(:) = 0.0_dp
-    dcndr(:, :, :) = 0.0_dp
-    dcndL(:, :, :) = 0.0_dp
-
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:cn, dcndr, dcndL) &
-    !$OMP SHARED(nAtom, species, nNeighbour, iNeighbour, coords, img2CentCell) &
-    !$OMP SHARED(neighDist2, covalentRadius, tENScale, electronegativity) &
-    !$OMP PRIVATE(iAt1, iSp1, iAt2, vec, iAt2f, iSp2, r2, r1, rc, dEN, countf) &
-    !$OMP PRIVATE(countd, stress)
-    !$OMP DO SCHEDULE(RUNTIME)
-    do iAt1 = 1, nAtom
-      iSp1 = species(iAt1)
-      do iNeigh = 1, nNeighbour(iAt1)
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        vec(:) = coords(:, iAt1) - coords(:, iAt2)
-        iAt2f = img2CentCell(iAt2)
-        iSp2 = species(iAt2f)
-        r2 = neighDist2(iNeigh, iAt1)
-        r1 = sqrt(r2)
-
-        rc = covalentRadius(iSp1) + covalentRadius(iSp2)
-
-        if (tENScale) then
-          dEN = abs(electronegativity(iSp1) - electronegativity(iSp2))
-          dEN = k4 * exp(-(dEN + k5)**2 / k6)
-        else
-          dEN = 1.0_dp
-        end if
-
-        countf = dEN * erfCount(kcn, r1, rc)
-        countd = dEN * derfCount(kcn, r1, rc) * vec / r1
-
-        cn(iAt1) = cn(iAt1) + countf
-        if (iAt1 /= iAt2f) then
-          cn(iAt2f) = cn(iAt2f) + countf
-        end if
-
-        dcndr(:, iAt1, iAt1) = dcndr(:, iAt1, iAt1) + countd
-        dcndr(:, iAt2f, iAt2f) = dcndr(:, iAt2f, iAt2f) - countd
-        dcndr(:, iAt1, iAt2f) = dcndr(:, iAt1, iAt2f) + countd
-        dcndr(:, iAt2f, iAt1) = dcndr(:, iAt2f, iAt1) - countd
-
-        stress = spread(countd, 1, 3) * spread(vec, 2, 3)
-
-        dcndL(:, :, iAt1) = dcndL(:, :, iAt1) - stress
-        if (iAt1 /= iAt2f) then
-          dcndL(:, :, iAt2f) = dcndL(:, :, iAt2f) - stress
-        end if
-
-      end do
-    end do
-    !$OMP END DO
-    !$OMP END PARALLEL
-  end subroutine getCoordinationNumber
-
-
-  !> cutoff function for large coordination numbers
-  subroutine cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max)
-
-    !> number of atoms
-    integer, intent(in) :: nAtom
-
-    !> on input coordination number, on output modified CN
-    real(dp), intent(inout) :: cn(:)
-
-    !> on input derivative of CN w.r.t. cartesian coordinates,
-    !> on output derivative of modified CN
-    real(dp), intent(inout), optional :: dcndr(:, :, :)
-
-    !> on input derivative of CN w.r.t. strain deformation,
-    !> on output derivative of modified CN
-    real(dp), intent(inout), optional :: dcndL(:, :, :)
-
-    !> maximum CN (not strictly obeyed)
-    real(dp), intent(in), optional :: cn_max
-
-    real(dp) :: cnmax
-    integer :: iAt
-
-    if (present(cn_max)) then
-      cnmax = cn_max
-    else
-      cnmax = 4.5_dp
-    end if
-
-    if (cnmax <= 0.0_dp) return
-
-    if (present(dcndL)) then
-      do iAt = 1, nAtom
-        dcndL(:, :, iAt) = dcndL(:, :, iAt) * dCutCN(cn(iAt), cnmax)
-      end do
-    end if
-
-    if (present(dcndr)) then
-      do iAt = 1, nAtom
-        dcndr(:, :, iAt) = dcndr(:, :, iAt) * dCutCN(cn(iAt), cnmax)
-      end do
-    end if
-
-    cn(:) = cutCN(cn, cnmax)
-
-  end subroutine cutCoordinationNumber
 
 
   !> Calculate the weights of the reference systems and scale them according
@@ -956,8 +806,8 @@ contains
 
 
   !> Driver for the calculation of DFT-D4 dispersion related properties.
-  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, img2CentCell, eeqCont,&
-      & energies, gradients, stress, volume, parEwald)
+  subroutine dispersionEnergy(calculator, nAtom, coords, species, neigh, img2CentCell, &
+      & eeqCont, cnCont, energies, gradients, stress, volume, parEwald)
 
     !> DFT-D dispersion model.
     type(TDftD4Calculator), intent(in) :: calculator
@@ -980,6 +830,9 @@ contains
     !> EEQ model
     type(TEeqCont), intent(inout) :: eeqCont
 
+    !> Coordination number
+    type(TCNCont), intent(inout) :: cnCont
+
     !> Parameter for Ewald summation.
     real(dp), intent(in), optional :: parEwald
 
@@ -995,11 +848,8 @@ contains
     !> Volume, if system is periodic
     real(dp), intent(in), optional :: volume
 
-    integer, allocatable :: nNeigh(:)
-
     real(dp) :: sigma(3, 3)
     real(dp) :: vol, parEwald0
-    real(dp), allocatable :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
 
     if (present(volume)) then
       vol = volume
@@ -1017,108 +867,19 @@ contains
     gradients(:, :) = 0.0_dp
     sigma(:, :) = 0.0_dp
 
-    allocate(cn(nAtom), dcndr(3, nAtom, nAtom), dcndL(3, 3, nAtom))
-    cn(:) = 0.0_dp
-    dcndr(:, :, :) = 0.0_dp
-    dcndL(:, :, :) = 0.0_dp
+    call eeqCont%updateCoords(neigh, img2CentCell, coords, species)
 
-    allocate(nNeigh(nAtom))
-    nNeigh(:) = 0
+    call cnCont%updateCoords(neigh, img2CentCell, coords, species)
 
-    call getNrOfNeighboursForAll(nNeigh, neigh, calculator%cutoffCount)
-
-    call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour,&
-        & neigh%neighDist2, img2CentCell, calculator%covalentRadius,&
-        & calculator%electronegativity, .false., cn, dcndr, dcndL)
-    call cutCoordinationNumber(nAtom, cn, dcndr, dcndL, cn_max=8.0_dp)
-
-    call eeqCont%updateCoords(neigh, img2CentCell, coords, species, cn, dcndr, dcndL)
-
-    call getCoordinationNumber(nAtom, coords, species, nNeigh, neigh%iNeighbour, neigh%neighDist2,&
-        & img2CentCell, calculator%covalentRadius, calculator%electronegativity, .true., cn, dcndr,&
-        & dcndL)
-
-    call dispersionGradient(calculator, nAtom, coords, species, neigh, img2CentCell, cn, dcndr,&
-        & dcndL, eeqCont%charges, eeqCont%dqdr, eeqCont%dqdL, energies, gradients, sigma)
+    call dispersionGradient(calculator, nAtom, coords, species, neigh, img2CentCell, &
+        & cnCont%cn, cnCont%dcndr, cnCont%dcndL, eeqCont%charges, eeqCont%dqdr, eeqCont%dqdL, &
+        & energies, gradients, sigma)
 
     if (present(stress)) then
       stress(:, :) = sigma / volume
     end if
 
   end subroutine dispersionEnergy
-
-
-  !> Error function counting function for coordination number contributions.
-  pure elemental function erfCount(k, r, r0) result(count)
-
-    !> Steepness of the counting function.
-    real(dp), intent(in) :: k
-
-    !> Current distance.
-    real(dp), intent(in) :: r
-
-    !> Cutoff radius.
-    real(dp), intent(in) :: r0
-
-    real(dp) :: count
-
-    count = 0.5_dp * (1.0_dp + erf(-k*(r-r0)/r0))
-
-  end function erfCount
-
-
-  !> Derivative of the counting function w.r.t. the distance.
-  pure elemental function derfCount(k, r, r0) result(count)
-
-    !> Steepness of the counting function.
-    real(dp), intent(in) :: k
-
-    !> Current distance.
-    real(dp), intent(in) :: r
-
-    !> Cutoff radius.
-    real(dp), intent(in) :: r0
-
-    real(dp), parameter :: sqrtpi = sqrt(pi)
-    real(dp) :: count
-
-    count = -k/sqrtpi/r0*exp(-k**2*(r-r0)**2/r0**2)
-
-  end function derfCount
-
-
-  !> Cutting function for the coordination number.
-  elemental function cutCN(cn, cut) result(cnp)
-
-    !> Current coordination number.
-    real(dp), intent(in) :: cn
-
-    !> Cutoff for the CN, this is not the maximum value.
-    real(dp), intent(in) :: cut
-
-    !> Cuting function vlaue
-    real(dp) :: cnp
-
-    cnp = log(1.0_dp + exp(cut)) - log(1.0_dp + exp(cut - cn))
-
-  end function cutCN
-
-
-  !> Derivative of the cutting function w.r.t. coordination number
-  elemental function dCutCN(cn, cut) result(dcnpdcn)
-
-    !> Current coordination number.
-    real(dp), intent(in) :: cn
-
-    !> Cutoff for the CN, this is not the maximum value.
-    real(dp), intent(in) :: cut
-
-    !> Derivative of the cutting function
-    real(dp) :: dcnpdcn
-
-    dcnpdcn = exp(cut) / (exp(cut) + exp(cn))
-
-  end function dCutCn
 
 
   !> charge scaling function

@@ -2823,9 +2823,9 @@ can be adjusted in the input.
   \kw{ChargeSteepness} & r & & 2.0 & \\
   \kw{ChargeScale} & r & & 3.0 & \\
   \kw{CutoffInter} & r & & 64 & \\
-  \kw{CutoffCount} & r & & 40 & \\
   \kw{CutoffThree} & r & & 40 & \\
-  \kw{ChargeModel} & m & & \is{EEQ} & \\
+  \kw{CoordinationNumber} & m & & \is{Cov} & \pref{dftbp.CoordinationNumber} \\
+  \kw{ChargeModel} & m & & \is{EEQ} & \pref{dftbp.ChargeModel} \\
 \end{ptable}
 
 \begin{description}
@@ -2853,21 +2853,20 @@ can be adjusted in the input.
 \item[\is{CutoffInter}] \modif{\modtype{length}} Cutoff distance when
   calculating two-body interactions.
 
-\item[\is{CutoffCount}] \modif{\modtype{length}} Cutoff distance when
-  calculating coordination numbers.
-
 \item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
   calculating three-body interactions.
 
 \end{description}
 
 \subsubsection{DftD4 ChargeModel}
+\label{sec:dftbp.ChargeModel}
 
 This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialize
-the charge model. For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn},
-and \kw{Rad}) have to be supplied in a \is{Values\cb} method, since the model
+the charge model with an electronegativity equilibration~(EEQ) model.\cite{rappe1991}
+For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
+have to be supplied in a \is{Values\cb} method, since the model
 is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
-up to 86 can be supplied automatically.
+up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
 
 \begin{ptable}
   \kw{Chi} & m & & \is{Defaults} & \\
@@ -2877,6 +2876,8 @@ up to 86 can be supplied automatically.
   \kw{Cutoff} & r & & 40 & \\
   \kw{EwaldParameter} & r & & 0.0 & \\
   \kw{EwaldTolerance} & r & & 1.0e-9 & \\
+  \kw{CoordinationNumber} & m & & \is{erf} & \\
+  \kw{CoordinationNumber} & m & & \is{Erf} & \pref{dftbp.CoordinationNumber} \\
 \end{ptable}
 
 \begin{description}
@@ -2923,6 +2924,47 @@ ChargeModel = EEQ {
     Ga = 1.76901636
     As = 2.41244711
   }
+}
+\end{verbatim}
+
+\subsubsection{DftD4 CoordinationNumber}
+\label{sec:dftbp.CoordinationNumber}
+
+The \kw{CoordinationNumber} determines how the local coordination environment
+for its parent method is calculated. Currently four different counting functions
+are available: \is{Erf\cb}, \is{Cov\cb}, \is{Gfn\cb}, and \is{Exp\cb}.
+\is{Erf\cb} is the default coordination number for the EEQ charge model,
+while \is{Cov\cb} is the default coordination number for DFTD4.
+
+\begin{ptable}
+  \kw{Electronegativities} & m & & \is{PaulingEN} & \\
+  \kw{Radii} & m & & \is{CovalentRadiiD3} & \\
+  \kw{Cutoff} & r & & 40 & \\
+  \kw{CutCN} & r & & 0 / 8 & \\
+\end{ptable}
+
+\begin{description}
+
+\item[\is{Radii}] Covalent radii of all species in Bohr.
+  Default values taken are the DFTD3 covalent radii.\cite{grimme-jcp-132-154104}
+
+\item[\is{Electronegativities}] Electronegativities of all species.
+  Default values taken are Pauling ENs.
+
+\item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when
+  evaluating counting function.
+
+\item[\is{CutCN}] Maximum value for coordination number, coordination numbers
+  higher than this value will be smoothly cut away. Deactivated for values
+  smaller or equal to zero. Default depends on parent method.
+
+\end{description}
+
+\begin{verbatim}
+CoordinationNumber = Cov {
+  CutCN = 0
+  Electronegativities = PaulingEN {}
+  Radii = CovalentRadiiD3 {}
 }
 \end{verbatim}
 
@@ -4011,7 +4053,7 @@ supported for this option.
 
 Note: The sparse format contains only the "lower triangle" of the real
 space matrix. For more details about the format and how to obtain the
-upper triangle elements, see reference~\cite{dftbp-paper}. Also note,
+upper triangle elements, see reference~\cite{dftbp-2007paper}. Also note,
 that for periodic systems the sparse format is based on the
 \emph{folded} coordinates of the atoms, resulting in translation
 vectors (ICELL) which look surprising at first glance.

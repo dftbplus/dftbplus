@@ -79,7 +79,7 @@ contains
 
     ! Print atom lists
     if (printDebug) then
-      call print_debug(geom, iAtInRegion)
+      call print_debug(iAtInRegion)
     end if
 
     ! 4. re-sort the second contact PL to be a shifted copy of the first
@@ -89,7 +89,7 @@ contains
     call defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
   
     ! 6. write ordered geometry
-    call print_gen(geom, contacts, iAtInRegion, PLlist, contDir, plcutoff)
+    call print_gen(geom, contacts, iAtInRegion, PLlist, plcutoff)
  
     write(stdOut,*)
     write(stdOut,*) "Written processed geometry file 'processed.gen'"
@@ -202,9 +202,8 @@ contains
     integer, intent(in) :: nPLs(:)
     real(dp), intent(in) :: plcutoff
 
-    integer :: ii, jj, kk, icont, ncont, PLsize, nAddPLs, iPL
+    integer :: ii, jj, icont, ncont, PLsize, nAddPLs, iPL
     real(dp) :: vec(3), uu(3), vv(3), tol, bestcross, bestdiff, mindist
-    character(10) :: sindx
     character(lc) :: errmess(4)
 
     ncont = size(iAtInRegion)-1
@@ -471,8 +470,7 @@ contains
 
   ! -----------------------------------------------------------------------------------------------
   ! debug subroutine
-  subroutine print_debug(geom, iAtInRegion)
-    type(TGeometry), intent(in) :: geom
+  subroutine print_debug(iAtInRegion)
     type(TWrappedInt1), intent(in) :: iAtInRegion(:)
     
     integer :: icont, ncont, PLsize
@@ -501,7 +499,6 @@ contains
     type(TGeometry), intent(inout) :: geom
     logical, intent(in) :: tfold
 
-    integer :: ii
 
     if (geom%tPeriodic .and. tfold) then
       geom%coords(1,:) = geom%coords(1,:) - minval(geom%coords(1,:))
@@ -514,19 +511,18 @@ contains
 
         
   ! -----------------------------------------------------------------------------------------------
-  subroutine print_gen(geom, contacts, iAtInRegion, PLlist, contDir, plCutoff)
+  subroutine print_gen(geom, contacts, iAtInRegion, PLlist, plCutoff)
     type(TGeometry), intent(in) :: geom
     type(contactInfo), intent(in) :: contacts(:)
     type(TWrappedInt1), intent(in) :: iAtInRegion(:)
     type(TListIntR1), intent(inout) :: PLlist
-    integer, intent(in) :: contDir(:)
     real(dp), intent(in) :: plCutoff
 
 
     integer, allocatable :: atomsInPL(:)
-    integer :: ii, jj, kk, icont, ncont, fd1, fd2, fd3, PLsize
     character(10) :: sindx
-    
+    integer :: ii, jj, kk, icont, ncont, fd1, fd2
+
     ncont = size(iAtInRegion)-1    
 
     open(newunit=fd2, file='transport.hsd')
@@ -676,7 +672,7 @@ contains
     real(dp) :: mindist
 
     integer :: ii, jj
-    real(dp) :: dist, vec2(3)
+    real(dp) :: vec2(3)
 
     vec2=2.0_dp*contVec
     mindist = 1e10
