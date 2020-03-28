@@ -29,7 +29,7 @@ module dftbp_inputdata
 #:endif
   use dftbp_pmlocalisation, only : TPipekMezeyInp
   use dftbp_elstatpot, only : TElStatPotentialsInp
-  use dftbp_reksvar, only : TReksIni
+  use dftbp_reks
 
 #:if WITH_TRANSPORT
   use libnegf_vars

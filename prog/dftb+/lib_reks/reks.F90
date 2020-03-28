@@ -21,21 +21,18 @@ module dftbp_reks
   use dftbp_reksinterface
   use dftbp_reksproperty
   use dftbp_reksvar
-!  import dftbp_rekscommon
-!  import dftbp_reksen
-!  import dftbp_reksfon
-!  import dftbp_reksinterface
-!  import dftbp_reksproperty
-!  import dftbp_reksvar
 
   implicit none
 
   private
 
-  !> dftbp_rekscommon modules used in main.F90
+  !> dftbp_rekscommon modules used in main.F90, mainio.F90
   public :: checkGammaPoint
   public :: qm2udL, ud2qmL
   public :: qmExpandL!, udExpandL
+  ! TODO : circular dependency - reksen, reksinterface, reksproperty
+!  public :: getTwoIndices
+!  public :: getSpaceSym
 
   !> dftbp_reksen modules used in main.F90
   public :: constructMicrostates, calcWeights
@@ -54,7 +51,7 @@ module dftbp_reks
   public :: getUnrelaxedDMandTDP
   public :: getDipoleIntegral, getDipoleMomentMatrix, getReksOsc
 
-  !> dftbp_reksvar module used in main.F90
-  public :: TReksCalc
+  !> dftbp_reksvar module used in main.F90, mainio.F90, inputdata.F90, initprogram.F90
+  public :: TReksIni, TReksCalc, REKS_init
 
 end module dftbp_reks

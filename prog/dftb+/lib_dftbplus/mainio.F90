@@ -46,6 +46,8 @@ module dftbp_mainio
   use dftbp_message
   use dftbp_rekscommon
   use dftbp_reksvar, only : TReksCalc
+  ! TODO : circular dependecy occurs
+!  use dftbp_reks
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
