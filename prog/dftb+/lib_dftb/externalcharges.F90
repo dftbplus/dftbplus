@@ -465,15 +465,15 @@ contains
 
 
   !> Copy Q * inverse R contribution for the point charges
-  subroutine copyInvRvec(this, QinvR)
+  subroutine copyInvRvec(this, qInvR)
 
     !> Instance of SCC calculation
     class(TExtCharge), intent(in) :: this
 
     !> (Q * invR) contribution
-    real(dp), intent(out) :: QinvR(:)
+    real(dp), intent(out) :: qInvR(:)
 
-    QinvR(:) = this%invRVec
+    qInvR(:) = this%invRVec
 
   end subroutine copyInvRvec
 
