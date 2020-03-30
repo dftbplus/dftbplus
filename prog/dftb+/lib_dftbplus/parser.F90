@@ -6348,7 +6348,7 @@ contains
     call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksIni%tNAC, default=.false.)
 
     !> Print level in standard output file
-    call getChildValue(node, "PrintLevel", ctrl%reksIni%Plevel, default=1)
+    call getChildValue(node, "VerbosityLevel", ctrl%reksIni%Plevel, default=1)
     !> Memory level used in calculation of gradient
     call getChildValue(node, "MemoryLevel", ctrl%reksIni%Mlevel, default=2)
 
@@ -6370,7 +6370,7 @@ contains
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
     type(TListRealR1) :: realBuffer
-    integer :: nAt, iAt
+    integer :: nAtom, iType
     real(dp), allocatable :: tmpTuning(:,:)
 
     call getChildValue(node, "SpinTuning", value1, "", child=child, &
@@ -6379,20 +6379,20 @@ contains
     if (char(buffer) == "") then
       ! no 'SpinTuning' block in REKS input
       allocate(ctrl%reksIni%Tuning(nType))
-      do iAt = 1, nType
-        ctrl%reksIni%Tuning(iAt) = 1.0_dp
+      do iType = 1, nType
+        ctrl%reksIni%Tuning(iType) = 1.0_dp
       end do
     else
       ! 'SpinTuning' block in REKS input
       call init(realBuffer)
       call getChildValue(child, "", 1, realBuffer, modifier=modifier)
-      nAt = len(realBuffer)
-      if (nAt /= nType) then
+      nAtom = len(realBuffer)
+      if (nAtom /= nType) then
         call detailedError(node, "Incorrect number of 'SpinTuning' block: " &
-            & // i2c(nAt) // " supplied, " &
+            & // i2c(nAtom) // " supplied, " &
             & // i2c(nType) // " required.")
       end if
-      allocate(tmpTuning(1,nAt))
+      allocate(tmpTuning(1,nAtom))
       call asArray(realBuffer, tmpTuning)
       call destruct(realBuffer)
       allocate(ctrl%reksIni%Tuning(nType))
