@@ -63,10 +63,10 @@ Analysis {
 REKS = SSR22 {
   EnergyFunctional = 2
   EnergyLevel = 2
-  useSSRstate = 1
+  UseSsrState = 1
   TargetState = 3
   InitialGuess = 1
-  FONmaxIter = 30
+  FonMaxIter = 30
   shift = 0.3
   TransitionDipole = Yes
   GradientLevel = 1
@@ -74,7 +74,7 @@ REKS = SSR22 {
   GradientTolerance = 1.0E-8
   RelaxedDensity = Yes
   NonAdiabaticCoupling = Yes
-  PrintLevel = 1
+  VerbosityLevel = 1
   MemoryLevel = 1
 }
 
