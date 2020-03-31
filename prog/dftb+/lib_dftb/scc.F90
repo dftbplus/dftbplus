@@ -677,7 +677,7 @@ contains
   #:if WITH_SCALAPACK
     call error("scc:getAtomicCoulombMatrix does not work with MPI yet")
   #:endif
-    gammamat(:,:) = this%invRMat
+    gammamat(:,:) = this%coulombCont%invRMat
     do iAt1 = 1, this%nAtom
       iSp1 = species(iAt1)
       do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))

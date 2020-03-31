@@ -15,8 +15,7 @@ module dftbp_pprpa
   use dftbp_slakocont
   use dftbp_shortgamma
   use dftbp_accuracy
-  use dftbp_constants, only : Hartree__eV, au__Debye
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_constants, only : Hartree__eV
   use dftbp_scc, only : TScc
   use dftbp_blasroutines
   use dftbp_eigensolver
