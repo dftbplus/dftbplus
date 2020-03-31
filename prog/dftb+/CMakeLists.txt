@@ -63,6 +63,8 @@ endif()
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 
+target_include_directories(dftbplus PRIVATE ${CMAKE_SOURCE_DIR}/external/dftd4refs)
+
 if(WITH_SOCKETS)
   target_include_directories(dftbplus PUBLIC
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
@@ -99,6 +101,11 @@ target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
 
 if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE ${ARPACK_LIBRARIES})
+endif()
+
+if (WITH_GPU)
+  target_include_directories(dftbplus PUBLIC ${MAGMA_INCLUDE_DIRS})
+  target_link_libraries(dftbplus PRIVATE ${MAGMA_LIBRARIES})
 endif()
 
 target_link_libraries(dftbplus PRIVATE ${OTHER_LIBRARIES})

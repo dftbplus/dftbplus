@@ -23,11 +23,12 @@
 */
 
 void init_collective_variables(double *mermin_energy_total, double **gradients_total,
-                               double **gross_charges_total)
+                               double **stress_tensor_total, double **gross_charges_total)
 {
   int ii;
 
   *gradients_total = (double *) calloc(3 * MAX_ATOMS, sizeof(double));
+  *stress_tensor_total = (double *) calloc(9, sizeof(double));
   *gross_charges_total = (double *) calloc(MAX_ATOMS, sizeof(double));
   *mermin_energy_total = 0.0;
   for (ii = 0; ii < MAX_ATOMS; ++ii) {
@@ -36,12 +37,15 @@ void init_collective_variables(double *mermin_energy_total, double **gradients_t
     (*gradients_total)[3 * ii + 2] = 0.0;
     (*gross_charges_total)[ii] = 0.0;
   }
+  for (ii = 0; ii < 9; ++ii) {
+    (*stress_tensor_total)[ii] = 0.0;
+  }
 }
 
 
 void update_collective_variables(int natom, double mermin_energy, double *gradients,
-    double *gross_charges, double *mermin_energy_total, double *gradients_total,
-    double *gross_charges_total)
+    double *stress_tensor, double *gross_charges, double *mermin_energy_total, 
+    double *gradients_total, double *stress_tensor_total, double *gross_charges_total)
 {
   int ii;
   *mermin_energy_total += mermin_energy;
@@ -50,6 +54,10 @@ void update_collective_variables(int natom, double mermin_energy, double *gradie
   }
   for (ii = 0; ii < natom; ++ii) {
     gross_charges_total[ii] += gross_charges[ii];
+  }
+  for (ii = 0; ii < 9; ++ii)
+  {
+    stress_tensor_total[ii] += stress_tensor[ii];
   }
 }
 
@@ -81,15 +89,16 @@ int main()
   };
 
   double mermin_energy, mermin_energy_total;
-  double *gradients, *gradients_total, *gross_charges, *gross_charges_total;
+  double *gradients, *gradients_total, *stress_tensor, *stress_tensor_total, *gross_charges, *gross_charges_total;
   int natom, natom0, natom_total;
-  int si2;
+  int si2, ii, ij;
 
   /* Collective variables will hold the summed up results of multiple test runs */
-  init_collective_variables(&mermin_energy_total, &gradients_total, &gross_charges_total);
+  init_collective_variables(&mermin_energy_total, &gradients_total, 
+                         &stress_tensor_total, &gross_charges_total);
 
   /* Dummy loop to test subsequent initialisations / finalisations of the DFTB+ object */
-  for (int ii = 0; ii < NR_ITER; ++ii) {
+  for (ii = 0; ii < NR_ITER; ++ii) {
 
     /* Use input for Si2 and H2O alternatingly, starting with Si2 */
     si2 = !(ii % 2);
@@ -143,6 +152,20 @@ int main()
              -0.010321385989, -0.010321385989);
     }
 
+    /* and the stress tensor (if the system is periodic) */
+    stress_tensor = (double *) calloc(9, sizeof(double));
+    if(si2) {
+      dftbp_get_stress_tensor(&calculator, stress_tensor);
+      printf("Obtained diagonal elements of stress tensor: %15.10f %15.10f %15.10f\n", 
+           stress_tensor[0], stress_tensor[4], stress_tensor[8]);
+      printf("Expected diagonal of stress tensor: %15.10f %15.10f %15.10f\n", 
+           0.000063897651, 0.000041317125, 0.000047571711);
+    } else {
+      for (ij = 0; ij < 9; ++ij) {
+        stress_tensor[ij] = 0.0;
+      }
+    }
+
     /* and gross charges */
     gross_charges = (double *) calloc(natom0, sizeof(double));
     dftbp_get_gross_charges(&calculator, gross_charges);
@@ -153,8 +176,9 @@ int main()
              gross_charges[1], gross_charges[2]);
     }
 
-    update_collective_variables(natom0, mermin_energy, gradients, gross_charges,
-                                &mermin_energy_total, gradients_total, gross_charges_total);
+    update_collective_variables(natom0, mermin_energy, gradients, stress_tensor, 
+                                gross_charges, &mermin_energy_total, gradients_total, 
+                                stress_tensor_total, gross_charges_total);
 
     /*  clean up */
     dftbp_final(&calculator);
@@ -162,14 +186,16 @@ int main()
     if (ii == NR_ITER - 1) {
       /* Save some data for the internal test system */
       dftbp_write_autotest_tag(MAX_ATOMS, 0, mermin_energy_total, gradients_total,
-                               gross_charges_total, NULL);
+                               stress_tensor_total, gross_charges_total, NULL);
     }
 
     free(gradients);
+    free(stress_tensor);
     free(gross_charges);
   }
 
   free(gradients_total);
+  free(stress_tensor_total);
   free(gross_charges_total);
 
   return 0;

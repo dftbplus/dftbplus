@@ -19,27 +19,27 @@ module dftbp_slakocont
   implicit none
   private
 
-  public :: OSlakoCont, init
+  public :: TSlakoCont, init
   public :: addTable, getMIntegrals, getCutoff, getSKIntegrals
 
 
   !> A specific Slater-Koster table implementation.
-  type PSlaKo_
+  type TSlaKo_
     integer :: iType = 0
-    type(OSlakoEqGrid), allocatable :: pSlakoEqGrid
-  end type PSlaKo_
+    type(TSlakoEqGrid), allocatable :: pSlakoEqGrid
+  end type TSlaKo_
 
 
   !> Container for Slater-Koster integrals for all pair-interactions
-  type OSlakoCont
+  type TSlakoCont
     private
-    type(PSlaKo_), allocatable :: slakos(:,:)
+    type(TSlaKo_), allocatable :: slakos(:,:)
     integer :: nSpecies
     integer :: mInt
     real(dp) :: cutoff
     logical :: tDataOK
     logical :: tInit = .false.
-  end type OSlakoCont
+  end type TSlakoCont
 
 
   !> Initialises SlakoCont
@@ -78,7 +78,7 @@ contains
   subroutine SlakoCont_init(self, nSpecies)
 
     !> SlakoCont instance
-    type(OSlakoCont), intent(out) :: self
+    type(TSlakoCont), intent(out) :: self
 
     !> Nr. of species in the system.
     integer, intent(in) :: nSpecies
@@ -99,10 +99,10 @@ contains
   subroutine SlakoCont_addTableEqGrid(self, pTable, iSp1, iSp2)
 
     !> SlakoCont instance
-    type(OSlakoCont), intent(inout) :: self
+    type(TSlakoCont), intent(inout) :: self
 
     !> Slater-Koster table to be added
-    type(OSlakoEqGrid), allocatable, intent(inout) :: pTable
+    type(TSlakoEqGrid), allocatable, intent(inout) :: pTable
 
     !> Index of the first interacting species
     integer, intent(in) :: iSp1
@@ -127,7 +127,7 @@ contains
   pure function SlakoCont_getMIntegrals(self) result(mInt)
 
     !> SlakoCont instance
-    type(OSlakoCont), intent(in) :: self
+    type(TSlakoCont), intent(in) :: self
 
     !> Max. number of integrals.
     integer :: mInt
@@ -143,7 +143,7 @@ contains
   function SlakoCont_getCutoff(self) result(cutoff)
 
     !> SlakoCont instance
-    type(OSlakoCont), intent(in) :: self
+    type(TSlakoCont), intent(in) :: self
 
     !> Cutoff of interaction
     real(dp) :: cutoff
@@ -158,7 +158,7 @@ contains
   subroutine SlakoCont_getSKIntegrals(self, sk, dist, sp1, sp2)
 
     !> SlakoCont instance
-    type(OSlakoCont), intent(in) :: self
+    type(TSlakoCont), intent(in) :: self
 
     !> Contains the integrals on exit
     real(dp), intent(out) :: sk(:)

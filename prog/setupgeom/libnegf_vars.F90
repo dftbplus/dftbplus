@@ -119,7 +119,7 @@ module libnegf_vars
     !> collector contact(s)
     integer, allocatable  :: nf(:)
 
-    type(WrappedInt1), allocatable :: dosOrbitals(:)
+    type(TWrappedInt1), allocatable :: dosOrbitals(:)
 
     character(lc), allocatable :: dosLabels(:)
 

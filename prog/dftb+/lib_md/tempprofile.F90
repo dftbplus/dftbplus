@@ -14,12 +14,12 @@ module dftbp_tempprofile
   implicit none
   private
 
-  public :: OTempProfile, init, next, getTemperature
+  public :: TTempProfile, init, next, getTemperature
   public :: constProf, linProf, expProf
 
 
   !> Data for the temperature profile.
-  type OTempProfile
+  type TTempProfile
 
     !> The annealing method for each interval.
     integer, allocatable :: tempMethods(:)
@@ -44,7 +44,7 @@ module dftbp_tempprofile
 
     !> Temperature increment to next step
     real(dp) :: incr
-  end type OTempProfile
+  end type TTempProfile
 
 
   !> Initialise the profile
@@ -86,7 +86,7 @@ contains
   subroutine TempProfile_init(self, tempMethods, tempInts, tempValues)
 
     !> TempProfile instane on return.
-    type(OTempProfile), intent(out) :: self
+    type(TTempProfile), intent(out) :: self
 
     !> The annealing method for each interval.
     integer, intent(in) :: tempMethods(:)
@@ -136,7 +136,7 @@ contains
   subroutine TempProfile_next(self)
 
     !> The TempProfile object.
-    type(OTempProfile), intent(inout) :: self
+    type(TTempProfile), intent(inout) :: self
 
     real(dp) :: subVal, supVal
     integer :: sub, sup
@@ -181,7 +181,7 @@ contains
   subroutine TempProfile_getTemperature(self, temp)
 
     !> Pointer to the TempProfile object.
-    type(OTempProfile), intent(in) :: self
+    type(TTempProfile), intent(in) :: self
 
     !> Temperature on return.
     real(dp), intent(out) :: temp

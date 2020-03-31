@@ -40,7 +40,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> Container for repulsive potentials.
-    type(ORepCont), intent(in) :: repCont
+    type(TRepCont), intent(in) :: repCont
 
     !> Index of each atom in the central cell which the atom is mapped on.
     integer, intent(in) :: img2CentCell(:)
@@ -87,7 +87,7 @@ contains
     integer, intent(in) :: species(:)
 
     !> Container for repulsive potentials.
-    type(ORepCont), intent(in) :: repCont
+    type(TRepCont), intent(in) :: repCont
 
     !> Index of each atom in the central cell which the atom is mapped on.
     integer, intent(in) :: img2CentCell(:)

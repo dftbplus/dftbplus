@@ -30,7 +30,7 @@ contains
     type(TGeometry), intent(inout) :: geom
 
     !> Variable size vectors containing atom indices in each region
-    type(wrappedInt1), intent(inout) :: iAtInRegion(:)
+    type(TWrappedInt1), intent(inout) :: iAtInRegion(:)
     
     !> Contact vector (contact PL repetition)
     type(contactInfo), intent(in),  allocatable :: contacts(:)
@@ -45,7 +45,7 @@ contains
     logical, intent(in) :: printDebug
    
 
-    type(listIntR1) :: PLlist
+    type(TListIntR1) :: PLlist
     integer, allocatable :: contdir(:)
     integer :: icont, ncont
     real(dp), allocatable :: contVec(:,:)
@@ -79,7 +79,7 @@ contains
 
     ! Print atom lists
     if (printDebug) then
-      call print_debug(geom, iAtInRegion)
+      call print_debug(iAtInRegion)
     end if
 
     ! 4. re-sort the second contact PL to be a shifted copy of the first
@@ -89,7 +89,7 @@ contains
     call defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
   
     ! 6. write ordered geometry
-    call print_gen(geom, contacts, iAtInRegion, PLlist, contDir, plcutoff)
+    call print_gen(geom, contacts, iAtInRegion, PLlist, plcutoff)
  
     write(stdOut,*)
     write(stdOut,*) "Written processed geometry file 'processed.gen'"
@@ -100,7 +100,7 @@ contains
   ! -----------------------------------------------------------------------------------------------
   subroutine assignDeviceAtoms(geom, iAtInRegion)
     type(TGeometry), intent(in) :: geom
-    type(wrappedInt1), intent(inout) :: iAtInRegion(:)
+    type(TWrappedInt1), intent(inout) :: iAtInRegion(:)
 
     integer :: ii, jj, icont, ncont
     logical, allocatable :: mask(:)
@@ -142,7 +142,7 @@ contains
   ! -----------------------------------------------------------------------------------------------
   subroutine sortContacts(geom, iAtInRegion, contDir)
     type(TGeometry), intent(in) :: geom
-    type(wrappedInt1), intent(inout) :: iAtInRegion(:)
+    type(TWrappedInt1), intent(inout) :: iAtInRegion(:)
     integer, intent(inout) :: contDir(:)
 
     integer :: ii, jj, icont, ncont
@@ -195,16 +195,15 @@ contains
   ! -----------------------------------------------------------------------------------------------!
   subroutine arrangeContactPLs(geom, iAtInRegion, contacts, contVec, contDir, nPLs, plcutoff)
     type(TGeometry), intent(inout) :: geom
-    type(wrappedInt1), intent(inout) :: iAtInRegion(:)
+    type(TWrappedInt1), intent(inout) :: iAtInRegion(:)
     type(contactInfo), intent(in) :: contacts(:)
     real(dp), intent(inout) :: contVec(:,:)
     integer, intent(in) :: contDir(:)
     integer, intent(in) :: nPLs(:)
     real(dp), intent(in) :: plcutoff
 
-    integer :: ii, jj, kk, icont, ncont, PLsize, nAddPLs, iPL
+    integer :: ii, jj, icont, ncont, PLsize, nAddPLs, iPL
     real(dp) :: vec(3), uu(3), vv(3), tol, bestcross, bestdiff, mindist
-    character(10) :: sindx
     character(lc) :: errmess(4)
 
     ncont = size(iAtInRegion)-1
@@ -333,15 +332,15 @@ contains
   ! -----------------------------------------------------------------------------------------------
   subroutine defineDevicePLs(geom, iAtInRegion, plcutoff, contVec, PLlist)
     type(TGeometry), intent(in) :: geom
-    type(wrappedInt1), intent(inout) :: iAtInRegion(:)
+    type(TWrappedInt1), intent(inout) :: iAtInRegion(:)
     real(dp), intent(in) :: plCutoff
     real(dp), intent(in) :: contVec(:,:)
-    type(listIntR1), intent(out) :: PLlist
+    type(TListIntR1), intent(out) :: PLlist
 
     integer :: ii, jj, kk, sizeL,  sizeD, ncont
     integer :: icx, icy, icz, nc(3)
     logical, allocatable :: mask(:)
-    type(listInt) :: atomsInPL
+    type(TListInt) :: atomsInPL
     integer, allocatable :: buffer(:)
     real(dp) :: vec(3)
     logical :: addAllR
@@ -471,9 +470,8 @@ contains
 
   ! -----------------------------------------------------------------------------------------------
   ! debug subroutine
-  subroutine print_debug(geom, iAtInRegion)
-    type(TGeometry), intent(in) :: geom
-    type(wrappedInt1), intent(in) :: iAtInRegion(:)
+  subroutine print_debug(iAtInRegion)
+    type(TWrappedInt1), intent(in) :: iAtInRegion(:)
     
     integer :: icont, ncont, PLsize
 
@@ -501,7 +499,6 @@ contains
     type(TGeometry), intent(inout) :: geom
     logical, intent(in) :: tfold
 
-    integer :: ii
 
     if (geom%tPeriodic .and. tfold) then
       geom%coords(1,:) = geom%coords(1,:) - minval(geom%coords(1,:))
@@ -514,19 +511,18 @@ contains
 
         
   ! -----------------------------------------------------------------------------------------------
-  subroutine print_gen(geom, contacts, iAtInRegion, PLlist, contDir, plCutoff)
+  subroutine print_gen(geom, contacts, iAtInRegion, PLlist, plCutoff)
     type(TGeometry), intent(in) :: geom
     type(contactInfo), intent(in) :: contacts(:)
-    type(wrappedInt1), intent(in) :: iAtInRegion(:)
-    type(listIntR1), intent(inout) :: PLlist
-    integer, intent(in) :: contDir(:)
+    type(TWrappedInt1), intent(in) :: iAtInRegion(:)
+    type(TListIntR1), intent(inout) :: PLlist
     real(dp), intent(in) :: plCutoff
 
 
     integer, allocatable :: atomsInPL(:)
-    integer :: ii, jj, kk, icont, ncont, fd1, fd2, fd3, PLsize
     character(10) :: sindx
-    
+    integer :: ii, jj, kk, icont, ncont, fd1, fd2
+
     ncont = size(iAtInRegion)-1    
 
     open(newunit=fd2, file='transport.hsd')
@@ -676,7 +672,7 @@ contains
     real(dp) :: mindist
 
     integer :: ii, jj
-    real(dp) :: dist, vec2(3)
+    real(dp) :: vec2(3)
 
     vec2=2.0_dp*contVec
     mindist = 1e10

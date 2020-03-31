@@ -15,29 +15,29 @@ module dftbp_thermostat
   implicit none
   private
 
-  public :: OThermostat
+  public :: TThermostat
   public :: init, getInitVelocities, updateVelocities, state
 
 
   !> Data for the thermostat wrapper.
-  type OThermostat
+  type TThermostat
     private
 
     !> Thermostat type
     integer :: thermostat
 
     !> Dummy for no temperature control
-    type(ODummyThermostat), allocatable :: pDummy
+    type(TDummyThermostat), allocatable :: pDummy
 
     !> Anderson rescaling
-    type(OAndersenThermostat), allocatable :: pAndersen
+    type(TAndersenThermostat), allocatable :: pAndersen
 
     !> Berendsen stochastic
-    type(OBerendsenThermostat), allocatable :: pBerendsen
+    type(TBerendsenThermostat), allocatable :: pBerendsen
 
     !> Nose-Hoover and chains
-    type(ONHCThermostat), allocatable :: pNHC
-  end type OThermostat
+    type(TNHCThermostat), allocatable :: pNHC
+  end type TThermostat
 
 
   !> Initialise thermostat in use
@@ -80,10 +80,10 @@ contains
   subroutine Thermostat_init_Dummy(self, pThermostat)
 
     !> Wrapper instance on exit.
-    type(OThermostat), intent(out) :: self
+    type(TThermostat), intent(out) :: self
 
     !> A DummyThermostat.
-    type(ODummyThermostat), allocatable, intent(inout) :: pThermostat
+    type(TDummyThermostat), allocatable, intent(inout) :: pThermostat
 
     self%thermostat = dummy_
     call move_alloc(pThermostat, self%pDummy)
@@ -95,10 +95,10 @@ contains
   subroutine Thermostat_init_Andersen(self, pThermostat)
 
     !> Wrapper instance on exit.
-    type(OThermostat), intent(out) :: self
+    type(TThermostat), intent(out) :: self
 
     !> An Andersen Thermostat.
-    type(OAndersenThermostat), allocatable, intent(inout) :: pThermostat
+    type(TAndersenThermostat), allocatable, intent(inout) :: pThermostat
 
     self%thermostat = andersen_
     call move_alloc(pThermostat, self%pAndersen)
@@ -110,10 +110,10 @@ contains
   subroutine Thermostat_init_Berendsen(self, pThermostat)
 
     !> Wrapper instance on exit.
-    type(OThermostat), intent(out) :: self
+    type(TThermostat), intent(out) :: self
 
     !> A Berendsen Thermostat.
-    type(OBerendsenThermostat), allocatable, intent(inout) :: pThermostat
+    type(TBerendsenThermostat), allocatable, intent(inout) :: pThermostat
 
     self%thermostat = berendsen_
     call move_alloc(pThermostat, self%pBerendsen)
@@ -125,10 +125,10 @@ contains
   subroutine Thermostat_init_NHC(self, pThermostat)
 
     !> Wrapper instance on exit.
-    type(OThermostat), intent(out) :: self
+    type(TThermostat), intent(out) :: self
 
     !> A NHC Thermostat.
-    type(ONHCThermostat), allocatable, intent(inout) :: pThermostat
+    type(TNHCThermostat), allocatable, intent(inout) :: pThermostat
 
     self%thermostat = nhc_
     call move_alloc(pThermostat, self%pNHC)
@@ -140,7 +140,7 @@ contains
   subroutine Thermostat_getInitVelocities(self, velocities)
 
     !> Wrapper instance.
-    type(OThermostat), intent(inout) :: self
+    type(TThermostat), intent(inout) :: self
 
     !> Velocities on exit.
     real(dp), intent(out) :: velocities(:,:)
@@ -167,7 +167,7 @@ contains
   subroutine Thermostat_updateVelocities(self, velocities)
 
     !> Wrapper instance.
-    type(OThermostat), intent(inout) :: self
+    type(TThermostat), intent(inout) :: self
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
@@ -190,7 +190,7 @@ contains
   subroutine Thermostat_state(self, fd)
 
     !> Wrapper instance.
-    type(OThermostat), intent(in) :: self
+    type(TThermostat), intent(in) :: self
 
     !> file handle to write state out to
     integer, intent(in) :: fd
