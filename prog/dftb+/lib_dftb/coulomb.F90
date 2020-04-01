@@ -2763,20 +2763,9 @@ contains
     !> parameter for cell volume
     real(dp), intent(out) :: vol
 
-    integer :: ind1, ind2, ind3, ind4
+    gVec = self%gLatPoint
+    rVec = self%rCellVec
 
-    ind1 = size(self%gLatPoint,dim=1)
-    ind2 = size(self%gLatPoint,dim=2)
-    ind3 = size(self%rCellVec,dim=1)
-    ind4 = size(self%rCellVec,dim=2)
-
-    if (.not. allocated(gVec)) then
-      allocate(gVec(ind1,ind2))
-      allocate(rVec(ind3,ind4))
-    end if
-
-    gVec(:,:) = self%gLatPoint
-    rVec(:,:) = self%rCellVec
     alpha = self%alpha
     vol = self%volume
 
