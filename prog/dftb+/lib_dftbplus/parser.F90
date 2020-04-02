@@ -3579,10 +3579,10 @@ contains
     type(TGBInput), intent(out) :: input
 
     type(string) :: buffer, state, modifier
-    type(fnode), pointer :: child, value1, field, child2
+    type(fnode), pointer :: child, value1, field, child2, value2
     integer :: iSp
     logical :: found
-    real(dp) :: temperature, shift
+    real(dp) :: temperature, shift, conv
     real(dp), allocatable :: vdwRadDefault(:)
     type(TSolventData) :: solvent
 
@@ -3630,8 +3630,10 @@ contains
     call convertByMul(char(modifier), lengthUnits, field, shift)
     call getChildValue(node, "OBC", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
 
+    conv = 1.0_dp
     allocate(input%vdwRad(geo%nSpecies))
-    call getChildValue(node, "Radii", value1, child=child)
+    call getChildValue(node, "Radii", value1, child=child, modifier=modifier)
+    call convertByMul(char(modifier), lengthUnits, child, conv)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -3640,8 +3642,14 @@ contains
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
       do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
-            & vdwRadDefault(iSp), child=child2)
+        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
+        if (associated(value2)) then
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & child=child2)
+        else
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & vdwRadDefault(iSp)/conv, child=child2)
+        end if
       end do
       deallocate(vdwRadDefault)
     case("values")
@@ -3649,6 +3657,7 @@ contains
         call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
       end do
     end select
+    input%vdwRad(:) = input%vdwRad * conv
 
     allocate(input%descreening(geo%nSpecies))
     call getChildValue(node, "Descreening", value1, child=child)
