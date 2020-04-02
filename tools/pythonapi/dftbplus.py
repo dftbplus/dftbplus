@@ -31,6 +31,7 @@ class DftbPlus:
     the results of the specified properties can be extracted easily.
     '''
 
+
     def __init__(self, libpath='./libdftbplus.so', hsdpath='./dftb_in.hsd',
                  logfile=None):
         '''Initializes a ctypes DFTB+ calculator object.
@@ -45,16 +46,7 @@ class DftbPlus:
         self._hsdpath = hsdpath
         self._logfile = logfile
 
-        self._coords = None
         self._natoms = 0
-        self._latvecs = None
-        self._invlatvecs = None
-        self._periodic = self._latvecs is not None
-        self._relcoords = None
-        self._props = None
-
-        self._extpot = None
-        self._extpotgrad = None
 
         # DFTB+ shared library
         self._dftbpluslib = ctypes.CDLL(self._libpath)
@@ -88,10 +80,6 @@ class DftbPlus:
 
         self._natoms = self._dftbpluslib.dftbp_get_nr_atoms(self._dftb_handler)
 
-        self._gradients = np.zeros((self._natoms, 3))
-        self._energy = np.zeros(1)
-        self._grosschg = np.zeros(self._natoms)
-
 
     def set_geometry(self, coords, latvecs=None, relcoords=False):
         '''Sets up the desired geometry.
@@ -104,33 +92,27 @@ class DftbPlus:
             relcoords (2darray): relative atomic positions (in atomic units)
         '''
 
-        self._coords = coords
-        self._natoms = len(self._coords)
-        self._latvecs = latvecs
-        self._periodic = latvecs is not None
+        self._natoms = len(coords)
+        periodic = latvecs is not None
 
-        if self._periodic:
-            self._latvecs = np.array(latvecs, dtype=float)
-            self._invlatvecs = la.inv(self._latvecs)
+        if periodic:
+            latvecs = np.array(latvecs, dtype=float)
+            invlatvecs = la.inv(latvecs)
+
             if relcoords:
-                self._relcoords = coords
-                self._coords = np.dot(self._relcoords, self._latvecs)
+                relcoords = coords
+                coords = np.dot(relcoords, latvecs)
             else:
-                self._coords = coords
-                self._relcoords = np.dot(self._coords, self._invlatvecs)
-        else:
-            self._latvecs = None
-            self._invlatvecs = None
-            self._relcoords = None
+                relcoords = np.dot(coords, invlatvecs)
 
-        if self._periodic:
             self._dftbpluslib.dftbp_set_coords_and_lattice_vecs(
-                self._dftb_handler, self._coords, self._latvecs)
+                self._dftb_handler, coords, latvecs)
+
         else:
-            self._dftbpluslib.dftbp_set_coords(self._dftb_handler, self._coords)
+            self._dftbpluslib.dftbp_set_coords(self._dftb_handler, coords)
 
 
-    def set_ext_pot(self, extpot, extpotgrad=None):
+    def set_external_potential(self, extpot, extpotgrad=None):
         '''Sets up an external potential.
 
         Args:
@@ -142,44 +124,43 @@ class DftbPlus:
                                   if you did not ask DFTB+ to calculate forces.
         '''
 
-        self._extpot = extpot
-
         if extpotgrad is not None:
-            self._extpotgrad = np.ctypeslib.as_ctypes(extpotgrad)
+            extpotgrad = np.ctypeslib.as_ctypes(extpotgrad)
 
         self._dftbpluslib.dftbp_set_external_potential(
-            self._dftb_handler, self._extpot, self._extpotgrad)
+            self._dftb_handler, extpot, extpotgrad)
 
 
     def get_energy(self):
-        '''Performs the energy calculation and queries
-           the energy of the current geometry.
+        '''Performs the energy (Mermin free) calculation
+           and queries the energy of the current geometry.
 
         Returns:
-            energy (1darray): calculated energy (in atomic units)
+            energy[0] (float): calculated Mermin free energy
+                               (in atomic units)
         '''
 
-        self._dftbpluslib.dftbp_get_energy(self._dftb_handler, self._energy)
+        energy = np.zeros(1)
 
-        energy = self._energy[0]
+        self._dftbpluslib.dftbp_get_energy(self._dftb_handler, energy)
 
-        return energy
+        return energy[0]
 
 
-    def get_forces(self):
-        '''Performs the calculation of the atomic forces and
-           queries the forces of the current geometry.
+    def get_gradients(self):
+        '''Performs the calculation of the atomic gradients and
+           queries the gradients of the current geometry.
 
         Returns:
-            forces (2darray): calculated forces (in atomic units)
+            gradients (2darray): calculated gradients (in atomic units)
         '''
+
+        gradients = np.empty((self._natoms, 3))
 
         self._dftbpluslib.dftbp_get_gradients(self._dftb_handler,
-                                              self._gradients)
+                                              gradients)
 
-        forces = - self._gradients
-
-        return forces
+        return gradients
 
 
     def get_gross_charges(self):
@@ -199,10 +180,10 @@ class DftbPlus:
             grosschg (1darray): obtained Gross charges (in atomic units)
         '''
 
-        self._dftbpluslib.dftbp_get_gross_charges(self._dftb_handler,
-                                                  self._grosschg)
+        grosschg = np.zeros(self._natoms)
 
-        grosschg = self._grosschg
+        self._dftbpluslib.dftbp_get_gross_charges(self._dftb_handler,
+                                                  grosschg)
 
         return grosschg
 
