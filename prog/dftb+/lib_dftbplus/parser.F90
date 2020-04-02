@@ -3579,7 +3579,7 @@ contains
     type(TGBInput), intent(out) :: input
 
     type(string) :: buffer, state, modifier
-    type(fnode), pointer :: child, value1, field, child2, value2
+    type(fnode), pointer :: child, value1, field, child2, value2, dummy
     integer :: iSp
     logical :: found
     real(dp) :: temperature, shift, conv
@@ -3627,12 +3627,13 @@ contains
 
     call getChildValue(node, "BornScale", input%bornScale)
     call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, shift)
+    call convertByMul(char(modifier), lengthUnits, field, input%bornOffset)
     call getChildValue(node, "OBC", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
 
     conv = 1.0_dp
     allocate(input%vdwRad(geo%nSpecies))
-    call getChildValue(node, "Radii", value1, child=child, modifier=modifier)
+    call getChildValue(node, "Radii", value1, child=child)
+    call getChild(value1, "", dummy, modifier=modifier)
     call convertByMul(char(modifier), lengthUnits, child, conv)
     call getNodeName(value1, buffer)
     select case(char(buffer))
