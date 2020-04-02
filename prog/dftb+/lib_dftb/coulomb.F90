@@ -2763,6 +2763,7 @@ contains
     !> parameter for cell volume
     real(dp), intent(out) :: vol
 
+    ! Use of automatic reallocation for gVec and rVec
     gVec = self%gLatPoint
     rVec = self%rCellVec
 

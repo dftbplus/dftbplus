@@ -2617,77 +2617,12 @@ contains
 
 
     if (allocated(reks)) then
+      call checkReksConsistency(input%ctrl%reksIni, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
+          & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
       ! here, nSpin changes to 2 for REKS
-
-      if (.not. tSccCalc) then
-        call error("REKS requires SCC=Yes")
-      end if
-      if (tSpin) then
-        call error("REKS is not compatible with standard DFTB spin polarization, only the&
-            & SpinConstants block is required")
-      end if
-
-      if (tSpinOrbit) then
-        call error("REKS is not compatible with spin-orbit (LS-coupling) calculation")
-      else if (tDFTBU) then
-        call error("REKS is not compatible with DFTB+U calculation")
-      else if (tEField) then
-        call error("REKS is not compatible with external electric field, only point charge&
-            & embedding is implemented")
-      else if (isLinResp) then
-        call error("REKS is not compatible with standard linear response excitation")
-      else if (allocated(onSiteElements)) then
-        call error("REKS is not compatible with onsite corrections")
-      end if
-
-      if (tPeriodic) then
-        if ( .not. (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])) ) then
-          call error("REKS can compute only gamma-point in periodic case")
-        end if
-      end if
-
-      if (input%ctrl%reksIni%Efunction /= 1 .and. tLatOpt) then
-        call error("Lattice optimization is only possible&
-            & with single-state REKS, not SA-REKS or SI-SA-REKS")
-      end if
-
-      if (tReadChrg) then
-        call error("Reading of initial charges is currently incompatible with REKS calculations")
-      end if
-
-      ! REKS can treat only closed shell systems.
-      if (mod(nint(nEl(1)),2) /= 0) then
-        call error("Current system is not a closed shell system, please check charge if using REKS")
-      end if
-      if (abs(nint(nEl(1)) - nEl(1)) >= elecTolMax) then
-        call error("Current system is fractionally charged, please check charge if using REKS")
-      end if
-
-      ! Condition for Hamiltonian types
-      select case(hamiltonianType)
-      case default
-        call error("Invalid Hamiltonian")
-      case(hamiltonianTypes%dftb)
-
-        ! Condition for electronicSolver
-        select case (electronicSolver%iSolver)
-        case (electronicSolverTypes%GF)
-          call error("REKS is not compatible with Green's function solver")
-        case (electronicSolverTypes%onlyTransport)
-          call error("REKS is not compatible with OnlyTransport-solver")
-        case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-            & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-          call REKS_init(reks, input%ctrl%reksIni, orb, spinW, nSpin, nEl(1), nExtChrg,&
-              & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, t3rd.or.t3rdFull, tRangeSep,&
-              & tForces, tPeriodic, tStress)
-        case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
-          call error("REKS is not compatible with density matrix ELSI-solvers")
-        end select
-
-      case(hamiltonianTypes%xtb)
-        call error("xTB calculation currently not supported for REKS")
-      end select
-
+      call TReksCalc_init(reks, input%ctrl%reksIni, electronicSolver, orb, spinW, nEl,&
+          & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
+          & nExtChrg, t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress)
     end if
 
   #:if WITH_TRANSPORT
@@ -3390,91 +3325,7 @@ contains
     end if
 
     if (allocated(reks)) then
-
-      write (stdOut,*)
-      write (stdOut,*)
-      write (stdOut, "(A,':',T30,A)") "REKS Calcuation", "Yes"
-      if (reks%tSSR22) then
-
-        write (stdOut, "(A,':',T30,A)") "SSR(2,2) Calcuation", "Yes"
-        if (reks%Efunction == 1) then
-          write (stdOut, "(A,':',T30,A)") "Energy Functional", "PPS"
-        else if (reks%Efunction == 2) then
-          write (stdOut, "(A,':',T30,A)") "Energy Functional", "(PPS+OSS)/2"
-        end if
-
-      else if (reks%tSSR44) then
-
-        call error("SSR(4,4) not implemented yet")
-
-      end if
-
-      write (stdOut, "(A,':',T30,I14)") "Number of core orbitals", reks%Nc
-      write (stdOut, "(A,':',T30,I14)") "Number of active orbitals", reks%Na
-      write (stdOut, "(A,':',T30,I14)") "Number of basis", orb%nOrb
-      write (stdOut, "(A,':',T30,I14)") "Number of States", reks%nstates
-      do ii = 1, reks%SAstates
-        if (ii == 1) then
-          write (strTmp, "(A,':')") "State-Averaging Weight"
-        else
-          write (strTmp, "(A)") ""
-        end if
-        write (stdOut, "(A,T30,F12.6)") trim(strTmp), reks%SAweight(ii)
-      end do
-      write (stdOut, "(A,':',T30,I14)") "State of Interest", reks%rstate
-
-      write (stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
-      write (stdOut, "(A,':',T30,I14)") "NR max. Iterations", reks%FonMaxIter
-      write (stdOut, "(A,':',T30,A)") "Level Shifting", "Yes"
-      write (stdOut, "(A,':',T30,F12.6)") "Shift Value", reks%shift
-
-      do iAt = 1, nType
-        if (iAt == 1) then
-          write (strTmp, "(A,':')") "W scale factor"
-        else
-          write (strTmp, "(A)") ""
-        end if
-        write (stdOut, "(A,T30,A3,'=',F12.6)") trim(strTmp), &
-            & speciesName(iAt), reks%Tuning(iAt)
-      end do
-
-      if (tForces) then
-
-        if (reks%Lstate > 0) then
-          write (stdOut, "(A,':',T30,A)") "Gradient of Microstate", "Yes"
-          write (stdOut, "(A,':',T30,I14)") "Index of Interest", reks%Lstate
-        else
-          write (stdOut, "(A,':',T30,A)") "Gradient of Microstate", "No"
-        end if
-
-        if (reks%Efunction /= 1) then
-          if (reks%Glevel == 1) then
-            write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Preconditioned Conjugate-Gradient"
-            write (stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
-            write (stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
-          else if (reks%Glevel == 2) then
-            write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Conjugate-Gradient"
-            write (stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
-            write (stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
-          else if (reks%Glevel == 3) then
-            write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Direct Matrix Multiplication"
-          end if
-          if (reks%tNAC) then
-            write (stdOut, "(A,':',T30,A)") "Non-Adiabatic Coupling", "Yes"
-          end if
-        end if
-
-        if (reks%tRD) then
-          write (stdOut, "(A,':',T30,A)") "Relaxed Density for QM/MM", "Yes"
-        end if
-
-      end if
-
-      write (stdOut,*)
-      write (stdOut, "(A)") " Warning! REKS calculation is not affected by,"
-      write (stdOut, "(A)") "          (mixer, filling) option"
-      write (stdOut,*)
-
+      call printReksInitInfo(reks, orb, speciesName, nType)
     end if
 
     call env%globalTimer%stopTimer(globalTimers%globalInit)
@@ -4776,6 +4627,281 @@ contains
     call plumedCalc%sendCmdVal("init", 0)
 
   end subroutine initPlumed
+
+
+  subroutine checkReksConsistency(reksIni, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
+      & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+
+    !> data type for REKS input
+    type(TReksIni), intent(in) :: reksIni
+
+    !> Correction to energy from on-site matrix elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> K-points
+    real(dp), intent(in) :: kPoint(:,:)
+
+    !> nr. of electrons
+    real(dp), intent(in) :: nEl(:)
+
+    !> nr. of K-points
+    integer, intent(in) :: nKPoint
+
+    !> Is the calculation SCC?
+    logical, intent(in) :: tSccCalc
+
+    !> is this a spin polarized calculation?
+    logical, intent(in) :: tSpin
+
+    !> is there spin-orbit coupling
+    logical, intent(in) :: tSpinOrbit
+
+    !> is this a DFTB+U calculation?
+    logical, intent(in) :: tDFTBU
+
+    !> external electric field
+    logical, intent(in) :: tEField
+
+    !> Calculate Casida linear response excitations
+    logical, intent(in) :: isLinResp
+
+    !> if calculation is periodic
+    logical, intent(in) :: tPeriodic
+
+    !> optimize lattice constants?
+    logical, intent(in) :: tLatOpt
+
+    !> If initial charges/dens mtx. from external file.
+    logical, intent(in) :: tReadChrg
+
+    if (.not. tSccCalc) then
+      call error("REKS requires SCC=Yes")
+    end if
+    if (tSpin) then
+      call error("REKS is not compatible with standard DFTB spin polarization, only the&
+          & SpinConstants block is required")
+    end if
+
+    if (tSpinOrbit) then
+      call error("REKS is not compatible with spin-orbit (LS-coupling) calculation")
+    else if (tDFTBU) then
+      call error("REKS is not compatible with DFTB+U calculation")
+    else if (tEField) then
+      call error("REKS is not compatible with external electric field, only point charge&
+          & embedding is implemented")
+    else if (isLinResp) then
+      call error("REKS is not compatible with standard linear response excitation")
+    else if (allocated(onSiteElements)) then
+      call error("REKS is not compatible with onsite corrections")
+    end if
+
+    if (tPeriodic) then
+      if ( .not. (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])) ) then
+        call error("REKS can compute only gamma-point in periodic case")
+      end if
+    end if
+
+    if (reksIni%Efunction /= 1 .and. tLatOpt) then
+      call error("Lattice optimization is only possible&
+          & with single-state REKS, not SA-REKS or SI-SA-REKS")
+    end if
+
+    if (tReadChrg) then
+      call error("Reading of initial charges is currently incompatible with REKS calculations")
+    end if
+
+    ! REKS can treat only closed shell systems.
+    if (mod(nint(nEl(1)),2) /= 0) then
+      call error("Current system is not a closed shell system, please check charge if using REKS")
+    end if
+    if (abs(nint(nEl(1)) - nEl(1)) >= elecTolMax) then
+      call error("Current system is fractionally charged, please check charge if using REKS")
+    end if
+
+  end subroutine checkReksConsistency
+
+
+  subroutine TReksCalc_init(reks, reksIni, electronicSolver, orb, spinW, nEl,&
+      & extChrg, blurWidths, hamiltonianType, nSpin, nExtChrg, is3rd, tRangeSep,&
+      & tForces, tPeriodic, tStress)
+
+    !> data type for REKS
+    type(TReksCalc), intent(out) :: reks
+
+    !> data type for REKS input
+    type(TReksIni), intent(inout) :: reksIni
+
+    !> electronic solver for the system
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Spin W values
+    real(dp), intent(inout) :: spinW(:,:,:)
+
+    !> nr. of electrons
+    real(dp), intent(in) :: nEl(:)
+
+    !> coordinates and charges of external point charges
+    real(dp), intent(in) :: extChrg(:,:)
+
+    !> Width of the Gaussians if the charges are blurred
+    real(dp), intent(in), allocatable :: blurWidths(:)
+
+    !> Hamiltonian type
+    integer, intent(in) :: hamiltonianType
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+    integer, intent(inout) :: nSpin
+
+    !> Nr. of external charges
+    integer, intent(in) :: nExtChrg
+
+    !> Third order DFTB
+    logical, intent(in) :: is3rd
+
+    !> Whether to run a range separated calculation
+    logical, intent(in) :: tRangeSep
+
+    !> Do we need forces?
+    logical, intent(in) :: tForces
+
+    !> if calculation is periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Can stress be calculated?
+    logical, intent(in) :: tStress
+
+    ! Condition for Hamiltonian types
+    select case(hamiltonianType)
+    case default
+      call error("Invalid Hamiltonian")
+    case(hamiltonianTypes%dftb)
+
+      ! Condition for electronicSolver
+      select case (electronicSolver%iSolver)
+      case (electronicSolverTypes%GF)
+        call error("REKS is not compatible with Green's function solver")
+      case (electronicSolverTypes%onlyTransport)
+        call error("REKS is not compatible with OnlyTransport-solver")
+      case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+          & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
+        call REKS_init(reks, reksIni, orb, spinW, nSpin, nEl(1), nExtChrg,&
+            & extChrg, blurWidths, is3rd, tRangeSep, tForces, tPeriodic, tStress)
+      case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
+        call error("REKS is not compatible with density matrix ELSI-solvers")
+      end select
+
+    case(hamiltonianTypes%xtb)
+      call error("xTB calculation currently not supported for REKS")
+    end select
+
+  end subroutine TReksCalc_init
+
+
+  subroutine printReksInitInfo(reks, orb, speciesName, nType)
+
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: reks
+
+    !> data structure with atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> labels of atomic species
+    character(mc), intent(in) :: speciesName(:)
+
+    !> nr of different types (nAtom)
+    integer, intent(in) :: nType
+
+    integer :: ii, iType
+    character(lc) :: strTmp
+
+    write (stdOut,*)
+    write (stdOut,*)
+    write (stdOut, "(A,':',T30,A)") "REKS Calcuation", "Yes"
+    if (reks%tSSR22) then
+
+      write (stdOut, "(A,':',T30,A)") "SSR(2,2) Calcuation", "Yes"
+      if (reks%Efunction == 1) then
+        write (stdOut, "(A,':',T30,A)") "Energy Functional", "PPS"
+      else if (reks%Efunction == 2) then
+        write (stdOut, "(A,':',T30,A)") "Energy Functional", "(PPS+OSS)/2"
+      end if
+
+    else if (reks%tSSR44) then
+
+      call error("SSR(4,4) not implemented yet")
+
+    end if
+
+    write (stdOut, "(A,':',T30,I14)") "Number of core orbitals", reks%Nc
+    write (stdOut, "(A,':',T30,I14)") "Number of active orbitals", reks%Na
+    write (stdOut, "(A,':',T30,I14)") "Number of basis", orb%nOrb
+    write (stdOut, "(A,':',T30,I14)") "Number of States", reks%nstates
+    do ii = 1, reks%SAstates
+      if (ii == 1) then
+        write (strTmp, "(A,':')") "State-Averaging Weight"
+      else
+        write (strTmp, "(A)") ""
+      end if
+      write (stdOut, "(A,T30,F12.6)") trim(strTmp), reks%SAweight(ii)
+    end do
+    write (stdOut, "(A,':',T30,I14)") "State of Interest", reks%rstate
+
+    write (stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
+    write (stdOut, "(A,':',T30,I14)") "NR max. Iterations", reks%FonMaxIter
+    write (stdOut, "(A,':',T30,A)") "Level Shifting", "Yes"
+    write (stdOut, "(A,':',T30,F12.6)") "Shift Value", reks%shift
+
+    do iType = 1, nType
+      if (iType == 1) then
+        write (strTmp, "(A,':')") "W scale factor"
+      else
+        write (strTmp, "(A)") ""
+      end if
+      write (stdOut, "(A,T30,A3,'=',F12.6)") trim(strTmp), &
+          & speciesName(iType), reks%Tuning(iType)
+    end do
+
+    if (reks%tForces) then
+
+      if (reks%Lstate > 0) then
+        write (stdOut, "(A,':',T30,A)") "Gradient of Microstate", "Yes"
+        write (stdOut, "(A,':',T30,I14)") "Index of Interest", reks%Lstate
+      else
+        write (stdOut, "(A,':',T30,A)") "Gradient of Microstate", "No"
+      end if
+
+      if (reks%Efunction /= 1) then
+        if (reks%Glevel == 1) then
+          write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Preconditioned Conjugate-Gradient"
+          write (stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
+          write (stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
+        else if (reks%Glevel == 2) then
+          write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Conjugate-Gradient"
+          write (stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
+          write (stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
+        else if (reks%Glevel == 3) then
+          write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Direct Matrix Multiplication"
+        end if
+        if (reks%tNAC) then
+          write (stdOut, "(A,':',T30,A)") "Non-Adiabatic Coupling", "Yes"
+        end if
+      end if
+
+      if (reks%tRD) then
+        write (stdOut, "(A,':',T30,A)") "Relaxed Density for QM/MM", "Yes"
+      end if
+
+    end if
+
+    write (stdOut,*)
+    write (stdOut, "(A)") " Warning! REKS calculation is not affected by,"
+    write (stdOut, "(A)") "          (mixer, filling) option"
+    write (stdOut,*)
+
+  end subroutine printReksInitInfo
 
 
 end module dftbp_initprogram
