@@ -6,25 +6,25 @@ Driver {}
 
 Hamiltonian = DFTB {
   Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
-    solvent = fromConstants {
-      epsilon = 2.64  # Dielectric constant of the solvent
-      molecularMass = 76.14  # mass of the solvent molecule
-      density = 1.26  # mol density of the solvent
+    Solvent = fromConstants {
+      Epsilon = 2.64  # Dielectric constant of the solvent
+      MolecularMass [amu] = 76.14  # mass of the solvent molecule
+      Density [kg/l] = 1.26  # mol density of the solvent
     }
-    temperature = 298.15
-    state = "gsolv"
-    shift [kcal/mol] = 2.81072250
-    radii = vanDerWaalsRadiiD3 {}
-    descreening = values {
+    # Temperature = 298.15
+    # State = "gsolv"
+    FreeEnergyShift [kcal/mol] = 2.81072250
+    Radii = vanDerWaalsRadiiD3 {}
+    Descreening = values {
        H = 0.93699367
        C = 0.83307834
        N = 1.02661619
        O = 0.96508008
     }
-    bornScale = 1.40636177
-    bornOffset = 1.653719965215E-03
-    OBC = {1.00 0.80 4.85}
-    cutoff = 30
+    BornScale = 1.40636177
+    BornOffset = 1.653719965215E-03
+    OBCCorrection = {1.00 0.80 4.85}
+    Cutoff = 30
   }
   SCC = Yes
   SccTolerance = 1e-10

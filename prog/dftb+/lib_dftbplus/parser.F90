@@ -3603,32 +3603,38 @@ contains
       end if
     case('fromconstants')
       call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
-      call getChildValue(value1, "MolecularMass", solvent%molecularMass)
-      call getChildValue(value1, "Density", solvent%density)
+      call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
+          & modifier=modifier, child=field)
+      call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)
+      call getChildValue(value1, "Density", solvent%density, modifier=modifier, &
+          & child=field)
+      call convertByMul(char(modifier), massDensityUnits, field, solvent%density)
     end select
 
     input%keps = 1.0_dp / solvent%dielectricConstant - 1.0_dp
 
     ! shift value for the free energy (usually fitted)
-    call getChildValue(node, "Shift", shift, modifier=modifier, child=field)
+    call getChildValue(node, "FreeEnergyShift", shift, modifier=modifier, &
+       & child=field)
     call convertByMul(char(modifier), energyUnits, field, shift)
 
     ! temperature, influence depends on the reference state
-    call getChildValue(node, "Temperature", temperature, 298.15_dp)
+    !call getChildValue(node, "Temperature", temperature, 298.15_dp)
 
     ! reference state for free energy calculation
-    call getChildValue(node, "State", state, "gsolv", child=child)
-    select case(tolower(unquote(char(state))))
-    case default
-      call detailedError(child, "Unknown reference state: '"//char(state)//"'")
-    case("gsolv") ! just the bare shift
-      input%shift = shift
-    end select
+    !call getChildValue(node, "State", state, "gsolv", child=child)
+    !select case(tolower(unquote(char(state))))
+    !case default
+    !  call detailedError(child, "Unknown reference state: '"//char(state)//"'")
+    !case("gsolv") ! just the bare shift
+    !  input%shift = shift
+    !end select
+    input%shift = shift
 
     call getChildValue(node, "BornScale", input%bornScale)
     call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)
     call convertByMul(char(modifier), lengthUnits, field, input%bornOffset)
-    call getChildValue(node, "OBC", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
+    call getChildValue(node, "OBCCorrection", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
 
     conv = 1.0_dp
     allocate(input%vdwRad(geo%nSpecies))

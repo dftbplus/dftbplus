@@ -2970,12 +2970,12 @@ Hamiltonian = DFTB {
 \end{description}
 
 \subsection{Implicit Solvation Model}
-\label{sec:dftbp.solvation}
+\label{sec:dftbp.Solvation}
 
 \subsubsection{Generalized Born Model}
 \label{sec:dftbp.GeneralizedBorn}
 
-In generalized Born (GB) theory,\cite{onufriev} a molecule is considered as
+In generalized Born (GB) theory,\cite{onufriev2019} a molecule is considered as
 continuous region with a dielectric constant~$\epsilon_\text{in}$ surrounded by
 infinite solvent with a dielectric constant~$\epsilon_\text{out}$.
 Charges~$q_\text{A}$ are located at the atomic sites~$\vec R_\text{A}$
@@ -3030,12 +3030,12 @@ To use the generalized Born model in the SCC procedure use the
 
 \begin{ptable}
   \kw{Solvent} & m & & & \\
-  \kw{Shift} & r & & & \\
-  \kw{Temperature} & r & & 298.15 & \\
-  \kw{State} & s & & gsolv & \\
+  \kw{FreeEnergyShift} & r & & & \\
+  %\kw{Temperature} & r & & 298.15 & \\
+  %\kw{State} & s & & gsolv & \\
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
-  \kw{OBC} & r & & 1.00, 0.80, 4.85 & \\
+  \kw{OBCCorrection} & r & & 1.00, 0.80, 4.85 & \\
   \kw{Radii} & m & & & \\
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & & \\
@@ -3046,30 +3046,33 @@ To use the generalized Born model in the SCC procedure use the
     by providing the solvent name as string in the \is{FromName\cb} method or
     by specifying the necessary values with the \is{FromConstants\cb} method.
     \is{FromConstants\cb} requires the dielectric constant as real for \kw{Epsilon},
-    the molecular mass in \kw{MolecularMass} and the solvent density
-    in \kw{Density}.
+    the molecular mass in \kw{MolecularMass} \modif{\modtype{mass}} and the
+    solvent density in \kw{Density} \modif{\modtype{massdensity}}.
 
   \item[\is{Shift}] \modif{\modtype{energy}} Shift for free energy calculations.
 
-  \item[\is{Temperature}] Temperature for free energy calculations. Default is
-    ambient temperature: 298.15 K.
+  %\item[\is{Temperature}] Temperature for free energy calculations. Default is
+    %ambient temperature: 298.15 K.
 
-  \item[\is{State}] Reference state for free energy calculations as string.
-    Takes \is{gsolv} (default).
+  %\item[\is{State}] Reference state for free energy calculations as string.
+    %Takes \is{gsolv} (default).
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
   \item[\is{BornOffset}] \modif{\modtype{length}}
     Offset value for Born radii calculation.
 
-  \item[\is{OBC}] Parameters for volume polynomial to correct Born radii
-    calculation.
+  \item[\is{OBCCorrection}] Parameters for Onufriev--Bashfold--Case volume
+    polynomial to correct Born radii calculation.
+    The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
+    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
 
-  \item[\is{Radii}] Atomic radii for each element in Bohr, either takes
+  \item[\is{Radii}] Atomic radii for each element, either takes
     \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
     or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
 
-  \item[\is{Descreening}] Descreening values for each elements.
+  \item[\is{Descreening}] Descreening values for each species.
     Disabled by \is{Unity\cb} method or enabled by providing \is{Values\cb}
     for each species.
 
@@ -3086,7 +3089,7 @@ Hamiltonian = DFTB {
     Temperature = 298.15
     State = "gsolv"
     Shift [kcal/mol] = 2.81072250
-    Radii = vanDerWaalsRadiiD3 {}
+    Radii = vanDerWaalsRadiiD3 [Bohr] {}
     Descreening = Values {
        H = 0.93699367
        C = 0.83307834
@@ -3094,7 +3097,7 @@ Hamiltonian = DFTB {
        O = 0.96508008
     }
     BornScale = 1.40636177
-    BornOffset = 1.653719965215E-03
+    BornOffset [Bohr] = 1.653719965215E-03
     OBC = {1.00 0.80 4.85}
     Cutoff = 40
   }

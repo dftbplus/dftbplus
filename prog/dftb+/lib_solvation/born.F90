@@ -227,8 +227,7 @@ contains
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
     call getBornRadii(self, nNeigh, neighList%iNeighbour, img2CentCell, &
         & neighList%neighDist2, species0, coords)
-    call getBornMatrix(self, nNeigh, neighList%iNeighbour, img2CentCell, &
-        & neighList%neighDist2)
+    call getBornMatrixCluster(self, coords)
 
     self%tCoordsUpdated = .true.
     self%tChargesUpdated = .false.
@@ -311,8 +310,7 @@ contains
     self%energies(:) = 0.0_dp
 
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
-    call getBornEG(self, nNeigh, neighList%iNeighbour, img2CentCell, neighList%neighDist2, &
-        & coords, self%energies, gradients, sigma)
+    call getBornEGCluster(self, coords, self%energies, gradients, sigma)
 
     self%energies = self%energies + self%shift / real(self%nAtom, dp)
 
@@ -761,23 +759,13 @@ contains
 
 
   !> compute Born matrix
-  pure subroutine getBornMatrix(self, nNeighbour, iNeighbour, img2CentCell, &
-       & neighDist2)
+  pure subroutine getBornMatrixCluster(self, coords0)
 
     !> data structure
     type(TGeneralizedBorn), intent(inout) :: self
 
-    !> Nr. of neighbours for each atom
-    integer, intent(in) :: nNeighbour(:)
-
-    !> Neighbourlist
-    integer, intent(in) :: iNeighbour(0:, :)
-
-    !> Square distances of the neighbours
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Mapping into the central cell
-    real(dp), intent(in) :: neighDist2(0:, :)
+    !> coordinates in the central cell
+    real(dp), intent(in) :: coords0(:, :)
 
     integer :: iAt1, iAt2, iAt2f, iNeigh
     real(dp) :: aa, dist2, dd, expd, dfgb, fgb
@@ -785,18 +773,16 @@ contains
     self%bornMat(:, :) = 0.0_dp
 
     do iAt1 = 1, self%nAtom
-       do iNeigh = 1, nNeighbour(iAt1)
-          iAt2 = iNeighbour(iNeigh, iAt1)
-          iAt2f = img2CentCell(iAt2)
-          dist2 = neighDist2(iNeigh, iAt1)
+       do iAt2 = 1, iAt1-1
+          dist2 = sum((coords0(:, iAt1) - coords0(:, iAt2))**2)
 
-          aa = self%bornRad(iAt1)*self%bornRad(iAt2f)
+          aa = self%bornRad(iAt1)*self%bornRad(iAt2)
           dd = 0.25_dp*dist2/aa
           expd = exp(-dd)
           dfgb = 1.0_dp/(dist2+aa*expd)
           fgb = self%param%keps*sqrt(dfgb)
-          self%bornMat(iAt1, iAt2f) = self%bornMat(iAt1, iAt2f) + fgb
-          self%bornMat(iAt2f, iAt1) = self%bornMat(iAt2f, iAt1) + fgb
+          self%bornMat(iAt1, iAt2) = self%bornMat(iAt1, iAt2) + fgb
+          self%bornMat(iAt2, iAt1) = self%bornMat(iAt2, iAt1) + fgb
        end do
     end do
 
@@ -805,27 +791,14 @@ contains
        self%bornMat(iAt1, iAt1) = self%param%keps/self%bornRad(iAt1)
     end do
 
-  end subroutine getBornMatrix
+  end subroutine getBornMatrixCluster
 
 
   !> GB energy and gradient
-  subroutine getBornEG(self, nNeighbour, iNeighbour, img2CentCell, &
-      & neighDist2, coords, energies, gradients, stress)
+  subroutine getBornEGCluster(self, coords, energies, gradients, stress)
 
     !> data structure
     type(TGeneralizedBorn), intent(in) :: self
-
-    !> Nr. of neighbours for each atom
-    integer, intent(in) :: nNeighbour(:)
-
-    !> Neighbourlist
-    integer, intent(in) :: iNeighbour(0:, :)
-
-    !> Square distances of the neighbours
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Square distances of the neighbours
-    real(dp), intent(in) :: neighDist2(0:, :)
 
     !> Current atomic positions
     real(dp), intent(in) :: coords(:, :)
@@ -839,7 +812,7 @@ contains
     !> Strain derivative
     real(dp), intent(inout) :: stress(:, :)
 
-    integer :: iAt1, iAt2, iAt2f, iNeigh
+    integer :: iAt1, iAt2
     real(dp) :: aa, dist2, fgb, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
     real(dp) :: grddbi,grddbj, vec(3), dGr(3), dSr(3, 3)
     real(dp), allocatable :: dEdbr(:)
@@ -852,15 +825,13 @@ contains
     dEdbr(:) = 0.0_dp
 
     do iAt1 = 1, self%nAtom
-       do iNeigh = 1, nNeighbour(iAt1)
-          iAt2 = iNeighbour(iNeigh, iAt1)
-          iAt2f = img2CentCell(iAt2)
-          dist2 = neighDist2(iNeigh, iAt1)
+       do iAt2 = 1, iAt1-1
           vec(:) = coords(:, iAt1) - coords(:, iAt2)
+          dist2 = sum(vec**2)
 
           ! dielectric scaling of the charges
-          qq = self%chargesPerAtom(iAt1)*self%chargesPerAtom(iAt2f)
-          aa = self%bornRad(iAt1)*self%bornRad(iAt2f)
+          qq = self%chargesPerAtom(iAt1)*self%chargesPerAtom(iAt2)
+          aa = self%bornRad(iAt1)*self%bornRad(iAt2)
           dd = 0.25_dp*dist2/aa
           expd = exp(-dd)
           fgb2 = dist2+aa*expd
@@ -869,28 +840,28 @@ contains
           dfgb3 = dfgb2*dfgb*self%param%keps
 
           energies(iAt1) = energies(iAt1) + qq*self%param%keps*dfgb/2
-          if (iAt1 /= iAt2f) then
-             energies(iAt2f) = energies(iAt2f) + qq*self%param%keps*dfgb/2
+          if (iAt1 /= iAt2) then
+             energies(iAt2) = energies(iAt2) + qq*self%param%keps*dfgb/2
           end if
 
           ap = (1.0_dp-0.25_dp*expd)*dfgb3
           dGr = ap*vec
           derivs(:,iAt1) = derivs(:,iAt1) - dGr*qq
-          derivs(:,iAt2f) = derivs(:,iAt2f) + dGr*qq
+          derivs(:,iAt2) = derivs(:,iAt2) + dGr*qq
 
           dSr = spread(dGr, 1, 3) * spread(vec, 2, 3)
-          if (iAt1 /= iAt2f) then
+          if (iAt1 /= iAt2) then
              stress = stress + dSr
           else
              stress = stress + dSr/2
           end if
 
           bp = -0.5_dp*expd*(1.0_dp+dd)*dfgb3
-          grddbi = self%bornRad(iAt2f)*bp
+          grddbi = self%bornRad(iAt2)*bp
           grddbj = self%bornRad(iAt1)*bp
           dEdbr(iAt1) = dEdbr(iAt1) + grddbi*qq
-          if (iAt1 /= iAt2f) then
-             dEdbr(iAt2f) = dEdbr(iAt2f) + grddbj*qq
+          if (iAt1 /= iAt2) then
+             dEdbr(iAt2) = dEdbr(iAt2) + grddbj*qq
           end if
 
        end do
@@ -911,7 +882,7 @@ contains
     call gemv(gradients, self%dbrdr, dEdbr, beta=1.0_dp)
     call gemv(stress, self%dbrdL, dEdbr, beta=1.0_dp)
 
-  end subroutine getBornEG
+  end subroutine getBornEGCluster
 
 
 end module dftbp_born
