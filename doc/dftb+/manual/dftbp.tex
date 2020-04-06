@@ -2834,8 +2834,7 @@ up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
   \kw{Cutoff} & r & & 40 & \\
   \kw{EwaldParameter} & r & & 0.0 & \\
   \kw{EwaldTolerance} & r & & 1.0e-9 & \\
-  \kw{CoordinationNumber} & m & & \is{erf} & \\
-  \kw{CoordinationNumber} & m & & \is{Erf} & \pref{dftbp.CoordinationNumber} \\
+  \kw{CoordinationNumber} & m & & \is{Erf} & \pref{sec:dftbp.CoordinationNumber} \\
 \end{ptable}
 
 \begin{description}
@@ -3027,6 +3026,8 @@ approach.
 
 To use the generalized Born model in the SCC procedure use the
 \is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
+Note that the GB model implemented is only available for finite
+systems.
 
 \begin{ptable}
   \kw{Solvent} & m & & & \\
@@ -3035,7 +3036,7 @@ To use the generalized Born model in the SCC procedure use the
   %\kw{State} & s & & gsolv & \\
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
-  \kw{OBCCorrection} & r & & 1.00, 0.80, 4.85 & \\
+  \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
   \kw{Radii} & m & & & \\
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & & \\
@@ -3086,8 +3087,6 @@ Example for CS2 as solvent:
 Hamiltonian = DFTB {
   Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
     Solvent = fromName { "cs2" }
-    Temperature = 298.15
-    State = "gsolv"
     Shift [kcal/mol] = 2.81072250
     Radii = vanDerWaalsRadiiD3 [Bohr] {}
     Descreening = Values {
