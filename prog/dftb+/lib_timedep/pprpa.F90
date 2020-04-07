@@ -1,11 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-#:include 'common.fypp'
+#:include "common.fypp"
+#:include "error.fypp"
 
 !> excitations energies according to the particle-particle Random Phase Approximation
 module dftbp_pprpa
@@ -29,8 +30,7 @@ module dftbp_pprpa
   implicit none
   private
 
-  public :: ppRPAenergies
-  public :: ppRPAcal
+  public :: ppRPAenergies, ppRPAcal
 
   !> Data type for pp-RPA calculations
   type :: ppRPAcal
@@ -67,9 +67,9 @@ contains
 
   !> This subroutine analytically calculates excitations energies
   !> based on Time Dependent DFRT
-  subroutine ppRPAenergies(tTDA, denseDesc, grndEigVecs, grndEigVal, sccCalc,&
-      & nexc, symc, U_h, SSqr, species0, rnel, iNeighbour,&
-      & img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter, tConst, nConst)
+  subroutine ppRPAenergies(tTDA, denseDesc, grndEigVecs, grndEigVal, sccCalc, nexc, symc, U_h,&
+      & SSqr, species0, rnel, iNeighbour, img2CentCell, orb, tWriteTagged, autotestTag,&
+      & taggedWriter, tConst, nConst, err)
 
     !> Tamm-Dancoff approximation?
     logical, intent(in) :: tTDA
@@ -128,6 +128,8 @@ contains
     !> number of virtual orbitals
     integer, intent(in) :: nConst
 
+    !> Error code return, 0 if no problems
+    integer, intent(out), optional :: err
 
     logical :: tSpin
 
@@ -156,8 +158,9 @@ contains
     !> ppRPA eigenvector
     real(dp), allocatable :: vr(:,:)
 
-
-    @:ASSERT(fdExc > 0)
+    if (present(err)) then
+      err = 0
+    end if
 
     nSpin = size(grndEigVal, dim=2)
     @:ASSERT(nSpin > 0 .and. nSpin <=2)
@@ -166,7 +169,7 @@ contains
     natom = size(species0)
     tSpin = (nSpin == 2)
 
-    ALLOCATE(iAtomStart(size(denseDesc%iAtomStart)))
+    allocate(iAtomStart(size(denseDesc%iAtomStart)))
     iAtomStart = denseDesc%iAtomStart
 
 
@@ -174,23 +177,23 @@ contains
     if (.not. tSpin) then
       select case (symc)
       case ("B")
-        ALLOCATE(symmetries(2))
+        allocate(symmetries(2))
         symmetries(:) = [ "S", "T" ]
       case ("S")
-        ALLOCATE(symmetries(1))
+        allocate(symmetries(1))
         symmetries(:) = [ "S" ]
       case ("T")
         ! like B. Triplet calculation requires first singlet exc. energy
-        ALLOCATE(symmetries(2))
+        allocate(symmetries(2))
         symmetries(:) = [ "S", "T" ]
       end select
     else
-      call error("spin-unrestricted calculations currently not possible with pp-RPA ")
+      @:ERROR_HANDLING(err, -1, "spin-unrestricted calculations currently not possible with pp-RPA")
     end if
 
     ! Allocation for general arrays
-    ALLOCATE(gamma_eri(natom, natom))
-    ALLOCATE(stimc(norb, norb, nSpin))
+    allocate(gamma_eri(natom, natom))
+    allocate(stimc(norb, norb, nSpin))
 
     if (tWriteTagged) then
       open(newUnit=fdTagged, file=autotestTag, position="append")
@@ -219,10 +222,10 @@ contains
     call sccCalc%getAtomicCoulombMatrix(gamma_eri, U_h, species0, iNeighbour, img2CentCell)
 
     ! excitation energies  output file
-    fdExc = getFileId()
-    open(fdExc, file=excitationsOut, position="rewind", status="replace")
+    open(newUnit=fdExc, file=excitationsOut, position="rewind", status="replace")
     write(fdExc,*)
-    write(fdExc,'(5x,a,6x,a,14x,a,6x,a,12x,a)') 'w [eV]', 'Transitions', 'Weight', 'KS [eV]', 'Symm.'
+    write(fdExc,'(5x,a,6x,a,14x,a,6x,a,12x,a)') 'w [eV]', 'Transitions', 'Weight', 'KS [eV]',&
+        & 'Symm.'
     write(fdExc,*)
     write(fdExc,'(1x,80("="))')
     write(fdExc,*)
@@ -245,20 +248,20 @@ contains
         end if
       end if
 
-      ALLOCATE(pp_eval(dim_rpa))
-      ALLOCATE(vr(dim_rpa, dim_rpa))
+      allocate(pp_eval(dim_rpa))
+      allocate(vr(dim_rpa, dim_rpa))
 
       call buildAndDiagppRPAmatrix(tTDA, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, iAtomStart,&
-          & gamma_eri, stimc, grndEigVecs, pp_eval, vr)
+          & gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
 
-      call writeppRPAExcitations(tTDA, sym, grndEigVal(:,1), nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
-          & tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
+      call writeppRPAExcitations(tTDA, sym, grndEigVal(:,1), nexc, pp_eval, vr, nocc, nvir, nxvv,&
+          & nxoo, fdExc, tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
 
       deallocate(pp_eval)
       deallocate(vr)
     end do
 
-    if (fdExc > 0) close(fdExc)
+    close(fdExc)
 
     if (tWriteTagged) then
       close(fdTagged)
@@ -268,8 +271,8 @@ contains
 
 
   !> Builds and diagonalizes the pp-RPA matrix
-  subroutine buildAndDiagppRPAmatrix(tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, ind,&
-      & gamma_eri, stimc, cc, pp_eval, vr)
+  subroutine buildAndDiagppRPAmatrix(tTDA, sym, eigVal, nocc, nvir, nxvv, nxoo, ind, gamma_eri,&
+      & stimc, cc, pp_eval, vr, err)
 
     !> Tamm-Dancoff approximation?
     logical, intent(in) :: tTDA
@@ -310,6 +313,9 @@ contains
     !> pp-RPA eigenvectors
     real(dp), intent(out) :: vr(:,:)
 
+    !> Error code return, 0 if no problems
+    integer, intent(out), optional :: err
+
     real(dp):: A_s(nxvv,nxvv), A_t(nxvv-nvir,nxvv-nvir)
     real(dp):: B_s(nxvv,nxoo), B_t(nxvv-nvir,nxoo-nocc)
     real(dp):: C_s(nxoo,nxoo), C_t(nxoo-nocc,nxoo-nocc)
@@ -327,15 +333,20 @@ contains
     real(dp), allocatable :: wi(:), vl(:,:)
     real(dp), allocatable :: PP(:,:)
 
+    real(dp), parameter :: sqrtFact = 1.0_dp/sqrt(2.0_dp)
+
+    if (present(err)) then
+      err = 0
+    end if
+
     natom  = size(gamma_eri, dim=1)
     nRPA   = size(pp_eval)
     nxoo_r = nxoo - nocc
     nxvv_r = nxvv - nvir
 
-    ALLOCATE(work(5*nRPA))
-    ALLOCATE(wi(nRPA))
-    ALLOCATE(vl(nRPA,nRPA))
-    ALLOCATE(PP(nRPA, nRPA))
+    allocate(work(5*nRPA))
+    allocate(wi(nRPA))
+    allocate(PP(nRPA, nRPA))
 
     ! spin-up channel only for closed-shell systems
     updwn = .true.
@@ -346,32 +357,46 @@ contains
       A_s(:,:) = 0.0_dp
 
       do ab = 1, nxvv
+
         call indxvv(nocc, ab, a, b)
+
         factor1 = 1.0_dp
-        if (a == b) factor1 = 1/sqrt(2.0_dp)
+        if (a == b) then
+          factor1 = sqrtFact
+        end if
 
         A_s(ab,ab) = A_s(ab,ab) + eigVal(a) + eigVal(b)
 
         do cd = ab, nxvv
+
           call indxvv(nocc, cd, c, d)
+
           factor2 = 1.0_dp
-          if (c == d) factor2 = 1/sqrt(2.0_dp)
+          if (c == d) then
+            factor2 = sqrtFact
+          end if
 
           q_1(:) = transq(a, c, ind, updwn, stimc, cc)
           q_2(:) = transq(b, d, ind, updwn, stimc, cc)
           q_3(:) = transq(a, d, ind, updwn, stimc, cc)
           q_4(:) = transq(b, c, ind, updwn, stimc, cc)
 
+
+          !A_s(ab,cd) = A_s(ab,cd) + factor1 * factor2 * (&
+          ! & dot_product(q_1, matmul(gamma_eri, q_2)) + dot_product(q_3, matmul(gamma_eri, q_4)))
+
           do at1 = 1, natom
             do at2 = 1, natom
               !optimize this: do at2 = at1, natom
-              A_s(ab,cd) = A_s(ab,cd) + gamma_eri(at1,at2)&
-                 &              *(q_1(at1)*q_2(at2) + q_3(at1)*q_4(at2))&
-                 &              *factor1*factor2
+              A_s(ab,cd) = A_s(ab,cd) + gamma_eri(at1,at2)*(q_1(at1)*q_2(at2) + q_3(at1)*q_4(at2))&
+                  & * factor1 * factor2
             end do
           end do
 
-          if (ab /= cd) A_s(cd,ab) = A_s(cd,ab) + A_s(ab,cd)
+          if (ab /= cd) then
+            A_s(cd,ab) = A_s(cd,ab) + A_s(ab,cd)
+          end if
+
         end do
 
       end do
@@ -383,22 +408,26 @@ contains
         do ab = 1, nxvv
           call indxvv(nocc, ab, a, b)
           factor1 = 1.0_dp
-          if (a == b) factor1 = 1/sqrt(2.0_dp)
+          if (a == b) then
+            factor1 = sqrtFact
+          end if
           do kl = 1, nxoo
             call indxoo(kl, k, l)
             factor2 = 1.0_dp
-            if (k == l) factor2 = 1/sqrt(2.0_dp)
+            if (k == l) then
+              factor2 = sqrtFact
+            end if
 
             q_1(:) = transq(k, a, ind, updwn, stimc, cc)
             q_2(:) = transq(l, b, ind, updwn, stimc, cc)
             q_3(:) = transq(l, a, ind, updwn, stimc, cc)
             q_4(:) = transq(k, b, ind, updwn, stimc, cc)
 
+
             do at1 = 1, natom
               do at2 = 1, natom
-                B_s(ab,kl) = B_s(ab,kl) + gamma_eri(at1,at2)&
-                   &             *(q_1(at1)*q_2(at2) + q_3(at1)*q_4(at2))&
-                   &             *factor1*factor2
+                B_s(ab,kl) = B_s(ab,kl) +gamma_eri(at1,at2)*(q_1(at1)*q_2(at2) + q_3(at1)*q_4(at2))&
+                    & * factor1 * factor2
               end do
             end do
 
@@ -411,14 +440,18 @@ contains
         do ij = 1, nxoo
           call indxoo(ij, i, j)
           factor1 = 1.0_dp
-          if (i == j) factor1 = 1/sqrt(2.0_dp)
+          if (i == j) then
+            factor1 = sqrtFact
+          end if
 
           C_s(ij,ij) = C_s(ij,ij) - eigVal(i) - eigVal(j)
 
           do kl = ij, nxoo
             call indxoo(kl, k, l)
             factor2 = 1.0_dp
-            if (k == l) factor2 = 1/sqrt(2.0_dp)
+            if (k == l) then
+              factor2 = sqrtFact
+            end if
 
             q_1(:) = transq(i, k, ind, updwn, stimc, cc)
             q_2(:) = transq(j, l, ind, updwn, stimc, cc)
@@ -433,7 +466,9 @@ contains
               end do
             end do
 
-            if (ij /= kl) C_s(kl,ij) = C_s(kl,ij) + C_s(ij,kl)
+            if (ij /= kl) then
+              C_s(kl,ij) = C_s(kl,ij) + C_s(ij,kl)
+            end if
           end do
 
         end do
@@ -454,7 +489,9 @@ contains
       ab_r = 0
       do ab = 1, nxvv
         call indxvv(nocc, ab, a, b)
-        if (a == b) cycle
+        if (a == b) then
+          cycle
+        end if
         ab_r = ab_r + 1
 
         A_t(ab_r,ab_r) = A_t(ab_r,ab_r) + eigVal(a) + eigVal(b)
@@ -462,7 +499,9 @@ contains
         cd_r = ab_r - 1
         do cd = ab, nxvv
           call indxvv(nocc, cd, c, d)
-          if (c == d) cycle
+          if (c == d) then
+            cycle
+          end if
           cd_r = cd_r + 1
 
           q_1(:) = transq(a, c, ind, updwn, stimc, cc)
@@ -478,7 +517,9 @@ contains
             end do
           end do
 
-          if (ab_r /= cd_r) A_t(cd_r,ab_r) = A_t(cd_r,ab_r) + A_t(ab_r,cd_r)
+          if (ab_r /= cd_r) then
+            A_t(cd_r,ab_r) = A_t(cd_r,ab_r) + A_t(ab_r,cd_r)
+          end if
         end do
 
       end do
@@ -489,13 +530,17 @@ contains
         ab_r = 0
         do ab = 1, nxvv
           call indxvv(nocc, ab, a, b)
-          if (a == b) cycle
+          if (a == b) then
+            cycle
+          end if
           ab_r = ab_r + 1
 
           kl_r = 0
           do kl = 1, nxoo
             call indxoo(kl, k, l)
-            if (k == l) cycle
+            if (k == l) then
+              cycle
+            end if
             kl_r = kl_r + 1
 
             q_1(:) = transq(k, a, ind, updwn, stimc, cc)
@@ -518,15 +563,20 @@ contains
         ij_r = 0
         do ij = 1, nxoo
           call indxoo(ij, i, j)
-          if (i == j) cycle
+          if (i == j) then
+            cycle
+          end if
           ij_r = ij_r + 1
 
           C_t(ij_r,ij_r) = C_t(ij_r,ij_r) - eigVal(i) - eigVal(j)
 
           kl_r = ij_r - 1
           do kl = ij, nxoo
+
             call indxoo(kl, k, l)
-            if (k == l) cycle
+            if (k == l) then
+              cycle
+            end if
             kl_r = kl_r + 1
 
             q_1(:) = transq(i, k, ind, updwn, stimc, cc)
@@ -537,40 +587,48 @@ contains
             do at1 = 1, natom
               do at2 = 1, natom
                 C_t(ij_r,kl_r) = C_t(ij_r,kl_r) + gamma_eri(at1,at2)&
-                &                *(q_1(at1)*q_2(at2) - q_3(at1)*q_4(at2))
+                    & * (q_1(at1)*q_2(at2) - q_3(at1)*q_4(at2))
               end do
             end do
 
-            if (ij_r /= kl_r) C_t(kl_r,ij_r) = C_t(kl_r,ij_r) + C_t(ij_r,kl_r)
+            if (ij_r /= kl_r) then
+              C_t(kl_r,ij_r) = C_t(kl_r,ij_r) + C_t(ij_r,kl_r)
+            end if
+
           end do
 
         end do
 
         !build ppRPA matrix
-        PP(1:nxvv_r,1:nxvv_r)   =  A_t(:,:)
-        PP(1:nxvv_r,nxvv_r+1:)  =  B_t(:,:)
+        PP(1:nxvv_r,1:nxvv_r)   =  A_t
+        PP(1:nxvv_r,nxvv_r+1:)  =  B_t
         PP(nxvv_r+1:,1:nxvv_r)  = -transpose(B_t)
-        PP(nxvv_r+1:,nxvv_r+1:) = -C_t(:,:)
+        PP(nxvv_r+1:,nxvv_r+1:) = -C_t
       else
-        PP(:,:) = A_t(:,:)
+        PP(:,:) = A_t
       end if
     end if
 
     !diagonalize ppRPA matrix
-    call dgeev('N','V',nRPA,PP,nRPA,pp_eval&
-        &        ,wi,vl,nRPA,vr,nRPA,work,5*nRPA,info)
+    call geev(PP, pp_eval, wi, vl, vr, info)
+
+    block
+      integer :: ii
+      do ii = 1, nRPA
+        write(*,*)ii, pp_eval(ii), wi(ii)
+      end do
+    end block
 
     if (info /= 0) then
-      print *, " Error with dgeev, info = ", info
-      stop
+      @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0)", " Error with dgeev, info = ", info)
     end if
 
   end subroutine buildAndDiagppRPAmatrix
 
 
   !> write pp-RPA excitation energies in output file
-  subroutine writeppRPAExcitations(tTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo, fdExc,&
-      & tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
+  subroutine writeppRPAExcitations(tTDA, sym, eigVal, nexc, pp_eval, vr, nocc, nvir, nxvv, nxoo,&
+      & fdExc, tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
 
     !> Tamm-Dancoff approximation?
     logical, intent(in) :: tTDA
@@ -620,21 +678,19 @@ contains
     !> HOMO of N-system
     integer, intent(inout) :: homo
 
-    integer :: a, i, ii, aa, bb, diff_a, diff_b
+    integer :: i, ii, aa, bb, diff_a, diff_b
     integer :: nRPA, nxoo_r, nxvv_r
     integer, allocatable :: e_ind(:)
     real(dp), allocatable :: norm(:)
-    real(dp), allocatable :: wvr(:), wvnorm(:)
+    real(dp), allocatable :: wvr(:)
     integer, allocatable :: wvin(:)
     real(dp):: weight
     real(dp):: ks_ener_a, ks_ener_b
 
-    nRPA   = size(pp_eval)
-    ALLOCATE(e_ind(nRPA))
-    ALLOCATE(norm(nRPA))
-    ALLOCATE(wvr(nRPA))
-    ALLOCATE(wvnorm(nRPA))
-    ALLOCATE(wvin(nRPA))
+    nRPA = size(pp_eval)
+    allocate(e_ind(nRPA))
+    allocate(wvr(nRPA))
+    allocate(wvin(nRPA))
 
 
     if (sym == "S") then
@@ -646,27 +702,27 @@ contains
     end if
 
     !neglect negative-norm eigenvectors
-    norm(:) = 0.0_dp
-
     if (.not. tTDA) then
-      do a = 1, nxvv_r
-        norm(:) = norm(:) + (vr(a,:))**2
-      end do
-      do i = 1, nxoo_r
-        norm(:) = norm(:) - (vr(nxvv_r+i,:))**2
-      end do
+      allocate(norm(nRPA))
+      norm(:) = sum(vr(:nxvv_r,:)**2, dim=1)
+      norm(:) = norm - sum(vr(nxvv_r+1:nxvv_r+nxoo_r,:)**2, dim=1)
     end if
 
     call index_heap_sort(e_ind, pp_eval)
+
     pp_eval = pp_eval(e_ind)
 
     ii = 0
-    do i = 1, nRPA
-      if (norm(e_ind(i)) < 0) cycle
+    RPA: do i = 1, nRPA
+
+      if (.not.tTDA) then
+        if (norm(e_ind(i)) < 0.0_dp) then
+          cycle RPA
+        end if
+      end if
 
       wvr(:) = vr(:,e_ind(i))**2
-      wvnorm = 1.0_dp / sqrt(sum(wvr**2))
-      wvr(:) = wvr(:) * wvnorm
+      wvr(:) = wvr / sqrt(sum(wvr**2))
 
       call index_heap_sort(wvin, wvr)
       wvin = wvin(size(wvin):1:-1)
@@ -693,18 +749,20 @@ contains
 
       !> double excitations
       if (diff_b /= -1) then
-        write(fdExc,'(1x,f10.3,6x,a,i2,a,i2,5x,f6.3,6x,f7.3,a,f7.3,7x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
-           & 'HOMO -> LUMO +', diff_b,',', diff_a, weight, ks_ener_b, ',', ks_ener_a, sym
+        write(fdExc,'(1x,f10.3,6x,a,i2,a,i2,5x,f6.3,6x,f7.3,a,f7.3,7x,a)')&
+            & Hartree__eV * (pp_eval(i) - eval_0),&
+            & 'HOMO -> LUMO +', diff_b,',', diff_a, weight, ks_ener_b, ',', ks_ener_a, sym
       else
-        write(fdExc,'(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)') Hartree__eV * (pp_eval(i) - eval_0),&
-           & 'HOMO -> LUMO +', diff_a, weight, ks_ener_a, sym
+        write(fdExc,'(1x,f10.3,6x,a,i2,8x,f6.3,6x,f7.3,15x,a)')&
+            & Hartree__eV * (pp_eval(i) - eval_0),&
+            & 'HOMO -> LUMO +', diff_a, weight, ks_ener_a, sym
       endif
 
       if ( ((ii > nExc) .and. (sym == "S")) .or. ((ii == nExc) .and. (sym == "T")) ) then
          exit
       end if
 
-    end do
+    end do RPA
 
     if (tWriteTagged) then
       call taggedWriter%write(fdTagged, tagLabels%egyppRPA, pp_eval(:nRPA))
