@@ -4,7 +4,7 @@ Geometry = GenFormat {
 
 Hamiltonian = DFTB {
     SCC = Yes
-    SCCTolerance = 1.0E-06
+    SCCTolerance = 1.0E-8
     Charge = 2.0
     MaxAngularMomentum = {
         C = "p"
