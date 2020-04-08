@@ -12,7 +12,7 @@ Hamiltonian = DFTB {
     C = "p"
   }
   SlaterKosterFiles = Type2FileNames {
-    Prefix = "/home/alex/SK_Parameter_Sets/mio/mio-1-1/"
+    #Prefix = "/home/alex/SK_Parameter_Sets/mio/mio-1-1/"
     Separator = "-"
     Suffix  = ".skf"
   }
