@@ -35,24 +35,28 @@ module dftbp_rekscommon
   public :: assignIndex, assignEpsilon, assignFilling
 
   !> Swap from charge/magnetisation to up/down in REKS
+  !> It converts my_qm to my_ud in the representation
   interface qm2udL
     module procedure qm2ud2
     module procedure qm2ud3
   end interface qm2udL
 
   !> Swap from up/down to charge/magnetisation in REKS
+  !> It converts my_ud to my_qm in the representation
   interface ud2qmL
     module procedure ud2qm2
     module procedure ud2qm3
   end interface ud2qmL
 
   !> Set correct charge/magnetization in REKS
+  !> It converts my_qm to qm in the representation
   interface qmExpandL
     module procedure qmExpand3
     module procedure qmExpand4
   end interface qmExpandL
 
   !> Set correct up/down in REKS
+  !> It converts my_ud to ud in the representation
   interface udExpandL
     module procedure udExpand3
     module procedure udExpand4
