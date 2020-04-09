@@ -1,1 +1,2 @@
-../../testers/test_treeinit
+RUN_CMD=$*
+$RUN_CMD ../../testers/test_treeinit

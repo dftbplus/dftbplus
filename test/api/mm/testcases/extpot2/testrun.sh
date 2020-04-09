@@ -1,1 +1,2 @@
-../../testers/test_extpot2
+RUN_CMD=$*
+$RUN_CMD ../../testers/test_extpot2

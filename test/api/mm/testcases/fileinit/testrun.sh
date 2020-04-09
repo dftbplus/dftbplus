@@ -1,1 +1,2 @@
-../../testers/test_fileinit
+RUN_CMD=$*
+$RUN_CMD ../../testers/test_fileinit
