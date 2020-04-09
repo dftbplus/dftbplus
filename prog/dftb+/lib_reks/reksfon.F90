@@ -92,7 +92,8 @@ module dftbp_reksfon
     real(dp) :: eps
     integer :: iter
 
-    ! Calculate Const in equation 13.c
+    ! Calculate Const in equation 12.c
+    ! Reference : JCP, 147, 034113 (2017) and its supporting information 
     ConDeno = enLtot(5) - enLtot(3)
     ! ConDeno should be negative
     ! In general, E2 - E1 > 0 due to the MO swap (always, n_a > n_b)
