@@ -81,7 +81,7 @@ class DftbPlus:
         self._natoms = self._dftbpluslib.dftbp_get_nr_atoms(self._dftb_handler)
 
 
-    def set_geometry(self, coords, latvecs=None, relcoords=False):
+    def set_geometry(self, coords, latvecs=None):
         '''Sets up the desired geometry.
 
         Args:
@@ -89,25 +89,14 @@ class DftbPlus:
                                  (in atomic units)
             latvecs (2darray):   lattice vectors (in atomic units)
                                  (None for non-periodic structures)
-            relcoords (2darray): relative atomic positions (in atomic units)
         '''
 
-        self._natoms = len(coords)
         periodic = latvecs is not None
 
         if periodic:
             latvecs = np.array(latvecs, dtype=float)
-            invlatvecs = la.inv(latvecs)
-
-            if relcoords:
-                relcoords = coords
-                coords = np.dot(relcoords, latvecs)
-            else:
-                relcoords = np.dot(coords, invlatvecs)
-
             self._dftbpluslib.dftbp_set_coords_and_lattice_vecs(
                 self._dftb_handler, coords, latvecs)
-
         else:
             self._dftbpluslib.dftbp_set_coords(self._dftb_handler, coords)
 
@@ -129,6 +118,16 @@ class DftbPlus:
 
         self._dftbpluslib.dftbp_set_external_potential(
             self._dftb_handler, extpot, extpotgrad)
+
+
+    def get_nr_atoms(self):
+        '''Queries the number of atoms.
+
+        Returns:
+            self._natoms (int): number of atoms
+        '''
+
+        return self._natoms
 
 
     def get_energy(self):
