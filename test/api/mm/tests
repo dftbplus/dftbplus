@@ -13,4 +13,4 @@ qdepextpot          #? not WITH_MPI
 qdepextpotc         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 treeinit            #? not WITH_MPI
 
-resetspecies        #? WITH_MPI and MPI_PROCS <= 1
+resetspecies        #? WITH_MPI and MPI_PROCS <= 4
