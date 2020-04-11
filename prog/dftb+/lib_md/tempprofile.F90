@@ -133,17 +133,14 @@ contains
 
     real(dp) :: subVal, supVal
     integer :: sub, sup
-    logical :: tChanged
 
     self%iStep = self%iStep + 1
     if (self%iStep > self%tempInts(self%nInt)) then
       return
     end if
     ! Looking for the next interval which contains the relevant information
-    tChanged = .false.
     do while (self%tempInts(self%iInt) < self%iStep)
       self%iInt = self%iInt + 1
-      tChanged = .true.
     end do
     sup = self%tempInts(self%iInt)
     sub = self%tempInts(self%iInt-1)
@@ -154,16 +151,12 @@ contains
     case (constProf)
       self%curTemp = self%tempValues(self%iInt)
     case (linProf)
-      if (tChanged) then
-        self%incr = (supVal - subVal) / real(sup - sub, dp)
-      end if
+      self%incr = (supVal - subVal) / real(sup - sub, dp)
       self%curTemp = subVal + self%incr * real(self%iStep - sub, dp)
     case (expProf)
-      if (tChanged) then
-        self%tempValues(self%iInt) = supVal
-        self%tempValues(self%iInt-1) = subVal
-        self%incr = log(supVal/subVal) / real(sup - sub, dp)
-      end if
+      self%tempValues(self%iInt) = supVal
+      self%tempValues(self%iInt-1) = subVal
+      self%incr = log(supVal/subVal) / real(sup - sub, dp)
       self%curTemp = subVal * exp(self%incr * real(self%iStep - sub, dp))
     end select
 
