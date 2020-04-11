@@ -106,7 +106,6 @@ contains
     allocate(self%tempMethods(self%nInt))
     self%tempInts(0) = 0
     self%tempInts(1:) = tempInts(:)
-    self%tempValues(0) = startingTemp_
     self%tempValues(1:) = tempValues(:)
     self%tempMethods(:) = tempMethods(:)
     iTmp = self%tempInts(1)
@@ -120,7 +119,12 @@ contains
     do while (self%tempInts(self%iInt) == 0)
       self%iInt = self%iInt + 1
     end do
-    self%curTemp = self%tempValues(self%iInt)
+    if (self%tempMethods(self%iInt) == constProf) then
+      self%tempValues(0) = self%tempValues(1)
+    else
+      self%tempValues(0) = startingTemp_
+    end if
+    self%curTemp = self%tempValues(0)
 
   end subroutine TempProfile_init
 
