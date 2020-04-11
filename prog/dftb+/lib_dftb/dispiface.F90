@@ -8,14 +8,15 @@
 !> Common interface for all dispersion modules.
 module dftbp_dispiface
   use dftbp_accuracy, only : dp
+  use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList
   implicit none
   private
   
-  public :: DispersionIface
+  public :: TDispersionIface
 
   !> Interface for classes providing dispersion.
-  type, abstract :: DispersionIface
+  type, abstract :: TDispersionIface
   contains
 
     !> update internal copy of coordinates
@@ -35,17 +36,20 @@ module dftbp_dispiface
 
     !> get stress tensor contributions
     procedure(getStressIface), deferred :: getStress
-  end type DispersionIface
+  end type TDispersionIface
 
 
   abstract interface
 
     !> Update internal stored coordinate
-    subroutine updateCoordsIface(this, neigh, img2CentCell, coords, species0)
-      import :: DispersionIface, TNeighbourList, dp
+    subroutine updateCoordsIface(this, env, neigh, img2CentCell, coords, species0)
+      import :: TDispersionIface, TEnvironment, TNeighbourList, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
+
+      !> Computational environment settings
+      type(TEnvironment), intent(in) :: env
 
       !> list of neighbours to atoms
       type(TNeighbourList), intent(in) :: neigh
@@ -63,10 +67,10 @@ module dftbp_dispiface
 
     !> update internal copy of lattice vectors
     subroutine updateLatVecsIface(this, latVecs)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> lattice vectors
       real(dp), intent(in) :: latVecs(:,:)
@@ -75,10 +79,10 @@ module dftbp_dispiface
 
     !> get energy contributions
     subroutine getEnergiesIface(this, energies)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> energy contributions for each atom
       real(dp), intent(out) :: energies(:)
@@ -87,10 +91,10 @@ module dftbp_dispiface
 
     !> get force contributions
     subroutine addGradientsIface(this, gradients)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> gradient contributions for each atom
       real(dp), intent(inout) :: gradients(:,:)
@@ -99,10 +103,10 @@ module dftbp_dispiface
 
     !> get stress tensor contributions
     subroutine getStressIface(this, stress)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> Stress tensor contributions
       real(dp), intent(out) :: stress(:,:)
@@ -111,10 +115,10 @@ module dftbp_dispiface
 
     !> Distance cut off for dispersion interactions
     function getRCutoffIface(this) result(cutoff)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> resulting cutoff
       real(dp) :: cutoff

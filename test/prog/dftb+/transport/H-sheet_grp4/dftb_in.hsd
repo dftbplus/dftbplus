@@ -19,6 +19,7 @@ Transport {
       FermiLevel [eV] = -4.4504575
       Potential [eV] = 1.0
     }
+    ReadBinaryContact = No
 }
 
 Hamiltonian = dftb {

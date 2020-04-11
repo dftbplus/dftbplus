@@ -11,21 +11,21 @@ module dftbp_wrappedintr
   implicit none
   private
 
-  public :: WrappedInt1, WrappedReal1, WrappedLogical1
+  public :: TWrappedInt1, TWrappedReal1, TWrappedLogical1
 
   !> 1 dimensional integers
-  type :: WrappedInt1
+  type :: TWrappedInt1
     integer, allocatable :: data(:)
-  end type WrappedInt1
+  end type TWrappedInt1
 
   !> 1 dimensional reals
-  type :: WrappedReal1
+  type :: TWrappedReal1
     real(dp), allocatable :: data(:)
-  end type WrappedReal1
+  end type TWrappedReal1
 
   !> 1 dimensional logicals
-  type :: WrappedLogical1
+  type :: TWrappedLogical1
     logical, allocatable :: data(:)
-  end type WrappedLogical1
+  end type TWrappedLogical1
 
 end module dftbp_wrappedintr

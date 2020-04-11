@@ -9,12 +9,13 @@
 
 !> Contains data type representing the input data for DFTB
 module dftbp_inputdata
+  use dftbp_hamiltoniantypes
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_typegeometry
   use dftbp_message
-  use dftbp_dispersions, only : DispersionInp
-  use dftbp_linresp, only : linrespini
+  use dftbp_dispersions, only : TDispersionInp
+  use dftbp_linresp, only : TLinrespini
   use dftbp_slakocont
   use dftbp_commontypes
   use dftbp_repcont
@@ -38,7 +39,7 @@ module dftbp_inputdata
   private
   save
 
-  public :: control, TGeometry, slater, inputData, XLBOMDInp, TParallelOpts
+  public :: TControl, TGeometry, TSlater, TInputData, TXLBOMDInp, TParallelOpts
   public :: TBlacsOpts
   public :: TRangeSepInp
   public :: init, destruct
@@ -73,21 +74,34 @@ module dftbp_inputdata
 
   !> LBFGS input settings
   type TLbfgsInput
+    !> Number of stored steps
     integer :: memory
   end type TLbfgsInput
 
 
   !> Range separation input
   type TRangeSepInp
+
+    !> Threshold for integral screening
     real(dp) :: screeningThreshold
+
+    !> Reduction of cutoff in spatial screening
     real(dp) :: cutoffRed
+
+    !> Separation parameter
     real(dp) :: omega
+
+    !> Choice of range separation method
     integer :: rangeSepAlg
+
   end type TRangeSepInp
 
 
   !> Main control data for program as extracted by the parser
-  type control
+  type TControl
+
+    !> Choice of electronic hamiltonian
+    integer :: hamiltonian = hamiltonianTypes%none
 
     !> random number generator seed
     integer :: iSeed       = 0
@@ -116,7 +130,7 @@ module dftbp_inputdata
     logical :: tWriteChrgAscii = .true.
 
     !> should probably be packaged
-    logical :: tGeoOpt     = .false.
+    logical :: isGeoOpt = .false.
 
     !> coordinate optimisation
     logical :: tCoordOpt   = .false.
@@ -375,7 +389,7 @@ module dftbp_inputdata
 
 
     !> Projection of eigenvectors
-    type(listIntR1) :: iAtInRegion
+    type(TListIntR1) :: iAtInRegion
     logical, allocatable :: tShellResInRegion(:)
     logical, allocatable :: tOrbResInRegion(:)
     character(lc), allocatable :: RegionLabel(:)
@@ -436,7 +450,7 @@ module dftbp_inputdata
 
 
     !> Dispersion related stuff
-    type(DispersionInp), allocatable :: dispInp
+    type(TDispersionInp), allocatable :: dispInp
 
 
     !> Local potentials
@@ -450,19 +464,21 @@ module dftbp_inputdata
 
 
     !> XLBOMD
-    type(XLBOMDInp), allocatable :: xlbomd
+    type(TXLBOMDInp), allocatable :: xlbomd
 
-    type(linrespini) :: lrespini
+    !> TD Linear response input
+    type(TLinrespini) :: lrespini
 
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
 
+    !> Range separated input
     type(TRangeSepInp), allocatable :: rangeSepInp
 
 
   #:if WITH_SOCKETS
     !> socket communication
-    type(IpiSocketCommInp), allocatable :: socketInput
+    type(ipiSocketCommInp), allocatable :: socketInput
   #:endif
 
     type(TParallelOpts), allocatable :: parallelOpts
@@ -471,24 +487,25 @@ module dftbp_inputdata
     integer :: timingLevel
     
     ! Custom occupations
-    type(WrappedInt1), allocatable :: customOccAtoms(:)
+    type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
 
-  end type control
+  end type TControl
 
 
   !> Slater-Koster data
-  type slater
+  type TSlater
     real(dp), allocatable :: skSelf(:, :)
     real(dp), allocatable :: skHubbU(:, :)
     real(dp), allocatable :: skOcc(:, :)
     real(dp), allocatable :: mass(:)
 
-    type(OSlakoCont), allocatable :: skHamCont
-    type(OSlakoCont), allocatable :: skOverCont
-    type(ORepCont), allocatable :: repCont
+    type(TSlakoCont), allocatable :: skHamCont
+    type(TSlakoCont), allocatable :: skOverCont
+    type(TRepCont), allocatable :: repCont
     type(TOrbitals), allocatable :: orb
-  end type slater
+
+  end type TSlater
 
 #:if WITH_TRANSPORT
   !> container for data needed by libNEGF
@@ -500,17 +517,17 @@ module dftbp_inputdata
 
 
   !> container for input data constituents
-  type inputData
+  type TInputData
     logical :: tInitialized = .false.
-    type(control) :: ctrl
+    type(TControl) :: ctrl
     type(TGeometry) :: geom
-    type(slater) :: slako
+    type(TSlater) :: slako
   #:if WITH_TRANSPORT
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
     type(TPoissonInfo) :: poisson
   #:endif
-  end type inputData
+  end type TInputData
 
 
   !> Initialise the input data
@@ -529,7 +546,9 @@ contains
 
   !> Mark data structure as initialised
   subroutine InputData_init(self)
-    type(inputData), intent(out) :: self
+
+    !> Instance
+    type(TInputData), intent(out) :: self
 
     self%tInitialized = .true.
 
@@ -538,7 +557,9 @@ contains
 
   !> destructor for parts that are not cleaned up when going out of scope
   subroutine InputData_destruct(self)
-    type(inputData), intent(inout) :: self
+
+    !> Instance
+    type(TInputData), intent(inout) :: self
 
     call Control_destruct(self%ctrl)
 
@@ -547,7 +568,9 @@ contains
 
   !> destructor for parts that are not cleaned up when going out of scope
   subroutine Control_destruct(self)
-    type(control), intent(inout) :: self
+
+    !> Instance
+    type(TControl), intent(inout) :: self
 
     if (allocated(self%tShellResInRegion)) then
       call destruct(self%iAtInRegion)

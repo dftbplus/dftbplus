@@ -24,7 +24,7 @@ module dftbp_linresp
   use dftbp_slakocont
   use dftbp_fileid
   use dftbp_scc, only : TScc
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_densedescr
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_linrespgrad
@@ -33,11 +33,11 @@ module dftbp_linresp
   implicit none
   private
 
-  public :: linrespini
-  public :: init, calcExcitations, addGradients
+  public :: TLinresp, TLinrespini
+  public :: LinResp_init, calcExcitations, addGradients
 
   !> Data type for initial values for linear response calculations
-  type :: linrespini
+  type :: TLinrespini
 
     !> number of excitations to be found
     integer :: nExc
@@ -103,12 +103,7 @@ module dftbp_linresp
     !> Initialised data structure?
     logical :: tInit = .false.
 
-  end type linrespini
-
-  !> Initialise data structure
-  interface init
-    module procedure LinResp_init
-  end interface init
+  end type TLinrespini
 
 
   !> actually calculate excitations
@@ -132,7 +127,7 @@ contains
     type(TLinResp), intent(out) :: this
 
     !> initial values for setting parameters
-    type(linrespini), intent(inout) :: ini
+    type(TLinrespini), intent(inout) :: ini
 
     !> number of atoms in central cell
     integer, intent(in) :: nAtom
@@ -243,7 +238,7 @@ contains
       & taggedWriter, excEnergy, allExcEnergies)
 
     !> data structure with additional linear response values
-    type(TLinResp), intent(inout) :: this
+    type(TLinresp), intent(inout) :: this
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -361,13 +356,13 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> non-SCC H0 data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> method for calculating derivatives of S and H0 matrices
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix (square matrix plus spin index)
     real(dp), intent(in)  :: rhoSqr(:,:,:)

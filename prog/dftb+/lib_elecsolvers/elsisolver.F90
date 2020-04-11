@@ -334,6 +334,11 @@ contains
       ! ignored by NTPoly, but set anyway:
       this%nState = nBasisFn
 
+    case (electronicSolverTypes%elpadm)
+      this%solver = 1
+      ! ignored by density matrix from ELPA, but set anyway:
+      this%nState = nBasisFn
+
     end select
 
     ! parallelism with multiple processes
@@ -527,7 +532,7 @@ contains
 
 
       select case(this%iSolver)
-      case(electronicSolverTypes%elpa)
+      case(electronicSolverTypes%elpa, electronicSolverTypes%elpadm)
 
         select case(this%elpaSolverOption)
         case(1)
@@ -589,8 +594,8 @@ contains
 
       end select
 
-      if (any(this%iSolver == [electronicSolverTypes%omm,&
-          & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
+      if (any(this%iSolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+          & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])) then
         ! density matrix build needs to know the number of spin channels to normalize against
         select case(this%nSpin)
         case(1)

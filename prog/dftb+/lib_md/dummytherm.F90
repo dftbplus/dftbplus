@@ -16,12 +16,12 @@ module dftbp_dummytherm
   implicit none
   private
 
-  public :: ODummyThermostat
+  public :: TDummythermostat
   public :: init, getInitVelocities, state
 
 
   !> Data for dummy thermostat
-  type ODummyThermostat
+  type TDummythermostat
     private
 
     !> Nr. of atoms
@@ -34,11 +34,11 @@ module dftbp_dummytherm
     real(dp), allocatable :: mass(:)
 
     !> Random number generator.
-    type(ORanlux), allocatable :: pRanlux
+    type(TRanlux), allocatable :: pRanlux
 
     !> MD Framwork
-    type(OMDCommon) :: pMDFrame
-  end type ODummyThermostat
+    type(TMDCommon) :: pMDFrame
+  end type TDummythermostat
 
 
   !> Initialise thermostat object
@@ -63,7 +63,7 @@ contains
 
   !> Creates a DummyThermostat instance.
   subroutine DummyThermostat_init(self, kT, mass, pRanlux, pMDFrame)
-    type(ODummyThermostat), intent(out) :: self
+    type(TDummythermostat), intent(out) :: self
 
     !> Initialised DummyThermostat instance on return.
     real(dp), intent(in) :: kT
@@ -72,10 +72,10 @@ contains
     real(dp), intent(in) :: mass(:)
 
     !> Random generator
-    type(ORanlux), allocatable, intent(inout) :: pRanlux
+    type(TRanlux), allocatable, intent(inout) :: pRanlux
 
     !> thermostat object
-    type(OMDCommon), intent(in) :: pMDFrame
+    type(TMDCommon), intent(in) :: pMDFrame
 
     self%kT = kT
     self%nAtom = size(mass)
@@ -91,7 +91,7 @@ contains
   subroutine DummyThermostat_getInitVelos(self, velocities)
 
     !> Thermostat instance.
-    type(ODummyThermostat), intent(inout) :: self
+    type(TDummythermostat), intent(inout) :: self
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
@@ -114,7 +114,7 @@ contains
   subroutine DummyThermostat_state(self, fd)
 
     !> thermostat object
-    type(ODummyThermostat), intent(in) :: self
+    type(TDummythermostat), intent(in) :: self
 
     !> file unit
     integer,intent(in) :: fd

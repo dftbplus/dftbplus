@@ -21,32 +21,32 @@ module dftbp_berendsentherm
   implicit none
   private
 
-  public :: OBerendsenThermostat
+  public :: TBerendsenThermostat
   public :: init, getInitVelocities, updateVelocities, state
 
 
   !> Data for the Berendsen thermostat
-  type OBerendsenThermostat
+  type TBerendsenThermostat
     private
 
     !> Nr. of atoms
     integer :: nAtom
 
     !> Random number generator
-    type(ORanlux), allocatable :: pRanlux
+    type(TRanlux), allocatable :: pRanlux
 
     !> Mass of the atoms
     real(dp), allocatable :: mass(:)
 
     !> Temperature generator
-    type(OTempProfile), pointer :: pTempProfile
+    type(tTempProfile), pointer :: pTempProfile
 
     !> coupling strength to friction term
     real(dp) :: couplingParameter
 
     !> MD Framework.
-    type(OMDCommon) :: pMDFrame
-  end type OBerendsenThermostat
+    type(TMDCommon) :: pMDFrame
+  end type TBerendsenThermostat
 
 
   !> initialise object
@@ -80,22 +80,22 @@ contains
       & couplingParameter, pMDFrame)
 
     !> Initialised instance on exit.
-    type(OBerendsenThermostat), intent(out) :: self
+    type(TBerendsenThermostat), intent(out) :: self
 
     !> Pointer to the random generator.
-    type(ORanlux), allocatable, intent(inout) :: pRanlux
+    type(TRanlux), allocatable, intent(inout) :: pRanlux
 
     !> Masses of the atoms.
     real(dp), intent(in) :: masses(:)
 
     !> Temperature profile object.
-    type(OTempProfile), pointer, intent(in) :: tempProfile
+    type(TTempProfile), pointer, intent(in) :: tempProfile
 
     !> Coupling parameter for the thermostat.
     real(dp), intent(in) :: couplingParameter
 
     !> Molecular dynamics generic framework
-    type(OMDCommon), intent(in) :: pMDFrame
+    type(TMDCommon), intent(in) :: pMDFrame
 
     call move_alloc(pRanlux, self%pRanlux)
     self%nAtom = size(masses)
@@ -112,7 +112,7 @@ contains
   subroutine Berendsen_getInitVelos(self, velocities)
 
     !> BerendsenThermostat instance.
-    type(OBerendsenThermostat), intent(inout) :: self
+    type(TBerendsenThermostat), intent(inout) :: self
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
@@ -137,7 +137,7 @@ contains
   subroutine Berendsen_updateVelos(self, velocities)
 
     !> Thermostat instance.
-    type(OBerendsenThermostat), intent(inout) :: self
+    type(TBerendsenThermostat), intent(inout) :: self
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
@@ -159,7 +159,7 @@ contains
   subroutine Berendsen_state(self, fd)
 
     !> thermostat object
-    type(OBerendsenThermostat), intent(in) :: self
+    type(TBerendsenThermostat), intent(in) :: self
 
     !> file unit
     integer,intent(in) :: fd

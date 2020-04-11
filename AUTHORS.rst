@@ -32,6 +32,8 @@ contributed to DFTB+ :
 * Adriel Garcia Dominguez (Max Planck Institute for the Structure and Dynamics
   of Matter, Germany)
 
+* Sebastian Ehlert (University of Bonn, Germany)
+
 * In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
 
 * Izaac Mitchell (University of Newcastle, Australia)

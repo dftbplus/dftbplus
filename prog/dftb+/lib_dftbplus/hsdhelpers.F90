@@ -35,7 +35,7 @@ contains
   subroutine parseHsdInput(input)
 
     !> Input data parsed from the input file
-    type(inputData), intent(out) :: input
+    type(TInputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
     type(TParserFlags) :: parserFlags

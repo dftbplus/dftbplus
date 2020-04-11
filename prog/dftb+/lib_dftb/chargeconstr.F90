@@ -16,12 +16,12 @@ module dftbp_chargeconstr
   implicit none
   private
 
-  public :: OChrgConstr, init
+  public :: TChrgConstr, init
   public :: buildShift, addShiftPerAtom, addEnergyPerAtom
 
 
   !> Constraint object
-  type OChrgConstr
+  type TChrgConstr
     private
 
     !> Instance initialised?
@@ -41,7 +41,7 @@ module dftbp_chargeconstr
 
     !> Potential from constraint
     real(dp), allocatable :: shift(:)
-  end type OChrgConstr
+  end type TChrgConstr
 
 
   !> Initialise
@@ -74,7 +74,7 @@ contains
   subroutine ChrgConstr_init(sf, inp, kappa)
 
     !> Instance of a constraint
-    type(OChrgConstr), intent(inout) :: sf
+    type(TChrgConstr), intent(inout) :: sf
 
     !> Array contining reference charges and prefactors (nAtom, 2)
     real(dp), intent(in) :: inp(:,:)
@@ -102,7 +102,7 @@ contains
   subroutine ChrgConstr_buildShift(sf, chargesPerAtom)
 
     !> Instance of a constraint
-    type(OChrgConstr), intent(inout) :: sf
+    type(TChrgConstr), intent(inout) :: sf
 
     !> Atomic charges
     real(dp), intent(in) :: chargesPerAtom(:)
@@ -119,7 +119,7 @@ contains
   subroutine ChrgConstr_addShiftPerAtom(sf, shiftPerAtom)
 
     !> Instance of a constraint
-    type(OChrgConstr), intent(in) :: sf
+    type(TChrgConstr), intent(in) :: sf
 
     !> Shift to append onto
     real(dp), intent(inout) :: shiftPerAtom(:)
@@ -136,7 +136,7 @@ contains
   subroutine ChrgConstr_addEnergyPerAtom(sf, energyPerAtom, chargesPerAtom)
 
     !> Instance of a constraint
-    type(OChrgConstr), intent(in) :: sf
+    type(TChrgConstr), intent(in) :: sf
 
     !> Energy per atom from constraint
     real(dp), intent(inout) :: energyPerAtom(:)

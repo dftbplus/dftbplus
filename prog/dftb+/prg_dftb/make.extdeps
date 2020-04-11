@@ -1,1 +1,0 @@
-dftbplus.o: $(BUILDROOT)/RELEASE

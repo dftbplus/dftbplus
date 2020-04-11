@@ -170,7 +170,7 @@ endfunction()
 function (dftbp_ensure_config_consistency)
 
   if(WITH_ELSI AND NOT WITH_MPI)
-    message(FATAL_ERROR "Buliding with ELSI requires MPI-parallel build enabled")
+    message(FATAL_ERROR "Building with ELSI requires MPI-parallel build enabled")
   endif()
 
   if(WITH_PEXSI AND (NOT WITH_MPI OR NOT WITH_ELSI))
@@ -181,12 +181,8 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
-  if(WITH_ARPACK AND WITH_ELSI_RCI)
-    message(FATAL_ERROR "Building with both ARPACK and ELSI_RCI support is not possible at present")
-  endif()
-
-  if(WITH_ELSI_RCI AND WITH_MPI)
-    message(FATAL_ERROR "Building with ELSI_RCI temporarily disabled")
+  if(WITH_GPU AND WITH_MPI)
+    message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
   endif()
 
   string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)

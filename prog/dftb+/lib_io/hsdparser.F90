@@ -734,7 +734,7 @@ contains
 
     type(string) :: txt, name, nodeValue
     type(fnode), pointer :: fp
-    type(fnamedNodeMap), pointer :: attribs
+    type(fNamedNodeMap), pointer :: attribs
     integer :: ii
 
     call getNodeName(node, txt)

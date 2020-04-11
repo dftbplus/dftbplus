@@ -19,6 +19,8 @@ In order to compile DFTB+, you need the following software components:
 
 * LAPACK/BLAS libraries (or compatible equivalents)
 
+* Python (version >= 3.2) for the source preprocessor
+
 Additionally there are optional requirements for some DFTB+ features:
 
 * ScaLAPACK (version 2.0 or later) and an MPI aware Fortran compiler, if you
@@ -26,7 +28,7 @@ Additionally there are optional requirements for some DFTB+ features:
 
 * In addition to ScaLAPACK, the `ELSI
   <https://wordpress.elsi-interchange.org/>`_ library for large scale systems
-  can optionally also be used.
+  can optionally also be used (version 2.5.0 or later of the library).
 
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 
@@ -222,8 +224,8 @@ Note, that the flags and libraries shown are either for linking with Fortran or
 with C, depending on the value of the configuration option
 ``PKGCONFIG_LANGUAGE``.
 
-If you compiled DFTB+ with ELSI-support, make sure, that pkg-config can find the
-ELSIs own pkgconfig file, as it is declared as dependency in the DFTB+
+If you compile DFTB+ with ELSI-support, make sure that pkg-config can find
+ELSI's own pkgconfig file, as it is declared as dependency in the DFTB+
 pkg-config file.
 
 
@@ -272,8 +274,8 @@ to make sure, CMake finds them, you could turn them into targets in your CMake::
   add_executable(testprogram testprogram.f90)
   target_link_libraries(testprogram DftbPlus::dftbplus)
 
-If you compiled DFTB+ with ELSI support, make sure, that CMake can find ELSIs
-own CMake configuration file, as it is declared as dependency in the DFTB+ Cmake
+If you compile DFTB+ with ELSI support, make sure that CMake can find ELSI's own
+CMake configuration file, as it is declared as dependency in the DFTB+ Cmake
 config file.
 
 

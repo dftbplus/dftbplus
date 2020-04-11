@@ -206,7 +206,7 @@ contains
     type(TDftbPlusInput), intent(inout) :: input
 
     type(TParserFlags) :: parserFlags
-    type(inputData) :: inpData
+    type(TInputData) :: inpData
 
     call this%checkInit()
 
@@ -375,7 +375,7 @@ contains
 
     call this%checkInit()
 
-    call getGrossCharges(atomCharges)
+    call getGrossCharges(this%env, atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
 
