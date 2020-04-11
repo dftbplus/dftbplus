@@ -54,6 +54,7 @@ module dftbp_parser
   use dftbp_etemp, only : fillingTypes
   use dftbp_hamiltoniantypes
   use dftbp_wrappedintr
+  use dftbp_tempprofile, only : identifyTempProfile
   use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
   use poisson_init
@@ -674,8 +675,7 @@ contains
       case ("nosehoover")
         ctrl%iThermostat = 3
         ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, &
-            &child=child2)
+        call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
         call getNodeName(value2, buffer)
 
         select case(char(buffer))
@@ -687,8 +687,7 @@ contains
           call detailedError(value2, "Invalid method name.")
         end select
 
-        call getChildValue(value1, "CouplingStrength", ctrl%wvScale, &
-            & modifier=modifier, child=field)
+        call getChildValue(value1, "CouplingStrength", ctrl%wvScale, modifier=modifier, child=field)
         call convertByMul(char(modifier), freqUnits, field, ctrl%wvScale)
 
         call getChildValue(value1, "ChainLength", ctrl%nh_npart, 3)
@@ -714,8 +713,7 @@ contains
       case ("andersen")
         ctrl%iThermostat = 1
         ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, &
-            &child=child2)
+        call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
         call getNodeName(value2, buffer)
 
         select case(char(buffer))
@@ -4118,10 +4116,6 @@ contains
     !> Control structure to populate
     type(TControl), intent(inout) :: ctrl
 
-    !> Names of thermal profiles
-    character(len=*), parameter :: tempMethodNames(3) = (/ 'constant   ', &
-        &'linear     ', 'exponential' /)
-
     type(TListString) :: ls
     type(TListIntR1) :: li1
     type(TListRealR1) :: lr1
@@ -4146,16 +4140,16 @@ contains
     call destruct(li1)
     call destruct(lr1)
     allocate(ctrl%tempMethods(size(tmpC1)))
-    lp2: do ii = 1, size(tmpC1)
-      do jj = 1, size(tempMethodNames)
-        if (trim(tmpC1(ii)) == tolower(trim(tempMethodNames(jj)))) then
-          ctrl%tempMethods(ii) = jj
-          cycle lp2
+    do ii = 1, size(tmpC1)
+      block
+        logical :: success
+        call identifyTempProfile(ctrl%tempMethods(ii), tmpC1(ii), success)
+        if (success) then
+          cycle
         end if
-      end do
-      call detailedError(node, "Invalid annealing method name '" &
-          &// trim(tmpC1(ii)) // "'.")
-    end do lp2
+      end block
+      call detailedError(node, "Invalid annealing method name '" // trim(tmpC1(ii)) // "'.")
+    end do
 
     if (any(ctrl%tempSteps < 0)) then
       call detailedError(node, "Step values must not be negative.")

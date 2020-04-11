@@ -11,15 +11,32 @@
 module dftbp_tempprofile
   use dftbp_assert
   use dftbp_accuracy
+  use dftbp_charmanip, only : tolower
   implicit none
   private
 
-  public :: TTempProfile, init, next, getTemperature
-  public :: constProf, linProf, expProf
+  public :: TTempProfile, TempProfile_init, identifyTempProfile
+
+  !> Names of the thermal profiles
+  character(len=11), parameter :: temperatureProfileNames(3) = ['constant   ', 'linear     ',&
+      & 'exponential']
+
+  ! Internal constants for the different profiles, corresponding to the listed names
+
+  !> Constant temperature
+  integer, parameter :: constProf = 1
+
+  !> linear change in profile
+  integer, parameter :: linProf = 2
+
+  !> exponentially changing profile
+  integer, parameter :: expProf = 3
 
 
   !> Data for the temperature profile.
   type TTempProfile
+
+    private
 
     !> The annealing method for each interval.
     integer, allocatable :: tempMethods(:)
@@ -44,37 +61,13 @@ module dftbp_tempprofile
 
     !> Temperature increment to next step
     real(dp) :: incr
+
+  contains
+
+    procedure :: next
+    procedure :: getTemperature
+
   end type TTempProfile
-
-
-  !> Initialise the profile
-  interface init
-    module procedure TempProfile_init
-  end interface init
-
-
-  !> Next temperature in the profile
-  interface next
-    module procedure TempProfile_next
-  end interface next
-
-
-  !> Get the current temperature in the profile
-  interface getTemperature
-    module procedure TempProfile_getTemperature
-  end interface getTemperature
-
-  ! Constants for the different profile options
-
-  !> Constant temperature
-  integer, parameter :: constProf = 1
-
-  !> linear change in profile
-  integer, parameter :: linProf = 2
-
-  !> exponentially changing profile
-  integer, parameter :: expProf = 3
-
 
   !> Default starting temperature
   real(dp), parameter :: startingTemp_ = minTemp
@@ -133,10 +126,10 @@ contains
 
 
   !> Changes the temperature to the next value.
-  subroutine TempProfile_next(self)
+  subroutine next(self)
 
     !> The TempProfile object.
-    type(TTempProfile), intent(inout) :: self
+    class(TTempProfile), intent(inout) :: self
 
     real(dp) :: subVal, supVal
     integer :: sub, sup
@@ -174,20 +167,46 @@ contains
       self%curTemp = subVal * exp(self%incr * real(self%iStep - sub, dp))
     end select
 
-  end subroutine TempProfile_next
+  end subroutine next
 
 
   !> Returns the current temperature.
-  subroutine TempProfile_getTemperature(self, temp)
+  subroutine getTemperature(self, temp)
 
     !> Pointer to the TempProfile object.
-    type(TTempProfile), intent(in) :: self
+    class(TTempProfile), intent(in) :: self
 
     !> Temperature on return.
     real(dp), intent(out) :: temp
 
     temp = self%curTemp
 
-  end subroutine TempProfile_getTemperature
+  end subroutine getTemperature
+
+
+  !> Maps a (supported) profile name onto integer identifier
+  subroutine identifyTempProfile(iProfile, profileName, success)
+
+    !> Internal profile identifying number
+    integer, intent(out) :: iProfile
+
+    !> Possible profile name
+    character(*), intent(in) :: profileName
+
+    !> was the profile correctly identified
+    logical, intent(out) :: success
+
+    integer :: ii
+
+    success = .false.
+    do ii = 1, size(temperatureProfileNames)
+      if (trim(profileName) == tolower(trim(temperatureProfileNames(ii)))) then
+        iProfile = ii
+        success = .true.
+        return
+      end if
+    end do
+
+  end subroutine identifyTempProfile
 
 end module dftbp_tempprofile

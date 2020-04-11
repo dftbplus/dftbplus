@@ -422,7 +422,7 @@ contains
     call env%globalTimer%stopTimer(globalTimers%sparseH0S)
 
     if (tSetFillingTemp) then
-      call getTemperature(temperatureProfile, tempElec)
+      call temperatureProfile%getTemperature(tempElec)
     end if
 
     call electronicSolver%updateElectronicTemp(tempElec)
@@ -5860,7 +5860,7 @@ contains
     velocities(:, indMovedAtom) = movedVelo(:,:)
 
     if (allocated(temperatureProfile)) then
-      call next(temperatureProfile)
+      call temperatureProfile%next()
     end if
     call evalKE(energy%Ekin, movedVelo, movedMass(1,:))
     call evalkT(pMdFrame, tempIon, movedVelo, movedMass(1,:))

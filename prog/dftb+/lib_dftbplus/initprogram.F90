@@ -54,7 +54,7 @@ module dftbp_initprogram
   use dftbp_andersentherm
   use dftbp_berendsentherm
   use dftbp_nhctherm
-  use dftbp_tempprofile
+  use dftbp_tempprofile, only : TTempProfile, TempProfile_init
   use dftbp_numderivs2
   use dftbp_lapackroutines
   use dftbp_simplealgebra
@@ -2211,7 +2211,7 @@ contains
       ! Create temperature profile, if thermostat is not the dummy one
       if (input%ctrl%iThermostat /= 0) then
         allocate(temperatureProfile)
-        call init(temperatureProfile, input%ctrl%tempMethods, input%ctrl%tempSteps,&
+        call TempProfile_init(temperatureProfile, input%ctrl%tempMethods, input%ctrl%tempSteps,&
             & input%ctrl%tempValues)
         pTempProfile => temperatureProfile
       else
