@@ -4,7 +4,6 @@ set(sources-fpp
   ${curdir}/arpack.F90
   ${curdir}/blas.F90
   ${curdir}/elsiiface.F90
-  ${curdir}/elsirciiface.F90
   ${curdir}/lapack.F90
   ${curdir}/magmahelper.F90
   ${curdir}/mpifx.F90

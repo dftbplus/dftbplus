@@ -97,9 +97,6 @@ module dftbp_linresptypes
     integer :: fdArnoldiDiagnosis = -1
 
 
-    ! ELSI_RCI related
-
-
     !> Is the data structure initialised?
     logical :: tInit = .false.
 

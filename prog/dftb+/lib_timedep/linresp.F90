@@ -29,7 +29,6 @@ module dftbp_linresp
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_linrespgrad
   use dftbp_arpack, only : withArpack
-  use dftbp_elsirciiface, only : withElsiRCI
   use dftbp_linresptypes
   implicit none
   private
@@ -151,7 +150,7 @@ contains
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
 
     this%tinit = .false.
-    if (withArpack .or. withElsiRCI) then
+    if (withArpack) then
 
       this%nExc = ini%nExc
       this%tEnergyWindow = ini%tEnergyWindow
@@ -229,8 +228,6 @@ contains
       this%fdArnoldi = getFileId()
       this%tinit = .true.
 
-    elseif (withElsiRCI) then
-
     else
 
       call error('Internal error: Illegal routine call to LinResp_init.')
@@ -302,7 +299,7 @@ contains
     !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
 
-    if (withArpack .or. withElsiRCI) then
+    if (withArpack) then
       @:ASSERT(this%tInit)
       @:ASSERT(size(orb%nOrbAtom) == this%nAtom)
       call LinRespGrad_old(tSpin, this, denseDesc%iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
@@ -345,7 +342,7 @@ contains
     !> central cell atomic coordinates
     real(dp), intent(in) :: coords0(:,:)
 
-    !> This-consistent charge module settings
+    !> Self-consistent charge module settings
     type(TScc), intent(in) :: sccCalc
 
     !> Gross atomic charges in ground state
