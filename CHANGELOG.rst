@@ -43,6 +43,7 @@ Fixed
 - Correct update of block mulliken population for onsite correction with
   range-separation hybrid DFTB.
 
+- MD temperature profiles that do not start with an initial constant temperature
 
 19.1 (2019-07-01)
 =================
