@@ -87,12 +87,6 @@ if(WITH_ELSI)
   endif()
 endif()
 
-if(WITH_ELSI_RCI)
-  # Some compilers need all mod files (also indirect ones), so include dir must be exported
-  target_link_libraries(dftbplus PUBLIC elsi_rci::elsi_rci)
-  target_link_libraries(dftbplus PRIVATE ${ELSI_RCI_EXTERNAL_LIBRARIES})
-endif()
-
 if(WITH_PLUMED)
   #target_link_libraries(dftbplus PRIVATE PkgConfig::PLUMED)
   target_link_libraries(dftbplus PRIVATE ${PLUMED_LIBRARIES})
