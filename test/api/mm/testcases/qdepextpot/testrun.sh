@@ -1,2 +1,3 @@
-RUN_CMD=$*
-$RUN_CMD ../../testers/test_qdepextpot
+#!/bin/sh
+RUN_CMD="$@"
+exec $RUN_CMD ../../testers/test_qdepextpot
