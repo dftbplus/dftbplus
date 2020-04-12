@@ -577,7 +577,7 @@ contains
         #:if WITH_TRANSPORT
           ! Overrides input charges with uploaded contact charges
           if (tUpload) then
-            call overrideContactCharges(qInput, chargeUp, transpar)
+            call overrideContactCharges(qInput, chargeUp, transpar, qBlockIn, blockUp)
           end if
         #:endif
 
