@@ -6886,14 +6886,21 @@ contains
     allocate(tmpBlock(orb%mOrb,orb%mOrb,nAtom,1))
 
     ! tmpBlock has (my_qm) component
+    ! qm representation is converted to my_qm representation
     if (iL <= Lpaired) then
+      ! If iL = 1, then qm = 1u + 1d, 1u - 1d and my_qm = 1u + 1d
+      ! calculate charge part
       tmpBlock(:,:,:,1) = intBlock(:,:,:,1)
       hamSp(:,1) = h0(:)
     else
       if (mod(iL,2) == 1) then
+        ! If iL = 3, then qm = 3u + 3d, 3u - 3d and my_qm = 3u + 3d
+        ! calculate charge part
         tmpBlock(:,:,:,1) = intBlock(:,:,:,1)
         hamSp(:,1) = h0(:)
       else
+        ! If iL = 4, then qm = 4u + 4d, 4u - 4d and my_qm = 3u - 3d (= -(4u - 4d))
+        ! calculate magnetization part
         tmpBlock(:,:,:,1) = -intBlock(:,:,:,2)
         hamSp(:,:) = 0.0_dp
       end if

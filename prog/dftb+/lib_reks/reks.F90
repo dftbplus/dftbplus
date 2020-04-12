@@ -26,6 +26,17 @@ module dftbp_reks
 
   private
 
+  !> In REKS method, there is a symmetry for the microstates due to the restricted scheme.
+  !> For the reduce of memory allocation, I make two representation used in REKS.
+  !>
+  !> Notation : 1u means up spin channel of 1st microstate
+  !>
+  !> 1. my_ud : It has only up spin channel for the microstates
+  !>            1 = 1u, 2 = 2u, 3 = 3u, 4 = 4u, 5 = 5u, 6 = 6u.
+  !> 2. my_qm : It has sum or difference between the microstates which have symmetry between them.
+  !>            1 = 1u + 1d (= 1u + 1u), 2 = 2u + 2d (= 2u + 2u), 3 = 3u + 3d (= 3u + 4u),
+  !>            4 = 3u - 3d (= 3u - 4u), 5 = 5u + 5d (= 5u + 6u), 6 = 5u - 5d (= 5u - 6u).
+
   !> dftbp_rekscommon modules used in main.F90, mainio.F90
   public :: checkGammaPoint
   public :: qm2udL, ud2qmL
