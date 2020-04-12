@@ -21,7 +21,6 @@ module poisson
   use fancybc
   use mpi_poisson
   use std_io
-  use dftbp_message
   use dftbp_accuracy, only : lc, dp
   implicit none
   private
@@ -66,9 +65,6 @@ module poisson
 
   public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha
   public :: poiss_updcoords, poiss_savepotential, poiss_freepoisson
-
-  !> Error string
-  character(lc) :: strTmp
 
  contains
 
@@ -336,22 +332,26 @@ module poisson
   end if
 
  end subroutine init_poissbox
-! -----------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------  
-subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
-!**********************************************************************
-! This subroutine is a driver for the mudpack (c) solver (see mud3.f) *
-!                                                                     *
-!**********************************************************************
+!> This subroutine is a driver for the mudpack (c) solver (see mud3.f) *
+subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
 
- integer :: SCC_in                         !Control flag:
+  !> Control flag:
+  integer, intent(in) :: SCC_in
+
+  !> Outputs of subroutine "shift_Ham"
+  real(kind=dp), intent(inout) :: V_L_atm(:,:)
+
+  !> Output of subroutine "grad_V"
+  real(kind=dp), intent(out) :: grad_V(:,:)
+
+  !> Error return
+  integer, intent(out), optional :: iErr
+
  integer, parameter :: GetPOT=0            !potential in SCC
  integer, parameter :: GetGRAD=1           !atomic shift component of gradient
  integer, parameter :: SavePOT=2           !SAVE CHR AND POTENTIAL 
  integer, parameter :: CLEAN=3             !DEALLOCATE PHI AND WORK
- real(kind=dp), dimension(:,:) :: V_L_atm  !Outputs of subroutine "shift_Ham"
- real(kind=dp), dimension(:,:) :: grad_V   !Output of subroutine "grad_V" 
 
 !Internal variables
 
@@ -375,6 +375,10 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
  character(10) :: bndtype 
  character(50) :: BCinfo
  !e.g.: tmpdir (1) = 0 if there aren't two or more contacts in the same "x direction"
+
+ if (present(iErr)) then
+   iErr = 0
+ end if
 
  iparm = 0
 
@@ -770,8 +774,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
         if (err.ne.0.and.err.ne.9) then
           if(err.gt.0) then
-            write(strTmp,*) 'Fatal Error in poisson solver:', err
-            call error(strTmp)
+            @:FORMATTED_ERROR_HANDLING(iErr, err, "(A,I0)", 'Fatal Error in poisson solver:', err)
           end if
         end if
         if (err.eq.9) then
@@ -800,8 +803,9 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
       end if   
 
       if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
-        call error('ERROR: convergence not obtained')
+        @:ERROR_HANDLING(iErr, -1, 'Convergence in Poisson solver not obtained')
       end if
+
     end if
 
     !--------------------------------------------
@@ -864,7 +868,7 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
   ! index in rhs(:,:,:), therefore gather is done on a contiguus vector
   !
   !---------------------------------------------------------------------
-  integer :: i, ierr, npid, iparm_tmp(23)
+  integer :: i, npid, iparm_tmp(23)
   real(kind=dp) :: fparm_tmp(8)
   real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
   integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs
@@ -983,7 +987,7 @@ subroutine renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed)
   integer :: ragx, ragy, ragz, npx, npy, npz
 
   real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
-  integer :: imin(3),imax(3), ii, jj, kk, l, nsh, ierr
+  integer :: imin(3),imax(3), ii, jj, kk, l, nsh
   real(kind=dp), allocatable, dimension(:,:) :: tau
   ! Perform almost the same operations of charge_density, estimates
   ! for each atom the renormalization factors (inverse of exponential
@@ -1094,7 +1098,7 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
  integer :: ragx, ragy, ragz, npx, npy, npz
 
  real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
- integer :: imin(3),imax(3), ii, jj, kk, l, nsh, ierr
+ integer :: imin(3),imax(3), ii, jj, kk, l, nsh
  real(kind=dp), allocatable, dimension(:,:) :: tau, vol
 
  rhs(:,:,:)=0.d0
@@ -1269,8 +1273,7 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
   real(dp) :: dl(3), xmin(3), xmax(3), xhlp(3), dla, dlb, dlc
   integer :: imin(3), imax(3), n_cell(3), ii, jj, kk, rag(3)
   integer :: ncx,ncy,ncz, npx, npy, npz, nsh,l
-  integer :: ierr
-  integer, dimension(:), allocatable :: istart, iend, displ, dims 
+  integer, dimension(:), allocatable :: istart, iend, displ, dims
  
   dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
  

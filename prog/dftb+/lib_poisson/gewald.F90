@@ -10,9 +10,8 @@
 
 module gewald
 
-  use dftbp_accuracy, only : dp, lc
+  use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
-  use dftbp_message
   implicit none
 
   private
@@ -22,8 +21,6 @@ module gewald
   public :: getalpha
   public :: cross,rezvol,phi,phi1
 
-  !> Error handling string
-  character(lc) :: strTmp
 
 contains
 
@@ -35,6 +32,10 @@ contains
 
     integer i,j,k,nreal,nmax,nmin 
     real(kind=dp) :: rvec(3),R(3),lastshell,tmp,norm
+
+    if (present(iError)) then
+      iError = 0
+    end if
 
     sh_pot = 0.0_dp
     nmax = 50
@@ -103,6 +104,10 @@ contains
     integer i,j,k
     nmax = 20
     nmin = 2
+
+    if (present(iError)) then
+      iError = 0
+    end if
 
     !evaluate reciprocal space term ( sum over G <> 0) ...  
     !/* sum over G until tolerance is reached */
@@ -232,6 +237,10 @@ contains
 
     nmax = 20
     nmin = 2
+
+    if (present(iError)) then
+      iError = 0
+    end if
 
     !  evaluate reciprocal space term ( sum over G <> 0) ...  
     !   /* sum over G until tolerance is reached */

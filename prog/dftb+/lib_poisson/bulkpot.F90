@@ -10,9 +10,8 @@
 
 Module bulkpot
   
- use dftbp_accuracy, only : dp, lc
+ use dftbp_accuracy, only : dp
  use dftbp_constants
- use dftbp_message
  use gallocation
  use parameters
  use structure
@@ -40,8 +39,6 @@ Module bulkpot
    logical :: doEwald
  end type  super_array
 
- !> Error handling string
- character(lc) :: strTmp
 
 
 contains

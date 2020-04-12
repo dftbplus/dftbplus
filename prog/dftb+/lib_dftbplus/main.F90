@@ -250,8 +250,9 @@ contains
   #:if WITH_TRANSPORT
     if (tContCalc) then
       ! Note: shift and charges are saved in QM representation (not UD)
-      call writeContactShifts(transpar%contacts(transpar%taskContInd)%output, orb, &
-          & potential%intShell, qOutput, Ef)
+      call writeContactShifts(transpar%contacts(transpar%taskContInd)%name, orb, &
+          & potential%intShell, qOutput, Ef, potential%intBlock, qBlockOut,&
+          & .not.transpar%tWriteBinShift)
     end if
 
     if (tLocalCurrents) then
@@ -521,6 +522,13 @@ contains
               & iGeoStep, tStopScc, eigvecsReal, reks)
         end if
 
+      #:if WITH_TRANSPORT
+        ! Overrides input charges with uploaded contact charges
+        if (tUpload) then
+          call overrideContactCharges(qInput, chargeUp, transpar, qBlockIn, blockUp)
+        end if
+      #:endif
+
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
         call printReksSccInfo(iSccIter, energy%Etotal, diffElec, sccErrorQ, reks)
 
@@ -647,7 +655,7 @@ contains
       #:if WITH_TRANSPORT
         ! Override charges with uploaded contact charges
         if (tUpload) then
-          call overrideContactCharges(qOutput, chargeUp, transpar)
+          call overrideContactCharges(qOutput, chargeUp, transpar, qBlockIn, blockUp)
         end if
       #:endif
 
@@ -1804,7 +1812,7 @@ contains
 #:if WITH_TRANSPORT
 
   !> Replace charges with those from the stored contact values
-  subroutine overrideContactCharges(qInput, chargeUp, transpar)
+  subroutine overrideContactCharges(qInput, chargeUp, transpar, qBlockInput, blockUp)
     !> input charges
     real(dp), intent(inout) :: qInput(:,:,:)
 
@@ -1814,6 +1822,12 @@ contains
     !> Transport parameters
     type(TTransPar), intent(in) :: transpar
 
+    !> block charges, for example from DFTB+U
+    real(dp), allocatable, intent(inout) :: qBlockInput(:,:,:,:)
+
+    !> uploaded block charges
+    real(dp), allocatable, intent(in) :: blockUp(:,:,:,:)
+
     integer :: ii, iStart, iEnd
 
     do ii = 1, transpar%ncont
@@ -1821,6 +1835,15 @@ contains
       iEnd = transpar%contacts(ii)%idxrange(2)
       qInput(:,iStart:iEnd,:) = chargeUp(:,iStart:iEnd,:)
     end do
+
+  @:ASSERT(allocated(qBlockInput) .eqv. allocated(blockUp))
+    if (allocated(qBlockInput)) then
+      do ii = 1, transpar%ncont
+        iStart = transpar%contacts(ii)%idxrange(1)
+        iEnd = transpar%contacts(ii)%idxrange(2)
+        qBlockInput(:,:,iStart:iEnd,:) = blockUp(:,:,iStart:iEnd,:)
+      end do
+    end if
 
   end subroutine overrideContactCharges
 
@@ -2735,7 +2758,7 @@ contains
       eigvecsCplx(:,:,iKS) = HSqrCplx
     #:endif
     end do
-  
+
   #:if WITH_SCALAPACK
     call mpifx_allreduceip(env%mpi%interGroupComm, eigen, MPI_SUM)
   #:endif

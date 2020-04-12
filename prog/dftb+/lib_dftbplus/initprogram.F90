@@ -968,6 +968,12 @@ module dftbp_initprogram
   !> Orbital-resolved charges uploaded from contacts
   real(dp), allocatable :: chargeUp(:,:,:)
 
+  !> Shell-resolved block potential shifts uploaded from contacts
+  real(dp), allocatable :: shiftBlockUp(:,:,:,:)
+
+  !> Block populations uploaded from contacts
+  real(dp), allocatable :: blockUp(:,:,:,:)
+
   !> Details of energy interval for tunneling used in output
   real(dp) :: Emin, Emax, Estep
 
@@ -1912,9 +1918,6 @@ contains
       if (tSpin) then
         call error("Spin polarization temporarily disabled for transport calculations.")
       end if
-      if (tDFTBU) then
-        call error("Orbital potentials temporarily disabled for transport calculations.")
-      end if
       if (tExtChrg) then
         call error("External charges temporarily disabled for transport calculations&
             & (electrostatic gates are available).")
@@ -2572,6 +2575,18 @@ contains
     if (tLatOpt .and. tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
     end if
+
+    tUpload = input%transpar%taskUpload
+    ! NOTE: originally EITHER 'contact calculations' OR 'upload' was possible
+    !       introducing 'TransportOnly' option the logic is bit more
+    !       involved: Contacts are not uploded in case of non-scc calculations
+    if (electronicSolver%iSolver == electronicSolverTypes%OnlyTransport .and. .not.tSccCalc) then
+      tUpload = .false.
+    end if
+
+    call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
+        & shiftPerLUp, chargeUp, poissonDerivs, allocated(qBlockIn), blockUp, shiftBlockUp)
+
     call initTransport(env, input, tDefinedFreeE)
   #:else
     tNegf = .false.
@@ -2628,8 +2643,6 @@ contains
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
     ! input%transpar
-    call initTransportArrays(tUpload, tPoisson, input%transpar, species0, orb, nAtom, nSpin,&
-        & shiftPerLUp, chargeUp, poissonDerivs)
 
     if (tUpload) then
       ! check geometry details are consistent with transport with contacts
@@ -3542,14 +3555,6 @@ contains
     end if
     tPoissonTwice = input%poisson%solveTwice
 
-    tUpload = input%transpar%taskUpload
-    ! NOTE: originally EITHER 'contact calculations' OR 'upload' was possible
-    !       introducing 'TransportOnly' option the logic is bit more
-    !       involved: Contacts are not uploded in case of non-scc calculations
-    if (electronicSolver%iSolver == electronicSolverTypes%OnlyTransport .and. .not.tSccCalc) then
-      tUpload = .false.
-    end if
-
     ! contact calculation in case some contact is computed
     tContCalc = (input%transpar%taskContInd /= 0)
 
@@ -4028,7 +4033,7 @@ contains
 
   !> initialize arrays for tranpsport
   subroutine initTransportArrays(tUpload, tPoisson, transpar, species0, orb, nAtom, nSpin,&
-      & shiftPerLUp, chargeUp, poissonDerivs)
+      & shiftPerLUp, chargeUp, poissonDerivs, tBlockUp, blockUp, shiftBlockUp)
 
     !> Are contacts being uploaded
     logical, intent(in) :: tUpload
@@ -4037,7 +4042,7 @@ contains
     logical, intent(in) :: tPoisson
 
     !> Transport parameters
-    type(TTransPar), intent(in) :: transpar
+    type(TTransPar), intent(inout) :: transpar
 
     !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
@@ -4060,10 +4065,29 @@ contains
     !> Poisson Derivatives (needed for forces)
     real(dp), allocatable, intent(out) :: poissonDerivs(:,:)
 
+    !> Are block charges and potentials present?
+    logical, intent(in) :: tBlockUp
+
+    !> uploded potential per shell per atom
+    real(dp), allocatable, intent(inout) :: shiftblockUp(:,:,:,:)
+
+    !> uploaded charges for atoms
+    real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
+
+    integer :: iSpin, iCont
+    real(dp), allocatable :: pot(:)
+
+    !> Format for two values with units
+    character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+
     if (tUpload) then
       allocate(shiftPerLUp(orb%mShell, nAtom))
       allocate(chargeUp(orb%mOrb, nAtom, nSpin))
-      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb)
+      if (tBlockUp) then
+        allocate(shiftBlockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
+        allocate(blockUp(orb%mOrb, orb%mOrb, nAtom, nSpin))
+      end if
+      call readContactShifts(shiftPerLUp, chargeUp, transpar, orb, shiftBlockUp, blockUp)
     end if
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))

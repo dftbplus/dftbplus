@@ -104,6 +104,11 @@ if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE ${ARPACK_LIBRARIES})
 endif()
 
+if (WITH_GPU)
+  target_include_directories(dftbplus PUBLIC ${MAGMA_INCLUDE_DIRS})
+  target_link_libraries(dftbplus PRIVATE ${MAGMA_LIBRARIES})
+endif()
+
 target_link_libraries(dftbplus PRIVATE ${OTHER_LIBRARIES})
 
 target_include_directories(dftbplus PUBLIC ${OTHER_INCLUDE_DIRS})

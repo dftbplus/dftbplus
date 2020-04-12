@@ -36,6 +36,9 @@ Changed
 
 - New build system using CMake (the old makefile system has been retired)
 
+- Versioned format for transport contact shift files (backward compatible), also
+  enables the Fermi energy to be read directly from the contact file.
+
 Fixed
 -----
 

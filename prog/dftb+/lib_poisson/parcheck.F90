@@ -12,7 +12,7 @@ module parcheck
 
   use dftbp_accuracy, only : lc, dp
   use dftbp_constants
-  use dftbp_message
+  use dftbp_message, only : warning
   use parameters
   use structure, only : natoms, x, boxsiz, period, period_dir
   use mpi_poisson, only : id0, numprocs
@@ -23,9 +23,6 @@ private
 
  public :: check_poisson_box, check_contacts, check_localbc
  public :: check_parameters, write_parameters, check_biasdir
-
- !> Error handling string
- character(lc) :: strTmp
 
  !> Verbosity threashold
  integer, parameter :: VBT=30
@@ -53,7 +50,7 @@ contains
       if (.not.FoundBox) then
          PoissBox(:,:)=boxsiz(:,:)
          if (verbose > VBT) then
-            call warning('Box for Poisson not Found: Set equal to supercell box')
+            call warning('Box for Poisson not Found: Setting equal to supercell box')
             do i=1,3
                write(stdOut,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
             end do
