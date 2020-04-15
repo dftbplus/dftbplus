@@ -17,18 +17,11 @@ module dftbp_tempprofile
 
   public :: TTempProfile, TempProfile_init, identifyTempProfile
 
-  !> Names of the thermal profiles
-  character(len=11), parameter :: temperatureProfileNames(3) = ['constant   ', 'linear     ',&
-      & 'exponential']
-
-  ! Internal constants for the different profiles, corresponding to the listed names
-
+  ! Internal constants for the different profiles:
   !> Constant temperature
   integer, parameter :: constProf = 1
-
   !> linear change in profile
   integer, parameter :: linProf = 2
-
   !> exponentially changing profile
   integer, parameter :: expProf = 3
 
@@ -195,14 +188,17 @@ contains
 
     integer :: ii
 
-    success = .false.
-    do ii = 1, size(temperatureProfileNames)
-      if (trim(profileName) == tolower(trim(temperatureProfileNames(ii)))) then
-        iProfile = ii
-        success = .true.
-        return
-      end if
-    end do
+    success = .true.
+    select case (tolower(trim(profileName)))
+    case ("constant")
+      iProfile = constProf
+    case ("linear")
+      iProfile = linProf
+    case ("exponential")
+      iProfile = expProf
+    case default
+      success = .false.
+    end select
 
   end subroutine identifyTempProfile
 
