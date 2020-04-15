@@ -714,9 +714,9 @@ contains
     @:ASSERT(volume > 0.0_dp)
 
     ! Reciprocal space part of the Ewald sum.
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aMat) PRIVATE(iAt2f, vec, rTerm) &
-    !$OMP SHARED(nAtom, alpha, coords, recPoint, volume)
-    !$OMP DO SCHEDULE(RUNTIME)
+    !$OMP PARALLEL DO DEFAULT(SHARED) REDUCTION(+:aMat)&
+    !$OMP& PRIVATE(iAt2f, vec, rTerm)&
+    !$OMP& SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       aMat(iAt1, iAt1) = aMat(iAt1, iAt1) - alpha / sqrt(pi) + pi / (volume * alpha**2)
       do iAt2f = iAt1, nAtom
@@ -726,8 +726,7 @@ contains
         aMat(iAt1, iAt2f) = aMat(iAt1, iAt2f) + rTerm
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
   end subroutine addEwaldContribs
 
@@ -830,11 +829,9 @@ contains
     real(dp) :: dist, eta12, rTerm
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh
 
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aMat) &
-    !$OMP SHARED(nAtom, species, gam, rad, nNeighbour, iNeighbour, img2CentCell) &
-    !$OMP SHARED(neighDist2, alpha) &
-    !$OMP PRIVATE(iNeigh, iAt2, iAt2f, iSp1, iSp2, dist, rTerm, eta12)
-    !$OMP DO SCHEDULE(RUNTIME)
+    !$OMP PARALLEL DO DEFAULT(SHARED) REDUCTION(+:aMat)&
+    !$OMP& PRIVATE(iNeigh, iAt2, iAt2f, iSp1, iSp2, dist, rTerm, eta12)&
+    !$OMP& SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       aMat(iAt1, iAt1) = aMat(iAt1, iAt1) + gam(iSp1) + sqrt2pi/rad(iSp1)
@@ -849,8 +846,7 @@ contains
         aMat(iAt1, iAt2f) = aMat(iAt1, iAt2f) + rTerm
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
   end subroutine addRealSpaceContribs
 
@@ -1055,6 +1051,7 @@ contains
     else
       call getCoulombMatrixCluster(nAtom, coords, species, gam, rad, aMat)
     end if
+
     aMat(nDim, 1:nAtom) = 1.0_dp
     aMat(1:nAtom, nDim) = 1.0_dp
     aMat(nDim, nDim) = 0.0_dp
