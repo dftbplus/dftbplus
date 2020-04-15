@@ -4121,6 +4121,7 @@ contains
     type(TListRealR1) :: lr1
     character(len=20), allocatable :: tmpC1(:)
     integer :: ii, jj
+    logical :: success
 
     call init(ls)
     call init(li1)
@@ -4141,13 +4142,10 @@ contains
     call destruct(lr1)
     allocate(ctrl%tempMethods(size(tmpC1)))
     do ii = 1, size(tmpC1)
-      block
-        logical :: success
-        call identifyTempProfile(ctrl%tempMethods(ii), tmpC1(ii), success)
-        if (success) then
-          cycle
-        end if
-      end block
+      call identifyTempProfile(ctrl%tempMethods(ii), tmpC1(ii), success)
+      if (success) then
+        cycle
+      end if
       call detailedError(node, "Invalid annealing method name '" // trim(tmpC1(ii)) // "'.")
     end do
 
