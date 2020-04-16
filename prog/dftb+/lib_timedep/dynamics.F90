@@ -1053,10 +1053,10 @@ contains
         if (this%tIons .or. (.not. this%tRealHS) .or. this%isRangeSep) then
            H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
 
-           if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, this%eulerFreq) == 0)) then
-              call zcopy(this%nOrbs*this%nOrbs, rho(:,:,iKS), 1, rhoOld(:,:,iKS), 1)
+           if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, max(this%eulerFreq,1)) == 0)) then
+             call zcopy(this%nOrbs*this%nOrbs, rho(:,:,iKS), 1, rhoOld(:,:,iKS), 1)
               call propagateRho(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
-                   & this%dt)
+                  & this%dt)
            else
               call propagateRho(this, rhoOld(:,:,iKS), rho(:,:,iKS), H1(:,:,iKS), Sinv(:,:,iKS),&
                    & 2.0_dp * this%dt)
