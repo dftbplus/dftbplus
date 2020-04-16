@@ -46,6 +46,7 @@ module dftbp_timeprop
   use dftbp_energies, only: TEnergies, init
   use dftb_evaluateenergies
   use dftbp_thirdorder, only : TThirdOrder
+  use dftbp_solvation, only : TSolvation
   use dftbp_populations
   use dftbp_eigenvects
   use dftbp_sk
@@ -399,7 +400,8 @@ contains
          call warning('Polarization components of the laser in a periodic direction do not work. &
              & Make sure you are polarizing the field in non-periodic directions.')
          if (any(inp%imFieldPolVec > epsilon(1.0_dp))) then
-            call warning('Using circular or elliptical polarization with periodic structures might not work.')
+            call warning('Using circular or elliptical polarization with periodic structures might&
+                & not work.')
          end if
       end if
       this%omega = inp%omega
@@ -475,7 +477,8 @@ contains
     end if
 
     if ((this%tIons .or. this%tForces) .and. (this%nExcitedAtom /= nAtom)) then
-       call error("Ion dynamics and forces are not implemented for excitation of a subgroup of atoms")
+       call error("Ion dynamics and forces are not implemented for excitation of a subgroup of&
+           & atoms")
     end if
 
     tDispersion = allocated(dispersion)
@@ -505,10 +508,10 @@ contains
   !> Driver of time dependent propagation to calculate with either spectrum or laser
   subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, over, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-      & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ,&
-      & nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont,&
-      & skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
-      & taggedWriter, refExtPot)
+      & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
+      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements,&
+      & skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver,&
+      & eigvecsCplx, taggedWriter, refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -586,6 +589,9 @@ contains
 
     !> 3rd order settings
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
@@ -686,17 +692,17 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, eigvecs, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
             & nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-            & tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-            & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-            & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+            & tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ,&
+            & iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements,&
+            & skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
         iCall = iCall + 1
       end do
     else
       call doDynamics(this, eigvecs, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
           & nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-          & tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-          & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
-          & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+          & tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ,&
+          & iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements,&
+          & skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
     end if
 
   end subroutine runDynamics
@@ -705,9 +711,10 @@ contains
   !> Runs the electronic dynamics of the system
   subroutine doDynamics(this, eigvecsReal, ham, H0, q0, over, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-      & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ,&
-      & iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements,&
-      & skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+      & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, nDftbUFunc,&
+      & UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
+      & onSiteElements, skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter,&
+      & refExtPot)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -798,6 +805,9 @@ contains
 
     !> 3rd order settings
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
@@ -911,7 +921,7 @@ contains
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
         & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, trho)
+        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, trho)
 
     if (this%tForces) then
        totalForce(:,:) = 0.0_dp
@@ -943,8 +953,8 @@ contains
 
     call getTDEnergy(this, energy, rhoPrim, trhoOld, neighbourList, nNeighbourSK, orb,&
          & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
-         & energyKin, tDualSpinOrbit, thirdOrd, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
-         & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+         & energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock,&
+         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     if (this%tBondE .and. this%tRealHS) then
       call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, neighbourList%iNeighbour,&
@@ -999,7 +1009,7 @@ contains
      call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, rho)
+          & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho)
 
      if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
         call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
@@ -1028,8 +1038,8 @@ contains
 
      call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
          & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
-         & tDualSpinOrbit, thirdOrd, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-         & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+         & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
+         & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
      if (this%tBondE) then
        call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, &
@@ -1101,7 +1111,7 @@ contains
   subroutine updateH(this, H1, ham, over, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
       & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ,&
-      & niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, rangeSep, rho)
+      & niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1205,6 +1215,9 @@ contains
     !> Square overlap
     complex(dp), intent(in) :: Ssqr(:,:,:)
 
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
+    
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -1238,8 +1251,8 @@ contains
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
     call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, speciesAll,&
-        & neighbourList, img2CentCell, spinW, thirdOrd, potential, elstatTypes%gammaFunc, .false.,&
-        & .false., dummy)
+        & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
+        & elstatTypes%gammaFunc, .false., .false., dummy)
 
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
      ! convert to qm representation
@@ -1309,7 +1322,8 @@ contains
       end select
       do iSpin = 1, this%nSpin
         H1LC(:,:) = (0.0_dp, 0.0_dp)
-        call rangeSep%addLrHamiltonianMatrixCmplx(iSquare, sSqr(:,:,iSpin), deltaRho(:,:,iSpin), H1LC)
+        call rangeSep%addLrHamiltonianMatrixCmplx(iSquare, sSqr(:,:,iSpin), deltaRho(:,:,iSpin),&
+            & H1LC)
         call blockHermitianHS(H1LC, iSquare)
         H1(:,:,iSpin) = H1(:,:,iSpin) + H1LC
       end do
@@ -1544,8 +1558,8 @@ contains
   !> Repulsive energy and dispersion energies must be calculated before calling this subroutine
   subroutine getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
       & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
-      & tDualSpinOrbit, thirdOrd, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
-      & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
+      & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1601,6 +1615,9 @@ contains
     !> 3rd order settings
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
+    
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
@@ -1673,9 +1690,9 @@ contains
     TS = 0.0_dp
     call getEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
          & tDFTBU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, rangeSep, qDepExtPot,&
-         & qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
-         & onSiteElements)
+         & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep,&
+         & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
+         & tFixEf, Ef, onSiteElements)
     ! getEnergies returns the total energy Etotal including repulsive and dispersions energies
 
     ! Calculate nuclear kinetic energy

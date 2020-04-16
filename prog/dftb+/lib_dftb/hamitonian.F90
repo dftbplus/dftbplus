@@ -20,6 +20,7 @@ module dftbp_hamiltonian
   use dftbp_dftbplusu, only : getDftbUShift
   use dftbp_message, only : error
   use dftbp_thirdorder, only : TThirdOrder
+  use dftbp_solvation, only : TSolvation
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
   use dftbp_elstattypes
@@ -238,8 +239,8 @@ contains
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, thirdOrd, potential, electrostatics, tPoisson,&
-      & tUpload, shiftPerLUp)
+      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
+      & tPoisson, tUpload, shiftPerLUp)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -270,6 +271,9 @@ contains
 
     !> spin constants
     real(dp), intent(in), allocatable :: spinW(:,:,:)
+
+    !> Solvation mode
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> third order SCC interactions
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
@@ -356,6 +360,13 @@ contains
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
     end if
 
+    if (allocated(solvation)) then
+      call solvation%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
+      call solvation%getShifts(atomPot(:,1), shellPot(:,:,1))
+      potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
+      potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
+    end if
+
     if (nSpin /= 1 .and. allocated(spinW)) then
       call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
       potential%intShell = potential%intShell + shellPot
@@ -406,7 +417,6 @@ contains
 
     !> potentials acting in system
     type(TPotentials), intent(inout) :: potential
-
 
     if (tDFTBU) then
       if (tImHam) then

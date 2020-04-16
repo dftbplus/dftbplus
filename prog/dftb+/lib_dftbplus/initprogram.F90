@@ -99,6 +99,8 @@ module dftbp_initprogram
   use dftbp_elstattypes, only : elstatTypes
   use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
+  use dftbp_solvation, only : TSolvation
+  use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
   use device_info
@@ -726,6 +728,9 @@ module dftbp_initprogram
 
   !> dispersion data and calculations
   class(TDispersionIface), allocatable :: dispersion
+
+  !> Solvation data and calculations
+  class(TSolvation), allocatable :: solvation
 
   !> Can stress be calculated?
   logical :: tStress
@@ -2088,6 +2093,19 @@ contains
       cutOff%mCutOff = max(cutOff%mCutOff, dispersion%getRCutOff())
     end if
 
+    if (allocated(input%ctrl%solvInp)) then
+      if (allocated(input%ctrl%solvInp%GBInp)) then
+        if (tPeriodic) then
+          call createSolvationModel(solvation, input%ctrl%solvInp%GBInp, &
+              & nAtom, species0, speciesName, latVec)
+        else
+          call createSolvationModel(solvation, input%ctrl%solvInp%GBInp, &
+              & nAtom, species0, speciesName)
+        end if
+      end if
+      cutOff%mCutOff = max(cutOff%mCutOff, solvation%getRCutOff())
+    end if
+
     if (allocated(halogenXCorrection)) then
       cutOff%mCutOff = max(cutOff%mCutOff, halogenXCorrection%getRCutOff())
     end if
@@ -2595,6 +2613,9 @@ contains
       if (nSpin > 2) then
         call error("Non-colinear spin not currently compatible with transport calculations")
       end if
+      if (allocated(solvation)) then
+        call error("Solvation is currently not available with transport calculations")
+      end if
     end if
 
     if (env%tGlobalMaster) then
@@ -3058,6 +3079,10 @@ contains
       class default
         call error("Unknown dispersion model - this should not happen!")
       end select
+    end if
+
+    if (allocated(solvation)) then
+      call writeSolvationInfo(stdOut, solvation)
     end if
 
     if (tSccCalc) then
