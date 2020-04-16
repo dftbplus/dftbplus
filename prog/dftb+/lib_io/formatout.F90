@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -343,9 +343,11 @@ contains
         & '  When publishing results obtained with DFTB+, please cite the following', verticalBar,&
         & '  reference:'
     write(stdOut, '(A)') verticalBar
-    write(stdOut, '(2A)') verticalBar,'  * B. Aradi, B. Hourahine and T. Frauenheim,', verticalBar,&
-        & '    DFTB+, a Sparse Matrix-Based Implementation of the DFTB Method,', verticalBar,&
-        & '    J. Phys. Chem. A, 111 5678 (2007).  [doi: 10.1021/jp070186p]'
+    write(stdOut, '(2A)') verticalBar,&
+        & '  * DFTB+, a software package for efficient approximate density functional',&
+        & verticalBar,&
+        & '    theory based atomistic simulations, J. Chem. Phys. 152, 124101 (2020).',&
+        & verticalBar, '    [doi: 10.1063/1.5143190]'
     write(stdOut, '(A)') verticalBar
     write(stdOut, '(2A,2(/,2A))') verticalBar,&
         & '  You should also cite additional publications crediting the parametrization',&

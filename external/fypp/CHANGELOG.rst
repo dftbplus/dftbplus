@@ -3,6 +3,44 @@ Change Log
 ==========
 
 
+3.0
+===
+
+Added
+-----
+
+* Implement variable keyword argument in macros.
+
+* Add block / contains / endblock construct as alternative for call / nextarg /
+  endcall.
+  
+* Escaping of preprocessor comments
+
+* Possibility of specifying character encoding for file I/O with UTF-8 as
+  default.
+
+
+Changed
+-------
+
+* Injecting local variables into macros by passing arbitrary (non-declared)
+  keyword arguments is not possible any more. This feature made it impossible to
+  detect typos in keyword argument names in macro calls. [Backwards
+  incompatible]
+
+* Variable positional argument in a macro resolves to a list not to a tuple for
+  more consistency with Python.
+
+
+Fixed
+-----
+
+* Wrong command-line parser initialisation in waf frontend.
+
+* _LINE_ and _FILE_ were incorrect if the called macro contained a call
+  directive with an evaluation in its argument.
+
+
 2.1.1
 =====
 

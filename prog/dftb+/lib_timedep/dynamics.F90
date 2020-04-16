@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020 DFTB+ developers group                                                !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -45,7 +45,7 @@ module dftbp_timeprop
   use dftbp_nonscc
   use dftbp_energies, only: TEnergies, init
   use dftb_evaluateenergies
-  use dftbp_thirdorder, only : ThirdOrder
+  use dftbp_thirdorder, only : TThirdOrder
   use dftbp_populations
   use dftbp_eigenvects
   use dftbp_sk
@@ -60,7 +60,7 @@ module dftbp_timeprop
   use dftbp_message
   use dftbp_elecsolvers, only : TElectronicSolver
   use dftbp_simplealgebra
-  use dftbp_RangeSeparated, only : RangeSepFunc
+  use dftbp_RangeSeparated, only : TRangeSepFunc
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   implicit none
   private
@@ -209,13 +209,14 @@ type TElecDynamics
    real(dp), allocatable :: atomEigVal(:,:), onsiteGrads(:,:,:,:)
    integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PpFreq, PpIni, PpEnd
    integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
-   logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe, tRealHS, tRangeSep
+   logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe, tRealHS
+   logical :: isRangeSep 
    logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondO = .false.
    logical :: tCalcOnsiteGradients = .false., tPeriodic = .false., tFillingsFromFile = .false.
-   type(OThermostat), allocatable :: pThermostat
-   type(OMDIntegrator), allocatable :: pMDIntegrator
-   class(DispersionIface), allocatable :: dispersion
-   type(NonSccDiff), allocatable :: derivator
+   type(TThermostat), allocatable :: pThermostat
+   type(TMDIntegrator), allocatable :: pMDIntegrator
+   class(TDispersionIface), allocatable :: dispersion
+   type(TNonSccDiff), allocatable :: derivator
    type(TParallelKS), allocatable :: parallelKS
    real(dp), allocatable :: latVec(:,:), invLatVec(:,:)
    real(dp), allocatable :: initCoord(:,:)
@@ -280,7 +281,7 @@ contains
   !> Initialisation of input variables
   subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
        & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-       & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, tRangeSep)
+       & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(out) :: this
@@ -304,7 +305,7 @@ contains
     integer, intent(in) :: nAtom
 
     ! thermostat object
-    type(ORanlux), allocatable, intent(inout) :: randomThermostat
+    type(TRanlux), allocatable, intent(inout) :: randomThermostat
 
     !> longest range of interactions for which neighbours are required
     real(dp), intent(in) :: mCutoff
@@ -316,10 +317,10 @@ contains
     real(dp) :: mass(:)
 
     !> dispersion data and calculations
-    class(DispersionIface), allocatable, intent(inout) :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Differentiation method for (H^0,S)
-    type(NonSccDiff), intent(in) :: nonSccDeriv
+    type(TNonSccDiff), intent(in) :: nonSccDeriv
 
     !> types of the atoms (nAtom)
     integer, intent(in) :: species(:)
@@ -328,10 +329,10 @@ contains
     logical, intent(in) :: tPeriodic
 
     !> dummy thermostat objetct
-    type(ODummyThermostat), allocatable :: pDummyTherm
+    type(TDummyThermostat), allocatable :: pDummyTherm
 
     !> MD Framework
-    type(OMDCommon), allocatable :: pMDFrame
+    type(TMDCommon), allocatable :: pMDFrame
 
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS), intent(in) :: parallelKS
@@ -346,7 +347,7 @@ contains
     real(dp) :: KWeight(:)
 
     !> LC correction
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     real(dp) :: norm, tempAtom
     logical :: tMDstill, tDispersion
@@ -431,12 +432,12 @@ contains
     this%tCalcOnsiteGradients = inp%tOnsiteGradients
     this%species = species
     this%tPeriodic = tPeriodic
-    this%tRangeSep = tRangeSep
+    this%isRangeSep = isRangeSep
 
     if (this%tIons) then
        if (.not. this%tRealHS) then
           call error("Ion dynamics is not implemented yet for imaginary Hamiltonians.")
-       elseif (tRangeSep) then
+       elseif (isRangeSep) then
           call error("Ion dynamics is not implemented yet for range separated calculations.")
        end if
        this%tForces = .true.
@@ -564,7 +565,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -575,7 +576,7 @@ contains
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
 
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    type(TSlakoCont), intent(in) :: skHamCont, skOverCont
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
@@ -584,10 +585,10 @@ contains
     real(dp), allocatable, intent(in) :: xi(:,:)
 
     !> 3rd order settings
-    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+    type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -658,7 +659,7 @@ contains
     end if
 
     if (this%tRealHS) then
-      if (this%tRangeSep) then
+      if (this%isRangeSep) then
         this%nOrbs = size(eigvecsCplx, dim=1)
       else
         this%nOrbs = size(eigvecs, dim=1)
@@ -760,7 +761,7 @@ contains
     type(TNeighbourList), intent(inout) :: neighbourList
 
     !> repulsive information
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -769,10 +770,10 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Raw H^0 hamiltonian data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> Raw overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
@@ -796,10 +797,10 @@ contains
     real(dp), allocatable, intent(in) :: xi(:,:)
 
     !> 3rd order settings
-    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+    type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -898,7 +899,8 @@ contains
 
     call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
     if (this%tDispersion) then
-       call this%dispersion%updateCoords(neighbourList, img2CentCell, coordAll, this%speciesAll)
+      call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
+          & this%speciesAll)
        this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
     end if
 
@@ -1038,7 +1040,7 @@ contains
      end if
 
      do iKS = 1, this%parallelKS%nLocalKS
-        if (this%tIons .or. (.not. this%tRealHS) .or. this%tRangeSep) then
+        if (this%tIons .or. (.not. this%tRealHS) .or. this%isRangeSep) then
            H1(:,:,iKS) = RdotSprime + imag * H1(:,:,iKS)
 
            if (this%tEulers .and. (iStep > 0) .and. (mod(iStep, this%eulerFreq) == 0)) then
@@ -1168,7 +1170,7 @@ contains
     real(dp), allocatable, intent(in) :: xi(:,:)
 
     !> 3rd order settings
-    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+    type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> block (dual) atomic populations
     real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
@@ -1204,7 +1206,7 @@ contains
     complex(dp), intent(in) :: Ssqr(:,:,:)
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -1293,7 +1295,7 @@ contains
     end do
 
     ! add LC correction
-    if (this%tRangeSep) then
+    if (this%isRangeSep) then
       deltaRho = rho
       select case(this%nSpin)
       case(2)
@@ -1597,10 +1599,10 @@ contains
     logical, intent(in) :: tDualSpinOrbit
 
     !> 3rd order settings
-    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+    type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -1762,7 +1764,7 @@ contains
     real(dp), allocatable, intent(out) :: ham0(:)
 
     !> Raw overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> Energy weighted density matrix
     real(dp), allocatable, intent(out) :: ErhoPrim(:)
@@ -1900,7 +1902,7 @@ contains
        allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
     end if
 
-    if (this%tRangeSep) then
+    if (this%isRangeSep) then
        allocate(H1LC(this%nOrbs, this%nOrbs))
     end if
 
@@ -1934,10 +1936,10 @@ contains
     real(dp), intent(in) :: coordAll(:,:)
 
     !> Raw H^0 hamiltonian data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> Raw overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -1955,7 +1957,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     integer :: iSpin, iKS
     complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
@@ -2658,7 +2660,7 @@ contains
     real(dp), intent(in) :: movedAccel(:,:)
 
     ! Data for the velocity verlet integrator
-    type(OVelocityVerlet), allocatable :: pVelocityVerlet
+    type(TVelocityVerlet), allocatable :: pVelocityVerlet
 
     real(dp) :: velocities(3, this%nMovedAtom)
 
@@ -2753,10 +2755,10 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Raw H^0 hamiltonian data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> Raw overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2795,7 +2797,8 @@ contains
     call this%sccCalc%updateCoords(env, coordAll, this%speciesAll, neighbourList)
 
     if (this%tDispersion) then
-       call this%dispersion%updateCoords(neighbourList, img2CentCell, coordAll, this%speciesAll)
+      call this%dispersion%updateCoords(env, neighbourList, img2CentCell, coordAll,&
+          & this%speciesAll)
      end if
 
     call buildH0(env, ham0, skHamCont, this%atomEigVal, coordAll, nNeighbourSK, &
@@ -2885,10 +2888,10 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> Raw H^0 hamiltonian data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> Raw overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> sparse density matrix
     real(dp), intent(inout) :: rhoPrim(:,:)
@@ -2912,7 +2915,7 @@ contains
     real(dp), intent(inout) :: q0(:,:,:)
 
     !> repulsive information
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> Coords of the atoms (3, nAllAtom)
     real(dp), intent(in) :: coordAll(:,:)
@@ -2924,7 +2927,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     !> Range separation contributions
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Real part of density matrix, adjusted by reference charges
     complex(dp), allocatable, intent(inout) :: deltaRho(:,:,:)
@@ -2992,7 +2995,7 @@ contains
     call getERepDeriv(repulsiveDerivs, coordAll, nNeighbourSK, neighbourList%iNeighbour,&
          & this%speciesAll, pRepCont, img2CentCell)
 
-    if (this%tRangeSep) then
+    if (this%isRangeSep) then
        call error("Ehrenfest forces not implemented yet with range separated calculations.")
 !      call rangeSep%addLRGradients(derivs, this%derivator, deltaRho, skHamCont, skOverCont,&
 !          & coordAll, this%speciesAll, orb, iSquare, sSqr, neighbourList%iNeighbour, nNeighbourSK)
@@ -3028,7 +3031,7 @@ contains
     type(TElecDynamics), intent(in), target :: this
 
     !> Raw overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     ! nonadiabatic coupling matrix elements
     complex(dp), intent(out) :: RdotSprime(:,:)
@@ -3120,7 +3123,7 @@ contains
     type(TElecDynamics), intent(inout), target :: this
 
     !> Raw overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3297,7 +3300,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Repulsive interaction data
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> atoms in the central cell
     integer, intent(in) :: iAtInCentralRegion(:)

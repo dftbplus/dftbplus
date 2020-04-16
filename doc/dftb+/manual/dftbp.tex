@@ -96,6 +96,8 @@ Additionally optional blocks of definitions may be present:
 The geometry can be specified either directly by passing the
 appropriate list of properties or by using the \is{GenFormat\cb}
 method.
+For molecular input the \is{xyzFormat\cb} is supported as well.
+For periodic input the \is{VaspFormat\cb} supports reading POSCAR and CONTCAR files.
 
 \subsection{Explicit geometry specification}
 
@@ -163,6 +165,88 @@ It is also possible to include the gen-formatted geometry from a file:
 \begin{verbatim}
 Geometry = GenFormat {
   <<< "geometry.gen"
+}
+\end{verbatim}
+
+\subsection{xyzFormat\{\}}
+\label{sec:dftbp.xyzFormat}
+
+You can also use the xyz format to specify molecular geometries.
+The geometry specification for a caffeine molecule would be the following:
+\begin{verbatim}
+Geometry = xyzFormat {
+24
+caffeine C8H10N4O2
+C          1.07317        0.04885       -0.07573
+N          2.51365        0.01256       -0.07580
+C          3.35199        1.09592       -0.07533
+N          4.61898        0.73028       -0.07549
+C          4.57907       -0.63144       -0.07531
+C          3.30131       -1.10256       -0.07524
+C          2.98068       -2.48687       -0.07377
+O          1.82530       -2.90038       -0.07577
+N          4.11440       -3.30433       -0.06936
+C          5.45174       -2.85618       -0.07235
+O          6.38934       -3.65965       -0.07232
+N          5.66240       -1.47682       -0.07487
+C          7.00947       -0.93648       -0.07524
+C          3.92063       -4.74093       -0.06158
+H          0.73398        1.08786       -0.07503
+H          0.71239       -0.45698        0.82335
+H          0.71240       -0.45580       -0.97549
+H          2.99301        2.11762       -0.07478
+H          7.76531       -1.72634       -0.07591
+H          7.14864       -0.32182        0.81969
+H          7.14802       -0.32076       -0.96953
+H          2.86501       -5.02316       -0.05833
+H          4.40233       -5.15920        0.82837
+H          4.40017       -5.16929       -0.94780
+}
+\end{verbatim}
+It is also possible to include the xyz-formatted geometry from a file:
+\begin{verbatim}
+Geometry = xyzFormat {
+  <<< "geometry.xyz"
+}
+\end{verbatim}
+
+\subsection{VaspFormat\{\}}
+\label{sec:dftbp.VaspFormat}
+
+You can also use Vasp's \href{https://www.vasp.at/wiki/index.php/POSCAR}{POSCAR} or
+\href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries.
+The geometry specification for a molecular ammonia crystal would be the following:
+\begin{verbatim}
+Geometry = VaspFormat {
+ H  N
+    1.00000000000000
+    5.01336000000000    0.00000000000000    0.00000000000000
+    0.00000000000000    5.01336000000000    0.00000000000000
+    0.00000000000000    0.00000000000000    5.01336000000000
+ 12 4
+Cartesian
+    2.19855889440000    1.76390058240000    0.88014548160000
+    1.76390058240000    0.88014548160000    2.19855889440000
+    0.88014548160000    2.19855889440000    1.76390058240000
+    4.84115108400000    1.61941554720000    4.93981400880000
+    4.35630903840000    2.49981169680000    3.63248012160000
+    3.51957925440000    1.15357413600000    4.08403345680000
+    4.08403345680000    3.51957925440000    1.15357413600000
+    4.93981400880000    4.84115108400000    1.61941554720000
+    3.63248012160000    4.35630903840000    2.49981169680000
+    2.49981169680000    3.63248012160000    4.35630903840000
+    1.15357413600000    4.08403345680000    3.51957925440000
+    1.61941554720000    4.93981400880000    4.84115108400000
+    1.37461317840000    1.37461317840000    1.37461317840000
+    3.99815460000000    1.99105592400000    4.46364507600000
+    4.46364507600000    3.99815460000000    1.99105592400000
+    1.99105592400000    4.46364507600000    3.99815460000000
+}
+\end{verbatim}
+It is also possible to include the POSCAR/CONTCAR formatted geometry from a file:
+\begin{verbatim}
+Geometry = VaspFormat {
+  <<< "POSCAR"
 }
 \end{verbatim}
 
@@ -472,6 +556,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \kw{Xlbomd} & p & XlbomdFast \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{XlbomdFast} & p & Xlbomd \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{Masses} & p & & & \pref{sec:dftbp.Masses} \\
+  \kw{Plumed} & l & No & & \\
 \end{ptable}
 
 \begin{description}
@@ -534,6 +619,12 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 \item[\is{Masses}] If present, over-ride the atomic masses from the Slater-Koster files. See
   p.~\pref{sec:dftbp.Masses}
 
+\item[\is{Plumed}] Whether Plumed should be invoked in order to modify the
+  forces and to drive a meta-dynamics.  The parameters of the meta-dynamics must
+  be stored in the file \verb|plumed.dat| in the current directory. The file
+  must be formatted according to Plumed's own format. (Note: This option
+  requires a {\dftbp} binary built with Plumed support.)
+  
 \end{description}
 
 
@@ -1800,6 +1891,10 @@ p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
 case of collinear spin polarisation). Calculations without k-points can use
 either one or two groups in the case of collinear spin polarisation.
 
+This solver can optionally use the ELSI internal sparse interface (\kw{Sparse} =
+\is{Yes}), but this does not reduce memory usage and is mainly for testing
+purposes.
+
 \subsubsection{OMM}
 
 This method minimises the single particle density matrix, so does not make band
@@ -2256,8 +2351,7 @@ The specification for \kw{PointCharges} has the following properties:
   where $r_{AM}$ is the distance between the point charge and the
   atom.
 
-  This delocalisation can only be used for non-periodic systems. A
-  length modifier can be used to specify the unit for $\sigma$.
+  A length modifier can be used to specify the unit for $\sigma$.
 
   Example:\invparskip
 \begin{verbatim}
@@ -2327,7 +2421,7 @@ The \kw{External} field keyword has the following options
 
 The \is{Dispersion} block controls whether DFTB interactions should be
 empirically corrected for van der Waals interactions, since DFTB (and
-SCC-DFTB) does not include these effects. Currently, three different
+SCC-DFTB) does not include these effects. Currently, four different
 dispersion correction schemes are implemented (for the detailed
 description of the methods see the following subsections):
 \begin{itemize}
@@ -2343,6 +2437,9 @@ description of the methods see the following subsections):
   code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
   section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
   strengths (see section \ref{sec:dftbp.hcorr}).
+\item \is{DftD4}: Dispersion is calculated using the D4
+  model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
+  section~\ref{sec:dftbp.DftD4}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2517,7 +2614,7 @@ with $E_{\text{DFTB}}$ being the DFTB total energy and $E_{\text{disp}}$ the
 dispersion energy. The latter contains two-body and optional three-body
 contributions:
 \begin{equation*}
-  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}
+  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}.
 \end{equation*}
 
 The form of the two-body contribution can change depending on the chosen damping
@@ -2613,6 +2710,220 @@ parameters are taken to be the same as in the dftd3 code.
   pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
   closely together.
 \end{description}
+
+\subsubsection{DftD4}
+\label{sec:dftbp.DftD4}
+
+The DFT-D4 dispersion correction in \dftbp{} is an implementation of the D4
+model by Stefan Grimme and coworkers. It is based on the method described in
+Ref.~\cite{caldeweyher-jcp-150-154122}.
+
+This dispersion correction for DFTB adds a contribution to the general
+Kohn--Sham-like energy,
+\begin{equation*}
+  E_{\text{DFTB-D4}} = E_{\text{DFTB}} + E_{\text{disp}},
+\end{equation*}
+with $E_{\text{DFTB}}$ being the DFTB total energy and $E_{\text{disp}}$ the
+dispersion energy. The latter contains two-body and optional three-body
+contributions:
+\begin{equation*}
+  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}.
+\end{equation*}
+
+The D4 model uses the Becke--Johnson damping function for two-body contributions:
+\begin{equation*}
+   E_{\text{disp}}^{(2)} = -\frac{1}{2} \sum_{A\neq B} \sum_{n=6,8,10} s_n
+   \frac{C_n^{AB}}{r_{AB}^n + f(R_0^{AB})}
+\end{equation*}
+with
+\begin{equation*}
+   f(R_0^{AB}) = a_1 R_0^{AB} + a_2.
+\end{equation*}
+
+The zero-damping function for three-body contributions is:
+\begin{equation*}
+   E_{\text{disp}}^{(3)} = -\sum_{A}\sum_{\substack{B \\B < A}}\sum_{\substack{C\\ C < B}} s_9
+   \frac{  \left(3\cos\theta_A\cos\theta_B\cos\theta_C+1\right)\sqrt{C_6^{AB}C_6^{BC}C_6^{CA}}}{(r_{AB}r_{BC}r_{CA})^3} f^{(3)}(r_{AB})
+\end{equation*}
+with
+\begin{equation*}
+   f^{(3)} = \frac{1}{1 + 6\left(\frac{f(R_0^{AB})f(R_0^{BC})f(R_0^{CA})}{r_{AB}r_{BC}r_{CA}}\right)^{\alpha/3}}.
+\end{equation*}
+
+In order to adjust the dispersion for various energy functionals, the choice of
+$s_8$ and the damping parameters $a_1$ and $a_2$ are
+treated as functional-dependent values. All other parameters are fixed based on
+these parameters.
+Depending on the choice of the $s_9$ parameter non-additive triple-dipole
+contributions will be evaluated. Including non-additive effects usually improves
+the description of dispersion interactions, but is also more expensive.
+
+As the DFTB energy functional is largely determined by the underlying
+parameterisation (the Slater--Koster-files) and the chosen DFTB model (e.g.\
+non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
+can be used with all settings, but some relevant choices for various
+parameterisation are given in Appendix \ref{app:dftd4const}.
+
+\subsubsection{DftD4 settings}
+Beside the functional dependent dispersion parameters, the options shown below
+can be adjusted in the input.
+
+\begin{ptable}
+  \kw{s6} & r & & 1.0 & \\
+  \kw{s8} & r & & & \\
+  \kw{s10} & r & & 0.0 & \\
+  \kw{s9} & r & & & \\
+  \kw{a1} & r & & & \\
+  \kw{a2} & r & & & \\
+  \kw{alpha} & r & & 16.0 & \\
+  \kw{WeightingFactor} & r & & 6.0 & \\
+  \kw{ChargeSteepness} & r & & 2.0 & \\
+  \kw{ChargeScale} & r & & 3.0 & \\
+  \kw{CutoffInter} & r & & 64 & \\
+  \kw{CutoffThree} & r & & 40 & \\
+  \kw{CoordinationNumber} & m & & \is{Cov} & \pref{sec:dftbp.CoordinationNumber} \\
+  \kw{ChargeModel} & m & & \is{EEQ} & \pref{sec:dftbp.ChargeModel} \\
+\end{ptable}
+
+\begin{description}
+\item[\is{s8}, \is{s9}, \is{a1}, \is{a2}] Functional dependent dispersion
+  parameters, see equations above.
+  
+\item[\is{s6}] Parameter for scaling pairwise dipole--dipole dispersion
+  interaction, should always be set to 1.0.
+
+\item[\is{s10}] Parameter for pairwise quadrupole--quadrupole dispersion
+  interactions, should be kept set to 0.0.
+
+\item[\is{alpha}] Zero damping exponent for three-body damping function, default
+  is 16 as in DFT-D3.
+
+\item[\is{WeightingFactor}] Coordination number based interpolation, 4.0 used in
+  DFT-D3, default for D4 is 6.0.
+
+\item[\is{ChargeScale}] Maximum possible charge scaling, used as exponential
+  value, should be kept set to 3.0.
+
+\item[\is{ChargeSteepness}] Steepness of the charge scaling function, should be
+  kept set to 2.0.
+
+\item[\is{CutoffInter}] \modif{\modtype{length}} Cutoff distance when
+  calculating two-body interactions.
+
+\item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
+  calculating three-body interactions.
+
+\end{description}
+
+\subsubsection{DftD4 ChargeModel}
+\label{sec:dftbp.ChargeModel}
+
+This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialize
+the charge model with an electronegativity equilibration~(EEQ) model.\cite{rappe1991}
+For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
+have to be supplied in a \is{Values\cb} method, since the model
+is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
+up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
+
+\begin{ptable}
+  \kw{Chi} & m & & \is{Defaults} & \\
+  \kw{Gam} & m & & \is{Defaults} & \\
+  \kw{Kcn} & m & & \is{Defaults} & \\
+  \kw{Rad} & m & & \is{Defaults} & \\
+  \kw{Cutoff} & r & & 40 & \\
+  \kw{EwaldParameter} & r & & 0.0 & \\
+  \kw{EwaldTolerance} & r & & 1.0e-9 & \\
+  \kw{CoordinationNumber} & m & & \is{erf} & \\
+  \kw{CoordinationNumber} & m & & \is{Erf} & \pref{dftbp.CoordinationNumber} \\
+\end{ptable}
+
+\begin{description}
+
+\item[\is{Chi}] Electronegativities of all species.
+
+\item[\is{Gam}] Chemical hardnesses of all species.
+
+\item[\is{Kcn}] CN scaling factor of all species.
+
+\item[\is{Rad}] Charge width of all species in Bohr.
+
+\item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when
+  calculating electrostatics interactions under PBC.
+
+\item[\is{EwaldParameter}] Sets the splitting parameter in the Ewald
+  electrostatic summation for periodic calculations. This controls the fraction
+  of the Ewald summation occurring in real and reciprocal space. Setting it to
+  zero or negative activates an automatic determination of this parameter
+  (default and recommended behaviour).
+
+\item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
+  systems.
+
+\end{description}
+
+\begin{verbatim}
+ChargeModel = EEQ {
+  EwaldParameter = 0.25165824
+  EwaldTolerance = 1.0E-9
+  Chi = Values {
+    Ga = 1.15018618
+    As = 1.36313743
+  }
+  Gam = Values {
+    Ga = 8.299615E-2
+    As = 0.19005278
+  }
+  Kcn = Values {
+    Ga = -1.05627E-002
+    As = 7.657769E-002
+  }
+  Rad = Values {
+    Ga = 1.76901636
+    As = 2.41244711
+  }
+}
+\end{verbatim}
+
+\subsubsection{DftD4 CoordinationNumber}
+\label{sec:dftbp.CoordinationNumber}
+
+The \kw{CoordinationNumber} determines how the local coordination environment
+for its parent method is calculated. Currently four different counting functions
+are available: \is{Erf\cb}, \is{Cov\cb}, \is{Gfn\cb}, and \is{Exp\cb}.
+\is{Erf\cb} is the default coordination number for the EEQ charge model,
+while \is{Cov\cb} is the default coordination number for DFTD4.
+
+\begin{ptable}
+  \kw{Electronegativities} & m & & \is{PaulingEN} & \\
+  \kw{Radii} & m & & \is{CovalentRadiiD3} & \\
+  \kw{Cutoff} & r & & 40 & \\
+  \kw{CutCN} & r & & 0 / 8 & \\
+\end{ptable}
+
+\begin{description}
+
+\item[\is{Radii}] Covalent radii of all species in Bohr.
+  Default values taken are the DFTD3 covalent radii.\cite{grimme-jcp-132-154104}
+
+\item[\is{Electronegativities}] Electronegativities of all species.
+  Default values taken are Pauling ENs.
+
+\item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when
+  evaluating counting function.
+
+\item[\is{CutCN}] Maximum value for coordination number, coordination numbers
+  higher than this value will be smoothly cut away. Deactivated for values
+  smaller or equal to zero. Default depends on parent method.
+
+\end{description}
+
+\begin{verbatim}
+CoordinationNumber = Cov {
+  CutCN = 0
+  Electronegativities = PaulingEN {}
+  Radii = CovalentRadiiD3 {}
+}
+\end{verbatim}
 
 \subsection{DFTB3}
 \label{sec:dftbp.DFTB3}
@@ -4012,7 +4323,7 @@ supported for this option.
 
 Note: The sparse format contains only the "lower triangle" of the real
 space matrix. For more details about the format and how to obtain the
-upper triangle elements, see reference~\cite{dftbp-paper}. Also note,
+upper triangle elements, see reference~\cite{dftbp-2007paper}. Also note,
 that for periodic systems the sparse format is based on the
 \emph{folded} coordinates of the atoms, resulting in translation
 vectors (ICELL) which look surprising at first glance.

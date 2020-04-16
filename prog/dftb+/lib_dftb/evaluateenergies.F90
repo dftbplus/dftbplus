@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,10 +23,10 @@ module dftb_evaluateenergies
   use dftbp_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftbplusu, only : getDftbUShift
   use dftbp_message, only : error
-  use dftbp_thirdorder, only : ThirdOrder
+  use dftbp_thirdorder, only : TThirdOrder
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
-  use dftbp_rangeseparated, only : RangeSepFunc
+  use dftbp_rangeseparated, only : TRangeSepFunc
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_onsitecorrection
   use dftbp_dispiface
@@ -40,8 +40,9 @@ module dftb_evaluateenergies
 
 contains
 
+
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, tXlbomd, tDftbU,&
+  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
       & cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep, qDepExtPot, qBlock,&
       & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
@@ -65,7 +66,7 @@ contains
     logical, intent(in) :: tExtField
 
     !> Is the extended Lagrangian being used for MD
-    logical, intent(in) :: tXlbomd
+    logical, intent(in) :: isXlbomd
 
     !> Are there orbital potentials present
     logical, intent(in) :: tDftbU
@@ -110,10 +111,10 @@ contains
     type(TEnergies), intent(inout) :: energy
 
     !> 3rd order settings
-    type(ThirdOrder), intent(inout), allocatable :: thirdOrd
+    type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> Data from rangeseparated calculations
-    type(RangeSepFunc), intent(inout), allocatable ::rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -177,12 +178,13 @@ contains
     energy%Eext = sum(energy%atomExt)
 
     if (allocated(sccCalc)) then
-      if (tXlbomd) then
+      if (isXlbomd) then
         call sccCalc%getEnergyPerAtomXlbomd(species, orb, qOrb, q0, energy%atomSCC)
       else
         call sccCalc%getEnergyPerAtom(energy%atomSCC)
       end if
       energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
+
       if (nSpin > 1) then
         energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
             & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
@@ -191,7 +193,7 @@ contains
     end if
 
     if (allocated(thirdOrd)) then
-      if (tXlbomd) then
+      if (isXlbomd) then
         call thirdOrd%getEnergyPerAtomXlbomd(qOrb, q0, species, orb, energy%atom3rd)
       else
         call thirdOrd%getEnergyPerAtom(energy%atom3rd)
@@ -257,6 +259,7 @@ contains
 
   end subroutine getEnergies
 
+
   !> Calculates repulsive energy for current geometry
   subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbourRep, neighbourList,&
       & pRepCont, Eatom, Etotal, iAtInCentralRegion)
@@ -277,7 +280,7 @@ contains
     type(TNeighbourList), intent(in) :: neighbourList
 
     !> Repulsive interaction data
-    type(ORepCont), intent(in) :: pRepCont
+    type(TRepCont), intent(in) :: pRepCont
 
     !> Energy for each atom
     real(dp), intent(out) :: Eatom(:)
@@ -299,7 +302,7 @@ contains
   subroutine calcDispersionEnergy(dispersion, Eatom, Etotal, iAtInCentralRegion)
 
     !> dispersion interactions
-    class(DispersionIface), intent(inout) :: dispersion
+    class(TDispersionIface), intent(inout) :: dispersion
 
     !> energy per atom
     real(dp), intent(out) :: Eatom(:)

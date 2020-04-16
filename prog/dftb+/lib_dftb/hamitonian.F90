@@ -19,7 +19,7 @@ module dftbp_hamiltonian
   use dftbp_spinorbit, only : getDualSpinOrbitShift
   use dftbp_dftbplusu, only : getDftbUShift
   use dftbp_message, only : error
-  use dftbp_thirdorder, only : ThirdOrder
+  use dftbp_thirdorder, only : TThirdOrder
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
   use dftbp_elstattypes
@@ -272,7 +272,7 @@ contains
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> third order SCC interactions
-    type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
+    type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
 
     !> Potentials acting
     type(TPotentials), intent(inout) :: potential

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -39,7 +39,7 @@ module dftbp_mainio
   use dftbp_energies
   use dftbp_xmlf90
   use dftbp_hsdutils, only : writeChildValue
-  use dftbp_mdintegrator, only : OMdIntegrator, state
+  use dftbp_mdintegrator, only : TMdIntegrator, state
   use dftbp_formatout
   use dftbp_sccinit, only : writeQToFile
   use dftbp_elstatpot, only : TElStatPotentials
@@ -1116,7 +1116,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> File name prefix for each region
-    type(ListCharLc), intent(inout) :: regionLabels
+    type(TListCharLc), intent(inout) :: regionLabels
 
     !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
@@ -1155,7 +1155,7 @@ contains
     real(dp), intent(in) :: kWeight(:)
 
     !> Orbital regions to project
-    type(ListIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -1223,10 +1223,10 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> List of region file names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1333,7 +1333,7 @@ contains
       & iPair, img2CentCell, over, parallelKS, eigvecs, work, iOrbRegion)
 
     !> List with fileNames for each region
-    type(listCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1366,7 +1366,7 @@ contains
     real(dp), intent(out) :: work(:,:)
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     integer :: iKS, iS, iEig
     real(dp), allocatable :: rVecTemp(:)
@@ -1411,10 +1411,10 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> List of region file names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1538,7 +1538,7 @@ contains
       & work, iOrbRegion)
 
     !> list of region names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1583,7 +1583,7 @@ contains
     complex(dp), intent(out) :: work(:,:)
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     integer :: iKS, iS, iK, iEig, nOrb
     complex(dp), allocatable :: cVecTemp(:)
@@ -1630,10 +1630,10 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> List of region file names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1770,7 +1770,7 @@ contains
       & work, iOrbRegion)
 
     !> list of region names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1815,7 +1815,7 @@ contains
     complex(dp), intent(out) :: work(:,:)
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     complex(dp), allocatable :: cVecTemp(:)
     real(dp), allocatable :: fracs(:,:)
@@ -2751,7 +2751,7 @@ contains
       end if
       if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
           & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-          & electronicSolverTypes%elpa])) then
+          & electronicSolverTypes%elpa, electronicSolverTypes%elpadm])) then
         write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
         write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
             & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
@@ -2865,7 +2865,7 @@ contains
 
 
   !> Second group of data for detailed.out
-  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
+  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
@@ -2882,7 +2882,7 @@ contains
     logical, intent(in) :: tXlbomd
 
     !> Is the Casida excited state in use?
-    logical, intent(in) :: tLinResp
+    logical, intent(in) :: isLinResp
 
     !> Is the geometry being optimised
     logical, intent(in) :: tGeoOpt
@@ -2948,7 +2948,7 @@ contains
 
     ! only print excitation energy if 1) its been calculated and 2) its avaialable for a single
     ! state
-    if (tLinResp .and. energy%Eexcited /= 0.0_dp) then
+    if (isLinResp .and. energy%Eexcited /= 0.0_dp) then
       write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", Hartree__eV * energy%Eexcited,&
           & "eV"
       write(fd, *)
@@ -3175,7 +3175,7 @@ contains
     integer, intent(in) :: iGeoStep
 
     !> Molecular dynamics integrator
-    type(OMdIntegrator), intent(in) :: pMdIntegrator
+    type(TMdIntegrator), intent(in) :: pMdIntegrator
 
     if (iGeoStep == 0) then
       open(fd, file=fileName, status="replace", action="write")
@@ -3186,7 +3186,7 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
+  subroutine writeMdOut2(fd, tStress, tBarostat, isLinResp, tEField, tFixEf, tPrintMulliken,&
       & energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon, absEField,&
       & qOutput, q0, dipoleMoment)
 
@@ -3200,7 +3200,7 @@ contains
     logical, intent(in) :: tBarostat
 
     !> Is linear response excitation being used
-    logical, intent(in) :: tLinResp
+    logical, intent(in) :: isLinResp
 
     !> External electric field
     logical, intent(in) :: tEField
@@ -3263,7 +3263,7 @@ contains
             & Hartree__eV * energy%EGibbsKin, 'eV'
       end if
     end if
-    if (tLinResp) then
+    if (isLinResp) then
       if (energy%Eexcited /= 0.0_dp) then
         write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
             & Hartree__eV * energy%Eexcited, "eV"
@@ -4177,7 +4177,7 @@ contains
     integer, intent(in) :: fd(:)
 
     !> List of orbital for each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalue for current eigenvector
     real(dp), intent(in) :: eigval
@@ -4207,7 +4207,7 @@ contains
     integer, intent(in) :: fd(:)
 
     !> List of orbital for each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalue for current eigenvector
     real(dp), intent(in) :: eigval
@@ -4312,7 +4312,7 @@ contains
     integer, intent(out) :: fd(:)
 
     !> List of region file names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     integer :: iReg
     character(lc) :: tmpStr
