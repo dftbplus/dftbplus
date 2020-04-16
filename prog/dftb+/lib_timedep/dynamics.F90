@@ -553,7 +553,7 @@ contains
     integer, intent(inout) :: nNeighbourSK(:)
 
     !> Number of neighbours for each of the atoms with the range separated hybrid
-    integer, intent(inout) :: nNeighbourLC(:)
+    integer, intent(inout), allocatable :: nNeighbourLC(:)
 
     !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iSparseStart(:,:)
@@ -753,7 +753,7 @@ contains
     integer, intent(inout) :: nNeighbourSK(:)
 
     !> Number of neighbours for each of the atoms with the range separated hybrid
-    integer, intent(inout) :: nNeighbourLC(:)
+    integer, intent(inout), allocatable :: nNeighbourLC(:)
 
     !> index array for location of atomic blocks in large sparse arrays
     integer, allocatable, intent(inout) :: iSparseStart(:,:)
