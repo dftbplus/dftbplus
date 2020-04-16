@@ -30,6 +30,7 @@ module dftb_evaluateenergies
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_onsitecorrection
   use dftbp_dispiface
+  use dftbp_solvation, only : TSolvation
   use dftbp_repcont
   use dftbp_repulsive
 
@@ -44,8 +45,9 @@ contains
   !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, rangeSep, qDepExtPot, qBlock,&
-      & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, qDepExtPot,&
+      & qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
+      & onSiteElements)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -112,6 +114,9 @@ contains
 
     !> 3rd order settings
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
+
+    !> Solvation model
+    class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Data from rangeseparated calculations
     type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
@@ -201,6 +206,11 @@ contains
       energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
     end if
 
+    if (allocated(solvation)) then
+      call solvation%getEnergies(energy%atomSolv)
+      energy%eSolv = sum(energy%atomSolv(iAtInCentralRegion(:)))
+    end if
+
     if (allocated(onSiteElements)) then
       call getEons(energy%atomOnSite, qBlock, qiBlock, q0, onSiteElements, species, orb)
       energy%eOnSite = sum(energy%atomOnSite)
@@ -223,7 +233,7 @@ contains
     end if
 
     energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd + energy%eOnSite
+        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv
 
     !> Add exchange conribution for range separated calculations
     if (allocated(rangeSep)) then
@@ -233,7 +243,8 @@ contains
     end if
 
     energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
+        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite &
+        & + energy%atomSolv
     energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
     energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
     energy%EMermin = energy%Etotal - sum(TS)
