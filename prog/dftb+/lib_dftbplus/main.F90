@@ -522,13 +522,6 @@ contains
               & iGeoStep, tStopScc, eigvecsReal, reks)
         end if
 
-      #:if WITH_TRANSPORT
-        ! Overrides input charges with uploaded contact charges
-        if (tUpload) then
-          call overrideContactCharges(qInput, chargeUp, transpar, qBlockIn, blockUp)
-        end if
-      #:endif
-
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
         call printReksSccInfo(iSccIter, energy%Etotal, diffElec, sccErrorQ, reks)
 
