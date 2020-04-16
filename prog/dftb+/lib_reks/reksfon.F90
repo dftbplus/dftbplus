@@ -88,7 +88,7 @@ module dftbp_reksfon
     real(dp) :: fac, fac1, fac2, fac3, fac4, fac5, fac6
     real(dp) :: Const, ConDeno
     real(dp) :: xUpLim, xDownLim
-    real(dp) :: root, x0, x1, y, fx, grad, hess
+    real(dp) :: root, x0, x1, y, grad, hess
     real(dp) :: eps
     integer :: iter
 

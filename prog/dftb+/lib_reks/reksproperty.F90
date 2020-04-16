@@ -458,7 +458,7 @@ module dftbp_reksproperty
     real(dp), allocatable :: tmpRho(:,:)
     real(dp), allocatable :: tmpMat(:,:)
 
-    integer :: nOrb, tmpL, ii, iL, Lmax
+    integer :: nOrb, tmpL, iL, Lmax
 
     nOrb = size(rhoSqrL,dim=1)
     Lmax = size(rhoSqrL,dim=4)

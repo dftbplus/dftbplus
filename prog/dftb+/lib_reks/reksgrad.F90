@@ -2260,7 +2260,7 @@ module dftbp_reksgrad
     real(dp), allocatable :: SPS(:,:,:)
 
     integer :: nAtom, ist, nstates, nstHalf
-    integer :: mu, nu, nOrb, nOrbhalf, sparseSize, iL, LmaxR, Lmax
+    integer :: nOrb, nOrbhalf, sparseSize, LmaxR, Lmax
 
     nAtom = size(GammaDeriv,dim=1)
     nstates = size(RmatL,dim=4)
@@ -2576,7 +2576,6 @@ module dftbp_reksgrad
     !> nonadiabatic coupling vector, H
     real(dp), intent(out) :: nacH(:,:,:)
 
-    real(dp) :: tmp1, tmp2
     integer :: ast, bst, cst, ist, jst, kst, nstates
 
     nstates = size(SAgrad,dim=3)
@@ -4128,7 +4127,7 @@ module dftbp_reksgrad
 
     ! common variables
     real(dp) :: tmp22!, tmp11
-    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
+!    real(dp) :: tmpZ1, tmpZ2, tmp1, tmp2
     integer :: mu, nu, tau, gam, nOrb, iL, Lmax, LmaxR
     integer :: ii, jj, sparseSize, nOrbHalf
 
