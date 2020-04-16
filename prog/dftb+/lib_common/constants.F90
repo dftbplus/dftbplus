@@ -29,6 +29,12 @@ module dftbp_constants
   !> Hartree/K
   real(dp), parameter :: Boltzmann = 0.00000316681534524639_dp
 
+  !> electron rest mass (NIST CODATA 2019), atomic mass a.u. -> kg
+  real(dp), parameter :: au__kg = 9.10938356e-31_dp
+
+  !> kg -> atomic mass a.u.)
+  real(dp), parameter :: kg__au = 1.0_dp / au__kg
+
   !> atomic mass -> a.m.u.
   real(dp), parameter :: e__amu = 0.00054857990945_dp
 
