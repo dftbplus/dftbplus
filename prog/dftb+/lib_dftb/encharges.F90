@@ -714,6 +714,7 @@ contains
     @:ASSERT(volume > 0.0_dp)
 
     ! Reciprocal space part of the Ewald sum.
+    ! Workaround:nagfor 7.0 with combined DO and PARALLEL
     !$OMP PARALLEL DO DEFAULT(NONE) REDUCTION(+:aMat)&
     !$OMP& SHARED(nAtom, alpha, volume, coords, recPoint)&
     !$OMP& PRIVATE(iAt2f, vec, rTerm)&
@@ -830,6 +831,7 @@ contains
     real(dp) :: dist, eta12, rTerm
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh
 
+    ! Workaround:nagfor 7.0 with combined DO and PARALLEL
     !$OMP PARALLEL DO DEFAULT(NONE) REDUCTION(+:aMat)&
     !$OMP& SHARED(nAtom, species, gam, rad, nNeighbour, iNeighbour, img2CentCell, neighDist2)&
     !$OMP& SHARED(alpha)&
