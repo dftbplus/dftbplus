@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -120,14 +120,14 @@ contains
     type(TOldSKData) :: skData
     type(fnode), pointer :: input, root, node, tmp
     type(fnode), pointer :: value, child, child2
-    type(listRealR1) :: realBuffer
+    type(TListRealR1) :: realBuffer
     type(string) :: buffer, buffer2
-    type(listString) :: lStr
+    type(TListString) :: lStr
     integer :: inputVersion
     integer :: ii, iSp1, iAt
     logical :: tHSD
     real(dp), allocatable :: speciesMass(:), replacementMasses(:)
-    type(listCharLc), allocatable :: skFiles(:)
+    type(TListCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?
@@ -327,6 +327,14 @@ contains
     select case (char(buffer))
     case ("genformat")
       call readTGeometryGen(child, geo)
+      call removeChildNodes(geonode)
+      call writeTGeometryHSD(geonode, geo)
+    case ("xyzformat")
+      call readTGeometryXyz(child, geo)
+      call removeChildNodes(geonode)
+      call writeTGeometryHSD(geonode, geo)
+    case ("vaspformat")
+      call readTGeometryVasp(child, geo)
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
     case default

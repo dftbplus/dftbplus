@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,8 +18,8 @@ program splvalue
 
   character(*), parameter :: fname = "test.skf"
   character(lc) :: arg
-  type(trepsplinein) :: repsplinein
-  type(orepspline) :: prepspline
+  type(TRepSplinein) :: repsplinein
+  type(TRepSpline) :: prepspline
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr(3), energy, grad(3), d2

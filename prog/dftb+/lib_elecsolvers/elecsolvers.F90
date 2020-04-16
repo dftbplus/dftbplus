@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -92,7 +92,7 @@ contains
     this%iSolver = iSolver
     this%isElsiSolver = any(this%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
-        & electronicSolverTypes%ntpoly])
+        & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
     this%providesEigenvals = any(this%iSolver ==&
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
@@ -215,7 +215,6 @@ contains
   end subroutine TElectronicSolver_getCholesky${SUFFIX}$
 
 #:endfor
-
 
   !> Updates the electronic temperatures for the solvers
   subroutine TElectronicSolver_updateElectronicTemp(this, tempElec)

@@ -9,7 +9,7 @@ program current
   real(dp), dimension(:,:), allocatable :: Inm
   real(dp), dimension(:,:), allocatable :: coord
   integer :: m, itmp, io, i, j, n, k, maxnn, maxnn_valid
-  real(dp) :: Iz, dr(3), e(3), Imax, frac, width, norm_dr, arr_len, rtmp(3)
+  real(dp) :: Iz, dr(3), e(3), Imax, frac, width, arr_len, rtmp(3)
   character(64) :: arg, filename1, filename2, color
   character(4) :: id
   logical :: bondflux

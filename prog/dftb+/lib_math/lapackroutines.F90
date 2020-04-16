@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -705,16 +705,30 @@ contains
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
     call sytrf(aa, ipiv, uplo, info0)
-    if (info0 == 0) then
-      call sytri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
+      write(error_string, "(A,I10)") "Matrix inversion failed because of &
+          &error in sytrf. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+        return
+      else
+        call error(error_string)
+      end if
     end if
 
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
+    call sytri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
       write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in sytrf or sytri. Info flag:", info
-      call error(error_string)
+          &error in sytri. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+      elseif (info0 /= 0) then
+        call error(error_string)
+      end if
     end if
 
   end subroutine symmatinv
@@ -737,17 +751,32 @@ contains
 
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
+
     call hetrf(aa, ipiv, uplo, info0)
-    if (info0 == 0) then
-      call hetri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
+      write(error_string, "(A,I10)") "Matrix inversion failed because of &
+          &error in hetrf. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+        return
+      else
+        call error(error_string)
+      end if
     end if
 
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
+    call hetri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
       write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in sytrf or sytri. Info flag:", info
-      call error(error_string)
+          &error in hetri. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+      elseif (info0 /= 0) then
+        call error(error_string)
+      end if
     end if
 
   end subroutine hermatinv

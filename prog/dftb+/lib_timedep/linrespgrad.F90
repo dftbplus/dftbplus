@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,7 +17,7 @@ module dftbp_linrespgrad
   use dftbp_shortgamma
   use dftbp_accuracy
   use dftbp_constants, only : Hartree__eV, au__Debye
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_scc, only : TScc
   use dftbp_blasroutines
   use dftbp_eigensolver
@@ -218,16 +218,16 @@ contains
     real(dp), intent(in), optional :: shift(:)
 
     !> non-SCC hamitonian data
-    type(OSlakoCont), intent(in), optional :: skHamCont
+    type(TSlakoCont), intent(in), optional :: skHamCont
 
     !> overlap data
-    type(OSlakoCont), intent(in), optional :: skOverCont
+    type(TSlakoCont), intent(in), optional :: skOverCont
 
     !> excitation energy gradient with respect to atomic positions
     real(dp), intent(out), optional :: excgrad(:,:)
 
     !> Differentiator for H0 and S matrices.
-    class(NonSccDiff), intent(in), optional :: derivator
+    class(TNonSccDiff), intent(in), optional :: derivator
 
     !> Occupation numbers for natural orbitals from the excited state density matrix
     real(dp), intent(out), optional :: occNatural(:)
@@ -1458,7 +1458,7 @@ contains
 
       tmp2 = dot_product(zkm1, rkm1)
 
-      ! Fletcher–Reeves update
+      ! Fletcher-Reeves update
       bkm1 = tmp2 / tmp1
 
       pkm1 = zkm1 + bkm1 * pkm1
@@ -1843,13 +1843,13 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> H0 data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> Differentiatior for the non-scc matrices
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix for spin-free case
     real(dp), intent(in) :: rhoSqr(:,:)

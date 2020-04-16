@@ -1,9 +1,11 @@
 \chapter{Introduction}
 
-The code {\dftbp} is the Fortran 2003 successor of the old {\dftb} code, which
-implements the density functional based tight binding
-approach~\cite{frauenheim-JPCM-14-3015}. The code has been completely rewritten
-from scratch and extended with various features.
+The code {\dftbp} is the Fortran 2003 successor of the old {\dftb}
+code, which implements the density functional based tight binding
+approach~\cite{frauenheim-JPCM-14-3015}. The code has been completely
+rewritten from scratch and extended with various features. The most
+recent features of the code are described in
+Ref.~\cite{dftbp-2020paper}.
 
 The main features of {\dftbp} are:
 \begin{itemize}
@@ -20,7 +22,8 @@ The main features of {\dftbp} are:
   spin)
 \item Geometry and lattice optimisation
 \item Geometry optimisation with constraints (in xyz-coordinates)
-\item Molecular dynamics (NVE, NPH, NVT and NPT ensembles)
+\item Molecular dynamics (NVE, NPH, NVT and NPT ensembles as well as
+  metadynamics)
 \item Numerical vibrational mode calculations
 \item Finite temperature calculations
 \item Dispersion corrections (van der Waals interactions)
@@ -33,7 +36,8 @@ The main features of {\dftbp} are:
 \item 3rd order on-site corrections (improved H-bonding)
 \item Long range hybrid corrections
 \item QM/MM coupling with external point charges (smoothing possible)
-\item OpenMP and MPI parallelisation with a range of electronic solvers
+\item GPU accelleration and OpenMP and MPI parallelisation with a
+  range of electronic solvers
 \item Electronic transport calculations (non-equilibrium Green function
   methodology, transmission calculations)
 \item More general electrostatic boundary conditions via a Poisson equation

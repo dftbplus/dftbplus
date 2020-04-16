@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,12 +17,11 @@ module dftbp_velocityverlet
   implicit none
   private
 
-  public :: OVelocityVerlet
+  public :: TVelocityVerlet
   public :: init, next, rescale, reset, state
 
-
   !> Data for the integrator.
-  type OVelocityVerlet
+  type TVelocityVerlet
     private
 
     !> Nr. of atoms
@@ -38,7 +37,7 @@ module dftbp_velocityverlet
     real(dp), allocatable :: velocities(:,:)
 
     !> Thermostat
-    type(OThermostat), allocatable :: pThermostat
+    type(TThermostat), allocatable :: pThermostat
 
     !> do we have the v(t-.5) internal velocity state?
     logical :: vHalfPresent = .false.
@@ -58,13 +57,13 @@ module dftbp_velocityverlet
     !> Is this initialised?
     logical :: tInitialised = .false.
 
-  end type OVelocityVerlet
+  end type TVelocityVerlet
 
 
   !> initialise MD
   interface init
     module procedure VelocityVerlet_init
-    module procedure VV_themostats_pressure
+    module procedure VV_thermostats_pressure
     module procedure VV_velocities_pressure
   end interface
 
@@ -98,7 +97,7 @@ contains
       & tHalfVelocities)
 
     !> Initialised object on exit.
-    type(OVelocityVerlet), intent(out) :: self
+    type(TVelocityVerlet), intent(out) :: self
 
     !> Integration time step.
     real(dp), intent(in) :: deltaT
@@ -107,7 +106,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat if needed.
-    type(OThermostat), allocatable, intent(inout) :: pThermostat
+    type(TThermostat), allocatable, intent(inout) :: pThermostat
 
     !> On input, if tHalfVelocities these are the t=-.5 velocities, but ignored if false. On output
     !> these are the internal velocities, either at current time or t=-.5 depending on setting of
@@ -156,11 +155,11 @@ contains
 
 
   !> Creates a VelocityVerlet object from the thermostat settings and isotropic pressure
-  subroutine VV_themostats_pressure(self, deltaT, positions, pThermostat, &
+  subroutine VV_thermostats_pressure(self, deltaT, positions, pThermostat, &
       & Barostat, Pressure, tIsotropic)
 
     !> Initialised object on exit.
-    type(OVelocityVerlet), intent(out) :: self
+    type(TVelocityVerlet), intent(out) :: self
 
     !> Integration time step.
     real(dp), intent(in) :: deltaT
@@ -169,7 +168,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat if needed.
-    type(OThermostat), allocatable, intent(inout) :: pThermostat
+    type(TThermostat), allocatable, intent(inout) :: pThermostat
 
     !> Coupling strength.
     real(dp), intent(in) :: Barostat
@@ -208,7 +207,7 @@ contains
 
     self%tInitialised = .true.
 
-  end subroutine VV_themostats_pressure
+  end subroutine VV_thermostats_pressure
 
 
   !> Creates a VelocityVerlet object from given external velocities for the t-th time step, this
@@ -218,7 +217,7 @@ contains
       & velocities, Barostat, Pressure, tIsotropic)
 
     !> Initialised object on exit.
-    type(OVelocityVerlet), intent(out) :: self
+    type(TVelocityVerlet), intent(out) :: self
 
     !> Integration time step.
     real(dp), intent(in) :: deltaT
@@ -227,7 +226,7 @@ contains
     real(dp), intent(in) :: positions(:,:)
 
     !> Thermostat.
-    type(OThermostat), allocatable, intent(inout) :: pThermostat
+    type(TThermostat), allocatable, intent(inout) :: pThermostat
 
     !> List of initial velocities
     real(dp), intent(in) :: velocities(:,:)
@@ -281,7 +280,7 @@ contains
   subroutine VelocityVerlet_next(self, accel, newCoord, newVelocity)
 
     !> Integrator to propogate
-    type(OVelocityVerlet), intent(inout) :: self
+    type(TVelocityVerlet), intent(inout) :: self
 
     !> Accelerations.
     real(dp),intent(in) :: accel(:,:)
@@ -344,7 +343,7 @@ contains
   subroutine VelocityVerlet_rescale(self,coord,latVecs,pressureTensor)
 
     !> Integrator to rescale
-    type(OVelocityVerlet), intent(inout) :: self
+    type(TVelocityVerlet), intent(inout) :: self
 
     !> Atom coordinates to rescale
     real(dp),intent(inout) :: coord(:,:)
@@ -394,7 +393,7 @@ contains
   subroutine VelocityVerlet_state(self,fd)
 
     !> instance of integrator
-    type(OVelocityVerlet), intent(in) :: self
+    type(TVelocityVerlet), intent(in) :: self
 
     !> filehandle to write out to
     integer,intent(in) :: fd
@@ -412,7 +411,7 @@ contains
   subroutine VelocityVerlet_reset(self, positions, velocities, tHalfVelocities)
 
     !> Instance.
-    type(OVelocityVerlet), intent(inout) :: self
+    type(TVelocityVerlet), intent(inout) :: self
 
     !> New position of the atoms.
     real(dp), intent(in) :: positions(:,:)
