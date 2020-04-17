@@ -21,6 +21,7 @@ module dftbp_lebedev
   public :: gridSize
   public :: getAngGrid
 
+
   !> Available Lebedev-Laikov grids
   integer, parameter :: gridSize(32) = [ &
       &    6,   14,   26,   38,   50,   74,   86,  110, &
@@ -28,9 +29,12 @@ module dftbp_lebedev
       &  590,  770,  974, 1202, 1454, 1730, 2030, 2354, &
       & 2702, 3074, 3470, 3890, 4334, 4802, 5294, 5810]
 
+  !> Zero as constant to keep Oh generators clean
   real(dp), parameter :: z = 0.0_dp
 
+
 contains
+
 
   !> Wrapper for generation of angular Lebedev-Laikov grids
   pure subroutine getAngGrid(nAng, grid, weights, stat)
@@ -110,13 +114,24 @@ contains
 
   end subroutine getAngGrid
 
-  !> generate 6 new points with Oh symmetry from (0,0,1)
+
+  !> Generate 6 new points with Oh symmetry from (0, 0, 1)
   pure subroutine genOh1(num, x, w, v)
+
+    !> Number of grid points
     integer, intent(inout) :: num
-    real(dp),intent(inout) :: x(3,*)
-    real(dp),intent(inout) :: w(*)
-    real(dp),intent(in) :: v
+
+    !> Coordinates on unit sphere
+    real(dp), intent(inout) :: x(3, *)
+
+    !> Weights of each grid point
+    real(dp), intent(inout) :: w(*)
+
+    !> Weight of this set of grid points
+    real(dp), intent(in) :: v
+
     real(dp) :: a
+
     a = 1.0_dp
     x(:,1) = [ a,  z,  z]
     x(:,2) = [-a,  z,  z]
@@ -126,15 +141,27 @@ contains
     x(:,6) = [ z,  z, -a]
     w(1:6) = v
     num = num+6
+
   end subroutine genOh1
+
 
   !> Generate 12 new points with Oh symmetry from (0,a,a), a=1/sqrt(2)
   pure subroutine genOh2(num, x, w, v)
+
+    !> Number of grid points
     integer, intent(inout) :: num
-    real(dp),intent(inout) :: x(3,*)
-    real(dp),intent(inout) :: w(*)
-    real(dp),intent(in) :: v
+
+    !> Coordinates on unit sphere
+    real(dp), intent(inout) :: x(3, *)
+
+    !> Weights of each grid point
+    real(dp), intent(inout) :: w(*)
+
+    !> Weight of this set of grid points
+    real(dp), intent(in) :: v
+
     real(dp) :: a
+
     a = sqrt(0.5_dp)
     x(:, 1) = [ z,  a,  a]
     x(:, 2) = [ z, -a,  a]
@@ -150,16 +177,27 @@ contains
     x(:,12) = [-a, -a,  z]
     w(1:12) = v
     num = num+12
+
   end subroutine genOh2
 
   !> Generate 8 new points with Oh symmetry from (a,a,a), a=1/sqrt(3)
   pure subroutine genOh3(num, x, w, v)
+
+    !> Number of grid points
     integer, intent(inout) :: num
-    real(dp),intent(inout) :: x(3,*)
-    real(dp),intent(inout) :: w(*)
-    real(dp),intent(in) :: v
+
+    !> Coordinates on unit sphere
+    real(dp), intent(inout) :: x(3, *)
+
+    !> Weights of each grid point
+    real(dp), intent(inout) :: w(*)
+
+    !> Weight of this set of grid points
+    real(dp), intent(in) :: v
+
     real(dp) :: a
-    a  =  sqrt(1._dp/3._dp)
+
+    a = sqrt(1._dp/3._dp)
     x(:,1) = [ a,  a,  a]
     x(:,2) = [-a,  a,  a]
     x(:,3) = [ a, -a,  a]
@@ -170,16 +208,31 @@ contains
     x(:,8) = [-a, -a, -a]
     w(1:8) = v
     num = num+8
+
   end subroutine genOh3
+
 
   !> Generate 24 new points with Oh symmetry from (a,a,b), b=sqrt(1-2 a^2)
   pure subroutine genOh4(num, x, w, a, v)
+
+    !> Number of grid points
     integer, intent(inout) :: num
-    real(dp),intent(inout) :: x(3,*)
-    real(dp),intent(inout) :: w(*)
-    real(dp),intent(in) :: a, v
+
+    !> Coordinates on unit sphere
+    real(dp), intent(inout) :: x(3, *)
+
+    !> Weights of each grid point
+    real(dp), intent(inout) :: w(*)
+
+    !> Parameter for the initial point (a,a,b), b=sqrt(1-2 a^2)
+    real(dp), intent(in) :: a
+
+    !> Weight of this set of grid points
+    real(dp), intent(in) :: v
+
     real(dp) :: b
-    b  =  sqrt(1._dp - 2._dp*a*a)
+
+    b = sqrt(1.0_dp - 2.0_dp*a*a)
     x(:, 1) = [ a,  a,  b]
     x(:, 2) = [-a,  a,  b]
     x(:, 3) = [ a, -a,  b]
@@ -206,15 +259,30 @@ contains
     x(:,24) = [-b, -a, -a]
     w(1:24) = v
     num = num+24
+
   end subroutine genOh4
+
 
   !> Generate 24 new points with Oh symmetry from (a,b,0), b=sqrt(1-a^2)
   pure subroutine genOh5(num, x, w, a, v)
+
+    !> Number of grid points
     integer, intent(inout) :: num
-    real(dp),intent(inout) :: x(3,*)
-    real(dp),intent(inout) :: w(*)
-    real(dp),intent(in) :: a, v
+
+    !> Coordinates on unit sphere
+    real(dp), intent(inout) :: x(3, *)
+
+    !> Weights of each grid point
+    real(dp), intent(inout) :: w(*)
+
+    !> Parameter for the initial point (a,b,0), b=sqrt(1-a^2)
+    real(dp), intent(in) :: a
+
+    !> Weight of this set of grid points
+    real(dp), intent(in) :: v
+
     real(dp) :: b
+
     b = sqrt(1.0_dp-a*a)
     x(:, 1) = [ a,  b,  z]
     x(:, 2) = [-a,  b,  z]
@@ -242,15 +310,33 @@ contains
     x(:,24) = [ z, -b, -a]
     w(1:24) = v
     num = num+24
+
   end subroutine genOh5
+
 
   !> Generate 48 new points with Oh symmetry from (a,b,c), c=sqrt(1-a^2-b^2)
   pure subroutine genOh6(num, x, w, a, b, v)
+
+    !> Number of grid points
     integer, intent(inout) :: num
-    real(dp),intent(inout) :: x(3,*)
-    real(dp),intent(inout) :: w(*)
-    real(dp),intent(in) :: a, b, v
+
+    !> Coordinates on unit sphere
+    real(dp), intent(inout) :: x(3, *)
+
+    !> Weights of each grid point
+    real(dp), intent(inout) :: w(*)
+
+    !> First parameter for the initial point (a,b,c), c=sqrt(1-a^2-b^2)
+    real(dp), intent(in) :: a
+
+    !> Second parameter for the initial point (a,b,c), c=sqrt(1-a^2-b^2)
+    real(dp), intent(in) :: b
+
+    !> Weight of this set of grid points
+    real(dp), intent(in) :: v
+
     real(dp) :: c
+
     c = sqrt(1._dp - a*a - b*b)
     x(:, 1) = [ a,  b,  c]
     x(:, 2) = [-a,  b,  c]
@@ -302,34 +388,71 @@ contains
     x(:,48) = [-c, -b, -a]
     w(1:48) = v
     num = num+48
+
   end subroutine genOh6
 
+
+  !> Generator for the 6 point angular Lebedev-Laikov grid
   pure subroutine ld0006(x, w, n)
-    real(dp),intent(out) :: x(3, 6), w(6)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 6)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(6)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.1666666666666667e+0_dp
     call genOh1(n, x(1, n), w(n), v)
     n = n-1
+
   end subroutine ld0006
 
+
+  !> Generator for the 14 point angular Lebedev-Laikov grid
   pure subroutine ld0014(x, w, n)
-    real(dp),intent(out) :: x(3, 14), w(14)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 14)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(14)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.6666666666666667e-1_dp
     call genOh1(n, x(1, n), w(n), v)
     v = 0.7500000000000000e-1_dp
     call genOh3(n, x(1, n), w(n), v)
     n = n-1
+
   end subroutine ld0014
 
+
+  !> Generator for the 26 point angular Lebedev-Laikov grid
   pure subroutine ld0026(x, w, n)
-    real(dp),intent(out) :: x(3, 26), w(26)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 26)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(26)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.4761904761904762e-1_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -338,12 +461,24 @@ contains
     v = 0.3214285714285714e-1_dp
     call genOh3(n, x(1, n), w(n), v)
     n = n-1
+
   end subroutine ld0026
 
+
+  !> Generator for the 38 point angular Lebedev-Laikov grid
   pure subroutine ld0038(x, w, n)
-    real(dp),intent(out) :: x(3, 38), w(38)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 38)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(38)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.9523809523809524e-2_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -353,12 +488,24 @@ contains
     v = 0.2857142857142857e-1_dp
     call genOh5(n, x(1, n), w(n), a, v)
     n = n-1
+
   end subroutine ld0038
 
+
+  !> Generator for the 50 point angular Lebedev-Laikov grid
   pure subroutine ld0050(x, w, n)
-    real(dp),intent(out) :: x(3, 50), w(50)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 50)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(50)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.1269841269841270e-1_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -370,12 +517,24 @@ contains
     v = 0.2017333553791887e-1_dp
     call genOh4(n, x(1, n), w(n), a, v)
     n = n-1
+
   end subroutine ld0050
 
+
+  !> Generator for the 74 point angular Lebedev-Laikov grid
   pure subroutine ld0074(x, w, n)
-    real(dp),intent(out) :: x(3, 74), w(74)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 74)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(74)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.5130671797338464e-3_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -390,12 +549,24 @@ contains
     v = 0.1652217099371571e-1_dp
     call genOh5(n, x(1, n), w(n), a, v)
     n = n-1
+
   end subroutine ld0074
 
+
+  !> Generator for the 86 point angular Lebedev-Laikov grid
   pure subroutine ld0086(x, w, n)
-    real(dp),intent(out) :: x(3, 86), w(86)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 86)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(86)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.1154401154401154e-1_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -411,12 +582,24 @@ contains
     v = 0.1181230374690448e-1_dp
     call genOh5(n, x(1, n), w(n), a, v)
     n = n-1
+
   end subroutine ld0086
 
+
+  !> Generator for the 110 point angular Lebedev-Laikov grid
   pure subroutine ld0110(x, w, n)
-    real(dp),intent(out) :: x(3, 110), w(110)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 110)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(110)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.3828270494937162e-2_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -435,12 +618,24 @@ contains
     v = 0.9694996361663028e-2_dp
     call genOh5(n, x(1, n), w(n), a, v)
     n = n-1
+
   end subroutine ld0110
 
+
+  !> Generator for the 146 point angular Lebedev-Laikov grid
   pure subroutine ld0146(x, w, n)
-    real(dp),intent(out) :: x(3, 146), w(146)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 146)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(146)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.5996313688621381e-3_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -462,12 +657,24 @@ contains
     v = 0.6991087353303262e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0146
 
+
+  !> Generator for the 170 point angular Lebedev-Laikov grid
   pure subroutine ld0170(x, w, n)
-    real(dp),intent(out) :: x(3, 170), w(170)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 170)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(170)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.5544842902037365e-2_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -492,12 +699,24 @@ contains
     v = 0.5968383987681156e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0170
 
+
+  !> Generator for the 194 point angular Lebedev-Laikov grid
   pure subroutine ld0194(x, w, n)
-    real(dp),intent(out) :: x(3, 194), w(194)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 194)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(194)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.1782340447244611e-2_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -525,12 +744,24 @@ contains
     v = 0.5530248916233094e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0194
 
+
+  !> Generator for the 230 point angular Lebedev-Laikov grid
   pure subroutine ld0230(x, w, n)
-    real(dp),intent(out) :: x(3, 230), w(230)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 230)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(230)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = -0.5522639919727325e-1_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -562,12 +793,24 @@ contains
     v = 0.4695720972568883e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0230
 
+
+  !> Generator for the 266 point angular Lebedev-Laikov grid
   pure subroutine ld0266(x, w, n)
-    real(dp),intent(out) :: x(3, 266), w(266)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 266)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(266)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = -0.1313769127326952e-2_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -602,12 +845,24 @@ contains
     v = 0.4071467593830964e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0266
 
+
+  !> Generator for the 302 point angular Lebedev-Laikov grid
   pure subroutine ld0302(x, w, n)
-    real(dp),intent(out) :: x(3, 302), w(302)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 302)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(302)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.8545911725128148e-3_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -646,12 +901,24 @@ contains
     v = 0.3392312205006170e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0302
 
+
+  !> Generator for the 350 point angular Lebedev-Laikov grid
   pure subroutine ld0350(x, w, n)
-    real(dp),intent(out) :: x(3, 350), w(350)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 350)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(350)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.3006796749453936e-2_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -694,12 +961,24 @@ contains
     v = 0.2832187403926303e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0350
 
+
+  !> Generator for the 434 point angular Lebedev-Laikov grid
   pure subroutine ld0434(x, w, n)
-    real(dp),intent(out) :: x(3, 434), w(434)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 434)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(434)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.5265897968224436e-3_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -751,12 +1030,24 @@ contains
     v = 0.2236607760437849e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0434
 
+
+  !> Generator for the 590 point angular Lebedev-Laikov grid
   pure subroutine ld0590(x, w, n)
-    real(dp),intent(out) :: x(3, 590), w(590)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 590)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(590)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.3095121295306187e-3_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -823,12 +1114,24 @@ contains
     v = 0.1802239128008525e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0590
 
+
+  !> Generator for the 770 point angular Lebedev-Laikov grid
   pure subroutine ld0770(x, w, n)
-    real(dp),intent(out) :: x(3, 770), w(770)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 770)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(770)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.2192942088181184e-3_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -912,12 +1215,24 @@ contains
     v = 0.1415914757466932e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0770
 
+
+  !> Generator for the 974 point angular Lebedev-Laikov grid
   pure subroutine ld0974(x, w, n)
-    real(dp),intent(out) :: x(3, 974), w(974)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 974)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(974)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.1438294190527431e-3_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -1020,12 +1335,24 @@ contains
     v = 0.1121780048519972e-2_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld0974
 
+
+  !> Generator for the 1202 point angular Lebedev-Laikov grid
   pure subroutine ld1202(x, w, n)
-    real(dp),intent(out) :: x(3, 1202), w(1202)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 1202)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(1202)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.1105189233267572e-3_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -1149,12 +1476,24 @@ contains
     v = 0.9105760258970126e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld1202
 
+
+  !> Generator for the 1454 point angular Lebedev-Laikov grid
   pure subroutine ld1454(x, w, n)
-    real(dp),intent(out) :: x(3, 1454), w(1454)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 1454)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(1454)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.7777160743261247e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -1301,12 +1640,24 @@ contains
     v = 0.7489908329079234e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld1454
 
+
+  !> Generator for the 1730 point angular Lebedev-Laikov grid
   pure subroutine ld1730(x, w, n)
-    real(dp),intent(out) :: x(3, 1730), w(1730)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 1730)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(1730)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.6309049437420976e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -1478,12 +1829,24 @@ contains
     v = 0.6375414170333233e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld1730
 
+
+  !> Generator for the 2030 point angular Lebedev-Laikov grid
   pure subroutine ld2030(x, w, n)
-    real(dp),intent(out) :: x(3, 2030), w(2030)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 2030)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(2030)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.4656031899197431e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -1682,12 +2045,24 @@ contains
     v = 0.5433312705027845e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld2030
 
+
+  !> Generator for the 2354 point angular Lebedev-Laikov grid
   pure subroutine ld2354(x, w, n)
-    real(dp),intent(out) :: x(3, 2354), w(2354)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 2354)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(2354)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.3922616270665292e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -1915,12 +2290,24 @@ contains
     v = 0.4691445539106986e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld2354
 
+
+  !> Generator for the 2702 point angular Lebedev-Laikov grid
   pure subroutine ld2702(x, w, n)
-    real(dp),intent(out) :: x(3, 2702), w(2702)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 2702)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(2702)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.2998675149888161e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -2179,12 +2566,24 @@ contains
     v = 0.4087191292799671e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld2702
 
+
+  !> Generator for the 3074 point angular Lebedev-Laikov grid
   pure subroutine ld3074(x, w, n)
-    real(dp),intent(out) :: x(3, 3074), w(3074)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 3074)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(3074)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.2599095953754734e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -2476,12 +2875,24 @@ contains
     v = 0.3595855034661997e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld3074
 
+
+  !> Generator for the 3470 point angular Lebedev-Laikov grid
   pure subroutine ld3470(x, w, n)
-    real(dp),intent(out) :: x(3, 3470), w(3470)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 3470)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(3470)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.2040382730826330e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -2808,12 +3219,24 @@ contains
     v = 0.3185447944625510e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld3470
 
+
+  !> Generator for the 3890 point angular Lebedev-Laikov grid
   pure subroutine ld3890(x, w, n)
-    real(dp),intent(out) :: x(3, 3890), w(3890)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 3890)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(3890)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.1807395252196920e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -3177,12 +3600,24 @@ contains
     v = 0.2843455206008783e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld3890
 
+
+  !> Generator for the 4334 point angular Lebedev-Laikov grid
   pure subroutine ld4334(x, w, n)
-    real(dp),intent(out) :: x(3, 4334), w(4334)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 4334)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(4334)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.1449063022537883e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -3585,12 +4020,24 @@ contains
     v = 0.2552114127580376e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld4334
 
+
+  !> Generator for the 4802 point angular Lebedev-Laikov grid
   pure subroutine ld4802(x, w, n)
-    real(dp),intent(out) :: x(3, 4802), w(4802)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 4802)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(4802)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.9687521879420705e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -4034,12 +4481,24 @@ contains
     v = 0.2304831913227114e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld4802
 
+
+  !> Generator for the 5294 point angular Lebedev-Laikov grid
   pure subroutine ld5294(x, w, n)
-    real(dp),intent(out) :: x(3, 5294), w(5294)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 5294)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(5294)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.9080510764308163e-4_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -4526,12 +4985,24 @@ contains
     v = 0.2090509712889637e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld5294
 
+
+  !> Generator for the 5810 point angular Lebedev-Laikov grid
   pure subroutine ld5810(x, w, n)
-    real(dp),intent(out) :: x(3, 5810), w(5810)
+
+    !> Coordinates on unit sphere
+    real(dp), intent(out) :: x(3, 5810)
+
+    !> Weights for all grid points
+    real(dp), intent(out) :: w(5810)
+
+    !> Number of generated grid points
     integer, intent(out) :: n
-    real(dp) :: a,b,v
+
+    real(dp) :: a, b, v
+
     n = 1
     v = 0.9735347946175486e-5_dp
     call genOh1(n, x(1, n), w(n), v)
@@ -5063,6 +5534,8 @@ contains
     v = 0.1905534498734563e-3_dp
     call genOh6(n, x(1, n), w(n), a, b, v)
     n = n-1
+
   end subroutine ld5810
+
 
 end module dftbp_lebedev
