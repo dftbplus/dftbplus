@@ -13,15 +13,13 @@ module dftb_evaluateenergies
   use dftbp_assert
   use dftbp_energies
   use dftbp_populations
-  use dftbp_dftbplusu
-  use dftbp_spinorbit
   use dftbp_commontypes, only : TOrbitals
   use dftbp_periodic, only : TNeighbourList
   use dftbp_potentials, only : TPotentials
   use dftbp_shift, only : add_shift, total_shift
   use dftbp_spin, only : getSpinShift
-  use dftbp_spinorbit, only : getDualSpinOrbitShift
-  use dftbp_dftbplusu, only : getDftbUShift
+  use dftbp_spinorbit, only : getDualSpinOrbitShift, getDualSpinOrbitEnergy
+  use dftbp_dftbplusu, only : getDftbUShift, e_dftbu
   use dftbp_message, only : error
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_environment, only : TEnvironment
