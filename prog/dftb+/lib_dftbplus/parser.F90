@@ -3728,8 +3728,9 @@ contains
     type(TSASAInput), intent(out) :: input
 
     type(string) :: buffer, modifier
-    type(fnode), pointer :: child, value1, field, child2
+    type(fnode), pointer :: child, value1, value2, field, child2, dummy
     integer :: iSp, ii, gridPoints
+    real(dp) :: conv
     real(dp), allocatable :: vdwRadDefault(:)
 
     if (geo%tPeriodic) then
@@ -3745,7 +3746,7 @@ contains
 
     call getChildValue(node, "Tolerance", input%tolerance, 1.0e-6_dp, child=child)
 
-    call getChildValue(node, "AngularGrid", gridPoints, child=child)
+    call getChildValue(node, "AngularGrid", gridPoints, 230, child=child)
     input%gridSize = 0
     do ii = 1, size(gridSize)
       if (gridPoints == gridSize(ii)) then
@@ -3756,8 +3757,11 @@ contains
       call detailedError(child, "Illegal number of grid points for numerical integration")
     end if
 
+    conv = 1.0_dp
     allocate(input%vdwRad(geo%nSpecies))
     call getChildValue(node, "Radii", value1, child=child)
+    call getChild(value1, "", dummy, modifier=modifier)
+    call convertByMul(char(modifier), lengthUnits, child, conv)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
@@ -3766,8 +3770,14 @@ contains
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
       do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
-            & vdwRadDefault(iSp), child=child2)
+        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
+        if (associated(value2)) then
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & child=child2)
+        else
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & vdwRadDefault(iSp)/conv, child=child2)
+        end if
       end do
       deallocate(vdwRadDefault)
     case("values")
@@ -3775,6 +3785,7 @@ contains
         call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
       end do
     end select
+    input%vdwRad(:) = input%vdwRad * conv
 
     allocate(input%surfaceTension(geo%nSpecies))
     call getChildValue(node, "SurfaceTension", value1, child=child)
