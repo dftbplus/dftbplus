@@ -1,1 +1,3 @@
-../../testers/test_qdepextpotc
+#!/bin/sh
+RUN_CMD="$@"
+exec $RUN_CMD ../../testers/test_qdepextpotc

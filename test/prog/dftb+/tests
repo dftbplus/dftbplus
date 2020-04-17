@@ -262,6 +262,7 @@ analysis/Ga4As4_ESP                    #? MPI_PROCS <= 2
 md/Si_8-thermostat                     #? MPI_PROCS <= 1
 md/ptcda-xlbomdfast-ldep               #? MPI_PROCS <= 4
 md/Si_8-tempprofile                    #? MPI_PROCS <= 1
+md/Si_8-tempprofile0                   #? MPI_PROCS <= 1
 md/Vsi+O-plumed                        #? WITH_PLUMED and MPI_PROCS <= 4
 
 dispersion/DNA_dftd3_bj                #? WITH_DFTD3 and MPI_PROCS <= 4

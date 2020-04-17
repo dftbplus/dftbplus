@@ -123,7 +123,7 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kT)
+    call self%pTempProfile%getTemperature(kT)
     if (kT < minTemp) then
       call error("Berendsen thermostat not supported at zero temperature")
     end if
@@ -150,7 +150,7 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kTTarget)
+    call self%pTempProfile%getTemperature(kTTarget)
     call evalkT(self%pMDFrame, kTCurrent,velocities,self%mass)
     scaling = sqrt(1.0_dp + self%couplingParameter*(kTTarget/kTCurrent-1.0_dp))
     velocities(:,:) = scaling * velocities(:,:)
