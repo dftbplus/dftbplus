@@ -11,10 +11,10 @@ Python via the foreign function C-library ctypes.
 '''
 
 
+import os
 import ctypes
 from numpy.ctypeslib import ndpointer
 import numpy as np
-import numpy.linalg as la
 
 
 # DFTB+ conversion factors
@@ -32,7 +32,7 @@ class DftbPlus:
     '''
 
 
-    def __init__(self, libpath='./libdftbplus.so', hsdpath='./dftb_in.hsd',
+    def __init__(self, libpath='./libdftbplus', hsdpath='./dftb_in.hsd',
                  logfile=None):
         '''Initializes a ctypes DFTB+ calculator object.
 
@@ -42,16 +42,15 @@ class DftbPlus:
             logfile (str): name of log file
         '''
 
-        self._libpath = libpath
-        self._hsdpath = hsdpath
-        self._logfile = logfile
-
         self._natoms = 0
 
         # DFTB+ shared library
-        self._dftbpluslib = ctypes.CDLL(self._libpath)
+        # use convenient Numpy wrapper to take different possible extensions
+        # of the shared library into account (operating system dependent).
+        libht = os.path.split(libpath)
+        self._dftbpluslib = np.ctypeslib.load_library(libht[1], libht[0])
 
-        input_str = ctypes.create_string_buffer(str.encode(self._hsdpath))
+        input_str = ctypes.create_string_buffer(str.encode(hsdpath))
 
         # pointer to DFTB+ instance
         self._dftb_handler = ctypes.c_void_p()
@@ -66,8 +65,8 @@ class DftbPlus:
         # Register supported (DFTB+) routines
         self._setup_interface()
 
-        if self._logfile is not None:
-            output_str = ctypes.create_string_buffer(str.encode(self._logfile))
+        if logfile is not None:
+            output_str = ctypes.create_string_buffer(str.encode(logfile))
             self._dftbpluslib.dftbp_init(self._dftb_handler, output_str)
         else:
             self._dftbpluslib.dftbp_init(self._dftb_handler, None)
