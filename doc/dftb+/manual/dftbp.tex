@@ -779,10 +779,9 @@ starting temperature for each annealing period is the final target
 temperature of the previous period, with the last step of each stage
 being at the target temperature. Since the initial stage in the
 temperature profile has no previous step, the default starting
-temperature is set to 0, but no actual calculation for that
-temperature is made.  In order to start the calculation from a finite
+temperature is set to 0.  In order to start the calculation from a finite
 temperature for the first annealing period, a constant profile
-temperature stage with the duration of only one step should be
+temperature stage with a duration of one (or more) step(s) should be
 specified as the first step (see the example).  The temperatures of
 the stages are specified in atomic units, unless the \is{Temperature}
 keyword carries a modifier, as in the example above.
