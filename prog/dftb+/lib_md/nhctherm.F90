@@ -215,7 +215,7 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kT)
+    call self%pTempProfile%getTemperature(kT)
     if (kT < minTemp) then
       call error("Nose-Hover thermostat not supported at zero temperature")
     end if
@@ -248,7 +248,7 @@ contains
 
     nnos1=self%nnos+1
 
-    call getTemperature(self%pTempProfile, gkt)
+    call self%pTempProfile%getTemperature(gkt)
     gnkt=real(self%pMDFrame%Nf,dp)*gkt
 
     qmass(1)=gnkt/(self%couplingParameter*self%couplingParameter)

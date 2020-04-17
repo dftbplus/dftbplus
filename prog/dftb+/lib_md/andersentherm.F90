@@ -131,7 +131,7 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kT)
+    call self%pTempProfile%getTemperature(kT)
     if (kT < minTemp) then
       call error("Andersen thermostat not supported at zero temperature")
     end if
@@ -159,7 +159,7 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kT)
+    call self%pTempProfile%getTemperature(kT)
     if (self%tRescaleIndiv) then
       do ii = 1, self%nAtom
         call getRandom(self%pRanlux, rescaleChance)
