@@ -28,7 +28,7 @@ module dftbp_reksproperty
 
   private
 
-  public :: getUnrelaxedDensMatAndTdp, getRelaxedDM, getRelaxedDML
+  public :: getUnrelaxedDensMatAndTdp, getRelaxedDensMat, getRelaxedDensMatL
   public :: getDipoleIntegral, getDipoleMomentMatrix, getReksOsc
 
   contains
@@ -232,7 +232,7 @@ module dftbp_reksproperty
 
 
   !> Calculate relaxed density for target SA-REKS or SSR state
-  subroutine getRelaxedDM(eigenvecs, overSqr, unrelRhoSqr, ZT, omega, &
+  subroutine getRelaxedDensMat(eigenvecs, overSqr, unrelRhoSqr, ZT, omega, &
       & FONs, eigvecsSSR, SAweight, Rab, G1, Nc, Na, rstate, useSSR, &
       & tNAC, tSSR22, tSSR44, relRhoSqr)
 
@@ -389,11 +389,11 @@ module dftbp_reksproperty
 
     call printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
 
-  end subroutine getRelaxedDM
+  end subroutine getRelaxedDensMat
 
 
   !> Calculate relaxed density for target L-th microstate
-  subroutine getRelaxedDML(eigenvecs, rhoSqrL, overSqr, weight, &
+  subroutine getRelaxedDensMatL(eigenvecs, rhoSqrL, overSqr, weight, &
       & SAweight, unrelRhoSqr, RmatL, ZT, omega, weightIL, G1, orderRmatL, &
       & Lpaired, Nc, Na, Lstate, tSSR22, tSSR44, relRhoSqr)
 
@@ -504,7 +504,7 @@ module dftbp_reksproperty
 
     call printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
 
-  end subroutine getRelaxedDML
+  end subroutine getRelaxedDensMatL
 
 
   !> Calculate dipole integral in DFTB formalism

@@ -387,13 +387,13 @@ module dftbp_reksinterface
 
         if (self%Lstate == 0) then
           ! get the relaxed density matrix for target SSR or SA-REKS state
-          call getRelaxedDM(eigenvecs(:,:,1), self%overSqr, self%unrelRhoSqr, &
+          call getRelaxedDensMat(eigenvecs(:,:,1), self%overSqr, self%unrelRhoSqr, &
               & self%ZT, self%omega, self%FONs, self%eigvecsSSR, self%SAweight, &
               & self%Rab, self%G1, self%Nc, self%Na, self%rstate, self%useSSR, &
               & self%tNAC, self%tSSR22, self%tSSR44, self%relRhoSqr)
         else
           ! get the relaxed density matrix for L-th microstate
-          call getRelaxedDML(eigenvecs(:,:,1), self%rhoSqrL, self%overSqr, &
+          call getRelaxedDensMatL(eigenvecs(:,:,1), self%rhoSqrL, self%overSqr, &
               & self%weight, self%SAweight, self%unrelRhoSqr, self%RmatL, &
               & self%ZT, self%omega, self%weightIL, self%G1, self%orderRmatL, &
               & self%Lpaired, self%Nc, self%Na, self%Lstate, self%tSSR22, &
