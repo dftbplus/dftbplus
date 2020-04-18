@@ -72,7 +72,7 @@ module dftbp_main
   use dftbp_simplealgebra
   use dftbp_message
   use dftbp_repcont
-  use dftbp_halogenx
+  use dftbp_clscorr, only : TClassicalCorrection
   use dftbp_xlbomd
   use dftbp_slakocont
   use dftbp_linkedlist
@@ -435,8 +435,8 @@ contains
       call calcDispersionEnergy(dispersion, energy%atomDisp, energy%Edisp, iAtInCentralRegion)
     end if
 
-    if (allocated(halogenXCorrection)) then
-      call halogenXCorrection%getEnergies(energy%atomHalogenX, coord, species, neighbourList,&
+    if (allocated(classicalCorrection)) then
+      call classicalCorrection%getEnergies(energy%atomHalogenX, coord, species, neighbourList,&
           & img2CentCell)
       energy%EHalogenX = sum(energy%atomHalogenX(iAtInCentralRegion))
     end if
@@ -651,7 +651,7 @@ contains
             & tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS, E0,&
             & extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin, tSpin,&
             & tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-            & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
+            & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(classicalCorrection),&
             & tRangeSep, allocated(thirdOrd), allocated(solvation))
       end if
 
@@ -737,7 +737,7 @@ contains
           & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk,&
           & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
           & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over,&
-          & denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection)
+          & denseDesc, deltaRhoOutSqr, tPoisson, classicalCorrection)
 
       if (tCasidaForces) then
         derivs(:,:) = derivs + excitedDerivs
@@ -753,7 +753,7 @@ contains
             & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep,&
             & species, img2CentCell, iSparseStart, orb, potential, coord, latVec,&
             & invLatVec, cellVol, coord0, totalStress, totalLatDeriv, intPressure, iRhoPrim,&
-            & solvation, dispersion, halogenXCorrection)
+            & solvation, dispersion, classicalCorrection)
         call env%globalTimer%stopTimer(globalTimers%stressCalc)
         call printVolume(cellVol)
 
@@ -5089,7 +5089,7 @@ contains
       & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
       & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, solvation,&
       & qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
-      & tPoisson, halogenXCorrection)
+      & tPoisson, classicalCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5196,8 +5196,8 @@ contains
     !> whether Poisson solver is used
     logical, intent(in) :: tPoisson
 
-    !> Correction for halogen bonds
-    type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
+    !> Classical correction scheme
+    class(TClassicalCorrection), allocatable, intent(inout) :: classicalCorrection
 
     ! Locals
     real(dp), allocatable :: tmpDerivs(:,:)
@@ -5301,8 +5301,8 @@ contains
       call dispersion%addGradients(derivs)
     end if
 
-    if (allocated(halogenXCorrection)) then
-      call halogenXCorrection%addGradients(derivs, coord, species, neighbourList, img2CentCell)
+    if (allocated(classicalCorrection)) then
+      call classicalCorrection%addGradients(derivs, coord, species, neighbourList, img2CentCell)
     end if
 
     if (allocated(rangeSep)) then
@@ -5380,7 +5380,7 @@ contains
   subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion, halogenXCorrection)
+      & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion, classicalCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5475,8 +5475,8 @@ contains
     !> dispersion interactions
     class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
-    !> Correction for halogen bonds
-    type(THalogenX), allocatable, intent(inout) :: halogenXCorrection
+    !> Classical correction scheme
+    class(TClassicalCorrection), allocatable, intent(inout) :: classicalCorrection
 
     real(dp) :: tmpStress(3, 3)
     logical :: tImHam
@@ -5519,8 +5519,8 @@ contains
       totalStress(:,:) = totalStress + tmpStress
     end if
 
-    if (allocated(halogenXCorrection)) then
-      call halogenXCorrection%getStress(tmpStress, coord, neighbourList, species, img2CentCell,&
+    if (allocated(classicalCorrection)) then
+      call classicalCorrection%getStress(tmpStress, coord, neighbourList, species, img2CentCell,&
           & cellVol)
       totalStress(:,:) = totalStress + tmpStress
     end if

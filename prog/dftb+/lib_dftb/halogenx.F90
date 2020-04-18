@@ -12,10 +12,11 @@
 module dftbp_halogenx
   use dftbp_assert
   use dftbp_accuracy, only : dp, mc
-  use dftbp_vdwdata
+  use dftbp_clscorr, only : TClassicalCorrection
   use dftbp_constants, only : AA__Bohr, Bohr__AA, kcal_mol__Hartree
-  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_message
+  use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_vdwdata
   implicit none
   private
 
@@ -24,7 +25,7 @@ module dftbp_halogenx
 
 
   !> Type for repulsive pairwise additions
-  type :: THalogenX
+  type, extends(TClassicalCorrection) :: THalogenX
 
     private
 

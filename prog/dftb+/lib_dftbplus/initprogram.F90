@@ -63,7 +63,8 @@ module dftbp_initprogram
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_h5correction
-  use dftbp_halogenx
+  use dftbp_halogenx, only : THalogenX, THalogenX_init
+  use dftbp_clscorr, only : TClassicalCorrection
   use dftbp_slakocont
   use dftbp_repcont
   use dftbp_fileid
@@ -987,8 +988,8 @@ module dftbp_initprogram
   !> list of atoms in the central cell (or device region if transport)
   integer, allocatable :: iAtInCentralRegion(:)
 
-  !> Correction for {O,N}-X bonds
-  type(THalogenX), allocatable :: halogenXCorrection
+  !> Classical correction scheme
+  class(TClassicalCorrection), allocatable :: classicalCorrection
 
   !> All of the excited energies actuall solved by Casida routines (if used)
   real(dp), allocatable :: energiesCasida(:)
@@ -1530,8 +1531,12 @@ contains
       if (tPeriodic) then
         call error("Halogen correction was not fitted in periodic systems in original paper")
       end if
-      allocate(halogenXCorrection)
-      call THalogenX_init(halogenXCorrection, species0, speciesName)
+      block
+        type(THalogenX), allocatable :: halogenXCorrection
+        allocate(halogenXCorrection)
+        call THalogenX_init(halogenXCorrection, species0, speciesName)
+        call move_alloc(halogenXCorrection, classicalCorrection)
+      end block
     end if
 
     allocate(referenceN0(orb%mShell, nType))
@@ -2098,8 +2103,8 @@ contains
       cutOff%mCutOff = max(cutOff%mCutOff, solvation%getRCutOff())
     end if
 
-    if (allocated(halogenXCorrection)) then
-      cutOff%mCutOff = max(cutOff%mCutOff, halogenXCorrection%getRCutOff())
+    if (allocated(classicalCorrection)) then
+      cutOff%mCutOff = max(cutOff%mCutOff, classicalCorrection%getRCutOff())
     end if
 
     if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then
