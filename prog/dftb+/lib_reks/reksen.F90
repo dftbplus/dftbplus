@@ -403,6 +403,8 @@ module dftbp_reksen
     nSpin = size(fillingL,dim=2)
     Lmax = size(fillingL,dim=3)
 
+    fillingL(:,:,:) = 0.0_dp
+
     ! Filling of core orbitals
     do iL = 1, Lmax
       do iSpin = 1, nSpin
