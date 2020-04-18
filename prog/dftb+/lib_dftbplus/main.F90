@@ -6642,7 +6642,7 @@ contains
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
 
     !> Data for rangeseparated calculation
-    type(TRangeSepFunc), intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Nr. of neighbours for each atom in the long-range functional.
     integer, allocatable, intent(in) :: nNeighbourLC(:)
