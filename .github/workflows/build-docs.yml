@@ -3,10 +3,10 @@ name: docs
 on:
   push:
     paths:
-      - 'doc/manual/**'
+      - 'doc/dftb+/manual/**'
   pull_request:
     paths:
-      - 'doc/manual/**'
+      - 'doc/dftb+/manual/**'
 
 jobs:
   build:
