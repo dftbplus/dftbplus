@@ -24,6 +24,7 @@ module dftbp_initprogram
   use dftbp_elecsolvers
   use dftbp_elsisolver, only : TElsiSolver_init, TElsiSolver_final
   use dftbp_elsiiface
+  use dftbp_gpuinfo, only : gpuInfo
   use dftbp_periodic
   use dftbp_accuracy
   use dftbp_intrinsicpr
@@ -100,10 +101,6 @@ module dftbp_initprogram
   use dftbp_magmahelper
   use dftbp_solvation, only : TSolvation
   use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
-#:if WITH_GPU
-  use iso_c_binding, only :  c_int
-  use device_info
-#:endif
 
 #:if WITH_TRANSPORT
   use libnegf_vars
@@ -112,11 +109,6 @@ module dftbp_initprogram
 #:endif
   use dftbp_transportio
   implicit none
-
-#:if WITH_GPU
-  integer (c_int):: ngpus
-  integer (c_int):: req_ngpus
-#:endif
 
   !> Container for external potentials
   type :: TRefExtPot
@@ -2953,17 +2945,7 @@ contains
     write(stdOut, "(A,':',T30,A)") "Electronic solver", electronicSolver%getSolverName()
 
     if (electronicSolver%iSolver == electronicSolverTypes%magma_gvd) then
-    #:if WITH_GPU
-      call  gpu_avail(ngpus)
-      call  gpu_req(req_ngpus)
-      write(StdOut,*) "Number of GPUs requested:",req_ngpus
-      write(StdOut,*) "Number of GPUs found    :",ngpus
-      if ((req_ngpus .le. ngpus) .and. (req_ngpus .ge. 1)) then
-        ngpus = req_ngpus
-      endif
-    #:else
-      call error("Compiled without GPU support")
-    #:endif
+      call gpuInfo()
     endif
 
     if (tSccCalc) then
