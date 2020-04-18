@@ -830,7 +830,7 @@ module dftbp_reksen
   subroutine fockFcAO_(hamSqr, weight, Lpaired, iL, Fc)
 
     !> dense fock matrix for core orbitals
-    real(dp), intent(out) :: Fc(:,:)
+    real(dp), intent(inout) :: Fc(:,:)
 
     !> Dense Hamiltonian matrix for each microstate
     real(dp), intent(in) :: hamSqr(:,:)
@@ -865,7 +865,7 @@ module dftbp_reksen
       & Lpaired, iL, Fa)
 
     !> dense fock matrix for active orbitals
-    real(dp), intent(out) :: Fa(:,:,:)
+    real(dp), intent(inout) :: Fa(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
     real(dp), intent(in) :: hamSqr(:,:)

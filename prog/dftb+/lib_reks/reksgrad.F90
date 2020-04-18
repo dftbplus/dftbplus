@@ -4349,7 +4349,7 @@ module dftbp_reksgrad
     integer, intent(in) :: gam, tau
 
     !> auxiliary matrix in AO basis related to SA-REKS term
-    real(dp), intent(out) :: ZmatL(:,:,:)
+    real(dp), intent(inout) :: ZmatL(:,:,:)
 
     integer :: iL, Lmax, tmpL1, tmpL2
 
