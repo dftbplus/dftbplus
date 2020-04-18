@@ -84,10 +84,10 @@ module dftbp_reksgrad
     type(TOrbitals), intent(in) :: orb
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(inout) :: hamSqrL(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: hamSpL(:,:,:)
+    real(dp), allocatable, intent(in) :: hamSpL(:,:,:)
 
     !> Filling for each microstate
     real(dp), intent(in) :: fillingL(:,:,:)
@@ -457,10 +457,10 @@ module dftbp_reksgrad
     real(dp), intent(out) :: SpinAO(:,:)
 
     !> long-range gamma integrals in AO basis
-    real(dp), intent(out) :: LrGammaAO(:,:)
+    real(dp), allocatable, intent(inout) :: LrGammaAO(:,:)
 
     !> long-range gamma derivative integrals
-    real(dp), intent(out) :: LrGammaDeriv(:,:,:)
+    real(dp), allocatable, intent(inout) :: LrGammaDeriv(:,:,:)
 
     real(dp), allocatable :: tmpGamma(:,:)
     real(dp), allocatable :: tmpLrGamma(:,:)
@@ -569,7 +569,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: SpinAO(:,:)
 
     !> long-range gamma integrals in AO basis
-    real(dp), intent(in) :: LrGammaAO(:,:)
+    real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
@@ -581,22 +581,22 @@ module dftbp_reksgrad
     integer, intent(in) :: Mlevel
 
     !> Hartree-XC kernel with sparse form with same spin part
-    real(dp), intent(out) :: HxcSpS(:,:)
+    real(dp), allocatable, intent(inout) :: HxcSpS(:,:)
 
     !> Hartree-XC kernel with sparse form with different spin part
-    real(dp), intent(out) :: HxcSpD(:,:)
+    real(dp), allocatable, intent(inout) :: HxcSpD(:,:)
 
     !> Hartree-XC kernel with half dense form with same spin part
-    real(dp), intent(out) :: HxcHalfS(:,:)
+    real(dp), allocatable, intent(inout) :: HxcHalfS(:,:)
 
     !> Hartree-XC kernel with half dense form with different spin part
-    real(dp), intent(out) :: HxcHalfD(:,:)
+    real(dp), allocatable, intent(inout) :: HxcHalfD(:,:)
 
     !> Hartree-XC kernel with dense form with same spin part
-    real(dp), intent(out) :: HxcSqrS(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: HxcSqrS(:,:,:,:)
 
     !> Hartree-XC kernel with dense form with different spin part
-    real(dp), intent(out) :: HxcSqrD(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: HxcSqrD(:,:,:,:)
 
     if (Glevel == 1 .or. Glevel == 2) then
 
@@ -658,10 +658,10 @@ module dftbp_reksgrad
     real(dp), intent(in) :: eigenvecs(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: hamSqrL(:,:,:,:)
+    real(dp), allocatable, intent(in) :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: hamSpL(:,:,:)
+    real(dp), allocatable, intent(in) :: hamSpL(:,:,:)
 
     !> dense fock matrix for active orbitals
     real(dp), intent(in) :: fockFa(:,:,:)
@@ -709,7 +709,7 @@ module dftbp_reksgrad
     real(dp), intent(out) :: omega(:)
 
     !> state-interaction term used in SSR gradients
-    real(dp), intent(out) :: Rab(:,:)
+    real(dp), allocatable, intent(inout) :: Rab(:,:)
 
     real(dp), allocatable :: tmpHam(:,:)
 
@@ -747,7 +747,9 @@ module dftbp_reksgrad
       call error("SSR(4,4) is not implemented yet")
     end if
 
-    if (useSSR == 1) Rab(:,:) = 0.0_dp
+    if (useSSR == 1) then
+      Rab(:,:) = 0.0_dp
+    end if
     omega(:) = 0.0_dp
     do iL = 1, Lmax
 
@@ -828,10 +830,10 @@ module dftbp_reksgrad
     real(dp), intent(in) :: eigenvecs(:,:,:)
 
     !> Hartree-XC kernel with dense form with same spin part
-    real(dp), intent(in) :: HxcSqrS(:,:,:,:)
+    real(dp), allocatable, intent(in) :: HxcSqrS(:,:,:,:)
 
     !> Hartree-XC kernel with dense form with different spin part
-    real(dp), intent(in) :: HxcSqrD(:,:,:,:)
+    real(dp), allocatable, intent(in) :: HxcSqrD(:,:,:,:)
 
     !> dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
@@ -879,14 +881,14 @@ module dftbp_reksgrad
     logical, intent(in) :: tSSR44
 
     !> super A hessian matrix with one-electron term in front of orbital derivatives
-    real(dp), intent(out) :: A1e(:,:)
+    real(dp), allocatable, intent(inout) :: A1e(:,:)
 
     !> preconditioner of super A hessian matrix with one-electron term in front of orbital
     !> derivatives
-    real(dp), intent(out) :: A1ePre(:,:)
+    real(dp), allocatable, intent(inout) :: A1ePre(:,:)
 
     !> super A hessian matrix in front of orbital derivatives
-    real(dp), intent(out) :: Aall(:,:)
+    real(dp), allocatable, intent(inout) :: Aall(:,:)
 
     if (Glevel == 1 .or. Glevel == 2) then
 
@@ -937,10 +939,10 @@ module dftbp_reksgrad
     real(dp), intent(in) :: eigenvecs(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: hamSqrL(:,:,:,:)
+    real(dp), allocatable, intent(in) :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: hamSpL(:,:,:)
+    real(dp), allocatable, intent(in) :: hamSpL(:,:,:)
 
     !> Filling for each microstate
     real(dp), intent(in) :: fillingL(:,:,:)
@@ -1180,10 +1182,10 @@ module dftbp_reksgrad
     real(dp), intent(in) :: eigenvecs(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: hamSqrL(:,:,:,:)
+    real(dp), allocatable, intent(in) :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: hamSpL(:,:,:)
+    real(dp), allocatable, intent(in) :: hamSpL(:,:,:)
 
     !> Filling for each microstate
     real(dp), intent(in) :: fillingL(:,:,:)
@@ -1423,22 +1425,22 @@ module dftbp_reksgrad
     real(dp), intent(in) :: RmatL(:,:,:)
 
     !> Hartree-XC kernel with dense form with same spin part
-    real(dp), intent(in) :: HxcSqrS(:,:,:,:)
+    real(dp), allocatable, intent(in) :: HxcSqrS(:,:,:,:)
 
     !> Hartree-XC kernel with dense form with different spin part
-    real(dp), intent(in) :: HxcSqrD(:,:,:,:)
+    real(dp), allocatable, intent(in) :: HxcSqrD(:,:,:,:)
 
     !> Hartree-XC kernel with half dense form with same spin part
-    real(dp), intent(in) :: HxcHalfS(:,:)
+    real(dp), allocatable, intent(in) :: HxcHalfS(:,:)
 
     !> Hartree-XC kernel with half dense form with different spin part
-    real(dp), intent(in) :: HxcHalfD(:,:)
+    real(dp), allocatable, intent(in) :: HxcHalfD(:,:)
 
     !> Hartree-XC kernel with sparse form with same spin part
-    real(dp), intent(in) :: HxcSpS(:,:)
+    real(dp), allocatable, intent(in) :: HxcSpS(:,:)
 
     !> Hartree-XC kernel with sparse form with different spin part
-    real(dp), intent(in) :: HxcSpD(:,:)
+    real(dp), allocatable, intent(in) :: HxcSpD(:,:)
 
     !> Dense overlap matrix
     real(dp), intent(in) :: overSqr(:,:)
@@ -1453,7 +1455,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: SpinAO(:,:)
 
     !> long-range gamma integrals in AO basis
-    real(dp), intent(in) :: LrGammaAO(:,:)
+    real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
     !> Ordering between RmatL and fillingL
     integer, intent(in) :: orderRmatL(:)
@@ -2145,7 +2147,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: overSqr(:,:)
 
     !> Dense delta density matrix for each microstate
-    real(dp), intent(in) :: deltaRhoSqrL(:,:,:,:)
+    real(dp), allocatable, intent(in) :: deltaRhoSqrL(:,:,:,:)
 
     !> Mulliken population for each microstate
     real(dp), intent(in) :: qOutputL(:,:,:,:)
@@ -2164,36 +2166,36 @@ module dftbp_reksgrad
     real(dp), intent(in) :: SpinAO(:,:)
 
     !> long-range gamma integrals in AO basis
-    real(dp), intent(in) :: LrGammaAO(:,:)
+    real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
     !> long-range gamma derivative integrals
-    real(dp), intent(in) :: LrGammaDeriv(:,:,:)
+    real(dp), allocatable, intent(in) :: LrGammaDeriv(:,:,:)
 
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(in) :: RmatL(:,:,:,:)
 
     !> auxiliary matrix in AO basis related to state-interaction term
-    real(dp), intent(in) :: RdelL(:,:,:,:)
+    real(dp), allocatable, intent(in) :: RdelL(:,:,:,:)
 
     !> auxiliary matrix in AO basis related to state-interaction term
-    real(dp), intent(in) :: tmpRL(:,:,:,:)
+    real(dp), allocatable, intent(in) :: tmpRL(:,:,:,:)
 
     !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
 
 
     !> coordinates and charges of external point charges
-    real(dp), intent(in) :: extCharges(:,:)
+    real(dp), allocatable, intent(in) :: extCharges(:,:)
 
     !> Width of the Gaussians if the charges are blurred
-    real(dp), intent(in) :: blurWidths(:)
+    real(dp), allocatable, intent(in) :: blurWidths(:)
 
     !> real lattice points for Ewald-sum
-    real(dp), intent(in) :: rVec(:,:)
+    real(dp), allocatable, intent(in) :: rVec(:,:)
 
     !> lattice points for reciprocal Ewald
-    real(dp), intent(in) :: gVec(:,:)
+    real(dp), allocatable, intent(in) :: gVec(:,:)
 
     !> parameter for Ewald
     real(dp), intent(in) :: alpha
@@ -2238,10 +2240,10 @@ module dftbp_reksgrad
 
 
     !> gradient of SA-REKS state
-    real(dp), intent(inout) :: SAgrad(:,:,:)
+    real(dp), allocatable, intent(inout) :: SAgrad(:,:,:)
 
     !> gradient of state-interaction term
-    real(dp), intent(inout) :: SIgrad(:,:,:)
+    real(dp), allocatable, intent(inout) :: SIgrad(:,:,:)
 
     !> gradient of SSR state
     real(dp), intent(inout) :: SSRgrad(:,:,:)
@@ -2637,13 +2639,13 @@ module dftbp_reksgrad
     real(dp), intent(in) :: pcCharges(:)
 
     !> Width of the Gaussians if the charges are blurred
-    real(dp), intent(in) :: blurWidths(:)
+    real(dp), allocatable, intent(in) :: blurWidths(:)
 
     !> real lattice points for Ewald-sum
-    real(dp), intent(in) :: rVec(:,:)
+    real(dp), allocatable, intent(in) :: rVec(:,:)
 
     !> lattice points for reciprocal Ewald
-    real(dp), intent(in) :: gVec(:,:)
+    real(dp), allocatable, intent(in) :: gVec(:,:)
 
     !> parameter for Ewald
     real(dp), intent(in) :: alpha
@@ -2729,16 +2731,16 @@ module dftbp_reksgrad
     real(dp), intent(in) :: SpinAO(:,:)
 
     !> long-range gamma integrals in AO basis
-    real(dp), intent(in) :: LrGammaAO(:,:)
+    real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
 
     !> Hartree-XC kernel with dense form with same spin part
-    real(dp), intent(out) :: HxcSqrS(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: HxcSqrS(:,:,:,:)
 
     !> Hartree-XC kernel with dense form with different spin part
-    real(dp), intent(out) :: HxcSqrD(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: HxcSqrD(:,:,:,:)
 
     ! common variables
     integer :: nOrb, mu, nu, tau, gam
@@ -2832,10 +2834,10 @@ module dftbp_reksgrad
     logical, intent(in) :: tRangeSep
 
     !> Hartree-XC kernel with half dense form with same spin part
-    real(dp), intent(out) :: HxcHalfS(:,:)
+    real(dp), allocatable, intent(inout) :: HxcHalfS(:,:)
 
     !> Hartree-XC kernel with half dense form with different spin part
-    real(dp), intent(out) :: HxcHalfD(:,:)
+    real(dp), allocatable, intent(inout) :: HxcHalfD(:,:)
 
     ! common variables
     real(dp) :: tmp22
@@ -2988,10 +2990,10 @@ module dftbp_reksgrad
     real(dp), intent(in) :: SpinAO(:,:)
 
     !> Hartree-XC kernel with sparse form with same spin part
-    real(dp), intent(out) :: HxcSpS(:,:)
+    real(dp), allocatable, intent(inout) :: HxcSpS(:,:)
 
     !> Hartree-XC kernel with sparse form with different spin part
-    real(dp), intent(out) :: HxcSpD(:,:)
+    real(dp), allocatable, intent(inout) :: HxcSpD(:,:)
 
     ! common variables
     integer :: sparseSize, ii, jj, mu, nu, tau, gam
@@ -3182,11 +3184,11 @@ module dftbp_reksgrad
     logical, intent(in) :: tSSR44
 
     !> super A hessian matrix with one-electron term in front of orbital derivatives
-    real(dp), intent(out) :: A1e(:,:)
+    real(dp), allocatable, intent(inout) :: A1e(:,:)
 
     !> preconditioner of super A hessian matrix with one-electron term in front of orbital
     !> derivatives
-    real(dp), intent(out) :: A1ePre(:,:)
+    real(dp), allocatable, intent(inout) :: A1ePre(:,:)
 
     real(dp) :: e1, e2
     integer :: nOrb, superN, Nv, superNhalf
@@ -3345,7 +3347,7 @@ module dftbp_reksgrad
     logical, intent(in) :: tSSR44
 
     !> super A hessian matrix in front of orbital derivatives
-    real(dp), intent(out) :: Aall(:,:)
+    real(dp), allocatable, intent(inout) :: Aall(:,:)
 
     real(dp), allocatable :: HxcTot(:,:,:,:)
     real(dp) :: e1, e2
@@ -4099,7 +4101,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: SpinAO(:,:)
 
     !> long-range gamma integrals in AO basis
-    real(dp), intent(in) :: LrGammaAO(:,:)
+    real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
     !> Dense overlap matrix
     real(dp), intent(in) :: overSqr(:,:)
@@ -4492,7 +4494,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: RmatSpL(:,:,:)
 
     !> auxiliary matrix in AO basis related to state-interaction term with sparse form
-    real(dp), intent(in) :: RdelSpL(:,:,:)
+    real(dp), allocatable, intent(in) :: RdelSpL(:,:,:)
 
     !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
@@ -4905,7 +4907,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: RmatHalfL(:,:,:)
 
     !> auxiliary matrix in AO basis related to state-interaction term with half dense form
-    real(dp), intent(in) :: RdelHalfL(:,:,:)
+    real(dp), allocatable, intent(in) :: RdelHalfL(:,:,:)
 
     !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
@@ -5199,10 +5201,10 @@ module dftbp_reksgrad
     real(dp), intent(in) :: RmatL(:,:,:,:)
 
     !> auxiliary matrix in AO basis related to state-interaction term
-    real(dp), intent(in) :: RdelL(:,:,:,:)
+    real(dp), allocatable, intent(in) :: RdelL(:,:,:,:)
 
     !> auxiliary matrix in AO basis related to state-interaction term
-    real(dp), intent(in) :: tmpRL(:,:,:,:)
+    real(dp), allocatable, intent(in) :: tmpRL(:,:,:,:)
 
     !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
@@ -5399,13 +5401,13 @@ module dftbp_reksgrad
     real(dp), intent(in) :: extCharges(:,:)
 
     !> Width of the Gaussians if the charges are blurred
-    real(dp), intent(in) :: blurWidths(:)
+    real(dp), allocatable, intent(in) :: blurWidths(:)
 
     !> real lattice points for Ewald-sum
-    real(dp), intent(in) :: rVec(:,:)
+    real(dp), allocatable, intent(in) :: rVec(:,:)
 
     !> lattice points for reciprocal Ewald
-    real(dp), intent(in) :: gVec(:,:)
+    real(dp), allocatable, intent(in) :: gVec(:,:)
 
     !> parameter for Ewald
     real(dp), intent(in) :: alpha
@@ -5558,13 +5560,13 @@ module dftbp_reksgrad
         real(dp), intent(in) :: pcCharges(:)
 
         !> Width of the Gaussians if the charges are blurred
-        real(dp), intent(in) :: blurWidths(:)
+        real(dp), allocatable, intent(in) :: blurWidths(:)
 
         !> real lattice points for Ewald-sum
-        real(dp), intent(in) :: rVec(:,:)
+        real(dp), allocatable, intent(in) :: rVec(:,:)
 
         !> lattice points for reciprocal Ewald
-        real(dp), intent(in) :: gVec(:,:)
+        real(dp), allocatable, intent(in) :: gVec(:,:)
 
         !> parameter for Ewald
         real(dp), intent(in) :: alpha

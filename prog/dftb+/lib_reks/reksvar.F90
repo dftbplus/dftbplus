@@ -550,10 +550,10 @@ module dftbp_reksvar
     integer, intent(in) :: nChrgs
 
     !> coordinates and charges of external point charges
-    real(dp), intent(in) :: extChrg(:,:)
+    real(dp), allocatable, intent(in) :: extChrg(:,:)
 
     !> Width of the Gaussians if the charges are blurred
-    real(dp), intent(in), allocatable :: blurWidths(:)
+    real(dp), allocatable, intent(in) :: blurWidths(:)
 
     !> Third order DFTB
     logical, intent(in) :: t3rd

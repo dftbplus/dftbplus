@@ -774,7 +774,7 @@ contains
           & qiBlockIn, iEqBlockOnSite, iEqBlockOnSiteLS)
     end if
 
-    if (tDipole) then
+    if (tDipole .and. .not.allocated(reks)) then
       call getDipoleMoment(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
     #:call DEBUG_CODE
       call checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
@@ -1323,7 +1323,7 @@ contains
       call thirdOrd%updateCoords(neighbourList, species)
     end if
     if (allocated(rangeSep)) then
-       call rangeSep%updateCoords(coord0)
+      call rangeSep%updateCoords(coord0)
     end if
 
 
@@ -6621,7 +6621,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> spin constants
-    real(dp), intent(in), allocatable :: spinW(:,:,:)
+    real(dp), intent(in) :: spinW(:,:,:)
 
     !> unit cell volume
     real(dp), intent(in) :: cellVol
@@ -6645,7 +6645,7 @@ contains
     type(TRangeSepFunc), intent(inout) :: rangeSep
 
     !> Nr. of neighbours for each atom in the long-range functional.
-    integer, intent(in) :: nNeighbourLC(:)
+    integer, allocatable, intent(in) :: nNeighbourLC(:)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
@@ -6767,7 +6767,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     !> spin constants
-    real(dp), intent(in), allocatable :: spinW(:,:,:)
+    real(dp), intent(in) :: spinW(:,:,:)
 
     !> third order SCC interactions
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
@@ -6965,7 +6965,7 @@ contains
     type(TReksCalc), intent(inout) :: reks
 
     !> spin up part of long-range corrected energy
-    real(dp), intent(in) :: tmpEn(:)
+    real(dp), allocatable, intent(in) :: tmpEn(:)
 
     !> Size of the sparse overlap
     integer, intent(in) :: sparseSize
@@ -7400,7 +7400,7 @@ contains
     logical, intent(in) :: tDipole
 
     !> resulting dipole moment
-    real(dp), intent(out) :: dipoleMoment(:)
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks

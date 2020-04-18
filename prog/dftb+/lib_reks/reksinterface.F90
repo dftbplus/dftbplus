@@ -68,7 +68,7 @@ module dftbp_reksinterface
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> dispersion interactions
-    class(TDispersionIface), intent(inout), allocatable :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> neighbours to atoms
     type(TNeighbourList), intent(in) :: neighbourList
@@ -116,7 +116,7 @@ module dftbp_reksinterface
     real(dp), intent(in) :: eigenvecs(:,:,:)
 
     !> forces on external charges
-    real(dp), intent(inout) :: chrgForces(:,:)
+    real(dp), allocatable, intent(inout) :: chrgForces(:,:)
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
@@ -355,10 +355,10 @@ module dftbp_reksinterface
     logical, intent(in) :: tDipole
 
     !> resulting dipole moment
-    real(dp), intent(out) :: dipoleMoment(:)
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:)
 
     !> forces on external charges
-    real(dp), intent(inout) :: chrgForces(:,:)
+    real(dp), allocatable, intent(inout) :: chrgForces(:,:)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
@@ -482,7 +482,7 @@ module dftbp_reksinterface
     type(TOrbitals), intent(in) :: orb
 
     !> dispersion interactions
-    class(TDispersionIface), intent(inout), allocatable :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> coordinates of all atoms
     real(dp), intent(in) :: coord(:,:)
@@ -656,13 +656,13 @@ module dftbp_reksinterface
     real(dp), intent(in) :: q0(:,:,:)
 
     !> dispersion interactions
-    class(TDispersionIface), intent(inout), allocatable :: dispersion
+    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> forces on external charges
-    real(dp), intent(inout) :: chrgForces(:,:)
+    real(dp), allocatable, intent(inout) :: chrgForces(:,:)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -1225,7 +1225,7 @@ module dftbp_reksinterface
     real(dp), intent(in) :: coord(:,:)
 
     !> resulting dipole moment
-    real(dp), intent(out) :: dipoleMoment(:)
+    real(dp), intent(inout) :: dipoleMoment(:)
 
     !> atoms in the central cell (or device region if transport)
     integer, intent(in) :: iAtInCentralRegion(:)

@@ -628,10 +628,10 @@ module dftbp_reksen
     real(dp), intent(out) :: Fa(:,:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(inout) :: hamSqrL(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), intent(in) :: hamSpL(:,:,:)
+    real(dp), allocatable, intent(in) :: hamSpL(:,:,:)
 
     !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
@@ -679,7 +679,7 @@ module dftbp_reksen
         call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
       end if
 
-      ! compute the Fock operator with core, r, s orbitals in AO basis
+      ! compute the Fock operator with core, a, b orbitals in AO basis
       if (tRangeSep) then
         call fockFcAO_(hamSqrL(:,:,1,iL), weight, Lpaired, iL, Fc)
         call fockFaAO_(hamSqrL(:,:,1,iL), weight, fillingL, orbFON, &
@@ -967,10 +967,10 @@ module dftbp_reksen
     real(dp), intent(in) :: eigenvecs(:,:)
 
     !> Dense Hamiltonian matrix for each microstate
-    real(dp), intent(inout) :: hamSqrL(:,:,:,:)
+    real(dp), allocatable, intent(inout) :: hamSqrL(:,:,:,:)
 
     !> Sparse Hamiltonian matrix for each microstate
-    real(dp), intent(inout) :: hamSpL(:,:,:)
+    real(dp), allocatable, intent(in) :: hamSpL(:,:,:)
 
     !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)

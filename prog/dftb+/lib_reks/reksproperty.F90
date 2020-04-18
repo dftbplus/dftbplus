@@ -85,7 +85,7 @@ module dftbp_reksproperty
     real(dp), intent(out) :: unrelRhoSqr(:,:)
 
     !> unrelaxed transition density matrix between SSR or SA-REKS states
-    real(dp), intent(out) :: unrelTdm(:,:,:)
+    real(dp), allocatable, intent(inout) :: unrelTdm(:,:,:)
 
     real(dp), allocatable :: rhoX(:,:,:)
     real(dp), allocatable :: rhoXdel(:,:,:)
@@ -261,7 +261,7 @@ module dftbp_reksproperty
     real(dp), intent(in) :: SAweight(:)
 
     !> state-interaction term used in SSR gradients
-    real(dp), intent(in) :: Rab(:,:)
+    real(dp), allocatable, intent(in) :: Rab(:,:)
 
     !> constant calculated from hessian and energy of microstates
     real(dp), intent(in) :: G1

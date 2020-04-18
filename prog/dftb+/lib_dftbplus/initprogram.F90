@@ -2630,7 +2630,6 @@ contains
         & newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal,&
         & rhoSqrReal, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
-
     if (allocated(reks)) then
       call checkReksConsistency(input%ctrl%reksIni, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
           & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
@@ -4660,7 +4659,7 @@ contains
     type(TReksIni), intent(in) :: reksIni
 
     !> Correction to energy from on-site matrix elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
 
     !> K-points
     real(dp), intent(in) :: kPoint(:,:)
@@ -4768,10 +4767,10 @@ contains
     real(dp), intent(in) :: nEl(:)
 
     !> coordinates and charges of external point charges
-    real(dp), intent(in) :: extChrg(:,:)
+    real(dp), allocatable, intent(in) :: extChrg(:,:)
 
     !> Width of the Gaussians if the charges are blurred
-    real(dp), intent(in), allocatable :: blurWidths(:)
+    real(dp), allocatable, intent(in) :: blurWidths(:)
 
     !> Hamiltonian type
     integer, intent(in) :: hamiltonianType

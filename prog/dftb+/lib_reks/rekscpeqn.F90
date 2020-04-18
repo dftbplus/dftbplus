@@ -68,29 +68,29 @@ module dftbp_rekscpeqn
     real(dp), intent(in) :: XT(:)
 
     !> super A hessian matrix with one-electron term in front of orbital derivatives
-    real(dp), intent(in) :: A1e(:,:)
+    real(dp), allocatable, intent(in) :: A1e(:,:)
 
     !> preconditioner of super A hessian matrix with one-electron term in front of orbital
     !> derivatives
-    real(dp), intent(in) :: A1ePre(:,:)
+    real(dp), allocatable, intent(in) :: A1ePre(:,:)
 
     !> Hartree-XC kernel with dense form with same spin part
-    real(dp), intent(in) :: HxcSqrS(:,:,:,:)
+    real(dp), allocatable, intent(in) :: HxcSqrS(:,:,:,:)
 
     !> Hartree-XC kernel with dense form with different spin part
-    real(dp), intent(in) :: HxcSqrD(:,:,:,:)
+    real(dp), allocatable, intent(in) :: HxcSqrD(:,:,:,:)
 
     !> Hartree-XC kernel with half dense form with same spin part
-    real(dp), intent(in) :: HxcHalfS(:,:)
+    real(dp), allocatable, intent(in) :: HxcHalfS(:,:)
 
     !> Hartree-XC kernel with half dense form with different spin part
-    real(dp), intent(in) :: HxcHalfD(:,:)
+    real(dp), allocatable, intent(in) :: HxcHalfD(:,:)
 
     !> Hartree-XC kernel with sparse form with same spin part
-    real(dp), intent(in) :: HxcSpS(:,:)
+    real(dp), allocatable, intent(in) :: HxcSpS(:,:)
 
     !> Hartree-XC kernel with sparse form with different spin part
-    real(dp), intent(in) :: HxcSpD(:,:)
+    real(dp), allocatable, intent(in) :: HxcSpD(:,:)
 
 
     !> dense fock matrix for core orbitals
@@ -119,7 +119,7 @@ module dftbp_rekscpeqn
     real(dp), intent(in) :: SpinAO(:,:)
 
     !> long-range gamma integrals in AO basis
-    real(dp), intent(in) :: LrGammaAO(:,:)
+    real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
 
     !> Dense overlap matrix
