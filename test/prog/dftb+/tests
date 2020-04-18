@@ -125,6 +125,8 @@ scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
+solvation/gb_ionpair                   #? MPI_PROCS <= 1
+
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/NO                             #? WITH_ARPACK and MPI_PROCS <= 1
@@ -251,6 +253,7 @@ analysis/Ga4As4_ESP                    #? MPI_PROCS <= 2
 md/Si_8-thermostat                     #? MPI_PROCS <= 1
 md/ptcda-xlbomdfast-ldep               #? MPI_PROCS <= 4
 md/Si_8-tempprofile                    #? MPI_PROCS <= 1
+md/Si_8-tempprofile0                   #? MPI_PROCS <= 1
 md/Vsi+O-plumed                        #? WITH_PLUMED and MPI_PROCS <= 4
 
 dispersion/DNA_dftd3_bj                #? WITH_DFTD3 and MPI_PROCS <= 4
