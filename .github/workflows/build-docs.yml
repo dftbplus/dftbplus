@@ -1,6 +1,12 @@
 name: docs
 
-on: [push, pull_request]
+on:
+  push:
+    paths:
+      - 'doc/manual/**'
+  pull_request:
+    paths:
+      - 'doc/manual/**'
 
 jobs:
   build:
@@ -9,10 +15,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - uses: dante-ev/latex-action@v0.2.0
-      with:
-        root_file: manual.tex
-        working_directory: doc/dftb+/manual
+    - name: "Install dependencies"
+      run: sudo apt install -yq --no-install-recommends texlive-latex-extra texlive-science
+    - name: "Build manual"
+      run: make -C doc/dftb+/manual
     - uses: actions/upload-artifact@v1
       if: ${{ github.repository == 'dftbplus/dftbplus' && github.event_name == 'push' }}
       with:
