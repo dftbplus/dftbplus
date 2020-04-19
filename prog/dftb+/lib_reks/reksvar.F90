@@ -690,8 +690,6 @@ module dftbp_reksvar
 
     ! Allocate REKS variables
 
-    allocate(self%Tuning(nType))
-
     ! REKS: energy variables
 
     allocate(self%getAtomIndex(nOrb))
@@ -881,137 +879,137 @@ module dftbp_reksvar
 
     ! REKS: energy variables
 
-    self%getAtomIndex = 0
-    self%getDenseAO = 0
-    self%getDenseAtom = 0
+    self%getAtomIndex(:) = 0
+    self%getDenseAO(:,:) = 0
+    self%getDenseAtom(:,:) = 0
 
-    self%overSqr = 0.0_dp
-    self%fillingL = 0.0_dp
+    self%overSqr(:,:) = 0.0_dp
+    self%fillingL(:,:,:) = 0.0_dp
 
     if (self%tForces) then
-      self%rhoSqrL = 0.0_dp
+      self%rhoSqrL(:,:,:,:) = 0.0_dp
     else
-      self%rhoSpL = 0.0_dp
+      self%rhoSpL(:,:,:) = 0.0_dp
     end if
 
     if (self%tRangeSep) then
-      self%deltaRhoSqrL = 0.0_dp
+      self%deltaRhoSqrL(:,:,:,:) = 0.0_dp
     end if
 
-    self%qOutputL = 0.0_dp
-    self%chargePerShellL = 0.0_dp
+    self%qOutputL(:,:,:,:) = 0.0_dp
+    self%chargePerShellL(:,:,:,:) = 0.0_dp
 
-    self%intAtom = 0.0_dp
-    self%intShellL = 0.0_dp
-    self%intBlockL = 0.0_dp
+    self%intAtom(:,:) = 0.0_dp
+    self%intShellL(:,:,:,:) = 0.0_dp
+    self%intBlockL(:,:,:,:,:) = 0.0_dp
 
     if (self%tRangeSep) then
-      self%hamSqrL = 0.0_dp
+      self%hamSqrL(:,:,:,:) = 0.0_dp
     else
-      self%hamSpL = 0.0_dp
+      self%hamSpL(:,:,:) = 0.0_dp
     end if
 
-    self%weightL = 0.0_dp
-    self%weight = 0.0_dp
+    self%weightL(:,:) = 0.0_dp
+    self%weight(:) = 0.0_dp
 
-    self%FONs = 0.0_dp
-    self%energy = 0.0_dp
+    self%FONs(:,:) = 0.0_dp
+    self%energy(:) = 0.0_dp
 
-    self%enLnonSCC = 0.0_dp
-    self%enLSCC = 0.0_dp
-    self%enLspin = 0.0_dp
+    self%enLnonSCC(:) = 0.0_dp
+    self%enLSCC(:) = 0.0_dp
+    self%enLspin(:) = 0.0_dp
 
     if (self%t3rd) then
-      self%enL3rd = 0.0_dp
+      self%enL3rd(:) = 0.0_dp
     end if
 
     if (self%tRangeSep) then
-      self%enLfock = 0.0_dp
+      self%enLfock(:) = 0.0_dp
     end if
 
-    self%enLtot = 0.0_dp
+    self%enLtot(:) = 0.0_dp
 
-    self%fockFc = 0.0_dp
-    self%fockFa = 0.0_dp
-    self%fock = 0.0_dp
+    self%fockFc(:,:) = 0.0_dp
+    self%fockFa(:,:,:) = 0.0_dp
+    self%fock(:,:) = 0.0_dp
 
-    self%eigvecsFock = 0.0_dp
-    self%eigvecsSSR = 0.0_dp
+    self%eigvecsFock(:,:) = 0.0_dp
+    self%eigvecsSSR(:,:) = 0.0_dp
 
     ! REKS: gradient variables
 
     if (self%tForces) then
 
-      self%Hderiv = 0.0_dp
-      self%Sderiv = 0.0_dp
-      self%edmSpL = 0.0_dp
-      self%gradL = 0.0_dp
+      self%Hderiv(:,:,:) = 0.0_dp
+      self%Sderiv(:,:,:) = 0.0_dp
+      self%edmSpL(:,:) = 0.0_dp
+      self%gradL(:,:,:) = 0.0_dp
 
       if (self%Efunction > 1) then
 
-        self%GammaAO = 0.0_dp
-        self%GammaDeriv = 0.0_dp
-        self%SpinAO = 0.0_dp
+        self%GammaAO(:,:) = 0.0_dp
+        self%GammaDeriv(:,:,:) = 0.0_dp
+        self%SpinAO(:,:) = 0.0_dp
 
         if (self%tRangeSep) then
-          self%LrGammaAO = 0.0_dp
-          self%LrGammaDeriv = 0.0_dp
+          self%LrGammaAO(:,:) = 0.0_dp
+          self%LrGammaDeriv(:,:,:) = 0.0_dp
         end if
 
-        self%weightIL = 0.0_dp
-        self%omega = 0.0_dp
+        self%weightIL(:) = 0.0_dp
+        self%omega(:) = 0.0_dp
         if (self%useSSR == 1) then
-          self%Rab = 0.0_dp
+          self%Rab(:,:) = 0.0_dp
         end if
 
         if (self%Glevel == 1 .or. self%Glevel == 2) then
           if (self%Mlevel == 1) then
             if (self%tRangeSep) then
-              self%HxcHalfS = 0.0_dp
-              self%HxcHalfD = 0.0_dp
+              self%HxcHalfS(:,:) = 0.0_dp
+              self%HxcHalfD(:,:) = 0.0_dp
             else
-              self%HxcSpS = 0.0_dp
-              self%HxcSpD = 0.0_dp
+              self%HxcSpS(:,:) = 0.0_dp
+              self%HxcSpD(:,:) = 0.0_dp
             end if
-            self%A1e = 0.0_dp
-            self%A1ePre = 0.0_dp
+            self%A1e(:,:) = 0.0_dp
+            self%A1ePre(:,:) = 0.0_dp
           end if
         else if (self%Glevel == 3) then
-          self%HxcSqrS = 0.0_dp
-          self%HxcSqrD = 0.0_dp
-          self%Aall = 0.0_dp
+          self%HxcSqrS(:,:,:,:) = 0.0_dp
+          self%HxcSqrD(:,:,:,:) = 0.0_dp
+          self%Aall(:,:) = 0.0_dp
         end if
 
         self%XT = 0.0_dp
         if (self%useSSR == 1) then
-          self%XTdel = 0.0_dp
-          self%RdelL = 0.0_dp
-          self%ZdelL = 0.0_dp
-          self%Q1del = 0.0_dp
-          self%Q2del = 0.0_dp
+          self%XTdel(:,:) = 0.0_dp
+          self%RdelL(:,:,:,:) = 0.0_dp
+          self%ZdelL(:,:,:) = 0.0_dp
+          self%Q1del(:,:,:) = 0.0_dp
+          self%Q2del(:,:,:) = 0.0_dp
         end if
 
-        self%ZT = 0.0_dp
-        self%RmatL = 0.0_dp
-        self%ZmatL = 0.0_dp
-        self%Q1mat = 0.0_dp
-        self%Q2mat = 0.0_dp
+        self%ZT(:,:) = 0.0_dp
+        self%RmatL(:,:,:,:) = 0.0_dp
+        self%ZmatL(:,:,:) = 0.0_dp
+        self%Q1mat(:,:) = 0.0_dp
+        self%Q2mat(:,:) = 0.0_dp
 
         if (self%tNAC) then
-          self%ZTdel = 0.0_dp
-          self%tmpRL = 0.0_dp
+          self%ZTdel(:,:) = 0.0_dp
+          self%tmpRL(:,:,:,:) = 0.0_dp
         end if
 
-        self%SSRgrad = 0.0_dp
+        self%SSRgrad(:,:,:) = 0.0_dp
         if (self%tNAC) then
-          self%SAgrad = 0.0_dp
-          self%SIgrad = 0.0_dp
-          self%avgGrad = 0.0_dp
+          self%SAgrad(:,:,:) = 0.0_dp
+          self%SIgrad(:,:,:) = 0.0_dp
+          self%avgGrad(:,:) = 0.0_dp
         end if
 
         if (self%tNAC) then
-          self%nacG = 0.0_dp
-          self%nacH = 0.0_dp
+          self%nacG(:,:,:) = 0.0_dp
+          self%nacH(:,:,:) = 0.0_dp
         end if
 
       end if
@@ -1021,18 +1019,18 @@ module dftbp_reksvar
 
     ! REKS: relaxed density & transition dipole variables
 
-    self%unrelRhoSqr = 0.0_dp
+    self%unrelRhoSqr(:,:) = 0.0_dp
 
     if (self%tTDP .and. self%Lstate == 0) then
-      self%unrelTdm = 0.0_dp
+      self%unrelTdm(:,:,:) = 0.0_dp
     end if
 
     if (self%tRD) then
-      self%relRhoSqr = 0.0_dp
+      self%relRhoSqr(:,:) = 0.0_dp
     end if
 
     if (self%tTDP .and. self%Lstate == 0) then
-      self%tdp = 0.0_dp
+      self%tdp(:,:) = 0.0_dp
     end if
 
     if (self%tForces) then
@@ -1044,14 +1042,14 @@ module dftbp_reksvar
         ! Adapt to internal sign convention for potentials (electron has positive charge)
         self%extCharges(4,:) = -extChrg(4,:)
         if (self%tBlur) then
-          self%blurWidths = blurWidths
+          self%blurWidths(:) = blurWidths
         end if
       end if
 
       ! REKS: stress variables
 
       if (self%tStress) then
-        self%elecStressL = 0.0_dp
+        self%elecStressL(:,:,:) = 0.0_dp
       end if
 
     end if
@@ -1061,8 +1059,7 @@ module dftbp_reksvar
 
     self%SAweight(:) = 1.0_dp / real(self%SAstates, dp)
 
-    self%Tuning(:) = ini%Tuning(:)
-    deallocate(ini%Tuning)
+    call move_alloc(ini%Tuning, self%Tuning)
 
     ! Scale up or down the atomic spin constants w.r.t. the systems
     ! iAt : loop for atomic species
