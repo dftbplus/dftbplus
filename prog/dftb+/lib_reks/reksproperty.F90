@@ -727,7 +727,7 @@ module dftbp_reksproperty
     do mu = 1, nOrb
       do nu = 1, nOrb
         resTdm(nu,mu,1) = resTdm(nu,mu,1) + SAweight(1) * &
-            & ( (n_a-1.0_dp)*dsqrt(n_a) - (n_b-1.0_dp)*dsqrt(n_b) ) * &
+            & ( (n_a-1.0_dp)*sqrt(n_a) - (n_b-1.0_dp)*sqrt(n_b) ) * &
             & eigenvecs(mu,a) * eigenvecs(nu,b)
         resTdm(nu,mu,1) = resTdm(nu,mu,1) - 2.0_dp * G1 * &
             & Rab(1,2) * ( eigenvecs(mu,a) * eigenvecs(nu,a) - &
@@ -738,7 +738,7 @@ module dftbp_reksproperty
       do mu = 1, nOrb
         do nu = 1, nOrb
           resTdm(nu,mu,3) = resTdm(nu,mu,3) + SAweight(1) * &
-              & ( (n_a-1.0_dp)*dsqrt(n_a) + (n_b-1.0_dp)*dsqrt(n_b) ) * &
+              & ( (n_a-1.0_dp)*sqrt(n_a) + (n_b-1.0_dp)*sqrt(n_b) ) * &
               & eigenvecs(mu,a) * eigenvecs(nu,b)
           resTdm(nu,mu,3) = resTdm(nu,mu,3) - 2.0_dp * G1 * &
               & Rab(2,3) * ( eigenvecs(mu,a) * eigenvecs(nu,a) - &
