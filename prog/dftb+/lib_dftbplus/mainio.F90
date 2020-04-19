@@ -4902,7 +4902,7 @@ contains
 
     integer :: ii
 
-    write(*,'(A18,I1,A12)',advance="no") " relaxed FONs for ", &
+    write(stdOut,'(A18,I1,A12)',advance="no") " relaxed FONs for ", &
         & Lstate, " microstate:"
     do ii = 1, Na
       if (ii == Na) then

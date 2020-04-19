@@ -615,7 +615,7 @@ module dftbp_reksproperty
     integer, intent(in) :: Nc
 
     !> temporary average filling for SA-REKS state
-    real(dp), intent(out) :: tmpFilling(:,:)
+    real(dp), intent(inout) :: tmpFilling(:,:)
 
     real(dp) :: n_a, n_b
     integer :: a, b, nstates
@@ -670,17 +670,18 @@ module dftbp_reksproperty
     a = Nc + 1
     b = Nc + 2
 
+    rhoXdel(:,:,:) = 0.0_dp
     do mu = 1, nOrb
       do nu = 1, nOrb
         rhoXdel(nu,mu,1) = eigenvecs(mu,a)*eigenvecs(nu,b) * &
-            & (dsqrt(n_a) - dsqrt(n_b))
+            & (sqrt(n_a) - sqrt(n_b))
       end do
     end do
     if (nstates == 3) then
       do mu = 1, nOrb
         do nu = 1, nOrb
           rhoXdel(nu,mu,3) = eigenvecs(mu,a)*eigenvecs(nu,b) * &
-              & (dsqrt(n_a) + dsqrt(n_b))
+              & (sqrt(n_a) + sqrt(n_b))
         end do
       end do
     end if
@@ -712,7 +713,7 @@ module dftbp_reksproperty
 
     !> a part of transition density matrix originating from the
     !> response of the orbital occupation numbers
-    real(dp), intent(out) :: resTdm(:,:,:)
+    real(dp), intent(inout) :: resTdm(:,:,:)
 
     real(dp) :: n_a, n_b
     integer :: mu, nu, nOrb, a, b, nstHalf
@@ -823,7 +824,7 @@ module dftbp_reksproperty
     integer, intent(in) :: Lpaired
 
     !> response part of relaxed density matrix for target L-th state
-    real(dp), intent(out) :: resRhoL(:,:)
+    real(dp), intent(inout) :: resRhoL(:,:)
 
     real(dp) :: tmpValue
     integer :: tmpL, iL, Lmax

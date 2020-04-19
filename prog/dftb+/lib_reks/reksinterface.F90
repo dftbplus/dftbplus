@@ -292,7 +292,9 @@ module dftbp_reksinterface
 
     end if
 
-    call setReksGradients_(derivs, self)
+    if (allocated(self%SSRgrad)) then
+      call setReksGradients_(derivs, self)
+    end if
     if (self%Plevel >= 1) then
       call printReksGradInfo(self, derivs)
     end if

@@ -906,7 +906,6 @@ module dftbp_reksgrad
       call buildAall_(eigenvecs, HxcSqrS, HxcSqrD, Fc, Fa, omega, &
           & fillingL, weight, SAweight, FONs, G1, Lpaired, Nc, &
           & Na, tSSR22, tSSR44, Aall)
-
     end if
 
   end subroutine getSuperAMatrix
@@ -2311,9 +2310,7 @@ module dftbp_reksgrad
     end if
 
     deriv1(:,:,:) = 0.0_dp
-    if (tNAC) then
-      deriv2(:,:,:) = 0.0_dp
-    end if
+    deriv2(:,:,:) = 0.0_dp
 
     ! scc, spin, and pc term with sparse R and T variables
     call getSccPcTerms_(sccCalc, Hderiv, Sderiv, rhoSqrL, overSqr, &
@@ -2426,6 +2423,7 @@ module dftbp_reksgrad
         real(dp), allocatable :: tmpMat(:,:)
         integer :: iAt1, iAt2, nOrb, LmaxR, mu, nu, iL
 
+        RmatSpL(:,:) = 0.0_dp
         nOrb = size(RmatL,dim=1)
         LmaxR = size(RmatL,dim=3)
 
@@ -3461,7 +3459,7 @@ module dftbp_reksgrad
     logical, intent(in) :: tSSR44
 
     !> total averaged H-XC kernel in MO basis
-    real(dp), intent(out) :: HxcTot(:,:,:,:)
+    real(dp), intent(inout) :: HxcTot(:,:,:,:)
 
     real(dp), allocatable :: tmpMat(:,:)
     real(dp), allocatable :: HxcSmo(:,:,:,:)
@@ -5630,7 +5628,7 @@ module dftbp_reksgrad
     integer, intent(in) :: mOrb
 
     !> gradient contribution from tr(Q*S)
-    real(dp), intent(out) :: deriv(:,:)
+    real(dp), intent(inout) :: deriv(:,:)
 
     real(dp), allocatable :: sqrQtmp(:,:)
     real(dp), allocatable :: sqrStmp(:,:,:)
@@ -5699,7 +5697,7 @@ module dftbp_reksgrad
     integer, intent(in) :: iAtom1, iAtom2
 
     !> temporary derivatives
-    real(dp), intent(out) :: deriv(:,:)
+    real(dp), intent(inout) :: deriv(:,:)
 
     real(dp) :: derivTmp(3)
     integer :: ii, iL, Lmax, tmpL
@@ -5749,7 +5747,7 @@ module dftbp_reksgrad
     integer, intent(in) :: iAtom1, iAtom2
 
     !> temporary derivatives
-    real(dp), intent(out) :: deriv(:,:)
+    real(dp), intent(inout) :: deriv(:,:)
 
     real(dp), allocatable :: sqrPtmp(:,:,:)
     real(dp), allocatable :: sqrRtmp(:,:,:)
@@ -5836,7 +5834,7 @@ module dftbp_reksgrad
     integer, intent(in) :: option
 
     !> temporary derivatives
-    real(dp), intent(out) :: deriv(:,:)
+    real(dp), intent(inout) :: deriv(:,:)
 
     real(dp), allocatable :: sqrPtmp1(:,:,:)
     real(dp), allocatable :: sqrPtmp2(:,:,:)
@@ -5924,7 +5922,7 @@ module dftbp_reksgrad
     integer, intent(in) :: iAtom1
 
     !> temporary derivatives
-    real(dp), intent(out) :: deriv(:,:)
+    real(dp), intent(inout) :: deriv(:,:)
 
     real(dp) :: derivTmp(3)
     integer :: ii, iL, Lmax, tmpL
