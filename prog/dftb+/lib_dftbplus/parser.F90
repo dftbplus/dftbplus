@@ -3583,6 +3583,9 @@ contains
     real(dp) :: temperature, shift, conv
     real(dp), allocatable :: vdwRadDefault(:)
     type(TSolventData) :: solvent
+    real(dp), parameter :: referenceDensity = kg__au/(1.0e10_dp*AA__Bohr)**3
+    real(dp), parameter :: referenceMolecularMass = amu__au
+    real(dp), parameter :: idealGasMolVolume = 24.79_dp
 
     if (geo%tPeriodic) then
       call detailedError(node, "Generalized Born model currently not available with PBCs")
@@ -3617,17 +3620,25 @@ contains
     call convertByMul(char(modifier), energyUnits, field, shift)
 
     ! temperature, influence depends on the reference state
-    !call getChildValue(node, "Temperature", temperature, 298.15_dp)
+    call getChildValue(node, "Temperature", temperature, 298.15_dp)
 
     ! reference state for free energy calculation
-    !call getChildValue(node, "State", state, "gsolv", child=child)
-    !select case(tolower(unquote(char(state))))
-    !case default
-    !  call detailedError(child, "Unknown reference state: '"//char(state)//"'")
-    !case("gsolv") ! just the bare shift
-    !  input%shift = shift
-    !end select
-    input%shift = shift
+    call getChildValue(node, "State", state, "gsolv", child=child)
+    select case(tolower(unquote(char(state))))
+    case default
+      call detailedError(child, "Unknown reference state: '"//char(state)//"'")
+    case("gsolv") ! just the bare shift
+      input%freeEnergyShift = shift
+    case("reference") ! gsolv=reference option in cosmotherm
+      ! RT * ln(ideal gas mol volume) + ln(rho/M)
+      input%freeEnergyShift = shift + temperature * Boltzmann &
+          & * (log(idealGasMolVolume * temperature / 298.15_dp) &
+          & + log(solvent%density/referenceDensity * referenceMolecularMass/solvent%molecularMass))
+    case("mol1bar")
+      ! RT * ln(ideal gas mol volume)
+      input%freeEnergyShift = shift + temperature * Boltzmann &
+          & * log(idealGasMolVolume * temperature / 298.15_dp)
+    end select
 
     call getChildValue(node, "BornScale", input%bornScale)
     call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)

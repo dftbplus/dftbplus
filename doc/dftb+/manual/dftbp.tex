@@ -3031,8 +3031,8 @@ systems.
 \begin{ptable}
   \kw{Solvent} & m & & & \\
   \kw{FreeEnergyShift} & r & & & \\
-  %\kw{Temperature} & r & & 298.15 & \\
-  %\kw{State} & s & & gsolv & \\
+  \kw{Temperature} & r & & 298.15 & \\
+  \kw{State} & s & & gsolv & \\
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
@@ -3048,14 +3048,20 @@ systems.
     \is{FromConstants\cb} requires the dielectric constant as real for \kw{Epsilon},
     the molecular mass in \kw{MolecularMass} \modif{\modtype{mass}} and the
     solvent density in \kw{Density} \modif{\modtype{massdensity}}.
+    \kw{MolecularMass} and \kw{Density} only affect the calculation if
+    ``reference'' is chosen as state of the solvent.
 
-  \item[\is{Shift}] \modif{\modtype{energy}} Shift for free energy calculations.
+  \item[\is{FreeEnergyShift}] \modif{\modtype{energy}} Shift for free energy
+    calculations.
 
-  %\item[\is{Temperature}] Temperature for free energy calculations. Default is
-    %ambient temperature: 298.15 K.
+  \item[\is{Temperature}] Temperature for free energy calculations. Default is
+    ambient temperature: 298.15 K.
+    Only affects the calculation for if ``reference'' or ``mol1bar'' is chosen
+    as state of the solvent.
 
-  %\item[\is{State}] Reference state for free energy calculations as string.
-    %Takes \is{gsolv} (default).
+  \item[\is{State}] Reference state of the solvent for free energy calculations.
+    The calculated state shift is added to the free energy shift.
+    Takes ``gsolv'' (default), ``reference'' or ``mol1bar''.
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
@@ -3086,7 +3092,7 @@ Example for CS2 as solvent:
 Hamiltonian = DFTB {
   Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
     Solvent = fromName { "cs2" }
-    Shift [kcal/mol] = 2.81072250
+    FreeEnergyShift [kcal/mol] = 2.81072250
     Radii = vanDerWaalsRadiiD3 [Bohr] {}
     Descreening = Values {
        H = 0.93699367
@@ -3096,7 +3102,7 @@ Hamiltonian = DFTB {
     }
     BornScale = 1.40636177
     BornOffset [Bohr] = 1.653719965215E-03
-    OBC = {1.00 0.80 4.85}
+    OBCCorrection = {1.00 0.80 4.85}
     Cutoff = 40
   }
 }
