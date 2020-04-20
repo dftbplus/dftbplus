@@ -2418,12 +2418,11 @@ module dftbp_reksgrad
         real(dp), intent(in) :: RmatL(:,:,:)
 
         !> auxiliary matrix in AO basis related to SA-REKS term with sparse form
-        real(dp), intent(out) :: RmatSpL(:,:)
+        real(dp), intent(inout) :: RmatSpL(:,:)
 
         real(dp), allocatable :: tmpMat(:,:)
         integer :: iAt1, iAt2, nOrb, LmaxR, mu, nu, iL
 
-        RmatSpL(:,:) = 0.0_dp
         nOrb = size(RmatL,dim=1)
         LmaxR = size(RmatL,dim=3)
 

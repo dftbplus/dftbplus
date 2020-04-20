@@ -658,7 +658,7 @@ module dftbp_reksproperty
     integer, intent(in) :: nstates
 
     !> unrelaxed transition density matrix between SA-REKS states
-    real(dp), intent(out) :: rhoXdel(:,:,:)
+    real(dp), intent(inout) :: rhoXdel(:,:,:)
 
     real(dp) :: n_a, n_b
     integer :: mu, nu, nOrb, a, b
@@ -670,7 +670,6 @@ module dftbp_reksproperty
     a = Nc + 1
     b = Nc + 2
 
-    rhoXdel(:,:,:) = 0.0_dp
     do mu = 1, nOrb
       do nu = 1, nOrb
         rhoXdel(nu,mu,1) = eigenvecs(mu,a)*eigenvecs(nu,b) * &
