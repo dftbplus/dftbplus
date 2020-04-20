@@ -3049,7 +3049,7 @@ systems.
     the molecular mass in \kw{MolecularMass} \modif{\modtype{mass}} and the
     solvent density in \kw{Density} \modif{\modtype{massdensity}}.
     \kw{MolecularMass} and \kw{Density} only affect the calculation if
-    ``reference'' is chosen as state of the solvent.
+    ``reference'' is chosen as state of the solution.
 
   \item[\is{FreeEnergyShift}] \modif{\modtype{energy}} Shift for free energy
     calculations.
@@ -3057,11 +3057,16 @@ systems.
   \item[\is{Temperature}] Temperature for free energy calculations. Default is
     ambient temperature: 298.15 K.
     Only affects the calculation for if ``reference'' or ``mol1bar'' is chosen
-    as state of the solvent.
+    as state of the solution.
 
-  \item[\is{State}] Reference state of the solvent for free energy calculations.
+  \item[\is{State}] Reference state of the solution for free energy calculations.
     The calculated state shift is added to the free energy shift.
     Takes ``gsolv'' (default), ``reference'' or ``mol1bar''.
+    The reference state ``gsolv`` corresponds to 1\;l of ideal gas and 1\;l of
+    liquid  solution,
+    ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
+    solution at infinite dilution,
+    ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
