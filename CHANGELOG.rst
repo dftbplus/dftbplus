@@ -27,6 +27,8 @@ Added
 - The DFT-D4 dispersion model (see DOIs: 10.1063/1.4993215 10.1063/1.5090222
   10.26434/chemrxiv.10299428 )
 
+- Generalized Born implicit solvation model
+
 Changed
 -------
 
