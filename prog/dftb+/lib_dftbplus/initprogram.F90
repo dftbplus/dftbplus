@@ -2635,6 +2635,15 @@ contains
     end associate
   #:endif
 
+    if (allocated(reks)) then
+      call checkReksConsistency(input%ctrl%reksIni, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
+          & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+      ! here, nSpin changes to 2 for REKS
+      call TReksCalc_init(reks, input%ctrl%reksIni, electronicSolver, orb, spinW, nEl,&
+          & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
+          & nExtChrg, t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress, tDipole)
+    end if
+
     call initArrays(env, electronicSolver, tForces, tExtChrg, isLinResp, tLinRespZVect, tMd,&
         & tMulliken, tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS,&
         & tPrintExcitedEigvecs, tDipole, allocated(reks), orb, nAtom, nMovedAtom, nKPoint, nSpin,&
@@ -2642,15 +2651,6 @@ contains
         & derivs, chrgForces, energy, potential, TS, E0, Eband, eigen, filling, coord0Fold,&
         & newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal,&
         & rhoSqrReal, occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
-
-    if (allocated(reks)) then
-      call checkReksConsistency(input%ctrl%reksIni, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
-          & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
-      ! here, nSpin changes to 2 for REKS
-      call TReksCalc_init(reks, input%ctrl%reksIni, electronicSolver, orb, spinW, nEl,&
-          & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
-          & nExtChrg, t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress)
-    end if
 
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
@@ -4753,7 +4753,7 @@ contains
 
   subroutine TReksCalc_init(reks, reksIni, electronicSolver, orb, spinW, nEl,&
       & extChrg, blurWidths, hamiltonianType, nSpin, nExtChrg, is3rd, tRangeSep,&
-      & tForces, tPeriodic, tStress)
+      & tForces, tPeriodic, tStress, tDipole)
 
     !> data type for REKS
     type(TReksCalc), intent(out) :: reks
@@ -4803,6 +4803,9 @@ contains
     !> Can stress be calculated?
     logical, intent(in) :: tStress
 
+    !> calculate an electric dipole?
+    logical, intent(inout) :: tDipole
+
     ! Condition for Hamiltonian types
     select case(hamiltonianType)
     case default
@@ -4817,8 +4820,8 @@ contains
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-        call REKS_init(reks, reksIni, orb, spinW, nSpin, nEl(1), nExtChrg,&
-            & extChrg, blurWidths, is3rd, tRangeSep, tForces, tPeriodic, tStress)
+        call REKS_init(reks, reksIni, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
+            & blurWidths, is3rd, tRangeSep, tForces, tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
         call error("REKS is not compatible with density matrix ELSI-solvers")
       end select

@@ -525,8 +525,8 @@ module dftbp_reksvar
   contains
 
   !> Initialize REKS data from REKS input
-  subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl, nChrgs, &
-      & extChrg, blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress)
+  subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
+      & blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress, tDipole)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: self
@@ -569,6 +569,9 @@ module dftbp_reksvar
 
     !> Can stress be calculated?
     logical, intent(in) :: tStress
+
+    !> calculate an electric dipole?
+    logical, intent(inout) :: tDipole
 
     integer :: nOrb, mOrb, mShell, nOrbHalf
     integer :: nstates, SAstates, nstHalf
@@ -671,12 +674,14 @@ module dftbp_reksvar
     self%tPeriodic = tPeriodic
     self%tStress = tStress
     self%tExtChrg = (nChrgs > 0)
-    ! the standard 1.0e-7 is given in setExternalCharges routine of externalcharges.F90
+    ! The standard 1.0e-7 is given in setExternalCharges routine of externalcharges.F90
     if (allocated(blurWidths)) then
       self%tBlur = any(blurWidths > 1.0e-7_dp)
     else
       self%tBlur = .false.
     end if
+    ! Set tDipole is true when we compute the relaxed density for REKS
+    tDipole = (tDipole .and. self%tRD)
 
     ! Check REKS requirements
 
