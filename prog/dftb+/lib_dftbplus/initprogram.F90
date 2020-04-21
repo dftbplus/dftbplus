@@ -1767,19 +1767,14 @@ contains
     qShell0(:,:) = 0.0_dp
 
     ! Initialize reference neutral atoms.
-    if (isLinResp .and. allocated(input%ctrl%customOccAtoms)) then
-       call error("Custom occupation not compatible with linear response")
-    end if
-    if (tMulliken) then
-      if (allocated(input%ctrl%customOccAtoms)) then
-        if (isLinResp) then
-          call error("Custom occupation not compatible with linear response")
-        end if
-        call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
-            & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
-      else
-        call initQFromShellChrg(q0, referenceN0, species0, orb)
+    if (allocated(input%ctrl%customOccAtoms)) then
+      if (isLinResp) then
+        call error("Custom occupation not compatible with linear response")
       end if
+      call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
+          & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
+    else
+      call initQFromShellChrg(q0, referenceN0, species0, orb)
     end if
 
     nEl0 = sum(q0(:,:,1))
