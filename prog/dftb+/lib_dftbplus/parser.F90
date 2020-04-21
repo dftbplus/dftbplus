@@ -206,6 +206,10 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%ctrl)
 
+    call getChildValue(root, "Reks", dummy, "", child=child, list=.true., &
+        & allowEmptyValue=.true., dummyValue=.true.)
+    call readReks(child, input%ctrl, input%geom)
+
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readOptions(child, input%ctrl)
@@ -4658,7 +4662,7 @@ contains
       end select
     end if
 
-    if (tLRNeedsSpinConstants .or. ctrl%tSpin) then
+    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. ctrl%reksIni%tREKS) then
       allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 
@@ -6540,5 +6544,152 @@ contains
     end select
 
   end subroutine parseRangeSeparated
+
+
+  !> Reads the REKS block
+  subroutine readReks(node, ctrl, geo)
+
+    !> Node to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: child22, child44
+
+    ! SSR(2,2) or SSR(4,4) stuff
+    call getChild(node, "SSR22", child22, requested=.false.)
+    call getChild(node, "SSR44", child44, requested=.false.)
+
+    if (associated(child22)) then
+
+      ctrl%reksIni%tREKS = .true.
+      ctrl%reksIni%tSSR22 = .true.
+      call readSSR22(child22, ctrl, geo)
+
+    else if (associated(child44)) then
+
+      ctrl%reksIni%tREKS = .true.
+      ctrl%reksIni%tSSR44 = .true.
+      call detailedError(child44, "SSR(4,4) is not implemented yet.")
+
+    end if
+
+  end subroutine readReks
+
+
+  !> Reads the SSR(2,2) block
+  subroutine readSSR22(node, ctrl, geo)
+
+    !> Node to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Minimized energy functional; 1: PPS, 2: (PPS+OSS)/2
+    call getChildValue(node, "EnergyFunctional", ctrl%reksIni%Efunction, default=2)
+    !> Calculated energy states in SA-REKS
+    !> 1: calculate states included in 'EnergyFuncitonal'
+    !> 2: calculate all possible states
+    call getChildValue(node, "EnergyLevel", ctrl%reksIni%Elevel, default=1)
+    !> Calculate SSR state (SI term is included)
+    !> 1: calculate SSR state, 0: calculate SA-REKS state
+    call getChildValue(node, "UseSsrState", ctrl%reksIni%useSSR, default=1)
+
+    !> Target SSR state
+    call getChildValue(node, "TargetState", ctrl%reksIni%rstate, default=1)
+    !> Target microstate
+    call getChildValue(node, "TargetStateL", ctrl%reksIni%Lstate, default=0)
+
+    !> Initial guess for eigenvectors in REKS
+    !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
+    call getChildValue(node, "InitialGuess", ctrl%reksIni%guess, default=1)
+    !> Maximum iteration used in FON optimization
+    call getChildValue(node, "FonMaxIter", ctrl%reksIni%FonMaxIter, default=20)
+    !> Shift value in SCC cycle
+    call getChildValue(node, "Shift", ctrl%reksIni%shift, default=0.3_dp)
+
+    !> Read "SpinTuning" block with 'nType' elements
+    call readSpinTuning(node, ctrl, geo%nSpecies)
+
+    !> Calculate transition dipole moments
+    call getChildValue(node, "TransitionDipole", ctrl%reksIni%tTDP, default=.false.)
+
+    !> Algorithms to calculate analytic gradients
+    !> 1: preconditioned conjugate gradient (PCG)
+    !> 2: conjugate gradient (CG)
+    !> 3: direct inverse-matrix multiplication
+    call getChildValue(node, "GradientLevel", ctrl%reksIni%Glevel, default=1)
+    !> Maximum iteration used in calculation of gradient with PCG and CG
+    call getChildValue(node, "CGmaxIter", ctrl%reksIni%CGmaxIter, default=20)
+    !> Tolerance used in calculation of gradient with PCG and CG
+    call getChildValue(node, "GradientTolerance", ctrl%reksIni%Glimit, default=1.0E-8_dp)
+
+    !> Calculate relaxed density of SSR or SA-REKS state
+    call getChildValue(node, "RelaxedDensity", ctrl%reksIni%tRD, default=.false.)
+    !> Calculate nonadiabatic coupling vectors
+    call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksIni%tNAC, default=.false.)
+
+    !> Print level in standard output file
+    call getChildValue(node, "VerbosityLevel", ctrl%reksIni%Plevel, default=1)
+    !> Memory level used in calculation of gradient
+    call getChildValue(node, "MemoryLevel", ctrl%reksIni%Mlevel, default=2)
+
+  end subroutine readSSR22
+
+
+  !> Reads SpinTuning block in REKS input
+  subroutine readSpinTuning(node, ctrl, nType)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Number of types for atoms
+    integer, intent(in) :: nType
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer, modifier
+    type(TListRealR1) :: realBuffer
+    integer :: nAtom, iType
+    real(dp), allocatable :: tmpTuning(:,:)
+
+    call getChildValue(node, "SpinTuning", value1, "", child=child, &
+        & modifier=modifier, allowEmptyValue=.true.)
+    call getNodeName2(value1, buffer)
+    if (char(buffer) == "") then
+      ! no 'SpinTuning' block in REKS input
+      allocate(ctrl%reksIni%Tuning(nType))
+      do iType = 1, nType
+        ctrl%reksIni%Tuning(iType) = 1.0_dp
+      end do
+    else
+      ! 'SpinTuning' block in REKS input
+      call init(realBuffer)
+      call getChildValue(child, "", 1, realBuffer, modifier=modifier)
+      nAtom = len(realBuffer)
+      if (nAtom /= nType) then
+        call detailedError(node, "Incorrect number of 'SpinTuning' block: " &
+            & // i2c(nAtom) // " supplied, " &
+            & // i2c(nType) // " required.")
+      end if
+      allocate(tmpTuning(1,nAtom))
+      call asArray(realBuffer, tmpTuning)
+      call destruct(realBuffer)
+      allocate(ctrl%reksIni%Tuning(nType))
+      ctrl%reksIni%Tuning(:) = tmpTuning(1,:)
+    end if
+
+  end subroutine readSpinTuning
+
 
 end module dftbp_parser

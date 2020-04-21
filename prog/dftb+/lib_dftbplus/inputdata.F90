@@ -29,6 +29,7 @@ module dftbp_inputdata
 #:endif
   use dftbp_pmlocalisation, only : TPipekMezeyInp
   use dftbp_elstatpot, only : TElStatPotentialsInp
+  use dftbp_reks
   use dftbp_solvinput, only : TSolvationInp
 
 #:if WITH_TRANSPORT
@@ -493,6 +494,9 @@ module dftbp_inputdata
     ! Custom occupations
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
+
+    !> REKS input
+    type(TReksIni) :: reksIni
 
   end type TControl
 
