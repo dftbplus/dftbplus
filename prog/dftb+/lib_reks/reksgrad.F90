@@ -5389,7 +5389,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: RmatSpL(:,:,:)
 
     !> auxiliary matrix in AO basis related to state-interaction term with sparse form
-    real(dp), intent(in) :: RdelSpL(:,:,:)
+    real(dp), allocatable, intent(in) :: RdelSpL(:,:,:)
 
     !> Weight of each microstate for state to be optimized; weight = weightL * SAweight
     real(dp), intent(in) :: weight(:)
