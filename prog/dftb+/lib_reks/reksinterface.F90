@@ -290,11 +290,11 @@ module dftbp_reksinterface
         call getReksNACinfo_(tWriteTagged, autotestTag, taggedWriter, self)
       end if
 
+      ! set final gradient to derivs in SA-REKS or SSR case
+      call setReksGradients_(derivs, self)
+
     end if
 
-    if (allocated(self%SSRgrad)) then
-      call setReksGradients_(derivs, self)
-    end if
     if (self%Plevel >= 1) then
       call printReksGradInfo(self, derivs)
     end if
@@ -1151,12 +1151,10 @@ module dftbp_reksinterface
     real(dp), intent(out) :: derivs(:,:)
 
     ! when Efunc = 1, derivs is already defined in previous routine
-    if (self%Efunction /= 1) then
-      if (self%tNAC) then
-        derivs(:,:) = self%SSRgrad(:,:,self%rstate)
-      else
-        derivs(:,:) = self%SSRgrad(:,:,1)
-      end if
+    if (self%tNAC) then
+      derivs(:,:) = self%SSRgrad(:,:,self%rstate)
+    else
+      derivs(:,:) = self%SSRgrad(:,:,1)
     end if
 
   end subroutine setReksGradients_
