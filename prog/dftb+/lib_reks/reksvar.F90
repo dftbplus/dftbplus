@@ -23,10 +23,10 @@ module dftbp_reksvar
 
   private
 
-  public :: TReksIni, TReksCalc, REKS_init
+  public :: TReksInp, TReksCalc, REKS_init
 
   !> Data type for initial values for REKS calculations
-  type :: TReksIni
+  type :: TReksInp
 
     !> Is this DFTB/SSR formalism
     logical :: tREKS = .false.
@@ -108,7 +108,7 @@ module dftbp_reksvar
     !> 2: do not save 'A_1e' and 'Hxc' variables in memory
     integer :: Mlevel
 
-  end type TReksIni
+  end type TReksInp
 
   !> Data type for REKS internal settings
   type :: TReksCalc
@@ -532,7 +532,7 @@ module dftbp_reksvar
     type(TReksCalc), intent(out) :: self
 
     !> data type for REKS input
-    type(TReksIni), intent(inout) :: ini
+    type(TReksInp), intent(inout) :: ini
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb

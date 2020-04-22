@@ -1143,7 +1143,7 @@ contains
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
     nSpin = 1
-    if (input%ctrl%reksIni%tREKS) then
+    if (input%ctrl%reksInp%tREKS) then
       ! REKS follows spin-restricted open-shell scheme so nSpin should be two in the main code, but
       ! some variables such as qOutput should be treated in a restricted scheme. Here nSpin is set
       ! to one and changes to two later in the initialization.
@@ -2631,10 +2631,10 @@ contains
   #:endif
 
     if (allocated(reks)) then
-      call checkReksConsistency(input%ctrl%reksIni, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
+      call checkReksConsistency(input%ctrl%reksInp, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
           & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
       ! here, nSpin changes to 2 for REKS
-      call TReksCalc_init(reks, input%ctrl%reksIni, electronicSolver, orb, spinW, nEl,&
+      call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
           & nExtChrg, t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress, tDipole)
     end if
@@ -4654,11 +4654,11 @@ contains
   end subroutine initPlumed
 
 
-  subroutine checkReksConsistency(reksIni, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
+  subroutine checkReksConsistency(reksInp, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
       & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
 
     !> data type for REKS input
-    type(TReksIni), intent(in) :: reksIni
+    type(TReksInp), intent(in) :: reksInp
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
@@ -4726,7 +4726,7 @@ contains
       end if
     end if
 
-    if (reksIni%Efunction /= 1 .and. tLatOpt) then
+    if (reksInp%Efunction /= 1 .and. tLatOpt) then
       call error("Lattice optimization is only possible&
           & with single-state REKS, not SA-REKS or SI-SA-REKS")
     end if
@@ -4746,7 +4746,7 @@ contains
   end subroutine checkReksConsistency
 
 
-  subroutine TReksCalc_init(reks, reksIni, electronicSolver, orb, spinW, nEl,&
+  subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl,&
       & extChrg, blurWidths, hamiltonianType, nSpin, nExtChrg, is3rd, tRangeSep,&
       & tForces, tPeriodic, tStress, tDipole)
 
@@ -4754,7 +4754,7 @@ contains
     type(TReksCalc), intent(out) :: reks
 
     !> data type for REKS input
-    type(TReksIni), intent(inout) :: reksIni
+    type(TReksInp), intent(inout) :: reksInp
 
     !> electronic solver for the system
     type(TElectronicSolver), intent(in) :: electronicSolver
@@ -4815,7 +4815,7 @@ contains
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-        call REKS_init(reks, reksIni, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
+        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
             & blurWidths, is3rd, tRangeSep, tForces, tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
         call error("REKS is not compatible with density matrix ELSI-solvers")

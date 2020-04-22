@@ -4662,7 +4662,7 @@ contains
       end select
     end if
 
-    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. ctrl%reksIni%tREKS) then
+    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. ctrl%reksInp%tREKS) then
       allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 
@@ -6566,14 +6566,14 @@ contains
 
     if (associated(child22)) then
 
-      ctrl%reksIni%tREKS = .true.
-      ctrl%reksIni%tSSR22 = .true.
+      ctrl%reksInp%tREKS = .true.
+      ctrl%reksInp%tSSR22 = .true.
       call readSSR22(child22, ctrl, geo)
 
     else if (associated(child44)) then
 
-      ctrl%reksIni%tREKS = .true.
-      ctrl%reksIni%tSSR44 = .true.
+      ctrl%reksInp%tREKS = .true.
+      ctrl%reksInp%tSSR44 = .true.
       call detailedError(child44, "SSR(4,4) is not implemented yet.")
 
     end if
@@ -6594,53 +6594,53 @@ contains
     type(TGeometry), intent(in) :: geo
 
     !> Minimized energy functional; 1: PPS, 2: (PPS+OSS)/2
-    call getChildValue(node, "EnergyFunctional", ctrl%reksIni%Efunction, default=2)
+    call getChildValue(node, "EnergyFunctional", ctrl%reksInp%Efunction, default=2)
     !> Calculated energy states in SA-REKS
     !> 1: calculate states included in 'EnergyFuncitonal'
     !> 2: calculate all possible states
-    call getChildValue(node, "EnergyLevel", ctrl%reksIni%Elevel, default=1)
+    call getChildValue(node, "EnergyLevel", ctrl%reksInp%Elevel, default=1)
     !> Calculate SSR state (SI term is included)
     !> 1: calculate SSR state, 0: calculate SA-REKS state
-    call getChildValue(node, "UseSsrState", ctrl%reksIni%useSSR, default=1)
+    call getChildValue(node, "UseSsrState", ctrl%reksInp%useSSR, default=1)
 
     !> Target SSR state
-    call getChildValue(node, "TargetState", ctrl%reksIni%rstate, default=1)
+    call getChildValue(node, "TargetState", ctrl%reksInp%rstate, default=1)
     !> Target microstate
-    call getChildValue(node, "TargetStateL", ctrl%reksIni%Lstate, default=0)
+    call getChildValue(node, "TargetStateL", ctrl%reksInp%Lstate, default=0)
 
     !> Initial guess for eigenvectors in REKS
     !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
-    call getChildValue(node, "InitialGuess", ctrl%reksIni%guess, default=1)
+    call getChildValue(node, "InitialGuess", ctrl%reksInp%guess, default=1)
     !> Maximum iteration used in FON optimization
-    call getChildValue(node, "FonMaxIter", ctrl%reksIni%FonMaxIter, default=20)
+    call getChildValue(node, "FonMaxIter", ctrl%reksInp%FonMaxIter, default=20)
     !> Shift value in SCC cycle
-    call getChildValue(node, "Shift", ctrl%reksIni%shift, default=0.3_dp)
+    call getChildValue(node, "Shift", ctrl%reksInp%shift, default=0.3_dp)
 
     !> Read "SpinTuning" block with 'nType' elements
     call readSpinTuning(node, ctrl, geo%nSpecies)
 
     !> Calculate transition dipole moments
-    call getChildValue(node, "TransitionDipole", ctrl%reksIni%tTDP, default=.false.)
+    call getChildValue(node, "TransitionDipole", ctrl%reksInp%tTDP, default=.false.)
 
     !> Algorithms to calculate analytic gradients
     !> 1: preconditioned conjugate gradient (PCG)
     !> 2: conjugate gradient (CG)
     !> 3: direct inverse-matrix multiplication
-    call getChildValue(node, "GradientLevel", ctrl%reksIni%Glevel, default=1)
+    call getChildValue(node, "GradientLevel", ctrl%reksInp%Glevel, default=1)
     !> Maximum iteration used in calculation of gradient with PCG and CG
-    call getChildValue(node, "CGmaxIter", ctrl%reksIni%CGmaxIter, default=20)
+    call getChildValue(node, "CGmaxIter", ctrl%reksInp%CGmaxIter, default=20)
     !> Tolerance used in calculation of gradient with PCG and CG
-    call getChildValue(node, "GradientTolerance", ctrl%reksIni%Glimit, default=1.0E-8_dp)
+    call getChildValue(node, "GradientTolerance", ctrl%reksInp%Glimit, default=1.0E-8_dp)
 
     !> Calculate relaxed density of SSR or SA-REKS state
-    call getChildValue(node, "RelaxedDensity", ctrl%reksIni%tRD, default=.false.)
+    call getChildValue(node, "RelaxedDensity", ctrl%reksInp%tRD, default=.false.)
     !> Calculate nonadiabatic coupling vectors
-    call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksIni%tNAC, default=.false.)
+    call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksInp%tNAC, default=.false.)
 
     !> Print level in standard output file
-    call getChildValue(node, "VerbosityLevel", ctrl%reksIni%Plevel, default=1)
+    call getChildValue(node, "VerbosityLevel", ctrl%reksInp%Plevel, default=1)
     !> Memory level used in calculation of gradient
-    call getChildValue(node, "MemoryLevel", ctrl%reksIni%Mlevel, default=2)
+    call getChildValue(node, "MemoryLevel", ctrl%reksInp%Mlevel, default=2)
 
   end subroutine readSSR22
 
@@ -6668,9 +6668,9 @@ contains
     call getNodeName2(value1, buffer)
     if (char(buffer) == "") then
       ! no 'SpinTuning' block in REKS input
-      allocate(ctrl%reksIni%Tuning(nType))
+      allocate(ctrl%reksInp%Tuning(nType))
       do iType = 1, nType
-        ctrl%reksIni%Tuning(iType) = 1.0_dp
+        ctrl%reksInp%Tuning(iType) = 1.0_dp
       end do
     else
       ! 'SpinTuning' block in REKS input
@@ -6685,8 +6685,8 @@ contains
       allocate(tmpTuning(1,nAtom))
       call asArray(realBuffer, tmpTuning)
       call destruct(realBuffer)
-      allocate(ctrl%reksIni%Tuning(nType))
-      ctrl%reksIni%Tuning(:) = tmpTuning(1,:)
+      allocate(ctrl%reksInp%Tuning(nType))
+      ctrl%reksInp%Tuning(:) = tmpTuning(1,:)
     end if
 
   end subroutine readSpinTuning
