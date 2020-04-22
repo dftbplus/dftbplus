@@ -525,14 +525,14 @@ module dftbp_reksvar
   contains
 
   !> Initialize REKS data from REKS input
-  subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
+  subroutine REKS_init(self, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
       & blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress, tDipole)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: self
 
     !> data type for REKS input
-    type(TReksInp), intent(inout) :: ini
+    type(TReksInp), intent(inout) :: inp
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -580,30 +580,30 @@ module dftbp_reksvar
 
     ! Set REKS input variables
 
-    self%tREKS = ini%tREKS
-    self%tSSR22 = ini%tSSR22
-    self%tSSR44 = ini%tSSR44
+    self%tREKS = inp%tREKS
+    self%tSSR22 = inp%tSSR22
+    self%tSSR44 = inp%tSSR44
 
-    self%Efunction = ini%Efunction
-    self%Elevel = ini%Elevel
-    self%useSSR = ini%useSSR
-    self%rstate = ini%rstate
-    self%Lstate = ini%Lstate
-    self%guess = ini%guess
-    self%FonMaxIter = ini%FonMaxIter
-    self%shift = ini%shift
+    self%Efunction = inp%Efunction
+    self%Elevel = inp%Elevel
+    self%useSSR = inp%useSSR
+    self%rstate = inp%rstate
+    self%Lstate = inp%Lstate
+    self%guess = inp%guess
+    self%FonMaxIter = inp%FonMaxIter
+    self%shift = inp%shift
 
-    self%Glevel = ini%Glevel
-    self%CGmaxIter = ini%CGmaxIter
-    self%Glimit = ini%Glimit
+    self%Glevel = inp%Glevel
+    self%CGmaxIter = inp%CGmaxIter
+    self%Glimit = inp%Glimit
 
-    self%Plevel = ini%Plevel
-    self%Mlevel = ini%Mlevel
+    self%Plevel = inp%Plevel
+    self%Mlevel = inp%Mlevel
 
-    self%tTDP = ini%tTDP
+    self%tTDP = inp%tTDP
 
-    self%tRD = ini%tRD
-    self%tNAC = ini%tNAC
+    self%tRD = inp%tRD
+    self%tNAC = inp%tNAC
 
     ! Set REKS variables
 
@@ -665,7 +665,7 @@ module dftbp_reksvar
     superN = Nc*Nv + Na*(Nc+Nv) + Na*(Na-1)/2
 
     nAtom = size(orb%nOrbAtom,dim=1)
-    nType = size(ini%Tuning,dim=1)
+    nType = size(inp%Tuning,dim=1)
 
     self%t3rd = t3rd
     self%tRangeSep = tRangeSep
@@ -1064,7 +1064,7 @@ module dftbp_reksvar
 
     self%SAweight(:) = 1.0_dp / real(self%SAstates, dp)
 
-    call move_alloc(ini%Tuning, self%Tuning)
+    call move_alloc(inp%Tuning, self%Tuning)
 
     ! Scale up or down the atomic spin constants w.r.t. the systems
     ! iAt : loop for atomic species
