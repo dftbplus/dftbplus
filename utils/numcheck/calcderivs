@@ -52,7 +52,7 @@ def main():
     calclatderivs = (latvecs is not None) and not args.skiplattice
     if args.calcref:
         reffile = REFERENCE_AUTOTEST
-    elif args.ref is None:
+    elif args.ref is not None:
         reffile = args.ref
     else:
         reffile = None

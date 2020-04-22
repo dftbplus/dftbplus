@@ -425,13 +425,32 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, par
+    type(fnode), pointer :: ch1, ch2, par
     logical :: tVal
+    type(fnode), pointer :: pTaskType
+    type(string) :: buffer
 
     call getDescendant(root, "Analysis/EigenvectorsAsTxt", ch1)
     if (associated(ch1)) then
       call detailedWarning(ch1, "Keyword converted to 'EigenvectorsAsText'.")
       call setNodeName(ch1, "EigenvectorsAsText")
+    end if
+
+    call getDescendant(root, "Transport", ch1, parent=par)
+    if (associated(ch1)) then
+      call getDescendant(ch1, "Task", ch2)
+      if (.not. associated(ch2)) then
+        call setChildValue(ch1, "readBinaryContact", .false., child=ch2, replace=.true.)
+      else
+        call getChildValue(ch1, "Task", pTaskType, child=ch2)
+        call getNodeName(pTaskType, buffer)
+        select case (char(buffer))
+        case ("contacthamiltonian")
+          call setChildValue(ch1, "writeBinaryContact", .false., child=ch2, replace=.true.)
+        case ("uploadcontacts")
+          call setChildValue(ch1, "readBinaryContact", .false., child=ch2, replace=.true.)
+        end select
+      end if
     end if
 
   end subroutine convert_7_8

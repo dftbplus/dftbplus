@@ -13,20 +13,21 @@ module dftbp_dispdftd3
   use dftbp_accuracy
   use dftbp_dispiface
   use dftbp_dftd3
+  use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
   use dftbp_simplealgebra, only : determinant33
   use dftbp_constants
   implicit none
   private
 
-  public :: DispDftD3Inp, DispDftD3, DispDftD3_init
+  public :: TDispDftD3Inp, TDispDftD3, DispDftD3_init
   public :: hhRepCutOff
 
   ! cut-off distance in Bohr for the H-H repulsion term dropping below 1E-10
   real(dp), parameter :: hhRepCutOff = 10.0_dp
 
   !> Input structure for the DFT-D3 initialization.
-  type :: DispDftD3Inp
+  type :: TDispDftD3Inp
     real(dp) :: s6, s8, a1, a2, sr6, sr8, alpha6
     logical :: tBeckeJohnson
     integer :: version
@@ -36,11 +37,11 @@ module dftbp_dispdftd3
     !> D3H5 - additional H-H repulsion
     logical :: hhrepulsion
 
-  end type DispDftD3Inp
+  end type TDispDftD3Inp
 
 
   !> Internal state of the DFT-D3 dispersion
-  type, extends(DispersionIface) :: DispDftD3
+  type, extends(TDispersionIface) :: TDispDftD3
     private
 
     !> calculator to evaluate dispersion
@@ -96,7 +97,7 @@ module dftbp_dispdftd3
     !> add D3H5 H-H repulsion to the results
     procedure :: addHHRepulsion
 
-  end type DispDftD3
+  end type TDispDftD3
 
 contains
 
@@ -105,10 +106,10 @@ contains
   subroutine DispDftD3_init(this, inp, nAtom, species0, speciesNames, latVecs)
 
     !> Initialised instance at return.
-    type(DispDftD3), intent(out) :: this
+    type(TDispDftD3), intent(out) :: this
 
     !> Specific input parameters for DFT-D3 Grimme.
-    type(DispDftD3Inp), intent(in) :: inp
+    type(TDispDftD3Inp), intent(in) :: inp
 
     !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
@@ -158,10 +159,13 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species0)
+  subroutine updateCoords(this, env, neigh, img2CentCell, coords, species0)
 
     !> Instance of DFTD3 data
-    class(DispDftD3), intent(inout) :: this
+    class(TDispDftD3), intent(inout) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> Updated neighbour list.
     type(TNeighbourList), intent(in) :: neigh
@@ -200,7 +204,7 @@ contains
   subroutine updateLatVecs(this, latVecs)
 
     !> Instance of DFTD3 data
-    class(DispDftD3), intent(inout) :: this
+    class(TDispDftD3), intent(inout) :: this
 
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -217,7 +221,7 @@ contains
   subroutine getEnergies(this, energies)
 
     !> Instance of DFTD3 data
-    class(DispDftD3), intent(inout) :: this
+    class(TDispDftD3), intent(inout) :: this
 
     !> Contains the atomic energy contributions on exit.
     real(dp), intent(out) :: energies(:)
@@ -236,7 +240,7 @@ contains
   subroutine addGradients(this, gradients)
 
     !> Instance of DFTD3 data
-    class(DispDftD3), intent(inout) :: this
+    class(TDispDftD3), intent(inout) :: this
 
     !> The vector to increase by the gradients.
     real(dp), intent(inout) :: gradients(:,:)
@@ -254,7 +258,7 @@ contains
   subroutine getStress(this, stress)
 
     !> Instance of DFTD3 data
-    class(DispDftD3), intent(inout) :: this
+    class(TDispDftD3), intent(inout) :: this
 
     !> stress tensor from the dispersion
     real(dp), intent(out) :: stress(:,:)
@@ -272,7 +276,7 @@ contains
   function getRCutoff(this) result(cutoff)
 
     !> Instance of DFTD3 data
-    class(DispDftD3), intent(inout) :: this
+    class(TDispDftD3), intent(inout) :: this
 
     !> Resulting cutoff
     real(dp) :: cutoff
@@ -292,7 +296,7 @@ contains
   subroutine addHHRepulsion(this, coords, neigh, img2CentCell)
 
     !> Instance of DFTD3 data
-    class(DispDftD3), intent(inout) :: this
+    class(TDispDftD3), intent(inout) :: this
 
     !> Current coordinates
     real(dp), intent(in) :: coords(:,:)

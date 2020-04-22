@@ -15,7 +15,7 @@ module dftbp_linkedlistlc0
   private
 
   $:define_list(&
-      & TYPE_NAME='listCharLc',&
+      & TYPE_NAME='TListCharLc',&
       & ITEM_TYPE='character(lc)',&
       & PADDING='""')
 

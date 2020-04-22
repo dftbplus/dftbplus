@@ -17,12 +17,13 @@ module dftbp_simplemixer
 
 
   !> Contains data for a simple mixer
-  type OSimpleMixer
+  type TSimpleMixer
     private
 
     !> Mixing parameter
     real(dp) :: mixParam
-  end type OSimpleMixer
+
+  end type TSimpleMixer
 
 
   !> Creates a SimpleMixer instance
@@ -42,7 +43,7 @@ module dftbp_simplemixer
     module procedure SimpleMixer_mix
   end interface
 
-  public :: OSimpleMixer
+  public :: TSimpleMixer
   public :: init, reset, mix
 
 contains
@@ -52,7 +53,7 @@ contains
   subroutine SimpleMixer_init(self, mixParam)
 
     !> Simple mixer instance on exit
-    type(OSimpleMixer), intent(out) :: self
+    type(TSimpleMixer), intent(out) :: self
 
     !> Mixing parameter
     real(dp), intent(in) :: mixParam
@@ -66,7 +67,7 @@ contains
   subroutine SimpleMixer_reset(self, nElem)
 
     !> Simple mixer instance
-    type(OSimpleMixer), intent(inout) :: self
+    type(TSimpleMixer), intent(inout) :: self
 
     !> Length of the vectors to mix
     integer, intent(in) :: nElem
@@ -82,7 +83,7 @@ contains
   subroutine SimpleMixer_mix(self, qInpResult, qDiff)
 
     !> SimpleMixer instance
-    type(OSimpleMixer), intent(inout) :: self
+    type(TSimpleMixer), intent(inout) :: self
 
     !> Input charge on entry, mixed charge on exit
     real(dp), intent(inout) :: qInpResult(:)

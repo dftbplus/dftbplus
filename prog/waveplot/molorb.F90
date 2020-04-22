@@ -38,7 +38,7 @@ module dftbp_molecularorbital
     real(dp), allocatable :: cutoffs(:)
 
     !> STO for each orbital
-    type(OSlaterOrbital), allocatable :: stos(:)
+    type(TSlaterOrbital), allocatable :: stos(:)
 
     !> Occupation for each orb.
     real(dp), allocatable :: occupations(:)
@@ -46,7 +46,7 @@ module dftbp_molecularorbital
 
 
   !> Data type containing information for molecular orbital calculator
-  type OMolecularOrbital
+  type TMolecularOrbital
     private
 
     !> Nr. of atoms
@@ -62,7 +62,7 @@ module dftbp_molecularorbital
     integer, allocatable :: iStos(:)
 
     !> All STOs sequentially
-    type(OSlaterOrbital), allocatable :: stos(:)
+    type(TSlaterOrbital), allocatable :: stos(:)
 
     !> Cutoff for each STO
     real(dp), allocatable :: cutoffs(:)
@@ -93,7 +93,7 @@ module dftbp_molecularorbital
 
     !> If it is initialised
     logical :: tInitialised = .false.
-  end type OMolecularOrbital
+  end type TMolecularOrbital
 
 
   !> Initialises a MolecularOrbital instance
@@ -109,7 +109,7 @@ module dftbp_molecularorbital
   end interface
 
   public :: TSpeciesBasis
-  public :: OMolecularOrbital, init, getValue
+  public :: TMolecularOrbital, init, getValue
 
 contains
 
@@ -118,7 +118,7 @@ contains
   subroutine MolecularOrbital_init(self, geometry, basis)
 
     !> Molecular Orbital
-    type(OMolecularOrbital), intent(out) :: self
+    type(TMolecularOrbital), intent(out) :: self
 
     !> Geometrical information.
     type(TGeometry), intent(in) :: geometry
@@ -211,7 +211,7 @@ contains
       &eigVecsReal, valueOnGrid, addDensities)
 
     !> MolecularOrbital instance
-    type(OMolecularOrbital), intent(in) :: self
+    type(TMolecularOrbital), intent(in) :: self
 
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
@@ -261,7 +261,7 @@ contains
       &eigVecsCmpl, kPoints, kIndexes, valueOnGrid)
 
     !> MolecularOrbital instance
-    type(OMolecularOrbital), intent(in) :: self
+    type(TMolecularOrbital), intent(in) :: self
 
     !> Origin of the grid
     real(dp), intent(in) :: origin(:)
@@ -348,7 +348,7 @@ contains
     integer, intent(in) :: angMoms(:)
 
     !> Array containing the STOs
-    type(OSlaterOrbital), intent(in) :: stos(:)
+    type(TSlaterOrbital), intent(in) :: stos(:)
 
     !> If the system is periodic
     logical, intent(in) :: tPeriodic

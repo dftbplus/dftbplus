@@ -10,14 +10,14 @@
 program setupGeometry 
   use dftbp_globalenv
   use dftbp_formatout, only : printDftbHeader
-  use dftbp_inputsetup, only : inputData
+  use dftbp_inputsetup, only : TInputData
   use dftbp_parsersetup, only : parseHsdInput
   implicit none
 
   character(len=*), parameter :: releaseName = ''
   integer, parameter :: releaseYear = 2020
 
-  type(inputData), allocatable :: input
+  type(TInputData), allocatable :: input
 
   call initGlobalEnv()
   call printDftbHeader(releaseName, releaseYear)

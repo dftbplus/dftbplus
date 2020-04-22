@@ -11,7 +11,7 @@ program dftbplus
   use dftbp_globalenv
   use dftbp_environment
   use dftbp_main, only : runDftbPlus
-  use dftbp_inputdata, only : inputData
+  use dftbp_inputdata, only : TInputData
   use dftbp_formatout, only : printDftbHeader
   use dftbp_hsdhelpers, only : parseHsdInput
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables
@@ -21,7 +21,7 @@ program dftbplus
   integer, parameter :: releaseYear = 2020
 
   type(TEnvironment) :: env
-  type(inputData), allocatable :: input
+  type(TInputData), allocatable :: input
 
   call initGlobalEnv()
   call printDftbHeader(releaseName, releaseYear)
