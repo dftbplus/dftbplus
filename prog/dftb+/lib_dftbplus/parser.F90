@@ -130,8 +130,6 @@ contains
     type(TParserFlags), intent(out) :: parserFlags
 
     type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
-    ! TODO : after
-    type(string) :: buffer
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
     write(stdout, "(A)") repeat("-", 80)
