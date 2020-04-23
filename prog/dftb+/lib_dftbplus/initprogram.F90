@@ -1143,7 +1143,7 @@ contains
     tDFTBU = input%ctrl%tDFTBU
     tSpin = input%ctrl%tSpin
     nSpin = 1
-    if (input%ctrl%reksInp%tREKS) then
+    if (input%ctrl%reksInp%reksAlg /= reksTypes%noReks) then
       ! REKS follows spin-restricted open-shell scheme so nSpin should be two in the main code, but
       ! some variables such as qOutput should be treated in a restricted scheme. Here nSpin is set
       ! to one and changes to two later in the initialization.

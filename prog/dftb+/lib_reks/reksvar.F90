@@ -23,19 +23,35 @@ module dftbp_reksvar
 
   private
 
-  public :: TReksInp, TReksCalc, REKS_init
+  public :: TReksInp, TReksCalc, REKS_init, reksTypes
+
+  type :: TReksTypesEnum
+
+    !> Do not use REKS calculations
+    integer :: noReks = 0
+
+    !> SSR(2,2) calculations
+    integer :: ssr22 = 1
+
+    !> SSR(4,4) calculations
+    integer :: ssr44 = 2
+
+  end type TReksTypesEnum
+
+  !> Container for enumerated REKS types
+  type(TReksTypesEnum), parameter :: reksTypes = TReksTypesEnum()
 
   !> Data type for initial values for REKS calculations
   type :: TReksInp
-
-    !> Is this DFTB/SSR formalism
-    logical :: tREKS = .false.
 
     !> Calculate DFTB/SSR(2,2) formalism
     logical :: tSSR22 = .false.
 
     !> Calculate DFTB/SSR(4,4) formalism
     logical :: tSSR44 = .false.
+
+    !> Type of REKS calculations
+    integer :: reksAlg
 
     !> REKS: energy variables
 
@@ -113,14 +129,14 @@ module dftbp_reksvar
   !> Data type for REKS internal settings
   type :: TReksCalc
 
-    !> Is this DFTB/SSR formalism
-    logical :: tREKS = .false.
-
     !> Calculate DFTB/SSR(2,2) formalism
     logical :: tSSR22 = .false.
 
     !> Calculate DFTB/SSR(4,4) formalism
     logical :: tSSR44 = .false.
+
+    !> Type of REKS calculations
+    integer :: reksAlg
 
     !> REKS: energy variables (input)
 
@@ -580,9 +596,10 @@ module dftbp_reksvar
 
     ! Set REKS input variables
 
-    self%tREKS = inp%tREKS
+    ! TODO : 2 lines (tSSR22, tSSR44) should be removed
     self%tSSR22 = inp%tSSR22
     self%tSSR44 = inp%tSSR44
+    self%reksAlg = inp%reksAlg
 
     self%Efunction = inp%Efunction
     self%Elevel = inp%Elevel

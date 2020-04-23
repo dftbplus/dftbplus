@@ -55,6 +55,7 @@ module dftbp_parser
   use dftbp_hamiltoniantypes
   use dftbp_wrappedintr
   use dftbp_tempprofile, only : identifyTempProfile
+  use dftbp_reks, only : reksTypes
   use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
   use poisson_init
@@ -129,6 +130,8 @@ contains
     type(TParserFlags), intent(out) :: parserFlags
 
     type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
+    ! TODO : after
+    type(string) :: buffer
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
     write(stdout, "(A)") repeat("-", 80)
@@ -206,9 +209,8 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%ctrl)
 
-    call getChildValue(root, "Reks", dummy, "", child=child, list=.true., &
-        & allowEmptyValue=.true., dummyValue=.true.)
-    call readReks(child, input%ctrl, input%geom)
+    call getChildValue(root, "Reks", dummy, "None", child=child)
+    call readReks(child, dummy, input%ctrl, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -4662,7 +4664,8 @@ contains
       end select
     end if
 
-    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. ctrl%reksInp%tREKS) then
+    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. &
+        & ctrl%reksInp%reksAlg /= reksTypes%noReks) then
       allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 
@@ -6547,10 +6550,13 @@ contains
 
 
   !> Reads the REKS block
-  subroutine readReks(node, ctrl, geo)
+  subroutine readReks(node, dummy, ctrl, geo)
 
     !> Node to parse
     type(fnode), pointer, intent(in) :: node
+
+    !> Node to parse
+    type(fnode), pointer, intent(in) :: dummy
 
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
@@ -6558,25 +6564,27 @@ contains
     !> geometry of the system
     type(TGeometry), intent(in) :: geo
 
-    type(fnode), pointer :: child22, child44
+    type(string) :: buffer
 
     ! SSR(2,2) or SSR(4,4) stuff
-    call getChild(node, "SSR22", child22, requested=.false.)
-    call getChild(node, "SSR44", child44, requested=.false.)
+    call getNodeName(dummy, buffer)
 
-    if (associated(child22)) then
+    select case (char(buffer))
 
-      ctrl%reksInp%tREKS = .true.
+    case ("none")
+      ctrl%reksInp%reksAlg = reksTypes%noReks
+    case ("ssr22")
       ctrl%reksInp%tSSR22 = .true.
-      call readSSR22(child22, ctrl, geo)
-
-    else if (associated(child44)) then
-
-      ctrl%reksInp%tREKS = .true.
+      ctrl%reksInp%reksAlg = reksTypes%ssr22
+      call readSSR22(dummy, ctrl, geo)
+    case ("ssr44")
       ctrl%reksInp%tSSR44 = .true.
-      call detailedError(child44, "SSR(4,4) is not implemented yet.")
-
-    end if
+      ctrl%reksInp%reksAlg = reksTypes%ssr44
+      call detailedError(node, "SSR(4,4) is not implemented yet.")
+    case default
+      call getNodeHSDName(dummy, buffer)
+      call detailedError(node, "Invalid Algorithm '" // char(buffer) // "'")
+    end select
 
   end subroutine readReks
 
