@@ -5,6 +5,7 @@ set(sources-fpp
   ${curdir}/dftd4refs.F90
   ${curdir}/elsiiface.F90
   ${curdir}/lapack.F90
+  ${curdir}/lebedev.F90
   ${curdir}/magmahelper.F90
   ${curdir}/mpifx.F90
   ${curdir}/plumed.F90
