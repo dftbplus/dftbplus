@@ -4848,20 +4848,19 @@ contains
     write (stdOut,*)
     write (stdOut,*)
     write (stdOut, "(A,':',T30,A)") "REKS Calcuation", "Yes"
-    if (reks%tSSR22) then
 
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       write (stdOut, "(A,':',T30,A)") "SSR(2,2) Calcuation", "Yes"
       if (reks%Efunction == 1) then
         write (stdOut, "(A,':',T30,A)") "Energy Functional", "PPS"
       else if (reks%Efunction == 2) then
         write (stdOut, "(A,':',T30,A)") "Energy Functional", "(PPS+OSS)/2"
       end if
-
-    else if (reks%tSSR44) then
-
-      call error("SSR(4,4) not implemented yet")
-
-    end if
+    case (reksTypes%ssr44)
+      call error("SSR(4,4) is not implemented yet")
+    end select
 
     write (stdOut, "(A,':',T30,I14)") "Number of core orbitals", reks%Nc
     write (stdOut, "(A,':',T30,I14)") "Number of active orbitals", reks%Na

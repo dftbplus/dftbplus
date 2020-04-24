@@ -28,7 +28,7 @@ module dftbp_reksen
   use dftbp_periodic
   use dftbp_sparse2dense
   use dftbp_rekscommon
-  use dftbp_reksvar, only : TReksCalc
+  use dftbp_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
@@ -47,11 +47,13 @@ module dftbp_reksen
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getFillingL22_(self%Nc, self%fillingL)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine constructMicrostates
 
@@ -62,11 +64,13 @@ module dftbp_reksen
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getWeightL22_(self%FONs, self%delta, self%SAweight, self%weightL, self%weight)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine calcWeights
 
@@ -80,11 +84,13 @@ module dftbp_reksen
     !> eigenvectors
     real(dp), intent(inout) :: eigenvecs(:,:)
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call MOswap22_(eigenvecs, self%SAweight, self%FONs, self%Efunction, self%Nc)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine activeOrbSwap
 
@@ -98,11 +104,13 @@ module dftbp_reksen
     !> occupations (level)
     real(dp), intent(out) :: filling(:)
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getFilling22_(filling, self%SAweight, self%FONs, self%Efunction, self%Nc)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine getFilling
 
@@ -346,11 +354,13 @@ module dftbp_reksen
         & self%hamSpL, self%weight, self%fillingL, self%Nc, self%Na, &
         & self%Lpaired, self%tRangeSep, Wab)
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getStateCoup22_(Wab, self%FONs, StateCoup)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
     ! diagonalize the state energies
     ! obtain SSR energies & state-interaction term

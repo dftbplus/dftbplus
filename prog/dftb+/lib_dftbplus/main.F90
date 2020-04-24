@@ -7519,8 +7519,8 @@ contains
 
       call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), reks%overSqr, reks%rhoSqrL, &
           & reks%FONs, reks%eigvecsSSR, reks%Lpaired, reks%Nc, reks%Na, &
-          & reks%rstate, reks%Lstate, reks%useSSR, reks%tTDP, reks%tSSR22, &
-          & reks%tSSR44, reks%unrelRhoSqr, reks%unrelTdm)
+          & reks%rstate, reks%Lstate, reks%useSSR, reks%reksAlg, reks%tTDP, &
+          & reks%unrelRhoSqr, reks%unrelTdm)
 
       if (reks%tTDP) then
         call getDipoleIntegral(coord0, reks%overSqr, reks%getAtomIndex, dipoleInt)

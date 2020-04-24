@@ -45,7 +45,7 @@ module dftbp_mainio
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_message
   use dftbp_rekscommon
-  use dftbp_reksvar, only : TReksCalc
+  use dftbp_reksvar, only : TReksCalc, reksTypes
   ! TODO : circular dependecy occurs
 !  use dftbp_reks
 #:if WITH_SOCKETS
@@ -3709,12 +3709,14 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
-    if (reks%tSSR22) then
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       write(stdOut,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
           & "      Diff energy   ", "      x_a    ", "   SCC error   "
-    else if (reks%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine printReksSccHeader
 
@@ -3768,12 +3770,14 @@ contains
     type(TReksCalc), intent(in) :: reks
 
     ! print out the iteration information
-    if (reks%tSSR22) then
-      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.6)") iSCCIter, Etotal,&
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.7)") iSCCIter, Etotal,&
           & diffTotal, reks%FONs(1,1) * 0.5_dp, sccErrorQ
-    else if (reks%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine printReksSccInfo
 
@@ -4577,11 +4581,13 @@ contains
     !> state-averaged energy
     real(dp), intent(in) :: Etotal
 
-    if (reks%tSSR22) then
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call printReksSAInfo22(Etotal, reks%enLtot, reks%energy, reks%FONs, reks%Efunction, reks%Plevel)
-    else if (reks%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine printReksSAInfo
 
@@ -4679,12 +4685,14 @@ contains
     !> state-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
-    if (reks%tSSR22) then
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call printReksSSRInfo22(Wab, tmpEn, StateCoup, reks%energy, reks%eigvecsSSR, &
           & reks%Elevel, reks%useSSR, reks%Na)
-    else if (reks%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine printReksSSRInfo
 
@@ -5129,12 +5137,18 @@ contains
     write(fd, *)
 
     if (tSCC) then
-      write(fd, "(A)") repeat("*", 92)
-      write(fd,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
-          & "      Diff energy   ", "      x_a    ", "   SCC error   "
-      write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.6)") &
-          & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, sccErrorQ
-      write(fd, "(A)") repeat("*", 92)
+      select case (reks%reksAlg)
+      case (reksTypes%noReks)
+      case (reksTypes%ssr22)
+        write(fd, "(A)") repeat("*", 92)
+        write(fd,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
+            & "      Diff energy   ", "      x_a    ", "   SCC error   "
+        write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.7)") &
+            & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, sccErrorQ
+        write(fd, "(A)") repeat("*", 92)
+      case (reksTypes%ssr44)
+        call error("SSR(4,4) is not implemented yet")
+      end select
       write(fd, *)
     end if
 

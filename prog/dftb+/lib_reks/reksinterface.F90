@@ -392,14 +392,14 @@ module dftbp_reksinterface
           call getRelaxedDensMat(eigenvecs(:,:,1), self%overSqr, self%unrelRhoSqr, &
               & self%ZT, self%omega, self%FONs, self%eigvecsSSR, self%SAweight, &
               & self%Rab, self%G1, self%Nc, self%Na, self%rstate, self%useSSR, &
-              & self%tNAC, self%tSSR22, self%tSSR44, self%relRhoSqr)
+              & self%reksAlg, self%tNAC, self%relRhoSqr)
         else
           ! get the relaxed density matrix for L-th microstate
           call getRelaxedDensMatL(eigenvecs(:,:,1), self%rhoSqrL, self%overSqr, &
               & self%weight, self%SAweight, self%unrelRhoSqr, self%RmatL, &
               & self%ZT, self%omega, self%weightIL, self%G1, self%orderRmatL, &
-              & self%Lpaired, self%Nc, self%Na, self%Lstate, self%tSSR22, &
-              & self%tSSR44, self%relRhoSqr)
+              & self%Lpaired, self%Nc, self%Na, self%Lstate, self%reksAlg, &
+              & self%relRhoSqr)
         end if
 
         call getMullikenPopFromRelaxedDensity_(env, denseDesc, neighbourList, &
@@ -842,14 +842,14 @@ module dftbp_reksinterface
     call getG1ILOmegaRab(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
         & self%fockFa, self%fillingL, self%FONs, self%SAweight, self%enLtot, &
-        & self%hess, self%Nc, self%Na, self%useSSR, self%tSSR22, self%tSSR44, &
+        & self%hess, self%Nc, self%Na, self%useSSR, self%reksAlg, &
         & self%tRangeSep, self%G1, self%weightIL, self%omega, self%Rab)
 
     ! get A1e or Aall values based on GradOpt
     call getSuperAMatrix(eigenvecs, self%HxcSqrS, self%HxcSqrD, self%fockFc, &
         & self%fockFa, self%omega, self%fillingL, self%weight, self%SAweight, &
         & self%FONs, self%G1, self%Lpaired, self%Nc, self%Na, self%Glevel, &
-        & self%Mlevel, self%tSSR22, self%tSSR44, self%A1e, self%A1ePre, self%Aall)
+        & self%Mlevel, self%reksAlg, self%A1e, self%A1ePre, self%Aall)
 
   end subroutine getReksParameters_
 
@@ -898,13 +898,13 @@ module dftbp_reksinterface
       call buildSaReksVectors(env, denseDesc, neighbourList, nNeighbourSK, &
           & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
           & self%fillingL, self%weightL, self%Nc, self%Na, self%rstate, &
-          & self%useSSR, self%tSSR22, self%tSSR44, self%tRangeSep, self%XT)
+          & self%useSSR, self%reksAlg, self%tRangeSep, self%XT)
 
       if (self%useSSR == 1) then
 
         ! get R^delta values between states X's
         call getRdel(eigenvecs, self%fillingL, self%FONs, self%Nc, &
-            & self%nstates, self%tSSR22, self%tSSR44, self%RdelL)
+            & self%nstates, self%reksAlg, self%RdelL)
 
         do ist = 1, nstHalf
 
@@ -922,7 +922,7 @@ module dftbp_reksinterface
           call buildInteractionVectors(eigenvecs, self%ZdelL, self%fockFc, &
               & self%fockFa, self%FONs, self%fillingL, self%weight, &
               & self%SAweight, self%omega, self%Rab, self%G1, self%Nc, self%Na, &
-              & ia, ib, self%tSSR22, self%tSSR44, self%XTdel(:,ist))
+              & ia, ib, self%reksAlg, self%XTdel(:,ist))
 
           ! get Q2^delta values from Z^delta values : MO index
           call getQ2mat(eigenvecs, self%fillingL, self%weight, &
@@ -932,7 +932,7 @@ module dftbp_reksinterface
 
         ! get Q1^delta values : AO index
         call getQ1del(eigenvecs, self%fockFc, self%fockFa, self%FONs, self%SAweight, &
-            & self%Nc, self%nstates, self%tSSR22, self%tSSR44, self%Q1del)
+            & self%Nc, self%nstates, self%reksAlg, self%Q1del)
 
       end if
 
@@ -942,7 +942,7 @@ module dftbp_reksinterface
       call buildLstateVector(env, denseDesc, neighbourList, nNeighbourSK, &
           & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
           & self%fillingL, self%Nc, self%Na, self%Lstate, self%Lpaired, &
-          & self%tSSR22, self%tSSR44, self%tRangeSep, self%XT(:,1))
+          & self%reksAlg, self%tRangeSep, self%XT(:,1))
 
     end if
 
@@ -1023,7 +1023,7 @@ module dftbp_reksinterface
           & self%G1, self%GammaAO, self%SpinAO, self%LrGammaAO, self%overSqr, &
           & over, eigenvecs, self%fillingL, self%weight, self%Glimit, self%orderRmatL, &
           & self%getDenseAO, self%Lpaired, self%Nc, self%Na, self%CGmaxIter, self%Glevel, &
-          & self%Mlevel, self%tRangeSep, self%tSSR22, self%tSSR44, ZT, RmatL, ZmatL, Q2mat)
+          & self%Mlevel, self%reksAlg, self%tRangeSep, ZT, RmatL, ZmatL, Q2mat)
 
     else if (self%Glevel == 3) then
 
@@ -1033,7 +1033,7 @@ module dftbp_reksinterface
       ! get direct R, Z, Q2 matrices
       if (.not. optionQMMM) then
         call getRmat(eigenvecs, ZT, self%fillingL, self%Nc, self%Na, &
-            & self%tSSR22, self%tSSR44, RmatL)
+            & self%reksAlg, RmatL)
         call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
             & iSparseStart, img2CentCell, orb, RmatL, &
             & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
@@ -1049,7 +1049,7 @@ module dftbp_reksinterface
     ! get Q1 matrix from converged ZT vector : MO index
     if (.not. optionQMMM) then
       call getQ1mat(ZT, self%fockFc, self%fockFa, self%SAweight, &
-          & self%FONs, self%Nc, self%Na, self%tSSR22, self%tSSR44, Q1mat)
+          & self%FONs, self%Nc, self%Na, self%reksAlg, Q1mat)
     else
       call printBlankLine()
     end if
@@ -1125,7 +1125,7 @@ module dftbp_reksinterface
     integer :: fdTagged
 
     call weightGradient(self%gradL, self%weight, self%avgGrad)
-    call getOtherSAgrad(self%avgGrad, self%tSSR22, self%tSSR44, self%SAgrad)
+    call getOtherSAgrad(self%avgGrad, self%reksAlg, self%SAgrad)
     call SaToSsrGradient(self%SAgrad, self%SIgrad, self%eigvecsSSR, self%SSRgrad)
 
     call getReksNAC(self%SAgrad, self%SIgrad, self%SSRgrad, self%eigvecsSSR, &

@@ -55,7 +55,7 @@ module dftbp_parser
   use dftbp_hamiltoniantypes
   use dftbp_wrappedintr
   use dftbp_tempprofile, only : identifyTempProfile
-  use dftbp_reks, only : reksTypes
+  use dftbp_reks
   use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
   use poisson_init
@@ -6568,15 +6568,12 @@ contains
     call getNodeName(dummy, buffer)
 
     select case (char(buffer))
-
     case ("none")
       ctrl%reksInp%reksAlg = reksTypes%noReks
     case ("ssr22")
-      ctrl%reksInp%tSSR22 = .true.
       ctrl%reksInp%reksAlg = reksTypes%ssr22
       call readSSR22(dummy, ctrl, geo)
     case ("ssr44")
-      ctrl%reksInp%tSSR44 = .true.
       ctrl%reksInp%reksAlg = reksTypes%ssr44
       call detailedError(node, "SSR(4,4) is not implemented yet.")
     case default

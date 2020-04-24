@@ -44,12 +44,6 @@ module dftbp_reksvar
   !> Data type for initial values for REKS calculations
   type :: TReksInp
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical :: tSSR22 = .false.
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical :: tSSR44 = .false.
-
     !> Type of REKS calculations
     integer :: reksAlg
 
@@ -128,12 +122,6 @@ module dftbp_reksvar
 
   !> Data type for REKS internal settings
   type :: TReksCalc
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical :: tSSR22 = .false.
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical :: tSSR44 = .false.
 
     !> Type of REKS calculations
     integer :: reksAlg
@@ -596,9 +584,6 @@ module dftbp_reksvar
 
     ! Set REKS input variables
 
-    ! TODO : 2 lines (tSSR22, tSSR44) should be removed
-    self%tSSR22 = inp%tSSR22
-    self%tSSR44 = inp%tSSR44
     self%reksAlg = inp%reksAlg
 
     self%Efunction = inp%Efunction
@@ -624,8 +609,10 @@ module dftbp_reksvar
 
     ! Set REKS variables
 
-    if (self%tSSR22) then
-
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      ! TODO : this part can be factored out into subroutine
       self%Nc = int(real(nEl, dp)) / 2 - 1
       self%Na = 2
       self%Lmax = 6
@@ -657,12 +644,9 @@ module dftbp_reksvar
       end if
       ! Fractional occupation numbers, n_a and n_b
       allocate(self%FONs(self%Na,1))
-
-    else if (self%tSSR44) then
-
-      call error("SSR(4,4) not implemented yet")
-
-    end if
+    case (reksTypes%ssr44)
+      call error("SSR(4,4) is not implemented yet")
+    end select
 
     nOrb = orb%nOrb
     mOrb = orb%mOrb
@@ -704,11 +688,13 @@ module dftbp_reksvar
 
     call checkReksRequirements(self)
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call checkSSR22Requirements(self)
-    else if (self%tSSR44) then
-      call error("SSR(4,4) not implemented yet")
-    end if
+    case (reksTypes%ssr44)
+      call error("SSR(4,4) is not implemented yet")
+    end select
 
     ! Allocate REKS variables
 
@@ -1092,12 +1078,14 @@ module dftbp_reksvar
 
     ! Set the ordering information betwen R_mat_L and filling_L
     if (self%Efunction > 1 .and. self%tForces) then
-      if (self%tSSR22) then
+      select case (self%reksAlg)
+      case (reksTypes%noReks)
+      case (reksTypes%ssr22)
         ! R_mat_L has 4 elements and filling_L has 6 elements in (2,2) case
         self%orderRmatL(:) = [1, 2, 1, 2, 3, 4]
-      else if (self%tSSR44) then
-        call error("SSR(4,4) not implemented yet")
-      end if
+      case (reksTypes%ssr44)
+        call error("SSR(4,4) is not implemented yet")
+      end select
     end if
 
   contains
