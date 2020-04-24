@@ -66,13 +66,13 @@ module dftbp_cm5
     real(dp), allocatable :: pairParam(:, :)
 
     !> CM5 correction
-    real(dp), allocatable :: cm5(:)
+    real(dp), allocatable, public :: cm5(:)
 
     !> Derivative of CM5 correction w.r.t. coordinates
-    real(dp), allocatable :: dcm5dr(:, :, :)
+    real(dp), allocatable, public :: dcm5dr(:, :, :)
 
     !> Derivative of CM5 correction w.r.t. strain deformations
-    real(dp), allocatable :: dcm5dL(:, :, :)
+    real(dp), allocatable, public :: dcm5dL(:, :, :)
 
   contains
 

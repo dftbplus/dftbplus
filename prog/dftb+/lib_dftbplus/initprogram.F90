@@ -2116,7 +2116,8 @@ contains
           call init(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
               & input%geom%speciesNames, .false.)
         end if
-      end if
+        cutOff%mCutOff = max(cutOff%mCutOff, cm5Cont%getRCutOff())
+     end if
     end if
 
     if (allocated(input%ctrl%elStatPotentialsInp)) then

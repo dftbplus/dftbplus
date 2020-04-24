@@ -66,6 +66,7 @@ module dftbp_main
   use dftbp_commontypes
   use dftbp_dispersions, only : TDispersionIface
   use dftbp_solvation, only : TSolvation
+  use dftbp_cm5, only : TChargeModel5
   use dftbp_xmlf90
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_rangeseparated, only : TRangeSepFunc
@@ -298,7 +299,7 @@ contains
     if (tWriteResultsTag) then
       call writeResultsTag(resultsTag, energy, derivs, chrgForces, electronicSolver, tStress,&
           & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
-          & tDefinedFreeE)
+          & tDefinedFreeE, cm5Cont)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&
@@ -381,7 +382,7 @@ contains
 
     if (tLatticeChanged) then
       call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion, solvation, &
-          & recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
+          & cm5Cont, recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
     end if
 
     if (tCoordsChanged) then
@@ -389,7 +390,7 @@ contains
           & tPeriodic, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
           & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
           & nNeighbourSk, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-          & ERhoPrim, iSparseStart, tPoisson)
+          & ERhoPrim, iSparseStart, tPoisson, cm5Cont)
     end if
 
     #:if WITH_TRANSPORT
@@ -741,7 +742,7 @@ contains
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
-              & tRangeSep, allocated(thirdOrd), allocated(solvation))
+              & tRangeSep, allocated(thirdOrd), allocated(solvation), cm5Cont)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -1115,7 +1116,7 @@ contains
 
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion, solvation, &
-      & recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
+      & cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -1137,6 +1138,9 @@ contains
 
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
+
+    !> Charge model 5
+    type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
     !> Reciprocal lattice vectors
     real(dp), intent(out) :: recVecs(:,:)
@@ -1181,6 +1185,10 @@ contains
       call solvation%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, solvation%getRCutOff())
     end if
+    if (allocated(cm5Cont)) then
+       call cm5Cont%updateLatVecs(latVecs)
+       mCutoff = max(mCutOff, cm5Cont%getRCutOff())
+    end if
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutOff)
 
   end subroutine handleLatticeChange
@@ -1191,7 +1199,7 @@ contains
       & tPeriodic, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks, img2CentCell,&
       & iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
       & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-      & ERhoPrim, iSparseStart, tPoisson)
+      & ERhoPrim, iSparseStart, tPoisson, cm5Cont)
 
     use dftbp_initprogram, only : TCutoffs
 
@@ -1298,6 +1306,9 @@ contains
     !> Transport variables
     logical, intent(in) :: tPoisson
 
+    !> Charge model 5
+    type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
+
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
     integer :: sparseSize
@@ -1350,6 +1361,9 @@ contains
     end if
     if (allocated(rangeSep)) then
       call rangeSep%updateCoords(coord0)
+    end if
+    if (allocated(cm5Cont)) then
+       call cm5Cont%updateCoords(neighbourList, img2CentCell, coord, species)
     end if
 
 

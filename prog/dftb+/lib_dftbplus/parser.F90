@@ -4669,6 +4669,7 @@ contains
     if (ctrl%tPrintMulliken) then
       call getChild(node, "CM5", child, requested=.false.)
       if (associated(child)) then
+        allocate(ctrl%cm5Input)
         call readCM5(child, ctrl%cm5Input, geo)
       end if
     end if
