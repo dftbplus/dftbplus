@@ -612,38 +612,7 @@ module dftbp_reksvar
     select case (self%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      ! TODO : this part can be factored out into subroutine
-      self%Nc = int(real(nEl, dp)) / 2 - 1
-      self%Na = 2
-      self%Lmax = 6
-      self%LmaxR = 4
-      self%Lpaired = 2
-      if (self%Efunction == 1) then
-        ! Only PPS state is minimized; single-state REKS
-        self%SAstates = 1
-        if (self%Elevel == 1) then
-          ! PPS state
-          self%nstates = 1
-        else
-          call error("EnergyLevel should be 1 in single-state REKS")
-        end if
-      else if (self%Efunction == 2) then
-        ! (PPS+OSS)/2 state is minimized; SA-REKS
-        self%SAstates = 2
-        if (self%Elevel == 1) then
-          ! PPS, OSS state
-          self%nstates = 2
-        else if (self%Elevel == 2) then
-          ! PPS, OSS, DES state
-          self%nstates = 3
-        else
-          call error("EnergyLevel should be 1 or 2 in SI-SA-REKS")
-        end if
-      else
-        call error("EnergyFunctional should be 1 or 2 in REKS calculation")
-      end if
-      ! Fractional occupation numbers, n_a and n_b
-      allocate(self%FONs(self%Na,1))
+      call setSSR22conditions(self, nEl)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -1089,6 +1058,49 @@ module dftbp_reksvar
     end if
 
   contains
+
+    !> Check REKS common requirements
+    subroutine setSSR22conditions(self, nEl)
+
+      !> data type for REKS
+      type(TReksCalc), intent(inout) :: self
+
+      !> nr. of electrons
+      real(dp), intent(in) :: nEl
+
+      self%Nc = int(real(nEl, dp)) / 2 - 1
+      self%Na = 2
+      self%Lmax = 6
+      self%LmaxR = 4
+      self%Lpaired = 2
+      if (self%Efunction == 1) then
+        ! Only PPS state is minimized; single-state REKS
+        self%SAstates = 1
+        if (self%Elevel == 1) then
+          ! PPS state
+          self%nstates = 1
+        else
+          call error("EnergyLevel should be 1 in single-state REKS")
+        end if
+      else if (self%Efunction == 2) then
+        ! (PPS+OSS)/2 state is minimized; SA-REKS
+        self%SAstates = 2
+        if (self%Elevel == 1) then
+          ! PPS, OSS state
+          self%nstates = 2
+        else if (self%Elevel == 2) then
+          ! PPS, OSS, DES state
+          self%nstates = 3
+        else
+          call error("EnergyLevel should be 1 or 2 in SI-SA-REKS")
+        end if
+      else
+        call error("EnergyFunctional should be 1 or 2 in REKS calculation")
+      end if
+      ! Fractional occupation numbers, n_a and n_b
+      allocate(self%FONs(self%Na,1))
+
+    end subroutine setSSR22conditions
 
     !> Check REKS common requirements
     subroutine checkReksRequirements(self)
