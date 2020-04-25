@@ -1103,8 +1103,6 @@ module dftbp_reksvar
           ! PPS, OSS, DES state
           self%nstates = 3
         end if
-      else
-        call error("EnergyFunctional should be 1 or 2 in REKS calculation")
       end if
       ! Fractional occupation numbers, n_a and n_b
       allocate(self%FONs(self%Na,1))
@@ -1158,10 +1156,6 @@ module dftbp_reksvar
             call error("Nonadiabatic coupling is not compatible with &
                 & single-state REKS or SA-REKS calculation")
           end if
-        end if
-
-        if (self%Glevel > 3 .or. self%Glevel < 1) then
-          call error("Wrong GradientLevel option, please write 1 to 3")
         end if
 
       else
