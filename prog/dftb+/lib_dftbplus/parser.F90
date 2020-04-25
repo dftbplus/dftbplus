@@ -6642,7 +6642,7 @@ contains
       !> Maximum iteration used in calculation of gradient with PCG and CG
       call getChildValue(value2, "CGmaxIter", ctrl%reksInp%CGmaxIter, default=20)
       !> Tolerance used in calculation of gradient with PCG and CG
-      call getChildValue(value2, "GradientTolerance", ctrl%reksInp%Glimit, default=1.0E-8_dp)
+      call getChildValue(value2, "Tolerance", ctrl%reksInp%Glimit, default=1.0E-8_dp)
       !> Use preconditioner for conjugate gradient algorithm
       call getChildValue(value2, "Preconditioner", ctrl%reksInp%tPrecond, default=.false.)
       !> Save 'A' and 'Hxc' to memory in gradient calculation
