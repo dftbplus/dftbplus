@@ -111,11 +111,9 @@ module dftbp_reksvar
     !> 2: 1 + detailed energy contribution of each microstate
     integer :: Plevel
 
-    !> Memory level used in calculation of gradient
-    !> Usually, 1 is more faster than 2
-    !> 1: save 'A_1e' and 'Hxc' variables in memory (requires large memory about 4 orders)
-    !> 2: do not save 'A_1e' and 'Hxc' variables in memory
-    integer :: Mlevel
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    !> Usually, it shows fast speed but requires large memory ~O(N^4) orders
+    logical :: tSaveMem
 
   end type TReksInp
 
@@ -179,8 +177,8 @@ module dftbp_reksvar
     !> Print level in standard output file
     integer :: Plevel
 
-    !> Memory level used in calculation of gradient
-    integer :: Mlevel
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical :: tSaveMem
 
 
     !> REKS: energy variables
@@ -600,7 +598,7 @@ module dftbp_reksvar
     self%Glimit = inp%Glimit
 
     self%Plevel = inp%Plevel
-    self%Mlevel = inp%Mlevel
+    self%tSaveMem = inp%tSaveMem
 
     self%tTDP = inp%tTDP
 
@@ -755,7 +753,7 @@ module dftbp_reksvar
         end if
 
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
+          if (self%tSaveMem) then
             if (self%tRangeSep) then
               allocate(self%HxcHalfS(nOrbHalf,nOrbHalf))
               allocate(self%HxcHalfD(nOrbHalf,nOrbHalf))
@@ -940,7 +938,7 @@ module dftbp_reksvar
         end if
 
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
+          if (self%tSaveMem) then
             if (self%tRangeSep) then
               self%HxcHalfS(:,:) = 0.0_dp
               self%HxcHalfD(:,:) = 0.0_dp
@@ -1152,9 +1150,6 @@ module dftbp_reksvar
         if (self%Glevel > 3 .or. self%Glevel < 1) then
           call error("Wrong GradientLevel option, please write 1 to 3")
         end if
-        if (self%Mlevel > 2 .or. self%Mlevel < 1) then
-          call error("Wrong memory option, please select 1 or 2")
-        end if
 
       else
 
@@ -1222,7 +1217,7 @@ module dftbp_reksvar
       deallocate(self%edmSpL)
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
+          if (self%tSaveMem) then
             if (.not. self%tRangeSep) then
               deallocate(self%HxcSpS)
               deallocate(self%HxcSpD)
@@ -1244,7 +1239,7 @@ module dftbp_reksvar
       allocate(self%edmSpL(sparseSize,self%Lmax))
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
+          if (self%tSaveMem) then
             if (.not. self%tRangeSep) then
               allocate(self%HxcSpS(sparseSize,sparseSize))
               allocate(self%HxcSpD(sparseSize,sparseSize))
@@ -1266,7 +1261,7 @@ module dftbp_reksvar
       self%edmSpL = 0.0_dp
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
+          if (self%tSaveMem) then
             if (.not. self%tRangeSep) then
               self%HxcSpS = 0.0_dp
               self%HxcSpD = 0.0_dp

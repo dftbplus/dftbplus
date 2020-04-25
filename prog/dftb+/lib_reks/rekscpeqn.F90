@@ -40,7 +40,7 @@ module dftbp_rekscpeqn
       & HxcHalfD, HxcSpS, HxcSpD, Fc, Fa, omega, SAweight, FONs, G1, GammaAO, &
       & SpinAO, LrGammaAO, overSqr, over, eigenvecs, fillingL, weight, &
       & ConvergeLimit, orderRmatL, getDenseAO, Lpaired, Nc, Na, maxIter, Glevel, &
-      & Mlevel, reksAlg, tRangeSep, ZT, RmatL, ZmatL, Q2mat)
+      & reksAlg, tSaveMem, tRangeSep, ZT, RmatL, ZmatL, Q2mat)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -163,11 +163,11 @@ module dftbp_rekscpeqn
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Memory level used in calculation of gradient
-    integer, intent(in) :: Mlevel
-
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
+
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
@@ -206,20 +206,20 @@ module dftbp_rekscpeqn
 
     ! initial guess for Z vector
     ! initial Z_initial = A_pre^{-1} * X
-    if (Mlevel == 1) then
+    if (tSaveMem) then
       ZT(:) = 0.0_dp
       call gemv(ZT, A1ePre, XT)
-    else if (Mlevel == 2) then
+    else
       call shiftAY1ePre_(XT, Fc, Fa, omega, SAweight, FONs, G1, &
           & Nc, Na, Glevel, reksAlg, ZT)
     end if
 
     ! initial setting for r0, z0, p0 vectors
     ! 1-electron part
-    if (Mlevel == 1) then
+    if (tSaveMem) then
       shift1e(:) = 0.0_dp
       call gemv(shift1e, A1e, ZT)
-    else if (Mlevel == 2) then
+    else
       call shiftAY1e_(ZT, Fc, Fa, omega, SAweight, FONs, G1, &
           & Nc, Na, reksAlg, shift1e)
     end if
@@ -229,17 +229,17 @@ module dftbp_rekscpeqn
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
+        & Lpaired, Glevel, tSaveMem, tRangeSep, ZmatL)
     call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
         & Nc, Na, reksAlg, shift2e)
 
     ! calculate r0 vector
     r0(:) = XT - shift1e - shift2e
     ! calculate z0, p0 vector
-    if (Mlevel == 1) then
+    if (tSaveMem) then
       z0(:) = 0.0_dp
       call gemv(z0, A1ePre, r0)
-    else if (Mlevel == 2) then
+    else
       call shiftAY1ePre_(r0, Fc, Fa, omega, SAweight, FONs, G1, &
           & Nc, Na, Glevel, reksAlg, z0)
     end if
@@ -252,10 +252,10 @@ module dftbp_rekscpeqn
 
       ! Construct (A1e + A2e) * P
       ! 1-electron part
-      if (Mlevel == 1) then
+      if (tSaveMem) then
         shift1e(:) = 0.0_dp
         call gemv(shift1e, A1e, p0)
-      else if (Mlevel == 2) then
+      else
         call shiftAY1e_(p0, Fc, Fa, omega, SAweight, FONs, G1, &
             & Nc, Na, reksAlg, shift1e)
       end if
@@ -265,7 +265,7 @@ module dftbp_rekscpeqn
           & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
           & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
           & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-          & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
+          & Lpaired, Glevel, tSaveMem, tRangeSep, ZmatL)
       call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
           & Nc, Na, reksAlg, shift2e)
 
@@ -281,10 +281,10 @@ module dftbp_rekscpeqn
       ! update the residual
       r1(:) = r0 - alpha * (shift1e(:)+shift2e(:))
       ! solve new PCG residual
-      if (Mlevel == 1) then
+      if (tSaveMem) then
         z1(:) = 0.0_dp
         call gemv(z1, A1ePre, r1)
-      else if (Mlevel == 2) then
+      else
         call shiftAY1ePre_(r1, Fc, Fa, omega, SAweight, FONs, G1, &
             & Nc, Na, Glevel, reksAlg, z1)
       end if
@@ -330,7 +330,7 @@ module dftbp_rekscpeqn
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
+        & Lpaired, Glevel, tSaveMem, tRangeSep, ZmatL)
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
     write(stdOut,'(2x,a)') 'CG solver: Calculating converged R, Z, Q2 matrix'
     write(stdOut,"(A)") repeat("-", 82)

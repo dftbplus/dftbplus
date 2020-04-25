@@ -835,7 +835,7 @@ module dftbp_reksinterface
     ! get Hxc kernel -> (\mu,\nu|f_{Hxc}|\tau,\gam)
     call getHxcKernel(denseDesc%iAtomStart, self%getAtomIndex, self%getDenseAO, &
         & over, self%overSqr, self%GammaAO, self%SpinAO, self%LrGammaAO, &
-        & self%tRangeSep, self%Glevel, self%Mlevel, self%HxcSpS, &
+        & self%Glevel, self%tSaveMem, self%tRangeSep, self%HxcSpS, &
         & self%HxcSpD, self%HxcHalfS, self%HxcHalfD, self%HxcSqrS, self%HxcSqrD)
 
     ! get G1, weightIL, Omega, Rab values
@@ -849,7 +849,7 @@ module dftbp_reksinterface
     call getSuperAMatrix(eigenvecs, self%HxcSqrS, self%HxcSqrD, self%fockFc, &
         & self%fockFa, self%omega, self%fillingL, self%weight, self%SAweight, &
         & self%FONs, self%G1, self%Lpaired, self%Nc, self%Na, self%Glevel, &
-        & self%Mlevel, self%reksAlg, self%A1e, self%A1ePre, self%Aall)
+        & self%reksAlg, self%tSaveMem, self%A1e, self%A1ePre, self%Aall)
 
   end subroutine getReksParameters_
 
@@ -916,7 +916,7 @@ module dftbp_reksinterface
               & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
               & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
               & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
-              & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, self%ZdelL)
+              & self%Lpaired, self%Glevel, self%tSaveMem, self%tRangeSep, self%ZdelL)
 
           ! build XTdel with Z^delta values
           call buildInteractionVectors(eigenvecs, self%ZdelL, self%fockFc, &
@@ -1023,7 +1023,7 @@ module dftbp_reksinterface
           & self%G1, self%GammaAO, self%SpinAO, self%LrGammaAO, self%overSqr, &
           & over, eigenvecs, self%fillingL, self%weight, self%Glimit, self%orderRmatL, &
           & self%getDenseAO, self%Lpaired, self%Nc, self%Na, self%CGmaxIter, self%Glevel, &
-          & self%Mlevel, self%reksAlg, self%tRangeSep, ZT, RmatL, ZmatL, Q2mat)
+          & self%reksAlg, self%tSaveMem, self%tRangeSep, ZT, RmatL, ZmatL, Q2mat)
 
     else if (self%Glevel == 3) then
 
@@ -1039,7 +1039,7 @@ module dftbp_reksinterface
             & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
             & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
             & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
-            & self%Lpaired, self%Glevel, self%Mlevel, self%tRangeSep, ZmatL)
+            & self%Lpaired, self%Glevel, self%tSaveMem, self%tRangeSep, ZmatL)
         call getQ2mat(eigenvecs, self%fillingL, self%weight, ZmatL, Q2mat)
         write(stdOut,"(A)") repeat("-", 82)
       end if

@@ -6641,8 +6641,8 @@ contains
 
     !> Print level in standard output file
     call getChildValue(node, "VerbosityLevel", ctrl%reksInp%Plevel, default=1)
-    !> Memory level used in calculation of gradient
-    call getChildValue(node, "MemoryLevel", ctrl%reksInp%Mlevel, default=2)
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    call getChildValue(node, "SaveMemory", ctrl%reksInp%tSaveMem, default=.false.)
 
   end subroutine readSSR22
 

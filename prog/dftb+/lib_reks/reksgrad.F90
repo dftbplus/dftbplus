@@ -545,7 +545,7 @@ module dftbp_reksgrad
 
   !> Interface routine to calculate H-XC kernel in REKS
   subroutine getHxcKernel(iSquare, getAtomIndex, getDenseAO, over, overSqr, &
-      & GammaAO, SpinAO, LrGammaAO, tRangeSep, Glevel, Mlevel, HxcSpS, &
+      & GammaAO, SpinAO, LrGammaAO, Glevel, tSaveMem, tRangeSep, HxcSpS, &
       & HxcSpD, HxcHalfS, HxcHalfD, HxcSqrS, HxcSqrD)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
@@ -572,14 +572,14 @@ module dftbp_reksgrad
     !> long-range gamma integrals in AO basis
     real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
-    !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
-
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Memory level used in calculation of gradient
-    integer, intent(in) :: Mlevel
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical, intent(in) :: tSaveMem
+
+    !> Whether to run a range separated calculation
+    logical, intent(in) :: tRangeSep
 
     !> Hartree-XC kernel with sparse form with same spin part
     real(dp), allocatable, intent(inout) :: HxcSpS(:,:)
@@ -601,7 +601,7 @@ module dftbp_reksgrad
 
     if (Glevel == 1 .or. Glevel == 2) then
 
-      if (Mlevel == 1) then
+      if (tSaveMem) then
 
         if (tRangeSep) then
 
@@ -832,7 +832,7 @@ module dftbp_reksgrad
   !> Calculate super A hessian matrix with and without H-XC kernel
   subroutine getSuperAMatrix(eigenvecs, HxcSqrS, HxcSqrD, Fc, Fa, &
       & omega, fillingL, weight, SAweight, FONs, G1, Lpaired, Nc, &
-      & Na, Glevel, Mlevel, reksAlg, A1e, A1ePre, Aall)
+      & Na, Glevel, reksAlg, tSaveMem, A1e, A1ePre, Aall)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -879,11 +879,11 @@ module dftbp_reksgrad
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Memory level used in calculation of gradient
-    integer, intent(in) :: Mlevel
-
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
+
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical, intent(in) :: tSaveMem
 
     !> super A hessian matrix with one-electron term in front of orbital derivatives
     real(dp), allocatable, intent(inout) :: A1e(:,:)
@@ -897,7 +897,7 @@ module dftbp_reksgrad
 
     if (Glevel == 1 .or. Glevel == 2) then
 
-      if (Mlevel == 1) then
+      if (tSaveMem) then
 
         ! build super A matrix except H-XC kernel
         call buildA1e_(Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
@@ -911,6 +911,7 @@ module dftbp_reksgrad
       call buildAall_(eigenvecs, HxcSqrS, HxcSqrD, Fc, Fa, omega, &
           & fillingL, weight, SAweight, FONs, G1, Lpaired, Nc, &
           & Na, reksAlg, Aall)
+
     end if
 
   end subroutine getSuperAMatrix
@@ -1392,7 +1393,7 @@ module dftbp_reksgrad
   subroutine getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, HxcHalfS, &
       & HxcHalfD, HxcSpS, HxcSpD, overSqr, over, GammaAO, SpinAO, LrGammaAO, &
-      & orderRmatL, getDenseAO, Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
+      & orderRmatL, getDenseAO, Lpaired, Glevel, tSaveMem, tRangeSep, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1463,8 +1464,8 @@ module dftbp_reksgrad
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Memory level used in calculation of gradient
-    integer, intent(in) :: Mlevel
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
@@ -1475,7 +1476,7 @@ module dftbp_reksgrad
     ! calculate ZmatL or ZdelL using same routine
     if (Glevel == 1 .or. Glevel == 2) then
 
-      if (Mlevel == 1) then
+      if (tSaveMem) then
 
         if (tRangeSep) then
 
@@ -1489,7 +1490,7 @@ module dftbp_reksgrad
 
         end if
 
-      else if (Mlevel == 2) then
+      else
 
         call getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
             & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
