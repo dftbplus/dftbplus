@@ -6600,7 +6600,7 @@ contains
     type(TListString) :: strBuffer
     type(string) :: buffer2
     character(sc), allocatable :: tmpFunc(:)
-    integer :: ii
+    integer :: ii, nFunc
     logical :: tFunc = .true.
 
 
@@ -6615,14 +6615,15 @@ contains
     call destruct(strBuffer)
 
     !> Decide the energy functionals to be included in SA-REKS(2,2)
-    if (size(tmpFunc, dim=1) == 1) then
+    nFunc = size(tmpFunc, dim=1)
+    if (nFunc == 1) then
       if (trim(tmpFunc(1)) == "PPS") then
         !> Minimized energy functional : PPS
         ctrl%reksInp%Efunction = 1
       else
         tFunc = .false.
       end if
-    else if (size(tmpFunc, dim=1) == 2) then
+    else if (nFunc == 2) then
       if (trim(tmpFunc(1)) == "PPS" .and. trim(tmpFunc(2)) == "OSS") then
         !> Minimized energy functional : (PPS+OSS)/2
         ctrl%reksInp%Efunction = 2
@@ -6635,8 +6636,8 @@ contains
 
     if (.not. tFunc) then
       write(stdOut,'(A)',advance="no") "Current Functional : "
-      do ii = 1, size(tmpFunc, dim=1)
-        if (ii == size(tmpFunc, dim=1)) then
+      do ii = 1, nFunc
+        if (ii == nFunc) then
           write(stdOut,'(A)') "'" // trim(tmpFunc(ii)) // "'"
         else
           write(stdOut,'(A)',advance="no") "'" // trim(tmpFunc(ii)) // "' "
