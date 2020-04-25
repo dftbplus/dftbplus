@@ -6608,7 +6608,7 @@ contains
     !> Target SSR state
     call getChildValue(node, "TargetState", ctrl%reksInp%rstate, default=1)
     !> Target microstate
-    call getChildValue(node, "TargetStateL", ctrl%reksInp%Lstate, default=0)
+    call getChildValue(node, "TargetMicrostate", ctrl%reksInp%Lstate, default=0)
 
     !> Initial guess for eigenvectors in REKS
     !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
