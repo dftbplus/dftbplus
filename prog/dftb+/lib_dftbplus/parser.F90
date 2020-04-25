@@ -6597,13 +6597,54 @@ contains
     type(TGeometry), intent(in) :: geo
 
     type(fnode), pointer :: child1, value2, child2
-    type(string) :: buffer
+    type(TListString) :: strBuffer
+    type(string) :: buffer2
+    character(sc), allocatable :: tmpFunc(:)
+    integer :: ii
+    logical :: tFunc = .true.
 
-    ! Read 'Energy' block
+
+    !> Read 'Energy' block
     call getChild(node, "Energy", child=child1)
 
-    !> Minimized energy functional; 1: PPS, 2: (PPS+OSS)/2
-    call getChildValue(child1, "EnergyFunctional", ctrl%reksInp%Efunction, default=2)
+    !> Read 'Functional' block in 'Energy' block
+    call init(strBuffer)
+    call getChildValue(child1, "Functional", strBuffer)
+    allocate(tmpFunc(len(strBuffer)))
+    call asArray(strBuffer, tmpFunc)
+    call destruct(strBuffer)
+
+    !> Decide the energy functionals to be included in SA-REKS(2,2)
+    if (size(tmpFunc, dim=1) == 1) then
+      if (trim(tmpFunc(1)) == "PPS") then
+        !> Minimized energy functional : PPS
+        ctrl%reksInp%Efunction = 1
+      else
+        tFunc = .false.
+      end if
+    else if (size(tmpFunc, dim=1) == 2) then
+      if (trim(tmpFunc(1)) == "PPS" .and. trim(tmpFunc(2)) == "OSS") then
+        !> Minimized energy functional : (PPS+OSS)/2
+        ctrl%reksInp%Efunction = 2
+      else
+        tFunc = .false.
+      end if
+    else
+      tFunc = .false.
+    end if
+
+    if (.not. tFunc) then
+      write(stdOut,'(A)',advance="no") "Current Functional : "
+      do ii = 1, size(tmpFunc, dim=1)
+        if (ii == size(tmpFunc, dim=1)) then
+          write(stdOut,'(A)') "'" // trim(tmpFunc(ii)) // "'"
+        else
+          write(stdOut,'(A)',advance="no") "'" // trim(tmpFunc(ii)) // "' "
+        end if
+      end do
+      call detailedError(child1, "Invalid Functional")
+    end if
+
     !> Decide the energy states in SA-REKS
     !> If true, it includes all possible states in current active space
     !> If false, it includes the states used in minimized energy functional
@@ -6632,12 +6673,12 @@ contains
     call getChildValue(node, "TransitionDipole", ctrl%reksInp%tTDP, default=.false.)
 
 
-    ! Read 'Gradient' block
+    !> Read 'Gradient' block
     !> Algorithms to calculate analytical gradients
     call getChildValue(node, "Gradient", value2, "ConjugateGradient", child=child2)
-    call getNodeName(value2, buffer)
+    call getNodeName(value2, buffer2)
 
-    select case (char(buffer))
+    select case (char(buffer2))
     case ("conjugategradient")
       !> Maximum iteration used in calculation of gradient with PCG and CG
       call getChildValue(value2, "CGmaxIter", ctrl%reksInp%CGmaxIter, default=20)
@@ -6658,8 +6699,8 @@ contains
       !> 3: direct inverse-matrix multiplication
       ctrl%reksInp%Glevel = 3
     case default
-      call getNodeHSDName(value2, buffer)
-      call detailedError(child2, "Invalid Algorithm '" // char(buffer) // "'")
+      call getNodeHSDName(value2, buffer2)
+      call detailedError(child2, "Invalid Algorithm '" // char(buffer2) // "'")
     end select
 
     !> Calculate relaxed density of SSR or SA-REKS state
