@@ -61,6 +61,7 @@ module dftbp_reksvar
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical :: tSSR
 
+
     !> Target SSR state
     integer :: rstate
 
@@ -83,6 +84,7 @@ module dftbp_reksvar
     !> Calculate transition dipole moments
     logical :: tTDP
 
+
     !> REKS: gradient variables
 
     !> Algorithms to calculate analytic gradients
@@ -97,11 +99,20 @@ module dftbp_reksvar
     !> Tolerance used in calculation of gradient with PCG and CG
     real(dp) :: Glimit
 
+    !> Use preconditioner for conjugate gradient algorithm
+    logical :: tPrecond
+
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    !> Usually, it shows fast speed but requires large memory ~O(N^4) orders
+    logical :: tSaveMem
+
+
     !> Calculate relaxed density of SSR or SA-REKS state
     logical :: tRD
 
     !> Calculate nonadiabatic coupling vectors
     logical :: tNAC
+
 
     !> REKS: system variables
 
@@ -110,10 +121,6 @@ module dftbp_reksvar
     !> 1: 0 + gradient information
     !> 2: 1 + detailed energy contribution of each microstate
     integer :: Plevel
-
-    !> Save 'A' and 'Hxc' to memory in gradient calculation
-    !> Usually, it shows fast speed but requires large memory ~O(N^4) orders
-    logical :: tSaveMem
 
   end type TReksInp
 
@@ -133,6 +140,7 @@ module dftbp_reksvar
 
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical :: tSSR
+
 
     !> Target SSR state
     integer :: rstate
@@ -155,6 +163,7 @@ module dftbp_reksvar
     !> Calculate transition dipole moments
     logical :: tTDP
 
+
     !> REKS: gradient variables (input)
 
     !> Algorithms to calculate analytic gradients
@@ -166,19 +175,21 @@ module dftbp_reksvar
     !> Tolerance used in calculation of gradient with PCG and CG
     real(dp) :: Glimit
 
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical :: tSaveMem
+
+
     !> Calculate relaxed density of SSR or SA-REKS state
     logical :: tRD
 
     !> Calculate nonadiabatic coupling vectors
     logical :: tNAC
 
+
     !> REKS: system variables (input)
 
     !> Print level in standard output file
     integer :: Plevel
-
-    !> Save 'A' and 'Hxc' to memory in gradient calculation
-    logical :: tSaveMem
 
 
     !> REKS: energy variables
