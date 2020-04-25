@@ -18,6 +18,7 @@ summary: The DFTB+ package for fast quantum mechanical atomistic simulations
 author: The DFTB+ developers group
 preprocessor: ../../../external/fypp/bin/fypp
 include: ../../../prog/dftb+/include
+         ../../../external/dftd4refs
 predocmark: >
 display: public
          protected
