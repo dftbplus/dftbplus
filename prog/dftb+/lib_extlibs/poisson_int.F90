@@ -396,7 +396,7 @@ contains
   !> Interface subroutine to call Poisson
   subroutine poiss_getshift(V_L_atm,grad_V)
 
-    !> potential at atom sites
+    !> potential for each shell at atom sites
     real(dp), intent(inout) :: V_L_atm(:,:)
 
     !> Gradient of potential

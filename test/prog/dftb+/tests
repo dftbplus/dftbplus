@@ -29,8 +29,28 @@ rangesep/C60-nb                        #? not WITH_MPI
 rangesep/C60-nb-cutoff                 #? not WITH_MPI
 rangesep/Thymine-T1-force              #? not WITH_MPI
 rangesep/cyclopropene_nb_restart       #? not WITH_MPI
-rangesep/C240_tn                       #? not WITH_MPI
+rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
 rangesep/Thymine-T1_onsite             #? not WITH_MPI
+
+reks/C2H4_3SSR_rangesep                #? not WITH_MPI
+reks/C2H4_direct                       #? not WITH_MPI
+reks/C2H4_nosave                       #? not WITH_MPI
+reks/C6H8_extchrg_periodic_nosave      #? not WITH_MPI
+reks/C6H8_rangesep_extchrg_nac         #? not WITH_MPI
+reks/C6H8_rangesep_extchrg_nosave      #? not WITH_MPI
+reks/HBI+H2O_periodic_stress           #? not WITH_MPI and LONG_TEST
+reks/HBI+H2O_periodic_stress_disp      #? not WITH_MPI and LONG_TEST
+reks/PSB3_2SSR                         #? not WITH_MPI
+reks/PSB3_2SSR_extchrg_periodic        #? not WITH_MPI
+reks/PSB3_2SSR_rangesep                #? not WITH_MPI
+reks/PSB3_2SSR_rangesep_extchrg        #? not WITH_MPI
+reks/PSB3_2SSR_rangesep_extchrg_blur   #? not WITH_MPI
+reks/PSB3_2SSR_rangesep_tuning         #? not WITH_MPI
+reks/PSB3_SA                           #? not WITH_MPI
+reks/Thymine_3SSR                      #? not WITH_MPI
+reks/Thymine_single                    #? not WITH_MPI
+reks/Thymine_T1                        #? not WITH_MPI
+reks/Thymine_T1_rangesep               #? not WITH_MPI
 
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8 and OMP_THREADS == 1
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
@@ -54,7 +74,7 @@ solvers/Si8_LSdual                     #? WITH_ELSI and MPI_PROCS % 8 == 0 and M
 solvers/SiC64+V_PEXSI                  #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
 solvers/SiC64+V_spin_PEXSI             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1
 solvers/10-10Ctube_PEXSI_sparse        #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 20 and OMP_THREADS == 1
-solvers/SiC64+V_spinkpts_PEXSI         #? WITH_PEXSI and MPI_PROCS % 2 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
+solvers/SiC64+V_spinkpts_PEXSI         #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
 solvers/SiC64+V_PEXSI_kpts             #? WITH_PEXSI and MPI_PROCS % 4 == 0 and MPI_PROCS <= 80 and OMP_THREADS == 1
 solvers/SiC64+V_spinkpts_PEXSI_sparse  #? WITH_PEXSI and MPI_PROCS % 8 == 0 and MPI_PROCS <= 40 and OMP_THREADS == 1
 
@@ -115,6 +135,10 @@ scc/SiH_custom-ref                     #? MPI_PROCS <= 1
 scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
+
+solvation/gb_ionpair                   #? MPI_PROCS <= 1
+solvation/gb_reference                 #? MPI_PROCS <= 1
+solvation/gb_mol1bar                   #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
@@ -242,6 +266,7 @@ analysis/Ga4As4_ESP                    #? MPI_PROCS <= 2
 md/Si_8-thermostat                     #? MPI_PROCS <= 1
 md/ptcda-xlbomdfast-ldep               #? MPI_PROCS <= 4
 md/Si_8-tempprofile                    #? MPI_PROCS <= 1
+md/Si_8-tempprofile0                   #? MPI_PROCS <= 1
 md/Vsi+O-plumed                        #? WITH_PLUMED and MPI_PROCS <= 4
 
 dispersion/DNA_dftd3_bj                #? WITH_DFTD3 and MPI_PROCS <= 4

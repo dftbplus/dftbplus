@@ -66,6 +66,7 @@ Additionally optional blocks of definitions may be present:
   \kw{Options} & p & & \cb & \pref{sec:dftbp.Options} \\
   \kw{Analysis} & p & & \cb & \pref{sec:dftbp.Analysis} \\
   \kw{ExcitedState} & p & & \cb & \pref{sec:dftbp.ExcitedState} \\
+  \kw{REKS} & p & & \cb & \pref{sec:dftbp.REKS} \\
   \kw{ParserOptions} & p & & \cb & \pref{sec:dftbp.ParserOptions} \\
   \kw{Parallel} & p & & \cb & \pref{sec:dftbp.Parallel} \\
 \end{ptableh}
@@ -83,6 +84,8 @@ Additionally optional blocks of definitions may be present:
   p.~\pref{sec:dftbp.Analysis}.
 \item[\is{ExcitedState}] Calculations in excited state of the system.
   See p.~\pref{sec:dftbp.ExcitedState}.
+\item[\is{REKS}] Calculations in ensemble DFT for a strongly correlated system.
+  See p.~\pref{sec:dftbp.REKS}.
 \item[\is{ParserOptions}] Various options affecting the parser only.
   See p.~\pref{sec:dftbp.ParserOptions}.
 \item[\is{Parallel}] Options affecting the MPI-parallel execution. See
@@ -779,10 +782,9 @@ starting temperature for each annealing period is the final target
 temperature of the previous period, with the last step of each stage
 being at the target temperature. Since the initial stage in the
 temperature profile has no previous step, the default starting
-temperature is set to 0, but no actual calculation for that
-temperature is made.  In order to start the calculation from a finite
+temperature is set to 0.  In order to start the calculation from a finite
 temperature for the first annealing period, a constant profile
-temperature stage with the duration of only one step should be
+temperature stage with a duration of one (or more) step(s) should be
 specified as the first step (see the example).  The temperatures of
 the stages are specified in atomic units, unless the \is{Temperature}
 keyword carries a modifier, as in the example above.
@@ -1090,6 +1092,7 @@ following properties:
   \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
   \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
+  \kw{Solvation} & m & & - & \pref{sec:dftbp.Solvation}\\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
   \kw{CustomisedHubbards} & p & SCC = Yes & & \\
@@ -2824,8 +2827,8 @@ can be adjusted in the input.
   \kw{ChargeScale} & r & & 3.0 & \\
   \kw{CutoffInter} & r & & 64 & \\
   \kw{CutoffThree} & r & & 40 & \\
-  \kw{CoordinationNumber} & m & & \is{Cov} & \pref{dftbp.CoordinationNumber} \\
-  \kw{ChargeModel} & m & & \is{EEQ} & \pref{dftbp.ChargeModel} \\
+  \kw{CoordinationNumber} & m & & \is{Cov} & \pref{sec:dftbp.CoordinationNumber} \\
+  \kw{ChargeModel} & m & & \is{EEQ} & \pref{sec:dftbp.ChargeModel} \\
 \end{ptable}
 
 \begin{description}
@@ -2876,8 +2879,7 @@ up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
   \kw{Cutoff} & r & & 40 & \\
   \kw{EwaldParameter} & r & & 0.0 & \\
   \kw{EwaldTolerance} & r & & 1.0e-9 & \\
-  \kw{CoordinationNumber} & m & & \is{erf} & \\
-  \kw{CoordinationNumber} & m & & \is{Erf} & \pref{dftbp.CoordinationNumber} \\
+  \kw{CoordinationNumber} & m & & \is{Erf} & \pref{sec:dftbp.CoordinationNumber} \\
 \end{ptable}
 
 \begin{description}
@@ -3010,6 +3012,153 @@ Hamiltonian = DFTB {
 }
 \end{verbatim}
 \end{description}
+
+\subsection{Implicit Solvation Model}
+\label{sec:dftbp.Solvation}
+
+\subsubsection{Generalized Born Model}
+\label{sec:dftbp.GeneralizedBorn}
+
+In generalized Born (GB) theory,\cite{onufriev2019} a molecule is considered as
+continuous region with a dielectric constant~$\epsilon_\text{in}$ surrounded by
+infinite solvent with a dielectric constant~$\epsilon_\text{out}$.
+Charges~$q_\text{A}$ are located at the atomic sites~$\vec R_\text{A}$
+and their interaction in the presence of a polarized solvent can be
+expressed as the solvation energy
+%
+\begin{equation}
+  \Delta G_\text{GB} =
+  -\frac12 \left(\frac1{\epsilon_\text{in}}-\frac1{\epsilon_\text{out}}\right)
+  \sum_{\text{A}=1}^N\sum_{\text{B}=1}^N\frac{q_\text{A}q_\text{B}}
+  {\left(R^2_\text{AB} + a_\text{A}a_\text{B}\exp\left[-\frac{R^2_\text{AB}}
+  {4a_\text{A}a_\text{B}}\right]\right)^{\frac12}}.
+\end{equation}
+
+where $a_\text{A/B}$ are the effective Born radii of the atoms A/B.
+The GB model is added to the Hamiltonian as second order fluctuation
+in the charge density, similar to the coulombic interactions.
+
+The Born radii are evaluated by an Onufriev--Bashford--Case~(OBC) corrected
+pairwise approximation to the molecular volume given as
+%
+\begin{equation}
+  \frac1{a_\text{A}} = \frac1a_\text{scale}\left(
+  \frac1{R^\text{cov}_\text{A} - R_\text{offset}}
+  - \frac1{R^\text{cov}_\text{A}}
+  \cdot \tanh\left[b_\text{OBC}\Psi_\text{A}
+  - c_\text{OBC}\Psi_\text{A}^2 + d_\text{OBC}\Psi_\text{A}^3\right]
+  \right)
+\end{equation}
+
+where $a_\text{scale}$ is a scaling factor for the Born radii,
+$R_\text{offset}$ is a global shift parameter for the covalent radii and
+$a/b/c_\text{OBC}$ are the coefficients for the volume polynomial in
+the OBC correction to the Born radii.
+$\Psi_\text{A}$ is the pairwise approximation to the volume integral
+given by
+%
+\begin{equation}
+  \Psi_\text{A} = \frac{R^\text{cov}_\text{A} - R_\text{offset}}2
+  \sum_\text{B} \Omega(R_\text{AB}, R^\text{cov}_\text{A}, s_\text{B}R^\text{cov}_\text{B})
+\end{equation}
+
+with $\Omega$ being the pairwise function used to approximate the
+volume integral, which is only dependent on the distance and the
+covalent radii. Note that, the covalent radius of the second atom
+is scaled by the element-specific descreening value~$s_\text{B}$
+to compensate the systematic overestimation of the volume by this
+approach.
+
+To use the generalized Born model in the SCC procedure use the
+\is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
+Note that the GB model implemented is only available for finite
+systems.
+
+\begin{ptable}
+  \kw{Solvent} & m & & & \\
+  \kw{FreeEnergyShift} & r & & & \\
+  \kw{Temperature} & r & & 298.15 K & \\
+  \kw{State} & s & & gsolv & \\
+  \kw{BornScale} & r & & & \\
+  \kw{BornOffset} & r & & & \\
+  \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
+  \kw{Radii} & m & & & \\
+  \kw{Descreening} & m & & & \\
+  \kw{Cutoff} & r & & 35 AA & \\
+\end{ptable}
+
+\begin{description}
+  \item[\is{Solvent}] Descriptors of the solvent, can be load from a database
+    by providing the solvent name as string in the \is{FromName\cb} method or
+    by specifying the necessary values with the \is{FromConstants\cb} method.
+    \is{FromConstants\cb} requires the dielectric constant as real for \kw{Epsilon},
+    the molecular mass in \kw{MolecularMass} \modif{\modtype{mass}} and the
+    solvent density in \kw{Density} \modif{\modtype{massdensity}}.
+    \kw{MolecularMass} and \kw{Density} only affect the calculation if
+    ``reference'' is chosen as state of the solution.
+
+  \item[\is{FreeEnergyShift}] \modif{\modtype{energy}} Shift for free energy
+    calculations.
+
+  \item[\is{Temperature}] Temperature for free energy calculations. Default is
+    ambient temperature: 298.15 K.
+    Only affects the calculation for if ``reference'' or ``mol1bar'' is chosen
+    as state of the solution.
+
+  \item[\is{State}] \modif{\modtype{energy}}
+    Reference state of the solution for free energy calculations.
+    The calculated state shift is added to the free energy shift.
+    Takes ``gsolv'' (default), ``reference'' or ``mol1bar''.
+    The reference state ``gsolv`` corresponds to 1\;l of ideal gas and 1\;l of
+    liquid  solution,
+    ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
+    solution at infinite dilution,
+    ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
+
+  \item[\is{BornScale}] Value for scaling of Born radii.
+
+  \item[\is{BornOffset}] \modif{\modtype{length}}
+    Offset value for Born radii calculation.
+
+  \item[\is{OBCCorrection}] Parameters for Onufriev--Bashfold--Case volume
+    polynomial to correct Born radii calculation.
+    The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
+    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
+
+  \item[\is{Radii}] Atomic radii for each element, either takes
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+    or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{Descreening}] Descreening values for each species.
+    Disabled by \is{Unity\cb} method or enabled by providing \is{Values\cb}
+    for each species.
+
+  \item[\is{Cutoff}] \modif{\modtype{length}}
+    Real space cutoff for the calculation of the Born radii.
+\end{description}
+
+Example for CS2 as solvent:
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
+    Solvent = fromName { "cs2" }
+    FreeEnergyShift [kcal/mol] = 2.81072250
+    Radii = vanDerWaalsRadiiD3 [Bohr] {}
+    Descreening = Values {
+       H = 0.93699367
+       C = 0.83307834
+       N = 1.02661619
+       O = 0.96508008
+    }
+    BornScale = 1.40636177
+    BornOffset [Bohr] = 1.653719965215E-03
+    OBCCorrection = {1.00 0.80 4.85}
+    Cutoff = 40
+  }
+}
+\end{verbatim}
 
 \subsection{Halogen corrections}
 \label{sec:dftbp.xcorr}
@@ -3218,7 +3367,7 @@ enables the following option:
     \end{description}
 
     
-  \item[NeighbourBased] Uses a purely neighbour-list based algorithm. This
+  \item[\is{NeighbourBased}] Uses a purely neighbour-list based algorithm. This
     algorithm is usually considerably slower than the \is{Thresholded}.
     
     \begin{ptable}
@@ -3229,12 +3378,12 @@ enables the following option:
     \end{ptable}
 
     \begin{description}
-    \item[CutoffReduction]\modif{\modtype{length}} See description in the
+    \item[\is{CutoffReduction}]\modif{\modtype{length}} See description in the
       \is{Thresholded} block.
     \end{description}
 
 
-  \item[MatrixBased] Uses a matrix-matrix multiplication based algorithm. This
+  \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based algorithm. This
     can be faster than other two algorithms.
   \end{description}
 \end{description}
@@ -3801,6 +3950,153 @@ fractional occupations. The specifications for this block have the following pro
   \end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  REKS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{REKS}
+\label{sec:dftbp.REKS}
+
+This block collects some options to calculate REKS in the context of DFTB.
+\begin{ptable}
+  \kw{SSR22} & p & SCC = Yes, SpinPolarisation $=$ \{\}, SpinConstants $\neq$ \{\} & \cb & \\
+\end{ptable}
+
+\subsection{SSR22}
+\label{sec:dftbp.SSR22}
+
+This tag contains the specifications for a DFTB/SSR(2,2) calculation~\cite{Lee_JCTC_2019}, based on ensemble DFT theory.
+
+\textbf{Note:} the \dftbp{} binary can be compiled with OpenMP (not MPI) parallelization
+and ensemble DFT calculation is not compatible with time-dependent DFTB calculation.
+DFTB/SSR is not compatible with spin-polarisation, but it requires spin constants.
+
+In general, REKS calculation can be classified as single-state REKS, SA-REKS and SI-SA-REKS.
+In single-state REKS, only ground state is calculated and it can treat the state with multireference
+character. SA-REKS and SI-SA-REKS can calculate the vertical excitation energies. The difference
+is that the state-interaction term is considered in SI-SA-REKS so that more accurate states can
+be generated. The corresponding oscillator strengths as well as excited state geometry optimisation
+can be performed with these options, details of the resulting output files are given in appendix
+\ref{sec:reks_files}. DFTB/SSR is currently implemented for the LC-DFTB level of theory with external
+point charges or dispersion corrections. Third order SCC calculation can be considered in only
+energy evaluation. The gamma point periodic systems can be calculated using DFTB/SSR without
+range-separated functionals. Finally, only single-state REKS can calculate the stress as well as
+lattice optimization. The specifications for this block have the following properties:
+
+  \begin{ptable}
+    \kw{EnergyFunctional}                   & i & & 2 & \\
+    \kw{EnergyLevel}                          & i & & 1 & \\
+    \kw{UseSsrState}                         & i & EnergyFunctional $\neq$ 1 & 1 & \\
+    \kw{TargetState}                           & i & & 1 & \\
+    \kw{TargetStateL}                          & i & EnergyFunctional $\neq$ 1, UseSsrState = 0 & 0 & \\
+    \kw{InitialGuess}                           & i & & 1 & \\
+    \kw{FONmaxIter}                           & i & & 20 & \\
+    \kw{Shift}                                     & r & & 0.3 & \\
+    \kw{SpinTuning}                           & $(\text{r})^*$ & & \{\}~ & \\
+    \kw{TransitionDipole}                    & l & EnergyFunctional $\neq$ 1, TargetStateL = 0 & No & \\
+    \kw{GradientLevel}                        & i & & 1 & \\
+    \kw{CGmaxIter}                            & i & & 20 & \\
+    \kw{GradientTolerance}                 & r & & 1e-8 & \\
+    \kw{RelaxedDensity}                     & l & & No & \\
+    \kw{NonAdiabaticCoupling}            & l & EnergyFunctional $\neq$ 1, UseSsrState = 1 & No & \\
+    \kw{PrintLevel}                             & i & & 1 & \\
+    \kw{MemoryLevel}                        & i & & 2 & \\
+  \end{ptable}
+
+  \begin{description}
+
+  \item[\is{EnergyFunctional}] Specifies the minimized energy functional in DFTB/SSR.
+    The minimized energy functionals can be PPS (\is{EnergyFunctional} = 1) or (PPS+OSS)/2
+    (\is{EnergyFunctional} = 2) state in DFTB/SSR(2,2) case. The former considers only
+    single-state REKS and the latter considers SA-REKS or SI-SA-REKS. The inclusion of
+    state-interaction term is determined by \is{UseSsrState} option.
+
+  \item[\is{EnergyLevel}] Specifies the computable energy level with respect to \is{EnergyFunctional}
+    in DFTB/SSR. \is{EnergyLevel} should be 1 or 2, which calculate the states only included in
+    \is{EnergyFunctional} or the all possible states, respectively. For example, \is{EnergyLevel}
+    should be 1 in single-state REKS, but the value can be 1 or 2 in SA-REKS or SI-SA-REKS.
+    In the latter case, PPS and OSS states can be calculated with the value of 1, and additional DES state
+    can be calculated with the value of 2. The detailed explanation about PPS, OSS and DES states
+    is given in the Ref.~\cite{Lee_JCTC_2019}
+
+  \item[\is{UseSsrState}] Determines the inclusion of state-interaction terms. \is{UseSsrState}
+    should be 1 or 0, which calculate SA-REKS state or SI-SA-REKS state, respectively. In general,
+    SI-SA-REKS state can provide more reliable state when you want to include the excited state.
+
+  \item[\is{TargetState}] Specifies the target state that should be calculated. These are numbered
+    from the ground state as 1, and so on. Note that the ordering of this option is different with the option
+    \is{StateOfInterest} in time-dependent DFTB calculation.
+
+  \item[\is{TargetStateL}] Specifies the target microstate that should be calculated. The electronic
+    configuration is given in the Ref.~\cite{Lee_JCTC_2019} or the source code of \dftbp{}. In SSR(2,2),
+    fifth microstate is triplet configuration, thus this microstate can be roughly considered as triplet state.
+
+  \item[\is{InitialGuess}] Specifies the initial guess of eigenvectors in DFTB/SSR calculation.
+    In contrast to DFTB calculation, DFTB/SSR requires to know the information about initial eigenvectors
+    to construct the microstates, thus it cannot use the \is{ReadInitialCharges} option. \is{InitialGuess}
+    determines the eigenvectors obtained from diagonalization of non-SCC Hamiltonian (\is{InitialGuess} = 1)
+    or external eigenvec.bin file (\is{InitialGuess} = 2). The first option is usually recommended since
+    the second option is not completely implemented.
+
+  \item[\is{FONmaxIter}] Specifies the maximum number of iterations used in the optimization of
+    fractional occupation numbers. In general, the value of 20 is enough to converge the fractional
+    occupation numbers in SCC cycle.
+
+  \item[\is{Shift}] Specifies the level shift value used in SCC cycle. The shift value should be increased
+    to converge the SCC cycle when the orbital energy of the active orbitals is close to each other.
+
+  \item[\is{SpinTuning}] Specifies the scaling constants for atomic spin constants. DFTB/SSR sometimes
+    shows wrong spin contribution for triplet microstate, thus the scaling of atomic spin constants are needed
+    to generate correct spin contribution for each microstate. The standard to determine the scaling constants
+    is provided in the Ref.~\cite{Lee_JCTC_2019}. The number of \is{SpinTuning} elements becomes the number of
+    atomic species, and the ordering of \is{SpinTuning} is same as the ordering of atomic species in input geometry file.
+
+  \item[\is{TransitionDipole}] If set to \is{Yes}, the file tdp.dat is created. This file contains a
+    description of transition dipole moment between the electronic states in SA-REKS or SI-SA-REKS.
+
+  \item[\is{GradientLevel}] Specifies the method used in the CP-REKS equations. The solutions
+    can be obtained by using preconditioned conjugate gradient (\is{GradientLevel} = 1), conjugate
+    gradient (\is{GradientLevel} = 2) and direct matrix inversion operation (\is{GradientLevel} = 3).
+    The third option requires large memory allocation since it have to save all variables to solve the
+    CP-REKS equations. Thus, it cannot be used for large systems. The first option is usually
+    recommended for many cases.
+
+  \item[\is{CGmaxIter}] Specifies the maximum number of iterations used in the conjugate gradient
+    based method. In general, the value of 20 is enough to solve the CP-REKS equations.
+
+  \item[\is{GradientTolerance}] Specifies the tolerance used in the conjugate gradient based method.
+    The \is{CGmaxIter} and \is{GradientTolerance} options are used when \is{GradientLevel} is 1 or 2.
+
+  \item[\is{RelaxedDensity}] If set to \is{Yes}, the file relaxed\_charge.dat is created. This file contains
+    a description of relaxed charges for \is{TargetState} or \is{TargetStateL}. The relaxed charges can
+    be used with external point charges in QM/MM calculations.
+
+  \item[\is{NonAdiabaticCoupling}] If set to \is{Yes}, the nonadiabatic couplings between SI-SA-REKS
+    states are calculated. This option cannot be used in single-state REKS or SA-REKS state.
+
+  \item[\is{PrintLevel}] Specifies the printing level in standard output. This option determines the output up to
+    energy information (\is{PrintLevel} = 0), gradient information (\is{PrintLevel} = 1), detailed information about
+    SCC cycle and timing in gradient calculation (\is{PrintLevel} = 2).
+
+  \item[\is{MemoryLevel}] Specifies the memory allocation of the variables used in CP-REKS equations.
+    First option shows fast computation speed but it requires large memory allocation, increasing as
+    $O(N_\mathrm{basis}^4)$. Second option shows relatively slow computation speed but it directly calculate
+    the CP-REKS variables without saving the variables. In general, the second option is recommended for large systems.
+
+  \end{description}
+
+Example for 3state SI-SA-REKS calculation using nonadiabatic couplings and modified spin constants:
+\begin{verbatim}
+REKS = SSR22 {
+  EnergyFunctional = 2
+  EnergyLevel = 2
+  UseSsrState = 1
+  TargetState = 2
+  TargetStateL = 0
+  SpinTuning = { 3.0 3.0 }
+  NonAdiabaticCoupling = Yes
+}
+\end{verbatim}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  ParserOptions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{ParserOptions}
@@ -4365,6 +4661,22 @@ energy (in Hartree)\\
 \index{XREST.DAT}
 
 Dipole moment of the specified excited state in units of Debye.
+
+\section{REKS results files}
+\label{sec:reks_files}
+Several files are produced during REKS calculations depending on the
+particular settings from section~\ref{sec:dftbp.REKS}.
+
+
+\subsection{tdp.dat}
+\index{tdp-reks.dat}
+
+Detail of the magnitude and direction of the transition dipole between all electronic states.
+
+\subsection{relaxed\_charge.dat}
+\index{relaxed\_charge.dat}
+
+Charges on atoms in the specified state. The top line contains the total charge of the system.
 
 %%% Local Variables:
 %%% mode: latex

@@ -18,7 +18,7 @@ module dftbp_eigenvects
   use dftbp_scalapackfx
 #:endif
 #:if WITH_GPU
-  use dftbp_initprogram, only: ngpus
+  use dftbp_gpuinfo, only: ngpus
   use magma
 #:endif
   use dftbp_elsiiface
