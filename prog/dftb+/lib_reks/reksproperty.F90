@@ -37,7 +37,7 @@ module dftbp_reksproperty
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
   subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoSqrL, FONs, &
-      & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, useSSR, reksAlg, tTDP, &
+      & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, reksAlg, tSSR, tTDP, &
       & unrelRhoSqr, unrelTdm)
 
     !> Eigenvectors on eixt
@@ -70,11 +70,11 @@ module dftbp_reksproperty
     !> Target microstate
     integer, intent(in) :: Lstate
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
-
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
+
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     !> Calculate transition dipole moments
     logical, intent(in) :: tTDP
@@ -98,7 +98,7 @@ module dftbp_reksproperty
     nstates = size(eigvecsSSR,dim=1)
     nstHalf = nstates * (nstates - 1) / 2
 
-    if (useSSR == 1) then
+    if (tSSR) then
       allocate(rhoX(nOrb,nOrb,nstates))
     else
       allocate(rhoX(nOrb,nOrb,1))
@@ -126,7 +126,7 @@ module dftbp_reksproperty
 
     ! unrelaxed density matrix for SA-REKS or L-th state
     rhoX(:,:,:) = 0.0_dp
-    if (useSSR == 1) then
+    if (tSSR) then
       do ist = 1, nstates
         call makeDensityMatrix(rhoX(:,:,ist), eigenvecs, tmpFilling(:,ist))
         call symmetrizeHS(rhoX(:,:,ist))
@@ -163,7 +163,7 @@ module dftbp_reksproperty
     end if
 
     ! Final unrelaxed density matrix for target state
-    if (useSSR == 1) then
+    if (tSSR) then
       ! unrelRhoSqr is unrelaxed density matrix for target SSR state
       kst = 0
       unrelRhoSqr(:,:) = 0.0_dp
@@ -185,7 +185,7 @@ module dftbp_reksproperty
 
     ! Final unrelaxed transition density matrix between states
     if (tTDP .and. Lstate == 0) then
-      if (useSSR == 1) then
+      if (tSSR) then
         ! unrelTdm is unrelaxed transition density matrix between SSR states
         unrelTdm(:,:,:) = 0.0_dp
         do lst = 1, nstHalf
@@ -228,15 +228,15 @@ module dftbp_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
+    call printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
 
   end subroutine getUnrelaxedDensMatAndTdp
 
 
   !> Calculate relaxed density for target SA-REKS or SSR state
   subroutine getRelaxedDensMat(eigenvecs, overSqr, unrelRhoSqr, ZT, omega, &
-      & FONs, eigvecsSSR, SAweight, Rab, G1, Nc, Na, rstate, useSSR, &
-      & reksAlg, tNAC, relRhoSqr)
+      & FONs, eigvecsSSR, SAweight, Rab, G1, Nc, Na, rstate, reksAlg, &
+      & tSSR, tNAC, relRhoSqr)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -277,11 +277,11 @@ module dftbp_reksproperty
     !> Target SSR state
     integer, intent(in) :: rstate
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
-
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
+
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     !> Calculate nonadiabatic coupling vectors
     logical, intent(in) :: tNAC
@@ -305,7 +305,7 @@ module dftbp_reksproperty
     nstHalf = nstates * (nstates - 1) / 2
 
     allocate(resRho(nOrb,nOrb))
-    if (useSSR == 1) then
+    if (tSSR) then
       allocate(resTdm(nOrb,nOrb,nstHalf))
     end if
     allocate(tmpRho(nOrb,nOrb))
@@ -313,7 +313,7 @@ module dftbp_reksproperty
 
     ! a part of transition density matrix originating from the
     ! response of the orbital occupation numbers
-    if (useSSR == 1) then
+    if (tSSR) then
       resTdm(:,:,:) = 0.0_dp
       select case (reksAlg)
       case (reksTypes%noReks)
@@ -361,7 +361,7 @@ module dftbp_reksproperty
 
     ! Final relaxed density matrix for target state
     relRhoSqr(:,:) = 0.0_dp
-    if (useSSR == 1) then
+    if (tSSR) then
       kst = 0
       ! relRhoSqr is relaxed density matrix for target SSR state
       relRhoSqr(:,:) = unrelRhoSqr - 2.0_dp * resRho
@@ -390,7 +390,7 @@ module dftbp_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
+    call printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR)
 
   end subroutine getRelaxedDensMat
 

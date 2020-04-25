@@ -6602,9 +6602,8 @@ contains
     !> 1: calculate states included in 'EnergyFuncitonal'
     !> 2: calculate all possible states
     call getChildValue(node, "EnergyLevel", ctrl%reksInp%Elevel, default=1)
-    !> Calculate SSR state (SI term is included)
-    !> 1: calculate SSR state, 0: calculate SA-REKS state
-    call getChildValue(node, "UseSsrState", ctrl%reksInp%useSSR, default=1)
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    call getChildValue(node, "StateInteractions", ctrl%reksInp%tSSR, default=.false.)
 
     !> Target SSR state
     call getChildValue(node, "TargetState", ctrl%reksInp%rstate, default=1)

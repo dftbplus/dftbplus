@@ -383,7 +383,7 @@ module dftbp_reksen
 
     ! save state energies to print information
     tmpEn(:) = self%energy
-    if (self%useSSR == 1) then
+    if (self%tSSR) then
       call diagDenseMtx(electronicSolver, 'V', tmpState, tmpOver, tmpEigen)
       self%eigvecsSSR(:,:) = tmpState
       self%energy(:) = tmpEigen

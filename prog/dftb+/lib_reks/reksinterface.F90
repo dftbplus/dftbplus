@@ -220,7 +220,7 @@ module dftbp_reksinterface
 
       else
 
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
 
           ! Convert necessary variables for SSR state from SA and SI terms
           call SaToSsrXT(self%XTdel, self%eigvecsSSR, self%rstate, self%XT)
@@ -391,8 +391,8 @@ module dftbp_reksinterface
           ! get the relaxed density matrix for target SSR or SA-REKS state
           call getRelaxedDensMat(eigenvecs(:,:,1), self%overSqr, self%unrelRhoSqr, &
               & self%ZT, self%omega, self%FONs, self%eigvecsSSR, self%SAweight, &
-              & self%Rab, self%G1, self%Nc, self%Na, self%rstate, self%useSSR, &
-              & self%reksAlg, self%tNAC, self%relRhoSqr)
+              & self%Rab, self%G1, self%Nc, self%Na, self%rstate, self%reksAlg, &
+              & self%tSSR, self%tNAC, self%relRhoSqr)
         else
           ! get the relaxed density matrix for L-th microstate
           call getRelaxedDensMatL(eigenvecs(:,:,1), self%rhoSqrL, self%overSqr, &
@@ -842,7 +842,7 @@ module dftbp_reksinterface
     call getG1ILOmegaRab(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
         & self%fockFa, self%fillingL, self%FONs, self%SAweight, self%enLtot, &
-        & self%hess, self%Nc, self%Na, self%useSSR, self%reksAlg, &
+        & self%hess, self%Nc, self%Na, self%reksAlg, self%tSSR, &
         & self%tRangeSep, self%G1, self%weightIL, self%omega, self%Rab)
 
     ! get A1e or Aall values based on GradOpt
@@ -898,9 +898,9 @@ module dftbp_reksinterface
       call buildSaReksVectors(env, denseDesc, neighbourList, nNeighbourSK, &
           & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
           & self%fillingL, self%weightL, self%Nc, self%Na, self%rstate, &
-          & self%useSSR, self%reksAlg, self%tRangeSep, self%XT)
+          & self%reksAlg, self%tSSR, self%tRangeSep, self%XT)
 
-      if (self%useSSR == 1) then
+      if (self%tSSR) then
 
         ! get R^delta values between states X's
         call getRdel(eigenvecs, self%fillingL, self%FONs, self%Nc, &

@@ -58,9 +58,8 @@ module dftbp_reksvar
     !> 2: calculate all possible states
     integer :: Elevel
 
-    !> Calculate SSR state (SI term is included)
-    !> 1: calculate SSR state, 0: calculate SA-REKS state
-    integer :: useSSR
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical :: tSSR
 
     !> Target SSR state
     integer :: rstate
@@ -134,8 +133,8 @@ module dftbp_reksvar
     !> Calculated energy states in SA-REKS
     integer :: Elevel
 
-    !> Calculate SSR state (SI term is included)
-    integer :: useSSR
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical :: tSSR
 
     !> Target SSR state
     integer :: rstate
@@ -588,7 +587,8 @@ module dftbp_reksvar
 
     self%Efunction = inp%Efunction
     self%Elevel = inp%Elevel
-    self%useSSR = inp%useSSR
+    self%tSSR = inp%tSSR
+
     self%rstate = inp%rstate
     self%Lstate = inp%Lstate
     self%guess = inp%guess
@@ -750,7 +750,7 @@ module dftbp_reksvar
 
         allocate(self%weightIL(Lmax))
         allocate(self%omega(superN))
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
           allocate(self%Rab(nstates,nstates))
         end if
 
@@ -772,7 +772,7 @@ module dftbp_reksvar
           allocate(self%Aall(superN,superN))
         end if
 
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
           allocate(self%XT(superN,nstates))
           allocate(self%XTdel(superN,nstHalf))
           allocate(self%RdelL(nOrb,nOrb,LmaxR,nstHalf))
@@ -935,7 +935,7 @@ module dftbp_reksvar
 
         self%weightIL(:) = 0.0_dp
         self%omega(:) = 0.0_dp
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
           self%Rab(:,:) = 0.0_dp
         end if
 
@@ -958,7 +958,7 @@ module dftbp_reksvar
         end if
 
         self%XT = 0.0_dp
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
           self%XTdel(:,:) = 0.0_dp
           self%RdelL(:,:,:,:) = 0.0_dp
           self%ZdelL(:,:,:) = 0.0_dp
@@ -1118,13 +1118,11 @@ module dftbp_reksvar
         end if
       end if
 
-      if (self%useSSR == 1 .and. self%Efunction == 1) then
+      if (self%tSSR .and. self%Efunction == 1) then
         call error("Single-state REKS is not SSR state")
       end if
 
-      if (self%useSSR > 1 .or. self%useSSR < 0) then
-        call error("Wrong useSSRstate given, please select 0 or 1")
-      else if (self%guess > 2 .or. self%guess < 1) then
+      if (self%guess > 2 .or. self%guess < 1) then
         call error("Wrong InitialGuess given, please select 1 or 2")
       end if
 
@@ -1139,15 +1137,15 @@ module dftbp_reksvar
         if (self%Lstate > 0) then
           if (self%Efunction == 1) then
             call error("gradient of microstate is not compatible with single-state REKS")
-          else if (self%useSSR == 1) then
-            call error("For gradient of microstate, please set useSSRstate = 0")
+          else if (self%tSSR) then
+            call error("For gradient of microstate, please set tSSR = .false.")
           end if
         end if
 
         if (self%tNAC) then
           if (self%Lstate > 0) then
             call error("Nonadiabatic coupling is not compatible with gradient of microstate")
-          else if (self%useSSR == 0 .or. self%Efunction == 1) then
+          else if (.not. self%tSSR .or. self%Efunction == 1) then
             call error("Nonadiabatic coupling is not compatible with &
                 & single-state REKS or SA-REKS calculation")
           end if

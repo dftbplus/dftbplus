@@ -7519,7 +7519,7 @@ contains
 
       call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), reks%overSqr, reks%rhoSqrL, &
           & reks%FONs, reks%eigvecsSSR, reks%Lpaired, reks%Nc, reks%Na, &
-          & reks%rstate, reks%Lstate, reks%useSSR, reks%reksAlg, reks%tTDP, &
+          & reks%rstate, reks%Lstate, reks%reksAlg, reks%tSSR, reks%tTDP, &
           & reks%unrelRhoSqr, reks%unrelTdm)
 
       if (reks%tTDP) then

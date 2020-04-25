@@ -4689,7 +4689,7 @@ contains
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
       call printReksSSRInfo22(Wab, tmpEn, StateCoup, reks%energy, reks%eigvecsSSR, &
-          & reks%Elevel, reks%useSSR, reks%Na)
+          & reks%Elevel, reks%Na, reks%tSSR)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -4699,7 +4699,7 @@ contains
 
   !> print SI-SA-REKS(2,2) result in standard output
   subroutine printReksSSRInfo22(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
-      & Elevel, useSSR, Na)
+      & Elevel, Na, tSSR)
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -4719,11 +4719,11 @@ contains
     !> Calculated energy states in SA-REKS
     integer, intent(in) :: Elevel
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
-
     !> Number of active orbitals
     integer, intent(in) :: Na
+
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     integer :: ist, jst, nstates, ia, ib, nActPair
     character(len=8) :: strTmp
@@ -4782,7 +4782,7 @@ contains
     end do
     write(stdOut, "(A)") repeat("-", 50)
 
-    if (useSSR == 1) then
+    if (tSSR) then
       write(stdOut,*)
       write(stdOut, "(A)") repeat("-", 64)
       if (Elevel == 1) then
@@ -4808,13 +4808,10 @@ contains
 
 
   !> print unrelaxed FONs for target state
-  subroutine printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
+  subroutine printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
-
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
 
     !> Target SSR state
     integer, intent(in) :: rstate
@@ -4828,10 +4825,13 @@ contains
     !> Number of active orbitals
     integer, intent(in) :: Na
 
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
+
     integer :: ii
 
     write(stdOut,*)
-    if (useSSR == 1) then
+    if (tSSR) then
       write(stdOut,'(A25,I1,A1)',advance="no") " unrelaxed SSR FONs for S", &
           & rstate - 1, ":"
     else
@@ -4855,13 +4855,10 @@ contains
 
 
   !> print Relaxed FONs for target state
-  subroutine printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
+  subroutine printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR)
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
-
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
 
     !> Target SSR state
     integer, intent(in) :: rstate
@@ -4872,9 +4869,12 @@ contains
     !> Number of active orbitals
     integer, intent(in) :: Na
 
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
+
     integer :: ii
 
-    if (useSSR == 1) then
+    if (tSSR) then
       write(stdOut,'(A23,I1,A1)',advance="no") " relaxed SSR FONs for S", &
           & rstate - 1, ":"
     else
@@ -5434,7 +5434,7 @@ contains
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
         if (reks%Lstate == 0) then
-          if (reks%useSSR == 1) then
+          if (reks%tSSR) then
             write(stdOut,*) reks%rstate, "state (SSR)"
           else
             write(stdOut,*) reks%rstate, "state (SA-REKS)"

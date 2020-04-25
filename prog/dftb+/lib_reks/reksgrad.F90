@@ -635,7 +635,7 @@ module dftbp_reksgrad
   subroutine getG1ILOmegaRab(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, hamSqrL, &
       & hamSpL, fockFa, fillingL, FONs, SAweight, enLtot, hess, &
-      & Nc, Na, useSSR, reksAlg, tRangeSep, G1, weightIL, omega, Rab)
+      & Nc, Na, reksAlg, tSSR, tRangeSep, G1, weightIL, omega, Rab)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -688,11 +688,11 @@ module dftbp_reksgrad
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
-
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
+
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
@@ -749,7 +749,7 @@ module dftbp_reksgrad
       call error("SSR(4,4) is not implemented yet")
     end select
 
-    if (useSSR == 1) then
+    if (tSSR) then
       Rab(:,:) = 0.0_dp
     end if
     omega(:) = 0.0_dp
@@ -766,7 +766,7 @@ module dftbp_reksgrad
         end do
 
         ! get Rab value
-        if (useSSR == 1) then
+        if (tSSR) then
           select case (reksAlg)
           case (reksTypes%noReks)
           case (reksTypes%ssr22)
@@ -800,7 +800,7 @@ module dftbp_reksgrad
         end do
 
         ! get Rab value
-        if (useSSR == 1) then
+        if (tSSR) then
           select case (reksAlg)
           case (reksTypes%noReks)
           case (reksTypes%ssr22)
@@ -816,7 +816,7 @@ module dftbp_reksgrad
     end do
 
     ! get Rab value
-    if (useSSR == 1) then
+    if (tSSR) then
       select case (reksAlg)
       case (reksTypes%noReks)
       case (reksTypes%ssr22)
@@ -919,7 +919,7 @@ module dftbp_reksgrad
   !> Calculate X^T vectors for state X = PPS, OSS, etc
   subroutine buildSaReksVectors(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, fillingL, &
-      & weightL, Nc, Na, rstate, useSSR, reksAlg, tRangeSep, XT)
+      & weightL, Nc, Na, rstate, reksAlg, tSSR, tRangeSep, XT)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -963,11 +963,11 @@ module dftbp_reksgrad
     !> Target SSR state
     integer, intent(in) :: rstate
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
-
     !> Type of REKS calculations
     integer, intent(in) :: reksAlg
+
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     !> Whether to run a range separated calculation
     logical, intent(in) :: tRangeSep
@@ -996,7 +996,7 @@ module dftbp_reksgrad
 
       if (tRangeSep) then
 
-        if (useSSR == 1) then
+        if (tSSR) then
           do ist = 1, nstates
             do ij = 1, superN
               ! assign index i and j from ij
@@ -1030,7 +1030,7 @@ module dftbp_reksgrad
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
-        if (useSSR == 1) then
+        if (tSSR) then
           do ist = 1, nstates
             do ij = 1, superN
               ! assign index i and j from ij
