@@ -604,14 +604,16 @@ module dftbp_reksvar
     self%FonMaxIter = inp%FonMaxIter
     self%shift = inp%shift
 
+    self%tTDP = inp%tTDP
+
     self%Glevel = inp%Glevel
-    self%CGmaxIter = inp%CGmaxIter
-    self%Glimit = inp%Glimit
+    if (self%Glevel == 1 .or. self%Glevel == 2) then
+      self%CGmaxIter = inp%CGmaxIter
+      self%Glimit = inp%Glimit
+      self%tSaveMem = inp%tSaveMem
+    end if
 
     self%Plevel = inp%Plevel
-    self%tSaveMem = inp%tSaveMem
-
-    self%tTDP = inp%tTDP
 
     self%tRD = inp%tRD
     self%tNAC = inp%tNAC

@@ -6584,69 +6584,6 @@ contains
   end subroutine readReks
 
 
-!  !> Reads the SSR(2,2) block
-!  subroutine readSSR22(node, ctrl, geo)
-!
-!    !> Node to parse
-!    type(fnode), pointer, intent(in) :: node
-!
-!    !> Control structure to fill
-!    type(TControl), intent(inout) :: ctrl
-!
-!    !> geometry of the system
-!    type(TGeometry), intent(in) :: geo
-!
-!    !> Minimized energy functional; 1: PPS, 2: (PPS+OSS)/2
-!    call getChildValue(node, "EnergyFunctional", ctrl%reksInp%Efunction, default=2)
-!    !> Decide the energy states in SA-REKS
-!    !> If true, it includes all possible states in current active space
-!    !> If false, it includes the states used in minimized energy functional
-!    call getChildValue(node, "IncludeAllStates", ctrl%reksInp%tAllStates, default=.false.)
-!    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
-!    call getChildValue(node, "StateInteractions", ctrl%reksInp%tSSR, default=.false.)
-!
-!    !> Target SSR state
-!    call getChildValue(node, "TargetState", ctrl%reksInp%rstate, default=1)
-!    !> Target microstate
-!    call getChildValue(node, "TargetMicrostate", ctrl%reksInp%Lstate, default=0)
-!
-!    !> Initial guess for eigenvectors in REKS
-!    !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
-!    call getChildValue(node, "InitialGuess", ctrl%reksInp%guess, default=1)
-!    !> Maximum iteration used in FON optimization
-!    call getChildValue(node, "FonMaxIter", ctrl%reksInp%FonMaxIter, default=20)
-!    !> Shift value in SCC cycle
-!    call getChildValue(node, "Shift", ctrl%reksInp%shift, default=0.3_dp)
-!
-!    !> Read "SpinTuning" block with 'nType' elements
-!    call readSpinTuning(node, ctrl, geo%nSpecies)
-!
-!    !> Calculate transition dipole moments
-!    call getChildValue(node, "TransitionDipole", ctrl%reksInp%tTDP, default=.false.)
-!
-!    !> Algorithms to calculate analytic gradients
-!    !> 1: preconditioned conjugate gradient (PCG)
-!    !> 2: conjugate gradient (CG)
-!    !> 3: direct inverse-matrix multiplication
-!    call getChildValue(node, "GradientLevel", ctrl%reksInp%Glevel, default=1)
-!    !> Maximum iteration used in calculation of gradient with PCG and CG
-!    call getChildValue(node, "CGmaxIter", ctrl%reksInp%CGmaxIter, default=20)
-!    !> Tolerance used in calculation of gradient with PCG and CG
-!    call getChildValue(node, "GradientTolerance", ctrl%reksInp%Glimit, default=1.0E-8_dp)
-!
-!    !> Calculate relaxed density of SSR or SA-REKS state
-!    call getChildValue(node, "RelaxedDensity", ctrl%reksInp%tRD, default=.false.)
-!    !> Calculate nonadiabatic coupling vectors
-!    call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksInp%tNAC, default=.false.)
-!
-!    !> Print level in standard output file
-!    call getChildValue(node, "VerbosityLevel", ctrl%reksInp%Plevel, default=1)
-!    !> Save 'A' and 'Hxc' to memory in gradient calculation
-!    call getChildValue(node, "SaveMemory", ctrl%reksInp%tSaveMem, default=.false.)
-!
-!  end subroutine readSSR22
-
-
   !> Reads the SSR(2,2) block
   subroutine readSSR22(node, ctrl, geo)
 
