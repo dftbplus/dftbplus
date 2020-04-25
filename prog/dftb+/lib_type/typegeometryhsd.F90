@@ -328,8 +328,10 @@ contains
 
     if (geo%tHelical) then
       allocate(geo%latVecs(3, 1))
-      call getNextToken(text, geo%latVecs(:, 1), iStart, iErr)
-      call checkError(node, iErr, "Invalid helical vector.")
+      iEnd = nextLine(text, iStart)
+      call getNextToken(text(:iEnd), geo%latVecs(:, 1), iStart, iErr)
+      call checkError(node, iErr, 'Invalid specified helical boundary conditions: "translation,&
+          & twist angle, rotation order" should be supplied).')
       geo%latVecs(1,1) = geo%latVecs(1,1) * AA__Bohr
       geo%latVecs(2,1) = geo%latVecs(2,1) * pi / 180.0_dp
       allocate(geo%recVecs2p(1, 1))
