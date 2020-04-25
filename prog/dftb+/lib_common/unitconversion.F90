@@ -217,7 +217,7 @@ module dftbp_unitconversion
 
 
   !> Number of angular units
-  integer, parameter :: nAngularUnit = 4
+  integer, parameter :: nAngularUnit = 6
 
 
   !> angular units
@@ -225,7 +225,9 @@ module dftbp_unitconversion
       &unit("degrees             ", pi / 180.0_dp ), &
       &unit("deg                 ", pi / 180.0_dp ), &
       &unit("radian              ", 1.0_dp ), &
-      &unit("rad                 ", 1.0_dp ) &
+      &unit("rad                 ", 1.0_dp ), &
+      &unit("turns               ", 2.0_dp * pi ), &
+      &unit("gradians            ", pi / 200.0_dp ) &
       &/)
 
 
