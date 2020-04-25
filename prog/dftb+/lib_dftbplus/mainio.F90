@@ -4689,7 +4689,7 @@ contains
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
       call printReksSSRInfo22(Wab, tmpEn, StateCoup, reks%energy, reks%eigvecsSSR, &
-          & reks%Elevel, reks%Na, reks%tSSR)
+          & reks%Na, reks%tAllStates, reks%tSSR)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -4699,7 +4699,7 @@ contains
 
   !> print SI-SA-REKS(2,2) result in standard output
   subroutine printReksSSRInfo22(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
-      & Elevel, Na, tSSR)
+      & Na, tAllStates, tSSR)
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -4716,11 +4716,11 @@ contains
     !> eigenvectors from SA-REKS state
     real(dp), intent(in) :: eigvecsSSR(:,:)
 
-    !> Calculated energy states in SA-REKS
-    integer, intent(in) :: Elevel
-
     !> Number of active orbitals
     integer, intent(in) :: Na
+
+    !> Decide the energy states in SA-REKS
+    logical, intent(in) :: tAllStates
 
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical, intent(in) :: tSSR
@@ -4747,10 +4747,10 @@ contains
 
     write(stdOut,*)
     write(stdOut, "(A)") repeat("-", 50)
-    if (Elevel == 1) then
+    if (.not. tAllStates) then
       write(stdOut,'(A)') " SSR: 2SI-2SA-REKS(2,2) Hamiltonian matrix"
       write(stdOut,'(15x,A3,11x,A3)') "PPS", "OSS"
-    else if (Elevel == 2) then
+    else
       write(stdOut,'(A)') " SSR: 3SI-2SA-REKS(2,2) Hamiltonian matrix"
       write(stdOut,'(15x,A3,11x,A3,11x,A3)') "PPS", "OSS", "DES"
     end if
@@ -4785,18 +4785,18 @@ contains
     if (tSSR) then
       write(stdOut,*)
       write(stdOut, "(A)") repeat("-", 64)
-      if (Elevel == 1) then
+      if (.not. tAllStates) then
         write(stdOut,'(A)') " SSR: 2SI-2SA-REKS(2,2) states"
         write(stdOut,'(19x,A4,7x,A7,4x,A7)') "E_n", "C_{PPS}", "C_{OSS}"
-      else if (Elevel == 2) then
+      else
         write(stdOut,'(A)') " SSR: 3SI-2SA-REKS(2,2) states"
         write(stdOut,'(19x,A4,7x,A7,4x,A7,4x,A7)') "E_n", "C_{PPS}", "C_{OSS}", "C_{DES}"
       end if
       do ist = 1, nstates
-        if (Elevel == 1) then
+        if (.not. tAllStates) then
           write(stdOut,'(1x,A,I2,1x,f13.8,1x,f10.6,1x,f10.6)') &
               & "SSR state ", ist, energy(ist), eigvecsSSR(:,ist)
-        else if (Elevel == 2) then
+        else
           write(stdOut,'(1x,A,I2,1x,f13.8,1x,f10.6,1x,f10.6,1x,f10.6)') &
               & "SSR state ", ist, energy(ist), eigvecsSSR(:,ist)
         end if

@@ -6598,10 +6598,10 @@ contains
 
     !> Minimized energy functional; 1: PPS, 2: (PPS+OSS)/2
     call getChildValue(node, "EnergyFunctional", ctrl%reksInp%Efunction, default=2)
-    !> Calculated energy states in SA-REKS
-    !> 1: calculate states included in 'EnergyFuncitonal'
-    !> 2: calculate all possible states
-    call getChildValue(node, "EnergyLevel", ctrl%reksInp%Elevel, default=1)
+    !> Decide the energy states in SA-REKS
+    !> If true, it includes all possible states in current active space
+    !> If false, it includes the states used in minimized energy functional
+    call getChildValue(node, "IncludeAllStates", ctrl%reksInp%tAllStates, default=.false.)
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     call getChildValue(node, "StateInteractions", ctrl%reksInp%tSSR, default=.false.)
 

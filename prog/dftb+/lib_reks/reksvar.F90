@@ -53,10 +53,10 @@ module dftbp_reksvar
     !> In SSR(2,2), 1: PPS, 2: (PPS+OSS)/2
     integer :: Efunction
 
-    !> Calculated energy states in SA-REKS
-    !> 1: calculate states only included in 'EnergyFuncitonal'
-    !> 2: calculate all possible states
-    integer :: Elevel
+    !> Decide the energy states in SA-REKS
+    !> If true, it includes all possible states in current active space
+    !> If false, it includes the states used in minimized energy functional
+    logical :: tAllStates
 
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical :: tSSR
@@ -130,8 +130,8 @@ module dftbp_reksvar
     !> Minimized energy functional
     integer :: Efunction
 
-    !> Calculated energy states in SA-REKS
-    integer :: Elevel
+    !> Decide the energy states in SA-REKS
+    logical :: tAllStates
 
     !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
     logical :: tSSR
@@ -586,7 +586,7 @@ module dftbp_reksvar
     self%reksAlg = inp%reksAlg
 
     self%Efunction = inp%Efunction
-    self%Elevel = inp%Elevel
+    self%tAllStates = inp%tAllStates
     self%tSSR = inp%tSSR
 
     self%rstate = inp%rstate
@@ -1076,23 +1076,21 @@ module dftbp_reksvar
       if (self%Efunction == 1) then
         ! Only PPS state is minimized; single-state REKS
         self%SAstates = 1
-        if (self%Elevel == 1) then
+        if (.not. self%tAllStates) then
           ! PPS state
           self%nstates = 1
         else
-          call error("EnergyLevel should be 1 in single-state REKS")
+          call error("IncludeAllStates should be set to No in single-state REKS")
         end if
       else if (self%Efunction == 2) then
         ! (PPS+OSS)/2 state is minimized; SA-REKS
         self%SAstates = 2
-        if (self%Elevel == 1) then
+        if (.not. self%tAllStates) then
           ! PPS, OSS state
           self%nstates = 2
-        else if (self%Elevel == 2) then
+        else
           ! PPS, OSS, DES state
           self%nstates = 3
-        else
-          call error("EnergyLevel should be 1 or 2 in SI-SA-REKS")
         end if
       else
         call error("EnergyFunctional should be 1 or 2 in REKS calculation")
