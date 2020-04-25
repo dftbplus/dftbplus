@@ -12,7 +12,7 @@ Hamiltonian = DFTB {
       Density [kg/l] = 1.26  # mol density of the solvent
     }
     Temperature [K] = 298.15
-    State = "gsolv"
+    State = "mol1bar"
     FreeEnergyShift [kcal/mol] = 2.81072250
     Radii = vanDerWaalsRadiiD3 {}
     Descreening = values {

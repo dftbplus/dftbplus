@@ -27,7 +27,7 @@ module dftbp_born
   type :: TGBParameters
 
     !> Energy shift to the reference system
-    real(dp) :: shift = 0.0_dp
+    real(dp) :: freeEnergyShift = 0.0_dp
 
     !> Dielectric screening
     real(dp) :: keps = 1.0_dp
@@ -269,7 +269,8 @@ contains
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(size(energies) == self%nAtom)
 
-    energies(:) = 0.5_dp * (self%shift * self%chargesPerAtom)
+    energies(:) = 0.5_dp * (self%shift * self%chargesPerAtom) &
+       & + self%param%freeEnergyShift / real(self%nAtom, dp)
 
   end subroutine getEnergies
 
@@ -312,7 +313,7 @@ contains
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
     call getBornEGCluster(self, coords, self%energies, gradients, sigma)
 
-    self%energies = self%energies + self%shift / real(self%nAtom, dp)
+    self%energies = self%energies + self%param%freeEnergyShift / real(self%nAtom, dp)
 
     if (self%tPeriodic) then
       self%stress(:, :) = sigma / self%volume
