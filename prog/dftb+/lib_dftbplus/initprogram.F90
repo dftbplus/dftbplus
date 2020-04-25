@@ -29,7 +29,6 @@ module dftbp_initprogram
   use dftbp_accuracy
   use dftbp_intrinsicpr
   use dftbp_shortgamma
-  use dftbp_coulomb
   use dftbp_message
   use dftbp_mixer
   use dftbp_simplemixer
