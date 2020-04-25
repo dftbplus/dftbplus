@@ -21,7 +21,7 @@ module dftbp_periodic
   use dftbp_memman
   use dftbp_latpointiter
   use dftbp_quaternions, only : rotate3
-  use dftbp_boundaryconditions
+  use dftbp_boundaryconditions, only : zAxis
   implicit none
 
   private
@@ -91,8 +91,6 @@ module dftbp_periodic
     !> initialised data
     logical :: initialized = .false.
   end type TNeighbourList
-
-  real(dp), parameter :: zAxis(3) = (/0.0_dp,0.0_dp,1.0_dp/)
 
 contains
 

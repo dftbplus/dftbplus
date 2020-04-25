@@ -17,7 +17,7 @@ module dftbp_boundaryconditions
   implicit none
 
   private
-  public :: TBoundaryConditions, boundaryTypes, BoundaryConditions_init
+  public :: TBoundaryConditions, boundaryTypes, BoundaryConditions_init, zAxis
 
   type :: TBoundaryTypesEnum
 

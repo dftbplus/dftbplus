@@ -19,13 +19,12 @@ module dftbp_forces
   use dftbp_environment
   use dftbp_constants, only : pi
   use dftbp_quaternions, only : rotate3
+  use dftbp_boundaryconditions, only : zAxis
   implicit none
 
   private
 
   public :: derivative_shift
-
-  real(dp), parameter :: zAxis(3) = [0.0_dp,0.0_dp,1.0_dp]
 
   !> forces with shift vectors present
   interface derivative_shift

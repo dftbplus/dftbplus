@@ -5334,6 +5334,7 @@ contains
       & denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection, tHelical, coord0)
 
     use dftbp_quaternions, only : rotate3
+    use dftbp_boundaryconditions, only : zAxis
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5453,8 +5454,6 @@ contains
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom, iAt
     integer :: ii
-
-    real(dp), parameter :: zAxis(3) = (/0.0_dp,0.0_dp,1.0_dp/)
 
 
     tSccCalc = allocated(sccCalc)

@@ -12,15 +12,13 @@ module dftbp_repulsive
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
+  use dftbp_boundaryconditions, only : zAxis
   use dftbp_repcont
   use dftbp_quaternions, only : rotate3
   implicit none
   private
 
   public :: getERep, getERepDeriv
-
-  !> Axis for helical rotations
-  real(dp), parameter :: zAxis(3) = [0.0_dp,0.0_dp,1.0_dp]
 
 contains
 
