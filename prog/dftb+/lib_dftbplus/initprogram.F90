@@ -4862,9 +4862,9 @@ contains
       call error("SSR(4,4) is not implemented yet")
     end select
 
-    write (stdOut, "(A,':',T30,I14)") "Number of core orbitals", reks%Nc
-    write (stdOut, "(A,':',T30,I14)") "Number of active orbitals", reks%Na
-    write (stdOut, "(A,':',T30,I14)") "Number of basis", orb%nOrb
+    write (stdOut, "(A,':',T30,I14)") "Number of Core Orbitals", reks%Nc
+    write (stdOut, "(A,':',T30,I14)") "Number of Active Orbitals", reks%Na
+    write (stdOut, "(A,':',T30,I14)") "Number of Basis", orb%nOrb
     write (stdOut, "(A,':',T30,I14)") "Number of States", reks%nstates
     do ii = 1, reks%SAstates
       if (ii == 1) then
@@ -4876,20 +4876,36 @@ contains
     end do
     write (stdOut, "(A,':',T30,I14)") "State of Interest", reks%rstate
 
+    if (reks%tReadMO) then
+      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Read Eigenvec.bin file"
+    else
+      write (stdOut, "(A,':',T30,A)") "Initial Guess", "Diagonalize H0 matrix"
+    end if
+
     write (stdOut, "(A,':',T30,A)") "Newton-Raphson for FON opt", "Yes"
     write (stdOut, "(A,':',T30,I14)") "NR max. Iterations", reks%FonMaxIter
-    write (stdOut, "(A,':',T30,A)") "Level Shifting", "Yes"
+    if (reks%shift > epsilon(1.0_dp)) then
+      write (stdOut, "(A,':',T30,A)") "Level Shifting", "Yes"
+    else
+      write (stdOut, "(A,':',T30,A)") "Level Shifting", "No"
+    end if
     write (stdOut, "(A,':',T30,F12.6)") "Shift Value", reks%shift
 
     do iType = 1, nType
       if (iType == 1) then
-        write (strTmp, "(A,':')") "W scale factor"
+        write (strTmp, "(A,':')") "W Scale Factor"
       else
         write (strTmp, "(A)") ""
       end if
       write (stdOut, "(A,T30,A3,'=',F12.6)") trim(strTmp), &
           & speciesName(iType), reks%Tuning(iType)
     end do
+
+    if (reks%tTDP) then
+      write (stdOut, "(A,':',T30,A)") "Transition Dipole", "Yes"
+    else
+      write (stdOut, "(A,':',T30,A)") "Transition Dipole", "No"
+    end if
 
     if (reks%tForces) then
 
@@ -4905,10 +4921,20 @@ contains
           write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Preconditioned Conjugate-Gradient"
           write (stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
           write (stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
+          if (reks%tSaveMem) then
+            write (stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
+          else
+            write (stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
+          end if
         else if (reks%Glevel == 2) then
           write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Conjugate-Gradient"
           write (stdOut, "(A,':',T30,I14)") "CG max. Iterations", reks%CGmaxIter
           write (stdOut, "(A,':',T30,E14.6)") "CG Tolerance", reks%Glimit
+          if (reks%tSaveMem) then
+            write (stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Save in Cache Memory"
+          else
+            write (stdOut, "(A,':',T30,A)") "Memory for A and Hxc", "Direct Updating Without Saving"
+          end if
         else if (reks%Glevel == 3) then
           write (stdOut, "(A,':',T30,A)") "CP-REKS Solver", "Direct Matrix Multiplication"
         end if
