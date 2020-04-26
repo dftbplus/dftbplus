@@ -1130,6 +1130,10 @@ module dftbp_reksvar
         call error("Single-state REKS is not SSR state")
       end if
 
+      if (self%shift < -epsilon(1.0_dp)) then
+        call error("Too small shift value in REKS")
+      end if
+
       ! REKS gradient requirements
 
       if (self%tForces) then
