@@ -6659,9 +6659,10 @@ contains
     !> Target microstate
     call getChildValue(node, "TargetMicrostate", ctrl%reksInp%Lstate, default=0)
 
-    !> Initial guess for eigenvectors in REKS
-    !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
-    call getChildValue(node, "InitialGuess", ctrl%reksInp%guess, default=1)
+    !> Read initial guess for eigenvectors in REKS
+    !> If true, initial eigenvectors are obtained from 'eigenvec.bin'
+    !> If false, initial eigenvectors are obtained from diagonalization of H0
+    call getChildValue(node, "ReadEigenvectors", ctrl%reksInp%tReadMO, default=.false.)
     !> Maximum iteration used in FON optimization
     call getChildValue(node, "FonMaxIter", ctrl%reksInp%FonMaxIter, default=20)
     !> Shift value in SCC cycle

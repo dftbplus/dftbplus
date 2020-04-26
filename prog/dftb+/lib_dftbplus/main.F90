@@ -6335,7 +6335,7 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    if (reks%guess == 1) then
+    if (.not. reks%tReadMO) then
 
       call env%globalTimer%startTimer(globalTimers%diagonalization)
       call buildAndDiagDenseRealH0(env, denseDesc, h0, over, neighbourList, &
@@ -6343,7 +6343,7 @@ contains
           & HSqrReal, SSqrReal, eigvecsReal, eigen(:,1,:), reks%overSqr)
       call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
-    else if (reks%guess == 2) then
+    else
 
       call readEigenvecs(eigvecsReal(:,:,1))
       ! TODO : renormalize eigenvectors needed!
@@ -7326,7 +7326,7 @@ contains
     sccErrorQ = maxval(abs(qDiffRed))
 
     tConverged = (sccErrorQ < sccTol) &
-        & .and. (iSccIter >= minSccIter .or. (reks%guess == 2) .or. iGeoStep > 0)
+        & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       qInpRed(:) = qOutRed
       call guessNewEigvecs(eigvecs(:,:,1), reks%eigvecsFock)
@@ -7383,7 +7383,7 @@ contains
     sccErrorQ = maxval(abs(deltaRhoDiff))
 
     tConverged = (sccErrorQ < sccTol)&
-         & .and. (iSCCiter >= minSCCIter .or. (reks%guess == 2) .or. iGeoStep > 0)
+         & .and. (iSCCiter >= minSCCIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSCCiter /= maxSccIter .and. .not. tStopScc)) then
       deltaRhoIn(:) = deltaRhoOut
       call guessNewEigvecs(eigvecs(:,:,1), reks%eigvecsFock)

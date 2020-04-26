@@ -68,9 +68,10 @@ module dftbp_reksvar
     !> Target microstate
     integer :: Lstate
 
-    !> Initial guess for eigenvectors in REKS
-    !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
-    integer :: guess
+    !> Read initial guess for eigenvectors in REKS
+    !> If true, initial eigenvectors are obtained from 'eigenvec.bin'
+    !> If false, initial eigenvectors are obtained from diagonalization of H0
+    logical :: tReadMO
 
     !> Maximum iteration used in FON optimization
     integer :: FonMaxIter
@@ -148,8 +149,8 @@ module dftbp_reksvar
     !> Target microstate
     integer :: Lstate
 
-    !> Initial guess for eigenvectors in REKS
-    integer :: guess
+    !> Read initial guess for eigenvectors in REKS
+    logical :: tReadMO
 
     !> Maximum iteration used in FON optimization
     integer :: FonMaxIter
@@ -600,7 +601,7 @@ module dftbp_reksvar
 
     self%rstate = inp%rstate
     self%Lstate = inp%Lstate
-    self%guess = inp%guess
+    self%tReadMO = inp%tReadMO
     self%FonMaxIter = inp%FonMaxIter
     self%shift = inp%shift
 
@@ -1127,10 +1128,6 @@ module dftbp_reksvar
 
       if (self%tSSR .and. self%Efunction == 1) then
         call error("Single-state REKS is not SSR state")
-      end if
-
-      if (self%guess > 2 .or. self%guess < 1) then
-        call error("Wrong InitialGuess given, please select 1 or 2")
       end if
 
       ! REKS gradient requirements
