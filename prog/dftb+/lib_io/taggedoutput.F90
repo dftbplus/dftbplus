@@ -72,6 +72,9 @@ module dftbp_taggedoutput
     !> oscillator strength for excitations
     character(lenLabel) :: excOsc = 'exc_oscillator'
 
+    !> nonadiabatic coupling vector, H
+    character(lenLabel) :: nacH = 'coupling_vectors'
+
     !> ground state total forces
     character(lenLabel) :: forceTot = 'forces'
 

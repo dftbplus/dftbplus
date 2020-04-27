@@ -30,6 +30,8 @@ module dftbp_inputdata
 #:endif
   use dftbp_pmlocalisation, only : TPipekMezeyInp
   use dftbp_elstatpot, only : TElStatPotentialsInp
+  use dftbp_reks
+  use dftbp_solvinput, only : TSolvationInp
 
 #:if WITH_TRANSPORT
   use libnegf_vars
@@ -453,6 +455,9 @@ module dftbp_inputdata
     !> Dispersion related stuff
     type(TDispersionInp), allocatable :: dispInp
 
+    !> Solvation
+    class(TSolvationInp), allocatable :: solvInp
+
 
     !> Local potentials
     real(dp), allocatable :: chrgConstr(:,:)
@@ -492,6 +497,9 @@ module dftbp_inputdata
     ! Custom occupations
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
+
+    !> REKS input
+    type(TReksIni) :: reksIni
 
   end type TControl
 
