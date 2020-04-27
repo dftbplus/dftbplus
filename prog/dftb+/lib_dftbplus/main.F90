@@ -786,8 +786,9 @@ contains
         call error("pp-RPA calc. does not work with MPI yet")
       end if
       call ppRPAenergies(RPA%tTDA, denseDesc, eigvecsReal, eigen(:,1,:), sccCalc,&
-          & RPA%nexc, RPA%sym, RPA%hhubbard, SSqrReal, species, nEl(1), neighbourList%iNeighbour,&
-          & img2CentCell, orb, tWriteAutotest, autotestTag, taggedWriter, RPA%tConstVir, RPA%nvirtual)
+          & RPA%nexc, RPA%sym, RPA%hhubbard, SSqrReal, species0, nEl(1), neighbourList%iNeighbour,&
+          & img2CentCell, orb, tWriteAutotest, autotestTag, taggedWriter, RPA%tConstVir,&
+          & RPA%nvirtual)
     end if
 
     if (isXlbomd) then

@@ -688,8 +688,8 @@ contains
       iSp1 = species(iAt1)
       do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
         iAt2 = iNeighbour(iNeigh, iAt1)
-        iSp2 = species(iAt2)
         iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
         R_ab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
         gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - expGamma(R_ab, U_h(iSp2), U_h(iSp1))
       end do

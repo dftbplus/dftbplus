@@ -2142,7 +2142,7 @@ contains
       elseif (tSpin .and. tCasidaForces) then
         call error("excited state relaxation is not implemented yet for spin-polarized systems")
       elseif (tPeriodic .and. tCasidaForces) then
-        call error("excited state relaxation is not implemented yet periodic systems")
+        call error("excited state relaxation is not implemented yet for periodic systems")
       elseif (tPeriodic .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular crystals")
       elseif (tSpinOrbit) then
@@ -2216,15 +2216,28 @@ contains
     ! ppRPA stuff
     if (tPpRPA) then
 
-       RPA%nExc = input%ctrl%pprpa%nExc
-       RPA%sym = input%ctrl%pprpa%sym
-       RPA%tTDA = input%ctrl%pprpa%tTDA
+      if (abs(input%ctrl%nrChrg - 2.0_dp) > elecTolMax) then
+        call warning("Particle-particle RPA should be for a reference system with a charge of +2.")
+      end if
 
-       RPA%tConstVir = input%ctrl%pprpa%tConstVir
-       RPA%nvirtual = input%ctrl%pprpa%nvirtual
+      RPA%nExc = input%ctrl%pprpa%nExc
+      RPA%sym = input%ctrl%pprpa%sym
+      RPA%tTDA = input%ctrl%pprpa%tTDA
 
-       ALLOCATE(RPA%hhubbard(size(input%ctrl%pprpa%hhubbard)))
-       RPA%hhubbard(:) = input%ctrl%pprpa%hhubbard
+      RPA%tConstVir = input%ctrl%pprpa%tConstVir
+      RPA%nvirtual = input%ctrl%pprpa%nvirtual
+
+      allocate(RPA%hhubbard(size(input%ctrl%pprpa%hhubbard)))
+      RPA%hhubbard(:) = input%ctrl%pprpa%hhubbard
+
+      !if (tPeriodic) then
+      !  error("PP-RPA is not implemented for periodic systems")
+      !end if
+      if (tSpinOrbit) then
+        call error("PP-RPA does not support spin orbit coupling")
+      else if (tSpin) then
+        call error("PP-RPA does not support a spin polarised ground state")
+      end if
 
     end if
 

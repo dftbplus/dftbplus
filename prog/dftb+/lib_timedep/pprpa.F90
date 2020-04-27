@@ -9,6 +9,7 @@
 #:include "error.fypp"
 
 !> excitations energies according to the particle-particle Random Phase Approximation
+!> (doi:10.1063/1.4977928)
 module dftbp_pprpa
   use dftbp_assert
   use dftbp_linrespcommon
@@ -207,6 +208,12 @@ contains
     end do
 
     nocc = nint(rnel) / 2
+    if (abs(rnel - real(2 * nocc,dp)) > epsilon(0.0_dp)) then
+      @:ERROR_HANDLING(err, -1, "Fractionally charged systems not possible with pp-RPA")
+    end if
+    if (mod(nint(abs(rnel)),2) == 1) then
+      @:ERROR_HANDLING(err, -1, "Odd numbers of electrons not possible with pp-RPA")
+    end if
 
     if ((.not. tConst) .or. ( (tConst) .and. (nConst > nOrb-nocc) )) then
       nvir = nOrb - nocc
@@ -611,13 +618,6 @@ contains
 
     !diagonalize ppRPA matrix
     call geev(PP, pp_eval, wi, vl, vr, info)
-
-    block
-      integer :: ii
-      do ii = 1, nRPA
-        write(*,*)ii, pp_eval(ii), wi(ii)
-      end do
-    end block
 
     if (info /= 0) then
       @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0)", " Error with dgeev, info = ", info)
