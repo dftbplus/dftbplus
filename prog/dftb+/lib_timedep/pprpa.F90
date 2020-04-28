@@ -68,12 +68,11 @@ contains
 
   !> This subroutine analytically calculates excitations energies
   !> based on Time Dependent DFRT
-  subroutine ppRPAenergies(tTDA, denseDesc, grndEigVecs, grndEigVal, sccCalc, nexc, symc, U_h,&
-      & SSqr, species0, rnel, iNeighbour, img2CentCell, orb, tWriteTagged, autotestTag,&
-      & taggedWriter, tConst, nConst, err)
+  subroutine ppRPAenergies(RPA, denseDesc, grndEigVecs, grndEigVal, sccCalc, SSqr, species0, rnel,&
+      & iNeighbour, img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter, err)
 
-    !> Tamm-Dancoff approximation?
-    logical, intent(in) :: tTDA
+    !> Container for RPA calculation data
+    type(ppRPAcal), intent(in) :: RPA
 
     !> index vector for S and H matrices
     type(TDenseDescr), intent(in) :: denseDesc
@@ -86,15 +85,6 @@ contains
 
     !> Self-consistent charge module settings
     type(TScc), intent(in) :: sccCalc
-
-    !> number of excited states to solve for
-    integer, intent(in) :: nexc
-
-    !> symmetry required singlet ('S'), triplet ("T") or both ("B")
-    character, intent(in) :: symc
-
-    !> ppRPA Hubbard parameters
-    real(dp), intent(in) :: U_h(:)
 
     !> square overlap matrix between basis functions, both triangles required
     real(dp), intent(in) :: SSqr(:,:)
@@ -122,12 +112,6 @@ contains
 
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
-
-    !> virtual orbital constraint?
-    logical, intent(in) :: tConst
-
-    !> number of virtual orbitals
-    integer, intent(in) :: nConst
 
     !> Error code return, 0 if no problems
     integer, intent(out), optional :: err
@@ -176,7 +160,7 @@ contains
 
     ! Select symmetries to process
     if (.not. tSpin) then
-      select case (symc)
+      select case (RPA%sym)
       case ("B")
         allocate(symmetries(2))
         symmetries(:) = [ "S", "T" ]
@@ -207,18 +191,19 @@ contains
       call symm(stimc(:,:,iSpin), "L", SSqr, grndEigVecs(:,:,iSpin))
     end do
 
-    nocc = nint(rnel) / 2
-    if (abs(rnel - real(2 * nocc,dp)) > epsilon(0.0_dp)) then
+    nocc = nint(rnel)
+    if (abs(rnel - real(nocc,dp)) > epsilon(0.0_dp)) then
       @:ERROR_HANDLING(err, -1, "Fractionally charged systems not possible with pp-RPA")
     end if
-    if (mod(nint(abs(rnel)),2) == 1) then
+    if (mod(abs(nocc),2) == 1) then
       @:ERROR_HANDLING(err, -1, "Odd numbers of electrons not possible with pp-RPA")
     end if
+    nocc = nocc / 2
 
-    if ((.not. tConst) .or. ( (tConst) .and. (nConst > nOrb-nocc) )) then
+    if ((.not. RPA%tConstVir) .or. ( (RPA%tConstVir) .and. (RPA%nVirtual > nOrb-nocc) )) then
       nvir = nOrb - nocc
     else
-      nvir = nConst
+      nvir = RPA%nVirtual
     end if
 
     ! elements in a triangle plus the diagonal of the occ-occ and virt-virt blocks
@@ -226,7 +211,7 @@ contains
     nxvv = (nvir * (nvir + 1)) / 2
 
     ! ground state coulombic interactions
-    call sccCalc%getAtomicCoulombMatrix(gamma_eri, U_h, species0, iNeighbour, img2CentCell)
+    call sccCalc%getAtomicCoulombMatrix(gamma_eri, RPA%hHubbard, species0, iNeighbour, img2CentCell)
 
     ! excitation energies  output file
     open(newUnit=fdExc, file=excitationsOut, position="rewind", status="replace")
@@ -242,13 +227,13 @@ contains
       sym = symmetries(isym)
 
       if (sym == "S") then
-        if (.not. tTDA) then
+        if (.not. RPA%tTDa) then
           dim_rpa = nxvv + nxoo
         else
           dim_rpa = nxvv
         end if
       else
-        if (.not. tTDA) then
+        if (.not. RPA%tTDa) then
           dim_rpa = nxvv + nxoo - nvir - nocc
         else
           dim_rpa = nxvv - nvir
@@ -258,11 +243,11 @@ contains
       allocate(pp_eval(dim_rpa))
       allocate(vr(dim_rpa, dim_rpa))
 
-      call buildAndDiagppRPAmatrix(tTDA, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo, iAtomStart,&
-          & gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
+      call buildAndDiagppRPAmatrix(RPA%tTDa, sym, grndEigVal(:,1), nocc, nvir, nxvv, nxoo,&
+          & iAtomStart, gamma_eri, stimc, grndEigVecs, pp_eval, vr, err)
 
-      call writeppRPAExcitations(tTDA, sym, grndEigVal(:,1), nexc, pp_eval, vr, nocc, nvir, nxvv,&
-          & nxoo, fdExc, tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
+      call writeppRPAExcitations(RPA%tTDa, sym, grndEigVal(:,1), RPA%nExc, pp_eval, vr, nocc, nvir,&
+          & nxvv, nxoo, fdExc, tWriteTagged, fdTagged, taggedWriter, eval_0, homo)
 
       deallocate(pp_eval)
       deallocate(vr)

@@ -664,7 +664,7 @@ module dftbp_initprogram
   logical :: tPpRPA
 
   !> data type for pp-RPA
-  type(ppRPAcal), save :: RPA
+  type(ppRPAcal) :: RPA
 
   !> Print eigenvectors
   logical :: tPrintExcitedEigVecs
