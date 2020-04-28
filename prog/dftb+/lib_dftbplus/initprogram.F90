@@ -2219,7 +2219,8 @@ contains
       !  error("PP-RPA is not implemented for periodic systems")
       !end if
     #:for VAR, ERR in [("tSpinOrbit","spin orbit coupling"), ("tDFTBU","DFTB+U/pSIC"),&
-      & ("tSpin","spin polarised ground state"), ("t3rd","third order")]
+      & ("tSpin","spin polarised ground state"), ("t3rd","third order"),&
+      & ("any(kPoint /= 0.0_dp)","non-gamma k-points")]
       if (${VAR}$) then
         call error("PP-RPA does not support ${ERR}$")
       end if
@@ -2230,7 +2231,8 @@ contains
         call error("PP-RPA does not support ${ERR}$")
       end if
     #:endfor
-    #:for VAR, ERR in [("solvation","solvation"), ("onSiteElements","onsite corrections")]
+    #:for VAR, ERR in [("solvation","solvation"), ("onSiteElements","onsite corrections"),&
+      & ("reks","REKS")]
       if (allocated(${VAR}$)) then
         call error("PP-RPA does not support ${ERR}$")
       end if
