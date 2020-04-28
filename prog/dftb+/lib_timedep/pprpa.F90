@@ -140,7 +140,7 @@ contains
     !> ppRPA eigenvector
     real(dp), allocatable :: vr(:,:)
 
-  @:ASSERT(allocated(RPA)
+  @:ASSERT(allocated(RPA))
 
     if (present(err)) then
       err = 0
