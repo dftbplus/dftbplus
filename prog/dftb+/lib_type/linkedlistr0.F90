@@ -15,7 +15,7 @@ module dftbp_linkedlistr0
   private
 
   $:define_list(&
-      & TYPE_NAME='listReal',&
+      & TYPE_NAME='TListReal',&
       & ITEM_TYPE='real(dp)',&
       & PADDING='0.0_dp')
 

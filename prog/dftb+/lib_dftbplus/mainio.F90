@@ -39,11 +39,15 @@ module dftbp_mainio
   use dftbp_energies
   use dftbp_xmlf90
   use dftbp_hsdutils, only : writeChildValue
-  use dftbp_mdintegrator, only : OMdIntegrator, state
+  use dftbp_mdintegrator, only : TMdIntegrator, state
   use dftbp_formatout
   use dftbp_sccinit, only : writeQToFile
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_message
+  use dftbp_rekscommon
+  use dftbp_reksvar, only : TReksCalc
+  ! TODO : circular dependecy occurs
+!  use dftbp_reks
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -72,6 +76,11 @@ module dftbp_mainio
   public :: printGeoStepInfo, printSccHeader, printSccInfo, printEnergies, printVolume
   public :: printPressureAndFreeEnergy, printMaxForce, printMaxLatticeForce
   public :: printMdInfo, printBlankLine
+  public :: printReksSccHeader, printReksSccInfo, printReksMicrostates, printSaReksEnergy
+  public :: printReksSaInfo, printReksSSRInfo, printReksGradInfo
+  public :: printUnrelaxedFONs, printRelaxedFONs, printRelaxedFONsL
+  public :: writeReksDetailedOut1
+  public :: readEigenvecs, writeReksTDP, writeReksRelaxedCharge
 #:if WITH_SOCKETS
   public :: receiveGeometryFromSocket
 #:endif
@@ -1116,7 +1125,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> File name prefix for each region
-    type(ListCharLc), intent(inout) :: regionLabels
+    type(TListCharLc), intent(inout) :: regionLabels
 
     !> Eigenvalues
     real(dp), intent(in) :: eigen(:,:,:)
@@ -1155,7 +1164,7 @@ contains
     real(dp), intent(in) :: kWeight(:)
 
     !> Orbital regions to project
-    type(ListIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -1223,10 +1232,10 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> List of region file names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1333,7 +1342,7 @@ contains
       & iPair, img2CentCell, over, parallelKS, eigvecs, work, iOrbRegion)
 
     !> List with fileNames for each region
-    type(listCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1366,7 +1375,7 @@ contains
     real(dp), intent(out) :: work(:,:)
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     integer :: iKS, iS, iEig
     real(dp), allocatable :: rVecTemp(:)
@@ -1411,10 +1420,10 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> List of region file names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1538,7 +1547,7 @@ contains
       & work, iOrbRegion)
 
     !> list of region names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1583,7 +1592,7 @@ contains
     complex(dp), intent(out) :: work(:,:)
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     integer :: iKS, iS, iK, iEig, nOrb
     complex(dp), allocatable :: cVecTemp(:)
@@ -1630,10 +1639,10 @@ contains
     type(TDenseDescr), intent(in) :: denseDesc
 
     !> List of region file names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1770,7 +1779,7 @@ contains
       & work, iOrbRegion)
 
     !> list of region names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     !> eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
@@ -1815,7 +1824,7 @@ contains
     complex(dp), intent(out) :: work(:,:)
 
     !> orbital number in each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     complex(dp), allocatable :: cVecTemp(:)
     real(dp), allocatable :: fracs(:,:)
@@ -2311,7 +2320,7 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2465,6 +2474,9 @@ contains
 
     !> Is this a 3rd order scc calculation?
     logical, intent(in) :: t3rd
+
+    !> Is this a solvation model used?
+    logical, intent(in) :: tSolv
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2753,7 +2765,7 @@ contains
       end if
       if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
           & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-          & electronicSolverTypes%elpa])) then
+          & electronicSolverTypes%elpa, electronicSolverTypes%elpadm])) then
         write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
         write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
             & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
@@ -2805,6 +2817,10 @@ contains
 
     if (tEfield) then
       write(fd, format2U) 'Energy ext. field', energy%Eext, 'H', energy%Eext * Hartree__eV, 'eV'
+    end if
+
+    if (tSolv) then
+      write(fd, format2U) 'Solvation energy', energy%ESolv, 'H', energy%ESolv * Hartree__eV, 'eV'
     end if
 
     write(fd, format2U) 'Total Electronic energy', energy%Eelec, 'H', energy%Eelec * Hartree__eV,&
@@ -2867,7 +2883,7 @@ contains
 
 
   !> Second group of data for detailed.out
-  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, tLinResp, tGeoOpt, tMd, tPrintForces,&
+  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd, tPrintForces,&
       & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
@@ -2884,7 +2900,7 @@ contains
     logical, intent(in) :: tXlbomd
 
     !> Is the Casida excited state in use?
-    logical, intent(in) :: tLinResp
+    logical, intent(in) :: isLinResp
 
     !> Is the geometry being optimised
     logical, intent(in) :: tGeoOpt
@@ -2950,7 +2966,7 @@ contains
 
     ! only print excitation energy if 1) its been calculated and 2) its avaialable for a single
     ! state
-    if (tLinResp .and. energy%Eexcited /= 0.0_dp) then
+    if (isLinResp .and. energy%Eexcited /= 0.0_dp) then
       write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", Hartree__eV * energy%Eexcited,&
           & "eV"
       write(fd, *)
@@ -3177,7 +3193,7 @@ contains
     integer, intent(in) :: iGeoStep
 
     !> Molecular dynamics integrator
-    type(OMdIntegrator), intent(in) :: pMdIntegrator
+    type(TMdIntegrator), intent(in) :: pMdIntegrator
 
     if (iGeoStep == 0) then
       open(fd, file=fileName, status="replace", action="write")
@@ -3188,7 +3204,7 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tBarostat, tLinResp, tEField, tFixEf, tPrintMulliken,&
+  subroutine writeMdOut2(fd, tStress, tBarostat, isLinResp, tEField, tFixEf, tPrintMulliken,&
       & energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon, absEField,&
       & qOutput, q0, dipoleMoment)
 
@@ -3202,7 +3218,7 @@ contains
     logical, intent(in) :: tBarostat
 
     !> Is linear response excitation being used
-    logical, intent(in) :: tLinResp
+    logical, intent(in) :: isLinResp
 
     !> External electric field
     logical, intent(in) :: tEField
@@ -3265,7 +3281,7 @@ contains
             & Hartree__eV * energy%EGibbsKin, 'eV'
       end if
     end if
-    if (tLinResp) then
+    if (isLinResp) then
       if (energy%Eexcited /= 0.0_dp) then
         write(fd, format2U) "Excitation Energy", energy%Eexcited, "H",&
             & Hartree__eV * energy%Eexcited, "eV"
@@ -3687,6 +3703,21 @@ contains
 
   end subroutine printSccHeader
 
+  !> Prints the line above the start of the REKS SCC cycle data
+  subroutine printReksSccHeader(reks)
+
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: reks
+
+    if (reks%tSSR22) then
+      write(stdOut,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
+          & "      Diff energy   ", "      x_a    ", "   SCC error   "
+    else if (reks%tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+  end subroutine printReksSccHeader
+
   subroutine printBlankLine()
     write(stdOut,*)
   end subroutine printBlankLine
@@ -3716,6 +3747,35 @@ contains
     end if
 
   end subroutine printSccInfo
+
+
+  !> Prints info about scc convergence.
+  subroutine printReksSccInfo(iSccIter, Etotal, diffTotal, sccErrorQ, reks)
+
+    !> Iteration count
+    integer, intent(in) :: iSccIter
+
+    !> total energy
+    real(dp), intent(in) :: Etotal
+
+    !> Difference in total energy between this iteration and the last
+    real(dp), intent(in) :: diffTotal
+
+    !> Maximum charge difference between input and output
+    real(dp), intent(in) :: sccErrorQ
+
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: reks
+
+    ! print out the iteration information
+    if (reks%tSSR22) then
+      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.6)") iSCCIter, Etotal,&
+          & diffTotal, reks%FONs(1,1) * 0.5_dp, sccErrorQ
+    else if (reks%tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+  end subroutine printReksSccInfo
 
 
   !> Prints current total energies
@@ -4179,7 +4239,7 @@ contains
     integer, intent(in) :: fd(:)
 
     !> List of orbital for each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalue for current eigenvector
     real(dp), intent(in) :: eigval
@@ -4209,7 +4269,7 @@ contains
     integer, intent(in) :: fd(:)
 
     !> List of orbital for each region
-    type(listIntR1), intent(inout) :: iOrbRegion
+    type(TListIntR1), intent(inout) :: iOrbRegion
 
     !> Eigenvalue for current eigenvector
     real(dp), intent(in) :: eigval
@@ -4314,7 +4374,7 @@ contains
     integer, intent(out) :: fd(:)
 
     !> List of region file names
-    type(ListCharLc), intent(inout) :: fileNames
+    type(TListCharLc), intent(inout) :: fileNames
 
     integer :: iReg
     character(lc) :: tmpStr
@@ -4423,6 +4483,960 @@ contains
     end if
 
   end subroutine writeEsp
+
+
+  !> Read external eigenvector file (eigenvec.bin)
+  subroutine readEigenvecs(eigenvecs)
+
+    real(dp), intent(out) :: eigenvecs(:,:)
+
+    character(len=16), parameter :: fname = "eigenvec.bin"
+    integer :: funit
+    logical :: exst
+    integer :: iAO, iMO, nOrb
+    integer :: dummy
+
+    nOrb = size(eigenvecs,dim=1)
+
+    inquire(file=fname,exist=exst)
+    if (exst) then
+      open(newunit=funit,file=fname,action="read",form="unformatted",access="direct",recl=dp)
+      read(funit,rec=1) dummy
+      do iMO = 1, nOrb
+        read(funit,rec=2+(nOrb+1)*(iMO-1)) dummy
+        do iAO = 1, nOrb
+          read(funit,rec=2+iAO+(nOrb+1)*(iMO-1)) eigenvecs(iAO,iMO)
+        end do
+      end do
+      close(funit)
+    else
+      call error('no eigenvec.bin file!')
+    end if
+
+  end subroutine readEigenvecs
+
+
+  !> Print energy contribution for each microstate in SCC iteration
+  subroutine printReksMicrostates(reks, Erep)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    !> repulsive energy
+    real(dp), intent(in) :: Erep
+
+    integer :: iL
+
+    write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
+        & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
+    do iL = 1, reks%Lmax
+      write(stdOut,'(I3,7(f13.8))',advance="no") iL, reks%enLnonSCC(iL), &
+          & reks%enLscc(iL), reks%enLspin(iL)
+      if (reks%t3rd) then
+        write(stdOut,'(1(f13.8))',advance="no") reks%enL3rd(iL)
+      else
+        write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
+      end if
+      if (reks%tRangeSep) then
+        write(stdOut,'(1(f13.8))',advance="no") reks%enLfock(iL)
+      else
+        write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
+      end if
+      write(stdOut,'(2(f13.8))') Erep, reks%enLtot(iL)
+    end do
+
+  end subroutine printReksMicrostates
+
+
+  !> Print SA-REKS energy in SCC iteration
+  subroutine printSaReksEnergy(reks)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    integer :: ist
+
+    write(stdOut,'(1x,A)') "SA-REKS state energies"
+    do ist = 1, reks%nstates
+      if (mod(ist,5) == 0 .or. ist == reks%nstates) then
+        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')") ist, reks%energy(ist)
+      else
+        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')",advance="no") ist, reks%energy(ist)
+      end if
+    end do
+
+  end subroutine printSaReksEnergy
+
+
+  !> print SA-REKS result in standard output
+  subroutine printReksSAInfo(reks, Etotal)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    !> state-averaged energy
+    real(dp), intent(in) :: Etotal
+
+    if (reks%tSSR22) then
+      call printReksSAInfo22(Etotal, reks%enLtot, reks%energy, reks%FONs, reks%Efunction, reks%Plevel)
+    else if (reks%tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+  end subroutine printReksSAInfo
+
+
+  !> print SA-REKS(2,2) result in standard output
+  subroutine printReksSAInfo22(Etotal, enLtot, energy, FONs, Efunction, Plevel)
+
+    !> state-averaged energy
+    real(dp), intent(in) :: Etotal
+
+    !> total energy for each microstate
+    real(dp), intent(in) :: enLtot(:)
+
+    !> energy of states
+    real(dp), intent(in) :: energy(:)
+
+    !> Fractional occupation numbers of active orbitals
+    real(dp), intent(in) :: FONs(:,:)
+
+    !> Minimized energy functional
+    integer, intent(in) :: Efunction
+
+    !> Print level in standard output file
+    integer, intent(in) :: Plevel
+
+    real(dp) :: n_a, n_b
+    integer :: iL, Lmax, ist, nstates
+    character(len=8) :: strTmp
+
+    nstates = size(energy,dim=1)
+    Lmax = size(enLtot,dim=1)
+
+    n_a = FONs(1,1)
+    n_b = FONs(2,1)
+
+    write(stdOut,*) " "
+    write(stdOut, "(A)") repeat("-", 50)
+    if (Efunction == 1) then
+      write(stdOut,'(A25,2x,F15.8)') " Final REKS(2,2) energy:", Etotal
+      write(stdOut,*) " "
+      write(stdOut,'(A46)') " State     Energy      FON(1)    FON(2)   Spin"
+      write(strTmp,'(A)') "PPS"
+      write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
+          & trim(strTmp), energy(1), n_a, n_b, 0.0_dp
+    else if (Efunction == 2) then
+      write(stdOut,'(A27,2x,F15.8)') " Final SA-REKS(2,2) energy:", Etotal
+      write(stdOut,*) " "
+      write(stdOut,'(A46)') " State     Energy      FON(1)    FON(2)   Spin"
+      do ist = 1, nstates
+        if (ist == 1) then
+          write(strTmp,'(A)') "PPS"
+          write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
+              & trim(strTmp), energy(1), n_a, n_b, 0.0_dp
+        else if (ist == 2) then
+          write(strTmp,'(A)') "OSS"
+          write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
+              & trim(strTmp), energy(2), 1.0_dp, 1.0_dp, 0.0_dp
+        else if (ist == 3) then
+          write(strTmp,'(A)') "DES"
+          write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
+              & trim(strTmp), energy(3), n_b, n_a, 0.0_dp
+        end if
+      end do
+      write(strTmp,'(A)') "Trip"
+      write(stdOut,'(1x,a4,1x,f13.8,1x,2(f10.6),2x,f4.2)') &
+          & trim(strTmp), enLtot(5), 1.0_dp, 1.0_dp, 1.0_dp
+    end if
+    write(stdOut, "(A)") repeat("-", 50)
+
+    if (Plevel >= 2) then
+      write(stdOut,*) " "
+      write(stdOut, "(A)") repeat("-", 25)
+      write(stdOut,'(1x,A20,2x,F15.8)') " Microstate Energies"
+      do iL = 1, Lmax
+        write(stdOut,"(1x,'L =',1x,I2,':',1x,F13.8)") iL, enLtot(iL)
+      end do
+      write(stdOut, "(A)") repeat("-", 25)
+    end if
+
+  end subroutine printReksSAInfo22
+
+
+  !> print SI-SA-REKS result in standard output
+  subroutine printReksSSRInfo(reks, Wab, tmpEn, StateCoup)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    !> converged Lagrangian values within active space
+    real(dp), intent(in) :: Wab(:,:)
+
+    !> SA-REKS energies
+    real(dp), intent(in) :: tmpEn(:)
+
+    !> state-interaction term between SA-REKS states
+    real(dp), intent(in) :: StateCoup(:,:)
+
+    if (reks%tSSR22) then
+      call printReksSSRInfo22(Wab, tmpEn, StateCoup, reks%energy, reks%eigvecsSSR, &
+          & reks%Elevel, reks%useSSR, reks%Na)
+    else if (reks%tSSR44) then
+      call error("SSR(4,4) is not implemented yet")
+    end if
+
+  end subroutine printReksSSRInfo
+
+
+  !> print SI-SA-REKS(2,2) result in standard output
+  subroutine printReksSSRInfo22(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
+      & Elevel, useSSR, Na)
+
+    !> converged Lagrangian values within active space
+    real(dp), intent(in) :: Wab(:,:)
+
+    !> SA-REKS energies
+    real(dp), intent(in) :: tmpEn(:)
+
+    !> state-interaction term between SA-REKS states
+    real(dp), intent(in) :: StateCoup(:,:)
+
+    !> energy of states
+    real(dp), intent(in) :: energy(:)
+
+    !> eigenvectors from SA-REKS state
+    real(dp), intent(in) :: eigvecsSSR(:,:)
+
+    !> Calculated energy states in SA-REKS
+    integer, intent(in) :: Elevel
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    integer :: ist, jst, nstates, ia, ib, nActPair
+    character(len=8) :: strTmp
+    character(len=1) :: stA, stB
+
+    nActPair = size(Wab,dim=1)
+    nstates = size(energy,dim=1)
+
+    write(stdOut,*)
+    do ist = 1, nActPair
+
+      call getTwoIndices(Na, ist, ia, ib, 1)
+
+      call getSpaceSym(ia, stA)
+      call getSpaceSym(ib, stB)
+
+      write(stdOut,"(1x,'Lagrangian W',A1,A1,': ',2(f12.8))") &
+          & trim(stA), trim(stB), Wab(ist,1), Wab(ist,2)
+
+    end do
+
+    write(stdOut,*)
+    write(stdOut, "(A)") repeat("-", 50)
+    if (Elevel == 1) then
+      write(stdOut,'(A)') " SSR: 2SI-2SA-REKS(2,2) Hamiltonian matrix"
+      write(stdOut,'(15x,A3,11x,A3)') "PPS", "OSS"
+    else if (Elevel == 2) then
+      write(stdOut,'(A)') " SSR: 3SI-2SA-REKS(2,2) Hamiltonian matrix"
+      write(stdOut,'(15x,A3,11x,A3,11x,A3)') "PPS", "OSS", "DES"
+    end if
+
+    do ist = 1, nstates
+      if (ist == 1) then
+        write(strTmp,'(A)') "PPS"
+      else if (ist == 2) then
+        write(strTmp,'(A)') "OSS"
+      else if (ist == 3) then
+        write(strTmp,'(A)') "DES"
+      end if
+      write(stdOut,'(1x,a5,1x)',advance="no") trim(strTmp)
+      do jst = 1, nstates
+        if (ist == jst) then
+          if (jst == nstates) then
+            write(stdOut,'(1x,f13.8)') tmpEn(ist)
+          else
+            write(stdOut,'(1x,f13.8)',advance="no") tmpEn(ist)
+          end if
+        else
+          if (jst == nstates) then
+            write(stdOut,'(1x,f13.8)') StateCoup(ist,jst)
+          else
+            write(stdOut,'(1x,f13.8)',advance="no") StateCoup(ist,jst)
+          end if
+        end if
+      end do
+    end do
+    write(stdOut, "(A)") repeat("-", 50)
+
+    if (useSSR == 1) then
+      write(stdOut,*)
+      write(stdOut, "(A)") repeat("-", 64)
+      if (Elevel == 1) then
+        write(stdOut,'(A)') " SSR: 2SI-2SA-REKS(2,2) states"
+        write(stdOut,'(19x,A4,7x,A7,4x,A7)') "E_n", "C_{PPS}", "C_{OSS}"
+      else if (Elevel == 2) then
+        write(stdOut,'(A)') " SSR: 3SI-2SA-REKS(2,2) states"
+        write(stdOut,'(19x,A4,7x,A7,4x,A7,4x,A7)') "E_n", "C_{PPS}", "C_{OSS}", "C_{DES}"
+      end if
+      do ist = 1, nstates
+        if (Elevel == 1) then
+          write(stdOut,'(1x,A,I2,1x,f13.8,1x,f10.6,1x,f10.6)') &
+              & "SSR state ", ist, energy(ist), eigvecsSSR(:,ist)
+        else if (Elevel == 2) then
+          write(stdOut,'(1x,A,I2,1x,f13.8,1x,f10.6,1x,f10.6,1x,f10.6)') &
+              & "SSR state ", ist, energy(ist), eigvecsSSR(:,ist)
+        end if
+      end do
+      write(stdOut, "(A)") repeat("-", 64)
+    end if
+
+  end subroutine printReksSSRInfo22
+
+
+  !> print unrelaxed FONs for target state
+  subroutine printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
+
+    !> Occupation number matrix
+    real(dp), intent(in) :: tmpRho(:,:)
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    integer :: ii
+
+    write(stdOut,*)
+    if (useSSR == 1) then
+      write(stdOut,'(A25,I1,A1)',advance="no") " unrelaxed SSR FONs for S", &
+          & rstate - 1, ":"
+    else
+      if (Lstate == 0) then
+        write(stdOut,'(A29,I1,A1)',advance="no") " unrelaxed SA-REKS FONs for S", &
+            & rstate - 1, ":"
+      else
+        write(stdOut,'(A20,I1,A12)',advance="no") " unrelaxed FONs for ", &
+            & Lstate, " microstate:"
+      end if
+    end if
+    do ii = 1, Na
+      if (ii == Na) then
+        write(stdOut,'(1(f10.6))') tmpRho(Nc+ii,Nc+ii)
+      else
+        write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
+      end if
+    end do
+
+  end subroutine printUnrelaxedFONs
+
+
+  !> print Relaxed FONs for target state
+  subroutine printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
+
+    !> Occupation number matrix
+    real(dp), intent(in) :: tmpRho(:,:)
+
+    !> Calculate SSR state (SI term is included)
+    integer, intent(in) :: useSSR
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    integer :: ii
+
+    if (useSSR == 1) then
+      write(stdOut,'(A23,I1,A1)',advance="no") " relaxed SSR FONs for S", &
+          & rstate - 1, ":"
+    else
+      write(stdOut,'(A27,I1,A1)',advance="no") " relaxed SA-REKS FONs for S", &
+          & rstate - 1, ":"
+    end if
+    do ii = 1, Na
+      if (ii == Na) then
+        write(stdOut,'(1(f10.6))') tmpRho(Nc+ii,Nc+ii)
+      else
+        write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
+      end if
+    end do
+    write(stdOut,*)
+
+  end subroutine printRelaxedFONs
+
+
+  !> print Relaxed FONs for target L-th microstate
+  subroutine printRelaxedFONsL(tmpRho, Lstate, Nc, Na)
+
+    !> Occupation number matrix
+    real(dp), intent(in) :: tmpRho(:,:)
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    !> Number of core orbitals
+    integer, intent(in) :: Nc
+
+    !> Number of active orbitals
+    integer, intent(in) :: Na
+
+    integer :: ii
+
+    write(stdOut,'(A18,I1,A12)',advance="no") " relaxed FONs for ", &
+        & Lstate, " microstate:"
+    do ii = 1, Na
+      if (ii == Na) then
+        write(stdOut,'(1(f10.6))') tmpRho(Nc+ii,Nc+ii)
+      else
+        write(stdOut,'(1(f10.6))',advance="no") tmpRho(Nc+ii,Nc+ii)
+      end if
+    end do
+    write(stdOut,*)
+
+  end subroutine printRelaxedFONsL
+
+
+  !> Write tdp.dat file with transidion dipole moment
+  subroutine writeReksTDP(tdp)
+
+    real(dp), intent(in) :: tdp(:,:)
+
+    character(len=16), parameter :: fname = "tdp.dat"
+    integer :: funit
+
+    real(dp) :: tmp
+    integer :: ia, ib, ist, nstates, nstHalf
+
+    nstHalf = size(tdp,dim=2)
+
+    tmp = 0.5_dp * (1.0_dp + sqrt(1.0_dp + 8.0_dp*real(nstHalf,dp)))
+    nstates = nint(tmp)
+
+    open(newunit=funit,file=fname,position="rewind",status="replace")
+    write(funit,*)
+    do ist = 1, nstHalf
+
+      call getTwoIndices(nstates, ist, ia, ib, 1)
+
+      write(funit,'(A4,I1,A8,I1,A2)') " < S", ia - 1, " | r | S", ib - 1, " >"
+      write(funit,'(A)',advance="no") "Transition Dipole moment (au)    : "
+      write(funit,'(3(f12.6))') tdp(:,ist)
+      write(funit,'(A)',advance="no") "Transition Dipole moment (Debye) : "
+      write(funit,'(3(f12.6))') tdp(:,ist) * au__Debye
+      write(funit,*)
+
+    end do
+    close(funit)
+
+  end subroutine writeReksTDP
+
+
+  !> Write relaxed_charge.dat file with relaxed charges for target state
+  subroutine writeReksRelaxedCharge(qOutput, q0, rstate, Lstate)
+
+    !> Output electrons
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Target SSR state
+    integer, intent(in) :: rstate
+
+    !> Target microstate
+    integer, intent(in) :: Lstate
+
+    character(len=20), parameter :: fname = "relaxed_charge.dat"
+    integer :: iAt, nAtom
+    integer :: funit
+
+    nAtom = size(qOutput,dim=2)
+
+    open(newunit=funit,file=fname,position="rewind",status="replace")
+    write(funit,'(A13,1X,F15.8,A4)') "total charge:", &
+        & -sum(qOutput(:,:,1) - q0(:,:,1)), " (e)"
+    write(funit,'(1X)')
+    if (Lstate == 0) then
+      write(funit,'(A9,I1,A18)') "relaxed S", rstate - 1, " atomic charge (e)"
+    else
+      write(funit,'(I3,A11,A18)') Lstate, " microstate", " atomic charge (e)"
+    end if
+    write(funit,'(3X,A18)') "atom        charge"
+    do iAt = 1, nAtom
+      write(funit,'(2X,I5,2X,F15.8)') iAt, -sum(qOutput(:,iAt,1) - q0(:,iAt,1))
+    end do
+    close(funit)
+
+  end subroutine writeReksRelaxedCharge
+
+
+  !> First group of data to go to detailed.out
+  subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
+      & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
+      & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
+      & cellVol, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, tRangeSep)
+
+    !> File ID
+    integer, intent(in) :: fd
+
+    !> Total number of geometry steps
+    integer, intent(in) :: nGeoSteps
+
+    !> Current geometry step
+    integer, intent(in) :: iGeoStep
+
+    !> Is this a molecular dynamics run
+    logical, intent(in) :: tMD
+
+    !> Is this a finite difference derivative calculation
+    logical, intent(in) :: tDerivs
+
+    !> Are atomic coordinates being optimised?
+    logical, intent(in) :: tCoordOpt
+
+    !> Is the lattice being optimised?
+    logical, intent(in) :: tLatOpt
+
+    !> Which step of lattice optimisation is occuring
+    integer, intent(in) :: iLatGeoStep
+
+    !> Which scc step is occuring
+    integer, intent(in) :: iSccIter
+
+    !> Energy terms in the system
+    type(TEnergies), intent(inout) :: energy
+
+    !> Change in energy from previous SCC iteration
+    real(dp), intent(in) :: diffElec
+
+    !> Input/output charge error for SCC
+    real(dp), intent(in) :: sccErrorQ
+
+    !> Moving atoms
+    integer, intent(in) :: indMovedAtom(:)
+
+    !> Output atomic coordinates
+    real(dp), intent(in) :: coord0Out(:,:)
+
+    !> Reference atomic charges
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> Output atomic charges (if SCC)
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> Type containing atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Chemical species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Should Mulliken populations be printed
+    logical, intent(in) :: tPrintMulliken
+
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> Are atom resolved energies required
+    logical, intent(in) :: tAtomicEnergy
+
+    !> Are dispersion interactions included
+    logical, intent(in) :: tDispersion
+
+    !> Is the system periodic
+    logical, intent(in) :: tPeriodic
+
+    !> Is this a self consistent charge calculation
+    logical, intent(in) :: tScc
+
+    !> Reciprocal lattice vectors if periodic
+    real(dp), intent(in) :: invLatVec(:,:)
+
+    !> K-points if periodic
+    real(dp), intent(in) :: kPoints(:,:)
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
+
+    !> Is the free energy correctly defined
+    logical, intent(in) :: tDefinedFreeE
+
+    !> Third order DFTB
+    logical, intent(in) :: t3rd
+
+    !> Whether to run a range separated calculation
+    logical, intent(in) :: tRangeSep
+
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: reks
+
+    integer :: nAtom, nKPoint, nMovedAtom, nstates
+    integer :: ang, iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
+    character(sc), allocatable :: shellNamesTmp(:)
+    character(lc) :: strTmp
+
+    nAtom = size(q0, dim=2)
+    nKPoint = size(kPoints, dim=2)
+    nMovedAtom = size(indMovedAtom)
+    nstates = size(reks%energy,dim=1)
+
+    write(fd, "(A)") "REKS do not use any electronic distribution function"
+    write(fd,*)
+
+    if (nGeoSteps > 0) then
+      if (tMD) then
+        write(fd, "(A, I0)") "MD step: ", iGeoStep
+      elseif (tDerivs) then
+        write(fd, "(A, I0)") 'Difference derivative step: ', iGeoStep
+      else
+        if (tCoordOpt .and. tLatOpt) then
+          write(fd, "(A, I0, A, I0)") "Geometry optimization step: ", &
+              & iGeoStep, ", Lattice step: ", iLatGeoStep
+        else
+          write(fd, "(A, I0)") "Geometry optimization step: ", iGeoStep
+        end if
+      end if
+    elseif (tScc) then
+      ! Only written if scc is on, to be compatible with old output
+      write(fd, "(A)") "Calculation with static geometry"
+    end if
+    write(fd, *)
+
+    if (tSCC) then
+      write(fd, "(A)") repeat("*", 92)
+      write(fd,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
+          & "      Diff energy   ", "      x_a    ", "   SCC error   "
+      write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.6)") &
+          & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, sccErrorQ
+      write(fd, "(A)") repeat("*", 92)
+      write(fd, *)
+    end if
+
+    if (tPeriodic .and. tLatOpt) then
+      do iK = 1, nKPoint
+        if (iK == 1) then
+          write(strTmp, "(A,':')") "K-points in absolute space"
+        else
+          write(strTmp, "(A)") ""
+        end if
+        write(fd, "(A,T28,I6,':',3F10.6)") trim(strTmp), iK, matmul(invLatVec,kPoints(:,iK))
+      end do
+      write(fd, *)
+    end if
+
+    if (nMovedAtom > 0 .and. .not. tDerivs) then
+      write(fd, "(A)") "Coordinates of moved atoms (au):"
+      do iAt = 1, nMovedAtom
+        write(fd, formatGeoOut) indMovedAtom(iAt), coord0Out(:, indMovedAtom(iAt))
+      end do
+      write(fd, *)
+    end if
+
+    ! Write out atomic charges
+    if (tPrintMulliken) then
+      if (nstates > 1) then
+        write(fd, "(A60)") " SA-REKS optimizes the avergaed state, not individual states"
+        write(fd, "(A60)") " These charges do not mean the charges for individual states"
+        write(fd, "(A56)") " Similarly to this, the values in band.out file indicate"
+        write(fd, "(A57)") " the band energies and occupations for the averaged state"
+        write(fd, "(A44)") " If you want to compute the relaxed density,"
+        write(fd, "(A42)") " please, set 'RelaxedDensity = Yes' option"
+        write(fd, *)
+      end if
+      write(fd, "(A, F14.8)") " Total charge: ", sum(q0(:, iAtInCentralRegion(:), 1)&
+          & - qOutput(:, iAtInCentralRegion(:), 1))
+      write(fd, "(/,A)") " Atomic gross charges (e)"
+      write(fd, "(A5, 1X, A16)")" Atom", " Charge"
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
+      end do
+      write(fd, *)
+    end if
+
+    lpSpinPrint2_REKS: do iSpin = 1, 1
+      if (tPrintMulliken) then
+        write(fd, "(3A, F16.8)") 'Nr. of electrons (', trim(spinName(iSpin)), '):',&
+            & sum(qOutput(:, iAtInCentralRegion(:), iSpin))
+        write(fd, "(3A)") 'Atom populations (', trim(spinName(iSpin)), ')'
+        write(fd, "(A5, 1X, A16)") " Atom", " Population"
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
+          write(fd, "(I5, 1X, F16.8)") iAt, sum(qOutput(:, iAt, iSpin))
+        end do
+        write(fd, *)
+        write(fd, "(3A)") 'l-shell populations (', trim(spinName(iSpin)), ')'
+        write(fd, "(A5, 1X, A3, 1X, A3, 1X, A16)")" Atom", "Sh.", "  l", " Population"
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
+          iSp = species(iAt)
+          do iSh = 1, orb%nShell(iSp)
+            write(fd, "(I5, 1X, I3, 1X, I3, 1X, F16.8)") iAt, iSh, orb%angShell(iSh, iSp),&
+                & sum(qOutput(orb%posShell(iSh, iSp):orb%posShell(iSh + 1, iSp)-1, iAt,&
+                & iSpin))
+          end do
+        end do
+        write(fd, *)
+        write(fd, "(3A)") 'Orbital populations (', trim(spinName(iSpin)), ')'
+        write(fd, "(A5, 1X, A3, 1X, A3, 1X, A3, 1X, A16, 1X, A6)")&
+            & " Atom", "Sh.", "  l", "  m", " Population", " Label"
+        do ii = 1, size(iAtInCentralRegion)
+          iAt = iAtInCentralRegion(ii)
+          iSp = species(iAt)
+          call getShellNames(iSp, orb, shellNamesTmp)
+          do iSh = 1, orb%nShell(iSp)
+            ang = orb%angShell(iSh, iSp)
+            if (ang > 0) then
+              write(strtmp,"(A)")trim(shellNamesTmp(iSh))//'_'
+            else
+              write(strTmp,"(A)")trim(shellNamesTmp(iSh))
+            end if
+            do kk = 0, 2 * ang
+              write(fd, "(I5, 1X, I3, 1X, I3, 1X, I3, 1X, F16.8, 2X, A)") iAt, iSh, ang,&
+                  & kk - ang, qOutput(orb%posShell(iSh, iSp) + kk, iAt, iSpin),&
+                  & trim(strTmp)//trim(orbitalNames(kk-ang,ang))
+            end do
+          end do
+          deallocate(shellNamesTmp)
+        end do
+        write(fd, *)
+      end if
+    end do lpSpinPrint2_REKS
+
+    lpSpinPrint3_REKS: do iSpin = 1, 1
+      if (tPrintMulliken) then
+        write(fd, "(3A, F18.10)") 'Input / Output electrons (', quaternionName(iSpin), '):',&
+            & sum(qOutput(:, iAtInCentralRegion(:), iSpin))
+      end if
+      write(fd, *)
+    end do lpSpinPrint3_REKS
+
+    ! get correct energy values
+    energy%Etotal = reks%energy(reks%rstate)
+    energy%Eexcited = 0.0_dp
+    if (nstates > 1 .and. reks%Lstate == 0) then
+      energy%Eexcited = reks%energy(reks%rstate) - reks%energy(1)
+    end if
+    ! get microstate energy values for target microstate
+    if (reks%Lstate > 0) then
+      energy%Etotal = reks%enLtot(reks%Lstate)
+      energy%EnonSCC = reks%enLnonSCC(reks%Lstate)
+      energy%ESCC = reks%enLSCC(reks%Lstate)
+      energy%Espin = reks%enLspin(reks%Lstate)
+      energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin
+      if (tRangeSep) then
+        energy%Efock = reks%enLfock(reks%Lstate)
+        energy%Eelec = energy%Eelec + energy%Efock
+      end if
+      if (t3rd) then
+        energy%e3rd  = reks%enL3rd(reks%Lstate)
+        energy%Eelec = energy%Eelec + energy%e3rd
+      end if
+    end if
+    energy%EMermin = energy%Etotal
+    energy%Ezero = energy%Etotal
+    energy%EGibbs = energy%EMermin + cellVol * pressure
+    energy%EForceRelated = energy%EGibbs
+
+    write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
+    if (tSCC) then
+      write(fd, format2U) 'Energy SCC', energy%ESCC, 'H', energy%ESCC * Hartree__eV, 'eV'
+      write(fd, format2U) 'Energy SPIN', energy%Espin, 'H', energy%Espin * Hartree__eV, 'eV'
+      if (t3rd) then
+        write (fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
+      end if
+      if (tRangeSep) then
+        write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
+      end if
+    end if
+
+    write(fd, format2U) 'Total Electronic energy', energy%Eelec, 'H', &
+        & energy%Eelec * Hartree__eV, 'eV'
+    write(fd, format2U) 'Repulsive energy', energy%Erep, 'H', energy%Erep * Hartree__eV, 'eV'
+
+    if (tDispersion) then
+      write(fd, format2U) 'Dispersion energy', energy%eDisp, 'H',&
+          & energy%eDisp * Hartree__eV, 'eV'
+    end if
+
+    write(fd, *)
+    if (nstates > 1) then
+      write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", &
+          & Hartree__eV * energy%Eexcited, "eV"
+      write(fd, *)
+    end if
+
+    write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa])) then
+      write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
+      write(fd, format2U) 'Total Mermin free energy', energy%Emermin, 'H',&
+          & energy%Emermin * Hartree__eV, 'eV'
+    end if
+    if (tDefinedFreeE) then
+      write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
+          & energy%EForceRelated * Hartree__eV, 'eV'
+    end if
+    if (tPeriodic .and. pressure /= 0.0_dp) then
+      write(fd, format2U) 'Gibbs free energy', energy%EGibbs,&
+          & 'H', Hartree__eV * energy%EGibbs, 'eV'
+    end if
+    write(fd, *)
+
+    if (tAtomicEnergy) then
+      write(fd, "(A)") 'Atom resolved electronic energies '
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomElec(iAt), ' H',&
+            & Hartree__eV * energy%atomElec(iAt), ' eV'
+      end do
+      write(fd, *)
+
+      write(fd, "(A)") 'Atom resolved repulsive energies '
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomRep(iAt), ' H',&
+            & Hartree__eV * energy%atomRep(iAt), ' eV'
+      end do
+      write(fd, *)
+      write(fd, "(A)") 'Atom resolved total energies '
+      do ii = 1, size(iAtInCentralRegion)
+        iAt = iAtInCentralRegion(ii)
+        write(fd, "(I5, F16.8, A, F16.6, A)") iAt, energy%atomTotal(iAt), ' H',&
+            & Hartree__eV * energy%atomTotal(iAt), ' eV'
+      end do
+      write(fd, *)
+    end if
+
+  end subroutine writeReksDetailedOut1
+
+
+  !> print gradient results for REKS calculation
+  subroutine printReksGradInfo(reks, derivs)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: reks
+
+    !> derivatives of energy wrt to atomic positions
+    real(dp), intent(in) :: derivs(:,:)
+
+    integer :: ist, ia, ib, nstHalf
+
+    nstHalf = reks%nstates * (reks%nstates - 1) / 2
+
+    write(stdOut,*)
+    if (reks%Efunction == 1) then
+
+      write(stdOut,"(A)") repeat("-", 50)
+      write(stdOut,"(A)") " Gradient Information"
+      write(stdOut,"(A)") repeat("-", 50)
+      write(stdOut,*) reks%rstate, "state (single-state)"
+      write(stdOut,'(3(f15.8))') derivs(:,:)
+      write(stdOut,"(A)") repeat("-", 50)
+
+    else
+
+      if (reks%tNAC) then
+
+        write(stdOut,"(A)") repeat("-", 50)
+        write(stdOut,"(A)") " Gradient Information"
+        write(stdOut,"(A)") repeat("-", 50)
+        do ist = 1, reks%nstates
+          write(stdOut,*) ist, "st state (SSR)"
+          write(stdOut,'(3(f15.8))') reks%SSRgrad(:,:,ist)
+          if (ist == reks%nstates) then
+            write(stdOut,"(A)") repeat("-", 50)
+          else
+            write(stdOut,'(3(f15.8))')
+          end if
+        end do
+
+!        write(stdOut,*) "AVG state"
+!        write(stdOut,'(3(f15.8))') reks%avgGrad(:,:)
+!        write(stdOut,'(3(f15.8))')
+!        do ist = 1, reks%nstates
+!          write(stdOut,*) ist, "st state (SA-REKS)"
+!          write(stdOut,'(3(f15.8))') reks%SAgrad(:,:,ist)
+!          if (ist == reks%nstates) then
+!            write(stdOut,"(A)") repeat("-", 50)
+!          else
+!            write(stdOut,'(3(f15.8))')
+!          end if
+!        end do
+
+        write(stdOut,"(A)") " Coupling Information"
+        do ist = 1, nstHalf
+
+          call getTwoIndices(reks%nstates, ist, ia, ib, 1)
+
+          write(stdOut,"(A)") repeat("-", 50)
+          write(stdOut,'(" between ",I2," and ",I2," states")') ia, ib
+          write(stdOut,"(A)") repeat("-", 50)
+          write(stdOut,*) "g vector - difference gradient"
+          write(stdOut,'(3(f15.8))') (reks%SAgrad(:,:,ia) - reks%SAgrad(:,:,ib)) * 0.5_dp
+          write(stdOut,'(3(f15.8))')
+          write(stdOut,*) "h vector - derivative coupling"
+          write(stdOut,'(3(f15.8))') reks%SIgrad(:,:,ist)
+          write(stdOut,'(3(f15.8))')
+          write(stdOut,*) "G vector - GDV"
+          write(stdOut,'(3(f15.8))') reks%nacG(:,:,ist)
+          write(stdOut,'(3(f15.8))')
+          write(stdOut,*) "H vector - DCV - non-adiabatic coupling"
+          write(stdOut,'(3(f15.8))') reks%nacH(:,:,ist)
+
+        end do
+        write(stdOut,"(A)") repeat("-", 50)
+
+      else
+
+        write(stdOut,"(A)") repeat("-", 50)
+        write(stdOut,"(A)") " Gradient Information"
+        write(stdOut,"(A)") repeat("-", 50)
+        if (reks%Lstate == 0) then
+          if (reks%useSSR == 1) then
+            write(stdOut,*) reks%rstate, "state (SSR)"
+          else
+            write(stdOut,*) reks%rstate, "state (SA-REKS)"
+          end if
+        else
+          write(stdOut,*) reks%Lstate, "microstate"
+        end if
+        write(stdOut,'(3(f15.8))') derivs(:,:)
+        write(stdOut,"(A)") repeat("-", 50)
+
+      end if
+
+    end if
+    write(stdOut,*)
+
+  end subroutine printReksGradInfo
 
 
 end module dftbp_mainio

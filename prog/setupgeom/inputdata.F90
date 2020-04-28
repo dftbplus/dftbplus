@@ -23,29 +23,29 @@ module dftbp_inputsetup
   implicit none
   private
 
-  public :: TGeometry, slater, inputData
+  public :: TGeometry, TSlater, TInputData
   public :: init, destruct
 
   !> Slater-Koster data
-  type slater
+  type TSlater
     real(dp), allocatable :: skSelf(:, :)
     real(dp), allocatable :: skHubbU(:, :)
     real(dp), allocatable :: skOcc(:, :)
     real(dp), allocatable :: mass(:)
 
-    type(OSlakoCont), allocatable :: skHamCont
-    type(OSlakoCont), allocatable :: skOverCont
-    type(ORepCont), allocatable :: repCont
+    type(TSlakoCont), allocatable :: skHamCont
+    type(TSlakoCont), allocatable :: skOverCont
+    type(TRepCont), allocatable :: repCont
     type(TOrbitals), allocatable :: orb
-  end type slater
+  end type TSlater
 
   !> container for input data constituents
-  type inputData
+  type TInputData
     logical :: tInitialized = .false.
     type(TGeometry) :: geom
-    type(slater) :: slako
+    type(TSlater) :: slako
     type(TTransPar) :: transpar
-  end type inputData
+  end type TInputData
 
 
   !> Initialise the input data
@@ -64,7 +64,7 @@ contains
 
   !> Mark data structure as initialised
   subroutine InputData_init(self)
-    type(inputData), intent(out) :: self
+    type(TInputData), intent(out) :: self
 
     self%tInitialized = .true.
 
@@ -73,7 +73,7 @@ contains
 
   !> destructor for parts that are not cleaned up when going out of scope
   subroutine InputData_destruct(self)
-    type(inputData), intent(inout) :: self
+    type(TInputData), intent(inout) :: self
 
   end subroutine InputData_destruct
 

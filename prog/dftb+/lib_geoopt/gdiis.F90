@@ -18,11 +18,11 @@ module dftbp_gdiis
 
 
   !> Contains data for the DIIS mimimizer
-  type ODIIS
+  type TDIIS
     private
 
     !> DIIS object itself
-    type(ODIISMixer) :: pDIIS
+    type(TDIISMixer) :: pDIIS
 
     !> Vector of current coordinate
     real(dp), allocatable :: x(:)
@@ -35,7 +35,7 @@ module dftbp_gdiis
 
     !> If object is initialized
     logical :: tInitialized
-  end type ODIIS
+  end type TDIIS
 
 
   !> Creates gDIIS instance
@@ -55,7 +55,7 @@ module dftbp_gdiis
     module procedure gDIIS_next
   end interface
 
-  public :: ODIIS
+  public :: TDIIS
   public :: init, reset, next
 
 contains
@@ -65,7 +65,7 @@ contains
   subroutine gDIIS_init(self, nElem, tol, alpha, nGens)
 
     !> DIIS instance on exit
-    type(ODIIS), intent(out) :: self
+    type(TDIIS), intent(out) :: self
 
     !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
@@ -92,7 +92,7 @@ contains
   subroutine gDIIS_reset(self,x)
 
     !> Minimiser
-    type(ODIIS), intent(inout) :: self
+    type(TDIIS), intent(inout) :: self
 
     !> Point to start from
     real(dp) :: x(:)
@@ -109,7 +109,7 @@ contains
   subroutine gDIIS_next(self,dx, xNew, tConverged)
 
     !> minimiser
-    type(ODIIS), intent(inout) :: self
+    type(TDIIS), intent(inout) :: self
 
     !> Gradient in the last point
     real(dp), intent(in) :: dx(:)

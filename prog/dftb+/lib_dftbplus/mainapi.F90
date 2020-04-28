@@ -106,11 +106,15 @@ contains
 
 
   !> get the gross (Mulliken projected) charges for atoms wrt neutral atoms
-  subroutine getGrossCharges(atomCharges)
+  subroutine getGrossCharges(env, atomCharges)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
 
     !> resulting charges
     real(dp), intent(out) :: atomCharges(:)
 
+    call recalcGeometry(env)
     atomCharges(:) = sum(q0(:, :, 1) - qOutput(:, :, 1), dim=1)
 
   end subroutine getGrossCharges

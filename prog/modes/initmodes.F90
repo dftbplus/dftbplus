@@ -120,14 +120,14 @@ contains
     type(TOldSKData) :: skData
     type(fnode), pointer :: input, root, node, tmp
     type(fnode), pointer :: value, child, child2
-    type(listRealR1) :: realBuffer
+    type(TListRealR1) :: realBuffer
     type(string) :: buffer, buffer2
-    type(listString) :: lStr
+    type(TListString) :: lStr
     integer :: inputVersion
     integer :: ii, iSp1, iAt
     logical :: tHSD
     real(dp), allocatable :: speciesMass(:), replacementMasses(:)
-    type(listCharLc), allocatable :: skFiles(:)
+    type(TListCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?

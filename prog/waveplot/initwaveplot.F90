@@ -183,13 +183,13 @@ module dftbp_initwaveplot
 
 
   !> Molecular orbital
-  type(OMolecularOrbital), allocatable, target, public :: molOrb
+  type(TMolecularOrbital), allocatable, target, public :: molOrb
 
   !> pointer to the orbital
-  type(OMolecularOrbital), pointer :: pMolOrb
+  type(TMolecularOrbital), pointer :: pMolOrb
 
   !> Grid cache
-  type(OGridCache), public :: grid
+  type(TGridCache), public :: grid
 
   !> grid vectors
   real(dp), public :: gridVec(3, 3)
@@ -414,7 +414,7 @@ contains
 
     type(fnode), pointer :: subnode, field, value
     type(string) :: buffer, modifier
-    type(ListIntR1) :: indexBuffer
+    type(TListIntR1) :: indexBuffer
     integer :: curId
     integer :: ind, ii, iLevel, iKPoint, iSpin, iAtom, iSpecies
     logical :: tFound
@@ -659,7 +659,7 @@ contains
 
     type(fnode), pointer :: tmpNode, child
     type(fnodeList), pointer :: children
-    type(listReal) :: bufferExps, bufferCoeffs
+    type(TListReal) :: bufferExps, bufferCoeffs
     real(dp), allocatable :: coeffs(:), exps(:)
     integer :: ii
 

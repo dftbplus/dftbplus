@@ -5,12 +5,15 @@
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
+
+#:include 'error.fypp'
+
 module gewald
 
-  use gprecision
-  use gconstants, only : Pi
-  
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : pi
   implicit none
+
   private
   
   public :: short_pot
@@ -18,18 +21,23 @@ module gewald
   public :: getalpha
   public :: cross,rezvol,phi,phi1
 
-  contains
-  !======================================================================
-  subroutine short_pot(distR,basis,uhatm,deltaQ,tol,sh_pot)
 
-    implicit none
+contains
+
+  !======================================================================
+  subroutine short_pot(distR,basis,uhatm,deltaQ,tol,sh_pot, iError)
 
     real(kind=dp) :: distR(3), uhatm, deltaQ, basis(3,3), tol, sh_pot
+    integer, intent(out), optional :: iError
+
     integer i,j,k,nreal,nmax,nmin 
     real(kind=dp) :: rvec(3),R(3),lastshell,tmp,norm
 
+    if (present(iError)) then
+      iError = 0
+    end if
 
-    sh_pot = 0.d0
+    sh_pot = 0.0_dp
     nmax = 50
     nmin = 3
     nreal = 0
@@ -57,7 +65,7 @@ module gewald
 
               IF (norm.gt.1.0e-20) THEN
 
-                tmp = deltaQ*(exp(-3.2d0*uhatm*norm))*(1.6d0*uhatm+1/norm)
+                tmp = deltaQ*(exp(-3.2_dp*uhatm*norm))*(1.6_dp*uhatm+1/norm)
                 sh_pot = sh_pot + tmp
                 lastshell = lastshell + tmp
 
@@ -77,17 +85,19 @@ module gewald
     END DO
 
     IF(abs(lastshell) .gt. tol) THEN
-      STOP 'tolerance in subroutine short_pot not reached.'
+      @:ERROR_HANDLING(iError, -1, 'tolerance in subroutine short_pot not reached')
     END IF
 
   END subroutine short_pot
   !----------------------------------------------------------------     
 
-  subroutine long_pot(r,basis,recbasis,alpha,vol,tol,potential)
-    implicit none
- 
+
+  subroutine long_pot(r,basis,recbasis,alpha,vol,tol,potential, iError)
+
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
     real(kind=dp) ::  potential
+    integer, intent(out), optional :: iError
+
     real(kind=dp) ::  reciprocal,rcspace,cterm
     real(kind=dp) ::  G(3),rh(3),help,norm,lastshell
     integer nrezi, nreal, nmax, nmin
@@ -95,14 +105,18 @@ module gewald
     nmax = 20
     nmin = 2
 
+    if (present(iError)) then
+      iError = 0
+    end if
+
     !evaluate reciprocal space term ( sum over G <> 0) ...  
     !/* sum over G until tolerance is reached */
     nrezi = 1
     lastshell = tol+1.d-8  
-    reciprocal = 0.d0
+    reciprocal = 0.0_dp
     DO WHILE ((nrezi .le. nmax) .and. ((nrezi .le. nmin) .or. &
       &   (abs(lastshell) .gt.  tol)))
-      lastshell = 0.d0  
+      lastshell = 0.0_dp
       DO i=-nrezi,nrezi
         DO j=-nrezi,nrezi
           DO k=-nrezi,nrezi
@@ -114,7 +128,7 @@ module gewald
               G(3)=i*recbasis(1,3)+j*recbasis(2,3)+k*recbasis(3,3)
 
               help = G(1)*G(1)+G(2)*G(2)+G(3)*G(3)
-              help = exp(-help/(4.d0*alpha*alpha))/help
+              help = exp(-help/(4._dp*alpha*alpha))/help
               help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help
 
               reciprocal = reciprocal + help
@@ -126,22 +140,22 @@ module gewald
       nrezi = nrezi + 1
     END DO
 
-    !stop if tolerance not reached
+    ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      STOP 'tolerance in long_pot not reached in reciprocal space'     
+      @:ERROR_HANDLING(iError, -1, 'tolerance in long_pot not reached in reciprocal space')
     END IF
 
-    reciprocal=(4.d0*Pi*reciprocal)/vol
+    reciprocal=(4._dp*Pi*reciprocal)/vol
 
 
     !evaluate  real space term (sum over R)   
     !/* sum over R until tolerance is reached */
-    rcspace = 0.d0
+    rcspace = 0._dp
     nreal = 0
     lastshell = tol+1e-8  
     DO WHILE ((nreal .le. nmax) .and. ((nreal .le. nmin) &
       &            .or. (abs(lastshell) .gt.  tol)))
-      lastshell = 0.d0  
+      lastshell = 0._dp
       DO i=-nreal,nreal
         DO j=-nreal,nreal
           DO k=-nreal,nreal
@@ -167,18 +181,18 @@ module gewald
       nreal = nreal + 1
     END DO
 
-    !stop if tolerance not reached
+    ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      STOP 'tolerance in long_pot not reached in real space'    
+      @:ERROR_HANDLING(iError, -2, 'tolerance in long_pot not reached in real space')
     END IF
 
 
     !evaluate constant term pi/(Omega*alpha^2) 
     cterm = -Pi/(vol*alpha*alpha)
 
-    !if r = 0 there is another constant to be added   	
-    IF ((r(1)*r(1)+r(2)*r(2)+r(3)*r(3)) .lt. 1.d-20) THEN
-      cterm = cterm -2.d0*alpha/sqrt(Pi)
+    !if r = 0 there is another constant to be added
+    IF ((r(1)*r(1)+r(2)*r(2)+r(3)*r(3)) .lt. 1.0-20_dp) THEN
+      cterm = cterm -2._dp*alpha/sqrt(Pi)
     END IF
 
     !set the value of the potential
@@ -210,13 +224,12 @@ module gewald
 !  
 !  ======================================================================
 
-  subroutine phi(r,basis,recbasis,alpha,vol,tol,potential)
+  subroutine phi(r,basis,recbasis,alpha,vol,tol,potential, iError)
 
-    use gconstants, only : Pi
-    implicit none
- 
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, tol
     real(kind=dp) ::  potential
+    integer, intent(out), optional :: iError
+
     real(kind=dp) ::  reciprocal,rcspace,cterm
     real(kind=dp) ::  G(3),rh(3),help,norm,lastshell
     integer nrezi, nreal, nmax, nmin
@@ -225,14 +238,18 @@ module gewald
     nmax = 20
     nmin = 2
 
+    if (present(iError)) then
+      iError = 0
+    end if
+
     !  evaluate reciprocal space term ( sum over G <> 0) ...  
     !   /* sum over G until tolerance is reached */
     nrezi = 1
     lastshell = tol+1d-8  
-    reciprocal = 0.d0
+    reciprocal = 0._dp
     DO WHILE ((nrezi .le. nmax) .and. ((nrezi .le. nmin) .or. &
       &    (abs(lastshell) .gt.  tol)))
-      lastshell = 0.d0  
+      lastshell = 0._dp
       DO i=-nrezi,nrezi
         DO j=-nrezi,nrezi
           DO k=-nrezi,nrezi
@@ -244,7 +261,7 @@ module gewald
               G(3)=i*recbasis(1,3)+j*recbasis(2,3)+k*recbasis(3,3)
 
               help = G(1)*G(1)+G(2)*G(2)+G(3)*G(3)
-              help = exp(-help/(4.d0*alpha*alpha))/help
+              help = exp(-help/(4._dp*alpha*alpha))/help
               help = cos(G(1)*r(1)+G(2)*r(2)+G(3)*r(3)) * help
 
               reciprocal = reciprocal + help
@@ -256,22 +273,22 @@ module gewald
       nrezi = nrezi + 1
     END DO
 
-    !stop if tolerance not reached
+    ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      STOP "tolerance in phi not reached in reciprocal space"     
+      @:ERROR_HANDLING(iError, -1, "tolerance in phi not reached in reciprocal space")
     END IF
 
-    reciprocal=(4.d0*Pi*reciprocal)/vol
+    reciprocal=(4._dp*Pi*reciprocal)/vol
 
 
     !    evaluate  real space term (sum over R)   
     !   /* sum over R until tolerance is reached */
-    rcspace = 0.d0
+    rcspace = 0._dp
     nreal = 0
     lastshell = tol+1e-8  
     DO WHILE ((nreal .le. nmax) .and. ((nreal .le. nmin) &
       &            .or. (abs(lastshell) .gt.  tol)))
-      lastshell = 0.d0  
+      lastshell = 0._dp
       DO i=-nreal,nreal
         DO j=-nreal,nreal
           DO k=-nreal,nreal
@@ -297,18 +314,18 @@ module gewald
       nreal = nreal + 1
     END DO
 
-    !  stop if tolerance not reached
+    ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      STOP "tolerance in phi not reached in real space"     
+      @:ERROR_HANDLING(iError, -2, "tolerance in phi not reached in real space")
     END IF
 
 
     !  evaluate constant term pi/(Omega*alpha^2) 
     cterm = -Pi/(vol*alpha*alpha)
 
-    !  if r = 0 there is another constant to be added   	
+    !  if r = 0 there is another constant to be added
     IF ((r(1)*r(1)+r(2)*r(2)+r(3)*r(3)) .lt. 1.d-20) THEN
-      cterm = cterm -2.d0*alpha/sqrt(Pi)
+      cterm = cterm -2._dp*alpha/sqrt(Pi)
     END IF
 
     !  set the value of the potential
@@ -336,33 +353,33 @@ module gewald
   !  ======================================================================
 
 
-  subroutine phi1(r,basis,recbasis, alpha,vol,tol,deriv)
-
-    implicit none
+  subroutine phi1(r,basis,recbasis, alpha,vol,tol,deriv, iError)
 
     real(kind=dp) ::  r(3), basis(3,3), recbasis(3,3), alpha, vol, deriv(3)
-    real(kind=dp) ::  reciprocal(3),rcspace(3) 
+    integer, intent(out), optional :: iError
+
+    real(kind=dp) ::  reciprocal(3),rcspace(3)
     real(kind=dp) ::  G(3),rh(3),norm,help,tol,lastshell 
     integer i,j,k, nrezi, nreal, nmax, nmin 
     nmax = 20
     nmin = 2
 
     IF((r(1)*r(1) + r(2)*r(2) + r(3)*r(3)) .lt. 1.d-20) THEN
-      deriv(1) = 0.d0
-      deriv(2) = 0.d0
-      deriv(3) = 0.d0
+      deriv(1) = 0._dp
+      deriv(2) = 0._dp
+      deriv(3) = 0._dp
       return
     END IF
 
     !       /* evaluate reciprocal space term (sum over G <> 0) ...  */
     nrezi = 1
-    lastshell = tol+1e-8
-    reciprocal(1) = 0.d0  
-    reciprocal(2) = 0.d0  
-    reciprocal(3) = 0.d0 
+    lastshell = tol+1.0E-8_dp
+    reciprocal(1) = 0._dp
+    reciprocal(2) = 0._dp
+    reciprocal(3) = 0._dp
     DO WHILE ((nrezi .le. nmax) .and. ((nrezi .le. nmin) .or. &
       &    (abs(lastshell) .gt.  tol)))
-      lastshell = 0.d0
+      lastshell = 0._dp
       DO i=-nrezi,nrezi
         DO j=-nrezi,nrezi
           DO k=-nrezi,nrezi
@@ -376,7 +393,7 @@ module gewald
 
               help=G(1)*G(1)+G(2)*G(2)+G(3)*G(3) 
 
-              help=exp(-help/(4.d0*alpha*alpha))/help 
+              help=exp(-help/(4._dp*alpha*alpha))/help
 
               help=-sin(G(1)*r(1)+G(2)*r(2)+G(3)*r(3))*help 
 
@@ -392,26 +409,26 @@ module gewald
       nrezi = nrezi + 1
     END DO
 
-    !       stop if tolerance not reached
+    ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      STOP "tolerance in phi1 not reached in reciprocal space"
+      @:ERROR_HANDLING(iError, -1, "tolerance in phi1 not reached in reciprocal space")
     END IF
 
-    reciprocal(1)=(4.d0*Pi*reciprocal(1))/vol 
-    reciprocal(2)=(4.d0*Pi*reciprocal(2))/vol 
-    reciprocal(3)=(4.d0*Pi*reciprocal(3))/vol 
+    reciprocal(1)=(4._dp*Pi*reciprocal(1))/vol
+    reciprocal(2)=(4._dp*Pi*reciprocal(2))/vol
+    reciprocal(3)=(4._dp*Pi*reciprocal(3))/vol
 
 
     !       /* evaluate  real space term (sum over R) */
     !       /* sum over R until tolerance is reached */
-    rcspace(1) = 0.d0  
-    rcspace(2) = 0.d0  
-    rcspace(3) = 0.d0 
+    rcspace(1) = 0._dp
+    rcspace(2) = 0._dp
+    rcspace(3) = 0._dp
     nreal = 0
     lastshell = tol+1e-8
     DO WHILE ((nreal .le. nmax) .and. ((nreal .le. nmin) &
       &            .or. (abs(lastshell) .gt.  tol)))
-      lastshell = 0.d0
+      lastshell = 0._dp
       DO i=-nreal,nreal
         DO j=-nreal,nreal
           DO k=-nreal,nreal
@@ -439,9 +456,9 @@ module gewald
       nreal = nreal + 1
     END DO
 
-    !       stop if tolerance not reached
+    ! stop if tolerance not reached
     IF ( abs(lastshell)  .gt. tol ) THEN
-      STOP "tolerance in phi1 not reached in real space"
+      @:ERROR_HANDLING(iError, -2, "tolerance in phi1 not reached in real space")
     END IF
 
 
@@ -461,7 +478,7 @@ module gewald
   !==============================================================================
 
   subroutine CROSS( A, B, C) 
-    implicit none
+
     real(kind=dp) ::  A(3), B(3), C(3)
 
     C(1)=A(2)*B(3)-A(3)*B(2)
@@ -474,8 +491,7 @@ module gewald
 
   subroutine REZVOL(basis,recbasis,vol)
     
-    implicit none
-    
+
     real(kind=dp) ::   basis(3,3), recbasis(3,3), vol
     real(kind=dp) ::   hv1(3), hv2(3), hv3(3), hv4(3), fac
     integer i
@@ -489,7 +505,7 @@ module gewald
 
     call CROSS(hv2,hv3,hv4)
     vol = abs(basis(1,1)*hv4(1)+basis(1,2)*hv4(2)+basis(1,3)*hv4(3))
-    fac = 2.d0*Pi/vol
+    fac = 2._dp*Pi/vol
 
     recbasis(1,1)=hv4(1)*fac
     recbasis(1,2)=hv4(2)*fac
@@ -521,12 +537,12 @@ module gewald
     real(kind=dp) ::  t,z
 
     z = abs(x)
-    t = 1.d0/(1.d0+0.5d0*z)
-    terfc = t*exp(-z*z-1.26551223d0+t*(1.00002368d0+t*(0.37409196d0+&
-    &       t*(0.09678418d0+t*(-0.18628806d0+t*(0.27886807d0+&
-    &       t*(-1.13520398d0+t*(1.48851587+t*(-0.82215223+&
+    t = 1._dp/(1._dp+0.5_dp*z)
+    terfc = t*exp(-z*z-1.26551223_dp+t*(1.00002368_dp+t*(0.37409196_dp+&
+    &       t*(0.09678418_dp+t*(-0.18628806_dp+t*(0.27886807_dp+&
+    &       t*(-1.13520398_dp+t*(1.48851587+t*(-0.82215223+&
     &       t*0.17087277)))))))))
-    if (x .lt. 0.d0) terfc=2.d0-terfc
+    if (x .lt. 0._dp) terfc=2._dp-terfc
 
     RETURN
   END FUNCTION terfc
@@ -543,7 +559,7 @@ module gewald
   !==============================================================================
 
   function getalpha(basis)
-    implicit none
+
     real(kind=dp) ::  basis(3,3)
     real(kind=dp) ::  getalpha
     real(kind=dp) ::  alpha, alphal, alphar
@@ -578,7 +594,7 @@ module gewald
     alpha = 1e-5
     DO WHILE( diffrecreal(alpha,G,R,vol) .lt. tol )
       alphal = alpha
-      alpha = alpha*2.d0   
+      alpha = alpha*2._dp
     END DO
 
     !       if (reciprocalspace decline - realspace decline) > 0 convergence
@@ -587,11 +603,11 @@ module gewald
     alpha = 1e+5
     DO WHILE( diffrecreal(alpha,G,R,vol) .gt. tol )
       alphar = alpha
-      alpha = alpha / 2.d0
+      alpha = alpha / 2._dp
     END DO
 
     !       now find best value by refining the interval [alphal,alphar]
-    alpha = (alphal + alphar)/2.d0
+    alpha = (alphal + alphar)/2._dp
     nopt  = 0
     DO WHILE ( abs(diffrecreal(alpha,G,R,vol)) .gt. tol .and. &
       &             nopt .le. 20)
@@ -602,12 +618,12 @@ module gewald
       IF ( diffrecreal(alpha,G,R,vol) .gt. tol ) THEN
         alphar = alpha
       END IF
-      alpha = (alphal + alphar)/2.d0
+      alpha = (alphal + alphar)/2._dp
       nopt  = nopt + 1
     END DO
 
     IF (nopt .gt. 20 ) THEN 
-      alpha=exp(-0.310104*log(vol)+0.786382)/2.d0
+      alpha=exp(-0.310104*log(vol)+0.786382)/2._dp
       PRINT*, "WARNING: NO OPTIMISED ALPHA FOUND: "
       PRINT*, "STANDARD ALPHA USED. ALPHA SET TO", alpha 
     END IF
@@ -634,24 +650,26 @@ module gewald
   !==============================================================================
 
 
-  subroutine getGRmax(alpha,tol,vol,Gmax,Rmax)
-    implicit none
-    real(kind=dp) ::  alpha, Gmax, Rmax, tol, vol
-    integer nopt
+  subroutine getGRmax(alpha, tol, vol, Gmax, Rmax, iError)
+
+    real(kind=dp) ::  alpha, tol, vol, Gmax, Rmax
+    integer, intent(out), optional :: iError
+
+    integer :: nopt
     real(kind=dp) ::  G, R, Gl, Gr, Rl, Rr
 
 
     !       set starting Gl and Rl
-    G = 1e-5
-    R = 1e-5
-    DO WHILE( Gspace(G,alpha,vol) .gt. tol + 1e-10)
+    G = 1.0e-5_dp
+    R = 1.0e-5_dp
+    DO WHILE( Gspace(G,alpha,vol) .gt. tol + 1.0e-10_dp)
       Gl = G
-      G    = G*2.d0   
+      G = G * 2.0_dp
     END DO
 
-    DO WHILE( Rspace(R,alpha) .gt. tol + 1e-10)
+    DO WHILE( Rspace(R,alpha) .gt. tol + 1.0e-10_dp)
       Rl = R
-      R    = R*2.d0   
+      R = R * 2.0_dp
     END DO
 
     !       set starting Gr and Rr
@@ -659,18 +677,18 @@ module gewald
     R = 1e+5
     DO WHILE( Gspace(G,alpha,vol) .lt. tol - 1e-10)
       Gr = G
-      G    = G/2.d0   
+      G    = G/2._dp
     END DO
 
     DO WHILE( Rspace(R,alpha) .lt. tol - 1e-10)
       Rr = R
-      R    = R/2.d0   
+      R    = R/2._dp
     END DO
 
 
 
-    !       now find best value of G by refining the interval [Gl,Gr]
-    G = (Gl + Gr)/2.d0
+    ! now find best value of G by refining the interval [Gl,Gr]
+    G = (Gl + Gr)/2._dp
     nopt  = 0
     DO WHILE ( Gspace(G,alpha,vol) .gt. tol .and. nopt .le. 20)
       IF ( Gspace(G,alpha,vol) .lt. (tol - 1d-10) ) THEN
@@ -681,16 +699,16 @@ module gewald
         Gl = G
       END IF
 
-      G = (Gl + Gr)/2.d0
+      G = (Gl + Gr)/2._dp
       nopt  = nopt + 1
     END DO
 
     IF (nopt .ge. 20) THEN
-      STOP "Gmax COULD NOT BE DETERMINED IN getGRmax"
+      @:ERROR_HANDLING(iError, -1, "Gmax could not be determined in getGRmax")
     END IF
 
     !       now find best value of R by refining the interval [Rl,Rr]
-    R = (Rl + Rr)/2.d0
+    R = (Rl + Rr)/2._dp
     nopt  = 0
     DO WHILE ( Rspace(R,alpha) .gt. tol .and. nopt .le. 20)
 
@@ -702,12 +720,12 @@ module gewald
         Rl = R
       END IF
 
-      R = (Rl + Rr)/2.d0
+      R = (Rl + Rr)/2._dp
       nopt  = nopt + 1
     END DO
 
     IF (nopt .ge. 20) THEN
-      STOP "Rmax COULD NOT BE DETERMINED IN getGRmax"
+      @:ERROR_HANDLING(iError, -2, "Rmax could not be determined in getGRmax")
     END IF
 
     Gmax = G
@@ -736,14 +754,14 @@ module gewald
   !==============================================================================
 
   function diffrecreal(alpha,G,R,vol)
-    implicit none
+
     real(kind=dp) ::  alpha, G, R, vol
     real(kind=dp) ::  diffrecreal
     real(kind=dp) ::  diffrec, diffreal
 
     !       make differences between decline at 2G and 3G / 2R and 3R
-    diffrec = Gspace(2.d0*G,alpha,vol) - Gspace(3.d0*G,alpha,vol)
-    diffreal= Rspace(2.d0*R,alpha) - Rspace(3.d0*R,alpha)
+    diffrec = Gspace(2._dp*G,alpha,vol) - Gspace(3._dp*G,alpha,vol)
+    diffreal= Rspace(2._dp*R,alpha) - Rspace(3._dp*R,alpha)
 
     !       return difference between reciprocal and realspace decline
     diffrecreal        = diffrec - diffreal
@@ -765,12 +783,11 @@ module gewald
 
   real(kind=dp) function Gspace(G,alpha,vol)
 
-    implicit none
     real(kind=dp) ::  G, alpha, vol
     
     !       evaluate reciprocal space term at G
-    Gspace = exp(-G**2/(4.d0*alpha*alpha))/(G**2)
-    Gspace = (4.d0*Pi*Gspace)/vol
+    Gspace = exp(-G**2/(4._dp*alpha*alpha))/(G**2)
+    Gspace = (4._dp*Pi*Gspace)/vol
 
   END function Gspace
 
@@ -788,7 +805,6 @@ module gewald
 
   real(kind=dp) function Rspace(R,alpha)
 
-    implicit none
     real(kind=dp) ::  R, alpha
  
     !       evaluate real space term at R

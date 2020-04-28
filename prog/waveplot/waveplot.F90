@@ -44,8 +44,8 @@ program waveplot
   real(dp) :: mDist, dist
   real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
   integer :: i1, i2, i3, iCell
-  type(listRealR1) :: coordList
-  type(listInt) :: speciesList
+  type(TListRealR1) :: coordList
+  type(TListInt) :: speciesList
 
   ! Allocate resources
   call initProgramVariables()

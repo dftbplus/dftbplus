@@ -1,0 +1,73 @@
+Geometry = GenFormat {
+    <<< "30h.gen"
+}
+
+Transport {
+    Device {
+        AtomRange = 1 11
+    }
+    Contact {
+        Id = "Source"
+        AtomRange = 12 21
+        Potential [eV] = 0.0
+	FermiLevel = -0.238600399999999713
+    }
+    Contact {
+        Id = "Drain"
+        AtomRange = 22 31
+        Potential [eV] = 2.0
+    }
+    ReadBinaryContact = No
+}
+
+Hamiltonian = DFTB {
+    Scc = Yes
+    SccTolerance = 1E-6
+    MaxAngularMomentum = {
+        H = s
+    }
+    Filling = Fermi {
+        Temperature [K] = 0
+    }
+    SlaterKosterfiles = {
+        H-H = "H-H-noS.skf"
+    }
+    Electrostatics = Poisson {
+        Poissonbox [Angstrom] = 20.0 20.0 20.0
+        MinimalGrid [Angstrom] = 0.4 0.4 0.4
+        AtomDensityCutoff [Angstrom] = 7.05
+        CutoffCheck = No
+        SavePotential = Yes
+        PoissonAccuracy = 1e-5
+        BuildBulkPotential = Yes
+    }
+    Solver = GreensFunction{
+        Verbosity = 51
+        RealAxisPoints = 100
+        EnclosedPoles = 3
+    }
+}
+
+Analysis{
+    TunnelingAndDOS{
+        EnergyRange [eV] = -0.0  0.0
+        EnergyStep [eV] = 0.02
+    }
+}
+
+Parallel = {
+    Blacs{
+        BlockSize = 4
+    }
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}
+
+Options = {
+    WriteAutotesttag = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 8
+}
