@@ -31,10 +31,10 @@ module dftbp_pprpa
   implicit none
   private
 
-  public :: ppRPAenergies, ppRPAcal
+  public :: ppRPAenergies, TppRPAcal
 
   !> Data type for pp-RPA calculations
-  type :: ppRPAcal
+  type :: TppRPAcal
 
     !> number of excitations to be found
     integer :: nExc
@@ -45,9 +45,6 @@ module dftbp_pprpa
     !> Coulomb part of atom resolved Hubbard U
     real(dp), allocatable :: hhubbard(:)
 
-    !> Initialised data structure?
-    logical :: tInit = .false.
-
     !> Tamm Dancoff Approximation?
     logical :: tTDA
 
@@ -57,7 +54,7 @@ module dftbp_pprpa
     !> number of virtual orbitals
     integer :: nvirtual
 
-  end type ppRPAcal
+  end type TppRPAcal
 
   !> Name of output file
   character(*), parameter :: excitationsOut = "ppRPA_ener.DAT"
@@ -72,7 +69,7 @@ contains
       & iNeighbour, img2CentCell, orb, tWriteTagged, autotestTag, taggedWriter, err)
 
     !> Container for RPA calculation data
-    type(ppRPAcal), intent(in) :: RPA
+    type(TppRPAcal), allocatable, intent(in) :: RPA
 
     !> index vector for S and H matrices
     type(TDenseDescr), intent(in) :: denseDesc
@@ -142,6 +139,8 @@ contains
 
     !> ppRPA eigenvector
     real(dp), allocatable :: vr(:,:)
+
+  @:ASSERT(allocated(RPA)
 
     if (present(err)) then
       err = 0

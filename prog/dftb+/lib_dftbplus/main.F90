@@ -62,6 +62,7 @@ module dftbp_main
   use dftbp_elecconstraints
   use dftbp_pmlocalisation, only : TPipekMezey
   use dftbp_linresp
+  use dftbp_pprpa, only : ppRPAenergies
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : TDispersionIface
@@ -778,14 +779,14 @@ contains
           & rhoSqrReal, excitedDerivs, occNatural)
     end if
 
-    if (tPpRPA) then
+    if (allocated(ppRPA)) then
       call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
       call blockSymmetrizeHS(SSqrReal, denseDesc%iAtomStart)
       if (withMpi) then
         call error("pp-RPA calc. does not work with MPI yet")
       end if
-      call ppRPAenergies(RPA, denseDesc, eigvecsReal, eigen(:,1,:), sccCalc, SSqrReal, species0,&
+      call ppRPAenergies(ppRPA, denseDesc, eigvecsReal, eigen(:,1,:), sccCalc, SSqrReal, species0,&
           & nEl(1), neighbourList%iNeighbour, img2CentCell, orb, tWriteAutotest, autotestTag,&
           & taggedWriter)
     end if

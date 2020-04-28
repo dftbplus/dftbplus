@@ -72,7 +72,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
-  use dftbp_pprpa
+  use dftbp_pprpa, only : TppRPAcal
   use dftbp_RangeSeparated
   use dftbp_stress
   use dftbp_orbitalequiv
@@ -660,11 +660,8 @@ module dftbp_initprogram
   !> calculate Z vector for excited properties
   logical :: tLinRespZVect
 
-  !> calculate PP-RPA excitation energies
-  logical :: tPpRPA
-
   !> data type for pp-RPA
-  type(ppRPAcal) :: RPA
+  type(TppRPAcal), allocatable :: ppRPA
 
   !> Print eigenvectors
   logical :: tPrintExcitedEigVecs
@@ -1763,8 +1760,6 @@ contains
     tForces = input%ctrl%tForces .or. tPrintForces
     isLinResp = input%ctrl%lrespini%tInit
 
-    tPpRPA = input%ctrl%pprpa%tInit
-
     select case(hamiltonianType)
     case default
       call error("Invalid Hamiltonian")
@@ -2214,21 +2209,11 @@ contains
     end if
 
     ! ppRPA stuff
-    if (tPpRPA) then
+    if (allocated(input%ctrl%ppRPA)) then
 
       if (abs(input%ctrl%nrChrg - 2.0_dp) > elecTolMax) then
         call warning("Particle-particle RPA should be for a reference system with a charge of +2.")
       end if
-
-      RPA%nExc = input%ctrl%pprpa%nExc
-      RPA%sym = input%ctrl%pprpa%sym
-      RPA%tTDA = input%ctrl%pprpa%tTDA
-
-      RPA%tConstVir = input%ctrl%pprpa%tConstVir
-      RPA%nvirtual = input%ctrl%pprpa%nvirtual
-
-      allocate(RPA%hhubbard(size(input%ctrl%pprpa%hhubbard)))
-      RPA%hhubbard(:) = input%ctrl%pprpa%hhubbard
 
       !if (tPeriodic) then
       !  error("PP-RPA is not implemented for periodic systems")
@@ -2237,7 +2222,17 @@ contains
         call error("PP-RPA does not support spin orbit coupling")
       else if (tSpin) then
         call error("PP-RPA does not support a spin polarised ground state")
+      else if (input%ctrl%tShellResolved) then
+        call error("PP-RPA does not support a shell resolved hamiltonian")
+      else if (input%ctrl%h5SwitchedOn) then
+        call error("PP-RPA does not support H5")
+      else if (input%ctrl%tDampH) then
+        call error("PP-RPA does not support H damping")
+      else if (allocated(solvation)) then
+        call error("Solvation is currently not available ppRPA")
       end if
+
+      call move_alloc(input%ctrl%ppRPA, ppRPA)
 
     end if
 

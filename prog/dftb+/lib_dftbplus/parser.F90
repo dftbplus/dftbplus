@@ -4479,7 +4479,7 @@ contains
 
     if (associated(child)) then
 
-      ctrl%pprpa%tInit = .true.
+      allocate(ctrl%pprpa)
 
       if (ctrl%tSpin) then
         ctrl%pprpa%sym = ' '
