@@ -12,6 +12,7 @@ module dftbp_scc
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_blasroutines
+  use dftbp_schedule
   use dftbp_charges, only : getSummedCharges
   use dftbp_chargeconstr
   use dftbp_commontypes
@@ -464,7 +465,7 @@ contains
 
     call updateNNeigh_(this, species, neighList)
 
-    call initGamma_(this, species, neighList%iNeighbour)
+    call initGamma_(this, env, species, neighList%iNeighbour)
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
@@ -1297,10 +1298,13 @@ contains
 
 
   !> Set up the storage and internal values for the short range part of Gamma.
-  subroutine initGamma_(this, species, iNeighbour)
+  subroutine initGamma_(this, env, species, iNeighbour)
 
     !> Resulting module variables
     type(TScc), intent(inout) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> List of the species for each atom.
     integer, intent(in) :: species(:)
@@ -1308,8 +1312,9 @@ contains
     !> Index of neighbouring atoms for each atom.
     integer, intent(in) :: iNeighbour(0:,:)
 
-    integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2
+    integer :: iAt1, iAt2, iU1, iU2, iNeigh, iSp1, iSp2, iAtFirst, iAtLast
     real(dp) :: rab, u1, u2
+    real(dp), allocatable :: work(:,:,:,:)
 
     @:ASSERT(this%tInitialised)
 
@@ -1320,34 +1325,88 @@ contains
           & this%nAtom))
     end if
     this%shortGamma(:,:,:,:) = 0.0_dp
+    call move_alloc(this%shortGamma, work)
 
-    ! some additional symmetry not used, as the value of gamma for atoms
-    ! interacting with themselves is the same for all atoms of the same species
-    do iAt1 = 1, this%nAtom
-      iSp1 = species(iAt1)
-      do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iSp2 = species(iAt2)
-        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
-        do iU1 = 1, this%nHubbU(species(iAt1))
-          u1 = this%uniqHubbU(iU1, iSp1)
-          do iU2 = 1, this%nHubbU(species(iAt2))
-            u2 = this%uniqHubbU(iU2, iSp2)
-            if (iNeigh <= this%nNeighShort(iU2,iU1,iSp2,iAt1)) then
-              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
-                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGammaDamped(rab, u2, u1, this%dampExp)
-              else
-                this%shortGamma(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
-                if (this%tH5) then
-                  call this%h5Correction%scaleShortGamma(&
-                      & this%shortGamma(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
+    call distributeRangeInChunks(env, 1, this%nAtom, iAtFirst, iAtLast)
+
+    ! some additional symmetry not used in these loops, as the value of gamma for atoms interacting
+    ! with themselves is the same for all atoms of the same species
+
+    if (any(this%tDampedShort)) then
+      !$OMP PARALLEL DO PRIVATE(iSp1, iNeigh, iAt2, iSp2, rab, iU1, u1, iU2, u2) DEFAULT(SHARED) &
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:work)
+      do iAt1 = iAtFirst, iAtLast
+        iSp1 = species(iAt1)
+        do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
+          iAt2 = iNeighbour(iNeigh, iAt1)
+          iSp2 = species(iAt2)
+          rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
+          do iU1 = 1, this%nHubbU(species(iAt1))
+            u1 = this%uniqHubbU(iU1, iSp1)
+            do iU2 = 1, this%nHubbU(species(iAt2))
+              u2 = this%uniqHubbU(iU2, iSp2)
+              if (iNeigh <= this%nNeighShort(iU2,iU1,iSp2,iAt1)) then
+                if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
+                  work(iU2 ,iU1, iNeigh, iAt1) =&
+                      & expGammaDamped(rab, u2, u1, this%dampExp)
+                else
+                  work(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
                 end if
               end if
-            end if
+            end do
           end do
         end do
       end do
-    end do
+      !$OMP END PARALLEL DO
+    else if (this%tH5) then
+      !$OMP PARALLEL DO PRIVATE(iSp1, iNeigh, iAt2, iSp2, rab, iU1, u1, iU2, u2) DEFAULT(SHARED) &
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:work)
+      do iAt1 = iAtFirst, iAtLast
+        iSp1 = species(iAt1)
+        do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
+          iAt2 = iNeighbour(iNeigh, iAt1)
+          iSp2 = species(iAt2)
+          rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
+          do iU1 = 1, this%nHubbU(species(iAt1))
+            u1 = this%uniqHubbU(iU1, iSp1)
+            do iU2 = 1, this%nHubbU(species(iAt2))
+              u2 = this%uniqHubbU(iU2, iSp2)
+              if (iNeigh <= this%nNeighShort(iU2,iU1,iSp2,iAt1)) then
+                work(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
+                call this%h5Correction%scaleShortGamma(&
+                    & work(iU2 ,iU1, iNeigh, iAt1), iSp1, iSp2, rab)
+              end if
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+    else
+      !$OMP PARALLEL DO PRIVATE(iSp1, iNeigh, iAt2, iSp2, rab, iU1, u1, iU2, u2) DEFAULT(SHARED) &
+      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:work)
+      do iAt1 = iAtFirst, iAtLast
+        iSp1 = species(iAt1)
+        do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
+          iAt2 = iNeighbour(iNeigh, iAt1)
+          iSp2 = species(iAt2)
+          rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
+          do iU1 = 1, this%nHubbU(species(iAt1))
+            u1 = this%uniqHubbU(iU1, iSp1)
+            do iU2 = 1, this%nHubbU(species(iAt2))
+              u2 = this%uniqHubbU(iU2, iSp2)
+              if (iNeigh <= this%nNeighShort(iU2,iU1,iSp2,iAt1)) then
+                work(iU2 ,iU1, iNeigh, iAt1) = expGamma(rab, u2, u1)
+              end if
+            end do
+          end do
+        end do
+      end do
+      !$OMP END PARALLEL DO
+    end if
+
+    call assembleChunks(env, work)
+
+    call move_alloc(work, this%shortGamma)
 
   end subroutine initGamma_
 
