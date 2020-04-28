@@ -2218,18 +2218,28 @@ contains
       !if (tPeriodic) then
       !  error("PP-RPA is not implemented for periodic systems")
       !end if
-      if (tSpinOrbit) then
-        call error("PP-RPA does not support spin orbit coupling")
-      else if (tSpin) then
-        call error("PP-RPA does not support a spin polarised ground state")
-      else if (input%ctrl%tShellResolved) then
-        call error("PP-RPA does not support a shell resolved hamiltonian")
-      else if (input%ctrl%h5SwitchedOn) then
-        call error("PP-RPA does not support H5")
-      else if (input%ctrl%tDampH) then
-        call error("PP-RPA does not support H damping")
-      else if (allocated(solvation)) then
-        call error("Solvation is currently not available ppRPA")
+    #:for VAR, ERR in [("tSpinOrbit","spin orbit coupling"), ("tDFTBU","DFTB+U/pSIC"),&
+      & ("tSpin","spin polarised ground state"), ("t3rd","third order")]
+      if (${VAR}$) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+    #:for VAR, ERR in [("tShellResolved","shell resolved hamiltonians"),&
+      &("h5SwitchedOn","H5"),("tDampH","H damping")]
+      if (input%ctrl%${VAR}$) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+    #:for VAR, ERR in [("solvation","solvation"), ("onSiteElements","onsite corrections")]
+      if (allocated(${VAR}$)) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+
+      if (isGeoOpt .or. tMD .or. tSocket) then
+        call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
+            & the (N-2) electron ground state system do not match the targeted system for the&
+            & excited states")
       end if
 
       call move_alloc(input%ctrl%ppRPA, ppRPA)
