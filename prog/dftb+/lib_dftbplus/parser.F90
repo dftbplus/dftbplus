@@ -54,11 +54,16 @@ module dftbp_parser
   use dftbp_etemp, only : fillingTypes
   use dftbp_hamiltoniantypes
   use dftbp_wrappedintr
+  use dftbp_tempprofile, only : identifyTempProfile
   use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
   use poisson_init
   use libnegf_vars
 #:endif
+  use dftbp_born, only : TGBInput
+  use dftbp_borndata, only : getVanDerWaalsRadiusD3
+  use dftbp_solvinput, only : TSolvationInp
+  use dftbp_solventdata, only : TSolventData, SolventFromName
   implicit none
   private
 
@@ -200,6 +205,10 @@ contains
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%ctrl)
+
+    call getChildValue(root, "Reks", dummy, "", child=child, list=.true., &
+        & allowEmptyValue=.true., dummyValue=.true.)
+    call readReks(child, input%ctrl, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -674,8 +683,7 @@ contains
       case ("nosehoover")
         ctrl%iThermostat = 3
         ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, &
-            &child=child2)
+        call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
         call getNodeName(value2, buffer)
 
         select case(char(buffer))
@@ -687,8 +695,7 @@ contains
           call detailedError(value2, "Invalid method name.")
         end select
 
-        call getChildValue(value1, "CouplingStrength", ctrl%wvScale, &
-            & modifier=modifier, child=field)
+        call getChildValue(value1, "CouplingStrength", ctrl%wvScale, modifier=modifier, child=field)
         call convertByMul(char(modifier), freqUnits, field, ctrl%wvScale)
 
         call getChildValue(value1, "ChainLength", ctrl%nh_npart, 3)
@@ -714,8 +721,7 @@ contains
       case ("andersen")
         ctrl%iThermostat = 1
         ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, &
-            &child=child2)
+        call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
         call getNodeName(value2, buffer)
 
         select case(char(buffer))
@@ -1579,6 +1585,14 @@ contains
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
     end if
 
+    ! Solvation
+    call getChildValue(node, "Solvation", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%solvInp)
+      call readSolvation(child, geo, ctrl%solvInp)
+    end if
+
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimization only applies for periodic structures.")
     end if
@@ -1760,6 +1774,14 @@ contains
     if (associated(value1)) then
       allocate(ctrl%dispInp)
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
+    end if
+
+    ! Solvation
+    call getChildValue(node, "Solvation", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%solvInp)
+      call readSolvation(child, geo, ctrl%solvInp)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -3518,6 +3540,169 @@ contains
   end subroutine readOptions
 
 
+  !> Reads in solvation related settings
+  subroutine readSolvation(node, geo, input)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> geometry, including atomic information
+    type(TGeometry), intent(in) :: geo
+
+    !> dispersion data on exit
+    type(TSolvationInp), intent(out) :: input
+
+    type(fnode), pointer :: solvModel
+    type(string) :: buffer
+
+    call getChildValue(node, "", solvModel)
+    call getNodeName(solvModel, buffer)
+
+    select case (char(buffer))
+    case default
+      call detailedError(node, "Invalid solvation model name.")
+    case ("generalizedborn")
+      allocate(input%GBInp)
+      call readSolvGB(solvModel, geo, input%GBInp)
+    end select
+  end subroutine readSolvation
+
+
+  !> Reads in generalized Born related settings
+  subroutine readSolvGB(node, geo, input)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Geometry of the current system
+    type(TGeometry), intent(in) :: geo
+
+    !> Contains the input for the dispersion module on exit
+    type(TGBInput), intent(out) :: input
+
+    type(string) :: buffer, state, modifier
+    type(fnode), pointer :: child, value1, field, child2, value2, dummy
+    integer :: iSp
+    logical :: found
+    real(dp) :: temperature, shift, conv
+    real(dp), allocatable :: vdwRadDefault(:)
+    type(TSolventData) :: solvent
+    real(dp), parameter :: referenceDensity = kg__au/(1.0e10_dp*AA__Bohr)**3
+    real(dp), parameter :: referenceMolecularMass = amu__au
+    real(dp), parameter :: idealGasMolVolume = 24.79_dp
+    real(dp), parameter :: ambientTemperature = 298.15_dp * Boltzmann
+
+    if (geo%tPeriodic) then
+      call detailedError(node, "Generalized Born model currently not available with PBCs")
+    end if
+
+    call getChildValue(node, "Solvent", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Invalid solvent method '" // char(buffer) // "'")
+    case('fromname')
+      call getChildValue(value1, "", buffer)
+      call SolventFromName(solvent, unquote(char(buffer)), found)
+      if (.not. found) then
+        call detailedError(value1, "Invalid solvent " // char(buffer))
+      end if
+    case('fromconstants')
+      call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
+      call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
+          & modifier=modifier, child=field)
+      call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)
+      call getChildValue(value1, "Density", solvent%density, modifier=modifier, &
+          & child=field)
+      call convertByMul(char(modifier), massDensityUnits, field, solvent%density)
+    end select
+
+    input%keps = 1.0_dp / solvent%dielectricConstant - 1.0_dp
+
+    ! shift value for the free energy (usually fitted)
+    call getChildValue(node, "FreeEnergyShift", shift, modifier=modifier, &
+        & child=field)
+    call convertByMul(char(modifier), energyUnits, field, shift)
+
+    ! temperature, influence depends on the reference state
+    call getChildValue(node, "Temperature", temperature, ambientTemperature, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), energyUnits, field, temperature)
+
+    ! reference state for free energy calculation
+    call getChildValue(node, "State", state, "gsolv", child=child)
+    select case(tolower(unquote(char(state))))
+    case default
+      call detailedError(child, "Unknown reference state: '"//char(state)//"'")
+    case("gsolv") ! just the bare shift
+      input%freeEnergyShift = shift
+    case("reference") ! gsolv=reference option in cosmotherm
+      ! RT * ln(ideal gas mol volume) + ln(rho/M)
+      input%freeEnergyShift = shift + temperature &
+          & * (log(idealGasMolVolume * temperature / ambientTemperature) &
+          & + log(solvent%density/referenceDensity * referenceMolecularMass/solvent%molecularMass))
+    case("mol1bar")
+      ! RT * ln(ideal gas mol volume)
+      input%freeEnergyShift = shift + temperature &
+          & * log(idealGasMolVolume * temperature / ambientTemperature)
+    end select
+
+    call getChildValue(node, "BornScale", input%bornScale)
+    call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%bornOffset)
+    call getChildValue(node, "OBCCorrection", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
+
+    conv = 1.0_dp
+    allocate(input%vdwRad(geo%nSpecies))
+    call getChildValue(node, "Radii", value1, child=child)
+    call getChild(value1, "", dummy, modifier=modifier)
+    call convertByMul(char(modifier), lengthUnits, child, conv)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("vanderwaalsradiid3")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
+      do iSp = 1, geo%nSpecies
+        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
+        if (associated(value2)) then
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & child=child2)
+        else
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & vdwRadDefault(iSp)/conv, child=child2)
+        end if
+      end do
+      deallocate(vdwRadDefault)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
+      end do
+    end select
+    input%vdwRad(:) = input%vdwRad * conv
+
+    allocate(input%descreening(geo%nSpecies))
+    call getChildValue(node, "Descreening", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate descreening parameters")
+    case("unity")
+      input%descreening(:) = 1.0_dp
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, trim(geo%speciesNames(iSp)), input%descreening(iSp), child=child2)
+      end do
+    end select
+
+    call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+
+  end subroutine readSolvGB
+
+
   !> Reads in dispersion related settings
   subroutine readDispersion(node, geo, input, nrChrg)
 
@@ -4118,15 +4303,12 @@ contains
     !> Control structure to populate
     type(TControl), intent(inout) :: ctrl
 
-    !> Names of thermal profiles
-    character(len=*), parameter :: tempMethodNames(3) = (/ 'constant   ', &
-        &'linear     ', 'exponential' /)
-
     type(TListString) :: ls
     type(TListIntR1) :: li1
     type(TListRealR1) :: lr1
     character(len=20), allocatable :: tmpC1(:)
     integer :: ii, jj
+    logical :: success
 
     call init(ls)
     call init(li1)
@@ -4146,16 +4328,13 @@ contains
     call destruct(li1)
     call destruct(lr1)
     allocate(ctrl%tempMethods(size(tmpC1)))
-    lp2: do ii = 1, size(tmpC1)
-      do jj = 1, size(tempMethodNames)
-        if (trim(tmpC1(ii)) == tolower(trim(tempMethodNames(jj)))) then
-          ctrl%tempMethods(ii) = jj
-          cycle lp2
-        end if
-      end do
-      call detailedError(node, "Invalid annealing method name '" &
-          &// trim(tmpC1(ii)) // "'.")
-    end do lp2
+    do ii = 1, size(tmpC1)
+      call identifyTempProfile(ctrl%tempMethods(ii), tmpC1(ii), success)
+      if (success) then
+        cycle
+      end if
+      call detailedError(node, "Invalid annealing method name '" // trim(tmpC1(ii)) // "'.")
+    end do
 
     if (any(ctrl%tempSteps < 0)) then
       call detailedError(node, "Step values must not be negative.")
@@ -4497,7 +4676,7 @@ contains
       end select
     end if
 
-    if (tLRNeedsSpinConstants .or. ctrl%tSpin) then
+    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. ctrl%reksIni%tREKS) then
       allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 
@@ -6379,5 +6558,152 @@ contains
     end select
 
   end subroutine parseRangeSeparated
+
+
+  !> Reads the REKS block
+  subroutine readReks(node, ctrl, geo)
+
+    !> Node to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: child22, child44
+
+    ! SSR(2,2) or SSR(4,4) stuff
+    call getChild(node, "SSR22", child22, requested=.false.)
+    call getChild(node, "SSR44", child44, requested=.false.)
+
+    if (associated(child22)) then
+
+      ctrl%reksIni%tREKS = .true.
+      ctrl%reksIni%tSSR22 = .true.
+      call readSSR22(child22, ctrl, geo)
+
+    else if (associated(child44)) then
+
+      ctrl%reksIni%tREKS = .true.
+      ctrl%reksIni%tSSR44 = .true.
+      call detailedError(child44, "SSR(4,4) is not implemented yet.")
+
+    end if
+
+  end subroutine readReks
+
+
+  !> Reads the SSR(2,2) block
+  subroutine readSSR22(node, ctrl, geo)
+
+    !> Node to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Minimized energy functional; 1: PPS, 2: (PPS+OSS)/2
+    call getChildValue(node, "EnergyFunctional", ctrl%reksIni%Efunction, default=2)
+    !> Calculated energy states in SA-REKS
+    !> 1: calculate states included in 'EnergyFuncitonal'
+    !> 2: calculate all possible states
+    call getChildValue(node, "EnergyLevel", ctrl%reksIni%Elevel, default=1)
+    !> Calculate SSR state (SI term is included)
+    !> 1: calculate SSR state, 0: calculate SA-REKS state
+    call getChildValue(node, "UseSsrState", ctrl%reksIni%useSSR, default=1)
+
+    !> Target SSR state
+    call getChildValue(node, "TargetState", ctrl%reksIni%rstate, default=1)
+    !> Target microstate
+    call getChildValue(node, "TargetStateL", ctrl%reksIni%Lstate, default=0)
+
+    !> Initial guess for eigenvectors in REKS
+    !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
+    call getChildValue(node, "InitialGuess", ctrl%reksIni%guess, default=1)
+    !> Maximum iteration used in FON optimization
+    call getChildValue(node, "FonMaxIter", ctrl%reksIni%FonMaxIter, default=20)
+    !> Shift value in SCC cycle
+    call getChildValue(node, "Shift", ctrl%reksIni%shift, default=0.3_dp)
+
+    !> Read "SpinTuning" block with 'nType' elements
+    call readSpinTuning(node, ctrl, geo%nSpecies)
+
+    !> Calculate transition dipole moments
+    call getChildValue(node, "TransitionDipole", ctrl%reksIni%tTDP, default=.false.)
+
+    !> Algorithms to calculate analytic gradients
+    !> 1: preconditioned conjugate gradient (PCG)
+    !> 2: conjugate gradient (CG)
+    !> 3: direct inverse-matrix multiplication
+    call getChildValue(node, "GradientLevel", ctrl%reksIni%Glevel, default=1)
+    !> Maximum iteration used in calculation of gradient with PCG and CG
+    call getChildValue(node, "CGmaxIter", ctrl%reksIni%CGmaxIter, default=20)
+    !> Tolerance used in calculation of gradient with PCG and CG
+    call getChildValue(node, "GradientTolerance", ctrl%reksIni%Glimit, default=1.0E-8_dp)
+
+    !> Calculate relaxed density of SSR or SA-REKS state
+    call getChildValue(node, "RelaxedDensity", ctrl%reksIni%tRD, default=.false.)
+    !> Calculate nonadiabatic coupling vectors
+    call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksIni%tNAC, default=.false.)
+
+    !> Print level in standard output file
+    call getChildValue(node, "VerbosityLevel", ctrl%reksIni%Plevel, default=1)
+    !> Memory level used in calculation of gradient
+    call getChildValue(node, "MemoryLevel", ctrl%reksIni%Mlevel, default=2)
+
+  end subroutine readSSR22
+
+
+  !> Reads SpinTuning block in REKS input
+  subroutine readSpinTuning(node, ctrl, nType)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Number of types for atoms
+    integer, intent(in) :: nType
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer, modifier
+    type(TListRealR1) :: realBuffer
+    integer :: nAtom, iType
+    real(dp), allocatable :: tmpTuning(:,:)
+
+    call getChildValue(node, "SpinTuning", value1, "", child=child, &
+        & modifier=modifier, allowEmptyValue=.true.)
+    call getNodeName2(value1, buffer)
+    if (char(buffer) == "") then
+      ! no 'SpinTuning' block in REKS input
+      allocate(ctrl%reksIni%Tuning(nType))
+      do iType = 1, nType
+        ctrl%reksIni%Tuning(iType) = 1.0_dp
+      end do
+    else
+      ! 'SpinTuning' block in REKS input
+      call init(realBuffer)
+      call getChildValue(child, "", 1, realBuffer, modifier=modifier)
+      nAtom = len(realBuffer)
+      if (nAtom /= nType) then
+        call detailedError(node, "Incorrect number of 'SpinTuning' block: " &
+            & // i2c(nAtom) // " supplied, " &
+            & // i2c(nType) // " required.")
+      end if
+      allocate(tmpTuning(1,nAtom))
+      call asArray(realBuffer, tmpTuning)
+      call destruct(realBuffer)
+      allocate(ctrl%reksIni%Tuning(nType))
+      ctrl%reksIni%Tuning(:) = tmpTuning(1,:)
+    end if
+
+  end subroutine readSpinTuning
+
 
 end module dftbp_parser

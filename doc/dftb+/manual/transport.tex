@@ -205,11 +205,11 @@ PLs (tolerance for rule~\ref{rule4} of structures, i.e.\ that accuracy to which
 \item[\is{Temperature}]\modif{\modtype{energy}} Specifies the electronic
   temperature of the contact (see a more detailed discussion after the section 
   \"Analysis\").
-\item[\is{FermiLevel}]\modif{\modtype{energy}} Optional over-riding of the Fermi
-  energy specified in the appropriate contact shift file.
+\item[\is{FermiLevel}]\modif{\modtype{energy}} Optional overriding of the Fermi
+  energy that is specified in the appropriate contact shift file.
 \item[\is{Potential}]\modif{\modtype{energy}} Specifies any additional
   electrostatic potential applied to the contact. The natural units of this
-  quantity are a potential energy.
+  quantity are a (potential) energy.
 \item[\is{WideBand}] Use the wide band approximation for the contact. If set to
   \is{Yes}, the surface Green's function of the contact is not explicitly
   calculated but is instead assumed to be local and constant according to a
@@ -335,19 +335,17 @@ KpointsAndWeights = SupercellFolding {
 
 This could seem confusing, but the underlining reasons is that in the cluster
 calculation the reciprocal lattice is set up by the code itself, while in the
-periodic calculation is set up by the user who can chose any arbitrary
+periodic calculation is set up by the user, who can chose any arbitrary
 direction.  Refer to the transport cookbook and to the distributed examples for
 further clarification.
 
-\htcbsubsection{Task = UploadContacts}\index{UploadContacts} After the contact
-calculations, it is possible to perform actual transport calculations. This is
-activated simply specifying \kw{Task = UploadContacts}, without additional
-options ({\bf Note} if no task is specified, \dftbp{} assumes
-\is{UploadContacts} is the required task in the transport block). In order to
-set up a proper transport calculation the user should also define the contacts'
-Fermi levels (as printed in the files previously produced by using
-\is{ContactHamiltonian} tasks) and any required potential shift for each
-contact.
+\htcbsubsection{Task = UploadContacts}\index{UploadContacts} After the
+contact calculations are completed, it is now possible to perform
+actual transport calculations. This is activated simply specifying
+\kw{Task = UploadContacts}, without additional options ({\bf Note} if
+no task is specified, \dftbp{} assumes \is{UploadContacts} is the
+required task in the transport block). If you require potential shifts
+of the contacts, these should also be set for each contact.
 \begin{verbatim}
 Transport {
   Device {
@@ -356,13 +354,12 @@ Transport {
   Contact {
     Id = "source"
     AtomRange = 9 24
-    FermiLevel [eV] = -8.4123
-    Potential = 0.0
+    # No specified shift in contact, effectively:
+    # Potential = 0.0
   }
   Contact {
     Id = "drain"
     AtomRange = 25 40
-    FermiLevel [eV] = -8.4123
     Potential = 1.0
   }
   Task = UploadContacts
@@ -478,9 +475,11 @@ only (see section~\ref{sec:transport.geometry}).
   the Fermi level of the system must be known and provided to fill up the
   electronic states.
 
-\item[\is{FermiLevel}]\modif{\modtype{energy}} Required to set the Fermi level
-  used by the Green's solver to fill up the electronic states, unless already
-  specified by contacts being already present.
+\item[\is{FermiLevel}]\modif{\modtype{energy}} Required to set the
+  Fermi level that is used by the Green's solver to fill up the
+  electronic states. This should be set unless the Fermi level is
+  already specified by the presence of contacts to the (device region)
+  system.
 
 \item[\is{LocalCurrents}] if set to Yes, local bond-currents are computed using
   the non-equilibrium density matrix.  This task is currently limited to
