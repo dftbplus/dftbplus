@@ -23,8 +23,4 @@ install:
 - echo "y" | ./utils/get_opt_externals ALL
 
 script:
-- mkdir _build
-- cd _build
-- if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then BUILD_TYPE=Debug; else; BUILD_TYPE=Release; fi
-- cmake -DWITH_DFTD3=true -DWITH_TRANSPORT=true -DWITH_MPI=${WITH_MPI} -DFYPP_FLAGS="-DTRAVIS" -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
-- make -j 2 && ctest -j 2
+- ./utils/test/travis-ci.sh
