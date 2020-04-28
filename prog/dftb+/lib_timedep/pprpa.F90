@@ -210,7 +210,7 @@ contains
     nxvv = (nvir * (nvir + 1)) / 2
 
     ! ground state coulombic interactions
-    call sccCalc%getAtomicCoulombMatrix(gamma_eri, RPA%hHubbard, species0, iNeighbour, img2CentCell)
+    call sccCalc%getAtomicGammaMatU(gamma_eri, RPA%hHubbard, species0, iNeighbour, img2CentCell)
 
     ! excitation energies  output file
     open(newUnit=fdExc, file=excitationsOut, position="rewind", status="replace")

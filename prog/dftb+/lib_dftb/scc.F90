@@ -222,8 +222,8 @@ module dftbp_scc
     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
     procedure :: getAtomicGammaMatrix
 
-    !> Routine for returning lower triangle of atomic resolved Coulomb matrix
-    procedure :: getAtomicCoulombMatrix
+    !> Routine for returning lower triangle of atomic resolved gamma for specified U values
+    procedure :: getAtomicGammaMatU
 
     !> Calculates the contribution of the SCC to the energy per atom
     procedure :: getEnergyPerAtom
@@ -653,7 +653,7 @@ contains
 
 
   !> Routine for returning lower triangle of atomic resolved Coulomb matrix
-  subroutine getAtomicCoulombMatrix(this, gammamat, U_h, species, iNeighbour, img2CentCell)
+  subroutine getAtomicGammaMatU(this, gammamat, U_h, species, iNeighbour, img2CentCell)
 
     !> Instance
     class(TScc), intent(in) :: this
@@ -681,7 +681,7 @@ contains
     @:ASSERT(all(this%nHubbU == 1))
 
   #:if WITH_SCALAPACK
-    call error("scc:getAtomicCoulombMatrix does not work with MPI yet")
+    call error("scc:getAtomicGammaMatU does not work with MPI yet")
   #:endif
     gammamat(:,:) = this%coulombCont%invRMat
     do iAt1 = 1, this%nAtom
@@ -701,7 +701,8 @@ contains
       end do
     end do
 
-  end subroutine getAtomicCoulombMatrix
+  end subroutine getAtomicGammaMatU
+
 
   !> Calculates the contribution of the charge consistent part to the energy per atom.
   subroutine getEnergyPerAtom(this, eScc)
