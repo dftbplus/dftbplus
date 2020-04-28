@@ -1,33 +1,31 @@
-!!* Contains the routines for initialising phonons.
-module InitProgram
-#include "allocate.h"
-#include "assert.h"
-  use mpiglobal
-  use HSDParser, only : parseHSD, dumpHSD, dumpHSDAsXML
-  use TokenReader
-  use XMLUtils
-  use HSDUtils
-  use HSDUtils2
-  use flib_dom
-  use LinkedList
-  use CharManip
-  use Accuracy
-  use periodic
-  use Constants
-  use TypeGeometryHSD
-  use Message
-  use FileId
-  use UnitConversion
-  use StringList
-  use OldSKData
+!* Contains the routines for initialising phonons.
+module dftbp_initphonons
+  use dftbp_assert 
+  use dftbp_globalenv
+  use dftbp_environment
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_tokenreader
+  use dftbp_xmlutils
+  use dftbp_hsdutils
+  use dftbp_hsdutils2
+  use xmlf90_flib_dom
+  use dftbp_linkedList
+  use dftbp_charmanip
+  use dftbp_accuracy
+  use dftbp_periodic
+  use dftbp_constants
+  use dftbp_masses
+  use dftbp_typeGeometryhsd
+  use dftbp_message
+  use dftbp_fileId
+  use dftbp_unitconversion
+  use dftbp_linkedlist
+  use dftbp_oldskdata
   use libnegf_vars
-  use WrappedIntrinsics
+  use dftbp_wrappedintr
   implicit none
-
   private
-  save
 
-  character(len=*), parameter :: version =  "0.01"
   character(len=*), parameter :: rootTag = "phonons"
   character(len=*), parameter :: hsdInput = "phonons_in.hsd"
   character(len=*), parameter :: hsdParsedInput = "phonons_pin.hsd"
@@ -38,70 +36,122 @@ module InitProgram
   public :: TPdos
 
   type TPdos 
-    type(WrappedInt1), allocatable :: iAtInRegion(:)
+    type(TWrappedInt1), allocatable :: iAtInRegion(:)
     character(lc), allocatable :: regionLabels(:)
   end type TPdos
 
-  !! Variables from detailed.xml
-  integer, public :: identity                  ! Identity of the run
-  type(TGeometry), public :: geo               ! Geometry
-  type(TPdos), public :: pdos                  ! Projected dos infos
-  type(TTransPar), public :: transpar          ! Contains transport parameters
-  type(TGDFTBtundos), public :: tundos         ! Contains transport parameters
-  type(TGDFTBStructure), public :: str         ! Structure input
+  !> Identity of the run
+  integer, public :: identity                  
 
-  !! Variables from the Option block
-  logical, public :: tVerbose          ! If program should be verbose
+  !> Geometry container
+  type(TGeometry), public :: geo               
 
+  !> Projected dos infos
+  type(TPdos), public :: pdos    
+
+  !> Container of transport parameters
+  type(TTransPar), public :: transpar          
+
+  !> Container of tunneling parameters
+  type(TNEGFtundos), public :: tundos        
+  
+  !> verbose flag
+  logical, public :: tVerbose         
+
+  !> Variables from the Option block
   real(dp), allocatable, public :: atomicMasses(:)
   real(dp), allocatable, public :: dynMatrix(:,:)
   integer, allocatable, public :: iMovedAtoms(:)
   integer, public :: nMovedAtom
   real(dp), allocatable, public :: KPoint(:,:), KWeight(:)
   integer, public :: nKPoints,  nAtomUnitCell
-  integer, pointer, public  :: Img2CentCell(:) !* nr. of original atom in centre
-  type(TNeighborList), public :: neighborList
-  integer, allocatable, target, public :: nNeighbor(:)    !* nr. of neighbors 
-  real(dp), public :: cutoff
-  real(dp), public :: TempMin, TempMax, TempStep
-  integer, public :: selTypeModes
-  integer, public :: order
-  real(dp), public :: atTemperature
-  logical, public :: tCompModes
-  logical, public :: tPlotModes
-  logical, public :: tAnimateModes
-  logical, public :: tXmakeMol
-  logical, public :: tTransport
-  logical, public :: tPhonDispersion
-  integer, allocatable, public :: modesToPlot(:)
-  integer, public :: nModesToPlot
-  integer, public :: nCycles
-  integer, public, parameter :: nSteps = 10
   
-  !! Locally created variables
+  !> maps atom index in central cell
+  integer, allocatable, public  :: Img2CentCell(:) 
 
-  !! Version of the current parser
+  !> neighbor list
+  type(TNeighbourList), public :: neighbourList
+
+  !> number of neighbors 
+  integer, allocatable, target, public :: nNeighbour(:)
+
+  !> cutoff for Hessian 
+  real(dp), public :: cutoff
+
+  !> Temperature range
+  real(dp), public :: TempMin, TempMax, TempStep
+
+  !> Modes to analyze (e.g., longitudinal, transverse, in-plane, etc)
+  integer, public :: selTypeModes
+
+  !> order=2 means harmonic, 3 is anharmonic 3rd order, etc. 
+  integer, public :: order
+
+  !> Atomic temperature
+  real(dp), public :: atTemperature
+
+  !> Whether modes should be computed
+  logical, public :: tCompModes
+
+  !> Whether modes should be plotted
+  logical, public :: tPlotModes
+
+  !> Whether modes should be animated
+  logical, public :: tAnimateModes
+
+  !> ???
+  logical, public :: tXmakeMol
+
+  !>
+  logical, public :: tTransport
+
+  !> whether phonon dispersions should be computed
+  logical, public :: tPhonDispersion
+
+  !> Which phonon modes to animate
+  integer, allocatable, public :: modesToPlot(:)
+
+  !> Number of phonon modes to animate 
+  integer, public :: nModesToPlot
+
+  !> number of cycles in mode animation 
+  integer, public :: nCycles
+
+  !> number of steps in mode animation
+  integer, public, parameter :: nSteps = 10
+
+  !> Version of the current parser
   integer, parameter :: parserVersion = 4
 
-  !! Version of the oldest parser, for which compatibility is maintained
+  !> Version of the oldest parser, for which compatibility is maintained
   integer, parameter :: minVersion = 4 
 
-  !! Container type for parser related flags.
+  !> Container type for parser related flags.
   type TParserFlags
     logical :: tStop                        ! stop after parsing?
     logical :: tIgnoreUnprocessed           ! Continue despite unprocessed nodes
     logical :: tWriteXML, tWriteHSD         ! XML or HSD output?
   end type TParserFlags
 
-  integer, parameter :: ALLMODES = 1
-  integer, parameter :: INPLANE = 2 
-  integer, parameter :: OUTOFPLANE = 3 
+  !> constants parameters
+  integer, parameter :: ALLMODES = 0        ! along x,y,z  
+  integer, parameter :: XX = 1              ! along x 
+  integer, parameter :: YY = 2              ! along y 
+  integer, parameter :: ZZ = 3              ! along z 
+  integer, parameter :: LONGITUDINAL = 4    ! along z
+  integer, parameter :: TRANSVERSE = 5      ! along x,y
+  integer, parameter :: INPLANE = 6         ! along x,z
+  integer, parameter :: OUTOFPLANE = 7      ! along y
 
 contains
 
-  !!* Initialise program variables
-  subroutine initProgramVariables()
+  !> Initialise program variables
+  subroutine initProgramVariables(env)
+    
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
+    ! locals
     type(fnode), pointer :: input, root, node, tmp
     type(fnode), pointer :: child, value
     type(string) :: buffer, buffer2, modif
@@ -109,25 +159,29 @@ contains
     integer :: ii, iSp1, iAt
     logical :: tHSD, reqMass
     real(dp), allocatable :: speciesMass(:)
-    integer :: nDerivs
+    integer :: nDerivs, nGroups
     type(TParserflags) :: parserFlags
   
     integer :: cubicType, quarticType
    
+    write(stdOut, "(/, A)") "Starting initialization..."
+    write(stdOut, "(A80)") repeat("-", 80)
+
+    !call env%initGlobalTimer(input%ctrl%timingLevel, "phonon running times", stdOut)
+    !call env%globalTimer%startTimer(globalTimers%globalInit)
     
-    !! Write header
-    write (*, "(A)") repeat("=", 80)
-    write (*, "(A)") "      PHONONS   " // version
-    write (*, "(A,/)") repeat("=", 80)
+    nGroups = 1
+    call env%initMpi(nGroups)
+
 
     !! Read in input file as HSD or XML.
     call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
     if (tHSD) then
-      write (*, "(A)") "Interpreting input file '" // hsdInput // "'"
+      write(stdOut, "(A)") "Interpreting input file '" // hsdInput // "'"
     else
-      write (*, "(A)") "Interpreting input file '" // xmlInput //  "'"
+      write(stdOut, "(A)") "Interpreting input file '" // xmlInput //  "'"
     end if
-    write (*, "(A)") repeat("-", 80)
+    write(stdOut, "(A)") repeat("-", 80)
     call getChild(input, rootTag, root)
 
     !! Check if input version is the one, which we can handle
@@ -135,12 +189,6 @@ contains
     call getChildValue(root, "ParserOptions", tmp, "", child=child, &
         &list=.true., allowEmptyValue=.true.)
     call readParserOptions(child, root, parserFlags)
-
-   ! call getChildValue(root, "InputVersion", inputVersion, parserVersion)
-   ! if (inputVersion /= parserVersion) then
-   !   call error("Version of input (" // i2c(inputVersion) // ") and parser (" &
-   !       &// i2c(parserVersion) // ") do not match")
-   ! end if
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
@@ -151,13 +199,12 @@ contains
     if (associated(child)) then
       tTransport = .true.
       call readTransportGeometry(child, geo, transpar)
-      call fill_TStructure(geo, str)
     else
       tTransport = .false.
     end if
 
     call getChildValue(root, "Atoms", buffer2, "1:-1", child=child)
-    call convAtomRangeToInt(char(buffer2), geo%specieNames, geo%species, &
+    call convAtomRangeToInt(char(buffer2), geo%speciesNames, geo%species, &
         &child, iMovedAtoms)
     nMovedAtom = size(iMovedAtoms)
 
@@ -188,7 +235,7 @@ contains
     else
       nCycles = 3
     end if
-!!!!!!!!!!!!
+    
     ! Reading K-points for Phonon Dispersion calculation
     call getChild(root, "PhononDispersion", child=node, requested=.false.)
     if  (associated(node))  then
@@ -199,11 +246,10 @@ contains
     else
       tPhonDispersion = .false.
     end if
-!!!!!!!!!!
     
-    ALLOCATE_(speciesMass,(geo%nSpecie))
-
     ! Read the atomic masses from SlaterKosterFiles or Masses
+    allocate(speciesMass(geo%nSpecies))
+    write(stdOut, "(/, A)") "read atomic masses from sk files..."
     call getChild(root, "SlaterKosterFiles", child=value,requested=.false.)
     if ( associated(value) ) then
       call readSKfiles(value, geo, speciesMass)
@@ -211,12 +257,11 @@ contains
       call getChild(root,"Masses",child=value)
       call readMasses(value, geo, speciesMass)
     endif
-    
-    ALLOCATE_(atomicMasses,(nMovedAtom))
+    allocate(atomicMasses(nMovedAtom))
     do iAt = 1, nMovedAtom
       atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
     end do
-    DEALLOCATE_(speciesMass)
+    deallocate(speciesMass)
 
     ! --------------------------------------------------------------------------------------
     ! Reading Hessian block parameters 
@@ -226,28 +271,18 @@ contains
     call getChildValue(child, "Cutoff", cutoff, 9.45_dp, modifier=modif, child=value) 
     call convertByMul(char(modif), lengthUnits, value, cutoff)
 
-    !selecting the type of modes you want to analysis
-    call getchildValue(child, "ModeType", buffer, "all")
-    select case(trim(char(buffer)))
-    case("all")
-      selTypeModes = ALLMODES 
-    case("in-plane")
-      selTypeModes = INPLANE
-    case("out-of-plane")
-      selTypeModes = OUTOFPLANE
-    case default
-      call detailedError(root,"You should specify type of modes: all, in-plane or out-of-plane")
-    end select
-
     ! Reading the actual Hessian matrix
     call getChildValue(child, "Matrix", buffer, child=child)
     !call getNodeName(value, buffer)
     select case(trim(char(buffer)))
     case ("dftb")
+      write(stdOut, "(/, A)") "read dftb hessian..."
       call readDftbHessian(value)
     case ("dynmatrix")
+      write(stdOut, "(/, A)") "read dynamical matrix..."
       call readDynMatrix(value)
     case ("cp2k")
+      write(stdOut, "(/, A)") "read cp2k hessian..."
       call readCp2kHessian(value)
     case default
       call detailedError(root,"Unkown Hessian type "//char(buffer))  
@@ -271,10 +306,7 @@ contains
       end select
     end if
 
-    call buildNeighborList()
-    !call cutDynMatrix()
-    ! Hacking to remove in-plane or out-of-plane modes assuming 2D structure on the xy plane
-    call selectModes()
+    call buildNeighbourList()
 
     call getChildValue(root, "Analysis", tmp, "", child=child, list=.true., &
         &allowEmptyValue=.true., dummyValue=.true.)
@@ -283,44 +315,42 @@ contains
       call readAnalysis(child, geo, pdos, tundos, transpar, atTemperature)
     endif   
 
-
     !! Issue warning about unprocessed nodes
+    write(stdOut, "(/, A)") "check unprocessed nodes..."
     call warnUnprocessedNodes(root, parserFlags%tIgnoreUnprocessed )
 
     !! Dump processed tree in HSD and XML format
-    if (ioproc .and. parserFlags%tWriteHSD) then
+    if (tIoProc .and. parserFlags%tWriteHSD) then
       call dumpHSD(input, hsdParsedInput)
-      write(*, '(/,/,A)') "Processed input in HSD format written to '" &
+      write(stdOut, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdParsedInput // "'"
     end if
-    if (ioproc .and. parserFlags%tWriteXML) then
+    if (tIoProc .and. parserFlags%tWriteXML) then
       call dumpHSDAsXML(input, xmlParsedInput)
-      write(*, '(A,/)') "Processed input in XML format written to '" &
+      write(stdOut, '(A,/)') "Processed input in XML format written to '" &
           &// xmlParsedInput // "'"
     end if
     
-    !call destroyNode(input)
-
     !! Stop, if only parsing is required
     if (parserFlags%tStop) then
       call error("Keyword 'StopAfterParsing' is set to Yes. Stopping.")
     end if
-
-
-
     
+    write(stdOut, "(/, A)") "Initialization done..."
+
   end subroutine initProgramVariables
 
-  !!* Destroy the program variables created in initProgramVariables
+  !!* destruct the program variables created in initProgramVariables
   subroutine destructProgramVariables()
-    
-    call destruct(geo)
-    DEALLOCATE_(atomicMasses)
-    DEALLOCATE_(dynMatrix)
-    DEALLOCATE_(iMovedAtoms)
-    DEALLOCATE_(modesToPlot)
-    write (*, "(/,A)") repeat("=", 80)
-    
+    deallocate(atomicMasses)
+    deallocate(dynMatrix)
+    if (allocated(iMovedAtoms)) then
+      deallocate(iMovedAtoms)
+    end if  
+    if (allocated(modesToPlot)) then
+      deallocate(modesToPlot)
+    end if  
+    write(stdOut, "(/,A)") repeat("=", 80)
   end subroutine destructProgramVariables
 
 
@@ -346,11 +376,6 @@ contains
       call detailedError(child, &
           &"Sorry, no compatibility mode for parser version " &
           &// i2c(inputVersion) // " (too old)")
-    !elseif (inputVersion /= parserVersion) then
-    !  write(*, "(A,I2,A,I2,A)") "***  Converting input from version ", &
-    !      &inputVersion, " to version ", parserVersion, " ..."
-    !  call convertOldHSD(root, inputVersion, parserVersion)
-    !  write(*, "(A,/)") "***  Done."
     end if
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
@@ -368,7 +393,6 @@ contains
         &flags%tIgnoreUnprocessed, .false.)
 
   end subroutine readParserOptions
-
 
   !!* Read in the geometry stored as xml in internal or gen format.
   !!* @param geonode Node containing the geometry
@@ -391,7 +415,6 @@ contains
       call setUnprocessed(value)
       call readTGeometryHSD(child, geo)
     end select
-    call unstring(buffer)
     
   end subroutine readGeometry
 
@@ -423,67 +446,73 @@ contains
     if (tp%ncont < 2) then
       call detailedError(pGeom, "At least two contacts must be defined")
     end if
-    ALLOCATE_(tp%contacts, (tp%ncont))
+    allocate(tp%contacts(tp%ncont))
     !! Parse contact geometry
     call readContacts(pNodeList, tp%contacts, geom, (buffer .eq. "uploadcontacts"))
 
-    !! Note: here "Task" is always like uplaodContacts
-    !! => no need for all the mess
-
-    !call destroyNodeList(pNodeList)
-
   end subroutine readTransportGeometry
 
+  !> Reads settings for the first layer atoms in principal layers
   subroutine readFirstLayerAtoms(pnode, pls, npl, idxdevice, check)
-    logical, optional :: check
+
     type(fnode), pointer, intent(in) :: pnode
-    integer :: idxdevice(2)
-    integer, allocatable :: pls(:)
-    integer :: npl
-  
-    type(listInt) :: li
+
+    !> Start atoms in the principal layers
+    integer, allocatable, intent(out) :: pls(:)
+
+    !> Number of principal layers
+    integer, intent(out) :: npl
+
+    !> Atoms range of the device
+    integer, intent(in) :: idxdevice(2)
+
+    !> Optional setting to turn on/off check (defaults to on if absent)
+    logical, optional, intent(in) :: check
+
+
+    type(TListInt) :: li
     logical :: checkidx
 
     checkidx = .true.
     if (present(check)) checkidx = check
-    
+
     if (associated(pnode)) then
         call init(li)
         call getChildValue(pnode, "", li)
         npl = len(li)
-        ALLOCATE_(pls, (npl))
+        allocate(pls(npl))
         call asArray(li, pls)
-        call destroy(li)
+        call destruct(li)
         if (checkidx) then
           if (any(pls < idxdevice(1) .or. &
                   pls > idxdevice(2))) then
              call detailedError(pnode, "First layer atoms must be between " &
-               &// i2c(idxdevice(1)) // " &
-               & and " // i2c(idxdevice(2)) // ".")
+               &// i2c(idxdevice(1)) // " and " // i2c(idxdevice(2)) // ".")
           end if
         end if
       else
          npl = 1
-         ALLOCATE_(pls, (npl))
+         allocate(pls(npl))
          pls = (/ 1 /)
       end if
 
   end subroutine readFirstLayerAtoms
-
+  
    !!* Read bias information, used in Analysis and Green's function eigensolver 
   subroutine readContacts(pNodeList, contacts, geom, upload)
-    type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(fnodeList), pointer :: pNodeList
+    type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     logical, intent(in) :: upload
 
-    real(dp) :: acc
-    integer :: ncont, ii
+    real(dp) :: contactLayerTol, vec(3)
+    integer :: ii, jj
     type(fnode), pointer :: field, pNode, pTmp, pWide
     type(string) :: buffer, modif
+    type(TListReal) :: fermiBuffer
 
-    ncont = size(contacts)
-    do ii = 1,ncont
+    do ii = 1, size(contacts)
+
       contacts(ii)%wideBand = .false.
       contacts(ii)%wideBandDos = 0.0
 
@@ -499,30 +528,22 @@ contains
         call detailedError(pTmp, "Contact id '" // trim(contacts(ii)%name) &
             &//  "' already in use")
       end if
-      call getChildValue(pNode,"ShiftAccuracy",acc, 1e-5_dp, modifier=modif&
-          &, child=field)
-      call convertByMul(char(modif), lengthUnits, field, acc)
+      
+      call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
+          & child=field)
+      call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
+      
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
-      !if (acc > 1.0_dp) then
-      !  contactVecs(:,ii) = (/ 0.d0, 0.d0, acc /)
-      !  ginfo%transport%cdir(ii) = 3
-      !else
-      call getContactVectorII(contacts(ii)%idxrange, geom, ii, pTmp, acc, &
+      call getContactVectorII(contacts(ii)%idxrange, geom, ii, pTmp, contactLayerTol, &
                               & contacts(ii)%lattice, contacts(ii)%dir)
-      !endif
       contacts(ii)%length = sqrt(sum(contacts(ii)%lattice**2))
 
-      ! Contact temperatures. A negative default is used so it is quite clear
-      ! when the user sets a different value. In such a case 
-      ! this overrides values defined in Filling block
+      ! Contact temperatures. Needed 
       call getChildValue(pNode, "Temperature", contacts(ii)%kbT,&
                          &0.0_dp, modifier=modif, child=field)
       call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
 
       if (upload) then
-        !call getChildValue(pNode, 'potential', contacts(ii)%potential,&
-        !                    &0.0_dp, modifier=modif, child=field)
-        !call convertByMul(char(modif), energyUnits, field, contacts(ii)%potential)
         contacts(ii)%potential = 0.d0
 
         call getChildValue(pNode, "wideBand", contacts(ii)%wideBand, .false.)
@@ -546,13 +567,13 @@ contains
   end subroutine readContacts
 
       ! Sanity checking of atom ranges and returning contact vector and direction.
-  subroutine getContactVectorII(atomrange, geom, id, pContact, acc, &
+  subroutine getContactVectorII(atomrange, geom, id, pContact, plShiftTol, &
       &contactVec, contactDir)
     integer, intent(in) :: atomrange(2)
     type(TGeometry), intent(in) :: geom
     integer, intent(in) :: id
     type(fnode), pointer :: pContact
-    real(dp), intent(in) :: acc
+    real(dp), intent(in) :: plShiftTol
     real(dp), intent(out) :: contactVec(3)
     integer, intent(out) :: contactDir
 
@@ -575,92 +596,47 @@ contains
     ! Determining contact vector
     iStart2 = iStart + (iEnd - iStart + 1) / 2
     contactVec = geom%coords(:,iStart) - geom%coords(:,iStart2)
-    if (any(sqrt(sum(&
-        &(geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd) &
-        &- spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1)) &
-        &> acc)) then
-      write(*,*) 'coords:', geom%coords(:,iStart)
-      write(*,*) 'coords:', geom%coords(:,iStart2)
-      write(*,*) 'Contact Vector:', contactVec(1:3)
-      write(*,*) iStart,iStart2,iEnd
-      write(*,*) 'X:'
-      write(*,*) ((geom%coords(1,iStart:iStart2-1)&
-          & - geom%coords(1,iStart2:iEnd)&
+    if (any(sqrt(sum((geom%coords(:,iStart:iStart2-1) - geom%coords(:,iStart2:iEnd) &
+        &- spread(contactVec, dim=2, ncopies=iStart2-iStart))**2, dim=1)) > plShiftTol)) then
+      write(stdOut,*) 'coords:', geom%coords(:,iStart)
+      write(stdOut,*) 'coords:', geom%coords(:,iStart2)
+      write(stdOut,*) 'Contact Vector:', contactVec(1:3)
+      write(stdOut,*) iStart,iStart2,iEnd
+      write(stdOut,*) 'X:'
+      write(stdOut,*) ((geom%coords(1,iStart:iStart2-1) - geom%coords(1,iStart2:iEnd)&
           & - spread(contactVec(1), dim=1, ncopies=iStart2-iStart)))
-      write(*,*) 'Y:'
-      write(*,*) ((geom%coords(2,iStart:iStart2-1)&
-          & - geom%coords(2,iStart2:iEnd) &
+      write(stdOut,*) 'Y:'
+      write(stdOut,*) ((geom%coords(2,iStart:iStart2-1) - geom%coords(2,iStart2:iEnd) &
           & - spread(contactVec(2), dim=1, ncopies=iStart2-iStart)))
-      write(*,*) 'Z:'
-      write(*,*) ((geom%coords(3,iStart:iStart2-1)&
-          & - geom%coords(3,iStart2:iEnd) &
+      write(stdOut,*) 'Z:'
+      write(stdOut,*) ((geom%coords(3,iStart:iStart2-1) - geom%coords(3,iStart2:iEnd) &
           &- spread(contactVec(3), dim=1, ncopies=iStart2-iStart)))
       call error("Contact " // i2c(id) &
           &// " does not consist of two rigidly shifted layers")
     end if
 
-    ! Determine to which axes it is parallel.
-!    mask = (abs(abs(contactVec)  - sqrt(sum(contactVec**2))) < acc)
-!    if (count(mask) /= 1) then
-!      call error("Contact vector " // i2c(id) // " not parallel to any&
-!          & of the coordinate axis.")
-!    end if
-    ! Workaround for bug in Intel compiler (can not use index function)
     contactDir = 0
-!    do while (.not. mask(contactDir))
-!      contactDir = contactDir + 1
-!    end do
 
   end subroutine getContactVectorII
 
-
-
-  ! this is a utility subroutine to fill in negf structure
-  subroutine fill_TStructure(geo, str)
-    type(TGeometry), intent(inout), target :: geo
-    type(TGDFTBStructure), intent(out) :: str 
-   
-    integer :: ii
-
-    str%nAtom = geo%nAtom
-    str%nSpecies = geo%nSpecie
-    str%specie0 => geo%species
-    str%x0 => geo%coords
-    str%isperiodic = geo%tPeriodic
-    if (str%isperiodic) then
-      str%latVecs = geo%latVecs
-    else
-      str%latVecs = 0.0_dp 
-    end if
-
-    str%nel = 0.0
-    str%tempElec = 0.0
-
-    INITALLOCATE_PARR(str%iAtomStart, (str%nAtom+1))
-    do ii = 1, str%nAtom+1
-      str%iAtomStart(ii) = 1+3*(ii-1)
-    end do
-
-  end subroutine fill_TStructure
-
-
+  !> Used to read atomic masses from SK files
   subroutine readSKfiles(child, geo, speciesMass)
     type(fnode), pointer :: child
     type(TGeometry), intent(in) :: geo
     real(dp), dimension(:) :: speciesMass
 
     type(TOldSKData) :: skData
-    type(listCharLc), allocatable :: skFiles(:)
+    type(TListCharLc), allocatable :: skFiles(:)
     type(fnode), pointer :: value, child2
     type(string) :: buffer, buffer2
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp, filename
-    type(listString) :: lStr
+    type(TListString) :: lStr
     integer :: ii, iSp1
     logical :: tLower, tExist
 
     !! Slater-Koster files
-    ALLOCATE_(skFiles, (geo%nSpecie))
-    do iSp1 = 1, geo%nSpecie
+    allocate(skFiles(geo%nSpecies))
+    do iSp1 = 1, geo%nSpecies
         call init(skFiles(iSp1))
     end do
 
@@ -676,11 +652,11 @@ contains
       call getChildValue(value, "Separator", buffer2, "")
       separator = unquote(char(buffer2))
       call getChildValue(value, "LowerCaseTypeName", tLower, .false.)
-      do iSp1 = 1, geo%nSpecie
+      do iSp1 = 1, geo%nSpecies
         if (tLower) then
-          elem1 = tolower(geo%specieNames(iSp1))
+          elem1 = tolower(geo%speciesNames(iSp1))
         else
-          elem1 = geo%specieNames(iSp1)
+          elem1 = geo%speciesNames(iSp1)
         end if
         strTmp = trim(prefix) // trim(elem1) // trim(separator) &
             &// trim(elem1) // trim(suffix)
@@ -693,9 +669,9 @@ contains
       end do
     case default
       call setUnprocessed(value)
-      do iSp1 = 1, geo%nSpecie
-        strTmp = trim(geo%specieNames(iSp1)) // "-" &
-            &// trim(geo%specieNames(iSp1))
+      do iSp1 = 1, geo%nSpecies
+        strTmp = trim(geo%speciesNames(iSp1)) // "-" &
+            &// trim(geo%speciesNames(iSp1))
         call init(lStr)
         call getChildValue(child, trim(strTmp), lStr, child=child2)
         ! We can't handle selected shells here (also not needed I guess)
@@ -712,22 +688,22 @@ contains
           end if
           call append(skFiles(iSp1), strTmp)
         end do
-        call destroy(lStr)
+        call destruct(lStr)
       end do
     end select
 
-    do iSp1 = 1, geo%nSpecie
+    do iSp1 = 1, geo%nSpecies
       call get(skFiles(iSp1), fileName, 1)
       call readFromFile(skData, fileName, .true.)
-      DEALLOCATE_PARR(skData%skHam)
-      DEALLOCATE_PARR(skData%skOver)
+      deallocate(skData%skHam)
+      deallocate(skData%skOver)
       speciesMass(iSp1) = skData%mass      
     end do
     
-    do iSp1 = 1, geo%nSpecie
-      call destroy(skFiles(iSp1))
+    do iSp1 = 1, geo%nSpecies
+      call destruct(skFiles(iSp1))
     end do
-    DEALLOCATE_(skFiles)
+    deallocate(skFiles)
 
   end subroutine readSKfiles
 
@@ -742,9 +718,9 @@ contains
     character(lc) :: strTmp
     real(dp) :: mass, defmass
 
-    do iSp = 1, geo%nSpecie
-      defmass = getAtomicMass(trim(geo%specieNames(iSp)))
-      call getChildValue(value, geo%specieNames(iSp), mass, defmass,& 
+    do iSp = 1, geo%nSpecies
+      defmass = getAtomicMass(trim(geo%speciesNames(iSp)))
+      call getChildValue(value, geo%speciesNames(iSp), mass, defmass,& 
                &modifier=modif, child= child2)
       speciesMass(iSp) = mass * amu__au
     end do
@@ -770,12 +746,12 @@ contains
     iStart = 1
     call getNextToken(text, nKPoints, iStart, iErr)
 
-      allocate(tmparray(4))
-      allocate(KPoint2(nKPoints,4))
-      allocate(KPoint(nKPoints,3))
-      allocate(KWeight(nKPoints))
+    allocate(tmparray(4))
+    allocate(KPoint2(nKPoints,4))
+    allocate(KPoint(nKPoints,3))
+    allocate(KWeight(nKPoints))
 
-    iErr = TOKEN_ERROR
+    iErr = -2 !TOKEN_ERROR
     iOldStart = iStart
     iStart  = iOldStart
 
@@ -798,7 +774,7 @@ contains
   subroutine readDftbHessian(child)
     type(fnode), pointer :: child
 
-    type(listRealR1) :: realBuffer
+    type(TListRealR1) :: realBuffer
     integer :: iCount, jCount, ii, kk, jj, ll 
     integer :: nDerivs
 
@@ -806,7 +782,7 @@ contains
     integer ::  n, j1, j2
 
     nDerivs = 3 * nMovedAtom
-    ALLOCATE_(dynMatrix,(nDerivs,nDerivs))
+    allocate(dynMatrix(nDerivs,nDerivs))
 
     !The derivatives matrix must be stored as the following order: 
     
@@ -823,7 +799,7 @@ contains
 !          & // i2c(nDerivs) // " required.")
 !    end if
 !    call asArray(realBuffer, dynMatrix)
-!    call destroy(realBuffer)
+!    call destruct(realBuffer)
 
     open(unit=65, file='hessian.out', action='read')
     do ii = 1,  nDerivs
@@ -854,12 +830,12 @@ contains
   subroutine readDynMatrix(child)
     type(fnode), pointer :: child
 
-    type(listRealR1) :: realBuffer
+    type(TListRealR1) :: realBuffer
     integer :: iCount, jCount, ii, kk, jj, ll 
     integer :: nDerivs
 
     nDerivs = 3 * nMovedAtom
-    ALLOCATE_(dynMatrix,(nDerivs,nDerivs))
+    allocate(dynMatrix(nDerivs,nDerivs))
 
     !The derivatives matrix must be stored as the following order: 
     
@@ -876,14 +852,14 @@ contains
           & // i2c(nDerivs) // " required.")
     end if
     call asArray(realBuffer, dynMatrix)
-    call destroy(realBuffer)
+    call destruct(realBuffer)
   
   end subroutine readDynMatrix
 
   subroutine readCp2kHessian(child)
     type(fnode), pointer :: child
 
-    type(listRealR1) :: realBuffer
+    type(TListRealR1) :: realBuffer
     integer :: iCount, jCount, ii, kk, jj, ll 
     integer :: nDerivs, nBlocks
 
@@ -891,7 +867,7 @@ contains
     integer ::  n, j1, j2,  p,  q
 
     nDerivs = 3 * nMovedAtom
-    ALLOCATE_(dynMatrix,(nDerivs,nDerivs))
+    allocate(dynMatrix(nDerivs,nDerivs))
 
     !The derivatives matrix must be stored as the following order: 
     
@@ -899,18 +875,6 @@ contains
     !   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E         
     ! ---------- + --------- + --------- + ---------- + ---------- +...
     ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1   
-
-!    call init(realBuffer)
-!    call getChildValue(child, "", nDerivs, realBuffer)
-!    if (len(realBuffer)/=nDerivs) then
-!      call detailedError(child,"wrong number of derivatives supplied:" &
-!          & // i2c(len(realBuffer)) // " supplied, " &
-!          & // i2c(nDerivs) // " required.")
-!    end if
-!    call asArray(realBuffer, dynMatrix)
-!    call destroy(realBuffer)
-
-!    n = nDerivs*nDerivs/4
 
     open(unit=65, file='hessian.cp2k', action='read')
     nBlocks = nDerivs/5.0
@@ -950,6 +914,8 @@ contains
 
   end subroutine readCp2kHessian
 
+  ! Subroutine removing entries in the Dynamical Matrix. 
+  ! Not used because identified as a wrong way
   subroutine selectModes()
    
     integer :: iCount, jCount, ii, jj, kk, ll
@@ -996,24 +962,13 @@ contains
     type(fnode), pointer :: node, pnode
     type(TGeometry), intent(in) :: geo
     type(TPdos), intent(inout) :: pdos
-    type(TGDFTBTunDos), intent(inout) :: tundos
+    type(TNEGFTunDos), intent(inout) :: tundos
     type(TTransPar), intent(inout) :: transpar
     real(dp) :: atTemperature, TempRange(2)
 
     type(fnode), pointer :: val, child, field
     type(string) :: modif 
     type(fnodeList), pointer :: children
-   
-
-    !call getChildValue(node, "ProjectStates", val, "", child=child, &
-    !    &allowEmptyValue=.true., list=.true.)
-    
-    !if (associated(child)) then
-      !call detailedError(node,"ProjectStates available only in TunnelingAndDOS")
-      !call getChildren(child, "Region", children)
-      !call readPDOSRegions(children, geo, pdos%iAtInRegion, pdos%regionLabels)
-      !call destroyNodeList(children)
-    !end if
    
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)
     if (associated(child)) then
@@ -1045,7 +1000,7 @@ contains
   subroutine readPDOSRegions(children, geo, iAtInregion, regionLabels)
     type(fnodeList), pointer :: children
     type(TGeometry), intent(in) :: geo
-    type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+    type(TWrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
     character(lc), allocatable, intent(out) :: regionLabels(:)
 
     integer :: nReg, iReg
@@ -1055,20 +1010,19 @@ contains
     character(lc) :: strTmp
 
     nReg = getLength(children)
-    ALLOCATE_(regionLabels, (nReg))
-    ALLOCATE_(iAtInRegion, (nReg))
+    allocate(regionLabels(nReg))
+    allocate(iAtInRegion(nReg))
     do iReg = 1, nReg
       call getItem1(children, iReg, child)
       call getChildValue(child, "Atoms", buffer, child=child2, &
           & multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geo%specieNames, &
+      call convAtomRangeToInt(char(buffer), geo%speciesNames, &
           & geo%species, child2, tmpI1)
       iAtInRegion(iReg)%data = tmpI1      
       write(strTmp, "('region',I0)") iReg
       call getChildValue(child, "Label", buffer, trim(strTmp))
       regionLabels(iReg) = unquote(char(buffer))
     end do
-    call unstring(buffer)
     
   end subroutine readPDOSRegions
 
@@ -1078,7 +1032,7 @@ contains
   subroutine readTunAndDos(root, geo, tundos, transpar, temperature)
     type(fnode), pointer :: root
     type(TGeometry), intent(in) :: geo
-    type(TGDFTBTunDos), intent(inout) :: tundos
+    type(TNEGFTunDos), intent(inout) :: tundos
     type(TTransPar), intent(inout) :: transpar
     real(dp), intent(in) :: temperature
 
@@ -1088,7 +1042,7 @@ contains
     integer :: ii, jj, ind, ncont, nKT
     real(dp) :: eRange(2), eRangeDefault(2) 
     type(string) :: buffer, modif
-    type(WrappedInt1), allocatable :: iAtInRegion(:)
+    type(TWrappedInt1), allocatable :: iAtInRegion(:)
     logical, allocatable :: tDirectionResInRegion(:)
     character(lc), allocatable :: regionLabelPrefixes(:)
 
@@ -1098,17 +1052,6 @@ contains
     call getChildValue(root, "WriteLDOS", tundos%writeLDOS, .true.)
     call getChildValue(root, "WriteTunn", tundos%writeTunn, .true.)
     
-    !call getChildValue(root, "Temperature", temperature, &
-    !    modifier=modif, child=field,requested=.false. )
-    !call convertByMul(char(modif), energyUnits, field, temperature)    
-    ! Parsing of energy range
-    ! If the calculation is in equilibrium (all potentials to 0.0)
-    ! then an energy range and step must be specified (it is assumed
-    ! that the user use this filed to calculate a DOS or T(E) )
-    ! If the calculation is out of equilibrium, a default similar to
-    ! GreensFunction RealAxisStep is set to ensure that the current 
-    ! can be calculated without manually specify the energy parameters.
-
     ! Default meaningful: eRange= (0..10*kT]
     ! nKT is set to GreensFunction default, i.e. 10
     ! I avoid an explicit nKT option because I find it confusing here 
@@ -1133,69 +1076,72 @@ contains
 
     ! Terminal currents
     call getChild(root, "TerminalCurrents", pTmp, requested=.false.)
-      if (associated(pTmp)) then
-        call getChildren(pTmp, "EmitterCollector", pNodeList)
-        ALLOCATE_(tundos%ni, (getLength(pNodeList)))
-        ALLOCATE_(tundos%nf, (getLength(pNodeList)))
-        do ii = 1, getLength(pNodeList)
-          call getItem1(pNodeList, ii, pNode)
-          call getEmitterCollectorByName(pNode, tundos%ni(ii),&
-              & tundos%nf(ii), transpar%contacts(:)%name)
-        end do
-        call destroyNodeList(pNodeList)
-      else
-        ALLOCATE_(tundos%ni, (ncont-1) )
-        ALLOCATE_(tundos%nf, (ncont-1) )
-        call setChild(root, "TerminalCurrents", pTmp)
-        ind = 1
-        do ii = 1, 1
-          do jj = ii + 1, ncont
-            call setChildValue(pTmp, "EmitterCollector", &
-                &(/ transpar%contacts(ii)%name, transpar%contacts(jj)%name /))
-            tundos%ni(ind) = ii
-            tundos%nf(ind) = jj
-            ind = ind + 1
-          end do
-        end do
-      end if
-      call getChildValue(root, "Delta", tundos%delta, &
-          &1.0e-7_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, &
-          &tundos%delta)
-      call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, &
-          &tundos%broadeningDelta)
-
-      call getChildren(root, "Region", pNodeList)
-      call readPDOSRegions(pNodeList, geo, iAtInRegion, regionLabelPrefixes)
-      call destroyNodeList(pNodeList)
-
-      call addAtomResolvedRegion(tundos%dosOrbitals, tundos%dosLabels)
-
-      tundos%emin = eRange(1)
-      tundos%emax = eRange(2)
     
+    if (associated(pTmp)) then
+      call getChildren(pTmp, "EmitterCollector", pNodeList)
+      allocate(tundos%ni(getLength(pNodeList)))
+      allocate(tundos%nf(getLength(pNodeList)))
+      do ii = 1, getLength(pNodeList)
+        call getItem1(pNodeList, ii, pNode)
+        call getEmitterCollectorByName(pNode, tundos%ni(ii),&
+            & tundos%nf(ii), transpar%contacts(:)%name)
+      end do
+      call destroyNodeList(pNodeList)
+    else
+      allocate(tundos%ni(ncont-1) )
+      allocate(tundos%nf(ncont-1) )
+      call setChild(root, "TerminalCurrents", pTmp)
+      ind = 1
+      do ii = 1, 1
+        do jj = ii + 1, ncont
+          call setChildValue(pTmp, "EmitterCollector", &
+              &(/ transpar%contacts(ii)%name, transpar%contacts(jj)%name /))
+          tundos%ni(ind) = ii
+          tundos%nf(ind) = jj
+          ind = ind + 1
+        end do
+      end do
+    end if
+    call getChildValue(root, "Delta", tundos%delta, &
+        &1.0e-7_dp, modifier=modif, child=field)
+    call convertByMul(char(modif), energyUnits, field, &
+        &tundos%delta)
+    call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, &
+        &0.0_dp, modifier=modif, child=field)
+    call convertByMul(char(modif), energyUnits, field, &
+        &tundos%broadeningDelta)
+
+    call getChildren(root, "Region", pNodeList)
+    call readPDOSRegions(pNodeList, geo, iAtInRegion, regionLabelPrefixes)
+    call destroyNodeList(pNodeList)
+
+    call addAtomResolvedRegion(tundos%dosOrbitals, tundos%dosLabels)
+
+    tundos%emin = eRange(1)
+    tundos%emax = eRange(2)
+   
+    call setTypeOfModes(root, transpar)
+
       
     contains
 
       !! Adds one region with all the orbitals of the atoms in it.
       subroutine addAtomResolvedRegion(iOrbRegion, regionLabels)
         
-        type(WrappedInt1), allocatable, intent(out) :: iOrbRegion(:)
+        type(TWrappedInt1), allocatable, intent(out) :: iOrbRegion(:)
         character(lc), allocatable, intent(out) :: regionLabels(:)
   
         integer :: nRegion, nAtomInRegion, iReg, ind, ii, jj, iAt
         integer :: nIndices
   
         nRegion = size(iAtInRegion)
-        ALLOCATE_(iOrbRegion, (nRegion))
-        ALLOCATE_(regionLabels, (nRegion))
+        allocate(iOrbRegion(nRegion))
+        allocate(regionLabels(nRegion))
 
         do iReg = 1, nRegion
           nAtomInRegion = size(iAtInRegion(iReg)%data) 
           nIndices = 3*nAtomInRegion
-          ALLOCATE_(iOrbRegion(iReg)%data, (nIndices))
+          allocate(iOrbRegion(iReg)%data(nIndices))
           ind = 1
           do ii = 1, nAtomInRegion
             iAt = iAtInRegion(iReg)%data(ii)
@@ -1217,7 +1163,7 @@ contains
     integer, intent(out) :: emitter, collector
     character(len=*), intent(in) :: contactNames(:)
 
-    type(listString) :: lString
+    type(TListString) :: lString
     character(len=mc) :: buffer
     integer :: ind
     logical :: tFound
@@ -1231,7 +1177,7 @@ contains
     emitter = getContactByName(contactNames, buffer, pNode)
     call get(lString, buffer, 2)
     collector = getContactByName(contactNames, buffer, pNode)
-    call destroy(lString)
+    call destruct(lString)
 
   end subroutine getEmitterCollectorByName
 
@@ -1260,85 +1206,76 @@ contains
 
   ! Build a simple neighbor list. Currently does not work for periodic systems.
   ! Have to fix this important point
-  subroutine buildNeighborList()
+  subroutine buildNeighbourList()
   
     integer ::  iAtom, jAtom, ii, jj, kk, PL1, PL2
-    integer, parameter :: nInitNeighbor = 100  !* First guess for nr. of neighbors.
+    !* First guess for nr. of neighbors.
+    integer, parameter :: nInitNeighbours = 100  
     real :: disAtom, dd(3) 
     integer :: nAllAtom
     real(dp) :: mCutoff
-    real(dp), pointer :: coords(:,:), cellVec(:,:), rCellVec(:,:)
-    integer, pointer :: iCellVec(:)
+    real(dp), allocatable :: coords(:,:), cellVec(:,:), rCellVec(:,:)
+    integer, allocatable :: iCellVec(:)
     
-    call init(neighborList, geo%nAtom, nInitNeighbor)
+    call init(neighbourList, geo%nAtom, nInitNeighbours)
 
     mCutoff = 1.0_dp * cutoff
 
     if (geo%tPeriodic) then
       !! Make some guess for the nr. of all interacting atoms
       nAllAtom = int((real(geo%nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
-      INIT_PARR(cellVec)
-      INIT_PARR(rCellVec)
       call getCellTranslations(cellVec, rCellVec, geo%latVecs, &
             &geo%recVecs2p, mCutoff)
-      DEALLOCATE_PARR(cellVec)
     else
       nAllAtom = geo%nAtom
-      INITALLOCATE_PARR(rCellVec, (3, 1))
+      allocate(rCellVec(3, 1))
       rCellVec(:, 1) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
     end if
 
-    INITALLOCATE_PARR(coords, (3, nAllAtom))
-    INITALLOCATE_PARR(img2CentCell, (nAllAtom))
-    INITALLOCATE_PARR(iCellVec, (nAllAtom))
+    allocate(coords(3, nAllAtom))
+    allocate(img2CentCell(nAllAtom))
+    allocate(iCellVec(nAllAtom))
       
-    call updateNeighborList(coords, img2CentCell, iCellVec, neighborList, &
-          &nAllAtom, geo%coords, mCutoff, rCellVec)
+    call updateNeighbourList(coords, img2CentCell, iCellVec, neighbourList, &
+          &nAllAtom, geo%coords, mCutoff, rCellVec, .false.)
       
-    DEALLOCATE_PARR(coords)
-    DEALLOCATE_PARR(iCellVec)
-    DEALLOCATE_PARR(rCellVec)
+    deallocate(coords)
+    deallocate(iCellVec)
+    deallocate(rCellVec)
     
-    ALLOCATE_(nNeighbor, (geo%nAtom))
-    nNeighbor(:) = 0
+    allocate(nNeighbour(geo%nAtom))
+    nNeighbour(:) = 0
   
-    call getNrOfNeighborsForAll(nNeighbor, neighborList, mCutoff)
-
-    !print*, 'cutoff=',neighborList%cutoff 
-    !do iAtom = 1, nMovedAtom
-    !  print*,'nNeig=',iAtom, nNeighbor(iAtom)
-    !  print*,img2CentCell(neighborList%iNeighbor(1:nNeighbor(iAtom),iAtom))
-    !  print*,neighborList%neighDist2(1:nNeighbor(iAtom),iAtom)
-    !end do
+    call getNrOfNeighboursForAll(nNeighbour, neighbourList, mCutoff)
     
-    ! Check PLs
+    ! Check PL size with neighbor list
     do iAtom = 1, transpar%idxdevice(2)
       PL1 = getPL(iAtom)
-      do jj = 1, nNeighbor(iAtom)
-        jAtom = img2CentCell(neighborList%iNeighbor(jj,iAtom))
+      do jj = 1, nNeighbour(iAtom)
+        jAtom = img2CentCell(neighbourList%iNeighbour(jj,iAtom))
         if (jAtom > transpar%idxdevice(2)) cycle 
         PL2 = getPL(jAtom)
         if (.not.(PL1.eq.PL2 .or. PL1.eq.PL2+1 .or. PL1.eq.PL2-1)) then
-          write(*,*) 'ERROR: PL size inconsistent with cutoff'
+          write(stdOut,*) 'ERROR: PL size inconsistent with cutoff'
           stop
         end if
       end do 
     end do
 
-  end subroutine buildNeighborList
+  end subroutine buildNeighbourList
 
   subroutine cutDynMatrix()  
 
     integer :: iAtom, jAtom, jj
     real(dp), allocatable :: dynMat2(:,:)
 
-    ALLOCATE_(dynMat2, (3*nMovedAtom, 3*nMovedAtom))
+    allocate(dynMat2(3*nMovedAtom, 3*nMovedAtom))
     dynMat2 = 0.0_dp
 
     do iAtom = 1, geo%nAtom
-       do jj = 1, nNeighbor(iAtom)
-          jAtom = img2CentCell(neighborList%iNeighbor(jj, iAtom))
-          if (neighborList%neighDist2(jj,iAtom) .le. cutoff**2) then
+       do jj = 1, nNeighbour(iAtom)
+          jAtom = img2CentCell(neighbourList%iNeighbour(jj, iAtom))
+          if (neighbourList%neighDist2(jj,iAtom) .le. cutoff**2) then
             dynMat2(3*(iAtom-1)+1:3*(iAtom-1)+3, 3*(jAtom-1)+1:3*(jAtom-1)+3) = &
                 dynMatrix(3*(iAtom-1)+1:3*(iAtom-1)+3, 3*(jAtom-1)+1:3*(jAtom-1)+3) 
             dynMat2(3*(jAtom-1)+1:3*(jAtom-1)+3, 3*(iAtom-1)+1:3*(iAtom-1)+3) = &
@@ -1349,7 +1286,7 @@ contains
 
     dynMatrix = dynMat2 
 
-    DEALLOCATE_(dynMat2)
+    deallocate(dynMat2)
   
   end subroutine cutDynMatrix
 
@@ -1373,5 +1310,62 @@ contains
   
   end function getPL
 
+  !> select family of modes to analyze and restrict transmission 
+  subroutine setTypeOfModes(root, transpar)
+    type(fnode), pointer :: root
+    type(TTransPar), intent(inout) :: transpar
 
-end module InitProgram
+    type(string) :: buffer
+
+    !selecting the type of modes you want to analyze
+    call getchildValue(root, "ModeType", buffer, "all")
+    select case(trim(char(buffer)))
+    case("all")
+      selTypeModes = ALLMODES 
+    case("along-x")
+      selTypeModes = XX
+    case("along-y")
+      selTypeModes = YY 
+    case("along-z")
+      selTypeModes = ZZ 
+    case("longitudinal")
+      selTypeModes = LONGITUDINAL
+      call checkTypeOfModes(root, transpar)
+    case("transverse")
+      selTypeModes = TRANSVERSE 
+      call checkTypeOfModes(root, transpar)
+    case("in-plane")
+      selTypeModes = INPLANE
+      call checkTypeOfModes(root, transpar)
+    case("out-of-plane")
+      selTypeModes = OUTOFPLANE
+      call checkTypeOfModes(root, transpar)
+    case default
+      call detailedError(root,"Unknown type of modes")
+    end select
+
+  end subroutine setTypeOfModes
+
+  !> Check that the geometry orientation is consistent with selTypeModes 
+  !> Currently only checks that transport direction is along z
+  subroutine checkTypeOfModes(root, tp)
+    type(fnode), pointer :: root
+    type(TTransPar), intent(inout) :: tp
+
+    real(dp) :: contactVec(3)
+    logical :: mask(3) 
+    integer :: ii
+
+    do ii = 1, size(tp%contacts)
+      contactVec = tp%contacts(ii)%lattice
+      ! Determine to which axis the contact vector is parallel.
+      mask = (abs(abs(contactVec) - sqrt(sum(contactVec**2))) < 1.0e-8_dp)
+      if (count(mask) /= 1 .or. .not.mask(3)) then
+        call detailedError(root,"Transport direction is not along z")
+      end if
+    end do
+
+  end subroutine checkTypeOfModes
+
+
+end module dftbp_initphonons 

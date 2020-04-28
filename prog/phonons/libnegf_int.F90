@@ -16,29 +16,40 @@
 ! *
 ! *
 ! * ---------------------------------------------------------------------- 
+#:include "common.fypp"
+
 module libnegf_int
-  
-  use ln_precision
-  use ln_constants
-  use ln_allocation
-  use libnegf_vars, only : TGDFTBstructure, TGDFTBTunDos, TTransPar
-  use ln_structure
-  use mpi_globals
-  use mat_def 
-  use lib_param, only : Tnegf, set_defaults, set_phph
-  use libnegf
-  use ln_extract
-  use mat_conv 
-  use commonTypes, only : TOrbitals
-  use libmpifx_module 
-  use sparsekit_drv, only : dns2csr, csr2dns, nzdrop, zprint_csrdns
-  use initprogram, only : TempMin, TempMax, TempStep
-  use phph
+  use libnegf_vars
+#:if WITH_MPI
+  use libnegf, only : negf_mpi_init
+  use dftbp_mpifx
+#:endif
+  use libnegf, only : getel, lnParams, pass_DM, Tnegf
+  use libnegf, only : kb, unit, convertHeatCurrent, convertHeatConductance
+  use libnegf, only : z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF
+  use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
+  use libnegf, only : compute_phonon_current, thermal_conductance 
+  use libnegf, only : create, create_scratch, destroy, set_readoldDMsgf
+  use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
+  use libnegf, only : init_negf, init_structure, pass_hs, set_bp_dephasing
+  use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
+  use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
+  use libnegf, only : dns2csr, csr2dns, nzdrop, printcsr
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_globalenv, only : stdOut, tIoProc
+  use dftbp_environment
+  use dftbp_matconv
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_initphonons, only : TempMin, TempMax, TempStep
 
   implicit none
   private
 
-  Type(Tnegf), target, save, public :: negf
+  Type(Tnegf), target, public :: negf
+  ! Workaround: ifort 17, ifort 16
+  ! Passing negf for pointer dummy arguments fails despite target attribute, so pointer is needed
+  type(TNegf), pointer :: pNegf
 
   public :: negf_init, negf_destroy
  
@@ -46,31 +57,24 @@ module libnegf_int
   public :: negf_init_str
 
   ! initialize phonon-phonon interactions (call after negf_init_str)
-  public :: negf_init_phph
+  !public :: negf_init_phph
 
   ! INTERFACE SUBROUTINE TO DRIVE PHONON CALCULATIONS:  
   public :: calc_phonon_current
 
-
   ! direct calls to compute phonon current
   public :: negf_phonon_current 
 
-  ! direct calls to compute thermal conductance
-  public :: thermal_conductance
-
-  ! wrapped functions passing dftb matrices. Needed for parallel
-  !public :: calc_current
-  !public :: calcdensity_green
-  !public :: calcEdensity_green
-  !public :: calcPDOS_green
-  !public :: local_currents
-  
   ! interface csr matrices. The pattern structure of csrHam
-  ! is defined by negf_init_csr 
-  public :: negf_init_csr
-  type(z_CSR) :: csrHam
+  ! is defined by negf_init_csr. 
+  ! Not needed since dnamical matrix is stored dense
+  !public :: negf_init_csr
 
-  type(z_CSR) :: csrOver ! need to be removed
+  type(z_CSR), target :: csrHam
+  type(Z_CSR), pointer :: pCsrHam => null()
+
+  !type(z_CSR),target :: csrOver ! need to be removed
+  !type(Z_CSR), pointer :: pCsrOver => null()
  
 
   contains
@@ -78,12 +82,19 @@ module libnegf_int
 !------------------------------------------------------------------------------
 ! Init gDFTB environment and variables
 !------------------------------------------------------------------------------
-  subroutine negf_init(structure, transpar, tundos, mpicomm, initinfo)
-    Type(TGDFTBstructure), intent(IN) :: structure
-    Type(TTranspar), intent(IN) :: transpar
-    Type(TGDFTBTunDos), intent(IN) :: tundos
-    Type(mpifx_comm), intent(in) :: mpicomm
-    logical, intent(OUT) :: initinfo
+  subroutine negf_init(env, transpar, tundos, initinfo)
+
+    !> Environment settings, suplying the global comm world
+    type(TEnvironment), intent(in) :: env
+
+    !> Parameters for the transport calculation
+    Type(TTranspar), intent(in) :: transpar
+
+    !> parameters for tuneling and density of states evaluation
+    Type(TNEGFTunDos), intent(in) :: tundos
+   
+    !> initialization flag
+    logical, intent(out) :: initinfo
     
 
     ! local variables
@@ -96,7 +107,11 @@ module libnegf_int
     error = 0 
     initinfo = .true.       
 
-    call negf_mpi_init(mpicomm)
+    pNegf=>negf
+    
+#:if WITH_MPI
+    call negf_mpi_init(env%mpi%globalComm, tIOproc)
+#:endif
      
     if (transpar%defined) then
       ncont = transpar%ncont 
@@ -105,50 +120,21 @@ module libnegf_int
     endif
       
     ! ------------------------------------------------------------------------------
-    ! check that GS and contacts are created  (one day this will be automatic)
-    ! ------------------------------------------------------------------------------
-    if(transpar%defined .and. ncont.gt.0) then
-                                
-        open(199,file='GS/test',IOSTAT=error)
-        if (error.ne.0) then 
-          call mpifx_get_processor_name(hostname)
-          write(*,*) "ERROR: please create a directory called GS on "//trim(hostname)
-          initinfo = .false.; return  
-        end if   
-        close(199)
-        open(199,file='contacts/test',IOSTAT=error)
-        if (error.ne.0) then 
-          call mpifx_get_processor_name(hostname)
-          write(*,*) "ERROR: please create a directory called contacts "//trim(hostname)
-          initinfo = .false.; return  
-        end if         
-        close(199)
-    
-    end if
-    ! ------------------------------------------------------------------------------
     !! Set defaults and fill up the parameter structure with them
     call init_negf(negf)
+    call init_contacts(negf, ncont)
     call get_params(negf, parms)
-
-    ! ------------------------------------------------------------------------------
-    ! This parameter is used to set the averall drop threshold in libnegf
-    ! It affects especially transmission that is not accurate more than 
-    ! this value.
-    call set_drop(1.d-20)
-
- 
+    call set_scratch(negf, ".")
 
     ! ------------------------------------------------------------------------------
     !                        SETTING CONTACT TEMPERATURES 
     ! ------------------------------------------------------------------------------
     ! If no contacts => no transport,
     if (transpar%defined) then
-      
       do i = 1, ncont
         if (transpar%contacts(i)%kbT .ge. 0.0_dp) then
-          parms%kbT(i) = transpar%contacts(i)%kbT
-        else
-          parms%kbT(i) = structure%tempElec
+          parms%kbT_t(i) = transpar%contacts(i)%kbT
+          parms%kbT_dm(i) = transpar%contacts(i)%kbT
         end if
       enddo
 
@@ -157,15 +143,20 @@ module libnegf_int
          parms%FictCont(i) = transpar%contacts(i)%wideBand
          parms%contact_DOS(i) = transpar%contacts(i)%wideBandDOS
       enddo
-
     end if
+
+    ! ------------------------------------------------------------------------------
+    ! This parameter is used to set the averall drop threshold in libnegf
+    ! It affects especially transmission that is not accurate more than 
+    ! this value.
+    call set_drop(1.d-20)
+
 
     ! ------------------------------------------------------------------------------
     !                    SETTING TRANSMISSION PARAMETERS
     ! ------------------------------------------------------------------------------
 
     if (tundos%defined) then
-
       parms%verbose = tundos%verbose
       parms%delta = tundos%delta      ! delta for G.F.
       parms%dos_delta = tundos%broadeningDelta
@@ -177,18 +168,6 @@ module libnegf_int
       parms%Emin =  tundos%Emin
       parms%Emax =  tundos%Emax
       parms%Estep = tundos%Estep
-      !checks if the energy interval is appropriate
-      !if (id0.and.mumin.lt.mumax) then
-             
-      !if (negf%Emin.gt.mumin-10*negf%kbT .or. negf%Emax.lt.mumin-10*negf%kbT) then
-      !  write(*,*) 'WARNING: the interval Emin..Emax is smaller than the bias window'
-      !  write(*,*) 'Emin=',negf%emin*negf%eneconv, 'Emax=',negf%emax*negf%eneconv
-      !  write(*,*) 'kT=',negf%kbT*negf%eneconv    
-      !  write(*,*) 'Suggested interval:', &
-      !        (mumin-10*negf%kbT)*negf%eneconv,(mumax+10*negf%kbT)*negf%eneconv
-      ! endif
-      !endif
-
     endif
     
     ! Energy conversion only affects output units. 
@@ -197,7 +176,9 @@ module libnegf_int
 
     parms%isSid = .true.
 
-    if (allocated(sizes)) call log_deallocate(sizes)
+    if (allocated(sizes)) then 
+      deallocate(sizes)
+    end if
 
     call set_params(negf,parms)
 
@@ -215,27 +196,38 @@ module libnegf_int
   !------------------------------------------------------------------------------
   subroutine negf_destroy()
 
-    write(*,'(A)') 'Release Negf Memory:'
+    write(stdOut, *)
+    write(stdOut, *) 'Release NEGF memory:'
     call destruct(csrHam)
-    call destruct(csrOver)
+    !call destruct(csrOver)
     call destroy_negf(negf)
-    call writePeakInfo(6)    
-    call writeMemInfo(6)
+    call writePeakInfo(stdOut)    
+    call writeMemInfo(stdOut)
 
   end subroutine negf_destroy
 
   !------------------------------------------------------------------------------
-  subroutine negf_init_str(structure, transpar, iNeigh, nNeigh, img2CentCell)
-    Type(TTranspar), intent(IN) :: transpar
-    Type(TGDFTBStructure), intent(IN) :: structure
-    Integer, intent(in) :: nNeigh(:)
-    Integer, intent(in) :: img2CentCell(:)
+  subroutine negf_init_str(nAtoms, transpar, iNeigh, nNeigh, img2CentCell)
+    
+    !> number of atoms   
+    integer, intent(in) :: nAtoms
+
+    !> transport calculation parameters
+    Type(TTranspar), intent(in) :: transpar
+
+    !> neighbours of each atom
     Integer, intent(in) :: iNeigh(0:,:)
+
+    !> number of neighbours for each atom
+    Integer, intent(in) :: nNeigh(:)
+
+    !> mapping from image atoms to central cell
+    Integer, intent(in) :: img2CentCell(:)
     
     Integer, allocatable :: PL_end(:), cont_end(:), surf_end(:), cblk(:), ind(:)
     Integer, allocatable :: atomst(:), plcont(:)   
     integer, allocatable :: minv(:,:)
-    Integer :: natoms, ncont, nbl, iatm1, iatm2, iatc1, iatc2
+    Integer :: ncont, nbl, iatm1, iatm2, iatc1, iatc2
     integer :: i, m, i1, j1
 
     iatm1 = transpar%idxdevice(1)
@@ -243,19 +235,22 @@ module libnegf_int
 
     ncont = transpar%ncont
     nbl = transpar%nPLs
-    if (nbl.eq.0) STOP 'Internal ERROR: nbl = 0 ?!'
-    natoms = structure%nAtom
+    if (nbl.eq.0) then
+       STOP 'Internal ERROR: nbl = 0 ?!'
+    end if 
 
-    call log_allocate(PL_end,nbl)
-    call log_allocate(atomst,nbl+1)
-    call log_allocate(plcont,nbl)
-    call log_allocate(cblk,ncont)
-    call log_allocate(cont_end,ncont)
-    call log_allocate(surf_end,ncont)
-    call log_allocate(ind,natoms+1)
-    call log_allocate(minv,nbl,ncont)
+    allocate(PL_end(nbl))
+    allocate(atomst(nbl+1))
+    allocate(plcont(nbl))
+    allocate(cblk(ncont))
+    allocate(cont_end(ncont))
+    allocate(surf_end(ncont))
+    allocate(ind(natoms+1))
+    allocate(minv(nbl,ncont))
 
-    ind(1:natoms+1)=structure%iatomstart(1:natoms+1) - 1
+    do i = 1, nAtoms + 1
+      ind(i) = 3*(i-1)
+    end do
 
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
@@ -310,79 +305,97 @@ module libnegf_int
           end do
        end do
 
-       if (negf%verbose.gt.50) then
-          write(*,*) ' Structure info:'
-          write(*,*) ' Nconts:', ncont
-          write(*,*) ' Number of PLs:',nbl 
-          write(*,*) ' Interacting PLs:',cblk(1:ncont)
-          write(*,*)
-       endif
+      
+       write(stdOut,*)
+       write(stdOut,*) ' Structure info:'
+       write(stdOut,*) ' Number of PLs:',nbl
+       write(stdOut,*) ' PLs coupled to contacts:',cblk(1:ncont)
+       write(stdOut,*)
 
     end if     
+    
+    call init_structure(negf, ncont, cont_end, surf_end, nbl, PL_end, cblk)
 
-    call kill_Tstruct(negf%str)
- 
-    call create_Tstruct(ncont, nbl, PL_end, cont_end, surf_end, cblk, negf%str)
-
-    call log_deallocate(PL_end)
-    call log_deallocate(plcont)
-    call log_deallocate(atomst)
-    call log_deallocate(cblk)
-    call log_deallocate(cont_end)
-    call log_deallocate(surf_end)
-    call log_deallocate(ind)
-    call log_deallocate(minv)
+    deallocate(PL_end)
+    deallocate(plcont)
+    deallocate(atomst)
+    deallocate(cblk)
+    deallocate(cont_end)
+    deallocate(surf_end)
+    deallocate(ind)
+    deallocate(minv)
   
   end subroutine negf_init_str
 
    
-  subroutine negf_init_phph(negf, order)
-     type(Tnegf) :: negf
-     integer, intent(in) :: order
-
-     select case (order)
-     case(3, 34)
-       print*,'Init cubic phonon-phonon interactions'
-       call set_phph(negf, 3, 'cubic.dat')
-     case(4)
-       print*,'Init quartic phonon-phonon interactions'
-       call set_phph(negf, 4, 'quartic.dat')
-     end select 
-
-  end subroutine negf_init_phph
+  !subroutine negf_init_phph(negf, order)
+  !   type(Tnegf) :: negf
+  !   integer, intent(in) :: order
+  ! 
+  !   select case (order)
+  !   case(3, 34)
+  !     print*,'Init cubic phonon-phonon interactions'
+  !     call set_phph(negf, 3, 'cubic.dat')
+  !   case(4)
+  !     print*,'Init quartic phonon-phonon interactions'
+  !     call set_phph(negf, 4, 'quartic.dat')
+  !   end select 
+  !
+  !end subroutine negf_init_phph
 
   !------------------------------------------------------------------------------
   ! INTERFACE subroutine to call phonon current computation
   !------------------------------------------------------------------------------    
-  subroutine calc_phonon_current(mpicomm, DynMat, tunnTot, ldosTot, currTot, &
-                        & writeTunn, writeLDOS)  
-    type(mpifx_comm), intent(in) :: mpicomm
+  subroutine calc_phonon_current(env, DynMat, tunnMat, ldosMat, &
+                        & currLead, twriteTunn, twriteLDOS)  
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> The dynamical matrix of the system
     real(dp), intent(in) :: DynMat(:,:)
-    real(dp), allocatable, intent(inout) :: tunnTot(:,:), ldosTot(:,:)
-    real(dp), allocatable, intent(inout) :: currTot(:)
-    logical, intent(in) :: writeLDOS
-    logical, intent(in) :: writeTunn
+
+    !> matrix of tunnelling amplitudes at each energy from contacts
+    real(dp), allocatable, intent(inout) :: tunnMat(:,:)
+
+    !> density of states for each energy and region of projection
+    real(dp), allocatable, intent(inout) :: ldosMat(:,:)
+
+    !> current into/out of contacts
+    real(dp), allocatable, intent(inout) :: currLead(:)
+
+    !> should tunneling data be written
+    logical, intent(in) :: tWriteTunn
+
+    !> should DOS data be written
+    logical, intent(in) :: tWriteLDOS
  
     ! locals 
-    real(dp), pointer    :: tunnMat(:,:)=>null()
-    real(dp), pointer    :: ldosMat(:,:)=>null()
-    real(dp), pointer    :: currVec(:)=>null()    
-    integer :: ii, jj, iK, nK, err, nnz, ntemp
+    real(dp), allocatable :: tunnSKRes(:,:,:), ldosSKRes(:,:,:)
+    real(dp), pointer    :: tunnPMat(:,:)=>null()
+    real(dp), pointer    :: ldosPMat(:,:)=>null()
+    real(dp), pointer    :: currPVec(:)=>null()    
+    integer :: ii, jj, iK, nK, err, nnz, ntemp, fu
     real(dp), allocatable :: kPoints(:,:), kWeights(:)
     type(z_DNS) :: zDynMat
-    real(dp), allocatable :: tunnSKRes(:,:,:), ldosSKRes(:,:,:)
     real(dp) :: cutoff,TT1,emin,emax,estep, kappa
     type(unit) :: HessianUnits, HeatCurrUnits, HeatCondUnits
+    type(lnParams) :: params
+    character(15) :: filename
 
+    ! Sets the Gamma point calculation
     nK = 1
-    call log_allocate(kPoints, 3, nK)
-    call log_allocate(kWeights, nK)
+    allocate(kPoints(3, nK))
+    allocate(kWeights(nK))
     kPoints = 0.0_dp
     kWeights = 1.0_dp
     cutoff = 1d-30
     HessianUnits%name = "H"
     HeatCurrUnits%name = "W"
     HeatCondUnits%name = "W/K"
+    pCsrHam => csrHam
+    
+    call get_params(negf, params)
 
     do iK = 1, nK
 
@@ -390,169 +403,152 @@ module libnegf_int
       zDynMat%val = DynMat
 
       nnz = nzdrop(zDynMat,cutoff)
-
+print*,'create csr nnz=',nnz
       call create(csrHam, zDynMat%nrow, zDynMat%ncol, nnz)
+print*,'dn2csr'
 
       call dns2csr(zDynMat, csrHam)
    
       call destroy(zDynMat)
 
+print*,'negf_phonon_current'
+      call negf_phonon_current(pCsrHam, iK, kWeights(iK), &
+            tunnPMat, ldosPMat, currPVec)
 
-      call negf_phonon_current(csrHam, iK, kWeights(iK), &
-            tunnMat, ldosMat, currVec)
-
-      if(.not.allocated(currTot)) then
-         allocate(currTot(size(currVec)), stat=err)
-         if (err/=0) STOP 'Allocation error (currTot)'
-         currTot = 0.0_dp
+      if(.not.allocated(currLead)) then
+         allocate(currLead(size(currPVec)), stat=err)
+         if (err/=0) then
+            call error('Allocation error (currTot)')
+         end if
+         currLead = 0.0_dp
        endif
-       currTot = currTot + currVec
+       currLead(:) = currLead + currPVec
 
-       call add_partial_results(tunnMat, tunnTot, tunnSKRes, iK, nK) 
-       
-       call add_partial_results(ldosMat, ldosTot, ldosSKRes, iK, nK) 
+#:if WITH_MPI
+       call add_partial_results(env%mpi%groupComm, tunnPMat, tunnMat, tunnSKRes, iK, nK) 
+       call add_partial_results(env%mpi%groupComm, ldosPMat, ldosMat, ldosSKRes, iK, nK) 
+#:else
+       call add_partial_results(tunnPMat, tunnMat, tunnSKRes, iK, nK) 
+       call add_partial_results(ldosPMat, ldosMat, ldosSKRes, iK, nK) 
+#:endif
 
-       ! MPI Reduce K dependent stuff
-       if (associated(ldosMat).and.(nK.gt.1)) then
-         call mpifx_allreduceip(mpicomm, ldosSKRes(:,:,iK), MPI_SUM)
-       end if
-       if (associated(tunnMat).and.(nK.gt.1)) then
-         call mpifx_allreduceip(mpicomm, tunnSKRes(:,:,iK), MPI_SUM)
-       end if
-      
     end do
 
-    if (associated(negf%tunn_mat)) call log_deallocatep(negf%tunn_mat)
-    if (associated(negf%ldos_mat)) call log_deallocatep(negf%ldos_mat) 
-    if (associated(negf%currents)) call log_deallocatep(negf%currents)
-
-    call mpifx_allreduceip(mpicomm, currTot, MPI_SUM)
+       ! MPI Reduce K dependent stuff
+#:if WITH_MPI
+    call mpifx_reduceip(env%mpi%groupCommm, currLead, MPI_SUM)
+    call mpifx_reduceip(env%mpi%interGroupComm, currLead, MPI_SUM)
+    call add_k_results(env%mpi%interGroupComm, tunnMat, MPI_SUM)
+    call add_k_results(env%mpi%interGroupComm, ldosMat, MPI_SUM)
+#:endif
 
     ! converts from internal atomic units into W
-    currTot = currTot * convertHeatCurrent(HessianUnits, HeatCurrUnits)
+    currLead = currLead * convertHeatCurrent(HessianUnits, HeatCurrUnits)
    
-    if (id0) then 
-      do ii= 1, size(currTot) 
+
+    if (tIOProc) then 
+      do ii= 1, size(currLead) 
         write(*,'(1x,a,i3,i3,a,ES14.5,a,a)') &
-             & ' contacts: ',negf%ni(ii),negf%nf(ii), &
-             & ' current: ', currTot(ii),' ',HeatCurrUnits%name
+             & ' contacts: ', params%ni(ii), params%nf(ii), &
+             & ' current: ', currLead(ii),' ',HeatCurrUnits%name
       enddo
     endif
 
-    if (allocated(tunnTot)) then
-      call mpifx_allreduceip(mpicomm, tunnTot, MPI_SUM)
+    if (allocated(tunnMat)) then
       ! Write Total tunneling on a separate file (optional)
-      if (id0 .and. writeTunn) then
-        call write_file(negf, tunnTot, tunnSKRes, 'tunneling', kpoints, kWeights)
-        if (allocated(tunnSKRes)) deallocate(tunnSKRes)
+      if (tIOProc .and. twriteTunn) then
+        filename = 'transmission'
+        call write_file(negf, tunnMat, tunnSKRes, filename, kpoints, kWeights)
+      
+        open(newunit=fu,file='conductance.dat',action='write')
+        emin = negf%Emin*negf%eneconv
+        emax = negf%Emax*negf%eneconv
+        estep = negf%Estep*negf%eneconv
+        ntemp=nint((TempMax-TempMin)/TempStep)
+        do ii = 1, size(tunnMat,2)
+          write(fu,*) '# T [K]', 'Thermal Conductance [W/K]'  
+          do jj = 1, ntemp
+            TT1 = TempMin + TempStep*(jj-1)
+            kappa = thermal_conductance(tunnMat(:,ii),TT1,emin,emax,estep) 
+            kappa = kappa * convertHeatConductance(HessianUnits,HeatCondUnits)
+            write(fu,*)  TT1/kb, kappa  
+          end do
+        end do
       endif 
-    else
-      allocate(tunnTot(0,0))
-    endif
 
-    if (allocated(ldosTot)) then
-      call mpifx_allreduceip(mpicomm, ldosTot, MPI_SUM)
+    else
+      allocate(tunnMat(0,0))
+    endif
+    if (allocated(tunnSKRes)) then
+      deallocate(tunnSKRes)
+    end if
+
+    if (allocated(ldosMat)) then
       ! Multiply density by 2w 
-      do ii = 1, size(ldosTot,1)
-        ldosTot(ii,:) = ldosTot(ii,:) * 2.d0*(negf%emin + negf%estep*(ii-1))
+      do ii = 1, size(ldosMat,1)
+        ldosMat(ii,:) = ldosMat(ii,:) * 2.d0*(negf%emin + negf%estep*(ii-1))
       end do
       ! Write Total localDOS on a separate file (optional)
-      if (id0 .and. writeLDOS) then
-        call write_file(negf, ldosTot, ldosSKRes, 'localdos', kpoints, kWeights)
-        if (allocated(ldosSKRes)) deallocate(ldosSKRes)
+      if (tIOProc .and. twriteLDOS) then
+        filename = 'localdos'
+        call write_file(negf, ldosMat, ldosSKRes, filename, kpoints, kWeights)
       end if
     else
-      allocate(ldosTot(0,0))
+      allocate(ldosMat(0,0))
     endif
-    
-    call log_deallocate(kPoints)
-    call log_deallocate(kWeights)
-
-    if (allocated(tunnTot)) then
-
-      open(unit=50,file='conductance.dat',action='write')
-      emin = negf%Emin*negf%eneconv
-      emax = negf%Emax*negf%eneconv
-      estep = negf%Estep*negf%eneconv
- 
-      ntemp=nint((TempMax-TempMin)/TempStep)
- 
-      do ii = 1, size(TunnTot,2)
-        write(50,*) '# T [K]', 'Thermal Conductance [W/K]'  
-        do jj = 1, ntemp
-          TT1 = TempMin + TempStep*(jj-1)
-          kappa = thermal_conductance(TunnTot(:,ii),TT1,emin,emax,estep) 
-          kappa = kappa * convertHeatConductance(HessianUnits,HeatCondUnits)
-          write(50,*)  TT1/kb, kappa  
-        end do
- 
-      end do
- 
-    else
-      allocate(tunnTot(0,0))
+    if (allocated(ldosSKRes)) then
+      deallocate(ldosSKRes)
     end if
+    
+    deallocate(kPoints)
+    deallocate(kWeights)
 
   end subroutine calc_phonon_current
 
   
   
-  subroutine negf_phonon_current(HH,qpoint,wght,tunn,ledos,currents)
+  subroutine negf_phonon_current(HH, qpoint, wght, tunn, ledos, currents)
 
-    type(z_CSR), intent(in) :: HH
+    !> Hessian    
+    type(z_CSR), pointer, intent(in) :: HH
+
+    !> phonon kpoint
     integer, intent(in) :: qpoint        ! kp index 
+    
+    !> phonon k-weight
     real(dp), intent(in) :: wght      ! kp weight 
+    
+    !> Tunneling 
     real(dp), dimension(:,:), pointer :: tunn
+
+    !> local or projected dos 
     real(dp), dimension(:,:), pointer :: ledos
+
+    !> heat currents
     real(dp), dimension(:), pointer :: currents 
 
-    integer :: i
+    type(lnParams) :: params
+
+    call get_params(negf, params)
+
+    params%kpoint = qpoint
+    params%wght = wght
     
-    negf%kpoint = qpoint
-    negf%wght = wght
-    
-    if (associated(negf%currents)) then
-      call log_deallocatep(negf%currents)
-      negf%currents=> null()
-    endif
-    currents=>null() 
-    if (associated(negf%tunn_mat)) then
-      call log_deallocatep(negf%tunn_mat)
-      negf%tunn_mat=> null()
-    endif
-    tunn=>null() 
-    if (associated(negf%ldos_mat)) then
-      call log_deallocatep(negf%ldos_mat)
-      negf%ldos_mat=> null()
-    endif
-    ledos=>null()
-    
-    if (id0.and.negf%verbose.gt.30) then
-      write(*,*)
-      write(*,'(73("="))')
-      write(*,*) '                   COMPUTING TUNNELING AND DOS          '
-      write(*,'(73("="))') 
-      write(*,*)
-    endif
+    call set_params(negf, params)
 
     call pass_HS(negf,HH)
 
-    !call printH(negf%H)
-
     call compute_phonon_current(negf)
 
-    if (associated(negf%currents)) then
-      currents => negf%currents
-    else
-      stop 'INTERNAL ERROR: negf%currents not associated'      
-    endif
 
-    if (associated(negf%tunn_mat)) then
-      tunn => negf%tunn_mat
-    endif
+    call associate_ldos(pNEgf, ledos)
+    call associate_transmission(pNegf, tunn)
+    !call associate_current(pNegf, curr)
 
-    if (associated(negf%ldos_mat)) then
-       ledos => negf%ldos_mat
-    endif
+    call associate_lead_currents(pNegf, currents)
+    if (.not.associated(currents)) then
+      call error('Internal error: currVec not associated')
+    end if
 
   end subroutine negf_phonon_current
 
@@ -594,7 +590,7 @@ module libnegf_int
     if (associated(pMat)) then
       if(.not.allocated(pTot)) then 
         allocate(pTot(size(pMat,1), size(pMat,2)), stat=err)
-        if (err/=0) STOP 'Allocation error (tunnTot)'
+        if (err/=0) STOP 'Allocation error (tunnMat)'
         pTot = 0.0_dp
       endif
       pTot = pTot + pMat
@@ -612,20 +608,38 @@ module libnegf_int
   end subroutine add_partial_results 
   !----------------------------------------------------------------------------
   
-  subroutine negf_init_csr(iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
-    integer, intent(in) :: iAtomStart(:)    
-    integer, intent(in) :: iNeighbor(0:,:)
-    integer, intent(in) :: nNeighbor(:)
-    integer, intent(in) :: img2CentCell(:)
-    type(TOrbitals), intent(in) :: orb
+  !----------------------------------------------------------------------------
+  ! init_csr: is needed only if H and S are stored in dftb+ format
+  !----------------------------------------------------------------------------
+  !subroutine negf_init_csr(iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
 
-    if (allocated(csrHam%nzval)) call destroy(csrHam)
-    call init(csrHam, iAtomStart, iNeighbor, nNeighbor, &
-        &img2CentCell, orb) 
-    if (allocated(csrOver%nzval)) call destroy(csrOver)    
-    call init(csrOver, csrHam)
+  !  !> Start of orbitals for each atom
+  !  integer, intent(in) :: iAtomStart(:)
+
+  !  !> neighbours of each atom
+  !  integer, intent(in) :: iNeighbor(0:,:)
+
+  !  !> number of neighbours for each atom
+  !  integer, intent(in) :: nNeighbor(:)
+
+  !  !> mapping from image atoms to central cell
+  !  integer, intent(in) :: img2CentCell(:)
+
+  !  !> atomic orbital information
+  !  type(TOrbitals), intent(in) :: orb
+
+  !  pCsrHam => csrHam
+  !  pCsrOver => csrOver
+  !  if (allocated(csrHam%nzval)) then
+  !    call destroy(csrHam)
+  !  end if   
+  !  call init(csrHam, iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb) 
+  !  if (allocated(csrOver%nzval)) then 
+  !    call destroy(csrOver)    
+  !  end if   
+  !  call init(csrOver, csrHam)
      
-  end subroutine negf_init_csr
+  !end subroutine negf_init_csr
 
 
   subroutine write_file(negf, pTot, pSKRes, filename, kpoints, kWeights)
@@ -641,8 +655,8 @@ module libnegf_int
     nK = size(kPoints,2)
 
     open(65000,file=trim(filename)//'.dat')
-    if (trim(filename).eq.'tunneling') then
-      write(65000,*)  '# Energy [H]', '  Tunneling' 
+    if (trim(filename).eq.'transmission') then
+      write(65000,*)  '# Energy [H]', '  Transmission' 
     else  
       write(65000,*)  '# Energy [H]', '  LDOS'
     endif 
