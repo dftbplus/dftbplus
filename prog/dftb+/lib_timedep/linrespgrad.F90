@@ -26,7 +26,7 @@ module dftbp_linrespgrad
   use dftbp_sorting
   use dftbp_qm
   use dftbp_transcharges
-  use dftbp_degeneracyDetect
+  use dftbp_degeneracyfind
   implicit none
   private
 
@@ -2168,7 +2168,7 @@ contains
     real(dp) :: rsqw, weight, wvnorm
     logical :: updwn, tSpin
     character :: sign
-    type(TDegeneracyDetection) :: DegeneracyDetection
+    type(TDegeneracyFind) :: DegeneracyFind
     logical :: tDegenerate
     integer, allocatable :: degenerate(:,:)
     real(dp), allocatable :: oDeg(:)
@@ -2315,16 +2315,16 @@ contains
 
     if (tWriteTagged) then
 
-      call DegeneracyDetection%init(elecTolMax)
-      call DegeneracyDetection%degeneracyTest(eval, tDegenerate)
+      call DegeneracyFind%init(elecTolMax)
+      call DegeneracyFind%degeneracyTest(eval, tDegenerate)
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
         call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)
       else
-        degenerate = DegeneracyDetection%degenerateRanges()
+        degenerate = DegeneracyFind%degenerateRanges()
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval(degenerate(1,:)))
         ! sum oscillator strength over any degenerate levels
-        allocate(oDeg(DegeneracyDetection%degenerateGroups()))
+        allocate(oDeg(DegeneracyFind%degenerateGroups()))
         do ii = 1, size(oDeg)
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do

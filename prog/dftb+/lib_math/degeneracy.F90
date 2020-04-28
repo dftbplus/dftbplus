@@ -7,15 +7,15 @@
 
 #:include 'common.fypp'
 
-module dftbp_degeneracyDetect
+module dftbp_degeneracyfind
   use dftbp_accuracy, only : dp
   use dftbp_message, only : error
   implicit none
 
   private
-  public :: TDegeneracyDetection
+  public :: TDegeneracyFind
 
-  type :: TDegeneracyDetection
+  type :: TDegeneracyFind
 
     private
 
@@ -50,8 +50,11 @@ module dftbp_degeneracyDetect
     !> Returns range of levels in each degenerate group
     procedure :: degenerateRanges
     
-  end type TDegeneracyDetection
-  
+  end type TDegeneracyFind
+
+  !> a few times eps, just in case of minor symmetry breaking
+  real(dp), parameter :: toleranceDefault = 128.0_dp*epsilon(0.0_dp)
+
 contains
 
 
@@ -59,7 +62,7 @@ contains
   subroutine init(self, tolerance)
 
     !> Instance
-    class(TDegeneracyDetection), intent(out) :: self
+    class(TDegeneracyFind), intent(out) :: self
 
     !> Tolerance for degeneracy testing
     real(dp), intent(in), optional :: tolerance
@@ -67,8 +70,7 @@ contains
     if (present(tolerance)) then
       self%tolerance = tolerance
     else
-      ! a few times eps, just in case of minor symmetry breaking
-      self%tolerance = 128.0_dp*epsilon(0.0_dp)
+      self%tolerance = toleranceDefault
     end if
 
   end subroutine init
@@ -78,7 +80,7 @@ contains
   subroutine degeneracyTest(self, levels, tDegenerate)
 
     !> Instance
-    class(TDegeneracyDetection), intent(inout) :: self
+    class(TDegeneracyFind), intent(inout) :: self
 
     !> Eigenvalues
     real(dp), intent(in) :: levels(:)
@@ -132,7 +134,7 @@ contains
   pure function areDegenerate(self, ii, jj)
 
     !> Instance
-    class(TDegeneracyDetection), intent(in) :: self
+    class(TDegeneracyFind), intent(in) :: self
 
     !> First state
     integer, intent(in) :: ii
@@ -152,7 +154,7 @@ contains
   pure function degenerateGroups(self)
 
     !> Instance
-    class(TDegeneracyDetection), intent(in) :: self
+    class(TDegeneracyFind), intent(in) :: self
 
     !> Number of degenerate groups of levels
     integer :: degenerateGroups
@@ -166,7 +168,7 @@ contains
   pure function degenerateRanges(self)
 
     !> Instance
-    class(TDegeneracyDetection), intent(in) :: self
+    class(TDegeneracyFind), intent(in) :: self
 
     !> Number of degenerate groups of levels
     integer :: degenerateRanges(2,self%nGrp)
@@ -207,8 +209,7 @@ contains
     if (present(tol)) then
       localTol = tol
     else
-      ! a few times eps, just in case of minor symmetry breaking
-      localTol = 128.0_dp * epsilon(0.0_dp)
+      localTol = toleranceDefault
     end if
     nOrb = size(levels)
     levelRange(:,:) = 0
@@ -222,9 +223,7 @@ contains
       iStart = 1
       iEnd = nOrb
     end if
-    if (iStart >= iEnd) then
-      call error("Degeneracy range is broken, should not be here")
-    end if
+  @:ASSERT(iStart <= iEnd)
     do ii = 1, iStart - 1
       levelRange(:, ii) = ii
     end do
@@ -260,4 +259,4 @@ contains
 
   end subroutine degeneracyRanges
   
-end module dftbp_degeneracyDetect
+end module dftbp_degeneracyfind
