@@ -4370,10 +4370,6 @@ contains
       call error("Range separated calculations not currently implemented for 3rd order DFTB")
     end if
 
-    if (tLinResp) then
-      call error("Range separated calculations not currently implemented for linear response")
-    end if
-
     if (tDFTBU) then
       call error("Range separated calculations not currently implemented for DFTB+U")
     end if

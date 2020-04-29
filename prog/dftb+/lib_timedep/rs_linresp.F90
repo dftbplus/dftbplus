@@ -766,7 +766,7 @@ contains
       & tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     implicit none
     logical, intent(in) :: spin
-    logical, intent(inout) :: tOnsite ! intent out so it can be forced to .false. for now
+    logical, intent(in) :: tOnsite ! TODO make intent inout so it can be forced to .false. below
     integer, intent(in) :: nAtom, iAtomStart(:)
     real(dp), intent(in) :: grndEigVecs(:,:,:), grndEigVal(:,:), dQ(:), coord0(:,:)
     type(TScc), intent(in) :: sccCalc
@@ -856,9 +856,11 @@ contains
     !> aux variables
     integer :: mu, nu
     
-    tSpin = .false. !For now, spin-polarized calculation not supported
+    ! For now, spin-polarized calculation not supported
+    tSpin = .false.
     nSpin = 1
-    tOnsite = .false. !For now, ons not supported with range separation
+    ! For now, ons not supported with range separation
+    @:ASSERT(.not. tOnsite)
 
     ! ARPACK library variables
     ndigit = -3
@@ -1860,7 +1862,7 @@ contains
       & excEnergy, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     implicit none
     logical, intent(in) :: spin
-    logical, intent(inout) :: tOnsite  
+    logical, intent(in) :: tOnsite
     type(linresp), intent(inout) :: self
     integer, intent(in) :: iAtomStart(:)
     real(dp), intent(in) :: eigVec(:,:,:)
