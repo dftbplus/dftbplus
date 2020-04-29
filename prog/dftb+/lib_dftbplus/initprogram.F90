@@ -2215,9 +2215,6 @@ contains
         call warning("Particle-particle RPA should be for a reference system with a charge of +2.")
       end if
 
-      !if (tPeriodic) then
-      !  error("PP-RPA is not implemented for periodic systems")
-      !end if
     #:for VAR, ERR in [("tSpinOrbit","spin orbit coupling"), ("tDFTBU","DFTB+U/pSIC"),&
       & ("tSpin","spin polarised ground state"), ("t3rd","third order"),&
       & ("any(kPoint /= 0.0_dp)","non-gamma k-points")]
@@ -2226,7 +2223,7 @@ contains
       end if
     #:endfor
     #:for VAR, ERR in [("tShellResolved","shell resolved hamiltonians"),&
-      &("h5SwitchedOn","H5"),("tDampH","H damping")]
+      & ("h5SwitchedOn","H5"), ("tDampH","H damping")]
       if (input%ctrl%${VAR}$) then
         call error("PP-RPA does not support ${ERR}$")
       end if
