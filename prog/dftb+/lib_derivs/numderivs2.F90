@@ -93,8 +93,6 @@ contains
     @:ASSERT(size(xInit,dim=1)==3)
     nDerivs = size(xInit,dim=2)
 
-
-
     allocate(self)
     allocate(self%x0(3, nDerivs))
     self%x0(:,:) = xInit(:,:)
@@ -131,10 +129,10 @@ contains
 
     integer :: ii, jj, nAtoms
    
-    @:ASSERT(all(shape(xNew)==shape(fOld)))
     @:ASSERT(all(shape(xNew)==(/3,self%nDerivs/)))
-
     nAtoms = size(self%derivs,1)/3 
+    @:ASSERT(size(fOld,1)==3)
+    @:ASSERT(size(fOld,2)==nAtoms)
 
     if (self%iAtom==self%nDerivs .and. self%iComponent == 3 .and. &
         & self%iDelta > 0.0_dp) then
