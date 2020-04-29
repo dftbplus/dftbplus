@@ -1332,9 +1332,11 @@ contains
     ! some additional symmetry not used in these loops, as the value of gamma for atoms interacting
     ! with themselves is the same for all atoms of the same species
 
+    ! Workaround for bug in Intel18 compiler can not use OMP REDUCTION(:+work) in debug mode
+
     if (any(this%tDampedShort)) then
       !$OMP PARALLEL DO PRIVATE(iSp1, iNeigh, iAt2, iSp2, rab, iU1, u1, iU2, u2) DEFAULT(SHARED) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:work)
+      !$OMP& SCHEDULE(RUNTIME)
       do iAt1 = iAtFirst, iAtLast
         iSp1 = species(iAt1)
         do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
@@ -1360,7 +1362,7 @@ contains
       !$OMP END PARALLEL DO
     else if (this%tH5) then
       !$OMP PARALLEL DO PRIVATE(iSp1, iNeigh, iAt2, iSp2, rab, iU1, u1, iU2, u2) DEFAULT(SHARED) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:work)
+      !$OMP& SCHEDULE(RUNTIME)
       do iAt1 = iAtFirst, iAtLast
         iSp1 = species(iAt1)
         do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
@@ -1383,7 +1385,7 @@ contains
       !$OMP END PARALLEL DO
     else
       !$OMP PARALLEL DO PRIVATE(iSp1, iNeigh, iAt2, iSp2, rab, iU1, u1, iU2, u2) DEFAULT(SHARED) &
-      !$OMP& SCHEDULE(RUNTIME) REDUCTION(+:work)
+      !$OMP& SCHEDULE(RUNTIME)
       do iAt1 = iAtFirst, iAtLast
         iSp1 = species(iAt1)
         do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
