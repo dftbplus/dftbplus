@@ -375,7 +375,7 @@ contains
 
     call this%checkInit()
 
-    call getGrossCharges(atomCharges)
+    call getGrossCharges(this%env, atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
 

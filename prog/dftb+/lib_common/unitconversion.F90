@@ -188,10 +188,6 @@ module dftbp_unitconversion
       &/)
 
 
-  !> Number of mass units
-  integer, parameter :: nMassUnit = 4
-
-
   !> Number of dipole units
   integer, parameter :: nDipoleUnit = 4
 
@@ -205,12 +201,45 @@ module dftbp_unitconversion
       &/)
 
 
+  !> Number of mass units
+  integer, parameter :: nMassUnit = 6
+
+
   !> Mass units
   type(unit), parameter :: MassUnits(nMassUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
       &unit("amu                 ", amu__au ), &
       &unit("da                  ", amu__au ), &
-      &unit("dalton              ", amu__au ) &
+      &unit("dalton              ", amu__au ), &
+      &unit("kg                  ", kg__au ), &
+      &unit("g                   ", 1.0e+3_dp*kg__au ) &
       &/)
+
+
+  !> Number of mass density units
+  integer, parameter :: nMassDensityUnit = 19
+
+
+  type(unit), parameter :: massDensityUnits(nMassDensityUnit) = [ &
+      & unit("kg/l                ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/m^3               ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/meter^3           ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/l                 ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("kg/m^3              ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("kg/meter^3          ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("amu/aa^3            ", amu__au/AA__Bohr**3), &
+      & unit("amu/angstrom^3      ", amu__au/AA__Bohr**3), &
+      & unit("amu/pm^3            ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("amu/picometer^3     ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("da/aa^3             ", amu__au/AA__Bohr**3), &
+      & unit("da/angstrom^3       ", amu__au/AA__Bohr**3), &
+      & unit("da/pm^3             ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("da/picometer^3      ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("dalton/aa^3         ", amu__au/AA__Bohr**3), &
+      & unit("dalton/angstrom^3   ", amu__au/AA__Bohr**3), &
+      & unit("dalton/pm^3         ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("dalton/picometer^3  ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("au                  ", 1.0_dp)]
+
 
 end module dftbp_unitconversion
