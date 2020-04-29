@@ -3913,54 +3913,60 @@ fractional occupations. The specifications for this block have the following pro
 
 This tag contains the specifications for the calculation of excitation energies
 using the particle-particle random phase approximation
-(pp-RPA)~\cite{Yang2017}. This approach, unlike the time-dependent DFTB
-formalism, allows the computation of double and charge-transfer
-transitions. However it has the limitation that the computed excitations have to
-involve, at least partially, the highest occupied molecular orbital (HOMO) of
-the system.
+(pp-RPA)~\cite{Yang2017}. This approach, unlike time-dependent DFTB, allows the
+computation of double and charge-transfer transitions. However it has the
+limitation that the computed excitations have to involve, at least partially,
+the highest occupied molecular orbital (HOMO) of the system.
 
 For the computation of the excitation energies of a neutral $N$-electron system,
-one needs to set up a DFTB ground state calculation for the two-electron
-deficient ($N-2$) system ( i.e.\ \kw{Charge} = 2.0 ). Please note that if
-\kw{Charge} is set to 0.0 (default value), the obtained transition energies will
-correspond to a negatively charged ($N+2$)-electron system.
+one needs to set up a ground state calculation for the two-electron deficient
+($N-2$) system, i.e.\ a net \mbox{\kw{Charge} = +2.0} calculation. Please note
+that if \kw{Charge} is set to 0.0 (the default value), the obtained transition
+energies will correspond to a net negative $-2$ charged system (i.e.\ $N+2$
+electrons). The system of interest must be closed-shell, therefore the
+calculation must also be spin-restricted and performed for an even number of
+electrons.
 
-The pp-RPA method is currently implemented only for the SCC-DFTB level of theory
-and molecular systems. Also, the system of interest must be
-closed-shell. Therefore, the calculation must be spin-restricted. The
-specifications for this block have the following properties:
+The pp-RPA method is currently implemented only for SCC-DFTB level excitations,
+but can be performed on top of both SCC-DFTB or range-separated reference ground
+state calculations. The SCC-DFTB calculations can be performed for molecular or
+gamma point periodic systems, but the range-separated calculations can only use
+molecular boundary conditions.
 
-  \begin{ptable}
-    \kw{NrOfExcitations}        & i & & - & \\
-    \kw{Symmetry}               & s &  & - & \\
-    \kw{NrOfVirtualStates}   & i & & 0 & \\
-    \kw{TammDancoff}         & l & & No & \\
-    \kw{HHubbard}               & p & & - & \\
-  \end{ptable}
+The specifications for this block have the following properties:
 
-  \begin{description}
-    
-     \item[\is{NrOfExcitations}] Specifies the number of vertical excitation
-       energies to be computed for every symmetry (singlet or triplet).
-    
-    \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
-      computed: ``singlet'', ``triplet'' or ``both''. Please note that,
-      "triplet" and "both" are effectively similar, and both singlet and triplet
-      excitation energies will be printed out if these keywords are used.
-    
-    \item[\is{NrOfVirtualStates}] Optional orbital constraint to speed up the
-      calculation. Specifies the number of virtual states entering the pp-RPA
-      equation. If set to zero or greater than the total number of virtual
-      states of the system, no constraint will be applied.
-    
-    \item[\is{TammDancoff}] If set to \is{Yes}, the Tamm Dancoff approximation
-      will be employed. This will speed up the calculation.
-    
-    \item[\is{HHubbard}] Hubbard-like parameters for each atom type including
-      only the Hartree kernel. Some HHubbard parameters are given in
-      appendix~\ref{app:hhubbard}.
+\begin{ptable}
+  \kw{NrOfExcitations}   & i & & -  & \\
+  \kw{Symmetry}          & s & & -  & \\
+  \kw{NrOfVirtualStates} & i & & 0  & \\
+  \kw{TammDancoff}       & l & & No & \\
+  \kw{HHubbard}          & p & & -  & \\
+\end{ptable}
 
-  \end{description}
+\begin{description}
+
+\item[\is{NrOfExcitations}] Specifies the number of vertical excitation energies
+  to be computed for each symmetry (singlet or triplet).
+
+\item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
+  computed: \is{singlet}, \is{triplet} or \is{both}. Please note that,
+  \is{triplet} and \is{both} are effectively similar, as both singlet and
+  triplet excitation energies will be printed out if either of these keywords
+  are used.
+
+\item[\is{NrOfVirtualStates}] Optional orbital constraint to speed up the
+  calculation. It specifies the number of virtual states entering the pp-RPA
+  equation. If set to zero or greater than the total number of virtual states of
+  the system no constraint will be applied.
+
+\item[\is{TammDancoff}] If set to \is{Yes}, the Tamm-Dancoff approximation will
+  be employed. This will speed up the calculation.
+    
+\item[\is{HHubbard}] Hubbard-like parameters for each atom type including only
+  the Hartree kernel. Values of some of these parameters are given in
+  appendix~\ref{app:hhubbard}.
+
+\end{description}
   
 The output of the pp-RPA calculation are described in
 section~\ref{sec:ppRPAout}.
