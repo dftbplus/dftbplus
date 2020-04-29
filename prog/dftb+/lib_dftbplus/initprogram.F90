@@ -2297,7 +2297,11 @@ contains
     if (tDerivs) then
       allocate(tmp3Coords(3,nMovedAtom))
       tmp3Coords = coord0(:,indMovedAtom)
-      call create(derivDriver, tmp3Coords, input%ctrl%deriv2ndDelta)
+      if (input%ctrl%tAllAtoms) then
+        call create(derivDriver, tmp3Coords, nAtom, input%ctrl%deriv2ndDelta)
+      else
+        call create(derivDriver, tmp3Coords, nMovedAtom, input%ctrl%deriv2ndDelta)
+      end if
       coord0(:,indMovedAtom) = tmp3Coords
       deallocate(tmp3Coords)
       nGeoSteps = 2 * 3 * nMovedAtom - 1

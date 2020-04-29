@@ -74,7 +74,7 @@ contains
   !> Create new instance of derivative object
   !> Note: Use pre-relaxed coordinates when starting this, as the the truncation at second
   !> derivatives is only valid at the minimum position.
-  subroutine derivs_create(self,xInit,Delta)
+  subroutine derivs_create(self,xInit,nAtoms,Delta)
 
     !> Pointer to the initialised object on exit.
     type(TNumDerivs), allocatable, intent(out) :: self
@@ -85,15 +85,20 @@ contains
     !> step size for numerical derivative
     real(dp), intent(in) :: Delta
 
+    !> all atoms for distributed calculations
+    integer, intent(in) :: nAtoms
+
     integer :: nDerivs
 
     @:ASSERT(size(xInit,dim=1)==3)
     nDerivs = size(xInit,dim=2)
 
+
+
     allocate(self)
     allocate(self%x0(3, nDerivs))
     self%x0(:,:) = xInit(:,:)
-    allocate(self%derivs(3*nDerivs,3*nDerivs))
+    allocate(self%derivs(3*nAtoms,3*nDerivs))
     self%derivs(:,:) = 0.0_dp
     self%nDerivs = nDerivs
     self%Delta = Delta
@@ -124,10 +129,12 @@ contains
     !> Has the process terminated? If so internally calculate the Hessian matrix.
     logical, intent(out) :: tGeomEnd
 
-    integer :: ii, jj
-
+    integer :: ii, jj, nAtoms
+   
     @:ASSERT(all(shape(xNew)==shape(fOld)))
     @:ASSERT(all(shape(xNew)==(/3,self%nDerivs/)))
+
+    nAtoms = size(self%derivs,1)/3 
 
     if (self%iAtom==self%nDerivs .and. self%iComponent == 3 .and. &
         & self%iDelta > 0.0_dp) then
@@ -136,7 +143,7 @@ contains
       tGeomEnd = .false.
     end if
 
-    do ii = 1, self%nDerivs
+    do ii = 1, nAtoms 
       do jj = 1, 3
         self%derivs((ii-1)*3+jj,(self%iAtom-1)*3+self%iComponent) = &
             & self%derivs((ii-1)*3+jj,(self%iAtom-1)*3+self%iComponent) &

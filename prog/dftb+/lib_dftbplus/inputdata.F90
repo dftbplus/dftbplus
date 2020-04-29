@@ -263,6 +263,9 @@ module dftbp_inputdata
     real(dp), allocatable :: conVec(:,:)
     character(lc) :: outFile       = ''
 
+    !> Compute derivatives for all atoms (distributed calc of the Hessian)
+    logical :: tAllAtoms = .false.
+
     !> do we have MD velocities
     logical :: tReadMDVelocities = .false.
 
@@ -305,7 +308,6 @@ module dftbp_inputdata
     integer :: nh_nc         = 1
 
     integer :: maxRun        = -2
-
 
     !> second derivative finite difference step
     real(dp) :: deriv2ndDelta    = 0.0_dp
