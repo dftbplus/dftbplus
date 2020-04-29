@@ -99,7 +99,7 @@ contains
     type(TInputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
-    type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
+    type(fnode), pointer :: root, tmp, child, dummy
     type(TParserflags) :: parserFlags
     logical :: tHSD, missing
 
@@ -266,13 +266,10 @@ contains
     !> Parameters of the transport calculation
     type(TTransPar), intent(inout) :: transpar
 
-    type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
-    type(string) :: buffer, modif
-    type(fnode), pointer :: pTmp, field
+    type(fnode), pointer :: pDevice, pTask, pTaskType
+    type(string) :: buffer
     type(fnodeList), pointer :: pNodeList
-    integer :: ii, contact
-    real(dp) :: acc, contactRange(2), lateralContactSeparation, skCutoff
-    type(TListInt) :: li
+    real(dp) :: skCutoff
     type(TWrappedInt1), allocatable :: iAtInRegion(:)
     integer, allocatable :: nPLs(:)
     logical :: printDebug
@@ -330,11 +327,10 @@ contains
     integer, intent(out), allocatable :: nPLs(:)
 
     real(dp) :: contactLayerTol, vec(3)
-    integer :: ii, jj
-    type(fnode), pointer :: field, pNode, pTmp, pWide
+    integer :: ii
+    type(fnode), pointer :: field, pNode, pTmp
     type(string) :: buffer, modif
-    type(TListReal) :: fermiBuffer, vecBuffer
-    integer, allocatable :: tmpI1(:)
+    type(TListReal) :: vecBuffer
 
     allocate(iAtInRegion(size(contacts)+1))
     allocate(nPLs(size(contacts)))
@@ -404,49 +400,9 @@ contains
         end if
       end function string_to_int
 
-      function char_to_int(chr) result(ind)
-        character(*), intent(in) :: chr
-        integer :: ind
-        if (trim(chr) .eq. "") then
-          ind = 0
-          return
-        end if
-        if (verify(chr,"+-0123456789") .ne. 0) then
-          call error("Modifier in Atoms should be an integer number")   
-        end if  
-        read(chr,*) ind
-      end function char_to_int
-
   end subroutine readContacts
 
-  subroutine getTranslation(pNode, translVec)
-    type(fnode), pointer :: pNode
-    real(dp), intent(inout), allocatable :: translVec(:)    
-    
-    type(fnode), pointer :: pVal, pChild
-    type(TListReal) :: vecBuffer
-    type(string) :: modif, buffer
 
-    allocate(translVec(3))
-
-    call getChildValue(pNode, "Translation", pVal, "", child=pChild, &
-        & modifier=modif, allowEmptyValue=.true.)
-    call getNodeName2(pVal, buffer)
-    if (char(buffer)=="") then
-      translVec = 0.0_dp
-    else    
-      call init(vecBuffer)
-      call getChildValue(pChild, "", vecBuffer, modifier=modif)
-      if (len(vecBuffer).eq.3) then
-        call asArray(vecBuffer, translVec)
-        call convertByMul(char(modif), lengthUnits, pNode, translVec)
-        call destruct(vecBuffer)
-      else
-        call error("ContactVector must define three entries")
-      end if
-    end if   
-  end subroutine getTranslation
-     
   subroutine getSKcutoff(node, geo, mSKCutoff)
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -507,7 +463,7 @@ contains
     type(TListString) :: lStr
     type(TListCharLc), allocatable :: skFiles(:,:)
     type(TOldSKData) :: skData
-    integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
+    integer :: iSp1, iSp2, ii
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
     character(lc) :: fileName
     logical :: tLower, tExist

@@ -26,7 +26,10 @@ module dftbp_parser
   use dftbp_inputconversion
   use dftbp_lapackroutines, only : matinv
   use dftbp_periodic
+  use dftbp_coordnumber
   use dftbp_dispersions
+  use dftbp_dftd4param, only : getEeqChi, getEeqGam, getEeqKcn, getEeqRad
+  use dftbp_encharges, only : TEeqInput
   use dftbp_simplealgebra, only: cross3, determinant33
   use dftbp_slakocont
   use dftbp_slakoeqgrid
@@ -51,11 +54,16 @@ module dftbp_parser
   use dftbp_etemp, only : fillingTypes
   use dftbp_hamiltoniantypes
   use dftbp_wrappedintr
+  use dftbp_tempprofile, only : identifyTempProfile
   use dftbp_plumed, only : withPlumed
 #:if WITH_TRANSPORT
   use poisson_init
   use libnegf_vars
 #:endif
+  use dftbp_born, only : TGBInput
+  use dftbp_borndata, only : getVanDerWaalsRadiusD3
+  use dftbp_solvinput, only : TSolvationInp
+  use dftbp_solventdata, only : TSolventData, SolventFromName
   implicit none
   private
 
@@ -197,6 +205,10 @@ contains
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%ctrl)
+
+    call getChildValue(root, "Reks", dummy, "", child=child, list=.true., &
+        & allowEmptyValue=.true., dummyValue=.true.)
+    call readReks(child, input%ctrl, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -671,8 +683,7 @@ contains
       case ("nosehoover")
         ctrl%iThermostat = 3
         ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, &
-            &child=child2)
+        call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
         call getNodeName(value2, buffer)
 
         select case(char(buffer))
@@ -684,8 +695,7 @@ contains
           call detailedError(value2, "Invalid method name.")
         end select
 
-        call getChildValue(value1, "CouplingStrength", ctrl%wvScale, &
-            & modifier=modifier, child=field)
+        call getChildValue(value1, "CouplingStrength", ctrl%wvScale, modifier=modifier, child=field)
         call convertByMul(char(modifier), freqUnits, field, ctrl%wvScale)
 
         call getChildValue(value1, "ChainLength", ctrl%nh_npart, 3)
@@ -711,8 +721,7 @@ contains
       case ("andersen")
         ctrl%iThermostat = 1
         ! Read temperature or temperature profiles
-        call getChildValue(value1, "Temperature", value2, modifier=modifier, &
-            &child=child2)
+        call getChildValue(value1, "Temperature", value2, modifier=modifier, child=child2)
         call getNodeName(value2, buffer)
 
         select case(char(buffer))
@@ -981,8 +990,7 @@ contains
     type(TListIntR1) :: intBuffer
     type(TListRealR1) :: realBuffer
 
-    call getChildValue(node, "Constraints", value1, "", child=child, &
-        &allowEmptyValue=.true.)
+    call getChildValue(node, "Constraints", value1, "", child=child, allowEmptyValue=.true.)
     call getNodeName2(value1, buffer)
     if (char(buffer) == "") then
       ctrl%nrConstr = 0
@@ -1577,6 +1585,14 @@ contains
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
     end if
 
+    ! Solvation
+    call getChildValue(node, "Solvation", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%solvInp)
+      call readSolvation(child, geo, ctrl%solvInp)
+    end if
+
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
       call error("Lattice optimization only applies for periodic structures.")
     end if
@@ -1758,6 +1774,14 @@ contains
     if (associated(value1)) then
       allocate(ctrl%dispInp)
       call readDispersion(child, geo, ctrl%dispInp, ctrl%nrChrg)
+    end if
+
+    ! Solvation
+    call getChildValue(node, "Solvation", value1, "", child=child, &
+        &allowEmptyValue=.true., dummyValue=.true.)
+    if (associated(value1)) then
+      allocate(ctrl%solvInp)
+      call readSolvation(child, geo, ctrl%solvInp)
     end if
 
     if (ctrl%tLatOpt .and. .not. geo%tPeriodic) then
@@ -3516,6 +3540,169 @@ contains
   end subroutine readOptions
 
 
+  !> Reads in solvation related settings
+  subroutine readSolvation(node, geo, input)
+
+    !> Node to parse
+    type(fnode), pointer :: node
+
+    !> geometry, including atomic information
+    type(TGeometry), intent(in) :: geo
+
+    !> dispersion data on exit
+    type(TSolvationInp), intent(out) :: input
+
+    type(fnode), pointer :: solvModel
+    type(string) :: buffer
+
+    call getChildValue(node, "", solvModel)
+    call getNodeName(solvModel, buffer)
+
+    select case (char(buffer))
+    case default
+      call detailedError(node, "Invalid solvation model name.")
+    case ("generalizedborn")
+      allocate(input%GBInp)
+      call readSolvGB(solvModel, geo, input%GBInp)
+    end select
+  end subroutine readSolvation
+
+
+  !> Reads in generalized Born related settings
+  subroutine readSolvGB(node, geo, input)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Geometry of the current system
+    type(TGeometry), intent(in) :: geo
+
+    !> Contains the input for the dispersion module on exit
+    type(TGBInput), intent(out) :: input
+
+    type(string) :: buffer, state, modifier
+    type(fnode), pointer :: child, value1, field, child2, value2, dummy
+    integer :: iSp
+    logical :: found
+    real(dp) :: temperature, shift, conv
+    real(dp), allocatable :: vdwRadDefault(:)
+    type(TSolventData) :: solvent
+    real(dp), parameter :: referenceDensity = kg__au/(1.0e10_dp*AA__Bohr)**3
+    real(dp), parameter :: referenceMolecularMass = amu__au
+    real(dp), parameter :: idealGasMolVolume = 24.79_dp
+    real(dp), parameter :: ambientTemperature = 298.15_dp * Boltzmann
+
+    if (geo%tPeriodic) then
+      call detailedError(node, "Generalized Born model currently not available with PBCs")
+    end if
+
+    call getChildValue(node, "Solvent", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Invalid solvent method '" // char(buffer) // "'")
+    case('fromname')
+      call getChildValue(value1, "", buffer)
+      call SolventFromName(solvent, unquote(char(buffer)), found)
+      if (.not. found) then
+        call detailedError(value1, "Invalid solvent " // char(buffer))
+      end if
+    case('fromconstants')
+      call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
+      call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
+          & modifier=modifier, child=field)
+      call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)
+      call getChildValue(value1, "Density", solvent%density, modifier=modifier, &
+          & child=field)
+      call convertByMul(char(modifier), massDensityUnits, field, solvent%density)
+    end select
+
+    input%keps = 1.0_dp / solvent%dielectricConstant - 1.0_dp
+
+    ! shift value for the free energy (usually fitted)
+    call getChildValue(node, "FreeEnergyShift", shift, modifier=modifier, &
+        & child=field)
+    call convertByMul(char(modifier), energyUnits, field, shift)
+
+    ! temperature, influence depends on the reference state
+    call getChildValue(node, "Temperature", temperature, ambientTemperature, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), energyUnits, field, temperature)
+
+    ! reference state for free energy calculation
+    call getChildValue(node, "State", state, "gsolv", child=child)
+    select case(tolower(unquote(char(state))))
+    case default
+      call detailedError(child, "Unknown reference state: '"//char(state)//"'")
+    case("gsolv") ! just the bare shift
+      input%freeEnergyShift = shift
+    case("reference") ! gsolv=reference option in cosmotherm
+      ! RT * ln(ideal gas mol volume) + ln(rho/M)
+      input%freeEnergyShift = shift + temperature &
+          & * (log(idealGasMolVolume * temperature / ambientTemperature) &
+          & + log(solvent%density/referenceDensity * referenceMolecularMass/solvent%molecularMass))
+    case("mol1bar")
+      ! RT * ln(ideal gas mol volume)
+      input%freeEnergyShift = shift + temperature &
+          & * log(idealGasMolVolume * temperature / ambientTemperature)
+    end select
+
+    call getChildValue(node, "BornScale", input%bornScale)
+    call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%bornOffset)
+    call getChildValue(node, "OBCCorrection", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
+
+    conv = 1.0_dp
+    allocate(input%vdwRad(geo%nSpecies))
+    call getChildValue(node, "Radii", value1, child=child)
+    call getChild(value1, "", dummy, modifier=modifier)
+    call convertByMul(char(modifier), lengthUnits, child, conv)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("vanderwaalsradiid3")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
+      do iSp = 1, geo%nSpecies
+        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
+        if (associated(value2)) then
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & child=child2)
+        else
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & vdwRadDefault(iSp)/conv, child=child2)
+        end if
+      end do
+      deallocate(vdwRadDefault)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
+      end do
+    end select
+    input%vdwRad(:) = input%vdwRad * conv
+
+    allocate(input%descreening(geo%nSpecies))
+    call getChildValue(node, "Descreening", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate descreening parameters")
+    case("unity")
+      input%descreening(:) = 1.0_dp
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, trim(geo%speciesNames(iSp)), input%descreening(iSp), child=child2)
+      end do
+    end select
+
+    call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+
+  end subroutine readSolvGB
+
+
   !> Reads in dispersion related settings
   subroutine readDispersion(node, geo, input, nrChrg)
 
@@ -3552,7 +3739,7 @@ contains
   #:endif
     case ("dftd4")
       allocate(input%dftd4)
-      call readDispDFTD4(dispModel, input%dftd4, nrChrg)
+      call readDispDFTD4(dispModel, geo, input%dftd4, nrChrg)
     case default
       call detailedError(node, "Invalid dispersion model name.")
     end select
@@ -3573,7 +3760,7 @@ contains
     type(TDispSlaKirkInp), intent(out) :: input
 
     type(fnode), pointer :: value1, value2, child, child2, child3
-    type(string) :: buffer, modif, modif2, modifs(3)
+    type(string) :: buffer, modifier, modifier2, modifiers(3)
     real(dp), allocatable :: tmpR2(:,:), tmp2R2(:,:), rCutoffs(:)
     real(dp) :: mCutoff, rTmp
     integer :: iAt1, iAt2f, iSp1, iSp2, iNeigh
@@ -3588,24 +3775,23 @@ contains
     allocate(input%polar(geo%nAtom))
     allocate(input%rWaals(geo%nAtom))
     allocate(input%charges(geo%nAtom))
-    call getChildValue(node, "PolarRadiusCharge", value1, child=child, &
-        &modifier=modif)
+    call getChildValue(node, "PolarRadiusCharge", value1, child=child, modifier=modifier)
     call getNodeName(value1, buffer)
     select case (char(buffer))
     case (textNodeName)
-      call getChildValue(child, "", tmpR2, modifier=modif)
-      if (len(modif) > 0) then
-        call splitModifier(char(modif), child, modifs)
-        call convertByMul(char(modifs(1)), volumeUnits, child, tmpR2(1,:),&
+      call getChildValue(child, "", tmpR2, modifier=modifier)
+      if (len(modifier) > 0) then
+        call splitModifier(char(modifier), child, modifiers)
+        call convertByMul(char(modifiers(1)), volumeUnits, child, tmpR2(1,:),&
             &.false.)
-        call convertByMul(char(modifs(2)), lengthUnits, child, tmpR2(2,:),&
+        call convertByMul(char(modifiers(2)), lengthUnits, child, tmpR2(2,:),&
             &.false.)
-        call convertByMul(char(modifs(3)), chargeUnits, child, tmpR2(3,:),&
+        call convertByMul(char(modifiers(3)), chargeUnits, child, tmpR2(3,:),&
             &.false.)
       end if
 
     case ("hybriddependentpol")
-      if (len(modif) > 0) then
+      if (len(modifier) > 0) then
         call detailedError(child, "PolarRadiusCharge is not allowed to carry &
             &a modifier, if the HybridDependentPol method is used.")
       end if
@@ -3615,18 +3801,18 @@ contains
         call getChildValue(value1, geo%speciesNames(iSp1), value2, &
             &child=child2, dummyValue=.true.)
         call getChildValue(child2, "CovalentRadius", rCutoffs(iSp1), &
-            &modifier=modif2, child=child3)
-        call convertByMul(char(modif2), lengthUnits, child3, &
+            &modifier=modifier2, child=child3)
+        call convertByMul(char(modifier2), lengthUnits, child3, &
             &rCutoffs(iSp1))
         call getChildValue(child2, "HybridPolarisations", tmp2R2(:, iSp1), &
-            &modifier=modif2, child=child3)
-        if (len(modif2) > 0) then
-          call splitModifier(char(modif2), child, modifs)
-          call convertByMul(char(modifs(1)), volumeUnits, child, &
+            &modifier=modifier2, child=child3)
+        if (len(modifier2) > 0) then
+          call splitModifier(char(modifier2), child, modifiers)
+          call convertByMul(char(modifiers(1)), volumeUnits, child, &
               &tmp2R2(1:6, iSp1), .false.)
-          call convertByMul(char(modifs(2)), lengthUnits, child, &
+          call convertByMul(char(modifiers(2)), lengthUnits, child, &
               &tmp2R2(7:12, iSp1), .false.)
-          call convertByMul(char(modifs(3)), chargeUnits, child, &
+          call convertByMul(char(modifiers(3)), chargeUnits, child, &
               &tmp2R2(13, iSp1), .false.)
         end if
       end do
@@ -3800,10 +3986,13 @@ contains
   !> Here we additionally require a s9, since the non-addititive contributions
   !> tend to be expensive especially in the tight-binding context, s9 = 0.0_dp
   !> will disable the calculation.
-  subroutine readDispDFTD4(node, input, nrChrg)
+  subroutine readDispDFTD4(node, geo, input, nrChrg)
 
     !> Node to process.
     type(fnode), pointer :: node
+
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
 
     !> Filled input structure on exit.
     type(TDispDftD4Inp), intent(out) :: input
@@ -3811,10 +4000,9 @@ contains
     !> Net charge of the system.
     real(dp), intent(in) :: nrChrg
 
-    type(fnode), pointer :: child, childval
+    type(fnode), pointer :: value1, child, childval
     type(string) :: buffer
-
-    input%nrChrg = nrChrg
+    real(dp), allocatable :: d4Chi(:), d4Gam(:), d4Kcn(:), d4Rad(:)
 
     call getChildValue(node, "s6", input%s6, default=1.0_dp)
     call getChildValue(node, "s8", input%s8)
@@ -3823,26 +4011,256 @@ contains
     call getChildValue(node, "a1", input%a1)
     call getChildValue(node, "a2", input%a2)
     call getChildValue(node, "alpha", input%alpha, default=16.0_dp)
-    call getChildValue(node, "weightingFactor", input%weightingFactor, default=6.0_dp)
-    call getChildValue(node, "chargeSteepness", input%chargeSteepness, default=2.0_dp)
-    call getChildValue(node, "chargeScale", input%chargeScale, default=3.0_dp)
-    call getChildValue(node, "cutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
+    call getChildValue(node, "WeightingFactor", input%weightingFactor, default=6.0_dp)
+    call getChildValue(node, "ChargeSteepness", input%chargeSteepness, default=2.0_dp)
+    call getChildValue(node, "ChargeScale", input%chargeScale, default=3.0_dp)
+    call getChildValue(node, "CutoffInter", input%cutoffInter, default=64.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffInter)
-    call getChildValue(node, "cutoffCount", input%cutoffCount, default=40.0_dp, modifier=buffer,&
-        & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffCount)
-    call getChildValue(node, "cutoffEwald", input%cutoffEwald, default=40.0_dp, modifier=buffer,&
-        & child=child)
-    call convertByMul(char(buffer), lengthUnits, child, input%cutoffEwald)
-    call getChildValue(node, "cutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
+    call getChildValue(node, "CutoffThree", input%cutoffThree, default=40.0_dp, modifier=buffer,&
         & child=child)
     call convertByMul(char(buffer), lengthUnits, child, input%cutoffThree)
+
+    call getChildValue(node, "ChargeModel", value1, "EEQ", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(value1, "Unknown method '"//char(buffer)//"' for ChargeModel")
+    case ("eeq")
+      allocate(d4Chi(geo%nSpecies))
+      d4Chi(:) = getEeqChi(geo%speciesNames)
+      allocate(d4Gam(geo%nSpecies))
+      d4Gam(:) = getEeqGam(geo%speciesNames)
+      allocate(d4Kcn(geo%nSpecies))
+      d4Kcn(:) = getEeqKcn(geo%speciesNames)
+      allocate(d4Rad(geo%nSpecies))
+      d4Rad(:) = getEeqRad(geo%speciesNames)
+      call readEeqModel(value1, input%eeqInput, geo, nrChrg, d4Chi, d4Gam, d4Kcn, d4Rad)
+    end select
+
+    call readCoordinationNumber(node, input%cnInput, geo, "Cov", 0.0_dp)
+
+  end subroutine readDispDFTD4
+
+
+  !> Read settings regarding the EEQ charge model
+  subroutine readEeqModel(node, input, geo, nrChrg, kChiDefault, kGamDefault, &
+      & kKcnDefault, kRadDefault)
+
+    !> Node to process.
+    type(fnode), pointer :: node
+
+    !> Geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Filled input structure on exit.
+    type(TEeqInput), intent(out) :: input
+
+    !> Net charge of the system.
+    real(dp), intent(in) :: nrChrg
+
+    !> Electronegativities default values
+    real(dp), intent(in) :: kChiDefault(:)
+
+    !> Chemical hardnesses default values
+    real(dp), intent(in) :: kGamDefault(:)
+
+    !> CN scaling default values
+    real(dp), intent(in) :: kKcnDefault(:)
+
+    !> Charge widths default values
+    real(dp), intent(in) :: kRadDefault(:)
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer
+    integer :: iSp1
+
+    input%nrChrg = nrChrg
+
+    allocate(input%chi(geo%nSpecies))
+    allocate(input%gam(geo%nSpecies))
+    allocate(input%kcn(geo%nSpecies))
+    allocate(input%rad(geo%nSpecies))
+
+    call getChildValue(node, "Chi", value1, "Defaults", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
+    case ("defaults")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
+            & kChiDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
+            & child=child)
+      end do
+    end select
+
+    call getChildValue(node, "Gam", value1, "Defaults", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
+    case ("defaults")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
+            & kGamDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
+            & child=child)
+      end do
+    end select
+
+    call getChildValue(node, "Kcn", value1, "Defaults", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
+    case ("defaults")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
+            & kKcnDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
+            & child=child)
+      end do
+    end select
+
+    call getChildValue(node, "Rad", value1, "Defaults", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
+    case ("defaults")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
+            & kRadDefault(iSp1), child=child)
+      end do
+    case ("values")
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
+            & child=child)
+      end do
+    end select
+
+    call getChildValue(node, "Cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
+        & child=child)
+    call convertByMul(char(buffer), lengthUnits, child, input%cutoff)
 
     call getChildValue(node, "EwaldParameter", input%parEwald, 0.0_dp)
     call getChildValue(node, "EwaldTolerance", input%tolEwald, 1.0e-9_dp)
 
-  end subroutine readDispDFTD4
+    call readCoordinationNumber(node, input%cnInput, geo, "Erf", 8.0_dp)
+
+  end subroutine readEeqModel
+
+
+  !> Read in coordination number settings
+  subroutine readCoordinationNumber(node, input, geo, cnDefault, cutDefault)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TCNInput), intent(inout) :: input
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    !> Default value for the coordination number type
+    character(len=*), intent(in) :: cnDefault
+
+    !> Default value for the maximum CN used for cutting (0 turns it off)
+    real(dp), intent(in) :: cutDefault
+
+    type(fnode), pointer :: value1, value2, child, child2, field
+    type(string) :: buffer, modifier
+    real(dp), allocatable :: kENDefault(:), kRadDefault(:)
+    integer :: iSp
+
+    call getChildValue(node, "CoordinationNumber", value1, cnDefault, child=child)
+    call getNodeName(value1, buffer)
+
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Invalid coordination number type specified")
+    case("exp")
+      input%cnType = cnType%exp
+    case("erf")
+      input%cnType = cnType%erf
+    case("cov")
+      input%cnType = cnType%cov
+    case("gfn")
+      input%cnType = cnType%gfn
+    end select
+
+    call getChildValue(value1, "CutCN", input%maxCN, cutDefault, &
+        & child=child2)
+
+    call getChildValue(value1, "Cutoff", input%rCutoff, 40.0_dp, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+
+    allocate(input%en(geo%nSpecies))
+    if (input%cnType == cnType%cov) then
+      call getChildValue(value1, "Electronegativities", value2, "PaulingEN", child=child2)
+      call getNodeName(value2, buffer)
+      select case(char(buffer))
+      case default
+        call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate electronegativities")
+      case("paulingen")
+        allocate(kENDefault(geo%nSpecies))
+        kENDefault(:) = getElectronegativity(geo%speciesNames)
+        do iSp = 1, geo%nSpecies
+          call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), &
+              & kENDefault(iSp), child=child2)
+        end do
+        deallocate(kENDefault)
+      case("values")
+        do iSp = 1, geo%nSpecies
+          call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), child=child2)
+        end do
+      end select
+      if (any(input%en <= 0.0_dp)) then
+        call detailedError(value1, "Electronegativities are not defined for all species")
+      end if
+    else
+      ! array is not used, but should still be populated with dummies
+      input%en(:) = 0.0_dp
+    end if
+
+    allocate(input%covRad(geo%nSpecies))
+    call getChildValue(value1, "Radii", value2, "CovalentRadiiD3", child=child2)
+    call getNodeName(value2, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child2, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("covalentradiid3")
+      allocate(kRadDefault(geo%nSpecies))
+      kRadDefault(:) = getCovalentRadius(geo%speciesNames)
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), &
+            & kRadDefault(iSp), child=child2)
+      end do
+      deallocate(kRadDefault)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), child=child2)
+      end do
+    end select
+
+    if (any(input%covRad <= 0.0_dp)) then
+      call detailedError(value1, "Covalent radii are not defined for all species")
+    end if
+
+  end subroutine readCoordinationNumber
 
 
   !> reads in value of temperature for MD with sanity checking of the input
@@ -3885,15 +4303,12 @@ contains
     !> Control structure to populate
     type(TControl), intent(inout) :: ctrl
 
-    !> Names of thermal profiles
-    character(len=*), parameter :: tempMethodNames(3) = (/ 'constant   ', &
-        &'linear     ', 'exponential' /)
-
     type(TListString) :: ls
     type(TListIntR1) :: li1
     type(TListRealR1) :: lr1
     character(len=20), allocatable :: tmpC1(:)
     integer :: ii, jj
+    logical :: success
 
     call init(ls)
     call init(li1)
@@ -3913,16 +4328,13 @@ contains
     call destruct(li1)
     call destruct(lr1)
     allocate(ctrl%tempMethods(size(tmpC1)))
-    lp2: do ii = 1, size(tmpC1)
-      do jj = 1, size(tempMethodNames)
-        if (trim(tmpC1(ii)) == tolower(trim(tempMethodNames(jj)))) then
-          ctrl%tempMethods(ii) = jj
-          cycle lp2
-        end if
-      end do
-      call detailedError(node, "Invalid annealing method name '" &
-          &// trim(tmpC1(ii)) // "'.")
-    end do lp2
+    do ii = 1, size(tmpC1)
+      call identifyTempProfile(ctrl%tempMethods(ii), tmpC1(ii), success)
+      if (success) then
+        cycle
+      end if
+      call detailedError(node, "Invalid annealing method name '" // trim(tmpC1(ii)) // "'.")
+    end do
 
     if (any(ctrl%tempSteps < 0)) then
       call detailedError(node, "Step values must not be negative.")
@@ -4264,7 +4676,7 @@ contains
       end select
     end if
 
-    if (tLRNeedsSpinConstants .or. ctrl%tSpin) then
+    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. ctrl%reksIni%tREKS) then
       allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 
@@ -4349,7 +4761,7 @@ contains
     type(TTransPar), intent(inout) :: transpar
 
     type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
-    type(string) :: buffer, modif
+    type(string) :: buffer, modifier
     type(fnode), pointer :: pTmp, field
     type(fnodeList), pointer :: pNodeList
     integer :: ii, contact
@@ -4391,12 +4803,10 @@ contains
       contact = getContactByName(transpar%contacts(:)%name, tolower(trim(unquote(char(buffer)))),&
           & pTmp)
       transpar%taskContInd = contact
-      transpar%contacts(contact)%output = "shiftcont_" // trim(transpar%contacts(contact)%name) //&
-          & ".dat"
       if (.not. geom%tPeriodic) then
         call getChildValue(pTaskType, "ContactSeparation", lateralContactSeparation, 1000.0_dp,&
-            & modifier=modif, child=field)
-        call convertByMul(char(modif),lengthUnits,field,lateralContactSeparation)
+            & modifier=modifier, child=field)
+        call convertByMul(char(modifier),lengthUnits,field,lateralContactSeparation)
       end if
 
       call reduceGeometry(transpar%contacts(contact)%lattice, transpar%contacts(contact)%idxrange,&
@@ -4404,9 +4814,13 @@ contains
 
       transpar%ncont = 0
 
+      call getChildValue(root, "writeBinaryContact", transpar%tWriteBinShift, .true.)
+
     case ("uploadcontacts")
 
       transpar%taskUpload = .true.
+
+      call getChildValue(root, "readBinaryContact", transpar%tReadBinShift, .true.)
 
     case default
 
@@ -4554,7 +4968,7 @@ contains
     type(fnode), pointer :: field, child1, child2
     real(dp) :: Estep
     integer :: defValue, ii, nfermi
-    type(string) :: buffer, modif
+    type(string) :: buffer, modifier
     logical :: realAxisConv, equilibrium
 
     type(TListInt) :: li
@@ -4566,18 +4980,17 @@ contains
       !! Fermi level: in case of collinear spin we accept two values
       !! (up and down)
       call init(fermiBuffer)
-      call getChildValue(pNode, "FermiLevel", fermiBuffer, modifier=modif)
+      call getChildValue(pNode, "FermiLevel", fermiBuffer, modifier=modifier)
       if ( len(fermiBuffer) .eq. 1) then
         call asArray(fermiBuffer, greendens%oneFermi)
         greendens%oneFermi(2) = greendens%oneFermi(1)
       else if ( len(fermiBuffer) .eq. 2) then
         call asArray(fermiBuffer, greendens%oneFermi)
       else
-        call detailedError(pNode, &
-            & "FermiLevel accepts 1 or 2 (for collinear spin) values")
+        call detailedError(pNode, "FermiLevel accepts 1 or 2 (for collinear spin) values")
       end if
       call destruct(fermiBuffer)
-      call convertByMul(char(modif), energyUnits, pNode, greendens%oneFermi)
+      call convertByMul(char(modifier), energyUnits, pNode, greendens%oneFermi)
 
       call getChild(pNode, "FirstLayerAtoms", pTmp, requested=.false.)
       call readFirstLayerAtoms(pTmp, greendens%PL, greendens%nPLs,&
@@ -4610,14 +5023,15 @@ contains
 
     call getChildValue(pNode, "LocalCurrents", greendens%doLocalCurr, .false.)
     call getChildValue(pNode, "Verbosity", greendens%verbose, 51)
-    call getChildValue(pNode, "Delta", greendens%delta, 1.0e-5_dp, modifier=modif, child=field)
-    call convertByMul(char(modif), energyUnits, field, greendens%delta)
+    call getChildValue(pNode, "Delta", greendens%delta, 1.0e-5_dp, modifier=modifier, child=field)
+    call convertByMul(char(modifier), energyUnits, field, greendens%delta)
     call getChildValue(pNode, "ReadSurfaceGFs", greendens%readSGF, .false.)
     call getChildValue(pNode, "SaveSurfaceGFs", greendens%saveSGF, .not.greendens%readSGF)
     call getChildValue(pNode, "ContourPoints", greendens%nP(1:2), [ 20, 20 ])
     call getChildValue(pNode, "EnclosedPoles",  greendens%nPoles, 3)
-    call getChildValue(pNode, "LowestEnergy", greendens%enLow, -2.0_dp, modifier=modif, child=field)
-    call convertByMul(char(modif), energyUnits, field, greendens%enLow)
+    call getChildValue(pNode, "LowestEnergy", greendens%enLow, -2.0_dp, modifier=modifier,&
+        & child=field)
+    call convertByMul(char(modifier), energyUnits, field, greendens%enLow)
     call getChildValue(pNode, "FermiCutoff", greendens%nkT, 10)
       ! Fermi energy had not been set by other means yet
 
@@ -4651,8 +5065,8 @@ contains
         call getChildValue(pNode, "RealAxisPoints", greendens%nP(3))
       else if (associated(child2)) then
         call getChildValue(pNode, "RealAxisStep", Estep, child=child2, &
-             & modifier=modif)
-        call convertByMul(char(modif), energyUnits, child2, Estep)
+             & modifier=modifier)
+        call convertByMul(char(modifier), energyUnits, child2, Estep)
         realAxisConv = .true.
       ! If the system is under equilibrium we set the number of
       ! points to zero
@@ -4662,7 +5076,7 @@ contains
       else
         !Default is a point every 1500H
         call getChildValue(pNode, "RealAxisStep", Estep, 6.65e-4_dp, &
-                          &modifier=modif, child=child2)
+                          &modifier=modifier, child=child2)
         realAxisConv = .true.
       end if
       ! RealAxisConv means that we have a step and we convert it in a number
@@ -4699,7 +5113,7 @@ contains
     type(TTransPar), intent(inout) :: transpar
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
-    type(string) :: buffer, modif
+    type(string) :: buffer, modifier
     character(lc) :: strTmp
     real(dp) :: denstol, gatelength_l
     integer :: ii, ibc, bctype
@@ -4713,32 +5127,32 @@ contains
         poisson%poissBox(:) = 0.0_dp
         do ii = 1, 3
           if (ii == transpar%contacts(1)%dir) then
-            call getChildValue(pNode, "PoissonThickness", poisson%poissBox(ii), modifier=modif,&
+            call getChildValue(pNode, "PoissonThickness", poisson%poissBox(ii), modifier=modifier,&
                 & child=field)
-            call convertByMul(char(modif), lengthUnits, field, poisson%poissBox)
+            call convertByMul(char(modifier), lengthUnits, field, poisson%poissBox)
           else
             poisson%poissBox(ii) = sqrt(sum(latVecs(:,ii)**2))
           end if
         end do
       else
-        call getChildValue(pNode, "PoissonBox", poisson%poissBox, modifier=modif, child=field)
-        call convertByMul(char(modif), lengthUnits, field, poisson%poissBox)
+        call getChildValue(pNode, "PoissonBox", poisson%poissBox, modifier=modifier, child=field)
+        call convertByMul(char(modifier), lengthUnits, field, poisson%poissBox)
       end if
     end if
 
     poisson%foundBox = needsPoissonBox
     call getChildValue(pNode, "MinimalGrid", poisson%poissGrid, [ 0.3_dp, 0.3_dp, 0.3_dp ],&
-        & modifier=modif, child=field)
-    call convertByMul(char(modif), lengthUnits, field, poisson%poissGrid)
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, poisson%poissGrid)
     call getChildValue(pNode, "NumericalNorm", poisson%numericNorm, .false.)
-    call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., modifier=modif)
+    call getChild(pNode, "AtomDensityCutoff", pTmp, requested=.false., modifier=modifier)
     call getChild(pNode, "AtomDensityTolerance", pTmp2, requested=.false.)
     if (associated(pTmp) .and. associated(pTmp2)) then
       call detailedError(pNode, "Either one of the tags AtomDensityCutoff or AtomDensityTolerance&
           & can be specified.")
     else if (associated(pTmp)) then
-      call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modif)
-      call convertByMul(char(modif), lengthUnits, pTmp, poisson%maxRadAtomDens)
+      call getChildValue(pTmp, "", poisson%maxRadAtomDens, default=14.0_dp, modifier=modifier)
+      call convertByMul(char(modifier), lengthUnits, pTmp, poisson%maxRadAtomDens)
       if (poisson%maxRadAtomDens <= 0.0_dp) then
         call detailedError(pTmp2, "Atom density cutoff must be > 0")
       end if
@@ -4779,22 +5193,22 @@ contains
       poisson%localBCType = "G"
     case ("square")
       poisson%localBCType = "S"
-      call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, 9.0_dp, modifier=modif,&
+      call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, 9.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%bufferLocBC)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%bufferLocBC)
     case ("circle")
       poisson%localBCType = "C"
-      call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, 9.0_dp, modifier=modif,&
+      call getChildValue(pTmp, "BufferLength", poisson%bufferLocBC, 9.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%bufferLocBC)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%bufferLocBC)
     case default
       call getNodeHSDName(pTmp, buffer)
       call detailedError(pTmp, "Invalid boundary region type '" // char(buffer) // "'")
     end select
 
-    call getChildValue(pNode, "BoxExtension", poisson%bufferBox, 0.0_dp, modifier=modif,&
+    call getChildValue(pNode, "BoxExtension", poisson%bufferBox, 0.0_dp, modifier=modifier,&
         & child=field)
-    call convertByMul(char(modif), lengthUnits, field, poisson%bufferBox)
+    call convertByMul(char(modifier), lengthUnits, field, poisson%bufferBox)
     if (poisson%bufferBox.lt.0.0_dp) then
       call detailedError(pNode, "BoxExtension must be a positive number")
     endif
@@ -4808,42 +5222,43 @@ contains
       poisson%gateType = "N"
     case ("planar")
       poisson%gateType = "P"
-      call getChildValue(pTmp2, "GateLength", poisson%gateLength_l, 0.0_dp, modifier= modif,&
+      call getChildValue(pTmp2, "GateLength", poisson%gateLength_l, 0.0_dp, modifier= modifier,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%gateLength_l)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%gateLength_l)
 
       gatelength_l = poisson%gateLength_l !avoids a warning on intents
-      call getChildValue(pTmp2, "GateLength_l", poisson%gateLength_l, gateLength_l, modifier=modif,&
-          & child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%gateLength_l)
+      call getChildValue(pTmp2, "GateLength_l", poisson%gateLength_l, gateLength_l,&
+          & modifier=modifier, child=field)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%gateLength_l)
 
       call getChildValue(pTmp2, "GateLength_t", poisson%gateLength_t, poisson%gateLength_l,&
-          & modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%gateLength_t)
+          & modifier=modifier, child=field)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%gateLength_t)
 
-      call getChildValue(pTmp2, "GateDistance", poisson%gateRad, 0.0_dp, modifier=modif,&
+      call getChildValue(pTmp2, "GateDistance", poisson%gateRad, 0.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%gateRad)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%gateRad)
 
-      call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modif,&
+      call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modif), energyUnits, field, poisson%gatepot)
+      call convertByMul(char(modifier), energyUnits, field, poisson%gatepot)
 
       !call getChildValue(pTmp2, "GateDirection", poisson%gatedir, 2)
       poisson%gatedir = 2
 
     case ("cylindrical")
       poisson%gateType = "C"
-      call getChildValue(pTmp2, "GateLength",poisson%gateLength_l, 0.0_dp, modifier= modif,&
+      call getChildValue(pTmp2, "GateLength",poisson%gateLength_l, 0.0_dp, modifier= modifier,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%gateLength_l)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%gateLength_l)
 
-      call getChildValue(pTmp2, "GateRadius", poisson%gateRad, 0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%gateRad)
-
-      call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modif,&
+      call getChildValue(pTmp2, "GateRadius", poisson%gateRad, 0.0_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, poisson%gatepot)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%gateRad)
+
+      call getChildValue(pTmp2, "GatePotential", poisson%gatepot, 0.0_dp, modifier=modifier,&
+          & child=field)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%gatepot)
 
     case default
       call getNodeHSDName(pTmp2, buffer)
@@ -5201,7 +5616,7 @@ contains
     !> Transport parameter type
     type(TTransPar), intent(in) :: tp
 
-    type(string) :: buffer, method, modif, modif2
+    type(string) :: buffer, method, modifier, modifier2
     type(fnode), pointer :: val, child, child2, child3, child4, field
     type(fnodeList), pointer :: children
     integer :: norbs, ii, jj, iAt
@@ -5228,14 +5643,14 @@ contains
     elph%orbsperatm = orb%nOrbAtom(atm_range(1):atm_range(2))
 
     call getChildValue(node, "Coupling", val, "", child=child, &
-        & allowEmptyValue=.true., modifier=modif, dummyValue=.true., list=.false.)
+        & allowEmptyValue=.true., modifier=modifier, dummyValue=.true., list=.false.)
 
     call getNodeName(val, method)
 
     ! This reads also things like:  "Coupling [eV] = 0.34"
     !if (is_numeric(char(method))) then
     !  call getChildValue(node, "Coupling", rTmp, child=field)
-    !  call convertByMul(char(modif), energyUnits, field, rTmp)
+    !  call convertByMul(char(modifier), energyUnits, field, rTmp)
     !  elph%coupling = rTmp
     !  return
     !end if
@@ -5244,7 +5659,7 @@ contains
     case ("allorbitals")
       call getChild(child, "AllOrbitals", child2, requested=.false.)
       call getChildValue(child2, "", elph%coupling, child=field)
-      call convertByMul(char(modif), energyUnits, field, elph%coupling)
+      call convertByMul(char(modifier), energyUnits, field, elph%coupling)
 
     case ("atomcoupling")
       call getChild(child, "AtomCoupling", child2, requested=.false.)
@@ -5255,12 +5670,12 @@ contains
         call getItem1(children, ii, child3)
         call getChildValue(child3, "Atoms", buffer, child=child4, multiple=.true.)
         call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child4, tmpI1)
-        call getChildValue(child3, "Value", rTmp, child=field, modifier=modif2)
+        call getChildValue(child3, "Value", rTmp, child=field, modifier=modifier2)
         ! If not defined, use common unit modifier defined after Coupling
-        if (len(modif2)==0) then
-          call convertByMul(char(modif), energyUnits, field, rTmp)
+        if (len(modifier2)==0) then
+          call convertByMul(char(modifier), energyUnits, field, rTmp)
         else
-          call convertByMul(char(modif2), energyUnits, field, rTmp)
+          call convertByMul(char(modifier2), energyUnits, field, rTmp)
         end if
         do jj=1, size(tmpI1)
           iAt = tmpI1(jj)
@@ -5281,7 +5696,7 @@ contains
 
     case ("constant")
       call getChildValue(child, "Constant", rtmp, child=field)
-      call convertByMul(char(modif), energyUnits, field, rTmp)
+      call convertByMul(char(modifier), energyUnits, field, rTmp)
       elph%coupling = rTmp
 
     case default
@@ -5307,7 +5722,7 @@ contains
     type(fnodeList), pointer :: pNodeList
     integer :: ii, jj, ind, ncont, nKT
     real(dp) :: eRange(2), eRangeDefault(2)
-    type(string) :: buffer, modif
+    type(string) :: buffer, modifier
     type(TWrappedInt1), allocatable :: iAtInRegion(:)
     logical, allocatable :: tShellResInRegion(:)
     character(lc), allocatable :: regionLabelPrefixes(:)
@@ -5324,7 +5739,7 @@ contains
 
     ! Read Temperature. Can override contact definition
     allocate(tundos%kbT(ncont))
-    call getChild(root, "ContactTemperature", pTmp, modifier=modif, requested=.false.)
+    call getChild(root, "ContactTemperature", pTmp, modifier=modifier, requested=.false.)
     if (associated(pTmp)) then
       call init(temperature)
       call getChildValue(pTmp, "", temperature)
@@ -5333,7 +5748,7 @@ contains
       end if
       call asArray(temperature, tundos%kbT)
       call destruct(temperature)
-      call convertByMul(char(modif), energyUnits, pTmp, tundos%kbT)
+      call convertByMul(char(modifier), energyUnits, pTmp, tundos%kbT)
     else
       do ii = 1, ncont
         if (transpar%contacts(ii)%kbT >= 0) then
@@ -5354,12 +5769,12 @@ contains
 
     if (all(transpar%contacts(:)%potential.eq.0.0)) then
       ! No default meaningful
-      call getChildValue(root, "EnergyRange", eRange, modifier=modif,&
+      call getChildValue(root, "EnergyRange", eRange, modifier=modifier,&
       & child=field)
-      call convertByMul(char(modif), energyUnits, field, eRange)
+      call convertByMul(char(modifier), energyUnits, field, eRange)
       call getChildValue(root, "EnergyStep", tundos%estep,&
-      & modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, tundos%estep)
+      & modifier=modifier, child=field)
+      call convertByMul(char(modifier), energyUnits, field, tundos%estep)
     else
       ! Default meaningful
       ! nKT is set to GreensFunction default, i.e. 10
@@ -5376,11 +5791,11 @@ contains
                         & minval(transpar%contacts(:)%eFermi(1)) +   &
                         & nKT * maxval(tundos%kbT)
       call getChildValue(root, "EnergyStep", tundos%estep, 6.65e-4_dp, &
-                          &modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, tundos%estep)
+                          &modifier=modifier, child=field)
+      call convertByMul(char(modifier), energyUnits, field, tundos%estep)
       call getChildValue(root, "EnergyRange", eRange, eRangeDefault, &
-                          modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, eRange)
+                          modifier=modifier, child=field)
+      call convertByMul(char(modifier), energyUnits, field, eRange)
     end if
 
     tundos%emin = eRange(1)
@@ -5413,12 +5828,12 @@ contains
         end do
       end if
       call getChildValue(root, "Delta", tundos%delta, &
-          &1.0e-5_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, &
+          &1.0e-5_dp, modifier=modifier, child=field)
+      call convertByMul(char(modifier), energyUnits, field, &
           &tundos%delta)
       call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, &
-          &0.0_dp, modifier=modif, child=field)
-      call convertByMul(char(modif), energyUnits, field, &
+          &0.0_dp, modifier=modifier, child=field)
+      call convertByMul(char(modifier), energyUnits, field, &
           &tundos%broadeningDelta)
 
       call readPDOSRegions(root, geo, transpar%idxdevice, iAtInRegion, &
@@ -5439,8 +5854,8 @@ contains
 
     real(dp) :: contactLayerTol, vec(3)
     integer :: ii, jj
-    type(fnode), pointer :: field, pNode, pTmp, pWide
-    type(string) :: buffer, modif
+    type(fnode), pointer :: field, pNode, pTmp, pWide, child1, child2
+    type(string) :: buffer, modifier
     type(TListReal) :: fermiBuffer
 
     do ii = 1, size(contacts)
@@ -5456,13 +5871,12 @@ contains
       end if
       contacts(ii)%name = char(buffer)
       if (any(contacts(1:ii-1)%name == contacts(ii)%name)) then
-        call detailedError(pTmp, "Contact id '" // trim(contacts(ii)%name) &
-            &//  "' already in use")
+        call detailedError(pTmp, "Contact id '" // trim(contacts(ii)%name) //  "' already in use")
       end if
 
-      call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modif,&
+      call getChildValue(pNode, "PLShiftTolerance", contactLayerTol, 1e-5_dp, modifier=modifier,&
           & child=field)
-      call convertByMul(char(modif), lengthUnits, field, contactLayerTol)
+      call convertByMul(char(modifier), lengthUnits, field, contactLayerTol)
 
       call getChildValue(pNode, "AtomRange", contacts(ii)%idxrange, child=pTmp)
       call getContactVector(contacts(ii)%idxrange, geom, ii, contacts(ii)%name, pTmp,&
@@ -5471,19 +5885,19 @@ contains
 
       ! Contact temperatures. A negative default is used so it is quite clear when the user sets a
       ! different value. In such a case this overrides values defined in the Filling block
-      call getChild(pNode,"Temperature", field, modifier=modif, requested=.false.)
+      call getChild(pNode,"Temperature", field, modifier=modifier, requested=.false.)
       if (associated(field)) then
-        call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modif,&
-          & child=field)
-        call convertByMul(char(modif), energyUnits, field, contacts(ii)%kbT)
+        call getChildValue(pNode, "Temperature", contacts(ii)%kbT, 0.0_dp, modifier=modifier,&
+            & child=field)
+        call convertByMul(char(modifier), energyUnits, field, contacts(ii)%kbT)
       else
         contacts(ii)%kbT = -1.0_dp ! -1.0 simply means 'not defined'
       end if
 
       if (task .eq. "uploadcontacts") then
-        call getChildValue(pNode, "Potential", contacts(ii)%potential, 0.0_dp, modifier=modif,&
+        call getChildValue(pNode, "Potential", contacts(ii)%potential, 0.0_dp, modifier=modifier,&
             & child=field)
-        call convertByMul(char(modif), energyUnits, field, contacts(ii)%potential)
+        call convertByMul(char(modifier), energyUnits, field, contacts(ii)%potential)
 
         call getChildValue(pNode, "WideBand", contacts(ii)%wideBand, .false.)
 
@@ -5493,36 +5907,63 @@ contains
           ! code the inverse value (Density of states) is used. Convert the negf input
           ! value. Default is 20 / e eV.
           call getChildValue(pNode, "LevelSpacing", contacts(ii)%wideBandDos, 0.735_dp,&
-              & modifier=modif, child=field)
-          call convertByMul(char(modif), energyUnits, field, contacts(ii)%wideBandDos)
+              & modifier=modifier, child=field)
+          call convertByMul(char(modifier), energyUnits, field, contacts(ii)%wideBandDos)
           contacts(ii)%wideBandDos = 1.d0 / contacts(ii)%wideBandDos
 
         end if
 
+
         ! Fermi level: in case of collinear spin we accept two values (up and down)
-        call init(fermiBuffer)
-        call getChildValue(pNode, "FermiLevel", fermiBuffer, modifier=modif)
-        if ( len(fermiBuffer) .eq. 1) then
-          call asArray(fermiBuffer, contacts(ii)%eFermi)
-          contacts(ii)%eFermi(2) = contacts(ii)%eFermi(1)
-        else if ( len(fermiBuffer) .eq. 2) then
-          call asArray(fermiBuffer, contacts(ii)%eFermi)
+        ! call init(fermiBuffer)
+        ! call getChildValue(pNode, "FermiLevel", fermiBuffer, modifier=modifier)
+        ! if ( len(fermiBuffer) .eq. 1) then
+        !   call asArray(fermiBuffer, contacts(ii)%eFermi)
+        !   contacts(ii)%eFermi(2) = contacts(ii)%eFermi(1)
+        ! else if ( len(fermiBuffer) .eq. 2) then
+        !   call asArray(fermiBuffer, contacts(ii)%eFermi)
+        ! else
+        !   call detailedError(pNode, "FermiLevel accepts 1 or 2 (for collinear spin) values")
+        ! end if
+        ! call destruct(fermiBuffer)
+
+
+        call getChildValue(pNode, "FermiLevel", child1, "", child=child2, allowEmptyValue=.true.,&
+            & modifier=modifier)
+        call getNodeName2(child1, buffer)
+        if (char(buffer) == "") then
+          contacts(ii)%tFermiSet = .false.
+          call detailedWarning(pNode, "Missing Fermi level(s) - required in solver block")
         else
-          call detailedError(pNode, "FermiLevel accepts 1 or 2 (for collinear spin) values")
+          call init(fermiBuffer)
+          call getChildValue(child2, "", fermiBuffer, modifier=modifier)
+          select case(len(fermiBuffer))
+          case (1)
+            call asArray(fermiBuffer, contacts(ii)%eFermi(1:1))
+            contacts(ii)%eFermi(2) = contacts(ii)%eFermi(1)
+          case (2)
+            call asArray(fermiBuffer, contacts(ii)%eFermi(:2))
+          case default
+            call detailedError(pNode, "FermiLevel accepts 1 or 2 (for collinear spin) values")
+          end select
+          call destruct(fermiBuffer)
+          call convertByMul(char(modifier), energyUnits, child2, contacts(ii)%eFermi)
+
+          contacts(ii)%tFermiSet = .true.
+
+          ! NOTE: These options have been commented out: there is a problem in parallel execution
+          ! since one single file is accessed by all processors causing rush conditions
+          ! The options are therefore disabled for the official dftb+ release
+          !call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
+          !call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
+          !call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
+          !call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
+          contacts(ii)%tWriteSelfEnergy = .false.
+          contacts(ii)%tWriteSurfaceGF = .false.
+          contacts(ii)%tReadSelfEnergy = .false.
+          contacts(ii)%tReadSurfaceGF = .false.
         end if
-        call destruct(fermiBuffer)
-        call convertByMul(char(modif), energyUnits, pNode, contacts(ii)%eFermi)
-        ! NOTE: These options have been commented out: there is a problem in parallel execution
-        ! since one single file is accessed by all processors causing rush conditions
-        ! The options are therefore disabled for the official dftb+ release
-        !call getChildValue(pNode, "WriteSelfEnergy", contacts(ii)%tWriteSelfEnergy, .false.)
-        !call getChildValue(pNode, "WriteSurfaceGF", contacts(ii)%tWriteSurfaceGF, .false.)
-        !call getChildValue(pNode, "ReadSelfEnergy", contacts(ii)%tReadSelfEnergy, .false.)
-        !call getChildValue(pNode, "ReadSurfaceGF", contacts(ii)%tReadSurfaceGF, .false.)
-        contacts(ii)%tWriteSelfEnergy = .false.
-        contacts(ii)%tWriteSurfaceGF = .false.
-        contacts(ii)%tReadSelfEnergy = .false.
-        contacts(ii)%tReadSurfaceGF = .false.
+
       end if
 
     end do
@@ -5552,8 +5993,7 @@ contains
       call convertByMul(char(nodeModifier), energyUnits, pNode, eFermi)
       eFermis(:) = eFermi
     else
-      call getChildValue(pNode, "", eFermis, modifier=modifier,&
-          & child=pChild)
+      call getChildValue(pNode, "", eFermis, modifier=modifier, child=pChild)
       call convertByMul(char(modifier), energyUnits, pChild, eFermis)
     end if
 
@@ -5912,8 +6352,8 @@ contains
     end if
     call init(lr1)
     ! discrete points
-    call getChildValue(child, "Points", child2, "", child=child3, &
-        & modifier=modifier, allowEmptyValue=.true.)
+    call getChildValue(child, "Points", child2, "", child=child3, modifier=modifier,&
+        & allowEmptyValue=.true.)
     call getNodeName2(child2, buffer)
     if (char(buffer) /= "") then
       call getChildValue(child3, "", 3, lr1, modifier=modifier)
@@ -6118,5 +6558,152 @@ contains
     end select
 
   end subroutine parseRangeSeparated
+
+
+  !> Reads the REKS block
+  subroutine readReks(node, ctrl, geo)
+
+    !> Node to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: child22, child44
+
+    ! SSR(2,2) or SSR(4,4) stuff
+    call getChild(node, "SSR22", child22, requested=.false.)
+    call getChild(node, "SSR44", child44, requested=.false.)
+
+    if (associated(child22)) then
+
+      ctrl%reksIni%tREKS = .true.
+      ctrl%reksIni%tSSR22 = .true.
+      call readSSR22(child22, ctrl, geo)
+
+    else if (associated(child44)) then
+
+      ctrl%reksIni%tREKS = .true.
+      ctrl%reksIni%tSSR44 = .true.
+      call detailedError(child44, "SSR(4,4) is not implemented yet.")
+
+    end if
+
+  end subroutine readReks
+
+
+  !> Reads the SSR(2,2) block
+  subroutine readSSR22(node, ctrl, geo)
+
+    !> Node to parse
+    type(fnode), pointer, intent(in) :: node
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geo
+
+    !> Minimized energy functional; 1: PPS, 2: (PPS+OSS)/2
+    call getChildValue(node, "EnergyFunctional", ctrl%reksIni%Efunction, default=2)
+    !> Calculated energy states in SA-REKS
+    !> 1: calculate states included in 'EnergyFuncitonal'
+    !> 2: calculate all possible states
+    call getChildValue(node, "EnergyLevel", ctrl%reksIni%Elevel, default=1)
+    !> Calculate SSR state (SI term is included)
+    !> 1: calculate SSR state, 0: calculate SA-REKS state
+    call getChildValue(node, "UseSsrState", ctrl%reksIni%useSSR, default=1)
+
+    !> Target SSR state
+    call getChildValue(node, "TargetState", ctrl%reksIni%rstate, default=1)
+    !> Target microstate
+    call getChildValue(node, "TargetStateL", ctrl%reksIni%Lstate, default=0)
+
+    !> Initial guess for eigenvectors in REKS
+    !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
+    call getChildValue(node, "InitialGuess", ctrl%reksIni%guess, default=1)
+    !> Maximum iteration used in FON optimization
+    call getChildValue(node, "FonMaxIter", ctrl%reksIni%FonMaxIter, default=20)
+    !> Shift value in SCC cycle
+    call getChildValue(node, "Shift", ctrl%reksIni%shift, default=0.3_dp)
+
+    !> Read "SpinTuning" block with 'nType' elements
+    call readSpinTuning(node, ctrl, geo%nSpecies)
+
+    !> Calculate transition dipole moments
+    call getChildValue(node, "TransitionDipole", ctrl%reksIni%tTDP, default=.false.)
+
+    !> Algorithms to calculate analytic gradients
+    !> 1: preconditioned conjugate gradient (PCG)
+    !> 2: conjugate gradient (CG)
+    !> 3: direct inverse-matrix multiplication
+    call getChildValue(node, "GradientLevel", ctrl%reksIni%Glevel, default=1)
+    !> Maximum iteration used in calculation of gradient with PCG and CG
+    call getChildValue(node, "CGmaxIter", ctrl%reksIni%CGmaxIter, default=20)
+    !> Tolerance used in calculation of gradient with PCG and CG
+    call getChildValue(node, "GradientTolerance", ctrl%reksIni%Glimit, default=1.0E-8_dp)
+
+    !> Calculate relaxed density of SSR or SA-REKS state
+    call getChildValue(node, "RelaxedDensity", ctrl%reksIni%tRD, default=.false.)
+    !> Calculate nonadiabatic coupling vectors
+    call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksIni%tNAC, default=.false.)
+
+    !> Print level in standard output file
+    call getChildValue(node, "VerbosityLevel", ctrl%reksIni%Plevel, default=1)
+    !> Memory level used in calculation of gradient
+    call getChildValue(node, "MemoryLevel", ctrl%reksIni%Mlevel, default=2)
+
+  end subroutine readSSR22
+
+
+  !> Reads SpinTuning block in REKS input
+  subroutine readSpinTuning(node, ctrl, nType)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Number of types for atoms
+    integer, intent(in) :: nType
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer, modifier
+    type(TListRealR1) :: realBuffer
+    integer :: nAtom, iType
+    real(dp), allocatable :: tmpTuning(:,:)
+
+    call getChildValue(node, "SpinTuning", value1, "", child=child, &
+        & modifier=modifier, allowEmptyValue=.true.)
+    call getNodeName2(value1, buffer)
+    if (char(buffer) == "") then
+      ! no 'SpinTuning' block in REKS input
+      allocate(ctrl%reksIni%Tuning(nType))
+      do iType = 1, nType
+        ctrl%reksIni%Tuning(iType) = 1.0_dp
+      end do
+    else
+      ! 'SpinTuning' block in REKS input
+      call init(realBuffer)
+      call getChildValue(child, "", 1, realBuffer, modifier=modifier)
+      nAtom = len(realBuffer)
+      if (nAtom /= nType) then
+        call detailedError(node, "Incorrect number of 'SpinTuning' block: " &
+            & // i2c(nAtom) // " supplied, " &
+            & // i2c(nType) // " required.")
+      end if
+      allocate(tmpTuning(1,nAtom))
+      call asArray(realBuffer, tmpTuning)
+      call destruct(realBuffer)
+      allocate(ctrl%reksIni%Tuning(nType))
+      ctrl%reksIni%Tuning(:) = tmpTuning(1,:)
+    end if
+
+  end subroutine readSpinTuning
+
 
 end module dftbp_parser

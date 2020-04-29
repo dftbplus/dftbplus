@@ -122,7 +122,7 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kT)
+    call self%pTempProfile%getTemperature(kT)
     do ii = 1, self%nAtom
       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
     end do
@@ -146,7 +146,7 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kTTarget)
+    call self%pTempProfile%getTemperature(kTTarget)
     call evalkT(self%pMDFrame, kTCurrent,velocities,self%mass)
     scaling = sqrt(1.0_dp + self%couplingParameter*(kTTarget/kTCurrent-1.0_dp))
     velocities(:,:) = scaling * velocities(:,:)

@@ -191,7 +191,7 @@ module dftbp_scc
     type(TH5Corr), allocatable :: h5Correction
 
     !> Coulombic interaction container
-    type(TCoulombCont) :: coulombCont
+    type(TCoulombCont), public :: coulombCont
 
     !> Whether shift vector is set externally -> skip internal shift calculation
     logical :: hasExternalShifts
@@ -257,6 +257,12 @@ module dftbp_scc
 
     !> Returns potential from external charges
     procedure :: getExternalElStatPotential
+
+    !> Calculate gamma integral derivatives in SCC part
+    procedure :: getGammaDeriv
+
+    !> Get Q * inverse R contribution for the point charges
+    procedure :: getShiftOfPC
 
   end type TScc
 
@@ -1493,6 +1499,100 @@ contains
     st(:,:) = st(:,:) / this%volume
 
   end subroutine addSTGammaPrime_
+
+
+  !> Calculate gamma integral derivatives in SCC part
+  subroutine getGammaDeriv(this, env, species, iNeighbour, img2CentCell, GammaDeriv)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> list of all atomic species
+    integer, intent(in) :: species(:)
+
+    !> neighbour list for atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> indexing array for periodic image atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atom resolved scc gamma derivative, \gamma_{A,B}
+    !> gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
+    real(dp), intent(out) :: GammaDeriv(:,:,:)
+
+    real(dp), allocatable :: shortGammaDeriv(:,:,:)
+    real(dp), allocatable :: invRDeriv(:,:,:)
+
+    real(dp) :: rab, u1, u2, tmpGamma, tmpGammaPrime
+    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, iU1, iU2, ii, jj
+
+    allocate(shortGammaDeriv(this%nAtom,this%nAtom,3))
+    allocate(invRDeriv(this%nAtom,this%nAtom,3))
+
+    ! shortGamma contribution to gamma derivative
+    shortGammaDeriv(:,:,:) = 0.0_dp
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
+        do iU1 = 1, this%nHubbU(species(iAt1))
+          u1 = this%uniqHubbU(iU1, iSp1)
+          do iU2 = 1, this%nHubbU(species(iAt2f))
+            u2 = this%uniqHubbU(iU2, species(iAt2f))
+            if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
+              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
+                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+              else
+                tmpGammaPrime = expGammaPrime(rab, u2, u1)
+                if (this%tH5) then
+                  tmpGamma = expGamma(rab, u2, u1)
+                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, &
+                      & tmpGammaPrime, iSp1, iSp2, rab)
+                end if
+              end if
+              do ii = 1,3
+                shortGammaDeriv(iAt2f,iAt1,ii) = -tmpGammaPrime * &
+                    & ( this%coord(ii,iAt1) - this%coord(ii,iAt2) ) / rab
+              end do
+            end if
+          end do
+        end do
+      end do
+    end do
+
+    ! 1/R contribution to gamma derivative
+    invRDeriv(:,:,:) = 0.0_dp
+    if (this%tPeriodic) then
+      call this%coulombCont%addInvRPrimePeriodicMat(env, this%coord,&
+          & this%coulombCont%neighListGen, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
+          & this%volume, invRDeriv)
+    else
+      call this%coulombCont%addInvRPrimeClusterMat(env, this%coord, invRDeriv)
+    end if
+
+    GammaDeriv(:,:,:) = invRDeriv + shortGammaDeriv
+
+  end subroutine getGammaDeriv
+
+
+  !> Get Q * inverse R contribution for the point charges
+  subroutine getShiftOfPC(this, QinvR)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> (Q * invR) contribution
+    real(dp), intent(out) :: QinvR(:)
+
+    call this%extCharge%copyInvRvec(QinvR)
+
+  end subroutine getShiftOfPC
 
 
 end module dftbp_scc
