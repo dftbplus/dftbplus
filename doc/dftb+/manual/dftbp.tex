@@ -3282,7 +3282,7 @@ for use with long-range correction.
 \textbf{Note:} The present release does not yet support long-range
 corrected excited states calculations with LC-TD-DFTB, and the
 \kw{RangeSeparated} keyword can, therefore, not be used in conjunction with the
-\kw{ExcitedState} keyword.
+\kw{ExcitedState} block.
 
 The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
 range-separated hybrid functional) or the \is{LC}\cb\  block as value. Latter
@@ -3787,6 +3787,7 @@ calculations. This data is accumulated in a specified text file.
 This block collects some options to calculate excited states.
 \begin{ptable}
   \kw{Casida} & p & SCC = Yes & \cb & \\
+  \kw{PP-RPA} & p & SCC = Yes & \cb & \\
 \end{ptable}
 
 \subsection{Casida}
@@ -3905,6 +3906,70 @@ fractional occupations. The specifications for this block have the following pro
     decrease memory use substantially, if you are short on memory.
     
   \end{description}
+  
+  
+\subsection{PP-RPA}
+\label{sec:dftbp.pprpa}
+
+This tag contains the specifications for the calculation of excitation energies
+using the particle-particle random phase approximation
+(pp-RPA)~\cite{Yang2017}. This approach, unlike time-dependent DFTB, allows the
+computation of double and charge-transfer transitions. However it has the
+limitation that the computed excitations have to involve, at least partially,
+the highest occupied molecular orbital (HOMO) of the system.
+
+For the computation of the excitation energies of a neutral $N$-electron system,
+one needs to set up a ground state calculation for the two-electron deficient
+($N-2$) system, i.e.\ a net \mbox{\kw{Charge} = +2.0} calculation. Please note
+that if \kw{Charge} is set to 0.0 (the default value), the obtained transition
+energies will correspond to a net negative $-2$ charged system (i.e.\ $N+2$
+electrons). The system of interest must be closed-shell, therefore the
+calculation must also be spin-restricted and performed for an even number of
+electrons.
+
+The pp-RPA method is currently implemented only for SCC-DFTB level excitations,
+but can be performed on top of both SCC-DFTB or range-separated reference ground
+state calculations. The SCC-DFTB calculations can be performed for molecular or
+gamma point periodic systems, but the range-separated calculations can only use
+molecular boundary conditions.
+
+The specifications for this block have the following properties:
+
+\begin{ptable}
+  \kw{NrOfExcitations}   & i & & -  & \\
+  \kw{Symmetry}          & s & & -  & \\
+  \kw{NrOfVirtualStates} & i & & 0  & \\
+  \kw{TammDancoff}       & l & & No & \\
+  \kw{HHubbard}          & p & & -  & \\
+\end{ptable}
+
+\begin{description}
+
+\item[\is{NrOfExcitations}] Specifies the number of vertical excitation energies
+  to be computed for each symmetry (singlet or triplet).
+
+\item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
+  computed: \is{singlet}, \is{triplet} or \is{both}. Please note that,
+  \is{triplet} and \is{both} are effectively similar, as both singlet and
+  triplet excitation energies will be printed out if either of these keywords
+  are used.
+
+\item[\is{NrOfVirtualStates}] Optional orbital constraint to speed up the
+  calculation. It specifies the number of virtual states entering the pp-RPA
+  equation. If set to zero or greater than the total number of virtual states of
+  the system no constraint will be applied.
+
+\item[\is{TammDancoff}] If set to \is{Yes}, the Tamm-Dancoff approximation will
+  be employed. This will speed up the calculation.
+    
+\item[\is{HHubbard}] Hubbard-like parameters for each atom type including only
+  the Hartree kernel. Values of some of these parameters are given in
+  appendix~\ref{app:hhubbard}.
+
+\end{description}
+  
+The output of the pp-RPA calculation are described in
+section~\ref{sec:ppRPAout}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  REKS
@@ -4618,6 +4683,30 @@ energy (in Hartree)\\
 \index{XREST.DAT}
 
 Dipole moment of the specified excited state in units of Debye.
+
+\section{ppRPA\_ener.DAT}
+\index{ppRPA\_ener.DAT}
+\label{sec:ppRPAout}
+
+Excitation energies obtained within the pp-RPA formalism (see
+section~\ref{sec:dftbp.pprpa}). This output file also includes the most dominant
+Kohn-Sham transition, its weight and energy difference as well as the spin
+multiplicity of the excited state.
+
+Here are, for instance, the first three singlet-singlet transitions for furan:
+
+\begin{verbatim}
+     w [eV]        Transitions                         Weight            KS [eV]              Symm.
+
+ =================================================  
+
+      6.411        HOMO -> LUMO + 0            0.998            5.162                     S
+      6.904        HOMO -> LUMO + 1            0.973            6.755                     S
+     11.339        HOMO -> LUMO + 0, 0        0.959            5.162,  5.162            S
+\end{verbatim}  
+
+The first two excitations are single, whereas the third one is a double
+transition with predominant HOMO-to-LUMO character.
 
 \section{REKS results files}
 \label{sec:reks_files}

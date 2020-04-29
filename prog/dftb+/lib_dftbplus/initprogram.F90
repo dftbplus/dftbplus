@@ -72,6 +72,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
+  use dftbp_pprpa, only : TppRPAcal
   use dftbp_RangeSeparated
   use dftbp_stress
   use dftbp_orbitalequiv
@@ -658,6 +659,9 @@ module dftbp_initprogram
 
   !> calculate Z vector for excited properties
   logical :: tLinRespZVect
+
+  !> data type for pp-RPA
+  type(TppRPAcal), allocatable :: ppRPA
 
   !> Print eigenvectors
   logical :: tPrintExcitedEigVecs
@@ -2133,7 +2137,7 @@ contains
       elseif (tSpin .and. tCasidaForces) then
         call error("excited state relaxation is not implemented yet for spin-polarized systems")
       elseif (tPeriodic .and. tCasidaForces) then
-        call error("excited state relaxation is not implemented yet periodic systems")
+        call error("excited state relaxation is not implemented yet for periodic systems")
       elseif (tPeriodic .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular crystals")
       elseif (tSpinOrbit) then
@@ -2201,6 +2205,43 @@ contains
       end if
 
       call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
+
+    end if
+
+    ! ppRPA stuff
+    if (allocated(input%ctrl%ppRPA)) then
+
+      if (abs(input%ctrl%nrChrg - 2.0_dp) > elecTolMax) then
+        call warning("Particle-particle RPA should be for a reference system with a charge of +2.")
+      end if
+
+    #:for VAR, ERR in [("tSpinOrbit","spin orbit coupling"), ("tDFTBU","DFTB+U/pSIC"),&
+      & ("tSpin","spin polarised ground state"), ("t3rd","third order"),&
+      & ("any(kPoint /= 0.0_dp)","non-gamma k-points")]
+      if (${VAR}$) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+    #:for VAR, ERR in [("tShellResolved","shell resolved hamiltonians"),&
+      & ("h5SwitchedOn","H5"), ("tDampH","H damping")]
+      if (input%ctrl%${VAR}$) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+    #:for VAR, ERR in [("solvation","solvation"), ("onSiteElements","onsite corrections"),&
+      & ("reks","REKS")]
+      if (allocated(${VAR}$)) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+
+      if (isGeoOpt .or. tMD .or. tSocket) then
+        call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
+            & the (N-2) electron ground state system do not match the targeted system for the&
+            & excited states")
+      end if
+
+      call move_alloc(input%ctrl%ppRPA, ppRPA)
 
     end if
 
@@ -4616,7 +4657,7 @@ contains
     ! Minimal plumed API version (as in Plumed 2.5.3)
     ! Earlier versions may work but were not tested
     integer, parameter :: minApiVersion = 6
-    
+
     integer :: apiVersion
     character(300) :: strTmp
 
