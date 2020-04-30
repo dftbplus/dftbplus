@@ -195,7 +195,7 @@ int dftbp_get_nr_atoms(DftbPlus *instance);
  * \param[out] mermin_energy  Mermin free energy of the current geometry. Unit: Bohr.
  */
 void dftbp_get_energy(DftbPlus *instance, double *mermin_energy);
-
+void dftbp_get_energyparts(DftbPlus *instance, double *mermin_energy,double *repulsive_energy,double *electronic_energy);
 
 /**
  * Queries the gradients of the current geometry.
@@ -215,6 +215,15 @@ void dftbp_get_gradients(DftbPlus *instance, double *gradients);
  * \param[out] stresstensor Stress Tensor for the periodic box. Shape [3, 3]. Unit: Pascals.
  */
 void dftbp_get_stress_tensor(DftbPlus *instance, double *stresstensor);
+
+ /**
+ * Queries the virial tensor of the current geometry.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[out] totalStress Stress Shape [3, 3]. Unit: Hartree/Bohr^2.
+ */
+void dftbp_get_virial(DftbPlus *instance, double *virial);
 
 
 /**
