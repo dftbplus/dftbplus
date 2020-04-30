@@ -60,8 +60,10 @@ module dftbp_parser
   use poisson_init
   use libnegf_vars
 #:endif
+  use dftbp_atomicrad, only : getAtomicRad
   use dftbp_born, only : TGBInput
   use dftbp_borndata, only : getVanDerWaalsRadiusD3
+  use dftbp_cm5, only : TCM5Input
   use dftbp_solvinput, only : TSolvationInp
   use dftbp_solventdata, only : TSolventData, SolventFromName
   implicit none
@@ -3652,6 +3654,12 @@ contains
     call convertByMul(char(modifier), lengthUnits, field, input%bornOffset)
     call getChildValue(node, "OBCCorrection", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
 
+    call getChild(node, "CM5", child, requested=.false.)
+    if (associated(child)) then
+      allocate(input%cm5Input)
+      call readCM5(child, input%cm5Input, geo)
+    end if
+
     conv = 1.0_dp
     allocate(input%vdwRad(geo%nSpecies))
     call getChildValue(node, "Radii", value1, child=child)
@@ -3701,6 +3709,68 @@ contains
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
 
   end subroutine readSolvGB
+
+
+  subroutine readCM5(node, input, geo)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Geometry of the current system
+    type(TGeometry), intent(in) :: geo
+
+    !> Contains the input for the dispersion module on exit
+    type(TCM5Input), intent(out) :: input
+
+    type(fnode), pointer :: value1, value2, dummy, child, child2, field
+    type(string) :: buffer, modifier
+    real(dp) :: conv
+    real(dp), allocatable :: atomicRadDefault(:)
+    integer :: iSp
+
+    call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, &
+      & modifier=modifier, child=field)
+    call convertByMul(char(modifier), inverseLengthUnits, field, input%alpha)
+
+    conv = 1.0_dp
+    allocate(input%atomicRad(geo%nSpecies))
+    call getChildValue(node, "Radii", value1, "AtomicRadii", child=child)
+    call getChild(value1, "", dummy, modifier=modifier)
+    call convertByMul(char(modifier), lengthUnits, child, conv)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("atomicradii")
+      allocate(atomicRadDefault(geo%nSpecies))
+      atomicRadDefault(:) = getAtomicRad(geo%speciesNames)
+      do iSp = 1, geo%nSpecies
+        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
+        if (associated(value2)) then
+          call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
+              & child=child2)
+        else
+          call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
+              & atomicRadDefault(iSp)/conv, child=child2)
+        end if
+      end do
+      deallocate(atomicRadDefault)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
+            & child=child2)
+      end do
+    end select
+    if (any(input%atomicRad <= 0.0_dp)) then
+      call detailedError(value1, "Atomic radii must be positive for all species")
+    end if
+    input%atomicRad(:) = input%atomicRad * conv
+
+    call getChildValue(node, "Cutoff", input%rCutoff, 30.0_dp, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
+
+  end subroutine readCM5
 
 
   !> Reads in dispersion related settings
@@ -4661,6 +4731,13 @@ contains
     call readElectrostaticPotential(node, geo, ctrl)
 
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
+    if (ctrl%tPrintMulliken) then
+      call getChild(node, "CM5", child, requested=.false.)
+      if (associated(child)) then
+        allocate(ctrl%cm5Input)
+        call readCM5(child, ctrl%cm5Input, geo)
+      end if
+    end if
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)
 

@@ -3039,6 +3039,7 @@ systems.
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
+  \kw{CM5} & m & & & \\
   \kw{Radii} & m & & & \\
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & 35 AA & \\
@@ -3082,7 +3083,10 @@ systems.
     The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
     alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
 
-  \item[\is{Radii}] Atomic radii for each element, either takes
+  \item[\is{CM5}] Use the charge model 5 to correct the atomic partial charges
+    before evaluating the Born energy.
+
+  \item[\is{Radii}] Atomic radii for each element in Bohr, either takes
     \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
     or requires to provide \is{Values\cb} for all species.
     Both methods accept \modif{\modtype{length}} units.
@@ -3116,6 +3120,49 @@ Hamiltonian = DFTB {
   }
 }
 \end{verbatim}
+
+
+\subsubsection{Charge Model 5}
+\label{sec:dftbp.CM5}
+
+The charge model 5 (CM5)\cite{marenich2012} can be used to correct partial charges by
+%
+\begin{equation}
+   q^\text{CM5}_\text{A} = q_\text{A}
+   + \sum_{B} D_\text{A--B} \exp[-\alpha(R_\text{AB} - R^\text{cov}_\text{A} - R^\text{cov}_\text{B}]
+\end{equation}
+
+The pairwise parameters $D_\text{A--B}$ are fixed to the original published ones,
+while the exponent $\alpha$ and the covalent radii $R^\text{cov}_\text{A}$ default
+to the published parameters but can be adjusted in the input.
+
+\begin{ptable}
+  \kw{alpha} & r & & 2.474 1/AA & \\
+  \kw{Radii} & m & & \is{atomicRadii\cb} & \\
+  \kw{Cutoff} & r & & 30.0 & \\
+\end{ptable}
+
+\begin{description}
+
+  \item[\is{alpha}] \modif{\modtype{1/length}}
+    Exponent of the CM5 correction.
+
+  \item[\is{Radii}] Atomic covalent radii for each species, either takes
+    \is{AtomicRadii\cb} for default atomic radii\cite{mantina2010}
+    (can be overwritten) or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{Cutoff}] \modif{\modtype{length}}
+    Real space cutoff for the calculation of the CM5 correction.
+\end{description}
+
+\begin{verbatim}
+CM5 {
+  Alpha = 1.30918451402600
+  Radii = AtomicRad {}
+}
+\end{verbatim}
+
 
 \subsection{Halogen corrections}
 \label{sec:dftbp.xcorr}

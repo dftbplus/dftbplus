@@ -87,6 +87,9 @@ module dftbp_taggedoutput
     !> Gross atomic charges
     character(lenLabel) :: qOutAtGross  = 'gross_atomic_charges'
 
+    !> Charge model 5 corrected atomic gross charges
+    character(lenLabel) :: qOutAtCM5 = 'cm5_atomic_charges'
+
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
 

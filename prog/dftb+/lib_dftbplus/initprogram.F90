@@ -99,6 +99,7 @@ module dftbp_initprogram
   use dftbp_reks
   use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
+  use dftbp_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation, only : TSolvation
   use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
 
@@ -737,6 +738,9 @@ module dftbp_initprogram
 
   !> Solvation data and calculations
   class(TSolvation), allocatable :: solvation
+
+  !> Charge Model 5 for printout
+  type(TChargeModel5), allocatable :: cm5Cont
 
   !> Can stress be calculated?
   logical :: tStress
@@ -2103,6 +2107,20 @@ contains
       tDipole = .true.
     else
       tDipole = .false.
+    end if
+
+    if (tMulliken) then
+      if (allocated(input%ctrl%cm5Input)) then
+        allocate(cm5Cont)
+        if (tPeriodic) then
+          call TChargeModel5_init(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
+              & input%geom%speciesNames, .false., input%geom%latVecs)
+        else
+          call TChargeModel5_init(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
+              & input%geom%speciesNames, .false.)
+        end if
+        cutOff%mCutOff = max(cutOff%mCutOff, cm5Cont%getRCutOff())
+     end if
     end if
 
     if (allocated(input%ctrl%elStatPotentialsInp)) then
