@@ -1,5 +1,0 @@
-numderivs2.o: _mod_dftbp_accuracy _mod_dftbp_assert common.fypp 
-numderivs2.o = numderivs2.o $(_mod_dftbp_accuracy) $(_mod_dftbp_assert) $(common.fypp) 
-_mod_dftbp_numderivs2: numderivs2.o
-_mod_dftbp_numderivs2 = $(numderivs2.o)
-

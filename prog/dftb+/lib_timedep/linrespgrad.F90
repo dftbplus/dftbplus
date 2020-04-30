@@ -17,7 +17,7 @@ module dftbp_linrespgrad
   use dftbp_shortgamma
   use dftbp_accuracy
   use dftbp_constants, only : Hartree__eV, au__Debye
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_scc, only : TScc
   use dftbp_blasroutines
   use dftbp_eigensolver
@@ -26,6 +26,7 @@ module dftbp_linrespgrad
   use dftbp_sorting
   use dftbp_qm
   use dftbp_transcharges
+  use dftbp_degeneracyfind
   implicit none
   private
 
@@ -212,16 +213,16 @@ contains
     real(dp), intent(in), optional :: shift(:)
 
     !> non-SCC hamitonian data
-    type(OSlakoCont), intent(in), optional :: skHamCont
+    type(TSlakoCont), intent(in), optional :: skHamCont
 
     !> overlap data
-    type(OSlakoCont), intent(in), optional :: skOverCont
+    type(TSlakoCont), intent(in), optional :: skOverCont
 
     !> excitation energy gradient with respect to atomic positions
     real(dp), intent(out), optional :: excgrad(:,:)
 
     !> Differentiator for H0 and S matrices.
-    class(NonSccDiff), intent(in), optional :: derivator
+    class(TNonSccDiff), intent(in), optional :: derivator
 
     !> ground state square density matrix
     real(dp), intent(in), optional :: rhoSqr(:,:,:)
@@ -1799,13 +1800,13 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> H0 data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> Differentiatior for the non-scc matrices
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix for spin-free case
     real(dp), intent(in) :: rhoSqr(:,:)
@@ -2161,46 +2162,45 @@ contains
     real(dp), intent(in), optional :: Ssq(:)
 
     integer :: nmat
-    integer :: i, j, iweight, indo, m, n
+    integer :: ii, j, iweight, indo, m, n
     integer :: iDeg
     real(dp), allocatable :: wvec(:)
     real(dp), allocatable :: xply(:)
-    real(dp), allocatable :: eDeg(:)
-    real(dp), allocatable :: oDeg(:)
     integer, allocatable :: wvin(:)
     real(dp) :: rsqw, weight, wvnorm
     logical :: updwn, tSpin
     character :: sign
+    type(TDegeneracyFind) :: DegeneracyFind
+    logical :: tDegenerate
+    integer, allocatable :: degenerate(:,:)
+    real(dp), allocatable :: oDeg(:)
 
     @:ASSERT(fdExc > 0)
 
     tSpin = present(Ssq)
     nmat = size(wij)
-    ALLOCATE(wvec(nmat))
-    ALLOCATE(wvin(nmat))
-    ALLOCATE(xply(nmat))
-    ALLOCATE(eDeg(nexc))
-    ALLOCATE(oDeg(nexc))
-    wvec = 0.0_dp
-    wvin = 0
-    xply = 0.0_dp
-    eDeg = 0.0_dp
-    oDeg = 0.0_dp
+
+    allocate(wvec(nmat))
+    allocate(wvin(nmat))
+    allocate(xply(nmat))
+    wvec(:) = 0.0_dp
+    wvin(:) = 0
+    xply(:) = 0.0_dp
 
     if(fdXplusY > 0) then
       write(fdXplusY,*) nmat, nexc
     end if
 
-    do i = 1, nexc
-      if (eval(i) > 0.0_dp) then
+    do ii = 1, nexc
+      if (eval(ii) > 0.0_dp) then
 
         ! calculate weight of single particle transitions
-        rsqw = 1.0_dp / sqrt(eval(i))
+        rsqw = 1.0_dp / sqrt(eval(ii))
         ! (X+Y)^ia_I = sqrt(wij) / sqrt(omega) * F^ia_I
-        xply(:) = sqrt(rsqw) * sqrt(wij(:)) * evec(:,i)
-        wvec(:) = xply(:)**2
+        xply(:) = sqrt(rsqw) * sqrt(wij(:)) * evec(:,ii)
+        wvec(:) = xply**2
         wvnorm = 1.0_dp / sqrt(sum(wvec**2))
-        wvec(:) = wvec(:) * wvnorm
+        wvec(:) = wvec * wvnorm
 
         ! find largest coefficient in CI - should use maxloc
         call index_heap_sort(wvin,wvec)
@@ -2217,13 +2217,13 @@ contains
           write(fdExc,&
               & '(1x,f10.3,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,4x,&
               & f6.3)')&
-              & Hartree__eV * sqrt(eval(i)), osz(i), m, '->', n, weight,&
-              & Hartree__eV * wij(iweight), Ssq(i)
+              & Hartree__eV * sqrt(eval(ii)), osz(ii), m, '->', n, weight,&
+              & Hartree__eV * wij(iWeight), Ssq(ii)
         else
           write(fdExc,&
               & '(1x,f10.3,4x,f14.8,5x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
-              & Hartree__eV * sqrt(eval(i)), osz(i), m, '->', n, weight,&
-              & Hartree__eV * wij(iweight), sign
+              & Hartree__eV * sqrt(eval(ii)), osz(ii), m, '->', n, weight,&
+              & Hartree__eV * wij(iWeight), sign
         end if
 
         if(fdXplusY > 0) then
@@ -2232,16 +2232,15 @@ contains
             sign = "D"
             if (updwn) sign = "U"
           end if
-          write(fdXplusY,'(1x,i5,3x,a,3x,ES17.10)') i,sign, sqrt(eval(i))
-          write(fdXplusY,'(6(1x,ES17.10))') xply(:)
+          write(fdXplusY,'(1x,i5,3x,a,3x,ES17.10)') ii, sign, sqrt(eval(ii))
+          write(fdXplusY,'(6(1x,ES17.10))') xply
         endif
 
         if (fdTrans > 0) then
           write(fdTrans, '(2x,a,T12,i5,T21,ES17.10,1x,a,2x,a)')&
-              & 'Energy ', i,  Hartree__eV * sqrt(eval(i)), 'eV', sign
+              & 'Energy ', ii,  Hartree__eV * sqrt(eval(ii)), 'eV', sign
           write(fdTrans,*)
-          write(fdTrans,'(2x,a,9x,a,8x,a)')&
-              & 'Transition', 'Weight', 'KS [eV]'
+          write(fdTrans,'(2x,a,9x,a,8x,a)')'Transition', 'Weight', 'KS [eV]'
           write(fdTrans,'(1x,45("="))')
 
           sign = " "
@@ -2254,18 +2253,17 @@ contains
               sign = "D"
               if (updwn) sign = "U"
             end if
-            write(fdTrans,&
-                & '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)')&
+            write(fdTrans, '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)')&
                 & m, '->', n, sign, wvec(j), Hartree__eV * wij(wvin(j))
           end do
           write(fdTrans,*)
         end if
 
-        if(fdTradip > 0) then
+        if (fdTradip > 0) then
           write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES13.6))')&
-              & i, Hartree__eV * sqrt(eval(i)), (transitionDipoles(i,j)&
+              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,j)&
               & * au__Debye, j=1,3)
-        endif
+        end if
       else
 
         ! find largest coefficient in CI - should use maxloc
@@ -2275,20 +2273,19 @@ contains
 
         weight = wvec(1)
         iweight = wvin(1)
-        call indxov(win, iweight, getij, m, n)
+        call indxov(win, iWeight, getij, m, n)
         sign = sym
 
         if (tSpin) then
           sign = " "
           write(fdExc,&
               & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,A,2x,f10.3,4x,f6.3)')&
-              & '< 0', osz(i), m, '->', n, '-', Hartree__eV * wij(iweight),&
-              & Ssq(i)
+              & '< 0', osz(ii), m, '->', n, '-', Hartree__eV * wij(iWeight),&
+              & Ssq(ii)
         else
           write(fdExc,&
               & '(6x,A,T12,4x,f14.8,2x,i5,3x,a,1x,i5,7x,f6.3,2x,f10.3,6x,a)')&
-              & '< 0', osz(i), m, '->', n, weight,&
-              & Hartree__eV * wij(iweight), sign
+              & '< 0', osz(ii), m, '->', n, weight, Hartree__eV * wij(iWeight), sign
         end if
 
         if(fdXplusY > 0) then
@@ -2297,39 +2294,45 @@ contains
             sign = "D"
             if (updwn) sign = "U"
           end if
-          write(fdXplusY,'(1x,i5,3x,a,3x,A)') i,sign, '-'
+          write(fdXplusY,'(1x,i5,3x,a,3x,A)') ii,sign, '-'
         endif
 
         if (fdTrans > 0) then
           write(fdTrans, '(2x,a,1x,i5,5x,a,1x,a,3x,a)')&
-              & 'Energy ', i,  '-', 'eV', sign
+              & 'Energy ', ii,  '-', 'eV', sign
           write(fdTrans,*)
         end if
 
         if(fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,A)') i, '-'
+          write(fdTradip, '(1x,i5,1x,A)') ii, '-'
         endif
 
       end if
 
     end do
 
-    ! Determine degenerate levels and sum oscillator strength over any degenerate levels
-    iDeg = 1
-    eDeg(1) = eval(1)
-    oDeg(1) = osz(1)
-    do i = 2, nexc
-      if(abs(eval(i)-eval(i-1)) < elecTolMax) then
-        oDeg(iDeg) = oDeg(iDeg) + osz(i)
-      else
-        iDeg = iDeg + 1
-        eDeg(iDeg) = eval(i)
-        oDeg(iDeg) = osz(i)
-      endif
-    end do
+    deallocate(wvec)
+    deallocate(wvin)
+    deallocate(xply)
+
     if (tWriteTagged) then
-      call taggedWriter%write(fdTagged, tagLabels%excEgy, eDeg(:iDeg))
-      call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg(:iDeg))
+
+      call DegeneracyFind%init(elecTolMax)
+      call DegeneracyFind%degeneracyTest(eval, tDegenerate)
+      if (.not.tDegenerate) then
+        call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
+        call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)
+      else
+        degenerate = DegeneracyFind%degenerateRanges()
+        call taggedWriter%write(fdTagged, tagLabels%excEgy, eval(degenerate(1,:)))
+        ! sum oscillator strength over any degenerate levels
+        allocate(oDeg(DegeneracyFind%degenerateGroups()))
+        do ii = 1, size(oDeg)
+          oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
+        end do
+        call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg)
+      end if
+
     end if
 
   end subroutine writeExcitations
@@ -2368,8 +2371,7 @@ contains
   end subroutine calcPMatrix
 
 
-  !> Write single particle excitations to a file as well as potentially to tagged output file (in
-  !> that case, summing over degeneracies)
+  !> Write single particle excitations to a file
   subroutine writeSPExcitations(wij, win, nmatup, getij, fdSPTrans, sposz, nxov, tSpin)
 
     !> single particle excitation energies

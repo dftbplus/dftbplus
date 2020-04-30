@@ -1,0 +1,63 @@
+Geometry = GenFormat {
+  <<< "geo.gen"
+}
+
+Transport {
+    Device {
+      AtomRange = 1 4
+    }
+    Contact {
+        <<+ "Contact.source"
+    }
+    Contact {
+        <<+ "Contact.drain"
+    }
+}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-8
+  MaxAngularMomentum = {
+    Si = s
+    H = s
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 300
+  }
+  SlaterKosterFiles = Type2Filenames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  # no k-points needed along transport direction and a large vacuum gap in other directions
+  KPointsAndWeights = {0 0 0 1.0}
+  
+  OldSKInterpolation = Yes # using test SK files without full interactions
+  
+  Electrostatics = Poisson {
+    MinimalGrid [Angstrom] = 0.3 0.3 0.3
+  }
+  
+  Solver = GreensFunction{
+     RealAxisPoints = 500
+     EnclosedPoles = 50
+     ContourPoints = {
+       100 100
+     }
+  }
+}
+
+Parallel{
+  # Reduce block size to allow multiple processors testing
+  Blacs{BlockSize=2}  
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}

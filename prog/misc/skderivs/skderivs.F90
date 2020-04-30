@@ -28,7 +28,7 @@ program skderivs
 
   !> Contains the data necessary for the main program
   type TInputData
-    type(OSlakoEqGrid), pointer :: skHam, skOver
+    type(TSlakoEqGrid), pointer :: skHam, skOver
     integer, allocatable :: iHam(:), iOver(:)
     real(dp) :: from, to, step
     logical :: value, first, second
@@ -162,14 +162,14 @@ contains
     !> name of the tag at the root of the tree
     character(*), intent(in) :: rootTag
 
-    type(fnode), pointer :: hsdTree, root, dummy, child
+    type(fNode), pointer :: hsdTree, root, dummy, child
     type(TOldSKData) :: skData12(1,1), skData21(1,1)
     character(lc) :: strTmp
     logical :: isHSD, inputMissing, useOldInter
     type(string) :: buffer
     integer :: angShellOrdered(size(shellNames))
-    type(listIntR1) :: angShells(2)
-    type(listInt), allocatable :: lIntTmp
+    type(TListIntR1) :: angShells(2)
+    type(TListInt), allocatable :: lIntTmp
     real(dp), allocatable :: skHam(:,:), skOver(:,:)
     integer :: skInterMeth, nInt, nSpecies
     integer :: ii, jj
@@ -312,10 +312,10 @@ contains
     type(TOldSKData), intent(in), target :: skData21(:,:)
 
     !> Angular momenta to pick from the SK-files for species A
-    type(listIntR1), intent(inout) :: angShells1
+    type(TListIntR1), intent(inout) :: angShells1
 
     !> Angular momenta to pick from the SK-files for species B
-    type(listIntR1), intent(inout) :: angShells2
+    type(TListIntR1), intent(inout) :: angShells2
 
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm
     integer :: angShell1(maxL+1), angShell2(maxL+1)
@@ -373,10 +373,10 @@ contains
   function getNSKIntegrals(angShells1, angShells2) result(nInt)
 
     !> list of shells for species B
-    type(listIntR1), intent(inout) :: angShells2
+    type(TListIntR1), intent(inout) :: angShells2
 
     !> list of shells for species A
-    type(listIntR1), intent(inout) :: angShells1
+    type(TListIntR1), intent(inout) :: angShells1
 
     !> count of integrals
     integer :: nInt

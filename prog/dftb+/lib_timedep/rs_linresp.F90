@@ -13,7 +13,7 @@ module dftbp_rs_linearresponse
   use dftbp_shortgamma
   use dftbp_accuracy
   use dftbp_constants, only: Hartree__eV, au__Debye
-  use dftbp_nonscc, only: NonSccDiff
+  use dftbp_nonscc, only: TNonSccDiff
   use dftbp_scc, only: TScc
   use dftbp_blasroutines
   use dftbp_eigensolver
@@ -115,7 +115,7 @@ contains
     real(dp), intent(in) :: coords1(:), coords2(:)
     integer, intent(in) :: iSp1, iSp2
     type(TOrbitals), intent(in) :: orb
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
     real(dp), intent(out) :: Sblock(:,:)
 
     real(dp) :: interSKOver(getMIntegrals(skOverCont))
@@ -778,7 +778,7 @@ contains
     real(dp), intent(in) :: uHubb(:), uHubbU(:), uHubbD(:), rNel ! maybe needed for gradients later
     integer, intent(in) :: iNeighbor(0:,:), img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
-    type(RangeSepFunc), intent(inout) :: rsData ! contains long-range gamma
+    type(TRangeSepFunc), intent(inout) :: rsData ! contains long-range gamma
     !> print tag information
     logical, intent(in) :: tWriteTagged
 
@@ -818,8 +818,8 @@ contains
     real(dp), intent(out) :: omega
     real(dp), intent(in), optional :: shift(:)
     real(dp), intent(inout), optional :: deltaRho(:,:)
-    type(OSlakoCont), intent(in), optional :: skHamCont, skOverCont
-    class(NonSccDiff), intent(in), optional :: derivator
+    type(TSlakoCont), intent(in), optional :: skHamCont, skOverCont
+    class(TNonSccDiff), intent(in), optional :: derivator
     real(dp), intent(inout), optional :: excGrad(:,:)   !also may be needed for gradients later on
     real(dp), intent(inout), optional :: dQAtomEx(:)
 
@@ -1003,7 +1003,8 @@ contains
         gamma(nu, mu) = gamma(mu, nu)
       end do
     end do
-    call rsData%getLrGammaEval(lrGamma)
+    lrGamma(:,:) = 0._dp
+    call rsData%getLrGamma(lrGamma)
 
     ! Oscillator strengths for excited states, when needed.
    !if (nStat <= 0) then
@@ -1863,7 +1864,7 @@ contains
     implicit none
     logical, intent(in) :: spin
     logical, intent(in) :: tOnsite
-    type(linresp), intent(inout) :: self
+    type(TLinResp), intent(inout) :: self
     integer, intent(in) :: iAtomStart(:)
     real(dp), intent(in) :: eigVec(:,:,:)
     real(dp), intent(in) :: eigVal(:,:), SSqrReal(:,:)
@@ -1876,7 +1877,7 @@ contains
     real(dp), intent(in) :: hubbUAtom(:)
     integer, intent(in) :: iNeighbor(0:,:), img2CentCell(:)
     type(TOrbitals), intent(in) :: orb
-    type(RangeSepFunc), intent(inout) :: rsData
+    type(TRangeSepFunc), intent(inout) :: rsData
     !> print tag information
     logical, intent(in) :: tWriteTagged
 
@@ -1889,9 +1890,9 @@ contains
    !real(dp), intent(in) :: ons_en(:,:), ons_dip(:,:)
     real(dp), intent(out) :: excEnergy
    !real(dp), intent(in), optional :: shift(:)
-    type(OSlakoCont), intent(in), optional :: skHamCont, skOverCont
+    type(TSlakoCont), intent(in), optional :: skHamCont, skOverCont
     !> Differentiatior for the non-scc matrices
-    class(NonSccDiff), intent(in), optional :: derivator
+    class(TNonSccDiff), intent(in), optional :: derivator
     real(dp), intent(inout), optional :: deltaRho(:,:)
     real(dp), intent(inout), optional :: excGrad(:,:)
     real(dp), intent(inout), optional :: dQAtomEx(:)
@@ -2523,12 +2524,12 @@ contains
     real(dp), intent(in) :: pc(:,:), dQ(:), dQAtomEx(:), gamma(:,:), lrGamma(:,:) 
     real(dp), intent(in) :: uHubb(:), uHubbU(:), uHubbD(:), shift(:), vWoo(:), vWov(:), vWvv(:)
     real(dp), intent(in) :: vecXpY(:), vecXmY(:), coord0(:,:), tQov(:,:) !, tQoo(:,:), tQvv(:,:)
-    type(RangeSepFunc), intent(inout) :: rsData
+    type(TRangeSepFunc), intent(inout) :: rsData
     integer, intent(in) :: nBeweg
     type(TOrbitals), intent(in) :: orb
-    type(OSlakoCont), intent(in) :: skHamCont, skOverCont
+    type(TSlakoCont), intent(in) :: skHamCont, skOverCont
     !> Differentiatior for the non-scc matrices
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
     real(dp), intent(inout) :: excGrad(:,:), deltaRho(:,:)
     
     real(dp), allocatable :: shEx(:), vecXpYq(:), shXpYQ(:), vecXpYcc(:,:), vecXmYcc(:,:), wcc(:,:)
@@ -2971,7 +2972,7 @@ contains
   subroutine getSqrS(coord, nAtom, skOverCont, orb, iAtomStart, species0, S)
     real(dp), intent(in) :: coord(:,:)
     integer,intent(in) :: nAtom, iAtomStart(:), species0(:)
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
     type(TOrbitals), intent(in) :: orb
     real(dp), intent(out) :: S(:,:)
   

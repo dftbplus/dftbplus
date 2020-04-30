@@ -24,7 +24,7 @@ module dftbp_diismixer
 
 
   !> Contains the necessary data for an DIIS mixer
-  type ODIISMixer
+  type Tdiismixer
     private
 
     !> Initial mixing parameter
@@ -59,7 +59,7 @@ module dftbp_diismixer
 
     !> Holds DIIS mixed gradients from older iterations for downhill direction
     real(dp), allocatable :: deltaR(:)
-  end type ODIISMixer
+  end type Tdiismixer
 
 
   !> Creates an DIISMixer instance
@@ -79,7 +79,7 @@ module dftbp_diismixer
     module procedure DIISMixer_mix
   end interface mix
 
-  public :: ODIISMixer
+  public :: Tdiismixer
   public :: init, reset, mix
 
 contains
@@ -89,7 +89,7 @@ contains
   subroutine DIISMixer_init(self, nGeneration, initMixParam,tFromStart,alpha)
 
     !> Pointer to an initialized DIIS mixer on exit
-    type(ODIISMixer), intent(out) :: self
+    type(Tdiismixer), intent(out) :: self
 
     !> Nr. of generations (including actual) to consider
     integer, intent(in) :: nGeneration
@@ -138,7 +138,7 @@ contains
   subroutine DIISMixer_reset(self, nElem)
 
     !> DIIS mixer instance
-    type(ODIISMixer), intent(inout) :: self
+    type(Tdiismixer), intent(inout) :: self
 
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
@@ -167,7 +167,7 @@ contains
   subroutine DIISMixer_mix(self, qInpResult, qDiff)
 
     !> Pointer to the diis mixer
-    type(ODIISMixer), intent(inout) :: self
+    type(Tdiismixer), intent(inout) :: self
 
     !> Input charges on entry, mixed charges on exit.
     real(dp), intent(inout) :: qInpResult(:)

@@ -19,7 +19,7 @@ module dftbp_xlbomd
   implicit none
   private
 
-  public :: XlbomdInp, Xlbomd, Xlbomd_init
+  public :: TXLBOMDInp, TXLBOMD, Xlbomd_init
 
 
   !> File for reading the inverse of the Jacobian matrix if needed
@@ -27,7 +27,7 @@ module dftbp_xlbomd
 
 
   !> Input for the Xlbomd driver.
-  type :: XlbomdInp
+  type :: TXLBOMDInp
 
     !> Number of generation to consider during the integration (5, 6, 7)
     integer :: nKappa
@@ -60,11 +60,11 @@ module dftbp_xlbomd
     !> Whether Jacobian should be read from disk.
     logical :: readInverseJacobian
 
-  end type XlbomdInp
+  end type TXLBOMDInp
 
 
   !> Contains the data for the Xlbomd driver.
-  type :: Xlbomd
+  type :: TXLBOMD
     private
     type(ExtLagrangian) :: extLagr
     integer :: nKappa
@@ -82,7 +82,7 @@ module dftbp_xlbomd
     procedure :: needsInverseJacobian
     procedure :: setInverseJacobian
     procedure, private :: readJacobianKernel
-  end type Xlbomd
+  end type TXLBOMD
 
 contains
 
@@ -91,10 +91,10 @@ contains
   subroutine Xlbomd_init(this, input, nElems)
 
     !> Instance.
-    type(Xlbomd), intent(out) :: this
+    type(TXLBOMD), intent(out) :: this
 
     !> Basic input parameters.
-    type(XlbomdInp), intent(in) :: input
+    type(TXLBOMDInp), intent(in) :: input
 
     !> Nr. of elements in the charge vector
     integer, intent(in) :: nElems
@@ -141,7 +141,7 @@ contains
   subroutine getNextCharges(this, qCurrent, qNext)
 
     !> Instance.
-    class(Xlbomd), intent(inout) :: this
+    class(TXLBOMD), intent(inout) :: this
 
     !> Charges for current time step.
     real(dp), intent(in) :: qCurrent(:)
@@ -162,7 +162,7 @@ contains
   subroutine setDefaultSCCParameters(this, minSCCIter, maxSCCIter, sccTol)
 
     !> Instance.
-    class(Xlbomd), intent(inout) :: this
+    class(TXLBOMD), intent(inout) :: this
 
     !> Minimal number of SCC iterations.
     integer, intent(in) :: minSCCIter
@@ -184,7 +184,7 @@ contains
   function isActive(this)
 
     !> Instance.
-    class(Xlbomd), intent(in) :: this
+    class(TXLBOMD), intent(in) :: this
 
     !> True if XLBOMD integration is active (no SCC convergence needed)
     logical :: isActive
@@ -198,7 +198,7 @@ contains
   subroutine getSCCParameters(this, minSCCIter, maxSCCIter, sccTol)
 
     !> Instance.
-    class(Xlbomd), intent(in) :: this
+    class(TXLBOMD), intent(in) :: this
 
     !> Minimal number of SCC cycles.
     integer, intent(out) :: minSCCIter
@@ -226,7 +226,7 @@ contains
   function needsInverseJacobian(this)
 
     !> Instance.
-    class(Xlbomd), intent(in) :: this
+    class(TXLBOMD), intent(in) :: this
 
     !> True, if a inverse Jacobian is needed. It should be passed via the setInverseJacobian()
     !> procedure.
@@ -248,7 +248,7 @@ contains
   subroutine setInverseJacobian(this, invJacobian)
 
     !> Instance.
-    class(Xlbomd), intent(inout) :: this
+    class(TXLBOMD), intent(inout) :: this
 
     !> Inverse Jacobian.
     real(dp), intent(in) :: invJacobian(:,:)
@@ -273,7 +273,7 @@ contains
   subroutine readJacobianKernel(this)
 
     !> Instance.
-    class(Xlbomd), intent(inout) :: this
+    class(TXLBOMD), intent(inout) :: this
 
     open(12, file=JacobianKernelFile, status="old", action="read")
     read(12, *) this%invJacobian

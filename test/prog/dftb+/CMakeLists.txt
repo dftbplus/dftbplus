@@ -11,14 +11,18 @@ execute_process(
   INPUT_FILE ${srcdir}/tests
   OUTPUT_FILE ${builddir}/_dftbplus_tests.fypp)
 
+# Make sure, the line-marker option is not set in fypp
+set(fyppflags ${FYPP_FLAGS})
+list(REMOVE_ITEM fyppflags "-n")
+
 execute_process(
-  COMMAND ${FYPP} ${FYPP_FLAGS} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
+  COMMAND ${FYPP} ${fyppflags} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
   INPUT_FILE ${builddir}/_dftbplus_tests.fypp
   OUTPUT_FILE ${builddir}/_dftbplus_tests)
 
 file(STRINGS ${builddir}/_dftbplus_tests dftbplus_tests_raw)
-foreach(testname_raw IN LISTS dftbplus_tests_raw)
-  string(STRIP "${testname_raw}" testname)
+foreach(line IN LISTS dftbplus_tests_raw)
+  string(STRIP "${line}" testname)
   if(NOT "${testname}" STREQUAL "")
     list(APPEND tests ${testname})
   endif()

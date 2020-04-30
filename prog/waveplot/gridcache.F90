@@ -25,10 +25,10 @@ module dftbp_gridcache
 
 
   !> Contains the data for a grid cache
-  type OGridCache
+  type TgridCache
 
     !> Molecular orbital calculator
-    type(OMolecularOrbital), pointer :: molorb
+    type(TMolecularOrbital), pointer :: molorb
 
     !> Grid vectors
     real(dp) :: gridVec(3,3)
@@ -95,7 +95,7 @@ module dftbp_gridcache
 
     !> Initialised?
     logical :: tInitialised = .false.
-  end type OGridCache
+  end type TgridCache
 
 
   !> Initialises a GridCache instance.
@@ -110,7 +110,7 @@ module dftbp_gridcache
     module procedure GridCache_next_cmpl
   end interface
 
-  public :: OGridCache
+  public :: TgridCache
   public :: init, next
 
 contains
@@ -123,7 +123,7 @@ contains
       &origin, kPointCoords, tReal, molorb)
 
     !> The structure to initialise
-    type(OGridCache), intent(inout) :: sf
+    type(TgridCache), intent(inout) :: sf
 
     !> Contains indexes (spin, kpoint, state) of the levels which must be calculated
     integer, intent(in) :: levelIndex(:,:)
@@ -165,7 +165,7 @@ contains
     logical, intent(in) :: tReal
 
     !> Molecular orbital calculator
-    type(OMolecularOrbital), pointer, intent(in) :: molorb
+    type(TMolecularOrbital), pointer, intent(in) :: molorb
 
     integer ::nAll
     integer :: iSpin, iKPoint, iLevel, ind, ii, iostat
@@ -249,7 +249,7 @@ contains
   subroutine GridCache_next_real(sf, gridValReal, levelIndex, tFinished)
 
     !> Gridcache instance
-    type(OGridCache), intent(inout) :: sf
+    type(TgridCache), intent(inout) :: sf
 
     !> Contains the molecular orbital on the grid on exit
     real(dp), pointer :: gridValReal(:,:,:)
@@ -271,7 +271,7 @@ contains
   subroutine GridCache_next_cmpl(sf, gridValCmpl, levelIndex, tFinished)
 
     !> Gridcache instance
-    type(OGridCache), intent(inout) :: sf
+    type(TgridCache), intent(inout) :: sf
 
     !> Contains the molecular orbital on the grid on exit
     complex(dp), pointer :: gridValCmpl(:,:,:)
@@ -293,7 +293,7 @@ contains
   subroutine local_next(sf, gridValReal, gridValCmpl, levelIndex, tFinished)
 
     !> Gridcache instance
-    type(OGridCache), intent(inout), target :: sf
+    type(TgridCache), intent(inout), target :: sf
 
     !> Contains the real grid onexit
     real(dp), pointer :: gridValReal(:,:,:)

@@ -1,3 +1,0 @@
-dftbplus.o: _mod_dftbp_environment common.fypp _mod_dftbp_formatout _mod_dftbp_main _mod_dftbp_inputdata _mod_dftbp_globalenv _mod_dftbp_hsdhelpers _mod_dftbp_initprogram 
-dftbplus.o = dftbplus.o $(_mod_dftbp_environment) $(common.fypp) $(_mod_dftbp_formatout) $(_mod_dftbp_main) $(_mod_dftbp_inputdata) $(_mod_dftbp_globalenv) $(_mod_dftbp_hsdhelpers) $(_mod_dftbp_initprogram) 
-
