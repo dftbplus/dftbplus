@@ -13,7 +13,7 @@
 module dftbp_pmlocalisation
   use dftbp_assert
   use dftbp_accuracy, only : dp
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_blasroutines
   use dftbp_sparse2dense, only :unpackHS
   use dftbp_sorting

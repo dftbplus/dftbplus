@@ -15,7 +15,7 @@
 !> code.
 !>
 module dftbp_globalenv
-  use, intrinsic :: iso_fortran_env, only : output_unit
+  use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
 #:if WITH_MPI
   use mpi, only : MPI_COMM_WORLD
   use dftbp_mpifx
@@ -25,11 +25,14 @@ module dftbp_globalenv
 
   public :: initGlobalEnv, destructGlobalEnv
   public :: abortProgram, shutdown, synchronizeAll
-  public :: stdOut, tIoProc
+  public :: stdOut, stdErr, tIoProc
   public :: withScalapack, withMpi
 
   !> Standard out file handler
   integer, protected :: stdOut
+
+  !> Standard error file handler
+  integer, protected :: stdErr
 
   !> Whether current process is the global master process
   logical, protected :: tIoProc = .true.
@@ -41,6 +44,9 @@ module dftbp_globalenv
 
   !> Unredirected standard out
   integer, parameter :: stdOut0 = output_unit
+
+  !> Unredirected standard error
+  integer, parameter :: stdErr0 = error_unit
 
   !> Whether code was compiled with MPI support
   logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
@@ -56,7 +62,7 @@ module dftbp_globalenv
 contains
 
   !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv(outputUnit, mpiComm)
+  subroutine initGlobalEnv(outputUnit, mpiComm, inputUnit, errorUnit)
 
     !> Customised global standard output
     integer, intent(in), optional :: outputUnit
@@ -64,14 +70,23 @@ contains
     !> Customised global MPI communicator
     integer, intent(in), optional :: mpiComm
 
-    integer :: mpiComm0, outputUnit0
+    !> Customised global standard input
+    integer, intent(in), optional :: inputUnit
 
-    if (present(outputUnit)) then
-      outputUnit0 = outputUnit
+    !> Customised global standard error
+    integer, intent(in), optional :: errorUnit
+
+    integer :: mpiComm0, outputUnit0, inputUnit0, errorUnit0
+
+  #:for VAR, NAME in [("output", "stdOut"), ("error", "stdErr")]
+    if (present(${VAR}$Unit)) then
+      ${VAR}$Unit0 = ${VAR}$Unit
     else
-      outputUnit0 = stdOut0
+      ${VAR}$Unit0 = ${NAME}$0
     end if
-    
+  #:endfor
+
+
   #:if WITH_MPI
     if (present(mpiComm)) then
       mpiComm0 = mpiComm
@@ -84,13 +99,15 @@ contains
     call globalMpiComm%init(commid=mpiComm0)
     if (globalMpiComm%master) then
       stdOut = outputUnit0
+      stdErr = errorUnit0
     else
-      stdOut = 1
-      open(stdOut, file="/dev/null", action="write")
+      open(newunit=stdOut, file="/dev/null", action="write")
+      open(newunit=stdErr, file="/dev/null", action="write")
     end if
     tIoProc = globalMpiComm%master
   #:else
     stdOut = outputUnit0
+    stdErr = errorUnit0
   #:endif
 
   end subroutine initGlobalEnv
@@ -145,7 +162,7 @@ contains
   #:if WITH_MPI
     call mpifx_abort(globalMpiComm, errorCode0, error)
     if (error /= 0) then
-      write(stdOut0, "(A,I0,A)") "Process ", globalMpiComm%rank, " could not be aborted."
+      write(stdErr0, "(A,I0,A)") "Process ", globalMpiComm%rank, " could not be aborted."
     end if
   #:endif
     stop
