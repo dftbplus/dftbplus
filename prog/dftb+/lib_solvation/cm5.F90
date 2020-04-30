@@ -19,7 +19,7 @@ module dftbp_cm5
   implicit none
   private
 
-  public :: TChargeModel5, TCM5Input, initChargeModel5
+  public :: TChargeModel5, TCM5Input, TChargeModel5_init
 
 
   !> Charge model 5 input data
@@ -132,7 +132,7 @@ contains
 
 
   !> Initialize generalized charge model 5 from geometry
-  subroutine initChargeModel5(self, input, nAtom, speciesNames, tDerivs, latVecs)
+  subroutine TChargeModel5_init(self, input, nAtom, speciesNames, tDerivs, latVecs)
 
     !> Initialised instance at return
     type(TChargeModel5), intent(out) :: self
@@ -186,7 +186,7 @@ contains
 
     self%tCoordsUpdated = .false.
 
-  end subroutine initChargeModel5
+  end subroutine TChargeModel5_init
 
 
   !> Update internal stored coordinates

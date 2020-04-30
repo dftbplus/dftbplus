@@ -12,7 +12,7 @@ module dftbp_born
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : hemv, gemv
   use dftbp_charges, only : getSummedCharges
-  use dftbp_cm5, only : TChargeModel5, TCM5Input, initChargeModel5
+  use dftbp_cm5, only : TChargeModel5, TCM5Input, TChargeModel5_init
   use dftbp_commontypes, only : TOrbitals
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
@@ -205,10 +205,10 @@ contains
     if (allocated(input%cm5Input)) then
       allocate(self%cm5)
       if (self%tPeriodic) then
-        call initChargeModel5(self%cm5, input%cm5Input, nAtom, speciesNames, &
+        call TChargeModel5_init(self%cm5, input%cm5Input, nAtom, speciesNames, &
            & .true., latVecs)
       else
-        call initChargeModel5(self%cm5, input%cm5Input, nAtom, speciesNames, &
+        call TChargeModel5_init(self%cm5, input%cm5Input, nAtom, speciesNames, &
            & .true.)
       end if
     end if
