@@ -2217,7 +2217,8 @@ contains
 
     #:for VAR, ERR in [("tSpinOrbit","spin orbit coupling"), ("tDFTBU","DFTB+U/pSIC"),&
       & ("tSpin","spin polarised ground state"), ("t3rd","third order"),&
-      & ("any(kPoint /= 0.0_dp)","non-gamma k-points")]
+      & ("any(kPoint /= 0.0_dp)","non-gamma k-points"), ("tFixEf", "a fixed Fermi level"),&
+      & ("tPoisson", "use of the Poisson solver")]
       if (${VAR}$) then
         call error("PP-RPA does not support ${ERR}$")
       end if
@@ -2234,6 +2235,11 @@ contains
         call error("PP-RPA does not support ${ERR}$")
       end if
     #:endfor
+    #:if WITH_TRANSPORT
+      if (input%transpar%defined) then
+        call error("PP-RPA does not support transport calculations")
+      end if
+    #:endif
 
       if (isGeoOpt .or. tMD .or. tSocket) then
         call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
