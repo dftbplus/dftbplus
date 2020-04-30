@@ -3137,18 +3137,20 @@ while the exponent $\alpha$ and the covalent radii $R^\text{cov}_\text{A}$ defau
 to the published parameters but can be adjusted in the input.
 
 \begin{ptable}
-  \kw{alpha} & r & & 1.30918451402600 & \\
-  \kw{Radii} & m & & \is{atomicRad\cb} & \\
+  \kw{alpha} & r & & 2.474 1/AA & \\
+  \kw{Radii} & m & & \is{atomicRadii\cb} & \\
   \kw{Cutoff} & r & & 30.0 & \\
 \end{ptable}
 
 \begin{description}
 
-  \item[\is{alpha}] Exponent of the CM5 correction in inverse Bohr
+  \item[\is{alpha}] \modif{\modtype{1/length}}
+    Exponent of the CM5 correction.
 
-  \item[\is{Radii}] Atomic radii for each element in Bohr, either takes
-    \is{AtomicRad\cb} for default atomic radii (can be overwritten)
-    or requires to provide \is{Values\cb} for all species.
+  \item[\is{Radii}] Atomic covalent radii for each species, either takes
+    \is{AtomicRadii\cb} for default atomic radii\cite{mantina2010}
+    (can be overwritten) or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
 
   \item[\is{Cutoff}] \modif{\modtype{length}}
     Real space cutoff for the calculation of the CM5 correction.

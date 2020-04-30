@@ -19,7 +19,7 @@ module dftbp_cm5
   implicit none
   private
 
-  public :: TChargeModel5, TCM5Input, init
+  public :: TChargeModel5, TCM5Input, initChargeModel5
 
 
   !> Charge model 5 input data
@@ -97,20 +97,14 @@ module dftbp_cm5
   end type TChargeModel5
 
 
-  !> Initialize charge model 5 from geometry
-  interface init
-    module procedure :: initialize
-  end interface init
-
-
-  !> Get pair parameters for two species
+  !> Get pair parameters for two species (Dzz')
   interface getPairParameter
     module procedure :: getPairParameterSymbol
     module procedure :: getPairParameterNumber
   end interface getPairParameter
 
 
-  ! Charge model 5 atomwise parameters
+  ! Charge model 5 atomwise parameters (Dz in paper)
   real(dp), parameter :: pairParameters(1:118) = [ &
       & 0.0056_dp,-0.1543_dp, 0.0000_dp, 0.0333_dp,-0.1030_dp,-0.0446_dp, &
       &-0.1072_dp,-0.0802_dp,-0.0629_dp,-0.1088_dp, 0.0184_dp, 0.0000_dp, &
@@ -138,7 +132,7 @@ contains
 
 
   !> Initialize generalized charge model 5 from geometry
-  subroutine initialize(self, input, nAtom, speciesNames, tDerivs, latVecs)
+  subroutine initChargeModel5(self, input, nAtom, speciesNames, tDerivs, latVecs)
 
     !> Initialised instance at return
     type(TChargeModel5), intent(out) :: self
@@ -192,7 +186,7 @@ contains
 
     self%tCoordsUpdated = .false.
 
-  end subroutine initialize
+  end subroutine initChargeModel5
 
 
   !> Update internal stored coordinates
@@ -440,7 +434,7 @@ contains
   end subroutine getCorrectionDerivs
 
 
-  !> Get pair parameter for species with a given symbols
+  !> Get pair parameter (Dzz') for species with a given symbols
   elemental function getPairParameterSymbol(symbol1, symbol2) result(pairPar)
 
     !> Element symbol
@@ -457,7 +451,7 @@ contains
   end function getPairParameterSymbol
 
 
-  !> Get pair parameter for species with a given atomic numbers
+  !> Get pair parameter (Dzz') for species with a given atomic numbers
   elemental function getPairParameterNumber(number1, number2) result(pairPar)
 
     !> Atomic number

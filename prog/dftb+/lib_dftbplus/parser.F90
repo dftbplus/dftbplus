@@ -3722,25 +3722,37 @@ contains
     !> Contains the input for the dispersion module on exit
     type(TCM5Input), intent(out) :: input
 
-    type(fnode), pointer :: value1, child, child2, field
+    type(fnode), pointer :: value1, value2, dummy, child, child2, field
     type(string) :: buffer, modifier
+    real(dp) :: conv
     real(dp), allocatable :: atomicRadDefault(:)
     integer :: iSp
 
-    call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, child=child)
+    call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, &
+      & modifier=modifier, child=field)
+    call convertByMul(char(modifier), inverseLengthUnits, field, input%alpha)
 
+    conv = 1.0_dp
     allocate(input%atomicRad(geo%nSpecies))
-    call getChildValue(node, "Radii", value1, "AtomicRad", child=child)
+    call getChildValue(node, "Radii", value1, "AtomicRadii", child=child)
+    call getChild(value1, "", dummy, modifier=modifier)
+    call convertByMul(char(modifier), lengthUnits, child, conv)
     call getNodeName(value1, buffer)
     select case(char(buffer))
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
-    case("atomicrad")
+    case("atomicradii")
       allocate(atomicRadDefault(geo%nSpecies))
       atomicRadDefault(:) = getAtomicRad(geo%speciesNames)
       do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
-            & atomicRadDefault(iSp), child=child2)
+        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
+        if (associated(value2)) then
+          call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
+              & child=child2)
+        else
+          call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
+              & atomicRadDefault(iSp)/conv, child=child2)
+        end if
       end do
       deallocate(atomicRadDefault)
     case("values")
@@ -3752,6 +3764,7 @@ contains
     if (any(input%atomicRad <= 0.0_dp)) then
       call detailedError(value1, "Atomic radii must be positive for all species")
     end if
+    input%atomicRad(:) = input%atomicRad * conv
 
     call getChildValue(node, "Cutoff", input%rCutoff, 30.0_dp, &
         & modifier=modifier, child=field)

@@ -99,7 +99,7 @@ module dftbp_initprogram
   use dftbp_reks
   use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
-  use dftbp_cm5, only : TChargeModel5, init
+  use dftbp_cm5, only : TChargeModel5, initChargeModel5
   use dftbp_solvation, only : TSolvation
   use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
 
@@ -2110,10 +2110,10 @@ contains
       if (allocated(input%ctrl%cm5Input)) then
         allocate(cm5Cont)
         if (tPeriodic) then
-          call init(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
+          call initChargeModel5(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
               & input%geom%speciesNames, .false., input%geom%latVecs)
         else
-          call init(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
+          call initChargeModel5(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
               & input%geom%speciesNames, .false.)
         end if
         cutOff%mCutOff = max(cutOff%mCutOff, cm5Cont%getRCutOff())
