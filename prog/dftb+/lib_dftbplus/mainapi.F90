@@ -15,7 +15,7 @@ module dftbp_mainapi
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
       & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
       & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot, tStress,&
-      & totalStress
+      & totalStress, cellVol
   use dftbp_assert
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_message, only : error
@@ -25,6 +25,7 @@ module dftbp_mainapi
   public :: initProgramVariables, destructProgramVariables
   public :: setGeometry, setQDepExtPotProxy, setExternalPotential, setExternalCharges
   public :: getEnergy, getGradients, getExtChargeGradients, getGrossCharges, getStressTensor
+  public :: getEnergyParts, getVirial    
   public :: nrOfAtoms
 
 contains
@@ -64,6 +65,21 @@ contains
 
   end subroutine getEnergy
 
+  subroutine getEnergyParts(env, merminEnergy, repulsiveEnergy, electronicEnergy)
+    !> Instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> Resulting energy
+    real(dp), intent(out) :: merminEnergy
+    real(dp), intent(out) :: repulsiveEnergy
+    real(dp), intent(out) :: electronicEnergy        
+
+    call recalcGeometry(env)
+    merminEnergy = energy%EMermin
+    repulsiveEnergy = energy%Erep
+    electronicEnergy = energy%Eelec
+
+  end subroutine getEnergyParts
 
   !> get forces on atoms
   subroutine getGradients(env, gradients)
@@ -104,6 +120,18 @@ contains
 
   end subroutine getStressTensor
 
+   subroutine getVirial(env, virial)
+
+    !> instance
+    type(TEnvironment), intent(inout) :: env
+
+    !> resulting gradients wrt atom positions
+    real(dp), intent(out) :: virial(:,:)
+
+    call recalcGeometry(env)
+    virial(:,:) = totalStress*CellVol
+
+  end subroutine getVirial
 
   !> get the gross (Mulliken projected) charges for atoms wrt neutral atoms
   subroutine getGrossCharges(env, atomCharges)
