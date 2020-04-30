@@ -67,10 +67,14 @@ module dftbp_mmapi
     procedure :: setQDepExtPotGen => TDftbPlus_setQDepExtPotGen
     !> obtain the DFTB+ energy
     procedure :: getEnergy => TDftbPlus_getEnergy
+    !> obtain the DFTB+ energy parts repulisve and electronic    
+    procedure :: getEnergyParts => TDftbPlus_getEnergyParts       
     !> obtain the DFTB+ gradients
     procedure :: getGradients => TDftbPlus_getGradients
     !> obtain the DFTB+ stress tensor
     procedure :: getStressTensor => TDftbPlus_getStressTensor
+    !> obtain the DFTB+ Virial tensor
+    procedure :: getVirial => TDftbPlus_getVirial    
     !> obtain the gradients of the external charges
     procedure :: getExtChargeGradients => TDftbPlus_getExtChargeGradients
     !> get the gross (Mulliken) DFTB+ charges

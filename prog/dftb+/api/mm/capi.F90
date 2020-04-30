@@ -263,6 +263,21 @@ contains
 
   end subroutine c_DftbPlus_getEnergy
 
+  subroutine c_DftbPlus_getEnergyParts(handler, merminEnergy, repulsiveEnergy, electronicEnergy) bind(C, name='dftbp_get_energyparts')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> resulting energy
+    real(c_double), intent(out) :: merminEnergy
+    real(c_double), intent(out) :: repulsiveEnergy
+    real(c_double), intent(out) :: electronicEnergy    
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    call instance%getEnergyParts(merminEnergy,repulsiveEnergy,electronicEnergy)
+  end subroutine c_DftbPlus_getEnergyParts
 
   !> Obtain the gradients wrt DFTB atom positions
   subroutine c_DftbPlus_getGradients(handler, gradients) bind(C, name='dftbp_get_gradients')
@@ -301,7 +316,23 @@ contains
 
   end subroutine c_DftbPlus_getStressTensor
 
+  subroutine c_DftbPlus_getVirial(handler, virial) &
+       bind(C, name='dftbp_get_virial')
 
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> virial, row major format
+    real(c_double), intent(out) :: virial(3, 3)
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+    
+    call instance%getVirial(virial(:,:))
+
+  end subroutine c_DftbPlus_getVirial
+  
   !> Obtain gross (Mulliken) charges for atoms wrt to neutral references
   subroutine c_DftbPlus_getGrossCharges(handler, atomCharges)&
       & bind(C, name='dftbp_get_gross_charges')
