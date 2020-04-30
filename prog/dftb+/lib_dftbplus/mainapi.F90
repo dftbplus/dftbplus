@@ -14,8 +14,8 @@ module dftbp_mainapi
   use dftbp_main, only : processGeometry
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
       & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
-      & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot, tStress,&
-      & totalStress
+      & nAtom, nSpin, q0, qOutput, dQAtomEx, sccCalc, isLinResp, tExtChrg, tForces, chrgForces,&
+      & qDepExtPot, tStress, totalStress
   use dftbp_assert
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_message, only : error
@@ -116,6 +116,11 @@ contains
 
     call recalcGeometry(env)
     atomCharges(:) = sum(q0(:, :, 1) - qOutput(:, :, 1), dim=1)
+
+    !> Pass to the charges of the excited state if relevant
+    if (isLinResp) then
+      atomCharges(:) = atomCharges(:) + dQAtomEx(:)
+    end if
 
   end subroutine getGrossCharges
 

@@ -30,7 +30,7 @@ module dftbp_linrespgrad
   implicit none
   private
 
-  public :: LinRespGrad_old
+  public :: LinRespGrad_old, writeSPExcitations, calcTransitionDipoles, getExcSpin, writeExcMulliken
 
 
   !> Tolerance for ARPACK solver.
@@ -79,8 +79,8 @@ contains
       & img2CentCell, orb, tWriteTagged, fdTagged, taggedWriter, fdMulliken, fdCoeffs, tGrndState,&
       & fdXplusY, fdTrans, fdSPTrans, fdTradip, tArnoldi, fdArnoldi, fdArnoldiDiagnosis, fdExc, &
       & tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow, tCacheCharges, omega,&
-      & allOmega, onsMEs, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, occNatural,&
-      & naturalOrbs)
+      & allOmega, onsMEs, shift, skHamCont, skOverCont, excgrad, derivator, rhoSqr, dqex,&
+      & occNatural, naturalOrbs)
 
     !> spin polarized calculation
     logical, intent(in) :: tSpin
@@ -227,6 +227,9 @@ contains
     !> ground state square density matrix
     real(dp), intent(in), optional :: rhoSqr(:,:,:)
 
+    !> excited state Mulliken atomic charges
+    real(dp), intent(out), optional :: dqex(:)
+
     !> Occupation numbers for natural orbitals from the excited state density matrix
     real(dp), intent(out), optional :: occNatural(:)
 
@@ -236,7 +239,7 @@ contains
     real(dp) :: Ssq(nexc)
     real(dp), allocatable :: gammaMat(:,:), snglPartTransDip(:,:)
     real(dp), allocatable :: stimc(:,:,:), wij(:)
-    real(dp), allocatable :: dqex(:), sposz(:), osz(:), xpy(:), xmy(:), pc(:,:)
+    real(dp), allocatable :: sposz(:), osz(:), xpy(:), xmy(:), pc(:,:)
     real(dp), allocatable :: t(:,:), rhs(:), woo(:), wvv(:), wov(:)
     real(dp), allocatable :: evec(:,:), eval(:), transitionDipoles(:,:)
     integer, allocatable :: win(:), getij(:,:)
@@ -622,7 +625,6 @@ contains
 
       ! Arrays for gradients and Mulliken analysis
       if (tZVector) then
-        ALLOCATE(dqex(natom))
         ALLOCATE(pc(norb, norb))
       end if
 
