@@ -12,6 +12,7 @@ Module bulkpot
   
  use dftbp_accuracy, only : dp
  use dftbp_constants
+ use dftbp_globalenv, only : stdOut
  use gallocation
  use parameters
  use structure
@@ -71,15 +72,15 @@ contains
    type(super_array) :: SA
 
    if (id0) then
-     write(*,*) SA%a,SA%b,SA%c
-     write(*,*) SA%dla,SA%dlb,SA%dlc
-     write(*,*) 'size',SA%ibsize
-     write(*,*) 'iparm',SA%iparm
-     write(*,*) 'fparm',SA%fparm
-     write(*,*) 'natm_PL',SA%natm_PL
-     write(*,*) 'L_PL',SA%L_PL  
-     write(*,*) 'rhs',size(SA%rhs)
-     write(*,*) 'val',size(SA%val)
+     write(stdOut,*) SA%a,SA%b,SA%c
+     write(stdOut,*) SA%dla,SA%dlb,SA%dlc
+     write(stdOut,*) 'size',SA%ibsize
+     write(stdOut,*) 'iparm',SA%iparm
+     write(stdOut,*) 'fparm',SA%fparm
+     write(stdOut,*) 'natm_PL',SA%natm_PL
+     write(stdOut,*) 'L_PL',SA%L_PL
+     write(stdOut,*) 'rhs',size(SA%rhs)
+     write(stdOut,*) 'val',size(SA%val)
    endif
 
  end subroutine write_super_array
@@ -271,7 +272,7 @@ contains
    
    call log_gallocate(phi_bulk(m)%rhs,na,nb,nc)
    
-   !write(*,*) '%LOC rhs=',%LOC(phi_bulk(m)%rhs)
+   !write(stdOut,*) '%LOC rhs=',%LOC(phi_bulk(m)%rhs)
    cont_mem = na*nb*nc          
    
    cont_mem = cont_mem+na*nb*nc 
@@ -282,13 +283,13 @@ contains
    
    phi_bulk(m)%val(1:na,1:nb,1:nc)=0.d0
    
-   !write(*,*) '%LOC val=',%LOC(phi_bulk(m)%val)
+   !write(stdOut,*) '%LOC val=',%LOC(phi_bulk(m)%val)
    
    !if(id0.and.verbose.gt.80) then
-   !   write(*,*) 'Bulk Potential Contact #',m,nstart,nlast
-   !   write(*,*) 'N(a)=',phi_bulk(m)%iparm(14),'dla=',phi_bulk(m)%dla*Bohr__AA
-   !   write(*,*) 'N(b)=',phi_bulk(m)%iparm(15),'dlb=',phi_bulk(m)%dlb*Bohr__AA
-   !   write(*,*) 'N(c)=',phi_bulk(m)%iparm(16),'dlc=',phi_bulk(m)%dlc*Bohr__AA
+   !   write(stdOut,*) 'Bulk Potential Contact #',m,nstart,nlast
+   !   write(stdOut,*) 'N(a)=',phi_bulk(m)%iparm(14),'dla=',phi_bulk(m)%dla*Bohr__AA
+   !   write(stdOut,*) 'N(b)=',phi_bulk(m)%iparm(15),'dlb=',phi_bulk(m)%dlb*Bohr__AA
+   !   write(stdOut,*) 'N(c)=',phi_bulk(m)%iparm(16),'dlc=',phi_bulk(m)%dlc*Bohr__AA
    !endif
 
   enddo
@@ -342,7 +343,7 @@ Subroutine readbulk_pot(phi_bulk, iErr)
     if (a.ne.phi_bulk(m)%iparm(14) .or. &
       b.ne.phi_bulk(m)%iparm(15) .or. &
       c.ne.phi_bulk(m)%iparm(16)) then
-      if(id0) write(*,*) 'Warning: incompatible BulkPot: will be recomputed'   
+      if(id0) write(stdOut,*) 'Warning: incompatible BulkPot: will be recomputed'
       ReadBulk = .false.
       close(fp)
       return
@@ -394,8 +395,8 @@ Subroutine compbulk_pot_ewald(phi_bulk,m)
   ! set tolerance for convergence
   tol = 1.0d-5
 
-  !write(*,*) " " 
-  !write(*,*) 'BULK-POTENTIAL CPU =', id            
+  !write(stdOut,*) " "
+  !write(stdOut,*) 'BULK-POTENTIAL CPU =', id
 
   ! Ewald sum initialization 
   ! get reciprocal lattice vectors and cell volume   
@@ -583,21 +584,21 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
     phi_bulk(m)%fparm(7) = PoissAcc      ! Desired accuracy
 
     !if(id0.and.verbose.gt.80) then
-    !   write(*,*)
-    !   write(*,*) 'Bulk potential, contact',m
+    !   write(stdOut,*)
+    !   write(stdOut,*) 'Bulk potential, contact',m
     !   if (phi_bulk(m)%doEwald) then
-    !       write(*,*) 'BC = all periodic solved with Ewalds on two planes'  
+    !       write(stdOut,*) 'BC = all periodic solved with Ewalds on two planes'
     !   endif  
-    !   write(*,*) 'X(a)=',phi_bulk(m)%fparm(1)*Bohr__AA,phi_bulk(m)%fparm(2)*Bohr__AA, &
+    !   write(stdOut,*) 'X(a)=',phi_bulk(m)%fparm(1)*Bohr__AA,phi_bulk(m)%fparm(2)*Bohr__AA, &
     !   &   boundary2string(phi_bulk(m)%iparm(2)), boundary2string(phi_bulk(m)%iparm(3))
-    !   write(*,*) 'X(b)=',phi_bulk(m)%fparm(3)*Bohr__AA,phi_bulk(m)%fparm(4)*Bohr__AA, &
+    !   write(stdOut,*) 'X(b)=',phi_bulk(m)%fparm(3)*Bohr__AA,phi_bulk(m)%fparm(4)*Bohr__AA, &
     !   &   boundary2string(phi_bulk(m)%iparm(4)), boundary2string(phi_bulk(m)%iparm(5))
-    !   write(*,*) 'X(c)=',phi_bulk(m)%fparm(5)*Bohr__AA,phi_bulk(m)%fparm(6)*Bohr__AA, &
+    !   write(stdOut,*) 'X(c)=',phi_bulk(m)%fparm(5)*Bohr__AA,phi_bulk(m)%fparm(6)*Bohr__AA, &
     !   &   boundary2string(phi_bulk(m)%iparm(6)), boundary2string(phi_bulk(m)%iparm(7))
-    !   write(*,*) 'L(c)=',phi_bulk(m)%L_PL*Bohr__AA
-    !   write(*,*) 'na=',phi_bulk(m)%iparm(14)
-    !   write(*,*) 'nb=',phi_bulk(m)%iparm(15)
-    !   write(*,*) 'nc=',phi_bulk(m)%iparm(16)
+    !   write(stdOut,*) 'L(c)=',phi_bulk(m)%L_PL*Bohr__AA
+    !   write(stdOut,*) 'na=',phi_bulk(m)%iparm(14)
+    !   write(stdOut,*) 'nb=',phi_bulk(m)%iparm(15)
+    !   write(stdOut,*) 'nc=',phi_bulk(m)%iparm(16)
     !endif
 
     ! call Ewald sums to set Dirichlet BC on two faces
