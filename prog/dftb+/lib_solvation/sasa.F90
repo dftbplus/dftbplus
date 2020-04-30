@@ -22,7 +22,7 @@ module dftbp_sasa
   implicit none
   private
 
-  public :: TSASACont, TSASAInput, init
+  public :: TSASACont, TSASAInput, TSASACont_init
 
 
   !> Input parameters to initialize the solvent accessible surface area model
@@ -144,17 +144,11 @@ module dftbp_sasa
   end type TSASACont
 
 
-  !> Initialize solvent accessible surface area model from input data
-  interface init
-    module procedure :: initialize
-  end interface init
-
-
 contains
 
 
   !> Initialize solvent accessible surface area model from input data
-  subroutine initialize(self, input, nAtom, species0, speciesNames, latVecs)
+  subroutine TSASACont_init(self, input, nAtom, species0, speciesNames, latVecs)
 
     !> Initialised instance at return
     type(TSASACont), intent(out) :: self
@@ -214,7 +208,7 @@ contains
     self%tCoordsUpdated = .false.
     self%tChargesUpdated = .false.
 
-  end subroutine initialize
+  end subroutine TSASACont_init
 
 
   !> Get parameters for smooth numerical integration

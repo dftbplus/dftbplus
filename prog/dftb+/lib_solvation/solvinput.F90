@@ -11,7 +11,7 @@
 module dftbp_solvinput
   use dftbp_accuracy, only : dp
   use dftbp_born, only : TGeneralizedBorn, TGBInput, init
-  use dftbp_sasa, only : TSASACont, TSASAInput, init
+  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init
   use dftbp_solvation, only : TSolvation
   implicit none
   private
@@ -112,7 +112,7 @@ contains
 
     allocate(model)
 
-    call init(model, input, nAtom, species0, speciesNames, latVecs)
+    call TSASACont_init(model, input, nAtom, species0, speciesNames, latVecs)
 
     call move_alloc(model, solvation)
 
