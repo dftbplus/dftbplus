@@ -1,0 +1,85 @@
+Geometry = GenFormat {
+<<< "h-sheet.gen"
+}
+
+Transport {
+    Device {
+      AtomRange = 1 48 
+      FirstLayerAtoms = 1 9 17 25 33 41
+    }
+    Contact {
+      Id = "Source"
+      AtomRange = 49  64
+      FermiLevel [eV] = -4.4504575
+      Potential [eV] = 0.0
+    }
+    Contact {
+      Id = "Drain"
+      AtomRange = 65  80
+      FermiLevel [eV] = -4.4504575
+      Potential [eV] = 1.0
+    }
+    ReadBinaryContact = No
+}
+
+Hamiltonian = dftb {
+  SCC = yes 
+  SCCTolerance = 1e-6
+  MaxSccIterations = 100 
+  MaxAngularMomentum = {
+    H = s
+  }
+
+  Filling = Fermi {
+    Temperature [K] = 0
+  }
+
+  KPointsAndWeights =  SupercellFolding {
+   1 0 0
+   0 16 0 
+   0 0 1 
+   0.0 0.50 0.0
+  }
+
+  Electrostatics = Poisson {
+    MinimalGrid [Angstrom] = 0.3 0.2 0.3
+    AtomDensityCutoff [Angstrom] = 2.000
+    SavePotential = Yes 
+    PoissonAccuracy = 1e-7
+    BuildBulkPotential = No
+  }
+
+  slaterkosterfiles = {
+    H-H = "H-H-noS.skf"
+  }
+
+  Solver = GreensFunction{
+     Verbosity = 51   
+     ContourPoints = 50 50 
+     RealAxisPoints = 100
+     LowestEnergy [eV] = -60.0
+  }
+
+}
+
+Analysis{
+  TunnelingAndDOS{
+    EnergyRange [eV] = 5.0  0.0
+    EnergyStep [eV] = 0.5 
+  }
+}
+
+Options = {
+  WriteAutoTestTag = yes 
+}
+
+Parallel = {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+  Groups = 8
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}

@@ -1,17 +1,17 @@
 !**************************************************************************
-!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
+!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
 !                                                                         *
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
 #:include "common.fypp"
+#:include "error.fypp"
 
 module poisson
 
-  use gconstants, only : Pi
-  use gprecision
-  use gallocation  
+  use dftbp_constants, only : pi, hartree__eV, Bohr__AA
+  use gallocation
   use parameters
   use structure
   use parcheck                
@@ -20,18 +20,20 @@ module poisson
   use gclock
   use fancybc
   use mpi_poisson
-  use std_io 
+  use std_io
+  use dftbp_accuracy, only : lc, dp
   implicit none
   private
-  
-  integer, PARAMETER :: VBT=30
+
+  !> Verbosity threashold
+  integer, parameter :: VBT=30
 
   ! from parameters
   public :: MAXNCONT
   public :: verbose, biasdir, gatedir, contdir, ncont, ni, nf
   public :: iatc, iatm, ncdim, mbound_end, maxiter, localBC, poissBC
   public :: overrideBC, overrBulkBC, maxpoissiter
-  public :: hartree, a_u, Temp, telec, deltaR_max, LmbMax, gate
+  public :: Temp, telec, deltaR_max, LmbMax, gate
   public :: GateLength_l, GateLength_t, OxLength, Efermi
   public :: bias_dEf, Rmin_Ins, Rmin_Gate, dr_eps
   public :: eps_r, cntr_gate, tip_atom, base_atom1, base_atom2, tipbias
@@ -99,8 +101,8 @@ module poisson
    if(allocated(lmax)) call log_gdeallocate(lmax)
    if(allocated(renorm)) call log_gdeallocate(renorm)
    if (id0) then
-     call writePeakInfo(6)
-     call writeMemInfo(6)
+     call writePoissPeakInfo(stdOut)
+     call writePoissMemInfo(stdOut)
    endif
    
  end subroutine poiss_freepoisson
@@ -154,6 +156,7 @@ module poisson
   real(kind=dp) :: bound(MAXNCONT) 
   real(kind=dp) :: tmp,Lx, xmax, xmin 
   integer :: tmpdir(3)
+  character, parameter :: dir(3) = ['x', 'y', 'z']
 
   if (present(iErr)) then
     iErr = 0
@@ -196,26 +199,18 @@ module poisson
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) + bufferBox
        else
-         write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
-         if (present(iErr)) then
-           iErr = -1
-         else
-           stop
-         end if
-       end if  
+         @:FORMATTED_ERROR_HANDLING(iErr, -1, "(A,I0)",&
+             & "Device and contact atoms overlap at contact", m)
+       end if
      else                          
        xmin = minval(x(f,iatm(1):iatm(2)))
        xmax = maxval(x(f,iatc(3,m):iatc(2,m)))
        if (xmin > xmax) then
          bound(m) = 0.5_dp * (xmax + xmin) - bufferBox
        else
-         write(stdOut,*) 'ERROR: device and contact atoms overlap at contact',m
-         if (present(iErr)) then
-           iErr = -1
-         else
-           stop
-         end if
-       end if  
+         @:FORMATTED_ERROR_HANDLING(iErr, -2, "(A,I0)",&
+             & "Device and contact atoms overlap at contact", m)
+       end if
      end if
   end do
 
@@ -233,12 +228,7 @@ module poisson
            tmpdir(f)=1
         endif
         if (contdir(m).eq.contdir(s).and.bound(s).ne.bound(m)) then
-           write(stdOut,*) 'ERROR: contacts in the same direction must be aligned'
-           if (present(iErr)) then
-             iErr = -2
-           else
-             stop
-           end if
+          @:ERROR_HANDLING(iErr, -3, 'Contacts in the same direction must be aligned')
         endif
      enddo
      ! Adjust PoissonBox if there are no facing contacts
@@ -298,16 +288,9 @@ module poisson
   ! Checking Poisson Box
   !---- ---------------------------
   do i=1,3  
-     if(PoissBox(i,i).le.0.d0) then
-        write(stdOut,*) "----------------------------------------------------"
-        write(stdOut,*) "ERROR: PoissBox negative !                          "
-        write(stdOut,*) "----------------------------------------------------"
-        if (present(iErr)) then
-          iErr = -3
-        else
-          stop
-        end if
-     end if
+    if(PoissBox(i,i) .le. 0.0_dp) then
+      @:FORMATTED_ERROR_HANDLING(iErr, -4, '(A,A)', 'PoissBox negative along ', dir(i))
+    end if
   enddo
 
 
@@ -317,14 +300,7 @@ module poisson
   if (DoGate) then
      biasdir = abs(contdir(1))
      if (((PoissBox(gatedir,gatedir))/2.d0).le.Rmin_Gate) then
-        write(stdOut,*) "----------------------------------------------------"
-        write(stdOut,*) "WARNING: Gate Distance too large!                   "
-        write(stdOut,*) "----------------------------------------------------"
-        if (present(iErr)) then
-          iErr = -4
-        else
-          stop
-        end if
+       @:ERROR_HANDLING(iErr, -5, 'Gate Distance too large')
      end if
   endif
   
@@ -333,14 +309,7 @@ module poisson
      biasdir = abs(contdir(1))
 
      if (abs(bound(2)-bound(1)).le.(OxLength+dr_eps)) then
-        write(stdOut,*) "------------------------------------------"
-        write(stdOut,*) "Gate insulator is longer than Poisson box!"
-        write(stdOut,*) "------------------------------------------"
-        if (present(iErr)) then
-          iErr = -5
-        else
-          stop
-        end if
+       @:ERROR_HANDLING(iErr, -6, 'Gate insulator is longer than Poisson box!')
      end if
      
      do i = 1,3
@@ -348,16 +317,9 @@ module poisson
           cycle
         end if
         if (((PoissBox(i,i))/2.d0).le.Rmin_Gate) then
-           write(stdOut,*) "----------------------------------------------------"
-           write(stdOut,*) "Gate transversal section is bigger than Poisson box!"
-           write(stdOut,*) "----------------------------------------------------"
-           if (present(iErr)) then
-             iErr = -6
-           else
-             stop
-           end if
+          @:ERROR_HANDLING(iErr, -7, 'Gate transversal section is bigger than Poisson box!')
         end if
-     end do
+      end do
   end if
 
   !---------------------------------------
@@ -370,22 +332,26 @@ module poisson
   end if
 
  end subroutine init_poissbox
-! -----------------------------------------------------------------------------------
-! -----------------------------------------------------------------------------------  
-subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
-!**********************************************************************
-! This subroutine is a driver for the mudpack (c) solver (see mud3.f) *
-!                                                                     *
-!**********************************************************************
+!> This subroutine is a driver for the mudpack (c) solver (see mud3.f) *
+subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
 
- integer :: SCC_in                         !Control flag:
+  !> Control flag:
+  integer, intent(in) :: SCC_in
+
+  !> Outputs of subroutine "shift_Ham"
+  real(kind=dp), intent(inout) :: V_L_atm(:,:)
+
+  !> Output of subroutine "grad_V"
+  real(kind=dp), intent(out) :: grad_V(:,:)
+
+  !> Error return
+  integer, intent(out), optional :: iErr
+
  integer, parameter :: GetPOT=0            !potential in SCC
  integer, parameter :: GetGRAD=1           !atomic shift component of gradient
  integer, parameter :: SavePOT=2           !SAVE CHR AND POTENTIAL 
  integer, parameter :: CLEAN=3             !DEALLOCATE PHI AND WORK
- real(kind=dp), dimension(:,:) :: V_L_atm  !Outputs of subroutine "shift_Ham"
- real(kind=dp), dimension(:,:) :: grad_V   !Output of subroutine "grad_V" 
 
 !Internal variables
 
@@ -404,11 +370,15 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
  integer :: isx, jsy, ksz
  integer, save :: niter = 1
- 
+
  integer :: na,nb,nc, cont_mem
  character(10) :: bndtype 
  character(50) :: BCinfo
  !e.g.: tmpdir (1) = 0 if there aren't two or more contacts in the same "x direction"
+
+ if (present(iErr)) then
+   iErr = 0
+ end if
 
  iparm = 0
 
@@ -466,20 +436,20 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
     if (niter.eq.1.and.verbose.gt.30) then
        write(stdOut,'(73("-"))')
        write(stdOut,*) "Poisson Box internally adjusted:"
-       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' x range=',PoissBounds(1,1)*a_u,&
-            PoissBounds(1,2)*a_u,'; Periodic:',period_dir(1) 
-       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' y range=',PoissBounds(2,1)*a_u,&
-            PoissBounds(2,2)*a_u,'; Periodic:',period_dir(2)
-       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' z range=',PoissBounds(3,1)*a_u,&
-            PoissBounds(3,2)*a_u,'; Periodic:',period_dir(3)
+       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' x range=',PoissBounds(1,1)*Bohr__AA,&
+            PoissBounds(1,2)*Bohr__AA,'; Periodic:',period_dir(1)
+       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' y range=',PoissBounds(2,1)*Bohr__AA,&
+            PoissBounds(2,2)*Bohr__AA,'; Periodic:',period_dir(2)
+       write(stdOut,'(a,f12.5,f12.5,a11,l3)') ' z range=',PoissBounds(3,1)*Bohr__AA,&
+            PoissBounds(3,2)*Bohr__AA,'; Periodic:',period_dir(3)
 
        write(stdOut,*) 'Mesh details:' 
-       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lx=',PoissBox(1,1)*a_u,& 
-            '  nx=',iparm(14),'   dlx=',dlx*a_u
-       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Ly=',PoissBox(2,2)*a_u,& 
-            '  ny=',iparm(15),'   dly=',dly*a_u
-       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lz=',PoissBox(3,3)*a_u,&
-            '  nz=',iparm(16),'   dlz=',dlz*a_u
+       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lx=',PoissBox(1,1)*Bohr__AA,&
+            '  nx=',iparm(14),'   dlx=',dlx*Bohr__AA
+       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Ly=',PoissBox(2,2)*Bohr__AA,&
+            '  ny=',iparm(15),'   dly=',dly*Bohr__AA
+       write(stdOut,'(a,f10.3,a,i4,a,f9.5)') ' Lz=',PoissBox(3,3)*Bohr__AA,&
+            '  nz=',iparm(16),'   dlz=',dlz*Bohr__AA
        write(stdOut,'(73("-"))')
     endif
 
@@ -804,9 +774,7 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
 
         if (err.ne.0.and.err.ne.9) then
           if(err.gt.0) then
-             write(stdOut,*) 
-             write(stdOut,*) 'Fatal Error in poisson solver:',err
-             stop          
+            @:FORMATTED_ERROR_HANDLING(iErr, err, "(A,I0)", 'Fatal Error in poisson solver:', err)
           end if
         end if
         if (err.eq.9) then
@@ -835,9 +803,9 @@ subroutine mudpack_drv(SCC_in,V_L_atm,grad_V)
       end if   
 
       if (err.eq.-1 .or. ncycles.eq.iparm(18)) then
-        write(stdOut,*) 'ERROR: convergence not obtained'
-        stop
+        @:ERROR_HANDLING(iErr, -1, 'Convergence in Poisson solver not obtained')
       end if
+
     end if
 
     !--------------------------------------------
@@ -900,7 +868,7 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
   ! index in rhs(:,:,:), therefore gather is done on a contiguus vector
   !
   !---------------------------------------------------------------------
-  integer :: i, ierr, npid, iparm_tmp(23)
+  integer :: i, npid, iparm_tmp(23)
   real(kind=dp) :: fparm_tmp(8)
   real(kind=dp), ALLOCATABLE, DIMENSION (:,:,:) :: rhs_par
   integer, ALLOCATABLE, DIMENSION (:) :: istart,iend,dim_rhs
@@ -1019,7 +987,7 @@ subroutine renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed)
   integer :: ragx, ragy, ragz, npx, npy, npz
 
   real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
-  integer :: imin(3),imax(3), ii, jj, kk, l, nsh, ierr
+  integer :: imin(3),imax(3), ii, jj, kk, l, nsh
   real(kind=dp), allocatable, dimension(:,:) :: tau
   ! Perform almost the same operations of charge_density, estimates
   ! for each atom the renormalization factors (inverse of exponential
@@ -1130,7 +1098,7 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
  integer :: ragx, ragy, ragz, npx, npy, npz
 
  real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
- integer :: imin(3),imax(3), ii, jj, kk, l, nsh, ierr
+ integer :: imin(3),imax(3), ii, jj, kk, l, nsh
  real(kind=dp), allocatable, dimension(:,:) :: tau, vol
 
  rhs(:,:,:)=0.d0
@@ -1305,8 +1273,7 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
   real(dp) :: dl(3), xmin(3), xmax(3), xhlp(3), dla, dlb, dlc
   integer :: imin(3), imax(3), n_cell(3), ii, jj, kk, rag(3)
   integer :: ncx,ncy,ncz, npx, npy, npz, nsh,l
-  integer :: ierr
-  integer, dimension(:), allocatable :: istart, iend, displ, dims 
+  integer, dimension(:), allocatable :: istart, iend, displ, dims
  
   dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
  
@@ -1591,17 +1558,17 @@ subroutine save_pot_cube(iparm,fparm,dlx,dly,dlz,phi,rhs)
     open(newunit=fp,file='potential.cube')
     write(fp,*) 'CUBE'
     write(fp,*) 'x, y, z'
-    write(fp,'(i4,3f17.8)') 1,or(1)*a_u,or(2)*a_u,or(3)*a_u
-    write(fp,'(i4,3f17.8)') nx,dlx*a_u,0.0,0.0
-    write(fp,'(i4,3f17.8)') ny,0.0,dly*a_u,0.0
-    write(fp,'(i4,3f17.8)') nz,0.0,0.0,dlz*a_u
+    write(fp,'(i4,3f17.8)') 1,or(1)*Bohr__AA,or(2)*Bohr__AA,or(3)*Bohr__AA
+    write(fp,'(i4,3f17.8)') nx,dlx*Bohr__AA,0.0,0.0
+    write(fp,'(i4,3f17.8)') ny,0.0,dly*Bohr__AA,0.0
+    write(fp,'(i4,3f17.8)') nz,0.0,0.0,dlz*Bohr__AA
     ! write a dummy atom
     write(fp,'(i1,4f12.5)') 1,0.0,0.0,0.0,0.0
 
     do i=1,nx
       do j=1,ny
         do k=1,nz
-          write(fp,'(E17.8)',advance='NO') phi(i,j,k)*hartree
+          write(fp,'(E17.8)',advance='NO') phi(i,j,k)*hartree__eV
           if (mod(k-1,6) .eq. 5) write(fp,*)
         end do
         write(fp,*)
@@ -1611,10 +1578,10 @@ subroutine save_pot_cube(iparm,fparm,dlx,dly,dlz,phi,rhs)
     open(newunit=fp,file='charge_density.cube')
     write(fp,*) 'CUBE'
     write(fp,*) 'x, y, z'
-    write(fp,'(i4,3f12.5)') 1,or(1)*a_u,or(2)*a_u,or(3)*a_u
-    write(fp,'(i4,3f12.5)') nx,dlx*a_u,0.0,0.0
-    write(fp,'(i4,3f12.5)') ny,0.0,dly*a_u,0.0
-    write(fp,'(i4,3f12.5)') nz,0.0,0.0,dlz*a_u
+    write(fp,'(i4,3f12.5)') 1,or(1)*Bohr__AA,or(2)*Bohr__AA,or(3)*Bohr__AA
+    write(fp,'(i4,3f12.5)') nx,dlx*Bohr__AA,0.0,0.0
+    write(fp,'(i4,3f12.5)') ny,0.0,dly*Bohr__AA,0.0
+    write(fp,'(i4,3f12.5)') nz,0.0,0.0,dlz*Bohr__AA
     ! write a dummy atom
     write(fp,'(i1,4f12.5)') 1,0.0,0.0,0.0,0.0
 
@@ -1661,7 +1628,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      open(newunit=fp,file='Xvector.dat')
      do i = 1,iparm(14)  
         xi = fparm(1) + (i - 1)*dlx
-        xi = xi*a_u
+        xi = xi*Bohr__AA
         write(fp,'(E17.8)',ADVANCE='NO') xi 
      end do
      close(fp)
@@ -1669,7 +1636,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      open(newunit=fp,file='Yvector.dat')
      do j = 1,iparm(15)
         yj = fparm(3) + (j - 1)*dly  
-        yj = yj*a_u
+        yj = yj*Bohr__AA
         write(fp,'(E17.8)',ADVANCE='NO') yj
      end do
      close(fp)
@@ -1677,7 +1644,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      open(newunit=fp,file='Zvector.dat')
      do k = 1,iparm(16)  
         zk = fparm(5) + (k - 1)*dlz
-        zk = zk*a_u
+        zk = zk*Bohr__AA
         write(fp,'(E17.8)',ADVANCE='NO') zk 
      end do
      close(fp)
@@ -1686,7 +1653,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      do i = 1,iparm(14)  
         do j = 1,iparm(15)
            do k = 1,iparm(16)
-              write(fp,'(E17.8)') phi(i,j,k)*hartree
+              write(fp,'(E17.8)') phi(i,j,k)*hartree__eV
            end do
         end do
      end do
@@ -1718,8 +1685,8 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
         yj = fparm(3) + (j - 1)*dly 
         do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp,'(E17.8,E17.8,E17.8)') yj*a_u, zk*a_u, phi(nx_fix&
-               &,j,k)*hartree
+           write(fp,'(E17.8,E17.8,E17.8)') yj*Bohr__AA, zk*Bohr__AA, phi(nx_fix&
+               &,j,k)*hartree__eV
            
          end do
        end do
@@ -1730,7 +1697,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
          yj = fparm(3) + (j - 1)*dly 
          do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp,'(E17.8,E17.8,E17.8)') yj*a_u, zk*a_u, rhs(nx_fix&
+           write(fp,'(E17.8,E17.8,E17.8)') yj*Bohr__AA, zk*Bohr__AA, rhs(nx_fix&
                &,j,k)/(-4.0*4.0*atan(1.d0))
            
          end do
@@ -1748,7 +1715,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
          xi = fparm(1) + (i - 1)*dlx  
          do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, zk*a_u, phi(i,ny_fix,k)*hartree
+           write(fp,'(E17.8,E17.8,E17.8)') xi*Bohr__AA, zk*Bohr__AA, phi(i,ny_fix,k)*hartree__eV
          end do
        end do
        close(fp)
@@ -1758,7 +1725,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
          xi = fparm(1) + (i - 1)*dlx  
          do k = 1,iparm(16)
            zk = fparm(5) + (k - 1)*dlz
-           write(fp,'(E17.8,E17.8,E17.8)')  xi*a_u, zk*a_u, rhs(i&
+           write(fp,'(E17.8,E17.8,E17.8)')  xi*Bohr__AA, zk*Bohr__AA, rhs(i&
                &,ny_fix,k)/(-4.0*4.0*atan(1.d0))
            
          end do
@@ -1776,8 +1743,8 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
          xi = fparm(1) + (i - 1)*dlx  
          do j = 1,iparm(15)
            yj = fparm(3) + (j - 1)*dly
-           write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, yj*a_u, phi(i,j&
-               &,nz_fix)*hartree
+           write(fp,'(E17.8,E17.8,E17.8)') xi*Bohr__AA, yj*Bohr__AA, phi(i,j&
+               &,nz_fix)*hartree__eV
            
          end do
        end do
@@ -1788,7 +1755,7 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
          xi = fparm(1) + (i - 1)*dlx  
          do j = 1,iparm(15)
            yj = fparm(3) + (j - 1)*dly
-           write(fp,'(E17.8,E17.8,E17.8)') xi*a_u, yj*a_u, rhs(i,j&
+           write(fp,'(E17.8,E17.8,E17.8)') xi*Bohr__AA, yj*Bohr__AA, rhs(i,j&
                &,nz_fix)/(-4.0*4.0*atan(1.d0))
            
          end do
@@ -1813,10 +1780,10 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
      z_max_ox = cntr_gate(biasdir) + OxLength/2.d0  
      open(newunit=fp,file='gate.dat')
      write(fp,'(i2)') biasdir
-     write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
-     write(fp,'(E17.8,E17.8)') z_min_ox*a_u,z_max_ox*a_u
-     write(fp,'(E17.8,E17.8)') Rmin_Gate*a_u,Rmin_Ins*a_u             
-     write(fp,'(E17.8,E17.8)') cntr_gate(1)*a_u,cntr_gate(2)*a_u,cntr_gate(3)*a_u 
+     write(fp,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
+     write(fp,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     write(fp,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
+     write(fp,'(E17.8,E17.8)') cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
      close(fp)
    end if
 
@@ -1826,20 +1793,20 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 
      z_min_gate = cntr_gate(biasdir) - GateLength_l/2.d0  
      z_max_gate = cntr_gate(biasdir) + GateLength_l/2.d0
-     write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
+     write(fp,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
      
      do i=1,3
        if (i.ne.gatedir .and. i.ne.biasdir) exit
      enddo
      z_min_gate = cntr_gate(i) - GateLength_t/2.d0  
      z_max_gate = cntr_gate(i) + GateLength_t/2.d0
-     write(fp,'(E17.8,E17.8)') z_min_gate*a_u,z_max_gate*a_u
+     write(fp,'(E17.8,E17.8)') z_min_gate*Bohr__AA,z_max_gate*Bohr__AA
      
      z_min_ox = cntr_gate(gatedir) - OxLength/2.d0  
      z_max_ox = cntr_gate(gatedir) + OxLength/2.d0  
-     write(fp,'(E17.8,E17.8)') z_min_ox*a_u,z_max_ox*a_u
-     write(fp,'(E17.8,E17.8)') Rmin_Gate*a_u,Rmin_Ins*a_u             
-     write(fp,'(E17.8,E17.8)') cntr_gate(1)*a_u,cntr_gate(2)*a_u,cntr_gate(3)*a_u 
+     write(fp,'(E17.8,E17.8)') z_min_ox*Bohr__AA,z_max_ox*Bohr__AA
+     write(fp,'(E17.8,E17.8)') Rmin_Gate*Bohr__AA,Rmin_Ins*Bohr__AA
+     write(fp,'(E17.8,E17.8)') cntr_gate(1)*Bohr__AA,cntr_gate(2)*Bohr__AA,cntr_gate(3)*Bohr__AA
      close(fp)
    end if
      

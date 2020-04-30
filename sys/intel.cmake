@@ -11,6 +11,7 @@
 # Fortran compiler settings
 #
 if(WITH_MPI)
+  # Depending on your MPI environment, your Fortran compiler wrapper may be called "mpiifort"
   set(CMAKE_Fortran_COMPILER "mpifort" CACHE STRING "Fortran compiler")
 else()
   set(CMAKE_Fortran_COMPILER "ifort" CACHE STRING "Fortran compiler")
@@ -74,6 +75,16 @@ set(ELSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING
 set(PEXSI_EXTERNAL_LIBRARIES "" CACHE STRING
   "Any EXTERNAL libraries PEXSI needs apart of its own libraries")
 set(PEXSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING "Directories with PEXSI external libraries")
+
+# PLUMED -- only needed when compiled with PLUMED support
+set(PLUMED_LIBRARIES "plumed;plumedKernel" CACHE STRING "Libraries to link for PLUMED support")
+set(PLUMED_LIBRARY_DIRS "" CACHE STRING "Directories to scan for PLUMED libraries")
+
+# MAGMA -- only needed when compiled with GPU support
+set(MAGMA_LIBRARIES "magma" CACHE STRING "Magma library")
+set(MAGMA_LIBRARY_DIRS "" CACHE STRING "Directories to scan for MAGMA library")
+set(MAGMA_INCLUDE_DIRS "/opt/magma/include" CACHE STRING
+  "Directories to scan for MAGMA include files")
 
 # Any other library needed to be linked or considered as include
 set(OTHER_LIBRARIES "" CACHE STRING "Other libraries to link")

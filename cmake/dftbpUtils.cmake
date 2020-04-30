@@ -60,6 +60,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_DFTD3)
   endif()
 
+  if(WITH_PLUMED)
+    list(APPEND _fyppflags -DWITH_PLUMED)
+  endif()
+
   if(WITH_MPI)
     list(APPEND _fyppflags -DWITH_MPI -DWITH_SCALAPACK)
   endif()
@@ -162,7 +166,7 @@ endfunction()
 function (dftbp_ensure_config_consistency)
 
   if(WITH_ELSI AND NOT WITH_MPI)
-    message(FATAL_ERROR "Buliding with ELSI requires MPI-parallel build enabled")
+    message(FATAL_ERROR "Building with ELSI requires MPI-parallel build enabled")
   endif()
 
   if(WITH_PEXSI AND (NOT WITH_MPI OR NOT WITH_ELSI))
@@ -171,6 +175,10 @@ function (dftbp_ensure_config_consistency)
 
   if(WITH_ARPACK AND WITH_MPI)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
+  endif()
+
+  if(WITH_GPU AND WITH_MPI)
+    message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
   endif()
 
   string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)

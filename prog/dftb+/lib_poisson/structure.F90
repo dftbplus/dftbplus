@@ -7,7 +7,7 @@
 !**************************************************************************
 module structure
 
-  use gprecision
+  use dftbp_accuracy, only : dp
   use gallocation
   use mpi_poisson
    
@@ -30,7 +30,7 @@ module structure
   real(dp), public, allocatable, save :: uhubb(:,:)    !(NORB,MAXTYP)
   
   
-  real(kind=dp),  public, save :: boxsiz(3,3), xinvbox(3,3), xnullvec(3)
+  real(kind=dp),  public, save :: boxsiz(3,3), xnullvec(3)
   logical,  public, save :: period
   logical,  public, save :: period_dir(3)
   
@@ -43,9 +43,9 @@ module structure
   real(kind=dp), public, allocatable :: renorm(:,:)
 
 
-  public :: find_ntypes, buildsupercell, inversebox
-  public :: shortvertice, difback
-  public :: coordback, gamma_summind
+  public :: find_ntypes, buildsupercell
+  public :: shortvertice
+  public :: gamma_summind
   public :: init_structure, init_charges, init_skdata
 
   contains
@@ -97,11 +97,9 @@ module structure
          endif
          if(boxsiz(i,i)<0.d0) boxsiz(i,:)=-boxsiz(i,:)
       enddo
-  
-      call inversebox()
-    
+
       period=st_isperiodic
-  
+
       call log_gallocate(x,3,natoms)
       x(1:3,1:natoms)=st_x0(1:3,1:natoms)
   
@@ -226,33 +224,7 @@ module structure
     
   end subroutine find_ntypes
 
-  ! ------------------------------------------------------------
-  ! Calculate the inverse matrix (xinvbox) of the basis (boxsiz)
-  ! ------------------------------------------------------------
-  subroutine inversebox
 
-    real(dp) :: xhlp
-
-    xhlp=-boxsiz(1,3)*boxsiz(2,2)*boxsiz(3,1)+boxsiz(1,2)*boxsiz(2,3)*boxsiz(3,1)
-    xhlp=xhlp+boxsiz(1,3)*boxsiz(2,1)*boxsiz(3,2)
-    xhlp=xhlp-boxsiz(1,1)*boxsiz(2,3)*boxsiz(3,2)
-    xhlp=xhlp-boxsiz(1,2)*boxsiz(2,1)*boxsiz(3,3)
-    xhlp=xhlp+boxsiz(1,1)*boxsiz(2,2)*boxsiz(3,3)
-    
-    xinvbox(1,1)=(-boxsiz(2,3)*boxsiz(3,2)+boxsiz(2,2)*boxsiz(3,3))/xhlp
-    xinvbox(2,1)=(boxsiz(2,3)*boxsiz(3,1)-boxsiz(2,1)*boxsiz(3,3))/xhlp
-    xinvbox(3,1)=(-boxsiz(2,2)*boxsiz(3,1)+boxsiz(2,1)*boxsiz(3,2))/xhlp
-    
-    xinvbox(1,2)=(boxsiz(1,3)*boxsiz(3,2)-boxsiz(1,2)*boxsiz(3,3))/xhlp
-    xinvbox(2,2)=(-boxsiz(1,3)*boxsiz(3,1)+boxsiz(1,1)*boxsiz(3,3))/xhlp
-    xinvbox(3,2)=(boxsiz(1,2)*boxsiz(3,1)-boxsiz(1,1)*boxsiz(3,2))/xhlp
-    
-    xinvbox(1,3)=(-boxsiz(1,3)*boxsiz(2,2)+boxsiz(1,2)*boxsiz(2,3))/xhlp
-    xinvbox(2,3)=(boxsiz(1,3)*boxsiz(2,1)-boxsiz(1,1)*boxsiz(2,3))/xhlp
-    xinvbox(3,3)=(-boxsiz(1,2)*boxsiz(2,1)+boxsiz(1,1)*boxsiz(2,2))/xhlp
-
-  end subroutine inversebox
-  
   ! ----------------------------------------------------------------------
   ! find the lenght of the shortest vertex in your supercell 
   ! ---------------------------------------------------------------------
@@ -277,60 +249,6 @@ module structure
 
   end function shortvertice 
 
-  ! ------------------------------------------------------
-  ! Put a difference vector back into supercell
-  ! ------------------------------------------------------
-
-  subroutine difback(dif)
-
-     implicit REAL(dp) (A-H,O-Z)
-     real(dp) dif(3)
-     real(dp) xx1,xy1,xz1
-     
-     xx1=dif(1)*xinvbox(1,1)+dif(2)*xinvbox(2,1)+dif(3)*xinvbox(3,1)
-     xy1=dif(1)*xinvbox(1,2)+dif(2)*xinvbox(2,2)+dif(3)*xinvbox(3,2)
-     xz1=dif(1)*xinvbox(1,3)+dif(2)*xinvbox(2,3)+dif(3)*xinvbox(3,3)
-     
-     if(xx1>0.5) xx1=xx1-1.d0
-     if(xx1<-0.5) xx1=xx1+1.d0
-     if(xy1>0.5) xy1=xy1-1.d0
-     if(xy1<-0.5) xy1=xy1+1.d0
-     if(xz1>0.5) xz1=xz1-1.d0
-     if(xz1<-0.5) xz1=xz1+1.d0    
-     
-     dif(1)=xx1*boxsiz(1,1)+xy1*boxsiz(2,1)+xz1*boxsiz(3,1)
-     dif(2)=xx1*boxsiz(1,2)+xy1*boxsiz(2,2)+xz1*boxsiz(3,2)
-     dif(3)=xx1*boxsiz(1,3)+xy1*boxsiz(2,3)+xz1*boxsiz(3,3)
-
-   end subroutine difback
-
-   !
-   ! Put Atom at (x,y,z) back into supercell
-   !
-   subroutine coordback(xx,yy,zz)
-     
-     implicit REAL(dp) (A-H,O-Z)
-     real(dp) xx,yy,zz
-     real(dp) xx1,xy1,xz1
-
-     xnullvec = 0.0_dp
-
-     xx1=(xx-xnullvec(1))*xinvbox(1,1)+(yy-xnullvec(2))*xinvbox(2,1)+(zz-xnullvec(3))*xinvbox(3,1)
-     xy1=(xx-xnullvec(1))*xinvbox(1,2)+(yy-xnullvec(2))*xinvbox(2,2)+(zz-xnullvec(3))*xinvbox(3,2)
-     xz1=(xx-xnullvec(1))*xinvbox(1,3)+(yy-xnullvec(2))*xinvbox(2,3)+(zz-xnullvec(3))*xinvbox(3,3)
-     
-     if(xx1>0.5) xx1=xx1-1.d0
-     if(xx1<-0.5) xx1=xx1+1.d0
-     if(xy1>0.5) xy1=xy1-1.d0
-     if(xy1<-0.5) xy1=xy1+1.d0
-     if(xz1>0.5) xz1=xz1-1.d0
-     if(xz1<-0.5) xz1=xz1+1.d0
-     
-     xx=xx1*boxsiz(1,1)+xy1*boxsiz(2,1)+xz1*boxsiz(3,1)+xnullvec(1)
-     yy=xx1*boxsiz(1,2)+xy1*boxsiz(2,2)+xz1*boxsiz(3,2)+xnullvec(2)
-     zz=xx1*boxsiz(1,3)+xy1*boxsiz(2,3)+xz1*boxsiz(3,3)+xnullvec(3)
- 
-   end subroutine coordback
 
    !
    !get the three summation limits for the matrix construction in

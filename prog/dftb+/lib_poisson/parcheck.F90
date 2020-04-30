@@ -1,13 +1,18 @@
 !**************************************************************************
-!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *  
+!  Copyright (c) 2004 by Univ. Rome 'Tor Vergata'. All rights reserved.   *
 !  Authors: A. Pecchia, L. Latessa, A. Di Carlo                           *
 !                                                                         *
 !  Permission is hereby granted to use, copy or redistribute this program * 
 !  under the LGPL licence.                                                *
 !**************************************************************************
+
+#:include "error.fypp"
+
 module parcheck
 
-  use gprecision
+  use dftbp_accuracy, only : lc, dp
+  use dftbp_constants
+  use dftbp_message, only : warning
   use parameters
   use structure, only : natoms, x, boxsiz, period, period_dir
   use mpi_poisson, only : id0, numprocs
@@ -19,25 +24,33 @@ private
  public :: check_poisson_box, check_contacts, check_localbc
  public :: check_parameters, write_parameters, check_biasdir
 
+ !> Verbosity threashold
+ integer, parameter :: VBT=30
+
 contains
  ! ---------------------------------------------------------------------------
  ! Perform parameters checks
  ! ---------------------------------------------------------------------------
- subroutine check_poisson_box()
+ subroutine check_poisson_box(iErr)
+
+   integer, intent(out), optional :: iErr
 
    integer i
-   
+
+   if (present(iErr)) then
+     iErr = 0
+   end if
 
    if(period) then
-      !cheks that the latt vect are directed along x,y,z
+      !checks that the latt vect are directed along x,y,z
       !if (boxsiz(1,2).ne.0.d0 .or. boxsiz(1,3).ne. 0.d0 .or. boxsiz(2,3).ne. 0.d0) then
-      !   stop 'ERROR: Supercell box is not compatible with Poisson solver'
+      !   call error('ERROR: Supercell box is not compatible with Poisson solver')
       !end if   
       !
       if (.not.FoundBox) then
          PoissBox(:,:)=boxsiz(:,:)
-         if (verbose > 30) then
-            write(stdOut,*) 'Box for Poisson not Found: Set equal to supercell box' 
+         if (verbose > VBT) then
+            call warning('Box for Poisson not Found: Setting equal to supercell box')
             do i=1,3
                write(stdOut,'(a,i1,a,f20.10)') " L(",i,")",boxsiz(i,i)
             end do
@@ -51,16 +64,16 @@ contains
       end if
    else
       if (.not.FoundBox) then
-         if (verbose > 30) then
-            write(stdOut,*) 'Box for Poisson not Found'
-         end if
-         stop 'ERROR: No way to build box for Poisson'
+        if (verbose > VBT) then
+          call warning('Box for Poisson not Found')
+        end if
+        @:ERROR_HANDLING(iErr, -1, 'No way to build box for Poisson')
       end if
    end if
 
 
    !if(period.and.DoGate) then
-   !   if (verbose > 30) then
+   !   if (verbose > VBT) then
    !      if (id0) write(stdOut,*) 'Periodic system is not compatible with Gate'
    !      if (id0) write(stdOut,*) 'Periodicity set to F'
    !   end if
@@ -70,9 +83,15 @@ contains
  end subroutine check_poisson_box
 
  
- subroutine check_biasdir()
-  
+ subroutine check_biasdir(iErr)
+
+   integer, intent(out), optional :: iErr
+
    integer i,m
+
+   if (present(iErr)) then
+     iErr = 0
+   end if
 
    if (.not.cluster) then
      !-OLD Bias,BiasDir compatibility -----------------
@@ -81,16 +100,13 @@ contains
        !if(mu(nf(1)).eq.0.d0) mu(nf(1))=bias
        if (contdir(1).ne.contdir(2)) then
          if (localBC(1).eq.0) then
-           write(stdOut,*) 'ERROR: local BC should be used when &
-               & contacts are in different directions'
-           stop        
+           @:ERROR_HANDLING(iErr, -1,&
+               & 'Local BC should be used when contacts are in different directions')
          endif
          if(DoCilGate) then
-           write(stdOut,*) 'ERROR: contacts must be in the same &
-               & direction when using cylindrical gate'
-           stop
+           @:ERROR_HANDLING(iErr, -2,&
+               & 'Contacts must be in the same direction when using cylindrical gate')
          endif
-
        end if
      endif
 
@@ -121,17 +137,13 @@ contains
    end if
    
    if (period_dir(3) .and. numprocs>1) then
-     write(stdOut,*) 'ERROR: periodicity along z is incompatible with &
-                & grid parallelization strategy'
-     stop
+     @:ERROR_HANDLING(iErr, -3,&
+         & 'Periodicity along z is incompatible with grid parallelization strategy')
    end if
 
  end subroutine check_biasdir
 
  subroutine check_parameters()
-
-   use gconstants, only : pi, Kb
-
 
    if(OxLength.lt.GateLength_l) OxLength=GateLength_l
    if(Rmin_ins.lt.Rmin_gate) Rmin_ins=Rmin_gate
@@ -152,15 +164,15 @@ contains
    if (id0.and.verbose.gt.40) then
       
       !if (DoTransport.or.DoGreenDens) then
-      !   write(stdOut,*) 'Conversion factor Ang/a.u.',a_u
-      !   write(stdOut,*) 'Conversion factor eV/a.u.',hartree
-      !   write(stdOut,*) "Delta for Green's function=",delta*hartree 
+      !   write(stdOut,*) 'Conversion factor Ang/a.u.',Bohr__AA
+      !   write(stdOut,*) 'Conversion factor eV/a.u.',hartree__eV
+      !   write(stdOut,*) "Delta for Green's function=",delta*hartree__eV
       !end if
  
       !if (DoGreenDens) then
       !   write(stdOut,*) 'Contour integration parameters:'
       !   write(stdOut,'(a4,4(i4))') 'Np=',Np(1),Np(2),Np(3)
-      !   write(stdOut,*) 'nPoles=',nPoles,' LmbMax=',LmbMax*hartree
+      !   write(stdOut,*) 'nPoles=',nPoles,' LmbMax=',LmbMax*hartree__eV
       !   write(stdOut,*) 'N_omega=',N_omega
       !   write(stdOut,*) "ReadOld Surface Green=",Readold
       !end if 
@@ -170,8 +182,8 @@ contains
       !endif
 
       if (DoPoisson) then
-         write(stdOut,'(a,3(f10.4),a)') ' Input PoissonBox=',PoissBox(1,1)*a_u,PoissBox(2,2)*a_u,&
-              PoissBox(3,3)*a_u, '  A'
+        write(stdOut,'(a,3(f10.4),a)') ' Input PoissonBox=',PoissBox(1,1)*Bohr__AA,&
+            & PoissBox(2,2)*Bohr__AA, PoissBox(3,3)*Bohr__AA, '  A'
          write(stdOut,*) 'PoissAcc=',PoissAcc
          if(initPot) then
             write(stdOut,*) 'Bulk Boundary Potential:    Yes'
@@ -179,30 +191,30 @@ contains
             write(stdOut,*) 'Bulk Boundary Potential:    No'
          endif
    
-         write(stdOut,*) 'Atomic cutoff radius=', deltaR_max*a_u,'A'
+         write(stdOut,*) 'Atomic cutoff radius=', deltaR_max*Bohr__AA,'A'
          
          if (DoGate) then
             write(stdOut,*) 'Gate: Planar'
-            write(stdOut,*) 'Gate bias=',gate*hartree,'V'
-            write(stdOut,*) 'Gate length l=',GateLength_l*a_u,'A'
-            write(stdOut,*) 'Gate length t=',GateLength_t*a_u,'A'
-            write(stdOut,*) 'Gate distance=',Rmin_Gate*a_u,'A'           
+            write(stdOut,*) 'Gate bias=',gate*hartree__eV,'V'
+            write(stdOut,*) 'Gate length l=',GateLength_l*Bohr__AA,'A'
+            write(stdOut,*) 'Gate length t=',GateLength_t*Bohr__AA,'A'
+            write(stdOut,*) 'Gate distance=',Rmin_Gate*Bohr__AA,'A'
          endif
          if (DoCilGate) then
             write(stdOut,*) 'Gate: Cylindrical'
-            write(stdOut,*) 'Gate bias=',gate*hartree,'V'
-            write(stdOut,*) 'Gate length=',GateLength_l*a_u,'A'
-            write(stdOut,*) 'Oxide length=',OxLength*a_u,'A'
-            write(stdOut,*) 'Inner gate radius=',Rmin_Gate*a_u,'A'
-            write(stdOut,*) 'Inner oxide radius=',Rmin_Ins*a_u,'A'    
+            write(stdOut,*) 'Gate bias=',gate*hartree__eV,'V'
+            write(stdOut,*) 'Gate length=',GateLength_l*Bohr__AA,'A'
+            write(stdOut,*) 'Oxide length=',OxLength*Bohr__AA,'A'
+            write(stdOut,*) 'Inner gate radius=',Rmin_Gate*Bohr__AA,'A'
+            write(stdOut,*) 'Inner oxide radius=',Rmin_Ins*Bohr__AA,'A'
             write(stdOut,*) 'Dielectric constant of gate insulator=',eps_r
-            write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*a_u)
+            write(stdOut,*) 'Smoothing of eps_r=',(eps_r-1.d0)/(dr_eps*Bohr__AA)
          end if
          if (any(localBC.gt.0)) then
             do i=1,ncont
                if (localBC(i).eq.1) write(stdOut,*) 'Local Boundary Conditions= Circular'
                if (localBC(i).eq.2) write(stdOut,*) 'Local Boundary Conditions= Squared'
-               write(stdOut,'(a9,i2,a2,f8.3,a1)') ' dR_cont(',i,')=',dR_cont(i)*a_u,'A'
+               write(stdOut,'(a9,i2,a2,f8.3,a1)') ' dR_cont(',i,')=',dR_cont(i)*Bohr__AA,'A'
             enddo
          endif
          write(stdOut,*)
@@ -283,14 +295,21 @@ contains
       write(stdOut,*) 'has been disregarded !'
       write(stdOut,*)
    endif
-   
 
  end subroutine check_localbc
-   !--- WRITE INFOS ABOUT THE CONTACT STRUCTURES ---------------
- subroutine check_contacts()
+
+
+ !--- WRITE INFOS ABOUT THE CONTACT STRUCTURES ---------------
+ subroutine check_contacts(iErr)
+
+   integer, intent(out), optional :: iErr
 
    integer i,ncdim_max
-    
+
+   if (present(iErr)) then
+     iErr = 0
+   end if
+
    if(cluster) then
       if (id0) then
           write(stdOut,'(1x,a)',advance='NO') 'System Type: UNCONTACTED '
@@ -335,8 +354,8 @@ contains
          write(stdOut,'(a,I3)') 'CONTACT #',i
          write(stdOut,'(1x,a,2I6)') 'Atom start - end = ',iatc(3,i), iatc(2,i)
          write(stdOut,'(1x,a,I3)') 'direction:',contdir(i)
-         write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree,'eV'
-         write(stdOut,*) 'mu=',mu(i)*hartree,'V'
+         write(stdOut,*) 'Fermi Level=',Efermi(i)*hartree__eV,'eV'
+         write(stdOut,*) 'mu=',mu(i)*hartree__eV,'V'
          write(stdOut,*) 
 
       end do !ncont
@@ -347,31 +366,27 @@ contains
 
    !-----CHECK IF SYSTEM STRUCTURE IS CONSISTENT-------!
    if (.not.cluster) then
-      do i=1,ncont
-         if (iatc(1,i).lt.iatm(2)) then 
-            write(stdOut,*) 'ERROR: The contacts MUST be defined after the scattering region'
-            stop
-         endif
-      enddo
+     do i=1,ncont
+       if (iatc(1,i).lt.iatm(2)) then
+         @:ERROR_HANDLING(iErr, -1,&
+             & 'The contacts MUST be defined after the scattering region')
+       end if
+     enddo
    endif
    if ((iatm(2)-iatm(1)+1).gt.natoms) then
-      write(stdOut,*) 'ERROR: The number of atoms in the scattering region is higer'
-      write(stdOut,*) '       than the total number of atoms'
-      stop
+     @:ERROR_HANDLING(iErr, -2, 'The number of atoms in the scattering region is higer than&
+         & the total number of atoms')
    endif
    if (DoGate) then
-      if (gatedir.ne.2) then 
-         write(stdOut,*) "ERROR: gate direction must be along y"
-         stop
-      endif
-      if(any(abs(contdir(:)).eq.gatedir)) then
-         write(stdOut,*) "ERROR: gate direction along contacts!?"
-         stop
-      endif
+     if (gatedir.ne.2) then
+       @:ERROR_HANDLING(iErr, -3, 'Gate direction must be along y')
+     end if
+     if(any(abs(contdir(:)).eq.gatedir)) then
+       @:ERROR_HANDLING(iErr, -4, 'Gate direction along contacts!?')
+     end if
    endif
-
-   !    Checks if the number of mouvable atoms is set correctly
 
  end subroutine check_contacts
 
- end module parcheck
+
+end module parcheck

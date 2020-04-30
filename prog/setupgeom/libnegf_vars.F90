@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -119,7 +119,7 @@ module libnegf_vars
     !> collector contact(s)
     integer, allocatable  :: nf(:)
 
-    type(WrappedInt1), allocatable :: dosOrbitals(:)
+    type(TWrappedInt1), allocatable :: dosOrbitals(:)
 
     character(lc), allocatable :: dosLabels(:)
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -30,7 +30,7 @@ module dftbp_initmodes
 
 
   !> program version
-  character(len=*), parameter :: version =  "0.02"
+  character(len=*), parameter :: version =  "0.03"
 
   !> root node name of the input tree
   character(len=*), parameter :: rootTag = "modes"
@@ -120,14 +120,14 @@ contains
     type(TOldSKData) :: skData
     type(fnode), pointer :: input, root, node, tmp
     type(fnode), pointer :: value, child, child2
-    type(listRealR1) :: realBuffer
+    type(TListRealR1) :: realBuffer
     type(string) :: buffer, buffer2
-    type(listString) :: lStr
+    type(TListString) :: lStr
     integer :: inputVersion
     integer :: ii, iSp1, iAt
     logical :: tHSD
-    real(dp), allocatable :: speciesMass(:)
-    type(listCharLc), allocatable :: skFiles(:)
+    real(dp), allocatable :: speciesMass(:), replacementMasses(:)
+    type(TListCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
     logical :: tWriteXML, tWriteHSD ! XML or HSD output?
@@ -253,6 +253,8 @@ contains
       call destruct(skFiles(iSp1))
     end do
 
+    call getInputMasses(root, geo, replacementMasses)
+
     allocate(dynMatrix(nDerivs,nDerivs))
     call getChildValue(root, "Hessian", value, "", child=child, &
         & allowEmptyValue=.true.)
@@ -297,6 +299,13 @@ contains
     do iAt = 1, nMovedAtom
       atomicMasses(iAt) = speciesMass(geo%species(iMovedAtoms(iAt)))
     end do
+    if (allocated(replacementMasses)) then
+      do iAt = 1, nMovedAtom
+        if (replacementMasses(iMovedAtoms(iAt)) >= 0.0_dp) then
+          atomicMasses(iAt) = replacementMasses(iMovedAtoms(iAt))
+        end if
+      end do
+    end if
 
   end subroutine initProgramVariables
 
@@ -320,10 +329,69 @@ contains
       call readTGeometryGen(child, geo)
       call removeChildNodes(geonode)
       call writeTGeometryHSD(geonode, geo)
+    case ("xyzformat")
+      call readTGeometryXyz(child, geo)
+      call removeChildNodes(geonode)
+      call writeTGeometryHSD(geonode, geo)
+    case ("vaspformat")
+      call readTGeometryVasp(child, geo)
+      call removeChildNodes(geonode)
+      call writeTGeometryHSD(geonode, geo)
     case default
       call readTGeometryHSD(geonode, geo)
     end select
 
   end subroutine readGeometry
+
+
+  !> Reads atomic masses from input file, overwriting those from the SK files
+  subroutine getInputMasses(node, geo, masses)
+
+    !> relevant node of input data
+    type(fnode), pointer :: node
+
+    !> geometry object, which contains atomic species information
+    type(TGeometry), intent(in) :: geo
+
+    !> masses to be returned
+    real(dp), allocatable, intent(out) :: masses(:)
+
+    type(fnode), pointer :: child, child2, child3, val
+    type(fnodeList), pointer :: children
+    integer, allocatable :: pTmpI1(:)
+    type(string) :: buffer, modifier
+    real(dp) :: rTmp
+    integer :: ii, jj, iAt
+
+    call getChildValue(node, "Masses", val, "", child=child, allowEmptyValue=.true.,&
+        & dummyValue=.true., list=.true.)
+
+    ! Read individual atom specifications
+    call getChildren(child, "Mass", children)
+    if (getLength(children) == 0) then
+      return
+    end if
+
+    allocate(masses(geo%nAtom))
+    masses(:) = -1.0_dp
+    do ii = 1, getLength(children)
+      call getItem1(children, ii, child2)
+      call getChildValue(child2, "Atoms", buffer, child=child3, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child3, pTmpI1)
+      call getChildValue(child2, "MassPerAtom", rTmp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), massUnits, child, rTmp)
+      do jj = 1, size(pTmpI1)
+        iAt = pTmpI1(jj)
+        if (masses(iAt) >= 0.0_dp) then
+          call detailedWarning(child3, "Previous setting for the mass  of atom" // i2c(iAt) //&
+              & " overwritten")
+        end if
+        masses(iAt) = rTmp
+      end do
+      deallocate(pTmpI1)
+    end do
+    call destroyNodeList(children)
+
+  end subroutine getInputMasses
 
 end module dftbp_initmodes

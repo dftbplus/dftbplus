@@ -3,10 +3,12 @@ set(curdir "lib_common")
 set(sources-fpp
   ${curdir}/accuracy.F90
   ${curdir}/assert.F90
+  ${curdir}/atomicrad.F90
   ${curdir}/constants.F90
   ${curdir}/environment.F90
   ${curdir}/fileregistry.F90
   ${curdir}/globalenv.F90
+  ${curdir}/hamiltoniantypes.F90
   ${curdir}/memman.F90
   ${curdir}/optarg.F90
   ${curdir}/schedule.F90
