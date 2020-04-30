@@ -6,7 +6,7 @@ Driver {}
 
 Hamiltonian = DFTB {
   Solvation = SASA { # GFN1-xTB/GBSA(Toluene)
-    ProbeRad [AA] = 1.59772343
+    ProbeRadius [AA] = 1.59772343
     Smoothing [AA] = 0.3
     Offset [AA] = 2
     AngularGrid = 230

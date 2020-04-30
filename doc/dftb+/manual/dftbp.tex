@@ -3185,7 +3185,7 @@ To use the non-polar surface area model in an calculation use the
 This model is currently only available for finite systems.
 
 \begin{ptable}
-  \kw{ProbeRad} & r & & & \\
+  \kw{ProbeRadius} & r & & & \\
   \kw{Smoothing} & r & & 0.3 AA & \\
   \kw{Offset} & r & & 2.0 AA & \\ 
   \kw{Tolerance} & r & & 1.0e-6 & \\ 
@@ -3195,7 +3195,7 @@ This model is currently only available for finite systems.
 \end{ptable}
 
 \begin{description}
-  \item[\is{ProbeRad}] \modif{\modtype{length}}
+  \item[\is{ProbeRadius}] \modif{\modtype{length}}
     Radius of the probe sphere used to determine the accessible surface area.
 
   \item[\is{Smoothing}] \modif{\modtype{length}}
@@ -3235,7 +3235,7 @@ This model is currently only available for finite systems.
 \begin{verbatim}
 Hamiltonian = DFTB {
   Solvation = SASA { # GFN1-xTB/GBSA(Toluene)
-    ProbeRad [AA] = 1.59772343
+    ProbeRadius [AA] = 1.59772343
     Smoothing [AA] = 0.3
     Offset [AA] = 2
     AngularGrid = 230

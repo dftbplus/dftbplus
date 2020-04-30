@@ -3737,7 +3737,7 @@ contains
       call detailedError(node, "SASA model currently not available with PBCs")
     end if
 
-    call getChildValue(node, "ProbeRad", input%probeRad, modifier=modifier, child=field)
+    call getChildValue(node, "ProbeRadius", input%probeRad, modifier=modifier, child=field)
     call convertByMul(char(modifier), lengthUnits, field, input%probeRad)
 
     call getChildValue(node, "Smoothing", input%smoothingPar, 0.3_dp*AA__Bohr, &
