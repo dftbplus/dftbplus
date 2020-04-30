@@ -31,6 +31,8 @@ Added
 
 - Generalized Born implicit solvation model
 
+- Particle-particle random-phase approximation available for suitable excitation calculations
+
 Changed
 -------
 
