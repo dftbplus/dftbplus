@@ -14,13 +14,21 @@ module dftbp_specieslist
   use dftbp_hsdutils, only : getChildValue, getChild
   use dftbp_xmlf90, only : fnode
   implicit none
+  private
 
+  public :: readSpeciesList
+
+
+  !> Generic wrapper for species specific data
   interface readSpeciesList
     module procedure :: readSpeciesListReal
   end interface readSpeciesList
 
+
 contains
 
+
+  !> Read a list of real valued species data
   subroutine readSpeciesListReal(node, speciesNames, array, default, conv)
 
     !> Node to process
