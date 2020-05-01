@@ -1991,7 +1991,7 @@ contains
           ! Potentials for non-existing angular momenta must be 0 for later summations
           shellPot(:,:,1) = 0.0_dp
         end if
-        call poiss_updcharges(qInput(:,:,1), q0(:,:,1))
+        call poiss_updcharges(env, qInput(:,:,1), q0(:,:,1))
         call poiss_getshift(env, shellPot(:,:,1))
         if (.not.allocated(shellPotBk)) then
           allocate(shellPotBk(orb%mShell, nAtom))

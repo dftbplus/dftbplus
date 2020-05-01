@@ -18,7 +18,7 @@ module poisson_init
   use libmpifx_module
 #:endif
   use poisson
-  use dftbp_environment, only : TEnvironment
+  use dftbp_environment, only : TEnvironment, globalTimers
   use libnegf_vars, only : TTransPar
   use system_calls, only: create_directory
   implicit none
@@ -422,6 +422,7 @@ contains
       PoissFlag=1
     end if
 
+    call env%globalTimer%startTimer(globalTimers%poisson)
     if (active_id) then
 
       select case(PoissFlag)
@@ -459,11 +460,16 @@ contains
     call mpifx_barrier(global_comm)
   #:endif
 
+    call env%globalTimer%stopTimer(globalTimers%poisson)
+
   end subroutine poiss_getshift
 
 
   !> Interface subroutine to overload Mulliken charges stored in libPoisson
-  subroutine poiss_updcharges(q,q0)
+  subroutine poiss_updcharges(env, q, q0)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> populations
     real(dp), intent(in) :: q(:,:)
@@ -474,6 +480,7 @@ contains
     integer :: nsh, l, i, o, orb
     real(dp) :: Qtmp
 
+    call env%globalTimer%startTimer(globalTimers%poisson)
     if (active_id) then
 
       if (size(q, dim=2).ne.natoms) then
@@ -495,6 +502,7 @@ contains
       enddo
 
     endif
+    call env%globalTimer%stopTimer(globalTimers%poisson)
 
   end subroutine poiss_updcharges
 

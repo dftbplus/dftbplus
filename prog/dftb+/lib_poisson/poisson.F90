@@ -119,7 +119,9 @@ module poisson
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
    integer :: PoissFlag, ndim
- 
+
+   call env%globalTimer%startTimer(globalTimers%poisson)
+
    if (active_id) then
  
      if(.not.SavePot) return
@@ -132,6 +134,8 @@ module poisson
    
    endif
 
+   call env%globalTimer%stopTimer(globalTimers%poisson)
+
  end subroutine poiss_savepotential
   
  !------------------------------------------------------------------------------
@@ -142,6 +146,7 @@ module poisson
      x = x0
      do_renorm = .true.
    endif
+
  end subroutine poiss_updcoords
 
  ! -----------------------------------------------------------------------------
