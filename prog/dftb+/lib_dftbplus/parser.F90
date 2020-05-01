@@ -12,6 +12,7 @@ module dftbp_parser
   use dftbp_globalenv
   use dftbp_assert
   use dftbp_accuracy
+  use dftbp_bisect, only : bisection
   use dftbp_constants
   use dftbp_inputdata
   use dftbp_typegeometryhsd
@@ -3729,6 +3730,7 @@ contains
 
     type(string) :: buffer, modifier
     type(fnode), pointer :: child, value1, value2, field, child2, dummy
+    character(lc) :: errorStr
     integer :: iSp, ii, gridPoints
     real(dp) :: conv
     real(dp), allocatable :: vdwRadDefault(:)
@@ -3748,13 +3750,15 @@ contains
 
     call getChildValue(node, "AngularGrid", gridPoints, 230, child=child)
     input%gridSize = 0
-    do ii = 1, size(gridSize)
-      if (gridPoints == gridSize(ii)) then
-        input%gridSize = ii
-      end if
-    end do
+    call bisection(input%gridSize, gridSize, gridPoints)
     if (input%gridSize == 0) then
       call detailedError(child, "Illegal number of grid points for numerical integration")
+    end if
+    if (gridSize(input%gridSize) /= gridPoints) then
+      write(errorStr, '(a, *(1x, i0, 1x, a))') &
+          & "No angular integration grid with", gridPoints, &
+          & "points available, using",  gridSize(input%gridSize), "points instead"
+      call detailedWarning(child, trim(errorStr))
     end if
 
     conv = 1.0_dp
