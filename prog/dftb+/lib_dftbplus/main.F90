@@ -63,7 +63,9 @@ module dftbp_main
   use dftbp_pmlocalisation, only : TPipekMezey
   use dftbp_linresp
   use dftbp_pprpa, only : ppRPAenergies
+#:if WITH_ARPACK
   use dftbp_RS_LinearResponse
+#:endif
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : TDispersionIface
@@ -4628,10 +4630,14 @@ contains
      !    & energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
       ! WITH FORCES
       excitedDerivs = 0.0_dp
+    #:if WITH_ARPACK
       call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
            & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU, neighbourList%iNeighbour,&
            & img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest, taggedWriter,& ! ons_en, ons_dip,
            & energy%Eexcited, skHamCont, skOverCont, nonSccDeriv, deltaRhoOutSqr(:,:,1), excitedDerivs, dQAtomEx)
+    #:else
+      call error("Should not be here - compiled without ARPACK")
+    #:endif
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
             & img2CentCell, pSpecies0, speciesName, orb, over, parallelKS, tPrintExcEigvecsTxt,&
@@ -4642,10 +4648,14 @@ contains
      !    & sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
      !    & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
       ! NO FORCES
+    #:if WITH_ARPACK
       call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
            & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU, neighbourList%iNeighbour,&
            & img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest, taggedWriter,& ! ons_en, ons_dip,
            & energy%Eexcited)
+    #:else
+      call error("Should not be here - compiled without ARPACK")
+    #:endif
     end if
 
     energy%Etotal = energy%Etotal + energy%Eexcited
