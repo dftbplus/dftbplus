@@ -12,6 +12,7 @@ module dftbp_parser
   use dftbp_globalenv
   use dftbp_assert
   use dftbp_accuracy
+  use dftbp_bisect, only : bisection
   use dftbp_constants
   use dftbp_inputdata
   use dftbp_typegeometryhsd
@@ -64,8 +65,10 @@ module dftbp_parser
   use dftbp_born, only : TGBInput
   use dftbp_borndata, only : getVanDerWaalsRadiusD3
   use dftbp_cm5, only : TCM5Input
+  use dftbp_sasa, only : TSASAInput
   use dftbp_solvinput, only : TSolvationInp
   use dftbp_solventdata, only : TSolventData, SolventFromName
+  use dftbp_lebedev, only : gridSize
   implicit none
   private
 
@@ -3566,6 +3569,9 @@ contains
     case ("generalizedborn")
       allocate(input%GBInp)
       call readSolvGB(solvModel, geo, input%GBInp)
+    case ("sasa")
+      allocate(input%SASAInp)
+      call readSolvSASA(solvModel, geo, input%SASAInp)
     end select
   end subroutine readSolvation
 
@@ -3709,6 +3715,99 @@ contains
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
 
   end subroutine readSolvGB
+
+
+  subroutine readSolvSASA(node, geo, input)
+
+    !> Node to process
+    type(fnode), pointer :: node
+
+    !> Geometry of the current system
+    type(TGeometry), intent(in) :: geo
+
+    !> Contains the input for the dispersion module on exit
+    type(TSASAInput), intent(out) :: input
+
+    type(string) :: buffer, modifier
+    type(fnode), pointer :: child, value1, value2, field, child2, dummy
+    character(lc) :: errorStr
+    integer :: iSp, ii, gridPoints
+    real(dp) :: conv
+    real(dp), allocatable :: vdwRadDefault(:)
+
+    if (geo%tPeriodic) then
+      call detailedError(node, "SASA model currently not available with PBCs")
+    end if
+
+    call getChildValue(node, "ProbeRadius", input%probeRad, modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%probeRad)
+
+    call getChildValue(node, "Smoothing", input%smoothingPar, 0.3_dp*AA__Bohr, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%smoothingPar)
+
+    call getChildValue(node, "Tolerance", input%tolerance, 1.0e-6_dp, child=child)
+
+    call getChildValue(node, "AngularGrid", gridPoints, 230, child=child)
+    input%gridSize = 0
+    call bisection(input%gridSize, gridSize, gridPoints)
+    if (input%gridSize == 0) then
+      call detailedError(child, "Illegal number of grid points for numerical integration")
+    end if
+    if (gridSize(input%gridSize) /= gridPoints) then
+      write(errorStr, '(a, *(1x, i0, 1x, a))') &
+          & "No angular integration grid with", gridPoints, &
+          & "points available, using",  gridSize(input%gridSize), "points instead"
+      call detailedWarning(child, trim(errorStr))
+    end if
+
+    conv = 1.0_dp
+    allocate(input%vdwRad(geo%nSpecies))
+    call getChildValue(node, "Radii", value1, child=child)
+    call getChild(value1, "", dummy, modifier=modifier)
+    call convertByMul(char(modifier), lengthUnits, child, conv)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
+    case("vanderwaalsradiid3")
+      allocate(vdwRadDefault(geo%nSpecies))
+      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
+      do iSp = 1, geo%nSpecies
+        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
+        if (associated(value2)) then
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & child=child2)
+        else
+          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
+              & vdwRadDefault(iSp)/conv, child=child2)
+        end if
+      end do
+      deallocate(vdwRadDefault)
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
+      end do
+    end select
+    input%vdwRad(:) = input%vdwRad * conv
+
+    allocate(input%surfaceTension(geo%nSpecies))
+    call getChildValue(node, "SurfaceTension", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case default
+      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate surface tension")
+    case("values")
+      do iSp = 1, geo%nSpecies
+        call getChildValue(value1, geo%speciesNames(iSp), input%surfaceTension(iSp), child=child2)
+      end do
+    end select
+
+    call getChildValue(node, "Offset", input%sOffset, 2.0_dp * AA__Bohr, &
+        & modifier=modifier, child=field)
+    call convertByMul(char(modifier), lengthUnits, field, input%sOffset)
+
+  end subroutine readSolvSASA
 
 
   subroutine readCM5(node, input, geo)

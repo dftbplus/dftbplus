@@ -2095,6 +2095,17 @@ contains
           call createSolvationModel(solvation, input%ctrl%solvInp%GBInp, &
               & nAtom, species0, speciesName)
         end if
+      else if (allocated(input%ctrl%solvInp%SASAInp)) then
+        if (tPeriodic) then
+          call createSolvationModel(solvation, input%ctrl%solvInp%SASAInp, &
+              & nAtom, species0, speciesName, latVec)
+        else
+          call createSolvationModel(solvation, input%ctrl%solvInp%SASAInp, &
+              & nAtom, species0, speciesName)
+        end if
+      end if
+      if (.not.allocated(solvation)) then
+        call error("Could not initialize solvation model!")
       end if
       cutOff%mCutOff = max(cutOff%mCutOff, solvation%getRCutOff())
     end if
