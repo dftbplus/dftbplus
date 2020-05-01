@@ -311,7 +311,7 @@ contains
 
   #:if WITH_TRANSPORT
     if (tPoisson) then
-      call poiss_destroy()
+      call poiss_destroy(env)
     end if
     if (electronicSolver%iSolver == electronicSolverTypes%GF) then
       call negf_destroy()
@@ -758,7 +758,7 @@ contains
 
   #:if WITH_TRANSPORT
     if (tPoisson) then
-      call poiss_savepotential()
+      call poiss_savepotential(env)
     end if
   #:endif
 
@@ -1898,8 +1898,8 @@ contains
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics, tPoisson,&
-      & tUpload, shiftPerLUp)
+      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
+      & tPoisson, tUpload, shiftPerLUp)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1992,7 +1992,7 @@ contains
           shellPot(:,:,1) = 0.0_dp
         end if
         call poiss_updcharges(qInput(:,:,1), q0(:,:,1))
-        call poiss_getshift(shellPot(:,:,1))
+        call poiss_getshift(env, shellPot(:,:,1))
         if (.not.allocated(shellPotBk)) then
           allocate(shellPotBk(orb%mShell, nAtom))
         end if
@@ -5267,11 +5267,11 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
-      & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
-      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, solvation,&
-      & qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
-      & tPoisson, halogenXCorrection)
+  subroutine getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim,&
+      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
+      & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
+      & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal,&
+      & over, denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5423,7 +5423,7 @@ contains
       if (tPoisson) then
         tmpDerivs = 0.0_dp
       #:if WITH_TRANSPORT
-        call poiss_getshift(dummyArray, tmpDerivs)
+        call poiss_getshift(env, dummyArray, tmpDerivs)
       #:endif
         derivs(:,:) = derivs + tmpDerivs
       else

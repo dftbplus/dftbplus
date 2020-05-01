@@ -3679,10 +3679,10 @@ contains
       end if
       poissStr%tempElec = tempElec
     #:if WITH_MPI
-      call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
+      call poiss_init(env, poissStr, orb, hubbU, input%poisson, input%transpar, env%mpi%globalComm,&
           & tInitialized)
     #:else
-      call poiss_init(poissStr, orb, hubbU, input%poisson, input%transpar, tInitialized)
+      call poiss_init(env, poissStr, orb, hubbU, input%poisson, input%transpar, tInitialized)
     #:endif
       if (.not. tInitialized) then
         call error("Poisson solver not initialized")

@@ -22,6 +22,7 @@ module poisson
   use mpi_poisson
   use std_io
   use dftbp_accuracy, only : lc, dp
+  use dftbp_environment, only : TEnvironment
   implicit none
   private
 
@@ -83,7 +84,10 @@ module poisson
  end subroutine poiss_supercell
 
  !------------------------------------------------------------------------------
- subroutine poiss_freepoisson()
+ subroutine poiss_freepoisson(env)
+
+   !> Environment settings
+   type(TEnvironment), intent(in) :: env
 
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
@@ -91,7 +95,7 @@ module poisson
 
    if (active_id) then
      PoissFlag=3
-     call  mudpack_drv(PoissFlag,fakeshift,fakegrad)  
+     call  mudpack_drv(env, PoissFlag,fakeshift,fakegrad)
    endif
  
    if(allocated(x)) call log_gdeallocate(x)
@@ -108,8 +112,11 @@ module poisson
  end subroutine poiss_freepoisson
 
  ! -----------------------------------------------------------------------------
- subroutine poiss_savepotential()
-    
+ subroutine poiss_savepotential(env)
+
+   !> Environment settings
+   type(TEnvironment), intent(in) :: env
+
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
    integer :: PoissFlag, ndim
@@ -122,7 +129,7 @@ module poisson
   
      PoissFlag=2
      
-     call  mudpack_drv(PoissFlag,fakeshift,fakegrad)
+     call  mudpack_drv(env, PoissFlag,fakeshift,fakegrad)
    
    endif
 
@@ -334,7 +341,10 @@ module poisson
  end subroutine init_poissbox
 
 !> This subroutine is a driver for the mudpack (c) solver (see mud3.f) *
-subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
+subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
+
+  !> Environment settings
+  type(TEnvironment), intent(in) :: env
 
   !> Control flag:
   integer, intent(in) :: SCC_in

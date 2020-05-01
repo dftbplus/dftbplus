@@ -18,6 +18,7 @@ module poisson_init
   use libmpifx_module
 #:endif
   use poisson
+  use dftbp_environment, only : TEnvironment
   use libnegf_vars, only : TTransPar
   use system_calls, only: create_directory
   implicit none
@@ -166,12 +167,17 @@ module poisson_init
 
 contains
 
-  !> Initialise gDFTB environment and variables
-#:if WITH_MPI
-  subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, mpicomm, initinfo)
+ #:if WITH_MPI
+  subroutine poiss_init(env,structure, orb, hubbU, poissoninfo, transpar, mpicomm, initinfo)
 #:else
-  subroutine poiss_init(structure, orb, hubbU, poissoninfo, transpar, initinfo)
+  subroutine poiss_init(env,structure, orb, hubbU, poissoninfo, transpar, initinfo)
 #:endif
+!  !> Initialise gDFTB environment and variables
+!  subroutine poiss_init(env, structure, orb, hubbU, poissoninfo, transpar, initinfo)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
     !> initialisation choices for poisson solver
     Type(TPoissonStructure), intent(in) :: structure
 
@@ -186,12 +192,15 @@ contains
 
     !> Transport parameters
     Type(TTransPar), intent(in) :: transpar
+
+    !> Success of initialisation
+    logical, intent(out) :: initinfo
+
 #:if WITH_MPI
     !> MPI details
     Type(mpifx_comm), intent(in) :: mpicomm
 #:endif
-    !> Success of initialisation
-    logical, intent(out) :: initinfo
+
 
     ! local variables
     integer :: i, iErr
@@ -199,12 +208,13 @@ contains
     iErr = 0
     initinfo = .true.
 
-  #:if WITH_MPI
+#:if WITH_MPI
     call poiss_mpi_init(mpicomm)
     call poiss_mpi_split(min(poissoninfo%maxNumNodes, mpicomm%size))
     call mpifx_barrier(mpicomm, iErr)
-  !#:else
-    !call error("The Poisson solver currently requires MPI parallelism to be enabled")
+!    call poiss_mpi_init(env%mpi%globalComm)
+!    call poiss_mpi_split(min(poissoninfo%maxNumNodes, env%mpi%globalComm%size))
+!    call mpifx_barrier(env%mpi%globalComm, iErr)
   #:endif
 
     write(stdOut,*)
@@ -240,7 +250,7 @@ contains
       ! Initialise renormalization factors for grid projection
 
       if (iErr.ne.0) then
-        call poiss_destroy()
+        call poiss_destroy(env)
         initinfo = .false.
         return
       endif
@@ -382,19 +392,25 @@ contains
 
 
   !> Release gDFTB varibles in poisson library
-  subroutine poiss_destroy()
+  subroutine poiss_destroy(env)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     if (active_id) then
       write(stdOut,'(A)')
       write(stdOut,'(A)') 'Release Poisson Memory:'
-      call poiss_freepoisson()
+      call poiss_freepoisson(env)
     endif
 
   end subroutine poiss_destroy
 
 
   !> Interface subroutine to call Poisson
-  subroutine poiss_getshift(V_L_atm,grad_V)
+  subroutine poiss_getshift(env, V_L_atm,grad_V)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
 
     !> potential for each shell at atom sites
     real(dp), intent(inout) :: V_L_atm(:,:)
@@ -433,9 +449,9 @@ contains
         if (iErr /= 0) then
           call error("Failure during initialisation of the Poisson box")
         end if
-        call mudpack_drv(PoissFlag,V_L_atm,fakegrad)
+        call mudpack_drv(env, PoissFlag,V_L_atm,fakegrad)
       case(1)
-        call mudpack_drv(PoissFlag,V_L_atm,grad_V)
+        call mudpack_drv(env, PoissFlag,V_L_atm,grad_V)
       end select
 
       if (verbose.gt.30) then
