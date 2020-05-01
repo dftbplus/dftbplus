@@ -87,7 +87,7 @@ module poisson
  subroutine poiss_freepoisson(env)
 
    !> Environment settings
-   type(TEnvironment), intent(in) :: env
+   type(TEnvironment), intent(inout) :: env
 
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
@@ -115,7 +115,7 @@ module poisson
  subroutine poiss_savepotential(env)
 
    !> Environment settings
-   type(TEnvironment), intent(in) :: env
+   type(TEnvironment), intent(inout) :: env
 
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
@@ -344,7 +344,7 @@ module poisson
 subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
 
   !> Environment settings
-  type(TEnvironment), intent(in) :: env
+  type(TEnvironment), intent(inout) :: env
 
   !> Control flag:
   integer, intent(in) :: SCC_in

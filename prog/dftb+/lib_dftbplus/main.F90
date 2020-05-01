@@ -1902,7 +1902,7 @@ contains
       & tPoisson, tUpload, shiftPerLUp)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> SCC module internal variables
     type(TScc), intent(inout) :: sccCalc
@@ -5274,7 +5274,7 @@ contains
       & over, denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc

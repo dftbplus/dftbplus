@@ -167,16 +167,11 @@ module poisson_init
 
 contains
 
- #:if WITH_MPI
-  subroutine poiss_init(env,structure, orb, hubbU, poissoninfo, transpar, mpicomm, initinfo)
-#:else
+  !  !> Initialise gDFTB environment and variables
   subroutine poiss_init(env,structure, orb, hubbU, poissoninfo, transpar, initinfo)
-#:endif
-!  !> Initialise gDFTB environment and variables
-!  subroutine poiss_init(env, structure, orb, hubbU, poissoninfo, transpar, initinfo)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> initialisation choices for poisson solver
     Type(TPoissonStructure), intent(in) :: structure
@@ -196,11 +191,6 @@ contains
     !> Success of initialisation
     logical, intent(out) :: initinfo
 
-#:if WITH_MPI
-    !> MPI details
-    Type(mpifx_comm), intent(in) :: mpicomm
-#:endif
-
 
     ! local variables
     integer :: i, iErr
@@ -208,18 +198,15 @@ contains
     iErr = 0
     initinfo = .true.
 
-#:if WITH_MPI
-    call poiss_mpi_init(mpicomm)
-    call poiss_mpi_split(min(poissoninfo%maxNumNodes, mpicomm%size))
-    call mpifx_barrier(mpicomm, iErr)
-!    call poiss_mpi_init(env%mpi%globalComm)
-!    call poiss_mpi_split(min(poissoninfo%maxNumNodes, env%mpi%globalComm%size))
-!    call mpifx_barrier(env%mpi%globalComm, iErr)
+  #:if WITH_MPI
+    call poiss_mpi_init(env%mpi%globalComm)
+    call poiss_mpi_split(min(poissoninfo%maxNumNodes, env%mpi%globalComm%size))
+    call mpifx_barrier(env%mpi%globalComm, iErr)
   #:endif
 
     write(stdOut,*)
     write(stdOut,*) 'Poisson Initialisation:'
-    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ',numprocs,' node(s)'
+    write(stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
     write(stdOut,*)
 
     ! notify solver of standard out unit
@@ -395,7 +382,7 @@ contains
   subroutine poiss_destroy(env)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     if (active_id) then
       write(stdOut,'(A)')
@@ -410,7 +397,7 @@ contains
   subroutine poiss_getshift(env, V_L_atm,grad_V)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> potential for each shell at atom sites
     real(dp), intent(inout) :: V_L_atm(:,:)
