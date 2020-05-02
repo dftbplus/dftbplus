@@ -93,8 +93,8 @@ module dftbp_main
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
-  use poisson_init
 #:endif
+  use poisson_init
   use dftbp_transportio
 
   implicit none
@@ -1978,7 +1978,6 @@ contains
 
     case(elstatTypes%poisson)
 
-    #:if WITH_TRANSPORT
       ! NOTE: charge-magnetization representation is used
       !       iSpin=1 stores total charge
       ! Logic of calls order:
@@ -2003,9 +2002,6 @@ contains
       atomPot(:,:) = 0.0_dp
       call sccCalc%setShiftPerAtom(atomPot(:,1))
       call sccCalc%setShiftPerL(shellPot(:,:,1))
-    #:else
-      call error("poisson solver used without transport modules")
-    #:endif
 
     end select
 
