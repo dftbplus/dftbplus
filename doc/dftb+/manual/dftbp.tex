@@ -3042,7 +3042,7 @@ systems.
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
-  \kw{CM5} & m & & & \\
+  \kw{CM5} & m & & & \pref{sec:dftbp.CM5} \\
   \kw{Radii} & m & & & \\
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & 35 AA & \\
@@ -3781,6 +3781,7 @@ calculation and/or calculate properties.
 \begin{ptable}
   \kw{AtomResolvedEnergies} & l & & No & \\
   \kw{MullikenAnalysis} & l & & Yes & \\
+  \kw{CM5} & m & MullikenAnalysis = Yes & & \pref{sec:dftbp.CM5} \\
   \kw{ProjectStates} & m & & \cb & \\
   \kw{Localise} & m & & \cb & \\
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
@@ -3797,6 +3798,9 @@ calculation and/or calculate properties.
 
 \item[\is{MullikenAnalysis}] If \is{Yes}, the results of a Mulliken analysis of
   the system is given.
+
+\item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
+  atomic partial charges will be written.
 
 \subsubsection{ProjectStates} \kw{ProjectStates}
 \label{sec:dftbp.ProjectStates} evaluates the Mulliken

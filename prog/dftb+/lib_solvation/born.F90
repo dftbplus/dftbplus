@@ -14,15 +14,17 @@ module dftbp_born
   use dftbp_charges, only : getSummedCharges
   use dftbp_cm5, only : TChargeModel5, TCM5Input, TChargeModel5_init
   use dftbp_commontypes, only : TOrbitals
+  use dftbp_constants, only : Hartree__eV
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
-  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init
+  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
   implicit none
   private
 
   public :: TGeneralizedBorn, TGBInput, TGeneralizedBorn_init
+  public :: writeGeneralizedBornInfo
 
 
   !> Global parameters for the solvation
@@ -247,6 +249,46 @@ contains
     self%tChargesUpdated = .false.
 
   end subroutine TGeneralizedBorn_init
+
+
+  !> Print the solvation model used
+  subroutine writeGeneralizedBornInfo(unit, solvation)
+
+    !> Formatted unit for IO
+    integer, intent(in) :: unit
+
+    !> Solvation model
+    type(TGeneralizedBorn), intent(in) :: solvation
+
+    write(unit, '(a, ":", t30, es14.6)') "Dielectric constant", &
+        & 1.0_dp/(solvation%param%keps + 1.0_dp)
+    write(unit, '(a, ":", t30, es14.6, 1x, a, t50, es14.6, 1x, a)') &
+        & "Free energy shift", solvation%param%freeEnergyShift, "H", &
+        & Hartree__eV * solvation%param%freeEnergyShift, "eV"
+    write(unit, '(a, ":", t30, a)') "Born radii integrator", "GBOBC"
+
+    write(unit, '(a, ":", t30)', advance='no') "SASA model"
+    if (allocated(solvation%sasaCont)) then
+      write(unit, '(a)') "Yes"
+      call writeSASAContInfo(unit, solvation%sasaCont)
+    else
+      write(unit, '(a)') "No"
+    end if
+
+    write(unit, '(a, ":", t30)', advance='no') "CM5 correction"
+    if (allocated(solvation%cm5)) then
+      write(unit, '(a)') "Yes"
+    else
+      write(unit, '(a)') "No"
+    end if
+
+    write(unit, '(a, ":", t30)', advance='no') "Hydrogen bond correction"
+    if (allocated(solvation%hBondStrength)) then
+      write(unit, '(a)') "Yes"
+    else
+      write(unit, '(a)') "No"
+    end if
+  end subroutine writeGeneralizedBornInfo
 
 
   !> Update internal stored coordinates
