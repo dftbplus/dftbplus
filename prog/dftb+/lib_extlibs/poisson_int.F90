@@ -416,9 +416,11 @@ contains
 
     call execute_command_line("mkdir "//trim(dirName), exitstat=iErr, cmdstat=cstat,&
         & cmdmsg=cmsg)
-    write (*,*) 'estat: ', iErr
-    write (*,*) 'cstat: ', cstat
-    write (*,*) "cmsg:  ", trim(cmsg)
+    if (iErr /= 0) then
+      write (stdOut,*) 'error status of mkdir: ', iErr
+      write (stdOut,*) 'command status: ', cstat
+      write (stdOut,*) "command msg:  ", trim(cmsg)
+    end if
 
   end subroutine create_directory
 
