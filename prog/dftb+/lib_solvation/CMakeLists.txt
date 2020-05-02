@@ -4,6 +4,7 @@ set(sources-fpp
   ${curdir}/born.F90
   ${curdir}/borndata.F90
   ${curdir}/cm5.F90
+  ${curdir}/gbsafile.F90
   ${curdir}/sasa.F90
   ${curdir}/solvation.F90
   ${curdir}/solventdata.F90
