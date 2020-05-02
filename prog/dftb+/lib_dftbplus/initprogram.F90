@@ -964,9 +964,6 @@ module dftbp_initprogram
   !> Array storing local (bond) currents
   real(dp), allocatable :: lCurrArray(:,:)
 
-  !> Poisson Derivatives (forces)
-  real(dp), allocatable :: poissonDerivs(:,:)
-
   !> Shell-resolved Potential shifts uploaded from contacts
   real(dp), allocatable :: shiftPerLUp(:,:)
 
@@ -2496,9 +2493,9 @@ contains
 
           if (allocated(input%ctrl%initialCharges)) then
             if (abs(sum(input%ctrl%initialCharges) - input%ctrl%nrChrg) > 1e-4_dp) then
-              write(strTmp, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match specified&
-                  & total charge. (", sum(input%ctrl%initialCharges), " vs. ", input%ctrl%nrChrg,&
-                  & ") ", "Your initial charge distribution will be rescaled."
+              write(strTmp, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match&
+                  & specified total charge. (", sum(input%ctrl%initialCharges), " vs. ",&
+                  & input%ctrl%nrChrg,") ", "Your initial charge distribution will be rescaled."
               call warning(strTmp)
             end if
             call initQFromAtomChrg(qInput, input%ctrl%initialCharges, referenceN0, species0,&
@@ -2647,8 +2644,6 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-
-
     if (tPoisson) then
       poissStr%nAtom = nAtom
       poissStr%nSpecies = nType
@@ -2696,10 +2691,6 @@ contains
       tUpload = .false.
     end if
 
-    if (tPoisson) then
-      allocate(poissonDerivs(3,nAtom))
-    end if
-
     call initTransportArrays(tUpload, input%transpar, species0, orb, nAtom, nSpin, shiftPerLUp,&
         & chargeUp, allocated(qBlockIn), blockUp, shiftBlockUp)
 
@@ -2707,7 +2698,6 @@ contains
   #:else
     tNegf = .false.
   #:endif
-
 
     if (tNegf) then
       if (tDispersion) then
@@ -3561,7 +3551,7 @@ contains
     @:SAFE_DEALLOC(HSqrCplx, SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, eigen)
     @:SAFE_DEALLOC(RhoSqrReal, qDepExtPot, derivs, chrgForces, excitedDerivs, dipoleMoment)
     @:SAFE_DEALLOC(coord0Fold, newCoords, orbitalL, occNatural, mu)
-    @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, poissonDerivs, shiftPerLUp, chargeUp)
+    @:SAFE_DEALLOC(tunneling, ldos, current, leadCurrents, shiftPerLUp, chargeUp)
     @:SAFE_DEALLOC(regionLabelLDOS)
     @:SAFE_DEALLOC(iAtInCentralRegion, energiesCasida)
     @:SAFE_DEALLOC(reks)
