@@ -2696,10 +2696,13 @@ contains
       tUpload = .false.
     end if
 
+  #:endif
+
     if (tPoisson) then
       allocate(poissonDerivs(3,nAtom))
     end if
 
+  #:if WITH_TRANSPORT
     call initTransportArrays(tUpload, input%transpar, species0, orb, nAtom, nSpin, shiftPerLUp,&
         & chargeUp, allocated(qBlockIn), blockUp, shiftBlockUp)
 
