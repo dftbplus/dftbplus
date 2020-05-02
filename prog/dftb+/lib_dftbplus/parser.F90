@@ -6183,7 +6183,8 @@ contains
         call getNodeName2(child1, buffer)
         if (char(buffer) == "") then
           contacts(ii)%tFermiSet = .false.
-          call detailedWarning(pNode, "Missing Fermi level(s) - required in solver block")
+          call detailedWarning(pNode, "Missing Fermi level - required to be set in solver block or&
+              & read from a contact shift file")
         else
           call init(fermiBuffer)
           call getChildValue(child2, "", fermiBuffer, modifier=modifier)
