@@ -2644,39 +2644,6 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-    if (tPoisson) then
-      poissStr%nAtom = nAtom
-      poissStr%nSpecies = nType
-      poissStr%specie0 => species0
-      poissStr%x0 => coord0
-      poissStr%nel = nEl0
-      poissStr%isPeriodic = tPeriodic
-      if (tPeriodic) then
-        poissStr%latVecs(:,:) = latVec(:,:)
-      else
-        poissStr%latVecs(:,:) = 0.0_dp
-      end if
-      poissStr%tempElec = tempElec
-    #:if WITH_MPI
-      call poiss_init(poissStr, orb, hubbU, input%poisson,&
-        #:if WITH_TRANSPORT
-          & input%transpar,&
-        #:endif
-          & env%mpi%globalComm, tInitialized)
-    #:else
-      call poiss_init(poissStr, orb, hubbU, input%poisson,&
-        #:if WITH_TRANSPORT
-          & input%transpar,&
-        #:endif
-          & tInitialized)
-    #:endif
-      if (.not. tInitialized) then
-        call error("Poisson solver not initialized")
-      end if
-    end if
-
-    tPoissonTwice = input%poisson%solveTwice
-
     tDefinedFreeE = .true.
   #:if WITH_TRANSPORT
     if (tLatOpt .and. tNegf) then
@@ -2698,6 +2665,40 @@ contains
   #:else
     tNegf = .false.
   #:endif
+
+    if (tPoisson) then
+      poissStr%nAtom = nAtom
+      poissStr%nSpecies = nType
+      poissStr%specie0 => species0
+      poissStr%x0 => coord0
+      poissStr%nel = nEl0
+      poissStr%isPeriodic = tPeriodic
+      if (tPeriodic) then
+        poissStr%latVecs(:,:) = latVec(:,:)
+      else
+        poissStr%latVecs(:,:) = 0.0_dp
+      end if
+      poissStr%tempElec = tempElec
+
+    #:if WITH_MPI
+      call poiss_init(poissStr, orb, hubbU, input%poisson,&
+        #:if WITH_TRANSPORT
+          & input%transpar,&
+        #:endif
+          & env%mpi%globalComm, tInitialized)
+    #:else
+      call poiss_init(poissStr, orb, hubbU, input%poisson,&
+        #:if WITH_TRANSPORT
+          & input%transpar,&
+        #:endif
+          & tInitialized)
+    #:endif
+      if (.not. tInitialized) then
+        call error("Poisson solver not initialized")
+      end if
+    end if
+
+    tPoissonTwice = input%poisson%solveTwice
 
     if (tNegf) then
       if (tDispersion) then
