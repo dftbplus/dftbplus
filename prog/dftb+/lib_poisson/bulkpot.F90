@@ -13,6 +13,7 @@ Module bulkpot
  use dftbp_accuracy, only : dp
  use dftbp_constants
  use dftbp_globalenv, only : stdOut
+ use dftbp_message, only : warning
  use gallocation
  use parameters
  use structure
@@ -30,13 +31,13 @@ Module bulkpot
  type super_array  
    integer :: a,b,c
    integer :: iparm(23)
-   real(kind=dp) :: fparm(8)
-   real(kind=dp) :: dla,dlb,dlc
+   real(dp) :: fparm(8)
+   real(dp) :: dla,dlb,dlc
    integer :: ibsize
    integer :: natm_PL
-   real(kind=dp) :: L_PL
-   real(kind=dp), DIMENSION (:,:,:), ALLOCATABLE :: val 
-   real(kind=dp), DIMENSION (:,:,:), ALLOCATABLE :: rhs
+   real(dp) :: L_PL
+   real(dp), DIMENSION (:,:,:), ALLOCATABLE :: val
+   real(dp), DIMENSION (:,:,:), ALLOCATABLE :: rhs
    logical :: doEwald
  end type  super_array
 
@@ -71,17 +72,18 @@ contains
 
    type(super_array) :: SA
 
-   if (id0) then
-     write(stdOut,*) SA%a,SA%b,SA%c
-     write(stdOut,*) SA%dla,SA%dlb,SA%dlc
-     write(stdOut,*) 'size',SA%ibsize
-     write(stdOut,*) 'iparm',SA%iparm
-     write(stdOut,*) 'fparm',SA%fparm
-     write(stdOut,*) 'natm_PL',SA%natm_PL
-     write(stdOut,*) 'L_PL',SA%L_PL
-     write(stdOut,*) 'rhs',size(SA%rhs)
-     write(stdOut,*) 'val',size(SA%val)
-   endif
+   character(*), parameter :: formatStr = '(a, ":", t30, g14.10)'
+
+   write(stdOut,"(I0,1X,I0,1XI0)") SA%a,SA%b,SA%c
+   write(stdOut,"(3E20.12)") SA%dla,SA%dlb,SA%dlc
+
+   write(stdOut, formatStr) 'size',SA%ibsize
+   write(stdOut, formatStr) 'iparm',SA%iparm
+   write(stdOut, formatStr) 'fparm',SA%fparm
+   write(stdOut, formatStr) 'natm_PL',SA%natm_PL
+   write(stdOut, formatStr) 'L_PL',SA%L_PL
+   write(stdOut, formatStr) 'rhs',size(SA%rhs)
+   write(stdOut, formatStr) 'val',size(SA%val)
 
  end subroutine write_super_array
  
@@ -91,7 +93,7 @@ contains
  type(super_array) :: phi_bulk(:)
  integer :: iparm(23)
  integer :: cont_mem,na,nb,nc,m
- real(kind=dp) :: dlx,dly,dlz
+ real(dp) :: dlx,dly,dlz
  integer :: nstart, nlast, num_p, i
 
  cont_mem=0
@@ -272,8 +274,7 @@ contains
    
    call log_gallocate(phi_bulk(m)%rhs,na,nb,nc)
    
-   !write(stdOut,*) '%LOC rhs=',%LOC(phi_bulk(m)%rhs)
-   cont_mem = na*nb*nc          
+   cont_mem = na*nb*nc
    
    cont_mem = cont_mem+na*nb*nc 
    
@@ -282,15 +283,6 @@ contains
    call log_gallocate(phi_bulk(m)%val,na,nb,nc)
    
    phi_bulk(m)%val(1:na,1:nb,1:nc)=0.d0
-   
-   !write(stdOut,*) '%LOC val=',%LOC(phi_bulk(m)%val)
-   
-   !if(id0.and.verbose.gt.80) then
-   !   write(stdOut,*) 'Bulk Potential Contact #',m,nstart,nlast
-   !   write(stdOut,*) 'N(a)=',phi_bulk(m)%iparm(14),'dla=',phi_bulk(m)%dla*Bohr__AA
-   !   write(stdOut,*) 'N(b)=',phi_bulk(m)%iparm(15),'dlb=',phi_bulk(m)%dlb*Bohr__AA
-   !   write(stdOut,*) 'N(c)=',phi_bulk(m)%iparm(16),'dlc=',phi_bulk(m)%dlc*Bohr__AA
-   !endif
 
   enddo
 
@@ -319,7 +311,7 @@ Subroutine readbulk_pot(phi_bulk, iErr)
 
   integer :: i,j,k,m
   character(2) :: m_id
-  real(kind=dp) :: tmp_dbl
+  real(dp) :: tmp_dbl
 
   integer :: a,b,c, fp
   logical :: lex
@@ -343,7 +335,7 @@ Subroutine readbulk_pot(phi_bulk, iErr)
     if (a.ne.phi_bulk(m)%iparm(14) .or. &
       b.ne.phi_bulk(m)%iparm(15) .or. &
       c.ne.phi_bulk(m)%iparm(16)) then
-      if(id0) write(stdOut,*) 'Warning: incompatible BulkPot: will be recomputed'
+      call warning('incompatible BulkPot: will be recomputed')
       ReadBulk = .false.
       close(fp)
       return
@@ -370,7 +362,7 @@ end subroutine  readbulk_pot
 subroutine compbulk_pot(phi_bulk,iparm,fparm)
   type(super_array) :: phi_bulk(:)
   integer :: iparm(23)
-  real(kind=dp) :: fparm(8)
+  real(dp) :: fparm(8)
 
   call compbulk_pot_mud(phi_bulk,iparm,fparm)
 
@@ -382,21 +374,19 @@ Subroutine compbulk_pot_ewald(phi_bulk,m)
   integer :: m
 
   !local variables
-  real(kind=dp), allocatable, dimension(:,:,:) :: phi_bulk_PAR 
+  real(dp), allocatable, dimension(:,:,:) :: phi_bulk_PAR
   integer :: i,j,k,ibsize,atom,a,b,c,na,nb,nc,ff,stepa,stepb
-  real(kind=dp) :: yj,zk,xi
-  real(kind=dp) :: basis(3,3), recbasis(3,3)
-  real(kind=dp) :: alpha, vol, tol
+  real(dp) :: yj,zk,xi
+  real(dp) :: basis(3,3), recbasis(3,3)
+  real(dp) :: alpha, vol, tol
   character(2) :: m_id
-  real(kind=dp) :: distR(3), deltaQ, uhatm, sh_pot, lng_pot
+  real(dp) :: distR(3), deltaQ, uhatm, sh_pot, lng_pot
 
   integer :: npid,istart,iend, nsh,l
 
   ! set tolerance for convergence
   tol = 1.0d-5
 
-  !write(stdOut,*) " "
-  !write(stdOut,*) 'BULK-POTENTIAL CPU =', id
 
   ! Ewald sum initialization 
   ! get reciprocal lattice vectors and cell volume   
@@ -551,7 +541,7 @@ end subroutine save_bulkpot
 Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
   type(super_array) :: phi_bulk(:)
   integer :: iparm(23)
-  real(kind=dp) :: fparm(8)
+  real(dp) :: fparm(8)
   integer, intent(out), optional :: iErr
  
   integer :: m,err,mgopt(4), a, b, c, i, cont
@@ -582,24 +572,6 @@ Subroutine compbulk_pot_mud(phi_bulk,iparm,fparm, iErr)
     endif
     
     phi_bulk(m)%fparm(7) = PoissAcc      ! Desired accuracy
-
-    !if(id0.and.verbose.gt.80) then
-    !   write(stdOut,*)
-    !   write(stdOut,*) 'Bulk potential, contact',m
-    !   if (phi_bulk(m)%doEwald) then
-    !       write(stdOut,*) 'BC = all periodic solved with Ewalds on two planes'
-    !   endif  
-    !   write(stdOut,*) 'X(a)=',phi_bulk(m)%fparm(1)*Bohr__AA,phi_bulk(m)%fparm(2)*Bohr__AA, &
-    !   &   boundary2string(phi_bulk(m)%iparm(2)), boundary2string(phi_bulk(m)%iparm(3))
-    !   write(stdOut,*) 'X(b)=',phi_bulk(m)%fparm(3)*Bohr__AA,phi_bulk(m)%fparm(4)*Bohr__AA, &
-    !   &   boundary2string(phi_bulk(m)%iparm(4)), boundary2string(phi_bulk(m)%iparm(5))
-    !   write(stdOut,*) 'X(c)=',phi_bulk(m)%fparm(5)*Bohr__AA,phi_bulk(m)%fparm(6)*Bohr__AA, &
-    !   &   boundary2string(phi_bulk(m)%iparm(6)), boundary2string(phi_bulk(m)%iparm(7))
-    !   write(stdOut,*) 'L(c)=',phi_bulk(m)%L_PL*Bohr__AA
-    !   write(stdOut,*) 'na=',phi_bulk(m)%iparm(14)
-    !   write(stdOut,*) 'nb=',phi_bulk(m)%iparm(15)
-    !   write(stdOut,*) 'nc=',phi_bulk(m)%iparm(16)
-    !endif
 
     ! call Ewald sums to set Dirichlet BC on two faces
     if (phi_bulk(m)%doEwald) then
@@ -648,7 +620,7 @@ end Subroutine compbulk_pot_mud
 Subroutine bulk_bndyc(kbdy,xory,yorz,alfa,gbdy)
 
   integer :: kbdy
-  real(kind=dp) :: xory,yorz,alfa,gbdy
+  real(dp) :: xory,yorz,alfa,gbdy
 
   alfa = 0.d0
   gbdy = 0.d0
@@ -657,7 +629,7 @@ end subroutine bulk_bndyc
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Subroutine bulk_cofx(x,cxx,cx,cex)
-  real(kind=dp) :: x,cxx,cx,cex
+  real(dp) :: x,cxx,cx,cex
   
   cxx = 1.d0
   cx = 0.d0          
@@ -666,7 +638,7 @@ Subroutine bulk_cofx(x,cxx,cx,cex)
 end subroutine
 
 Subroutine bulk_cofy(y,cyy,cy,cey)
-  real(kind=dp) :: y,cyy,cy,cey
+  real(dp) :: y,cyy,cy,cey
   
   cyy = 1.d0
   cy = 0.d0          
@@ -675,7 +647,7 @@ Subroutine bulk_cofy(y,cyy,cy,cey)
 end subroutine
 
 Subroutine bulk_cofz(z,czz,cz,cez)
-  real(kind=dp) :: z,czz,cz,cez
+  real(dp) :: z,czz,cz,cez
   
   czz = 1.d0
   cz = 0.d0          
@@ -685,7 +657,7 @@ end subroutine
 
 Subroutine bulk_coef(x,y,z,cxx,cyy,czz,cx,cy,cz,ce)
 
-  real(kind=dp) :: x,y,z,cxx,cyy,czz,cx,cy,cz,ce
+  real(dp) :: x,y,z,cxx,cyy,czz,cx,cy,cz,ce
   
   cxx = 1.d0
   cyy = 1.d0
@@ -702,9 +674,9 @@ subroutine set_bulk_rhs(phi_bulk,cont)
   type(super_array) :: phi_bulk(:)  
   integer :: cont
 
-  real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
-  real(kind=dp) :: xi(3), deltaR
-  real(kind=dp) :: amin, bmin, cmin
+  real(dp) :: tmp,dl(3),xmin(3),xmax(3)
+  real(dp) :: xi(3), deltaR
+  real(dp) :: amin, bmin, cmin
 
   integer :: imin(3),imax(3), m, ii, jj, kk, na, nb, nc
   integer :: c(3), i,j,k, atom, dir,nsh,l
