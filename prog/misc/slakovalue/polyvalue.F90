@@ -9,7 +9,7 @@
 !! and second derivatives.
 program polyvalue
   use dftbp_accuracy
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_reppoly
   use dftbp_fileid
   use dftbp_message

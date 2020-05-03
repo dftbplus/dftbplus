@@ -28,11 +28,17 @@ module dftbp_globalenv
   public :: stdOut, stdErr, tIoProc
   public :: withScalapack, withMpi
 
+  !> Unredirected standard out
+  integer, parameter :: stdOut0 = output_unit
+
+  !> Unredirected standard error
+  integer, parameter :: stdErr0 = error_unit
+
   !> Standard out file handler
-  integer, protected :: stdOut
+  integer, protected :: stdOut = stdOut0
 
   !> Standard error file handler
-  integer, protected :: stdErr
+  integer, protected :: stdErr = stdErr0
 
   !> Whether current process is the global master process
   logical, protected :: tIoProc = .true.
@@ -41,12 +47,6 @@ module dftbp_globalenv
   !> Global MPI communicator (used for aborts)
   type(mpifx_comm), protected :: globalMpiComm
 #:endif
-
-  !> Unredirected standard out
-  integer, parameter :: stdOut0 = output_unit
-
-  !> Unredirected standard error
-  integer, parameter :: stdErr0 = error_unit
 
   !> Whether code was compiled with MPI support
   logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
