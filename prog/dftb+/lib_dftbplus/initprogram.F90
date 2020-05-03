@@ -234,7 +234,7 @@ module dftbp_initprogram
 
 
   !> ADT for neighbour parameters
-  type(TNeighbourList), allocatable, save :: neighbourList
+  type(TNeighbourList), allocatable :: neighbourList
 
   !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
   integer, allocatable :: nNeighbourSK(:)
@@ -632,10 +632,10 @@ module dftbp_initprogram
 
 
   !> Partial density of states (PDOS) projection regions
-  type(TListIntR1), save :: iOrbRegion
+  type(TListIntR1) :: iOrbRegion
 
   !> PDOS region labels
-  type(TListCharLc), save :: regionLabels
+  type(TListCharLc) :: regionLabels
 
   !> Third order DFTB
   logical :: t3rd
@@ -668,7 +668,7 @@ module dftbp_initprogram
   logical :: tPrintExcitedEigVecs
 
   !> data type for linear response
-  type(TLinresp), save :: lresp
+  type(TLinresp) :: lresp
 
   !> Whether to run a range separated calculation
   logical :: tRangeSep
@@ -752,7 +752,7 @@ module dftbp_initprogram
   type(TXLBOMD), allocatable :: xlbomdIntegrator
 
   !> Differentiation method for (H^0,S)
-  type(TNonSccDiff), save :: nonSccDeriv
+  type(TNonSccDiff) :: nonSccDeriv
 
   !> Whether lattice has changed since last geometry iteration
   logical :: tLatticeChanged
