@@ -62,7 +62,7 @@ module dftbp_globalenv
 contains
 
   !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv(outputUnit, mpiComm, inputUnit, errorUnit)
+  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit)
 
     !> Customised global standard output
     integer, intent(in), optional :: outputUnit
@@ -70,13 +70,10 @@ contains
     !> Customised global MPI communicator
     integer, intent(in), optional :: mpiComm
 
-    !> Customised global standard input
-    integer, intent(in), optional :: inputUnit
-
     !> Customised global standard error
     integer, intent(in), optional :: errorUnit
 
-    integer :: mpiComm0, outputUnit0, inputUnit0, errorUnit0
+    integer :: mpiComm0, outputUnit0, errorUnit0
 
   #:for VAR, NAME in [("output", "stdOut"), ("error", "stdErr")]
     if (present(${VAR}$Unit)) then
