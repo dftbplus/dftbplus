@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -ex
 
-if [ ${WITH_MPI} ]; then
-   WITH_ARPACK=false
-else
+if [ "${WITH_MPI}" == "false" ]; then
    WITH_ARPACK=true
+else
+   WITH_ARPACK=false
 fi
 
 cmake_options=(
