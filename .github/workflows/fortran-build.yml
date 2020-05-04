@@ -1,0 +1,20 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  osx-build:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: |
+        brew install gcc cmake ninja
+    - name: Configure the project
+      run: |
+        cmake -S. -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake
+    - name: Build from source
+      run: |
+        ninja -C _build_gcc
