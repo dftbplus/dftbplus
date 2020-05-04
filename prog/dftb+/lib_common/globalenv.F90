@@ -75,14 +75,17 @@ contains
 
     integer :: mpiComm0, outputUnit0, errorUnit0
 
-  #:for VAR, NAME in [("output", "stdOut"), ("error", "stdErr")]
-    if (present(${VAR}$Unit)) then
-      ${VAR}$Unit0 = ${VAR}$Unit
+    if (present(outputUnit)) then
+      outputUnit0 = outputUnit
     else
-      ${VAR}$Unit0 = ${NAME}$0
+      outputUnit0 = stdOut0
     end if
-  #:endfor
 
+    if (present(errorUnit)) then
+      errorUnit0 = errorUnit
+    else
+      errorUnit0 = stdErr0
+    end if
 
   #:if WITH_MPI
     if (present(mpiComm)) then
