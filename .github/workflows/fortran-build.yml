@@ -14,7 +14,7 @@ jobs:
         brew install gcc cmake ninja
     - name: Configure the project
       run: |
-        cmake -S. -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake
+        cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake
     - name: Build from source
       run: |
         ninja -C _build_gcc
