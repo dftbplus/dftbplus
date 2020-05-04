@@ -11,11 +11,11 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: |
-        brew install ninja libomp open-mpi
+        brew install ninja libomp arpack
         echo "y" | ./utils/get_opt_externals ALL
-    - name: Configure the project
-      run: |
-        cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake
-    - name: Build from source
-      run: |
-        ninja -C _build
+    - name: Configure build files
+      run: cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Debug -DWITH_DFTD3=true -DWITH_ARPACK=true -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake
+    - name: Compile project from source
+      run: ninja -C _build
+    - name: Run testsuite
+      run: cd _build && OMP_NUM_THREADS=2 ctest -j 2
