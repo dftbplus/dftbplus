@@ -74,7 +74,7 @@ contains
 
    character(*), parameter :: formatStr = '(a, ":", t30, g14.10)'
 
-   write(stdOut,"(I0,1X,I0,1XI0)") SA%a,SA%b,SA%c
+   write(stdOut,"(I0,1X,I0,1X,I0)") SA%a,SA%b,SA%c
    write(stdOut,"(3E20.12)") SA%dla,SA%dlb,SA%dlc
 
    write(stdOut, formatStr) 'size',SA%ibsize
