@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 set -ex
 
+if [ ${WITH_MPI} ]; then
+   WITH_ARPACK=false
+else
+   WITH_ARPACK=true
+fi
+
 cmake_options=(
    "-DWITH_DFTD3=true"
    "-DWITH_TRANSPORT=true"
-   "-DWITH_ARPACK=${WITH_MPI}"
+   "-DWITH_ARPACK=${WITH_ARPACK}"
    "-DWITH_MPI=${WITH_MPI}"
    "-DFYPP_FLAGS='-DTRAVIS'"
    "-DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake"
