@@ -11,7 +11,8 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: |
-        brew install gcc cmake ninja
+        brew install ninja libomp open-mpi
+        echo "y" | ./utils/get_opt_externals ALL
     - name: Configure the project
       run: |
         cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake
