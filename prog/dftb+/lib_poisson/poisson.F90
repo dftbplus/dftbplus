@@ -20,7 +20,7 @@ module poisson
   use gclock
   use fancybc
   use mpi_poisson
-  use std_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_accuracy, only : lc, dp
   implicit none
   private
@@ -60,7 +60,6 @@ module poisson
 #:endif
   public :: id0, active_id, numprocs
   ! from io
-  public :: set_stdout
 
 
   public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha

@@ -222,6 +222,9 @@ module dftbp_scc
     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
     procedure :: getAtomicGammaMatrix
 
+    !> Routine for returning lower triangle of atomic resolved gamma for specified U values
+    procedure :: getAtomicGammaMatU
+
     !> Calculates the contribution of the SCC to the energy per atom
     procedure :: getEnergyPerAtom
 
@@ -474,7 +477,7 @@ contains
         call this%extCharge%setCoordinates(env, this%coord)
       end if
     end if
-    
+
   end subroutine updateCoords
 
 
@@ -648,6 +651,57 @@ contains
 
   end subroutine getAtomicGammaMatrix
 
+
+  !> Routine for returning lower triangle of atomic resolved Coulomb matrix
+  subroutine getAtomicGammaMatU(this, gammamat, U_h, species, iNeighbour, img2CentCell)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Atom resolved gamma
+    real(dp), intent(out) :: gammamat(:,:)
+
+    !> ppRPA Hubbard parameters
+    real(dp), intent(in) :: U_h(:)
+
+    !> List of the species for each atom.
+    integer,  intent(in) :: species(:)
+
+    !> neighbours of atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> index array between images and central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    integer  :: iAt1, iAt2, iSp1, iSp2, iAt2f, iNeigh
+    real(dp) :: R_ab
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
+    @:ASSERT(all(this%nHubbU == 1))
+
+  #:if WITH_SCALAPACK
+    call error("scc:getAtomicGammaMatU does not work with MPI yet")
+  #:endif
+    gammamat(:,:) = this%coulombCont%invRMat
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        R_ab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
+        gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - expGamma(R_ab, U_h(iSp2), U_h(iSp1))
+      end do
+    end do
+
+    do iAt1 = 1, this%nAtom
+      do iAt2 = 1, iAt1 - 1
+        gammamat(iAt2, iAt1) = gammamat(iAt1, iAt2)
+      end do
+    end do
+
+  end subroutine getAtomicGammaMatU
 
 
   !> Calculates the contribution of the charge consistent part to the energy per atom.
@@ -881,7 +935,7 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    
+
     shift(:, :) = this%shiftPerL
     if (.not. this%hasExternalShifts) then
       call this%coulombCont%addShiftPerShell(shift)
@@ -914,7 +968,7 @@ contains
     !> Instance
     class(TScc), intent(inout) :: this
 
-    !> Contains the input shifts (shell, Atom) 
+    !> Contains the input shifts (shell, Atom)
     real(dp), intent(in) :: shift(:,:)
 
     @:ASSERT(this%tInitialised)

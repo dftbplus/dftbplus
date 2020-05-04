@@ -128,9 +128,11 @@ scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
+solvation/sasa_i10e                    #? MPI_PROCS <= 1
 solvation/gb_ionpair                   #? MPI_PROCS <= 1
 solvation/gb_reference                 #? MPI_PROCS <= 1
 solvation/gb_mol1bar                   #? MPI_PROCS <= 1
+solvation/gb_cm5                       #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
@@ -309,3 +311,7 @@ transport/SiH-chain_semiInf            #? WITH_TRANSPORT and MPI_PROCS <= 2
 transport/local-curr                   #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/polyacetylene_semiInf        #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-sheet_end                  #? WITH_TRANSPORT and MPI_PROCS <= 4
+
+pp-RPA/ethene                          #? not WITH_MPI
+pp-RPA/benzene_TammDancoff             #? not WITH_MPI
+pp-RPA/furan_OrbConst                  #? not WITH_MPI

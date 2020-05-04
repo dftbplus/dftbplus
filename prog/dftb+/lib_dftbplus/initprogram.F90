@@ -72,6 +72,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
+  use dftbp_pprpa, only : TppRPAcal
   use dftbp_RangeSeparated
   use dftbp_stress
   use dftbp_orbitalequiv
@@ -98,6 +99,7 @@ module dftbp_initprogram
   use dftbp_reks
   use dftbp_plumed, only : withPlumed, TPlumedCalc, TPlumedCalc_init
   use dftbp_magmahelper
+  use dftbp_cm5, only : TChargeModel5, TChargeModel5_init
   use dftbp_solvation, only : TSolvation
   use dftbp_solvinput, only : createSolvationModel, writeSolvationInfo
 
@@ -232,7 +234,7 @@ module dftbp_initprogram
 
 
   !> ADT for neighbour parameters
-  type(TNeighbourList), allocatable, save :: neighbourList
+  type(TNeighbourList), allocatable :: neighbourList
 
   !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
   integer, allocatable :: nNeighbourSK(:)
@@ -630,10 +632,10 @@ module dftbp_initprogram
 
 
   !> Partial density of states (PDOS) projection regions
-  type(TListIntR1), save :: iOrbRegion
+  type(TListIntR1) :: iOrbRegion
 
   !> PDOS region labels
-  type(TListCharLc), save :: regionLabels
+  type(TListCharLc) :: regionLabels
 
   !> Third order DFTB
   logical :: t3rd
@@ -659,11 +661,14 @@ module dftbp_initprogram
   !> calculate Z vector for excited properties
   logical :: tLinRespZVect
 
+  !> data type for pp-RPA
+  type(TppRPAcal), allocatable :: ppRPA
+
   !> Print eigenvectors
   logical :: tPrintExcitedEigVecs
 
   !> data type for linear response
-  type(TLinresp), save :: lresp
+  type(TLinresp) :: lresp
 
   !> Whether to run a range separated calculation
   logical :: tRangeSep
@@ -734,6 +739,9 @@ module dftbp_initprogram
   !> Solvation data and calculations
   class(TSolvation), allocatable :: solvation
 
+  !> Charge Model 5 for printout
+  type(TChargeModel5), allocatable :: cm5Cont
+
   !> Can stress be calculated?
   logical :: tStress
 
@@ -744,7 +752,7 @@ module dftbp_initprogram
   type(TXLBOMD), allocatable :: xlbomdIntegrator
 
   !> Differentiation method for (H^0,S)
-  type(TNonSccDiff), save :: nonSccDeriv
+  type(TNonSccDiff) :: nonSccDeriv
 
   !> Whether lattice has changed since last geometry iteration
   logical :: tLatticeChanged
@@ -2087,6 +2095,17 @@ contains
           call createSolvationModel(solvation, input%ctrl%solvInp%GBInp, &
               & nAtom, species0, speciesName)
         end if
+      else if (allocated(input%ctrl%solvInp%SASAInp)) then
+        if (tPeriodic) then
+          call createSolvationModel(solvation, input%ctrl%solvInp%SASAInp, &
+              & nAtom, species0, speciesName, latVec)
+        else
+          call createSolvationModel(solvation, input%ctrl%solvInp%SASAInp, &
+              & nAtom, species0, speciesName)
+        end if
+      end if
+      if (.not.allocated(solvation)) then
+        call error("Could not initialize solvation model!")
       end if
       cutOff%mCutOff = max(cutOff%mCutOff, solvation%getRCutOff())
     end if
@@ -2099,6 +2118,20 @@ contains
       tDipole = .true.
     else
       tDipole = .false.
+    end if
+
+    if (tMulliken) then
+      if (allocated(input%ctrl%cm5Input)) then
+        allocate(cm5Cont)
+        if (tPeriodic) then
+          call TChargeModel5_init(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
+              & input%geom%speciesNames, .false., input%geom%latVecs)
+        else
+          call TChargeModel5_init(cm5Cont, input%ctrl%cm5Input, input%geom%nAtom, &
+              & input%geom%speciesNames, .false.)
+        end if
+        cutOff%mCutOff = max(cutOff%mCutOff, cm5Cont%getRCutOff())
+     end if
     end if
 
     if (allocated(input%ctrl%elStatPotentialsInp)) then
@@ -2133,7 +2166,7 @@ contains
       elseif (tSpin .and. tCasidaForces) then
         call error("excited state relaxation is not implemented yet for spin-polarized systems")
       elseif (tPeriodic .and. tCasidaForces) then
-        call error("excited state relaxation is not implemented yet periodic systems")
+        call error("excited state relaxation is not implemented yet for periodic systems")
       elseif (tPeriodic .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular crystals")
       elseif (tSpinOrbit) then
@@ -2201,6 +2234,49 @@ contains
       end if
 
       call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
+
+    end if
+
+    ! ppRPA stuff
+    if (allocated(input%ctrl%ppRPA)) then
+
+      if (abs(input%ctrl%nrChrg - 2.0_dp) > elecTolMax) then
+        call warning("Particle-particle RPA should be for a reference system with a charge of +2.")
+      end if
+
+    #:for VAR, ERR in [("tSpinOrbit","spin orbit coupling"), ("tDFTBU","DFTB+U/pSIC"),&
+      & ("tSpin","spin polarised ground state"), ("t3rd","third order"),&
+      & ("any(kPoint /= 0.0_dp)","non-gamma k-points"), ("tFixEf", "a fixed Fermi level"),&
+      & ("tPoisson", "use of the Poisson solver")]
+      if (${VAR}$) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+    #:for VAR, ERR in [("tShellResolved","shell resolved hamiltonians"),&
+      & ("h5SwitchedOn","H5"), ("tDampH","H damping")]
+      if (input%ctrl%${VAR}$) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+    #:for VAR, ERR in [("solvation","solvation"), ("onSiteElements","onsite corrections"),&
+      & ("reks","REKS")]
+      if (allocated(${VAR}$)) then
+        call error("PP-RPA does not support ${ERR}$")
+      end if
+    #:endfor
+    #:if WITH_TRANSPORT
+      if (input%transpar%defined) then
+        call error("PP-RPA does not support transport calculations")
+      end if
+    #:endif
+
+      if (isGeoOpt .or. tMD .or. tSocket) then
+        call warning ("Geometry optimisation with ppRPA is probably not what you want - forces in&
+            & the (N-2) electron ground state system do not match the targeted system for the&
+            & excited states")
+      end if
+
+      call move_alloc(input%ctrl%ppRPA, ppRPA)
 
     end if
 
@@ -4620,7 +4696,7 @@ contains
     ! Minimal plumed API version (as in Plumed 2.5.3)
     ! Earlier versions may work but were not tested
     integer, parameter :: minApiVersion = 6
-    
+
     integer :: apiVersion
     character(300) :: strTmp
 

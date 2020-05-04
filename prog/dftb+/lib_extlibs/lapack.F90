@@ -2121,5 +2121,63 @@ module dftbp_lapack
     end subroutine zgesvd
 
   end interface zgesvd
-  
+
+
+#:for VPREC in [('s'), ('d')]
+
+  interface ${VPREC}$geev
+
+    !> general matrix eigensolver
+    subroutine ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, work, lwork, info)
+
+      import r${VPREC}$p
+
+      !> job type for left vector
+      character, intent(in) :: jobvl
+
+      !> job type for right vector
+      character, intent(in) :: jobvr
+
+      !> Second matrix dimension for A
+      integer, intent(in) :: n
+
+      !> matrix to decompose
+      real(r${VPREC}$p), intent(inout) :: a(lda,*)
+
+      !> leading dimension of A
+      integer, intent(in) :: lda
+
+      !> real part of eigenvalues
+      real(r${VPREC}$p), intent(out) :: wr(*)
+
+      !> imaginary part of eigenvalues
+      real(r${VPREC}$p), intent(out) :: wi(*)
+
+      !> left eigenvectors
+      real(r${VPREC}$p), intent(out) :: vl(ldvl, *)
+
+      !> leading dimension of vl
+      integer, intent(in) :: ldvl
+
+      !> right eigenvectors
+      real(r${VPREC}$p), intent(out) :: vr(ldvr, *)
+
+      !> leading dimension of vr
+      integer, intent(in) :: ldvr
+
+      !> work array
+      real(r${VPREC}$p), intent(out) :: work(*)
+
+      !> work array size
+      integer, intent(in) :: lwork
+
+      !> state of routine on return
+      integer, intent(in) :: info
+
+    end subroutine ${VPREC}$geev
+
+  end interface ${VPREC}$geev
+
+#:endfor
+
 end module dftbp_lapack
