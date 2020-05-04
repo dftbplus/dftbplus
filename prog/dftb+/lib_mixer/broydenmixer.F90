@@ -17,7 +17,7 @@ module dftbp_broydenmixer
   use dftbp_accuracy
   use dftbp_message
   use dftbp_blasroutines, only : ger
-  use dftbp_lapackroutines, only : matinv
+  use dftbp_lapackroutines, only : getrf, getrs, matinv
   implicit none
 
   private
@@ -253,14 +253,15 @@ contains
     !> Prev. U vectors
     real(dp), intent(inout) :: uu(:,:)
 
-    real(dp), allocatable :: beta(:,:), cc(:,:), gamma(:,:)
+    real(dp), allocatable :: beta(:,:), cc(:)
 
     ! Current DF or U-vector
     real(dp), allocatable :: dF_uu(:)
 
     real(dp) :: invNorm
     integer :: nn_1
-    integer :: ii
+    integer :: ii, info
+    integer, allocatable :: ipiv(:)
 
     nn_1 = nn - 1
 
@@ -281,9 +282,9 @@ contains
     end if
 
     allocate(beta(nn_1, nn_1))
-    allocate(cc(1, nn_1))
-    allocate(gamma(1, nn_1))
+    allocate(cc(nn_1))
     allocate(dF_uu(nElem))
+    allocate(ipiv(nn_1))
 
     ! Create weight factor omega for current iteration
     ww(nn_1) = sqrt(dot_product(qDiff, qDiff))
@@ -308,18 +309,17 @@ contains
     do ii = 1, nn - 2
       aa(ii, nn_1) = dot_product(dF(:,ii), dF_uu)
       aa(nn_1, ii) = aa(ii, nn_1)
-      cc(1, ii) = ww(ii) * dot_product(dF(:,ii), qDiff)
+      cc(ii) = ww(ii) * dot_product(dF(:,ii), qDiff)
     end do
     aa(nn_1, nn_1) = 1.0_dp
-    cc(1, nn_1) = ww(nn_1) * dot_product(dF_uu, qDiff)
+    cc(nn_1) = ww(nn_1) * dot_product(dF_uu, qDiff)
 
     do ii = 1, nn_1
-      beta(:nn-1, ii) = ww(:nn-1) * ww(ii) * aa(:nn-1,ii)
+      beta(:nn_1, ii) = ww(:nn_1) * ww(ii) * aa(:nn_1,ii)
       beta(ii, ii) = beta(ii, ii) + omega0**2
     end do
-    call matinv(beta)
-
-    gamma = matmul(cc, beta)
+    call getrf(beta, ipiv)
+    call getrs(beta, ipiv, cc, trans='t')
 
     ! Store |dF(m-1)>
     dF(:, nn_1) = dF_uu
@@ -334,9 +334,9 @@ contains
     ! Build new vector
     qInpResult(:) = qInpResult + alpha * qDiff(:)
     do ii = 1, nn-2
-      qInpResult(:) = qInpResult - ww(ii) * gamma(1,ii) * uu(:,ii)
+      qInpResult(:) = qInpResult - ww(ii) * cc(ii) * uu(:,ii)
     end do
-    qInpResult(:) = qInpResult - ww(nn_1) * gamma(1,nn_1) * dF_uu
+    qInpResult(:) = qInpResult - ww(nn_1) * cc(nn_1) * dF_uu
 
     ! Save |u(m-1)>
     uu(:, nn_1) = dF_uu
