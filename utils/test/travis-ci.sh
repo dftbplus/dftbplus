@@ -4,7 +4,7 @@ set -ex
 cmake_options=(
    "-DWITH_DFTD3=true"
    "-DWITH_TRANSPORT=true"
-   "-DWITH_ARPACK=true"
+   "-DWITH_ARPACK=${WITH_MPI}"
    "-DWITH_MPI=${WITH_MPI}"
    "-DFYPP_FLAGS='-DTRAVIS'"
    "-DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake"
