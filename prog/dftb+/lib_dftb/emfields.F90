@@ -12,7 +12,7 @@ module dftbp_emfields
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_angmomentum, only : Loperators
   use dftbp_simplealgebra, only : cross3
   use dftbp_commontypes, only : TOrbitals

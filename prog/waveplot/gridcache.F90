@@ -12,7 +12,7 @@
 !> appropriate eigenvectors to the molecule orbital calculator.
 module dftbp_gridcache
   use dftbp_assert
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_constants
   use dftbp_accuracy
   use dftbp_fileid

@@ -9,8 +9,7 @@
 
 !> Auxiliary subroutines for the ASSERT command
 module dftbp_assert
-  use dftbp_io
-  use dftbp_globalenv, only : abortProgram
+  use dftbp_globalenv, only : abortProgram, stdOut
   implicit none
   private
 
