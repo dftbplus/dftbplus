@@ -18,6 +18,7 @@ addons:
       - liblapack-dev
       - libopenmpi-dev
       - libscalapack-openmpi-dev
+      - libarpack2-dev
 
 install:
 - echo "y" | ./utils/get_opt_externals ALL
