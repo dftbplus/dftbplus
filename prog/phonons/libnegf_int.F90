@@ -25,7 +25,7 @@ module libnegf_int
   use dftbp_mpifx
 #:endif
   use libnegf, only : getel, lnParams, pass_DM, Tnegf
-  use libnegf, only : kb, unit, convertHeatCurrent, convertHeatConductance
+  use libnegf, only : kb, units, convertHeatCurrent, convertHeatConductance
   use libnegf, only : z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF
   use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
   use libnegf, only : compute_phonon_current, thermal_conductance 
@@ -379,7 +379,7 @@ module libnegf_int
     real(dp), allocatable :: kPoints(:,:), kWeights(:)
     type(z_DNS) :: zDynMat
     real(dp) :: cutoff,TT1,emin,emax,estep, kappa
-    type(unit) :: HessianUnits, HeatCurrUnits, HeatCondUnits
+    type(units) :: HessianUnits, HeatCurrUnits, HeatCondUnits
     type(lnParams) :: params
     character(15) :: filename
 
@@ -650,45 +650,45 @@ print*,'negf_phonon_current'
     real(dp), intent(in) :: kPoints(:,:)
     real(dp), intent(in) :: kWeights(:)
 
-    integer :: ii, jj, iK, nK
+    integer :: ii, jj, iK, nK, fu
 
     nK = size(kPoints,2)
 
-    open(65000,file=trim(filename)//'.dat')
+    open(newunit=fu,file=trim(filename)//'.dat')
     if (trim(filename).eq.'transmission') then
-      write(65000,*)  '# Energy [H]', '  Transmission' 
+      write(fu,*)  '# Energy [H]', '  Transmission' 
     else  
-      write(65000,*)  '# Energy [H]', '  LDOS'
+      write(fu,*)  '# Energy [H]', '  LDOS'
     endif 
     do ii=1,size(pTot,1)
-      write(65000,'(es20.8)',ADVANCE='NO') (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
+      write(fu,'(es20.8)',ADVANCE='NO') (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
       do jj=1,size(pTot,2)
-        write(65000,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
+        write(fu,'(es20.8)',ADVANCE='NO') pTot(ii,jj)
       enddo
-      write(65000,*)
+      write(fu,*)
     enddo
-    close(65000)
+    close(fu)
 
     if (nK.gt.1) then
-      open(65000,file=trim(filename)//'_kpoints.dat')
-      write(65000,*)  '# NKpoints = ', nK
-      write(65000,*)  '# Energy [eV], <k1 k2 k3 weight> '
-      write(65000,'(A1)', ADVANCE='NO') '# '
+      open(newunit=fu,file=trim(filename)//'_kpoints.dat')
+      write(fu,*)  '# NKpoints = ', nK
+      write(fu,*)  '# Energy [eV], <k1 k2 k3 weight> '
+      write(fu,'(A1)', ADVANCE='NO') '# '
       do iK = 1,nK
-        write(65000,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
+        write(fu,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
                                                                       & kWeights(iK) 
       end do
-      write(65000,*)
+      write(fu,*)
       do ii=1,size(pSKRes(:,:,1),1)
-        write(65000,'(f20.8)',ADVANCE='NO') (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
+        write(fu,'(f20.8)',ADVANCE='NO') (negf%Emin+(ii-1)*negf%Estep)*negf%eneconv
         do jj=1,size(pSKRes(:,:,1),2)
           do iK = 1,nK
-            write(65000,'(es20.8)',ADVANCE='NO') pSKRes(ii,jj, iK)
+            write(fu,'(es20.8)',ADVANCE='NO') pSKRes(ii,jj, iK)
           enddo
-          write(65000,*)
+          write(fu,*)
         enddo
       enddo
-      close(65000)
+      close(fu)
     end if
 
   end subroutine write_file
@@ -698,23 +698,25 @@ print*,'negf_phonon_current'
   subroutine negf_dumpHS(HH,SS)
     type(z_CSR), intent(in) :: HH, SS
 
-    write(*,*) 'Dumping H and S on files...'    
-    open(1121, file='HH.dat')
-    write(1121,*) '% Size =',HH%nrow, HH%ncol
-    write(1121,*) '% Nonzeros =',HH%nnz
-    write(1121,*) '% '
-    write(1121,*) 'zzz = ['
-    call printcsr(1121,HH)
-    write(1121,*) ']'
-    close(1121) 
-    open(1121, file='SS.dat')
-    write(1121,*) '% Size =',SS%nrow, SS%ncol
-    write(1121,*) '% Nonzeros =',SS%nnz
-    write(1121,*) '% '
-    write(1121,*) 'zzz = ['
-    call printcsr(1121,SS)
-    write(1121,*) ']'
-    close(1121) 
+    integer :: fu
+
+    write(stdOut,*) 'Dumping H and S on files...'    
+    open(newunit=fu, file='HH.dat')
+    write(fu,*) '% Size =',HH%nrow, HH%ncol
+    write(fu,*) '% Nonzeros =',HH%nnz
+    write(fu,*) '% '
+    write(fu,*) 'zzz = ['
+    call printcsr(fu,HH)
+    write(fu,*) ']'
+    close(fu) 
+    open(fu, file='SS.dat')
+    write(fu,*) '% Size =',SS%nrow, SS%ncol
+    write(fu,*) '% Nonzeros =',SS%nnz
+    write(fu,*) '% '
+    write(fu,*) 'zzz = ['
+    call printcsr(fu,SS)
+    write(fu,*) ']'
+    close(fu) 
   end subroutine negf_dumpHS
   
     

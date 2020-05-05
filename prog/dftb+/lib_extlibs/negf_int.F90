@@ -9,7 +9,7 @@
 !> Interface to LIBNEGF for DFTB+
 module negf_int
   use libnegf_vars
-  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, unit
+  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
   use libnegf, only : negf_mpi_init
 #:endif
@@ -1357,8 +1357,8 @@ module negf_int
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
     integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
-    type(unit) :: unitOfEnergy        ! Set the units of H
-    type(unit) :: unitOfCurrent       ! Set desired units for Jel
+    type(units) :: unitsOfEnergy        ! Set the units of H
+    type(units) :: unitsOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
     integer :: i, j, k, NumStates, icont
@@ -1371,8 +1371,8 @@ module negf_int
 #:endif
     call get_params(negf, params)
 
-    unitOfEnergy%name = "H"
-    unitOfCurrent%name = "A"
+    unitsOfEnergy%name = "H"
+    unitsOfCurrent%name = "A"
 
     ! groupKS is local, hence nKS il local
     nKS = size(groupKS, dim=2)
@@ -1476,12 +1476,12 @@ module negf_int
 #:endif
 
     ! converts from internal atomic units into amperes
-    currLead(:) = currLead * convertCurrent(unitOfEnergy, unitOfCurrent)
+    currLead(:) = currLead * convertCurrent(unitsOfEnergy, unitsOfCurrent)
 
     do ii = 1, size(currLead)
       write(stdOut, *)
       write(stdOut, '(1x,a,i3,i3,a,ES14.5,a,a)') ' contacts: ',params%ni(ii),params%nf(ii),&
-          & ' current: ', currLead(ii),' ',unitOfCurrent%name
+          & ' current: ', currLead(ii),' ',unitsOfCurrent%name
     enddo
 
     ! Write Total transmission, T(E), on a separate file (optional)
