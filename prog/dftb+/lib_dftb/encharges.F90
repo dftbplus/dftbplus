@@ -18,6 +18,7 @@ module dftbp_encharges
   use dftbp_errorfunction, only : erfwrap
   use dftbp_coulomb, only : ewaldReal, ewaldReciprocal, derivStressEwaldRec, &
       & getMaxGEwald, getOptimalAlphaEwald
+  use dftbp_coordnumber, only : TCNCont, TCNInput, init
   use dftbp_blasroutines, only : hemv, gemv, gemm
   use dftbp_lapackroutines, only : symmatinv
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll, getLatticePoints
@@ -65,6 +66,9 @@ module dftbp_encharges
     !> Cutoff for real-space summation under PBCs
     real(dp) :: cutoff
 
+    !> Input for coordination number
+    type(TCNInput) :: cnInput
+
   end type TEeqInput
 
 
@@ -104,6 +108,9 @@ module dftbp_encharges
     !> Contains the points included in the reciprocal sum.
     !> The set should not include the origin or inversion related points.
     real(dp), allocatable :: recPoint(:, :)
+
+    !> Coordination number container
+    type(TCNCont) :: cnCont
 
     !> are the coordinates current?
     logical :: tCoordsUpdated
@@ -197,6 +204,12 @@ contains
 
     this%tPeriodic = present(latVecs)
 
+    if (this%tPeriodic) then
+      call init(this%cnCont, input%cnInput, nAtom, latVecs)
+    else
+      call init(this%cnCont, input%cnInput, nAtom)
+    end if
+
     this%param = input%TEeqParam
     this%cutoff = input%cutoff
     this%nrChrg = input%nrChrg
@@ -229,8 +242,7 @@ contains
 
 
   !> Notifies the objects about changed coordinates.
-  subroutine updateCoords(this, neigh, img2CentCell, coords, species, &
-      & cn, dcndr, dcndL)
+  subroutine updateCoords(this, neigh, img2CentCell, coords, species)
 
     !> Instance of EEQ container
     class(TEeqCont), intent(inout) :: this
@@ -247,9 +259,9 @@ contains
     !> Species of the atoms in the unit cell.
     integer, intent(in) :: species(:)
 
-    real(dp), intent(in) :: cn(:), dcndr(:, :, :), dcndL(:, :, :)
-
     integer, allocatable :: nNeigh(:)
+
+    call this%cnCont%updateCoords(neigh, img2CentCell, coords, species)
 
     allocate(nNeigh(this%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neigh, this%cutoff)
@@ -257,7 +269,8 @@ contains
     call getEEQCharges(this%nAtom, coords, species, this%nrChrg, nNeigh, &
         & neigh%iNeighbour, neigh%neighDist2, img2CentCell, this%recPoint, this%parEwald, &
         & this%vol, this%param%chi, this%param%kcn, this%param%gam, this%param%rad, &
-        & cn, dcndr, dcndL, this%energies, this%gradients, this%stress, &
+        & this%cnCont%cn, this%cnCont%dcndr, this%cnCont%dcndL, &
+        & this%energies, this%gradients, this%stress, &
         & this%charges, this%dqdr, this%dqdL)
 
     this%tCoordsUpdated = .true.
@@ -292,6 +305,8 @@ contains
     call getLatticePoints(this%recPoint, recVecs, latVecs/(2.0_dp*pi), maxGEwald,&
         & onlyInside=.true., reduceByInversion=.true., withoutOrigin=.true.)
     this%recPoint(:, :) = matmul(recVecs, this%recPoint)
+
+    call this%cnCont%updateLatVecs(LatVecs)
 
     this%tCoordsUpdated = .false.
 
@@ -443,7 +458,7 @@ contains
     !> Resulting cutoff
     real(dp) :: cutoff
 
-    cutoff = this%cutoff
+    cutoff = max(this%cutoff, this%cnCont%getRCutoff())
 
   end function getRCutoff
 
@@ -699,9 +714,11 @@ contains
     @:ASSERT(volume > 0.0_dp)
 
     ! Reciprocal space part of the Ewald sum.
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aMat) PRIVATE(iAt2f, vec, rTerm) &
-    !$OMP SHARED(nAtom, alpha, coords, recPoint, volume)
-    !$OMP DO SCHEDULE(RUNTIME)
+    ! Workaround:nagfor 7.0 with combined DO and PARALLEL
+    !$OMP PARALLEL DO DEFAULT(NONE) REDUCTION(+:aMat)&
+    !$OMP& SHARED(nAtom, alpha, volume, coords, recPoint)&
+    !$OMP& PRIVATE(iAt2f, vec, rTerm)&
+    !$OMP& SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       aMat(iAt1, iAt1) = aMat(iAt1, iAt1) - alpha / sqrt(pi) + pi / (volume * alpha**2)
       do iAt2f = iAt1, nAtom
@@ -711,8 +728,7 @@ contains
         aMat(iAt1, iAt2f) = aMat(iAt1, iAt2f) + rTerm
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
   end subroutine addEwaldContribs
 
@@ -815,11 +831,12 @@ contains
     real(dp) :: dist, eta12, rTerm
     integer :: iAt1, iAt2, iAt2f, iSp1, iSp2, iNeigh
 
-    !$OMP PARALLEL DEFAULT(NONE) REDUCTION(+:aMat) &
-    !$OMP SHARED(nAtom, species, gam, rad, nNeighbour, iNeighbour, img2CentCell) &
-    !$OMP SHARED(neighDist2, alpha) &
-    !$OMP PRIVATE(iNeigh, iAt2, iAt2f, iSp1, iSp2, dist, rTerm, eta12)
-    !$OMP DO SCHEDULE(RUNTIME)
+    ! Workaround:nagfor 7.0 with combined DO and PARALLEL
+    !$OMP PARALLEL DO DEFAULT(NONE) REDUCTION(+:aMat)&
+    !$OMP& SHARED(nAtom, species, gam, rad, nNeighbour, iNeighbour, img2CentCell, neighDist2)&
+    !$OMP& SHARED(alpha)&
+    !$OMP& PRIVATE(iNeigh, iAt2, iAt2f, iSp1, iSp2, dist, rTerm, eta12)&
+    !$OMP& SCHEDULE(RUNTIME)
     do iAt1 = 1, nAtom
       iSp1 = species(iAt1)
       aMat(iAt1, iAt1) = aMat(iAt1, iAt1) + gam(iSp1) + sqrt2pi/rad(iSp1)
@@ -834,8 +851,7 @@ contains
         aMat(iAt1, iAt2f) = aMat(iAt1, iAt2f) + rTerm
       end do
     end do
-    !$OMP END DO
-    !$OMP END PARALLEL
+    !$OMP END PARALLEL DO
 
   end subroutine addRealSpaceContribs
 
@@ -1040,6 +1056,7 @@ contains
     else
       call getCoulombMatrixCluster(nAtom, coords, species, gam, rad, aMat)
     end if
+
     aMat(nDim, 1:nAtom) = 1.0_dp
     aMat(1:nAtom, nDim) = 1.0_dp
     aMat(nDim, nDim) = 0.0_dp

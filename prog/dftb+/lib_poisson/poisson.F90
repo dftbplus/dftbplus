@@ -340,7 +340,7 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
   integer, intent(in) :: SCC_in
 
   !> Outputs of subroutine "shift_Ham"
-  real(kind=dp), intent(out) :: V_L_atm(:,:)
+  real(kind=dp), intent(inout) :: V_L_atm(:,:)
 
   !> Output of subroutine "grad_V"
   real(kind=dp), intent(out) :: grad_V(:,:)

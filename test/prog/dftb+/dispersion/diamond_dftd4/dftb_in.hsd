@@ -49,7 +49,14 @@ Hamiltonian = DFTB {
     s6 = 1.0
     s8 = 0.61
     CutoffInter = 60
-    CutoffCount = 34 
+    CoordinationNumber = Cov {
+       Cutoff = 34
+    }
+    ChargeModel = EEQ {
+       CoordinationNumber = Erf {
+          Cutoff = 34
+       }
+    }
   }
 }
 

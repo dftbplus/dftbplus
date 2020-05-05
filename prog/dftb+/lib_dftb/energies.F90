@@ -60,6 +60,9 @@ module dftbp_energies
     !> Total 3rd order
     real(dp) :: e3rd    = 0.0_dp
 
+    !> Solvation free energy
+    real(dp) :: ESolv = 0.0_dp
+
     !> Excitation energy
     real(dp) :: Eexcited = 0.0_dp
 
@@ -124,6 +127,9 @@ module dftbp_energies
     !> atom resolved 3rd order
     real(dp), allocatable :: atom3rd(:)
 
+    !> atom resolved solvation free energy
+    real(dp), allocatable :: atomSolv(:)
+
     !> atom resolved total
     real(dp), allocatable :: atomTotal(:)
 
@@ -162,6 +168,7 @@ contains
     allocate(self%atomOnSite(nAtom))
     allocate(self%atomHalogenX(nAtom))
     allocate(self%atom3rd(nAtom))
+    allocate(self%atomSolv(nAtom))
     allocate(self%atomTotal(nAtom))
     self%atomRep(:) = 0.0_dp
     self%atomNonSCC(:) = 0.0_dp
@@ -175,6 +182,7 @@ contains
     self%atomOnSite(:) = 0.0_dp
     self%atomHalogenX(:) = 0.0_dp
     self%atom3rd(:) = 0.0_dp
+    self%atomSolv(:) = 0.0_dp
     self%atomTotal(:) = 0.0_dp
 
     self%Erep = 0.0_dp
@@ -190,6 +198,7 @@ contains
     self%EOnSite = 0.0_dp
     self%EHalogenX = 0.0_dp
     self%E3rd = 0.0_dp
+    self%ESolv = 0.0_dp
     self%Etotal = 0.0_dp
     self%EMermin = 0.0_dp
     self%EGibbs = 0.0_dp
