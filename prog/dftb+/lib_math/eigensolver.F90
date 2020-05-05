@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include "error.fypp"
 
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code.
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
@@ -22,7 +23,7 @@ module dftbp_eigensolver
   implicit none
   private
 
-  public :: heev, hegv, hegvd, gvr, bgv
+  public :: heev, hegv, hegvd, gvr, bgv, geev
 #:if WITH_GPU
   public :: gpu_gvd
 #:endif
@@ -95,6 +96,13 @@ module dftbp_eigensolver
     module procedure dblecmplx_magma_zhegvd
   end interface
 #:endif
+
+  !> Simple eigensolver for a general matrix
+  interface geev
+    module procedure real_sgeev
+    module procedure dble_dgeev
+  end interface geev
+
 
 contains
 
@@ -2060,7 +2068,7 @@ contains
 
 #:if WITH_GPU
 
-#: for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'ssygvd'),&
+#:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'ssygvd'),&
   & ('dble', 'd', 'real', 'dsygvd'), ('cmplx', 's', 'complex', 'chegvd'),&
   & ('dblecmplx', 'd', 'complex', 'zhegvd')]
   !> Generalised eigensolution for symmetric/hermitian matrices on GPU(s)
@@ -2174,5 +2182,110 @@ contains
 
 #:endif
 
+
+#:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'sgeev'), ('dble', 'd', 'real', 'dgeev')]
+
+  !> Simple general matrix eigensolver
+  subroutine ${DTYPE}$_${NAME}$(a, wr, wi, vl, vr, err)
+
+    !> Matrix, overwritten on exit
+    real(r${VPREC}$p), intent(inout) :: a(:,:)
+
+    !> Real part of eigenvalues
+    real(r${VPREC}$p), intent(out) :: wr(:)
+
+    !> Imaginary part of eigenvalues
+    real(r${VPREC}$p), intent(out) :: wi(:)
+
+    !> Left eigenvectors
+    real(r${VPREC}$p), intent(out), optional :: vl(:,:)
+
+    !> Right eigenvectors
+    real(r${VPREC}$p), intent(out), optional :: vr(:,:)
+
+    !> Error code return, 0 if no problems
+    integer, intent(out), optional :: err
+
+    real(r${VPREC}$p), allocatable :: work(:)
+    integer :: n, lda, info, int_idealwork, ldvl, ldvr
+    real(r${VPREC}$p) :: idealwork(1)
+    character :: jobvl, jobvr
+
+    ! If no eigenvectors requested, need a dummy array for lapack call
+    real(r${VPREC}$p) :: dummyvl(1,1), dummyvr(1,1)
+
+    if (present(err)) then
+      err = 0
+    end if
+
+    lda = size(a, dim=1)
+    n = size(a, dim=2)
+
+    @:ASSERT(n>0)
+    @:ASSERT(size(wr) >= n)
+    @:ASSERT(size(wi) >= n)
+
+    if (present(vl)) then
+      jobvl = 'V'
+      ldvl = size(vl, dim=1)
+      @:ASSERT(all(shape(vr)>=[n,n]))
+    else
+      jobvl = 'N'
+      ldvl = 1
+    end if
+    if (present(vr)) then
+      jobvr = 'V'
+      ldvr = size(vr, dim=1)
+      @:ASSERT(all(shape(vl)>=[n,n]))
+    else
+      jobvr = 'N'
+      ldvr = 1
+    end if
+
+    if (jobvl == 'V' .and. jobvr == 'V') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, idealwork, -1, info)
+    else if (jobvl == 'V' .and. jobvr == 'N') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, dummyvr, ldvr, idealwork, -1,&
+          & info)
+    else if (jobvl == 'N' .and. jobvr == 'V') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, vr, ldvr, idealwork, -1,&
+          & info)
+    else if (jobvl == 'N' .and. jobvr == 'N') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, dummyvr, ldvr, idealwork,&
+          & -1, info)
+    end if
+    if (info/=0) then
+      @:ERROR_HANDLING(err, -1, "Failue in ${VPREC}$geev to determine optimum workspace")
+    endif
+    int_idealwork=nint(idealwork(1))
+    allocate(work(int_idealwork))
+
+    if (jobvl == 'V' .and. jobvr == 'V') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, work, int_idealwork,&
+          & info)
+    else if (jobvl == 'V' .and. jobvr == 'N') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, dummyvr, ldvr, work,&
+          & int_idealwork, info)
+    else if (jobvl == 'N' .and. jobvr == 'V') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, vr, ldvr, work,&
+          & int_idealwork, info)
+    else if (jobvl == 'N' .and. jobvr == 'N') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, dummyvr, ldvr, work,&
+          & int_idealwork, info)
+    end if
+
+    if (info/=0) then
+      if (info<0) then
+        @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0)", 'Failure in diagonalisation routine&
+            & ${VPREC}$geev, illegal argument at position ', info)
+      else
+        @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0,A)", 'Failure in diagonalisation routine&
+            & ${VPREC}$geev, diagonal element ', info, ' did not converge to zero.')
+      endif
+    endif
+
+  end subroutine ${DTYPE}$_${NAME}$
+
+#:endfor
 
 end module dftbp_eigensolver

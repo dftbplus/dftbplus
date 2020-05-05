@@ -2162,13 +2162,13 @@ module negf_int
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N
-    !   write(*,*)A(i,1:N)
+    !   write(stdOut,*)A(i,1:N)
     !end do
 
     !print *,'U matrix unitarity check'
     !B=matmul(transpose(A),A)
     !do i=1,N
-    !   write(*,*)B(i,1:N)
+    !   write(stdOut,*)B(i,1:N)
     !end do
 
     B(:,:) = matmul(transpose(A), matmul(S, A))
@@ -2182,25 +2182,25 @@ module negf_int
 
     !print *,'sqrt(S) inverted'
     !do i=1,N
-    !  write(*,*) C(i,1:N)
+    !  write(stdOut,*) C(i,1:N)
     !end do
 
     !print *,'S unity check'
     !B=matmul(transpose(C),matmul(S,C))
     !do i=1,N
-    !   write(*,*) B(i,1:N)
+    !   write(stdOut,*) B(i,1:N)
     !end do
 
     !print *,'H_dftb before orthogonalization'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     H(:,:) = matmul(transpose(C), matmul(H, C))
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
@@ -2215,7 +2215,7 @@ module negf_int
 
     !print *,'H_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     S(:,:) = 0.0_dp
@@ -2267,7 +2267,7 @@ module negf_int
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N2
-    !   write(*,*) U(i,1:N2)
+    !   write(stdOut,*) U(i,1:N2)
     !end do
 
     !U matrix unitarity check
@@ -2290,7 +2290,7 @@ module negf_int
     A(:,:) = matmul(U,matmul(B,transpose(U)))
     !print *,'sqrt(S) inverted'
     !do i=1,N2
-    !  write(*,*) A(i,1:N2)
+    !  write(stdOut,*) A(i,1:N2)
     !end do
 
     deallocate(U, B)
@@ -2307,12 +2307,12 @@ module negf_int
     !C=sqrt(S) big matrix
     !print *,'C=sqrt(S) big matrix'
     !do i=1,N
-    !   write(*,*) C(i,1:N)
+    !   write(stdOut,*) C(i,1:N)
     !end do
 
     !print *,'H_dftb before orthogonalization'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     H(:,:) = matmul(transpose(C),matmul(H,C))
@@ -2320,7 +2320,7 @@ module negf_int
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
@@ -2336,12 +2336,12 @@ module negf_int
 
     !print *,'H_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     !print *,'S_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) S(i,1:N)
+    !   write(stdOut,*) S(i,1:N)
     !end do
 
     !Save H_dftb_orth.mtr to file
