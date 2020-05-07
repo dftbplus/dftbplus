@@ -10,7 +10,7 @@
 #include "dftbplus.h"
 #include "testhelpers.h"
 
-/* This should match the number of atoms in the dftb_in.hsd */
+/* This should match the number of atoms in dftb_in.hsd */
 #define NR_OF_ATOMS_SI2 2
 #define NR_OF_ATOMS_H2O 3
 #define MAX_ATOMS 3
@@ -18,8 +18,8 @@
 #define NR_ITER 3
 
 /*
-  Reads in a dftb_in.hsd file then overrides some of its supplied setting, before calculating
-  properties.
+  Reads in a dftb_in.hsd file then overrides some of
+  its supplied settings, before calculating properties.
 */
 
 void init_collective_variables(double *mermin_energy_total, double **gradients_total,
@@ -97,7 +97,7 @@ int main()
   init_collective_variables(&mermin_energy_total, &gradients_total, 
                          &stress_tensor_total, &gross_charges_total);
 
-  /* Dummy loop to test subsequent initialisations / finalisations of the DFTB+ object */
+  /* Dummy loop to test subsequent initializations / finalizations of the DFTB+ object */
   for (ii = 0; ii < NR_ITER; ++ii) {
 
     /* Use input for Si2 and H2O alternatingly, starting with Si2 */
@@ -108,7 +108,7 @@ int main()
       natom0 = NR_OF_ATOMS_H2O;
     }
 
-    /* Initialise DFTB+ input tree from input in external file */
+    /* Initialize DFTB+ input tree from input in external file */
     dftbp_init(&calculator, NULL);
     if (si2) {
       dftbp_get_input_from_file(&calculator, "dftb_in.Si2.hsd", &input);
@@ -129,62 +129,68 @@ int main()
       dftbp_set_coords(&calculator, coords_h2o);
     }
 
-    /* evaluate energy */
+    /* Evaluate energy */
     dftbp_get_energy(&calculator, &mermin_energy);
     printf("Obtained Mermin-energy: %15.10f\n", mermin_energy);
     if (si2) {
-      printf("Expected Mermin-energy: %15.10f\n", -2.5933460731);
+      printf("Expected Mermin-energy: %15.10f\n", -2.5897497363);
     } else {
-      /* Energy not corrected yet! */
-      printf("Expected Mermin-energy: %15.10f\n", -2.5933460731);
+      printf("Expected Mermin-energy: %15.10f\n", -3.7534584715);
     }
 
-    /* and gradients */
+    /* Evaluate gradients */
     gradients = (double *) calloc(3 * natom0, sizeof(double));
     dftbp_get_gradients(&calculator, gradients);
     printf("Obtained gradient of atom 1: %15.10f %15.10f %15.10f\n", gradients[3 * 0 + 0],
            gradients[3 * 0 + 1], gradients[3 * 0 + 2]);
     if (si2) {
-      printf("Expected gradient of atom 1: %15.10f %15.10f %15.10f\n", -0.010321385989,
-             -0.010321385989, -0.010321385989);
-    } else { /* Needs to be corrected */
-      printf("Expected gradient of atom 1: %15.10f %15.10f %15.10f\n", -0.010321385989,
-             -0.010321385989, -0.010321385989);
+      printf("Expected gradient of atom 1: %15.10f %15.10f %15.10f\n", 0.0306186399,
+	     0.0026710677, -0.0007231241);
+    } else {
+      printf("Expected gradient of atom 1: %15.10f %15.10f %15.10f\n", 0.0178274222,
+	     1.1052419875, -0.0835794936);
     }
 
-    /* and the stress tensor (if the system is periodic) */
+    /* Evaluate stress tensor (if the system is periodic) */
     stress_tensor = (double *) calloc(9, sizeof(double));
     if(si2) {
       dftbp_get_stress_tensor(&calculator, stress_tensor);
       printf("Obtained diagonal elements of stress tensor: %15.10f %15.10f %15.10f\n", 
            stress_tensor[0], stress_tensor[4], stress_tensor[8]);
-      printf("Expected diagonal of stress tensor: %15.10f %15.10f %15.10f\n", 
-           0.000063897651, 0.000041317125, 0.000047571711);
+      printf("Expected diagonal elements of stress tensor: %15.10f %15.10f %15.10f\n", 
+	     -0.0001163360, -0.0001080554, -0.0001614502);
     } else {
       for (ij = 0; ij < 9; ++ij) {
         stress_tensor[ij] = 0.0;
       }
     }
 
-    /* and gross charges */
+    /* Evaluate Gross charges */
     gross_charges = (double *) calloc(natom0, sizeof(double));
     dftbp_get_gross_charges(&calculator, gross_charges);
     if (si2) {
       printf("Obtained gross charges: %15.10f %15.10f\n", gross_charges[0], gross_charges[1]);
+      printf("Expected gross charges: %15.10f %15.10f\n", 0.0000000000, 0.0000000000);
     } else {
       printf("Obtained gross charges: %15.10f %15.10f %15.10f\n", gross_charges[0],
              gross_charges[1], gross_charges[2]);
+      printf("Expected gross charges: %15.10f %15.10f %15.10f\n", -0.6519945363,
+	     0.3314953102, 0.3204992261);
     }
 
     update_collective_variables(natom0, mermin_energy, gradients, stress_tensor, 
                                 gross_charges, &mermin_energy_total, gradients_total, 
                                 stress_tensor_total, gross_charges_total);
 
-    /*  clean up */
+    /*  Clean up */
     dftbp_final(&calculator);
 
     if (ii == NR_ITER - 1) {
-      /* Save some data for the internal test system */
+      /*
+	 Save some data in autotest.tag for the internal test system.
+         In order to include the results of all performed calculations,
+         the summed up values (collective variables) are written out.
+      */
       dftbp_write_autotest_tag(MAX_ATOMS, 0, mermin_energy_total, gradients_total,
                                stress_tensor_total, gross_charges_total, NULL);
     }
