@@ -46,7 +46,7 @@ contains
     !> Conversion factor
     real(dp), intent(in), optional :: conv
 
-    type(fnode), pointer :: value1
+    type(fnode), pointer :: child
     real(dp) :: fact, dummy
     integer :: iSp
 
@@ -67,9 +67,9 @@ contains
     end if
 
     do iSp = 1, size(elementSymbol)
-      call getChild(node, elementSymbol(iSp), value1, requested=.false.)
-      if (associated(value1)) then
-        call getChildValue(node, elementSymbol(iSp), dummy)
+      call getChild(node, elementSymbol(iSp), child, requested=.false.)
+      if (associated(child)) then
+        call getChildValue(child, "", dummy)
       end if
     end do
 
