@@ -2680,19 +2680,12 @@ contains
       end if
       poissStr%tempElec = tempElec
 
-    #:if WITH_MPI
-      call poiss_init(poissStr, orb, hubbU, input%poisson,&
-        #:if WITH_TRANSPORT
-          & input%transpar,&
-        #:endif
-          & env%mpi%globalComm, tInitialized)
-    #:else
-      call poiss_init(poissStr, orb, hubbU, input%poisson,&
+      call poiss_init(env, poissStr, orb, hubbU, input%poisson,&
         #:if WITH_TRANSPORT
           & input%transpar,&
         #:endif
           & tInitialized)
-    #:endif
+
       if (.not. tInitialized) then
         call error("Poisson solver not initialized")
       end if
@@ -3636,7 +3629,7 @@ contains
   subroutine initTransport(env, input, tDefinedFreeE)
 
     !> Computational environment
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> Input data
     type(TInputData), intent(in) :: input

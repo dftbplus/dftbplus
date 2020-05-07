@@ -4,7 +4,6 @@ set(sources-fpp
   ${curdir}/bulkpot.F90
   ${curdir}/fancybc.F90
   ${curdir}/gallocation.F90
-  ${curdir}/gclock.F90
   ${curdir}/gewald.F90
   ${curdir}/mpi_poisson.F90
   ${curdir}/parameters.F90

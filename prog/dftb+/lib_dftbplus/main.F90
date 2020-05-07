@@ -310,7 +310,7 @@ contains
     call env%globalTimer%stopTimer(globalTimers%postGeoOpt)
 
     if (tPoisson) then
-      call poiss_destroy()
+      call poiss_destroy(env)
     end if
   #:if WITH_TRANSPORT
     if (electronicSolver%iSolver == electronicSolverTypes%GF) then
@@ -754,7 +754,7 @@ contains
     call env%globalTimer%stopTimer(globalTimers%scc)
 
     if (tPoisson) then
-      call poiss_savepotential()
+      call poiss_savepotential(env)
     end if
 
     call env%globalTimer%startTimer(globalTimers%postSCC)
@@ -1895,7 +1895,7 @@ contains
       & tPoisson, tUpload, shiftPerLUp)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> SCC module internal variables
     type(TScc), intent(inout) :: sccCalc
@@ -1983,8 +1983,8 @@ contains
           ! Potentials for non-existing angular momenta must be 0 for later summations
           shellPot(:,:,1) = 0.0_dp
         end if
-        call poiss_updcharges(qInput(:,:,1), q0(:,:,1))
-        call poiss_getshift(shellPot(:,:,1))
+        call poiss_updcharges(env, qInput(:,:,1), q0(:,:,1))
+        call poiss_getshift(env, shellPot(:,:,1))
         if (.not.allocated(shellPotBk)) then
           allocate(shellPotBk(orb%mShell, nAtom))
         end if
@@ -5263,7 +5263,7 @@ contains
       & over, denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -5412,9 +5412,11 @@ contains
       end if
 
       if (tPoisson) then
-        tmpDerivs(:,:) = 0.0_dp
-        call poiss_getshift(dummyArray, tmpDerivs)
+
+        tmpDerivs = 0.0_dp
+        call poiss_getshift(env, dummyArray, tmpDerivs)
         derivs(:,:) = derivs + tmpDerivs
+
       else
 
         if (tExtChrg) then
