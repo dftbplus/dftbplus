@@ -10,7 +10,7 @@
 !> Routines to deal with HSD species lists
 module dftbp_specieslist
   use dftbp_accuracy, only : dp
-  use dftbp_constants, only : pse
+  use dftbp_constants, only : elementSymbol
   use dftbp_hsdutils, only : getChildValue, getChild
   use dftbp_xmlf90, only : fnode
   implicit none
@@ -46,7 +46,7 @@ contains
     !> Conversion factor
     real(dp), intent(in), optional :: conv
 
-    type(fnode), pointer :: value1, child
+    type(fnode), pointer :: value1
     real(dp) :: fact, dummy
     integer :: iSp
 
@@ -58,25 +58,18 @@ contains
 
     if (present(default)) then
       do iSp = 1, size(speciesNames)
-        call getChild(node, speciesNames(iSp), value1, requested=.false.)
-        if (associated(value1)) then
-          call getChildValue(node, speciesNames(iSp), array(iSp), &
-              & child=child)
-        else
-          call getChildValue(node, speciesNames(iSp), array(iSp), &
-              & default=default(iSp)*fact, child=child)
-        end if
+        call getChildValue(node, speciesNames(iSp), array(iSp), default=default(iSp)*fact)
       end do
     else
       do iSp = 1, size(speciesNames)
-        call getChildValue(node, speciesNames(iSp), array(iSp), child=child)
+        call getChildValue(node, speciesNames(iSp), array(iSp))
       end do
     end if
 
-    do iSp = 1, size(pse)
-      call getChild(node, pse(iSp), value1, requested=.false.)
+    do iSp = 1, size(elementSymbol)
+      call getChild(node, elementSymbol(iSp), value1, requested=.false.)
       if (associated(value1)) then
-        call getChildValue(node, pse(iSp), dummy, child=child)
+        call getChildValue(node, elementSymbol(iSp), dummy)
       end if
     end do
 
