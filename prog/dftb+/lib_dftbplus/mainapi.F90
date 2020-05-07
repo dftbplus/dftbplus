@@ -128,6 +128,11 @@ contains
     !> resulting gradients wrt atom positions
     real(dp), intent(out) :: virial(:,:)
 
+    if (.not. tStress) then
+      call error("Virial not available, you must initialise your calculator with&
+          & this property enabled.")
+    end if
+
     call recalcGeometry(env)
     virial(:,:) = totalStress*CellVol
 
