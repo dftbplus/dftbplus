@@ -19,8 +19,9 @@ module poisson_init
 #:endif
   use poisson
   use dftbp_environment, only : TEnvironment, globalTimers
+#:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
-  use system_calls, only: create_directory
+#:endif
   implicit none
   private
 
@@ -167,8 +168,12 @@ module poisson_init
 
 contains
 
-  !  !> Initialise gDFTB environment and variables
-  subroutine poiss_init(env,structure, orb, hubbU, poissoninfo, transpar, initinfo)
+  !> Initialise gDFTB environment and variables
+  subroutine poiss_init(env, structure, orb, hubbU, poissoninfo,&
+    #:if WITH_TRANSPORT
+      & transpar,&
+    #:endif
+      & initinfo)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -185,8 +190,10 @@ contains
     !> Solver settings
     Type(TPoissonInfo), intent(in) :: poissoninfo
 
+  #:if WITH_TRANSPORT
     !> Transport parameters
     Type(TTransPar), intent(in) :: transpar
+  #:endif
 
     !> Success of initialisation
     logical, intent(out) :: initinfo
@@ -208,9 +215,6 @@ contains
     write(stdOut,*) 'Poisson Initialisation:'
     write(stdOut,'(a,i0,a)') ' Poisson parallelized on ', numprocs, ' node(s)'
     write(stdOut,*)
-
-    ! notify solver of standard out unit
-    call set_stdout(stdOut)
 
     ! Directory for temporary files
     call set_scratch(poissoninfo%scratch)
@@ -249,6 +253,7 @@ contains
 
       call set_temperature(0.0_dp)
 
+    #:if WITH_TRANSPORT
       !-----------------------------------------------------------------------------
       ! GP: verify if the calculation is on an open system (cluster=false) or not
       !
@@ -280,6 +285,11 @@ contains
       call set_fermi(transpar%contacts(1:ncont)%eFermi(1))
       call set_potentials(transpar%contacts(1:ncont)%potential)
       call set_builtin()
+    #:else
+      call set_ncont(0)
+      call set_cluster(.true.)
+      call set_mol_indeces([1,structure%natom], structure%natom)
+    #:endif
 
       call set_dopoisson(poissoninfo%defined)
       call set_poissonbox(poissoninfo%poissBox)
@@ -308,9 +318,11 @@ contains
 
       write(stdOut,*) "Atomic density cutoff: ", deltaR_max, "a.u."
 
+    #:if WITH_TRANSPORT
       if (ncont /= 0 .and. poissoninfo%cutoffcheck) then
         call checkDensityCutoff(deltaR_max, transpar%contacts(:)%length)
       end if
+    #:endif
 
       dR_cont = poissoninfo%bufferLocBC
       bufferBox = poissoninfo%bufferBox
@@ -376,6 +388,30 @@ contains
     endif
 
   end subroutine poiss_init
+
+
+  subroutine create_directory(dirName, iErr)
+
+    character(*), intent(in) :: dirName
+
+    integer, intent(out) :: iErr
+
+    integer :: cstat
+    character(len=255) :: cmsg
+
+    iErr = -999
+    cstat = -999
+    cmsg  = "notfilled"
+
+    call execute_command_line("mkdir "//trim(dirName), exitstat=iErr, cmdstat=cstat,&
+        & cmdmsg=cmsg)
+    if (iErr /= 0) then
+      write (stdOut,*) 'error status of mkdir: ', iErr
+      write (stdOut,*) 'command status: ', cstat
+      write (stdOut,*) "command msg:  ", trim(cmsg)
+    end if
+
+  end subroutine create_directory
 
 
   !> Release gDFTB varibles in poisson library

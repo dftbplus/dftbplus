@@ -26,7 +26,7 @@
 module gallocation
   use, intrinsic :: iso_fortran_env, only : int64
   use, intrinsic :: iso_c_binding, only : c_sizeof
-  use std_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_accuracy, only : dp
 
   integer, parameter :: long = int64

@@ -3164,6 +3164,92 @@ CM5 {
 \end{verbatim}
 
 
+\subsubsection{Solvent area model}
+\label{sec:dftbp.SolventAreaModel}
+
+The non-polar solvation free energy can be estimated from the solvent accessible
+surface area (SASA) by
+%
+\begin{equation}
+  \Delta G_\text{non-polar} = \sum_\text{A} \gamma_\text{A} \sigma_\text{A}
+\end{equation}
+%
+where $\gamma_\text{A}$ is the surface tension and $\sigma_\text{A}$
+is the accessible surface area of each atom.
+To calculate the latter, the molecule is assumed as a convolution of spheres
+which is probed by a probe sphere rolled around the surface.
+Here a smooth numerical integration approach is employed.\cite{im2003}
+
+To use the non-polar surface area model in an calculation use the
+\is{SASA\cb} method in the input to \kw{Solvation}.
+This model is currently only available for finite systems.
+
+\begin{ptable}
+  \kw{ProbeRadius} & r & & & \\
+  \kw{Smoothing} & r & & 0.3 AA & \\
+  \kw{Offset} & r & & 2.0 AA & \\ 
+  \kw{Tolerance} & r & & 1.0e-6 & \\ 
+  \kw{AngularGrid} & i & & 230 & \\ 
+  \kw{Radii} & m & & & \\
+  \kw{SurfaceTension} & m & & & \\
+\end{ptable}
+
+\begin{description}
+  \item[\is{ProbeRadius}] \modif{\modtype{length}}
+    Radius of the probe sphere used to determine the accessible surface area.
+
+  \item[\is{Smoothing}] \modif{\modtype{length}}
+    Smoothing parameter for numerical integration.
+
+  \item[\is{Offset}] \modif{\modtype{length}}
+    This offset value is added on the realspace cutoff radius for the
+    neighbourlist generation.
+    The realspace cutoff is determined automatically from the probe radius,
+    the largest atomic radius and the smoothing parameter.
+
+  \item[\is{Tolerance}]
+    Minimal value of surface area contribution of a grid point to be accounted
+    for as SASA.
+
+  \item[\is{AngularGrid}]
+    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    The grid size mainly determines the computational cost of evaluating the
+    accessible surface area, too small grid sizes can lead to significant errors
+    due to missing rotational invariance.
+    A safe choice should be 230 grid points per atom.
+    Possible values are
+    6, 14, 26, 38, 50, 74, 86, 110, 146, 170, 194, \textit{230}, 266, 302, 350,
+    434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
+    4334, 4802, 5294, 5810.
+
+  \item[\is{Radii}] Atomic radii for each element, either takes
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+    or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{SurfaceTension}]
+    Surface tension parameter for each species in dyn/cm.
+
+\end{description}
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = SASA { # GFN1-xTB/GBSA(Toluene)
+    ProbeRadius [AA] = 1.59772343
+    Smoothing [AA] = 0.3
+    Offset [AA] = 2
+    AngularGrid = 230
+    Radii = vanDerWaalsRadiiD3 {}
+    SurfaceTension = Values {
+      H = -1.52312760
+      C = -2.92375089
+      O = 0.79482640
+    }
+  }
+}
+\end{verbatim}
+
+
 \subsection{Halogen corrections}
 \label{sec:dftbp.xcorr}
 
