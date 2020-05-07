@@ -62,10 +62,12 @@ module dftbp_main
   use dftbp_elecconstraints
   use dftbp_pmlocalisation, only : TPipekMezey
   use dftbp_linresp
+  use dftbp_pprpa, only : ppRPAenergies
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : TDispersionIface
   use dftbp_solvation, only : TSolvation
+  use dftbp_cm5, only : TChargeModel5
   use dftbp_xmlf90
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_rangeseparated, only : TRangeSepFunc
@@ -91,8 +93,8 @@ module dftbp_main
 #:if WITH_TRANSPORT
   use libnegf_vars, only : TTransPar
   use negf_int
-  use poisson_init
 #:endif
+  use poisson_init
   use dftbp_transportio
 
   implicit none
@@ -298,7 +300,7 @@ contains
     if (tWriteResultsTag) then
       call writeResultsTag(resultsTag, energy, derivs, chrgForces, electronicSolver, tStress,&
           & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
-          & tDefinedFreeE)
+          & tDefinedFreeE, cm5Cont)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&
@@ -307,10 +309,10 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%postGeoOpt)
 
-  #:if WITH_TRANSPORT
     if (tPoisson) then
       call poiss_destroy()
     end if
+  #:if WITH_TRANSPORT
     if (electronicSolver%iSolver == electronicSolverTypes%GF) then
       call negf_destroy()
     end if
@@ -380,8 +382,9 @@ contains
     end if
 
     if (tLatticeChanged) then
-      call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion, solvation, &
-          & recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec, rCellVec)
+      call handleLatticeChange(latVec, sccCalc, tStress, extPressure, cutOff%mCutOff, dispersion,&
+          & solvation, cm5Cont, recVec, invLatVec, cellVol, recCellVol, extLatDerivs, cellVec,&
+          & rCellVec)
     end if
 
     if (tCoordsChanged) then
@@ -389,7 +392,7 @@ contains
           & tPeriodic, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks,&
           & img2CentCell, iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
           & nNeighbourSk, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-          & ERhoPrim, iSparseStart, tPoisson)
+          & ERhoPrim, iSparseStart, tPoisson, cm5Cont)
     end if
 
     #:if WITH_TRANSPORT
@@ -522,10 +525,6 @@ contains
               & qDiffRed, sccErrorQ, sccTol, tConverged, iSccIter, minSccIter, maxSccIter,&
               & iGeoStep, tStopScc, eigvecsReal, reks)
         end if
-
-        !call addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-        !    & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
-        !    & tPoisson, tUpload, shiftPerLUp)
 
         call getSccInfo(iSccIter, energy%Etotal, Eold, diffElec)
         call printReksSccInfo(iSccIter, energy%Etotal, diffElec, sccErrorQ, reks)
@@ -741,7 +740,7 @@ contains
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
-              & tRangeSep, allocated(thirdOrd), allocated(solvation))
+              & tRangeSep, allocated(thirdOrd), allocated(solvation), cm5Cont)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -754,11 +753,9 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%scc)
 
-  #:if WITH_TRANSPORT
     if (tPoisson) then
       call poiss_savepotential()
     end if
-  #:endif
 
     call env%globalTimer%startTimer(globalTimers%postSCC)
 
@@ -776,6 +773,18 @@ contains
           & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
           & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida, SSqrReal,&
           & rhoSqrReal, excitedDerivs, occNatural)
+    end if
+
+    if (allocated(ppRPA)) then
+      call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
+          & iSparseStart, img2CentCell)
+      call blockSymmetrizeHS(SSqrReal, denseDesc%iAtomStart)
+      if (withMpi) then
+        call error("pp-RPA calc. does not work with MPI yet")
+      end if
+      call ppRPAenergies(ppRPA, denseDesc, eigvecsReal, eigen(:,1,:), sccCalc, SSqrReal, species0,&
+          & nEl(1), neighbourList%iNeighbour, img2CentCell, orb, tWriteAutotest, autotestTag,&
+          & taggedWriter)
     end if
 
     if (isXlbomd) then
@@ -1115,7 +1124,7 @@ contains
 
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion, solvation, &
-      & recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
+      & cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -1137,6 +1146,9 @@ contains
 
     !> Solvation model
     class(TSolvation), allocatable, intent(inout) :: solvation
+
+    !> Charge model 5
+    type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
 
     !> Reciprocal lattice vectors
     real(dp), intent(out) :: recVecs(:,:)
@@ -1181,6 +1193,10 @@ contains
       call solvation%updateLatVecs(latVecs)
       mCutOff = max(mCutOff, solvation%getRCutOff())
     end if
+    if (allocated(cm5Cont)) then
+       call cm5Cont%updateLatVecs(latVecs)
+       mCutoff = max(mCutOff, cm5Cont%getRCutOff())
+    end if
     call getCellTranslations(cellVecs, rCellVecs, latVecs, recVecs2p, mCutOff)
 
   end subroutine handleLatticeChange
@@ -1191,7 +1207,7 @@ contains
       & tPeriodic, sccCalc, dispersion, solvation, thirdOrd, rangeSep, reks, img2CentCell,&
       & iCellVec, neighbourList, nAllAtom, coord0Fold, coord, species, rCellVec,&
       & nNeighbourSK, nNeighbourRep, nNeighbourLC, ham, over, H0, rhoPrim, iRhoPrim, iHam,&
-      & ERhoPrim, iSparseStart, tPoisson)
+      & ERhoPrim, iSparseStart, tPoisson, cm5Cont)
 
     use dftbp_initprogram, only : TCutoffs
 
@@ -1298,6 +1314,9 @@ contains
     !> Transport variables
     logical, intent(in) :: tPoisson
 
+    !> Charge model 5
+    type(TChargeModel5), allocatable, intent(inout) :: cm5Cont
+
     !> Total size of orbitals in the sparse data structures, where the decay of the overlap sets the
     !> sparsity pattern
     integer :: sparseSize
@@ -1326,14 +1345,12 @@ contains
     end if
 
     ! Notify various modules about coordinate changes
-  #:if WITH_TRANSPORT
     if (tPoisson) then
       !! TODO: poiss_updcoords pass coord0 and not coord0Fold because the
       !! folding can mess up the contact position. Could we have the supercell
       !! centered on the input atomic structure?
       call poiss_updcoords(coord0)
     end if
-  #:endif
 
     if (allocated(sccCalc)) then
       call sccCalc%updateCoords(env, coord, species, neighbourList)
@@ -1350,6 +1367,9 @@ contains
     end if
     if (allocated(rangeSep)) then
       call rangeSep%updateCoords(coord0)
+    end if
+    if (allocated(cm5Cont)) then
+       call cm5Cont%updateCoords(neighbourList, img2CentCell, coord, species)
     end if
 
 
@@ -1871,8 +1891,8 @@ contains
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics, tPoisson,&
-      & tUpload, shiftPerLUp)
+      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
+      & tPoisson, tUpload, shiftPerLUp)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -1951,7 +1971,6 @@ contains
 
     case(elstatTypes%poisson)
 
-    #:if WITH_TRANSPORT
       ! NOTE: charge-magnetization representation is used
       !       iSpin=1 stores total charge
       ! Logic of calls order:
@@ -1976,9 +1995,6 @@ contains
       atomPot(:,:) = 0.0_dp
       call sccCalc%setShiftPerAtom(atomPot(:,1))
       call sccCalc%setShiftPerL(shellPot(:,:,1))
-    #:else
-      call error("poisson solver used without transport modules")
-    #:endif
 
     end select
 
@@ -5240,11 +5256,11 @@ contains
 
 
   !> Calculates the gradients
-  subroutine getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim, ERhoPrim,&
-      & qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK, nNeighbourRep,&
-      & species, img2CentCell, iSparseStart, orb, potential, coord, derivs, iRhoPrim, thirdOrd, solvation,&
-      & qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal, over, denseDesc, deltaRhoOutSqr,&
-      & tPoisson, halogenXCorrection)
+  subroutine getGradients(env, sccCalc, tExtField, isXlbomd, nonSccDeriv, EField, rhoPrim,&
+      & ERhoPrim, qOutput, q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSK,&
+      & nNeighbourRep, species, img2CentCell, iSparseStart, orb, potential, coord, derivs,&
+      & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal,&
+      & over, denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -5368,7 +5384,9 @@ contains
     nAtom = size(derivs, dim=2)
 
     allocate(tmpDerivs(3, nAtom))
-    if (tPoisson) allocate(dummyArray(orb%mshell, nAtom))
+    if (tPoisson) then
+      allocate(dummyArray(orb%mshell, nAtom))
+    end if
     derivs(:,:) = 0.0_dp
 
     if (.not. (tSccCalc .or. tExtField)) then
@@ -5394,10 +5412,8 @@ contains
       end if
 
       if (tPoisson) then
-        tmpDerivs = 0.0_dp
-      #:if WITH_TRANSPORT
+        tmpDerivs(:,:) = 0.0_dp
         call poiss_getshift(dummyArray, tmpDerivs)
-      #:endif
         derivs(:,:) = derivs + tmpDerivs
       else
 
@@ -5428,16 +5444,16 @@ contains
           end if
         end if
 
-      if (allocated(qDepExtPot)) then
-        allocate(dQ(orb%mShell, nAtom, size(qOutput, dim=3)))
-        call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
-        call qDepExtPot%addGradientDc(sum(dQ(:,:,1), dim=1), dQ(:,:,1), derivs)
-      end if
+        if (allocated(qDepExtPot)) then
+          allocate(dQ(orb%mShell, nAtom, size(qOutput, dim=3)))
+          call getChargePerShell(qOutput, orb, species, dQ, qRef=q0)
+          call qDepExtPot%addGradientDc(sum(dQ(:,:,1), dim=1), dQ(:,:,1), derivs)
+        end if
 
-      if (tExtField) then
-        do iAt = 1, nAtom
-          derivs(:, iAt) = derivs(:, iAt)&
-              & + sum(qOutput(:, iAt, 1) - q0(:, iAt, 1)) * potential%extGrad(:, iAt)
+        if (tExtField) then
+          do iAt = 1, nAtom
+            derivs(:, iAt) = derivs(:, iAt)&
+                & + sum(qOutput(:, iAt, 1) - q0(:, iAt, 1)) * potential%extGrad(:, iAt)
           end do
         end if
 

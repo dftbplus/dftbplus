@@ -9,7 +9,7 @@
 !! and second derivatives.
 program splvalue
   use dftbp_accuracy
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_repspline
   use dftbp_oldskdata, only : readsplinerep
   use dftbp_fileid

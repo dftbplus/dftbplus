@@ -10,6 +10,7 @@ module structure
   use dftbp_accuracy, only : dp
   use gallocation
   use mpi_poisson
+  use dftbp_globalenv, only : stdOut
    
   implicit none
   private
@@ -172,21 +173,21 @@ module structure
  
     if (active_id) then
  
-      write(*,*) 'natoms=',natoms
-      write(*,*) 'ntypes=',ntypes
-      write(*,*) 'is Periodic=',period
+      write(stdOut,*) 'natoms=',natoms
+      write(stdOut,*) 'ntypes=',ntypes
+      write(stdOut,*) 'is Periodic=',period
  
-      !write(*,*) 'coordinates='
+      !write(stdOut,*) 'coordinates='
       !do i=1,natoms
-      !   write(*,'(i5,i3,3(f9.4))') i,izp(i),x(1,i),x(2,i),x(3,i)
+      !   write(stdOut,'(i5,i3,3(f9.4))') i,izp(i),x(1,i),x(2,i),x(3,i)
       !enddo
  
-      !write(*,*) 'ind='
-      !write(*,*) ind(1:natoms+1)
-      write(*,*) '  qzero,   uhubb,   lmax' 
+      !write(stdOut,*) 'ind='
+      !write(stdOut,*) ind(1:natoms+1)
+      write(stdOut,*) '  qzero,   uhubb,   lmax'
  
       do i=1,ntypes  
-         write(*,'(f9.4,f9.4,i6)') uhubb(1:2,i),lmax(i)
+         write(stdOut,'(f9.4,f9.4,i6)') uhubb(1:2,i),lmax(i)
       enddo
  
     endif
