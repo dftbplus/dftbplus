@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,7 @@ module dftbp_linkedlistr2
   private
 
   $:define_list(&
-      & TYPE_NAME='listRealR2',&
+      & TYPE_NAME='TListRealR2',&
       & ITEM_TYPE='real(dp)',&
       & ITEM_RANK=2,&
       & PADDING='0.0_dp')

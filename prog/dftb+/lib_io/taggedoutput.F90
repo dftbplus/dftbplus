@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -72,6 +72,9 @@ module dftbp_taggedoutput
     !> oscillator strength for excitations
     character(lenLabel) :: excOsc = 'exc_oscillator'
 
+    !> nonadiabatic coupling vector, H
+    character(lenLabel) :: nacH = 'coupling_vectors'
+
     !> ground state total forces
     character(lenLabel) :: forceTot = 'forces'
 
@@ -82,7 +85,10 @@ module dftbp_taggedoutput
     character(lenLabel) :: gibbsFree = 'gibbs_energy'
 
     !> Gross atomic charges
-    character(lenLabel) :: qOutAtGross  = 'gross_atomic_charges'
+    character(lenLabel) :: qOutAtGross = 'gross_atomic_charges'
+
+    !> Charge model 5 corrected atomic gross charges
+    character(lenLabel) :: qOutAtCM5 = 'cm5_atomic_charges'
 
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
@@ -105,14 +111,14 @@ module dftbp_taggedoutput
     !> total projected DOS vector
     character(lenLabel) :: ldos = 'total_localdos'
 
-    !> total bond currents 
+    !> total bond currents
     character(lenLabel) :: localCurrents = 'local_currents'
 
     !> total internal energy
-    character(lenLabel) :: egyTotal   = 'total_energy'
+    character(lenLabel) :: egyTotal = 'total_energy'
 
     !> total internal energy extrapolated to 0 K
-    character(lenLabel) :: egy0Total   = 'extrapolated0_energy'
+    character(lenLabel) :: egy0Total = 'extrapolated0_energy'
 
     !> Energy, which if differentiated gives - force
     character(lenLabel) :: egyForceRelated = 'forcerelated_energy'
@@ -136,13 +142,16 @@ module dftbp_taggedoutput
     character(lenLabel) :: fillings = 'fillings'
 
     !> Derivatives of ground state single particle eigenvalues wrt. k
-    character(lenLabel) :: dEigenDk  = 'dEidk'
+    character(lenLabel) :: dEigenDk = 'dEidk'
 
     !> Derivatives of gross atomic charges wrt. x
-    character(lenLabel) :: dqdx  = 'dqdx'
+    character(lenLabel) :: dqdx = 'dqdx'
 
     !> Electric dipole moment
-    character(lenLabel) :: electricDipole   = 'electricdipole'
+    character(lenLabel) :: electricDipole = 'electricdipole'
+
+    !> two-electron addition/removal energies in ppRPA formalism
+    character(lenLabel) :: egyppRPA = '2e_add-rem_energies'
 
   end type TTagLabelsEnum
 

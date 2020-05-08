@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 module dftbp_forces
   use dftbp_assert
   use dftbp_accuracy
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_scc
   use dftbp_commontypes
   use dftbp_slakocont
@@ -53,7 +53,7 @@ contains
     real(dp), intent(out) :: deriv(:,:)
 
     !> Differentiatior for the non-scc components
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> density matrix in packed format
     real(dp), intent(in) :: DM(:)
@@ -62,10 +62,10 @@ contains
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> Container for SK overlap integrals
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -158,7 +158,7 @@ contains
     real(dp), intent(out) :: deriv(:,:)
 
     !> Differentiatior for the non-scc components
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
@@ -167,10 +167,10 @@ contains
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
-    type(OSlakoCont) :: skHamCont
+    type(TSlakoCont) :: skHamCont
 
     !> Container for SK overlap integrals
-    type(OSlakoCont) :: skOverCont
+    type(TSlakoCont) :: skOverCont
 
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -286,7 +286,7 @@ contains
     real(dp), intent(out) :: deriv(:,:)
 
     !> Differentiatior for the non-scc components
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> density matrix in packed format
     real(dp), intent(in) :: DM(:,:)
@@ -298,10 +298,10 @@ contains
     real(dp), intent(in) :: EDM(:)
 
     !> Container for SK Hamiltonian integrals
-    type(OSlakoCont) :: skHamCont
+    type(TSlakoCont) :: skHamCont
 
     !> Container for SK overlap integrals
-    type(OSlakoCont) :: skOverCont
+    type(TSlakoCont) :: skOverCont
 
     !> list of all atomic coordinates
     real(dp), intent(in) :: coords(:,:)

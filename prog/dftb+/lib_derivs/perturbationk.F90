@@ -19,7 +19,7 @@ module dftbp_perturbkderivs
   use dftbp_orbitalequiv
   use dftbp_populations
   use dftbp_spin
-  use dftbp_thirdorder, only : ThirdOrder
+  use dftbp_thirdorder, only : TThirdOrder
   use dftbp_dftbplusu
   use dftbp_onsitecorrection
   use dftbp_mainio

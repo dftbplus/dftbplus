@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,7 +17,7 @@ module dftbp_wrappedintr
 #:for _, SUFFIX, _ in FLAVOURS
 #:for DIM in [('1'), ('2')]
 
-  public :: wrapped${SUFFIX}$${DIM}$
+  public :: Twrapped${SUFFIX}$${DIM}$
 
 #:endfor
 #:endfor
@@ -26,9 +26,9 @@ module dftbp_wrappedintr
 #:for DIM, ARRAY in [('1',':'), ('2', ':,:')]
 
   !> ${DIM}$ dimensional ${TYPE}$
-  type :: wrapped${NAME}$${DIM}$
+  type :: Twrapped${NAME}$${DIM}$
     ${TYPE}$${PREC}$, allocatable :: data(${ARRAY}$)
-  end type wrapped${NAME}$${DIM}$
+  end type Twrapped${NAME}$${DIM}$
 
 #:endfor
 #:endfor

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,18 +23,20 @@ module negf_int
   use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
   use libnegf, only : printcsr
   use dftbp_accuracy
+  use dftbp_environment
   use dftbp_constants
   use dftbp_matconv
   use dftbp_sparse2dense
   use dftbp_densedescr
   use dftbp_commontypes, only : TOrbitals
   use dftbp_formatout
-  use dftbp_globalenv
+  use dftbp_globalenv, only : stdOut, tIOproc
   use dftbp_message
   use dftbp_elecsolvertypes, only : electronicSolverTypes
   use dftbp_linkedlist
   use dftbp_periodic
   use dftbp_assert
+  use dftbp_eigensolver
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -52,8 +54,13 @@ module negf_int
   !> passing structure parameters
   public :: negf_init_str
 
+  !> initialisation of dephasing effects
   public :: negf_init_dephasing
+
+  !> electron-phonon coupling initialisation
   public :: negf_init_elph
+
+  !> clean up CSR matrices and the NEGF structure
   public :: negf_destroy
 
   !> wrapped functions passing dftb matrices. Needed for parallel
@@ -82,22 +89,19 @@ module negf_int
   !> non wrapped direct calls
   private :: negf_density, negf_current, negf_ldos
 
+  !> Format for two values with units
+  character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+
   contains
 
   !> Init gDFTB environment and variables
-  !>
-  !> Note: mpicomm should be the global commworld here
-#:if WITH_MPI
-  subroutine negf_init(transpar, greendens, tundos, mpicomm, tempElec, solver)
-
-    !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-#:else
-  subroutine negf_init(transpar, greendens, tundos, tempElec, solver)
-#:endif
+  subroutine negf_init(transpar, env, greendens, tundos, tempElec, solver)
 
     !> Parameters for the transport calculation
     Type(TTranspar), intent(in) :: transpar
+
+    !> Environment settings, suplying the global comm world
+    type(TEnvironment), intent(in) :: env
 
     !> Parameters for the Green's function calculation
     Type(TNEGFGreenDensInfo), intent(in) :: greendens
@@ -121,7 +125,7 @@ module negf_int
     ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(env%mpi%globalComm, tIOproc)
 #:endif
 
     if (transpar%defined) then
@@ -227,7 +231,8 @@ module negf_int
         params%FictCont(i) = transpar%contacts(i)%wideBand
         params%contact_DOS(i) = transpar%contacts(i)%wideBandDOS
 
-        write(stdOut,*) '(negf_init) CONTACT INFO #',i
+        write(stdOut,"(1X,A,I0,A)") '(negf_init) CONTACT INFO #', i,&
+            & ' "'//trim(transpar%contacts(i)%name)//'"'
 
         if (params%FictCont(i)) then
           write(stdOut,*) 'FICTITIOUS CONTACT '
@@ -235,16 +240,23 @@ module negf_int
         end if
         write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
         write(stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
-        write(stdOut,*) 'Potential (with built-in): ', pot(i)
-        write(stdOut,*) 'eFermi: ', eFermi(i)
+        if (transpar%contacts(i)%tFermiSet) then
+          write(stdOut,format2U)'Potential (with built-in)', pot(i), 'H', Hartree__eV*pot(i), 'eV'
+          write(stdOut,format2U)'eFermi', eFermi(i), 'H', Hartree__eV*eFermi(i), 'eV'
+        end if
         write(stdOut,*)
+
+        ! Define electrochemical potentials
+        params%mu(i) = eFermi(i) - pot(i)
+
+        if (transpar%contacts(i)%tFermiSet) then
+          write(stdOut,format2U)'Electro-chemical potentials', params%mu(i), 'H',&
+              & Hartree__eV*params%mu(i), 'eV'
+          write(stdOut,*)
+        end if
 
       enddo
 
-      ! Define electrochemical potentials
-      params%mu(1:ncont) = eFermi(1:ncont) - pot(1:ncont)
-      write(stdOut,*) 'Electro-chemical potentials: ', params%mu(1:ncont)
-      write(stdOut,*)
       deallocate(pot)
 
     else
@@ -260,7 +272,7 @@ module negf_int
       params%n_kt = greendens%nkt           ! n*kT for Fermi
 
       ! Real-axis points.
-      ! Override to 0 if bias is 0.0
+      ! Override to 0 real points if bias is 0.0
       params%Np_real = 0
       if (ncont > 0) then
         if (any(abs(params%mu(2:ncont)-params%mu(1)) > 1.0e-10_dp)) then
@@ -272,7 +284,7 @@ module negf_int
       ! NOTE: for the moment in tunneling and dos SGF are always   
       ! recomputed because bias may change points and errors are easy
 
-      ! Read G.F. from very first iter
+      ! Read G.F. from very first iteration
       if (greendens%readSGF) then
         params%readOldDM_SGFs = READ_SGF
       end if
@@ -391,7 +403,6 @@ module negf_int
          call error('Choose "Elastic = Yes" or "ManyBody = Yes"!')
     end if
 
-
   end subroutine negf_init
 
 
@@ -459,6 +470,7 @@ module negf_int
     end select
 
   end subroutine negf_init_bp
+
 
   !> Initialise compressed sparse row matrices
   subroutine negf_init_csr(iAtomStart, iNeighbor, nNeighbor, img2CentCell, orb)
@@ -755,7 +767,7 @@ module negf_int
   end subroutine check_pls
 
 
-  !> Interface subroutine to call Density matrix computation
+  !> Interface subroutine to call density matrix computation
   subroutine negf_density(miter,spin,nkpoint,HH,SS,mu,DensMat,EnMat)
 
     !> SCC step (used in SGF)
@@ -990,23 +1002,15 @@ module negf_int
   end subroutine negf_current
 
 
-
   !> Calculates density matrix with Green's functions
-#:if WITH_MPI
-  subroutine calcdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
-      & Ef, E0, TS)
-
-    !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-#:else
-  subroutine calcdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband,&
-      & Ef, E0, TS)
-#:endif
+  subroutine calcdensity_green(iSCCIter, env, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart,&
+      & iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rho, Eband, Ef, E0, TS)
 
     !> SCC iteration
     integer, intent(in) :: iSCCIter
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1072,7 +1076,7 @@ module negf_int
     pCsrDens => csrDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(env%mpi%groupComm, tIOproc)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1095,19 +1099,24 @@ module negf_int
     write(stdOut, *) '                         COMPUTING DENSITY MATRIX      '
     write(stdOut, '(80("="))')
 
-
     do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
+    #:if WITH_MPI
+      if (env%mpi%nGroup == 1) then
+        write(stdOut,*) 'k-point',iK,'Spin',iS
+      end if
+    #:else
       write(stdOut,*) 'k-point',iK,'Spin',iS
+    #:endif
 
       call foldToCSR(csrHam, ham(:,iS), kPoints(:,iK), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), DensMat=pCsrDens)
+      call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS), DensMat=pCsrDens)
 
       ! NOTE:
       ! unfold adds up to rho the csrDens(k) contribution
@@ -1127,8 +1136,9 @@ module negf_int
 #:if WITH_MPI
     do iS = 1, nSpin
       ! In place all-reduce of the density matrix
-      call mpifx_allreduceip(mpicomm, rho(:,iS), MPI_SUM)
+      call mpifx_allreduceip(env%mpi%groupComm, rho(:,iS), MPI_SUM)
     end do
+    call mpifx_allreduceip(env%mpi%interGroupComm, rho, MPI_SUM)
 #:endif
 
     ! Now SGFs can be read unless not stored 
@@ -1141,20 +1151,16 @@ module negf_int
 
   end subroutine calcdensity_green
 
-  !> Calculates energy-weighted density matrix with Green's functions
-#:if WITH_MPI
-  subroutine calcEdensity_green(iSCCIter, mpicomm, groupKS, ham, over, iNeighbor, nNeighbor,&
-      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
 
-    !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-#:else
-  subroutine calcEdensity_green(iSCCIter, groupKS, ham, over, iNeighbor, nNeighbor,&
+  !> Calculates energy-weighted density matrix with Green's functions
+  subroutine calcEdensity_green(iSCCIter, env, groupKS, ham, over, iNeighbor, nNeighbor,&
       & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, mu, rhoE)
-#:endif
 
     !> SCC iteration
     integer, intent(in) :: iSCCIter
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1208,7 +1214,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(env%mpi%groupComm, tIOproc)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1220,10 +1226,10 @@ module negf_int
       endif
     endif
 
-    ! We need this now for different fermi levels in colinear spin
-    ! Note: the spin polirized does not work with
-    ! built-int potentials (the unpolarized does) in the poisson
-    ! I do not set the fermi because it seems that in libnegf it is
+    ! We need this now for different Fermi energies in colinear spin
+    ! Note: the spin polarised does not work with
+    ! built-int potentials (the unpolarized does) in the Poisson
+    ! I do not set the Fermi because it seems that in libnegf it is
     ! not really needed
 
     nKS = size(groupKS, dim=2)
@@ -1246,7 +1252,7 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,ik), iAtomStart, iPair, iNeighbor, nNeighbor,&
           & img2CentCell, iCellVec, cellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, mu(:,iS), EnMat=pCsrEDens)
+      call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, mu(:,iS), EnMat=pCsrEDens)
 
       ! NOTE:
       ! unfold adds up to rhoEPrim the csrEDens(k) contribution
@@ -1258,9 +1264,10 @@ module negf_int
 
     end do
 
-    ! In place all-reduce of the density matrix
+    ! In place all-reduce of the energy-weighted density matrix
 #:if WITH_MPI
-    call mpifx_allreduceip(mpicomm, rhoE, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%groupComm, rhoE, MPI_SUM)
+    call mpifx_allreduceip(env%mpi%interGroupComm, rhoE, MPI_SUM)
 #:endif
 
     ! Now SGFs can be read unless not stored 
@@ -1275,18 +1282,12 @@ module negf_int
 
 
   !> Calculate the current and optionally density of states
-#:if WITH_MPI
-  subroutine calc_current(mpicomm, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
+  subroutine calc_current(env, groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
       & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
       & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
 
-    !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-#:else
-  subroutine calc_current(groupKS, ham, over, iNeighbor, nNeighbor, iAtomStart, iPair,&
-      & img2CentCell, iCellVec, cellVec, orb, kPoints, kWeights, tunnMat, currMat, ldosMat,&
-      & currLead, writeTunn, tWriteLDOS, regionLabelLDOS, mu)
-#:endif
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1360,7 +1361,7 @@ module negf_int
     real(dp), pointer    :: currPMat(:,:)=>null()
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
-    integer :: iKS, iK, iS, nKS, ii, err, ncont, readSGFbkup
+    integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
     type(unit) :: unitOfEnergy        ! Set the units of H
     type(unit) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
@@ -1368,16 +1369,23 @@ module negf_int
     integer :: i, j, k, NumStates, icont
     real(dp), dimension(:,:), allocatable :: H_all, S_all
     character(:), allocatable :: filename
+    character(2) :: id1, id2
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(env%mpi%groupComm, tIOproc)
 #:endif
     call get_params(negf, params)
 
     unitOfEnergy%name = "H"
     unitOfCurrent%name = "A"
 
+    ! groupKS is local, hence nKS il local
     nKS = size(groupKS, dim=2)
+    nS=size(ham,2)
+    if (nS>2) then
+      nS=1
+    end if
+    nTotKS = nS * size(kpoints, dim=2)
     ncont = size(mu,1)
 
     if (params%verbose.gt.30) then
@@ -1404,8 +1412,7 @@ module negf_int
 
       !*** ORTHOGONALIZATIONS ***
       ! THIS MAKES SENSE ONLY FOR A REAL MATRICES, i.e. k==0 && collinear spin
-      if (all(kPoints(:,iK) .eq. 0.0_dp) .and. &
-         (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
+      if (all(kPoints(:,iK) == 0.0_dp) .and. (negf%tOrthonormal .or. negf%tOrthonormalDevice)) then
 
         NumStates = negf%NumStates
 
@@ -1442,9 +1449,9 @@ module negf_int
         if (err /= 0) then
           call error('Allocation error (currTot)')
         end if
-        currLead = 0.0_dp
+        currLead(:) = 0.0_dp
       endif
-      currLead = currLead + currPVec
+      currLead(:) = currLead + currPVec
 
       !GUIDE: tunnPMat libNEGF output stores Transmission, T(iE, i->j)
       !       tunnPMat is MPI distributed on energy points (0.0 on other nodes)
@@ -1453,9 +1460,10 @@ module negf_int
       !       tunnSKRes stores tunneling for all k-points and spin: T(iE, i->j, iSK)
 
 #:if WITH_MPI
-      call add_partial_results(mpicomm, tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
-      call add_partial_results(mpicomm, currPMat, currMat, currSKRes, iKS, nKS)
-      call add_partial_results(mpicomm, ldosPMat, ldosMat, ldosSKRes, iKS, nKS)
+      ii = (iS-1)*size(kpoints,2) + iK
+      call add_partial_results(env%mpi%groupComm, tunnPMat, tunnMat, tunnSKRes, ii, nTotKS)
+      call add_partial_results(env%mpi%groupComm, currPMat, currMat, currSKRes, ii, nTotKS)
+      call add_partial_results(env%mpi%groupComm, ldosPMat, ldosMat, ldosSKRes, ii, nTotKS)
 #:else
       call add_partial_results(tunnPMat, tunnMat, tunnSKRes, iKS, nKS)
       call add_partial_results(currPMat, currMat, currSKRes, iKS, nKS)
@@ -1465,12 +1473,15 @@ module negf_int
     end do
 
 #:if WITH_MPI
-    call mpifx_allreduceip(mpicomm, currLead, MPI_SUM)
-    call mpifx_barrier(mpicomm)
+    call mpifx_reduceip(env%mpi%groupComm, currLead, MPI_SUM)
+    call mpifx_reduceip(env%mpi%interGroupComm, currLead, MPI_SUM)
+    call add_ks_results(env%mpi%interGroupComm, tunnMat, tunnSKRes)
+    call add_ks_results(env%mpi%interGroupComm, currMat, currSKRes)
+    call add_ks_results(env%mpi%interGroupComm, ldosMat, ldosSKRes)
 #:endif
 
     ! converts from internal atomic units into amperes
-    currLead = currLead * convertCurrent(unitOfEnergy, unitOfCurrent)
+    currLead(:) = currLead * convertCurrent(unitOfEnergy, unitOfCurrent)
 
     do ii = 1, size(currLead)
       write(stdOut, *)
@@ -1482,56 +1493,48 @@ module negf_int
     if (allocated(tunnMat)) then
       filename = 'transmission'
       if (tIOProc .and. writeTunn) then
-        call write_file(negf, tunnMat, tunnSKRes, filename, groupKS, kpoints, kWeights)
-      end if
-      if (allocated(tunnSKRes)) then
-        deallocate(tunnSKRes)
+        call write_file(negf, tunnMat, tunnSKRes, filename, nS, kpoints, kWeights)
       end if
     else
       ! needed to avoid some segfault
-      if (allocated(tunnMat)) then
-          deallocate(tunnMat)
-        end if
       allocate(tunnMat(0,0))
+    end if
+    if (allocated(tunnSKRes)) then
+      deallocate(tunnSKRes)
     end if
 
     ! Write Total lead current, I_i(E), on a separate file (optional)
     if (allocated(currMat)) then
       filename = 'current'
       if (tIOProc .and. writeTunn) then
-        call write_file(negf, currMat, currSKRes, filename, groupKS, kpoints, kWeights)
-      end if
-      if (allocated(currSKRes)) then
-        deallocate(currSKRes)
+        call write_file(negf, currMat, currSKRes, filename, nS, kpoints, kWeights)
       end if
     else
       ! needed to avoid some segfault
-      if (allocated(currMat)) then
-          deallocate(currMat)
-        end if
       allocate(currMat(0,0))
     endif
+    if (allocated(currSKRes)) then
+      deallocate(currSKRes)
+    end if
 
     if (allocated(ldosMat)) then
       ! Write Total localDOS on a separate file (optional)
       if (tIoProc .and. tWriteLDOS) then
     @:ASSERT(allocated(regionLabelLDOS))
-        call write_files(negf, ldosMat, ldosSKRes, groupKS, kpoints, kWeights, regionLabelLDOS)
-        if (allocated(ldosSKRes)) then
-          deallocate(ldosSKRes)
-        end if
-      else
-        ! needed to avoid some segfault
-        if (allocated(ldosMat)) then
-          deallocate(ldosMat)
-        end if
-        allocate(ldosMat(0,0))
+        call write_files(negf, ldosMat, ldosSKRes, nS, kpoints, kWeights, regionLabelLDOS)
       end if
+    else
+        ! needed to avoid some segfault
+        allocate(ldosMat(0,0))
+    end if
+    if (allocated(ldosSKRes)) then
+      deallocate(ldosSKRes)
     end if
     
   end subroutine calc_current
 
-  !>   utility to allocate and sum partial results from different channels
+
+  !> utility to allocate and sum partial results from different channels
 #:if WITH_MPI
   subroutine add_partial_results(mpicomm, pMat, matTot, matSKRes, iK, nK)
 
@@ -1560,45 +1563,45 @@ module negf_int
     integer :: err
 
     if (associated(pMat)) then
-#:if WITH_MPI
-      allocate(tmpMat(size(pMat,1), size(pMat,2)), stat=err)
+    #:if WITH_MPI
+      allocate(tmpMat(size(pMat,dim=1), size(pMat,dim=2)), stat=err)
 
       if (err /= 0) then
         call error('Allocation error (tmpMat)')
       end if
 
-      tmpMat = pMat
-      call mpifx_allreduceip(mpicomm, tmpMat, MPI_SUM)
-#:endif
+      tmpMat(:,:) = pMat
+      call mpifx_reduceip(mpicomm, tmpMat, MPI_SUM)
+    #:endif
       if(.not.allocated(matTot)) then
-        allocate(matTot(size(pMat,1), size(pMat,2)), stat=err)
+        allocate(matTot(size(pMat,dim=1), size(pMat,dim=2)), stat=err)
 
         if (err /= 0) then
           call error('Allocation error (tunnTot)')
         end if
 
-        matTot = 0.0_dp
+        matTot(:,:) = 0.0_dp
       end if
-#:if WITH_MPI
-      matTot = matTot + tmpMat
-#:else
-      matTot = matTot + pMat
-#:endif
+    #:if WITH_MPI
+      matTot(:,:) = matTot + tmpMat
+    #:else
+      matTot(:,:) = matTot + pMat
+    #:endif
 
       if (nK > 1) then
         if (.not.allocated(matSKRes)) then
-          allocate(matSKRes(size(pMat,1), size(pMat,2), nK), stat=err)
+          allocate(matSKRes(size(pMat,dim=1), size(pMat,dim=2), nK), stat=err)
 
           if (err/=0) then
             call error('Allocation error (tunnSKRes)')
           end if
 
-          matSKRes = 0.0_dp
+          matSKRes(:,:,:) = 0.0_dp
         endif
 #:if WITH_MPI
-        matSKRes(:,:,iK) = tmpMat(:,:)
+        matSKRes(:,:,iK) = tmpMat
 #:else
-        matSKRes(:,:,iK) = pMat(:,:)
+        matSKRes(:,:,iK) = pMat
 #:endif
       end if
 
@@ -1610,8 +1613,34 @@ module negf_int
 
   end subroutine add_partial_results
 
+
+#:if WITH_MPI
+  !> utility to sum up partial results over SK communicator
+  subroutine add_ks_results(kscomm, mat, matSKRes)
+
+    !> MPI communicator
+    type(mpifx_comm), intent(in) :: kscomm
+
+    !> sum total
+    real(dp), allocatable, intent(inout) :: mat(:,:)
+
+    !> k-resolved sum
+    real(dp), allocatable, intent(inout)  :: matSKRes(:,:,:)
+
+    if (allocated(mat)) then
+      call mpifx_reduceip(kscomm, mat, MPI_SUM)
+    endif
+
+    if (allocated(matSKRes)) then
+      call mpifx_reduceip(kscomm, matSKRes, MPI_SUM)
+    endif
+
+  end subroutine add_ks_results
+#:endif
+
+
   !> utility to write tunneling files
-  subroutine write_file(negf, matTot, matSKRes, filename, groupKS, kpoints, kWeights)
+  subroutine write_file(negf, matTot, matSKRes, filename, nS, kpoints, kWeights)
 
     !> Contains input data, runtime quantities and output data
     type(TNegf) :: negf
@@ -1625,8 +1654,8 @@ module negf_int
     !> file to print out to
     character(*), intent(in) :: filename
 
-    !> local k-points and spins on this processor
-    integer, intent(in) :: groupKS(:,:)
+    !> number of spins 
+    integer, intent(in) :: nS
 
     !> k-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -1634,26 +1663,24 @@ module negf_int
     !> Weights for k-points
     real(dp), intent(in) :: kWeights(:)
 
-    integer :: ii, jj, nKS, iKS, nK, nS, iK, iS, fdUnit
+    integer :: ii, jj, nK, iK, iS, iKS, fdUnit
     type(lnParams) :: params
 
     call get_params(negf, params)
 
-    nKS = size(groupKS, dim=2)
     nK = size(kpoints, dim=2)
-    nS = nKS/nK
 
     open(newunit=fdUnit, file=trim(filename)//'.dat')
-    do ii=1,size(matTot, dim=1)
+    do ii = 1, size(matTot, dim=1)
       write(fdUnit,'(F20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
-      do jj=1,size(matTot, dim=2)
+      do jj = 1, size(matTot, dim=2)
         write(fdUnit,'(ES20.8)',ADVANCE='NO') matTot(ii,jj)
       enddo
       write(fdUnit,*)
     enddo
     close(fdUnit)
 
-    if (nKS > 1) then
+    if (nK*nS > 1) then
 
       open(newunit=fdUnit, file=trim(filename)//'_kpoints.dat')
       write(fdUnit,*)'# NKpoints = ', nK
@@ -1661,19 +1688,23 @@ module negf_int
       write(fdUnit,*)'# Energy [eV], <spin k1 k2 k3 weight> '
       write(fdUnit,'(A1)', ADVANCE='NO') '# '
 
-      do iKS = 1, nKS
-        iK = groupKS(1,iKS)
-        iS = groupKS(2,iKS)
-        write(fdUnit,'(i5.2)', ADVANCE='NO') iS
-        write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
-      end do
+      ! iKS = 1 2 3 4 5 6 7 8 9 10
+      ! iK=groupKS(1,iKS), iS=groupKS(2,iKS)
+      ! iK  = 1 2 3 4 5 1 2 3 4 5  
+      ! iS  = 1 1 1 1 1 2 2 2 2 2 
+      do iS = 1, nS
+        do iK = 1, nK
+          write(fdUnit,'(i5.2)', ADVANCE='NO') iS
+          write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK), kWeights(iK)
+        end do
+      end do  
       write(fdUnit,*)
 
       if (allocated(matSKRes)) then
         do ii = 1, size(matSKRes(:,:,:), dim=1)
           write(fdUnit,'(f20.6)',ADVANCE='NO') (params%Emin+(ii-1)*params%Estep) * Hartree__eV
           do jj = 1, size(matSKRes(:,:,:), dim=2)
-            do iKS = 1,nKS
+            do iKS = 1, nK*nS
               write(fdUnit,'(es20.8)',ADVANCE='NO') matSKRes(ii,jj, iKS)
             enddo
             write(fdUnit,*)
@@ -1688,7 +1719,7 @@ module negf_int
 
 
   !> utility to write tunneling/ldos files with names from labels
-  subroutine write_files(negf, matTot, matSKRes, groupKS, kpoints, kWeights, regionLabels)
+  subroutine write_files(negf, matTot, matSKRes, nS, kpoints, kWeights, regionLabels)
 
     !> Contains input data, runtime quantities and output data
     type(TNegf) :: negf
@@ -1699,8 +1730,8 @@ module negf_int
     !> k- and spin-resolved quantities, if allocated
     real(dp), intent(in), allocatable :: matSKRes(:,:,:)
 
-    !> local k-points and spins on this processor
-    integer, intent(in) :: groupKS(:,:)
+    !> number of spins
+    integer, intent(in) :: nS
 
     !> k-points
     real(dp), intent(in) :: kPoints(:,:)
@@ -1711,14 +1742,13 @@ module negf_int
     !> Labels for the separate regions
     character(lc), intent(in) :: regionLabels(:)
 
-    integer :: ii, jj, nKS, iKS, nK, nS, iK, iS, fdUnit
+    integer :: ii, jj, nKS, iKS, nK, iK, iS, fdUnit
     type(lnParams) :: params
 
     call get_params(negf, params)
 
-    nKS = size(groupKS, dim=2)
     nK = size(kpoints, dim=2)
-    nS = nKS/nK
+    nKS = nK*nS
 
     do jj=1,size(matTot, dim=2)
       open(newunit=fdUnit, file=trim(regionLabels(jj))//'.dat')
@@ -1738,12 +1768,12 @@ module negf_int
           write(fdUnit,"(A,I1)")'# NSpin = ', nS
           write(fdUnit,"(A)")'# <spin k1 k2 k3 weight> '
           write(fdUnit,'(A1)', ADVANCE='NO') '# '
-          do iKS = 1, nKS
-            iK = groupKS(1,iKS)
-            iS = groupKS(2,iKS)
-            write(fdUnit,'(i5.1)', ADVANCE='NO') iS
-            write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
-                & kWeights(iK)
+          do iS = 1, nS
+            do iK = 1, nK
+              write(fdUnit,'(i5.1)', ADVANCE='NO') iS
+              write(fdUnit,'(es15.5, es15.5, es15.5, es15.5)', ADVANCE='NO') kpoints(:,iK),&
+                  & kWeights(iK)
+            end do
           end do
           write(fdUnit,*)
 
@@ -1762,26 +1792,16 @@ module negf_int
   end subroutine write_files
 
 
-  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! THIS is a first version of local current computation.
+  !> THIS is a first version of local current computation.
   ! It has been placed here since it depends on internal representations of DFTB
   !
-  ! NOTE: Limited to non-periodic systems             s !!!!!!!!!!!
-  ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-#:if WITH_MPI
-  subroutine local_currents(mpicomm, groupKS, ham, over, &
-      & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
-      & testArray)
+  ! NOTE: Limited to non-periodic systems
+  subroutine local_currents(env, groupKS, ham, over, neighbourList, nNeighbour, skCutoff,&
+      & iAtomStart, iPair, img2CentCell, iCellVec, cellVec, rCellVec, orb, kPoints, kWeights,&
+      & coord0, species0, speciesName, chempot, testArray)
 
-    !> MPI communicator
-    type(mpifx_comm), intent(in) :: mpicomm
-#:else
-  subroutine local_currents(groupKS, ham, over, &
-      & neighbourList, nNeighbour, skCutoff, iAtomStart, iPair, img2CentCell, iCellVec, &
-      & cellVec, rCellVec, orb, kPoints, kWeights, coord0, species0, speciesName, chempot, &
-      & testArray)
-#:endif
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
 
     !> kpoint and spin descriptor
     integer, intent(in) :: groupKS(:,:)
@@ -1838,7 +1858,7 @@ module negf_int
 
     ! Local stuff ---------------------------------------------------------
     integer :: n0, nn, mm,  mu, nu, nAtom, irow, nrow, ncont
-    integer :: nKS, nKPoint, nSpin, iK, iKS, iS, inn, startn, endn, morb
+    integer :: nKS, nK, nSpin, iKS, iK, iS, iKgl, inn, startn, endn, morb
     real(dp), dimension(:,:,:), allocatable :: lcurr 
     real(dp) :: Im
     type(TNeighbourList) :: lc_neigh
@@ -1848,18 +1868,20 @@ module negf_int
     real(dp) :: cutoff
     integer, parameter :: nInitNeigh=40
     complex(dp) :: c1,c2
-    character(3) :: skp
+    character(:), allocatable :: skp
+    character(6) :: fmtstring
     integer :: iSCCiter
     type(z_CSR), target :: csrDens, csrEDens
     type(z_CSR), pointer :: pCsrDens, pCsrEDens
     type(lnParams) :: params
     integer :: fdUnit
+    logical :: tPrint
 
     pCsrDens => csrDens
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(mpicomm)
+    call negf_mpi_init(env%mpi%groupComm, tIOproc)
 #:endif
     call get_params(negf, params)
 
@@ -1880,12 +1902,10 @@ module negf_int
     write(stdOut, *)
 
     nKS = size(groupKS, dim=2)
-    nKPoint = size(kPoints, dim=2)
+    nK = size(kPoints, dim=2)
     nSpin = size(ham, dim=2)
     nAtom = size(orb%nOrbAtom)
-    if (nKPoint > 999) then
-      call error("Too many kpoints > 999 for local currents")
-    end if
+    call get_fmtstring(nK, skp, fmtstring)
 
     ! Create a symmetrized neighbour list extended to periodic cell in lc_coord 
     if (any(iCellVec.ne.1)) then
@@ -1903,10 +1923,9 @@ module negf_int
         & lc_neigh, lc_nAllAtom, coord0, species0, skCutoff, rCellVec, symmetric=.true.)
 
     allocate(lcurr(maxval(lc_neigh%nNeighbour), nAtom, nSpin))
-    lcurr = 0.0_dp
+    lcurr(:,:,:) = 0.0_dp
 
-    ! loop on k-points and spin
-    do iKS = 1, nKS
+    looppKS: do iKS = 1, nKS
       iK = groupKS(1, iKS)
       iS = groupKS(2, iKS)
 
@@ -1918,22 +1937,33 @@ module negf_int
       call foldToCSR(csrOver, over, kPoints(:,iK), iAtomStart, iPair, neighbourList%iNeighbour, &
           & nNeighbour, img2CentCell, iCellVec, CellVec, orb)
 
-      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
+      call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), DensMat=pCsrDens)
 
       ! Unless SGFs are not stored, read them from file
       if (negf%readOldDM_SGFs.ne.COMP_SGF) then
          call set_readOldDMsgf(negf, READ_SGF) 
       end if   
 
-      call negf_density(iSCCIter, iS, iKS, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
+      call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
-#:if WITH_MPI
-      call mpifx_allreduceip(mpicomm, csrDens%nzval, MPI_SUM)
-      call mpifx_allreduceip(mpicomm, csrEDens%nzval, MPI_SUM)
-#:endif
+    #:if WITH_MPI
+      ! Reduce on node 0 as group master node
+      call mpifx_reduceip(env%mpi%groupComm, csrDens%nzval, MPI_SUM)
+      call mpifx_reduceip(env%mpi%groupComm, csrEDens%nzval, MPI_SUM)
 
-      if (tIoProc) then
-        write(skp,'(I3.3)') iK
+      ! Each group master node prints the local currents
+      tPrint = env%mpi%groupComm%master
+
+    #:else
+
+      tPrint = .true.
+
+    #:endif
+
+      if (tPrint) then
+        ! print local currents
+        iKgl = (iS-1) * nK + iK    
+        write(skp, fmtstring) iKgl
         open(newUnit = fdUnit, file = 'lcurrents_'//skp//"_"//spin2ch(iS)//'.dat')
 
         ! loop on central cell atoms and write local currents to all other 
@@ -1975,11 +2005,15 @@ module negf_int
       call destruct(csrDens)
       call destruct(csrEDens)
 
-    end do
+    end do looppKS
+
+#:if WITH_MPI
+    call mpifx_reduceip(env%mpi%interGroupComm, lcurr, MPI_SUM)
+#:endif
 
     if (tIoProc) then
       allocate(testArray(maxval(lc_neigh%nNeighbour),nAtom*nSpin))
-      testArray=0.0_dp
+      testArray(:,:) = 0.0_dp
       ! Write the total current per spin channel  
       do iS = 1, nSpin
         open(newUnit = fdUnit, file = 'lcurrents_'//spin2ch(iS)//'.dat')
@@ -2018,6 +2052,22 @@ module negf_int
       ch = labels(iS)
 
     end function spin2ch
+    
+    subroutine get_fmtstring(nK, skp, fmtstring)
+      integer, intent(in) :: nK
+      character(:), allocatable :: skp
+      character(6) :: fmtstring
+      integer :: nchars
+          
+      nchars = 3
+      do while (nK/(10**nchars) > 1 )
+        nchars = nchars + 1
+      end do 
+      allocate(character(len=nchars)::skp)    
+      ! create fmtstring = '(In.n)'
+      write(fmtstring, '( "(I",I1,".",I1,")" )') nchars, nchars
+
+    end subroutine get_fmtstring
 
   end subroutine local_currents
 
@@ -2092,9 +2142,9 @@ module negf_int
     !> overlap matrix
     real(dp), intent(inout) :: S(:,:)
 
-    integer :: i,m,n1_first,n1_last,n2_first,n2_last
+    integer :: i, m, n1_first, n1_last, n2_first, n2_last
     integer :: INFO, N
-    real(dp), allocatable :: A(:,:), WORK(:), W(:)
+    real(dp), allocatable :: A(:,:), W(:)
     real(dp), allocatable :: B(:,:),C(:,:)
 
     N = size(H, dim=1)
@@ -2103,27 +2153,27 @@ module negf_int
       call error('orthogonalization: negf init NumStates error')
     end if
 
-    allocate(A(N,N),WORK(3*N),W(N))
+    allocate(A(N,N),W(N))
     allocate(B(N,N),C(N,N))
-    W=0.0_dp
-    WORK=0.0_dp
-    A=0.0_dp
-    B=0.0_dp
-    C=0.0_dp
+    W(:) = 0.0_dp
+    A(:,:) = 0.0_dp
+    B(:,:) = 0.0_dp
+    C(:,:) = 0.0_dp
 
-    A=S
+    A(:,:) = S
 
-    call DSYEV('V','U',N,A,N,W,WORK,3*N,INFO )
+    call heev(A, W, 'L', 'V')
+    !call DSYEV('V','U',N,A,N,W,WORK,3*N,INFO )
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N
-    !   write(*,*)A(i,1:N)
+    !   write(stdOut,*)A(i,1:N)
     !end do
 
     !print *,'U matrix unitarity check'
     !B=matmul(transpose(A),A)
     !do i=1,N
-    !   write(*,*)B(i,1:N)
+    !   write(stdOut,*)B(i,1:N)
     !end do
 
     B(:,:) = matmul(transpose(A), matmul(S, A))
@@ -2137,25 +2187,25 @@ module negf_int
 
     !print *,'sqrt(S) inverted'
     !do i=1,N
-    !  write(*,*) C(i,1:N)
+    !  write(stdOut,*) C(i,1:N)
     !end do
 
     !print *,'S unity check'
     !B=matmul(transpose(C),matmul(S,C))
     !do i=1,N
-    !   write(*,*) B(i,1:N)
+    !   write(stdOut,*) B(i,1:N)
     !end do
 
     !print *,'H_dftb before orthogonalization'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     H(:,:) = matmul(transpose(C), matmul(H, C))
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
@@ -2170,10 +2220,10 @@ module negf_int
 
     !print *,'H_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
-    S = 0.0_dp
+    S(:,:) = 0.0_dp
     do i=1,N
       S(i,i) = 1.0_dp
     end do
@@ -2198,11 +2248,10 @@ module negf_int
     real(dp), intent(inout) :: S(:,:)
 
 
-    integer :: i,m,n1_first,n1_last,n2_first,n2_last
+    integer :: i, m, n1_first, n1_last, n2_first, n2_last
     integer :: INFO, N, N2
-    real(dp), allocatable :: A(:,:), WORK(:), W(:)
+    real(dp), allocatable :: A(:,:), W(:)
     real(dp), allocatable :: B(:,:), U(:,:), C(:,:)
-
 
     N = size(H, dim=1)
     if (N /= negf%NumStates) then
@@ -2211,19 +2260,19 @@ module negf_int
 
     N2=negf%str%central_dim
 
-    allocate(A(N2,N2),WORK(3*N2),W(N2))
+    allocate(A(N2,N2),W(N2))
     allocate(B(N2,N2), U(N2,N2))
-    W=0.0_dp
-    WORK=0.0_dp
+    W(:) = 0.0_dp
 
-    A = S(1:N2,1:N2)
-    U = A
+    A(:,:) = S(1:N2,1:N2)
+    U(:,:) = A
 
-    call DSYEV('V','U',N2,U,N2,W,WORK,3*N2,INFO )
+    call heev(U, W, 'L', 'V')
+    !call DSYEV('V','U',N2,U,N2,W,WORK,3*N2,INFO )
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N2
-    !   write(*,*) U(i,1:N2)
+    !   write(stdOut,*) U(i,1:N2)
     !end do
 
     !U matrix unitarity check
@@ -2235,26 +2284,26 @@ module negf_int
     !  end if
     !end do
 
-    B = matmul(transpose(U),matmul(A,U))
+    B(:,:) = matmul(transpose(U),matmul(A,U))
 
-    do i=1,N2
-      B(i,i)=1.0_dp/sqrt(B(i,i))
+    do i = 1, N2
+      B(i,i) = 1.0_dp / sqrt(B(i,i))
     end do
 
 
     ! Now A = S^-1/2
-    A = matmul(U,matmul(B,transpose(U)))
+    A(:,:) = matmul(U,matmul(B,transpose(U)))
     !print *,'sqrt(S) inverted'
     !do i=1,N2
-    !  write(*,*) A(i,1:N2)
+    !  write(stdOut,*) A(i,1:N2)
     !end do
 
     deallocate(U, B)
 
     allocate(C(N,N))
-    C=0.0_dp
-    do i = N2+1,N
-      C(i,i)=1.0_dp
+    C(:,:) = 0.0_dp
+    do i = N2+1, N
+      C(i,i) = 1.0_dp
     end do
     C(1:N2,1:N2) = A
 
@@ -2263,20 +2312,20 @@ module negf_int
     !C=sqrt(S) big matrix
     !print *,'C=sqrt(S) big matrix'
     !do i=1,N
-    !   write(*,*) C(i,1:N)
+    !   write(stdOut,*) C(i,1:N)
     !end do
 
     !print *,'H_dftb before orthogonalization'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
-    H = matmul(transpose(C),matmul(H,C))
-    S = matmul(transpose(C),matmul(S,C))
+    H(:,:) = matmul(transpose(C),matmul(H,C))
+    S(:,:) = matmul(transpose(C),matmul(S,C))
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
@@ -2292,12 +2341,12 @@ module negf_int
 
     !print *,'H_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     !print *,'S_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) S(i,1:N)
+    !   write(stdOut,*) S(i,1:N)
     !end do
 
     !Save H_dftb_orth.mtr to file
@@ -2315,6 +2364,5 @@ module negf_int
     !close(12)
 
   end subroutine orthogonalization_dev
-
 
 end module negf_int

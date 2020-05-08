@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,7 @@
 !> Program for calculating system normal modes from a Hessian
 program modes
   use dftbp_assert
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_initmodes
   use dftbp_accuracy, only : dp, lc
   use dftbp_constants, only : Hartree__cm, Bohr__AA, pi

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -39,6 +39,23 @@ module dftbp_unitconversion
       &unit("pm                  ", 1.0e-2_dp * AA__Bohr), &
       &unit("picometer           ", 1.0e-2_dp * AA__Bohr), &
       &unit("au                  ", 1.0_dp) &
+      /)
+
+
+  !> Number of length units
+  integer, parameter :: nInverseLengthUnit = 8
+
+
+  !> Length units
+  type(unit), parameter :: inverseLengthUnits(nInverseLengthUnit) = (/ &
+      &unit("1/angstrom          ", Bohr__AA), &
+      &unit("1/aa                ", Bohr__AA), &
+      &unit("1/meter             ", 1.0e-10_dp * Bohr__AA), &
+      &unit("1/m                 ", 1.0e-10_dp * Bohr__AA), &
+      &unit("1/bohr              ", 1.0_dp), &
+      &unit("1/pm                ", 1.0e+2_dp * Bohr__AA), &
+      &unit("1/picometer         ", 1.0e+2_dp * Bohr__AA), &
+      &unit("1/au                ", 1.0_dp) &
       /)
 
 
@@ -189,10 +206,6 @@ module dftbp_unitconversion
       &/)
 
 
-  !> Number of mass units
-  integer, parameter :: nMassUnit = 4
-
-
   !> Number of dipole units
   integer, parameter :: nDipoleUnit = 4
 
@@ -206,12 +219,45 @@ module dftbp_unitconversion
       &/)
 
 
+  !> Number of mass units
+  integer, parameter :: nMassUnit = 6
+
+
   !> Mass units
   type(unit), parameter :: MassUnits(nMassUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
       &unit("amu                 ", amu__au ), &
       &unit("da                  ", amu__au ), &
-      &unit("dalton              ", amu__au ) &
+      &unit("dalton              ", amu__au ), &
+      &unit("kg                  ", kg__au ), &
+      &unit("g                   ", 1.0e+3_dp*kg__au ) &
       &/)
+
+
+  !> Number of mass density units
+  integer, parameter :: nMassDensityUnit = 19
+
+
+  type(unit), parameter :: massDensityUnits(nMassDensityUnit) = [ &
+      & unit("kg/l                ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/m^3               ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/meter^3           ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/l                 ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("kg/m^3              ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("kg/meter^3          ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("amu/aa^3            ", amu__au/AA__Bohr**3), &
+      & unit("amu/angstrom^3      ", amu__au/AA__Bohr**3), &
+      & unit("amu/pm^3            ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("amu/picometer^3     ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("da/aa^3             ", amu__au/AA__Bohr**3), &
+      & unit("da/angstrom^3       ", amu__au/AA__Bohr**3), &
+      & unit("da/pm^3             ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("da/picometer^3      ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("dalton/aa^3         ", amu__au/AA__Bohr**3), &
+      & unit("dalton/angstrom^3   ", amu__au/AA__Bohr**3), &
+      & unit("dalton/pm^3         ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("dalton/picometer^3  ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("au                  ", 1.0_dp)]
+
 
 end module dftbp_unitconversion

@@ -12,6 +12,8 @@ option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 # If you build an MPI-parallised binary, consider to set WITH_OMP (OpenMP thread parallelisaton) to
 # FALSE unless you want hybrid parallelisation (for experts only).
 
+option(WITH_GPU "Whether code should be compiled with GPU support" FALSE)
+
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
 # Works only with MPI-parallel build.
 
@@ -28,6 +30,8 @@ option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD
 option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
 # GPLv3 license (as opposed to the LGPLv3 license of the DFTB+ package)
+
+option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allowed for" FALSE)
 
 option(WITH_API "Whether public API should be included and the DFTB+ library installed" FALSE)
 # Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software

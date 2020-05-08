@@ -19,9 +19,9 @@ module dftbp_perturbderivs
   use dftbp_orbitalequiv
   use dftbp_populations
   use dftbp_spin
-  use dftbp_thirdorder, only : ThirdOrder
+  use dftbp_thirdorder, only : TThirdOrder
   use dftbp_dftbplusu
-  use dftbp_rangeseparated, only : RangeSepFunc
+  use dftbp_rangeseparated, only : TRangeSepFunc
   use dftbp_onsitecorrection
   use dftbp_mainio
   use dftbp_shift
@@ -157,7 +157,7 @@ contains
     real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> Third order SCC interactions
-    type(ThirdOrder), allocatable, intent(inout) :: thirdOrd
+    type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
 
     !> is this a +U calculation
     logical, intent(in) :: tDftbU
@@ -178,14 +178,14 @@ contains
     integer, intent(in), allocatable :: iEqBlockDftbu(:,:,:,:)
 
     !> Data for range-separated calculation
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Number of neighbours for each of the atoms for the exchange contributions in the long range
     !> functional
     integer, intent(inout), allocatable :: nNeighbourLC(:)
 
     !> Charge mixing object
-    type(OMixer), intent(inout) :: pChrgMixer
+    type(TMixer), intent(inout) :: pChrgMixer
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -951,7 +951,7 @@ contains
     real(dp), pointer :: dRhoSqr(:,:,:)
 
     !> Data for range-separated calculation
-    type(RangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
