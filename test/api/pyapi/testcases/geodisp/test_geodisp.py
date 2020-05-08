@@ -76,17 +76,17 @@ def main():
 
     # evaluate gradients
     print('(Si2) Obtained gradient of atom 1: {:15.10f} {:15.10f} {:15.10f}'
-          .format(gradients[0, 0], gradients[0, 1], gradients[0, 2]))
+          .format(*gradients[0]))
     print('(Si2) Expected gradient of atom 1: {:15.10f} {:15.10f} {:15.10f}'
           .format(-0.0103215090, -0.0103215090, -0.0103215090))
     print('(Si2) Obtained gradient of atom 2: {:15.10f} {:15.10f} {:15.10f}'
-          .format(gradients[1, 0], gradients[1, 1], gradients[1, 2]))
+          .format(*gradients[1]))
     print('(Si2) Expected gradient of atom 2: {:15.10f} {:15.10f} {:15.10f}\n'
           .format(0.0103215090, 0.0103215090, 0.0103215090))
 
     # evaluate Gross charges
     print('(Si2) Obtained Gross charges: {:15.10f} {:15.10f}'
-          .format(grosschg[0], grosschg[1]))
+          .format(*grosschg))
     print('(Si2) Expected Gross charges: {:15.10f} {:15.10f}\n\n'
           .format(0.0, 0.0))
 
@@ -114,17 +114,17 @@ def main():
 
     # evaluate gradients
     print('(Si2) Obtained gradient of atom 1: {:15.10f} {:15.10f} {:15.10f}'
-          .format(gradients[0, 0], gradients[0, 1], gradients[0, 2]))
+          .format(*gradients[0]))
     print('(Si2) Expected gradient of atom 1: {:15.10f} {:15.10f} {:15.10f}'
           .format(0.0442660049, -0.0147463633, -0.0193148538))
     print('(Si2) Obtained gradient of atom 2: {:15.10f} {:15.10f} {:15.10f}'
-          .format(gradients[1, 0], gradients[1, 1], gradients[1, 2]))
+          .format(*gradients[1]))
     print('(Si2) Expected gradient of atom 2: {:15.10f} {:15.10f} {:15.10f}\n'
           .format(-0.0442660049, 0.0147463633, 0.0193148538))
 
     # evaluate Gross charges
     print('(Si2) Obtained Gross charges: {:15.10f} {:15.10f}'
-          .format(grosschg[0], grosschg[1]))
+          .format(*grosschg))
     print('(Si2) Expected Gross charges: {:15.10f} {:15.10f}'
           .format(0.0, 0.0))
 

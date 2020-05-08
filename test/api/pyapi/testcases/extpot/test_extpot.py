@@ -73,21 +73,21 @@ def main():
 
     # evaluate gradients
     print('(H2O) Obtained gradient of atom 1: {:15.10f} {:15.10f} {:15.10f}'
-          .format(gradients[0, 0], gradients[0, 1], gradients[0, 2]))
+          .format(*gradients[0]))
     print('(H2O) Expected gradient of atom 1: {:15.10f} {:15.10f} {:15.10f}'
           .format(0.0176513638, -0.1831376018, 0.0031982515))
     print('(H2O) Obtained gradient of atom 2: {:15.10f} {:15.10f} {:15.10f}'
-          .format(gradients[1, 0], gradients[1, 1], gradients[1, 2]))
+          .format(*gradients[1]))
     print('(H2O) Expected gradient of atom 2: {:15.10f} {:15.10f} {:15.10f}'
           .format(-0.0061402266, 0.0955090293, 0.0394035230))
     print('(H2O) Obtained gradient of atom 3: {:15.10f} {:15.10f} {:15.10f}'
-          .format(gradients[2, 0], gradients[2, 1], gradients[2, 2]))
+          .format(*gradients[2]))
     print('(H2O) Expected gradient of atom 3: {:15.10f} {:15.10f} {:15.10f}\n'
           .format(-0.0037720260, 0.0923535862, -0.0402979580))
 
     # evaluate Gross charges
     print('(H2O) Obtained Gross charges: {:15.10f} {:15.10f}'
-          .format(grosschg[0], grosschg[1]))
+          .format(*grosschg))
     print('(H2O) Expected Gross charges: {:15.10f} {:15.10f}'
           .format(-0.4943983279, 0.2641722128))
 

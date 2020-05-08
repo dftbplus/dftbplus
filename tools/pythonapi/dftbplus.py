@@ -138,7 +138,7 @@ class DftbPlus:
                                (in atomic units)
         '''
 
-        energy = np.zeros(1)
+        energy = np.empty(1)
 
         self._dftbpluslib.dftbp_get_energy(self._dftb_handler, energy)
 
@@ -178,7 +178,7 @@ class DftbPlus:
             grosschg (1darray): obtained Gross charges (in atomic units)
         '''
 
-        grosschg = np.zeros(self._natoms)
+        grosschg = np.empty(self._natoms)
 
         self._dftbpluslib.dftbp_get_gross_charges(self._dftb_handler,
                                                   grosschg)
