@@ -153,7 +153,7 @@ contains
 
     ! locals
     type(fnode), pointer :: input, root, node, tmp
-    type(fnode), pointer :: child, value
+    type(fnode), pointer :: child, value 
     type(string) :: buffer, buffer2, modif
     integer :: inputVersion
     integer :: ii, iSp1, iAt
@@ -249,13 +249,14 @@ contains
     
     ! Read the atomic masses from SlaterKosterFiles or Masses
     allocate(speciesMass(geo%nSpecies))
-    write(stdOut, "(/, A)") "read atomic masses from sk files..."
-    call getChild(root, "SlaterKosterFiles", child=value,requested=.false.)
-    if ( associated(value) ) then
-      call readSKfiles(value, geo, speciesMass)
-    else
-      call getChild(root,"Masses",child=value)
-      call readMasses(value, geo, speciesMass)
+    call getChild(root,"Masses",child=node, requested=.true.)
+    if ( associated(node) ) then
+      call getChild(node, "SlaterKosterFiles", child=value,requested=.false.)
+      if ( associated(value) ) then
+        call readSKfiles(value, geo, speciesMass)
+      else
+        call readMasses(node, geo, speciesMass)
+      endif
     endif
     allocate(atomicMasses(nMovedAtom))
     do iAt = 1, nMovedAtom
@@ -266,26 +267,23 @@ contains
     ! --------------------------------------------------------------------------------------
     ! Reading Hessian block parameters 
     ! --------------------------------------------------------------------------------------
-    call getChild(root, "Hessian", child=child)
+    call getChild(root, "Hessian", child=node, requested=.true.)
     ! cutoff used to cut out interactions
-    call getChildValue(child, "Cutoff", cutoff, 9.45_dp, modifier=modif, child=value) 
+    call getChildValue(node, "Cutoff", cutoff, 9.45_dp, modifier=modif, child=value) 
     call convertByMul(char(modif), lengthUnits, value, cutoff)
 
     ! Reading the actual Hessian matrix
-    call getChildValue(child, "Matrix", buffer, child=child)
-    !call getNodeName(value, buffer)
+    call getChildValue(node, "Matrix", value, child=child)
+    call getNodeName(value, buffer)
     select case(trim(char(buffer)))
     case ("dftb")
-      write(stdOut, "(/, A)") "read dftb hessian..."
       call readDftbHessian(value)
     case ("dynmatrix")
-      write(stdOut, "(/, A)") "read dynamical matrix..."
       call readDynMatrix(value)
     case ("cp2k")
-      write(stdOut, "(/, A)") "read cp2k hessian..."
       call readCp2kHessian(value)
     case default
-      call detailedError(root,"Unkown Hessian type "//char(buffer))  
+      call detailedError(node,"Unkown Hessian type "//char(buffer))  
     end select
 
     ! --------------------------------------------------------------------------------------
@@ -409,8 +407,6 @@ contains
     select case (char(buffer))
     case ("genformat")
       call readTGeometryGen(value, geo)
-      !call removeChildNodes(geonode)
-      !call writeTGeometryHSD(geonode, geo)
     case default
       call setUnprocessed(value)
       call readTGeometryHSD(child, geo)
@@ -634,6 +630,7 @@ contains
     integer :: ii, iSp1
     logical :: tLower, tExist
 
+    write(stdOut, "(/, A)") "read atomic masses from sk files..."
     !! Slater-Koster files
     allocate(skFiles(geo%nSpecies))
     do iSp1 = 1, geo%nSpecies
@@ -717,12 +714,16 @@ contains
     integer :: iSp
     character(lc) :: strTmp
     real(dp) :: mass, defmass
+    
+    write(stdOut, "(/, A)") "set atomic masses as IUPAC defaults ..."
 
     do iSp = 1, geo%nSpecies
       defmass = getAtomicMass(trim(geo%speciesNames(iSp)))
       call getChildValue(value, geo%speciesNames(iSp), mass, defmass,& 
                &modifier=modif, child= child2)
       speciesMass(iSp) = mass * amu__au
+      write(stdOut,*) trim(geo%speciesNames(iSp)),": ", mass, "amu", &
+            &SpeciesMass(iSp),"a.u." 
     end do
 
   end subroutine readMasses
@@ -771,6 +772,13 @@ contains
 
   end subroutine readKPointsFile_help
       
+
+  ! Read DFTB hessian.
+  !The derivatives matrix must be stored as the following order: 
+  ! For the x y z directions of atoms 1..n
+  !   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E         
+  ! ---------- + --------- + --------- + ---------- + ---------- +...
+  ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1   
   subroutine readDftbHessian(child)
     type(fnode), pointer :: child
 
@@ -778,32 +786,26 @@ contains
     integer :: iCount, jCount, ii, kk, jj, ll 
     integer :: nDerivs
 
-    real, dimension(:,:), allocatable :: h 
-    integer ::  n, j1, j2
+    integer ::  n, j1, j2, fu
+    type(fnode), pointer :: child2
+    type(string) :: filename
+    logical :: texist
+
+    call getChildValue(child, "Filename", filename, "hessian.out")
+
+    inquire(file=trim(char(filename)), exist=texist )
+    if (texist) then  
+      write(stdOut, "(/, A)") "read dftb hessian '"//trim(char(filename))//"'..."
+    else
+      call detailedError(child,"Hessian file "//trim(char(filename))//" does not exist")
+    end if
 
     nDerivs = 3 * nMovedAtom
     allocate(dynMatrix(nDerivs,nDerivs))
 
-    !The derivatives matrix must be stored as the following order: 
-    
-    ! For the x y z directions of atoms 1..n
-    !   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E         
-    ! ---------- + --------- + --------- + ---------- + ---------- +...
-    ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1   
-
-!    call init(realBuffer)
-!    call getChildValue(child, "", nDerivs, realBuffer)
-!    if (len(realBuffer)/=nDerivs) then
-!      call detailedError(child,"wrong number of derivatives supplied:" &
-!          & // i2c(len(realBuffer)) // " supplied, " &
-!          & // i2c(nDerivs) // " required.")
-!    end if
-!    call asArray(realBuffer, dynMatrix)
-!    call destruct(realBuffer)
-
-    open(unit=65, file='hessian.out', action='read')
+    open(newunit=fu, file=trim(char(filename)), action='read')
     do ii = 1,  nDerivs
-        read(65,'(4f16.10)') dynMatrix(ii,1:nDerivs)
+        read(fu,'(4f16.10)') dynMatrix(ii,1:nDerivs)
     end do
 
     ! mass weight the Hessian matrix to get the dynamical matrix
@@ -823,7 +825,7 @@ contains
     end do
 
 
-  close(65)
+  close(fu)
 
   end subroutine readDftbHessian
 
@@ -843,6 +845,8 @@ contains
     !   d^2 E        d^2 E       d^2 E       d^2 E        d^2 E         
     ! ---------- + --------- + --------- + ---------- + ---------- +...
     ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1   
+      
+    write(stdOut, "(/, A)") "read dynamical matrix..."
 
     call init(realBuffer)
     call getChildValue(child, "", nDerivs, realBuffer)
@@ -864,11 +868,21 @@ contains
     integer :: nDerivs, nBlocks
 
     real, dimension(:,:), allocatable :: HessCp2k
-    integer ::  n, j1, j2,  p,  q
+    integer ::  n, j1, j2,  p,  q, fu
+    type(string) :: filename
+    logical :: texist
 
     nDerivs = 3 * nMovedAtom
     allocate(dynMatrix(nDerivs,nDerivs))
 
+    call getChildValue(child, "Filename", filename, "hessian.cp2k")
+    inquire(file=trim(char(filename)), exist=texist )
+    if (texist) then  
+      write(stdOut, "(/, A)") "read cp2k hessian '"//trim(char(filename))//"'..."
+    else
+      call detailedError(child,"Hessian file "//trim(char(filename))//" does not exist")
+    end if
+    
     !The derivatives matrix must be stored as the following order: 
     
     ! For the x y z directions of atoms 1..n
@@ -876,13 +890,13 @@ contains
     ! ---------- + --------- + --------- + ---------- + ---------- +...
     ! dx_1 dx_1    dy_1 dx_1   dz_1 dx_1   dx_2 dx_1    dy_2 dx_1   
 
-    open(unit=65, file='hessian.cp2k', action='read')
+    open(newunit=fu, file=trim(char(filename)), action='read')
     nBlocks = nDerivs/5.0
     
     allocate(HessCp2k(nDerivs*nBlocks,5))
 
     do  ii  = 1,  nDerivs*nBlocks
-        read(65,*) HessCp2k(ii,1:5)
+        read(fu,*) HessCp2k(ii,1:5)
     end do
 
     do ii = 1,  nBlocks
@@ -910,7 +924,7 @@ contains
     end do
 
 
-  close(65)
+  close(fu)
 
   end subroutine readCp2kHessian
 

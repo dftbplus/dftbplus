@@ -63,7 +63,10 @@ contains
     write (stdOut, "(A)") "A tool to compute phonon transmission in nanostructures based on Hessians" 
     write (stdOut, "(A)") "Authors: Alessandro Pecchia, Leonardo Medrano Sandonas" 
     write (stdOut, "(A)") "When using this code, please cite this work:" 
-    write (stdOut, "(A)") "L. Medrano Sandonas et al. Quantum Phonon transport in Nanomaterials: ..., Entropy 735 (2019)" 
+    write (stdOut, "(A)") "Leonardo Medrano Sandonas, Rafaei Gutierrez, Alessandro Pecchia,"
+    write (stdOut, "(A)") "Alexander Croy, Gianaurelio Cuniberti, Quantum phonon transport in"
+    write (stdOut, "(A)") "nanomaterials: combining atomistic with non-equilibrium Green's functions"
+    write (stdOut, "(A)") "techniques, Entropy 21, 735 (2019)" 
     write (stdOut, "(A)") "" 
   end subroutine printHeader
 
