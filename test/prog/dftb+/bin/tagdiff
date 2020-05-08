@@ -22,6 +22,7 @@
 from __future__ import print_function
 import sys
 import os.path
+import numpy as np
 
 REQUIRED_VERSION = 0x2060000
 if sys.hexversion < REQUIRED_VERSION:
@@ -35,7 +36,7 @@ from tagreader import *
 from uncommlines import UncommLines
 
 
-VERSION = 0.2
+VERSION = 0.3
 DESCRIPTION ="""Compares two tagged output files according the tolerances
 in config file(s).
 """
@@ -76,9 +77,12 @@ class Diff(object):
 class DiffElement(Diff):
     """Calculates the difference as the maximal difference of the elements"""
 
-    def __call__(self, orig, new):
+    def __call__(self, orig, new, modif):
         try:
-            diff = max(map(lambda x,y: abs(x-y), orig.value, new.value))
+            if (modif) :
+                diff = max(map(lambda x,y: abs(x-y)/(abs(x)+np.finfo(float).eps), orig.value, new.value))
+            else :
+                diff = max(map(lambda x,y: abs(x-y), orig.value, new.value))
         except Exception as ee:
             raise DiffError("Exception (%s) while building difference"
                             % str(ee))
@@ -112,6 +116,7 @@ class DiffVector(Diff):
                 origvals = orig.value[ii : ii + nElement]
                 newvals = new.value[ii : ii + nElement]
                 diffs = [abs(x - y)**2 for x, y in zip(origvals, newvals)]
+
                 totaldiff = 0
                 for diff in diffs:
                     totaldiff += diff
@@ -142,7 +147,7 @@ class ToleranceEntry(object):
                     "vector":    (DiffVector, (IntConverter(nolist=True),))
     }
 
-    def __init__(self, pattern, value, compFuncName, compFuncArgs, keep):
+    def __init__(self, pattern, value, modif, compFuncName, compFuncArgs, keep):
         """pattern        -- regular expression
              value        -- tolerance for quantities matching pattern
              compFuncName -- comparison function's name
@@ -151,7 +156,7 @@ class ToleranceEntry(object):
         """
         # Store representation
         field = ":".join([ compFuncName, ] + list(compFuncArgs))
-        self.__str = " @ ".join([ pattern, value, field, keep ])
+        self.__str = " @ ".join([ pattern, value, "", field, keep ])
 
         # Convert regular expression
         try:
@@ -161,12 +166,21 @@ class ToleranceEntry(object):
 
         # Convert value
         self.__value = None
+        self.__modif = None
         try:
-            self.__value = float(value)
-            self.__value = int(value)
+            tols = re.split(r'\s+', value)
+            if len(tols) > 1:
+                self.__modif = tols[1]
+            else:
+                self.__modif = None
+            self.__value = float(tols[0])
+            self.__value = int(tols[0])
         except ValueError:
             if self.__value == None:
                 raise InvalidEntryException(msg="Invalid tolerance value")
+            if self.__modif != None:
+                if self.__modif != 'R':
+                    raise InvalidEntryException(msg="Invalid tolerance modifier")
 
         # Convert conversion method
         failed = True
@@ -203,6 +217,10 @@ class ToleranceEntry(object):
         return self.__value
     value = property(getValue, None, None, "value")
 
+
+    def getModif(self):
+        return self.__modif
+    modif = property(getModif, None, None, "modif")
 
     def getCompFunc(self):
         return self.__compFunc
@@ -257,6 +275,7 @@ class ConfigParser(object):
 
             pattern = words[0].strip()
             value = words[1].strip()
+            modif = None
 
             if len(words) < 3 or words[2].strip() == "":
                 compFunc = self.__defCompFunc
@@ -272,7 +291,7 @@ class ConfigParser(object):
                 flag = words[3].strip()
 
             try:
-                te = ToleranceEntry(pattern, value, compFunc, compFuncArgs,
+                te = ToleranceEntry(pattern, value, modif, compFunc, compFuncArgs,
                                     flag)
             except InvalidEntry as ee:
                 raise InvalidEntry(iLine+1, iLine+2, ee.msg)
@@ -432,7 +451,7 @@ def main():
                 continue
 
             try:
-                result = compFunc(oldEntry, newEntry)
+                result = compFunc(oldEntry, newEntry, configEntry.modif)
             except DiffError as msg:
                 printResult(name, compFunc,
                             "Difference building error (%s)" % msg, RES_ERROR)
