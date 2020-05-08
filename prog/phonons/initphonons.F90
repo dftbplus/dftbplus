@@ -1,4 +1,7 @@
 !* Contains the routines for initialising phonons.
+
+#:include 'common.fypp'
+
 module dftbp_initphonons
   use dftbp_assert 
   use dftbp_globalenv
@@ -171,8 +174,9 @@ contains
     !call env%globalTimer%startTimer(globalTimers%globalInit)
     
     nGroups = 1
+#:if WITH_MPI    
     call env%initMpi(nGroups)
-
+#:endif
 
     !! Read in input file as HSD or XML.
     call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
