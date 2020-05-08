@@ -115,7 +115,10 @@ class DiffVector(Diff):
             for ii in range(0, len(orig.value), nElement):
                 origvals = orig.value[ii : ii + nElement]
                 newvals = new.value[ii : ii + nElement]
-                diffs = [abs(x - y)**2 for x, y in zip(origvals, newvals)]
+                if (modif) :
+                    diffs = [(abs(x - y)/(abs(x)+np.finfo(float).eps))**2 for x, y in zip(origvals, newvals)]
+                else :
+                    diffs = [abs(x - y)**2 for x, y in zip(origvals, newvals)]
 
                 totaldiff = 0
                 for diff in diffs:
