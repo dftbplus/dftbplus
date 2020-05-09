@@ -21,7 +21,7 @@ module dftbp_periodic
   use dftbp_memman
   use dftbp_latpointiter
   use dftbp_quaternions, only : rotate3
-  use dftbp_boundaryconditions, only : zAxis
+  use dftbp_boundarycond, only : zAxis
   implicit none
 
   private

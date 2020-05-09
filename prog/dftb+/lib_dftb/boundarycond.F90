@@ -8,7 +8,7 @@
 #:include 'common.fypp'
 
 !> Contains geometrical boundary condition information on the calculation
-module dftbp_boundaryconditions
+module dftbp_boundarycond
   use dftbp_angmomentum, only : rotateZ
   use dftbp_quaternions, only : rotate3
   use dftbp_constants, only : pi
@@ -71,15 +71,15 @@ module dftbp_boundaryconditions
 
   contains
 
-    procedure :: foldOrbsToCell => foldOrbsToCell
-    procedure :: foldOrbsFromCell  => foldOrbsFromCell
-    procedure :: foldCoordToCell   => foldCoordToCell
-    procedure :: foldCoordFromCell => foldCoordFromCell
+    procedure :: foldOrbsToCell
+    procedure :: foldOrbsFromCell
+    procedure :: foldCoordToCell
+    procedure :: foldCoordFromCell
 
   end type TBoundaryConditions
 
   !> z direction vector for rotation
-  real(dp), parameter :: zAxis(3) = (/0.0_dp,0.0_dp,1.0_dp/)
+  real(dp), parameter :: zAxis(3) = [0.0_dp,0.0_dp,1.0_dp]
 
 contains
 
@@ -87,7 +87,7 @@ contains
   !> Initialise the type of boundary condition on the geometry
   subroutine BoundaryConditions_init(this)
 
-    type(TBoundaryConditions), intent(inout) :: this
+    type(TBoundaryConditions), intent(out) :: this
 
   end subroutine BoundaryConditions_init
 
@@ -97,7 +97,7 @@ contains
 
     class(TBoundaryConditions), intent(in) :: this
 
-    real(dp), intent(inout) :: x(3)
+    real(dp), intent(inout) :: x(:)
 
     select case(this%boundaryType)
     case(boundaryTypes%cluster)
@@ -122,7 +122,7 @@ contains
     class(TBoundaryConditions), intent(in) :: this
 
     !> Coordinate in central cell
-    real(dp), intent(inout) :: x(3)
+    real(dp), intent(inout) :: x(:)
 
     !> "vector" to unfolded cell in units of the boundary conditions
     real(dp), intent(in) :: cellVec(:)
@@ -198,4 +198,4 @@ contains
   end subroutine ${NAME}$
 #:endfor
 
-end module dftbp_boundaryconditions
+end module dftbp_boundarycond

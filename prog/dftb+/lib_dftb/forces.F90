@@ -19,7 +19,7 @@ module dftbp_forces
   use dftbp_environment
   use dftbp_constants, only : pi
   use dftbp_quaternions, only : rotate3
-  use dftbp_boundaryconditions, only : zAxis
+  use dftbp_boundarycond, only : zAxis
   implicit none
 
   private

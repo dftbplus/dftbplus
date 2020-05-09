@@ -5529,7 +5529,7 @@ contains
       & over, denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection, tHelical, coord0)
 
     use dftbp_quaternions, only : rotate3
-    use dftbp_boundaryconditions, only : zAxis
+    use dftbp_boundarycond, only : zAxis
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env

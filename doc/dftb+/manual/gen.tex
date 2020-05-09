@@ -26,12 +26,13 @@ lattice vectors.
 
 If the structure is a supercell, the next line after the atomic coordinates
 contains a coordinate origin in {\AA}. The last three lines are the supercell
-vectors in {\AA}. For helical cells, there is a single extra line containing
-three numbers (the repeat length of the cell along $z$ in {\AA}, the helical
-angle in degrees and the order of the $C_n$ rotational symmetry around that
-axis), it is assumed that the screw axis passes through the origin, aligned
-parallel to $z$. These boundary condition lines are not present for cluster
-geometries.
+vectors in {\AA}. For helical cells, there is a an origin line, and then an
+extra line containing three numbers (the repeat length of the cell along $z$ in
+{\AA}, the helical angle in degrees and the order of the $C_n$ rotational
+symmetry around that axis). The symmetry of the resulting structure is the
+tensor product of the helical translation/twist axis and the $C_n$ rotation
+operation. It is assumed that the screw axis is aligned parallel to $z$. These
+boundary condition lines are not present for cluster geometries.
 
 Example: Geometry of GaAs with 2 atoms in the fractional supercell
 format
