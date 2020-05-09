@@ -63,13 +63,13 @@ module dftbp_periodic
 
   !> routine to convert from cylindrical to cartesian coordinate systems
   interface cyl2cart
-    module procedure cyl2cart_
+    module procedure cyl2cart_vec
     module procedure cyl2cart_array
   end interface cyl2cart
 
   !> routine to convert from cartesian to cylindrical coordinate systems
   interface cart2cyl
-    module procedure cart2cyl_
+    module procedure cart2cyl_vec
   end interface cart2cyl
 
 
@@ -143,7 +143,7 @@ contains
     !> Global cutoff for the diatomic interactions
     real(dp), intent(in) :: cutoff
 
-    integer :: ii, maxCells
+    integer :: ii
 
     if (all(shape(latVec) == (/3, 3/))) then
       call getLatticePoints(cellVec, latVec, recVec2p, cutoff, posExtension=1, negExtension=1)
@@ -153,20 +153,7 @@ contains
       end do
     else if (all(shape(latVec) == (/3, 1/))) then
       ! Helical
-      maxCells = ceiling(cutoff / latVec(1,1))+1
-      allocate(cellVec(2,nint(latVec(3,1)) * (2*maxCells+1)))
-      allocate(rCellVec(2,nint(latVec(3,1)) * (2*maxCells+1)))
-      cellVec(:,:) = 0.0_dp
-      do ii = 2, 2 * maxCells, 2
-        cellVec(1,ii) = real(ii / 2,dp)
-        cellVec(1,ii+1) = real(-ii / 2,dp)
-      end do
-      do ii = 2, nint(latVec(3,1))
-        cellVec(1,(ii-1)*(2*maxCells+1)+1:(ii)*(2*maxCells+1)) = cellVec(1,:2*maxCells+1)
-        cellVec(2,(ii-1)*(2*maxCells+1)+1:(ii)*(2*maxCells+1)) = ii - 1
-      end do
-      rCellVec(1,:) = latVec(1,1) * cellVec(1,:)
-      rCellVec(2,:) = cellVec(2,:)
+      call getHelicalPoints(cellVec, rCellVec, latVec, cutoff)
     else
       call error("Miss-shaped cell vectors in getCellTranslations.")
     end if
@@ -237,6 +224,45 @@ contains
 
   end subroutine getLatticePoints
 
+
+  !> Cells in a helical arrangement
+  subroutine getHelicalPoints(cellVec, rCellVec, latVec, cutoff)
+
+    !> Returns cell translation vectors in relative coordinates.
+    real(dp), allocatable, intent(out) :: cellVec(:, :)
+
+    !> Returns cell translation vectors in absolute units.
+    real(dp), allocatable, intent(out) :: rCellVec(:,:)
+
+    !> Lattice vectors.
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> Global cutoff for the diatomic interactions
+    real(dp), intent(in) :: cutoff
+
+    integer :: maxCells, ii
+
+    ! cell extension along helix in +ve sense
+    maxCells = ceiling(cutoff / latVec(1,1)) +1
+    ! Total helix cells
+    maxCells = 2 * maxCells
+    allocate(cellVec(2,nint(latVec(3,1)) * (maxCells+1)))
+    allocate(rCellVec(2,nint(latVec(3,1)) * (maxCells+1)))
+    cellVec(:,:) = 0.0_dp
+    ! Helix operation
+    do ii = 2, maxCells, 2
+      cellVec(1,ii) = real(ii / 2,dp)
+      cellVec(1,ii+1) = real(-ii / 2,dp)
+    end do
+    ! c_n operation, duplicating helical points
+    do ii = 2, nint(latVec(3,1))
+      cellVec(1,(ii-1)*(maxCells+1)+1:(ii)*(maxCells+1)) = cellVec(1,:maxCells+1)
+      cellVec(2,(ii-1)*(maxCells+1)+1:(ii)*(maxCells+1)) = ii - 1
+    end do
+    rCellVec(1,:) = latVec(1,1) * cellVec(1,:)
+    rCellVec(2,:) = cellVec(2,:)
+
+  end subroutine getHelicalPoints
 
   !> Fold coordinates back in the central cell.
   !>
@@ -1154,7 +1180,7 @@ contains
 
 
   !> Convert from cylindrical to Cartesian coordinate systems
-  subroutine cyl2cart_(x,r)
+  subroutine cyl2cart_vec(x,r)
 
     !> Cartesian coordinates
     real(dp), intent(out) :: x(3)
@@ -1167,11 +1193,11 @@ contains
     x(2) = r(1)*sin(r(3))
     x(3) = r(2)
 
-  end subroutine cyl2cart_
+  end subroutine cyl2cart_vec
 
 
   !> Convert from Cartesian to cylindrical coordinate systems
-  subroutine cart2cyl_(r,x)
+  subroutine cart2cyl_vec(r,x)
 
     !> Cartesian coordinates
     real(dp), intent(out) :: r(3)
@@ -1184,7 +1210,7 @@ contains
     r(2) = x(3)
     r(3) = atan2(x(2),x(1))
 
-  end subroutine cart2cyl_
+  end subroutine cart2cyl_vec
 
 
   !> Convert from cylindrical to Cartesian coordinate systems
