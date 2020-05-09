@@ -205,6 +205,9 @@ module dftbp_initprogram
   !> lattice vectors as columns
   real(dp), allocatable, target :: latVec(:,:)
 
+  !> Origin of coordinate system for periodic systems
+  real(dp), allocatable :: origin(:)
+
   !> reciprocal lattice vectors as columns
   real(dp), allocatable, target :: recVec(:,:)
 
@@ -1260,6 +1263,8 @@ contains
       allocate(latVec(3, 3))
       @:ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
       latVec(:,:) = input%geom%latVecs(:,:)
+      allocate(origin(3))
+      origin(:) = input%geom%origin
       allocate(recVec(3, 3))
       allocate(invLatVec(3, 3))
       invLatVec = latVec(:,:)
@@ -1269,6 +1274,8 @@ contains
       CellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
     else if (tHelical) then
+      allocate(origin(3))
+      origin(:) = input%geom%origin
       allocate(latVec(size(input%geom%latVecs,dim=1), 1))
       latVec(:,:) = input%geom%latVecs(:,:)
       allocate(recVec(1, 1))
@@ -1276,6 +1283,7 @@ contains
       allocate(invLatVec(0, 0))
     else
       allocate(latVec(0, 0))
+      allocate(origin(0))
       allocate(recVec(0, 0))
       allocate(invLatVec(0, 0))
       CellVol = 0.0_dp

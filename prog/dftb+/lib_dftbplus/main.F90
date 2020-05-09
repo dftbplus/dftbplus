@@ -301,8 +301,9 @@ contains
           & tDefinedFreeE)
     end if
     if (tWriteDetailedXML) then
-      call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, latVec, tRealHS,&
-          & nKPoint, nSpin, size(eigen, dim=1), nOrb, kPoint, kWeight, filling, occNatural)
+      call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, tHelical, latVec,&
+          & origin, tRealHS, nKPoint, nSpin, size(eigen, dim=1), nOrb, kPoint, kWeight, filling,&
+          & occNatural)
     end if
 
     call env%globalTimer%stopTimer(globalTimers%postGeoOpt)
@@ -810,8 +811,8 @@ contains
     ! MD geometry files are written only later, once velocities for the current geometry are known
     if (isGeoOpt .and. tWriteRestart) then
       call writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-          & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec,&
-          & iGeoStep, iLatGeoStep, nSpin, qOutput, velocities)
+          & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
+          & iLatGeoStep, nSpin, qOutput, velocities)
     end if
 
     call printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
@@ -1053,7 +1054,7 @@ contains
             & tPrintMulliken, energy, energiesCasida, latVec, cellVol, intPressure, extPressure,&
             & tempIon, absEField, qOutput, q0, dipoleMoment)
         call writeCurrentGeometry(geoOutFile, pCoord0Out, .false., .true., .true., tFracCoord,&
-            & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, iGeoStep,&
+            & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
             & iLatGeoStep, nSpin, qOutput, velocities)
       end if
       coord0(:,:) = newCoords
