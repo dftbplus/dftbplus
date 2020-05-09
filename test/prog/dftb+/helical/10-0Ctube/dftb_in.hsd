@@ -36,7 +36,7 @@ Hamiltonian = DFTB {
   SlaterKosterFiles = {
     C-C = "./C-C.skf"
   }
-  KPointsAndWeights = Uniform {80 0.5}
+  KPointsAndWeights = HelicalUniform {80 0.5}
 }
 
 Options = {

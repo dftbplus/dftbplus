@@ -2622,8 +2622,8 @@ contains
       call getChildValue(node, "KPointsAndWeights", value1, child=child)
       call getNodeName(value1, buffer)
       select case(char(buffer))
-      case ("uniform")
-        call getChildValue(child, "uniform", rTmp3(:2))
+      case ("helicaluniform")
+        call getChildValue(child, "helicaluniform", rTmp3(:2))
         if (abs(modulo(rTmp3(1) + 0.5_dp, 1.0_dp) - 0.5_dp) > 1e-6_dp) then
           call detailedError(value1, "The k-point grid must be integer values.")
         end if
@@ -2648,8 +2648,8 @@ contains
         else
           call error("Helical boundaries not yet added for spin-orbit")
         end if
-      case ("sampled")
-        call getChildValue(child, "sampled", rTmp22)
+      case ("helicalsampled")
+        call getChildValue(child, "helicalsampled", rTmp22)
         iTmp2 = nint(rTmp22(:,1))
         if (any(abs(iTmp2-rTmp22(:,1)) > 1e-6_dp)) then
           call detailedError(value1, "The k-point grid must be integers.")
