@@ -166,9 +166,10 @@ contains
     if (geo%tPeriodic) then
       allocate(geo%origin(3))
       if (geo%tFracCoord) then
-        call getChildValue(node, "CoordinateOrigin", geo%origin)
+        call getChildValue(node, "CoordinateOrigin", geo%origin, [0.0_dp,0.0_dp,0.0_dp])
       else
-        call getChildValue(node, "CoordinateOrigin", geo%origin, modifier=modifier, child=child)
+        call getChildValue(node, "CoordinateOrigin", geo%origin, [0.0_dp,0.0_dp,0.0_dp],&
+            & modifier=modifier, child=child)
         if (len(modifier) > 0) then
           ind = getModifierIndex(char(modifier), lengthUnits, child)
           geo%origin(:) = geo%origin * lengthUnits(ind)%convertValue
