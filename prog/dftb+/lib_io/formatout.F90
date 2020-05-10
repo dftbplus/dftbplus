@@ -359,8 +359,8 @@ contains
       write(fd, 202) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
           & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
     else
-      write(fd, 201) trim(speciesNames(species(ii))),&
-          & (coords(:, ii) * Bohr__AA, ii = 1, nAtom)
+      write(fd, 201) (trim(speciesNames(species(ii))),&
+          & coords(:, ii) * Bohr__AA, ii = 1, nAtom)
     end if
 
   end subroutine writeXYZFormat_fid
