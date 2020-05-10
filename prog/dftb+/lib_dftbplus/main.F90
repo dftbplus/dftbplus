@@ -5528,9 +5528,6 @@ contains
       & iRhoPrim, thirdOrd, solvation, qDepExtPot, chrgForces, dispersion, rangeSep, SSqrReal,&
       & over, denseDesc, deltaRhoOutSqr, tPoisson, halogenXCorrection, tHelical, coord0)
 
-    use dftbp_quaternions, only : rotate3
-    use dftbp_boundarycond, only : zAxis
-
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
@@ -5774,15 +5771,43 @@ contains
 
     derivs(:,:) = derivs + tmpDerivs
 
+    call helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
+
+  end subroutine getGradients
+
+
+  !> Correct for z folding into central unit cell requiring a twist in helical cases
+  pure subroutine helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
+
+    use dftbp_quaternions, only : rotate3
+    use dftbp_boundarycond, only : zAxis
+
+    !> Derivatives
+    real(dp), intent(inout) :: derivs(:,:)
+
+    !> Unfolded atoms
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Central cell atoms
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Is this a helical geometry
+    logical, intent(in) :: tHelical
+
+    integer :: ii
+    real(dp) :: deltaTheta
+
     if (tHelical) then
-      ! correct for folding to unit cell
       do ii = 1, nAtom
-        call rotate3( derivs(:,ii), -atan2(coord(2,ii),coord(1,ii))&
-            & +atan2(coord0(2,ii),coord0(1,ii)), zAxis)
+        deltaTheta = atan2(coord0(2,ii),coord0(1,ii)) - atan2(coord(2,ii),coord(1,ii))
+        call rotate3(derivs(:,ii), deltaTheta, zAxis)
       end do
     end if
 
-  end subroutine getGradients
+  end subroutine helicalTwistFolded
 
 
   !> use plumed to update derivatives
