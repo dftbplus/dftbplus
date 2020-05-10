@@ -1274,10 +1274,8 @@ contains
       CellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
     else if (tHelical) then
-      allocate(origin(3))
-      origin(:) = input%geom%origin
-      allocate(latVec(size(input%geom%latVecs,dim=1), 1))
-      latVec(:,:) = input%geom%latVecs(:,:)
+      origin = input%geom%origin
+      latVec = input%geom%latVecs(:,:)
       allocate(recVec(1, 1))
       recVec = 1.0_dp / latVec(1,1)
       allocate(invLatVec(0, 0))
