@@ -1314,7 +1314,7 @@ contains
 
     if (tHelical) then
       call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
-          & nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec, latVec=latVec)
+          & nAllAtom, coord0Fold, species0, cutoff%mCutoff, rCellVec, helicalBoundConds=latVec)
     else
       call updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neighbourList,&
           & nAllAtom, coord0Fold, species0, cutoff%mCutOff, rCellVec)

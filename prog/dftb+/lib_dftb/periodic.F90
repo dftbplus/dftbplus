@@ -333,7 +333,7 @@ contains
 
   !> Updates the neighbour list and the species arrays.
   subroutine updateNeighbourListAndSpecies(coord, species, img2CentCell, iCellVec, neigh, nAllAtom,&
-      & coord0, species0, cutoff, rCellVec, symmetric, latVec)
+      & coord0, species0, cutoff, rCellVec, symmetric, helicalBoundConds)
 
     !> Coordinates of all interacting atoms on exit
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -369,10 +369,10 @@ contains
     logical, intent(in), optional :: symmetric
 
     !> Helical translation and angle, if neccessary, along z axis
-    real(dp), intent(in), optional :: latVec(:,:)
+    real(dp), intent(in), optional :: helicalBoundConds(:,:)
 
     call updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-        & rCellVec, symmetric, latVec)
+        & rCellVec, symmetric, helicalBoundConds)
 
     if (size(species) /= nAllAtom) then
       deallocate(species)
@@ -388,7 +388,7 @@ contains
   !> neighbour list determination is a simple N^2 algorithm, calculating the distance between the
   !> possible atom pairs.
   subroutine updateNeighbourList(coord, img2CentCell, iCellVec, neigh, nAllAtom, coord0, cutoff,&
-      & rCellVec, symmetric, latVec)
+      & rCellVec, symmetric, helicalBoundConds)
 
     !> Coordinates of the objects interacting with the objects in the central cell (on exit).
     real(dp), allocatable, intent(inout) :: coord(:,:)
@@ -420,7 +420,7 @@ contains
     logical, intent(in), optional :: symmetric
 
     !> Helical translation and angle, if neccessary, along z axis
-    real(dp), intent(in), optional :: latVec(:,:)
+    real(dp), intent(in), optional :: helicalBoundConds(:,:)
 
     ! Nr. of atoms in the system
     integer :: nAtom
@@ -487,7 +487,7 @@ contains
     ! Outer two loops: all atoms in all cells.
     ! Inner loop: all atoms in the central cell.
     lpCellVec: do ii = 1, nCellVec
-      if (present(latVec)) then
+      if (present(helicalBoundConds)) then
         ! helical structure
         rCell(:) = 0.0_dp
         rCell(3) = rCellVec(1, ii)
@@ -502,15 +502,16 @@ contains
         else
           iAtom2End = iAtom1
         end if
-        if (present(latVec)) then
+        if (present(helicalBoundConds)) then
           ! helical geometry
-          if (size(latvec,dim=1)==3) then
+          if (size(helicalBoundConds,dim=1)==3) then
             ! an additional C rotation operation
-            call rotate3(rr,2.0_dp*pi*rCellVec(2, ii)/latvec(3,1), zAxis)
+            call rotate3(rr,2.0_dp*pi*rCellVec(2, ii)/helicalBoundConds(3,1), zAxis)
           end if
           ! helical operation, note nint() not floor() as roundoff can cause problems for floor
           ! here.
-          call rotate3(rr,latvec(2,1)*nint(rCellVec(1, ii)/latvec(1,1)), zAxis)
+          call rotate3(rr,helicalBoundConds(2,1)*nint(rCellVec(1, ii)/helicalBoundConds(1,1)),&
+              & zAxis)
         end if
         lpIAtom2: do iAtom2 = 1, iAtom2End
           !  If distance greater than cutoff -> skip
