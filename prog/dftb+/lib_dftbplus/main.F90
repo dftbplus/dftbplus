@@ -2722,10 +2722,10 @@ contains
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
-        call unpackHS(HSqrReal, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHelicalHS(HSqrReal, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-        call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-            & iSparseStart, img2CentCell, orb, species, coord)
+        call unpackHelicalHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
         call unpackHS(HSqrReal, ham(:,iSpin), neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -2856,10 +2856,10 @@ contains
     #:else
       call env%globalTimer%startTimer(globalTimers%sparseToDense)
       if (tHelical) then
-        call unpackHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
-            & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species,&
-            & coord)
-        call unpackHS(SSqrCplx, over, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
+        call unpackHelicalHS(HSqrCplx, ham(:,iSpin), kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
+            & orb, species, coord)
+        call unpackHelicalHS(SSqrCplx, over, kPoint(:,iK), neighbourList%iNeighbour, nNeighbourSK,&
             & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species,&
             & coord)
       else
@@ -3090,7 +3090,7 @@ contains
 
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
-          call packHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK,&
+          call packHelicalHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         else
           call packHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
@@ -3103,7 +3103,7 @@ contains
             & eigvecs(:,:,iKS), filling(:,iSpin))
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         if (tHelical) then
-          call packHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
+          call packHelicalHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
               & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         else
           call packHS(rhoPrim(:,iSpin), deltaRhoOutSqr(:,:,iSpin), neighbourlist%iNeighbour,&
@@ -3218,9 +3218,9 @@ contains
       end if
       call env%globalTimer%startTimer(globalTimers%denseToSparse)
       if (tHelical) then
-        call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
-            & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
-            & img2CentCell, orb, species, coord)
+        call packHelicalHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
         call packHS(rhoPrim(:,iSpin), work, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
             & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
@@ -4088,7 +4088,7 @@ contains
       else
         call mix(pChrgMixer, deltaRhoIn, deltaRhoDiff)
         if (tHelical) then
-          call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
+          call unpackHelicalHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
               & iSparseStart, img2CentCell, orb, species, coord)
         else
           call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, iAtomStart,&
@@ -4526,8 +4526,8 @@ contains
     allocate(dQAtom(nAtom))
     dQAtom(:) = sum(qOutput(:,:,1) - q0(:,:,1), dim=1)
     if (tHelical) then
-      call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-          & iSparseStart, img2CentCell, orb, species, coord)
+      call unpackHelicalHS(work, over, neighbourList%iNeighbour, nNeighbourSK,&
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
     else
       call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
           & iSparseStart, img2CentCell)
@@ -5115,7 +5115,7 @@ contains
             & denseDesc%blacsOrbSqr, work, denseDesc%blacsOrbSqr, side="R", alpha=0.5_dp)
       #:else
         if (tHelical) then
-          call unpackHS(work, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHelicalHS(work, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         else
           call unpackHS(work, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
@@ -5159,7 +5159,7 @@ contains
       #:else
         call makeDensityMatrix(work, eigvecsReal(:,:,iKS), filling(:,1,iS))
         if (tHelical) then
-          call unpackHS(work2, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
+          call unpackHelicalHS(work2, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
               & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         else
           call unpackHS(work2, ham(:,iS), neighbourlist%iNeighbour, nNeighbourSK,&
@@ -5168,8 +5168,8 @@ contains
         call blocksymmetrizeHS(work2, denseDesc%iAtomStart)
         call symm(eigvecsReal(:,:,iKS), "L", work, work2)
         if (tHelical) then
-          call unpackHS(work, over, neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-              & iSparseStart, img2CentCell, orb, species, coord)
+          call unpackHelicalHS(work, over, neighbourlist%iNeighbour, nNeighbourSK,&
+              & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
         else
           call unpackHS(work, over, neighbourlist%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
               & iSparseStart, img2CentCell)
@@ -5190,7 +5190,7 @@ contains
       end if
     #:else
       if (tHelical) then
-        call packHS(ERhoPrim, work, neighbourList%iNeighbour, nNeighbourSK,&
+        call packHelicalHS(ERhoPrim, work, neighbourList%iNeighbour, nNeighbourSK,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
         call packHS(ERhoPrim, work, neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
@@ -5333,9 +5333,9 @@ contains
       #:else
         call makeDensityMatrix(work2, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         if (tHelical) then
-          call unpackHS(work, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
-              & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species,&
-              & coord)
+          call unpackHelicalHS(work, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
+              & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
+              & orb, species, coord)
         else
           call unpackHS(work, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
               & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -5377,9 +5377,9 @@ contains
       #:else
         call makeDensityMatrix(work, eigvecsCplx(:,:,iKS), filling(:,iK,iS))
         if (tHelical) then
-          call unpackHS(work2, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
-              & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species,&
-              & coord)
+          call unpackHelicalHS(work2, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour,&
+              & nNeighbourSK, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell,&
+              & orb, species, coord)
         else
           call unpackHS(work2, ham(:,iS), kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
               & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -5387,8 +5387,9 @@ contains
         call blockHermitianHS(work2, denseDesc%iAtomStart)
         call hemm(eigvecsCplx(:,:,iKS), "L", work, work2)
         if  (tHelical) then
-          call unpackHS(work, over, kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK, iCellVec,&
-              & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
+          call unpackHelicalHS(work, over, kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK,&
+              & iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species,&
+              & coord)
         else
           call unpackHS(work, over, kPoint(:,iK), neighbourlist%iNeighbour, nNeighbourSK, iCellVec,&
               & cellVec, denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -5411,7 +5412,7 @@ contains
       end if
     #:else
       if (tHelical) then
-        call packHS(ERhoPrim, work, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
+        call packHelicalHS(ERhoPrim, work, kPoint(:,iK), kWeight(iK), neighbourList%iNeighbour,&
             & nNeighbourSK, orb%mOrb, iCellVec, cellVec, denseDesc%iAtomStart, iSparseStart,&
             & img2CentCell, orb, species, coord)
       else
@@ -5751,8 +5752,8 @@ contains
 
     if (allocated(rangeSep)) then
       if (tHelical) then
-        call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-            & iSparseStart, img2CentCell, orb, species, coord)
+        call unpackHelicalHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
         call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
             & iSparseStart, img2CentCell)
@@ -6521,8 +6522,8 @@ contains
 
     if (allocated(eigvecsReal)) then
       if (tHelical) then
-        call unpackHS(SSqrReal,over,neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-            & iSparseStart, img2CentCell, orb, species, coord)
+        call unpackHelicalHS(SSqrReal,over,neighbourList%iNeighbour, nNeighbourSK,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
       else
         call unpackHS(SSqrReal,over,neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
             & iSparseStart, img2CentCell)
