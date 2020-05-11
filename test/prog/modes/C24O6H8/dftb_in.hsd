@@ -1,0 +1,39 @@
+Geometry = GenFormat {
+  # previously relaxed geometry
+  <<< "geom.gen"
+}
+
+# Calculate the second derivatives of the energy
+Driver = SecondDerivatives {
+  # Specified finite difference step
+  Delta = 1e-4
+}
+
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1E-8
+  Filling = Fermi {
+    Temperature [Kelvin] = 400
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Prefix = "./"
+    Separator = "-"
+    Suffix = ".skf" 
+  }
+  MaxAngularMomentum = {
+    C = "p"
+    O = "p"
+    H = "s"
+  }
+}
+
+# This file uses the 5th input format
+ParserOptions = {
+  ParserVersion = 7
+}
+
+# if run in MPI parallel, allow openMP threads to be used
+Parallel = {
+  UseOmpThreads = Yes
+}
