@@ -140,9 +140,9 @@ if(WITH_MPI)
 endif()
 
 if(WITH_TRANSPORT)
-  add_subdirectory(external/mudpack ${exclude})
   add_subdirectory(external/libnegf ${exclude})
 endif()
+add_subdirectory(external/mudpack)
 
 #
 # Add internal components

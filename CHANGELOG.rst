@@ -33,6 +33,10 @@ Added
 
 - Generalized Born implicit solvation model
 
+- Non-polar solvent accessible surface area solvation model
+
+- Particle-particle random-phase approximation available for suitable excitation calculations
+
 
 Changed
 -------
@@ -44,6 +48,7 @@ Changed
 - Versioned format for transport contact shift files (backward compatible), also
   enables the Fermi energy to be read directly from the contact file.
 
+
 Fixed
 -----
 
@@ -51,6 +56,7 @@ Fixed
   range-separation hybrid DFTB.
 
 - MD temperature profiles that do not start with an initial constant temperature
+
 
 19.1 (2019-07-01)
 =================

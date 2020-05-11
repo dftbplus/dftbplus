@@ -48,6 +48,7 @@ module dftbp_mainio
   use dftbp_reksvar, only : TReksCalc
   ! TODO : circular dependecy occurs
 !  use dftbp_reks
+  use dftbp_cm5, only : TChargeModel5
 #:if WITH_SOCKETS
   use dftbp_ipisocket
 #:endif
@@ -2035,7 +2036,7 @@ contains
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, electronicSolver, tStress,&
       & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
-      & tDefinedFreeE)
+      & tDefinedFreeE, cm5Cont)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2076,6 +2077,9 @@ contains
 
     !> Reference atomic charges
     real(dp), intent(in) :: q0(:,:,:)
+
+    !> Charge model 5 to correct atomic gross charges
+    type(TChargeModel5), allocatable, intent(in) :: cm5Cont
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2125,6 +2129,10 @@ contains
       call taggedWriter%write(fd, tagLabels%qOutput, qOutputUpDown(:,:,1))
       call taggedWriter%write(fd, tagLabels%qOutAtGross, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
           & dim=1))
+       if (allocated(cm5Cont)) then
+          call taggedWriter%write(fd, tagLabels%qOutAtCM5, sum(q0(:,:,1) - qOutputUpDown(:,:,1),&
+             & dim=1) + cm5Cont%cm5)
+       end if
     end if
 
     close(fd)
@@ -2320,7 +2328,7 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2478,6 +2486,9 @@ contains
     !> Is this a solvation model used?
     logical, intent(in) :: tSolv
 
+    !> Charge model 5 for correcting atomic gross charges
+    type(TChargeModel5), allocatable, intent(in) :: cm5Cont
+
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
     integer :: ang
@@ -2572,6 +2583,16 @@ contains
         write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))
       end do
       write(fd, *)
+
+      if (allocated(cm5Cont)) then
+         write(fd, "(A)") " CM5 corrected atomic gross charges (e)"
+         write(fd, "(A5, 1X, A16)")" Atom", " Charge"
+         do ii = 1, size(iAtInCentralRegion)
+            iAt = iAtInCentralRegion(ii)
+            write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1)) + cm5Cont%cm5(iAt)
+         end do
+         write(fd, *)
+      end if
     end if
 
     if (nSpin == 4) then

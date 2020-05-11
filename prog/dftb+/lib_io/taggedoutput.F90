@@ -87,6 +87,9 @@ module dftbp_taggedoutput
     !> Gross atomic charges
     character(lenLabel) :: qOutAtGross  = 'gross_atomic_charges'
 
+    !> Charge model 5 corrected atomic gross charges
+    character(lenLabel) :: qOutAtCM5 = 'cm5_atomic_charges'
+
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
 
@@ -108,7 +111,7 @@ module dftbp_taggedoutput
     !> total projected DOS vector
     character(lenLabel) :: ldos = 'total_localdos'
 
-    !> total bond currents 
+    !> total bond currents
     character(lenLabel) :: localCurrents = 'local_currents'
 
     !> total internal energy
@@ -125,6 +128,9 @@ module dftbp_taggedoutput
 
     !> External electric field
     character(lenLabel) :: externField = 'external_efield'
+
+    !> two-electron addition/removal energies in ppRPA formalism
+    character(lenLabel) :: egyppRPA = '2e_add-rem_energies'
 
   end type TTagLabelsEnum
 
