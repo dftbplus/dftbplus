@@ -2141,8 +2141,8 @@ contains
 
 
   !> Write XML format of derived results
-  subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, latVec, tRealHS,&
-      & nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
+  subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, tHelical, latVec,&
+      & origin, tRealHS, nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
 
     !> Identifier for the run
     integer, intent(in) :: runId
@@ -2159,8 +2159,14 @@ contains
     !> Periodic boundary conditions
     logical, intent(in) :: tPeriodic
 
-    !> Lattice vectors if periodic
+    !> Is the geometry helical?
+    logical, intent(in) :: tHelical
+
+    !> Lattice vectors if periodic or helical
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin for periodic/helical coordinates
+    real(dp), intent(in) :: origin(:)
 
     !> Real Hamiltonian
     logical, intent(in) :: tRealHS
@@ -2200,11 +2206,18 @@ contains
     call writeChildValue(xf, "identity", runId)
     call xml_NewElement(xf, "geometry")
     call writeChildValue(xf, "typenames", speciesName)
-    call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
-        & coord0Out)
+    if (tPeriodic .or. tHelical) then
+      call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
+          & coord0Out + spread(origin, 2, size(coord0Out, dim=2)))
+    else
+      call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
+          & coord0Out)
+    end if
     call writeChildValue(xf, "periodic", tPeriodic)
-    if (tPeriodic) then
+    call writeChildValue(xf, "helical", tHelical)
+    if (tPeriodic .or. tHelical) then
       call writeChildValue(xf, "latticevectors", latVec)
+      call writeChildValue(xf, "coordinateorigin", origin)
     end if
     call xml_EndElement(xf, "geometry")
     call writeChildValue(xf, "real", tRealHS)
@@ -3549,8 +3562,8 @@ contains
 
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-      & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep,&
-      & nSpin, qOutput, velocities)
+      & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
+      & iLatGeoStep, nSpin, qOutput, velocities)
 
     !>  file for geometry output
     character(*), intent(in) :: geoOutFile
@@ -3588,6 +3601,9 @@ contains
     !> lattice vectors
     real(dp), intent(in) :: latVec(:,:)
 
+    !> Origin for periodic coordinates
+    real(dp), intent(in) :: origin(:)
+
     !> current geometry step
     integer, intent(in) :: iGeoStep
 
@@ -3612,7 +3628,7 @@ contains
 
     fname = trim(geoOutFile) // ".gen"
     if (tPeriodic .or. tHelical) then
-      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, tFracCoord)
+      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, origin, tFracCoord)
     else
       call writeGenFormat(fname, pCoord0Out, species0, speciesName)
     end if

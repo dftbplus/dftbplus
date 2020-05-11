@@ -24,15 +24,15 @@ follow the coordinates. For \is{S} and \is{C} format, these are $x$,
 $y$, $z$ in {\AA}, but for \is{F} they are fractions of the three
 lattice vectors.
 
-If the structure is a supercell, the next line after the atomic
-coordinates contains the coordinate origin in {\AA} (this is ignored
-by the parser). The last three lines are the supercell vectors in
-{\AA}. For helical cells, there is a single extra line containing
-three numbers (the repeat length of the cell along $z$ in {\AA}, the
-helical angle in degrees and the order of the $C_n$ rotational
-symmetry around that axis), it is assumed that the screw axis passes
-through the point $[0,0,0]$. These boundary condition lines are not
-present for cluster geometries.
+If the structure is a supercell, the next line after the atomic coordinates
+contains a coordinate origin in {\AA}. The last three lines are the supercell
+vectors in {\AA}. For helical cells, there is a an origin line, and then an
+extra line containing three numbers (the repeat length of the cell along $z$ in
+{\AA}, the helical angle in degrees and the order of the $C_n$ rotational
+symmetry around that axis). The symmetry of the resulting structure is the
+tensor product of the helical translation/twist axis and the $C_n$ rotation
+operation. It is assumed that the screw axis is aligned parallel to $z$. These
+boundary condition lines are not present for cluster geometries.
 
 Example: Geometry of GaAs with 2 atoms in the fractional supercell
 format
@@ -57,8 +57,9 @@ ammount.
     1 1    1.016566615    1.777924612    0.000000000
     2 2    1.960988580    2.020972633    0.5133666820
     3 2    0.751006714    2.717254122   -0.5117698570
+    0 0 0
     1.250  30.0 1
 \end{verbatim}
 
 {\bf Note} The \dftbp{} input parser as well as the dptools utilities will
-ignore any lines starting with the \# comment mark.
+ignore any lines starting with a \# comment mark.

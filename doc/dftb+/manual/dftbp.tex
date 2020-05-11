@@ -2135,8 +2135,8 @@ was defined with the \is{SelectedShells} method.
 
 The $k$-points for the Brillouin-zone integration can either be specified
 explicitly, or automatically for supercells by using the \iscb{SupercellFolding}
-or \iscb{KLines} methods for supercells or either \iscb{Uniform} or
-\iscb{Sampled} for helical boundary conditions.
+or \iscb{KLines} methods for supercells or either \iscb{HelicalUniform} or
+\iscb{HelicalSampled} for helical boundary conditions.
 
 \textbf{ Note:} For the automatic grid methods, the \is{KPointsAndWeights}
 keyword is not allowed to have a modifier.
@@ -2275,12 +2275,12 @@ Example:
 \textbf{Note:} Since this set of k-points probably does not correctly integrate the Brillouin zone,
 the default value of \kw{MaxSccIterations} is set to be 1 in this case.
 
-\htcbsubsubsection{Uniform}
+\htcbsubsubsection{HelicalUniform}
 
 This method specifies $k$-points lying along the generalized reciprocal vector
 of the Brillouin zone of a helical cell and around the order-$n$ rotational axis
 (currently the $k$-points that exactly represent the $C_n$ rotation are
-used). The \iscb{Uniform} method expects 1 integer and 1 real value as
+used). The \iscb{HelicalUniform} method expects 1 integer and 1 real value as
 parameters, where the first value specifies the number of sampling points along
 the helical axis, while the second gives the shift (analogous to the three
 dimensional case of \iscb{SupercellFolding}) in this direction. A shift of $0.5$
@@ -2289,20 +2289,20 @@ appears to give more rapid convergence of the grid.
 Example:
 \invparskip
 \begin{verbatim}
-  KPointsAndWeights = Uniform {80 0.5}
+  KPointsAndWeights = HelicalUniform {80 0.5}
 \end{verbatim}
 
-\htcbsubsubsection{Sampled}
+\htcbsubsubsection{HelicalSampled}
 
 Instead of exactly integrating around the $C_n$ rotation in $k$-space, the
-\iscb{Sampled} method allows for a sampled integration. It expects 4 values: the
-first two are the number of sample points along the hexix and around the
-rotation respectively, while the second two are shifts in the grid.
+\iscb{HelicalSampled} method allows for a sampled integration. It expects 4
+values: the first two are the number of sample points along the helix and around
+the rotation respectively, while the second two are shifts in the grid.
 
 Example:
 \invparskip
 \begin{verbatim}
-  KPointsAndWeights = Sampled {20 4 0.5 0.25}
+  KPointsAndWeights = HelicalSampled {20 4 0.5 0.25}
 \end{verbatim}
 
 There are several things to note here: firstly, the second grid (values 4 and

@@ -12,7 +12,7 @@ module dftbp_repulsive
   use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_constants, only : pi
-  use dftbp_boundaryconditions, only : zAxis
+  use dftbp_boundarycond, only : zAxis
   use dftbp_repcont
   use dftbp_quaternions, only : rotate3
   implicit none

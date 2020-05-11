@@ -3,6 +3,7 @@ Geometry = GenFormat {
   C
     1 1    0.2756230044E+01    0.2849950460E+01    0.1794011798E+01
     2 1    0.2656226397E+01    0.2949964389E+01    0.3569110265E+00
+    0 0 0
     0.2140932670E+01 18.0 10
 }
 
@@ -17,7 +18,7 @@ Hamiltonian = DFTB {
   SlaterKosterFiles = {
     C-C = "./C-C.skf"
   }
-  KPointsAndWeights = Sampled {20 4 0.5 0.25}
+  KPointsAndWeights = HelicalSampled {20 4 0.5 0.25}
 }
 
 Options = {

@@ -29,6 +29,7 @@ module dftbp_sparse2dense
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS, symmetrizeHS
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
+  public :: unpackHelicalHS, packHelicalHS
 
 #:if WITH_SCALAPACK
   public :: unpackHSRealBlacs, unpackHSCplxBlacs, unpackHPauliBlacs, unpackSPauliBlacs
@@ -42,20 +43,31 @@ module dftbp_sparse2dense
   interface unpackHS
     module procedure unpackHS_real
     module procedure unpackHS_cmplx
-    module procedure unpackHSHelical_real
-    module procedure unpackHSHelical_cmplx
   end interface unpackHS
 
 
-  !> Pack square matrix to sparse form.
+  !> Unpack sparse matrix (Hamiltonian, overlap, etc.) to square form for helical geometries
+  interface unpackHelicalHS
+    module procedure unpackHSHelical_real
+    module procedure unpackHSHelical_cmplx
+  end interface unpackHelicalHS
+
+
+  !> Pack square matrix to sparse form
   interface packHS
     module procedure packHS_real
     module procedure packHS_cmplx
     module procedure packHSPauli
     module procedure packHSPauli_kpts
+
+  end interface packHS
+
+
+  !> Pack square matrix to sparse form for helical geometries
+  interface packHelicalHS
     module procedure packHShelical_real
     module procedure packHShelical_cmplx
-  end interface packHS
+  end interface packHelicalHS
 
 
   !> Pack square matrix to sparse form.
