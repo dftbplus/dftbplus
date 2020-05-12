@@ -3031,11 +3031,16 @@ To use the generalized Born model in the SCC procedure use the
 The non-polar solvent area model can be combinded with the GB model
 enabling to additionally correct for hydrogen bonding, the resulting
 model is called GBSA.
+The parameters for the GBSA model are currently available at
+\url{https://github.com/grimme-lab/gbsa-parameters} and can be read in with
+\kw{ParamFile} and will setup the complete \kw{GeneralizedBorn\cb} input.
+
 Note that the GB(SA) model implemented is only available for finite
 systems.
 
 \begin{ptable}
-  \kw{Solvent} & m & & & \\
+  \kw{ParamFile} & s & & & \\
+  \kw{Solvent} & m & not has \kw{ParamFile} & & \\
   \kw{FreeEnergyShift} & r & & & \\
   \kw{Temperature} & r & & 298.15 K & \\
   \kw{State} & s & & gsolv & \\
@@ -3043,7 +3048,7 @@ systems.
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
   \kw{CM5} & m & & & \pref{sec:dftbp.CM5} \\
-  \kw{Radii} & m & & & \\
+  \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & 35 AA & \\
   \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
@@ -3052,6 +3057,12 @@ systems.
 \end{ptable}
 
 \begin{description}
+  \item[\is{ParamFile}] Reads in a parameter file for GBSA, specifying this
+    keyword automatically provides the \is{Solvent} information, and defaults
+    values for \is{FreeEnergyShift}, \is{BornOffset}, \is{BornScale}, \is{SASA\cb}
+    \is{Descreening}, \is{HBondCorr} and \is{HBondStrength}.
+    Usually no other keywords need to be specified when \is{ParamFile} is present.
+
   \item[\is{Solvent}] Descriptors of the solvent, can be load from a database
     by providing the solvent name as string in the \is{FromName\cb} method or
     by specifying the necessary values with the \is{FromConstants\cb} method.
@@ -3157,7 +3168,7 @@ Hamiltonian = DFTB {
       O = 0.75369019
     }
     SASA {
-      ProbeRad = 1.843075777670416
+      ProbeRadius = 1.843075777670416
       Radii = vanDerWaalsRadiiD3 {}
       SurfaceTension = Values {
         H = -3.34983060E-01
@@ -3246,7 +3257,7 @@ This model is currently only available for finite systems.
   \kw{Offset} & r & & 2.0 AA & \\ 
   \kw{Tolerance} & r & & 1.0e-6 & \\ 
   \kw{AngularGrid} & i & & 230 & \\ 
-  \kw{Radii} & m & & & \\
+  \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
   \kw{SurfaceTension} & m & & & \\
 \end{ptable}
 

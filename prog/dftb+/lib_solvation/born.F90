@@ -87,8 +87,8 @@ module dftbp_born
     !> Volume of the unit cell
     real(dp) :: volume = 0.0_dp
 
-    !> stress tensor
-    real(dp) :: stress(3, 3) = 0.0_dp
+    !> Strain derivatives
+    real(dp) :: sigma(3, 3) = 0.0_dp
 
     !> is this periodic
     logical :: tPeriodic
@@ -444,13 +444,13 @@ contains
       dEdcm5(:) = 0.0_dp
       call hemv(dEdcm5, self%bornMat, self%chargesPerAtom)
       call self%cm5%addGradients(dEdcm5, gradients)
-      call self%cm5%addStress(dEdcm5, sigma)
+      call self%cm5%addSigma(dEdcm5, sigma)
     end if
 
     self%energies = self%energies + self%param%freeEnergyShift / real(self%nAtom, dp)
 
     if (self%tPeriodic) then
-      self%stress(:, :) = sigma / self%volume
+      self%sigma(:, :) = sigma
     end if
 
   end subroutine addGradients
@@ -477,7 +477,7 @@ contains
       stress(:, :) = 0.0_dp
     end if
 
-    stress(:,:) = stress + self%stress / self%volume
+    stress(:,:) = stress + self%sigma / self%volume
 
   end subroutine getStress
 
@@ -960,7 +960,7 @@ contains
 
 
   !> GB energy and gradient
-  subroutine getBornEGCluster(self, coords, energies, gradients, stress)
+  subroutine getBornEGCluster(self, coords, energies, gradients, sigma)
 
     !> data structure
     type(TGeneralizedBorn), intent(in) :: self
@@ -975,7 +975,7 @@ contains
     real(dp), intent(inout) :: gradients(:, :)
 
     !> Strain derivative
-    real(dp), intent(inout) :: stress(:, :)
+    real(dp), intent(inout) :: sigma(:, :)
 
     integer :: iAt1, iAt2
     real(dp) :: aa, dist2, fgb, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
@@ -1016,9 +1016,9 @@ contains
 
           dSr = spread(dGr, 1, 3) * spread(vec, 2, 3)
           if (iAt1 /= iAt2) then
-             stress = stress + dSr
+             sigma = sigma + dSr
           else
-             stress = stress + dSr/2
+             sigma = sigma + dSr/2
           end if
 
           bp = -0.5_dp*expd*(1.0_dp+dd)*dfgb3
@@ -1045,7 +1045,7 @@ contains
 
     !> contract with the Born radii derivatives
     call gemv(gradients, self%dbrdr, dEdbr, beta=1.0_dp)
-    call gemv(stress, self%dbrdL, dEdbr, beta=1.0_dp)
+    call gemv(sigma, self%dbrdL, dEdbr, beta=1.0_dp)
 
   end subroutine getBornEGCluster
 

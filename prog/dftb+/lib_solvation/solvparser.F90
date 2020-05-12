@@ -46,10 +46,10 @@ contains
     !> Node to parse
     type(fnode), pointer :: node
 
-    !> geometry, including atomic information
+    !> Geometry, including atomic information
     type(TGeometry), intent(in) :: geo
 
-    !> dispersion data on exit
+    !> Solvation data on exit
     type(TSolvationInp), intent(out) :: input
 
     type(fnode), pointer :: solvModel
@@ -80,7 +80,7 @@ contains
     !> Geometry of the current system
     type(TGeometry), intent(in) :: geo
 
-    !> Contains the input for the dispersion module on exit
+    !> Contains the input for the solvation module on exit
     type(TGBInput), intent(out) :: input
 
     type(TGBInput), allocatable :: defaults
@@ -300,6 +300,7 @@ contains
   end subroutine readSolvGB
 
 
+  !> Read input data for non-polar surface area solvation model.
   subroutine readSolvSASA(node, geo, input, probeRadDefault, surfaceTensionDefault)
 
     !> Node to process
@@ -308,7 +309,7 @@ contains
     !> Geometry of the current system
     type(TGeometry), intent(in) :: geo
 
-    !> Contains the input for the dispersion module on exit
+    !> Contains the input for the solvation module on exit
     type(TSASAInput), intent(out) :: input
 
     !> Default value for the probe radius
@@ -412,6 +413,7 @@ contains
   end subroutine readSolvSASA
 
 
+  !> Read settings for charge model 5.
   subroutine readCM5(node, input, geo)
 
     !> Node to process
@@ -420,7 +422,7 @@ contains
     !> Geometry of the current system
     type(TGeometry), intent(in) :: geo
 
-    !> Contains the input for the dispersion module on exit
+    !> Contains the input for the CM5 module on exit
     type(TCM5Input), intent(out) :: input
 
     type(fnode), pointer :: value1, value2, dummy, child, child2, field
