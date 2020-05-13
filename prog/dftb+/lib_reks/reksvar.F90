@@ -1146,7 +1146,7 @@ module dftbp_reksvar
           if (self%Efunction == 1) then
             call error("gradient of microstate is not compatible with single-state REKS")
           else if (self%tSSR) then
-            call error("For gradient of microstate, please set tSSR = .false.")
+            call error("For gradient of microstate, please set StateInteractions = No")
           end if
         end if
 
@@ -1179,7 +1179,7 @@ module dftbp_reksvar
       ! REKS system requirements
 
       if (self%Plevel > 2 .or. self%Plevel < 0) then
-        call error("Wrong printing option, please write 0 to 2")
+        call error("Wrong VerbosityLevel given, please write 0 to 2")
       end if
 
     end subroutine checkReksRequirements
@@ -1195,7 +1195,7 @@ module dftbp_reksvar
       if (self%rstate > 3 .or. self%rstate < 1) then
         call error("Wrong TargetState given, please write 1 to 3")
       else if (self%Lstate > 6 .or. self%Lstate < 0) then
-        call error("Wrong TargetStateL given, please write 0 to 6")
+        call error("Wrong TargetMicrostate given, please write 0 to 6")
       end if
 
     end subroutine checkSSR22Requirements
