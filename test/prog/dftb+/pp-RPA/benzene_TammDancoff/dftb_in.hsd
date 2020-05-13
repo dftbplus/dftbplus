@@ -1,0 +1,44 @@
+Geometry = GenFormat {
+    <<< geo_in.gen
+}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1.0E-8
+    Charge = 2.0
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 40
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+ExcitedState {
+    PP-RPA {
+       NrOfExcitations = 10
+       Symmetry = singlet
+       HHubbard = {
+          C = 0.66331 
+          H = 0.7948 
+       } 
+       TammDancoff = yes  
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    CalculateForces = No
+}
+
+ParserOptions = {
+    ParserVersion = 8
+}

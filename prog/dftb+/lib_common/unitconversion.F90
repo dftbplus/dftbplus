@@ -42,6 +42,23 @@ module dftbp_unitconversion
       /)
 
 
+  !> Number of length units
+  integer, parameter :: nInverseLengthUnit = 8
+
+
+  !> Length units
+  type(unit), parameter :: inverseLengthUnits(nInverseLengthUnit) = (/ &
+      &unit("1/angstrom          ", Bohr__AA), &
+      &unit("1/aa                ", Bohr__AA), &
+      &unit("1/meter             ", 1.0e-10_dp * Bohr__AA), &
+      &unit("1/m                 ", 1.0e-10_dp * Bohr__AA), &
+      &unit("1/bohr              ", 1.0_dp), &
+      &unit("1/pm                ", 1.0e+2_dp * Bohr__AA), &
+      &unit("1/picometer         ", 1.0e+2_dp * Bohr__AA), &
+      &unit("1/au                ", 1.0_dp) &
+      /)
+
+
   !> Number of energy units
   integer, parameter :: nEnergyUnit = 13
 

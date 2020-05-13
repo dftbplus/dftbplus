@@ -17,11 +17,11 @@ module poisson
   use parcheck                
   use gewald
   use bulkpot
-  use gclock
   use fancybc
   use mpi_poisson
-  use std_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_accuracy, only : lc, dp
+  use dftbp_environment, only : TEnvironment, globalTimers
   implicit none
   private
 
@@ -60,10 +60,9 @@ module poisson
 #:endif
   public :: id0, active_id, numprocs
   ! from io
-  public :: set_stdout
 
 
-  public :: init_poissbox, mudpack_drv, set_rhs, save_pot, rho, n_alpha
+  public :: init_poissbox, mudpack_drv, save_pot, rho, n_alpha
   public :: poiss_updcoords, poiss_savepotential, poiss_freepoisson
 
  contains
@@ -83,7 +82,10 @@ module poisson
  end subroutine poiss_supercell
 
  !------------------------------------------------------------------------------
- subroutine poiss_freepoisson()
+ subroutine poiss_freepoisson(env)
+
+   !> Environment settings
+   type(TEnvironment), intent(inout) :: env
 
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
@@ -91,7 +93,7 @@ module poisson
 
    if (active_id) then
      PoissFlag=3
-     call  mudpack_drv(PoissFlag,fakeshift,fakegrad)  
+     call  mudpack_drv(env, PoissFlag,fakeshift,fakegrad)
    endif
  
    if(allocated(x)) call log_gdeallocate(x)
@@ -108,12 +110,17 @@ module poisson
  end subroutine poiss_freepoisson
 
  ! -----------------------------------------------------------------------------
- subroutine poiss_savepotential()
-    
+ subroutine poiss_savepotential(env)
+
+   !> Environment settings
+   type(TEnvironment), intent(inout) :: env
+
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
    integer :: PoissFlag, ndim
- 
+
+   call env%globalTimer%startTimer(globalTimers%poisson)
+
    if (active_id) then
  
      if(.not.SavePot) return
@@ -122,9 +129,11 @@ module poisson
   
      PoissFlag=2
      
-     call  mudpack_drv(PoissFlag,fakeshift,fakegrad)
+     call  mudpack_drv(env, PoissFlag,fakeshift,fakegrad)
    
    endif
+
+   call env%globalTimer%stopTimer(globalTimers%poisson)
 
  end subroutine poiss_savepotential
   
@@ -136,6 +145,7 @@ module poisson
      x = x0
      do_renorm = .true.
    endif
+
  end subroutine poiss_updcoords
 
  ! -----------------------------------------------------------------------------
@@ -334,7 +344,10 @@ module poisson
  end subroutine init_poissbox
 
 !> This subroutine is a driver for the mudpack (c) solver (see mud3.f) *
-subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
+subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
+
+  !> Environment settings
+  type(TEnvironment), intent(inout) :: env
 
   !> Control flag:
   integer, intent(in) :: SCC_in
@@ -628,11 +641,11 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
                                     
     !--------------------------------------------------------------------------
     if (cluster.and.period .and. niter.eq.1) then
+      call env%globalTimer%startTimer(globalTimers%poissonEwald)
       if (id0) then
-        if (verbose.gt.VBT) call message_clock(stdOut,'Computing Ewalds ')
         call set_phi_periodic(phi,iparm,fparm)
-        if (verbose.gt.VBT) call write_clock(stdOut)
-      end if  
+      end if
+      call env%globalTimer%stopTimer(globalTimers%poissonEwald)
     end if
     !--------------------------------------------------------------------------
     if (ncont.gt.0) then
@@ -668,19 +681,19 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
        ! -----------------------------------------------------------------------
        if (InitPot) then
           
-         if (ReadBulk) then   !Read old bulk potential
-           if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Read bulk potential ')           
+         if (ReadBulk) then
+           !Read old bulk potential
+           call env%globalTimer%startTimer(globalTimers%poissonBulkRead)
            call readbulk_pot(bulk)
-           if (id0.and.verbose.gt.VBT) call write_clock(stdOut)               
-         endif    ! do not change (readbulk can change)
-         
-         if (.not.ReadBulk) then
-           if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Compute bulk potential ')   
+           call env%globalTimer%stopTimer(globalTimers%poissonBulkRead)
+         else
+           !Compute bulk potential
+           call env%globalTimer%startTimer(globalTimers%poissonBulkCalc)
            call compbulk_pot(bulk,iparm,fparm)
            ReadBulk=.true.
-           if (id0.and.verbose.gt.VBT) call write_clock(stdOut)     
-         end if !Compute bulk potential 
-                    
+           call env%globalTimer%stopTimer(globalTimers%poissonBulkCalc)
+         end if
+
        else  
          if(id0.and.verbose.gt.VBT) write(stdOut,*) 'No bulk potential'
        endif
@@ -738,7 +751,7 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
     ! Charge density evaluation on the grid points 
     !*********************************************************************************
 
-    call set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
+    call set_rhs(env, iparm,fparm,dlx,dly,dlz,rhs,bulk)
 
 
     !*********************************************************************************
@@ -750,13 +763,10 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
     if (id0) then
 
       call log_gallocate(work,worksize)
-       
+
+      call env%globalTimer%startTimer(globalTimers%poissonSoln)
       do i = 0,1
         iparm(1) = i
-    
-        if (i.eq.1) then
-           if (verbose.gt.VBT) call message_clock(stdOut,'Solving Poisson equation ') 
-        endif
 
         if (DoGate) then
            call mud3(iparm,fparm,work,coef_gate,bndyc,rhs,phi,mgopt,err)
@@ -783,7 +793,7 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
         end if
       end do
 
-      if (verbose.gt.VBT) call write_clock(stdOut)
+      call env%globalTimer%stopTimer(globalTimers%poissonSoln)
 
       if (err.lt.-1) then
         write(stdOut,*) 'Non-fatal Error in poisson solver:',err
@@ -811,10 +821,10 @@ subroutine mudpack_drv(SCC_in, V_L_atm, grad_V, iErr)
     !--------------------------------------------
     ! Shift of the Hamiltonian matrix elements 
     !--------------------------------------------
-    if (id0) then  
-      if (verbose.gt.VBT) call message_clock(stdOut,'Computing Hamiltonian shifts ')
-      call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)   
-      if (verbose.gt.VBT) call write_clock(stdOut)   
+    if (id0) then
+      call env%globalTimer%startTimer(globalTimers%poissonShifts)
+      call shift_Ham(iparm,fparm,dlx,dly,dlz,phi,bulk,V_L_atm)
+      call env%globalTimer%stopTimer(globalTimers%poissonShifts)
     end if
     
     call destroy_phi_bulk(bulk)
@@ -853,7 +863,10 @@ end subroutine Mudpack_drv
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
-subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
+subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
+
+  !> Environment settings
+  type(TEnvironment), intent(inout) :: env
 
   integer :: iparm(23)
   real(kind=dp) :: fparm(8),dlx,dly,dlz
@@ -903,9 +916,9 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     ! Allocate space for local rhs.
     call log_gallocate(rhs_par,iparm_tmp(14),iparm_tmp(15),iparm_tmp(16))
     !---------------------------------------------------------------------
- 
-    if (id0.and.verbose.gt.VBT) call message_clock(stdOut,'Building charge density ')
- 
+
+    call env%globalTimer%startTimer(globalTimers%poissonDensity)
+
     !! Set a renormalization volume for grid projection
  
     if (do_renorm) then
@@ -926,9 +939,9 @@ subroutine set_rhs(iparm,fparm,dlx,dly,dlz,rhs,bulk)
     if (DoTip) then
        call tip_bound(iparm_tmp,fparm_tmp,dlx,dly,dlz,rhs_par)
     endif
- 
-    if (id0.and.verbose.gt.VBT) call write_clock(stdOut)
- 
+
+    call env%globalTimer%stopTimer(globalTimers%poissonDensity)
+
     ! gather all partial results on master node 0
     call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
  

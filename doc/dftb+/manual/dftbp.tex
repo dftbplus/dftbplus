@@ -3016,7 +3016,7 @@ given by
 %
 \begin{equation}
   \Psi_\text{A} = \frac{R^\text{cov}_\text{A} - R_\text{offset}}2
-  \sum_\text{B} \Omega(R_\text{AB}, R^\text{cov}_\text{A}, s_\text{B}R^\text{cov}_\text{A})
+  \sum_\text{B} \Omega(R_\text{AB}, R^\text{cov}_\text{A}, s_\text{B}R^\text{cov}_\text{B})
 \end{equation}
 
 with $\Omega$ being the pairwise function used to approximate the
@@ -3034,14 +3034,15 @@ systems.
 \begin{ptable}
   \kw{Solvent} & m & & & \\
   \kw{FreeEnergyShift} & r & & & \\
-  %\kw{Temperature} & r & & 298.15 & \\
-  %\kw{State} & s & & gsolv & \\
+  \kw{Temperature} & r & & 298.15 K & \\
+  \kw{State} & s & & gsolv & \\
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
+  \kw{CM5} & m & & & \\
   \kw{Radii} & m & & & \\
   \kw{Descreening} & m & & & \\
-  \kw{Cutoff} & r & & & \\
+  \kw{Cutoff} & r & & 35 AA & \\
 \end{ptable}
 
 \begin{description}
@@ -3051,14 +3052,26 @@ systems.
     \is{FromConstants\cb} requires the dielectric constant as real for \kw{Epsilon},
     the molecular mass in \kw{MolecularMass} \modif{\modtype{mass}} and the
     solvent density in \kw{Density} \modif{\modtype{massdensity}}.
+    \kw{MolecularMass} and \kw{Density} only affect the calculation if
+    ``reference'' is chosen as state of the solution.
 
-  \item[\is{Shift}] \modif{\modtype{energy}} Shift for free energy calculations.
+  \item[\is{FreeEnergyShift}] \modif{\modtype{energy}} Shift for free energy
+    calculations.
 
-  %\item[\is{Temperature}] Temperature for free energy calculations. Default is
-    %ambient temperature: 298.15 K.
+  \item[\is{Temperature}] Temperature for free energy calculations. Default is
+    ambient temperature: 298.15 K.
+    Only affects the calculation for if ``reference'' or ``mol1bar'' is chosen
+    as state of the solution.
 
-  %\item[\is{State}] Reference state for free energy calculations as string.
-    %Takes \is{gsolv} (default).
+  \item[\is{State}] \modif{\modtype{energy}}
+    Reference state of the solution for free energy calculations.
+    The calculated state shift is added to the free energy shift.
+    Takes ``gsolv'' (default), ``reference'' or ``mol1bar''.
+    The reference state ``gsolv`` corresponds to 1\;l of ideal gas and 1\;l of
+    liquid  solution,
+    ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
+    solution at infinite dilution,
+    ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
@@ -3070,7 +3083,10 @@ systems.
     The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
     alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
 
-  \item[\is{Radii}] Atomic radii for each element, either takes
+  \item[\is{CM5}] Use the charge model 5 to correct the atomic partial charges
+    before evaluating the Born energy.
+
+  \item[\is{Radii}] Atomic radii for each element in Bohr, either takes
     \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
     or requires to provide \is{Values\cb} for all species.
     Both methods accept \modif{\modtype{length}} units.
@@ -3089,7 +3105,7 @@ Example for CS2 as solvent:
 Hamiltonian = DFTB {
   Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
     Solvent = fromName { "cs2" }
-    Shift [kcal/mol] = 2.81072250
+    FreeEnergyShift [kcal/mol] = 2.81072250
     Radii = vanDerWaalsRadiiD3 [Bohr] {}
     Descreening = Values {
        H = 0.93699367
@@ -3099,11 +3115,140 @@ Hamiltonian = DFTB {
     }
     BornScale = 1.40636177
     BornOffset [Bohr] = 1.653719965215E-03
-    OBC = {1.00 0.80 4.85}
+    OBCCorrection = {1.00 0.80 4.85}
     Cutoff = 40
   }
 }
 \end{verbatim}
+
+
+\subsubsection{Charge Model 5}
+\label{sec:dftbp.CM5}
+
+The charge model 5 (CM5)\cite{marenich2012} can be used to correct partial charges by
+%
+\begin{equation}
+   q^\text{CM5}_\text{A} = q_\text{A}
+   + \sum_{B} D_\text{A--B} \exp[-\alpha(R_\text{AB} - R^\text{cov}_\text{A} - R^\text{cov}_\text{B}]
+\end{equation}
+
+The pairwise parameters $D_\text{A--B}$ are fixed to the original published ones,
+while the exponent $\alpha$ and the covalent radii $R^\text{cov}_\text{A}$ default
+to the published parameters but can be adjusted in the input.
+
+\begin{ptable}
+  \kw{alpha} & r & & 2.474 1/AA & \\
+  \kw{Radii} & m & & \is{atomicRadii\cb} & \\
+  \kw{Cutoff} & r & & 30.0 & \\
+\end{ptable}
+
+\begin{description}
+
+  \item[\is{alpha}] \modif{\modtype{1/length}}
+    Exponent of the CM5 correction.
+
+  \item[\is{Radii}] Atomic covalent radii for each species, either takes
+    \is{AtomicRadii\cb} for default atomic radii\cite{mantina2010}
+    (can be overwritten) or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{Cutoff}] \modif{\modtype{length}}
+    Real space cutoff for the calculation of the CM5 correction.
+\end{description}
+
+\begin{verbatim}
+CM5 {
+  Alpha = 1.30918451402600
+  Radii = AtomicRad {}
+}
+\end{verbatim}
+
+
+\subsubsection{Solvent area model}
+\label{sec:dftbp.SolventAreaModel}
+
+The non-polar solvation free energy can be estimated from the solvent accessible
+surface area (SASA) by
+%
+\begin{equation}
+  \Delta G_\text{non-polar} = \sum_\text{A} \gamma_\text{A} \sigma_\text{A}
+\end{equation}
+%
+where $\gamma_\text{A}$ is the surface tension and $\sigma_\text{A}$
+is the accessible surface area of each atom.
+To calculate the latter, the molecule is assumed as a convolution of spheres
+which is probed by a probe sphere rolled around the surface.
+Here a smooth numerical integration approach is employed.\cite{im2003}
+
+To use the non-polar surface area model in an calculation use the
+\is{SASA\cb} method in the input to \kw{Solvation}.
+This model is currently only available for finite systems.
+
+\begin{ptable}
+  \kw{ProbeRadius} & r & & & \\
+  \kw{Smoothing} & r & & 0.3 AA & \\
+  \kw{Offset} & r & & 2.0 AA & \\ 
+  \kw{Tolerance} & r & & 1.0e-6 & \\ 
+  \kw{AngularGrid} & i & & 230 & \\ 
+  \kw{Radii} & m & & & \\
+  \kw{SurfaceTension} & m & & & \\
+\end{ptable}
+
+\begin{description}
+  \item[\is{ProbeRadius}] \modif{\modtype{length}}
+    Radius of the probe sphere used to determine the accessible surface area.
+
+  \item[\is{Smoothing}] \modif{\modtype{length}}
+    Smoothing parameter for numerical integration.
+
+  \item[\is{Offset}] \modif{\modtype{length}}
+    This offset value is added on the realspace cutoff radius for the
+    neighbourlist generation.
+    The realspace cutoff is determined automatically from the probe radius,
+    the largest atomic radius and the smoothing parameter.
+
+  \item[\is{Tolerance}]
+    Minimal value of surface area contribution of a grid point to be accounted
+    for as SASA.
+
+  \item[\is{AngularGrid}]
+    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    The grid size mainly determines the computational cost of evaluating the
+    accessible surface area, too small grid sizes can lead to significant errors
+    due to missing rotational invariance.
+    A safe choice should be 230 grid points per atom.
+    Possible values are
+    6, 14, 26, 38, 50, 74, 86, 110, 146, 170, 194, \textit{230}, 266, 302, 350,
+    434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
+    4334, 4802, 5294, 5810.
+
+  \item[\is{Radii}] Atomic radii for each element, either takes
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+    or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{SurfaceTension}]
+    Surface tension parameter for each species in dyn/cm.
+
+\end{description}
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = SASA { # GFN1-xTB/GBSA(Toluene)
+    ProbeRadius [AA] = 1.59772343
+    Smoothing [AA] = 0.3
+    Offset [AA] = 2
+    AngularGrid = 230
+    Radii = vanDerWaalsRadiiD3 {}
+    SurfaceTension = Values {
+      H = -1.52312760
+      C = -2.92375089
+      O = 0.79482640
+    }
+  }
+}
+\end{verbatim}
+
 
 \subsection{Halogen corrections}
 \label{sec:dftbp.xcorr}
@@ -3270,7 +3415,7 @@ for use with long-range correction.
 \textbf{Note:} The present release does not yet support long-range
 corrected excited states calculations with LC-TD-DFTB, and the
 \kw{RangeSeparated} keyword can, therefore, not be used in conjunction with the
-\kw{ExcitedState} keyword.
+\kw{ExcitedState} block.
 
 The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
 range-separated hybrid functional) or the \is{LC}\cb\  block as value. Latter
@@ -3775,6 +3920,7 @@ calculations. This data is accumulated in a specified text file.
 This block collects some options to calculate excited states.
 \begin{ptable}
   \kw{Casida} & p & SCC = Yes & \cb & \\
+  \kw{PP-RPA} & p & SCC = Yes & \cb & \\
 \end{ptable}
 
 \subsection{Casida}
@@ -3893,6 +4039,70 @@ fractional occupations. The specifications for this block have the following pro
     decrease memory use substantially, if you are short on memory.
     
   \end{description}
+  
+  
+\subsection{PP-RPA}
+\label{sec:dftbp.pprpa}
+
+This tag contains the specifications for the calculation of excitation energies
+using the particle-particle random phase approximation
+(pp-RPA)~\cite{Yang2017}. This approach, unlike time-dependent DFTB, allows the
+computation of double and charge-transfer transitions. However it has the
+limitation that the computed excitations have to involve, at least partially,
+the highest occupied molecular orbital (HOMO) of the system.
+
+For the computation of the excitation energies of a neutral $N$-electron system,
+one needs to set up a ground state calculation for the two-electron deficient
+($N-2$) system, i.e.\ a net \mbox{\kw{Charge} = +2.0} calculation. Please note
+that if \kw{Charge} is set to 0.0 (the default value), the obtained transition
+energies will correspond to a net negative $-2$ charged system (i.e.\ $N+2$
+electrons). The system of interest must be closed-shell, therefore the
+calculation must also be spin-restricted and performed for an even number of
+electrons.
+
+The pp-RPA method is currently implemented only for SCC-DFTB level excitations,
+but can be performed on top of both SCC-DFTB or range-separated reference ground
+state calculations. The SCC-DFTB calculations can be performed for molecular or
+gamma point periodic systems, but the range-separated calculations can only use
+molecular boundary conditions.
+
+The specifications for this block have the following properties:
+
+\begin{ptable}
+  \kw{NrOfExcitations}   & i & & -  & \\
+  \kw{Symmetry}          & s & & -  & \\
+  \kw{NrOfVirtualStates} & i & & 0  & \\
+  \kw{TammDancoff}       & l & & No & \\
+  \kw{HHubbard}          & p & & -  & \\
+\end{ptable}
+
+\begin{description}
+
+\item[\is{NrOfExcitations}] Specifies the number of vertical excitation energies
+  to be computed for each symmetry (singlet or triplet).
+
+\item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
+  computed: \is{singlet}, \is{triplet} or \is{both}. Please note that,
+  \is{triplet} and \is{both} are effectively similar, as both singlet and
+  triplet excitation energies will be printed out if either of these keywords
+  are used.
+
+\item[\is{NrOfVirtualStates}] Optional orbital constraint to speed up the
+  calculation. It specifies the number of virtual states entering the pp-RPA
+  equation. If set to zero or greater than the total number of virtual states of
+  the system no constraint will be applied.
+
+\item[\is{TammDancoff}] If set to \is{Yes}, the Tamm-Dancoff approximation will
+  be employed. This will speed up the calculation.
+    
+\item[\is{HHubbard}] Hubbard-like parameters for each atom type including only
+  the Hartree kernel. Values of some of these parameters are given in
+  appendix~\ref{app:hhubbard}.
+
+\end{description}
+  
+The output of the pp-RPA calculation are described in
+section~\ref{sec:ppRPAout}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  REKS
@@ -4639,6 +4849,30 @@ energy (in Hartree)\\
 \index{XREST.DAT}
 
 Dipole moment of the specified excited state in units of Debye.
+
+\section{ppRPA\_ener.DAT}
+\index{ppRPA\_ener.DAT}
+\label{sec:ppRPAout}
+
+Excitation energies obtained within the pp-RPA formalism (see
+section~\ref{sec:dftbp.pprpa}). This output file also includes the most dominant
+Kohn-Sham transition, its weight and energy difference as well as the spin
+multiplicity of the excited state.
+
+Here are, for instance, the first three singlet-singlet transitions for furan:
+
+\begin{verbatim}
+     w [eV]        Transitions                         Weight            KS [eV]              Symm.
+
+ =================================================  
+
+      6.411        HOMO -> LUMO + 0            0.998            5.162                     S
+      6.904        HOMO -> LUMO + 1            0.973            6.755                     S
+     11.339        HOMO -> LUMO + 0, 0        0.959            5.162,  5.162            S
+\end{verbatim}  
+
+The first two excitations are single, whereas the third one is a double
+transition with predominant HOMO-to-LUMO character.
 
 \section{REKS results files}
 \label{sec:reks_files}
