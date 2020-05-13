@@ -16,6 +16,7 @@ module dftbp_initprogram
   use dftbp_mainio, only : initOutputFile
   use dftbp_assert
   use dftbp_globalenv
+  use dftbp_coherence
   use dftbp_environment
   use dftbp_scalapackfx
   use dftbp_inputdata
@@ -1515,6 +1516,13 @@ contains
     allocate(coord0(3, nAtom))
     @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
     coord0(:,:) = input%geom%coords(:,:)
+    #:call DEBUG_CODE
+    if (env%tAPICalculation) then
+      if (.not. exactCoherence(env, coord0)) then
+        call error("Coherence failure in coord0 across nodes")
+      end if
+    end if
+    #:endcall DEBUG_CODE
     tCoordsChanged = .true.
 
     allocate(species0(nAtom))
