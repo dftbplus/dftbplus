@@ -292,7 +292,6 @@ Parallel = {
 
 ParserOptions = {
   WriteHSDInput = Yes
-  WriteXMLInput = No
   StopAfterParsing = No
   ParserVersion = 6
   IgnoreUnprocessedNodes = No
