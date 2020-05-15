@@ -12,7 +12,7 @@
 !> The HSD format is a more or less user friendly input format, which can be easily converted to a
 !> simplified XML format. The parser returns a DOM-tree, which can be further processed. The
 !> returned tree contains also information about the original name and position of the keywords in
-!> the original HSD format, in order to enable user friendly error messages, if inconsistent data is
+!> the original HSD format, in order to enable user friendly error messages if inconsistent data are
 !> detected during the processing of the DOM-tree.
 !>
 !> For the specification of the HSD format see the sample input
@@ -42,10 +42,7 @@ module dftbp_hsdparser
   ! Main token separator characters
 
   !> number of separator character strings
-  integer, parameter :: nSeparator = 7
-
-  !> XML includer
-  character(len=*), parameter :: sIncludeXML = "<<!"
+  integer, parameter :: nSeparator = 6
 
   !> include parsed material
   character(len=*), parameter :: sIncludeParsed = "<<+"
@@ -67,8 +64,7 @@ module dftbp_hsdparser
 
   !> Collect together as an array
   character(len=*), parameter :: separators(nSeparator) = &
-      &(/ sIncludeXML, sIncludeParsed, sIncludeUnparsed, &
-      &sSingleOpen, sOpen, sClose, sSingleClose /)
+      & [sIncludeParsed, sIncludeUnparsed, sSingleOpen, sOpen, sClose, sSingleClose]
 
   ! Other parsed characters
 
@@ -103,8 +99,8 @@ module dftbp_hsdparser
 
   !> Collect together as an array
   character(len=*), parameter :: extensions(nExtension) = &
-      &(/ sExtendIfPresentOrDie, sExtendIfPresent, sExtendIfPresentOrCreate, &
-      &sCreateIfNotPresent, sReplaceIfPresentOrCreate /)
+      &[ sExtendIfPresentOrDie, sExtendIfPresent, sExtendIfPresentOrCreate, &
+      &sCreateIfNotPresent, sReplaceIfPresentOrCreate ]
 
   ! Name and file descriptors for standard input/output
 
@@ -153,7 +149,7 @@ module dftbp_hsdparser
   !> Format of the input line
   character(len=lc) :: lineFormat = ""
 
-  public :: parseHSD, dumpHSD, dumpHSDAsXML, newline
+  public :: parseHSD, dumpHSD, newline
   public :: getNodeHSDName, getHSDPath
   public :: attrStart, attrEnd, attrFile, attrName, attrModifier, attrList
 
@@ -221,7 +217,7 @@ contains
     residual = ""
     tFinished = parse_recursive(rootNode, 0, residual, .false., fd, curFile, &
         &0, curLine, &
-        &(/ .true., .true., .true., .true., .true., .true., .true. /), .false.)
+        &[ .true., .true., .true., .true., .true., .true., .true. ], .false.)
     xmlDoc => myDoc
     myDoc => null()
 
@@ -322,7 +318,7 @@ contains
 
       !! Handle various closing operators.
       select case (iType)
-      case (6)
+      case (5)
         !! Block closing char on level zero is invalid
         if (depth == 0) then
           call parsingError("Invalid block closing sign.", curFile, curLine)
@@ -337,7 +333,7 @@ contains
           residual = strLine(sepPos:)
           strLine = strLine(:sepPos-1)
         end if
-      case (7)
+      case (6)
         if (tRightValue) then
           !! Single assignment is terminated by a semi-colon. Text after
           !! semicolon must be reparsed in next cycle.
@@ -356,7 +352,7 @@ contains
       end if
 
       !! Check for forbidden characters in the current line
-      if (.not. (iType == 1 .or. iType == 2 .or. iType == 3)) then
+      if (.not. (iType == 1 .or. iType == 2)) then
         call checkForbiddenChars(strLine, curFile, curLine)
       end if
 
@@ -381,30 +377,7 @@ contains
         end if
         nodetype = -1
 
-      case(1)
-        !! XML inclusion
-        if (associated(curNode)) then
-          if (sepPos /= 1) then
-            call parsingError("Invalid character before file inclusion &
-                &operator", curFile, curLine)
-          end if
-          strLine = adjustl(unquote(strLine))
-          word = adjustl(strLine(len(sIncludeXML)+1:len_trim(strLine)))
-          if (len_trim(word) /= 0) then
-            if (depth == 0 .and. fileDepth == 0 &
-                &.and. .not. associated(getFirstChild(curNode))) then
-              call replaceTreeFromFile(curNode, trim(word))
-            else
-              call parsingError("XML inclusion must be the first statement &
-                  &in the first input file.", curFile, curLine)
-            end if
-          else
-            call parsingError("No file name specified after the inclusion &
-                &operator.", curFile, curLine)
-          end if
-        end if
-
-      case(2, 3)
+      case(1, 2)
         !! File inclusion operator -> append content of new file to current node
         if (associated(curNode)) then
           if (sepPos /= 1) then
@@ -412,7 +385,7 @@ contains
                 &operator", curFile, curLine)
           end if
           strLine = adjustl(unquote(strLine))
-          if (iType == 2) then
+          if (iType == 1) then
             word = adjustl(strLine(len(sIncludeParsed)+1:len_trim(strLine)))
           else
             word = adjustl(strLine(len(sIncludeUnparsed)+1:len_trim(strLine)))
@@ -431,21 +404,19 @@ contains
           end if
           strLine = ""
           newCurLine = 0
-          if (iType == 2) then
+          if (iType == 1) then
             !! Everything is parsed
-            newParsedTypes = (/ .true., .true., .true., .true., .true., &
-                &.true., .true. /)
+            newParsedTypes = [ .true., .true., .true., .true., .true., .true. ]
           else
             !! Nothing is parsed
-            newParsedTypes = (/ .false., .false., .false., .false., .false., &
-                &.false., .false. /)
+            newParsedTypes = [ .false., .false., .false., .false., .false., .false. ]
           end if
           tFinished = parse_recursive(curNode, 0, strLine, .false., newFile, &
               &word, fileDepth + 1, newCurLine, newParsedTypes, .false.)
           close(newFile, iostat=iostat)
         end if
 
-      case(4)
+      case(3)
         !! Assignment
         if (nodetype < 0) then
           call parsingError("Node already contains free text, no child nodes&
@@ -470,14 +441,13 @@ contains
           childNode => null()
         end if
         !! Only block opening/closing sign and single child separator are parsed
-        newParsedTypes = (/ .false., .false., .false., .false., .true., &
-            &.true., .true. /)
+        newParsedTypes = [ .false., .false., .false., .true., .true., .true. ]
         tFinished = parse_recursive(childNode, depth+1, strLine, .true., fd, &
             &curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
         residual = strLine
         nodetype = 1
 
-      case(5)
+      case(4)
         if (nodetype < 0) then
           call parsingError("Node already contains free text, no child nodes&
               & allowed any more", curFile, curLine)
@@ -504,8 +474,7 @@ contains
         else
           childNode => null()
         end if
-        newParsedTypes = (/ .true., .true., .true., .true., .true., .true., &
-            &.true. /)
+        newParsedTypes = [ .true., .true., .true., .true., .true., .true. ]
         tFinished = parse_recursive(childNode, depth+1, strLine, .false., &
             &fd, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
         residual = strLine
@@ -609,10 +578,10 @@ contains
       sameChild => getFirstChildByName(parentNode, trim(lowerName))
       if (associated(sameChild)) then
         !! We have found a block with the same name
-        if (iType == 4) then
+        if (iType == 3) then
           newChild => null()
           return
-        elseif (iType == 5) then
+        elseif (iType == 4) then
           dummy => removeChild(parentNode, sameChild)
           call destroyNode(sameChild)
           tCreate = .true.
@@ -623,12 +592,9 @@ contains
         !! We did not found a child with the same name
         select case (iType)
         case(1)
-          call parsingError("Containing block does not contain a(n) '" &
-              &// trim(truncName) // "' block yet.", file, curLine)
-        case(2)
           newChild => null()
           return
-        case(3,4,5)
+        case(2,3,4)
           tCreate = .true.
         end select
       end if
