@@ -21,7 +21,7 @@ module dftbp_rs_linearresponse
   use dftbp_taggedOutput, only: TTaggedWriter, tagLabels
   use dftbp_linresp
   use dftbp_linrespcommon
-  use dftbp_linrespgrad,!only: calcTransitionDipoles, getExcSpin, writeSPExcitations, writeExcMulliken
+  use dftbp_linrespgrad ! calcTransitionDipoles, getExcSpin, writeSPExcitations, writeExcMulliken
   use dftbp_rangeseparated
   use dftbp_sorting
   use dftbp_qm
