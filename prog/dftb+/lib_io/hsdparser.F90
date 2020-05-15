@@ -42,7 +42,10 @@ module dftbp_hsdparser
   ! Main token separator characters
 
   !> number of separator character strings
-  integer, parameter :: nSeparator = 6
+  integer, parameter :: nSeparator = 7
+
+  !> XML includer
+  character(len=*), parameter :: sIncludeXML = "<<!"
 
   !> include parsed material
   character(len=*), parameter :: sIncludeParsed = "<<+"
@@ -64,7 +67,8 @@ module dftbp_hsdparser
 
   !> Collect together as an array
   character(len=*), parameter :: separators(nSeparator) = &
-      & [sIncludeParsed, sIncludeUnparsed, sSingleOpen, sOpen, sClose, sSingleClose]
+      &(/ sIncludeXML, sIncludeParsed, sIncludeUnparsed, &
+      &sSingleOpen, sOpen, sClose, sSingleClose /)
 
   ! Other parsed characters
 
@@ -99,8 +103,8 @@ module dftbp_hsdparser
 
   !> Collect together as an array
   character(len=*), parameter :: extensions(nExtension) = &
-      &[ sExtendIfPresentOrDie, sExtendIfPresent, sExtendIfPresentOrCreate, &
-      &sCreateIfNotPresent, sReplaceIfPresentOrCreate ]
+      &(/ sExtendIfPresentOrDie, sExtendIfPresent, sExtendIfPresentOrCreate, &
+      &sCreateIfNotPresent, sReplaceIfPresentOrCreate /)
 
   ! Name and file descriptors for standard input/output
 
@@ -217,7 +221,7 @@ contains
     residual = ""
     tFinished = parse_recursive(rootNode, 0, residual, .false., fd, curFile, &
         &0, curLine, &
-        &[ .true., .true., .true., .true., .true., .true., .true. ], .false.)
+        &(/ .true., .true., .true., .true., .true., .true., .true. /), .false.)
     xmlDoc => myDoc
     myDoc => null()
 
@@ -318,7 +322,7 @@ contains
 
       !! Handle various closing operators.
       select case (iType)
-      case (5)
+      case (6)
         !! Block closing char on level zero is invalid
         if (depth == 0) then
           call parsingError("Invalid block closing sign.", curFile, curLine)
@@ -333,7 +337,7 @@ contains
           residual = strLine(sepPos:)
           strLine = strLine(:sepPos-1)
         end if
-      case (6)
+      case (7)
         if (tRightValue) then
           !! Single assignment is terminated by a semi-colon. Text after
           !! semicolon must be reparsed in next cycle.
@@ -352,7 +356,7 @@ contains
       end if
 
       !! Check for forbidden characters in the current line
-      if (.not. (iType == 1 .or. iType == 2)) then
+      if (.not. (iType == 1 .or. iType == 2 .or. iType == 3)) then
         call checkForbiddenChars(strLine, curFile, curLine)
       end if
 
@@ -377,7 +381,11 @@ contains
         end if
         nodetype = -1
 
-      case(1, 2)
+      case(1)
+        !! XML inclusion
+        call error("Mixed XML input in HSD input no longer supported")
+
+      case(2, 3)
         !! File inclusion operator -> append content of new file to current node
         if (associated(curNode)) then
           if (sepPos /= 1) then
@@ -385,7 +393,7 @@ contains
                 &operator", curFile, curLine)
           end if
           strLine = adjustl(unquote(strLine))
-          if (iType == 1) then
+          if (iType == 2) then
             word = adjustl(strLine(len(sIncludeParsed)+1:len_trim(strLine)))
           else
             word = adjustl(strLine(len(sIncludeUnparsed)+1:len_trim(strLine)))
@@ -404,19 +412,21 @@ contains
           end if
           strLine = ""
           newCurLine = 0
-          if (iType == 1) then
+          if (iType == 2) then
             !! Everything is parsed
-            newParsedTypes = [ .true., .true., .true., .true., .true., .true. ]
+            newParsedTypes = (/ .true., .true., .true., .true., .true., &
+                &.true., .true. /)
           else
             !! Nothing is parsed
-            newParsedTypes = [ .false., .false., .false., .false., .false., .false. ]
+            newParsedTypes = (/ .false., .false., .false., .false., .false., &
+                &.false., .false. /)
           end if
           tFinished = parse_recursive(curNode, 0, strLine, .false., newFile, &
               &word, fileDepth + 1, newCurLine, newParsedTypes, .false.)
           close(newFile, iostat=iostat)
         end if
 
-      case(3)
+      case(4)
         !! Assignment
         if (nodetype < 0) then
           call parsingError("Node already contains free text, no child nodes&
@@ -441,13 +451,14 @@ contains
           childNode => null()
         end if
         !! Only block opening/closing sign and single child separator are parsed
-        newParsedTypes = [ .false., .false., .false., .true., .true., .true. ]
+        newParsedTypes = (/ .false., .false., .false., .false., .true., &
+            &.true., .true. /)
         tFinished = parse_recursive(childNode, depth+1, strLine, .true., fd, &
             &curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
         residual = strLine
         nodetype = 1
 
-      case(4)
+      case(5)
         if (nodetype < 0) then
           call parsingError("Node already contains free text, no child nodes&
               & allowed any more", curFile, curLine)
@@ -474,7 +485,8 @@ contains
         else
           childNode => null()
         end if
-        newParsedTypes = [ .true., .true., .true., .true., .true., .true. ]
+        newParsedTypes = (/ .true., .true., .true., .true., .true., .true., &
+            &.true. /)
         tFinished = parse_recursive(childNode, depth+1, strLine, .false., &
             &fd, curFile, fileDepth, curLine, newParsedTypes, tNewNodeCreated)
         residual = strLine
@@ -578,10 +590,10 @@ contains
       sameChild => getFirstChildByName(parentNode, trim(lowerName))
       if (associated(sameChild)) then
         !! We have found a block with the same name
-        if (iType == 3) then
+        if (iType == 4) then
           newChild => null()
           return
-        elseif (iType == 4) then
+        elseif (iType == 5) then
           dummy => removeChild(parentNode, sameChild)
           call destroyNode(sameChild)
           tCreate = .true.
@@ -592,9 +604,12 @@ contains
         !! We did not found a child with the same name
         select case (iType)
         case(1)
+          call parsingError("Containing block does not contain a(n) '" &
+              &// trim(truncName) // "' block yet.", file, curLine)
+        case(2)
           newChild => null()
           return
-        case(2,3,4)
+        case(3,4,5)
           tCreate = .true.
         end select
       end if
@@ -661,73 +676,6 @@ contains
     call error(msgArray)
 
   end subroutine parsingError
-
-
-  !> Dumps the DOM-tree of a HSD document to a file.
-  !>
-  !> This routine pretty prints the XML-tree in the specified file.  Attributes related to the HSD
-  !> document (e.g. line number, file etc.)  are not printed.
-  subroutine dumpHSDAsXML(myDoc, fileName)
-
-    !> DOM-tree of a HSD document
-    type(fnode), pointer :: myDoc
-
-    !> File for the XML-dump.
-    character(len=*), intent(in) :: fileName
-
-    type(xmlf_t) :: xf
-    type(fnode), pointer :: fp
-
-    call xml_OpenFile(fileName, xf, indent=.true.)
-    call xml_AddXMLDeclaration(xf)
-    fp => getFirstChild(myDoc)
-    if (associated(fp)) then
-      call dumpHSDAsXML_recursive(xf, fp)
-    end if
-    call xml_Close(xf)
-
-  end subroutine dumpHSDAsXML
-
-
-  !> Recursive workhorse for dumpHSD
-  recursive subroutine dumpHSDAsXML_recursive(xf, node)
-
-    !> XML pretty printer data
-    type(xmlf_t), intent(inout) :: xf
-
-    !> Node to prety print
-    type(fnode), pointer :: node
-
-    type(string) :: txt, name, nodeValue
-    type(fnode), pointer :: fp
-    type(fNamedNodeMap), pointer :: attribs
-    integer :: ii
-
-    call getNodeName(node, txt)
-    if (getNodeType(node) == TEXT_NODE) then
-      call getNodeValue(node, nodeValue)
-      call xml_AddPCData(xf, trim2(char(nodeValue)))
-    else
-      call xml_NewElement(xf, char(txt))
-      attribs => getAttributes(node)
-      do ii = 0, getLength(attribs) - 1
-        fp => item(attribs, ii)
-        call getNodeName(fp, name)
-        !! Currently only the modifier and single attributes are dumped
-        if (name == attrModifier .or. name == attrList) then
-          call getNodeValue(fp, nodeValue)
-          call xml_AddAttribute(xf, char(name), char(nodeValue))
-        end if
-      end do
-      fp => getFirstChild(node)
-      do while (associated(fp))
-        call dumpHSDAsXML_recursive(xf, fp)
-        fp => getNextSibling(fp)
-      end do
-      call xml_EndElement(xf, char(txt))
-    end if
-
-  end subroutine dumpHSDAsXML_recursive
 
 
   !> Replaces the tree
