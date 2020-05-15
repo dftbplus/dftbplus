@@ -7,19 +7,21 @@
 
 #:include 'common.fypp'
 
-#! (TYPE, RANK, NAME, SIZE) tuple types which need to be tested for exact coherence accross
+#! (TYPE, RANK, NAME, DIM) tuple types which need to be tested for exact coherence across
 #! processors
 #:set EXACT_TYPES = [('real(dp)', '', 'R', '0'), ('real(dp)', '(:)', 'R', '1'),&
   & ('real(dp)', '(:,:)', 'R', '2'), ('real(dp)', '(:,:,:)', 'R', '3'),&
-  & ('complex(dp)', '(:)', 'C', '1'), ('integer', '(:)', 'I', '1'), ('logical', '(:)', 'L', '1')]
+  & ('complex(dp)', '(:)', 'C', '1'), ('integer', '(:)', 'I', '1'), ('logical', '(:)', 'L', '1'),&
+  & ('character(*)', '', 'S', '0')]
 
-#! (TYPE, RANK, NAME, SIZE) tuple types which need to be tested for approximate coherence accross
+
+#! (TYPE, RANK, NAME, DIM) tuple types which need to be tested for approximate coherence across
 #! processors
 #:set APPROX_TYPES = [('real(dp)', '', 'R', '0'), ('real(dp)', '(:)', 'R', '1'),&
   & ('real(dp)', '(:,:)', 'R', '2'), ('real(dp)', '(:,:,:)', 'R', '3'),&
   & ('complex(dp)', '', 'C', '0'), ('complex(dp)', '(:)', 'C', '1')]
 
-!> Contains MPI coherence tests accross a comm world
+!> Contains MPI coherence tests across a comm world
 module dftbp_coherence
   use dftbp_accuracy, only : dp, lc
   use dftbp_environment
@@ -33,36 +35,36 @@ module dftbp_coherence
 
   !> Check for coherence of data across processor(s)
   interface exactCoherence
-#:for _, _, NAME, SIZE in EXACT_TYPES
-    module procedure coherence${NAME}$${SIZE}$
+#:for _, _, NAME, DIM in EXACT_TYPES
+    module procedure coherence${NAME}$${DIM}$
 #:endfor
   end interface exactCoherence
 
   !> Check for coherence of data to a tolerance across processor(s)
   interface toleranceCoherence
-#:for _, _, NAME, SIZE in APPROX_TYPES
-    module procedure approxCoherence${NAME}$${SIZE}$
+#:for _, _, NAME, DIM in APPROX_TYPES
+    module procedure approxCoherence${NAME}$${DIM}$
 #:endfor
   end interface toleranceCoherence
 
 contains
 
-#:for TYPE, DIM, NAME, SIZE in EXACT_TYPES
+#:for TYPE, SHAPE, NAME, DIM in EXACT_TYPES
 
 #:if WITH_MPI
   !> Comparison of data in global comm world
-  function coherence${NAME}$${SIZE}$(env, data) result(res)
+  function coherence${NAME}$${DIM}$(env, data) result(res)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
     !> Data to check for coherence
-    ${TYPE}$, intent(in) :: data${DIM}$
+    ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    #:if SIZE == '0'
+    #:if DIM == '0'
       ${TYPE}$ :: dataLocal
     #:else
-      ${TYPE}$, allocatable :: dataLocal${DIM}$
+      ${TYPE}$, allocatable :: dataLocal${SHAPE}$
     #:endif
 
       !> Is the local data the same as the master version?
@@ -74,7 +76,7 @@ contains
       dataLocal = data
       call mpifx_bcast(env%mpi%globalComm, dataLocal)
     #:if TYPE == 'logical'
-      #:if SIZE == '0'
+      #:if DIM == '0'
       if (dataLocal .eqv. data) then
       #:else
       if (all(dataLocal .eqv. data)) then
@@ -82,7 +84,7 @@ contains
         resLocal = .true.
       end if
     #:else
-      #:if SIZE == '0'
+      #:if DIM == '0'
       if (dataLocal == data) then
       #:else
       if (all(dataLocal == data)) then
@@ -92,38 +94,38 @@ contains
     #:endif
       call mpifx_allreduce(env%mpi%globalComm, resLocal, res, MPI_LAND)
 
-  end function coherence${NAME}$${SIZE}$
+  end function coherence${NAME}$${DIM}$
 
 #:else
   !> Dummy serial comparison of data
-  pure function coherence${NAME}$${SIZE}$(env, data) result(res)
+  pure function coherence${NAME}$${DIM}$(env, data) result(res)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
     !> Data to check for coherence
-    ${TYPE}$, intent(in) :: data${DIM}$
+    ${TYPE}$, intent(in) :: data${SHAPE}$
 
     logical :: res
 
     res = .true.
 
-  end function coherence${NAME}$${SIZE}$
+  end function coherence${NAME}$${DIM}$
 
 #:endif
 #:endfor
 
-#:for TYPE, DIM, NAME, SIZE in APPROX_TYPES
+#:for TYPE, SHAPE, NAME, DIM in APPROX_TYPES
 
 #:if WITH_MPI
   !> Comparison of data in global comm world
-  function approxCoherence${NAME}$${SIZE}$(env, data, tol) result(res)
+  function approxCoherence${NAME}$${DIM}$(env, data, tol) result(res)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
     !> Data to check for coherence
-    ${TYPE}$, intent(in) :: data${DIM}$
+    ${TYPE}$, intent(in) :: data${SHAPE}$
 
     !> Tolerance for comparision, if absent use eps
     real(dp), intent(in), optional :: tol
@@ -133,10 +135,10 @@ contains
 
     logical :: resLocal
 
-    #:if SIZE == '0'
+    #:if DIM == '0'
       ${TYPE}$ :: dataLocal
     #:else
-      ${TYPE}$, allocatable :: dataLocal${DIM}$
+      ${TYPE}$, allocatable :: dataLocal${SHAPE}$
     #:endif
 
       real(dp) :: tol_
@@ -150,7 +152,7 @@ contains
       resLocal = .false.
       dataLocal = data
       call mpifx_bcast(env%mpi%globalComm, dataLocal)
-    #:if SIZE == '0'
+    #:if DIM == '0'
       if (abs(dataLocal - data) <= tol_) then
     #:else
       if (maxval(abs(dataLocal - data)) <= tol_) then
@@ -159,17 +161,17 @@ contains
       end if
       call mpifx_allreduce(env%mpi%globalComm, resLocal, res, MPI_LAND)
 
-  end function approxCoherence${NAME}$${SIZE}$
+  end function approxCoherence${NAME}$${DIM}$
 
 #:else
   !> Dummy serial comparison of data
-  pure function approxCoherence${NAME}$${SIZE}$(env, data, tol) result(res)
+  pure function approxCoherence${NAME}$${DIM}$(env, data, tol) result(res)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
 
     !> Data to check for coherence
-    ${TYPE}$, intent(in) :: data${DIM}$
+    ${TYPE}$, intent(in) :: data${SHAPE}$
 
     !> Tolerance for comparision, if absent use eps
     real(dp), intent(in), optional :: tol
@@ -179,7 +181,7 @@ contains
 
     res = .true.
 
-  end function approxCoherence${NAME}$${SIZE}$
+  end function approxCoherence${NAME}$${DIM}$
 
 #:endif
 #:endfor
