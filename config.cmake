@@ -19,7 +19,7 @@ option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI librari
 
 option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-library" FALSE)
 
-option(WITH_TRANSPORT "Whether transport via libNEGF should be included." TRUE)
+option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 # Works only when building static libraries (see option BUILD_SHARED_LIBS)
 
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
