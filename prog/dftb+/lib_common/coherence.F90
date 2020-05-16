@@ -59,10 +59,18 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Data to check for coherence
+  #:if TYPE == 'character(*)' and DIM == '0'
+    character(len=*), intent(in) :: data
+  #:else
     ${TYPE}$, intent(in) :: data${SHAPE}$
+  #:endif
 
     #:if DIM == '0'
+    #:if TYPE == 'character(*)'
+      character(len=len(data)) :: dataLocal
+    #:else
       ${TYPE}$ :: dataLocal
+    #:endif
     #:else
       ${TYPE}$, allocatable :: dataLocal${SHAPE}$
     #:endif
