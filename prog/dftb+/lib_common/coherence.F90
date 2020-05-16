@@ -11,8 +11,8 @@
 #! processors
 #:set EXACT_TYPES = [('real(dp)', '', 'R', '0'), ('real(dp)', '(:)', 'R', '1'),&
   & ('real(dp)', '(:,:)', 'R', '2'), ('real(dp)', '(:,:,:)', 'R', '3'),&
-  & ('complex(dp)', '(:)', 'C', '1'), ('integer', '(:)', 'I', '1'), ('logical', '(:)', 'L', '1'),&
-  & ('character(*)', '', 'S', '0')]
+  & ('complex(dp)', '(:)', 'C', '1'), ('integer', '', 'I', '0'), ('integer', '(:)', 'I', '1'),&
+  & ('logical', '', 'L', '0'), ('logical', '(:)', 'L', '1'), ('character(*)', '', 'S', '0')]
 
 
 #! (TYPE, RANK, NAME, DIM) tuple types which need to be tested for approximate coherence across

@@ -54,7 +54,7 @@ module dftbp_environment
   #:endif
 
     !> Is this calculation called by the API?
-    logical :: tAPICalculation = .false.
+    logical, public :: tAPICalculation = .false.
 
   contains
     procedure :: destruct => TEnvironment_destruct
