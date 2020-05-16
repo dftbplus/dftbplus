@@ -1523,9 +1523,10 @@ contains
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
 
-    #:call DEBUG_CODE
+    #! temporary comment out until macro is fixed
+    #!#:call DEBUG_CODE
     call inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
-    #:endcall DEBUG_CODE
+    #!#:endcall DEBUG_CODE
 
     if (input%ctrl%tHalogenX) then
       if (.not. (t3rd .or. t3rdFull)) then
@@ -3472,7 +3473,8 @@ contains
 
     integer :: iSp
 
-    if (env%tAPICalculation) then
+    ! temporary comment out until MPI api is included
+    !if (env%tAPICalculation) then
 
       if (.not. exactCoherence(env, nAtom)) then
         call error("Coherence failure in number of atoms across nodes")
@@ -3492,7 +3494,7 @@ contains
         call error("Coherence failure in type of calculation : SCC")
       end if
 
-    end if
+    !end if
 
   end subroutine inputCoherenceCheck
 
