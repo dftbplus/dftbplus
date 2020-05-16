@@ -45,6 +45,8 @@ Changed
 - Versioned format for transport contact shift files (backward compatible), also
   enables the Fermi energy to be read directly from the contact file.
 
+- Removed residual XML input (leaving detailed.xml export, depreciating the undocumented <<! tag in HSD)
+
 Fixed
 -----
 

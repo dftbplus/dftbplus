@@ -3660,6 +3660,7 @@ ForceEvaluation = 'dynamics'
 This block collects some global options for the run.
 \begin{ptable}
   \kw{WriteAutotestTag} &l & & No & \\
+  \kw{WriteDetailedXML} & l & & No & \\
   \kw{WriteResultsTag} & l & & No & \\
   \kw{WriteDetailedOut} & l & & Yes & \\
   \kwl{RestartFrequency}{kw:dftbp.RestartFrequency} & i &Driver = \cb, SCC = Yes & 20 & \\
@@ -3679,6 +3680,11 @@ This block collects some global options for the run.
 \item[\is{WriteAutotestTag}] Turns the creation of the
   \verb|autotest.tag| file on and off. (This file can get quite big
   and is only needed for the autotesting framework.)
+
+\item[\is{WriteDetailedXML}] Turns the creation of the
+  \verb|detailed.xml| file on and off. (The \verb|detailed.xml| file
+  is needed among others by the \verb|waveplot| utility for
+  visualising molecular orbitals.)
 
 \item[\is{WriteResultsTag}] Turns the creation of the \verb|results.tag| file on
   and off. (That file is used by several utilities processing the results of
