@@ -14,14 +14,17 @@ module dftbp_born
   use dftbp_charges, only : getSummedCharges
   use dftbp_cm5, only : TChargeModel5, TCM5Input, TChargeModel5_init
   use dftbp_commontypes, only : TOrbitals
+  use dftbp_constants, only : Hartree__eV
   use dftbp_environment, only : TEnvironment
   use dftbp_periodic, only : TNeighbourList, getNrOfNeighboursForAll
+  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_simplealgebra, only : determinant33
   use dftbp_solvation, only : TSolvation
   implicit none
   private
 
-  public :: TGeneralizedBorn, TGBInput, init
+  public :: TGeneralizedBorn, TGBInput, TGeneralizedBorn_init
+  public :: writeGeneralizedBornInfo
 
 
   !> Global parameters for the solvation
@@ -59,6 +62,12 @@ module dftbp_born
     !> Use charge model 5
     type(TCM5Input), allocatable :: cm5Input
 
+    !> Input for solvent accessible surface area model
+    type(TSASAInput), allocatable :: sasaInput
+
+    !> Parameter for H-bond correction
+    real(dp), allocatable :: hBondPar(:)
+
   end type TGBInput
 
 
@@ -78,8 +87,8 @@ module dftbp_born
     !> Volume of the unit cell
     real(dp) :: volume = 0.0_dp
 
-    !> stress tensor
-    real(dp) :: stress(3, 3) = 0.0_dp
+    !> Strain derivatives
+    real(dp) :: sigma(3, 3) = 0.0_dp
 
     !> is this periodic
     logical :: tPeriodic
@@ -120,6 +129,12 @@ module dftbp_born
     !> Strain derivative of the Born radii
     real(dp), allocatable :: dbrdL(:, :, :)
 
+    !> Solvent accessible surface area model
+    type(TSASACont), allocatable :: sasaCont
+
+    !> Parameter for H-bond correction
+    real(dp), allocatable :: hBondStrength(:)
+
   contains
 
     !> update internal copy of coordinates
@@ -148,17 +163,12 @@ module dftbp_born
   end type TGeneralizedBorn
 
 
-  !> Initialize generalized Born model from input data
-  interface init
-    module procedure :: initialize
-  end interface init
-
-
 contains
 
 
   !> Initialize generalized Born model from input data
-  subroutine initialize(self, input, nAtom, species0, speciesNames, latVecs)
+  subroutine TGeneralizedBorn_init(self, input, nAtom, species0, speciesNames, &
+      & latVecs)
 
     !> Initialised instance at return
     type(TGeneralizedBorn), intent(out) :: self
@@ -179,10 +189,22 @@ contains
     real(dp), intent(in), optional :: latVecs(:,:)
 
     integer :: nSpecies
+    integer :: iAt1, iSp1
 
     nSpecies = size(speciesNames)
-
     self%tPeriodic = present(latVecs)
+
+    if (allocated(input%sasaInput)) then
+       allocate(self%sasaCont)
+       if (self%tPeriodic) then
+         call TSASACont_init(self%sasaCont, input%sasaInput, nAtom, species0, &
+             & speciesNames, latVecs)
+       else
+         call TSASACont_init(self%sasaCont, input%sasaInput, nAtom, species0, &
+             & speciesNames)
+       end if
+    end if
+
     if (self%tPeriodic) then
       call self%updateLatVecs(LatVecs)
     end if
@@ -200,6 +222,16 @@ contains
     self%param = input%TGBParameters
     self%rho(:) = input%vdwRad(:) * input%descreening(:)
 
+    if (allocated(self%sasaCont) .and. allocated(input%hBondPar)) then
+      if (any(input%hBondPar /= 0.0_dp)) then
+        allocate(self%hBondStrength(nAtom))
+        do iAt1 = 1, nAtom
+          iSp1 = species0(iAt1)
+          self%hBondStrength(iAt1) = input%hBondPar(iSp1) / self%sasaCont%probeRad(iSp1)**2
+        end do
+      end if
+    end if
+
     self%rCutoff = input%rCutoff
 
     if (allocated(input%cm5Input)) then
@@ -216,7 +248,47 @@ contains
     self%tCoordsUpdated = .false.
     self%tChargesUpdated = .false.
 
-  end subroutine initialize
+  end subroutine TGeneralizedBorn_init
+
+
+  !> Print the solvation model used
+  subroutine writeGeneralizedBornInfo(unit, solvation)
+
+    !> Formatted unit for IO
+    integer, intent(in) :: unit
+
+    !> Solvation model
+    type(TGeneralizedBorn), intent(in) :: solvation
+
+    write(unit, '(a, ":", t30, es14.6)') "Dielectric constant", &
+        & 1.0_dp/(solvation%param%keps + 1.0_dp)
+    write(unit, '(a, ":", t30, es14.6, 1x, a, t50, es14.6, 1x, a)') &
+        & "Free energy shift", solvation%param%freeEnergyShift, "H", &
+        & Hartree__eV * solvation%param%freeEnergyShift, "eV"
+    write(unit, '(a, ":", t30, a)') "Born radii integrator", "GBOBC"
+
+    write(unit, '(a, ":", t30)', advance='no') "SASA model"
+    if (allocated(solvation%sasaCont)) then
+      write(unit, '(a)') "Yes"
+      call writeSASAContInfo(unit, solvation%sasaCont)
+    else
+      write(unit, '(a)') "No"
+    end if
+
+    write(unit, '(a, ":", t30)', advance='no') "CM5 correction"
+    if (allocated(solvation%cm5)) then
+      write(unit, '(a)') "Yes"
+    else
+      write(unit, '(a)') "No"
+    end if
+
+    write(unit, '(a, ":", t30)', advance='no') "Hydrogen bond correction"
+    if (allocated(solvation%hBondStrength)) then
+      write(unit, '(a)') "Yes"
+    else
+      write(unit, '(a)') "No"
+    end if
+  end subroutine writeGeneralizedBornInfo
 
 
   !> Update internal stored coordinates
@@ -241,6 +313,10 @@ contains
     integer, intent(in) :: species0(:)
 
     integer, allocatable :: nNeigh(:)
+
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%updateCoords(env, neighList, img2CentCell, coords, species0)
+    end if
 
     allocate(nNeigh(self%nAtom))
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
@@ -270,6 +346,10 @@ contains
     @:ASSERT(self%tPeriodic)
     @:ASSERT(all(shape(latvecs) == shape(self%latvecs)))
 
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%updateLatVecs(latVecs)
+    end if
+
     self%volume = abs(determinant33(latVecs))
     self%latVecs(:,:) = latVecs
 
@@ -296,7 +376,13 @@ contains
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(size(energies) == self%nAtom)
 
-    energies(:) = 0.5_dp * (self%shift * self%chargesPerAtom) &
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%getEnergies(energies)
+    else
+      energies(:) = 0.0_dp
+    end if
+
+    energies(:) = energies + 0.5_dp * (self%shift * self%chargesPerAtom) &
        & + self%param%freeEnergyShift / real(self%nAtom, dp)
 
   end subroutine getEnergies
@@ -330,10 +416,21 @@ contains
     real(dp) :: sigma(3, 3)
     real(dp), allocatable :: dEdcm5(:)
     integer, allocatable :: nNeigh(:)
+    real(dp), allocatable :: dhbds(:)
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
     @:ASSERT(all(shape(gradients) == [3, self%nAtom]))
+
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%addGradients(env, neighList, species, coords, img2CentCell, gradients)
+      if (allocated(self%hBondStrength)) then
+        allocate(dhbds(self%nAtom))
+        dhbds(:) = self%hBondStrength * self%chargesPerAtom**2
+        call gemv(gradients, self%sasaCont%dsdr, dhbds, beta=1.0_dp)
+        deallocate(dhbds)
+      end if
+    end if
 
     allocate(nNeigh(self%nAtom))
     sigma(:, :) = 0.0_dp
@@ -347,13 +444,13 @@ contains
       dEdcm5(:) = 0.0_dp
       call hemv(dEdcm5, self%bornMat, self%chargesPerAtom)
       call self%cm5%addGradients(dEdcm5, gradients)
-      call self%cm5%addStress(dEdcm5, sigma)
+      call self%cm5%addSigma(dEdcm5, sigma)
     end if
 
     self%energies = self%energies + self%param%freeEnergyShift / real(self%nAtom, dp)
 
     if (self%tPeriodic) then
-      self%stress(:, :) = sigma / self%volume
+      self%sigma(:, :) = sigma
     end if
 
   end subroutine addGradients
@@ -374,7 +471,13 @@ contains
     @:ASSERT(self%tPeriodic)
     @:ASSERT(self%volume > 0.0_dp)
 
-    stress(:,:) = self%stress / self%volume
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%getStress(stress)
+    else
+      stress(:, :) = 0.0_dp
+    end if
+
+    stress(:,:) = stress + self%sigma / self%volume
 
   end subroutine getStress
 
@@ -391,6 +494,10 @@ contains
     cutoff = self%rCutoff
     if (allocated(self%cm5)) then
       cutoff = max(cutoff, self%cm5%getRCutoff())
+    end if
+
+    if (allocated(self%sasaCont)) then
+      cutoff = max(cutoff, self%sasaCont%getRCutoff())
     end if
 
   end function getRCutoff
@@ -425,13 +532,21 @@ contains
 
     @:ASSERT(self%tCoordsUpdated)
 
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%updateCharges(env, species, neighList, qq, q0, img2CentCell, orb)
+    end if
+
     call getSummedCharges(species, orb, qq, q0, dQAtom=self%chargesPerAtom)
     if (allocated(self%cm5)) then
       call self%cm5%addCharges(self%chargesPerAtom)
     end if
 
-    self%shift(:) = 0.0_dp
-    call hemv(self%shift, self%bornMat, self%chargesPerAtom)
+    if (allocated(self%sasaCont) .and. allocated(self%hBondStrength)) then
+      self%shift(:) = 2.0_dp * self%sasaCont%sasa * self%hBondStrength * self%chargesPerAtom
+    else
+      self%shift(:) = 0.0_dp
+    end if
+    call hemv(self%shift, self%bornMat, self%chargesPerAtom, beta=1.0_dp)
 
     self%tChargesUpdated = .true.
 
@@ -455,8 +570,14 @@ contains
     @:ASSERT(size(shiftPerAtom) == self%nAtoms)
     @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
 
-    shiftPerAtom(:) = self%shift
-    shiftPerShell(:,:) = 0.0_dp ! spread(self%shift, 1, size(shiftPerShell, dim=1))
+    if (allocated(self%sasaCont)) then
+      call self%sasaCont%getShifts(shiftPerAtom, shiftPerShell)
+    else
+      shiftPerAtom(:) = 0.0_dp
+      shiftPerShell(:,:) = 0.0_dp
+    end if
+
+    shiftPerAtom(:) = shiftPerAtom + self%shift
 
   end subroutine getShifts
 
@@ -839,7 +960,7 @@ contains
 
 
   !> GB energy and gradient
-  subroutine getBornEGCluster(self, coords, energies, gradients, stress)
+  subroutine getBornEGCluster(self, coords, energies, gradients, sigma)
 
     !> data structure
     type(TGeneralizedBorn), intent(in) :: self
@@ -854,7 +975,7 @@ contains
     real(dp), intent(inout) :: gradients(:, :)
 
     !> Strain derivative
-    real(dp), intent(inout) :: stress(:, :)
+    real(dp), intent(inout) :: sigma(:, :)
 
     integer :: iAt1, iAt2
     real(dp) :: aa, dist2, fgb, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
@@ -895,9 +1016,9 @@ contains
 
           dSr = spread(dGr, 1, 3) * spread(vec, 2, 3)
           if (iAt1 /= iAt2) then
-             stress = stress + dSr
+             sigma = sigma + dSr
           else
-             stress = stress + dSr/2
+             sigma = sigma + dSr/2
           end if
 
           bp = -0.5_dp*expd*(1.0_dp+dd)*dfgb3
@@ -924,7 +1045,7 @@ contains
 
     !> contract with the Born radii derivatives
     call gemv(gradients, self%dbrdr, dEdbr, beta=1.0_dp)
-    call gemv(stress, self%dbrdL, dEdbr, beta=1.0_dp)
+    call gemv(sigma, self%dbrdL, dEdbr, beta=1.0_dp)
 
   end subroutine getBornEGCluster
 
