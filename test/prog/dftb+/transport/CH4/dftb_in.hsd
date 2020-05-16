@@ -66,4 +66,5 @@ Options = {
 
 ParserOptions = {
   ParserVersion = 6
+  WriteXMLInput = Yes
 }
