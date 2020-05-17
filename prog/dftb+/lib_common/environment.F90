@@ -66,11 +66,18 @@ module dftbp_environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(16) = [&
+  type(TTimerItem), parameter :: globalTimerItems(23) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
       & TTimerItem("SCC", 1),&
+      & TTimerItem("Poisson", 2),&
+      & TTimerItem("Poisson Ewald", 4),&
+      & TTimerItem("Poisson bulk read", 4),&
+      & TTimerItem("Poisson bulk compute", 4),&
+      & TTimerItem("Poisson solution", 4),&
+      & TTimerItem("Poisson shifts", 4),&
+      & TTimerItem("Poisson charge density build", 4),&
       & TTimerItem("Diagonalisation", 2),&
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
@@ -90,18 +97,25 @@ module dftbp_environment
     integer :: preSccInit = 2
     integer :: sparseH0S = 3
     integer :: scc = 4
-    integer :: diagonalization = 5
-    integer :: sparseToDense = 6
-    integer :: denseToSparse = 7
-    integer :: rangeSeparatedH = 8
-    integer :: densityMatrix = 9
-    integer :: energyEval = 10
-    integer :: postScc = 11
-    integer :: eigvecWriting = 12
-    integer :: energyDensityMatrix = 13
-    integer :: forceCalc = 14
-    integer :: stressCalc = 15
-    integer :: postGeoOpt = 16
+    integer :: poisson = 5
+    integer :: poissonEwald = 6
+    integer :: poissonBulkRead = 7
+    integer :: poissonBulkCalc = 8
+    integer :: poissonSoln = 9
+    integer :: poissonShifts = 10
+    integer :: poissonDensity = 11
+    integer :: diagonalization = 12
+    integer :: sparseToDense = 13
+    integer :: denseToSparse = 14
+    integer :: rangeSeparatedH = 15
+    integer :: densityMatrix = 16
+    integer :: energyEval = 17
+    integer :: postScc = 18
+    integer :: eigvecWriting = 19
+    integer :: energyDensityMatrix = 20
+    integer :: forceCalc = 21
+    integer :: stressCalc = 22
+    integer :: postGeoOpt = 23
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()

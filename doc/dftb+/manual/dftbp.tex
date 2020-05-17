@@ -3028,24 +3028,41 @@ approach.
 
 To use the generalized Born model in the SCC procedure use the
 \is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
-Note that the GB model implemented is only available for finite
+The non-polar solvent area model can be combinded with the GB model
+enabling to additionally correct for hydrogen bonding, the resulting
+model is called GBSA.
+The parameters for the GBSA model are currently available at
+\url{https://github.com/grimme-lab/gbsa-parameters} and can be read in with
+\kw{ParamFile} and will setup the complete \kw{GeneralizedBorn\cb} input.
+
+Note that the GB(SA) model implemented is only available for finite
 systems.
 
 \begin{ptable}
-  \kw{Solvent} & m & & & \\
+  \kw{ParamFile} & s & & & \\
+  \kw{Solvent} & m & not has \kw{ParamFile} & & \\
   \kw{FreeEnergyShift} & r & & & \\
   \kw{Temperature} & r & & 298.15 K & \\
   \kw{State} & s & & gsolv & \\
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
-  \kw{CM5} & m & & & \\
-  \kw{Radii} & m & & & \\
+  \kw{CM5} & m & & & \pref{sec:dftbp.CM5} \\
+  \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & 35 AA & \\
+  \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
+  \kw{HBondCorr} & has \kw{SASA} & & \\
+  \kw{HBondStrength} & HBondCorr = Yes & & \\
 \end{ptable}
 
 \begin{description}
+  \item[\is{ParamFile}] Reads in a parameter file for GBSA, specifying this
+    keyword automatically provides the \is{Solvent} information, and defaults
+    values for \is{FreeEnergyShift}, \is{BornOffset}, \is{BornScale}, \is{SASA\cb}
+    \is{Descreening}, \is{HBondCorr} and \is{HBondStrength}.
+    Usually no other keywords need to be specified when \is{ParamFile} is present.
+
   \item[\is{Solvent}] Descriptors of the solvent, can be load from a database
     by providing the solvent name as string in the \is{FromName\cb} method or
     by specifying the necessary values with the \is{FromConstants\cb} method.
@@ -3097,9 +3114,18 @@ systems.
 
   \item[\is{Cutoff}] \modif{\modtype{length}}
     Real space cutoff for the calculation of the Born radii.
+
+  \item[\is{HBondCorr}]
+    Include an empirical hydrogen bond correction.
+    Only available for GBSA models.
+
+  \item[\is{HBondStrength}]
+    Hydrogen bonding strength for each species used in the empirical hydrogen
+    bond correction. To disable the correction for species not involved
+    in hydrogen bonding, set the value to zero.
 \end{description}
 
-Example for CS2 as solvent:
+Example for a GB model with CS2 as solvent:
 
 \begin{verbatim}
 Hamiltonian = DFTB {
@@ -3117,6 +3143,47 @@ Hamiltonian = DFTB {
     BornOffset [Bohr] = 1.653719965215E-03
     OBCCorrection = {1.00 0.80 4.85}
     Cutoff = 40
+  }
+}
+\end{verbatim}
+
+Example for a GBSA model for water
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(water)
+    Solvent = fromConstants {
+      Epsilon = 80.2
+      MolecularMass [amu] = 18.0
+      Density [kg/l] = 1.0
+    }
+    FreeEnergyShift [kcal/mol] = 1.16556316
+    BornScale = 1.55243817
+    BornOffset = 2.462811043694508E-02
+    Radii = vanDerWaalsRadiiD3 {}
+    Descreening = Values {
+      H = 0.71893869
+      C = 0.74298311
+      N = 0.90261230
+      O = 0.75369019
+    }
+    SASA {
+      ProbeRadius = 1.843075777670416
+      Radii = vanDerWaalsRadiiD3 {}
+      SurfaceTension = Values {
+        H = -3.34983060E-01
+        C = -7.47690650E-01
+        N = -2.31291292E+00
+        O =  9.17979110E-01
+      }
+    }
+    HBondCorr = Yes
+    HBondStrength = Values {
+        H = -7.172800544988973E-02
+        C = -2.548469535762511E-03
+        N = -1.976849501504001E-02
+        O = -8.462476828587280E-03
+    }
   }
 }
 \end{verbatim}
@@ -3160,6 +3227,92 @@ to the published parameters but can be adjusted in the input.
 CM5 {
   Alpha = 1.30918451402600
   Radii = AtomicRad {}
+}
+\end{verbatim}
+
+
+\subsubsection{Solvent area model}
+\label{sec:dftbp.SolventAreaModel}
+
+The non-polar solvation free energy can be estimated from the solvent accessible
+surface area (SASA) by
+%
+\begin{equation}
+  \Delta G_\text{non-polar} = \sum_\text{A} \gamma_\text{A} \sigma_\text{A}
+\end{equation}
+%
+where $\gamma_\text{A}$ is the surface tension and $\sigma_\text{A}$
+is the accessible surface area of each atom.
+To calculate the latter, the molecule is assumed as a convolution of spheres
+which is probed by a probe sphere rolled around the surface.
+Here a smooth numerical integration approach is employed.\cite{im2003}
+
+To use the non-polar surface area model in an calculation use the
+\is{SASA\cb} method in the input to \kw{Solvation}.
+This model is currently only available for finite systems.
+
+\begin{ptable}
+  \kw{ProbeRadius} & r & & & \\
+  \kw{Smoothing} & r & & 0.3 AA & \\
+  \kw{Offset} & r & & 2.0 AA & \\ 
+  \kw{Tolerance} & r & & 1.0e-6 & \\ 
+  \kw{AngularGrid} & i & & 230 & \\ 
+  \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
+  \kw{SurfaceTension} & m & & & \\
+\end{ptable}
+
+\begin{description}
+  \item[\is{ProbeRadius}] \modif{\modtype{length}}
+    Radius of the probe sphere used to determine the accessible surface area.
+
+  \item[\is{Smoothing}] \modif{\modtype{length}}
+    Smoothing parameter for numerical integration.
+
+  \item[\is{Offset}] \modif{\modtype{length}}
+    This offset value is added on the realspace cutoff radius for the
+    neighbourlist generation.
+    The realspace cutoff is determined automatically from the probe radius,
+    the largest atomic radius and the smoothing parameter.
+
+  \item[\is{Tolerance}]
+    Minimal value of surface area contribution of a grid point to be accounted
+    for as SASA.
+
+  \item[\is{AngularGrid}]
+    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    The grid size mainly determines the computational cost of evaluating the
+    accessible surface area, too small grid sizes can lead to significant errors
+    due to missing rotational invariance.
+    A safe choice should be 230 grid points per atom.
+    Possible values are
+    6, 14, 26, 38, 50, 74, 86, 110, 146, 170, 194, \textit{230}, 266, 302, 350,
+    434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
+    4334, 4802, 5294, 5810.
+
+  \item[\is{Radii}] Atomic radii for each element, either takes
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+    or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{SurfaceTension}]
+    Surface tension parameter for each species in dyn/cm.
+
+\end{description}
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = SASA { # GFN1-xTB/GBSA(Toluene)
+    ProbeRadius [AA] = 1.59772343
+    Smoothing [AA] = 0.3
+    Offset [AA] = 2
+    AngularGrid = 230
+    Radii = vanDerWaalsRadiiD3 {}
+    SurfaceTension = Values {
+      H = -1.52312760
+      C = -2.92375089
+      O = 0.79482640
+    }
+  }
 }
 \end{verbatim}
 
@@ -3639,6 +3792,7 @@ calculation and/or calculate properties.
 \begin{ptable}
   \kw{AtomResolvedEnergies} & l & & No & \\
   \kw{MullikenAnalysis} & l & & Yes & \\
+  \kw{CM5} & m & MullikenAnalysis = Yes & & \pref{sec:dftbp.CM5} \\
   \kw{ProjectStates} & m & & \cb & \\
   \kw{Localise} & m & & \cb & \\
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
@@ -3655,6 +3809,9 @@ calculation and/or calculate properties.
 
 \item[\is{MullikenAnalysis}] If \is{Yes}, the results of a Mulliken analysis of
   the system is given.
+
+\item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
+  atomic partial charges will be written.
 
 \subsubsection{ProjectStates} \kw{ProjectStates}
 \label{sec:dftbp.ProjectStates} evaluates the Mulliken
