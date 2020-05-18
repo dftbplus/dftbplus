@@ -4257,7 +4257,7 @@ contains
           call detailedError(child2, "Invalid symmetry value '"  // char(buffer) // &
               & "' (must be 'Singlet', 'Triplet' or 'Both').")
         end select
-        if (ctrl%lrespini%sym /= 'S') then
+        if (allocated(ctrl%rangeSepInp) .and. ctrl%lrespini%sym /= 'S') then
            call detailedError(child2, "Invalid symmetry value '"  // char(buffer) // &
               & "' (only 'Singlet' for LC-DFTB).")
         endif       
