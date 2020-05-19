@@ -8,7 +8,7 @@
 !> Module to print data types
 module dftbp_intrinsicpr
   use dftbp_accuracy
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
 
   private
 

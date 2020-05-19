@@ -1,0 +1,56 @@
+Geometry = GenFormat {
+5  C
+ C H
+ 1  1  0.000000000000000  0.000000000000000  0.000000000000000
+ 2  2  0.000000000000000  0.000000000000000  1.100000000000000
+ 3  2  1.131370849898476  0.000000000000000 -0.200000000000000
+ 4  2 -0.565685424949238  0.879795897113271 -0.400000000000000
+ 5  2 -0.465685424949238 -0.979795897113271 -0.400000000000000
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SCCTolerance = 1e-8       # Extremely small
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+ 
+  Electrostatics = Poisson {
+    poissonbox [angstrom] = 30.0 30.0 30.0
+    minimalgrid [angstrom] = 0.3 0.3 0.3
+    atomdensitycutoff [angstrom] = 7.05
+    savepotential = no
+    buildbulkpotential = no
+    readoldbulkpotential = no
+    boundaryregion = global {}
+    poissonaccuracy = 1e-7
+    recomputeafterdensity = no 
+  }
+  
+} 
+
+Parallel{
+  Blacs{ BlockSize=2}
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+
+Analysis = {
+  CalculateForces = Yes
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 6
+}

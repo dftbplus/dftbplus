@@ -4,6 +4,7 @@ set(sources-fpp
   ${curdir}/angmomentum.F90
   ${curdir}/bisect.F90
   ${curdir}/blasroutines.F90
+  ${curdir}/degeneracy.F90
   ${curdir}/determinant.F90
   ${curdir}/eigensolver.F90
   ${curdir}/erfcalc.F90

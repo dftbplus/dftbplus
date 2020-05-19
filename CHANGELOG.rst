@@ -29,6 +29,12 @@ Added
 - The DFT-D4 dispersion model (see DOIs: 10.1063/1.4993215 10.1063/1.5090222
   10.26434/chemrxiv.10299428 )
 
+- Generalized Born implicit solvation model
+
+- Non-polar solvent accessible surface area solvation model
+
+- Particle-particle random-phase approximation available for suitable excitation calculations
+
 Changed
 -------
 

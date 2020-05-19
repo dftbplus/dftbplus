@@ -10,7 +10,7 @@
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
   use dftbp_assert
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_initwaveplot
   use dftbp_accuracy
   use dftbp_charmanip

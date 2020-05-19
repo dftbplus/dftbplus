@@ -56,14 +56,11 @@ module dftbp_parser
   use dftbp_wrappedintr
   use dftbp_tempprofile, only : identifyTempProfile
   use dftbp_plumed, only : withPlumed
-#:if WITH_TRANSPORT
   use poisson_init
+#:if WITH_TRANSPORT
   use libnegf_vars
 #:endif
-  use dftbp_born, only : TGBInput
-  use dftbp_borndata, only : getVanDerWaalsRadiusD3
-  use dftbp_solvinput, only : TSolvationInp
-  use dftbp_solventdata, only : TSolventData, SolventFromName
+  use dftbp_solvparser, only : readSolvation, readCM5
   implicit none
   private
 
@@ -178,7 +175,7 @@ contains
 
     ! electronic Hamiltonian
     call getChildValue(root, "Hamiltonian", hamNode)
-    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako)
+    call readHamiltonian(hamNode, input%ctrl, input%geom, input%slako, input%poisson)
 
   #:endif
 
@@ -204,7 +201,7 @@ contains
 
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readExcited(child, input%ctrl)
+    call readExcited(child, input%geom, input%ctrl)
 
     call getChildValue(root, "Reks", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -1115,7 +1112,7 @@ contains
 #:if WITH_TRANSPORT
   subroutine readHamiltonian(node, ctrl, geo, slako, tp, greendens, poisson)
 #:else
-  subroutine readHamiltonian(node, ctrl, geo, slako)
+  subroutine readHamiltonian(node, ctrl, geo, slako, poisson)
 #:endif
 
     !> Node to get the information from
@@ -1136,10 +1133,10 @@ contains
 
     !> Green's function paramenters
     type(TNEGFGreenDensInfo), intent(inout) :: greendens
+  #:endif
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
-  #:endif
 
     type(string) :: buffer
 
@@ -1149,13 +1146,13 @@ contains
   #:if WITH_TRANSPORT
       call readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
   #:else
-      call readDFTBHam(node, ctrl, geo, slako)
+      call readDFTBHam(node, ctrl, geo, slako, poisson)
   #:endif
     case ("xtb")
   #:if WITH_TRANSPORT
       call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
   #:else
-      call readXTBHam(node, ctrl, geo)
+      call readXTBHam(node, ctrl, geo, poisson)
   #:endif
     case default
       call detailedError(node, "Invalid Hamiltonian")
@@ -1168,7 +1165,7 @@ contains
 #:if WITH_TRANSPORT
   subroutine readDFTBHam(node, ctrl, geo, slako, tp, greendens, poisson)
 #:else
-  subroutine readDFTBHam(node, ctrl, geo, slako)
+  subroutine readDFTBHam(node, ctrl, geo, slako, poisson)
 #:endif
 
     !> Node to get the information from
@@ -1190,9 +1187,10 @@ contains
     !> Green's function paramenters
     type(TNEGFGreenDensInfo), intent(inout) :: greendens
 
+  #:endif
+
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
-  #:endif
 
     type(fnode), pointer :: value1, value2, child, child2, child3, field
     type(fnodeList), pointer :: children
@@ -1440,7 +1438,7 @@ contains
   #:if WITH_TRANSPORT
     call readSolver(node, ctrl, geo, tp, greendens, poisson)
   #:else
-    call readSolver(node, ctrl, geo)
+    call readSolver(node, ctrl, geo, poisson)
   #:endif
 
     ! Charge
@@ -1600,7 +1598,7 @@ contains
   #:if WITH_TRANSPORT
     call readElectrostatics(node, ctrl, geo, tp, poisson)
   #:else
-    call readElectrostatics(node, ctrl, geo)
+    call readElectrostatics(node, ctrl, geo, poisson)
   #:endif
 
     ! Third order stuff
@@ -1682,7 +1680,7 @@ contains
 #:if WITH_TRANSPORT
   subroutine readXTBHam(node, ctrl, geo, tp, greendens, poisson)
 #:else
-  subroutine readXTBHam(node, ctrl, geo)
+  subroutine readXTBHam(node, ctrl, geo, poisson)
 #:endif
 
     !> Node to get the information from
@@ -1701,9 +1699,10 @@ contains
     !> Green's function paramenters
     type(TNEGFGreenDensInfo), intent(inout) :: greendens
 
+  #:endif
+
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
-  #:endif
 
     type(fnode), pointer :: value1, child
     integer :: gfnLevel, ii
@@ -1759,7 +1758,7 @@ contains
   #:if WITH_TRANSPORT
     call readSolver(node, ctrl, geo, tp, greendens, poisson)
   #:else
-    call readSolver(node, ctrl, geo)
+    call readSolver(node, ctrl, geo, poisson)
   #:endif
 
     ! Charge
@@ -1791,7 +1790,7 @@ contains
   #:if WITH_TRANSPORT
     call readElectrostatics(node, ctrl, geo, tp, poisson)
   #:else
-    call readElectrostatics(node, ctrl, geo)
+    call readElectrostatics(node, ctrl, geo, poisson)
   #:endif
 
     ! Third order stuff
@@ -1971,7 +1970,7 @@ contains
 #:if WITH_TRANSPORT
   subroutine readElectrostatics(node, ctrl, geo, tp, poisson)
 #:else
-  subroutine readElectrostatics(node, ctrl, geo)
+  subroutine readElectrostatics(node, ctrl, geo, poisson)
 #:endif
 
     !> Node to get the information from
@@ -1986,34 +1985,38 @@ contains
   #:if WITH_TRANSPORT
     !> Transport parameters
     type(TTransPar), intent(inout)  :: tp
+  #:endif
 
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
-  #:endif
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
 
     ctrl%tPoisson = .false.
 
-  #:if WITH_TRANSPORT
     ! Read in which kind of electrostatics method to use.
     call getChildValue(node, "Electrostatics", value1, "GammaFunctional", child=child)
     call getNodeName(value1, buffer)
     select case (char(buffer))
     case ("gammafunctional")
+    #:if WITH_TRANSPORT
       if (tp%taskUpload .and. ctrl%tSCC) then
         call detailedError(child, "GammaFunctional not available, if you upload contacts in an SCC&
             & calculation.")
       end if
+    #:endif
     case ("poisson")
       ctrl%tPoisson = .true.
+    #:if WITH_TRANSPORT
       call readPoisson(value1, poisson, geo%tPeriodic, tp, geo%latVecs)
+    #:else
+      call readPoisson(value1, poisson, geo%tPeriodic, geo%latVecs)
+    #:endif
     case default
       call getNodeHSDName(value1, buffer)
       call detailedError(child, "Unknown electrostatics '" // char(buffer) // "'")
     end select
-  #:endif
 
   end subroutine readElectrostatics
 
@@ -2300,7 +2303,7 @@ contains
 #:if WITH_TRANSPORT
   subroutine readSolver(node, ctrl, geo, tp, greendens, poisson)
 #:else
-  subroutine readSolver(node, ctrl, geo)
+  subroutine readSolver(node, ctrl, geo, poisson)
 #:endif
 
     !> Relevant node in input tree
@@ -2319,9 +2322,10 @@ contains
     !> Green's function paramenters
     type(TNEGFGreenDensInfo), intent(inout) :: greendens
 
+  #:endif
+
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
-  #:endif
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
@@ -3540,155 +3544,6 @@ contains
   end subroutine readOptions
 
 
-  !> Reads in solvation related settings
-  subroutine readSolvation(node, geo, input)
-
-    !> Node to parse
-    type(fnode), pointer :: node
-
-    !> geometry, including atomic information
-    type(TGeometry), intent(in) :: geo
-
-    !> dispersion data on exit
-    type(TSolvationInp), intent(out) :: input
-
-    type(fnode), pointer :: solvModel
-    type(string) :: buffer
-
-    call getChildValue(node, "", solvModel)
-    call getNodeName(solvModel, buffer)
-
-    select case (char(buffer))
-    case default
-      call detailedError(node, "Invalid solvation model name.")
-    case ("generalizedborn")
-      allocate(input%GBInp)
-      call readSolvGB(solvModel, geo, input%GBInp)
-    end select
-  end subroutine readSolvation
-
-
-  !> Reads in generalized Born related settings
-  subroutine readSolvGB(node, geo, input)
-
-    !> Node to process
-    type(fnode), pointer :: node
-
-    !> Geometry of the current system
-    type(TGeometry), intent(in) :: geo
-
-    !> Contains the input for the dispersion module on exit
-    type(TGBInput), intent(out) :: input
-
-    type(string) :: buffer, state, modifier
-    type(fnode), pointer :: child, value1, field, child2, value2, dummy
-    integer :: iSp
-    logical :: found
-    real(dp) :: temperature, shift, conv
-    real(dp), allocatable :: vdwRadDefault(:)
-    type(TSolventData) :: solvent
-
-    if (geo%tPeriodic) then
-      call detailedError(node, "Generalized Born model currently not available with PBCs")
-    end if
-
-    call getChildValue(node, "Solvent", value1, child=child)
-    call getNodeName(value1, buffer)
-    select case(char(buffer))
-    case default
-      call detailedError(child, "Invalid solvent method '" // char(buffer) // "'")
-    case('fromname')
-      call getChildValue(value1, "", buffer)
-      call SolventFromName(solvent, unquote(char(buffer)), found)
-      if (.not. found) then
-        call detailedError(value1, "Invalid solvent " // char(buffer))
-      end if
-    case('fromconstants')
-      call getChildValue(value1, "Epsilon", solvent%dielectricConstant)
-      call getChildValue(value1, "MolecularMass", solvent%molecularMass, &
-          & modifier=modifier, child=field)
-      call convertByMul(char(modifier), massUnits, field, solvent%molecularMass)
-      call getChildValue(value1, "Density", solvent%density, modifier=modifier, &
-          & child=field)
-      call convertByMul(char(modifier), massDensityUnits, field, solvent%density)
-    end select
-
-    input%keps = 1.0_dp / solvent%dielectricConstant - 1.0_dp
-
-    ! shift value for the free energy (usually fitted)
-    call getChildValue(node, "FreeEnergyShift", shift, modifier=modifier, &
-       & child=field)
-    call convertByMul(char(modifier), energyUnits, field, shift)
-
-    ! temperature, influence depends on the reference state
-    !call getChildValue(node, "Temperature", temperature, 298.15_dp)
-
-    ! reference state for free energy calculation
-    !call getChildValue(node, "State", state, "gsolv", child=child)
-    !select case(tolower(unquote(char(state))))
-    !case default
-    !  call detailedError(child, "Unknown reference state: '"//char(state)//"'")
-    !case("gsolv") ! just the bare shift
-    !  input%shift = shift
-    !end select
-    input%shift = shift
-
-    call getChildValue(node, "BornScale", input%bornScale)
-    call getChildValue(node, "BornOffset", input%bornOffset, modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%bornOffset)
-    call getChildValue(node, "OBCCorrection", input%obc, [1.00_dp, 0.80_dp, 4.85_dp])
-
-    conv = 1.0_dp
-    allocate(input%vdwRad(geo%nSpecies))
-    call getChildValue(node, "Radii", value1, child=child)
-    call getChild(value1, "", dummy, modifier=modifier)
-    call convertByMul(char(modifier), lengthUnits, child, conv)
-    call getNodeName(value1, buffer)
-    select case(char(buffer))
-    case default
-      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate radii")
-    case("vanderwaalsradiid3")
-      allocate(vdwRadDefault(geo%nSpecies))
-      vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
-      do iSp = 1, geo%nSpecies
-        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
-        if (associated(value2)) then
-          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
-              & child=child2)
-        else
-          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
-              & vdwRadDefault(iSp)/conv, child=child2)
-        end if
-      end do
-      deallocate(vdwRadDefault)
-    case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
-      end do
-    end select
-    input%vdwRad(:) = input%vdwRad * conv
-
-    allocate(input%descreening(geo%nSpecies))
-    call getChildValue(node, "Descreening", value1, child=child)
-    call getNodeName(value1, buffer)
-    select case(char(buffer))
-    case default
-      call detailedError(child, "Unknown method '"//char(buffer)//"' to generate descreening parameters")
-    case("unity")
-      input%descreening(:) = 1.0_dp
-    case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, trim(geo%speciesNames(iSp)), input%descreening(iSp), child=child2)
-      end do
-    end select
-
-    call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
-        & modifier=modifier, child=field)
-    call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
-
-  end subroutine readSolvGB
-
-
   !> Reads in dispersion related settings
   subroutine readDispersion(node, geo, input, nrChrg)
 
@@ -4347,18 +4202,24 @@ contains
 
 
   !> Reads the excited state data block
-  subroutine readExcited(node, ctrl)
+  subroutine readExcited(node, geo, ctrl)
 
     !> Node to parse
     type(fnode), pointer :: node
+
+    !> geometry object, which contains atomic species information
+    type(TGeometry), intent(in) :: geo
 
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
 
     type(fnode), pointer :: child
-  #:if WITH_ARPACK
     type(fnode), pointer :: child2
+    type(fnode), pointer :: value
     type(string) :: buffer
+    integer :: iSp1
+
+  #:if WITH_ARPACK
     type(string) :: modifier
   #:endif
 
@@ -4453,6 +4314,52 @@ contains
     end if
 
   #:endif
+
+    !pp-RPA
+    call getChild(node, "PP-RPA", child, requested=.false.)
+
+    if (associated(child)) then
+
+      allocate(ctrl%pprpa)
+
+      if (ctrl%tSpin) then
+        ctrl%pprpa%sym = ' '
+      else
+        call getChildValue(child, "Symmetry", buffer, child=child2)
+        select case (unquote(char(buffer)))
+        case ("Singlet" , "singlet")
+          ctrl%pprpa%sym = 'S'
+        case ("Triplet" , "triplet")
+          ctrl%pprpa%sym = 'T'
+        case ("Both" , "both")
+          ctrl%pprpa%sym = 'B'
+        case default
+          call detailedError(child2, "Invalid symmetry value '"  // char(buffer) // &
+              & "' (must be 'Singlet', 'Triplet' or 'Both').")
+        end select
+      end if
+
+      call getChildValue(child, "NrOfExcitations", ctrl%pprpa%nexc)
+
+      call getChildValue(child, "HHubbard", value, child=child2)
+      ALLOCATE(ctrl%pprpa%hhubbard(geo%nSpecies))
+      do iSp1 = 1, geo%nSpecies
+        call getChildValue(child2, geo%speciesNames(iSp1), ctrl%pprpa%hhubbard(iSp1))
+      end do
+
+      call getChildValue(child, "TammDancoff", ctrl%pprpa%tTDA, default=.false.)
+
+      call getChild(child, "NrOfVirtualStates", child2, requested=.false.)
+      if (.not. associated(child2)) then      
+        ctrl%pprpa%nvirtual = 0
+        ctrl%pprpa%tConstVir = .false.
+        call setChildValue(child, "NrOfVirtualStates", 0)
+      else
+        call getChildValue(child2, "", ctrl%pprpa%nvirtual)
+        ctrl%pprpa%tConstVir = .true.
+      end if
+
+    end if
 
   end subroutine readExcited
 
@@ -4595,6 +4502,13 @@ contains
     call readElectrostaticPotential(node, geo, ctrl)
 
     call getChildValue(node, "MullikenAnalysis", ctrl%tPrintMulliken, .true.)
+    if (ctrl%tPrintMulliken) then
+      call getChild(node, "CM5", child, requested=.false.)
+      if (associated(child)) then
+        allocate(ctrl%cm5Input)
+        call readCM5(child, ctrl%cm5Input, geo)
+      end if
+    end if
     call getChildValue(node, "AtomResolvedEnergies", ctrl%tAtomicEnergy, &
         &.false.)
 
@@ -5078,10 +4992,15 @@ contains
       end if
 
   end subroutine readGreensFunction
+#:endif
 
 
   !> Read in Poisson related data
+#:if WITH_TRANSPORT
   subroutine readPoisson(pNode, poisson, tPeriodic, transpar, latVecs)
+#:else
+  subroutine readPoisson(pNode, poisson, tPeriodic, latVecs)
+#:endif
 
     !> Input tree
     type(fnode), pointer :: pNode
@@ -5092,11 +5011,13 @@ contains
     !> Is this a periodic calculation
     logical, intent(in) :: tPeriodic
 
-    !> Lattice vectors if periodic
-    real(dp), allocatable, intent(in) :: latVecs(:,:)
-
+  #:if WITH_TRANSPORT
     !> Parameters of the transport calculation
     type(TTransPar), intent(inout) :: transpar
+  #:endif
+
+    !> Lattice vectors if periodic
+    real(dp), allocatable, intent(in) :: latVecs(:,:)
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
     type(string) :: buffer, modifier
@@ -5106,9 +5027,13 @@ contains
     logical :: needsPoissonBox
 
     poisson%defined = .true.
-    needsPoissonBox = (.not. tPeriodic) .or. transpar%tPeriodic1D .or. (transpar%nCont == 1)
+    needsPoissonBox = .not. tPeriodic
+  #:if WITH_TRANSPORT
+    needsPoissonBox = needsPoissonBox .or. transpar%tPeriodic1D .or. transpar%nCont == 1
+  #:endif
 
     if (needsPoissonBox) then
+    #:if WITH_TRANSPORT
       if (transpar%nCont == 1 .and. .not. transpar%tPeriodic1D) then
         poisson%poissBox(:) = 0.0_dp
         do ii = 1, 3
@@ -5124,6 +5049,10 @@ contains
         call getChildValue(pNode, "PoissonBox", poisson%poissBox, modifier=modifier, child=field)
         call convertByMul(char(modifier), lengthUnits, field, poisson%poissBox)
       end if
+    #:else
+      call getChildValue(pNode, "PoissonBox", poisson%poissBox, modifier=modifier, child=field)
+      call convertByMul(char(modifier), lengthUnits, field, poisson%poissBox)
+    #:endif
     end if
 
     poisson%foundBox = needsPoissonBox
@@ -5335,7 +5264,7 @@ contains
 
   end subroutine getPoissonBoundaryConditionOverrides
 
-
+#:if WITH_TRANSPORT
   !> Sanity checking of atom ranges and returning contact vector and direction.
   subroutine getContactVector(atomrange, geom, id, name, pContact, contactLayerTol, contactVec,&
       & contactDir)
@@ -5919,7 +5848,8 @@ contains
         call getNodeName2(child1, buffer)
         if (char(buffer) == "") then
           contacts(ii)%tFermiSet = .false.
-          call detailedWarning(pNode, "Missing Fermi level(s) - required in solver block")
+          call detailedWarning(pNode, "Missing Fermi level - required to be set in solver block or&
+              & read from a contact shift file")
         else
           call init(fermiBuffer)
           call getChildValue(child2, "", fermiBuffer, modifier=modifier)
