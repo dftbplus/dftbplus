@@ -9,6 +9,8 @@ The autotest suite contains some tests for the modes code from the DFTB+
 project, with precalculated results for automated comparison. In order to test
 this binary on your system, you should execute the following command:
 
+.. code:: bash
+
   ./bin/autotest2 \
      -w <tempdir> \
      -p <binary> \
