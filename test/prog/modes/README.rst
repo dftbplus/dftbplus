@@ -20,13 +20,16 @@ this binary on your system, you should execute the following command:
 
 where
 
-  <tempdir> is an existing directory which should contain the results of the
+tempdir
+             is an existing directory which should contain the results of the
              calculations to be validated (this directory is not deleted
              afterwards)
 
-  <binary> is the path to your binary
+binary
+             is the path to your binary
 
-  <testfile> contains the list of tests which should be calculated (you can use
+testfile
+             contains the list of tests which should be calculated (you can use
              the 'tests' file in the this directory or create your own file)
 
 If you have the DFTB+ source, you can let the cmake generated make system
