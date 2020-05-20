@@ -7,11 +7,8 @@ The \modes{} program calculates vibrational modes using data created by
 \section{Input for \modes}
 
 The input file for \modes{} must be named \verb|modes_in.hsd| and should be a
-Human-friendly Structured Data (HSD) formatted file (see Appendix
-\ref{sec:hsd}). The program can read the input in XML instead of HSD format if
-the input file is \verb|modes_in.xml|. The input file must be present in the
-working directory. As with {\dftbp} to prevent ambiguity, the parser refuses to
-read in any input if two types of input file are present.
+Human-friendly Structured Data (HSD) formatted file (see Appendix \ref{sec:hsd})
+and must be present in the working directory.
 
 The table below contains the list of the properties, which must occur in the
 input file \verb|modes_in.hsd|:
@@ -27,7 +24,6 @@ Additionally optional definitions may be present:
   \kw{DisplayModes} & p & & - & \pref{sec:modes.DisplayModes} \\
   \kw{Atoms} & i+|m &  & 1:-1 & \\
   \kw{WriteHSDInput} & l & & No & \\
-  \kw{WriteXMLInput} & l & & No & \\
   \kw{RemoveTranslation} & l & & No & \\
   \kw{RemoveRotation} & l & & No & \\
   \kw{Masses} & p & & & \pref{sec:modes.Masses} \\
@@ -49,8 +45,6 @@ Additionally optional definitions may be present:
     generating the Hessian.}
 \item[\is{WriteHSDInput}] Specifies, if the processed input should be written
   out in HSD format. (You shouldn't turn it off without good reason.)
-\item[\is{WriteXMLInput}] Specifies, if the processed input should be written
-  out in XML format.
 \item[\is{RemoveTranslation}] Explicitly set the 3 translational modes of the
   system to be at 0 frequency.
 \item[\is{RemoveRotation}] Explicitly set the rotation modes of the system to be

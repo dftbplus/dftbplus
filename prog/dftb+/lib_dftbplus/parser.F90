@@ -15,7 +15,7 @@ module dftbp_parser
   use dftbp_constants
   use dftbp_inputdata
   use dftbp_typegeometryhsd
-  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
+  use dftbp_hsdparser, only : getNodeHSDName, parseHSD
   use dftbp_hsdutils
   use dftbp_hsdutils2
   use dftbp_charmanip
@@ -88,9 +88,6 @@ module dftbp_parser
 
     !> Continue despite unprocessed nodes
     logical :: tIgnoreUnprocessed
-
-    !> XML output?
-    logical :: tWriteXML
 
     !> HSD output?
     logical :: tWriteHSD
@@ -260,14 +257,10 @@ contains
     end if
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
-    call getChildValue(node, "WriteXMLInput", flags%tWriteXML, .false.)
-    if (.not. (flags%tWriteHSD .or. flags%tWriteXML)) then
-      call detailedWarning(node, &
-          &"WriteHSDInput and WriteXMLInput both turned off. You are not&
-          & guaranteed" &
-          &// newline // &
-          &" to able to obtain the same results with a later version of the&
-          & code!")
+    if (.not. flags%tWriteHSD) then
+      call detailedWarning(node, "WriteHSDInput turned off. You are not guaranteed" // newline // &
+          &" to able to obtain the same results with a later version of the code!" // newline // &
+          & "(the dftb_pin.hsd file DOES guarantee this)")
     end if
     call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
 

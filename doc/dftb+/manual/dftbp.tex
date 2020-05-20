@@ -1,26 +1,19 @@
 \chapter{Input for {\dftbp}}
 
 
-{\dftbp} can read two formats, either XML or the Human-friendly
-Structured Data format (HSD).  If you are not familiar with the HSD
-format, a detailed description is given in appendix \ref{sec:hsd}. The
-input file for {\dftbp} must be named \verb|dftb_in.hsd| {\em or}
-\verb|dftb_in.xml|. The input file must be present in the working
-directory. To prevent ambiguity, the parser refuses to read any input
-if both files are present. After processing the input, {\dftbp}
-creates a file of the parsed input, either \verb|dftb_pin.hsd| or
-\verb|dftb_pin.xml|. This contains the user input as well as any
-default values for unspecified options.  The file also contains the
-version number of the current input parser.  You should always keep
-this file, since if you want to exactly repeat your calculation with a
-later version of \dftbp{}, it is recommended to use this file instead
-of the original input. (You must of course rename \verb|dftb_pin.hsd|
-into \verb|dftb_in.hsd| or \verb|dftb_pin.xml| into
-\verb|dftb_in.xml|.)  This guarantees that you will obtain the same
-results, even if the defaults for some non specified options have been
-changed. The code can also produce \verb|dftb_pin.xml| from
-\verb|dftb_in.hsd| or {\it vice versa} if required (see
-section~\ref{sec:dftbp.ParserOptions}).
+{\dftbp} can read the Human-friendly Structured Data format (HSD).  If you are
+not familiar with the HSD format, a detailed description is given in appendix
+\ref{sec:hsd}. The input file for {\dftbp} must be named \verb|dftb_in.hsd| and
+must be present in the working directory. After processing the input, {\dftbp}
+creates a file of the parsed input called \verb|dftb_pin.hsd|. This contains the
+user input as well as default values for unspecified options.  The file also
+contains the version number of the current input parser.  You should always keep
+this file, since if you want to exactly repeat your calculation with a later
+version of \dftbp{}, it is recommended to use this file instead of the original
+input. (You must of course rename \verb|dftb_pin.hsd| into \verb|dftb_in.hsd|.)
+This guarantees that you will obtain the same results, even if the defaults for
+some non specified options have been changed in the meanwhile (as
+\verb|dftb_pin.hsd| stores the original choice).
 
 The following sections list properties and options that can be set in
 {\dftbp} input. The first column of each of the tables of options
@@ -53,7 +46,7 @@ appendix~\ref{app:units}.
 \section{Main input}
 
 
-The input file for {\dftbp} (\verb|dftb_in.hsd|/\verb|dftb_in.xml|)
+The input file for {\dftbp} (\verb|dftb_in.hsd|)
 must contain the following property definitions:
 \begin{ptableh}
   \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
@@ -4329,12 +4322,11 @@ REKS = SSR22 {
 \label{sec:dftbp.ParserOptions}
 
 This block contains the options, which are effecting only the
-behaviour of the HSD/XML parser and are not passed to the main
+behaviour of the HSD parser and are not passed to the main
 program.
 \begin{ptable}
   \kw{ParserVersion} & i & & \textrm{current input version} & \\
   \kw{WriteHSDInput} & l & & Yes & \\
-  \kw{WriteXMLInput} & l & & No & \\
   \kw{IgnoreUnprocessedNodes} &l & & No & \\
   \kw{StopAfterParsing} &l & & No & \\
 \end{ptable}
@@ -4352,9 +4344,6 @@ program.
 \item[\is{WriteHSDInput}] Specifies, if the processed input should be
   written out in HSD format. (You shouldn't turn it off without
   really good reasons.)
-
-\item[\is{WriteXMLInput}] Specifies, if the processed input should be
-  written out in XML format.
 
 \item[\is{IgnoreUnprocessedNodes}] By default the code stops if it
   detects unused or erroneous keywords in the input, which probably

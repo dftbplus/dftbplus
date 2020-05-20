@@ -11,7 +11,7 @@
 module dftbp_initmodes
   use dftbp_assert
   use dftbp_globalenv, only : stdOut
-  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_hsdparser, only : parseHSD, dumpHSD
   use dftbp_xmlutils
   use dftbp_hsdutils
   use dftbp_hsdutils2
@@ -130,22 +130,18 @@ contains
     type(TListCharLc), allocatable :: skFiles(:)
     character(lc) :: prefix, suffix, separator, elem1, strTmp, filename
     logical :: tLower, tExist
-    logical :: tWriteXML, tWriteHSD ! XML or HSD output?
+    logical :: tWriteHSD ! HSD output?
 
     !! Write header
     write(stdout, "(A)") repeat("=", 80)
     write(stdout, "(A)") "     MODES  " // version
     write(stdout, "(A,/)") repeat("=", 80)
 
-    !! Read in input file as HSD or XML.
-    call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
-    if (tHSD) then
-      write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
-    else
-      write(stdout, "(A)") "Interpreting input file '" // xmlInput //  "'"
-    end if
+    !! Read in input file as HSD
+    call parseHSD(rootTag, hsdInput, root)
+
+    write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
     write(stdout, "(A)") repeat("-", 80)
-    call getChild(input, rootTag, root)
 
     !! Check if input version is the one, which we can handle
     call getChildValue(root, "InputVersion", inputVersion, parserVersion)
@@ -274,7 +270,6 @@ contains
     end if
 
     call getChildValue(root, "WriteHSDInput", tWriteHSD, .false.)
-    call getChildValue(root, "WriteXMLInput", tWriteXML, .false.)
 
     !! Issue warning about unprocessed nodes
     call warnUnprocessedNodes(root,.true.)
@@ -282,14 +277,7 @@ contains
     !! Finish parsing, dump parsed and processed input
     if (tWriteHSD) then
       call dumpHSD(input, hsdParsedInput)
-
-      write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
-          &//"'"
-    end if
-    if (tWriteXML) then
-      call dumpHSDAsXML(input, xmlParsedInput)
-      write(stdout, "(A)") "Processed input written as XML to '" // xmlParsedInput &
-          &//"'"
+      write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput //"'"
     end if
     write(stdout, "(A)") repeat("-", 80)
     write(stdout, *)

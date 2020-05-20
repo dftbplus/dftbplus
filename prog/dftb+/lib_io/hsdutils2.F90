@@ -23,7 +23,7 @@ module dftbp_hsdutils2
   private
 
   public :: getUnprocessedNodes, warnUnprocessedNodes,  getModifierIndex
-  public :: readHSDAsXML, readHSDOrXML
+  public :: readHSDAsXML
   public :: getNodeName2, setNodeName, removeModifier, splitModifier
   public :: setUnprocessed, getDescendant
   public :: convertByMul
@@ -184,67 +184,6 @@ contains
     call normalize(fp)
 
   end subroutine readHSDAsXML
-
-
-  !> Reads HSD from an HSD-file or from an xml-file, but stop if input is ambiguous or missing.
-  !> If optional parameter 'missing' is not passed, the subroutine stops if input is not found. If
-  !> ambigous input is found, the subroutine stops anyway.
-  subroutine readHSDOrXML(hsdFile, xmlFile, rootTag, fp, hsdInput, missing)
-
-    !> File containing the HSD input
-    character(len=*), intent(in) :: hsdFile
-
-    !> File containing the XML input
-    character(len=*), intent(in) :: xmlFile
-
-    !> Name of the root tag
-    character(len=*), intent(in) :: rootTag
-
-    !> Parsed tree on retunr
-    type(fnode), pointer :: fp
-
-    !> True, if tree was read from an HSD file
-    logical, intent(out), optional :: hsdInput
-
-    !> True, if neither xml nor hsd input was found
-    logical, intent(out), optional :: missing
-
-    logical :: tExist
-    logical :: tHSD, tXML
-
-    if (present(missing)) then
-      missing = .false.
-    end if
-    inquire(file=hsdFile, exist=tExist)
-    if (tExist) then
-      tHSD = .true.
-    else
-      tHSD = .false.
-    end if
-    inquire(file=xmlFile, exist=tExist)
-    if (tExist) then
-      tXML = .true.
-    else
-      tXML = .false.
-    end if
-    if (tXML .and. tHSD) then
-      call error("Ambiguous input: '" // hsdFile // "' and '" // xmlFile &
-          &// "' both present")
-    elseif (tXML) then
-      call readHSDAsXML(xmlFile, fp)
-    elseif (tHSD) then
-      call parseHSD(rootTag, hsdFile, fp)
-    elseif (present(missing)) then
-      missing = .true.
-    else
-      call error("Missing input: nor '" // hsdFile // "' nor '" // xmlFile &
-          &// "' present")
-    end if
-    if (present(hsdInput)) then
-      hsdInput = tHSD
-    end if
-
-  end subroutine readHSDOrXML
 
 
   !> Returns the name of a node, with empty string for unassociated nodes.
