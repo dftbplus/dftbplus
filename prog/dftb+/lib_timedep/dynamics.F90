@@ -843,12 +843,12 @@ contains
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
 
-    complex(dp) :: Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
-    complex(dp) :: Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
-    complex(dp), target :: trho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
-    complex(dp), target :: trhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
+    complex(dp), allocatable :: Ssqr(:,:,:)
+    complex(dp), allocatable :: Sinv(:,:,:)
+    complex(dp), allocatable, target :: trho(:,:,:)
+    complex(dp), allocatable, target :: trhoOld(:,:,:)
     complex(dp), pointer :: rho(:,:,:), rhoOld(:,:,:)
-    complex(dp) :: H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS)
+    complex(dp), allocatable :: H1(:,:,:)
     complex(dp), allocatable :: Eiginv(:,:,:), EiginvAdj(:,:,:)
     real(dp) :: qq(orb%mOrb, this%nAtom, this%nSpin), deltaQ(this%nAtom,this%nSpin)
     real(dp) :: dipole(3,this%nSpin), chargePerShell(orb%mShell,this%nAtom,this%nSpin)
@@ -863,12 +863,21 @@ contains
     type(TTimer) :: loopTime
     real(dp), allocatable :: qBlock(:,:,:,:)
 
-    complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
-    real(dp) :: coordNew(3, this%nAtom), totalForce(3, this%nAtom), ePerBond(this%nAtom, this%nAtom)
+    complex(dp), allocatable :: RdotSprime(:,:)
+    real(dp) :: coordNew(3, this%nAtom), totalForce(3, this%nAtom)
+    real(dp), allocatable :: ePerBond(:, :)
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
     real(dp) :: occ(this%nOrbs)
     character(4) :: dumpIdx
     logical :: tProbeFrameWrite
+
+
+    allocate(Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(trho(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(trhoOld(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(H1(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
+    allocate(RdotSprime(this%nOrbs,this%nOrbs))
 
     call env%globalTimer%startTimer(globalTimers%elecDynInit)
 
@@ -956,6 +965,9 @@ contains
         & energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock,&
         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
+    if ( (this%tBondE .and. this%tRealHS) .or. this%tBondO)then
+      allocate(ePerBond(this%nAtom, this%nAtom))
+    end if
     if (this%tBondE .and. this%tRealHS) then
       call getPairWiseBondEO(this, ePerBond, rhoPrim(:,1), ham0, iSquare, neighbourList%iNeighbour,&
           & nNeighbourSK, img2CentCell, iSparseStart)
@@ -1226,12 +1238,14 @@ contains
 
     real(dp), allocatable :: qiBlock(:,:,:,:) ! not allocated since no imaginary ham
     real(dp), allocatable :: iHam(:,:) ! not allocated since no imaginary ham
-    real(dp) :: T2(this%nOrbs,this%nOrbs)
+    real(dp), allocatable :: T2(:,:)
     integer :: iAtom, iEatom, iSpin, iKS, iK
     logical :: tDFTBU, tImHam
 
     ! left over from Poisson shift upload from transport being messy
     real(dp), allocatable :: dummy(:,:)
+
+    allocate(T2(this%nOrbs,this%nOrbs))
 
     ham(:,:) = 0.0_dp
 
@@ -1353,13 +1367,21 @@ contains
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
 
-    complex(dp) :: T1(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS)
-    complex(dp) :: T3(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS)
-    complex(dp) :: T2(this%nOrbs, this%nOrbs), T4(this%nOrbs, this%nOrbs)
+    complex(dp), allocatable :: T1(:, :, :), T2(:, :), T3(:, :, :), T4(:, :)
     integer :: iAt, iStart, iEnd, iKS, iSpin, iOrb
     real(dp) :: pkick(this%nSpin)
 
     character(1), parameter :: localDir(3) = ['x', 'y', 'z']
+
+    allocate(T1(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS))
+    allocate(T2(this%nOrbs, this%nOrbs))
+    allocate(T3(this%nOrbs, this%nOrbs, this%parallelKS%nLocalKS))
+    allocate(T4(this%nOrbs, this%nOrbs))
+
+    T1(:,:,:) = cmplx(0,0,dp)
+    T2(:,:) = cmplx(0,0,dp)
+    T3(:,:,:) = cmplx(0,0,dp)
+    T4(:,:) = cmplx(0,0,dp)
 
     pkick(1) = this%field
 
@@ -1371,11 +1393,6 @@ contains
         pkick(2) = -pkick(1)
       end select
     end if
-
-    T1(:,:,:) = 0.0_dp
-    T2(:,:) = 0.0_dp
-    T3(:,:,:) = 0.0_dp
-    T4(:,:) = 0.0_dp
 
     do iKS = 1, this%parallelKS%nLocalKS
       iSpin = this%parallelKS%localKS(2, iKS)
@@ -1977,7 +1994,9 @@ contains
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     integer :: iSpin, iKS
-    complex(dp) :: RdotSprime(this%nOrbs,this%nOrbs)
+    complex(dp), allocatable :: RdotSprime(:,:)
+
+    allocate(RdotSprime(this%nOrbs,this%nOrbs))
 
     if (this%tIons) then
       call getRdotSprime(this, RdotSprime, coordAll, skOverCont, orb, img2CentCell, &
@@ -2022,9 +2041,10 @@ contains
     !> Time step in atomic units
     real(dp), intent(in) :: step
 
-    complex(dp) :: T1(this%nOrbs,this%nOrbs)
+    complex(dp), allocatable :: T1(:,:)
+    allocate(T1(this%nOrbs,this%nOrbs))
 
-    T1 = 0.0_dp
+    T1(:,:) = 0.0_dp
     call gemm(T1, Sinv, H1)
     call gemm(rhoOld, T1, rho, cmplx(-step, 0, dp), cmplx(1, 0, dp))
     call gemm(rhoOld, rho, T1, cmplx(-step, 0, dp), cmplx(1, 0, dp), 'N', 'C')
@@ -2053,21 +2073,28 @@ contains
     !> Time step in atomic units
     real(dp), intent(in) :: step
 
-    real(dp) :: T1R(this%nOrbs,this%nOrbs),T2R(this%nOrbs,this%nOrbs)
-    real(dp) :: T3R(this%nOrbs,this%nOrbs),T4R(this%nOrbs,this%nOrbs),T5R(this%nOrbs,this%nOrbs)
+    real(dp), allocatable :: T1R(:,:),T2R(:,:)
+    real(dp), allocatable :: T3R(:,:),T4R(:,:),T5R(:,:)
     integer :: i,j
+
+    allocate(T1R(this%nOrbs,this%nOrbs))
+    allocate(T2R(this%nOrbs,this%nOrbs))
+    allocate(T3R(this%nOrbs,this%nOrbs))
+    allocate(T4R(this%nOrbs,this%nOrbs))
+    allocate(T5R(this%nOrbs,this%nOrbs))
+
 
     ! The code below takes into account that Sinv and H1 are real, this is twice as fast as the
     ! original above (propageteRho)
 
     ! get the real part of Sinv and H1
-    T1R = real(H1)
-    T2R = real(Sinv)
+    T1R(:,:) = real(H1)
+    T2R(:,:) = real(Sinv)
     call gemm(T3R,T2R,T1R)
 
     ! calculate the first term products for the real and imaginary parts independently
-    T1R = real(rho)
-    T2R = aimag(rho)
+    T1R(:,:) = real(rho)
+    T2R(:,:) = aimag(rho)
     call gemm(T4R,T3R,T1R)
     call gemm(T5R,T3R,T2R)
 
@@ -2386,7 +2413,7 @@ contains
     real(dp), intent(in) :: coord(:,:)
 
     !> Pairwise bond energy or order
-    real(dp), intent(in) :: ePerBond(:,:)
+    real(dp), intent(in), allocatable :: ePerBond(:,:)
 
     !> Kinetic energy
     real(dp), intent(in) :: energyKin
@@ -3193,7 +3220,7 @@ contains
     real(dp), intent(in) :: hamover(:)
 
     !> pairwise energy (if hamover = ham0) or bond order (if hamover=ham) (nAtom, nAtom)
-    real(dp), intent(out) :: EObond(this%nAtom, this%nAtom)
+    real(dp), allocatable, intent(inout) :: EObond(:,:)
 
     !> Atomic neighbour data
     integer, intent(in) :: iNeighbour(0:,:)
@@ -3212,7 +3239,8 @@ contains
 
     integer :: iAt1, iAt2, iAt2f, nOrb1, nOrb2, iOrig, iStart, iEnd, iNeigh, mOrb, iOrb, iOrb2
 
-    EObond = 0.0_dp
+    @:ASSERT(allocated(EObond))
+    EObond(:,:) = 0.0_dp
 
     do iAt1 = 1, this%nAtom
       iOrb = iSquare(iAt1)
