@@ -259,8 +259,8 @@ contains
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
     if (.not. flags%tWriteHSD) then
       call detailedWarning(node, "WriteHSDInput turned off. You are not guaranteed" // newline // &
-          &" to able to obtain the same results with a later version of the code! (the dftb_pin.hsd&
-          & file DOES guarantee this)")
+          &" to able to obtain the same results with a later version of the code!" // newline // &
+          & "(the dftb_pin.hsd file DOES guarantee this)")
     end if
     call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
 
