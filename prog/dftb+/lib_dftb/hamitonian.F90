@@ -24,10 +24,7 @@ module dftbp_hamiltonian
   use dftbp_environment, only : TEnvironment
   use dftbp_scc, only : TScc
   use dftbp_elstattypes
-
-#:if WITH_TRANSPORT
   use poisson_init
-#:endif
 
   implicit none
 
@@ -243,7 +240,7 @@ contains
       & tPoisson, tUpload, shiftPerLUp)
 
     !> Environment settings
-    type(TEnvironment), intent(in) :: env
+    type(TEnvironment), intent(inout) :: env
 
     !> SCC module internal variables
     type(TScc), intent(inout) :: sccCalc
@@ -319,7 +316,6 @@ contains
 
     case(elstatTypes%poisson)
 
-    #:if WITH_TRANSPORT
       ! NOTE: charge-magnetization representation is used
       !       iSpin=1 stores total charge
       ! Logic of calls order:
@@ -332,8 +328,8 @@ contains
           ! Potentials for non-existing angular momenta must be 0 for later summations
           shellPot(:,:,1) = 0.0_dp
         end if
-        call poiss_updcharges(qInput(:,:,1), q0(:,:,1))
-        call poiss_getshift(shellPot(:,:,1))
+        call poiss_updcharges(env, qInput(:,:,1), q0(:,:,1))
+        call poiss_getshift(env, shellPot(:,:,1))
         if (.not.allocated(shellPotBk)) then
           allocate(shellPotBk(orb%mShell, nAtom))
         end if
@@ -344,9 +340,6 @@ contains
       atomPot(:,:) = 0.0_dp
       call sccCalc%setShiftPerAtom(atomPot(:,1))
       call sccCalc%setShiftPerL(shellPot(:,:,1))
-    #:else
-      call error("poisson solver used without transport modules")
-    #:endif
 
     end select
 
@@ -418,6 +411,7 @@ contains
     !> potentials acting in system
     type(TPotentials), intent(inout) :: potential
 
+
     if (tDFTBU) then
       if (tImHam) then
         call getDftbUShift(potential%orbitalBlock, potential%iorbitalBlock, qBlockIn, qiBlockIn,&
@@ -430,6 +424,7 @@ contains
     end if
 
   end subroutine addBlockChargePotentials
+
 
 
   !> Returns the Hamiltonian for the given scc iteration
@@ -485,5 +480,6 @@ contains
     end if
 
   end subroutine getSccHamiltonian
+
 
 end module dftbp_hamiltonian

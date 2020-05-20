@@ -8,7 +8,6 @@ set(sources-fpp
   ${curdir}/hsdutils.F90
   ${curdir}/hsdutils2.F90
   ${curdir}/intrinsicpr.F90
-  ${curdir}/io.F90
   ${curdir}/logger.F90
   ${curdir}/message.F90
   ${curdir}/taggedoutput.F90

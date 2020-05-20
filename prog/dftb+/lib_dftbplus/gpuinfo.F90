@@ -10,7 +10,7 @@
 
 !> Information on any GPUs on the system
 module dftbp_gpuinfo
-  
+
 #:if WITH_GPU
   use iso_c_binding, only :  c_int
   use device_info
@@ -28,7 +28,7 @@ module dftbp_gpuinfo
 contains
   
   subroutine gpuInfo()
-  
+
 #:if WITH_GPU
     call  gpu_avail(ngpus)
     call  gpu_req(req_ngpus)
@@ -40,7 +40,8 @@ contains
 #:else
     call error("Compiled without GPU support")
 #:endif
-    
+
   end subroutine gpuInfo
-      
+
+
 end module dftbp_gpuinfo
