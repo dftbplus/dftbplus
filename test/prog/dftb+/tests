@@ -50,6 +50,26 @@ rangesep/cyclopropene_nb_restart       #? not WITH_MPI
 rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
 rangesep/Thymine-T1_onsite             #? not WITH_MPI
 
+reks/C2H4_3SSR_rangesep                #? not WITH_MPI
+reks/C2H4_direct                       #? not WITH_MPI
+reks/C2H4_nosave                       #? not WITH_MPI
+reks/C6H8_extchrg_periodic_nosave      #? not WITH_MPI
+reks/C6H8_rangesep_extchrg_nac         #? not WITH_MPI
+reks/C6H8_rangesep_extchrg_nosave      #? not WITH_MPI
+reks/HBI+H2O_periodic_stress           #? not WITH_MPI and LONG_TEST
+reks/HBI+H2O_periodic_stress_disp      #? not WITH_MPI and LONG_TEST
+reks/PSB3_2SSR                         #? not WITH_MPI
+reks/PSB3_2SSR_extchrg_periodic        #? not WITH_MPI
+reks/PSB3_2SSR_rangesep                #? not WITH_MPI
+reks/PSB3_2SSR_rangesep_extchrg        #? not WITH_MPI
+reks/PSB3_2SSR_rangesep_extchrg_blur   #? not WITH_MPI
+reks/PSB3_2SSR_rangesep_tuning         #? not WITH_MPI
+reks/PSB3_SA                           #? not WITH_MPI
+reks/Thymine_3SSR                      #? not WITH_MPI
+reks/Thymine_single                    #? not WITH_MPI
+reks/Thymine_T1                        #? not WITH_MPI
+reks/Thymine_T1_rangesep               #? not WITH_MPI
+
 solvers/GaAs_2_ELPA2                   #? WITH_ELSI and MPI_PROCS == 8 and OMP_THREADS == 1
 solvers/Si32C32_ELPA1                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
 solvers/Si32C32_ELPA2                  #? WITH_ELSI and MPI_PROCS <= 4 and OMP_THREADS == 1
@@ -134,7 +154,16 @@ scc/HH_custom-ref                      #? MPI_PROCS <= 1
 spin/Fe4                               #? MPI_PROCS == 2 or not WITH_MPI
 spin/Fe4_commonFermi                   #? MPI_PROCS <= 2
 
+solvation/sasa_i10e                    #? MPI_PROCS <= 1
 solvation/gb_ionpair                   #? MPI_PROCS <= 1
+solvation/gb_reference                 #? MPI_PROCS <= 1
+solvation/gb_mol1bar                   #? MPI_PROCS <= 1
+solvation/gb_cm5                       #? MPI_PROCS <= 1
+solvation/gbsa_e35                     #? MPI_PROCS <= 1
+solvation/gbsa_caffeine                #? MPI_PROCS <= 1
+solvation/gbsa_param1                  #? MPI_PROCS <= 1
+solvation/gbsa_param2                  #? not WITH_MPI
+solvation/gbsa_param3                  #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
@@ -272,8 +301,8 @@ non-scc/Si_384                         #? MPI_PROCS <= 4
 md/DNA                                 #? MPI_PROCS <= 4
 md/DNA_Berendsen2                      #? MPI_PROCS <= 4
 md/ptcda-xlbomd                        #? MPI_PROCS <= 4
-md/SiC64-xlbomdfast-T0                 #? MPI_PROCS <= 4
-md/SiC64-xlbomdfast                    #? MPI_PROCS <= 4
+md/SiC64-xlbomdfast-T0                 #? MPI_PROCS <= 4 and LONG_TEST
+md/SiC64-xlbomdfast                    #? MPI_PROCS <= 4 and LONG_TEST
 
 timedep/C66O10N4H44_OscWindow          #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/C60_OscWindow                  #? WITH_ARPACK and MPI_PROCS <= 1
@@ -289,10 +318,11 @@ scc/SiC64+V_dynforce                   #? (MPI_PROCS <= 4 and MPI_PROCS % 2 == 0
 transport/CH4                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/GaAs                         #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CH4-poisson                  #? WITH_TRANSPORT and MPI_PROCS <= 4
+poisson/CH4-poisson                    #? MPI_PROCS <= 4
 transport/CNT                          #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/CNT_GF                       #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/C-chain_allSteps             #? WITH_TRANSPORT and MPI_PROCS <= 2
-transport/C-chain+U                    #? WITH_TRANSPORT and MPI_PROCS <= 2
+transport/C-chain+U                    #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
 transport/SiH-chain_allSteps           #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
 transport/SiH-chain_bin                #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
 transport/H-chain                      #? WITH_TRANSPORT and MPI_PROCS <= 4
@@ -302,13 +332,17 @@ transport/H-sheet_grp2                 #? WITH_TRANSPORT and MPI_PROCS <= 8 and 
 transport/H-sheet_grp4                 #? WITH_TRANSPORT and MPI_PROCS <= 16 and MPI_PROCS % 4 == 0
 transport/H-sheet_grp8                 #? WITH_TRANSPORT and MPI_PROCS <= 32 and MPI_PROCS % 8 == 0
 transport/H-3conts                     #? WITH_TRANSPORT and MPI_PROCS <= 4
-transport/SiH-chain                    #? WITH_TRANSPORT and MPI_PROCS <= 4
+transport/SiH-chain                    #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/SiH-chain-cont               #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/SiH-cont-poiss               #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/graphene_x                   #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/graphene3T                   #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/Au-chain                     #? WITH_TRANSPORT and MPI_PROCS <= 4
-transport/SiH-chain_semiInf            #? WITH_TRANSPORT and MPI_PROCS <= 2
+transport/SiH-chain_semiInf            #? WITH_TRANSPORT and MPI_PROCS <= 2 and LONG_TEST
 transport/local-curr                   #? WITH_TRANSPORT and MPI_PROCS <= 4 and LONG_TEST
 transport/polyacetylene_semiInf        #? WITH_TRANSPORT and MPI_PROCS <= 4
 transport/H-sheet_end                  #? WITH_TRANSPORT and MPI_PROCS <= 4
+
+pp-RPA/ethene                          #? not WITH_MPI
+pp-RPA/benzene_TammDancoff             #? not WITH_MPI
+pp-RPA/furan_OrbConst                  #? not WITH_MPI

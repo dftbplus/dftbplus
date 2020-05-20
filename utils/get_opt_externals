@@ -39,6 +39,8 @@ Possible choices for OPTEXT:
   slakos -- Parametrisations for testing DFTB+ [license: CC-BY-SA, UNRESTRICTED]
 
   dftd3 -- Library for calculating D3 dispersion [license: GPL, RESTRICTED]
+
+  gbsa -- Parametrisations for the GBSA model [license: CC-BY-SA, UNRESTRICTED]
 '''
 
 RESTRICTED_WARNING = """WARNING:
@@ -165,6 +167,23 @@ def get_dftd3(destdir):
         sys.stdout.write("    Skipping dftd3 download")
 
 
+def get_gbsa(destdir):
+    '''Downloads and extracts parametrizations for gbsa.'''
+
+    url = 'https://github.com/grimme-lab/gbsa-parameters/archive/6836c4d997e4135e418cfbe273c96b1a3adb13e2.tar.gz'
+    fname = os.path.join(destdir, 'gbsa-parameters.tar.gz')
+    unpackname = os.path.join(destdir, 'gbsa-parameters-6836c4d997e4135e418cfbe273c96b1a3adb13e2')
+    targetname = os.path.join(destdir, 'origin')
+    if os.path.exists(unpackname):
+        shutil.rmtree(unpackname)
+    if os.path.exists(targetname):
+        shutil.rmtree(targetname)
+    download_file(url, fname)
+    unpack_file(fname)
+    os.remove(fname)
+    os.rename(unpackname, targetname)
+
+
 def download_file(url, fname):
     '''Download file (currently via wget)'''
     print('Download:\n    {0}\n    from {1}'.format(fname, url))
@@ -241,7 +260,8 @@ def read_input():
 # Contains (function, targetfolder, restriction) tuples
 GETTERS = {
     'slakos': (get_slakos, 'slakos', UNRESTRICTED_EXTERNAL),
-    'dftd3': (get_dftd3, 'dftd3', RESTRICTED_EXTERNAL)
+    'dftd3': (get_dftd3, 'dftd3', RESTRICTED_EXTERNAL),
+    'gbsa': (get_gbsa, 'gbsa', UNRESTRICTED_EXTERNAL),
 }
 
 # All externals

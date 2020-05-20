@@ -13,7 +13,7 @@
 module dftbp_xlbomd
   use dftbp_assert
   use dftbp_accuracy
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_message
   use dftbp_extlagrangian
   implicit none

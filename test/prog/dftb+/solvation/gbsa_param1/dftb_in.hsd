@@ -1,0 +1,47 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(methanole)
+    ParamFile = "param_gbsa_methanol.txt"
+  }
+  SCC = Yes
+  SccTolerance = 1e-10
+  MaxAngularMomentum {
+    H = "s"
+    C = "p"
+    N = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  HubbardDerivs {
+     H = -0.1857
+     C = -0.1492
+     N = -0.1575
+  }
+  ThirdOrderFull = Yes
+  HCorrection = Damping {
+    Exponent = 4.0
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}
