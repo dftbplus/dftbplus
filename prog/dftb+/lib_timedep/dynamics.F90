@@ -1539,7 +1539,7 @@ contains
           iOrb2 = iSquare(iAt+1)
           nOrb = iOrb2 - iOrb1
           qBlock(:nOrb,:nOrb,iAt,iSpin) = qBlock(:nOrb,:nOrb,iAt,iSpin) + this%kWeight(iK) *&
-              & real(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin), rho(:,iOrb1:iOrb2-1,iSpin)))
+              & real(matmul(Ssqr(iOrb1:iOrb2-1,:,iSpin), rho(:,iOrb1:iOrb2-1,iSpin)), dp)
         end do
       end do
       do iAt = 1, this%nAtom
