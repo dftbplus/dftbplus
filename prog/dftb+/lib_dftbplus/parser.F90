@@ -2436,10 +2436,6 @@ contains
           call getChildValue(value1, "Threshold", ctrl%solver%elsi%elsi_zero_def, 1.0E-15_dp)
         end if
       end if
-      if (ctrl%t2Component .and. ctrl%solver%elsi%elsiCsr) then
-        call detailedError(value1,"Two-component hamiltonians currently cannot be used with sparse&
-            & ELSI solvers")
-      end if
     end if
 
   #:if WITH_TRANSPORT
