@@ -362,6 +362,13 @@ contains
     ! Number of spin channels passed to the ELSI library
     this%nSpin = min(nSpin, 2)
     this%iSpin = iSpin
+    if (any(this%iSolver == [electronicSolverTypes%ntpoly, electronicSolverTypes%omm])) then
+      if (nSpin == 4) then
+        this%nSpin = 2
+        this%iSpin = 1
+        this%nElectron = 2.0_dp * this%nElectron
+      end if
+    end if
     this%nKPoint = nKPoint
     this%iKPoint = iKPoint
     this%kWeight = kWeight
