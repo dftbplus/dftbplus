@@ -23,6 +23,7 @@ module dftbp_sasa
   private
 
   public :: TSASACont, TSASAInput, TSASACont_init
+  public :: writeSASAContInfo
 
 
   !> Input parameters to initialize the solvent accessible surface area model
@@ -251,6 +252,23 @@ contains
     end do
 
   end subroutine getIntegrationParam
+
+
+  !> Print the solvation model used
+  subroutine writeSASAContInfo(unit, solvation)
+
+    !> Formatted unit for IO
+    integer, intent(in) :: unit
+
+    !> Solvation model
+    type(TSASACont), intent(in) :: solvation
+
+    write(unit, '(a, ":", t30, es14.6, 1x, a, t50, i14, 1x, a)') "Grid points", &
+        & solvation%nAtom*real(size(solvation%angWeight, dim=1), dp), "total", &
+        & size(solvation%angWeight, dim=1), "per atom"
+
+  end subroutine writeSASAContInfo
+
 
   !> Update internal stored coordinates
   subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)

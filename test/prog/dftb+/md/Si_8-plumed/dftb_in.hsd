@@ -27,7 +27,7 @@ Driver = VelocityVerlet {
 
 Hamiltonian = DFTB {
   SCC = Yes
-  SCCTolerance = 1e-4
+  SCCTolerance = 1e-10 # extremly tight, only for test purposes
   MaxAngularMomentum = {
     Si = "p"
   }
