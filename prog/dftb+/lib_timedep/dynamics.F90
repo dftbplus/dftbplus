@@ -682,8 +682,10 @@ contains
     this%cellVec = cellVec
     tWriteAutotest = this%tWriteAutotest
     iCall = 1
-    if (size(this%polDirs) > 1) then
-      this%initCoord = coord
+    if (allocated(this%polDirs)) then
+      if (size(this%polDirs) > 1) then
+        this%initCoord(:,:) = coord
+      end if
     end if
     if (this%tKick) then
       do iPol = 1, size(this%polDirs)
@@ -1111,8 +1113,10 @@ contains
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, ePBondDat)
 
     if (this%tIons) then
-      if (size(this%polDirs) <  (this%nDynamicsInit + 1)) then
-        deallocate(this%pMDIntegrator)
+      if (allocated(this%polDirs)) then
+        if (size(this%polDirs) <  (this%nDynamicsInit + 1)) then
+          deallocate(this%pMDIntegrator)
+        end if
       end if
     end if
 
@@ -1774,10 +1778,10 @@ contains
     real(dp), allocatable, intent(out) :: rhoPrim(:,:)
 
     !> Square overlap matrix
-    complex(dp), intent(out) :: Ssqr(:,:,:)
+    complex(dp), intent(inout) :: Ssqr(:,:,:)
 
     !> Square overlap inverse
-    complex(dp), intent(out) :: Sinv(:,:,:)
+    complex(dp), intent(inout) :: Sinv(:,:,:)
 
     !> Square hamiltonian
     complex(dp), intent(out) :: H1(:,:,:)
@@ -1952,7 +1956,7 @@ contains
     type(TElecDynamics), intent(inout) :: this
 
     !> Density matrix at next step
-    complex(dp), intent(out) :: rhoNew(:,:,:)
+    complex(dp), intent(inout) :: rhoNew(:,:,:)
 
     !> Square overlap inverse
     complex(dp), intent(in) :: Sinv(:,:,:)
@@ -2513,7 +2517,7 @@ contains
     allocate(T2(this%nOrbs, this%nOrbs), T3(this%nOrbs, this%nOrbs))
 
     if (this%tRealHS) then
-      T2 = cmplx(eigvecsReal)
+      T2 = cmplx(eigvecsReal, 0, dp)
     else
       T2 = eigvecsCplx
     end if
@@ -2526,7 +2530,7 @@ contains
     Eiginv(:,:) = T3
 
     if (this%tRealHS) then
-      T2 = cmplx(transpose(eigvecsReal))
+      T2 = cmplx(transpose(eigvecsReal), 0, dp)
     else
       T2 = conjg(transpose(eigvecsCplx))
     end if
@@ -2763,7 +2767,7 @@ contains
     complex(dp), intent(inout) :: Sinv(:,:,:)
 
     !> Square overlap matrix
-    complex(dp), intent(inout) :: Ssqr(:,:,:)
+    complex(dp), intent(inout), allocatable :: Ssqr(:,:,:)
 
     !> Local sparse storage for non-SCC hamitonian
     real(dp), allocatable, intent(inout) :: ham0(:)
