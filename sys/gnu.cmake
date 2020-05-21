@@ -67,7 +67,7 @@ set(ELSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING
 # PEXSI -- only needed when ELSI was compiled with PEXSI support
 # Note: PEXSI usually needs explicit linking of the standard C++ library. Make sure to
 #     provide the library path to that C++ standard library, which was used to compile PEXSI.
-set(PEXSI_EXTERNAL_LIBRARIES "stdc++;mpi_cxx" CACHE STRING
+set(PEXSI_EXTERNAL_LIBRARIES "stdc++" CACHE STRING
   "Any EXTERNAL libraries PEXSI needs apart from its own libraries")
 set(PEXSI_EXTERNAL_LIBRARY_DIRS "/usr/lib/gcc/x86_64-linux-gnu/7" CACHE STRING
   "Directories with PEXSI external libraries")
