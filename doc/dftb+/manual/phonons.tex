@@ -5,7 +5,6 @@ The quantities that can be computed are phonon transmission function and, hence,
 the thermal conductance. The non-equilibrium Green's function formalism for phonon transport was used.
 Currently only coherent transport is possible based on a dynamical matrix.
 Phonon dispersion of materials can also be computed using this tool, based on a supercell geometry.
-A suitable supercell for phonon dispersions can be constructed using dptools.
 
 The input file must be named \verb|phonons_in.hsd| and should be a 
 Human-friendly Structured Data (HSD) formatted file (see Appendix \ref{sec:hsd}).
@@ -140,9 +139,7 @@ An example of the Hessian specification looks like:
 \begin{verbatim}
 Hessian {
    Cutoff = 50.0 
-   Matrix = dftb{
-	    <<<hessian.out
-    }
+   Matrix = dftb{}
 }
 \end{verbatim}
 
@@ -150,7 +147,9 @@ Hessian {
 
 \item[\is{Cutoff}] Specifies the range of interacting atoms in atomic units.
 \item[\iscb{Matrix}] Contains the second derivatives\index{Hessian} of the energy.
-
+     Setting \kw{dftb} Matrix type reads the file 'hessian.out'.
+     Currently the code can also support CP2K file format.
+    
 {\em Note}: for supercell calculations, the phonon transmission is obtained at the $\mathbf{q}=0$ 
 point, irrespective of the k-point sampling used to compute the Hessian.
  
@@ -167,8 +166,9 @@ Analysis {
   TunnelingAndDOS{
     FreqRange = 1e-6 1e-2
     FreqStep = 4e-5
-    Delta = 6e-4
-
+    DeltaModel = deltaOmega{
+      Delta = 1e-4
+    }
     Region = {
       Atoms = 1:50
     }
@@ -183,12 +183,16 @@ Analysis {
 
 \htcbsubsubsection{TunnelingAndDOS}
 
-This method block is used to calculate the transmission by means of the Caroli formula in terms of the phonon Green's functions of the device and the self-energies of the contacts. The density of states is also computed from the spectral function. This block can only be specified if an open boundary conditions system has been defined in \is{Transport} (see p.\pref{Transport}).
+This method block is used to calculate the transmission by means of the Caroli formula
+in terms of the phonon Green's functions of the device and the self-energies of the contacts.
+The density of states is also computed from the spectral function. This block can only be 
+specified if an open boundary conditions system has been defined in \is{Transport} 
+(see p.\pref{Transport}).
 
 \begin{ptable}
   \kw{FreqRange} & 2r &  & &  \\
   \kw{FreqStep} & r & &  &  \\
-  \kw{Delta} & r & & & \\
+  \kw{DeltaModel} & r & & & \\
   \kw{Region} & p & & \cb & \pref{pRegion} \\
 \end{ptable}
 
@@ -197,8 +201,22 @@ This method block is used to calculate the transmission by means of the Caroli f
   which the transmission function and local density of states are computed.
 \item[\is{FreqStep}]\modif{\modtype{energy}} Is the frequency sampling step for
   evaluating properties.
+\item[\is{DeltaModel}] Defines the frequency dependent model for $\delta$ in the
+	Green's function. Possible values are 'deltaSquared', 'deltaOmega' and 
+	'Mingo' model. 
+    The case 'deltaSquared' sets a constant value equal to \kw{Delta}*\kw{Delta}
+    for dimensional reasons.
+    The case 'deltaOmega' sets $\delta= \kw{Delta}* \omega$.
+    The Mingo model sets $\delta=f(\omega)*\omega^2$, where 
+    $f(\omega)=\kw{Delta}*(1+\omega/\omega_{max})$. In principles this model, as
+    suggested in \cite{Mingo}, should be good in the limit $\omega \rightarrow 0$, however
+    in some case it produces an extremly low value of $\delta$ that result in 
+    numerical problems. The 'deltaOmega' model is reccommended.
 \item[\is{Delta}]\modif{\modtype{energy}} Defines the imaginary frequency value 
-	for the phonon Green's function.
+	for the phonon Green's function. Note that in the Mingo model \kw{Delta} 
+	is just a dimensionless scaling factor.
+\item[\is{Wmax}]\modif{\modtype{energy}} Defines the cutoff frequency typically 
+	set as the maximal phonon frequency of the problem.
 \item[\iscb{Region}] \label{pRegion} This block defines atomic ranges on to which the  
 	density of states is projected. 
 	The definition in the block follow the same syntax as a \dftbp{} calculation without 
@@ -225,11 +243,14 @@ This method block is used to calculate the thermal conductance by means of the L
 \section{Phonon dispersion}
 
 In order to compute phonon dispersions the following steps must be followed. 
-1. Start from a bulk cell and generate a suitable supercell using dptools. 
-This supercell must have the central cell at the beginning and then the repeated cells must follow a 
-specific loop order over the supercell vectors. 
-2. Compute the Hessian for all atoms of this supercell.
-3. Run PHONONS for bandstructure calculations.
+1. Start from a bulk cell and accurately relax setting a large number of k-points and
+tight \kw{MaximalForceComponent}=$1e-5$. Allow \kw{LatticeOpt}=Yes.
+2. Generate a suitable supercell using \kw{repeatgen} in dptools. This supercell must 
+have the central cell at the beginning and then the repeated cells must follow. 
+Only odd repetitions are possible such as 3x3x3 or 5x5x5.
+4. Check the forces of this supercell are still very small. 
+5. Compute the Hessian for all atoms of this supercell.
+6. Run PHONONS for bandstructure calculations using the settings below.
 
 The relevant sections in the input file are:
 \begin{ptableh}
@@ -246,26 +267,26 @@ The PhononDispersion block looks like:
 
 \begin{verbatim}
 PhononDispersion{
-  	nAtomUnitCell = 4
-	 KPoints {
-  			 <<< kpath.dat
-  		}
+  SuperCell = 3 3 3
+  OutputUnits = cm
+  KPointsAndWeights= Klines{
+    1 0.5 0.5 0.5   # L
+   10 0.0 0.0 0.0  # Gamma 
+   10 0.5 0.0 0.5  # X
+  }
  }
 \end{verbatim}
 
 \begin{description}
-\item[\is{nAtomUnitCell}] Specifies the number of atoms in the unit cell. 
-\item[\iscb{KPoints}] Defines the k-point path for the phonon dispersion. 
+\item[\is{Supercell}] Specifies the number of repetitions of the unit cell along
+	the lattice vectors.
+	This must be the same as those set in repeatgen to generate the supercell
+	used for phonon calculations. Usually 3x3x3 supercells or in case of 
+	low-dimensional structures can be for instance 3x3x1 (2-dimension). 
+\item[\iscb{KPointsAndWeights}] Defines the k-point path for the phonon dispersion. 
+	The syntax is the same as that defined in the \dftbp{} input. 
+\item[\is[OutputUnits]] Specifies the output units. Can be one of 'H', 'eV', 'meV',
+	'cm, 'THz'. 
 \end{description} 
-
-The file of kpoints must be in the following format, 
-
-\begin{verbatim}
-nKPoints
-Kx Ky Kz weight
-Kx Ky Kz weight
-Kx Ky Kz weight
-...
-\end{verbatim}
 
 
