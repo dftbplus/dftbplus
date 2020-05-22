@@ -50,6 +50,7 @@ module dftbp_elsiiface
   public :: elsi_set_mpi, elsi_set_mpi_global
   public :: elsi_set_blacs
   public :: elsi_set_sing_check
+  public :: elsi_get_version
 
 
   !> Whether code was built with ELSI support
@@ -523,6 +524,11 @@ contains
     complex(r8), intent(in) :: mat(:,:)
     call stubError("elsi_write_mat_complex")
   end subroutine elsi_write_mat_complex
+
+
+  subroutine elsi_get_version(major, minor, patch)
+    integer, intent(out) :: major, minor, patch
+  end subroutine elsi_get_version
 
 #:endif
 

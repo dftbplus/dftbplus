@@ -14,6 +14,7 @@ module dftbp_elsisolver
 #:endif
   use dftbp_accuracy, only : dp, lc
   use dftbp_environment, only : TEnvironment, globalTimers
+  use dftbp_globalenv, only : stdOut
   use dftbp_elecsolvertypes, only : electronicSolverTypes
   use dftbp_elsiiface
   use dftbp_elsicsc
@@ -303,7 +304,18 @@ contains
     !> Should the matrices be written out
     logical, intent(in) :: tWriteHS
 
+
   #:if WITH_ELSI
+
+    integer :: major, minor, patch
+
+    call elsi_get_version(major, minor, patch)
+
+    write(stdOut,"(A,T30,I0,'.',I0,'.'I0)")'ELSI library version :',major, minor, patch
+
+    if (any([major, minor] /= [2,5])) then
+      call error("Unsuported ELSI version for DFTB+")
+    end if
 
     this%iSolver = inp%iSolver
 
@@ -875,13 +887,12 @@ contains
     end if
 
     Ef(:) = 0.0_dp
+    call elsi_get_mu(this%handle, Ef(iS))
     TS(:) = 0.0_dp
-    if (env%mpi%tGroupMaster) then
-      call elsi_get_mu(this%handle, Ef(iS))
+    if (any(this%iSolver == [electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+        & electronicSolverTypes%elpadm])) then
       call elsi_get_entropy(this%handle, TS(iS))
     end if
-    call mpifx_allreduceip(env%mpi%globalComm, Ef, MPI_SUM)
-    call mpifx_allreduceip(env%mpi%globalComm, TS, MPI_SUM)
 
     if (this%iSolver == electronicSolverTypes%pexsi) then
       call elsi_get_pexsi_mu_min(this%handle, this%pexsiMuMin)

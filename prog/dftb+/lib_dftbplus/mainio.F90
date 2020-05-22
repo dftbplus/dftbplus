@@ -2328,7 +2328,8 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd,&
+      & tSolv, cm5Cont)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2786,7 +2787,8 @@ contains
       end if
       if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
           & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-          & electronicSolverTypes%elpa, electronicSolverTypes%elpadm])) then
+          & electronicSolverTypes%elpa, electronicSolverTypes%elpadm,&
+          & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
         write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
         write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
             & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
@@ -2862,6 +2864,11 @@ contains
         & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
         & electronicSolverTypes%elpa])) then
       write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
+    end if
+    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
+        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
+        & electronicSolverTypes%elpa, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+        & electronicSolverTypes%elpadm])) then
       write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
           & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
     end if
