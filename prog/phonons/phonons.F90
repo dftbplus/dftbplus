@@ -8,31 +8,36 @@ program phonons
   use dftbp_environment
   use dftbp_initphonons
   use dftbp_accuracy, only : dp, lc
-  use dftbp_constants, only : Hartree__cm, Bohr__AA, pi
+  use dftbp_constants, only : Hartree__cm, Bohr__AA, Hartree__J, Hartree__eV, hbar, pi
+  use dftbp_simplealgebra, only : invert33
   use dftbp_typegeometry
   use dftbp_eigensolver, only : heev
   use dftbp_message
+  use dftbp_taggedoutput
   use libnegf_int
   use ln_structure
   implicit none
 
   type(TEnvironment) :: env
   logical :: tInitialized
-  real(dp), allocatable :: tunnTot(:,:), ldosTot(:,:), currLead(:)
+  real(dp), allocatable :: tunnTot(:,:), ldosTot(:,:), conductance(:,:)
+  real(dp), allocatable :: currLead(:)
   logical :: twriteLDOS
   logical :: twriteTunn
+  type (TTaggedWriter) :: taggedWriter
 
   call initGlobalEnv()
   call printHeader()
   call TEnvironment_init(env)
   call initProgramVariables(env)
+  call TTaggedWriter_init(taggedWriter)
 
   if (tCompModes) then
     call ComputeModes()
   end if
 
   if (tPhonDispersion) then
-    call PhononDispersion()
+    call PhononDispersion(taggedWriter)
   end if
 
   if (tTransport) then
@@ -46,8 +51,13 @@ program phonons
 
     call negf_init_str(geo%nAtom, transpar, neighbourList%iNeighbour, nNeighbour, img2CentCell)
    
-    call calc_phonon_current(env, dynMatrix, tunnTot, ldosTot, currLead, &
+    call calc_phonon_current(env, dynMatrix, tunnTot, ldosTot, currLead, conductance, &
                         & twriteTunn, twriteLDOS)  
+
+    if (tWriteTagged) then              
+      call writeTaggedOut(taggedWriter, tunnTot, ldosTot, conductance)      
+    end if
+
   end if
 
   call destructProgramVariables()
@@ -184,32 +194,62 @@ contains
 
   end subroutine ComputeModes
 
-  subroutine PhononDispersion()
+  subroutine PhononDispersion(tWriter)
+    type(TTaggedWriter) :: tWriter
 
     integer  :: ii, jj, kk, ll, nAtom,  iAtom,  iK, jAtom,  kAtom
-    integer  :: i2, j2, k2, fu
+    integer  :: i2, j2, k2, fu, ftag, nrep
     real(dp), allocatable :: eigenValues(:)
-    real(dp), allocatable :: DeltaR(:), q(:)
     real(dp)::  ModKPoint,  ModDeltaR
     character(lc) :: lcTmp, lcTmp2
     complex(dp), dimension(:,:), allocatable :: KdynMatrix
+    real(dp) :: latVecs(3,3), invLatt(3,3) 
+    real(dp) :: DeltaR(3), q(3), qold(3)
     complex(dp), parameter ::    j = (0.d0,1.d0)
-
+    real(dp) :: unitsConv
+      
     nAtom = geo%nAtom
 
+    call setConversionUnits(unitsConv)
+    
+    write(stdOut,*) 'supercell repetitions:' 
+    write(stdOut,*) nCells(1),'x',nCells(2),'x',nCells(3) 
+
+    latVecs(1,:) = geo%latVecs(1,:)/real(nCells(1),dp) 
+    latVecs(2,:) = geo%latVecs(2,:)/real(nCells(2),dp) 
+    latVecs(3,:) = geo%latVecs(3,:)/real(nCells(3),dp) 
+
+    call invert33(invLatt, latVecs) 
+    invLatt = transpose(invLatt) * 2.0_dp * pi
+    write(stdOut,*) 'reciprocal lattice vectors (*2*pi):'
+    write(stdOut,*) 'b1:',invLatt(1,:)
+    write(stdOut,*) 'b2:',invLatt(2,:)
+    write(stdOut,*) 'b3:',invLatt(3,:)
+
     allocate(KdynMatrix(3*nAtomUnitCell,3*nAtomUnitCell))
-    allocate(DeltaR(3))
-    allocate(q(3))
     allocate(eigenValues(3*nAtomUnitCell))
 
-    write(stdOut,*) 'Computing Phonon Dispersion'
-    open(newunit=fu, file='PhononDispersion.dat', action='write')
+    write(stdOut,*) 'Computing Phonon Dispersion (units '//trim(outputUnits)//')'
+    open(newunit=fu, file='phononDispersion.dat', action='write')
+    if (tWriteTagged) then
+      open(newunit=ftag, file=autotestTag) 
+    end if      
+
+    qold(1) = dot_product(invLatt(:,1), kPoint(:,1))
+    qold(2) = dot_product(invLatt(:,2), kPoint(:,1))
+    qold(3) = dot_product(invLatt(:,3), kPoint(:,1))
+    ModKpoint=0.0_dp
 
     do iK  = 1, nKPoints
       KdynMatrix(:,:) = 0.d0
-      q(:)  = KPoint(iK,:)
+      q(1) = dot_product(invLatt(:,1), kPoint(:,iK))
+      q(2) = dot_product(invLatt(:,2), kPoint(:,iK))
+      q(3) = dot_product(invLatt(:,3), kPoint(:,iK))
+
+      write(stdOut,*) ' q:',q(:)
       do  iAtom = 1,  nAtomUnitCell
         do  jAtom = 1, nAtomUnitCell
+          ! This loops over all periodic copies
           do  kAtom  = jAtom,  nAtom,  nAtomUnitCell
             DeltaR(:) = geo%Coords(:,kAtom)-geo%Coords(:,jAtom)
             i2 = 3*(iAtom-1)
@@ -221,19 +261,69 @@ contains
         end do
       end do
       
-      ModKPoint = dsqrt(q(1)**2.0+q(2)**2.0+q(3)**2.0)
- 
       ! solve the eigenproblem
       call heev(KdynMatrix,eigenValues,'U','N')
  
       ! take square root of modes (allowing for imaginary modes) and print
       eigenValues =  sign(sqrt(abs(eigenValues)),eigenValues)
  
+      ModKPoint = ModKPoint + sqrt(dot_product(q-qold,q-qold)) 
+      qold = q 
       do ii = 1, 3*nAtomUnitCell
-        write(fu,*) iK*1.0,  eigenValues(ii)*Hartree__cm
+        write(fu,*) ModKPoint,  eigenValues(ii)*unitsConv
       end do
+
+      if (tWriteTagged) then
+        call tWriter%write(ftag, "kpoint", kPoint(:,iK))
+        call tWriter%write(ftag, "bands", eigenValues)
+      end if
+
     end do
 
+
   end subroutine PhononDispersion
+
+  subroutine setConversionUnits(unitsConv)
+    real(dp), intent(out) :: unitsConv
+
+    select case(trim(outputUnits))  
+    case("H")
+      unitsConv = 1.0_dp    
+    case("eV")
+      unitsConv = Hartree__eV
+    case("meV")    
+      unitsConv = Hartree__eV*100.0_dp
+    case("cm")
+      unitsConv = Hartree__cm
+    case("THz")
+      unitsConv = Hartree__J/(hbar*2.0_dp*pi)*1e-12_dp
+    case default
+      unitsConv = 1.0_dp    
+    end select     
+  end subroutine setConversionUnits
+
+  subroutine writeTaggedOut(tWriter, tunnTot, ldosTot, conductance)      
+    type(TTaggedWriter) :: tWriter
+    real(dp), dimension(:,:) :: tunnTot
+    real(dp), dimension(:,:) :: ldosTot
+    real(dp), dimension(:,:) :: conductance
+
+    integer :: fu
+
+    open(newunit=fu,file=autotestTag,form="formatted", status="replace")
+   
+    if (size(tunnTot) > 0) then 
+      call tWriter%write(fu,"transmission",tunnTot)
+    end if
+    if (size(ldosTot) > 0) then 
+      call tWriter%write(fu,"PDOS",ldosTot)
+    end if
+    if (size(conductance) > 0) then 
+      call tWriter%write(fu,"conductance",conductance)
+    end if
+
+    close(fu)
+
+  end subroutine writeTaggedOut
 
 end program phonons 

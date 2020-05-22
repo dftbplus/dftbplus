@@ -2,7 +2,13 @@ geometry = genformat {
 <<< "c24.gen"
 }
 
-#Driver = ConjugateGradient{}
+#Driver = ConjugateGradient{
+#  LatticeOpt = Yes
+#  FixAngles = Yes
+#  FixLengths = {Yes Yes No}
+#  MaxForceComponent = 1e-5
+#}
+
 Driver = SecondDerivatives{}
 
 Hamiltonian = dftb {
@@ -36,7 +42,11 @@ Hamiltonian = dftb {
 
 options = {
   #CalculateForces = yes
-  writeautotesttag = no 
+  writeautotesttag = no  
+}
+
+Parallel{
+  UseOmpThreads = Yes
 }
 
 parseroptions = {

@@ -24,19 +24,21 @@ module dftbp_initphonons
   use dftbp_unitconversion
   use dftbp_linkedlist
   use dftbp_oldskdata
-  use libnegf_vars
   use dftbp_wrappedintr
+  use dftbp_simplealgebra
+  use libnegf_vars
   implicit none
   private
 
   character(len=*), parameter :: rootTag = "phonons"
+  character(len=*), parameter :: autotestTag = "autotest.tag"
   character(len=*), parameter :: hsdInput = "phonons_in.hsd"
   character(len=*), parameter :: hsdParsedInput = "phonons_pin.hsd"
   character(len=*), parameter :: xmlInput = "phonons_in.xml"
   character(len=*), parameter :: xmlParsedInput = "phonons_pin.xml" 
 
   public :: initProgramVariables, destructProgramVariables
-  public :: TPdos
+  public :: TPdos, autotestTag
 
   type TPdos 
     type(TWrappedInt1), allocatable :: iAtInRegion(:)
@@ -61,13 +63,15 @@ module dftbp_initphonons
   !> verbose flag
   logical, public :: tVerbose         
 
-  !> Variables from the Option block
+  !> Core Variables 
   real(dp), allocatable, public :: atomicMasses(:)
   real(dp), allocatable, public :: dynMatrix(:,:)
   integer, allocatable, public :: iMovedAtoms(:)
-  integer, public :: nMovedAtom
-  real(dp), allocatable, public :: KPoint(:,:), KWeight(:)
-  integer, public :: nKPoints,  nAtomUnitCell
+  integer, public :: nMovedAtom, nAtomUnitCell
+
+  !> Kpoints information
+  real(dp), allocatable, public :: kPoint(:,:), kWeight(:)
+  integer, public :: nKPoints
   
   !> maps atom index in central cell
   integer, allocatable, public  :: Img2CentCell(:) 
@@ -102,7 +106,7 @@ module dftbp_initphonons
   !> Whether modes should be animated
   logical, public :: tAnimateModes
 
-  !> ???
+  !> 
   logical, public :: tXmakeMol
 
   !>
@@ -110,6 +114,15 @@ module dftbp_initphonons
 
   !> whether phonon dispersions should be computed
   logical, public :: tPhonDispersion
+
+  !> number of repeated cells along lattice vectors 
+  integer, public :: nCells(3)
+
+  !> whether phonon dispersions should be computed
+  character(4), public :: outputUnits
+
+  !> whether taggedoutput should be written
+  logical, public :: tWriteTagged
 
   !> Which phonon modes to animate
   integer, allocatable, public :: modesToPlot(:)
@@ -134,6 +147,7 @@ module dftbp_initphonons
     logical :: tStop                        ! stop after parsing?
     logical :: tIgnoreUnprocessed           ! Continue despite unprocessed nodes
     logical :: tWriteXML, tWriteHSD         ! XML or HSD output?
+    logical :: tWriteTagged                 ! write TaggedOutput   
   end type TParserFlags
 
   !> constants parameters
@@ -160,19 +174,17 @@ contains
     type(string) :: buffer, buffer2, modif
     integer :: inputVersion
     integer :: ii, iSp1, iAt
-    logical :: tHSD, reqMass
+    logical :: tHSD, reqMass, tBadKPoints
     real(dp), allocatable :: speciesMass(:)
     integer :: nDerivs, nGroups
     type(TParserflags) :: parserFlags
-  
+    type(TListIntR1) :: li1
+     
     integer :: cubicType, quarticType
    
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
-    !call env%initGlobalTimer(input%ctrl%timingLevel, "phonon running times", stdOut)
-    !call env%globalTimer%startTimer(globalTimers%globalInit)
-    
     nGroups = 1
 #:if WITH_MPI    
     call env%initMpi(nGroups)
@@ -190,9 +202,9 @@ contains
 
     !! Check if input version is the one, which we can handle
     !! Handle parser options
-    call getChildValue(root, "ParserOptions", tmp, "", child=child, &
+    call getChildValue(root, "Options", tmp, "", child=child, &
         &list=.true., allowEmptyValue=.true.)
-    call readParserOptions(child, root, parserFlags)
+    call readOptions(child, root, parserFlags)
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, geo)
@@ -244,9 +256,19 @@ contains
     call getChild(root, "PhononDispersion", child=node, requested=.false.)
     if  (associated(node))  then
       tPhonDispersion = .true.
-      call getChildValue(node, "nAtomUnitCell", nAtomUnitCell, 0)
-      call getChild(node, "KPoints", child=value, requested=.true.)
-      call readKPointsFile(value)
+      call init(li1)
+      call getChildValue(node, "supercell", 3, li1)
+      call asVector(li1, nCells)
+      call destruct(li1)
+      nAtomUnitCell = geo%nAtom/(nCells(1)*nCells(2)*nCells(3))
+      call getChildValue(node, "outputUnits", buffer, "H")
+      select case(trim(char(buffer)))
+      case("H", "eV" , "meV", "THz", "cm")
+        outputUnits=trim(char(buffer))
+      case default      
+        call detailedError(node,"Uknown outputUnits "//trim(char(buffer)))
+      end select    
+      call readKPoints(node, geo, tBadKpoints)
     else
       tPhonDispersion = .false.
     end if
@@ -314,6 +336,9 @@ contains
         &allowEmptyValue=.true., dummyValue=.true.)
 
     if (associated(tmp)) then
+      if (tPhonDispersion) then
+         call detailedError(root, "Analysis and PhononDispersion cannot coexist")    
+      end if      
       call readAnalysis(child, geo, pdos, tundos, transpar, atTemperature)
     endif   
 
@@ -360,7 +385,7 @@ contains
   !!* @param node Node to get the information from
   !!* @param root Root of the entire tree (in the case it must be converted)
   !!* @param flags Contains parser flags on exit.
-  subroutine readParserOptions(node, root, flags)
+  subroutine readOptions(node, root, flags)
     type(fnode), pointer :: node
     type(fnode), pointer :: root
     type(TParserFlags), intent(out) :: flags
@@ -380,6 +405,7 @@ contains
           &// i2c(inputVersion) // " (too old)")
     end if
 
+    call getChildValue(node, "WriteAutotestTag", tWriteTagged, .false.)
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
     call getChildValue(node, "WriteXMLInput", flags%tWriteXML, .false.)
     if (.not. (flags%tWriteHSD .or. flags%tWriteXML)) then
@@ -394,7 +420,7 @@ contains
     call getChildValue(node, "IgnoreUnprocessedNodes", &
         &flags%tIgnoreUnprocessed, .false.)
 
-  end subroutine readParserOptions
+  end subroutine readOptions
 
   !!* Read in the geometry stored as xml in internal or gen format.
   !!* @param geonode Node containing the geometry
@@ -415,7 +441,14 @@ contains
       call setUnprocessed(value)
       call readTGeometryHSD(child, geo)
     end select
-    
+   
+    if (geo%tPeriodic) then 
+      write(stdOut,*) 'supercell lattice vectors:'
+      write(stdOut,*) 'a1:',geo%latVecs(1,:)
+      write(stdOut,*) 'a2:',geo%latVecs(2,:)
+      write(stdOut,*) 'a3:',geo%latVecs(3,:)
+    end if
+
   end subroutine readGeometry
 
   !!* Read geometry information for transport calculation
@@ -612,7 +645,8 @@ contains
       write(stdOut,*) ((geom%coords(3,iStart:iStart2-1) - geom%coords(3,iStart2:iEnd) &
           &- spread(contactVec(3), dim=1, ncopies=iStart2-iStart)))
       call error("Contact " // i2c(id) &
-          &// " does not consist of two rigidly shifted layers")
+          &// " does not consist of two rigidly shifted layers."//new_line('a') &
+          &// "Check structure or increase PLShiftTolerance.")
     end if
 
     contactDir = 0
@@ -732,6 +766,154 @@ contains
 
   end subroutine readMasses
   
+  !> K-Points
+  subroutine readKPoints(node, geo, tBadIntegratingKPoints)
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+    
+    !> Error check
+    logical, intent(out) :: tBadIntegratingKPoints
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer, modifier
+    integer :: ind, ii, jj, kk
+    real(dp) :: coeffsAndShifts(3, 4)
+    real(dp) :: rTmp3(3)
+    type(TListIntR1) :: li1
+    type(TListRealR1) :: lr1
+    integer, allocatable :: tmpI1(:)
+    real(dp), allocatable :: kpts(:,:)
+    character(lc) :: errorStr
+
+    ! Assume SCC can has usual default number of steps if needed
+    tBadIntegratingKPoints = .false.
+
+    ! K-Points
+    if (geo%tPeriodic) then
+      call getChildValue(node, "KPointsAndWeights", value1, child=child, &
+          &modifier=modifier)
+      call getNodeName(value1, buffer)
+      select case(char(buffer))
+
+      case ("supercellfolding")
+        tBadIntegratingKPoints = .false.
+        if (len(modifier) > 0) then
+          call detailedError(child, "No modifier is allowed, if the &
+              &SupercellFolding scheme is used.")
+        end if
+        call getChildValue(value1, "", coeffsAndShifts)
+        if (abs(determinant33(coeffsAndShifts(:,1:3))) - 1.0_dp < -1e-6_dp) then
+          call detailedError(value1, "Determinant of the supercell matrix must &
+              &be greater than 1")
+        end if
+        if (any(abs(modulo(coeffsAndShifts(:,1:3) + 0.5_dp, 1.0_dp) - 0.5_dp) &
+            &> 1e-6_dp)) then
+          call detailedError(value1, "The components of the supercell matrix &
+              &must be integers.")
+        end if
+        call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
+            & kPoint, kWeight, reduceByInversion=.true.)
+        
+        nKPoints = size(kPoint, dim=2)
+
+      case ("klines")
+        ! probably unable to integrate charge for SCC
+        tBadIntegratingKPoints = .true.
+        call init(li1)
+        call init(lr1)
+        call getChildValue(value1, "", 1, li1, 3, lr1)
+        if (len(li1) < 1) then
+          call detailedError(value1, "At least one line must be specified.")
+        end if
+        allocate(tmpI1(len(li1)))
+        allocate(kpts(3, 0:len(lr1)))
+        call asVector(li1, tmpI1)
+        call asArray(lr1, kpts(:,1:len(lr1)))
+        kpts(:,0) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
+        call destruct(li1)
+        call destruct(lr1)
+        if (any(tmpI1 < 0)) then
+          call detailedError(value1, "Interval steps must be greater equal to &
+              &zero.")
+        end if
+        nKPoints = sum(tmpI1)
+        if (nKPoints < 1) then
+          call detailedError(value1, "Sum of the interval steps must be greater &
+              &than zero.")
+        end if
+        ii = 1
+        do while (tmpI1(ii) == 0)
+          ii = ii + 1
+        end do
+        allocate(kPoint(3, nKPoints))
+        allocate(kWeight(nKPoints))
+        ind = 1
+        do jj = ii, size(tmpI1)
+          if (tmpI1(jj) == 0) then
+            cycle
+          end if
+          rTmp3 = (kpts(:,jj) - kpts(:,jj-1)) / real(tmpI1(jj), dp)
+          do kk = 1, tmpI1(jj)
+            kPoint(:,ind) = kpts(:,jj-1) + real(kk, dp) * rTmp3
+            ind = ind + 1
+          end do
+        end do
+        kWeight(:) = 1.0_dp
+        if (len(modifier) > 0) then
+          select case (tolower(char(modifier)))
+          case ("relative")
+          case ("absolute")
+            kPoint(:,:) =  matmul(transpose(geo%latVecs), kPoint)
+            kpts(:,:) = matmul(transpose(geo%latVecs), kpts)
+          case default
+            call detailedError(child, "Invalid modifier: '" // char(modifier) &
+                &// "'")
+          end select
+        end if
+        deallocate(tmpI1)
+        deallocate(kpts)
+
+      case (textNodeName)
+
+        ! no idea, but assume user knows what they are doing
+        tBadIntegratingKPoints = .false.
+
+        call init(lr1)
+        call getChildValue(child, "", 4, lr1, modifier=modifier)
+        if (len(lr1) < 1) then
+          call detailedError(child, "At least one k-point must be defined.")
+        end if
+        nKPoints = len(lr1)
+        allocate(kpts(4, nKPoints))
+        call asArray(lr1, kpts)
+        call destruct(lr1)
+        if (len(modifier) > 0) then
+          select case (tolower(char(modifier)))
+          case ("relative")
+            continue
+          case ("absolute")
+            kpts(1:3,:) =  matmul(transpose(geo%latVecs), kpts(1:3,:))
+          case default
+            call detailedError(child, "Invalid modifier: '" // char(modifier) &
+                &// "'")
+          end select
+        end if
+        allocate(kPoint(3, nKPoints))
+        allocate(kWeight(nKPoints))
+        kPoint(:,:) = kpts(1:3, :)
+        kWeight(:) = kpts(4, :)
+        deallocate(kpts)
+      case default
+        call detailedError(value1, "Invalid K-point scheme")
+      end select
+    end if
+
+  end subroutine readKPoints
+
   subroutine  readKPointsFile(child)
     type(fnode),  pointer ::  child
     type(string) :: text
@@ -746,15 +928,15 @@ contains
     character(len=*), intent(in) :: text
     integer :: iStart, iErr=0, ii, iOldStart
     real(dp), dimension(:), allocatable :: tmparray
-    real(dp), dimension(:,:), allocatable :: KPoint2
+    real(dp), dimension(:,:), allocatable :: kpts 
 
     iStart = 1
     call getNextToken(text, nKPoints, iStart, iErr)
 
     allocate(tmparray(4))
-    allocate(KPoint2(nKPoints,4))
-    allocate(KPoint(nKPoints,3))
-    allocate(KWeight(nKPoints))
+    allocate(kpts(4, nKPoints))
+    allocate(kPoint(3, nKPoints))
+    allocate(kWeight(nKPoints))
 
     iErr = -2 !TOKEN_ERROR
     iOldStart = iStart
@@ -762,17 +944,13 @@ contains
 
     do ii = 1, nKPoints
       call getNextToken(text, tmparray, iStart, iErr)
-      KPoint2(ii,:) = tmparray(:)
+      kpts(:, ii) = tmparray(:)
     end do
 
     do ii = 1, nKPoints
-        KPoint(ii,1:3)  = KPoint2(ii,1:3)
-        KWeight(ii)  = KPoint2(ii,4)
+        kPoint(1:3, ii)  = kpts(1:3, ii)
+        kWeight(ii)  = kpts(4, ii)
     end do
-
-    do ii = 1, nKPoints
-      print*, KPoint(ii,1:3)
-    enddo
 
   end subroutine readKPointsFile_help
       
@@ -987,7 +1165,8 @@ contains
     type(fnode), pointer :: val, child, field
     type(string) :: modif 
     type(fnodeList), pointer :: children
-   
+    logical :: tBadKpoints 
+
     call getChild(node, "TunnelingAndDOS", child, requested=.false.)
     if (associated(child)) then
       if (.not.tTransport) then
@@ -995,6 +1174,8 @@ contains
       end if
       call readTunAndDos(child, geo, tundos, transpar, maxval(transpar%contacts(:)%kbT) )
     endif
+      
+    call readKPoints(node, geo, tBadKpoints)
 
     call getChild(node, "Conductance", child, requested=.false.)
     if (associated(child)) then
@@ -1054,8 +1235,7 @@ contains
     type(TTransPar), intent(inout) :: transpar
     real(dp), intent(in) :: temperature
 
-    type(fnode), pointer :: pTmp, field
-    type(fnode), pointer :: pGeom, pDevice, pNode
+    type(fnode), pointer :: pNode, pTmp, field
     type(fnodeList), pointer :: pNodeList
     integer :: ii, jj, ind, ncont, nKT
     real(dp) :: eRange(2), eRangeDefault(2) 
@@ -1082,9 +1262,14 @@ contains
     call getChildValue(root, "FreqRange", eRange, eRangeDefault, &
          & modifier=modif, child=field)
     call convertByMul(char(modif), energyUnits, field, eRange)
+    tundos%emin = eRange(1)
+    tundos%emax = eRange(2)
 
     if (eRange(1).le.0.d0) then
        call detailedError(root, "FreqRange must be > 0")
+    end if 
+    if (eRange(2).lt.eRange(1)) then
+       call detailedError(root, "Emax < Emin")
     end if 
 
     call getChildValue(root, "FreqStep", tundos%estep, 1.0e-5_dp,  &
@@ -1120,10 +1305,10 @@ contains
         end do
       end do
     end if
-    call getChildValue(root, "Delta", tundos%delta, &
-        &1.0e-7_dp, modifier=modif, child=field)
-    call convertByMul(char(modif), energyUnits, field, &
-        &tundos%delta)
+  
+    call getChild(root, "DeltaModel", pNode)
+    call readDeltaModel(pNode, tundos) 
+
     call getChildValue(root, "BroadeningDelta", tundos%broadeningDelta, &
         &0.0_dp, modifier=modif, child=field)
     call convertByMul(char(modif), energyUnits, field, &
@@ -1135,9 +1320,6 @@ contains
 
     call addAtomResolvedRegion(tundos%dosOrbitals, tundos%dosLabels)
 
-    tundos%emin = eRange(1)
-    tundos%emax = eRange(2)
-   
     call setTypeOfModes(root, transpar)
 
       
@@ -1172,6 +1354,7 @@ contains
         end do
        
       end subroutine addAtomResolvedRegion
+      
 
   end subroutine readTunAndDos
     
@@ -1221,6 +1404,46 @@ contains
     end if
 
   end function getContactByName
+      
+  ! Set model for w-dependent delta in G.F.  
+  subroutine readDeltaModel(root, tundos)
+    type(fnode), pointer :: root
+    type(TNEGFTunDos), intent(inout) :: tundos
+
+    type(fnode), pointer :: pValue, pChild, field
+    type(string) :: buffer, modif 
+
+    call getChildValue(root, "", pValue, child=pChild)
+    call getNodeName(pValue, buffer)
+    ! Delta is repeated to allow different defaults if needed
+    select case (trim(char(buffer)))
+    case("deltasquared")
+      call getChildValue(pValue, "Delta", tundos%delta, &
+          &0.0001_dp, modifier=modif, child=field)
+      call convertByMul(char(modif), energyUnits, field, tundos%delta)
+      tundos%deltaModel=0
+    case("deltaomega")
+      call getChildValue(pValue, "Delta", tundos%delta, &
+          &0.0001_dp, modifier=modif, child=field)
+      call convertByMul(char(modif), energyUnits, field, tundos%delta)
+      tundos%deltaModel=1
+    case("mingo")
+      ! As in Numerical Heat transfer, Part B, 51:333, 2007, Taylor&Francis.    
+      ! Here Delta is just a dimensionless scaling factor
+      call getChildValue(pValue, "Delta", tundos%delta, 0.0001_dp)
+      ! We set a cutoff frequency of 2000 cm^-1. 
+      call getChildValue(pValue, "Wmax", tundos%wmax, &
+          &0.009_dp, modifier=modif, child=field)
+      call convertByMul(char(modif), energyUnits, field, tundos%delta)
+      tundos%deltaModel=2
+      ! If Emax >> Wmax delta becomes negative
+      if (tundos%Emax > tundos%Wmax) then
+        call detailedError(pValue,"In Mingo model check Wmax <= Emax")
+      end if      
+    case default
+      call detailedError(pValue,"Uknown deltaModel "//trim(char(buffer)))
+    end select
+  end subroutine ReadDeltaModel
 
   ! Build a simple neighbor list. Currently does not work for periodic systems.
   ! Have to fix this important point

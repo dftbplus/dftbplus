@@ -27,6 +27,7 @@ module libnegf_int
   use libnegf, only : getel, lnParams, pass_DM, Tnegf
   use libnegf, only : kb, units, convertHeatCurrent, convertHeatConductance
   use libnegf, only : z_CSR, z_DNS, READ_SGF, COMP_SGF, COMPSAVE_SGF
+  use libnegf, only : DELTA_SQ, DELTA_W, DELTA_MINGO 
   use libnegf, only : associate_lead_currents, associate_ldos, associate_transmission
   use libnegf, only : compute_phonon_current, thermal_conductance 
   use libnegf, only : create, create_scratch, destroy, set_readoldDMsgf
@@ -98,13 +99,12 @@ module libnegf_int
     
 
     ! local variables
-    integer :: i,error, l, ncont, nc_vec(1), j, nldos
+    integer :: i, l, ncont, nc_vec(1), j, nldos
     integer, dimension(:), allocatable :: sizes  
     ! string needed to hold processor name
     character(:), allocatable :: hostname
     type(lnParams) :: parms
    
-    error = 0 
     initinfo = .true.       
 
     pNegf=>negf
@@ -158,6 +158,17 @@ module libnegf_int
 
     if (tundos%defined) then
       parms%verbose = tundos%verbose
+      select case (tundos%deltaModel)
+      case(DELTA_SQ)
+        parms%deltaModel = DELTA_SQ
+      case(DELTA_W)  
+        parms%deltaModel = DELTA_W
+      case(DELTA_MINGO)  
+        parms%deltaModel = DELTA_MINGO
+      case default
+        call error('Internal error deltaModel not properly set')
+      end select   
+      parms%Wmax = tundos%Wmax
       parms%delta = tundos%delta      ! delta for G.F.
       parms%dos_delta = tundos%broadeningDelta
 
@@ -236,7 +247,7 @@ module libnegf_int
     ncont = transpar%ncont
     nbl = transpar%nPLs
     if (nbl.eq.0) then
-       STOP 'Internal ERROR: nbl = 0 ?!'
+      call error('Internal ERROR: nbl = 0 ?!')
     end if 
 
     allocate(PL_end(nbl))
@@ -296,9 +307,9 @@ module libnegf_int
 
        do j1 = 1, ncont      
           if (count(minv(:,j1).eq.j1).gt.1) then
-             write(*,*) 'ERROR: contact',j1,'interacts with more than one PL'
-             write(*,*) minv(:,j1)
-             stop
+             write(stdOut,*) 'Contact',j1,'interacts with more than one PL:'
+             write(stdOut,*) 'PLs:',minv(:,j1)
+             call error('check cutoff value or PL size') 
           end if
           do m = 1, transpar%nPLs
              if (minv(m,j1).eq.j1) cblk(j1) = m
@@ -347,7 +358,7 @@ module libnegf_int
   ! INTERFACE subroutine to call phonon current computation
   !------------------------------------------------------------------------------    
   subroutine calc_phonon_current(env, DynMat, tunnMat, ldosMat, &
-                        & currLead, twriteTunn, twriteLDOS)  
+                        & currLead, conductance, twriteTunn, twriteLDOS)  
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -363,6 +374,9 @@ module libnegf_int
 
     !> current into/out of contacts
     real(dp), allocatable, intent(inout) :: currLead(:)
+
+    !> thermal conductance
+    real(dp), allocatable, intent(inout) :: conductance(:, :)
 
     !> should tunneling data be written
     logical, intent(in) :: tWriteTunn
@@ -403,15 +417,12 @@ module libnegf_int
       zDynMat%val = DynMat
 
       nnz = nzdrop(zDynMat,cutoff)
-print*,'create csr nnz=',nnz
       call create(csrHam, zDynMat%nrow, zDynMat%ncol, nnz)
-print*,'dn2csr'
 
       call dns2csr(zDynMat, csrHam)
    
       call destroy(zDynMat)
-
-print*,'negf_phonon_current'
+      
       call negf_phonon_current(pCsrHam, iK, kWeights(iK), &
             tunnPMat, ldosPMat, currPVec)
 
@@ -459,19 +470,22 @@ print*,'negf_phonon_current'
       if (tIOProc .and. twriteTunn) then
         filename = 'transmission'
         call write_file(negf, tunnMat, tunnSKRes, filename, kpoints, kWeights)
-      
+     
         open(newunit=fu,file='conductance.dat',action='write')
         emin = negf%Emin*negf%eneconv
         emax = negf%Emax*negf%eneconv
         estep = negf%Estep*negf%eneconv
         ntemp=nint((TempMax-TempMin)/TempStep)
+        allocate(conductance(ntemp,size(tunnMat,2)+1)) 
         do ii = 1, size(tunnMat,2)
           write(fu,*) '# T [K]', 'Thermal Conductance [W/K]'  
           do jj = 1, ntemp
             TT1 = TempMin + TempStep*(jj-1)
             kappa = thermal_conductance(tunnMat(:,ii),TT1,emin,emax,estep) 
             kappa = kappa * convertHeatConductance(HessianUnits,HeatCondUnits)
-            write(fu,*)  TT1/kb, kappa  
+            write(fu,*)  TT1/kb, kappa
+            conductance(jj,1) = TT1/kb
+            conductance(jj,ii+1) = kappa  
           end do
         end do
       endif 
@@ -552,8 +566,9 @@ print*,'negf_phonon_current'
 
   end subroutine negf_phonon_current
 
-  subroutine printH(H)
-    type(z_CSR) :: H
+  subroutine printH(fu, H)
+    integer, intent(in) :: fu    
+    type(z_CSR), intent(in) :: H
 
     type(z_DNS) :: tmp
     integer :: ii, jj
@@ -564,14 +579,13 @@ print*,'negf_phonon_current'
     call csr2dns(H,tmp)
 
     maxv = maxval(abs(tmp%val)) 
-    print*,'maxval= ',maxv
-    print*,'Normalized Dynamical Matrix:'
+    write(fu, *) 'Normalized Dynamical Matrix:'
 
     do ii = 1, tmp%nrow, 3
        do jj = 1, tmp%ncol, 3
-          write(*,'(F8.4)',advance='no') real(tmp%val(ii,jj))/maxv
+          write(fu,'(F8.4)',advance='no') real(tmp%val(ii,jj))/maxv
        end do 
-       write(*,*)
+       write(fu,*)
     end do
 
     call destroy(tmp)
@@ -590,7 +604,9 @@ print*,'negf_phonon_current'
     if (associated(pMat)) then
       if(.not.allocated(pTot)) then 
         allocate(pTot(size(pMat,1), size(pMat,2)), stat=err)
-        if (err/=0) STOP 'Allocation error (tunnMat)'
+        if (err/=0) then
+          call error('Allocation error (tunnMat)')
+        end if
         pTot = 0.0_dp
       endif
       pTot = pTot + pMat
@@ -598,7 +614,9 @@ print*,'negf_phonon_current'
       if (nK.gt.1) then
         if(.not.allocated(pSKRes)) then 
           allocate(pSKRes(size(pMat,1), size(pMat,2), nK), stat=err)
-          if (err/=0) STOP 'Allocation error (tunnSKRes)'
+          if (err/=0) then
+            call error('Allocation error (SKMat)')
+          end if
           pSKRes = 0.0_dp
         endif
         pSKRes(:,:,iK) = pMat(:,:)
