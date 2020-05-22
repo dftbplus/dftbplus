@@ -1175,7 +1175,7 @@ contains
       call readTunAndDos(child, geo, tundos, transpar, maxval(transpar%contacts(:)%kbT) )
     endif
       
-    call readKPoints(node, geo, tBadKpoints)
+    !call readKPoints(node, geo, tBadKpoints)
 
     call getChild(node, "Conductance", child, requested=.false.)
     if (associated(child)) then
