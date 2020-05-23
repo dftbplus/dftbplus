@@ -18,6 +18,7 @@ module dftbp_parser
   use dftbp_hsdparser, only : getNodeHSDName, parseHSD
   use dftbp_hsdutils
   use dftbp_hsdutils2
+  use dftbp_specieslist, only : readSpeciesList
   use dftbp_charmanip
   use dftbp_message
   use dftbp_linkedlist
@@ -3922,15 +3923,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
     case ("defaults")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
-            & kChiDefault(iSp1), child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%chi, kChiDefault)
     case ("values")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
-            & child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%chi)
     end select
 
     call getChildValue(node, "Gam", value1, "Defaults", child=child)
@@ -3939,15 +3934,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
     case ("defaults")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
-            & kGamDefault(iSp1), child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%gam, kGamDefault)
     case ("values")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
-            & child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%gam)
     end select
 
     call getChildValue(node, "Kcn", value1, "Defaults", child=child)
@@ -3956,15 +3945,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
     case ("defaults")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
-            & kKcnDefault(iSp1), child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%kcn, kKcnDefault)
     case ("values")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
-            & child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%kcn)
     end select
 
     call getChildValue(node, "Rad", value1, "Defaults", child=child)
@@ -3973,15 +3956,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
     case ("defaults")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
-            & kRadDefault(iSp1), child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%rad, kRadDefault)
     case ("values")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
-            & child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%rad)
     end select
 
     call getChildValue(node, "Cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
@@ -4052,15 +4029,10 @@ contains
       case("paulingen")
         allocate(kENDefault(geo%nSpecies))
         kENDefault(:) = getElectronegativity(geo%speciesNames)
-        do iSp = 1, geo%nSpecies
-          call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), &
-              & kENDefault(iSp), child=child2)
-        end do
+        call readSpeciesList(value2, geo%speciesNames, input%en, kENDefault)
         deallocate(kENDefault)
       case("values")
-        do iSp = 1, geo%nSpecies
-          call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), child=child2)
-        end do
+        call readSpeciesList(value2, geo%speciesNames, input%en)
       end select
       if (any(input%en <= 0.0_dp)) then
         call detailedError(value1, "Electronegativities are not defined for all species")
@@ -4079,15 +4051,10 @@ contains
     case("covalentradiid3")
       allocate(kRadDefault(geo%nSpecies))
       kRadDefault(:) = getCovalentRadius(geo%speciesNames)
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), &
-            & kRadDefault(iSp), child=child2)
-      end do
+      call readSpeciesList(value2, geo%speciesNames, input%covRad, kRadDefault)
       deallocate(kRadDefault)
     case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), child=child2)
-      end do
+      call readSpeciesList(value2, geo%speciesNames, input%covRad)
     end select
 
     if (any(input%covRad <= 0.0_dp)) then
@@ -4335,10 +4302,8 @@ contains
       call getChildValue(child, "NrOfExcitations", ctrl%pprpa%nexc)
 
       call getChildValue(child, "HHubbard", value, child=child2)
-      ALLOCATE(ctrl%pprpa%hhubbard(geo%nSpecies))
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(child2, geo%speciesNames(iSp1), ctrl%pprpa%hhubbard(iSp1))
-      end do
+      allocate(ctrl%pprpa%hhubbard(geo%nSpecies))
+      call readSpeciesList(child2, geo%speciesNames, ctrl%pprpa%hhubbard)
 
       call getChildValue(child, "TammDancoff", ctrl%pprpa%tTDA, default=.false.)
 
