@@ -684,7 +684,7 @@ contains
     iCall = 1
     if (allocated(this%polDirs)) then
       if (size(this%polDirs) > 1) then
-        this%initCoord(:,:) = coord
+        this%initCoord = coord
       end if
     end if
     if (this%tKick) then
