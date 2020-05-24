@@ -1820,15 +1820,9 @@ contains
        call error("This ForceEvaluation method requires the electron temperature to be zero")
      end if
 
-     tRequireDerivator = .false.
-     if (tForces) then
-       tRequireDerivator = .true.
-     else
-       if (allocated(input%ctrl%elecDynInp)) then
-         if (input%ctrl%elecDynInp%tIons) then
-           tRequireDerivator = .true.
-         end if
-       end if
+     tRequireDerivator = tForces
+     if (.not. tRequireDerivator .and. allocated(input%ctrl%elecDynInp)) then
+       tRequireDerivator = input%ctrl%elecDynInp%tIons
      end if
      if (tRequireDerivator) then
       select case(input%ctrl%iDerivMethod)
