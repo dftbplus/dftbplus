@@ -48,6 +48,14 @@ endfunction()
 function (dftbp_add_fypp_defines fyppflags)
 
   set(_fyppflags "${${fyppflags}}")
+
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+  if("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG")
+    list(APPEND _fyppflags -DDEBUG=1)
+  else()
+    list(APPEND _fyppflags -DDEBUG=0)
+  endif()
+
   if(WITH_OMP)
     list(APPEND _fyppflags -DWITH_OMP)
   endif()
@@ -331,7 +339,7 @@ function(dftbp_ensure_out_of_source_build)
 separate build directory and invoke CMake from that directory. See the INSTALL.rst file for \
 detailed build instructions.")
   endif()
-  
+
 endfunction()
 
 

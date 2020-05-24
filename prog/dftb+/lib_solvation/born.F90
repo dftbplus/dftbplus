@@ -9,6 +9,7 @@
 
 !> Generalized Born solvation model.
 module dftbp_born
+  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : hemv, gemv
   use dftbp_charges, only : getSummedCharges
@@ -567,8 +568,8 @@ contains
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(shiftPerAtom) == self%nAtoms)
-    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
+    @:ASSERT(size(shiftPerAtom) == self%nAtom)
+    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtom)
 
     if (allocated(self%sasaCont)) then
       call self%sasaCont%getShifts(shiftPerAtom, shiftPerShell)

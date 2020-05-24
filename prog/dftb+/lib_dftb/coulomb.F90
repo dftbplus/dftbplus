@@ -624,7 +624,7 @@ contains
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(shiftPerAtom) == self%nAtoms)
+    @:ASSERT(size(shiftPerAtom) == self%nAtom)
 
     shiftPerAtom(:) = shiftPerAtom + self%shiftPerAtom
 
@@ -642,7 +642,7 @@ contains
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
+    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtom)
 
   end subroutine addShiftPerShell
 
