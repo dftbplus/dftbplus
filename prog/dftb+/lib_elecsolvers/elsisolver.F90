@@ -311,7 +311,7 @@ contains
 
     call elsi_get_version(major, minor, patch)
 
-    write(stdOut,"(A,T30,I0,'.',I0,'.'I0)")'ELSI library version :',major, minor, patch
+    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :',major, minor, patch
 
     if (any([major, minor] /= [2,5])) then
       call error("Unsuported ELSI version for DFTB+")
