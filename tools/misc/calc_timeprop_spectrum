@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
-
-############################################
-# Fourier transfrom of DFTB+ TD data
-############################################
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+#
+'''
+Fourier transfrom of DFTB+ TD data
+'''
 
 import sys
 import optparse

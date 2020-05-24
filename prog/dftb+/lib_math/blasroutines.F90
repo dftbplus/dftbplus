@@ -94,7 +94,7 @@ module dftbp_blasroutines
   !> Wrapper for the level 3 blas routine syrk/herk to perform the rank k update of the chosen
   !> triangle of matrix C
   interface herk
-  #:for IFACETYPE in [('real'), ('cmplx'), ('dble'), ('dblecmplx')]
+  #:for IFACETYPE in ['real', 'cmplx', 'dble', 'dblecmplx']
     module procedure herk_${IFACETYPE}$
   #:endfor
   end interface herk
@@ -103,7 +103,7 @@ module dftbp_blasroutines
   !> Wrapper for the level 3 blas routine syr2k/her2k to perform the rank 2k update of the chosen
   !> triangle of matrix C
   interface her2k
-  #:for IFACETYPE in [('real'), ('cmplx'), ('dble'), ('dblecmplx')]
+  #:for IFACETYPE in ['real', 'cmplx', 'dble', 'dblecmplx']
     module procedure her2k_${IFACETYPE}$
   #:endfor
   end interface her2k
@@ -1843,73 +1843,38 @@ contains
 
   end subroutine hemm_dblecmplx
 
-  !> simple precision complex matrix scaling
-  subroutine scal_cmplx(a,alpha)
+
+#:for ITYPE, VTYPE, LABEL, NAME in [('cmplx', 'rsp', 'single', 'c'),&
+  & ('dblecmplx', 'rdp', 'double', 'z')]
+
+  !> ${LABEL}$ precision complex matrix scaling
+  subroutine scal_${ITYPE}$(a,alpha)
 
     !> contains the matrix to be scaled
-    complex(rsp), intent(inout) :: a(:,:)
+    complex(${VTYPE}$), intent(inout) :: a(:,:)
 
     !> scaling factor
-    complex(rsp), intent(in) :: alpha
+    complex(${VTYPE}$), intent(in) :: alpha
 
-    integer :: n, m
+    call ${NAME}$scal(product(shape(a)), alpha, a, 1)
 
-    n = size(a, dim=1)
-    m = size(a, dim=2)
-
-    call cscal(n*m, alpha, a, 1)
-  end subroutine scal_cmplx
+  end subroutine scal_${ITYPE}$
 
 
-  !> double precision complex matrix scaling
-  subroutine scal_dblecmplx(a,alpha)
-
-    !> contains the matrix to be scaled
-    complex(rdp), intent(inout) :: a(:,:)
-
-    !> scaling factor
-    complex(rdp), intent(in) :: alpha
-
-    integer :: n, m
-
-    n = size(a, dim=1)
-    m = size(a, dim=2)
-
-    call zscal(n*m, alpha, a, 1)
-  end subroutine scal_dblecmplx
-
-
-  !> simple precision complex matrix swapping
-  subroutine swap_cmplx(a,b)
+  !> ${LABEL}$ precision complex matrix swapping
+  subroutine swap_${ITYPE}$(a,b)
 
     !> matrices to be swapped
-    complex(rsp), intent(inout) :: a(:,:), b(:,:)
+    complex(${VTYPE}$), intent(inout) :: a(:,:), b(:,:)
 
     integer :: n, m
     @:ASSERT(size(a,dim=1) == size(b,dim=1))
     @:ASSERT(size(a,dim=2) == size(b,dim=2))
 
-    n = size(a, dim=1)
-    m = size(a, dim=2)
+    call ${NAME}$swap(product(shape(a)), a, 1, b, 1)
 
-    call cswap(n*m, a, 1, b, 1)
-  end subroutine swap_cmplx
+  end subroutine swap_${ITYPE}$
 
-
-  !> double precision complex matrix swapping
-  subroutine swap_dblecmplx(a,b)
-
-    !> matrices to be swapped
-    complex(rdp), intent(inout) :: a(:,:), b(:,:)
-
-    integer :: n, m
-    @:ASSERT(size(a,dim=1) == size(b,dim=1))
-    @:ASSERT(size(a,dim=2) == size(b,dim=2))
-
-    n = size(a, dim=1)
-    m = size(a, dim=2)
-
-    call zswap(n*m, a, 1, b, 1)
-  end subroutine swap_dblecmplx
+#:endfor
 
 end module dftbp_blasroutines

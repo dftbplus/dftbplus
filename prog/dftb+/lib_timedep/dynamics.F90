@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2020 DFTB+ developers group                                                !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -664,15 +664,11 @@ contains
       call qm2ud(q0)
     end if
 
-    if (this%tRealHS) then
-      if (this%isRangeSep) then
-        this%nOrbs = size(eigvecsCplx, dim=1)
-      else
-        this%nOrbs = size(eigvecs, dim=1)
-      endif
+    if (this%tRealHS .and. .not. this%isRangeSep) then
+      this%nOrbs = size(eigvecs, dim=1)
     else
       this%nOrbs = size(eigvecsCplx, dim=1)
-    endif
+    end if
 
     this%nAtom = size(coord, dim=2)
     this%latVec = latVec
@@ -1866,9 +1862,7 @@ contains
         end if
       end do
       write(stdOut,"(A)")'S inverted'
-    end if
 
-    if (.not.this%tRestart) then
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
         iSpin = this%parallelKS%localKS(2, iKS)

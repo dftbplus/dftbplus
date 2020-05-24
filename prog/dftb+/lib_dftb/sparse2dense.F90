@@ -38,17 +38,17 @@ module dftbp_sparse2dense
   !> Unpack sparse matrix (Hamiltonian, overlap, etc.) to square form
   interface unpackHS
     module procedure unpackHS_real
-    module procedure unpackHS_cmplx
+    module procedure unpackHS_cmplx_kpts
   end interface unpackHS
 
 
   !> Pack square matrix to sparse form.
   interface packHS
     module procedure packHS_real
-    module procedure packHS_cmplx
+    module procedure packHS_cmplx_kpts
     module procedure packHSPauli
     module procedure packHSPauli_kpts
-    module procedure packHS_hermitian
+    module procedure packhs_cmplx
   end interface packHS
 
 
@@ -96,7 +96,7 @@ contains
   !> Unpacks sparse matrix to square form (complex version) Note the non on-site blocks are only
   !> filled in the lower triangle part of the matrix. To fill the matrix completely, apply the
   !> blockSymmetrizeHS subroutine.
-  subroutine unpackHS_cmplx(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
+  subroutine unpackHS_cmplx_kpts(square, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec, cellVec,&
       & iAtomStart, iPair, img2CentCell)
 
     !> Square form matrix on exit.
@@ -171,7 +171,7 @@ contains
       end do
     end do
 
-  end subroutine unpackHS_cmplx
+  end subroutine unpackHS_cmplx_kpts
 
 
   !> Unpacks sparse matrix to square form (real version for Gamma point)
@@ -416,7 +416,7 @@ contains
 
 
   !> Pack squared matrix in the sparse form (complex version).
-  subroutine packHS_cmplx(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
+  subroutine packHS_cmplx_kpts(primitive, square, kPoint, kWeight, iNeighbour, nNeighbourSK, mOrb,&
       & iCellVec, cellVec, iAtomStart, iPair, img2CentCell)
 
     !> Sparse matrix
@@ -514,7 +514,7 @@ contains
       end do
     end do
 
-  end subroutine packHS_cmplx
+  end subroutine packHS_cmplx_kpts
 
 
   !> Pack squared matrix in the sparse form (real version).
@@ -1131,9 +1131,9 @@ contains
   end subroutine packHSPauliImag_kpts
 
 
-  !> Pack squared matrix in the sparse form (real version).
-  subroutine packHS_hermitian(prim, iPrim, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
-      & iPair, img2CentCell)
+  !> Pack squared matrix in the sparse form (complex version without k-points).
+  subroutine packhs_cmplx(prim, iPrim, square, iNeighbour, nNeighbourSK, mOrb, iAtomStart, iPair,&
+      & img2CentCell)
 
     !> Sparse matrix, real part
     real(dp), intent(inout) :: prim(:)
@@ -1196,7 +1196,7 @@ contains
       end do
     end do
 
-  end subroutine packHS_hermitian
+  end subroutine packhs_cmplx
 
 
   !> Pack only the charge (spin channel 1) part of a 2 component matrix
