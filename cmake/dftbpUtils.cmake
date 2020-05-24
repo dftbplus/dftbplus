@@ -104,16 +104,14 @@ endfunction()
 #
 function(dftbp_get_release_name release)
 
-  if(NOT EXISTS ${CMAKE_BINARY_DIR}/RELEASE)
-    if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
-      file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
-    else()
-      execute_process(
-	COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
-	RESULT_VARIABLE exitcode)
-      if(NOT exitcode EQUAL 0)
-	file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
-      endif()
+  if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
+    file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
+  else()
+    execute_process(
+      COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
+      RESULT_VARIABLE exitcode)
+    if(NOT exitcode EQUAL 0)
+      file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
     endif()
   endif()
   file(READ ${CMAKE_BINARY_DIR}/RELEASE _release)
