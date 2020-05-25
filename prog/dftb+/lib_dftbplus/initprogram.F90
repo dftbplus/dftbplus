@@ -1523,9 +1523,9 @@ contains
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
 
-    #:call DEBUG_CODE
+    #:block DEBUG_CODE
     call inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
-    #:endcall DEBUG_CODE
+    #:endblock DEBUG_CODE
 
     if (input%ctrl%tHalogenX) then
       if (.not. (t3rd .or. t3rdFull)) then
