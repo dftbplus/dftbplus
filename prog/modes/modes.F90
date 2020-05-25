@@ -19,6 +19,9 @@ program modes
   use dftbp_taggedoutput
   use dftbp_message
   use dftbp_modeprojection
+#:if WITH_MPI
+  use dftbp_mpienv
+#:endif
   implicit none
 
   type(TTaggedWriter) :: taggedWriter
@@ -29,6 +32,16 @@ program modes
   real(dp), allocatable :: displ(:,:,:)
 
   character(lc) :: lcTmp, lcTmp2
+
+#:if WITH_MPI
+  !> MPI environment, if compiled with mpifort
+  type(TMpiEnv) :: mpi
+
+  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
+  ! build
+  call TMpiEnv_init(mpi)
+  call mpi%mpiSerialEnv()
+#:endif
 
   ! Allocate resources
   call initProgramVariables()

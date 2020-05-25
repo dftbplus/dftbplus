@@ -22,6 +22,9 @@ program waveplot
   use dftbp_simplealgebra
   use dftbp_linkedlist
   use dftbp_periodic
+#:if WITH_MPI
+  use dftbp_mpienv
+#:endif
   implicit none
 
   character(len=80) :: comments(2), fileName
@@ -46,6 +49,16 @@ program waveplot
   integer :: i1, i2, i3, iCell
   type(TListRealR1) :: coordList
   type(TListInt) :: speciesList
+
+#:if WITH_MPI
+  !> MPI environment, if compiled with mpifort
+  type(TMpiEnv) :: mpi
+
+  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
+  ! build
+  call TMpiEnv_init(mpi)
+  call mpi%mpiSerialEnv()
+#:endif
 
   ! Allocate resources
   call initProgramVariables()
