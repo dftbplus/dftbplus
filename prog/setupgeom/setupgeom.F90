@@ -15,7 +15,7 @@ program setupGeometry
 #:if WITH_MPI
   use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
   use dftbp_mpifx, only : mpifx_init_thread, mpifx_finalize
-  use mpi, only : MPI_THREAD_FUNNELED
+  use mpi, only : MPI_THREAD_FUNNELED, MPI_COMM_WORLD
 #:endif
   implicit none
 
@@ -33,7 +33,7 @@ program setupGeometry
   call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
   call TMpiEnv_init(mpiEnv)
   call mpiEnv%mpiSerialEnv()
-  call initGlobalEnv(mpiComm=mpi%globalComm)
+  call initGlobalEnv(mpiComm=MPI_COMM_WORLD)
 #:else
   call initGlobalEnv()
 #:endif
