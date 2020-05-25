@@ -9,6 +9,7 @@
 
 !> Coordination number implementation
 module dftbp_coordnumber
+  use dftbp_assert
   use dftbp_accuracy, only : dp
   use dftbp_blasroutines, only : gemv
   use dftbp_constants, only : pi, AA__Bohr, symbolToNumber
@@ -375,7 +376,6 @@ contains
     real(dp), intent(inout) :: gradients(:,:)
 
     @:ASSERT(this%tCoordsUpdated)
-    @:ASSERT(all(shape(stress) == [3, this%nAtom]))
 
     call gemv(gradients, this%dcndr, dEdcn, beta=1.0_dp)
 
