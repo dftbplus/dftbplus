@@ -20,7 +20,9 @@ program modes
   use dftbp_message
   use dftbp_modeprojection
 #:if WITH_MPI
-  use dftbp_mpienv
+  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
+  use dftbp_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use mpi, only : MPI_THREAD_FUNNELED
 #:endif
   implicit none
 
@@ -36,12 +38,13 @@ program modes
 
 #:if WITH_MPI
   !> MPI environment, if compiled with mpifort
-  type(TMpiEnv) :: mpi
+  type(TMpiEnv) :: mpiEnv
 
   ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
   ! build
-  call TMpiEnv_init(mpi)
-  call mpi%mpiSerialEnv()
+  call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
+  call TMpiEnv_init(mpiEnv)
+  call mpiEnv%mpiSerialEnv()
 #:endif
 
   ! Allocate resources
@@ -176,5 +179,9 @@ program modes
     end if
 
   end if
+
+#:if WITH_MPI
+  call mpifx_finalize()
+#:endif
 
 end program modes

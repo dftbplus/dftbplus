@@ -48,6 +48,8 @@ module dftbp_mpienv
     !> Whether current process is the group master
     logical :: tGroupMaster
 
+  contains
+
     procedure :: mpiSerialEnv
 
   end type TMpiEnv
