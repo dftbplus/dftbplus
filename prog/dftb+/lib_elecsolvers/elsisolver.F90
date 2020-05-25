@@ -313,8 +313,8 @@ contains
 
     write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :',major, minor, patch
 
-    if (any([major, minor] /= [2,5])) then
-      call error("Unsuported ELSI version for DFTB+")
+    if (.not. supportedVersionNumber(major, minor, patch)) then
+      call error("Unsuported ELSI version for DFTB+, requires release 2.5.0 or later")
     end if
 
     this%iSolver = inp%iSolver
@@ -472,6 +472,33 @@ contains
   #:endif
 
   end subroutine TElsiSolver_init
+
+
+  !> Checks for supported value of ELSI api, 2.5.0 being the minimum that DFTB+ can use at the
+  !> moment
+  pure function supportedVersionNumber(major, minor, patch)
+
+    !> Version value components
+    integer, intent(in) :: major, minor, patch
+
+    logical :: supportedVersionNumber
+
+    supportedVersionNumber = .true.
+    if (major < 2) then
+      supportedVersionNumber = .false.
+      return
+    end if
+    if (major == 2 .and. minor < 5) then
+      supportedVersionNumber = .false.
+      return
+    end if
+    ! no need to check patch in this case, as library must be >= 2.5.0, but just in case
+    if (major == 2 .and. minor == 5 .and. patch < 0) then
+      supportedVersionNumber = .false.
+      return
+    end if
+
+  end function supportedVersionNumber
 
 
   !> Finalizes the ELSI solver.
