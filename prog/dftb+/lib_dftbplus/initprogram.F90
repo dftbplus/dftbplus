@@ -4801,7 +4801,7 @@ contains
 
 
   subroutine TReksCalc_init(reks, reksInp, electronicSolver, orb, spinW, nEl,&
-      & extChrg, blurWidths, hamiltonianType, nSpin, nExtChrg, is3rd, tRangeSep,&
+      & extChrg, blurWidths, hamiltonianType, nSpin, nExtChrg, is3rd, isRangeSep,&
       & tForces, tPeriodic, tStress, tDipole)
 
     !> data type for REKS
@@ -4841,7 +4841,7 @@ contains
     logical, intent(in) :: is3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> Do we need forces?
     logical, intent(in) :: tForces
@@ -4870,7 +4870,7 @@ contains
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
         call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, tRangeSep, tForces, tPeriodic, tStress, tDipole)
+            & blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
         call error("REKS is not compatible with density matrix ELSI-solvers")
       end select

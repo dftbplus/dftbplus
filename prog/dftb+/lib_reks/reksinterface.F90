@@ -687,7 +687,7 @@ module dftbp_reksinterface
 
     allocate(repDerivs(3,nAtom))
     allocate(dispDerivs(3,nAtom))
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       allocate(lcDerivs(3,nAtom,self%Lmax))
     end if
 
@@ -697,7 +697,7 @@ module dftbp_reksinterface
     call getEnergyWeightedDensityL(env, denseDesc, neighbourList, &
         & nNeighbourSK, iSparseStart, img2CentCell, orb, self%hamSqrL, &
         & self%hamSpL, self%fillingL, eigenvecs(:,:,1), self%Lpaired, &
-        & self%Efunction, self%tRangeSep, self%edmSpL)
+        & self%Efunction, self%isRangeSep, self%edmSpL)
     call env%globalTimer%stopTimer(globalTimers%energyDensityMatrix)
 
     ! rhoSpL has (my_qm) component
@@ -733,7 +733,7 @@ module dftbp_reksinterface
 !            & coord, img2CentCell, derivs)
 !      end if
 
-      if (self%tRangeSep) then
+      if (self%isRangeSep) then
         ! deltaRhoSqrL has (my_ud) component
         lcDerivs(:,:,iL) = 0.0_dp
         call rangeSep%addLRGradients(lcDerivs(:,:,iL), nonSccDeriv, &
@@ -760,7 +760,7 @@ module dftbp_reksinterface
 
     end do
 
-    if(self%tRangeSep) then
+    if(self%isRangeSep) then
       do iL = 1, self%Lmax
         if (iL <= self%Lpaired) then
           derivs(:,:) = lcDerivs(:,:,iL) + lcDerivs(:,:,iL)
@@ -829,13 +829,13 @@ module dftbp_reksinterface
     ! LRgamma is already defined in 1st scc loop
     call getSccSpinLrPars(env, sccCalc, rangeSep, coord, species, &
         & neighbourList%iNeighbour, img2CentCell, denseDesc%iAtomStart, &
-        & spinW, self%getAtomIndex, self%tRangeSep, self%GammaAO, &
+        & spinW, self%getAtomIndex, self%isRangeSep, self%GammaAO, &
         & self%GammaDeriv, self%SpinAO, self%LrGammaAO, self%LrGammaDeriv)
 
     ! get Hxc kernel -> (\mu,\nu|f_{Hxc}|\tau,\gam)
     call getHxcKernel(denseDesc%iAtomStart, self%getAtomIndex, self%getDenseAO, &
         & over, self%overSqr, self%GammaAO, self%SpinAO, self%LrGammaAO, &
-        & self%Glevel, self%tSaveMem, self%tRangeSep, self%HxcSpS, &
+        & self%Glevel, self%tSaveMem, self%isRangeSep, self%HxcSpS, &
         & self%HxcSpD, self%HxcHalfS, self%HxcHalfD, self%HxcSqrS, self%HxcSqrD)
 
     ! get G1, weightIL, Omega, Rab values
@@ -843,7 +843,7 @@ module dftbp_reksinterface
         & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
         & self%fockFa, self%fillingL, self%FONs, self%SAweight, self%enLtot, &
         & self%hess, self%Nc, self%Na, self%reksAlg, self%tSSR, &
-        & self%tRangeSep, self%G1, self%weightIL, self%omega, self%Rab)
+        & self%isRangeSep, self%G1, self%weightIL, self%omega, self%Rab)
 
     ! get A1e or Aall values based on GradOpt
     call getSuperAMatrix(eigenvecs, self%HxcSqrS, self%HxcSqrD, self%fockFc, &
@@ -898,7 +898,7 @@ module dftbp_reksinterface
       call buildSaReksVectors(env, denseDesc, neighbourList, nNeighbourSK, &
           & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
           & self%fillingL, self%weightL, self%Nc, self%Na, self%rstate, &
-          & self%reksAlg, self%tSSR, self%tRangeSep, self%XT)
+          & self%reksAlg, self%tSSR, self%isRangeSep, self%XT)
 
       if (self%tSSR) then
 
@@ -916,7 +916,7 @@ module dftbp_reksinterface
               & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
               & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
               & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
-              & self%Lpaired, self%Glevel, self%tSaveMem, self%tRangeSep, self%ZdelL)
+              & self%Lpaired, self%Glevel, self%tSaveMem, self%isRangeSep, self%ZdelL)
 
           ! build XTdel with Z^delta values
           call buildInteractionVectors(eigenvecs, self%ZdelL, self%fockFc, &
@@ -942,7 +942,7 @@ module dftbp_reksinterface
       call buildLstateVector(env, denseDesc, neighbourList, nNeighbourSK, &
           & iSparseStart, img2CentCell, eigenvecs, self%hamSqrL, self%hamSpL, &
           & self%fillingL, self%Nc, self%Na, self%Lstate, self%Lpaired, &
-          & self%reksAlg, self%tRangeSep, self%XT(:,1))
+          & self%reksAlg, self%isRangeSep, self%XT(:,1))
 
     end if
 
@@ -1023,7 +1023,7 @@ module dftbp_reksinterface
           & self%G1, self%GammaAO, self%SpinAO, self%LrGammaAO, self%overSqr, &
           & over, eigenvecs, self%fillingL, self%weight, self%Glimit, self%orderRmatL, &
           & self%getDenseAO, self%Lpaired, self%Nc, self%Na, self%CGmaxIter, self%Glevel, &
-          & self%reksAlg, self%tSaveMem, self%tRangeSep, ZT, RmatL, ZmatL, Q2mat)
+          & self%reksAlg, self%tSaveMem, self%isRangeSep, ZT, RmatL, ZmatL, Q2mat)
 
     else if (self%Glevel == 3) then
 
@@ -1039,7 +1039,7 @@ module dftbp_reksinterface
             & self%HxcSqrS, self%HxcSqrD, self%HxcHalfS, self%HxcHalfD, &
             & self%HxcSpS, self%HxcSpD, self%overSqr, over, self%GammaAO, &
             & self%SpinAO, self%LrGammaAO, self%orderRmatL, self%getDenseAO, &
-            & self%Lpaired, self%Glevel, self%tSaveMem, self%tRangeSep, ZmatL)
+            & self%Lpaired, self%Glevel, self%tSaveMem, self%isRangeSep, ZmatL)
         call getQ2mat(eigenvecs, self%fillingL, self%weight, ZmatL, Q2mat)
         write(stdOut,"(A)") repeat("-", 82)
       end if
@@ -1101,7 +1101,7 @@ module dftbp_reksinterface
         & self%LrGammaDeriv, self%RmatL, self%RdelL, self%tmpRL, self%weight, &
         & self%extCharges, self%blurWidths, self%rVec, self%gVec, self%alpha, self%volume, &
         & self%getDenseAO, self%getDenseAtom, self%getAtomIndex, self%orderRmatL, &
-        & self%Lpaired, self%SAstates, self%tNAC, self%tRangeSep, self%tExtChrg, &
+        & self%Lpaired, self%SAstates, self%tNAC, self%isRangeSep, self%tExtChrg, &
         & self%tPeriodic, self%tBlur, self%SAgrad, self%SIgrad, self%SSRgrad)
 
   end subroutine getRTGradient_

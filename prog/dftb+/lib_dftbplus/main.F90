@@ -6547,7 +6547,7 @@ contains
         call makeDensityMatrix(reks%rhoSqrL(:,:,1,iL), eigvecs(:,:,1), &
             & reks%fillingL(:,1,iL))
         call symmetrizeHS(reks%rhoSqrL(:,:,1,iL))
-        if (reks%tRangeSep) then
+        if (reks%isRangeSep) then
           ! reks%deltaRhoSqrL has (my_ud) component
           reks%deltaRhoSqrL(:,:,1,iL) = reks%rhoSqrL(:,:,1,iL)
           call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
@@ -6563,7 +6563,7 @@ contains
             & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-        if (reks%tRangeSep) then
+        if (reks%isRangeSep) then
           ! reks%deltaRhoSqrL has (my_ud) component
           reks%deltaRhoSqrL(:,:,1,iL) = tmpRho
           call symmetrizeHS(reks%deltaRhoSqrL(:,:,1,iL))
@@ -6741,7 +6741,7 @@ contains
     sparseSize = size(over,dim=1)
     nOrb = size(reks%overSqr,dim=1)
 
-    if (reks%tRangeSep) then
+    if (reks%isRangeSep) then
       allocate(tmpHamSp(sparseSize,1))
       allocate(tmpHam(nOrb,nOrb))
       allocate(tmpEn(reks%Lmax))
@@ -6762,7 +6762,7 @@ contains
           & reks%intAtom, reks%intShellL(:,:,:,iL), reks%intBlockL(:,:,:,:,iL))
 
       ! Calculate Hamiltonian including SCC, spin
-      if(.not. reks%tRangeSep) then
+      if(.not. reks%isRangeSep) then
         ! reks%hamSpL has (my_qm) component
         call getReksSccHamiltonian(H0, over, nNeighbourSK, neighbourList, &
             & species, orb, iSparseStart, img2CentCell, reks%hamSpL(:,:,iL), &
@@ -6786,7 +6786,7 @@ contains
 
     end do
 
-    if(.not. reks%tRangeSep) then
+    if(.not. reks%isRangeSep) then
       ! reks%hamSpL has (my_ud) component
       call qm2udL(reks%hamSpL, reks%Lpaired)
     else
@@ -7065,7 +7065,7 @@ contains
     end if
 
     ! set the long-range corrected energy for each microstate
-    if (reks%tRangeSep) then
+    if (reks%isRangeSep) then
       do iL = 1, reks%Lmax
         if (iL <= reks%Lpaired) then
           energy%Efock = tmpEn(iL) + tmpEn(iL)
@@ -7146,7 +7146,7 @@ contains
       energy%eOnSite = 0.0_dp
 
       energy%Efock = 0.0_dp
-      if (reks%tRangeSep) then
+      if (reks%isRangeSep) then
         energy%Efock = reks%enLfock(iL)
       end if
 
@@ -7272,7 +7272,7 @@ contains
         & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, &
         & iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-    if (reks%tRangeSep) then
+    if (reks%isRangeSep) then
       deltaRhoOutSqr(:,:,1) = tmpRho
       call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
           & deltaRhoOutSqr)

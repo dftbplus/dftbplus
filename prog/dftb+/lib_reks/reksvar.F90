@@ -226,7 +226,7 @@ module dftbp_reksvar
     logical :: t3rd
 
     !> Whether to run a range separated calculation
-    logical :: tRangeSep
+    logical :: isRangeSep
 
     !> Do we need forces?
     logical :: tForces
@@ -539,7 +539,7 @@ module dftbp_reksvar
 
   !> Initialize REKS data from REKS input
   subroutine REKS_init(self, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
-      & blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress, tDipole)
+      & blurWidths, t3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: self
@@ -572,7 +572,7 @@ module dftbp_reksvar
     logical, intent(in) :: t3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> Do we need forces?
     logical, intent(in) :: tForces
@@ -650,7 +650,7 @@ module dftbp_reksvar
     nType = size(inp%Tuning,dim=1)
 
     self%t3rd = t3rd
-    self%tRangeSep = tRangeSep
+    self%isRangeSep = isRangeSep
 
     self%tForces = tForces
     self%tPeriodic = tPeriodic
@@ -694,7 +694,7 @@ module dftbp_reksvar
       allocate(self%rhoSpL(0,1,Lmax))
     end if
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       allocate(self%deltaRhoSqrL(nOrb,nOrb,1,Lmax))
     end if
 
@@ -705,7 +705,7 @@ module dftbp_reksvar
     allocate(self%intShellL(mShell,nAtom,nSpin,Lmax))
     allocate(self%intBlockL(mOrb,mOrb,nAtom,nSpin,Lmax))
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       allocate(self%hamSqrL(nOrb,nOrb,1,Lmax))
     else
       allocate(self%hamSpL(0,1,Lmax))
@@ -725,7 +725,7 @@ module dftbp_reksvar
       allocate(self%enL3rd(Lmax))
     end if
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       allocate(self%enLfock(Lmax))
     end if
 
@@ -755,7 +755,7 @@ module dftbp_reksvar
         allocate(self%GammaDeriv(nAtom,nAtom,3))
         allocate(self%SpinAO(nOrb,nOrb))
 
-        if (self%tRangeSep) then
+        if (self%isRangeSep) then
           allocate(self%LrGammaAO(nOrb,nOrb))
           allocate(self%LrGammaDeriv(nAtom,nAtom,3))
         end if
@@ -768,7 +768,7 @@ module dftbp_reksvar
 
         if (self%Glevel == 1 .or. self%Glevel == 2) then
           if (self%tSaveMem) then
-            if (self%tRangeSep) then
+            if (self%isRangeSep) then
               allocate(self%HxcHalfS(nOrbHalf,nOrbHalf))
               allocate(self%HxcHalfD(nOrbHalf,nOrbHalf))
             else
@@ -881,7 +881,7 @@ module dftbp_reksvar
       self%rhoSpL(:,:,:) = 0.0_dp
     end if
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       self%deltaRhoSqrL(:,:,:,:) = 0.0_dp
     end if
 
@@ -892,7 +892,7 @@ module dftbp_reksvar
     self%intShellL(:,:,:,:) = 0.0_dp
     self%intBlockL(:,:,:,:,:) = 0.0_dp
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       self%hamSqrL(:,:,:,:) = 0.0_dp
     else
       self%hamSpL(:,:,:) = 0.0_dp
@@ -912,7 +912,7 @@ module dftbp_reksvar
       self%enL3rd(:) = 0.0_dp
     end if
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       self%enLfock(:) = 0.0_dp
     end if
 
@@ -940,7 +940,7 @@ module dftbp_reksvar
         self%GammaDeriv(:,:,:) = 0.0_dp
         self%SpinAO(:,:) = 0.0_dp
 
-        if (self%tRangeSep) then
+        if (self%isRangeSep) then
           self%LrGammaAO(:,:) = 0.0_dp
           self%LrGammaDeriv(:,:,:) = 0.0_dp
         end if
@@ -953,7 +953,7 @@ module dftbp_reksvar
 
         if (self%Glevel == 1 .or. self%Glevel == 2) then
           if (self%tSaveMem) then
-            if (self%tRangeSep) then
+            if (self%isRangeSep) then
               self%HxcHalfS(:,:) = 0.0_dp
               self%HxcHalfD(:,:) = 0.0_dp
             else
@@ -1217,7 +1217,7 @@ module dftbp_reksvar
     if (.not. self%tForces) then
       deallocate(self%rhoSpL)
     end if
-    if (.not. self%tRangeSep) then
+    if (.not. self%isRangeSep) then
       deallocate(self%hamSpL)
     end if
 
@@ -1226,7 +1226,7 @@ module dftbp_reksvar
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
           if (self%tSaveMem) then
-            if (.not. self%tRangeSep) then
+            if (.not. self%isRangeSep) then
               deallocate(self%HxcSpS)
               deallocate(self%HxcSpD)
             end if
@@ -1239,7 +1239,7 @@ module dftbp_reksvar
     if (.not. self%tForces) then
       allocate(self%rhoSpL(sparseSize,1,self%Lmax))
     end if
-    if (.not. self%tRangeSep) then
+    if (.not. self%isRangeSep) then
       allocate(self%hamSpL(sparseSize,1,self%Lmax))
     end if
 
@@ -1248,7 +1248,7 @@ module dftbp_reksvar
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
           if (self%tSaveMem) then
-            if (.not. self%tRangeSep) then
+            if (.not. self%isRangeSep) then
               allocate(self%HxcSpS(sparseSize,sparseSize))
               allocate(self%HxcSpD(sparseSize,sparseSize))
             end if
@@ -1261,7 +1261,7 @@ module dftbp_reksvar
     if (.not. self%tForces) then
       self%rhoSpL = 0.0_dp
     end if
-    if (.not. self%tRangeSep) then
+    if (.not. self%isRangeSep) then
       self%hamSpL = 0.0_dp
     end if
 
@@ -1270,7 +1270,7 @@ module dftbp_reksvar
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
           if (self%tSaveMem) then
-            if (.not. self%tRangeSep) then
+            if (.not. self%isRangeSep) then
               self%HxcSpS = 0.0_dp
               self%HxcSpD = 0.0_dp
             end if

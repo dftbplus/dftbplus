@@ -61,7 +61,7 @@ module dftbp_reksgrad
   !> Calculate energy weighted density matrix for each microstate
   subroutine getEnergyWeightedDensityL(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, orb, hamSqrL, hamSpL, &
-      & fillingL, eigenvecs, Lpaired, Efunc, tRangeSep, edmSpL)
+      & fillingL, eigenvecs, Lpaired, Efunc, isRangeSep, edmSpL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -103,7 +103,7 @@ module dftbp_reksgrad
     integer, intent(in) :: Efunc
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> sparse energy-weighted density matrix for each microstate
     real(dp), intent(out) :: edmSpL(:,:)
@@ -117,14 +117,14 @@ module dftbp_reksgrad
     nOrb = size(fillingL,dim=1)
 
     allocate(tmpEps(nOrb,nOrb))
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
     edmSpL(:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (tRangeSep) then
+      if (isRangeSep) then
         if (Efunc == 1) then
           ! For single-state REKS, current hamSqrL is still in AO basis
           ! since the secular equation routine is not used
@@ -148,7 +148,7 @@ module dftbp_reksgrad
       tmpEps(:,:) = 0.0_dp
       do i = 1, nOrb
         do j = 1, nOrb
-          if (tRangeSep) then
+          if (isRangeSep) then
             tmpEps(i,j) = (fillingL(i,1,iL) + fillingL(j,1,iL)) &
                 & * hamSqrL(i,j,1,iL) * 0.5_dp
           else
@@ -412,7 +412,7 @@ module dftbp_reksgrad
 
   !> Calculate SCC, spin, LC parameters with matrix form
   subroutine getSccSpinLrPars(env, sccCalc, rangeSep, coords, species, &
-      & iNeighbour, img2CentCell, iSquare, spinW, getAtomIndex, tRangeSep, &
+      & iNeighbour, img2CentCell, iSquare, spinW, getAtomIndex, isRangeSep, &
       & GammaAO, GammaDeriv, SpinAO, LrGammaAO, LrGammaDeriv)
 
     !> Computational environment settings
@@ -446,7 +446,7 @@ module dftbp_reksgrad
     integer, intent(in) :: getAtomIndex(:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> scc gamma integrals in AO basis
     real(dp), intent(out) :: GammaAO(:,:)
@@ -473,7 +473,7 @@ module dftbp_reksgrad
     nAtom = size(iSquare,dim=1) - 1
 
     allocate(tmpGamma(nAtom,nAtom))
-    if (tRangeSep) then
+    if (isRangeSep) then
       allocate(tmpLrGamma(nAtom,nAtom))
     end if
 
@@ -517,7 +517,7 @@ module dftbp_reksgrad
       end do
     end do
 
-    if (tRangeSep) then
+    if (isRangeSep) then
 
       ! get total long-range gamma
       tmpLrGamma(:,:) = 0.0_dp
@@ -545,7 +545,7 @@ module dftbp_reksgrad
 
   !> Interface routine to calculate H-XC kernel in REKS
   subroutine getHxcKernel(iSquare, getAtomIndex, getDenseAO, over, overSqr, &
-      & GammaAO, SpinAO, LrGammaAO, Glevel, tSaveMem, tRangeSep, HxcSpS, &
+      & GammaAO, SpinAO, LrGammaAO, Glevel, tSaveMem, isRangeSep, HxcSpS, &
       & HxcSpD, HxcHalfS, HxcHalfD, HxcSqrS, HxcSqrD)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
@@ -579,7 +579,7 @@ module dftbp_reksgrad
     logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> Hartree-XC kernel with sparse form with same spin part
     real(dp), allocatable, intent(inout) :: HxcSpS(:,:)
@@ -603,12 +603,12 @@ module dftbp_reksgrad
 
       if (tSaveMem) then
 
-        if (tRangeSep) then
+        if (isRangeSep) then
 
           ! get Hxc kernel for DFTB with respect to AO basis
           ! for LC case, we use half dense form.
           call HxcKernelHalf_(iSquare, getAtomIndex, getDenseAO, overSqr, &
-              & GammaAO, SpinAO, LrGammaAO, tRangeSep, HxcHalfS, HxcHalfD)
+              & GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcHalfS, HxcHalfD)
 
         else
 
@@ -624,7 +624,7 @@ module dftbp_reksgrad
 
       ! get Hxc kernel for DFTB with respect to AO basis
       call HxcKernelDense_(iSquare, getAtomIndex, overSqr, GammaAO, &
-          & SpinAO, LrGammaAO, tRangeSep, HxcSqrS, HxcSqrD)
+          & SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
 
     end if
 
@@ -635,7 +635,7 @@ module dftbp_reksgrad
   subroutine getG1ILOmegaRab(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, hamSqrL, &
       & hamSpL, fockFa, fillingL, FONs, SAweight, enLtot, hess, &
-      & Nc, Na, reksAlg, tSSR, tRangeSep, G1, weightIL, omega, Rab)
+      & Nc, Na, reksAlg, tSSR, isRangeSep, G1, weightIL, omega, Rab)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -695,7 +695,7 @@ module dftbp_reksgrad
     logical, intent(in) :: tSSR
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> constant calculated from hessian and energy of microstates
     real(dp), intent(out) :: G1
@@ -720,7 +720,7 @@ module dftbp_reksgrad
     Lmax = size(fillingL,dim=3)
     Nv = nOrb - Nc - Na
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
@@ -755,7 +755,7 @@ module dftbp_reksgrad
     omega(:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (tRangeSep) then
+      if (isRangeSep) then
 
         ! set omega value
         do ij = 1, superN
@@ -920,7 +920,7 @@ module dftbp_reksgrad
   !> Calculate X^T vectors for state X = PPS, OSS, etc
   subroutine buildSaReksVectors(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, fillingL, &
-      & weightL, Nc, Na, rstate, reksAlg, tSSR, tRangeSep, XT)
+      & weightL, Nc, Na, rstate, reksAlg, tSSR, isRangeSep, XT)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -971,7 +971,7 @@ module dftbp_reksgrad
     logical, intent(in) :: tSSR
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> SA-REKS state vector
     real(dp), intent(out) :: XT(:,:)
@@ -988,14 +988,14 @@ module dftbp_reksgrad
     superN = size(XT,dim=1)
     Nv = nOrb - Nc - Na
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
     XT(:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (tRangeSep) then
+      if (isRangeSep) then
 
         if (tSSR) then
           do ist = 1, nstates
@@ -1159,7 +1159,7 @@ module dftbp_reksgrad
   !> Calculate X^T_L vector for L-th microstate
   subroutine buildLstateVector(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, fillingL, &
-      & Nc, Na, Lstate, Lpaired, reksAlg, tRangeSep, XTL)
+      & Nc, Na, Lstate, Lpaired, reksAlg, isRangeSep, XTL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1207,7 +1207,7 @@ module dftbp_reksgrad
     integer, intent(in) :: reksAlg
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> L-th microstate vector
     real(dp), intent(out) :: XTL(:)
@@ -1223,7 +1223,7 @@ module dftbp_reksgrad
     superN = size(XTL,dim=1)
     Nv = nOrb - Nc - Na
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
@@ -1246,7 +1246,7 @@ module dftbp_reksgrad
         iL = tmpL
       end if
 
-      if (tRangeSep) then
+      if (isRangeSep) then
 
         do ij = 1, superN
           ! assign index i and j from ij
@@ -1393,7 +1393,7 @@ module dftbp_reksgrad
   subroutine getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, HxcHalfS, &
       & HxcHalfD, HxcSpS, HxcSpD, overSqr, over, GammaAO, SpinAO, LrGammaAO, &
-      & orderRmatL, getDenseAO, Lpaired, Glevel, tSaveMem, tRangeSep, ZmatL)
+      & orderRmatL, getDenseAO, Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1468,7 +1468,7 @@ module dftbp_reksgrad
     logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: ZmatL(:,:,:)
@@ -1478,7 +1478,7 @@ module dftbp_reksgrad
 
       if (tSaveMem) then
 
-        if (tRangeSep) then
+        if (isRangeSep) then
 
           call getZmatHalf_(HxcHalfS, HxcHalfD, orderRmatL, Lpaired, RmatL, ZmatL)
 
@@ -1494,7 +1494,7 @@ module dftbp_reksgrad
 
         call getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
             & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
-            & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, tRangeSep, ZmatL)
+            & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, isRangeSep, ZmatL)
 
       end if
 
@@ -2094,7 +2094,7 @@ module dftbp_reksgrad
       & deltaRhoSqrL, qOutputL, q0, GammaAO, GammaDeriv, SpinAO, LrGammaAO, &
       & LrGammaDeriv, RmatL, RdelL, tmpRL, weight, extCharges, blurWidths, &
       & rVec, gVec, alpha, vol, getDenseAO, getDenseAtom, getAtomIndex, &
-      & orderRmatL, Lpaired, SAstates, tNAC, tRangeSep, tExtChrg, tPeriodic, &
+      & orderRmatL, Lpaired, SAstates, tNAC, isRangeSep, tExtChrg, tPeriodic, &
       & tBlur, SAgrad, SIgrad, SSRgrad)
 
     !> Environment settings
@@ -2218,7 +2218,7 @@ module dftbp_reksgrad
     logical, intent(in) :: tNAC
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> If external charges must be considered
     logical, intent(in) :: tExtChrg
@@ -2317,7 +2317,7 @@ module dftbp_reksgrad
           & orderRmatL, SAstates, tNAC, tPeriodic, tBlur, deriv1, deriv2)
     end if
 
-    if (tRangeSep) then
+    if (isRangeSep) then
 
       deallocate(tmpRmatL)
       if (tNAC) then
@@ -2701,7 +2701,7 @@ module dftbp_reksgrad
 
   !> Calculate H-XC kernel for DFTB in AO basis with dense form
   subroutine HxcKernelDense_(iSquare, getAtomIndex, overSqr, GammaAO, &
-      & SpinAO, LrGammaAO, tRangeSep, HxcSqrS, HxcSqrD)
+      & SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
@@ -2722,7 +2722,7 @@ module dftbp_reksgrad
     real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> Hartree-XC kernel with dense form with same spin part
     real(dp), allocatable, intent(inout) :: HxcSqrS(:,:,:,:)
@@ -2771,7 +2771,7 @@ module dftbp_reksgrad
         HxcSqrD(mu,nu,tau,gam) = 0.25_dp * overSqr(nu,mu) * overSqr(gam,tau) * &
             & ( (tmpG1+tmpG2+tmpG3+tmpG4) - (tmpS1+tmpS2+tmpS3+tmpS4) )
 
-        if (tRangeSep) then
+        if (isRangeSep) then
 
           tmpL1 = LRgammaAO(mu,gam)
           tmpL2 = LRgammaAO(mu,nu)
@@ -2795,7 +2795,7 @@ module dftbp_reksgrad
 
   !> Calculate H-XC kernel for DFTB in AO basis with half dense form
   subroutine HxcKernelHalf_(iSquare, getAtomIndex, getDenseAO, overSqr, &
-      & GammaAO, SpinAO, LrGammaAO, tRangeSep, HxcHalfS, HxcHalfD)
+      & GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcHalfS, HxcHalfD)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
@@ -2819,7 +2819,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: LrGammaAO(:,:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> Hartree-XC kernel with half dense form with same spin part
     real(dp), allocatable, intent(inout) :: HxcHalfS(:,:)
@@ -2901,7 +2901,7 @@ module dftbp_reksgrad
 !$OMP END PARALLEL DO
 
     ! LC terms
-    if (tRangeSep) then
+    if (isRangeSep) then
 
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmp22, &
 !$OMP& tmpL1,tmpL2,tmpL3,tmpL4,tmpvalue1,tmpvalue2) SCHEDULE(RUNTIME)
@@ -2921,7 +2921,7 @@ module dftbp_reksgrad
           gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + l
 
           ! LC terms
-          if (tRangeSep) then
+          if (isRangeSep) then
 
             ! (mu,nu,tau,gam)
             tmpvalue1 = 0.0_dp
@@ -4041,7 +4041,7 @@ module dftbp_reksgrad
   !> Calculate ZmatL without saving H-XC kernel used in CP-REKS equations in REKS(2,2)
   subroutine getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
-      & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, tRangeSep, ZmatL)
+      & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, isRangeSep, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4089,7 +4089,7 @@ module dftbp_reksgrad
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: ZmatL(:,:,:)
@@ -4212,7 +4212,7 @@ module dftbp_reksgrad
 
     ! calculate the ZmatL for LC term
 
-    if (tRangeSep) then
+    if (isRangeSep) then
 
       deallocate(tmpRmatL)
       deallocate(tmpHxcS)
@@ -4261,7 +4261,7 @@ module dftbp_reksgrad
           nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + jj
 
           ! calculate the H-XC kernel for LC term
-          if (tRangeSep) then
+          if (isRangeSep) then
 
             ! (mu,nu,tau,gam)
             tmpL1 = LrGammaAO(mu,gam)

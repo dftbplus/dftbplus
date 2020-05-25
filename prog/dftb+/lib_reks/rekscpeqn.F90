@@ -40,7 +40,7 @@ module dftbp_rekscpeqn
       & HxcHalfD, HxcSpS, HxcSpD, Fc, Fa, omega, SAweight, FONs, G1, GammaAO, &
       & SpinAO, LrGammaAO, overSqr, over, eigenvecs, fillingL, weight, &
       & ConvergeLimit, orderRmatL, getDenseAO, Lpaired, Nc, Na, maxIter, Glevel, &
-      & reksAlg, tSaveMem, tRangeSep, ZT, RmatL, ZmatL, Q2mat)
+      & reksAlg, tSaveMem, isRangeSep, ZT, RmatL, ZmatL, Q2mat)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -170,7 +170,7 @@ module dftbp_rekscpeqn
     logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
 
     !> solution of A * Z = X equation with X is XT
@@ -229,7 +229,7 @@ module dftbp_rekscpeqn
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Lpaired, Glevel, tSaveMem, tRangeSep, ZmatL)
+        & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
     call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
         & Nc, Na, reksAlg, shift2e)
 
@@ -265,7 +265,7 @@ module dftbp_rekscpeqn
           & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
           & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
           & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-          & Lpaired, Glevel, tSaveMem, tRangeSep, ZmatL)
+          & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
       call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
           & Nc, Na, reksAlg, shift2e)
 
@@ -330,7 +330,7 @@ module dftbp_rekscpeqn
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Lpaired, Glevel, tSaveMem, tRangeSep, ZmatL)
+        & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
     write(stdOut,'(2x,a)') 'CG solver: Calculating converged R, Z, Q2 matrix'
     write(stdOut,"(A)") repeat("-", 82)

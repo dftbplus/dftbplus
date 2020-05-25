@@ -4562,7 +4562,7 @@ contains
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      if (reks%tRangeSep) then
+      if (reks%isRangeSep) then
         write(stdOut,'(1(f13.8))',advance="no") reks%enLfock(iL)
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
@@ -5024,7 +5024,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, tRangeSep)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, isRangeSep)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5120,7 +5120,7 @@ contains
     logical, intent(in) :: t3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
@@ -5285,7 +5285,7 @@ contains
       energy%ESCC = reks%enLSCC(reks%Lstate)
       energy%Espin = reks%enLspin(reks%Lstate)
       energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin
-      if (tRangeSep) then
+      if (isRangeSep) then
         energy%Efock = reks%enLfock(reks%Lstate)
         energy%Eelec = energy%Eelec + energy%Efock
       end if
@@ -5306,7 +5306,7 @@ contains
       if (t3rd) then
         write (fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
       end if
-      if (tRangeSep) then
+      if (isRangeSep) then
         write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
     end if
