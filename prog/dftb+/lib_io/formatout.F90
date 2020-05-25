@@ -154,11 +154,11 @@ contains
     @:ASSERT(size(coord, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesName) == nSpecies)
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(latVec)) then
       @:ASSERT(all(shape(latVec) == (/3, 3 /)))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
 
     tFractional = .false.
@@ -284,14 +284,14 @@ contains
     @:ASSERT(size(coords, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesNames) == nSpecies)
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(charges)) then
       @:ASSERT(size(charges) == nAtom)
     end if
     if (present(velocities)) then
       @:ASSERT(all(shape(velocities) == (/ 3, nAtom /)))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     write(fd, 200) nAtom
     if (present(comment)) then
