@@ -19,6 +19,9 @@ from testhelpers import write_autotest_tag
 
 LIB_PATH = '../../../../../prog/dftb+/libdftbplus'
 
+# number of atoms (should match dftb_in.hsd file)
+NATOM = 3
+
 
 class PotentialCalculator:
     '''
@@ -230,7 +233,45 @@ def main():
     # calculate energy, forces and Gross charges
     merminen = cdftb.get_energy()
     gradients = cdftb.get_gradients()
-    grosschg = cdftb.get_gross_charges()
+    grosschgs = cdftb.get_gross_charges()
+
+    # check whether calculator was initialized with correct nr. of atoms
+    print('(H2O) Obtained nr. of atoms: {:d}'.format(natoms))
+    print('(H2O) Expected nr. of atoms: {:d}\n'.format(NATOM))
+
+    # evaluate mermin free energy
+    print('(H2O) Obtained Mermin-energy: ' +
+          '{:15.10f}'.format(merminen))
+    print('(H2O) Expected Mermin-energy: ' +
+          '{:15.10f}\n'.format(-3.9854803392))
+
+    # evaluate gradients
+    print('(H2O) Obtained gradient of atom 1: ' +
+          '{:15.10f} {:15.10f} {:15.10f}'
+          .format(*gradients[0]))
+    print('(H2O) Expected gradient of atom 1: ' +
+          '{:15.10f} {:15.10f} {:15.10f}'
+          .format(0.0176513638, -0.1831376018, 0.0031982515))
+    print('(H2O) Obtained gradient of atom 2: ' +
+          '{:15.10f} {:15.10f} {:15.10f}'
+          .format(*gradients[1]))
+    print('(H2O) Expected gradient of atom 2: ' +
+          '{:15.10f} {:15.10f} {:15.10f}'
+          .format(-0.0061402266, 0.0955090293, 0.0394035230))
+    print('(H2O) Obtained gradient of atom 3: ' +
+          '{:15.10f} {:15.10f} {:15.10f}'
+          .format(*gradients[2]))
+    print('(H2O) Expected gradient of atom 3: ' +
+          '{:15.10f} {:15.10f} {:15.10f}\n'
+          .format(-0.0037720260, 0.0923535862, -0.0402979580))
+
+    # evaluate Gross charges
+    print('(H2O) Obtained Gross charges: ' +
+          '{:15.10f} {:15.10f} {:15.10f}'
+          .format(*grosschgs))
+    print('(H2O) Expected Gross charges: ' +
+          '{:15.10f} {:15.10f} {:15.10f}\n\n'
+          .format(-0.4943983279, 0.2641722128, 0.2302261151))
 
     # finalize DFTB+ and clean up
     cdftb.close()
@@ -240,7 +281,7 @@ def main():
 
     # write autotest.tag file of water molecule calculation
     write_autotest_tag('autotest.tag', freeEgy=merminen,
-                       forceTot=-gradients, qOutAtGross=grosschg)
+                       forceTot=-gradients, qOutAtGross=grosschgs)
 
 
 if __name__ == "__main__":

@@ -1,9 +1,11 @@
 Geometry = GenFormat {
+
  3  C
   O H
      1    1    0.00000000000E+00  -0.10000000000E+01   0.00000000000E+00
      2    2    0.00000000000E+00   0.00000000000E+00   0.78306400000E+00
      3    2    0.00000000000E+00   0.00000000000E+00  -0.78306400000E+00
+
 }
 
 Driver {}
@@ -45,12 +47,12 @@ Hamiltonian = DFTB {
 
 }
 
-Options {
-  WriteAutotestTag = Yes
-}
-
 Analysis {
   CalculateForces = Yes
+}
+
+Options = {
+  WriteAutotestTag = No
 }
 
 ParserOptions {
