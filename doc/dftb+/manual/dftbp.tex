@@ -4236,11 +4236,11 @@ The specifications for this block have the following properties:
     \item[\is{Preconditioner}] If set to \is{Yes}, it uses a preconditiner in the conjugate-gradient based algorithm. In general,
       the convergence speed is increased when this option sets to \is{Yes}, thus this option is recommended.
 
-    \item[\is{SaveMemory}] If set to \is{Yes}, some variables (A orbital hessian matrix and H-xc kernel) which need large
+    \item[\is{SaveMemory}] If set to \is{Yes}, some variables (an orbital hessian matrix and the H-xc kernel) which need large
       memory allocation are saved in the memory. If these variables are saved, then the computational
       speed also increases but it shows large memory allocation, increasing as $O(N_\mathrm{basis}^4)$.
       If set to \is{No}, the CP-REKS equations are solved without saving these variables, thus it is relatively
-      slower than the case that you set to \is{Yes}. In general, \is{No} option is recommended for the large systems.
+      slower than the case that you set to \is{Yes}. In general, \is{No} option is recommended for large systems.
     \end{description}
 
   \item[\is{Direct}] Uses a direct matrix-inversion multiplication algorithm. This algorithm is usually considerably slow.
