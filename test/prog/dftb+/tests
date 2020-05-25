@@ -133,6 +133,7 @@ solvation/gb_ionpair                   #? MPI_PROCS <= 1
 solvation/gb_reference                 #? MPI_PROCS <= 1
 solvation/gb_mol1bar                   #? MPI_PROCS <= 1
 solvation/gb_cm5                       #? MPI_PROCS <= 1
+solvation/gb_specieslist               #? MPI_PROCS <= 1
 solvation/gbsa_e35                     #? MPI_PROCS <= 1
 solvation/gbsa_caffeine                #? MPI_PROCS <= 1
 solvation/gbsa_param1                  #? MPI_PROCS <= 1

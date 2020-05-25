@@ -1483,18 +1483,20 @@ contains
 
     integer :: nSpin
 
-    #:call ASSERT_CODE
-      @:ASSERT(size(over) == size(ham, dim=1))
-      @:ASSERT(size(H0) == size(ham, dim=1))
-      @:ASSERT(all(shape(rhoPrim) == shape(ham)))
-      if (allocated(iRhoPrim)) then
-        @:ASSERT(all(shape(iRhoPrim) == shape(ham)))
-        @:ASSERT(all(shape(iHam) == shape(ham)))
+    #:block ASSERT_CODE
+      @:ASSERT(size(H0) == size(over))
+      if (.not. allocated(reks)) then
+        @:ASSERT(size(ham, dim=1) == size(over))
+        @:ASSERT(all(shape(rhoPrim) == shape(ham)))
+        if (allocated(iRhoPrim)) then
+          @:ASSERT(all(shape(iRhoPrim) == shape(rhoPrim)))
+          @:ASSERT(all(shape(iHam) == shape(ham)))
+        end if
+        if (allocated(ERhoPrim)) then
+          @:ASSERT(size(ERhoPrim) == size(rhoPrim, dim=1))
+        end if
       end if
-      if (allocated(ERhoPrim)) then
-        @:ASSERT(size(ERhoPrim) == size(ham, dim=1))
-      end if
-    #:endcall ASSERT_CODE
+    #:endblock ASSERT_CODE
 
     if (allocated(reks)) then
       if (size(over, dim=1) == sparseSize) then

@@ -26,6 +26,7 @@ module dftbp_solvparser
   use dftbp_sasa, only : TSASAInput
   use dftbp_solvinput, only : TSolvationInp
   use dftbp_solventdata, only : TSolventData, SolventFromName
+  use dftbp_specieslist, only : readSpeciesList
   use dftbp_typegeometry, only : TGeometry
   use dftbp_unitconversion, only : lengthUnits, energyUnits, massUnits, &
       & massDensityUnits, inverseLengthUnits
@@ -86,7 +87,6 @@ contains
     type(TGBInput), allocatable :: defaults
     type(string) :: buffer, state, modifier
     type(fnode), pointer :: child, value1, field, child2, value2, dummy
-    integer :: iSp
     logical :: found, tHBondCorr
     real(dp) :: temperature, shift, conv
     real(dp), allocatable :: vdwRadDefault(:)
@@ -100,8 +100,7 @@ contains
       call detailedError(node, "Generalized Born model currently not available with PBCs")
     end if
 
-    call getChildValue(node, "ParamFile", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChild(node, "ParamFile", value1, requested=.false.)
     if (associated(value1)) then
       allocate(defaults)
       call getChildValue(node, "ParamFile", buffer, "", child=child)
@@ -197,21 +196,11 @@ contains
     case("vanderwaalsradiid3")
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
-      do iSp = 1, geo%nSpecies
-        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
-        if (associated(value2)) then
-          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
-              & child=child2)
-        else
-          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
-              & vdwRadDefault(iSp)/conv, child=child2)
-        end if
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%vdwRad, vdwRadDefault, &
+        & conv=conv)
       deallocate(vdwRadDefault)
     case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%vdwRad, conv=conv)
     end select
     input%vdwRad(:) = input%vdwRad * conv
 
@@ -229,34 +218,29 @@ contains
       if (.not.allocated(defaults)) then
         call detailedError(child, "No defaults available for descreening parameters")
       end if
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, trim(geo%speciesNames(iSp)), &
-          & input%descreening(iSp), defaults%descreening(iSp), child=child2)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%descreening, &
+          & defaults%descreening)
     case("unity")
       input%descreening(:) = 1.0_dp
     case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, trim(geo%speciesNames(iSp)), input%descreening(iSp), child=child2)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%descreening)
     end select
 
     call getChildValue(node, "Cutoff", input%rCutoff, 35.0_dp * AA__Bohr, &
         & modifier=modifier, child=field)
     call convertByMul(char(modifier), lengthUnits, field, input%rCutoff)
 
-    call getChildValue(node, "SASA", value1, "", child=child, &
-        &allowEmptyValue=.true., dummyValue=.true.)
+    call getChild(node, "SASA", value1, requested=.false.)
     if (associated(value1) .or. allocated(defaults)) then
       allocate(input%sasaInput)
       if (.not.associated(value1)) then
-        call setChild(node, "Barostat", value1)
+        call setChild(node, "SASA", value1)
       end if
       if (allocated(defaults)) then
-        call readSolvSASA(child, geo, input%sasaInput, defaults%sasaInput%probeRad, &
+        call readSolvSASA(value1, geo, input%sasaInput, defaults%sasaInput%probeRad, &
             & defaults%sasaInput%surfaceTension)
       else
-        call readSolvSASA(child, geo, input%sasaInput)
+        call readSolvSASA(value1, geo, input%sasaInput)
       end if
 
       if (allocated(defaults)) then
@@ -285,14 +269,10 @@ contains
           else
             call detailedError(child, "No defaults available for hydrogen bond strengths")
           end if
-          do iSp = 1, geo%nSpecies
-            call getChildValue(value1, trim(geo%speciesNames(iSp)), &
-                & input%hBondPar(iSp), defaults%hBondPar(iSp), child=child2)
-          end do
+          call readSpeciesList(value1, geo%speciesNames, input%hBondPar, &
+              & defaults%hBondPar)
         case("values")
-          do iSp = 1, geo%nSpecies
-            call getChildValue(value1, trim(geo%speciesNames(iSp)), input%hBondPar(iSp), child=child2)
-          end do
+          call readSpeciesList(value1, geo%speciesNames, input%hBondPar)
         end select
       end if
     end if
@@ -321,7 +301,7 @@ contains
     type(string) :: buffer, modifier
     type(fnode), pointer :: child, value1, value2, field, child2, dummy
     character(lc) :: errorStr
-    integer :: iSp, ii, gridPoints
+    integer :: gridPoints
     real(dp) :: conv
     real(dp), allocatable :: vdwRadDefault(:)
 
@@ -364,21 +344,11 @@ contains
     case("vanderwaalsradiid3")
       allocate(vdwRadDefault(geo%nSpecies))
       vdwRadDefault(:) = getVanDerWaalsRadiusD3(geo%speciesNames)
-      do iSp = 1, geo%nSpecies
-        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
-        if (associated(value2)) then
-          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
-              & child=child2)
-        else
-          call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), &
-              & vdwRadDefault(iSp)/conv, child=child2)
-        end if
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%vdwRad, vdwRadDefault, &
+          & conv=conv)
       deallocate(vdwRadDefault)
     case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), input%vdwRad(iSp), child=child2)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%vdwRad, conv=conv)
     end select
     input%vdwRad(:) = input%vdwRad * conv
 
@@ -396,14 +366,10 @@ contains
       if (.not.present(surfaceTensionDefault)) then
         call detailedError(child, "No defaults available for surface tension values")
       end if
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), &
-            & input%surfaceTension(iSp), surfaceTensionDefault(iSp), child=child2)
-      end do
-      case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), input%surfaceTension(iSp), child=child2)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%surfaceTension, &
+          & surfaceTensionDefault)
+    case("values")
+      call readSpeciesList(value1, geo%speciesNames, input%surfaceTension)
     end select
 
     call getChildValue(node, "Offset", input%sOffset, 2.0_dp * AA__Bohr, &
@@ -429,7 +395,6 @@ contains
     type(string) :: buffer, modifier
     real(dp) :: conv
     real(dp), allocatable :: atomicRadDefault(:)
-    integer :: iSp
 
     call getChildValue(node, "Alpha", input%alpha, 2.474_dp/AA__Bohr, &
       & modifier=modifier, child=field)
@@ -447,22 +412,11 @@ contains
     case("atomicradii")
       allocate(atomicRadDefault(geo%nSpecies))
       atomicRadDefault(:) = getAtomicRad(geo%speciesNames)
-      do iSp = 1, geo%nSpecies
-        call getChild(value1, geo%speciesNames(iSp), value2, requested=.false.)
-        if (associated(value2)) then
-          call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
-              & child=child2)
-        else
-          call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
-              & atomicRadDefault(iSp)/conv, child=child2)
-        end if
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%atomicRad, conv=conv, &
+        & default=atomicRadDefault)
       deallocate(atomicRadDefault)
     case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp), input%atomicRad(iSp), &
-            & child=child2)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%atomicRad, conv=conv)
     end select
     if (any(input%atomicRad <= 0.0_dp)) then
       call detailedError(value1, "Atomic radii must be positive for all species")

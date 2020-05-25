@@ -16,6 +16,7 @@ set(sources-fpp
   ${curdir}/parser.F90
   ${curdir}/qdepextpotgen.F90
   ${curdir}/qdepextpotproxy.F90
+  ${curdir}/specieslist.F90
   ${curdir}/transportio.F90)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)
