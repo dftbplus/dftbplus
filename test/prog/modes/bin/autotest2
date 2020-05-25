@@ -39,7 +39,7 @@ TAGDIFF_MATCH_OK="OK"
 TAGDIFF_MATCH_INCOMPLETE="Not found in new"
 
 #APP_STDIN=input
-APP_INPUT=dftb_in.hsd
+APP_INPUT=modes_in.hsd
 APP_STDOUT=output
 APP_STDERR=stderror.log
 APP_TAGDATA=vibrations.tag
