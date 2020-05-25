@@ -17,7 +17,7 @@ Driver = VelocityVerlet {
 
 Hamiltonian = DFTB {
   SCC = Yes
-  SCCTolerance = 1.000000000000000E-006
+  SccTolerance = 1e-10 # exteremly tight, only for testing purposes
   MaxSCCIterations = 1000
   Mixer = Broyden {
     MixingParameter = 5.000000000000000E-002

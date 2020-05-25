@@ -10,13 +10,16 @@
 !> Helper routines to handle input to solvation models
 module dftbp_solvinput
   use dftbp_accuracy, only : dp
-  use dftbp_born, only : TGeneralizedBorn, TGBInput, init
-  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init
+  use dftbp_born, only : TGeneralizedBorn, TGBInput, TGeneralizedBorn_init, &
+    writeGeneralizedBornInfo
+  use dftbp_message, only : error
+  use dftbp_sasa, only : TSASACont, TSASAInput, TSASACont_init, writeSASAContInfo
   use dftbp_solvation, only : TSolvation
   implicit none
   private
 
   public :: TSolvationInp, createSolvationModel, writeSolvationInfo
+
 
   !> Collection of solvation input data
   type :: TSolvationInp
@@ -29,13 +32,16 @@ module dftbp_solvinput
 
   end type TSolvationInp
 
+
   !> Wrapper to create a solvation model from its respective input
   interface createSolvationModel
     module procedure :: createGeneralizedBornModel
     module procedure :: createSASAModel
   end interface
 
+
 contains
+
 
   !> Print the solvation model used
   subroutine writeSolvationInfo(unit, solvation)
@@ -46,14 +52,24 @@ contains
     !> Solvation model
     class(TSolvation), intent(in) :: solvation
 
+    write(unit, '(a, ":", t30)', advance='no') "Solvation"
     select type(solvation)
     type is(TGeneralizedBorn)
-      write(unit, '(a)') "Using generalized Born solvation model"
+      write(unit, '(a)') "generalized Born model"
+      call writeGeneralizedBornInfo(unit, solvation)
+
     type is(TSASACont)
-      write(unit, '(a)') "Using solvent accessible surface area solvation model"
+      write(unit, '(a)') "surface area model"
+      call writeSASAContInfo(unit, solvation)
+
+    class default
+      write(unit, '(a)') "internal error"
+      call error("Unknown solvation model passed")
+
     end select
 
   end subroutine writeSolvationInfo
+
 
   !> Wrapper to create a generalized Born model
   subroutine createGeneralizedBornModel(solvation, input, nAtom, species0, speciesNames, latVecs)
@@ -80,7 +96,7 @@ contains
 
     allocate(model)
 
-    call init(model, input, nAtom, species0, speciesNames, latVecs)
+    call TGeneralizedBorn_init(model, input, nAtom, species0, speciesNames, latVecs)
 
     call move_alloc(model, solvation)
 
