@@ -6355,7 +6355,7 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    if (reks%guess == 1) then
+    if (.not. reks%tReadMO) then
 
       call env%globalTimer%startTimer(globalTimers%diagonalization)
       call buildAndDiagDenseRealH0(env, denseDesc, h0, over, neighbourList, &
@@ -6363,7 +6363,7 @@ contains
           & HSqrReal, SSqrReal, eigvecsReal, eigen(:,1,:), reks%overSqr)
       call env%globalTimer%stopTimer(globalTimers%diagonalization)
 
-    else if (reks%guess == 2) then
+    else
 
       call readEigenvecs(eigvecsReal(:,:,1))
       ! TODO : renormalize eigenvectors needed!
@@ -6549,7 +6549,7 @@ contains
         call makeDensityMatrix(reks%rhoSqrL(:,:,1,iL), eigvecs(:,:,1), &
             & reks%fillingL(:,1,iL))
         call symmetrizeHS(reks%rhoSqrL(:,:,1,iL))
-        if (reks%tRangeSep) then
+        if (reks%isRangeSep) then
           ! reks%deltaRhoSqrL has (my_ud) component
           reks%deltaRhoSqrL(:,:,1,iL) = reks%rhoSqrL(:,:,1,iL)
           call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
@@ -6565,7 +6565,7 @@ contains
             & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-        if (reks%tRangeSep) then
+        if (reks%isRangeSep) then
           ! reks%deltaRhoSqrL has (my_ud) component
           reks%deltaRhoSqrL(:,:,1,iL) = tmpRho
           call symmetrizeHS(reks%deltaRhoSqrL(:,:,1,iL))
@@ -6743,7 +6743,7 @@ contains
     sparseSize = size(over,dim=1)
     nOrb = size(reks%overSqr,dim=1)
 
-    if (reks%tRangeSep) then
+    if (reks%isRangeSep) then
       allocate(tmpHamSp(sparseSize,1))
       allocate(tmpHam(nOrb,nOrb))
       allocate(tmpEn(reks%Lmax))
@@ -6764,7 +6764,7 @@ contains
           & reks%intAtom, reks%intShellL(:,:,:,iL), reks%intBlockL(:,:,:,:,iL))
 
       ! Calculate Hamiltonian including SCC, spin
-      if(.not. reks%tRangeSep) then
+      if(.not. reks%isRangeSep) then
         ! reks%hamSpL has (my_qm) component
         call getReksSccHamiltonian(H0, over, nNeighbourSK, neighbourList, &
             & species, orb, iSparseStart, img2CentCell, reks%hamSpL(:,:,iL), &
@@ -6788,7 +6788,7 @@ contains
 
     end do
 
-    if(.not. reks%tRangeSep) then
+    if(.not. reks%isRangeSep) then
       ! reks%hamSpL has (my_ud) component
       call qm2udL(reks%hamSpL, reks%Lpaired)
     else
@@ -7067,7 +7067,7 @@ contains
     end if
 
     ! set the long-range corrected energy for each microstate
-    if (reks%tRangeSep) then
+    if (reks%isRangeSep) then
       do iL = 1, reks%Lmax
         if (iL <= reks%Lpaired) then
           energy%Efock = tmpEn(iL) + tmpEn(iL)
@@ -7148,7 +7148,7 @@ contains
       energy%eOnSite = 0.0_dp
 
       energy%Efock = 0.0_dp
-      if (reks%tRangeSep) then
+      if (reks%isRangeSep) then
         energy%Efock = reks%enLfock(iL)
       end if
 
@@ -7274,7 +7274,7 @@ contains
         & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, &
         & iSparseStart, img2CentCell)
     call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-    if (reks%tRangeSep) then
+    if (reks%isRangeSep) then
       deltaRhoOutSqr(:,:,1) = tmpRho
       call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
           & deltaRhoOutSqr)
@@ -7346,7 +7346,7 @@ contains
     sccErrorQ = maxval(abs(qDiffRed))
 
     tConverged = (sccErrorQ < sccTol) &
-        & .and. (iSccIter >= minSccIter .or. (reks%guess == 2) .or. iGeoStep > 0)
+        & .and. (iSccIter >= minSccIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSccIter /= maxSccIter .and. .not. tStopScc)) then
       qInpRed(:) = qOutRed
       call guessNewEigvecs(eigvecs(:,:,1), reks%eigvecsFock)
@@ -7403,7 +7403,7 @@ contains
     sccErrorQ = maxval(abs(deltaRhoDiff))
 
     tConverged = (sccErrorQ < sccTol)&
-         & .and. (iSCCiter >= minSCCIter .or. (reks%guess == 2) .or. iGeoStep > 0)
+         & .and. (iSCCiter >= minSCCIter .or. reks%tReadMO .or. iGeoStep > 0)
     if ((.not. tConverged) .and. (iSCCiter /= maxSccIter .and. .not. tStopScc)) then
       deltaRhoIn(:) = deltaRhoOut
       call guessNewEigvecs(eigvecs(:,:,1), reks%eigvecsFock)
@@ -7539,8 +7539,8 @@ contains
 
       call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), reks%overSqr, reks%rhoSqrL, &
           & reks%FONs, reks%eigvecsSSR, reks%Lpaired, reks%Nc, reks%Na, &
-          & reks%rstate, reks%Lstate, reks%useSSR, reks%tTDP, reks%tSSR22, &
-          & reks%tSSR44, reks%unrelRhoSqr, reks%unrelTdm)
+          & reks%rstate, reks%Lstate, reks%reksAlg, reks%tSSR, reks%tTDP, &
+          & reks%unrelRhoSqr, reks%unrelTdm)
 
       if (reks%tTDP) then
         call getDipoleIntegral(coord0, reks%overSqr, reks%getAtomIndex, dipoleInt)
