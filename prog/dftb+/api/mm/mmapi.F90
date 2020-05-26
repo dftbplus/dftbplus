@@ -24,7 +24,7 @@ module dftbp_mmapi
   implicit none
   private
 
-  public :: TDftbPlus
+  public :: TDftbPlus, getDftbPlusBuild, getDftbPlusApi
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusInput
   public :: TQDepExtPotGen
@@ -83,6 +83,48 @@ module dftbp_mmapi
 
 
 contains
+
+
+  !> Return the version string for the current DFTB+ build
+  subroutine getDftbPlusBuild(version)
+
+    !> Version string for DFTB+
+    character(:), allocatable, intent(out) :: version
+
+    version = '${RELEASE}$'
+
+  end subroutine getDftbPlusBuild
+
+
+  !> Returns the DFTB+ API version
+  subroutine getDftbPlusApi(major, minor, patch)
+
+    !> Major version number
+    integer, intent(out) :: major
+
+    !> Minor version number
+    integer, intent(out) :: minor
+
+    !> patch level for API
+    integer, intent(out) :: patch
+
+    character(*), parameter :: version = '${APIVERSION}$'
+    character(len=256) :: majorS, minorS, patchS
+    integer :: iPos, jPos
+
+    ! parse a string of the form 'x.y.z'
+    iPos = index(version, '.')
+    jPos = index(version, '.', back=.true.)
+
+    majorS = version(1:iPos-1)
+    minorS = version(iPos+1:jPos-1)
+    patchS = version(jPos+1:)
+    read(majorS, *) major
+    read(minorS, *) minor
+    read(patchS, *) patch
+
+  end subroutine getDftbPlusApi
+
 
   !> Returns the root node of the input, so that it can be further processed
   subroutine TDftbPlusInput_getRootNode(this, root)

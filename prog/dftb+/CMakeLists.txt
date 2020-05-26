@@ -3,6 +3,11 @@
 #
 list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
+if(WITH_API)
+  # Define the API version string
+  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_RELEASE}'")
+endif()
+
 #
 # Compile and install library
 #

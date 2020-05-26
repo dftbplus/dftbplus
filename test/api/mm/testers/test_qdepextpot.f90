@@ -44,7 +44,16 @@ program test_qdepextpot
   real(dp), allocatable :: extPot(:), extPotGrad(:,:)
   real(dp) :: merminEnergy
   real(dp) :: gradients(3, nQmAtom), grossCharges(nQmAtom)
+
+  character(:), allocatable :: DftbVersion
+  integer :: major, minor, patch
+
   !integer :: devNull
+
+  call getDftbPlusBuild(DftbVersion)
+  write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+  call getDftbPlusApi(major, minor, patch)
+  write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
   ! Pass the 1st external charge to dynamic potential generator from the extchargepotgen module,
   ! while the 2nd charge will be set as constant electrostatic potential
