@@ -1068,12 +1068,12 @@ contains
           if (this%tBondE) then
             call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), ham0, iSquare, &
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
-                & time)
+                & (iStep+1) * this%dt + startTime)
           end if
           if (this%tBondO) then
             call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), over, iSquare, &
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
-                & time)
+                & (iStep+1) * this%dt + startTime)
           end if
         end if
       end if
