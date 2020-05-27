@@ -1066,11 +1066,13 @@ contains
         if ((.not. this%tRestart .or. this%tProbe) .and.&
             & (.not. this%tKick .or. this%tKickAndLaser)) then
           if (this%tBondE) then
+            write(*,*)'case A'
             call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), ham0, iSquare, &
-                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
+                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondEnergy,&
                 & (iStep+1) * this%dt + startTime)
           end if
           if (this%tBondO) then
+            write(*,*)'case B'
             call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), over, iSquare, &
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
                 & (iStep+1) * this%dt + startTime)
