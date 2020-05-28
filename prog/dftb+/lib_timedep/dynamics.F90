@@ -872,7 +872,8 @@ contains
     real(dp) :: occ(this%nOrbs)
     character(4) :: dumpIdx
     logical :: tProbeFrameWrite
-
+    real(dp), allocatable :: sumBondOrder
+    integer :: nBndOEvals
 
     allocate(Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
@@ -977,16 +978,18 @@ contains
     if (this%tBondE .or. this%tBondO)then
       allocate(bondWork(this%nAtom, this%nAtom))
     end if
-    if ((.not. this%tRestart .or. this%tProbe) .and. (.not. this%tRestart .or. this%tProbe)) then
-      if (this%tBondE) then
-        call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), ham0, iSquare,&
-            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondEnergy,&
-            & startTime)
-      end if
-      if (this%tBondO) then
-        call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), over, iSquare,&
-            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
-            & startTime)
+    if (this%tBondE) then
+      call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), ham0, iSquare,&
+          & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondEnergy,&
+          & startTime)
+    end if
+    if (this%tBondO) then
+      call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), over, iSquare,&
+          & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
+          & startTime)
+      if (tWriteAutotest) then
+        sumBondOrder = sum(bondWork)
+        nBndOEvals = 1
       end if
     end if
 
@@ -1061,21 +1064,19 @@ contains
           & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
           & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
-      if ((mod(iStep + 1, this%writeFreq) == 0)) then
-        ! iStep +1 to match printing call occuring at top of loop
-        if ((.not. this%tRestart .or. this%tProbe) .and.&
-            & (.not. this%tKick .or. this%tKickAndLaser)) then
-          if (this%tBondE) then
-            write(*,*)'case A'
-            call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), ham0, iSquare, &
-                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondEnergy,&
-                & (iStep+1) * this%dt + startTime)
-          end if
-          if (this%tBondO) then
-            write(*,*)'case B'
-            call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), over, iSquare, &
-                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
-                & (iStep+1) * this%dt + startTime)
+      if ((mod(iStep, this%writeFreq) == 0)) then
+        if (this%tBondE) then
+          call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), ham0, iSquare, &
+              & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondEnergy,&
+              & time)
+        end if
+        if (this%tBondO) then
+          call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), over, iSquare, &
+              & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
+              & time)
+          if (tWriteAutotest) then
+            sumBondOrder = sumBondOrder + sum(bondWork)
+            nBndOEvals = nBndOEvals + 1
           end if
         end if
       end if
@@ -1124,7 +1125,11 @@ contains
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
     if (tWriteAutotest) then
-      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, taggedWriter)
+      if (allocated(sumBondOrder)) then
+        sumBondOrder = sumBondOrder / real(nBndOEvals, dp)
+      end if
+      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, sumBondOrder,&
+          & taggedWriter)
     end if
 
     call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, fdBondOrder,&
@@ -2193,13 +2198,14 @@ contains
         call openFile(this, coorDat, 'tdcoords.xyz')
       end if
 
-      if (this%tBondE) then
-        call openFile(this, fdBondOrder, 'bondorder.bin', isBinary = .true.)
-      end if
+    end if
 
-      if (this%tBondO) then
-        call openFile(this, fdBondEnergy, 'bondenergy.bin', isBinary = .true.)
-      end if
+    if (this%tBondE) then
+      call openFile(this, fdBondEnergy, 'bondorder.bin', isBinary = .true.)
+    end if
+
+    if (this%tBondO) then
+      call openFile(this, fdBondOrder, 'bondenergy.bin', isBinary = .true.)
     end if
 
     if (this%tPopulations) then
@@ -2670,7 +2676,8 @@ contains
 
 
   !> Write time-dependent tagged information to autotestTag file
-  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, taggedWriter)
+  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, sumBondOrder,&
+      & taggedWriter)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2693,6 +2700,9 @@ contains
     !> molecular orbital projected populations
     real(dp), intent(in) :: occ(:)
 
+    !> Optional sum of bond orders over the run
+    real(dp), intent(in), allocatable :: sumBondOrder
+
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
@@ -2712,6 +2722,9 @@ contains
     end if
     if (this%tPopulations) then
       call taggedWriter%write(fdAutotest, tagLabels%tdprojocc, occ)
+    end if
+    if (allocated(sumBondOrder)) then
+      call taggedWriter%write(fdAutotest, tagLabels%sumBondOrder, sumBondOrder)
     end if
 
     close(fdAutotest)
