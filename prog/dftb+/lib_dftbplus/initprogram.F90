@@ -4868,11 +4868,14 @@ contains
       case (electronicSolverTypes%onlyTransport)
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-          & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
+          & electronicSolverTypes%relativelyrobust)
         call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
             & blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
-      case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
-        call error("REKS is not compatible with density matrix ELSI-solvers")
+      case(electronicSolverTypes%magma_gvd)
+        call error("REKS is not compatible with MAGMA GPU solver")
+      case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+          & electronicSolverTypes%elpadm, electronicSolverTypes%elpa)
+        call error("REKS is not compatible with ELSI-solvers")
       end select
 
     case(hamiltonianTypes%xtb)
