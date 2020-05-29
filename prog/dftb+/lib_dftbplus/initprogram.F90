@@ -2726,8 +2726,9 @@ contains
   #:endif
 
     if (allocated(reks)) then
-      call checkReksConsistency(input%ctrl%reksInp, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
-          & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+      call checkReksConsistency(input%ctrl%reksInp, solvation, onSiteElements, kPoint, nEl,&
+          & nKPoint, tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic,&
+          & tLatOpt, tReadChrg)
       ! here, nSpin changes to 2 for REKS
       call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
@@ -4708,11 +4709,14 @@ contains
   end subroutine initPlumed
 
 
-  subroutine checkReksConsistency(reksInp, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
-      & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+  subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
+      & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
 
     !> data type for REKS input
     type(TReksInp), intent(in) :: reksInp
+
+    !> Solvation data and calculations
+    class(TSolvation), allocatable, intent(in) :: solvation
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
@@ -4772,6 +4776,10 @@ contains
       call error("REKS is not compatible with standard linear response excitation")
     else if (allocated(onSiteElements)) then
       call error("REKS is not compatible with onsite corrections")
+    end if
+
+    if (allocated(solvation)) then
+      call error("REKS is currently not available with solvation")
     end if
 
     if (tPeriodic) then
