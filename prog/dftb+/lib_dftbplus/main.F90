@@ -508,13 +508,18 @@ contains
         call getFockandDiag(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
             & img2CentCell, eigvecsReal, electronicSolver, eigen, reks)
 
-        call getSysDensityFromRealEigvecs(env, denseDesc, neighbourList, nNeighbourSK,&
-            & iSparseStart, img2CentCell, orb, eigvecsReal, filling, rhoPrim, q0, deltaRhoOutSqr,&
-            & reks)
+        ! Creates (delta) density matrix for averaged state from real eigenvectors.
+        call getDensityFromRealEigvecs(env, denseDesc, filling(:,1,:), neighbourList, nNeighbourSK,&
+            & iSparseStart, img2CentCell, orb, eigVecsReal, parallelKS, rhoPrim, SSqrReal,&
+            & rhoSqrReal, deltaRhoOutSqr)
+        ! For rangeseparated calculations deduct atomic charges from deltaRho
+        if (tRangeSep) then
+          call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, deltaRhoOutSqr)
+        end if
         call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, qOutput, iRhoPrim=iRhoPrim, qBlock=qBlockOut, qiBlock=qiBlockOut)
 
-        ! check charge convergece and guess new eigenvectors
+        ! Check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
         if (tRangeSep) then
           call getReksNextInputDensity(sccErrorQ, sccTol, tConverged, iSccIter, minSccIter,&
@@ -626,7 +631,7 @@ contains
             & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
             & deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices)
 
-        !> For rangeseparated calculations deduct atomic charges from deltaRho
+        ! For rangeseparated calculations deduct atomic charges from deltaRho
         if (tRangeSep) then
           select case(nSpin)
           case(2)
@@ -3002,7 +3007,6 @@ contains
         else
           call makeDensityMatrix(work, eigvecs(:,:,iKS), filling(:,iSpin))
         end if
-
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         call packHS(rhoPrim(:,iSpin), work, neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb,&
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
@@ -7211,78 +7215,6 @@ contains
     end if
 
   end subroutine optimizeFONsAndWeights
-
-
-  !> Creates (delta) density matrix for averaged state from real eigenvectors.
-  subroutine getSysDensityFromRealEigvecs(env, denseDesc, neighbourList,&
-      & nNeighbourSK, iSparseStart, img2CentCell, orb, eigvecs, filling,&
-      & rhoPrim, q0, deltaRhoOutSqr, reks)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
-    !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> list of neighbours for each atom
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Index array for the start of atomic blocks in sparse arrays
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> map from image atoms to the original unique atom
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> eigenvectors
-    real(dp), intent(inout) :: eigvecs(:,:,:)
-
-    !> occupations (level, kpoint, spin)
-    real(dp), intent(in) :: filling(:,:,:)
-
-    !> sparse density matrix
-    real(dp), intent(out) :: rhoPrim(:,:)
-
-    !> reference atomic occupations
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> Change in density matrix after SCC step
-    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
-
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
-
-    real(dp), allocatable :: tmpRho(:,:)
-    integer :: nOrb
-
-    nOrb = size(reks%overSqr,dim=1)
-
-    allocate(tmpRho(nOrb,nOrb))
-
-    call env%globalTimer%startTimer(globalTimers%densityMatrix)
-
-    tmpRho(:,:) = 0.0_dp
-    rhoPrim(:,:) = 0.0_dp
-    call makeDensityMatrix(tmpRho, eigvecs(:,:,1), filling(:,1,1))
-    call env%globalTimer%startTimer(globalTimers%denseToSparse)
-    call packHS(rhoPrim(:,1), tmpRho, neighbourlist%iNeighbour, &
-        & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, &
-        & iSparseStart, img2CentCell)
-    call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-    if (reks%isRangeSep) then
-      deltaRhoOutSqr(:,:,1) = tmpRho
-      call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
-          & deltaRhoOutSqr)
-    end if
-
-    call env%globalTimer%stopTimer(globalTimers%densityMatrix)
-
-  end subroutine getSysDensityFromRealEigvecs
 
 
   !> Returns input charges for next SCC iteration.
