@@ -545,6 +545,15 @@ module dftbp_initprogram
   !> geometry optimiser
   type(TNumDerivs), allocatable, target :: derivDriver
 
+  !> Total charge
+  real(dp) :: nrChrg
+
+  !> Spin polarisation  
+  real(dp) :: nrSpinPol
+  
+  !> Is the check-sum for charges read externally be used?                                                     
+  logical :: tSkipChrgChecksum
+
   !> reference neutral atomic occupations
   real(dp), allocatable :: q0(:, :, :)
 
@@ -697,6 +706,9 @@ module dftbp_initprogram
   !> Whether potential shifts are read from file
   logical :: tReadShifts
 
+  !> Should charges be read in ascii format?
+  logical :: tReadChrgAscii
+  
   !> Whether potential shifts are read from file
   logical :: tWriteShifts
 
@@ -1064,8 +1076,7 @@ contains
     integer :: iSeed
 
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
-    integer :: iStart, iEnd
-
+    
     ! Dispersion
     type(TDispSlaKirk), allocatable :: slaKirk
     type(TDispUFF), allocatable :: uff
@@ -1093,11 +1104,6 @@ contains
 
     !> Flag if some files do exist or not
     logical :: tExist
-
-    ! Orbital equivalency for SCC and Spin
-    integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
-    ! Orbital equivalency for orbital potentials
-    integer, allocatable :: iEqOrbDFTBU(:,:,:)
 
     ! Damped interactions
     logical, allocatable, target :: tDampedShort(:)
@@ -1591,80 +1597,10 @@ contains
     tempAtom = input%ctrl%tempAtom
     deltaT = input%ctrl%deltaT
 
-
-    ! Create equivalency relations
-    if (tSccCalc) then
-      allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
-      allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
-      call sccCalc%getOrbitalEquiv(orb, species0, iEqOrbSCC)
-      if (nSpin == 1) then
-        iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
-      else
-        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
-        call Spin_getOrbitalEquiv(orb, species0, iEqOrbSpin)
-        call OrbitalEquiv_merge(iEqOrbSCC, iEqOrbSpin, orb, iEqOrbitals)
-        deallocate(iEqOrbSpin)
-      end if
-      deallocate(iEqOrbSCC)
-      nIneqOrb = maxval(iEqOrbitals)
-      nMixElements = nIneqOrb
-
-      if (tDFTBU) then
-        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
-        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
-        call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU,orb, species0, nUJ, niUJ, iUJ)
-        call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
-        iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
-        nIneqOrb = maxval(iEqOrbitals)
-        deallocate(iEqOrbSpin)
-        deallocate(iEqOrbDFTBU)
-      end if
-
-      if (allocated(onSiteElements)) then
-        allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
-        iEqOrbSpin(:,:,:) = 0.0_dp
-        allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
-        iEqOrbDFTBU(:,:,:) = 0.0_dp
-        call Ons_getOrbitalEquiv(iEqOrbDFTBU, orb, species0)
-        call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
-        iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
-        nIneqOrb = maxval(iEqOrbitals)
-        deallocate(iEqOrbSpin)
-        deallocate(iEqOrbDFTBU)
-      end if
-
-      if (allocated(onSiteElements)) then
-        ! all onsite blocks are full of unique elements
-        allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        if (tImHam) then
-          allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        end if
-        call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
-        nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
-        if (allocated(iEqBlockOnSiteLS)) then
-          nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
-        end if
-      else if (tDFTBU) then
-        ! only a sub-set of onsite blocks are reduced/expanded
-        allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
-        nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
-        !  iEqBlockDFTBU does not include diagonal elements, so in the case of
-        !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
-        !  return 0
-        if (tImHam) then
-          allocate(iEqBlockDFTBULS(orb%mOrb, orb%mOrb, nAtom, nSpin))
-          call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, orb, species0, nUJ, niUJ, iUJ)
-          nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
-        end if
-      end if
-
-
-    else
-      nIneqOrb = nOrb
-      nMixElements = 0
-    end if
-
+    ! Orbital equivalency relations 
+    call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
+         & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
+ 
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
@@ -1768,45 +1704,14 @@ contains
       call error("xTB calculation currently not supported")
     end select
 
-    ! Allocate reference charge arrays
-    allocate(q0(orb%mOrb, nAtom, nSpin))
-    q0(:,:,:) = 0.0_dp
-    allocate(qShell0(orb%mShell, nAtom))
-    qShell0(:,:) = 0.0_dp
+    nrChrg = input%ctrl%nrChrg
+    nrSpinPol = input%ctrl%nrSpinPol
+    
+    call initializeReferenceCharges(species0, referenceN0, orb, input%ctrl%customOccAtoms, &
+         & input%ctrl%customOccFillings, q0, qShell0)
+    call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
 
-    ! Initialize reference neutral atoms.
-    if (allocated(input%ctrl%customOccAtoms)) then
-      if (isLinResp) then
-        call error("Custom occupation not compatible with linear response")
-      end if
-      call applyCustomReferenceOccupations(input%ctrl%customOccAtoms, &
-          & input%ctrl%customOccFillings, species0, orb, referenceN0, q0)
-    else
-      call initQFromShellChrg(q0, referenceN0, species0, orb)
-    end if
-
-    nEl0 = sum(q0(:,:,1))
-    if (abs(nEl0 - nint(nEl0)) < elecTolMax) then
-      nEl0 = nint(nEl0)
-    end if
-    nEl(:) = 0.0_dp
-    if (nSpin == 1 .or. nSpin == 4) then
-      nEl(1) = nEl0 - input%ctrl%nrChrg
-      if(ceiling(nEl(1)) > 2.0_dp*nOrb) then
-        call error("More electrons than basis functions!")
-      end if
-    else
-      nEl(1) = 0.5_dp * (nEl0 - input%ctrl%nrChrg + input%ctrl%nrSpinPol)
-      nEl(2) = 0.5_dp * (nEl0 - input%ctrl%nrChrg - input%ctrl%nrSpinPol)
-      if (any(ceiling(nEl(:)) > nOrb)) then
-        call error("More electrons than basis functions!")
-      end if
-    end if
-
-    if (.not.all(nEl(:) >= 0.0_dp)) then
-      call error("Less than 0 electrons!")
-    end if
-
+    
     if (tForces) then
       tCasidaForces = input%ctrl%tCasidaForces
     else
@@ -2406,40 +2311,6 @@ contains
       EfieldPhase = 0
     end if
 
-    if (.not.allocated(reks)) then
-      allocate(qInput(orb%mOrb, nAtom, nSpin))
-      qInput(:,:,:) = 0.0_dp
-    end if
-    allocate(qOutput(orb%mOrb, nAtom, nSpin))
-    qOutput(:,:,:) = 0.0_dp
-
-    if (tMixBlockCharges) then
-      if (.not.allocated(reks)) then
-        allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        qBlockIn(:,:,:,:) = 0.0_dp
-      end if
-      allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qBlockOut(:,:,:,:) = 0.0_dp
-      if (tImHam) then
-        allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
-        qiBlockIn(:,:,:,:) = 0.0_dp
-      end if
-    end if
-
-    if (tImHam) then
-      allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
-      qiBlockOut(:,:,:,:) = 0.0_dp
-    end if
-
-    if (tSccCalc) then
-      allocate(qDiffRed(nMixElements))
-      allocate(qInpRed(nMixElements))
-      allocate(qOutRed(nMixElements))
-      qDiffRed = 0.0_dp
-      qInpRed = 0.0_dp
-      qOutRed = 0.0_dp
-    end if
-
     tReadChrg = input%ctrl%tReadChrg
 
     if (tRangeSep) then
@@ -2453,158 +2324,20 @@ contains
 
     tReadShifts = input%ctrl%tReadShifts
     tWriteShifts = input%ctrl%tWriteShifts
+
     ! Both temporarily removed until debugged:
     @:ASSERT(.not. tReadShifts)
     @:ASSERT(.not. tWriteShifts)
 
+    tReadChrgAscii  = input%ctrl%tReadChrgAscii
     tWriteChrgAscii = input%ctrl%tWriteChrgAscii
-
     tSkipChrgChecksum = input%ctrl%tSkipChrgChecksum .or. tNegf
 
-    if (tSccCalc) then
-
-      do iAt = 1, nAtom
-        iSp = species0(iAt)
-        do iSh = 1, orb%nShell(iSp)
-          qShell0(iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
-        end do
-      end do
-
-      if (.not.allocated(reks)) then
-
-        if (tReadChrg) then
-          if (tFixEf .or. input%ctrl%tSkipChrgChecksum) then
-            ! do not check charge or magnetisation from file
-            call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
-                & qiBlockIn, deltaRhoIn)
-          else
-            ! check number of electrons in file
-            if (nSpin /= 2) then
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
-                  & qiBlockIn, deltaRhoIn,nEl = sum(nEl))
-            else
-              ! check magnetisation in addition
-              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlockIn,&
-                  & qiBlockIn, deltaRhoIn,nEl = sum(nEl), magnetisation=nEl(1)-nEl(2))
-            end if
-          end if
-
-        else
-
-          if (allocated(input%ctrl%initialCharges)) then
-            if (abs(sum(input%ctrl%initialCharges) - input%ctrl%nrChrg) > 1e-4_dp) then
-              write(strTmp, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match&
-                  & specified total charge. (", sum(input%ctrl%initialCharges), " vs. ",&
-                  & input%ctrl%nrChrg,") ", "Your initial charge distribution will be rescaled."
-              call warning(strTmp)
-            end if
-            call initQFromAtomChrg(qInput, input%ctrl%initialCharges, referenceN0, species0,&
-                & speciesName, orb)
-          else
-            qInput(:,:,:) = q0
-          end if
-          if (.not. tSkipChrgChecksum) then
-            ! Rescaling to ensure correct number of electrons in the system
-            qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
-          end if
-
-          select case (nSpin)
-          case (1)
-            ! nothing to do
-          case (2)
-            if (allocated(input%ctrl%initialSpins)) then
-              do ii = 1, nAtom
-                ! does not actually matter if additional spin polarization pushes
-                ! charges to <0 as the initial charges are not mixed in to later
-                ! iterations
-                qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                    & * input%ctrl%initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
-              end do
-            else
-              if (.not. tSkipChrgChecksum) then
-                do ii = 1, nAtom
-                  qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                      & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
-                end do
-              end if
-            end if
-          case (4)
-            if (tSpin) then
-              if (.not. allocated(input%ctrl%initialSpins)) then
-                call error("Missing initial spins!")
-              end if
-              if (any(shape(input%ctrl%initialSpins)/=(/3,nAtom/))) then
-                call error("Incorrect shape initialSpins array!")
-              end if
-              ! Rescaling to ensure correct number of electrons in the system
-              if (.not. tSkipChrgChecksum) then
-                do ii = 1, nAtom
-                  do jj = 1, 3
-                    qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
-                        & * input%ctrl%initialSpins(jj,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
-                  end do
-                end do
-              end if
-            end if
-          end select
-          if (tMixBlockCharges) then
-            qBlockIn = 0.0_dp
-            do iS = 1, nSpin
-              do iAt = 1, nAtom
-                iSp = species0(iAt)
-                do iSh = 1, orb%nShell(iSp)
-                  iStart = orb%posShell(iSh,iSp)
-                  iEnd = orb%posShell(iSh+1,iSp)-1
-                  rTmp = sum(qInput(iStart:iEnd,iAt,iS))
-                  rTmp = rTmp / real(iEnd+1-iStart,dp)
-                  do ii = iStart, iEnd
-                    qBlockIn(ii,ii,iAt,iS) = rTmp
-                  end do
-                end do
-              end do
-            end do
-            if (tImHam) then
-              qiBlockIn = 0.0_dp
-            end if
-          end if
-        end if
-
-        qInpRed = 0.0_dp
-        if (nSpin == 2) then
-          call qm2ud(qInput)
-          if (tMixBlockCharges) then
-            call qm2ud(qBlockIn)
-          end if
-        end if
-
-        call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
-
-        if (allocated(onSiteElements)) then
-          call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
-          if (tImHam) then
-            call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, skew=.true. )
-          end if
-        else if (tDFTBU) then
-          call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
-          if (tImHam) then
-            call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
-          end if
-        end if
-
-        if (nSpin == 2) then
-          call ud2qm(qInput)
-          if (tMixBlockCharges) then
-            call ud2qm(qBlockIn)
-          end if
-        end if
-
-      else
-        ! Only qInpRed is used in REKS
-        qInpRed = 0.0_dp
-      end if
-
-    end if
-
+    call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
+         & nMixElements, input%ctrl%initialSpins, input%ctrl%initialCharges, nrChrg, &
+         & q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, &
+         & qiBlockIn, qiBlockOut)
+   
     ! Initialise images (translations)
     if (tPeriodic) then
       call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, cutOff%mCutOff)
@@ -3441,6 +3174,482 @@ contains
 
   end subroutine initProgramVariables
 
+  
+  !> Create equivalency relations
+  ! Data available from module: nUJ, niUJ, iUJ, nAtom, nSpin, nOrb and logicals 
+  subroutine setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
+       & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
+    
+    !> Type of the atoms (nAtom)
+    integer,  intent(in) :: species0(:)
+    !> SCC module internal variables
+    type(TScc), intent(in) :: sccCalc
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+    !> Correction to energy from on-site matrix elements
+    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
+    
+    !> Orbital equivalence relations
+    integer, allocatable, intent(inout) :: iEqOrbitals(:,:,:)
+    !> nr. of inequivalent orbitals
+    integer, intent(inout) :: nIneqOrb
+    !> nr. of elements to go through the mixer
+    !> - may contain reduced orbitals and also orbital blocks
+    !> (if tDFTBU or onsite corrections)
+    integer, intent(inout) :: nMixElements
+    !> Orbital equivalency for orbital blocks
+    integer, allocatable, intent(inout) :: iEqBlockDFTBU(:,:,:,:)
+    !> Orbital equivalency for orbital blocks with spin-orbit
+    integer, allocatable, intent(inout) :: iEqBlockDFTBULS(:,:,:,:)
+    !> Equivalences for onsite block corrections if needed
+    integer, allocatable, intent(inout) :: iEqBlockOnSite(:,:,:,:)
+    !> Equivalences for onsite block corrections if needed with spin orbit
+    integer, allocatable, intent(inout) :: iEqBlockOnSiteLS(:,:,:,:)
+
+    !> Orbital equivalency for SCC and Spin
+    integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
+    !> Orbital equivalency for orbital potentials
+    integer, allocatable :: iEqOrbDFTBU(:,:,:)
+    
+
+    if (tSccCalc) then
+       if(.not. allocated(iEqOrbitals)) then
+          allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
+       endif
+       allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
+       call sccCalc%getOrbitalEquiv(orb, species0, iEqOrbSCC)
+       if (nSpin == 1) then
+          iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
+       else
+          allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+          call Spin_getOrbitalEquiv(orb, species0, iEqOrbSpin)
+          call OrbitalEquiv_merge(iEqOrbSCC, iEqOrbSpin, orb, iEqOrbitals)
+          deallocate(iEqOrbSpin)
+       end if
+       deallocate(iEqOrbSCC)
+       nIneqOrb = maxval(iEqOrbitals)
+       nMixElements = nIneqOrb
+       
+       if (tDFTBU) then
+          allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+          allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
+          call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU,orb, species0, nUJ, niUJ, iUJ)
+          call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
+          iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+          nIneqOrb = maxval(iEqOrbitals)
+          deallocate(iEqOrbSpin)
+          deallocate(iEqOrbDFTBU)
+       end if
+       
+       if (allocated(onSiteElements)) then
+          allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
+          iEqOrbSpin(:,:,:) = 0.0_dp
+          allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
+          iEqOrbDFTBU(:,:,:) = 0.0_dp
+          call Ons_getOrbitalEquiv(iEqOrbDFTBU,orb, species0)
+          call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
+          iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
+          nIneqOrb = maxval(iEqOrbitals)
+          deallocate(iEqOrbSpin)
+          deallocate(iEqOrbDFTBU)
+       end if
+       
+       if (allocated(onSiteElements)) then
+          ! all onsite blocks are full of unique elements
+          if(.not. allocated(iEqBlockOnSite)) then
+             allocate(iEqBlockOnSite(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          endif
+          if (tImHam) then
+             if(.not. allocated(iEqBlockOnSiteLS))then
+                allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
+             endif
+          end if
+          call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
+          nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
+          if (allocated(iEqBlockOnSiteLS)) then
+             nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
+          end if
+       else if (tDFTBU) then
+          ! only a sub-set of onsite blocks are reduced/expanded
+          if(.not. allocated(iEqBlockDFTBU))then
+             allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          endif
+          call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
+          nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
+          !  iEqBlockDFTBU does not include diagonal elements, so in the case of
+          !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
+          !  return 0
+          if (tImHam) then
+             if(.not. allocated(iEqBlockDFTBULS))then
+                allocate(iEqBlockDFTBULS(orb%mOrb, orb%mOrb, nAtom, nSpin))
+             endif
+             call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, orb, species0, nUJ, niUJ, iUJ)
+             nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
+          end if
+       end if
+
+    !Non-SCC
+    else
+       nIneqOrb = nOrb
+       nMixElements = 0
+    end if
+   
+  end subroutine setEquivalencyRelations
+
+  
+  !> Initialise partial charges
+  !
+  !  Data used from module:
+  !  nAtom, nSpin, fCharges, deltaRhoIn, referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
+  !  iEqBlockDFTBULS, reks, and all logicals present
+  !
+  subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements, &
+       & initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, &
+       & qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+
+    !> Type of the atoms (nAtom)
+    integer, intent(in) :: species0(:)
+    !> Labels of atomic species
+    character(mc), intent(in) :: speciesName(:)
+    !> Data type for atomic orbitals
+    type(TOrbitals), intent(in) :: orb
+    !> Number of electrons
+    real(dp), intent(in) :: nEl(:)
+    !> Orbital equivalence relations
+    integer, intent(in) :: iEqOrbitals(:,:,:)
+    !> nr. of inequivalent orbitals
+    integer, intent(in) :: nIneqOrb
+    !> nr. of elements to go through the mixer
+    !> - may contain reduced orbitals and also orbital blocks          
+    !> (if tDFTBU or onsite corrections)                                           
+    integer, intent(in) :: nMixElements
+    !> Initial spins
+    real(dp), allocatable, intent(in) :: initialSpins(:,:)
+    !> Set of atom-resolved atomic charges 
+    real(dp), allocatable, intent(in) :: initialCharges(:)
+    !> Total charge
+    real(dp), intent(in) :: nrChrg 
+    
+    !> reference neutral atomic occupations
+    real(dp), allocatable, intent(inout) :: q0(:, :, :)
+    !> input charges (for potentials)
+    real(dp), allocatable, intent(inout) :: qInput(:, :, :)
+    !> output charges
+    real(dp), allocatable, intent(inout) :: qOutput(:, :, :)
+    !> input charges packed into unique equivalence elements
+    real(dp), allocatable, intent(inout) :: qInpRed(:)
+    !> output charges packed into unique equivalence elements
+    real(dp), allocatable, intent(inout) :: qOutRed(:)
+    !> charge differences packed into unique equivalence elements
+    real(dp), allocatable, intent(inout) :: qDiffRed(:)
+    !> input Mulliken block charges (diagonal part == Mulliken charges)
+    real(dp), allocatable, intent(inout) :: qBlockIn(:, :, :, :)
+    !> Output Mulliken block charges
+    real(dp), allocatable, intent(inout) :: qBlockOut(:, :, :, :)
+    !> Imaginary part of input Mulliken block charges
+    real(dp), allocatable, intent(inout) :: qiBlockIn(:, :, :, :)
+    !> Imaginary part of output Mulliken block charges
+    real(dp), allocatable, intent(inout) :: qiBlockOut(:, :, :, :)
+
+    integer :: iAt,iSp,iSh,ii,jj,i,j, iStart,iStop,iEnd,iS
+    real(dp) :: rTmp
+    character(lc) :: message 
+    
+    ! Charge arrays may have already been initialised
+    @:ASSERT(size(species0) == nAtom)
+
+    if ((.not. allocated(qInput)) .and. (.not.allocated(reks))) then
+       allocate(qInput(orb%mOrb, nAtom, nSpin))
+    endif
+    
+    if (.not. allocated(qOutput)) then
+       allocate(qOutput(orb%mOrb, nAtom, nSpin))
+    endif
+    
+    qInput(:,:,:) = 0.0_dp
+    qOutput(:,:,:) = 0.0_dp
+
+    if (tMixBlockCharges) then
+       if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
+          allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       endif
+       if (.not. allocated(qBlockOut)) then
+          allocate(qBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       endif
+       qBlockIn(:,:,:,:) = 0.0_dp
+       qBlockOut(:,:,:,:) = 0.0_dp
+       if (tImHam) then
+          if(.not. allocated(qiBlockIn)) then
+             allocate(qiBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
+          endif
+          qiBlockIn(:,:,:,:) = 0.0_dp
+       end if
+    end if
+    
+    if (tImHam) then
+       if(.not. allocated(qiBlockOut))then
+          allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
+       endif
+       qiBlockOut(:,:,:,:) = 0.0_dp
+    end if
+    
+    if( .not. tSccCalc) return
+
+    ! Charges read from file
+    if (tReadChrg) then
+       if (tFixEf .or. tSkipChrgChecksum) then
+          ! do not check charge or magnetisation from file
+          call initQFromFile(qInput, fCharges, tReadChrgAscii, orb, qBlockIn, qiBlockIn,&
+               & deltaRhoIn)
+       else
+          ! check number of electrons in file
+          if (nSpin /= 2) then
+             call initQFromFile(qInput, fCharges,tReadChrgAscii, orb, qBlockIn,&
+                  & qiBlockIn, deltaRhoIn,nEl = sum(nEl))
+          else
+             ! check magnetisation in addition
+             call initQFromFile(qInput, fCharges, tReadChrgAscii, orb, qBlockIn,&
+                  & qiBlockIn, deltaRhoIn, nEl = sum(nEl), magnetisation=nEl(1)-nEl(2))
+          end if
+       end if
+    endif
+
+    !Input charges packed into unique equivalence elements
+    if (.not. allocated(reks)) then
+    #:for NAME in [('qDiffRed'),('qInpRed'),('qOutRed')]
+       if (.not. allocated(${NAME}$)) then
+          allocate(${NAME}$(nMixElements))
+       end if
+       ${NAME}$(:) = 0.0_dp
+    #:endfor
+    endif
+       
+    ! Only qInpRed is used in REKS, hence RETURN
+    if(allocated(reks)) then
+       if (.not. allocated(qInpRed)) then
+          allocate(qInpRed)
+       endif
+       qInpRed = 0.0_dp
+
+       return
+    endif
+
+
+    ! Charges not read from file
+    notChrgRead: if (.not. tReadChrg) then
+
+      if (allocated(initialCharges)) then
+         !TODO(Alex) Address use of magic number
+        if (abs(sum(initialCharges) - nrChrg) > 1e-4_dp) then
+          write(message, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match&
+              & specified total charge. (", sum(initialCharges), " vs. ", nrChrg, ") ",&
+              & "Your initial charge distribution will be rescaled."
+          call warning(message)
+        end if
+        call initQFromAtomChrg(qInput, initialCharges, referenceN0, species0, &
+             & speciesName, orb)
+      else
+        qInput(:,:,:) = q0
+      end if
+
+      if (.not. tSkipChrgChecksum) then
+        ! Rescaling to ensure correct number of electrons in the system
+        qInput(:,:,1) = qInput(:,:,1) *  sum(nEl) / sum(qInput(:,:,1))
+      end if
+
+
+      select case (nSpin)
+      case (1)
+        continue
+      case (2)
+        if (allocated(initialSpins)) then
+          do ii = 1, nAtom
+            ! does not actually matter if additional spin polarization pushes
+            ! charges to <0 as the initial charges are not mixed in to later
+            ! iterations
+            qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
+                & * initialSpins(1,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+          end do
+        else
+          if (.not. tSkipChrgChecksum) then
+            do ii = 1, nAtom
+              qInput(1:orb%nOrbAtom(ii),ii,2) = qInput(1:orb%nOrbAtom(ii),ii,1)&
+                  & * (nEl(1)-nEl(2))/sum(qInput(:,:,1))
+            end do
+          end if
+        end if
+      case (4)
+        if (tSpin) then
+          if (.not. allocated(initialSpins)) then
+            call error("Missing initial spins!")
+          end if
+          if (any(shape(initialSpins)/=(/3,nAtom/))) then
+            call error("Incorrect shape initialSpins array!")
+          end if
+          ! Rescaling to ensure correct number of electrons in the system
+          if (.not. tSkipChrgChecksum) then
+            do ii = 1, nAtom
+              do jj = 1, 3
+                qInput(1:orb%nOrbAtom(ii),ii,jj+1) = qInput(1:orb%nOrbAtom(ii),ii,1)&
+                    & * initialSpins(jj,ii) / sum(qInput(1:orb%nOrbAtom(ii),ii,1))
+              end do
+            end do
+          end if
+        end if
+      end select
+
+      if (tMixBlockCharges) then
+        qBlockIn = 0.0_dp
+        do iS = 1, nSpin
+          do iAt = 1, nAtom
+            iSp = species0(iAt)
+            do iSh = 1, orb%nShell(iSp)
+              iStart = orb%posShell(iSh,iSp)
+              iEnd = orb%posShell(iSh+1,iSp)-1
+              rTmp = sum(qInput(iStart:iEnd,iAt,iS))
+              rTmp = rTmp / real(iEnd+1-iStart,dp)
+              do ii = iStart, iEnd
+                qBlockIn(ii,ii,iAt,iS) = rTmp
+              end do
+            end do
+          end do
+        end do
+        if (tImHam) then
+          qiBlockIn = 0.0_dp
+        end if
+      end if
+
+    endif notChrgRead
+
+    !Swap from charge/magnetisation to up/down
+    if (nSpin == 2) then
+      call qm2ud(qInput)
+      if (tMixBlockCharges) then
+        call qm2ud(qBlockIn)
+      end if
+    end if
+
+    call OrbitalEquiv_reduce(qInput, iEqOrbitals, orb, qInpRed(1:nIneqOrb))
+
+    if (allocated(onSiteElements)) then
+      call AppendBlock_reduce(qBlockIn, iEqBlockOnSite, orb, qInpRed )
+      if (tImHam) then
+        call AppendBlock_reduce(qiBlockIn, iEqBlockOnSiteLS, orb, qInpRed, skew=.true. )
+      end if
+    else if (tDFTBU) then
+      call AppendBlock_reduce(qBlockIn, iEqBlockDFTBU, orb, qInpRed )
+      if (tImHam) then
+        call AppendBlock_reduce(qiBlockIn, iEqBlockDFTBULS, orb, qInpRed, skew=.true. )
+      end if
+    end if
+
+    !Convert up/down set back to charge/magnetization
+    if (nSpin == 2) then
+      call ud2qm(qInput)
+      if (tMixBlockCharges) call ud2qm(qBlockIn)
+    end if
+
+  end subroutine initializeCharges
+
+
+  !> Assign reference charge arrays, q0 and qShell0
+  !
+  !  Data available in module: nAtom, nSpin, isLinResp
+  subroutine initializeReferenceCharges(species0, referenceN0, orb, customOccAtoms, &
+       & customOccFillings, q0, qShell0)
+    
+    !> type of the atoms (nAtom)
+    integer, intent(in) :: species0(:)
+    !> reference n_0 charges for each atom, from the Slater-Koster file       
+    real(dp), intent(in) :: referenceN0(:,:)
+    !> Data type for atomic orbitals  
+    type(TOrbitals), intent(in) :: orb 
+    !> Atom indices corresponding to user defined reference atomic charges 
+    !  Array of occupation arrays, one for each atom   
+    type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
+    !> User-defined reference atomic shell charges 
+    real(dp), allocatable, intent(in) :: customOccFillings(:,:)
+    
+    !> reference neutral atomic occupations 
+    real(dp), allocatable, intent(inout) :: q0(:, :, :)
+    !> shell resolved neutral reference
+    real(dp), allocatable, intent(inout) :: qShell0(:,:)
+    
+    integer :: iAt, iSp, iSh
+    
+    if(.not. allocated(q0))then
+       allocate(q0(orb%mOrb, nAtom, nSpin))
+    endif
+    q0(:,:,:) = 0.0_dp
+    
+    if (allocated(customOccAtoms)) then
+       if (isLinResp) then
+          call error("Custom occupation not compatible with linear response")
+       end if
+       call applyCustomReferenceOccupations(customOccAtoms, customOccFillings, &
+            & species0, orb, referenceN0, q0)
+    else
+       call initQFromShellChrg(q0, referenceN0, species0, orb)
+    end if
+
+    if (.not. allocated(qShell0)) then
+       allocate(qShell0(orb%mShell, nAtom))
+    endif
+
+    do iAt = 1, nAtom
+       iSp = species0(iAt)
+       do iSh = 1, orb%nShell(iSp)
+          qShell0(iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
+       end do
+    end do
+    
+  end subroutine initializeReferenceCharges
+
+
+  !> Set number of electrons
+  !
+  !  Data available via module: elecTolMax, nSpin, nOrb  
+  subroutine setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
+
+    !> reference neutral atomic occupations               
+    real(dp), allocatable, intent(in) :: q0(:, :, :)
+    !> Total charge 
+    real(dp), intent(in) :: nrChrg
+    real(dp), intent(in) :: nrSpinPol
+    
+    !> nr. of electrons  
+    real(dp), allocatable, intent(inout) :: nEl(:)  
+    !> Nr. of all electrons if neutral      
+    real(dp), intent(inout) :: nEl0
+
+    @:ASSERT(allocated(q0))
+    @:ASSERT(allocated(nEl))
+
+    nEl0 = sum(q0(:,:,1))
+    if (abs(nEl0 - nint(nEl0)) < elecTolMax) then
+      nEl0 = nint(nEl0)
+   end if
+    nEl(:) = 0.0_dp
+    if (nSpin == 1 .or. nSpin == 4) then
+      nEl(1) = nEl0 - nrChrg
+      if(ceiling(nEl(1)) > 2.0_dp*nOrb) then
+        call error("More electrons than basis functions!")
+      end if
+    else
+      nEl(1) = 0.5_dp * (nEl0 - nrChrg + nrSpinPol)
+      nEl(2) = 0.5_dp * (nEl0 - nrChrg - nrSpinPol)
+      if (any(ceiling(nEl(:)) > nOrb)) then
+        call error("More electrons than basis functions!")
+      end if
+    end if
+
+    if (.not.all(nEl >= 0.0_dp)) then
+      call error("Less than 0 electrons!")
+    end if
+
+  end subroutine setNElectrons
+  
+  
 #:if WITH_TRANSPORT
   !> Check for inconsistencies in transport atom region definitions
   subroutine checkTransportRanges(nAtom, transpar)
@@ -3535,7 +3744,7 @@ contains
     #:endif
     @:SAFE_DEALLOC(speciesName, pGeoCoordOpt, pGeoLatOpt, pChrgMixer, pMdFrame, pMdIntegrator)
     @:SAFE_DEALLOC(temperatureProfile, derivDriver)
-    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+    @:SAFE_DEALLOC(q0, qShell0, qInput, qOutput)
     @:SAFE_DEALLOC(qInpRed, qOutRed, qDiffRed)
     @:SAFE_DEALLOC(iEqOrbitals, iEqBlockDftbU, iEqBlockOnSite, iEqBlockDftbULs, iEqBlockOnSiteLs)
     @:SAFE_DEALLOC(thirdOrd, onSiteElements, onSiteDipole)
