@@ -3427,7 +3427,7 @@ contains
     ! Only qInpRed is used in REKS, hence RETURN
     if(allocated(reks)) then
        if (.not. allocated(qInpRed)) then
-          allocate(qInpRed)
+          allocate(qInpRed(nMixElements))
        endif
        qInpRed = 0.0_dp
 
