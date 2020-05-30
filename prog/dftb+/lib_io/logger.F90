@@ -8,7 +8,7 @@
 !> Contains a simple logger which helps to avoid direct write statements.
 module dftbp_logger
   use dftbp_accuracy, only : dp
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_optarg
   implicit none
   private

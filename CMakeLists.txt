@@ -89,6 +89,12 @@ if(WITH_ARPACK)
   list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${ARPACK_LIBRARY_DIRS})
 endif()
 
+if(WITH_GPU)
+  dftbp_create_library_targets("${MAGMA_LIBRARIES}" "${MAGMA_LIBRARY_DIRS}")
+  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${MAGMA_LIBRARIES})
+  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${MAGMA_LIBRARY_DIRS})
+endif()
+
 dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
 list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${OTHER_LIBRARIES})
 list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${OTHER_LIBRARY_DIRS})
@@ -134,10 +140,9 @@ if(WITH_MPI)
 endif()
 
 if(WITH_TRANSPORT)
-  add_subdirectory(external/mudpack ${exclude})
   add_subdirectory(external/libnegf ${exclude})
 endif()
-
+add_subdirectory(external/mudpack)
 
 #
 # Add internal components

@@ -141,6 +141,7 @@ contains
 
     call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
     call TEnvironment_init(this%env)
+    this%env%tAPICalculation = .true.
     this%tInit = .true.
 
   end subroutine TDftbPlus_init
@@ -381,7 +382,7 @@ contains
 
     call this%checkInit()
 
-    call getGrossCharges(atomCharges)
+    call getGrossCharges(this%env, atomCharges)
 
   end subroutine TDftbPlus_getGrossCharges
 

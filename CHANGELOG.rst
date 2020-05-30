@@ -11,6 +11,8 @@ Unreleased
 Added
 -----
 
+- REKS calculations for a strongly correlated system
+
 - New algorithm for long-range corrected Hamiltonian
 
 - Support for meta-dynamics via the Plumed library.
@@ -27,6 +29,12 @@ Added
 - The DFT-D4 dispersion model (see DOIs: 10.1063/1.4993215 10.1063/1.5090222
   10.26434/chemrxiv.10299428 )
 
+- Generalized Born implicit solvation model
+
+- Non-polar solvent accessible surface area solvation model
+
+- Particle-particle random-phase approximation available for suitable excitation calculations
+
 Changed
 -------
 
@@ -34,12 +42,18 @@ Changed
 
 - New build system using CMake (the old makefile system has been retired)
 
+- Versioned format for transport contact shift files (backward compatible), also
+  enables the Fermi energy to be read directly from the contact file.
+
+- Removed residual XML input (leaving detailed.xml export, depreciating the undocumented <<! tag in HSD)
+
 Fixed
 -----
 
 - Correct update of block mulliken population for onsite correction with
   range-separation hybrid DFTB.
 
+- MD temperature profiles that do not start with an initial constant temperature
 
 19.1 (2019-07-01)
 =================

@@ -50,9 +50,9 @@ option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 #
 # Test environment settings
 #
-set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
+set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of MPI processes used for testing")
 
-set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
+set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpenMP-threads used for testing")
 
 # Command line used to launch the test code.
 # The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.

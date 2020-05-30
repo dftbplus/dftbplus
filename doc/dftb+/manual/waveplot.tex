@@ -29,10 +29,7 @@ The \waveplot{} tool offers the following plotting capabilities:
 
 The input file for \waveplot{} must be named \verb|waveplot_in.hsd| and should
 be a Human-friendly Structured Data (HSD) formatted file (see Appendix
-\ref{sec:hsd}) The program can read the input in XML instead of HSD format if
-the input file is \verb|waveplot_in.xml|. The input file must be present in the
-working directory. To prevent ambiguity, the parser refuses to read in any input
-if both files are present.
+\ref{sec:hsd}) and must be present in the working directory.
 
 The table below contains the list of the properties, which must occur in the
 input file \verb|waveplot_in.hsd|:
@@ -456,9 +453,8 @@ wavefunction. Thereby the following properties must be used:
 \subsection{ParserOptions}
 \label{sec:waveplot.ParserOptions}
 
-This block contains the options, which are effecting only the
-behaviour of the HSD/XML parser and are not passed to the main
-program.
+This block contains the options, which are effecting only the behaviour of the
+HSD parser and are not passed to the main program.
 \begin{ptable}
   \kw{IgnoreUnprocessedNodes} &l & & No & \\
   \kw{StopAfterParsing} &l & & No & \\  

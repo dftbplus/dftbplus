@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 #! (TYPE, RANK, NAME) tuple for all chunk types which need to be assembled
-#:set CHUNK_TYPES = [('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), ('complex(dp)', 1, 'C1'),&
-    & ('complex(dp)', 2, 'C2')]
+#:set CHUNK_TYPES = [('real(dp)', 1, 'R1'), ('real(dp)', 2, 'R2'), ('real(dp)', 3, 'R3'), &
+    & ('complex(dp)', 1, 'C1'), ('complex(dp)', 2, 'C2'), ('complex(dp)', 3, 'C3')]
 
 !> Contains routines helpful for mpi-parallelisation.
 module dftbp_schedule

@@ -1,0 +1,60 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(benzene)
+    Solvent = fromConstants {
+      Epsilon = 7.00
+      MolecularMass [amu] = 78.11
+      Density [kg/L] = 0.867
+    }
+    Temperature [K] = 298.15
+    FreeEnergyShift [kcal/mol] = 2.83877748
+    BornScale = 1.56864732
+    BornOffset = 0.0
+    Radii = vanDerWaalsRadiiD3 {}
+    Descreening = Values {
+      H = 0.30000000
+      C = 0.70398030
+    }
+    SASA {
+      ProbeRadius = 1.411350177821322
+      AngularGrid = 230
+      Radii = vanDerWaalsRadiiD3 {}
+      SurfaceTension = Values {
+        H = -1.50694301
+        C = -2.65057861
+      }
+    }
+    HBondCorr = No
+  }
+  SCC = Yes
+  SccTolerance = 1e-10
+  MaxAngularMomentum {
+    H = "s"
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}

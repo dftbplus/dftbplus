@@ -89,6 +89,9 @@ module negf_int
   !> non wrapped direct calls
   private :: negf_density, negf_current, negf_ldos
 
+  !> Format for two values with units
+  character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+
   contains
 
   !> Init gDFTB environment and variables
@@ -228,7 +231,8 @@ module negf_int
         params%FictCont(i) = transpar%contacts(i)%wideBand
         params%contact_DOS(i) = transpar%contacts(i)%wideBandDOS
 
-        write(stdOut,*) '(negf_init) CONTACT INFO #',i
+        write(stdOut,"(1X,A,I0,A)") '(negf_init) CONTACT INFO #', i,&
+            & ' "'//trim(transpar%contacts(i)%name)//'"'
 
         if (params%FictCont(i)) then
           write(stdOut,*) 'FICTITIOUS CONTACT '
@@ -236,16 +240,23 @@ module negf_int
         end if
         write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
         write(stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
-        write(stdOut,*) 'Potential (with built-in): ', pot(i)
-        write(stdOut,*) 'eFermi: ', eFermi(i)
+        if (transpar%contacts(i)%tFermiSet) then
+          write(stdOut,format2U)'Potential (with built-in)', pot(i), 'H', Hartree__eV*pot(i), 'eV'
+          write(stdOut,format2U)'eFermi', eFermi(i), 'H', Hartree__eV*eFermi(i), 'eV'
+        end if
         write(stdOut,*)
 
-      end do
+        ! Define electrochemical potentials
+        params%mu(i) = eFermi(i) - pot(i)
 
-      ! Define electrochemical potentials
-      params%mu(1:ncont) = eFermi(1:ncont) - pot(1:ncont)
-      write(stdOut,*) 'Electro-chemical potentials: ', params%mu(1:ncont)
-      write(stdOut,*)
+        if (transpar%contacts(i)%tFermiSet) then
+          write(stdOut,format2U)'Electro-chemical potentials', params%mu(i), 'H',&
+              & Hartree__eV*params%mu(i), 'eV'
+          write(stdOut,*)
+        end if
+
+      enddo
+
       deallocate(pot)
 
     else
@@ -2156,13 +2167,13 @@ module negf_int
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N
-    !   write(*,*)A(i,1:N)
+    !   write(stdOut,*)A(i,1:N)
     !end do
 
     !print *,'U matrix unitarity check'
     !B=matmul(transpose(A),A)
     !do i=1,N
-    !   write(*,*)B(i,1:N)
+    !   write(stdOut,*)B(i,1:N)
     !end do
 
     B(:,:) = matmul(transpose(A), matmul(S, A))
@@ -2176,25 +2187,25 @@ module negf_int
 
     !print *,'sqrt(S) inverted'
     !do i=1,N
-    !  write(*,*) C(i,1:N)
+    !  write(stdOut,*) C(i,1:N)
     !end do
 
     !print *,'S unity check'
     !B=matmul(transpose(C),matmul(S,C))
     !do i=1,N
-    !   write(*,*) B(i,1:N)
+    !   write(stdOut,*) B(i,1:N)
     !end do
 
     !print *,'H_dftb before orthogonalization'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     H(:,:) = matmul(transpose(C), matmul(H, C))
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
@@ -2209,7 +2220,7 @@ module negf_int
 
     !print *,'H_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     S(:,:) = 0.0_dp
@@ -2261,7 +2272,7 @@ module negf_int
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N2
-    !   write(*,*) U(i,1:N2)
+    !   write(stdOut,*) U(i,1:N2)
     !end do
 
     !U matrix unitarity check
@@ -2284,7 +2295,7 @@ module negf_int
     A(:,:) = matmul(U,matmul(B,transpose(U)))
     !print *,'sqrt(S) inverted'
     !do i=1,N2
-    !  write(*,*) A(i,1:N2)
+    !  write(stdOut,*) A(i,1:N2)
     !end do
 
     deallocate(U, B)
@@ -2301,12 +2312,12 @@ module negf_int
     !C=sqrt(S) big matrix
     !print *,'C=sqrt(S) big matrix'
     !do i=1,N
-    !   write(*,*) C(i,1:N)
+    !   write(stdOut,*) C(i,1:N)
     !end do
 
     !print *,'H_dftb before orthogonalization'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     H(:,:) = matmul(transpose(C),matmul(H,C))
@@ -2314,7 +2325,7 @@ module negf_int
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
@@ -2330,12 +2341,12 @@ module negf_int
 
     !print *,'H_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     !print *,'S_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) S(i,1:N)
+    !   write(stdOut,*) S(i,1:N)
     !end do
 
     !Save H_dftb_orth.mtr to file
