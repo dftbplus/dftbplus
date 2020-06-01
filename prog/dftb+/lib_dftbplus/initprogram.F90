@@ -3351,7 +3351,7 @@ contains
     real(dp), allocatable, intent(inout) :: qiBlockOut(:, :, :, :)
 
     !> Tolerance in difference between total charge and sum of initial charges
-    real(dp), parameter :: delta_charge_tol = 1.e-4_dp
+    real(dp), parameter :: deltaChargeTol = 1.e-4_dp
 
     integer :: iAt,iSp,iSh,ii,jj,i,j, iStart,iStop,iEnd,iS
     real(dp) :: rTmp
