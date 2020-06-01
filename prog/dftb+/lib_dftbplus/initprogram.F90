@@ -1600,7 +1600,7 @@ contains
     ! Orbital equivalency relations 
     call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
          & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
- 
+
     ! Initialize mixer
     ! (at the moment, the mixer does not need to know about the size of the
     ! vector to mix.)
@@ -3177,13 +3177,14 @@ contains
   
   !> Create equivalency relations
   ! Data available from module: nUJ, niUJ, iUJ, nAtom, nSpin, nOrb and logicals 
+  ! Note, this routine should not be called
   subroutine setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
        & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
     
     !> Type of the atoms (nAtom)
     integer,  intent(in) :: species0(:)
     !> SCC module internal variables
-    type(TScc), intent(in) :: sccCalc
+    type(TScc), allocatable, intent(in) :: sccCalc
     !> data type for atomic orbital information
     type(TOrbitals), intent(in) :: orb
     !> Correction to energy from on-site matrix elements
@@ -3212,11 +3213,12 @@ contains
     integer, allocatable :: iEqOrbDFTBU(:,:,:)
     
 
-    if (tSccCalc) then
+    if (tSccCalc) then 
        if(.not. allocated(iEqOrbitals)) then
           allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
        endif
        allocate(iEqOrbSCC(orb%mOrb, nAtom, nSpin))
+       @:ASSERT(allocated(sccCalc))
        call sccCalc%getOrbitalEquiv(orb, species0, iEqOrbSCC)
        if (nSpin == 1) then
           iEqOrbitals(:,:,:) = iEqOrbSCC(:,:,:)
@@ -3288,7 +3290,7 @@ contains
           end if
        end if
 
-    !Non-SCC
+    !Non-SCC 
     else
        nIneqOrb = nOrb
        nMixElements = 0
