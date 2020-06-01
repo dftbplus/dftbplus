@@ -18,7 +18,7 @@ module dftbp_reksfon
   use dftbp_accuracy
   use dftbp_globalenv
   use dftbp_message
-  use dftbp_reksvar, only : TReksCalc
+  use dftbp_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
@@ -44,18 +44,20 @@ module dftbp_reksfon
 
     real(dp) :: x
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
 
       call getFONs22_(x, self%hess, self%enLtot, self%delta, self%FonMaxIter, self%Plevel)
       ! FONs(1,1) = n_a, FONs(2,1) = n_b
       self%FONs(1,1) = 2.0_dp * x
       self%FONs(2,1) = 2.0_dp - self%FONs(1,1)
 
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
 
-      call error("SSR(4,4) not implemented yet")
+      call error("SSR(4,4) is not implemented yet")
 
-    end if
+    end select
 
   end subroutine optimizeFons
 

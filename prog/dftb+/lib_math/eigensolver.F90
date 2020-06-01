@@ -2228,7 +2228,7 @@ contains
     if (present(vl)) then
       jobvl = 'V'
       ldvl = size(vl, dim=1)
-      @:ASSERT(all(shape(vr)>=[n,n]))
+      @:ASSERT(all(shape(vl)>=[n,n]))
     else
       jobvl = 'N'
       ldvl = 1
@@ -2236,7 +2236,7 @@ contains
     if (present(vr)) then
       jobvr = 'V'
       ldvr = size(vr, dim=1)
-      @:ASSERT(all(shape(vl)>=[n,n]))
+      @:ASSERT(all(shape(vr)>=[n,n]))
     else
       jobvr = 'N'
       ldvr = 1
