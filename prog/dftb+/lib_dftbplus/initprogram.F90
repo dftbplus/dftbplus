@@ -551,7 +551,7 @@ module dftbp_initprogram
   !> Spin polarisation  
   real(dp) :: nrSpinPol
   
-  !> Is the check-sum for charges read externally be used?                                                     
+  !> Is the check-sum for charges read externally to be used?
   logical :: tSkipChrgChecksum
 
   !> reference neutral atomic occupations
@@ -1125,9 +1125,6 @@ contains
 
     !> First guess for nr. of neighbours.
     integer, parameter :: nInitNeighbour = 40
-
-    !> Is the check-sum for charges read externally be used?
-    logical :: tSkipChrgChecksum
 
     !> Spin loop index
     integer :: iSpin
@@ -3396,6 +3393,7 @@ contains
     end if
     
     if( .not. tSccCalc) return
+
 
     ! Charges read from file
     if (tReadChrg) then
