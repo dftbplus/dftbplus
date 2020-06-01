@@ -501,8 +501,9 @@ contains
             & iSparseStart, orb, over, reks)
 
         call getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, species, neighbourList,&
-            & nNeighbourSK, iSparseStart, img2CentCell, electrostatics, H0, over, spinW, cellVol, &
-            & extPressure, energy, q0, iAtInCentralRegion, thirdOrd, rangeSep, nNeighbourLC, reks)
+            & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure,&
+            & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics,&
+            & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, reks)
         call optimizeFONsAndWeights(eigvecsReal, filling, energy, reks)
 
         call getFockandDiag(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
@@ -6667,10 +6668,10 @@ contains
 
   !> Build L, spin dependent Hamiltonian with various contributions
   !> and compute the energy of microstates
-  subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, &
-      & species, neighbourList, nNeighbourSK, iSparseStart, img2CentCell, &
-      & electrostatics, H0, over, spinW, cellVol, extPressure, energy, &
-      & q0, iAtInCentralRegion, thirdOrd, rangeSep, nNeighbourLC, reks)
+  subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, species, neighbourList, &
+      & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
+      & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
+      & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6699,9 +6700,6 @@ contains
     !> map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> electrostatic solver (poisson or gamma-functional)
-    integer, intent(in) :: electrostatics
-
     !> non-SCC hamitonian (sparse)
     real(dp), intent(in) :: H0(:)
 
@@ -6709,7 +6707,7 @@ contains
     real(dp), intent(in) :: over(:)
 
     !> spin constants
-    real(dp), intent(in) :: spinW(:,:,:)
+    real(dp), allocatable, intent(in) :: spinW(:,:,:)
 
     !> unit cell volume
     real(dp), intent(in) :: cellVol
@@ -6726,14 +6724,38 @@ contains
     !> Atoms over which to sum the total energies
     integer, intent(in) :: iAtInCentralRegion(:)
 
+    !> Solvation mode
+    class(TSolvation), allocatable, intent(inout) :: solvation
+
     !> third order SCC interactions
     type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
+
+    !> potentials in the system
+    type(TPotentials), intent(inout) :: potential
+
+    !> electrostatic solver (poisson or gamma-functional)
+    integer, intent(in) :: electrostatics
+
+    !> whether Poisson is solved (used with tPoissonTwice)
+    logical, intent(in) :: tPoisson
+
+    !> whether contacts are uploaded
+    logical, intent(in) :: tUpload
+
+    !> uploded potential per shell per atom
+    real(dp), allocatable, intent(in) :: shiftPerLUp(:,:)
 
     !> Data for rangeseparated calculation
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
     !> Nr. of neighbours for each atom in the long-range functional.
     integer, allocatable, intent(in) :: nNeighbourLC(:)
+
+    !> Is dual spin orbit being used (block potentials)
+    logical, intent(in) :: tDualSpinOrbit
+
+    !> Spin orbit constants if required
+    real(dp), allocatable, intent(in) :: xi(:,:)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
@@ -6757,15 +6779,17 @@ contains
     reks%intBlockL(:,:,:,:,:) = 0.0_dp
     do iL = 1, reks%Lmax
 
-      reks%intAtom(:,:) = 0.0_dp
       ! reks%chargePerShellL has (qm) component
       call getChargePerShell(reks%qOutputL(:,:,:,iL), orb, species,&
           & reks%chargePerShellL(:,:,:,iL))
+      call resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+      call addChargePotentials(env, sccCalc, reks%qOutputL(:,:,:,iL), q0, &
+          & reks%chargePerShellL(:,:,:,iL), orb, species, neighbourList, &
+          & img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics, &
+          & tPoisson, tUpload, shiftPerLUp)
       ! reks%intShellL, reks%intBlockL has (qm) component
-      call addReksChargePotentials(env, sccCalc, reks%qOutputL(:,:,:,iL), &
-          & q0, reks%chargePerShellL(:,:,:,iL), orb, species, &
-          & neighbourList, img2CentCell, spinW, thirdOrd, electrostatics, &
-          & reks%intAtom, reks%intShellL(:,:,:,iL), reks%intBlockL(:,:,:,:,iL))
+      reks%intShellL(:,:,:,iL) = potential%intShell
+      reks%intBlockL(:,:,:,:,iL) = potential%intBlock
 
       ! Calculate Hamiltonian including SCC, spin
       if(.not. reks%isRangeSep) then
@@ -6820,102 +6844,6 @@ contains
     end if
 
   end subroutine getHamiltonianLandEnergyL
-
-
-  !> Add potentials comming from point charges.
-  subroutine addReksChargePotentials(env, sccCalc, qOutput, q0, &
-      & chargePerShell, orb, species, neighbourList, img2CentCell, &
-      & spinW, thirdOrd, electrostatics, intAtom, intShell, intBlock)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> SCC module internal variables
-    type(TScc), intent(inout) :: sccCalc
-
-    !> Input atomic populations
-    real(dp), intent(in) :: qOutput(:,:,:)
-
-    !> reference atomic occupations
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> charges per atomic shell
-    real(dp), intent(in) :: chargePerShell(:,:,:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> species of all atoms
-    integer, target, intent(in) :: species(:)
-
-    !> neighbours to atoms
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> map from image atom to real atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> spin constants
-    real(dp), intent(in) :: spinW(:,:,:)
-
-    !> third order SCC interactions
-    type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
-
-    !> electrostatic solver (poisson or gamma-functional)
-    integer, intent(in) :: electrostatics
-
-    !> internal atom and spin resolved potential
-    real(dp), intent(inout) :: intAtom(:,:)
-
-    !> internal shell and spin resolved potential for each microstate
-    real(dp), intent(inout) :: intShell(:,:,:)
-
-    !> internal block and spin resolved potential for each microstate
-    real(dp), intent(inout) :: intBlock(:,:,:,:)
-
-    ! local variables
-    real(dp), allocatable :: atomPot(:,:)
-    real(dp), allocatable :: shellPot(:,:,:)
-
-    integer, pointer :: pSpecies0(:)
-    integer :: nAtom, nSpin
-
-    nAtom = size(qOutput,dim=2)
-    nSpin = size(qOutput,dim=3)
-    pSpecies0 => species(1:nAtom)
-
-    allocate(atomPot(nAtom,nSpin))
-    allocate(shellPot(orb%mShell,nAtom,nSpin))
-
-    call sccCalc%updateCharges(env, qOutput, q0, orb, species)
-
-    select case(electrostatics)
-    case(elstatTypes%gammaFunc)
-      call sccCalc%updateShifts(env, orb, species, &
-          & neighbourList%iNeighbour, img2CentCell)
-      call sccCalc%getShiftPerAtom(atomPot(:,1))
-      call sccCalc%getShiftPerL(shellPot(:,:,1))
-    case(elstatTypes%poisson)
-      call error("poisson solver is not compatible with REKS")
-    end select
-
-    intAtom(:,1) = intAtom(:,1) + atomPot(:,1)
-    intShell(:,:,1) = intShell(:,:,1) + shellPot(:,:,1)
-
-    if (allocated(thirdOrd)) then
-      call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-          & qOutput, q0, img2CentCell, orb)
-      call thirdOrd%getShifts(atomPot(:,1), shellPot(:,:,1))
-      intAtom(:,1) = intAtom(:,1) + atomPot(:,1)
-      intShell(:,:,1) = intShell(:,:,1) + shellPot(:,:,1)
-    end if
-
-    call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
-    intShell(:,:,:) = intShell(:,:,:) + shellPot(:,:,:)
-
-    call total_shift(intShell, intAtom, orb, species)
-    call total_shift(intBlock, intShell, orb, species)
-
-  end subroutine addReksChargePotentials
 
 
   !> Returns the Hamiltonian for the given scc iteration
