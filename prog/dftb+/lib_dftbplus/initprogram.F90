@@ -3417,26 +3417,18 @@ contains
        end if
     endif
 
-    !Input charges packed into unique equivalence elements
-    if (.not. allocated(reks)) then
+    !Input charges packed into unique equivalence elements 
     #:for NAME in [('qDiffRed'),('qInpRed'),('qOutRed')]
        if (.not. allocated(${NAME}$)) then
           allocate(${NAME}$(nMixElements))
        end if
        ${NAME}$(:) = 0.0_dp
     #:endfor
-    endif
        
-    ! Only qInpRed is used in REKS, hence RETURN
-    if(allocated(reks)) then
-       if (.not. allocated(qInpRed)) then
-          allocate(qInpRed(nMixElements))
-       endif
-       qInpRed = 0.0_dp
-
-       return
-    endif
-
+ 
+    !TODO(Alex) Could definitely split the code here
+    if(allocated(reks)) return
+    
 
     ! Charges not read from file
     notChrgRead: if (.not. tReadChrg) then
