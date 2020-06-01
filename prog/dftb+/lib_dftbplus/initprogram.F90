@@ -2728,7 +2728,7 @@ contains
     if (allocated(reks)) then
       call checkReksConsistency(input%ctrl%reksInp, solvation, onSiteElements, kPoint, nEl,&
           & nKPoint, tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic,&
-          & tLatOpt, tReadChrg)
+          & tLatOpt, tReadChrg, tPoisson)
       ! here, nSpin changes to 2 for REKS
       call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
@@ -4710,7 +4710,8 @@ contains
 
 
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
-      & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+      & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
+      & tPoisson)
 
     !> data type for REKS input
     type(TReksInp), intent(in) :: reksInp
@@ -4757,6 +4758,9 @@ contains
     !> If initial charges/dens mtx. from external file.
     logical, intent(in) :: tReadChrg
 
+    !> Whether Poisson solver is invoked
+    logical, intent(in) :: tPoisson
+
     if (.not. tSccCalc) then
       call error("REKS requires SCC=Yes")
     end if
@@ -4780,6 +4784,8 @@ contains
 
     if (allocated(solvation)) then
       call error("REKS is currently not available with solvation")
+    else if (tPoisson) then
+      call error("Poisson solver is not compatible with REKS")
     end if
 
     if (tPeriodic) then
