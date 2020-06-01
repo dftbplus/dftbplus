@@ -106,7 +106,8 @@ contains
     write(stdOut, "(/, A, /)") "***  Parsing and initializing"
 
     ! Read in the input
-    call parseHSD(rootTag, hsdInputName, root)
+    call parseHSD(rootTag, hsdInputName, hsdTree)
+    call getChild(hsdTree, rootTag, root)
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
     write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
