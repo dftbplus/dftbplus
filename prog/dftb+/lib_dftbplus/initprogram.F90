@@ -3350,6 +3350,9 @@ contains
     !> Imaginary part of output Mulliken block charges
     real(dp), allocatable, intent(inout) :: qiBlockOut(:, :, :, :)
 
+    !> Tolerance in difference between total charge and sum of initial charges
+    real(dp), parameter :: delta_charge_tol = 1.e-4_dp
+
     integer :: iAt,iSp,iSh,ii,jj,i,j, iStart,iStop,iEnd,iS
     real(dp) :: rTmp
     character(lc) :: message 
@@ -3439,8 +3442,7 @@ contains
     notChrgRead: if (.not. tReadChrg) then
 
       if (allocated(initialCharges)) then
-         !TODO(Alex) Address use of magic number
-        if (abs(sum(initialCharges) - nrChrg) > 1e-4_dp) then
+        if (abs(sum(initialCharges) - nrChrg) > deltaChargeTol) then
           write(message, "(A,G13.6,A,G13.6,A,A)") "Sum of initial charges does not match&
               & specified total charge. (", sum(initialCharges), " vs. ", nrChrg, ") ",&
               & "Your initial charge distribution will be rescaled."
