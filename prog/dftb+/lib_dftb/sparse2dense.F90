@@ -1740,17 +1740,17 @@ contains
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1, :)
         ptmp(:, :, :) = 0.5_dp * phase&
             & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1, :), [nOrb2, nOrb1, 4])
-        ! up-up component and down-down components
+        ! up-up and down-down components
         call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)),&
             & desc%blacsOrbSqr, jj, ii, square)
         call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)),&
             & desc%blacsOrbSqr, jj + nOrb, ii + nOrb, square)
         if (iAtom1 /= iAtom2f) then
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4))),&
+              & transpose(conjg(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)))),&
               & desc%blacsOrbSqr, ii, jj, square)
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4))),&
+              & transpose(conjg(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)))),&
               & desc%blacsOrbSqr, ii + nOrb, jj + nOrb, square)
         end if
         ! down-up component
