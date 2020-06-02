@@ -3208,7 +3208,6 @@ contains
     integer, allocatable :: iEqOrbSCC(:,:,:), iEqOrbSpin(:,:,:)
     !> Orbital equivalency for orbital potentials
     integer, allocatable :: iEqOrbDFTBU(:,:,:)
-    
 
     if (tSccCalc) then 
        if(.not. allocated(iEqOrbitals)) then
@@ -3360,17 +3359,18 @@ contains
     ! Charge arrays may have already been initialised
     @:ASSERT(size(species0) == nAtom)
 
-    if ((.not. allocated(qInput)) .and. (.not.allocated(reks))) then
-       allocate(qInput(orb%mOrb, nAtom, nSpin))
+    if (.not.allocated(reks)) then
+       if (.not. allocated(qInput)) then
+          allocate(qInput(orb%mOrb, nAtom, nSpin))
+       endif
+       qInput(:,:,:) = 0.0_dp
     endif
     
     if (.not. allocated(qOutput)) then
        allocate(qOutput(orb%mOrb, nAtom, nSpin))
     endif
-    
-    qInput(:,:,:) = 0.0_dp
     qOutput(:,:,:) = 0.0_dp
-
+    
     if (tMixBlockCharges) then
        if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
           allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
@@ -3387,7 +3387,7 @@ contains
           qiBlockIn(:,:,:,:) = 0.0_dp
        end if
     end if
-    
+
     if (tImHam) then
        if(.not. allocated(qiBlockOut))then
           allocate(qiBlockOut(orb%mOrb, orb%mOrb, nAtom, nSpin))
@@ -3396,7 +3396,6 @@ contains
     end if
     
     if( .not. tSccCalc) return
-
 
     ! Charges read from file
     if (tReadChrg) then
@@ -3428,7 +3427,6 @@ contains
  
     !TODO(Alex) Could definitely split the code here
     if(allocated(reks)) return
-    
 
     ! Charges not read from file
     notChrgRead: if (.not. tReadChrg) then
