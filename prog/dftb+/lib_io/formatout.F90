@@ -164,14 +164,14 @@ contains
     @:ASSERT(size(coord, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesName) == nSpecies)
-#:call ASSERT_CODE
+  #:call ASSERT_CODE
     if (present(latVec)) then
-      @:ASSERT(all(shape(latVec) == [3,3]) or all(shape(latVec) == [2,1])&
-          & or all(shape(latVec) == [3,1]))
-      @:ASSERT(not(present(tFracCoord) and&
-          & (all(shape(latVec) == [2, 1]) or all(shape(latVec) == [2, 1]) ) ) )
+      @:ASSERT(all(shape(latVec) == [3,3]) .or. all(shape(latVec) == [2,1])&
+          & .or. all(shape(latVec) == [3,1]))
+      @:ASSERT(.not.(present(tFracCoord) .and.&
+          & (all(shape(latVec) == [2, 1]) .or. all(shape(latVec) == [2, 1]) ) ) )
     end if
-#:endcall ASSERT_CODE
+  #:endcall ASSERT_CODE
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
     @:ASSERT(present(latVec) .eqv. present(origin))
 

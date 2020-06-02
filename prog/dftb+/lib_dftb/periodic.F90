@@ -290,8 +290,7 @@ contains
     nAtom = size(coord, dim=2)
 
     @:ASSERT(size(coord, dim=1) == 3)
-    @:ASSERT(all(shape(latVec) == (/3, 3/)) or all(shape(latVec) == (/3, 1/)))
-    @:ASSERT(all(shape(recVec2p) == (/3, 3/)) or all(shape(recVec2p) == (/1, 1/)))
+    @:ASSERT(all(shape(latVec) == (/3, 3/)) .or. all(shape(latVec) == (/3, 1/)))
 
     if (all(shape(latVec) == (/3, 3/))) then
 
@@ -459,7 +458,6 @@ contains
     @:ASSERT(size(iCellVec) == mAtom)
     @:ASSERT(size(neigh%iNeighbour, dim=2) == nAtom)
     @:ASSERT((size(coord0, dim=1) == 3) .and. size(coord0, dim=2) >= nAtom)
-    @:ASSERT((size(rCellVec, dim=1) == 3))
     @:ASSERT(cutoff >= 0.0_dp)
 
     symm = .false.
