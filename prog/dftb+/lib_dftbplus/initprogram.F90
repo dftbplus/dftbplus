@@ -3981,7 +3981,11 @@ contains
 
     integer :: nSpinHams, sqrHamSize
 
-    allocate(rhoPrim(0, nSpin))
+    if (isREKS) then
+      allocate(rhoPrim(0, 1))
+    else
+      allocate(rhoPrim(0, nSpin))
+    end if
     allocate(h0(0))
     if (tImHam) then
       allocate(iRhoPrim(0, nSpin))
@@ -4014,6 +4018,9 @@ contains
     case (4)
       nSpinHams = 1
     end select
+    if (isREKS) then
+      nSpinHams = 1
+    end if
 
     sqrHamSize = denseDesc%fullSize
     allocate(TS(nSpinHams))
@@ -4033,7 +4040,6 @@ contains
     end if
     eigen(:,:,:) = 0.0_dp
     filling(:,:,:) = 0.0_dp
-
 
     allocate(coord0Fold(3, nAtom))
 
