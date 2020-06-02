@@ -501,9 +501,11 @@ contains
             & iSparseStart, orb, over, reks)
 
         call getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, species, neighbourList,&
-            & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure,&
-            & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics,&
-            & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, reks)
+            & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
+            & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
+            & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi,&
+            & tExtField, isXlbomd, tDftbU, TS, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc,&
+            & UJ, nUJ, iUJ, niUJ, tFixEf, Ef, onSiteElements, reks)
         call optimizeFONsAndWeights(eigvecsReal, filling, energy, reks)
 
         call getFockandDiag(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
@@ -697,8 +699,8 @@ contains
         call getEnergies(sccCalc, qOutput, q0, chargePerShell, species, tExtField, isXlbomd,&
             & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSk, img2CentCell,&
             & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
-            & rangeSep, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
-            & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+            & rangeSep, reks, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+            & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
         tStopScc = hasStopFile(fStopScc)
 
@@ -3479,10 +3481,11 @@ contains
 
 
   !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
-      & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock,&
-      & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd,&
+      & tDftbU, tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell,&
+      & iSparseStart, cellVol, extPressure, TS, potential, energy, thirdOrd, solvation,&
+      & rangeSep, reks, qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi,&
+      & iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -3555,6 +3558,9 @@ contains
 
     !> Data from rangeseparated calculations
     type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
+
+    !> data type for REKS
+    type(TReksCalc), allocatable, intent(inout) :: reks
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -3672,8 +3678,10 @@ contains
 
     !> Add exchange conribution for range separated calculations
     if (allocated(rangeSep)) then
-      energy%Efock = 0.0_dp
-      call rangeSep%addLREnergy(energy%Efock)
+      if (.not. allocated(reks)) then
+        energy%Efock = 0.0_dp
+        call rangeSep%addLREnergy(energy%Efock)
+      end if
       energy%Eelec = energy%Eelec + energy%Efock
     end if
 
@@ -6671,7 +6679,9 @@ contains
   subroutine getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, species, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
-      & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, reks)
+      & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, tExtField, &
+      & isXlbomd, tDftbU, TS, qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
+      & tFixEf, Ef, onSiteElements, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6757,24 +6767,77 @@ contains
     !> Spin orbit constants if required
     real(dp), allocatable, intent(in) :: xi(:,:)
 
+    !> is an external electric field present
+    logical, intent(in) :: tExtField
+
+    !> Is the extended Lagrangian being used for MD
+    logical, intent(in) :: isXlbomd
+
+    !> Are there orbital potentials present
+    logical, intent(in) :: tDftbU
+
+    !> electron entropy contribution
+    real(dp), intent(in) :: TS(:)
+
+    !> Proxy for querying Q-dependant external potentials
+    type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
+
+    !> block (dual) atomic populations
+    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
+
+    !> U-J prefactors in DFTB+U
+    real(dp), intent(in), allocatable :: UJ(:,:)
+
+    !> Number DFTB+U blocks of shells for each atom type
+    integer, intent(in), allocatable :: nUJ(:)
+
+    !> which shells are in each DFTB+U block
+    integer, intent(in), allocatable :: iUJ(:,:,:)
+
+    !> Number of shells in each DFTB+U block
+    integer, intent(in), allocatable :: niUJ(:,:)
+
+    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
+    logical, intent(in) :: tFixEf
+
+    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
+    !> from the given number of electrons
+    real(dp), intent(inout) :: Ef(:)
+
+    !> Corrections terms for on-site elements
+    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
+    type(TReksCalc), allocatable, intent(inout) :: reks
 
     real(dp), allocatable :: tmpHamSp(:,:)
     real(dp), allocatable :: tmpHam(:,:)
     real(dp), allocatable :: tmpEn(:)
+    real(dp), allocatable :: tmpRhoSp(:,:)
 
-    integer :: sparseSize, nOrb, iL
+    integer, pointer :: pSpecies0(:)
+    integer :: sparseSize, nOrb, nAtom, nSpin, iL, tmpL, rsL
 
     sparseSize = size(over,dim=1)
     nOrb = size(reks%overSqr,dim=1)
+    nAtom = size(reks%qOutputL,dim=2)
+    nSpin = size(reks%qOutputL,dim=3)
+    pSpecies0 => species(1:nAtom)
 
     if (reks%isRangeSep) then
       allocate(tmpHamSp(sparseSize,1))
       allocate(tmpHam(nOrb,nOrb))
       allocate(tmpEn(reks%Lmax))
     end if
+    allocate(tmpRhoSp(sparseSize,nSpin))
 
+    ! Calculate contribution to Hamiltonian except rangeseparated part
     reks%intShellL(:,:,:,:) = 0.0_dp
     reks%intBlockL(:,:,:,:,:) = 0.0_dp
     do iL = 1, reks%Lmax
@@ -6816,6 +6879,7 @@ contains
 
     end do
 
+    ! Calculate contribution to Hamiltonian including rangeseparated part
     if(.not. reks%isRangeSep) then
       ! reks%hamSpL has (my_ud) component
       call qm2udL(reks%hamSpL, reks%Lpaired)
@@ -6834,10 +6898,69 @@ contains
       end do
     end if
 
-    call getReksEnergyL(env, denseDesc, sccCalc, species, H0, &
-        & orb, neighbourList, nNeighbourSK, img2CentCell, &
-        & iSparseStart, cellVol, extPressure, energy, q0, &
-        & iAtInCentralRegion, thirdOrd, reks, tmpEn, sparseSize)
+    ! Calculate energy contribution corresponding to upper Hamiltonian
+    do iL = 1, reks%Lmax
+
+      ! Get microstate index for non-SCC and rangeseparation energy contribution
+      if (iL <= reks%Lpaired) then
+        tmpL = iL
+        rsL = iL
+      else
+        if (mod(iL,2) == 1) then
+          tmpL = iL
+          rsL = iL + 1
+        else
+          tmpL = iL - 1
+          rsL = iL - 1
+        end if
+      end if
+      ! Set the long-range corrected energy contribution
+      if (reks%isRangeSep) then
+        energy%Efock = tmpEn(iL) + tmpEn(rsL)
+      end if
+
+      if (reks%tForces) then
+        tmpRhoSp(:,1) = 0.0_dp
+        call env%globalTimer%startTimer(globalTimers%denseToSparse)
+        ! reks%rhoSqrL has (my_qm) component
+        call packHS(tmpRhoSp(:,1), reks%rhoSqrL(:,:,1,tmpL), &
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, &
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
+      else
+        ! reks%rhoSpL has (my_qm) component
+        tmpRhoSp(:,1) = reks%rhoSpL(:,1,tmpL)
+      end if
+
+      ! Calculate correct charge contribution for each microstate
+      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), q0, orb, species)
+      call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
+      potential%intShell(:,:,:) = reks%intShellL(:,:,:,iL)
+      if (allocated(thirdOrd)) then
+        call thirdOrd%updateCharges(pSpecies0, neighbourList, &
+            & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
+      end if
+
+      call getEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
+          & species, tExtField, isXlbomd, tDftbU, tDualSpinOrbit, tmpRhoSp, H0, orb,&
+          & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure,&
+          & TS, potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
+          & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
+          & onSiteElements)
+
+      ! Assign energy contribution of each microstate
+      reks%enLnonSCC(iL) = energy%EnonSCC
+      reks%enLSCC(iL) = energy%Escc
+      reks%enLspin(iL) = energy%Espin
+      if (allocated(thirdOrd)) then
+        reks%enL3rd(iL) = energy%e3rd
+      end if
+      if (reks%isRangeSep) then
+        reks%enLfock(iL) = energy%Efock
+      end if
+      reks%enLtot(iL) = energy%Etotal
+
+    end do
 
     if (reks%Plevel >= 2) then
       call printReksMicrostates(reks, energy%Erep)
@@ -6921,196 +7044,6 @@ contains
     hamSp(:,1) = 2.0_dp * hamSp(:,1)
 
   end subroutine getReksSccHamiltonian
-
-
-  !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine getReksEnergyL(env, denseDesc, sccCalc, species, H0, &
-      & orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart, &
-      & cellVol, extPressure, energy, q0, iAtInCentralRegion, thirdOrd, &
-      & reks, tmpEn, sparseSize)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
-    !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> SCC module internal variables
-    type(TScc), allocatable, intent(inout) :: sccCalc
-
-    !> chemical species
-    integer, target, intent(in) :: species(:)
-
-    !> non-self-consistent hamiltonian
-    real(dp), intent(in) :: H0(:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> neighbour list
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours within cut-off for each atom
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> image to real atom mapping
-    integer, intent(in) :: img2CentCell(:)
-
-    !> index for sparse large matrices
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> unit cell volume
-    real(dp), intent(in) :: cellVol
-
-    !> external pressure
-    real(dp), intent(in) :: extPressure
-
-    !> energy contributions
-    type(TEnergies), intent(inout) :: energy
-
-    !> reference atomic occupations
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> Atoms over which to sum the total energies
-    integer, intent(in) :: iAtInCentralRegion(:)
-
-    !> third order SCC interactions
-    type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
-
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
-
-    !> spin up part of long-range corrected energy
-    real(dp), allocatable, intent(in) :: tmpEn(:)
-
-    !> Size of the sparse overlap
-    integer, intent(in) :: sparseSize
-
-    real(dp), allocatable :: tmpRhoSp(:)
-    integer, pointer :: pSpecies0(:)
-    integer :: iL, tmpL, nAtom, nSpin
-
-    nAtom = size(reks%qOutputL,dim=2)
-    nSpin = size(reks%chargePerShellL,dim=3)
-    pSpecies0 => species(1:nAtom)
-
-    if (reks%tForces) then
-      allocate(tmpRhoSp(sparseSize))
-    end if
-
-    ! set the long-range corrected energy for each microstate
-    if (reks%isRangeSep) then
-      do iL = 1, reks%Lmax
-        if (iL <= reks%Lpaired) then
-          energy%Efock = tmpEn(iL) + tmpEn(iL)
-        else
-          if (mod(iL,2) == 1) then
-            energy%Efock = tmpEn(iL) + tmpEn(iL+1)
-          else
-            energy%Efock = tmpEn(iL) + tmpEn(iL-1)
-          end if
-        end if
-        reks%enLfock(iL) = energy%Efock
-      end do
-    end if
-
-    do iL = 1, reks%Lmax
-
-      if (iL <= reks%Lpaired) then
-        tmpL = iL
-      else
-        if (mod(iL,2) == 1) then
-          tmpL = iL
-        else
-          tmpL = iL - 1
-        end if
-      end if
-
-      ! Tr[H0 * Rho] can be done with the same algorithm as Mulliken-analysis
-      energy%atomNonSCC(:) = 0.0_dp
-      energy%EnonSCC = 0.0_dp
-      if (reks%tForces) then
-        tmpRhoSp(:) = 0.0_dp
-        call env%globalTimer%startTimer(globalTimers%denseToSparse)
-        ! reks%rhoSqrL has (my_qm) component
-        call packHS(tmpRhoSp, reks%rhoSqrL(:,:,1,tmpL), &
-            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, &
-            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-        call mulliken(energy%atomNonSCC, tmpRhoSp, H0, orb, &
-            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-      else
-        ! reks%rhoSpL has (my_qm) component
-        call mulliken(energy%atomNonSCC, reks%rhoSpL(:,1,tmpL), H0, orb, &
-            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-      end if
-      energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
-      reks%enLnonSCC(iL) = energy%EnonSCC
-
-      call sccCalc%updateCharges(env, reks%qOutputL(:,:,:,iL), &
-          & q0, orb, species)
-      call sccCalc%updateShifts(env, orb, species, &
-          & neighbourList%iNeighbour, img2CentCell)
-      energy%atomSCC(:) = 0.0_dp
-      energy%Escc = 0.0_dp
-      call sccCalc%getEnergyPerAtom(energy%atomSCC)
-      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
-      reks%enLSCC(iL) = energy%Escc
-
-      energy%atomSpin(:) = 0.0_dp
-      energy%Espin = 0.0_dp
-      if (iL > reks%Lpaired) then
-        energy%atomSpin(:) = 0.5_dp * sum(sum(reks%intShellL(:,:,2:nSpin,iL)&
-            & * reks%chargePerShellL(:,:,2:nSpin,iL), dim=1), dim=2)
-        energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
-        reks%enLspin(iL) = energy%Espin
-      end if
-
-      energy%atom3rd(:) = 0.0_dp
-      energy%e3rd = 0.0_dp
-      if (allocated(thirdOrd)) then
-        call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-            & reks%qOutputL(:,:,:,iL), q0, img2CentCell, orb)
-        call thirdOrd%getEnergyPerAtom(energy%atom3rd)
-        energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
-        reks%enL3rd(iL) = energy%e3rd
-      end if
-
-      energy%atomOnSite(:) = 0.0_dp
-      energy%eOnSite = 0.0_dp
-
-      energy%Efock = 0.0_dp
-      if (reks%isRangeSep) then
-        energy%Efock = reks%enLfock(iL)
-      end if
-
-      energy%atomExt(:) = 0.0_dp
-      energy%Eext = 0.0_dp
-
-      energy%atomDftbu(:) = 0.0_dp
-      energy%Edftbu = 0.0_dp
-
-      energy%atomLS(:) = 0.0_dp
-      energy%ELS = 0.0_dp
-
-      energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-          & + energy%Eext + energy%e3rd + energy%eOnSite + energy%Efock
-      energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-          & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite
-      energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp
-      energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
-      reks%enLtot(iL) = energy%Etotal
-
-      ! REKS is not affected by filling, so TS becmoes 0
-      energy%EMermin = energy%Etotal
-      ! extrapolated to 0 K
-      energy%Ezero = energy%Etotal
-      energy%EGibbs = energy%EMermin + cellVol * extPressure
-      energy%EForceRelated = energy%EGibbs
-
-    end do
-
-  end subroutine getReksEnergyL
 
 
   !> Optimize the fractional occupation numbers (FONs) and weights
