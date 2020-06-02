@@ -3314,7 +3314,7 @@ contains
     !> Number of electrons
     real(dp), intent(in) :: nEl(:)
     !> Orbital equivalence relations
-    integer, intent(in) :: iEqOrbitals(:,:,:)
+    integer, intent(in), allocatable :: iEqOrbitals(:,:,:)
     !> nr. of inequivalent orbitals
     integer, intent(in) :: nIneqOrb
     !> nr. of elements to go through the mixer
