@@ -45,7 +45,7 @@ module dftbp_mainio
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_message
   use dftbp_rekscommon
-  use dftbp_reksvar, only : TReksCalc
+  use dftbp_reksvar, only : TReksCalc, reksTypes
   ! TODO : circular dependecy occurs
 !  use dftbp_reks
   use dftbp_cm5, only : TChargeModel5
@@ -2141,8 +2141,8 @@ contains
 
 
   !> Write XML format of derived results
-  subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, latVec, tRealHS,&
-      & nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
+  subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, tHelical, latVec,&
+      & origin, tRealHS, nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
 
     !> Identifier for the run
     integer, intent(in) :: runId
@@ -2159,8 +2159,14 @@ contains
     !> Periodic boundary conditions
     logical, intent(in) :: tPeriodic
 
-    !> Lattice vectors if periodic
+    !> Is the geometry helical?
+    logical, intent(in) :: tHelical
+
+    !> Lattice vectors if periodic or helical
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin for periodic/helical coordinates
+    real(dp), intent(in) :: origin(:)
 
     !> Real Hamiltonian
     logical, intent(in) :: tRealHS
@@ -2200,11 +2206,18 @@ contains
     call writeChildValue(xf, "identity", runId)
     call xml_NewElement(xf, "geometry")
     call writeChildValue(xf, "typenames", speciesName)
-    call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
-        & coord0Out)
+    if (tPeriodic .or. tHelical) then
+      call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
+          & coord0Out + spread(origin, 2, size(coord0Out, dim=2)))
+    else
+      call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
+          & coord0Out)
+    end if
     call writeChildValue(xf, "periodic", tPeriodic)
-    if (tPeriodic) then
+    call writeChildValue(xf, "helical", tHelical)
+    if (tPeriodic .or. tHelical) then
       call writeChildValue(xf, "latticevectors", latVec)
+      call writeChildValue(xf, "coordinateorigin", origin)
     end if
     call xml_EndElement(xf, "geometry")
     call writeChildValue(xf, "real", tRealHS)
@@ -3225,15 +3238,18 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tBarostat, isLinResp, tEField, tFixEf, tPrintMulliken,&
-      & energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon, absEField,&
-      & qOutput, q0, dipoleMoment)
+  subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
+      & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
+      & absEField, qOutput, q0, dipoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
 
     !> Is the stress tensor to be printed?
     logical, intent(in) :: tStress
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: tPeriodic
 
     !> Is a barostat in use
     logical, intent(in) :: tBarostat
@@ -3294,12 +3310,14 @@ contains
         end do
         write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
       end if
-      write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
-      if (pressure /= 0.0_dp) then
-        write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
-            & Hartree__eV * energy%EGibbs,'eV'
-        write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-            & Hartree__eV * energy%EGibbsKin, 'eV'
+      if (tPeriodic) then
+        write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+        if (pressure /= 0.0_dp) then
+          write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
+              & Hartree__eV * energy%EGibbs,'eV'
+          write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+              & Hartree__eV * energy%EGibbsKin, 'eV'
+        end if
       end if
     end if
     if (isLinResp) then
@@ -3544,8 +3562,8 @@ contains
 
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-      & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep, nSpin,&
-      & qOutput, velocities)
+      & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
+      & iLatGeoStep, nSpin, qOutput, velocities)
 
     !>  file for geometry output
     character(*), intent(in) :: geoOutFile
@@ -3568,6 +3586,9 @@ contains
     !> Is the geometry periodic?
     logical, intent(in) :: tPeriodic
 
+    !> Is the geometry helical?
+    logical, intent(in) :: tHelical
+
     !> should Mulliken charges be printed
     logical, intent(in) :: tPrintMulliken
 
@@ -3579,6 +3600,9 @@ contains
 
     !> lattice vectors
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin for periodic coordinates
+    real(dp), intent(in) :: origin(:)
 
     !> current geometry step
     integer, intent(in) :: iGeoStep
@@ -3603,8 +3627,8 @@ contains
     nAtom = size(pCoord0Out, dim=2)
 
     fname = trim(geoOutFile) // ".gen"
-    if (tPeriodic) then
-      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, tFracCoord)
+    if (tPeriodic .or. tHelical) then
+      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, origin, tFracCoord)
     else
       call writeGenFormat(fname, pCoord0Out, species0, speciesName)
     end if
@@ -3730,12 +3754,14 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
-    if (reks%tSSR22) then
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       write(stdOut,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
           & "      Diff energy   ", "      x_a    ", "   SCC error   "
-    else if (reks%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine printReksSccHeader
 
@@ -3789,12 +3815,14 @@ contains
     type(TReksCalc), intent(in) :: reks
 
     ! print out the iteration information
-    if (reks%tSSR22) then
-      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.6)") iSCCIter, Etotal,&
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      write(stdOut,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") iSCCIter, Etotal,&
           & diffTotal, reks%FONs(1,1) * 0.5_dp, sccErrorQ
-    else if (reks%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine printReksSccInfo
 
@@ -4558,7 +4586,7 @@ contains
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      if (reks%tRangeSep) then
+      if (reks%isRangeSep) then
         write(stdOut,'(1(f13.8))',advance="no") reks%enLfock(iL)
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
@@ -4598,11 +4626,13 @@ contains
     !> state-averaged energy
     real(dp), intent(in) :: Etotal
 
-    if (reks%tSSR22) then
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call printReksSAInfo22(Etotal, reks%enLtot, reks%energy, reks%FONs, reks%Efunction, reks%Plevel)
-    else if (reks%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine printReksSAInfo
 
@@ -4700,19 +4730,21 @@ contains
     !> state-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
-    if (reks%tSSR22) then
+    select case (reks%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call printReksSSRInfo22(Wab, tmpEn, StateCoup, reks%energy, reks%eigvecsSSR, &
-          & reks%Elevel, reks%useSSR, reks%Na)
-    else if (reks%tSSR44) then
+          & reks%Na, reks%tAllStates, reks%tSSR)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine printReksSSRInfo
 
 
   !> print SI-SA-REKS(2,2) result in standard output
   subroutine printReksSSRInfo22(Wab, tmpEn, StateCoup, energy, eigvecsSSR, &
-      & Elevel, useSSR, Na)
+      & Na, tAllStates, tSSR)
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -4729,14 +4761,14 @@ contains
     !> eigenvectors from SA-REKS state
     real(dp), intent(in) :: eigvecsSSR(:,:)
 
-    !> Calculated energy states in SA-REKS
-    integer, intent(in) :: Elevel
-
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
-
     !> Number of active orbitals
     integer, intent(in) :: Na
+
+    !> Decide the energy states in SA-REKS
+    logical, intent(in) :: tAllStates
+
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     integer :: ist, jst, nstates, ia, ib, nActPair
     character(len=8) :: strTmp
@@ -4760,10 +4792,10 @@ contains
 
     write(stdOut,*)
     write(stdOut, "(A)") repeat("-", 50)
-    if (Elevel == 1) then
+    if (.not. tAllStates) then
       write(stdOut,'(A)') " SSR: 2SI-2SA-REKS(2,2) Hamiltonian matrix"
       write(stdOut,'(15x,A3,11x,A3)') "PPS", "OSS"
-    else if (Elevel == 2) then
+    else
       write(stdOut,'(A)') " SSR: 3SI-2SA-REKS(2,2) Hamiltonian matrix"
       write(stdOut,'(15x,A3,11x,A3,11x,A3)') "PPS", "OSS", "DES"
     end if
@@ -4795,21 +4827,21 @@ contains
     end do
     write(stdOut, "(A)") repeat("-", 50)
 
-    if (useSSR == 1) then
+    if (tSSR) then
       write(stdOut,*)
       write(stdOut, "(A)") repeat("-", 64)
-      if (Elevel == 1) then
+      if (.not. tAllStates) then
         write(stdOut,'(A)') " SSR: 2SI-2SA-REKS(2,2) states"
         write(stdOut,'(19x,A4,7x,A7,4x,A7)') "E_n", "C_{PPS}", "C_{OSS}"
-      else if (Elevel == 2) then
+      else
         write(stdOut,'(A)') " SSR: 3SI-2SA-REKS(2,2) states"
         write(stdOut,'(19x,A4,7x,A7,4x,A7,4x,A7)') "E_n", "C_{PPS}", "C_{OSS}", "C_{DES}"
       end if
       do ist = 1, nstates
-        if (Elevel == 1) then
+        if (.not. tAllStates) then
           write(stdOut,'(1x,A,I2,1x,f13.8,1x,f10.6,1x,f10.6)') &
               & "SSR state ", ist, energy(ist), eigvecsSSR(:,ist)
-        else if (Elevel == 2) then
+        else
           write(stdOut,'(1x,A,I2,1x,f13.8,1x,f10.6,1x,f10.6,1x,f10.6)') &
               & "SSR state ", ist, energy(ist), eigvecsSSR(:,ist)
         end if
@@ -4821,13 +4853,10 @@ contains
 
 
   !> print unrelaxed FONs for target state
-  subroutine printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
+  subroutine printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
-
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
 
     !> Target SSR state
     integer, intent(in) :: rstate
@@ -4841,10 +4870,13 @@ contains
     !> Number of active orbitals
     integer, intent(in) :: Na
 
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
+
     integer :: ii
 
     write(stdOut,*)
-    if (useSSR == 1) then
+    if (tSSR) then
       write(stdOut,'(A25,I1,A1)',advance="no") " unrelaxed SSR FONs for S", &
           & rstate - 1, ":"
     else
@@ -4868,13 +4900,10 @@ contains
 
 
   !> print Relaxed FONs for target state
-  subroutine printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
+  subroutine printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR)
 
     !> Occupation number matrix
     real(dp), intent(in) :: tmpRho(:,:)
-
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
 
     !> Target SSR state
     integer, intent(in) :: rstate
@@ -4885,9 +4914,12 @@ contains
     !> Number of active orbitals
     integer, intent(in) :: Na
 
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
+
     integer :: ii
 
-    if (useSSR == 1) then
+    if (tSSR) then
       write(stdOut,'(A23,I1,A1)',advance="no") " relaxed SSR FONs for S", &
           & rstate - 1, ":"
     else
@@ -5016,7 +5048,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, tRangeSep)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, isRangeSep)
 
     !> File ID
     integer, intent(in) :: fd
@@ -5112,7 +5144,7 @@ contains
     logical, intent(in) :: t3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
@@ -5150,12 +5182,18 @@ contains
     write(fd, *)
 
     if (tSCC) then
-      write(fd, "(A)") repeat("*", 92)
-      write(fd,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
-          & "      Diff energy   ", "      x_a    ", "   SCC error   "
-      write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,4x,F10.6)") &
-          & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, sccErrorQ
-      write(fd, "(A)") repeat("*", 92)
+      select case (reks%reksAlg)
+      case (reksTypes%noReks)
+      case (reksTypes%ssr22)
+        write(fd, "(A)") repeat("*", 92)
+        write(fd,"(1X,A5,A20,A20,A13,A15)") "iSCC", "       reks energy  ", &
+            & "      Diff energy   ", "      x_a    ", "   SCC error   "
+        write(fd,"(I5,4x,F16.10,3x,F16.10,3x,F10.6,3x,F11.8)") &
+            & iSCCIter, energy%Etotal, diffElec, reks%FONs(1,1)*0.5_dp, sccErrorQ
+        write(fd, "(A)") repeat("*", 92)
+      case (reksTypes%ssr44)
+        call error("SSR(4,4) is not implemented yet")
+      end select
       write(fd, *)
     end if
 
@@ -5271,7 +5309,7 @@ contains
       energy%ESCC = reks%enLSCC(reks%Lstate)
       energy%Espin = reks%enLspin(reks%Lstate)
       energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin
-      if (tRangeSep) then
+      if (isRangeSep) then
         energy%Efock = reks%enLfock(reks%Lstate)
         energy%Eelec = energy%Eelec + energy%Efock
       end if
@@ -5292,7 +5330,7 @@ contains
       if (t3rd) then
         write (fd,format2U) 'Energy 3rd', energy%e3rd, 'H', energy%e3rd*Hartree__eV, 'eV'
       end if
-      if (tRangeSep) then
+      if (isRangeSep) then
         write(fd, format2U) 'Energy Fock', energy%Efock, 'H', energy%Efock * Hartree__eV, 'eV'
       end if
     end if
@@ -5441,7 +5479,7 @@ contains
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
         if (reks%Lstate == 0) then
-          if (reks%useSSR == 1) then
+          if (reks%tSSR) then
             write(stdOut,*) reks%rstate, "state (SSR)"
           else
             write(stdOut,*) reks%rstate, "state (SA-REKS)"

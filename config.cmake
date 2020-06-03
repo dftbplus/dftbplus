@@ -62,6 +62,8 @@ if(WITH_MPI)
 else()
   set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
     "How to run the tests")
+  set(MODES_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
+    "How to run the modes code for tests")
 endif()
 
 
