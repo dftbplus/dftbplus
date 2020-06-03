@@ -2141,8 +2141,8 @@ contains
 
 
   !> Write XML format of derived results
-  subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, latVec, tRealHS,&
-      & nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
+  subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, tHelical, latVec,&
+      & origin, tRealHS, nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
 
     !> Identifier for the run
     integer, intent(in) :: runId
@@ -2159,8 +2159,14 @@ contains
     !> Periodic boundary conditions
     logical, intent(in) :: tPeriodic
 
-    !> Lattice vectors if periodic
+    !> Is the geometry helical?
+    logical, intent(in) :: tHelical
+
+    !> Lattice vectors if periodic or helical
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin for periodic/helical coordinates
+    real(dp), intent(in) :: origin(:)
 
     !> Real Hamiltonian
     logical, intent(in) :: tRealHS
@@ -2200,11 +2206,18 @@ contains
     call writeChildValue(xf, "identity", runId)
     call xml_NewElement(xf, "geometry")
     call writeChildValue(xf, "typenames", speciesName)
-    call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
-        & coord0Out)
+    if (tPeriodic .or. tHelical) then
+      call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
+          & coord0Out + spread(origin, 2, size(coord0Out, dim=2)))
+    else
+      call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
+          & coord0Out)
+    end if
     call writeChildValue(xf, "periodic", tPeriodic)
-    if (tPeriodic) then
+    call writeChildValue(xf, "helical", tHelical)
+    if (tPeriodic .or. tHelical) then
       call writeChildValue(xf, "latticevectors", latVec)
+      call writeChildValue(xf, "coordinateorigin", origin)
     end if
     call xml_EndElement(xf, "geometry")
     call writeChildValue(xf, "real", tRealHS)
@@ -3225,15 +3238,18 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tBarostat, isLinResp, tEField, tFixEf, tPrintMulliken,&
-      & energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon, absEField,&
-      & qOutput, q0, dipoleMoment)
+  subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
+      & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
+      & absEField, qOutput, q0, dipoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
 
     !> Is the stress tensor to be printed?
     logical, intent(in) :: tStress
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: tPeriodic
 
     !> Is a barostat in use
     logical, intent(in) :: tBarostat
@@ -3294,12 +3310,14 @@ contains
         end do
         write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
       end if
-      write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
-      if (pressure /= 0.0_dp) then
-        write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
-            & Hartree__eV * energy%EGibbs,'eV'
-        write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-            & Hartree__eV * energy%EGibbsKin, 'eV'
+      if (tPeriodic) then
+        write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+        if (pressure /= 0.0_dp) then
+          write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
+              & Hartree__eV * energy%EGibbs,'eV'
+          write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+              & Hartree__eV * energy%EGibbsKin, 'eV'
+        end if
       end if
     end if
     if (isLinResp) then
@@ -3544,8 +3562,8 @@ contains
 
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-      & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep, nSpin,&
-      & qOutput, velocities)
+      & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
+      & iLatGeoStep, nSpin, qOutput, velocities)
 
     !>  file for geometry output
     character(*), intent(in) :: geoOutFile
@@ -3568,6 +3586,9 @@ contains
     !> Is the geometry periodic?
     logical, intent(in) :: tPeriodic
 
+    !> Is the geometry helical?
+    logical, intent(in) :: tHelical
+
     !> should Mulliken charges be printed
     logical, intent(in) :: tPrintMulliken
 
@@ -3579,6 +3600,9 @@ contains
 
     !> lattice vectors
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin for periodic coordinates
+    real(dp), intent(in) :: origin(:)
 
     !> current geometry step
     integer, intent(in) :: iGeoStep
@@ -3603,8 +3627,8 @@ contains
     nAtom = size(pCoord0Out, dim=2)
 
     fname = trim(geoOutFile) // ".gen"
-    if (tPeriodic) then
-      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, tFracCoord)
+    if (tPeriodic .or. tHelical) then
+      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, origin, tFracCoord)
     else
       call writeGenFormat(fname, pCoord0Out, species0, speciesName)
     end if

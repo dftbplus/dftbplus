@@ -29,11 +29,14 @@ Added
 - The DFT-D4 dispersion model (see DOIs: 10.1063/1.4993215 10.1063/1.5090222
   10.26434/chemrxiv.10299428 )
 
+- Non-SCC helical geometries supported
+
 - Generalized Born implicit solvation model
 
 - Non-polar solvent accessible surface area solvation model
 
 - Particle-particle random-phase approximation available for suitable excitation calculations
+
 
 Changed
 -------
@@ -45,7 +48,8 @@ Changed
 - Versioned format for transport contact shift files (backward compatible), also
   enables the Fermi energy to be read directly from the contact file.
 
-- Removed residual XML input (leaving detailed.xml export, depreciating the undocumented <<! tag in HSD)
+- Removed residual XML input (leaving detailed.xml export, depreciating the
+  undocumented <<! tag in HSD)
 
 Fixed
 -----
@@ -54,6 +58,7 @@ Fixed
   range-separation hybrid DFTB.
 
 - MD temperature profiles that do not start with an initial constant temperature
+
 
 19.1 (2019-07-01)
 =================

@@ -2126,20 +2126,26 @@ was defined with the \is{SelectedShells} method.
 \label{sec:dftbp.KPointsAndWeights}
 \index{Brillouin-zone sampling}
 
-The $k$-points for the Brillouin-zone integration can either be
-specified explicitly or using the \islcb{KLines}{sec:dftbp.KLines} or the
-\islcb{SupercellFolding}{sec:dftbp.KLines} methods. If the latter is used the
-\is{KPointsAndWeights} keyword is not allowed to have a modifier.
+The $k$-points for the Brillouin-zone integration can either be specified
+explicitly, or automatically for supercells by using the \iscb{SupercellFolding}
+or \iscb{KLines} methods for supercells or either \iscb{HelicalUniform} or
+\iscb{HelicalSampled} for helical boundary conditions.
+
+\textbf{ Note:} For the automatic grid methods, the \is{KPointsAndWeights}
+keyword is not allowed to have a modifier.
 
 \subsubsection{Explicit specification}
 
-For every $k$-point four real numbers must be specified: The
-coordinates of the given $k$-point followed by its weight. By default,
-the coordinates are specified in fractions of the reciprocal lattice
-vectors. If the modifier \is{absolute} is set for the
-\is{KPointsAndWeights} keyword, absolute $k$-point coordinates in
-atomic units are instead expected.  The sum of the k-point weights is
-automatically normalised by the program.
+Each $k$-point and its weight in the integral should be specified, for
+supercells this requires that four real numbers must be specified for
+each point: The coordinates of the given $k$-point followed by its
+weight, while for helical coordinates there are two coordinates (along
+the helical axis and with respect to the rotation around the axis) and
+the weight of the point. By default, coordinates are specified in
+fractions of the reciprocal lattice vectors. If the modifier
+\is{absolute} is set for the \is{KPointsAndWeights} keyword, absolute
+$k$-point coordinates in atomic units are instead expected.  The sum
+of the k-point weights is automatically normalised by the program.
 \begin{verbatim}
   KPointsAndWeights = {   # 2x2x2 MP-scheme
     0.25  0.25  0.25    1.0
@@ -2261,6 +2267,43 @@ Example:
 
 \textbf{Note:} Since this set of k-points probably does not correctly integrate the Brillouin zone,
 the default value of \kw{MaxSccIterations} is set to be 1 in this case.
+
+\htcbsubsubsection{HelicalUniform}
+
+This method specifies $k$-points lying along the generalized reciprocal vector
+of the Brillouin zone of a helical cell and around the order-$n$ rotational axis
+(currently the $k$-points that exactly represent the $C_n$ rotation are
+used). The \iscb{HelicalUniform} method expects 1 integer and 1 real value as
+parameters, where the first value specifies the number of sampling points along
+the helical axis, while the second gives the shift (analogous to the three
+dimensional case of \iscb{SupercellFolding}) in this direction. A shift of $0.5$
+appears to give more rapid convergence of the grid.
+
+Example:
+\invparskip
+\begin{verbatim}
+  KPointsAndWeights = HelicalUniform {80 0.5}
+\end{verbatim}
+
+\htcbsubsubsection{HelicalSampled}
+
+Instead of exactly integrating around the $C_n$ rotation in $k$-space, the
+\iscb{HelicalSampled} method allows for a sampled integration. It expects 4
+values: the first two are the number of sample points along the helix and around
+the rotation respectively, while the second two are shifts in the grid.
+
+Example:
+\invparskip
+\begin{verbatim}
+  KPointsAndWeights = HelicalSampled {20 4 0.5 0.25}
+\end{verbatim}
+
+There are several things to note here: firstly, the second grid (values 4 and
+0.25 in the example above) approximates the integration around the $C_n$
+symmetry, so should only be used where the order of this rotation axis is
+large. Secondly, non-zero shifts in the grid, particularly for small numbers of
+sampling points, are likely to be unphysical as are shifts for the grids at the
+exact order of the rotation operation.
 
 \subsection{OrbitalPotential}
 \label{sec:dftbp.OrbitalPotential}

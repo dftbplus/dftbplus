@@ -188,9 +188,11 @@ module dftbp_initprogram
   !> if calculation is periodic
   logical :: tPeriodic
 
+  !> If the calculation is helical geometry
+  logical :: tHelical
+
   !> Should central cell coordinates be output?
   logical :: tShowFoldedCoord
-
 
   !> How to calculate forces
   integer :: forceType
@@ -203,6 +205,9 @@ module dftbp_initprogram
 
   !> lattice vectors as columns
   real(dp), allocatable, target :: latVec(:,:)
+
+  !> Origin of coordinate system for periodic systems
+  real(dp), allocatable :: origin(:)
 
   !> reciprocal lattice vectors as columns
   real(dp), allocatable, target :: recVec(:,:)
@@ -1192,18 +1197,17 @@ contains
     end select
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
+    tHelical = input%geom%tHelical
 
     ! start by assuming stress can be calculated if periodic
-    tStress = tPeriodic
+    tStress = tPeriodic ! .or. tHelical
 
     ! Brillouin zone sampling
-    if (tPeriodic) then
+    if (tPeriodic .or. tHelical) then
       nKPoint = input%ctrl%nKPoint
-      allocate(kPoint(3, nKPoint))
+      allocate(kPoint(size(input%ctrl%KPoint,dim=1), nKPoint))
       allocate(kWeight(nKPoint))
-      @:ASSERT(all(shape(kPoint) == shape(input%ctrl%KPoint)))
-      @:ASSERT(all(shape(kWeight) == shape(input%ctrl%kWeight)))
-      kPoint(:,:) = input%ctrl%KPoint(:,:)
+      kPoint(:,:) = input%ctrl%KPoint
       if (sum(input%ctrl%kWeight(:)) < epsilon(1.0_dp)) then
         call error("Sum of k-point weights should be greater than zero!")
       end if
@@ -1216,11 +1220,13 @@ contains
       kWeight(1) = 1.0_dp
     end if
 
-    if ((.not. tPeriodic) .or. (nKPoint == 1 .and. all(kPoint(:, 1) == [0.0_dp, 0.0_dp, 0.0_dp])))&
-        & then
-      tRealHS = .true.
-    else
-      tRealHS = .false.
+    tRealHS = .true.
+    if (tPeriodic .or. tHelical) then
+      if ( size(kPoint,dim=2) == 1 .and. all(kPoint(:, 1) == 0.0_dp)) then
+        tRealHS = .true.
+      else
+        tRealHS = .false.
+      end if
     end if
 
   #:if WITH_MPI
@@ -1244,7 +1250,7 @@ contains
 
     sccTol = input%ctrl%sccTol
     tShowFoldedCoord = input%ctrl%tShowFoldedCoord
-    if (tShowFoldedCoord .and. .not. tPeriodic) then
+    if (tShowFoldedCoord .and. .not. (tPeriodic .or. tHelical)) then
       call error("Folding coordinates back into the central cell is meaningless for molecular&
           & boundary conditions!")
     end if
@@ -1267,6 +1273,8 @@ contains
       allocate(latVec(3, 3))
       @:ASSERT(all(shape(input%geom%latVecs) == shape(latVec)))
       latVec(:,:) = input%geom%latVecs(:,:)
+      allocate(origin(3))
+      origin(:) = input%geom%origin
       allocate(recVec(3, 3))
       allocate(invLatVec(3, 3))
       invLatVec = latVec(:,:)
@@ -1275,8 +1283,15 @@ contains
       recVec = 2.0_dp * pi * invLatVec
       CellVol = abs(determinant33(latVec))
       recCellVol = abs(determinant33(recVec))
+    else if (tHelical) then
+      origin = input%geom%origin
+      latVec = input%geom%latVecs(:,:)
+      allocate(recVec(1, 1))
+      recVec = 1.0_dp / latVec(1,1)
+      allocate(invLatVec(0, 0))
     else
       allocate(latVec(0, 0))
+      allocate(origin(0))
       allocate(recVec(0, 0))
       allocate(invLatVec(0, 0))
       CellVol = 0.0_dp
@@ -1428,6 +1443,8 @@ contains
         sccInp%latVecs = latVec
         sccInp%recVecs = recVec
         sccInp%volume = CellVol
+      else if (tHelical) then
+        call error("Scc calculations not currently supported for helical boundary conditions")
       end if
       sccInp%hubbU = hubbU
       allocate(tDampedShort(nType))
@@ -1548,6 +1565,12 @@ contains
     if (tPeriodic) then
       ! Make some guess for the nr. of all interacting atoms
       nAllAtom = int((real(nAtom, dp)**(1.0_dp/3.0_dp) + 3.0_dp)**3)
+    else if (tHelical) then
+      ! 1D system, so much lower number of initial interactions
+      nAllAtom = nAtom + 3
+      if (size(latVec,dim=1)==3) then
+        nAllAtom = nAllAtom * nint(latVec(3,1))
+      end if
     else
       nAllAtom = nAtom
     end if
@@ -1914,6 +1937,10 @@ contains
       nGeoSteps = 0
     end if
 
+    if (tSocket .and. tHelical) then
+      call error("The socket protocol does not understand helical geometries")
+    end if
+
     ! Initialize constraints
     if (input%ctrl%nrConstr > 0) then
       allocate(conAtom(input%ctrl%nrConstr))
@@ -1929,7 +1956,11 @@ contains
     tHHRepulsion = .false.
     tDispersion = allocated(input%ctrl%dispInp)
     if (tDispersion) then
+      if (tHelical) then
+        call error("Dispersion not currently supported for helical boundary conditions")
+      end if
       if (allocated(input%ctrl%dispInp%slakirk)) then
+
         tStress = .false.
         if (tLatOpt) then
           call error("Sorry, lattice optimisation and Slater-Kirkwood type dispersion can not be&
@@ -1942,6 +1973,8 @@ contains
         allocate(slaKirk)
         if (tPeriodic) then
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk, latVec)
+        else if (tHelical) then
+          call error("Slater-Kirkwood incompatible with helical boundary conditions")
         else
           call DispSlaKirk_init(slaKirk, input%ctrl%dispInp%slakirk)
         end if
@@ -2010,7 +2043,7 @@ contains
       cutOff%mCutOff = max(cutOff%mCutOff, halogenXCorrection%getRCutOff())
     end if
 
-    if (input%ctrl%nrChrg == 0.0_dp .and. (.not.tPeriodic) .and. tMulliken) then
+    if (input%ctrl%nrChrg == 0.0_dp .and. .not.(tPeriodic.or.tHelical) .and. tMulliken) then
       tDipole = .true.
     else
       tDipole = .false.
@@ -2063,7 +2096,7 @@ contains
         call error("excited state relaxation is not implemented yet for spin-polarized systems")
       elseif (tPeriodic .and. tCasidaForces) then
         call error("excited state relaxation is not implemented yet for periodic systems")
-      elseif (tPeriodic .and. .not.tRealHS) then
+      elseif ((tPeriodic .or. tHelical) .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular crystals")
       elseif (tSpinOrbit) then
         call error("Linear response does not support spin orbit coupling at the moment.")
@@ -2311,7 +2344,7 @@ contains
     tReadChrg = input%ctrl%tReadChrg
 
     if (tRangeSep) then
-      call ensureRangeSeparatedReqs(tPeriodic, tReadChrg, input%ctrl%tShellResolved,&
+      call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
           & tAtomicEnergy, input%ctrl%rangeSepInp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
@@ -2336,7 +2369,7 @@ contains
          & qiBlockIn, qiBlockOut)
    
     ! Initialise images (translations)
-    if (tPeriodic) then
+    if (tPeriodic .or. tHelical) then
       call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, cutOff%mCutOff)
     else
       allocate(cellVec(3, 1))
@@ -2758,6 +2791,11 @@ contains
         write(stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
         write(stdOut, "(A,':',T30,f12.6)") "Pressure", extPressure
       end if
+    else if (tHelical) then
+      write (stdOut, "(A,':',T30,A)") "Helical boundaries", "Yes"
+      if (tLatOpt) then
+        write (stdOut, "(A,':',T30,A)") "Lattice optimisation", "Yes"
+      end if
     else
       write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "No"
     end if
@@ -2894,6 +2932,17 @@ contains
         write(stdout, "(A,T28,I6,':',3F10.6)") trim(strTmp), ii, matmul(invLatVec,kPoint(:,ii))
       end do
       write(stdout, *)
+    end if
+
+    if (tHelical) then
+      do ii = 1, nKPoint
+        if (ii == 1) then
+          write(strTmp, "(A,':')") "K-points and weights"
+        else
+          write(strTmp, "(A)") ""
+        end if
+        write(stdOut,"(A,T28,I6,':',2F10.6,3X,F10.6)") trim(strTmp), ii, kPoint(:, ii), kWeight(ii)
+      end do
     end if
 
     if (tDispersion) then
@@ -3121,6 +3170,14 @@ contains
 
     if (tSpinOrbit .and. tDFTBU .and. .not. tDualSpinOrbit)  then
       call error("Only dual spin orbit currently supported for orbital potentials")
+    end if
+
+    if (tHelical .and. tSpinOrbit) then
+      call error("L.S coupling not yet supported for helical boundary conditions.")
+    end if
+
+    if (tHelical .and. nSpin > 2) then
+      call error("Non-collinear not yet supported for helical boundary conditions.")
     end if
 
     if (.not.tStress) then
@@ -3725,7 +3782,7 @@ contains
     end if
 
     @:SAFE_DEALLOC(sccCalc, img2CentCell, species, species0, coord, coord0)
-    @:SAFE_DEALLOC(latVec, recVec, invLatVec, cellVec, rCellVec, iCellVec)
+    @:SAFE_DEALLOC(latVec, origin, recVec, invLatVec, cellVec, rCellVec, iCellVec)
     @:SAFE_DEALLOC(neighbourList, nNeighbourSk, nNeighbourRep, iSparseStart)
     @:SAFE_DEALLOC(hubbU, atomEigVal, referenceN0, mass, speciesMass)
     @:SAFE_DEALLOC(ham, iHam, chargePerShell, chargePerAtom, over, kPoint, kWeight)
@@ -4702,11 +4759,14 @@ contains
 
 
   !> Stop if any range separated incompatible setting is found
-  subroutine ensureRangeSeparatedReqs(tPeriodic, tReadChrg, tShellResolved, tAtomicEnergy,&
-      & rangeSepInp)
+  subroutine ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, tShellResolved,&
+      & tAtomicEnergy, rangeSepInp)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
+
+    !> If the calculation is helical geometry
+    logical :: tHelical
 
     !> Are charges read from disc
     logical, intent(in) :: tReadChrg
@@ -4722,6 +4782,11 @@ contains
 
     if (tPeriodic) then
       call error("Range separated functionality only works with non-periodic structures at the&
+          & moment")
+    end if
+
+    if (tHelical) then
+      call error("Range separated functionality only works with non-helical structures at the&
           & moment")
     end if
 
