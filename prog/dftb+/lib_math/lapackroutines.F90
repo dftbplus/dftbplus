@@ -1572,7 +1572,7 @@ contains
   @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
       & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
 
-    call dtrsm ( side, uplo, iTransa, diag, m, n, alpha, a, lda, b, ldb )
+    call ${kind}$trsm ( side, uplo, iTransa, diag, m, n, alpha, a, lda, b, ldb )
 
   end subroutine ${kind}$trsm_${suffix}$
 
