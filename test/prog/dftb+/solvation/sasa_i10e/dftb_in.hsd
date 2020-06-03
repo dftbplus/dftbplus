@@ -1,0 +1,47 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = SASA { # GFN1-xTB/GBSA(Toluene)
+    ProbeRadius [AA] = 1.59772343
+    Smoothing [AA] = 0.3
+    Offset [AA] = 2
+    AngularGrid = 230
+    Radii = vanDerWaalsRadiiD3 {}
+    SurfaceTension = Values {
+      H = -1.52312760
+      C = -2.92375089
+      O = 0.79482640
+    }
+  }
+  SCC = Yes
+  SccTolerance = 1e-10
+  MaxAngularMomentum {
+    H = "s"
+    O = "p"
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}

@@ -178,6 +178,20 @@ void dftbp_set_coords_and_lattice_vecs(DftbPlus *instance, const double *coords,
 
 
 /**
+ * Sets actual atom coordinates and lattice vectors.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] coords Coordinates of the atoms in atomic units. Shape: [natom, 3]. Unit: Bohr.
+ *
+ * \param[in] latvecs Lattice vectors Shape: [3, 3]. Unit: Bohr.
+ *
+ * \param[in] origin Coordinate origin Shape: [3]. Unit: Bohr.
+ */
+void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
+                                       const double *latvecs, const double *origin);
+
+/**
  * Queries the nr. of atoms in the system.
  *
  * \param[inout] instance Handler of the DFTB+ instance.
