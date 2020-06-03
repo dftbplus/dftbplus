@@ -496,7 +496,8 @@ contains
         end if
 
         call getDensityLFromRealEigvecs(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
-            & img2CentCell, orb, eigvecsReal, q0, reks)
+            & img2CentCell, orb, eigvecsReal, parallelKS, rhoPrim, SSqrReal, rhoSqrReal, q0,&
+            & deltaRhoOutSqr, reks)
         call getMullikenPopulationL(env, denseDesc, neighbourList, nNeighbourSK, img2CentCell,&
             & iSparseStart, orb, over, reks)
 
@@ -6505,8 +6506,9 @@ contains
 
 
   !> Creates (delta) density matrix for each microstate from real eigenvectors.
-  subroutine getDensityLFromRealEigvecs(env, denseDesc, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, orb, eigvecs, q0, reks)
+  subroutine getDensityLFromRealEigvecs(env, denseDesc, neighbourList, nNeighbourSK, &
+      & iSparseStart, img2CentCell, orb, eigvecs, parallelKS, rhoPrim, work, &
+      & rhoSqrReal, q0, deltaRhoOutSqr, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6532,20 +6534,28 @@ contains
     !> eigenvectors
     real(dp), intent(inout) :: eigvecs(:,:,:)
 
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> sparse density matrix
+    real(dp), intent(inout) :: rhoPrim(:,:)
+
+    !> work space array
+    real(dp), intent(inout) :: work(:,:)
+
+    !> Dense density matrix if needed
+    real(dp), intent(inout), allocatable  :: rhoSqrReal(:,:,:)
+
     !> reference atomic occupations
     real(dp), intent(in) :: q0(:,:,:)
+
+    !> Change in density matrix during this SCC step for rangesep
+    real(dp), pointer, intent(inout) :: deltaRhoOutSqr(:,:,:)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    real(dp), allocatable :: tmpRho(:,:)
-    integer :: nOrb, iL
-
-    nOrb = size(reks%overSqr,dim=1)
-
-    if (.not. reks%tForces) then
-      allocate(tmpRho(nOrb,nOrb))
-    end if
+    integer :: iL
 
     call env%globalTimer%startTimer(globalTimers%densityMatrix)
 
@@ -6557,34 +6567,33 @@ contains
 
     do iL = 1, reks%Lmax
 
+      call getDensityFromRealEigvecs(env, denseDesc, reks%fillingL(:,:,iL), neighbourList,&
+          & nNeighbourSK, iSparseStart, img2CentCell, orb, eigvecs, parallelKS, rhoPrim, work,&
+          & rhoSqrReal, deltaRhoOutSqr)
+
       if (reks%tForces) then
         ! reks%rhoSqrL has (my_ud) component
-        call makeDensityMatrix(reks%rhoSqrL(:,:,1,iL), eigvecs(:,:,1), &
-            & reks%fillingL(:,1,iL))
-        call symmetrizeHS(reks%rhoSqrL(:,:,1,iL))
         if (reks%isRangeSep) then
-          ! reks%deltaRhoSqrL has (my_ud) component
-          reks%deltaRhoSqrL(:,:,1,iL) = reks%rhoSqrL(:,:,1,iL)
-          call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
-              & reks%deltaRhoSqrL(:,:,:,iL), 1)
+          reks%rhoSqrL(:,:,1,iL) = deltaRhoOutSqr(:,:,1)
+        else
+          reks%rhoSqrL(:,:,1,iL) = work
         end if
       else
-        tmpRho(:,:) = 0.0_dp
-        call makeDensityMatrix(tmpRho, eigvecs(:,:,1), &
-            & reks%fillingL(:,1,iL))
-        call env%globalTimer%startTimer(globalTimers%denseToSparse)
         ! reks%rhoSpL has (my_ud) component
-        call packHS(reks%rhoSpL(:,1,iL), tmpRho, &
-            & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
-            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-        call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-        if (reks%isRangeSep) then
-          ! reks%deltaRhoSqrL has (my_ud) component
-          reks%deltaRhoSqrL(:,:,1,iL) = tmpRho
-          call symmetrizeHS(reks%deltaRhoSqrL(:,:,1,iL))
-          call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, &
-              & reks%deltaRhoSqrL(:,:,:,iL), 1)
-        end if
+        reks%rhoSpL(:,1,iL) = rhoPrim(:,1)
+      end if
+
+      if (reks%isRangeSep) then
+        ! reks%deltaRhoSqrL has (my_ud) component
+        reks%deltaRhoSqrL(:,:,1,iL) = deltaRhoOutSqr(:,:,1)
+      end if
+
+      if (reks%tForces) then
+        call symmetrizeHS(reks%rhoSqrL(:,:,1,iL))
+      end if
+      if (reks%isRangeSep) then
+        call symmetrizeHS(reks%deltaRhoSqrL(:,:,1,iL))
+        call denseSubtractDensityOfAtoms(q0, denseDesc%iAtomStart, reks%deltaRhoSqrL(:,:,:,iL), 1)
       end if
 
     end do
