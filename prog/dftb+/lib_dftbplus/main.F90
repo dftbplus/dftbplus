@@ -465,7 +465,7 @@ contains
       end if
       ! We need to define hamltonian by adding the potential
       call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
-          & img2CentCell, potential, ham, iHam)
+          & img2CentCell, potential, allocated(reks), ham, iHam)
       tExitGeoOpt = .true.
       return
     end if
@@ -506,7 +506,7 @@ contains
             & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
             & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi,&
             & tExtField, isXlbomd, tDftbU, TS, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc,&
-            & UJ, nUJ, iUJ, niUJ, tFixEf, Ef, onSiteElements, reks)
+            & UJ, nUJ, iUJ, niUJ, tFixEf, Ef, onSiteElements, iHam, reks)
         call optimizeFONsAndWeights(eigvecsReal, filling, energy, reks)
 
         call getFockandDiag(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
@@ -615,7 +615,7 @@ contains
         end if
 
         call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
-            & img2CentCell, potential, ham, iHam)
+            & img2CentCell, potential, allocated(reks), ham, iHam)
 
         if (tWriteRealHS .or. tWriteHS .and. any(electronicSolver%iSolver ==&
             & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
@@ -2095,7 +2095,7 @@ contains
 
   !> Returns the Hamiltonian for the given scc iteration
   subroutine getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
-      & img2CentCell, potential, ham, iHam)
+      & img2CentCell, potential, isREKS, ham, iHam)
 
     !> non-SCC hamitonian (sparse)
     real(dp), intent(in) :: H0(:)
@@ -2124,6 +2124,9 @@ contains
     !> potential acting on sustem
     type(TPotentials), intent(in) :: potential
 
+    !> Is this DFTB/SSR formalism
+    logical, intent(in) :: isREKS
+
     !> resulting hamitonian (sparse)
     real(dp), intent(out) :: ham(:,:)
 
@@ -2134,8 +2137,10 @@ contains
 
     nAtom = size(orb%nOrbAtom)
 
-    ham(:,:) = 0.0_dp
-    ham(:,1) = h0
+    if (.not. isREKS) then
+      ham(:,:) = 0.0_dp
+      ham(:,1) = h0
+    end if
     call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
 
@@ -6690,7 +6695,7 @@ contains
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
       & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, tExtField, &
       & isXlbomd, tDftbU, TS, qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-      & tFixEf, Ef, onSiteElements, reks)
+      & tFixEf, Ef, onSiteElements, iHam, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6822,31 +6827,32 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
+    !> imaginary part of hamitonian (if required, signalled by being allocated)
+    real(dp), allocatable, intent(inout) :: iHam(:,:)
+
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
     real(dp), allocatable :: tmpHamSp(:,:)
-    real(dp), allocatable :: tmpHam(:,:)
-    real(dp), allocatable :: tmpEn(:)
     real(dp), allocatable :: tmpRhoSp(:,:)
+    real(dp), allocatable :: tmpEn(:)
 
     integer, pointer :: pSpecies0(:)
-    integer :: sparseSize, nOrb, nAtom, nSpin, iL, tmpL, rsL
+    integer :: sparseSize, nAtom, nSpin, iL, tmpL, rsL
 
     sparseSize = size(over,dim=1)
-    nOrb = size(reks%overSqr,dim=1)
     nAtom = size(reks%qOutputL,dim=2)
     nSpin = size(reks%qOutputL,dim=3)
     pSpecies0 => species(1:nAtom)
 
+    allocate(tmpHamSp(sparseSize,nSpin))
+    allocate(tmpRhoSp(sparseSize,nSpin))
     if (reks%isRangeSep) then
-      allocate(tmpHamSp(sparseSize,1))
-      allocate(tmpHam(nOrb,nOrb))
       allocate(tmpEn(reks%Lmax))
     end if
-    allocate(tmpRhoSp(sparseSize,nSpin))
 
     ! Calculate contribution to Hamiltonian except rangeseparated part
+    tmpHamSp(:,:) = 0.0_dp
     reks%intShellL(:,:,:,:) = 0.0_dp
     reks%intBlockL(:,:,:,:,:) = 0.0_dp
     do iL = 1, reks%Lmax
@@ -6863,33 +6869,49 @@ contains
       reks%intShellL(:,:,:,iL) = potential%intShell
       reks%intBlockL(:,:,:,:,iL) = potential%intBlock
 
-      ! Calculate Hamiltonian including SCC, spin
-      if(.not. reks%isRangeSep) then
-        ! reks%hamSpL has (my_qm) component
-        call getReksSccHamiltonian(H0, over, nNeighbourSK, neighbourList, &
-            & species, orb, iSparseStart, img2CentCell, reks%hamSpL(:,:,iL), &
-            & reks%intBlockL(:,:,:,:,iL), reks%Lpaired, iL)
+      ! qm representation is converted to my_qm representation
+      if (iL <= reks%Lpaired) then
+        ! If iL = 1, then qm = 1u + 1d, 1u - 1d and my_qm = 1u + 1d
+        ! calculate charge part
+        potential%intBlock(:,:,:,1) = reks%intBlockL(:,:,:,1,iL)
+        tmpHamSp(:,1) = h0
       else
-        tmpHamSp(:,:) = 0.0_dp
-        call getReksSccHamiltonian(H0, over, nNeighbourSK, neighbourList, &
-            & species, orb, iSparseStart, img2CentCell, tmpHamSp, &
-            & reks%intBlockL(:,:,:,:,iL), reks%Lpaired, iL)
-        ! Convert Hamiltonian from sparse to dense to calculate
-        ! rangeseparated contribution for each microstate
-        tmpHam(:,:) = 0.0_dp
+        if (mod(iL,2) == 1) then
+          ! If iL = 3, then qm = 3u + 3d, 3u - 3d and my_qm = 3u + 3d
+          ! calculate charge part
+          potential%intBlock(:,:,:,1) = reks%intBlockL(:,:,:,1,iL)
+          tmpHamSp(:,1) = h0
+        else
+          ! If iL = 4, then qm = 4u + 4d, 4u - 4d and my_qm = 3u - 3d (= -(4u - 4d))
+          ! calculate magnetization part
+          potential%intBlock(:,:,:,1) = -reks%intBlockL(:,:,:,2,iL)
+          tmpHamSp(:,1) = 0.0_dp
+        end if
+      end if
+      potential%intBlock(:,:,:,2) = 0.0_dp
+
+      ! tmpHamSp has (my_qm) component
+      call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb,&
+          & iSparseStart, img2CentCell, potential, allocated(reks), tmpHamSp, iHam)
+      tmpHamSp(:,1) = 2.0_dp * tmpHamSp(:,1)
+
+      if (reks%isRangeSep) then
+        ! reks%hamSqrL has (my_qm) component
+        reks%hamSqrL(:,:,1,iL) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%sparseToDense)
-        call unpackHS(tmpHam, tmpHamSp(:,1), neighbourList%iNeighbour, &
+        call unpackHS(reks%hamSqrL(:,:,1,iL), tmpHamSp(:,1), neighbourList%iNeighbour, &
             & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-        call blockSymmetrizeHS(tmpHam, denseDesc%iAtomStart)
-        ! reks%hamSqrL has (my_qm) component
-        reks%hamSqrL(:,:,1,iL) = tmpHam
+        call blockSymmetrizeHS(reks%hamSqrL(:,:,1,iL), denseDesc%iAtomStart)
+      else
+        ! reks%hamSpL has (my_qm) component
+        reks%hamSpL(:,1,iL) = tmpHamSp(:,1)
       end if
 
     end do
 
     ! Calculate contribution to Hamiltonian including rangeseparated part
-    if(.not. reks%isRangeSep) then
+    if (.not. reks%isRangeSep) then
       ! reks%hamSpL has (my_ud) component
       call qm2udL(reks%hamSpL, reks%Lpaired)
     else
@@ -6976,83 +6998,6 @@ contains
     end if
 
   end subroutine getHamiltonianLandEnergyL
-
-
-  !> Returns the Hamiltonian for the given scc iteration
-  subroutine getReksSccHamiltonian(H0, over, nNeighbourSK, &
-      & neighbourList, species, orb, iSparseStart, img2CentCell, &
-      & hamSp, intBlock, Lpaired, iL)
-
-    !> non-SCC hamitonian (sparse)
-    real(dp), intent(in) :: H0(:)
-
-    !> overlap (sparse)
-    real(dp), intent(in) :: over(:)
-
-    !> Number of atomic neighbours
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> list of atomic neighbours
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> species of atoms
-    integer, intent(in) :: species(:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Index for atomic blocks in sparse data
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> image atoms to central cell atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> resulting hamitonian (sparse)
-    real(dp), intent(out) :: hamSp(:,:)
-
-    !> internal block and spin resolved potential for each microstate
-    real(dp), intent(inout) :: intBlock(:,:,:,:)
-
-    !> Number of spin-paired microstates
-    integer, intent(in) :: Lpaired
-
-    !> currect index of loop L
-    integer, intent(in) :: iL
-
-    real(dp), allocatable :: tmpBlock(:,:,:,:)
-    integer :: nAtom
-
-    nAtom = size(orb%nOrbAtom)
-
-    allocate(tmpBlock(orb%mOrb,orb%mOrb,nAtom,1))
-
-    ! tmpBlock has (my_qm) component
-    ! qm representation is converted to my_qm representation
-    if (iL <= Lpaired) then
-      ! If iL = 1, then qm = 1u + 1d, 1u - 1d and my_qm = 1u + 1d
-      ! calculate charge part
-      tmpBlock(:,:,:,1) = intBlock(:,:,:,1)
-      hamSp(:,1) = h0(:)
-    else
-      if (mod(iL,2) == 1) then
-        ! If iL = 3, then qm = 3u + 3d, 3u - 3d and my_qm = 3u + 3d
-        ! calculate charge part
-        tmpBlock(:,:,:,1) = intBlock(:,:,:,1)
-        hamSp(:,1) = h0(:)
-      else
-        ! If iL = 4, then qm = 4u + 4d, 4u - 4d and my_qm = 3u - 3d (= -(4u - 4d))
-        ! calculate magnetization part
-        tmpBlock(:,:,:,1) = -intBlock(:,:,:,2)
-        hamSp(:,:) = 0.0_dp
-      end if
-    end if
-
-    ! hamSp has (my_qm) component
-    call add_shift(hamSp, over, nNeighbourSK, neighbourList%iNeighbour, &
-        & species, orb, iSparseStart, nAtom, img2CentCell, tmpBlock)
-    hamSp(:,1) = 2.0_dp * hamSp(:,1)
-
-  end subroutine getReksSccHamiltonian
 
 
   !> Optimize the fractional occupation numbers (FONs) and weights
