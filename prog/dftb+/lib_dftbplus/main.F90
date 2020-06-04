@@ -495,11 +495,11 @@ contains
               & eigen, reks)
         end if
 
-        call getDensityLFromRealEigvecs(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
+        call getDensityMatrixL(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
             & img2CentCell, orb, eigvecsReal, parallelKS, rhoPrim, SSqrReal, rhoSqrReal, q0,&
             & deltaRhoOutSqr, reks)
         call getMullikenPopulationL(env, denseDesc, neighbourList, nNeighbourSK, img2CentCell,&
-            & iSparseStart, orb, over, reks)
+            & iSparseStart, orb, rhoPrim, over, iRhoPrim, qBlockOut, qiBlockOut, reks)
 
         call getHamiltonianLandEnergyL(env, denseDesc, sccCalc, orb, species, neighbourList,&
             & nNeighbourSK, iSparseStart, img2CentCell, H0, over, spinW, cellVol, extPressure, &
@@ -3457,14 +3457,14 @@ contains
     integer :: iSpin
 
     qOrb(:,:,:) = 0.0_dp
-    do iSpin = 1, size(qOrb, dim=3)
+    do iSpin = 1, size(rhoPrim, dim=2)
       call mulliken(qOrb(:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
           & nNeighbourSK, img2CentCell, iSparseStart)
     end do
 
     if (allocated(qBlock)) then
       qBlock(:,:,:,:) = 0.0_dp
-      do iSpin = 1, size(qBlock, dim=4)
+      do iSpin = 1, size(rhoPrim, dim=2)
         call mulliken(qBlock(:,:,:,iSpin), over, rhoPrim(:,iSpin), orb, neighbourList%iNeighbour,&
             & nNeighbourSK, img2CentCell, iSparseStart)
       end do
@@ -3472,7 +3472,7 @@ contains
 
     if (allocated(qiBlock)) then
       qiBlock(:,:,:,:) = 0.0_dp
-      do iSpin = 1, size(qiBlock, dim=4)
+      do iSpin = 1, size(iRhoPrim, dim=2)
         call skewMulliken(qiBlock(:,:,:,iSpin), over, iRhoPrim(:,iSpin), orb,&
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
@@ -6506,7 +6506,7 @@ contains
 
 
   !> Creates (delta) density matrix for each microstate from real eigenvectors.
-  subroutine getDensityLFromRealEigvecs(env, denseDesc, neighbourList, nNeighbourSK, &
+  subroutine getDensityMatrixL(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, eigvecs, parallelKS, rhoPrim, work, &
       & rhoSqrReal, q0, deltaRhoOutSqr, reks)
 
@@ -6608,12 +6608,13 @@ contains
 
     call env%globalTimer%stopTimer(globalTimers%densityMatrix)
 
-  end subroutine getDensityLFromRealEigvecs
+  end subroutine getDensityMatrixL
 
 
   !> Calculate Mulliken population for each microstate from sparse density matrix.
-  subroutine getMullikenPopulationL(env, denseDesc, neighbourList, &
-      & nNeighbourSK, img2CentCell, iSparseStart, orb, over, reks)
+  subroutine getMullikenPopulationL(env, denseDesc, neighbourList, nNeighbourSK, &
+      & img2CentCell, iSparseStart, orb, rhoPrim, over, iRhoPrim, qBlock, &
+      & qiBlock, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6636,44 +6637,43 @@ contains
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
+    !> sparse density matrix
+    real(dp), intent(inout) :: rhoPrim(:,:)
+
     !> sparse overlap matrix
     real(dp), intent(in) :: over(:)
+
+    !> imaginary part of density matrix
+    real(dp), intent(in), allocatable :: iRhoPrim(:,:)
+
+    !> Dual atomic charges
+    real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
+
+    !> Imaginary part of dual atomic charges
+    real(dp), intent(inout), allocatable :: qiBlock(:,:,:,:)
 
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
-    real(dp), allocatable :: tmpRhoSp(:)
-    integer :: sparseSize, iL
-
-    sparseSize = size(over,dim=1)
-
-    if (reks%tForces) then
-      allocate(tmpRhoSp(sparseSize))
-    end if
+    integer :: iL
 
     do iL = 1, reks%Lmax
 
       if (reks%tForces) then
-
-        tmpRhoSp(:) = 0.0_dp
+        rhoPrim(:,1) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
-        call packHS(tmpRhoSp, reks%rhoSqrL(:,:,1,iL), &
-            & neighbourlist%iNeighbour, nNeighbourSK, orb%mOrb, &
-            & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+        call packHS(rhoPrim(:,1), reks%rhoSqrL(:,:,1,iL), neighbourlist%iNeighbour, &
+            & nNeighbourSK, orb%mOrb, denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
-        ! reks%qOutputL has (my_qm) component
-        reks%qOutputL(:,:,:,iL) = 0.0_dp
-        call mulliken(reks%qOutputL(:,:,1,iL), over, tmpRhoSp, &
-            & orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-
       else
-
-        ! reks%qOutputL has (my_qm) component
-        reks%qOutputL(:,:,:,iL) = 0.0_dp
-        call mulliken(reks%qOutputL(:,:,1,iL), over, reks%rhoSpL(:,1,iL), &
-            & orb, neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-
+        rhoPrim(:,1) = reks%rhoSpL(:,1,iL)
       end if
+
+      ! reks%qOutputL has (my_qm) component
+      reks%qOutputL(:,:,:,iL) = 0.0_dp
+      call getMullikenPopulation(rhoPrim, over, orb, neighbourList, nNeighbourSK, &
+          & img2CentCell, iSparseStart, reks%qOutputL(:,:,:,iL), iRhoPrim=iRhoPrim, &
+          & qBlock=qBlock, qiBlock=qiBlock)
 
     end do
 
