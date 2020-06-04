@@ -6374,21 +6374,31 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(inout) :: reks
 
+    call env%globalTimer%startTimer(globalTimers%sparseToDense)
+    call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, &
+        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+    call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
+    reks%overSqr(:,:) = SSqrReal
+    call blockSymmetrizeHS(reks%overSqr, denseDesc%iAtomStart)
+
     if (.not. reks%tReadMO) then
 
+      call env%globalTimer%startTimer(globalTimers%sparseToDense)
+      call unpackHS(HSqrReal, h0, neighbourList%iNeighbour, nNeighbourSK, &
+          & denseDesc%iAtomStart, iSparseStart, img2CentCell)
+      call env%globalTimer%stopTimer(globalTimers%sparseToDense)
+
+      eigen(:,:,:) = 0.0_dp
       call env%globalTimer%startTimer(globalTimers%diagonalization)
-      call buildAndDiagDenseRealH0(env, denseDesc, h0, over, neighbourList, &
-          & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
-          & HSqrReal, SSqrReal, eigvecsReal, eigen(:,1,:), reks%overSqr)
+      call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1,1))
       call env%globalTimer%stopTimer(globalTimers%diagonalization)
+      eigvecsReal(:,:,1) = HSqrReal
 
     else
 
       call readEigenvecs(eigvecsReal(:,:,1))
       ! TODO : renormalize eigenvectors needed!
-      call symmetrizeOverlap(env, denseDesc, over, neighbourList, &
-          & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
-          & SSqrReal, reks%overSqr)
 
     end if
 
@@ -6398,116 +6408,6 @@ contains
     call constructMicrostates(reks)
 
   end subroutine getReksInitialSettings
-
-
-  !> Diagonalize H0 to obtain initial guess of eigenvectors
-  subroutine buildAndDiagDenseRealH0(env, denseDesc, h0, over, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, HSqrReal, &
-      & SSqrReal, eigvecsReal, eigen, overSqr)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
-    !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> hamiltonian in sparse storage
-    real(dp), intent(in) :: h0(:)
-
-    !> sparse overlap matrix
-    real(dp), intent(in) :: over(:)
-
-    !> list of neighbours for each atom
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Index array for the start of atomic blocks in sparse arrays
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> map from image atoms to the original unique atom
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Electronic solver information
-    type(TElectronicSolver), intent(inout) :: electronicSolver
-
-    !> dense hamitonian matrix
-    real(dp), intent(out) :: HSqrReal(:,:)
-
-    !> dense overlap matrix
-    real(dp), intent(out) :: SSqrReal(:,:)
-
-    !> Eigenvectors on eixt
-    real(dp), intent(out) :: eigvecsReal(:,:,:)
-
-    !> eigenvalues
-    real(dp), intent(out) :: eigen(:,:)
-
-    !> Dense overlap matrix
-    real(dp), intent(out) :: overSqr(:,:)
-
-    eigen(:,:) = 0.0_dp
-    call env%globalTimer%startTimer(globalTimers%sparseToDense)
-    call unpackHS(HSqrReal, h0, neighbourList%iNeighbour, nNeighbourSK, &
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-    call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, &
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-    call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-
-    overSqr(:,:) = SSqrReal
-    call blockSymmetrizeHS(overSqr, denseDesc%iAtomStart)
-
-    call diagDenseMtx(electronicSolver, 'V', HSqrReal, SSqrReal, eigen(:,1))
-    eigvecsReal(:,:,1) = HSqrReal
-
-  end subroutine buildAndDiagDenseRealH0
-
-
-  !> Save dense overlap matrix elements
-  subroutine symmetrizeOverlap(env, denseDesc, over, neighbourList, &
-      & nNeighbourSK, iSparseStart, img2CentCell, electronicSolver, &
-      & SSqrReal, overSqr)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
-    !> Dense matrix descriptor
-    type(TDenseDescr), intent(in) :: denseDesc
-
-    !> sparse overlap matrix
-    real(dp), intent(in) :: over(:)
-
-    !> list of neighbours for each atom
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Index array for the start of atomic blocks in sparse arrays
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> map from image atoms to the original unique atom
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Electronic solver information
-    type(TElectronicSolver), intent(inout) :: electronicSolver
-
-    !> dense overlap matrix
-    real(dp), intent(out) :: SSqrReal(:,:)
-
-    !> Dense overlap matrix
-    real(dp), intent(out) :: overSqr(:,:)
-
-    call env%globalTimer%startTimer(globalTimers%sparseToDense)
-    call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbourSK, &
-        & denseDesc%iAtomStart, iSparseStart, img2CentCell)
-    call env%globalTimer%stopTimer(globalTimers%sparseToDense)
-
-    overSqr(:,:) = SSqrReal
-    call blockSymmetrizeHS(overSqr, denseDesc%iAtomStart)
-
-  end subroutine symmetrizeOverlap
 
 
   !> Creates (delta) density matrix for each microstate from real eigenvectors.
