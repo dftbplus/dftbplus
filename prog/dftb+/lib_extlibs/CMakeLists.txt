@@ -9,6 +9,7 @@ set(sources-fpp
   ${curdir}/magmahelper.F90
   ${curdir}/mpifx.F90
   ${curdir}/plumed.F90
+  ${curdir}/poisson_int.F90
   ${curdir}/scalapackfx.F90
   ${curdir}/xmlf90.F90)
 
@@ -28,8 +29,7 @@ if(WITH_TRANSPORT)
   list(APPEND sources-fpp
     ${curdir}/libnegf_vars.F90
     ${curdir}/matconv.F90
-    ${curdir}/negf_int.F90
-    ${curdir}/poisson_int.F90)
+    ${curdir}/negf_int.F90)
 endif()
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

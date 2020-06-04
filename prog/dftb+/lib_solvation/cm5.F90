@@ -92,7 +92,7 @@ module dftbp_cm5
     procedure :: addGradients
 
     !> get stress tensor contributions
-    procedure :: addStress
+    procedure :: addSigma
 
   end type TChargeModel5
 
@@ -283,7 +283,7 @@ contains
 
 
   !> get stress tensor contributions
-  subroutine addStress(self, dEdcm5, stress)
+  subroutine addSigma(self, dEdcm5, stress)
 
     !> data structure
     class(TChargeModel5), intent(inout) :: self
@@ -300,7 +300,7 @@ contains
 
     call gemv(stress, self%dcm5dL, dEdcm5, beta=1.0_dp)
 
-  end subroutine addStress
+  end subroutine addSigma
 
 
   !> Distance cut off for charge model

@@ -63,21 +63,22 @@ Analysis {
   CalculateForces = Yes
 }
 
-REKS = SSR22 {
-  EnergyFunctional = 2
-  EnergyLevel = 1
-  UseSsrState = 0
+Reks = SSR22 {
+  Energy = {
+    Functional = { "PPS" "OSS" }
+  }
   TargetState = 1
-  TargetStateL = 5
-  InitialGuess = 1
+  TargetMicrostate = 5
   FonMaxIter = 30
   shift = 0.3
-  GradientLevel = 1
-  CGmaxIter = 100
-  GradientTolerance = 1.0E-8
+  Gradient = ConjugateGradient {
+    CGmaxIter = 100
+    Tolerance = 1.0E-8
+    Preconditioner = Yes
+    SaveMemory = Yes
+  }
   RelaxedDensity = Yes
   VerbosityLevel = 1
-  MemoryLevel = 1
 }
 
 Options {
