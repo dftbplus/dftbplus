@@ -28,6 +28,7 @@ module dftbp_timeprop
   use dftbp_blasroutines
   use dftbp_lapackroutines
   use dftbp_populations
+  use dftbp_bondorder
   use dftbp_blas
   use dftbp_lapack
   use dftbp_spin
@@ -979,14 +980,20 @@ contains
       allocate(bondWork(this%nAtom, this%nAtom))
     end if
     if (this%tBondE) then
-      call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), ham0, iSquare,&
-          & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondEnergy,&
-          & startTime)
+      bondWork(:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), ham0, iSquare,&
+            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+      end do
+      write(fdBondEnergy) time * au__fs, sum(bondWork), bondWork
     end if
     if (this%tBondO) then
-      call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), over, iSquare,&
-          & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
-          & startTime)
+      bondWork(:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), over, iSquare,&
+            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+      end do
+      write(fdBondOrder) time * au__fs, sum(bondWork), bondWork
       if (tWriteAutotest) then
         sumBondOrder = sum(bondWork)
         nBndOEvals = 1
@@ -1066,14 +1073,20 @@ contains
 
       if ((mod(iStep, this%writeFreq) == 0)) then
         if (this%tBondE) then
-          call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), ham0, iSquare, &
-              & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondEnergy,&
-              & time)
+          bondWork(:,:) = 0.0_dp
+          do iSpin = 1, this%nSpin
+            call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), ham0, iSquare,&
+                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+          end do
+          write(fdBondEnergy) time * au__fs, sum(bondWork), bondWork
         end if
         if (this%tBondO) then
-          call getPairWiseBondEO(this, bondWork, rhoPrim(:,1), over, iSquare, &
-              & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart, fdBondOrder,&
-              & time)
+          bondWork(:,:) = 0.0_dp
+          do iSpin = 1, this%nSpin
+            call addPairWiseBondInfo(bondWork, rhoPrim(:,1), over, iSquare,&
+                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+          end do
+          write(fdBondOrder) time * au__fs, sum(bondWork), bondWork
           if (tWriteAutotest) then
             sumBondOrder = sumBondOrder + sum(bondWork)
             nBndOEvals = nBndOEvals + 1
@@ -3246,71 +3259,6 @@ contains
     end do
 
   end subroutine getOnsiteGrads
-
-
-  !> Calculates properties per bond.
-  !> If hamover = ham0, gives non-SCC energy
-  !> If hamover = over, gives bond order
-  subroutine getPairWiseBondEO(this, EObond, rhoPrim, hamover, iSquare, iNeighbour, nNeighbourSK, &
-      & img2CentCell, iSparseStart, fd, time)
-
-    !> ElecDynamics instance
-    type(TElecDynamics), intent(in), target :: this
-
-    !> pairwise energy (if hamover = ham0) or bond order (if hamover=ham) (nAtom, nAtom)
-    real(dp), allocatable, intent(inout) :: EObond(:,:)
-
-    !> sparse density matrix (only spin-unpolarized)
-    real(dp), intent(in) :: rhoPrim(:)
-
-    !> non-scc hamiltonian or overlap matrix in sparse format
-    real(dp), intent(in) :: hamover(:)
-
-    !> Index array for start of atomic block in dense matrices
-    integer, intent(in) :: iSquare(:)
-
-    !> Atomic neighbour data
-    integer, intent(in) :: iNeighbour(0:,:)
-
-    !> Number of neighbours for each of the atoms
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> image atoms to their equivalent in the central cell
-    integer, intent(in) :: img2CentCell(:)
-
-    !> index array for location of atomic blocks in large sparse arrays
-    integer, intent(in) :: iSparseStart(0:,:)
-
-    !> File to write out the results
-    integer, intent(in) :: fd
-
-    !> time in the simulation
-    real(dp), intent(in) :: time
-
-    integer :: iAt1, iAt2, iAt2f, nOrb1, nOrb2, iOrig, iStart, iEnd, iNeigh, mOrb, iOrb, iOrb2
-    real(dp) :: eTmp
-
-    @:ASSERT(allocated(EObond))
-    EObond(:,:) = 0.0_dp
-
-    do iAt1 = 1, this%nAtom
-      iOrb = iSquare(iAt1)
-      nOrb1 = iSquare(iAt1+1) - iOrb
-      do iNeigh = 0, nNeighbourSK(iAt1)
-        iOrig = iSparseStart(iNeigh,iAt1) + 1
-        iAt2 = iNeighbour(iNeigh, iAt1)
-        iAt2f = img2CentCell(iAt2)
-        iOrb2 = iSquare(iAt2f)
-        nOrb2 = iSquare(iAt2f+1) - iOrb2
-        eTmp = sum(rhoPrim(iOrig:iOrig+nOrb1*nOrb2-1) * hamover(iOrig:iOrig+nOrb1*nOrb2-1))
-        EObond(iAt2f,iAt1) = EObond(iAt2f,iAt1) + eTmp
-        EObond(iAt1,iAt2f) = EObond(iAt1,iAt2f) + eTmp
-      end do
-    end do
-
-    write(fd) time * au__fs, sum(EObond), EObond
-
-  end subroutine getPairWiseBondEO
 
 
   !> Reallocates sparse arrays after change of coordinates
