@@ -28,7 +28,7 @@ module dftbp_timeprop
   use dftbp_blasroutines
   use dftbp_lapackroutines
   use dftbp_populations
-  use dftbp_bondorder
+  use dftbp_bondpops
   use dftbp_blas
   use dftbp_lapack
   use dftbp_spin
