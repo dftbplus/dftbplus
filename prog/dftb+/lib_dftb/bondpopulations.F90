@@ -5,8 +5,9 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
-!> Evaluates bond order or energy from sparse matrices
-module dftbp_bondorder
+!> Evaluates bond populations from sparse matrices. To do: add evaluation of bond orders, perhaps
+!> DOI: 10.1039/c7ra07400j can be adapted for DFTB.
+module dftbp_bondpops
   use dftbp_accuracy, only : dp
 
   private
@@ -14,8 +15,9 @@ module dftbp_bondorder
 
 contains
 
-  !> Calculates properties per atom pair. If given the overlap as sparseMat, returns bond order. H0
-  !> returns the non-SCC bond energy.
+  !> Calculates properties per atom pair. If given the overlap as sparseMat, returns electron count
+  !> on atoms and in bonds (summing to total number of electrons). H0 returns the non-SCC bond
+  !> energy.
   !> Note: In periodic systems, the bond contributions from image atoms are included in the
   !> central-cell bond.
   subroutine addPairWiseBondInfo(info, rhoPrim, sparseMat, iSquare, iNeighbour, nNeighbourSK,&
@@ -47,7 +49,6 @@ contains
 
     integer :: iAt1, iAt2, iAt2f, nOrb1, nOrb2, iOrig, iStart, iEnd, iNeigh, mOrb, iOrb1, iOrb2
     integer :: nAtom
-    real(dp) :: tmp
 
     nAtom = size(iSquare) - 1
     !$OMP PARALLEL DO DEFAULT(SHARED) SCHEDULE(RUNTIME) REDUCTION(+:info)&
@@ -61,17 +62,17 @@ contains
         iAt2f = img2CentCell(iAt2)
         iOrb2 = iSquare(iAt2f)
         nOrb2 = iSquare(iAt2f+1) - iOrb2
-        tmp = sum(rhoPrim(iOrig:iOrig+nOrb1*nOrb2-1) * sparseMat(iOrig:iOrig+nOrb1*nOrb2-1))
-        if (iAt1 /= iAt2f) then
-          ! other triangle should be included
-          tmp = 2.0_dp * tmp
-        end if
-        info(iAt2f,iAt1) = info(iAt2f,iAt1) + 0.5_dp*tmp
-        info(iAt1,iAt2f) = info(iAt1,iAt2f) + 0.5_dp*tmp
+        info(iAt2f,iAt1) = info(iAt2f,iAt1)&
+            & + sum(rhoPrim(iOrig:iOrig+nOrb1*nOrb2-1) * sparseMat(iOrig:iOrig+nOrb1*nOrb2-1))
       end do
     end do
     !$OMP  END PARALLEL DO
 
+    ! fill other triangle
+    do iAt1 = 1, nAtom - 1
+      info(iAt1, iAt1+1:) = info(iAt1+1:, iAt1)
+    end do
+
   end subroutine addPairWiseBondInfo
 
-end module dftbp_bondorder
+end module dftbp_bondpops
