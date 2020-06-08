@@ -2728,7 +2728,7 @@ contains
     if (allocated(reks)) then
       call checkReksConsistency(input%ctrl%reksInp, solvation, onSiteElements, kPoint, nEl,&
           & nKPoint, tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic,&
-          & tLatOpt, tReadChrg, tPoisson)
+          & tLatOpt, tReadChrg, tPoisson, input%ctrl%tShellResolved)
       ! here, nSpin changes to 2 for REKS
       call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
@@ -4717,7 +4717,7 @@ contains
 
   subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
       & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
-      & tPoisson)
+      & tPoisson, isShellResolved)
 
     !> data type for REKS input
     type(TReksInp), intent(in) :: reksInp
@@ -4767,6 +4767,9 @@ contains
     !> Whether Poisson solver is invoked
     logical, intent(in) :: tPoisson
 
+    !> l-shell resolved SCC
+    logical, intent(in) :: isShellResolved
+
     if (.not. tSccCalc) then
       call error("REKS requires SCC=Yes")
     end if
@@ -4792,6 +4795,8 @@ contains
       call error("REKS is currently not available with solvation")
     else if (tPoisson) then
       call error("Poisson solver is not compatible with REKS")
+    elseif (isShellResolved) then
+      call error("REKS does not support shell resolved scc yet")
     end if
 
     if (tPeriodic) then
