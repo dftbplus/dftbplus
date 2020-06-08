@@ -18,6 +18,7 @@ module dftbp_reksinterface
   use dftbp_accuracy
   use dftbp_densedescr
   use dftbp_dispiface
+  use dftbp_elecsolvers
   use dftbp_environment
   use dftbp_globalenv
   use dftbp_mainio
@@ -35,6 +36,7 @@ module dftbp_reksinterface
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_rekscommon
   use dftbp_rekscpeqn
+  use dftbp_reksen
   use dftbp_reksgrad
   use dftbp_reksproperty
   use dftbp_reksvar
@@ -43,10 +45,133 @@ module dftbp_reksinterface
 
   private
 
+  public :: getStateInteraction, getReksEnProperties
   public :: getReksGradients, getReksGradProperties
   public :: getReksStress
 
   contains
+
+  !> Calculate SSR state from SA-REKS states and state-interaction terms
+  subroutine getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, coord, iAtInCentralRegion, eigenvecs,&
+      & electronicSolver, eigen, qOutput, q0, tDipole, dipoleMoment, self)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(in) :: eigenvecs(:,:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> eigenvalues
+    real(dp), intent(inout) :: eigen(:,:,:)
+
+    !> Output electrons
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> calculate an electric dipole?
+    logical, intent(in) :: tDipole
+
+    !> resulting dipole moment
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: self
+
+    call adjustEigenval(self, eigen)
+
+    if (self%Efunction > 1) then
+      call solveSecularEqn(env, denseDesc, neighbourList, nNeighbourSK, &
+          & iSparseStart, img2CentCell, electronicSolver, eigenvecs, self)
+    else
+      ! Get the dipole moment for single-state REKS case
+      ! In this case dipole moment can be calculated w/o gradient result
+      ! tDipole = (total charge = 0.0) * (non-periodic system) * (mulliken)
+      if (tDipole) then
+        call getDipoleMoment_(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
+      end if
+    end if
+
+
+  end subroutine getStateInteraction
+
+
+  !> get the energy-related properties; unrelaxed density matrix,
+  !> dipole integral, transition dipole, oscillator strength
+  subroutine getReksEnProperties(eigenvecs, coord0, self)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:,:)
+
+    !> central cell coordinates of atoms
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: self
+
+    real(dp), allocatable :: dipoleInt(:,:,:)
+
+    integer :: ist, nstHalf, nOrb
+
+    nOrb = size(eigenvecs,dim=1)
+    nstHalf = self%nstates * (self%nstates - 1) / 2
+
+    allocate(dipoleInt(nOrb,nOrb,3))
+
+    ! Get the unrelaxed density matrix for SA-REKS or SSR state
+    ! The matrix that used in this calculation is not relaxed density
+    ! matrix, so this unrelaxed FONs are not equal to relaxed FONS,
+    ! but this value is easy to calculate without the information of
+    ! gradient. Therefore, we can easily guess the behavior of the states.
+    if (self%nstates > 1) then
+
+      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), self%overSqr, self%rhoSqrL, &
+          & self%FONs, self%eigvecsSSR, self%Lpaired, self%Nc, self%Na, &
+          & self%rstate, self%Lstate, self%reksAlg, self%tSSR, self%tTDP, &
+          & self%unrelRhoSqr, self%unrelTdm)
+
+      if (self%tTDP) then
+        call getDipoleIntegral(coord0, self%overSqr, self%getAtomIndex, dipoleInt)
+        ! Get the transition dipole moment between states
+        ! For (SI-)SA-REKS dipole moment requires gradient info.
+        ! But TDP use only zero-th part without gradient info.
+        do ist = 1, nstHalf
+          call getDipoleMomentMatrix(self%unrelTdm(:,:,ist), dipoleInt, self%tdp(:,ist))
+        end do
+        call writeReksTDP(self%tdp)
+        call getReksOsc(self%tdp, self%energy)
+      end if
+
+    end if
+
+  end subroutine getReksEnProperties
+
 
   !> Calculate SI-SA-REKS state gradient by solving CP-REKS equations
   subroutine getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
