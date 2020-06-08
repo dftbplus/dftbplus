@@ -474,12 +474,8 @@ contains
       call electronicSolver%elsi%initPexsiDeltaVRanges(tSccCalc, potential)
     end if
 
-    if (allocated(reks)) then
-      call initReksSccLoop(tSccCalc, tConverged, reks)
-    else
-      call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
-          & tNegf)
-    end if
+    call initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
+        & tNegf, reks)
 
     call env%globalTimer%stopTimer(globalTimers%preSccInit)
 
@@ -1770,7 +1766,7 @@ contains
 
   !> Initialise basic variables before the scc loop.
   subroutine initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
-      & tNegf)
+      & tNegf, reks)
 
     !> Is this an SCC calculation?
     logical, intent(in) :: tSccCalc
@@ -1793,38 +1789,26 @@ contains
     !> Is this a transport calculation?
     logical, intent(in) :: tNegf
 
+    !> data type for REKS
+    type(TReksCalc), allocatable, intent(inout) :: reks
+
     if (allocated(xlbomdIntegrator)) then
       call xlbomdIntegrator%getSCCParameters(minSccIter, maxSccIter, sccTol)
     end if
 
     tConverged = (.not. tSccCalc)
 
-    if (tSccCalc .and. .not. tNegf) then
-      call printSccHeader()
+    if (allocated(reks)) then
+      if (tSccCalc) then
+        call printReksSccHeader(reks)
+      end if
+    else
+      if (tSccCalc .and. .not. tNegf) then
+        call printSccHeader()
+      end if
     end if
 
   end subroutine initSccLoop
-
-
-  !> Initialise basic variables before the REKS scc loop.
-  subroutine initReksSccLoop(tSccCalc, tConverged, reks)
-
-    !> Is this an SCC calculation?
-    logical, intent(in) :: tSccCalc
-
-    !> Has SCC convergence been achieved?
-    logical, intent(out) :: tConverged
-
-    !> data type for REKS
-    type(TReksCalc), intent(inout) :: reks
-
-    tConverged = (.not. tSccCalc)
-
-    if (tSccCalc) then
-      call printReksSccHeader(reks)
-    end if
-
-  end subroutine initReksSccLoop
 
 
   !> Reset internal potential related quantities
