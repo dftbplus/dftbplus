@@ -23,8 +23,9 @@
 
 !> Contains MPI coherence tests across a comm world
 module dftbp_coherence
-  use dftbp_accuracy, only : dp, lc
+  use dftbp_accuracy,   only : dp, lc
   use dftbp_environment
+  use dftbp_message,    only : error
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
@@ -51,13 +52,15 @@ module dftbp_coherence
   !> Check exact coherence of data across processor(s) with error handling 
   interface checkExactCoherence
 #:for _, _, NAME, DIM in EXACT_TYPES
-     module procedure coherenceWithError${NAME}$${DIM}$
+    module procedure coherenceWithError${NAME}$${DIM}$
+#:endfor     
   end interface checkExactCoherence
 
   !> Check coherence of data across processor(s) to a tolerance, with error handling  
   interface checkToleranceCoherence
 #:for _, _, NAME, DIM in APPROX_TYPES
-     module procedure approxCoherenceWithError${NAME}$${DIM}$
+    module procedure approxCoherenceWithError${NAME}$${DIM}$
+#:endfor     
   end interface checkToleranceCoherence
      
   
@@ -138,7 +141,7 @@ contains
 
   end function coherence${NAME}$${DIM}$
 #:endif
-  
+
   !> Wrapper for exact coherence with error handling
   subroutine coherenceWithError${NAME}$${DIM}$(env, data, message)
 
@@ -157,11 +160,12 @@ contains
 
     if (env%tAPICalculation) then
        if (.not. coherence${NAME}$${DIM}$(env, data)) then
-          call error("Coherence failure in "\\trim(adjustl(message))\\" across nodes")
+          call error("Coherence failure in "//trim(adjustl(message))//" across nodes")
        end if
     end if
     
   end subroutine coherenceWithError${NAME}$${DIM}$
+  
 #:endfor
 
 #:for TYPE, SHAPE, NAME, DIM in APPROX_TYPES
@@ -261,8 +265,8 @@ contains
     if (env%tAPICalculation) then             
        if (.not. approxCoherence${NAME}$${DIM}$(env, data, tol_)) then
           Write(tol_str, '(E12.5)') tol_
-          call error("Coherence failure in "\\trim(adjustl(message))\\" across nodes &
-               & for a tolerance: "\\trim(adjustl(tol_str)))
+          call error("Coherence failure in "//trim(adjustl(message))//" across nodes &
+               & for a tolerance: "//trim(adjustl(tol_str)))
        end if
     end if
     
