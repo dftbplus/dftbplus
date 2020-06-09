@@ -31,7 +31,8 @@ module dftbp_coherence
   implicit none
 
   private
-  public :: exactCoherence, toleranceCoherence
+  public :: exactCoherence, toleranceCoherence, &
+            checkExactCoherence, checkToleranceCoherence
 
   !> Check for coherence of data across processor(s)
   interface exactCoherence
@@ -47,6 +48,19 @@ module dftbp_coherence
 #:endfor
   end interface toleranceCoherence
 
+  !> Check exact coherence of data across processor(s) with error handling 
+  interface checkExactCoherence
+#:for _, _, NAME, DIM in EXACT_TYPES
+     module procedure coherenceWithError${NAME}$${DIM}$
+  end interface checkExactCoherence
+
+  !> Check coherence of data across processor(s) to a tolerance, with error handling  
+  interface checkToleranceCoherence
+#:for _, _, NAME, DIM in APPROX_TYPES
+     module procedure approxCoherenceWithError${NAME}$${DIM}$
+  end interface checkToleranceCoherence
+     
+  
 contains
 
 #:for TYPE, SHAPE, NAME, DIM in EXACT_TYPES
@@ -112,15 +126,42 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> Data to check for coherence
+  #:if TYPE == 'character(*)' and DIM == '0'
+    character(len=*), intent(in) :: data
+  #:else
     ${TYPE}$, intent(in) :: data${SHAPE}$
-
+  #:endif
+    
     logical :: res
 
     res = .true.
 
   end function coherence${NAME}$${DIM}$
-
 #:endif
+  
+  !> Wrapper for exact coherence with error handling
+  subroutine coherenceWithError${NAME}$${DIM}$(env, data, message)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Data to check for coherence
+  #:if TYPE == 'character(*)' and DIM == '0'
+    character(len=*), intent(in) :: data
+  #:else
+    ${TYPE}$, intent(in) :: data${SHAPE}$
+  #:endif
+
+    !> string detailing data
+    character(len=*), intent(in) :: message
+
+    if (env%tAPICalculation) then
+       if (.not. coherence${NAME}$${DIM}$(env, data)) then
+          call error("Coherence failure in "\\trim(adjustl(message))\\" across nodes")
+       end if
+    end if
+    
+  end subroutine coherenceWithError${NAME}$${DIM}$
 #:endfor
 
 #:for TYPE, SHAPE, NAME, DIM in APPROX_TYPES
@@ -192,6 +233,41 @@ contains
   end function approxCoherence${NAME}$${DIM}$
 
 #:endif
+
+  !> Wrapper for coherence within a specified tolerance, with error handling  
+  subroutine approxCoherenceWithError${NAME}$${DIM}$(env, data, message, tol)
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+    
+    !> Data to check for coherence
+    ${TYPE}$, intent(in) :: data${SHAPE}$
+
+    !> string detailing data               
+    character(len=*), intent(in) :: message
+
+    !> Tolerance for comparision, if absent use eps
+    real(dp), intent(in), optional :: tol
+
+    real(dp) :: tol_
+    character(len=15) :: tol_str
+    
+    if (present(tol)) then
+       tol_ = tol
+    else
+       tol_ = epsilon(0._dp)
+    endif
+
+    if (env%tAPICalculation) then             
+       if (.not. approxCoherence${NAME}$${DIM}$(env, data, tol_)) then
+          Write(tol_str, '(E12.5)') tol_
+          call error("Coherence failure in "\\trim(adjustl(message))\\" across nodes &
+               & for a tolerance: "\\trim(adjustl(tol_str)))
+       end if
+    end if
+    
+  end subroutine approxCoherenceWithError${NAME}$${DIM}$
+
 #:endfor
 
 end module dftbp_coherence
