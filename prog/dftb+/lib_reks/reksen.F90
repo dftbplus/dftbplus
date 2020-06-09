@@ -124,47 +124,29 @@ module dftbp_reksen
     !> Energy terms in the system
     type(TEnergies), intent(inout) :: energy
 
-    integer :: ist, iL
+    integer :: ist
 
-    ! Compute the energy contributions of target SA-REKS state
-    ! energy = nonSCC + scc + spin + 3rd + fock
-    energy%EnonSCC = 0.0_dp
-    energy%Escc = 0.0_dp
-    energy%Espin = 0.0_dp
+    ! Compute the energy contributions for target SA-REKS state
+    ! electronic energy = nonSCC + scc + spin + 3rd + fock
+    energy%EnonSCC = sum(self%weightL(self%rstate,:)*self%enLnonSCC(:))
+    energy%Escc = sum(self%weightL(self%rstate,:)*self%enLscc(:))
+    energy%Espin = sum(self%weightL(self%rstate,:)*self%enLspin(:))
     if (self%t3rd) then
-      energy%e3rd = 0.0_dp
+      energy%e3rd = sum(self%weightL(self%rstate,:)*self%enL3rd(:))
     end if
     if (self%isRangeSep) then
-      energy%Efock = 0.0_dp
-    end if
-    do iL = 1, self%Lmax
-      energy%EnonSCC = energy%EnonSCC + self%weightL(self%rstate,iL) * self%enLnonSCC(iL)
-      energy%Escc = energy%Escc + self%weightL(self%rstate,iL) * self%enLSCC(iL)
-      energy%Espin = energy%Espin + self%weightL(self%rstate,iL) * self%enLspin(iL)
-      if (self%t3rd) then
-        energy%e3rd = energy%e3rd + self%weightL(self%rstate,iL) * self%enL3rd(iL)
-      end if
-      if (self%isRangeSep) then
-        energy%Efock = energy%Efock + self%weightL(self%rstate,iL) * self%enLfock(iL)
-      end if
-    end do
-    energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin
-    if (self%t3rd) then
-      energy%Eelec = energy%Eelec + energy%e3rd
-    end if
-    if (self%isRangeSep) then
-      energy%Eelec = energy%Eelec + energy%Efock
+      energy%Efock = sum(self%weightL(self%rstate,:)*self%enLfock(:))
     end if
 
-    ! Compute the energy of SA-REKS states
-    self%energy(:) = 0.0_dp
+    energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
+        & energy%e3rd + energy%Efock
+
+    ! Compute the total energy for SA-REKS states
     do ist = 1, self%nstates
-      do iL = 1, self%Lmax
-        self%energy(ist) = self%energy(ist) + self%weightL(ist,iL) * self%enLtot(iL)
-      end do
+      self%energy(ist) = sum(self%weightL(ist,:)*self%enLtot(:))
     end do
 
-    ! In this step Etotal is energy of averaged state, not individual states
+    ! In this step Etotal becomes the energy of averaged state, not individual states
     ! From this energy we can check the variational principle
     energy%Etotal = 0.0_dp
     do ist = 1, self%SAstates
