@@ -32,9 +32,9 @@ module libnegf_int
   use libnegf, only : compute_phonon_current, thermal_conductance 
   use libnegf, only : create, create_scratch, destroy, set_readoldDMsgf
   use libnegf, only : destroy_matrices, destroy_negf, get_params, init_contacts, init_ldos
-  use libnegf, only : init_negf, init_structure, pass_hs, set_bp_dephasing
+  use libnegf, only : init_negf, init_structure, pass_hs, set_bp_dephasing, set_scratch
   use libnegf, only : set_drop, set_elph_block_dephasing, set_elph_dephasing, set_elph_s_dephasing
-  use libnegf, only : set_ldos_indexes, set_params, set_scratch, writememinfo, writepeakinfo
+  use libnegf, only : set_ldos_indexes, set_tun_indexes, set_params, writememinfo, writepeakinfo
   use libnegf, only : dns2csr, csr2dns, nzdrop, printcsr
   use dftbp_accuracy
   use dftbp_message
@@ -43,6 +43,7 @@ module libnegf_int
   use dftbp_matconv
   use dftbp_commontypes, only : TOrbitals
   use dftbp_initphonons, only : TempMin, TempMax, TempStep
+  use dftbp_initphonons, only : ALLMODES, XX, YY, ZZ, LONGITUDINAL, TRANSVERSE, INPLANE, OUTOFPLANE
 
   implicit none
   private
@@ -53,6 +54,9 @@ module libnegf_int
   type(TNegf), pointer :: pNegf
 
   public :: negf_init, negf_destroy
+  
+  !> initialize tunneling projection on specific modes
+  public :: init_tun_proj
  
   ! This initializes the partitioned structure 
   public :: negf_init_str
@@ -99,8 +103,8 @@ module libnegf_int
     
 
     ! local variables
-    integer :: i, l, ncont, nc_vec(1), j, nldos
-    integer, dimension(:), allocatable :: sizes  
+    integer :: i, l, ncont, nc_vec(1), nldos
+    integer, dimension(:), allocatable :: sizes
     ! string needed to hold processor name
     character(:), allocatable :: hostname
     type(lnParams) :: parms
@@ -193,8 +197,8 @@ module libnegf_int
 
     call set_params(negf,parms)
 
+    ! set indeces for projected DOS
     if (tundos%defined) then
-      ! setting of intervals and indeces for projected DOS
       nldos = size(tundos%dosOrbitals)
       call init_ldos(negf, nldos)
       do i = 1, nldos
@@ -203,6 +207,67 @@ module libnegf_int
     end if
 
   end subroutine negf_init
+
+  subroutine init_tun_proj(selTypeModes, nAtoms)
+    integer, intent(in) :: selTypeModes
+    integer, intent(in) :: nAtoms
+
+    integer, dimension(:), allocatable :: indx 
+    integer :: i, l
+    ! set indeces for projecter transmission
+    ! This assumes derivatives are ordered x,y,z
+    ! That transport is along z
+    ! That 2d structures are on x-z
+    select case(selTypeModes)
+    case(ALLMODES)
+      !allocate(indx(3*nAtoms))
+      !do i = 1, 3*nAtoms    
+      !  indx(i) = i
+      !end do    
+    case(XX)
+      allocate(indx(nAtoms))
+      l = 1
+      do i = 1, 3*nAtoms, 3    
+        indx(l) = i
+        l = l + 1
+      end do    
+    case(YY,OUTOFPLANE)
+      allocate(indx(nAtoms))
+      l = 1
+      do i = 2, 3*nAtoms, 3    
+        indx(l) = i
+        l = l + 1
+      end do    
+    case(ZZ,LONGITUDINAL)
+      allocate(indx(nAtoms))
+      l = 1
+      do i = 3, 3*nAtoms, 3    
+        indx(l) = i
+        l = l + 1
+      end do    
+    case(TRANSVERSE)
+      allocate(indx(2*nAtoms))
+      l = 1
+      do i = 1, 3*nAtoms, 3    
+        indx(l) = i     ! X
+        l = l + 1
+        indx(l) = i+1   ! Y 
+        l = l + 1
+      end do    
+    case(INPLANE)
+      allocate(indx(2*nAtoms))
+      l = 1
+      do i = 1, 3*nAtoms, 3    
+        indx(l) = i     ! X
+        l = l + 1
+        indx(l) = i+2   ! Z
+        l = l + 1
+      end do    
+    end select  
+         
+    call set_tun_indexes(negf, indx)   
+
+  end subroutine init_tun_proj 
   
   !------------------------------------------------------------------------------
   subroutine negf_destroy()
@@ -553,7 +618,6 @@ module libnegf_int
     call pass_HS(negf,HH)
 
     call compute_phonon_current(negf)
-
 
     call associate_ldos(pNEgf, ledos)
     call associate_transmission(pNegf, tunn)

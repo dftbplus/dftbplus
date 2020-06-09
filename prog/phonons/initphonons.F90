@@ -151,14 +151,14 @@ module dftbp_initphonons
   end type TParserFlags
 
   !> constants parameters
-  integer, parameter :: ALLMODES = 0        ! along x,y,z  
-  integer, parameter :: XX = 1              ! along x 
-  integer, parameter :: YY = 2              ! along y 
-  integer, parameter :: ZZ = 3              ! along z 
-  integer, parameter :: LONGITUDINAL = 4    ! along z
-  integer, parameter :: TRANSVERSE = 5      ! along x,y
-  integer, parameter :: INPLANE = 6         ! along x,z
-  integer, parameter :: OUTOFPLANE = 7      ! along y
+  integer, parameter, public :: ALLMODES = 0        ! along x,y,z  
+  integer, parameter, public :: XX = 1              ! along x 
+  integer, parameter, public :: YY = 2              ! along y 
+  integer, parameter, public :: ZZ = 3              ! along z 
+  integer, parameter, public :: LONGITUDINAL = 4    ! along z
+  integer, parameter, public :: TRANSVERSE = 5      ! along x,y
+  integer, parameter, public :: INPLANE = 6         ! along x,z
+  integer, parameter, public :: OUTOFPLANE = 7      ! along y
 
 contains
 
@@ -1585,6 +1585,8 @@ contains
       call detailedError(root,"Unknown type of modes")
     end select
 
+    transpar%typeModes = selTypeModes
+
   end subroutine setTypeOfModes
 
   !> Check that the geometry orientation is consistent with selTypeModes 
@@ -1593,10 +1595,25 @@ contains
     type(fnode), pointer :: root
     type(TTransPar), intent(inout) :: tp
 
+    select case (selTypeModes)
+    case(LONGITUDINAL, TRANSVERSE)
+      call checkAlongZ(root, tp)
+    case(INPLANE, OUTOFPLANE)
+      call checkAlongZ(root, tp)
+    case default
+    end select
+
+  end subroutine checkTypeOfModes
+
+  ! check that transport direction is along z
+  subroutine checkAlongZ(root, tp)
+    type(fnode), pointer :: root
+    type(TTransPar), intent(inout) :: tp
+
     real(dp) :: contactVec(3)
     logical :: mask(3) 
     integer :: ii
-
+ 
     do ii = 1, size(tp%contacts)
       contactVec = tp%contacts(ii)%lattice
       ! Determine to which axis the contact vector is parallel.
@@ -1605,8 +1622,8 @@ contains
         call detailedError(root,"Transport direction is not along z")
       end if
     end do
+  end subroutine checkAlongZ
 
-  end subroutine checkTypeOfModes
 
 
 end module dftbp_initphonons 

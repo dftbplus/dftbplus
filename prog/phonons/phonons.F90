@@ -44,6 +44,7 @@ program phonons
     twriteTunn = .true.
     twriteLDOS = .true.
     call negf_init(env, transpar, tundos, tInitialized)
+    call init_tun_proj(selTypeModes, geo%nAtom)
 
     if (.not. tInitialized) then
       call error("libnegf not initialized")
@@ -208,11 +209,9 @@ contains
     complex(dp), parameter ::    j = (0.d0,1.d0)
     real(dp) :: unitsConv
       
-    nAtom = geo%nAtom
-
     call setConversionUnits(unitsConv)
-    
-    write(stdOut,*) 'supercell repetitions:' 
+
+    write(stdOut,*) 'Supercell repetitions:' 
     write(stdOut,*) nCells(1),'x',nCells(2),'x',nCells(3) 
 
     latVecs(1,:) = geo%latVecs(1,:)/real(nCells(1),dp) 
@@ -250,7 +249,7 @@ contains
       do  iAtom = 1,  nAtomUnitCell
         do  jAtom = 1, nAtomUnitCell
           ! This loops over all periodic copies
-          do  kAtom  = jAtom,  nAtom,  nAtomUnitCell
+          do  kAtom  = jAtom,  geo%nAtom,  nAtomUnitCell
             DeltaR(:) = geo%Coords(:,kAtom)-geo%Coords(:,jAtom)
             i2 = 3*(iAtom-1)
             j2 = 3*(jAtom-1)

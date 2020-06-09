@@ -1,0 +1,54 @@
+geometry = genformat {
+<<< "c24.gen"
+}
+
+#Driver = ConjugateGradient{
+#  LatticeOpt = Yes
+#  FixAngles = Yes
+#  FixLengths = {Yes Yes No}
+#  MaxForceComponent = 1e-5
+#}
+
+Driver = SecondDerivatives{}
+
+Hamiltonian = dftb {
+  #scc = yes 
+  #scctolerance = 1e-6
+  #maxscciterations = 100
+  
+  slaterkosterfiles = {
+    C-C = "C-C.skf"
+  }
+
+  maxangularmomentum = {
+    C = p
+  }
+
+  filling = Fermi {
+    Temperature [K] = 0
+  }
+
+  KPointsAndWeights = SupercellFolding {
+   1 0 0
+   0 1 0 
+   0 0 1 
+   0.0 0.0 0.0
+  }
+
+  Electrostatics = gammafunctional{}
+ 
+  Eigensolver = DivideAndConquer{} 
+}
+
+options = {
+  #CalculateForces = yes
+  writeautotesttag = no  
+}
+
+Parallel{
+  UseOmpThreads = Yes
+}
+
+parseroptions = {
+  parserversion = 3
+}

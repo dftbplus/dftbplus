@@ -248,6 +248,8 @@ module libnegf_vars
     !> Not from input file
     logical :: tPeriodic1D = .false.
 
+    !> type of phonon modes (Longitudinal, transverse)
+    integer :: typeModes
 
     !DAR begin - type TTransPar new items
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
