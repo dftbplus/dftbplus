@@ -13,23 +13,21 @@ module dftbp_mainapi
   use dftbp_assert
   use dftbp_densedescr, only : TDenseDescr
   use dftbp_environment, only : TEnvironment
-  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables,                   &
-       & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,             &
-       & nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,       &
-       & tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,         &
-       & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS,          &
-       & q0, qInput, qOutput, qInpRed, qOutRed, referenceN0, qDiffRed, nrChrg, nrSpinPol,         &
-       & setEquivalencyRelations, iEqOrbitals, nIneqOrb, nMixElements, onSiteElements, denseDesc, &
+  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables,                    &
+       & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,              &
+       & nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,        &
+       & origin, tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,  &
+       & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS,           &
+       & q0, qInput, qOutput, qInpRed, qOutRed, qshell0, referenceN0, qDiffRed, nrChrg, nrSpinPol, &
+       & setEquivalencyRelations, iEqOrbitals, nIneqOrb, nMixElements, onSiteElements, denseDesc,  &
        & parallelKS, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon, &
-       & initializeReferenceCharges, setNElectrons, initializeCharges, qBlockIn, qBlockOut,       &
-       & qiBlockIn, qiBlockOut, iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, &
+       & initializeReferenceCharges, setNElectrons, initializeCharges, qBlockIn, qBlockOut,        &
+       & qiBlockIn, qiBlockOut, iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS,  &
        & tStress, totalStress
-!TODO(Alex) Add any terms from master that I've missed
 #:if WITH_SCALAPACK
   use dftbp_initprogram,  only : getDenseDescBlacs
 #:endif
   use dftbp_main,         only : processGeometry
-  use dftbp_assert
   use dftbp_message,      only : error
   use dftbp_orbitals,     only : TOrbitals
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
@@ -70,7 +68,7 @@ contains
       if (present(coordOrigin)) then
         origin(:) = coordOrigin
       else
-        origin(:) = [0.0_dp,0.0_dp,0.0_dp]
+        origin = [0.0_dp,0.0_dp,0.0_dp]
       end if
     else
       tLatticeChanged = .false.
@@ -302,7 +300,7 @@ contains
     !If atomic order changes, partial charges need to be initialised,                                                   
     !else wrong charge will be associated with each atom                                                                
     call initializeReferenceCharges(species0, referenceN0, orb, customOccAtoms, &
-         & customOccFillings, q0)
+         & customOccFillings, q0, qshell0)
     call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
          & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, &
