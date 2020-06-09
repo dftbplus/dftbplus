@@ -200,7 +200,7 @@ contains
   !> Initialise program variables
   subroutine initProgramVariables()
 
-    type(fnode), pointer :: input, root, tmp, detailed
+    type(fnode), pointer :: root, tmp, detailed, hsdTree
     type(string) :: strBuffer
     integer :: inputVersion
     integer :: ii
@@ -212,7 +212,9 @@ contains
     write(stdout, "(A,/)") repeat("=", 80)
 
     !! Read in input file as HSD
-    call parseHSD(rootTag, hsdInput, root)
+    call parseHSD(rootTag, hsdInput, hsdTree)
+    call getChild(hsdTree, rootTag, root)
+
     write(stdout, "(A)") "Interpreting input file '" // hsdInput // "'"
 
     !! Check if input version is the one, which we can handle
@@ -247,12 +249,12 @@ contains
     call warnUnprocessedNodes(root, .true.)
 
     !! Finish parsing, dump parsed and processed input
-    call dumpHSD(input, hsdParsedInput)
+    call dumpHSD(hsdTree, hsdParsedInput)
     write(stdout, "(A)") "Processed input written as HSD to '" // hsdParsedInput &
         &//"'"
     write(stdout, "(A)") repeat("-", 80)
     write(stdout, *)
-    call destroyNode(input)
+    call destroyNode(hsdTree)
 
     !! Create grid vectors, shift them if necessary
     do ii = 1, 3

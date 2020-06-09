@@ -50,6 +50,10 @@ module dftbp_typegeometry
 
     !> name(s) of the atomic species
     character(mc), allocatable :: speciesNames(:)
+
+    !> Is this a helical geometry
+    logical :: tHelical
+
   end type TGeometry
 
 
@@ -109,6 +113,7 @@ contains
 
   end subroutine Geometry_normalize
 
+
   !> Reduce the geometry to a subset.
   subroutine reduce_Geometry(self, iStart, iEnd, newOrigin, newLatVecs)
 
@@ -151,6 +156,7 @@ contains
 
   end subroutine reduce_Geometry
 
+
   !> Set new lattice vectors for a geometry - if not initially periodic, structure is converted
   subroutine setLattice_Geometry(self, origin, latVecs)
 
@@ -162,7 +168,6 @@ contains
 
     !> Lattice vectors for the supercell
     real(dp), intent(in) :: latVecs(:,:)
-
 
     if (.not. self%tPeriodic) then
       allocate(self%origin(3))

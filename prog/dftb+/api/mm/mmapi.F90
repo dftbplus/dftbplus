@@ -225,7 +225,7 @@ contains
 
 
   !> Sets the geometry in the calculator.
-  subroutine TDftbPlus_setGeometry(this, coords, latVecs)
+  subroutine TDftbPlus_setGeometry(this, coords, latVecs, origin)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
@@ -236,9 +236,12 @@ contains
     !> Lattice vectors in Bohr units, stored column-wise. Shape: (3, 3).
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    !> Coordinate origin in Bohr units. Shape: (3).
+    real(dp), intent(in), optional :: origin(:)
+
     call this%checkInit()
 
-    call setGeometry(coords, latVecs)
+    call setGeometry(coords, latVecs, origin)
 
   end subroutine TDftbPlus_setGeometry
 

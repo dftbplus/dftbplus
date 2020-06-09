@@ -5,6 +5,15 @@
 #:include 'common.fypp'
 #:set LONG_TEST = not defined('TRAVIS')
 
+helical/10-0Ctube                      #? MPI_PROCS <= 2
+helical/10-0CtubeC_10                  #? MPI_PROCS == 1
+helical/10-0CtubeC_10_origins          #? MPI_PROCS == 1
+helical/10-0CtubeC_10_sampled          #? MPI_PROCS == 1
+helical/C6H6_stack                     #? MPI_PROCS == 1
+helical/10-0Ctube_ELPA                 #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 2 == 0 and OMP_THREADS == 1
+helical/C6H6_stack_ELPA                #? WITH_ELSI and MPI_PROCS == 1 and OMP_THREADS == 1
+helical/10-0Ctube_PEXSI                #? WITH_ELSI and MPI_PROCS <= 8 and MPI_PROCS % 4 == 0 and OMP_THREADS == 1
+
 non-scc/Si_384_GPU                     #? WITH_GPU and not WITH_MPI
 scc/SiC_512_GPU                        #? WITH_GPU and not WITH_MPI
 
@@ -77,6 +86,8 @@ derivatives/Si_2_Delta                 #? MPI_PROCS <= 1
 legacy/Si2_oldSKinterp                 #? MPI_PROCS <= 1
 legacy/Si2_polyRep                     #? MPI_PROCS <= 1
 non-scc/Si_2                           #? MPI_PROCS <= 1
+non-scc/Si_2_origin                    #? MPI_PROCS <= 1
+non-scc/Si_2_originF                   #? MPI_PROCS <= 1
 non-scc/Si_2_independentk              #? MPI_PROCS <= 1
 scc/H2O2_3rdfull-damp                  #? MPI_PROCS <= 1
 scc/H3                                 #? MPI_PROCS <= 1

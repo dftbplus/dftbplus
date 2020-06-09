@@ -24,10 +24,12 @@ module dftbp_mainapi
        & initializeReferenceCharges, setNElectrons, initializeCharges, qBlockIn, qBlockOut,       &
        & qiBlockIn, qiBlockOut, iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, &
        & tStress, totalStress
+!TODO(Alex) Add any terms from master that I've missed
 #:if WITH_SCALAPACK
   use dftbp_initprogram,  only : getDenseDescBlacs
 #:endif
   use dftbp_main,         only : processGeometry
+  use dftbp_assert
   use dftbp_message,      only : error
   use dftbp_orbitals,     only : TOrbitals
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
@@ -47,7 +49,7 @@ module dftbp_mainapi
 contains
 
   !> Sets up the atomic geometry
-  subroutine setGeometry(coords, latVecs)
+  subroutine setGeometry(coords, latVecs, coordOrigin)
 
     !> atom coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -55,14 +57,24 @@ contains
     !> lattice vectors, if periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    !> coordinate origin, if periodic. If absent in that case, set to 0,0,0
+    real(dp), intent(in), optional :: coordOrigin(:)
+
     @:ASSERT(size(coords,1) == 3)
+
     coord0(:,:) = coords
     tCoordsChanged = .true.
     if (present(latVecs)) then
       latVec(:,:) = latVecs
       tLatticeChanged = .true.
+      if (present(coordOrigin)) then
+        origin(:) = coordOrigin
+      else
+        origin(:) = [0.0_dp,0.0_dp,0.0_dp]
+      end if
     else
       tLatticeChanged = .false.
+    @:ASSERT(.not.present(coordOrigin))
     end if
 
   end subroutine setGeometry

@@ -201,7 +201,6 @@ module dftbp_coulomb
     module procedure addInvRPrimeXlbomdPeriodic
   end interface addInvRPrimeXlbomd
 
-
   !> Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
 
@@ -2424,7 +2423,6 @@ contains
     end do
 
   end subroutine addNeighbourContribsStress
-
 
 
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without
