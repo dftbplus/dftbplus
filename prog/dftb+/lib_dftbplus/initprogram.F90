@@ -1542,9 +1542,24 @@ contains
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
 
-    #:block DEBUG_CODE
-    call inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
-    #:endblock DEBUG_CODE
+    ! Check coherence across processes for various key variables
+    ! (relevant if running in MPI, particularly for external driving via API)
+    !TODO(Alex) Move #:block DEBUG_CODE inside check..Coherence
+    !TODO(Alex) Write this using a preprocessing for loop 
+  #:block DEBUG_CODE
+    call checkExactCoherence(env, nAtom, "nAtom in initProgramVariables")
+    call checkToleranceCoherence(env, coord0, "coord0 in initProgramVariables", tol=1.e-10)
+    if (tPeriodic) then
+       call checkExactCoherence(env, tFracCoord, "tFracCoord in initProgramVariables")
+       call checkToleranceCoherence(env, latVec, "latVec in initProgramVariables", tol=1.e-10)
+       call checkToleranceCoherence(env, origin, "origin in initProgramVariables", tol=1.e-10)
+    endif
+    call checkExactCoherence(env, speciesName, "speciesName in initProgramVariables")
+    call checkExactCoherence(env, species0, "species0 in initProgramVariables")
+    call checkExactCoherence(env, tSccCalc, "tSccCalc in initProgramVariables")
+    call checkExactCoherence(env, nSpin, "nSpin in initProgramVariables")
+    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in initProgramVariables")    
+  #:endblock DEBUG_CODE
     
     if (input%ctrl%tHalogenX) then
       if (.not. (t3rd .or. t3rdFull)) then
@@ -3232,54 +3247,6 @@ contains
     call env%globalTimer%stopTimer(globalTimers%globalInit)
 
   end subroutine initProgramVariables
-
-  !> Check coherence across processes for various key variables (relevant if running in MPI,
-  !> particularly for external driving via API)
-  subroutine inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> atoms in the system
-    integer, intent(in) :: nAtom
-
-    ! atom coordinates (in the central unit cell, if relevant).
-    real(dp), intent(in) :: coord0(:,:)
-
-    !> names of chemical species
-    character(*), intent(in) :: speciesName(:)
-
-    !> Species of atoms in the central cell
-    integer, intent(in) :: species0(:)
-
-    !> Is the calculation SCC?
-    logical, intent(in) :: tSccCalc
-
-    integer :: iSp
-
-    if (env%tAPICalculation) then
-
-      if (.not. exactCoherence(env, nAtom)) then
-        call error("Coherence failure in number of atoms across nodes")
-      end if
-      if (.not. exactCoherence(env, coord0)) then
-        call error("Coherence failure in coord0 across nodes")
-      end if
-      do iSp = 1, size(speciesName)
-        if (.not. exactCoherence(env, speciesName(iSp))) then
-          call error("Coherence failure in species names across nodes :" // speciesName(iSp))
-        end if
-      end do
-      if (.not. exactCoherence(env, species0)) then
-        call error("Coherence failure in atom species across nodes")
-      end if
-      if (.not. exactCoherence(env, tSccCalc)) then
-        call error("Coherence failure in type of calculation : SCC")
-      end if
-
-    end if
-
-  end subroutine inputCoherenceCheck
 
   
   !> Create equivalency relations

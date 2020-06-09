@@ -241,7 +241,7 @@ contains
 
     call this%checkInit()
 
-    call setGeometry(coords, latVecs, origin)
+    call setGeometry(this%env, coords, latVecs, origin)
 
   end subroutine TDftbPlus_setGeometry
 
@@ -503,7 +503,7 @@ contains
 
     call this%checkInit()
     
-    tSpeciesNameChanged = checkSpeciesNames(inputSpeciesNames)
+    tSpeciesNameChanged = checkSpeciesNames(this%env, inputSpeciesNames)
     
     if(tSpeciesNameChanged)then
        call error('speciesNames has changed between calls to DFTB+. '//&

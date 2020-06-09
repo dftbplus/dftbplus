@@ -9,15 +9,16 @@
 
 !> main module for the DFTB+ API
 module dftbp_mainapi
-  use dftbp_accuracy, only : dp, mc
+  use dftbp_accuracy,    only : dp, mc
   use dftbp_assert
-  use dftbp_densedescr, only : TDenseDescr
+  use dftbp_coherence,   only : checkExactCoherence, checkToleranceCoherence
+  use dftbp_densedescr,  only : TDenseDescr
   use dftbp_environment, only : TEnvironment
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables,                    &
-       & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,              &
-       & nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,        &
-       & origin, tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,  &
-       & tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS,           &
+       & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,                &
+       & nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,          &
+       & origin, tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,    &
+       & tFracCoord, tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS, &
        & q0, qInput, qOutput, qInpRed, qOutRed, qshell0, referenceN0, qDiffRed, nrChrg, nrSpinPol, &
        & setEquivalencyRelations, iEqOrbitals, nIneqOrb, nMixElements, onSiteElements, denseDesc,  &
        & parallelKS, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon, &
@@ -47,9 +48,12 @@ module dftbp_mainapi
 contains
 
   !> Sets up the atomic geometry
-  subroutine setGeometry(coords, latVecs, coordOrigin)
+  subroutine setGeometry(env, coords, latVecs, coordOrigin)
 
-    !> atom coordinates
+    !> Instance
+    type(TEnvironment), intent(inout) :: env
+    
+    !> atom coordinates 
     real(dp), intent(in) :: coords(:,:)
 
     !> lattice vectors, if periodic
@@ -59,6 +63,18 @@ contains
     real(dp), intent(in), optional :: coordOrigin(:)
 
     @:ASSERT(size(coords,1) == 3)
+
+    ! Check data is consistent across MPI processes 
+    #:block DEBUG_CODE
+    call checkToleranceCoherence(env, coords, "coords in setGeometry", tol=1.e-10)
+    if (present(latVecs)) then
+       call checkToleranceCoherence(env, latVecs, "latVecs in setGeometry", tol=1.e-10)
+       call checkExactCoherence(env, tFracCoord, "tFracCoord in setGeometry")
+    endif
+    if (present(coordOrigin)) then
+       call checkToleranceCoherence(env, coordOrigin, "coordOrigin in setGeometry", tol=1.e-10)
+    endif
+    #:endblock DEBUG_CODE  
 
     coord0(:,:) = coords
     tCoordsChanged = .true.
@@ -255,12 +271,19 @@ contains
   !  Even if nAtom is not conserved, it should be possible to know the
   !  total number of species types, nTypes, in a simulation and hence
   !  always keep speciesName constant 
-  function checkSpeciesNames(inputSpeciesName) result(tSpeciesNameChanged)
-   
+  function checkSpeciesNames(env, inputSpeciesName) result(tSpeciesNameChanged)
+
+    !> dftb+ environment 
+    type(TEnvironment), intent(in) :: env
     !> Labels of atomic species from external program
     character(len=*), intent(in) :: inputSpeciesName(:)
     !> Has speciesName changed?
     logical                   :: tSpeciesNameChanged
+
+    #:block DEBUG_CODE
+    call checkExactCoherence(env, inputSpeciesName, &
+         & "inputSpeciesName in checkSpeciesNames")
+    #:endblock DEBUG_CODE  
     
     tSpeciesNameChanged = any(speciesName /= inputSpeciesName)
 
@@ -274,13 +297,27 @@ contains
     
     !> dftb+ environment 
     type(TEnvironment),   intent(in) :: env
+
     !> types of the atoms (nAllAtom) 
     integer,              intent(in) :: inputSpecies(:)
+
     !> Dummy arguments. Won't be used if not allocated
     real(dp), allocatable :: initialCharges(:), initialSpins(:,:)
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
 
+    character(len=36) :: routine 
+
+    ! Check data is consistent across MPI processes 
+  #:block DEBUG_CODE
+    routine = 'updateDataDependentOnSpeciesOrdering'
+    call checkExactCoherence(env, nAtom, "nAtom in "//routine)
+    call checkExactCoherence(env, inputSpecies, "inputSpecies in "//routine)
+    call checkExactCoherence(env, tSccCalc, "tSccCalc in" //routine)
+    call checkExactCoherence(env, nSpin, "nSpin in "//routine)
+    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in "//routine)
+  #:endblock DEBUG_CODE  
+    
     if(size(inputSpecies) /= nAtom)then
        call error("Number of atoms must be keep constant in simulation")
     endif
@@ -288,7 +325,7 @@ contains
     species0 = inputSpecies
     mass =  updateAtomicMasses(species0)
     orb%nOrbAtom = updateAtomicOrbitals(species0)
-    
+  
     !Used in partial charge initialisation
     call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
          & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
