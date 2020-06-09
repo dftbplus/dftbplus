@@ -502,7 +502,7 @@ contains
             & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
             & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi,&
             & tExtField, isXlbomd, tDftbU, TS, qDepExtPot, qBlockOut, qiBlockOut, nDftbUFunc,&
-            & UJ, nUJ, iUJ, niUJ, tFixEf, Ef, onSiteElements, iHam, reks)
+            & UJ, nUJ, iUJ, niUJ, tFixEf, Ef, rhoPrim, onSiteElements, iHam, reks)
         call optimizeFONsAndWeights(eigvecsReal, filling, energy, reks)
 
         call getFockandDiag(env, denseDesc, neighbourList, nNeighbourSK, iSparseStart,&
@@ -3595,7 +3595,7 @@ contains
     integer :: nSpin
     real(dp) :: nEl(2)
 
-    nSpin = size(rhoPrim, dim=2)
+    nSpin = size(qOrb, dim=3)
 
     ! Tr[H0 * Rho] can be done with the same algorithm as Mulliken-analysis
     energy%atomNonSCC(:) = 0.0_dp
@@ -6579,7 +6579,7 @@ contains
       & energy, q0, iAtInCentralRegion, solvation, thirdOrd, potential, electrostatics, &
       & tPoisson, tUpload, shiftPerLUp, rangeSep, nNeighbourLC, tDualSpinOrbit, xi, tExtField, &
       & isXlbomd, tDftbU, TS, qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-      & tFixEf, Ef, onSiteElements, iHam, reks)
+      & tFixEf, Ef, rhoPrim, onSiteElements, iHam, reks)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -6708,6 +6708,9 @@ contains
     !> from the given number of electrons
     real(dp), intent(inout) :: Ef(:)
 
+    !> sparse density matrix
+    real(dp), intent(inout) :: rhoPrim(:,:)
+
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
@@ -6718,7 +6721,6 @@ contains
     type(TReksCalc), allocatable, intent(inout) :: reks
 
     real(dp), allocatable :: tmpHamSp(:,:)
-    real(dp), allocatable :: tmpRhoSp(:,:)
     real(dp), allocatable :: tmpEn(:)
 
     integer, pointer :: pSpecies0(:)
@@ -6729,14 +6731,12 @@ contains
     nSpin = size(reks%qOutputL,dim=3)
     pSpecies0 => species(1:nAtom)
 
-    allocate(tmpHamSp(sparseSize,nSpin))
-    allocate(tmpRhoSp(sparseSize,nSpin))
+    allocate(tmpHamSp(sparseSize,1))
     if (reks%isRangeSep) then
       allocate(tmpEn(reks%Lmax))
     end if
 
     ! Calculate contribution to Hamiltonian except rangeseparated part
-    tmpHamSp(:,:) = 0.0_dp
     reks%intShellL(:,:,:,:) = 0.0_dp
     reks%intBlockL(:,:,:,:,:) = 0.0_dp
     do iL = 1, reks%Lmax
@@ -6749,6 +6749,7 @@ contains
           & reks%chargePerShellL(:,:,:,iL), orb, species, neighbourList, &
           & img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics, &
           & tPoisson, tUpload, shiftPerLUp)
+
       ! reks%intShellL, reks%intBlockL has (qm) component
       reks%intShellL(:,:,:,iL) = potential%intShell
       reks%intBlockL(:,:,:,:,iL) = potential%intBlock
@@ -6772,7 +6773,6 @@ contains
           tmpHamSp(:,1) = 0.0_dp
         end if
       end if
-      potential%intBlock(:,:,:,2) = 0.0_dp
 
       ! tmpHamSp has (my_qm) component
       call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb,&
@@ -6804,10 +6804,9 @@ contains
       tmpEn(:) = 0.0_dp
       do iL = 1, reks%Lmax
         ! Add rangeseparated contribution
-        call rangeSep%addLRHamiltonian(env, reks%deltaRhoSqrL(:,:,1,iL), &
-            & over, neighbourList%iNeighbour, nNeighbourLC, &
-            & denseDesc%iAtomStart, iSparseStart, orb, &
-            & reks%hamSqrL(:,:,1,iL), reks%overSqr)
+        call rangeSep%addLRHamiltonian(env, reks%deltaRhoSqrL(:,:,1,iL), over, &
+            & neighbourList%iNeighbour, nNeighbourLC, denseDesc%iAtomStart, &
+            & iSparseStart, orb, reks%hamSqrL(:,:,1,iL), reks%overSqr)
         ! Calculate the long-range exchange energy for up spin
         call rangeSep%addLREnergy(tmpEn(iL))
       end do
@@ -6835,16 +6834,16 @@ contains
       end if
 
       if (reks%tForces) then
-        tmpRhoSp(:,1) = 0.0_dp
+        rhoPrim(:,1) = 0.0_dp
         call env%globalTimer%startTimer(globalTimers%denseToSparse)
         ! reks%rhoSqrL has (my_qm) component
-        call packHS(tmpRhoSp(:,1), reks%rhoSqrL(:,:,1,tmpL), &
+        call packHS(rhoPrim(:,1), reks%rhoSqrL(:,:,1,tmpL), &
             & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, &
             & denseDesc%iAtomStart, iSparseStart, img2CentCell)
         call env%globalTimer%stopTimer(globalTimers%denseToSparse)
       else
         ! reks%rhoSpL has (my_qm) component
-        tmpRhoSp(:,1) = reks%rhoSpL(:,1,tmpL)
+        rhoPrim(:,1) = reks%rhoSpL(:,1,tmpL)
       end if
 
       ! Calculate correct charge contribution for each microstate
@@ -6857,7 +6856,7 @@ contains
       end if
 
       call getEnergies(sccCalc, reks%qOutputL(:,:,:,iL), q0, reks%chargePerShellL(:,:,:,iL),&
-          & species, tExtField, isXlbomd, tDftbU, tDualSpinOrbit, tmpRhoSp, H0, orb,&
+          & species, tExtField, isXlbomd, tDftbU, tDualSpinOrbit, rhoPrim, H0, orb,&
           & neighbourList, nNeighbourSk, img2CentCell, iSparseStart, cellVol, extPressure,&
           & TS, potential, energy, thirdOrd, solvation, rangeSep, reks, qDepExtPot, qBlock,&
           & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
