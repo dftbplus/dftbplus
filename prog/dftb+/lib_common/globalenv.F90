@@ -102,7 +102,7 @@ contains
       stdErr = errorUnit0
     else
       open(newunit=stdOut, file="/dev/null", action="write")
-      open(newunit=stdErr, file="/dev/null", action="write")
+      stdErr = stdOut
     end if
     tIoProc = globalMpiComm%master
   #:else

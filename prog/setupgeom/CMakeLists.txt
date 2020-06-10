@@ -1,9 +1,6 @@
 set(sources-fpp
   helpsetupgeom.F90
-  inputconversion.F90
   inputdata.F90
-  libnegf_vars.F90
-  oldcompat.F90
   parser_setup.F90
   setupgeom.F90)
 

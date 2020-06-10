@@ -1,0 +1,56 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(dmso)
+    ParamFile = "param_gbsa_dmso.txt"
+    State = "reference"
+    Temperature [K] = 273.15
+    Descreening {
+      Defaults { D = 0.80920878 }
+    }
+    Radii {
+      VanDerWaalsRadiiD3 { D = 0.604712316345255 }
+    }
+    SASA {
+      Radii {
+        VanDerWaalsRadiiD3 { D = 0.604712316345255 }
+      }
+      SurfaceTension {
+        Defaults { D =  -1.268284850000000E+00 }
+      }
+    }
+    HBondCorr = No
+  }
+  SCC = Yes
+  SccTolerance = 1e-10
+  MaxAngularMomentum {
+    D = "s"
+    C = "p"
+    O = "p"
+    N = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}

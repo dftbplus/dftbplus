@@ -50,17 +50,15 @@ Analysis {
   CalculateForces = Yes
 }
 
-REKS = SSR22 {
-  EnergyFunctional = 1
-  EnergyLevel = 1
-  UseSsrState = 0
+Reks = SSR22 {
+  Energy = {
+    Functional = { "PPS" }
+  }
   TargetState = 1
-  InitialGuess = 1
   FonMaxIter = 30
   shift = 0.3
   RelaxedDensity = Yes
   VerbosityLevel = 1
-  MemoryLevel = 1
 }
 
 Options {

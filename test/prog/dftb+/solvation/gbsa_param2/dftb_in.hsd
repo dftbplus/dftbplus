@@ -1,0 +1,45 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN1-xTB/GBSA(ch2cl2)
+    ParamFile = "param_gbsa_ch2cl2.txt"
+    State = "mol1bar"
+    CM5 {}
+    SASA { angularGrid = 590 }
+    Cutoff = 30
+  }
+  SCC = Yes
+  Charge = +1
+  Mixer = DIIS {}
+  SccTolerance = 1e-10
+  MaxAngularMomentum {
+    H = "s"
+    C = "p"
+    N = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  RangeSeparated = LC {}
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}

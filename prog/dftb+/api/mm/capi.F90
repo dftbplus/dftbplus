@@ -234,6 +234,32 @@ contains
   end subroutine c_DftbPlus_setCoordsAndLatticeVecs
 
 
+  !> Set the coordinates and lattice vectors with an origin
+  subroutine c_DftbPlus_setCoordsLatticeVecsOrigin(handler, coords, latVecs, origin)&
+      & bind(C, name='dftbp_set_coords_lattice_origin')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> coordinates, row major format (xyz, :nAtom)
+    real(c_double), intent(in) :: coords(3,*)
+
+    !> lattice vectors, row major format
+    real(c_double), intent(in) :: latvecs(3, *)
+
+    !> coordinate origin
+    real(c_double), intent(in) :: origin(3)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%setGeometry(coords(:, 1:nAtom), latVecs(:, 1:3), origin(1:3))
+
+  end subroutine c_DftbPlus_setCoordsLatticeVecsOrigin
+
+
   !> Obtain nr. of atoms.
   function c_DftbPlus_nrOfAtoms(handler) result(nAtom) bind(C, name='dftbp_get_nr_atoms')
     type(c_DftbPlus), intent(inout) :: handler
