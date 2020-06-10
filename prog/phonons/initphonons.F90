@@ -6,7 +6,7 @@ module dftbp_initphonons
   use dftbp_assert 
   use dftbp_globalenv
   use dftbp_environment
-  use dftbp_hsdparser, only : parseHSD, dumpHSD, dumpHSDAsXML
+  use dftbp_hsdparser, only : parseHSD, dumpHSD
   use dftbp_tokenreader
   use dftbp_xmlutils
   use dftbp_hsdutils
@@ -146,7 +146,7 @@ module dftbp_initphonons
   type TParserFlags
     logical :: tStop                        ! stop after parsing?
     logical :: tIgnoreUnprocessed           ! Continue despite unprocessed nodes
-    logical :: tWriteXML, tWriteHSD         ! XML or HSD output?
+    logical :: tWriteHSD                    ! write parsed HSD input
     logical :: tWriteTagged                 ! write TaggedOutput   
   end type TParserFlags
 
@@ -169,7 +169,7 @@ contains
     type(TEnvironment), intent(inout) :: env
 
     ! locals
-    type(fnode), pointer :: input, root, node, tmp
+    type(fnode), pointer :: hsdTree, root, node, tmp
     type(fnode), pointer :: child, value 
     type(string) :: buffer, buffer2, modif
     integer :: inputVersion
@@ -191,14 +191,10 @@ contains
 #:endif
 
     !! Read in input file as HSD or XML.
-    call readHSDOrXML(hsdInput, xmlInput, rootTag, input, tHSD)
-    if (tHSD) then
-      write(stdOut, "(A)") "Interpreting input file '" // hsdInput // "'"
-    else
-      write(stdOut, "(A)") "Interpreting input file '" // xmlInput //  "'"
-    end if
+    write(stdOut, "(A)") "Interpreting input file '" // hsdInput // "'"
     write(stdOut, "(A)") repeat("-", 80)
-    call getChild(input, rootTag, root)
+    call parseHSD(rootTag, hsdInput, hsdTree)
+    call getChild(hsdTree, rootTag, root)
 
     !! Check if input version is the one, which we can handle
     !! Handle parser options
@@ -348,14 +344,9 @@ contains
 
     !! Dump processed tree in HSD and XML format
     if (tIoProc .and. parserFlags%tWriteHSD) then
-      call dumpHSD(input, hsdParsedInput)
+      call dumpHSD(hsdTree, hsdParsedInput)
       write(stdOut, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdParsedInput // "'"
-    end if
-    if (tIoProc .and. parserFlags%tWriteXML) then
-      call dumpHSDAsXML(input, xmlParsedInput)
-      write(stdOut, '(A,/)') "Processed input in XML format written to '" &
-          &// xmlParsedInput // "'"
     end if
     
     !! Stop, if only parsing is required
@@ -407,14 +398,6 @@ contains
 
     call getChildValue(node, "WriteAutotestTag", tWriteTagged, .false.)
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
-    call getChildValue(node, "WriteXMLInput", flags%tWriteXML, .false.)
-    if (.not. (flags%tWriteHSD .or. flags%tWriteXML)) then
-      call detailedWarning(node, &
-          &"WriteHSDInput and WriteXMLInput both turned off. You won't &
-          &eventually be " &
-          &// newline // &
-          &" able to obtain the same results with a later version of the code!")
-    end if
     call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
 
     call getChildValue(node, "IgnoreUnprocessedNodes", &
