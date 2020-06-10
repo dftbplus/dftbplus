@@ -190,8 +190,6 @@ module dftbp_coulomb
     module procedure addInvRPrimeClusterAsymm
     module procedure addInvRPrimePeriodic
     module procedure addInvRPrimePeriodicAsymm
-    module procedure addInvRPrimeClusterAsymmTderiv
-    module procedure addInvRPrimePeriodicAsymmTderiv
   end interface addInvRPrime
 
 
@@ -1283,7 +1281,7 @@ contains
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the non-periodic case, without storing anything.
   subroutine addInvRPrimeClusterAsymm(env, nAtom0, nAtom1, coord0, coord1, charge0, charge1,&
-      & deriv0, deriv1, blurWidths1)
+      & deriv0, deriv1, tHamDeriv, blurWidths1)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1312,6 +1310,9 @@ contains
     !> Contains the derivative for the second group
     real(dp), intent(inout) :: deriv1(:,:)
 
+    !> Compute the derivative of Hamiltonians? Otherwise, compute the force
+    logical, intent(in) :: tHamDeriv
+
     !> if gaussian distribution for the charge
     real(dp), intent(in), optional :: blurWidths1(:)
 
@@ -1321,9 +1322,12 @@ contains
     real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
 
     allocate(localDeriv0(3, nAtom0))
-    allocate(localDeriv1(3, nAtom1))
     localDeriv0(:,:) = 0.0_dp
-    localDeriv1(:,:) = 0.0_dp
+
+    if (.not. tHamDeriv) then
+      allocate(localDeriv1(3, nAtom1))
+      localDeriv1(:,:) = 0.0_dp
+    end if
 
     call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
         & iAtLast1)
@@ -1343,9 +1347,14 @@ contains
             rs = dist / sigma
             fTmp = fTmp * (erfwrap(rs) - 2.0_dp/(sqrt(pi)*sigma) * dist * exp(-(rs**2)))
           end if
-          fTmp = charge0(iAt0) * charge1(iAt1) * fTmp
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          if (tHamDeriv) then
+            fTmp = charge1(iAt1) * fTmp
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          else
+            fTmp = charge0(iAt0) * charge1(iAt1) * fTmp
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+            localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          end if
         end do
       end do
       !$OMP END PARALLEL DO
@@ -1357,19 +1366,26 @@ contains
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
           dist = sqrt(sum(vect(:)**2))
-          fTmp = -charge0(iAt0) * charge1(iAt1) / (dist**3) * vect(:)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          if (tHamDeriv) then
+            fTmp = -charge1(iAt1) / (dist**3) * vect(:)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          else
+            fTmp = -charge0(iAt0) * charge1(iAt1) / (dist**3) * vect(:)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+            localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          end if
         end do
       end do
       !$OMP END PARALLEL DO
     end if
 
     call assembleChunks(env, localDeriv0)
-    call assembleChunks(env, localDeriv1)
-
     deriv0(:,:) = deriv0 + localDeriv0
-    deriv1(:,:) = deriv1 + localDeriv1
+
+    if (.not. tHamDeriv) then
+      call assembleChunks(env, localDeriv1)
+      deriv1(:,:) = deriv1 + localDeriv1
+    end if
 
   end subroutine addInvRPrimeClusterAsymm
 
@@ -1596,7 +1612,7 @@ contains
   !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
   !> objects (like point charges) for the periodic case, without storing anything.
   subroutine addInvRPrimePeriodicAsymm(env, nAtom0, nAtom1, coord0, coord1, charge0, charge1, rVec,&
-      & gVec, alpha, vol, deriv0, deriv1, blurWidths1)
+      & gVec, alpha, vol, deriv0, deriv1, tHamDeriv, blurWidths1)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -1637,6 +1653,9 @@ contains
     !> Contains the derivative for the second group on exit
     real(dp), intent(inout) :: deriv1(:,:)
 
+    !> Compute the derivative of Hamiltonians? Otherwise, compute the force
+    logical, intent(in) :: tHamDeriv
+
     !> Gaussian blur width of the charges in the 2nd group
     real(dp), intent(in), optional :: blurWidths1(:)
 
@@ -1648,9 +1667,12 @@ contains
     @:ASSERT(vol > 0.0_dp)
 
     allocate(localDeriv0(3, nAtom0))
-    allocate(localDeriv1(3, nAtom1))
     localDeriv0(:,:) = 0.0_dp
-    localDeriv1(:,:) = 0.0_dp
+
+    if (.not. tHamDeriv) then
+      allocate(localDeriv1(3, nAtom1))
+      localDeriv1(:,:) = 0.0_dp
+    end if
 
     call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
         & iAtLast1)
@@ -1663,10 +1685,16 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
-              & * charge0(iAt0) * charge1(iAt1)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          if (tHamDeriv) then
+            fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
+                & * charge1(iAt1)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          else
+            fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
+                & * charge0(iAt0) * charge1(iAt1)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+            localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          end if
         end do
       end do
       !$OMP END PARALLEL DO
@@ -1677,9 +1705,14 @@ contains
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge0(iAt0) * charge1(iAt1)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          if (tHamDeriv) then
+            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge1(iAt1)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          else
+            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge0(iAt0) * charge1(iAt1)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+            localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          end if
         end do
       end do
       !$OMP END PARALLEL DO
@@ -1692,9 +1725,14 @@ contains
     do iAt0 = iAtFirst0, iAtLast0
       do iAt1 = iAtFirst1, iAtLast1
         vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-        fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge0(iAt0) * charge1(iAt1)
-        localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-        localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+        if (tHamDeriv) then
+          fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge1(iAt1)
+          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+        else
+          fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge0(iAt0) * charge1(iAt1)
+          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+        end if
       end do
     end do
     !$OMP END PARALLEL DO
@@ -1702,8 +1740,10 @@ contains
     call assembleChunks(env, localDeriv0)
     deriv0(:,:) = deriv0 + localDeriv0
 
-    call assembleChunks(env, localDeriv1)
-    deriv1(:,:) = deriv1 + localDeriv1
+    if (.not. tHamDeriv) then
+      call assembleChunks(env, localDeriv1)
+      deriv1(:,:) = deriv1 + localDeriv1
+    end if
 
   end subroutine addInvRPrimePeriodicAsymm
 
@@ -2559,190 +2599,6 @@ contains
     end do
 
   end subroutine addNeighbourContribsInvRPMat
-
-
-  !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
-  !> objects (like point charges) for the non-periodic case, without storing anything.
-  subroutine addInvRPrimeClusterAsymmTderiv(env, nAtom0, nAtom1, coord0, coord1, charge1, &
-      & deriv0, blurWidths1)
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Number of atoms in the first group
-    integer, intent(in) :: nAtom0
-
-    !> Number of atoms in the second group
-    integer, intent(in) :: nAtom1
-
-    !> List of atomic coordinates.
-    real(dp), intent(in) :: coord0(:,:)
-
-    !> List of the point charge coordinates
-    real(dp), intent(in) :: coord1(:,:)
-
-    !> Charge of the point charges.
-    real(dp), intent(in) :: charge1(:)
-
-    !> Contains the derivative for the first group
-    real(dp), intent(out) :: deriv0(:,:)
-
-    !> if gaussian distribution for the charge
-    real(dp), intent(in), optional :: blurWidths1(:)
-
-    integer :: iAt0, iAt1
-    real(dp) :: dist, vect(3), fTmp(3), sigma, rs
-    integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
-    real(dp), allocatable :: localDeriv0(:,:)
-
-    allocate(localDeriv0(3, nAtom0))
-    localDeriv0(:,:) = 0.0_dp
-
-    call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
-        & iAtLast1)
-
-    ! Doing blured and unblured cases separately to avoid ifs in the loop
-    if (present(blurWidths1)) then
-      !$OMP PARALLEL DO&
-      !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp, sigma, rs)&
-      !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
-      do iAt0 = iAtFirst0, iAtLast0
-        do iAt1 = iAtFirst1, iAtLast1
-          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sqrt(sum(vect(:)**2))
-          fTmp(:) = -vect(:) / (dist**3)
-          if (dist < erfArgLimit * blurWidths1(iAt1)) then
-            sigma = blurWidths1(iAt1)
-            rs = dist / sigma
-            fTmp(:) = fTmp(:) * (erfwrap(rs) - 2.0_dp/(sqrt(pi)*sigma) * dist * exp(-(rs**2)))
-          end if
-          fTmp(:) = charge1(iAt1) * fTmp(:)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    else
-      !$OMP PARALLEL DO&
-      !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp)&
-      !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
-      do iAt0 = iAtFirst0, iAtLast0
-        do iAt1 = iAtFirst1, iAtLast1
-          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sqrt(sum(vect(:)**2))
-          fTmp(:) = -charge1(iAt1) / (dist**3) * vect(:)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    end if
-
-    call assembleChunks(env, localDeriv0)
-
-    deriv0(:,:) = localDeriv0
-
-  end subroutine addInvRPrimeClusterAsymmTderiv
-
-
-  !> Calculates the -1/R**2 deriv contribution for charged atoms interacting with a group of charged
-  !> objects (like point charges) for the periodic case, without storing anything.
-  subroutine addInvRPrimePeriodicAsymmTderiv(env, nAtom0, nAtom1, coord0, coord1, charge1, rVec,&
-      & gVec, alpha, vol, deriv0, blurWidths1)
-
-    !> Computational environment settings
-    type(TEnvironment), intent(in) :: env
-
-    !> Number of atoms in the first group
-    integer, intent(in) :: nAtom0
-
-    !> Number of atoms in the second group
-    integer, intent(in) :: nAtom1
-
-    !> List of atomic coordinates (first group)
-    real(dp), intent(in) :: coord0(:,:)
-
-    !> List of the point charge coordinates (second group)
-    real(dp), intent(in) :: coord1(:,:)
-
-    !> Charge of the point charges.
-    real(dp), intent(in) :: charge1(:)
-
-    !> Lattice vectors to be used for the real Ewald summation
-    real(dp), intent(in) :: rVec(:,:)
-
-    !> Lattice vectors to be used for the reciprocal Ewald summation.
-    real(dp), intent(in) :: gVec(:,:)
-
-    !> Parameter of the Ewald summation
-    real(dp), intent(in) :: alpha
-
-    !> Volume of the supercell.
-    real(dp), intent(in) :: vol
-
-    !> Contains the derivative for the first group on exit
-    real(dp), intent(inout) :: deriv0(:,:)
-
-    !> Gaussian blur width of the charges in the 2nd group
-    real(dp), intent(in), optional :: blurWidths1(:)
-
-    integer :: iAt0, iAt1
-    real(dp) :: vect(3), fTmp(3)
-    integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
-    real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
-
-    @:ASSERT(vol > 0.0_dp)
-
-    allocate(localDeriv0(3, nAtom0))
-    localDeriv0(:,:) = 0.0_dp
-
-    call distributeRangeInChunks2(env, 1, nAtom0, 1, nAtom1, iAtFirst0, iAtLast0, iAtFirst1,&
-        & iAtLast1)
-
-    ! real space part
-    if (present(blurwidths1)) then
-      !$OMP PARALLEL DO&
-      !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
-      !$OMP& SCHEDULE(RUNTIME)
-      do iAt0 = iAtFirst0, iAtLast0
-        do iAt1 = iAtFirst1, iAtLast1
-          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
-              & * charge1(iAt1)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    else
-      !$OMP PARALLEL DO&
-      !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
-      !$OMP& SCHEDULE(RUNTIME)
-      do iAt0 = iAtFirst0, iAtLast0
-        do iAt1 = iAtFirst1, iAtLast1
-          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge1(iAt1)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-        end do
-      end do
-      !$OMP END PARALLEL DO
-    end if
-
-    ! reciprocal space part
-    !$OMP PARALLEL DO&
-    !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
-    !$OMP& SCHEDULE(RUNTIME)
-    do iAt0 = iAtFirst0, iAtLast0
-      do iAt1 = iAtFirst1, iAtLast1
-        vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-        fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge1(iAt1)
-        localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-      end do
-    end do
-    !$OMP END PARALLEL DO
-
-    call assembleChunks(env, localDeriv0)
-
-    deriv0(:,:) = localDeriv0
-
-  end subroutine addInvRPrimePeriodicAsymmTderiv
 
 
   !> Get the variables relate to periodic information
