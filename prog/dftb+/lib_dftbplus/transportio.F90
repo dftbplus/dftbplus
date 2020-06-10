@@ -8,6 +8,7 @@
 #:include 'common.fypp'
 
 module dftbp_transportio
+  use dftbp_assert
   use dftbp_accuracy
   use dftbp_constants
   use dftbp_globalenv
