@@ -26,8 +26,9 @@
 
 program test_setSpeciesAndDependents
   use, intrinsic :: iso_fortran_env, only: output_unit, REAL64, IOSTAT_END
+#:if WITH_MPI
   use mpi
-
+#:endif
   use dftbp_mmapi,  only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput
   use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, setChildValue
   use dftbp_hsdapi, only: dumpHsd
@@ -41,7 +42,7 @@ program test_setSpeciesAndDependents
 
   !> DFTB Objects
   type(TDftbPlus)      :: dftb
-  type(TDftbPlusInput) :: hsd_tree, input
+  type(TDftbPlusInput) :: hsd_tree
   Character(len=11), parameter :: dftb_fname = 'dftb_in.hsd'
 
   !> Type for containing geometrical information
@@ -66,29 +67,39 @@ program test_setSpeciesAndDependents
   end type MDstatus_type
 
   !> MPI
+#:if WITH_MPI
   integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
   integer            :: providedThreading, rank, np, ierr
   integer, parameter :: master_id = 0
+  integer            :: comm
   logical            :: IO
-
+#:else
+  !> Dummy mpi_communicator 
+  integer, parameter :: comm = 0
+  logical, parameter :: IO = .true. 
+#:endif
+  
   !Local
   integer, parameter :: nAtoms = 8
   integer, parameter :: Nsteps = 2
 
   type(MDstatus_type):: MDstatus
   type(TGeometry)    :: geo
-  integer            :: imd, ia
+  integer            :: imd
   real(dp)           :: merminEnergy
   character(len=2)   :: imd_lab
   character(len=100) :: fname
   real(dp), allocatable :: gradients(:,:), stressTensor(:,:), grossCharges(:)
 
+#:if WITH_MPI
   !Initialise MPI environment
   call mpi_init_thread(requiredThreading, providedThreading, ierr)
-  call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
-  call mpi_comm_size(MPI_COMM_WORLD, np, ierr)
+  call mpi_comm_dup(MPI_COMM_WORLD, comm, ierr)
+  call mpi_comm_rank(comm, rank, ierr)
+  call mpi_comm_size(comm, np, ierr)
   IO = (rank == master_id)
-
+#:endif
+  
   MDstatus = MDstatus_type(1, Nsteps)
   allocate(gradients(3,nAtoms))
   allocate(grossCharges(nAtoms))
@@ -106,7 +117,7 @@ program test_setSpeciesAndDependents
     call read_in_geo(trim(adjustl(fname)), geo)
 
     if(imd == MDstatus%initial_step) then
-      Call TDftbPlus_init(dftb, output_unit, MPI_COMM_WORLD)
+      Call TDftbPlus_init(dftb, output_unit, comm)
       Call initialise_dftbplus_tree(geo, dftb, hsd_tree)
       !Dump hsd tree to fort.1
       !Call dumpHsd(hsd_tree%hsdTree, 001)
@@ -135,8 +146,10 @@ program test_setSpeciesAndDependents
       end if
     end if
 
-    call output_forces_per_process(gradients, imd_lab)
-
+#:if WITH_MPI
+    !call output_forces_per_process(gradients, imd_lab)
+#:endif
+    
   enddo
 
   !Clean up
@@ -146,8 +159,9 @@ program test_setSpeciesAndDependents
   call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, stressTensor=stressTensor,&
       & grossCharges=grossCharges)
 
+#:if WITH_MPI
   call mpi_finalize(ierr)
-
+#:endif
 
 contains
   !--------------------------------------------
@@ -172,7 +186,7 @@ contains
     !> DFTB+ input file name
     Character(Len=100) :: fname
     !> Pointers to the parts of the input tree that will be set
-    Type(fnode), Pointer :: pRoot, pGeo, pOptions, pParserOpts, pDftb, pKpoints, pAnalysis
+    Type(fnode), Pointer :: pRoot, pGeo, pAnalysis
     !> "Does geometry already exist in DTFB+ input?" (== "replace geometry in HSD tree?")
     Logical  :: replace_geometry
 
@@ -202,7 +216,7 @@ contains
 
   End Subroutine initialise_dftbplus_tree
 
-
+#:if WITH_MPI
   !> Output forces per process
   subroutine output_forces_per_process(gradients, imd_lab)
     implicit none
@@ -224,7 +238,7 @@ contains
     close(io_unit)
 
   end subroutine output_forces_per_process
-
+#:endif
 
   !> Count number of substrings on a line separated by whitespace
   function count_substrings(input_line) result(n_substrings)
@@ -253,14 +267,15 @@ contains
   subroutine read_in_geo(fname, geo, header)
     implicit none
 
-    type(TGeometry),  intent(out) :: geo
     character(len=*), intent(in)    :: fname
+    type(TGeometry),  intent(out) :: geo
+    integer, optional, intent(in) :: header
+        
     integer          :: ia,i,Nspecies
     character(len=1) :: boundary
     character(len=2),   allocatable :: species_list(:)
     character(len=100) :: line2
-    integer, optional, intent(in) :: header
-    integer :: io_unit
+    integer :: io_unit 
 
     !Initialise geo components
     geo%nAtom = 0
