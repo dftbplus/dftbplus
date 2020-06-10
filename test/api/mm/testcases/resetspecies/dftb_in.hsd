@@ -12,7 +12,7 @@ Hamiltonian = DFTB {
     C = "p"
   }
   SlaterKosterFiles = Type2FileNames {
-    Prefix = "/home/alex/SK_Parameter_Sets/mio/mio-1-1/"
+    #Prefix = "/home/alex/SK_Parameter_Sets/mio/mio-1-1/"
     Separator = "-"
     Suffix  = ".skf"
   }
@@ -42,5 +42,8 @@ Parallel {
   # Allow OMP threads explicitely to test for hybrid parallelisation with
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
+  Blacs = BlockSize {
+    4
+  }
 }
 
