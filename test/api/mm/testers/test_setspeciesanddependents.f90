@@ -26,9 +26,7 @@
 
 program test_setSpeciesAndDependents
   use, intrinsic :: iso_fortran_env, only: output_unit, REAL64, IOSTAT_END
-#:if WITH_MPI
   use mpi
-#:endif
   use dftbp_mmapi,  only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput
   use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, setChildValue
   use dftbp_hsdapi, only: dumpHsd
@@ -67,17 +65,11 @@ program test_setSpeciesAndDependents
   end type MDstatus_type
 
   !> MPI
-#:if WITH_MPI
   integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
   integer            :: providedThreading, rank, np, ierr
   integer, parameter :: master_id = 0
   integer            :: comm
   logical            :: IO
-#:else
-  !> Dummy mpi_communicator 
-  integer, parameter :: comm = 0
-  logical, parameter :: IO = .true. 
-#:endif
   
   !Local
   integer, parameter :: nAtoms = 8
@@ -91,14 +83,12 @@ program test_setSpeciesAndDependents
   character(len=100) :: fname
   real(dp), allocatable :: gradients(:,:), stressTensor(:,:), grossCharges(:)
 
-#:if WITH_MPI
   !Initialise MPI environment
   call mpi_init_thread(requiredThreading, providedThreading, ierr)
   call mpi_comm_dup(MPI_COMM_WORLD, comm, ierr)
   call mpi_comm_rank(comm, rank, ierr)
   call mpi_comm_size(comm, np, ierr)
   IO = (rank == master_id)
-#:endif
   
   MDstatus = MDstatus_type(1, Nsteps)
   allocate(gradients(3,nAtoms))
@@ -146,9 +136,7 @@ program test_setSpeciesAndDependents
       end if
     end if
 
-#:if WITH_MPI
     !call output_forces_per_process(gradients, imd_lab)
-#:endif
     
   enddo
 
@@ -159,9 +147,7 @@ program test_setSpeciesAndDependents
   call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, stressTensor=stressTensor,&
       & grossCharges=grossCharges)
 
-#:if WITH_MPI
   call mpi_finalize(ierr)
-#:endif
 
 contains
   !--------------------------------------------
@@ -216,7 +202,6 @@ contains
 
   End Subroutine initialise_dftbplus_tree
 
-#:if WITH_MPI
   !> Output forces per process
   subroutine output_forces_per_process(gradients, imd_lab)
     implicit none
@@ -238,7 +223,6 @@ contains
     close(io_unit)
 
   end subroutine output_forces_per_process
-#:endif
 
   !> Count number of substrings on a line separated by whitespace
   function count_substrings(input_line) result(n_substrings)
