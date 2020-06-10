@@ -1,9 +1,11 @@
 \chapter{PHONONS}
+\label{app:phonons}
 
 The tool PHONONS allows to perform quantum thermal transport calculations \cite{phonontool}. 
 The quantities that can be computed are phonon transmission function and, hence, 
-the thermal conductance. The non-equilibrium Green's function formalism for phonon transport was used.
-Currently only coherent transport is possible based on a dynamical matrix.
+the thermal conductance. The non-equilibrium Green's function formalism for phonon transport is used.
+Currently only coherent transport is possible based on a dynamical matrix. 
+Support for Dynamical Matrices other than \dftbp are possible.
 Phonon dispersion of materials can also be computed using this tool, based on a supercell geometry.
 
 The input file must be named \verb|phonons_in.hsd| and should be a 
@@ -12,7 +14,7 @@ Human-friendly Structured Data (HSD) formatted file (see Appendix \ref{sec:hsd})
 \section{Phonon transport calculation}
 
 The input file has a similar structure to that defined for electron transport calculations and for the
-calculation of phonon modes (see Chapters \ref{app:modes} and \ref{app:transp}). 
+calculation of phonon modes (see Chapters \ref{app:transp} and \ref{app:modes}). 
 
 The table below contains the relevant blocks in the input file, 
 
@@ -28,7 +30,8 @@ The table below contains the relevant blocks in the input file,
 \begin{description}
 \item[\is{Geometry}] Specifies the geometry for the system to be calculated. 
 	Follow the steps described in Section \ref{sec:transport.geometry} for a proper generation 
-	of the geometry file to compute transport properties. Also use the tool SETUPGEOM.
+	of the geometry file to compute transport properties. Also use the tool SETUPGEOM to help
+	building a valid structure for transport (See Chapter \ref{app:setupgeom}).
 \item[\is{Transport}] Contains the description of the partitioning of the system into a 
 	{\em device} and {\em contact} regions and additional information needed to calculate the 
 	required self-energies associated with the contacts. 
@@ -46,11 +49,10 @@ The table below contains the relevant blocks in the input file,
 \subsection{Transport\{\}}
 \label{sec:phonon.Transport}
 
-The common partitioning scheme for phonon transport calculation was used. 
-In this block, the atoms considered for the device and contact regions must be specified 
-(see Section 4.2). 
-The temperature of the contacts is added in the contact sections. 
-An example of the transport geometry specification looks like:
+The block \is{Transport} is used to specify the partitioning of the structure into contacts and 
+extended central region. 
+The temperature of the contacts is added in the contact sections. An example of the transport 
+geometry specification looks like:
 
 \begin{verbatim}
 transport {
@@ -112,7 +114,7 @@ The contact block contains the following properties:
 \label{sec:phonon.Hessian}
 
 The Hessian matrix is at the core of the calculation. 
-It contains the second derivatives\index{Hessian} of the energy,
+It contains the second derivatives of the energy \index{Hessian},
 	
 $$\frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
   E}{\partial x_{j1} \partial x_{i1}} \frac{\partial^2 E}{\partial x_{k1}
@@ -124,7 +126,7 @@ $$\frac{\partial^2 E}{\partial x_{i1} \partial x_{i1}} \frac{\partial^2
 The Hessian matrix can be supplied by {\dftbp}, see p.~\pref{sec:dftbp.SecondDerivatives} 
 The derivatives matrix must be stored as the following order: For the $i$, $j$ and $k$
 directions of atoms $1 \ldots n$.
-The tool PHONONS can also read other formats of Hessians computed with other tools. 
+The tool PHONONS can also read other formats of Hessians computed with other codes. 
 Currently Gaussian and CP2K are implemented.
 
 The table below contains the list of properties which may be present in this block:
@@ -173,7 +175,7 @@ Analysis {
       Atoms = 1:50
     }
   }
-
+  ModeType = longitudinal
   Conductance{
     TempRange [K] = 1.0 802.0
     TempStep [K] = 1.0
@@ -221,6 +223,19 @@ specified if an open boundary conditions system has been defined in \is{Transpor
 	density of states is projected. 
 	The definition in the block follow the same syntax as a \dftbp{} calculation without 
 	transport (see section~\ref{sec:dftbp.ProjectStates}).
+\item[\iscb{ModeType}] Defines the type of modes for which the transmission is restricted to.
+	It is basic implementation that allows to project on mode components along 
+	cartesian axes. Currently available options are\\
+	\begin{itemize}
+	  \item{x-axis} Projects on x-axis 
+        \item{y-axis} Projects on y-axis 
+        \item{z-axis} Projects on z-axis
+        \item{longitudinal} Projects on z, assuming transport direction is along z.
+        \item{transverse} Projects on x-y.
+        \item{inplane} Projects on x-z, assuming a 2D planar structure on this plane.
+        \item{outofplane} Projects on y, assuming a 2D planar structure on the xz plane.
+        \item{all} Computes transmission for all modes.
+      \end{itemize}
 \end{description}
 
 \htcbsubsubsection{Conductance}
@@ -285,8 +300,8 @@ PhononDispersion{
 	low-dimensional structures can be for instance 3x3x1 (2-dimension). 
 \item[\iscb{KPointsAndWeights}] Defines the k-point path for the phonon dispersion. 
 	The syntax is the same as that defined in the \dftbp{} input. 
-\item[\is[OutputUnits]] Specifies the output units. Can be one of 'H', 'eV', 'meV',
-	'cm, 'THz'. 
+\item[\is{OutputUnits}] Specifies the output units of the phonon bandstructure. 
+	These can be one of 'H', 'eV', 'meV', 'cm' or 'THz'. 
 \end{description} 
 
 
