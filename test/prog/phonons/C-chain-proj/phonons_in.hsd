@@ -38,6 +38,7 @@ Analysis {
       Delta [eV] = 1e-6
     }
     ModeType = longitudinal
+    !ModeType = transverse
     #DeltaModel = Mingo{
     #  Delta = 10.0
     #  Wmax [eV] = 4e-1 
