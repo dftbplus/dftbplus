@@ -1541,24 +1541,10 @@ contains
     allocate(species0(nAtom))
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
-
-    ! Check coherence across processes for various key variables
-    ! (relevant if running in MPI, particularly for external driving via API)
-    !TODO(Alex) Move #:block DEBUG_CODE inside check..Coherence
-    !TODO(Alex) Write this using a preprocessing for loop 
+    
   #:block DEBUG_CODE
-    call checkExactCoherence(env, nAtom, "nAtom in initProgramVariables")
-    call checkToleranceCoherence(env, coord0, "coord0 in initProgramVariables", tol=1.e-10)
-    if (tPeriodic) then
-       call checkExactCoherence(env, tFracCoord, "tFracCoord in initProgramVariables")
-       call checkToleranceCoherence(env, latVec, "latVec in initProgramVariables", tol=1.e-10)
-       call checkToleranceCoherence(env, origin, "origin in initProgramVariables", tol=1.e-10)
-    endif
-    call checkExactCoherence(env, speciesName, "speciesName in initProgramVariables")
-    call checkExactCoherence(env, species0, "species0 in initProgramVariables")
-    call checkExactCoherence(env, tSccCalc, "tSccCalc in initProgramVariables")
-    call checkExactCoherence(env, nSpin, "nSpin in initProgramVariables")
-    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in initProgramVariables")    
+    call inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
+       & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
   #:endblock DEBUG_CODE
     
     if (input%ctrl%tHalogenX) then
@@ -3247,6 +3233,71 @@ contains
     call env%globalTimer%stopTimer(globalTimers%globalInit)
 
   end subroutine initProgramVariables
+
+  
+  !> Check coherence across processes for various key variables (relevant if running in MPI,
+  !> particularly for external driving via API) 
+  subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
+       & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> Hamiltonian type
+    integer, intent(in) :: hamiltonianType
+
+    !> Number of spin components
+    integer, intent(in) :: nSpin
+    
+    !> Atoms in the system
+    integer, intent(in) :: nAtom
+
+    ! Atom coordinates (in the central unit cell, if relevant).
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> Species of atoms in the central cell
+    integer, intent(in) :: species0(:)
+    
+    !> Names of chemical species
+    character(*), intent(in) :: speciesName(:)
+
+    !> Is the calculation SCC?
+    logical, intent(in) :: tSccCalc
+
+    !> Is the calculation periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> If periodic, are the atomic positions in fractional coordinates?
+    logical, intent(in) :: tFracCoord
+
+    !> lattice vectors, stored columnwise
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin of coordinate system for periodic systems
+    real(dp), intent(in) :: origin(:)
+
+    integer :: iSp
+    
+    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in initProgramVariables") 
+    call checkExactCoherence(env, nSpin, "spin integer in initProgramVariables")
+    call checkExactCoherence(env, nAtom, "the number of atoms in initProgramVariables")
+    call checkToleranceCoherence(env, coord0, "coord0 in initProgramVariables", tol=1.e-10_dp)
+    call checkExactCoherence(env, species0, "atomic species in initProgramVariables")
+    call checkExactCoherence(env, tSccCalc, &
+         & "the type of calculation, SCC, in initProgramVariables")
+    do iSp = 1, size(speciesName)
+       call checkExactCoherence(env, speciesName(iSp), "species names in initProgramVariables")
+    enddo
+    
+    if (tPeriodic) then
+       call checkExactCoherence(env, tFracCoord, "tFracCoord in initProgramVariables")
+       call checkToleranceCoherence(env, latVec, &
+            & "lattice vectors in initProgramVariables", tol=1.e-10_dp)
+       call checkToleranceCoherence(env, origin, &
+            & "coordinate origin in initProgramVariables", tol=1.e-10_dp)
+    endif
+
+  end subroutine inputCoherenceCheck
 
   
   !> Create equivalency relations

@@ -24,7 +24,7 @@ module dftbp_mainapi
        & parallelKS, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon, &
        & initializeReferenceCharges, setNElectrons, initializeCharges, qBlockIn, qBlockOut,        &
        & qiBlockIn, qiBlockOut, iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS,  &
-       & tStress, totalStress
+       & tStress, totalStress, hamiltonianType
 #:if WITH_SCALAPACK
   use dftbp_initprogram,  only : getDenseDescBlacs
 #:endif
@@ -66,13 +66,14 @@ contains
 
     ! Check data is consistent across MPI processes 
     #:block DEBUG_CODE
-    call checkToleranceCoherence(env, coords, "coords in setGeometry", tol=1.e-10)
+    call checkToleranceCoherence(env, coords, "coords in setGeometry", tol=1.e-10_dp)
     if (present(latVecs)) then
-       call checkToleranceCoherence(env, latVecs, "latVecs in setGeometry", tol=1.e-10)
+       call checkToleranceCoherence(env, latVecs, "latVecs in setGeometry", tol=1.e-10_dp)
        call checkExactCoherence(env, tFracCoord, "tFracCoord in setGeometry")
     endif
     if (present(coordOrigin)) then
-       call checkToleranceCoherence(env, coordOrigin, "coordOrigin in setGeometry", tol=1.e-10)
+       call checkToleranceCoherence(env, coordOrigin, "coordOrigin in setGeometry", &
+            & tol=1.e-10_dp)
     endif
     #:endblock DEBUG_CODE  
 
@@ -280,9 +281,18 @@ contains
     !> Has speciesName changed?
     logical                   :: tSpeciesNameChanged
 
-    #:block DEBUG_CODE
-    call checkExactCoherence(env, inputSpeciesName, &
-         & "inputSpeciesName in checkSpeciesNames")
+    !> Index over species
+    integer :: i
+    !> Species index as string 
+    character(len=6) :: i_str
+    
+  #:block DEBUG_CODE
+    do i = 1, size(inputSpeciesName)
+       write(i_str, '(I6)') i  
+       call checkExactCoherence(env, inputSpeciesName(i), &
+            & "inputSpeciesName element "//trim(adjustl(i_str))&
+            &//", in checkSpeciesNames")
+    enddo
     #:endblock DEBUG_CODE  
     
     tSpeciesNameChanged = any(speciesName /= inputSpeciesName)
