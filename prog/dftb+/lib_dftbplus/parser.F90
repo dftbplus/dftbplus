@@ -4788,7 +4788,6 @@ contains
 
     case ("kickandlaser")
        input%pertType = pertTypes%kickAndLaser
-       input%pertType = pertTypes%kick
        call getChildValue(value1, "KickPolDir", buffer2)
        select case(unquote(char(buffer2)))
        case ("x", "X")

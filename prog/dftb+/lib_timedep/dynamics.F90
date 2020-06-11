@@ -2154,7 +2154,7 @@ contains
     end if
     call openFile(this, dipoleDat, dipoleFileName)
 
-    if (.not. this%tKick) then
+    if (.not. this%tKick .or. this%tKickAndLaser) then
       call openFile(this, qDat, 'qsvst.dat')
       call openFile(this, energyDat, 'energyvst.dat')
 
