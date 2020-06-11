@@ -98,7 +98,8 @@ module dftbp_reksio
     select case (self%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call printReksSAInfo22_(Etotal, self%enLtot, self%energy, self%FONs, self%Efunction, self%Plevel)
+      call printReksSAInfo22_(Etotal, self%enLtot, self%energy, self%FONs, self%Efunction,&
+          & self%Plevel)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
