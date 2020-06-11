@@ -23,19 +23,29 @@ module dftbp_reksvar
 
   private
 
-  public :: TReksIni, TReksCalc, REKS_init
+  public :: TReksInp, TReksCalc, REKS_init, reksTypes
+
+  type :: TReksTypesEnum
+
+    !> Do not use REKS calculations
+    integer :: noReks = 0
+
+    !> SSR(2,2) calculations
+    integer :: ssr22 = 1
+
+    !> SSR(4,4) calculations
+    integer :: ssr44 = 2
+
+  end type TReksTypesEnum
+
+  !> Container for enumerated REKS types
+  type(TReksTypesEnum), parameter :: reksTypes = TReksTypesEnum()
 
   !> Data type for initial values for REKS calculations
-  type :: TReksIni
+  type :: TReksInp
 
-    !> Is this DFTB/SSR formalism
-    logical :: tREKS = .false.
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical :: tSSR22 = .false.
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical :: tSSR44 = .false.
+    !> Type of REKS calculations
+    integer :: reksAlg
 
     !> REKS: energy variables
 
@@ -43,14 +53,14 @@ module dftbp_reksvar
     !> In SSR(2,2), 1: PPS, 2: (PPS+OSS)/2
     integer :: Efunction
 
-    !> Calculated energy states in SA-REKS
-    !> 1: calculate states only included in 'EnergyFuncitonal'
-    !> 2: calculate all possible states
-    integer :: Elevel
+    !> Decide the energy states in SA-REKS
+    !> If true, it includes all possible states in current active space
+    !> If false, it includes the states used in minimized energy functional
+    logical :: tAllStates
 
-    !> Calculate SSR state (SI term is included)
-    !> 1: calculate SSR state, 0: calculate SA-REKS state
-    integer :: useSSR
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical :: tSSR
+
 
     !> Target SSR state
     integer :: rstate
@@ -58,9 +68,10 @@ module dftbp_reksvar
     !> Target microstate
     integer :: Lstate
 
-    !> Initial guess for eigenvectors in REKS
-    !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
-    integer :: guess
+    !> Read initial guess for eigenvectors in REKS
+    !> If true, initial eigenvectors are obtained from 'eigenvec.bin'
+    !> If false, initial eigenvectors are obtained from diagonalization of H0
+    logical :: tReadMO
 
     !> Maximum iteration used in FON optimization
     integer :: FonMaxIter
@@ -73,6 +84,7 @@ module dftbp_reksvar
 
     !> Calculate transition dipole moments
     logical :: tTDP
+
 
     !> REKS: gradient variables
 
@@ -88,11 +100,20 @@ module dftbp_reksvar
     !> Tolerance used in calculation of gradient with PCG and CG
     real(dp) :: Glimit
 
+    !> Use preconditioner for conjugate gradient algorithm
+    logical :: tPrecond
+
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    !> Usually, it shows fast speed but requires large memory ~O(N^4) orders
+    logical :: tSaveMem
+
+
     !> Calculate relaxed density of SSR or SA-REKS state
     logical :: tRD
 
     !> Calculate nonadiabatic coupling vectors
     logical :: tNAC
+
 
     !> REKS: system variables
 
@@ -102,36 +123,25 @@ module dftbp_reksvar
     !> 2: 1 + detailed energy contribution of each microstate
     integer :: Plevel
 
-    !> Memory level used in calculation of gradient
-    !> Usually, 1 is more faster than 2
-    !> 1: save 'A_1e' and 'Hxc' variables in memory (requires large memory about 4 orders)
-    !> 2: do not save 'A_1e' and 'Hxc' variables in memory
-    integer :: Mlevel
-
-  end type TReksIni
+  end type TReksInp
 
   !> Data type for REKS internal settings
   type :: TReksCalc
 
-    !> Is this DFTB/SSR formalism
-    logical :: tREKS = .false.
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical :: tSSR22 = .false.
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical :: tSSR44 = .false.
+    !> Type of REKS calculations
+    integer :: reksAlg
 
     !> REKS: energy variables (input)
 
     !> Minimized energy functional
     integer :: Efunction
 
-    !> Calculated energy states in SA-REKS
-    integer :: Elevel
+    !> Decide the energy states in SA-REKS
+    logical :: tAllStates
 
-    !> Calculate SSR state (SI term is included)
-    integer :: useSSR
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical :: tSSR
+
 
     !> Target SSR state
     integer :: rstate
@@ -139,8 +149,8 @@ module dftbp_reksvar
     !> Target microstate
     integer :: Lstate
 
-    !> Initial guess for eigenvectors in REKS
-    integer :: guess
+    !> Read initial guess for eigenvectors in REKS
+    logical :: tReadMO
 
     !> Maximum iteration used in FON optimization
     integer :: FonMaxIter
@@ -154,6 +164,7 @@ module dftbp_reksvar
     !> Calculate transition dipole moments
     logical :: tTDP
 
+
     !> REKS: gradient variables (input)
 
     !> Algorithms to calculate analytic gradients
@@ -165,19 +176,21 @@ module dftbp_reksvar
     !> Tolerance used in calculation of gradient with PCG and CG
     real(dp) :: Glimit
 
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical :: tSaveMem
+
+
     !> Calculate relaxed density of SSR or SA-REKS state
     logical :: tRD
 
     !> Calculate nonadiabatic coupling vectors
     logical :: tNAC
 
+
     !> REKS: system variables (input)
 
     !> Print level in standard output file
     integer :: Plevel
-
-    !> Memory level used in calculation of gradient
-    integer :: Mlevel
 
 
     !> REKS: energy variables
@@ -213,7 +226,7 @@ module dftbp_reksvar
     logical :: t3rd
 
     !> Whether to run a range separated calculation
-    logical :: tRangeSep
+    logical :: isRangeSep
 
     !> Do we need forces?
     logical :: tForces
@@ -525,14 +538,14 @@ module dftbp_reksvar
   contains
 
   !> Initialize REKS data from REKS input
-  subroutine REKS_init(self, ini, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
-      & blurWidths, t3rd, tRangeSep, tForces, tPeriodic, tStress, tDipole)
+  subroutine REKS_init(self, inp, orb, spinW, nSpin, nEl, nChrgs, extChrg, &
+      & blurWidths, t3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
     
     !> data type for REKS
     type(TReksCalc), intent(out) :: self
 
     !> data type for REKS input
-    type(TReksIni), intent(inout) :: ini
+    type(TReksInp), intent(inout) :: inp
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -559,7 +572,7 @@ module dftbp_reksvar
     logical, intent(in) :: t3rd
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> Do we need forces?
     logical, intent(in) :: tForces
@@ -580,72 +593,41 @@ module dftbp_reksvar
 
     ! Set REKS input variables
 
-    self%tREKS = ini%tREKS
-    self%tSSR22 = ini%tSSR22
-    self%tSSR44 = ini%tSSR44
+    self%reksAlg = inp%reksAlg
 
-    self%Efunction = ini%Efunction
-    self%Elevel = ini%Elevel
-    self%useSSR = ini%useSSR
-    self%rstate = ini%rstate
-    self%Lstate = ini%Lstate
-    self%guess = ini%guess
-    self%FonMaxIter = ini%FonMaxIter
-    self%shift = ini%shift
+    self%Efunction = inp%Efunction
+    self%tAllStates = inp%tAllStates
+    self%tSSR = inp%tSSR
 
-    self%Glevel = ini%Glevel
-    self%CGmaxIter = ini%CGmaxIter
-    self%Glimit = ini%Glimit
+    self%rstate = inp%rstate
+    self%Lstate = inp%Lstate
+    self%tReadMO = inp%tReadMO
+    self%FonMaxIter = inp%FonMaxIter
+    self%shift = inp%shift
 
-    self%Plevel = ini%Plevel
-    self%Mlevel = ini%Mlevel
+    self%tTDP = inp%tTDP
 
-    self%tTDP = ini%tTDP
+    self%Glevel = inp%Glevel
+    if (self%Glevel == 1 .or. self%Glevel == 2) then
+      self%CGmaxIter = inp%CGmaxIter
+      self%Glimit = inp%Glimit
+      self%tSaveMem = inp%tSaveMem
+    end if
 
-    self%tRD = ini%tRD
-    self%tNAC = ini%tNAC
+    self%Plevel = inp%Plevel
+
+    self%tRD = inp%tRD
+    self%tNAC = inp%tNAC
 
     ! Set REKS variables
 
-    if (self%tSSR22) then
-
-      self%Nc = int(real(nEl, dp)) / 2 - 1
-      self%Na = 2
-      self%Lmax = 6
-      self%LmaxR = 4
-      self%Lpaired = 2
-      if (self%Efunction == 1) then
-        ! Only PPS state is minimized; single-state REKS
-        self%SAstates = 1
-        if (self%Elevel == 1) then
-          ! PPS state
-          self%nstates = 1
-        else
-          call error("EnergyLevel should be 1 in single-state REKS")
-        end if
-      else if (self%Efunction == 2) then
-        ! (PPS+OSS)/2 state is minimized; SA-REKS
-        self%SAstates = 2
-        if (self%Elevel == 1) then
-          ! PPS, OSS state
-          self%nstates = 2
-        else if (self%Elevel == 2) then
-          ! PPS, OSS, DES state
-          self%nstates = 3
-        else
-          call error("EnergyLevel should be 1 or 2 in SI-SA-REKS")
-        end if
-      else
-        call error("EnergyFunctional should be 1 or 2 in REKS calculation")
-      end if
-      ! Fractional occupation numbers, n_a and n_b
-      allocate(self%FONs(self%Na,1))
-
-    else if (self%tSSR44) then
-
-      call error("SSR(4,4) not implemented yet")
-
-    end if
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
+      call setSSR22conditions(self, nEl)
+    case (reksTypes%ssr44)
+      call error("SSR(4,4) is not implemented yet")
+    end select
 
     nOrb = orb%nOrb
     mOrb = orb%mOrb
@@ -665,10 +647,10 @@ module dftbp_reksvar
     superN = Nc*Nv + Na*(Nc+Nv) + Na*(Na-1)/2
 
     nAtom = size(orb%nOrbAtom,dim=1)
-    nType = size(ini%Tuning,dim=1)
+    nType = size(inp%Tuning,dim=1)
 
     self%t3rd = t3rd
-    self%tRangeSep = tRangeSep
+    self%isRangeSep = isRangeSep
 
     self%tForces = tForces
     self%tPeriodic = tPeriodic
@@ -687,11 +669,13 @@ module dftbp_reksvar
 
     call checkReksRequirements(self)
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call checkSSR22Requirements(self)
-    else if (self%tSSR44) then
-      call error("SSR(4,4) not implemented yet")
-    end if
+    case (reksTypes%ssr44)
+      call error("SSR(4,4) is not implemented yet")
+    end select
 
     ! Allocate REKS variables
 
@@ -710,7 +694,7 @@ module dftbp_reksvar
       allocate(self%rhoSpL(0,1,Lmax))
     end if
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       allocate(self%deltaRhoSqrL(nOrb,nOrb,1,Lmax))
     end if
 
@@ -721,7 +705,7 @@ module dftbp_reksvar
     allocate(self%intShellL(mShell,nAtom,nSpin,Lmax))
     allocate(self%intBlockL(mOrb,mOrb,nAtom,nSpin,Lmax))
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       allocate(self%hamSqrL(nOrb,nOrb,1,Lmax))
     else
       allocate(self%hamSpL(0,1,Lmax))
@@ -741,7 +725,7 @@ module dftbp_reksvar
       allocate(self%enL3rd(Lmax))
     end if
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       allocate(self%enLfock(Lmax))
     end if
 
@@ -771,20 +755,20 @@ module dftbp_reksvar
         allocate(self%GammaDeriv(nAtom,nAtom,3))
         allocate(self%SpinAO(nOrb,nOrb))
 
-        if (self%tRangeSep) then
+        if (self%isRangeSep) then
           allocate(self%LrGammaAO(nOrb,nOrb))
           allocate(self%LrGammaDeriv(nAtom,nAtom,3))
         end if
 
         allocate(self%weightIL(Lmax))
         allocate(self%omega(superN))
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
           allocate(self%Rab(nstates,nstates))
         end if
 
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
-            if (self%tRangeSep) then
+          if (self%tSaveMem) then
+            if (self%isRangeSep) then
               allocate(self%HxcHalfS(nOrbHalf,nOrbHalf))
               allocate(self%HxcHalfD(nOrbHalf,nOrbHalf))
             else
@@ -800,7 +784,7 @@ module dftbp_reksvar
           allocate(self%Aall(superN,superN))
         end if
 
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
           allocate(self%XT(superN,nstates))
           allocate(self%XTdel(superN,nstHalf))
           allocate(self%RdelL(nOrb,nOrb,LmaxR,nstHalf))
@@ -897,7 +881,7 @@ module dftbp_reksvar
       self%rhoSpL(:,:,:) = 0.0_dp
     end if
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       self%deltaRhoSqrL(:,:,:,:) = 0.0_dp
     end if
 
@@ -908,7 +892,7 @@ module dftbp_reksvar
     self%intShellL(:,:,:,:) = 0.0_dp
     self%intBlockL(:,:,:,:,:) = 0.0_dp
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       self%hamSqrL(:,:,:,:) = 0.0_dp
     else
       self%hamSpL(:,:,:) = 0.0_dp
@@ -928,7 +912,7 @@ module dftbp_reksvar
       self%enL3rd(:) = 0.0_dp
     end if
 
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       self%enLfock(:) = 0.0_dp
     end if
 
@@ -956,20 +940,20 @@ module dftbp_reksvar
         self%GammaDeriv(:,:,:) = 0.0_dp
         self%SpinAO(:,:) = 0.0_dp
 
-        if (self%tRangeSep) then
+        if (self%isRangeSep) then
           self%LrGammaAO(:,:) = 0.0_dp
           self%LrGammaDeriv(:,:,:) = 0.0_dp
         end if
 
         self%weightIL(:) = 0.0_dp
         self%omega(:) = 0.0_dp
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
           self%Rab(:,:) = 0.0_dp
         end if
 
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
-            if (self%tRangeSep) then
+          if (self%tSaveMem) then
+            if (self%isRangeSep) then
               self%HxcHalfS(:,:) = 0.0_dp
               self%HxcHalfD(:,:) = 0.0_dp
             else
@@ -986,7 +970,7 @@ module dftbp_reksvar
         end if
 
         self%XT = 0.0_dp
-        if (self%useSSR == 1) then
+        if (self%tSSR) then
           self%XTdel(:,:) = 0.0_dp
           self%RdelL(:,:,:,:) = 0.0_dp
           self%ZdelL(:,:,:) = 0.0_dp
@@ -1064,7 +1048,7 @@ module dftbp_reksvar
 
     self%SAweight(:) = 1.0_dp / real(self%SAstates, dp)
 
-    call move_alloc(ini%Tuning, self%Tuning)
+    call move_alloc(inp%Tuning, self%Tuning)
 
     ! Scale up or down the atomic spin constants w.r.t. the systems
     ! iAt : loop for atomic species
@@ -1075,15 +1059,56 @@ module dftbp_reksvar
 
     ! Set the ordering information betwen R_mat_L and filling_L
     if (self%Efunction > 1 .and. self%tForces) then
-      if (self%tSSR22) then
+      select case (self%reksAlg)
+      case (reksTypes%noReks)
+      case (reksTypes%ssr22)
         ! R_mat_L has 4 elements and filling_L has 6 elements in (2,2) case
         self%orderRmatL(:) = [1, 2, 1, 2, 3, 4]
-      else if (self%tSSR44) then
-        call error("SSR(4,4) not implemented yet")
-      end if
+      case (reksTypes%ssr44)
+        call error("SSR(4,4) is not implemented yet")
+      end select
     end if
 
   contains
+
+    !> Check REKS common requirements
+    subroutine setSSR22conditions(self, nEl)
+
+      !> data type for REKS
+      type(TReksCalc), intent(inout) :: self
+
+      !> nr. of electrons
+      real(dp), intent(in) :: nEl
+
+      self%Nc = int(real(nEl, dp)) / 2 - 1
+      self%Na = 2
+      self%Lmax = 6
+      self%LmaxR = 4
+      self%Lpaired = 2
+      if (self%Efunction == 1) then
+        ! Only PPS state is minimized; single-state REKS
+        self%SAstates = 1
+        if (.not. self%tAllStates) then
+          ! PPS state
+          self%nstates = 1
+        else
+          call error("IncludeAllStates should be set to No in single-state REKS")
+        end if
+      else if (self%Efunction == 2) then
+        ! (PPS+OSS)/2 state is minimized; SA-REKS
+        self%SAstates = 2
+        if (.not. self%tAllStates) then
+          ! PPS, OSS state
+          self%nstates = 2
+        else
+          ! PPS, OSS, DES state
+          self%nstates = 3
+        end if
+      end if
+      ! Fractional occupation numbers, n_a and n_b
+      allocate(self%FONs(self%Na,1))
+
+    end subroutine setSSR22conditions
 
     !> Check REKS common requirements
     subroutine checkReksRequirements(self)
@@ -1101,14 +1126,12 @@ module dftbp_reksvar
         end if
       end if
 
-      if (self%useSSR == 1 .and. self%Efunction == 1) then
+      if (self%tSSR .and. self%Efunction == 1) then
         call error("Single-state REKS is not SSR state")
       end if
 
-      if (self%useSSR > 1 .or. self%useSSR < 0) then
-        call error("Wrong useSSRstate given, please select 0 or 1")
-      else if (self%guess > 2 .or. self%guess < 1) then
-        call error("Wrong InitialGuess given, please select 1 or 2")
+      if (self%shift < -epsilon(1.0_dp)) then
+        call error("Too small shift value in REKS")
       end if
 
       ! REKS gradient requirements
@@ -1122,25 +1145,18 @@ module dftbp_reksvar
         if (self%Lstate > 0) then
           if (self%Efunction == 1) then
             call error("gradient of microstate is not compatible with single-state REKS")
-          else if (self%useSSR == 1) then
-            call error("For gradient of microstate, please set useSSRstate = 0")
+          else if (self%tSSR) then
+            call error("For gradient of microstate, please set StateInteractions = No")
           end if
         end if
 
         if (self%tNAC) then
           if (self%Lstate > 0) then
             call error("Nonadiabatic coupling is not compatible with gradient of microstate")
-          else if (self%useSSR == 0 .or. self%Efunction == 1) then
+          else if (.not. self%tSSR .or. self%Efunction == 1) then
             call error("Nonadiabatic coupling is not compatible with &
                 & single-state REKS or SA-REKS calculation")
           end if
-        end if
-
-        if (self%Glevel > 3 .or. self%Glevel < 1) then
-          call error("Wrong GradientLevel option, please write 1 to 3")
-        end if
-        if (self%Mlevel > 2 .or. self%Mlevel < 1) then
-          call error("Wrong memory option, please select 1 or 2")
         end if
 
       else
@@ -1163,7 +1179,7 @@ module dftbp_reksvar
       ! REKS system requirements
 
       if (self%Plevel > 2 .or. self%Plevel < 0) then
-        call error("Wrong printing option, please write 0 to 2")
+        call error("Wrong VerbosityLevel given, please write 0 to 2")
       end if
 
     end subroutine checkReksRequirements
@@ -1179,7 +1195,7 @@ module dftbp_reksvar
       if (self%rstate > 3 .or. self%rstate < 1) then
         call error("Wrong TargetState given, please write 1 to 3")
       else if (self%Lstate > 6 .or. self%Lstate < 0) then
-        call error("Wrong TargetStateL given, please write 0 to 6")
+        call error("Wrong TargetMicrostate given, please write 0 to 6")
       end if
 
     end subroutine checkSSR22Requirements
@@ -1201,7 +1217,7 @@ module dftbp_reksvar
     if (.not. self%tForces) then
       deallocate(self%rhoSpL)
     end if
-    if (.not. self%tRangeSep) then
+    if (.not. self%isRangeSep) then
       deallocate(self%hamSpL)
     end if
 
@@ -1209,8 +1225,8 @@ module dftbp_reksvar
       deallocate(self%edmSpL)
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
-            if (.not. self%tRangeSep) then
+          if (self%tSaveMem) then
+            if (.not. self%isRangeSep) then
               deallocate(self%HxcSpS)
               deallocate(self%HxcSpD)
             end if
@@ -1223,7 +1239,7 @@ module dftbp_reksvar
     if (.not. self%tForces) then
       allocate(self%rhoSpL(sparseSize,1,self%Lmax))
     end if
-    if (.not. self%tRangeSep) then
+    if (.not. self%isRangeSep) then
       allocate(self%hamSpL(sparseSize,1,self%Lmax))
     end if
 
@@ -1231,8 +1247,8 @@ module dftbp_reksvar
       allocate(self%edmSpL(sparseSize,self%Lmax))
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
-            if (.not. self%tRangeSep) then
+          if (self%tSaveMem) then
+            if (.not. self%isRangeSep) then
               allocate(self%HxcSpS(sparseSize,sparseSize))
               allocate(self%HxcSpD(sparseSize,sparseSize))
             end if
@@ -1245,7 +1261,7 @@ module dftbp_reksvar
     if (.not. self%tForces) then
       self%rhoSpL = 0.0_dp
     end if
-    if (.not. self%tRangeSep) then
+    if (.not. self%isRangeSep) then
       self%hamSpL = 0.0_dp
     end if
 
@@ -1253,8 +1269,8 @@ module dftbp_reksvar
       self%edmSpL = 0.0_dp
       if (self%Efunction > 1) then
         if (self%Glevel == 1 .or. self%Glevel == 2) then
-          if (self%Mlevel == 1) then
-            if (.not. self%tRangeSep) then
+          if (self%tSaveMem) then
+            if (.not. self%isRangeSep) then
               self%HxcSpS = 0.0_dp
               self%HxcSpD = 0.0_dp
             end if

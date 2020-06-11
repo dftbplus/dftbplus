@@ -43,6 +43,7 @@ module dftbp_nonscc
 
     !> evaluate second derivative
     procedure :: getSecondDeriv
+
   end type TNonSccDiff
 
   !> Namespace for possible differentiation methods
@@ -268,8 +269,7 @@ contains
       call getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb,&
           & this%deltaXDiff)
     case (diffTypes%richardson)
-      call getSecondDerivFiniteDiff(deriv, skCont, coords, species, atomI, atomJ, orb,&
-          & this%deltaXDiff)
+      call error("Richardson second derivative extrapolation not implemented")
     end select
 
   end subroutine getSecondDeriv
