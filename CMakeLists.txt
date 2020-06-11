@@ -154,6 +154,9 @@ add_subdirectory(tools/dptools)
 # Testing
 #
 string(CONFIGURE "${TEST_RUNNER_TEMPLATE}" TEST_RUNNER)
+if(NOT WITH_MPI)
+  string(CONFIGURE "${MODES_RUNNER_TEMPLATE}" MODES_RUNNER)
+endif()
 enable_testing()
 add_subdirectory(test)
 

@@ -12,8 +12,6 @@ option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 # If you build an MPI-parallised binary, consider to set WITH_OMP (OpenMP thread parallelisaton) to
 # FALSE unless you want hybrid parallelisation (for experts only).
 
-option(WITH_GPU "Whether code should be compiled with GPU support" FALSE)
-
 option(WITH_ELSI "Whether DFTB+ with MPI-parallelism should use the ELSI libraries" FALSE)
 # Works only with MPI-parallel build.
 
@@ -52,9 +50,9 @@ option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 #
 # Test environment settings
 #
-set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
+set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of MPI processes used for testing")
 
-set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
+set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpenMP-threads used for testing")
 
 # Command line used to launch the test code.
 # The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.
@@ -64,6 +62,8 @@ if(WITH_MPI)
 else()
   set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
     "How to run the tests")
+  set(MODES_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
+    "How to run the modes code for tests")
 endif()
 
 
