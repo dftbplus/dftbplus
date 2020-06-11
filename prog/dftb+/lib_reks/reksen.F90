@@ -23,11 +23,11 @@ module dftbp_reksen
   use dftbp_energies
   use dftbp_environment
   use dftbp_globalenv
-  use dftbp_mainio
   use dftbp_message
   use dftbp_periodic
   use dftbp_sparse2dense
   use dftbp_rekscommon
+  use dftbp_reksio
   use dftbp_reksvar, only : TReksCalc, reksTypes
 
   implicit none

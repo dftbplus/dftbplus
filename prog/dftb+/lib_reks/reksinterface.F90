@@ -21,7 +21,6 @@ module dftbp_reksinterface
   use dftbp_elecsolvers
   use dftbp_environment
   use dftbp_globalenv
-  use dftbp_mainio
   use dftbp_nonscc
   use dftbp_orbitals
   use dftbp_periodic
@@ -38,6 +37,7 @@ module dftbp_reksinterface
   use dftbp_rekscpeqn
   use dftbp_reksen
   use dftbp_reksgrad
+  use dftbp_reksio
   use dftbp_reksproperty
   use dftbp_reksvar
 
@@ -299,7 +299,7 @@ module dftbp_reksinterface
         do ist = 1, self%nstates
           if (ist /= self%SAstates) then
 
-            call printBlankLine()
+            write(stdOut,"(A)")
             write(stdOut,"(A)") repeat("-", 82)
             write(stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', ist, 'state vector...'
@@ -324,7 +324,7 @@ module dftbp_reksinterface
         do ist = 1, nstHalf
 
           call getTwoIndices(self%nstates, ist, ia, ib, 1)
-          call printBlankLine()
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
           write(stdOut,'(1x,a,1x,I2,1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for SI between', ia, 'and', ib, 'state vectors...'
@@ -352,7 +352,7 @@ module dftbp_reksinterface
           call SaToSsrWeight(self%Rab, self%weightIL, self%G1, &
               & self%eigvecsSSR, self%rstate, self%weightL)
 
-          call printBlankLine()
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
           write(stdOut,'(1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for', self%rstate, 'state vector...'
@@ -372,7 +372,7 @@ module dftbp_reksinterface
 
         else
 
-          call printBlankLine()
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
           if (self%Lstate == 0) then
             write(stdOut,'(1x,a,1x,I2,1x,a)') &
@@ -694,7 +694,7 @@ module dftbp_reksinterface
 
 !        if (allocated(thirdOrd)) then
 !          call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-!              & reks%qOutput_L(:,:,:,iL), reks%q0, img2CentCell, orb)
+!              & self%qOutput_L(:,:,:,iL), q0, img2CentCell, orb)
 !          call thirdOrd%addStressDc(neighbourList, species, coord, &
 !              & img2CentCell, cellVol, tmpStress)
 !        end if
@@ -1176,7 +1176,7 @@ module dftbp_reksinterface
       call getQ1mat(ZT, self%fockFc, self%fockFa, self%SAweight, &
           & self%FONs, self%Nc, self%Na, self%reksAlg, Q1mat)
     else
-      call printBlankLine()
+      write(stdOut,"(A)")
     end if
 
   end subroutine solveCpReks_

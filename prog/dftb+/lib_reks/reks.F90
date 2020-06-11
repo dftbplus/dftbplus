@@ -19,7 +19,7 @@ module dftbp_reks
   use dftbp_reksen
   use dftbp_reksfon
   use dftbp_reksinterface
-  use dftbp_reksproperty
+  use dftbp_reksio
   use dftbp_reksvar
 
   implicit none
@@ -37,13 +37,10 @@ module dftbp_reks
   !>            1 = 1u + 1d (= 1u + 1u), 2 = 2u + 2d (= 2u + 2u), 3 = 3u + 3d (= 3u + 4u),
   !>            4 = 3u - 3d (= 3u - 4u), 5 = 5u + 5d (= 5u + 6u), 6 = 5u - 5d (= 5u - 6u).
 
-  !> dftbp_rekscommon modules used in main.F90, mainio.F90
+  !> dftbp_rekscommon modules used in main.F90
   public :: checkGammaPoint
   public :: qm2udL, ud2qmL
   public :: qmExpandL!, udExpandL
-  ! TODO : circular dependency - reksen, reksinterface, reksproperty
-!  public :: getTwoIndices
-!  public :: getSpaceSym
 
   !> dftbp_reksen modules used in main.F90
   public :: constructMicrostates, calcWeights
@@ -57,6 +54,9 @@ module dftbp_reks
   public :: getStateInteraction, getReksEnProperties
   public :: getReksGradients, getReksGradProperties
   public :: getReksStress
+
+  !> dftbp_reksio modules used in main.F90
+  public :: printReksMicrostates, printSaReksEnergy, printReksSAInfo
 
   !> dftbp_reksvar module used in main.F90, mainio.F90, inputdata.F90, initprogram.F90, parser.F90
   public :: TReksInp, TReksCalc, REKS_init, reksTypes
