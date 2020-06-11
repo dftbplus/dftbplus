@@ -28,7 +28,7 @@ module dftbp_reksen
   use dftbp_periodic
   use dftbp_sparse2dense
   use dftbp_rekscommon
-  use dftbp_reksvar, only : TReksCalc
+  use dftbp_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
@@ -47,11 +47,13 @@ module dftbp_reksen
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getFillingL22_(self%Nc, self%fillingL)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine constructMicrostates
 
@@ -62,11 +64,13 @@ module dftbp_reksen
     !> data type for REKS
     type(TReksCalc), intent(inout) :: self
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getWeightL22_(self%FONs, self%delta, self%SAweight, self%weightL, self%weight)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine calcWeights
 
@@ -80,11 +84,13 @@ module dftbp_reksen
     !> eigenvectors
     real(dp), intent(inout) :: eigenvecs(:,:)
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call MOswap22_(eigenvecs, self%SAweight, self%FONs, self%Efunction, self%Nc)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine activeOrbSwap
 
@@ -98,11 +104,13 @@ module dftbp_reksen
     !> occupations (level)
     real(dp), intent(out) :: filling(:)
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getFilling22_(filling, self%SAweight, self%FONs, self%Efunction, self%Nc)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine getFilling
 
@@ -126,7 +134,7 @@ module dftbp_reksen
     if (self%t3rd) then
       energy%e3rd = 0.0_dp
     end if
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       energy%Efock = 0.0_dp
     end if
     do iL = 1, self%Lmax
@@ -136,7 +144,7 @@ module dftbp_reksen
       if (self%t3rd) then
         energy%e3rd = energy%e3rd + self%weightL(self%rstate,iL) * self%enL3rd(iL)
       end if
-      if (self%tRangeSep) then
+      if (self%isRangeSep) then
         energy%Efock = energy%Efock + self%weightL(self%rstate,iL) * self%enLfock(iL)
       end if
     end do
@@ -144,7 +152,7 @@ module dftbp_reksen
     if (self%t3rd) then
       energy%Eelec = energy%Eelec + energy%e3rd
     end if
-    if (self%tRangeSep) then
+    if (self%isRangeSep) then
       energy%Eelec = energy%Eelec + energy%Efock
     end if
 
@@ -216,7 +224,7 @@ module dftbp_reksen
 
     call getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, self%hamSqrL, self%hamSpL, self%weight, &
-        & self%fillingL, self%Nc, self%Na, self%Lpaired, self%tRangeSep, &
+        & self%fillingL, self%Nc, self%Na, self%Lpaired, self%isRangeSep, &
         & orbFON, self%fockFc, self%fockFa)
 
     call matAO2MO(self%fockFc, eigenvecs(:,:,1))
@@ -344,13 +352,15 @@ module dftbp_reksen
     call getLagrangians_(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, eigenvecs(:,:,1), self%hamSqrL, &
         & self%hamSpL, self%weight, self%fillingL, self%Nc, self%Na, &
-        & self%Lpaired, self%tRangeSep, Wab)
+        & self%Lpaired, self%isRangeSep, Wab)
 
-    if (self%tSSR22) then
+    select case (self%reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getStateCoup22_(Wab, self%FONs, StateCoup)
-    else if (self%tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
     ! diagonalize the state energies
     ! obtain SSR energies & state-interaction term
@@ -373,7 +383,7 @@ module dftbp_reksen
 
     ! save state energies to print information
     tmpEn(:) = self%energy
-    if (self%useSSR == 1) then
+    if (self%tSSR) then
       call diagDenseMtx(electronicSolver, 'V', tmpState, tmpOver, tmpEigen)
       self%eigvecsSSR(:,:) = tmpState
       self%energy(:) = tmpEigen
@@ -600,7 +610,7 @@ module dftbp_reksen
   !> Calculate Fc and Fa from Hamiltonian of each microstate
   subroutine getFockFcFa_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, hamSqrL, hamSpL, weight, fillingL, &
-      & Nc, Na, Lpaired, tRangeSep, orbFON, Fc, Fa)
+      & Nc, Na, Lpaired, isRangeSep, orbFON, Fc, Fa)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -651,7 +661,7 @@ module dftbp_reksen
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     real(dp), allocatable :: tmpHam(:,:)
 
@@ -660,7 +670,7 @@ module dftbp_reksen
     nOrb = size(Fc,dim=1)
     Lmax = size(weight,dim=1)
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
@@ -670,7 +680,7 @@ module dftbp_reksen
     Fa(:,:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (.not. tRangeSep) then
+      if (.not. isRangeSep) then
         tmpHam(:,:) = 0.0_dp
         ! convert from sparse to dense for hamSpL in AO basis
         ! hamSpL has (my_ud) component
@@ -682,7 +692,7 @@ module dftbp_reksen
       end if
 
       ! compute the Fock operator with core, a, b orbitals in AO basis
-      if (tRangeSep) then
+      if (isRangeSep) then
         call fockFcAO_(hamSqrL(:,:,1,iL), weight, Lpaired, iL, Fc)
         call fockFaAO_(hamSqrL(:,:,1,iL), weight, fillingL, orbFON, &
             & Nc, Na, Lpaired, iL, Fa)
@@ -945,7 +955,7 @@ module dftbp_reksen
   !> Calculate converged Lagrangian values
   subroutine getLagrangians_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, weight, &
-      & fillingL, Nc, Na, Lpaired, tRangeSep, Wab)
+      & fillingL, Nc, Na, Lpaired, isRangeSep, Wab)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -990,7 +1000,7 @@ module dftbp_reksen
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> converged Lagrangian values within active space
     real(dp), intent(out) :: Wab(:,:)
@@ -1005,7 +1015,7 @@ module dftbp_reksen
     Lmax = size(fillingL,dim=3)
     nActPair = Na * (Na - 1) / 2
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
     allocate(tmpHamL(nActPair,1,Lmax))
@@ -1017,7 +1027,7 @@ module dftbp_reksen
 
       do iL = 1, Lmax
 
-        if (tRangeSep) then
+        if (isRangeSep) then
           ! convert hamSqrL from AO basis to MO basis
           ! hamSqrL has (my_ud) component
           if (ist == 1) then

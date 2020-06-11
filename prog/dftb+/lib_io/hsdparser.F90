@@ -12,7 +12,7 @@
 !> The HSD format is a more or less user friendly input format, which can be easily converted to a
 !> simplified XML format. The parser returns a DOM-tree, which can be further processed. The
 !> returned tree contains also information about the original name and position of the keywords in
-!> the original HSD format, in order to enable user friendly error messages, if inconsistent data is
+!> the original HSD format, in order to enable user friendly error messages if inconsistent data are
 !> detected during the processing of the DOM-tree.
 !>
 !> For the specification of the HSD format see the sample input
@@ -153,7 +153,7 @@ module dftbp_hsdparser
   !> Format of the input line
   character(len=lc) :: lineFormat = ""
 
-  public :: parseHSD, dumpHSD, dumpHSDAsXML, newline
+  public :: parseHSD, dumpHSD, newline
   public :: getNodeHSDName, getHSDPath
   public :: attrStart, attrEnd, attrFile, attrName, attrModifier, attrList
 
@@ -383,26 +383,7 @@ contains
 
       case(1)
         !! XML inclusion
-        if (associated(curNode)) then
-          if (sepPos /= 1) then
-            call parsingError("Invalid character before file inclusion &
-                &operator", curFile, curLine)
-          end if
-          strLine = adjustl(unquote(strLine))
-          word = adjustl(strLine(len(sIncludeXML)+1:len_trim(strLine)))
-          if (len_trim(word) /= 0) then
-            if (depth == 0 .and. fileDepth == 0 &
-                &.and. .not. associated(getFirstChild(curNode))) then
-              call replaceTreeFromFile(curNode, trim(word))
-            else
-              call parsingError("XML inclusion must be the first statement &
-                  &in the first input file.", curFile, curLine)
-            end if
-          else
-            call parsingError("No file name specified after the inclusion &
-                &operator.", curFile, curLine)
-          end if
-        end if
+        call error("Mixed XML input in HSD input no longer supported")
 
       case(2, 3)
         !! File inclusion operator -> append content of new file to current node
@@ -695,73 +676,6 @@ contains
     call error(msgArray)
 
   end subroutine parsingError
-
-
-  !> Dumps the DOM-tree of a HSD document to a file.
-  !>
-  !> This routine pretty prints the XML-tree in the specified file.  Attributes related to the HSD
-  !> document (e.g. line number, file etc.)  are not printed.
-  subroutine dumpHSDAsXML(myDoc, fileName)
-
-    !> DOM-tree of a HSD document
-    type(fnode), pointer :: myDoc
-
-    !> File for the XML-dump.
-    character(len=*), intent(in) :: fileName
-
-    type(xmlf_t) :: xf
-    type(fnode), pointer :: fp
-
-    call xml_OpenFile(fileName, xf, indent=.true.)
-    call xml_AddXMLDeclaration(xf)
-    fp => getFirstChild(myDoc)
-    if (associated(fp)) then
-      call dumpHSDAsXML_recursive(xf, fp)
-    end if
-    call xml_Close(xf)
-
-  end subroutine dumpHSDAsXML
-
-
-  !> Recursive workhorse for dumpHSD
-  recursive subroutine dumpHSDAsXML_recursive(xf, node)
-
-    !> XML pretty printer data
-    type(xmlf_t), intent(inout) :: xf
-
-    !> Node to prety print
-    type(fnode), pointer :: node
-
-    type(string) :: txt, name, nodeValue
-    type(fnode), pointer :: fp
-    type(fNamedNodeMap), pointer :: attribs
-    integer :: ii
-
-    call getNodeName(node, txt)
-    if (getNodeType(node) == TEXT_NODE) then
-      call getNodeValue(node, nodeValue)
-      call xml_AddPCData(xf, trim2(char(nodeValue)))
-    else
-      call xml_NewElement(xf, char(txt))
-      attribs => getAttributes(node)
-      do ii = 0, getLength(attribs) - 1
-        fp => item(attribs, ii)
-        call getNodeName(fp, name)
-        !! Currently only the modifier and single attributes are dumped
-        if (name == attrModifier .or. name == attrList) then
-          call getNodeValue(fp, nodeValue)
-          call xml_AddAttribute(xf, char(name), char(nodeValue))
-        end if
-      end do
-      fp => getFirstChild(node)
-      do while (associated(fp))
-        call dumpHSDAsXML_recursive(xf, fp)
-        fp => getNextSibling(fp)
-      end do
-      call xml_EndElement(xf, char(txt))
-    end if
-
-  end subroutine dumpHSDAsXML_recursive
 
 
   !> Replaces the tree

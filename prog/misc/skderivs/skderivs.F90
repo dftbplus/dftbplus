@@ -15,7 +15,7 @@ program skderivs
   use dftbp_constants
   use dftbp_message
   use xmlf90_flib_dom
-  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
   use dftbp_hsdutils
   use dftbp_hsdutils2
   use dftbp_charmanip
@@ -40,7 +40,7 @@ program skderivs
   !> input data for the calculation of the derivatives
   type(TInputData) :: inp
 
-  call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in.xml", "skderivs_in")
+  call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in")
   call main(inp)
 
 contains
@@ -148,16 +148,13 @@ contains
 
 
   !> Parses the HSD input
-  subroutine parseHSDInput(inp, hsdInputName, xmlInputName, rootTag)
+  subroutine parseHSDInput(inp, hsdInputName, rootTag)
 
     !> parsed data
     type(TInputData), intent(out) :: inp
 
     !> file name for HSD input
     character(*), intent(in) :: hsdInputName
-
-    !> file name for XML input
-    character(*), intent(in) :: xmlInputName
 
     !> name of the tag at the root of the tree
     character(*), intent(in) :: rootTag
@@ -174,22 +171,14 @@ contains
     integer :: skInterMeth, nInt, nSpecies
     integer :: ii, jj
 
-    call readHSDOrXML(hsdInputName, xmlInputName, rootTag, hsdTree, isHSD, &
-        &inputMissing)
-    if (inputMissing) then
-      call error("No input file found.")
-    end if
-
-    write(stdout, "(A)") repeat("-", 80)
-    if (isHSD) then
-      write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
-    else
-      write(stdout, "(A)") "Interpreting input file '" // xmlInputName //  "'"
-    end if
-
     do ii = 1, maxL+1
       angShellOrdered(ii) = ii - 1
     end do
+
+    call parseHSD(rootTag, hsdInputName, root)
+
+    write(stdout, "(A)") repeat("-", 80)
+    write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
 
     call getChild(hsdTree, rootTag, root)
 

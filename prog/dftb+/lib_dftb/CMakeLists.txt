@@ -2,6 +2,7 @@ set(curdir "lib_dftb")
 
 set(sources-fpp
   ${curdir}/bondpopulations.F90
+  ${curdir}/boundarycond.F90
   ${curdir}/chargeconstr.F90
   ${curdir}/charges.F90
   ${curdir}/coordnumber.F90

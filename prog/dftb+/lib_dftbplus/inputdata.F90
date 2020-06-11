@@ -507,7 +507,7 @@ module dftbp_inputdata
     real(dp), allocatable :: customOccFillings(:,:)
 
     !> REKS input
-    type(TReksIni) :: reksIni
+    type(TReksInp) :: reksInp
 
   end type TControl
 
