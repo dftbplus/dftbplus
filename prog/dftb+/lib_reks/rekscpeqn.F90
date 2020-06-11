@@ -40,7 +40,7 @@ module dftbp_rekscpeqn
       & HxcHalfD, HxcSpS, HxcSpD, Fc, Fa, omega, SAweight, FONs, G1, GammaAO, &
       & SpinAO, LrGammaAO, overSqr, over, eigenvecs, fillingL, weight, &
       & ConvergeLimit, orderRmatL, getDenseAO, Lpaired, Nc, Na, maxIter, Glevel, &
-      & Mlevel, tRangeSep, tSSR22, tSSR44, ZT, RmatL, ZmatL, Q2mat)
+      & reksAlg, tSaveMem, isRangeSep, ZT, RmatL, ZmatL, Q2mat)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -163,18 +163,14 @@ module dftbp_rekscpeqn
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Memory level used in calculation of gradient
-    integer, intent(in) :: Mlevel
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    logical, intent(in) :: isRangeSep
 
 
     !> solution of A * Z = X equation with X is XT
@@ -210,42 +206,42 @@ module dftbp_rekscpeqn
 
     ! initial guess for Z vector
     ! initial Z_initial = A_pre^{-1} * X
-    if (Mlevel == 1) then
+    if (tSaveMem) then
       ZT(:) = 0.0_dp
       call gemv(ZT, A1ePre, XT)
-    else if (Mlevel == 2) then
+    else
       call shiftAY1ePre_(XT, Fc, Fa, omega, SAweight, FONs, G1, &
-          & Nc, Na, Glevel, tSSR22, tSSR44, ZT)
+          & Nc, Na, Glevel, reksAlg, ZT)
     end if
 
     ! initial setting for r0, z0, p0 vectors
     ! 1-electron part
-    if (Mlevel == 1) then
+    if (tSaveMem) then
       shift1e(:) = 0.0_dp
       call gemv(shift1e, A1e, ZT)
-    else if (Mlevel == 2) then
+    else
       call shiftAY1e_(ZT, Fc, Fa, omega, SAweight, FONs, G1, &
-          & Nc, Na, tSSR22, tSSR44, shift1e)
+          & Nc, Na, reksAlg, shift1e)
     end if
     ! 2-electron part
-    call getRmat(eigenvecs, ZT, fillingL, Nc, Na, tSSR22, tSSR44, RmatL)
+    call getRmat(eigenvecs, ZT, fillingL, Nc, Na, reksAlg, RmatL)
     call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
+        & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
     call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
-        & Nc, Na, tSSR22, tSSR44, shift2e)
+        & Nc, Na, reksAlg, shift2e)
 
     ! calculate r0 vector
     r0(:) = XT - shift1e - shift2e
     ! calculate z0, p0 vector
-    if (Mlevel == 1) then
+    if (tSaveMem) then
       z0(:) = 0.0_dp
       call gemv(z0, A1ePre, r0)
-    else if (Mlevel == 2) then
+    else
       call shiftAY1ePre_(r0, Fc, Fa, omega, SAweight, FONs, G1, &
-          & Nc, Na, Glevel, tSSR22, tSSR44, z0)
+          & Nc, Na, Glevel, reksAlg, z0)
     end if
     p0(:) = z0
 
@@ -256,22 +252,22 @@ module dftbp_rekscpeqn
 
       ! Construct (A1e + A2e) * P
       ! 1-electron part
-      if (Mlevel == 1) then
+      if (tSaveMem) then
         shift1e(:) = 0.0_dp
         call gemv(shift1e, A1e, p0)
-      else if (Mlevel == 2) then
+      else
         call shiftAY1e_(p0, Fc, Fa, omega, SAweight, FONs, G1, &
-            & Nc, Na, tSSR22, tSSR44, shift1e)
+            & Nc, Na, reksAlg, shift1e)
       end if
       ! 2-electron part
-      call getRmat(eigenvecs, p0, fillingL, Nc, Na, tSSR22, tSSR44, RmatL)
+      call getRmat(eigenvecs, p0, fillingL, Nc, Na, reksAlg, RmatL)
       call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
           & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
           & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
           & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-          & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
+          & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
       call shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
-          & Nc, Na, tSSR22, tSSR44, shift2e)
+          & Nc, Na, reksAlg, shift2e)
 
       ! compute step length
       rNorm1 = sum( r0(:)*z0(:) )
@@ -285,12 +281,12 @@ module dftbp_rekscpeqn
       ! update the residual
       r1(:) = r0 - alpha * (shift1e(:)+shift2e(:))
       ! solve new PCG residual
-      if (Mlevel == 1) then
+      if (tSaveMem) then
         z1(:) = 0.0_dp
         call gemv(z1, A1ePre, r1)
-      else if (Mlevel == 2) then
+      else
         call shiftAY1ePre_(r1, Fc, Fa, omega, SAweight, FONs, G1, &
-            & Nc, Na, Glevel, tSSR22, tSSR44, z1)
+            & Nc, Na, Glevel, reksAlg, z1)
       end if
       ! compute a gradient correction factor
       rNorm2 = sum( r1(:)*z1(:) )
@@ -329,12 +325,12 @@ module dftbp_rekscpeqn
     end do CGsolver
 
     ! converged R, Z, Q2 value
-    call getRmat(eigenvecs, ZT, fillingL, Nc, Na, tSSR22, tSSR44, RmatL)
+    call getRmat(eigenvecs, ZT, fillingL, Nc, Na, reksAlg, RmatL)
     call getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
         & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, &
         & HxcHalfS, HxcHalfD, HxcSpS, HxcSpD, overSqr, over, &
         & GammaAO, SpinAO, LrGammaAO, orderRmatL, getDenseAO, &
-        & Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
+        & Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
     call getQ2mat(eigenvecs, fillingL, weight, ZmatL, Q2mat)
     write(stdOut,'(2x,a)') 'CG solver: Calculating converged R, Z, Q2 matrix'
     write(stdOut,"(A)") repeat("-", 82)
@@ -348,7 +344,7 @@ module dftbp_rekscpeqn
 
   !> Calculate A1e * Y shift vectors without saving super A1e matrix
   subroutine shiftAY1e_(Y, Fc, Fa, omega, SAweight, FONs, G1, &
-      & Nc, Na, tSSR22, tSSR44, shift1e)
+      & Nc, Na, reksAlg, shift1e)
 
     !> trial vector for soulution
     real(dp), intent(in) :: Y(:)
@@ -377,11 +373,8 @@ module dftbp_rekscpeqn
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> computed (A1e * Y) shift vector
     real(dp), intent(out) :: shift1e(:)
@@ -401,13 +394,13 @@ module dftbp_rekscpeqn
     do ij = 1, superN
 
       ! assign index i and j from ij
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+      call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
 
       tmpA(:) = 0.0_dp
       do pq = 1, superN
 
         ! assign index p and q from pq
-        call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)
+        call assignIndex(Nc, Na, Nv, reksAlg, pq, p, q)
 
         if (ij <= pq) then
 
@@ -415,28 +408,28 @@ module dftbp_rekscpeqn
           if (i == p) then
             e1 = 0.0_dp; e2 = 0.0_dp;
             call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, q, &
-                & 1, tSSR22, tSSR44, e1, e2)
+                & 1, reksAlg, e1, e2)
             tmpA(pq) = tmpA(pq) + 0.5_dp*(e1 - e2)
           end if
 
           if (j == q) then
             e1 = 0.0_dp; e2 = 0.0_dp;
             call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, p, &
-                & 2, tSSR22, tSSR44, e1, e2)
+                & 2, reksAlg, e1, e2)
             tmpA(pq) = tmpA(pq) - 0.5_dp*(e1 - e2)
           end if
 
           if (i == q) then
             e1 = 0.0_dp; e2 = 0.0_dp;
             call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, p, &
-                & 1, tSSR22, tSSR44, e1, e2)
+                & 1, reksAlg, e1, e2)
             tmpA(pq) = tmpA(pq) - 0.5_dp*(e1 - e2)
           end if
 
           if (j == p) then
             e1 = 0.0_dp; e2 = 0.0_dp;
             call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, q, &
-                & 2, tSSR22, tSSR44, e1, e2)
+                & 2, reksAlg, e1, e2)
             tmpA(pq) = tmpA(pq) + 0.5_dp*(e1 - e2)
           end if
 
@@ -449,28 +442,28 @@ module dftbp_rekscpeqn
           if (p == i) then
             e1 = 0.0_dp; e2 = 0.0_dp;
             call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, p, q, j, &
-                & 1, tSSR22, tSSR44, e1, e2)
+                & 1, reksAlg, e1, e2)
             tmpA(pq) = tmpA(pq) + 0.5_dp*(e1 - e2)
           end if
 
           if (q == j) then
             e1 = 0.0_dp; e2 = 0.0_dp;
             call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, p, q, i, &
-                & 2, tSSR22, tSSR44, e1, e2)
+                & 2, reksAlg, e1, e2)
             tmpA(pq) = tmpA(pq) - 0.5_dp*(e1 - e2)
           end if
 
           if (p == j) then
             e1 = 0.0_dp; e2 = 0.0_dp;
             call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, p, q, i, &
-                & 1, tSSR22, tSSR44, e1, e2)
+                & 1, reksAlg, e1, e2)
             tmpA(pq) = tmpA(pq) - 0.5_dp*(e1 - e2)
           end if
 
           if (q == i) then
             e1 = 0.0_dp; e2 = 0.0_dp;
             call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, p, q, j, &
-                & 2, tSSR22, tSSR44, e1, e2)
+                & 2, reksAlg, e1, e2)
             tmpA(pq) = tmpA(pq) + 0.5_dp*(e1 - e2)
           end if
 
@@ -491,7 +484,7 @@ module dftbp_rekscpeqn
 
   !> Calculate A1ePre * Y shift vectors without saving super A1ePre matrix
   subroutine shiftAY1ePre_(Y, Fc, Fa, omega, SAweight, FONs, G1, &
-      & Nc, Na, Glevel, tSSR22, tSSR44, shift1ePre)
+      & Nc, Na, Glevel, reksAlg, shift1ePre)
 
     !> trial vector for soulution
     real(dp), intent(in) :: Y(:)
@@ -523,11 +516,8 @@ module dftbp_rekscpeqn
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> computed (A1ePre * Y) shift vector
     real(dp), intent(out) :: shift1ePre(:)
@@ -547,19 +537,19 @@ module dftbp_rekscpeqn
     do ij = 1, superN
 
       ! assign index i and j from ij
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+      call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
 
       if (Glevel == 1) then
 
         ! get lagrange multipliers with delta function
         e1 = 0.0_dp; e2 = 0.0_dp;
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, j, &
-            & 1, tSSR22, tSSR44, e1, e2)
+            & 1, reksAlg, e1, e2)
         tmpApre(ij) = tmpApre(ij) + 0.5_dp*(e1 - e2)
 
         e1 = 0.0_dp; e2 = 0.0_dp;
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, i, &
-            & 2, tSSR22, tSSR44, e1, e2)
+            & 2, reksAlg, e1, e2)
         tmpApre(ij) = tmpApre(ij) - 0.5_dp*(e1 - e2)
 
         ! SAweight(1) is equal to Wgss
@@ -589,7 +579,7 @@ module dftbp_rekscpeqn
 
   !> Calculate A2e * Y shift vectors
   subroutine shiftAY2e_(ZmatL, eigenvecs, fillingL, weight, &
-      & Nc, Na, tSSR22, tSSR44, shift2e)
+      & Nc, Na, reksAlg, shift2e)
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(in) :: ZmatL(:,:,:)
@@ -609,11 +599,8 @@ module dftbp_rekscpeqn
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> computed (A2e * Y) shift vector
     real(dp), intent(out) :: shift2e(:)
@@ -640,7 +627,7 @@ module dftbp_rekscpeqn
       call gemm(Zmo, eigenvecs(:,:,1), tmpMat, transA='T')
       do pq = 1, superN
         ! assign index p and q from pq
-        call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)
+        call assignIndex(Nc, Na, Nv, reksAlg, pq, p, q)
         fac = 2.0_dp * weight(iL) * Zmo(q,p) &
            & * (fillingL(p,1,iL) - fillingL(q,1,iL))
         shift2e(pq) = shift2e(pq) + fac

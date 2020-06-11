@@ -48,6 +48,14 @@ endfunction()
 function (dftbp_add_fypp_defines fyppflags)
 
   set(_fyppflags "${${fyppflags}}")
+
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+  if("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG")
+    list(APPEND _fyppflags -DDEBUG=1)
+  else()
+    list(APPEND _fyppflags -DDEBUG=0)
+  endif()
+
   if(WITH_OMP)
     list(APPEND _fyppflags -DWITH_OMP)
   endif()
@@ -92,6 +100,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_C_EXECUTABLES)
   endif()
 
+  if(BUILD_SHARED_LIBS)
+    list(APPEND _fyppflags -DBUILD_SHARED_LIBS)
+  endif()
+
   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
 
 endfunction()
@@ -104,16 +116,14 @@ endfunction()
 #
 function(dftbp_get_release_name release)
 
-  if(NOT EXISTS ${CMAKE_BINARY_DIR}/RELEASE)
-    if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
-      file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
-    else()
-      execute_process(
-	COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
-	RESULT_VARIABLE exitcode)
-      if(NOT exitcode EQUAL 0)
-	file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
-      endif()
+  if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
+    file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
+  else()
+    execute_process(
+      COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
+      RESULT_VARIABLE exitcode)
+    if(NOT exitcode EQUAL 0)
+      file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
     endif()
   endif()
   file(READ ${CMAKE_BINARY_DIR}/RELEASE _release)
@@ -331,7 +341,7 @@ function(dftbp_ensure_out_of_source_build)
 separate build directory and invoke CMake from that directory. See the INSTALL.rst file for \
 detailed build instructions.")
   endif()
-  
+
 endfunction()
 
 
