@@ -552,7 +552,7 @@ contains
             call writeReksDetailedOut1(fdDetailedOut, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
                 & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
                 & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol,&
-                & tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
+                & TS, tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
                 & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, allocated(thirdOrd),&
                 & tRangeSep)
           end if
