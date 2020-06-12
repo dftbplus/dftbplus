@@ -298,9 +298,9 @@ contains
           & lCurrArray)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(resultsTag, energy, derivs, chrgForces, electronicSolver, tStress,&
-          & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
-          & tDefinedFreeE, cm5Cont)
+      call writeResultsTag(resultsTag, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
+          & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
+          & qOutput, q0, taggedWriter, tDefinedFreeE, cm5Cont)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, tHelical, latVec,&
