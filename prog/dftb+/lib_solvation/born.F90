@@ -269,7 +269,7 @@ contains
     type(TGeneralizedBorn), intent(in) :: solvation
 
     write(unit, '(a, ":", t30, es14.6)') "Dielectric constant", &
-        & 1.0_dp/(solvation%param%keps + 1.0_dp)
+        & 1.0_dp/(solvation%param%keps * (1.0_dp + solvation%param%alpbet) + 1.0_dp)
     write(unit, '(a, ":", t30, es14.6, 1x, a, t50, es14.6, 1x, a)') &
         & "Free energy shift", solvation%param%freeEnergyShift, "H", &
         & Hartree__eV * solvation%param%freeEnergyShift, "eV"
@@ -1086,6 +1086,47 @@ contains
   end subroutine getBornEGCluster
 
 
+  !> Evaluate inertia tensor for solid spheres with mass rad**3
+  pure subroutine getInertia(nAtom, coord, species, rad, center, inertia)
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Cartesian coordinates
+    real(dp), intent(in) :: coord(:, :)
+
+    !> Species identifiers for each atom
+    integer, intent(in) :: species(:)
+
+    !> Atomic radii
+    real(dp), intent(in) :: rad(:)
+
+    !> Center of mass
+    real(dp), intent(in) :: center(:)
+
+    !> Inertia tensor
+    real(dp), intent(out) :: inertia(:, :)
+
+    integer :: iAt, iSp
+    real(dp) :: r2, rad2, rad3, totRad3, vec(3)
+    real(dp), parameter :: tof = 2.0_dp/5.0_dp, unity(3, 3) = reshape(&
+        & [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], &
+        & [3, 3])
+
+    inertia(:, :) = 0.0_dp
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      rad2 = rad(iSp) * rad(iSp)
+      rad3 = rad2 * rad(iSp)
+      vec(:) = coord(:, iAt) - center
+      r2 = sum(vec**2)
+      inertia(:, :) = inertia + rad3 * ((r2 + tof*rad2) * unity &
+          & - spread(vec, 1, 3) * spread(vec, 2, 3))
+    end do
+
+  end subroutine getInertia
+
+
   !> Molecular shape descriptor
   subroutine getADet(nAtom, coord, species, rad, aDet)
 
@@ -1105,10 +1146,7 @@ contains
     real(dp), intent(out) :: aDet
 
     integer :: iAt, iSp
-    real(dp) :: r2, rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3)
-    real(dp), parameter :: tof = 2.0_dp/5.0_dp, unity(3, 3) = reshape(&
-      & [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], &
-      & [3, 3])
+    real(dp) :: rad2, rad3, totRad3, center(3), inertia(3, 3)
 
     totRad3 = 0.0_dp
     center(:) = 0.0_dp
@@ -1121,18 +1159,9 @@ contains
     end do
     center = center / totRad3
 
-    inertia(:, :) = 0.0_dp
-    do iAt = 1, nAtom
-      iSp = species(iAt)
-      rad2 = rad(iSp) * rad(iSp)
-      rad3 = rad2 * rad(iSp)
-      vec(:) = coord(:, iAt) - center
-      r2 = sum(vec**2)
-      inertia(:, :) = inertia + rad3 * ((r2 + tof*rad2) * unity &
-        & - spread(vec, 1, 3) * spread(vec, 2, 3))
-    end do
+    call getInertia(nAtom, coord, species, rad, center, inertia)
 
-    aDet = sqrt(determinant33(inertia)**(1.0_dp/3.0_dp)/(tof*totRad3))
+    aDet = sqrt(determinant33(inertia)**(1.0_dp/3.0_dp)/(2.0_dp*totRad3)*5.0_dp)
 
   end subroutine getADet
 
@@ -1164,9 +1193,6 @@ contains
     integer :: iAt, iSp
     real(dp) :: r2, rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3), aDet
     real(dp) :: aDeriv(3, 3), qtotal
-    real(dp), parameter :: tof = 2.0_dp/5.0_dp, unity(3, 3) = reshape(&
-      & [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], &
-      & [3, 3])
 
     qtotal = 0.0_dp
     totRad3 = 0.0_dp
@@ -1181,37 +1207,29 @@ contains
     end do
     center = center / totRad3
 
-    inertia(:, :) = 0.0_dp
-    do iAt = 1, nAtom
-      iSp = species(iAt)
-      rad2 = rad(iSp) * rad(iSp)
-      rad3 = rad2 * rad(iSp)
-      vec(:) = coord(:, iAt) - center
-      r2 = sum(vec**2)
-      inertia(:, :) = inertia + rad3 * ((r2 + tof*rad2) * unity &
-        & - spread(vec, 1, 3) * spread(vec, 2, 3))
-    end do
-    aDet = sqrt(determinant33(inertia)**(1.0_dp/3.0_dp)/(tof*totRad3))
+    call getInertia(nAtom, coord, species, rad, center, inertia)
+
+    aDet = sqrt(determinant33(inertia)**(1.0_dp/3.0_dp)/(2.0_dp*totRad3)*5.0_dp)
 
     aDeriv(:, :) = reshape([&
-      & inertia(1,1)*(inertia(2,2)+inertia(3,3))-inertia(1,2)**2-inertia(1,3)**2, &
-      & inertia(1,2)*inertia(3,3)-inertia(1,3)*inertia(2,3), & ! xy
-      & inertia(1,3)*inertia(2,2)-inertia(1,2)*inertia(3,2), & ! xz
-      & inertia(1,2)*inertia(3,3)-inertia(1,3)*inertia(2,3), & ! xy
-      & inertia(2,2)*(inertia(1,1)+inertia(3,3))-inertia(1,2)**2-inertia(2,3)**2, &
-      & inertia(1,1)*inertia(2,3)-inertia(1,2)*inertia(1,3), & ! yz
-      & inertia(1,3)*inertia(2,2)-inertia(1,2)*inertia(3,2), & ! xz
-      & inertia(1,1)*inertia(2,3)-inertia(1,2)*inertia(1,3), & ! yz
-      & inertia(3,3)*(inertia(1,1)+inertia(2,2))-inertia(1,3)**2-inertia(2,3)**2],&
-      & shape=[3, 3]) * (250.0_dp / (48.0_dp * totRad3**3 * aDet**5)) &
-      & * (-0.5_dp * kEps * qtotal**2 / aDet**2)
+        & inertia(1,1)*(inertia(2,2)+inertia(3,3))-inertia(1,2)**2-inertia(1,3)**2, &
+        & inertia(1,2)*inertia(3,3)-inertia(1,3)*inertia(2,3), & ! xy
+        & inertia(1,3)*inertia(2,2)-inertia(1,2)*inertia(3,2), & ! xz
+        & inertia(1,2)*inertia(3,3)-inertia(1,3)*inertia(2,3), & ! xy
+        & inertia(2,2)*(inertia(1,1)+inertia(3,3))-inertia(1,2)**2-inertia(2,3)**2, &
+        & inertia(1,1)*inertia(2,3)-inertia(1,2)*inertia(1,3), & ! yz
+        & inertia(1,3)*inertia(2,2)-inertia(1,2)*inertia(3,2), & ! xz
+        & inertia(1,1)*inertia(2,3)-inertia(1,2)*inertia(1,3), & ! yz
+        & inertia(3,3)*(inertia(1,1)+inertia(2,2))-inertia(1,3)**2-inertia(2,3)**2],&
+        & shape=[3, 3]) * (250.0_dp / (48.0_dp * totRad3**3 * aDet**5)) &
+        & * (-0.5_dp * kEps * qtotal**2 / aDet**2)
 
     do iAt = 1, nAtom
       iSp = species(iAt)
       rad2 = rad(iSp) * rad(iSp)
       rad3 = rad2 * rad(iSp)
       vec(:) = coord(:, iAt) - center
-      gradient(:, iAt) = gradient(:, iAt) + rad3 * matmul(aderiv, vec)
+      gradient(:, iAt) = gradient(:, iAt) + rad3 * matmul(aDeriv, vec)
     end do
 
   end subroutine getADetDeriv
