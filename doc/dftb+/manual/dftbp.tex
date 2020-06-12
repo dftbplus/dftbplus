@@ -3088,8 +3088,10 @@ systems.
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & 35 AA & \\
   \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
-  \kw{HBondCorr} & has \kw{SASA} & & \\
-  \kw{HBondStrength} & HBondCorr = Yes & & \\
+  \kw{HBondCorr} & l & has \kw{SASA} & & \\
+  \kw{HBondStrength} & m & HBondCorr = Yes & & \\
+  \kw{ALPB} & l & & No & \\
+  \kw{Alpha} & r & ALPB = Yes & 0.571412 & \\
 \end{ptable}
 
 \begin{description}
@@ -3159,6 +3161,16 @@ systems.
     Hydrogen bonding strength for each species used in the empirical hydrogen
     bond correction. To disable the correction for species not involved
     in hydrogen bonding, set the value to zero.
+
+  \item[\is{ALPB}]
+    Use analytical lineared Poisson Boltzmann (ALPB) model\cite{sigalov2006}
+    instead of Generalized Born.
+    The main difference is a molecular shape dependent contribution for charged
+    systems.
+
+  \item[\is{Alpha}]
+    Alpha parameter in the ALPB model, should be kept to 0.571412 which was
+    derived from first principles.\cite{sigalov2006}
 \end{description}
 
 Example for a GB model with CS2 as solvent:
