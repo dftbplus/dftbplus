@@ -4540,7 +4540,7 @@ contains
   subroutine writeReksDetailedOut1(fd, nGeoSteps, iGeoStep, tMD, tDerivs, &
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
-      & cellVol, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
+      & cellVol, TS, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
       & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, isRangeSep)
 
     !> File ID
@@ -4606,6 +4606,9 @@ contains
     !> Unit cell volume
     real(dp), intent(in) :: cellVol
 
+    !> Electron entropy times temperature
+    real(dp), intent(in) :: TS(:)
+
     !> Are atom resolved energies required
     logical, intent(in) :: tAtomicEnergy
 
@@ -4642,7 +4645,7 @@ contains
     !> data type for REKS
     type(TReksCalc), intent(in) :: reks
 
-    integer :: nAtom, nKPoint, nMovedAtom, nstates
+    integer :: nAtom, nKPoint, nMovedAtom
     integer :: ang, iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
     character(sc), allocatable :: shellNamesTmp(:)
     character(lc) :: strTmp
@@ -4650,7 +4653,6 @@ contains
     nAtom = size(q0, dim=2)
     nKPoint = size(kPoints, dim=2)
     nMovedAtom = size(indMovedAtom)
-    nstates = size(reks%energy,dim=1)
 
     write(fd, "(A)") "REKS do not use any electronic distribution function"
     write(fd,*)
@@ -4712,7 +4714,7 @@ contains
 
     ! Write out atomic charges
     if (tPrintMulliken) then
-      if (nstates > 1) then
+      if (reks%nstates > 1) then
         write(fd, "(A60)") " SA-REKS optimizes the avergaed state, not individual states"
         write(fd, "(A60)") " These charges do not mean the charges for individual states"
         write(fd, "(A56)") " Similarly to this, the values in band.out file indicate"
@@ -4789,32 +4791,7 @@ contains
       write(fd, *)
     end do lpSpinPrint3_REKS
 
-    ! get correct energy values
-    energy%Etotal = reks%energy(reks%rstate)
-    energy%Eexcited = 0.0_dp
-    if (nstates > 1 .and. reks%Lstate == 0) then
-      energy%Eexcited = reks%energy(reks%rstate) - reks%energy(1)
-    end if
-    ! get microstate energy values for target microstate
-    if (reks%Lstate > 0) then
-      energy%Etotal = reks%enLtot(reks%Lstate)
-      energy%EnonSCC = reks%enLnonSCC(reks%Lstate)
-      energy%ESCC = reks%enLSCC(reks%Lstate)
-      energy%Espin = reks%enLspin(reks%Lstate)
-      energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin
-      if (isRangeSep) then
-        energy%Efock = reks%enLfock(reks%Lstate)
-        energy%Eelec = energy%Eelec + energy%Efock
-      end if
-      if (t3rd) then
-        energy%e3rd  = reks%enL3rd(reks%Lstate)
-        energy%Eelec = energy%Eelec + energy%e3rd
-      end if
-    end if
-    energy%EMermin = energy%Etotal
-    energy%Ezero = energy%Etotal
-    energy%EGibbs = energy%EMermin + cellVol * pressure
-    energy%EForceRelated = energy%EGibbs
+    call setReksTargetEnergy(reks, energy, cellVol, pressure, TS)
 
     write(fd, format2U) 'Energy H0', energy%EnonSCC, 'H', energy%EnonSCC * Hartree__eV, 'eV'
     if (tSCC) then
@@ -4838,7 +4815,7 @@ contains
     end if
 
     write(fd, *)
-    if (nstates > 1) then
+    if (reks%nstates > 1) then
       write(fd, format2U) "Excitation Energy", energy%Eexcited, "H", &
           & Hartree__eV * energy%Eexcited, "eV"
       write(fd, *)

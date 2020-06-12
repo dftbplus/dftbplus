@@ -38,6 +38,7 @@ module dftbp_reksen
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
   public :: getFockandDiag, guessNewEigvecs
   public :: adjustEigenval, solveSecularEqn
+  public :: setReksTargetEnergy
 
   contains
 
@@ -375,6 +376,63 @@ module dftbp_reksen
     call printReksSSRInfo(self, Wab, tmpEn, StateCoup)
 
   end subroutine solveSecularEqn
+
+
+  !> Set correct final energy values for target state or microstate
+  subroutine setReksTargetEnergy(self, energy, cellVol, pressure, TS)
+
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: self
+
+    !> Energy terms in the system
+    type(TEnergies), intent(inout) :: energy
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    !> Electron entropy times temperature
+    real(dp), intent(in) :: TS(:)
+
+    ! get correct energy values
+    if (self%Lstate == 0) then
+
+      ! get energy contributions for target state
+      energy%Etotal = self%energy(self%rstate)
+      if (self%nstates > 1) then
+        energy%Eexcited = self%energy(self%rstate) - self%energy(1)
+      else
+        energy%Eexcited = 0.0_dp
+      end if
+
+    else
+
+      ! get energy contributions for target microstate
+      energy%EnonSCC = self%enLnonSCC(self%Lstate)
+      energy%ESCC = self%enLSCC(self%Lstate)
+      energy%Espin = self%enLspin(self%Lstate)
+      if (self%t3rd) then
+        energy%e3rd = self%enL3rd(self%Lstate)
+      end if
+      if (self%isRangeSep) then
+        energy%Efock = self%enLfock(self%Lstate)
+      end if
+
+      energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
+          & energy%e3rd + energy%Efock
+      energy%Etotal = self%enLtot(self%Lstate)
+      energy%Eexcited = 0.0_dp
+
+    end if
+
+    energy%EMermin = energy%Etotal - sum(TS)
+    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
+    energy%EGibbs = energy%EMermin + cellVol * pressure
+    energy%EForceRelated = energy%EGibbs
+
+  end subroutine setReksTargetEnergy
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

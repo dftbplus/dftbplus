@@ -42,10 +42,11 @@ module dftbp_reks
   public :: qm2udL, ud2qmL
   public :: qmExpandL!, udExpandL
 
-  !> dftbp_reksen modules used in main.F90
+  !> dftbp_reksen modules used in main.F90, mainio.F90
   public :: constructMicrostates, calcWeights
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
   public :: getFockandDiag, guessNewEigvecs
+  public :: setReksTargetEnergy
 
   !> dftbp_reksfon module used in main.F90
   public :: optimizeFons
