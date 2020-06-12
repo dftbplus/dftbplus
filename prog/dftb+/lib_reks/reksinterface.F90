@@ -309,7 +309,7 @@ module dftbp_reksinterface
             call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
                 & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
                 & self%XT(:,ist), self%ZT(:,ist), self%RmatL(:,:,:,ist), &
-                & self%ZmatL, self%Q1mat, self%Q2mat, .false.)
+                & self%ZmatL, self%Q1mat, self%Q2mat, optionQMMM=.false.)
             Qmat(:,:) = self%Q1mat + self%Q2mat
             ! compute SA-REKS shift
             call SSRshift(eigenvecs, self%gradL, Qmat, self%Sderiv, &
@@ -334,7 +334,7 @@ module dftbp_reksinterface
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
               & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
               & self%XTdel(:,ist), self%ZTdel(:,ist), self%tmpRL(:,:,:,ist), &
-              & self%ZmatL, self%Q1mat, self%Q2mat, .false.)
+              & self%ZmatL, self%Q1mat, self%Q2mat, optionQMMM=.false.)
           call SIshift(eigenvecs, self%gradL, self%Q1del(:,:,ist), &
               & self%Q2del(:,:,ist), self%Q1mat, self%Q2mat, Qmat, &
               & self%Sderiv, self%ZTdel(:,ist), self%SAweight, self%omega, &
@@ -362,7 +362,7 @@ module dftbp_reksinterface
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
               & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
               & self%XT(:,self%rstate), self%ZT(:,1), self%RmatL(:,:,:,1), &
-              & self%ZmatL, self%Q1mat, self%Q2mat, .false.)
+              & self%ZmatL, self%Q1mat, self%Q2mat, optionQMMM=.false.)
 
           ! add remaining SI component to SSR state
           call addSItoRQ(eigenvecs, self%RdelL, self%Q1del, self%Q2del, &
@@ -387,7 +387,7 @@ module dftbp_reksinterface
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
               & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
               & self%XT(:,1), self%ZT(:,1), self%RmatL(:,:,:,1), &
-              & self%ZmatL, self%Q1mat, self%Q2mat, .false.)
+              & self%ZmatL, self%Q1mat, self%Q2mat, optionQMMM=.false.)
           Qmat(:,:) = self%Q1mat + self%Q2mat
           fac = 1
 
@@ -507,7 +507,7 @@ module dftbp_reksinterface
               & iSparseStart, img2CentCell, eigenvecs, over, orb, self, &
               & self%XT(:,self%SAstates), self%ZT(:,self%SAstates), &
               & self%RmatL(:,:,:,self%SAstates), self%ZmatL, &
-              & self%Q1mat, self%Q2mat, .true.)
+              & self%Q1mat, self%Q2mat, optionQMMM=.true.)
           ! now, ZT has information about target SSR state
           call SaToSsrXT(self%ZTdel, self%eigvecsSSR, self%rstate, self%ZT)
         end if
