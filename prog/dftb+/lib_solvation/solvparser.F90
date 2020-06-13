@@ -87,14 +87,15 @@ contains
     type(TGBInput), allocatable :: defaults
     type(string) :: buffer, state, modifier
     type(fnode), pointer :: child, value1, field, child2, value2, dummy
-    logical :: found, tHBondCorr
-    real(dp) :: temperature, shift, conv
+    logical :: found, tHBondCorr, tALPB
+    real(dp) :: temperature, shift, conv, alphaALPB
     real(dp), allocatable :: vdwRadDefault(:)
     type(TSolventData) :: solvent
     real(dp), parameter :: referenceDensity = kg__au/(1.0e10_dp*AA__Bohr)**3
     real(dp), parameter :: referenceMolecularMass = amu__au
     real(dp), parameter :: idealGasMolVolume = 24.79_dp
     real(dp), parameter :: ambientTemperature = 298.15_dp * Boltzmann
+    real(dp), parameter :: alphaDefault = 0.571412_dp
 
     if (geo%tPeriodic) then
       call detailedError(node, "Generalized Born model currently not available with PBCs")
@@ -132,7 +133,14 @@ contains
 
     end if
 
-    input%keps = 1.0_dp / solvent%dielectricConstant - 1.0_dp
+    call getChildValue(node, "ALPB", tALPB, .false.)
+    if (tALPB) then
+      call getChildValue(node, "Alpha", alphaALPB, alphaDefault)
+      input%alpbet = alphaALPB / solvent%dielectricConstant
+    else
+      input%alpbet = 0.0_dp
+    end if
+    input%keps = (1.0_dp / solvent%dielectricConstant - 1.0_dp) / (1.0_dp + input%alpbet)
 
     ! shift value for the free energy (usually fitted)
     if (allocated(defaults)) then

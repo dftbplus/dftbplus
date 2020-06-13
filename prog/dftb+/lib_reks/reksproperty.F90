@@ -23,6 +23,7 @@ module dftbp_reksproperty
   use dftbp_message
   use dftbp_sparse2dense
   use dftbp_rekscommon
+  use dftbp_reksvar, only : reksTypes
 
   implicit none
 
@@ -36,8 +37,8 @@ module dftbp_reksproperty
   !> Calculate unrelaxed density and transition density for target
   !> SA-REKS or SSR state (or L-th state)
   subroutine getUnrelaxedDensMatAndTdp(eigenvecs, overSqr, rhoSqrL, FONs, &
-      & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, useSSR, tTDP, &
-      & tSSR22, tSSR44, unrelRhoSqr, unrelTdm)
+      & eigvecsSSR, Lpaired, Nc, Na, rstate, Lstate, reksAlg, tSSR, tTDP, &
+      & unrelRhoSqr, unrelTdm)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -69,17 +70,14 @@ module dftbp_reksproperty
     !> Target microstate
     integer, intent(in) :: Lstate
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
+
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     !> Calculate transition dipole moments
     logical, intent(in) :: tTDP
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
 
     !> unrelaxed density matrix for target SSR or SA-REKS state
     real(dp), intent(out) :: unrelRhoSqr(:,:)
@@ -100,7 +98,7 @@ module dftbp_reksproperty
     nstates = size(eigvecsSSR,dim=1)
     nstHalf = nstates * (nstates - 1) / 2
 
-    if (useSSR == 1) then
+    if (tSSR) then
       allocate(rhoX(nOrb,nOrb,nstates))
     else
       allocate(rhoX(nOrb,nOrb,1))
@@ -118,15 +116,17 @@ module dftbp_reksproperty
       tmpFilling(ii,:) = 2.0_dp
     end do
     ! active orbitals fillings
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getActiveFilling22_(FONs, Nc, tmpFilling)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
     ! unrelaxed density matrix for SA-REKS or L-th state
     rhoX(:,:,:) = 0.0_dp
-    if (useSSR == 1) then
+    if (tSSR) then
       do ist = 1, nstates
         call makeDensityMatrix(rhoX(:,:,ist), eigenvecs, tmpFilling(:,ist))
         call symmetrizeHS(rhoX(:,:,ist))
@@ -153,15 +153,17 @@ module dftbp_reksproperty
     ! unrelaxed transition density matrix between SA-REKS states
     if (Lstate == 0) then
       rhoXdel(:,:,:) = 0.0_dp
-      if (tSSR22) then
+      select case (reksAlg)
+      case (reksTypes%noReks)
+      case (reksTypes%ssr22)
         call getUnrelaxedTDM22_(eigenvecs, FONs, Nc, nstates, rhoXdel)
-      else if (tSSR44) then
+      case (reksTypes%ssr44)
         call error("SSR(4,4) is not implemented yet")
-      end if
+      end select
     end if
 
     ! Final unrelaxed density matrix for target state
-    if (useSSR == 1) then
+    if (tSSR) then
       ! unrelRhoSqr is unrelaxed density matrix for target SSR state
       kst = 0
       unrelRhoSqr(:,:) = 0.0_dp
@@ -183,7 +185,7 @@ module dftbp_reksproperty
 
     ! Final unrelaxed transition density matrix between states
     if (tTDP .and. Lstate == 0) then
-      if (useSSR == 1) then
+      if (tSSR) then
         ! unrelTdm is unrelaxed transition density matrix between SSR states
         unrelTdm(:,:,:) = 0.0_dp
         do lst = 1, nstHalf
@@ -226,15 +228,15 @@ module dftbp_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printUnrelaxedFONs(tmpRho, useSSR, rstate, Lstate, Nc, Na)
+    call printUnrelaxedFONs(tmpRho, rstate, Lstate, Nc, Na, tSSR)
 
   end subroutine getUnrelaxedDensMatAndTdp
 
 
   !> Calculate relaxed density for target SA-REKS or SSR state
   subroutine getRelaxedDensMat(eigenvecs, overSqr, unrelRhoSqr, ZT, omega, &
-      & FONs, eigvecsSSR, SAweight, Rab, G1, Nc, Na, rstate, useSSR, &
-      & tNAC, tSSR22, tSSR44, relRhoSqr)
+      & FONs, eigvecsSSR, SAweight, Rab, G1, Nc, Na, rstate, reksAlg, &
+      & tSSR, tNAC, relRhoSqr)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -275,17 +277,14 @@ module dftbp_reksproperty
     !> Target SSR state
     integer, intent(in) :: rstate
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
+
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     !> Calculate nonadiabatic coupling vectors
     logical, intent(in) :: tNAC
-
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
 
     !> relaxed density matrix for target SSR or SA-REKS state
     real(dp), intent(out) :: relRhoSqr(:,:)
@@ -306,7 +305,7 @@ module dftbp_reksproperty
     nstHalf = nstates * (nstates - 1) / 2
 
     allocate(resRho(nOrb,nOrb))
-    if (useSSR == 1) then
+    if (tSSR) then
       allocate(resTdm(nOrb,nOrb,nstHalf))
     end if
     allocate(tmpRho(nOrb,nOrb))
@@ -314,14 +313,16 @@ module dftbp_reksproperty
 
     ! a part of transition density matrix originating from the
     ! response of the orbital occupation numbers
-    if (useSSR == 1) then
+    if (tSSR) then
       resTdm(:,:,:) = 0.0_dp
-      if (tSSR22) then
+      select case (reksAlg)
+      case (reksTypes%noReks)
+      case (reksTypes%ssr22)
         call getResponseTDM22_(eigenvecs, FONs, SAweight, Rab, &
             & G1, Nc, resTdm)
-      else if (tSSR44) then
+      case (reksTypes%ssr44)
         call error("SSR(4,4) is not implemented yet")
-      end if
+      end select
     end if
 
     ! a part of relaxed density matrix originating from the
@@ -337,11 +338,11 @@ module dftbp_reksproperty
     tmpRho(:,:) = 0.0_dp
     do pq = 1, superN
       ! assign index p and q from pq
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)
+      call assignIndex(Nc, Na, Nv, reksAlg, pq, p, q)
       ! assign average filling for pth orbital
-      call assignFilling(FONs, SAweight, Nc, p, tSSR22, tSSR44, fp)
+      call assignFilling(FONs, SAweight, Nc, p, reksAlg, fp)
       ! assign average filling for qth orbital
-      call assignFilling(FONs, SAweight, Nc, q, tSSR22, tSSR44, fq)
+      call assignFilling(FONs, SAweight, Nc, q, reksAlg, fq)
       tmpRho(p,q) = (fp - fq) * ZT(pq,ii)
     end do
     tmpMat(:,:) = 0.0_dp
@@ -349,16 +350,18 @@ module dftbp_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat)
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getResponseDM22_(eigenvecs, ZT(:,ii), tmpRho, omega, &
           & SAweight, G1, Nc, resRho)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
     ! Final relaxed density matrix for target state
     relRhoSqr(:,:) = 0.0_dp
-    if (useSSR == 1) then
+    if (tSSR) then
       kst = 0
       ! relRhoSqr is relaxed density matrix for target SSR state
       relRhoSqr(:,:) = unrelRhoSqr - 2.0_dp * resRho
@@ -387,7 +390,7 @@ module dftbp_reksproperty
     tmpRho(:,:) = 0.0_dp
     call gemm(tmpRho, eigenvecs, tmpMat, transA='T')
 
-    call printRelaxedFONs(tmpRho, useSSR, rstate, Nc, Na)
+    call printRelaxedFONs(tmpRho, rstate, Nc, Na, tSSR)
 
   end subroutine getRelaxedDensMat
 
@@ -395,7 +398,7 @@ module dftbp_reksproperty
   !> Calculate relaxed density for target L-th microstate
   subroutine getRelaxedDensMatL(eigenvecs, rhoSqrL, overSqr, weight, &
       & SAweight, unrelRhoSqr, RmatL, ZT, omega, weightIL, G1, orderRmatL, &
-      & Lpaired, Nc, Na, Lstate, tSSR22, tSSR44, relRhoSqr)
+      & Lpaired, Nc, Na, Lstate, reksAlg, relRhoSqr)
 
     !> Eigenvectors on eixt
     real(dp), intent(inout) :: eigenvecs(:,:)
@@ -445,11 +448,8 @@ module dftbp_reksproperty
     !> Target microstate
     integer, intent(in) :: Lstate
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> relaxed density matrix for target L-th state
     real(dp), intent(out) :: relRhoSqr(:,:)
@@ -473,12 +473,14 @@ module dftbp_reksproperty
     ! resRhoL is response part for L-th state
     resRhoL(:,:) = 0.0_dp
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getResponseDML22_(rhoSqrL, SAweight, ZT, omega, &
           & weightIL, G1, Lpaired, resRhoL)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
     do iL = 1, Lmax
       ! find proper index for RmatL

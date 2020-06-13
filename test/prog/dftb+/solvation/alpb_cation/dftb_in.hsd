@@ -1,0 +1,54 @@
+Geometry = xyzFormat {
+ <<< "struc.xyz"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
+    Solvent = fromConstants {
+      Epsilon = 2.64  # Dielectric constant of the solvent
+      MolecularMass [amu] = 76.14  # mass of the solvent molecule
+      Density [kg/l] = 1.26  # mol density of the solvent
+    }
+    ALPB = Yes
+    FreeEnergyShift [kcal/mol] = 2.81072250
+    Descreening = values {
+       H = 0.93699367
+       C = 0.83307834
+       N = 1.02661619
+       O = 0.96508008
+    }
+    BornScale = 1.40636177
+    BornOffset = 1.653719965215E-03
+    Cutoff = 30
+  }
+  SCC = Yes
+  Charge = +1
+  SccTolerance = 1e-10
+  MaxAngularMomentum {
+    H = "s"
+    C = "p"
+    N = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}

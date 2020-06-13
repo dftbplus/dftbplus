@@ -13,9 +13,9 @@ module dftbp_mainapi
   use dftbp_accuracy, only : dp
   use dftbp_main, only : processGeometry
   use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, coord0, latVec,&
-      & tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField, orb,&
-      & nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot, tStress,&
-      & totalStress
+      & origin, tCoordsChanged, tLatticeChanged, energy, derivs, TRefExtPot, refExtPot, tExtField,&
+      & orb, nAtom, nSpin, q0, qOutput, sccCalc, tExtChrg, tForces, chrgForces, qDepExtPot,&
+      & tStress, totalStress
   use dftbp_assert
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_message, only : error
@@ -30,7 +30,7 @@ module dftbp_mainapi
 contains
 
   !> Sets up the atomic geometry
-  subroutine setGeometry(coords, latVecs)
+  subroutine setGeometry(coords, latVecs, coordOrigin)
 
     !> atom coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -38,13 +38,23 @@ contains
     !> lattice vectors, if periodic
     real(dp), intent(in), optional :: latVecs(:,:)
 
+    !> coordinate origin, if periodic. If absent in that case, set to 0,0,0
+    real(dp), intent(in), optional :: coordOrigin(:)
+
+
     coord0(:,:) = coords
     tCoordsChanged = .true.
     if (present(latVecs)) then
       latVec(:,:) = latVecs
       tLatticeChanged = .true.
+      if (present(coordOrigin)) then
+        origin(:) = coordOrigin
+      else
+        origin(:) = [0.0_dp,0.0_dp,0.0_dp]
+      end if
     else
       tLatticeChanged = .false.
+    @:ASSERT(.not.present(coordOrigin))
     end if
 
   end subroutine setGeometry
