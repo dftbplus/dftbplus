@@ -2719,8 +2719,13 @@ contains
     end if
 
     if (this%nDynamicsInit == 0) then
-      call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
-          & this%movedVelo, this%ReadMDVelocities, .true.)
+      if (this%tRestart) then
+        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+            & this%movedVelo, this%ReadMDVelocities, .false..)
+      else
+        call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
+            & this%movedVelo, this%ReadMDVelocities, .true.)
+      end if
       this%initialVelocities(:, this%indMovedAtom) = this%movedVelo
     else
       call reset(this%pMDIntegrator, coordNew(:, this%indMovedAtom), this%initialVelocities,&
