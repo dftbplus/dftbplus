@@ -5560,6 +5560,9 @@ module dftbp_reksgrad
         nAtom = size(qmCoords,dim=2)
         nAtomPc = size(pcCoords,dim=2)
 
+        allocate(tmpCharges(nAtom))
+        allocate(tmpDeriv(3, nAtomPc))
+
         QinvRderiv(:,:) = 0.0_dp
         if (tPeriodic) then
           if (tBlur) then
