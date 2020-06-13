@@ -396,7 +396,7 @@ contains
     @:ASSERT(all(shape(gridVecs) == (/3, 3/)))
     @:ASSERT(size(origin) == 3)
     @:ASSERT(all(shape(gridVal) >= (/ 0, 0, 0 /)))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(comments)) then
       @:ASSERT(size(comments) == 2)
     end if
@@ -404,7 +404,7 @@ contains
       @:ASSERT(size(repeatBox) == 3)
       @:ASSERT(all(repeatBox > 0))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(repeatBox)) then
       rep(:) = repeatBox(:)
