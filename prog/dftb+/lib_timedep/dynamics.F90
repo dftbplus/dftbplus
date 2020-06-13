@@ -2721,7 +2721,7 @@ contains
     if (this%nDynamicsInit == 0) then
       if (this%tRestart) then
         call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
-            & this%movedVelo, this%ReadMDVelocities, .false..)
+            & this%movedVelo, this%ReadMDVelocities, .false.)
       else
         call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
             & this%movedVelo, this%ReadMDVelocities, .true.)
