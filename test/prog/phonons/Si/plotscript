@@ -1,3 +1,0 @@
-set term png
-set output 'bands.png'
-plot 'phononDispersion.dat' u 1:2 pt 7 ps 1

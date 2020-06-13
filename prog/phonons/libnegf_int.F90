@@ -43,7 +43,7 @@ module libnegf_int
   use dftbp_matconv
   use dftbp_commontypes, only : TOrbitals
   use dftbp_initphonons, only : TempMin, TempMax, TempStep
-  use dftbp_initphonons, only : ALLMODES, XX, YY, ZZ, LONGITUDINAL, TRANSVERSE, INPLANE, OUTOFPLANE
+  use dftbp_initphonons, only : modeEnum 
 
   implicit none
   private
@@ -219,33 +219,33 @@ module libnegf_int
     ! That transport is along z
     ! That 2d structures are on x-z
     select case(selTypeModes)
-    case(ALLMODES)
+    case(modeEnum%ALLMODES)
       !allocate(indx(3*nAtoms))
       !do i = 1, 3*nAtoms    
       !  indx(i) = i
       !end do    
-    case(XX)
+    case(modeEnum%XX)
       allocate(indx(nAtoms))
       l = 1
       do i = 1, 3*nAtoms, 3    
         indx(l) = i
         l = l + 1
       end do    
-    case(YY,OUTOFPLANE)
+    case(modeEnum%YY,modeEnum%OUTOFPLANE)
       allocate(indx(nAtoms))
       l = 1
       do i = 2, 3*nAtoms, 3    
         indx(l) = i
         l = l + 1
       end do    
-    case(ZZ,LONGITUDINAL)
+    case(modeEnum%ZZ,modeEnum%LONGITUDINAL)
       allocate(indx(nAtoms))
       l = 1
       do i = 3, 3*nAtoms, 3    
         indx(l) = i
         l = l + 1
       end do    
-    case(TRANSVERSE)
+    case(modeEnum%TRANSVERSE)
       allocate(indx(2*nAtoms))
       l = 1
       do i = 1, 3*nAtoms, 3    
@@ -254,7 +254,7 @@ module libnegf_int
         indx(l) = i+1   ! Y 
         l = l + 1
       end do    
-    case(INPLANE)
+    case(modeEnum%INPLANE)
       allocate(indx(2*nAtoms))
       l = 1
       do i = 1, 3*nAtoms, 3    

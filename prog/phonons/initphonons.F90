@@ -1,4 +1,9 @@
-!* Contains the routines for initialising phonons.
+!--------------------------------------------------------------------------------------------------!
+!  DFTB+: general package for performing fast atomistic simulations                                !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
+!                                                                                                  !
+!  See the LICENSE file for terms of usage and distribution.                                       !
+!--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
@@ -151,14 +156,26 @@ module dftbp_initphonons
   end type TParserFlags
 
   !> constants parameters
-  integer, parameter, public :: ALLMODES = 0        ! along x,y,z  
-  integer, parameter, public :: XX = 1              ! along x 
-  integer, parameter, public :: YY = 2              ! along y 
-  integer, parameter, public :: ZZ = 3              ! along z 
-  integer, parameter, public :: LONGITUDINAL = 4    ! along z
-  integer, parameter, public :: TRANSVERSE = 5      ! along x,y
-  integer, parameter, public :: INPLANE = 6         ! along x,z
-  integer, parameter, public :: OUTOFPLANE = 7      ! along y
+  type TModeEnum
+    !> along x,y,z  
+    integer :: ALLMODES = 0
+    !> along x 
+    integer :: XX = 1
+    !> along y 
+    integer :: YY = 2
+    !> along z 
+    integer :: ZZ = 3
+    !> along z (assume transport along z)
+    integer :: LONGITUDINAL = 4
+    !> along x,y
+    integer :: TRANSVERSE = 5
+    !> along x,z (assume 2D structure in x-z)
+    integer :: INPLANE = 6
+    !> along y
+    integer :: OUTOFPLANE = 7
+  end type TModeEnum
+
+  type(TModeEnum), public, parameter :: modeEnum = TModeEnum()
 
 contains
 
@@ -1100,7 +1117,7 @@ contains
     integer :: iCount, jCount, ii, jj, kk, ll
     
     select case ( selTypeModes )
-    case(INPLANE)
+    case(modeEnum%INPLANE)
       iCount = 0
       do ii = 1, nMovedAtom
         do kk = 1, 3
@@ -1116,7 +1133,7 @@ contains
           end do
         end do
       end do
-    case(OUTOFPLANE)
+    case(modeEnum%OUTOFPLANE)
       iCount = 0
       do ii = 1, nMovedAtom
         do kk = 1, 3
@@ -1545,24 +1562,24 @@ contains
     call getchildValue(root, "ModeType", buffer, "all")
     select case(trim(char(buffer)))
     case("all")
-      selTypeModes = ALLMODES 
+      selTypeModes = modeEnum%ALLMODES 
     case("along-x")
-      selTypeModes = XX
+      selTypeModes = modeEnum%XX
     case("along-y")
-      selTypeModes = YY 
+      selTypeModes = modeEnum%YY 
     case("along-z")
-      selTypeModes = ZZ 
+      selTypeModes = modeEnum%ZZ 
     case("longitudinal")
-      selTypeModes = LONGITUDINAL
+      selTypeModes = modeEnum%LONGITUDINAL
       call checkTypeOfModes(root, transpar)
     case("transverse")
-      selTypeModes = TRANSVERSE 
+      selTypeModes = modeEnum%TRANSVERSE 
       call checkTypeOfModes(root, transpar)
     case("in-plane")
-      selTypeModes = INPLANE
+      selTypeModes = modeEnum%INPLANE
       call checkTypeOfModes(root, transpar)
     case("out-of-plane")
-      selTypeModes = OUTOFPLANE
+      selTypeModes = modeEnum%OUTOFPLANE
       call checkTypeOfModes(root, transpar)
     case default
       call detailedError(root,"Unknown type of modes")
@@ -1579,9 +1596,9 @@ contains
     type(TTransPar), intent(inout) :: tp
 
     select case (selTypeModes)
-    case(LONGITUDINAL, TRANSVERSE)
+    case(modeEnum%LONGITUDINAL, modeEnum%TRANSVERSE)
       call checkAlongZ(root, tp)
-    case(INPLANE, OUTOFPLANE)
+    case(modeEnum%INPLANE, modeEnum%OUTOFPLANE)
       call checkAlongZ(root, tp)
     case default
     end select
