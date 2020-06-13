@@ -53,6 +53,9 @@ module dftbp_environment
     type(TBlacsEnv), public :: blacs
   #:endif
 
+    !> Is this calculation called by the API?
+    logical, public :: tAPICalculation = .false.
+
   contains
     procedure :: destruct => TEnvironment_destruct
     procedure :: shutdown => TEnvironment_shutdown
