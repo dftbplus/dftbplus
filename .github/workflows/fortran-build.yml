@@ -17,10 +17,7 @@ jobs:
         pip3 install numpy
         echo "y" | ./utils/get_opt_externals ALL
     - name: Configure build files
-      run: cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Debug -DFYPP_FLAGS='-DTRAVIS' -DWITH_TRANSPORT=true -DWITH_DFTD3=true -DWITH_ARPACK=true -DWITH_API=true -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake -DCMAKE_Fortran_COMPILER=$FC -DCMAKE_C_COMPILER=$CC
-      env:
-       - FC=gfortran-7
-       - CC=gcc-7
+      run: cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Debug -DFYPP_FLAGS='-DTRAVIS' -DWITH_TRANSPORT=true -DWITH_DFTD3=true -DWITH_ARPACK=true -DWITH_API=true -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake -DCMAKE_Fortran_COMPILER=gfortran-7 -DCMAKE_C_COMPILER=gcc-7
     - name: Compile project from source
       run: ninja -C _build
     - name: Run testsuite
