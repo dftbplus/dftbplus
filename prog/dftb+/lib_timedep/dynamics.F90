@@ -153,7 +153,7 @@ module dftbp_timeprop
     !> if nuclei should be moved during propagation
     logical :: tIons
 
-    !> if velocities are supplied from imput
+    !> if velocities are supplied from input
     logical :: tReadMDVelocities
 
     !> if Euler steps should be done during simulation
