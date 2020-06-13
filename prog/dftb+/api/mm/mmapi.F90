@@ -135,6 +135,7 @@ contains
 
     call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
     call TEnvironment_init(this%env)
+    this%env%tAPICalculation = .true.
     this%tInit = .true.
 
   end subroutine TDftbPlus_init

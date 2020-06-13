@@ -1782,7 +1782,7 @@ contains
     !> list of region names
     type(TListCharLc), intent(inout) :: fileNames
 
-    !> eigenvalues
+    !> Eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
 
     !> Neighbour list.
@@ -2034,9 +2034,9 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, electronicSolver, tStress,&
-      & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
-      & tDefinedFreeE, cm5Cont)
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
+      & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
+      & qOutput, q0, taggedWriter, tDefinedFreeE, cm5Cont)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2049,6 +2049,18 @@ contains
 
     !> Forces on external charges
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
+
+    !> Number of electrons
+    real(dp), intent(in) :: nEl(:)
+
+    !> Fermi level(s)
+    real(dp), intent(inout) :: Ef(:)
+
+    !> Eigenvalues/single particle states (level, kpoint, spin)
+    real(dp), intent(in) :: eigen(:,:,:)
+
+    !> Filling of the eigenstates
+    real(dp), intent(in) :: filling(:,:,:)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
@@ -2095,11 +2107,15 @@ contains
     open(newunit=fd, file=fileName, action="write", status="replace")
 
     call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
+    call taggedWriter%write(fd, tagLabels%fermiLvl, Ef)
+    call taggedWriter%write(fd, tagLabels%nElec, nEl)
 
     if (electronicSolver%providesEigenvals) then
       call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
       ! extrapolated zero temperature energy
       call taggedWriter%write(fd, tagLabels%egy0Total, energy%Ezero)
+      call taggedWriter%write(fd, tagLabels%eigvals, eigen)
+      call taggedWriter%write(fd, tagLabels%eigFill, filling)
     end if
 
     if (tDefinedFreeE) then
@@ -2341,7 +2357,8 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
+      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv,&
+      & cm5Cont)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2602,7 +2619,8 @@ contains
          write(fd, "(A5, 1X, A16)")" Atom", " Charge"
          do ii = 1, size(iAtInCentralRegion)
             iAt = iAtInCentralRegion(ii)
-            write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1)) + cm5Cont%cm5(iAt)
+            write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))&
+                & + cm5Cont%cm5(iAt)
          end do
          write(fd, *)
       end if
@@ -2917,8 +2935,8 @@ contains
 
 
   !> Second group of data for detailed.out
-  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd, tPrintForces,&
-      & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
+  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
+      & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
     !> File ID
@@ -4629,7 +4647,8 @@ contains
     select case (reks%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call printReksSAInfo22(Etotal, reks%enLtot, reks%energy, reks%FONs, reks%Efunction, reks%Plevel)
+      call printReksSAInfo22(Etotal, reks%enLtot, reks%energy, reks%FONs, reks%Efunction,&
+          & reks%Plevel)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select

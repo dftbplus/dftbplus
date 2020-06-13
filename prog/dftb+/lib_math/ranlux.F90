@@ -136,14 +136,14 @@ contains
     integer :: jseed
     integer :: ii, kk
 
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(luxlev)) then
       @:ASSERT(luxlev >= 0 .and. luxlev <= maxlev)
     end if
     if (present(initSeed)) then
       @:ASSERT(initSeed > 0)
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     !! Set luxury level
     self%luxlev = lxdflt

@@ -16,6 +16,7 @@ module dftbp_initprogram
   use dftbp_mainio, only : initOutputFile
   use dftbp_assert
   use dftbp_globalenv
+  use dftbp_coherence
   use dftbp_environment
   use dftbp_scalapackfx
   use dftbp_inputdata
@@ -1537,11 +1538,16 @@ contains
     allocate(coord0(3, nAtom))
     @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
     coord0(:,:) = input%geom%coords(:,:)
+
     tCoordsChanged = .true.
 
     allocate(species0(nAtom))
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
+
+    #:block DEBUG_CODE
+    call inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
+    #:endblock DEBUG_CODE
 
     if (input%ctrl%tHalogenX) then
       if (.not. (t3rd .or. t3rdFull)) then
@@ -3235,7 +3241,56 @@ contains
 
   end subroutine initProgramVariables
 
-  
+
+  !> Check coherence across processes for various key variables (relevant if running in MPI,
+  !> particularly for external driving via API)
+  subroutine inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> atoms in the system
+    integer, intent(in) :: nAtom
+
+    ! atom coordinates (in the central unit cell, if relevant).
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> names of chemical species
+    character(*), intent(in) :: speciesName(:)
+
+    !> Species of atoms in the central cell
+    integer, intent(in) :: species0(:)
+
+    !> Is the calculation SCC?
+    logical, intent(in) :: tSccCalc
+
+    integer :: iSp
+
+    if (env%tAPICalculation) then
+
+      if (.not. exactCoherence(env, nAtom)) then
+        call error("Coherence failure in number of atoms across nodes")
+      end if
+      if (.not. exactCoherence(env, coord0)) then
+        call error("Coherence failure in coord0 across nodes")
+      end if
+      do iSp = 1, size(speciesName)
+        if (.not. exactCoherence(env, speciesName(iSp))) then
+          call error("Coherence failure in species names across nodes :" // speciesName(iSp))
+        end if
+      end do
+      if (.not. exactCoherence(env, species0)) then
+        call error("Coherence failure in atom species across nodes")
+      end if
+      if (.not. exactCoherence(env, tSccCalc)) then
+        call error("Coherence failure in type of calculation : SCC")
+      end if
+
+    end if
+
+  end subroutine inputCoherenceCheck
+
+
   !> Create equivalency relations
   ! Data available from module: nUJ, niUJ, iUJ, nAtom, nSpin, nOrb and logicals 
   ! Note, this routine should not be called
