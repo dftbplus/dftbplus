@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,20 +11,20 @@
 !> The DIIS mixing is done by building a weighted combination over the previous input charges to
 !> minimise the residue of the error.  Only a specified number of previous charge vectors are
 !> considered.
-!> The modification based on from Kovalenko et al. (J. Comput. Chem., 20: 928–936 1999) and Patrick
+!> The modification based on from Kovalenko et al. (J. Comput. Chem., 20: 928-936 1999) and Patrick
 !> Briddon to add a contribution from the gradient vector as well is also used
 !> In order to use the mixer you have to create and reset it.
-module diismixer
-  use assert
-  use accuracy
-  use lapackroutines, only : gesv
+module dftbp_diismixer
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_lapackroutines, only : gesv
   implicit none
 
   private
 
 
   !> Contains the necessary data for an DIIS mixer
-  type ODIISMixer
+  type Tdiismixer
     private
 
     !> Initial mixing parameter
@@ -59,7 +59,7 @@ module diismixer
 
     !> Holds DIIS mixed gradients from older iterations for downhill direction
     real(dp), allocatable :: deltaR(:)
-  end type ODIISMixer
+  end type Tdiismixer
 
 
   !> Creates an DIISMixer instance
@@ -79,7 +79,7 @@ module diismixer
     module procedure DIISMixer_mix
   end interface mix
 
-  public :: ODIISMixer
+  public :: Tdiismixer
   public :: init, reset, mix
 
 contains
@@ -89,7 +89,7 @@ contains
   subroutine DIISMixer_init(self, nGeneration, initMixParam,tFromStart,alpha)
 
     !> Pointer to an initialized DIIS mixer on exit
-    type(ODIISMixer), intent(out) :: self
+    type(Tdiismixer), intent(out) :: self
 
     !> Nr. of generations (including actual) to consider
     integer, intent(in) :: nGeneration
@@ -138,7 +138,7 @@ contains
   subroutine DIISMixer_reset(self, nElem)
 
     !> DIIS mixer instance
-    type(ODIISMixer), intent(inout) :: self
+    type(Tdiismixer), intent(inout) :: self
 
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
@@ -167,7 +167,7 @@ contains
   subroutine DIISMixer_mix(self, qInpResult, qDiff)
 
     !> Pointer to the diis mixer
-    type(ODIISMixer), intent(inout) :: self
+    type(Tdiismixer), intent(inout) :: self
 
     !> Input charges on entry, mixed charges on exit.
     real(dp), intent(inout) :: qInpResult(:)
@@ -276,4 +276,4 @@ contains
 
   end subroutine storeVectors
 
-end module diismixer
+end module dftbp_diismixer

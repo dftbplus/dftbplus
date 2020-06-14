@@ -14,7 +14,7 @@ if sys.hexversion < 0x03050000:
 DESCRIPTION = 'Replaces the copyright header in all relevant source files.'
 
 COPYRIGHT = '''DFTB+: general package for performing fast atomistic simulations
-Copyright (C) 2018  DFTB+ developers group
+Copyright (C) 2006 - 2020  DFTB+ developers group
 
 See the LICENSE file for terms of usage and distribution.'''
 
@@ -28,6 +28,8 @@ IGNORED_FILES = [
 # the file is skipped, but for performance resons you should use the
 # IGNORED_FILES list to indicate ignored files, whenever possible.
 FILE_TYPES = [
+    ('api/mm/*.[fF]90', 'fortran'),
+    ('api/mm/*.[hc]', 'c'),
     ('makefile', 'makefile'),
     ('prog/**/*.[fF]90', 'fortran'),
     ('prog/**/*.fpp', 'fortran'),
@@ -40,6 +42,8 @@ FILE_TYPES = [
     ('tools/dptools/bin/*', 'python'),
     ('tools/dptools/src/**/*.py', 'python'),
     ('test/tools/dptools/**/*.py', 'python'),
+    ('test/api/mm/testers/*.[fF]90', 'fortran'),
+    ('test/api/mm/testers/*.[hc]', 'c'),
     ('utils/*', 'python'),
     ('utils/build/*.sh', 'shell'),
     ('utils/build/*', 'python'),
@@ -93,15 +97,16 @@ def replace_header(fname, headerpattern, header):
         fp.write(newtxt)
 
 
-def pretty_header(txt, comment, marker, linelength):
-    commentend = comment[-1]
-    headerseparator = (comment + marker * (linelength - len(comment) - 1)
+def pretty_header(txt, commentbegin, commentend, marker, linelength):
+    commentlen = len(commentbegin) + len(commentend)
+    headerseparator = (commentbegin + marker * (linelength - commentlen)
                        + commentend)
     headerlines = [headerseparator]
     for line in txt.split('\n'):
         line = line.strip()
-        padding = linelength - len(comment) - 3  - len(line)
-        headerlines.append(comment + '  ' + line + ' ' * padding + commentend)
+        padding = linelength - commentlen - 2  - len(line)
+        headerlines.append(commentbegin + '  ' + line + ' ' * padding
+                           + commentend)
     headerlines.append(headerseparator)
     return '\n'.join(headerlines)
 
@@ -109,20 +114,25 @@ def pretty_header(txt, comment, marker, linelength):
 RAWTEXT_HEADER_PATTERN = re.compile(
     r'[ \t]*\|---+\|[ \t]*\n(?:[ \t]*\|.*\n)*?[ \t]*\|---+\|[ \t]*$',
     re.MULTILINE)
-RAWTEXT_HEADER = pretty_header(COPYRIGHT, '!', '-', 80)
+RAWTEXT_HEADER = pretty_header(COPYRIGHT, '!', '!', '-', 80)
 
 FORTRAN_HEADER_PATTERN = re.compile(
     r'[ \t]*!---+![ \t]*\n(?:[ \t]*!.*\n)*?[ \t]*!---+![ \t]*$', re.MULTILINE)
-FORTRAN_HEADER = pretty_header(COPYRIGHT, '!', '-', 100)
+FORTRAN_HEADER = pretty_header(COPYRIGHT, '!', '!', '-', 100)
 
 SCRIPT_HEADER_PATTERN = re.compile(
     r'[ \t]*#---+#[ \t]*\n(?:[ \t]*#.*\n)*?[ \t]*#---+#[ \t]*$', re.MULTILINE)
-SCRIPT_HEADER = pretty_header(COPYRIGHT, '#', '-', 80)
+SCRIPT_HEADER = pretty_header(COPYRIGHT, '#', '#', '-', 80)
 
 FYPP_HEADER_PATTERN = re.compile(
     r'[ \t]*#!---+![ \t]*\n(?:[ \t]*#!.*\n)*?[ \t]*#!---+![ \t]*$',
     re.MULTILINE)
-FYPP_HEADER = pretty_header(COPYRIGHT, '#!', '-', 100)
+FYPP_HEADER = pretty_header(COPYRIGHT, '#!', '!', '-', 100)
+
+C_HEADER_PATTERN = re.compile(
+    r'[ \t]*/\*---+\*/[ \t]*\n(?:[ \t]*/\*.*\n)*?[ \t]*/\*---+\*/[ \t]*$',
+    re.MULTILINE)
+C_HEADER = pretty_header(COPYRIGHT, '/*', '*/', '-', 100)
 
 
 HEADER_BY_TYPE = {
@@ -133,6 +143,7 @@ HEADER_BY_TYPE = {
     'rawtext': (RAWTEXT_HEADER_PATTERN, RAWTEXT_HEADER),
     'shell': (SCRIPT_HEADER_PATTERN, SCRIPT_HEADER),
     'fypp': (FYPP_HEADER_PATTERN, FYPP_HEADER),
+    'c': (C_HEADER_PATTERN, C_HEADER),
 }
 
 

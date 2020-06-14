@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,14 +9,14 @@
 
 !> Contains type for representing the data stored in the old SK-file format and subroutines to read
 !> that data from file.
-module oldskdata
-  use assert
-  use accuracy
-  use constants
-  use repspline, only : TRepSplineIn
-  use reppoly, only : TRepPolyIn
-  use fileid
-  use message
+module dftbp_oldskdata
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants
+  use dftbp_repspline, only : TRepSplineIn
+  use dftbp_reppoly, only : TRepPolyIn
+  use dftbp_message
+  use dftbp_rangeseparated, only : TRangeSepSKTag
   implicit none
   private
 
@@ -79,8 +79,8 @@ contains
 
 
   !> Reads the data from an SK-file.
-  subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, &
-      &repSplineIn, repPolyIn)
+  subroutine OldSKData_readFromFile(skData, fileName, homo, iSp1, iSp2, repSplineIn, repPolyIn,&
+      & rangeSepSK)
 
     !> Contains the content of the SK-file on exit
     type(TOldSKData), intent(out) :: skData
@@ -103,9 +103,15 @@ contains
     !> Repulsive polynomial part of the SK-file.
     type(TRepPolyIn), intent(out), optional :: repPolyIn
 
-    integer, save :: file = -1
+    !> Reads rangeseparation parameter from SK file
+    type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
+
+    integer :: file
     character(lc) :: chDummy
+
+    !> extended format for f orbitals
     logical :: tExtended
+
     integer :: nShell
     integer :: ii, iGrid
     real(dp) :: rDummy
@@ -115,10 +121,7 @@ contains
     @:ASSERT(present(repSplineIn) .eqv. present(iSp1))
     @:ASSERT(present(iSp1) .eqv. present(iSp2))
 
-    if (file == -1) then
-      file = getFileId()
-    end if
-    open(file, file=fileName, status="old", action="read", iostat=iostat)
+    open(newunit=file, file=fileName, status="old", action="read", iostat=iostat)
     call checkIoError(iostat, fileName, "Unable to open file")
     rewind(file)
 
@@ -184,6 +187,13 @@ contains
     end if
 
     call readSplineRep(file, fileName, repSplineIn, iSp1, iSp2)
+
+    !> Read range separation parameter
+    if (present(rangeSepSK)) then
+       call readRangeSep(file, fileName, rangeSepSK)
+    end if
+
+
     close(file)
 
   end subroutine OldSKData_readFromFile
@@ -196,7 +206,7 @@ contains
     !! Name of the file (for printing help messages).
     character(*), intent(in) :: fname
     !! Input structure for the spline repulsives
-    type(trepsplinein), intent(inout) :: repsplinein
+    type(TRepSplinein), intent(inout) :: repsplinein
     !! Index of the first species in the repulsive (for messages)
     integer, intent(in), optional :: isp1
     !! Index of the second species in the repulsive (for messsages)
@@ -259,6 +269,61 @@ contains
   end subroutine OldSKData_readsplinerep
 
 
+  !> Reads the RangeSep data from an open file.
+  subroutine readRangeSep(fp, fname, rangeSepSK)
+
+    !> File identifier
+    integer, intent(in) :: fp
+ 
+    !> File name
+    character(*), intent(in) :: fname
+ 
+    !> Rangesep data
+    type(TRangeSepSKTag), intent(inout) :: rangeSepSK
+
+    integer :: iostat
+    integer :: nint, ii, jj
+    character(lc) :: chdummy
+    real(dp) :: omega
+    logical :: hasRangeSep
+    real(dp), allocatable :: xend(:)
+
+    !> Seek rangesep part in SK file
+    do
+      read(fp, '(A)', iostat=iostat) chdummy
+      if (iostat /= 0) then
+        hasRangeSep = .false.
+        exit
+      elseif (chdummy == "RangeSep") then
+        hasRangeSep = .true.
+        exit
+      end if
+    end do
+    
+    if ( .not. hasRangeSep) then
+      write(chdummy, "(A,A,A)") "RangeSep extension tag not found in file '",&
+          & trim(fname), "'"
+      call error(chdummy)
+    end if
+
+    read(fp, *, iostat=iostat) chdummy, omega
+    call checkioerror(iostat, fname, "Error in reading range-sep method and range-sep parameter")
+
+    if (chdummy /= "LC") then
+      write(chdummy, "(A,A,A)") "Unknown range-separation method in SK file '", trim(fname), "'"
+      call error(chdummy)
+    end if
+
+    if (omega < 0.0_dp) then 
+      write(chdummy, "(A)") "Range-separation parameter is negative"
+      call error(chdummy)
+   end if
+
+   rangeSepSK%omega = omega
+
+  end subroutine ReadRangeSep
+
+
   !> Checks for IO errors and prints message.
   subroutine checkIOError(iostat, fname, msg)
 
@@ -277,4 +342,4 @@ contains
 
   end subroutine checkIOError
 
-end module oldskdata
+end module dftbp_oldskdata

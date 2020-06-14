@@ -1,14 +1,14 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Module for filling in optional arguments if suplied to a call, otherwise suplying a default
 !> value.
-module optarg
-  use accuracy, only : dp
+module dftbp_optarg
+  use dftbp_accuracy, only : dp
   implicit none
   private
 
@@ -109,4 +109,4 @@ contains
 
   end subroutine getOptionalArgLogical
 
-end module optarg
+end module dftbp_optarg

@@ -1,15 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Common mathematical operations built out of multiple scalapack calls
-module scalafxext
-  use accuracy, only : lc, dp
-  use scalapackfx
-  use message
+module dftbp_scalafxext
+  use dftbp_accuracy, only : lc, dp
+  use dftbp_scalapackfx
+  use dftbp_message
   implicit none
   private
 
@@ -103,4 +103,4 @@ contains
   end subroutine phermatinv
 
 
-end module scalafxext
+end module dftbp_scalafxext

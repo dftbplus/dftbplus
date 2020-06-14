@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Constraints on the electronic ground state
-module elecconstraints
-  use assert
-  use accuracy, only : dp
-  use commontypes, only : TOrbitals
-  use angmomentum, only : getLOperators
+module dftbp_elecconstraints
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_angmomentum, only : getLOperators
   implicit none
   private
 
@@ -432,4 +432,4 @@ contains
 
   end subroutine constrainMj
 
-end module elecconstraints
+end module dftbp_elecconstraints

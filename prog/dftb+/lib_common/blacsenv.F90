@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,11 +8,11 @@
 #:include 'common.fypp'
 
 !> Contains BLACS environmental settings.
-module blacsenv
-  use mpienv
-  use message
-  use scalapackfx
-  use assert
+module dftbp_blacsenv
+  use dftbp_mpienv
+  use dftbp_message
+  use dftbp_scalapackfx
+  use dftbp_assert
   implicit none
   private
 
@@ -156,4 +156,4 @@ contains
   end subroutine getGridMap
 
 
-end module blacsenv
+end module dftbp_blacsenv

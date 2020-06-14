@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Simple algebraic stuff for cases where LAPACK would be overkill
-module simplealgebra
-  use assert
-  use accuracy
+module dftbp_simplealgebra
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
   private
 
@@ -18,24 +18,23 @@ module simplealgebra
 
 contains
 
-
   !> Cross product
-  subroutine cross3(res, v1, v2)
+  pure function cross3(v1, v2) result(res)
 
     !> Resulting vector.
-    real(dp), intent(out) :: res(3)
+    real(dp) :: res(3)
 
     !> First vector.
-    real(dp), intent(in) :: v1(3)
+    real(dp), intent(in) :: v1(:)
 
     !> Second vector.
-    real(dp), intent(in) :: v2(3)
+    real(dp), intent(in) :: v2(:)
 
     res(1) = v1(2) * v2(3) - v1(3) * v2(2)
     res(2) = v1(3) * v2(1) - v1(1) * v2(3)
     res(3) = v1(1) * v2(2) - v1(2) * v2(1)
 
-  end subroutine cross3
+  end function cross3
 
 
   !> Signed determinant of a 3x3 matrix
@@ -49,7 +48,7 @@ contains
 
     real(dp) :: tmp
 
-    @:ASSERT(all(shape(matrix) == (/3, 3/)))
+    @:ASSERT(all(shape(matrix) == [3, 3]))
 
     tmp = matrix(1, 1) &
         &* (matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3))
@@ -67,10 +66,10 @@ contains
   subroutine  derivDeterminant33(deriv,matrix)
 
     !> derivative of the determinant
-    real(dp), intent(out) :: deriv(3, 3)
+    real(dp), intent(out) :: deriv(:, :)
 
     !> The matrix from which to calculate the determinant.
-    real(dp), intent(in) :: matrix(3, 3)
+    real(dp), intent(in) :: matrix(:, :)
 
     deriv(1,1) = matrix(2, 2) * matrix(3, 3) - matrix(3, 2) * matrix(2, 3)
     deriv(1,2) = matrix(2, 3) * matrix(3, 1) - matrix(3, 3) * matrix(2, 1)
@@ -101,8 +100,8 @@ contains
 
     real(dp) :: det
 
-    @:ASSERT(all(shape(inverted) == (/3, 3/)))
-    @:ASSERT(all(shape(orig) == (/3, 3/)))
+    @:ASSERT(all(shape(inverted) == [3, 3]))
+    @:ASSERT(all(shape(orig) == [3, 3]))
 
     if (present(optDet)) then
       det = optDet
@@ -125,4 +124,4 @@ contains
 
   end subroutine invert33
 
-end module simplealgebra
+end module dftbp_simplealgebra

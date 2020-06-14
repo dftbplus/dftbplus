@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,15 +12,15 @@
 !> This module contains the repulsive functions. It decides, which one to call for which type
 !> pairs. It can be easily extended to contain different repulsive schemes for different pairs. At
 !> the moment, it handles only repulsive with spline interpolation.
-module repcont
-  use assert
-  use accuracy
-  use repspline
-  use reppoly
+module dftbp_repcont
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_repspline
+  use dftbp_reppoly
   implicit none
   private
 
-  public :: ORepCont, init
+  public :: TRepCont, init
   public :: addRepulsive, getCutoff, getEnergy, getEnergyDeriv
 
 
@@ -33,13 +33,13 @@ module repcont
   !> Contains repulsive types.
   type PRep_
     integer :: iType = typeRepInvalid
-    type(ORepSpline), allocatable :: pRepSpline
-    type(ORepPoly), allocatable :: pRepPoly
+    type(TRepSpline), allocatable :: pRepSpline
+    type(TRepPoly), allocatable :: pRepPoly
   end type PRep_
 
 
   !> Contains the repulsive interactions for the species pairs.
-  type ORepCont
+  type TRepCont
     private
 
     !> repulsive functions
@@ -56,7 +56,7 @@ module repcont
 
     !> Is structure initialised?
     logical :: tInit = .false.
-  end type ORepCont
+  end type TRepCont
 
 
   !> Initialises the repulsive container.
@@ -96,7 +96,7 @@ contains
   subroutine RepCont_init(self, nSpecies)
 
     !> Repulsive container.
-    type(ORepCont), intent(out) :: self
+    type(TRepCont), intent(out) :: self
 
     !> Nr. of species.
     integer, intent(in) :: nSpecies
@@ -116,10 +116,10 @@ contains
   subroutine RepCont_addRepSpline(self, pRep, iSp1, iSp2)
 
     !> Repulsive container.
-    type(ORepCont), intent(inout) :: self
+    type(TRepCont), intent(inout) :: self
 
     !> Repulsive function to add.
-    type(ORepSpline), intent(in) :: pRep
+    type(TRepSpline), intent(in) :: pRep
 
     !> Nr. of the first interacting species.
     integer, intent(in) :: iSp1
@@ -140,10 +140,10 @@ contains
   subroutine RepCont_addRepPoly(self, pRep, iSp1, iSp2)
 
     !> Repulsive container.
-    type(ORepCont), intent(inout) :: self
+    type(TRepCont), intent(inout) :: self
 
     !> Repulsive function to add.
-    type(ORepPoly), intent(in) :: pRep
+    type(TRepPoly), intent(in) :: pRep
 
     !> Nr. of the first interacting species.
     integer, intent(in) :: iSp1
@@ -164,7 +164,7 @@ contains
   function RepCont_getCutoff(self) result(cutoff)
 
     !> Repulsive container.
-    type(ORepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: self
 
     !> Global cutoff.
     real(dp) :: cutoff
@@ -179,7 +179,7 @@ contains
   subroutine RepCont_getEnergy(self, res, rr, sp1, sp2)
 
     !> Repulsive container.
-    type(ORepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: self
 
     !> Energy contribution.
     real(dp), intent(out) :: res
@@ -209,7 +209,7 @@ contains
   subroutine RepCont_getEnergyDeriv(self, res, xx, sp1, sp2)
 
     !> Repulsive container.
-    type(ORepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: self
 
     !> Gradient on exit.
     real(dp), intent(out) :: res(:)
@@ -236,4 +236,4 @@ contains
 
   end subroutine RepCont_getEnergyDeriv
 
-end module repcont
+end module dftbp_repcont

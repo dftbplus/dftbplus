@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,19 +9,24 @@
 
 !> Program for plotting molecular orbitals as cube files.
 program waveplot
-  use assert
-  use io
-  use InitWaveplot
-  use accuracy
-  use CharManip
-  use FileId
-  use TypeGeometry
-  use FileId
-  use GridCache
-  use MolecularOrbital
-  use SimpleAlgebra
-  use LinkedList
-  use Periodic
+  use dftbp_assert
+  use dftbp_globalenv, only : stdOut
+  use dftbp_initwaveplot
+  use dftbp_accuracy
+  use dftbp_charmanip
+  use dftbp_fileid
+  use dftbp_typegeometry
+  use dftbp_fileid
+  use dftbp_gridcache
+  use dftbp_molecularorbital
+  use dftbp_simplealgebra
+  use dftbp_linkedlist
+  use dftbp_periodic
+#:if WITH_MPI
+  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
+  use dftbp_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use mpi, only : MPI_THREAD_FUNNELED
+#:endif
   implicit none
 
   character(len=80) :: comments(2), fileName
@@ -44,8 +49,19 @@ program waveplot
   real(dp) :: mDist, dist
   real(dp), allocatable :: cellVec(:,:), rCellVec(:,:)
   integer :: i1, i2, i3, iCell
-  type(listRealR1) :: coordList
-  type(listInt) :: speciesList
+  type(TListRealR1) :: coordList
+  type(TListInt) :: speciesList
+
+#:if WITH_MPI
+  !> MPI environment, if compiled with mpifort
+  type(TMpiEnv) :: mpiEnv
+
+  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
+  ! build
+  call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
+  call TMpiEnv_init(mpiEnv)
+  call mpiEnv%mpiSerialEnv()
+#:endif
 
   ! Allocate resources
   call initProgramVariables()
@@ -332,6 +348,11 @@ program waveplot
     write(stdout, "(A)") "File '" // trim(fileName) // "' written"
   end if
 
+#:if WITH_MPI
+  call mpifx_finalize()
+#:endif
+
+
 contains
 
 
@@ -375,7 +396,7 @@ contains
     @:ASSERT(all(shape(gridVecs) == (/3, 3/)))
     @:ASSERT(size(origin) == 3)
     @:ASSERT(all(shape(gridVal) >= (/ 0, 0, 0 /)))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(comments)) then
       @:ASSERT(size(comments) == 2)
     end if
@@ -383,7 +404,7 @@ contains
       @:ASSERT(size(repeatBox) == 3)
       @:ASSERT(all(repeatBox > 0))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(repeatBox)) then
       rep(:) = repeatBox(:)

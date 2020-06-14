@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2018  DFTB+ developers group                                  #
+#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -17,19 +17,19 @@ outfile = None
 infile = None
 norm = True
 
-def useage():    
-    print "--broaden -b broadening width"
-    print "--help    -h this message"
-    print "--input   -i input file name"
-    print "--unnorm  -u don't normalize by number of spins/kpoints"
-    print "--output  -o output file name"
-    print "--weight  -w weight data present"
+def useage():
+    print("--broaden -b broadening width")
+    print("--help    -h this message")
+    print("--input   -i input file name")
+    print("--unnorm  -u don't normalize by number of spins/kpoints")
+    print("--output  -o output file name")
+    print("--weight  -w weight data present")
     sys.exit(2)
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], "o:i:b:hwu", ["output=", "input=", "broaden=", "help","weight","unnorm"])
-except getopt.GetoptError, err:
-    print str(err) # will print something like "option -a not recognized"
+except getopt.GetoptError as err:
+    print(str(err)) # will print something like "option -a not recognized"
     useage()    
 output = None
 input = None
@@ -66,7 +66,7 @@ figures = "%i" % gridResltn
 sGrid = "%."+figures+"f"
 gridResltn = 1.0/(10**gridResltn)
 
-print "Gaussian broadening of levels, width %.2f" %(sigma)
+print("Gaussian broadening of levels, width %.2f" %(sigma))
 
 a = 1.0 / (sigma * sqrt(2.0*pi))
 b = - 0.5 / (sigma * sigma)

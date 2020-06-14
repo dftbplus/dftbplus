@@ -1,15 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains a simple logger which helps to avoid direct write statements.
-module logger
-  use accuracy, only : dp
-  use io
-  use optarg
+module dftbp_logger
+  use dftbp_accuracy, only : dp
+  use dftbp_globalenv, only : stdOut
+  use dftbp_optarg
   implicit none
   private
 
@@ -297,4 +297,4 @@ contains
 
   end subroutine getRowFormat
 
-end module logger
+end module dftbp_logger

@@ -1,15 +1,15 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains functions to calculate the short-ranged part of gamma, and the distance beyond which it
 !> becomes negligible.
-module shortgamma
-  use accuracy
-  use message
+module dftbp_shortgamma
+  use dftbp_accuracy
+  use dftbp_message
   implicit none
 
   private
@@ -402,4 +402,4 @@ contains
 
   end function gammaSubExprnPrime
 
-end module shortgamma
+end module dftbp_shortgamma

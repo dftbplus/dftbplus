@@ -1,26 +1,19 @@
 \chapter{Input for {\dftbp}}
 
 
-{\dftbp} can read two formats, either XML or the Human-friendly
-Structured Data format (HSD).  If you are not familiar with the HSD
-format, a detailed description is given in appendix \ref{sec:hsd}. The
-input file for {\dftbp} must be named \verb|dftb_in.hsd| {\em or}
-\verb|dftb_in.xml|. The input file must be present in the working
-directory. To prevent ambiguity, the parser refuses to read any input
-if both files are present. After processing the input, {\dftbp}
-creates a file of the parsed input, either \verb|dftb_pin.hsd| or
-\verb|dftb_pin.xml|. This contains the user input as well as any
-default values for unspecified options.  The file also contains the
-version number of the current input parser.  You should always keep
-this file, since if you want to exactly repeat your calculation with a
-later version of \dftbp{}, it is recommended to use this file instead
-of the original input. (You must of course rename \verb|dftb_pin.hsd|
-into \verb|dftb_in.hsd| or \verb|dftb_pin.xml| into
-\verb|dftb_in.xml|.)  This guarantees that you will obtain the same
-results, even if the defaults for some non specified options have been
-changed. The code can also produce \verb|dftb_pin.xml| from
-\verb|dftb_in.hsd| or {\it vice versa} if required (see
-section~\ref{sec:dftbp.ParserOptions}).
+{\dftbp} can read the Human-friendly Structured Data format (HSD).  If you are
+not familiar with the HSD format, a detailed description is given in appendix
+\ref{sec:hsd}. The input file for {\dftbp} must be named \verb|dftb_in.hsd| and
+must be present in the working directory. After processing the input, {\dftbp}
+creates a file of the parsed input called \verb|dftb_pin.hsd|. This contains the
+user input as well as default values for unspecified options.  The file also
+contains the version number of the current input parser.  You should always keep
+this file, since if you want to exactly repeat your calculation with a later
+version of \dftbp{}, it is recommended to use this file instead of the original
+input. (You must of course rename \verb|dftb_pin.hsd| into \verb|dftb_in.hsd|.)
+This guarantees that you will obtain the same results, even if the defaults for
+some non specified options have been changed in the meanwhile (as
+\verb|dftb_pin.hsd| stores the original choice).
 
 The following sections list properties and options that can be set in
 {\dftbp} input. The first column of each of the tables of options
@@ -53,7 +46,7 @@ appendix~\ref{app:units}.
 \section{Main input}
 
 
-The input file for {\dftbp} (\verb|dftb_in.hsd|/\verb|dftb_in.xml|)
+The input file for {\dftbp} (\verb|dftb_in.hsd|)
 must contain the following property definitions:
 \begin{ptableh}
   \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
@@ -66,6 +59,7 @@ Additionally optional blocks of definitions may be present:
   \kw{Options} & p & & \cb & \pref{sec:dftbp.Options} \\
   \kw{Analysis} & p & & \cb & \pref{sec:dftbp.Analysis} \\
   \kw{ExcitedState} & p & & \cb & \pref{sec:dftbp.ExcitedState} \\
+  \kw{REKS} & p & & \cb & \pref{sec:dftbp.REKS} \\
   \kw{ParserOptions} & p & & \cb & \pref{sec:dftbp.ParserOptions} \\
   \kw{Parallel} & p & & \cb & \pref{sec:dftbp.Parallel} \\
 \end{ptableh}
@@ -83,6 +77,8 @@ Additionally optional blocks of definitions may be present:
   p.~\pref{sec:dftbp.Analysis}.
 \item[\is{ExcitedState}] Calculations in excited state of the system.
   See p.~\pref{sec:dftbp.ExcitedState}.
+\item[\is{REKS}] Calculations in ensemble DFT for a strongly correlated system.
+  See p.~\pref{sec:dftbp.REKS}.
 \item[\is{ParserOptions}] Various options affecting the parser only.
   See p.~\pref{sec:dftbp.ParserOptions}.
 \item[\is{Parallel}] Options affecting the MPI-parallel execution. See
@@ -96,6 +92,8 @@ Additionally optional blocks of definitions may be present:
 The geometry can be specified either directly by passing the
 appropriate list of properties or by using the \is{GenFormat\cb}
 method.
+For molecular input the \is{xyzFormat\cb} is supported as well.
+For periodic input the \is{VaspFormat\cb} supports reading POSCAR and CONTCAR files.
 
 \subsection{Explicit geometry specification}
 
@@ -163,6 +161,88 @@ It is also possible to include the gen-formatted geometry from a file:
 \begin{verbatim}
 Geometry = GenFormat {
   <<< "geometry.gen"
+}
+\end{verbatim}
+
+\subsection{xyzFormat\{\}}
+\label{sec:dftbp.xyzFormat}
+
+You can also use the xyz format to specify molecular geometries.
+The geometry specification for a caffeine molecule would be the following:
+\begin{verbatim}
+Geometry = xyzFormat {
+24
+caffeine C8H10N4O2
+C          1.07317        0.04885       -0.07573
+N          2.51365        0.01256       -0.07580
+C          3.35199        1.09592       -0.07533
+N          4.61898        0.73028       -0.07549
+C          4.57907       -0.63144       -0.07531
+C          3.30131       -1.10256       -0.07524
+C          2.98068       -2.48687       -0.07377
+O          1.82530       -2.90038       -0.07577
+N          4.11440       -3.30433       -0.06936
+C          5.45174       -2.85618       -0.07235
+O          6.38934       -3.65965       -0.07232
+N          5.66240       -1.47682       -0.07487
+C          7.00947       -0.93648       -0.07524
+C          3.92063       -4.74093       -0.06158
+H          0.73398        1.08786       -0.07503
+H          0.71239       -0.45698        0.82335
+H          0.71240       -0.45580       -0.97549
+H          2.99301        2.11762       -0.07478
+H          7.76531       -1.72634       -0.07591
+H          7.14864       -0.32182        0.81969
+H          7.14802       -0.32076       -0.96953
+H          2.86501       -5.02316       -0.05833
+H          4.40233       -5.15920        0.82837
+H          4.40017       -5.16929       -0.94780
+}
+\end{verbatim}
+It is also possible to include the xyz-formatted geometry from a file:
+\begin{verbatim}
+Geometry = xyzFormat {
+  <<< "geometry.xyz"
+}
+\end{verbatim}
+
+\subsection{VaspFormat\{\}}
+\label{sec:dftbp.VaspFormat}
+
+You can also use Vasp's \href{https://www.vasp.at/wiki/index.php/POSCAR}{POSCAR} or
+\href{https://www.vasp.at/wiki/index.php/CONTCAR}{CONTCAR} format to specify periodic geometries.
+The geometry specification for a molecular ammonia crystal would be the following:
+\begin{verbatim}
+Geometry = VaspFormat {
+ H  N
+    1.00000000000000
+    5.01336000000000    0.00000000000000    0.00000000000000
+    0.00000000000000    5.01336000000000    0.00000000000000
+    0.00000000000000    0.00000000000000    5.01336000000000
+ 12 4
+Cartesian
+    2.19855889440000    1.76390058240000    0.88014548160000
+    1.76390058240000    0.88014548160000    2.19855889440000
+    0.88014548160000    2.19855889440000    1.76390058240000
+    4.84115108400000    1.61941554720000    4.93981400880000
+    4.35630903840000    2.49981169680000    3.63248012160000
+    3.51957925440000    1.15357413600000    4.08403345680000
+    4.08403345680000    3.51957925440000    1.15357413600000
+    4.93981400880000    4.84115108400000    1.61941554720000
+    3.63248012160000    4.35630903840000    2.49981169680000
+    2.49981169680000    3.63248012160000    4.35630903840000
+    1.15357413600000    4.08403345680000    3.51957925440000
+    1.61941554720000    4.93981400880000    4.84115108400000
+    1.37461317840000    1.37461317840000    1.37461317840000
+    3.99815460000000    1.99105592400000    4.46364507600000
+    4.46364507600000    3.99815460000000    1.99105592400000
+    1.99105592400000    4.46364507600000    3.99815460000000
+}
+\end{verbatim}
+It is also possible to include the POSCAR/CONTCAR formatted geometry from a file:
+\begin{verbatim}
+Geometry = VaspFormat {
+  <<< "POSCAR"
 }
 \end{verbatim}
 
@@ -477,6 +557,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \kw{XlbomdFast} & p & Xlbomd \textrm{not set} & & \pref{sec:dftbp.xlbomd} \\
   \kw{Masses} & p & & & \pref{sec:dftbp.Masses} \\
   \kw{Replicas} & i &  & 1 & \pref{sec:dftbp.Replicas}\\
+  \kw{Plumed} & l & No & & \\
 \end{ptable}
 
 \begin{description}
@@ -529,7 +610,7 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   \is{False}, forces will be calculated using the non-converged charges and the
   molecular dynamics continues. In this case you should consider using
   \is{ForceEvaluation = 'Dynamics'} (or \is{ForceEvaluation = 'DynamicsT0'}) in
-  the \is{Dftb} block as it gives more accurate forces for non-converged
+  the \is{DFTB} block as it gives more accurate forces for non-converged
   charges.
 
 \item[\is{Xlbomd}] If present, extended Lagrangian type molecular dynamics
@@ -539,6 +620,12 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
 \item[\is{Masses}] If present, over-ride the atomic masses from the Slater-Koster files. See
   p.~\pref{sec:dftbp.Masses}
 
+\item[\is{Plumed}] Whether Plumed should be invoked in order to modify the
+  forces and to drive a meta-dynamics.  The parameters of the meta-dynamics must
+  be stored in the file \verb|plumed.dat| in the current directory. The file
+  must be formatted according to Plumed's own format. (Note: This option
+  requires a {\dftbp} binary built with Plumed support.)
+  
 \end{description}
 
 
@@ -696,10 +783,9 @@ starting temperature for each annealing period is the final target
 temperature of the previous period, with the last step of each stage
 being at the target temperature. Since the initial stage in the
 temperature profile has no previous step, the default starting
-temperature is set to 0, but no actual calculation for that
-temperature is made.  In order to start the calculation from a finite
+temperature is set to 0.  In order to start the calculation from a finite
 temperature for the first annealing period, a constant profile
-temperature stage with the duration of only one step should be
+temperature stage with a duration of one (or more) step(s) should be
 specified as the first step (see the example).  The temperatures of
 the stages are specified in atomic units, unless the \is{Temperature}
 keyword carries a modifier, as in the example above.
@@ -824,8 +910,8 @@ addition to the common XLBOMD settings above:
   then use a less strict SCC tolerance once the integrator is active).
 \end{description}
 
-The \is{XlbomdFast} block allows has the following specific options in addition
-to the common XLBOMD settings above:
+The \is{XlbomdFast} block has the following specific options in addition to
+the common XLBOMD settings above:
 
 \begin{ptable}
   \kw{TransientSteps} & i & & 10 & \\
@@ -963,7 +1049,9 @@ Driver = Socket {
 }
 \end{verbatim}
 
-
+Please note that this driver changes the default behaviour of some options to
+remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
+\is{WriteBandOut} = \is{No}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Hamiltonian
@@ -982,17 +1070,17 @@ following properties:
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
   \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
-  \kw{OrbitalResolvedSCC} & l & SCC = Yes & No & \\
+  \kw{ShellResolvedSCC} & l & SCC = Yes & No & \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
   \kw{Charge} &r& & 0.0 & \\
   \kw{SpinPolarisation} &m& SCC = Yes & \cb & \pref{sec:dftbp.SpinPolarisation} \\
   \kw{SpinConstants} &p& SpinPolarisation $\neq$ \{\}~ & - &
   \pref{sec:dftbp.SpinConstants} \\
-  \kw{ShellResolvedSpin} &l& OrbitalResolvedSCC = No & No & \\
+  \kw{ShellResolvedSpin} &l& ShellResolvedSCC = No & No & \\
   \kw{SpinOrbit} &m& SpinPolarisation $\neq$ Colinear\{\}~ & \cb &
   \pref{sec:dftbp.SpinOrbit} \\
-  \kw{Eigensolver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Eigensolver} \\
+  \kw{Solver} &m& & RelativelyRobust\cb  & \pref{sec:dftbp.Solver} \\
   \kw{Filling} &m&  & Fermi\cb & \pref{sec:dftbp.Filling} \\
   \kw{SlaterKosterFiles} &p|m&  & - & \pref{sec:dftbp.SlaterKosterFiles} \\
   \kw{OldSKInterpolation} & l & & No & \\
@@ -1005,14 +1093,19 @@ following properties:
   \kw{InitialCharges} & p & SCC = Yes & \cb & \\
   \kw{ElectricField} & p & SCC = Yes & \cb & \pref{sec:dftbp.ElectricField} \\
   \kw{Dispersion} & m & & \cb & \pref{sec:dftbp.Dispersion} \\
-  \kw{DampXH} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
-  \kw{DampXHExponent} & r & DampXH = Yes & - & \\
+  \kw{HCorrection} & m & SCC = Yes & None \{\} & \pref{sec:dftbp.hcorr}\\
+  \kw{HalogenXCorr} & l & ThirdOrder(Full) = Yes, DftD3 & No & \pref{sec:dftbp.xcorr}\\
   \kw{ThirdOrder} & l & SCC = Yes & No & \\
   \kw{ThirdOrderFull} & l & SCC = Yes & No & \pref{sec:dftbp.DFTB3}\\
+  \kw{RangeSeparated} & p &  & \is{None} & \pref{sec:dftbp.RangeSep} \\
   \kw{HubbardDerivs} & p & ThirdOrder(Full) = Yes  & - & \\
+  \kw{OnSiteCorrection} & p & SCC = Yes & - & \pref{sec:dftbp.Onsites} \\
+  \kw{Solvation} & m & & - & \pref{sec:dftbp.Solvation}\\
   \kw{Differentiation} &m&  & FiniteDiff & \pref{sec:dftbp.Differentiation} \\
   \kw{ForceEvaluation} &s& & "Legacy" & \\
-  \kw{CustomisedHubbards} & p & & & \\
+  \kw{CustomisedHubbards} & p & SCC = Yes & & \\
+  \kw{CustomisedOccupations} & p & SCC = Yes & & \\
+  \kw{TruncateSKRange} & p & & & \\
   \hline
 \end{ptable}
 
@@ -1050,7 +1143,7 @@ following properties:
 \item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
   systems.
 
-\item[\is{OrbitalResolvedSCC}] If set to \is{Yes}, all distinct
+\item[\is{ShellResolvedSCC}] If set to \is{Yes}, all distinct
   Hubbard $U$ values for the different atomic angular momenta shells
   are used, when calculating the SCC contributions. Otherwise, the
   value supplied for the $s$-shell is used for all angular
@@ -1146,8 +1239,8 @@ following properties:
 \item[\is{SpinOrbit}] Specifies if the system includes Russel-Saunders
   coupling. See p.~\pref{sec:dftbp.SpinOrbit}
 
-\item[\is{Eigensolver}] Specifies which eigensolver to use for
-  diagonalising the Hamiltonian. See p.~\pref{sec:dftbp.Eigensolver}.
+\item[\is{Solver}] Specifies which solver (eigensolver, Green's function, etc.)
+  to use with the hamiltonian. See p.~\pref{sec:dftbp.Solver}.
 
 \item[\is{Filling}] Method for occupying the one electron levels with
   electrons. See p.~\pref{sec:dftbp.Filling}.
@@ -1206,13 +1299,13 @@ following properties:
   \verb|charges.bin| or \verb|charges.dat| (depending on the option
   \is{WriteChargesAsText}, see section\ref{sec:dftbp.Options}).
 
-\item[\is{InitialCharges}] Specifies initial net charges, either for
-  all atoms or for only selected ones. In order to specify it for all
-  atoms, use the keyword \kw{AllAtomCharges} and supply the net charge
-  for every atom as a list of real values:
+\item[\is{InitialCharges}] Specifies initial charges, either for all atoms or
+  for only selected ones. In order to specify it for all atoms, use the keyword
+  \kw{AllAtomCharges} and supply the charge for every atom as a list of real
+  values:
 \begin{verbatim}
   InitialCharges = {
-    AllAtomCharges = { # Specifies net charge for each atom in an H2O molecule
+    AllAtomCharges = { # Specifies charge for each atom in an H2O molecule
        -0.88081627     # charge for atom 1 (O)
         0.44040813     # charge for atom 2 (H1)
         0.44040813     # charge for atom 3 (H2)
@@ -1221,8 +1314,8 @@ following properties:
 \end{verbatim}
   Alternatively you can specify charges individually on atoms or
   species using the \kw{AtomCharge} keyword. For every \is{AtomCharge}
-  declaration you must provide a net charge and the list of atoms,
-  which should be initialised to that net charge. (You can use the
+  declaration you must provide a charge and the list of atoms,
+  which should be initialised to that charge. (You can use the
   same format for the list of atoms, as described at the
   \is{MovedAtoms} keyword in the section for \isl{SteepestDescent}{sec:dftbp.SteepestDescent}):
 \begin{verbatim}
@@ -1237,7 +1330,7 @@ following properties:
     }
   }
 \end{verbatim}
-  Net charge on atoms not appearing in any \is{AtomCharge}
+  Charge on atoms not appearing in any \is{AtomCharge}
   specification is set to be zero.
 
 
@@ -1248,6 +1341,9 @@ following properties:
 \item[\is{Dispersion}] Specifies which kind of dispersion correction
   to apply. See p.~\pref{sec:dftbp.Dispersion}.
 
+\item[\is{OnSiteCorrection}] Used to include the on-site matrix elements of
+  Dom\'inguez {\it et al.}~\cite{dominguez15}. See p.~\pref{sec:dftbp.Onsites}.
+  
 \item[\is{Differentiation}] Specifies how to calculate finite difference
   derivatives in the force routines. See p.~\pref{sec:dftbp.Differentiation}.
 
@@ -1273,15 +1369,78 @@ following properties:
   }
   \end{verbatim}
 
+\item[\kw{CustomisedOccupations}] Enables overriding the reference neutral atom
+  electronic occupations of the shells. Note that the atom remains neutral since
+  a corresponding ionic counter charge is implicitly added to its core. This
+  option can be used, for example, to simulate effective doping by setting a
+  slightly larger or smaller number of electrons on certain atoms.
+
+  Example:
+  \begin{verbatim}
+  CustomisedOccupations{
+    ReferenceOccupation{
+      Atoms={1:30}
+      p=2.01
+    }
+    ReferenceOccupation{
+      Atoms={31:60}
+      p=1.99
+    }
+  }
+  \end{verbatim}
+  
+  The example above sets a filling population of +0.01e or -0.01e in the p shell
+  of the corresponding atom indices. When the states are filled up, the electron
+  excess or depletion results in a shift of the Fermi level in the bands.
+
+  \textbf{Warning:} This option is for experts only! Overriding values stored in
+  the SK-files may result in \textbf{inconsistent results}. Please look at the
+  transport section of the
+  \href{https://dftbplus-recipes.readthedocs.io/en/latest/}{dftb+ recipes} to
+  see an example of the correct use of this option.
+
+\item[\is{TruncateSKRange}] Enables overriding of the number of elements to be
+  read from the Slater-Koster parameters, shortening the interaction range of
+  atoms. 
+
+  \textbf{Warning:} This option is for experts only! Overriding values stored in
+  the SK-files may result in \textbf{inconsistent results}. Make sure you
+  understand the consequences when using this option.
+  
+  \begin{ptable}
+    \kw{SKMaxDistance} & r &  & -- & \\
+    \kw{HardCutOff} & l &  & No & \\
+  \end{ptable}
+  \begin{description}
+    \item[\is{SKMaxDistance}]\modif{\modtype{length}} Length at which to cut the
+      overlap and non-SCC interactions for all atoms in the system. If this
+      length is longer than the distances in the Slater-Koster files it will
+      have no effect.
+    \item[\is{HardCutOff}] The Slater-Koster interpolation \dftbp{} produces
+      will smoothly tail off to zero at a short distance beyond the table, which
+      is controlled by \kw{OldSKInterpolation}. If \kw{HardCutOff} is set to
+      \kw{Yes}, then the distance set by \kw{SKMaxDistance} includes this tail,
+      i.e., no interactions occur beyond that distance. In the case of \kw{No}
+      this zeroing tail extends slightly beyond the \kw{HardCutOff} distance.
+  \end{description}
+  
+  Example:
+  \begin{verbatim}
+  TruncateSKRange = {
+    SKMaxDistance [AA] = 4.0
+    HardCutOff = Yes
+  }
+  \end{verbatim}
+
 \end{description}
 
 
 \subsection{Mixer}
 \label{sec:dftbp.Mixer}
 
-{\dftbp} currently offers the charge mixing methods \iscb{Broyden}
-(Broyden-mixer), \iscb{Anderson} (Anderson-mixer), \iscb{DIIS}
-(DIIS-accelerated simple mixer) and \iscb{Simple} (simple mixer).
+{\dftbp} currently offers the charge mixing methods \iscb{Broyden},
+\iscb{Anderson}, \iscb{DIIS} (DIIS accel\-er\-ated simple mixer) and
+\iscb{Simple} (simple mixer).
 
 \subsubsection{Broyden\{\}}
 \label{sec:dftbp.Broyden}
@@ -1587,13 +1746,15 @@ distribution:
 \subsubsection{SpinConstants}
 \label{sec:dftbp.SpinConstants}
 
-For each atomic species in the calculation the spin coupling constants for that
-atom must be specified.
+This environment suplies the atomic constants required for either spin polarised
+calculations or when evaluating properties which depend on spin interactions
+(triplet excitations for example).  In these cases, for each atomic species in
+the calculation the spin coupling constants for that atom must be specified.
 
-When \is{OrbitalResolvedSCC} = \is{No}, an extra keyword in this block controls
+When \is{ShellResolvedSCC} = \is{No}, an extra keyword in this block controls
 whether the spin constants are resolved by shell or are identical for all
 shells: \kw{ShellResolvedSpin}, defaulting to the same value as
-\is{OrbitalResolvedSCC}.
+\is{ShellResolvedSCC}.
 
 When shell resolved spin constants are specified, they must be ordered with
 respect to the pairs of shells they couple, such that the index for the second
@@ -1689,25 +1850,154 @@ the single particle density matrix. The default value of this option is
 \is{Yes}, also giving extra information regarding atomic orbital moments in the
 detailed output.
 
-\subsection{Eigensolver}
-\label{sec:dftbp.Eigensolver}
+\subsection{Solver}
+\label{sec:dftbp.Solver}
 
-Currently the following LAPACK~3.0~\cite{lapack3} eigensolver methods
-are available:
+Currently the following LAPACK~3.0~\cite{lapack3} eigensolver methods are always
+available:
 \begin{itemize}
 \item \iscb{QR}\\ (QR decomposition based solver)
-\item \iscb{DivideAndConquer}\\ (this requires about twice the memory
-  of the other solvers)
-\item \iscb{RelativelyRobust}\\ (using the subspace form but
-  calculating all states)
+\item \iscb{DivideAndConquer}\\ (this requires about twice the memory of the
+  other solvers)
+\item \iscb{RelativelyRobust}\\ (using the subspace form but calculating all
+  states)
+\item \iscb{MAGMA}\\ (Only available for \dftbp{} binaries compiled with
+  MAGMA~\cite{tdb10, tnld10, dghklty14} GPU support. \textbf{WARNING:} this is
+  currently an experimental feature, so should be used with care.)
 \end{itemize}
-None of them needs any parameters or properties specified.
+None of these solvers need any parameters or properties to be specified.
 
 Example:\invparskip
 \begin{verbatim}
-  Eigensolver = DivideAndConquer {}
+  Solver = DivideAndConquer {}
 \end{verbatim}
 
+For ScaLAPACK enabled compilation, all three solvers are also available for MPI
+parallel use.
+
+If {\dftbp} is compiled with the ELSI library also included~\cite{YU2018267},
+the additional \kw{ELPA}, \kw{OMM}, \kw{PEXSI} and \kw{NTPoly} solvers also
+become available.
+
+Note: The ELSI-solvers are not tested with multiple OpenMP-threads. Therefore,
+{\dftbp} will stop with an error, if an ELSI-solver has been selected and the
+maximal number of allowed threads is greater than one. (You can control the
+number of allowed OpenMP-threads via the \verb|OMP_NUM_THREADS| environment
+variable.)
+
+\subsubsection{ELPA}
+
+This is available with either single or two stage solution methods (the second
+of these should be more efficiently parallel for large problems).
+
+Example:\invparskip
+\begin{verbatim}
+  Solver = ELPA {
+    Mode = 2
+  }
+\end{verbatim}
+
+One caveat for this solver is that the number of parallel groups (see
+p.~\pref{sec:dftbp.Parallel}) must match the number of k-points (times 2 in the
+case of collinear spin polarisation). Calculations without k-points can use
+either one or two groups in the case of collinear spin polarisation.
+
+This solver can optionally use the ELSI internal sparse interface (\kw{Sparse} =
+\is{Yes}), but this does not reduce memory usage and is mainly for testing
+purposes.
+
+\subsubsection{OMM}
+
+This method minimises the single particle density matrix, so does not make band
+structure information available. It is only stable for insulating grounds
+states, i.e., systems with a HOMO-LUMO (band) gap.
+
+The orbital minimisation method has four options:
+
+\begin{ptable}
+  \kw{nInterationsELPA} & i& & 5 & \\
+  \kw{Tolerance} & r& & 1E-10 & \\
+  \kw{Choleskii} & l& & Yes & \\
+  \kw{Sparse}    & l& & No & \\
+\end{ptable}
+\begin{description}
+\item[\is{nInterationsELPA}] Number of initial iterations to be performed with
+  ELPA before the OMM method starts.
+\item[\is{Tolerance}] Minimisation tolerance for this solver, larger values are
+  faster by may be less stable.
+\item[\is{Choleskii}] Whether the overlap is Choleskii factorised before
+  applying OMM. This may increase stability of this method.
+\item[\is{Sparse}] Whether the code should use the sparse matrix interface to
+  ELSI solvers. This does not substantially improve memory usage in this case as
+  internally the dense problem is solved with libOMM.
+\end{description}
+
+\subsubsection{PEXSI}
+
+The PEXSI solver directly calculates the density matrix, so does not make band
+structure information or Mermi free energy available. The scaling with system
+size is better than the other solvers available in \dftbp{}, increasing as
+$O(N_\mathrm{atom}^{d/2 + 1/2})$ where $d$ is the effective dimensionality of
+the system. Hence for three dimensional structures it will scale as $O(N^2)$ for
+general systems.
+\begin{ptable}
+  \kw{Poles}        & i & & 20 & \\
+  \kw{ProcsPerPole} & i & & 1  & \\
+  \kw{muPoints}     & i & & 2  & \\
+  \kw{SymbolicFactorProcs} & i & & 1  & \\
+  \kw{SpectralRadius} & r & & 10 & \\
+  \kw{Sparse} & l& & No & \\
+  \kw{Threshold} & l& Sparse = No & 1E-15 & \\
+\end{ptable}
+\begin{description}
+\item[\is{Poles}] number of poles for the complex plane calculation.
+\item[\is{ProcsPerPole}] processors used to calculate the inversion at each pole.
+\item[\is{muPoints}] number of processors used to search for the Fermi level.
+\item[\is{SymbolicFactorProcs}] number of processors to use in evaluating the
+  factorisation pattern of matrices.
+\item[\is{SpectralRadius}]\modif{\modtype{Energy}} extension of the complex
+  contour.
+\item[\is{Sparse}] Whether the code should use the sparse ELSI matrix interface.
+\item[\is{Threshold}] Sets the threshold to convert dense matrices to the
+  internal sparse representation that ELSI uses. This may be useful in the case
+  of matrix factorisation issues inside the solver.
+\end{description}
+
+\subsubsection{NTPoly}
+
+This method constructs the single particle density matrix via a purification
+method based on matrix polynomials (hence requires insulating systems). The
+solver does not make band structure information available, but can be linear
+scaling in both time and memory depending on settings and system. Currently the
+solver does not support spin polarisation or k-points.
+
+This solver has several options:
+\begin{ptable}
+  \kw{PurificationMethod} & i& & 2 & \\
+  \kw{Tolerance} & r& & 1E-5 & \\
+  \kw{Truncation} & r& & 1E-10 & \\
+  \kw{Sparse} & l& & No & \\
+  \kw{Threshold} & l& Sparse = No & 1E-15 & \\
+\end{ptable}
+\begin{description}
+\item[\is{PurificationMethod}] Allowed choices are 0 for canonical purification,
+  1 for trace correcting purification, 2 for 4$^\mathrm{th}$ order trace
+  resetting purification, and 3 for generalised hole-particle canonical
+  purification.
+\item[\is{Tolerance}] Iterative convergence tolerance for this solver, larger
+  values are faster by may be less stable.
+\item[\is{Truncation}] Tolerance below which matrix elements in the density
+  matrix are dropped to enforce sparsity.
+\item[\is{Sparse}] Whether the code should use the sparse matrix ELSI interface.
+\item[\is{Threshold}] Sets the threshold to convert dense matrices to the
+  internal sparse representation that NTPoly uses.
+\end{description}
+
+The default choices of \is{Tolerance} and \is{Truncation} lead to an accurate,
+but slow, solutions. Alternatively linear scaling can be achieved at smaller
+system sizes with a larger choice of these values. Values in the range of 1E-3
+and 1E-6 for \is{Tolerance} and \is{Truncation} may be suitable (but test the
+quality of the solutions).
 
 \subsection{Filling}
 \label{sec:dftbp.Filling}
@@ -1735,8 +2025,11 @@ options:
   system. For collinear spin polarisation, values for up and down spin channels
   are required. Otherwise only a single global chemical potential is
   required. If this option is present, the total charge and the total spin of
-  the system are not conserved. (Settings in the options \is{Charge} and
-  \is{UnpairedElectrons} will be ignored.)
+  the system are not conserved (settings in the options \is{Charge} and
+  \is{UnpairedElectrons} will be ignored). If a fixed chemical potential is
+  used, the output {\em force related energy} includes the contribution to the
+  free energy, $- N \mu$, hence if differentiated will give the forces and
+  stresses (if periodic).
 \end{description}
 
 \subsubsection{Fermi\{\}}
@@ -1848,20 +2141,26 @@ was defined with the \is{SelectedShells} method.
 \label{sec:dftbp.KPointsAndWeights}
 \index{Brillouin-zone sampling}
 
-The $k$-points for the Brillouin-zone integration can either be
-specified explicitly or using the \islcb{KLines}{sec:dftbp.KLines} or the
-\islcb{SupercellFolding}{sec:dftbp.KLines} methods. If the latter is used the
-\is{KPointsAndWeights} keyword is not allowed to have a modifier.
+The $k$-points for the Brillouin-zone integration can either be specified
+explicitly, or automatically for supercells by using the \iscb{SupercellFolding}
+or \iscb{KLines} methods for supercells or either \iscb{HelicalUniform} or
+\iscb{HelicalSampled} for helical boundary conditions.
+
+\textbf{ Note:} For the automatic grid methods, the \is{KPointsAndWeights}
+keyword is not allowed to have a modifier.
 
 \subsubsection{Explicit specification}
 
-For every $k$-point four real numbers must be specified: The
-coordinates of the given $k$-point followed by its weight. By default,
-the coordinates are specified in fractions of the reciprocal lattice
-vectors. If the modifier \is{absolute} is set for the
-\is{KPointsAndWeights} keyword, absolute $k$-point coordinates in
-atomic units are instead expected.  The sum of the k-point weights is
-automatically normalised by the program.
+Each $k$-point and its weight in the integral should be specified, for
+supercells this requires that four real numbers must be specified for
+each point: The coordinates of the given $k$-point followed by its
+weight, while for helical coordinates there are two coordinates (along
+the helical axis and with respect to the rotation around the axis) and
+the weight of the point. By default, coordinates are specified in
+fractions of the reciprocal lattice vectors. If the modifier
+\is{absolute} is set for the \is{KPointsAndWeights} keyword, absolute
+$k$-point coordinates in atomic units are instead expected.  The sum
+of the k-point weights is automatically normalised by the program.
 \begin{verbatim}
   KPointsAndWeights = {   # 2x2x2 MP-scheme
     0.25  0.25  0.25    1.0
@@ -1984,6 +2283,43 @@ Example:
 \textbf{Note:} Since this set of k-points probably does not correctly integrate the Brillouin zone,
 the default value of \kw{MaxSccIterations} is set to be 1 in this case.
 
+\htcbsubsubsection{HelicalUniform}
+
+This method specifies $k$-points lying along the generalized reciprocal vector
+of the Brillouin zone of a helical cell and around the order-$n$ rotational axis
+(currently the $k$-points that exactly represent the $C_n$ rotation are
+used). The \iscb{HelicalUniform} method expects 1 integer and 1 real value as
+parameters, where the first value specifies the number of sampling points along
+the helical axis, while the second gives the shift (analogous to the three
+dimensional case of \iscb{SupercellFolding}) in this direction. A shift of $0.5$
+appears to give more rapid convergence of the grid.
+
+Example:
+\invparskip
+\begin{verbatim}
+  KPointsAndWeights = HelicalUniform {80 0.5}
+\end{verbatim}
+
+\htcbsubsubsection{HelicalSampled}
+
+Instead of exactly integrating around the $C_n$ rotation in $k$-space, the
+\iscb{HelicalSampled} method allows for a sampled integration. It expects 4
+values: the first two are the number of sample points along the helix and around
+the rotation respectively, while the second two are shifts in the grid.
+
+Example:
+\invparskip
+\begin{verbatim}
+  KPointsAndWeights = HelicalSampled {20 4 0.5 0.25}
+\end{verbatim}
+
+There are several things to note here: firstly, the second grid (values 4 and
+0.25 in the example above) approximates the integration around the $C_n$
+symmetry, so should only be used where the order of this rotation axis is
+large. Secondly, non-zero shifts in the grid, particularly for small numbers of
+sampling points, are likely to be unphysical as are shifts for the grids at the
+exact order of the rotation operation.
+
 \subsection{OrbitalPotential}
 \label{sec:dftbp.OrbitalPotential}
 
@@ -2069,8 +2405,7 @@ The specification for \kw{PointCharges} has the following properties:
   where $r_{AM}$ is the distance between the point charge and the
   atom.
 
-  This delocalisation can only be used for non-periodic systems. A
-  length modifier can be used to specify the unit for $\sigma$.
+  A length modifier can be used to specify the unit for $\sigma$.
 
   Example:\invparskip
 \begin{verbatim}
@@ -2140,7 +2475,7 @@ The \kw{External} field keyword has the following options
 
 The \is{Dispersion} block controls whether DFTB interactions should be
 empirically corrected for van der Waals interactions, since DFTB (and
-SCC-DFTB) does not include these effects. Currently, three different
+SCC-DFTB) does not include these effects. Currently, four different
 dispersion correction schemes are implemented (for the detailed
 description of the methods see the following subsections):
 \begin{itemize}
@@ -2153,7 +2488,12 @@ description of the methods see the following subsections):
   taken from a Slater-Kirkwood polarisable atomic
   model~\cite{elstner-jcp-114-5149}.
 \item \is{DftD3}: Dispersion is calculated as in the dftd3
-  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465}.
+  code~\cite{grimme-jcp-132-154104,grimme-jcp-32-1456-1465} (see
+  section~\ref{sec:dftbp.DftD3}). Modification hydrogen bond interaction
+  strengths (see section \ref{sec:dftbp.hcorr}).
+\item \is{DftD4}: Dispersion is calculated using the D4
+  model~\cite{caldweyher-jcp-147-034112,caldeweyher-jcp-150-154122} (see
+  section~\ref{sec:dftbp.DftD4}).
 \end{itemize}
 
 \subsubsection{LennardJones}
@@ -2217,7 +2557,7 @@ A Slater-Kirkwood type dispersion model is also implemented in
 \dftbp{} as described in
 Ref.~\cite{elstner-jcp-114-5149}.\footnote{Please note, that
   Ref.~\cite{elstner-jcp-114-5149} contains two typos: equation (7)
-  should be read $C_6^{\alpha\beta} = \frac{2 C_6^\alpha C_6^\beta
+  should read $C_6^{\alpha\beta} = \frac{2 C_6^\alpha C_6^\beta
     p_\alpha p_\beta}{p_\alpha^2 C_6^\beta + p_\beta^2 C_6^\alpha}$,
   in equation (9) the contribution from the dispersion should be
   $E_{\text{dis}} = -\frac{1}{2} \sum_{\alpha\beta}
@@ -2316,8 +2656,8 @@ used in the code 'dftd3' by Stefan Grimme and coworkers.  It is based on the
 {\it ansatz} described in Refs.~\cite{grimme-jcp-132-154104} and
 \cite{grimme-jcp-32-1456-1465}.
 
-\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library enabled to use this
-feature.
+\textbf{Note:} the \dftbp{} binary must be compiled with the DFT-D3 library
+enabled to use this feature.
 
 This dispersion correction for DFTB adds a contribution to the general
 Kohn-Sham-like energy
@@ -2328,7 +2668,7 @@ with $E_{\text{DFTB}}$ being the DFTB total energy and $E_{\text{disp}}$ the
 dispersion energy. The latter contains two-body and optional three-body
 contributions:
 \begin{equation*}
-  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}
+  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}.
 \end{equation*}
 
 The form of the two-body contribution can change depending on the chosen damping
@@ -2362,24 +2702,15 @@ treated as functional-dependent values. All other parameters are fixed based on
 these parameters.
 
 As the DFTB energy functional is largely determined by the underlying
-parameterisation (the Slater-Koster-files) and the chosen DFTB model
-(e.g.\ non-scc, scc, 3rd order, etc.), there are no universal parameter choices
-which can be used with all settings. The dftd3-program contains optimised
-parameters for the DFTB3 functional, described in section~\ref{sec:dftbp.DFTB3}. The DFTB3
-appropriate values are given for the Becke-Johnson-damping function, and are
-used as default values in the \dftbp{} parser.
+parameterisation (the Slater-Koster-files) and the chosen DFTB model (e.g.\
+non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
+can be used with all settings, but some relevant choices for various
+parameterisation are given in Appendix \ref{app:dftd3const}.
 
-\textbf{Warning:} Please note, that these default values have only been tested for the DFTB3
-model. If you use any other DFTB-model, make sure that the parameters still give reasonable results,
-and adjust them if needed.
-
-Example using default parameters:
-\begin{verbatim}
-  ThirdOrderFull = Yes
-  DampXH = Yes
-
-  Dispersion = DftD3 {}
-\end{verbatim}
+\textbf{Note:} for the version 6 or earlier of the \dftbp{} input parser (see
+section~\ref{sec:dftbp.ParserOptions}) the default values of these parameters
+are set to be appropriate for DFTB3. But from parser version 7 onwards, no
+default values are set.
 
 Example using adjusted parameters with Becke-Johnson damping:
 \begin{verbatim}
@@ -2405,6 +2736,7 @@ Example using zero-damping:
   }
 \end{verbatim}
 
+\subsubsection{DftD3 optional settings}
 Apart from the functional dependent dispersion parameters, you can also adjust
 the additional parameters as shown below. The default values for these
 parameters are taken to be the same as in the dftd3 code.
@@ -2413,6 +2745,7 @@ parameters are taken to be the same as in the dftd3 code.
   \kw{Cutoff} & r & & $\sqrt{9000}$ & \\
   \kw{CutoffCN} & r & & $40$ & \\
   \kw{Threebody} & l & & No & \\
+  \kw{HHRepulsion} & l & & No & \\
 \end{ptable}
 \begin{description}
 \item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when calculating
@@ -2424,34 +2757,238 @@ parameters are taken to be the same as in the dftd3 code.
 \item[\is{Threebody}] Whether three-body contributions should be included in the
   dispersion interactions.
 
+\item[\is{HHRepulsion}] Required when calculating the
+  DFTB3-D3H5~\cite{rezac-jctc-13-2017} modification to D3 dispersion (see
+  section~\ref{sec:dftbp.hcorr} for details and parameter values). This keyword
+  enables an additional short range repulsion term in all hydrogen--hydrogen
+  pairs~\cite{rezac-jctc-8-2012} which prevents them from approaching too
+  closely together.
 \end{description}
 
+\subsubsection{DftD4}
+\label{sec:dftbp.DftD4}
 
-\subsection{DFTB3}
-\label{sec:dftbp.DFTB3}
+The DFT-D4 dispersion correction in \dftbp{} is an implementation of the D4
+model by Stefan Grimme and coworkers. It is based on the method described in
+Ref.~\cite{caldeweyher-jcp-150-154122}.
 
-If you would like to use what is called ``DFTB3'' in some publication(s)
-\cite{gauss-jctc-7-931}, this group of options include the relevant
-modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3 model
-  you will need to set \is{{ThirdOrderFull} = Yes}, \is{DampXH = Yes} and set
-  the exponents in \is{DampXHExponent} }.
+This dispersion correction for DFTB adds a contribution to the general
+Kohn--Sham-like energy,
+\begin{equation*}
+  E_{\text{DFTB-D4}} = E_{\text{DFTB}} + E_{\text{disp}},
+\end{equation*}
+with $E_{\text{DFTB}}$ being the DFTB total energy and $E_{\text{disp}}$ the
+dispersion energy. The latter contains two-body and optional three-body
+contributions:
+\begin{equation*}
+  E_{\text{disp}} = E_{\text{disp}}^{(2)} + E_{\text{disp}}^{(3)}.
+\end{equation*}
+
+The D4 model uses the Becke--Johnson damping function for two-body contributions:
+\begin{equation*}
+   E_{\text{disp}}^{(2)} = -\frac{1}{2} \sum_{A\neq B} \sum_{n=6,8,10} s_n
+   \frac{C_n^{AB}}{r_{AB}^n + f(R_0^{AB})}
+\end{equation*}
+with
+\begin{equation*}
+   f(R_0^{AB}) = a_1 R_0^{AB} + a_2.
+\end{equation*}
+
+The zero-damping function for three-body contributions is:
+\begin{equation*}
+   E_{\text{disp}}^{(3)} = -\sum_{A}\sum_{\substack{B \\B < A}}\sum_{\substack{C\\ C < B}} s_9
+   \frac{  \left(3\cos\theta_A\cos\theta_B\cos\theta_C+1\right)\sqrt{C_6^{AB}C_6^{BC}C_6^{CA}}}{(r_{AB}r_{BC}r_{CA})^3} f^{(3)}(r_{AB})
+\end{equation*}
+with
+\begin{equation*}
+   f^{(3)} = \frac{1}{1 + 6\left(\frac{f(R_0^{AB})f(R_0^{BC})f(R_0^{CA})}{r_{AB}r_{BC}r_{CA}}\right)^{\alpha/3}}.
+\end{equation*}
+
+In order to adjust the dispersion for various energy functionals, the choice of
+$s_8$ and the damping parameters $a_1$ and $a_2$ are
+treated as functional-dependent values. All other parameters are fixed based on
+these parameters.
+Depending on the choice of the $s_9$ parameter non-additive triple-dipole
+contributions will be evaluated. Including non-additive effects usually improves
+the description of dispersion interactions, but is also more expensive.
+
+As the DFTB energy functional is largely determined by the underlying
+parameterisation (the Slater--Koster-files) and the chosen DFTB model (e.g.\
+non-scc, scc, 3rd order, etc.), there are no universal parameter choices which
+can be used with all settings, but some relevant choices for various
+parameterisation are given in Appendix \ref{app:dftd4const}.
+
+\subsubsection{DftD4 settings}
+Beside the functional dependent dispersion parameters, the options shown below
+can be adjusted in the input.
+
+\begin{ptable}
+  \kw{s6} & r & & 1.0 & \\
+  \kw{s8} & r & & & \\
+  \kw{s10} & r & & 0.0 & \\
+  \kw{s9} & r & & & \\
+  \kw{a1} & r & & & \\
+  \kw{a2} & r & & & \\
+  \kw{alpha} & r & & 16.0 & \\
+  \kw{WeightingFactor} & r & & 6.0 & \\
+  \kw{ChargeSteepness} & r & & 2.0 & \\
+  \kw{ChargeScale} & r & & 3.0 & \\
+  \kw{CutoffInter} & r & & 64 & \\
+  \kw{CutoffThree} & r & & 40 & \\
+  \kw{CoordinationNumber} & m & & \is{Cov} & \pref{sec:dftbp.CoordinationNumber} \\
+  \kw{ChargeModel} & m & & \is{EEQ} & \pref{sec:dftbp.ChargeModel} \\
+\end{ptable}
+
+\begin{description}
+\item[\is{s8}, \is{s9}, \is{a1}, \is{a2}] Functional dependent dispersion
+  parameters, see equations above.
+  
+\item[\is{s6}] Parameter for scaling pairwise dipole--dipole dispersion
+  interaction, should always be set to 1.0.
+
+\item[\is{s10}] Parameter for pairwise quadrupole--quadrupole dispersion
+  interactions, should be kept set to 0.0.
+
+\item[\is{alpha}] Zero damping exponent for three-body damping function, default
+  is 16 as in DFT-D3.
+
+\item[\is{WeightingFactor}] Coordination number based interpolation, 4.0 used in
+  DFT-D3, default for D4 is 6.0.
+
+\item[\is{ChargeScale}] Maximum possible charge scaling, used as exponential
+  value, should be kept set to 3.0.
+
+\item[\is{ChargeSteepness}] Steepness of the charge scaling function, should be
+  kept set to 2.0.
+
+\item[\is{CutoffInter}] \modif{\modtype{length}} Cutoff distance when
+  calculating two-body interactions.
+
+\item[\is{CutoffThree}] \modif{\modtype{length}} Cutoff distance when
+  calculating three-body interactions.
+
+\end{description}
+
+\subsubsection{DftD4 ChargeModel}
+\label{sec:dftbp.ChargeModel}
+
+This implementation of DFT-D4 supports only the \is{EEQ\cb} method to initialize
+the charge model with an electronegativity equilibration~(EEQ) model.\cite{rappe1991}
+For each species four parameters (\kw{Chi}, \kw{Gam}, \kw{Kcn}, and \kw{Rad})
+have to be supplied in a \is{Values\cb} method, since the model
+is instanciated inside the \is{DftD4\cb} method, \is{Defaults\cb} for all elements
+up to 86 can be supplied automatically.\cite{caldeweyher-jcp-150-154122}
+
+\begin{ptable}
+  \kw{Chi} & m & & \is{Defaults} & \\
+  \kw{Gam} & m & & \is{Defaults} & \\
+  \kw{Kcn} & m & & \is{Defaults} & \\
+  \kw{Rad} & m & & \is{Defaults} & \\
+  \kw{Cutoff} & r & & 40 & \\
+  \kw{EwaldParameter} & r & & 0.0 & \\
+  \kw{EwaldTolerance} & r & & 1.0e-9 & \\
+  \kw{CoordinationNumber} & m & & \is{Erf} & \pref{sec:dftbp.CoordinationNumber} \\
+\end{ptable}
 
 \begin{description}
 
-\item[\is{DampXH}] If set to \is{Yes} the short range contribution to the SCC
-  interaction between atoms $A$ and $B$ is damped by the factor
-  \begin{equation*}
-    e^{-\left(\frac{U_{Al} + U_{Bl}}{2}\right)^\zeta r_{AB}^2}
-  \end{equation*}
-  provided that at least one of the two atoms is hydrogen
-  \cite{gauss-jctc-7-931,yang-JPCA-111-10861}. ($U_{Al}$ and $U_{Bl}$ are the
-  Hubbard Us of the two atoms for the $l$-shell, $r_{AB}$ is the distance
-  between the atoms.) An atom is considered to be a hydrogen-like atom, if its
-  mass (stored in the appropriate homonuclear SK-file) is less than 3.5 amu. The
-  parameter $\zeta$ can be set with the keyword \is{DampXHExponent}.
+\item[\is{Chi}] Electronegativities of all species.
 
-\item[\is{DampXHExponent}] Sets the parameter $\zeta$ for the short range
-  damping. (See keyword \is{DampXH} above.)
+\item[\is{Gam}] Chemical hardnesses of all species.
+
+\item[\is{Kcn}] CN scaling factor of all species.
+
+\item[\is{Rad}] Charge width of all species in Bohr.
+
+\item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when
+  calculating electrostatics interactions under PBC.
+
+\item[\is{EwaldParameter}] Sets the splitting parameter in the Ewald
+  electrostatic summation for periodic calculations. This controls the fraction
+  of the Ewald summation occurring in real and reciprocal space. Setting it to
+  zero or negative activates an automatic determination of this parameter
+  (default and recommended behaviour).
+
+\item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
+  systems.
+
+\end{description}
+
+\begin{verbatim}
+ChargeModel = EEQ {
+  EwaldParameter = 0.25165824
+  EwaldTolerance = 1.0E-9
+  Chi = Values {
+    Ga = 1.15018618
+    As = 1.36313743
+  }
+  Gam = Values {
+    Ga = 8.299615E-2
+    As = 0.19005278
+  }
+  Kcn = Values {
+    Ga = -1.05627E-002
+    As = 7.657769E-002
+  }
+  Rad = Values {
+    Ga = 1.76901636
+    As = 2.41244711
+  }
+}
+\end{verbatim}
+
+\subsubsection{DftD4 CoordinationNumber}
+\label{sec:dftbp.CoordinationNumber}
+
+The \kw{CoordinationNumber} determines how the local coordination environment
+for its parent method is calculated. Currently four different counting functions
+are available: \is{Erf\cb}, \is{Cov\cb}, \is{Gfn\cb}, and \is{Exp\cb}.
+\is{Erf\cb} is the default coordination number for the EEQ charge model,
+while \is{Cov\cb} is the default coordination number for DFTD4.
+
+\begin{ptable}
+  \kw{Electronegativities} & m & & \is{PaulingEN} & \\
+  \kw{Radii} & m & & \is{CovalentRadiiD3} & \\
+  \kw{Cutoff} & r & & 40 & \\
+  \kw{CutCN} & r & & 0 / 8 & \\
+\end{ptable}
+
+\begin{description}
+
+\item[\is{Radii}] Covalent radii of all species in Bohr.
+  Default values taken are the DFTD3 covalent radii.\cite{grimme-jcp-132-154104}
+
+\item[\is{Electronegativities}] Electronegativities of all species.
+  Default values taken are Pauling ENs.
+
+\item[\is{Cutoff}] \modif{\modtype{length}} Cutoff distance when
+  evaluating counting function.
+
+\item[\is{CutCN}] Maximum value for coordination number, coordination numbers
+  higher than this value will be smoothly cut away. Deactivated for values
+  smaller or equal to zero. Default depends on parent method.
+
+\end{description}
+
+\begin{verbatim}
+CoordinationNumber = Cov {
+  CutCN = 0
+  Electronegativities = PaulingEN {}
+  Radii = CovalentRadiiD3 {}
+}
+\end{verbatim}
+
+\subsection{DFTB3}
+\label{sec:dftbp.DFTB3}
+\index{DFTB3}
+
+If you would like to use what is called ``DFTB3'' in some publication(s)
+\cite{gauss-jctc-7-931}, this group of options include the relevant
+modifications to the SCC Hamiltonian and energy. \emph{To enable the DFTB3
+  model} you will need to set \is{{ThirdOrderFull} = Yes} and damp H--X the
+interactions (see Section \ref{sec:dftbp.hcorr}).
+
+\begin{description}
 
 \item[\is{ThirdOrder}] If set to \is{Yes} the \textit{on-site} 3rd order
   correction \cite{yang-JPCA-111-10861} is switched on. This corrects the
@@ -2481,8 +3018,650 @@ Hamiltonian = DFTB {
   }
   :
 }
-
 \end{verbatim}
+\end{description}
+
+\subsection{Implicit Solvation Model}
+\label{sec:dftbp.Solvation}
+
+\subsubsection{Generalized Born Model}
+\label{sec:dftbp.GeneralizedBorn}
+
+In generalized Born (GB) theory,\cite{onufriev2019} a molecule is considered as
+continuous region with a dielectric constant~$\epsilon_\text{in}$ surrounded by
+infinite solvent with a dielectric constant~$\epsilon_\text{out}$.
+Charges~$q_\text{A}$ are located at the atomic sites~$\vec R_\text{A}$
+and their interaction in the presence of a polarized solvent can be
+expressed as the solvation energy
+%
+\begin{equation}
+  \Delta G_\text{GB} =
+  -\frac12 \left(\frac1{\epsilon_\text{in}}-\frac1{\epsilon_\text{out}}\right)
+  \sum_{\text{A}=1}^N\sum_{\text{B}=1}^N\frac{q_\text{A}q_\text{B}}
+  {\left(R^2_\text{AB} + a_\text{A}a_\text{B}\exp\left[-\frac{R^2_\text{AB}}
+  {4a_\text{A}a_\text{B}}\right]\right)^{\frac12}}.
+\end{equation}
+
+where $a_\text{A/B}$ are the effective Born radii of the atoms A/B.
+The GB model is added to the Hamiltonian as second order fluctuation
+in the charge density, similar to the coulombic interactions.
+
+The Born radii are evaluated by an Onufriev--Bashford--Case~(OBC) corrected
+pairwise approximation to the molecular volume given as
+%
+\begin{equation}
+  \frac1{a_\text{A}} = \frac1a_\text{scale}\left(
+  \frac1{R^\text{cov}_\text{A} - R_\text{offset}}
+  - \frac1{R^\text{cov}_\text{A}}
+  \cdot \tanh\left[b_\text{OBC}\Psi_\text{A}
+  - c_\text{OBC}\Psi_\text{A}^2 + d_\text{OBC}\Psi_\text{A}^3\right]
+  \right)
+\end{equation}
+
+where $a_\text{scale}$ is a scaling factor for the Born radii,
+$R_\text{offset}$ is a global shift parameter for the covalent radii and
+$a/b/c_\text{OBC}$ are the coefficients for the volume polynomial in
+the OBC correction to the Born radii.
+$\Psi_\text{A}$ is the pairwise approximation to the volume integral
+given by
+%
+\begin{equation}
+  \Psi_\text{A} = \frac{R^\text{cov}_\text{A} - R_\text{offset}}2
+  \sum_\text{B} \Omega(R_\text{AB}, R^\text{cov}_\text{A}, s_\text{B}R^\text{cov}_\text{B})
+\end{equation}
+
+with $\Omega$ being the pairwise function used to approximate the
+volume integral, which is only dependent on the distance and the
+covalent radii. Note that, the covalent radius of the second atom
+is scaled by the element-specific descreening value~$s_\text{B}$
+to compensate the systematic overestimation of the volume by this
+approach.
+
+To use the generalized Born model in the SCC procedure use the
+\is{GeneralizedBorn\cb} method in the input to \kw{Solvation}.
+The non-polar solvent area model can be combinded with the GB model
+enabling to additionally correct for hydrogen bonding, the resulting
+model is called GBSA.
+The parameters for the GBSA model are currently available at
+\url{https://github.com/grimme-lab/gbsa-parameters} and can be read in with
+\kw{ParamFile} and will setup the complete \kw{GeneralizedBorn\cb} input.
+
+Note that the GB(SA) model implemented is only available for finite
+systems.
+
+\begin{ptable}
+  \kw{ParamFile} & s & & & \\
+  \kw{Solvent} & m & not has \kw{ParamFile} & & \\
+  \kw{FreeEnergyShift} & r & & & \\
+  \kw{Temperature} & r & & 298.15 K & \\
+  \kw{State} & s & & gsolv & \\
+  \kw{BornScale} & r & & & \\
+  \kw{BornOffset} & r & & & \\
+  \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
+  \kw{CM5} & m & & & \pref{sec:dftbp.CM5} \\
+  \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
+  \kw{Descreening} & m & & & \\
+  \kw{Cutoff} & r & & 35 AA & \\
+  \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
+  \kw{HBondCorr} & l & has \kw{SASA} & & \\
+  \kw{HBondStrength} & m & HBondCorr = Yes & & \\
+  \kw{ALPB} & l & & No & \\
+  \kw{Alpha} & r & ALPB = Yes & 0.571412 & \\
+\end{ptable}
+
+\begin{description}
+  \item[\is{ParamFile}] Reads in a parameter file for GBSA, specifying this
+    keyword automatically provides the \is{Solvent} information, and defaults
+    values for \is{FreeEnergyShift}, \is{BornOffset}, \is{BornScale}, \is{SASA\cb}
+    \is{Descreening}, \is{HBondCorr} and \is{HBondStrength}.
+    Usually no other keywords need to be specified when \is{ParamFile} is present.
+
+  \item[\is{Solvent}] Descriptors of the solvent, can be load from a database
+    by providing the solvent name as string in the \is{FromName\cb} method or
+    by specifying the necessary values with the \is{FromConstants\cb} method.
+    \is{FromConstants\cb} requires the dielectric constant as real for \kw{Epsilon},
+    the molecular mass in \kw{MolecularMass} \modif{\modtype{mass}} and the
+    solvent density in \kw{Density} \modif{\modtype{massdensity}}.
+    \kw{MolecularMass} and \kw{Density} only affect the calculation if
+    ``reference'' is chosen as state of the solution.
+
+  \item[\is{FreeEnergyShift}] \modif{\modtype{energy}} Shift for free energy
+    calculations.
+
+  \item[\is{Temperature}] Temperature for free energy calculations. Default is
+    ambient temperature: 298.15 K.
+    Only affects the calculation for if ``reference'' or ``mol1bar'' is chosen
+    as state of the solution.
+
+  \item[\is{State}] \modif{\modtype{energy}}
+    Reference state of the solution for free energy calculations.
+    The calculated state shift is added to the free energy shift.
+    Takes ``gsolv'' (default), ``reference'' or ``mol1bar''.
+    The reference state ``gsolv`` corresponds to 1\;l of ideal gas and 1\;l of
+    liquid  solution,
+    ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
+    solution at infinite dilution,
+    ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
+
+  \item[\is{BornScale}] Value for scaling of Born radii.
+
+  \item[\is{BornOffset}] \modif{\modtype{length}}
+    Offset value for Born radii calculation.
+
+  \item[\is{OBCCorrection}] Parameters for Onufriev--Bashfold--Case volume
+    polynomial to correct Born radii calculation.
+    The default values 1.0, 0.8, 4.85 correspond to GB\textsuperscript{OBC}II,
+    alternatively 0.8, 0.0, 2.91 can be used for GB\textsuperscript{OBC}I.\cite{onufriev2004}
+
+  \item[\is{CM5}] Use the charge model 5 to correct the atomic partial charges
+    before evaluating the Born energy.
+
+  \item[\is{Radii}] Atomic radii for each element in Bohr, either takes
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+    or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{Descreening}] Descreening values for each species.
+    Disabled by \is{Unity\cb} method or enabled by providing \is{Values\cb}
+    for each species.
+
+  \item[\is{Cutoff}] \modif{\modtype{length}}
+    Real space cutoff for the calculation of the Born radii.
+
+  \item[\is{HBondCorr}]
+    Include an empirical hydrogen bond correction.
+    Only available for GBSA models.
+
+  \item[\is{HBondStrength}]
+    Hydrogen bonding strength for each species used in the empirical hydrogen
+    bond correction. To disable the correction for species not involved
+    in hydrogen bonding, set the value to zero.
+
+  \item[\is{ALPB}]
+    Use analytical lineared Poisson Boltzmann (ALPB) model\cite{sigalov2006}
+    instead of Generalized Born.
+    The main difference is a molecular shape dependent contribution for charged
+    systems.
+
+  \item[\is{Alpha}]
+    Alpha parameter in the ALPB model, should be kept to 0.571412 which was
+    derived from first principles.\cite{sigalov2006}
+\end{description}
+
+Example for a GB model with CS2 as solvent:
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(CS2)
+    Solvent = fromName { "cs2" }
+    FreeEnergyShift [kcal/mol] = 2.81072250
+    Radii = vanDerWaalsRadiiD3 [Bohr] {}
+    Descreening = Values {
+       H = 0.93699367
+       C = 0.83307834
+       N = 1.02661619
+       O = 0.96508008
+    }
+    BornScale = 1.40636177
+    BornOffset [Bohr] = 1.653719965215E-03
+    OBCCorrection = {1.00 0.80 4.85}
+    Cutoff = 40
+  }
+}
+\end{verbatim}
+
+Example for a GBSA model for water
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(water)
+    Solvent = fromConstants {
+      Epsilon = 80.2
+      MolecularMass [amu] = 18.0
+      Density [kg/l] = 1.0
+    }
+    FreeEnergyShift [kcal/mol] = 1.16556316
+    BornScale = 1.55243817
+    BornOffset = 2.462811043694508E-02
+    Radii = vanDerWaalsRadiiD3 {}
+    Descreening = Values {
+      H = 0.71893869
+      C = 0.74298311
+      N = 0.90261230
+      O = 0.75369019
+    }
+    SASA {
+      ProbeRadius = 1.843075777670416
+      Radii = vanDerWaalsRadiiD3 {}
+      SurfaceTension = Values {
+        H = -3.34983060E-01
+        C = -7.47690650E-01
+        N = -2.31291292E+00
+        O =  9.17979110E-01
+      }
+    }
+    HBondCorr = Yes
+    HBondStrength = Values {
+        H = -7.172800544988973E-02
+        C = -2.548469535762511E-03
+        N = -1.976849501504001E-02
+        O = -8.462476828587280E-03
+    }
+  }
+}
+\end{verbatim}
+
+
+\subsubsection{Charge Model 5}
+\label{sec:dftbp.CM5}
+
+The charge model 5 (CM5)\cite{marenich2012} can be used to correct partial charges by
+%
+\begin{equation}
+   q^\text{CM5}_\text{A} = q_\text{A}
+   + \sum_{B} D_\text{A--B} \exp[-\alpha(R_\text{AB} - R^\text{cov}_\text{A} - R^\text{cov}_\text{B}]
+\end{equation}
+
+The pairwise parameters $D_\text{A--B}$ are fixed to the original published ones,
+while the exponent $\alpha$ and the covalent radii $R^\text{cov}_\text{A}$ default
+to the published parameters but can be adjusted in the input.
+
+\begin{ptable}
+  \kw{alpha} & r & & 2.474 1/AA & \\
+  \kw{Radii} & m & & \is{atomicRadii\cb} & \\
+  \kw{Cutoff} & r & & 30.0 & \\
+\end{ptable}
+
+\begin{description}
+
+  \item[\is{alpha}] \modif{\modtype{1/length}}
+    Exponent of the CM5 correction.
+
+  \item[\is{Radii}] Atomic covalent radii for each species, either takes
+    \is{AtomicRadii\cb} for default atomic radii\cite{mantina2010}
+    (can be overwritten) or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{Cutoff}] \modif{\modtype{length}}
+    Real space cutoff for the calculation of the CM5 correction.
+\end{description}
+
+\begin{verbatim}
+CM5 {
+  Alpha = 1.30918451402600
+  Radii = AtomicRad {}
+}
+\end{verbatim}
+
+
+\subsubsection{Solvent area model}
+\label{sec:dftbp.SolventAreaModel}
+
+The non-polar solvation free energy can be estimated from the solvent accessible
+surface area (SASA) by
+%
+\begin{equation}
+  \Delta G_\text{non-polar} = \sum_\text{A} \gamma_\text{A} \sigma_\text{A}
+\end{equation}
+%
+where $\gamma_\text{A}$ is the surface tension and $\sigma_\text{A}$
+is the accessible surface area of each atom.
+To calculate the latter, the molecule is assumed as a convolution of spheres
+which is probed by a probe sphere rolled around the surface.
+Here a smooth numerical integration approach is employed.\cite{im2003}
+
+To use the non-polar surface area model in an calculation use the
+\is{SASA\cb} method in the input to \kw{Solvation}.
+This model is currently only available for finite systems.
+
+\begin{ptable}
+  \kw{ProbeRadius} & r & & & \\
+  \kw{Smoothing} & r & & 0.3 AA & \\
+  \kw{Offset} & r & & 2.0 AA & \\ 
+  \kw{Tolerance} & r & & 1.0e-6 & \\ 
+  \kw{AngularGrid} & i & & 230 & \\ 
+  \kw{Radii} & m & & \kw{vanDerWaalsRadiiD3} & \\
+  \kw{SurfaceTension} & m & & & \\
+\end{ptable}
+
+\begin{description}
+  \item[\is{ProbeRadius}] \modif{\modtype{length}}
+    Radius of the probe sphere used to determine the accessible surface area.
+
+  \item[\is{Smoothing}] \modif{\modtype{length}}
+    Smoothing parameter for numerical integration.
+
+  \item[\is{Offset}] \modif{\modtype{length}}
+    This offset value is added on the realspace cutoff radius for the
+    neighbourlist generation.
+    The realspace cutoff is determined automatically from the probe radius,
+    the largest atomic radius and the smoothing parameter.
+
+  \item[\is{Tolerance}]
+    Minimal value of surface area contribution of a grid point to be accounted
+    for as SASA.
+
+  \item[\is{AngularGrid}]
+    Size of the angular Lebedev--Laikov integration grid.\cite{lebedev1999}
+    The grid size mainly determines the computational cost of evaluating the
+    accessible surface area, too small grid sizes can lead to significant errors
+    due to missing rotational invariance.
+    A safe choice should be 230 grid points per atom.
+    Possible values are
+    6, 14, 26, 38, 50, 74, 86, 110, 146, 170, 194, \textit{230}, 266, 302, 350,
+    434, 590, 770, 974, 1202, 1454, 1730, 2030, 2354, 2702, 3074, 3470, 3890,
+    4334, 4802, 5294, 5810.
+
+  \item[\is{Radii}] Atomic radii for each element, either takes
+    \is{VanDerWaalsRadiiD3\cb} for DFT-D3 van-der-Waals radii (can be overwritten)
+    or requires to provide \is{Values\cb} for all species.
+    Both methods accept \modif{\modtype{length}} units.
+
+  \item[\is{SurfaceTension}]
+    Surface tension parameter for each species in dyn/cm.
+
+\end{description}
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  Solvation = SASA { # GFN1-xTB/GBSA(Toluene)
+    ProbeRadius [AA] = 1.59772343
+    Smoothing [AA] = 0.3
+    Offset [AA] = 2
+    AngularGrid = 230
+    Radii = vanDerWaalsRadiiD3 {}
+    SurfaceTension = Values {
+      H = -1.52312760
+      C = -2.92375089
+      O = 0.79482640
+    }
+  }
+}
+\end{verbatim}
+
+
+\subsection{Halogen corrections}
+\label{sec:dftbp.xcorr}
+
+The \kw{HalogenXCorr} keyword includes the halogen correction of
+Ref.~\cite{kubillus-jctc-11-332}. This is fitted for the DFTB3-D3 model and the
+{\tt 3ob-3-1} parameter set. The correction is only relevant for systems
+including interactions between \{O,N\}--\{Cl,Br,I\} pairs of atoms.
+
+
+\subsection{Hydrogen corrections}
+\label{sec:dftbp.hcorr}
+
+There are currently two available methods to correct hydrogen interactions
+(mainly hydrogen bonds) in the \is{HCorrection} environment:
+
+\subsubsection{Damping}
+\index{sec:Damp X-H}
+
+The \is{Damping} method modifies the short range contribution to the SCC
+interaction between atoms $A$ and $B$ with the damping factor
+\begin{equation*}
+  e^{-\left(\frac{U_{Al} + U_{Bl}}{2}\right)^\zeta r_{AB}^2}
+\end{equation*}
+provided that at least one of the two atoms is
+hydrogen~\cite{gauss-jctc-7-931,yang-JPCA-111-10861}. ($U_{Al}$ and $U_{Bl}$ are
+the Hubbard U values of the two atoms for the $l$-shell, $r_{AB}$ is the
+distance between the atoms.) An atom is considered to be a hydrogen-like atom,
+if its mass (stored in the appropriate homonuclear SK-file) is less than 3.5
+amu.  The \is{Exponent} keyword in this environment sets the parameter $\zeta$
+for the short range damping:
+\begin{verbatim}
+HCorrection = Damping {
+  Exponent = 4.05
+}
+\end{verbatim}
+Table 2 of reference~\cite{gauss-jctc-7-931} gives suggested values of the
+exponent for different DFTB2 and DFTB3 models applied to light atoms bonded to
+hydrogen.
+
+\subsubsection{DFTB3-D3H5}
+\index{sec:DFTB3-D3H5}
+
+DFTB3-D3H5~\cite{rezac-jctc-13-2017} is a variant of DFTB3 with additional
+corrections for non-covalent interactions (dispersion and hydrogen bonds).  It
+consists of a third-order DFTB calculation using the 3OB parameter set, but
+where the gamma-function damping (\is{Damping} method above) is replaced by the
+H5 correction and an additional D3 dispersion correction in included. This
+method also includes a repulsive term which is added to prevent unphysically
+close approach of pairs of hydrogen atoms~\cite{rezac-jctc-8-2012}.
+
+Setting the \is{HCorrection} environment to \iscb{H5} activates this
+correction for hydrogen bonds~\cite{rezac-jctc-13-2017}. If no additional
+parameters are provided in the input, suitable values for H-\{O,N,S\} systems
+are used (the correction was developed for the DFTB3/3OB model and parameters).
+\begin{verbatim}
+HCorrection = H5 {}
+\end{verbatim}
+
+\textbf{Note:} It was found that DFTB3 overestimates the strength of H-bonds
+involving the terminal nitrogen of an azide group, and the published results in
+Ref.~\cite{rezac-jctc-13-2017} were obtained with the H5 correction switched off
+for these specific atoms. To reproduce this behavior in a system containing
+nitrogen in several environments, a new atom type with a different name but the
+same DFTB parameters can be used for specific N atoms to which the correction
+should not be applied.
+
+If you want to specify the parameters manually, \is{H5} accepts following
+options, corresponding to terms in Ref.~\cite{rezac-jctc-13-2017}:
+\begin{ptable}
+  \kw{RScaling} & r & & 0.714 & \\
+  \kw{WScaling} & r & & 0.25 & \\
+  \kw{H5Scaling} & m & &  & \\
+\end{ptable}
+\begin{description}
+\item[\is{RScaling}] Global scaling factor, $s_r$, when calculating the position
+  of the correcting gaussian functions:
+  \begin{equation*}
+    r_0 = s_r \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right) \text.
+  \end{equation*}
+
+\item[\is{WScaling}] Global scaling factor, $s_W$, when calculating the width of
+  the correcting gaussian functions. The full-width at at half-maximum of the
+  gaussian, $w$, is normalised to be 1 for a unit value of \is{WScaling}:
+  \begin{equation*}
+   w = \frac{s_w \left(r_\text{vdW}(X) + r_\text{vdW}(H)\right)}{2\sqrt{2 \ln
+       2}} \text.
+  \end{equation*}
+
+\item[\is{H5Scaling}] Atom type specific scaling pre-factor, $k_{X\text{H}}$, of
+  the correcting gaussian functions when calculating the SCC-interaction:
+  \begin{equation*}
+    \gamma_{X\text{H}}^{\text{H5}} = \gamma_{X\text{H}} \left( 1 + k_{X\text{H}}
+    \exp\left(-\frac{\left(r_{X\text{H}} - r_0\right)^2}{2w^2}\right)\right)
+    \text.
+  \end{equation*}
+  You will have to specify one value for each of the chemical species you would
+  like to correct (see the example below). Explicitly setting a negative value
+  (e.g. \is{-1.0}) for a given atom type switches off the correction for
+  hydrogen bonds involving that type of atom. In the special cases of N, O or S,
+  if you do not specify a value (and do not disable the contribution by using
+  \is{-1.0}), the default value from the reference paper will be
+  used~\cite{rezac-jctc-13-2017}. For any other omitted atom types, the code
+  defaults to a choice of \is{-1.0} (no correction).
+\end{description}
+
+\begin{verbatim}
+Hamiltonian = DFTB {
+  :
+  HCorrection = H5 {
+    RScaling = 0.714
+    WScaling = 0.25
+    H5Scaling {
+      O = 0.06
+      N = 0.18
+      S = 0.21
+    }
+  }
+  :
+}
+\end{verbatim}
+
+\textbf{Note:} \label{page:dftbp.H5} The van der Waals radii ($r_\text{vdW}$) of
+atoms are also required. \dftbp{} stores these for most of the periodic table,
+but for cases that are not available their contribution to this correction are
+neglected.
+
+For a DFTB3-D3H5 calculation, a specific parametrization of the D3 dispersion
+has to be used. In addition to setting up appropriate values of the D3
+parameters, as discussed in Ref.~\cite{rezac-jctc-13-2017}, the
+hydrogen--hydrogen repulsion of Ref.~\cite{rezac-jctc-8-2012} has to also be
+activated. The complete input is:
+\begin{verbatim}
+Hamiltonian = DFTB {
+  :
+  Dispersion = DftD3 {
+    Damping = ZeroDamping {
+      sr6 = 1.25
+      alpha6 = 29.61
+    }
+    s6 = 1.0
+    s8 = 0.49
+    HHRepulsion = Yes
+  }
+  :
+}
+\end{verbatim}
+
+\subsection{RangeSeparated}
+\label{sec:dftbp.RangeSep}
+
+The \kw{RangeSeparated} keyword specifies the use of a range separated hybrid
+functional. Currently, only the long-range corrected hybrid functional (\is{LC})
+\cite{niehaus-PSSB-249-237,lutsker-JCP-143-184107} is implemented. There, the
+electrostatic interaction is split up into long and short ranged components
+according to
+\begin{equation*}
+\frac{1}{r}=\frac{1-e^{-\omega r}}{r}+\frac{e^{-\omega r}}{r},
+\end{equation*}
+with the range-separation parameter $\omega$, which is set in the Slater-Koster
+files. The option should only be used with corresponding parameter sets created
+for use with long-range correction.
+
+\textbf{Note:} The present release does not yet support long-range
+corrected excited states calculations with LC-TD-DFTB, and the
+\kw{RangeSeparated} keyword can, therefore, not be used in conjunction with the
+\kw{ExcitedState} block.
+
+The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
+range-separated hybrid functional) or the \is{LC}\cb\  block as value. Latter
+enables the following option:
+
+\begin{ptable}
+  %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /}}} \\
+  %% \hline
+  \kw{Screening} & m & & Thresholded \cb & \\
+\end{ptable}
+
+
+\begin{description}
+\item[\is{Screening}] Choice of the screening method. The following choices are
+  allowed:
+  
+  \begin{description}
+  \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
+    terms. This is the recommended choice for speed and accuracy but does not
+    support all of the cases (restarting and spin polarisation).
+
+    \begin{ptable}
+      %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
+      %% Screeing / Thresholded /}}} \\
+      %% \hline
+      \kw{Threshold} & r & & 1e-6 & \\
+      \kw{CutoffReduction} & r & & 0.0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{Threashold}] Threashold, below which elements are considered to be
+      zero.
+    \item[\is{CutoffReduction}]\modif{\modtype{length}} Reduces the spatial
+      cutoff, beyond which the overlap between atoms is considered to be zero.
+      This can be used as an additional tweak to speed up the LC-calculation,
+      but make sure first, that your results do not change
+      considerably. Default: 0.0 -- no reduction, using the cutoff from the
+      SK-files.
+    \end{description}
+
+    
+  \item[\is{NeighbourBased}] Uses a purely neighbour-list based algorithm. This
+    algorithm is usually considerably slower than the \is{Thresholded}.
+    
+    \begin{ptable}
+      %%\multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
+      %% Screeing / Thresholded /}}} \\
+      %% \hline
+      \kw{CutoffReduction} & r & & 0.0 & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{CutoffReduction}]\modif{\modtype{length}} See description in the
+      \is{Thresholded} block.
+    \end{description}
+
+
+  \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based algorithm. This
+    can be faster than other two algorithms.
+  \end{description}
+\end{description}
+
+Example for thresholded screening with customised threshold value.
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = Thresholded {
+    Threshold = 1e-5
+  }
+}
+\end{verbatim}
+
+Example for neighbour list based screening with customised cutoff reduction:
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = NeighbourBased {
+    CutoffReduction [AA] = 2.0
+  }
+}
+\end{verbatim}
+
+Example for matrix-matrix multiplication based method:
+\begin{verbatim}
+RangeSeparated = LC {
+  Screening = MatrixBased {}
+}
+\end{verbatim}
+
+
+\subsection{On site corrections}
+\label{sec:dftbp.Onsites}
+
+This block enables corrections for on-site matrix elements which improve the
+description of multi-centre integrals~\cite{garcia14Thesis} leading to, for
+example, improved hydrogen-bond energies~\cite{dominguez15}. 
+
+For each chemical species, the spin-same-spin and spin-different-spin constants
+should be specified for all combinations of atomic shells. {\bf note:} the
+matrix of constants is symmetric and the purely s-with-s entries are zero (the
+code ignores their value due to symmetry).
+
+Example:
+\begin{verbatim}
+OnSiteCorrection= {
+    # same spin oxygen
+    Ouu = {0.00000  0.08672
+           0.08672 -0.00523}
+    # hetero-spin oxygen
+    Oud = {0.00000  0.14969
+           0.14969  0.03834}
+    # H all zero
+    Huu = {0}
+    Hud = {0}
+}
+\end{verbatim}
+
+Some on-site constants are given in appendix~\ref{app:onsiteconst}.
 
 \subsection{Differentiation}
 \label{sec:dftbp.Differentiation}
@@ -2541,8 +3720,6 @@ Example:
 ForceEvaluation = 'dynamics'
 \end{verbatim}
 
-\end{description}
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Options
@@ -2566,6 +3743,7 @@ This block collects some global options for the run.
   \kwl{ReadChargesAsText}{kw:dftbp.ReadChargesAsText} & l &
   ReadInitialCharges = Yes & No & \\
   \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
+  \kw{SkipChargeTest} & l & ReadInitialCharges = Yes & No & \\
 \end{ptable}
 \begin{description}
 
@@ -2578,14 +3756,15 @@ This block collects some global options for the run.
   is needed among others by the \verb|waveplot| utility for
   visualising molecular orbitals.)
 
-\item[\is{WriteResultsTag}] Turns the creation of the
-  \verb|results.tag| file on and off. (That file is used by several
-  utilities processing the results of \dftbp.)
+\item[\is{WriteResultsTag}] Turns the creation of the \verb|results.tag| file on
+  and off. (That file is used by several utilities processing the results of
+  \dftbp.) For a description of the file format see
+  p.~\pref{sec:dftbp.results}.
 
 \item[\is{WriteDetailedOut}] Controls the creation of the file
-  \verb|detailed.out|. Since this contains the detailed information
-  about the last step of your run, you shouldn't turn it off without
-  good reasons.
+  \verb|detailed.out| (see p.~\pref{sec:dftbp.detailedout}). Since this contains
+  the detailed information about the last step of your run, you shouldn't turn
+  it off without good reasons.
 
 \item[\is{RestartFrequency}] Specifies the interval at which charge
   restart information should be written to disc for static SCC
@@ -2651,6 +3830,17 @@ This block collects some global options for the run.
   binary file \verb|charges.bin|, while if \is{Yes} then \verb|charges.dat|
   contains text of this data. See section \ref{sec:charges.bin}.
 
+\item[\is{SkipChargeTest}] If \is{Yes}, testing of whether the charges read from
+  file match the total charge (and magnetisation) specified in the {\dftbp}
+  input (if relevant) is performed. Skipping this test (setting to \is{No}) may
+  be useful if restarting from a charges generated for a similar system with
+  slightly different total charge or magnetisation. Similarly, in the event of
+  serious instabilities in the SCC cycle, the generated charge restart file may
+  fall outside of the check-sum tolerances, hence this option allows a
+  re-start. Finally, in the case of user edited \verb|charges.dat| file (see
+  section~\ref{sec:charges.bin}), the check-sum this option removed the
+  requirement that the checksum values in the file match the charges.
+
 \end{description}
 
 
@@ -2665,10 +3855,11 @@ calculation and/or calculate properties.
 \begin{ptable}
   \kw{AtomResolvedEnergies} & l & & No & \\
   \kw{MullikenAnalysis} & l & & Yes & \\
+  \kw{CM5} & m & MullikenAnalysis = Yes & & \pref{sec:dftbp.CM5} \\
   \kw{ProjectStates} & m & & \cb & \\
   \kw{Localise} & m & & \cb & \\
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
-  \kw{EigenvectorsAsTxt} & l & WriteEigenvectors = Yes & No & \\
+  \kw{EigenvectorsAsText} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
   \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
@@ -2681,6 +3872,9 @@ calculation and/or calculate properties.
 
 \item[\is{MullikenAnalysis}] If \is{Yes}, the results of a Mulliken analysis of
   the system is given.
+
+\item[\is{CM5}] If present the charge model 5 (CM5)\cite{marenich2012} corrected
+  atomic partial charges will be written.
 
 \subsubsection{ProjectStates} \kw{ProjectStates}
 \label{sec:dftbp.ProjectStates} evaluates the Mulliken
@@ -2746,11 +3940,11 @@ maximised. The resulting localised states are output as
 appendix~\ref{sec:dftbp.eigenvec} for \verb|eigenvec.out| and \verb|eigenvec.bin|.
 
 \begin{ptable}
-  \kw{Tollerance} & r &  & 1E-4 & \\
+  \kw{Tolerance} & r &  & 1E-4 & \\
   \kw{MaxIterations} & i &  & 100 & \\
 \end{ptable}
 \begin{description}
-\item[\is{Tollerance}] Cut off for rotations in the localisation process.
+\item[\is{Tolerance}] Cut off for rotations in the localisation process.
 \item[\is{MaxIterations}] Maximum number of total sweeps to perform.
 \end{description}
 
@@ -2758,7 +3952,11 @@ For systems with non-gamma-point $k$-points, no further options are available.
 \begin{verbatim}
 Analysis = {
   Localise = {
-    PipekMezey = Yes        # Default options otherwise
+    PipekMezey = {
+       # These are the default options, which are also set if the bracket is left empty.
+       Tolerance = 1.0E-4
+       MaxIterations = 100
+    }  
   }
 }
 \end{verbatim}
@@ -2770,12 +3968,12 @@ method which {\em may} have better scaling properties.
 
 \begin{ptable}
   \kw{Dense} & l & & \is{No} & \\
-  \kw{SparseTollerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
+  \kw{SparseTolerances} & r+ & Dense = No & 1E-1 1E-2 1E-6 1E-12 & \\
 \end{ptable}
 \begin{description}
 \item[\is{Dense}] Selects the conventional method (\is{Yes}) using Jacobi sweeps
   over all orbital pairs or (\is{No}) uses the default sparse method.
-\item[\is{SparseTollerances}] The sparse method introduces support regions during
+\item[\is{SparseTolerances}] The sparse method introduces support regions during
   evaluation to increase performance, and these requires a set of tolerances to
   determine the regions to be used (these are listed in decreasing order, i.e.,
   with tighter tolerances as the localisation proceeds).
@@ -2785,7 +3983,7 @@ method which {\em may} have better scaling properties.
   \verb|eigenvec.bin|. For a description of the file format see
   p.~\pref{sec:dftbp.eigenvec}.
 
-\item[\is{EigenvectorsAsTxt}] If eigenvectors are being written, specifies if a
+\item[\is{EigenvectorsAsText}] If eigenvectors are being written, specifies if a
   text version of the data should be printed in \verb|eigenvec.out|. For a
   description of the file format see p.~\pref{sec:dftbp.eigenvec}.
 
@@ -2856,6 +4054,7 @@ calculations. This data is accumulated in a specified text file.
 This block collects some options to calculate excited states.
 \begin{ptable}
   \kw{Casida} & p & SCC = Yes & \cb & \\
+  \kw{PP-RPA} & p & SCC = Yes & \cb & \\
 \end{ptable}
 
 \subsection{Casida}
@@ -2894,6 +4093,8 @@ fractional occupations. The specifications for this block have the following pro
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{WriteStatusArnoldi}     & l & & No & \\
     \kw{TestArnoldi}            & l & & No & \\
+    \kw{ExcitedStateForces}     & l & \is{CalculateForces} = Yes & Yes & \\
+    \kw{CacheCharges}           & l & & Yes & \\
   \end{ptable}
 
   \begin{description}
@@ -2930,7 +4131,7 @@ fractional occupations. The specifications for this block have the following pro
     spectrum at the uncoupled DFTB level (i.e.\ the single-particle excitations).
 
   \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT are created. The
-    former contains atom-resolved Mulliken (net) charges for the excited state of interest, the
+    former contains atom-resolved Mulliken (gross) charges for the excited state of interest, the
     latter the excited-state dipole moment of the state.
 
   \item[\is{WriteCoefficients}] If set to \is{Yes}, the file COEF.DAT is created. This file contains
@@ -2940,10 +4141,11 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is created. This file
     contains the natural orbitals for the specified excited state.
 
-  \item[\is{TotalStateCoeffs}] Option to control the data written for either \is{WriteCoefficients}
-    or \is{WriteEigenvectors}. If set to \is{No} the total charge density of the output orbitals
-    corresponds to the change in charge from the ground to excited state. If set to \is{Yes} instead
-    it corresponds to the total charge density in the excited state.
+  \item[\is{TotalStateCoeffs}] Option to control data from
+    \is{WriteCoefficients} or \is{WriteEigenvectors}. If set to \is{No} the
+    total charge density of the output orbitals corresponds to the change in
+    charge from the ground to excited state. If set to \is{Yes} instead it
+    corresponds to the total charge density in the excited state.
 
   \item[\is{WriteXplusY}] If set to \is{Yes}, the file XplusY.DAT is created. This file contains the
     RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all excited states (c.f., Eqn.~(18) in
@@ -2958,7 +4160,263 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is created, which gives data
     on the quality of the resulting eigenstates.
 
+  \item[\is{ExcitedStateForces}] If set to \is{Yes}, evaluated forces include
+    the contributions from an excited state of interest. By default, it is set
+    to \is{Yes} if forces are being calculated (for example in geometry
+    optimisation) and to \is{No} otherwise. By setting it explicitly to
+    \is{No}, you can calculate the excitations during a molecular dynamics
+    simulation that is being driven by the ground state forces only.
+
+  \item[\is{CacheCharges}] If set to \is{No}, transition charges are calculated
+    on the fly during the excited states calculation, instead of being
+    cached. This makes the calculation considerably slower, but can help to
+    decrease memory use substantially, if you are short on memory.
+    
   \end{description}
+  
+  
+\subsection{PP-RPA}
+\label{sec:dftbp.pprpa}
+
+This tag contains the specifications for the calculation of excitation energies
+using the particle-particle random phase approximation
+(pp-RPA)~\cite{Yang2017}. This approach, unlike time-dependent DFTB, allows the
+computation of double and charge-transfer transitions. However it has the
+limitation that the computed excitations have to involve, at least partially,
+the highest occupied molecular orbital (HOMO) of the system.
+
+For the computation of the excitation energies of a neutral $N$-electron system,
+one needs to set up a ground state calculation for the two-electron deficient
+($N-2$) system, i.e.\ a net \mbox{\kw{Charge} = +2.0} calculation. Please note
+that if \kw{Charge} is set to 0.0 (the default value), the obtained transition
+energies will correspond to a net negative $-2$ charged system (i.e.\ $N+2$
+electrons). The system of interest must be closed-shell, therefore the
+calculation must also be spin-restricted and performed for an even number of
+electrons.
+
+The pp-RPA method is currently implemented only for SCC-DFTB level excitations,
+but can be performed on top of both SCC-DFTB or range-separated reference ground
+state calculations. The SCC-DFTB calculations can be performed for molecular or
+gamma point periodic systems, but the range-separated calculations can only use
+molecular boundary conditions.
+
+The specifications for this block have the following properties:
+
+\begin{ptable}
+  \kw{NrOfExcitations}   & i & & -  & \\
+  \kw{Symmetry}          & s & & -  & \\
+  \kw{NrOfVirtualStates} & i & & 0  & \\
+  \kw{TammDancoff}       & l & & No & \\
+  \kw{HHubbard}          & p & & -  & \\
+\end{ptable}
+
+\begin{description}
+
+\item[\is{NrOfExcitations}] Specifies the number of vertical excitation energies
+  to be computed for each symmetry (singlet or triplet).
+
+\item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
+  computed: \is{singlet}, \is{triplet} or \is{both}. Please note that,
+  \is{triplet} and \is{both} are effectively similar, as both singlet and
+  triplet excitation energies will be printed out if either of these keywords
+  are used.
+
+\item[\is{NrOfVirtualStates}] Optional orbital constraint to speed up the
+  calculation. It specifies the number of virtual states entering the pp-RPA
+  equation. If set to zero or greater than the total number of virtual states of
+  the system no constraint will be applied.
+
+\item[\is{TammDancoff}] If set to \is{Yes}, the Tamm-Dancoff approximation will
+  be employed. This will speed up the calculation.
+    
+\item[\is{HHubbard}] Hubbard-like parameters for each atom type including only
+  the Hartree kernel. Values of some of these parameters are given in
+  appendix~\ref{app:hhubbard}.
+
+\end{description}
+  
+The output of the pp-RPA calculation are described in
+section~\ref{sec:ppRPAout}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%  REKS
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{REKS}
+\label{sec:dftbp.REKS}
+
+This block collects some options to calculate REKS in the context of DFTB.
+The \kw{Reks} keyword expects either \is{None} (default -- no use of REKS calculation)
+or the \is {SSR22}\cb\ block as value.
+
+\begin{ptable}
+  \kw{SSR22} & p & SCC = Yes, SpinPolarisation $=$ \{\}, SpinConstants $\neq$ \{\} & None & \\
+\end{ptable}
+
+\subsection{SSR22}
+\label{sec:dftbp.SSR22}
+
+This tag contains the specifications for a DFTB/SSR(2,2) calculation~\cite{Lee_JCTC_2019}, based on ensemble DFT theory.
+
+\textbf{Note:} the \dftbp{} binary can be compiled with OpenMP (not MPI) parallelization
+and DFTB/SSR calculation is not compatible with time-dependent DFTB calculation.
+In addition, it is not compatible with spin-polarisation, but it requires spin constants to treat open-shell microstates.
+
+In general, REKS calculation can be classified as single-state REKS, SA-REKS and SI-SA-REKS.
+In single-state REKS, only ground state is calculated and it can treat the state with multireference
+character. SA-REKS and SI-SA-REKS can calculate the vertical excitation energies. The difference
+is that the state-interaction term is considered in SI-SA-REKS so that more accurate states can
+be generated. The corresponding oscillator strengths as well as excited state geometry optimisation
+can be performed with these options, details of the resulting output files are given in appendix
+\ref{sec:reks_files}.
+
+In the context of DFTB, current REKS calculation is compatible with following functionalities.
+The range-separated functional, external point charges and dispersion corrections can be
+calculated with single-state REKS, SA-REKS or SI-SA-REKS. For the periodic system, only
+gamma point sampling is supported with REKS. Especially, the stress evaluation and lattice
+optimisation is possible with only single-state REKS.
+The specifications for this block have the following properties:
+
+\begin{ptable}
+  \kw{Energy} & m & & \cb & \\
+  \kw{TargetState} & i & & 1 & \\
+  \kw{TargetMicrostate} & i & \parbox{0.3\textwidth}{Functional $\neq$ \{ "PPS" \}, StateInteractions = No} & 0 & \\
+  \kw{ReadEigenvectors} & l & & No \\
+  \kw{FonMaxIter} & i & & 20 & \\
+  \kw{Shift} & r & & 0.3 & \\
+  \kw{SpinTuning} & $(\text{r})^*$ & & \cb & \\
+  \kw{TransitionDipole} & l & \parbox{0.3\textwidth}{Functional $\neq$ \{ "PPS" \}, TargetMicrostate = 0} & No & \\
+  \kw{Gradient} & m & & ConjugateGradient \cb & \\
+  \kw{RelaxedDensity} & l & & No & \\
+  \kw{NonAdiabaticCoupling} & l & \parbox{0.3\textwidth}{Functional $\neq$ \{ "PPS" \}, StateInteractions = Yes} & No & \\
+  \kw{VerbosityLevel} & i & & 1 & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Energy}] Choice of energy evaluation in REKS method. This \is{Energy} block has following options:
+
+  \begin{ptable}
+    \kw{Functional} & $(\text{s})^*$ & & & \\
+    \kw{IncludeAllStates} & l & & No & \\
+    \kw{StateInteractions} & l & & No & \\
+  \end{ptable}
+
+  \begin{description}
+  \item[\is{Functional}] Specifies the minimized energy functional in DFTB/SSR.
+    This keyword reads a block consisted of the energy functionals that you want to include in the calculation.
+    In DFTB/SSR(2,2), there are two possible choices for the minimzied energy functionals.
+    One is PPS and the other is (PPS+OSS)/2. The former represents single-state REKS and the latter
+    shows SA-REKS or SI-SA-REKS. The detailed form of the block is shown in below examples.
+    The inclusion of state-interaction terms is determined by \is{StateInteractions}.
+
+  \item[\is{IncludeAllStates}] If set to \is{Yes}, all computable energy states from current energy functionals
+    are included for SA-REKS or SI-SA-REKS calculations. When you calculate single-state REKS, this option
+    does not affect the result of calculation. The PPS and OSS states are calculated when this option sets to \is{No},
+    while the additional DES state can be included if this sets to \is{Yes}. If you want to the doubly-excited
+    configuration, please set to \is{Yes}. The detailed explanation about PPS, OSS and DES states
+    is given in the Ref.~\cite{Lee_JCTC_2019}
+
+  \item[\is{StateInteractions}] If set to \is{Yes}, the state-interaction terms between SA-REKS states is included,
+    thus it generates SI-SA-REKS states. In general, SI-SA-REKS state can provide more reliable state
+    when you want to compute the excited states.
+  \end{description}
+
+\item[\is{TargetState}] Specifies the target state that should be calculated. These are numbered
+  from the ground state as 1, and so on. Note that the ordering of this option is different with the option
+  \is{StateOfInterest} in time-dependent DFTB calculation.
+
+\item[\is{TargetMicrostate}] Specifies the target microstate that should be calculated. The electronic
+  configuration is given in the Ref.~\cite{Lee_JCTC_2019} or the source code of \dftbp{}. In SSR(2,2),
+  fifth microstate is triplet configuration, thus this microstate can be roughly considered as triplet state.
+
+\item[\is{ReadEigenvectors}] If set to \is{Yes}, the initial molecular orbitals are read from the
+  eigenvec.bin file. If not, the initial orbitals are obtained from the diagonalization of non-SCC Hamiltonian.
+  Note that this option is not completely implemented, so you should set this option to \is{No}.
+
+\item[\is{FonMaxIter}] Specifies the maximum number of iterations used in the optimization of
+  fractional occupation numbers. In general, the value of 20 is enough to converge the fractional
+  occupation numbers in SCC cycle.
+
+\item[\is{Shift}] Specifies the level shift value used in SCC cycle. The shift value should be increased
+  to converge the SCC cycle when the orbital energies of the active orbitals are close to each other.
+
+\item[\is{SpinTuning}] Specifies the scaling constants for atomic spin constants. DFTB/SSR sometimes
+  shows wrong spin contribution for triplet microstate, thus the scaling of atomic spin constants are needed
+  to generate correct spin contribution for each microstate. The standard to determine the scaling constants
+  is provided in the Ref.~\cite{Lee_JCTC_2019}. The number of elements of \is{SpinTuning} block becomes the number of
+  atomic species, and the ordering of the elements is same as the ordering of atomic species in input geometry file.
+
+\item[\is{TransitionDipole}] If set to \is{Yes}, the file tdp.dat is created. This file contains a
+  description of transition dipole moment between the electronic states in SA-REKS or SI-SA-REKS.
+
+\item[\is{Gradient}] Choice of gradient solver used in CP-REKS equations. This \is{Gradient} block has the following choices:
+
+  \begin{description} 
+  \item[\is{ConjugateGradient}] Uses a congugate-gradient based algorithm. This
+    algorithm is usually recommended since it is considerably faster than other algorithms.
+    
+    \begin{ptable}
+      \kw{CGmaxIter} & i & & 20 & \\
+      \kw{Tolerance} & r & & 1e-8 & \\
+      \kw{Preconditioner} & l & & No & \\
+      \kw{SaveMemory} & l & & No & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{CGmaxIter}] Specifies the maximum number of iterations used in the conjugate-gradient
+    based algorithm. In general, the value of 20 is enough to solve the CP-REKS equations.
+
+    \item[\is{Tolerance}] Specifies the tolerance used in the conjugate-gradient based algorithm.
+
+    \item[\is{Preconditioner}] If set to \is{Yes}, it uses a preconditiner in the conjugate-gradient based algorithm. In general,
+      the convergence speed is increased when this option sets to \is{Yes}, thus this option is recommended.
+
+    \item[\is{SaveMemory}] If set to \is{Yes}, some variables (an orbital hessian matrix and the H-xc kernel) which need large
+      memory allocation are saved in the memory. If these variables are saved, then the computational
+      speed also increases but it shows large memory allocation, increasing as $O(N_\mathrm{basis}^4)$.
+      If set to \is{No}, the CP-REKS equations are solved without saving these variables, thus it is relatively
+      slower than the case that you set to \is{Yes}. In general, \is{No} option is recommended for large systems.
+    \end{description}
+
+  \item[\is{Direct}] Uses a direct matrix-inversion multiplication algorithm. This algorithm is usually considerably slow.
+  \end{description}
+
+\item[\is{RelaxedDensity}] If set to \is{Yes}, the file relaxed\_charge.dat is created. This file contains
+  a description of relaxed charges for \is{TargetState} or \is{TargetMicrostate}. The relaxed charges can
+  be used with external point charges in QM/MM calculations.
+
+\item[\is{NonAdiabaticCoupling}] If set to \is{Yes}, the nonadiabatic couplings between SI-SA-REKS
+  states are calculated. This option cannot be used in single-state REKS or SA-REKS state.
+
+\item[\is{VerbosityLevel}] Specifies the printing level in standard output. This option determines the output up to
+  energy information (\is{VerbosityLevel} = 0), gradient information (\is{VerbosityLevel} = 1), detailed information about
+  SCC cycle and timing in gradient calculation (\is{VerbosityLevel} = 2).
+\end{description}
+
+Example for 3state SI-SA-REKS calculation with nonadiabatic couplings and modified spin constants:
+\begin{verbatim}
+Reks = SSR22 {
+  Energy = {
+    Functional = { "PPS" "OSS" }
+    IncludeAllStates = Yes
+    StateInteractions = Yes
+  }
+  TargetState = 2
+  TargetMicrostate = 0
+  ReadEigenvectors = No
+  FonMaxIter = 30
+  Shift = 0.3
+  SpinTuning = { 3.0 3.0 }
+  Gradient = ConjugateGradient {
+    CGmaxIter = 100
+    Tolerance = 1.0E-8
+    Preconditioner = Yes
+    SaveMemory = Yes
+  }
+  RelaxedDensity = Yes
+  NonAdiabaticCoupling = Yes
+  VerbosityLevel = 1
+}
+\end{verbatim}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  ParserOptions
@@ -2967,12 +4425,11 @@ fractional occupations. The specifications for this block have the following pro
 \label{sec:dftbp.ParserOptions}
 
 This block contains the options, which are effecting only the
-behaviour of the HSD/XML parser and are not passed to the main
+behaviour of the HSD parser and are not passed to the main
 program.
 \begin{ptable}
   \kw{ParserVersion} & i & & \textrm{current input version} & \\
   \kw{WriteHSDInput} & l & & Yes & \\
-  \kw{WriteXMLInput} & l & & No & \\
   \kw{IgnoreUnprocessedNodes} &l & & No & \\
   \kw{StopAfterParsing} &l & & No & \\
 \end{ptable}
@@ -2990,9 +4447,6 @@ program.
 \item[\is{WriteHSDInput}] Specifies, if the processed input should be
   written out in HSD format. (You shouldn't turn it off without
   really good reasons.)
-
-\item[\is{WriteXMLInput}] Specifies, if the processed input should be
-  written out in XML format.
 
 \item[\is{IgnoreUnprocessedNodes}] By default the code stops if it
   detects unused or erroneous keywords in the input, which probably
@@ -3017,6 +4471,7 @@ the code. They only take effect, if the code was compiled with MPI-support.
 
 \begin{ptable}
   \kw{Groups} & i & 1 & & \\
+  \kw{UseOmpThreads} & l & .false. & & \\
   \kw{Blacs} & p & \cb & & \\
 \end{ptable}
 \begin{description}
@@ -3025,7 +4480,24 @@ the code. They only take effect, if the code was compiled with MPI-support.
   different process groups are working on different k-points and spins at the
   same time. The number of process groups must be a divisor of the total number
   of MPI-processes. Default: 1 (all processes work at the same k-point and spin
-  at a given time).
+  at a given time). Note that transport calculations between contacts are
+  currently incompatible with multiple process groups (see
+  section~\ref{app:transp}).
+
+\item[\is{UseOmpThreads}] Enables the usage of OpenMP-threads (hybrid
+  MPI/OpenMP-parallelisation). In order to prevent you from accidently running
+  more processes and threads than appropriate for your hardware, this feature is
+  turned off by default. Consequently in this case the MPI-parallelised binary
+  will stop if the maximal number of OpenMP-threads is greater than one when
+  DFTB+ is started. (You can usually set the number of maximally allowed
+  OpenMP-threads by setting the \is{OMP\_NUM\_THREADS} environment variable in
+  your shell.)
+
+  You can enable this option if you wish to run DFTB+ with hybrid
+  parallelisation. You would then typically start fewer MPI-processes than
+  physical cores on each node and also set the number of threads accordingly.
+  This is currently an experimental feature in DFTB+ and is recommended for
+  experienced users only.
 
 \item[\is{Blacs}] Contain BLACS specific settings. Currently only supports
   \is{BlockSize}, which specifies the row and column block size for the
@@ -3051,6 +4523,102 @@ This chapter contains the description of some of the output files of
 \dftbp{} where the output format is not self documenting. Unless
 indicated otherwise, numbers in the output files are given in atomic
 units (with Hartree as the energy unit).
+
+\section{band.out}
+\label{sec:dftbp.bandout}
+\index{band.out}
+
+This contains the band energies and occupation of levels in electron volts and
+electron charge units as columns one and two. The file is printed if
+\is{WriteBandOut} = \is{Yes} (see section \ref{sec:dftbp.Analysis}). Blocks of
+numerical results start with a line which labels the k-point and spin channel
+for the energies.
+
+See the \dptools{} package for utilities for converting the data in this file
+into band-structures and density of states information suitable for plotting.
+
+\section{detailed.out}
+\label{sec:dftbp.detailedout}
+\index{detailed.out}
+
+This file contains details of the total energy and its components, as well as
+optional information on forces, atomic charges and other properties. It is
+intended for quick viewing, while values given to more significant figures are
+available in results.tag.
+
+Some of the information available in the file will also depend on the method
+being used in the calculation. For example, not all electronic solvers make the
+ground state electronic entropy available, hence only the internal energy would
+be quoted. Similarly, while the free energy of the system which when
+differentiated by atomic coordinates or boundary conditions gives the forces or
+stresses (printed as \textit{Force related energy}) this is not currently
+available for some types of non-equilibrium transport calculations.
+
+Some of the common energy results printed in this file are:\\
+
+\begin{center}
+  \begin{tabular}{|l|p{5.5cm}|}
+    \hline
+    TS& Product of the electron entropy and temperature\\
+    Total Electronic energy& The non-SCC energy plus other contributions to the
+    electronic energy (SCC, spin, $\ldots$)\\
+    Repulsive energy& The pairwise contribution to the total energy\\
+    Total energy& Sum of electronic energy\\
+    Extrapolated to 0& Estimated zero temperature energy if at finite
+    temperatures\\
+    Total Mermin free energy& $U - T S$, relevant free energy at finite
+    temperatures\\
+    Force related energy& Free energy relevant to forces in the system\\
+    Gibbs free energy& Energy corrected by $- p V$, i.e. the pressure and volume\\
+    MD Kinetic Energy& Kinetic energy of atoms in molecular dynamics\\
+    Total MD Energy& Sum of finite temperature electronic, repulsive and atomic
+    kinetic energies\\
+    \hline
+  \end{tabular}
+\end{center}
+
+Where available the Fermi level $\mu$ (i.e. the chemical potential of the
+electrons in the system) is also printed. For systems with an externally fixed
+Fermi level (i.e. where the total charge can change), this contribution is
+included in the Force related energy: $$\Delta E = + q_\mathrm{total} \mu,$$ but
+for calculations with fixed numbers of electrons it is not included in this
+energy. \textbf{Note:} The total energy reference may not match your required
+case in some situations, for example a shift with respect to the average
+electrostatic potential (in periodic cases) or whether the chemical potential
+should be with respect to the valence band maximum may be needed (see for
+example the discussion in Ref.~\cite{Lany_2009}).
+
+\section{results.tag}
+\label{sec:dftbp.results}
+\index{results.tag}
+
+This contains machine readable results labeled with the type and size of the
+data blocks. The results are given in atomic units and are formatted as:
+\begin{verbatim}
+label               :type:shape:
+\end{verbatim}
+
+The variable type is real, complex, integer or logical. The shape information is
+\newline :ndim: size$_1$,size$_2$,$\ldots$,size$_{ndim}$:\newline where ndim is
+the number of dimensions, organised with the Fortran convention and of size
+size$_1$ $\times$size$_2$ $\times$size$_2$ $\times \ldots$.
+
+In the special case of scalar variables the shape is :0:.
+
+A typical example of mixed scalar and both one and two dimensional results would
+be similar to:
+\begin{verbatim}
+mermin_energy       :real:0:
+ -0.672967201447815E+000
+total_energy        :real:0:
+ -0.672879398682698E+000
+forces              :real:2:3,3
+ -0.243590222274811E+000 -0.199780753617099E-001 -0.000000000000000E+000
+  0.465478448963764E+000 -0.228550455811745E+000 -0.000000000000000E+000
+ -0.221888226688953E+000  0.248528531173455E+000 -0.000000000000000E+000
+gross_atomic_charges:real:1:3
+  0.171448741143825E+000 -0.254714832621691E+000  0.832660914778645E-001
+\end{verbatim}
 
 \section{hamsqrN.dat, oversqr.dat}
 \label{sec:dftbp.hamsqr}
@@ -3099,7 +4667,7 @@ supported for this option.
 
 Note: The sparse format contains only the "lower triangle" of the real
 space matrix. For more details about the format and how to obtain the
-upper triangle elements, see reference~\cite{dftbp-paper}. Also note,
+upper triangle elements, see reference~\cite{dftbp-2007paper}. Also note,
 that for periodic systems the sparse format is based on the
 \emph{folded} coordinates of the atoms, resulting in translation
 vectors (ICELL) which look surprising at first glance.
@@ -3164,7 +4732,7 @@ are printed in this order, followed by the data for a second channel if spin
 polarised.
 
 The files are produced if requested by setting \is{WriteEigenvectors} =
-\is{Yes}, with \is{EigenvectorsAsTxt} being also required to produce the plain
+\is{Yes}, with \is{EigenvectorsAsText} being also required to produce the plain
 text file (see section~\ref{kw:dftbp.WriteEigenvectors} for details).
 
 \section{charges.bin / charges.dat}
@@ -3279,7 +4847,7 @@ with its fractional contribution to the full excited state are given.
 
 General format:
 
-\begin{tabular}{|l|l|}
+\begin{tabular}{|l|p{5.5cm}|}
 \hline
 {\small T F                                }&Legacy flags\\
 {\small   1  1.9999926523  2.0000000000    }&level 1, fraction of total WF, 2.0\\
@@ -3384,10 +4952,10 @@ Example:\\
 \subsection{XCH.DAT}
 \index{XCH.DAT}
 
-Net charges on atoms in the specified excited state. The top line contains the
+Charges on atoms in the specified excited state. The top line contains the
 symmetry (Singlet or Triplet) and the number of the excited state. The next line
 is the number of atoms in the structure followed by some header text. Then on
-subsequent lines the number of each atom in the structure and its net charge are
+subsequent lines the number of each atom in the structure and its charge are
 printed.
 
 \subsection{XplusY.DAT}
@@ -3410,7 +4978,47 @@ energy (in Hartree)\\
 \subsection{XREST.DAT}
 \index{XREST.DAT}
 
-Net dipole moment of the specified excited state in units of Debye.
+Dipole moment of the specified excited state in units of Debye.
+
+\section{ppRPA\_ener.DAT}
+\index{ppRPA\_ener.DAT}
+\label{sec:ppRPAout}
+
+Excitation energies obtained within the pp-RPA formalism (see
+section~\ref{sec:dftbp.pprpa}). This output file also includes the most dominant
+Kohn-Sham transition, its weight and energy difference as well as the spin
+multiplicity of the excited state.
+
+Here are, for instance, the first three singlet-singlet transitions for furan:
+
+\begin{verbatim}
+     w [eV]        Transitions                         Weight            KS [eV]              Symm.
+
+ =================================================  
+
+      6.411        HOMO -> LUMO + 0            0.998            5.162                     S
+      6.904        HOMO -> LUMO + 1            0.973            6.755                     S
+     11.339        HOMO -> LUMO + 0, 0        0.959            5.162,  5.162            S
+\end{verbatim}  
+
+The first two excitations are single, whereas the third one is a double
+transition with predominant HOMO-to-LUMO character.
+
+\section{REKS results files}
+\label{sec:reks_files}
+Several files are produced during REKS calculations depending on the
+particular settings from section~\ref{sec:dftbp.REKS}.
+
+
+\subsection{tdp.dat}
+\index{tdp-reks.dat}
+
+Detail of the magnitude and direction of the transition dipole between all electronic states.
+
+\subsection{relaxed\_charge.dat}
+\index{relaxed\_charge.dat}
+
+Charges on atoms in the specified state. The top line contains the total charge of the system.
 
 %%% Local Variables:
 %%% mode: latex

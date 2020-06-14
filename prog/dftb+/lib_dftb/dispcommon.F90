@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,14 +11,14 @@
 !> Periodic summation from the following references:
 !> N. Karasawa et al., J. Phys. Chem. 93, 7320-7327 (1989)
 !> Zhou-Min Chen et al., J. Comp. Chem. 18, 1365 (1997)
-module dispcommon
-  use assert
-  use accuracy
-  use constants, only : pi
-  use message
-  use sorting
-  use simplealgebra, only : cross3
-  use errorfunction
+module dftbp_dispcommon
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_constants, only : pi
+  use dftbp_message
+  use dftbp_sorting
+  use dftbp_simplealgebra, only : cross3
+  use dftbp_errorfunction
   implicit none
   private
 
@@ -32,7 +32,7 @@ contains
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  For details see the
   !> references in the module description.
   !> Note: the interaction parameter C6 is specified atomwise.
-  subroutine addDispEGr_per_atom(nAtom, coords, nNeighbors, iNeighbor, neighDist2, img2CentCell, &
+  subroutine addDispEGr_per_atom(nAtom, coords, nNeighbourSK, iNeighbour, neighDist2, img2CentCell,&
       & c6, eta, vol, gLatVecs, energies, gradients, stress)
 
     !> Nr. of atoms (without periodic images)
@@ -41,11 +41,11 @@ contains
     !> Coordinates of the atoms (including images)
     real(dp), intent(in) :: coords(:,:)
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbors(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
-    !> Neighborlist.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbourlist.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:,:)
@@ -89,16 +89,14 @@ contains
     gc = pi**1.5_dp / (12.0_dp * vol)
     g3c = pi**1.5_dp / (6.0_dp * vol)
     do iAt1 = 1, nAtom
-      do iNeigh = 1, nNeighbors(iAt1)
-        iAt2 = iNeighbor(iNeigh, iAt1)
+      do iNeigh = 1, nNeighbourSK(iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         vec = coords(:,iAt1) - coords(:,iAt2)
         iAt2f = img2CentCell(iAt2)
         aam2 = (sqrt(neighDist2(iNeigh, iAt1))/eta)**(-2)
-        rSum =  rc * c6(iAt2f, iAt1) &
-            &* ((aam2 + 1.0_dp)*aam2 + 0.5_dp)*aam2 * exp(-1.0_dp / aam2)
-        rSum3(:) = r3c * c6(iAt2f, iAt1) * exp(-1.0_dp / aam2) &
-            &* (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 &
-            & * vec(:)
+        rSum =  rc * c6(iAt2f, iAt1) * ((aam2 + 1.0_dp)*aam2 + 0.5_dp)*aam2 * exp(-1.0_dp / aam2)
+        rSum3(:) = r3c * c6(iAt2f, iAt1) * exp(-1.0_dp / aam2)&
+            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec(:)
         energies(iAt1) = energies(iAt1) - rSum
         gradients(:,iAt1) = gradients(:,iAt1) + rSum3(:)
         if (iAt1 /= iAt2f) then
@@ -129,8 +127,7 @@ contains
           rTmp = rTmp + cos(ddp) * c6(iAt1, iAt2)
           rTmp2 = rTmp2 + sin(ddp) * c6(iAt1, iAt2)
         end do
-        rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb &
-            &* exp(-1.0_dp / bbm2)
+        rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb * exp(-1.0_dp / bbm2)
         rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb
         gSum = gSum + rTmp * ggAbs**3 * rTmp3
         gSum3(:) = gSum3(:) + gg(:) * rTmp2 * ggAbs**3 * rTmp3
@@ -141,12 +138,11 @@ contains
       gSum = gSum * gc
       gSum3(:) = gSum3(:) * g3c
       gSum33 = gSum33 * gc
-      energies(iAt1) = energies(iAt1) - gSum &
-          &+ (c6(iAt1,iAt1)/12.0_dp * etam3 &
-          &- pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol)) * etam3
+      energies(iAt1) = energies(iAt1) - gSum + (c6(iAt1,iAt1)/12.0_dp * etam3&
+          & - pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol)) * etam3
       do ii = 1, 3
-        stress(ii,ii) = stress(ii,ii) - gSum/vol &
-            &-(pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol*vol)) * etam3
+        stress(ii,ii) = stress(ii,ii) - gSum/vol&
+            & - (pi**1.5 * sum(c6(:,iAt1))/(6.0_dp * vol*vol)) * etam3
       end do
       stress = stress - gSum33 / vol
       gradients(:,iAt1) =  gradients(:,iAt1) +  gSum3
@@ -159,7 +155,7 @@ contains
   !> Fast converging Ewald like summation on 1/r^6 type interactions.  The 1/r^12 term is
   !> summed in direct space.
   !> Note: the interaction coefficients (c6) are specified specieswise.
-  subroutine addDispEGr_per_species(nAtom, coords, species0, nNeighbors, iNeighbor, neighDist2, &
+  subroutine addDispEGr_per_species(nAtom, coords, species0, nNeighbourSK, iNeighbour, neighDist2,&
       & img2CentCell, c6, eta, vol, gLatVecs, energies, gradients, stress)
 
     !> Nr. of atoms (without periodic images)
@@ -171,11 +167,11 @@ contains
     !> chemical species of atoms
     integer, intent(in) :: species0(:)
 
-    !> Nr. of neighbors for each atom
-    integer, intent(in) :: nNeighbors(:)
+    !> Nr. of neighbours for each atom
+    integer, intent(in) :: nNeighbourSK(:)
 
-    !> Neighborlist.
-    integer, intent(in) :: iNeighbor(0:,:)
+    !> Neighbourlist.
+    integer, intent(in) :: iNeighbour(0:,:)
 
     !> Square distances of the neighbours.
     real(dp), intent(in) :: neighDist2(0:,:)
@@ -220,17 +216,15 @@ contains
     g3c = pi**1.5_dp / (6.0_dp * vol)
     do iAt1 = 1, nAtom
       iSp1 = species0(iAt1)
-      do iNeigh = 1, nNeighbors(iAt1)
-        iAt2 = iNeighbor(iNeigh, iAt1)
+      do iNeigh = 1, nNeighbourSK(iAt1)
+        iAt2 = iNeighbour(iNeigh, iAt1)
         vec = coords(:,iAt1) - coords(:,iAt2)
         iAt2f = img2CentCell(iAt2)
         iSp2 = species0(iAt2f)
         aam2 = (sqrt(neighDist2(iNeigh, iAt1))/eta)**(-2)
-        rSum =  rc * c6(iSp2, iSp1) &
-            &* ((aam2 + 1.0_dp)*aam2 + 0.5_dp)*aam2 * exp(-1.0_dp / aam2)
-        rSum3(:) = r3c * c6(iSp2, iSp1) * exp(-1.0_dp / aam2) &
-            &* (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 &
-            & * vec(:)
+        rSum =  rc * c6(iSp2, iSp1) * ((aam2 + 1.0_dp)*aam2 + 0.5_dp)*aam2 * exp(-1.0_dp / aam2)
+        rSum3(:) = r3c * c6(iSp2, iSp1) * exp(-1.0_dp / aam2)&
+            & * (((6.0_dp*aam2 + 6.0_dp)*aam2 + 3.0_dp)*aam2 + 1.0_dp)*aam2 * vec(:)
         energies(iAt1) = energies(iAt1) - rSum
         gradients(:,iAt1) = gradients(:,iAt1) + rSum3(:)
         if (iAt1 /= iAt2f) then
@@ -262,8 +256,7 @@ contains
           rTmp = rTmp + cos(ddp) * c6(iSp1, iSp2)
           rTmp2 = rTmp2 + sin(ddp) * c6(iSp1, iSp2)
         end do
-        rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb &
-            &* exp(-1.0_dp / bbm2)
+        rTmp3 = sqrt(pi) * erfcwrap(bb) + (0.5_dp * bbm2 - 1.0_dp) / bb * exp(-1.0_dp / bbm2)
         rTmp33 = sqrt(pi) * erfcwrap(bb) - exp(-bb*bb)/ bb
         gSum = gSum + rTmp * ggAbs**3 * rTmp3
         gSum3(:) = gSum3(:) + gg(:) * rTmp2 * ggAbs**3 * rTmp3
@@ -274,12 +267,11 @@ contains
       gSum = gSum * gc
       gSum3(:) = gSum3(:) * g3c
       gSum33 = gSum33 * gc
-      energies(iAt1) = energies(iAt1) - gSum &
-          &+ (c6(iSp1,iSp1)/12.0_dp * etam3 &
-          &- pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol)) * etam3
+      energies(iAt1) = energies(iAt1) - gSum + (c6(iSp1,iSp1)/12.0_dp * etam3&
+          & - pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol)) * etam3
       do ii = 1, 3
-        stress(ii,ii) = stress(ii,ii) - gSum/vol &
-            &-(pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol*vol)) * etam3
+        stress(ii,ii) = stress(ii,ii) - gSum/vol&
+            & - (pi**1.5 * sum(c6(species0(1:nAtom),iSp1))/(6.0_dp * vol*vol)) * etam3
       end do
       stress = stress - gSum33 / vol
       gradients(:,iAt1) =  gradients(:,iAt1) +  gSum3
@@ -305,7 +297,7 @@ contains
 
     vecLens(:) = sqrt(sum(latVecs**2, dim=1))
     call index_heap_sort(indx, vecLens)
-    call cross3(tmp, latVecs(:,indx(1)), latVecs(:,indx(2)))
+    tmp(:) = cross3(latVecs(:,indx(1)), latVecs(:,indx(2)))
     eta = sqrt(vecLens(indx(1)) * vol / (pi * sqrt(sum(tmp**2))))
 
   end function getOptimalEta
@@ -466,9 +458,8 @@ contains
     !> Estimated error of the summation.
     real(dp) :: err
 
-    err = (pi**1.5_dp * c6sum / vol) * eta * (1.0_dp/rr**4 &
-        &+ 1.0_dp/(rr**2 * eta**2) + 1.0_dp / (2.0_dp * eta**4)) &
-        &* erfcwrap(rr/eta)
+    err = (pi**1.5_dp * c6sum / vol) * eta * (1.0_dp/rr**4&
+        & + 1.0_dp/(rr**2 * eta**2) + 1.0_dp / (2.0_dp * eta**4)) * erfcwrap(rr/eta)
 
   end function getDispRealError
 
@@ -488,10 +479,9 @@ contains
     !> Estimated error of the summation.
     real(dp) :: err
 
-    err = c6sum/(6.0_dp * sqrt(pi)) * (1.0_dp / eta**6) &
-        &*(gg * eta * exp(-1.0_dp * (0.5_dp*gg*eta)**2) &
-        &+ sqrt(pi) * erfcwrap(0.5_dp * gg * eta))
+    err = c6sum/(6.0_dp * sqrt(pi)) * (1.0_dp / eta**6)&
+        & * (gg * eta * exp(-1.0_dp * (0.5_dp*gg*eta)**2) + sqrt(pi) * erfcwrap(0.5_dp * gg * eta))
 
   end function getDispReciprocalError
 
-end module dispcommon
+end module dftbp_dispcommon

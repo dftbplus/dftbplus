@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Module to wrap around the different shift contributions in the DFTB energy expressions
-module potentials
-  use assert
-  use accuracy, only : dp
-  use commontypes
+module dftbp_potentials
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_commontypes
   implicit none
 
   public :: TPotentials, init
@@ -44,6 +44,9 @@ module potentials
 
     !> external block and spin resolved potential
     real(dp), allocatable :: extBlock(:,:,:,:)
+
+    !> gradient of the external potential with respect of nucleus coordinates
+    real(dp), allocatable :: extGrad(:,:)
 
     !> pSIC/DFTB+U etc. potential
     real(dp), allocatable :: orbitalBlock(:,:,:,:)
@@ -88,6 +91,7 @@ contains
     allocate(self%extAtom(nAtom,nSpin))
     allocate(self%extShell(orb%mShell,nAtom,nSpin))
     allocate(self%extBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
+    allocate(self%extGrad(3, nAtom))
     allocate(self%orbitalBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
     allocate(self%iorbitalBlock(orb%mOrb,orb%mOrb,nAtom,nSpin))
     self%intAtom = 0.0_dp
@@ -96,10 +100,11 @@ contains
     self%extAtom = 0.0_dp
     self%extShell = 0.0_dp
     self%extBlock = 0.0_dp
+    self%extGrad(:,:) = 0.0_dp
     self%orbitalBlock = 0.0_dp
     self%iorbitalBlock = 0.0_dp
     self%tInitialised = .true.
 
   end subroutine Potentials_init
 
-end module potentials
+end module dftbp_potentials

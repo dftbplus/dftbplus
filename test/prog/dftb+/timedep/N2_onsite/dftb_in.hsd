@@ -1,0 +1,65 @@
+Geometry = GenFormat {
+    2  C
+  N
+    1 1    0.1538262154E-01    0.6202794088E-15    0.5729724911E-16
+    2 1    0.1135745378E+01   -0.6202794088E-15   -0.5729724911E-16
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    
+    SCC = Yes
+    SCCTolerance = 1.0E-10
+    MaxAngularMomentum = {
+        N = "p"
+    }
+    
+    OnSiteCorrection= {
+        Nuu = {0.00000  0.06816
+               0.06816 -0.00879}
+        Nud = {0.00000  0.12770
+               0.12770  0.03246}
+    }   
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    
+    Filling = Fermi {
+        Temperature [K] = 40
+    }
+    SpinConstants = {
+        N = {-0.026} # HOMO Wpp
+    }
+}
+
+ExcitedState {
+    Casida {
+        NrOfExcitations = 10
+        StateOfInterest = 0
+        WriteTransitions = Yes
+        WriteSPTransitions = Yes
+        Symmetry = Both
+    }
+}
+
+Analysis {
+    WriteEigenvectors = Yes
+    MullikenAnalysis = Yes
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions {
+    ParserVersion = 6
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

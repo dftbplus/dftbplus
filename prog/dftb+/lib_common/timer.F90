@@ -1,13 +1,13 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Time stages in the code
-module timer
-  use globalenv, only : stdOut
+module dftbp_timer
+  use dftbp_globalenv, only : stdOut
   implicit none
   private
 
@@ -135,4 +135,4 @@ contains
   end subroutine writeTimes
 
 
-end module timer
+end module dftbp_timer

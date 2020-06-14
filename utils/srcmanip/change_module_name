@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+################################################################################
+#
+# Replaces (in place) the name of a given module with a new one in all the files
+# passed as command line arguments:
+#
+# change_module_name oldname newname file1 file2 file3 ...
+#
+################################################################################
+from __future__ import print_function
+import sys
+import re
+
+old_module_name = sys.argv[1]
+new_module_name = sys.argv[2]
+sourcefiles = sys.argv[3:]
+
+MODDEF_PATTERN = r'''^(?P<indent>\s*)
+                      (?P<moddef>(?:end\s+)?module\s+)
+                      %s
+                      \b(?P<suffix>.*)$'''
+
+MODUSE_PATTERN = r'''^(?P<indent>\s*)
+                     use\b(?P<attribs>.*)
+                     \b%s
+                     \b(?P<suffix>.*)$'''
+
+regexp_moddef = re.compile(MODDEF_PATTERN % old_module_name,
+                           re.IGNORECASE | re.MULTILINE | re.VERBOSE)
+
+regexp_moduse = re.compile(MODUSE_PATTERN % old_module_name,
+                           re.IGNORECASE | re.MULTILINE | re.VERBOSE)
+
+for sourcefile in sourcefiles:
+    with open(sourcefile, 'r') as fp:
+        txt = fp.read()
+    newtxt, nrepl_moddef = regexp_moddef.subn(
+        r'\g<indent>\g<moddef>' + new_module_name + r'\g<suffix>', txt)
+    newtxt, nrepl_moduse = regexp_moduse.subn(
+        r'\g<indent>use\g<attribs>' + new_module_name + r'\g<suffix>', newtxt)
+    if nrepl_moddef + nrepl_moduse > 0:
+        with open(sourcefile, 'w') as fp:
+            fp.write(newtxt)
+        print("FILE:", sourcefile, " CHANGES: ", nrepl_moddef + nrepl_moduse)

@@ -1,5 +1,0 @@
-numderivs2.o: _mod_accuracy common.fypp _mod_assert
-numderivs2.o = numderivs2.o $(_mod_accuracy) $(common.fypp) $(_mod_assert)
-_mod_numderivs2: numderivs2.o
-_mod_numderivs2 = $(numderivs2.o)
-

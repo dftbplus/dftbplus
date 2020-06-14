@@ -1,12 +1,13 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2018  DFTB+ developers group                                  #
+#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
 #
 '''Information from band.out like files'''
 
+from __future__ import division
 import re
 import numpy as np
 from dptools.common import openfile
@@ -79,7 +80,7 @@ class BandOut:
             # Only keep last two data columns
             # (optional first column, if present, contains sequential numbering)
             nrows = vals.strip().count('\n') + 1
-            ncols = len(tmp) / nrows
+            ncols = len(tmp) // nrows
             tmp.shape = (nrows, ncols)
             tmp = tmp[:, ncols - 2 : ncols]
             
@@ -87,7 +88,7 @@ class BandOut:
             match = _PAT_BLOCK.search(txt, match.end())
 
         nspin = len(ispins)
-        nkpt = len(eigvalarrays) / nspin
+        nkpt = len(eigvalarrays) // nspin
         eigvalspin = np.array(eigvalarrays)
         eigvalspin.shape = (nspin, nkpt, -1, 2)
         kweights = np.array(kweights)

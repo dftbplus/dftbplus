@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,17 +8,17 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program polyvalue
-  use accuracy
-  use io
-  use reppoly
-  use fileid
-  use message
+  use dftbp_accuracy
+  use dftbp_globalenv, only : stdOut
+  use dftbp_reppoly
+  use dftbp_fileid
+  use dftbp_message
   implicit none
 
   character(lc) :: arg, fname
   logical :: homo
-  type(tRepPolyIn) :: repPolyIn
-  type(ORepPoly) :: pRepPoly
+  type(TRepPolyIn) :: repPolyIn
+  type(TRepPoly) :: pRepPoly
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr(3), energy, grad(3), d2, rDummy

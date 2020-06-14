@@ -1,0 +1,70 @@
+Geometry = GenFormat {
+# structure similar to doi:10.1088/1742-6596/720/1/012034
+   13  C
+ Au
+    1 1   -0.1397525746E+01    0.4020898653E+01    0.1012965495E+00
+    2 1    0.1007225867E+01    0.3807675782E+01    0.8614589679E-01
+    3 1   -0.2758517142E+01    0.2053534747E+01    0.3750485590E-01
+    4 1   -0.3777343766E+00    0.1854310143E+01    0.2347467331E-01
+    5 1    0.2013505259E+01    0.1646178451E+01    0.8380355401E-02
+    6 1   -0.4138561774E+01    0.1046336176E+00   -0.2657837682E-01
+    7 1   -0.1756915121E+01   -0.1119257848E+00   -0.4158161314E-01
+    8 1    0.6299041345E+00   -0.2999831805E+00   -0.5474305255E-01
+    9 1    0.3020308944E+01   -0.5171497674E+00   -0.7049076173E-01
+   10 1   -0.3120509988E+01   -0.2083671855E+01   -0.1095264909E+00
+   11 1   -0.7377609574E+00   -0.2260750204E+01   -0.1203202873E+00
+   12 1    0.1642130772E+01   -0.2464017440E+01   -0.1328128573E+00
+   13 1    0.2875401304E+00   -0.4418893161E+01   -0.1991488913E+00
+}
+
+Driver = LBFGS {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    #SCCTolerance = 1.0E-10
+    OrbitalResolvedSCC = Yes
+    MaxAngularMomentum = {
+        Au = "d"
+    }
+    Filling = Fermi {
+        Temperature [Kelvin] = 100
+    }
+    OnSiteCorrection= {
+        Auuu = {
+            0.00000  0.03752  0.00073
+            0.03752 -0.00505 -0.00002
+            0.00073 -0.00002  0.00531
+        }
+        Auud = {
+            0.00000  0.06928  0.01339
+            0.06928  0.01677  0.01228
+            0.01339  0.01228  0.02519
+        }
+    }
+    SpinOrbit = {
+        # values from DFT data of https://doi.org/10.1016/0166-1280(95)04297-0
+        Au = {0.0 0.42815 0.0274}
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    CalculateForces = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 6
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

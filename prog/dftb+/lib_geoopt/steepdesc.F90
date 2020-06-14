@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,16 +8,16 @@
 #:include 'common.fypp'
 
 !> Function minimization with steepest descent algorithm
-module steepdesc
-  use assert
-  use accuracy
+module dftbp_steepdesc
+  use dftbp_assert
+  use dftbp_accuracy
   implicit none
 
   private
 
 
   !> Contains data for the steepest descent minimizer
-  type OSteepDesc
+  type TSteepDesc
     private
 
     !> Dimensionality of the space
@@ -40,7 +40,7 @@ module steepdesc
 
     !> If object is initialized
     logical :: tInitialized
-  end type OSteepDesc
+  end type TSteepDesc
 
 
   !> Creates SD instance
@@ -60,7 +60,7 @@ module steepdesc
     module procedure SteepDesc_next
   end interface
 
-  public :: OSteepDesc
+  public :: TSteepDesc
   public :: init, reset, next
 
 contains
@@ -70,7 +70,7 @@ contains
   subroutine SteepDesc_init(self, nElem, tol, maxDisp, weight)
 
     !> Steepest descent instance on exit
-    type(OSteepDesc), intent(out) :: self
+    type(TSteepDesc), intent(out) :: self
 
     !> Nr. of elements in the vectors
     integer, intent(in) :: nElem
@@ -104,7 +104,7 @@ contains
   subroutine SteepDesc_reset(self, x0)
 
     !> minimizer object
-    type(OSteepDesc), intent(inout) :: self
+    type(TSteepDesc), intent(inout) :: self
 
     !> Point to start from
     real(dp), intent(in) :: x0(:)
@@ -125,7 +125,7 @@ contains
   subroutine SteepDesc_next(self, dx, xNew, tConverged)
 
     !> CG minimizer
-    type(OSteepDesc), intent(inout) :: self
+    type(TSteepDesc), intent(inout) :: self
 
     !> Gradient in the last point
     real(dp), intent(in) :: dx(:)
@@ -203,4 +203,4 @@ contains
 
   end subroutine next_local
 
-end module steepdesc
+end module dftbp_steepdesc

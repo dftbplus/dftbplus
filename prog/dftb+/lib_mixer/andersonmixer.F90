@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,10 +15,10 @@
 !>   mixing parameter. Only a specified amount of previous charges are
 !>   considered.
 !> In order to use the mixer you have to create and reset it.
-module andersonmixer
-  use assert
-  use accuracy
-  use lapackroutines, only : gesv
+module dftbp_andersonmixer
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_lapackroutines, only : gesv
   implicit none
 
   private
@@ -30,7 +30,7 @@ module andersonmixer
   !> which stores a given number of recent vector pairs. The storage should be accessed as an array
   !> with the help of the indx(:) array. Indx(1) gives the index for the most recent stored vector
   !> pairs. (LIFO)
-  type OAndersonMixer
+  type TAndersonMixer
     private
 
     !> General mixing parameter
@@ -68,7 +68,7 @@ module andersonmixer
 
     !> Stored prev. charge differences
     real(dp), allocatable :: prevQDiff(:,:)
-  end type OAndersonMixer
+  end type TAndersonMixer
 
 
   !> Creates an AndersonMixer instance
@@ -88,7 +88,7 @@ module andersonmixer
     module procedure AndersonMixer_mix
   end interface mix
 
-  public :: OAndersonMixer
+  public :: TAndersonMixer
   public :: init, reset, mix
 
 contains
@@ -98,7 +98,7 @@ contains
   subroutine AndersonMixer_init(self, nGeneration, mixParam, initMixParam, convMixParam, omega0)
 
     !> Initialized Anderson mixer on exit
-    type(OAndersonMixer), intent(out) :: self
+    type(TAndersonMixer), intent(out) :: self
 
     !> Nr. of generations (including actual) to consider
     integer, intent(in) :: nGeneration
@@ -154,7 +154,7 @@ contains
   subroutine AndersonMixer_reset(self, nElem)
 
     !> Anderson mixer instance
-    type(OAndersonMixer), intent(inout) :: self
+    type(TAndersonMixer), intent(inout) :: self
 
     !> Nr. of elements in the vectors to mix
     integer, intent(in) :: nElem
@@ -183,7 +183,7 @@ contains
   subroutine AndersonMixer_mix(self, qInpResult, qDiff)
 
     !> Anderson mixer
-    type(OAndersonMixer), intent(inout) :: self
+    type(TAndersonMixer), intent(inout) :: self
 
     !> Input charges on entry, mixed charges on exit.
     real(dp), intent(inout) :: qInpResult(:)
@@ -373,4 +373,4 @@ contains
 
   end subroutine storeVectors
 
-end module andersonmixer
+end module dftbp_andersonmixer

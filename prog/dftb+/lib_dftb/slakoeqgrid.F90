@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,21 +9,21 @@
 
 !> Contains Types and subroutine to build up and query a Slater-Koster table where the integrals are
 !> specified on an equidistant grid.
-module slakoeqgrid
-  use assert
-  use accuracy
-  use interpolation
-  use message
+module dftbp_slakoeqgrid
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_interpolation
+  use dftbp_message
   implicit none
   private
 
-  public :: OSlakoEqGrid, init
+  public :: TSlakoEqGrid, init
   public :: getSKIntegrals, getNIntegrals, getCutoff
   public :: skEqGridOld, skEqGridNew
 
 
   !> Represents an equally spaced Slater-Koster grid
-  type OSlakoEqGrid
+  type TSlakoEqGrid
     private
     integer :: nGrid
     integer :: nInteg
@@ -31,7 +31,7 @@ module slakoeqgrid
     real(dp), allocatable :: skTab(:,:)
     integer :: skIntMethod
     logical :: tInit = .false.
-  end type OSlakoEqGrid
+  end type TSlakoEqGrid
 
 
   !> Initialises SlakoEqGrid.
@@ -96,7 +96,7 @@ contains
   subroutine SlakoEqGrid_init(self, dist, table, skIntMethod)
 
     !> SlakoEqGrid instance.
-    type(OSlakoEqGrid), intent(out) :: self
+    type(TSlakoEqGrid), intent(out) :: self
 
     !> Distance between the grid points.
     real(dp), intent(in) :: dist
@@ -126,7 +126,7 @@ contains
   subroutine SlakoEqGrid_getSKIntegrals(self, sk, dist)
 
     !> SlakoEqGrid instance.
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> Contains the interpolated integrals on exit
     real(dp), intent(out) :: sk(:)
@@ -151,7 +151,7 @@ contains
   function SlakoEqGrid_getNIntegrals(self) result(nInt)
 
     !> SlakoEqGrid instance.
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> Number of integrals.
     integer :: nInt
@@ -165,7 +165,7 @@ contains
   function SlakoEqGrid_getCutoff(self) result(cutoff)
 
     !>  SlakoEqGrid instance.
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> grid cutoff
     real(dp) :: cutoff
@@ -184,7 +184,7 @@ contains
   subroutine SlakoEqGrid_interNew_(self, dd, rr)
 
     !> SlakoEqGrid table on equiv. grid
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
@@ -196,6 +196,8 @@ contains
     real(dp) :: incr, dr, rMax, y0(self%nInteg), y2(self%nInteg)
     integer :: leng, ind, iLast
     integer :: ii
+
+    real(dp), parameter :: invdistFudge = -1.0_dp / distFudge
 
     leng = self%nGrid
     incr = self%dist
@@ -236,7 +238,7 @@ contains
         y1 = ya(nInterNew_)
         y1p = (y2(ii) - y0(ii)) / (2.0_dp * deltaR_)
         y1pp = (y2(ii) + y0(ii) - 2.0_dp * y1) / (deltaR_ * deltaR_)
-        dd(ii) = poly5ToZero(y1, y1p, y1pp, dr, -1.0_dp * distFudge)
+        dd(ii) = poly5ToZero(y1, y1p, y1pp, dr, -1.0_dp * distFudge, invDistFudge)
       end do
     end if
 
@@ -247,7 +249,7 @@ contains
   subroutine SlakoEqGrid_interOld_(self, dd, rr)
 
     !> Data structure for SK interpolation
-    type(OSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: self
 
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
@@ -260,11 +262,14 @@ contains
     integer :: leng, ind, mInd, iLast
     integer :: ii
     real(dp) :: r1, r2
+    real(dp) :: invdistFudge
 
     leng = self%nGrid
     incr = self%dist
     mInd = leng + floor(distFudgeOld/incr)
     ind = floor(rr / incr)
+
+    invdistFudge = -1.0_dp / (real(mInd - leng -1, dp) * incr)
 
     !! Sanity check, if SK-table contains enough entries
     if (leng < nInterOld_ + 1) then
@@ -302,8 +307,8 @@ contains
         r1 = (y2 - y0) / (2.0_dp * incr)
         r2 = (y2 + y0 - 2.0_dp * y1) / incr**2
         call freeCubicSpline(y1, r1, r2, incr, y2, incr, yp=y1p, ypp=y1pp)
-        dd(ii) = poly5ToZero(y2, y1p, y1pp, dr, &
-            &-1.0_dp * real(mInd - leng -1, dp)*incr)
+        dd(ii) = poly5ToZero(y2, y1p, y1pp, dr,&
+            & -1.0_dp * real(mInd - leng -1, dp)*incr, invdistFudge)
       end do
     else
       !! Dist. greater than tabulated sk range + distFudge => no interaction
@@ -312,4 +317,4 @@ contains
 
   end subroutine SlakoEqGrid_interOld_
 
-end module slakoeqgrid
+end module dftbp_slakoeqgrid

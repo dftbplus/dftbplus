@@ -1,9 +1,0 @@
-integvalue.o: _mod_accuracy _mod_message _mod_slakoeqgrid _mod_oldskdata _mod_fileid _mod_io
-integvalue.o = integvalue.o $(_mod_accuracy) $(_mod_message) $(_mod_slakoeqgrid) $(_mod_oldskdata) $(_mod_fileid) $(_mod_io)
-
-polyvalue.o: _mod_fileid _mod_message _mod_accuracy _mod_io _mod_reppoly
-polyvalue.o = polyvalue.o $(_mod_fileid) $(_mod_message) $(_mod_accuracy) $(_mod_io) $(_mod_reppoly)
-
-splvalue.o: _mod_fileid _mod_accuracy _mod_message _mod_oldskdata _mod_repspline _mod_io
-splvalue.o = splvalue.o $(_mod_fileid) $(_mod_accuracy) $(_mod_message) $(_mod_oldskdata) $(_mod_repspline) $(_mod_io)
-

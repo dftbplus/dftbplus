@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,15 +8,15 @@
 #:include 'linkedlist.fypp'
 
 !> Linked list for single real vectors
-module linkedlisti1
-  use assert
+module dftbp_linkedlisti1
+  use dftbp_assert
   implicit none
   private
 
   $:define_list(&
-      & TYPE_NAME='listIntR1',&
+      & TYPE_NAME='TListIntR1',&
       & ITEM_TYPE='integer',&
       & ITEM_RANK=1,&
       & PADDING='0')
 
-end module linkedlisti1
+end module dftbp_linkedlisti1

@@ -34,12 +34,12 @@
 !
 !   read_buffer: Reads data from the socket.
 !
-module f90sockets
+module fsockets
   use iso_c_binding
   implicit none
   private
 
-  public :: connect_inet_socket, connect_unix_socket, readbuffer, writebuffer, shutdown_socket
+  public :: connect_inet_socket, connect_unix_socket, readbuffer, writebuffer, close_socket
 
 
   interface writebuffer
@@ -57,37 +57,38 @@ module f90sockets
   ! interface bindings for c routines
   interface
 
-    subroutine connect_inet_socket_c(sockfd, host, port) bind(C, name='connect_inet_socket')
+    subroutine connect_inet_socket_c(sockfd, host, port)&
+        & bind(C, name='fsockets_connect_inet_socket')
       import :: c_int, c_char
       integer(c_int), intent(out) :: sockfd
       character(kind=c_char), dimension(*), intent(in) :: host
       integer(c_int), value, intent(in) :: port
     end subroutine connect_inet_socket_c
 
-    subroutine connect_unix_socket_c(sockfd, host) bind(C, name='connect_unix_socket')
+    subroutine connect_unix_socket_c(sockfd, host) bind(C, name='fsockets_connect_unix_socket')
       import :: c_int, c_char
       integer(c_int), intent(out) :: sockfd
       character(kind=c_char), dimension(*), intent(in) :: host
     end subroutine connect_unix_socket_c
 
-    subroutine writebuffer_socket_c(sockfd, data, len) bind(C, name='writebuffer_socket')
+    subroutine writebuffer_socket_c(sockfd, data, len) bind(C, name='fsockets_writebuffer_socket')
       import :: c_int, c_ptr
       integer(c_int), value, intent(in) :: sockfd
       type(c_ptr), value, intent(in) :: data
       integer(c_int), value :: len
     end subroutine writebuffer_socket_c
 
-    subroutine readbuffer_socket_c(sockfd, data, len) bind(C, name='readbuffer_socket')
+    subroutine readbuffer_socket_c(sockfd, data, len) bind(C, name='fsockets_readbuffer_socket')
       import :: c_int, c_ptr
       integer(c_int), value, intent(in) :: sockfd
       type(c_ptr), value, intent(in) :: data
       integer(c_int), value, intent(in) :: len
     end subroutine readbuffer_socket_c
 
-    subroutine shutdown_socket_c(sockfd) bind(C, name='shutdown_socket')
+    subroutine close_socket_c(sockfd) bind(C, name='fsockets_close_socket')
       import :: c_int
       integer(c_int), value, intent(in) :: sockfd
-    end subroutine shutdown_socket_c
+    end subroutine close_socket_c
 
   end interface
 
@@ -115,12 +116,12 @@ contains
 
 
   ! Close the socket
-  subroutine shutdown_socket(sockfd)
+  subroutine close_socket(sockfd)
     integer(c_int), intent(in) :: sockfd
 
-    call shutdown_socket_c(sockfd)
+    call close_socket_c(sockfd)
 
-  end subroutine shutdown_socket
+  end subroutine close_socket
 
 
   ! write a float (real)
@@ -213,4 +214,4 @@ contains
 
   end subroutine readbuffer_dv
 
-end module f90sockets
+end module fsockets

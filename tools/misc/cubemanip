@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2018  DFTB+ developers group                                  #
+#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -86,7 +86,7 @@ def getCubeRepr(fname):
     fp = open(fname, "r")
     lines = fp.read().split("\n")
     fp.close()
-  except IOError, ex:
+  except IOError as ex:
     error("Could not open file '%s'\n%s" % (fname, ex))
   cc = cube()
   words = lines[2].split()
@@ -140,10 +140,10 @@ def dumpCubeFile(cc):
       for i3 in range(cc.nGrid[2]):
         line.append("%18.10E" % cc.data[i1][i2][i3])
         if len(line) == 4:
-          print " ".join(line)
+          print(" ".join(line))
           line = []
       if len(line):
-        print " ".join(line)
+        print(" ".join(line))
 
 
 
@@ -152,7 +152,7 @@ def dumpData(data):
 
   shape = data.shape
   if not len(shape):
-    print "%18.10E" % data
+    print("%18.10E" % data)
     return
   
   curShape = [0,] * len(data.shape)
@@ -165,10 +165,10 @@ def dumpData(data):
       curShape[-1] += 1
       line.append("%18.10E" % data[curShape])
       if len(line) == 4:
-        print " ".join(line)
+        print(" ".join(line))
         line = []
     if len(line):
-      print " ".join(line)
+      print(" ".join(line))
     carry = True
     for ii in range(len(shape)-1, -1, -1):
       if carry:
@@ -255,7 +255,7 @@ def main():
   try:
     result = eval(pyExpr, varDict)
     resArr = num.array(result, num.Float)
-  except (Exception,), exp:
+  except (Exception,) as exp:
     error("Unable to evaluate you expression!\n%s"
           % exp)
 

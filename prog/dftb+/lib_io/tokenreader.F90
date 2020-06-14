@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,12 +12,12 @@
 !> This module contains the utilities which can parse a strings into Fortran intrinsic types. Tokens
 !> are assumed to be separated by white space, therefore strings with spaces inside can not
 !> currently be handled.
-module tokenreader
-  use assert
-  use charmanip
-  use message, only : error
-  use accuracy, only : dp
-  use xmlf90
+module dftbp_tokenreader
+  use dftbp_assert
+  use dftbp_charmanip
+  use dftbp_message, only : error
+  use dftbp_accuracy, only : dp
+  use dftbp_xmlf90
   implicit none
 
   private
@@ -479,4 +479,4 @@ contains
 
   end function validIntegerStart
 
-end module tokenreader
+end module dftbp_tokenreader

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,8 +8,8 @@
 #:include "common.fypp"
 
 !> Provides data structure for parallelising over k-points and spin.
-module parallelks
-  use environment
+module dftbp_parallelks
+  use dftbp_environment
   implicit none
   private
 
@@ -30,7 +30,8 @@ module parallelks
     !> Maximal number of KS-indices per processor group
     integer :: maxGroupKS
 
-    !> The (K, S) tuples of the local processor group
+    !> The (K, S) tuples of the local processor group (localKS(1:2,iKS))
+    !> Usage: iK = localKS(1, iKS); iS = localKS(2, iKS)
     integer, allocatable :: localKS(:,:)
 
     !> Number of local (K, S) tuples to process
@@ -88,4 +89,4 @@ contains
   end subroutine TParallelKS_init
 
 
-end module parallelks
+end module dftbp_parallelks

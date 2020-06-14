@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,8 +8,8 @@
 !> Interface wrapper for the blas routines.
 !>
 !> ALL BLAS routines which are called from the main code must be included here.
-module blas
-  use accuracy, only : rsp, rdp
+module dftbp_blas
+  use dftbp_accuracy, only : rsp, rdp
   public
 
   interface
@@ -1410,4 +1410,4 @@ module blas
 
   end interface
 
-end module blas
+end module dftbp_blas

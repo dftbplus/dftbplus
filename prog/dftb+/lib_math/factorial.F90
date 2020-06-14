@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,9 @@
 #:include 'common.fypp'
 
 !> Contains routines relating to evaluating factorials
-module factorial
-  use assert
-  use accuracy, only : dp
+module dftbp_factorial
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
 
   implicit none
 
@@ -66,4 +66,4 @@ contains
 
   end subroutine real_fact
 
-end module factorial
+end module dftbp_factorial

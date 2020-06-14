@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2018  DFTB+ developers group                                  #
+#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -25,7 +25,7 @@ def scalarvtk(fname, griddata, varname='var'):
         fh = fname
         closefh = False
     elif isinstance(fname, str):
-        fh = open(fname, 'wb')
+        fh = open(fname, 'w')
         closefh = True
     else:
         raise ValueError('Cannot open fname as file')
@@ -82,7 +82,7 @@ def cube(fname, griddata, header='dptools cube file'):
         fh = fname
         closefh = False
     elif isinstance(fname, str):
-        fh = open(fname, 'wb')
+        fh = open(fname, 'w')
         closefh = True
     else:
         raise ValueError('Cannot open fname as file')

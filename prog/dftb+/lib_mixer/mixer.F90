@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,38 +8,42 @@
 #:include 'common.fypp'
 
 !> Provides a general mixer which contains the desired actual mixer.
-module mixer
-  use assert
-  use accuracy
-  use simplemixer
-  use andersonmixer
-  use broydenmixer
-  use diismixer
-  use message
+module dftbp_mixer
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_simplemixer
+  use dftbp_andersonmixer
+  use dftbp_broydenmixer
+  use dftbp_diismixer
+  use dftbp_message
   implicit none
-
   private
+
+  public :: TMixer
+  public :: init, reset, mix
+  public :: hasInverseJacobian, getInverseJacobian
+  public :: mixerTypes
 
 
   !> Interface type for various mixers.
-  type OMixer
+  type TMixer
     private
 
     !> numerical type of mixer 1:4
     integer :: mixerType
 
     !> simple mixer instance
-    type(OSimpleMixer),   allocatable :: pSimpleMixer
+    type(TSimpleMixer),   allocatable :: pSimpleMixer
 
     !> Anderson mixer instance
-    type(OAndersonMixer), allocatable :: pAndersonMixer
+    type(TAndersonMixer), allocatable :: pAndersonMixer
 
     !> Broyden mixer instance
-    type(OBroydenMixer),  allocatable :: pBroydenMixer
+    type(TBroydenMixer),  allocatable :: pBroydenMixer
 
     !> modified DIIS mixer instance
-    type(ODIISMixer),  allocatable :: pDIISMixer
-  end type OMixer
+    type(TDIISMixer),  allocatable :: pDIISMixer
+  end type TMixer
 
 
   !> Initialises specific mixer in use
@@ -74,16 +78,16 @@ module mixer
     module procedure Mixer_getInverseJacobian
   end interface getInverseJacobian
 
-  public :: OMixer
-  public :: init, reset, mix
-  public :: hasInverseJacobian, getInverseJacobian
 
+  type :: TMixerTypesEnum
+    integer :: simple = 1
+    integer :: anderson = 2
+    integer :: broyden = 3
+    integer :: diis = 4
+  end type TMixerTypesEnum
 
-  !> Identifying constant for each of the different mixers.
-  integer, parameter :: iSimpleMixer = 1
-  integer, parameter :: iAndersonMixer = 2
-  integer, parameter :: iBroydenMixer = 3
-  integer, parameter :: iDIISMixer = 4
+  !> Contains mixer types
+  type(TMixerTypesEnum), parameter :: mixerTypes = TMixerTypesEnum()
 
 contains
 
@@ -92,12 +96,12 @@ contains
   subroutine Mixer_initSimple(self, pSimple)
 
     !> Mixer instance
-    type(OMixer), intent(out) :: self
+    type(TMixer), intent(out) :: self
 
     !> A valid simple mixer instance on exit.
-    type(OSimpleMixer), allocatable, intent(inout) :: pSimple
+    type(TSimpleMixer), allocatable, intent(inout) :: pSimple
 
-    self%mixerType = iSimpleMixer
+    self%mixerType = mixerTypes%simple
     call move_alloc(pSimple, self%pSimpleMixer)
 
   end subroutine Mixer_initSimple
@@ -107,12 +111,12 @@ contains
   subroutine Mixer_initAnderson(self, pAnderson)
 
     !> Mixer instance
-    type(OMixer), intent(out) :: self
+    type(TMixer), intent(out) :: self
 
     !> A valid Anderson mixer instance on exit.
-    type(OAndersonMixer), allocatable, intent(inout) :: pAnderson
+    type(TAndersonMixer), allocatable, intent(inout) :: pAnderson
 
-    self%mixerType = iAndersonMixer
+    self%mixerType = mixerTypes%anderson
     call move_alloc(pAnderson, self%pAndersonMixer)
 
   end subroutine Mixer_initAnderson
@@ -122,12 +126,12 @@ contains
   subroutine Mixer_initBroyden(self, pBroyden)
 
     !> Mixer instance
-    type(OMixer), intent(out) :: self
+    type(TMixer), intent(out) :: self
 
     !> A valid Broyden mixer instance on exit.
-    type(OBroydenMixer), allocatable, intent(inout) :: pBroyden
+    type(TBroydenMixer), allocatable, intent(inout) :: pBroyden
 
-    self%mixerType = iBroydenMixer
+    self%mixerType = mixerTypes%broyden
     call move_alloc(pBroyden, self%pBroydenMixer)
 
   end subroutine Mixer_initBroyden
@@ -137,12 +141,12 @@ contains
   subroutine Mixer_initDIIS(self, pDIIS)
 
     !> Mixer instance
-    type(OMixer), intent(out) :: self
+    type(TMixer), intent(out) :: self
 
     !> A valid DIIS mixer instance on exit.
-    type(ODIISMixer), allocatable, intent(inout) :: pDIIS
+    type(TDIISMixer), allocatable, intent(inout) :: pDIIS
 
-    self%mixerType = iDIISMixer
+    self%mixerType = mixerTypes%diis
     call move_alloc(pDIIS, self%pDIISMixer)
 
   end subroutine Mixer_initDIIS
@@ -152,19 +156,19 @@ contains
   subroutine Mixer_reset(self, nElem)
 
     !> Mixer instance.
-    type(OMixer), intent(inout) :: self
+    type(TMixer), intent(inout) :: self
 
     !> Size of the vectors to mix.
     integer, intent(in) :: nElem
 
     select case (self%mixerType)
-    case(iSimpleMixer)
+    case(mixerTypes%simple)
       call reset(self%pSimpleMixer, nElem)
-    case (iAndersonMixer)
+    case (mixerTypes%anderson)
       call reset(self%pAndersonMixer, nElem)
-    case (iBroydenMixer)
+    case (mixerTypes%broyden)
       call reset(self%pBroydenMixer, nElem)
-    case (iDIISMixer)
+    case (mixerTypes%diis)
       call reset(self%pDIISMixer, nElem)
     end select
 
@@ -175,7 +179,7 @@ contains
   subroutine Mixer_mix(self, qInpRes, qDiff)
 
     !> Mixer instance.
-    type(OMixer), intent(inout) :: self
+    type(TMixer), intent(inout) :: self
 
     !> Input vector on entry, result vector on exit.
     real(dp),      intent(inout) :: qInpRes(:)
@@ -184,13 +188,13 @@ contains
     real(dp),      intent(in) :: qDiff(:)
 
     select case (self%mixerType)
-    case (iSimpleMixer)
+    case (mixerTypes%simple)
       call mix(self%pSimpleMixer, qInpRes, qDiff)
-    case (iAndersonMixer)
+    case (mixerTypes%anderson)
       call mix(self%pAndersonMixer, qInpRes, qDiff)
-    case (iBroydenMixer)
+    case (mixerTypes%broyden)
       call mix(self%pBroydenMixer, qInpRes, qDiff)
-    case (iDIISMixer)
+    case (mixerTypes%diis)
       call mix(self%pDIISMixer, qInpRes, qDiff)
     end select
 
@@ -201,19 +205,19 @@ contains
   function Mixer_hasInverseJacobian(self) result(has)
 
     !> Mixer instance.
-    type(OMixer), intent(inout) :: self
+    type(TMixer), intent(inout) :: self
 
     !> Size of the vectors to mix.
     logical :: has
 
     select case (self%mixerType)
-    case(iSimpleMixer)
+    case(mixerTypes%simple)
       has = .false.
-    case (iAndersonMixer)
+    case (mixerTypes%anderson)
       has = .false.
-    case (iBroydenMixer)
+    case (mixerTypes%broyden)
       has = .true.
-    case (iDIISMixer)
+    case (mixerTypes%diis)
       has = .false.
     end select
 
@@ -224,22 +228,22 @@ contains
   subroutine Mixer_getInverseJacobian(self, invJac)
 
     !> Mixer instance.
-    type(OMixer), intent(inout) :: self
+    type(TMixer), intent(inout) :: self
 
     !> Inverse Jacobian matrix if available
     real(dp), intent(out) :: invJac(:,:)
 
     select case (self%mixerType)
-    case(iSimpleMixer)
+    case(mixerTypes%simple)
       call error("Simple mixer does not provide inverse Jacobian")
-    case (iAndersonMixer)
+    case (mixerTypes%anderson)
       call error("Anderson mixer does not provide inverse Jacobian")
-    case (iBroydenMixer)
+    case (mixerTypes%broyden)
       call getInverseJacobian(self%pBroydenMixer, invJac)
-    case (iDIISMixer)
+    case (mixerTypes%diis)
       call error("DIIS mixer does not provide inverse Jacobian")
     end select
 
   end subroutine Mixer_getInverseJacobian
 
-end module mixer
+end module dftbp_mixer

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,18 +10,18 @@
 !> Implements a random generator pool, returning random generators on request. The status of the
 !> subsequently returned random generators (and hence the random numbers they will produce) is
 !> uniquely determined by the seed value used to initialise the random generator pool itself.
-module randomgenpool
+module dftbp_randomgenpool
 #:if WITH_MPI
-  use mpifx
+  use dftbp_mpifx
 #:endif
-  use environment
-  use accuracy, only : dp
-  use ranlux
-  use assert
+  use dftbp_environment
+  use dftbp_accuracy, only : dp
+  use dftbp_ranlux
+  use dftbp_assert
   implicit none
   private
 
-  public :: ORandomGenPool, init
+  public :: TRandomGenPool, init
 
 
   !> Random generator pool
@@ -29,11 +29,11 @@ module randomgenpool
   !> Note: To ensure random numbers being independent from the nr. of processes being used,
   !> all random generator pool methods must always be called collectively by all processes.
   !>
-  type :: ORandomGenPool
+  type :: TRandomGenPool
     private
 
     !> random number generator for pool
-    type(ORanlux), allocatable :: generator
+    type(TRanlux), allocatable :: generator
 
     !> Random values that have been generated
     integer :: served = -1
@@ -44,7 +44,7 @@ module randomgenpool
 
     !> returns a random generator
     procedure :: getGenerator
-  end type ORandomGenPool
+  end type TRandomGenPool
 
 
   !> initialise the generator
@@ -63,7 +63,7 @@ contains
   subroutine RandomGenPool_init(this, env, seed, oldCompat)
 
     !> Instance.
-    class(ORandomGenPool), intent(out) :: this
+    class(TRandomGenPool), intent(out) :: this
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -124,13 +124,13 @@ contains
   subroutine getGenerator(this, env, randomGenerator)
 
     !> Instance.
-    class(ORandomGenPool), intent(inout) :: this
+    class(TRandomGenPool), intent(inout) :: this
 
     !> Environment settings.
     type(TEnvironment), intent(in) :: env
 
     !> Initialised random generator.
-    type(ORanlux), allocatable, intent(out) :: randomGenerator
+    type(TRanlux), allocatable, intent(out) :: randomGenerator
 
     integer :: seed
     real(dp) :: randomPool(OLDCOMPAT_POOL_SIZE)
@@ -164,4 +164,4 @@ contains
 
   end subroutine getGenerator
 
-end module randomgenpool
+end module dftbp_randomgenpool

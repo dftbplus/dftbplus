@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,8 +8,8 @@
 #:include 'common.fypp'
 
 !> Contains character manipulation routines
-module charmanip
-  use assert
+module dftbp_charmanip
+  use dftbp_assert
   implicit none
 
   private
@@ -448,4 +448,4 @@ contains
 
   end subroutine convertWhitespaces
 
-end module charmanip
+end module dftbp_charmanip

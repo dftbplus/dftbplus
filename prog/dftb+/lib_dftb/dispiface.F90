@@ -1,19 +1,22 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Common interface for all dispersion modules.
-module dispiface
-  use accuracy, only : dp
-  use periodic, only : TNeighborList
+module dftbp_dispiface
+  use dftbp_accuracy, only : dp
+  use dftbp_environment, only : TEnvironment
+  use dftbp_periodic, only : TNeighbourList
   implicit none
-
+  private
+  
+  public :: TDispersionIface
 
   !> Interface for classes providing dispersion.
-  type, abstract :: DispersionIface
+  type, abstract :: TDispersionIface
   contains
 
     !> update internal copy of coordinates
@@ -33,20 +36,23 @@ module dispiface
 
     !> get stress tensor contributions
     procedure(getStressIface), deferred :: getStress
-  end type DispersionIface
+  end type TDispersionIface
+
 
   abstract interface
 
-
     !> Update internal stored coordinate
-    subroutine updateCoordsIface(this, neigh, img2CentCell, coords, species0)
-      import :: DispersionIface, TNeighborList, dp
+    subroutine updateCoordsIface(this, env, neigh, img2CentCell, coords, species0)
+      import :: TDispersionIface, TEnvironment, TNeighbourList, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
+
+      !> Computational environment settings
+      type(TEnvironment), intent(in) :: env
 
       !> list of neighbours to atoms
-      type(TNeighborList), intent(in) :: neigh
+      type(TNeighbourList), intent(in) :: neigh
 
       !> image to central cell atom index
       integer, intent(in) :: img2CentCell(:)
@@ -61,10 +67,10 @@ module dispiface
 
     !> update internal copy of lattice vectors
     subroutine updateLatVecsIface(this, latVecs)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> lattice vectors
       real(dp), intent(in) :: latVecs(:,:)
@@ -73,10 +79,10 @@ module dispiface
 
     !> get energy contributions
     subroutine getEnergiesIface(this, energies)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> energy contributions for each atom
       real(dp), intent(out) :: energies(:)
@@ -85,10 +91,10 @@ module dispiface
 
     !> get force contributions
     subroutine addGradientsIface(this, gradients)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> gradient contributions for each atom
       real(dp), intent(inout) :: gradients(:,:)
@@ -97,10 +103,10 @@ module dispiface
 
     !> get stress tensor contributions
     subroutine getStressIface(this, stress)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> Stress tensor contributions
       real(dp), intent(out) :: stress(:,:)
@@ -109,10 +115,10 @@ module dispiface
 
     !> Distance cut off for dispersion interactions
     function getRCutoffIface(this) result(cutoff)
-      import :: DispersionIface, dp
+      import :: TDispersionIface, dp
 
       !> data structure
-      class(DispersionIface), intent(inout) :: this
+      class(TDispersionIface), intent(inout) :: this
 
       !> resulting cutoff
       real(dp) :: cutoff
@@ -120,4 +126,4 @@ module dispiface
 
   end interface
 
-end module dispiface
+end module dftbp_dispiface

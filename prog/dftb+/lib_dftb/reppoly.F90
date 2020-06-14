@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Implements a repulsive potential between two atoms represented by a polynomial of 9th degree
-module reppoly
-  use assert
-  use accuracy
-  use bisect
+module dftbp_reppoly
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_bisect
   implicit none
   private
 
   public :: powMin, powMax
-  public :: TRepPolyIn, ORepPoly, init
+  public :: TRepPolyIn, TRepPoly, init
   public :: getCutoff, getEnergy, getEnergyDeriv
 
 
@@ -30,7 +30,7 @@ module reppoly
   integer, parameter :: powMin1 = max(powMin, 1)
 
 
-  !> Initialisation type for ORepPoly
+  !> Initialisation type for TRepPoly
   type TRepPolyIn
 
     !> Polynomial coefficients
@@ -42,7 +42,7 @@ module reppoly
 
 
   !> Contains the polynomial representation of a repulsive.
-  type ORepPoly
+  type TRepPoly
     private
 
     !> coefficients of the polynomial
@@ -53,7 +53,7 @@ module reppoly
 
     !> initialised the repulsive
     logical :: tInit = .false.
-  end type ORepPoly
+  end type TRepPoly
 
 
   !> Initialises polynomial repulsive.
@@ -86,7 +86,7 @@ contains
   subroutine RepPoly_init(self, inp)
 
     !> Polynomial repulsive
-    type(ORepPoly), intent(out) :: self
+    type(TRepPoly), intent(out) :: self
 
     !> Input parameters for the polynomial repulsive
     type(TRepPolyIn), intent(in) :: inp
@@ -105,7 +105,7 @@ contains
   function RepPoly_getCutoff(self) result(cutoff)
 
     !> self Polynomial repulsive
-    type(ORepPoly), intent(in) :: self
+    type(TRepPoly), intent(in) :: self
 
     !> Cutoff
     real(dp) :: cutoff
@@ -120,7 +120,7 @@ contains
   subroutine RepPoly_getEnergy(self, res, rr)
 
     !> Polynomial repulsive
-    type(ORepPoly), intent(in) :: self
+    type(TRepPoly), intent(in) :: self
 
     !> Energy contribution
     real(dp), intent(out) :: res
@@ -153,7 +153,7 @@ contains
   subroutine RepPoly_getEnergyDeriv(self, res, xx, d2)
 
     !> Polynomial repulsive.
-    type(ORepPoly), intent(in) :: self
+    type(TRepPoly), intent(in) :: self
 
     !> Resulting contribution
     real(dp), intent(out) :: res(3)
@@ -197,12 +197,13 @@ contains
       end do
       ! reserved for future expansion for repulsive potentials using higher
       ! order terms only:
-      do ii = powMin1, 3, -1
-        xh = xh * rrr
-      end do
+      ! Commented as it gives a warning
+      !do ii = powMin1, 3, -1
+      !  xh = xh * rrr
+      !end do
       d2 = xh
     end if
 
   end subroutine RepPoly_getEnergyDeriv
 
-end module reppoly
+end module dftbp_reppoly

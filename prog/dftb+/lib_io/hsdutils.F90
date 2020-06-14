@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,16 +10,16 @@
 !> Contains high level functions for converting the values in a XML/HSD DOM-tree to Fortran
 !> intrinsic types.
 !> Todo: Some more routines for complex numbers?
-module hsdutils
-  use assert
-  use xmlf90
-  use tokenreader
-  use hsdparser
-  use xmlutils
-  use charmanip
-  use message
-  use linkedlist
-  use accuracy
+module dftbp_hsdutils
+  use dftbp_assert
+  use dftbp_xmlf90
+  use dftbp_tokenreader
+  use dftbp_hsdparser
+  use dftbp_xmlutils
+  use dftbp_charmanip
+  use dftbp_message
+  use dftbp_linkedlist
+  use dftbp_accuracy
   implicit none
   private
 
@@ -247,11 +247,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -455,11 +455,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -538,11 +538,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nReadItem = 0
     variableValue = 0.0_dp
@@ -658,11 +658,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -740,11 +740,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nReadItem = 0
     if (present(default)) then
@@ -787,7 +787,7 @@ contains
     character(len=*), intent(in) :: name
 
     !> Value on return
-    type(listString), intent(inout) :: variableValue
+    type(TListString), intent(inout) :: variableValue
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -827,7 +827,7 @@ contains
     character(len=*), intent(in) :: text
 
     !> Contains the value of the parsed text
-    type(listString), intent(inout) :: variableValue
+    type(TListString), intent(inout) :: variableValue
 
     !> node for error handling
     type(fnode), pointer :: node
@@ -863,7 +863,7 @@ contains
     character(len=*), intent(in) :: name
 
     !> Value on return
-    type(listReal), intent(inout) :: variableValue
+    type(TListReal), intent(inout) :: variableValue
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -904,7 +904,7 @@ contains
     character(len=*), intent(in) :: text
 
     !> value Contains the value of the parsed text
-    type(listReal), intent(inout) :: variableValue
+    type(TListReal), intent(inout) :: variableValue
     type(fnode), pointer :: node
 
     integer :: iStart, iErr
@@ -941,7 +941,7 @@ contains
     integer, intent(in) :: dim
 
     !> Value on return
-    type(listRealR1), intent(inout) :: variableValue
+    type(TListRealR1), intent(inout) :: variableValue
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -985,7 +985,7 @@ contains
     integer, intent(in) :: dim
 
     !> Contains the value of the parsed text
-    type(listRealR1), intent(inout) :: variableValue
+    type(TListRealR1), intent(inout) :: variableValue
 
     !> nodes for error handling
     type(fnode), pointer :: node
@@ -1024,7 +1024,7 @@ contains
     character(len=*), intent(in) :: name
 
     !> Value on return
-    type(listInt), intent(inout) :: variableValue
+    type(TListInt), intent(inout) :: variableValue
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1065,7 +1065,7 @@ contains
     character(len=*), intent(in) :: text
 
     !> Contains the value of the parsed text
-    type(listInt), intent(inout) :: variableValue
+    type(TListInt), intent(inout) :: variableValue
 
     !> node for error handling
     type(fnode), pointer :: node
@@ -1104,7 +1104,7 @@ contains
     integer, intent(in) :: dim
 
     !> Modifier of the child on return
-    type(listIntR1), intent(inout) :: variableValue
+    type(TListIntR1), intent(inout) :: variableValue
 
     !> Pointer to the child node (with the spec. name) on return
     type(string), intent(inout), optional :: modifier
@@ -1148,7 +1148,7 @@ contains
     integer, intent(in) :: dim
 
     !> Contains the value of the parsed text
-    type(listIntR1), intent(inout) :: variableValue
+    type(TListIntR1), intent(inout) :: variableValue
 
     !> node for error handling
     type(fnode), pointer :: node
@@ -1195,10 +1195,10 @@ contains
     integer, intent(in) :: dimReal
 
     !> Dimensio of the real arrays in the list
-    type(listIntR1), intent(inout) :: valueInt
+    type(TListIntR1), intent(inout) :: valueInt
 
     !> List of real array on return
-    type(listRealR1), intent(inout) :: valueReal
+    type(TListRealR1), intent(inout) :: valueReal
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1248,13 +1248,13 @@ contains
     integer, intent(in) :: dimInt
 
     !> Contains the value of the integer in the parsed text
-    type(listIntR1), intent(inout) :: valueInt
+    type(TListIntR1), intent(inout) :: valueInt
 
     !> real buffer dimensioning
     integer, intent(in) :: dimReal
 
     !> Contains the value of the real in the parsed text
-    type(listRealR1), intent(inout) :: valueReal
+    type(TListRealR1), intent(inout) :: valueReal
 
     !> for error handling
     type(fnode), pointer :: node
@@ -1303,19 +1303,19 @@ contains
     character(len=*), intent(in) :: name
 
     !> List of strings on return.
-    type(listString), intent(inout) :: valueStr
+    type(TListString), intent(inout) :: valueStr
 
     !> Dimension of the integer arrays in the list
     integer, intent(in) :: dimInt
 
     !> List of integer arrays on return
-    type(listIntR1), intent(inout) :: valueInt
+    type(TListIntR1), intent(inout) :: valueInt
 
     !> Dimension of the real arrays in the list
     integer, intent(in) :: dimReal
 
     !> List of real array on return
-    type(listRealR1), intent(inout) :: valueReal
+    type(TListRealR1), intent(inout) :: valueReal
 
     !> Modifier of the child on return
     type(string), intent(inout), optional :: modifier
@@ -1364,19 +1364,19 @@ contains
     character(len=*), intent(in) :: text
 
     !> Contains the string part of the parsed text
-    type(listString), intent(inout) :: valueStr
+    type(TListString), intent(inout) :: valueStr
 
     !> integer buffer dimensioning
     integer, intent(in) :: dimInt
 
     !> Contains the integer part of the parsed text
-    type(listIntR1), intent(inout) :: valueInt
+    type(TListIntR1), intent(inout) :: valueInt
 
     !> integer buffer dimensioning
     integer, intent(in) :: dimReal
 
     !> Contains the real value part of the parsed text
-    type(listRealR1), intent(inout) :: valueReal
+    type(TListRealR1), intent(inout) :: valueReal
 
     !> for error handling
     type(fnode), pointer :: node
@@ -1452,14 +1452,14 @@ contains
     logical :: tList, tAllowEmptyVal, tDummyValue
 
     @:ASSERT(associated(node))
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       if (len(default) == 0) then
         @:ASSERT(present(allowEmptyValue))
         @:ASSERT(allowEmptyValue)
       end if
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(list)) then
       tList = list
@@ -1518,7 +1518,7 @@ contains
 
 
   !> Converts a string containing atom indices, ranges and species names to a list of atom indices.
-  subroutine convAtomRangeToInt(str, speciesNames, species, node, val)
+  subroutine convAtomRangeToInt(str, speciesNames, species, node, val, ishift, maxRange)
 
     !> String to convert
     character(len=*), intent(in) :: str
@@ -1535,16 +1535,30 @@ contains
     !> Integer list of atom indices on return.
     integer, allocatable, intent(out) :: val(:)
 
-    type(string) :: buffer
-    type(ListInt) :: li
-    integer :: nAtom, iStart, iostat
+    !> Shift to be applied to provided atomic indices
+    integer, intent(in), optional :: ishift
 
-    nAtom = size(species)
+    !> Upper range of atoms
+    integer, intent(in), optional :: maxRange
+
+    type(string) :: buffer
+    type(TListInt) :: li
+    integer :: nAtom, iStart, iostat, shift
+
+    shift = 0
+    if (present(ishift)) then
+      shift = ishift
+    end if
+    if (present(maxRange)) then
+      nAtom = maxRange
+    else
+      nAtom = size(species)
+    end if
     call init(li)
     iStart = 1
     call getNextToken(str, buffer, iStart, iostat)
     do while (iostat == TOKEN_OK)
-      call process(char(buffer), speciesNames, species, nAtom, node, li)
+      call convAtomRangeToIntProcess(char(buffer), speciesNames, species, nAtom, node, li, shift)
       call getNextToken(str, buffer, iStart, iostat)
     end do
     allocate(val(len(li)))
@@ -1553,83 +1567,98 @@ contains
     end if
     call destruct(li)
 
-  contains
+  end subroutine convAtomRangeToInt
 
 
-    !> Helper routine.
-    subroutine process(cbuffer, speciesNames, species, nAtom, node, li)
-      character(len=*), intent(in) :: cbuffer
-      character(len=*), intent(in) :: speciesNames(:)
-      integer, intent(in) :: species(:)
-      integer, intent(in) :: nAtom
-      type(fnode), pointer :: node
-      type(ListInt), intent(inout) :: li
+  !> Helper routine.
+  subroutine convAtomRangeToIntProcess(cbuffer, speciesNames, species, nAtom, node, li, shift)
 
-      integer :: iPos, bounds(2), iSp, ii
-      integer :: iStart1, iStart2, iost(2)
+    !> Chunk of the specified atoms
+    character(len=*), intent(in) :: cbuffer
 
-      if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
-          &.or. cbuffer(1:1) == "-") then
-        iPos = scan(cbuffer, ":")
-        if (iPos /= 0) then
-          iStart1 = 1
-          iStart2 = iPos + 1
-          call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
-          call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
-          if (any(iost /= TOKEN_OK)) then
-            call detailedError(node, "Invalid range specification '" &
-                &// trim(cbuffer) // "'")
-          end if
-          if (any(bounds > nAtom) .or. any(bounds < -nAtom) &
-              &.or. any(bounds == 0)) then
-            call detailedError(node, "Specified number out of range in '" &
-                &// trim(cbuffer) // "'")
-          end if
-          bounds = modulo(bounds, nAtom + 1)
-          if (bounds(1) > bounds(2)) then
-            call detailedError(node, "Negative range '" // trim(cbuffer) &
-                &// "'")
-          end if
-          do ii = bounds(1), bounds(2)
-            call append(li, ii)
-          end do
-        else
-          iStart1 = 1
-          call getNextToken(cbuffer, ii, iStart1, iost(1))
-          if (iost(1) /= TOKEN_OK) then
-            call detailedError(node, "Invalid integer '" // trim(cbuffer) &
-                &// "'")
-          end if
-          if (ii > nAtom .or. ii < -nAtom .or. ii == 0) then
-            call detailedError(node, "Specified number (" // trim(cbuffer) // &
-                &") out of range.")
-          end if
-          ii = modulo(ii, nAtom + 1)
-          call append(li, ii)
+    !> Name of chemical species
+    character(len=*), intent(in) :: speciesNames(:)
+
+    !> Chemical species of atoms
+    integer, intent(in) :: species(:)
+
+    !> Upper limit on range of atoms
+    integer, intent(in) :: nAtom
+
+    !> Master node for detailed errors.
+    type(fnode), pointer :: node
+
+    !> List of the converted atom numbers
+    type(TListInt), intent(inout) :: li
+
+    !> Shift in lower range of index
+    integer, intent(in) :: shift 
+
+    integer :: iPos, bounds(2), iSp, ii
+    integer :: iStart1, iStart2, iost(2)
+
+    if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
+        &.or. cbuffer(1:1) == "-") then
+      iPos = scan(cbuffer, ":")
+      if (iPos /= 0) then
+        iStart1 = 1
+        iStart2 = iPos + 1
+        call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
+        call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
+        bounds = bounds + shift
+        if (any(iost /= TOKEN_OK)) then
+          call detailedError(node, "Invalid range specification '" &
+              &// trim(cbuffer) // "'")
         end if
-      else
-        ! Try to interprete it as a species name
-        iPos = 0
-        do iSp = 1, size(speciesNames)
-          if (speciesNames(iSp) == cbuffer) then
-            iPos = iSp
-            exit
-          end if
-        end do
-        if (iPos == 0) then
-          call detailedError(node, "Invalid species name '" // trim(cbuffer) &
+        if (any(bounds > nAtom) .or. any(bounds < -nAtom) &
+            &.or. any(bounds == 0)) then
+          call detailedError(node, "Specified number out of range in '" &
+              &// trim(cbuffer) // "'")
+        end if
+        bounds = modulo(bounds, nAtom + 1)
+        if (bounds(1) > bounds(2)) then
+          call detailedError(node, "Negative range '" // trim(cbuffer) &
               &// "'")
         end if
-        do ii = 1, size(species)
-          if (species(ii) == iPos) then
-            call append(li, ii)
-          end if
+        do ii = bounds(1), bounds(2)
+          call append(li, ii)
         end do
+      else
+        iStart1 = 1
+        call getNextToken(cbuffer, ii, iStart1, iost(1))
+        ii = ii + shift
+        if (iost(1) /= TOKEN_OK) then
+          call detailedError(node, "Invalid integer '" // trim(cbuffer) &
+              &// "'")
+        end if
+        if (ii > nAtom .or. ii < -nAtom .or. ii == 0) then
+          call detailedError(node, "Specified number (" // trim(cbuffer) // &
+              &") out of range.")
+        end if
+        ii = modulo(ii, nAtom + 1)
+        call append(li, ii)
       end if
+    else
+      ! Try to interprete it as a species name
+      iPos = 0
+      do iSp = 1, size(speciesNames)
+        if (speciesNames(iSp) == cbuffer) then
+          iPos = iSp
+          exit
+        end if
+      end do
+      if (iPos == 0) then
+        call detailedError(node, "Invalid species name '" // trim(cbuffer) &
+            &// "'")
+      end if
+      do ii = 1, nAtom
+        if (species(ii) == iPos) then
+          call append(li, ii)
+        end if
+      end do
+    end if
 
-    end subroutine process
-
-  end subroutine convAtomRangeToInt
+  end subroutine convAtomRangeToIntProcess
 
 
   !> Converts a string containing indices and ranges to a list of indices.
@@ -1648,14 +1677,14 @@ contains
     integer, intent(in) :: nMax
 
     type(string) :: buffer
-    type(ListInt) :: li
+    type(TListInt) :: li
     integer :: iStart, iostat
 
     call init(li)
     iStart = 1
     call getNextToken(str, buffer, iStart, iostat)
     do while (iostat == TOKEN_OK)
-      call process(char(buffer), nMax, node, li)
+      call convRangeToIntProcess(char(buffer), nMax, node, li)
       call getNextToken(str, buffer, iStart, iostat)
     end do
     allocate(val(len(li)))
@@ -1664,65 +1693,61 @@ contains
     end if
     call destruct(li)
 
-  contains
-
-
-    !> Helper routine.
-    subroutine process(cbuffer, nMax, node, li)
-      character(len=*), intent(in) :: cbuffer
-      integer, intent(in) :: nMax
-      type(fnode), pointer :: node
-      type(ListInt), intent(inout) :: li
-
-      integer :: iPos, bounds(2), ii
-      integer :: iStart1, iStart2, iost(2)
-
-      if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
-          &.or. cbuffer(1:1) == "-") then
-        iPos = scan(cbuffer, ":")
-        if (iPos /= 0) then
-          iStart1 = 1
-          iStart2 = iPos + 1
-          call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
-          call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
-          if (any(iost /= TOKEN_OK)) then
-            call detailedError(node, "Invalid range specification '" &
-                &// trim(cbuffer) // "'")
-          end if
-          if (any(bounds > nMax) .or. any(bounds < -nMax) &
-              &.or. any(bounds == 0)) then
-            call detailedError(node, "Specified number out of range in '" &
-                &// trim(cbuffer) // "'")
-          end if
-          bounds = modulo(bounds, nMax + 1)
-          if (bounds(1) > bounds(2)) then
-            call detailedError(node, "Negative range '" // trim(cbuffer) &
-                &// "'")
-          end if
-          do ii = bounds(1), bounds(2)
-            call append(li, ii)
-          end do
-        else
-          iStart1 = 1
-          call getNextToken(cbuffer, ii, iStart1, iost(1))
-          if (iost(1) /= TOKEN_OK) then
-            call detailedError(node, "Invalid integer '" // trim(cbuffer) &
-                &// "'")
-          end if
-          if (ii > nMax .or. ii < -nMax .or. ii == 0) then
-            call detailedError(node, "Specified number (" // trim(cbuffer) // &
-                &") out of range.")
-          end if
-          call append(li, ii)
-        end if
-      else
-        call detailedError(node, "Invalid range '" // trim(cbuffer) // "'")
-      end if
-
-    end subroutine process
-
   end subroutine convRangeToInt
 
+  !> Helper routine.
+  subroutine convRangeToIntProcess(cbuffer, nMax, node, li)
+    character(len=*), intent(in) :: cbuffer
+    integer, intent(in) :: nMax
+    type(fnode), pointer :: node
+    type(TListInt), intent(inout) :: li
+
+    integer :: iPos, bounds(2), ii
+    integer :: iStart1, iStart2, iost(2)
+
+    if ((cbuffer(1:1) >= "0" .and. cbuffer(1:1) <= "9") &
+        &.or. cbuffer(1:1) == "-") then
+      iPos = scan(cbuffer, ":")
+      if (iPos /= 0) then
+        iStart1 = 1
+        iStart2 = iPos + 1
+        call getNextToken(cbuffer(1:iPos-1), bounds(1), iStart1, iost(1))
+        call getNextToken(cbuffer, bounds(2), iStart2, iost(2))
+        if (any(iost /= TOKEN_OK)) then
+          call detailedError(node, "Invalid range specification '" &
+              &// trim(cbuffer) // "'")
+        end if
+        if (any(bounds > nMax) .or. any(bounds < -nMax) &
+            &.or. any(bounds == 0)) then
+          call detailedError(node, "Specified number out of range in '" &
+              &// trim(cbuffer) // "'")
+        end if
+        bounds = modulo(bounds, nMax + 1)
+        if (bounds(1) > bounds(2)) then
+          call detailedError(node, "Negative range '" // trim(cbuffer) &
+              &// "'")
+        end if
+        do ii = bounds(1), bounds(2)
+          call append(li, ii)
+        end do
+      else
+        iStart1 = 1
+        call getNextToken(cbuffer, ii, iStart1, iost(1))
+        if (iost(1) /= TOKEN_OK) then
+          call detailedError(node, "Invalid integer '" // trim(cbuffer) &
+              &// "'")
+        end if
+        if (ii > nMax .or. ii < -nMax .or. ii == 0) then
+          call detailedError(node, "Specified number (" // trim(cbuffer) // &
+              &") out of range.")
+        end if
+        call append(li, ii)
+      end if
+    else
+      call detailedError(node, "Invalid range '" // trim(cbuffer) // "'")
+    end if
+
+  end subroutine convRangeToIntProcess
 
   !> Returns a child node with a specified name
   subroutine getChild(node, name, child, requested, modifier)
@@ -3245,4 +3270,4 @@ contains
 
   end subroutine appendPathAndLine
 
-end module hsdutils
+end module dftbp_hsdutils

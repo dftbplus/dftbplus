@@ -22,6 +22,10 @@ Hamiltonian = DFTB {
     Filling = Fermi {
         Temperature [Kelvin] = 100
     }
+    # Note: Some parallel implementations of the relatively robust and the divide
+    # and conquer ScaLAPACK solvers have serious problems diagonalising the Hamiltonians
+    # of this example.
+    Eigensolver = QR{}
     SlaterKosterFiles = {
         S-S = "./S-S.skf"
         S-As = "./S-As.skf"
@@ -56,3 +60,10 @@ Analysis = {
     MullikenAnalysis = Yes
     AtomResolvedEnergies = Yes    
 }
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

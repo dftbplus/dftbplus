@@ -1,25 +1,32 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
+#:include "error.fypp"
 
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code.
 !> Contains some fixes for lapack 3.0 bugs, if this gets corrected in lapack 4.x they should be
 !> removed.
-module eigensolver
-  use assert
-  use message
-  use accuracy, only : rsp, rdp
-  use blas
-  use lapack
+module dftbp_eigensolver
+  use dftbp_assert
+  use dftbp_message
+  use dftbp_accuracy, only : rsp, rdp
+  use dftbp_blas
+  use dftbp_lapack
+#:if WITH_GPU
+  use magma
+#:endif
   implicit none
   private
 
-  public :: heev, hegv, hegvd, gvr, bgv
+  public :: heev, hegv, hegvd, gvr, bgv, geev
+#:if WITH_GPU
+  public :: gpu_gvd
+#:endif
 
 
   !> Used to return runtime diagnostics
@@ -80,8 +87,24 @@ module eigensolver
     module procedure dblecmplx_zhbgv
   end interface
 
-contains
+#:if WITH_GPU
+  !> Divide and conquer MAGMA GPU eigensolver
+  interface gpu_gvd
+    module procedure real_magma_ssygvd
+    module procedure dble_magma_dsygvd
+    module procedure cmplx_magma_chegvd
+    module procedure dblecmplx_magma_zhegvd
+  end interface
+#:endif
 
+  !> Simple eigensolver for a general matrix
+  interface geev
+    module procedure real_sgeev
+    module procedure dble_dgeev
+  end interface geev
+
+
+contains
 
   !> Real eigensolver for a symmetric matrix
   subroutine real_ssyev(a,w,uplo,jobz)
@@ -110,7 +133,7 @@ contains
     @:ASSERT(n>0)
     call ssyev(jobz, uplo, n, a, n, w, idealwork, -1, info)
     if (info/=0) then
-      call error("Failue in SSYEV to determine optimum workspace")
+      call error("Failure in SSYEV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -159,7 +182,7 @@ contains
     @:ASSERT(n>0)
     call dsyev(jobz, uplo, n, a, n, w, idealwork, -1, info)
     if (info/=0) then
-      call error("Failue in DSYEV to determine optimum workspace")
+      call error("Failure in DSYEV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -210,7 +233,7 @@ contains
     allocate(rwork(3*n-2))
     call cheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
-      call error("Failue in CHEEV to determine optimum workspace")
+      call error("Failure in CHEEV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
@@ -261,7 +284,7 @@ contains
     allocate(rwork(3*n-2))
     call zheev(jobz, uplo, n, a, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
-      call error("Failue in ZHEEV to determine optimum workspace")
+      call error("Failure in ZHEEV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
@@ -324,7 +347,7 @@ contains
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call ssygv(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
     if (info/=0) then
-       call error("Failue in SSYGV to determine optimum workspace")
+       call error("Failure in SSYGV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -392,7 +415,7 @@ contains
     @:ASSERT(iitype >= 1 .and. iitype <= 3 )
     call dsygv(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
     if (info/=0) then
-       call error("Failue in DSYGV to determine optimum workspace")
+       call error("Failure in DSYGV to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -462,7 +485,7 @@ contains
     allocate(rwork(3*n-2))
     call CHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
-       call error("Failue in CHEGV to determine optimum workspace")
+       call error("Failure in CHEGV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
@@ -533,7 +556,7 @@ contains
     allocate(rwork(3*n-2))
     call ZHEGV(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, rwork, info)
     if (info/=0) then
-       call error("Failue in CHEGV to determine optimum workspace")
+       call error("Failure in CHEGV to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     allocate(work(int_idealwork))
@@ -604,7 +627,7 @@ contains
     call ssygvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
          & iidealwork, -1, info)
     if (info/=0) then
-       call error("Failue in SSYGVD to determine optimum workspace")
+       call error("Failure in SSYGVD to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -676,7 +699,7 @@ contains
     call dsygvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & iidealwork, -1, info)
     if (info/=0) then
-      call error("Failue in DSYGVD to determine optimum workspace")
+      call error("Failure in DSYGVD to determine optimum workspace")
     endif
     int_idealwork=floor(idealwork(1))
     allocate(work(int_idealwork))
@@ -750,7 +773,7 @@ contains
     call chegvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & ridealwork, -1, iidealwork, -1, info)
     if (info/=0) then
-      call error("Failue in CHEGVD to determine optimum workspace")
+      call error("Failure in CHEGVD to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     int_ridealwork=floor(ridealwork(1))
@@ -826,7 +849,7 @@ contains
     call zhegvd(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, &
         & ridealwork, -1, iidealwork, -1, info)
     if (info/=0) then
-      call error("Failue in ZHEGVD to determine optimum workspace")
+      call error("Failure in ZHEGVD to determine optimum workspace")
     endif
     int_idealwork=floor(real(idealwork(1)))
     int_ridealwork=floor(ridealwork(1))
@@ -965,7 +988,7 @@ contains
     end if
 
     if (info/=0) then
-      call error("Failue in SSYGVR to determine optimum workspace")
+      call error("Failure in SSYGVR to determine optimum workspace")
     endif
     lwork = floor(tmpWork(1))
     liwork = floor(real(tmpIWork(1)))
@@ -1179,7 +1202,7 @@ contains
     end if
 
     if (info/=0) then
-      call error("Failue in DSYGVR to determine optimum workspace")
+      call error("Failure in DSYGVR to determine optimum workspace")
     endif
     lwork = floor(tmpWork(1))
     liwork = floor(real(tmpIWork(1)))
@@ -1395,7 +1418,7 @@ contains
     end if
 
     if (info/=0) then
-      call error("Failue in CHEEVR to determine optimum workspace")
+      call error("Failure in CHEEVR to determine optimum workspace")
     endif
     lwork = floor(real(tmpWork(1)))
     liwork = floor(real(tmpIWork(1)))
@@ -1615,7 +1638,7 @@ contains
     end if
 
     if (info/=0) then
-      call error("Failue in ZHEEVR to determine optimum workspace")
+      call error("Failure in ZHEEVR to determine optimum workspace")
     endif
     lwork = floor(real(tmpWork(1)))
     liwork = floor(real(tmpIWork(1)))
@@ -2042,4 +2065,227 @@ contains
 
   end subroutine dblecmplx_zhbgv
 
-end module eigensolver
+
+#:if WITH_GPU
+
+#:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'ssygvd'),&
+  & ('dble', 'd', 'real', 'dsygvd'), ('cmplx', 's', 'complex', 'chegvd'),&
+  & ('dblecmplx', 'd', 'complex', 'zhegvd')]
+  !> Generalised eigensolution for symmetric/hermitian matrices on GPU(s)
+  subroutine ${DTYPE}$_magma_${NAME}$(ngpus, a, b, w, uplo, jobz, itype)
+
+    !> Number of GPUs to use
+    integer, intent(in) :: ngpus
+
+    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
+    !> overwritten on return anyway)
+    ${VTYPE}$(r${VPREC}$p), intent(inout) :: a(:,:)
+
+    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
+    ${VTYPE}$(r${VPREC}$p), intent(inout) :: b(:,:)
+
+    !> eigenvalues
+    real(r${VPREC}$p), intent(out) :: w(:)
+
+    !> upper or lower triangle of the matrix
+    character, intent(in) :: uplo
+
+    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
+    character, intent(in) :: jobz
+
+    !> optional specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
+    !> 3:B*A*x=(lambda)*x default is 1
+    integer, optional, intent(in) :: itype
+
+    ${VTYPE}$(r${VPREC}$p), allocatable :: work(:)
+
+  #:if VTYPE == 'complex'
+    real(r${VPREC}$p), allocatable :: rwork(:)
+    integer :: lrwork
+  #:endif
+
+    integer, allocatable :: iwork(:)
+    integer :: lwork, liwork, n, info, iitype
+
+    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    @:ASSERT(all(shape(a)==shape(b)))
+    @:ASSERT(all(shape(a)==size(w,dim=1)))
+    n=size(a,dim=1)
+    @:ASSERT(n>0)
+    if (present(itype)) then
+      iitype = itype
+    else
+      iitype = 1
+    end if
+    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
+
+    ! Workspace query
+    allocate(work(1))
+    allocate(iwork(1))
+  #:if VTYPE == 'complex'
+    allocate(rwork(1))
+  #:endif
+
+    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, work, -1,&
+      #:if VTYPE == 'complex'
+        & rwork, -1,&
+      #:endif
+        & iwork, -1, info)
+
+    if (info /= 0) then
+      call error("Failure in MAGMA_${NAME}$ to determine optimum workspace")
+    endif
+
+ #:if VTYPE == 'complex'
+    lwork = floor(real(work(1)))
+    lrwork = floor(rwork(1))
+    liwork = int(iwork(1))
+    deallocate(work) ;  allocate(work(lwork))
+    deallocate(rwork) ;  allocate(rwork(lrwork))
+    deallocate(iwork) ; allocate(iwork(liwork))
+  #:endif
+  #:if VTYPE == 'real'
+    lwork = floor(work(1))
+    liwork = int(iwork(1))
+    deallocate(work) ;  allocate(work(lwork))
+    deallocate(iwork) ; allocate(iwork(liwork))
+   #:endif
+
+    ! MAGMA Diagonalization
+    call magmaf_${NAME}$_m(ngpus, iitype, jobz, uplo, n, a, n, b, n, w, work, lwork,&
+      #:if VTYPE == 'complex'
+        & rwork, lrwork,&
+      #:endif
+        & iwork, liwork, info)
+
+    ! test for errors
+    if (info /= 0) then
+      if (info < 0) then
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+            & illegal argument at position ',i6)") info
+        call error(error_string)
+      else if (info <= n) then
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+            & diagonal element ',i6,' did not converge to zero.')") info
+        call error(error_string)
+      else
+        write(error_string, "('Failure in diagonalisation routine magmaf_${NAME}$_m,&
+            & non-positive definite overlap! ',i6)") info - n
+        call error(error_string)
+      endif
+    endif
+
+  end subroutine ${DTYPE}$_magma_${NAME}$
+
+#:endfor
+
+#:endif
+
+
+#:for DTYPE, VPREC, VTYPE, NAME in [('real', 's', 'real', 'sgeev'), ('dble', 'd', 'real', 'dgeev')]
+
+  !> Simple general matrix eigensolver
+  subroutine ${DTYPE}$_${NAME}$(a, wr, wi, vl, vr, err)
+
+    !> Matrix, overwritten on exit
+    real(r${VPREC}$p), intent(inout) :: a(:,:)
+
+    !> Real part of eigenvalues
+    real(r${VPREC}$p), intent(out) :: wr(:)
+
+    !> Imaginary part of eigenvalues
+    real(r${VPREC}$p), intent(out) :: wi(:)
+
+    !> Left eigenvectors
+    real(r${VPREC}$p), intent(out), optional :: vl(:,:)
+
+    !> Right eigenvectors
+    real(r${VPREC}$p), intent(out), optional :: vr(:,:)
+
+    !> Error code return, 0 if no problems
+    integer, intent(out), optional :: err
+
+    real(r${VPREC}$p), allocatable :: work(:)
+    integer :: n, lda, info, int_idealwork, ldvl, ldvr
+    real(r${VPREC}$p) :: idealwork(1)
+    character :: jobvl, jobvr
+
+    ! If no eigenvectors requested, need a dummy array for lapack call
+    real(r${VPREC}$p) :: dummyvl(1,1), dummyvr(1,1)
+
+    if (present(err)) then
+      err = 0
+    end if
+
+    lda = size(a, dim=1)
+    n = size(a, dim=2)
+
+    @:ASSERT(n>0)
+    @:ASSERT(size(wr) >= n)
+    @:ASSERT(size(wi) >= n)
+
+    if (present(vl)) then
+      jobvl = 'V'
+      ldvl = size(vl, dim=1)
+      @:ASSERT(all(shape(vl)>=[n,n]))
+    else
+      jobvl = 'N'
+      ldvl = 1
+    end if
+    if (present(vr)) then
+      jobvr = 'V'
+      ldvr = size(vr, dim=1)
+      @:ASSERT(all(shape(vr)>=[n,n]))
+    else
+      jobvr = 'N'
+      ldvr = 1
+    end if
+
+    if (jobvl == 'V' .and. jobvr == 'V') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, idealwork, -1, info)
+    else if (jobvl == 'V' .and. jobvr == 'N') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, dummyvr, ldvr, idealwork, -1,&
+          & info)
+    else if (jobvl == 'N' .and. jobvr == 'V') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, vr, ldvr, idealwork, -1,&
+          & info)
+    else if (jobvl == 'N' .and. jobvr == 'N') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, dummyvr, ldvr, idealwork,&
+          & -1, info)
+    end if
+    if (info/=0) then
+      @:ERROR_HANDLING(err, -1, "Failue in ${VPREC}$geev to determine optimum workspace")
+    endif
+    int_idealwork=nint(idealwork(1))
+    allocate(work(int_idealwork))
+
+    if (jobvl == 'V' .and. jobvr == 'V') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, vr, ldvr, work, int_idealwork,&
+          & info)
+    else if (jobvl == 'V' .and. jobvr == 'N') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, vl, ldvl, dummyvr, ldvr, work,&
+          & int_idealwork, info)
+    else if (jobvl == 'N' .and. jobvr == 'V') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, vr, ldvr, work,&
+          & int_idealwork, info)
+    else if (jobvl == 'N' .and. jobvr == 'N') then
+      call ${VPREC}$geev(jobvl, jobvr, n, a, lda, wr, wi, dummyvl, ldvl, dummyvr, ldvr, work,&
+          & int_idealwork, info)
+    end if
+
+    if (info/=0) then
+      if (info<0) then
+        @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0)", 'Failure in diagonalisation routine&
+            & ${VPREC}$geev, illegal argument at position ', info)
+      else
+        @:FORMATTED_ERROR_HANDLING(err, info, "(A,I0,A)", 'Failure in diagonalisation routine&
+            & ${VPREC}$geev, diagonal element ', info, ' did not converge to zero.')
+      endif
+    endif
+
+  end subroutine ${DTYPE}$_${NAME}$
+
+#:endfor
+
+end module dftbp_eigensolver

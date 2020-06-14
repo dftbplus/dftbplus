@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Utilities for processing an XML tree
-module xmlutils
-  use assert
-  use charmanip
-  use xmlf90
+module dftbp_xmlutils
+  use dftbp_assert
+  use dftbp_charmanip
+  use dftbp_xmlf90
   implicit none
 
   private
@@ -261,4 +261,4 @@ contains
 
   end subroutine removeNodes
 
-end module xmlutils
+end module dftbp_xmlutils

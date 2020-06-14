@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,13 +10,13 @@
 #:set FLAVOURS = [('Real', 'real', 'real'), ('Cmplx', 'complex', 'cmplx')]
 
 !> Contains routines to calculate matrix determinants
-module determinant
-  use accuracy
-  use assert
-  use lapackroutines
+module dftbp_determinant
+  use dftbp_accuracy
+  use dftbp_assert
+  use dftbp_lapackroutines
 #:if WITH_SCALAPACK
-  use mpifx
-  use scalapackfx
+  use dftbp_mpifx
+  use dftbp_scalapackfx
 #:endif
   implicit none
   private
@@ -196,4 +196,4 @@ contains
 
 #:endfor
 
-end module determinant
+end module dftbp_determinant

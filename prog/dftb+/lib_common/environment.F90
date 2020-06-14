@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,15 +8,15 @@
 #:include 'common.fypp'
 
 !> Contains computer environment settings
-module environment
-  use globalenv, only : shutdown, stdOut
-  use timerarray
-  use fileregistry
+module dftbp_environment
+  use dftbp_globalenv, only : shutdown, stdOut
+  use dftbp_timerarray
+  use dftbp_fileregistry
 #:if WITH_MPI
-  use mpienv
+  use dftbp_mpienv
 #:endif
 #:if WITH_SCALAPACK
-  use blacsenv
+  use dftbp_blacsenv
 #:endif
   implicit none
   private
@@ -48,7 +48,7 @@ module environment
     integer, public :: myGroup = 0
 
     !> Global timers
-    type(TTimerArray), public :: globalTimer
+    type(TTimerArray), public, allocatable :: globalTimer
 
     !> Registry of files, which may be open and must be closed when environment is shut down
     type(TFileRegistry), public :: fileFinalizer
@@ -61,6 +61,9 @@ module environment
     !> Global scalapack settings
     type(TBlacsEnv), public :: blacs
   #:endif
+
+    !> Is this calculation called by the API?
+    logical, public :: tAPICalculation = .false.
 
   contains
     procedure :: destruct => TEnvironment_destruct
@@ -75,15 +78,24 @@ module environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(14) = [&
+  type(TTimerItem), parameter :: globalTimerItems(23) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
       & TTimerItem("SCC", 1),&
+      & TTimerItem("Poisson", 2),&
+      & TTimerItem("Poisson Ewald", 4),&
+      & TTimerItem("Poisson bulk read", 4),&
+      & TTimerItem("Poisson bulk compute", 4),&
+      & TTimerItem("Poisson solution", 4),&
+      & TTimerItem("Poisson shifts", 4),&
+      & TTimerItem("Poisson charge density build", 4),&
       & TTimerItem("Diagonalisation", 2),&
       & TTimerItem("Sparse to dense", 4),&
       & TTimerItem("Dense to sparse", 4),&
+      & TTimerItem("Range separated Hamiltonian", 4),&
       & TTimerItem("Density matrix creation", 2),&
+      & TTimerItem("Energy evaluation", 2),&
       & TTimerItem("Post-SCC processing", 1),&
       & TTimerItem("Eigenvector writing", 2),&
       & TTimerItem("Energy-density matrix creation", 2),&
@@ -97,16 +109,25 @@ module environment
     integer :: preSccInit = 2
     integer :: sparseH0S = 3
     integer :: scc = 4
-    integer :: diagonalization = 5
-    integer :: sparseToDense = 6
-    integer :: denseToSparse = 7
-    integer :: densityMatrix = 8
-    integer :: postScc = 9
-    integer :: eigvecWriting = 10
-    integer :: energyDensityMatrix = 11
-    integer :: forceCalc = 12
-    integer :: stressCalc = 13
-    integer :: postGeoOpt = 14
+    integer :: poisson = 5
+    integer :: poissonEwald = 6
+    integer :: poissonBulkRead = 7
+    integer :: poissonBulkCalc = 8
+    integer :: poissonSoln = 9
+    integer :: poissonShifts = 10
+    integer :: poissonDensity = 11
+    integer :: diagonalization = 12
+    integer :: sparseToDense = 13
+    integer :: denseToSparse = 14
+    integer :: rangeSeparatedH = 15
+    integer :: densityMatrix = 16
+    integer :: energyEval = 17
+    integer :: postScc = 18
+    integer :: eigvecWriting = 19
+    integer :: energyDensityMatrix = 20
+    integer :: forceCalc = 21
+    integer :: stressCalc = 22
+    integer :: postGeoOpt = 23
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()
@@ -131,7 +152,9 @@ contains
     !> Instance
     class(TEnvironment), intent(inout) :: this
 
-    call this%globalTimer%writeTimings()
+    if (allocated(this%globalTimer)) then
+      call this%globalTimer%writeTimings()
+    end if
     call this%fileFinalizer%closeAll()
     flush(stdOut)
 
@@ -168,6 +191,7 @@ contains
     !> File unit into which the table should be written
     integer, intent(in) :: unit
 
+    allocate(this%globalTimer)
     call TTimerArray_init(this%globalTimer, globalTimerItems, maxLevel=timingLevel, header=header,&
         & unit=unit)
 
@@ -230,4 +254,4 @@ contains
 #:endif
 
 
-end module environment
+end module dftbp_environment

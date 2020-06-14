@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,21 +14,31 @@
 !> known. Also, it can be used by routines which are not MPI-aware but wish to make I/O or abort the
 !> code.
 !>
-module globalenv
-  use, intrinsic :: iso_fortran_env, only : output_unit
+module dftbp_globalenv
+  use, intrinsic :: iso_fortran_env, only : output_unit, error_unit
 #:if WITH_MPI
-  use mpifx
+  use mpi, only : MPI_COMM_WORLD
+  use dftbp_mpifx
 #:endif
   implicit none
   private
 
   public :: initGlobalEnv, destructGlobalEnv
-  public :: abort, shutdown, synchronizeAll
-  public :: stdOut, tIoProc
+  public :: abortProgram, shutdown, synchronizeAll
+  public :: stdOut, stdErr, tIoProc
   public :: withScalapack, withMpi
 
+  !> Unredirected standard out
+  integer, parameter :: stdOut0 = output_unit
+
+  !> Unredirected standard error
+  integer, parameter :: stdErr0 = error_unit
+
   !> Standard out file handler
-  integer, protected :: stdOut
+  integer, protected :: stdOut = stdOut0
+
+  !> Standard error file handler
+  integer, protected :: stdErr = stdErr0
 
   !> Whether current process is the global master process
   logical, protected :: tIoProc = .true.
@@ -38,34 +48,66 @@ module globalenv
   type(mpifx_comm), protected :: globalMpiComm
 #:endif
 
-  !> Unredirected standard out
-  integer, parameter :: stdOut0 = output_unit
-
   !> Whether code was compiled with MPI support
   logical, parameter :: withMpi = ${FORTRAN_LOGICAL(WITH_MPI)}$
 
   !> Whether code was compiled with Scalapack
   logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
+  !> Whether MPI finalization should be performed at the end
+  logical :: doMpiFinalization = .true.
+
 
 
 contains
 
   !> Initializes global environment (must be the first statement of a program)
-  subroutine initGlobalEnv()
+  subroutine initGlobalEnv(outputUnit, mpiComm, errorUnit)
+
+    !> Customised global standard output
+    integer, intent(in), optional :: outputUnit
+
+    !> Customised global MPI communicator
+    integer, intent(in), optional :: mpiComm
+
+    !> Customised global standard error
+    integer, intent(in), optional :: errorUnit
+
+    integer :: mpiComm0, outputUnit0, errorUnit0
+
+    if (present(outputUnit)) then
+      outputUnit0 = outputUnit
+    else
+      outputUnit0 = stdOut0
+    end if
+
+    if (present(errorUnit)) then
+      errorUnit0 = errorUnit
+    else
+      errorUnit0 = stdErr0
+    end if
 
   #:if WITH_MPI
-    call mpifx_init()
-    call globalMpiComm%init()
-    if (globalMpiComm%master) then
-      stdOut = stdOut0
+    if (present(mpiComm)) then
+      mpiComm0 = mpiComm
+      doMpiFinalization = .false.
     else
-      stdOut = 1
-      open(stdOut, file="/dev/null", action="write")
+      mpiComm0 = MPI_COMM_WORLD
+      call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
+    end if
+
+    call globalMpiComm%init(commid=mpiComm0)
+    if (globalMpiComm%master) then
+      stdOut = outputUnit0
+      stdErr = errorUnit0
+    else
+      open(newunit=stdOut, file="/dev/null", action="write")
+      stdErr = stdOut
     end if
     tIoProc = globalMpiComm%master
   #:else
-    stdOut = stdOut0
+    stdOut = outputUnit0
+    stdErr = errorUnit0
   #:endif
 
   end subroutine initGlobalEnv
@@ -75,7 +117,9 @@ contains
   subroutine destructGlobalEnv()
 
   #:if WITH_MPI
-    call mpifx_finalize()
+    if (doMpiFinalization) then
+      call mpifx_finalize()
+    end if
   #:endif
 
   end subroutine destructGlobalEnv
@@ -99,12 +143,15 @@ contains
   !> Note: if this routine is called by any the processes, execution immediately stops
   !> without waiting for any other processes.
   !>
-  subroutine abort(errorCode)
+  subroutine abortProgram(errorCode)
 
     !> Error code to emit (default: 1)
     integer, intent(in), optional :: errorCode
 
-    integer :: error, errorCode0
+    integer :: errorCode0
+  #:if WITH_MPI
+    integer :: error
+  #:endif
 
     if (.not. present(errorCode)) then
       errorCode0 = 1
@@ -115,12 +162,12 @@ contains
   #:if WITH_MPI
     call mpifx_abort(globalMpiComm, errorCode0, error)
     if (error /= 0) then
-      write(stdOut0, "(A,I0,A)") "Process ", globalMpiComm%rank, " could not be aborted."
+      write(stdErr0, "(A,I0,A)") "Process ", globalMpiComm%rank, " could not be aborted."
     end if
   #:endif
     stop
 
-  end subroutine abort
+  end subroutine abortProgram
 
 
   !> Waits until all processes reach this point
@@ -133,4 +180,4 @@ contains
   end subroutine synchronizeAll
 
 
-end module globalenv
+end module dftbp_globalenv

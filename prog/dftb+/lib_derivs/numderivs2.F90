@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,17 +9,17 @@
 
 !> Module containing routines for numerical second derivs of energy using central finite difference.
 !> To Do: Option to restart the calculation
-module numderivs2
-  use assert
-  use accuracy, only : dp
+module dftbp_numderivs2
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
   implicit none
   private
 
-  public :: OnumDerivs, create, next, getHessianMatrix
+  public :: TNumDerivs, create, next, getHessianMatrix
 
 
   !> Contains necessary data for the derivs
-  type OnumDerivs
+  type TNumDerivs
     private
 
     !> Internal matrix to hold derivative and intermediate values for their construction
@@ -48,7 +48,7 @@ module numderivs2
 
     !> Step size for derivative
     real(dp) :: Delta
-  end type OnumDerivs
+  end type TNumDerivs
 
 
   !> Create numerical second derivatives instance
@@ -77,7 +77,7 @@ contains
   subroutine derivs_create(self,xInit,Delta)
 
     !> Pointer to the initialised object on exit.
-    type(OnumDerivs), allocatable, intent(out) :: self
+    type(TNumDerivs), allocatable, intent(out) :: self
 
     !> initial atomic coordinates (3,:)
     real(dp), intent(inout) :: xInit(:,:)
@@ -113,7 +113,7 @@ contains
   subroutine derivs_next(self,xNew,fOld,tGeomEnd)
 
     !> Derivatives instance to propogate
-    type(OnumDerivs), intent(inout) :: self
+    type(TNumDerivs), intent(inout) :: self
 
     !> New coordinates for the next step
     real(dp), intent(out) :: xNew(:,:)
@@ -171,7 +171,7 @@ contains
   subroutine getDerivMatrixPtr(self,d)
 
     !> Derivatives instance including the Hessian internally
-    type(OnumDerivs), intent(in), target :: self
+    type(TNumDerivs), intent(in), target :: self
 
     !> Pointer to the Hessian matrix to allow retrieval
     real(dp), pointer :: d(:,:)
@@ -180,4 +180,4 @@ contains
 
   end subroutine getDerivMatrixPtr
 
-end module numderivs2
+end module dftbp_numderivs2

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,11 +9,11 @@
 
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code. The
 !> interface of all LAPACK calls must be defined in the module lapack.
-module lapackroutines
-  use assert
-  use accuracy
-  use message
-  use lapack
+module dftbp_lapackroutines
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_lapack
   implicit none
 
   private
@@ -99,8 +99,20 @@ module lapackroutines
   end interface gesvd
 
 
+  !> Solves a system of linear equations
+  !>  A * X = B  or  A**T * X = B
+  !> with a general N-by-N matrix A using the LU factorization computed by getrf.
+  interface getrs
+    module procedure :: getrs_dble
+    module procedure :: getrs1_dble
+    module procedure :: getrs_real
+    module procedure :: getrs1_real
+  end interface getrs
+
+
   public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
   public :: hermatinv, hetri, hetrf, gesvd
+  public :: getrs
 
 contains
 
@@ -639,16 +651,30 @@ contains
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
     call sytrf(aa, ipiv, uplo, info0)
-    if (info0 == 0) then
-      call sytri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
+      write(error_string, "(A,I10)") "Matrix inversion failed because of &
+          &error in sytrf. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+        return
+      else
+        call error(error_string)
+      end if
     end if
 
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
+    call sytri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
       write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in sytrf or sytri. Info flag:", info
-      call error(error_string)
+          &error in sytri. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+      elseif (info0 /= 0) then
+        call error(error_string)
+      end if
     end if
 
   end subroutine symmatinv
@@ -671,17 +697,32 @@ contains
 
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
+
     call hetrf(aa, ipiv, uplo, info0)
-    if (info0 == 0) then
-      call hetri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
+      write(error_string, "(A,I10)") "Matrix inversion failed because of &
+          &error in hetrf. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+        return
+      else
+        call error(error_string)
+      end if
     end if
 
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
+    call hetri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
       write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in sytrf or sytri. Info flag:", info
-      call error(error_string)
+          &error in hetri. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+      elseif (info0 /= 0) then
+        call error(error_string)
+      end if
     end if
 
   end subroutine hermatinv
@@ -1467,4 +1508,147 @@ contains
 
   end subroutine zgesvd_dblecplx
 
-end module lapackroutines
+
+  !> Solves a system of linear equations with multiple right hand sides
+  subroutine getrs_dble(amat, ipiv, bmat, trans, iError)
+
+    !> Matrix of the linear system
+    real(rdp), intent(in) :: amat(:, :)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(in) :: ipiv(:)
+
+    !> Matrix of the right hand side vectors
+    real(rdp), intent(inout) :: bmat(:, :)
+
+    !> Optional transpose (defaults to 'n')
+    character(len=1), intent(in), optional :: trans
+
+    !> Error flag, zero on successful exit
+    integer, intent(out), optional :: iError
+
+    character(len=1) :: atr
+    integer :: info, nn, nrhs, lda, ldb
+
+    @:ASSERT(size(amat, 1) == size(amat, dim=2))
+    @:ASSERT(size(amat, 1) == size(bmat, dim=1))
+    if(present(trans)) then
+      @:ASSERT(any(trans == ['n', 'N', 't', 'T', 'c', 'C']))
+      atr = trans
+    else
+      atr = 'n'
+    endif
+    lda = max(1, size(amat, 1))
+    ldb = max(1, size(bmat, 1))
+    nn = size(amat, 2)
+    nrhs = size(bmat, 2)
+    call dgetrs(atr, nn, nrhs, amat, lda, ipiv, bmat, ldb, info)
+    if(present(iError)) then
+      iError = info
+    else
+      if (info /= 0) then
+        call error("Failed to solve linear system by diagonal pivoting")
+      end if
+    endif
+
+  end subroutine getrs_dble
+
+
+  !> Solves a system of linear equations with one right hand sides
+  subroutine getrs1_dble(amat, ipiv, bvec, trans, iError)
+
+    !> Matrix of the linear system
+    real(rdp), intent(in) :: amat(:, :)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(in) :: ipiv(:)
+
+    !> Right hand side vector
+    real(rdp), intent(inout), target :: bvec(:)
+
+    !> optional transpose (defaults to 'n')
+    character(len=1), intent(in), optional :: trans
+
+    !> Error flag, zero on successful exit
+    integer, intent(out), optional :: iError
+
+    real(rdp), pointer :: bptr(:, :)
+
+    bptr(1:size(bvec, 1), 1:1) => bvec(1:size(bvec, 1))
+    call getrs(amat, ipiv, bptr, trans, iError)
+
+  end subroutine getrs1_dble
+
+
+  !> Solves a system of linear equations with multiple right hand sides
+  subroutine getrs_real(amat, ipiv, bmat, trans, iError)
+
+    !> Matrix of the linear system
+    real(rsp), intent(in) :: amat(:, :)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(in) :: ipiv(:)
+
+    !> Matrix of the right hand side vectors
+    real(rsp), intent(inout) :: bmat(:, :)
+
+    !> Optional transpose (defaults to 'n')
+    character(len=1), intent(in), optional :: trans
+
+    !> Error flag, zero on successful exit
+    integer, intent(out), optional :: iError
+
+    character(len=1) :: atr
+    integer :: info, nn, nrhs, lda, ldb
+
+    @:ASSERT(size(amat, 1) == size(amat, dim=2))
+    @:ASSERT(size(amat, 1) == size(bmat, dim=1))
+    if(present(trans)) then
+      @:ASSERT(any(trans == ['n', 'N', 't', 'T', 'c', 'C']))
+      atr = trans
+    else
+      atr = 'n'
+    endif
+    lda = max(1, size(amat, 1))
+    ldb = max(1, size(bmat, 1))
+    nn = size(amat, 2)
+    nrhs = size(bmat, 2)
+    call sgetrs(atr, nn, nrhs, amat, lda, ipiv, bmat, ldb, info)
+    if(present(iError)) then
+      iError = info
+    else
+      if (info /= 0) then
+        call error("Failed to solve linear system by diagonal pivoting")
+      end if
+    endif
+
+  end subroutine getrs_real
+
+
+  !> Solves a system of linear equations with one right hand sides
+  subroutine getrs1_real(amat, ipiv, bvec, trans, iError)
+
+    !> Matrix of the linear system
+    real(rsp), intent(in) :: amat(:, :)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(in) :: ipiv(:)
+
+    !> Right hand side vector
+    real(rsp), intent(inout), target :: bvec(:)
+
+    !> Optional transpose (defaults to 'n')
+    character(len=1), intent(in), optional :: trans
+
+    !> Error flag, zero on successful exit
+    integer, intent(out), optional :: iError
+
+    real(rsp), pointer :: bptr(:, :)
+
+    bptr(1:size(bvec, 1), 1:1) => bvec(1:size(bvec, 1))
+    call getrs(amat, ipiv, bptr, trans, iError)
+
+  end subroutine getrs1_real
+
+
+end module dftbp_lapackroutines

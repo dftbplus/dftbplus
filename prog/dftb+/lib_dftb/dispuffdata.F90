@@ -1,16 +1,16 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains the Van der Waal parameters for the UFF force field.
-module dispuffdata
-  use accuracy
-  use message, only : error
-  use charmanip, only : tolower
-  use constants
+module dftbp_dispuffdata
+  use dftbp_accuracy
+  use dftbp_message, only : error
+  use dftbp_charmanip, only : tolower
+  use dftbp_constants
   implicit none
   private
 
@@ -33,7 +33,6 @@ module dispuffdata
 
   !> Values are in AA and kcal/mol
   !>
-
   !> (Data is awfully compressed, as F95 only allows 32 continuation lines and 132 characters per
   !> one line!)
   type(TUFF) :: database(103) = (/&
@@ -80,7 +79,7 @@ contains
     real(dp), intent(out) :: energy
 
     !> Flags if the element has been found. If this parameter is not specified and the element is
-  !> not found, the program stops.
+    !> not found, the program stops.
     logical, intent(out), optional :: found
 
     character(2) :: symbol
@@ -100,10 +99,9 @@ contains
     if (present(found)) then
       found = .false.
     else
-      call error("UFF database search for element '" // trim(name) &
-          &// "' failed")
+      call error("UFF database search for element '" // trim(name) // "' failed")
     end if
 
   end subroutine getUffValues
 
-end module dispuffdata
+end module dftbp_dispuffdata

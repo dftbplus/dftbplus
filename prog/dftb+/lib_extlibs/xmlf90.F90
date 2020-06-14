@@ -1,18 +1,18 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Exporting the functionality we use from the library XMLF90.
-module xmlf90
-  use m_strings
-  use flib_wxml
-  use flib_dom
+module dftbp_xmlf90
+  use xmlf90_strings
+  use xmlf90_flib_wxml
+  use xmlf90_flib_dom
   implicit none
   public
 
   public :: xmlf_t
 
-end module xmlf90
+end module dftbp_xmlf90

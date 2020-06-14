@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,12 +8,12 @@
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program integvalue
-  use accuracy
-  use io
-  use oldskdata
-  use slakoeqgrid
-  use fileid
-  use message
+  use dftbp_accuracy
+  use dftbp_globalenv, only : stdOut
+  use dftbp_oldskdata
+  use dftbp_slakoeqgrid
+  use dftbp_fileid
+  use dftbp_message
   implicit none
 
   integer, parameter :: nSKInter = 20
@@ -23,7 +23,7 @@ program integvalue
   real(dp), parameter :: deltaXDiff = epsilon(1.0_dp)**0.25_dp
 
   type(TOldSKData) :: skdata
-  type(OSlakoEqGrid) :: skgrid
+  type(TSlakoEqGrid) :: skgrid
   character(lc) :: fname
   logical :: homo, extended
   integer :: nPoint, col
@@ -163,7 +163,7 @@ contains
   subroutine writeValues(skgrid, rStart, dr, nPoint)
 
     !> SK data grid
-    type(OSlakoEqGrid), intent(in) :: skgrid
+    type(TSlakoEqGrid), intent(in) :: skgrid
 
     !> starting distance
     real(dp), intent(in) :: rStart

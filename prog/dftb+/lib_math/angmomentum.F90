@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,22 +8,28 @@
 #:include 'common.fypp'
 
 !> Angular momentum related routines
-module angmomentum
+module dftbp_angmomentum
 #:if WITH_SCALAPACK
-  use scalapackfx
+  use dftbp_scalapackfx
 #:endif
-  use assert
-  use accuracy, only : dp
-  use constants, only : imag
-  use qm
-  use commontypes, only : TOrbitals
-  use environment
-  use densedescr
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : imag
+  use dftbp_qm
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_environment
+  use dftbp_densedescr
   implicit none
   private
 
-  public :: getLOperators, getLOperatorsForSpecies
-  public :: getLOnsite, getLDual
+  public :: getLOperators, getLOperatorsForSpecies, getLOnsite, getLDual, rotateZ
+
+  !> Construct matrix for rotation of orbitals around the z axis in the tesseral spherical hamonics
+  !> basis
+  interface rotateZ
+    module procedure zrot_onel
+    module procedure zrot_manyl
+  end interface rotateZ
 
 
 contains
@@ -96,7 +102,7 @@ contains
     !> Species specific L+ operator
     complex(dp), intent(out) :: speciesPlus(:,:)
 
-    integer :: iShell, ll, nOrbShell, iOrbStart, iOrbEnd
+    integer :: iShell, ll, iOrbStart, iOrbEnd
 
     @:ASSERT(all(shape(speciesZ) == shape(speciesPlus)))
 
@@ -104,11 +110,10 @@ contains
     speciesPlus(:,:) = 0.0_dp
     do iShell = 1, orb%nShell(iSpecies)
       ll = orb%angShell(iShell, iSpecies)
-      nOrbShell = 2 * ll + 1
       iOrbStart = orb%posShell(iShell, iSpecies)
       iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
-      call getLOperators(ll, speciesPlus(1:nOrbShell, 1:nOrbShell),&
-          & speciesZ(1:nOrbShell, 1:nOrbShell))
+      call getLOperators(ll, speciesPlus(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd),&
+          & speciesZ(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd))
     end do
 
   end subroutine getLOperatorsForSpecies
@@ -138,7 +143,6 @@ contains
     integer :: nAtom, nSpecies, nOrb, nOrbSp
     integer :: iSp, iAt, iShell, iOrb, iOrbStart, iOrbEnd, kk
     complex(dp), allocatable :: speciesL(:,:,:,:)
-    complex(dp) :: speciesPlus(orb%mOrb, orb%mOrb), speciesZ(orb%mOrb, orb%mOrb)
     complex(dp) :: tmpBlock(orb%mOrb, orb%mOrb)
 
     nAtom = size(Lshell, dim=3)
@@ -152,10 +156,7 @@ contains
     allocate(speciesL(orb%mOrb, orb%mOrb, 3, nSpecies))
     speciesL(:,:,:,:) = 0.0_dp
     do iSp = 1, nSpecies
-      call getLOperatorsForSpecies(orb, iSp, speciesPlus, speciesZ)
-      speciesL(:, :, 1, iSp) = 0.5_dp * (speciesPlus + transpose(conjg(speciesPlus)))
-      speciesL(:, :, 2, iSp) = 0.5_dp * imag * (transpose(conjg(speciesPlus) - speciesPlus))
-      speciesL(:, :, 3, iSp) = speciesZ
+      call localGetLOperatorsForSpecies(orb, iSp, speciesL(:,:,:,iSp))
     end do
 
     Lshell(:,:,:) = 0.0_dp
@@ -186,9 +187,9 @@ contains
         iOrbStart = orb%posShell(iShell, iSp)
         iOrbEnd = orb%posShell(iShell + 1, iSp) - 1
         do kk = 1, 3
-          Lshell(kk, iShell, iAt) = Lshell(kk, iShell, iAt) + &
+          Lshell(kk, iShell, iAt) = Lshell(kk, iShell, iAt) - &
               & real(sum(speciesL(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd, kk, iSp)&
-              & * transpose(tmpBlock(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd))), dp)
+              & * transpose(conjg(tmpBlock(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd)))), dp)
         end do
       end do
 
@@ -214,8 +215,8 @@ contains
 
     integer :: nAtom, nSpecies, nOrbSp
     integer :: iAt, iSp, iOrb, iOrbStart, iOrbEnd, kk
+    complex(dp), allocatable :: L(:,:,:)
     real(dp), allocatable :: speciesL(:,:,:,:)
-    complex(dp) :: speciesPlus(orb%mOrb, orb%mOrb), speciesZ(orb%mOrb, orb%mOrb)
     real(dp), allocatable :: tmpBlock(:,:)
 
     complex(dp), parameter :: i = (0.0_dp,1.0_dp)
@@ -224,11 +225,10 @@ contains
     nSpecies = maxval(species(1:nAtom))
 
     allocate(speciesL(orb%mOrb, orb%mOrb, 3, nSpecies))
+    allocate(L(orb%mOrb, orb%mOrb, 3))
     do iSp = 1, nSpecies
-      call getLOperatorsForSpecies(orb, iSp, speciesPlus, speciesZ)
-      speciesL(:, :, 1, iSp) = aimag(speciesPlus)
-      speciesL(:, :, 2, iSp) = -real(speciesPlus)
-      speciesL(:, :, 3, iSp) = aimag(speciesZ)
+      call localGetLOperatorsForSpecies(orb, iSp, L)
+      speciesL(:, :, :, iSp) = aimag(L)
     end do
 
     allocate(tmpBlock(orb%mOrb, orb%mOrb))
@@ -254,4 +254,153 @@ contains
   end subroutine getLDual
 
 
-end module angmomentum
+  !> Returns L_{x,y,z} in the tesseral spherical Harmonics basis used in DFTB+ for a given value of
+  !> l
+  subroutine localLOperators(ll, L)
+
+    !> value of the orbital momentum to construct these matrices
+    integer, intent(in) :: ll
+
+    !> L_{x,y,z} operator
+    complex(dp),intent(out) :: L(0:, 0:, :)
+
+    ! L^+ operator
+    complex(dp) :: Lplus(0:2*ll, 0:2*ll)
+
+    ! L^- operator
+    complex(dp) :: Lminus(0:2*ll, 0:2*ll)
+
+    ! unitary matrix from spherical harmonics to tesseral harmonics
+    complex(dp) :: uu(0:2*ll, 0:2*ll)
+
+    ! magnetic quantum number
+    integer :: mm
+
+    integer :: iCart
+
+    @:ASSERT(ll >= 0)
+    @:ASSERT(all(shape(L) == [2 * ll + 1, 2 * ll + 1, 3]))
+
+    L(:,:,:) = cmplx(0,0,dp)
+
+    ! L_z in usual spherical harmonic basis
+    do mm = -ll, ll
+      L(ll + mm, ll + mm, 3) = real(mm, dp)
+    end do
+
+    ! L^+ in usual spherical harmonic basis
+    Lplus(:,:) = cmplx(0,0,dp)
+    do mm = -ll, ll - 1
+      Lplus(ll + mm + 1, ll + mm) = sqrt(real(ll * (ll + 1) - mm * (mm + 1), dp))
+    end do
+
+    ! L^- in usual spherical harmonic basis
+    Lminus(:,:) = cmplx(0,0,dp)
+    do mm = -ll + 1, ll
+      Lminus(ll + mm - 1, ll + mm) = sqrt(real(ll * (ll + 1) - mm * (mm - 1), dp))
+    end do
+
+    ! L_x
+    L(:,:,1) = (Lplus + Lminus) / 2.0_dp
+    ! L_y
+    L(:,:,2) = (Lplus - Lminus) / (2.0_dp * imag)
+
+    ! unitary transformation from Y_{lm} to \overline{Y}_{lm}
+    uu(:,:) = cmplx(0,0,dp)
+    do mm = 1, ll
+      uu(ll + mm, ll  + mm) = sqrt(0.5_dp) * real(mod(mm + 1, 2)-mod(mm, 2), dp)
+      uu(ll + mm, ll - mm) = sqrt(0.5_dp)
+      uu(ll - mm, ll + mm) = -sqrt(0.5_dp) * imag * real(mod(mm, 2) - mod(mm + 1, 2), dp)
+      uu(ll - mm, ll - mm) = -sqrt(0.5_dp) * imag
+    end do
+    ! m = 0 case
+    uu(ll, ll) = 1.0_dp
+
+    ! convert to tesseral form
+    do iCart = 1, 3
+      call makeSimiliarityTrans(L(:,:,iCart), uu)
+    end do
+
+  end subroutine localLOperators
+
+
+  !> Returns L_{x,y,z} in the tesseral spherical Harmonics basis for a give species.
+  subroutine localGetLOperatorsForSpecies(orb, iSpecies, speciesL)
+
+    !> Orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> Species to get the operators for
+    integer, intent(in) :: iSpecies
+
+    !> Species specific L operator
+    complex(dp), intent(out) :: speciesL(:,:,:)
+
+    integer :: iShell, ll, iOrbStart, iOrbEnd
+
+    speciesL(:,:, :) = 0.0_dp
+    do iShell = 1, orb%nShell(iSpecies)
+      ll = orb%angShell(iShell, iSpecies)
+      iOrbStart = orb%posShell(iShell, iSpecies)
+      iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
+      call localLOperators(ll, speciesL(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd, :))
+    end do
+
+  end subroutine localGetLOperatorsForSpecies
+
+
+  !> Constructs a matrix to rotate tesseral spherical harmonic orbitals of angular momentum l around
+  !> the z axis by phi radians
+  pure subroutine zrot_onel(zmat,l, phi)
+
+    !> resulting real unitary transformation matrix
+    real(dp), intent(out) :: zmat(:,:)
+
+    !> l value of angular momentum
+    integer, intent(in)   :: l
+
+    !> angle of rotation in radians
+    real(dp), intent(in)  :: phi
+
+    integer  :: m ! magnetic quantum number
+
+    zmat(:,:) = 0.0_dp
+    zmat(l+1,l+1) = 1.0_dp ! l_z = 0
+
+    do m = 1, l
+      zmat(m+l+1,m+l+1) = cos(m*phi)
+      zmat(-m+l+1,-m+l+1) = cos(m*phi)
+      zmat(m+l+1,-m+l+1) = -sin(m*phi)
+      zmat(-m+l+1,m+l+1) = sin(m*phi)
+    end do
+
+  end subroutine zrot_onel
+
+
+  !> Constructs a matrix to rotate tesseral spherical harmonic orbitals of angular momentum l around
+  !> the z axis by phi radians
+  pure subroutine zrot_manyl(zmat,l, phi)
+
+    !> resulting real unitary transformation matrix
+    real(dp), intent(out) :: zmat(:,:)
+
+    !> l value of angular momentum
+    integer, intent(in)   :: l(:)
+
+    !> angle of rotation in radians
+    real(dp), intent(in)  :: phi
+
+    integer :: il, iStart, iEnd
+
+    zmat(:,:) = 0.0_dp
+
+    iStart = 1
+    do il = 1, size(l)
+      iEnd = iStart + 2*l(il)
+      call zrot_onel(zmat(iStart:iEnd,iStart:iEnd),l(il), phi)
+      iStart = iEnd + 1
+    end do
+
+  end subroutine zrot_manyl
+
+end module dftbp_angmomentum

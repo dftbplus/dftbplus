@@ -1,13 +1,13 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains routines to locate a value in an ascending array using bisection
-module bisect
-  use accuracy, only : dp
+module dftbp_bisect
+  use dftbp_accuracy, only : dp
   implicit none
 
 
@@ -122,4 +122,4 @@ contains
     end if
   end subroutine bisection_int
 
-end module bisect
+end module dftbp_bisect

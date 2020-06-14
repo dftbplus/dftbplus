@@ -1,13 +1,13 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains various constants for memory management
-module memman
-  use accuracy
+module dftbp_memman
+  use dftbp_accuracy
 
   implicit none
 
@@ -36,4 +36,4 @@ contains
 
   end function incrmntOfArray
 
-end module memman
+end module dftbp_memman

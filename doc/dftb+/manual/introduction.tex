@@ -1,9 +1,11 @@
 \chapter{Introduction}
 
-The code {\dftbp} is the Fortran 2003 successor of the old {\dftb} code, which
-implements the density functional based tight binding
-approach~\cite{frauenheim-JPCM-14-3015}. The code has been completely rewritten
-from scratch and extended with various features.
+The code {\dftbp} is the Fortran 2003 successor of the old {\dftb}
+code, which implements the density functional based tight binding
+approach~\cite{frauenheim-JPCM-14-3015}. The code has been completely
+rewritten from scratch and extended with various features. The most
+recent features of the code are described in
+Ref.~\cite{dftbp-2020paper}.
 
 The main features of {\dftbp} are:
 \begin{itemize}
@@ -13,13 +15,15 @@ The main features of {\dftbp} are:
   \item Cluster/molecular systems
   \item Periodic systems (arbitrary $k$-point sampling, band structure
     calculations, etc.)
+  \item Open boundary conditions (wire and semi-infinite contacts)
   \end{itemize}
 \item l-shell resolved calculations possible
 \item Spin polarised calculations (both collinear and non-collinear
   spin)
 \item Geometry and lattice optimisation
 \item Geometry optimisation with constraints (in xyz-coordinates)
-\item Molecular dynamics (NVE, NPH, NVT and NPT ensembles)
+\item Molecular dynamics (NVE, NPH, NVT and NPT ensembles as well as
+  metadynamics)
 \item Numerical vibrational mode calculations
 \item Finite temperature calculations
 \item Dispersion corrections (van der Waals interactions)
@@ -30,11 +34,19 @@ The main features of {\dftbp} are:
 \item LDA+U/pSIC extensions
 \item $L \cdot S$ coupling
 \item 3rd order on-site corrections (improved H-bonding)
+\item Long range hybrid corrections
+\item REKS calculations for a strongly correlated system
 \item QM/MM coupling with external point charges (smoothing possible)
-\item OpenMP parallelisation
+\item GPU accelleration and OpenMP and MPI parallelisation with a
+  range of electronic solvers
+\item Electronic transport calculations (non-equilibrium Green function
+  methodology, transmission calculations)
+\item More general electrostatic boundary conditions via a Poisson equation
+  electrostatic solver
 \item Automatic code validation (autotest system)
-\item New user friendly, extensible input format (HSD or XML)
+\item New user friendly, extensible input format (HSD)
 \item Dynamic memory allocation
-\item Additional tool for generating cube files for charge
-  distribution, molecular orbitals, etc. (Waveplot)
+\item Additional tool for generating cube files for charge distribution,
+  molecular orbitals, etc. (Waveplot)
+\item Excitation energies for cluster/molecular systems using the particle-particle Random Phase Approximation.   
 \end{itemize}

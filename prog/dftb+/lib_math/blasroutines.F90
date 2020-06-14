@@ -1,18 +1,21 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
 
+#! suffix and kinds for real types
+#:set REAL_KIND_PARAMS = [('real', 'rsp'), ('dble', 'rdp')]
+
 !> Contains F90 wrapper functions for some commonly used blas calls needed in the code. The
 !> interface of all BLAS calls must be defined in the module blas.
-module blasroutines
-  use assert
-  use accuracy
-  use blas
+module dftbp_blasroutines
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_blas
   implicit none
 
 
@@ -27,7 +30,7 @@ module blasroutines
 
 
   !> Rank 1 update of a matrix A := alpha*x*y' + A
-  !> Wrapper for the level 2 blas routine xger to perform the rank 1 update of the chosen triangle
+  !> Wrapper for the level 2 blas routine xger to perform the rank 1 update of a general matrix
   interface ger
     module procedure ger_real
     module procedure ger_cmplx
@@ -51,6 +54,9 @@ module blasroutines
   interface gemv
     module procedure gemv_real
     module procedure gemv_dble
+    #:for suffix, _ in REAL_KIND_PARAMS
+      module procedure gemv231_${suffix}$
+    #:endfor
   end interface gemv
 
 
@@ -79,6 +85,9 @@ module blasroutines
     module procedure gemm_dble
     module procedure gemm_cmplx
     module procedure gemm_dblecmplx
+    #:for SUFFIX, _ in REAL_KIND_PARAMS
+      module procedure gemm332_${SUFFIX}$
+    #:endfor
   end interface gemm
 
 
@@ -566,9 +575,12 @@ contains
       iBeta = 0.0_rsp
     end if
 
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
-    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or.&
+        & iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=1) == size(x)))
+    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=2) == size(y)))
 
     m = size(a,dim=1)
     n = size(a,dim=2)
@@ -619,9 +631,12 @@ contains
       iBeta = 0.0_rdp
     end if
 
-    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or. iTrans == 'c' .or. iTrans == 'C')
-    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=1) == size(x)))
-    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or. (size(a,dim=2) == size(y)))
+    @:ASSERT(iTrans == 'n' .or. iTrans == 'N' .or. iTrans == 't' .or. iTrans == 'T' .or.&
+        & iTrans == 'c' .or. iTrans == 'C')
+    @:ASSERT(((size(a,dim=1) == size(y)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=1) == size(x)))
+    @:ASSERT(((size(a,dim=2) == size(x)) .and. (iTrans == 'n' .or. iTrans == 'N')) .or.&
+        & (size(a,dim=2) == size(y)))
 
     m = size(a,dim=1)
     n = size(a,dim=2)
@@ -629,6 +644,41 @@ contains
     call dgemv( iTrans, m, n, iAlpha, a, m, x, 1, iBeta, y, 1 )
 
   end subroutine gemv_dble
+
+
+  #:for suffix, kind in REAL_KIND_PARAMS
+
+    !> Generalized matrix vector contraction Cij = Aijk * Bk
+    subroutine gemv231_${suffix}$(y, a, x, alpha, beta, trans)
+
+      !> matrix
+      real(${kind}$), intent(inout), contiguous, target :: y(:,:)
+
+      !> matrix
+      real(${kind}$), intent(in), contiguous, target :: a(:,:,:)
+
+      !> vector
+      real(${kind}$), intent(in) :: x(:)
+
+      !> optional scaling factor (defaults to 1)
+      real(${kind}$), intent(in), optional :: alpha
+
+      !> optional scaling factor (defaults to 0)
+      real(${kind}$), intent(in), optional :: beta
+
+      !> optional transpose (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c' and 'C'
+      character, intent(in), optional :: trans
+
+      real(${kind}$), pointer :: pY(:)
+      real(${kind}$), pointer :: pA(:,:)
+
+      pY(1 : size(y)) => y
+      pA(1 : size(a, dim=1) * size(a, dim=2), 1 : size(a, dim=3)) => a
+      call gemv(pY, pA, x, alpha, beta, trans)
+
+    end subroutine gemv231_${suffix}$
+
+  #:endfor
 
 
   !> real symmetric banded matrix*vector product
@@ -919,7 +969,7 @@ contains
     !> general matrix output
     real(rsp), intent(inout) :: C(:,:)
 
-    !> symmetric matrix
+    !> general matrix
     real(rsp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1033,7 +1083,7 @@ contains
     !> general matrix output
     real(rdp), intent(inout) :: C(:,:)
 
-    !> symmetric matrix
+    !> general matrix
     real(rdp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1147,7 +1197,7 @@ contains
     !> general matrix output
     complex(rsp), intent(inout) :: C(:,:)
 
-    !> symmetric matrix
+    !> general matrix
     complex(rsp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1261,7 +1311,7 @@ contains
     !> general matrix output
     complex(rdp), intent(inout) :: C(:,:)
 
-    !> symmetric matrix
+    !> general matrix
     complex(rdp), intent(in) :: A(:,:)
 
     !> general matrix
@@ -1367,6 +1417,45 @@ contains
     call zgemm(iTransA,iTransB,im,in,ik,iAlpha,A,lda,B,ldb,iBeta,C,ldc)
 
   end subroutine gemm_dblecmplx
+
+
+  #:for suffix, kind in REAL_KIND_PARAMS
+
+    !> Generalized real matrix matrix contraction (Cijl = Aijk * Bkl)
+    subroutine gemm332_${suffix}$(C, A, B, alpha, beta, transA, transB)
+
+      !> general matrix output
+      real(${kind}$), intent(inout), target, contiguous :: C(:,:,:)
+
+      !> general matrix
+      real(${kind}$), intent(in), target, contiguous :: A(:,:,:)
+
+      !> general matrix
+      real(${kind}$), intent(in) :: B(:,:)
+
+      !> defaults to 1 if not set
+      real(${kind}$), intent(in), optional :: alpha
+
+      !> defaults to 0 if not set
+      real(${kind}$), intent(in), optional :: beta
+
+      !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
+      !> 'c' and 'C'. Note this acts on the compound index ij
+      character, intent(in), optional :: transA
+
+      !> optional transpose of B matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T',
+      !> 'c' and 'C'
+      character, intent(in), optional :: transB
+
+      real(${kind}$), pointer :: pA(:,:), pC(:,:)
+
+      pA(1 : size(A, dim=1) * size(A, dim=2), 1 : size(A, dim=3)) => A
+      pC(1 : size(C, dim=1) * size(C, dim=2), 1 : size(C, dim=3)) => C
+      call gemm(pC, pA, B, alpha, beta, transA, transB)
+
+    end subroutine gemm332_${suffix}$
+
+  #:endfor
 
 
   !> real rank-k update
@@ -1902,4 +1991,4 @@ contains
 
   end subroutine hemm_dblecmplx
 
-end module blasroutines
+end module dftbp_blasroutines

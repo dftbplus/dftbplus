@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+#------------------------------------------------------------------------------#
+#  DFTB+: general package for performing fast atomistic simulations            #
+#  Copyright (C) 2006 - 2020  DFTB+ developers group                           #
+#                                                                              #
+#  See the LICENSE file for terms of usage and distribution.                   #
+#------------------------------------------------------------------------------#
+
+from __future__ import print_function
+import argparse
+import numpy as np
+import matplotlib.pylab as plt
+
+parser = argparse.ArgumentParser(description='Plot 2D data as ((N)X)Y plot')
+parser.add_argument('--version', action='version', version='1.1')
+parser.add_argument('-L', '--no-legend', action='store_false', default=True,
+                    dest='legend', help='omit legends')
+parser.add_argument('-G', '--no-grid', action='store_false', default='True',
+                    dest='grid', help='omit grid')
+parser.add_argument('datafile', nargs='+',
+                    help='file containing the data')
+parser.add_argument('-C', '--no-colors', action='store_false', default=True,
+                    dest='colors', help='omit coloring')
+parser.add_argument('-s', '--skip-rows', type=int, dest='skiprows',
+                    metavar='ROWS', default=0,
+                    help='nr. of rows to skip (default: 0)')
+parser.add_argument('-x', '--x-column', dest='xcol', type=int, default=1,
+                    help='column of the x values (default: 1)')
+parser.add_argument('-y', '--y-columns', dest='ycols', metavar='YCOL',
+                    type=int, nargs='+', default=None,
+                    help='list of the columns for the y values'
+                    ' (default: all columns)')
+parser.add_argument('-l', '--labels', dest='labels', metavar='LABEL',
+                    nargs='+', default=None,
+                    help='label for each data column (default: filename:'
+                    'column_number)')
+parser.add_argument('--xlabel', dest='xlabel', default='', 
+                    help='label for x-axis')
+parser.add_argument('--ylabel', dest='ylabel', default='', 
+                    help='label for y-axis')
+parser.add_argument('--title', dest='title', default='',
+                    help='title of the plot')
+parser.add_argument('--xlimits', dest='xlim', nargs=2, type=float, 
+                    default=None, help='limits for x axis.')
+parser.add_argument('--ylimits', dest='ylim', nargs=2, type=float, 
+                    default=None, help='limits for y axis.')
+parser.add_argument('--xshift', type=float, default=0.0,
+                    help='shift all x values by this')
+parser.add_argument('--yshift', type=float, default=0.0,
+                    help='shift all y values by this')
+parser.add_argument('--logscale', action='store',
+                    choices=['none', 'x', 'y', 'xy'], default='none',
+                    dest='logscale', help='use log scaling on selected axis '\
+                    '(default: none)')
+parser.add_argument('--zero-line', action='store_true', default=False,
+                    dest='zeroline', help='draw extra line for y=0')
+
+args = parser.parse_args()
+
+axis = plt.gca()
+
+if args.logscale == 'none':
+    plot = plt.plot
+elif args.logscale == 'x':
+    plot = plt.semilogx
+elif args.logscale == 'y':
+    plot = plt.semilogy
+else:
+    plot = plt.loglog
+
+if not args.colors:
+    axis.set_color_cycle([ (0.0, 0.0, 0.0) ])
+for datafile in args.datafile:
+    data = np.loadtxt(datafile, skiprows=args.skiprows)
+    if len(data.shape) == 1:
+        xx = np.arange(1, len(data) + 1)
+        yy = data
+        yy.shape = (len(yy), 1)
+        colshift = 1
+    else:
+        xx = data[:,0]
+        yy = data[:,1:]
+        colshift = 2
+    xx = xx + args.xshift
+    yy = yy + args.yshift
+    if args.ycols is None:
+        ycols = np.arange(yy.shape[1])
+    else:
+        ycols = np.array(args.ycols) - colshift
+    for ii in range(yy.shape[1]):
+        if ii not in ycols:
+            continue
+        if args.labels is not None and len(args.labels) > ii:
+            label = args.labels[ii]
+        else:
+            label = '{}:{:d}'.format(datafile, colshift + ii)
+        plot(xx, yy[:,ii], label=label)
+
+if args.zeroline:
+    plot([ min(xx), max(xx) ], [ 0.0, 0.0 ], 'k--')
+
+if args.legend:
+    plt.legend()
+if args.grid:
+    plt.grid()
+if args.xlabel:
+    plt.xlabel(args.xlabel)
+if args.ylabel:
+    plt.ylabel(args.ylabel)
+if args.title:
+    plt.title(args.title)
+if args.xlim:
+    plt.xlim(args.xlim[0], args.xlim[1])
+if args.ylim:
+    plt.ylim(args.ylim[0], args.ylim[1])
+
+plt.show()

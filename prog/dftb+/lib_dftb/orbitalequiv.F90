@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,10 +16,10 @@
 !> array, where the integer for (iOrb, iAtom, iSpin) specifies the position in the 1D vector for
 !> orbital iOrb on atom iAtom for spin iSpin. Values must be positive integers and continuous. Zeros
 !> in the mapping vector stand for non-existent orbitals.
-module orbitalequiv
-  use assert
-  use accuracy
-  use commontypes
+module dftbp_orbitalequiv
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_commontypes
   implicit none
   private
 
@@ -176,4 +176,4 @@ contains
 
   end subroutine OrbitalEquiv_expand
 
-end module orbitalequiv
+end module dftbp_orbitalequiv

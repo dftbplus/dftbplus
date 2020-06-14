@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,11 +15,11 @@
 !>
 !> Nocedal, Wright - Numerical Optimization, Springer
 !>
-module lbfgs
+module dftbp_lbfgs
   use, intrinsic :: ieee_arithmetic
-  use accuracy
-  use assert
-  use message
+  use dftbp_accuracy
+  use dftbp_assert
+  use dftbp_message
   implicit none
   private
 
@@ -916,4 +916,4 @@ contains
   end function quadMin
 
 
-end module lbfgs
+end module dftbp_lbfgs

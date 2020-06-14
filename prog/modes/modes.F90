@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,15 +9,24 @@
 
 !> Program for calculating system normal modes from a Hessian
 program modes
-  use assert
-  use io
-  use InitModes
-  use accuracy, only : dp, lc
-  use constants, only : Hartree__cm, Bohr__AA, pi
-  use TypeGeometry
-  use eigensolver, only : heev
-  use TaggedOutput
+  use dftbp_assert
+  use dftbp_globalenv, only : stdOut
+  use dftbp_initmodes
+  use dftbp_accuracy, only : dp, lc
+  use dftbp_constants, only : Hartree__cm, Bohr__AA, pi
+  use dftbp_typegeometry
+  use dftbp_eigensolver, only : heev
+  use dftbp_taggedoutput
+  use dftbp_message
+  use dftbp_modeprojection
+#:if WITH_MPI
+  use dftbp_mpienv, only : TMpiEnv, TMpiEnv_init
+  use dftbp_mpifx, only : mpifx_init_thread, mpifx_finalize
+  use mpi, only : MPI_THREAD_FUNNELED
+#:endif
   implicit none
+
+  type(TTaggedWriter) :: taggedWriter
 
   integer :: ii, jj, kk, ll, iMode, iAt, iAtMoved, nAtom
   integer :: iCount, jCount
@@ -25,6 +34,18 @@ program modes
   real(dp), allocatable :: displ(:,:,:)
 
   character(lc) :: lcTmp, lcTmp2
+  integer :: fdUnit
+
+#:if WITH_MPI
+  !> MPI environment, if compiled with mpifort
+  type(TMpiEnv) :: mpiEnv
+
+  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
+  ! build
+  call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
+  call TMpiEnv_init(mpiEnv)
+  call mpiEnv%mpiSerialEnv()
+#:endif
 
   ! Allocate resources
   call initProgramVariables()
@@ -48,6 +69,9 @@ program modes
     end do
   end do
 
+  ! remove translations or rotations if neccessary
+  call project(dynMatrix, tRemoveTranslate, tRemoveRotate, nDerivs, nMovedAtom, geo, atomicMasses)
+
   ! solve the eigenproblem
   if (tPlotModes) then
     call heev(dynMatrix,eigenValues,'U','V')
@@ -63,14 +87,14 @@ program modes
   end do
   write(stdout, *)
 
-  call initTaggedWriter()
-  open(12, file="vibrations.tag", form="formatted", status="replace")
-  call writeTagged(12, "frequencies", eigenValues)
+  call TTaggedWriter_init(taggedWriter)
+  open(newunit=fdUnit, file="vibrations.tag", form="formatted", status="replace")
+  call taggedWriter%write(fdUnit, "frequencies", eigenValues)
 
   if (tPlotModes) then
-    call writeTagged(12, "saved_modes", modesToPlot)
+    call taggedWriter%write(fdUnit, "saved_modes", modesToPlot)
     write(stdout, *) "Writing eigenmodes to vibrations.tag"
-    call writeTagged(12, "eigenmodes", dynMatrix(:,ModesToPlot))
+    call taggedWriter%write(fdUnit, "eigenmodes", dynMatrix(:,ModesToPlot))
 
     write(stdout, *)'Plotting eigenmodes:'
     write(stdout, *)ModesToPlot(:)
@@ -88,8 +112,8 @@ program modes
       dynMatrix(:,iMode) = dynMatrix(:,iMode) &
           & / sqrt(sum(dynMatrix(:,iMode)**2))
     end do
-    call writeTagged(12, "eigenmodes_scaled", dynMatrix(:,ModesToPlot))
-    close(12)
+    call taggedWriter%write(fdUnit, "eigenmodes_scaled", dynMatrix(:,ModesToPlot))
+    close(fdUnit)
 
     ! Create displacment vectors for every atom in every mode.
     nAtom = geo%nAtom
@@ -111,13 +135,13 @@ program modes
         iMode = ModesToPlot(ii)
         write(lcTmp,"('mode_',I0)")iMode
         write(lcTmp2, "(A,A)") trim(lcTmp), ".xyz"
-        open(123, file=trim(lcTmp2), position="rewind", status="replace")
+        open(newunit=fdUnit, file=trim(lcTmp2), position="rewind", status="replace")
         do kk = 1, nCycles
           do ll = 1, nSteps
-            write(123,*)nAtom
-            write(123,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
+            write(fdUnit,*)nAtom
+            write(fdUnit,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
             do iAt = 1, nAtom
-              write(123,'(A3,T4,3F10.6)') &
+              write(fdUnit,'(A3,T4,3F10.6)') &
                   & geo%speciesNames(geo%species(iAt)), &
                   & (geo%coords(:,iAt,1)&
                   & + cos(2.0_dp * pi * real(ll) / real(nSteps))&
@@ -125,18 +149,18 @@ program modes
             end do
           end do
         end do
-        close(123)
+        close(fdUnit)
       end do
     else
-      open(123, file="modes.xyz", position="rewind", status="replace")
+      open(newunit=fdUnit, file="modes.xyz", position="rewind", status="replace")
       do ii = 1, nModesToPlot
         iMode = ModesToPlot(ii)
-        write(123,*)nAtom
-        write(123,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
+        write(fdUnit,*)nAtom
+        write(fdUnit,*)'Eigenmode',iMode,eigenValues(iMode)*Hartree__cm,'cm-1'
         if (tXmakeMol) then
           ! need to account for its non-standard xyz vector format:
           do iAt = 1, nAtom
-            write(123,'(A3,T4,3F10.6,A,3F10.6)') &
+            write(fdUnit,'(A3,T4,3F10.6,A,3F10.6)') &
                 & geo%speciesNames(geo%species(iAt)), &
                 & geo%coords(:,iAt,1)* Bohr__AA, ' atom_vector ',&
                 & displ(:,iAt,ii)
@@ -144,16 +168,20 @@ program modes
         else
           ! genuine xyz format
           do iAt = 1, nAtom
-            write(123,'(A3,T4,6F10.6)') &
+            write(fdUnit,'(A3,T4,6F10.6)') &
                 & geo%speciesNames(geo%species(iAt)), &
                 & geo%coords(:,iAt,1)* Bohr__AA, &
                 & displ(:,iAt,ii)
           end do
         end if
       end do
-      close(123)
+      close(fdUnit)
     end if
 
   end if
+
+#:if WITH_MPI
+  call mpifx_finalize()
+#:endif
 
 end program modes

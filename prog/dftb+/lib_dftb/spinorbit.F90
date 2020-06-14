@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -8,17 +8,17 @@
 #:include 'common.fypp'
 
 !> Routines for spin orbit coupling
-module spinorbit
+module dftbp_spinorbit
 #:if WITH_SCALAPACK
-  use scalapackfx
+  use dftbp_scalapackfx
 #:endif
-  use environment
-  use assert
-  use accuracy, only : dp
-  use constants, only : imag
-  use angmomentum, only : getLOperators
-  use commontypes, only : TOrbitals
-  use densedescr
+  use dftbp_environment
+  use dftbp_assert
+  use dftbp_accuracy, only : dp
+  use dftbp_constants, only : imag
+  use dftbp_angmomentum, only : getLOperators
+  use dftbp_commontypes, only : TOrbitals
+  use dftbp_densedescr
   implicit none
   private
 
@@ -38,7 +38,7 @@ contains
     !> returned energy for each atom
     real(dp), intent(out) :: Eatom(:)
 
-    !> Density matrix in Packed format
+    !> Density matrix in dense format
     complex(dp), intent(in) :: rho(:,:)
 
     !> Offset array in the square matrix.
@@ -168,7 +168,6 @@ contains
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
       iOrbStart = denseDesc%iAtomStart(iAt)
-      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
     #:if WITH_SCALAPACK
       call scalafx_addl2g(env%blacs%orbitalGrid, speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
           & denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, HSqrCplx)
@@ -176,7 +175,12 @@ contains
           & denseDesc%blacsOrbSqr, nOrb + iOrbStart, nOrb + iOrbStart, HSqrCplx)
       call scalafx_addl2g(env%blacs%orbitalGrid, speciesPlus(1:nOrbSp, 1:nOrbSp, iSp),&
           & denseDesc%blacsOrbSqr, nOrb + iOrbStart, iOrbStart, HSqrCplx)
+      ! other triangle
+      call scalafx_addl2g(env%blacs%orbitalGrid,&
+          & transpose(conjg(speciesPlus(1:nOrbSp, 1:nOrbSp, iSp))),&
+          & denseDesc%blacsOrbSqr, iOrbStart, nOrb + iOrbStart, HSqrCplx)
     #:else
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
       HSqrCplx(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) = &
           & HSqrCplx(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) + speciesZ(1:nOrbSp, 1:nOrbSp, iSp)
       HSqrCplx(nOrb + iOrbStart : nOrb + iOrbEnd, nOrb + iOrbStart : nOrb + iOrbEnd) = &
@@ -332,6 +336,9 @@ contains
     speciesPlus(:,:) = 0.0_dp
     do iShell = 1, orb%nShell(iSpecies)
       ll = orb%angShell(iShell, iSpecies)
+      if (ll == 0) then
+        cycle
+      end if
       nOrbShell = 2 * ll + 1
       iOrbStart = orb%posShell(iShell, iSpecies)
       iOrbEnd = orb%posShell(iShell + 1, iSpecies) - 1
@@ -345,4 +352,4 @@ contains
   end subroutine getLSOperatorsForSpecies
 
 
-end module spinorbit
+end module dftbp_spinorbit

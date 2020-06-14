@@ -1,13 +1,13 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
 !> Socket interface library
-module fsockets
-  use f90sockets
+module dftbp_fsockets
+  use fsockets
   implicit none
 
 #:if WITH_SOCKETS
@@ -22,4 +22,4 @@ module fsockets
 
 #:endif
 
-end module fsockets
+end module dftbp_fsockets

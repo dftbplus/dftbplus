@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,8 +9,8 @@
 
 !> Interfaces for the ARPACK routines needed in DFTB+ (currently for the linear response excited
 !> state calculations).
-module arpack
-  use accuracy, only : rsp, rdp
+module dftbp_arpack
+  use dftbp_accuracy, only : rsp, rdp
   implicit none
   private
 
@@ -147,4 +147,4 @@ module arpack
 
 #:endif
 
-end module arpack
+end module dftbp_arpack

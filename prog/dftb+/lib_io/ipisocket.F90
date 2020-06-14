@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2018  DFTB+ developers group                                                      !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,12 +9,12 @@
 
 !> Routines to make socket contact with an external code and
 !! communicate data back and forward from DFTB+ to the external code.
-module ipisocket
-  use assert
-  use accuracy
-  use message
-  use fsockets
-  use logger, only : LogWriter
+module dftbp_ipisocket
+  use dftbp_assert
+  use dftbp_accuracy
+  use dftbp_message
+  use dftbp_fsockets
+  use dftbp_logger, only : LogWriter
   implicit none
   private
 
@@ -365,9 +365,9 @@ contains
     !> Instance
     class(IpiSocketComm), intent(inout) :: this
 
-    call shutdown_socket(this%socket)
+    call close_socket(this%socket)
     this%tInit = .false.
 
   end subroutine shutdown
 
-end module ipisocket
+end module dftbp_ipisocket
