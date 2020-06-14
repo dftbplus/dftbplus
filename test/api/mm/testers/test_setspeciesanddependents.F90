@@ -28,7 +28,9 @@
 
 program test_setSpeciesAndDependents
   use, intrinsic :: iso_fortran_env, only: output_unit, REAL64, IOSTAT_END
+#:if WITH_MPI
   use mpi
+#:endif
   use dftbp_mmapi,  only: TDftbPlus_init, TDftbPlus_destruct, TDftbPlus, TDftbPlusInput
   use dftbp_hsdapi, only: fnode, getChild, getChildren, setChild, getChildValue, setChildValue
   use dftbp_hsdapi, only: dumpHsd
@@ -67,10 +69,16 @@ program test_setSpeciesAndDependents
   end type MDstatus_type
 
   !> MPI
+#:if WITH_MPI
   integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
   integer            :: providedThreading, rank, np, ierr
   integer, parameter :: master_id = 0
   logical            :: IO
+#:else
+  integer, parameter :: MPI_COMM_WORLD = 0
+  integer, parameter :: master_id = 0
+  logical            :: IO = .true.
+#:endif
   
   !Local
   integer, parameter :: Nsteps = 2
@@ -85,18 +93,20 @@ program test_setSpeciesAndDependents
   real(dp), allocatable :: gradients(:,:), stressTensor(:,:), grossCharges(:)
 
   !Initialise MPI environment
+#:if WITH_MPI
   call mpi_init_thread(requiredThreading, providedThreading, ierr)
   call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
   call mpi_comm_size(MPI_COMM_WORLD, np, ierr)
   IO = (rank == master_id)
-
+#:endif
+  
   nAtoms = get_number_of_atoms('structure_1.gen')
   MDstatus = MDstatus_type(1, Nsteps)
   allocate(gradients(3,nAtoms))
   allocate(grossCharges(nAtoms))
 
   do imd = MDstatus%initial_step, MDstatus%final_step
-
+     
     if(IO) then
       write(*,*) 'MD step ', imd, 'of ', MDstatus%final_step
     end if
@@ -106,15 +116,25 @@ program test_setSpeciesAndDependents
     write(imd_lab, '(I2)') imd
     fname = 'structure_'//trim(adjustl(imd_lab))//'.gen'
     call read_in_geo(trim(adjustl(fname)), geo)
+  #:if WITH_MPI
     call broadcast_geometry(MPI_COMM_WORLD, geo)
+  #:endif
     
     if (geo%nAtom /= nAtoms) then
-       write(*,*) 'Erro: Number of atoms not conserved between MD steps'
+       write(*,*) 'Error: Number of atoms not conserved between MD steps'
+  #:if WITH_MPI
        call mpi_abort(MPI_COMM_WORLD, 0, ierr)
+  #:else
+       stop
+  #:endif
     endif
 
     if(imd == MDstatus%initial_step) then
+  #:if WITH_MPI
       Call TDftbPlus_init(dftb, output_unit, MPI_COMM_WORLD)
+  #:else
+      Call TDftbPlus_init(dftb, output_unit)
+  #:endif
       Call initialise_dftbplus_tree(geo, dftb, hsd_tree)
       !Dump hsd tree to fort.1 if debugging 
       !Call dumpHsd(hsd_tree%hsdTree, 001)
@@ -154,7 +174,9 @@ program test_setSpeciesAndDependents
   call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, stressTensor=stressTensor,&
        & grossCharges=grossCharges)
 
+#:if WITH_MPI
   call mpi_finalize(ierr)
+#:endif
 
 contains
   !--------------------------------------------
@@ -209,6 +231,7 @@ contains
 
   End Subroutine initialise_dftbplus_tree
 
+#:if WITH_MPI
   !> Output forces per process
   subroutine output_forces_per_process(gradients, imd_lab)
     implicit none
@@ -230,7 +253,8 @@ contains
     close(io_unit)
 
   end subroutine output_forces_per_process
-
+#:endif 
+  
   !> Count number of substrings on a line separated by whitespace
   function count_substrings(input_line) result(n_substrings)
     implicit none
@@ -278,8 +302,9 @@ contains
        
        close(io_unit)
     endif
+#:if WITH_MPI
     call mpi_bcast(nAtoms, 1, MPI_INTEGER, master_id, MPI_COMM_WORLD, ierr)
-
+#:endif
   end function get_number_of_atoms
   
 
@@ -370,6 +395,7 @@ contains
     
   end subroutine read_in_geo
 
+#:if WITH_MPI
   !> Broadcast geometry from master_id to all processes 
   subroutine broadcast_geometry(comm, geo)
 
@@ -413,5 +439,6 @@ contains
     call mpi_barrier(comm, ierr)
     
   end subroutine broadcast_geometry
+#:endif
   
 end program test_setSpeciesAndDependents
