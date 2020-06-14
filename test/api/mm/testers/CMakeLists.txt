@@ -29,6 +29,13 @@ target_link_libraries(test_extcharges dftbplus)
 add_executable(test_qdepextpot test_qdepextpot.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_qdepextpot dftbplus)
 
+# required to pick up common.fypp
+set(FYPP_FLAGS -I${CMAKE_SOURCE_DIR}/prog/dftb+/include -DRELEASE="'${releasename}'")
+dftbp_add_fypp_defines(FYPP_FLAGS)
+# Make sure, the line-marker option is not set in fypp
+set(fyppflags ${FYPP_FLAGS})
+list(REMOVE_ITEM fyppflags "-n")
+dftbp_preprocess("${FYPP}" "${fyppflags}" "F90" "f90" "test_setspeciesanddependents.F90" test_setspeciesanddependents.f90)
 add_executable(test_setspeciesanddependents test_setspeciesanddependents.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_setspeciesanddependents dftbplus)
 
