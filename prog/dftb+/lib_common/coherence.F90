@@ -6,7 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 #:include 'common.fypp'
-
+#:include "error.fypp"
+  
 #! (TYPE, RANK, NAME, DIM) tuple types which need to be tested for exact coherence across
 #! processors
 #:set EXACT_TYPES = [('real(dp)', '', 'R', '0'), ('real(dp)', '(:)', 'R', '1'),&
@@ -23,17 +24,15 @@
 
 !> Contains MPI coherence tests across a comm world
 module dftbp_coherence
-  use dftbp_accuracy,   only : dp, lc
+  use dftbp_accuracy, only : dp, lc
   use dftbp_environment
-  use dftbp_message,    only : error
 #:if WITH_MPI
   use dftbp_mpifx
 #:endif
   implicit none
 
   private
-  public :: exactCoherence, toleranceCoherence, &
-            checkExactCoherence, checkToleranceCoherence
+  public :: exactCoherence, toleranceCoherence, checkExactCoherence, checkToleranceCoherence
 
   !> Check for coherence of data across processor(s)
   interface exactCoherence
@@ -143,7 +142,7 @@ contains
 #:endif
 
   !> Wrapper for exact coherence with error handling
-  subroutine coherenceWithError${NAME}$${DIM}$(env, data, message)
+  subroutine coherenceWithError${NAME}$${DIM}$(env, data, message, err)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -158,9 +157,12 @@ contains
     !> string detailing data
     character(len=*), intent(in) :: message
 
+    !> Error code return, 0 if no problems
+    integer, intent(out), optional :: err
+    
     if (env%tAPICalculation) then
        if (.not. coherence${NAME}$${DIM}$(env, data)) then
-          call error("Coherence failure in "//trim(adjustl(message))//" across nodes")
+          @:ERROR_HANDLING(err, -1, "Coherence failure in "//trim(adjustl(message))//" across nodes")
        end if
     end if
     
@@ -239,7 +241,7 @@ contains
 #:endif
 
   !> Wrapper for coherence within a specified tolerance, with error handling  
-  subroutine approxCoherenceWithError${NAME}$${DIM}$(env, data, message, tol)
+  subroutine approxCoherenceWithError${NAME}$${DIM}$(env, data, message, tol, err)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
@@ -253,6 +255,9 @@ contains
     !> Tolerance for comparision, if absent use eps
     real(dp), intent(in), optional :: tol
 
+    !> Error code return, 0 if no problems
+    integer, intent(out), optional :: err
+    
     real(dp) :: tol_
     character(len=15) :: tol_str
     
@@ -265,7 +270,7 @@ contains
     if (env%tAPICalculation) then             
        if (.not. approxCoherence${NAME}$${DIM}$(env, data, tol_)) then
           Write(tol_str, '(E12.5)') tol_
-          call error("Coherence failure in "//trim(adjustl(message))//" across nodes &
+          @:ERROR_HANDLING(err, -1, "Coherence failure in "//trim(adjustl(message))//" across nodes&
                & for a tolerance: "//trim(adjustl(tol_str)))
        end if
     end if
