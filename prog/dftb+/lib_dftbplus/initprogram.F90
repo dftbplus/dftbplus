@@ -1248,7 +1248,7 @@ contains
         do ii = 1, input%ctrl%nReplicas
           r3Tmp(:,:,ii) = input%geom%coords(:,:,1)
           ! make small structure difference in images -- test case, to be replaced
-          r3Tmp(1,1,ii) = r3Tmp(1,1,ii) + 0.01_dp*(ii-1)*AA__Bohr
+          !r3Tmp(1,1,ii) = r3Tmp(1,1,ii) + 0.01_dp*(ii-1)*AA__Bohr
         end do
         call move_alloc(r3Tmp,input%geom%coords)
       end block
