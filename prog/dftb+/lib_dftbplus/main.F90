@@ -298,9 +298,9 @@ contains
           & lCurrArray)
     end if
     if (tWriteResultsTag) then
-      call writeResultsTag(resultsTag, energy, derivs, chrgForces, electronicSolver, tStress,&
-          & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
-          & tDefinedFreeE, cm5Cont)
+      call writeResultsTag(resultsTag, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
+          & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
+          & qOutput, q0, taggedWriter, tDefinedFreeE, cm5Cont)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, tHelical, latVec,&
@@ -796,10 +796,10 @@ contains
 
     if (tDipole .and. .not.allocated(reks)) then
       call getDipoleMoment(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
-    #:call DEBUG_CODE
+    #:block DEBUG_CODE
       call checkDipoleViaHellmannFeynman(rhoPrim, q0, coord0, over, orb, neighbourList,&
           & nNeighbourSk, species, iSparseStart, img2CentCell)
-    #:endcall DEBUG_CODE
+    #:endblock DEBUG_CODE
     end if
 
     call env%globalTimer%startTimer(globalTimers%eigvecWriting)
@@ -1493,7 +1493,7 @@ contains
 
     integer :: nSpin
 
-    #:block ASSERT_CODE
+    #:block DEBUG_CODE
       @:ASSERT(size(H0) == size(over))
       if (.not. allocated(reks)) then
         @:ASSERT(size(ham, dim=1) == size(over))
@@ -1506,7 +1506,7 @@ contains
           @:ASSERT(size(ERhoPrim) == size(rhoPrim, dim=1))
         end if
       end if
-    #:endblock ASSERT_CODE
+    #:endblock DEBUG_CODE
 
     if (allocated(reks)) then
       if (size(over, dim=1) == sparseSize) then

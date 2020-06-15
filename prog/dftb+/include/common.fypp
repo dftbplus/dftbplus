@@ -47,14 +47,6 @@
 #:enddef ASSERT
 
 
-#! Insert code if WITH_ASSERT is True.
-#:def ASSERT_CODE(code)
-  #:if WITH_ASSERT
-  $:code
-  #:endif
-#:enddef ASSERT_CODE
-
-
 #! Insert code if DEBUG level is greater than zero.
 #:def DEBUG_CODE(code)
   #:if DEBUG > 0

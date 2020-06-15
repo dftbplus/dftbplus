@@ -54,7 +54,7 @@ module dftbp_globalenv
   !> Whether code was compiled with Scalapack
   logical, parameter :: withScalapack = ${FORTRAN_LOGICAL(WITH_SCALAPACK)}$
 
-  !> Whether MPI finalization should be skipped at the end
+  !> Whether MPI finalization should be performed at the end
   logical :: doMpiFinalization = .true.
 
 

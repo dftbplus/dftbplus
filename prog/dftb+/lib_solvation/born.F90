@@ -49,7 +49,11 @@ module dftbp_born
     !> Van-der-Waals radii
     real(dp), allocatable :: vdwRad(:)
 
+    !> Analytical linearized Poission-Boltzmann parameter alpha
+    real(dp) :: alpbet = 0.0_dp
+
   end type TGBParameters
+
 
   !> Input parameters to initialize generalized Born model
   type, extends(TGBParameters) :: TGBInput
@@ -161,6 +165,9 @@ module dftbp_born
 
     !> Returns shifts per atom
     procedure :: getShifts
+
+    !> Query if object is actually an analytical linearized Poisson Boltzmann model
+    procedure :: isALPB
   end type TGeneralizedBorn
 
 
@@ -262,7 +269,7 @@ contains
     type(TGeneralizedBorn), intent(in) :: solvation
 
     write(unit, '(a, ":", t30, es14.6)') "Dielectric constant", &
-        & 1.0_dp/(solvation%param%keps + 1.0_dp)
+        & 1.0_dp/(solvation%param%keps * (1.0_dp + solvation%param%alpbet) + 1.0_dp)
     write(unit, '(a, ":", t30, es14.6, 1x, a, t50, es14.6, 1x, a)') &
         & "Free energy shift", solvation%param%freeEnergyShift, "H", &
         & Hartree__eV * solvation%param%freeEnergyShift, "eV"
@@ -292,6 +299,21 @@ contains
   end subroutine writeGeneralizedBornInfo
 
 
+  !> Check if this is actually an analyical linearized Poisson-Boltzmann model
+  !  masquerading as a generalized Born one
+  pure function isALPB(self) result(alpb)
+
+    !> Data structure
+    class(TGeneralizedBorn), intent(in) :: self
+
+    !> Analytical linearized Poisson-Boltzmann model used
+    logical :: alpb
+
+    alpb = self%param%alpbet > 0.0_dp
+
+  end function isALPB
+
+
   !> Update internal stored coordinates
   subroutine updateCoords(self, env, neighList, img2CentCell, coords, species0)
 
@@ -314,6 +336,7 @@ contains
     integer, intent(in) :: species0(:)
 
     integer, allocatable :: nNeigh(:)
+    real(dp) :: aDet
 
     if (allocated(self%sasaCont)) then
       call self%sasaCont%updateCoords(env, neighList, img2CentCell, coords, species0)
@@ -324,6 +347,12 @@ contains
     call getBornRadii(self, nNeigh, neighList%iNeighbour, img2CentCell, &
         & neighList%neighDist2, species0, coords)
     call getBornMatrixCluster(self, coords)
+
+    ! Analytical linearized Poission-Boltzmann contribution for charged systems
+    if (self%param%alpbet > 0.0_dp) then
+      call getADet(self%nAtom, coords, species0, self%param%vdwRad, aDet)
+      self%bornMat(:, :) = self%bornMat + self%param%kEps * self%param%alpbet / aDet
+    end if
 
     if (allocated(self%cm5)) then
       call self%cm5%updateCoords(neighList, img2CentCell, coords, species0)
@@ -439,6 +468,12 @@ contains
 
     call getNrOfNeighboursForAll(nNeigh, neighList, self%rCutoff)
     call getBornEGCluster(self, coords, self%energies, gradients, sigma)
+
+    ! Analytical linearized Poission-Boltzmann contribution for charged systems
+    if (self%param%alpbet > 0.0_dp) then
+      call getADetDeriv(self%nAtom, coords, species, self%param%vdwRad, &
+          & self%param%kEps*self%param%alpbet, self%chargesPerAtom, gradients)
+    end if
 
     if (allocated(self%cm5)) then
       allocate(dEdcm5(self%nAtom))
@@ -1049,6 +1084,155 @@ contains
     call gemv(sigma, self%dbrdL, dEdbr, beta=1.0_dp)
 
   end subroutine getBornEGCluster
+
+
+  !> Evaluate inertia tensor for solid spheres with mass rad**3
+  pure subroutine getInertia(nAtom, coord, species, rad, center, inertia)
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Cartesian coordinates
+    real(dp), intent(in) :: coord(:, :)
+
+    !> Species identifiers for each atom
+    integer, intent(in) :: species(:)
+
+    !> Atomic radii
+    real(dp), intent(in) :: rad(:)
+
+    !> Center of mass
+    real(dp), intent(in) :: center(:)
+
+    !> Inertia tensor
+    real(dp), intent(out) :: inertia(:, :)
+
+    integer :: iAt, iSp
+    real(dp) :: r2, rad2, rad3, totRad3, vec(3)
+    real(dp), parameter :: tof = 2.0_dp/5.0_dp, unity(3, 3) = reshape(&
+        & [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], &
+        & [3, 3])
+
+    inertia(:, :) = 0.0_dp
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      rad2 = rad(iSp) * rad(iSp)
+      rad3 = rad2 * rad(iSp)
+      vec(:) = coord(:, iAt) - center
+      r2 = sum(vec**2)
+      inertia(:, :) = inertia + rad3 * ((r2 + tof*rad2) * unity &
+          & - spread(vec, 1, 3) * spread(vec, 2, 3))
+    end do
+
+  end subroutine getInertia
+
+
+  !> Molecular shape descriptor
+  subroutine getADet(nAtom, coord, species, rad, aDet)
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Cartesian coordinates
+    real(dp), intent(in) :: coord(:, :)
+
+    !> Species identifiers for each atom
+    integer, intent(in) :: species(:)
+
+    !> Atomic radii
+    real(dp), intent(in) :: rad(:)
+
+    !> Shape descriptor of the structure
+    real(dp), intent(out) :: aDet
+
+    integer :: iAt, iSp
+    real(dp) :: rad2, rad3, totRad3, center(3), inertia(3, 3)
+
+    totRad3 = 0.0_dp
+    center(:) = 0.0_dp
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      rad2 = rad(iSp) * rad(iSp)
+      rad3 = rad2 * rad(iSp)
+      totRad3 = totRad3 + rad3
+      center(:) = center + coord(:, iAt) * rad3
+    end do
+    center = center / totRad3
+
+    call getInertia(nAtom, coord, species, rad, center, inertia)
+
+    aDet = sqrt(determinant33(inertia)**(1.0_dp/3.0_dp)/(2.0_dp*totRad3)*5.0_dp)
+
+  end subroutine getADet
+
+
+  !> Derivative of the molecular shape descriptor
+  subroutine getADetDeriv(nAtom, coord, species, rad, kEps, qvec, gradient)
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
+
+    !> Cartesian coordinates
+    real(dp), intent(in) :: coord(:, :)
+
+    !> Species identifiers for each atom
+    integer, intent(in) :: species(:)
+
+    !> Atomic radii
+    real(dp), intent(in) :: rad(:)
+
+    !> Dielectric constant, including alpha times beta
+    real(dp), intent(in) :: kEps
+
+    !> Atomic gross charges
+    real(dp), intent(in) :: qvec(:)
+
+    !> Molecular gradient
+    real(dp), intent(inout) :: gradient(:, :)
+
+    integer :: iAt, iSp
+    real(dp) :: r2, rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3), aDet
+    real(dp) :: aDeriv(3, 3), qtotal
+
+    qtotal = 0.0_dp
+    totRad3 = 0.0_dp
+    center(:) = 0.0_dp
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      rad2 = rad(iSp) * rad(iSp)
+      rad3 = rad2 * rad(iSp)
+      totRad3 = totRad3 + rad3
+      center(:) = center + coord(:, iAt) * rad3
+      qtotal = qtotal + qvec(iAt)
+    end do
+    center = center / totRad3
+
+    call getInertia(nAtom, coord, species, rad, center, inertia)
+
+    aDet = sqrt(determinant33(inertia)**(1.0_dp/3.0_dp)/(2.0_dp*totRad3)*5.0_dp)
+
+    aDeriv(:, :) = reshape([&
+        & inertia(1,1)*(inertia(2,2)+inertia(3,3))-inertia(1,2)**2-inertia(1,3)**2, &
+        & inertia(1,2)*inertia(3,3)-inertia(1,3)*inertia(2,3), & ! xy
+        & inertia(1,3)*inertia(2,2)-inertia(1,2)*inertia(3,2), & ! xz
+        & inertia(1,2)*inertia(3,3)-inertia(1,3)*inertia(2,3), & ! xy
+        & inertia(2,2)*(inertia(1,1)+inertia(3,3))-inertia(1,2)**2-inertia(2,3)**2, &
+        & inertia(1,1)*inertia(2,3)-inertia(1,2)*inertia(1,3), & ! yz
+        & inertia(1,3)*inertia(2,2)-inertia(1,2)*inertia(3,2), & ! xz
+        & inertia(1,1)*inertia(2,3)-inertia(1,2)*inertia(1,3), & ! yz
+        & inertia(3,3)*(inertia(1,1)+inertia(2,2))-inertia(1,3)**2-inertia(2,3)**2],&
+        & shape=[3, 3]) * (250.0_dp / (48.0_dp * totRad3**3 * aDet**5)) &
+        & * (-0.5_dp * kEps * qtotal**2 / aDet**2)
+
+    do iAt = 1, nAtom
+      iSp = species(iAt)
+      rad2 = rad(iSp) * rad(iSp)
+      rad3 = rad2 * rad(iSp)
+      vec(:) = coord(:, iAt) - center
+      gradient(:, iAt) = gradient(:, iAt) + rad3 * matmul(aDeriv, vec)
+    end do
+
+  end subroutine getADetDeriv
 
 
 end module dftbp_born
