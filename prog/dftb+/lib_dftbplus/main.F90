@@ -165,7 +165,7 @@ contains
 
     ! Main geometry loop
     geoOpt: do iGeoStep = 0, nGeoSteps
-      tWriteRestart = env%tGlobalMaster&
+      tWriteRestart = env%tGlobalLead&
           & .and. needsRestartWriting(isGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
       call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
@@ -215,7 +215,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
 
   #:if WITH_SOCKETS
-    if (tSocket .and. env%tGlobalMaster) then
+    if (tSocket .and. env%tGlobalLead) then
       call socket%shutdown()
     end if
   #:endif
@@ -226,7 +226,7 @@ contains
 
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       if (tWriteDetailedOut) then
         call writeDetailedOut5(fdDetailedOut, isGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
             & dipoleMoment)
@@ -239,7 +239,7 @@ contains
       end if
     end if
 
-    if (env%tGlobalMaster .and. tDerivs) then
+    if (env%tGlobalLead .and. tDerivs) then
       call getHessianMatrix(derivDriver, pDynMatrix)
       call writeHessianOut(hessianOut, pDynMatrix)
     else
@@ -723,7 +723,7 @@ contains
             call printBlankLine()
           end if
 
-          tWriteSccRestart = env%tGlobalMaster .and. &
+          tWriteSccRestart = env%tGlobalLead .and. &
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, isGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
@@ -6627,7 +6627,7 @@ contains
 
   subroutine sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
     type(TEnvironment), intent(in) :: env
-    ! Socket may be unallocated (as on slave processes)
+    ! Socket may be unallocated (as on follower processes)
     type(ipiSocketComm), allocatable, intent(inout) :: socket
     type(TEnergies), intent(in) :: energy
     real(dp), intent(in) :: TS(:)
@@ -6635,7 +6635,7 @@ contains
     real(dp), intent(in) :: totalStress(:,:)
     real(dp), intent(in) :: cellVol
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       ! stress was computed above in the force evaluation block or is 0 if aperiodic
       call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
     end if

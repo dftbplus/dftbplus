@@ -876,7 +876,7 @@ module negf_int
 
   !> Debug routine to dump H and S as a file in Matlab format
   !>
-  !> NOTE: This routine is not MPI-aware, call it only on MPI-master!
+  !> NOTE: This routine is not MPI-aware, call it only on MPI-lead!
   !>
   subroutine negf_dumpHS(HH,SS)
 
@@ -1947,12 +1947,12 @@ module negf_int
       call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
     #:if WITH_MPI
-      ! Reduce on node 0 as group master node
+      ! Reduce on node 0 as group lead node
       call mpifx_reduceip(env%mpi%groupComm, csrDens%nzval, MPI_SUM)
       call mpifx_reduceip(env%mpi%groupComm, csrEDens%nzval, MPI_SUM)
 
-      ! Each group master node prints the local currents
-      tPrint = env%mpi%groupComm%master
+      ! Each group lead node prints the local currents
+      tPrint = env%mpi%groupComm%lead
 
     #:else
 
