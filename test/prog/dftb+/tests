@@ -150,6 +150,8 @@ solvation/gbsa_caffeine                #? MPI_PROCS <= 1
 solvation/gbsa_param1                  #? MPI_PROCS <= 1
 solvation/gbsa_param2                  #? not WITH_MPI
 solvation/gbsa_param3                  #? MPI_PROCS <= 1
+solvation/alpb_cation                  #? MPI_PROCS <= 1
+solvation/alpb_anion                   #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
