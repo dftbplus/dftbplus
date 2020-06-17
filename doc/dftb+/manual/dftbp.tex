@@ -1,26 +1,19 @@
 \chapter{Input for {\dftbp}}
 
 
-{\dftbp} can read two formats, either XML or the Human-friendly
-Structured Data format (HSD).  If you are not familiar with the HSD
-format, a detailed description is given in appendix \ref{sec:hsd}. The
-input file for {\dftbp} must be named \verb|dftb_in.hsd| {\em or}
-\verb|dftb_in.xml|. The input file must be present in the working
-directory. To prevent ambiguity, the parser refuses to read any input
-if both files are present. After processing the input, {\dftbp}
-creates a file of the parsed input, either \verb|dftb_pin.hsd| or
-\verb|dftb_pin.xml|. This contains the user input as well as any
-default values for unspecified options.  The file also contains the
-version number of the current input parser.  You should always keep
-this file, since if you want to exactly repeat your calculation with a
-later version of \dftbp{}, it is recommended to use this file instead
-of the original input. (You must of course rename \verb|dftb_pin.hsd|
-into \verb|dftb_in.hsd| or \verb|dftb_pin.xml| into
-\verb|dftb_in.xml|.)  This guarantees that you will obtain the same
-results, even if the defaults for some non specified options have been
-changed. The code can also produce \verb|dftb_pin.xml| from
-\verb|dftb_in.hsd| or {\it vice versa} if required (see
-section~\ref{sec:dftbp.ParserOptions}).
+{\dftbp} can read the Human-friendly Structured Data format (HSD).  If you are
+not familiar with the HSD format, a detailed description is given in appendix
+\ref{sec:hsd}. The input file for {\dftbp} must be named \verb|dftb_in.hsd| and
+must be present in the working directory. After processing the input, {\dftbp}
+creates a file of the parsed input called \verb|dftb_pin.hsd|. This contains the
+user input as well as default values for unspecified options.  The file also
+contains the version number of the current input parser.  You should always keep
+this file, since if you want to exactly repeat your calculation with a later
+version of \dftbp{}, it is recommended to use this file instead of the original
+input. (You must of course rename \verb|dftb_pin.hsd| into \verb|dftb_in.hsd|.)
+This guarantees that you will obtain the same results, even if the defaults for
+some non specified options have been changed in the meanwhile (as
+\verb|dftb_pin.hsd| stores the original choice).
 
 The following sections list properties and options that can be set in
 {\dftbp} input. The first column of each of the tables of options
@@ -53,7 +46,7 @@ appendix~\ref{app:units}.
 \section{Main input}
 
 
-The input file for {\dftbp} (\verb|dftb_in.hsd|/\verb|dftb_in.xml|)
+The input file for {\dftbp} (\verb|dftb_in.hsd|)
 must contain the following property definitions:
 \begin{ptableh}
   \kw{Geometry} & p|m &  & - & \pref{sec:dftbp.Geometry} \\
@@ -2133,20 +2126,26 @@ was defined with the \is{SelectedShells} method.
 \label{sec:dftbp.KPointsAndWeights}
 \index{Brillouin-zone sampling}
 
-The $k$-points for the Brillouin-zone integration can either be
-specified explicitly or using the \islcb{KLines}{sec:dftbp.KLines} or the
-\islcb{SupercellFolding}{sec:dftbp.KLines} methods. If the latter is used the
-\is{KPointsAndWeights} keyword is not allowed to have a modifier.
+The $k$-points for the Brillouin-zone integration can either be specified
+explicitly, or automatically for supercells by using the \iscb{SupercellFolding}
+or \iscb{KLines} methods for supercells or either \iscb{HelicalUniform} or
+\iscb{HelicalSampled} for helical boundary conditions.
+
+\textbf{ Note:} For the automatic grid methods, the \is{KPointsAndWeights}
+keyword is not allowed to have a modifier.
 
 \subsubsection{Explicit specification}
 
-For every $k$-point four real numbers must be specified: The
-coordinates of the given $k$-point followed by its weight. By default,
-the coordinates are specified in fractions of the reciprocal lattice
-vectors. If the modifier \is{absolute} is set for the
-\is{KPointsAndWeights} keyword, absolute $k$-point coordinates in
-atomic units are instead expected.  The sum of the k-point weights is
-automatically normalised by the program.
+Each $k$-point and its weight in the integral should be specified, for
+supercells this requires that four real numbers must be specified for
+each point: The coordinates of the given $k$-point followed by its
+weight, while for helical coordinates there are two coordinates (along
+the helical axis and with respect to the rotation around the axis) and
+the weight of the point. By default, coordinates are specified in
+fractions of the reciprocal lattice vectors. If the modifier
+\is{absolute} is set for the \is{KPointsAndWeights} keyword, absolute
+$k$-point coordinates in atomic units are instead expected.  The sum
+of the k-point weights is automatically normalised by the program.
 \begin{verbatim}
   KPointsAndWeights = {   # 2x2x2 MP-scheme
     0.25  0.25  0.25    1.0
@@ -2268,6 +2267,43 @@ Example:
 
 \textbf{Note:} Since this set of k-points probably does not correctly integrate the Brillouin zone,
 the default value of \kw{MaxSccIterations} is set to be 1 in this case.
+
+\htcbsubsubsection{HelicalUniform}
+
+This method specifies $k$-points lying along the generalized reciprocal vector
+of the Brillouin zone of a helical cell and around the order-$n$ rotational axis
+(currently the $k$-points that exactly represent the $C_n$ rotation are
+used). The \iscb{HelicalUniform} method expects 1 integer and 1 real value as
+parameters, where the first value specifies the number of sampling points along
+the helical axis, while the second gives the shift (analogous to the three
+dimensional case of \iscb{SupercellFolding}) in this direction. A shift of $0.5$
+appears to give more rapid convergence of the grid.
+
+Example:
+\invparskip
+\begin{verbatim}
+  KPointsAndWeights = HelicalUniform {80 0.5}
+\end{verbatim}
+
+\htcbsubsubsection{HelicalSampled}
+
+Instead of exactly integrating around the $C_n$ rotation in $k$-space, the
+\iscb{HelicalSampled} method allows for a sampled integration. It expects 4
+values: the first two are the number of sample points along the helix and around
+the rotation respectively, while the second two are shifts in the grid.
+
+Example:
+\invparskip
+\begin{verbatim}
+  KPointsAndWeights = HelicalSampled {20 4 0.5 0.25}
+\end{verbatim}
+
+There are several things to note here: firstly, the second grid (values 4 and
+0.25 in the example above) approximates the integration around the $C_n$
+symmetry, so should only be used where the order of this rotation axis is
+large. Secondly, non-zero shifts in the grid, particularly for small numbers of
+sampling points, are likely to be unphysical as are shifts for the grids at the
+exact order of the rotation operation.
 
 \subsection{OrbitalPotential}
 \label{sec:dftbp.OrbitalPotential}
@@ -3052,8 +3088,10 @@ systems.
   \kw{Descreening} & m & & & \\
   \kw{Cutoff} & r & & 35 AA & \\
   \kw{SASA} & m & & & \pref{sec:dftbp.SolventAreaModel} \\
-  \kw{HBondCorr} & has \kw{SASA} & & \\
-  \kw{HBondStrength} & HBondCorr = Yes & & \\
+  \kw{HBondCorr} & l & has \kw{SASA} & & \\
+  \kw{HBondStrength} & m & HBondCorr = Yes & & \\
+  \kw{ALPB} & l & & No & \\
+  \kw{Alpha} & r & ALPB = Yes & 0.571412 & \\
 \end{ptable}
 
 \begin{description}
@@ -3123,6 +3161,16 @@ systems.
     Hydrogen bonding strength for each species used in the empirical hydrogen
     bond correction. To disable the correction for species not involved
     in hydrogen bonding, set the value to zero.
+
+  \item[\is{ALPB}]
+    Use analytical lineared Poisson Boltzmann (ALPB) model\cite{sigalov2006}
+    instead of Generalized Born.
+    The main difference is a molecular shape dependent contribution for charged
+    systems.
+
+  \item[\is{Alpha}]
+    Alpha parameter in the ALPB model, should be kept to 0.571412 which was
+    derived from first principles.\cite{sigalov2006}
 \end{description}
 
 Example for a GB model with CS2 as solvent:
@@ -4182,8 +4230,11 @@ section~\ref{sec:ppRPAout}.
 \label{sec:dftbp.REKS}
 
 This block collects some options to calculate REKS in the context of DFTB.
+The \kw{Reks} keyword expects either \is{None} (default -- no use of REKS calculation)
+or the \is {SSR22}\cb\ block as value.
+
 \begin{ptable}
-  \kw{SSR22} & p & SCC = Yes, SpinPolarisation $=$ \{\}, SpinConstants $\neq$ \{\} & \cb & \\
+  \kw{SSR22} & p & SCC = Yes, SpinPolarisation $=$ \{\}, SpinConstants $\neq$ \{\} & None & \\
 \end{ptable}
 
 \subsection{SSR22}
@@ -4192,8 +4243,8 @@ This block collects some options to calculate REKS in the context of DFTB.
 This tag contains the specifications for a DFTB/SSR(2,2) calculation~\cite{Lee_JCTC_2019}, based on ensemble DFT theory.
 
 \textbf{Note:} the \dftbp{} binary can be compiled with OpenMP (not MPI) parallelization
-and ensemble DFT calculation is not compatible with time-dependent DFTB calculation.
-DFTB/SSR is not compatible with spin-polarisation, but it requires spin constants.
+and DFTB/SSR calculation is not compatible with time-dependent DFTB calculation.
+In addition, it is not compatible with spin-polarisation, but it requires spin constants to treat open-shell microstates.
 
 In general, REKS calculation can be classified as single-state REKS, SA-REKS and SI-SA-REKS.
 In single-state REKS, only ground state is calculated and it can treat the state with multireference
@@ -4201,124 +4252,154 @@ character. SA-REKS and SI-SA-REKS can calculate the vertical excitation energies
 is that the state-interaction term is considered in SI-SA-REKS so that more accurate states can
 be generated. The corresponding oscillator strengths as well as excited state geometry optimisation
 can be performed with these options, details of the resulting output files are given in appendix
-\ref{sec:reks_files}. DFTB/SSR is currently implemented for the LC-DFTB level of theory with external
-point charges or dispersion corrections. Third order SCC calculation can be considered in only
-energy evaluation. The gamma point periodic systems can be calculated using DFTB/SSR without
-range-separated functionals. Finally, only single-state REKS can calculate the stress as well as
-lattice optimization. The specifications for this block have the following properties:
+\ref{sec:reks_files}.
+
+In the context of DFTB, current REKS calculation is compatible with following functionalities.
+The range-separated functional, external point charges and dispersion corrections can be
+calculated with single-state REKS, SA-REKS or SI-SA-REKS. For the periodic system, only
+gamma point sampling is supported with REKS. Especially, the stress evaluation and lattice
+optimisation is possible with only single-state REKS.
+The specifications for this block have the following properties:
+
+\begin{ptable}
+  \kw{Energy} & m & & \cb & \\
+  \kw{TargetState} & i & & 1 & \\
+  \kw{TargetMicrostate} & i & \parbox{0.3\textwidth}{Functional $\neq$ \{ "PPS" \}, StateInteractions = No} & 0 & \\
+  \kw{ReadEigenvectors} & l & & No \\
+  \kw{FonMaxIter} & i & & 20 & \\
+  \kw{Shift} & r & & 0.3 & \\
+  \kw{SpinTuning} & $(\text{r})^*$ & & \cb & \\
+  \kw{TransitionDipole} & l & \parbox{0.3\textwidth}{Functional $\neq$ \{ "PPS" \}, TargetMicrostate = 0} & No & \\
+  \kw{Gradient} & m & & ConjugateGradient \cb & \\
+  \kw{RelaxedDensity} & l & & No & \\
+  \kw{NonAdiabaticCoupling} & l & \parbox{0.3\textwidth}{Functional $\neq$ \{ "PPS" \}, StateInteractions = Yes} & No & \\
+  \kw{VerbosityLevel} & i & & 1 & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{Energy}] Choice of energy evaluation in REKS method. This \is{Energy} block has following options:
 
   \begin{ptable}
-    \kw{EnergyFunctional}                   & i & & 2 & \\
-    \kw{EnergyLevel}                          & i & & 1 & \\
-    \kw{UseSsrState}                         & i & EnergyFunctional $\neq$ 1 & 1 & \\
-    \kw{TargetState}                           & i & & 1 & \\
-    \kw{TargetStateL}                          & i & EnergyFunctional $\neq$ 1, UseSsrState = 0 & 0 & \\
-    \kw{InitialGuess}                           & i & & 1 & \\
-    \kw{FONmaxIter}                           & i & & 20 & \\
-    \kw{Shift}                                     & r & & 0.3 & \\
-    \kw{SpinTuning}                           & $(\text{r})^*$ & & \{\}~ & \\
-    \kw{TransitionDipole}                    & l & EnergyFunctional $\neq$ 1, TargetStateL = 0 & No & \\
-    \kw{GradientLevel}                        & i & & 1 & \\
-    \kw{CGmaxIter}                            & i & & 20 & \\
-    \kw{GradientTolerance}                 & r & & 1e-8 & \\
-    \kw{RelaxedDensity}                     & l & & No & \\
-    \kw{NonAdiabaticCoupling}            & l & EnergyFunctional $\neq$ 1, UseSsrState = 1 & No & \\
-    \kw{PrintLevel}                             & i & & 1 & \\
-    \kw{MemoryLevel}                        & i & & 2 & \\
+    \kw{Functional} & $(\text{s})^*$ & & & \\
+    \kw{IncludeAllStates} & l & & No & \\
+    \kw{StateInteractions} & l & & No & \\
   \end{ptable}
 
   \begin{description}
+  \item[\is{Functional}] Specifies the minimized energy functional in DFTB/SSR.
+    This keyword reads a block consisted of the energy functionals that you want to include in the calculation.
+    In DFTB/SSR(2,2), there are two possible choices for the minimzied energy functionals.
+    One is PPS and the other is (PPS+OSS)/2. The former represents single-state REKS and the latter
+    shows SA-REKS or SI-SA-REKS. The detailed form of the block is shown in below examples.
+    The inclusion of state-interaction terms is determined by \is{StateInteractions}.
 
-  \item[\is{EnergyFunctional}] Specifies the minimized energy functional in DFTB/SSR.
-    The minimized energy functionals can be PPS (\is{EnergyFunctional} = 1) or (PPS+OSS)/2
-    (\is{EnergyFunctional} = 2) state in DFTB/SSR(2,2) case. The former considers only
-    single-state REKS and the latter considers SA-REKS or SI-SA-REKS. The inclusion of
-    state-interaction term is determined by \is{UseSsrState} option.
-
-  \item[\is{EnergyLevel}] Specifies the computable energy level with respect to \is{EnergyFunctional}
-    in DFTB/SSR. \is{EnergyLevel} should be 1 or 2, which calculate the states only included in
-    \is{EnergyFunctional} or the all possible states, respectively. For example, \is{EnergyLevel}
-    should be 1 in single-state REKS, but the value can be 1 or 2 in SA-REKS or SI-SA-REKS.
-    In the latter case, PPS and OSS states can be calculated with the value of 1, and additional DES state
-    can be calculated with the value of 2. The detailed explanation about PPS, OSS and DES states
+  \item[\is{IncludeAllStates}] If set to \is{Yes}, all computable energy states from current energy functionals
+    are included for SA-REKS or SI-SA-REKS calculations. When you calculate single-state REKS, this option
+    does not affect the result of calculation. The PPS and OSS states are calculated when this option sets to \is{No},
+    while the additional DES state can be included if this sets to \is{Yes}. If you want to the doubly-excited
+    configuration, please set to \is{Yes}. The detailed explanation about PPS, OSS and DES states
     is given in the Ref.~\cite{Lee_JCTC_2019}
 
-  \item[\is{UseSsrState}] Determines the inclusion of state-interaction terms. \is{UseSsrState}
-    should be 1 or 0, which calculate SA-REKS state or SI-SA-REKS state, respectively. In general,
-    SI-SA-REKS state can provide more reliable state when you want to include the excited state.
-
-  \item[\is{TargetState}] Specifies the target state that should be calculated. These are numbered
-    from the ground state as 1, and so on. Note that the ordering of this option is different with the option
-    \is{StateOfInterest} in time-dependent DFTB calculation.
-
-  \item[\is{TargetStateL}] Specifies the target microstate that should be calculated. The electronic
-    configuration is given in the Ref.~\cite{Lee_JCTC_2019} or the source code of \dftbp{}. In SSR(2,2),
-    fifth microstate is triplet configuration, thus this microstate can be roughly considered as triplet state.
-
-  \item[\is{InitialGuess}] Specifies the initial guess of eigenvectors in DFTB/SSR calculation.
-    In contrast to DFTB calculation, DFTB/SSR requires to know the information about initial eigenvectors
-    to construct the microstates, thus it cannot use the \is{ReadInitialCharges} option. \is{InitialGuess}
-    determines the eigenvectors obtained from diagonalization of non-SCC Hamiltonian (\is{InitialGuess} = 1)
-    or external eigenvec.bin file (\is{InitialGuess} = 2). The first option is usually recommended since
-    the second option is not completely implemented.
-
-  \item[\is{FONmaxIter}] Specifies the maximum number of iterations used in the optimization of
-    fractional occupation numbers. In general, the value of 20 is enough to converge the fractional
-    occupation numbers in SCC cycle.
-
-  \item[\is{Shift}] Specifies the level shift value used in SCC cycle. The shift value should be increased
-    to converge the SCC cycle when the orbital energy of the active orbitals is close to each other.
-
-  \item[\is{SpinTuning}] Specifies the scaling constants for atomic spin constants. DFTB/SSR sometimes
-    shows wrong spin contribution for triplet microstate, thus the scaling of atomic spin constants are needed
-    to generate correct spin contribution for each microstate. The standard to determine the scaling constants
-    is provided in the Ref.~\cite{Lee_JCTC_2019}. The number of \is{SpinTuning} elements becomes the number of
-    atomic species, and the ordering of \is{SpinTuning} is same as the ordering of atomic species in input geometry file.
-
-  \item[\is{TransitionDipole}] If set to \is{Yes}, the file tdp.dat is created. This file contains a
-    description of transition dipole moment between the electronic states in SA-REKS or SI-SA-REKS.
-
-  \item[\is{GradientLevel}] Specifies the method used in the CP-REKS equations. The solutions
-    can be obtained by using preconditioned conjugate gradient (\is{GradientLevel} = 1), conjugate
-    gradient (\is{GradientLevel} = 2) and direct matrix inversion operation (\is{GradientLevel} = 3).
-    The third option requires large memory allocation since it have to save all variables to solve the
-    CP-REKS equations. Thus, it cannot be used for large systems. The first option is usually
-    recommended for many cases.
-
-  \item[\is{CGmaxIter}] Specifies the maximum number of iterations used in the conjugate gradient
-    based method. In general, the value of 20 is enough to solve the CP-REKS equations.
-
-  \item[\is{GradientTolerance}] Specifies the tolerance used in the conjugate gradient based method.
-    The \is{CGmaxIter} and \is{GradientTolerance} options are used when \is{GradientLevel} is 1 or 2.
-
-  \item[\is{RelaxedDensity}] If set to \is{Yes}, the file relaxed\_charge.dat is created. This file contains
-    a description of relaxed charges for \is{TargetState} or \is{TargetStateL}. The relaxed charges can
-    be used with external point charges in QM/MM calculations.
-
-  \item[\is{NonAdiabaticCoupling}] If set to \is{Yes}, the nonadiabatic couplings between SI-SA-REKS
-    states are calculated. This option cannot be used in single-state REKS or SA-REKS state.
-
-  \item[\is{PrintLevel}] Specifies the printing level in standard output. This option determines the output up to
-    energy information (\is{PrintLevel} = 0), gradient information (\is{PrintLevel} = 1), detailed information about
-    SCC cycle and timing in gradient calculation (\is{PrintLevel} = 2).
-
-  \item[\is{MemoryLevel}] Specifies the memory allocation of the variables used in CP-REKS equations.
-    First option shows fast computation speed but it requires large memory allocation, increasing as
-    $O(N_\mathrm{basis}^4)$. Second option shows relatively slow computation speed but it directly calculate
-    the CP-REKS variables without saving the variables. In general, the second option is recommended for large systems.
-
+  \item[\is{StateInteractions}] If set to \is{Yes}, the state-interaction terms between SA-REKS states is included,
+    thus it generates SI-SA-REKS states. In general, SI-SA-REKS state can provide more reliable state
+    when you want to compute the excited states.
   \end{description}
 
-Example for 3state SI-SA-REKS calculation using nonadiabatic couplings and modified spin constants:
+\item[\is{TargetState}] Specifies the target state that should be calculated. These are numbered
+  from the ground state as 1, and so on. Note that the ordering of this option is different with the option
+  \is{StateOfInterest} in time-dependent DFTB calculation.
+
+\item[\is{TargetMicrostate}] Specifies the target microstate that should be calculated. The electronic
+  configuration is given in the Ref.~\cite{Lee_JCTC_2019} or the source code of \dftbp{}. In SSR(2,2),
+  fifth microstate is triplet configuration, thus this microstate can be roughly considered as triplet state.
+
+\item[\is{ReadEigenvectors}] If set to \is{Yes}, the initial molecular orbitals are read from the
+  eigenvec.bin file. If not, the initial orbitals are obtained from the diagonalization of non-SCC Hamiltonian.
+  Note that this option is not completely implemented, so you should set this option to \is{No}.
+
+\item[\is{FonMaxIter}] Specifies the maximum number of iterations used in the optimization of
+  fractional occupation numbers. In general, the value of 20 is enough to converge the fractional
+  occupation numbers in SCC cycle.
+
+\item[\is{Shift}] Specifies the level shift value used in SCC cycle. The shift value should be increased
+  to converge the SCC cycle when the orbital energies of the active orbitals are close to each other.
+
+\item[\is{SpinTuning}] Specifies the scaling constants for atomic spin constants. DFTB/SSR sometimes
+  shows wrong spin contribution for triplet microstate, thus the scaling of atomic spin constants are needed
+  to generate correct spin contribution for each microstate. The standard to determine the scaling constants
+  is provided in the Ref.~\cite{Lee_JCTC_2019}. The number of elements of \is{SpinTuning} block becomes the number of
+  atomic species, and the ordering of the elements is same as the ordering of atomic species in input geometry file.
+
+\item[\is{TransitionDipole}] If set to \is{Yes}, the file tdp.dat is created. This file contains a
+  description of transition dipole moment between the electronic states in SA-REKS or SI-SA-REKS.
+
+\item[\is{Gradient}] Choice of gradient solver used in CP-REKS equations. This \is{Gradient} block has the following choices:
+
+  \begin{description} 
+  \item[\is{ConjugateGradient}] Uses a congugate-gradient based algorithm. This
+    algorithm is usually recommended since it is considerably faster than other algorithms.
+    
+    \begin{ptable}
+      \kw{CGmaxIter} & i & & 20 & \\
+      \kw{Tolerance} & r & & 1e-8 & \\
+      \kw{Preconditioner} & l & & No & \\
+      \kw{SaveMemory} & l & & No & \\
+    \end{ptable}
+
+    \begin{description}
+    \item[\is{CGmaxIter}] Specifies the maximum number of iterations used in the conjugate-gradient
+    based algorithm. In general, the value of 20 is enough to solve the CP-REKS equations.
+
+    \item[\is{Tolerance}] Specifies the tolerance used in the conjugate-gradient based algorithm.
+
+    \item[\is{Preconditioner}] If set to \is{Yes}, it uses a preconditiner in the conjugate-gradient based algorithm. In general,
+      the convergence speed is increased when this option sets to \is{Yes}, thus this option is recommended.
+
+    \item[\is{SaveMemory}] If set to \is{Yes}, some variables (an orbital hessian matrix and the H-xc kernel) which need large
+      memory allocation are saved in the memory. If these variables are saved, then the computational
+      speed also increases but it shows large memory allocation, increasing as $O(N_\mathrm{basis}^4)$.
+      If set to \is{No}, the CP-REKS equations are solved without saving these variables, thus it is relatively
+      slower than the case that you set to \is{Yes}. In general, \is{No} option is recommended for large systems.
+    \end{description}
+
+  \item[\is{Direct}] Uses a direct matrix-inversion multiplication algorithm. This algorithm is usually considerably slow.
+  \end{description}
+
+\item[\is{RelaxedDensity}] If set to \is{Yes}, the file relaxed\_charge.dat is created. This file contains
+  a description of relaxed charges for \is{TargetState} or \is{TargetMicrostate}. The relaxed charges can
+  be used with external point charges in QM/MM calculations.
+
+\item[\is{NonAdiabaticCoupling}] If set to \is{Yes}, the nonadiabatic couplings between SI-SA-REKS
+  states are calculated. This option cannot be used in single-state REKS or SA-REKS state.
+
+\item[\is{VerbosityLevel}] Specifies the printing level in standard output. This option determines the output up to
+  energy information (\is{VerbosityLevel} = 0), gradient information (\is{VerbosityLevel} = 1), detailed information about
+  SCC cycle and timing in gradient calculation (\is{VerbosityLevel} = 2).
+\end{description}
+
+Example for 3state SI-SA-REKS calculation with nonadiabatic couplings and modified spin constants:
 \begin{verbatim}
-REKS = SSR22 {
-  EnergyFunctional = 2
-  EnergyLevel = 2
-  UseSsrState = 1
+Reks = SSR22 {
+  Energy = {
+    Functional = { "PPS" "OSS" }
+    IncludeAllStates = Yes
+    StateInteractions = Yes
+  }
   TargetState = 2
-  TargetStateL = 0
+  TargetMicrostate = 0
+  ReadEigenvectors = No
+  FonMaxIter = 30
+  Shift = 0.3
   SpinTuning = { 3.0 3.0 }
+  Gradient = ConjugateGradient {
+    CGmaxIter = 100
+    Tolerance = 1.0E-8
+    Preconditioner = Yes
+    SaveMemory = Yes
+  }
+  RelaxedDensity = Yes
   NonAdiabaticCoupling = Yes
+  VerbosityLevel = 1
 }
 \end{verbatim}
 
@@ -4329,12 +4410,11 @@ REKS = SSR22 {
 \label{sec:dftbp.ParserOptions}
 
 This block contains the options, which are effecting only the
-behaviour of the HSD/XML parser and are not passed to the main
+behaviour of the HSD parser and are not passed to the main
 program.
 \begin{ptable}
   \kw{ParserVersion} & i & & \textrm{current input version} & \\
   \kw{WriteHSDInput} & l & & Yes & \\
-  \kw{WriteXMLInput} & l & & No & \\
   \kw{IgnoreUnprocessedNodes} &l & & No & \\
   \kw{StopAfterParsing} &l & & No & \\
 \end{ptable}
@@ -4352,9 +4432,6 @@ program.
 \item[\is{WriteHSDInput}] Specifies, if the processed input should be
   written out in HSD format. (You shouldn't turn it off without
   really good reasons.)
-
-\item[\is{WriteXMLInput}] Specifies, if the processed input should be
-  written out in XML format.
 
 \item[\is{IgnoreUnprocessedNodes}] By default the code stops if it
   detects unused or erroneous keywords in the input, which probably

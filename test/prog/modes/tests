@@ -1,0 +1,8 @@
+#! This file will be preprocessed using the same preprocessor options as used
+#! for the compilation and additionally setting OMP_THREADS to $(TEST_OMP_THREADS).
+
+#:include 'common.fypp'
+#! If under travis CI, avoid longer tests
+#:set LONG_TEST = not defined('TRAVIS')
+
+C24O6H8                  #? MPI_PROCS <= 1

@@ -37,6 +37,7 @@ module dftbp_reksgrad
   use dftbp_slakocont
   use dftbp_sparse2dense
   use dftbp_rekscommon
+  use dftbp_reksvar, only : reksTypes
 
   implicit none
 
@@ -60,7 +61,7 @@ module dftbp_reksgrad
   !> Calculate energy weighted density matrix for each microstate
   subroutine getEnergyWeightedDensityL(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, orb, hamSqrL, hamSpL, &
-      & fillingL, eigenvecs, Lpaired, Efunc, tRangeSep, edmSpL)
+      & fillingL, eigenvecs, Lpaired, Efunc, isRangeSep, edmSpL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -102,7 +103,7 @@ module dftbp_reksgrad
     integer, intent(in) :: Efunc
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> sparse energy-weighted density matrix for each microstate
     real(dp), intent(out) :: edmSpL(:,:)
@@ -116,14 +117,14 @@ module dftbp_reksgrad
     nOrb = size(fillingL,dim=1)
 
     allocate(tmpEps(nOrb,nOrb))
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
     edmSpL(:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (tRangeSep) then
+      if (isRangeSep) then
         if (Efunc == 1) then
           ! For single-state REKS, current hamSqrL is still in AO basis
           ! since the secular equation routine is not used
@@ -147,7 +148,7 @@ module dftbp_reksgrad
       tmpEps(:,:) = 0.0_dp
       do i = 1, nOrb
         do j = 1, nOrb
-          if (tRangeSep) then
+          if (isRangeSep) then
             tmpEps(i,j) = (fillingL(i,1,iL) + fillingL(j,1,iL)) &
                 & * hamSqrL(i,j,1,iL) * 0.5_dp
           else
@@ -411,7 +412,7 @@ module dftbp_reksgrad
 
   !> Calculate SCC, spin, LC parameters with matrix form
   subroutine getSccSpinLrPars(env, sccCalc, rangeSep, coords, species, &
-      & iNeighbour, img2CentCell, iSquare, spinW, getAtomIndex, tRangeSep, &
+      & iNeighbour, img2CentCell, iSquare, spinW, getAtomIndex, isRangeSep, &
       & GammaAO, GammaDeriv, SpinAO, LrGammaAO, LrGammaDeriv)
 
     !> Computational environment settings
@@ -445,7 +446,7 @@ module dftbp_reksgrad
     integer, intent(in) :: getAtomIndex(:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> scc gamma integrals in AO basis
     real(dp), intent(out) :: GammaAO(:,:)
@@ -472,7 +473,7 @@ module dftbp_reksgrad
     nAtom = size(iSquare,dim=1) - 1
 
     allocate(tmpGamma(nAtom,nAtom))
-    if (tRangeSep) then
+    if (isRangeSep) then
       allocate(tmpLrGamma(nAtom,nAtom))
     end if
 
@@ -516,7 +517,7 @@ module dftbp_reksgrad
       end do
     end do
 
-    if (tRangeSep) then
+    if (isRangeSep) then
 
       ! get total long-range gamma
       tmpLrGamma(:,:) = 0.0_dp
@@ -544,7 +545,7 @@ module dftbp_reksgrad
 
   !> Interface routine to calculate H-XC kernel in REKS
   subroutine getHxcKernel(iSquare, getAtomIndex, getDenseAO, over, overSqr, &
-      & GammaAO, SpinAO, LrGammaAO, tRangeSep, Glevel, Mlevel, HxcSpS, &
+      & GammaAO, SpinAO, LrGammaAO, Glevel, tSaveMem, isRangeSep, HxcSpS, &
       & HxcSpD, HxcHalfS, HxcHalfD, HxcSqrS, HxcSqrD)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
@@ -571,14 +572,14 @@ module dftbp_reksgrad
     !> long-range gamma integrals in AO basis
     real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
-    !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
-
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Memory level used in calculation of gradient
-    integer, intent(in) :: Mlevel
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical, intent(in) :: tSaveMem
+
+    !> Whether to run a range separated calculation
+    logical, intent(in) :: isRangeSep
 
     !> Hartree-XC kernel with sparse form with same spin part
     real(dp), allocatable, intent(inout) :: HxcSpS(:,:)
@@ -600,14 +601,14 @@ module dftbp_reksgrad
 
     if (Glevel == 1 .or. Glevel == 2) then
 
-      if (Mlevel == 1) then
+      if (tSaveMem) then
 
-        if (tRangeSep) then
+        if (isRangeSep) then
 
           ! get Hxc kernel for DFTB with respect to AO basis
           ! for LC case, we use half dense form.
           call HxcKernelHalf_(iSquare, getAtomIndex, getDenseAO, overSqr, &
-              & GammaAO, SpinAO, LrGammaAO, tRangeSep, HxcHalfS, HxcHalfD)
+              & GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcHalfS, HxcHalfD)
 
         else
 
@@ -623,7 +624,7 @@ module dftbp_reksgrad
 
       ! get Hxc kernel for DFTB with respect to AO basis
       call HxcKernelDense_(iSquare, getAtomIndex, overSqr, GammaAO, &
-          & SpinAO, LrGammaAO, tRangeSep, HxcSqrS, HxcSqrD)
+          & SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
 
     end if
 
@@ -634,7 +635,7 @@ module dftbp_reksgrad
   subroutine getG1ILOmegaRab(env, denseDesc, neighbourList, &
       & nNeighbourSK, iSparseStart, img2CentCell, eigenvecs, hamSqrL, &
       & hamSpL, fockFa, fillingL, FONs, SAweight, enLtot, hess, &
-      & Nc, Na, useSSR, tSSR22, tSSR44, tRangeSep, G1, weightIL, omega, Rab)
+      & Nc, Na, reksAlg, tSSR, isRangeSep, G1, weightIL, omega, Rab)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -687,17 +688,14 @@ module dftbp_reksgrad
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> constant calculated from hessian and energy of microstates
     real(dp), intent(out) :: G1
@@ -722,55 +720,61 @@ module dftbp_reksgrad
     Lmax = size(fillingL,dim=3)
     Nv = nOrb - Nc - Na
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
     ! set G1 value
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       tmpdE = enLtot(5) + enLtot(6) &
            & - enLtot(4) - enLtot(3)
       G1 = 2.0_dp / hess / tmpdE
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
     ! set weightIL value
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       weightIL(1) =  1.0_dp
       weightIL(2) = -1.0_dp
       weightIL(3) = (enLtot(1) - enLtot(2)) / tmpdE
       weightIL(4) =  weightIL(3)
       weightIL(5) = -weightIL(3)
       weightIL(6) = -weightIL(3)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
-    if (useSSR == 1) then
+    if (tSSR) then
       Rab(:,:) = 0.0_dp
     end if
     omega(:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (tRangeSep) then
+      if (isRangeSep) then
 
         ! set omega value
         do ij = 1, superN
           ! assign index i and j from ij
-          call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+          call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
           omega(ij) = omega(ij) + 2.0_dp * weightIL(iL) * hamSqrL(i,j,1,iL) &
               & * ( fillingL(i,1,iL) - fillingL(j,1,iL) )
         end do
 
         ! get Rab value
-        if (useSSR == 1) then
-          if (tSSR22) then
+        if (tSSR) then
+          select case (reksAlg)
+          case (reksTypes%noReks)
+          case (reksTypes%ssr22)
             call getRab22_1st_(hamSqrL(:,:,1,iL), fillingL, weightIL, &
                 & SAweight, FONs, Nc, iL, Rab)
-          else if (tSSR44) then
-            call error("SSR(4,4) is not implemented yet.")
-          end if
+          case (reksTypes%ssr44)
+            call error("SSR(4,4) is not implemented yet")
+          end select
         end if
 
       else
@@ -790,19 +794,21 @@ module dftbp_reksgrad
         ! set omega value
         do ij = 1, superN
           ! assign index i and j from ij
-          call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+          call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
           omega(ij) = omega(ij) + 2.0_dp * weightIL(iL) * tmpHam(i,j) &
               & * ( fillingL(i,1,iL) - fillingL(j,1,iL) )
         end do
 
         ! get Rab value
-        if (useSSR == 1) then
-          if (tSSR22) then
+        if (tSSR) then
+          select case (reksAlg)
+          case (reksTypes%noReks)
+          case (reksTypes%ssr22)
             call getRab22_1st_(tmpHam, fillingL, weightIL, &
                 & SAweight, FONs, Nc, iL, Rab)
-          else if (tSSR44) then
+          case (reksTypes%ssr44)
             call error("SSR(4,4) is not implemented yet")
-          end if
+          end select
         end if
 
       end if
@@ -810,12 +816,14 @@ module dftbp_reksgrad
     end do
 
     ! get Rab value
-    if (useSSR == 1) then
-      if (tSSR22) then
+    if (tSSR) then
+      select case (reksAlg)
+      case (reksTypes%noReks)
+      case (reksTypes%ssr22)
         call getRab22_2nd_(fockFa, FONs, SAweight, Nc, Rab)
-      else if (tSSR44) then
+      case (reksTypes%ssr44)
         call error("SSR(4,4) is not implemented yet")
-      end if
+      end select
     end if
 
   end subroutine getG1ILOmegaRab
@@ -824,7 +832,7 @@ module dftbp_reksgrad
   !> Calculate super A hessian matrix with and without H-XC kernel
   subroutine getSuperAMatrix(eigenvecs, HxcSqrS, HxcSqrD, Fc, Fa, &
       & omega, fillingL, weight, SAweight, FONs, G1, Lpaired, Nc, &
-      & Na, Glevel, Mlevel, tSSR22, tSSR44, A1e, A1ePre, Aall)
+      & Na, Glevel, reksAlg, tSaveMem, A1e, A1ePre, Aall)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -871,14 +879,11 @@ module dftbp_reksgrad
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Memory level used in calculation of gradient
-    integer, intent(in) :: Mlevel
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical, intent(in) :: tSaveMem
 
     !> super A hessian matrix with one-electron term in front of orbital derivatives
     real(dp), allocatable, intent(inout) :: A1e(:,:)
@@ -892,11 +897,11 @@ module dftbp_reksgrad
 
     if (Glevel == 1 .or. Glevel == 2) then
 
-      if (Mlevel == 1) then
+      if (tSaveMem) then
 
         ! build super A matrix except H-XC kernel
         call buildA1e_(Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
-            & Glevel, tSSR22, tSSR44, A1e, A1ePre)
+            & Glevel, reksAlg, A1e, A1ePre)
 
       end if
 
@@ -905,7 +910,8 @@ module dftbp_reksgrad
       ! build super A matrix including H-XC kernel
       call buildAall_(eigenvecs, HxcSqrS, HxcSqrD, Fc, Fa, omega, &
           & fillingL, weight, SAweight, FONs, G1, Lpaired, Nc, &
-          & Na, tSSR22, tSSR44, Aall)
+          & Na, reksAlg, Aall)
+
     end if
 
   end subroutine getSuperAMatrix
@@ -914,7 +920,7 @@ module dftbp_reksgrad
   !> Calculate X^T vectors for state X = PPS, OSS, etc
   subroutine buildSaReksVectors(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, fillingL, &
-      & weightL, Nc, Na, rstate, useSSR, tSSR22, tSSR44, tRangeSep, XT)
+      & weightL, Nc, Na, rstate, reksAlg, tSSR, isRangeSep, XT)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -958,17 +964,14 @@ module dftbp_reksgrad
     !> Target SSR state
     integer, intent(in) :: rstate
 
-    !> Calculate SSR state (SI term is included)
-    integer, intent(in) :: useSSR
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    logical, intent(in) :: tSSR
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> SA-REKS state vector
     real(dp), intent(out) :: XT(:,:)
@@ -985,20 +988,20 @@ module dftbp_reksgrad
     superN = size(XT,dim=1)
     Nv = nOrb - Nc - Na
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
     XT(:,:) = 0.0_dp
     do iL = 1, Lmax
 
-      if (tRangeSep) then
+      if (isRangeSep) then
 
-        if (useSSR == 1) then
+        if (tSSR) then
           do ist = 1, nstates
             do ij = 1, superN
               ! assign index i and j from ij
-              call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+              call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
               tmp1 = weightL(ist,iL)*fillingL(i,1,iL)*hamSqrL(i,j,1,iL)
               tmp2 = weightL(ist,iL)*fillingL(j,1,iL)*hamSqrL(i,j,1,iL)
               XT(ij,ist) = XT(ij,ist) + 2.0_dp * (tmp1 - tmp2)
@@ -1007,7 +1010,7 @@ module dftbp_reksgrad
         else
           do ij = 1, superN
             ! assign index i and j from ij
-            call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+            call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
             tmp1 = weightL(rstate,iL)*fillingL(i,1,iL)*hamSqrL(i,j,1,iL)
             tmp2 = weightL(rstate,iL)*fillingL(j,1,iL)*hamSqrL(i,j,1,iL)
             XT(ij,1) = XT(ij,1) + 2.0_dp * (tmp1 - tmp2)
@@ -1028,11 +1031,11 @@ module dftbp_reksgrad
         ! convert the multipliers from MO basis to AO basis
         call matAO2MO(tmpHam, eigenvecs(:,:,1))
 
-        if (useSSR == 1) then
+        if (tSSR) then
           do ist = 1, nstates
             do ij = 1, superN
               ! assign index i and j from ij
-              call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+              call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
               tmp1 = weightL(ist,iL)*fillingL(i,1,iL)*tmpHam(i,j)
               tmp2 = weightL(ist,iL)*fillingL(j,1,iL)*tmpHam(i,j)
               XT(ij,ist) = XT(ij,ist) + 2.0_dp * (tmp1 - tmp2)
@@ -1041,7 +1044,7 @@ module dftbp_reksgrad
         else
           do ij = 1, superN
             ! assign index i and j from ij
-            call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+            call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
             tmp1 = weightL(rstate,iL)*fillingL(i,1,iL)*tmpHam(i,j)
             tmp2 = weightL(rstate,iL)*fillingL(j,1,iL)*tmpHam(i,j)
             XT(ij,1) = XT(ij,1) + 2.0_dp * (tmp1 - tmp2)
@@ -1058,7 +1061,7 @@ module dftbp_reksgrad
   !> Calculate X^T_del vectors for state-interaction
   subroutine buildInteractionVectors(eigenvecs, ZdelL, Fc, Fa, FONs, &
       & fillingL, weight, SAweight, omega, Rab, G1, Nc, Na, &
-      & ia, ib, tSSR22, tSSR44, XTdel)
+      & ia, ib, reksAlg, XTdel)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -1102,11 +1105,8 @@ module dftbp_reksgrad
     !> Two indices related to state-interaction term
     integer, intent(in) :: ia, ib
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> state-interaction term vector
     real(dp), intent(inout) :: XTdel(:)
@@ -1136,7 +1136,7 @@ module dftbp_reksgrad
       call gemm(Zmo, eigenvecs(:,:,1), tmpMat, transA='T')
       do ij = 1, superN
         ! assign index p and q from pq
-        call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+        call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
         fac = 2.0_dp * weight(iL) * Zmo(i,j) &
            & * (fillingL(i,1,iL) - fillingL(j,1,iL))
         XTdel(ij) = XTdel(ij) - fac
@@ -1144,12 +1144,14 @@ module dftbp_reksgrad
     end do
 
     ! 1-electron part
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getInteraction1e22_(Fc, Fa, FONs, SAweight, omega, Rab, G1, &
-          & Nc, Na, ia, ib, tSSR22, tSSR44, XTdel)
-    else if (tSSR44) then
+          & Nc, Na, ia, ib, reksAlg, XTdel)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine buildInteractionVectors
 
@@ -1157,7 +1159,7 @@ module dftbp_reksgrad
   !> Calculate X^T_L vector for L-th microstate
   subroutine buildLstateVector(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, eigenvecs, hamSqrL, hamSpL, fillingL, &
-      & Nc, Na, Lstate, Lpaired, tSSR22, tSSR44, tRangeSep, XTL)
+      & Nc, Na, Lstate, Lpaired, reksAlg, isRangeSep, XTL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1201,14 +1203,11 @@ module dftbp_reksgrad
     !> Number of spin-paired microstates
     integer, intent(in) :: Lpaired
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> L-th microstate vector
     real(dp), intent(out) :: XTL(:)
@@ -1224,7 +1223,7 @@ module dftbp_reksgrad
     superN = size(XTL,dim=1)
     Nv = nOrb - Nc - Na
 
-    if (.not. tRangeSep) then
+    if (.not. isRangeSep) then
       allocate(tmpHam(nOrb,nOrb))
     end if
 
@@ -1247,11 +1246,11 @@ module dftbp_reksgrad
         iL = tmpL
       end if
 
-      if (tRangeSep) then
+      if (isRangeSep) then
 
         do ij = 1, superN
           ! assign index i and j from ij
-          call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+          call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
           tmp1 = fillingL(i,1,iL)*hamSqrL(i,j,1,iL)
           tmp2 = fillingL(j,1,iL)*hamSqrL(i,j,1,iL)
           XTL(ij) = XTL(ij) + (tmp1 - tmp2)
@@ -1273,7 +1272,7 @@ module dftbp_reksgrad
 
         do ij = 1, superN
           ! assign index i and j from ij
-          call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+          call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
           tmp1 = fillingL(i,1,iL)*tmpHam(i,j)
           tmp2 = fillingL(j,1,iL)*tmpHam(i,j)
           XTL(ij) = XTL(ij) + (tmp1 - tmp2)
@@ -1319,8 +1318,7 @@ module dftbp_reksgrad
 
 
   !> Calculate RmatL used in CP-REKS equations
-  subroutine getRmat(eigenvecs, ZT, fillingL, Nc, Na, &
-      & tSSR22, tSSR44, RmatL)
+  subroutine getRmat(eigenvecs, ZT, fillingL, Nc, Na, reksAlg, RmatL)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -1337,28 +1335,27 @@ module dftbp_reksgrad
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: RmatL(:,:,:)
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getRmat22_(eigenvecs, ZT, fillingL, Nc, Na, &
-          & tSSR22, tSSR44, RmatL)
-    else if (tSSR44) then
+          & reksAlg, RmatL)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine getRmat
 
 
   !> Calculate RdelL used in CP-REKS equations
   subroutine getRdel(eigenvecs, fillingL, FONs, Nc, &
-      & nstates, tSSR22, tSSR44, RdelL)
+      & nstates, reksAlg, RdelL)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -1375,20 +1372,19 @@ module dftbp_reksgrad
     !> Number of states
     integer, intent(in) :: nstates
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> auxiliary matrix in AO basis related to state-interaction term
     real(dp), intent(out) :: RdelL(:,:,:,:)
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getRdel22_(eigenvecs, fillingL, FONs, Nc, nstates, RdelL)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine getRdel
 
@@ -1397,7 +1393,7 @@ module dftbp_reksgrad
   subroutine getZmat(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, RmatL, HxcSqrS, HxcSqrD, HxcHalfS, &
       & HxcHalfD, HxcSpS, HxcSpD, overSqr, over, GammaAO, SpinAO, LrGammaAO, &
-      & orderRmatL, getDenseAO, Lpaired, Glevel, Mlevel, tRangeSep, ZmatL)
+      & orderRmatL, getDenseAO, Lpaired, Glevel, tSaveMem, isRangeSep, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1468,11 +1464,11 @@ module dftbp_reksgrad
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Memory level used in calculation of gradient
-    integer, intent(in) :: Mlevel
+    !> Save 'A' and 'Hxc' to memory in gradient calculation
+    logical, intent(in) :: tSaveMem
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: ZmatL(:,:,:)
@@ -1480,9 +1476,9 @@ module dftbp_reksgrad
     ! calculate ZmatL or ZdelL using same routine
     if (Glevel == 1 .or. Glevel == 2) then
 
-      if (Mlevel == 1) then
+      if (tSaveMem) then
 
-        if (tRangeSep) then
+        if (isRangeSep) then
 
           call getZmatHalf_(HxcHalfS, HxcHalfD, orderRmatL, Lpaired, RmatL, ZmatL)
 
@@ -1494,11 +1490,11 @@ module dftbp_reksgrad
 
         end if
 
-      else if (Mlevel == 2) then
+      else
 
         call getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
             & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
-            & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, tRangeSep, ZmatL)
+            & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, isRangeSep, ZmatL)
 
       end if
 
@@ -1513,7 +1509,7 @@ module dftbp_reksgrad
 
   !> Calculate Q1mat used in CP-REKS equations
   subroutine getQ1mat(ZT, Fc, Fa, SAweight, FONs, &
-      & Nc, Na, tSSR22, tSSR44, Q1mat)
+      & Nc, Na, reksAlg, Q1mat)
 
     !> solution of A * Z = X equation with X is XT
     real(dp), intent(in) :: ZT(:)
@@ -1536,11 +1532,8 @@ module dftbp_reksgrad
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> auxiliary matrix in MO basis related to SA-REKS term
     real(dp), intent(out) :: Q1mat(:,:)
@@ -1557,13 +1550,13 @@ module dftbp_reksgrad
     do t = 1, nOrb
       do pq = 1, superN
 
-        call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)
+        call assignIndex(Nc, Na, Nv, reksAlg, pq, p, q)
 
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, p, q, t, &
-            & 1, tSSR22, tSSR44, e1, e2)
+            & 1, reksAlg, e1, e2)
         Q1mat(p,t) = Q1mat(p,t) + 0.5_dp*ZT(pq)*(e1-e2)
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, q, p, t, &
-            & 1, tSSR22, tSSR44, e1, e2)
+            & 1, reksAlg, e1, e2)
         Q1mat(q,t) = Q1mat(q,t) - 0.5_dp*ZT(pq)*(e1-e2)
 
       end do
@@ -1575,7 +1568,7 @@ module dftbp_reksgrad
 
   !> Calculate Q1del used in CP-REKS equations
   subroutine getQ1del(eigenvecs, Fc, Fa, FONs, SAweight, &
-      & Nc, nstates, tSSR22, tSSR44, Q1del)
+      & Nc, nstates, reksAlg, Q1del)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -1598,21 +1591,20 @@ module dftbp_reksgrad
     !> Number of states
     integer, intent(in) :: nstates
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> auxiliary matrix in AO basis related to state-interaction term
     real(dp), intent(out) :: Q1del(:,:,:)
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getQ1del22_(eigenvecs, Fc, Fa, FONs, SAweight, &
-          & Nc, nstates, tSSR22, tSSR44, Q1del)
-    else if (tSSR44) then
+          & Nc, nstates, reksAlg, Q1del)
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine getQ1del
 
@@ -2102,7 +2094,7 @@ module dftbp_reksgrad
       & deltaRhoSqrL, qOutputL, q0, GammaAO, GammaDeriv, SpinAO, LrGammaAO, &
       & LrGammaDeriv, RmatL, RdelL, tmpRL, weight, extCharges, blurWidths, &
       & rVec, gVec, alpha, vol, getDenseAO, getDenseAtom, getAtomIndex, &
-      & orderRmatL, Lpaired, SAstates, tNAC, tRangeSep, tExtChrg, tPeriodic, &
+      & orderRmatL, Lpaired, SAstates, tNAC, isRangeSep, tExtChrg, tPeriodic, &
       & tBlur, SAgrad, SIgrad, SSRgrad)
 
     !> Environment settings
@@ -2226,7 +2218,7 @@ module dftbp_reksgrad
     logical, intent(in) :: tNAC
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> If external charges must be considered
     logical, intent(in) :: tExtChrg
@@ -2325,7 +2317,7 @@ module dftbp_reksgrad
           & orderRmatL, SAstates, tNAC, tPeriodic, tBlur, deriv1, deriv2)
     end if
 
-    if (tRangeSep) then
+    if (isRangeSep) then
 
       deallocate(tmpRmatL)
       if (tNAC) then
@@ -2525,25 +2517,24 @@ module dftbp_reksgrad
 
 
   !> compute the gradient for remaining SA-REKS state
-  subroutine getOtherSAgrad(avgGrad, tSSR22, tSSR44, SAgrad)
+  subroutine getOtherSAgrad(avgGrad, reksAlg, SAgrad)
 
     !> gradient of averaged state
     real(dp), intent(in) :: avgGrad(:,:)
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> gradient of SA-REKS state
     real(dp), intent(inout) :: SAgrad(:,:,:)
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call getOtherSAgrad22_(avgGrad, SAgrad)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine getOtherSAgrad
 
@@ -2710,7 +2701,7 @@ module dftbp_reksgrad
 
   !> Calculate H-XC kernel for DFTB in AO basis with dense form
   subroutine HxcKernelDense_(iSquare, getAtomIndex, overSqr, GammaAO, &
-      & SpinAO, LrGammaAO, tRangeSep, HxcSqrS, HxcSqrD)
+      & SpinAO, LrGammaAO, isRangeSep, HxcSqrS, HxcSqrD)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
@@ -2731,7 +2722,7 @@ module dftbp_reksgrad
     real(dp), allocatable, intent(in) :: LrGammaAO(:,:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> Hartree-XC kernel with dense form with same spin part
     real(dp), allocatable, intent(inout) :: HxcSqrS(:,:,:,:)
@@ -2780,7 +2771,7 @@ module dftbp_reksgrad
         HxcSqrD(mu,nu,tau,gam) = 0.25_dp * overSqr(nu,mu) * overSqr(gam,tau) * &
             & ( (tmpG1+tmpG2+tmpG3+tmpG4) - (tmpS1+tmpS2+tmpS3+tmpS4) )
 
-        if (tRangeSep) then
+        if (isRangeSep) then
 
           tmpL1 = LRgammaAO(mu,gam)
           tmpL2 = LRgammaAO(mu,nu)
@@ -2804,7 +2795,7 @@ module dftbp_reksgrad
 
   !> Calculate H-XC kernel for DFTB in AO basis with half dense form
   subroutine HxcKernelHalf_(iSquare, getAtomIndex, getDenseAO, overSqr, &
-      & GammaAO, SpinAO, LrGammaAO, tRangeSep, HxcHalfS, HxcHalfD)
+      & GammaAO, SpinAO, LrGammaAO, isRangeSep, HxcHalfS, HxcHalfD)
 
     !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
     integer, intent(in) :: iSquare(:)
@@ -2828,7 +2819,7 @@ module dftbp_reksgrad
     real(dp), intent(in) :: LrGammaAO(:,:)
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> Hartree-XC kernel with half dense form with same spin part
     real(dp), allocatable, intent(inout) :: HxcHalfS(:,:)
@@ -2910,7 +2901,7 @@ module dftbp_reksgrad
 !$OMP END PARALLEL DO
 
     ! LC terms
-    if (tRangeSep) then
+    if (isRangeSep) then
 
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(mu,nu,tau,gam,tmp22, &
 !$OMP& tmpL1,tmpL2,tmpL3,tmpL4,tmpvalue1,tmpvalue2) SCHEDULE(RUNTIME)
@@ -2930,7 +2921,7 @@ module dftbp_reksgrad
           gam = tau**2/2 - tau/2 - nOrb*tau + nOrb + l
 
           ! LC terms
-          if (tRangeSep) then
+          if (isRangeSep) then
 
             ! (mu,nu,tau,gam)
             tmpvalue1 = 0.0_dp
@@ -3145,7 +3136,7 @@ module dftbp_reksgrad
 
   !> Calculate super A hessian matrix without H-XC kernel
   subroutine buildA1e_(Fc, Fa, omega, SAweight, FONs, G1, Nc, Na, &
-      & Glevel, tSSR22, tSSR44, A1e, A1ePre)
+      & Glevel, reksAlg, A1e, A1ePre)
 
     !> dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
@@ -3174,11 +3165,8 @@ module dftbp_reksgrad
     !> Algorithms to calculate analytic gradients
     integer, intent(in) :: Glevel
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> super A hessian matrix with one-electron term in front of orbital derivatives
     real(dp), allocatable, intent(inout) :: A1e(:,:)
@@ -3203,37 +3191,37 @@ module dftbp_reksgrad
       call getTwoIndices(superN, ijpq, ij, pq, 2)
 
       ! assign index i and j from ij
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+      call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
 
       ! assign index p and q from pq
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)
+      call assignIndex(Nc, Na, Nv, reksAlg, pq, p, q)
 
       ! get lagrange multipliers with delta function
       if (i == p) then
         e1 = 0.0_dp; e2 = 0.0_dp;
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, q, &
-            & 1, tSSR22, tSSR44, e1, e2)
+            & 1, reksAlg, e1, e2)
         A1e(ij,pq) = A1e(ij,pq) + 0.5_dp*(e1 - e2)
       end if
 
       if (j == q) then
         e1 = 0.0_dp; e2 = 0.0_dp;
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, p, &
-            & 2, tSSR22, tSSR44, e1, e2)
+            & 2, reksAlg, e1, e2)
         A1e(ij,pq) = A1e(ij,pq) - 0.5_dp*(e1 - e2)
       end if
 
       if (i == q) then
         e1 = 0.0_dp; e2 = 0.0_dp;
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, p, &
-            & 1, tSSR22, tSSR44, e1, e2)
+            & 1, reksAlg, e1, e2)
         A1e(ij,pq) = A1e(ij,pq) - 0.5_dp*(e1 - e2)
       end if
 
       if (j == p) then
         e1 = 0.0_dp; e2 = 0.0_dp;
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, q, &
-            & 2, tSSR22, tSSR44, e1, e2)
+            & 2, reksAlg, e1, e2)
         A1e(ij,pq) = A1e(ij,pq) + 0.5_dp*(e1 - e2)
       end if
 
@@ -3252,19 +3240,19 @@ module dftbp_reksgrad
     do ij = 1, superN
 
       ! assign index i and j from ij
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+      call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
 
       if (Glevel == 1) then
 
         ! get lagrange multipliers with delta function
         e1 = 0.0_dp; e2 = 0.0_dp;
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, j, &
-            & 1, tSSR22, tSSR44, e1, e2)
+            & 1, reksAlg, e1, e2)
         A1ePre(ij,ij) = A1ePre(ij,ij) + 0.5_dp*(e1 - e2)
 
         e1 = 0.0_dp; e2 = 0.0_dp;
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, i, &
-            & 2, tSSR22, tSSR44, e1, e2)
+            & 2, reksAlg, e1, e2)
         A1ePre(ij,ij) = A1ePre(ij,ij) - 0.5_dp*(e1 - e2)
 
         ! SAweight(1) is equal to W0
@@ -3293,7 +3281,7 @@ module dftbp_reksgrad
   !> Calculate super A hessian matrix with H-XC kernel
   subroutine buildAall_(eigenvecs, HxcSqrS, HxcSqrD, Fc, Fa, omega, &
       & fillingL, weight, SAweight, FONs, G1, Lpaired, Nc, Na, &
-      & tSSR22, tSSR44, Aall)
+      & reksAlg, Aall)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -3337,11 +3325,8 @@ module dftbp_reksgrad
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> super A hessian matrix in front of orbital derivatives
     real(dp), allocatable, intent(inout) :: Aall(:,:)
@@ -3359,46 +3344,46 @@ module dftbp_reksgrad
 
     HxcTot(:,:,:,:) = 0.0_dp
     call getHxcMo_(eigenvecs(:,:,1), HxcSqrS, HxcSqrD, fillingL, weight, &
-        & superN, Lpaired, Nc, Na, tSSR22, tSSR44, HxcTot)
+        & superN, Lpaired, Nc, Na, reksAlg, HxcTot)
 
     Aall(:,:) = 0.0_dp
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ij,i,j,pq,p,q,e1,e2) SCHEDULE(RUNTIME)
     do ij = 1, superN
 
       ! assign index i and j from ij
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+      call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
 
       do pq = ij, superN
 
         ! assign index p and q from pq
-        call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)
+        call assignIndex(Nc, Na, Nv, reksAlg, pq, p, q)
 
         ! get lagrange multipliers with delta function
         if (i == p) then
           e1 = 0.0_dp; e2 = 0.0_dp;
           call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, q, &
-              & 1, tSSR22, tSSR44, e1, e2)
+              & 1, reksAlg, e1, e2)
           Aall(ij,pq) = Aall(ij,pq) + 0.5_dp*(e1 - e2)
         end if
 
         if (j == q) then
           e1 = 0.0_dp; e2 = 0.0_dp;
           call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, p, &
-              & 2, tSSR22, tSSR44, e1, e2)
+              & 2, reksAlg, e1, e2)
           Aall(ij,pq) = Aall(ij,pq) - 0.5_dp*(e1 - e2)
         end if
 
         if (i == q) then
           e1 = 0.0_dp; e2 = 0.0_dp;
           call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, p, &
-              & 1, tSSR22, tSSR44, e1, e2)
+              & 1, reksAlg, e1, e2)
           Aall(ij,pq) = Aall(ij,pq) - 0.5_dp*(e1 - e2)
         end if
 
         if (j == p) then
           e1 = 0.0_dp; e2 = 0.0_dp;
           call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, q, &
-              & 2, tSSR22, tSSR44, e1, e2)
+              & 2, reksAlg, e1, e2)
           Aall(ij,pq) = Aall(ij,pq) + 0.5_dp*(e1 - e2)
         end if
 
@@ -3422,7 +3407,7 @@ module dftbp_reksgrad
 
   !> Calculate H-XC kernel in MO basis, it shows very high computational cost
   subroutine getHxcMo_(eigenvecs, HxcSqrS, HxcSqrD, fillingL, weight, &
-      & superN, Lpaired, Nc, Na, tSSR22, tSSR44, HxcTot)
+      & superN, Lpaired, Nc, Na, reksAlg, HxcTot)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:)
@@ -3451,11 +3436,8 @@ module dftbp_reksgrad
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> total averaged H-XC kernel in MO basis
     real(dp), intent(inout) :: HxcTot(:,:,:,:)
@@ -3508,12 +3490,12 @@ module dftbp_reksgrad
     do ij = 1, superN
 
       ! assign index i and j from ij
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+      call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
 
       do pq = 1, superN
 
         ! assign index p and q from pq
-        call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, pq, p, q)
+        call assignIndex(Nc, Na, Nv, reksAlg, pq, p, q)
 
         tmpHxcS = 0.5_dp * (HxcSmo(i,j,p,q) + HxcSmo(i,j,q,p))
         tmpHxcD = 0.5_dp * (HxcDmo(i,j,p,q) + HxcDmo(i,j,q,p))
@@ -3550,7 +3532,7 @@ module dftbp_reksgrad
 
   !> Calculate X^T_del vectors for 1e contribution in REKS(2,2)
   subroutine getInteraction1e22_(Fc, Fa, FONs, SAweight, omega, Rab, G1, &
-      & Nc, Na, ia, ib, tSSR22, tSSR44, XTdel)
+      & Nc, Na, ia, ib, reksAlg, XTdel)
 
     !> dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
@@ -3582,11 +3564,8 @@ module dftbp_reksgrad
     !> Two indices related to state-interaction term
     integer, intent(in) :: ia, ib
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> state-interaction term vector
     real(dp), intent(inout) :: XTdel(:)
@@ -3607,11 +3586,11 @@ module dftbp_reksgrad
     do ij = 1, superN
 
       ! assign index i and j from ij
-      call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+      call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
 
       if (j == b) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, a, b, i, &
-            & 3, tSSR22, tSSR44, e1, e2)
+            & 3, reksAlg, e1, e2)
         if (ia == 1 .and. ib == 2) then
           XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_a)*e1 - sqrt(n_b)*e2 )
         else if (ia == 2 .and. ib == 3) then
@@ -3620,7 +3599,7 @@ module dftbp_reksgrad
       end if
       if (j == a) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, b, a, i, &
-            & 3, tSSR22, tSSR44, e1, e2)
+            & 3, reksAlg, e1, e2)
         if (ia == 1 .and. ib == 2) then
           XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_a)*e2 - sqrt(n_b)*e1 )
         else if (ia == 2 .and. ib == 3) then
@@ -3632,7 +3611,7 @@ module dftbp_reksgrad
       ! it is described in REKS full document (derivation ver.)
       if (i == a) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, b, a, j, &
-            & 3, tSSR22, tSSR44, e1, e2)
+            & 3, reksAlg, e1, e2)
         if (ia == 1 .and. ib == 2) then
           XTdel(ij) = XTdel(ij) - 0.5_dp*( sqrt(n_a)*e2 )
         else if (ia == 2 .and. ib == 3) then
@@ -3641,7 +3620,7 @@ module dftbp_reksgrad
       end if
       if (i == b) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, a, b, j, &
-            & 3, tSSR22, tSSR44, e1, e2)
+            & 3, reksAlg, e1, e2)
         if (ia == 1 .and. ib == 2) then
           XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_b)*e2 )
         else if (ia == 2 .and. ib == 3) then
@@ -3650,7 +3629,7 @@ module dftbp_reksgrad
       end if
       if (i == a .and. j == b) then
         call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, b, b, b, &
-            & 3, tSSR22, tSSR44, e1, e2)
+            & 3, reksAlg, e1, e2)
         if (ia == 1 .and. ib == 2) then
           XTdel(ij) = XTdel(ij) + 0.5_dp*( sqrt(n_b)*e1 )
         else if (ia == 2 .and. ib == 3) then
@@ -3667,7 +3646,7 @@ module dftbp_reksgrad
 
   !> Calculate RmatL used in CP-REKS equations in REKS(2,2)
   subroutine getRmat22_(eigenvecs, ZT, fillingL, Nc, Na, &
-      & tSSR22, tSSR44, RmatL)
+      & reksAlg, RmatL)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -3684,11 +3663,8 @@ module dftbp_reksgrad
     !> Number of active orbitals
     integer, intent(in) :: Na
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: RmatL(:,:,:)
@@ -3711,7 +3687,7 @@ module dftbp_reksgrad
       tmpZT(:,:) = 0.0_dp
       do ij = 1, superN
         ! assign index i and j from ij
-        call assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+        call assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
         if (iL <= 2) then
           tmpZT(i,j) = ZT(ij) * (fillingL(i,1,iL) - fillingL(j,1,iL))
         else
@@ -4065,7 +4041,7 @@ module dftbp_reksgrad
   !> Calculate ZmatL without saving H-XC kernel used in CP-REKS equations in REKS(2,2)
   subroutine getZmatNoHxc_(env, denseDesc, neighbourList, nNeighbourSK, &
       & iSparseStart, img2CentCell, orb, getDenseAO, GammaAO, SpinAO, &
-      & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, tRangeSep, ZmatL)
+      & LrGammaAO, overSqr, RmatL, orderRmatL, Lpaired, isRangeSep, ZmatL)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -4113,7 +4089,7 @@ module dftbp_reksgrad
     integer, intent(in) :: Lpaired
 
     !> Whether to run a range separated calculation
-    logical, intent(in) :: tRangeSep
+    logical, intent(in) :: isRangeSep
 
     !> auxiliary matrix in AO basis related to SA-REKS term
     real(dp), intent(out) :: ZmatL(:,:,:)
@@ -4236,7 +4212,7 @@ module dftbp_reksgrad
 
     ! calculate the ZmatL for LC term
 
-    if (tRangeSep) then
+    if (isRangeSep) then
 
       deallocate(tmpRmatL)
       deallocate(tmpHxcS)
@@ -4285,7 +4261,7 @@ module dftbp_reksgrad
           nu = mu**2/2 - mu/2 - nOrb*mu + nOrb + jj
 
           ! calculate the H-XC kernel for LC term
-          if (tRangeSep) then
+          if (isRangeSep) then
 
             ! (mu,nu,tau,gam)
             tmpL1 = LrGammaAO(mu,gam)
@@ -4373,7 +4349,7 @@ module dftbp_reksgrad
 
   !> Calculate Q1del used in CP-REKS equations in REKS(2,2)
   subroutine getQ1del22_(eigenvecs, Fc, Fa, FONs, SAweight, &
-      & Nc, nstates, tSSR22, tSSR44, Q1del)
+      & Nc, nstates, reksAlg, Q1del)
 
     !> Eigenvectors on eixt
     real(dp), intent(in) :: eigenvecs(:,:,:)
@@ -4396,11 +4372,8 @@ module dftbp_reksgrad
     !> Number of states
     integer, intent(in) :: nstates
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> auxiliary matrix in AO basis related to state-interaction term
     real(dp), intent(out) :: Q1del(:,:,:)
@@ -4424,7 +4397,7 @@ module dftbp_reksgrad
 
           e1 = 0.0_dp; e2 = 0.0_dp
           call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, a, b, t, &
-              & 2, tSSR22, tSSR44, e1, e2)
+              & 2, reksAlg, e1, e2)
           Q1del(nu,mu,1) = Q1del(nu,mu,1) + ( sqrt(n_a)*e1 - sqrt(n_b)*e2 ) * &
             & eigenvecs(mu,t,1) * eigenvecs(nu,b,1) * 0.5_dp
           if (nstates == 3) then
@@ -4434,7 +4407,7 @@ module dftbp_reksgrad
 
           e1 = 0.0_dp; e2 = 0.0_dp
           call assignEpsilon(Fc, Fa, SAweight, FONs, Nc, a, b, t, &
-              & 1, tSSR22, tSSR44, e1, e2)
+              & 1, reksAlg, e1, e2)
           Q1del(nu,mu,1) = Q1del(nu,mu,1) + ( sqrt(n_a)*e1 - sqrt(n_b)*e2 ) * &
             & eigenvecs(mu,t,1) * eigenvecs(nu,a,1) * 0.5_dp
           if (nstates == 3) then

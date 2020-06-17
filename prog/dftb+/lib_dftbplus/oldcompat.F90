@@ -453,6 +453,19 @@ contains
       end if
     end if
 
+    call getDescendant(root, "ParserOptions/WriteXMLInput", ch1)
+    if (associated(ch1)) then
+      call getChildValue(ch1, "", tVal)
+      call setUnprocessed(ch1)
+      if (tVal) then
+        call detailedWarning(ch1, "Sorry, XML export of the dftb_in.hsd is not supported any more&
+            & so is removed")
+      else
+        call detailedWarning(ch1, "XML export option is removed.")
+      end if
+      call destroyNode(ch1)
+    end if
+
   end subroutine convert_7_8
 
 

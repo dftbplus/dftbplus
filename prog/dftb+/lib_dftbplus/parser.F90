@@ -15,9 +15,10 @@ module dftbp_parser
   use dftbp_constants
   use dftbp_inputdata
   use dftbp_typegeometryhsd
-  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName, parseHSD
+  use dftbp_hsdparser, only : getNodeHSDName, parseHSD
   use dftbp_hsdutils
   use dftbp_hsdutils2
+  use dftbp_specieslist, only : readSpeciesList
   use dftbp_charmanip
   use dftbp_message
   use dftbp_linkedlist
@@ -55,6 +56,7 @@ module dftbp_parser
   use dftbp_hamiltoniantypes
   use dftbp_wrappedintr
   use dftbp_tempprofile, only : identifyTempProfile
+  use dftbp_reks
   use dftbp_plumed, only : withPlumed
   use poisson_init
 #:if WITH_TRANSPORT
@@ -88,9 +90,6 @@ module dftbp_parser
 
     !> Continue despite unprocessed nodes
     logical :: tIgnoreUnprocessed
-
-    !> XML output?
-    logical :: tWriteXML
 
     !> HSD output?
     logical :: tWriteHSD
@@ -203,9 +202,8 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%geom, input%ctrl)
 
-    call getChildValue(root, "Reks", dummy, "", child=child, list=.true., &
-        & allowEmptyValue=.true., dummyValue=.true.)
-    call readReks(child, input%ctrl, input%geom)
+    call getChildValue(root, "Reks", dummy, "None", child=child)
+    call readReks(child, dummy, input%ctrl, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -260,14 +258,10 @@ contains
     end if
 
     call getChildValue(node, "WriteHSDInput", flags%tWriteHSD, .true.)
-    call getChildValue(node, "WriteXMLInput", flags%tWriteXML, .false.)
-    if (.not. (flags%tWriteHSD .or. flags%tWriteXML)) then
-      call detailedWarning(node, &
-          &"WriteHSDInput and WriteXMLInput both turned off. You are not&
-          & guaranteed" &
-          &// newline // &
-          &" to able to obtain the same results with a later version of the&
-          & code!")
+    if (.not. flags%tWriteHSD) then
+      call detailedWarning(node, "WriteHSDInput turned off. You are not guaranteed" // newline // &
+          &" to able to obtain the same results with a later version of the code!" // newline // &
+          & "(the dftb_pin.hsd file DOES guarantee this)")
     end if
     call getChildValue(node, "StopAfterParsing", flags%tStop, .false.)
 
@@ -291,6 +285,8 @@ contains
 
     call getChildValue(node, "", value1, child=child)
     call getNodeName(value1, buffer)
+    input%geom%tPeriodic = .false.
+    input%geom%tHelical = .false.
     select case (char(buffer))
     case ("genformat")
       call readTGeometryGen(value1, input%geom)
@@ -1208,10 +1204,14 @@ contains
     character(lc) :: errorStr
     logical :: tLower, tExist
     integer, allocatable :: pTmpI1(:)
-    real(dp) :: rTmp
+    real(dp), allocatable :: tmpR1(:)
+    real(dp), allocatable :: tmpR2(:,:)
+    real(dp) :: rTmp, rTmp3(3)
     integer, allocatable :: iTmpN(:)
     integer :: nShell, skInterMeth
-    integer :: angShell(maxL+1)
+    character(1) :: tmpCh
+    logical :: tShellIncl(4), tFound
+    integer :: angShell(maxL+1), angShellOrdered(maxL+1)
     integer :: fp, iErr
     logical :: tBadIntegratingKPoints
     integer :: nElem
@@ -2468,9 +2468,10 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    !> Geometry structure to be filled
+    !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
+    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: tBadIntegratingKPoints
 
     type(fnode), pointer :: value1, child
@@ -2483,136 +2484,26 @@ contains
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
     character(lc) :: errorStr
+    integer :: iTmp, iTmp2(2)
+    real(dp) :: rTmp22(2,2)
 
     ! Assume SCC can has usual default number of steps if needed
     tBadIntegratingKPoints = .false.
 
     ! K-Points
     if (geo%tPeriodic) then
-      call getChildValue(node, "KPointsAndWeights", value1, child=child, &
-          &modifier=modifier)
-      call getNodeName(value1, buffer)
-      select case(char(buffer))
 
-      case ("supercellfolding")
-        tBadIntegratingKPoints = .false.
-        if (len(modifier) > 0) then
-          call detailedError(child, "No modifier is allowed, if the &
-              &SupercellFolding scheme is used.")
-        end if
-        call getChildValue(value1, "", coeffsAndShifts)
-        if (abs(determinant33(coeffsAndShifts(:,1:3))) - 1.0_dp < -1e-6_dp) then
-          call detailedError(value1, "Determinant of the supercell matrix must &
-              &be greater than 1")
-        end if
-        if (any(abs(modulo(coeffsAndShifts(:,1:3) + 0.5_dp, 1.0_dp) - 0.5_dp) &
-            &> 1e-6_dp)) then
-          call detailedError(value1, "The components of the supercell matrix &
-              &must be integers.")
-        end if
-        if (.not.ctrl%tSpinOrbit) then
-          call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
-              & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.true.)
-        else
-          call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
-              & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.false.)
-        end if
-        ctrl%nKPoint = size(ctrl%kPoint, dim=2)
+      call getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo)
 
-      case ("klines")
-        ! probably unable to integrate charge for SCC
-        tBadIntegratingKPoints = .true.
-        call init(li1)
-        call init(lr1)
-        call getChildValue(value1, "", 1, li1, 3, lr1)
-        if (len(li1) < 1) then
-          call detailedError(value1, "At least one line must be specified.")
-        end if
-        allocate(tmpI1(len(li1)))
-        allocate(kpts(3, 0:len(lr1)))
-        call asVector(li1, tmpI1)
-        call asArray(lr1, kpts(:,1:len(lr1)))
-        kpts(:,0) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
-        call destruct(li1)
-        call destruct(lr1)
-        if (any(tmpI1 < 0)) then
-          call detailedError(value1, "Interval steps must be greater equal to &
-              &zero.")
-        end if
-        ctrl%nKPoint = sum(tmpI1)
-        if (ctrl%nKPoint < 1) then
-          call detailedError(value1, "Sum of the interval steps must be greater &
-              &than zero.")
-        end if
-        ii = 1
-        do while (tmpI1(ii) == 0)
-          ii = ii + 1
-        end do
-        allocate(ctrl%kPoint(3, ctrl%nKPoint))
-        allocate(ctrl%kWeight(ctrl%nKPoint))
-        ind = 1
-        do jj = ii, size(tmpI1)
-          if (tmpI1(jj) == 0) then
-            cycle
-          end if
-          rTmp3 = (kpts(:,jj) - kpts(:,jj-1)) / real(tmpI1(jj), dp)
-          do kk = 1, tmpI1(jj)
-            ctrl%kPoint(:,ind) = kpts(:,jj-1) + real(kk, dp) * rTmp3
-            ind = ind + 1
-          end do
-        end do
-        ctrl%kWeight(:) = 1.0_dp
-        if (len(modifier) > 0) then
-          select case (tolower(char(modifier)))
-          case ("relative")
-          case ("absolute")
-            ctrl%kPoint(:,:) =  matmul(transpose(geo%latVecs), ctrl%kPoint)
-            kpts(:,:) = matmul(transpose(geo%latVecs), kpts)
-          case default
-            call detailedError(child, "Invalid modifier: '" // char(modifier) &
-                &// "'")
-          end select
-        end if
-        deallocate(tmpI1)
-        deallocate(kpts)
+    else if (geo%tHelical) then
 
-      case (textNodeName)
+      call getHelicalKSampling(tBadIntegratingKPoints, ctrl, node, geo)
 
-        ! no idea, but assume user knows what they are doing
-        tBadIntegratingKPoints = .false.
-
-        call init(lr1)
-        call getChildValue(child, "", 4, lr1, modifier=modifier)
-        if (len(lr1) < 1) then
-          call detailedError(child, "At least one k-point must be defined.")
-        end if
-        ctrl%nKPoint = len(lr1)
-        allocate(kpts(4, ctrl%nKPoint))
-        call asArray(lr1, kpts)
-        call destruct(lr1)
-        if (len(modifier) > 0) then
-          select case (tolower(char(modifier)))
-          case ("relative")
-            continue
-          case ("absolute")
-            kpts(1:3,:) =  matmul(transpose(geo%latVecs), kpts(1:3,:))
-          case default
-            call detailedError(child, "Invalid modifier: '" // char(modifier) &
-                &// "'")
-          end select
-        end if
-        allocate(ctrl%kPoint(3, ctrl%nKPoint))
-        allocate(ctrl%kWeight(ctrl%nKPoint))
-        ctrl%kPoint(:,:) = kpts(1:3, :)
-        ctrl%kWeight(:) = kpts(4, :)
-        deallocate(kpts)
-      case default
-        call detailedError(value1, "Invalid K-point scheme")
-      end select
     end if
 
     if (ctrl%tSCC) then
       if (tBadIntegratingKPoints) then
+        ! prevent full SCC with these points
         ii = 1
       else
         ii = 100
@@ -2630,6 +2521,276 @@ contains
     end if
 
   end subroutine readKPoints
+
+
+  !> K-points in Euclidean space
+  subroutine getEuclideanKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+
+    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
+    logical, intent(out) :: tBadIntegratingKPoints
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry structure
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer, modifier
+    integer :: ind, ii, jj, kk
+    real(dp) :: coeffsAndShifts(3, 4)
+    real(dp) :: rTmp3(3)
+    type(TListIntR1) :: li1
+    type(TListRealR1) :: lr1
+    integer, allocatable :: tmpI1(:)
+    real(dp), allocatable :: kpts(:,:)
+    character(lc) :: errorStr
+
+    call getChildValue(node, "KPointsAndWeights", value1, child=child, &
+        &modifier=modifier)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+
+    case ("supercellfolding")
+      tBadIntegratingKPoints = .false.
+      if (len(modifier) > 0) then
+        call detailedError(child, "No modifier is allowed, if the &
+            &SupercellFolding scheme is used.")
+      end if
+      call getChildValue(value1, "", coeffsAndShifts)
+      if (abs(determinant33(coeffsAndShifts(:,1:3))) - 1.0_dp < -1e-6_dp) then
+        call detailedError(value1, "Determinant of the supercell matrix must &
+            &be greater than 1")
+      end if
+      if (any(abs(modulo(coeffsAndShifts(:,1:3) + 0.5_dp, 1.0_dp) - 0.5_dp) &
+          &> 1e-6_dp)) then
+        call detailedError(value1, "The components of the supercell matrix &
+            &must be integers.")
+      end if
+      if (.not.ctrl%tSpinOrbit) then
+        call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
+            & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.true.)
+      else
+        call getSuperSampling(coeffsAndShifts(:,1:3), modulo(coeffsAndShifts(:,4), 1.0_dp),&
+            & ctrl%kPoint, ctrl%kWeight, reduceByInversion=.false.)
+      end if
+      ctrl%nKPoint = size(ctrl%kPoint, dim=2)
+
+    case ("klines")
+      ! probably unable to integrate charge for SCC
+      tBadIntegratingKPoints = .true.
+      call init(li1)
+      call init(lr1)
+      call getChildValue(value1, "", 1, li1, 3, lr1)
+      if (len(li1) < 1) then
+        call detailedError(value1, "At least one line must be specified.")
+      end if
+      allocate(tmpI1(len(li1)))
+      allocate(kpts(3, 0:len(lr1)))
+      call asVector(li1, tmpI1)
+      call asArray(lr1, kpts(:,1:len(lr1)))
+      kpts(:,0) = (/ 0.0_dp, 0.0_dp, 0.0_dp /)
+      call destruct(li1)
+      call destruct(lr1)
+      if (any(tmpI1 < 0)) then
+        call detailedError(value1, "Interval steps must be greater equal to &
+            &zero.")
+      end if
+      ctrl%nKPoint = sum(tmpI1)
+      if (ctrl%nKPoint < 1) then
+        call detailedError(value1, "Sum of the interval steps must be greater &
+            &than zero.")
+      end if
+      ii = 1
+      do while (tmpI1(ii) == 0)
+        ii = ii + 1
+      end do
+      allocate(ctrl%kPoint(3, ctrl%nKPoint))
+      allocate(ctrl%kWeight(ctrl%nKPoint))
+      ind = 1
+      do jj = ii, size(tmpI1)
+        if (tmpI1(jj) == 0) then
+          cycle
+        end if
+        rTmp3 = (kpts(:,jj) - kpts(:,jj-1)) / real(tmpI1(jj), dp)
+        do kk = 1, tmpI1(jj)
+          ctrl%kPoint(:,ind) = kpts(:,jj-1) + real(kk, dp) * rTmp3
+          ind = ind + 1
+        end do
+      end do
+      ctrl%kWeight(:) = 1.0_dp
+      if (len(modifier) > 0) then
+        select case (tolower(char(modifier)))
+        case ("relative")
+        case ("absolute")
+          ctrl%kPoint(:,:) =  matmul(transpose(geo%latVecs), ctrl%kPoint)
+          kpts(:,:) = matmul(transpose(geo%latVecs), kpts)
+        case default
+          call detailedError(child, "Invalid modifier: '" // char(modifier) &
+              &// "'")
+        end select
+      end if
+      deallocate(tmpI1)
+      deallocate(kpts)
+
+    case (textNodeName)
+
+      ! no idea, but assume user knows what they are doing
+      tBadIntegratingKPoints = .false.
+
+      call init(lr1)
+      call getChildValue(child, "", 4, lr1, modifier=modifier)
+      if (len(lr1) < 1) then
+        call detailedError(child, "At least one k-point must be defined.")
+      end if
+      ctrl%nKPoint = len(lr1)
+      allocate(kpts(4, ctrl%nKPoint))
+      call asArray(lr1, kpts)
+      call destruct(lr1)
+      if (len(modifier) > 0) then
+        select case (tolower(char(modifier)))
+        case ("relative")
+          continue
+        case ("absolute")
+          kpts(1:3,:) =  matmul(transpose(geo%latVecs), kpts(1:3,:))
+        case default
+          call detailedError(child, "Invalid modifier: '" // char(modifier) &
+              &// "'")
+        end select
+      end if
+      allocate(ctrl%kPoint(3, ctrl%nKPoint))
+      allocate(ctrl%kWeight(ctrl%nKPoint))
+      ctrl%kPoint(:,:) = kpts(1:3, :)
+      ctrl%kWeight(:) = kpts(4, :)
+      deallocate(kpts)
+    case default
+      call detailedError(value1, "Invalid K-point scheme")
+    end select
+
+  end subroutine getEuclideanKSampling
+
+
+  !> K-points for helical boundaries
+  subroutine getHelicalKSampling(tBadIntegratingKPoints, ctrl, node, geo)
+
+    !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
+    logical, intent(out) :: tBadIntegratingKPoints
+
+    !> Relevant node in input tree
+    type(fnode), pointer :: node
+
+    !> Control structure to be filled
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry structure
+    type(TGeometry), intent(in) :: geo
+
+    type(string) :: buffer, modifier
+    type(fnode), pointer :: value1, child
+    type(TListRealR1) :: lr1
+    real(dp):: rTmp3(3), rTmp22(2,2)
+    integer :: iTmp, iTmp2(2), kk, ii, jj
+    real(dp), allocatable :: kPts(:,:)
+    character(lc) :: errorStr
+
+    ! assume the user knows what they are doing
+    tBadIntegratingKPoints = .false.
+
+    call getChildValue(node, "KPointsAndWeights", value1, child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+    case ("helicaluniform")
+      call getChildValue(value1, "", rTmp3(:2))
+      if (abs(modulo(rTmp3(1) + 0.5_dp, 1.0_dp) - 0.5_dp) > 1e-6_dp) then
+        call detailedError(value1, "The k-point grid must be integer values.")
+      end if
+      iTmp = nint(rTmp3(1))
+      if (iTmp < 1) then
+        call detailedError(node, "Number of grid points must be above 0")
+      end if
+      if (.not.ctrl%tSpinOrbit) then
+        ctrl%nKPoint = iTmp * nint(geo%latvecs(3,1))
+        allocate(ctrl%kPoint(2, ctrl%nKPoint))
+        ctrl%kPoint = 0.0_dp
+        allocate(ctrl%kWeight(ctrl%nKPoint))
+        ctrl%kWeight = 1.0_dp / real(iTmp,dp)
+        do ii = 0, iTmp-1
+          ctrl%kPoint(1,ii+1) = ii * 0.5_dp*ctrl%kWeight(ii+1) + 0.5_dp*rTmp3(2)/rTmp3(1)
+        end do
+        ctrl%kWeight = 1.0_dp / real(ctrl%nKPoint,dp)
+        do ii = 2, nint(geo%latvecs(3,1))
+          ctrl%kPoint(1,(ii-1)*iTmp+1:ii*iTmp) = ctrl%kPoint(1,1:iTmp)
+          ctrl%kPoint(2,(ii-1)*iTmp+1:ii*iTmp) = real(ii-1,dp)/nint(geo%latvecs(3,1))
+        end do
+      else
+        call error("Helical boundaries not yet added for spin-orbit")
+      end if
+    case ("helicalsampled")
+      call getChildValue(value1, "", rTmp22)
+      iTmp2 = nint(rTmp22(:,1))
+      if (any(abs(iTmp2-rTmp22(:,1)) > 1e-6_dp)) then
+        call detailedError(value1, "The k-point grid must be integers.")
+      end if
+      if (any(iTmp2 < 1)) then
+        call detailedError(node, "Number of grid points must be above 0")
+      end if
+      if (iTmp2(2) > nint(geo%latvecs(3,1))) then
+        write(errorStr, '("The k-point grid for the helix rotational operation (",I0,&
+            & ") is larger than the rotation order (",I0,").")')iTmp2(2), nint(geo%latvecs(3,1))
+        call detailedError(node, errorStr)
+      end if
+      if (.not.ctrl%tSpinOrbit) then
+        ctrl%nKPoint = product(iTmp2)
+        allocate(ctrl%kPoint(2, ctrl%nKPoint))
+        ctrl%kPoint = 0.0_dp
+        allocate(ctrl%kWeight(ctrl%nKPoint))
+
+        kk = 1
+        do ii = 0, iTmp2(1)-1
+          do jj = 0, iTmp2(2)-1
+
+            ctrl%kPoint(1,kk) = ii * 0.5_dp / rTmp22(1,1) + 0.5_dp*rTmp22(1,2)/rTmp22(1,1)
+
+            ctrl%kPoint(2,kk) = jj * 1.0_dp / rTmp22(2,1) + 0.5_dp*rTmp22(2,2)/rTmp22(2,1)
+
+            kk = kk + 1
+
+          end do
+        end do
+
+        ctrl%kWeight = 1.0_dp / real(ctrl%nKPoint,dp)
+
+      else
+        call error("Helical boundaries not yet added for spin-orbit")
+      end if
+
+    case (textNodeName)
+
+      call init(lr1)
+      call getChildValue(child, "", 3, lr1)
+      if (len(lr1) < 1) then
+        call detailedError(child, "At least one k-point must be defined.")
+      end if
+      ctrl%nKPoint = len(lr1)
+      allocate(kpts(3, ctrl%nKPoint))
+      call asArray(lr1, kpts)
+      call destruct(lr1)
+      allocate(ctrl%kPoint(2, ctrl%nKPoint))
+      allocate(ctrl%kWeight(ctrl%nKPoint))
+      ! first two are point values
+      ctrl%kPoint(:2,:) = kpts(:2, :)
+      ! last one is the weight
+      ctrl%kWeight(:) = kpts(3, :)
+      deallocate(kpts)
+
+    case default
+      call detailedError(value1, "Invalid K-point scheme")
+    end select
+
+  end subroutine getHelicalKSampling
 
 
   !> SCC options that are need for different hamiltonian choices
@@ -3929,15 +4090,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for chi")
     case ("defaults")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
-            & kChiDefault(iSp1), child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%chi, kChiDefault)
     case ("values")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%chi(iSp1), &
-            & child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%chi)
     end select
 
     call getChildValue(node, "Gam", value1, "Defaults", child=child)
@@ -3946,15 +4101,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for gam")
     case ("defaults")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
-            & kGamDefault(iSp1), child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%gam, kGamDefault)
     case ("values")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%gam(iSp1), &
-            & child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%gam)
     end select
 
     call getChildValue(node, "Kcn", value1, "Defaults", child=child)
@@ -3963,15 +4112,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for kcn")
     case ("defaults")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
-            & kKcnDefault(iSp1), child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%kcn, kKcnDefault)
     case ("values")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%kcn(iSp1), &
-            & child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%kcn)
     end select
 
     call getChildValue(node, "Rad", value1, "Defaults", child=child)
@@ -3980,15 +4123,9 @@ contains
     case default
       call detailedError(child, "Unknown method '"//char(buffer)//"' for rad")
     case ("defaults")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
-            & kRadDefault(iSp1), child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%rad, kRadDefault)
     case ("values")
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(value1, geo%speciesNames(iSp1), input%rad(iSp1), &
-            & child=child)
-      end do
+      call readSpeciesList(value1, geo%speciesNames, input%rad)
     end select
 
     call getChildValue(node, "Cutoff", input%cutoff, default=40.0_dp, modifier=buffer,&
@@ -4059,15 +4196,10 @@ contains
       case("paulingen")
         allocate(kENDefault(geo%nSpecies))
         kENDefault(:) = getElectronegativity(geo%speciesNames)
-        do iSp = 1, geo%nSpecies
-          call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), &
-              & kENDefault(iSp), child=child2)
-        end do
+        call readSpeciesList(value2, geo%speciesNames, input%en, kENDefault)
         deallocate(kENDefault)
       case("values")
-        do iSp = 1, geo%nSpecies
-          call getChildValue(value2, geo%speciesNames(iSp), input%en(iSp), child=child2)
-        end do
+        call readSpeciesList(value2, geo%speciesNames, input%en)
       end select
       if (any(input%en <= 0.0_dp)) then
         call detailedError(value1, "Electronegativities are not defined for all species")
@@ -4086,15 +4218,10 @@ contains
     case("covalentradiid3")
       allocate(kRadDefault(geo%nSpecies))
       kRadDefault(:) = getCovalentRadius(geo%speciesNames)
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), &
-            & kRadDefault(iSp), child=child2)
-      end do
+      call readSpeciesList(value2, geo%speciesNames, input%covRad, kRadDefault)
       deallocate(kRadDefault)
     case("values")
-      do iSp = 1, geo%nSpecies
-        call getChildValue(value2, geo%speciesNames(iSp), input%covRad(iSp), child=child2)
-      end do
+      call readSpeciesList(value2, geo%speciesNames, input%covRad)
     end select
 
     if (any(input%covRad <= 0.0_dp)) then
@@ -4347,10 +4474,8 @@ contains
       call getChildValue(child, "NrOfExcitations", ctrl%pprpa%nexc)
 
       call getChildValue(child, "HHubbard", value, child=child2)
-      ALLOCATE(ctrl%pprpa%hhubbard(geo%nSpecies))
-      do iSp1 = 1, geo%nSpecies
-        call getChildValue(child2, geo%speciesNames(iSp1), ctrl%pprpa%hhubbard(iSp1))
-      end do
+      allocate(ctrl%pprpa%hhubbard(geo%nSpecies))
+      call readSpeciesList(child2, geo%speciesNames, ctrl%pprpa%hhubbard)
 
       call getChildValue(child, "TammDancoff", ctrl%pprpa%tTDA, default=.false.)
 
@@ -4581,7 +4706,8 @@ contains
       end select
     end if
 
-    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. ctrl%reksIni%tREKS) then
+    if (tLRNeedsSpinConstants .or. ctrl%tSpin .or. &
+        & ctrl%reksInp%reksAlg /= reksTypes%noReks) then
       allocate(ctrl%spinW(slako%orb%mShell, slako%orb%mShell, geo%nSpecies))
       ctrl%spinW(:,:,:) = 0.0_dp
 
@@ -6482,10 +6608,13 @@ contains
 
 
   !> Reads the REKS block
-  subroutine readReks(node, ctrl, geo)
+  subroutine readReks(node, dummy, ctrl, geo)
 
     !> Node to parse
     type(fnode), pointer, intent(in) :: node
+
+    !> Node to parse
+    type(fnode), pointer, intent(in) :: dummy
 
     !> Control structure to fill
     type(TControl), intent(inout) :: ctrl
@@ -6493,25 +6622,24 @@ contains
     !> geometry of the system
     type(TGeometry), intent(in) :: geo
 
-    type(fnode), pointer :: child22, child44
+    type(string) :: buffer
 
     ! SSR(2,2) or SSR(4,4) stuff
-    call getChild(node, "SSR22", child22, requested=.false.)
-    call getChild(node, "SSR44", child44, requested=.false.)
+    call getNodeName(dummy, buffer)
 
-    if (associated(child22)) then
-
-      ctrl%reksIni%tREKS = .true.
-      ctrl%reksIni%tSSR22 = .true.
-      call readSSR22(child22, ctrl, geo)
-
-    else if (associated(child44)) then
-
-      ctrl%reksIni%tREKS = .true.
-      ctrl%reksIni%tSSR44 = .true.
-      call detailedError(child44, "SSR(4,4) is not implemented yet.")
-
-    end if
+    select case (char(buffer))
+    case ("none")
+      ctrl%reksInp%reksAlg = reksTypes%noReks
+    case ("ssr22")
+      ctrl%reksInp%reksAlg = reksTypes%ssr22
+      call readSSR22(dummy, ctrl, geo)
+    case ("ssr44")
+      ctrl%reksInp%reksAlg = reksTypes%ssr44
+      call detailedError(node, "SSR(4,4) is not implemented yet.")
+    case default
+      call getNodeHSDName(dummy, buffer)
+      call detailedError(node, "Invalid Algorithm '" // char(buffer) // "'")
+    end select
 
   end subroutine readReks
 
@@ -6528,54 +6656,122 @@ contains
     !> geometry of the system
     type(TGeometry), intent(in) :: geo
 
-    !> Minimized energy functional; 1: PPS, 2: (PPS+OSS)/2
-    call getChildValue(node, "EnergyFunctional", ctrl%reksIni%Efunction, default=2)
-    !> Calculated energy states in SA-REKS
-    !> 1: calculate states included in 'EnergyFuncitonal'
-    !> 2: calculate all possible states
-    call getChildValue(node, "EnergyLevel", ctrl%reksIni%Elevel, default=1)
-    !> Calculate SSR state (SI term is included)
-    !> 1: calculate SSR state, 0: calculate SA-REKS state
-    call getChildValue(node, "UseSsrState", ctrl%reksIni%useSSR, default=1)
+    type(fnode), pointer :: child1, value2, child2
+    type(TListString) :: strBuffer
+    type(string) :: buffer2
+    character(sc), allocatable :: tmpFunc(:)
+    integer :: ii, nFunc
+    logical :: tFunc = .true.
+
+
+    !> Read 'Energy' block
+    call getChild(node, "Energy", child=child1)
+
+    !> Read 'Functional' block in 'Energy' block
+    call init(strBuffer)
+    call getChildValue(child1, "Functional", strBuffer)
+    allocate(tmpFunc(len(strBuffer)))
+    call asArray(strBuffer, tmpFunc)
+    call destruct(strBuffer)
+
+    !> Decide the energy functionals to be included in SA-REKS(2,2)
+    nFunc = size(tmpFunc, dim=1)
+    if (nFunc == 1) then
+      if (trim(tmpFunc(1)) == "PPS") then
+        !> Minimized energy functional : PPS
+        ctrl%reksInp%Efunction = 1
+      else
+        tFunc = .false.
+      end if
+    else if (nFunc == 2) then
+      if (trim(tmpFunc(1)) == "PPS" .and. trim(tmpFunc(2)) == "OSS") then
+        !> Minimized energy functional : (PPS+OSS)/2
+        ctrl%reksInp%Efunction = 2
+      else
+        tFunc = .false.
+      end if
+    else
+      tFunc = .false.
+    end if
+
+    if (.not. tFunc) then
+      write(stdOut,'(A)',advance="no") "Current Functional : "
+      do ii = 1, nFunc
+        if (ii == nFunc) then
+          write(stdOut,'(A)') "'" // trim(tmpFunc(ii)) // "'"
+        else
+          write(stdOut,'(A)',advance="no") "'" // trim(tmpFunc(ii)) // "' "
+        end if
+      end do
+      call detailedError(child1, "Invalid Functional")
+    end if
+
+    !> Decide the energy states in SA-REKS
+    !> If true, it includes all possible states in current active space
+    !> If false, it includes the states used in minimized energy functional
+    call getChildValue(child1, "IncludeAllStates", ctrl%reksInp%tAllStates, default=.false.)
+    !> Calculate SSR state with inclusion of SI, otherwise calculate SA-REKS state
+    call getChildValue(child1, "StateInteractions", ctrl%reksInp%tSSR, default=.false.)
+
 
     !> Target SSR state
-    call getChildValue(node, "TargetState", ctrl%reksIni%rstate, default=1)
+    call getChildValue(node, "TargetState", ctrl%reksInp%rstate, default=1)
     !> Target microstate
-    call getChildValue(node, "TargetStateL", ctrl%reksIni%Lstate, default=0)
+    call getChildValue(node, "TargetMicrostate", ctrl%reksInp%Lstate, default=0)
 
-    !> Initial guess for eigenvectors in REKS
-    !> 1: diagonalize H0, 2: read external file, 'eigenvec.bin'
-    call getChildValue(node, "InitialGuess", ctrl%reksIni%guess, default=1)
+    !> Read initial guess for eigenvectors in REKS
+    !> If true, initial eigenvectors are obtained from 'eigenvec.bin'
+    !> If false, initial eigenvectors are obtained from diagonalization of H0
+    call getChildValue(node, "ReadEigenvectors", ctrl%reksInp%tReadMO, default=.false.)
     !> Maximum iteration used in FON optimization
-    call getChildValue(node, "FonMaxIter", ctrl%reksIni%FonMaxIter, default=20)
+    call getChildValue(node, "FonMaxIter", ctrl%reksInp%FonMaxIter, default=20)
     !> Shift value in SCC cycle
-    call getChildValue(node, "Shift", ctrl%reksIni%shift, default=0.3_dp)
+    call getChildValue(node, "Shift", ctrl%reksInp%shift, default=0.3_dp)
 
     !> Read "SpinTuning" block with 'nType' elements
     call readSpinTuning(node, ctrl, geo%nSpecies)
 
     !> Calculate transition dipole moments
-    call getChildValue(node, "TransitionDipole", ctrl%reksIni%tTDP, default=.false.)
+    call getChildValue(node, "TransitionDipole", ctrl%reksInp%tTDP, default=.false.)
 
-    !> Algorithms to calculate analytic gradients
-    !> 1: preconditioned conjugate gradient (PCG)
-    !> 2: conjugate gradient (CG)
-    !> 3: direct inverse-matrix multiplication
-    call getChildValue(node, "GradientLevel", ctrl%reksIni%Glevel, default=1)
-    !> Maximum iteration used in calculation of gradient with PCG and CG
-    call getChildValue(node, "CGmaxIter", ctrl%reksIni%CGmaxIter, default=20)
-    !> Tolerance used in calculation of gradient with PCG and CG
-    call getChildValue(node, "GradientTolerance", ctrl%reksIni%Glimit, default=1.0E-8_dp)
+
+    !> Read 'Gradient' block
+    !> Algorithms to calculate analytical gradients
+    call getChildValue(node, "Gradient", value2, "ConjugateGradient", child=child2)
+    call getNodeName(value2, buffer2)
+
+    select case (char(buffer2))
+    case ("conjugategradient")
+      !> Maximum iteration used in calculation of gradient with PCG and CG
+      call getChildValue(value2, "CGmaxIter", ctrl%reksInp%CGmaxIter, default=20)
+      !> Tolerance used in calculation of gradient with PCG and CG
+      call getChildValue(value2, "Tolerance", ctrl%reksInp%Glimit, default=1.0E-8_dp)
+      !> Use preconditioner for conjugate gradient algorithm
+      call getChildValue(value2, "Preconditioner", ctrl%reksInp%tPrecond, default=.false.)
+      !> Save 'A' and 'Hxc' to memory in gradient calculation
+      call getChildValue(value2, "SaveMemory", ctrl%reksInp%tSaveMem, default=.false.)
+      if (ctrl%reksInp%tPrecond) then
+        !> 1: preconditioned conjugate gradient (PCG)
+        ctrl%reksInp%Glevel = 1
+      else
+        !> 2: conjugate gradient (CG)
+        ctrl%reksInp%Glevel = 2
+      end if
+    case ("direct")
+      !> 3: direct inverse-matrix multiplication
+      ctrl%reksInp%Glevel = 3
+    case default
+      call getNodeHSDName(value2, buffer2)
+      call detailedError(child2, "Invalid Algorithm '" // char(buffer2) // "'")
+    end select
 
     !> Calculate relaxed density of SSR or SA-REKS state
-    call getChildValue(node, "RelaxedDensity", ctrl%reksIni%tRD, default=.false.)
+    call getChildValue(node, "RelaxedDensity", ctrl%reksInp%tRD, default=.false.)
     !> Calculate nonadiabatic coupling vectors
-    call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksIni%tNAC, default=.false.)
+    call getChildValue(node, "NonAdiabaticCoupling", ctrl%reksInp%tNAC, default=.false.)
 
     !> Print level in standard output file
-    call getChildValue(node, "VerbosityLevel", ctrl%reksIni%Plevel, default=1)
-    !> Memory level used in calculation of gradient
-    call getChildValue(node, "MemoryLevel", ctrl%reksIni%Mlevel, default=2)
+    call getChildValue(node, "VerbosityLevel", ctrl%reksInp%Plevel, default=1)
 
   end subroutine readSSR22
 
@@ -6603,9 +6799,9 @@ contains
     call getNodeName2(value1, buffer)
     if (char(buffer) == "") then
       ! no 'SpinTuning' block in REKS input
-      allocate(ctrl%reksIni%Tuning(nType))
+      allocate(ctrl%reksInp%Tuning(nType))
       do iType = 1, nType
-        ctrl%reksIni%Tuning(iType) = 1.0_dp
+        ctrl%reksInp%Tuning(iType) = 1.0_dp
       end do
     else
       ! 'SpinTuning' block in REKS input
@@ -6620,8 +6816,8 @@ contains
       allocate(tmpTuning(1,nAtom))
       call asArray(realBuffer, tmpTuning)
       call destruct(realBuffer)
-      allocate(ctrl%reksIni%Tuning(nType))
-      ctrl%reksIni%Tuning(:) = tmpTuning(1,:)
+      allocate(ctrl%reksInp%Tuning(nType))
+      ctrl%reksInp%Tuning(:) = tmpTuning(1,:)
     end if
 
   end subroutine readSpinTuning

@@ -19,7 +19,7 @@ module dftbp_rekscommon
   use dftbp_blasroutines, only : gemm
   use dftbp_densedescr
   use dftbp_message
-  use dftbp_reksvar, only : TReksCalc
+  use dftbp_reksvar, only : TReksCalc, reksTypes
 
   implicit none
 
@@ -544,7 +544,7 @@ module dftbp_rekscommon
 
 
   !> Assign index in terms of dense form from super matrix form
-  subroutine assignIndex(Nc, Na, Nv, tSSR22, tSSR44, ij, i, j)
+  subroutine assignIndex(Nc, Na, Nv, reksAlg, ij, i, j)
 
     !> Number of core orbitals
     integer, intent(in) :: Nc
@@ -555,11 +555,8 @@ module dftbp_rekscommon
     !> Number of vacant orbitals
     integer, intent(in) :: Nv
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> index for super matrix form
     integer, intent(in) :: ij
@@ -567,18 +564,20 @@ module dftbp_rekscommon
     !> index for dense form
     integer, intent(out) :: i, j
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call assignIndex22_(Nc, Na, Nv, ij, i, j)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine assignIndex
 
 
   !> Assign converged epsilon value from fock matrix
   subroutine assignEpsilon(Fc, Fa, SAweight, FONs, Nc, i, j, t, &
-      & chk, tSSR22, tSSR44, e1, e2)
+      & chk, reksAlg, e1, e2)
 
     !> dense fock matrix for core orbitals
     real(dp), intent(in) :: Fc(:,:)
@@ -601,27 +600,26 @@ module dftbp_rekscommon
     !> choice of calculations for converged fock matrix
     integer, intent(in) :: chk
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> output multiplier from converged fock matrix
     real(dp), intent(out) :: e1, e2
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call assignEpsilon22_(Fc, Fa, SAweight, FONs, Nc, i, j, &
           & t, chk, e1, e2)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine assignEpsilon
 
 
   !> Assign average filling for i-th orbital
-  subroutine assignFilling(FONs, SAweight, Nc, i, tSSR22, tSSR44, fi)
+  subroutine assignFilling(FONs, SAweight, Nc, i, reksAlg, fi)
 
     !> Fractional occupation numbers of active orbitals
     real(dp), intent(in) :: FONs(:,:)
@@ -635,20 +633,19 @@ module dftbp_rekscommon
     !> orbital index
     integer, intent(in) :: i
 
-    !> Calculate DFTB/SSR(2,2) formalism
-    logical, intent(in) :: tSSR22
-
-    !> Calculate DFTB/SSR(4,4) formalism
-    logical, intent(in) :: tSSR44
+    !> Type of REKS calculations
+    integer, intent(in) :: reksAlg
 
     !> output filling from fractional occupation numbers
     real(dp), intent(out) :: fi
 
-    if (tSSR22) then
+    select case (reksAlg)
+    case (reksTypes%noReks)
+    case (reksTypes%ssr22)
       call assignFilling22_(FONs, SAweight, Nc, i, fi)
-    else if (tSSR44) then
+    case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
-    end if
+    end select
 
   end subroutine assignFilling
 
