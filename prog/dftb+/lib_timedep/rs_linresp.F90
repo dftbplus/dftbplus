@@ -158,7 +158,8 @@ contains
     real(dp), allocatable :: temp(:,:)
     dim1 = size(vec, dim=1)
     allocate(temp(dim1, 3 * sizeIn))
-    temp(:,1:sizeIn) = vec   !Check: would be nice if temp could become memory for vec, see if possible in fortran
+    ! Check: would be nice if temp could become memory for vec, see if possible in fortran
+    temp(:,1:sizeIn) = vec
     call move_alloc(temp, vec)
 
   end subroutine incSizeMat
@@ -172,7 +173,8 @@ contains
 
     real(dp), allocatable :: temp(:)
     allocate(temp(3 * sizeIn))
-    temp(1:sizeIn) = vec   !Check: would be nice if temp could become memory for vec, see if possible in fortran
+    ! Check: would be nice if temp could become memory for vec, see if possible in fortran
+    temp(1:sizeIn) = vec
     call move_alloc(temp, vec)
 
   end subroutine incSizeVec
@@ -188,7 +190,8 @@ contains
     real(dp), allocatable :: temp(:,:)
     dim1 = size(vec, dim=2)
     allocate(temp(3 * sizeIn, dim1))
-    temp(1:sizeIn,:) = vec   !Check: would be nice if temo could become memory for vec, see if possible in fortran
+    ! Check: would be nice if temo could become memory for vec, see if possible in fortran
+    temp(1:sizeIn,:) = vec
     call move_alloc(temp, vec)
 
   end subroutine incSizeMatSwapped
@@ -203,7 +206,8 @@ contains
     real(dp), allocatable :: temp(:,:)
 
     allocate(temp(3 * sizeIn, 2 * sizeIn))
-    temp(1:sizeIn, 1:sizeIn) = vec   !Check: would be nice if temo could become memory for vec, see if possible in fortran
+    ! Check: would be nice if temo could become memory for vec, see if possible in fortran
+    temp(1:sizeIn, 1:sizeIn) = vec
     call move_alloc(temp, vec)
 
   end subroutine incSizeMatBoth
@@ -231,13 +235,15 @@ contains
       dummyM2(:,ii) = sqrt(dummyEV(ii)) * dummyM(:,ii)
     end do
 
-    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM, spaceDim, 0.0_dp, matOut, memDim)
+    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
+        & spaceDim, 0.0_dp, matOut, memDim)
     !calc. inv. of sqrt
     do ii = 1, spaceDim
       dummyM2(:,ii) = dummyM(:,ii) / sqrt(dummyEV(ii))
     end do
 
-    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM, spaceDim, 0.0_dp, matInvOut, memDim)
+    call dgemm('N', 'T', spaceDim, spaceDim, spaceDim, 1.0_dp, dummyM2, spaceDim, dummyM,&
+        & spaceDim, 0.0_dp, matInvOut, memDim)
 
   end subroutine calcMatrixSqrt
 
@@ -334,31 +340,31 @@ contains
     !   Old implementation, probably slower, but need less memory
     !   Reintroduce as option later on
 
-    ! !long range coupling matrix contribution
-    ! do ia = 1, nMat ! adds -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB + q_ib^A * q_ja^B * Gamma_lr_AB )
-    !   do jb = 1, nMat
+    !!long range coupling matrix contribution
+    !do ia = 1, nMat !adds -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB + q_ib^A * q_ja^B * Gamma_lr_AB )
+    !  do jb = 1, nMat
 
-    !     call indXov(win, ia, getIJ, ii, aa)
-    !     call indXov(win, jb, getIJ, jj, bb)
+    !    call indXov(win, ia, getIJ, ii, aa)
+    !    call indXov(win, jb, getIJ, jj, bb)
 
-    !     lUpDwn = (win(iaTrans(jj, aa)) <= nMatUp) ! UNTESTED
-    !     qIJ = transQ(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !     call hemv(gTmp, lrGamma, qIJ)
+    !    lUpDwn = (win(iaTrans(jj, aa)) <= nMatUp) ! UNTESTED
+    !    qIJ = transQ(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    call hemv(gTmp, lrGamma, qIJ)
 
-    !     lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
-    !     qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !     vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
+    !    lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
+    !    qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
 
-    !     lUpDwn = .true. ! ???
-    !     qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !     call hemv(gTmp, lrGamma, qIJ)
+    !    lUpDwn = .true. ! ???
+    !    qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    call hemv(gTmp, lrGamma, qIJ)
 
-    !     lUpDwn = .true. ! ???
-    !     qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !     vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
+    !    lUpDwn = .true. ! ???
+    !    qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
 
-    !   end do
-    ! end do
+    !  end do
+    !end do
 
     ! End old implementation
 
@@ -477,32 +483,32 @@ contains
 
     ! Old routine, reintroduce as option later on, see A+B fct
 
-    !  ! Long range coupling matrix contribution
-    !  do ia = 1, nMat ! Calc -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB - q_ib^A * q_ja^B * Gamma_lr_AB )
-    !    vOut(ia) = 0.0_dp
-    !    do jb = 1, nMat
+    !! Long range coupling matrix contribution
+    !do ia = 1, nMat !Calc -sum_AB ( q_ij^A * q_ab^B * Gamma_lr_AB - q_ib^A * q_ja^B * Gamma_lr_AB )
+    !  vOut(ia) = 0.0_dp
+    !  do jb = 1, nMat
 
-    !      call indXov(win, ia, getIJ, ii, aa)
-    !      call indXov(win, jb, getIJ, jj, bb)
+    !    call indXov(win, ia, getIJ, ii, aa)
+    !    call indXov(win, jb, getIJ, jj, bb)
 
-    !      lUpDwn = (win(iaTrans(jj, aa)) <= nMatUp) ! UNTESTED
-    !      qIJ = transQ(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !      call hemv(gTmp, lrGamma, qIJ)
+    !    lUpDwn = (win(iaTrans(jj, aa)) <= nMatUp) ! UNTESTED
+    !    qIJ = transQ(jj, aa, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    call hemv(gTmp, lrGamma, qIJ)
 
-    !      lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
-    !      qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !      vOut(ia) = vOut(ia) + dot_product(qIJ, gTmp) * vin(jb)
+    !    lUpDwn = (win(iaTrans(ii, bb)) <= nMatUp) ! UNTESTED
+    !    qIJ = transQ(ii, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    vOut(ia) = vOut(ia) + dot_product(qIJ, gTmp) * vin(jb)
 
-    !      lUpDwn = .true.
-    !      qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !      call hemv(gTmp, lrGamma, qIJ)
+    !    lUpDwn = .true.
+    !    qIJ = transQ(ii, jj, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    call hemv(gTmp, lrGamma, qIJ)
 
-    !      lUpDwn = .true.
-    !      qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
-    !      vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
+    !    lUpDwn = .true.
+    !    qIJ = transQ(aa, bb, ind, lUpDwn, sTimesGrndEigVecs, grndEigVecs)
+    !    vOut(ia) = vOut(ia) - dot_product(qIJ, gTmp) * vin(jb)
 
-    !    end do
     !  end do
+    !end do
 
     ! End old routine
 
@@ -791,11 +797,14 @@ contains
     real(dp), intent(inout), optional :: dQAtomEx(:)
 
     real(dp) :: Ssq(nExc)
-    real(dp), allocatable :: gamma(:,:), lrGamma(:,:), snglPartTransDip(:,:), sTimesGrndEigVecs(:,:,:), wIJ(:)
+    real(dp), allocatable :: gamma(:,:), lrGamma(:,:), snglPartTransDip(:,:)
+    real(dp), allocatable :: sTimesGrndEigVecs(:,:,:), wIJ(:)
     real(dp), allocatable :: snglPartOscStrength(:), oscStrength(:), vecXmY(:), vecXpY(:), pc(:,:)
     real(dp), allocatable :: t(:,:), rhs(:), vWoo(:), vWvv(:), vWov(:)
-    real(dp), allocatable :: evec(:,:), eval(:), allXpY(:,:), transitionDipoles(:,:), atomicTransQ(:)
-    real(dp), allocatable :: tQov(:,:), tQoo(:,:), tQvv(:,:)!to hold precalculated transition charges, alloc and calc in rs calc
+    real(dp), allocatable :: evec(:,:), eval(:), allXpY(:,:), transitionDipoles(:,:)
+    real(dp), allocatable :: atomicTransQ(:)
+    !to hold precalculated transition charges, alloc and calc in rs calc
+    real(dp), allocatable :: tQov(:,:), tQoo(:,:), tQvv(:,:)
     integer, allocatable :: win(:), iaTrans(:,:), getIJ(:,:)
     character, allocatable :: symmetries(:)
 
@@ -940,11 +949,9 @@ contains
     allocate(gamma(nAtom, nAtom))
     allocate(lrGamma(nAtom, nAtom))
     allocate(snglPartTransDip(nXov, 3))
-    !allocate(sTimesGrndEigVecs(nOrb, nOrb))
     allocate(sTimesGrndEigVecs(nOrb, nOrb, spinDim))
     allocate(wIJ(nXov))
     allocate(win(nXov))
-    !allocate(evec(nXov, nExc))
     allocate(eval(nExc))
     allocate(getIJ(nXov, 2))
     allocate(transitionDipoles(nXov, 3))
@@ -995,7 +1002,8 @@ contains
     wIJ = wIJ(win)
 
     ! dipole strength of transitions between K-S states
-    call calcTransitionDipoles(coord0, win, nXovUD(1), getIJ, iAtomStart, sTimesGrndEigVecs, grndEigVecs, snglPartTransDip)
+    call calcTransitionDipoles(coord0, win, nXovUD(1), getIJ, iAtomStart, sTimesGrndEigVecs,&
+        & grndEigVecs, snglPartTransDip)
 
     ! single particle excitation oscillator strengths
     snglPartOscStrength(:) = twothird * wIJ(:) * sum(snglPartTransDip**2, dim=2)
@@ -1008,7 +1016,8 @@ contains
     if (tOscillatorWindow .or. tEnergyWindow) then
       if (.not. tEnergyWindow) then
         ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-        call dipselect(wIJ, snglPartOscStrength, win, snglPartTransDip, nXovRD, oscillatorWindow, grndEigVal, getIJ)
+        call dipselect(wIJ, snglPartOscStrength, win, snglPartTransDip, nXovRD, oscillatorWindow,&
+            & grndEigVal, getIJ)
       else
         ! energy window above the lowest nExc single particle transitions
         energyThreshold = wIJ(nExc) + energyWindow
@@ -1079,7 +1088,8 @@ contains
 
     ! single particle excitations (output file and tagged file if needed).  Was used for nXovRD =
     ! size(wIJ), but now for just states that are actually included in the excitation calculation.
-    call writeSPExcitations(wIJ, win, nXovUD(1), getIJ, fdSPTrans, snglPartOscStrength, nXovRD, tSpin)
+    call writeSPExcitations(wIJ, win, nXovUD(1), getIJ, fdSPTrans, snglPartOscStrength, nXovRD,&
+        & tSpin)
 
     ! redefine if needed (generalize it for spin-polarized and fractional occupancy)
     nOcc = nint(rNel) / 2

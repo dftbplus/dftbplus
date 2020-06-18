@@ -686,7 +686,7 @@ module dftbp_initprogram
   type(TLinresp) :: lresp
 
   !> Whether to run a range separated calculation
-  logical :: tRangeSep
+  logical :: isRangeSep
 
   !> Range Separation data
   type(TRangeSepFunc), allocatable :: rangeSep
@@ -1180,7 +1180,7 @@ contains
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
-    tRangeSep = allocated(input%ctrl%rangeSepInp)
+    isRangeSep = allocated(input%ctrl%rangeSepInp)
 
     if (t2Component) then
       nSpin = 4
@@ -1717,7 +1717,7 @@ contains
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
     tExtField = tEField
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf .or. tRangeSep
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf .or. isRangeSep
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
@@ -1857,7 +1857,7 @@ contains
             & (electrostatic gates are available).")
       end if
     #:if WITH_TRANSPORT
-      if (tRangeSep .and. transpar%nCont > 0) then
+      if (isRangeSep .and. transpar%nCont > 0) then
         call error("Range separated calculations do not work with transport calculations yet")
       end if
     #:endif
@@ -2109,9 +2109,9 @@ contains
       if (nspin > 2) then
         call error("Linear reponse does not work with non-colinear spin polarization yet")
       elseif (tSpin .and. tCasidaForces) then
-        call error("excited state relaxation is not implemented yet for spin-polarized systems")
+        call error("excited state forces are not implemented yet for spin-polarized systems")
       elseif (tPeriodic .and. tCasidaForces) then
-        call error("excited state relaxation is not implemented yet for periodic systems")
+        call error("excited state forces are not implemented yet for periodic systems")
       elseif ((tPeriodic .or. tHelical) .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular crystals")
       elseif (tSpinOrbit) then
@@ -2184,7 +2184,7 @@ contains
     end if
 
     ! turn on if LinResp and RangSep turned on, no extra input required for now
-    tRS_LinResp = isLinResp .and. tRangeSep
+    tRS_LinResp = isLinResp .and. isRangeSep
 
     ! ppRPA stuff
     if (allocated(input%ctrl%ppRPA)) then
@@ -2363,7 +2363,7 @@ contains
 
     tReadChrg = input%ctrl%tReadChrg
 
-    if (tRangeSep) then
+    if (isRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
           & tAtomicEnergy, input%ctrl%rangeSepInp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
@@ -2403,7 +2403,7 @@ contains
     call init(neighbourList, nAtom, nInitNeighbour)
     allocate(nNeighbourSK(nAtom))
     allocate(nNeighbourRep(nAtom))
-    if (tRangeSep) then
+    if (isRangeSep) then
       allocate(nNeighbourLC(nAtom))
     end if
 
@@ -2514,7 +2514,7 @@ contains
       ! here, nSpin changes to 2 for REKS
       call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
-          & nExtChrg, t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress, tDipole)
+          & nExtChrg, t3rd.or.t3rdFull, isRangeSep, tForces, tPeriodic, tStress, tDipole)
     end if
 
     call initArrays(env, electronicSolver, tForces, tExtChrg, isLinResp, tLinRespZVect, tMd,&
@@ -3086,7 +3086,7 @@ contains
       end if
     end if
 
-    if (tRangeSep) then
+    if (isRangeSep) then
       write(stdOut, "(A,':',T30,A)") "Range separated hybrid", "Yes"
       write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
           & input%ctrl%rangeSepInp%omega
@@ -5200,8 +5200,8 @@ contains
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg, blurWidths,&
+            & is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
         call error("REKS is not compatible with density matrix ELSI-solvers")
       end select

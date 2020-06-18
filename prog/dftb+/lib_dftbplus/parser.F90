@@ -1217,7 +1217,7 @@ contains
     integer :: nElem
     real(dp) :: rSKCutOff
 
-    !>For rangeseparation
+    !> For range separation
     logical :: tRSep
     real(dp) :: screeningThreshold
     type(TRangeSepSKTag) :: rangeSepSK

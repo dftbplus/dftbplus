@@ -520,7 +520,7 @@ contains
 
         ! check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
-        if (tRangeSep) then
+        if (isRangeSep) then
           call getReksNextInputDensity(sccErrorQ, sccTol, tConverged, iSccIter, minSccIter,&
               & maxSccIter, iGeoStep, tStopScc, eigvecsReal, deltaRhoOut, deltaRhoIn, deltaRhoDiff,&
               & reks)
@@ -553,7 +553,7 @@ contains
                 & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol,&
                 & tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
                 & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, allocated(thirdOrd),&
-                & tRangeSep)
+                & isRangeSep)
           end if
           if (tWriteBandDat) then
             call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -631,7 +631,7 @@ contains
             & deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
-        if (tRangeSep) then
+        if (isRangeSep) then
           select case(nSpin)
           case(2)
             do iSpin = 1, 2
@@ -702,7 +702,7 @@ contains
 
         ! Mix charges Input/Output
         if (tSccCalc) then
-          if(.not. tRangeSep) then
+          if(.not. isRangeSep) then
             call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                 & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                 & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
@@ -744,7 +744,7 @@ contains
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
-              & tRangeSep, allocated(thirdOrd), allocated(solvation), cm5Cont)
+              & isRangeSep, allocated(thirdOrd), allocated(solvation), cm5Cont)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -2772,7 +2772,7 @@ contains
 
       ! Add rangeseparated contribution
       ! Assumes deltaRhoInSqr only used by rangeseparation
-      ! Should this be used elsewhere, need to pass tRangeSep
+      ! Should this be used elsewhere, need to pass isRangeSep
       if (allocated(rangeSep)) then
         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), over,&
