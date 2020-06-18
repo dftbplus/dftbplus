@@ -4369,6 +4369,23 @@ contains
 
       ctrl%lrespini%tInit = .true.
 
+      if (allocated(ctrl%rangeSepInp)) then
+         if(ctrl%tSpin) then
+            call detailedError(child, "Spin-polarized Casida not available for LC-DFTB.")
+         endif
+         if(allocated(ctrl%onSiteElements)) then
+            call detailedError(child, "Casida onsite corrections not available for LC-DFTB.")
+         endif    
+         if(ctrl%tDFTBU) then
+            call detailedError(child, "Casida + DFTB+U not available for LC-DFTB.")
+         endif    
+         if(ctrl%tempElec > minTemp) then
+            call detailedError(child, "Casida at finite T not available for LC-DFTB.")
+         endif   
+         if (geo%tPeriodic ) then
+            call detailedError(child, "Casida with PBC not available for LC-DFTB.")
+         endif
+      endif
       if (ctrl%tSpin) then
         ctrl%lrespini%sym = ' '
       else
