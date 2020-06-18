@@ -109,7 +109,6 @@ Options = {
 
 Analysis {
   CalculateForces = Yes
-  AtomResolvedEnergies = Yes
 }
 
 ParserOptions = {

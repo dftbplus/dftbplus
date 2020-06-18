@@ -96,6 +96,9 @@ module dftbp_linresp
     !> dipole strengths to excited states
     logical :: tTradip
 
+    !> write transition charges
+    logical :: tTransQ
+
     !> print state of Arnoldi solver
     logical :: tArnoldi
 
@@ -104,6 +107,9 @@ module dftbp_linresp
 
     !> Initialised data structure?
     logical :: tInit = .false.
+
+    !> for RS-linresp
+    real(dp), allocatable :: hubbUDerivUp(:), hubbUDerivDn(:)
 
   end type TLinrespini
 
@@ -130,6 +136,7 @@ module dftbp_linresp
     integer :: fdSPTrans = -1
     integer :: fdExc = -1
     integer :: fdTradip = -1
+    integer :: fdTransQ = -1
     logical :: tArnoldi
 
 
@@ -139,6 +146,12 @@ module dftbp_linresp
     integer :: fdArnoldiDiagnosis = -1
     logical :: tPrintEigVecs
     logical :: tInit = .false.
+
+    !> for linear response calculations with range-separated functionals
+    integer :: nMoved
+    logical :: tMulliken, tCoeffs, tXplusY, tTrans, tTradip
+    real(dp), allocatable :: hubbUDerivUp(:), hubbUDerivDn(:)
+
   end type TLinResp
 
 
@@ -163,7 +176,7 @@ contains
 
 
   !> Initialize an internal data type for linear response excitations
-  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements)
+  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements, nMoved)
 
     !> data structure for linear response
     type(TLinresp), intent(out) :: this
@@ -185,6 +198,9 @@ contains
 
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
+
+    !> number of moveable atoms
+    integer, intent(in) :: nMoved
 
 
 #:if WITH_ARPACK
@@ -240,6 +256,11 @@ contains
     else
       this%fdTradip = -1
     end if
+    if (ini%tTransQ) then
+      this%fdTransQ = getFileId()
+    else
+      this%fdTransQ = -1
+    end if
 
     this%tArnoldi = ini%tArnoldi
     this%fdArnoldi = getFileId()
@@ -265,6 +286,8 @@ contains
     this%tinit = .false.
     call error('Internal error: Illegal routine call to LinResp_init.')
 #:endif
+
+  this%nMoved = nMoved
 
   end subroutine LinResp_init
 
@@ -354,7 +377,7 @@ contains
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
       & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator,&
-      & rhoSqr, occNatural, naturalOrbs)
+      & rhoSqr, occNatural, naturalOrbs, dqAtEx)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -435,6 +458,9 @@ contains
     !> matrix in the excited state
     real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
 
+    !> Gross atomic charges in excited state
+    real(dp), intent(out) :: dqAtEx(:)
+
 #:if WITH_ARPACK
 
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
@@ -458,7 +484,7 @@ contains
           & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
           & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
           & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
-          & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+          & excgradient, derivator, rhoSqr, dqAtEx, occNatural, naturalOrbs)
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
@@ -468,7 +494,7 @@ contains
           & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
           & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
           & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
-          & excgradient, derivator, rhoSqr)
+          & excgradient, derivator, rhoSqr, dqAtEx)
     end if
 
 #:else

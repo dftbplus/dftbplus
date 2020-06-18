@@ -25,7 +25,7 @@ module dftbp_rangeseparated
   implicit none
   private
 
-  public :: TRangeSepSKTag, TRangeSepFunc, RangeSepFunc_init, rangeSepTypes
+  public :: TRangeSepSKTag, TRangeSepFunc, RangeSepFunc_init, getGammaPrimeValue, rangeSepTypes
 
 
   type :: TRangeSepTypesEnum
@@ -116,6 +116,7 @@ module dftbp_rangeseparated
     procedure :: addLrEnergy
     procedure :: addLrGradients
     procedure :: evaluateLrEnergyDirect
+    procedure :: getSpecies
     procedure :: getLrGamma
     procedure :: getLrGammaDeriv
 
@@ -1406,6 +1407,26 @@ contains
     call env%globalTimer%stopTimer(globalTimers%energyEval)
 
   end function evaluateLrEnergyDirect
+
+
+  !> obtain the array of atomic species
+  subroutine getSpecies(self, targetArray)
+
+    !> 1D array for output, will be allocated
+    integer, allocatable, intent(out) :: targetArray(:)
+
+    !> instance
+    class(TRangeSepFunc), intent(in) :: self
+
+    !> dimension of the species array
+    integer :: dim1
+
+    dim1 = size(self%species)
+    allocate(targetArray(dim1))
+
+    targetArray(:) = self%species
+
+  end subroutine getSpecies
 
 
   !> Get long-range gamma integrals
