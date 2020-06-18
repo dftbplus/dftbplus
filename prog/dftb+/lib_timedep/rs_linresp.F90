@@ -139,7 +139,7 @@ contains
   end subroutine getSOffsite
 
 
-  !> Set value of sizeIn to new, twice as large, value
+  !> Set value of sizeIn to new, three times as large, value
   pure subroutine incSizeInt(sizeIn)
 
     integer, intent(inout) :: sizeIn
@@ -148,7 +148,7 @@ contains
   end subroutine incSizeInt
 
 
-  !> increase size of a NxsizeIn array to 2*sizeIn
+  !> increase size of a NxsizeIn array to 3*sizeIn
   pure subroutine incSizeMat(sizeIn, vec)
 
     integer, intent(inout) :: sizeIn
@@ -165,7 +165,7 @@ contains
   end subroutine incSizeMat
 
 
-  !>increase size of a sizeIn array to 2*sizeIn
+  !>increase size of a sizeIn array to 3*sizeIn
   pure subroutine incSizeVec(sizeIn, vec)
 
     integer, intent(in) :: sizeIn
@@ -180,7 +180,7 @@ contains
   end subroutine incSizeVec
 
 
-  !>increase size of a sizeInxN array to 2*sizeInxN
+  !>increase size of a sizeInxN array to 3*sizeInxN
   pure subroutine incSizeMatSwapped(sizeIn, vec)
 
     integer, intent(inout) :: sizeIn
@@ -197,7 +197,7 @@ contains
   end subroutine incSizeMatSwapped
 
 
-  !>increase size of a sizeInxsizeIn array to 2*sizeIn
+  !>increase size of a sizeInxsizeIn array 
   pure subroutine incSizeMatBoth(sizeIn, vec)
 
     integer, intent(inout) :: sizeIn
