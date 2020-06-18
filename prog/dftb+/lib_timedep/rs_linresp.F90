@@ -836,7 +836,10 @@ contains
     tSpin = .false.
     nSpin = 1
     ! For now, ons not supported with range separation
-    @:ASSERT(.not. tOnsite)
+    if (tOnsite) then
+      call error("Onsite corrections not currently supported for range-separated excited state&
+          & calculations")
+    end if
 
     ! ARPACK library variables
     ndigit = -3
@@ -1800,11 +1803,6 @@ contains
 
     allocate(occNr(size(filling,dim=1), size(filling,dim=2)))
     occNr = filling(:,:)
-
-    !allocate(hubbUDerivUp(8))
-    !allocate(hubbUDerivDn(8))
-    !hubbUDerivUp(:) = 0.
-    !hubbUDerivDn(:) = 0.
 
     if (.not. present(excGrad)) then
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&

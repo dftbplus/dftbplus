@@ -707,7 +707,7 @@ module dftbp_initprogram
   real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
 
   !> Linear response calculation with range-separated functional
-  logical :: tRS_LinResp
+  logical :: isRS_LinResp
 
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
@@ -2103,6 +2103,8 @@ contains
     #:if not WITH_ARPACK
       call error("This binary has been compiled without support for linear response calculations.")
     #:endif
+      call ensureLinRespConditions(t3rd .or. t3rdFull, tRealHS, tPeriodic, tCasidaForces,&
+          & solvation, isRS_LinResp, nSpin)
       if (.not. tSccCalc) then
         call error("Linear response excitation requires SCC=Yes")
       end if
@@ -2184,7 +2186,7 @@ contains
     end if
 
     ! turn on if LinResp and RangSep turned on, no extra input required for now
-    tRS_LinResp = isLinResp .and. isRangeSep
+    isRS_LinResp = isLinResp .and. isRangeSep
 
     ! ppRPA stuff
     if (allocated(input%ctrl%ppRPA)) then
@@ -2365,7 +2367,7 @@ contains
 
     if (isRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
-          & tAtomicEnergy, input%ctrl%rangeSepInp)
+          & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, lresp)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
           & tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
@@ -4829,7 +4831,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, tShellResolved,&
-      & tAtomicEnergy, rangeSepInp)
+      & tAtomicEnergy, rangeSepInp, isRS_LinResp, lresp)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4848,6 +4850,12 @@ contains
 
     !> Parameters for the range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
+
+    !> Is this an excited state calculation with range separation
+    logical, intent(in) :: isRS_LinResp
+
+    !> data type for linear response
+    type(TLinresp), intent(in) :: lresp
 
     if (tPeriodic) then
       call error("Range separated functionality only works with non-periodic structures at the&
@@ -4897,7 +4905,79 @@ contains
       call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
+    if (isRS_LinResp) then
+
+      if (nSpin > 1) then
+        call error("Excited state range separated calculations not implemented for spin polarized&
+            & calculations")
+      end if
+
+      if (lresp%symmetry /= "S") then
+        call error("Excited state range separated calculations currently only implemented for&
+            & singlet excitaions")
+      end if
+
+    end if
+
   end subroutine ensureRangeSeparatedReqs
+
+
+  !> Stop if linear response module can not be invoked due to unimplemented combinations of
+  !> features.
+  subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces, solvation, isRS_LinResp,&
+      & nSpin)
+
+    !> 3rd order hamiltonian contributions included
+    logical, intent(in) :: t3rd
+
+    !> a real hamiltonian
+    logical, intent(in) :: tRealHs
+
+    !> periodic boundary conditions
+    logical, intent(in) :: tPeriodic
+
+    !> forces being evaluated in the excited state
+    logical, intent(in) :: tForces
+
+    !> Solvation data and calculations
+    class(TSolvation), allocatable :: solvation
+
+    !> Is this an excited state calculation with range separation
+    logical, intent(in) :: isRS_LinResp
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+    integer, intent(in) :: nSpin
+
+    if (withMpi) then
+      call error("Linear response calc. does not work with MPI yet")
+    end if
+
+    if (t3rd) then
+      call error("Third order currently incompatible with excited state")
+    end if
+    if (.not. tRealHS) then
+      call error("Only real systems are supported for excited state calculations")
+    end if
+    if (tPeriodic .and. tForces) then
+      call error("Forces in the excited state for periodic geometries are currently unavailable")
+    end if
+
+    if (allocated(solvation)) then
+      call error("Solvation models do not work with linear response yet.")
+    end if
+
+    if (isRS_LinResp) then
+      if (tPeriodic) then
+        call error("Range separated excited states for periodic geometries are currently&
+            & unavailable")
+      end if
+      if (nSpin > 1) then
+        call error("Range separated excited states for spin polarized calculations are currently&
+            & unavailable")
+      end if
+    end if
+
+  end subroutine ensureLinRespConditions
 
 
   !> Determine range separated cut-off and also update maximal cutoff

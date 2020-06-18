@@ -763,34 +763,22 @@ contains
 
     call env%globalTimer%startTimer(globalTimers%postSCC)
 
-    if (isLinResp .and. .not. tRS_LinResp) then
-      if (withMpi) then
-        call error("Linear response calc. does not work with MPI yet")
+    if (isLinResp) then
+      if (.not. isRS_LinResp) then
+        call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
+            & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord, species, speciesName, orb,&
+            & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
+            & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
+            & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida,&
+            & SSqrReal, rhoSqrReal, excitedDerivs, dQAtomEx, occNatural)
+      else
+        call calculateLinRespExcitations_RS(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
+            & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
+            & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
+            & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
+            & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida,&
+            & SSqrReal, deltaRhoOutSqr, excitedDerivs, dQAtomEx, occNatural, rangeSep)
       end if
-      if (allocated(solvation)) then
-        call error("Solvation model do not work with linear response yet.")
-      end if
-      call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tCasidaForces)
-      call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-          & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord, species, speciesName, orb, tHelical,&
-          & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
-          & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
-          & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida, SSqrReal,&
-          & rhoSqrReal, excitedDerivs, dQAtomEx, occNatural)
-    end if
-
-    if (tRS_LinResp) then
-      if (withMpi) then
-        call error("Linear response calc. does not work with MPI yet")
-      end if
-      @:ASSERT((.not. tPeriodic) .and. (.not. t3rdFull))
-      call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tCasidaForces)
-      call calculateLinRespExcitations_RS(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-          & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
-          & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
-          & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
-          & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida, SSqrReal,&
-          & deltaRhoOutSqr, excitedDerivs, dQAtomEx, occNatural, rangeSep)
     end if
 
     if (allocated(ppRPA)) then
@@ -4400,40 +4388,11 @@ contains
   end function needsSccRestartWriting
 
 
-  !> Stop if linear response module can not be invoked due to unimplemented combinations of
-  !> features.
-  subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
-
-    !> 3rd order hamiltonian contributions included
-    logical, intent(in) :: t3rd
-
-    !> a real hamiltonian
-    logical, intent(in) :: tRealHs
-
-    !> periodic boundary conditions
-    logical, intent(in) :: tPeriodic
-
-    !> forces being evaluated in the excited state
-    logical, intent(in) :: tForces
-
-    if (t3rd) then
-      call error("Third order currently incompatible with excited state")
-    end if
-    if (.not. tRealHS) then
-      call error("Only real systems are supported for excited state calculations")
-    end if
-    if (tPeriodic .and. tForces) then
-      call error("Forces in the excited state for periodic geometries are currently unavailable")
-    end if
-
-  end subroutine ensureLinRespConditions
-
-
   !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-      & eigvecsReal, eigen, filling, coord, species, speciesName, orb, tHelical, skHamCont,&
-      & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
-      & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+      & eigvecsReal, eigen, filling, coord, species, speciesName, orb, skHamCont, skOverCont,&
+      & autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc, iSparseStart,&
+      & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, energies, work, rhoSqrReal, excitedDerivs,&
       & dQAtomEx, occNatural)
 
@@ -4478,9 +4437,6 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-    !> Is the geometry helical
-    logical, intent(in) :: tHelical
 
     !> non-SCC hamiltonian information
     type(TSlakoCont), intent(in) :: skHamCont
@@ -4565,13 +4521,8 @@ contains
     energy%Eexcited = 0.0_dp
     allocate(dQAtom(nAtom))
     dQAtom(:) = sum(qOutput(:,:,1) - q0(:,:,1), dim=1)
-    if (tHelical) then
-      call unpackHelicalHS(work, over, neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-    else
-      call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-          & iSparseStart, img2CentCell)
-    end if
+    call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
+        & iSparseStart, img2CentCell)
     call blockSymmetrizeHS(work, denseDesc%iAtomStart)
     if (tForces) then
       do iSpin = 1, nSpin
