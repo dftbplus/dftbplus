@@ -1799,6 +1799,11 @@ contains
     integer :: nAtom !, i
     real(dp), allocatable :: occNr(:,:)
 
+    if (any(abs(mod(filling, 2.0_dp)) > epsilon(0.0_dp))) then
+      call error("Fractionally occupied states not currently supported for range separated linear&
+          & response excitations")
+    end if
+
     nAtom = size(orb%nOrbAtom)
 
     allocate(occNr(size(filling,dim=1), size(filling,dim=2)))

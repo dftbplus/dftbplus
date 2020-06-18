@@ -4375,13 +4375,13 @@ contains
          endif
          if(allocated(ctrl%onSiteElements)) then
             call detailedError(child, "Casida onsite corrections not available for LC-DFTB.")
-         endif    
+         endif
          if(ctrl%tDFTBU) then
             call detailedError(child, "Casida + DFTB+U not available for LC-DFTB.")
-         endif    
+         endif
          if(ctrl%tempElec > minTemp) then
             call detailedError(child, "Casida at finite T not available for LC-DFTB.")
-         endif   
+         endif
          if (geo%tPeriodic ) then
             call detailedError(child, "Casida with PBC not available for LC-DFTB.")
          endif
@@ -4404,7 +4404,7 @@ contains
         if (allocated(ctrl%rangeSepInp) .and. ctrl%lrespini%sym /= 'S') then
            call detailedError(child2, "Invalid symmetry value '"  // char(buffer) // &
               & "' (only 'Singlet' for LC-DFTB).")
-        endif       
+        endif
       end if
 
       call getChildValue(child, "NrOfExcitations", ctrl%lrespini%nexc)
@@ -4497,7 +4497,7 @@ contains
       call getChildValue(child, "TammDancoff", ctrl%pprpa%tTDA, default=.false.)
 
       call getChild(child, "NrOfVirtualStates", child2, requested=.false.)
-      if (.not. associated(child2)) then      
+      if (.not. associated(child2)) then
         ctrl%pprpa%nvirtual = 0
         ctrl%pprpa%tConstVir = .false.
         call setChildValue(child, "NrOfVirtualStates", 0)

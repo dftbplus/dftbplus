@@ -3690,7 +3690,7 @@ contains
     class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -4681,7 +4681,7 @@ contains
     real(dp), intent(inout), allocatable :: occNatural(:)
 
     !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
 
     real(dp), allocatable :: dQAtom(:)
@@ -5815,7 +5815,7 @@ contains
     class(TDispersionIface), intent(inout), allocatable :: dispersion
 
     !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> dense overlap matrix, required for rangeSep
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)

@@ -2367,7 +2367,7 @@ contains
 
     if (isRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
-          & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, lresp)
+          & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, lresp, onSiteElements)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
           & tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
@@ -3429,9 +3429,9 @@ contains
   !  nAtom, nSpin, fCharges, deltaRhoIn, referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
   !  iEqBlockDFTBULS, reks, and all logicals present
   !
-  subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements, &
-       & initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, &
-       & qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+  subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,&
+      & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed,&
+      & qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
     !> Type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
@@ -4831,7 +4831,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, tShellResolved,&
-      & tAtomicEnergy, rangeSepInp, isRS_LinResp, lresp)
+      & tAtomicEnergy, rangeSepInp, isRS_LinResp, lresp, onSiteElements)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4857,6 +4857,13 @@ contains
     !> data type for linear response
     type(TLinresp), intent(in) :: lresp
 
+    !> Correction to energy from on-site matrix elements
+    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
+
+    if (withMpi) then
+      call error("Range separated calculations do not work with MPI yet")
+    end if
+
     if (tPeriodic) then
       call error("Range separated functionality only works with non-periodic structures at the&
           & moment")
@@ -4876,13 +4883,8 @@ contains
     end if
 
     if (tAtomicEnergy) then
-      call warning("Atomic resolved energies cannot be calculated with the range-separation&
+      call error("Atomic resolved energies cannot be calculated with the range-separated&
           & hybrid functional at the moment")
-      tAtomicEnergy = .false.
-    end if
-
-    if (withMpi) then
-      call error("Range separated calculations do not work with MPI yet")
     end if
 
     if (nSpin > 2) then
@@ -4906,6 +4908,11 @@ contains
     end if
 
     if (isRS_LinResp) then
+
+      if (allocated(onSiteElements)) then
+        call error("Excited state range separated calculations not implemented for onsite&
+            & corrections")
+      end if
 
       if (nSpin > 1) then
         call error("Excited state range separated calculations not implemented for spin polarized&
