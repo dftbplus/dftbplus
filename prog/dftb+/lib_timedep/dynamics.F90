@@ -2214,11 +2214,11 @@ contains
     end if
 
     if (this%tBondE) then
-      call openFile(this, fdBondEnergy, 'bondorder.bin', isBinary = .true.)
+      call openFile(this, fdBondEnergy, 'bondenergy.bin', isBinary = .true.)
     end if
 
     if (this%tBondO) then
-      call openFile(this, fdBondOrder, 'bondenergy.bin', isBinary = .true.)
+      call openFile(this, fdBondOrder, 'bondpop.bin', isBinary = .true.)
     end if
 
     if (this%tPopulations) then
