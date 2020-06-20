@@ -114,6 +114,9 @@ module dftbp_taggedoutput
     !> final molecular orbitals occupations after real-time (Ehrenfest) propagation
     character(lenLabel) :: tdprojocc = 'final_td_proj_occupations'
 
+    !> Sum of bond order values
+    character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
+
     !> total energy including electron TS contribution
     character(lenLabel) :: freeEgy = 'mermin_energy'
 
