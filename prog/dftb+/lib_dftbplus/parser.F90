@@ -4821,7 +4821,7 @@ contains
     call getChildValue(node, "RestartFrequency", input%restartFreq, input%Steps / 10)
     call getChildValue(node, "Forces", input%tForces, .false.)
     call getChildValue(node, "WriteBondEnergy", input%tBondE, .false.)
-    call getChildValue(node, "WriteBondOrder", input%tBondO, .false.)
+    call getChildValue(node, "WriteBondPopulation", input%tBondO, .false.)
     call getChildValue(node, "OnsiteGradients", input%tOnsiteGradients, .false.)
     call getChildValue(node, "Pump", input%tPump, .false.)
     call getChildValue(node, "FillingsFromFile", input%tFillingsFromFile, .false.)

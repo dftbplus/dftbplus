@@ -50,7 +50,7 @@ Analysis = {
             PolarizationDirection = "z"
         }
         FieldStrength [v/a] = 0.001
-        WriteBondOrder = Yes
+        WriteBondPopulation = Yes # evaluate bond populations between atoms
     }
 }
 

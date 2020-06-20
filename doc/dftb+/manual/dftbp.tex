@@ -3996,8 +3996,8 @@ time-dependent properties.
   \kw{ProbeProbeRange} & 2r & Pump = Yes & 0 Steps*TimeStep & \\
   \kw{Probe} & l & & No & \\
   \kw{EulerFrequency} & i & & 0 & \\
-  \kw{WriteBondEnergy} & l & WriteBondOrder = No & No & \\
-  \kw{WriteBondOrder} & l & WriteBondEnergy = No & No & \\
+  \kw{WriteBondEnergy} & l & & No & \\
+  \kw{WriteBondPopulation} & l & & No & \\
   \kw{FillingsFromFile} & l & & No & \\
 \end{ptable}
 
@@ -4087,19 +4087,26 @@ time-dependent properties.
   Euler steps are done during the dynamics. If used, must be set to
   something larger than 50.
 
-\item[\is{WriteBondEnergy}] If the pairwise, time-dependent bond
-  energy $BE(t)$, calculated as
-$$ BE_{AB}(t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t)
-  H^0_{\mu \nu}(t),$$ should be written to the \verb|bondenergy.bin|
-  file. This is written every \is{WriteFrequency} steps, and in binary
-  format because of the large amount of data. Currently incompatible
-  with \is{WriteBondOrder}.
+\item[\is{WriteBondEnergy}] If the pairwise non-self-consistent part of the bond
+  energy, $BE(t)$, should be written to the \verb|bondenergy.bin| file every
+  \is{WriteFrequency} steps. The populations are evaluated as
+  \begin{equation*}
+    BE_{AB}(t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) H^0_{\mu
+      \nu}(t),
+  \end{equation*}
+  where $A$ and $B$ are the atoms in the central cell and $S$ is the overlap
+  matrix. They are stored in binary format (see \ref{sec:beformatout}).
 
-\item[\is{WriteBondOrder}] If the pairwise, time-dependent bond order
-  $BO(t)$, calculated as $$ BO_{AB} (t) = \sum_{\mu \in A} \sum_{\nu
-  \in B} \rho_{\mu \nu}(t) S_{\mu \nu}(t),$$ should be written to the
-  \verb|bondorder.bin| file every \is{WriteFrequency} steps and in
-  binary format. Currently incompatible with \is{WriteBondEnergy}.
+\item[\is{WriteBondPopulation}] If the pairwise time-dependent bond
+  Mulliken-like population, \index{bond populations} $BP(t)$, should be written
+  to the \verb|bondpop.bin| file every \is{WriteFrequency} steps. The
+  populations are evaluated as
+  \begin{equation*}
+    BP_{AB} (t) = \sum_{\mu \in A} \sum_{\nu \in B} \rho_{\mu \nu}(t) S_{\mu
+      \nu}(t),
+  \end{equation*}
+  where $A$ and $B$ are the atoms in the central cell and $S$ is the overlap
+  matrix. They are stored in binary format (see \ref{sec:bpformatout}).
 
 \item[\is{FillingsFromFile}] If the initial fillings (molecular
   orbital occupations) should be read from a file named
@@ -4309,7 +4316,6 @@ The properties of this method are the same as for the Gaussian
 %}
 %\end{verbatim}
 
-
 \subsubsection{ElectrostaticPotential}
 \label{sec:dftbp.ESP}
 
@@ -4359,54 +4365,6 @@ calculations. This data is accumulated in a specified text file.
   \end{description}
 \end{description}
 
-\subsubsection{ElectrostaticPotential}
-\label{sec:dftbp.ESP}
-
-Evaluates the electrostatic potential at specified points in space for SCC
-calculations. This data is accumulated in a specified text file.
-
-\begin{ptable}
-  \kw{OutputFile} & s  &  & "ESP.dat" & \\
-  \kw{AppendFile} & l  & MD or geometry optimisation & No & \\
-  \kw{Softening}  & r     & & 1E-6 & \\
-  \kw{Points}     & (3r)+ & \is{Grid} not set & \cb  & \\
-  \kw{Grid}       & m     & \is{Points} not set & \cb  & \\
-\end{ptable}
-\begin{description}
-\item[\is{OutputFile}] Text file to store the potential. If external electric
-  fields are present, an additional column gives their values. See
-  p.~\pref{sec:dftbp.esp} for a description of the file.
-\item[\is{AppendFile}] If running calculations with multiple geometries, should
-  the \is{OutputFile} be appended or only contain the last potential
-  information?
-\item[\is{Softening}] \modif{\modtype{length}} Modifies the plotted potential to
-  remove the $r=0$ divergence of $\sfrac{1}{r}$, by setting $\epsilon$ and
-  instead plotting $\sfrac{1}{\sqrt{r^2 +\epsilon^2}}$. Internal potential
-  calculations are unaffected, only the exported data.
-\item[\is{Points}] \modif{\modtype{length}} List of cartesian points at which to
-  evaluate the electrostatic field. In the case Periodic = Yes, the modifier "F"
-  may instead be used to specify the points as fractions of the lattice vectors.
-\item[\is{Grid}] \modif{\modtype{length}} Specification of a regular 1, 2 or 3
-  dimensional grid of points. In the case Periodic = Yes, the modifier "F" may
-  instead be used to specify the points as fractions of the lattice vectors.
-  \begin{ptable}
-    \kw{GridPoints} & 3i  &  & & \\
-    \kw{Origin} & 3r  &  & & \\
-    \kw{Spacing} & 3r  &  & & \\
-    \kw{Directions} & 9r  & Modifier not F & 1 0 0\ \  0 1 0\ \  0 0 1& \\
-  \end{ptable}
-  \begin{description}
-    \item[\is{Spacing}] Separation between points in each direction. This
-      inherits the modifier for \is{Grid}.
-  \item[\is{Origin}] Location of first point in the grid. This inherits the
-    modifier for \is{Grid}.
-  \item[\is{GridPoints}] Number of points in each of the three direction of the
-    grid (a value of 1 places all points at the \is{Origin} of that direction).
-  \item[\is{Directions}] Set of 3 cartesian vectors along which the grid will
-    become aligned. This can rotate, skew, {\it etc.}\ the grid. The vectors are
-    internally normalised, but must be independent.
-  \end{description}
-\end{description}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
@@ -5397,7 +5355,7 @@ Time (in fs), $\mu_x$ (up), $\mu_y$ (up), $\mu_z$ (up), $\mu_x$
 \index{laser.dat}
 
 Created if \kw{Perturbation} = \kwcb{Laser}
-(see \label{sec:dftbp.tdpert}). Laser field components $E_i$ (in
+(see \ref{sec:dftbp.tdpert}). Laser field components $E_i$ (in
 V/\AA) as a function of time, in the following order:
 
 time (in fs), $E_x$, $E_y$, $E_z$
@@ -5434,23 +5392,25 @@ Coordinates and velocities of the atoms saved every
 \kw{WriteFrequency} steps in XYZ format, if \is{IonDynamics} = Yes.
 
 \subsection{bondenergy.bin}
+\label{sec:beformatout}
 
-Pairwise bond energy, written if \is{WriteBondEnergy} = Yes, every
-\is{WriteFrequency} steps. All numbers are 64 bit real, in the
-following order:
+Atom pair-wise non-self-consistent bond energy, written if \is{WriteBondEnergy}
+= \is{Yes}, every \is{WriteFrequency} steps. All numbers are stored in the
+following order (using the Fortran real precision that the code is compiled
+with):
 
 time (in fs), $BE_{1,1}$, $BE_{2,1}$, $BE_{3,1}$, $\dots$, $BE_{N,1}$,
-$BE_{1,2}$, $\dots$, $BE_{N,N}$
+$BE_{1,2}$, $BE_{2,2}$, $\dots$, $BE_{N,2}$, $\dots$, $BE_{N,N}$
 
-\subsection{bondorder.bin}
+\subsection{bondpop.bin}
+\label{sec:bpformatout}
 
-Pairwise bond order, written if \is{WriteBondOrder} = Yes, every
-\is{WriteFrequency} steps. All numbers are 64 bit real, in the
-following order:
+Atom pair-wise bond populations, written if \is{WriteBondOrder} = \is{Yes},
+every \is{WriteFrequency} steps. (using the Fortran real precision that the code
+is compiled with):
 
-time (in fs), $BO_{1,1}$, $BO_{2,1}$, $BO_{3,1}$, $\dots$, $BO_{N,1}$,
-$BO_{1,2}$, $\dots$, $BO_{N,N}$
-
+time (in fs), $BP_{1,1}$, $BP_{2,1}$, $BP_{3,1}$, $\dots$, $BP_{N,1}$,
+$BP_{1,2}$, $BP_{2,2}$, $\dots$, $BP_{N,2}$, $\dots$, $BP_{N,N}$
 
 
 \section{ppRPA\_ener.DAT}
