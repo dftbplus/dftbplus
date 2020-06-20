@@ -163,8 +163,8 @@ module dftbp_timeprop
     !> if pairwise bond energy should be calculated and written
     logical :: tBondE
 
-    !> if pairwise bond order should be calculated and written
-    logical :: tBondO
+    !> if pairwise bond population should be calculated and written
+    logical :: tBondP
 
     !> if this is a pump trajectory (for a pump-probe simulation)
     logical :: tPump
@@ -213,7 +213,7 @@ module dftbp_timeprop
     integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
     logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe, tRealHS
     logical :: isRangeSep
-    logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondO = .false.
+    logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondP = .false.
     logical :: tCalcOnsiteGradients = .false., tPeriodic = .false., tFillingsFromFile = .false.
     type(TThermostat), allocatable :: pThermostat
     type(TMDIntegrator), allocatable :: pMDIntegrator
@@ -434,7 +434,7 @@ contains
     if (this%tBondE .and. .not. this%tRealHS) then
       call error("Real hamitonian required for bond energies")
     end if
-    this%tBondO = inp%tBondO
+    this%tBondP = inp%tBondP
     this%tCalcOnsiteGradients = inp%tOnsiteGradients
     this%species = species
     this%tPeriodic = tPeriodic
@@ -859,7 +859,7 @@ contains
     real(dp) :: time, startTime, timeElec
     integer :: dipoleDat, qDat, energyDat, populDat(this%parallelKS%nLocalKS)
     integer :: forceDat, coorDat
-    integer :: fdBondOrder, fdBondEnergy
+    integer :: fdBondPopul, fdBondEnergy
     integer :: iStep, iSpin, iKS
     type(TPotentials) :: potential
     type(TEnergies) :: energy
@@ -873,7 +873,7 @@ contains
     real(dp) :: occ(this%nOrbs)
     character(4) :: dumpIdx
     logical :: tProbeFrameWrite
-    real(dp), allocatable :: sumBondOrder
+    real(dp), allocatable :: sumBondPopul
     integer :: nBndOEvals
 
     allocate(Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
@@ -927,7 +927,7 @@ contains
       this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
     end if
 
-    call initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, fdBondOrder,&
+    call initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, fdBondPopul,&
         & fdBondEnergy)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, trho, Ssqr, coord, iSquare, qBlock)
@@ -976,7 +976,7 @@ contains
       startTime = 0.0_dp
     end if
 
-    if (this%tBondE .or. this%tBondO)then
+    if (this%tBondE .or. this%tBondP)then
       allocate(bondWork(this%nAtom, this%nAtom))
     end if
     if (this%tBondE) then
@@ -987,15 +987,15 @@ contains
       end do
       write(fdBondEnergy) time * au__fs, sum(bondWork), bondWork
     end if
-    if (this%tBondO) then
+    if (this%tBondP) then
       bondWork(:,:) = 0.0_dp
       do iSpin = 1, this%nSpin
         call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), over, iSquare,&
             & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
       end do
-      write(fdBondOrder) time * au__fs, sum(bondWork), bondWork
+      write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
       if (tWriteAutotest) then
-        sumBondOrder = sum(bondWork)
+        sumBondPopul = sum(bondWork)
         nBndOEvals = 1
       end if
     end if
@@ -1015,7 +1015,7 @@ contains
       time = iStep * this%dt + startTime
 
       if (.not. this%tRestart .or. (iStep > 0) .or. this%tProbe) then
-        call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondOrder,&
+        call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondPopul,&
             & fdBondEnergy, time, energy, energyKin, dipole, deltaQ, coord, totalForce, iStep)
       end if
 
@@ -1080,15 +1080,15 @@ contains
           end do
           write(fdBondEnergy) time * au__fs, sum(bondWork), bondWork
         end if
-        if (this%tBondO) then
+        if (this%tBondP) then
           bondWork(:,:) = 0.0_dp
           do iSpin = 1, this%nSpin
             call addPairWiseBondInfo(bondWork, rhoPrim(:,1), over, iSquare,&
                 & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
           end do
-          write(fdBondOrder) time * au__fs, sum(bondWork), bondWork
+          write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
           if (tWriteAutotest) then
-            sumBondOrder = sumBondOrder + sum(bondWork)
+            sumBondPopul = sumBondPopul + sum(bondWork)
             nBndOEvals = nBndOEvals + 1
           end if
         end if
@@ -1138,14 +1138,14 @@ contains
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
     if (tWriteAutotest) then
-      if (allocated(sumBondOrder)) then
-        sumBondOrder = sumBondOrder / real(nBndOEvals, dp)
+      if (allocated(sumBondPopul)) then
+        sumBondPopul = sumBondPopul / real(nBndOEvals, dp)
       end if
-      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, sumBondOrder,&
+      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, sumBondPopul,&
           & taggedWriter)
     end if
 
-    call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, fdBondOrder,&
+    call closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, fdBondPopul,&
         & fdBondEnergy)
 
     if (this%tIons) then
@@ -2151,7 +2151,7 @@ contains
 
   !> Initialize output files
   subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
-      & fdBondOrder, fdBondEnergy)
+      & fdBondPopul, fdBondEnergy)
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
@@ -2173,8 +2173,8 @@ contains
     !> Coords  output file ID
     integer, intent(out) :: coorDat
 
-    !> Pairwise bond order output file ID
-    integer, intent(out) :: fdBondOrder
+    !> Pairwise bond population output file ID
+    integer, intent(out) :: fdBondPopul
 
     !> Pairwise bond energy output file ID
     integer, intent(out) :: fdBondEnergy
@@ -2217,8 +2217,8 @@ contains
       call openFile(this, fdBondEnergy, 'bondenergy.bin', isBinary = .true.)
     end if
 
-    if (this%tBondO) then
-      call openFile(this, fdBondOrder, 'bondpop.bin', isBinary = .true.)
+    if (this%tBondP) then
+      call openFile(this, fdBondPopul, 'bondpop.bin', isBinary = .true.)
     end if
 
     if (this%tPopulations) then
@@ -2241,7 +2241,7 @@ contains
 
   !> Close output files
   subroutine closeTDOutputs(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
-      & fdBondOrder, fdBondEnergy)
+      & fdBondPopul, fdBondEnergy)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
@@ -2264,8 +2264,8 @@ contains
     !> Coords output file ID
     integer, intent(in) :: coorDat
 
-    !> Pairwise bond order output file ID
-    integer, intent(in) :: fdBondOrder
+    !> Pairwise bond population output file ID
+    integer, intent(in) :: fdBondPopul
 
     !> Pairwise bond energy output file ID
     integer, intent(in) :: fdBondEnergy
@@ -2292,8 +2292,8 @@ contains
       close(forceDat)
     end if
 
-    if (this%tBondO) then
-      close(fdBondOrder)
+    if (this%tBondP) then
+      close(fdBondPopul)
     end if
 
     if (this%tBondE) then
@@ -2422,7 +2422,7 @@ contains
 
 
   !> Write results to file
-  subroutine writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondOrder,&
+  subroutine writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondPopul,&
       & fdBondEnergy, time, energy, energyKin, dipole, deltaQ, coord, totalForce, iStep)
 
     !> ElecDynamics instance
@@ -2458,8 +2458,8 @@ contains
     !> Coords output file ID
     integer, intent(in) :: coorDat
 
-    !> Pairwise bond order output file ID
-    integer, intent(in) :: fdBondOrder
+    !> Pairwise bond population output file ID
+    integer, intent(in) :: fdBondPopul
 
     !> Pairwise bond energy output file ID
     integer, intent(in) :: fdBondEnergy
@@ -2526,8 +2526,8 @@ contains
         if (this%tForces) then
           flush(forceDat)
         end if
-        if (this%tBondO) then
-          flush(fdBondOrder)
+        if (this%tBondP) then
+          flush(fdBondPopul)
         end if
         if (this%tBondE) then
           flush(fdBondEnergy)
@@ -2689,7 +2689,7 @@ contains
 
 
   !> Write time-dependent tagged information to autotestTag file
-  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, sumBondOrder,&
+  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, sumBondPopul,&
       & taggedWriter)
 
     !> ElecDynamics instance
@@ -2713,8 +2713,8 @@ contains
     !> molecular orbital projected populations
     real(dp), intent(in) :: occ(:)
 
-    !> Optional sum of bond orders over the run
-    real(dp), intent(in), allocatable :: sumBondOrder
+    !> Optional sum of bond populations over the run
+    real(dp), intent(in), allocatable :: sumBondPopul
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2736,8 +2736,8 @@ contains
     if (this%tPopulations) then
       call taggedWriter%write(fdAutotest, tagLabels%tdprojocc, occ)
     end if
-    if (allocated(sumBondOrder)) then
-      call taggedWriter%write(fdAutotest, tagLabels%sumBondOrder, sumBondOrder)
+    if (allocated(sumBondPopul)) then
+      call taggedWriter%write(fdAutotest, tagLabels%sumBondPopul, sumBondPopul)
     end if
 
     close(fdAutotest)
