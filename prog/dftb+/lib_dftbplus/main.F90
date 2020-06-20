@@ -253,13 +253,13 @@ contains
     endif
 
     ! Here time propagation is called
-    if (tElectronDynamics) then
-      call runDynamics(elecDyn, eigvecsReal, ham, H0, species, q0, over, filling, neighbourList,&
-          & nNeighbourSK, nNeighbourLC, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb,&
-          & coord0, spinW, pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, solvation,&
-          & rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef,&
-          & coord, onsiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec,&
-          & cellVec, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+    if (allocated(electronDynamics)) then
+      call runDynamics(electronDynamics, eigvecsReal, ham, H0, species, q0, over, filling,&
+          & neighbourList, nNeighbourSK, nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, orb, coord0, spinW, pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd,&
+          & solvation, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
+          & tFixEf, Ef, coord, onsiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec,&
+          & rCellVec, cellVec, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
     end if
 
   #:if WITH_TRANSPORT

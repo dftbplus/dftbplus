@@ -6,7 +6,8 @@
 #:set LONG_TEST = not defined('TRAVIS')
 
 timeprop/benzene_kick_restart          #? OMP_THREADS <= 4 and not WITH_MPI
-timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI 
+timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI
+timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI

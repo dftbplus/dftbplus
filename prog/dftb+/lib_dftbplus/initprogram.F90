@@ -886,8 +886,7 @@ module dftbp_initprogram
   type(TParallelKS) :: parallelKS
 
   !> Electron dynamics
-  type(TElecDynamics) :: elecDyn
-  logical :: tElectronDynamics
+  type(TElecDynamics), allocatable :: electronDynamics
 
   !> external electric field
   real(dp) :: Efield(3), absEfield
@@ -3227,8 +3226,7 @@ contains
     end if
       
     ! Electron dynamics stuff
-    tElectronDynamics = allocated(input%ctrl%elecDynInp)
-    if (tElectronDynamics) then
+    if (allocated(input%ctrl%elecDynInp)) then
 
       if (t2Component) then
         call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
@@ -3254,7 +3252,13 @@ contains
         call error("Electron dynamics does not work with range separated calculations yet.")
       end if
 
-      call TElecDynamics_init(elecDyn, input%ctrl%elecDynInp, species0, speciesName,&
+      if (.not. tRealHS .and. input%ctrl%elecDynInp%tBondE) then
+        call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
+      end if
+
+      allocate(electronDynamics)
+
+      call TElecDynamics_init(electronDynamics, input%ctrl%elecDynInp, species0, speciesName,&
           & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, cutOff%skCutoff,&
           & cutOff%mCutoff, atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS,&
           & tRealHS, kPoint, kWeight, tRangeSep)
