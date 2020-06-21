@@ -4804,20 +4804,26 @@ contains
 
   #:if WITH_MPI
     if (associated(node)) then
-       call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
-            & electron dynamics are currently not supported.')
+      call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
+          & electron dynamics are not currently not for distributed parallel calculations.')
     end if
   #:endif
 
     call getChildValue(node, "Steps", input%steps)
     call getChildValue(node, "TimeStep", input%dt, modifier=modifier, &
-         & child=child)
+        & child=child)
     call convertByMul(char(modifier), timeUnits, child, input%dt)
 
     call getChildValue(node, "Populations", input%tPopulations, .false.)
     call getChildValue(node, "WriteFrequency", input%writeFreq, 50)
-    call getChildValue(node, "Restart", input%tRestart, .false.)
+    call getChildValue(node, "Restart", input%tReadRestart, .false.)
+    if (input%tReadRestart) then
+      call getChildValue(node, "RestartFromAscii", input%tReadRestartAscii, .false.)
+    end if
     call getChildValue(node, "WriteRestart", input%tWriteRestart, .true.)
+    if (input%tWriteRestart) then
+      call getChildValue(node, "WriteAsciiRestart", input%tWriteRestartAscii, .false.)
+    end if
     call getChildValue(node, "RestartFrequency", input%restartFreq, input%Steps / 10)
     call getChildValue(node, "Forces", input%tForces, .false.)
     call getChildValue(node, "WriteBondEnergy", input%tBondE, .false.)
@@ -4830,13 +4836,14 @@ contains
       call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
       defPpRange = [0.0_dp, input%steps * input%dt]
       call getChildValue(node, "PumpProbeRange", input%tdPpRange, defPprange, modifier=modifier,&
-           & child=child)
-       call convertByMul(char(modifier), timeUnits, child, input%tdPpRange)
+          & child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%tdPpRange)
 
       ppRangeInvalid = (input%tdPpRange(2) <= input%tdPpRange(1))&
-           & .or. (input%tdPprange(1) < defPpRange(1)) .or. (input%tdPpRange(2) > defPpRange(2))
+          & .or. (input%tdPprange(1) < defPpRange(1)) .or. (input%tdPpRange(2) > defPpRange(2))
       if (ppRangeInvalid) then
-         call detailederror(child, "Wrong definition of PumpProbeRange")
+        call detailederror(child, "Wrong definition of PumpProbeRange, either incorrect order&
+            & or outside of simulation time range")
       end if
     end if
 
@@ -4847,12 +4854,12 @@ contains
 
     call getChildValue(node, "EulerFrequency", input%eulerFreq, 0)
     if ((input%eulerFreq < 50) .and. (input%eulerFreq > 0)) then
-       call detailedError(child, "Wrong number of Euler steps, should be above 50")
+      call detailedError(child, "Wrong number of Euler steps, should be above 50")
     end if
     if (input%eulerFreq >= 50) then
-       input%tEulers = .true.
+      input%tEulers = .true.
     else
-       input%tEulers = .false.
+      input%tEulers = .false.
     end if
 
     ! assume this is required (needed for most perturbations, but not none)
@@ -4864,96 +4871,68 @@ contains
     select case(char(buffer))
 
     case ("kick")
-       input%pertType = pertTypes%kick
-       call getChildValue(value1, "PolarizationDirection", buffer2)
-       select case(unquote(char(buffer2)))
-       case ("x", "X")
-         input%polDir = 1
-       case ("y", "Y")
-         input%polDir = 2
-       case ("z", "Z")
-         input%polDir = 3
-       case ("all", "All", "ALL")
-         input%polDir = 4
-       case default
-         call detailedError(value1, "Wrong specified polarization direction " // char(buffer2) &
-             & // ". Must be x, y, z or all.")
-       end select
+      input%pertType = pertTypes%kick
+      call getChildValue(value1, "PolarizationDirection", buffer2)
+      input%polDir = directionConversion(unquote(char(buffer2)), value1)
 
-       if (input%polDir < 1 .or. input%polDir > 4) then
-          call detailedError(child, "Wrong specified polarization direction")
-       end if
-       call getChildValue(value1, "SpinType", buffer2, "Singlet")
-       select case(unquote(char(buffer2)))
-       case ("singlet", "Singlet")
-          input%spType = tdSpinTypes%singlet
-       case ("triplet", "Triplet")
-          input%spType = tdSpinTypes%triplet
-       case default
-          call detailedError(value1, "Unknown spectrum spin type " // char(buffer2))
-       end select
-
+      call getChildValue(value1, "SpinType", buffer2, "Singlet")
+      select case(unquote(char(buffer2)))
+      case ("singlet", "Singlet")
+        input%spType = tdSpinTypes%singlet
+      case ("triplet", "Triplet")
+        input%spType = tdSpinTypes%triplet
+      case default
+        call detailedError(value1, "Unknown spectrum spin type " // char(buffer2))
+      end select
     case ("laser")
-       input%pertType = pertTypes%laser
-       call getChildValue(value1, "PolarizationDirection", input%reFieldPolVec)
-       call getChildValue(value1, "ImagPolarizationDirection", input%imFieldPolVec, &
-            & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
-       call getChildValue(value1, "LaserEnergy", input%omega, &
-            & modifier=modifier, child=child)
-       call convertByMul(char(modifier), energyUnits, child, input%omega)
-       call getChildValue(value1, "Phase", input%phase, 0.0_dp)
-       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, &
-            &multiple=.true.)
-       call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, &
-            &child, input%indExcitedAtom)
+      input%pertType = pertTypes%laser
+      call getChildValue(value1, "PolarizationDirection", input%reFieldPolVec)
+      call getChildValue(value1, "ImagPolarizationDirection", input%imFieldPolVec, &
+          & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
+      call getChildValue(value1, "LaserEnergy", input%omega, &
+          & modifier=modifier, child=child)
+      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, &
+          &multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, &
+          &child, input%indExcitedAtom)
 
-       input%nExcitedAtom = size(input%indExcitedAtom)
-       if (input%nExcitedAtom == 0) then
-          call error("No atoms specified for laser excitation.")
-       end if
+      input%nExcitedAtom = size(input%indExcitedAtom)
+      if (input%nExcitedAtom == 0) then
+        call error("No atoms specified for laser excitation.")
+      end if
 
     case ("kickandlaser")
-       input%pertType = pertTypes%kickAndLaser
-       call getChildValue(value1, "KickPolDir", buffer2)
-       select case(unquote(char(buffer2)))
-       case ("x", "X")
-         input%polDir = 1
-       case ("y", "Y")
-         input%polDir = 2
-       case ("z", "Z")
-         input%polDir = 3
-       case ("all", "All", "ALL")
-         input%polDir = 4
-       case default
-         call detailedError(value1, "Wrong specified polarization direction " // char(buffer2) &
-             & // ". Must be x, y, z or all.")
-       end select
-       call getChildValue(value1, "SpinType", input%spType, tdSpinTypes%singlet)
-       call getChildValue(value1, "LaserPolDir", input%reFieldPolVec)
-       call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, &
-            & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
-       call getChildValue(value1, "LaserEnergy", input%omega, &
-            & modifier=modifier, child=child)
-       call convertByMul(char(modifier), energyUnits, child, input%omega)
-       call getChildValue(value1, "Phase", input%phase, 0.0_dp)
-       call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
-           & child=child)
-       call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)
+      input%pertType = pertTypes%kickAndLaser
+      call getChildValue(value1, "KickPolDir", buffer2)
+      input%polDir = directionConversion(unquote(char(buffer2)), value1)
+      call getChildValue(value1, "SpinType", input%spType, tdSpinTypes%singlet)
+      call getChildValue(value1, "LaserPolDir", input%reFieldPolVec)
+      call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, &
+          & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
+      call getChildValue(value1, "LaserEnergy", input%omega, &
+          & modifier=modifier, child=child)
+      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
+          & child=child)
+      call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)
 
-       call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, &
-            &multiple=.true.)
-       call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, &
-            &child, input%indExcitedAtom)
-       input%nExcitedAtom = size(input%indExcitedAtom)
-       if (input%nExcitedAtom == 0) then
-          call error("No atoms specified for laser excitation.")
-       end if
+      call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child,&
+          & multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species,&
+          & child, input%indExcitedAtom)
+      input%nExcitedAtom = size(input%indExcitedAtom)
+      if (input%nExcitedAtom == 0) then
+        call error("No atoms specified for laser excitation.")
+      end if
 
     case ("none")
-       input%pertType = pertTypes%noTDPert
-       tNeedFieldStrength = .false.
+      input%pertType = pertTypes%noTDPert
+      tNeedFieldStrength = .false.
     case default
-       call detailedError(child, "Unknown perturbation type " // char(buffer))
+      call detailedError(child, "Unknown perturbation type " // char(buffer))
     end select
 
     if (tNeedFieldStrength) then
@@ -4967,66 +4946,90 @@ contains
     select case(char(buffer))
 
     case("constant")
-       input%envType = envTypes%constant
+      input%envType = envTypes%constant
 
     case("gaussian")
-       input%envType = envTypes%gaussian
-       call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
-       call convertByMul(char(modifier), timeUnits, child, input%Time0)
+      input%envType = envTypes%gaussian
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-       call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
-       call convertByMul(char(modifier), timeUnits, child, input%Time1)
+      call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("sin2")
-       input%envType = envTypes%sin2
-       call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
-       call convertByMul(char(modifier), timeUnits, child, input%Time0)
+      input%envType = envTypes%sin2
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-       call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
-       call convertByMul(char(modifier), timeUnits, child, input%Time1)
+      call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("fromfile")
-       input%envType = envTypes%fromFile
-       call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
-       call convertByMul(char(modifier), timeUnits, child, input%Time0)
+      input%envType = envTypes%fromFile
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
     case default
-       call detailedError(value1, "Unknown envelope shape " // char(buffer))
+      call detailedError(value1, "Unknown envelope shape " // char(buffer))
     end select
 
     !! Non-adiabatic molecular dynamics
     call getChildValue(node, "IonDynamics", input%tIons, .false.)
     if (input%tIons) then
-       call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, &
-            &multiple=.true.)
-       call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, &
-            &child, input%indMovedAtom)
+      call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geo%speciesNames, geo%species, child,&
+          & input%indMovedAtom)
 
-       input%nMovedAtom = size(input%indMovedAtom)
-!       if (input%nMovedAtom == 0) then
-!          call error("No atoms specified for molecular dynamics.")
-!       end if
-       call readInitialVelocitiesNAMD(node, input, geo%nAtom)
-       if (input%tReadMDVelocities) then
-          ! without a thermostat, if we know the initial
-          ! velocities, we do not need a temperature, so just set it to something
-          ! 'safe'
-          input%tempAtom = minTemp
-       else
-          call getChildValue(node, "InitialTemperature", input%tempAtom, &
-               &modifier=modifier, child=child)
-          if (input%tempAtom < 0.0_dp) then
-             call detailedError(child, "Negative temperature")
-          end if
-          call convertByMul(char(modifier), energyUnits, child, input%tempAtom)
-          if (input%tempAtom < minTemp) then
-             input%tempAtom = 0.0_dp !previously it was minTemp
-          end if
-       end if
-       call getInputMasses(node, geo, masses)
+      input%nMovedAtom = size(input%indMovedAtom)
+      call readInitialVelocitiesNAMD(node, input, geo%nAtom)
+      if (input%tReadMDVelocities) then
+        ! without a thermostat, if we know the initial velocities, we do not need a temperature, so
+        ! just set it to something 'safe'
+        input%tempAtom = minTemp
+      else
+        call getChildValue(node, "InitialTemperature", input%tempAtom, &
+            &modifier=modifier, child=child)
+        if (input%tempAtom < 0.0_dp) then
+          call detailedError(child, "Negative temperature")
+        end if
+        call convertByMul(char(modifier), energyUnits, child, input%tempAtom)
+        if (input%tempAtom < minTemp) then
+          input%tempAtom = 0.0_dp !previously it was minTemp
+        end if
+      end if
+      call getInputMasses(node, geo, masses)
     end if
 
   end subroutine readElecDynamics
+
+
+  !> Converts direction label text string into corresponding numerical value
+  function directionConversion(direction, node) result(iX)
+
+    !> Direction label
+    character(*), intent(in) :: direction
+
+    !> input tree for error return
+    type(fnode), pointer :: node
+
+    !> direction indicator (1 - 4) for (x,y,z,all)
+    integer :: iX
+
+    select case(trim(direction))
+    case ("x", "X")
+      iX = 1
+    case ("y", "Y")
+      iX = 2
+    case ("z", "Z")
+      iX = 3
+    case ("all", "All", "ALL")
+      iX = 4
+    case default
+      call detailedError(node, "Wrongly specified polarization direction " // trim(direction)&
+          & // ". Must be x, y, z or all.")
+    end select
+
+  end function directionConversion
 
 
   !> Reads MD velocities

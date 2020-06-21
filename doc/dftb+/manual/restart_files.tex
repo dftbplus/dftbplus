@@ -118,3 +118,27 @@ in the input at calculation time, see the \is{FermiLevel} keyword in section
 An earlier format for contacts is also supported. This lacks the first line
 containing the the version number, along with the logical flag and sections
 relating to block charges.
+
+
+\subsection{tddump.bin / tddump.dat}
+\label{app:tddump}
+
+The restart data for a real time propagation calculation is stored in either the
+native binary format of your computer (\verb|tddump.bin|) or as ascii text
+(\verb|tddump.dat|) format.
+
+The layout of the lines of the ascii file given below (all quantities are in
+atomic units):
+
+\begin{itemize}
+\item version: The file format, currently version 1
+\item nOrbitals nSpin$\times$nKpoints nAtoms current\_simulation\_time
+\item nOrbitals$^2$ $\times$ nSpin $\times$ nKpoints lines of the (complex)
+  density matrix at current time
+\item nOrbitals$^2$ $\times$ nSpin $\times$ nKpoints lines of the (complex)
+  density matrix at the previous timestep
+\item nOrbitals$^2$ $\times$ nSpin $\times$ nKpoints lines of the overlap matrix
+  for the current structure
+\item nAtoms lines of cartesian coordinates of the atoms at current time
+\item nAtoms lines of atomic velocities at current time
+\end{itemize}
