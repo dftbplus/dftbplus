@@ -122,10 +122,16 @@ module dftbp_timeprop
     logical :: tPopulations
 
     !> If calculation should be restarted from dump file
-    logical :: tRestart
+    logical :: tReadRestart
 
     !> If dump file should be written during the dynamics
     logical :: tWriteRestart
+
+    !> If a dump file is read, should it be ascii (T) or binary (F)
+    logical :: tReadRestartAscii = .false.
+
+    !> If a dump file is read, should it be ascii (T) or binary (F)
+    logical :: tWriteRestartAscii = .false.
 
     !> Index of the moved atoms
     integer, allocatable :: indMovedAtom(:)
@@ -200,7 +206,7 @@ module dftbp_timeprop
     integer, allocatable :: species(:), polDirs(:), speciesAll(:)
     character(mc), allocatable :: speciesName(:)
     logical :: tPopulations, tSpinPol=.false.
-    logical :: tRestart, tWriteRestart, tWriteAutotest
+    logical :: tReadRestart, tWriteRestart, tRestartAscii, tWriteRestartAscii, tWriteAutotest
     logical :: tLaser = .false., tKick = .false., tKickAndLaser = .false., tEnvFromFile = .false.
     type(TScc), allocatable :: sccCalc
     character(mc) :: autotestTag
@@ -277,6 +283,16 @@ module dftbp_timeprop
 
   !> Container for enumerated types of spin polarized spectra
   type(TDSpinTypesEnum), parameter :: tdSpinTypes = TDSpinTypesEnum()
+
+  !> version number for restart format, please increment if you change the file format (and consider
+  !> adding backward compatibility)
+  integer, parameter :: tdDumpFormat = 1
+
+  !> Prefix for dump files for restart
+  character(*), parameter :: restartFileName = 'tddump'
+
+  !> Used to return runtime diagnostics
+  character(len=120) :: error_string
 
 contains
 
@@ -362,8 +378,10 @@ contains
     this%envType = inp%envType
     this%spType = inp%spType
     this%tPopulations = inp%tPopulations
-    this%tRestart = inp%tRestart
+    this%tReadRestart = inp%tReadRestart
     this%tWriteRestart = inp%tWriteRestart
+    this%tRestartAscii = inp%tReadRestartAscii
+    this%tWriteRestartAscii = inp%tWriteRestartAscii
     this%phase = inp%phase
     this%writeFreq = inp%writeFreq
     this%restartFreq = inp%restartFreq
@@ -480,9 +498,14 @@ contains
       this%movedVelo(:,:) = 0.0_dp
     end if
 
-    if ((this%tIons .or. this%tForces) .and. (this%nExcitedAtom /= nAtom)) then
-      call error("Ion dynamics and forces are not implemented for excitation of a subgroup of&
-          & atoms")
+    if (this%tIons .or. this%tForces) then
+      if (this%tKick) then
+        call error("Ion dynamics and forces are not implemented for kicked excitations")
+      end if
+      if (this%nExcitedAtom /= nAtom) then
+        call error("Ion dynamics and forces are not implemented for excitation of a subgroup of&
+            & atoms")
+      end if
     end if
 
     tDispersion = allocated(dispersion)
@@ -503,7 +526,7 @@ contains
     end if
     this%tProbe = inp%tProbe
     if (this%tProbe) then
-      this%tRestart = .true.
+      this%tReadRestart = .true.
       this%tWriteRestart = .false.
     end if
   end subroutine TElecDynamics_init
@@ -871,7 +894,7 @@ contains
     real(dp), allocatable :: bondWork(:, :)
     real(dp) :: movedAccel(3, this%nMovedAtom), energyKin, new3Coord(3, this%nMovedAtom)
     real(dp) :: occ(this%nOrbs)
-    character(4) :: dumpIdx
+    character(sc) :: dumpIdx
     logical :: tProbeFrameWrite
     real(dp), allocatable :: sumBondPopul
     integer :: nBndOEvals
@@ -890,8 +913,9 @@ contains
     timeElec = 0.0_dp
     RdotSprime(:,:) = 0.0_dp
 
-    if (this%tRestart) then
-      call readRestart(trho, trhoOld, Ssqr, coord, this%movedVelo, startTime)
+    if (this%tReadRestart) then
+      call readRestartFile(trho, trhoOld, Ssqr, coord, this%movedVelo, startTime, this%dt,&
+          & restartFileName, this%tRestartAscii)
       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
           & ErhoPrim, coordAll)
@@ -952,14 +976,14 @@ contains
       call kickDM(this, trho, Ssqr, Sinv, iSquare, coord)
     end if
 
-    ! had to add the "or tKick" option to override rhoOld if tRestart = yes, otherwise it will be
-    ! badly initialised
-    if (.not.this%tRestart .or. (this%tKick .and. startTime < this%dt / 10.0_dp)) then
+    ! had to add the "or tKick" option to override rhoOld if tReadRestart = yes, otherwise it will
+    ! be badly initialised
+    if (.not.this%tReadRestart .or. (this%tKick .and. startTime < this%dt / 10.0_dp)) then
       ! Initialize electron dynamics
       ! rhoOld is now the GS DM, rho will be the DM at time=dt
       trhoOld(:,:,:) = trho
-      call initializePropagator(this, this%dt, trhoOld, trho, H1, Sinv, coordAll, skHamCont,&
-          & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
+      call initializePropagator(this, this%dt, trhoOld, trho, H1, Sinv, coordAll, skOverCont, orb,&
+          & neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
     end if
 
     call getPositionDependentEnergy(this, energy, coordAll, img2CentCell, nNeighbourSK,&
@@ -1014,7 +1038,7 @@ contains
     do iStep = 0, this%nSteps
       time = iStep * this%dt + startTime
 
-      if (.not. this%tRestart .or. (iStep > 0) .or. this%tProbe) then
+      if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
         call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondPopul,&
             & fdBondEnergy, time, energy, energyKin, dipole, deltaQ, coord, totalForce, iStep)
       end if
@@ -1026,12 +1050,13 @@ contains
             & ErhoPrim, coordAll)
       end if
 
+      ! WORKAROUND for gfort9, as mod(0,0) can be reached and fails with this compiler
       tProbeFrameWrite = this%tPump .and. (iStep >= this%PpIni) .and. (iStep <= this%PpEnd)&
-          & .and. (mod(iStep-this%PpIni, this%PpFreq) == 0)
+          & .and. (mod(iStep-this%PpIni, max(this%PpFreq,1)) == 0)
       if (tProbeFrameWrite) then
-        write(dumpIdx,'(i4)')int((iStep-this%PpIni)/this%PpFreq)
-        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time,&
-            & trim(dumpIdx) // 'ppdump.bin')
+        write(dumpIdx,'(I0)')int((iStep-this%PpIni)/this%PpFreq)
+        call writeRestartFile(rho, rhoOld, Ssqr, coord, this%movedVelo, time, this%dt,&
+            & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii)
       end if
 
       call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock)
@@ -1041,8 +1066,9 @@ contains
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
           & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho)
 
-      if ((this%tWriteRestart) .and. (iStep > 0) .and. (mod(iStep, this%restartFreq) == 0)) then
-        call writeRestart(rho, rhoOld, Ssqr, coord, this%movedVelo, time)
+      if (this%tWriteRestart .and. iStep > 0 .and. mod(iStep, this%restartFreq) == 0) then
+        call writeRestartFile(rho, rhoOld, Ssqr, coord, this%movedVelo, time, this%dt,&
+            & restartFileName, this%tWriteRestartAscii)
       end if
 
       if (this%tForces) then
@@ -1470,7 +1496,7 @@ contains
 
     real(dp) :: midPulse, deltaT, angFreq, E0, time, envelope
     real(dp) :: tdfun(3)
-    integer :: iStep, laserDat, laserDat2
+    integer :: iStep, laserDat
 
     midPulse = (this%time0 + this%time1)/2.0_dp
     deltaT = this%time1 - this%time0
@@ -1512,6 +1538,7 @@ contains
     end do
 
     close(laserDat)
+
   end subroutine getTDFunction
 
 
@@ -1857,7 +1884,7 @@ contains
 
     real(dp), allocatable :: T2(:,:), T3(:,:)
     complex(dp), allocatable :: T4(:,:)
-    integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS, iK, ii
+    integer :: iSpin, iOrb, iOrb2, fillingsIn, iKS, iK
 
     allocate(rhoPrim(size(ham, dim=1), this%nSpin))
     allocate(ErhoPrim(size(ham, dim=1)))
@@ -1872,7 +1899,7 @@ contains
       allocate(T4(this%nOrbs,this%nOrbs))
     end if
 
-    if (.not. this%tRestart) then
+    if (.not. this%tReadRestart) then
       Ssqr(:,:,:) = 0.0_dp
       Sinv(:,:,:) = 0.0_dp
       do iKS = 1, this%parallelKS%nLocalKS
@@ -1942,7 +1969,7 @@ contains
       end do
     end if
 
-    if (.not.this%tRestart) then
+    if (.not.this%tReadRestart) then
       rho(:,:,:) = 0.0_dp
       do iKS = 1, this%parallelKS%nLocalKS
         iK = this%parallelKS%localKS(1, iKS)
@@ -1983,8 +2010,8 @@ contains
 
   !> Perfoms a step backwards to boot the dynamics using the Euler algorithm.
   !> Output is rho(deltaT) called rhoNew, input is rho(t=0) (ground state) called rho
-  subroutine initializePropagator(this, step, rho, rhoNew, H1, Sinv, coordAll, skHamCont,&
-      & skOverCont, orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
+  subroutine initializePropagator(this, step, rho, rhoNew, H1, Sinv, coordAll, skOverCont,&
+      & orb, neighbourList, nNeighbourSK, img2CentCell, iSquare, rangeSep)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -2007,9 +2034,6 @@ contains
     !> Coords of the atoms (3, nAllAtom)
     real(dp), intent(in) :: coordAll(:,:)
 
-    !> Raw H^0 hamiltonian data
-    type(TSlakoCont), intent(in) :: skHamCont
-
     !> Raw overlap data
     type(TSlakoCont), intent(in) :: skOverCont
 
@@ -2031,7 +2055,7 @@ contains
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
 
-    integer :: iSpin, iKS
+    integer :: iKS
     complex(dp), allocatable :: RdotSprime(:,:)
 
     allocate(RdotSprime(this%nOrbs,this%nOrbs))
@@ -2270,7 +2294,7 @@ contains
     !> Pairwise bond energy output file ID
     integer, intent(in) :: fdBondEnergy
 
-    integer :: iSpin, iKS
+    integer :: iKS
 
     close(dipoleDat)
     if ((.not. this%tKick) .or. (this%tKickAndLaser)) then
@@ -2318,9 +2342,9 @@ contains
     !> should this be a binary file?
     logical, intent(in), optional :: isBinary
 
-    character(30) :: newName
+    character(lc) :: newName
 
-    character(1) :: strCount
+    character(lc) :: strCount
 
     logical :: exist=.false.
 
@@ -2336,7 +2360,7 @@ contains
 
     newName = fileName
     ! changed the append by this block to rename the restarted output
-    if (this%tRestart) then
+    if (this%tReadRestart) then
       inquire(file=fileName, exist=exist)
       iCount = 1
       do while (exist)
@@ -2357,12 +2381,12 @@ contains
 
 
   !> Write to restart file
-  subroutine writeRestart(rho, rhoOld, Ssqr, coord, veloc, time, dumpName)
+  subroutine writeRestartFile(rho, rhoOld, Ssqr, coord, veloc, time, dt, fileName, tAsciiFile)
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
 
-    !> Density matrix at previous step
+    !> Density matrix at previous time step
     complex(dp), intent(in) :: rhoOld(:,:,:)
 
     !> Square overlap matrix
@@ -2371,30 +2395,88 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> elapsed simulated time in atomic units
-    real(dp), intent(in) :: time
-
-    !> name of the dump file
-    character(len=*), intent(in), optional :: dumpName
-
     !> atomic velocities
     real(dp), intent(in) :: veloc(:,:)
 
-    integer :: dumpBin
+    !> simulation time (in atomic units)
+    real(dp), intent(in) :: time
 
-    if (present(dumpName)) then
-      open(newunit=dumpBin, file=dumpName, form='unformatted', access='stream', action='write')
+    !> time step being used (in atomic units)
+    real(dp), intent(in) :: dt
+
+    !> name of the dump file
+    character(len=*), intent(in) :: fileName
+
+    !> Should restart data be written as ascii (cross platform, but potentially lower
+    !> reproducibility) or binary files
+    logical, intent(in) :: tAsciiFile
+
+    integer :: fd, ii, jj, kk, iErr
+
+    if (tAsciiFile) then
+      open(newunit=fd, file=trim(fileName) // '.dat', position="rewind", status="replace",&
+          & iostat=iErr)
     else
-      open(newunit=dumpBin, file='tddump.bin', form='unformatted', access='stream', action='write')
+      open(newunit=fd, file=trim(fileName) // '.bin', form='unformatted', access='stream',&
+          & action='write', iostat=iErr)
     end if
 
-    write(dumpBin) rho, rhoOld, Ssqr, coord, veloc, time
-    close(dumpBin)
-  end subroutine writeRestart
+    if (iErr /= 0) then
+      if (tAsciiFile) then
+        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileName),&
+            & ".dat for writing"
+      else
+        write(error_string, "(A,A,A)") "Failure to open external restart file ",trim(fileName),&
+            & ".bin for writing"
+      end if
+      call error(error_string)
+    end if
+
+    if (tAsciiFile) then
+
+      write(fd, *)tdDumpFormat
+      write(fd, *)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
+      do ii = 1, size(rho, dim=3)
+        do jj = 1, size(rho, dim=2)
+          do kk = 1, size(rho, dim=1)
+            write(fd, *)rho(kk,jj,ii)
+          end do
+        end do
+      end do
+      do ii = 1, size(rhoOld, dim=3)
+        do jj = 1, size(rhoOld, dim=2)
+          do kk = 1, size(rhoOld, dim=1)
+            write(fd, *)rhoOld(kk,jj,ii)
+          end do
+        end do
+      end do
+      do ii = 1, size(sSqr, dim=3)
+        do jj = 1, size(sSqr, dim=2)
+          do kk = 1, size(sSqr, dim=1)
+            write(fd, *)sSqr(kk,jj,ii)
+          end do
+        end do
+      end do
+      do ii = 1, size(coord, dim=2)
+        write(fd, *)coord(:,ii)
+      end do
+      do ii = 1, size(veloc, dim=2)
+        write(fd, *)veloc(:,ii)
+      end do
+
+    else
+
+      write(fd) rho, rhoOld, Ssqr, coord, veloc, time
+
+    end if
+
+    close(fd)
+
+  end subroutine writeRestartFile
 
 
   !> read a restart file containing density matrix, overlap, coordinates and time step
-  subroutine readRestart(rho, rhoOld, Ssqr, coord, veloc, time)
+  subroutine readRestartFile(rho, rhoOld, Ssqr, coord, veloc, time, dt, fileName, tAsciiFile)
 
     !> Density Matrix
     complex(dp), intent(out) :: rho(:,:,:)
@@ -2411,14 +2493,110 @@ contains
     !> Previous simulation elapsed time until restart file writing
     real(dp), intent(out) :: time
 
+    !> time step being currently used (in atomic units) for checking compatibility
+    real(dp), intent(in) :: dt
+
+    !> Name of the file to open
+    character(*), intent(in) :: fileName
+
     !> atomic velocities
     real(dp), intent(out) :: veloc(:,:)
-    integer :: dumpBin
 
-    open(newunit=dumpBin, file='tddump.bin', form='unformatted', access='stream', action='read')
-    read(dumpBin) rho, rhoOld, Ssqr, coord, veloc, time
-    close(dumpBin)
-  end subroutine readRestart
+    !> Should restart data be read as ascii (cross platform, but potentially lower reproducibility)
+    !> or binary files
+    logical, intent(in) :: tAsciiFile
+
+    integer :: fd, ii, jj, kk, nOrb, nSpin, nAtom, version, iErr
+    real(dp) :: deltaT
+    logical :: tExist
+
+    if (tAsciiFile) then
+      inquire(file=trim(fileName)//'.dat', exist=tExist)
+      if (.not. tExist) then
+        call error("TD restart file " // trim(fileName)//'.dat' // " is missing")
+      end if
+    else
+      inquire(file=trim(fileName)//'.bin', exist=tExist)
+      if (.not. tExist) then
+        call error("TD restart file " // trim(fileName)//'.bin' // " is missing")
+      end if
+    end if
+
+    if (tAsciiFile) then
+      open(newunit=fd, file=trim(fileName)//'.dat', status='old', action='READ', iostat=iErr)
+    else
+      open(newunit=fd, file=trim(fileName)//'.bin', form='unformatted', access='stream',&
+          & action='read', iostat=iErr)
+    end if
+
+    if (iErr /= 0) then
+      if (tAsciiFile) then
+        write(error_string, "(A,A,A)") "Failure to open external tddump file",trim(fileName), ".dat"
+      else
+        write(error_string, "(A,A,A)") "Failure to open external tddump file",trim(fileName), ".bin"
+      end if
+      call error(error_string)
+    end if
+    rewind(fd)
+
+    if (tAsciiFile) then
+      read(fd, *)version
+      if (version /= tdDumpFormat) then
+        call error("Unknown TD format")
+      end if
+      read(fd, *)nOrb, nSpin, nAtom, time, deltaT
+      if (nOrb /= size(rho, dim=1)) then
+        write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
+            & " in tddump file, should be ",size(rho, dim=1)
+        call error(error_string)
+      end if
+      if (nSpin /= size(rho, dim=3)) then
+        write(error_string, "(A,I1,A,I1)")"Incorrect number of spin channels, ",nSpin,&
+            & " in tddump file, should be ",size(rho, dim=3)
+        call error(error_string)
+      end if
+      if (nAtom /= size(coord, dim=2)) then
+        write(error_string, "(A,I0,A,I0)")"Incorrect number of atoms, ",nAtom,&
+            & " in tddump file, should be ", size(coord, dim=2)
+        call error(error_string)
+      end if
+      if (abs(deltaT - dt) > epsilon(0.0_dp)) then
+        write(error_string, "(A,E14.8,A,E14.8)")"Restart file generated for time step",&
+            & deltaT, " instead of current timestep of", dt
+      end if
+      do ii = 1, size(rho, dim=3)
+        do jj = 1, size(rho, dim=2)
+          do kk = 1, size(rho, dim=1)
+            read(fd, *)rho(kk,jj,ii)
+          end do
+        end do
+      end do
+      do ii = 1, size(rhoOld, dim=3)
+        do jj = 1, size(rhoOld, dim=2)
+          do kk = 1, size(rhoOld, dim=1)
+            read(fd, *)rhoOld(kk,jj,ii)
+          end do
+        end do
+      end do
+      do ii = 1, size(sSqr, dim=3)
+        do jj = 1, size(sSqr, dim=2)
+          do kk = 1, size(sSqr, dim=1)
+            read(fd, *)sSqr(kk,jj,ii)
+          end do
+        end do
+      end do
+      do ii = 1, size(coord, dim=2)
+        read(fd, *)coord(:,ii)
+      end do
+      do ii = 1, size(veloc, dim=2)
+        read(fd, *)veloc(:,ii)
+      end do
+    else
+      read(fd) rho, rhoOld, Ssqr, coord, veloc, time
+    end if
+    close(fd)
+
+  end subroutine readRestartFile
 
 
   !> Write results to file
@@ -2763,10 +2941,6 @@ contains
     ! Data for the velocity verlet integrator
     type(TVelocityVerlet), allocatable :: pVelocityVerlet
 
-    real(dp) :: velocities(3, this%nMovedAtom)
-
-    integer :: ii
-
     if (this%nDynamicsInit == 0) then
       allocate(pVelocityVerlet)
     end if
@@ -2778,7 +2952,7 @@ contains
     end if
 
     if (this%nDynamicsInit == 0) then
-      if (this%tRestart) then
+      if (this%tReadRestart) then
         call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
             & this%movedVelo, this%ReadMDVelocities, .false.)
       else
@@ -3162,8 +3336,8 @@ contains
 
     real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb), dcoord(3,this%nAtom)
-    integer :: iAtom1,iStart1,iEnd1,iSp1,nOrb1,iAtomAux,iDir
-    integer :: iNeigh,iStart2,iEnd2,iAtom2,iAtom2f,iSp2,nOrb2
+    integer :: iAtom1, iStart1, iEnd1, iSp1, nOrb1, iDir
+    integer :: iNeigh, iStart2, iEnd2, iAtom2, iAtom2f, iSp2, nOrb2
 
     dcoord(:,:) = 0.0_dp
     dcoord(:, this%indMovedAtom) = this%movedVelo(:,1:this%nMovedAtom)
@@ -3235,7 +3409,6 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     real(dp) :: dist, uVects(3,3), vect(3), Stmp(2, orb%mOrb, orb%mOrb), Sder(orb%mOrb, orb%mOrb)
-    real(dp) :: Stmp2(3, orb%mOrb, orb%mOrb)
     real(dp) :: interSKOver(getMIntegrals(skOverCont))
     integer :: iAt, iSp, nOrb, dir, iAux
 
