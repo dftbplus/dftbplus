@@ -3835,7 +3835,7 @@ calculation and/or calculate properties.
   \kw{EigenvectorsAsText} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
-  \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
+  \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
 \end{ptable}
 
 \begin{description}
@@ -3969,7 +3969,7 @@ method which {\em may} have better scaling properties.
 \end{description}
 
 \subsubsection{ElectrostaticPotential}
-\label{sec:dftbp.ESP}
+\label{sec:dftbp.esp}
 
 Evaluates the electrostatic potential at specified points in space for SCC
 calculations. This data is accumulated in a specified text file.
@@ -3984,7 +3984,7 @@ calculations. This data is accumulated in a specified text file.
 \begin{description}
 \item[\is{OutputFile}] Text file to store the potential. If external electric
   fields are present, an additional column gives their values. See
-  p.~\pref{sec:dftbp.esp} for a description of the file.
+  p.~\pref{sec:dftbp.espfile} for a description of the file.
 \item[\is{AppendFile}] If running calculations with multiple geometries, should
   the \is{OutputFile} be appended or only contain the last potential
   information?
@@ -4758,15 +4758,15 @@ small numbers of atoms and long MD simulations it may be useful to set
 instead.
 
 \section{Electrostatic potential data}
-\label{sec:dftbp.esp}
+\label{sec:dftbp.espfile}
 \index{ESP.dat}
 
-The output from evaluating the electrostatic potential. The first line
-consists of a comment mark followed by a logical variable as to whether there is
-an external electric field (or not), followed by 3 values for any regular grid
-pattern present in the system and the total number of points. If the data is
-gridded, the next four lines contain the origin and grid separation vectors in
-{\AA}ngstroms.
+The output from evaluating the electrostatic potential (see
+page~\pref{sec:dftbp.esp}). The first line consists of a comment mark followed
+by a logical variable as to whether there is an external electric field (or
+not), followed by 3 values for any regular grid pattern present in the system
+and the total number of points. If the data is gridded, the next four lines
+contain the origin and grid separation vectors in {\AA}ngstroms.
 
 The next line is a comment, then the locations and the potential experience for
 a positive charge due to the internal field plus optionally the external field
