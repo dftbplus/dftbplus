@@ -3080,6 +3080,7 @@ systems.
   \kw{FreeEnergyShift} & r & & & \\
   \kw{Temperature} & r & & 298.15 K & \\
   \kw{State} & s & & gsolv & \\
+  \kw{Kernel} & s & & Still & \\
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
@@ -3122,11 +3123,16 @@ systems.
     Reference state of the solution for free energy calculations.
     The calculated state shift is added to the free energy shift.
     Takes ``gsolv'' (default), ``reference'' or ``mol1bar''.
-    The reference state ``gsolv`` corresponds to 1\;l of ideal gas and 1\;l of
+    The reference state ``gsolv'' corresponds to 1\;l of ideal gas and 1\;l of
     liquid  solution,
     ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
     solution at infinite dilution,
     ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
+
+  \item[\is{Kernel}]
+    Interaction kernel for the screened Coulomb operator.
+    Possible options are the canonical ``Still'' kernel\cite{still1990} and the
+    ``P16'' kernel.\cite{lange2012}
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
