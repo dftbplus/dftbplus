@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -24,21 +24,24 @@ module dftbp_etemp
   implicit none
   private
 
-  public :: Efilling, electronFill, Fermi, Gaussian, Methfessel
+  public :: Efilling, electronFill, fillingTypes
 
+  type :: TFillingTypesEnum
 
-  !> Definition of a type of broadening function - Fermi-Dirac in this case
-  integer, parameter :: Fermi = 0
+    !> Definition of a type of broadening function - Fermi-Dirac in this case
+    integer :: Fermi = 0
 
+    !> Definition of a type of broadening function - Gaussian in this case
+    integer :: Gaussian = 1
 
-  !> Definition of a type of broadening function - Gaussian in this case
-  integer, parameter :: Gaussian = 1
+    !> Definition of a type of broadening function - Methfessel-Paxton, for higher orders use
+    !> Methfessel + n as a value
+    integer :: Methfessel = 2
 
+  end type TFillingTypesEnum
 
-  !> Definition of a type of broadening function - Methfessel-Paxton, for higher orders use
-  !> Methfessel + n as a value
-  integer, parameter :: Methfessel = 1
-
+  !> Enumerated filling types.
+  type(TFillingTypesEnum), parameter :: fillingTypes = TFillingTypesEnum()
 
   !> Twice the machine precision
   real(dp), parameter :: epsilon2 = 2.0_dp * epsilon(1.0_dp)
@@ -86,7 +89,6 @@ contains
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
-
     !> scheme
     integer, intent(in) :: distrib
 
@@ -121,7 +123,7 @@ contains
     @:ASSERT(size(kWeight) > 0)
     @:ASSERT(all(kWeight >= 0.0_dp))
 
-    @:ASSERT(distrib >= Fermi)
+    @:ASSERT(distrib >= fillingTypes%Fermi)
 
     ! If no electrons there, we are ready
     if (nElectrons < epsilon(1.0_dp)) then
@@ -190,7 +192,7 @@ contains
     nElec = electronCount(Ef, eigenvals, kT, distrib, kWeight)
     ! Polish resulting root with Newton-Raphson type steps
     if (abs(nElectrons - nElec) > elecTol) then
-      if (distrib == Fermi) then ! only derivs for Fermi so far
+      if (distrib == fillingTypes%Fermi) then ! only derivs for Fermi so far
         if (abs(derivElectronCount(Ef, eigenvals, kT, distrib, kWeight)) >= epsilon(1.0_dp)) then
           EfOld = Ef
           Ef = Ef - (electronCount(Ef, eigenvals, kT, distrib, kWeight) - nElectrons)&
@@ -226,24 +228,24 @@ contains
   !> Calculates the number of electrons for a given Fermi energy and distribution function
   function electronCount(Ef,eigenvals,kT,distrib,kWeight)
 
-    !> Fermi energy for given distribution
+    !> Electrons for this Fermi energy
     real(dp) :: electronCount
 
-    !> Thermal energy in atomic units
+    !> Fermi energy for given distribution
     real(dp), intent(in) :: Ef
 
     !> The eigenvalues of the levels, 1st index is energy 2nd index is k-point and 3nd index is spin
-    real(dp), intent(inout) :: eigenvals(:,:,:)
+    real(dp), intent(in) :: eigenvals(:,:,:)
 
-    !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
-    !> supported. The flags are defined sumbolically, so (Methfessel + 2) gives the 2nd order M-P
-
-    !> scheme
+    !> Thermal energy in atomic units
     real(dp), intent(in) :: kT
 
-    !> k-point weightings
+    !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
+    !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
+    !> scheme
     integer, intent(in) :: distrib
 
+    !> k-point weightings
     real(dp), intent(in) :: kWeight(:)
 
     integer :: MPorder
@@ -255,8 +257,8 @@ contains
 
     w = 1.0_dp/kT
     electronCount=0.0_dp
-    if (distrib /= Fermi) then
-      MPorder = distrib - 1
+    if (distrib /= fillingTypes%Fermi) then
+      MPorder = distrib - fillingTypes%Methfessel - 1
       allocate(A(0:MPorder))
       allocate(hermites(0:2*MPorder))
       call Aweights(A,MPorder)
@@ -310,12 +312,13 @@ contains
   !> To do: support Methfestle-Paxton
   function derivElectronCount(Ef,eigenvals,kT,distrib,kWeight)
 
-    !> Fermi energy for given distribution
+    !> Derivative of electrons wrt to Ef
     real(dp) :: derivElectronCount
 
-    !> The eigenvalues of the levels, 1st index is energy
+    !> Fermi energy for given distribution
     real(dp), intent(in) :: Ef
 
+    !> The eigenvalues of the levels, 1st index is energy
     !> 2nd index is k-point and 3nd index is spin
     real(dp), intent(inout) :: eigenvals(:,:,:)
 
@@ -335,7 +338,7 @@ contains
 
     w = 1.0_dp/kT
     derivElectronCount=0.0_dp
-    if (distrib /= Fermi) then
+    if (distrib /= fillingTypes%Fermi) then
       call error("Fermi distribution only supported")
     else
       do ispin = 1, size(eigenvals,dim=3)
@@ -394,7 +397,6 @@ contains
 
     !> Choice of distribution functions, currently Fermi, Gaussian and Methfessle-Paxton
     !> supported. The flags is defined symbolically, so (Methfessel + 2) gives the 2nd order M-P
-
     !> scheme
     integer, intent(in) :: distrib
 
@@ -437,8 +439,8 @@ contains
     E0(:) = 0.0_dp
 
     ! The Gaussian and Methfessel-Paxton broadening functions first
-    if (distrib /= Fermi) then
-      MPorder = distrib - 1
+    if (distrib /= fillingTypes%Fermi) then
+      MPorder = distrib - fillingTypes%Methfessel -1
       allocate(A(0:MPorder))
       allocate(hermites(0 : 2 * MPorder))
       call Aweights(A, MPorder)
@@ -514,8 +516,10 @@ contains
 #:else
             filling(j, i, iSpin) = 1.0_dp / (1.0_dp + exp(x))
 #:endif
-            if (tNonAufbau .and. j/=1 .and. ((filling(max(j-1,1), i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
-              exit
+            if (tNonAufbau .and. j/=1) then
+              if ( ((filling(max(j-1,1), i, iSpin)+filling(j-1, i, iSpin))) <= elecTol) then
+                exit
+              end if
             else if (filling(j, i, iSpin)<=elecTol .and. .not. tNonAufbau) then
               exit
             end if

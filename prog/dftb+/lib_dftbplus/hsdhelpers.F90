@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,7 @@ module dftbp_hsdhelpers
   use dftbp_hsdparser
   use dftbp_hsdutils
   use dftbp_hsdutils2
-  use dftbp_inputdata_module
+  use dftbp_inputdata
   use dftbp_message
   use dftbp_xmlf90, only : fnode, destroyNode
   implicit none
@@ -35,7 +35,7 @@ contains
   subroutine parseHsdInput(input)
 
     !> Input data parsed from the input file
-    type(inputData), intent(out) :: input
+    type(TInputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
     type(TParserFlags) :: parserFlags

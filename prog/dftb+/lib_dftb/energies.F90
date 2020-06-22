@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -33,6 +33,9 @@ module dftbp_energies
     !> spin energy
     real(dp) :: Espin   = 0.0_dp
 
+    !> range-separation energy
+    real(dp) :: Efock   = 0.0_dp
+
     !> spin orbit energy
     real(dp) :: ELS     = 0.0_dp
 
@@ -51,8 +54,14 @@ module dftbp_energies
     !> Onsite correction energy
     real(dp) :: eOnSite = 0.0_dp
 
+    !> Halogen-X correction energy
+    real(dp) :: eHalogenX = 0.0_dp
+
     !> Total 3rd order
     real(dp) :: e3rd    = 0.0_dp
+
+    !> Solvation free energy
+    real(dp) :: ESolv = 0.0_dp
 
     !> Excitation energy
     real(dp) :: Eexcited = 0.0_dp
@@ -125,9 +134,14 @@ module dftbp_energies
     !> atom onsite correction energies
     real(dp), allocatable :: atomOnSite(:)
 
+    !> atom halogen bond correction energies
+    real(dp), allocatable :: atomHalogenX(:)
 
     !> atom resolved 3rd order
     real(dp), allocatable :: atom3rd(:)
+
+    !> atom resolved solvation free energy
+    real(dp), allocatable :: atomSolv(:)
 
     !> atom resolved total
     real(dp), allocatable :: atomTotal(:)
@@ -165,7 +179,9 @@ contains
     allocate(self%atomElec(nAtom))
     allocate(self%atomDisp(nAtom))
     allocate(self%atomOnSite(nAtom))
+    allocate(self%atomHalogenX(nAtom))
     allocate(self%atom3rd(nAtom))
+    allocate(self%atomSolv(nAtom))
     allocate(self%atomTotal(nAtom))
     self%atomRep(:) = 0.0_dp
     self%atomNonSCC(:) = 0.0_dp
@@ -177,20 +193,25 @@ contains
     self%atomElec(:) = 0.0_dp
     self%atomDisp(:) = 0.0_dp
     self%atomOnSite(:) = 0.0_dp
+    self%atomHalogenX(:) = 0.0_dp
     self%atom3rd(:) = 0.0_dp
+    self%atomSolv(:) = 0.0_dp
     self%atomTotal(:) = 0.0_dp
 
     self%Erep = 0.0_dp
     self%EnonSCC = 0.0_dp
     self%ESCC = 0.0_dp
     self%Espin = 0.0_dp
+    self%Efock = 0.0_dp
     self%ELS = 0.0_dp
     self%Edftbu = 0.0_dp
     self%Eext = 0.0_dp
     self%Eelec = 0.0_dp
     self%EDisp = 0.0_dp
     self%EOnSite = 0.0_dp
+    self%EHalogenX = 0.0_dp
     self%E3rd = 0.0_dp
+    self%ESolv = 0.0_dp
     self%Etotal = 0.0_dp
     self%EMermin = 0.0_dp
     self%EGibbs = 0.0_dp

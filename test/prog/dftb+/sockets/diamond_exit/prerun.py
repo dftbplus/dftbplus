@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from __future__ import print_function
 import struct
 import socket
@@ -12,7 +12,7 @@ NR_STEPS = 1
 
 def connect():
     serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serversocket.bind(('localhost', 21013))
+    serversocket.bind(('localhost', 0))
     serversocket.listen(1)
     port = serversocket.getsockname()[1]
     # write file for dftb_in.hsd to include:

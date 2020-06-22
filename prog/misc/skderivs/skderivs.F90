@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -10,12 +10,12 @@
 !> Calculates the first and second derivatives of matrix elements
 program skderivs
   use dftbp_assert
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_accuracy
   use dftbp_constants
   use dftbp_message
   use xmlf90_flib_dom
-  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
   use dftbp_hsdutils
   use dftbp_hsdutils2
   use dftbp_charmanip
@@ -23,12 +23,15 @@ program skderivs
   use dftbp_slakoeqgrid
   use dftbp_oldskdata
   use dftbp_fileid
+#:if WITH_MPI
+  use dftbp_mpienv
+#:endif
   implicit none
 
 
   !> Contains the data necessary for the main program
   type TInputData
-    type(OSlakoEqGrid), pointer :: skHam, skOver
+    type(TSlakoEqGrid), pointer :: skHam, skOver
     integer, allocatable :: iHam(:), iOver(:)
     real(dp) :: from, to, step
     logical :: value, first, second
@@ -40,7 +43,17 @@ program skderivs
   !> input data for the calculation of the derivatives
   type(TInputData) :: inp
 
-  call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in.xml", "skderivs_in")
+#:if WITH_MPI
+  !> MPI environment, if compiled with mpifort
+  type(TMpiEnv) :: mpi
+
+  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
+  ! build
+  call TMpiEnv_init(mpi)
+  call mpi%mpiSerialEnv()
+#:endif
+
+  call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in")
   call main(inp)
 
 contains
@@ -148,7 +161,7 @@ contains
 
 
   !> Parses the HSD input
-  subroutine parseHSDInput(inp, hsdInputName, xmlInputName, rootTag)
+  subroutine parseHSDInput(inp, hsdInputName, rootTag)
 
     !> parsed data
     type(TInputData), intent(out) :: inp
@@ -156,40 +169,29 @@ contains
     !> file name for HSD input
     character(*), intent(in) :: hsdInputName
 
-    !> file name for XML input
-    character(*), intent(in) :: xmlInputName
-
     !> name of the tag at the root of the tree
     character(*), intent(in) :: rootTag
 
-    type(fnode), pointer :: hsdTree, root, dummy, child
+    type(fNode), pointer :: hsdTree, root, dummy, child
     type(TOldSKData) :: skData12(1,1), skData21(1,1)
     character(lc) :: strTmp
     logical :: isHSD, inputMissing, useOldInter
     type(string) :: buffer
     integer :: angShellOrdered(size(shellNames))
-    type(listIntR1) :: angShells(2)
-    type(listInt), allocatable :: lIntTmp
+    type(TListIntR1) :: angShells(2)
+    type(TListInt), allocatable :: lIntTmp
     real(dp), allocatable :: skHam(:,:), skOver(:,:)
     integer :: skInterMeth, nInt, nSpecies
     integer :: ii, jj
 
-    call readHSDOrXML(hsdInputName, xmlInputName, rootTag, hsdTree, isHSD, &
-        &inputMissing)
-    if (inputMissing) then
-      call error("No input file found.")
-    end if
-
-    write(stdout, "(A)") repeat("-", 80)
-    if (isHSD) then
-      write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
-    else
-      write(stdout, "(A)") "Interpreting input file '" // xmlInputName //  "'"
-    end if
-
     do ii = 1, maxL+1
       angShellOrdered(ii) = ii - 1
     end do
+
+    call parseHSD(rootTag, hsdInputName, root)
+
+    write(stdout, "(A)") repeat("-", 80)
+    write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
 
     call getChild(hsdTree, rootTag, root)
 
@@ -312,10 +314,10 @@ contains
     type(TOldSKData), intent(in), target :: skData21(:,:)
 
     !> Angular momenta to pick from the SK-files for species A
-    type(listIntR1), intent(inout) :: angShells1
+    type(TListIntR1), intent(inout) :: angShells1
 
     !> Angular momenta to pick from the SK-files for species B
-    type(listIntR1), intent(inout) :: angShells2
+    type(TListIntR1), intent(inout) :: angShells2
 
     integer :: ind, iSK1, iSK2, iSh1, iSh2, nSh1, nSh2, l1, l2, lMin, lMax, mm
     integer :: angShell1(maxL+1), angShell2(maxL+1)
@@ -373,10 +375,10 @@ contains
   function getNSKIntegrals(angShells1, angShells2) result(nInt)
 
     !> list of shells for species B
-    type(listIntR1), intent(inout) :: angShells2
+    type(TListIntR1), intent(inout) :: angShells2
 
     !> list of shells for species A
-    type(listIntR1), intent(inout) :: angShells1
+    type(TListIntR1), intent(inout) :: angShells1
 
     !> count of integrals
     integer :: nInt

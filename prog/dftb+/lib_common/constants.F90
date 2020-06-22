@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -28,6 +28,12 @@ module dftbp_constants
 
   !> Hartree/K
   real(dp), parameter :: Boltzmann = 0.00000316681534524639_dp
+
+  !> electron rest mass (NIST CODATA 2019), atomic mass a.u. -> kg
+  real(dp), parameter :: au__kg = 9.10938356e-31_dp
+
+  !> kg -> atomic mass a.u.)
+  real(dp), parameter :: kg__au = 1.0_dp / au__kg
 
   !> atomic mass -> a.m.u.
   real(dp), parameter :: e__amu = 0.00054857990945_dp
@@ -109,6 +115,17 @@ module dftbp_constants
   !>  a.u. to V/m
   real(dp), parameter :: au__V_m = 1.0_dp / V_m__au
 
+  !> Avogadros constant
+  real(dp), parameter :: avogadConst = 6.022140857e23_dp
+
+  !> hartree to kj/mol
+  real(dp), parameter :: Hartree__kJ_mol = (Hartree__J * avogadConst) / 1000.0_dp
+
+  !> bohr to nm
+  real(dp), parameter :: Bohr__nm = Bohr__AA / 10.0_dp
+
+  !> a.u. to ps
+  real(dp), parameter :: au__ps = au__fs / 1000.0_dp 
 
   !> Golden mean plus one
   real(dp), parameter :: goldenMeanP1 = 1.6180339887498949_dp
@@ -134,6 +151,68 @@ module dftbp_constants
 
   !> Imaginary unit
   complex(dp), parameter :: imag = (0.0_dp,1.0_dp)
+
+  !> Symbols of the periodic system of elements, up to 118
+  character(len=2), parameter :: elementSymbol(1:118) = [&
+      & 'h ','he',&
+      & 'li','be','b ','c ','n ','o ','f ','ne',&
+      & 'na','mg','al','si','p ','s ','cl','ar',&
+      & 'k ','ca',&
+      & 'sc','ti','v ','cr','mn','fe','co','ni','cu','zn',&
+      &           'ga','ge','as','se','br','kr',&
+      & 'rb','sr',&
+      & 'y ','zr','nb','mo','tc','ru','rh','pd','ag','cd',&
+      &           'in','sn','sb','te','i ','xe',&
+      & 'cs','ba','la',&
+      & 'ce','pr','nd','pm','sm','eu','gd','tb','dy','ho','er','tm','yb',&
+      & 'lu','hf','ta','w ','re','os','ir','pt','au','hg',&
+      &           'tl','pb','bi','po','at','rn',&
+      & 'fr','ra','ac',&
+      & 'th','pa','u ','np','pu','am','cm','bk','cf','es','fm','md','no',&
+      & 'lr','rf','db','sg','bh','hs','mt','ds','rg','cn',&
+      &           'nh','fl','mc','lv','ts','og' ]
+
+contains
+
+
+  !> get atomic number from element symbol.
+  elemental function symbolToNumber(symbol) result(number)
+
+    !> Element symbol
+    character(len=*), intent(in) :: symbol
+
+    !> Atomic number
+    integer :: number
+
+    integer, parameter :: offset = iachar('a') - iachar('A')
+
+    character(len=2) :: lcSymbol
+    integer :: i, j, k, l
+
+    number = 0
+    lcSymbol = '  '
+
+    k = 0
+    do j = 1, len_trim(symbol)
+      if (k > 2) exit
+      l = iachar(symbol(j:j))
+      if (k >= 1 .and. l == iachar(' ')) exit
+      if (k >= 1 .and. l == 9) exit
+      if (l >= iachar('A') .and. l <= iachar('Z')) l = l + offset
+      if (l >= iachar('a') .and. l <= iachar('z')) then
+        k = k+1
+        lcSymbol(k:k) = achar(l)
+      end if
+    end do
+
+    do i = 1, size(elementSymbol)
+      if (lcSymbol == elementSymbol(i)) then
+        number = i
+        exit
+      end if
+    end do
+
+  end function symbolToNumber
 
 
 end module dftbp_constants

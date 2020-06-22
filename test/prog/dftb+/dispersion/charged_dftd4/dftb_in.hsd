@@ -1,0 +1,40 @@
+Geometry = GenFormat {
+  <<< "struc.gen"
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  Dispersion = DftD4 {
+    s6 = 1
+    s8 = 1.1948145
+    s9 = 0
+    a1 = 0.6074567
+    a2 = 4.9336133
+  }
+  Charge = +1
+  SCCTolerance = 1.00E-8
+  MaxAngularMomentum {
+    H = "s"
+    C = "p"
+    N = "p"
+  }
+  MaxSCCIterations = 250
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+Options {
+  WriteAutotestTag = Yes
+}
+Analysis {
+  CalculateForces = Yes
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

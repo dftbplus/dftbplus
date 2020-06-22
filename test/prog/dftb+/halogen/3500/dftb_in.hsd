@@ -1,0 +1,68 @@
+Geometry = GenFormat {
+    <<< 3500_22chlorobenzenezenetrimethylamine.gen
+}
+
+Driver = LBFGS {}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    Filling = Fermi {
+       Temperature [K] = 300
+    }
+    MaxAngularMomentum {
+       H = "s"
+       C = "p"
+       N = "p"
+       O = "p"
+       F = "p"
+       Cl = "d"
+       Br = "d"
+       I = "d"
+    }
+    SlaterKosterFiles = Type2FileNames {
+       Prefix = "./"
+       Separator = "-"
+       Suffix  = ".skf"
+    }
+    Dispersion = DftD3 {
+        Damping = BeckeJohnson {
+            a1 = 0.746
+            a2 = 4.191
+        }
+        s8 = 3.209
+    }
+    ThirdOrderFull = Yes
+    HubbardDerivs {
+       H = -0.1857
+       C = -0.1492
+       N = -0.1535
+       O = -0.1575
+       F = -0.1623
+       Cl = -0.0697
+       Br = -0.0573
+       I = -0.0433
+    }
+    HCorrection = Damping {
+        Exponent = 4.0
+    }
+    HalogenXCorr = Yes
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+Analysis = {
+    CalculateForces = Yes
+}
+
+ParserOptions = {
+    ParserVersion = 6
+    IgnoreUnprocessedNodes = Yes
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

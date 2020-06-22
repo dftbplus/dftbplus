@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,6 +23,7 @@ module dftbp_elsisolver
   use dftbp_message, only : error, cleanshutdown
   use dftbp_commontypes, only : TParallelKS, TOrbitals
   use dftbp_energies, only : TEnergies
+  use dftbp_etemp, only : fillingTypes
   use dftbp_sparse2dense
   use dftbp_assert
   use dftbp_spin, only : ud2qm
@@ -333,6 +334,11 @@ contains
       ! ignored by NTPoly, but set anyway:
       this%nState = nBasisFn
 
+    case (electronicSolverTypes%elpadm)
+      this%solver = 1
+      ! ignored by density matrix from ELPA, but set anyway:
+      this%nState = nBasisFn
+
     end select
 
     ! parallelism with multiple processes
@@ -373,12 +379,22 @@ contains
       this%csrBlockSize = this%csrBlockSize + 1
     end if
 
-    this%muBroadenScheme = min(iDistribFn,2)
-    if (iDistribFn > 1) then
+    this%muMpOrder = 0
+    if (iDistribFn == fillingTypes%Fermi) then
+      this%muBroadenScheme = 1
+    else if (iDistribFn == fillingTypes%Gaussian) then
+      this%muBroadenScheme = 0
+    else if (iDistribFn >= fillingTypes%Methfessel) then
+      this%muBroadenScheme = 2
       ! set Meth-Pax order
-      this%muMpOrder = iDistribFn - 2
+      this%muMpOrder = iDistribFn - fillingTypes%Methfessel - 1
     else
-      this%muMpOrder = 0
+      call error("Unknown electronic filling type")
+    end if
+
+    if (iDistribFn /= fillingTypes%Fermi .and.&
+        & any([electronicSolverTypes%pexsi,electronicSolverTypes%ntpoly] == this%iSolver)) then
+      call error("This electronic solver can only be used for Fermi function distributed electrons")
     end if
 
     ! ELPA settings
@@ -516,7 +532,7 @@ contains
 
 
       select case(this%iSolver)
-      case(electronicSolverTypes%elpa)
+      case(electronicSolverTypes%elpa, electronicSolverTypes%elpadm)
 
         select case(this%elpaSolverOption)
         case(1)
@@ -578,8 +594,8 @@ contains
 
       end select
 
-      if (any(this%iSolver == [electronicSolverTypes%omm,&
-          & electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly])) then
+      if (any(this%iSolver == [electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
+          & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])) then
         ! density matrix build needs to know the number of spin channels to normalize against
         select case(this%nSpin)
         case(1)
@@ -685,9 +701,10 @@ contains
 
   !> Returns the density matrix using ELSI non-diagonalisation routines.
   subroutine TElsiSolver_getDensity(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
-      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, tRealHS,&
-      & tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, Ef, energy, rhoPrim,&
-      & Eband, TS, iHam, xi, orbitalL, HSqrReal, SSqrReal, iRhoPrim, HSqrCplx, SSqrCplx)
+      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, tHelical, orb, species,&
+      & coord, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, Ef,&
+      & energy, rhoPrim, Eband, TS, iHam, xi, orbitalL, HSqrReal, SSqrReal, iRhoPrim, HSqrCplx,&
+      & SSqrCplx)
 
     !> Electronic solver information
     class(TElsiSolver), intent(inout) :: this
@@ -728,11 +745,17 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
 
     !> species of all atoms in the system
     integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Is the hamitonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
@@ -820,21 +843,22 @@ contains
       if (tRealHS) then
         if (this%isSparse) then
           call getDensityRealSparse(this, parallelKS, ham, over, neighbourList%iNeighbour,&
-              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, rhoPrim, Eband)
+              & nNeighbourSK, denseDesc%iAtomStart, iSparseStart, img2CentCell, tHelical, orb,&
+              & species, coord, rhoPrim, Eband)
         else
           call getDensityRealDense(this, env, denseDesc, ham, over, neighbourList,&
-              & nNeighbourSK, iSparseStart, img2CentCell, orb, parallelKS, rhoPrim, Eband,&
-              & HSqrReal, SSqrReal)
+              & nNeighbourSK, iSparseStart, img2CentCell, tHelical, orb, species, coord,&
+              & parallelKS, rhoPrim, Eband, HSqrReal, SSqrReal)
         end if
       else
         if (this%isSparse) then
           call getDensityCmplxSparse(this, parallelKS, kPoint(:,iK), kWeight(iK), iCellVec,&
               & cellVec, ham, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-              & iSparseStart, img2CentCell, orb, rhoPrim, Eband)
+              & iSparseStart, img2CentCell, tHelical, orb, species, coord, rhoPrim, Eband)
         else
           call getDensityCmplxDense(this, env, denseDesc, ham, over, neighbourList,&
-              & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-              & parallelKS, rhoPrim, Eband, HSqrCplx, SSqrCplx)
+              & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight,&
+              & tHelical, orb, species, coord, parallelKS, rhoPrim, Eband, HSqrCplx, SSqrCplx)
         end if
       end if
       call ud2qm(rhoPrim)
@@ -894,8 +918,8 @@ contains
 
   ! Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine TElsiSolver_getEDensity(this, env, denseDesc, nSpin, kPoint, kWeight, neighbourList,&
-      & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, tRealHS, parallelKS,&
-      & ERhoPrim, SSqrReal, SSqrCplx)
+      & nNeighbourSK, tHelical, orb, species, coord, iSparseStart, img2CentCell, iCellVec, cellVec,&
+      & tRealHS, parallelKS, ERhoPrim, SSqrReal, SSqrCplx)
 
     !> Electronic solver information
     class(TElsiSolver), intent(inout) :: this
@@ -921,8 +945,17 @@ contains
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -959,12 +992,12 @@ contains
           & parallelKS, ERhoPrim, SSqrCplx)
     else
       if (tRealHS) then
-        call getEDensityMtxReal(this, env, denseDesc, neighbourList, nNeighbourSK, orb,&
-            & iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
+        call getEDensityMtxReal(this, env, denseDesc, neighbourList, nNeighbourSK, tHelical, orb,&
+            & species, coord, iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
       else
         call getEDensityMtxCmplx(this, env, denseDesc, kPoint, kWeight, neighbourList,&
-            & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, parallelKS,&
-            & ERhoPrim, SSqrCplx)
+            & nNeighbourSK, tHelical, orb, species, coord, iSparseStart, img2CentCell, iCellVec,&
+            & cellVec, parallelKS, ERhoPrim, SSqrCplx)
       end if
     end if
 
@@ -1111,9 +1144,9 @@ contains
 #:if WITH_ELSI
 
   !> Returns the density matrix using ELSI non-diagonalisation routines (real dense case).
-  subroutine getDensityRealDense(this, env, denseDesc, ham, over, neighbourList,&
-      & nNeighbourSK, iSparseStart, img2CentCell, orb, parallelKS, rhoPrim, Eband, HSqrReal,&
-      & SSqrReal)
+  subroutine getDensityRealDense(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, tHelical, orb, species, coord, parallelKS, rhoPrim, Eband,&
+      & HSqrReal, SSqrReal)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1142,8 +1175,17 @@ contains
     !> map from image atoms to the original unique atom
     integer, intent(in) :: img2CentCell(:)
 
+    !> Is the geometry helicalxs
+    logical, intent(in) :: tHelical
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -1167,11 +1209,23 @@ contains
     iKS = 1
     iS = parallelKS%localKS(2, iKS)
 
-    call unpackHSRealBlacs(env%blacs, ham(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
-        & iSparseStart, img2CentCell, denseDesc, HSqrReal)
+    if (tHelical) then
+      call unpackHSHelicalRealBlacs(env%blacs, ham(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+          & iSparseStart, img2CentCell, orb, species, coord, denseDesc, HSqrReal)
+      if (.not. this%tCholeskyDecomposed) then
+        call unpackHSHelicalRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
+            & iSparseStart, img2CentCell, orb, species, coord, denseDesc, SSqrReal)
+      end if
+    else
+      call unpackHSRealBlacs(env%blacs, ham(:,iS), neighbourList%iNeighbour, nNeighbourSK,&
+          & iSparseStart, img2CentCell, denseDesc, HSqrReal)
+      if (.not. this%tCholeskyDecomposed) then
+        call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
+            & iSparseStart, img2CentCell, denseDesc, SSqrReal)
+      end if
+    end if
+
     if (.not. this%tCholeskyDecomposed) then
-      call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
-          & iSparseStart, img2CentCell, denseDesc, SSqrReal)
       if (this%ommCholesky .or. this%iSolver == electronicSolverTypes%pexsi) then
         this%tCholeskyDecomposed = .true.
       end if
@@ -1188,16 +1242,21 @@ contains
     end if
     call elsi_dm_real(this%handle, HSqrReal, SSqrReal, rhoSqrReal, Eband(iS))
 
-    call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal, neighbourList%iNeighbour,&
-        & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iS))
+    if (tHelical) then
+      call packRhoHelicalRealBlacs(env%blacs, denseDesc, rhoSqrReal, neighbourList%iNeighbour,&
+          & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, rhoPrim(:,iS))
+    else
+      call packRhoRealBlacs(env%blacs, denseDesc, rhoSqrReal, neighbourList%iNeighbour,&
+          & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, rhoPrim(:,iS))
+    end if
 
   end subroutine getDensityRealDense
 
 
   !> Returns the density matrix using ELSI non-diagonalisation routines (complex dense case).
   subroutine getDensityCmplxDense(this, env, denseDesc, ham, over, neighbourList,&
-      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-      & parallelKS, rhoPrim, Eband, HSqrCplx, SSqrCplx)
+      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, tHelical,&
+      & orb, species, coord, parallelKS, rhoPrim, Eband, HSqrCplx, SSqrCplx)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1238,8 +1297,17 @@ contains
     !> Weights for k-points
     real(dp), intent(in) :: kWeight(:)
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -1266,13 +1334,27 @@ contains
     iS = parallelKS%localKS(2, iKS)
 
     HSqrCplx(:,:) = 0.0_dp
-    call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
-        & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
+    if (tHelical) then
+      call unpackHSHelicalCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
+          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb, species, coord,&
+          & denseDesc, HSqrCplx)
+      if (.not. this%tCholeskyDecomposed) then
+        SSqrCplx(:,:) = 0.0_dp
+        call unpackHSHelicalCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb, species, coord,&
+            & denseDesc, SSqrCplx)
+      end if
+    else
+      call unpackHSCplxBlacs(env%blacs, ham(:,iS), kPoint(:,iK), neighbourList%iNeighbour,&
+          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc, HSqrCplx)
+      if (.not. this%tCholeskyDecomposed) then
+        SSqrCplx(:,:) = 0.0_dp
+        call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
+            & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc,&
+            & SSqrCplx)
+      end if
+    end if
     if (.not. this%tCholeskyDecomposed) then
-      SSqrCplx(:,:) = 0.0_dp
-      call unpackHSCplxBlacs(env%blacs, over, kPoint(:,iK), neighbourList%iNeighbour,&
-          & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, denseDesc,&
-          & SSqrCplx)
       if (this%ommCholesky .or. this%iSolver == electronicSolverTypes%pexsi) then
         this%tCholeskyDecomposed = .true.
       end if
@@ -1290,9 +1372,15 @@ contains
     end if
     call elsi_dm_complex(this%handle, HSqrCplx, SSqrCplx, rhoSqrCplx,&
         & Eband(iS))
-    call packRhoCplxBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
-        & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
-        & iSparseStart, img2CentCell, rhoPrim(:,iS))
+    if (tHelical) then
+      call packRhoHelicalCplxBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell,&
+          & orb, species, coord, rhoPrim(:,iS))
+    else
+      call packRhoCplxBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
+          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
+          & iSparseStart, img2CentCell, rhoPrim(:,iS))
+    end if
 
   end subroutine getDensityCmplxDense
 
@@ -1468,7 +1556,7 @@ contains
 
   !> Calculates density matrix using the elsi routine.
   subroutine getDensityRealSparse(this, parallelKS, ham, over, iNeighbour, nNeighbourSK,&
-      & iAtomStart, iSparseStart, img2CentCell, orb, rho, Eband)
+      & iAtomStart, iSparseStart, img2CentCell, tHelical, orb, species, coord, rho, Eband)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1497,8 +1585,17 @@ contains
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
     !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Density matrix in DFTB+ sparse format
     real(dp), intent(out) :: rho(:,:)
@@ -1515,8 +1612,14 @@ contains
     allocate(SnzValLocal(this%elsiCsc%nnzLocal))
     allocate(DMnzValLocal(this%elsiCsc%nnzLocal))
 
-    call this%elsiCsc%convertPackedToElsiReal(over, iNeighbour, nNeighbourSK, iAtomStart,&
-        & iSparseStart, img2CentCell, SnzValLocal)
+    if (tHelical) then
+      call this%elsiCsc%convertPackedToElsiReal(over, iNeighbour, nNeighbourSK, iAtomStart,&
+          & iSparseStart, img2CentCell, SnzValLocal, orb, species, coord)
+    else
+      call this%elsiCsc%convertPackedToElsiReal(over, iNeighbour, nNeighbourSK, iAtomStart,&
+          & iSparseStart, img2CentCell, SnzValLocal, orb)
+    end if
+
     if (this%tFirstCalc) then
       call elsi_set_csc(this%handle, this%elsiCsc%nnzGlobal, this%elsiCsc%nnzLocal,&
           & this%elsiCsc%numColLocal, this%elsiCsc%rowIndLocal, this%elsiCsc%colPtrLocal)
@@ -1524,8 +1627,14 @@ contains
     end if
 
     iS = parallelKS%localKS(2, 1)
-    call this%elsiCsc%convertPackedToElsiReal(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
-        & iSparseStart, img2CentCell, HnzValLocal)
+
+    if (tHelical) then
+      call this%elsiCsc%convertPackedToElsiReal(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
+          & iSparseStart, img2CentCell, HnzValLocal, orb, species, coord)
+    else
+      call this%elsiCsc%convertPackedToElsiReal(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
+          & iSparseStart, img2CentCell, HnzValLocal, orb)
+    end if
 
     if (this%tWriteHS) then
       call elsi_set_rw_csc(this%rwHandle, this%elsiCsc%nnzGlobal,&
@@ -1542,15 +1651,22 @@ contains
         & Eband(iS))
 
     rho(:,:) = 0.0_dp
-    call this%elsiCsc%convertElsiToPackedReal(iNeighbour, nNeighbourSK, orb%mOrb,&
-        & iAtomStart, iSparseStart, img2CentCell, DMnzValLocal, rho(:,iS))
+
+    if (tHelical) then
+      call this%elsiCsc%convertElsiToPackedReal(iNeighbour, nNeighbourSK, orb, species, coord,&
+          & iAtomStart, iSparseStart, img2CentCell, DMnzValLocal, rho(:,iS))
+    else
+      call this%elsiCsc%convertElsiToPackedReal(iNeighbour, nNeighbourSK, orb, iAtomStart,&
+          & iSparseStart, img2CentCell, DMnzValLocal, rho(:,iS))
+    end if
 
   end subroutine getDensityRealSparse
 
 
   !> Calculates density matrix using the elsi routine.
   subroutine getDensityCmplxSparse(this, parallelKS, kPoint, kWeight, iCellVec, cellVec, ham,&
-      & over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, orb, rho, Eband)
+      & over, iNeighbour, nNeighbourSK, iAtomStart, iSparseStart, img2CentCell, tHelical, orb,&
+      & species, coord, rho, Eband)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1591,8 +1707,17 @@ contains
     !> Mapping between image atoms and corresponding atom in the central cell.
     integer, intent(in) :: img2CentCell(:)
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
     !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Density matrix in DFTB+ sparse format
     real(dp), intent(out) :: rho(:,:)
@@ -1609,8 +1734,13 @@ contains
     allocate(SnzValLocal(this%elsiCsc%nnzLocal))
     allocate(DMnzValLocal(this%elsiCsc%nnzLocal))
 
-    call this%elsiCsc%convertPackedToElsiCmplx(over, iNeighbour, nNeighbourSK, iAtomStart,&
-        & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, SnzValLocal)
+    if (tHelical) then
+      call this%elsiCsc%convertPackedToElsiCmplx(over, iNeighbour, nNeighbourSK, iAtomStart,&
+          & iSparseStart, img2CentCell, kPoint, iCellVec, cellVec, SnzValLocal, orb, species, coord)
+    else
+      call this%elsiCsc%convertPackedToElsiCmplx(over, iNeighbour, nNeighbourSK, iAtomStart,&
+          & iSparseStart, img2CentCell, kPoint, iCellVec, cellVec, SnzValLocal, orb)
+    end if
     if (this%tFirstCalc) then
       call elsi_set_csc(this%handle, this%elsiCsc%nnzGlobal, this%elsiCsc%nnzLocal,&
           & this%elsiCsc%numColLocal, this%elsiCsc%rowIndLocal, this%elsiCsc%colPtrLocal)
@@ -1618,8 +1748,14 @@ contains
     end if
 
     iS = parallelKS%localKS(2, 1)
-    call this%elsiCsc%convertPackedToElsiCmplx(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
-        & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, HnzValLocal)
+
+    if (tHelical) then
+      call this%elsiCsc%convertPackedToElsiCmplx(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
+          & iSparseStart, img2CentCell, kPoint, iCellVec, cellVec, HnzValLocal, orb, species, coord)
+    else
+      call this%elsiCsc%convertPackedToElsiCmplx(ham(:,iS), iNeighbour, nNeighbourSK, iAtomStart,&
+          & iSparseStart, img2CentCell, kPoint, iCellVec, cellVec, HnzValLocal, orb)
+    end if
 
     if (this%tWriteHS) then
       call elsi_set_rw_csc(this%rwHandle, this%elsiCsc%nnzGlobal, this%elsiCsc%nnzLocal,&
@@ -1635,15 +1771,21 @@ contains
     call elsi_dm_complex_sparse(this%handle, HnzValLocal, SnzValLocal, DMnzValLocal, Eband(iS))
 
     rho(:,:) = 0.0_dp
-    call this%elsiCsc%convertElsiToPackedCmplx(iNeighbour, nNeighbourSK, orb%mOrb, iAtomStart,&
-        & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, DMnzValLocal, rho(:,iS))
+    if (tHelical) then
+      call this%elsiCsc%convertElsiToPackedCmplx(iNeighbour, nNeighbourSK, orb, species, coord,&
+          & iAtomStart, iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec,&
+          & DMnzValLocal, rho(:,iS))
+    else
+      call this%elsiCsc%convertElsiToPackedCmplx(iNeighbour, nNeighbourSK, orb, iAtomStart,&
+          & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, DMnzValLocal, rho(:,iS))
+    end if
 
   end subroutine getDensityCmplxSparse
 
 
   !> Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
-  subroutine getEDensityMtxReal(this, env, denseDesc, neighbourList, nNeighbourSK, orb,&
-      & iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
+  subroutine getEDensityMtxReal(this, env, denseDesc, neighbourList, nNeighbourSK, tHelical, orb,&
+      & species, coord, iSparseStart, img2CentCell, ERhoPrim, SSqrReal)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1660,8 +1802,17 @@ contains
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -1681,12 +1832,24 @@ contains
     if (this%isSparse) then
       allocate(EDMnzValLocal(this%elsiCsc%nnzLocal))
       call elsi_get_edm_real_sparse(this%handle, EDMnzValLocal)
-      call this%elsiCsc%convertElsiToPackedReal(neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell, EDMnzValLocal, ErhoPrim)
+      if (tHelical) then
+        call this%elsiCsc%convertElsiToPackedReal(neighbourList%iNeighbour, nNeighbourSK, orb,&
+            & species, coord, denseDesc%iAtomStart, iSparseStart, img2CentCell, EDMnzValLocal,&
+            & ErhoPrim)
+      else
+        call this%elsiCsc%convertElsiToPackedReal(neighbourList%iNeighbour, nNeighbourSK, orb,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, EDMnzValLocal, ErhoPrim)
+      end if
+
     else
       call elsi_get_edm_real(this%handle, SSqrReal)
-      call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour, nNeighbourSK,&
-          & orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+      if (tHelical) then
+        call packRhoHelicalRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, orb, species, coord, ERhoPrim)
+      else
+        call packRhoRealBlacs(env%blacs, denseDesc, SSqrReal, neighbourList%iNeighbour,&
+            & nNeighbourSK, orb%mOrb, iSparseStart, img2CentCell, ERhoPrim)
+      end if
     end if
 
     ! add contributions from different spin channels together if necessary
@@ -1697,8 +1860,8 @@ contains
 
   !> Returns the energy weighted density matrix using ELSI non-diagonalisation routines.
   subroutine getEDensityMtxCmplx(this, env, denseDesc, kPoint, kWeight, neighbourList,&
-      & nNeighbourSK, orb, iSparseStart, img2CentCell, iCellVec, cellVec, parallelKS, ERhoPrim,&
-      & SSqrCplx)
+      & nNeighbourSK, tHelical, orb, species, coord, iSparseStart, img2CentCell, iCellVec, cellVec,&
+      & parallelKS, ERhoPrim, SSqrCplx)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1721,8 +1884,17 @@ contains
     !> Number of neighbours for each of the atoms
     integer, intent(in) :: nNeighbourSK(:)
 
+    !> Is the geometry helical
+    logical, intent(in) :: tHelical
+
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
+
+    !> species of all atoms in the system
+    integer, intent(in) :: species(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
 
     !> Index array for the start of atomic blocks in sparse arrays
     integer, intent(in) :: iSparseStart(:,:)
@@ -1754,14 +1926,27 @@ contains
     if (this%isSparse) then
       allocate(EDMnzValLocal(this%elsiCsc%nnzLocal))
       call elsi_get_edm_complex_sparse(this%handle, EDMnzValLocal)
-      call this%elsiCsc%convertElsiToPackedCmplx(neighbourList%iNeighbour, nNeighbourSK, orb%mOrb,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint(:,iK), kWeight(iK), iCellVec,&
-          & cellVec, EDMnzValLocal, ERhoPrim)
+      if (tHelical) then
+        call this%elsiCsc%convertElsiToPackedCmplx(neighbourList%iNeighbour, nNeighbourSK, orb,&
+            & species, coord, denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint(:,iK),&
+            & kWeight(iK), iCellVec, cellVec, EDMnzValLocal, ERhoPrim)
+      else
+        call this%elsiCsc%convertElsiToPackedCmplx(neighbourList%iNeighbour, nNeighbourSK, orb,&
+            & denseDesc%iAtomStart, iSparseStart, img2CentCell, kPoint(:,iK), kWeight(iK),&
+            & iCellVec, cellVec, EDMnzValLocal, ERhoPrim)
+
+      end if
     else
       call elsi_get_edm_complex(this%handle, SSqrCplx)
-      call packRhoCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
-          & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
-          & img2CentCell, ERhoPrim)
+      if (tHelical) then
+        call packRhoHelicalCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, orb, species, coord, ERhoPrim)
+      else
+        call packRhoCplxBlacs(env%blacs, denseDesc, SSqrCplx, kPoint(:,iK), kWeight(iK),&
+            & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec, iSparseStart,&
+            & img2CentCell, ERhoPrim)
+      end if
     end if
     call mpifx_allreduceip(env%mpi%globalComm, ERhoPrim, MPI_SUM)
 

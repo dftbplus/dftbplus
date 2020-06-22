@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,7 @@
 !> * Only for closed shell or colinear spin polarization (excitation energies only in that
 !>   case).
 !> * Onsite corrections are not included in this version
-module dftbp_linresp_module
+module dftbp_linresp
   use dftbp_assert
   use dftbp_accuracy
   use dftbp_message
@@ -24,7 +24,7 @@ module dftbp_linresp_module
   use dftbp_slakocont
   use dftbp_fileid
   use dftbp_scc, only : TScc
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_densedescr
   use dftbp_taggedoutput, only : TTaggedWriter
 #:if WITH_ARPACK
@@ -34,12 +34,12 @@ module dftbp_linresp_module
   implicit none
   private
 
-  public :: linresp, linrespini
+  public :: TLinresp, TLinrespini
   public :: init, calcExcitations, addGradients
 
 
   !> Data type for initial values for linear response calculations
-  type :: linrespini
+  type :: TLinrespini
 
     !> number of excitations to be found
     integer :: nExc
@@ -96,6 +96,9 @@ module dftbp_linresp_module
     !> dipole strengths to excited states
     logical :: tTradip
 
+    !> write transition charges
+    logical :: tTransQ
+
     !> print state of Arnoldi solver
     logical :: tArnoldi
 
@@ -105,11 +108,14 @@ module dftbp_linresp_module
     !> Initialised data structure?
     logical :: tInit = .false.
 
-  end type linrespini
+    !> for RS-linresp
+    real(dp), allocatable :: hubbUDerivUp(:), hubbUDerivDn(:)
+
+  end type TLinrespini
 
 
   !> Data type for linear response internal settings
-  type :: linresp
+  type :: TLinResp
     integer :: nExc, nStat
     logical :: tEnergyWindow
     real(dp) :: energyWindow
@@ -130,6 +136,7 @@ module dftbp_linresp_module
     integer :: fdSPTrans = -1
     integer :: fdExc = -1
     integer :: fdTradip = -1
+    integer :: fdTransQ = -1
     logical :: tArnoldi
 
 
@@ -139,7 +146,13 @@ module dftbp_linresp_module
     integer :: fdArnoldiDiagnosis = -1
     logical :: tPrintEigVecs
     logical :: tInit = .false.
-  end type linresp
+
+    !> for linear response calculations with range-separated functionals
+    integer :: nMoved
+    logical :: tMulliken, tCoeffs, tXplusY, tTrans, tTradip
+    real(dp), allocatable :: hubbUDerivUp(:), hubbUDerivDn(:)
+
+  end type TLinResp
 
 
   !> Initialise data structure
@@ -163,13 +176,13 @@ contains
 
 
   !> Initialize an internal data type for linear response excitations
-  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements)
+  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements, nMoved)
 
     !> data structure for linear response
-    type(linresp), intent(out) :: this
+    type(TLinresp), intent(out) :: this
 
     !> initial values for setting parameters
-    type(linrespini), intent(inout) :: ini
+    type(TLinrespini), intent(inout) :: ini
 
     !> number of atoms in central cell
     integer, intent(in) :: nAtom
@@ -185,6 +198,9 @@ contains
 
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
+
+    !> number of moveable atoms
+    integer, intent(in) :: nMoved
 
 
 #:if WITH_ARPACK
@@ -240,6 +256,11 @@ contains
     else
       this%fdTradip = -1
     end if
+    if (ini%tTransQ) then
+      this%fdTransQ = getFileId()
+    else
+      this%fdTransQ = -1
+    end if
 
     this%tArnoldi = ini%tArnoldi
     this%fdArnoldi = getFileId()
@@ -266,6 +287,8 @@ contains
     call error('Internal error: Illegal routine call to LinResp_init.')
 #:endif
 
+  this%nMoved = nMoved
+
   end subroutine LinResp_init
 
 
@@ -275,7 +298,7 @@ contains
       & taggedWriter, excEnergy, allExcEnergies)
 
     !> data structure with additional linear response values
-    type(linresp), intent(inout) :: this
+    type(TLinresp), intent(inout) :: this
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -354,13 +377,13 @@ contains
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
       & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator,&
-      & rhoSqr, occNatural, naturalOrbs)
+      & rhoSqr, occNatural, naturalOrbs, dqAtEx)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
 
     !> data for the actual calculation
-    type(linresp), intent(inout) :: this
+    type(TLinresp), intent(inout) :: this
 
     !> indexing array for ground state square matrices
     integer, intent(in) :: iAtomStart(:)
@@ -399,13 +422,13 @@ contains
     type(TOrbitals), intent(in) :: orb
 
     !> non-SCC H0 data
-    type(OSlakoCont), intent(in) :: skHamCont
+    type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap data
-    type(OSlakoCont), intent(in) :: skOverCont
+    type(TSlakoCont), intent(in) :: skOverCont
 
     !> method for calculating derivatives of S and H0 matrices
-    class(NonSccDiff), intent(in) :: derivator
+    class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix (square matrix plus spin index)
     real(dp), intent(in)  :: rhoSqr(:,:,:)
@@ -435,6 +458,9 @@ contains
     !> matrix in the excited state
     real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
 
+    !> Gross atomic charges in excited state
+    real(dp), intent(out) :: dqAtEx(:)
+
 #:if WITH_ARPACK
 
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
@@ -458,7 +484,7 @@ contains
           & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
           & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
           & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
-          & excgradient, derivator, rhoSqr, occNatural, naturalOrbs)
+          & excgradient, derivator, rhoSqr, dqAtEx, occNatural, naturalOrbs)
     else
       call LinRespGrad_old(tSpin, this%nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
           & this%nExc, this%nStat, this%symmetry, SSqrReal, filling, species0, this%HubbardU,&
@@ -468,7 +494,7 @@ contains
           & this%fdArnoldiDiagnosis, this%fdExc, this%tEnergyWindow, this%energyWindow,&
           & this%tOscillatorWindow, this%oscillatorWindow, this%tCacheCharges, excEnergy,&
           & allExcEnergies, this%onSiteMatrixElements, shiftPerAtom, skHamCont, skOverCont,&
-          & excgradient, derivator, rhoSqr)
+          & excgradient, derivator, rhoSqr, dqAtEx)
     end if
 
 #:else
@@ -477,4 +503,4 @@ contains
 
   end subroutine LinResp_addGradients
 
-end module dftbp_linresp_module
+end module dftbp_linresp
