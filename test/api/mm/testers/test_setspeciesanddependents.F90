@@ -26,6 +26,9 @@
 ! alexanderbuccheri@googlemail.com
 !---------------------------------------------------------------------
 
+#! Fypp preprocessing from command line is required
+#:set WITH_MPI = defined('WITH_MPI')
+
 program test_setSpeciesAndDependents
   use, intrinsic :: iso_fortran_env, only: output_unit, REAL64, IOSTAT_END
 #:if WITH_MPI
