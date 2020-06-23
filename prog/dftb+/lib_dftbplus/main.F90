@@ -5948,10 +5948,10 @@ contains
     real(dp), intent(out) :: derivs(:,:)
 
     !> derivatives of triplet energy wrt to atomic positions (TI-DFTB excited states)
-    real(dp), intent(out) :: tripletderivs(:,:)
+    real(dp), intent(inout), allocatable :: tripletderivs(:,:)
 
     !> derivatives of mixed energy wrt to atomic positions (TI-DFTB excited states)
-    real(dp), intent(out) :: mixedderivs(:,:)
+    real(dp), intent(inout), allocatable :: mixedderivs(:,:)
 
     !> imaginary part of density matrix
     real(dp), intent(in), allocatable :: iRhoPrim(:,:)
@@ -6137,6 +6137,8 @@ contains
     call helicalTwistFolded(derivs, coord, coord0, nAtom, tHelical)
 
     if(tNonAufbau) then
+      tripletderivs(:,:) = 0.0_dp
+      mixedderivs(:,:) = 0.0_dp
       if (tSpinPurify.and.iDet==1) then
         tripletderivs(:,:) = derivs
       else if (iDet/=0) then
