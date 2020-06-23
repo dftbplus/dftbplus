@@ -380,7 +380,7 @@ contains
     !> List of atomic masses (nAtom)
     real(dp), allocatable :: massReordered(:)
 
-    @:ASSERT(nAtom == size(speciesMass))
+    @:ASSERT(size(speciesMass) == maxval(species0))
     allocate(massReordered(nAtom))
     massReordered = speciesMass(species0)
   end function updateAtomicMasses
