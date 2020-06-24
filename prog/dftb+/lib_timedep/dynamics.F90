@@ -900,8 +900,7 @@ contains
     real(dp) :: occ(this%nOrbs)
     character(sc) :: dumpIdx
     logical :: tProbeFrameWrite
-    real(dp), allocatable :: sumBondPopul
-    integer :: nBndOEvals
+    real(dp), allocatable :: lastBondPopul
     real(dp), allocatable :: velInternal(:,:)
 
     allocate(Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
@@ -1026,8 +1025,7 @@ contains
       end do
       write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
       if (tWriteAutotest) then
-        sumBondPopul = sum(bondWork)
-        nBndOEvals = 1
+        lastBondPopul = sum(bondWork)
       end if
     end if
 
@@ -1136,8 +1134,7 @@ contains
           end do
           write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
           if (tWriteAutotest) then
-            sumBondPopul = sumBondPopul + sum(bondWork)
-            nBndOEvals = nBndOEvals + 1
+            lastBondPopul = sum(bondWork)
           end if
         end if
       end if
@@ -1186,10 +1183,7 @@ contains
     call env%globalTimer%stopTimer(globalTimers%elecDynLoop)
 
     if (tWriteAutotest) then
-      if (allocated(sumBondPopul)) then
-        sumBondPopul = sumBondPopul / real(nBndOEvals, dp)
-      end if
-      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, sumBondPopul,&
+      call writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, lastBondPopul,&
           & taggedWriter)
     end if
 
@@ -2889,7 +2883,7 @@ contains
 
 
   !> Write time-dependent tagged information to autotestTag file
-  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, sumBondPopul,&
+  subroutine writeTDAutotest(this, dipole, energy, deltaQ, coord, totalForce, occ, lastBondPopul,&
       & taggedWriter)
 
     !> ElecDynamics instance
@@ -2913,8 +2907,8 @@ contains
     !> molecular orbital projected populations
     real(dp), intent(in) :: occ(:)
 
-    !> Optional sum of bond populations over the run
-    real(dp), intent(in), allocatable :: sumBondPopul
+    !> Last bond population in the run
+    real(dp), intent(in), allocatable :: lastBondPopul
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2936,8 +2930,8 @@ contains
     if (this%tPopulations) then
       call taggedWriter%write(fdAutotest, tagLabels%tdprojocc, occ)
     end if
-    if (allocated(sumBondPopul)) then
-      call taggedWriter%write(fdAutotest, tagLabels%sumBondPopul, sumBondPopul)
+    if (allocated(lastBondPopul)) then
+      call taggedWriter%write(fdAutotest, tagLabels%sumBondPopul, lastBondPopul)
     end if
 
     close(fdAutotest)
