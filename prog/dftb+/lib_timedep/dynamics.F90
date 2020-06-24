@@ -1001,7 +1001,7 @@ contains
         & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
     ! after calculating the TD function, set initial time to zero for probe simulations
-    ! this is to calculate properly the dipole fourier transform after the simulation
+    ! this is to properly calculate the dipole fourier transform after the simulation
     if (this%tProbe) then
       startTime = 0.0_dp
     end if

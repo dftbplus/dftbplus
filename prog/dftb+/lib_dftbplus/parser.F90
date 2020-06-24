@@ -4780,7 +4780,10 @@ contains
 
     !> input data to parse
     type(fnode), pointer :: node
+
+    !> geometry of the system
     type(TGeometry), intent(in) :: geo
+
     !> masses to be returned
     real(dp), allocatable, intent(inout) :: masses(:)
 
@@ -4797,7 +4800,7 @@ contains
   #:if WITH_MPI
     if (associated(node)) then
       call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
-          & electron dynamics are not currently not for distributed parallel calculations.')
+          & electron dynamics are not currently available for distributed parallel calculations.')
     end if
   #:endif
 
