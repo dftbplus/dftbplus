@@ -24,7 +24,7 @@ module dftbp_mainapi
        & parallelKS, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon, &
        & initializeReferenceCharges, setNElectrons, initializeCharges, qBlockIn, qBlockOut,        &
        & qiBlockIn, qiBlockOut, iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS,  &
-       & tStress, totalStress, hamiltonianType
+       & tStress, totalStress, hamiltonianType, dQAtomEx, isLinResp
 #:if WITH_SCALAPACK
   use dftbp_initprogram,  only : getDenseDescBlacs
 #:endif
@@ -163,6 +163,11 @@ contains
 
     call recalcGeometry(env)
     atomCharges(:) = sum(q0(:, :, 1) - qOutput(:, :, 1), dim=1)
+
+    !> Pass to the charges of the excited state if relevant
+    if (isLinResp) then
+      atomCharges(:) = atomCharges(:) + dQAtomEx(:)
+    end if
 
   end subroutine getGrossCharges
 
