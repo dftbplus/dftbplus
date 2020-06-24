@@ -503,8 +503,12 @@ contains
         call error("Ion dynamics and forces are not implemented for kicked excitations")
       end if
       if (this%nExcitedAtom /= nAtom) then
-        call error("Ion dynamics and forces are not implemented for excitation of a subgroup of&
-            & atoms")
+        if (this%tLaser) then
+          call error("Ion dynamics and forces are not implemented for excitation of a subgroup of&
+              & atoms")
+        else
+          this%nExcitedAtom = nAtom
+        end if
       end if
     end if
 
@@ -898,6 +902,7 @@ contains
     logical :: tProbeFrameWrite
     real(dp), allocatable :: sumBondPopul
     integer :: nBndOEvals
+    real(dp), allocatable :: velInternal(:,:)
 
     allocate(Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
     allocate(Sinv(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
@@ -920,7 +925,9 @@ contains
           & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
           & ErhoPrim, coordAll)
       if (this%tIons) then
+
         this%initialVelocities(:,:) = this%movedVelo
+
         this%ReadMDVelocities = .true.
       end if
     else if (iCall > 1 .and. this%tIons) then
@@ -1036,7 +1043,20 @@ contains
     rhoOld => trhoOld
 
     do iStep = 0, this%nSteps
+
       time = iStep * this%dt + startTime
+
+      if (this%tWriteRestart .and. iStep > 0 .and. mod(iStep, this%restartFreq) == 0) then
+        allocate(velInternal(3,size(this%movedVelo, dim=2)))
+        if (this%tIons) then
+          call state(this%pMDIntegrator, velocities=velInternal)
+        else
+          velInternal(:,:) = 0.0_dp
+        end if
+        call writeRestartFile(rho, rhoOld, Ssqr, coord, velInternal, time, this%dt,&
+            & restartFileName, this%tWriteRestartAscii)
+        deallocate(velInternal)
+      end if
 
       if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
         call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondPopul,&
@@ -1055,8 +1075,15 @@ contains
           & .and. (mod(iStep-this%PpIni, max(this%PpFreq,1)) == 0)
       if (tProbeFrameWrite) then
         write(dumpIdx,'(I0)')int((iStep-this%PpIni)/this%PpFreq)
+        allocate(velInternal(3,size(this%movedVelo, dim=2)))
+        if (this%tIons) then
+          call state(this%pMDIntegrator, velocities=velInternal)
+        else
+          velInternal(:,:) = 0.0_dp
+        end if
         call writeRestartFile(rho, rhoOld, Ssqr, coord, this%movedVelo, time, this%dt,&
             & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii)
+        deallocate(velInternal)
       end if
 
       call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock)
@@ -1065,11 +1092,6 @@ contains
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
           & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
           & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho)
-
-      if (this%tWriteRestart .and. iStep > 0 .and. mod(iStep, this%restartFreq) == 0) then
-        call writeRestartFile(rho, rhoOld, Ssqr, coord, this%movedVelo, time, this%dt,&
-            & restartFileName, this%tWriteRestartAscii)
-      end if
 
       if (this%tForces) then
         call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
@@ -2954,15 +2976,15 @@ contains
     if (this%nDynamicsInit == 0) then
       if (this%tReadRestart) then
         call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
-            & this%movedVelo, this%ReadMDVelocities, .false.)
+            & this%movedVelo, this%ReadMDVelocities, tHalfVelocities=.true.)
       else
         call init(pVelocityVerlet, this%dt, coord(:, this%indMovedAtom), this%pThermostat,&
-            & this%movedVelo, this%ReadMDVelocities, .true.)
+            & this%movedVelo, this%ReadMDVelocities, tHalfVelocities=.true.)
       end if
       this%initialVelocities(:, this%indMovedAtom) = this%movedVelo
     else
       call reset(this%pMDIntegrator, coordNew(:, this%indMovedAtom), this%initialVelocities,&
-          & .true.)
+          & tHalfVelocities=.true.)
     end if
 
     ! Euler step from 1st VV step
@@ -2975,11 +2997,13 @@ contains
     this%movedVelo(:,:) = this%movedVelo + 0.5_dp * movedAccel * this%dt
 
     if (this%nDynamicsInit == 0) then
-      call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo, .true.)
+      call reset(pVelocityVerlet, coordNew(:, this%indMovedAtom), this%movedVelo,&
+          & tHalfVelocities=.true.)
       allocate(this%pMDIntegrator)
       call init(this%pMDIntegrator, pVelocityVerlet)
     else
-      call reset(this%pMDIntegrator, coordNew(:, this%indMovedAtom), this%movedVelo, .true.)
+      call reset(this%pMDIntegrator, coordNew(:, this%indMovedAtom), this%movedVelo,&
+          & tHalfVelocities=.true.)
     end if
 
     this%nDynamicsInit = this%nDynamicsInit + 1

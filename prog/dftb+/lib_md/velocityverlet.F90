@@ -390,18 +390,26 @@ contains
 
 
   !> Outputs internals of MD integrator
-  subroutine VelocityVerlet_state(self,fd)
+  subroutine VelocityVerlet_state(self, fd, velocities)
 
     !> instance of integrator
     type(TVelocityVerlet), intent(in) :: self
 
     !> filehandle to write out to
-    integer,intent(in) :: fd
+    integer,intent(in), optional :: fd
+
+    real(dp), intent(out), optional :: velocities(:,:)
 
     @:ASSERT(self%tInitialised)
 
-    if (allocated(self%pThermostat)) then
-      call state(self%pThermostat,fd)
+    if (present(fd)) then
+      if (allocated(self%pThermostat)) then
+        call state(self%pThermostat,fd)
+      end if
+    end if
+
+    if (present(velocities)) then
+      velocities(:,:) = self%velocities(:,:)
     end if
 
   end subroutine VelocityVerlet_state
