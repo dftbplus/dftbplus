@@ -127,18 +127,16 @@ The restart data for a real time propagation calculation is stored in either the
 native binary format of your computer (\verb|tddump.bin|) or as ascii text
 (\verb|tddump.dat|) format.
 
-The layout of the lines of the ascii file given below (all quantities are in
-atomic units):
+The content of the file given is below (all quantities are in
+atomic units). In the case of ascii output this is broken into lines:
 
 \begin{itemize}
 \item version: The file format, currently version 1
-\item nOrbitals nSpin$\times$nKpoints nAtoms current\_simulation\_time
+\item nOrbitals nSpin$\times$nKpoints nAtoms current\_simulation\_time timestep\_size
 \item nOrbitals$^2$ $\times$ nSpin $\times$ nKpoints lines of the (complex)
   density matrix at current time
 \item nOrbitals$^2$ $\times$ nSpin $\times$ nKpoints lines of the (complex)
   density matrix at the previous timestep
-\item nOrbitals$^2$ $\times$ nSpin $\times$ nKpoints lines of the overlap matrix
-  for the current structure
 \item nAtoms lines of cartesian coordinates of the atoms at current time
 \item nAtoms lines of atomic velocities at current time
 \end{itemize}
