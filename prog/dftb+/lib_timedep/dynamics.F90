@@ -1056,19 +1056,7 @@ contains
         deallocate(velInternal)
       end if
 
-      if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
-        call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondPopul,&
-            & fdBondEnergy, time, energy, energyKin, dipole, deltaQ, coord, totalForce, iStep)
-      end if
-
-      if (this%tIons) then
-        coord(:,:) = coordNew
-        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
-            & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
-            & ErhoPrim, coordAll)
-      end if
-
-      ! WORKAROUND for gfort9, as mod(0,0) can be reached and fails with this compiler
+      ! WORKAROUND for gfort9 using max() as mod(0,0) can be reached and fails with this compiler
       tProbeFrameWrite = this%tPump .and. (iStep >= this%PpIni) .and. (iStep <= this%PpEnd)&
           & .and. (mod(iStep-this%PpIni, max(this%PpFreq,1)) == 0)
       if (tProbeFrameWrite) then
@@ -1079,9 +1067,21 @@ contains
         else
           velInternal(:,:) = 0.0_dp
         end if
-        call writeRestartFile(rho, rhoOld, Ssqr, coord, this%movedVelo, time, this%dt,&
+        call writeRestartFile(rho, rhoOld, Ssqr, coord, velInternal, time, this%dt,&
             & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii)
         deallocate(velInternal)
+      end if
+
+      if (.not. this%tReadRestart .or. (iStep > 0) .or. this%tProbe) then
+        call writeTDOutputs(this, dipoleDat, qDat, energyDat, forceDat, coorDat, fdBondPopul,&
+            & fdBondEnergy, time, energy, energyKin, dipole, deltaQ, coord, totalForce, iStep)
+      end if
+
+      if (this%tIons) then
+        coord(:,:) = coordNew
+        call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
+            & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
+            & ErhoPrim, coordAll)
       end if
 
       call getChargeDipole(this, deltaQ, qq, dipole, q0, rho, Ssqr, coord, iSquare, qBlock)
