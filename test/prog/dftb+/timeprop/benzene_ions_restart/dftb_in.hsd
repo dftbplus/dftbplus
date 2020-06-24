@@ -51,7 +51,6 @@ ParserOptions = {
       }
       FieldStrength [v/a] = 0.01
       IonDynamics = Yes
-      InitialTemperature [k] = 0.0
       Restart = Yes
       WriteRestart = No
     }
