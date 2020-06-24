@@ -164,10 +164,10 @@ contains
 
 
   !> Initialises a SlaterOrbital.
-  subroutine SlaterOrbital_init(self, aa, alpha, ll, resolution, cutoff)
+  subroutine SlaterOrbital_init(this, aa, alpha, ll, resolution, cutoff)
 
     !> SlaterOrbital instance to initialise
-    type(TSlaterOrbital), intent(inout) :: self
+    type(TSlaterOrbital), intent(inout) :: this
 
     !> Summation coefficients (nCoeffPerAlpha, nAlpha)
     real(dp), intent(in) :: aa(:,:)
@@ -196,35 +196,35 @@ contains
     @:ASSERT(cutoff > 0.0_dp)
     @:ASSERT(resolution > 0.0_dp)
 
-    allocate(self%aa(nPow, nAlpha))
-    allocate(self%alpha(nAlpha))
+    allocate(this%aa(nPow, nAlpha))
+    allocate(this%alpha(nAlpha))
 
     ! Storing parameter. (This is theoretically now superfluous, since the function is calculated
     ! only once at initialisation time and stored on a grid.)
-    self%aa(:,:) = aa
-    self%alpha(:) = -1.0_dp * alpha
-    self%nPow = nPow
-    self%nAlpha = nAlpha
-    self%ll = ll
+    this%aa(:,:) = aa
+    this%alpha(:) = -1.0_dp * alpha
+    this%nPow = nPow
+    this%nAlpha = nAlpha
+    this%ll = ll
 
     ! Obtain STO on a grid
-    self%nGrid = floor(cutoff / resolution) + 2
-    self%gridDist = resolution
-    allocate(self%gridValue(self%nGrid))
-    do iGrid = 1, self%nGrid
+    this%nGrid = floor(cutoff / resolution) + 2
+    this%gridDist = resolution
+    allocate(this%gridValue(this%nGrid))
+    do iGrid = 1, this%nGrid
       rr = real(iGrid - 1, dp) * resolution
-      call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, self%alpha, &
-          &rr, self%gridValue(iGrid))
+      call SlaterOrbital_getValue_explicit(ll, nPow, nAlpha, aa, this%alpha, &
+          &rr, this%gridValue(iGrid))
     end do
 
   end subroutine SlaterOrbital_init
 
 
   !> Retunrns the value of the SlaterOrbital in a given point
-  subroutine SlaterOrbital_getValue(self, rr, sto)
+  subroutine SlaterOrbital_getValue(this, rr, sto)
 
     !> SlaterOrbital instance
-    type(TSlaterOrbital), intent(in) :: self
+    type(TSlaterOrbital), intent(in) :: this
 
     !> Distance, where STO should be calculated
     real(dp), intent(in) :: rr
@@ -238,11 +238,11 @@ contains
     @:ASSERT(rr >= 0.0_dp)
 
     ! ind = 1 means zero distance as rr = (ind - 1) * gridDist
-    ind = floor(rr / self%gridDist) + 1
-    if (ind < self%nGrid) then
-      frac = mod(rr, self%gridDist) / self%gridDist
-      sto = (1.0_dp - frac) * self%gridValue(ind) + &
-          &frac * self%gridValue(ind+1)
+    ind = floor(rr / this%gridDist) + 1
+    if (ind < this%nGrid) then
+      frac = mod(rr, this%gridDist) / this%gridDist
+      sto = (1.0_dp - frac) * this%gridValue(ind) + &
+          &frac * this%gridValue(ind+1)
     else
       sto = 0.0_dp
     end if

@@ -93,10 +93,10 @@ contains
 
 
   !> Initialises SlakoEqGrid.
-  subroutine SlakoEqGrid_init(self, dist, table, skIntMethod)
+  subroutine SlakoEqGrid_init(this, dist, table, skIntMethod)
 
     !> SlakoEqGrid instance.
-    type(TSlakoEqGrid), intent(out) :: self
+    type(TSlakoEqGrid), intent(out) :: this
 
     !> Distance between the grid points.
     real(dp), intent(in) :: dist
@@ -107,26 +107,26 @@ contains
     !> Method for the interpolation between the entries.
     integer, intent(in) :: skintMethod
 
-    @:ASSERT(.not. self%tInit)
+    @:ASSERT(.not. this%tInit)
     @:ASSERT(dist >= 0.0_dp)
     @:ASSERT(skIntMethod == skEqGridOld .or. skIntMethod == skEqGridNew)
 
-    self%dist = dist
-    self%nGrid = size(table, dim=1)
-    self%nInteg = size(table, dim=2)
-    allocate(self%skTab(self%nGrid, self%nInteg))
-    self%skTab(:,:) = table(:,:)
-    self%skIntMethod = skIntMethod
-    self%tInit = .true.
+    this%dist = dist
+    this%nGrid = size(table, dim=1)
+    this%nInteg = size(table, dim=2)
+    allocate(this%skTab(this%nGrid, this%nInteg))
+    this%skTab(:,:) = table(:,:)
+    this%skIntMethod = skIntMethod
+    this%tInit = .true.
 
   end subroutine SlakoEqGrid_init
 
 
   !> Returns the integrals for a given distance.
-  subroutine SlakoEqGrid_getSKIntegrals(self, sk, dist)
+  subroutine SlakoEqGrid_getSKIntegrals(this, sk, dist)
 
     !> SlakoEqGrid instance.
-    type(TSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: this
 
     !> Contains the interpolated integrals on exit
     real(dp), intent(out) :: sk(:)
@@ -134,44 +134,44 @@ contains
     !> Distance for which the integrals should be interpolated.
     real(dp), intent(in) :: dist
 
-    @:ASSERT(self%tInit)
-    @:ASSERT(size(sk) >= self%nInteg)
+    @:ASSERT(this%tInit)
+    @:ASSERT(size(sk) >= this%nInteg)
     @:ASSERT(dist >= 0.0_dp)
 
-    if (self%skIntMethod == skEqGridOld) then
-      call SlakoEqGrid_interOld_(self, sk, dist)
+    if (this%skIntMethod == skEqGridOld) then
+      call SlakoEqGrid_interOld_(this, sk, dist)
     else
-      call SlakoEqGrid_interNew_(self, sk, dist)
+      call SlakoEqGrid_interNew_(this, sk, dist)
     end if
 
   end subroutine SlakoEqGrid_getSKIntegrals
 
 
   !> Returns the number of intgrals the table contains
-  function SlakoEqGrid_getNIntegrals(self) result(nInt)
+  function SlakoEqGrid_getNIntegrals(this) result(nInt)
 
     !> SlakoEqGrid instance.
-    type(TSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: this
 
     !> Number of integrals.
     integer :: nInt
 
-    nInt = self%nInteg
+    nInt = this%nInteg
 
   end function SlakoEqGrid_getNIntegrals
 
 
   !> Returns the cutoff of the interaction.
-  function SlakoEqGrid_getCutoff(self) result(cutoff)
+  function SlakoEqGrid_getCutoff(this) result(cutoff)
 
     !>  SlakoEqGrid instance.
-    type(TSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: this
 
     !> grid cutoff
     real(dp) :: cutoff
 
-    cutoff = real(self%nGrid, dp) * self%dist
-    if (self%skIntMethod == skEqGridOld) then
+    cutoff = real(this%nGrid, dp) * this%dist
+    if (this%skIntMethod == skEqGridOld) then
       cutoff = cutoff + distFudgeOld
     else
       cutoff = cutoff + distFudge
@@ -181,10 +181,10 @@ contains
 
 
   !> Inter- and extrapolation for SK-tables, new method.
-  subroutine SlakoEqGrid_interNew_(self, dd, rr)
+  subroutine SlakoEqGrid_interNew_(this, dd, rr)
 
     !> SlakoEqGrid table on equiv. grid
-    type(TSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: this
 
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
@@ -192,15 +192,15 @@ contains
     !> distance bewteen two atoms of interest
     real(dp), intent(in) :: rr
 
-    real(dp) :: xa(nInterNew_), ya(nInterNew_), yb(self%nInteg,nInterNew_), y1, y1p, y1pp
-    real(dp) :: incr, dr, rMax, y0(self%nInteg), y2(self%nInteg)
+    real(dp) :: xa(nInterNew_), ya(nInterNew_), yb(this%nInteg,nInterNew_), y1, y1p, y1pp
+    real(dp) :: incr, dr, rMax, y0(this%nInteg), y2(this%nInteg)
     integer :: leng, ind, iLast
     integer :: ii
 
     real(dp), parameter :: invdistFudge = -1.0_dp / distFudge
 
-    leng = self%nGrid
-    incr = self%dist
+    leng = this%nGrid
+    incr = this%dist
     rMax = real(leng, dp) * incr + distFudge
     ind = floor(rr / incr)
 
@@ -221,8 +221,8 @@ contains
       do ii = 1, nInterNew_
         xa(ii) = real(iLast - nInterNew_ + ii, dp) * incr
       end do
-      yb = transpose(self%skTab(iLast-nInterNew_+1:iLast,:self%nInteg))
-      dd(:self%nInteg) = polyInterUniform(xa, yb, rr)
+      yb = transpose(this%skTab(iLast-nInterNew_+1:iLast,:this%nInteg))
+      dd(:this%nInteg) = polyInterUniform(xa, yb, rr)
     else
       !! Beyond the grid => extrapolation with polynomial of 5th order
       dr = rr - rMax
@@ -230,11 +230,11 @@ contains
       do ii = 1, nInterNew_
         xa(ii) = real(iLast - nInterNew_ + ii, dp) * incr
       end do
-      yb = transpose(self%skTab(iLast-nInterNew_+1:iLast,:self%nInteg))
+      yb = transpose(this%skTab(iLast-nInterNew_+1:iLast,:this%nInteg))
       y0 = polyInterUniform(xa, yb, xa(nInterNew_) - deltaR_)
       y2 = polyInterUniform(xa, yb, xa(nInterNew_) + deltaR_)
-      do ii = 1, self%nInteg
-        ya(:) = self%skTab(iLast-nInterNew_+1:iLast, ii)
+      do ii = 1, this%nInteg
+        ya(:) = this%skTab(iLast-nInterNew_+1:iLast, ii)
         y1 = ya(nInterNew_)
         y1p = (y2(ii) - y0(ii)) / (2.0_dp * deltaR_)
         y1pp = (y2(ii) + y0(ii) - 2.0_dp * y1) / (deltaR_ * deltaR_)
@@ -246,10 +246,10 @@ contains
 
 
   !> Inter- and extra-polation for SK-tables equivalent to the old DFTB code.
-  subroutine SlakoEqGrid_interOld_(self, dd, rr)
+  subroutine SlakoEqGrid_interOld_(this, dd, rr)
 
     !> Data structure for SK interpolation
-    type(TSlakoEqGrid), intent(in) :: self
+    type(TSlakoEqGrid), intent(in) :: this
 
     !> Output table of interpolated values.
     real(dp), intent(out) :: dd(:)
@@ -257,15 +257,15 @@ contains
     !> distance bewteen two atoms of interest
     real(dp), intent(in) :: rr
 
-    real(dp) :: xa(nInterOld_), yb(self%nInteg,nInterOld_),y0, y1, y2, y1p, y1pp
+    real(dp) :: xa(nInterOld_), yb(this%nInteg,nInterOld_),y0, y1, y2, y1p, y1pp
     real(dp) :: incr, dr
     integer :: leng, ind, mInd, iLast
     integer :: ii
     real(dp) :: r1, r2
     real(dp) :: invdistFudge
 
-    leng = self%nGrid
-    incr = self%dist
+    leng = this%nGrid
+    incr = this%dist
     mInd = leng + floor(distFudgeOld/incr)
     ind = floor(rr / incr)
 
@@ -284,15 +284,15 @@ contains
       do ii = 1, nInterOld_
         xa(ii) = real(iLast - nInterOld_ + ii, dp) * incr
       end do
-      yb = transpose(self%skTab(iLast-nInterOld_+1:iLast,:self%nInteg))
-      dd(:self%nInteg) = polyInterUniform(xa, yb, rr)
+      yb = transpose(this%skTab(iLast-nInterOld_+1:iLast,:this%nInteg))
+      dd(:this%nInteg) = polyInterUniform(xa, yb, rr)
     elseif (ind < leng) then
       !! Distance between penultimate and last grid point => free cubic spline
       dr = rr - real(leng - 1, dp) * incr
-      do ii = 1, self%nInteg
-        y0 = self%skTab(leng-2, ii)
-        y1 = self%skTab(leng-1, ii)
-        y2 = self%skTab(leng, ii)
+      do ii = 1, this%nInteg
+        y0 = this%skTab(leng-2, ii)
+        y1 = this%skTab(leng-1, ii)
+        y2 = this%skTab(leng, ii)
         y1p = (y2 - y0) / (2.0_dp * incr)
         y1pp = (y2 + y0 - 2.0_dp * y1) / incr**2
         call freeCubicSpline(y1, y1p, y1pp, incr, y2, dr, dd(ii))
@@ -300,10 +300,10 @@ contains
     elseif (ind < mInd - 1) then
       !! Extrapolation
       dr = rr - real(mInd - 1, dp) * incr
-      do ii = 1, self%nInteg
-        y0 = self%skTab(leng-2, ii)
-        y1 = self%skTab(leng-1, ii)
-        y2 = self%skTab(leng, ii)
+      do ii = 1, this%nInteg
+        y0 = this%skTab(leng-2, ii)
+        y1 = this%skTab(leng-1, ii)
+        y2 = this%skTab(leng, ii)
         r1 = (y2 - y0) / (2.0_dp * incr)
         r2 = (y2 + y0 - 2.0_dp * y1) / incr**2
         call freeCubicSpline(y1, r1, r2, incr, y2, incr, yp=y1p, ypp=y1pp)
