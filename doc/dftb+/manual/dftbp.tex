@@ -4056,9 +4056,9 @@ time-dependent properties.
 
 \item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting
   velocities for the Ehrenfest MD according to the Maxwell-Boltzmann
-  distribution at the specified temperature. This is redundant in the
-  case of specified initial velocities. See section
-  \ref{sec:dftbp.Thermostat}.
+  distribution at the specified temperature. This keyword is redundant in the
+  case of specified initial velocities or for a restarted trajectory, so is
+  omitted in those cases.
 
 \item[\is{Velocities}]\modif{\modtype{velocity}} Specified atomic
   velocities for all the atoms of the given structure (including
