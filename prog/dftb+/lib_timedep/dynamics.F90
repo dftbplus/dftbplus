@@ -918,7 +918,7 @@ contains
     RdotSprime(:,:) = 0.0_dp
 
     if (this%tReadRestart) then
-      call readRestartFile(trho, trhoOld, Ssqr, coord, this%movedVelo, startTime, this%dt,&
+      call readRestartFile(trho, trhoOld, coord, this%movedVelo, startTime, this%dt,&
           & restartFileName, this%tRestartAscii)
       call updateH0S(this, Ssqr, Sinv, coord, orb, neighbourList, nNeighbourSK, iSquare,&
           & iSparseStart, img2CentCell, skHamCont, skOverCont, ham, ham0, over, env, rhoPrim,&
@@ -1051,8 +1051,8 @@ contains
         else
           velInternal(:,:) = 0.0_dp
         end if
-        call writeRestartFile(rho, rhoOld, Ssqr, coord, velInternal, time, this%dt,&
-            & restartFileName, this%tWriteRestartAscii)
+        call writeRestartFile(rho, rhoOld, coord, velInternal, time, this%dt, restartFileName,&
+            & this%tWriteRestartAscii)
         deallocate(velInternal)
       end if
 
@@ -1067,7 +1067,7 @@ contains
         else
           velInternal(:,:) = 0.0_dp
         end if
-        call writeRestartFile(rho, rhoOld, Ssqr, coord, velInternal, time, this%dt,&
+        call writeRestartFile(rho, rhoOld, coord, velInternal, time, this%dt,&
             & trim(dumpIdx) // 'ppdump', this%tWriteRestartAscii)
         deallocate(velInternal)
       end if
@@ -2397,16 +2397,13 @@ contains
 
 
   !> Write to restart file
-  subroutine writeRestartFile(rho, rhoOld, Ssqr, coord, veloc, time, dt, fileName, tAsciiFile)
+  subroutine writeRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, tAsciiFile)
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
 
     !> Density matrix at previous time step
     complex(dp), intent(in) :: rhoOld(:,:,:)
-
-    !> Square overlap matrix
-    complex(dp), intent(in) :: Ssqr(:,:,:)
 
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -2466,13 +2463,6 @@ contains
           end do
         end do
       end do
-      do ii = 1, size(sSqr, dim=3)
-        do jj = 1, size(sSqr, dim=2)
-          do kk = 1, size(sSqr, dim=1)
-            write(fd, *)sSqr(kk,jj,ii)
-          end do
-        end do
-      end do
       do ii = 1, size(coord, dim=2)
         write(fd, *)coord(:,ii)
       end do
@@ -2482,7 +2472,9 @@ contains
 
     else
 
-      write(fd) rho, rhoOld, Ssqr, coord, veloc, time
+      write(fd)tdDumpFormat
+      write(fd)size(rho, dim=1), size(rho, dim=3), size(coord, dim=2), time, dt
+      write(fd) rho, rhoOld, coord, veloc
 
     end if
 
@@ -2492,16 +2484,13 @@ contains
 
 
   !> read a restart file containing density matrix, overlap, coordinates and time step
-  subroutine readRestartFile(rho, rhoOld, Ssqr, coord, veloc, time, dt, fileName, tAsciiFile)
+  subroutine readRestartFile(rho, rhoOld, coord, veloc, time, dt, fileName, tAsciiFile)
 
     !> Density Matrix
     complex(dp), intent(out) :: rho(:,:,:)
 
     !> Previous density Matrix
     complex(dp), intent(out) :: rhoOld(:,:,:)
-
-    !> Square overlap matrix
-    complex(dp), intent(out) :: Ssqr(:,:,:)
 
     !> atomic coordinates
     real(dp), intent(out) :: coord(:,:)
@@ -2560,7 +2549,7 @@ contains
       if (version /= tdDumpFormat) then
         call error("Unknown TD format")
       end if
-      read(fd, *)nOrb, nSpin, nAtom, time, deltaT
+      read(fd, *) nOrb, nSpin, nAtom, time, deltaT
       if (nOrb /= size(rho, dim=1)) then
         write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
             & " in tddump file, should be ",size(rho, dim=1)
@@ -2594,13 +2583,6 @@ contains
           end do
         end do
       end do
-      do ii = 1, size(sSqr, dim=3)
-        do jj = 1, size(sSqr, dim=2)
-          do kk = 1, size(sSqr, dim=1)
-            read(fd, *)sSqr(kk,jj,ii)
-          end do
-        end do
-      end do
       do ii = 1, size(coord, dim=2)
         read(fd, *)coord(:,ii)
       end do
@@ -2608,7 +2590,31 @@ contains
         read(fd, *)veloc(:,ii)
       end do
     else
-      read(fd) rho, rhoOld, Ssqr, coord, veloc, time
+      read(fd)version
+      if (version /= tdDumpFormat) then
+        call error("Unknown TD format")
+      end if
+      read(fd) nOrb, nSpin, nAtom, time, deltaT
+      if (nOrb /= size(rho, dim=1)) then
+        write(error_string, "(A,I0,A,I0)")"Incorrect number of orbitals, ",nOrb,&
+            & " in tddump file, should be ",size(rho, dim=1)
+        call error(error_string)
+      end if
+      if (nSpin /= size(rho, dim=3)) then
+        write(error_string, "(A,I1,A,I1)")"Incorrect number of spin channels, ",nSpin,&
+            & " in tddump file, should be ",size(rho, dim=3)
+        call error(error_string)
+      end if
+      if (nAtom /= size(coord, dim=2)) then
+        write(error_string, "(A,I0,A,I0)")"Incorrect number of atoms, ",nAtom,&
+            & " in tddump file, should be ", size(coord, dim=2)
+        call error(error_string)
+      end if
+      if (abs(deltaT - dt) > epsilon(0.0_dp)) then
+        write(error_string, "(A,E14.8,A,E14.8)")"Restart file generated for time step",&
+            & deltaT, " instead of current timestep of", dt
+      end if
+      read(fd) rho, rhoOld, coord, veloc
     end if
     close(fd)
 
