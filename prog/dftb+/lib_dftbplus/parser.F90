@@ -747,15 +747,7 @@ contains
           ! need a temperature, so just set it to something 'safe'
           ctrl%tempAtom = minTemp
         else
-          call getChildValue(value1, "InitialTemperature", ctrl%tempAtom, &
-              &modifier=modifier, child=field)
-          if (ctrl%tempAtom < 0.0_dp) then
-            call detailedError(field, "Negative temperature")
-          end if
-          call convertByMul(char(modifier), energyUnits, field, ctrl%tempAtom)
-          if (ctrl%tempAtom < minTemp) then
-            ctrl%tempAtom = minTemp
-          end if
+          call readMDInitTemp(value1, ctrl%tempAtom, minTemp)
         end if
       case default
         call getNodeHSDName(value1, buffer2)
@@ -4987,20 +4979,39 @@ contains
         ! just set it to something 'safe'
         input%tempAtom = minTemp
       else
-        call getChildValue(node, "InitialTemperature", input%tempAtom, &
-            &modifier=modifier, child=child)
-        if (input%tempAtom < 0.0_dp) then
-          call detailedError(child, "Negative temperature")
+        if (.not. input%tReadRestart) then
+          call readMDInitTemp(node, input%tempAtom, 0.0_dp) !previously lower limit was minTemp
         end if
-        call convertByMul(char(modifier), energyUnits, child, input%tempAtom)
-        if (input%tempAtom < minTemp) then
-          input%tempAtom = 0.0_dp !previously it was minTemp
-        end if
+        call getInputMasses(node, geo, masses)
       end if
-      call getInputMasses(node, geo, masses)
     end if
 
   end subroutine readElecDynamics
+
+
+  !> Read in initial ion temperature for simple MD
+  subroutine readMDInitTemp(node, tempAtom, minimumTemp)
+
+    !> input data to parse
+    type(fnode), pointer :: node
+
+    !> Ionic temperature
+    real(dp), intent(out) :: tempAtom
+
+    !> Lowest possible ion temperature
+    real(dp), intent(in) :: minimumTemp
+
+    type(fnode), pointer :: child
+    type(string) :: modifier
+
+    call getChildValue(node, "InitialTemperature", tempAtom, modifier=modifier, child=child)
+    if (tempAtom < 0.0_dp) then
+      call detailedError(node, "Negative temperature")
+    end if
+    call convertByMul(char(modifier), energyUnits, node, tempAtom)
+    tempAtom = max(tempAtom, minimumTemp)
+
+  end subroutine readMDInitTemp
 
 
   !> Converts direction label text string into corresponding numerical value
