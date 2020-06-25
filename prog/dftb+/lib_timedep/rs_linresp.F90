@@ -735,7 +735,7 @@ contains
       & fdArnoldi, fdExc, tEnergyWindow, energyWindow, tOscillatorWindow, oscillatorWindow,&
       & tCacheCharges, omega, shift, skHamCont, skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     logical, intent(in) :: spin
-    logical, intent(in) :: tOnsite ! TODO make intent inout so it can be forced to .false. below
+    logical, intent(in) :: tOnsite
     integer, intent(in) :: nAtom, iAtomStart(:)
     real(dp), intent(in) :: grndEigVecs(:,:,:), grndEigVal(:,:), dQ(:), coord0(:,:)
     type(TScc), intent(in) :: sccCalc
@@ -911,7 +911,7 @@ contains
     ! are gradients required?
     tGrads = present(excGrad)  ! For now no gradients, but keep for later!
     ! is a Z-vector required?
-    tZVector = tGrads .or. tMulliken .or. tCoeffs
+    tZVector = tGrads .or. tMulliken .or. tCoeffs .or. tTransQ
 
     ! Sanity checks
     nStat = nStat0
@@ -919,8 +919,9 @@ contains
       call error("Linresp: Brightest mode only for singlets.")
     elseif (nStat /= 0 .and. cSym == "B") then
       call error("Linresp: Both symmetries not allowed if specific state is excited")
-    elseif (nStat == 0 .and. (tGrads .or. tMulliken .or. tCoeffs)) then
-      call error("Linresp: Gradient, charges and coefficients only with selected excitation.")
+    elseif (nStat == 0 .and. tZVector) then
+      call error("Linresp: Gradient, charges, coefficients and charges only with selected&
+          & excitation.")
     elseif (tGrads .and. nExc > nXov) then
       call error("Linresp: With gradients nExc can be max. the number of occ-virt excitations")
     end if
