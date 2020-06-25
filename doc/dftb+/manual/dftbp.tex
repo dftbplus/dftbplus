@@ -1404,8 +1404,8 @@ following properties:
     \item[\is{HardCutOff}] The Slater-Koster interpolation \dftbp{} produces
       will smoothly tail off to zero at a short distance beyond the table, which
       is controlled by \kw{OldSKInterpolation}. If \kw{HardCutOff} is set to
-      \kw{Yes}, then the distance set by \kw{SKMaxDistance} includes this tail,
-      i.e., no interactions occur beyond that distance. In the case of \kw{No}
+      \is{Yes}, then the distance set by \kw{SKMaxDistance} includes this tail,
+      i.e., no interactions occur beyond that distance. In the case of \is{No}
       this zeroing tail extends slightly beyond the \kw{HardCutOff} distance.
   \end{description}
   
@@ -3080,6 +3080,7 @@ systems.
   \kw{FreeEnergyShift} & r & & & \\
   \kw{Temperature} & r & & 298.15 K & \\
   \kw{State} & s & & gsolv & \\
+  \kw{Kernel} & s & & Still & \\
   \kw{BornScale} & r & & & \\
   \kw{BornOffset} & r & & & \\
   \kw{OBCCorrection} & 3r & & 1.00, 0.80, 4.85 & \\
@@ -3122,11 +3123,16 @@ systems.
     Reference state of the solution for free energy calculations.
     The calculated state shift is added to the free energy shift.
     Takes ``gsolv'' (default), ``reference'' or ``mol1bar''.
-    The reference state ``gsolv`` corresponds to 1\;l of ideal gas and 1\;l of
+    The reference state ``gsolv'' corresponds to 1\;l of ideal gas and 1\;l of
     liquid  solution,
     ``reference'' corresponds to 1\;bar of ideal gas and 1\;mol/L of liquid
     solution at infinite dilution,
     ``mol1bar'' corresponds to 1\;bar ideal gas and 1\;mol/L of liquid solution.
+
+  \item[\is{Kernel}]
+    Interaction kernel for the screened Coulomb operator.
+    Possible options are the canonical ``Still'' kernel\cite{still1990} and the
+    ``P16'' kernel.\cite{lange2012}
 
   \item[\is{BornScale}] Value for scaling of Born radii.
 
@@ -3525,43 +3531,33 @@ according to
 \end{equation*}
 with the range-separation parameter $\omega$, which is set in the Slater-Koster
 files. The option should only be used with corresponding parameter sets created
-for use with long-range correction.
-
-\textbf{Note:} The present release does not yet support long-range
-corrected excited states calculations with LC-TD-DFTB, and the
-\kw{RangeSeparated} keyword can, therefore, not be used in conjunction with the
-\kw{ExcitedState} block.
+for use with long-range corrections.
 
 The \kw{RangeSeparated} keyword expects either \is{None} (default -- no use of
-range-separated hybrid functional) or the \is{LC}\cb\  block as value. Latter
-enables the following option:
+range-separated hybrid functional) or the \is{LC}\cb\ block as value. The latter
+has the following option:
 
 \begin{ptable}
-  %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /}}} \\
-  %% \hline
   \kw{Screening} & m & & Thresholded \cb & \\
 \end{ptable}
 
 
 \begin{description}
 \item[\is{Screening}] Choice of the screening method. The following choices are
-  allowed:
+  possible:
   
   \begin{description}
   \item[\is{Thresholded \{\}}] Screening according to estimated magnitude of
-    terms. This is the recommended choice for speed and accuracy but does not
-    support all of the cases (restarting and spin polarisation).
+    terms. This is faster than the \is{NeighbourBased} method below, but does
+    not support all of the cases (restarting and spin polarisation).
 
     \begin{ptable}
-      %% \multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
-      %% Screeing / Thresholded /}}} \\
-      %% \hline
       \kw{Threshold} & r & & 1e-6 & \\
       \kw{CutoffReduction} & r & & 0.0 & \\
     \end{ptable}
 
     \begin{description}
-    \item[\is{Threashold}] Threashold, below which elements are considered to be
+    \item[\is{Threshold}] Threshold, below which elements are considered to be
       zero.
     \item[\is{CutoffReduction}]\modif{\modtype{length}} Reduces the spatial
       cutoff, beyond which the overlap between atoms is considered to be zero.
@@ -3571,14 +3567,10 @@ enables the following option:
       SK-files.
     \end{description}
 
-    
   \item[\is{NeighbourBased}] Uses a purely neighbour-list based algorithm. This
     algorithm is usually considerably slower than the \is{Thresholded}.
     
     \begin{ptable}
-      %%\multicolumn{5}{|c|}{\textbf{\is{... / RangeSeparated / LC /
-      %% Screeing / Thresholded /}}} \\
-      %% \hline
       \kw{CutoffReduction} & r & & 0.0 & \\
     \end{ptable}
 
@@ -3587,9 +3579,9 @@ enables the following option:
       \is{Thresholded} block.
     \end{description}
 
-
   \item[\is{MatrixBased}] Uses a matrix-matrix multiplication based algorithm. This
     can be faster than other two algorithms.
+    
   \end{description}
 \end{description}
 
@@ -3655,9 +3647,10 @@ Calculations of forces currently require the numerical derivatives of the
 overlap and non-self-consistent Hamiltonian. This environment controls how these
 derivatives are evaluated.
 
-\textbf{Note:} In earlier DFTB+ versions (up to version 1.2), differentiation was done using finite
-difference derivatives with a step size of 0.01 atomic units. If you want to reproduce old results,
-choose the \is{FiniteDiff} method and set the step size explicitly to this value.
+\textbf{Note:} In earlier DFTB+ versions (up to version 1.2), differentiation
+was done using finite difference derivatives with a step size of 0.01 atomic
+units. If you want to reproduce old results, choose the \is{FiniteDiff} method
+and set the step size explicitly to this value.
 
 \subsubsection{FiniteDiff\{\}}
 \label{sec:dftbp.FiniteDiff}
@@ -3686,10 +3679,11 @@ forces.
 \begin{description}
 \item[\is{'traditional'}] Uses the ``traditional'' DFTB-force expression, given
   for example, in Ref.~\cite{elstner-prb-58-7260}.
-\item[\is{'dynamics'}] Force expression from Ref.~\cite{aradi-jctc-11-3357}. This choice should be
-  used if forces are being calculated with non-converged charges (e.g.\ when doing XLBOMD
-  dynamics). \textbf{Note:} this force expression is only compatible with the Fermi filling (see
-  keyword \is{Filling}, p.~\pref{sec:dftbp.Filling}.)
+\item[\is{'dynamics'}] Force expression from
+  Ref.~\cite{aradi-jctc-11-3357}. This choice should be used if forces are being
+  calculated with non-converged charges (e.g.\ when doing XLBOMD
+  dynamics). \textbf{Note:} this force expression is only compatible with the
+  Fermi filling (see keyword \is{Filling}, p.~\pref{sec:dftbp.Filling}.)
 \item [\is{'dynamicsT0'}] Simplified dynamic force expression valid for
   electronic temperature \mbox{$T=0$~K} \cite{aradi-jctc-11-3357}.  This choice
   should be used if forces are calculated with non-converged charges and the
@@ -3697,8 +3691,8 @@ forces.
   \mbox{$T=0$~K}).
 \end{description}
 
-\textbf{Note:} that XLBOMD calculations (Section \ref{sec:dftbp.xlbomd}) are not able to use the
-\is{'traditional'} forces.
+\textbf{Note:} that XLBOMD calculations (Section \ref{sec:dftbp.xlbomd}) are not
+able to use the \is{'traditional'} forces.
 
 Example:
 \begin{verbatim}
@@ -3847,7 +3841,7 @@ calculation and/or calculate properties.
   \kw{EigenvectorsAsText} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
-  \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
+  \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.esp} \\
 \end{ptable}
 
 \begin{description}
@@ -3981,7 +3975,7 @@ method which {\em may} have better scaling properties.
 \end{description}
 
 \subsubsection{ElectrostaticPotential}
-\label{sec:dftbp.ESP}
+\label{sec:dftbp.esp}
 
 Evaluates the electrostatic potential at specified points in space for SCC
 calculations. This data is accumulated in a specified text file.
@@ -3996,7 +3990,7 @@ calculations. This data is accumulated in a specified text file.
 \begin{description}
 \item[\is{OutputFile}] Text file to store the potential. If external electric
   fields are present, an additional column gives their values. See
-  p.~\pref{sec:dftbp.esp} for a description of the file.
+  p.~\pref{sec:dftbp.espfile} for a description of the file.
 \item[\is{AppendFile}] If running calculations with multiple geometries, should
   the \is{OutputFile} be appended or only contain the last potential
   information?
@@ -4045,22 +4039,29 @@ This block collects some options to calculate excited states.
 \subsection{Casida}
 \label{sec:dftbp.Casida}
 
-This tag contains the specifications for a time-dependent DFTB calculation, based on linear response
-theory~\cite{niehaus-prb-63-085108}.
+This tag contains the specifications for a time-dependent DFTB calculation,
+based on linear response theory~\cite{niehaus-prb-63-085108}.
 
-\textbf{Note:} the \dftbp{} binary must be compiled with linear response calculations enabled to
-make use of these features (the ARPACK~\cite{Lehoucq97arpackusers} library or
-ARPACK-ng~\cite{ARPACK-ng} is required).
+\textbf{Note:} the \dftbp{} binary must be compiled with linear response
+calculations enabled to make use of these features (the
+ARPACK~\cite{Lehoucq97arpackusers} library or ARPACK-ng~\cite{ARPACK-ng} is
+required).
 
-The calculation of vertical excitation energies and the corresponding oscillator strengths as well
-as excited state geometry optimisation can be performed with these options, details of the
-resulting output files are given in appendix \ref{sec:tddftb_lr}. Linear response theory is
-currently implemented only for the SCC-DFTB level of theory and molecular
-systems.\footnote{Excitation energies can also be calculated for gamma point periodic systems, but
-  will be incorrect for delocalised excitations or for charge transfer-type excited states.}
-Excitations can be calculated for fractional occupations and collinear spin-polarisation, but forces
-(and hence geometry optimisation or MD) are only available for spin-unpolarised systems with no
-fractional occupations. The specifications for this block have the following properties:
+The calculation of vertical excitation energies and the corresponding oscillator
+strengths as well as excited state geometry optimisation can be performed with
+these options, details of the resulting output files are given in appendix
+\ref{sec:tddftb_lr}. Linear response theory is currently implemented only for
+the SCC-DFTB level of theory and molecular systems.\footnote{Excitation energies
+  can also be calculated for gamma point periodic systems, but will be incorrect
+  for delocalised excitations or for charge transfer-type excited states.}
+Excitations can be calculated for fractional occupations and collinear
+spin-polarisation, but forces (and hence geometry optimisation or MD) are only
+available for spin-unpolarised systems with no fractional occupations. The
+specifications for this block have the following properties:
+
+\textbf{Note:} Excited state calculations with the \kw{RangeSeparated}
+functionals (Section \ref{sec:dftbp.RangeSep}) can be performed for spin free
+molecular (non-periodic) singlet systems that do not have fractional fillings.
 
   \begin{ptable}
     \kw{NrOfExcitations}        & i & & - & \\
@@ -4084,47 +4085,58 @@ fractional occupations. The specifications for this block have the following pro
 
   \begin{description}
 
-  \item[\is{NrOfExcitations}] Specifies the number of vertical excitation energies to be computed
-    for every symmetry (singlet or triplet). It is recommended that a value slightly greater than
-    the actual number of the states of interest is specified (the eigenvalue solver may not converge
-    to the right roots otherwise).
+  \item[\is{NrOfExcitations}] Specifies the number of vertical excitation
+    energies to be computed for every symmetry (singlet or triplet). It is
+    recommended that a value slightly greater than the actual number of the
+    states of interest is specified (the eigenvalue solver may not converge to
+    the right roots otherwise).
 
-  \item[\is{StateOfInterest}] Specifies the target excited state or states that should be
-    calculated. These are numbered from the first (lowest) excited state as 1, and so on. If the
-    absorption spectrum at a given geometry is required (i.e., a single-point calculation), this
-    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver})
-    should be left empty (forces will not be available). A value less than 0 requests that the
-    state with the largest dipole transition moment be found (again a single-point calculation).
+  \item[\is{StateOfInterest}] Specifies the target excited state or states that
+    should be calculated. These are numbered from the first (lowest) excited
+    state as 1, and so on. If the absorption spectrum at a given geometry is
+    required (i.e., a single-point calculation), this parameter should be set to
+    zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver}) should
+    be left empty (forces will not be available). A value less than 0 requests
+    that the state with the largest dipole transition moment be found (again a
+    single-point calculation).
 
-  \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being computed:
-    ``singlet'', ``triplet'' or ``both''. This tag is only applicable for spin restricted
-    calculation. For calculations in the ``triplet'' or ``both'' cases, \kw{SpinConstants} must be
-    supplied (see p.~\pref{sec:dftbp.SpinConstants}).
+  \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being
+    computed: ``singlet'', ``triplet'' or ``both''. This tag is only applicable
+    for spin restricted calculation. For calculations in the ``triplet'' or
+    ``both'' cases, \kw{SpinConstants} must be supplied (see
+    p.~\pref{sec:dftbp.SpinConstants}).
 
-  \item[\is{EnergyWindow}]\modif{\modtype{energy}} Energy range above the last transition at
-    \is{NrOfExcitations} to be included in excited state spectrum calculation.
+  \item[\is{EnergyWindow}]\modif{\modtype{energy}} Energy range above the last
+    transition at \is{NrOfExcitations} to be included in excited state spectrum
+    calculation.
 
-  \item[\is{OscillatorWindow}]\modif{\modtype{Dipole moment}} Screening cut-off below which single
-    particle transitions are neglected in excitation spectra calculations. This selects from states
-    above the top of the \is{EnergyWindow} (if present). This keyword should not be used if
+  \item[\is{OscillatorWindow}]\modif{\modtype{Dipole moment}} Screening cut-off
+    below which single particle transitions are neglected in excitation spectra
+    calculations. This selects from states above the top of the
+    \is{EnergyWindow} (if present). This keyword should not be used if
     calculating forces or other excited state properties.
 
-  \item[\is{WriteTransitions}] If set to \is{Yes}, the file TRA.DAT is created. This file contains a
-    description of each requested excited state in terms of its single-particle transitions.
+  \item[\is{WriteTransitions}] If set to \is{Yes}, the file TRA.DAT is
+    created. This file contains a description of each requested excited state in
+    terms of its single-particle transitions.
 
-  \item[\is{WriteSPTransitions}] If set to \is{Yes}, the file SPX.DAT is created, which contains the
-    spectrum at the uncoupled DFTB level (i.e.\ the single-particle excitations).
+  \item[\is{WriteSPTransitions}] If set to \is{Yes}, the file SPX.DAT is
+    created, which contains the spectrum at the uncoupled DFTB level (i.e.\ the
+    single-particle excitations).
 
-  \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT are created. The
-    former contains atom-resolved Mulliken (gross) charges for the excited state of interest, the
-    latter the excited-state dipole moment of the state.
+  \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT
+    are created. The former contains atom-resolved Mulliken (gross) charges for
+    the excited state of interest, the latter the excited-state dipole moment of
+    the state.
 
-  \item[\is{WriteCoefficients}] If set to \is{Yes}, the file COEF.DAT is created. This file contains
-    the complex eigenvectors (molecular orbital coefficient) for the excited state of interest. They
-    are derived from the relaxed excited state density matrix.
+  \item[\is{WriteCoefficients}] If set to \is{Yes}, the file COEF.DAT is
+    created. This file contains the complex eigenvectors (molecular orbital
+    coefficient) for the excited state of interest. They are derived from the
+    relaxed excited state density matrix.
 
-  \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is created. This file
-    contains the natural orbitals for the specified excited state.
+  \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is
+    created. This file contains the natural orbitals for the specified excited
+    state.
 
   \item[\is{TotalStateCoeffs}] Option to control data from
     \is{WriteCoefficients} or \is{WriteEigenvectors}. If set to \is{No} the
@@ -4132,25 +4144,27 @@ fractional occupations. The specifications for this block have the following pro
     charge from the ground to excited state. If set to \is{Yes} instead it
     corresponds to the total charge density in the excited state.
 
-  \item[\is{WriteXplusY}] If set to \is{Yes}, the file XplusY.DAT is created. This file contains the
-    RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all excited states (c.f., Eqn.~(18) in
-    Ref.~\cite{heringer2007aes}).
+  \item[\is{WriteXplusY}] If set to \is{Yes}, the file XplusY.DAT is
+    created. This file contains the RPA vector $(X+Y)^{I\Sigma}_{ia}$ for all
+    excited states (c.f., Eqn.~(18) in Ref.~\cite{heringer2007aes}).
 
-  \item[\is{WriteTransitionDipole}] If set to \is{Yes}, the file TDP.DAT is created. This file
-    contains the Mulliken transition dipole for each excited state.
+  \item[\is{WriteTransitionDipole}] If set to \is{Yes}, the file TDP.DAT is
+    created. This file contains the Mulliken transition dipole for each excited
+    state.
 
-  \item[\is{WriteStatusArnoldi}] If set to \is{Yes}, the file ARPACK.DAT is created, which allows
-    the user to follow the progress of the Arnoldi diagonalisation.
+  \item[\is{WriteStatusArnoldi}] If set to \is{Yes}, the file ARPACK.DAT is
+    created, which allows the user to follow the progress of the Arnoldi
+    diagonalisation.
 
-  \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is created, which gives data
-    on the quality of the resulting eigenstates.
+  \item[\is{TestArnoldi}] If set to \is{Yes}, the file TEST\_ARPACK.DAT is
+    created, which gives data on the quality of the resulting eigenstates.
 
   \item[\is{ExcitedStateForces}] If set to \is{Yes}, evaluated forces include
     the contributions from an excited state of interest. By default, it is set
     to \is{Yes} if forces are being calculated (for example in geometry
-    optimisation) and to \is{No} otherwise. By setting it explicitly to
-    \is{No}, you can calculate the excitations during a molecular dynamics
-    simulation that is being driven by the ground state forces only.
+    optimisation) and to \is{No} otherwise. By setting it explicitly to \is{No},
+    you can calculate the excitations during a molecular dynamics simulation
+    that is being driven by the ground state forces only.
 
   \item[\is{CacheCharges}] If set to \is{No}, transition charges are calculated
     on the fly during the excited states calculation, instead of being
@@ -4158,7 +4172,6 @@ fractional occupations. The specifications for this block have the following pro
     decrease memory use substantially, if you are short on memory.
     
   \end{description}
-  
   
 \subsection{PP-RPA}
 \label{sec:dftbp.pprpa}
@@ -4751,15 +4764,15 @@ small numbers of atoms and long MD simulations it may be useful to set
 instead.
 
 \section{Electrostatic potential data}
-\label{sec:dftbp.esp}
+\label{sec:dftbp.espfile}
 \index{ESP.dat}
 
-The output from evaluating the electrostatic potential. The first line
-consists of a comment mark followed by a logical variable as to whether there is
-an external electric field (or not), followed by 3 values for any regular grid
-pattern present in the system and the total number of points. If the data is
-gridded, the next four lines contain the origin and grid separation vectors in
-{\AA}ngstroms.
+The output from evaluating the electrostatic potential (see
+page~\pref{sec:dftbp.esp}). The first line consists of a comment mark followed
+by a logical variable as to whether there is an external electric field (or
+not), followed by 3 values for any regular grid pattern present in the system
+and the total number of points. If the data is gridded, the next four lines
+contain the origin and grid separation vectors in {\AA}ngstroms.
 
 The next line is a comment, then the locations and the potential experience for
 a positive charge due to the internal field plus optionally the external field

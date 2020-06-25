@@ -554,9 +554,9 @@ module dftbp_initprogram
   !> Total charge
   real(dp) :: nrChrg
 
-  !> Spin polarisation  
+  !> Spin polarisation
   real(dp) :: nrSpinPol
-  
+
   !> Is the check-sum for charges read externally to be used?
   logical :: tSkipChrgChecksum
 
@@ -686,7 +686,7 @@ module dftbp_initprogram
   type(TLinresp) :: lresp
 
   !> Whether to run a range separated calculation
-  logical :: tRangeSep
+  logical :: isRangeSep
 
   !> Range Separation data
   type(TRangeSepFunc), allocatable :: rangeSep
@@ -706,6 +706,9 @@ module dftbp_initprogram
   !> DeltaRho output from range separation in matrix form
   real(dp), pointer :: deltaRhoOutSqr(:,:,:) => null()
 
+  !> Linear response calculation with range-separated functional
+  logical :: isRS_LinResp
+
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
 
@@ -714,7 +717,7 @@ module dftbp_initprogram
 
   !> Should charges be read in ascii format?
   logical :: tReadChrgAscii
-  
+
   !> Whether potential shifts are read from file
   logical :: tWriteShifts
 
@@ -1012,6 +1015,9 @@ module dftbp_initprogram
   !> data type for REKS
   type(TReksCalc), allocatable :: reks
 
+  !> atomic charge contribution in excited state
+  real(dp), allocatable :: dQAtomEx(:)
+
 contains
 
 
@@ -1082,7 +1088,7 @@ contains
     integer :: iSeed
 
     integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
-    
+
     ! Dispersion
     type(TDispSlaKirk), allocatable :: slaKirk
     type(TDispUFF), allocatable :: uff
@@ -1174,7 +1180,7 @@ contains
     tSpinOrbit = input%ctrl%tSpinOrbit
     tDualSpinOrbit = input%ctrl%tDualSpinOrbit
     t2Component = input%ctrl%t2Component
-    tRangeSep = allocated(input%ctrl%rangeSepInp)
+    isRangeSep = allocated(input%ctrl%rangeSepInp)
 
     if (t2Component) then
       nSpin = 4
@@ -1623,7 +1629,7 @@ contains
     tempAtom = input%ctrl%tempAtom
     deltaT = input%ctrl%deltaT
 
-    ! Orbital equivalency relations 
+    ! Orbital equivalency relations
     call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
          & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
 
@@ -1711,7 +1717,7 @@ contains
     tPrintMulliken = input%ctrl%tPrintMulliken
     tEField = input%ctrl%tEfield ! external electric field
     tExtField = tEField
-    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf .or. tRangeSep
+    tMulliken = input%ctrl%tMulliken .or. tPrintMulliken .or. tExtField .or. tFixEf .or. isRangeSep
     tAtomicEnergy = input%ctrl%tAtomicEnergy
     tPrintEigVecs = input%ctrl%tPrintEigVecs
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
@@ -1732,12 +1738,16 @@ contains
 
     nrChrg = input%ctrl%nrChrg
     nrSpinPol = input%ctrl%nrSpinPol
-    
+
+    if (isLinResp) then
+      allocate(dQAtomEx(nAtom))
+      dQAtomEx(:) = 0.0_dp
+    end if
+
     call initializeReferenceCharges(species0, referenceN0, orb, input%ctrl%customOccAtoms, &
          & input%ctrl%customOccFillings, q0, qShell0)
     call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
 
-    
     if (tForces) then
       tCasidaForces = input%ctrl%tCasidaForces
     else
@@ -1847,7 +1857,7 @@ contains
             & (electrostatic gates are available).")
       end if
     #:if WITH_TRANSPORT
-      if (tRangeSep .and. transpar%nCont > 0) then
+      if (isRangeSep .and. transpar%nCont > 0) then
         call error("Range separated calculations do not work with transport calculations yet")
       end if
     #:endif
@@ -2093,15 +2103,17 @@ contains
     #:if not WITH_ARPACK
       call error("This binary has been compiled without support for linear response calculations.")
     #:endif
+      call ensureLinRespConditions(t3rd .or. t3rdFull, tRealHS, tPeriodic, tCasidaForces,&
+          & solvation, isRS_LinResp, nSpin)
       if (.not. tSccCalc) then
         call error("Linear response excitation requires SCC=Yes")
       end if
       if (nspin > 2) then
         call error("Linear reponse does not work with non-colinear spin polarization yet")
       elseif (tSpin .and. tCasidaForces) then
-        call error("excited state relaxation is not implemented yet for spin-polarized systems")
+        call error("excited state forces are not implemented yet for spin-polarized systems")
       elseif (tPeriodic .and. tCasidaForces) then
-        call error("excited state relaxation is not implemented yet for periodic systems")
+        call error("excited state forces are not implemented yet for periodic systems")
       elseif ((tPeriodic .or. tHelical) .and. .not.tRealHS) then
         call error("Linear response only works with non-periodic or gamma-point molecular crystals")
       elseif (tSpinOrbit) then
@@ -2168,9 +2180,13 @@ contains
             & corrections")
       end if
 
-      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements)
+      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements,&
+          & nMovedAtom)
 
     end if
+
+    ! turn on if LinResp and RangSep turned on, no extra input required for now
+    isRS_LinResp = isLinResp .and. isRangeSep
 
     ! ppRPA stuff
     if (allocated(input%ctrl%ppRPA)) then
@@ -2349,9 +2365,9 @@ contains
 
     tReadChrg = input%ctrl%tReadChrg
 
-    if (tRangeSep) then
+    if (isRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
-          & tAtomicEnergy, input%ctrl%rangeSepInp)
+          & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, lresp, onSiteElements)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
           & tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
@@ -2373,7 +2389,7 @@ contains
          & nMixElements, input%ctrl%initialSpins, input%ctrl%initialCharges, nrChrg, &
          & q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, &
          & qiBlockIn, qiBlockOut)
-   
+
     ! Initialise images (translations)
     if (tPeriodic .or. tHelical) then
       call getCellTranslations(cellVec, rCellVec, latVec, invLatVec, cutOff%mCutOff)
@@ -2389,7 +2405,7 @@ contains
     call init(neighbourList, nAtom, nInitNeighbour)
     allocate(nNeighbourSK(nAtom))
     allocate(nNeighbourRep(nAtom))
-    if (tRangeSep) then
+    if (isRangeSep) then
       allocate(nNeighbourLC(nAtom))
     end if
 
@@ -2500,7 +2516,7 @@ contains
       ! here, nSpin changes to 2 for REKS
       call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
-          & nExtChrg, t3rd.or.t3rdFull, tRangeSep, tForces, tPeriodic, tStress, tDipole)
+          & nExtChrg, t3rd.or.t3rdFull, isRangeSep, tForces, tPeriodic, tStress, tDipole)
     end if
 
     call initArrays(env, electronicSolver, tForces, tExtChrg, isLinResp, tLinRespZVect, tMd,&
@@ -3072,7 +3088,7 @@ contains
       end if
     end if
 
-    if (tRangeSep) then
+    if (isRangeSep) then
       write(stdOut, "(A,':',T30,A)") "Range separated hybrid", "Yes"
       write(stdOut, "(2X,A,':',T30,E14.6)") "Screening parameter omega",&
           & input%ctrl%rangeSepInp%omega
@@ -3285,11 +3301,11 @@ contains
 
 
   !> Create equivalency relations
-  ! Data available from module: nUJ, niUJ, iUJ, nAtom, nSpin, nOrb and logicals 
+  ! Data available from module: nUJ, niUJ, iUJ, nAtom, nSpin, nOrb and logicals
   ! Note, this routine should not be called
   subroutine setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
        & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
-    
+
     !> Type of the atoms (nAtom)
     integer,  intent(in) :: species0(:)
     !> SCC module internal variables
@@ -3298,7 +3314,7 @@ contains
     type(TOrbitals), intent(in) :: orb
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
-    
+
     !> Orbital equivalence relations
     integer, allocatable, intent(inout) :: iEqOrbitals(:,:,:)
     !> nr. of inequivalent orbitals
@@ -3321,7 +3337,7 @@ contains
     !> Orbital equivalency for orbital potentials
     integer, allocatable :: iEqOrbDFTBU(:,:,:)
 
-    if (tSccCalc) then 
+    if (tSccCalc) then
        if(.not. allocated(iEqOrbitals)) then
           allocate(iEqOrbitals(orb%mOrb, nAtom, nSpin))
        endif
@@ -3339,7 +3355,7 @@ contains
        deallocate(iEqOrbSCC)
        nIneqOrb = maxval(iEqOrbitals)
        nMixElements = nIneqOrb
-       
+
        if (tDFTBU) then
           allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
           allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
@@ -3350,7 +3366,7 @@ contains
           deallocate(iEqOrbSpin)
           deallocate(iEqOrbDFTBU)
        end if
-       
+
        if (allocated(onSiteElements)) then
           allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
           iEqOrbSpin(:,:,:) = 0.0_dp
@@ -3363,7 +3379,7 @@ contains
           deallocate(iEqOrbSpin)
           deallocate(iEqOrbDFTBU)
        end if
-       
+
        if (allocated(onSiteElements)) then
           ! all onsite blocks are full of unique elements
           if(.not. allocated(iEqBlockOnSite)) then
@@ -3398,24 +3414,24 @@ contains
           end if
        end if
 
-    !Non-SCC 
+    !Non-SCC
     else
        nIneqOrb = nOrb
        nMixElements = 0
     end if
-   
+
   end subroutine setEquivalencyRelations
 
-  
+
   !> Initialise partial charges
   !
   !  Data used from module:
   !  nAtom, nSpin, fCharges, deltaRhoIn, referenceN0, iEqBlockOnSite, iEqBlockOnSiteLS,
   !  iEqBlockDFTBULS, reks, and all logicals present
   !
-  subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, nMixElements, &
-       & initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed, qDiffRed, &
-       & qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
+  subroutine initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb,&
+      & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, qInpRed, qOutRed,&
+      & qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
 
     !> Type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
@@ -3430,16 +3446,16 @@ contains
     !> nr. of inequivalent orbitals
     integer, intent(in) :: nIneqOrb
     !> nr. of elements to go through the mixer
-    !> - may contain reduced orbitals and also orbital blocks          
-    !> (if tDFTBU or onsite corrections)                                           
+    !> - may contain reduced orbitals and also orbital blocks
+    !> (if tDFTBU or onsite corrections)
     integer, intent(in) :: nMixElements
     !> Initial spins
     real(dp), allocatable, intent(in) :: initialSpins(:,:)
-    !> Set of atom-resolved atomic charges 
+    !> Set of atom-resolved atomic charges
     real(dp), allocatable, intent(in) :: initialCharges(:)
     !> Total charge
-    real(dp), intent(in) :: nrChrg 
-    
+    real(dp), intent(in) :: nrChrg
+
     !> reference neutral atomic occupations
     real(dp), allocatable, intent(inout) :: q0(:, :, :)
     !> input charges (for potentials)
@@ -3466,8 +3482,8 @@ contains
 
     integer :: iAt,iSp,iSh,ii,jj,i,j, iStart,iStop,iEnd,iS
     real(dp) :: rTmp
-    character(lc) :: message 
-    
+    character(lc) :: message
+
     ! Charge arrays may have already been initialised
     @:ASSERT(size(species0) == nAtom)
 
@@ -3477,12 +3493,12 @@ contains
        endif
        qInput(:,:,:) = 0.0_dp
     endif
-    
+
     if (.not. allocated(qOutput)) then
        allocate(qOutput(orb%mOrb, nAtom, nSpin))
     endif
     qOutput(:,:,:) = 0.0_dp
-    
+
     if (tMixBlockCharges) then
        if ((.not. allocated(qBlockIn)) .and. (.not. allocated(reks))) then
           allocate(qBlockIn(orb%mOrb, orb%mOrb, nAtom, nSpin))
@@ -3506,7 +3522,7 @@ contains
        endif
        qiBlockOut(:,:,:,:) = 0.0_dp
     end if
-    
+
     if( .not. tSccCalc) return
 
     ! Charges read from file
@@ -3528,15 +3544,15 @@ contains
        end if
     endif
 
-    !Input charges packed into unique equivalence elements 
+    !Input charges packed into unique equivalence elements
     #:for NAME in [('qDiffRed'),('qInpRed'),('qOutRed')]
        if (.not. allocated(${NAME}$)) then
           allocate(${NAME}$(nMixElements))
        end if
        ${NAME}$(:) = 0.0_dp
     #:endfor
-       
- 
+
+
     !TODO(Alex) Could definitely split the code here
     if(allocated(reks)) return
 
@@ -3661,31 +3677,31 @@ contains
   !  Data available in module: nAtom, nSpin, isLinResp
   subroutine initializeReferenceCharges(species0, referenceN0, orb, customOccAtoms, &
        & customOccFillings, q0, qShell0)
-    
+
     !> type of the atoms (nAtom)
     integer, intent(in) :: species0(:)
-    !> reference n_0 charges for each atom, from the Slater-Koster file       
+    !> reference n_0 charges for each atom, from the Slater-Koster file
     real(dp), intent(in) :: referenceN0(:,:)
-    !> Data type for atomic orbitals  
-    type(TOrbitals), intent(in) :: orb 
-    !> Atom indices corresponding to user defined reference atomic charges 
-    !  Array of occupation arrays, one for each atom   
+    !> Data type for atomic orbitals
+    type(TOrbitals), intent(in) :: orb
+    !> Atom indices corresponding to user defined reference atomic charges
+    !  Array of occupation arrays, one for each atom
     type(TWrappedInt1), allocatable, intent(in) :: customOccAtoms(:)
-    !> User-defined reference atomic shell charges 
+    !> User-defined reference atomic shell charges
     real(dp), allocatable, intent(in) :: customOccFillings(:,:)
-    
-    !> reference neutral atomic occupations 
+
+    !> reference neutral atomic occupations
     real(dp), allocatable, intent(inout) :: q0(:, :, :)
     !> shell resolved neutral reference
     real(dp), allocatable, intent(inout) :: qShell0(:,:)
-    
+
     integer :: iAt, iSp, iSh
-    
+
     if(.not. allocated(q0))then
        allocate(q0(orb%mOrb, nAtom, nSpin))
     endif
     q0(:,:,:) = 0.0_dp
-    
+
     if (allocated(customOccAtoms)) then
        if (isLinResp) then
           call error("Custom occupation not compatible with linear response")
@@ -3706,24 +3722,24 @@ contains
           qShell0(iSh,iAt) = sum(q0(orb%posShell(iSh,iSp):orb%posShell(iSh+1,iSp)-1,iAt,1))
        end do
     end do
-    
+
   end subroutine initializeReferenceCharges
 
 
   !> Set number of electrons
   !
-  !  Data available via module: elecTolMax, nSpin, nOrb  
+  !  Data available via module: elecTolMax, nSpin, nOrb
   subroutine setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
 
-    !> reference neutral atomic occupations               
+    !> reference neutral atomic occupations
     real(dp), allocatable, intent(in) :: q0(:, :, :)
-    !> Total charge 
+    !> Total charge
     real(dp), intent(in) :: nrChrg
     real(dp), intent(in) :: nrSpinPol
-    
-    !> nr. of electrons  
-    real(dp), allocatable, intent(inout) :: nEl(:)  
-    !> Nr. of all electrons if neutral      
+
+    !> nr. of electrons
+    real(dp), allocatable, intent(inout) :: nEl(:)
+    !> Nr. of all electrons if neutral
     real(dp), intent(inout) :: nEl0
 
     @:ASSERT(allocated(q0))
@@ -3752,8 +3768,8 @@ contains
     end if
 
   end subroutine setNElectrons
-  
-  
+
+
 #:if WITH_TRANSPORT
   !> Check for inconsistencies in transport atom region definitions
   subroutine checkTransportRanges(nAtom, transpar)
@@ -4815,7 +4831,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, tShellResolved,&
-      & tAtomicEnergy, rangeSepInp)
+      & tAtomicEnergy, rangeSepInp, isRS_LinResp, lresp, onSiteElements)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4834,6 +4850,19 @@ contains
 
     !> Parameters for the range separated calculation
     type(TRangeSepInp), intent(in) :: rangeSepInp
+
+    !> Is this an excited state calculation with range separation
+    logical, intent(in) :: isRS_LinResp
+
+    !> data type for linear response
+    type(TLinresp), intent(in) :: lresp
+
+    !> Correction to energy from on-site matrix elements
+    real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
+
+    if (withMpi) then
+      call error("Range separated calculations do not work with MPI yet")
+    end if
 
     if (tPeriodic) then
       call error("Range separated functionality only works with non-periodic structures at the&
@@ -4854,13 +4883,8 @@ contains
     end if
 
     if (tAtomicEnergy) then
-      call warning("Atomic resolved energies cannot be calculated with the range-separation&
+      call error("Atomic resolved energies cannot be calculated with the range-separated&
           & hybrid functional at the moment")
-      tAtomicEnergy = .false.
-    end if
-
-    if (withMpi) then
-      call error("Range separated calculations do not work with MPI yet")
     end if
 
     if (nSpin > 2) then
@@ -4879,15 +4903,88 @@ contains
       call error("Range separated calculations not currently implemented for 3rd order DFTB")
     end if
 
-    if (isLinResp) then
-      call error("Range separated calculations not currently implemented for linear response")
-    end if
-
     if (tDFTBU) then
       call error("Range separated calculations not currently implemented for DFTB+U")
     end if
 
+    if (isRS_LinResp) then
+
+      if (allocated(onSiteElements)) then
+        call error("Excited state range separated calculations not implemented for onsite&
+            & corrections")
+      end if
+
+      if (nSpin > 1) then
+        call error("Excited state range separated calculations not implemented for spin polarized&
+            & calculations")
+      end if
+
+      if (lresp%symmetry /= "S") then
+        call error("Excited state range separated calculations currently only implemented for&
+            & singlet excitaions")
+      end if
+
+    end if
+
   end subroutine ensureRangeSeparatedReqs
+
+
+  !> Stop if linear response module can not be invoked due to unimplemented combinations of
+  !> features.
+  subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces, solvation, isRS_LinResp,&
+      & nSpin)
+
+    !> 3rd order hamiltonian contributions included
+    logical, intent(in) :: t3rd
+
+    !> a real hamiltonian
+    logical, intent(in) :: tRealHs
+
+    !> periodic boundary conditions
+    logical, intent(in) :: tPeriodic
+
+    !> forces being evaluated in the excited state
+    logical, intent(in) :: tForces
+
+    !> Solvation data and calculations
+    class(TSolvation), allocatable :: solvation
+
+    !> Is this an excited state calculation with range separation
+    logical, intent(in) :: isRS_LinResp
+
+    !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
+    integer, intent(in) :: nSpin
+
+    if (withMpi) then
+      call error("Linear response calc. does not work with MPI yet")
+    end if
+
+    if (t3rd) then
+      call error("Third order currently incompatible with excited state")
+    end if
+    if (.not. tRealHS) then
+      call error("Only real systems are supported for excited state calculations")
+    end if
+    if (tPeriodic .and. tForces) then
+      call error("Forces in the excited state for periodic geometries are currently unavailable")
+    end if
+
+    if (allocated(solvation)) then
+      call error("Solvation models do not work with linear response yet.")
+    end if
+
+    if (isRS_LinResp) then
+      if (tPeriodic) then
+        call error("Range separated excited states for periodic geometries are currently&
+            & unavailable")
+      end if
+      if (nSpin > 1) then
+        call error("Range separated excited states for spin polarized calculations are currently&
+            & unavailable")
+      end if
+    end if
+
+  end subroutine ensureLinRespConditions
 
 
   !> Determine range separated cut-off and also update maximal cutoff
@@ -5190,8 +5287,8 @@ contains
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
           & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
-            & blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg, blurWidths,&
+            & is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
       case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
         call error("REKS is not compatible with density matrix ELSI-solvers")
       end select

@@ -5,7 +5,9 @@ set(sources-fpp
   ${curdir}/pprpa.F90)
 
 if(WITH_ARPACK)
-  list(APPEND sources-fpp ${curdir}/linrespgrad.F90)
+  list(APPEND sources-fpp
+    ${curdir}/linrespgrad.F90
+    ${curdir}/rs_linresp.F90)
 endif(WITH_ARPACK)
 
 list(APPEND sources-fpp
