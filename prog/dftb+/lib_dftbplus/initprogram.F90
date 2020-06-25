@@ -25,6 +25,7 @@ module dftbp_initprogram
   use dftbp_elecsolvers
   use dftbp_elsisolver, only : TElsiSolver_init, TElsiSolver_final
   use dftbp_elsiiface
+  use dftbp_arpack, only : withArpack
   use dftbp_gpuinfo, only : gpuInfo
   use dftbp_periodic
   use dftbp_accuracy
@@ -73,6 +74,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
+  use dftbp_linresptypes
   use dftbp_pprpa, only : TppRPAcal
   use dftbp_RangeSeparated
   use dftbp_stress
@@ -367,7 +369,6 @@ module dftbp_initprogram
 
   !> l-values of U-J for each block
   integer, allocatable :: iUJ(:,:,:)
-
 
   !> electron temperature
   real(dp) :: tempElec
@@ -683,7 +684,7 @@ module dftbp_initprogram
   logical :: tPrintExcitedEigVecs
 
   !> data type for linear response
-  type(TLinresp) :: lresp
+  type(TLinResp), allocatable :: linearResponse
 
   !> Whether to run a range separated calculation
   logical :: isRangeSep
@@ -1725,6 +1726,9 @@ contains
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
     isLinResp = input%ctrl%lrespini%tInit
+    if (isLinResp) then
+      allocate(linearResponse)
+    end if
 
     select case(hamiltonianType)
     case default
@@ -2099,47 +2103,13 @@ contains
 
     if (isLinResp) then
 
-      ! input sanity checking
-    #:if not WITH_ARPACK
-      call error("This binary has been compiled without support for linear response calculations.")
-    #:endif
-      call ensureLinRespConditions(t3rd .or. t3rdFull, tRealHS, tPeriodic, tCasidaForces,&
-          & solvation, isRS_LinResp, nSpin)
-      if (.not. tSccCalc) then
-        call error("Linear response excitation requires SCC=Yes")
+      ! input checking for linear response
+      if (.not. withArpack) then
+        call error("This binary has been compiled without support for linear response&
+            & calculations.")
       end if
-      if (nspin > 2) then
-        call error("Linear reponse does not work with non-colinear spin polarization yet")
-      elseif (tSpin .and. tCasidaForces) then
-        call error("excited state forces are not implemented yet for spin-polarized systems")
-      elseif (tPeriodic .and. tCasidaForces) then
-        call error("excited state forces are not implemented yet for periodic systems")
-      elseif ((tPeriodic .or. tHelical) .and. .not.tRealHS) then
-        call error("Linear response only works with non-periodic or gamma-point molecular crystals")
-      elseif (tSpinOrbit) then
-        call error("Linear response does not support spin orbit coupling at the moment.")
-      elseif (tDFTBU) then
-        call error("Linear response does not support LDA+U yet")
-      elseif (input%ctrl%tShellResolved) then
-        call error("Linear response does not support shell resolved scc yet")
-      end if
-      if (tempElec > 0.0_dp .and. tCasidaForces) then
-        write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
-            & occupations, kT=", tempElec/Boltzmann,"K"
-        call warning(tmpStr)
-      end if
-
-      if (input%ctrl%lrespini%nstat == 0) then
-        if (tCasidaForces) then
-          call error("Excited forces only available for StateOfInterest non zero.")
-        end if
-        if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then
-          call error("Excited eigenvectors only available for StateOfInterest non zero.")
-        end if
-      end if
-      if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
-        call error("Negative energy window for excitations")
-      end if
+      call ensureLinRespConditions(tSccCalc, t3rd .or. t3rdFull, tRealHS, tPeriodic, tCasidaForces,&
+          & solvation, isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, tDFTBU, tempElec, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
       allocate(input%ctrl%lrespini%HubbardU(nType))
@@ -2180,8 +2150,7 @@ contains
             & corrections")
       end if
 
-      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements,&
-          & nMovedAtom)
+      call LinResp_init(linearResponse, input%ctrl%lrespini, nAtom, nEl(1), onSiteElements)
 
     end if
 
@@ -2367,7 +2336,7 @@ contains
 
     if (isRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
-          & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, lresp, onSiteElements)
+          & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, linearResponse, onSiteElements)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
           & tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
@@ -4831,7 +4800,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, tShellResolved,&
-      & tAtomicEnergy, rangeSepInp, isRS_LinResp, lresp, onSiteElements)
+      & tAtomicEnergy, rangeSepInp, isRS_LinResp, linearResponse, onSiteElements)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4855,7 +4824,7 @@ contains
     logical, intent(in) :: isRS_LinResp
 
     !> data type for linear response
-    type(TLinresp), intent(in) :: lresp
+    type(TLinresp), intent(in), allocatable :: linearResponse
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
@@ -4919,7 +4888,7 @@ contains
             & calculations")
       end if
 
-      if (lresp%symmetry /= "S") then
+      if (linearResponse%symmetry /= "S") then
         call error("Excited state range separated calculations currently only implemented for&
             & singlet excitaions")
       end if
@@ -4931,8 +4900,11 @@ contains
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
-  subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces, solvation, isRS_LinResp,&
-      & nSpin)
+  subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
+      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, tDFTBU, tempElec, input)
+
+    !> Is the calculation SCC?
+    logical, intent(in) :: tSccCalc
 
     !> 3rd order hamiltonian contributions included
     logical, intent(in) :: t3rd
@@ -4944,7 +4916,7 @@ contains
     logical, intent(in) :: tPeriodic
 
     !> forces being evaluated in the excited state
-    logical, intent(in) :: tForces
+    logical, intent(in) :: tCasidaForces
 
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
@@ -4955,8 +4927,32 @@ contains
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
 
+    !> Is this a spin polarised calculation
+    logical, intent(in) :: tSpin
+
+    !> If the calculation is helical geometry
+    logical :: tHelical
+
+    !> Is there spin-orbit coupling
+    logical, intent(in) :: tSpinOrbit
+
+    !> Is this a DFTB+U calculation?
+    logical, intent(in) :: tDFTBU
+
+    !> Temperature of the electrons
+    real(dp), intent(in) :: tempElec
+
+    !> Holds the parsed input data.
+    type(TInputData), intent(in), target :: input
+
+    character(lc) :: tmpStr
+
     if (withMpi) then
       call error("Linear response calc. does not work with MPI yet")
+    end if
+
+    if (.not. tSccCalc) then
+      call error("Linear response excitation requires SCC=Yes")
     end if
 
     if (t3rd) then
@@ -4965,12 +4961,48 @@ contains
     if (.not. tRealHS) then
       call error("Only real systems are supported for excited state calculations")
     end if
-    if (tPeriodic .and. tForces) then
+    if ((tPeriodic .or. tHelical) .and. .not.tRealHS) then
+      call error("Linear response only works with non-periodic or gamma-point molecular crystals")
+    end if
+    if (tPeriodic .and. tCasidaForces) then
       call error("Forces in the excited state for periodic geometries are currently unavailable")
     end if
 
     if (allocated(solvation)) then
       call error("Solvation models do not work with linear response yet.")
+    end if
+
+    if (nspin > 2) then
+      call error("Linear reponse does not work with non-colinear spin polarization yet")
+    end if
+
+    if (tSpin .and. tCasidaForces) then
+      call error("excited state forces are not implemented yet for spin-polarized systems")
+    end if
+
+    if (tSpinOrbit) then
+      call error("Linear response does not support spin orbit coupling at the moment.")
+    end if
+    if (tDFTBU) then
+      call error("Linear response does not support LDA+U yet")
+    end if
+    if (input%ctrl%tShellResolved) then
+      call error("Linear response does not support shell resolved scc yet")
+    end if
+
+    if (tempElec > 0.0_dp .and. tCasidaForces) then
+      write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
+          & occupations, kT=", tempElec/Boltzmann,"K"
+      call warning(tmpStr)
+    end if
+
+    if (input%ctrl%lrespini%nstat == 0) then
+      if (tCasidaForces) then
+        call error("Excited forces only available for StateOfInterest non zero.")
+      end if
+      if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then
+        call error("Excited eigenvectors only available for StateOfInterest non zero.")
+      end if
     end if
 
     if (isRS_LinResp) then
@@ -4981,6 +5013,10 @@ contains
       if (nSpin > 1) then
         call error("Range separated excited states for spin polarized calculations are currently&
             & unavailable")
+      end if
+    else
+      if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
+        call error("Negative energy window for excitations")
       end if
     end if
 

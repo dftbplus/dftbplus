@@ -4070,6 +4070,8 @@ molecular (non-periodic) singlet systems that do not have fractional fillings.
     \kw{EnergyWindow}           & r & & FORTRAN HUGE() & \\
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
+    \kw{WriteTransitionCharges} & l & \parbox{0.3\textwidth}{\raggedright
+      \is{RangeSeparated} and \is{StateOfInterest} non-zero} & No & \\
     \kw{WriteSPTransitions}     & l & & No & \\
     \kw{WriteMulliken}          & l & & No & \\
     \kw{WriteCoefficients}      & l & & No & \\
@@ -4124,6 +4126,11 @@ molecular (non-periodic) singlet systems that do not have fractional fillings.
     created, which contains the spectrum at the uncoupled DFTB level (i.e.\ the
     single-particle excitations).
 
+  \item[\is{WriteTransitionCharges}] For range separated calculations
+    (p.~\pref{sec:dftbp.RangeSep}) setting this to \is{Yes} generates the file
+    ATQ.DAT containing the Mulliken charges for a specific transition (chosen by
+    \is{StateOfInterest}).
+
   \item[\is{WriteMulliken}] If set to \is{Yes}, the files XCH.DAT and XREST.DAT
     are created. The former contains atom-resolved Mulliken (gross) charges for
     the excited state of interest, the latter the excited-state dipole moment of
@@ -4135,7 +4142,8 @@ molecular (non-periodic) singlet systems that do not have fractional fillings.
     relaxed excited state density matrix.
 
   \item[\is{WriteEigenvectors}] If set to \is{Yes}, the file excitedOrbs.bin is
-    created. This file contains the natural orbitals for the specified excited
+    created (and excitedOrbs.out depending on whether \is{EigenvectorsAsText} is
+    true). This file contains the natural orbitals for the specified excited
     state.
 
   \item[\is{TotalStateCoeffs}] Option to control data from
