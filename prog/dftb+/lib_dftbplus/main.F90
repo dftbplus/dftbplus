@@ -64,6 +64,9 @@ module dftbp_main
   use dftbp_linresp
   use dftbp_linresptypes
   use dftbp_pprpa, only : ppRPAenergies
+#:if WITH_ARPACK
+  use dftbp_RS_LinearResponse
+#:endif
   use dftbp_mainio
   use dftbp_commontypes
   use dftbp_dispersions, only : TDispersionIface
@@ -518,7 +521,7 @@ contains
 
         ! check charge convergece and guess new eigenvectors
         tStopScc = hasStopFile(fStopScc)
-        if (tRangeSep) then
+        if (isRangeSep) then
           call getReksNextInputDensity(sccErrorQ, sccTol, tConverged, iSccIter, minSccIter,&
               & maxSccIter, iGeoStep, tStopScc, eigvecsReal, deltaRhoOut, deltaRhoIn, deltaRhoDiff,&
               & reks)
@@ -551,7 +554,7 @@ contains
                 & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol,&
                 & tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
                 & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, allocated(thirdOrd),&
-                & tRangeSep)
+                & isRangeSep)
           end if
           if (tWriteBandDat) then
             call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -629,7 +632,7 @@ contains
             & deltaRhoInSqr, deltaRhoOutSqr, qOutput, nNeighbourLC, tLargeDenseMatrices)
 
         !> For rangeseparated calculations deduct atomic charges from deltaRho
-        if (tRangeSep) then
+        if (isRangeSep) then
           select case(nSpin)
           case(2)
             do iSpin = 1, 2
@@ -700,7 +703,7 @@ contains
 
         ! Mix charges Input/Output
         if (tSccCalc) then
-          if(.not. tRangeSep) then
+          if(.not. isRangeSep) then
             call getNextInputCharges(env, pChrgMixer, qOutput, qOutRed, orb, nIneqOrb, iEqOrbitals,&
                 & iGeoStep, iSccIter, minSccIter, maxSccIter, sccTol, tStopScc, tMixBlockCharges,&
                 & tReadChrg, qInput, qInpRed, sccErrorQ, tConverged, qBlockOut, iEqBlockDftbU,&
@@ -742,7 +745,7 @@ contains
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
               & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
-              & tRangeSep, allocated(thirdOrd), allocated(solvation), cm5Cont)
+              & isRangeSep, allocated(thirdOrd), allocated(solvation), cm5Cont)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -762,19 +765,21 @@ contains
     call env%globalTimer%startTimer(globalTimers%postSCC)
 
     if (isLinResp) then
-      if (withMpi) then
-        call error("Linear response calc. does not work with MPI yet")
+      if (.not. isRS_LinResp) then
+        call calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+            & over, eigvecsReal, eigen(:,1,:), filling(:,1,:), coord, species, speciesName, orb,&
+            & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList,&
+            & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces,&
+            & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy,&
+            & energiesCasida, SSqrReal, rhoSqrReal, excitedDerivs, dQAtomEx, occNatural)
+      else
+        call calculateLinRespExcitations_RS(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+            & over, eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
+            & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
+            & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
+            & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida,&
+            & SSqrReal, deltaRhoOutSqr, excitedDerivs, dQAtomEx, occNatural, rangeSep)
       end if
-      if (allocated(solvation)) then
-        call error("Solvation model do not work with linear response yet.")
-      end if
-      call ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tCasidaForces)
-      call calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0, over,&
-          & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord, species, speciesName, orb, tHelical,&
-          & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
-          & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
-          & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida, SSqrReal,&
-          & rhoSqrReal, excitedDerivs, occNatural)
     end if
 
     if (allocated(ppRPA)) then
@@ -1126,8 +1131,9 @@ contains
 
 
   !> Does the operations that are necessary after a lattice vector update
-  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion, solvation, &
-      & cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs, rCellVecs)
+  subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
+      & solvation,  cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs,&
+      & rCellVecs)
 
     !> lattice vectors
     real(dp), intent(in) :: latVecs(:,:)
@@ -2419,12 +2425,12 @@ contains
 
   !> Returns the density matrix using dense diagonalisation.
   subroutine getDensityFromDenseDiag(env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
-      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, iAtomStart, tHelical, coord,&
-      & species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tFillKSep,&
-      & tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep, eigen,&
-      & filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal, eigvecsReal,&
-      & iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr, deltaRhoOutSqr,&
-      & qOutput, nNeighbourLC)
+      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, iAtomStart, tHelical,&
+      & coord, species, electronicSolver, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit,&
+      & tFillKSep, tFixEf, tMulliken, iDistribFn, tempElec, nEl, parallelKS, Ef, energy, rangeSep,&
+      & eigen, filling, rhoPrim, Eband, TS, E0, iHam, xi, orbitalL, HSqrReal, SSqrReal,&
+      & eigvecsReal, iRhoPrim, HSqrCplx, SSqrCplx, eigvecsCplx, rhoSqrReal, deltaRhoInSqr,&
+      & deltaRhoOutSqr, qOutput, nNeighbourLC)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -2755,7 +2761,7 @@ contains
 
       ! Add rangeseparated contribution
       ! Assumes deltaRhoInSqr only used by rangeseparation
-      ! Should this be used elsewhere, need to pass tRangeSep
+      ! Should this be used elsewhere, need to pass isRangeSep
       if (allocated(rangeSep)) then
         call denseMulliken(deltaRhoInSqr, SSqrReal, denseDesc%iAtomStart, qOutput)
         call rangeSep%addLRHamiltonian(env, deltaRhoInSqr(:,:,iSpin), over,&
@@ -3611,8 +3617,9 @@ contains
   !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock,&
-      & qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, qDepExtPot,&
+      & qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
+      & onSiteElements)
 
     !> SCC module internal variables
     type(TScc), allocatable, intent(in) :: sccCalc
@@ -3684,7 +3691,7 @@ contains
     class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
@@ -4382,42 +4389,13 @@ contains
   end function needsSccRestartWriting
 
 
-  !> Stop if linear response module can not be invoked due to unimplemented combinations of
-  !> features.
-  subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces)
-
-    !> 3rd order hamiltonian contributions included
-    logical, intent(in) :: t3rd
-
-    !> a real hamiltonian
-    logical, intent(in) :: tRealHs
-
-    !> periodic boundary conditions
-    logical, intent(in) :: tPeriodic
-
-    !> forces being evaluated in the excited state
-    logical, intent(in) :: tForces
-
-    if (t3rd) then
-      call error("Third order currently incompatible with excited state")
-    end if
-    if (.not. tRealHS) then
-      call error("Only real systems are supported for excited state calculations")
-    end if
-    if (tPeriodic .and. tForces) then
-      call error("Forces in the excited state for periodic geometries are currently unavailable")
-    end if
-
-  end subroutine ensureLinRespConditions
-
-
   !> Do the linear response excitation calculation.
   subroutine calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
-      & over, eigvecsReal, eigen, filling, coord, species, speciesName, orb, tHelical, skHamCont,&
+      & over, eigvecsReal, eigen, filling, coord, species, speciesName, orb, skHamCont,&
       & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
       & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, energies, work, rhoSqrReal, excitedDerivs,&
-      & occNatural)
+      & dQAtomEx, occNatural)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
@@ -4460,9 +4438,6 @@ contains
 
     !> Atomic orbital information
     type(TOrbitals), intent(in) :: orb
-
-    !> Is the geometry helical
-    logical, intent(in) :: tHelical
 
     !> non-SCC hamiltonian information
     type(TSlakoCont), intent(in) :: skHamCont
@@ -4527,6 +4502,9 @@ contains
     !> excited state energy derivative with respect to atomic coordinates
     real(dp), intent(inout), allocatable :: excitedDerivs(:,:)
 
+    !> Mulliken charges in excited state
+    real(dp), intent(out) :: dQAtomEx(:)
+
     !> natural orbital occupation numbers
     real(dp), intent(inout), allocatable :: occNatural(:)
 
@@ -4544,13 +4522,8 @@ contains
     energy%Eexcited = 0.0_dp
     allocate(dQAtom(nAtom))
     dQAtom(:) = sum(qOutput(:,:,1) - q0(:,:,1), dim=1)
-    if (tHelical) then
-      call unpackHelicalHS(work, over, neighbourList%iNeighbour, nNeighbourSK,&
-          & denseDesc%iAtomStart, iSparseStart, img2CentCell, orb, species, coord)
-    else
-      call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
-          & iSparseStart, img2CentCell)
-    end if
+    call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
+        & iSparseStart, img2CentCell)
     call blockSymmetrizeHS(work, denseDesc%iAtomStart)
     if (tForces) then
       do iSpin = 1, nSpin
@@ -4589,6 +4562,206 @@ contains
 
   end subroutine calculateLinRespExcitations
 
+  !> Do the linear response excitation calculation with range-separated Hamiltonian.
+  subroutine calculateLinRespExcitations_RS(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+      & over, eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont,&
+      & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
+      & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+      & tPrintExcEigvecsTxt, nonSccDeriv, energy, energies, work, deltaRhoOutSqr, excitedDerivs,&
+      & dQAtomEx, occNatural, rangeSep)
+
+    !> Environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> excited state settings
+    type(TLinResp), intent(inout) :: linearResponse
+
+    !> K-points and spins to process
+    type(TParallelKS), intent(in) :: parallelKS
+
+    !> SCC module internal variables
+    type(TScc), intent(in) :: sccCalc
+
+    !> electrons in atomic orbitals
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> reference atomic orbital occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> sparse overlap matrix
+    real(dp), intent(in) :: over(:)
+
+    !> ground state eigenvectors
+    real(dp), intent(inout) :: eigvecsReal(:,:,:)
+
+    !> ground state eigenvalues (orbital, kpoint)
+    real(dp), intent(in) :: eigen(:,:)
+
+    !> ground state fillings (orbital, kpoint)
+    real(dp), intent(in) :: filling(:,:)
+
+    !> central cell coordinates
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> species of all atoms in the system
+    integer, target, intent(in) :: species(:)
+
+    !> label for each atomic chemical species
+    character(*), intent(in) :: speciesName(:)
+
+    !> Atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+    !> non-SCC hamiltonian information
+    type(TSlakoCont), intent(in) :: skHamCont
+
+    !> overlap information
+    type(TSlakoCont), intent(in) :: skOverCont
+
+    !> File name for regression data
+    character(*), intent(in) :: autotestTag
+
+    !> Tagged writer
+    type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    !> Job ID for future identification
+    integer, intent(in) :: runId
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> should regression test data be written
+    logical, intent(in) :: tWriteAutotest
+
+    !> forces to be calculated in the excited state
+    logical, intent(in) :: tForces
+
+    !> require the Z vector for excited state properties
+    logical, intent(in) :: tLinRespZVect
+
+    !> print natural orbitals of the excited state
+    logical, intent(in) :: tPrintExcEigvecs
+
+    !> print natural orbitals also in text form?
+    logical, intent(in) :: tPrintExcEigvecsTxt
+
+    !> method for calculating derivatives of S and H0
+    type(TNonSccDiff), intent(in) :: nonSccDeriv
+
+    !> Energy contributions and total
+    type(TEnergies), intent(inout) :: energy
+
+    !> energes of all solved states
+    real(dp), intent(inout), allocatable :: energies(:)
+
+    !> Working array of the size of the dense matrices.
+    real(dp), intent(out) :: work(:,:)
+
+    !> density matrix in dense form
+   !real(dp), intent(inout), allocatable :: rhoSqrReal(:,:,:)
+    real(dp), intent(inout) :: deltaRhoOutSqr(:,:,:)
+
+    !> excited state energy derivative with respect to atomic coordinates
+    real(dp), intent(inout), allocatable :: excitedDerivs(:,:)
+
+    !> Mulliken charges in excited state
+    real(dp), intent(out) :: dQAtomEx(:)
+
+    !> natural orbital occupation numbers
+    real(dp), intent(inout), allocatable :: occNatural(:)
+
+    !> Data from rangeseparated calculations
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
+
+
+    real(dp), allocatable :: dQAtom(:)
+    real(dp), allocatable :: naturalOrbs(:,:,:)
+    integer, pointer :: pSpecies0(:)
+    integer :: iSpin, nSpin, nAtom, fdAutotest
+    logical :: tSpin
+    ! Onsite corrections -- remain dummy as they are not calculated
+    logical, parameter :: tOnsite = .false.
+    real(dp), allocatable :: ons_en(:,:), ons_dip(:,:)
+    integer :: i, norb
+
+    nAtom = size(qOutput, dim=2)
+    nSpin = size(eigen, dim=2)
+    tSpin = (nSpin == 2)
+    pSpecies0 => species(1:nAtom)
+
+    norb = size(eigvecsReal, dim=1)
+
+    energy%Eexcited = 0.0_dp
+    allocate(dQAtom(nAtom))
+    dQAtom(:) = sum(qOutput(:,:,1) - q0(:,:,1), dim=1)
+    call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
+        & iSparseStart, img2CentCell)
+    call blockSymmetrizeHS(work, denseDesc%iAtomStart)
+    !call unpackHS(SSqrReal, over, neighbourList%iNeighbour, nNeighbour,&
+    !     & denseDesc%iAtomStart, iPair, img2CentCell)
+    !call blockSymmetrizeHS(SSqrReal, iAtomStart)
+    if (tForces) then
+      do iSpin = 1, nSpin
+        call blockSymmetrizeHS(deltaRhoOutSqr(:,:,iSpin), denseDesc%iAtomStart)
+      end do
+    end if
+
+    if (tWriteAutotest) then
+      open(newUnit=fdAutotest, file=autotestTag, position="append")
+    end if
+
+    if (tLinRespZVect) then
+      if (tPrintExcEigVecs) then
+        allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
+      end if
+      ! WITH FORCES
+      excitedDerivs = 0.0_dp
+    #:if WITH_ARPACK
+      call linRespCalcExcitationsRS(tSpin, tOnsite, linearResponse, denseDesc%iAtomStart,&
+          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0,&
+          & linearResponse%HubbardU, neighbourList%iNeighbour, img2CentCell, orb, rangeSep,&
+          & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, skHamCont, skOverCont,&
+          & nonSccDeriv, deltaRhoOutSqr(:,:,1), excitedDerivs, dQAtomEx)
+    #:else
+      call error("Should not be here - compiled without ARPACK")
+    #:endif
+      if (tPrintExcEigvecs) then
+        call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
+            & img2CentCell, pSpecies0, speciesName, orb, over, parallelKS, tPrintExcEigvecsTxt,&
+            & naturalOrbs, work, fileName="excitedOrbs")
+      end if
+    else
+      ! NO FORCES
+    #:if WITH_ARPACK
+      call linRespCalcExcitationsRS(tSpin, tOnsite, linearResponse, denseDesc%iAtomStart,&
+          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0,&
+          & linearResponse%HubbardU, neighbourList%iNeighbour, img2CentCell, orb, rangeSep,&
+          & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited)
+    #:else
+      call error("Should not be here - compiled without ARPACK")
+    #:endif
+    end if
+
+    energy%Etotal = energy%Etotal + energy%Eexcited
+    energy%EMermin = energy%EMermin + energy%Eexcited
+    energy%EGibbs = energy%EGibbs + energy%Eexcited
+    if (tWriteAutotest) then
+      close(fdAutotest)
+    end if
+
+  end subroutine calculateLinRespExcitations_RS
 
   !> Get the XLBOMD charges for the current geometry.
   subroutine getXlbomdCharges(xlbomdIntegrator, qOutRed, pChrgMixer, orb, nIneqOrb, iEqOrbitals,&
@@ -5637,7 +5810,7 @@ contains
     class(TDispersionIface), intent(inout), allocatable :: dispersion
 
     !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> dense overlap matrix, required for rangeSep
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
@@ -5889,7 +6062,8 @@ contains
   subroutine getStress(env, sccCalc, thirdOrd, tExtField, nonSccDeriv, rhoPrim, ERhoPrim, qOutput,&
       & q0, skHamCont, skOverCont, pRepCont, neighbourList, nNeighbourSk, nNeighbourRep, species,&
       & img2CentCell, iSparseStart, orb, potential, coord, latVec, invLatVec, cellVol, coord0,&
-      & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion, halogenXCorrection)
+      & totalStress, totalLatDeriv, intPressure, iRhoPrim, solvation, dispersion,&
+      & halogenXCorrection)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env

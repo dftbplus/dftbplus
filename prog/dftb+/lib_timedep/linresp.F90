@@ -91,6 +91,9 @@ module dftbp_linresp
     !> write more detail on excited state transitions
     logical :: tTrans
 
+    !> write excited state transition charges
+    logical :: tTransQ
+
     !> dipole strengths to excited states
     logical :: tTradip
 
@@ -121,7 +124,7 @@ contains
 
 
   !> Initialize an internal data type for linear response excitations
-  subroutine LinResp_init(this, ini, nAtom, nEl, orb, tCasidaForces, onSiteMatrixElements)
+  subroutine LinResp_init(this, ini, nAtom, nEl, onSiteMatrixElements)
 
     !> data structure for linear response
     type(TLinResp), intent(out) :: this
@@ -134,12 +137,6 @@ contains
 
     !> number of electrons in total
     real(dp), intent(in) :: nEl
-
-    !> data on atomic orbitals
-    type(TOrbitals), intent(in) :: orb
-
-    !> Are excited state force contributions required
-    logical, intent(in) :: tCasidaForces
 
     !> onsite corrections if in use
     real(dp), allocatable :: onSiteMatrixElements(:,:,:,:)
@@ -180,6 +177,13 @@ contains
       else
         this%fdTrans = -1
       end if
+
+      if (ini%tTransQ) then
+        this%fdTransQ = getFileId()
+      else
+        this%fdTransQ = -1
+      end if
+
       if (ini%tSPTrans) then
         this%fdSPTrans = getFileId()
       else

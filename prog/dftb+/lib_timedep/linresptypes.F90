@@ -72,6 +72,9 @@ module dftbp_linresptypes
     !> File unit for single particle (KS) transitions if required
     integer :: fdTrans = -1
 
+    !> File unit for single particle (KS) transition charges if required
+    integer :: fdTransQ = -1
+
     !> File unit for single particle transition dipole strengths
     integer :: fdSPTrans = -1
 

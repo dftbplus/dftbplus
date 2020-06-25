@@ -32,6 +32,8 @@ rangesep/Thymine-T1-force              #? not WITH_MPI
 rangesep/cyclopropene_nb_restart       #? not WITH_MPI
 rangesep/C240_tn                       #? not WITH_MPI and LONG_TEST
 rangesep/Thymine-T1_onsite             #? not WITH_MPI
+rangesep/C4H6-Casida-S1-Force          #? not WITH_MPI and WITH_ARPACK
+rangesep/Benzene-Casida-S5-Force       #? not WITH_MPI and WITH_ARPACK
 
 reks/C2H4_3SSR_rangesep                #? not WITH_MPI
 reks/C2H4_direct                       #? not WITH_MPI
@@ -145,13 +147,16 @@ solvation/gb_reference                 #? MPI_PROCS <= 1
 solvation/gb_mol1bar                   #? MPI_PROCS <= 1
 solvation/gb_cm5                       #? MPI_PROCS <= 1
 solvation/gb_specieslist               #? MPI_PROCS <= 1
+solvation/gb_p16                       #? MPI_PROCS <= 1
 solvation/gbsa_e35                     #? MPI_PROCS <= 1
 solvation/gbsa_caffeine                #? MPI_PROCS <= 1
+solvation/gbsa_p16                     #? MPI_PROCS <= 1
 solvation/gbsa_param1                  #? MPI_PROCS <= 1
 solvation/gbsa_param2                  #? not WITH_MPI
 solvation/gbsa_param3                  #? MPI_PROCS <= 1
 solvation/alpb_cation                  #? MPI_PROCS <= 1
 solvation/alpb_anion                   #? MPI_PROCS <= 1
+solvation/alpb_p16                     #? MPI_PROCS <= 1
 
 timedep/2CH3-Temp                      #? WITH_ARPACK and MPI_PROCS <= 1
 timedep/2CH3-Triplet-Temp              #? WITH_ARPACK and MPI_PROCS <= 1
