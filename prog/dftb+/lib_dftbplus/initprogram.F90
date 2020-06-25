@@ -1780,7 +1780,7 @@ contains
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint, tForces,&
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
         & input%ctrl%parallelOpts, nIndepHam, tempElec)
     if (tRealHS) then
       nBufferedCholesky = 1
@@ -4640,8 +4640,7 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, tForces, parallelOpts, nIndepHam,&
-      & tempElec)
+  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
 
     !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -4651,9 +4650,6 @@ contains
 
     !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
-
-    !> Are forces required
-    logical, intent(in) :: tForces
 
     !> Options for a parallel calculation, if needed
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
