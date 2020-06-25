@@ -530,6 +530,10 @@ contains
     integer, intent(out) :: major, minor, patch
   end subroutine elsi_get_version
 
+  subroutine elsi_get_datestamp(datestamp)
+    integer, intent(out) :: datestamp
+  end subroutine elsi_get_datestamp
+
 #:endif
 
 end module dftbp_elsiiface
