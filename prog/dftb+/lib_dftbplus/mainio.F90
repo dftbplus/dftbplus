@@ -3830,9 +3830,9 @@ contains
     if (electronicSolver%providesEigenvals) then
       write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
           & "eV"
-      write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
-          & Hartree__eV * energy%EMermin, "eV"
     end if
+    write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
+        & Hartree__eV * energy%EMermin, "eV"
     if (tDefinedFreeE) then
       write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'

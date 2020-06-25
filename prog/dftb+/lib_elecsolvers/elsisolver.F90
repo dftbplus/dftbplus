@@ -21,7 +21,7 @@ module dftbp_elsisolver
   use dftbp_densedescr
   use dftbp_periodic
   use dftbp_orbitals
-  use dftbp_message, only : error, cleanshutdown
+  use dftbp_message, only : error, warning, cleanshutdown
   use dftbp_commontypes, only : TParallelKS, TOrbitals
   use dftbp_energies, only : TEnergies
   use dftbp_etemp, only : fillingTypes
@@ -57,7 +57,7 @@ module dftbp_elsisolver
     logical :: ommCholesky = .true.
 
     !> number of poles for PEXSI expansion
-    integer :: pexsiNPole = 20
+    integer :: pexsiNPole = 30
 
     !> number of processors per pole for PEXSI
     integer :: pexsiNpPerPole = 1
@@ -307,15 +307,12 @@ contains
 
   #:if WITH_ELSI
 
-    integer :: major, minor, patch
+    integer :: major, minor, patch, datestamp
 
     call elsi_get_version(major, minor, patch)
+    call elsi_get_datestamp(datestamp)
 
-    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :',major, minor, patch
-
-    if (.not. supportedVersionNumber(major, minor, patch)) then
-      call error("Unsuported ELSI version for DFTB+, requires release 2.5.0 or later")
-    end if
+    call supportedVersionNumber(major, minor, patch, datestamp)
 
     this%iSolver = inp%iSolver
 
@@ -474,31 +471,42 @@ contains
   end subroutine TElsiSolver_init
 
 
-  !> Checks for supported value of ELSI api, 2.5.0 being the minimum that DFTB+ can use at the
-  !> moment
-  pure function supportedVersionNumber(major, minor, patch)
+  !> Checks for supported value of ELSI api, 2.6.0 release tag being the currently required version
+  !> for DFTB+ can use at the moment
+  subroutine supportedVersionNumber(major, minor, patch, dateStamp)
 
     !> Version value components
     integer, intent(in) :: major, minor, patch
 
-    logical :: supportedVersionNumber
+    !> git commit date for the library
+    integer, intent(in) :: dateStamp
 
-    supportedVersionNumber = .true.
-    if (major < 2) then
-      supportedVersionNumber = .false.
-      return
-    end if
-    if (major == 2 .and. minor < 5) then
-      supportedVersionNumber = .false.
-      return
-    end if
-    ! no need to check patch in this case, as library must be >= 2.5.0, but just in case
-    if (major == 2 .and. minor == 5 .and. patch < 0) then
-      supportedVersionNumber = .false.
-      return
+    if (.not. all([major,minor,patch] == [2,6,0])) then
+      call error("Unsuported ELSI version for DFTB+, requires release 2.6.0")
     end if
 
-  end function supportedVersionNumber
+    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :', major, minor, patch
+
+    if (dateStamp /= 20200617) then
+      call warning("ELSI library version is between releases")
+    end if
+
+    !supportedVersionNumber = .true.
+    !if (major < 2) then
+    !  supportedVersionNumber = .false.
+    !  return
+    !end if
+    !if (major == 2 .and. minor < 6) then
+    !  supportedVersionNumber = .false.
+    !  return
+    !end if
+    !! no need to check patch in this case, as library must be >= 2.6.0, but just in case
+    !if (major == 2 .and. minor == 6 .and. patch < 0) then
+    !  supportedVersionNumber = .false.
+    !  return
+    !end if
+
+  end subroutine supportedVersionNumber
 
 
   !> Finalizes the ELSI solver.

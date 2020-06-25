@@ -50,7 +50,7 @@ module dftbp_elsiiface
   public :: elsi_set_mpi, elsi_set_mpi_global
   public :: elsi_set_blacs
   public :: elsi_set_sing_check
-  public :: elsi_get_version
+  public :: elsi_get_version, elsi_get_datestamp
 
 
   !> Whether code was built with ELSI support

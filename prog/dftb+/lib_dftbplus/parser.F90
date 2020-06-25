@@ -2366,7 +2366,7 @@ contains
       ctrl%solver%isolver = electronicSolverTypes%pexsi
       allocate(ctrl%solver%elsi)
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, 20)
+      call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, 30)
       call getChildValue(value1, "ProcsPerPole", ctrl%solver%elsi%pexsiNpPerPole, 1)
       call getChildValue(value1, "muPoints", ctrl%solver%elsi%pexsiNMu, 2)
       call getChildValue(value1, "SymbolicFactorProcs", ctrl%solver%elsi%pexsiNpSymbo, 1)
