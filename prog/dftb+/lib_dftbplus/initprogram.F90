@@ -4824,7 +4824,7 @@ contains
     logical, intent(in) :: isRS_LinResp
 
     !> data type for linear response
-    type(TLinresp), intent(in) :: linearResponse
+    type(TLinresp), intent(in), allocatable :: linearResponse
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
