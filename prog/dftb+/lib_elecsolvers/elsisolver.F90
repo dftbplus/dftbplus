@@ -455,9 +455,8 @@ contains
     this%OutputLevel = 3
   #:endcall DEBUG_CODE
 
-    if (nSpin == 4 .and. (this%isSparse .and. this%solver /= 1)) then
-      call error("Current solver configuration not avaible for two component complex&
-          & hamiltonians")
+    if (nSpin == 4 .and. this%isSparse) then
+      call error("Sparse solver not currently avaible for two component complex hamiltonians")
     end if
 
     this%tCholeskyDecomposed = .false.
