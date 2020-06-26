@@ -343,7 +343,9 @@ contains
     species0 = inputSpecies
     mass =  updateAtomicMasses(species0)
     orb%nOrbAtom = updateAtomicOrbitals(species0)
-  
+
+    call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
+
     !Used in partial charge initialisation
     call setEquivalencyRelations(species0, sccCalc, orb, onSiteElements, iEqOrbitals, &
          & iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS, nIneqOrb, nMixElements)
@@ -360,7 +362,7 @@ contains
     call initializeCharges(species0, speciesName, orb, nEl, iEqOrbitals, nIneqOrb, &
          & nMixElements, initialSpins, initialCharges, nrChrg, q0, qInput, qOutput, &
          & qInpRed, qOutRed, qDiffRed, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut)
-    
+
   end subroutine updateDataDependentOnSpeciesOrdering
 
 
