@@ -423,6 +423,9 @@ contains
 
     ! PEXSI settings
     this%pexsiNPole = inp%pexsiNPole
+    if (this%pexsiNPole > 40) then
+      call error("PEXSI currently supports a maximum of 40 poles")
+    end if
     this%pexsiNpPerPole = inp%pexsiNpPerPole
     this%pexsiNMu = inp%pexsiNMu
     this%pexsiNpSymbo = inp%pexsiNpSymbo
@@ -480,30 +483,28 @@ contains
     !> git commit date for the library
     integer, intent(in) :: dateStamp
 
-    if (.not. all([major,minor,patch] == [2,6,0])) then
-      call error("Unsuported ELSI version for DFTB+, requires release 2.6.0")
+    logical :: isSupported
+
+    isSupported = .true.
+    if (major < 2) then
+      isSupported = .false.
+    elseif (major == 2 .and. minor < 6) then
+      isSupported = .false.
+    elseif (major == 2 .and. minor == 6 .and. patch < 0) then
+      ! no need to check patch in this case, as library must be >= 2.6.0, but just in case of a
+      ! negative value
+      isSupported = .false.
+    end if
+
+    if (.not. isSupported) then
+      call error("Unsuported ELSI version for DFTB+, requires release >= 2.6.0")
     end if
 
     write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :', major, minor, patch
 
-    if (dateStamp /= 20200617) then
-      call warning("ELSI library version is between releases")
+    if (all([major,minor,patch] == [2,6,0]) .and. dateStamp /= 20200617) then
+      call warning("ELSI 2.6.0 library version is between releases")
     end if
-
-    !supportedVersionNumber = .true.
-    !if (major < 2) then
-    !  supportedVersionNumber = .false.
-    !  return
-    !end if
-    !if (major == 2 .and. minor < 6) then
-    !  supportedVersionNumber = .false.
-    !  return
-    !end if
-    !! no need to check patch in this case, as library must be >= 2.6.0, but just in case
-    !if (major == 2 .and. minor == 6 .and. patch < 0) then
-    !  supportedVersionNumber = .false.
-    !  return
-    !end if
 
   end subroutine supportedVersionNumber
 
