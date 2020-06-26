@@ -14,17 +14,20 @@ module dftbp_mainapi
   use dftbp_coherence,   only : checkExactCoherence, checkToleranceCoherence
   use dftbp_densedescr,  only : TDenseDescr
   use dftbp_environment, only : TEnvironment
-  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables,                    &
-       & energy, derivs, TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot,                &
-       & nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec, species0, mass,          &
-       & origin, tCoordsChanged, tLatticeChanged, tExtField, tExtChrg, tForces, tSccCalc, tDFTBU,    &
-       & tFracCoord, tMulliken, tSpin, tReadChrg, tMixBlockCharges, tRangeSep, t2Component, tRealHS, &
-       & q0, qInput, qOutput, qInpRed, qOutRed, qshell0, referenceN0, qDiffRed, nrChrg, nrSpinPol, &
-       & setEquivalencyRelations, iEqOrbitals, nIneqOrb, nMixElements, onSiteElements, denseDesc,  &
-       & parallelKS, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal, getDenseDescCommon, &
-       & initializeReferenceCharges, setNElectrons, initializeCharges, qBlockIn, qBlockOut,        &
-       & qiBlockIn, qiBlockOut, iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS,  &
-       & tStress, totalStress, hamiltonianType, dQAtomEx, isLinResp
+  use dftbp_initprogram, only : initProgramVariables, destructProgramVariables, energy, derivs
+  use dftbp_initprogram, only : TRefExtPot, refExtPot, orb, sccCalc, chrgForces, qDepExtPot
+  use dftbp_initprogram, only : nAtom, nSpin, nEl0, nEl, speciesName, speciesMass, coord0, latVec
+  use dftbp_initprogram, only : species0, mass, origin, tCoordsChanged, tLatticeChanged, tExtField
+  use dftbp_initprogram, only : tExtChrg, tForces, tSccCalc, tDFTBU, tFracCoord, tMulliken, tSpin
+  use dftbp_initprogram, only : tReadChrg, tMixBlockCharges, isRangeSep, t2Component, tRealHS
+  use dftbp_initprogram, only : q0, qInput, qOutput, qInpRed, qOutRed, qshell0, referenceN0
+  use dftbp_initprogram, only : qDiffRed, nrChrg, nrSpinPol, setEquivalencyRelations, iEqOrbitals
+  use dftbp_initprogram, only : nIneqOrb, nMixElements, onSiteElements, denseDesc, parallelKS
+  use dftbp_initprogram, only : HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, SSqrReal, eigVecsReal
+  use dftbp_initprogram, only : getDenseDescCommon, initializeReferenceCharges, setNElectrons
+  use dftbp_initprogram, only : initializeCharges, qBlockIn, qBlockOut, qiBlockIn, qiBlockOut
+  use dftbp_initprogram, only : iEqBlockDFTBU, iEqBlockOnSite, iEqBlockDFTBULS, iEqBlockOnSiteLS
+  use dftbp_initprogram, only : tStress, totalStress, hamiltonianType, dQAtomEx, isLinResp
 #:if WITH_SCALAPACK
   use dftbp_initprogram,  only : getDenseDescBlacs
 #:endif
@@ -349,8 +352,8 @@ contains
     call reallocateHSArrays(env, denseDesc, HSqrCplx, SSqrCplx, eigVecsCplx, HSqrReal, &
          & SSqrReal, eigVecsReal)
 #:endif
-    !If atomic order changes, partial charges need to be initialised,                                                   
-    !else wrong charge will be associated with each atom                                                                
+    !If atomic order changes, partial charges need to be initialised,
+    !else wrong charge will be associated with each atom
     call initializeReferenceCharges(species0, referenceN0, orb, customOccAtoms, &
          & customOccFillings, q0, qshell0)
     call setNElectrons(q0, nrChrg, nrSpinPol, nEl, nEl0)
