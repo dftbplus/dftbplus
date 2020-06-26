@@ -112,9 +112,9 @@ module dftbp_taggedoutput
     character(lenLabel) :: ehrenvelos = 'final_ehrenfest_velo'
 
     !> final molecular orbitals occupations after real-time (Ehrenfest) propagation
-    character(lenLabel) :: tdprojocc = 'final_td_proj_occupations'
+    character(lenLabel) :: tdprojocc = 'final_td_proj_occ'
 
-    !> Sum of bond order values
+    !> Sum of bond populaion values (should be number of electrons)
     character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
 
     !> total energy including electron TS contribution
