@@ -3983,7 +3983,9 @@ time-dependent properties.
   \kw{EnvelopeShape} & m & Perturbation = Laser\cb & Constant & \pref{sec:dftbp.envelope} \\
   \kw{Populations} & l & & No & \\
   \kw{Restart} & l & & No & \\
+  \kw{RestartFromAscii} & l & Restart = Yes & No & \\
   \kw{WriteRestart} & l & & Yes & \\
+  \kw{WriteAsciiRestart} & l & WriteRestart = Yes & No & \\
   \kw{WriteFrequency} & i & & 50 & \\
   \kw{RestartFrequency} & i & & Steps/10 & \\
   \kw{Forces} & l & & No & \\
@@ -4017,10 +4019,20 @@ time-dependent properties.
   \verb|molpopul1.dat| (and \verb|molpopul2.dat| is the calculation is
   collinearly spin polarised).
 
-\item[\is{Restart}] If calculation should be restarted. The restart
-  file \verb|tddump.bin| must in the working directory.
+\item[\is{Restart}] If calculation should be restarted. A restart file
+  \verb|tddump.bin| (or \verb|tddump.dat|) must be available in the working
+  directory.
 
-\item[\is{WriteRestart}] If restart file \verb|tddump.bin| should be written.
+\item[\is{RestartFromAscii}] If this is a restart calculation (\is{Restart} =
+  \is{Yes}), read \verb|tddump.dat| instead of \verb|tddump.bin| in the working
+  directory.
+
+\item[\is{WriteRestart}] If a restart tddump file should be written. Details of
+  the contents of the file are discussed in appendix~\ref{app:tddump}.
+
+\item[\is{WriteAsciiRestart}] If a restart file is being written, select between
+  producing \verb|tddump.bin| (\is{No}) or if set to \is{Yes},
+  \verb|tddump.dat|.
 
 \item[\is{RestartFrequency}] Number of steps every which the system's
   state should be writen to restart file.
@@ -4044,9 +4056,9 @@ time-dependent properties.
 
 \item[\is{InitialTemperature}]\modif{\modtype{energy}} Create starting
   velocities for the Ehrenfest MD according to the Maxwell-Boltzmann
-  distribution at the specified temperature. This is redundant in the
-  case of specified initial velocities. See section
-  \ref{sec:dftbp.Thermostat}.
+  distribution at the specified temperature. This keyword is redundant in the
+  case of specified initial velocities or for a restarted trajectory, so is
+  omitted in those cases.
 
 \item[\is{Velocities}]\modif{\modtype{velocity}} Specified atomic
   velocities for all the atoms of the given structure (including
@@ -4078,8 +4090,9 @@ time-dependent properties.
   only the dipole moment output files will be written, since this
   keyword is used together with a \is{Kick} perturbation to probe the
   system. Notice that the dump file that contains the state of the
-  system that wants to be probed must be present and renamed to
-  \verb|tddump.bin|.
+  system that you want to be probed must be present and renamed to
+  \verb|tddump.bin| (or \verb|tddump.dat| if using the ascii
+  version of this data).
 
 \item[\is{EulerFrequency}] Number of steps every which an Euler
   integration step is done in the electronic propagation (that
@@ -5071,8 +5084,9 @@ total charge and magnetisation. In the case of orbital potentials
 (p.~\pref{sec:DFTB+U}) the file also contains extra population information for
 the occupation matrices.
 
-This file is produced as part of the mechanism to restart SCC calculations, see
-sections~\ref{kw:dftbp.RestartFrequency} and~\ref{kw:dftbp.MDRestartFrequency}.
+This file is produced as part of the mechanism to restart ground state SCC
+calculations, see sections~\ref{kw:dftbp.RestartFrequency}
+and~\ref{kw:dftbp.MDRestartFrequency}.
 
 Equivalent data can also be present in the file \verb|charges.dat|, but stored
 as plain text. The options \is{WriteChargesAsText} and \is{ReadChargesAsText}
@@ -5355,8 +5369,8 @@ Time (in fs), $\mu_x$ (up), $\mu_y$ (up), $\mu_z$ (up), $\mu_x$
 \index{laser.dat}
 
 Created if \kw{Perturbation} = \kwcb{Laser}
-(see \ref{sec:dftbp.tdpert}). Laser field components $E_i$ (in
-V/\AA) as a function of time, in the following order:
+(see~\ref{sec:dftbp.tdpert.laser}). Laser field components $E_i$ (given in
+V/\AA) as a function of time, with data in the following order:
 
 time (in fs), $E_x$, $E_y$, $E_z$
 

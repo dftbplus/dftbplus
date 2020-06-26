@@ -30,6 +30,7 @@ module dftbp_mdintegrator
 
     !> Verlet case
     type(TVelocityVerlet), allocatable :: pVelocityVerlet
+
   end type TMDIntegrator
 
 
@@ -142,8 +143,8 @@ contains
     !> tHalfVelocities if this is allocated
     real(dp), intent(inout) :: velocities(:,:)
 
-    !> This indicates if the routine is setting the t-.5 velocities internally, otherwise they need
-    !> to be regenerated later.
+    !> This indicates if the routine is setting the t-.5 velocities internally (true), otherwise
+    !> they need to be regenerated later (false).
     logical, intent(in) :: tHalfVelocities
 
     @:ASSERT(allocated(self%pVelocityVerlet))
@@ -154,15 +155,18 @@ contains
 
 
   !> Probe internal state of the integrator, writing this to disc
-  subroutine MDIntegrator_state(self,fd)
+  subroutine MDIntegrator_state(self, fd, velocities)
 
     !> Integrator instance
     type(TMDIntegrator), intent(in) :: self
 
     !> file handle to write to
-    integer,intent(in) :: fd
+    integer,intent(in), optional :: fd
 
-    call state(self%pVelocityVerlet,fd)
+    real(dp), intent(out), optional :: velocities(:,:)
+
+    @:ASSERT(allocated(self%pVelocityVerlet))
+    call state(self%pVelocityVerlet, fd, velocities)
 
   end subroutine MDIntegrator_state
 
