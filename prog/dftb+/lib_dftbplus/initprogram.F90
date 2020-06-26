@@ -2379,11 +2379,11 @@ contains
     end if
 
     ! Set various options
-    tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
-    tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
-    tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
-    tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalMaster&
+    tWriteAutotest = env%tGlobalLead .and. input%ctrl%tWriteTagged
+    tWriteDetailedXML = env%tGlobalLead .and. input%ctrl%tWriteDetailedXML
+    tWriteResultsTag = env%tGlobalLead .and. input%ctrl%tWriteResultsTag
+    tWriteDetailedOut = env%tGlobalLead .and. input%ctrl%tWriteDetailedOut
+    tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalLead&
         & .and. electronicSolver%providesEigenvals
 
     ! Check if stopfiles already exist and quit if yes
@@ -2462,7 +2462,7 @@ contains
       end if
     end if
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, isGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
     end if
@@ -3912,7 +3912,7 @@ contains
 
     logical :: tDummy
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
       socket = IpiSocketComm(socketInput)
