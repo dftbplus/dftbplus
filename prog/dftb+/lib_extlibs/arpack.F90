@@ -11,140 +11,133 @@
 !> state calculations).
 module dftbp_arpack
   use dftbp_accuracy, only : rsp, rdp
+#:if not WITH_ARPACK
+  use dftbp_message
+#:endif
   implicit none
   private
 
-  public :: withArpack
+  public :: withArpack, saupd, seupd
 
 #:if WITH_ARPACK
 
-  public :: saupd, seupd
-
-
-  !> Whether code was built with Arpack support
+  !> Whether code was built with ARPACK support
   logical, parameter :: withArpack = .true.
 
-
-  !> Wrapper around ARPACK routines ssaupd/dsaupd.
-  interface saupd
-
-    !> single precision Arnoldi solver call
-    subroutine ssaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,&
-        & iparam, ipntr, workd, workl, lworkl, info)
-      import :: rsp
-      implicit none
-      integer, intent(inout) :: ido
-      character, intent(in) :: bmat
-      integer, intent(in) :: n
-      character(2), intent(in) :: which
-      integer, intent(in) :: nev
-      real(rsp), intent(in) :: tol
-      real(rsp), intent(inout) :: resid(n)
-      integer, intent(in) :: ncv
-      integer, intent(in) :: ldv
-      real(rsp), intent(out) :: v(ldv, ncv)
-      integer, intent(inout) :: iparam(11)
-      integer, intent(out) :: ipntr(11)
-      real(rsp), intent(inout) :: workd(3 * n)
-      integer, intent(in) :: lworkl
-      real(rsp), intent(inout) :: workl(lworkl)
-      integer, intent(inout) :: info
-    end subroutine ssaupd
-
-
-    !> double precision Arnoldi solver call
-    subroutine dsaupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv,&
-        & iparam, ipntr, workd, workl, lworkl, info)
-      import :: rdp
-      implicit none
-      integer, intent(inout) :: ido
-      character, intent(in) :: bmat
-      integer, intent(in) :: n
-      character(2), intent(in) :: which
-      integer, intent(in) :: nev
-      real(rdp), intent(in) :: tol
-      real(rdp), intent(inout) :: resid(n)
-      integer, intent(in) :: ncv
-      integer, intent(in) :: ldv
-      real(rdp), intent(out) :: v(ldv, ncv)
-      integer, intent(inout) :: iparam(11)
-      integer, intent(out) :: ipntr(11)
-      real(rdp), intent(inout) :: workd(3 * n)
-      integer, intent(in) :: lworkl
-      real(rdp), intent(inout) :: workl(lworkl)
-      integer, intent(inout) :: info
-    end subroutine dsaupd
-  end interface saupd
-
-
-  !> Wrapper around ARPACK routines sseupd/dseupd.
-  interface seupd
-
-
-    !> single precision return from the results of the solver
-    subroutine sseupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev,&
-        & tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
-      import :: rsp
-      logical, intent(in) :: rvec
-      character, intent(in) :: howmny
-      integer, intent(in) :: ncv
-      logical, intent(in) :: sel(ncv)
-      integer, intent(in) :: nev
-      real(rsp), intent(out) :: d(nev)
-      integer, intent(in) :: ldz
-      real(rsp), intent(out) :: z(ldz, nev)
-      real(rsp), intent(in) :: sigma
-      character, intent(in) :: bmat
-      integer, intent(in) :: n
-      character(2), intent(in) :: which
-      real(rsp), intent(in) :: tol
-      real(rsp), intent(in) :: resid(n)
-      integer, intent(in) :: ldv
-      real(rsp), intent(inout) :: v(ldv, ncv)
-      integer, intent(in) :: iparam(7)
-      integer, intent(inout) :: ipntr(11)
-      real(rsp), intent(inout) :: workd(2 * n)
-      integer, intent(in) :: lworkl
-      real(rsp), intent(inout) :: workl(lworkl)
-      integer, intent(inout) :: info
-    end subroutine sseupd
-
-
-    !> double precision return from the results of the solver
-    subroutine dseupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev,&
-        & tol, resid, ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
-      import :: rdp
-      logical, intent(in) :: rvec
-      character, intent(in) :: howmny
-      integer, intent(in) :: ncv
-      logical, intent(in) :: sel(ncv)
-      integer, intent(in) :: nev
-      real(rdp), intent(out) :: d(nev)
-      integer, intent(in) :: ldz
-      real(rdp), intent(out) :: z(ldz, nev)
-      real(rdp), intent(in) :: sigma
-      character, intent(in) :: bmat
-      integer, intent(in) :: n
-      character(2), intent(in) :: which
-      real(rdp), intent(in) :: tol
-      real(rdp), intent(in) :: resid(n)
-      integer, intent(in) :: ldv
-      real(rdp), intent(inout) :: v(ldv, ncv)
-      integer, intent(in) :: iparam(7)
-      integer, intent(inout) :: ipntr(11)
-      real(rdp), intent(inout) :: workd(2 * n)
-      integer, intent(in) :: lworkl
-      real(rdp), intent(inout) :: workl(lworkl)
-      integer, intent(inout) :: info
-    end subroutine dseupd
-  end interface seupd
-
 #:else
-
 
   !> Whether code was built with ARPACK support
   logical, parameter :: withArpack = .false.
 
+  !> Dummy routines, as ARPACK library is not compiled in
+  interface saupd
+  #:for PREC in [("s"),("d")]
+    module procedure ${PREC}$saupd
+  #:endfor
+  end interface saupd
+
+  !> Dummy routines, as ARPACK library is not compiled in
+  interface seupd
+  #:for PREC in [("s"),("d")]
+    module procedure ${PREC}$seupd
+  #:endfor
+  end interface
+
+contains
+
+  !> Generates error message, if a stub was called
+  subroutine stubError(routineName)
+    character(*), intent(in) :: routineName
+
+    call error("Internal error: " // trim(routineName) // "() called in a build without ARPACK&
+        & support")
+
+  end subroutine stubError
+
+#:endif
+
+#:if WITH_ARPACK
+  !> Wrapper around ARPACK routines ssaupd/dsaupd.
+  interface saupd
+#:endif
+  #:for PREC, LABEL, VTYPE in [("s","single","rsp"),("d","double","rdp")]
+  #:if not WITH_ARPACK
+    !> Dummy ARPACK routine
+  #:endif
+    !> ${LABEL}$ precision Arnoldi solver call
+    subroutine ${PREC}$saupd(ido, bmat, n, which, nev, tol, resid, ncv, v, ldv, iparam, ipntr,&
+        & workd, workl, lworkl, info)
+    #:if WITH_ARPACK
+      import :: ${VTYPE}$
+    #:endif
+      integer, intent(inout) :: ido
+      character, intent(in) :: bmat
+      integer, intent(in) :: n
+      character(2), intent(in) :: which
+      integer, intent(in) :: nev
+      real(${VTYPE}$), intent(in) :: tol
+      real(${VTYPE}$), intent(inout) :: resid(n)
+      integer, intent(in) :: ncv
+      integer, intent(in) :: ldv
+      real(${VTYPE}$), intent(out) :: v(ldv, ncv)
+      integer, intent(inout) :: iparam(11)
+      integer, intent(out) :: ipntr(11)
+      real(${VTYPE}$), intent(inout) :: workd(3 * n)
+      integer, intent(in) :: lworkl
+      real(${VTYPE}$), intent(inout) :: workl(lworkl)
+      integer, intent(inout) :: info
+     #:if not WITH_ARPACK
+      call stubError("${PREC}$saupd")
+     #:endif
+    end subroutine ${PREC}$saupd
+  #:endfor
+#:if WITH_ARPACK
+  end interface saupd
+#:endif
+
+#:if WITH_ARPACK
+  !> Wrapper around ARPACK routines sseupd/dseupd.
+  interface seupd
+#:endif
+  #:for PREC, LABEL, VTYPE in [("s","single","rsp"),("d","double","rdp")]
+  #:if not WITH_ARPACK
+    !> Dummy ARPACK routine
+  #:endif
+    !> ${LABEL}$ precision return from the results of the solver
+    subroutine ${PREC}$seupd(rvec, howmny, sel, d, z, ldz, sigma, bmat, n, which, nev, tol, resid,&
+        & ncv, v, ldv, iparam, ipntr, workd, workl, lworkl, info)
+    #:if WITH_ARPACK
+      import :: ${VTYPE}$
+    #:endif
+      logical, intent(in) :: rvec
+      character, intent(in) :: howmny
+      integer, intent(in) :: ncv
+      logical, intent(in) :: sel(ncv)
+      integer, intent(in) :: nev
+      real(${VTYPE}$), intent(out) :: d(nev)
+      integer, intent(in) :: ldz
+      real(${VTYPE}$), intent(out) :: z(ldz, nev)
+      real(${VTYPE}$), intent(in) :: sigma
+      character, intent(in) :: bmat
+      integer, intent(in) :: n
+      character(2), intent(in) :: which
+      real(${VTYPE}$), intent(in) :: tol
+      real(${VTYPE}$), intent(in) :: resid(n)
+      integer, intent(in) :: ldv
+      real(${VTYPE}$), intent(inout) :: v(ldv, ncv)
+      integer, intent(in) :: iparam(7)
+      integer, intent(inout) :: ipntr(11)
+      real(${VTYPE}$), intent(inout) :: workd(2 * n)
+      integer, intent(in) :: lworkl
+      real(${VTYPE}$), intent(inout) :: workl(lworkl)
+      integer, intent(inout) :: info
+     #:if not WITH_ARPACK
+      call stubError("${PREC}$seupd")
+     #:endif
+    end subroutine ${PREC}$seupd
+  #:endfor
+#:if WITH_ARPACK
+  end interface seupd
 #:endif
 
 end module dftbp_arpack

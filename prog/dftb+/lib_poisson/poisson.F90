@@ -942,7 +942,7 @@ subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
 
     call env%globalTimer%stopTimer(globalTimers%poissonDensity)
 
-    ! gather all partial results on master node 0
+    ! gather all partial results on lead node 0
     call mpifx_gatherv(poiss_comm, rhs_par, rhs, dim_rhs)
  
     call log_gdeallocate(rhs_par)

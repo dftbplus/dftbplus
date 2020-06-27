@@ -91,7 +91,7 @@ contains
       ${TYPE}$, allocatable :: dataLocal${SHAPE}$
     #:endif
 
-      !> Is the local data the same as the master version?
+      !> Is the local data the same as the lead version?
       logical :: res
 
       logical :: resLocal
@@ -185,7 +185,7 @@ contains
     !> Tolerance for comparision, if absent use eps
     real(dp), intent(in), optional :: tol
 
-    !> Is the local data the same as the master version?
+    !> Is the local data the same as the lead version?
     logical :: res
 
     logical :: resLocal
