@@ -11,7 +11,7 @@
 ! following an MD step. A situation that arises in molecular dynamics
 ! packages that use domain decomposition as a parallelisation scheme.
 !
-! Master process reads in geometry and broadcasts to all other processes.
+! Lead process reads in geometry and broadcasts to all other processes.
 ! Geometry is not distributed upon entry to or in DFTB+.
 ! nAtoms conserved.
 !
@@ -75,11 +75,11 @@ program test_setSpeciesAndDependents
 #:if WITH_MPI
   integer, parameter :: requiredThreading = MPI_THREAD_FUNNELED
   integer            :: providedThreading, rank, np, ierr
-  integer, parameter :: master_id = 0
+  integer, parameter :: lead_id = 0
   logical            :: IO
 #:else
   integer, parameter :: MPI_COMM_WORLD = 0
-  integer, parameter :: master_id = 0
+  integer, parameter :: lead_id = 0
   logical            :: IO = .true.
 #:endif
   
@@ -100,7 +100,7 @@ program test_setSpeciesAndDependents
   call mpi_init_thread(requiredThreading, providedThreading, ierr)
   call mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
   call mpi_comm_size(MPI_COMM_WORLD, np, ierr)
-  IO = (rank == master_id)
+  IO = (rank == lead_id)
 #:endif
   
   nAtoms = get_number_of_atoms('structure_1.gen')
@@ -306,12 +306,12 @@ contains
        close(io_unit)
     endif
 #:if WITH_MPI
-    call mpi_bcast(nAtoms, 1, MPI_INTEGER, master_id, MPI_COMM_WORLD, ierr)
+    call mpi_bcast(nAtoms, 1, MPI_INTEGER, lead_id, MPI_COMM_WORLD, ierr)
 #:endif
   end function get_number_of_atoms
   
 
-  !> Read DFTB+ geometry file onto master_id
+  !> Read DFTB+ geometry file onto lead_id
   subroutine read_in_geo(fname, geo, header)
     implicit none
 
@@ -399,27 +399,27 @@ contains
   end subroutine read_in_geo
 
 #:if WITH_MPI
-  !> Broadcast geometry from master_id to all processes 
+  !> Broadcast geometry from lead_id to all processes
   subroutine broadcast_geometry(comm, geo)
 
     !> MPI communicator
     integer, intent(in) :: comm
-    !> Geometry: Filled on master_id, uninitialised on all other processes
+    !> Geometry: Filled on lead_id, uninitialised on all other processes
     type(TGeometry),  intent(inout) :: geo
 
     integer :: ierr, lenSN, ia
     
-    call mpi_bcast(geo%nAtom,      1, MPI_INTEGER, master_id, comm, ierr)
-    call mpi_bcast(geo%tPeriodic,  1, MPI_LOGICAL, master_id, comm, ierr)
-    call mpi_bcast(geo%tFracCoord, 1, MPI_LOGICAL, master_id, comm, ierr)
-    call mpi_bcast(geo%nSpecies,   1, MPI_INTEGER, master_id, comm, ierr)
+    call mpi_bcast(geo%nAtom,      1, MPI_INTEGER, lead_id, comm, ierr)
+    call mpi_bcast(geo%tPeriodic,  1, MPI_LOGICAL, lead_id, comm, ierr)
+    call mpi_bcast(geo%tFracCoord, 1, MPI_LOGICAL, lead_id, comm, ierr)
+    call mpi_bcast(geo%nSpecies,   1, MPI_INTEGER, lead_id, comm, ierr)
 
     if(.not. allocated(geo%speciesNames)) then
        allocate(geo%speciesNames(geo%nSpecies))
     endif
 
     lenSN = len(geo%speciesNames)
-    call mpi_bcast(geo%speciesNames, lenSN * geo%nSpecies, MPI_CHARACTER, master_id, comm, ierr)
+    call mpi_bcast(geo%speciesNames, lenSN * geo%nSpecies, MPI_CHARACTER, lead_id, comm, ierr)
 
     if(.not. allocated(geo%species)) then
        allocate(geo%species(geo%nAtom))
@@ -429,14 +429,14 @@ contains
        allocate(geo%coords(3, geo%nAtom))
     endif
 
-    call mpi_bcast(geo%species, geo%nAtom, MPI_INTEGER, master_id, comm, ierr)
-    call mpi_bcast(geo%coords, 3 * geo%nAtom, MPI_DOUBLE_PRECISION, master_id, comm, ierr)
+    call mpi_bcast(geo%species, geo%nAtom, MPI_INTEGER, lead_id, comm, ierr)
+    call mpi_bcast(geo%coords, 3 * geo%nAtom, MPI_DOUBLE_PRECISION, lead_id, comm, ierr)
 
     if (geo%tPeriodic) then
        if(.not. allocated(geo%latVecs)) then
           allocate(geo%latVecs(3,3))
        endif
-       call mpi_bcast(geo%latVecs, 9, MPI_DOUBLE_PRECISION, master_id, comm, ierr)
+       call mpi_bcast(geo%latVecs, 9, MPI_DOUBLE_PRECISION, lead_id, comm, ierr)
     endif
 
     call mpi_barrier(comm, ierr)
