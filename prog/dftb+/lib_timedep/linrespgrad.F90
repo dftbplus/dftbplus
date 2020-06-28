@@ -172,7 +172,7 @@ contains
 
     character, allocatable :: symmetries(:)
 
-    integer :: nocc, nocc_r, nvir_r, nxoo_r, nxvv_r
+    integer :: nocc, nocc_r, nocc_ud, nvir_r, nvir_ud, nxoo_r, nxvv_r
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd
     integer :: norb
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
@@ -537,10 +537,20 @@ contains
             & calculations")
       end if
 
-      ! redefine if needed (generalize it for spin-polarized and fractional occupancy)
-      nocc = nint(this%nEl) / 2
-      nocc_r = nOcc
-      nvir_r = nOrb - nOcc
+
+      nocc_ud = 0
+      do iSpin = 1, nSpin
+        do i = 1, norb
+          if (filling(i,iSpin) > elecTolMax) then
+            nocc_ud(iSpin) = nocc_ud(iSpin) + 1
+          end if
+        end do
+      end do
+      nocc = sum(nocc_ud)
+      nocc_r = nocc
+
+      nvir_ud(:) = nOrb - nocc_ud(:)
+      nvir_r = sum(nvir_ud)
 
       ! elements in a triangle plus the diagonal of the occ-occ and virt-virt blocks
       nxoo_r = (nocc_r * (nocc_r + 1)) / 2
