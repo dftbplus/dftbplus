@@ -2,7 +2,7 @@ Driver = {}
     
 Hamiltonian = DFTB {
   SCC = Yes
-  SCCTolerance = 1.00E-8
+  SCCTolerance = 1.0E-8
   MaxAngularMomentum {
     H = "s"
     C = "p"
@@ -11,18 +11,12 @@ Hamiltonian = DFTB {
     Separator = "-"
     Suffix  = ".skf"
   }
-  KPointsAndWeights = SuperCellFolding {
-    1 0 0
-    0 1 0
-    0 0 1
-    0. 0. 0.
-  }
 }
 
 Options = {
   WriteAutotestTag = Yes
-   WriteDetailedOut=Yes
-   TimingVerbosity = 1
+  WriteDetailedOut=Yes
+  TimingVerbosity = 1
 }
 
 Analysis = {
@@ -30,7 +24,7 @@ Analysis = {
 }
 
 ParserOptions = {
-  ParserVersion = 6
+  ParserVersion = 8
 }
 
 Parallel {
@@ -38,7 +32,7 @@ Parallel {
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
   Blacs = BlockSize {
+    # reduce block size to allow this small a case on multiple processors
     4
   }
 }
-
