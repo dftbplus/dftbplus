@@ -122,7 +122,7 @@ program test_setSpeciesAndDependents
   #:if WITH_MPI
     call broadcast_geometry(MPI_COMM_WORLD, geo)
   #:endif
-    
+
     if (geo%nAtom /= nAtoms) then
        write(*,*) 'Error: Number of atoms not conserved between MD steps'
   #:if WITH_MPI
@@ -138,7 +138,9 @@ program test_setSpeciesAndDependents
   #:else
       Call TDftbPlus_init(dftb, output_unit)
   #:endif
+
       Call initialise_dftbplus_tree(geo, dftb, hsd_tree)
+
       !Dump hsd tree to fort.1 if debugging 
       !Call dumpHsd(hsd_tree%hsdTree, 001)
       Call dftb%setupCalculator(hsd_tree)
@@ -219,14 +221,20 @@ contains
 
     !Set structure data, retain rest
     Call hsd_tree%getRootNode(pRoot)
+
     Call setChild(pRoot, "Geometry", pGeo, replace=replace_geometry)
+
     Call setChildValue(pGeo, "Periodic", geo%tPeriodic)
-    Call setChildValue(pGeo, "LatticeVectors", geo%latVecs)
+
+    if (geo%tPeriodic) then
+      Call setChildValue(pGeo, "LatticeVectors", geo%latVecs)
+    end if
+
     Call setChildValue(pGeo, "TypeNames", geo%speciesNames)
 
     !See DFTB+ subroutine in lib_type/typegeometryhsd.F90
     Call setChildValue(pGeo, "TypesAndCoordinates", &
-         Reshape(geo%species, (/ 1, Size(geo%species) /)), geo%coords)
+        Reshape(geo%species, (/ 1, Size(geo%species) /)), geo%coords)
 
     !Always compute forces
     Call setChild(pRoot, "Analysis", pAnalysis, replace=.True.)
@@ -407,7 +415,7 @@ contains
     !> Geometry: Filled on lead_id, uninitialised on all other processes
     type(TGeometry),  intent(inout) :: geo
 
-    integer :: ierr, lenSN, ia
+    integer :: ierr, lenSN
     
     call mpi_bcast(geo%nAtom,      1, MPI_INTEGER, lead_id, comm, ierr)
     call mpi_bcast(geo%tPeriodic,  1, MPI_LOGICAL, lead_id, comm, ierr)
