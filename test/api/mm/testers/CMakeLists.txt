@@ -35,7 +35,14 @@ dftbp_add_fypp_defines(FYPP_FLAGS)
 # Make sure, the line-marker option is not set in fypp
 set(fyppflags ${FYPP_FLAGS})
 list(REMOVE_ITEM fyppflags "-n")
+
 dftbp_preprocess("${FYPP}" "${fyppflags}" "F90" "f90" "test_setspeciesanddependents.F90" test_setspeciesanddependents.f90)
+
+# NAG compiler won't compile files with mpi calls without the '-mismatch' option
+if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
+  set_source_files_properties(SOURCE test_setspeciesanddependents.f90 PROPERTY COMPILE_FLAGS -mismatch)
+endif()
+
 add_executable(test_setspeciesanddependents test_setspeciesanddependents.f90 $<TARGET_OBJECTS:test_api_mm_utils>)
 target_link_libraries(test_setspeciesanddependents dftbplus)
 
