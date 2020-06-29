@@ -172,7 +172,7 @@ contains
 
     character, allocatable :: symmetries(:)
 
-    integer :: nocc, nocc_r, nocc_ud, nvir_r, nvir_ud, nxoo_r, nxvv_r
+    integer :: nocc, nocc_r, nocc_ud(2), nvir_r, nvir_ud(2), nxoo_r, nxvv_r
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd
     integer :: norb
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
