@@ -58,6 +58,7 @@ module dftbp_parser
   use dftbp_tempprofile, only : identifyTempProfile
   use dftbp_reks
   use dftbp_plumed, only : withPlumed
+  use dftbp_arpack, only : withArpack
   use poisson_init
 #:if WITH_TRANSPORT
   use libnegf_vars
@@ -4348,22 +4349,17 @@ contains
 
   #:if WITH_ARPACK
     type(string) :: modifier
-  #:endif
 
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
 
-  #:if not WITH_ARPACK
-
-    if (associated(child)) then
+    if (associated(child) .and. .not. withArpack) then
       call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
-          & response calculations (requires the ARPACK/ngARPACK library).')
+          & response calculations (requires the ARPACK/ngARPACK libraries).')
     end if
 
     ctrl%lrespini%tInit = .false.
     ctrl%lrespini%tPrintEigVecs = .false.
-
-  #:else
 
     if (associated(child)) then
 
@@ -4435,7 +4431,9 @@ contains
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
-      call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
+      if (allocated(ctrl%rangeSepInp)) then
+        call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
+      end if
       call getChildValue(child, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
       call getChildValue(child, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
 

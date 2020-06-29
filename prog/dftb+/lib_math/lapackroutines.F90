@@ -7,6 +7,9 @@
 
 #:include 'common.fypp'
 
+#! suffix and kinds for real types
+#:set REAL_KIND_PARAMS = [('real', 's'), ('dble', 'd')]
+
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code. The
 !> interface of all LAPACK calls must be defined in the module lapack.
 module dftbp_lapackroutines
@@ -98,6 +101,18 @@ module dftbp_lapackroutines
     module procedure zgesvd_dblecplx
   end interface gesvd
 
+  interface potrf
+  #:for suffix, kind in REAL_KIND_PARAMS
+    module procedure ${kind}$potrf_${suffix}$
+  #:endfor
+  end interface potrf
+
+  interface trsm
+  #:for suffix, kind in REAL_KIND_PARAMS
+    module procedure ${kind}$trsm_${suffix}$
+  #:endfor
+  end interface trsm
+
 
   !> Solves a system of linear equations
   !>  A * X = B  or  A**T * X = B
@@ -111,8 +126,7 @@ module dftbp_lapackroutines
 
 
   public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
-  public :: hermatinv, hetri, hetrf, gesvd
-  public :: getrs
+  public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm, getrs
 
 contains
 
@@ -748,12 +762,7 @@ contains
     real(rsp) :: tmpwork(1)
     character :: uplo0
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
-
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
     call ssytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
@@ -792,12 +801,7 @@ contains
     real(rdp) :: tmpwork(1)
     character :: uplo0
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
-
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
     call dsytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
@@ -836,12 +840,7 @@ contains
     complex(rsp) :: tmpwork(1)
     character :: uplo0
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
-
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
     call chetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
@@ -880,12 +879,7 @@ contains
     complex(rdp) :: tmpwork(1)
     character :: uplo0
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
-
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
     call zhetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
@@ -923,11 +917,7 @@ contains
     character :: uplo0
     real(rsp), allocatable :: work(:)
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
     allocate(work(max(1, 2 * nn)))
     call ssytri(uplo0, nn, aa, nn, ipiv, work, info0)
@@ -960,11 +950,7 @@ contains
     character :: uplo0
     real(rdp), allocatable :: work(:)
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
     allocate(work(max(1, 2 * nn)))
     call dsytri(uplo0, nn, aa, nn, ipiv, work, info0)
@@ -997,11 +983,7 @@ contains
     character :: uplo0
     complex(rsp), allocatable :: work(:)
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
     allocate(work(max(1, 2 * nn)))
     call chetri(uplo0, nn, aa, nn, ipiv, work, info0)
@@ -1034,11 +1016,7 @@ contains
     character :: uplo0
     complex(rdp), allocatable :: work(:)
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
     allocate(work(max(1, 2 * nn)))
     call zhetri(uplo0, nn, aa, nn, ipiv, work, info0)
@@ -1507,6 +1485,116 @@ contains
     deallocate(work)
 
   end subroutine zgesvd_dblecplx
+
+
+#:for suffix, kind in REAL_KIND_PARAMS
+
+  !> Choleskii factorization of a matrix
+  subroutine ${kind}$potrf_${suffix}$(b, uplo, info)
+
+    !> Matrix to be factorised, over-written on return
+    real(r${kind}$p), intent(inout) :: b(:,:)
+
+    !> upper or lower triangle of the matrix, defaults to lower
+    character, intent(in), optional :: uplo
+
+    !> Info flag. If not present and an error occurs, the subroutine stops.
+    integer, intent(out), optional :: info
+
+    integer :: info0, n, ldb
+    character :: uplo0
+
+    uplo0 = uploHelper(uplo)
+    n = size(b, dim=2)
+    ldb = size(b, dim=1)
+  @:ASSERT(ldb >= n)
+
+    call ${kind}$potrf(uplo0, n, b, ldb, info0)
+    if (present(info)) then
+      info = info0
+    elseif (info0 /= 0) then
+      write(error_string, "(A,I10)") "Routine ${kind}$potrf failed. Info: ", info0
+      call error(error_string)
+    end if
+
+  end subroutine ${kind}$potrf_${suffix}$
+
+#:endfor
+
+
+#:for suffix, kind in REAL_KIND_PARAMS
+
+  !> solve one of the matrix equations op( A )*X = alpha*B, or X*op( A ) = alpha*B
+  subroutine ${kind}$trsm_${suffix}$(side, A, B, m, n, diag, alpha, transa, uplo)
+
+    !> matrix A on 'l'eft or 'r'ight of X
+    character, intent(in) :: side
+
+    real(r${kind}$p), intent(inout) :: A(:,:)
+
+    real(r${kind}$p), intent(inout) :: B(:,:)
+
+    integer, intent(in) :: m
+
+    integer, intent(in) :: n
+
+    !> 'U'nit triangular or 'N'ot
+    character, intent(in) :: diag
+
+    real(r${kind}$p), intent(in) :: alpha
+
+    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
+    character, intent(in), optional :: transA
+
+    !> upper or lower triangle of the matrix, defaults to lower
+    character, intent(in), optional :: uplo
+
+    integer :: lda, ldb
+    character :: uplo0, iTransA
+
+    uplo0 = uploHelper(uplo)
+    lda = size(A, dim=1)
+    ldb = size(B, dim=1)
+  @:ASSERT(m > 0)
+  @:ASSERT(n > 0)
+  @:ASSERT(((side == 'r' .or. side == 'R') .and. lda > n) .or.&
+      & ((side == 'l' .or. side == 'L') .and. lda > m))
+  @:ASSERT(ldb >= m)
+  @:ASSERT(size(B,dim=2) >= n)
+  @:ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
+  @:ASSERT(diag == 'u' .or. diag == 'U' .or. diag == 'n' .or. diag == 'N')
+  if (present(transa)) then
+    iTransA = transA
+  else
+    iTransA = 'n'
+  end if
+  @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
+      & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
+
+    call ${kind}$trsm ( side, uplo, iTransa, diag, m, n, alpha, a, lda, b, ldb )
+
+  end subroutine ${kind}$trsm_${suffix}$
+
+#:endfor
+
+
+  !> Helper function for matrix triangle options to choose optional triangle
+  pure function uploHelper(uplo)
+
+    !> upper or lower triangle of the matrix, defaults to lower if not present
+    character, intent(in), optional :: uplo
+
+    !> Resulting triangle to use
+    character :: uploHelper
+
+    if (present(uplo)) then
+      uploHelper = uplo
+    else
+      uploHelper = "L"
+    end if
+
+  end function uploHelper
 
 
   !> Solves a system of linear equations with multiple right hand sides

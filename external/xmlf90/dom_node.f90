@@ -491,7 +491,7 @@ CONTAINS
 
          if (associated(np,node)) then
             if (dom_debug) print *, "No more siblings of ", char(name)
-            EXIT  ! no siblings of master node
+            EXIT  ! no siblings of main node
          endif
          np => np % nextSibling
          previous_clone => clone

@@ -62,6 +62,7 @@ module dftbp_main
   use dftbp_elecconstraints
   use dftbp_pmlocalisation, only : TPipekMezey
   use dftbp_linresp
+  use dftbp_linresptypes
   use dftbp_pprpa, only : ppRPAenergies
 #:if WITH_ARPACK
   use dftbp_RS_LinearResponse
@@ -168,7 +169,7 @@ contains
 
     ! Main geometry loop
     geoOpt: do iGeoStep = 0, nGeoSteps
-      tWriteRestart = env%tGlobalMaster&
+      tWriteRestart = env%tGlobalLead&
           & .and. needsRestartWriting(isGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
       call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
@@ -218,7 +219,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
 
   #:if WITH_SOCKETS
-    if (tSocket .and. env%tGlobalMaster) then
+    if (tSocket .and. env%tGlobalLead) then
       call socket%shutdown()
     end if
   #:endif
@@ -229,7 +230,7 @@ contains
 
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       if (tWriteDetailedOut) then
         call writeDetailedOut5(fdDetailedOut, isGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
             & dipoleMoment)
@@ -242,7 +243,7 @@ contains
       end if
     end if
 
-    if (env%tGlobalMaster .and. tDerivs) then
+    if (env%tGlobalLead .and. tDerivs) then
       call getHessianMatrix(derivDriver, pDynMatrix)
       call writeHessianOut(hessianOut, pDynMatrix)
     else
@@ -726,7 +727,7 @@ contains
             call printBlankLine()
           end if
 
-          tWriteSccRestart = env%tGlobalMaster .and. &
+          tWriteSccRestart = env%tGlobalLead .and. &
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, isGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
@@ -765,15 +766,15 @@ contains
 
     if (isLinResp) then
       if (.not. isRS_LinResp) then
-        call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-            & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord, species, speciesName, orb,&
-            & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
-            & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
-            & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida,&
-            & SSqrReal, rhoSqrReal, excitedDerivs, dQAtomEx, occNatural)
+        call calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+            & over, eigvecsReal, eigen(:,1,:), filling(:,1,:), coord, species, speciesName, orb,&
+            & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList,&
+            & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces,&
+            & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy,&
+            & energiesCasida, SSqrReal, rhoSqrReal, excitedDerivs, dQAtomEx, occNatural)
       else
-        call calculateLinRespExcitations_RS(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-            & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
+        call calculateLinRespExcitations_RS(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+            & over, eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
             & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
             & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
             & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida,&
@@ -4389,10 +4390,10 @@ contains
 
 
   !> Do the linear response excitation calculation.
-  subroutine calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-      & eigvecsReal, eigen, filling, coord, species, speciesName, orb, skHamCont, skOverCont,&
-      & autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc, iSparseStart,&
-      & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+  subroutine calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+      & over, eigvecsReal, eigen, filling, coord, species, speciesName, orb, skHamCont,&
+      & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
+      & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, energies, work, rhoSqrReal, excitedDerivs,&
       & dQAtomEx, occNatural)
 
@@ -4400,7 +4401,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> excited state settings
-    type(TLinResp), intent(inout) :: lresp
+    type(TLinResp), intent(inout), allocatable :: linearResponse
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -4537,17 +4538,18 @@ contains
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-      call addGradients(tSpin, lresp, denseDesc%iAtomStart, eigvecsReal, eigen, work, filling,&
-          & coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell,&
-          & orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited,&
-          & energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs, dQAtomEx)
+      call addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen, work,&
+          & filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
+          & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter,&
+          & energy%Eexcited, energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural,&
+          & naturalOrbs)
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
             & img2CentCell, pSpecies0, speciesName, orb, over, parallelKS, tPrintExcEigvecsTxt,&
             & naturalOrbs, work, fileName="excitedOrbs")
       end if
     else
-      call calcExcitations(lresp, tSpin, denseDesc, eigvecsReal, eigen, work, filling,&
+      call calcExcitations(linearResponse, tSpin, denseDesc, eigvecsReal, eigen, work, filling,&
           & coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell,&
           & orb, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
     end if
@@ -4561,10 +4563,10 @@ contains
   end subroutine calculateLinRespExcitations
 
   !> Do the linear response excitation calculation with range-separated Hamiltonian.
-  subroutine calculateLinRespExcitations_RS(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-      & eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont, skOverCont,&
-      & autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc, iSparseStart,&
-      & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+  subroutine calculateLinRespExcitations_RS(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+      & over, eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont,&
+      & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
+      & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, energies, work, deltaRhoOutSqr, excitedDerivs,&
       & dQAtomEx, occNatural, rangeSep)
 
@@ -4572,7 +4574,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> excited state settings
-    type(TLinResp), intent(inout) :: lresp
+    type(TLinResp), intent(inout) :: linearResponse
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -4724,18 +4726,14 @@ contains
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-     !call addGradients(tSpin, lresp, denseDesc%iAtomStart, eigvecsReal, eigen, work, filling,&
-     !    & coord0, sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
-     !    & skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited,&
-     !    & energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
       ! WITH FORCES
       excitedDerivs = 0.0_dp
     #:if WITH_ARPACK
-      call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
-          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU,&
-          & neighbourList%iNeighbour, img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest,&
-          & taggedWriter, energy%Eexcited, skHamCont, skOverCont, nonSccDeriv,&
-          & deltaRhoOutSqr(:,:,1), excitedDerivs, dQAtomEx)
+      call linRespCalcExcitationsRS(tSpin, tOnsite, linearResponse, denseDesc%iAtomStart,&
+          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0,&
+          & linearResponse%HubbardU, neighbourList%iNeighbour, img2CentCell, orb, rangeSep,&
+          & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, skHamCont, skOverCont,&
+          & nonSccDeriv, deltaRhoOutSqr(:,:,1), excitedDerivs, dQAtomEx)
     #:else
       call error("Should not be here - compiled without ARPACK")
     #:endif
@@ -4745,15 +4743,12 @@ contains
             & naturalOrbs, work, fileName="excitedOrbs")
       end if
     else
-     !call calcExcitations(lresp, tSpin, denseDesc, eigvecsReal, eigen, work, filling, coord0,&
-     !    & sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
-     !    & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
       ! NO FORCES
     #:if WITH_ARPACK
-      call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
-          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU,&
-          & neighbourList%iNeighbour, img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest,&
-          & taggedWriter, energy%Eexcited)
+      call linRespCalcExcitationsRS(tSpin, tOnsite, linearResponse, denseDesc%iAtomStart,&
+          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0,&
+          & linearResponse%HubbardU, neighbourList%iNeighbour, img2CentCell, orb, rangeSep,&
+          & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited)
     #:else
       call error("Should not be here - compiled without ARPACK")
     #:endif
@@ -6808,7 +6803,7 @@ contains
 
   subroutine sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
     type(TEnvironment), intent(in) :: env
-    ! Socket may be unallocated (as on slave processes)
+    ! Socket may be unallocated (as on follower processes)
     type(ipiSocketComm), allocatable, intent(inout) :: socket
     type(TEnergies), intent(in) :: energy
     real(dp), intent(in) :: TS(:)
@@ -6816,7 +6811,7 @@ contains
     real(dp), intent(in) :: totalStress(:,:)
     real(dp), intent(in) :: cellVol
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       ! stress was computed above in the force evaluation block or is 0 if aperiodic
       call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
     end if
