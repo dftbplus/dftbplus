@@ -7,13 +7,11 @@
 
 #:include 'common.fypp'
 
-!> Implements real-time time-dependent DFTB by numerically propagating the electronic one-electron
-!> density matrix of the system in the presence of an external perturbation (kick or laser)
+!> Implements real-time Ehrenfest time-dependent DFTB by numerically propagating the electronic one-electron
+!> density matrix of the system and the nuclei in the presence of an external perturbation (kick or laser)
 !>
-!> 1) Oviedo, M. B., Negre, C. F. A. & Sánchez, C. G. Physical Chemistry Chemical Physics,
-!> 12(25), 6706 (2010) https://doi.org/10.1039/b926051j
-!> 2) Negre, C. F. A, Fuertes, V. C., Oviedo, M. B., Oliva, F. Y. & Sanchez, C. G.
-!> Journal of Physical Chemistry C, 116(28), 14748–14753 (2012) https://doi.org/10.1021/jp210248k
+!> Bonafé, F. P., Aradi, B., Hourahine, B., Medrano, C. R., Hernandez, F. J., Frauenheim, T., & Sánchez, C. G.
+!> Journal of Chemical Theory and Computation (2020) https://doi.org/10.1021/acs.jctc.9b01217
 
 module dftbp_timeprop
   use dftbp_globalenv
