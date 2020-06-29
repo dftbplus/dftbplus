@@ -1543,17 +1543,18 @@ contains
     allocate(coord0(3, nAtom))
     @:ASSERT(all(shape(coord0) == shape(input%geom%coords)))
     coord0(:,:) = input%geom%coords(:,:)
+
     tCoordsChanged = .true.
 
     allocate(species0(nAtom))
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
-    
+
   #:block DEBUG_CODE
     call inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
        & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
   #:endblock DEBUG_CODE
-    
+
     if (input%ctrl%tHalogenX) then
       if (.not. (t3rd .or. t3rdFull)) then
         call error("Halogen correction only fitted for 3rd order models")
@@ -3219,9 +3220,9 @@ contains
 
   end subroutine initProgramVariables
 
-  
+
   !> Check coherence across processes for various key variables (relevant if running in MPI,
-  !> particularly for external driving via API) 
+  !> particularly for external driving via API)
   subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
        & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
 
@@ -3233,7 +3234,7 @@ contains
 
     !> Number of spin components
     integer, intent(in) :: nSpin
-    
+
     !> Atoms in the system
     integer, intent(in) :: nAtom
 
@@ -3242,7 +3243,7 @@ contains
 
     !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
-    
+
     !> Names of chemical species
     character(*), intent(in) :: speciesName(:)
 
@@ -3262,8 +3263,8 @@ contains
     real(dp), intent(in) :: origin(:)
 
     integer :: iSp
-    
-    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in initProgramVariables") 
+
+    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in initProgramVariables")
     call checkExactCoherence(env, nSpin, "spin integer in initProgramVariables")
     call checkExactCoherence(env, nAtom, "the number of atoms in initProgramVariables")
     call checkToleranceCoherence(env, coord0, "coord0 in initProgramVariables", tol=1.e-10_dp)
@@ -3273,7 +3274,7 @@ contains
     do iSp = 1, size(speciesName)
        call checkExactCoherence(env, speciesName(iSp), "species names in initProgramVariables")
     enddo
-    
+
     if (tPeriodic) then
        call checkExactCoherence(env, tFracCoord, "tFracCoord in initProgramVariables")
        call checkToleranceCoherence(env, latVec, &
@@ -3284,7 +3285,7 @@ contains
 
   end subroutine inputCoherenceCheck
 
-  
+
   !> Create equivalency relations
   ! Data available from module: nUJ, niUJ, iUJ, nAtom, nSpin, nOrb and logicals
   ! Note, this routine should not be called

@@ -22,6 +22,7 @@ module dftbp_mmapi
   use dftbp_xmlf90
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
+  use dftbp_charmanip, only : newline
   implicit none
   private
 
@@ -78,11 +79,11 @@ module dftbp_mmapi
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
-    !> Check that the list of species names has not changed  
+    !> Check that the list of species names has not changed
     procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
-    !> Replace species and redefine all quantities that depend on it 
+    !> Replace species and redefine all quantities that depend on it
     procedure :: setSpeciesAndDependents => TDftbPlus_setSpeciesAndDependents
-    !> Check instance of DFTB+ is initialised 
+    !> Check instance of DFTB+ is initialised
     procedure, private :: checkInit => TDftbPlus_checkInit
   end type TDftbPlus
 
@@ -134,7 +135,7 @@ contains
     end if
 
     if (nDftbPlusCalc /= 0) then
-      write(stdOut, "(A)") "Error: only one DFTB+ instance is allowed"
+      write(stdOut, "(A)") "Error: only one DFTB+ instance is currently allowed"
       stop
     end if
     nDftbPlusCalc = 1
@@ -171,7 +172,7 @@ contains
     class(TDftbPlus), intent(inout) :: this
 
     !> Name of the file to parse
-    character(*), intent(in) :: fileName
+    character(len=*), intent(in) :: fileName
 
     !> Input containing the tree representation of the parsed HSD file.
     type(TDftbPlusInput), intent(out) :: input
@@ -389,7 +390,7 @@ contains
 
   end subroutine TDftbPlus_getGrossCharges
 
-  
+
   !> Returns the nr. of atoms in the system.
   function TDftbPlus_nrOfAtoms(this) result(nAtom)
 
@@ -428,7 +429,7 @@ contains
   function getMaxAngFromSlakoFile(slakoFile) result(maxAng)
 
     !> Instance.
-    character(*), intent(in) :: slakoFile
+    character(len=*), intent(in) :: slakoFile
 
     !> Maximal angular momentum found in the file
     integer :: maxAng
@@ -455,10 +456,10 @@ contains
     integer, allocatable, intent(out) :: species(:)
 
     !> Names of each species, usually X1, X2 unless typeNames have been specified.
-    character(*), allocatable, intent(out) :: speciesNames(:)
+    character(len=*), allocatable, intent(out) :: speciesNames(:)
 
     !> Array of type names, indexed by the type numbers.
-    character(*), intent(in), optional :: typeNames(:)
+    character(len=*), intent(in), optional :: typeNames(:)
 
     integer, allocatable :: uniqueTypeNumbers(:)
     integer :: nAtom, nSpecies
@@ -502,29 +503,30 @@ contains
     logical :: tSpeciesNameChanged
 
     call this%checkInit()
-    
+
     tSpeciesNameChanged = checkSpeciesNames(this%env, inputSpeciesNames)
-    
+
     if(tSpeciesNameChanged)then
-       call error('speciesNames has changed between calls to DFTB+. '//&
-            'This will cause erroneous results.')
+      call error('speciesNames has changed between calls to DFTB+. This will cause erroneous&
+          & results.' // newline // 'Instead call destruct and then fully re-initialize.')
     else
        continue
     endif
 
   end subroutine TDftbPlus_checkSpeciesNames
 
-  !> Set species and all variables/data dependent on it   
+
+  !> Set species and all variables/data dependent on it
   subroutine TDftbPlus_setSpeciesAndDependents(this, inputSpeciesNames, inputSpecies)
     !> Instance
     class(TDftbPlus), intent(inout) :: this
-    
-    !> Type of each atom (nAllAtom) 
+
+    !> Type of each atom (nAllAtom)
     integer, intent(in) :: inputSpecies(:)
-    
+
     !> Labels of atomic species (nSpecies)
     character(len=*), intent(in) :: inputSpeciesNames(:)
-    
+
     call this%checkInit()
     call this%checkSpeciesNames(inputSpeciesNames)
     call updateDataDependentOnSpeciesOrdering(this%env, inputSpecies)

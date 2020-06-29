@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 #:include "error.fypp"
-  
+
 #! (TYPE, RANK, NAME, DIM) tuple types which need to be tested for exact coherence across
 #! processors
 #:set EXACT_TYPES = [('real(dp)', '', 'R', '0'), ('real(dp)', '(:)', 'R', '1'),&
@@ -48,21 +48,21 @@ module dftbp_coherence
 #:endfor
   end interface toleranceCoherence
 
-  !> Check exact coherence of data across processor(s) with error handling 
+  !> Check exact coherence of data across processor(s) with error handling
   interface checkExactCoherence
 #:for _, _, NAME, DIM in EXACT_TYPES
     module procedure coherenceWithError${NAME}$${DIM}$
-#:endfor     
+#:endfor
   end interface checkExactCoherence
 
-  !> Check coherence of data across processor(s) to a tolerance, with error handling  
+  !> Check coherence of data across processor(s) to a tolerance, with error handling
   interface checkToleranceCoherence
 #:for _, _, NAME, DIM in APPROX_TYPES
     module procedure approxCoherenceWithError${NAME}$${DIM}$
-#:endfor     
+#:endfor
   end interface checkToleranceCoherence
-     
-  
+
+
 contains
 
 #:for TYPE, SHAPE, NAME, DIM in EXACT_TYPES
@@ -133,12 +133,13 @@ contains
   #:else
     ${TYPE}$, intent(in) :: data${SHAPE}$
   #:endif
-    
+
     logical :: res
 
     res = .true.
 
   end function coherence${NAME}$${DIM}$
+
 #:endif
 
   !> Wrapper for exact coherence with error handling
@@ -159,15 +160,16 @@ contains
 
     !> Error code return, 0 if no problems
     integer, intent(out), optional :: err
-    
+
     if (env%tAPICalculation) then
        if (.not. coherence${NAME}$${DIM}$(env, data)) then
-          @:ERROR_HANDLING(err, -1, "Coherence failure in "//trim(adjustl(message))//" across nodes")
+         @:ERROR_HANDLING(err, -1, "Coherence failure in " //trim(adjustl(message))//&
+             & " across nodes")
        end if
     end if
-    
+
   end subroutine coherenceWithError${NAME}$${DIM}$
-  
+
 #:endfor
 
 #:for TYPE, SHAPE, NAME, DIM in APPROX_TYPES
@@ -240,16 +242,16 @@ contains
 
 #:endif
 
-  !> Wrapper for coherence within a specified tolerance, with error handling  
+  !> Wrapper for coherence within a specified tolerance, with error handling
   subroutine approxCoherenceWithError${NAME}$${DIM}$(env, data, message, tol, err)
 
     !> Computational environment settings
     type(TEnvironment), intent(in) :: env
-    
+
     !> Data to check for coherence
     ${TYPE}$, intent(in) :: data${SHAPE}$
 
-    !> string detailing data               
+    !> string detailing data
     character(len=*), intent(in) :: message
 
     !> Tolerance for comparision, if absent use eps
@@ -257,24 +259,24 @@ contains
 
     !> Error code return, 0 if no problems
     integer, intent(out), optional :: err
-    
+
     real(dp) :: tol_
     character(len=15) :: tol_str
-    
+
     if (present(tol)) then
        tol_ = tol
     else
        tol_ = epsilon(0._dp)
     endif
 
-    if (env%tAPICalculation) then             
-       if (.not. approxCoherence${NAME}$${DIM}$(env, data, tol_)) then
-          Write(tol_str, '(E12.5)') tol_
-          @:ERROR_HANDLING(err, -1, "Coherence failure in "//trim(adjustl(message))//" across nodes&
-               & for a tolerance: "//trim(adjustl(tol_str)))
-       end if
+    if (env%tAPICalculation) then
+      if (.not. approxCoherence${NAME}$${DIM}$(env, data, tol_)) then
+        Write(tol_str, '(E12.5)') tol_
+        @:ERROR_HANDLING(err, -1, "Coherence failure in "//trim(adjustl(message))//" across nodes&
+            & for a tolerance of: "//trim(adjustl(tol_str)))
+      end if
     end if
-    
+
   end subroutine approxCoherenceWithError${NAME}$${DIM}$
 
 #:endfor
