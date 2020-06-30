@@ -898,7 +898,7 @@ contains
     real(dp) :: occ(this%nOrbs)
     character(sc) :: dumpIdx
     logical :: tProbeFrameWrite
-    real(dp), allocatable :: lastBondPopul
+    real(dp) :: lastBondPopul
     real(dp), allocatable :: velInternal(:,:)
 
     allocate(Ssqr(this%nOrbs,this%nOrbs,this%parallelKS%nLocalKS))
@@ -942,7 +942,7 @@ contains
     call initializeTDVariables(this, trho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
         & filling, orb, rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare,&
         & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, UJ,&
-        & onSiteElements, eigvecsCplx, H1LC)
+        & onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul, lastBondPopul, time)
 
     if (this%tPeriodic) then
       call initLatticeVectors(this)
@@ -955,8 +955,7 @@ contains
       this%mCutOff = max(this%mCutOff, this%dispersion%getRCutOff())
     end if
 
-    call initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat, fdBondPopul,&
-        & fdBondEnergy)
+    call initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat)
 
     call getChargeDipole(this, deltaQ, qq, dipole, q0, trho, Ssqr, coord, iSquare, qBlock)
 
@@ -1002,29 +1001,6 @@ contains
     ! this is to properly calculate the dipole fourier transform after the simulation
     if (this%tProbe) then
       startTime = 0.0_dp
-    end if
-
-    if (this%tBondE .or. this%tBondP)then
-      allocate(bondWork(this%nAtom, this%nAtom))
-    end if
-    if (this%tBondE) then
-      bondWork(:,:) = 0.0_dp
-      do iSpin = 1, this%nSpin
-        call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), ham0, iSquare,&
-            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-      end do
-      write(fdBondEnergy) time * au__fs, sum(bondWork), bondWork
-    end if
-    if (this%tBondP) then
-      bondWork(:,:) = 0.0_dp
-      do iSpin = 1, this%nSpin
-        call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), over, iSquare,&
-            & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-      end do
-      write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
-      if (tWriteAutotest) then
-        lastBondPopul = sum(bondWork)
-      end if
     end if
 
     call env%globalTimer%stopTimer(globalTimers%elecDynInit)
@@ -1116,25 +1092,8 @@ contains
           & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
       if ((mod(iStep, this%writeFreq) == 0)) then
-        if (this%tBondE) then
-          bondWork(:,:) = 0.0_dp
-          do iSpin = 1, this%nSpin
-            call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), ham0, iSquare,&
-                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-          end do
-          write(fdBondEnergy) time * au__fs, sum(bondWork), bondWork
-        end if
-        if (this%tBondP) then
-          bondWork(:,:) = 0.0_dp
-          do iSpin = 1, this%nSpin
-            call addPairWiseBondInfo(bondWork, rhoPrim(:,1), over, iSquare,&
-                & neighbourList%iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
-          end do
-          write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
-          if (tWriteAutotest) then
-            lastBondPopul = sum(bondWork)
-          end if
-        end if
+        call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, neighbourList%iNeighbour,&
+            & nNeighbourSK, iSparseStart, img2CentCell, iSquare, fdBondEnergy, fdBondPopul, tWriteAutotest, time)
       end if
 
       do iKS = 1, this%parallelKS%nLocalKS
@@ -1807,7 +1766,7 @@ contains
   subroutine initializeTDVariables(this, rho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
       & filling, orb, rhoPrim, potential, iNeighbour, nNeighbourSK, iSquare, iSparseStart,&
       & img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, UJ, onSiteElements,&
-      & eigvecsCplx, H1LC)
+      & eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul, lastBondPopul, time)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1895,6 +1854,21 @@ contains
 
     !> LC contribution to hamiltonian
     complex(dp), allocatable, intent(inout) :: H1LC(:,:)
+
+    !> Container for either bond populations or bond energy
+    real(dp), allocatable, intent(inout) :: bondWork(:, :)
+
+    !> Last calculated bond population (for tagged output)
+    real(dp), intent(inout) :: lastBondPopul
+
+    !> Pairwise bond population output file ID
+    integer, intent(inout) :: fdBondPopul
+
+    !> Pairwise bond energy output file ID
+    integer, intent(inout) :: fdBondEnergy
+
+    !> simulation time (in atomic units)
+    real(dp), intent(in) :: time
 
     real(dp), allocatable :: T2(:,:), T3(:,:)
     complex(dp), allocatable :: T4(:,:)
@@ -2018,6 +1992,18 @@ contains
     if (this%isRangeSep) then
       allocate(H1LC(this%nOrbs, this%nOrbs))
     end if
+
+    if (this%tBondE .or. this%tBondP) then
+      allocate(bondWork(this%nAtom, this%nAtom))
+    end if
+    if (this%tBondE) then
+      call openFile(this, fdBondEnergy, 'bondenergy.bin', isBinary = .true.)
+    end if
+    if (this%tBondP) then
+      call openFile(this, fdBondPopul, 'bondpop.bin', isBinary = .true.)
+    end if
+    call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour, nNeighbourSK,&
+        & iSparseStart, img2CentCell, iSquare, fdBondEnergy, fdBondPopul, .false., time)
 
   end subroutine initializeTDVariables
 
@@ -2188,8 +2174,7 @@ contains
 
 
   !> Initialize output files
-  subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat,&
-      & fdBondPopul, fdBondEnergy)
+  subroutine initTDOutput(this, dipoleDat, qDat, energyDat, populDat, forceDat, coorDat)
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
@@ -2210,13 +2195,6 @@ contains
 
     !> Coords  output file ID
     integer, intent(out) :: coorDat
-
-    !> Pairwise bond population output file ID
-    integer, intent(out) :: fdBondPopul
-
-    !> Pairwise bond energy output file ID
-    integer, intent(out) :: fdBondEnergy
-
 
     character(20) :: dipoleFileName
     character(1) :: strSpin, strCount
@@ -2249,14 +2227,6 @@ contains
         call openFile(this, coorDat, 'tdcoords.xyz')
       end if
 
-    end if
-
-    if (this%tBondE) then
-      call openFile(this, fdBondEnergy, 'bondenergy.bin', isBinary = .true.)
-    end if
-
-    if (this%tBondP) then
-      call openFile(this, fdBondPopul, 'bondpop.bin', isBinary = .true.)
     end if
 
     if (this%tPopulations) then
@@ -2912,7 +2882,7 @@ contains
     real(dp), intent(in) :: occ(:)
 
     !> Last bond population in the run
-    real(dp), intent(in), allocatable :: lastBondPopul
+    real(dp), intent(in) :: lastBondPopul
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
@@ -2934,7 +2904,7 @@ contains
     if (this%tPopulations) then
       call taggedWriter%write(fdAutotest, tagLabels%tdprojocc, occ)
     end if
-    if (allocated(lastBondPopul)) then
+    if (this%tBondP) then
       call taggedWriter%write(fdAutotest, tagLabels%sumBondPopul, lastBondPopul)
     end if
 
@@ -3561,5 +3531,79 @@ contains
       energy%eDisp = 0.0_dp
     end if
   end subroutine getPositionDependentEnergy
+
+
+  !> Calculates bond populations and bond energies if requested
+  subroutine getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour, nNeighbourSK,&
+      & iSparseStart, img2CentCell, iSquare,  fdBondEnergy, fdBondPopul, tWriteAutotest, time)
+
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(inout) :: this
+
+    !> Container for either bond populations or bond energy
+    real(dp), allocatable, intent(inout) :: bondWork(:, :)
+
+    !> Last calculated bond population (for tagged output)
+    real(dp), intent(inout) :: lastBondPopul
+
+    !> sparse density matrix
+    real(dp), intent(in) :: rhoPrim(:,:)
+
+    !> overlap (sparse)
+    real(dp), intent(in) :: over(:)
+
+    !> Local sparse storage for non-SCC hamitonian
+    real(dp), intent(in) :: ham0(:)
+
+    !> Atomic neighbour data
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> nr. of neighbours for atoms out to max interaction distance (excluding Ewald terms)
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> index array for location of atomic blocks in large sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> image atoms to their equivalent in the central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    !> Index array for start of atomic block in dense matrices
+    integer, intent(in) :: iSquare(:)
+
+    !> File descriptor for bond energy
+    integer, intent(in) :: fdBondEnergy
+
+    !> File descriptor for bond populations
+    integer, intent(in) :: fdBondPopul
+
+    !> produce tagged output?
+    logical, intent(in) :: tWriteAutotest
+
+    !> Elapsed simulation time
+    real(dp), intent(in) :: time
+
+    integer :: iSpin
+
+    if (this%tBondE) then
+      bondWork(:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call addPairWiseBondInfo(bondWork, rhoPrim(:,iSpin), ham0, iSquare,&
+            & iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+      end do
+      write(fdBondEnergy) time * au__fs, sum(bondWork), bondWork
+    end if
+    if (this%tBondP) then
+      bondWork(:,:) = 0.0_dp
+      do iSpin = 1, this%nSpin
+        call addPairWiseBondInfo(bondWork, rhoPrim(:,1), over, iSquare,&
+            & iNeighbour, nNeighbourSK, img2CentCell, iSparseStart)
+      end do
+      write(fdBondPopul) time * au__fs, sum(bondWork), bondWork
+      if (tWriteAutotest) then
+        lastBondPopul = sum(bondWork)
+      end if
+    end if
+
+  end subroutine getBondPopulAndEnergy
 
 end module dftbp_timeprop
