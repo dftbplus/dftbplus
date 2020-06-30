@@ -125,7 +125,7 @@ module negf_int
     ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%globalComm, tIOproc)
+    call negf_mpi_init(env%mpi%globalComm)
 #:endif
 
     if (transpar%defined) then
@@ -1076,7 +1076,7 @@ module negf_int
     pCsrDens => csrDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1214,7 +1214,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1372,7 +1372,7 @@ module negf_int
     character(2) :: id1, id2
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     call get_params(negf, params)
 
@@ -1881,7 +1881,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     call get_params(negf, params)
 

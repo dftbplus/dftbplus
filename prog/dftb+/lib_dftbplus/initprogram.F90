@@ -1550,9 +1550,10 @@ contains
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
 
-    #:block DEBUG_CODE
-    call inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
-    #:endblock DEBUG_CODE
+  #:block DEBUG_CODE
+    call inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
+       & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
+  #:endblock DEBUG_CODE
 
     if (input%ctrl%tHalogenX) then
       if (.not. (t3rd .or. t3rdFull)) then
@@ -3222,49 +3223,65 @@ contains
 
   !> Check coherence across processes for various key variables (relevant if running in MPI,
   !> particularly for external driving via API)
-  subroutine inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
+  subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
+       & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> atoms in the system
+    !> Hamiltonian type
+    integer, intent(in) :: hamiltonianType
+
+    !> Number of spin components
+    integer, intent(in) :: nSpin
+
+    !> Atoms in the system
     integer, intent(in) :: nAtom
 
-    ! atom coordinates (in the central unit cell, if relevant).
+    ! Atom coordinates (in the central unit cell, if relevant).
     real(dp), intent(in) :: coord0(:,:)
-
-    !> names of chemical species
-    character(*), intent(in) :: speciesName(:)
 
     !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
 
+    !> Names of chemical species
+    character(*), intent(in) :: speciesName(:)
+
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
 
+    !> Is the calculation periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> If periodic, are the atomic positions in fractional coordinates?
+    logical, intent(in) :: tFracCoord
+
+    !> lattice vectors, stored columnwise
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin of coordinate system for periodic systems
+    real(dp), intent(in) :: origin(:)
+
     integer :: iSp
 
-    if (env%tAPICalculation) then
+    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in initProgramVariables")
+    call checkExactCoherence(env, nSpin, "spin integer in initProgramVariables")
+    call checkExactCoherence(env, nAtom, "the number of atoms in initProgramVariables")
+    call checkToleranceCoherence(env, coord0, "coord0 in initProgramVariables", tol=1.e-10_dp)
+    call checkExactCoherence(env, species0, "atomic species in initProgramVariables")
+    call checkExactCoherence(env, tSccCalc, &
+         & "the type of calculation, SCC, in initProgramVariables")
+    do iSp = 1, size(speciesName)
+       call checkExactCoherence(env, speciesName(iSp), "species names in initProgramVariables")
+    enddo
 
-      if (.not. exactCoherence(env, nAtom)) then
-        call error("Coherence failure in number of atoms across nodes")
-      end if
-      if (.not. exactCoherence(env, coord0)) then
-        call error("Coherence failure in coord0 across nodes")
-      end if
-      do iSp = 1, size(speciesName)
-        if (.not. exactCoherence(env, speciesName(iSp))) then
-          call error("Coherence failure in species names across nodes :" // speciesName(iSp))
-        end if
-      end do
-      if (.not. exactCoherence(env, species0)) then
-        call error("Coherence failure in atom species across nodes")
-      end if
-      if (.not. exactCoherence(env, tSccCalc)) then
-        call error("Coherence failure in type of calculation : SCC")
-      end if
-
-    end if
+    if (tPeriodic) then
+       call checkExactCoherence(env, tFracCoord, "tFracCoord in initProgramVariables")
+       call checkToleranceCoherence(env, latVec, &
+            & "lattice vectors in initProgramVariables", tol=1.e-10_dp)
+       call checkToleranceCoherence(env, origin, &
+            & "coordinate origin in initProgramVariables", tol=1.e-10_dp)
+    endif
 
   end subroutine inputCoherenceCheck
 
