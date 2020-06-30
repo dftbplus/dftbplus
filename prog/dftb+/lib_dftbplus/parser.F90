@@ -4823,7 +4823,6 @@ contains
     call getChildValue(node, "Forces", input%tForces, .false.)
     call getChildValue(node, "WriteBondEnergy", input%tBondE, .false.)
     call getChildValue(node, "WriteBondPopulation", input%tBondP, .false.)
-    call getChildValue(node, "OnsiteGradients", input%tOnsiteGradients, .false.)
     call getChildValue(node, "Pump", input%tPump, .false.)
     call getChildValue(node, "FillingsFromFile", input%tFillingsFromFile, .false.)
 

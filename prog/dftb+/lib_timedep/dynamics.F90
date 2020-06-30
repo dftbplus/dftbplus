@@ -176,9 +176,6 @@ module dftbp_timeprop
     !> if this is a probe trajectory (for a pump-probe simulation)
     logical :: tProbe
 
-    !> if onsite elements of nonadiabatic couplings  should be calculated (needs special SK tables)
-    logical :: tOnsiteGradients
-
     !> atomic (initial) kinetic temperature
     real(dp) :: tempAtom
 
@@ -212,13 +209,13 @@ module dftbp_timeprop
     real(dp), allocatable :: initialVelocities(:,:), movedVelo(:,:), movedMass(:,:)
     real(dp) :: mCutoff, skCutoff, laserField
     real(dp), allocatable :: rCellVec(:,:), cellVec(:,:), kPoint(:,:), KWeight(:)
-    real(dp), allocatable :: atomEigVal(:,:), onsiteGrads(:,:,:,:)
+    real(dp), allocatable :: atomEigVal(:,:)
     integer :: nExcitedAtom, nMovedAtom, nSparse, eulerFreq, PpFreq, PpIni, PpEnd
     integer, allocatable :: iCellVec(:), indMovedAtom(:), indExcitedAtom(:)
     logical :: tIons, tForces, tDispersion=.false., ReadMDVelocities, tPump, tProbe, tRealHS
     logical :: isRangeSep
     logical :: FirstIonStep = .true., tEulers = .false., tBondE = .false., tBondP = .false.
-    logical :: tCalcOnsiteGradients = .false., tPeriodic = .false., tFillingsFromFile = .false.
+    logical :: tPeriodic = .false., tFillingsFromFile = .false.
     type(TThermostat), allocatable :: pThermostat
     type(TMDIntegrator), allocatable :: pMDIntegrator
     class(TDispersionIface), allocatable :: dispersion
@@ -451,7 +448,6 @@ contains
       call error("Real hamitonian required for bond energies")
     end if
     this%tBondP = inp%tBondP
-    this%tCalcOnsiteGradients = inp%tOnsiteGradients
     this%species = species
     this%tPeriodic = tPeriodic
     this%isRangeSep = isRangeSep
@@ -1980,11 +1976,6 @@ contains
     call init(potential, orb, this%nAtom, this%nSpin)
     call init(energy, this%nAtom)
 
-    if (this%tIons .and. this%tCalcOnsiteGradients) then
-      allocate(this%onsiteGrads(3, this%nAtom, orb%mOrb, orb%mOrb))
-      call getOnsiteGrads(this, skOverCont, orb)
-    end if
-
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))
     end if
@@ -3345,17 +3336,6 @@ contains
       iSp1 = this%species(iAtom1)
       nOrb1 = orb%nOrbAtom(iAtom1)
 
-      ! Onsite blocks
-      if (this%tCalcOnsiteGradients) then
-        sPrimeTmp2(:,:) = 0.0_dp
-        do iDir = 1, 3
-          sPrimeTmp2(:,:) = sPrimeTmp2&
-              & + this%onsiteGrads(iDir, iAtom1, :, :) * dcoord(iDir, iAtom1)
-        end do
-        RdotSprime(iStart1:iEnd1,iStart1:iEnd1) = cmplx(sPrimeTmp2(1:nOrb1,1:nOrb1), 0, dp)
-      end if
-
-      ! Offsite blocks
       do iNeigh = 1, nNeighbourSK(iAtom1)
         iAtom2 = neighbourList%iNeighbour(iNeigh, iAtom1)
         iAtom2f = img2CentCell(iAtom2)
@@ -3386,49 +3366,6 @@ contains
     !$OMP END PARALLEL DO
 
   end subroutine getRdotSprime
-
-
-  !> Calculates onsite gradients for non-adiabatic coupling
-  subroutine getOnsiteGrads(this, skOverCont, orb)
-
-    !> ElecDynamics instance
-    type(TElecDynamics), intent(inout), target :: this
-
-    !> Raw overlap data
-    type(TSlakoCont), intent(in) :: skOverCont
-
-    !> data type for atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    real(dp) :: dist, uVects(3,3), vect(3), Stmp(2, orb%mOrb, orb%mOrb), Sder(orb%mOrb, orb%mOrb)
-    real(dp) :: interSKOver(getMIntegrals(skOverCont))
-    integer :: iAt, iSp, nOrb, dir, iAux
-
-    dist = 0.02_dp
-    uVects(1,:) = (/ 1.0_dp, 0.0_dp, 0.0_dp /)
-    uVects(2,:) = (/ 0.0_dp, 1.0_dp, 0.0_dp /)
-    uVects(3,:) = (/ 0.0_dp, 0.0_dp, 1.0_dp /)
-    this%onsiteGrads = 0.0_dp
-
-    do iAt = 1, this%nAtom
-      Sder(:,:) = 0.0_dp
-      iSp = this%species(iAt)
-      nOrb = orb%nOrbSpecies(iSp)
-      do dir = 1, 3
-        do iAux = 1, 2
-          Stmp(iAux, :, :) = 0.0_dp
-          vect = (-1)**(iAux+1) * uVects(dir, :)
-
-          call getSKIntegrals(skOverCont, interSKOver, dist, iSp, iSp)
-          call rotateH0(Stmp(iAux, :, :), interSKOver, vect(1), vect(2), vect(3), &
-              &iSp, iSp, orb)
-        end do
-        Sder(:,:) = (Stmp(1, :, :) - Stmp(2, :, :)) / (2.0_dp * dist)
-        this%onsiteGrads(dir, iAt, 1:nOrb, 1:nOrb) = Sder(1:nOrb, 1:nOrb)
-      end do
-    end do
-
-  end subroutine getOnsiteGrads
 
 
   !> Reallocates sparse arrays after change of coordinates
