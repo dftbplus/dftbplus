@@ -4819,7 +4819,7 @@ contains
     if (input%tWriteRestart) then
       call getChildValue(node, "WriteAsciiRestart", input%tWriteRestartAscii, .false.)
     end if
-    call getChildValue(node, "RestartFrequency", input%restartFreq, input%Steps / 10)
+    call getChildValue(node, "RestartFrequency", input%restartFreq, max(input%Steps / 10, 1))
     call getChildValue(node, "Forces", input%tForces, .false.)
     call getChildValue(node, "WriteBondEnergy", input%tBondE, .false.)
     call getChildValue(node, "WriteBondPopulation", input%tBondP, .false.)
