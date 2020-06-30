@@ -7,11 +7,11 @@
 
 #:include 'common.fypp'
 
-!> Implements real-time Ehrenfest time-dependent DFTB by numerically propagating the electronic one-electron
-!> density matrix of the system and the nuclei in the presence of an external perturbation (kick or laser)
-!>
-!> Bonafé, F. P., Aradi, B., Hourahine, B., Medrano, C. R., Hernandez, F. J., Frauenheim, T., & Sánchez, C. G.
-!> Journal of Chemical Theory and Computation (2020) https://doi.org/10.1021/acs.jctc.9b01217
+!> Implements real-time Ehrenfest time-dependent DFTB by numerically propagating the electronic
+!> one-electron density matrix of the system and the nuclei in the presence of an external
+!> perturbation (kick or laser) Bonafé, F. P., Aradi, B., Hourahine, B., Medrano, C. R., Hernandez,
+!> F. J., Frauenheim, T., & Sánchez, C. G.  Journal of Chemical Theory and Computation (2020)
+!> https://doi.org/10.1021/acs.jctc.9b01217
 
 module dftbp_timeprop
   use dftbp_globalenv
@@ -938,7 +938,8 @@ contains
     call initializeTDVariables(this, trho, H1, Ssqr, Sinv, H0, ham0, over, ham, eigvecsReal,&
         & filling, orb, rhoPrim, potential, neighbourList%iNeighbour, nNeighbourSK, iSquare,&
         & iSparseStart, img2CentCell, Eiginv, EiginvAdj, energy, ErhoPrim, skOverCont, qBlock, UJ,&
-        & onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul, lastBondPopul, time)
+        & onSiteElements, eigvecsCplx, H1LC, bondWork, fdBondEnergy, fdBondPopul, lastBondPopul,&
+        & time)
 
     if (this%tPeriodic) then
       call initLatticeVectors(this)
@@ -1088,8 +1089,9 @@ contains
           & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
 
       if ((mod(iStep, this%writeFreq) == 0)) then
-        call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, neighbourList%iNeighbour,&
-            & nNeighbourSK, iSparseStart, img2CentCell, iSquare, fdBondEnergy, fdBondPopul, tWriteAutotest, time)
+        call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over,&
+            & neighbourList%iNeighbour, nNeighbourSK, iSparseStart, img2CentCell, iSquare,&
+            & fdBondEnergy, fdBondPopul, tWriteAutotest, time)
       end if
 
       do iKS = 1, this%parallelKS%nLocalKS
@@ -1993,8 +1995,9 @@ contains
     if (this%tBondP) then
       call openFile(this, fdBondPopul, 'bondpop.bin', isBinary = .true.)
     end if
-    call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour, nNeighbourSK,&
-        & iSparseStart, img2CentCell, iSquare, fdBondEnergy, fdBondPopul, .false., time)
+    call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour,&
+        & nNeighbourSK, iSparseStart, img2CentCell, iSquare, fdBondEnergy, fdBondPopul, .false.,&
+        & time)
 
   end subroutine initializeTDVariables
 
@@ -3471,8 +3474,9 @@ contains
 
 
   !> Calculates bond populations and bond energies if requested
-  subroutine getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour, nNeighbourSK,&
-      & iSparseStart, img2CentCell, iSquare,  fdBondEnergy, fdBondPopul, tWriteAutotest, time)
+  subroutine getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour,&
+      & nNeighbourSK, iSparseStart, img2CentCell, iSquare,  fdBondEnergy, fdBondPopul,&
+      & tWriteAutotest, time)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
