@@ -7,8 +7,8 @@
 #ifndef __DFTBPLUS_H__
 #define __DFTBPLUS_H_
 
-#define DFTBPLUS_RELEASE "@RELEASE@"
-#define DFTBPLUS_API "@API_RELEASE@"
+#define __DFTBPLUS_RELEASE__ "@RELEASE@"
+#define __DFTBPLUS_API__ "@API_RELEASE@"
 
 #ifdef __cplusplus
 extern "C" {
