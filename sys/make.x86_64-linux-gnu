@@ -13,22 +13,25 @@ FXX = mpif90
 CC = gcc
 
 # Compiler options
-FXXOPT = -O2 -funroll-all-loops
+FXXOPT = -O2 -funroll-all-loops -fopenmp
 CCOPT = -O2 -funroll-all-loops -fall-intrinsics
 
 # Linker
 LN = $(FXX)
-LNOPT =
+LNOPT = -fopenmp
 
 # How to link specific libraries
 
 # ScaLAPACK
 SCALAPACKDIR = /usr/lib
-LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack -L$(ATLASDIR)
+LIB_SCALAPACK = -L$(SCALAPACKDIR) -lscalapack
 
 # LAPACK/BLAS
-ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
+#LIB_LAPACK = -llapack -lblas
+LIB_LAPACK = -Wl,--no-as-needed -L${MKLROOT}/lib/intel64 \
+ -lmkl_lapack95_lp64 -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core \
+ -lmkl_gnu_thread -lmkl_core -ldl -lpthread -lm
+
 
 # Any other libraries to be linked
 OTHERLIBS =
@@ -38,7 +41,7 @@ M4 = m4
 M4OPT = 
 
 # Command to run the test binary
-TESTRUNNER = mpirun -n $(TESTPROC)
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS) mpiexec -n $(TEST_MPI_PROCS)
 
 else
 ############################################################################
@@ -60,14 +63,17 @@ LNOPT = -fopenmp
 # How to link specific libraries
 
 # LAPACK/BLAS
-ATLASDIR = /usr/lib
-LIB_LAPACK = -L$(ATLASDIR) -llapack -lf77blas -lcblas -latlas
+# Make sure you use threaded LAPACK/BLAS (e.g. openBLAS) for full performance!
+#LIB_LAPACK = -llapack -lblas
+LIB_LAPACK = -Wl,--no-as-needed -L${MKLROOT}/lib/intel64 \
+ -lmkl_lapack95_lp64 -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core \
+ -lmkl_gnu_thread -lmkl_core -ldl -lpthread -lm
 
 # Any other libraries to be linked
-OTHERLIBS = -lgomp -lpthread
+OTHERLIBS =
 
 # Command to run a binary
-TESTRUNNER =
+TESTRUNNER = env OMP_NUM_THREADS=$(TEST_OMP_THREADS)
 
 endif
 
@@ -82,6 +88,15 @@ FYPPOPT =
 # Library options in general
 LIBOPT = 
 
+# BML and progress libraries in case code is compiled with PROGRESS support
+ifeq ($(strip $(WITH_PROGRESS)),1)
+BML_ROOT = $HOME/bml
+PROGRESS_ROOT = /opti/qmd-progress
+PROGRESS_INCS = -I$(BML_ROOT)/include -I$(PROGRESS_ROOT)/include
+PROGRESS_LIBS = -L$(PROGRESS_ROOT)/lib64 -lprogress -L$(BML_ROOT)/lib64 \
+    -lbml_fortran -lbml
+endif
+
 ############################################################################
 # Developer settings
 ############################################################################
@@ -89,12 +104,12 @@ LIBOPT =
 # Override options for different DEBUG modes
 ifeq ($(strip $(DEBUG)),1)
     OTHERLIBS = 
-    FXXOPT = -g -Wall -std=f2008 -pedantic
+    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic
     CCOPT = -g -Wall -pedantic -fall-intrinsics
 endif
 
 ifeq ($(strip $(DEBUG)),2)
     OTHERLIBS = 
-    FXXOPT = -g -Wall -std=f2008 -pedantic -fbounds-check
+    FXXOPT = -fopenmp -g -Wall -std=f2008 -pedantic -fbounds-check
     CCOPT = -g -Wall -pedantic -fall-intrinsics -fbounds-check
 endif

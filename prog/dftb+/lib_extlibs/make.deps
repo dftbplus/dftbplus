@@ -8,6 +8,16 @@ blas.o = blas.o $(_mod_accuracy)
 _mod_blas: blas.o
 _mod_blas = $(blas.o)
 
+bml.o: common.fypp _mod_bml
+bml.o = bml.o $(common.fypp) $(_mod_bml)
+_mod_dftbp_bml: bml.o
+_mod_dftbp_bml = $(bml.o)
+
+cuda.o: common.fypp _mod_iso_c_binding
+cuda.o = cuda.o $(common.fypp) $(_mod_iso_c_binding)
+_mod_dftbp_cuda: cuda.o
+_mod_dftbp_cuda = $(cuda.o)
+
 dftd3.o: _mod_dftd3_api
 dftd3.o = dftd3.o $(_mod_dftd3_api)
 _mod_dftd3_module: dftd3.o
@@ -34,6 +44,11 @@ mpifx.o = mpifx.o $(common.fypp)
 _mod_mpifx: mpifx.o
 _mod_mpifx = $(mpifx.o)
 #:endif
+
+progress.o: _mod_prg_genz_mod common.fypp _mod_prg_sp2_mod _mod_prg_sp2parser_mod _mod_prg_nonortho_mod
+progress.o = progress.o $(_mod_prg_genz_mod) $(common.fypp) $(_mod_prg_sp2_mod) $(_mod_prg_sp2parser_mod) $(_mod_prg_nonortho_mod)
+_mod_dftbp_progress: progress.o
+_mod_dftbp_progress = $(progress.o)
 
 #:if WITH_SCALAPACK
 scalapackfx.o: common.fypp _mod_libscalapackfx_module

@@ -1,6 +1,6 @@
 #------------------------------------------------------------------------------#
 #  DFTB+: general package for performing fast atomistic simulations            #
-#  Copyright (C) 2017  DFTB+ developers group                                  #
+#  Copyright (C) 2018  DFTB+ developers group                                  #
 #                                                                              #
 #  See the LICENSE file for terms of usage and distribution.                   #
 #------------------------------------------------------------------------------#
@@ -19,6 +19,9 @@ FYPPINC = -I
 include $(ROOT)/make.config
 
 FYPPOPT += -DDEBUG=$(DEBUG)
+
+RELEASE := $(shell cat $(BUILDROOT)/RELEASE)
+FYPPOPT += -DRELEASE="'$(RELEASE)'"
 
 vpath % $(SRCDIRS)
 
@@ -128,6 +131,11 @@ ifeq ($(strip $(WITH_DFTD3)),1)
   L_INCS += $(DFTD3_INCS)
 endif
 
+ifeq ($(strip $(WITH_PROGRESS)),1)
+  L_LIBS += $(PROGRESS_LIBS)
+  L_INCS += $(PROGRESS_INCS)
+  FYPPOPT += -DWITH_PROGRESS
+endif
 
 ifeq ($(strip $(WITH_MPI)),1)
   #
@@ -176,18 +184,6 @@ else
   else
     L_LIBS += $(L_LIBS_LAPACKBLAS) $(L_LIBS_ARPACK)
   endif
-endif
-
-
-# PROGRESS
-ifeq ($(strip $(WITH_PROGRESS)),1)
-    #COMPILED_EXTERNALS += _extlib_progress
-    #PROGRESS_LIBS := -L$(BUILDROOT)/external/progress
-    #PROGRESS_INCS := -I$(BUILDROOT)/external/progress
-    FYPPOPT += -DWITH_PROGRESS
-   # L_LIBS += $(if $(filter _extlib_progress, $^), $(PROGRESS_LIBS))
-    L_LIBS += $(PROGRESS_LIBS)
-    L_INCS += $(PROGRESS_INCS)
 endif
 
 $(COMPILED_EXTERNALS): __FORCE__

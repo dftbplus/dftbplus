@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -720,7 +720,7 @@ contains
 !!! Scalapack routines
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> Create energy weighted density matrix (real).
+  !> Create density or energy weighted density matrix (real).
   !!
   subroutine makeDensityMtxRealBlacs(myBlacs, desc, filling, eigenVecs, densityMtx, eigenVals)
     type(blacsgrid), intent(in) :: myBlacs
@@ -786,7 +786,7 @@ contains
   end subroutine makeDensityMtxRealBlacs
 
 
-  !> Create energy weighted density matrix (complex).
+  !> Create density or energy weighted density matrix (complex).
   !!
   subroutine makeDensityMtxCplxBlacs(myBlacs, desc, filling, eigenVecs, densityMtx, eigenVals)
     type(blacsgrid), intent(in) :: myBlacs

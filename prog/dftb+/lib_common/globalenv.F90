@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -23,7 +23,7 @@ module globalenv
   private
 
   public :: initGlobalEnv, destructGlobalEnv
-  public :: abort, synchronizeAll
+  public :: abort, shutdown, synchronizeAll
   public :: stdOut, tIoProc
   public :: withScalapack, withMpi
 
@@ -55,7 +55,7 @@ contains
   subroutine initGlobalEnv()
 
   #:if WITH_MPI
-    call mpifx_init()
+    call mpifx_init_thread(requiredThreading=MPI_THREAD_FUNNELED)
     call globalMpiComm%init()
     if (globalMpiComm%master) then
       stdOut = stdOut0
@@ -81,13 +81,33 @@ contains
   end subroutine destructGlobalEnv
 
 
-  !> Aborts program execution.
+  !> Gracefully shuts down environment and stops execution.
+  !>
+  !> Note: this routine must be called collectively by all processes.
+  !>
+  subroutine shutdown()
+
+    call synchronizeAll()
+    call destructGlobalEnv()
+    stop
+
+  end subroutine shutdown
+
+
+  !> Aborts program execution immediately.
+  !>
+  !> Note: if this routine is called by any the processes, execution immediately stops
+  !> without waiting for any other processes.
+  !>
   subroutine abort(errorCode)
 
     !> Error code to emit (default: 1)
     integer, intent(in), optional :: errorCode
 
-    integer :: error, errorCode0
+    integer :: errorCode0
+  #:if WITH_MPI
+    integer :: error
+  #:endif
 
     if (.not. present(errorCode)) then
       errorCode0 = 1

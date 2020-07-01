@@ -184,6 +184,8 @@ methods are available:
   conjugate gradient algorithm. See p.~\pref{sec:dftbp.ConjugateGradient}.
 \item[\iscb{gDIIS}] Geometry optimisation using the modified gDIIS
   method. See p.~\pref{sec:dftbp.gDIIS}.
+\item[\iscb{LBFGS}] Geometry optimisation using the LBFGS
+  algorithm. See p.~\pref{sec:dftbp.LBFGS}.
 \item[\iscb{SecondDerivatives}] Calculation of the second derivatives of the
   energy (the \index{Hessian}Hessian). See p.~\pref{sec:dftbp.SecondDerivatives}.
 \item[\iscb{VelocityVerlet}] Molecular dynamics with the velocity
@@ -382,6 +384,32 @@ properties.\footnote{This approach is distinct from
   section~\ref{sec:dftbp.DIIS}, but uses a related algorithm based on
   Ref.~\cite{kovalenko-JCC-20-928} and comments from P.R.Briddon.}
 
+\htcbsubsection{LBFGS}
+\label{sec:dftbp.LBFGS}
+
+\begin{ptable}
+  \kw{Memory} &i & & 20 & \\
+  \kw{MovedAtoms} & (i|s)+ &  & 1:-1 & \\
+  \kw{MaxForceComponent} & r & & 1e-4 & \\
+  \kw{MaxSteps}          & i & & 200 & \\
+  \kw{OutputPrefix}      & s & & "geo\_end" & \\
+  \kw{AppendGeometries}  & l & & \is{No} & \\
+  \kw{Constraints}       & (1i3r)* & & \cb & \\
+  \kw{LatticeOpt}        & l & Periodic = Yes & \is{No} & \\
+  \kw{FixAngles}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  \kw{Isotropic}         & l & Periodic = Yes, LatticeOpt = Yes & \is{No} & \\
+  \kw{Pressure}          & r & Periodic = Yes & 0.0 & \\
+  \kw{MaxLatticeStep}    & r & Periodic = Yes, LatticeOpt = Yes & 0.2 & \\
+  \kw{ConvergentForcesOnly} & l & SCC = Yes & \is{Yes} & \\
+\end{ptable}
+
+Specific properties for this method are:
+\begin{description}  
+\item[\is{Memory}] Number of last steps which are saved and used to calculate
+  the next step via the LBFGS algorithm. The literature recommends that
+  \is{Memory} should between 3 and 20~\cite{NoceWrig06}.
+\end{description}
+
 \subsection{SecondDerivatives\{\}}
 \label{sec:dftbp.SecondDerivatives}
 
@@ -473,15 +501,19 @@ file \verb|md.out| (see appendix \ref{sec:md.out}).
   overriding \is{RestartFrequency} (see
   section~\ref{kw:dftbp.RestartFrequency}).
 
-\item[\is{Velocities}]\modif{\modtype{velocity}} Specified atomic velocities for all the atoms of
-  the given structure (including ``velocities'' for any stationary atoms, which are silently
-  ignored). This option can be used to restart an MD run, but make sure the geometry is consistent
-  with the specified velocities. The easiest way to do this is to copy both from the same iteration
-  of the XYZ file produced in the previous run (\textbf{Note:} the velocities printed in the XYZ
-  files are specified in {\AA}/ps, so this should be set in the input). If restarting an \kw{SCC} MD
-  run, we \textbf{strongly suggest} you use \is{ReadInitialCharges}, and in particular read charges
-  for the geometry which you use to restart (iterations at which charges are written to disc are
-  marked in the XYZ file, with the most recent being present in \verb|charges.bin|).
+\item[\is{Velocities}]\modif{\modtype{velocity}} Specified atomic velocities for
+  all the atoms of the given structure (including ``velocities'' for any
+  stationary atoms, which are silently ignored). This option can be used to
+  restart an MD run, but make sure the geometry is consistent with the specified
+  velocities. The easiest way to do this is to copy both from the same iteration
+  of the XYZ file produced in the previous run (\textbf{Note:} the velocities
+  printed in the XYZ files are specified in {\AA}/ps, so this should be set in
+  the input). If restarting an \kw{SCC} MD run, we \textbf{strongly suggest} you
+  use \is{ReadInitialCharges}, and in particular read charges for the geometry
+  which you use to restart (iterations at which charges are written to disc are
+  marked in the XYZ file, with the most recent being present in
+  \verb|charges.bin| or \verb|charges.dat| depending on the option
+  \is{WriteChargesAsText}).
 
 \item[\is{Barostat}] Berendsen method barostat for the MD simulation. See
   p.~\pref{sec:dftbp.Barostat}.
@@ -916,7 +948,9 @@ Driver = Socket {
 }
 \end{verbatim}
 
-
+Please note that this driver changes the default behaviour of some options to
+remove (usually unneeded) file writing: \is{WriteDetailedOut} = \is{No} and
+\is{WriteBandOut} = \is{No}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Hamiltonian
@@ -934,6 +968,7 @@ following properties:
   \kw{SCCTolerance} &r& SCC = Yes & 1e-5 &  \\
   \kw{MaxSCCIterations} &i& SCC = Yes & 100 & \\
   \kw{EwaldParameter} & r & Periodic = Yes SCC = Yes & 0.0 & \\
+  \kw{EwaldTolerance} & r & Periodic = Yes SCC = Yes & 1e-9 & \\
   \kw{OrbitalResolvedSCC} & l & SCC = Yes & No & \\
   \kw{Mixer} &m& SCC = Yes  & Broyden\{\} & \pref{sec:dftbp.Mixer} \\
   \kw{MaxAngularMomentum} &p&  & -  & \\
@@ -999,6 +1034,8 @@ following properties:
   parameter in the standard output. This is then a suitable choice for
   the original cell with the large vacuum region.
 
+\item[\is{EwaldTolerance}] Sets the tolerance for Ewald summation in periodic
+  systems.
 
 \item[\is{OrbitalResolvedSCC}] If set to \is{Yes}, all distinct
   Hubbard $U$ values for the different atomic angular momenta shells
@@ -1151,9 +1188,10 @@ following properties:
   band structure. See p.~\pref{sec:dftbp.OrbitalPotential}.
 
 
-\item[\is{ReadInitialCharges}] If set to \is{Yes} the first
-  Hamiltonian is constructed by using the charge information read from
-  the file \verb|charges.bin|.
+\item[\is{ReadInitialCharges}] If set to \is{Yes} the first Hamiltonian is
+  constructed by using the charge information read from the file
+  \verb|charges.bin| or \verb|charges.dat| (depending on the option
+  \is{WriteChargesAsText}, see section\ref{sec:dftbp.Options}).
 
 \item[\is{InitialCharges}] Specifies initial net charges, either for
   all atoms or for only selected ones. In order to specify it for all
@@ -2512,6 +2550,9 @@ This block collects some global options for the run.
   \kw{ShowFoldedCoords} & l & Periodic = Yes & No & \\
   \kwl{WriteHS}{kw:dftbp.WriteHS} & l & & No & \\
   \kwl{WriteRealHS}{kw:dftbp.WriteRealHS} & l & & No & \\
+  \kwl{ReadChargesAsText}{kw:dftbp.ReadChargesAsText} & l &
+  ReadInitialCharges = Yes & No & \\
+  \kwl{WriteChargesAsText}{kw:dftbp.WriteChargesAsText} & l & & No & \\
 \end{ptable}
 \begin{description}
 
@@ -2553,7 +2594,7 @@ This block collects some global options for the run.
 \item[\is{TimingVerbosity}] Level of information regarding CPU and wall clock
   timings of sections of the code, higher values becoming more verbose. Setting
   this parameter to 0 or below supresses any information being printed
-  (default).
+  (default). Setting it to -1 includes all measured timings.
 
 \item[\is{ShowFoldedCoords}] Print coordinates folded back into the
   central cell, so if an atom moves outside the central cell it will
@@ -2588,6 +2629,15 @@ This block collects some global options for the run.
   option to build the Hamiltonian with a previously converged charge
   distribution.
 
+\item[\is{ReadChargesAsText}] If \is{No}, the program expects the file
+  \verb|charges.bin| to contain starting charges stored in binary. If \is{Yes},
+  then \verb|charges.dat| should contain a text file of this data. See section
+  \ref{sec:charges.bin}.
+
+\item[\is{WriteChargesAsText}] If \is{No}, the program stores charges in the
+  binary file \verb|charges.bin|, while if \is{Yes} then \verb|charges.dat|
+  contains text of this data. See section \ref{sec:charges.bin}.
+
 \end{description}
 
 
@@ -2605,10 +2655,12 @@ calculation and/or calculate properties.
   \kw{ProjectStates} & m & & \cb & \\
   \kw{Localise} & m & & \cb & \\
   \kwl{WriteEigenvectors}{kw:dftbp.WriteEigenvectors} & l & & No & \\
-  \kw{EigenvectorsAsTxt} & l & & No & WriteEigenvectors = Yes\\
+  \kw{EigenvectorsAsTxt} & l & WriteEigenvectors = Yes & No & \\
   \kw{WriteBandOut} & l & & Yes & \\
   \kw{CalculateForces} & l & & No & \\
+  \kw{ElectrostaticPotential} & m & SCC = Yes & \cb & \pref{sec:dftbp.ESP} \\
 \end{ptable}
+
 \begin{description}
 
 \item[\is{AtomResolvedEnergies}] Specifies whether the contribution of the
@@ -2693,7 +2745,11 @@ For systems with non-gamma-point $k$-points, no further options are available.
 \begin{verbatim}
 Analysis = {
   Localise = {
-    PipekMezey = Yes        # Default options otherwise
+    PipekMezey = {
+       # These are the default options, which are also set if the bracket is left empty.
+       Tollerance = 1.0E-4
+       MaxIterations = 100
+    }  
   }
 }
 \end{verbatim}
@@ -2732,13 +2788,63 @@ method which {\em may} have better scaling properties.
 
 \end{description}
 
+\subsubsection{ElectrostaticPotential}
+\label{sec:dftbp.ESP}
+
+Evaluates the electrostatic potential at specified points in space for SCC
+calculations. This data is accumulated in a specified text file.
+
+\begin{ptable}
+  \kw{OutputFile} & s  &  & "ESP.dat" & \\
+  \kw{AppendFile} & l  & MD or geometry optimisation & No & \\
+  \kw{Softening}  & r     & & 1E-6 & \\
+  \kw{Points}     & (3r)+ & \is{Grid} not set & \cb  & \\
+  \kw{Grid}       & m     & \is{Points} not set & \cb  & \\
+\end{ptable}
+\begin{description}
+\item[\is{OutputFile}] Text file to store the potential. If external electric
+  fields are present, an additional column gives their values. See
+  p.~\pref{sec:dftbp.esp} for a description of the file.
+\item[\is{AppendFile}] If running calculations with multiple geometries, should
+  the \is{OutputFile} be appended or only contain the last potential
+  information?
+\item[\is{Softening}] \modif{\modtype{length}} Modifies the plotted potential to
+  remove the $r=0$ divergence of $\sfrac{1}{r}$, by setting $\epsilon$ and
+  instead plotting $\sfrac{1}{\sqrt{r^2 +\epsilon^2}}$. Internal potential
+  calculations are unaffected, only the exported data.
+\item[\is{Points}] \modif{\modtype{length}} List of cartesian points at which to
+  evaluate the electrostatic field. In the case Periodic = Yes, the modifier "F"
+  may instead be used to specify the points as fractions of the lattice vectors.
+\item[\is{Grid}] \modif{\modtype{length}} Specification of a regular 1, 2 or 3
+  dimensional grid of points. In the case Periodic = Yes, the modifier "F" may
+  instead be used to specify the points as fractions of the lattice vectors.
+  \begin{ptable}
+    \kw{GridPoints} & 3i  &  & & \\
+    \kw{Origin} & 3r  &  & & \\
+    \kw{Spacing} & 3r  &  & & \\
+    \kw{Directions} & 9r  & Modifier not F & 1 0 0\ \  0 1 0\ \  0 0 1& \\
+  \end{ptable}
+  \begin{description}
+    \item[\is{Spacing}] Separation between points in each direction. This
+      inherits the modifier for \is{Grid}.
+  \item[\is{Origin}] Location of first point in the grid. This inherits the
+    modifier for \is{Grid}.
+  \item[\is{GridPoints}] Number of points in each of the three direction of the
+    grid (a value of 1 places all points at the \is{Origin} of that direction).
+  \item[\is{Directions}] Set of 3 cartesian vectors along which the grid will
+    become aligned. This can rotate, skew, {\it etc.}\ the grid. The vectors are
+    internally normalised, but must be independent.
+  \end{description}
+\end{description}
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%  Excited State
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{ExcitedState}
 \label{sec:dftbp.ExcitedState}
 
-This block collects some options to calculate in the excited state.
+This block collects some options to calculate excited states.
 \begin{ptable}
   \kw{Casida} & p & SCC = Yes & \cb & \\
 \end{ptable}
@@ -2771,10 +2877,10 @@ fractional occupations. The specifications for this block have the following pro
     \kw{OscillatorWindow}       & r & & -1 & \\
     \kw{WriteTransitions}       & l & & No & \\
     \kw{WriteSPTransitions}     & l & & No & \\
-    \kw{WriteMulliken}          & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{WriteCoefficients}      & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{WriteEigenvectors}      & l & StateOfInterest $\neq$ 0 & No & \\
-    \kw{TotalStateCoeffs}       & l & WriteEigenvectors | WriteCoefficients = Yes & No & \\
+    \kw{WriteMulliken}          & l & & No & \\
+    \kw{WriteCoefficients}      & l & & No & \\
+    \kw{WriteEigenvectors}      & l & & No & \\
+    \kw{TotalStateCoeffs}       & l & WriteCoefficients = Yes & No & \\
     \kw{WriteXplusY}            & l & & No & \\
     \kw{WriteTransitionDipole}  & l & & No & \\
     \kw{WriteStatusArnoldi}     & l & & No & \\
@@ -2791,9 +2897,9 @@ fractional occupations. The specifications for this block have the following pro
   \item[\is{StateOfInterest}] Specifies the target excited state or states that should be
     calculated. These are numbered from the first (lowest) excited state as 1, and so on. If the
     absorption spectrum at a given geometry is required (i.e., a single-point calculation), this
-    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver}) should be
-    left empty (forces will not be available). A value less than 0 requests that the state with the
-    largest dipole transition moment be found (again a single-point calculation).
+    parameter should be set to zero (default) and the \is{Driver} section (\ref{sec:dftbp.Driver})
+    should be left empty (forces will not be available). A value less than 0 requests that the
+    state with the largest dipole transition moment be found (again a single-point calculation).
 
   \item[\is{Symmetry}] Specifies the spin symmetry of the excited states being computed:
     ``singlet'', ``triplet'' or ``both''. This tag is only applicable for spin restricted
@@ -2902,6 +3008,7 @@ the code. They only take effect, if the code was compiled with MPI-support.
 
 \begin{ptable}
   \kw{Groups} & i & 1 & & \\
+  \kw{UseOmpThreads} & l & .false. & & \\
   \kw{Blacs} & p & \cb & & \\
 \end{ptable}
 \begin{description}
@@ -2911,6 +3018,21 @@ the code. They only take effect, if the code was compiled with MPI-support.
   same time. The number of process groups must be a divisor of the total number
   of MPI-processes. Default: 1 (all processes work at the same k-point and spin
   at a given time).
+
+\item[\is{UseOmpThreads}] Enables the usage of OpenMP-threads (hybrid
+  MPI/OpenMP-parallelisation). In order to prevent you from accidently running
+  more processes and threads than appropriate for your hardware, this feature is
+  turned off by default. Consequently in this case the MPI-parallelised binary
+  will stop if the maximal number of OpenMP-threads is greater than one when
+  DFTB+ is started. (You can usually set the number of maximally allowed
+  OpenMP-threads by setting the \is{OMP\_NUM\_THREADS} environment variable in
+  your shell.)
+
+  You can enable this option if you wish to run DFTB+ with hybrid
+  parallelisation. You would then typically start fewer MPI-processes than
+  physical cores on each node and also set the number of threads accordingly.
+  This is currently an experimental feature in DFTB+ and is recommended for
+  experienced users only.
 
 \item[\is{Blacs}] Contain BLACS specific settings. Currently only supports
   \is{BlockSize}, which specifies the row and column block size for the
@@ -3052,19 +3174,24 @@ The files are produced if requested by setting \is{WriteEigenvectors} =
 \is{Yes}, with \is{EigenvectorsAsTxt} being also required to produce the plain
 text file (see section~\ref{kw:dftbp.WriteEigenvectors} for details).
 
-\section{charges.bin}
+\section{charges.bin / charges.dat}
 \label{sec:charges.bin}
 \index{charges.bin}
 
-The file charges.bin contains the orbitally-resolved charges for each atom,
-ordered as the charges on each orbital of an atom for a given spin channel, then
-each spin channel and finally over each atom. In later versions of \dftbp{} this
-format includes a check sum for the total charge and magnetisation. In the case
-of orbital potentials (p.~\pref{sec:DFTB+U}) the file also contains extra
-population information for the occupation matrices.
+The file \verb|charges.bin| contains the orbitally-resolved charges for each
+atom. In later versions of \dftbp{} this format includes a check sum for the
+total charge and magnetisation. In the case of orbital potentials
+(p.~\pref{sec:DFTB+U}) the file also contains extra population information for
+the occupation matrices.
 
 This file is produced as part of the mechanism to restart SCC calculations, see
 sections~\ref{kw:dftbp.RestartFrequency} and~\ref{kw:dftbp.MDRestartFrequency}.
+
+Equivalent data can also be present in the file \verb|charges.dat|, but stored
+as plain text. The options \is{WriteChargesAsText} and \is{ReadChargesAsText}
+control which cases are generated and read respectively.
+
+Appendix \ref{app:restartfiles} contains details of the contents of the file.
 
 \section{md.out}
 \label{sec:md.out}
@@ -3076,6 +3203,58 @@ calculations, and appended every \kw{MDRestartFrequency} steps. In the case of
 small numbers of atoms and long MD simulations it may be useful to set
 \is{WriteDetailedOut} to \is{No} and examine the information stored in this file
 instead.
+
+\section{Electrostatic potential data}
+\label{sec:dftbp.esp}
+\index{ESP.dat}
+
+The output from evaluating the electrostatic potential. The first line
+consists of a comment mark followed by a logical variable as to whether there is
+an external electric field (or not), followed by 3 values for any regular grid
+pattern present in the system and the total number of points. If the data is
+gridded, the next four lines contain the origin and grid separation vectors in
+{\AA}ngstroms.
+
+The next line is a comment, then the locations and the potential experience for
+a positive charge due to the internal field plus optionally the external field
+(from point charges or homogeneous electric fields). Values are given in
+Volts. In the case of gridded data, the location field is omitted.
+
+For an example with a regular grid
+\begin{verbatim}
+#  T     1     1     1 1
+#  0.000000000000E+00 -0.200000000000E+01 -0.200000000000E+01
+#  0.200000000000E+01  0.000000000000E+00  0.000000000000E+00
+#  0.000000000000E+00  0.200000000000E+01  0.000000000000E+00
+#  0.000000000000E+00  0.000000000000E+00  0.200000000000E+01
+# Internal (V)        External (V)
+  0.173386318927E-10  0.314737193575E+00
+\end{verbatim}
+
+In the case where there is no regular grid:
+\begin{verbatim}
+#  T     0     0     0 1
+#           Location (AA)             Internal (V)        External (V)
+  0.0000E+00 -0.2000E+01 -0.2000E+01  0.173386318927E-10  0.314737193575E+00
+\end{verbatim}
+
+In the case where data is generated for multiple geometry steps, this is also
+shown in the label:
+\begin{verbatim}
+#  F     1     5     5 25
+#  0.000000000000E+00 -0.200000000000E+01 -0.200000000000E+01
+#  0.100000000000E+01  0.000000000000E+00  0.000000000000E+00
+#  0.000000000000E+00  0.100000000000E+01  0.000000000000E+00
+#  0.000000000000E+00  0.000000000000E+00  0.100000000000E+01
+# Internal (V) Geo 0
+  0.215249473376E-01
+  .
+  .
+# Internal (V) Geo 10
+  0.215815549672E-01
+  .
+  .
+\end{verbatim}
 
 \section{Excited state results files}
 \label{sec:tddftb_lr}

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2017  DFTB+ developers group                                                      !
+!  Copyright (C) 2018  DFTB+ developers group                                                      !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,6 +9,7 @@
 
 !> Global variables and initialization for the main program.
 module initprogram
+  use omp_lib
   use mainio, only : initOutputFile
   use assert
   use globalenv
@@ -23,7 +24,6 @@ module initprogram
   use shortgamma
   use coulomb
   use message
-  use mainio, only : receiveGeometryFromSocket
   use mixer
   use simplemixer
   use andersonmixer
@@ -34,6 +34,7 @@ module initprogram
   use conjgrad
   use steepdesc
   use gdiis
+  use lbfgs
 
   use randomgenpool
   use ranlux
@@ -69,13 +70,19 @@ module initprogram
   use xlbomd_module
   use etemp, only : Fermi
 #:if WITH_SOCKETS
+  use mainio, only : receiveGeometryFromSocket
   use ipisocket
 #:endif
+  use elstatpot
   use pmlocalisation
   use energies
   use potentials
   use taggedoutput
   use formatout
+  use dftbp_solvers
+#:if WITH_PROGRESS
+  use sp2progress, only : TSp2Solver_init
+#:endif  
   implicit none
 
   !> Tagged output files (machine readable)
@@ -96,8 +103,8 @@ module initprogram
   !> Second derivative of the energy with respect to atomic positions
   character(*), parameter :: hessianOut = "hessian.out"
 
-  !> file name for charge data
-  character(*), parameter :: fCharges = "charges.bin"
+  !> file name prefix for charge data
+  character(*), parameter :: fCharges = "charges"
 
   !> file to stop code during geometry driver
   character(*), parameter :: fStopDriver = "stop_driver"
@@ -111,9 +118,6 @@ module initprogram
 
   !> SCC module internal variables
   type(TScc), allocatable :: sccCalc
-
-  !> Nr. of different cutoffs
-  integer, parameter :: nCutoff = 1
 
   !> nr. of atoms
   integer :: nAtom
@@ -233,7 +237,6 @@ module initprogram
   !> list of atomic masses for each species
   real(dp), allocatable :: speciesMass(:)
 
-
   !> Raw H^0 hamiltonian data
   type(OSlakoCont) :: skHamCont
 
@@ -249,10 +252,8 @@ module initprogram
   !> Cut off distance for repulsive interactions
   real(dp) :: skRepCutoff
 
-
   !> longest pair interaction
   real(dp) :: mCutoff
-
 
   !> Sparse hamiltonian matrix
   real(dp), allocatable :: ham(:,:)
@@ -349,9 +350,8 @@ module initprogram
   !> MD stepsize
   real(dp) :: deltaT
 
-
   !> eigensolver
-  integer :: solver
+  type(TSolver) :: solver
 
   !> maximal number of SCC iterations
   integer :: maxSccIter
@@ -405,6 +405,9 @@ module initprogram
 
   !> Do we need Mulliken charges?
   logical :: tMulliken
+
+  !> Electrostatic potentials if requested
+  type(TElStatPotentials), allocatable :: esp
 
   !> Calculate localised orbitals?
   logical :: tLocalise
@@ -471,7 +474,7 @@ module initprogram
 
 
   !> Only use converged forces if SCC
-  logical :: tConvrgForces
+  logical :: tUseConvergedForces
 
 
   !> labels of atomic species
@@ -596,6 +599,8 @@ module initprogram
   !> data structure for 3rd order
   type(ThirdOrder), allocatable :: thirdOrd
 
+  !> Whether the dense density matrix should be kept for later processing
+  logical :: tKeepRhoSqr
 
   !> Calculate Casida linear response excitations
   logical :: tLinResp
@@ -611,6 +616,9 @@ module initprogram
 
   !> If initial charges/dens mtx. from external file.
   logical :: tReadChrg
+
+  !> should charges written to disc be in ascii or binary format?
+  logical :: tWriteChrgAscii
 
   !> produce tagged output?
   logical :: tWriteAutotest
@@ -789,9 +797,6 @@ module initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
-  !> Maximal timing level to show in output
-  integer :: timingLevel
-
   private :: createRandomGenerators
 
 contains
@@ -804,7 +809,7 @@ contains
     type(inputData), intent(inout), target :: input
 
     !> Environment settings
-    type(TEnvironment), intent(out) :: env
+    type(TEnvironment), intent(inout) :: env
 
     ! Mixer related local variables
     integer :: nGeneration
@@ -841,6 +846,12 @@ contains
 
     !> gradient DIIS driver
     type(ODIIS), allocatable :: pDIIS
+
+    !> lBFGS driver for geometry  optimisation
+    type(TLbfgs), allocatable :: pLbfgs
+
+    !> lBFGS driver for lattice optimisation
+    type(TLbfgs), allocatable :: pLbfgsLat
 
     ! MD related local variables
     type(OThermostat), allocatable :: pThermostat
@@ -901,6 +912,9 @@ contains
     !> Used for indexing linear response
     integer :: homoLoc(1)
 
+    !> Whether seed was randomly created
+    logical :: tRandomSeed
+
     !> First guess for nr. of neighbors.
     integer, parameter :: nInitNeighbor = 40
 
@@ -910,7 +924,7 @@ contains
     write(stdOut, "(/, A)") "Starting initialization..."
     write(stdOut, "(A80)") repeat("-", 80)
 
-    call TEnvironment_init(env)
+    call env%initGlobalTimer(input%ctrl%timingLevel, "DFTB+ running times", stdOut)
     call env%globalTimer%startTimer(globalTimers%globalInit)
 
     ! Basic variables
@@ -938,6 +952,8 @@ contains
           & channels")
     end if
 
+    nAtom = input%geom%nAtom
+    nType = input%geom%nSpecies
     orb = input%slako%orb
     nOrb = orb%nOrb
     tPeriodic = input%geom%tPeriodic
@@ -969,25 +985,21 @@ contains
       tRealHS = .false.
     end if
 
-
   #:if WITH_MPI
     call env%initMpi(input%ctrl%parallelOpts%nGroup)
   #:endif
   #:if WITH_SCALAPACK
-    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nOrb, t2Component, env)
+    call initScalapack(input%ctrl%parallelOpts%blacsOpts, nAtom, nOrb, t2Component, env)
   #:endif
     call TParallelKS_init(parallelKS, env, nKPoint, nIndepHam)
 
     sccTol = input%ctrl%sccTol
-    nAtom = input%geom%nAtom
-    nType = input%geom%nSpecies
     tShowFoldedCoord = input%ctrl%tShowFoldedCoord
     if (tShowFoldedCoord .and. .not. tPeriodic) then
       call error("Folding coordinates back into the central cell is meaningless for molecular&
           & boundary conditions!")
     end if
     tFracCoord = input%geom%tFracCoord
-    solver = input%ctrl%iSolver
     if (tSccCalc) then
       maxSccIter = input%ctrl%maxIter
     else
@@ -1146,6 +1158,9 @@ contains
         sccInp%extCharges = input%ctrl%extChrg
         if (allocated(input%ctrl%extChrgBlurWidth)) then
           sccInp%blurWidths = input%ctrl%extChrgblurWidth
+          if (any(sccInp%blurWidths < 0.0_dp)) then
+            call error("Gaussian blur widths for charges may not be negative")
+          end if
         end if
       end if
       if (allocated(input%ctrl%chrgConstr)) then
@@ -1162,6 +1177,7 @@ contains
       end if
 
       sccInp%ewaldAlpha = input%ctrl%ewaldAlpha
+      sccInp%tolEwald = input%ctrl%tolEwald
       call initialize(sccCalc, env, sccInp)
       deallocate(sccInp)
       mCutoff = max(mCutoff, sccCalc%getCutoff())
@@ -1232,7 +1248,7 @@ contains
     end if
     allocate(over(0))
     allocate(iSparseStart(0, nAtom))
-    
+
     if (nSpin == 4) then
       allocate(nEl(1))
     else
@@ -1386,7 +1402,9 @@ contains
     tBarostat = input%ctrl%tBarostat
     BarostatStrength = input%ctrl%BarostatStrength
 
-#:if WITH_SOCKETS
+
+    tForces = .false.
+  #:if WITH_SOCKETS
     tSocket = allocated(input%ctrl%socketInput)
     if (tSocket) then
       input%ctrl%socketInput%nAtom = nAtom
@@ -1396,12 +1414,12 @@ contains
       tGeoOpt = .false.
       tMD = .false.
     end if
-#:else
+  #:else
     tSocket = .false.
-#:endif
+  #:endif
 
     tAppendGeo = input%ctrl%tAppendGeo
-    tConvrgForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
+    tUseConvergedForces = (input%ctrl%tConvrgForces .and. tSccCalc) ! no point if not SCC
     tMD = input%ctrl%tMD
     tDerivs = input%ctrl%tDerivs
     tPrintMulliken = input%ctrl%tPrintMulliken
@@ -1412,7 +1430,7 @@ contains
     tPrintEigVecsTxt = input%ctrl%tPrintEigVecsTxt
 
     tPrintForces = input%ctrl%tPrintForces
-    tForces = input%ctrl%tForces .or. tPrintForces
+    tForces = tForces .or. input%ctrl%tForces .or. tPrintForces
     if (tSccCalc) then
       forceType = input%ctrl%forceType
     else
@@ -1442,6 +1460,28 @@ contains
     ! requires stress to already be possible and it being a periodic calculation
     ! with forces
     tStress = ((tPeriodic .and. tForces).and.tStress)
+
+    tKeepRhoSqr = .false.
+    solver%solverType = input%ctrl%iSolver
+    if (solver%solverType == solverTypes%progressSp2) then
+      if (.not. tRealHS) then
+        call error("SP2 solver only works with real Hamiltonians so far")
+      end if
+      if (forceType /= 2) then
+        call error("SP2 solver only works with forceType = 2")
+      end if
+    #:if WITH_PROGRESS
+      allocate(solver%sp2Solver)
+      call TSp2Solver_init(solver%sp2Solver, nOrb)
+      if (tForces) then
+        tKeepRhoSqr = .true.
+      end if
+    #:else
+      call error("Can not use the SP2 solver as code was compiled without the Progress library")
+    #:endif
+    end if
+
+
 
     nMovedAtom = input%ctrl%nrMoved
     nMovedCoord = 3 * nMovedAtom
@@ -1487,6 +1527,11 @@ contains
         call init(pDIIS, size(tmpCoords), input%ctrl%maxForce, &
             & input%ctrl%deltaGeoOpt, input%ctrl%iGenGeoOpt)
         call init(pGeoCoordOpt, pDIIS)
+      case (4)
+        allocate(pLbfgs)
+        call TLbfgs_init(pLbfgs, size(tmpCoords), input%ctrl%maxForce, tolSameDist,&
+            & input%ctrl%maxAtomDisp, input%ctrl%lbfgsInp%memory)
+        call init(pGeoCoordOpt, pLbfgs)
       end select
       call reset(pGeoCoordOpt, tmpCoords)
     end if
@@ -1506,7 +1551,12 @@ contains
         allocate(pConjGradLat)
         call init(pConjGradLat, 9, input%ctrl%maxForce, &
             & input%ctrl%maxLatDisp)
-         call init(pGeoLatOpt, pConjGradLat)
+        call init(pGeoLatOpt, pConjGradLat)
+      case (4)
+        allocate(pLbfgsLat)
+        call TLbfgs_init(pLbfgsLat, 9, input%ctrl%maxForce, tolSameDist, input%ctrl%maxLatDisp,&
+            & input%ctrl%lbfgsInp%memory)
+        call init(pGeoLatOpt, pLbfgsLat)
       end select
       if (tLatOptIsotropic ) then ! optimization uses scaling factor
                                   ! of unit cell
@@ -1591,6 +1641,14 @@ contains
       tDipole = .false.
     end if
 
+    if (allocated(input%ctrl%elStatPotentialsInp)) then
+      if (.not.tSccCalc) then
+        call error("Electrostatic potentials only available for SCC calculations")
+      end if
+      allocate(esp)
+      call TElStatPotentials_init(esp, input%ctrl%elStatPotentialsInp, tEField .or. tExtChrg)
+    end if
+
     tLocalise = input%ctrl%tLocalise
     if (tLocalise .and. (nSpin > 2 .or. t2Component)) then
       call error("Localisation of electronic states currently unsupported for&
@@ -1637,9 +1695,6 @@ contains
       end if
 
       if (input%ctrl%lrespini%nstat == 0) then
-        if (input%ctrl%lrespini%tMulliken) then
-          call error("Muliken analysis only available for StateOfInterest non zero.")
-        end if
         if (tForces) then
           call error("Excited forces only available for StateOfInterest non zero.")
         end if
@@ -1684,12 +1739,15 @@ contains
       tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tForces &
           & .or. input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
+      tKeepRhoSqr = tKeepRhoSqr .or. tLinRespZVect
 
       call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb)
 
     end if
+    
 
     iSeed = input%ctrl%iSeed
+    tRandomSeed = (iSeed < 1)
     ! Note: This routine may not be called multiple times. If you need further random generators,
     ! extend the routine and create them within this call.
     call createRandomGenerators(env, iSeed, randomInit, randomThermostat)
@@ -1863,6 +1921,7 @@ contains
     end if
 
     tReadChrg = input%ctrl%tReadChrg
+    tWriteChrgAscii = input%ctrl%tWriteChrgAscii
     if (tSccCalc) then
       do iAt = 1, nAtom
         iSp = species0(iAt)
@@ -1875,25 +1934,26 @@ contains
         if (tDFTBU) then
           if (nSpin == 2) then
             if (tFixEf) then ! do not check charge or magnetisation from file
-              call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, qBlock=qBlockIn)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl), &
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2), qBlock=qBlockIn)
             end if
           else
             if (tImHam) then
               if (tFixEf) then
-                call initQFromFile(qInput, fCharges, orb, &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               else
-                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
                     & qBlock=qBlockIn,qiBlock=qiBlockIn)
               end if
             else
               if (tFixEf) then
-                call initQFromFile(qInput, fCharges, orb, qBlock=qBlockIn)
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb,&
+                    & qBlock=qBlockIn)
               else
-                call initQFromFile(qInput, fCharges, orb, nEl = nEl(1), &
+                call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1),&
                     & qBlock=qBlockIn)
               end if
             end if
@@ -1902,16 +1962,16 @@ contains
           ! hack again caused by going from up/down to q and M
           if (nSpin == 2) then
             if (tFixEf) then
-              call initQFromFile(qInput, fCharges, orb)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = sum(nEl),&
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = sum(nEl),&
                   & magnetisation=nEl(1)-nEl(2))
             end if
           else
             if (tFixEf) then
-              call initQFromFile(qInput, fCharges, orb)
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb)
             else
-              call initQFromFile(qInput, fCharges, orb, nEl = nEl(1))
+              call initQFromFile(qInput, fCharges, input%ctrl%tReadChrgAscii, orb, nEl = nEl(1))
             end if
           end if
         end if
@@ -2042,8 +2102,8 @@ contains
     tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
     tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
     tWriteBandDat = env%tGlobalMaster .and. input%ctrl%tWriteBandDat
-    tWriteHS = env%tGlobalMaster .and. input%ctrl%tWriteHS
-    tWriteRealHS = env%tGlobalMaster .and. input%ctrl%tWriteRealHS
+    tWriteHS = input%ctrl%tWriteHS
+    tWriteRealHS = input%ctrl%tWriteRealHS
 
     ! Check if stopfiles already exist and quit if yes
     inquire(file=fStopSCC, exist=tExist)
@@ -2058,9 +2118,9 @@ contains
     restartFreq = input%ctrl%restartFreq
 
     if (env%tGlobalMaster) then
-      call initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+      call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand,&
-          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges)
+          & fdEigvec, fdHessian, fdDetailedOut, fdMd, fdCharges, esp)
     end if
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
@@ -2072,12 +2132,12 @@ contains
   #:endif
 
     call initArrays(env, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken, tSpinOrbit,&
-        & tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole, orb,&
-        & nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc, rhoPrim, h0,&
-        & iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS, E0, Eband,&
-        & eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx, eigvecsCplx,&
-        & HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural, velocities,&
-        & movedVelo, movedAccel, movedMass, dipoleMoment)
+        & tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs, tDipole,&
+        & tKeepRhoSqr, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass,&
+        & denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy,&
+        & potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx,&
+        & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell,&
+        & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     if (tShowFoldedCoord) then
       pCoord0Out => coord0Fold
@@ -2179,7 +2239,39 @@ contains
       allocate(fdProjEig(0))
     end if
 
-    timingLevel = input%ctrl%timingLevel
+  #:if WITH_MPI
+    if (env%mpi%nGroup > 1) then
+      write(stdOut, "('MPI processes: ',T30,I0,' (split into ',I0,' groups)')")&
+          & env%mpi%globalComm%size, env%mpi%nGroup
+    else
+      write(stdOut, "('MPI processes:',T30,I0)") env%mpi%globalComm%size
+    end if
+  #:endif
+
+    write(stdOut, "('OpenMP threads: ', T30, I0)") omp_get_max_threads()
+
+  #:if WITH_MPI
+    if (omp_get_max_threads() > 1 .and. .not. input%ctrl%parallelOpts%tOmpThreads) then
+      write(stdOut, *)
+      call error("You must explicitely enable OpenMP threads (UseOmpThreads = Yes) if you&
+          & wish to run an MPI-parallelised binary with OpenMP threads. If not, make sure that&
+          & the environment variable OMP_NUM_THREADS is set to 1.")
+      write(stdOut, *)
+    end if
+  #:endif
+    
+  #:if WITH_SCALAPACK
+    write(stdOut, "('BLACS orbital grid size:', T30, I0, ' x ', I0)") &
+        & env%blacs%orbitalGrid%nRow, env%blacs%orbitalGrid%nCol
+    write(stdOut, "('BLACS atom grid size:', T30, I0, ' x ', I0)") &
+        & env%blacs%atomGrid%nRow, env%blacs%atomGrid%nCol
+  #:endif
+
+    if (tRandomSeed) then
+      write(stdOut, "(A,':',T30,I14)") "Chosen random seed", iSeed
+    else
+      write(stdOut, "(A,':',T30,I14)") "Specified random seed", iSeed
+    end if
 
     if (input%ctrl%tMD) then
       select case(input%ctrl%iThermostat)
@@ -2242,6 +2334,8 @@ contains
       case (3)
         write(stdOut, "('Mode:',T30,A)") 'Modified gDIIS relaxation' &
             &// trim(strTmp)
+      case (4)
+        write(stdout, "('Mode:',T30,A)") 'LBFGS relaxation' // trim(strTmp)
       case default
         call error("Unknown optimisation mode")
       end select
@@ -2293,19 +2387,19 @@ contains
       write(stdOut, "(A,':',T30,A)") "Periodic boundaries", "No"
     end if
 
-    select case (solver)
-    case(1)
-      write (strTmp, "(A)") "Standard"
-    case(2)
-      write (strTmp, "(A)") "Divide and Conquer"
-    case(3)
-      write (strTmp, "(A)") "Relatively robust (version 1)"
-    case(4)
-      write (strTmp, "(A)") "Relativel robust (version 2)"
+    select case (solver%solverType)
+    case (solverTypes%lapackQr)
+      write(strTmp, "(A)") "QR"
+    case (solverTypes%lapackDivAndConq)
+      write(strTmp, "(A)") "Divide and Conquer"
+    case (solverTypes%lapackRelRobust)
+      write(strTmp, "(A)") "Relatively robust"
+    case (solverTypes%progressSp2)
+      write(strTmp, "(A)") "SP2"
     case default
-      call error("Unknown eigensolver!")
+      call error("Internal error: Unknown eigensolver in initProgramVariables!")
     end select
-    write(stdOut, "(A,':',T30,A)") "Diagonalizer", trim(strTmp)
+    write(stdOut, "(A,':',T30,A)") "Solver", trim(strTmp)
 
     if (tSccCalc) then
       select case (iMixer)
@@ -2381,7 +2475,6 @@ contains
           & then
         write(stdOut, "(A,':',T30,E14.6)") "Temperature", tempAtom
       end if
-      write(stdOut, "(A,':',T30,I14)") "Random seed", iSeed
       if (input%ctrl%tRescale) then
         write(stdOut, "(A,':',T30,E14.6)") "Rescaling probability", &
             &input%ctrl%wvScale
@@ -2426,6 +2519,16 @@ contains
         write(stdOut, "(A,T28,I6,':',3F10.6,3X,F10.6)") trim(strTmp), ii, &
             & (kPoint(jj, ii), jj=1, 3), kWeight(ii)
       end do
+      write(stdout,*)
+      do ii = 1, nKPoint
+        if (ii == 1) then
+          write(strTmp, "(A,':')") "K-points in absolute space"
+        else
+          write(strTmp, "(A)") ""
+        end if
+        write(stdout, "(A,T28,I6,':',3F10.6)") trim(strTmp), ii, matmul(invLatVec,kPoint(:,ii))
+      end do
+      write(stdout, *)
     end if
 
     if (tDispersion) then
@@ -2693,7 +2796,7 @@ contains
 
   end subroutine createRandomGenerators
 
-
+#:if WITH_SOCKETS
   !> Initializes the socket and recieves and broadcasts initial geometry.
   subroutine initSocket(env, socketInput, tPeriodic, coord0, latVec, socket, tCoordsChanged,&
       & tLatticeChanged)
@@ -2733,12 +2836,15 @@ contains
         & tLatticeChanged, tDummy)
 
   end subroutine initSocket
-
+#:endif
 
   !> Initialises (clears) output files.
-  subroutine initOutputFiles(tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
+  subroutine initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
       & tWriteDetailedOut, tMd, tGeoOpt, geoOutFile, fdAutotest, fdResultsTag, fdBand, fdEigvec,&
-      & fdHessian, fdDetailedOut, fdMd, fdChargeBin)
+      & fdHessian, fdDetailedOut, fdMd, fdChargeBin, esp)
+
+    !> Environment
+    type(TEnvironment), intent(inout) :: env
 
     !> Should tagged regression test data be printed
     logical, intent(in) :: tWriteAutotest
@@ -2788,6 +2894,8 @@ contains
     !> File descriptor for charge restart file
     integer, intent(out) :: fdChargeBin
 
+    !> Electrostatic potentials if requested
+    type(TElStatPotentials), allocatable, intent(inout) :: esp
 
     call initTaggedWriter()
     if (tWriteAutotest) then
@@ -2805,15 +2913,20 @@ contains
     end if
     if (tWriteDetailedOut) then
       call initOutputFile(userOut, fdDetailedOut)
+      call env%fileFinalizer%register(fdDetailedOut)
     end if
     if (tMD) then
       call initOutputFile(mdOut, fdMD)
+      call env%fileFinalizer%register(fdMd)
     end if
     if (tGeoOpt .or. tMD) then
       call clearFile(trim(geoOutFile) // ".gen")
       call clearFile(trim(geoOutFile) // ".xyz")
     end if
     fdChargeBin = getFileId()
+    if (allocated(esp)) then
+      call initOutputFile(esp%espOutFile, esp%fdEsp)
+    end if
 
   end subroutine initOutputFiles
 
@@ -2821,11 +2934,11 @@ contains
   !> Allocates most of the large arrays needed during the DFTB run.
   subroutine initArrays(env, tForces, tExtChrg, tLinResp, tLinRespZVect, tMd, tMulliken,&
       & tSpinOrbit, tImHam, tWriteRealHS, tWriteHS, t2Component, tRealHS, tPrintExcitedEigvecs,&
-      & tDipole, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass, denseDesc,&
-      & rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy, potential, TS,&
-      & E0, Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx, SSqrCplx,&
-      & eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell, occNatural,&
-      & velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
+      & tDipole, tKeepRhoSqr, orb, nAtom, nMovedAtom, nKPoint, nSpin, nExtChrg, indMovedAtom, mass,&
+      & denseDesc, rhoPrim, h0, iRhoPrim, excitedDerivs, ERhoPrim, derivs, chrgForces, energy,&
+      & potential, TS, E0, Eband, eigen, filling, coord0Fold, newCoords, orbitalL, HSqrCplx,&
+      & SSqrCplx, eigvecsCplx, HSqrReal, SSqrReal, eigvecsReal, rhoSqrReal, chargePerShell,&
+      & occNatural, velocities, movedVelo, movedAccel, movedMass, dipoleMoment)
 
     !> Current environment
     type(TEnvironment), intent(in) :: env
@@ -2871,6 +2984,9 @@ contains
 
     !> Print the dipole moment
     logical, intent(in) :: tDipole
+
+    !> Keep the dense density matrix
+    logical, intent(in) :: tKeepRhoSqr
 
     !> data structure with atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -3001,15 +3117,17 @@ contains
       allocate(iRhoPrim(0, nSpin))
     end if
 
+    allocate(excitedDerivs(0,0))
     if (tForces) then
       allocate(ERhoPrim(0))
       allocate(derivs(3, nAtom))
       if (tExtChrg) then
         allocate(chrgForces(3, nExtChrg))
       end if
-    end if
-    if (tLinRespZVect) then
-      allocate(excitedDerivs(3, nAtom))
+      if (tLinRespZVect) then
+        deallocate(excitedDerivs)
+        allocate(excitedDerivs(3, nAtom))
+      end if
     end if
 
     call init(energy, nAtom)
@@ -3052,10 +3170,11 @@ contains
       if (withMpi) then
         call error("Linear response calc. does not work with MPI yet")
       end if
-      if (tLinRespZVect) then
-        allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
-      end if
     end if
+    if (tKeepRhoSqr) then
+      allocate(rhoSqrReal(sqrHamSize, sqrHamSize, nSpin))
+    end if
+
     allocate(chargePerShell(orb%mShell, nAtom, nSpin))
 
     if (tLinResp .and. tPrintExcitedEigVecs) then
@@ -3143,10 +3262,13 @@ contains
   #!
 
   !> Initialise parallel large matrix decomposition methods
-  subroutine initScalapack(blacsOpts, nOrb, t2Component, env)
+  subroutine initScalapack(blacsOpts, nAtom, nOrb, t2Component, env)
 
     !> BLACS settings
     type(TBlacsOpts), intent(in) :: blacsOpts
+
+    !> Number of atoms
+    integer, intent(in) :: nAtom
 
     !> Number of orbitals
     integer, intent(in) :: nOrb
@@ -3229,7 +3351,6 @@ contains
     end if
 
   end subroutine getDenseDescCommon
-
 
 
 end module initprogram

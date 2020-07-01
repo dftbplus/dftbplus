@@ -1,0 +1,41 @@
+Geometry = GenFormat {
+  <<< "coords.gen"
+}
+
+Hamiltonian = DFTB {
+
+  ForceEvaluation = dynamicst0
+
+  KPointsAndWeights {
+    0.0  0.0  0.0   1.0
+  }
+
+  SCC = Yes
+  SCCTolerance = 1.0e-10
+
+  SlaterKosterFiles {
+    H-H =  "./H-H.skf"
+    H-O =  "./H-O.skf"
+    O-H =  "./O-H.skf"
+    O-O =  "./O-O.skf"
+  }
+
+  MaxAngularMomentum {
+    H = "s"
+    O = "p"
+  }
+
+  Eigensolver = Sp2 {}
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 5
+}
