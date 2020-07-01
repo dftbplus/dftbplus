@@ -140,9 +140,7 @@ endfunction()
 #
 function(dftbp_get_api_release apiversion)
 
-  file(READ ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api)
-  separate_arguments(_api)
-  string(STRIP ${_api} _api)
+  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
   set(${apiversion} "${_api}" PARENT_SCOPE)
 
 endfunction()

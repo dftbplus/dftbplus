@@ -108,20 +108,9 @@ contains
     !> patch level for API
     integer, intent(out) :: patch
 
-    character(*), parameter :: version = '${APIVERSION}$'
-    character(len=256) :: majorS, minorS, patchS
-    integer :: iPos, jPos
-
-    ! parse a string of the form 'x.y.z'
-    iPos = index(version, '.')
-    jPos = index(version, '.', back=.true.)
-
-    majorS = version(1:iPos-1)
-    minorS = version(iPos+1:jPos-1)
-    patchS = version(jPos+1:)
-    read(majorS, *) major
-    read(minorS, *) minor
-    read(patchS, *) patch
+    major = ${APIMAJOR}$
+    minor = ${APIMINOR}$
+    patch = ${APIPATCH}$
 
   end subroutine getDftbPlusApi
 
