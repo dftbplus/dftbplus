@@ -4947,7 +4947,7 @@ contains
       call convertByMul(char(modifier), EFieldUnits, child, input%tdfield)
     end if
 
-    call getChildValue(node, "WriteExtraDetails", input%tdWriteExtras, defaultWrite)
+    call getChildValue(node, "WriteEnergyAndCharges", input%tdWriteExtras, defaultWrite)
 
     !! Different envelope functions
     call getChildValue(node, "EnvelopeShape", value1, "Constant")

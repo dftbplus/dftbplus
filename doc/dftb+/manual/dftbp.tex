@@ -3987,7 +3987,7 @@ time-dependent perturbation, as described in Ref. ~\cite{realtime1}.
   \kw{WriteRestart} & l & & Yes & \\
   \kw{WriteAsciiRestart} & l & WriteRestart = Yes & No & \\
   \kw{WriteFrequency} & i & & 50 & \\
-  \kw{WriteExtraDetails} & l & & & \pref{sec:dftbp.tdextra} \\
+  \kw{WriteEnergyAndCharges} & l & & & \pref{sec:dftbp.tdextra} \\
   \kw{RestartFrequency} & i & & Steps/10 & \\
   \kw{Forces} & l & & No & \\
   \kw{IonDynamics} & l & & No & \\
@@ -4229,15 +4229,16 @@ keywords are a combination of the ones for kick and laser.
  \item[\is{ExcitedAtoms}] Same as in \is{Laser}.
 \end{description}
 
-\subsubsection{WriteExtraDetail}
+\subsubsection{WriteEnergyAndCharges}
 \label{sec:dftbp.tdextra}
 
 This enables the write out of additional data during the propagation. By
 default, excitations using \is{Kick} or \is{KickAndLaser} excitations sets this
-to false, while \is{Laser} or \is{None} generates the extra files. These are
-Mulliken charges during the calculation (\verb|qvst.dat|), energy components
-(\verb|energyvst.dat|) and if forces are evaluated (\verb|forcesvst.dat|) or ion
-dynamics are allowed, the atom coordinates (\verb|tdcoords.xyz|).
+to false, while \is{Laser} or \is{None} generates the extra files. This option
+controls write out of Mulliken charges during the calculation (\verb|qvst.dat|)
+and energy components (\verb|energyvst.dat|). If forces are evaluated this
+keyword also enables writing of (\verb|forcesvst.dat|) or if ion dynamics are
+allowed the atom coordinates during the calculation (\verb|tdcoords.xyz|).
 
 \subsubsection{\kwcb{EnvelopeShape}}
 \label{sec:dftbp.envelope}
