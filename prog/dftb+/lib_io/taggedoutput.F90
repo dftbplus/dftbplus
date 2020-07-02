@@ -81,6 +81,18 @@ module dftbp_taggedoutput
     !> forces on any external charges present
     character(lenLabel) :: chrgForces = 'forces_ext_charges'
 
+    !> Fermi level(s)
+    character(lenLabel) :: fermiLvl = 'fermi_level'
+
+    !> number of electrons
+    character(lenLabel) :: nElec = 'number_of_electrons'
+
+    !> eigenvalues/single particle states
+    character(lenLabel) :: eigvals = 'eigenvalues'
+
+    !> filling of the eigenstates
+    character(lenLabel) :: eigFill = 'filling'
+
     !> Gibbs free energy for finite pressure periodic systems
     character(lenLabel) :: gibbsFree = 'gibbs_energy'
 

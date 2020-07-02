@@ -29,8 +29,8 @@ module dftbp_environment
   type :: TEnvironment
     private
 
-    !> Whether this process is the master?
-    logical, public :: tGlobalMaster = .true.
+    !> Whether this process is the lead?
+    logical, public :: tGlobalLead = .true.
 
     !> Nr. of groups in the system
     integer, public :: nGroup = 1
@@ -52,6 +52,9 @@ module dftbp_environment
     !> Global scalapack settings
     type(TBlacsEnv), public :: blacs
   #:endif
+
+    !> Is this calculation called by the API?
+    logical, public :: tAPICalculation = .false.
 
   contains
     procedure :: destruct => TEnvironment_destruct
@@ -205,7 +208,7 @@ contains
 
     ! MPI settings
     call TMpiEnv_init(this%mpi, nGroup)
-    this%tGlobalMaster = this%mpi%tGlobalMaster
+    this%tGlobalLead = this%mpi%tGlobalLead
     this%nGroup = this%mpi%nGroup
     this%myGroup = this%mpi%myGroup
 

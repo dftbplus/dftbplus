@@ -11,4 +11,7 @@ fileinit            #? not WITH_MPI
 fileinitc           #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
 qdepextpot          #? not WITH_MPI
 qdepextpotc         #? not WITH_MPI and defined('WITH_C_EXECUTABLES')
+#! The next test fails on 1 MPI proc with NAG compiler and -nan flag:
+resetspecies_NaCl   #? not WITH_MPI or (MPI_PROCS > 1 and MPI_PROCS <= 8)
+resetspecies_C2H6   #? MPI_PROCS <= 4
 treeinit            #? not WITH_MPI
