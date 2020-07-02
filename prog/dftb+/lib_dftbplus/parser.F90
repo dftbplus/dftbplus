@@ -4796,6 +4796,7 @@ contains
     logical :: ppRangeInvalid, tNeedFieldStrength
     real (dp) :: defPpRange(2)
     type(fnodeList), pointer :: children
+    logical :: defaultWrite
 
   #:if WITH_MPI
     if (associated(node)) then
@@ -4819,7 +4820,7 @@ contains
     if (input%tWriteRestart) then
       call getChildValue(node, "WriteAsciiRestart", input%tWriteRestartAscii, .false.)
     end if
-    call getChildValue(node, "RestartFrequency", input%restartFreq, input%Steps / 10)
+    call getChildValue(node, "RestartFrequency", input%restartFreq, max(input%Steps / 10, 1))
     call getChildValue(node, "Forces", input%tForces, .false.)
     call getChildValue(node, "WriteBondEnergy", input%tBondE, .false.)
     call getChildValue(node, "WriteBondPopulation", input%tBondP, .false.)
@@ -4859,6 +4860,8 @@ contains
     ! assume this is required (needed for most perturbations, but not none)
     tNeedFieldStrength = .true.
 
+    defaultWrite = .true.
+
     !! Different perturbation types
     call getChildValue(node, "Perturbation", value1, "None", child=child)
     call getNodeName(value1, buffer)
@@ -4878,6 +4881,9 @@ contains
       case default
         call detailedError(value1, "Unknown spectrum spin type " // char(buffer2))
       end select
+
+      defaultWrite = .false.
+
     case ("laser")
       input%pertType = pertTypes%laser
       call getChildValue(value1, "PolarizationDirection", input%reFieldPolVec)
@@ -4896,6 +4902,8 @@ contains
       if (input%nExcitedAtom == 0) then
         call error("No atoms specified for laser excitation.")
       end if
+
+      defaultWrite = .true.
 
     case ("kickandlaser")
       input%pertType = pertTypes%kickAndLaser
@@ -4922,9 +4930,14 @@ contains
         call error("No atoms specified for laser excitation.")
       end if
 
+      defaultWrite = .false.
+
     case ("none")
       input%pertType = pertTypes%noTDPert
       tNeedFieldStrength = .false.
+
+      defaultWrite = .true.
+
     case default
       call detailedError(child, "Unknown perturbation type " // char(buffer))
     end select
@@ -4933,6 +4946,8 @@ contains
       call getChildValue(node, "FieldStrength", input%tdfield, modifier=modifier, child=child)
       call convertByMul(char(modifier), EFieldUnits, child, input%tdfield)
     end if
+
+    call getChildValue(node, "WriteEnergyAndCharges", input%tdWriteExtras, defaultWrite)
 
     !! Different envelope functions
     call getChildValue(node, "EnvelopeShape", value1, "Constant")
