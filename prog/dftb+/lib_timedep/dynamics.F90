@@ -104,6 +104,9 @@ module dftbp_timeprop
     !> Frequency of output writing for charges and populations
     integer :: writeFreq
 
+    !> Should additional data files be printed, covering atom dynamics, charges and energies
+    logical :: tdWriteExtras
+
     !> Type of external perturbation applied
     integer :: pertType
 
@@ -198,6 +201,7 @@ module dftbp_timeprop
     real(dp), allocatable :: tdFunction(:, :), phase
     integer :: nSteps, writeFreq, pertType, envType, spType
     integer :: nAtom, nOrbs, nSpin=1, currPolDir=1, restartFreq
+    logical :: tdWriteExtras
     integer, allocatable :: species(:), polDirs(:), speciesAll(:)
     character(mc), allocatable :: speciesName(:)
     logical :: tPopulations, tSpinPol=.false.
@@ -379,6 +383,7 @@ contains
     this%tWriteRestartAscii = inp%tWriteRestartAscii
     this%phase = inp%phase
     this%writeFreq = inp%writeFreq
+    this%tdWriteExtras = inp%tdWriteExtras
     this%restartFreq = inp%restartFreq
     this%speciesName = speciesName
     this%tFillingsFromFile = inp%tFillingsFromFile
@@ -493,9 +498,6 @@ contains
     end if
 
     if (this%tIons .or. this%tForces) then
-      if (this%tKick) then
-        call error("Ion dynamics and forces are not implemented for kicked excitations")
-      end if
       if (this%nExcitedAtom /= nAtom) then
         if (this%tLaser) then
           call error("Ion dynamics and forces are not implemented for excitation of a subgroup of&
@@ -1015,7 +1017,7 @@ contains
 
       time = iStep * this%dt + startTime
 
-      if (this%tWriteRestart .and. iStep > 0 .and. mod(iStep, this%restartFreq) == 0) then
+      if (this%tWriteRestart .and. iStep > 0 .and. mod(iStep, max(this%restartFreq,1)) == 0) then
         allocate(velInternal(3,size(this%movedVelo, dim=2)))
         if (this%tIons) then
           call state(this%pMDIntegrator, velocities=velInternal)
@@ -2209,7 +2211,7 @@ contains
     end if
     call openFile(this, dipoleDat, dipoleFileName)
 
-    if (.not. this%tKick .or. this%tKickAndLaser) then
+    if (this%tdWriteExtras) then
       call openFile(this, qDat, 'qsvst.dat')
       call openFile(this, energyDat, 'energyvst.dat')
 
@@ -2220,7 +2222,6 @@ contains
       if (this%tIons) then
         call openFile(this, coorDat, 'tdcoords.xyz')
       end if
-
     end if
 
     if (this%tPopulations) then
@@ -2275,23 +2276,25 @@ contains
     integer :: iKS
 
     close(dipoleDat)
-    if ((.not. this%tKick) .or. (this%tKickAndLaser)) then
+
+    if (this%tdWriteExtras) then
       close(qDat)
       close(energyDat)
-    end if
 
-    if (this%tPopulations) then
-      do iKS = 1, this%parallelKS%nLocalKS
-        close(populDat(iKS))
-      end do
-    end if
+      if (this%tPopulations) then
+        do iKS = 1, this%parallelKS%nLocalKS
+          close(populDat(iKS))
+        end do
+      end if
 
-    if (this%tIons) then
-      close(coorDat)
-    end if
+      if (this%tIons) then
+        close(coorDat)
+      end if
 
-    if (this%tForces) then
-      close(forceDat)
+      if (this%tForces) then
+        close(forceDat)
+      end if
+
     end if
 
     if (this%tBondP) then
@@ -2637,25 +2640,28 @@ contains
 
     real(dp) :: auxVeloc(3, this%nAtom)
     integer :: iAtom, iAtom2, iSpin, iDir
+    logical :: isOpen
 
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
         & iSpin=1, this%nSpin)
 
-    ! for kick simulations we only need the dipole moment
-    if ((.not. this%tKick) .or. this%tKickAndLaser) then
-
+    if (this%tdWriteExtras) then
       write(energydat, '(9F30.15)') time * au__fs, energy%Etotal, energy%EnonSCC, energy%eSCC,&
           & energy%Espin, energy%Eext, energy%Erep, energyKin, energy%eDisp
+    end if
 
-      if (mod(iStep, this%writeFreq) == 0) then
+    if (mod(iStep, this%writeFreq) == 0) then
+      if (this%tdWriteExtras) then
         write(qDat, "(2X,2F25.15)", advance="no") time * au__fs, -sum(deltaQ)
         do iAtom = 1, this%nAtom
           write(qDat, "(F25.15)", advance="no")-sum(deltaQ(iAtom,:))
         end do
         write(qDat,*)
       end if
+    end if
 
-      if (this%tIons .and. (mod(iStep,this%writeFreq) == 0)) then
+    if (this%tIons .and. (mod(iStep,this%writeFreq) == 0)) then
+      if (this%tdWriteExtras) then
         auxVeloc = 0.0_dp
         auxVeloc(:, this%indMovedAtom) = this%movedVelo
         write(coorDat,'(I5)')this%nAtom
@@ -2665,21 +2671,21 @@ contains
               &coord(:, iAtom) * Bohr__AA, auxVeloc(:, iAtom) * Bohr__AA / au__fs
         end do
       endif
+    end if
 
-      if (this%tForces .and. (mod(iStep,this%writeFreq) == 0)) then
+    if (this%tForces .and. (mod(iStep,this%writeFreq) == 0)) then
+      if (this%tdWriteExtras) then
         write(forceDat, "(F25.15)", advance="no") time * au__fs
         do iAtom = 1, this%nAtom
           write(forceDat, "(3F25.15)", advance="no") totalForce(:,iAtom)
         end do
         write(forceDat,*)
       end if
-
     end if
 
     ! Flush output every 5% of the simulation
     if (mod(iStep, max(this%nSteps / 20, 1)) == 0 .and. iStep > this%writeFreq) then
-      flush(dipoleDat)
-      if ((.not. this%tKick) .or. this%tKickAndLaser) then
+      if (this%tdWriteExtras) then
         flush(qDat)
         flush(energyDat)
         if (this%tIons) then

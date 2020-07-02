@@ -3987,6 +3987,7 @@ time-dependent perturbation, as described in Ref. ~\cite{realtime1}.
   \kw{WriteRestart} & l & & Yes & \\
   \kw{WriteAsciiRestart} & l & WriteRestart = Yes & No & \\
   \kw{WriteFrequency} & i & & 50 & \\
+  \kw{WriteEnergyAndCharges} & l & & & \pref{sec:dftbp.tdextra} \\
   \kw{RestartFrequency} & i & & Steps/10 & \\
   \kw{Forces} & l & & No & \\
   \kw{IonDynamics} & l & & No & \\
@@ -4138,7 +4139,7 @@ Determines the type of perturbation that is applied.
 No time-dependent perturbation is included, free dynamics are calculated.
 
 \paragraph{\kwcb{Kick}}
-Perform Dirac-delta perturbation (or \textit{kick}) to the density matrix.
+Perform Dirac-delta perturbation (or a \textit{kick}) to the density matrix.
 
 \begin{ptable}
   \kw{PolarizationDirection} & s &  & - & \\
@@ -4228,6 +4229,16 @@ keywords are a combination of the ones for kick and laser.
  \item[\is{ExcitedAtoms}] Same as in \is{Laser}.
 \end{description}
 
+\subsubsection{WriteEnergyAndCharges}
+\label{sec:dftbp.tdextra}
+
+This enables the write out of additional data during the propagation. By
+default, excitations using \is{Kick} or \is{KickAndLaser} excitations sets this
+to false, while \is{Laser} or \is{None} generates the extra files. This option
+controls write out of Mulliken charges during the calculation (\verb|qvst.dat|)
+and energy components (\verb|energyvst.dat|). If forces are evaluated this
+keyword also enables writing of (\verb|forcesvst.dat|) or if ion dynamics are
+allowed the atom coordinates during the calculation (\verb|tdcoords.xyz|).
 
 \subsubsection{\kwcb{EnvelopeShape}}
 \label{sec:dftbp.envelope}
