@@ -83,6 +83,7 @@ program test_fileinit
   call TDftbPlus_destruct(dftbp)
 
   ! Write file for internal test system
-  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges, stressTensor = stressTensor)
+  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges,&
+      & stressTensor = stressTensor)
 
 end program test_fileinit

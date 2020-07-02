@@ -644,14 +644,14 @@ contains
     integer :: nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -731,14 +731,14 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
     real(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -979,17 +979,17 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive, dim=1)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -1104,17 +1104,17 @@ contains
     integer :: nOrb1, nOrb2, nOrb
     real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive, dim=1)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -1249,18 +1249,18 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive, dim=1)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -1377,17 +1377,17 @@ contains
     integer :: nOrb1, nOrb2, nOrb
     real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive, dim=1)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -1585,17 +1585,17 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2, nOrb
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive, dim=1)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -1681,17 +1681,17 @@ contains
     integer :: nOrb1, nOrb2, nOrb
     real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = (iAtomStart(nAtom+1) - 1)
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive, dim=1)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(square, dim=1) == size(square, dim=2))
@@ -2334,14 +2334,14 @@ contains
     integer :: iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
     real(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(nNeighbourSK) == nAtom)
 
@@ -2425,14 +2425,14 @@ contains
     integer :: nOrb1, nOrb2
     real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(size(kPoint) == 3)
@@ -2595,17 +2595,17 @@ contains
     complex(dp), target :: tmpSqr(mOrb, mOrb)
     complex(dp), target :: tmpSqr1(mOrb, mOrb), tmpSqr2(mOrb, mOrb)
     complex(dp), pointer :: ptmp(:, :), ptmp1(:, :), ptmp2(:, :)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = desc%iAtomStart(nAtom + 1) - 1
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive, dim=1)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(all(shape(kPoint) == [3]))
@@ -2755,17 +2755,17 @@ contains
     integer :: nOrb1, nOrb2, nOrb
     real(dp) :: kPoint2p(3)
     complex(dp) :: tmpSqr(mOrb, mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     integer :: sizePrim
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nAtom = size(iNeighbour, dim=2)
     ! number of orbitals in a regular spin block
     nOrb = desc%iAtomStart(nAtom + 1) - 1
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     sizePrim = size(primitive, dim=1)
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     @:ASSERT(nAtom > 0)
     @:ASSERT(all(shape(kPoint) == [3]))

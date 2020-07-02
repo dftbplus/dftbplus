@@ -31,12 +31,14 @@ Added
 
 - Non-SCC helical geometries supported
 
-- Generalized Born implicit solvation model
+- Generalized Born (GB) and Analytical Linearized Poisson-Boltzmann (ALPB)
+  implicit solvation model for SCC calculations
 
 - Non-polar solvent accessible surface area solvation model
 
 - Particle-particle random-phase approximation available for suitable excitation calculations
 
+- Range separated excited state calculations for spin free singlet systems
 
 Changed
 -------

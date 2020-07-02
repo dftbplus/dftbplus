@@ -55,7 +55,11 @@ contains
     write(unit, '(a, ":", t30)', advance='no') "Solvation"
     select type(solvation)
     type is(TGeneralizedBorn)
-      write(unit, '(a)') "generalized Born model"
+      if (solvation%isALPB()) then
+        write(unit, '(a)') "analytical linearized Poisson-Boltzmann model"
+      else
+        write(unit, '(a)') "generalized Born model"
+      end if
       call writeGeneralizedBornInfo(unit, solvation)
 
     type is(TSASACont)

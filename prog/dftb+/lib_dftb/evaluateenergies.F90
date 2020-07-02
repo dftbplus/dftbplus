@@ -40,7 +40,7 @@ module dftb_evaluateenergies
 contains
 
 
-  !> Calculates various energy contribution that can potentially update for the same geometry
+    !> Calculates various energy contribution that can potentially update for the same geometry
   subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
       & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, qDepExtPot,&
@@ -117,7 +117,7 @@ contains
     class(TSolvation), allocatable, intent(inout) :: solvation
 
     !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable ::rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot

@@ -875,7 +875,7 @@ contains
 
     Ef(:) = 0.0_dp
     TS(:) = 0.0_dp
-    if (env%mpi%tGroupMaster) then
+    if (env%mpi%tGroupLead) then
       call elsi_get_mu(this%handle, Ef(iS))
       call elsi_get_entropy(this%handle, TS(iS))
     end if

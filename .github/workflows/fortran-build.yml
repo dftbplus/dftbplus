@@ -13,11 +13,11 @@ jobs:
         python-version: '3.x'
     - name: Install dependencies
       run: |
-        brew install ninja libomp arpack
+        brew install ninja arpack gcc@8
         pip3 install numpy
         echo "y" | ./utils/get_opt_externals ALL
     - name: Configure build files
-      run: cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Debug -DFYPP_FLAGS='-DTRAVIS' -DWITH_TRANSPORT=true -DWITH_DFTD3=true -DWITH_ARPACK=true -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake
+      run: cmake -B_build -S. -GNinja -DCMAKE_BUILD_TYPE=Debug -DFYPP_FLAGS='-DTRAVIS' -DWITH_TRANSPORT=true -DWITH_DFTD3=true -DWITH_ARPACK=true -DWITH_API=true -DCMAKE_TOOLCHAIN_FILE=./sys/gnu.cmake -DCMAKE_Fortran_COMPILER=gfortran-8 -DCMAKE_C_COMPILER=gcc-8
     - name: Compile project from source
       run: ninja -C _build
     - name: Run testsuite

@@ -138,12 +138,12 @@ contains
     @:ASSERT(allocated(pRanlux))
     @:ASSERT(present(xnose).eqv.present(vnose))
     @:ASSERT(present(xnose).eqv.present(gnose))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(xnose)) then
       @:ASSERT(size(xnose)==size(vnose))
       @:ASSERT(size(xnose)==size(gnose))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     call move_alloc(pRanlux, self%pRanlux)
     self%nAtom = size(masses)
