@@ -17,12 +17,18 @@ module dftbp_linrespcommon
   use dftbp_commontypes
   use dftbp_transcharges
   use dftbp_onsitecorrection, only : getOnsME
+  use dftbp_constants, only: Hartree__eV, au__Debye
   implicit none
   public
 
 
   !> prefactor of 2/3.
   real(dp), parameter :: twothird = 2.0_dp / 3.0_dp
+
+  !> Names of output files
+  character(*), parameter :: excitedQOut = "XCH.DAT"
+  character(*), parameter :: excitedDipoleOut = "XREST.DAT"
+  character(*), parameter :: singlePartOut = "SPX.DAT"
 
 contains
 
@@ -813,5 +819,337 @@ contains
     !$OMP  END PARALLEL DO
 
   end subroutine transitionDipole
+
+
+  !> Calculate transition moments for transitions between Kohn-Sham states, including spin-flipping
+  !> transitions
+  subroutine calcTransitionDipoles(coord0, win, nmatup, getij, iAtomStart, stimc, grndEigVecs,&
+      & snglPartTransDip)
+
+    !> Atomic positions
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> single particle transition index
+    integer, intent(in) :: win(:)
+
+    !> number of same-spin transitions
+    integer, intent(in) :: nmatup
+
+    !> index array for ground state square matrices
+    integer, intent(in) :: iAtomStart(:)
+
+    !> index array for excitation pairs
+    integer, intent(in) :: getij(:,:)
+
+    !> overlap times ground state wavefunctions
+    real(dp), intent(in) :: stimc(:,:,:)
+
+    !> ground state wavefunctions
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    !> resulting transition dipoles
+    real(dp), intent(out) :: snglPartTransDip(:,:)
+
+    integer :: nxov, natom
+    integer :: indm, ii, jj
+    real(dp), allocatable :: qij(:)
+    logical :: updwn
+
+    nxov = size(win)
+    natom = size(coord0, dim=2)
+
+    ALLOCATE(qij(natom))
+
+    ! Calculate transition dipole elements
+    do indm = 1, nxov
+      call indxov(win, indm, getij, ii, jj)
+      updwn = (win(indm) <= nmatup)
+      qij(:) = transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs)
+      snglPartTransDip(indm, :) = matmul(coord0, qij)
+    end do
+
+  end subroutine calcTransitionDipoles
+
+
+    !> Calculate <S^2> as a measure of spin contamination (smaller magnitudes are better, 0.5 is
+  !> considered an upper threshold for reliability according to Garcia thesis)
+  subroutine getExcSpin(Ssq, nmatup, getij, win, eval, evec, wij, filling, stimc, grndEigVecs)
+
+    !> spin contamination
+    real(dp), intent(out) :: Ssq(:)
+
+    !> number of spin up excitations
+    integer, intent(in) :: nmatup
+
+    !> index for composite excitations to specific occupied and empty states
+    integer, intent(in) :: getij(:,:)
+
+    !> single particle excitation index
+    integer, intent(in) :: win(:)
+
+    !> Casida exitation energies
+    real(dp), intent(in) :: eval(:)
+
+    !> Casida excited eigenvectors
+    real(dp), intent(in) :: evec(:,:)
+
+    !> single particle excitation energies
+    real(dp), intent(in) :: wij(:)
+
+    !> occupations in ground state
+    real(dp), intent(in) :: filling(:,:)
+
+    !> Overlap times ground state eigenvectors
+    real(dp), intent(in) :: stimc(:,:,:)
+
+    !> Ground state eigenvectors
+    real(dp), intent(in) :: grndEigVecs(:,:,:)
+
+    integer:: i, k, l, m, ia, jb, ii, aa, jj, bb
+    integer:: nmat, nexc, nup, ndwn
+    real(dp) :: rsqw, TDvnorm
+    real(dp), allocatable :: TDvec(:), TDvec_sq(:)
+    integer, allocatable :: TDvin(:)
+    logical :: ud_ia, ud_jb
+    real(dp) :: s_iaja, s_iaib, s_iajb, tmp
+    real(dp) :: wnij(size(wij))
+
+    nmat = size(evec, dim=1)
+    nexc = size(Ssq)
+    nup = ceiling(sum(filling(:,1)))
+    ndwn = ceiling(sum(filling(:,2)))
+    ALLOCATE(TDvec(nmat))
+    ALLOCATE(TDvec_sq(nmat))
+    ALLOCATE(TDvin(nmat))
+
+    call wtdn(wij, filling, win, nmatup, nmat, getij, wnij)
+
+    do i = 1, nexc
+      rsqw = 1.0_dp / sqrt(sqrt(eval(i)))
+      TDvec(:) = sqrt(wnij(:)) * rsqw * evec(:,i)
+      TDvnorm = 1.0_dp / sqrt(sum(TDvec**2))
+      TDvec(:) = TDvec(:) * TDvnorm
+      TDvec_sq = TDvec**2
+
+      ! put these transition dipoles in order of descending magnitude
+      call index_heap_sort(TDvin, TDvec_sq)
+      TDvin = TDvin(nmat:1:-1)
+      TDvec_sq = TDvec_sq(TDvin)
+
+      ! S_{ia,ja}
+      s_iaja = 0.0_dp
+      do k = 1, nmat
+        ia = TDvin(k)
+        call indxov(win, ia, getij, ii, aa)
+        ud_ia = (win(ia) <= nmatup)
+        do l = 1, nmat
+          jb = TDvin(l)
+          call indxov(win, jb, getij, jj, bb)
+          ud_jb = (win(jb) <= nmatup)
+
+          if ( (bb /= aa) .or. (ud_jb .neqv. ud_ia) ) then
+            cycle
+          end if
+
+          tmp = 0.0_dp
+          if (ud_ia) then
+            do m = 1,ndwn
+              tmp = tmp + MOoverlap(ii,m,stimc,grndEigVecs) * MOoverlap(jj,m,stimc,grndEigVecs)
+            end do
+          else
+            do m = 1,nup
+              tmp = tmp + MOoverlap(m,ii,stimc,grndEigVecs) * MOoverlap(m,jj,stimc,grndEigVecs)
+            end do
+          end if
+
+          s_iaja = s_iaja + TDvec(ia)*TDvec(jb)*tmp
+
+        end do
+      end do
+
+      ! S_{ia,ib}
+      s_iaib = 0.0_dp
+      do k = 1, nmat
+        ia = TDvin(k)
+        call indxov(win, ia, getij, ii, aa)
+        ud_ia = (win(ia) <= nmatup)
+        do l = 1, nmat
+          jb = TDvin(l)
+          call indxov(win, jb, getij, jj, bb)
+          ud_jb = (win(jb) <= nmatup)
+
+          if ( (ii /= jj) .or. (ud_jb .neqv. ud_ia) ) then
+            cycle
+          end if
+
+          tmp = 0.0_dp
+          if (ud_ia) then
+            do m = 1,ndwn
+              tmp = tmp + MOoverlap(aa,m,stimc,grndEigVecs) * MOoverlap(bb,m,stimc,grndEigVecs)
+            end do
+          else
+            do m = 1,nup
+              tmp = tmp + MOoverlap(m,aa,stimc,grndEigVecs) * MOoverlap(m,bb,stimc,grndEigVecs)
+            end do
+          end if
+
+          s_iaib = s_iaib + TDvec(ia)*TDvec(jb)*tmp
+        end do
+      end do
+
+      ! S_{ia,jb}
+      s_iajb = 0.0_dp
+      do k = 1, nmat
+        ia = TDvin(k)
+        call indxov(win, ia, getij, ii, aa)
+        ud_ia = (win(ia) <= nmatup)
+        if (.not. ud_ia ) then
+          cycle
+        end if
+        do l = 1, nmat
+          jb = TDvin(l)
+          call indxov(win, jb, getij, jj, bb)
+          ud_jb = (win(jb) <= nmatup)
+
+          if ( ud_jb ) cycle
+
+          s_iajb = s_iajb + TDvec(ia)*TDvec(jb) * MOoverlap(aa,bb,stimc,grndEigVecs)&
+              & * MOoverlap(ii,jj,stimc,grndEigVecs)
+
+        end do
+      end do
+
+      Ssq(i) =  s_iaja - s_iaib - 2.0_dp*s_iajb
+
+    end do
+
+  end subroutine getExcSpin
+
+
+  !> Write single particle excitations to a file
+  subroutine writeSPExcitations(wij, win, nmatup, getij, fdSPTrans, sposz, nxov, tSpin)
+
+    !> single particle excitation energies
+    real(dp), intent(in) :: wij(:)
+
+    !> index array for single particle transitions
+    integer, intent(in) :: win(:)
+
+    !> number of transitions within same spin channel
+    integer, intent(in) :: nmatup
+
+    !> index from composite index to occupied and virtual single particle states
+    integer, intent(in) :: getij(:,:)
+
+    !> file descriptor for the single particle excitation data
+    integer, intent(in) :: fdSPTrans
+
+    !> single particle oscilation strengths
+    real(dp), intent(in) :: sposz(:)
+
+    !> Number of included single particle excitations to print out (assumes that win and wij are
+    !> sorted so that the wanted transitions are first in the array)
+    integer, intent(in) :: nxov
+
+    !> is this a spin-polarized calculation?
+    logical, intent(in) :: tSpin
+
+    integer :: indm, m, n
+    logical :: updwn
+    character :: sign
+
+    @:ASSERT(size(sposz)>=nxov)
+
+    if (fdSPTrans > 0) then
+      ! single particle excitations
+      open(fdSPTrans, file=singlePartOut, position="rewind", status="replace")
+      write(fdSPTrans,*)
+      write(fdSPTrans,'(7x,a,7x,a,8x,a)') '#      w [eV]',&
+          & 'Osc.Str.', 'Transition'
+      write(fdSPTrans,*)
+      write(fdSPTrans,'(1x,58("="))')
+      write(fdSPTrans,*)
+      do indm = 1, nxov
+        call indxov(win, indm, getij, m, n)
+        sign = " "
+        if (tSpin) then
+          updwn = (win(indm) <= nmatup)
+          if (updwn) then
+            sign = "U"
+          else
+            sign = "D"
+          end if
+        end if
+        write(fdSPTrans,&
+            & '(1x,i7,3x,f8.3,3x,f13.7,4x,i5,3x,a,1x,i5,1x,1a)')&
+            & indm, Hartree__eV * wij(indm), sposz(indm), m, '->', n, sign
+      end do
+      write(fdSPTrans,*)
+      close(fdSPTrans)
+    end if
+
+  end subroutine writeSPExcitations
+
+  !> Excited state Mulliken charges and dipole moments written to disc
+  subroutine writeExcMulliken(sym, nstat, dq, dqex, coord0, fdMulliken)
+
+    !> symmetry label
+    character, intent(in) :: sym
+
+    !> state index
+    integer, intent(in) :: nstat
+
+    !> ground state gross charge
+    real(dp), intent(in) :: dq(:)
+
+    !> change in atomic charges from ground to excited state
+    real(dp), intent(in) :: dqex(:)
+
+    !> central cell coordinates
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> file unit for Mulliken data
+    integer, intent(in) :: fdMulliken
+
+    integer :: natom, m
+    real(dp) :: dipol(3), dipabs
+
+    natom = size(dq)
+
+    @:ASSERT(size(dq) == size(dqex))
+    @:ASSERT(all(shape(coord0) == [3,nAtom]))
+
+    ! Output of excited state Mulliken charges
+    open(fdMulliken, file=excitedQOut,position="append")
+    write(fdMulliken, "(a,a,i2)") "# MULLIKEN CHARGES of excited state ",&
+        & sym, nstat
+    write(fdMulliken, "(a,2x,A,i4)") "#", 'Natoms =',natom
+    write(fdMulliken, "('#',1X,A4,T15,A)")'Atom','netCharge'
+    write(fdMulliken,'("#",41("="))')
+    do m = 1,  natom
+      write(fdMulliken,"(i5,1x,f16.8)") m, -dq(m) - dqex(m)
+    end do
+    close(fdMulliken)
+
+    ! Calculation of excited state dipole moment
+    dipol(:) = -1.0_dp * matmul(coord0, dq + dqex)
+    dipabs = sqrt(sum(dipol**2))
+
+    open(fdMulliken, file=excitedDipoleOut, position="append")
+    write(fdMulliken, "(a,a,i2)") "Mulliken analysis of excited state ",&
+        & sym, nstat
+    write(fdMulliken, '(42("="))')
+    write(fdMulliken, "(a)") " "
+    write(fdMulliken, "(a)") "Mulliken exc. state dipole moment [Debye]"
+    write(fdMulliken, '(42("="))')
+    write(fdMulliken, "(3f14.8)") (dipol(m) * au__Debye, m = 1, 3)
+    write(fdMulliken, "(a)") " "
+    write(fdMulliken, "(a)") "Norm of exc. state dipole moment [Debye]"
+    write(fdMulliken, '(42("="))')
+    write(fdMulliken, "(e20.12)") dipabs * au__Debye
+    write(fdMulliken, *)
+    close(fdMulliken)
+
+  end subroutine writeExcMulliken
 
 end module dftbp_linrespcommon

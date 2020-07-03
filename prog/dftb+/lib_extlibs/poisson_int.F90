@@ -220,7 +220,7 @@ contains
     call set_scratch(poissoninfo%scratch)
 
     if (id0) then
-      ! only use a scratch folder on the master node
+      ! only use a scratch folder on the lead node
       call create_directory(trim(scratchfolder),iErr)
     end if
 

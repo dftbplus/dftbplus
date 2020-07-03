@@ -23,7 +23,7 @@ option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
-# Works only with non-MPI (serial) build
+# Works only with non-MPI (serial) build, needed for Casida linear response
 
 option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the

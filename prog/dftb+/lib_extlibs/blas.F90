@@ -5,6 +5,12 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#! Note: This module contains preprocessor variable substitutions in subroutine names (${NAME}$)
+#! which may break the documentation system. Make sure you preprocess this file before passing it
+#! to a source code documentation tool.
+
+#:include 'common.fypp'
+
 !> Interface wrapper for the blas routines.
 !>
 !> ALL BLAS routines which are called from the main code must be included here.
@@ -939,10 +945,12 @@ module dftbp_blas
     end subroutine zgemm
 
 
+  #:for VPREC, VTYPE, NAME in [('rsp', 'real', 'ssyrk'), ('rdp', 'real', 'dsyrk'),&
+    & ('rsp', 'complex', 'cherk'), ('rdp', 'complex', 'zherk')]
     !> performs one of the symmetric rank k operations
     !> C := alpha*A*A**T + beta*C, or C := alpha*A**T*A + beta*C
-    subroutine ssyrk(uplo, trans, nn, kk, alpha, aa, lda, beta, cc, ldc)
-      import rsp
+    subroutine ${NAME}$(uplo, trans, nn, kk, alpha, aa, lda, beta, cc, ldc)
+      import ${VPREC}$
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
@@ -957,66 +965,33 @@ module dftbp_blas
       integer, intent(in) :: kk
 
       !> scaling factor
-      real(rsp), intent(in) :: alpha
+      real(${VPREC}$), intent(in) :: alpha
 
       !> leading matrix dimension
       integer, intent(in) :: lda
 
       !> matrix A
-      real(rsp), intent(in) :: aa(lda, *)
+      ${VTYPE}$(${VPREC}$), intent(in) :: aa(lda, *)
 
       !> scale factor
-      real(rsp), intent(in) :: beta
+      real(${VPREC}$), intent(in) :: beta
 
       !> leading matrix dimension
       integer, intent(in) :: ldc
 
       !> matrix C
-      real(rsp), intent(inout) :: cc(ldc, *)
-    end subroutine ssyrk
+      ${VTYPE}$(${VPREC}$), intent(inout) :: cc(ldc, *)
+
+    end subroutine ${NAME}$
+  #:endfor
 
 
-    !> performs one of the symmetric rank k operations
-    !> C := alpha*A*A**T + beta*C, or C := alpha*A**T*A + beta*C
-    subroutine dsyrk(uplo, trans, nn, kk, alpha, aa, lda, beta, cc, ldc)
-      import rdp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> should transposition be used
-      character, intent(in) :: trans
-
-      !> matrix  size
-      integer, intent(in) :: nn
-
-      !> rank
-      integer, intent(in) :: kk
-
-      !> scale factor
-      real(rdp), intent(in) :: alpha
-
-      !> leading matrix dimension
-      integer, intent(in) :: lda
-
-      !> matrix A
-      real(rdp), intent(in) :: aa(lda, *)
-
-      !> scaling factor
-      real(rdp), intent(in) :: beta
-
-      !> leading matrix dimension
-      integer, intent(in) :: ldc
-
-      !> matrix C
-      real(rdp), intent(inout) :: cc(ldc, *)
-    end subroutine dsyrk
-
-
-    !> performs one of the symmetric rank k operations
-    !> C := alpha*A*A**T + beta*C, or C := alpha*A**T*A + beta*C
-    subroutine cherk(uplo, trans, nn, kk, alpha, aa, lda, beta, cc, ldc)
-      import rsp
+  #:for VPREC, VTYPE, NAME in [('rsp', 'real', 'ssyr2k'), ('rdp', 'real', 'dsyr2k'),&
+    & ('rsp', 'complex', 'cher2k'), ('rdp', 'complex', 'zher2k')]
+    !> performs one of the symmetric rank 2k operations
+    !> C := 0.5*alpha*(A*B**H + B**H*A)+ beta*C, or C := 0.5*alpha*(B*A**H + A**H*B)+ beta*C
+    subroutine ${NAME}$(uplo, trans, nn, kk, alpha, aa, lda, bb, ldb, beta, cc, ldc)
+      import ${VPREC}$
 
       !> Upper 'U' or lower 'L' triangle
       character, intent(in) :: uplo
@@ -1031,60 +1006,31 @@ module dftbp_blas
       integer, intent(in) :: kk
 
       !> scaling factor
-      real(rsp), intent(in) :: alpha
+      ${VTYPE}$(${VPREC}$), intent(in) :: alpha
 
-      !> leading matrix dimension
+      !> leading matrix dimension for a
       integer, intent(in) :: lda
 
       !> matrix A
-      complex(rsp), intent(in) :: aa(lda, *)
+      ${VTYPE}$(${VPREC}$), intent(in) :: aa(lda, *)
+
+      !> leading matrix dimension for b
+      integer, intent(in) :: ldb
+
+      !> matrix B
+      ${VTYPE}$(${VPREC}$), intent(in) :: bb(lda, *)
 
       !> scale factor
-      real(rsp), intent(in) :: beta
+      ${VTYPE}$(${VPREC}$), intent(in) :: beta
 
       !> leading matrix dimension
       integer, intent(in) :: ldc
 
       !> matrix C
-      complex(rsp), intent(inout) :: cc(ldc, *)
-    end subroutine cherk
+      ${VTYPE}$(${VPREC}$), intent(inout) :: cc(ldc, *)
 
-
-    !> performs one of the symmetric rank k operations
-    !> C := alpha*A*A**T + beta*C, or C := alpha*A**T*A + beta*C
-    subroutine zherk(uplo, trans, nn, kk, alpha, aa, lda, beta, cc, ldc)
-      import rdp
-
-      !> Upper 'U' or lower 'L' triangle
-      character, intent(in) :: uplo
-
-      !> should transposition be used
-      character, intent(in) :: trans
-
-      !> matrix  size
-      integer, intent(in) :: nn
-
-      !> rank
-      integer, intent(in) :: kk
-
-      !> scale factor
-      real(rdp), intent(in) :: alpha
-
-      !> leading matrix dimension
-      integer, intent(in) :: lda
-
-      !> matrix A
-      complex(rdp), intent(in) :: aa(lda, *)
-
-      !> scaling factor
-      real(rdp), intent(in) :: beta
-
-      !> leading matrix dimension
-      integer, intent(in) :: ldc
-
-      !> matrix C
-      complex(rdp), intent(inout) :: cc(ldc, *)
-    end subroutine zherk
+    end subroutine ${NAME}$
+  #:endfor
 
 
     !> solves one of the matrix equations

@@ -24,7 +24,7 @@ setup(
         "Programming Language :: Python",
         "Environment :: Console",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: LGPL License",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering",
     ],

@@ -59,7 +59,7 @@ homepage <http://www.dftbplus.org>`_.
 
 Alternatively you can clone the `public git repository
 <https://github.com/dftbplus/dftbplus>`_. The tagged revisions correspond to
-stable releases, while the master branch contains the latest development
+stable releases, while the default branch contains the latest development
 version. As the project uses git-submodules, those must be additionally
 downloaded ::
 

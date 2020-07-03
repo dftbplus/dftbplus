@@ -1,0 +1,48 @@
+Geometry = GenFormat {
+    <<< "benzene.gen"
+}
+
+Driver = ConjugateGradient{MaxSteps=0}
+
+Hamiltonian = DFTB {
+    SCC = Yes
+    SCCTolerance = 1e-8
+    MaxAngularMomentum = {
+        C = "p"
+        H = "s"
+    }
+    SlaterKosterFiles = Type2FileNames {
+        Prefix = "./"
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    Filling = Fermi {Temperature [K] = 0}
+    RangeSeparated = LC {
+      Screening = Thresholded {
+        Threshold = 1.0e-16
+      }
+    }
+}
+
+ExcitedState {
+    Casida {
+        NrOfExcitations = 20
+        StateOfInterest = 5
+        Symmetry = Singlet
+    }
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions {
+    ParserVersion = 5
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

@@ -12,7 +12,7 @@ module dftbp_solvparser
   use dftbp_accuracy, only : dp
   use dftbp_atomicrad, only : getAtomicRad
   use dftbp_bisect, only : bisection
-  use dftbp_born, only : TGBInput
+  use dftbp_born, only : TGBInput, fgbKernel
   use dftbp_borndata, only : getVanDerWaalsRadiusD3
   use dftbp_charmanip, only : tolower, unquote
   use dftbp_cm5, only : TCM5Input
@@ -87,14 +87,15 @@ contains
     type(TGBInput), allocatable :: defaults
     type(string) :: buffer, state, modifier
     type(fnode), pointer :: child, value1, field, child2, value2, dummy
-    logical :: found, tHBondCorr
-    real(dp) :: temperature, shift, conv
+    logical :: found, tHBondCorr, tALPB
+    real(dp) :: temperature, shift, conv, alphaALPB
     real(dp), allocatable :: vdwRadDefault(:)
     type(TSolventData) :: solvent
     real(dp), parameter :: referenceDensity = kg__au/(1.0e10_dp*AA__Bohr)**3
     real(dp), parameter :: referenceMolecularMass = amu__au
     real(dp), parameter :: idealGasMolVolume = 24.79_dp
     real(dp), parameter :: ambientTemperature = 298.15_dp * Boltzmann
+    real(dp), parameter :: alphaDefault = 0.571412_dp
 
     if (geo%tPeriodic) then
       call detailedError(node, "Generalized Born model currently not available with PBCs")
@@ -132,7 +133,24 @@ contains
 
     end if
 
-    input%keps = 1.0_dp / solvent%dielectricConstant - 1.0_dp
+    call getChildValue(node, "ALPB", tALPB, .false.)
+    if (tALPB) then
+      call getChildValue(node, "Alpha", alphaALPB, alphaDefault)
+      input%alpbet = alphaALPB / solvent%dielectricConstant
+    else
+      input%alpbet = 0.0_dp
+    end if
+    input%keps = (1.0_dp / solvent%dielectricConstant - 1.0_dp) / (1.0_dp + input%alpbet)
+
+    call getChildValue(node, "Kernel", buffer, "Still", child=child)
+    select case(tolower(unquote(char(buffer))))
+    case default
+      call detailedError(child, "Unknown interaction kernel: "//char(buffer))
+    case("still")
+      input%kernel = fgbKernel%still
+    case("p16")
+      input%kernel = fgbKernel%p16
+    end select
 
     ! shift value for the free energy (usually fitted)
     if (allocated(defaults)) then
@@ -153,7 +171,7 @@ contains
     call getChildValue(node, "State", state, "gsolv", child=child)
     select case(tolower(unquote(char(state))))
     case default
-      call detailedError(child, "Unknown reference state: '"//char(state)//"'")
+      call detailedError(child, "Unknown reference state: "//char(state))
     case("gsolv") ! just the bare shift
       input%freeEnergyShift = shift
     case("reference") ! gsolv=reference option in cosmotherm
