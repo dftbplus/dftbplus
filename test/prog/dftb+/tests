@@ -7,14 +7,11 @@
 
 timeprop/benzene_Ehrenfest_restart     #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_Ehrenfest_restartAscii #? OMP_THREADS <= 4 and not WITH_MPI
-#!timeprop/benzene_kick_restart          #? OMP_THREADS <= 4 and not WITH_MPI
-#!timeprop/benzene_ions_restart          #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_kick_bndpop           #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_laser                 #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_sin2                  #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/benzene_gaussian              #? OMP_THREADS <= 4 and not WITH_MPI
 timeprop/GNR_kpoint_kick               #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
-#!timeprop/GNR_kpoint_laser_restart      #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
 timeprop/GNR_kpoint_restart            #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
 timeprop/H2_singlet                    #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/H2_triplet                    #? OMP_THREADS <= 1 and not WITH_MPI
@@ -23,7 +20,6 @@ timeprop/C60_kick                      #? OMP_THREADS <= 4 and not WITH_MPI and 
 timeprop/C60_triplet                   #? OMP_THREADS <= 4 and not WITH_MPI and LONG_TEST
 timeprop/NO_pSIC                       #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/NO_onsite                     #? OMP_THREADS == 1 and not WITH_MPI
-#!timeprop/NO_ions_restart               #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/benzene_kick_periodic         #? OMP_THREADS <= 1 and not WITH_MPI
 timeprop/GNR_periodic_kick             #? OMP_THREADS == 1 and not WITH_MPI
 timeprop/CH3_dftbu_singlet             #? OMP_THREADS == 1 and not WITH_MPI
