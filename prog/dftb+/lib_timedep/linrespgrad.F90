@@ -148,7 +148,7 @@ contains
     !> Differentiator for H0 and S matrices.
     class(TNonSccDiff), intent(in), optional :: derivator
 
-    !> ground state square density matrix
+    !> ground state density matrix
     real(dp), intent(in), optional :: rhoSqr(:,:,:)
 
     !> Occupation numbers for natural orbitals from the excited state density matrix
@@ -245,9 +245,12 @@ contains
     @:ASSERT(present(excgrad) .eqv. present(shift))
     @:ASSERT(present(excgrad) .eqv. present(skHamCont))
     @:ASSERT(present(excgrad) .eqv. present(skOverCont))
-    @:ASSERT(present(excgrad) .eqv. present(rhoSqr))
     @:ASSERT(present(excgrad) .eqv. present(derivator))
-
+  #:block DEBUG_CODE
+    if (present(excgrad)) then
+    @:ASSERT(present(rhoSqr))
+    end if
+  #:endblock DEBUG_CODE
     @:ASSERT(present(occNatural) .eqv. present(naturalOrbs))
 
     ! count initial number of transitions from occupied to empty states
@@ -280,7 +283,8 @@ contains
     end if
 
     !> is a z vector required?
-    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs)
+    tZVector = tForces .or. tMulliken .or. tCoeffs .or. present(naturalOrbs) .or.&
+        & this%tWriteDensityMatrix
 
     ! Sanity checks
     nstat = this%nStat
@@ -586,7 +590,11 @@ contains
             & tCoeffs, this%tGrndState, occNatural, naturalOrbs)
 
         ! Make MO to AO transformation of the excited density matrix
-        call makeSimiliarityTrans(pc, grndEigVecs(:,:,1))
+        call makeSimilarityTrans(pc, grndEigVecs(:,:,1))
+
+        if (this%tWriteDensityMatrix) then
+          call writeDM(iLev, pc, rhoSqr)
+        end if
 
         call getExcMulliken(iAtomStart, pc, SSqr, dqex)
         if (tMulliken) then
@@ -1342,6 +1350,44 @@ contains
     end do
 
   end subroutine calcWvectorZ
+
+
+  !> Write out density matrix, full if rhoSqr is present
+  subroutine writeDM(iLev, pc, rhoSqr)
+
+    !> Lable for excited state level
+    integer, intent(in) :: iLev
+
+    !> transition density matrix
+    real(dp), intent(in) :: pc(:,:)
+
+    !> ground state density matrix
+    real(dp), intent(in), optional :: rhoSqr(:,:,:)
+
+    integer :: fdUnit, iErr
+    character(lc) :: tmpStr, error_string
+
+    write(tmpStr, "(A,I0,A)")"DM", iLev, ".dat"
+
+    open(newunit=fdUnit, file=trim(tmpStr), position="rewind", status="replace",&
+        & form='unformatted',iostat=iErr)
+    if (iErr /= 0) then
+      write(error_string, *) "Failure to open density matrix"
+      call error(error_string)
+    end if
+
+    ! size and spin channels
+    write(fdUnit)size(pc, dim=1), 1
+
+    if (present(rhoSqr)) then
+      write(fdUnit)cmplx(pc+rhoSqr(:,:,1), 0.0_dp, dp)
+    else
+      write(fdUnit)cmplx(pc, 0.0_dp, dp)
+    end if
+
+    close(fdUnit)
+
+  end subroutine writeDM
 
 
   !> Mulliken population for a square density matrix and overlap

@@ -69,7 +69,7 @@ module dftbp_environment
 
   end type TEnvironment
 
-  type(TTimerItem), parameter :: globalTimerItems(23) = [&
+  type(TTimerItem), parameter :: globalTimerItems(25) = [&
       & TTimerItem("Global initialisation", 1),&
       & TTimerItem("Pre-SCC initialisation", 1),&
       & TTimerItem("Sparse H0 and S build", 4),&
@@ -92,7 +92,9 @@ module dftbp_environment
       & TTimerItem("Energy-density matrix creation", 2),&
       & TTimerItem("Force calculation", 2),&
       & TTimerItem("Stress calculation", 2),&
-      & TTimerItem("Post-geometry optimisation", 1)&
+      & TTimerItem("Post-geometry optimisation", 1),&
+      & TTimerItem("Electron dynamics initialisation", 2),&
+      & TTimerItem("Electron dynamics loop", 2)&
       & ]
 
   type :: TGlobalTimersHelper
@@ -119,6 +121,9 @@ module dftbp_environment
     integer :: forceCalc = 21
     integer :: stressCalc = 22
     integer :: postGeoOpt = 23
+    integer :: elecDynInit = 24
+    integer :: elecDynLoop = 25
+
   end type TGlobalTimersHelper
 
   type(TGlobalTimersHelper), parameter :: globalTimers = TGlobalTimersHelper()

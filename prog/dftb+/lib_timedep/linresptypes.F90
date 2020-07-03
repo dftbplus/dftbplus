@@ -88,6 +88,9 @@ module dftbp_linresptypes
     !> eigensolver. Note: in the case of ARPACK this is the residual not the eigenvectors
     real(dp), allocatable :: oldEigenVectors(:,:)
 
+    !> Should the density matrix be stored to disc?
+    logical :: tWriteDensityMatrix
+
     ! ARPACK related
 
     !> write state of Arnoldi solver to disc

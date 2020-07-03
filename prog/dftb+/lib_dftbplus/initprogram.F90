@@ -24,6 +24,7 @@ module dftbp_initprogram
   use dftbp_constants
   use dftbp_elecsolvers
   use dftbp_elsisolver, only : TElsiSolver_init, TElsiSolver_final
+  use dftbp_gpuinfo, only : gpuInfo
   use dftbp_elsiiface
   use dftbp_arpack, only : withArpack
   use dftbp_gpuinfo, only : gpuInfo
@@ -64,6 +65,7 @@ module dftbp_initprogram
   use dftbp_scc
   use dftbp_sccinit
   use dftbp_onsitecorrection
+  use dftbp_hamiltonian, only : TRefExtPot
   use dftbp_h5correction
   use dftbp_halogenx
   use dftbp_slakocont
@@ -84,6 +86,7 @@ module dftbp_initprogram
   use dftbp_sorting, only : heap_sort
   use dftbp_linkedlist
   use dftbp_wrappedintr
+  use dftbp_timeprop
   use dftbp_xlbomd
   use dftbp_etemp, only : fillingTypes
 #:if WITH_SOCKETS
@@ -113,13 +116,6 @@ module dftbp_initprogram
   use poisson_init
   use dftbp_transportio
   implicit none
-
-  !> Container for external potentials
-  type :: TRefExtPot
-    real(dp), allocatable :: atomPot(:,:)
-    real(dp), allocatable :: shellPot(:,:,:)
-    real(dp), allocatable :: potGrad(:,:)
-  end type TRefExtPot
 
 
   !> Tagged output files (machine readable)
@@ -517,14 +513,11 @@ module dftbp_initprogram
   !> File containing output geometry
   character(lc) :: geoOutFile
 
-
   !> Append geometries in the output?
   logical :: tAppendGeo
 
-
   !> Only use converged forces if SCC
   logical :: tUseConvergedForces
-
 
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
@@ -535,10 +528,8 @@ module dftbp_initprogram
   !> Geometry optimizer for lattice consts
   type(TGeoOpt), allocatable :: pGeoLatOpt
 
-
   !> Charge mixer
   type(TMixer), allocatable :: pChrgMixer
-
 
   !> MD Framework
   type(TMDCommon), allocatable :: pMDFrame
@@ -899,8 +890,12 @@ module dftbp_initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
+  !> Electron dynamics
+  type(TElecDynamics), allocatable :: electronDynamics
+
   !> external electric field
   real(dp) :: Efield(3), absEfield
+
   !> Electronic structure solver
   type(TElectronicSolver) :: electronicSolver
 
@@ -1146,6 +1141,7 @@ contains
     integer :: nBufferedCholesky
 
     character(sc), allocatable :: shellNamesTmp(:)
+    logical :: tRequireDerivator
 
     logical :: tInitialized
 
@@ -1767,8 +1763,13 @@ contains
     end if
     if (forceType == forceTypes%dynamicT0 .and. tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
-    end if
-    if (tForces) then
+     end if
+
+     tRequireDerivator = tForces
+     if (.not. tRequireDerivator .and. allocated(input%ctrl%elecDynInp)) then
+       tRequireDerivator = input%ctrl%elecDynInp%tIons
+     end if
+     if (tRequireDerivator) then
       select case(input%ctrl%iDerivMethod)
       case (1)
         ! set step size from input
@@ -1787,6 +1788,7 @@ contains
 
     call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
         & input%ctrl%parallelOpts, nIndepHam, tempElec)
+
     if (tRealHS) then
       nBufferedCholesky = 1
     else
@@ -2144,7 +2146,8 @@ contains
 
       tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tCasidaForces .or.&
-          & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
+          & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs .or.&
+          & input%ctrl%lrespini%tWriteDensityMatrix)
 
       if (allocated(onSiteElements) .and. tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&
@@ -2210,6 +2213,7 @@ contains
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
 
+
     ! MD stuff
     if (tMD) then
       ! Create MD framework.
@@ -2266,14 +2270,15 @@ contains
               & input%ctrl%initialVelocities, BarostatStrength, extPressure, input%ctrl%tIsotropic)
         else
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat,&
-              & input%ctrl%initialVelocities)
+              & input%ctrl%initialVelocities, .true., .false.)
         end if
       else
         if (tBarostat) then
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat, BarostatStrength,&
               & extPressure, input%ctrl%tIsotropic)
         else
-          call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat)
+          call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat,&
+              & input%ctrl%initialVelocities, .false., .false.)
         end if
       end if
       allocate(pMDIntegrator)
@@ -3209,6 +3214,46 @@ contains
       if (t3rd .or. t3rdFull) then
         call error ("Third order DFTB is not currently compatible with linear response excitations")
       end if
+
+    end if
+      
+    ! Electron dynamics stuff
+    if (allocated(input%ctrl%elecDynInp)) then
+
+      if (t2Component) then
+        call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
+      end if
+
+      if (withMpi) then
+        call error("Electron dynamics does not work with MPI yet")
+      end if
+
+      if (tFixEf) then
+        call error("Electron dynamics does not work with fixed Fermi levels yet")
+      end if
+
+      if (tSpinSharedEf) then
+        call error("Electron dynamics does not work with spin shared Fermi levels yet")
+      end if
+
+      if (tMD) then
+        call error("Electron dynamics does not work with MD")
+      end if
+
+      if (isRangeSep) then
+        call error("Electron dynamics does not work with range separated calculations yet.")
+      end if
+
+      if (.not. tRealHS .and. input%ctrl%elecDynInp%tBondE) then
+        call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
+      end if
+
+      allocate(electronDynamics)
+
+      call TElecDynamics_init(electronDynamics, input%ctrl%elecDynInp, species0, speciesName,&
+          & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, cutOff%skCutoff,&
+          & cutOff%mCutoff, atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS,&
+          & tRealHS, kPoint, kWeight, isRangeSep)
 
     end if
 
