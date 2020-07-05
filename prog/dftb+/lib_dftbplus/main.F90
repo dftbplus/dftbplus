@@ -308,15 +308,15 @@ contains
         cellVol = abs(determinant33(latVec))
         energy%EGibbs = energy%EMermin + extPressure * cellVol
       end if
-      call writeAutotestTag(autotestTag, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
-          & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, extPressure,&
-          & coord0, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE,&
+      call writeAutotestTag(autotestTag, electronicSolver, tPeriodic, cellVol, tMulliken, qOutput,&
+          & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy,&
+          & extPressure, coord0, tLocalise, localisation, esp, taggedWriter, tunneling, ldos,&
           & lCurrArray)
     end if
     if (tWriteResultsTag) then
       call writeResultsTag(resultsTag, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
           & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
-          & qOutput, q0, taggedWriter, tDefinedFreeE, cm5Cont)
+          & qOutput, q0, taggedWriter, cm5Cont)
     end if
     if (tWriteDetailedXML) then
       call writeDetailedXml(runId, speciesName, species0, pCoord0Out, tPeriodic, tHelical, latVec,&
@@ -565,8 +565,7 @@ contains
                 & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom,&
                 & pCoord0Out, q0, qOutput, orb, species, tPrintMulliken, extPressure, cellVol,&
                 & tAtomicEnergy, tDispersion, tPeriodic, tSccCalc, invLatVec, kPoint,&
-                & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, allocated(thirdOrd),&
-                & isRangeSep)
+                & iAtInCentralRegion, electronicSolver, reks, allocated(thirdOrd), isRangeSep)
           end if
           if (tWriteBandDat) then
             call writeBandOut(bandOut, eigen, filling, kWeight)
@@ -756,8 +755,8 @@ contains
               & tDFTBU, tImHam.or.tSpinOrbit, tPrintMulliken, orbitalL, qBlockOut, Ef, Eband, TS,&
               & E0, extPressure, cellVol, tAtomicEnergy, tDispersion, tEField, tPeriodic, nSpin,&
               & tSpin, tSpinOrbit, tSccCalc, allocated(onSiteElements), tNegf, invLatVec, kPoint,&
-              & iAtInCentralRegion, electronicSolver, tDefinedFreeE, allocated(halogenXCorrection),&
-              & isRangeSep, allocated(thirdOrd), allocated(solvation), cm5Cont)
+              & iAtInCentralRegion, electronicSolver, allocated(halogenXCorrection), isRangeSep,&
+              & allocated(thirdOrd), allocated(solvation), cm5Cont)
         end if
 
         if (tConverged .or. tStopScc) then
@@ -842,7 +841,7 @@ contains
           & iLatGeoStep, nSpin, qOutput, velocities)
     end if
 
-    call printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
+    call printEnergies(energy, TS, electronicSolver)
 
     if (tForces) then
       call env%globalTimer%startTimer(globalTimers%forceCalc)
@@ -6976,7 +6975,7 @@ contains
       energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp
       reks%enLtot(iL) = energy%Etotal
 
-      ! REKS is not affected by filling, so TS becmoes 0
+      ! REKS is not affected by filling, so TS becomes 0
       energy%EMermin = energy%Etotal
       ! extrapolated to 0 K
       energy%Ezero = energy%Etotal

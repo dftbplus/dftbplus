@@ -473,8 +473,8 @@ contains
   end subroutine TElsiSolver_init
 
 
-  !> Checks for supported value of ELSI api, 2.6.0 release tag being the currently required version
-  !> for DFTB+ can use at the moment
+  !> Checks for supported value of ELSI api, 2.6.0 or 2.6.1 release tag being the version DFTB+ can
+  !> use at the moment (electronic entropy return and # PEXSI poles change between 2.5.0 and 2.6.0)
   subroutine supportedVersionNumber(major, minor, patch, dateStamp)
 
     !> Version value components
@@ -490,9 +490,8 @@ contains
       isSupported = .false.
     elseif (major == 2 .and. minor < 6) then
       isSupported = .false.
-    elseif (major == 2 .and. minor == 6 .and. patch < 0) then
-      ! no need to check patch in this case, as library must be >= 2.6.0, but just in case of a
-      ! negative value
+    elseif (major == 2 .and. minor == 6 .and. all(patch == [0,1])) then
+      ! library must be 2.6.{0,1}
       isSupported = .false.
     end if
 
@@ -505,6 +504,10 @@ contains
     if (all([major,minor,patch] == [2,6,0]) .and. dateStamp /= 20200617) then
       call warning("ELSI 2.6.0 library version is between releases")
     end if
+    if (all([major,minor,patch] == [2,6,1]) .and. dateStamp /= 20200625) then
+      call warning("ELSI 2.6.1 library version is between releases")
+    end if
+
 
   end subroutine supportedVersionNumber
 
@@ -929,13 +932,15 @@ contains
       end if
     end if
 
-    Ef(:) = 0.0_dp
-    call elsi_get_mu(this%handle, Ef(iS))
     TS(:) = 0.0_dp
+    if (any(this%iSolver == [electronicSolverTypes%pexsi, electronicSolverTypes%elpadm])) then
+      call elsi_get_entropy(this%handle, TS(iS))
+    end if
+
+    Ef(:) = 0.0_dp
     if (any(this%iSolver == [electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
         & electronicSolverTypes%elpadm])) then
       call elsi_get_mu(this%handle, Ef(iS))
-      call elsi_get_entropy(this%handle, TS(iS))
     end if
 
     if (this%iSolver == electronicSolverTypes%pexsi) then
