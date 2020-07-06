@@ -6235,8 +6235,9 @@ contains
     type(fnode), pointer :: field, pNode, pTmp, pWide, child1, child2
     type(string) :: buffer, modifier
     type(TListReal) :: fermiBuffer
+    character(lc) :: errorStr
 
-    do ii = 1, size(contacts)
+    lpContacts: do ii = 1, size(contacts)
 
       contacts(ii)%wideBand = .false.
       contacts(ii)%wideBandDos = 0.0_dp
@@ -6345,6 +6346,17 @@ contains
 
       end if
 
+    end do lpContacts
+
+    do ii = 2, size(contacts)
+      do jj = ii, size(contacts)
+        if (any(contacts(ii-1)%idxrange(:) >  contacts(jj)%idxrange(:))) then
+          write(errorStr,"('The contacts ', A, ' and ', A,&
+              & ' are not aranged by their atom numbers. They will internally reordered ')")&
+              & trim(contacts(ii-1)%name), trim(contacts(jj)%name)
+          call warning(errorStr)
+        end if
+      end do
     end do
 
   end subroutine readContacts

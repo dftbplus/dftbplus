@@ -83,7 +83,7 @@ module dftbp_initprogram
   use dftbp_orbitalequiv
   use dftbp_orbitals
   use dftbp_commontypes
-  use dftbp_sorting, only : heap_sort
+  use dftbp_sorting, only : heap_sort, merge_sort
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_timeprop
@@ -2418,6 +2418,13 @@ contains
       tUpload = .false.
     end if
 
+  #:if WITH_TRANSPORT
+    if (tUpload) then
+      ! check geometry details are consistent with transport between contacts
+      call checkTransportRanges(nAtom, input%transpar)
+    end if
+  #:endif
+
     call initTransportArrays(tUpload, input%transpar, species0, orb, nAtom, nSpin, shiftPerLUp,&
         & chargeUp, allocated(qBlockIn), blockUp, shiftBlockUp)
 
@@ -2505,11 +2512,6 @@ contains
   #:if WITH_TRANSPORT
     ! note, this has the side effect of setting up module variable transpar as copy of
     ! input%transpar
-
-    if (tUpload) then
-      ! check geometry details are consistent with transport with contacts
-      call checkTransportRanges(nAtom, input%transpar)
-    end if
 
     if (tContCalc) then
       ! geometry is reduced to contacts only
@@ -3809,12 +3811,44 @@ contains
     integer :: nAtom
 
     !> Transport parameters
-    type(TTransPar), intent(in) :: transpar
+    type(TTransPar), intent(inout) :: transpar
 
     character(lc) :: strTmp
     integer :: ii, jj
     logical :: tFailCheck
     logical, allocatable :: notInRegion(:)
+    integer, allocatable :: contIndx(:)
+    type(ContactInfo), allocatable :: contacts(:)
+
+    ! check for order of atoms in contacts and reorder if neccessary
+    if (transpar%ncont > 1) then
+      allocate(contIndx(transpar%ncont))
+      call merge_sort(contIndx, transpar%contacts(:)%idxrange(1)) ! using stable sort
+      tFailCheck = .false.
+      lpContOrder: do ii = 1, transpar%ncont
+        if (ii /= contIndx(ii)) then
+          tFailCheck = .true.
+          exit lpContOrder
+        end if
+      end do lpContOrder
+      if (tFailCheck) then
+        call warning('Reordering the contacts for transport to give increasing atom numbers in the&
+            & contacts')
+        allocate(contacts(transpar%ncont))
+        do ii = 1, transpar%ncont
+          contacts(ii) = transpar%contacts(contIndx(ii))
+        end do
+        do ii = 1, transpar%ncont
+          transpar%contacts(ii) = contacts(ii)
+        end do
+        write(stdOut, "(A)")'New contact order'
+        do ii = 1, transpar%ncont
+          write(stdOut,"(1X,I0,' : ',A)")ii, trim(transpar%contacts(ii)%name)
+        end do
+        deallocate(contacts)
+      end if
+      deallocate(contIndx)
+    end if
 
     ! check for atoms occurring inside both the device and a contact
     do ii = 1, transpar%ncont
@@ -3868,6 +3902,7 @@ contains
     end if
 
   end subroutine checkTransportRanges
+
 #:endif
 
 
