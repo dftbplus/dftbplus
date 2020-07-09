@@ -490,7 +490,7 @@ contains
       isSupported = .false.
     elseif (major == 2 .and. minor < 6) then
       isSupported = .false.
-    elseif (major == 2 .and. minor == 6 .and. all(patch == [0,1])) then
+    elseif (major == 2 .and. minor == 6 .and. any(patch == [0,1])) then
       ! library must be 2.6.{0,1}
       isSupported = .false.
     end if
