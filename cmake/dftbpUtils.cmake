@@ -217,8 +217,9 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
     string(FIND "${CMAKE_Fortran_FLAGS}" "realloc_lhs" pos2)
     string(FIND "${CMAKE_Fortran_FLAGS}" "norealloc_lhs" pos3)
     if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
-      message(FATAL_ERROR "Intel compiler needs either the '-standard-semantics' or the '-assume \
-realloc_lhs' option to produce correctly behaving (Fortran standard complying) code")
+      message(FATAL_ERROR "Intel Fortran compiler needs either the '-standard-semantics' or the "
+        "'-assume realloc_lhs' option to produce correctly behaving (Fortran standard complying) "
+        "code")
     endif()
   endif()
 
@@ -372,3 +373,67 @@ toolchain file). See the INSTALL.rst file for detailed instructions.")
   endif()
 
 endfunction()
+
+
+# Tries to guess which toolchain to load based on the environment.
+#
+# Args:
+#     toolchain [out]: Name of the selected toolchain or undefined if it could not be selected
+#
+function(dftbp_guess_toolchain toolchain)
+
+  if("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "GNU|GNU")
+    set(_toolchain "gnu")
+  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "Intel|Intel")
+    set(_toolchain "intel")
+  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "NAG|GNU")
+    set(_toolchain "nag")
+  else()
+    set(_toolchain "")
+  endif()
+    
+  set(${toolchain} "${_toolchain}" PARENT_SCOPE)
+  
+endfunction()
+
+
+# Loads toolchain settings.
+#
+macro(dftbp_load_toolchain_settings)
+  
+  if(NOT DEFINED TOOLCHAIN_FILE)
+    if(NOT DEFINED TOOLCHAIN)
+      dftbp_guess_toolchain(TOOLCHAIN)
+    endif()
+    if(TOOLCHAIN STREQUAL "")
+      message(FATAL_ERROR "Missing pre-configured toolchain file for your build environment!\n"
+        "Check whether the build environment detected above is correct. If not, delete the "
+        "CMakeCache.txt file in this folder and re-run cmake by specifying the correct compilers "
+        "in the environment variables FC and CC, e.g.:\n"
+        "rm CMakeCache.txt\n"
+        "env FC=<fortran_compiler> CC=<c_compiler> cmake <dftb+_source_folder>\n"
+        "Otherwise, you have to create a custom toolchain file based on the template in the "
+        "${CMAKE_SOURCE_DIR}/sys/ folder (or customize one of those) and select it with the "
+        "command line option -DTOOLCHAIN_FILE, e.g.:\n"
+        "rm CMakeCache.txt\n"
+        "env FC=<fortran_compiler> CC=<c_compiler> cmake -DTOOLCHAIN_FILE=<toolchainfile> "
+        "<dftb+_source_folder>\n")
+    endif()
+    set(TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
+  endif()
+  message(STATUS "Loading toolchain file: ${TOOLCHAIN_FILE} "
+    "(if library detection or compilation fails, adjust settings in this file)")
+  include(${TOOLCHAIN_FILE})
+endmacro()
+
+
+# Sets up the global compiler flags
+#
+macro (dftbp_setup_global_compiler_flags)
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
+  foreach (lang IN ITEMS Fortran C)
+    set(CMAKE_${lang}_FLAGS ${${lang}_FLAGS})
+    unset(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} CACHE)
+    message(STATUS "Flags for ${lang}-compiler: ${CMAKE_${lang}_FLAGS}")
+  endforeach()
+endmacro()

@@ -98,30 +98,63 @@ For more information see the detailed help for this tool by issuing
 ``./utils/get_opt_externals -h``.
 
 
-Compiling
-=========
+Building
+========
 
 * Look at the `config.cmake` file and customise the global build parameters if
   necessary. (If you are unsure, leave the defaults as they are.)
 
-* Since the CMake auto-detection of compilers, flags and libraries may easily
-  end up in non-standard environments with an inconsistent choice, you have to
-  provide those settings manually. You can use (and customise) one of the cmake
-  toolchain templates in the `sys/` folder (e.g. `gnu.cmake`, `intel.cmake`) or
-  create your own one, if you wish.
-
 * Create a build folder (e.g. `_build`) either in the DFTB+ source tree or
-  somewhere else outside of it and change to the build folder::
+  somewhere else outside of it and change to that folder, e.g.::
 
     mkdir _build
     cd _build
 
-* From the build folder invoke CMake to configure the build. Pass the toolchain
-  file name with the ``-DCMAKE_TOOLCHAIN_FILE`` option and the DFTB+ source code
-  folder as arguments. If for example your build folder has been created within
-  the DFTB+ source tree and you use the `sys/gnu.cmake` toolchain file, issue::
+* From the build folder invoke CMake to configure the build. In order to ensure,
+  that CMake chooses the right compilers, pass the Fortran and C compilers as
+  environment variables, e.g.::
 
-    cmake -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
+    env FC=gfortran CC=gcc cmake ..
+
+  If you want to compile the code with MPI-support, you should pass the name of
+  the mpi compiler-wrapper as Fortran compiler, e.g.::
+
+    env FC=mpifort CC=gcc cmake ..
+
+  Based on the detected compilers, the build system will read further settings
+  from the corresponding pre-configured toolchain file in the `sys/` folder.
+
+  You may adjust any variables in the `config.make` file and the toolchain file
+  by either changing them directly in the files or by overriding them via the
+  ``-D`` command line option. For example, in order to change the name of the
+  LAPACK library, you could override the ``LAPACK_LIBRARIES`` variable with::
+
+    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas-custom ..
+
+  CMake automatically searches for the external libraries in the paths specified
+  in the `CMAKE_PREFIX_PATH` environment variable. Make sure that it is set up
+  correctly in your build environment. Alternatively, the DFTB+ build system
+  offers for each external library a corresponding `*_LIBRARY_DIRS` variable,
+  where you can add path hints for the library search. For example ::
+
+    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas \
+        -DLAPACK_LIBRARY_DIRS=/opt/openblas/lib
+
+  would advise CMake to look also in the `/opt/openblas/lib` directory for the
+  LAPACK (OpenBlas) library.
+    
+  If your compiler combination does not correspond to any of the pre-configured
+  files in the `sys/` folder, you have to explicitely specify a toolchain
+  file. It can be one of pre-configured ones or the generic one in the `sys/`
+  folder. This you can select by overriding the ``TOOLCHAIN`` variable, e.g.::
+
+    env FC=ifort CC=gcc cmake -DTOOLCHAIN=generic ..
+
+  Alternatively, you can also specify a custom toolchain file at an arbitraty
+  location with the ``TOOLCHAIN_FILE`` variable, e.g.::
+
+    env FC=ifort CC=gcc cmake -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake ..
+
 
 * If the configuration was successful, invoke (from within the build folder)
   `make` to compile the code::
