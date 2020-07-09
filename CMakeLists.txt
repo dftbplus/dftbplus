@@ -28,6 +28,11 @@ dftbp_ensure_config_consistency()
 
 dftbp_get_release_name(RELEASE)
 
+if(WITH_API)
+  dftbp_get_api_release(API_RELEASE)
+endif()
+
+
 if(WITH_MPI)
   find_package(MPI REQUIRED)
 endif()
@@ -148,7 +153,7 @@ add_subdirectory(external/mudpack)
 # Add internal components
 #
 add_subdirectory(prog)
-add_subdirectory(tools/dptools)
+add_subdirectory(tools)
 
 #
 # Testing

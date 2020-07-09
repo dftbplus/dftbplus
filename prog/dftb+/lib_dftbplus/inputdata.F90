@@ -23,6 +23,7 @@ module dftbp_inputdata
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_elecsolvers, only : TElectronicSolverInp
+  use dftbp_timeprop
   use dftbp_etemp, only : fillingTypes
   use dftbp_xlbomd
 #:if WITH_SOCKETS
@@ -479,6 +480,9 @@ module dftbp_inputdata
     !> TD Linear response input
     type(TLinrespini) :: lrespini
 
+    !> ElectronDynamics
+    type(TElecDynamicsInp), allocatable :: elecDynInp
+
     !> input for particle-particle RPA
     type(TppRPAcal), allocatable :: ppRPA
 
@@ -487,7 +491,6 @@ module dftbp_inputdata
 
     !> Range separated input
     type(TRangeSepInp), allocatable :: rangeSepInp
-
 
   #:if WITH_SOCKETS
     !> socket communication

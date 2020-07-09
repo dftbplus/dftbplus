@@ -13,7 +13,6 @@ Python via the foreign function C-library ctypes.
 
 import os
 import ctypes
-from numpy.ctypeslib import ndpointer
 import numpy as np
 
 
@@ -37,16 +36,18 @@ class DftbPlus:
         '''Initializes a ctypes DFTB+ calculator object.
 
         Args:
+
             libpath (str): path to DFTB+ shared library
             hsdpath (str): path to DFTB+ input file
             logfile (str): name of log file
+
         '''
 
         self._natoms = 0
 
         # DFTB+ shared library
         # use convenient Numpy wrapper to take different possible extensions
-        # of the shared library into account (operating system dependent).
+        # of the shared library into account (operating system dependent)
         libht = os.path.split(libpath)
         self._dftbpluslib = np.ctypeslib.load_library(libht[1], libht[0])
 
@@ -59,10 +60,18 @@ class DftbPlus:
 
         # ndpointer instances used to describe 1darray
         # and 2darray in restypes and argtypes specifications
-        self._dp1d = ndpointer(dtype=np.float64, ndim=1, flags='C_CONTIGUOUS')
-        self._dp2d = ndpointer(dtype=np.float64, ndim=2, flags='C_CONTIGUOUS')
+        self._dp1d = np.ctypeslib.ndpointer(
+            dtype=np.float64, ndim=1, flags='C_CONTIGUOUS')
+        self._dp2d = np.ctypeslib.ndpointer(
+            dtype=np.float64, ndim=2, flags='C_CONTIGUOUS')
 
-        # Register supported (DFTB+) routines
+        self._refobj_usr = None
+        self._calc_extpot_c = None
+        self._calc_extpotgrad_c = None
+        self._calc_extpot_usr = None
+        self._calc_extpotgrad_usr = None
+
+        # register supported (DFTB+) routines
         self._setup_interface()
 
         if logfile is not None:
@@ -84,10 +93,12 @@ class DftbPlus:
         '''Sets up the desired geometry.
 
         Args:
-            coords (2darray):    absolute atomic positions
-                                 (in atomic units)
-            latvecs (2darray):   lattice vectors (in atomic units)
-                                 (None for non-periodic structures)
+
+            coords  (2darray): absolute atomic positions
+                               (in atomic units)
+            latvecs (2darray): lattice vectors (in atomic units)
+                               (None for non-periodic structures)
+
         '''
 
         periodic = latvecs is not None
@@ -104,12 +115,14 @@ class DftbPlus:
         '''Sets up an external potential.
 
         Args:
-            extpot (2darray):     External potential at the position of each
+
+            extpot     (2darray): external potential at the position of each
                                   atom. Shape: [natom]. (in atomic units)
-            extpotgrad (2darray): Gradient of the external potential at each
+            extpotgrad (2darray): gradient of the external potential at each
                                   atom. Shape: [natom, 3]. (in atomic units)
                                   This parameter is optional, you can pass None
                                   if you did not ask DFTB+ to calculate forces.
+
         '''
 
         if extpotgrad is not None:
@@ -119,11 +132,111 @@ class DftbPlus:
             self._dftb_handler, extpot, extpotgrad)
 
 
+    def register_ext_pot_generator(self, refobj, calc_extpot, calc_extpotgrad):
+        '''Registers callback functions for population
+           dependent external potential calculations.
+
+        Args:
+
+            refobj              (pointer): user defined data struct or class
+                                           which contains the necessary data
+                                           for the potential calculation
+            calc_extpot         (pointer): pointer to user defined callback
+                                           function which DFTB+ should call,
+                                           whenever the population dependent
+                                           external potential should be
+                                           calculated
+            calc_extpotgrad     (pointer): pointer to user defined callback
+                                           function which DFTB+ should call,
+                                           whenever the gradient of the
+                                           population dependent external
+                                           potential should be calculated
+
+        '''
+
+        self._refobj_usr = refobj
+        self._calc_extpot_usr = calc_extpot
+        self._calc_extpotgrad_usr = calc_extpotgrad
+
+        self._calc_extpot_c = self._cmpfunc_extpot(
+            self._calc_extpot_callback)
+        self._calc_extpotgrad_c = self._cmpfunc_extpotgrad(
+            self._calc_extpotgrad_callback)
+
+        self._dftbpluslib.dftbp_register_ext_pot_generator(
+            self._dftb_handler, self._refobj_usr,
+            self._calc_extpot_c, self._calc_extpotgrad_c)
+
+
+    def _calc_extpot_callback(self, refobj, dqatom, extpotatom):
+        '''Callback function wrapper to hide the necessary
+           conversions of low level types into numpy arrays.
+
+        Args:
+
+            refobj     (pointer): user defined data struct or class
+                                  which contains the necessary data
+                                  for the potential calculation
+            dqatom     (pointer): population difference with respect
+                                  to reference population
+                                  (usually the neutral atom)
+                                  Note: population means electrons,
+                                  so a positive number indicates electron
+                                  excess
+            extpotatom (pointer): potential at the position of each QM-atom
+                                  Note: it should be the potential as felt by
+                                  an electron (negative potential value means
+                                  attraction for an electron)
+
+        '''
+
+        dqatom_array = np.ctypeslib.as_array(
+            dqatom, shape=(self._natoms,))
+        extpot_array = np.ctypeslib.as_array(
+            extpotatom, shape=(self._natoms,))
+
+        self._calc_extpot_usr(refobj, dqatom_array, extpot_array)
+
+
+    def _calc_extpotgrad_callback(self, refobj, dqatom, extpotatomgrad):
+        '''Callback function wrapper to hide the necessary
+           conversions of low level types into numpy arrays.
+
+        Args:
+
+            refobj         (pointer): user defined data struct or class
+                                      which contains the necessary data
+                                      for the potential calculation
+            dqatom         (pointer): population difference with respect
+                                      to reference population
+                                      (usually the neutral atom)
+                                      Note: population means electrons,
+                                      so a positive number indicates electron
+                                      excess
+            extpotatomgrad (pointer): potential gradient at the
+                                      position of each QM-atom
+                                      Note: it should be the gradient of the
+                                      potential as felt by an electron (negative
+                                      potential value means attraction for an
+                                      electron)
+
+        '''
+
+        dqatom_array = np.ctypeslib.as_array(
+            dqatom, shape=(self._natoms,))
+        extpotgrad_array = np.ctypeslib.as_array(
+            extpotatomgrad, shape=(self._natoms, 3))
+
+        self._calc_extpotgrad_usr(refobj, dqatom_array, extpotgrad_array)
+
+
     def get_nr_atoms(self):
         '''Queries the number of atoms.
 
         Returns:
+
             self._natoms (int): number of atoms
+
         '''
 
         return self._natoms
@@ -134,8 +247,10 @@ class DftbPlus:
            and queries the energy of the current geometry.
 
         Returns:
+
             energy[0] (float): calculated Mermin free energy
                                (in atomic units)
+
         '''
 
         energy = np.empty(1)
@@ -150,7 +265,9 @@ class DftbPlus:
            queries the gradients of the current geometry.
 
         Returns:
+
             gradients (2darray): calculated gradients (in atomic units)
+
         '''
 
         gradients = np.empty((self._natoms, 3))
@@ -175,7 +292,9 @@ class DftbPlus:
            indicate electron excess.
 
         Returns:
+
             grosschg (1darray): obtained Gross charges (in atomic units)
+
         '''
 
         grosschg = np.empty(self._natoms)
@@ -223,6 +342,21 @@ class DftbPlus:
                    [ctypes.POINTER(ctypes.c_void_p),
                     self._dp1d, ctypes.c_void_p])
 
+        # prototyping callback function signatures for
+        # population dependent potential calculations
+        self._cmpfunc_extpot = ctypes.CFUNCTYPE(
+            None, ctypes.py_object,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double))
+        self._cmpfunc_extpotgrad = ctypes.CFUNCTYPE(
+            None, ctypes.py_object,
+            ctypes.POINTER(ctypes.c_double),
+            ctypes.POINTER(ctypes.c_double))
+
+        self._wrap('dftbp_register_ext_pot_generator', None,
+                   [ctypes.POINTER(ctypes.c_void_p), ctypes.py_object,
+                    self._cmpfunc_extpot, self._cmpfunc_extpotgrad])
+
         self._wrap('dftbp_get_energy', None,
                    [ctypes.POINTER(ctypes.c_void_p), self._dp1d])
 
@@ -239,13 +373,15 @@ class DftbPlus:
         '''Wrap frequently used ctypes functions.
 
         Args:
-            funcname (str):                     name of foreign function
-            restype (C compatible data type):   ctypes type
+
+            funcname                     (str): name of foreign function
+            restype   (C compatible data type): ctypes type
                                                 (result type of
                                                 foreign function)
             argtypes (C compatible data types): tuple of ctypes types
                                                 (argument types that
                                                 foreign function accepts)
+
         '''
 
         func = self._dftbpluslib.__getattr__(funcname)

@@ -37,6 +37,20 @@ module dftbp_capi
 
 contains
 
+
+  !> Returns the current API version
+  subroutine c_DftbPlus_api(major, minor, patch) bind(C, name='dftbp_api')
+
+    !> makor.minor.patch
+    integer(c_int), intent(out) :: major, minor, patch
+
+    major = ${APIMAJOR}$
+    minor = ${APIMINOR}$
+    patch = ${APIPATCH}$
+
+  end subroutine c_DftbPlus_api
+
+
   !> Initialises a DFTB+ calculation with output sent to to some location
   subroutine c_DftbPlus_init(handler, outputFileName) bind(C, name='dftbp_init')
 

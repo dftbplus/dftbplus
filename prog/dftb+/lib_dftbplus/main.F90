@@ -36,6 +36,8 @@ module dftbp_main
   use dftbp_forces
   use dftbp_stress
   use dftbp_scc
+  use dftbp_hamiltonian
+  use dftb_evaluateenergies
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_externalcharges
@@ -62,6 +64,7 @@ module dftbp_main
   use dftbp_elecconstraints
   use dftbp_pmlocalisation, only : TPipekMezey
   use dftbp_linresp
+  use dftbp_linresptypes
   use dftbp_pprpa, only : ppRPAenergies
 #:if WITH_ARPACK
   use dftbp_RS_LinearResponse
@@ -88,7 +91,7 @@ module dftbp_main
   use dftbp_elstatpot, only : TElStatPotentials
   use dftbp_elstattypes, only : elstatTypes
   use dftbp_forcetypes, only : forceTypes
-  use dftbp_initprogram, only : TRefExtPot
+  use dftbp_timeprop
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
   use dftbp_taggedoutput, only : TTaggedWriter
   use dftbp_reks
@@ -168,7 +171,7 @@ contains
 
     ! Main geometry loop
     geoOpt: do iGeoStep = 0, nGeoSteps
-      tWriteRestart = env%tGlobalMaster&
+      tWriteRestart = env%tGlobalLead&
           & .and. needsRestartWriting(isGeoOpt, tMd, iGeoStep, nGeoSteps, restartFreq)
       call printGeoStepInfo(tCoordOpt, tLatOpt, iLatGeoStep, iGeoStep)
       call processGeometry(env, iGeoStep, iLatGeoStep, tWriteRestart, tStopDriver, tStopScc,&
@@ -218,7 +221,7 @@ contains
     call env%globalTimer%startTimer(globalTimers%postGeoOpt)
 
   #:if WITH_SOCKETS
-    if (tSocket .and. env%tGlobalMaster) then
+    if (tSocket .and. env%tGlobalLead) then
       call socket%shutdown()
     end if
   #:endif
@@ -229,7 +232,7 @@ contains
 
     tGeomEnd = tMD .or. tGeomEnd .or. tDerivs
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       if (tWriteDetailedOut) then
         call writeDetailedOut5(fdDetailedOut, isGeoOpt, tGeomEnd, tMd, tDerivs, tEField, absEField,&
             & dipoleMoment)
@@ -242,7 +245,7 @@ contains
       end if
     end if
 
-    if (env%tGlobalMaster .and. tDerivs) then
+    if (env%tGlobalLead .and. tDerivs) then
       call getHessianMatrix(derivDriver, pDynMatrix)
       call writeHessianOut(hessianOut, pDynMatrix)
     else
@@ -252,6 +255,16 @@ contains
     if (tWriteShifts) then
       call writeShifts(fShifts, orb, potential%intShell)
     endif
+
+    ! Here time propagation is called
+    if (allocated(electronDynamics)) then
+      call runDynamics(electronDynamics, eigvecsReal, ham, H0, species, q0, over, filling,&
+          & neighbourList, nNeighbourSK, nNeighbourLC, denseDesc%iAtomStart, iSparseStart,&
+          & img2CentCell, orb, coord0, spinW, pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd,&
+          & solvation, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion,&
+          & tFixEf, Ef, coord, onsiteElements, skHamCont, skOverCont, latVec, invLatVec, iCellVec,&
+          & rCellVec, cellVec, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+    end if
 
   #:if WITH_TRANSPORT
     if (tContCalc) then
@@ -726,7 +739,7 @@ contains
             call printBlankLine()
           end if
 
-          tWriteSccRestart = env%tGlobalMaster .and. &
+          tWriteSccRestart = env%tGlobalLead .and. &
               & needsSccRestartWriting(restartFreq, iGeoStep, iSccIter, minSccIter, maxSccIter,&
               & tMd, isGeoOpt, tDerivs, tConverged, tReadChrg, tStopScc)
           if (tWriteSccRestart) then
@@ -765,15 +778,15 @@ contains
 
     if (isLinResp) then
       if (.not. isRS_LinResp) then
-        call calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-            & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord, species, speciesName, orb,&
-            & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
-            & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
-            & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida,&
-            & SSqrReal, rhoSqrReal, excitedDerivs, dQAtomEx, occNatural)
+        call calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+            & over, eigvecsReal, eigen(:,1,:), filling(:,1,:), coord, species, speciesName, orb,&
+            & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList,&
+            & nNeighbourSK, denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces,&
+            & tLinRespZVect, tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy,&
+            & energiesCasida, SSqrReal, rhoSqrReal, excitedDerivs, dQAtomEx, occNatural)
       else
-        call calculateLinRespExcitations_RS(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-            & eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
+        call calculateLinRespExcitations_RS(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+            & over, eigvecsReal, eigen(:,1,:), filling(:,1,:), coord0, species, speciesName, orb,&
             & skHamCont, skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSK,&
             & denseDesc, iSparseStart, img2CentCell, tWriteAutotest, tCasidaForces, tLinRespZVect,&
             & tPrintExcitedEigvecs, tPrintEigvecsTxt, nonSccDeriv, energy, energiesCasida,&
@@ -1131,7 +1144,7 @@ contains
 
   !> Does the operations that are necessary after a lattice vector update
   subroutine handleLatticeChange(latVecs, sccCalc, tStress, extPressure, mCutOff, dispersion,&
-      & solvation,  cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs,&
+      & solvation, cm5Cont, recVecs, recVecs2p, cellVol, recCellVol, extLatDerivs, cellVecs,&
       & rCellVecs)
 
     !> lattice vectors
@@ -1557,224 +1570,6 @@ contains
   end subroutine reallocateSparseArrays
 
 
-  !> Calculates repulsive energy for current geometry
-  subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbourRep, neighbourList,&
-      & pRepCont, Eatom, Etotal, iAtInCentralRegion)
-
-    !> All atomic coordinates
-    real(dp), intent(in) :: coord(:,:)
-
-    !> All atoms chemical species
-    integer, intent(in) :: species(:)
-
-    !> Image atom indices to central cell atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Number of neighbours for each atom within the repulsive distance
-    integer, intent(in) :: nNeighbourRep(:)
-
-    !> List of neighbours for each atom
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Repulsive interaction data
-    type(TRepCont), intent(in) :: pRepCont
-
-    !> Energy for each atom
-    real(dp), intent(out) :: Eatom(:)
-
-    !> Total energy
-    real(dp), intent(out) :: Etotal
-
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: iAtInCentralRegion(:)
-
-    call getERep(Eatom, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
-        & img2CentCell)
-    Etotal = sum(Eatom(iAtInCentralRegion))
-
-  end subroutine calcRepulsiveEnergy
-
-
-  !> Calculates dispersion energy for current geometry.
-  subroutine calcDispersionEnergy(dispersion, Eatom, Etotal, iAtInCentralRegion)
-
-    !> dispersion interactions
-    class(TDispersionIface), intent(inout) :: dispersion
-
-    !> energy per atom
-    real(dp), intent(out) :: Eatom(:)
-
-    !> total energy
-    real(dp), intent(out) :: Etotal
-
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: iAtInCentralRegion(:)
-
-    call dispersion%getEnergies(Eatom)
-    Etotal = sum(Eatom(iAtInCentralRegion))
-
-  end subroutine calcDispersionEnergy
-
-
-  !> Sets the external potential components to zero
-  subroutine resetExternalPotentials(refExtPot, potential)
-
-    !> Reference external potential (usually set via API)
-    type(TRefExtPot), intent(in) :: refExtPot
-
-    !> Potential contributions
-    type(TPotentials), intent(inout) :: potential
-
-    if (allocated(refExtPot%atomPot)) then
-      potential%extAtom(:,:) = refExtPot%atomPot
-    else
-      potential%extAtom(:,:) = 0.0_dp
-    end if
-    if (allocated(refExtPot%shellPot)) then
-      potential%extShell(:,:,:) = refExtPot%shellPot
-    else
-      potential%extShell(:,:,:) = 0.0_dp
-    end if
-    potential%extBlock(:,:,:,:) = 0.0_dp
-    if (allocated(refExtPot%potGrad)) then
-      potential%extGrad(:,:) = refExtPot%potGrad
-    else
-      potential%extGrad(:,:) = 0.0_dp
-    end if
-
-  end subroutine resetExternalPotentials
-
-
-  !> Merges atomic and shell resolved external potentials into blocked one
-  subroutine mergeExternalPotentials(orb, species, potential)
-
-    !> Atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> species for atoms
-    integer, intent(in) :: species(:)
-
-    !> Potential energy contributions
-    type(TPotentials), intent(inout) :: potential
-
-    call total_shift(potential%extShell, potential%extAtom, orb, species)
-    call total_shift(potential%extBlock, potential%extShell, orb, species)
-
-  end subroutine mergeExternalPotentials
-
-
-  !> Sets up electric external field
-  subroutine setUpExternalElectricField(tEfield, tTimeDepEField, tPeriodic, EFieldStrength,&
-      & EFieldVector, EFieldOmega, EFieldPhase, neighbourList, nNeighbourSK, iCellVec,&
-      & img2CentCell, cellVec, deltaT, iGeoStep, coord0Fold, coord, extAtomPot, extPotGrad, EField,&
-      & absEField)
-
-    !> Whether electric field should be considered at all
-    logical, intent(in) :: tEfield
-
-    !> Is there an electric field that varies with geometry step during MD?
-    logical, intent(in) :: tTimeDepEField
-
-    !> Is this a periodic geometry
-    logical, intent(in) :: tPeriodic
-
-    !> What is the field strength
-    real(dp), intent(in) :: EFieldStrength
-
-    !> What is the field direction
-    real(dp), intent(in) :: EFieldVector(:)
-
-    !> Is there an angular frequency for the applied field
-    real(dp), intent(in) :: EFieldOmega
-
-    !> What is the phase of the field
-    integer, intent(in) :: EFieldPhase
-
-    !> Atomic neighbours
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours for each atom
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> Index for unit cells
-    integer, intent(in) :: iCellVec(:)
-
-    !> Image atom to central cell atom number
-    integer, intent(in) :: img2CentCell(:)
-
-    !> Vectors (in units of the lattice constants) to cells of the lattice
-    real(dp), intent(in) :: cellVec(:,:)
-
-    !> Time step in MD
-    real(dp), intent(in) :: deltaT
-
-    !> Number of the geometry step
-    integer, intent(in) :: iGeoStep
-
-    !> Atomic coordinates in central cell
-    real(dp), allocatable, intent(in) :: coord0Fold(:,:)
-
-    !> all coordinates
-    real(dp), intent(in) :: coord(:,:)
-
-    !> Potentials on atomic sites
-    real(dp), intent(inout) :: extAtomPot(:)
-
-    !> Gradient of potential on atomic sites with respect of nucleus positions. Shape: (3, nAtom)
-    real(dp), intent(inout) :: extPotGrad(:,:)
-
-    !> Resulting electric field
-    real(dp), intent(out) :: EField(:)
-
-    !> Magnitude of the field
-    real(dp), intent(out) :: absEField
-
-    integer :: nAtom
-    integer :: iAt1, iAt2, iNeigh
-    character(lc) :: tmpStr
-
-    if (.not. tEField) then
-      EField(:) = 0.0_dp
-      absEField = 0.0_dp
-      return
-    end if
-
-    nAtom = size(nNeighbourSK)
-
-    Efield(:) = EFieldStrength * EfieldVector
-    if (tTimeDepEField) then
-      Efield(:) = Efield * sin(EfieldOmega * deltaT * real(iGeoStep + EfieldPhase, dp))
-    end if
-    absEfield = sqrt(sum(Efield**2))
-    if (tPeriodic) then
-      do iAt1 = 1, nAtom
-        do iNeigh = 1, nNeighbourSK(iAt1)
-          iAt2 = neighbourList%iNeighbour(iNeigh, iAt1)
-          ! overlap between atom in central cell and non-central cell
-          if (iCellVec(iAt2) /= 0) then
-            ! component of electric field projects onto vector between cells
-            if (abs(dot_product(cellVec(:, iCellVec(iAt2)), EfieldVector)) > epsilon(1.0_dp)) then
-              write(tmpStr, "(A, I0, A, I0, A)") 'Interaction between atoms ', iAt1, ' and ',&
-                  & img2CentCell(iAt2), ' crosses the saw-tooth discontinuity in the electric&
-                  & field.'
-              call error(tmpStr)
-            end if
-          end if
-        end do
-      end do
-      do iAt1 = 1, nAtom
-        extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord0Fold(:, iAt1), Efield)
-      end do
-    else
-      do iAt1 = 1, nAtom
-        extAtomPot(iAt1) = extAtomPot(iAt1) + dot_product(coord(:, iAt1), Efield)
-      end do
-    end if
-    extPotGrad(:,:) = extPotGrad + spread(EField, 2, nAtom)
-
-  end subroutine setUpExternalElectricField
-
-
   !> Initialise basic variables before the scc loop.
   subroutine initSccLoop(tSccCalc, xlbomdIntegrator, minSccIter, maxSccIter, sccTol, tConverged,&
       & tNegf)
@@ -1834,38 +1629,6 @@ contains
   end subroutine initReksSccLoop
 
 
-  !> Reset internal potential related quantities
-  subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
-
-    !> Is dual spin orbit being used (block potentials)
-    logical, intent(in) :: tDualSpinOrbit
-
-    !> Spin orbit constants if required
-    real(dp), allocatable, intent(in) :: xi(:,:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> chemical species
-    integer, intent(in) :: species(:)
-
-    !> potentials in the system
-    type(TPotentials), intent(inout) :: potential
-
-    @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
-
-    potential%intAtom(:,:) = 0.0_dp
-    potential%intShell(:,:,:) = 0.0_dp
-    potential%intBlock(:,:,:,:) = 0.0_dp
-    potential%orbitalBlock(:,:,:,:) = 0.0_dp
-    potential%iOrbitalBlock(:,:,:,:) = 0.0_dp
-    if (tDualSpinOrbit) then
-      call getDualSpinOrbitShift(potential%iOrbitalBlock, xi, orb, species)
-    end if
-
-  end subroutine resetInternalPotentials
-
-
 #:if WITH_TRANSPORT
 
   !> Replace charges with those from the stored contact values
@@ -1907,254 +1670,6 @@ contains
 #:endif
 
 
-  !> Add potentials comming from point charges.
-  subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
-      & tPoisson, tUpload, shiftPerLUp)
-
-    !> Environment settings
-    type(TEnvironment), intent(inout) :: env
-
-    !> SCC module internal variables
-    type(TScc), intent(inout) :: sccCalc
-
-    !> Input atomic populations
-    real(dp), intent(in) :: qInput(:,:,:)
-
-    !> reference atomic occupations
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> charges per atomic shell
-    real(dp), intent(in) :: chargePerShell(:,:,:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> species of all atoms
-    integer, target, intent(in) :: species(:)
-
-    !> neighbours to atoms
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> map from image atom to real atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> spin constants
-    real(dp), intent(in), allocatable :: spinW(:,:,:)
-
-    !> Solvation mode
-    class(TSolvation), allocatable, intent(inout) :: solvation
-
-    !> third order SCC interactions
-    type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
-
-    !> Potentials acting
-    type(TPotentials), intent(inout) :: potential
-
-    !> electrostatic solver (poisson or gamma-functional)
-    integer, intent(in) :: electrostatics
-
-    !> whether Poisson is solved (used with tPoissonTwice)
-    logical, intent(in) :: tPoisson
-
-    !> whether contacts are uploaded
-    logical, intent(in) :: tUpload
-
-    !> uploded potential per shell per atom
-    real(dp), allocatable, intent(in) :: shiftPerLUp(:,:)
-
-    ! local variables
-    real(dp), allocatable :: atomPot(:,:)
-    real(dp), allocatable :: shellPot(:,:,:)
-    real(dp), allocatable, save :: shellPotBk(:,:)
-    integer, pointer :: pSpecies0(:)
-    integer :: nAtom, nSpin
-
-    nAtom = size(qInput, dim=2)
-    nSpin = size(qInput, dim=3)
-    pSpecies0 => species(1:nAtom)
-
-    allocate(atomPot(nAtom, nSpin))
-    allocate(shellPot(orb%mShell, nAtom, nSpin))
-
-    call sccCalc%updateCharges(env, qInput, q0, orb, species)
-
-    select case(electrostatics)
-
-    case(elstatTypes%gammaFunc)
-
-      call sccCalc%updateShifts(env, orb, species, neighbourList%iNeighbour, img2CentCell)
-      call sccCalc%getShiftPerAtom(atomPot(:,1))
-      call sccCalc%getShiftPerL(shellPot(:,:,1))
-
-    case(elstatTypes%poisson)
-
-      ! NOTE: charge-magnetization representation is used
-      !       iSpin=1 stores total charge
-      ! Logic of calls order:
-      ! shiftPerLUp      is 0.0 on the device region,
-      ! poiss_getshift() updates only the device region
-      if (tPoisson) then
-        if (tUpload) then
-          shellPot(:,:,1) = shiftPerLUp
-        else
-          ! Potentials for non-existing angular momenta must be 0 for later summations
-          shellPot(:,:,1) = 0.0_dp
-        end if
-        call poiss_updcharges(env, qInput(:,:,1), q0(:,:,1))
-        call poiss_getshift(env, shellPot(:,:,1))
-        if (.not.allocated(shellPotBk)) then
-          allocate(shellPotBk(orb%mShell, nAtom))
-        end if
-        shellPotBk = shellPot(:,:,1)
-      else
-        shellPot(:,:,1) = shellPotBk
-      end if
-      atomPot(:,:) = 0.0_dp
-      call sccCalc%setShiftPerAtom(atomPot(:,1))
-      call sccCalc%setShiftPerL(shellPot(:,:,1))
-
-    end select
-
-    potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
-    potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
-
-    if (allocated(thirdOrd)) then
-      call thirdOrd%updateCharges(pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
-      call thirdOrd%getShifts(atomPot(:,1), shellPot(:,:,1))
-      potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
-      potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
-    end if
-
-    if (allocated(solvation)) then
-      call solvation%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
-      call solvation%getShifts(atomPot(:,1), shellPot(:,:,1))
-      potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
-      potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
-    end if
-
-    if (nSpin /= 1 .and. allocated(spinW)) then
-      call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
-      potential%intShell = potential%intShell + shellPot
-    end if
-
-    call total_shift(potential%intShell, potential%intAtom, orb, species)
-    call total_shift(potential%intBlock, potential%intShell, orb, species)
-
-  end subroutine addChargePotentials
-
-
-  !> Add potentials comming from on-site block of the dual density matrix.
-  subroutine addBlockChargePotentials(qBlockIn, qiBlockIn, tDftbU, tImHam, species, orb, nDftbUFunc&
-      &, UJ, nUJ, iUJ, niUJ, potential)
-
-    !> block input charges
-    real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
-
-    !> imaginary part
-    real(dp), allocatable, intent(in) :: qiBlockIn(:,:,:,:)
-
-    !> is this a +U calculation
-    logical, intent(in) :: tDftbU
-
-    !> does the hamitonian have an imaginary part in real space?
-    logical, intent(in) :: tImHam
-
-    !> chemical species of all atoms
-    integer, intent(in) :: species(:)
-
-    !> Orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> choice of +U functional
-    integer, intent(in) :: nDftbUFunc
-
-    !> prefactor for +U potential
-    real(dp), allocatable, intent(in) :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
-
-    !> potentials acting in system
-    type(TPotentials), intent(inout) :: potential
-
-
-    if (tDFTBU) then
-      if (tImHam) then
-        call getDftbUShift(potential%orbitalBlock, potential%iorbitalBlock, qBlockIn, qiBlockIn,&
-            & species,orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
-      else
-        call getDftbUShift(potential%orbitalBlock, qBlockIn, species, orb, nDFTBUfunc, UJ, nUJ,&
-            & niUJ, iUJ)
-      end if
-      potential%intBlock = potential%intBlock + potential%orbitalBlock
-    end if
-
-  end subroutine addBlockChargePotentials
-
-
-
-  !> Returns the Hamiltonian for the given scc iteration
-  subroutine getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
-      & img2CentCell, potential, ham, iHam)
-
-    !> non-SCC hamitonian (sparse)
-    real(dp), intent(in) :: H0(:)
-
-    !> overlap (sparse)
-    real(dp), intent(in) :: over(:)
-
-    !> Number of atomic neighbours
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> list of atomic neighbours
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> species of atoms
-    integer, intent(in) :: species(:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> Index for atomic blocks in sparse data
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> image atoms to central cell atoms
-    integer, intent(in) :: img2CentCell(:)
-
-    !> potential acting on sustem
-    type(TPotentials), intent(in) :: potential
-
-    !> resulting hamitonian (sparse)
-    real(dp), intent(out) :: ham(:,:)
-
-    !> imaginary part of hamitonian (if required, signalled by being allocated)
-    real(dp), allocatable, intent(inout) :: iHam(:,:)
-
-    integer :: nAtom
-
-    nAtom = size(orb%nOrbAtom)
-
-    ham(:,:) = 0.0_dp
-    ham(:,1) = h0
-    call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
-        & nAtom, img2CentCell, potential%intBlock)
-
-    if (allocated(iHam)) then
-      iHam(:,:) = 0.0_dp
-      call add_shift(iHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
-          & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)
-    end if
-
-  end subroutine getSccHamiltonian
-
-
   !> Transform the hamiltonian from QM to UD representation
   !> Hack due to not using Pauli-type structure for diagonalisation
   !> For collinear spin, qm2ud will produce the right potential:
@@ -2184,6 +1699,7 @@ contains
     end if
 
   end subroutine convertToUpDownRepr
+
 
 
   !> Returns the sparse density matrix.
@@ -3613,235 +3129,6 @@ contains
   end subroutine getMullikenPopulation
 
 
-  !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine getEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
-      & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, qDepExtPot,&
-      & qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef,&
-      & onSiteElements)
-
-    !> SCC module internal variables
-    type(TScc), allocatable, intent(in) :: sccCalc
-
-    !> Electrons in each atomic orbital
-    real(dp), intent(in) :: qOrb(:,:,:)
-
-    !> reference charges
-    real(dp), intent(in) :: q0(:,:,:)
-
-    !> electrons in each atomi shell
-    real(dp), intent(in) :: chargePerShell(:,:,:)
-
-    !> chemical species
-    integer, intent(in) :: species(:)
-
-    !> is an external electric field present
-    logical, intent(in) :: tExtField
-
-    !> Is the extended Lagrangian being used for MD
-    logical, intent(in) :: isXlbomd
-
-    !> Are there orbital potentials present
-    logical, intent(in) :: tDftbU
-
-    !> Is dual spin orbit being used
-    logical, intent(in) :: tDualSpinOrbit
-
-    !> density matrix in sparse storage
-    real(dp), intent(in) :: rhoPRim(:,:)
-
-    !> non-self-consistent hamiltonian
-    real(dp), intent(in) :: H0(:)
-
-    !> atomic orbital information
-    type(TOrbitals), intent(in) :: orb
-
-    !> neighbour list
-    type(TNeighbourList), intent(in) :: neighbourList
-
-    !> Number of neighbours within cut-off for each atom
-    integer, intent(in) :: nNeighbourSK(:)
-
-    !> image to real atom mapping
-    integer, intent(in) :: img2CentCell(:)
-
-    !> index for sparse large matrices
-    integer, intent(in) :: iSparseStart(:,:)
-
-    !> unit cell volume
-    real(dp), intent(in) :: cellVol
-
-    !> external pressure
-    real(dp), intent(in) :: extPressure
-
-    !> electron entropy contribution
-    real(dp), intent(in) :: TS(:)
-
-    !> potentials acting
-    type(TPotentials), intent(in) :: potential
-
-    !> energy contributions
-    type(TEnergies), intent(inout) :: energy
-
-    !> 3rd order settings
-    type(TThirdOrder), intent(inout), allocatable :: thirdOrd
-
-    !> Solvation model
-    class(TSolvation), allocatable, intent(inout) :: solvation
-
-    !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
-
-    !> Proxy for querying Q-dependant external potentials
-    type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
-
-    !> block (dual) atomic populations
-    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
-
-    !> Imaginary part of block atomic populations
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
-
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
-    !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
-
-    !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
-
-    !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
-
-    !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
-
-    !> Spin orbit constants
-    real(dp), intent(in), allocatable :: xi(:,:)
-
-    !> Atoms over which to sum the total energies
-    integer, intent(in) :: iAtInCentralRegion(:)
-
-    !> Whether fixed Fermi level(s) should be used. (No charge conservation!)
-    logical, intent(in) :: tFixEf
-
-    !> If tFixEf is .true. contains reservoir chemical potential, otherwise the Fermi levels found
-    !> from the given number of electrons
-    real(dp), intent(inout) :: Ef(:)
-
-    !> Corrections terms for on-site elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
-
-    integer :: nSpin
-    real(dp) :: nEl(2)
-
-    nSpin = size(rhoPrim, dim=2)
-
-    ! Tr[H0 * Rho] can be done with the same algorithm as Mulliken-analysis
-    energy%atomNonSCC(:) = 0.0_dp
-    call mulliken(energy%atomNonSCC, rhoPrim(:,1), H0, orb, neighbourList%iNeighbour, nNeighbourSK,&
-        & img2CentCell, iSparseStart)
-    energy%EnonSCC = sum(energy%atomNonSCC(iAtInCentralRegion(:)))
-
-    energy%atomExt(:) = 0.0_dp
-    if (tExtField) then
-      energy%atomExt(:) = energy%atomExt&
-          & + sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
-    end if
-    if (allocated(qDepExtPot)) then
-      call qDepExtPot%addEnergy(energy%atomExt)
-    end if
-    energy%Eext = sum(energy%atomExt)
-
-    if (allocated(sccCalc)) then
-      if (isXlbomd) then
-        call sccCalc%getEnergyPerAtomXlbomd(species, orb, qOrb, q0, energy%atomSCC)
-      else
-        call sccCalc%getEnergyPerAtom(energy%atomSCC)
-      end if
-      energy%Escc = sum(energy%atomSCC(iAtInCentralRegion(:)))
-
-      if (nSpin > 1) then
-        energy%atomSpin(:) = 0.5_dp * sum(sum(potential%intShell(:,:,2:nSpin)&
-            & * chargePerShell(:,:,2:nSpin), dim=1), dim=2)
-        energy%Espin = sum(energy%atomSpin(iAtInCentralRegion(:)))
-      end if
-    end if
-
-    if (allocated(thirdOrd)) then
-      if (isXlbomd) then
-        call thirdOrd%getEnergyPerAtomXlbomd(qOrb, q0, species, orb, energy%atom3rd)
-      else
-        call thirdOrd%getEnergyPerAtom(energy%atom3rd)
-      end if
-      energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion(:)))
-    end if
-
-    if (allocated(solvation)) then
-      call solvation%getEnergies(energy%atomSolv)
-      energy%eSolv = sum(energy%atomSolv(iAtInCentralRegion(:)))
-    end if
-
-    if (allocated(onSiteElements)) then
-      call getEons(energy%atomOnSite, qBlock, qiBlock, q0, onSiteElements, species, orb)
-      energy%eOnSite = sum(energy%atomOnSite)
-    end if
-
-    if (tDftbU) then
-      if (allocated(qiBlock)) then
-        call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ,&
-            & qiBlock)
-      else
-        call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
-      end if
-      energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion(:)))
-    end if
-
-    if (tDualSpinOrbit) then
-      energy%atomLS(:) = 0.0_dp
-      call getDualSpinOrbitEnergy(energy%atomLS, qiBlock, xi, orb, species)
-      energy%ELS = sum(energy%atomLS(iAtInCentralRegion(:)))
-    end if
-
-    energy%Eelec = energy%EnonSCC + energy%ESCC + energy%Espin + energy%ELS + energy%Edftbu&
-        & + energy%Eext + energy%e3rd + energy%eOnSite + energy%ESolv
-
-    !> Add exchange conribution for range separated calculations
-    if (allocated(rangeSep)) then
-      energy%Efock = 0.0_dp
-      call rangeSep%addLREnergy(energy%Efock)
-      energy%Eelec = energy%Eelec + energy%Efock
-    end if
-
-    energy%atomElec(:) = energy%atomNonSCC + energy%atomSCC + energy%atomSpin + energy%atomDftbu&
-        & + energy%atomLS + energy%atomExt + energy%atom3rd + energy%atomOnSite &
-        & + energy%atomSolv
-    energy%atomTotal(:) = energy%atomElec + energy%atomRep + energy%atomDisp + energy%atomHalogenX
-    energy%Etotal = energy%Eelec + energy%Erep + energy%eDisp + energy%eHalogenX
-    energy%EMermin = energy%Etotal - sum(TS)
-    ! extrapolated to 0 K
-    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
-    energy%EGibbs = energy%EMermin + cellVol * extPressure
-
-    energy%EForceRelated = energy%EGibbs
-    if (tFixEf) then
-      if (nSpin == 2) then
-        nEl(:) = sum(sum(qOrb(:,iAtInCentralRegion(:),:),dim=1),dim=1)
-        nEl(1) = 0.5_dp * ( nEl(1) + nEl(2) )
-        nEl(2) = nEl(1) - nEl(2)
-        ! negative sign due to electron charge
-        energy%EForceRelated = energy%EForceRelated  - sum(nEl(:2) * Ef(:2))
-      else
-        nEl = 0.0_dp
-        nEl(1) = sum(qOrb(:,iAtInCentralRegion(:),1))
-        ! negative sign due to electron charge
-        energy%EForceRelated = energy%EForceRelated  - nEl(1) * Ef(1)
-      end if
-    end if
-
-  end subroutine getEnergies
-
-
   !> Checks for the presence of a stop file on disc.
   function hasStopFile(fileName) result(tStop)
 
@@ -4389,10 +3676,10 @@ contains
 
 
   !> Do the linear response excitation calculation.
-  subroutine calculateLinRespExcitations(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-      & eigvecsReal, eigen, filling, coord, species, speciesName, orb, skHamCont, skOverCont,&
-      & autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc, iSparseStart,&
-      & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+  subroutine calculateLinRespExcitations(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+      & over, eigvecsReal, eigen, filling, coord, species, speciesName, orb, skHamCont,&
+      & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
+      & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, energies, work, rhoSqrReal, excitedDerivs,&
       & dQAtomEx, occNatural)
 
@@ -4400,7 +3687,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> excited state settings
-    type(TLinResp), intent(inout) :: lresp
+    type(TLinResp), intent(inout), allocatable :: linearResponse
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -4524,7 +3811,7 @@ contains
     call unpackHS(work, over, neighbourList%iNeighbour, nNeighbourSK, denseDesc%iAtomStart,&
         & iSparseStart, img2CentCell)
     call blockSymmetrizeHS(work, denseDesc%iAtomStart)
-    if (tForces) then
+    if (allocated(rhoSqrReal)) then
       do iSpin = 1, nSpin
         call blockSymmetrizeHS(rhoSqrReal(:,:,iSpin), denseDesc%iAtomStart)
       end do
@@ -4537,19 +3824,20 @@ contains
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-      call addGradients(tSpin, lresp, denseDesc%iAtomStart, eigvecsReal, eigen, work, filling,&
-          & coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell,&
-          & orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited,&
-          & energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs, dQAtomEx)
+      call addGradients(tSpin, linearResponse, denseDesc%iAtomStart, eigvecsReal, eigen, work,&
+          & filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
+          & img2CentCell, orb, skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter,&
+          & energy%Eexcited, energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural,&
+          & naturalOrbs)
       if (tPrintExcEigvecs) then
         call writeRealEigvecs(env, runId, neighbourList, nNeighbourSK, denseDesc, iSparseStart,&
             & img2CentCell, pSpecies0, speciesName, orb, over, parallelKS, tPrintExcEigvecsTxt,&
             & naturalOrbs, work, fileName="excitedOrbs")
       end if
     else
-      call calcExcitations(lresp, tSpin, denseDesc, eigvecsReal, eigen, work, filling,&
-          & coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell,&
-          & orb, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
+      call linResp_calcExcitations(linearResponse, tSpin, denseDesc, eigvecsReal, eigen, work,&
+          & filling, coord(:,:nAtom), sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour,&
+          & img2CentCell, orb, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
     end if
     energy%Etotal = energy%Etotal + energy%Eexcited
     energy%EMermin = energy%EMermin + energy%Eexcited
@@ -4560,11 +3848,12 @@ contains
 
   end subroutine calculateLinRespExcitations
 
+
   !> Do the linear response excitation calculation with range-separated Hamiltonian.
-  subroutine calculateLinRespExcitations_RS(env, lresp, parallelKS, sccCalc, qOutput, q0, over,&
-      & eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont, skOverCont,&
-      & autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc, iSparseStart,&
-      & img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
+  subroutine calculateLinRespExcitations_RS(env, linearResponse, parallelKS, sccCalc, qOutput, q0,&
+      & over, eigvecsReal, eigen, filling, coord0, species, speciesName, orb, skHamCont,&
+      & skOverCont, autotestTag, taggedWriter, runId, neighbourList, nNeighbourSk, denseDesc,&
+      & iSparseStart, img2CentCell, tWriteAutotest, tForces, tLinRespZVect, tPrintExcEigvecs,&
       & tPrintExcEigvecsTxt, nonSccDeriv, energy, energies, work, deltaRhoOutSqr, excitedDerivs,&
       & dQAtomEx, occNatural, rangeSep)
 
@@ -4572,7 +3861,7 @@ contains
     type(TEnvironment), intent(in) :: env
 
     !> excited state settings
-    type(TLinResp), intent(inout) :: lresp
+    type(TLinResp), intent(inout) :: linearResponse
 
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
@@ -4724,18 +4013,14 @@ contains
       if (tPrintExcEigVecs) then
         allocate(naturalOrbs(orb%nOrb, orb%nOrb, 1))
       end if
-     !call addGradients(tSpin, lresp, denseDesc%iAtomStart, eigvecsReal, eigen, work, filling,&
-     !    & coord0, sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
-     !    & skHamCont, skOverCont, tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited,&
-     !    & energies, excitedDerivs, nonSccDeriv, rhoSqrReal, occNatural, naturalOrbs)
       ! WITH FORCES
       excitedDerivs = 0.0_dp
     #:if WITH_ARPACK
-      call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
-          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU,&
-          & neighbourList%iNeighbour, img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest,&
-          & taggedWriter, energy%Eexcited, skHamCont, skOverCont, nonSccDeriv,&
-          & deltaRhoOutSqr(:,:,1), excitedDerivs, dQAtomEx)
+      call linRespCalcExcitationsRS(tSpin, tOnsite, linearResponse, denseDesc%iAtomStart,&
+          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0,&
+          & linearResponse%HubbardU, neighbourList%iNeighbour, img2CentCell, orb, rangeSep,&
+          & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, skHamCont, skOverCont,&
+          & nonSccDeriv, deltaRhoOutSqr(:,:,1), excitedDerivs, dQAtomEx)
     #:else
       call error("Should not be here - compiled without ARPACK")
     #:endif
@@ -4745,15 +4030,12 @@ contains
             & naturalOrbs, work, fileName="excitedOrbs")
       end if
     else
-     !call calcExcitations(lresp, tSpin, denseDesc, eigvecsReal, eigen, work, filling, coord0,&
-     !    & sccCalc, dQAtom, pSpecies0, neighbourList%iNeighbour, img2CentCell, orb,&
-     !    & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited, energies)
       ! NO FORCES
     #:if WITH_ARPACK
-      call linRespCalcExcitationsRS(tSpin, tOnsite, lresp, denseDesc%iAtomStart,&
-          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0, lresp%HubbardU,&
-          & neighbourList%iNeighbour, img2CentCell, orb, rangeSep, tWriteAutotest, fdAutotest,&
-          & taggedWriter, energy%Eexcited)
+      call linRespCalcExcitationsRS(tSpin, tOnsite, linearResponse, denseDesc%iAtomStart,&
+          & eigvecsReal, eigen, sccCalc, work, filling, coord0, dQAtom, pSpecies0,&
+          & linearResponse%HubbardU, neighbourList%iNeighbour, img2CentCell, orb, rangeSep,&
+          & tWriteAutotest, fdAutotest, taggedWriter, energy%Eexcited)
     #:else
       call error("Should not be here - compiled without ARPACK")
     #:endif
@@ -5967,6 +5249,7 @@ contains
       end if
     end if
 
+
     call getERepDeriv(tmpDerivs, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
         & img2CentCell, tHelical)
 
@@ -6808,7 +6091,7 @@ contains
 
   subroutine sendEnergyAndForces(env, socket, energy, TS, derivs, totalStress, cellVol)
     type(TEnvironment), intent(in) :: env
-    ! Socket may be unallocated (as on slave processes)
+    ! Socket may be unallocated (as on follower processes)
     type(ipiSocketComm), allocatable, intent(inout) :: socket
     type(TEnergies), intent(in) :: energy
     real(dp), intent(in) :: TS(:)
@@ -6816,7 +6099,7 @@ contains
     real(dp), intent(in) :: totalStress(:,:)
     real(dp), intent(in) :: cellVol
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       ! stress was computed above in the force evaluation block or is 0 if aperiodic
       call socket%send(energy%ETotal - sum(TS), -derivs, totalStress * cellVol)
     end if

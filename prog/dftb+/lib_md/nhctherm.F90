@@ -216,6 +216,9 @@ contains
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
     call self%pTempProfile%getTemperature(kT)
+    if (kT < minTemp) then
+      call error("Nose-Hover thermostat not supported at zero temperature")
+    end if
     do ii = 1, self%nAtom
        call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
     end do

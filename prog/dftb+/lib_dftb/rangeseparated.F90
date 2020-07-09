@@ -113,6 +113,7 @@ module dftbp_rangeseparated
 
     procedure :: updateCoords
     procedure :: addLrHamiltonian
+    procedure :: addLrHamiltonianMatrixCmplx
     procedure :: addLrEnergy
     procedure :: addLrGradients
     procedure :: evaluateLrEnergyDirect
@@ -732,6 +733,163 @@ contains
   !> The routine provides a matrix-matrix multiplication based implementation of
   !> the 3rd term in Eq. 26 in https://doi.org/10.1063/1.4935095
   !>
+  subroutine addLrHamiltonianMatrixCmplx(this, iSquare, overlap, densSqr, HH)
+
+    !> class instance
+    class(TRangeSepFunc), intent(inout) :: this
+
+    !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+    integer, dimension(:), intent(in) :: iSquare
+
+    !> Square (unpacked) overlap matrix.
+    complex(dp), intent(in) :: overlap(:,:)
+
+    !> Square (unpacked) density matrix
+    complex(dp), intent(in) :: densSqr(:,:)
+
+    !> Square (unpacked) Hamiltonian to be updated.
+    complex(dp), intent(inout) :: HH(:,:)
+
+    complex(dp), allocatable :: Smat(:,:)
+    complex(dp), allocatable :: Dmat(:,:)
+    real(dp), allocatable :: LRgammaAO(:,:)
+    complex(dp), allocatable :: gammaCmplx(:,:)
+    complex(dp), allocatable :: Hlr(:,:)
+
+    integer :: nOrb
+
+    nOrb = size(overlap,dim=1)
+
+    allocate(Smat(nOrb,nOrb))
+    allocate(Dmat(nOrb,nOrb))
+    allocate(LRgammaAO(nOrb,nOrb))
+    allocate(gammaCmplx(nOrb,nOrb))
+    allocate(Hlr(nOrb,nOrb))
+
+    call allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO, gammaCmplx)
+
+    call evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hlr)
+
+    HH(:,:) = HH + Hlr
+
+    this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat * Hlr)
+
+  contains
+
+    subroutine allocateAndInit(this, iSquare, overlap, densSqr, HH, Smat, Dmat, LRgammaAO,&
+        & gammaCmplx)
+
+      !> instance
+      type(TRangeSepFunc), intent(inout) :: this
+
+      !> Position of each atom in the rows/columns of the square matrices. Shape: (nAtom)
+      integer, dimension(:), intent(in) :: iSquare
+
+      !> Square (unpacked) overlap matrix.
+      complex(dp), intent(in) :: overlap(:,:)
+
+      !> Square (unpacked) density matrix
+      complex(dp), intent(in) :: densSqr(:,:)
+
+      !> Square (unpacked) Hamiltonian to be updated.
+      complex(dp), intent(inout) :: HH(:,:)
+
+      !> Symmetrized square overlap matrix
+      complex(dp), intent(out) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
+      complex(dp), intent(out) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      real(dp), intent(out) :: LRgammaAO(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      complex(dp), intent(out) :: gammaCmplx(:,:)
+
+      integer :: nAtom, iAt, jAt
+
+      nAtom = size(this%lrGammaEval,dim=1)
+
+      !! Symmetrize Hamiltonian, overlap, density matrices
+      call hermitianSquareMatrix(HH)
+      Smat(:,:) = overlap
+      call hermitianSquareMatrix(Smat)
+      Dmat(:,:) = densSqr
+      call hermitianSquareMatrix(Dmat)
+
+      ! Get long-range gamma variable
+      LRgammaAO(:,:) = 0.0_dp
+      do iAt = 1, nAtom
+        do jAt = 1, nAtom
+          LRgammaAO(iSquare(jAt):iSquare(jAt+1)-1,iSquare(iAt):iSquare(iAt+1)-1) =&
+              & this%lrGammaEval(jAt,iAt)
+        end do
+      end do
+      gammaCmplx = LRgammaAO
+
+    end subroutine allocateAndInit
+
+
+    subroutine evaluateHamiltonian(this, Smat, Dmat, gammaCmplx, Hlr)
+
+      !> instance
+      type(TRangeSepFunc), intent(inout) :: this
+
+      !> Symmetrized square overlap matrix
+      complex(dp), intent(in) :: Smat(:,:)
+
+      !> Symmetrized square density matrix
+      complex(dp), intent(in) :: Dmat(:,:)
+
+      !> Symmetrized long-range gamma matrix
+      complex(dp), intent(in) :: gammaCmplx(:,:)
+
+      !> Symmetrized long-range Hamiltonian matrix
+      complex(dp), intent(out) :: Hlr(:,:)
+
+      complex(dp), allocatable :: Hmat(:,:)
+      complex(dp), allocatable :: tmpMat(:,:)
+
+      integer :: nOrb
+
+      nOrb = size(Smat,dim=1)
+
+      allocate(Hmat(nOrb,nOrb))
+      allocate(tmpMat(nOrb,nOrb))
+
+      Hlr(:,:) = cmplx(0.0_dp,0.0_dp,dp)
+
+      call gemm(tmpMat, Smat, Dmat)
+      call gemm(Hlr, tmpMat, Smat)
+      Hlr(:,:) = Hlr * gammaCmplx
+
+      tmpMat(:,:) = tmpMat * gammaCmplx
+      call gemm(Hlr, tmpMat, Smat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+
+      Hmat(:,:) = Dmat * gammaCmplx
+      call gemm(tmpMat, Smat, Hmat)
+      call gemm(Hlr, tmpMat, Smat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+
+      call gemm(tmpMat, Dmat, Smat)
+      tmpMat(:,:) = tmpMat * gammaCmplx
+      call gemm(Hlr, Smat, tmpMat, alpha=(1.0_dp,0.0_dp), beta=(1.0_dp,0.0_dp))
+
+      if (this%tSpin) then
+        Hlr(:,:) = -0.25_dp * Hlr
+      else
+        Hlr(:,:) = -0.125_dp * Hlr
+      end if
+
+    end subroutine evaluateHamiltonian
+
+  end subroutine addLrHamiltonianMatrixCmplx
+
+
+  !> Update Hamiltonian with long-range contribution using matrix-matrix multiplications
+  !>
+  !> The routine provides a matrix-matrix multiplication based implementation of
+  !> the 3rd term in Eq. 26 in https://doi.org/10.1063/1.4935095
+  !>
   subroutine addLrHamiltonianMatrix(this, iSquare, overlap, densSqr, HH)
 
     !> class instance
@@ -890,6 +1048,21 @@ contains
     this%lrEnergy = 0.0_dp
 
   end subroutine addLrenergy
+
+
+  !> copy lower triangle to upper for a square matrix
+  subroutine hermitianSquareMatrix(matrix)
+
+    !> matrix to symmetrize
+    complex(dp), intent(inout) :: matrix(:,:)
+    integer :: ii, matSize
+
+    matSize = size(matrix, dim = 1)
+    do ii = 1, matSize - 1
+      matrix(ii, ii + 1 : matSize) = conjg(matrix(ii + 1 : matSize, ii))
+    end do
+
+  end subroutine hermitianSquareMatrix
 
 
   !> location of relevant atomic block indices in a dense matrix

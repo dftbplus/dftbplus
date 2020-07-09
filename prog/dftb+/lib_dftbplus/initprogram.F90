@@ -24,7 +24,9 @@ module dftbp_initprogram
   use dftbp_constants
   use dftbp_elecsolvers
   use dftbp_elsisolver, only : TElsiSolver_init, TElsiSolver_final
+  use dftbp_gpuinfo, only : gpuInfo
   use dftbp_elsiiface
+  use dftbp_arpack, only : withArpack
   use dftbp_gpuinfo, only : gpuInfo
   use dftbp_periodic
   use dftbp_accuracy
@@ -63,6 +65,7 @@ module dftbp_initprogram
   use dftbp_scc
   use dftbp_sccinit
   use dftbp_onsitecorrection
+  use dftbp_hamiltonian, only : TRefExtPot
   use dftbp_h5correction
   use dftbp_halogenx
   use dftbp_slakocont
@@ -73,6 +76,7 @@ module dftbp_initprogram
   use dftbp_dispersions
   use dftbp_thirdorder
   use dftbp_linresp
+  use dftbp_linresptypes
   use dftbp_pprpa, only : TppRPAcal
   use dftbp_RangeSeparated
   use dftbp_stress
@@ -82,6 +86,7 @@ module dftbp_initprogram
   use dftbp_sorting, only : heap_sort
   use dftbp_linkedlist
   use dftbp_wrappedintr
+  use dftbp_timeprop
   use dftbp_xlbomd
   use dftbp_etemp, only : fillingTypes
 #:if WITH_SOCKETS
@@ -111,13 +116,6 @@ module dftbp_initprogram
   use poisson_init
   use dftbp_transportio
   implicit none
-
-  !> Container for external potentials
-  type :: TRefExtPot
-    real(dp), allocatable :: atomPot(:,:)
-    real(dp), allocatable :: shellPot(:,:,:)
-    real(dp), allocatable :: potGrad(:,:)
-  end type TRefExtPot
 
 
   !> Tagged output files (machine readable)
@@ -368,7 +366,6 @@ module dftbp_initprogram
   !> l-values of U-J for each block
   integer, allocatable :: iUJ(:,:,:)
 
-
   !> electron temperature
   real(dp) :: tempElec
 
@@ -516,14 +513,11 @@ module dftbp_initprogram
   !> File containing output geometry
   character(lc) :: geoOutFile
 
-
   !> Append geometries in the output?
   logical :: tAppendGeo
 
-
   !> Only use converged forces if SCC
   logical :: tUseConvergedForces
-
 
   !> labels of atomic species
   character(mc), allocatable :: speciesName(:)
@@ -534,10 +528,8 @@ module dftbp_initprogram
   !> Geometry optimizer for lattice consts
   type(TGeoOpt), allocatable :: pGeoLatOpt
 
-
   !> Charge mixer
   type(TMixer), allocatable :: pChrgMixer
-
 
   !> MD Framework
   type(TMDCommon), allocatable :: pMDFrame
@@ -683,7 +675,7 @@ module dftbp_initprogram
   logical :: tPrintExcitedEigVecs
 
   !> data type for linear response
-  type(TLinresp) :: lresp
+  type(TLinResp), allocatable :: linearResponse
 
   !> Whether to run a range separated calculation
   logical :: isRangeSep
@@ -898,8 +890,12 @@ module dftbp_initprogram
   !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
   type(TParallelKS) :: parallelKS
 
+  !> Electron dynamics
+  type(TElecDynamics), allocatable :: electronDynamics
+
   !> external electric field
   real(dp) :: Efield(3), absEfield
+
   !> Electronic structure solver
   type(TElectronicSolver) :: electronicSolver
 
@@ -1145,6 +1141,7 @@ contains
     integer :: nBufferedCholesky
 
     character(sc), allocatable :: shellNamesTmp(:)
+    logical :: tRequireDerivator
 
     logical :: tInitialized
 
@@ -1549,9 +1546,10 @@ contains
     @:ASSERT(all(shape(species0) == shape(input%geom%species)))
     species0(:) = input%geom%species(:)
 
-    #:block DEBUG_CODE
-    call inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
-    #:endblock DEBUG_CODE
+  #:block DEBUG_CODE
+    call inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
+       & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
+  #:endblock DEBUG_CODE
 
     if (input%ctrl%tHalogenX) then
       if (.not. (t3rd .or. t3rdFull)) then
@@ -1725,6 +1723,9 @@ contains
     tPrintForces = input%ctrl%tPrintForces
     tForces = input%ctrl%tForces .or. tPrintForces
     isLinResp = input%ctrl%lrespini%tInit
+    if (isLinResp) then
+      allocate(linearResponse)
+    end if
 
     select case(hamiltonianType)
     case default
@@ -1762,8 +1763,13 @@ contains
     end if
     if (forceType == forceTypes%dynamicT0 .and. tempElec > minTemp) then
        call error("This ForceEvaluation method requires the electron temperature to be zero")
-    end if
-    if (tForces) then
+     end if
+
+     tRequireDerivator = tForces
+     if (.not. tRequireDerivator .and. allocated(input%ctrl%elecDynInp)) then
+       tRequireDerivator = input%ctrl%elecDynInp%tIons
+     end if
+     if (tRequireDerivator) then
       select case(input%ctrl%iDerivMethod)
       case (1)
         ! set step size from input
@@ -1780,8 +1786,9 @@ contains
 
     call getDenseDescCommon(orb, nAtom, t2Component, denseDesc)
 
-    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint, tForces,&
+    call ensureSolverCompatibility(input%ctrl%solver%iSolver, tSpin, kPoint,&
         & input%ctrl%parallelOpts, nIndepHam, tempElec)
+
     if (tRealHS) then
       nBufferedCholesky = 1
     else
@@ -2099,47 +2106,13 @@ contains
 
     if (isLinResp) then
 
-      ! input sanity checking
-    #:if not WITH_ARPACK
-      call error("This binary has been compiled without support for linear response calculations.")
-    #:endif
-      call ensureLinRespConditions(t3rd .or. t3rdFull, tRealHS, tPeriodic, tCasidaForces,&
-          & solvation, isRS_LinResp, nSpin)
-      if (.not. tSccCalc) then
-        call error("Linear response excitation requires SCC=Yes")
+      ! input checking for linear response
+      if (.not. withArpack) then
+        call error("This binary has been compiled without support for linear response&
+            & calculations.")
       end if
-      if (nspin > 2) then
-        call error("Linear reponse does not work with non-colinear spin polarization yet")
-      elseif (tSpin .and. tCasidaForces) then
-        call error("excited state forces are not implemented yet for spin-polarized systems")
-      elseif (tPeriodic .and. tCasidaForces) then
-        call error("excited state forces are not implemented yet for periodic systems")
-      elseif ((tPeriodic .or. tHelical) .and. .not.tRealHS) then
-        call error("Linear response only works with non-periodic or gamma-point molecular crystals")
-      elseif (tSpinOrbit) then
-        call error("Linear response does not support spin orbit coupling at the moment.")
-      elseif (tDFTBU) then
-        call error("Linear response does not support LDA+U yet")
-      elseif (input%ctrl%tShellResolved) then
-        call error("Linear response does not support shell resolved scc yet")
-      end if
-      if (tempElec > 0.0_dp .and. tCasidaForces) then
-        write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
-            & occupations, kT=", tempElec/Boltzmann,"K"
-        call warning(tmpStr)
-      end if
-
-      if (input%ctrl%lrespini%nstat == 0) then
-        if (tCasidaForces) then
-          call error("Excited forces only available for StateOfInterest non zero.")
-        end if
-        if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then
-          call error("Excited eigenvectors only available for StateOfInterest non zero.")
-        end if
-      end if
-      if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
-        call error("Negative energy window for excitations")
-      end if
+      call ensureLinRespConditions(tSccCalc, t3rd .or. t3rdFull, tRealHS, tPeriodic, tCasidaForces,&
+          & solvation, isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, tDFTBU, tempElec, input)
 
       ! Hubbard U and spin constants for excitations (W only needed for triplet/spin polarised)
       allocate(input%ctrl%lrespini%HubbardU(nType))
@@ -2173,15 +2146,15 @@ contains
 
       tPrintExcitedEigVecs = input%ctrl%lrespini%tPrintEigVecs
       tLinRespZVect = (input%ctrl%lrespini%tMulliken .or. tCasidaForces .or.&
-          & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs)
+          & input%ctrl%lrespini%tCoeffs .or. tPrintExcitedEigVecs .or.&
+          & input%ctrl%lrespini%tWriteDensityMatrix)
 
       if (allocated(onSiteElements) .and. tLinRespZVect) then
         call error("Excited state property evaluation currently incompatible with onsite&
             & corrections")
       end if
 
-      call init(lresp, input%ctrl%lrespini, nAtom, nEl(1), orb, tCasidaForces, onSiteElements,&
-          & nMovedAtom)
+      call LinResp_init(linearResponse, input%ctrl%lrespini, nAtom, nEl(1), onSiteElements)
 
     end if
 
@@ -2240,6 +2213,7 @@ contains
     call getRandom(randomInit, rTmp)
     runId = int(real(huge(runId) - 1, dp) * rTmp) + 1
 
+
     ! MD stuff
     if (tMD) then
       ! Create MD framework.
@@ -2296,14 +2270,15 @@ contains
               & input%ctrl%initialVelocities, BarostatStrength, extPressure, input%ctrl%tIsotropic)
         else
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat,&
-              & input%ctrl%initialVelocities)
+              & input%ctrl%initialVelocities, .true., .false.)
         end if
       else
         if (tBarostat) then
           call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat, BarostatStrength,&
               & extPressure, input%ctrl%tIsotropic)
         else
-          call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat)
+          call init(pVelocityVerlet, deltaT, coord0(:,indMovedAtom), pThermostat,&
+              & input%ctrl%initialVelocities, .false., .false.)
         end if
       end if
       allocate(pMDIntegrator)
@@ -2367,7 +2342,7 @@ contains
 
     if (isRangeSep) then
       call ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, input%ctrl%tShellResolved,&
-          & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, lresp, onSiteElements)
+          & tAtomicEnergy, input%ctrl%rangeSepInp, isRS_LinResp, linearResponse, onSiteElements)
       call getRangeSeparatedCutoff(input%ctrl%rangeSepInp%cutoffRed, cutOff)
       call initRangeSeparated(nAtom, species0, speciesName, hubbU, input%ctrl%rangeSepInp,&
           & tSpin, allocated(reks), rangeSep, deltaRhoIn, deltaRhoOut, deltaRhoDiff, deltaRhoInSqr,&
@@ -2410,11 +2385,11 @@ contains
     end if
 
     ! Set various options
-    tWriteAutotest = env%tGlobalMaster .and. input%ctrl%tWriteTagged
-    tWriteDetailedXML = env%tGlobalMaster .and. input%ctrl%tWriteDetailedXML
-    tWriteResultsTag = env%tGlobalMaster .and. input%ctrl%tWriteResultsTag
-    tWriteDetailedOut = env%tGlobalMaster .and. input%ctrl%tWriteDetailedOut
-    tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalMaster&
+    tWriteAutotest = env%tGlobalLead .and. input%ctrl%tWriteTagged
+    tWriteDetailedXML = env%tGlobalLead .and. input%ctrl%tWriteDetailedXML
+    tWriteResultsTag = env%tGlobalLead .and. input%ctrl%tWriteResultsTag
+    tWriteDetailedOut = env%tGlobalLead .and. input%ctrl%tWriteDetailedOut
+    tWriteBandDat = input%ctrl%tWriteBandDat .and. env%tGlobalLead&
         & .and. electronicSolver%providesEigenvals
 
     ! Check if stopfiles already exist and quit if yes
@@ -2493,7 +2468,7 @@ contains
       end if
     end if
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       call initOutputFiles(env, tWriteAutotest, tWriteResultsTag, tWriteBandDat, tDerivs,&
           & tWriteDetailedOut, tMd, isGeoOpt, geoOutFile, fdDetailedOut, fdMd, esp)
     end if
@@ -3241,6 +3216,46 @@ contains
       end if
 
     end if
+      
+    ! Electron dynamics stuff
+    if (allocated(input%ctrl%elecDynInp)) then
+
+      if (t2Component) then
+        call error("Electron dynamics is not compatibile with this spinor Hamiltonian")
+      end if
+
+      if (withMpi) then
+        call error("Electron dynamics does not work with MPI yet")
+      end if
+
+      if (tFixEf) then
+        call error("Electron dynamics does not work with fixed Fermi levels yet")
+      end if
+
+      if (tSpinSharedEf) then
+        call error("Electron dynamics does not work with spin shared Fermi levels yet")
+      end if
+
+      if (tMD) then
+        call error("Electron dynamics does not work with MD")
+      end if
+
+      if (isRangeSep) then
+        call error("Electron dynamics does not work with range separated calculations yet.")
+      end if
+
+      if (.not. tRealHS .and. input%ctrl%elecDynInp%tBondE) then
+        call error("Bond energies during electron dynamics currently requires a real hamiltonian.")
+      end if
+
+      allocate(electronDynamics)
+
+      call TElecDynamics_init(electronDynamics, input%ctrl%elecDynInp, species0, speciesName,&
+          & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, cutOff%skCutoff,&
+          & cutOff%mCutoff, atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS,&
+          & tRealHS, kPoint, kWeight, isRangeSep)
+
+    end if
 
     if (allocated(reks)) then
       call printReksInitInfo(reks, orb, speciesName, nType)
@@ -3253,49 +3268,65 @@ contains
 
   !> Check coherence across processes for various key variables (relevant if running in MPI,
   !> particularly for external driving via API)
-  subroutine inputCoherenceCheck(env, nAtom, coord0, speciesName, species0, tSccCalc)
+  subroutine inputCoherenceCheck(env, hamiltonianType, nSpin, nAtom, coord0, species0, &
+       & speciesName, tSccCalc, tPeriodic, tFracCoord, latVec, origin)
 
     !> Environment settings
     type(TEnvironment), intent(in) :: env
 
-    !> atoms in the system
+    !> Hamiltonian type
+    integer, intent(in) :: hamiltonianType
+
+    !> Number of spin components
+    integer, intent(in) :: nSpin
+
+    !> Atoms in the system
     integer, intent(in) :: nAtom
 
-    ! atom coordinates (in the central unit cell, if relevant).
+    ! Atom coordinates (in the central unit cell, if relevant).
     real(dp), intent(in) :: coord0(:,:)
-
-    !> names of chemical species
-    character(*), intent(in) :: speciesName(:)
 
     !> Species of atoms in the central cell
     integer, intent(in) :: species0(:)
 
+    !> Names of chemical species
+    character(*), intent(in) :: speciesName(:)
+
     !> Is the calculation SCC?
     logical, intent(in) :: tSccCalc
 
+    !> Is the calculation periodic?
+    logical, intent(in) :: tPeriodic
+
+    !> If periodic, are the atomic positions in fractional coordinates?
+    logical, intent(in) :: tFracCoord
+
+    !> lattice vectors, stored columnwise
+    real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin of coordinate system for periodic systems
+    real(dp), intent(in) :: origin(:)
+
     integer :: iSp
 
-    if (env%tAPICalculation) then
+    call checkExactCoherence(env, hamiltonianType, "hamiltonianType in initProgramVariables")
+    call checkExactCoherence(env, nSpin, "spin integer in initProgramVariables")
+    call checkExactCoherence(env, nAtom, "the number of atoms in initProgramVariables")
+    call checkToleranceCoherence(env, coord0, "coord0 in initProgramVariables", tol=1.e-10_dp)
+    call checkExactCoherence(env, species0, "atomic species in initProgramVariables")
+    call checkExactCoherence(env, tSccCalc, &
+         & "the type of calculation, SCC, in initProgramVariables")
+    do iSp = 1, size(speciesName)
+       call checkExactCoherence(env, speciesName(iSp), "species names in initProgramVariables")
+    enddo
 
-      if (.not. exactCoherence(env, nAtom)) then
-        call error("Coherence failure in number of atoms across nodes")
-      end if
-      if (.not. exactCoherence(env, coord0)) then
-        call error("Coherence failure in coord0 across nodes")
-      end if
-      do iSp = 1, size(speciesName)
-        if (.not. exactCoherence(env, speciesName(iSp))) then
-          call error("Coherence failure in species names across nodes :" // speciesName(iSp))
-        end if
-      end do
-      if (.not. exactCoherence(env, species0)) then
-        call error("Coherence failure in atom species across nodes")
-      end if
-      if (.not. exactCoherence(env, tSccCalc)) then
-        call error("Coherence failure in type of calculation : SCC")
-      end if
-
-    end if
+    if (tPeriodic) then
+       call checkExactCoherence(env, tFracCoord, "tFracCoord in initProgramVariables")
+       call checkToleranceCoherence(env, latVec, &
+            & "lattice vectors in initProgramVariables", tol=1.e-10_dp)
+       call checkToleranceCoherence(env, origin, &
+            & "coordinate origin in initProgramVariables", tol=1.e-10_dp)
+    endif
 
   end subroutine inputCoherenceCheck
 
@@ -3943,7 +3974,7 @@ contains
 
     logical :: tDummy
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       write(stdOut, "(A,1X,A)") "Initialising for socket communication to host",&
           & trim(socketInput%host)
       socket = IpiSocketComm(socketInput)
@@ -4640,8 +4671,7 @@ contains
 
 
   !> Check for compatibility between requested electronic solver and features of the calculation
-  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, tForces, parallelOpts, nIndepHam,&
-      & tempElec)
+  subroutine ensureSolverCompatibility(iSolver, tSpin, kPoints, parallelOpts, nIndepHam, tempElec)
 
     !> Solver number (see dftbp_elecsolvertypes)
     integer, intent(in) :: iSolver
@@ -4651,9 +4681,6 @@ contains
 
     !> Set of k-points used in calculation (or [0,0,0] if molecular)
     real(dp), intent(in) :: kPoints(:,:)
-
-    !> Are forces required
-    logical, intent(in) :: tForces
 
     !> Options for a parallel calculation, if needed
     type(TParallelOpts), intent(in), allocatable :: parallelOpts
@@ -4831,7 +4858,7 @@ contains
 
   !> Stop if any range separated incompatible setting is found
   subroutine ensureRangeSeparatedReqs(tPeriodic, tHelical, tReadChrg, tShellResolved,&
-      & tAtomicEnergy, rangeSepInp, isRS_LinResp, lresp, onSiteElements)
+      & tAtomicEnergy, rangeSepInp, isRS_LinResp, linearResponse, onSiteElements)
 
     !> Is the system periodic
     logical, intent(in) :: tPeriodic
@@ -4855,7 +4882,7 @@ contains
     logical, intent(in) :: isRS_LinResp
 
     !> data type for linear response
-    type(TLinresp), intent(in) :: lresp
+    type(TLinresp), intent(in), allocatable :: linearResponse
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
@@ -4919,7 +4946,7 @@ contains
             & calculations")
       end if
 
-      if (lresp%symmetry /= "S") then
+      if (linearResponse%symmetry /= "S") then
         call error("Excited state range separated calculations currently only implemented for&
             & singlet excitaions")
       end if
@@ -4931,8 +4958,11 @@ contains
 
   !> Stop if linear response module can not be invoked due to unimplemented combinations of
   !> features.
-  subroutine ensureLinRespConditions(t3rd, tRealHS, tPeriodic, tForces, solvation, isRS_LinResp,&
-      & nSpin)
+  subroutine ensureLinRespConditions(tSccCalc, t3rd, tRealHS, tPeriodic, tCasidaForces, solvation,&
+      & isRS_LinResp, nSpin, tSpin, tHelical, tSpinOrbit, tDFTBU, tempElec, input)
+
+    !> Is the calculation SCC?
+    logical, intent(in) :: tSccCalc
 
     !> 3rd order hamiltonian contributions included
     logical, intent(in) :: t3rd
@@ -4944,7 +4974,7 @@ contains
     logical, intent(in) :: tPeriodic
 
     !> forces being evaluated in the excited state
-    logical, intent(in) :: tForces
+    logical, intent(in) :: tCasidaForces
 
     !> Solvation data and calculations
     class(TSolvation), allocatable :: solvation
@@ -4955,8 +4985,32 @@ contains
     !> Number of spin components, 1 is unpolarised, 2 is polarised, 4 is noncolinear / spin-orbit
     integer, intent(in) :: nSpin
 
+    !> Is this a spin polarised calculation
+    logical, intent(in) :: tSpin
+
+    !> If the calculation is helical geometry
+    logical :: tHelical
+
+    !> Is there spin-orbit coupling
+    logical, intent(in) :: tSpinOrbit
+
+    !> Is this a DFTB+U calculation?
+    logical, intent(in) :: tDFTBU
+
+    !> Temperature of the electrons
+    real(dp), intent(in) :: tempElec
+
+    !> Holds the parsed input data.
+    type(TInputData), intent(in), target :: input
+
+    character(lc) :: tmpStr
+
     if (withMpi) then
       call error("Linear response calc. does not work with MPI yet")
+    end if
+
+    if (.not. tSccCalc) then
+      call error("Linear response excitation requires SCC=Yes")
     end if
 
     if (t3rd) then
@@ -4965,12 +5019,48 @@ contains
     if (.not. tRealHS) then
       call error("Only real systems are supported for excited state calculations")
     end if
-    if (tPeriodic .and. tForces) then
+    if ((tPeriodic .or. tHelical) .and. .not.tRealHS) then
+      call error("Linear response only works with non-periodic or gamma-point molecular crystals")
+    end if
+    if (tPeriodic .and. tCasidaForces) then
       call error("Forces in the excited state for periodic geometries are currently unavailable")
     end if
 
     if (allocated(solvation)) then
       call error("Solvation models do not work with linear response yet.")
+    end if
+
+    if (nspin > 2) then
+      call error("Linear reponse does not work with non-colinear spin polarization yet")
+    end if
+
+    if (tSpin .and. tCasidaForces) then
+      call error("excited state forces are not implemented yet for spin-polarized systems")
+    end if
+
+    if (tSpinOrbit) then
+      call error("Linear response does not support spin orbit coupling at the moment.")
+    end if
+    if (tDFTBU) then
+      call error("Linear response does not support LDA+U yet")
+    end if
+    if (input%ctrl%tShellResolved) then
+      call error("Linear response does not support shell resolved scc yet")
+    end if
+
+    if (tempElec > 0.0_dp .and. tCasidaForces) then
+      write(tmpStr, "(A,E12.4,A)")"Excited state forces are not implemented yet for fractional&
+          & occupations, kT=", tempElec/Boltzmann,"K"
+      call warning(tmpStr)
+    end if
+
+    if (input%ctrl%lrespini%nstat == 0) then
+      if (tCasidaForces) then
+        call error("Excited forces only available for StateOfInterest non zero.")
+      end if
+      if (input%ctrl%lrespini%tPrintEigVecs .or. input%ctrl%lrespini%tCoeffs) then
+        call error("Excited eigenvectors only available for StateOfInterest non zero.")
+      end if
     end if
 
     if (isRS_LinResp) then
@@ -4981,6 +5071,10 @@ contains
       if (nSpin > 1) then
         call error("Range separated excited states for spin polarized calculations are currently&
             & unavailable")
+      end if
+    else
+      if (input%ctrl%lrespini%energyWindow < 0.0_dp) then
+        call error("Negative energy window for excitations")
       end if
     end if
 
