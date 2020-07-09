@@ -3,6 +3,18 @@
 #
 list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
+if(WITH_API)
+  # Define the API version string
+  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_RELEASE}'")
+  # individual components
+  string(REGEX MATCHALL "[0-9]+" API_LIST "${API_RELEASE}")
+  list(GET API_LIST 0 api_major)
+  list(GET API_LIST 1 api_minor)
+  list(GET API_LIST 2 api_patch)
+  MESSAGE("DFTB+ API : ${api_major}.${api_minor}.${api_patch}")
+  list(APPEND FYPP_FLAGS -DAPIMAJOR=${api_major} -DAPIMINOR=${api_minor} -DAPIPATCH=${api_patch})
+endif()
+
 #
 # Compile and install library
 #
@@ -122,7 +134,7 @@ endif()
 
 if(INSTALL_INCLUDE_FILES)
   install(DIRECTORY ${includedir}/ DESTINATION ${INSTALL_MOD_DIR})
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h DESTINATION ${INSTALL_INC_DIR})
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h ${INSTALL_INC_DIR}/dftbplus.h @ONLY)
 
   get_target_property(moddirs xmlf90_objlib INTERFACE_INCLUDE_DIRECTORIES)
   foreach(moddir IN LISTS moddirs)

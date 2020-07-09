@@ -34,7 +34,7 @@ module dftbp_linresp
   private
 
   public :: TLinresp, TLinrespini
-  public :: LinResp_init, calcExcitations, addGradients
+  public :: LinResp_init, linResp_calcExcitations, addGradients
 
   !> Data type for initial values for linear response calculations
   type :: TLinrespini
@@ -82,6 +82,9 @@ module dftbp_linresp
     !> Write natural orbitals for excited state
     logical :: tPrintEigVecs
 
+    !> Should the density matrix be stored to disc?
+    logical :: tWriteDensityMatrix
+
     !> write X+Y vector sqrt(wij) / sqrt(omega) * F^ia_I
     logical :: tXplusY
 
@@ -107,12 +110,6 @@ module dftbp_linresp
     logical :: tInit = .false.
 
   end type TLinrespini
-
-
-  !> actually calculate excitations
-  interface calcExcitations
-    module procedure LinResp_calcExcitations
-  end interface calcExcitations
 
 
   !> excitations plus forces and some other properties (excited
@@ -152,6 +149,8 @@ contains
       this%tCacheCharges = ini%tCacheCharges
       this%nStat = ini%nStat
       this%symmetry = ini%sym
+
+      this%tWriteDensityMatrix = ini%tWriteDensityMatrix
 
       if (this%tOscillatorWindow .and. this%OscillatorWindow <= 0.0_dp) then
         call error("Excited Oscillator window should be non-zero if used")
@@ -237,7 +236,7 @@ contains
 
 
   !> Wrapper to call the actual linear response routine for excitation energies
-  subroutine LinResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
+  subroutine linResp_calcExcitations(this, tSpin, denseDesc, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
       & taggedWriter, excEnergy, allExcEnergies)
 
@@ -308,7 +307,7 @@ contains
       call error('Internal error: Illegal routine call to LinResp_calcExcitations')
     end if
 
-  end subroutine LinResp_calcExcitations
+  end subroutine linResp_calcExcitations
 
 
   !> Wrapper to call linear response calculations of excitations and forces in excited states
@@ -369,7 +368,7 @@ contains
     class(TNonSccDiff), intent(in) :: derivator
 
     !> ground state density matrix (square matrix plus spin index)
-    real(dp), intent(in)  :: rhoSqr(:,:,:)
+    real(dp), intent(in) :: rhoSqr(:,:,:)
 
     !> print tag information
     logical, intent(in) :: tWriteTagged

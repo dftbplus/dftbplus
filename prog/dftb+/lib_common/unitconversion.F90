@@ -157,14 +157,15 @@ module dftbp_unitconversion
 
 
   !> Number of electric field units
-  integer, parameter :: nEFieldUnit = 2
+  integer, parameter :: nEFieldUnit = 3
 
 
   !> Electric field units
   type(unit), parameter :: EFieldUnits(nEFieldUnit) = (/ &
-      &unit("v/m                 ", V_m__au), &
-      &unit("au                  ", 1.0_dp) &
-      &/)
+       &unit("v/m                 ", V_m__au), &
+       &unit("v/a                 ", 1e10_dp * V_m__au), &       
+       &unit("au                  ", 1.0_dp) &
+       &/)
 
 
   !> Number of magnetic field units

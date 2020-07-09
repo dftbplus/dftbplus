@@ -12,6 +12,7 @@ cmake_options=(
    "-DWITH_TRANSPORT=true"
    "-DWITH_ARPACK=${WITH_ARPACK}"
    "-DWITH_MPI=${WITH_MPI}"
+   "-DWITH_API=true"
    "-DFYPP_FLAGS='-DTRAVIS'"
    "-DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake"
 )

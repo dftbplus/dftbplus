@@ -1,6 +1,7 @@
 set(curdir "lib_dftb")
 
 set(sources-fpp
+  ${curdir}/bondpopulations.F90
   ${curdir}/boundarycond.F90
   ${curdir}/chargeconstr.F90
   ${curdir}/charges.F90
@@ -23,9 +24,11 @@ set(sources-fpp
   ${curdir}/encharges.F90
   ${curdir}/etemp.F90
   ${curdir}/externalcharges.F90
+  ${curdir}/evaluateenergies.F90
   ${curdir}/forces.F90
   ${curdir}/h5correction.F90
   ${curdir}/halogenx.F90
+  ${curdir}/hamitonian.F90
   ${curdir}/nonscc.F90
   ${curdir}/onscorrection.F90
   ${curdir}/orbitalequiv.F90
