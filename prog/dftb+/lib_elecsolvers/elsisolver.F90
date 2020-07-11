@@ -320,6 +320,8 @@ contains
 
   #:if WITH_ELSI
 
+    character(lc) :: buffer
+
     call elsi_get_version(this%major, this%minor, this%patch)
     call elsi_get_datestamp(dateStamp)
 
@@ -436,9 +438,21 @@ contains
     this%pexsiMethod = inp%pexsiMethod
     this%pexsiNPole = inp%pexsiNPole
 
-    if (this%pexsiMethod == 3 .and. this%pexsiNPole > 40) then
-      call error("PEXSI currently supports a maximum of 40 poles for method 3")
+    if (this%pexsiNPole < 10) then
+      call error("Too few PEXSI poles")
     end if
+    select case(this%pexsiMethod)
+    case(1)
+      if (mod(this%pexsiNPole,10) /= 0 .or. this%pexsiNPole > 120) then
+        call error("Unsupported number of PEXSI poles for method 1")
+      end if
+    case(2,3)
+      if (mod(this%pexsiNPole,5) /= 0 .or. this%pexsiNPole > 40) then
+        write(buffer,"(A,I0)")"Unsupported number of PEXSI poles for method ", this%pexsiMethod
+        call error(trim(buffer))
+      end if
+    end select
+
     this%pexsiNpPerPole = inp%pexsiNpPerPole
     this%pexsiNMu = inp%pexsiNMu
     this%pexsiNpSymbo = inp%pexsiNpSymbo
@@ -477,8 +491,7 @@ contains
 
     this%tCholeskyDecomposed = .false.
 
-    if (this%iSolver == electronicSolverTypes%pexsi .and.&
-        & all([this%major, this%minor, this%patch] == [2,5,0])) then
+    if (this%pexsiMethod == 2) then
       providesElectronEntropy = .false.
     end if
 

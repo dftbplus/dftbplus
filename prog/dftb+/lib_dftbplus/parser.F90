@@ -2382,7 +2382,19 @@ contains
         iTmp = 30
       end select
       call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, iTmp)
-
+      if (ctrl%solver%elsi%pexsiNPole < 10) then
+        call detailedError(value1, "Too few PEXSI poles")
+      end if
+      select case(ctrl%solver%elsi%pexsiMethod)
+      case(1)
+        if (mod(ctrl%solver%elsi%pexsiNPole,10) /= 0 .or. ctrl%solver%elsi%pexsiNPole > 120) then
+          call detailedError(value1, "Unsupported number of PEXSI poles for method 1")
+        end if
+      case(2,3)
+        if (mod(ctrl%solver%elsi%pexsiNPole,5) /= 0 .or. ctrl%solver%elsi%pexsiNPole > 40) then
+          call detailedError(value1, "Unsupported number of PEXSI poles for this method")
+        end if
+      end select
       call getChildValue(value1, "ProcsPerPole", ctrl%solver%elsi%pexsiNpPerPole, 1)
       call getChildValue(value1, "muPoints", ctrl%solver%elsi%pexsiNMu, 2)
       call getChildValue(value1, "SymbolicFactorProcs", ctrl%solver%elsi%pexsiNpSymbo, 1)
