@@ -2324,6 +2324,8 @@ contains
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
 
+    integer :: iTmp
+
     ! Electronic solver
     call getChildValue(node, "Solver", value1, "RelativelyRobust")
     call getNodeName(value1, buffer)
@@ -2366,7 +2368,21 @@ contains
       ctrl%solver%isolver = electronicSolverTypes%pexsi
       allocate(ctrl%solver%elsi)
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, 30)
+    #:if ELSI_VERSION > 2.5
+      call getChildValue(value1, "Method", ctrl%solver%elsi%pexsiMethod, 3)
+    #:else
+      call getChildValue(value1, "Method", ctrl%solver%elsi%pexsiMethod, 2)
+    #:endif
+      select case(ctrl%solver%elsi%pexsiMethod)
+      case(1)
+        iTmp = 60
+      case(2)
+        iTmp = 20
+      case(3)
+        iTmp = 30
+      end select
+      call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, iTmp)
+
       call getChildValue(value1, "ProcsPerPole", ctrl%solver%elsi%pexsiNpPerPole, 1)
       call getChildValue(value1, "muPoints", ctrl%solver%elsi%pexsiNMu, 2)
       call getChildValue(value1, "SymbolicFactorProcs", ctrl%solver%elsi%pexsiNpSymbo, 1)

@@ -39,6 +39,7 @@ module dftbp_elsiiface
   public :: elsi_set_mu_mp_order, elsi_set_mu_broaden_width, elsi_set_mu_broaden_scheme
   public :: elsi_set_elpa_solver
   public :: elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol
+  public :: elsi_set_pexsi_method
   public :: elsi_set_pexsi_np_per_pole, elsi_set_pexsi_temp, elsi_set_pexsi_n_pole
   public :: elsi_set_pexsi_n_mu, elsi_set_pexsi_np_symbo, elsi_set_pexsi_delta_e
   public :: elsi_set_ntpoly_method, elsi_set_ntpoly_filter, elsi_set_ntpoly_tol
@@ -365,6 +366,13 @@ contains
   end subroutine elsi_set_omm_tol
 
 
+  subroutine elsi_set_pexsi_method(eh, method)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: method
+    call stubError("elsi_set_pexsi_method")
+  end subroutine elsi_set_pexsi_method
+
+
   subroutine elsi_set_pexsi_mu_min(eh, mu_min)
     type(elsi_handle), intent(inout) :: eh
     real(r8), intent(in) :: mu_min
@@ -424,7 +432,7 @@ contains
   subroutine elsi_set_pexsi_n_pole(eh, n_pole)
     type(elsi_handle), intent(inout) :: eh
     integer(i4), intent(in) :: n_pole
-    call stubError("elsi_set_pexsi_np_pole")
+    call stubError("elsi_set_pexsi_n_pole")
   end subroutine elsi_set_pexsi_n_pole
 
 

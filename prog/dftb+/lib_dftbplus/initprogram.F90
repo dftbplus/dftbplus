@@ -1817,10 +1817,13 @@ contains
       #:endif
 
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
-      tWriteHS = .false.
+        tWriteHS = .false.
+
       call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
           & nEl, iDistribFn, nSpin, parallelKS%localKS(2, 1), nKpoint, parallelKS%localKS(1, 1),&
-          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
+          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS,&
+          & electronicSolver%providesElectronEntropy)
+
     end if
 
     if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then

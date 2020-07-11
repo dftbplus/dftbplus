@@ -60,7 +60,7 @@ module dftbp_elecsolvers
     !> evaluation or it being suplied externally)
     logical, public :: elecChemPotAvailable
 
-    !> Data for non-diagonalising ELSI solvers
+    !> Data for ELSI solvers
     type(TElsiSolver), public, allocatable :: elsi
 
     !> Are Choleskii factors already available for the overlap matrix
@@ -85,6 +85,7 @@ module dftbp_elecsolvers
     generic :: storeCholesky => storeCholeskyReal, storeCholeskyCmplx
     generic :: getCholesky => getCholeskyReal, getCholeskyCmplx
     procedure :: updateElectronicTemp => TElectronicSolver_updateElectronicTemp
+
   end type TElectronicSolver
 
 

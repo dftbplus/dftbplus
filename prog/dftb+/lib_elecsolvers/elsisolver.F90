@@ -56,6 +56,9 @@ module dftbp_elsisolver
     !> Should the overlap be factorized before minimization
     logical :: ommCholesky = .true.
 
+    !> PEXSI pole expansion method
+    integer :: pexsiMethod = 3
+
     !> number of poles for PEXSI expansion
     integer :: pexsiNPole = 30
 
@@ -188,6 +191,9 @@ module dftbp_elsisolver
     type(TElsiCsc), allocatable :: elsiCsc
 
 
+    !> Version number for ELSI
+    integer, public :: major, minor, patch
+
     !! ELPA settings
 
     !> ELPA solver choice
@@ -220,6 +226,9 @@ module dftbp_elsisolver
 
     !> Previous potentials
     real(dp), allocatable :: pexsiVOld(:)
+
+    !> PEXSI pole expansion method
+    integer :: pexsiMethod
 
     !> Number of poles for expansion
     integer :: pexsiNPole
@@ -266,7 +275,7 @@ contains
 
   !> Initialise ELSI solver
   subroutine TElsiSolver_init(this, inp, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin, nKPoint,&
-      & iKPoint, kWeight, tWriteHS)
+      & iKPoint, kWeight, tWriteHS, providesElectronEntropy)
 
     !> control structure for solvers, including ELSI data
     class(TElsiSolver), intent(out) :: this
@@ -304,15 +313,17 @@ contains
     !> Should the matrices be written out
     logical, intent(in) :: tWriteHS
 
+    !> Whether the solver provides the TS term for electrons
+    logical, intent(inout) :: providesElectronEntropy
+
+    integer :: dateStamp
 
   #:if WITH_ELSI
 
-    integer :: major, minor, patch, datestamp
+    call elsi_get_version(this%major, this%minor, this%patch)
+    call elsi_get_datestamp(dateStamp)
 
-    call elsi_get_version(major, minor, patch)
-    call elsi_get_datestamp(datestamp)
-
-    call supportedVersionNumber(major, minor, patch, datestamp)
+    call supportedVersionNumber(this, dateStamp)
 
     this%iSolver = inp%iSolver
 
@@ -422,9 +433,11 @@ contains
     this%ommCholesky = inp%ommCholesky
 
     ! PEXSI settings
+    this%pexsiMethod = inp%pexsiMethod
     this%pexsiNPole = inp%pexsiNPole
-    if (this%pexsiNPole > 40) then
-      call error("PEXSI currently supports a maximum of 40 poles")
+
+    if (this%pexsiMethod == 3 .and. this%pexsiNPole > 40) then
+      call error("PEXSI currently supports a maximum of 40 poles for method 3")
     end if
     this%pexsiNpPerPole = inp%pexsiNpPerPole
     this%pexsiNMu = inp%pexsiNMu
@@ -464,6 +477,11 @@ contains
 
     this%tCholeskyDecomposed = .false.
 
+    if (this%iSolver == electronicSolverTypes%pexsi .and.&
+        & all([this%major, this%minor, this%patch] == [2,5,0])) then
+      providesElectronEntropy = .false.
+    end if
+
   #:else
 
     call error("Internal error: TElsiSolver_init() called despite missing ELSI support")
@@ -473,38 +491,55 @@ contains
   end subroutine TElsiSolver_init
 
 
-  !> Checks for supported value of ELSI api, 2.6.0 or 2.6.1 release tag being the version DFTB+ can
-  !> use at the moment (electronic entropy return and # PEXSI poles change between 2.5.0 and 2.6.0)
-  subroutine supportedVersionNumber(major, minor, patch, dateStamp)
+  !> Checks for supported ELSI api version, ideally 2.6.0 or 2.6.1 (correct electronic entropy
+  !> return and # PEXSI poles change between 2.5.0 and 2.6.0), but 2.5.0 can also be used with
+  !> warnings.
+  subroutine supportedVersionNumber(this, dateStamp)
 
-    !> Version value components
-    integer, intent(in) :: major, minor, patch
+    !> Version value components inside the structure
+    class(TElsiSolver), intent(in) :: this
 
     !> git commit date for the library
     integer, intent(in) :: dateStamp
 
-    logical :: isSupported
+    logical :: isSupported, isPartSupported
 
     isSupported = .true.
-    if (major < 2) then
+    if (this%major < 2) then
       isSupported = .false.
-    elseif (major == 2 .and. minor < 6) then
+    elseif (this%major == 2 .and. this%minor < 6) then
       isSupported = .false.
-    elseif (major == 2 .and. minor == 6 .and. .not.any(patch == [0,1])) then
+    elseif (this%major == 2 .and. this%minor == 6 .and. .not.any(this%patch == [0,1])) then
       ! library must be 2.6.{0,1}
       isSupported = .false.
     end if
 
-    if (.not. isSupported) then
-      call error("Unsuported ELSI version for DFTB+, requires release >= 2.6.0")
+    isPartSupported = isSupported
+    if (.not.isPartSupported) then
+      if (all([this%major, this%minor, this%patch] == [2,5,0])) then
+        isPartSupported = .true.
+      end if
     end if
 
-    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :', major, minor, patch
+    if (.not. (isSupported .or. isPartSupported)) then
+      call error("Unsuported ELSI version for DFTB+, requires release >= 2.5.0")
+    end if
 
-    if (all([major,minor,patch] == [2,6,0]) .and. dateStamp /= 20200617) then
+    if (.not.isSupported .and. isPartSupported) then
+      call warning("ELSI version 2.5.0 is only partially supported due to changes in default solver&
+          & behaviour for PEXSI at 2.6.0")
+    end if
+
+    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :', this%major, this%minor,&
+        & this%patch
+
+    if (all([this%major,this%minor,this%patch] == [2,5,0]) .and. dateStamp /= 20200204) then
+      call warning("ELSI 2.5.0 library version is between releases")
+    end if
+    if (all([this%major,this%minor,this%patch] == [2,6,0]) .and. dateStamp /= 20200617) then
       call warning("ELSI 2.6.0 library version is between releases")
     end if
-    if (all([major,minor,patch] == [2,6,1]) .and. dateStamp /= 20200625) then
+    if (all([this%major,this%minor,this%patch] == [2,6,1]) .and. dateStamp /= 20200625) then
       call warning("ELSI 2.6.1 library version is between releases")
     end if
 
@@ -626,6 +661,9 @@ contains
 
         call elsi_set_pexsi_mu_min(this%handle, this%pexsiMuMin +this%pexsiDeltaVMin)
         call elsi_set_pexsi_mu_max(this%handle, this%pexsiMuMax +this%pexsiDeltaVMax)
+
+        ! set the pole expansion method for PEXSI
+        call elsi_set_pexsi_method(this%handle, this%pexsiMethod)
 
         ! number of poles for the expansion
         call elsi_set_pexsi_n_pole(this%handle, this%pexsiNPole)
