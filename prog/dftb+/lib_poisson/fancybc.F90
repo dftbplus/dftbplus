@@ -7,7 +7,7 @@
 !**************************************************************************
 module fancybc
 
-  use gprecision
+  use dftbp_accuracy, only : dp
   use parameters
   use bulkpot , only : super_array
   use mpi_poisson

@@ -1,0 +1,39 @@
+Geometry = GenFormat {
+ 3  C
+  O H
+     1    1    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+     2    2    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+     3    2    0.00000000000E+00   0.00000000000E+00   0.00000000000E+00
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+
+  SCC = Yes
+  SCCTolerance = 1.00E-012
+  MaxSCCIterations = 1000
+
+  MaxAngularMomentum = {
+    O = "p"
+    H = "s"
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix  = ".skf"
+  }
+
+}
+
+Analysis = {
+  CalculateForces = Yes
+}
+
+Options = {
+  WriteAutotestTag = No
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}

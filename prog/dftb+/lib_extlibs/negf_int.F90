@@ -9,7 +9,7 @@
 !> Interface to LIBNEGF for DFTB+
 module negf_int
   use libnegf_vars
-  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, unit
+  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
   use libnegf, only : negf_mpi_init
 #:endif
@@ -89,6 +89,9 @@ module negf_int
   !> non wrapped direct calls
   private :: negf_density, negf_current, negf_ldos
 
+  !> Format for two values with units
+  character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"
+
   contains
 
   !> Init gDFTB environment and variables
@@ -122,7 +125,7 @@ module negf_int
     ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%globalComm, tIOproc)
+    call negf_mpi_init(env%mpi%globalComm)
 #:endif
 
     if (transpar%defined) then
@@ -228,7 +231,8 @@ module negf_int
         params%FictCont(i) = transpar%contacts(i)%wideBand
         params%contact_DOS(i) = transpar%contacts(i)%wideBandDOS
 
-        write(stdOut,*) '(negf_init) CONTACT INFO #',i
+        write(stdOut,"(1X,A,I0,A)") '(negf_init) CONTACT INFO #', i,&
+            & ' "'//trim(transpar%contacts(i)%name)//'"'
 
         if (params%FictCont(i)) then
           write(stdOut,*) 'FICTITIOUS CONTACT '
@@ -236,16 +240,23 @@ module negf_int
         end if
         write(stdOut,*) 'Temperature (DM): ', params%kbT_dm(i)
         write(stdOut,*) 'Temperature (Current): ', params%kbT_t(i)
-        write(stdOut,*) 'Potential (with built-in): ', pot(i)
-        write(stdOut,*) 'eFermi: ', eFermi(i)
+        if (transpar%contacts(i)%tFermiSet) then
+          write(stdOut,format2U)'Potential (with built-in)', pot(i), 'H', Hartree__eV*pot(i), 'eV'
+          write(stdOut,format2U)'eFermi', eFermi(i), 'H', Hartree__eV*eFermi(i), 'eV'
+        end if
         write(stdOut,*)
 
-      end do
+        ! Define electrochemical potentials
+        params%mu(i) = eFermi(i) - pot(i)
 
-      ! Define electrochemical potentials
-      params%mu(1:ncont) = eFermi(1:ncont) - pot(1:ncont)
-      write(stdOut,*) 'Electro-chemical potentials: ', params%mu(1:ncont)
-      write(stdOut,*)
+        if (transpar%contacts(i)%tFermiSet) then
+          write(stdOut,format2U)'Electro-chemical potentials', params%mu(i), 'H',&
+              & Hartree__eV*params%mu(i), 'eV'
+          write(stdOut,*)
+        end if
+
+      enddo
+
       deallocate(pot)
 
     else
@@ -533,8 +544,8 @@ module negf_int
     !> neighbours of each atom
     Integer, intent(in) :: iNeigh(0:,:)
 
-    integer, allocatable :: PL_end(:), cont_end(:), surf_end(:), cblk(:), ind(:)
-    integer, allocatable :: atomst(:), plcont(:)
+    integer, allocatable :: PL_end(:), cont_end(:), surf_start(:), surf_end(:), cblk(:)
+    integer, allocatable :: ind(:), atomst(:), plcont(:)
     integer, allocatable :: minv(:,:)
     Integer :: natoms, ncont, nbl, iatc1, iatc2, iatm2
     integer :: i, m, i1, j1, info
@@ -564,6 +575,7 @@ module negf_int
     allocate(cblk(ncont))
     allocate(cont_end(ncont))
     allocate(surf_end(ncont))
+    allocate(surf_start(ncont))
     allocate(ind(natoms+1))
     allocate(minv(nbl,ncont))
 
@@ -573,6 +585,7 @@ module negf_int
 
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
+       surf_start(i) = ind(transpar%contacts(i)%idxrange(1))+1
        surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
     enddo
 
@@ -662,7 +675,7 @@ module negf_int
 
     end if
 
-    call init_structure(negf, ncont, cont_end, surf_end, nbl, PL_end, cblk)
+    call init_structure(negf, ncont, surf_start, surf_end, cont_end, nbl, PL_end, cblk)
 
     deallocate(PL_end)
     deallocate(plcont)
@@ -865,7 +878,7 @@ module negf_int
 
   !> Debug routine to dump H and S as a file in Matlab format
   !>
-  !> NOTE: This routine is not MPI-aware, call it only on MPI-master!
+  !> NOTE: This routine is not MPI-aware, call it only on MPI-lead!
   !>
   subroutine negf_dumpHS(HH,SS)
 
@@ -1065,7 +1078,7 @@ module negf_int
     pCsrDens => csrDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1203,7 +1216,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1351,8 +1364,8 @@ module negf_int
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
     integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
-    type(unit) :: unitOfEnergy        ! Set the units of H
-    type(unit) :: unitOfCurrent       ! Set desired units for Jel
+    type(units) :: unitOfEnergy        ! Set the units of H
+    type(units) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
     integer :: i, j, k, NumStates, icont
@@ -1361,7 +1374,7 @@ module negf_int
     character(2) :: id1, id2
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     call get_params(negf, params)
 
@@ -1870,7 +1883,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     call get_params(negf, params)
 
@@ -1936,12 +1949,12 @@ module negf_int
       call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
     #:if WITH_MPI
-      ! Reduce on node 0 as group master node
+      ! Reduce on node 0 as group lead node
       call mpifx_reduceip(env%mpi%groupComm, csrDens%nzval, MPI_SUM)
       call mpifx_reduceip(env%mpi%groupComm, csrEDens%nzval, MPI_SUM)
 
-      ! Each group master node prints the local currents
-      tPrint = env%mpi%groupComm%master
+      ! Each group lead node prints the local currents
+      tPrint = env%mpi%groupComm%lead
 
     #:else
 
@@ -2156,13 +2169,13 @@ module negf_int
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N
-    !   write(*,*)A(i,1:N)
+    !   write(stdOut,*)A(i,1:N)
     !end do
 
     !print *,'U matrix unitarity check'
     !B=matmul(transpose(A),A)
     !do i=1,N
-    !   write(*,*)B(i,1:N)
+    !   write(stdOut,*)B(i,1:N)
     !end do
 
     B(:,:) = matmul(transpose(A), matmul(S, A))
@@ -2176,25 +2189,25 @@ module negf_int
 
     !print *,'sqrt(S) inverted'
     !do i=1,N
-    !  write(*,*) C(i,1:N)
+    !  write(stdOut,*) C(i,1:N)
     !end do
 
     !print *,'S unity check'
     !B=matmul(transpose(C),matmul(S,C))
     !do i=1,N
-    !   write(*,*) B(i,1:N)
+    !   write(stdOut,*) B(i,1:N)
     !end do
 
     !print *,'H_dftb before orthogonalization'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     H(:,:) = matmul(transpose(C), matmul(H, C))
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
@@ -2209,7 +2222,7 @@ module negf_int
 
     !print *,'H_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     S(:,:) = 0.0_dp
@@ -2261,7 +2274,7 @@ module negf_int
 
     !print  *,'U matrix, Eigenvectors for S diagonalization'
     !do i=1,N2
-    !   write(*,*) U(i,1:N2)
+    !   write(stdOut,*) U(i,1:N2)
     !end do
 
     !U matrix unitarity check
@@ -2284,7 +2297,7 @@ module negf_int
     A(:,:) = matmul(U,matmul(B,transpose(U)))
     !print *,'sqrt(S) inverted'
     !do i=1,N2
-    !  write(*,*) A(i,1:N2)
+    !  write(stdOut,*) A(i,1:N2)
     !end do
 
     deallocate(U, B)
@@ -2301,12 +2314,12 @@ module negf_int
     !C=sqrt(S) big matrix
     !print *,'C=sqrt(S) big matrix'
     !do i=1,N
-    !   write(*,*) C(i,1:N)
+    !   write(stdOut,*) C(i,1:N)
     !end do
 
     !print *,'H_dftb before orthogonalization'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     H(:,:) = matmul(transpose(C),matmul(H,C))
@@ -2314,7 +2327,7 @@ module negf_int
 
     !print *,'H_dftb_orth before replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     ! COPY THE FIRST CONTACT PL ONTO THE SECOND
@@ -2330,12 +2343,12 @@ module negf_int
 
     !print *,'H_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) H(i,1:N)
+    !   write(stdOut,*) H(i,1:N)
     !end do
 
     !print *,'S_dftb_orth after replacement'
     !do i=1,N
-    !   write(*,*) S(i,1:N)
+    !   write(stdOut,*) S(i,1:N)
     !end do
 
     !Save H_dftb_orth.mtr to file

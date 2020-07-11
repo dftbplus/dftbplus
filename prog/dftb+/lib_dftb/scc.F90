@@ -81,6 +81,9 @@ module dftbp_scc
     !> Coulomb input
     type(TCoulombInput) :: coulombInput
 
+    !> Whether shift vector is set externally -> skip internal shift calculation
+    logical :: hasExternalShifts
+
   end type TSccInp
 
 
@@ -188,7 +191,10 @@ module dftbp_scc
     type(TH5Corr), allocatable :: h5Correction
 
     !> Coulombic interaction container
-    type(TCoulombCont) :: coulombCont
+    type(TCoulombCont), public :: coulombCont
+
+    !> Whether shift vector is set externally -> skip internal shift calculation
+    logical :: hasExternalShifts
 
   contains
 
@@ -215,6 +221,9 @@ module dftbp_scc
 
     !> Routine for returning lower triangle of atomic resolved gamma as a matrix
     procedure :: getAtomicGammaMatrix
+
+    !> Routine for returning lower triangle of atomic resolved gamma for specified U values
+    procedure :: getAtomicGammaMatU
 
     !> Calculates the contribution of the SCC to the energy per atom
     procedure :: getEnergyPerAtom
@@ -251,6 +260,12 @@ module dftbp_scc
 
     !> Returns potential from external charges
     procedure :: getExternalElStatPotential
+
+    !> Calculate gamma integral derivatives in SCC part
+    procedure :: getGammaDeriv
+
+    !> Get Q * inverse R contribution for the point charges
+    procedure :: getShiftOfPC
 
   end type TScc
 
@@ -387,6 +402,8 @@ contains
       this%h5Correction = inp%h5Correction
     end if
 
+    this%hasExternalShifts = inp%hasExternalShifts
+
     this%tInitialised = .true.
 
   end subroutine Scc_initialize
@@ -454,13 +471,13 @@ contains
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
-        call this%extCharge%setCoordinates(env, this%coord, this%coulombCont%rCellVec, this%coulombCont%gLatPoint,&
-            & this%coulombCont%alpha, this%volume)
+        call this%extCharge%setCoordinates(env, this%coord, this%coulombCont%rCellVec,&
+            & this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume)
       else
         call this%extCharge%setCoordinates(env, this%coord)
       end if
     end if
-    
+
   end subroutine updateCoords
 
 
@@ -518,8 +535,8 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    call getSummedCharges(species, orb, qOrbital, q0, this%iHubbU, this%deltaQ, &
-        & this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
+    call getSummedCharges(species, orb, qOrbital, q0, iHubbU=this%iHubbU, dQ=this%deltaQ, &
+        & dQAtom=this%deltaQAtom, dQShell=this%deltaQPerLShell, dQUniqU=this%deltaQUniqU)
 
     call this%coulombCont%updateCharges(env, qOrbital, q0, orb, species, &
         & this%deltaQ, this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
@@ -549,6 +566,7 @@ contains
     integer, intent(in) :: img2CentCell(:)
 
     @:ASSERT(this%tInitialised)
+    @:ASSERT(.not. this%hasExternalShifts)
 
     call buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
 
@@ -634,6 +652,57 @@ contains
   end subroutine getAtomicGammaMatrix
 
 
+  !> Routine for returning lower triangle of atomic resolved Coulomb matrix
+  subroutine getAtomicGammaMatU(this, gammamat, U_h, species, iNeighbour, img2CentCell)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Atom resolved gamma
+    real(dp), intent(out) :: gammamat(:,:)
+
+    !> ppRPA Hubbard parameters
+    real(dp), intent(in) :: U_h(:)
+
+    !> List of the species for each atom.
+    integer,  intent(in) :: species(:)
+
+    !> neighbours of atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> index array between images and central cell
+    integer, intent(in) :: img2CentCell(:)
+
+    integer  :: iAt1, iAt2, iSp1, iSp2, iAt2f, iNeigh
+    real(dp) :: R_ab
+
+    @:ASSERT(this%tInitialised)
+    @:ASSERT(all(shape(gammamat) == [ this%nAtom, this%nAtom ]))
+    @:ASSERT(all(this%nHubbU == 1))
+
+  #:if WITH_SCALAPACK
+    call error("scc:getAtomicGammaMatU does not work with MPI yet")
+  #:endif
+    gammamat(:,:) = this%coulombCont%invRMat
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 0, maxval(this%nNeighShort(:,:,:, iAt1))
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        R_ab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
+        gammamat(iAt2f, iAt1) = gammamat(iAt2f, iAt1) - expGamma(R_ab, U_h(iSp2), U_h(iSp1))
+      end do
+    end do
+
+    do iAt1 = 1, this%nAtom
+      do iAt2 = 1, iAt1 - 1
+        gammamat(iAt2, iAt1) = gammamat(iAt1, iAt2)
+      end do
+    end do
+
+  end subroutine getAtomicGammaMatU
+
 
   !> Calculates the contribution of the charge consistent part to the energy per atom.
   subroutine getEnergyPerAtom(this, eScc)
@@ -650,7 +719,10 @@ contains
     eScc(:) = 0.5_dp * (this%shiftPerAtom * this%deltaQAtom&
         & + sum(this%shiftPerL * this%deltaQPerLShell, dim=1))
 
-    call this%coulombCont%addEnergy(eScc)
+    if (.not. this%hasExternalShifts) then
+      call this%coulombCont%addEnergy(eScc)
+    end if
+
     if (allocated(this%extCharge)) then
       call this%extCharge%addEnergyPerAtom(this%deltaQAtom, eScc)
     end if
@@ -698,14 +770,15 @@ contains
     allocate(dQOutAtom(this%nAtom))
     allocate(dQOutShell(this%mShell, this%nAtom))
 
-    call getSummedCharges(species, orb, qOut, q0, this%iHubbU, dQOut, &
-        & dQOutAtom, dQOutShell)
+    call getSummedCharges(species, orb, qOut, q0, dQ=dQOut, dQAtom=dQOutAtom, dQShell=dQOutShell)
 
     ! 1/2 sum_A (2 q_A - n_A) * shift(n_A)
     eScc(:) = 0.5_dp * (this%shiftPerAtom * (2.0_dp * dQOutAtom - this%deltaQAtom)&
         & + sum(this%shiftPerL * (2.0_dp * dQOutShell - this%deltaQPerLShell), dim=1))
 
-    call this%coulombCont%addEnergy(eScc, dQOut, dQOutAtom, dQOutShell)
+    if (.not. this%hasExternalShifts) then
+      call this%coulombCont%addEnergy(eScc, dQOut, dQOutAtom, dQOutShell)
+    end if
 
     if (allocated(this%extCharge)) then
       call error("XLBOMD not working with external charges yet")
@@ -763,7 +836,8 @@ contains
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom,&
-            & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume)
+            & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
+            & this%volume)
       else
         call this%extCharge%addForceDc(env, force, chrgForce, this%coord, this%deltaQAtom)
       end if
@@ -800,7 +874,7 @@ contains
     @:ASSERT(this%tPeriodic)
     @:ASSERT(all(shape(st)==(/3,3/)))
 
-    stTmp = 0.0_dp
+    stTmp(:,:) = 0.0_dp
 
     ! Short-range part of gamma contribution
     call addSTGammaPrime_(stTmp,this,species,iNeighbour,img2CentCell)
@@ -831,7 +905,9 @@ contains
     @:ASSERT(size(shift) == size(this%shiftPerAtom))
 
     shift(:) = this%shiftPerAtom
-    call this%coulombCont%addShiftPerAtom(shift)
+    if (.not. this%hasExternalShifts) then
+      call this%coulombCont%addShiftPerAtom(shift)
+    end if
     if (allocated(this%extCharge)) then
       call this%extCharge%addShiftPerAtom(shift)
     end if
@@ -858,11 +934,14 @@ contains
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    
+
     shift(:, :) = this%shiftPerL
-    call this%coulombCont%addShiftPerShell(shift)
+    if (.not. this%hasExternalShifts) then
+      call this%coulombCont%addShiftPerShell(shift)
+    end if
 
   end subroutine getShiftPerL
+
 
   !> set electrostatic shifts (e.g. Poisson solver)
   subroutine setShiftPerAtom(this, shift)
@@ -875,7 +954,8 @@ contains
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift) == size(this%shiftPerAtom,dim=1))
-    
+    @:ASSERT(this%hasExternalShifts)
+
     this%shiftPerAtom(:) = shift
 
   end subroutine setShiftPerAtom
@@ -887,13 +967,14 @@ contains
     !> Instance
     class(TScc), intent(inout) :: this
 
-    !> Contains the input shifts (shell, Atom) 
+    !> Contains the input shifts (shell, Atom)
     real(dp), intent(in) :: shift(:,:)
 
     @:ASSERT(this%tInitialised)
     @:ASSERT(size(shift,dim=1) == size(this%shiftPerL,dim=1))
     @:ASSERT(size(shift,dim=2) == size(this%shiftPerL,dim=2))
-    
+    @:ASSERT(this%hasExternalShifts)
+
     this%shiftPerL(:, :) = shift
 
   end subroutine setShiftPerL
@@ -983,8 +1064,8 @@ contains
     allocate(dQOutLShell(this%mShell, this%nAtom))
     allocate(dQOutUniqU(this%mHubbU, this%nAtom))
 
-    call getSummedCharges(species, orb, qOrbitalOut, q0, this%iHubbU, dQOut, &
-        & dQOutAtom, dQOutLShell, dQOutUniqU)
+    call getSummedCharges(species, orb, qOrbitalOut, q0, iHubbU=this%iHubbU, dQ=dQOut,&
+        & dQAtom=dQOutAtom, dQShell=dQOutLShell, dQUniqU=dQOutUniqU)
 
     ! Short-range part of gamma contribution
     call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour,&
@@ -1025,7 +1106,8 @@ contains
 
     if (this%tPeriodic) then
       call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom,&
-          & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume, V, epsSoften=epsSoften)
+          & this%coulombCont%rCellVec, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
+          & this%volume, V, epsSoften=epsSoften)
     else
       call sumInvR(env, size(V), this%nAtom, locations, this%coord, this%deltaQAtom, V,&
           & epsSoften=epsSoften)
@@ -1056,8 +1138,9 @@ contains
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
-        call this%extCharge%getElStatPotential(env, locations, this%coulombCont%rCellVec, this%coulombCont%gLatPoint,&
-            & this%coulombCont%alpha, this%volume, V, epsSoften=epsSoften)
+        call this%extCharge%getElStatPotential(env, locations, this%coulombCont%rCellVec,&
+            & this%coulombCont%gLatPoint, this%coulombCont%alpha, this%volume, V,&
+            & epsSoften=epsSoften)
       else
         call this%extCharge%getElStatPotential(env, locations, V, epsSoften=epsSoften)
       end if
@@ -1127,24 +1210,11 @@ contains
 
     @:ASSERT(this%tInitialised)
 
-    call buildShiftPerAtom_(this, env)
+    this%shiftPerAtom(:) = 0.0_dp
+
     call buildShiftPerShell_(this, env, orb, species, iNeighbour, img2CentCell)
 
   end subroutine buildShifts_
-
-
-  !> Builds 1/R contribution [shiftAtom(A) = sum_B 1 / R_AB * (Q_B - Q0_B)]
-  subroutine buildShiftPerAtom_(this, env)
-
-    !> Resulting module variables
-    type(TScc), intent(inout), target :: this
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
-
-    this%shiftPerAtom(:) = 0.0_dp
-
-  end subroutine buildShiftPerAtom_
 
 
   !> Builds the short range shell resolved part of the shift vector
@@ -1482,6 +1552,100 @@ contains
     st(:,:) = st(:,:) / this%volume
 
   end subroutine addSTGammaPrime_
+
+
+  !> Calculate gamma integral derivatives in SCC part
+  subroutine getGammaDeriv(this, env, species, iNeighbour, img2CentCell, GammaDeriv)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> Computational environment settings
+    type(TEnvironment), intent(in) :: env
+
+    !> list of all atomic species
+    integer, intent(in) :: species(:)
+
+    !> neighbour list for atoms
+    integer, intent(in) :: iNeighbour(0:,:)
+
+    !> indexing array for periodic image atoms
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atom resolved scc gamma derivative, \gamma_{A,B}
+    !> gamma_deriv = (-1/R^2 - S')*((x or y,z)/R)
+    real(dp), intent(out) :: GammaDeriv(:,:,:)
+
+    real(dp), allocatable :: shortGammaDeriv(:,:,:)
+    real(dp), allocatable :: invRDeriv(:,:,:)
+
+    real(dp) :: rab, u1, u2, tmpGamma, tmpGammaPrime
+    integer :: iAt1, iSp1, iNeigh, iAt2, iAt2f, iSp2, iU1, iU2, ii, jj
+
+    allocate(shortGammaDeriv(this%nAtom,this%nAtom,3))
+    allocate(invRDeriv(this%nAtom,this%nAtom,3))
+
+    ! shortGamma contribution to gamma derivative
+    shortGammaDeriv(:,:,:) = 0.0_dp
+    do iAt1 = 1, this%nAtom
+      iSp1 = species(iAt1)
+      do iNeigh = 1, maxval(this%nNeighShort(:,:,:, iAt1))
+        iAt2 = iNeighbour(iNeigh, iAt1)
+        iAt2f = img2CentCell(iAt2)
+        iSp2 = species(iAt2f)
+        rab = sqrt(sum((this%coord(:,iAt1) - this%coord(:,iAt2))**2))
+        do iU1 = 1, this%nHubbU(species(iAt1))
+          u1 = this%uniqHubbU(iU1, iSp1)
+          do iU2 = 1, this%nHubbU(species(iAt2f))
+            u2 = this%uniqHubbU(iU2, species(iAt2f))
+            if (iNeigh <= this%nNeighShort(iU2,iU1,species(iAt2f),iAt1)) then
+              if (this%tDampedShort(iSp1) .or. this%tDampedShort(iSp2)) then
+                tmpGammaPrime = expGammaDampedPrime(rab, u2, u1, this%dampExp)
+              else
+                tmpGammaPrime = expGammaPrime(rab, u2, u1)
+                if (this%tH5) then
+                  tmpGamma = expGamma(rab, u2, u1)
+                  call this%h5Correction%scaleShortGammaDeriv(tmpGamma, &
+                      & tmpGammaPrime, iSp1, iSp2, rab)
+                end if
+              end if
+              do ii = 1,3
+                shortGammaDeriv(iAt2f,iAt1,ii) = -tmpGammaPrime * &
+                    & ( this%coord(ii,iAt1) - this%coord(ii,iAt2) ) / rab
+              end do
+            end if
+          end do
+        end do
+      end do
+    end do
+
+    ! 1/R contribution to gamma derivative
+    invRDeriv(:,:,:) = 0.0_dp
+    if (this%tPeriodic) then
+      call this%coulombCont%addInvRPrimePeriodicMat(env, this%coord,&
+          & this%coulombCont%neighListGen, this%coulombCont%gLatPoint, this%coulombCont%alpha,&
+          & this%volume, invRDeriv)
+    else
+      call this%coulombCont%addInvRPrimeClusterMat(env, this%coord, invRDeriv)
+    end if
+
+    GammaDeriv(:,:,:) = invRDeriv + shortGammaDeriv
+
+  end subroutine getGammaDeriv
+
+
+  !> Get Q * inverse R contribution for the point charges
+  subroutine getShiftOfPC(this, QinvR)
+
+    !> Instance
+    class(TScc), intent(in) :: this
+
+    !> (Q * invR) contribution
+    real(dp), intent(out) :: QinvR(:)
+
+    call this%extCharge%copyInvRvec(QinvR)
+
+  end subroutine getShiftOfPC
 
 
 end module dftbp_scc

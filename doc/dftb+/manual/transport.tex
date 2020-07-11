@@ -22,10 +22,17 @@ transport calculation must also contain information about the contacts (external
 reservoirs). The contacting leads (or surfaces) are actually semi-infinite
 structures, supporting travelling waves. Unlike finite structures, where mo
 stationary current is possible, travelling waves can only exist in such open
-systems.  The simulation is therefore partitioned into a device region and two
+systems.  The simulation is therefore partitioned into a device region and one
 or more contact regions.
 
-Rules to build a valid input geometry:
+{\bf note}:\\ A single contact can be used to model semi-infinite surfaces or
+the ends of nanowires/tubes. A minimum of two contacts is required to simulate
+devices and to evaluate properties such as current flow. For \is{SCC}
+calculations, the potential shifts within contacts are stored in files. See
+appendix~\ref{app:contactfiles} for the internal format of these files.
+
+\subsection{Rules to build a valid input geometry}
+\index{Rules for transport calculation geometries}
 \begin{enumerate}
 \item \label{rule1} All device atoms must come first in the structure.
 \item \label{rule2} Each contact must comprise of two subsequent unit cells,
@@ -166,7 +173,7 @@ The Device blocks contains the following properties:
   \kw{AtomRange} &2i& &  &  \\
   \kw{PLShiftTolerance} & r & & 1E-5 & \\
   \kw{Temperature} & r & & 0.0 & \\
-  \kw{FermiLevel} &r& &  &  \\
+  \kwl{FermiLevel}{kw:transport.FermiLevel} &r& &  &  \\
   \kw{Potential} & r &  & 0.0 & \\
   \kw{WideBand} & l & & No & \\
   \kw{LevelSpacing} & r & WideBand = Yes & 0.735 & \\
@@ -198,11 +205,11 @@ PLs (tolerance for rule~\ref{rule4} of structures, i.e.\ that accuracy to which
 \item[\is{Temperature}]\modif{\modtype{energy}} Specifies the electronic
   temperature of the contact (see a more detailed discussion after the section 
   \"Analysis\").
-\item[\is{FermiLevel}]\modif{\modtype{energy}} Specifies the Fermi level of the
-  contact.
+\item[\is{FermiLevel}]\modif{\modtype{energy}} Optional overriding of the Fermi
+  energy that is specified in the appropriate contact shift file.
 \item[\is{Potential}]\modif{\modtype{energy}} Specifies any additional
   electrostatic potential applied to the contact. The natural units of this
-  quantity are a potential energy.
+  quantity are a (potential) energy.
 \item[\is{WideBand}] Use the wide band approximation for the contact. If set to
   \is{Yes}, the surface Green's function of the contact is not explicitly
   calculated but is instead assumed to be local and constant according to a
@@ -244,12 +251,16 @@ When \kw{Task}=\is{ContactHamiltonian} the following options can be defined
 \begin{ptable}
   \kw{ContactId} & s &  & & \\
   \kw{ContactSeparation} & r & & 1e3 & \\
+  \kw{WriteBinaryContact} & l& & Yes & \\
 \end{ptable}
 
 \begin{description}
 \item[\is{ContactId}] Id label of the contact to be calculated.
 \item[\is{ContactSeparation}]\modif{\modtype{length}} Dummy separation in
   transverse direction (see the following explanation).
+\item[\is{WriteBinaryContact}] Controls whether the contact shift file is
+  written as a text file (file extension \verb|.dat|) or a binary file
+  (\verb|.bin|).
 \end{description}
 
 The contact calculation computes the {\em bulk} Hamiltonian, self-consistent
@@ -324,18 +335,17 @@ KpointsAndWeights = SupercellFolding {
 
 This could seem confusing, but the underlining reasons is that in the cluster
 calculation the reciprocal lattice is set up by the code itself, while in the
-periodic calculation is set up by the user who can chose any arbitrary
+periodic calculation is set up by the user, who can chose any arbitrary
 direction.  Refer to the transport cookbook and to the distributed examples for
 further clarification.
 
-\htcbsubsection{Task = UploadContacts} After the contact calculations, it is
-possible to perform actual transport calculations. This is activated simply
-specifying \kw{Task = UploadContacts}, without additional options ({\bf Note} if
-no task is specified, \dftbp{} assumes \is{UploadContacts} is the required task
-in the transport block). In order to set up a proper transport calculation the
-user should also define the contacts' Fermi levels (as printed in the files
-previously produced by using \is{ContactHamiltonian} tasks) and any required
-potential shift for each contact.
+\htcbsubsection{Task = UploadContacts}\index{UploadContacts} After the
+contact calculations are completed, it is now possible to perform
+actual transport calculations. This is activated simply specifying
+\kw{Task = UploadContacts}, without additional options ({\bf Note} if
+no task is specified, \dftbp{} assumes \is{UploadContacts} is the
+required task in the transport block). If you require potential shifts
+of the contacts, these should also be set for each contact.
 \begin{verbatim}
 Transport {
   Device {
@@ -344,13 +354,12 @@ Transport {
   Contact {
     Id = "source"
     AtomRange = 9 24
-    FermiLevel [eV] = -8.4123
-    Potential = 0.0
+    # No specified shift in contact, effectively:
+    # Potential = 0.0
   }
   Contact {
     Id = "drain"
     AtomRange = 25 40
-    FermiLevel [eV] = -8.4123
     Potential = 1.0
   }
   Task = UploadContacts
@@ -370,6 +379,18 @@ chosen:
     0 0 0  1.0
   }
 \end{verbatim}
+
+When \kw{Task}=\is{UploadHamiltonian} the following options can be defined
+
+\begin{ptable}
+  \kw{ReadBinaryContact} & l& & Yes & \\
+\end{ptable}
+
+\begin{description}
+\item[\is{ReadBinaryContact}] Controls whether the contact shift file should be
+  read as a text file (file extension \verb|.dat|) or a binary file
+  (\verb|.bin|).
+\end{description}
 
 \htsection{GreensFunction}
 
@@ -454,9 +475,11 @@ only (see section~\ref{sec:transport.geometry}).
   the Fermi level of the system must be known and provided to fill up the
   electronic states.
 
-\item[\is{FermiLevel}]\modif{\modtype{energy}} Required to set the Fermi level
-  used by the Green's solver to fill up the electronic states, unless already
-  specified by there being contacts already present.
+\item[\is{FermiLevel}]\modif{\modtype{energy}} Required to set the
+  Fermi level that is used by the Green's solver to fill up the
+  electronic states. This should be set unless the Fermi level is
+  already specified by the presence of contacts to the (device region)
+  system.
 
 \item[\is{LocalCurrents}] if set to Yes, local bond-currents are computed using
   the non-equilibrium density matrix.  This task is currently limited to

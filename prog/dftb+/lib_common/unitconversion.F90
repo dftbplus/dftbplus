@@ -42,6 +42,23 @@ module dftbp_unitconversion
       /)
 
 
+  !> Number of length units
+  integer, parameter :: nInverseLengthUnit = 8
+
+
+  !> Length units
+  type(unit), parameter :: inverseLengthUnits(nInverseLengthUnit) = (/ &
+      &unit("1/angstrom          ", Bohr__AA), &
+      &unit("1/aa                ", Bohr__AA), &
+      &unit("1/meter             ", 1.0e-10_dp * Bohr__AA), &
+      &unit("1/m                 ", 1.0e-10_dp * Bohr__AA), &
+      &unit("1/bohr              ", 1.0_dp), &
+      &unit("1/pm                ", 1.0e+2_dp * Bohr__AA), &
+      &unit("1/picometer         ", 1.0e+2_dp * Bohr__AA), &
+      &unit("1/au                ", 1.0_dp) &
+      /)
+
+
   !> Number of energy units
   integer, parameter :: nEnergyUnit = 13
 
@@ -140,14 +157,15 @@ module dftbp_unitconversion
 
 
   !> Number of electric field units
-  integer, parameter :: nEFieldUnit = 2
+  integer, parameter :: nEFieldUnit = 3
 
 
   !> Electric field units
   type(unit), parameter :: EFieldUnits(nEFieldUnit) = (/ &
-      &unit("v/m                 ", V_m__au), &
-      &unit("au                  ", 1.0_dp) &
-      &/)
+       &unit("v/m                 ", V_m__au), &
+       &unit("v/a                 ", 1e10_dp * V_m__au), &       
+       &unit("au                  ", 1.0_dp) &
+       &/)
 
 
   !> Number of magnetic field units
@@ -188,10 +206,6 @@ module dftbp_unitconversion
       &/)
 
 
-  !> Number of mass units
-  integer, parameter :: nMassUnit = 4
-
-
   !> Number of dipole units
   integer, parameter :: nDipoleUnit = 4
 
@@ -205,12 +219,60 @@ module dftbp_unitconversion
       &/)
 
 
+  !> Number of mass units
+  integer, parameter :: nMassUnit = 6
+
+
   !> Mass units
   type(unit), parameter :: MassUnits(nMassUnit) = (/ &
       &unit("au                  ", 1.0_dp), &
       &unit("amu                 ", amu__au ), &
       &unit("da                  ", amu__au ), &
-      &unit("dalton              ", amu__au ) &
+      &unit("dalton              ", amu__au ), &
+      &unit("kg                  ", kg__au ), &
+      &unit("g                   ", 1.0e+3_dp*kg__au ) &
       &/)
+
+
+  !> Number of angular units
+  integer, parameter :: nAngularUnit = 6
+
+
+  !> angular units
+  type(unit), parameter :: angularUnits(nAngularUnit) = (/ &
+      &unit("degrees             ", pi / 180.0_dp ), &
+      &unit("deg                 ", pi / 180.0_dp ), &
+      &unit("radian              ", 1.0_dp ), &
+      &unit("rad                 ", 1.0_dp ), &
+      &unit("turns               ", 2.0_dp * pi ), &
+      &unit("gradians            ", pi / 200.0_dp ) &
+      &/)
+
+
+  !> Number of mass density units
+  integer, parameter :: nMassDensityUnit = 19
+
+
+  type(unit), parameter :: massDensityUnits(nMassDensityUnit) = [ &
+      & unit("kg/l                ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/m^3               ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/meter^3           ", 1.0e+3_dp*kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("g/l                 ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("kg/m^3              ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("kg/meter^3          ", kg__au/(1.0e10_dp*AA__Bohr)**3), &
+      & unit("amu/aa^3            ", amu__au/AA__Bohr**3), &
+      & unit("amu/angstrom^3      ", amu__au/AA__Bohr**3), &
+      & unit("amu/pm^3            ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("amu/picometer^3     ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("da/aa^3             ", amu__au/AA__Bohr**3), &
+      & unit("da/angstrom^3       ", amu__au/AA__Bohr**3), &
+      & unit("da/pm^3             ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("da/picometer^3      ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("dalton/aa^3         ", amu__au/AA__Bohr**3), &
+      & unit("dalton/angstrom^3   ", amu__au/AA__Bohr**3), &
+      & unit("dalton/pm^3         ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("dalton/picometer^3  ", amu__au/(1.0e-2_dp*AA__Bohr)**3), &
+      & unit("au                  ", 1.0_dp)]
+
 
 end module dftbp_unitconversion

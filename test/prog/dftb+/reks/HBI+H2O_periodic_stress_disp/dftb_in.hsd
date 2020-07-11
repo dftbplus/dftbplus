@@ -1,0 +1,70 @@
+Geometry = GenFormat {
+  <<< "geo_end.gen"
+}
+
+Hamiltonian = DFTB { 
+  SCC = Yes
+  SCCTolerance = 1e-6
+  MaxSCCIterations = 1000
+  Charge = 0.0
+  SpinConstants = {
+    ShellResolvedSpin = Yes
+    H = { -0.072 }
+    C = { -0.031 -0.025 -0.025 -0.023 }
+    N = { -0.033 -0.027 -0.027 -0.026 }
+    O = { -0.035 -0.030 -0.030 -0.028 }
+  }
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+    N = "p"
+    O = "p"
+  }
+  SlaterKosterFiles = {
+    O-O = "O-O.skf"
+    O-N = "O-N.skf"
+    O-C = "O-C.skf"
+    O-H = "O-H.skf"
+    N-O = "N-O.skf"
+    N-N = "N-N.skf"
+    N-C = "N-C.skf"
+    N-H = "N-H.skf"
+    C-O = "C-O.skf"
+    C-N = "C-N.skf"
+    C-C = "C-C.skf"
+    C-H = "C-H.skf"
+    H-O = "H-O.skf"
+    H-N = "H-N.skf"
+    H-C = "H-C.skf"
+    H-H = "H-H.skf"
+  }
+  Dispersion = LennardJones{
+    Parameters = UFFParameters{}
+  }
+  KPointsAndWeights = {
+    0.0 0.0 0.0 1.0
+  }
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+Reks = SSR22 {
+  Energy = {
+    Functional = { "PPS" }
+  }
+  TargetState = 1
+  FonMaxIter = 30
+  shift = 0.3
+  RelaxedDensity = Yes
+  VerbosityLevel = 1
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}

@@ -23,7 +23,7 @@ option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
-# Works only with non-MPI (serial) build
+# Works only with non-MPI (serial) build, needed for Casida linear response
 
 option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 # NOTE: Due to the license of the DFTD3 library, the combined code must be distributed under the
@@ -50,9 +50,9 @@ option(BUILD_SHARED_LIBS "Whether the libraries built should be shared" FALSE)
 #
 # Test environment settings
 #
-set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of processes used for testing")
+set(TEST_MPI_PROCS "1" CACHE STRING "Nr. of MPI processes used for testing")
 
-set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpeMP-threads used for testing")
+set(TEST_OMP_THREADS "1" CACHE STRING "Nr. of OpenMP-threads used for testing")
 
 # Command line used to launch the test code.
 # The escaped variables (\${VARIABLE}) will be substituted by the corresponding CMake variables.
@@ -62,6 +62,8 @@ if(WITH_MPI)
 else()
   set(TEST_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
     "How to run the tests")
+  set(MODES_RUNNER_TEMPLATE "env OMP_NUM_THREADS=\${TEST_OMP_THREADS}" CACHE STRING
+    "How to run the modes code for tests")
 endif()
 
 
