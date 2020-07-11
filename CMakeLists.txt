@@ -82,6 +82,8 @@ if(WITH_ELSI)
     list(APPEND FYPP_FLAGS -DELSI_VERSION=2.5)
     message(STATUS "ELSI v2.5.0")
   endif()
+else()
+  list(APPEND FYPP_FLAGS -DELSI_VERSION=0)
 endif()
 
 if(WITH_PLUMED)
