@@ -146,14 +146,13 @@ contains
     logical, intent(in), optional :: tFracCoord
 
     integer :: nAtom, nSpecies
-    character(6) :: formatSpecies
+    character(mc) :: formatSpecies, formatCoordinates
     integer :: ii
     logical :: tFractional, tHelical, tPeriodic
     real(dp) :: invLatVec(3,3)
 
-100 format(I5," ",A2)
-101 format("(",I2.2,"A3)")
-102 format(I5,I2,3E20.10)
+101 format(1X,I0," ",A2)
+102 format("(I5,2X,I",I0,",3E20.10)")
 103 format(3E20.10)
 104 format(E20.10,F14.8)
 105 format(E20.10,F14.8,1X,I0)
@@ -189,34 +188,38 @@ contains
         tPeriodic = .true.
       end if
       if (tFractional) then
-        write(fd, 100) nAtom, "F"
+        write(fd, 101) nAtom, "F"
       else if (tHelical) then
-        write(fd, 100) nAtom, "H"
+        write(fd, 101) nAtom, "H"
       else if (tPeriodic) then
-        write(fd, 100) nAtom, "S"
+        write(fd, 101) nAtom, "S"
       else
         call error("Unknown boundary conditions")
       end if
     else
-      write(fd, 100) nAtom, "C"
+      write(fd, 101) nAtom, "C"
     end if
 
-    write(formatSpecies, 101) nSpecies
-    write(fd, formatSpecies) (trim(speciesName(ii)), ii = 1, nSpecies)
+    do ii = 1, nSpecies
+      write(formatSpecies, "('(A',I0,')')")len(trim(speciesName(ii)))+1
+      write(fd, formatSpecies, advance='NO')trim(speciesName(ii))
+    end do
+    write(fd,*)
 
+    write(formatCoordinates, 102) floor(log10(real(nSpecies)))+1
     if (tFractional) then
       invLatVec(:,:) = latVec(:,:)
       call matinv(invLatVec)
       do ii = 1, nAtom
-        write(fd, 102) ii, species(ii), matmul(invLatVec,coord(:, ii) + origin)
+        write(fd, formatCoordinates) ii, species(ii), matmul(invLatVec,coord(:, ii) + origin)
       end do
     else if (tPeriodic .or. tHelical) then
       do ii = 1, nAtom
-        write(fd, 102) ii, species(ii), (coord(:, ii) + origin) * Bohr__AA
+        write(fd, formatCoordinates) ii, species(ii), (coord(:, ii) + origin) * Bohr__AA
       end do
     else
       do ii = 1, nAtom
-        write(fd, 102) ii, species(ii), coord(:, ii) * Bohr__AA
+        write(fd, formatCoordinates) ii, species(ii), coord(:, ii) * Bohr__AA
       end do
     end if
     if (present(latVec)) then
