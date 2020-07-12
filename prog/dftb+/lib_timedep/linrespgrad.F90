@@ -375,7 +375,7 @@ contains
       if (.not. this%tEnergyWindow) then
 
         ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-        call dipselect(wij, sposz, win, snglPartTransDip,nxov_rd, this%oscillatorWindow,&
+        call dipselect(wij, sposz, win, snglPartTransDip, nxov_rd, this%oscillatorWindow,&
             & grndEigVal, getij)
 
       else
@@ -427,13 +427,13 @@ contains
       write(this%fdTrans,*)
     endif
 
-    ! single particle transition dipole file
+    ! Many-body transition dipole file to excited states
     if (this%fdTradip > 0) then
       open(this%fdTradip, file=transDipOut, position="rewind", status="replace")
       write(this%fdTradip,*)
       write(this%fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
       write(this%fdTradip,*)
-      write(this%fdTradip,'(1x,57("="))')
+      write(this%fdTradip,'(1x,60("="))')
       write(this%fdTradip,*)
     endif
 
@@ -1874,7 +1874,7 @@ contains
     real(dp), intent(in), optional :: Ssq(:)
 
     integer :: nmat
-    integer :: ii, j, iweight, indo, m, n
+    integer :: ii, jj, iweight, indo, m, n
     integer :: iDeg
     real(dp), allocatable :: wvec(:)
     real(dp), allocatable :: xply(:)
@@ -1956,9 +1956,9 @@ contains
           write(fdTrans,'(1x,45("="))')
 
           sign = " "
-          do j = 1, nmat
-            !if (wvec(j) < 1e-4_dp) exit ! ??????
-            indo = wvin(j)
+          do jj = 1, nmat
+            !if (wvec(jj) < 1e-4_dp) exit ! ??????
+            indo = wvin(jj)
             call indxov(win, indo, getij, m, n)
             if (tSpin) then
               updwn = (win(indo) <= nmatup)
@@ -1966,16 +1966,17 @@ contains
               if (updwn) sign = "U"
             end if
             write(fdTrans, '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)')&
-                & m, '->', n, sign, wvec(j), Hartree__eV * wij(wvin(j))
+                & m, '->', n, sign, wvec(jj), Hartree__eV * wij(wvin(jj))
           end do
           write(fdTrans,*)
         end if
 
         if (fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES13.6))')&
-              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,j)&
-              & * au__Debye, j=1,3)
+          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES14.6))')&
+              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,jj)&
+              & * au__Debye, jj=1,3)
         end if
+
       else
 
         ! find largest coefficient in CI - should use maxloc
@@ -2028,6 +2029,10 @@ contains
     deallocate(xply)
 
     if (tWriteTagged) then
+
+      if (fdTradip > 0) then
+        call taggedWriter%write(fdTagged, tagLabels%excDipole, transitionDipoles)
+      end if
 
       call DegeneracyFind%init(elecTolMax)
       call DegeneracyFind%degeneracyTest(eval, tDegenerate)
