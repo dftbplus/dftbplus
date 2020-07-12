@@ -326,7 +326,7 @@ contains
     ALLOCATE(win(nxov))
     ALLOCATE(eval(this%nExc))
     ALLOCATE(getij(nxov, 2))
-    ALLOCATE(transitionDipoles(nxov, 3))
+    ALLOCATE(transitionDipoles(this%nExc, 3))
     ALLOCATE(sposz(nxov))
 
     ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
@@ -855,7 +855,7 @@ contains
       tSpin = .false.
     end if
 
-    transitionDipoles = 0.0_dp
+    transitionDipoles(:,:) = 0.0_dp
     osz = 0.0_dp
 
     ! Triplet oscillator strength and transition dipole is zero for
@@ -2031,7 +2031,7 @@ contains
     if (tWriteTagged) then
 
       if (fdTradip > 0) then
-        call taggedWriter%write(fdTagged, tagLabels%excDipole, transitionDipoles)
+        call taggedWriter%write(fdTagged, tagLabels%excDipole, transpose(transitionDipoles))
       end if
 
       call DegeneracyFind%init(elecTolMax)
