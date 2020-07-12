@@ -522,7 +522,7 @@ contains
       isSupported = .false.
     elseif (this%major == 2 .and. this%minor < 6) then
       isSupported = .false.
-    elseif (this%major == 2 .and. this%minor == 6 .and. .not.any(this%patch == [0,1])) then
+    elseif (this%major == 2 .and. this%minor == 6 .and. all(this%patch /= [0,1])) then
       ! library must be 2.6.{0,1}
       isSupported = .false.
     end if
