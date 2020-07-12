@@ -4818,15 +4818,15 @@ program.
   \kw{StopAfterParsing} &l & & No & \\
 \end{ptable}
 \begin{description}
-\item[\is{ParserVersion}] Version number of the input parser, which the
-  input file was written for. If you are using an input file, which
-  was created for an older version of \dftbp{}, you should set it to
-  the parser version number of that code version. (The parser version
-  number is printed at the beginning of the program run to the
-  standard output.) \dftbp{} internally converts the input to its
-  current format. The processed input (written to \verb|dftb_pin.hsd|)
-  is always in the current format, and the \is{ParserVersion} property
-  in it is always set to be the current parser version.
+\item[\is{ParserVersion}] Version number of the input parser, which the input
+  file was written for. If you are using an input file, which was created for an
+  older version of \dftbp{}, you should set it to the parser version number of
+  that code version. (The parser version number is printed at the beginning of
+  the program run to the standard output.) \dftbp{} internally converts the
+  input to its current format, which from version 20.1 onwards corresponds to
+  the code release. The processed input (written to \verb|dftb_pin.hsd|) is
+  always in the current format, and the \is{ParserVersion} property in it is
+  always set to be the current parser version.
 
 \item[\is{WriteHSDInput}] Specifies, if the processed input should be
   written out in HSD format. (You shouldn't turn it off without

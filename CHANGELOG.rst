@@ -53,6 +53,8 @@ Changed
 - Removed residual XML input (leaving detailed.xml export, depreciating the
   undocumented <<! tag in HSD)
 
+- Update to parser version 20.1, matching code release labels
+
 Fixed
 -----
 

@@ -6,9 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 !> Contains routines to convert HSD input for old parser to the current format.
-!> Note: parserVersion is set in parser.F90
 module dftbp_oldcompat
-  use dftbp_accuracy, only : dp
+  use dftbp_accuracy, only : dp, sc
   use dftbp_message
   use dftbp_hsdutils
   use dftbp_hsdutils2
@@ -18,50 +17,66 @@ module dftbp_oldcompat
   implicit none
   private
 
-  public :: convertOldHSD
+  public :: convertOldHSD, TParserVersion, minParserVersion, currentParser, isParserLess
+  public :: isSupported
+
+  !> Structure for parser version specification
+  type TParserVersion
+    integer :: major
+    integer :: minor
+  end type TParserVersion
+
+  !> Version of the current parser
+  type(TParserVersion), parameter :: currentParser = TParserVersion(major=20, minor=1)
+
+  !> Version of the oldest parser for which compatibility is still maintained
+  type(TParserVersion), parameter :: minParserVersion = TParserVersion(major=1, minor=0)
 
 contains
 
 
   !> Converts an HSD input for an older parser to the current format
-  subroutine convertOldHSD(root, oldVersion, curVersion)
+  subroutine convertOldHSD(root, oldVersion)
 
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
     !> Version number of the old parser
-    integer, intent(in) :: oldVersion
+    type(TParserVersion), intent(in) :: oldVersion
 
-    !> Version number of the current parser
-    integer, intent(in) :: curVersion
-
-    integer :: version
+    type(TParserVersion) :: version
     type(fnode), pointer :: ch1, ch2, par
+    real(dp) :: rTmp
+    character(sc) :: sTmp
 
     version = oldVersion
-    do while (version < curVersion)
-      select case(version)
+    do while (isParserLess(version, currentParser))
+      select case(version%major)
       case(1)
         call convert_1_2(root)
-        version = 2
+        version%major = 2
       case(2)
         call convert_2_3(root)
-        version = 3
+        version%major = 3
       case (3)
         call convert_3_4(root)
-        version = 4
+        version%major = 4
       case (4)
         call convert_4_5(root)
-        version = 5
+        version%major = 5
       case (5)
         call convert_5_6(root)
-        version = 6
+        version%major = 6
       case (6)
         call convert_6_7(root)
-        version = 7
+        version%major = 7
       case (7)
         call convert_7_8(root)
-        version = 8
+        version%major = 8
+      case (8)
+        ! no conversion currently required
+        version%major = 20
+        version%minor = 1
       end select
     end do
 
@@ -69,8 +84,9 @@ contains
     ! with the old parser as the options have changed to the new parser by now
     call getChildValue(root, "ParserOptions", ch1, "", child=par, &
         &allowEmptyValue=.true.)
-    call getChildValue(par, "ParserVersion", version, child=ch2)
-    call setChildValue(ch2, "", curVersion, replace=.true.)
+    call getChildValue(par, "ParserVersion", rTmp, child=ch2)
+    write(sTmp, "(F4.1)")version%major+0.1_dp*version%minor
+    call setChildValue(ch2, "", trim(sTmp), replace=.true.)
 
   end subroutine convertOldHSD
 
@@ -419,7 +435,7 @@ contains
   end subroutine convert_6_7
 
 
-  !> Converts input from version 7 to 8. (Version 8 introduced in October 2019)
+  !> Converts input from version 7 to 8 (Version 8 introduced in October 2019)
   subroutine convert_7_8(root)
 
     !> Root tag of the HSD-tree
@@ -524,5 +540,51 @@ contains
 
   end subroutine useDftb3Default
 
+
+  !> Is this a supported parser version being requested
+  function isSupported(version)
+
+    !> Parser version
+    type(TParserVersion), intent(in) :: version
+
+    logical :: isSupported
+
+    isSupported = .false.
+
+    if ((version%major >= 1 .and. version%major <= 8) .and. version%minor == 0) then
+      isSupported = .true.
+      return
+    end if
+    if (version%major >= 20 .and. version%minor == 1) then
+      isSupported = .true.
+    end if
+
+  end function isSupported
+
+
+  !> Is version A less than version B
+  function isParserLess(versionA, versionB)
+
+    !> First parser version
+    type(TParserVersion), intent(in) :: versionA
+
+    !> Second parser version
+    type(TParserVersion), intent(in) :: versionB
+
+    logical :: isParserLess
+
+    isParserLess = .false.
+
+    if (versionA%major < versionB%major) then
+      isParserLess = .true.
+      return
+    elseif (versionA%major == versionB%major) then
+      if (versionA%minor < versionB%minor) then
+        isParserLess = .true.
+        return
+      end if
+    end if
+
+  end function isParserLess
 
 end module dftbp_oldcompat
