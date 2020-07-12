@@ -86,6 +86,10 @@ module dftbp_parsersetup
 
     !> HSD output?
     logical :: tWriteHSD
+
+    !> Parser versioning
+    type(TParserVersion) :: version
+
   end type TParserFlags
 
 
@@ -174,23 +178,38 @@ contains
     !> Contains parser flags on exit.
     type(TParserFlags), intent(out) :: flags
 
-    integer :: inputVersion
     type(fnode), pointer :: child
+    real(dp) :: rTmp, rVersion
+
+    ! Parser input version in form x.y with year and release number, matching code (after version 8)
+    call getChild(node, "ParserVersion", child, requested=.false.)
+    if (associated(child)) then
+      call getChildValue(child, "", rTmp, rVersion)
+      flags%version%major = nint(rTmp)
+      flags%version%minor = nint(10.0_dp*(rTmp - flags%version%major))
+      if (abs(rTmp - flags%version%major + 0.1_dp*flags%version%minor) > epsilon(1.0)) then
+        call detailedError(child, "Invalid parser version string")
+      end if
+    else
+      flags%version = currentParser
+    end if
+
+    if (.not. isSupported(flags%version)) then
+      call detailedError(child, "Unsupported parser version requested")
+    end if
 
     ! Check if input needs compatibility conversion.
-    call getChildValue(node, "ParserVersion", inputVersion, parserVersion, &
-        &child=child)
-    if (inputVersion < 1 .or. inputVersion > parserVersion) then
-      call detailedError(child, "Invalid parser version (" // i2c(inputVersion)&
-          &// ")")
-    elseif (inputVersion < minVersion) then
-      call detailedError(child, &
-          &"Sorry, no compatibility mode for parser version " &
-          &// i2c(inputVersion) // " (too old)")
-    elseif (inputVersion /= parserVersion) then
-      write(stdout, "(A,I2,A,I2,A)") "***  Converting input from version ", &
-          &inputVersion, " to version ", parserVersion, " ..."
-      call convertOldHSD(root, inputVersion, parserVersion)
+    if (isParserLess(flags%version,currentParser)) then
+      if (flags%version%major <= 8) then
+        write(stdout, "(A,I2,A,F4.1,A)") "***  Converting input from version ",&
+            & flags%version%major, " to version ", currentParser%major+0.1_dp*currentParser%minor,&
+            & " ..."
+      else
+        write(stdout, "(A,F4.1,A,F4.1,A)") "***  Converting input from version ",&
+            & flags%version%major + 0.1_dp*flags%version%minor, " to version ",&
+            & currentParser%major + 0.1_dp*currentParser%minor, " ..."
+      end if
+      call convertOldHSD(root, flags%version)
       write(stdout, "(A,/)") "***  Done."
     end if
 
