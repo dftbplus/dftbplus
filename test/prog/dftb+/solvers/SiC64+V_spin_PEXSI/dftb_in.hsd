@@ -74,7 +74,7 @@ Hamiltonian = DFTB {
     SCC = Yes
     SCCTolerance = 1.0E-7 # relatively small
     Eigensolver = PEXSI {
-        Method = 2
+        Method = 3
     }
     MaxAngularMomentum {
         Si = "p"
