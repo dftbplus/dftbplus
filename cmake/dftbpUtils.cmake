@@ -389,7 +389,7 @@ function(dftbp_guess_toolchain toolchain)
   elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "NAG|GNU")
     set(_toolchain "nag")
   else()
-    set(_toolchain "")
+    set(_toolchain "generic")
   endif()
     
   set(${toolchain} "${_toolchain}" PARENT_SCOPE)
@@ -401,23 +401,15 @@ endfunction()
 #
 macro(dftbp_load_toolchain_settings)
   
-  if(NOT DEFINED TOOLCHAIN_FILE)
-    if(NOT DEFINED TOOLCHAIN)
+  if(NOT DEFINED TOOLCHAIN_FILE AND NOT "$ENV{DFTBPLUS_TOOLCHAIN_FILE}" STREQUAL "")
+    set(TOOLCHAIN_FILE "$ENV{DFTBPLUS_TOOLCHAIN_FILE}")
+  endif()
+  if(NOT DEFINED TOOLCHAIN AND NOT "$ENV{DFTBPLUS_TOOLCHAIN}" STREQUAL "")
+    set(TOOLCHAIN "$ENV{DFTBPLUS_TOOLCHAIN}")
+  endif()
+  if(NOT DEFINED TOOLCHAIN_FILE OR TOOLCHAIN_FILE STREQUAL "")
+    if(NOT DEFINED TOOLCHAIN OR TOOLCHAIN STREQUAL "")
       dftbp_guess_toolchain(TOOLCHAIN)
-    endif()
-    if(TOOLCHAIN STREQUAL "")
-      message(FATAL_ERROR "Missing pre-configured toolchain file for your build environment!\n"
-        "Check whether the build environment detected above is correct. If not, delete the "
-        "CMakeCache.txt file in this folder and re-run cmake by specifying the correct compilers "
-        "in the environment variables FC and CC, e.g.:\n"
-        "rm CMakeCache.txt\n"
-        "env FC=<fortran_compiler> CC=<c_compiler> cmake <dftb+_source_folder>\n"
-        "Otherwise, you have to create a custom toolchain file based on the template in the "
-        "${CMAKE_SOURCE_DIR}/sys/ folder (or customize one of those) and select it with the "
-        "command line option -DTOOLCHAIN_FILE, e.g.:\n"
-        "rm CMakeCache.txt\n"
-        "env FC=<fortran_compiler> CC=<c_compiler> cmake -DTOOLCHAIN_FILE=<toolchainfile> "
-        "<dftb+_source_folder>\n")
     endif()
     set(TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
   endif()

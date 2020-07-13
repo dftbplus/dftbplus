@@ -132,21 +132,19 @@ Building
     env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas-custom ..
 
   CMake automatically searches for the external libraries in the paths specified
-  in the `CMAKE_PREFIX_PATH` environment variable. Make sure that it is set up
+  in the ``CMAKE_PREFIX_PATH`` environment variable. Make sure that it is set up
   correctly in your build environment. Alternatively, the DFTB+ build system
-  offers for each external library a corresponding `*_LIBRARY_DIRS` variable,
-  where you can add path hints for the library search. For example ::
+  offers a ``*_LIBRARY_DIRS`` variable for each external library, where you can
+  add path hints for the library search. For example ::
 
     env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas \
         -DLAPACK_LIBRARY_DIRS=/opt/openblas/lib
 
   would advise CMake to look also in the `/opt/openblas/lib` directory for the
   LAPACK (OpenBlas) library.
-    
-  If your compiler combination does not correspond to any of the pre-configured
-  files in the `sys/` folder, you have to explicitely specify a toolchain
-  file. It can be one of pre-configured ones or the generic one in the `sys/`
-  folder. This you can select by overriding the ``TOOLCHAIN`` variable, e.g.::
+
+  If you want to select a different toolchain as choosen by the build system,
+  you can override the ``TOOLCHAIN`` variable::
 
     env FC=ifort CC=gcc cmake -DTOOLCHAIN=generic ..
 
@@ -154,6 +152,10 @@ Building
   location with the ``TOOLCHAIN_FILE`` variable, e.g.::
 
     env FC=ifort CC=gcc cmake -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake ..
+
+  You can also override the ``TOOLCHAIN`` and ``TOOLCHAIN_FILE`` variables by
+  defining the environment variables ``DFTBPLUS_TOOLCHAIN`` or
+  ``DFTBPLUS_TOOCHAIN_FILE``.
 
 
 * If the configuration was successful, invoke (from within the build folder)
