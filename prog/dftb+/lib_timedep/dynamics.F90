@@ -492,6 +492,8 @@ contains
         this%movedMass(:,:) = spread(mass, 1, 3)
         allocate(this%derivator, source=nonSccDeriv)
         this%indMovedAtom = [(iAtom, iAtom = 1, nAtom)]
+      else
+        this%nMovedAtom = 0
       end if
       allocate(this%movedVelo(3, nAtom))
       this%movedVelo(:,:) = 0.0_dp
