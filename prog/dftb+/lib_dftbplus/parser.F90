@@ -4769,12 +4769,10 @@ contains
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(inout) :: input
 
-    integer :: ii
-    type(fnode), pointer :: value1, value2, child, child2
+    type(fnode), pointer :: value1, child
     type(string) :: buffer, buffer2, modifier
     logical :: ppRangeInvalid, tNeedFieldStrength
     real (dp) :: defPpRange(2)
-    type(fnodeList), pointer :: children
     logical :: defaultWrite
 
   #:if WITH_MPI

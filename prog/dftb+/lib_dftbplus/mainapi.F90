@@ -464,8 +464,10 @@ contains
     !> Real eigenvectors
     real(dp), allocatable, intent(inout) :: eigvecsReal(:,:,:)
 
+  #:if WITH_SCALAPACK
     ! Local variables
     integer :: nLocalRows, nLocalCols, nLocalKS
+  #:endif
 
   #:if WITH_SCALAPACK
 

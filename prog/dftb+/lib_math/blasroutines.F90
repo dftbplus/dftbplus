@@ -1765,7 +1765,6 @@ contains
     !> matrices to be swapped
     complex(${VTYPE}$), intent(inout) :: a(:,:), b(:,:)
 
-    integer :: n, m
     @:ASSERT(size(a,dim=1) == size(b,dim=1))
     @:ASSERT(size(a,dim=2) == size(b,dim=2))
 
