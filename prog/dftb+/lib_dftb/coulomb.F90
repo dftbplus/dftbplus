@@ -201,7 +201,6 @@ module dftbp_coulomb
     module procedure addInvRPrimeXlbomdPeriodic
   end interface addInvRPrimeXlbomd
 
-
   !> Maximal argument value of erf, after which it is constant
   real(dp), parameter :: erfArgLimit = 10.0_dp
 
@@ -624,7 +623,7 @@ contains
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(shiftPerAtom) == self%nAtoms)
+    @:ASSERT(size(shiftPerAtom) == self%nAtom)
 
     shiftPerAtom(:) = shiftPerAtom + self%shiftPerAtom
 
@@ -642,7 +641,7 @@ contains
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
-    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtoms)
+    @:ASSERT(size(shiftPerShell, dim=2) == self%nAtom)
 
   end subroutine addShiftPerShell
 
@@ -2424,7 +2423,6 @@ contains
     end do
 
   end subroutine addNeighbourContribsStress
-
 
 
   !> Calculates the -1/R**2 deriv contribution for all atoms for the non-periodic case, without

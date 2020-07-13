@@ -88,10 +88,19 @@ int main()
     5.1278583974043830, 0.0000000000000000, 5.4278583974043830
   };
 
+  /* Arbitrary coordinate origin in atomic units */
+  double origin_si2[3] = {
+    5.2278583974043830, 5.1278583974043830, 0.0000000000000000
+  };
+
   double mermin_energy, mermin_energy_total;
   double *gradients, *gradients_total, *stress_tensor, *stress_tensor_total, *gross_charges, *gross_charges_total;
-  int natom, natom0, natom_total;
+  int natom, natom0;
   int si2, ii, ij;
+  int major, minor, patch;
+
+  dftbp_api(&major, &minor, &patch);
+  printf("API version %d.%d.%d\n", major, minor, patch);
 
   /* Collective variables will hold the summed up results of multiple test runs */
   init_collective_variables(&mermin_energy_total, &gradients_total, 
@@ -124,7 +133,14 @@ int main()
 
     /* Override coordinates in the tree*/
     if (si2) {
-      dftbp_set_coords_and_lattice_vecs(&calculator, coords_si2, latvecs_si2);
+      if (ii == 0) {
+        dftbp_set_coords_and_lattice_vecs(&calculator, coords_si2, latvecs_si2);
+      } else {
+        /* Set an origin for a periodic cell - for most cases this is
+           arbitrary and not needed */
+        dftbp_set_coords_lattice_origin(&calculator, coords_si2, latvecs_si2, origin_si2);
+      }
+
     } else {
       dftbp_set_coords(&calculator, coords_h2o);
     }

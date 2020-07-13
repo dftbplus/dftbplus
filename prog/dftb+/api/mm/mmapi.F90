@@ -13,6 +13,7 @@ module dftbp_mmapi
   use dftbp_accuracy
   use dftbp_globalenv
   use dftbp_environment
+  use dftbp_message, only: error
   use dftbp_mainapi
   use dftbp_parser
   use dftbp_hsdutils
@@ -21,10 +22,11 @@ module dftbp_mmapi
   use dftbp_xmlf90
   use dftbp_qdepextpotgen, only : TQDepExtPotGen, TQDepExtPotGenWrapper
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy, TQDepExtPotProxy_init
+  use dftbp_charmanip, only : newline
   implicit none
   private
 
-  public :: TDftbPlus
+  public :: TDftbPlus, getDftbPlusBuild, getDftbPlusApi
   public :: TDftbPlus_init, TDftbPlus_destruct
   public :: TDftbPlusInput
   public :: TQDepExtPotGen
@@ -77,12 +79,48 @@ module dftbp_mmapi
     procedure :: getGrossCharges => TDftbPlus_getGrossCharges
     !> Return the number of DFTB+ atoms in the system
     procedure :: nrOfAtoms => TDftbPlus_nrOfAtoms
+    !> Check that the list of species names has not changed
+    procedure :: checkSpeciesNames => TDftbPlus_checkSpeciesNames
+    !> Replace species and redefine all quantities that depend on it
+    procedure :: setSpeciesAndDependents => TDftbPlus_setSpeciesAndDependents
+    !> Check instance of DFTB+ is initialised
     procedure, private :: checkInit => TDftbPlus_checkInit
   end type TDftbPlus
 
 
 
 contains
+
+
+  !> Return the version string for the current DFTB+ build
+  subroutine getDftbPlusBuild(version)
+
+    !> Version string for DFTB+
+    character(:), allocatable, intent(out) :: version
+
+    version = '${RELEASE}$'
+
+  end subroutine getDftbPlusBuild
+
+
+  !> Returns the DFTB+ API version
+  subroutine getDftbPlusApi(major, minor, patch)
+
+    !> Major version number
+    integer, intent(out) :: major
+
+    !> Minor version number
+    integer, intent(out) :: minor
+
+    !> patch level for API
+    integer, intent(out) :: patch
+
+    major = ${APIMAJOR}$
+    minor = ${APIMINOR}$
+    patch = ${APIPATCH}$
+
+  end subroutine getDftbPlusApi
+
 
   !> Returns the root node of the input, so that it can be further processed
   subroutine TDftbPlusInput_getRootNode(this, root)
@@ -116,7 +154,7 @@ contains
     !> Unit where to write the output (note: also error messages are written here)
     integer, intent(in), optional :: outputUnit
 
-    !> MPI-communicator to use (placholder only, the API does not work with MPI yet)
+    !> MPI-communicator to use
     integer, intent(in), optional :: mpiComm
 
     integer :: stdOut
@@ -128,13 +166,14 @@ contains
     end if
 
     if (nDftbPlusCalc /= 0) then
-      write(stdOut, "(A)") "Error: only one DFTB+ instance is allowed"
+      write(stdOut, "(A)") "Error: only one DFTB+ instance is currently allowed"
       stop
     end if
     nDftbPlusCalc = 1
 
     call initGlobalEnv(outputUnit=outputUnit, mpiComm=mpiComm)
     call TEnvironment_init(this%env)
+    this%env%tAPICalculation = .true.
     this%tInit = .true.
 
   end subroutine TDftbPlus_init
@@ -164,7 +203,7 @@ contains
     class(TDftbPlus), intent(inout) :: this
 
     !> Name of the file to parse
-    character(*), intent(in) :: fileName
+    character(len=*), intent(in) :: fileName
 
     !> Input containing the tree representation of the parsed HSD file.
     type(TDftbPlusInput), intent(out) :: input
@@ -218,7 +257,7 @@ contains
 
 
   !> Sets the geometry in the calculator.
-  subroutine TDftbPlus_setGeometry(this, coords, latVecs)
+  subroutine TDftbPlus_setGeometry(this, coords, latVecs, origin)
 
     !> Instance
     class(TDftbPlus), intent(inout) :: this
@@ -226,12 +265,15 @@ contains
     !> Atomic coordinates in Bohr units. Shape: (3, nAtom).
     real(dp), intent(in) :: coords(:,:)
 
-    !> Lattice vectors in Borh units. Shape: (3, 3).
+    !> Lattice vectors in Bohr units, stored column-wise. Shape: (3, 3).
     real(dp), intent(in), optional :: latVecs(:,:)
+
+    !> Coordinate origin in Bohr units. Shape: (3).
+    real(dp), intent(in), optional :: origin(:)
 
     call this%checkInit()
 
-    call setGeometry(coords, latVecs)
+    call setGeometry(this%env, coords, latVecs, origin)
 
   end subroutine TDftbPlus_setGeometry
 
@@ -418,7 +460,7 @@ contains
   function getMaxAngFromSlakoFile(slakoFile) result(maxAng)
 
     !> Instance.
-    character(*), intent(in) :: slakoFile
+    character(len=*), intent(in) :: slakoFile
 
     !> Maximal angular momentum found in the file
     integer :: maxAng
@@ -445,10 +487,10 @@ contains
     integer, allocatable, intent(out) :: species(:)
 
     !> Names of each species, usually X1, X2 unless typeNames have been specified.
-    character(*), allocatable, intent(out) :: speciesNames(:)
+    character(len=*), allocatable, intent(out) :: speciesNames(:)
 
     !> Array of type names, indexed by the type numbers.
-    character(*), intent(in), optional :: typeNames(:)
+    character(len=*), intent(in), optional :: typeNames(:)
 
     integer, allocatable :: uniqueTypeNumbers(:)
     integer :: nAtom, nSpecies
@@ -484,6 +526,42 @@ contains
 
   end subroutine convertAtomTypesToSpecies
 
+  !> Check whether speciesNames has changed between calls to DFTB+
+  subroutine TDftbPlus_checkSpeciesNames(this, inputSpeciesNames)
+    class(TDftbPlus),  intent(inout) :: this
+    character(len=*), intent(in) :: inputSpeciesNames(:)
 
+    logical :: tSpeciesNameChanged
+
+    call this%checkInit()
+
+    tSpeciesNameChanged = checkSpeciesNames(this%env, inputSpeciesNames)
+
+    if(tSpeciesNameChanged)then
+      call error('speciesNames has changed between calls to DFTB+. This will cause erroneous&
+          & results.' // newline // 'Instead call destruct and then fully re-initialize.')
+    else
+       continue
+    endif
+
+  end subroutine TDftbPlus_checkSpeciesNames
+
+
+  !> Set species and all variables/data dependent on it
+  subroutine TDftbPlus_setSpeciesAndDependents(this, inputSpeciesNames, inputSpecies)
+    !> Instance
+    class(TDftbPlus), intent(inout) :: this
+
+    !> Type of each atom (nAllAtom)
+    integer, intent(in) :: inputSpecies(:)
+
+    !> Labels of atomic species (nSpecies)
+    character(len=*), intent(in) :: inputSpeciesNames(:)
+
+    call this%checkInit()
+    call this%checkSpeciesNames(inputSpeciesNames)
+    call updateDataDependentOnSpeciesOrdering(this%env, inputSpecies)
+
+  end subroutine TDftbPlus_setSpeciesAndDependents
 
 end module dftbp_mmapi

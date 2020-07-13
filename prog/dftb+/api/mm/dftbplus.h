@@ -5,14 +5,17 @@
 /*  See the LICENSE file for terms of usage and distribution.                                     */
 /*------------------------------------------------------------------------------------------------*/
 #ifndef __DFTBPLUS_H__
-#define __DFTBPLUS_H_
+#define __DFTBPLUS_H__
+
+#define __DFTBPLUS_RELEASE__ "@RELEASE@"
+#define __DFTBPLUS_API__ "@API_RELEASE@"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /**
- * Type containig the DFTB+ input tree.
+ * Type containing the DFTB+ input tree.
  *
  * Used by DFTB+ as an opaque handler. Do not manipulate the content of this type directly!
  */
@@ -22,7 +25,7 @@ typedef struct {
 
 
 /**
- * Type containig the DFTB+ calculator.
+ * Type containing the DFTB+ calculator.
  *
  * Used by DFTB+ as an opaque handler. Do not manipulate the content of this type directly!
  */
@@ -71,6 +74,18 @@ typedef void (*ExtPotFunc)(void *refptr, double *dqatom, double *extpotatom);
  *     potential value means attraction for an electron). Unit: Hartree/Bohr.
  */
 typedef void (*ExtPotGradFunc)(void *refptr, double *dqatom, double *extpotatomgrad);
+
+
+/**
+ * Returns current version of the DFTB+ API
+ *
+ * \param[out] major major release number
+ *
+ * \param[out] minor minor release number
+ *
+ * \param[out] patch patch of release
+ */
+void dftbp_api(int *major, int *minor, int *patch);
 
 
 /**
@@ -176,6 +191,20 @@ void dftbp_set_coords(DftbPlus *instance, const double *coords);
 void dftbp_set_coords_and_lattice_vecs(DftbPlus *instance, const double *coords,
                                        const double *latvecs);
 
+
+/**
+ * Sets actual atom coordinates and lattice vectors.
+ *
+ * \param[inout] instance Handler of the DFTB+ instance.
+ *
+ * \param[in] coords Coordinates of the atoms in atomic units. Shape: [natom, 3]. Unit: Bohr.
+ *
+ * \param[in] latvecs Lattice vectors Shape: [3, 3]. Unit: Bohr.
+ *
+ * \param[in] origin Coordinate origin Shape: [3]. Unit: Bohr.
+ */
+void dftbp_set_coords_lattice_origin(DftbPlus *instance, const double *coords,
+                                       const double *latvecs, const double *origin);
 
 /**
  * Queries the nr. of atoms in the system.

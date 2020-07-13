@@ -7,7 +7,7 @@
 
 #:include 'common.fypp'
 
-!> Contains routines for converting from and to ELSIs CSC format.
+!> Contains routines for converting from and to ELSI CSC format.
 module dftbp_elsicsc
 #:if WITH_MPI
   use dftbp_mpifx
@@ -18,13 +18,16 @@ module dftbp_elsicsc
   use dftbp_periodic, only : TNeighbourList
   use dftbp_constants, only : pi
   use dftbp_message, only : error
+  use dftbp_angmomentum, only : rotateZ
+  use dftbp_commontypes, only : TOrbitals
   implicit none
   private
 
   public :: TElsiCsc, TElsiCsc_init
 
+  #:set CONDITIONS = ['', 'Helical']
 
-  !> Data needed to convert between DFTB+ sparse format and ELSIs CSC format.
+  !> Data needed to convert between DFTB+ sparse format and ELSI CSC format.
   type :: TElsiCsc
     private
 
@@ -60,13 +63,24 @@ module dftbp_elsicsc
 
   contains
 
-    procedure :: convertPackedToElsiReal => TElsiCsc_convertPackedToElsiReal
-    procedure :: convertPackedToElsiCmplx => TElsiCsc_convertPackedToElsiCmplx
-    procedure :: convertElsiToPackedReal => TElsiCsc_convertElsiToPackedReal
-    procedure :: convertElsiToPackedCmplx => TElsiCsc_convertElsiToPackedCmplx
+    procedure, private :: TElsiCsc_convertPackedToElsiReal
+    procedure, private :: TElsiCsc_convertPackedHelicalToElsiReal
+    procedure, private :: TElsiCsc_convertPackedToElsiCmplx
+    procedure, private :: TElsiCsc_convertPackedHelicalToElsiCmplx
+    procedure, private :: TElsiCsc_convertElsiToPackedReal
+    procedure, private :: TElsiCsc_convertElsiToPackedHelicalReal
+    procedure, private :: TElsiCsc_convertElsiToPackedCmplx
+    procedure, private :: TElsiCsc_convertElsiToPackedHelicalCmplx
+    generic :: convertPackedToElsiReal => TElsiCsc_convertPackedToElsiReal,&
+        & TElsiCsc_convertPackedHelicalToElsiReal
+    generic :: convertPackedToElsiCmplx => TElsiCsc_convertPackedToElsiCmplx,&
+        & TElsiCsc_convertPackedHelicalToElsiCmplx
+    generic :: convertElsiToPackedReal => TElsiCsc_convertElsiToPackedReal,&
+        & TElsiCsc_convertElsiToPackedHelicalReal
+    generic :: convertElsiToPackedCmplx => TElsiCsc_convertElsiToPackedCmplx,&
+        & TElsiCsc_convertElsiToPackedHelicalCmplx
 
   end type TElsiCsc
-
 
 #:if WITH_ELSI
 
@@ -78,7 +92,6 @@ module dftbp_elsicsc
       module procedure addBlock2Elsi${TYPE}$
     #:endfor
   end interface addBlock2Elsi
-
 
   ! Internal routines copying blocks from  ELSI matrices
   interface cpElsi2Block
@@ -160,14 +173,19 @@ contains
 
   end subroutine TElsiCsc_init
 
+#:for BCS in CONDITIONS
 
   !> Convert sparse DFTB+ matrix to distributed CSC matrix format for ELSI calculations for real
   !> matrices
   !>
   !> NOTE: ELSI needs the full matrix (both triangles)
   !>
-  subroutine TElsiCsc_convertPackedToElsiReal(this, orig, iNeighbour, nNeighbourSK, iAtomStart,&
-      & iSparseStart, img2CentCell, nzValLocal)
+  subroutine TElsiCsc_convertPacked${BCS}$ToElsiReal(this, orig, iNeighbour, nNeighbourSK,&
+      & iAtomStart, iSparseStart, img2CentCell, nzValLocal, orb&
+    #:if BCS == 'Helical'
+      &, species, coord&
+    #:endif
+    &)
 
     !> Sparse conversion instance
     class(TElsiCsc), intent(inout) :: this
@@ -193,6 +211,19 @@ contains
     !> Local non-zero elements
     real(dp), intent(out) :: nzValLocal(:)
 
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+  #:if BCS == 'Helical'
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coord(:,:)
+
+  #:endif
+
   #:if WITH_ELSI
 
     integer :: nAtom
@@ -203,6 +234,12 @@ contains
     integer :: iNext
     integer, allocatable :: blockList(:,:)
     logical, allocatable :: tRowTrans(:)
+
+    real(dp) :: tmpSqr(orb%mOrb,orb%mOrb)
+  #:if BCS == 'Helical'
+    real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta
+    integer  :: lShellVals(orb%mShell), iSh, iSp
+  #:endif
 
     nAtom = size(iNeighbour, dim=2)
 
@@ -220,6 +257,11 @@ contains
 
     ! Offset in column belonging to transposed triangle
     blockList(:,2) = 1
+
+  #:if BCS == 'Helical'
+    lShellVals(:) = 0
+    rotZ(:,:) = 0.0_dp
+  #:endif
 
     ! loop over atoms relevant to this processor
     do iAt = 1, this%nAtomsInColumns
@@ -250,9 +292,21 @@ contains
             & this%colEndLocal)) then
           cycle
         end if
-        call addBlock2Elsi(reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
-            & this%colStartLocal, this%colEndLocal, jj, ii, this%colPtrLocal,&
-            & blockList(iAtom2f, 1) - 1, nzValLocal, this%rowIndLocal)
+
+        tmpSqr(:nOrb2,:nOrb1) = reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])
+
+      #:if BCS == 'Helical'
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = atan2(coord(2,iAtom2f),coord(1,iAtom2f)) - atan2(coord(2,iAtom2),coord(1,iAtom2))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) = matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+      #:endif
+
+        call addBlock2Elsi(tmpSqr(:nOrb2,:nOrb1), this%colStartLocal, this%colEndLocal, jj, ii,&
+            & this%colPtrLocal, blockList(iAtom2f, 1) - 1, nzValLocal, this%rowIndLocal)
 
         if (ii == jj) then
           cycle
@@ -265,10 +319,9 @@ contains
           tRowTrans(iAtom2f) = .true.
         end if
 
-        call addBlock2Elsi(&
-            & transpose(reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])),&
-            & this%colStartLocal, this%colEndLocal, ii, jj, this%colPtrLocal,&
-            & blockList(iAtom2f,2)-nOrb1-1, nzValLocal, this%rowIndLocal)
+        call addBlock2Elsi(transpose(tmpSqr(:nOrb2,:nOrb1)), this%colStartLocal, this%colEndLocal,&
+            & ii, jj, this%colPtrLocal, blockList(iAtom2f,2)-nOrb1-1, nzValLocal, this%rowIndLocal)
+
       end do
     end do
 
@@ -279,7 +332,7 @@ contains
 
   #:endif
 
-  end subroutine TElsiCsc_convertPackedToElsiReal
+  end subroutine TElsiCsc_convertPacked${BCS}$ToElsiReal
 
 
   !> Convert sparse DFTB+ matrix to distributed CSC matrix format for ELSI calculations for complex
@@ -287,8 +340,12 @@ contains
   !>
   !> NOTE: ELSI needs the full matrix (both triangles)
   !>
-  subroutine TElsiCsc_convertPackedToElsiCmplx(this, orig, iNeighbour, nNeighbourSK, iAtomStart,&
-      & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, nzValLocal)
+  subroutine TElsiCsc_convertPacked${BCS}$ToElsiCmplx(this, orig, iNeighbour, nNeighbourSK,&
+      & iAtomStart, iSparseStart, img2CentCell, kPoint, iCellVec, cellVec, nzValLocal, orb&
+    #:if BCS == 'Helical'
+      &, species, coord&
+    #:endif
+      &)
 
     !> Sparse conversion instance
     class(TElsiCsc), intent(inout) :: this
@@ -314,9 +371,6 @@ contains
     !> Current k-point
     real(dp), intent(in) :: kPoint(:)
 
-    !> Weight for current k-points
-    real(dp), intent(in) :: kWeight
-
     !> Index for which unit cell atoms are associated with
     integer, intent(in) :: iCellVec(:)
 
@@ -325,6 +379,19 @@ contains
 
     !> Local non-zero elements
     complex(dp), intent(out) :: nzValLocal(:)
+
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+  #:if BCS == 'Helical'
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coord(:,:)
+
+  #:endif
 
   #:if WITH_ELSI
 
@@ -336,8 +403,12 @@ contains
     integer :: iNext, iVec
     integer, allocatable :: blockList(:,:)
     logical, allocatable :: tRowTrans(:)
-    real(dp) :: kPoint2p(3)
+    real(dp) :: kPoint2p(size(kpoint)), tmpSqr(orb%mOrb,orb%mOrb)
     complex(dp) :: phase
+  #:if BCS == 'Helical'
+    real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta
+    integer  :: lShellVals(orb%mShell), iSh, iSp
+  #:endif
 
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     nAtom = size(iNeighbour, dim=2)
@@ -365,8 +436,8 @@ contains
       ! Offset in current column
       blockList(:,1) = 0
       tRowTrans = .false.
-      ! Starting index for column in DFTB+ sparse structure, because column probaly already contains
-      ! blocks coming from transposing previously processed elements.
+      ! Starting index for column in DFTB+ sparse structure, because column probably already
+      ! contains blocks coming from transposing previously processed elements.
       iNext = blockList(iAtom1, 2)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iSparseStart(iNeigh,iAtom1) + 1
@@ -390,10 +461,20 @@ contains
         iVec = iCellVec(iAtom2)
         phase = exp(cmplx(0, 1, dp) * dot_product(kPoint2p, cellVec(:, iVec)))
 
-        call addBlock2Elsi(&
-            & phase * reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1]),&
-            & this%colStartLocal, this%colEndLocal, jj, ii, this%colPtrLocal,&
-            & blockList(iAtom2f, 1) - 1, nzValLocal, this%rowIndLocal)
+        tmpSqr(:nOrb2, :nOrb1) = reshape(orig(iOrig : iOrig + nOrb1 * nOrb2 - 1), [nOrb2, nOrb1])
+
+      #:if BCS == 'Helical'
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = atan2(coord(2,iAtom2f),coord(1,iAtom2f)) - atan2(coord(2,iAtom2),coord(1,iAtom2))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) = matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+      #:endif
+
+        call addBlock2Elsi(phase * tmpSqr(:nOrb2, :nOrb1), this%colStartLocal, this%colEndLocal,&
+            & jj, ii, this%colPtrLocal, blockList(iAtom2f, 1) - 1, nzValLocal, this%rowIndLocal)
 
         if (ii == jj) then
           cycle
@@ -409,10 +490,10 @@ contains
           tRowTrans(iAtom2f) = .true.
         end if
 
-        call addBlock2Elsi(&
-            & phase * transpose(reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1), [nOrb2, nOrb1])),&
-            & this%colStartLocal, this%colEndLocal, ii, jj, this%colPtrLocal,&
-            & blockList(iAtom2f,2) - nOrb1 - 1, nzValLocal, this%rowIndLocal)
+        call addBlock2Elsi(phase * transpose(tmpSqr(:nOrb2, :nOrb1)), this%colStartLocal,&
+            & this%colEndLocal, ii, jj, this%colPtrLocal, blockList(iAtom2f,2) - nOrb1 - 1,&
+            & nzValLocal, this%rowIndLocal)
+
       end do
     end do
 
@@ -423,15 +504,18 @@ contains
 
   #:endif
 
-  end subroutine TElsiCsc_convertPackedToElsiCmplx
+  end subroutine TElsiCsc_convertPacked${BCS}$ToElsiCmplx
 
 
   !> Convert CSC matrix format into DFTB+ sparse format
   !>
   !> Note: primitive will not be set to zero on startup, and values are added to enable addition of
   !> spin components. Make sure, you set it to zero before invoking this routine the first time.
-  subroutine TElsiCsc_convertElsiToPackedReal(this, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
-      & iSparseStart, img2CentCell, nzval, primitive)
+  subroutine TElsiCsc_convertElsiToPacked${BCS}$Real(this, iNeighbour, nNeighbourSK, orb,&
+    #:if BCS == 'Helical'
+      & species, coord,&
+    #:endif
+      & iAtomStart, iSparseStart, img2CentCell, nzval, primitive)
 
     !> Sparse conversion instance
     class(TElsiCsc), intent(inout) :: this
@@ -442,8 +526,18 @@ contains
     !> Nr. of neighbours for each atom (incl. itthis).
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> Maximal number of orbitals on an atom.
-    integer, intent(in) :: mOrb
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+  #:if BCS == 'Helical'
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coord(:,:)
+
+  #:endif
 
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -467,11 +561,19 @@ contains
     integer :: iNeigh
     integer :: iAt, iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
-    real(dp) :: tmpSqr(mOrb,mOrb)
+    real(dp) :: tmpSqr(orb%mOrb,orb%mOrb)
+  #:if BCS == 'Helical'
+    real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta
+    integer  :: lShellVals(orb%mShell), iSh, iSp
+  #:endif
 
     nAtom = size(iNeighbour, dim=2)
 
     tmpSqr(:,:) = 0.0_dp
+  #:if BCS == 'Helical'
+    lShellVals(:) = 0
+    rotZ(:,:) = 0.0_dp
+  #:endif
 
     ! loop over relevant atoms to pack back
     do iAt = 1, this%nAtomsInColumns
@@ -500,6 +602,16 @@ contains
           end do
         end if
 
+      #:if BCS == 'Helical'
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = atan2(coord(2,iAtom2),coord(1,iAtom2)) - atan2(coord(2,iAtom2f),coord(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+      #:endif
+
         primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
             & + reshape(tmpSqr(1:nOrb2,1:nOrb1), [nOrb1*nOrb2])
 
@@ -513,15 +625,19 @@ contains
 
   #:endif
 
-  end subroutine TElsiCsc_convertElsiToPackedReal
+  end subroutine TElsiCsc_convertElsiToPacked${BCS}$Real
 
 
   !> Convert CSC matrix format into DFTB+ sparse format
   !>
   !> Note: primitive will not be set to zero on startup, and values are added to enable addition of
   !> spin components. Make sure, you set it to zero before invoking this routine the first time.
-  subroutine TElsiCsc_convertElsiToPackedCmplx(this, iNeighbour, nNeighbourSK, mOrb, iAtomStart,&
-      & iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, nzval, primitive)
+  subroutine TElsiCsc_convertElsiToPacked${BCS}$Cmplx(this, iNeighbour, nNeighbourSK, orb,&
+    #:if BCS == 'Helical'
+      & species, coord,&
+    #:endif
+      & iAtomStart, iSparseStart, img2CentCell, kPoint, kWeight, iCellVec, cellVec, nzval,&
+      & primitive)
 
     !> Sparse conversion instance
     class(TElsiCsc), intent(in) :: this
@@ -532,8 +648,18 @@ contains
     !> Nr. of neighbours for each atom (incl. itthis).
     integer, intent(in) :: nNeighbourSK(:)
 
-    !> Maximal number of orbitals on an atom.
-    integer, intent(in) :: mOrb
+    !> data type for atomic orbital information
+    type(TOrbitals), intent(in) :: orb
+
+  #:if BCS == 'Helical'
+
+    !> Species of each atom
+    integer :: species(:)
+
+    !> Coordinates of all atoms
+    real(dp), intent(in) :: coord(:,:)
+
+  #:endif
 
     !> Atom offset for the squared Hamiltonian
     integer, intent(in) :: iAtomStart(:)
@@ -569,14 +695,22 @@ contains
     integer :: iNeigh
     integer :: iAt, iAtom1, iAtom2, iAtom2f
     integer :: nOrb1, nOrb2
-    complex(dp) :: tmpSqr(mOrb,mOrb)
-    real(dp) :: kPoint2p(3)
+    complex(dp) :: tmpSqr(orb%mOrb,orb%mOrb)
+    real(dp) :: kPoint2p(size(kpoint))
     complex(dp) :: phase
+  #:if BCS == 'Helical'
+    real(dp) :: rotZ(orb%mOrb,orb%mOrb), theta
+    integer  :: lShellVals(orb%mShell), iSh, iSp
+  #:endif
 
     kPoint2p(:) = 2.0_dp * pi * kPoint(:)
     nAtom = size(iNeighbour, dim=2)
 
     tmpSqr(:,:) = cmplx(0,0,dp)
+  #:if BCS == 'Helical'
+    lShellVals(:) = 0
+    rotZ(:,:) = 0.0_dp
+  #:endif
 
     ! loop over relevant atoms to pack back
     do iAt = 1, this%nAtomsInColumns
@@ -608,6 +742,16 @@ contains
           end do
         end if
 
+      #:if BCS == 'Helical'
+        iSp = species(iAtom2f)
+        iSh = orb%nShell(iSp)
+        lShellVals(:iSh) = orb%angShell(:iSh,iSp)
+        theta = atan2(coord(2,iAtom2),coord(1,iAtom2)) - atan2(coord(2,iAtom2f),coord(1,iAtom2f))
+        theta = mod(theta,2.0_dp*pi)
+        call rotateZ(rotZ, lShellVals(:iSh), theta)
+        tmpSqr(:nOrb2,:nOrb1) =  matmul(rotZ(:nOrb2,:nOrb2),tmpSqr(:nOrb2,:nOrb1))
+      #:endif
+
         primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1) = primitive(iOrig : iOrig + nOrb1 * nOrb2 - 1)&
             & + kWeight * real(phase * reshape(tmpSqr(1:nOrb2,1:nOrb1), [nOrb1*nOrb2]))
 
@@ -621,8 +765,9 @@ contains
 
   #:endif
 
-  end subroutine TElsiCsc_convertElsiToPackedCmplx
+  end subroutine TElsiCsc_convertElsiToPacked${BCS}$Cmplx
 
+#:endfor
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Private routines
@@ -746,10 +891,7 @@ contains
     end if
 
   end subroutine addBlock2Elsi${TYPE}$
-#:endfor
 
-
-#:for TYPE in TYPES
 
   !> Copies the content from the ELSI structure to block
   subroutine cpElsi2Block${TYPE}$(colStart, colEnd, colptr, nzval, jj, blockRow, loc)
@@ -946,8 +1088,8 @@ contains
       ! Offset in current column
       blockList(:,1) = 0
       tRowTrans(:) = .false.
-      ! Starting index for column in DFTB+ sparse structure, because column probaly already contains
-      ! blocks coming from transposing previously processed elements.
+      ! Starting index for column in DFTB+ sparse structure, because column probably already
+      ! contains blocks coming from transposing previously processed elements.
       iNext = blockList(iAtom1, 2)
       do iNeigh = 0, nNeighbourSK(iAtom1)
         iOrig = iSparseStart(iNeigh,iAtom1) + 1
