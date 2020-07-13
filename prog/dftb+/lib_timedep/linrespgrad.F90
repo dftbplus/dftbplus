@@ -2030,15 +2030,15 @@ contains
 
     if (tWriteTagged) then
 
-      if (fdTradip > 0) then
-        call taggedWriter%write(fdTagged, tagLabels%excDipole, transpose(transitionDipoles))
-      end if
-
       call DegeneracyFind%init(elecTolMax)
       call DegeneracyFind%degeneracyTest(eval, tDegenerate)
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
         call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)
+        if (fdTradip > 0) then
+          call taggedWriter%write(fdTagged, tagLabels%excDipole,&
+              & sqrt(sum(transitionDipoles**2,dim=2)))
+        end if
       else
         degenerate = DegeneracyFind%degenerateRanges()
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval(degenerate(1,:)))
@@ -2048,6 +2048,13 @@ contains
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do
         call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg)
+        if (fdTradip > 0) then
+          oDeg(:) = 0.0_dp
+          do ii = 1, size(oDeg)
+            oDeg(ii) = sqrt(sum(transitionDipoles(degenerate(1,ii):degenerate(2,ii),:)**2))
+          end do
+          call taggedWriter%write(fdTagged, tagLabels%excDipole, oDeg)
+        end if
       end if
 
     end if
