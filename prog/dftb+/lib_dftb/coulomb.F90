@@ -582,9 +582,8 @@ contains
 
   #:if WITH_SCALAPACK
     real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
-  #:endif
-
     integer :: ll
+  #:endif
 
     @:ASSERT(self%tCoordsUpdated)
     @:ASSERT(self%tChargesUpdated)
@@ -2685,7 +2684,7 @@ contains
     integer :: iAt0, iAt1
     real(dp) :: vect(3), fTmp(3)
     integer :: iAtFirst0, iAtLast0, iAtFirst1, iAtLast1
-    real(dp), allocatable :: localDeriv0(:,:), localDeriv1(:,:)
+    real(dp), allocatable :: localDeriv0(:,:)
 
     @:ASSERT(vol > 0.0_dp)
 

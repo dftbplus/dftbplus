@@ -1175,7 +1175,7 @@ contains
     type(TTransCharges), intent(in) :: transChrg
 
     integer :: nxov
-    integer :: ia, i, a, k
+    integer :: ia, kk
     real(dp) :: rhs2(size(rhs)), rkm1(size(rhs)), zkm1(size(rhs)), pkm1(size(rhs)), apk(size(rhs))
     real(dp) :: qTmp(nAtom), rs, alphakm1, tmp1, tmp2, bkm1
     real(dp), allocatable :: qij(:), P(:)
@@ -1208,7 +1208,7 @@ contains
     pkm1(:) = zkm1
 
     ! Iteration: should be convergent in at most nxov steps for a quadradic surface, so set higher
-    do k = 1, nxov**2
+    do kk = 1, nxov**2
 
       ! action of matrix on vector
       call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
@@ -1229,7 +1229,7 @@ contains
         exit
       end if
 
-      if (k == nxov**2) then
+      if (kk == nxov**2) then
         call error("solveZVectorEq : Z vector not converged!")
       end if
 
@@ -1300,7 +1300,7 @@ contains
     type(TTransCharges), intent(in) :: transChrg
 
     integer :: nxov, nxoo, nxvv, natom
-    integer :: ij, ia, ab, i, j, a, b, iAt1
+    integer :: ij, ia, ab, i, j, a, b
     real(dp), allocatable :: qij(:), gamxpyq(:), zq(:)
     logical, parameter :: updwn = .true.
 
@@ -1875,7 +1875,6 @@ contains
 
     integer :: nmat
     integer :: ii, j, iweight, indo, m, n
-    integer :: iDeg
     real(dp), allocatable :: wvec(:)
     real(dp), allocatable :: xply(:)
     integer, allocatable :: wvin(:)

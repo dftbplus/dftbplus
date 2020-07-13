@@ -5167,7 +5167,7 @@ contains
     type(TReksCalc), intent(in) :: reks
 
     integer :: nAtom, nKPoint, nMovedAtom, nstates
-    integer :: ang, iAt, iSpin, iK, iSp, iSh, iOrb, ii, kk
+    integer :: ang, iAt, iSpin, iK, iSp, iSh, ii, kk
     character(sc), allocatable :: shellNamesTmp(:)
     character(lc) :: strTmp
 

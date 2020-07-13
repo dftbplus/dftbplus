@@ -346,8 +346,8 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, par2, dummy
-    logical :: tVal, tVal2
+    type(fnode), pointer :: ch1, ch2, ch3, ch4, par, dummy
+    logical :: tVal
     real(dp) :: rTmp
 
     call getDescendant(root, "Analysis/Localise/PipekMezey/Tollerance", ch1)
@@ -400,8 +400,7 @@ contains
     !> Root tag of the HSD-tree
     type(fnode), pointer :: root
 
-    type(fnode), pointer :: ch1, par
-    logical :: tVal
+    type(fnode), pointer :: ch1
 
     call getDescendant(root, "Hamiltonian/DFTB/OrbitalResolvedSCC", ch1)
     if (associated(ch1)) then
@@ -477,7 +476,6 @@ contains
 
     type(fnode), pointer :: pD3, pDampMethod, pChild
     type(string) :: buffer
-    real(dp) :: dummy
 
     call getDescendant(root, "Hamiltonian/DFTB/Dispersion/DftD3", pD3)
     if (.not. associated(pD3)) then

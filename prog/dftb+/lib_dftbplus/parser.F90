@@ -1182,7 +1182,7 @@ contains
     !> Poisson solver paramenters
     type(TPoissonInfo), intent(inout) :: poisson
 
-    type(fnode), pointer :: value1, value2, child, child2, child3, field
+    type(fnode), pointer :: value1, child, child2, child3
     type(fnodeList), pointer :: children
     type(string) :: buffer, buffer2, modifier
     type(TListInt) :: li
@@ -1193,27 +1193,18 @@ contains
     type(TListString) :: lStr
     type(TListIntR1), allocatable :: angShells(:)
     logical, allocatable :: repPoly(:,:)
-    integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
+    integer :: iSp1, iSp2, ii
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
     character(lc) :: errorStr
     logical :: tLower, tExist
     integer, allocatable :: pTmpI1(:)
-    real(dp), allocatable :: tmpR1(:)
-    real(dp), allocatable :: tmpR2(:,:)
-    real(dp) :: rTmp, rTmp3(3)
+    real(dp) :: rTmp
     integer, allocatable :: iTmpN(:)
     integer :: nShell, skInterMeth
-    character(1) :: tmpCh
-    logical :: tShellIncl(4), tFound
-    integer :: angShell(maxL+1), angShellOrdered(maxL+1)
-    integer :: fp, iErr
     logical :: tBadIntegratingKPoints
-    integer :: nElem
     real(dp) :: rSKCutOff
 
     !> For range separation
-    logical :: tRSep
-    real(dp) :: screeningThreshold
     type(TRangeSepSKTag) :: rangeSepSK
 
     ctrl%hamiltonian = hamiltonianTypes%dftb
@@ -1633,7 +1624,7 @@ contains
         ! Halogen correction to the DFTB3 model
         block
           logical :: tHalogenInteraction
-          integer :: interType, iSp1, iSp2
+          integer :: iSp1, iSp2
 
           if (.not. geo%tPeriodic) then
             tHalogenInteraction = .false.
@@ -1699,10 +1690,9 @@ contains
     type(TPoissonInfo), intent(inout) :: poisson
 
     type(fnode), pointer :: value1, child
-    integer :: gfnLevel, ii
+    integer :: gfnLevel
     logical :: tBadIntegratingKPoints
     logical :: tSCCdefault
-    character(lc) :: errorStr
 
     ctrl%hamiltonian = hamiltonianTypes%xtb
 
@@ -1822,7 +1812,7 @@ contains
 
     type(fnode), pointer :: value1, child, child2
     type(string) :: buffer
-    integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
+    integer :: iSp1, ii, jj, kk
     character(lc) :: strTmp
     integer :: nShell
     character(1) :: tmpCh
@@ -2468,18 +2458,8 @@ contains
     !> Is this k-point grid usable to integrate properties like the energy, charges, ...?
     logical, intent(out) :: tBadIntegratingKPoints
 
-    type(fnode), pointer :: value1, child
-    type(string) :: buffer, modifier
-    integer :: ind, ii, jj, kk
-    real(dp) :: coeffsAndShifts(3, 4)
-    real(dp) :: rTmp3(3)
-    type(TListIntR1) :: li1
-    type(TListRealR1) :: lr1
-    integer, allocatable :: tmpI1(:)
-    real(dp), allocatable :: kpts(:,:)
+    integer :: ii
     character(lc) :: errorStr
-    integer :: iTmp, iTmp2(2)
-    real(dp) :: rTmp22(2,2)
 
     ! Assume SCC can has usual default number of steps if needed
     tBadIntegratingKPoints = .false.
@@ -2541,7 +2521,6 @@ contains
     type(TListRealR1) :: lr1
     integer, allocatable :: tmpI1(:)
     real(dp), allocatable :: kpts(:,:)
-    character(lc) :: errorStr
 
     call getChildValue(node, "KPointsAndWeights", value1, child=child, &
         &modifier=modifier)
@@ -2682,7 +2661,7 @@ contains
     !> Geometry structure
     type(TGeometry), intent(in) :: geo
 
-    type(string) :: buffer, modifier
+    type(string) :: buffer
     type(fnode), pointer :: value1, child
     type(TListRealR1) :: lr1
     real(dp):: rTmp3(3), rTmp22(2,2)
@@ -2799,7 +2778,7 @@ contains
     !> Geometry structure to be filled
     type(TGeometry), intent(in) :: geo
 
-    type(fnode), pointer :: value1, value2, child, child2, child3, field
+    type(fnode), pointer :: value1, value2, child, child2
     type(string) :: buffer, buffer2
     type(TListRealR1) :: lr1
 
@@ -2884,8 +2863,8 @@ contains
     !> Control structure to be filled
     type(TControl), intent(inout) :: ctrl
 
-    type(fnode), pointer :: value1, value2, child, child2, child3, field
-    type(string) :: buffer, buffer2
+    type(fnode), pointer :: child
+    type(string) :: buffer
 
     call getChildValue(node, "ForceEvaluation", buffer, "Traditional", child=child)
     select case (tolower(unquote(char(buffer))))
@@ -3193,7 +3172,7 @@ contains
     !> if calculation range separated then read omega from end of SK file
     type(TRangeSepSKTag), intent(inout), optional :: rangeSepSK
 
-    integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInt, nInteract,iSh1
+    integer :: iSp1, iSp2, nSK1, nSK2, iSK1, iSK2, ind, nInteract, iSh1
     integer :: angShell(maxL+1), nShell
     logical :: readRep, readAtomic
     character(lc) :: fileName
@@ -3996,7 +3975,7 @@ contains
     !> Net charge of the system.
     real(dp), intent(in) :: nrChrg
 
-    type(fnode), pointer :: value1, child, childval
+    type(fnode), pointer :: value1, child
     type(string) :: buffer
     real(dp), allocatable :: d4Chi(:), d4Gam(:), d4Kcn(:), d4Rad(:)
 
@@ -4069,7 +4048,6 @@ contains
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
-    integer :: iSp1
 
     input%nrChrg = nrChrg
 
@@ -4155,7 +4133,6 @@ contains
     type(fnode), pointer :: value1, value2, child, child2, field
     type(string) :: buffer, modifier
     real(dp), allocatable :: kENDefault(:), kRadDefault(:)
-    integer :: iSp
 
     call getChildValue(node, "CoordinationNumber", value1, cnDefault, child=child)
     call getNodeName(value1, buffer)
@@ -4269,7 +4246,7 @@ contains
     type(TListIntR1) :: li1
     type(TListRealR1) :: lr1
     character(len=20), allocatable :: tmpC1(:)
-    integer :: ii, jj
+    integer :: ii
     logical :: success
 
     call init(ls)
@@ -4338,7 +4315,6 @@ contains
     type(fnode), pointer :: child2
     type(fnode), pointer :: value
     type(string) :: buffer
-    integer :: iSp1
 
   #:if WITH_ARPACK
     type(string) :: modifier
@@ -5123,16 +5099,12 @@ contains
     !> Parameters of the transport calculation
     type(TTransPar), intent(inout) :: transpar
 
-    type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
+    type(fnode), pointer :: pDevice, pTask, pTaskType
     type(string) :: buffer, modifier
     type(fnode), pointer :: pTmp, field
     type(fnodeList), pointer :: pNodeList
-    integer :: ii, contact
-    real(dp) :: acc, contactRange(2), lateralContactSeparation, plCutoff
-    type(TListInt) :: li
-    type(TWrappedInt1), allocatable :: iAtInRegion(:)
-    real(dp), allocatable :: contVec(:,:)
-    integer, allocatable :: nPLs(:)
+    integer :: contact
+    real(dp) :: lateralContactSeparation
 
     transpar%defined = .true.
     transpar%tPeriodic1D = .not. geom%tPeriodic
@@ -5326,15 +5298,13 @@ contains
     !> Electron temperature
     real(dp), intent(in) :: tempElec
 
-    type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
-    type(fnodeList), pointer :: pNodeList
+    type(fnode), pointer :: pNode
     type(fnode), pointer :: field, child1, child2
     real(dp) :: Estep
-    integer :: defValue, ii, nfermi
+    integer :: defValue, ii
     type(string) :: buffer, modifier
     logical :: realAxisConv, equilibrium
 
-    type(TListInt) :: li
     type(TListReal) :: fermiBuffer
 
     greendens%defined = .true.
@@ -5484,10 +5454,12 @@ contains
 
     type(fnode), pointer :: pTmp, pTmp2, pChild, field
     type(string) :: buffer, modifier
-    character(lc) :: strTmp
     real(dp) :: denstol, gatelength_l
-    integer :: ii, ibc, bctype
     logical :: needsPoissonBox
+
+  #:if WITH_TRANSPORT
+    integer :: ii
+  #:endif
 
     poisson%defined = .true.
     needsPoissonBox = .not. tPeriodic
@@ -5839,7 +5811,6 @@ contains
     !> Parameters of tunneling and dos calculation
     type(TNEGFTunDos), intent(inout) :: tundos
 
-    type(string) :: model
     type(fnode), pointer :: value1, child
 
     call getChild(node, "VibronicElastic", child, requested=.false.)
@@ -6095,12 +6066,11 @@ contains
     type(TTransPar), intent(inout) :: transpar
     real(dp), intent(in) :: tempElec
 
-    type(fnode), pointer :: pTmp, field
-    type(fnode), pointer :: pGeom, pDevice, pNode
+    type(fnode), pointer :: pTmp, pNode, field
     type(fnodeList), pointer :: pNodeList
     integer :: ii, jj, ind, ncont, nKT
     real(dp) :: eRange(2), eRangeDefault(2)
-    type(string) :: buffer, modifier
+    type(string) :: modifier
     type(TWrappedInt1), allocatable :: iAtInRegion(:)
     logical, allocatable :: tShellResInRegion(:)
     character(lc), allocatable :: regionLabelPrefixes(:)
@@ -6230,9 +6200,9 @@ contains
     type(TGeometry), intent(in) :: geom
     character(*), intent(in) :: task
 
-    real(dp) :: contactLayerTol, vec(3)
-    integer :: ii, jj
-    type(fnode), pointer :: field, pNode, pTmp, pWide, child1, child2
+    real(dp) :: contactLayerTol
+    integer :: ii
+    type(fnode), pointer :: field, pNode, pTmp, child1, child2
     type(string) :: buffer, modifier
     type(TListReal) :: fermiBuffer
 
@@ -6396,8 +6366,6 @@ contains
 
     type(TListString) :: lString
     character(len=mc) :: buffer
-    integer :: ind
-    logical :: tFound
 
     call init(lString)
     call getChildValue(pNode, "", lString)

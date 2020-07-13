@@ -86,7 +86,7 @@ contains
 
     type(TGBInput), allocatable :: defaults
     type(string) :: buffer, state, modifier
-    type(fnode), pointer :: child, value1, field, child2, value2, dummy
+    type(fnode), pointer :: child, value1, field, dummy
     logical :: found, tHBondCorr, tALPB
     real(dp) :: temperature, shift, conv, alphaALPB
     real(dp), allocatable :: vdwRadDefault(:)
@@ -317,7 +317,7 @@ contains
     real(dp), intent(in), optional :: surfaceTensionDefault(:)
 
     type(string) :: buffer, modifier
-    type(fnode), pointer :: child, value1, value2, field, child2, dummy
+    type(fnode), pointer :: child, value1, field, dummy
     character(lc) :: errorStr
     integer :: gridPoints
     real(dp) :: conv
@@ -409,7 +409,7 @@ contains
     !> Contains the input for the CM5 module on exit
     type(TCM5Input), intent(out) :: input
 
-    type(fnode), pointer :: value1, value2, dummy, child, child2, field
+    type(fnode), pointer :: value1, dummy, child, field
     type(string) :: buffer, modifier
     real(dp) :: conv
     real(dp), allocatable :: atomicRadDefault(:)

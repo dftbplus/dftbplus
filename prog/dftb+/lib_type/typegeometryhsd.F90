@@ -551,8 +551,8 @@ contains
     type(string) :: txt
     character(mc), allocatable :: vaspNames(:)
     integer :: iStart, iOldStart, iErr, iEnd
-    integer :: ii, jj, iSp, iTmp
-    real(dp) :: coords(3), latVec(3), rTmp, rScale
+    integer :: ii, iSp, iTmp
+    real(dp) :: coords(3), latVec(3), rScale
     integer, allocatable :: vaspSp(:)
     integer, allocatable :: countSp(:)
     type(TListString) :: speciesNames

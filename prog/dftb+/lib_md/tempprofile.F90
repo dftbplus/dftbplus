@@ -186,8 +186,6 @@ contains
     !> was the profile correctly identified
     logical, intent(out) :: success
 
-    integer :: ii
-
     success = .true.
     select case (tolower(trim(profileName)))
     case ("constant")

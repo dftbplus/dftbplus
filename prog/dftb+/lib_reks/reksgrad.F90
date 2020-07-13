@@ -2413,7 +2413,7 @@ module dftbp_reksgrad
         real(dp), intent(inout) :: RmatSpL(:,:)
 
         real(dp), allocatable :: tmpMat(:,:)
-        integer :: iAt1, iAt2, nOrb, LmaxR, mu, nu, iL
+        integer :: nOrb, LmaxR, mu, iL
 
         nOrb = size(RmatL,dim=1)
         LmaxR = size(RmatL,dim=3)

@@ -235,7 +235,7 @@ contains
     real(dp), intent(out) :: wrp(:)
 
     integer :: iSp1
-    real(dp) :: w3, rm, rp
+    real(dp) :: rm, rp
 
     ah(1) = 0.5_dp
     ah(2) = 3.0_dp/(4.0_dp*w)
@@ -492,9 +492,9 @@ contains
     real(dp), intent(in) :: coords(:,:)
 
     integer iAt1, iSp1, iAt2, iAt2f, iSp2, iNeigh, ip
-    integer :: mNeighbour, nNeighs, nEval
+    integer :: mNeighbour, nEval
     real(dp) :: vec(3), dist2, dist
-    real(dp) :: uj, uj3, ah3uj2
+    real(dp) :: uj, ah3uj2
     real(dp) :: sasaij, dsasaij
     real(dp) :: rsas, sasai, point(3), sasap, wsa, dGr(3)
     real(dp), allocatable :: grds(:,:), derivs(:,:)

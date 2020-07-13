@@ -65,7 +65,7 @@ contains
     !> Elementwise scaling factors, if set to -1 (or any negative value) species is not corrected
     real(dp), allocatable, intent(in) :: elementParams(:)
 
-    integer :: nSpecies, iSp
+    integer :: nSpecies
 
     this%rScale = rr
     this%wScale = ww

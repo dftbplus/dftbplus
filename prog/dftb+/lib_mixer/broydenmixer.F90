@@ -259,8 +259,7 @@ contains
     real(dp), allocatable :: dF_uu(:)
 
     real(dp) :: invNorm
-    integer :: nn_1
-    integer :: ii, info
+    integer :: ii, nn_1
     integer, allocatable :: ipiv(:)
 
     nn_1 = nn - 1
