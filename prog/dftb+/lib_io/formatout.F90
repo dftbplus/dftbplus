@@ -152,7 +152,7 @@ contains
     real(dp) :: invLatVec(3,3)
 
     ! Format first line of a gen file
-    character(len=*), parameter :: formatHead1 = '(1X,I0," ",A2)'
+    character(len=*), parameter :: formatHead1 = '(1X,I0,1X,A2)'
 
     ! Format a vector
     character(len=*), parameter :: formatVec = '(3E20.10)'
@@ -207,7 +207,7 @@ contains
 
     write(formatCoordinates, '("(I5,2X,I",I0,",3E20.10)")') floor(log10(real(nSpecies)))+1
     if (tFractional) then
-      invLatVec(:,:) = latVec(:,:)
+      invLatVec(:,:) = latVec
       call matinv(invLatVec)
       do ii = 1, nAtom
         write(fd, formatCoordinates) ii, species(ii), matmul(invLatVec,coord(:, ii) + origin)
