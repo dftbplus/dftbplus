@@ -1,0 +1,93 @@
+Geometry = genFormat {
+17 C
+ H C N O
+    1    2    1.25456    0.04517   -0.22319
+    2    3   -0.03032    0.04506    0.31669
+    3    2    0.07512    0.04497    1.66566
+    4    3    1.36986    0.04500    1.99001
+    5    2    2.12628    0.04514    0.83592
+    6    2   -1.29617    0.04507   -0.43477
+    7    1    1.68755    0.04500    2.95634
+    8    1   -0.72290    0.04489    2.39723
+    9    1    3.20705    0.04520    0.85849
+   10    1    1.42695    0.04526   -1.29040
+   11    1   -1.07074    0.04515   -1.50429
+   12    1   -1.87711   -0.85035   -0.18843
+   13    1   -1.87716    0.94042   -0.18831
+   14    4    2.10442    0.04509    4.46415
+   15    3    1.00003    0.04517    5.17428
+   16    4    1.06554    0.04561    6.41159
+   17    4   -0.11729    0.04479    4.54935
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(water)
+    Solvent = fromConstants {
+      Epsilon =   80.20000000
+      MolecularMass [amu] =   18.00000000
+      Density [kg/l] =    1.00000000
+    }
+    Kernel = "P16"
+    Temperature [K] = 298.15
+    FreeEnergyShift [kcal/mol] =    1.16556316
+    BornScale =    1.55243817
+    BornOffset =   2.462811043694508E-02
+    Radii = vanDerWaalsRadiiD3 {}
+    Descreening = Values {
+      H  =    0.71893869
+      C  =    0.74298311
+      N  =    0.90261230
+      O  =    0.75369019
+    }
+    SASA {
+      ProbeRadius = 1.843075777670416E+00
+      Smoothing [AA] = 0.3
+      Offset [AA] = 2
+      AngularGrid = 230
+      Radii = vanDerWaalsRadiiD3 {}
+      SurfaceTension = Values {
+        H  =  -3.349830600000000E-01
+        C  =  -7.476906500000000E-01
+        N  =  -2.312912920000000E+00
+        O  =   9.179791100000000E-01
+      }
+    }
+    HBondCorr = Yes
+    HBondStrength = Values {
+        H  =  -7.172800544988973E-02
+        C  =  -2.548469535762511E-03
+        N  =  -1.976849501504001E-02
+        O  =  -8.462476828587280E-03
+    }
+  }
+  SCC = Yes
+  SccTolerance = 1e-10
+  MaxAngularMomentum {
+    H = "s"
+    O = "p"
+    N = "p"
+    C = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}
+
+Parallel {
+  UseOmpThreads = Yes
+}

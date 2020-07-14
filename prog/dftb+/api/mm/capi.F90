@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -36,6 +36,20 @@ module dftbp_capi
 
 
 contains
+
+
+  !> Returns the current API version
+  subroutine c_DftbPlus_api(major, minor, patch) bind(C, name='dftbp_api')
+
+    !> makor.minor.patch
+    integer(c_int), intent(out) :: major, minor, patch
+
+    major = ${APIMAJOR}$
+    minor = ${APIMINOR}$
+    patch = ${APIPATCH}$
+
+  end subroutine c_DftbPlus_api
+
 
   !> Initialises a DFTB+ calculation with output sent to to some location
   subroutine c_DftbPlus_init(handler, outputFileName) bind(C, name='dftbp_init')
@@ -234,6 +248,32 @@ contains
   end subroutine c_DftbPlus_setCoordsAndLatticeVecs
 
 
+  !> Set the coordinates and lattice vectors with an origin
+  subroutine c_DftbPlus_setCoordsLatticeVecsOrigin(handler, coords, latVecs, origin)&
+      & bind(C, name='dftbp_set_coords_lattice_origin')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> coordinates, row major format (xyz, :nAtom)
+    real(c_double), intent(in) :: coords(3,*)
+
+    !> lattice vectors, row major format
+    real(c_double), intent(in) :: latvecs(3, *)
+
+    !> coordinate origin
+    real(c_double), intent(in) :: origin(3)
+
+    type(TDftbPlusC), pointer :: instance
+    integer :: nAtom
+
+    call c_f_pointer(handler%instance, instance)
+    nAtom = instance%nrOfAtoms()
+    call instance%setGeometry(coords(:, 1:nAtom), latVecs(:, 1:3), origin(1:3))
+
+  end subroutine c_DftbPlus_setCoordsLatticeVecsOrigin
+
+
   !> Obtain nr. of atoms.
   function c_DftbPlus_nrOfAtoms(handler) result(nAtom) bind(C, name='dftbp_get_nr_atoms')
     type(c_DftbPlus), intent(inout) :: handler
@@ -281,6 +321,25 @@ contains
     call instance%getGradients(gradients(:, 1:nAtom))
 
   end subroutine c_DftbPlus_getGradients
+
+
+  !> Obtain the stress tensor of the periodic system
+  subroutine c_DftbPlus_getStressTensor(handler, stresstensor)&
+      & bind(C, name='dftbp_get_stress_tensor')
+
+    !> handler for the calculation
+    type(c_DftbPlus), intent(inout) :: handler
+
+    !> gradients, row major format
+    real(c_double), intent(out) :: stresstensor(3, 3)
+
+    type(TDftbPlusC), pointer :: instance
+
+    call c_f_pointer(handler%instance, instance)
+
+    call instance%getStressTensor(stresstensor(:, 1:3))
+
+  end subroutine c_DftbPlus_getStressTensor
 
 
   !> Obtain gross (Mulliken) charges for atoms wrt to neutral references

@@ -48,6 +48,14 @@ endfunction()
 function (dftbp_add_fypp_defines fyppflags)
 
   set(_fyppflags "${${fyppflags}}")
+
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+  if("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG")
+    list(APPEND _fyppflags -DDEBUG=1)
+  else()
+    list(APPEND _fyppflags -DDEBUG=0)
+  endif()
+
   if(WITH_OMP)
     list(APPEND _fyppflags -DWITH_OMP)
   endif()
@@ -62,6 +70,10 @@ function (dftbp_add_fypp_defines fyppflags)
 
   if(WITH_MBD)
       list(APPEND _fyppflags -DWITH_MBD)
+  endif()
+
+  if(WITH_PLUMED)
+    list(APPEND _fyppflags -DWITH_PLUMED)
   endif()
 
   if(WITH_MPI)
@@ -92,6 +104,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_C_EXECUTABLES)
   endif()
 
+  if(BUILD_SHARED_LIBS)
+    list(APPEND _fyppflags -DBUILD_SHARED_LIBS)
+  endif()
+
   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
 
 endfunction()
@@ -104,21 +120,32 @@ endfunction()
 #
 function(dftbp_get_release_name release)
 
-  if(NOT EXISTS ${CMAKE_BINARY_DIR}/RELEASE)
-    if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
-      file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
-    else()
-      execute_process(
-	COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
-	RESULT_VARIABLE exitcode)
-      if(NOT exitcode EQUAL 0)
-	file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
-      endif()
+  if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
+    file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
+  else()
+    execute_process(
+      COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
+      RESULT_VARIABLE exitcode)
+    if(NOT exitcode EQUAL 0)
+      file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
     endif()
   endif()
   file(READ ${CMAKE_BINARY_DIR}/RELEASE _release)
   separate_arguments(_release)
   set(${release} "${_release}" PARENT_SCOPE)
+
+endfunction()
+
+
+# Gets DFTB+ API release information.
+#
+# Args:
+#   release [out]: Release string.
+#
+function(dftbp_get_api_release apiversion)
+
+  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  set(${apiversion} "${_api}" PARENT_SCOPE)
 
 endfunction()
 
@@ -166,7 +193,7 @@ endfunction()
 function (dftbp_ensure_config_consistency)
 
   if(WITH_ELSI AND NOT WITH_MPI)
-    message(FATAL_ERROR "Buliding with ELSI requires MPI-parallel build enabled")
+    message(FATAL_ERROR "Building with ELSI requires MPI-parallel build enabled")
   endif()
 
   if(WITH_PEXSI AND (NOT WITH_MPI OR NOT WITH_ELSI))
@@ -175,6 +202,10 @@ function (dftbp_ensure_config_consistency)
 
   if(WITH_ARPACK AND WITH_MPI)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
+  endif()
+
+  if(WITH_GPU AND WITH_MPI)
+    message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
   endif()
 
   string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
@@ -327,7 +358,7 @@ function(dftbp_ensure_out_of_source_build)
 separate build directory and invoke CMake from that directory. See the INSTALL.rst file for \
 detailed build instructions.")
   endif()
-  
+
 endfunction()
 
 

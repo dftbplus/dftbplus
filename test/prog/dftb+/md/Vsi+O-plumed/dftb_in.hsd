@@ -1,0 +1,49 @@
+Geometry = GenFormat {
+  <<< "geo.gen"
+}
+
+Driver = VelocityVerlet {
+  Steps = 10
+  TimeStep [Femtosecond] = 1.00000000000000
+  Plumed = Yes
+  Thermostat = NoseHoover {
+    Temperature [Kelvin] = 500
+    CouplingStrength [cm^-1] = 1500
+  }
+  OutputPrefix = "geo_end"
+}
+
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SccTolerance = 1e-10  # ! Extremly tight, only for testing purposes
+  MaxAngularMomentum = {
+    Si = "d"
+    O = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 500
+  }
+
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+
+  KPointsAndWeights {
+    0.0 0.0 0.0  1.0
+  }
+}
+
+Options {
+  RandomSeed = 8933251
+  WriteAutotestTag = Yes
+}
+
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

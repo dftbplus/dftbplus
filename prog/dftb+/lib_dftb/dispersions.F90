@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -20,22 +20,23 @@ module dftbp_dispersions
 #:if WITH_DFTD3
   use dftbp_dispdftd3
 #:endif
+  use dftbp_dispdftd4
   implicit none
   public
 
 
   !> Types of dispersion model
-  type :: DispersionInp
+  type :: TDispersionInp
 
     !> Based on universal force-field
-    type(DispUffInp), allocatable :: uff
+    type(TDispUffInp), allocatable :: uff
 
     !> Slater-Kirkwood
-    type(DispSlaKirkInp), allocatable :: slakirk
+    type(TDispSlaKirkInp), allocatable :: slakirk
 
   #:if WITH_DFTD3
     !> Grimme DFT-D3
-    type(DispDftD3Inp), allocatable :: dftd3
+    type(TDispDftD3Inp), allocatable :: dftd3
   #:endif
 
   #:if WITH_MBD
@@ -43,6 +44,9 @@ module dftbp_dispersions
     type(TMbdInit), allocatable :: mbdInp
   #:endif
 
-  end type DispersionInp
+    !> D4 dispersion model.
+    type(TDispDftD4Inp), allocatable :: dftd4
+  
+  end type TDispersionInp
 
 end module dftbp_dispersions

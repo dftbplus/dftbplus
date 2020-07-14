@@ -4,6 +4,7 @@ set(sources-fpp
   ${curdir}/eigenvects.F90
   ${curdir}/elstattypes.F90
   ${curdir}/forcetypes.F90
+  ${curdir}/gpuinfo.F90
   ${curdir}/hsdhelpers.F90
   ${curdir}/initprogram.F90
   ${curdir}/inputconversion.F90
@@ -14,6 +15,8 @@ set(sources-fpp
   ${curdir}/oldcompat.F90
   ${curdir}/parser.F90
   ${curdir}/qdepextpotgen.F90
-  ${curdir}/qdepextpotproxy.F90)
+  ${curdir}/qdepextpotproxy.F90
+  ${curdir}/specieslist.F90
+  ${curdir}/transportio.F90)
 
 set(ALL-SOURCES-FPP ${ALL-SOURCES-FPP} ${sources-fpp} PARENT_SCOPE)

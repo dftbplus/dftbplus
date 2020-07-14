@@ -1,3 +1,0 @@
-skderivs.o: _mod_dftbp_slakoeqgrid _mod_dftbp_assert common.fypp _mod_dftbp_accuracy _mod_xmlf90_flib_dom _mod_dftbp_hsdutils2 _mod_dftbp_hsdutils _mod_dftbp_io _mod_dftbp_constants _mod_dftbp_fileid _mod_dftbp_oldskdata _mod_dftbp_charmanip _mod_dftbp_linkedlist _mod_dftbp_hsdparser _mod_dftbp_message
-skderivs.o = skderivs.o $(_mod_dftbp_slakoeqgrid) $(_mod_dftbp_assert) $(common.fypp) $(_mod_dftbp_accuracy) $(_mod_xmlf90_flib_dom) $(_mod_dftbp_hsdutils2) $(_mod_dftbp_hsdutils) $(_mod_dftbp_io) $(_mod_dftbp_constants) $(_mod_dftbp_fileid) $(_mod_dftbp_oldskdata) $(_mod_dftbp_charmanip) $(_mod_dftbp_linkedlist) $(_mod_dftbp_hsdparser) $(_mod_dftbp_message)
-

@@ -3,6 +3,18 @@
 #
 list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
+if(WITH_API)
+  # Define the API version string
+  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_RELEASE}'")
+  # individual components
+  string(REGEX MATCHALL "[0-9]+" API_LIST "${API_RELEASE}")
+  list(GET API_LIST 0 api_major)
+  list(GET API_LIST 1 api_minor)
+  list(GET API_LIST 2 api_patch)
+  MESSAGE("DFTB+ API : ${api_major}.${api_minor}.${api_patch}")
+  list(APPEND FYPP_FLAGS -DAPIMAJOR=${api_major} -DAPIMINOR=${api_minor} -DAPIPATCH=${api_patch})
+endif()
+
 #
 # Compile and install library
 #
@@ -22,13 +34,13 @@ add_subdirectory(lib_io)
 add_subdirectory(lib_math)
 add_subdirectory(lib_md)
 add_subdirectory(lib_mixer)
+add_subdirectory(lib_poisson)
+add_subdirectory(lib_reks)
 add_subdirectory(lib_timedep)
 add_subdirectory(lib_type)
+add_subdirectory(lib_solvation)
 if(WITH_API)
   add_subdirectory(api/mm)
-endif()
-if(WITH_TRANSPORT)
-  add_subdirectory(lib_poisson)
 endif()
 if(WITH_GPU)
   add_subdirectory(lib_magmahelper)
@@ -63,6 +75,8 @@ endif()
 target_include_directories(dftbplus PUBLIC
   $<BUILD_INTERFACE:$<TARGET_PROPERTY:xmlf90_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
 
+target_include_directories(dftbplus PRIVATE ${CMAKE_SOURCE_DIR}/external/dftd4refs)
+
 if(WITH_SOCKETS)
   target_include_directories(dftbplus PUBLIC
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:fsockets_objlib,INTERFACE_INCLUDE_DIRECTORIES>>)
@@ -77,8 +91,9 @@ if(WITH_MBD)
 endif()
 
 if(WITH_TRANSPORT)
-  target_link_libraries(dftbplus PUBLIC negf sparskit mudpack)
+  target_link_libraries(dftbplus PUBLIC negf)
 endif()
+target_link_libraries(dftbplus PUBLIC mudpack)
 
 if(WITH_ELSI)
   # Some compilers need all mod files (also indirect ones), so include dir must be exported
@@ -87,6 +102,11 @@ if(WITH_ELSI)
   if(ELSI_WITH_PEXSI)
     target_link_libraries(dftbplus PRIVATE ${PEXSI_EXTERNAL_LIBRARIES})
   endif()
+endif()
+
+if(WITH_PLUMED)
+  #target_link_libraries(dftbplus PRIVATE PkgConfig::PLUMED)
+  target_link_libraries(dftbplus PRIVATE ${PLUMED_LIBRARIES})
 endif()
 
 if(WITH_MPI)
@@ -98,6 +118,11 @@ target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
 
 if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE ${ARPACK_LIBRARIES})
+endif()
+
+if (WITH_GPU)
+  target_include_directories(dftbplus PUBLIC ${MAGMA_INCLUDE_DIRS})
+  target_link_libraries(dftbplus PRIVATE ${MAGMA_LIBRARIES})
 endif()
 
 target_link_libraries(dftbplus PRIVATE ${OTHER_LIBRARIES})
@@ -113,7 +138,7 @@ endif()
 
 if(INSTALL_INCLUDE_FILES)
   install(DIRECTORY ${includedir}/ DESTINATION ${INSTALL_MOD_DIR})
-  install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h DESTINATION ${INSTALL_INC_DIR})
+  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/api/mm/dftbplus.h ${INSTALL_INC_DIR}/dftbplus.h @ONLY)
 
   get_target_property(moddirs xmlf90_objlib INTERFACE_INCLUDE_DIRECTORIES)
   foreach(moddir IN LISTS moddirs)

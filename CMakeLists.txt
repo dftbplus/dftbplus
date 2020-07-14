@@ -28,6 +28,11 @@ dftbp_ensure_config_consistency()
 
 dftbp_get_release_name(RELEASE)
 
+if(WITH_API)
+  dftbp_get_api_release(API_RELEASE)
+endif()
+
+
 if(WITH_MPI)
   find_package(MPI REQUIRED)
 endif()
@@ -71,6 +76,14 @@ if(WITH_ELSI)
   endif()
 endif()
 
+if(WITH_PLUMED)
+  #find_package(PkgConfig REQUIRED)
+  #pkg_check_modules(PLUMED REQUIRED IMPORTED_TARGET plumed)
+  dftbp_create_library_targets("${PLUMED_LIBRARIES}" "${PLUMED_LIBRARY_DIRS}")
+  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${PLUMED_LIBRARIES})
+  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${PLUMED_LIBRARY_DIRS})
+endif()
+
 dftbp_create_library_targets("${LAPACK_LIBRARIES}" "${LAPACK_LIBRARY_DIRS}")
 list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${LAPACK_LIBRARIES})
 list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${LAPACK_LIBRARY_DIRS})
@@ -79,6 +92,12 @@ if(WITH_ARPACK)
   dftbp_create_library_targets("${ARPACK_LIBRARIES}" "${ARPACK_LIBRARY_DIRS}")
   list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${ARPACK_LIBRARIES})
   list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${ARPACK_LIBRARY_DIRS})
+endif()
+
+if(WITH_GPU)
+  dftbp_create_library_targets("${MAGMA_LIBRARIES}" "${MAGMA_LIBRARY_DIRS}")
+  list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${MAGMA_LIBRARIES})
+  list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${MAGMA_LIBRARY_DIRS})
 endif()
 
 dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
@@ -130,21 +149,23 @@ if(WITH_MPI)
 endif()
 
 if(WITH_TRANSPORT)
-  add_subdirectory(external/mudpack ${exclude})
   add_subdirectory(external/libnegf ${exclude})
 endif()
-
+add_subdirectory(external/mudpack)
 
 #
 # Add internal components
 #
 add_subdirectory(prog)
-add_subdirectory(tools/dptools)
+add_subdirectory(tools)
 
 #
 # Testing
 #
 string(CONFIGURE "${TEST_RUNNER_TEMPLATE}" TEST_RUNNER)
+if(NOT WITH_MPI)
+  string(CONFIGURE "${MODES_RUNNER_TEMPLATE}" MODES_RUNNER)
+endif()
 enable_testing()
 add_subdirectory(test)
 

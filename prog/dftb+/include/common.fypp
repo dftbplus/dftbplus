@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!  DFTB+: general package for performing fast atomistic simulations                               !
-#!  Copyright (C) 2006 - 2019  DFTB+ developers group                                              !
+#!  Copyright (C) 2006 - 2020  DFTB+ developers group                                              !
 #!                                                                                                 !
 #!  See the LICENSE file for terms of usage and distribution.                                      !
 #!-------------------------------------------------------------------------------------------------!
@@ -27,6 +27,7 @@
 #:set WITH_MBD = defined('WITH_MBD')
 #:set WITH_SOCKETS = defined('WITH_SOCKETS')
 #:set WITH_ARPACK = defined('WITH_ARPACK')
+#:set WITH_PLUMED = defined('WITH_PLUMED')
 #:set EXP_TRAP = defined('EXP_TRAP')
 #:set INTERNAL_ERFC = defined('INTERNAL_ERFC')
 #:set WITH_TRANSPORT = defined('WITH_TRANSPORT')
@@ -45,14 +46,6 @@
   end if
   #:endif
 #:enddef ASSERT
-
-
-#! Insert code if WITH_ASSERT is True.
-#:def ASSERT_CODE(code)
-  #:if WITH_ASSERT
-  $:code
-  #:endif
-#:enddef ASSERT_CODE
 
 
 #! Insert code if DEBUG level is greater than zero.

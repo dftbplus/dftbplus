@@ -1,0 +1,19 @@
+# Needs the equilibrium geometry, at which the Hessian had been calculated
+Geometry = GenFormat { 
+  <<< geom.gen
+}
+
+# You need to specify the SK-files, as the mass of the elements is needed
+SlaterKosterFiles = Type2FileNames {
+  Prefix = "./"
+  Separator = "-"
+  Suffix = ".skf"
+}
+
+# Include the Hessian, which was calculated by DFTB+
+Hessian = {
+  <<< "hessian.out"
+}
+
+# This file uses the 3rd input format of the modes code
+InputVersion = 3

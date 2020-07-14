@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -299,11 +299,11 @@ contains
     !! Default: identity matrix.
     real(dp), intent(in), optional :: precondMtx(:,:)
 
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(precondMtx)) then
       @:ASSERT(all(shape(precondMtx) == [this%nElems, this%nElems]))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(scale)) then
       this%scale = scale

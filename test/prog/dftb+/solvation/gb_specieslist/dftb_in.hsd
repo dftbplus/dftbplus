@@ -1,0 +1,133 @@
+Geometry = GenFormat {
+6 C
+ O D
+   1   2     -.499735     -.006429      .000000
+   2   1    -1.467047     -.147444      .000000
+   3   1     1.392547      .133948      .000000
+   4   2    -1.876914      .729873      .000000
+   5   2     1.737135     -.325150     -.779513
+   6   2     1.737135     -.325150      .779513
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+  Solvation = GeneralizedBorn { # GFN2-xTB/GBSA(Toluene)
+    Solvent = fromConstants {
+      Epsilon =    7.00000000
+      MolecularMass [amu] =   92.14000000
+      Density [kg/l] =    0.86700000
+    }
+    Cutoff = 30
+    FreeEnergyShift [kcal/mol] =    2.83877748
+    BornScale =    1.56864732
+    BornOffset =   0.000000000000000E+00
+    Radii = vanDerWaalsRadiiD3 [AA] { D = 1.09155 }
+    Descreening = Values {
+      D  =    0.30000000
+      H  =    0.30000000
+      He =    1.53998804
+      Li =    0.67578863
+      Be =    0.97377845
+      B  =    0.81140818
+      C  =    0.70398030
+      N  =    1.32614006
+      O  =    0.85560034
+      F  =    0.62220267
+      Ne =    1.32703368
+      Na =    0.74891818
+      Mg =    0.30000000
+      Al =    0.68528486
+      Si =    0.90746438
+      P  =    0.90580718
+      S  =    0.94868883
+      Cl =    0.77839591
+      Ar =    0.72209903
+      K  =    0.69511400
+      Ca =    0.30000000
+      Sc =    1.05559918
+      Ti =    1.05826730
+      V  =    1.04042554
+      Cr =    0.80035125
+      Mn =    0.89695582
+      Fe =    0.98962185
+      Co =    0.63768205
+      Ni =    1.02347946
+      Cu =    0.72529321
+      Zn =    0.46166339
+      Ga =    0.70264395
+      Ge =    0.79017965
+      As =    0.69270983
+      Se =    0.94010259
+      Br =    0.30000000
+      Kr =    0.65877050
+      Rb =    0.30000000
+      Sr =    0.65424275
+      Y  =    1.07262150
+      Zr =    0.73384526
+      Nb =    1.04760606
+      Mo =    0.76043320
+      Tc =    1.19945969
+      Ru =    0.88344350
+      Rh =    0.80070141
+      Pd =    1.17400917
+      Ag =    0.94331092
+      Cd =    0.72523165
+      In =    0.76250523
+      Sn =    0.73447181
+      Sb =    0.55871535
+      Te =    0.66384378
+      I  =    0.59834033
+      Xe =    0.79993610
+      Cs =    0.59824016
+      Ba =    0.49615254
+      Hf =    0.77923135
+      Ta =    0.92170732
+      W  =    0.70388295
+      Re =    0.89972537
+      Os =    0.97299413
+      Ir =    0.85244821
+      Pt =    1.09001850
+      Au =    0.95252827
+      Hg =    0.60967486
+      Tl =    0.78738062
+      Pb =    0.90805503
+      Bi =    0.30000000
+      Po =    0.80000000
+      At =    0.80000000
+      Rn =    0.80000000
+    }
+  }
+  SCC = Yes
+  SCCTolerance = 1.0E-8  # Extremely small
+  MaxAngularMomentum = {
+    D = "s"
+    O = "p"
+  }
+  Filling = Fermi {
+    Temperature [Kelvin] = 400.0
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+}
+
+Options = {
+  WriteAutotestTag = Yes
+}
+
+Analysis = {
+  CalculateForces = Yes
+}
+
+ParserOptions = {
+  ParserVersion = 8
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

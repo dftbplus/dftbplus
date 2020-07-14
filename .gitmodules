@@ -3,9 +3,9 @@
         url = https://github.com/dftbplus/mpifx.git
         branch = master
 [submodule "external/libnegf/origin"]
-        path = external/libnegf/origin
-        url = https://github.com/libnegf/libnegf.git
-        branch = master
+	path = external/libnegf/origin
+	url = https://github.com/libnegf/libnegf.git
+	branch = master
 [submodule "external/scalapackfx/origin"]
         path = external/scalapackfx/origin
         url = https://github.com/dftbplus/scalapackfx.git
@@ -13,4 +13,5 @@
 [submodule "external/mbd/origin"]
 	path = external/mbd/origin
 	url = https://github.com/jhrmnn/libmbd.git
-        branch = master
+    branch = master
+
