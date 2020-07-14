@@ -133,6 +133,19 @@ function(dftbp_get_release_name release)
 endfunction()
 
 
+# Gets DFTB+ API release information.
+#
+# Args:
+#   release [out]: Release string.
+#
+function(dftbp_get_api_release apiversion)
+
+  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  set(${apiversion} "${_api}" PARENT_SCOPE)
+
+endfunction()
+
+
 # Finds libraries and turns them into imported library targets
 #
 # Args:

@@ -5,6 +5,8 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include "error.fypp"
+
 !> Contains MPI related environment settings
 module dftbp_mpienv
   use dftbp_accuracy, only : lc
@@ -40,11 +42,15 @@ module dftbp_mpienv
     !> Global rank of the processes in the given group
     integer, allocatable :: groupMembers(:)
 
-    !> Whether current process is the global master
-    logical :: tGlobalMaster
+    !> Whether current process is the global lead
+    logical :: tGlobalLead
 
-    !> Whether current process is the group master
-    logical :: tGroupMaster
+    !> Whether current process is the group lead
+    logical :: tGroupLead
+
+  contains
+
+    procedure :: mpiSerialEnv
 
   end type TMpiEnv
 
@@ -83,13 +89,17 @@ contains
     type(TMpiEnv), intent(out) :: this
 
     !> Number of process groups to create
-    integer, intent(in) :: nGroup
+    integer, intent(in), optional :: nGroup
 
     character(lc) :: tmpStr
     integer :: myRank, myGroup
 
     call this%globalComm%init()
-    this%nGroup = nGroup
+    if (present(nGroup)) then
+      this%nGroup = nGroup
+    else
+      this%nGroup = 1
+    end if
     this%groupSize = this%globalComm%size / this%nGroup
     if (this%nGroup * this%groupSize /= this%globalComm%size) then
       write(tmpStr, "(A,I0,A,I0,A)") "Number of groups (", this%nGroup,&
@@ -107,14 +117,32 @@ contains
     myRank = this%myGroup
     call this%globalComm%split(myGroup, myRank, this%interGroupComm)
 
-    this%tGlobalMaster = this%globalComm%master
-    this%tGroupMaster = this%groupComm%master
+    this%tGlobalLead = this%globalComm%lead
+    this%tGroupLead = this%groupComm%lead
 
-    if (this%tGlobalMaster .and. .not. this%tGroupMaster) then
-      call error("Internal error: Global master process is not a group master process")
+    if (this%tGlobalLead .and. .not. this%tGroupLead) then
+      call error("Internal error: Global lead process is not a group leading process")
     end if
 
   end subroutine TMpiEnv_init
 
+
+  !> Routine to check this is a single processor instance, stopping otherwise (useful to call in
+  !> purely serial codes to avid multiple copies being invoked with mpirun)
+  subroutine mpiSerialEnv(this, iErr)
+
+    !> Instance
+    class(TMpiEnv), intent(in) :: this
+
+    !> Optional error flag
+    integer, intent(out), optional :: iErr
+
+    if (this%globalComm%size > 1) then
+
+      @:ERROR_HANDLING(iErr, -1, 'This is serial code, but invoked on multiple processors')
+
+    end if
+
+  end subroutine mpiSerialEnv
 
 end module dftbp_mpienv

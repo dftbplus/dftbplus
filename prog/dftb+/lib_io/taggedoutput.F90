@@ -81,6 +81,18 @@ module dftbp_taggedoutput
     !> forces on any external charges present
     character(lenLabel) :: chrgForces = 'forces_ext_charges'
 
+    !> Fermi level(s)
+    character(lenLabel) :: fermiLvl = 'fermi_level'
+
+    !> number of electrons
+    character(lenLabel) :: nElec = 'number_of_electrons'
+
+    !> eigenvalues/single particle states
+    character(lenLabel) :: eigvals = 'eigenvalues'
+
+    !> filling of the eigenstates
+    character(lenLabel) :: eigFill = 'filling'
+
     !> Gibbs free energy for finite pressure periodic systems
     character(lenLabel) :: gibbsFree = 'gibbs_energy'
 
@@ -92,6 +104,30 @@ module dftbp_taggedoutput
 
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
+
+    !> final energy components after real-time propagation
+    character(lenLabel) :: tdenergy = 'final_energy'
+
+    !> final dipole moment vector after real-time propagation
+    character(lenLabel) :: tddipole = 'final_dipole_moment'
+
+    !> final negative gross atomic Mulliken charges after real-time propagation
+    character(lenLabel) :: tdcharges = 'final_td_charges'
+
+    !> final forces components after real-time (Ehrenfest) propagation
+    character(lenLabel) :: ehrenforces = 'final_ehrenfest_forc'
+
+    !> final geometry after real-time (Ehrenfest) propagation
+    character(lenLabel) :: ehrencoords = 'final_ehrenfest_geom'
+
+    !> final velocities after real-time (Ehrenfest) propagation
+    character(lenLabel) :: ehrenvelos = 'final_ehrenfest_velo'
+
+    !> final molecular orbitals occupations after real-time (Ehrenfest) propagation
+    character(lenLabel) :: tdprojocc = 'final_td_proj_occ'
+
+    !> Sum of bond populaion values (should be number of electrons)
+    character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
 
     !> total energy including electron TS contribution
     character(lenLabel) :: freeEgy = 'mermin_energy'

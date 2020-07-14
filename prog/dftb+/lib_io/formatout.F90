@@ -69,22 +69,26 @@ contains
 
 
   !> A wrapper around writeGenFormat_fid to open a file first.
-  subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, tFracCoord, append)
+  subroutine writeGenFormat_fname(fileName, coord, species, speciesName, latVec, origin,&
+      & tFracCoord, append)
 
     !> File name of the file which should be created
     character(len=*), intent(in) :: fileName
 
     !> Coordinates in atomic units
-    real(dp),         intent(in) :: coord(:,:)
+    real(dp), intent(in) :: coord(:,:)
 
     !> Species of the atoms
     integer, intent(in) :: species(:)
 
     !> Name of the different species
-    character(mc),    intent(in) :: speciesName(:)
+    character(mc), intent(in) :: speciesName(:)
 
     !> Lattice vectors
-    real(dp), intent(in), optional :: latVec(3,3)
+    real(dp), intent(in), optional :: latVec(:,:)
+
+    !> origin of coordinate system, if not molecular
+    real(dp), intent(in), optional :: origin(:)
 
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
@@ -103,6 +107,7 @@ contains
     end if
 
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
+    @:ASSERT(present(latVec) .eqv. present(origin))
 
     if (append0) then
       open(newunit=fd, file=fileName, form="formatted", action="write", status="old",&
@@ -110,14 +115,14 @@ contains
     else
       open(newunit=fd, file=fileName, form="formatted", action="write", status="replace")
     end if
-    call writeGenFormat(fd, coord, species, speciesName, latVec, tFracCoord)
+    call writeGenFormat_fid(fd, coord, species, speciesName, latVec, origin, tFracCoord)
     close(fd)
 
   end subroutine writeGenFormat_fname
 
 
   !> Writes coordinates in the famous GEN format to a file
-  subroutine writeGenFormat_fid(fd, coord, species, speciesName, latVec, tFracCoord)
+  subroutine writeGenFormat_fid(fd, coord, species, speciesName, latVec, origin, tFracCoord)
 
     !> File id of an open file where output should be written
     integer, intent(in) :: fd
@@ -129,24 +134,28 @@ contains
     integer, intent(in) :: species(:)
 
     !> Name of the different species
-    character(mc),     intent(in) :: speciesName(:)
+    character(mc), intent(in) :: speciesName(:)
 
     !> Lattice vectors
     real(dp), intent(in), optional :: latVec(:,:)
+
+    !> origin of coordinate system, if not molecular
+    real(dp), intent(in), optional :: origin(:)
 
     !> Print out fractional coordinates?
     logical, intent(in), optional :: tFracCoord
 
     integer :: nAtom, nSpecies
-    character(6) :: formatSpecies
-    integer :: ii, jj
-    logical :: tFractional
+    character(mc) :: formatCoordinates
+    integer :: ii
+    logical :: tFractional, tHelical, tPeriodic
     real(dp) :: invLatVec(3,3)
 
-100 format(I5," ",A2)
-101 format("(",I2.2,"A3)")
-102 format(I5,I2,3E20.10)
-103 format(3E20.10)
+    ! Format first line of a gen file
+    character(len=*), parameter :: formatHead1 = '(1X,I0,1X,A2)'
+
+    ! Format a vector
+    character(len=*), parameter :: formatVec = '(3E20.10)'
 
     nAtom = size(coord, dim=2)
     nSpecies = maxval(species)
@@ -154,46 +163,87 @@ contains
     @:ASSERT(size(coord, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesName) == nSpecies)
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(latVec)) then
-      @:ASSERT(all(shape(latVec) == (/3, 3 /)))
+      @:ASSERT(all(shape(latVec) == [3,3]) .or. all(shape(latVec) == [2,1])&
+          & .or. all(shape(latVec) == [3,1]))
+      @:ASSERT(.not.(present(tFracCoord) .and.&
+          & (all(shape(latVec) == [2, 1]) .or. all(shape(latVec) == [2, 1]) ) ) )
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
     @:ASSERT((.not.(present(tFracCoord).neqv.present(latVec))) .or.(present(latVec)))
+    @:ASSERT(present(latVec) .eqv. present(origin))
 
+    tPeriodic = .false.
     tFractional = .false.
+    tHelical = .false.
+
     if (present(latVec)) then
       if (present(tFracCoord) ) then
         tFractional = tFracCoord
       end if
-      if (tFractional) then
-        write(fd, 100) nAtom, "F"
+      if (all(shape(latVec) == [2, 1]) .or. all(shape(latVec) == [3,1])) then
+        tHelical = .true.
       else
-        write(fd, 100) nAtom, "S"
+        tPeriodic = .true.
+      end if
+      if (tFractional) then
+        write(fd, formatHead1) nAtom, "F"
+      else if (tHelical) then
+        write(fd, formatHead1) nAtom, "H"
+      else if (tPeriodic) then
+        write(fd, formatHead1) nAtom, "S"
+      else
+        call error("Unknown boundary conditions")
       end if
     else
-      write(fd, 100) nAtom, "C"
+      write(fd, formatHead1) nAtom, "C"
     end if
-    write(formatSpecies, 101) nSpecies
-    write(fd, formatSpecies) (trim(speciesName(ii)), ii = 1, nSpecies)
 
+    do ii = 1, nSpecies
+      write(fd, '(1X,A)', advance='NO')trim(speciesName(ii))
+    end do
+    write(fd,'(A)')
+
+    write(formatCoordinates, '("(I5,2X,I",I0,",3E20.10)")') floor(log10(real(nSpecies)))+1
     if (tFractional) then
-      invLatVec(:,:) = latVec(:,:)
+      invLatVec(:,:) = latVec
       call matinv(invLatVec)
       do ii = 1, nAtom
-        write(fd, 102) ii, species(ii), matmul(invLatVec,coord(:, ii))
+        write(fd, formatCoordinates) ii, species(ii), matmul(invLatVec,coord(:, ii) + origin)
+      end do
+    else if (tPeriodic .or. tHelical) then
+      do ii = 1, nAtom
+        write(fd, formatCoordinates) ii, species(ii), (coord(:, ii) + origin) * Bohr__AA
       end do
     else
       do ii = 1, nAtom
-        write(fd, 102) ii, species(ii), (coord(jj, ii) * Bohr__AA, jj = 1, 3)
+        write(fd, formatCoordinates) ii, species(ii), coord(:, ii) * Bohr__AA
       end do
     end if
     if (present(latVec)) then
-      write(fd, 103) 0.0_dp, 0.0_dp, 0.0_dp
-      do ii = 1, 3
-        write(fd, 103) (latVec(jj, ii) * Bohr__AA, jj = 1, 3)
-      end do
+      if (tHelical) then
+        write(fd, formatVec) origin * Bohr__AA
+        if (size(latvec,dim=1)==2) then
+          write(fd, "(E20.10,F14.8)") latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi
+        else
+          write(fd, "(E20.10,F14.8,1X,I0)") latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi, &
+              & nint(latVec(3,1))
+        end if
+      else if (tPeriodic) then
+        if (tFractional) then
+          write(fd, formatVec) matmul(invLatVec, origin)
+        else
+          write(fd, formatVec) origin * Bohr__AA
+        end if
+        do ii = 1, 3
+          write(fd, formatVec) latVec(:, ii) * Bohr__AA
+        end do
+      else
+        call error("Unknown boundary conditions")
+      end if
     end if
+
   end subroutine writeGenFormat_fid
 
 
@@ -270,8 +320,7 @@ contains
     !> Optional comment for line 2 of the file
     character(len=*), intent(in), optional :: comment
 
-    integer :: nAtom, nSpecies
-    integer :: ii, jj
+    integer :: nAtom, nSpecies, ii
 
 200 format(I5)
 201 format(A5,3F16.8)
@@ -284,14 +333,14 @@ contains
     @:ASSERT(size(coords, dim=1) == 3)
     @:ASSERT(size(species) == nAtom)
     @:ASSERT(size(speciesNames) == nSpecies)
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(charges)) then
       @:ASSERT(size(charges) == nAtom)
     end if
     if (present(velocities)) then
       @:ASSERT(all(shape(velocities) == (/ 3, nAtom /)))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     write(fd, 200) nAtom
     if (present(comment)) then
@@ -303,8 +352,8 @@ contains
     end if
 
     if (present(charges) .and. present(velocities)) then
-      write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA, charges(ii),&
-          & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
+      write(fd, 204) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
+          & charges(ii), velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
     elseif (present(charges) .and. .not. present(velocities)) then
       write(fd, 203) (trim(speciesNames(species(ii))), coords(:, ii) * Bohr__AA,&
           & charges(ii), ii = 1, nAtom)
@@ -313,7 +362,7 @@ contains
           & velocities(:,ii) * Bohr__AA / au__fs * 1000.0_dp, ii = 1, nAtom)
     else
       write(fd, 201) (trim(speciesNames(species(ii))),&
-          & (coords(jj, ii) * Bohr__AA, jj = 1, 3), ii = 1, nAtom)
+          & coords(:, ii) * Bohr__AA, ii = 1, nAtom)
     end if
 
   end subroutine writeXYZFormat_fid

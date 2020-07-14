@@ -22,8 +22,14 @@ module dftbp_angmomentum
   implicit none
   private
 
-  public :: getLOperators, getLOperatorsForSpecies
-  public :: getLOnsite, getLDual
+  public :: getLOperators, getLOperatorsForSpecies, getLOnsite, getLDual, rotateZ
+
+  !> Construct matrix for rotation of orbitals around the z axis in the tesseral spherical hamonics
+  !> basis
+  interface rotateZ
+    module procedure zrot_onel
+    module procedure zrot_manyl
+  end interface rotateZ
 
 
 contains
@@ -75,8 +81,8 @@ contains
     end do
     uu(ll, ll) = 1.0_dp
 
-    call makeSimiliarityTrans(Lz, uu)
-    call makeSimiliarityTrans(Lplus, uu)
+    call makeSimilarityTrans(Lz, uu)
+    call makeSimilarityTrans(Lplus, uu)
 
   end subroutine getLOperators
 
@@ -312,7 +318,7 @@ contains
 
     ! convert to tesseral form
     do iCart = 1, 3
-      call makeSimiliarityTrans(L(:,:,iCart), uu)
+      call makeSimilarityTrans(L(:,:,iCart), uu)
     end do
 
   end subroutine localLOperators
@@ -341,5 +347,60 @@ contains
     end do
 
   end subroutine localGetLOperatorsForSpecies
+
+
+  !> Constructs a matrix to rotate tesseral spherical harmonic orbitals of angular momentum l around
+  !> the z axis by phi radians
+  pure subroutine zrot_onel(zmat,l, phi)
+
+    !> resulting real unitary transformation matrix
+    real(dp), intent(out) :: zmat(:,:)
+
+    !> l value of angular momentum
+    integer, intent(in)   :: l
+
+    !> angle of rotation in radians
+    real(dp), intent(in)  :: phi
+
+    integer  :: m ! magnetic quantum number
+
+    zmat(:,:) = 0.0_dp
+    zmat(l+1,l+1) = 1.0_dp ! l_z = 0
+
+    do m = 1, l
+      zmat(m+l+1,m+l+1) = cos(m*phi)
+      zmat(-m+l+1,-m+l+1) = cos(m*phi)
+      zmat(m+l+1,-m+l+1) = -sin(m*phi)
+      zmat(-m+l+1,m+l+1) = sin(m*phi)
+    end do
+
+  end subroutine zrot_onel
+
+
+  !> Constructs a matrix to rotate tesseral spherical harmonic orbitals of angular momentum l around
+  !> the z axis by phi radians
+  pure subroutine zrot_manyl(zmat,l, phi)
+
+    !> resulting real unitary transformation matrix
+    real(dp), intent(out) :: zmat(:,:)
+
+    !> l value of angular momentum
+    integer, intent(in)   :: l(:)
+
+    !> angle of rotation in radians
+    real(dp), intent(in)  :: phi
+
+    integer :: il, iStart, iEnd
+
+    zmat(:,:) = 0.0_dp
+
+    iStart = 1
+    do il = 1, size(l)
+      iEnd = iStart + 2*l(il)
+      call zrot_onel(zmat(iStart:iEnd,iStart:iEnd),l(il), phi)
+      iStart = iEnd + 1
+    end do
+
+  end subroutine zrot_manyl
 
 end module dftbp_angmomentum

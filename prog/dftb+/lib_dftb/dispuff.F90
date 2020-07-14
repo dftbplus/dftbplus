@@ -134,11 +134,11 @@ contains
     @:ASSERT(all(inp%energies >= 0.0_dp))
     @:ASSERT(all(inp%distances >= 0.0_dp))
     @:ASSERT(present(latVecs) .eqv. present(species0))
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(latVecs)) then
       @:ASSERT(all(shape(latVecs) == [3, 3]))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     this%nSpecies = size(inp%energies)
     this%nAtom = nAtom
@@ -374,11 +374,11 @@ contains
     real(dp) :: rr, r2, r5, r6, r10, r12, k1, k2, dE, dGr, u0, u1, u2, f6
     real(dp) :: gr(3), vec(3)
 
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(stress)) then
       @:ASSERT(all(shape(stress) == [3, 3]))
     end if
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     ! Cluster case => explicit sum of the contributions
     if (present(removeR6)) then

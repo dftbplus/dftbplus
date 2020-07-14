@@ -155,11 +155,11 @@ subroutine DispSlaKirk_init(this, inp, latVecs)
   @:ASSERT(size(inp%polar) == size(inp%charges))
   @:ASSERT(all(inp%polar >= 0.0_dp))
   @:ASSERT(all(inp%rWaals >= 0.0_dp))
-#:call ASSERT_CODE
+#:block DEBUG_CODE
   if (present(latVecs)) then
     @:ASSERT(all(shape(latVecs) == [3, 3]))
   end if
-#:endcall ASSERT_CODE
+#:endblock DEBUG_CODE
 
   this%nAtom = size(inp%polar)
   allocate(this%c6(this%nAtom, this%nAtom))
