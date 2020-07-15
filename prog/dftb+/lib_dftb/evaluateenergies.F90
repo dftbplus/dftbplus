@@ -166,7 +166,7 @@ contains
     integer :: nSpin
     real(dp) :: nEl(2)
 
-    nSpin = size(rhoPrim, dim=2)
+    nSpin = size(qOrb, dim=3)
 
     ! Tr[H0 * Rho] can be done with the same algorithm as Mulliken-analysis
     energy%atomNonSCC(:) = 0.0_dp
