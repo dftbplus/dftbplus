@@ -6,8 +6,8 @@ python: 3.7
 
 
 env:
- - WITH_MPI=false
- - WITH_MPI=true
+ - WITH_MPI=false FC=gfortran CC=gcc
+ - WITH_MPI=true FC=mpifort CC=gcc
 
 addons:
    apt:
