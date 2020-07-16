@@ -133,12 +133,12 @@ file.
   from a corresponding toolchain file in the `sys/` folder. (The name of the
   file is shown in the output.)
 
-  You may adjust any variables in the `config.make` file and the toolchain file
-  by either modifying files directly or by overriding them via the ``-D``
-  command line option. For example, in order to change the name of the LAPACK
-  library, you can override the ``LAPACK_LIBRARIES`` variable with::
+  You may adjust any variables defined in `config.make` or in the toolchain file
+  by either modifying the files directly or by overriding the definitions via
+  the ``-D`` command line option. For example, in order to change the name of
+  the LAPACK library, you can override the ``LAPACK_LIBRARIES`` variable with::
 
-    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas-custom ..
+    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas ..
 
   CMake automatically searches for the external libraries in the paths specified
   in the ``CMAKE_PREFIX_PATH`` environment variable. Make sure that it is set up
@@ -146,8 +146,7 @@ file.
   ``*_LIBRARY_DIRS`` variable for each external library to add path hints for
   the library search, e.g.::
 
-    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas \
-        -DLAPACK_LIBRARY_DIRS=/opt/openblas/lib
+    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARY_DIRS=/opt/custom-lapack/lib ..
 
   Note: You can override the toolchain file selection by passing the
   ``-DTOOLCHAIN_FILE`` option with the name of the file to read, e.g.::
@@ -161,9 +160,9 @@ file.
 
     env FC=ifort CC=gcc cmake -DTOOLCHAIN=gnu ..
 
-  Similarly, you use an alternative build config file instead of `config.cmake`
-  by specifying it with the ``-DBUILD_CONFIG_FILE`` option or in the
-  ``DFTBPLUS_BUILD_CONFIG_FILE`` environment variable.
+  Similarly, you can use an alternative build config file instead of
+  `config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
+  defining the ``DFTBPLUS_BUILD_CONFIG_FILE`` environment variable.
 
 
 * If the configuration was successful, invoke (from within the build folder)

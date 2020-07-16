@@ -14,8 +14,7 @@ addons:
       packages:
       - cmake
       - gfortran
-      - libblas-dev
-      - liblapack-dev
+      - libopenblas-dev
       - libopenmpi-dev
       - libscalapack-openmpi-dev
       - libarpack2-dev

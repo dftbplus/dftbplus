@@ -61,7 +61,7 @@ set(ARPACK_LIBRARIES "arpack" CACHE STRING "Arpack libraries")
 set(ARPACK_LIBRARY_DIRS "" CACHE STRING "Directories where Arpack library can be found")
 
 # ScaLAPACK -- only needed for MPI-parallel build
-set(SCALAPACK_LIBRARIES "scalapack" CACHE STRING "Scalapack libraries to link")
+set(SCALAPACK_LIBRARIES "scalapack-openmpi" CACHE STRING "Scalapack libraries to link")
 set(SCALAPACK_LIBRARY_DIRS "" CACHE STRING "Directories where Scalapack libraries can be found")
 
 # ELSI -- only needed when compiled with ELSI support
