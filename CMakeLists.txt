@@ -7,15 +7,12 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
 dftbp_ensure_out_of_source_build()
+dftbp_load_build_settings()
 
-include(${CMAKE_SOURCE_DIR}/config.cmake)
-
-project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES NONE)
+project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
+dftbp_load_toolchain_settings()
+dftbp_setup_global_compiler_flags()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-dftbp_ensure_compiler_def(Fortran)
-enable_language(Fortran)
-dftbp_ensure_compiler_def(C)
-enable_language(C)
 
 # Neither CMake nor we have any ideas, how gcc could link NAG-compiled Fortran code with OMP.
 if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG" AND WITH_OMP)
@@ -95,6 +92,7 @@ if(WITH_ARPACK)
 endif()
 
 if(WITH_GPU)
+  find_package(MAGMA REQUIRED)
   dftbp_create_library_targets("${MAGMA_LIBRARIES}" "${MAGMA_LIBRARY_DIRS}")
   list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${MAGMA_LIBRARIES})
   list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${MAGMA_LIBRARY_DIRS})
