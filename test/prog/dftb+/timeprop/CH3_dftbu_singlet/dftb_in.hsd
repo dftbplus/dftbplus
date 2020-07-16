@@ -46,19 +46,19 @@ Hamiltonian = DFTB {
   }
 }
 
-Analysis = {
-    ElectronDynamics = {
-        Steps = 20000
-        TimeStep [au] = 0.2
-        Perturbation = Kick {
-            PolarizationDirection = "all"
-            Spintype = Singlet
-        }
-        FieldStrength [v/a] = 0.001
+ElectronDynamics = {
+    Steps = 20000
+    TimeStep [au] = 0.2
+    Perturbation = Kick {
+        PolarizationDirection = "all"
+        Spintype = Singlet
     }
-    MullikenAnalysis = Yes
+    FieldStrength [v/a] = 0.001
 }
 
+Analysis = {
+    MullikenAnalysis = Yes
+}
 
 Options = {
   WriteAutotestTag = Yes
@@ -70,10 +70,8 @@ ParserOptions = {
   ParserVersion = 3
 }
 
-
 Parallel {
   # Allow OMP threads explicitely to test for hybrid parallelisation with
   # MPI-binary. (Check the manual before using this in production runs!)
   UseOmpThreads = Yes
 }
-

@@ -86,18 +86,13 @@ Options = {
     TimingVerbosity = -1
 }
 
-ParserOptions = {
-    ParserVersion = 5
-}
+InputVersion = 20.1
 
-Analysis = {
-    ElectronDynamics = {
-        Steps = 4000
-        TimeStep [au] = 0.2
-        Perturbation = Kick {
-            PolarizationDirection = "x"
-        }
-        FieldStrength [v/a] = 0.001
+ElectronDynamics = {
+    Steps = 4000
+    TimeStep [au] = 0.2
+    Perturbation = Kick {
+        PolarizationDirection = "x"
     }
+    FieldStrength [v/a] = 0.001
 }
-
