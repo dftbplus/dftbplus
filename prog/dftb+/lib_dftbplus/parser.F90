@@ -221,7 +221,7 @@ contains
     call getChild(root, "ElectronDynamics", child=child, requested=.false.)
     if (associated(child)) then
        allocate(input%ctrl%elecDynInp)
-       call readElecDynamics(child, input%ctrl, input%geom)
+       call readElecDynamics(child, input%ctrl%elecDynInp, input%geom, input%ctrl%masses)
     end if
 
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
@@ -4808,16 +4808,19 @@ contains
 
 
   !> Reads the electron dynamics block
-  subroutine readElecDynamics(node, ctrl, geom)
+  subroutine readElecDynamics(node, input, geom, masses)
 
     !> input data to parse
     type(fnode), pointer :: node
 
-    !> control structure
-    type(TControl), intent(inout) :: ctrl
+    !> ElecDynamicsInp instance
+    type(TElecDynamicsInp), intent(inout) :: input
 
     !> geometry of the system
     type(TGeometry), intent(in) :: geom
+
+    !> masses to be returned
+    real(dp), allocatable, intent(inout) :: masses(:)
 
     integer :: ii
     type(fnode), pointer :: value1, value2, child, child2
@@ -4834,58 +4837,56 @@ contains
     end if
   #:endif
 
-    call getChildValue(node, "Steps", ctrl%elecDynInp%steps)
-    call getChildValue(node, "TimeStep", ctrl%elecDynInp%dt, modifier=modifier, &
-        & child=child)
-    call convertByMul(char(modifier), timeUnits, child, ctrl%elecDynInp%dt)
+    call getChildValue(node, "Steps", input%steps)
+    call getChildValue(node, "TimeStep", input%dt, modifier=modifier, child=child)
+    call convertByMul(char(modifier), timeUnits, child, input%dt)
 
-    call getChildValue(node, "Populations", ctrl%elecDynInp%tPopulations, .false.)
-    call getChildValue(node, "WriteFrequency", ctrl%elecDynInp%writeFreq, 50)
-    call getChildValue(node, "Restart", ctrl%elecDynInp%tReadRestart, .false.)
-    if (ctrl%elecDynInp%tReadRestart) then
-      call getChildValue(node, "RestartFromAscii", ctrl%elecDynInp%tReadRestartAscii, .false.)
+    call getChildValue(node, "Populations", input%tPopulations, .false.)
+    call getChildValue(node, "WriteFrequency", input%writeFreq, 50)
+    call getChildValue(node, "Restart", input%tReadRestart, .false.)
+    if (input%tReadRestart) then
+      call getChildValue(node, "RestartFromAscii", input%tReadRestartAscii, .false.)
     end if
-    call getChildValue(node, "WriteRestart", ctrl%elecDynInp%tWriteRestart, .true.)
-    if (ctrl%elecDynInp%tWriteRestart) then
-      call getChildValue(node, "WriteAsciiRestart", ctrl%elecDynInp%tWriteRestartAscii, .false.)
+    call getChildValue(node, "WriteRestart", input%tWriteRestart, .true.)
+    if (input%tWriteRestart) then
+      call getChildValue(node, "WriteAsciiRestart", input%tWriteRestartAscii, .false.)
     end if
-    call getChildValue(node, "RestartFrequency", ctrl%elecDynInp%restartFreq,&
-        & max(ctrl%elecDynInp%Steps / 10, 1))
-    call getChildValue(node, "Forces", ctrl%elecDynInp%tForces, .false.)
-    call getChildValue(node, "WriteBondEnergy", ctrl%elecDynInp%tBondE, .false.)
-    call getChildValue(node, "WriteBondPopulation", ctrl%elecDynInp%tBondP, .false.)
-    call getChildValue(node, "Pump", ctrl%elecDynInp%tPump, .false.)
-    call getChildValue(node, "FillingsFromFile", ctrl%elecDynInp%tFillingsFromFile, .false.)
+    call getChildValue(node, "RestartFrequency", input%restartFreq, max(input%Steps / 10, 1))
+    call getChildValue(node, "Forces", input%tForces, .false.)
+    call getChildValue(node, "WriteBondEnergy", input%tBondE, .false.)
+    call getChildValue(node, "WriteBondPopulation", input%tBondP, .false.)
+    call getChildValue(node, "Pump", input%tPump, .false.)
+    call getChildValue(node, "FillingsFromFile", input%tFillingsFromFile, .false.)
 
-    if (ctrl%elecDynInp%tPump) then
-      call getChildValue(node, "PumpProbeFrames", ctrl%elecDynInp%tdPPFrames)
-      defPpRange = [0.0_dp, ctrl%elecDynInp%steps * ctrl%elecDynInp%dt]
-      call getChildValue(node, "PumpProbeRange", ctrl%elecDynInp%tdPpRange, defPprange,&
-          & modifier=modifier, child=child)
-      call convertByMul(char(modifier), timeUnits, child, ctrl%elecDynInp%tdPpRange)
+    if (input%tPump) then
+      call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
+      defPpRange = [0.0_dp, input%steps * input%dt]
+      call getChildValue(node, "PumpProbeRange", input%tdPpRange, defPprange, modifier=modifier,&
+          & child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%tdPpRange)
 
-      ppRangeInvalid = (ctrl%elecDynInp%tdPpRange(2) <= ctrl%elecDynInp%tdPpRange(1))&
-          & .or. (ctrl%elecDynInp%tdPprange(1) < defPpRange(1))&
-          & .or. (ctrl%elecDynInp%tdPpRange(2) > defPpRange(2))
+      ppRangeInvalid = (input%tdPpRange(2) <= input%tdPpRange(1))&
+          & .or. (input%tdPprange(1) < defPpRange(1))&
+          & .or. (input%tdPpRange(2) > defPpRange(2))
       if (ppRangeInvalid) then
         call detailederror(child, "Wrong definition of PumpProbeRange, either incorrect order&
             & or outside of simulation time range")
       end if
     end if
 
-    call getChildValue(node, "Probe", ctrl%elecDynInp%tProbe, .false.)
-    if (ctrl%elecDynInp%tPump .and. ctrl%elecDynInp%tProbe) then
+    call getChildValue(node, "Probe", input%tProbe, .false.)
+    if (input%tPump .and. input%tProbe) then
       call detailedError(child, "Pump and probe cannot be simultaneously true.")
     end if
 
-    call getChildValue(node, "EulerFrequency", ctrl%elecDynInp%eulerFreq, 0)
-    if ((ctrl%elecDynInp%eulerFreq < 50) .and. (ctrl%elecDynInp%eulerFreq > 0)) then
+    call getChildValue(node, "EulerFrequency", input%eulerFreq, 0)
+    if ((input%eulerFreq < 50) .and. (input%eulerFreq > 0)) then
       call detailedError(child, "Wrong number of Euler steps, should be above 50")
     end if
-    if (ctrl%elecDynInp%eulerFreq >= 50) then
-      ctrl%elecDynInp%tEulers = .true.
+    if (input%eulerFreq >= 50) then
+      input%tEulers = .true.
     else
-      ctrl%elecDynInp%tEulers = .false.
+      input%tEulers = .false.
     end if
 
     ! assume this is required (needed for most perturbations, but not none)
@@ -4899,16 +4900,16 @@ contains
     select case(char(buffer))
 
     case ("kick")
-      ctrl%elecDynInp%pertType = pertTypes%kick
+      input%pertType = pertTypes%kick
       call getChildValue(value1, "PolarizationDirection", buffer2)
-      ctrl%elecDynInp%polDir = directionConversion(unquote(char(buffer2)), value1)
+      input%polDir = directionConversion(unquote(char(buffer2)), value1)
 
       call getChildValue(value1, "SpinType", buffer2, "Singlet")
       select case(unquote(char(buffer2)))
       case ("singlet", "Singlet")
-        ctrl%elecDynInp%spType = tdSpinTypes%singlet
+        input%spType = tdSpinTypes%singlet
       case ("triplet", "Triplet")
-        ctrl%elecDynInp%spType = tdSpinTypes%triplet
+        input%spType = tdSpinTypes%triplet
       case default
         call detailedError(value1, "Unknown spectrum spin type " // char(buffer2))
       end select
@@ -4916,55 +4917,50 @@ contains
       defaultWrite = .false.
 
     case ("laser")
-      ctrl%elecDynInp%pertType = pertTypes%laser
-      call getChildValue(value1, "PolarizationDirection", ctrl%elecDynInp%reFieldPolVec)
-      call getChildValue(value1, "ImagPolarizationDirection", ctrl%elecDynInp%imFieldPolVec, &
-          & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
-      call getChildValue(value1, "LaserEnergy", ctrl%elecDynInp%omega, &
-          & modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, ctrl%elecDynInp%omega)
-      call getChildValue(value1, "Phase", ctrl%elecDynInp%phase, 0.0_dp)
-      call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, &
-          &multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, &
-          &child, ctrl%elecDynInp%indExcitedAtom)
+      input%pertType = pertTypes%laser
+      call getChildValue(value1, "PolarizationDirection", input%reFieldPolVec)
+      call getChildValue(value1, "ImagPolarizationDirection", input%imFieldPolVec, &
+          & [0.0_dp, 0.0_dp, 0.0_dp])
+      call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
+      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
+          & input%indExcitedAtom)
 
-      ctrl%elecDynInp%nExcitedAtom = size(ctrl%elecDynInp%indExcitedAtom)
-      if (ctrl%elecDynInp%nExcitedAtom == 0) then
+      input%nExcitedAtom = size(input%indExcitedAtom)
+      if (input%nExcitedAtom == 0) then
         call error("No atoms specified for laser excitation.")
       end if
 
       defaultWrite = .true.
 
     case ("kickandlaser")
-      ctrl%elecDynInp%pertType = pertTypes%kickAndLaser
+      input%pertType = pertTypes%kickAndLaser
       call getChildValue(value1, "KickPolDir", buffer2)
-      ctrl%elecDynInp%polDir = directionConversion(unquote(char(buffer2)), value1)
-      call getChildValue(value1, "SpinType", ctrl%elecDynInp%spType, tdSpinTypes%singlet)
-      call getChildValue(value1, "LaserPolDir", ctrl%elecDynInp%reFieldPolVec)
-      call getChildValue(value1, "LaserImagPolDir", ctrl%elecDynInp%imFieldPolVec, &
-          & (/ 0.0_dp, 0.0_dp, 0.0_dp /))
-      call getChildValue(value1, "LaserEnergy", ctrl%elecDynInp%omega, &
-          & modifier=modifier, child=child)
-      call convertByMul(char(modifier), energyUnits, child, ctrl%elecDynInp%omega)
-      call getChildValue(value1, "Phase", ctrl%elecDynInp%phase, 0.0_dp)
-      call getChildValue(value1, "LaserStrength", ctrl%elecDynInp%tdLaserField, modifier=modifier,&
+      input%polDir = directionConversion(unquote(char(buffer2)), value1)
+      call getChildValue(value1, "SpinType", input%spType, tdSpinTypes%singlet)
+      call getChildValue(value1, "LaserPolDir", input%reFieldPolVec)
+      call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, [0.0_dp, 0.0_dp, 0.0_dp])
+      call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
+      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
           & child=child)
-      call convertByMul(char(modifier), EFieldUnits, child, ctrl%elecDynInp%tdLaserField)
+      call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)
 
-      call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child,&
-          & multiple=.true.)
-      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species,&
-          & child, ctrl%elecDynInp%indExcitedAtom)
-      ctrl%elecDynInp%nExcitedAtom = size(ctrl%elecDynInp%indExcitedAtom)
-      if (ctrl%elecDynInp%nExcitedAtom == 0) then
+      call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
+          & input%indExcitedAtom)
+      input%nExcitedAtom = size(input%indExcitedAtom)
+      if (input%nExcitedAtom == 0) then
         call error("No atoms specified for laser excitation.")
       end if
 
       defaultWrite = .false.
 
     case ("none")
-      ctrl%elecDynInp%pertType = pertTypes%noTDPert
+      input%pertType = pertTypes%noTDPert
       tNeedFieldStrength = .false.
 
       defaultWrite = .true.
@@ -4974,12 +4970,11 @@ contains
     end select
 
     if (tNeedFieldStrength) then
-      call getChildValue(node, "FieldStrength", ctrl%elecDynInp%tdfield, modifier=modifier,&
-          & child=child)
-      call convertByMul(char(modifier), EFieldUnits, child, ctrl%elecDynInp%tdfield)
+      call getChildValue(node, "FieldStrength", input%tdfield, modifier=modifier, child=child)
+      call convertByMul(char(modifier), EFieldUnits, child, input%tdfield)
     end if
 
-    call getChildValue(node, "WriteEnergyAndCharges", ctrl%elecDynInp%tdWriteExtras, defaultWrite)
+    call getChildValue(node, "WriteEnergyAndCharges", input%tdWriteExtras, defaultWrite)
 
     !! Different envelope functions
     call getChildValue(node, "EnvelopeShape", value1, "Constant")
@@ -4987,55 +4982,52 @@ contains
     select case(char(buffer))
 
     case("constant")
-      ctrl%elecDynInp%envType = envTypes%constant
+      input%envType = envTypes%constant
 
     case("gaussian")
-      ctrl%elecDynInp%envType = envTypes%gaussian
-      call getChildValue(value1, "Time0", ctrl%elecDynInp%time0, 0.0_dp, modifier=modifier,&
-          & child=child)
-      call convertByMul(char(modifier), timeUnits, child, ctrl%elecDynInp%Time0)
+      input%envType = envTypes%gaussian
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-      call getChildValue(value1, "Time1", ctrl%elecDynInp%time1, modifier=modifier, child=child)
-      call convertByMul(char(modifier), timeUnits, child, ctrl%elecDynInp%Time1)
+      call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("sin2")
-      ctrl%elecDynInp%envType = envTypes%sin2
-      call getChildValue(value1, "Time0", ctrl%elecDynInp%time0, 0.0_dp, modifier=modifier,&
-          & child=child)
-      call convertByMul(char(modifier), timeUnits, child, ctrl%elecDynInp%Time0)
+      input%envType = envTypes%sin2
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
-      call getChildValue(value1, "Time1", ctrl%elecDynInp%time1, modifier=modifier, child=child)
-      call convertByMul(char(modifier), timeUnits, child, ctrl%elecDynInp%Time1)
+      call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time1)
 
     case("fromfile")
-      ctrl%elecDynInp%envType = envTypes%fromFile
-      call getChildValue(value1, "Time0", ctrl%elecDynInp%time0, 0.0_dp, modifier=modifier,&
-          & child=child)
-      call convertByMul(char(modifier), timeUnits, child, ctrl%elecDynInp%Time0)
+      input%envType = envTypes%fromFile
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
 
     case default
       call detailedError(value1, "Unknown envelope shape " // char(buffer))
     end select
 
     !! Non-adiabatic molecular dynamics
-    call getChildValue(node, "IonDynamics", ctrl%elecDynInp%tIons, .false.)
-    if (ctrl%elecDynInp%tIons) then
+    call getChildValue(node, "IonDynamics", input%tIons, .false.)
+    if (input%tIons) then
       call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, multiple=.true.)
       call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
-          & ctrl%elecDynInp%indMovedAtom)
+          & input%indMovedAtom)
 
-      ctrl%elecDynInp%nMovedAtom = size(ctrl%elecDynInp%indMovedAtom)
-      call readInitialVelocitiesNAMD(node, ctrl%elecDynInp, geom%nAtom)
-      if (ctrl%elecDynInp%tReadMDVelocities) then
+      input%nMovedAtom = size(input%indMovedAtom)
+      call readInitialVelocitiesNAMD(node, input, geom%nAtom)
+      if (input%tReadMDVelocities) then
         ! without a thermostat, if we know the initial velocities, we do not need a temperature, so
         ! just set it to something 'safe'
-        ctrl%elecDynInp%tempAtom = minTemp
+        input%tempAtom = minTemp
       else
-        if (.not. ctrl%elecDynInp%tReadRestart) then
+        if (.not. input%tReadRestart) then
           ! previously lower limit was minTemp:
-          call readMDInitTemp(node, ctrl%elecDynInp%tempAtom, 0.0_dp)
+          call readMDInitTemp(node, input%tempAtom, 0.0_dp)
         end if
-        call getInputMasses(node, geom, ctrl%masses)
+        call getInputMasses(node, geom, masses)
       end if
     end if
 
