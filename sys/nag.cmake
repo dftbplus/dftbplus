@@ -22,20 +22,14 @@
 #
 # Fortran compiler settings
 #
+set(Fortran_FLAGS "-ieee=full"
+  CACHE STRING "Additional general Fortran compiler flags")
 
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
+set(Fortran_FLAGS_RELEASE "-O2"
+  CACHE STRING "Additional Fortran compiler flags for Release build")
 
-  # Flags for Release mode
-  set(Fortran_FLAGS "-ieee=full -O2 ${CMAKE_Fortran_FLAGS}"
-    CACHE STRING "Fortran compiler flags to be used during build")
-
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-  # Flags for Debug mode (for developers)
-  set(Fortran_FLAGS "-ieee=full -g -f2008 -nan -C=all ${CMAKE_Fortran_FLAGS}"
-    CACHE STRING "Fortran compiler flags to be used during build")
-
-endif()
+set(Fortran_FLAGS_DEBUG "-g -f2008 -nan -C=all"
+  CACHE STRING "Additional Fortran compiler flags for Debug build")
 
 set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 
@@ -43,41 +37,14 @@ set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 #
 # C compiler settings
 #
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
+set(C_FLAGS ""
+  CACHE STRING "Additional general C compiler flags")
 
-  # Flags for Release mode
-  set(C_FLAGS "-O2 -funroll-all-loops ${CMAKE_C_FLAGS}"
-    CACHE STRING "C flags to be used during build")
+set(C_FLAGS_RELEASE "-funroll-all-loops"
+  CACHE STRING  "Additional C compiler flags for Release build")
 
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-  # Flags for Debug mode (for developers)
-  set(C_FLAGS "-g -Wall -pedantic -fall-intrinsics -fbounds-check ${CMAKE_C_FLAGS}" CACHE
-    STRING "C flags to be used during build")
-
-endif()
-
-
-#
-# Fortran compiler settings
-#
-set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ieee=full")
-
-set(CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE}")
-
-set(CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -f2008 -nan -C=all")
-
-set(FYPP_FLAGS "-DINTERNAL_ERFC -DEXP_TRAP" CACHE STRING "Flags for the preprocessor")
-
-
-#
-# C compiler settings
-#
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-
-set(CMAKE_C_FLAGS_RELEASE "-funroll-all-loops")
-
-set(CMAKE_C_FLAGS_DEBUG "-Wall -pedantic -fbounds-check")
+set(C_FLAGS_DEBUG "-Wall -pedantic -fbounds-check"
+  CACHE STRING "Additional C compiler flags for Debug build")
 
 
 #

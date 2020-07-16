@@ -375,6 +375,24 @@ toolchain file). See the INSTALL.rst file for detailed instructions.")
 endfunction()
 
 
+# Loads global build settings (either from config.cmake or from user defined file)
+#
+macro (dftbp_load_build_settings)
+
+  if(NOT DEFINED BUILD_CONFIG_FILE)
+    if(DEFINED ENV{DFTBPLUS_BUILD_CONFIG_FILE} AND NOT ENV{DFTBPLUS_BUILD_CONFIG_FILE} STREQUAL "")
+      set(BUILD_CONFIG_FILE "$ENV{DFTBPLUS_BUILD_CONFIG_FILE}")
+    else()
+      set(BUILD_CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.cmake")
+    endif()
+  endif()
+  message(STATUS "Reading build config file: ${BUILD_CONFIG_FILE}\n"
+    "(Adjust the variables defined in this file to enable/disable build components)")
+  include(${BUILD_CONFIG_FILE})
+  
+endmacro()
+
+
 # Tries to guess which toolchain to load based on the environment.
 #
 # Args:
@@ -413,8 +431,8 @@ macro(dftbp_load_toolchain_settings)
     endif()
     set(TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
   endif()
-  message(STATUS "Loading toolchain file: ${TOOLCHAIN_FILE} "
-    "(if library detection or compilation fails, adjust settings in this file)")
+  message(STATUS "Loading toolchain file: ${TOOLCHAIN_FILE}\n"
+    "(Adjust variables defined in this file to change compiler, linker and library settings)")
   include(${TOOLCHAIN_FILE})
 endmacro()
 
@@ -424,8 +442,9 @@ endmacro()
 macro (dftbp_setup_global_compiler_flags)
   string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
   foreach (lang IN ITEMS Fortran C)
-    set(CMAKE_${lang}_FLAGS ${${lang}_FLAGS})
-    unset(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} CACHE)
-    message(STATUS "Flags for ${lang}-compiler: ${CMAKE_${lang}_FLAGS}")
+    string(APPEND CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
+    string(APPEND CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+    message(STATUS "Flags for ${lang}-compiler: "
+      "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
   endforeach()
 endmacro()

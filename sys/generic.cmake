@@ -27,40 +27,30 @@
 #
 # Fortran compiler settings
 #
+set(Fortran_FLAGS ""
+  CACHE STRING "Additional general Fortran compiler flags")
 
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
+set(Fortran_FLAGS_RELEASE "-funroll-all-loops"
+  CACHE STRING  "Additional Fortran compiler flags for Release build")
 
-  # Flags for Release mode
-  set(Fortran_FLAGS " ${CMAKE_Fortran_FLAGS_RELEASE} ${CMAKE_Fortran_FLAGS}"
-    CACHE STRING "Fortran compiler flags to be used during build")
+set(Fortran_FLAGS_DEBUG "-Wall -std=f2008ts -pedantic -fbounds-check"
+  CACHE STRING "Additional Fortran compiler flags for Debug build")
 
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-  # Flags for Debug mode (for developers)
-  set(Fortran_FLAGS "${CMAKE_Fortran_FLAGS_DEBUG} ${CMAKE_Fortran_FLAGS}"
-    CACHE STRING "Fortran compiler flags to be used during build")
-
-endif()
-
-set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
+set(FYPP_FLAGS ""
+  CACHE STRING "Flags for the preprocessor")
 
 
 #
 # C compiler settings
 #
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
+set(C_FLAGS ""
+  CACHE STRING "Additional general C compiler flags")
 
-  # Flags for Release mode
-  set(C_FLAGS "${CMAKE_C_FLAGS_RELEASE} ${CMAKE_C_FLAGS}"
-    CACHE STRING "C flags to be used during build")
+set(C_FLAGS_RELEASE ""
+  CACHE STRING "Additional C compiler flags for Release build")
 
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-  # Flags for Debug mode (for developers)
-  set(C_FLAGS "${CMAKE_C_FLAGS_DEBUG} ${CMAKE_C_FLAGS}"
-    CACHE STRING "C flags to be used during build")
-
-endif()
+set(C_FLAGS_DEBUG ""
+  CACHE STRING "Additional C compiler flags for Debug build")
 
 
 #

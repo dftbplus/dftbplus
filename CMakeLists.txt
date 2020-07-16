@@ -7,8 +7,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 include(dftbpUtils)
 
 dftbp_ensure_out_of_source_build()
-
-include(${CMAKE_SOURCE_DIR}/config.cmake)
+dftbp_load_build_settings()
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
 dftbp_load_toolchain_settings()

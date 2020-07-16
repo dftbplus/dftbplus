@@ -22,22 +22,14 @@
 #
 # Fortran compiler settings
 #
+set(Fortran_FLAGS "-standard-semantics"
+  CACHE STRING "Additional general Fortran compiler flags")
 
-# Note: either "-standard-semantics' or '-assume realloc_lhs' must be among the compiler options
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
+set(Fortran_FLAGS_RELEASE "-ip -heap-arrays 10"
+  CACHE STRING "Additional Fortran compiler flags for Release build")
 
-  # Flags for Release mode
-  set(Fortran_FLAGS "-standard-semantics -O2 -ip -heap-arrays 10 ${CMAKE_Fortran_FLAGS}"
-    CACHE STRING "Fortran compiler flags to be used during build")
-
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-  # Flags for Debug mode (for developers)
-  set(Fortran_FLAGS "-standard-semantics -g -warn all -stand f08 -check -diag-error-limit 1 "
-    "-traceback ${CMAKE_Fortran_FLAGS}"
-    CACHE STRING "Fortran compiler flags to be used during build")
-
-endif()
+set(Fortran_FLAGS_DEBUG "-warn all -stand f08 -check -diag-error-limit 1 -traceback"
+  CACHE STRING "Additional Fortran compiler flags for Debug build")
 
 set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 
@@ -45,19 +37,14 @@ set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 #
 # C compiler settings
 #
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
+set(C_FLAGS ""
+  CACHE STRING "Additional general C compiler flags")
 
-  # Flags for Release mode
-  set(C_FLAGS "-O2 -ip ${CMAKE_C_FLAGS}"
-    CACHE STRING "C flags to be used during build")
+set(C_FLAGS_RELEASE "-ip"
+  CACHE STRING  "Additional C compiler flags for Release build")
 
-elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-  # Flags for Debug mode (for developers)
-  set(C_FLAGS "-g -Wall ${CMAKE_C_FLAGS}" CACHE
-    STRING "C flags to be used during build")
-
-endif()
+set(C_FLAGS_DEBUG "-Wall"
+  CACHE STRING "Additional C compiler flags for Debug build")
 
 
 #
