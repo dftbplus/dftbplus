@@ -40,6 +40,7 @@ module dftbp_parser
   use dftbp_dftbplusu
   use dftbp_commontypes
   use dftbp_oldskdata
+  use dftbp_xmlutils, only : removeChildNodes
   use dftbp_xmlf90
   use dftbp_orbitals
   use dftbp_rangeseparated
@@ -127,16 +128,33 @@ contains
     type(TParserFlags), intent(out) :: parserFlags
 
     type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
+    logical :: hasInputVersion
+    integer :: inputVersion
+    type(string) :: versionString
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
     write(stdout, "(A)") repeat("-", 80)
 
     call getChild(hsdTree, rootTag, root)
 
+    call getChild(root, "InputVersion", child, requested=.false.)
+    hasInputVersion = associated(child)
+    if (hasInputVersion) then
+      call getChildValue(child, "", versionString)
+      call getParserVersion(child, unquote(char(versionString)), inputVersion)
+      if (inputVersion /= parserVersion) then
+        call removeChildNodes(child)
+        call destroyNode(child)
+      end if
+    end if
     ! Handle parser options
     call getChildValue(root, "ParserOptions", dummy, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readParserOptions(child, root, parserFlags)
+    if (hasInputVersion) then
+      call readParserOptions(child, root, parserFlags, inputVersion)
+    else
+      call readParserOptions(child, root, parserFlags)
+    end if
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
@@ -227,7 +245,7 @@ contains
 
 
   !> Read in parser options (options not passed to the main code)
-  subroutine readParserOptions(node, root, flags)
+  subroutine readParserOptions(node, root, flags, implicitVersion)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -239,12 +257,23 @@ contains
     !> Contains parser flags on exit.
     type(TParserFlags), intent(out) :: flags
 
+    !> Parser version implied by version number
+    integer, intent(in), optional :: implicitVersion
+
     integer :: inputVersion
     type(fnode), pointer :: child
 
-    ! Check if input needs compatibility conversion.
-    call getChildValue(node, "ParserVersion", inputVersion, parserVersion, &
-        &child=child)
+    if (present(implicitVersion)) then
+      call getChild(node, "ParserVersion", child, requested=.false.)
+      if (associated(child)) then
+        call detailedError(child, "Cannot have both ParserVersion and InputVersion")
+      end if
+      inputVersion = implicitVersion
+    else
+      ! Check if input needs compatibility conversion.
+      call getChildValue(node, "ParserVersion", inputVersion, parserVersion, &
+          &child=child)
+    end if
     if (inputVersion < 1 .or. inputVersion > parserVersion) then
       call detailedError(child, "Invalid parser version (" // i2c(inputVersion)&
           &// ")")
@@ -7154,5 +7183,26 @@ contains
 
   end subroutine readSpinTuning
 
+
+  subroutine getParserVersion(node, versionString, parserVersion)
+    type(fnode), pointer :: node
+    character(len=*), intent(in) :: versionString
+    integer, intent(out) :: parserVersion
+
+    select case(trim(versionString))
+    case("20.1")
+      parserVersion = 8
+    case("19.1")
+      parserVersion = 7
+    case("18.2")
+      parserVersion = 6
+    case("17.1", "18.1")
+      parserVersion = 5
+    case default
+      call detailedError(node, "Program version '"//trim(versionString)// &
+        & "' is not recognized")
+    end select
+
+  end subroutine getParserVersion
 
 end module dftbp_parser

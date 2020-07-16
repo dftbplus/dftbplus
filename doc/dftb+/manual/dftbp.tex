@@ -60,6 +60,7 @@ Additionally optional blocks of definitions may be present:
   \kw{Analysis} & p & & \cb & \pref{sec:dftbp.Analysis} \\
   \kw{ExcitedState} & p & & \cb & \pref{sec:dftbp.ExcitedState} \\
   \kw{REKS} & p & & \cb & \pref{sec:dftbp.REKS} \\
+  \kw{InputVersion} & s & & None & \\
   \kw{ParserOptions} & p & & \cb & \pref{sec:dftbp.ParserOptions} \\
   \kw{Parallel} & p & & \cb & \pref{sec:dftbp.Parallel} \\
 \end{ptableh}
@@ -79,6 +80,7 @@ Additionally optional blocks of definitions may be present:
   See p.~\pref{sec:dftbp.ExcitedState}.
 \item[\is{REKS}] Calculations in ensemble DFT for a strongly correlated system.
   See p.~\pref{sec:dftbp.REKS}.
+\item[\is{InputVersion}] Program version, which the input file was written for.
 \item[\is{ParserOptions}] Various options affecting the parser only.
   See p.~\pref{sec:dftbp.ParserOptions}.
 \item[\is{Parallel}] Options affecting the MPI-parallel execution. See
@@ -4827,6 +4829,9 @@ program.
   current format. The processed input (written to \verb|dftb_pin.hsd|)
   is always in the current format, and the \is{ParserVersion} property
   in it is always set to be the current parser version.
+
+  The parser version will be inferred in case \kw{InputVersion} is set
+  in the level above, in this case \is{ParserVersion} cannot be specified.
 
 \item[\is{WriteHSDInput}] Specifies, if the processed input should be
   written out in HSD format. (You shouldn't turn it off without

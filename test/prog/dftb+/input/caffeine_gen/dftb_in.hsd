@@ -1,5 +1,5 @@
-Geometry = xyzFormat {
- <<< "caffeine.xyz"
+Geometry = genFormat {
+ <<< "caffeine.gen"
 }
 
 Driver {}
@@ -13,6 +13,7 @@ Hamiltonian = DFTB {
     C = "p"
     N = "p"
   }
+  EigenSolver = DivideAndConquer {}
   SlaterKosterFiles = Type2FileNames {
     Separator = "-"
     Suffix = ".skf"
@@ -27,7 +28,7 @@ Analysis {
   CalculateForces = Yes
 }
 
-InputVersion = "20.1"
+InputVersion = "18.2"
 
 Parallel {
   # Allow OMP threads explicitely to test for hybrid parallelisation with
