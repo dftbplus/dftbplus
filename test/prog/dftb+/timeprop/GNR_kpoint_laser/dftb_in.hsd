@@ -74,18 +74,14 @@
  Options = {
    WriteAutotestTag = Yes 
  }
- ParserOptions = {
-   ParserVersion = 5
- }
- Analysis = {
-    ElectronDynamics = {
-      Steps = 1000
-      TimeStep [au] = 0.2
-      FieldStrength [v/a] = 0.01
-      Perturbation = laser {
-       PolarizationDirection = 0 1 0
-       LaserEnergy [ev] = 3.0
-      }	
-      Populations = Yes 
-   }
- }
+InputVersion = 20.1
+ElectronDynamics = {
+  Steps = 1000
+  TimeStep [au] = 0.2
+  FieldStrength [v/a] = 0.01
+  Perturbation = laser {
+   PolarizationDirection = 0 1 0
+   LaserEnergy [ev] = 3.0
+  }
+  Populations = Yes 
+}
