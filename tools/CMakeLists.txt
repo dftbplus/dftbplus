@@ -1,6 +1,3 @@
 add_subdirectory(dptools)
 add_subdirectory(pythonapi)
-
-install(DIRECTORY misc/ DESTINATION ${INSTALL_BIN_DIR} FILES_MATCHING
-  PATTERN "calc_timeprop_*" PERMISSIONS OWNER_READ OWNER_WRITE
-  OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+add_subdirectory(misc)
