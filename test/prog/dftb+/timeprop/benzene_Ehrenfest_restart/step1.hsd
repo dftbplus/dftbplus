@@ -40,22 +40,18 @@ Options = {
     RandomSeed = 1
 }
 
-ParserOptions = {
-    ParserVersion = 8
-}
+InputVersion = 20.1
 
-Analysis = {
-    ElectronDynamics = {
-        Steps = 50
-        TimeStep [au] = 0.2
-        Perturbation = Laser {
-            PolarizationDirection = 0.0 1.0 1.0
-            LaserEnergy [eV] = 6.795
-        }
-        FieldStrength [v/a] = 0.01
-        IonDynamics = Yes
-        InitialTemperature [K] = 273.15
-        Restart = No
-        WriteRestart = Yes
+ElectronDynamics = {
+    Steps = 50
+    TimeStep [au] = 0.2
+    Perturbation = Laser {
+        PolarizationDirection = 0.0 1.0 1.0
+        LaserEnergy [eV] = 6.795
     }
+    FieldStrength [v/a] = 0.01
+    IonDynamics = Yes
+    InitialTemperature [K] = 273.15
+    Restart = No
+    WriteRestart = Yes
 }

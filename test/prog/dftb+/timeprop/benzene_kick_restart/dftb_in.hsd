@@ -36,22 +36,18 @@ Options = {
   WriteAutotestTag = Yes
 }
 
-ParserOptions = {
-    ParserVersion = 5
-}
+InputVersion = 20.1
 
- Analysis = {
-    ElectronDynamics = {
-      Steps = 10000
-      TimeStep [au] = 0.2
-      Perturbation = Kick {
-        PolarizationDirection = "y"
-      }
-      FieldStrength [v/a] = 0.001
-      Restart = yes
-      WriteRestart = no
-    }
- }
+ElectronDynamics = {
+  Steps = 10000
+  TimeStep [au] = 0.2
+  Perturbation = Kick {
+    PolarizationDirection = "y"
+  }
+  FieldStrength [v/a] = 0.001
+  Restart = yes
+  WriteRestart = no
+}
 
 Parallel {
   # Allow OMP threads explicitely to test for hybrid parallelisation with

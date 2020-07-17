@@ -63,20 +63,16 @@ Options = {
     RandomSeed = 1
 }
 
-ParserOptions = {
-    ParserVersion = 8
-}
+InputVersion = 20.1
 
-Analysis = {
-    ElectronDynamics = {
-        Steps = 100
-        TimeStep [au] = 0.2
-        FieldStrength [v/a] = 0.01
-        Perturbation = laser {
-            PolarizationDirection = 0 1 0
-            LaserEnergy [ev] = 3.0
-        }
-        Populations = Yes
-        WriteRestart = Yes
+ElectronDynamics = {
+    Steps = 100
+    TimeStep [au] = 0.2
+    FieldStrength [v/a] = 0.01
+    Perturbation = laser {
+        PolarizationDirection = 0 1 0
+        LaserEnergy [ev] = 3.0
     }
+    Populations = Yes
+    WriteRestart = Yes
 }
