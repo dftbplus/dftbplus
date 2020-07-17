@@ -1931,7 +1931,8 @@ $O(N_\mathrm{atom}^{d/2 + 1/2})$ where $d$ is the effective dimensionality of
 the system. Hence for three dimensional structures it will scale as $O(N^2)$ for
 general systems.
 \begin{ptable}
-  \kw{Poles}        & i & & 20 & \\
+  \kw{Method}       & i & (PEXSI $>$ 2.5) & 3 & \\
+  \kw{Poles}        & i & \is{Method} = 3 & 30 & \\
   \kw{ProcsPerPole} & i & & 1  & \\
   \kw{muPoints}     & i & & 2  & \\
   \kw{SymbolicFactorProcs} & i & & 1  & \\
@@ -1940,7 +1941,15 @@ general systems.
   \kw{Threshold} & l& Sparse = No & 1E-15 & \\
 \end{ptable}
 \begin{description}
-\item[\is{Poles}] number of poles for the complex plane calculation.
+\item[\is{Method}] used for pole expansion. ELSI v2.5 only supports methods 1
+  and 2, but v2.6 onwards offers method 3 as well (see the
+  \href{https://wordpress.elsi-interchange.org/index.php/download/}{ELSI user
+    manual} for details of the methods). Methods 1 and 3 can calculate the
+  electron entropy, so enable the Mermin energy to be evaluated. When compiled
+  with ELSI v2.5, the \dftbp{} default is \is{Method}=2, while for later
+  versions method 3 is the default.
+\item[\is{Poles}] number of poles for the complex plane calculation. \is{Method}=1
+  defaults to 60 poles, 2 has 20 and method 3 uses 30 by default.
 \item[\is{ProcsPerPole}] processors used to calculate the inversion at each pole.
 \item[\is{muPoints}] number of processors used to search for the Fermi level.
 \item[\is{SymbolicFactorProcs}] number of processors to use in evaluating the

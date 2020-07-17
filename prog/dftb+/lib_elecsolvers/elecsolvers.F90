@@ -47,7 +47,20 @@ module dftbp_elecsolvers
     !> Whether the solver provides eigenvalues
     logical, public :: providesEigenvals
 
-    !> Data for non-diagonalising ELSI solvers
+    !> Whether the solver provides a band energy (sum of the eigenvalues)
+    logical, public :: providesBandEnergy
+
+    !> Whether the solver provides the TS term for electrons
+    logical, public :: providesElectronEntropy
+
+    !> Whether the solver provides electronic free energy (or is consistent with its evaluation)
+    logical, public :: providesFreeEnergy
+
+    !> Whether the solver provides the electron chemical potential (or is consistent with its
+    !> evaluation or it being suplied externally)
+    logical, public :: elecChemPotAvailable
+
+    !> Data for ELSI solvers
     type(TElsiSolver), public, allocatable :: elsi
 
     !> Are Choleskii factors already available for the overlap matrix
@@ -72,6 +85,7 @@ module dftbp_elecsolvers
     generic :: storeCholesky => storeCholeskyReal, storeCholeskyCmplx
     generic :: getCholesky => getCholeskyReal, getCholeskyCmplx
     procedure :: updateElectronicTemp => TElectronicSolver_updateElectronicTemp
+
   end type TElectronicSolver
 
 
@@ -90,13 +104,43 @@ contains
     integer, intent(in) :: nCholesky
 
     this%iSolver = iSolver
+
     this%isElsiSolver = any(this%iSolver ==&
         & [electronicSolverTypes%elpa, electronicSolverTypes%omm, electronicSolverTypes%pexsi,&
         & electronicSolverTypes%ntpoly, electronicSolverTypes%elpadm])
+
+    !> Eigenvalues for hamiltonian available
     this%providesEigenvals = any(this%iSolver ==&
         & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
         & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
         & electronicSolverTypes%magma_gvd])
+
+    !> Band energy for electrons available
+    this%providesBandEnergy = any(this%iSolver ==&
+        & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%elpadm, electronicSolverTypes%ntpoly,&
+        & electronicSolverTypes%magma_gvd, electronicSolverTypes%pexsi])
+
+    !> TS term for electrons is available
+    this%providesElectronEntropy = any(this%iSolver ==&
+        & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%elpadm, electronicSolverTypes%magma_gvd,&
+        & electronicSolverTypes%pexsi])
+
+    !> Electron chemical potential is either available or provided externally. Note this can get
+    !> over-riden in initprogram (e.g. if the boundary conditions are contacts with different
+    !> chemical potentials which prevents evaluation of mu * N_elec terms)
+    this%elecChemPotAvailable = any(this%iSolver ==&
+        & [electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
+        & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa,&
+        & electronicSolverTypes%elpadm, electronicSolverTypes%ntpoly,&
+        & electronicSolverTypes%magma_gvd, electronicSolverTypes%pexsi, electronicSolverTypes%gf])
+
+    !> The electronic Helmholtz free energy of the system is available (U - TS + mu N_elec). Note
+    !> that chemical potential logical can be re-defined elsewhere.
+    this%providesFreeEnergy =  this%providesElectronEntropy .and. this%elecChemPotAvailable
 
     this%nCholesky = nCholesky
     allocate(this%hasCholesky(this%nCholesky))
@@ -119,6 +163,10 @@ contains
     if (this%isElsiSolver) then
       call this%elsi%reset()
     end if
+
+    ! The electronic Helmholtz free energy of the system is available (U - TS + mu N_elec). Note
+    ! that chemical potential logical can be re-defined.
+    this%providesFreeEnergy =  this%providesElectronEntropy .and. this%elecChemPotAvailable
 
   end subroutine TElectronicSolver_reset
 

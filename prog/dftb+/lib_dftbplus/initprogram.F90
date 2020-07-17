@@ -378,9 +378,6 @@ module dftbp_initprogram
   !> Fermi energy per spin
   real(dp), allocatable :: Ef(:)
 
-  !> Can an electronic free energy be correctly defined?
-  logical :: tDefinedFreeE
-
   !> Filling temp updated by MD.
   logical :: tSetFillingTemp
 
@@ -1819,18 +1816,14 @@ contains
         end if
       #:endif
 
-      if (tSpinOrbit .and. .not.&
-          & any(electronicSolver%iSolver==[electronicSolverTypes%omm,electronicSolverTypes%elpa]))&
-          & then
-        call error("Only the ELSI libOMM and ELPA solvers are suitable for spin orbit at the&
-            & moment")
-      end if
-
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
-      tWriteHS = .false.
+        tWriteHS = .false.
+
       call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
           & nEl, iDistribFn, nSpin, parallelKS%localKS(2, 1), nKpoint, parallelKS%localKS(1, 1),&
-          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
+          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS,&
+          & electronicSolver%providesElectronEntropy)
+
     end if
 
     if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then
@@ -2404,7 +2397,6 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-    tDefinedFreeE = .true.
   #:if WITH_TRANSPORT
     if (tLatOpt .and. tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
@@ -2421,7 +2413,8 @@ contains
     call initTransportArrays(tUpload, input%transpar, species0, orb, nAtom, nSpin, shiftPerLUp,&
         & chargeUp, allocated(qBlockIn), blockUp, shiftBlockUp)
 
-    call initTransport(env, input, tDefinedFreeE)
+    call initTransport(env, input, electronicSolver)
+
   #:else
     tNegf = .false.
   #:endif
@@ -3986,7 +3979,7 @@ contains
 #:endif
 
 #:if WITH_TRANSPORT
-  subroutine initTransport(env, input, tDefinedFreeE)
+  subroutine initTransport(env, input, electronicSolver)
 
     !> Computational environment
     type(TEnvironment), intent(inout) :: env
@@ -3994,8 +3987,8 @@ contains
     !> Input data
     type(TInputData), intent(in) :: input
 
-    !> Is the free energy defined (i.e. equilibrium calculation)
-    logical, intent(out) :: tDefinedFreeE
+    !> Electronic structure solver and its capabilities
+    type(TElectronicSolver) :: electronicSolver
 
     logical :: tAtomsOutside
     integer :: iSpin, isz
@@ -4010,8 +4003,6 @@ contains
     else
       nSpinChannels = 1
     endif
-
-    tDefinedFreeE = .true.
 
     associate(transpar=>input%transpar, greendens=>input%ginfo%greendens)
       ! Non colinear spin not yet supported
@@ -4033,7 +4024,9 @@ contains
               mu1 = transpar%contacts(iCont)%eFermi(iSpin) - transpar%contacts(iCont)%potential
               mu2 = transpar%contacts(jCont)%eFermi(iSpin) - transpar%contacts(jCont)%potential
               if (abs(mu1 - mu2) > tolEfEquiv) then
-                tDefinedFreeE = .false.
+                ! there is no global chemical potential so associated free energy currently
+                ! undefined.
+                electronicSolver%elecChemPotAvailable = .false.
                 exit lpConts
               end if
             end do
@@ -4408,17 +4401,6 @@ contains
     tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
     if (electronicSolver%isElsiSolver) then
       tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
-      if (.not.electronicSolver%elsi%isSparse .and. .not.(electronicSolver%providesEigenvals .or.&
-          & electronicSolver%iSolver == electronicSolverTypes%omm)) then
-        if (tDFTBU) then
-          call error("This dense ELSI solver is currently incompatible with DFTB+U, use the sparse&
-              & form")
-        end if
-        if (allocated(onSiteElements)) then
-          call error("This dense ELSI solver is currently incompatible with onsite correctios, use&
-              & the sparse form")
-        end if
-      end if
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&

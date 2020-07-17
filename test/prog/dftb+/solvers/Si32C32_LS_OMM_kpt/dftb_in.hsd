@@ -1,6 +1,7 @@
 Geometry = GenFormat {
-63  S
+64  S
  Si C
+     1    1    0.01000000000E+00   0.00000000000E+00   0.00000000000E+00
      2    1    0.21708370000E+01   0.00000000000E+00   0.21708370000E+01
      3    1    0.21708370000E+01  -0.21708370000E+01   0.00000000000E+00
      4    1    0.00000000000E+00  -0.21708370000E+01   0.21708370000E+01
@@ -70,58 +71,63 @@ Geometry = GenFormat {
    0.00000000000E+00   0.00000000000E+00   0.86833480000E+01
 }
 
-Driver {}
-
 Hamiltonian = DFTB {
-    SCC = Yes
-    SCCTolerance = 1.0E-8
-    Eigensolver = PEXSI {
-      Sparse = No
-      Threshold = 1.0E-17
-    }
-    MaxAngularMomentum {
-        Si = "p"
-        C = "p"
-    }
-    Filling = Fermi {
-        Temperature [Kelvin] = 500.0
-    }
-    SlaterKosterFiles {
-        Si-Si = "./Si-Si.skf"
-        Si-C = "./Si-C.skf"
-        C-Si = "./C-Si.skf"
-        C-C = "./C-C.skf"
-    }
-    Charge = +1
-    SpinPolarisation = Colinear {
-        UnpairedElectrons = 1
-	RelaxTotalSpin = Yes
-    }
-    SpinConstants = {
-        C = -0.031
-        Si = -0.020
-    }
-    KPointsAndWeights = SupercellFolding {
-        2 0 0
-        0 1 0
-        0 0 1
-        0.5 0.5 0.5
-    }
+  SCC = Yes
+  SCCTolerance = 1.0E-7
+  Filling = Fermi {
+    Temperature [K] = 500
+  }
+  Solver = OMM {
+     Sparse = No
+  }
+  SpinOrbit = {
+    Dual = Yes
+    Si [eV] = {0.0 0.029}
+    C [eV] = {0.0 0.0}
+  }
+  OnSiteCorrection= {
+    # ss' sp
+    # ps  pp'
+    Cuu = {0        0.04973
+           0.04973 -0.01203}
+    Cud = {0        0.10512
+           0.10512  0.02643}
+    Siuu = {0        0.04973 # dummy values
+            0.04973 -0.01203}
+    Siud = {0        0.10512
+            0.10512  0.02643}
+  }
+  MaxAngularMomentum = {
+    Si = "p"
+    C = "p"
+  }
+  SlaterKosterFiles = {
+    Si-Si = "./Si-Si.skf"
+    Si-C = "./Si-C.skf"
+    C-Si = "./C-Si.skf"
+    C-C = "./C-C.skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   2 0 0
+   0 2 0
+   0 0 2
+   0.5 0.5 0.5
+  }
 }
 
-Options {
-    WriteAutotestTag = Yes
+Analysis = {
+  CalculateForces = Yes
 }
 
-Analysis {
-    CalculateForces = Yes
+Options = {
+  WriteAutotestTag = Yes
 }
 
-ParserOptions {
-    ParserVersion = 5
+ParserOptions = {
+  ParserVersion = 8
 }
 
-Parallel {
-    UseOmpThreads = No
-    Groups = 2
+Parallel = {
+  UseOmpThreads = No
+  Groups = 8
 }

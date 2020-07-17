@@ -28,7 +28,8 @@ Additionally there are optional requirements for some DFTB+ features:
 
 * In addition to ScaLAPACK, the `ELSI
   <https://wordpress.elsi-interchange.org/>`_ library for large scale systems
-  can optionally also be used (version 2.5.0 or later of the library).
+  can optionally also be used (version 2.6.0 or 2.6.1 of the library, with
+  partial support of 2.5.0).
 
 * The ARPACK or the ARPACK-ng library for excited state DFTB functionality
 

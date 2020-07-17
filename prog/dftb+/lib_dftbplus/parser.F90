@@ -2359,6 +2359,8 @@ contains
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
 
+    integer :: iTmp
+
     ! Electronic solver
     call getChildValue(node, "Solver", value1, "RelativelyRobust")
     call getNodeName(value1, buffer)
@@ -2401,7 +2403,33 @@ contains
       ctrl%solver%isolver = electronicSolverTypes%pexsi
       allocate(ctrl%solver%elsi)
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, 20)
+    #:if ELSI_VERSION > 2.5
+      call getChildValue(value1, "Method", ctrl%solver%elsi%pexsiMethod, 3)
+    #:else
+      call getChildValue(value1, "Method", ctrl%solver%elsi%pexsiMethod, 2)
+    #:endif
+      select case(ctrl%solver%elsi%pexsiMethod)
+      case(1)
+        iTmp = 60
+      case(2)
+        iTmp = 20
+      case(3)
+        iTmp = 30
+      end select
+      call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, iTmp)
+      if (ctrl%solver%elsi%pexsiNPole < 10) then
+        call detailedError(value1, "Too few PEXSI poles")
+      end if
+      select case(ctrl%solver%elsi%pexsiMethod)
+      case(1)
+        if (mod(ctrl%solver%elsi%pexsiNPole,10) /= 0 .or. ctrl%solver%elsi%pexsiNPole > 120) then
+          call detailedError(value1, "Unsupported number of PEXSI poles for method 1")
+        end if
+      case(2,3)
+        if (mod(ctrl%solver%elsi%pexsiNPole,5) /= 0 .or. ctrl%solver%elsi%pexsiNPole > 40) then
+          call detailedError(value1, "Unsupported number of PEXSI poles for this method")
+        end if
+      end select
       call getChildValue(value1, "ProcsPerPole", ctrl%solver%elsi%pexsiNpPerPole, 1)
       call getChildValue(value1, "muPoints", ctrl%solver%elsi%pexsiNMu, 2)
       call getChildValue(value1, "SymbolicFactorProcs", ctrl%solver%elsi%pexsiNpSymbo, 1)
@@ -2471,10 +2499,6 @@ contains
             & then
           call getChildValue(value1, "Threshold", ctrl%solver%elsi%elsi_zero_def, 1.0E-15_dp)
         end if
-      end if
-      if (ctrl%t2Component .and. ctrl%solver%elsi%elsiCsr) then
-        call detailedError(value1,"Two-component hamiltonians currently cannot be used with sparse&
-            & ELSI solvers")
       end if
     end if
 

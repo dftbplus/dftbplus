@@ -7,11 +7,18 @@ else
    WITH_ARPACK=false
 fi
 
+if [ "${WITH_ELSI}" == "false" ]; then
+   ELSI_VERSION=0
+else
+   ELSI_VERSION="${elsi_VERSION}"
+fi
+
 cmake_options=(
    "-DWITH_DFTD3=true"
    "-DWITH_TRANSPORT=true"
    "-DWITH_ARPACK=${WITH_ARPACK}"
    "-DWITH_MPI=${WITH_MPI}"
+   "-DELSI_VERSION=${ELSI_VERSION}"
    "-DWITH_API=true"
    "-DFYPP_FLAGS='-DTRAVIS'"
 )

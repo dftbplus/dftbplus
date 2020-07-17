@@ -68,7 +68,7 @@ set(SCALAPACK_LIBRARY_DIRS "" CACHE STRING "Directories where Scalapack librarie
 set(ELSI_ROOT "" CACHE STRING "Root directory of the ELSI installation")
 
 set(ELSI_EXTERNAL_LIBRARIES "" CACHE STRING
-  "Any EXTERNAL libraries ELSI needs apart of its own libraries (and scalapack)")
+  "Any EXTERNAL libraries ELSI needs apart from its own libraries (and scalapack)")
 set(ELSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING
   "Directories where ELSI external libraries can be found")
 
@@ -76,7 +76,7 @@ set(ELSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING
 # Note: PEXSI usually needs explicit linking of the standard C++ library. Make sure to
 #     provide the library path to that C++ standard library, which was used to compile PEXSI.
 set(PEXSI_EXTERNAL_LIBRARIES "stdc++" CACHE STRING
-  "Any EXTERNAL libraries PEXSI needs apart of its own libraries")
+  "Any EXTERNAL libraries PEXSI needs apart from its own libraries")
 set(PEXSI_EXTERNAL_LIBRARY_DIRS "" CACHE STRING  "Directories with PEXSI external libraries")
 
 # PLUMED -- only needed when compiled with PLUMED support
