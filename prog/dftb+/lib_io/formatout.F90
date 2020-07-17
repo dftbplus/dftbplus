@@ -146,17 +146,16 @@ contains
     logical, intent(in), optional :: tFracCoord
 
     integer :: nAtom, nSpecies
-    character(6) :: formatSpecies
+    character(mc) :: formatCoordinates
     integer :: ii
     logical :: tFractional, tHelical, tPeriodic
     real(dp) :: invLatVec(3,3)
 
-100 format(I5," ",A2)
-101 format("(",I2.2,"A3)")
-102 format(I5,I2,3E20.10)
-103 format(3E20.10)
-104 format(E20.10,F14.8)
-105 format(E20.10,F14.8,1X,I0)
+    ! Format first line of a gen file
+    character(len=*), parameter :: formatHead1 = '(1X,I0,1X,A2)'
+
+    ! Format a vector
+    character(len=*), parameter :: formatVec = '(3E20.10)'
 
     nAtom = size(coord, dim=2)
     nSpecies = maxval(species)
@@ -189,53 +188,56 @@ contains
         tPeriodic = .true.
       end if
       if (tFractional) then
-        write(fd, 100) nAtom, "F"
+        write(fd, formatHead1) nAtom, "F"
       else if (tHelical) then
-        write(fd, 100) nAtom, "H"
+        write(fd, formatHead1) nAtom, "H"
       else if (tPeriodic) then
-        write(fd, 100) nAtom, "S"
+        write(fd, formatHead1) nAtom, "S"
       else
         call error("Unknown boundary conditions")
       end if
     else
-      write(fd, 100) nAtom, "C"
+      write(fd, formatHead1) nAtom, "C"
     end if
 
-    write(formatSpecies, 101) nSpecies
-    write(fd, formatSpecies) (trim(speciesName(ii)), ii = 1, nSpecies)
+    do ii = 1, nSpecies
+      write(fd, '(1X,A)', advance='NO')trim(speciesName(ii))
+    end do
+    write(fd,'(A)')
 
+    write(formatCoordinates, '("(I5,2X,I",I0,",3E20.10)")') floor(log10(real(nSpecies)))+1
     if (tFractional) then
-      invLatVec(:,:) = latVec(:,:)
+      invLatVec(:,:) = latVec
       call matinv(invLatVec)
       do ii = 1, nAtom
-        write(fd, 102) ii, species(ii), matmul(invLatVec,coord(:, ii) + origin)
+        write(fd, formatCoordinates) ii, species(ii), matmul(invLatVec,coord(:, ii) + origin)
       end do
     else if (tPeriodic .or. tHelical) then
       do ii = 1, nAtom
-        write(fd, 102) ii, species(ii), (coord(:, ii) + origin) * Bohr__AA
+        write(fd, formatCoordinates) ii, species(ii), (coord(:, ii) + origin) * Bohr__AA
       end do
     else
       do ii = 1, nAtom
-        write(fd, 102) ii, species(ii), coord(:, ii) * Bohr__AA
+        write(fd, formatCoordinates) ii, species(ii), coord(:, ii) * Bohr__AA
       end do
     end if
     if (present(latVec)) then
       if (tHelical) then
-        write(fd, 103) origin * Bohr__AA
+        write(fd, formatVec) origin * Bohr__AA
         if (size(latvec,dim=1)==2) then
-          write(fd, 104) latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi
+          write(fd, "(E20.10,F14.8)") latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi
         else
-          write(fd, 105) latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi, &
+          write(fd, "(E20.10,F14.8,1X,I0)") latVec(1, 1) * Bohr__AA, latVec(2, 1) * 180.0_dp/pi, &
               & nint(latVec(3,1))
         end if
       else if (tPeriodic) then
         if (tFractional) then
-          write(fd, 103) matmul(invLatVec, origin)
+          write(fd, formatVec) matmul(invLatVec, origin)
         else
-          write(fd, 103) origin * Bohr__AA
+          write(fd, formatVec) origin * Bohr__AA
         end if
         do ii = 1, 3
-          write(fd, 103) latVec(:, ii) * Bohr__AA
+          write(fd, formatVec) latVec(:, ii) * Bohr__AA
         end do
       else
         call error("Unknown boundary conditions")

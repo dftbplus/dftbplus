@@ -99,30 +99,72 @@ For more information see the detailed help for this tool by issuing
 ``./utils/get_opt_externals -h``.
 
 
-Compiling
-=========
+Building
+========
 
-* Look at the `config.cmake` file and customise the global build parameters if
-  necessary. (If you are unsure, leave the defaults as they are.)
+**Important note:** CMake caches its variables in the `CMakeCache.txt` file in
+the build folder. Delete this file before re-running CMake after having changed
+variables in some of the config files.
 
-* Since the CMake auto-detection of compilers, flags and libraries may easily
-  end up in non-standard environments with an inconsistent choice, you have to
-  provide those settings manually. You can use (and customise) one of the cmake
-  toolchain templates in the `sys/` folder (e.g. `gnu.cmake`, `intel.cmake`) or
-  create your own one, if you wish.
+**Note for developers:** Please see some further instructions at the end of the
+file.
 
-* Create a build folder (e.g. `_build`) either in the DFTB+ source tree or
-  somewhere else outside of it and change to the build folder::
+* Inspect the `config.cmake` file and customise the global build parameters. (If
+  you are unsure, leave the defaults as they are.)
+
+* Create a build folder (e.g. `_build`) either within the DFTB+ source tree or
+  somewhere else outside of it and change to that folder, e.g.::
 
     mkdir _build
     cd _build
 
-* From the build folder invoke CMake to configure the build. Pass the toolchain
-  file name with the ``-DCMAKE_TOOLCHAIN_FILE`` option and the DFTB+ source code
-  folder as arguments. If for example your build folder has been created within
-  the DFTB+ source tree and you use the `sys/gnu.cmake` toolchain file, issue::
+* From the build folder invoke CMake to configure the build. You have to pass
+  the source directory as argument to CMake. Additionally pass your Fortran and
+  C compilers as environment variables, e.g.::
 
-    cmake -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
+    env FC=gfortran CC=gcc cmake ..
+
+  If you want to build the code with MPI-support (see ``WITH_MPI`` in
+  `config.cmake`), pass the name of the mpi compiler-wrapper as Fortran
+  compiler, e.g.::
+
+    env FC=mpifort CC=gcc cmake ..
+
+  Based on the detected compilers, the build system will read further settings
+  from a corresponding toolchain file in the `sys/` folder. (The name of the
+  file is shown in the output.)
+
+  You may adjust any variables defined in `config.make` or in the toolchain file
+  by either modifying the files directly or by overriding the definitions via
+  the ``-D`` command line option. For example, in order to change the name of
+  the LAPACK library, you can override the ``LAPACK_LIBRARIES`` variable with::
+
+    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas ..
+
+  CMake automatically searches for the external libraries in the paths specified
+  in the ``CMAKE_PREFIX_PATH`` environment variable. Make sure that it is set up
+  correctly in your build environment. Alternatively, you can use the respective
+  ``*_LIBRARY_DIRS`` variable for each external library to add path hints for
+  the library search, e.g.::
+
+    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARY_DIRS=/opt/custom-lapack/lib ..
+
+  Note: You can override the toolchain file selection by passing the
+  ``-DTOOLCHAIN_FILE`` option with the name of the file to read, e.g.::
+
+    env FC=ifort CC=gcc cmake -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake ..
+
+  or by setting the toolchain file path in the ``DFTBPLUS_TOOCHAIN_FILE``
+  environment variable. If the customized toolchain file is within the `sys/`
+  folder, you may use the ``-DTOOLCHAIN`` option or the ``DFTBPLUS_TOOLCHAIN``
+  environment variable instead::
+
+    env FC=ifort CC=gcc cmake -DTOOLCHAIN=gnu ..
+
+  Similarly, you can use an alternative build config file instead of
+  `config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
+  defining the ``DFTBPLUS_BUILD_CONFIG_FILE`` environment variable.
+
 
 * If the configuration was successful, invoke (from within the build folder)
   `make` to compile the code::
@@ -202,8 +244,8 @@ DFTB+ can be also used as a library and linked with other simulation software
 packages. In order to compile the library with the public API, make sure to set
 the ``WITH_API`` option to ``TRUE`` in the CMake config file
 `config.cmake`. When you install the program, it will also install the DFTB+
-library (`libdftbplus.a`), the C-include file and the Fortran module files,
-which are necessary for linking DFTB+ with C and Fortran programs.
+library, the C-include file and the Fortran module files, which are necessary
+for linking DFTB+ with C and Fortran programs.
 
 
 Linking the library in non-CMake based builds
@@ -290,3 +332,23 @@ documentation generator by issuing ::
 
 in the main source directory. The documentation will be created in the
 `doc/dftb+/ford/doc` folder.
+
+
+Developer build instructions
+============================
+
+You should avoid to customize the build by changing the variables in the CMake
+config files directly as your changes may accidently be checked in into the
+repository. Create a customized CMake config file instead, where you
+pre-populate the appropriate cache variables. Use the `-C` option to load that
+file::
+
+  cmake -C ../custom.cmake ..
+
+The customized config file is read by CMake before the compiler detection. If
+your config file contains toolchain dependent options, consider to define the
+``DFTBPPLUS_TOOLCHAIN`` environment variable and query it in your config file.
+
+See this [CMake customization
+file](https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7) for a
+template.

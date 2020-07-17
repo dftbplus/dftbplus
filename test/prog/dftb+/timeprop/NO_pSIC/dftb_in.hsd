@@ -49,15 +49,16 @@ Hamiltonian = DFTB {
     
 }
 
-Analysis = {
-    ElectronDynamics = {
-        Steps = 10000
-        TimeStep [au] = 0.2
-        Perturbation = Kick {
-            PolarizationDirection = "all"
-        }
-        FieldStrength [v/a] = 0.001
+ElectronDynamics = {
+    Steps = 10000
+    TimeStep [au] = 0.2
+    Perturbation = Kick {
+        PolarizationDirection = "all"
     }
+    FieldStrength [v/a] = 0.001
+}
+
+Analysis = {
     MullikenAnalysis = Yes
 }
 
@@ -65,9 +66,7 @@ Options {
     WriteAutotestTag = Yes
 }
 
-ParserOptions {
-    ParserVersion = 6
-}
+InputVersion = 20.1
 
 Parallel {
     # Allow OMP threads explicitely to test for hybrid parallelisation with

@@ -37,26 +37,22 @@ Options = {
 }
 
 
-ParserOptions = {
-    ParserVersion = 5
-}
+InputVersion = 20.1
 
- Analysis = {
-    ElectronDynamics = {
-      Steps = 5000
-      TimeStep [au] = 0.2
-      Perturbation = Laser {
-        PolarizationDirection = 0.0 1.0 0.0
-        ImagPolarizationDirection = 0.0 0.0 1.0 
-        LaserEnergy [eV] = 6.795
-      }
-      EnvelopeShape = Sin2 {
-        Time0 [fs] = 12.0
-        Time1 [fs] = 18.0
-      }
-      FieldStrength [v/a] = 0.01
-    }
- }
+ElectronDynamics = {
+  Steps = 5000
+  TimeStep [au] = 0.2
+  Perturbation = Laser {
+    PolarizationDirection = 0.0 1.0 0.0
+    ImagPolarizationDirection = 0.0 0.0 1.0 
+    LaserEnergy [eV] = 6.795
+  }
+  EnvelopeShape = Sin2 {
+    Time0 [fs] = 12.0
+    Time1 [fs] = 18.0
+  }
+  FieldStrength [v/a] = 0.01
+}
 
 Parallel {
   # Allow OMP threads explicitely to test for hybrid parallelisation with

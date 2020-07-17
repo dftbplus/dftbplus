@@ -21,17 +21,16 @@ cmake_options=(
    "-DELSI_VERSION=${ELSI_VERSION}"
    "-DWITH_API=true"
    "-DFYPP_FLAGS='-DTRAVIS'"
-   "-DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake"
 )
+
+if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
+   BUILD_TYPE="Debug"
+else
+   BUILD_TYPE="Release"
+fi
 
 mkdir -p _build
 pushd _build
-
-if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then
-   cmake -DCMAKE_BUILD_TYPE=Debug "${cmake_options[@]}" ..
-else
-   cmake -DCMAKE_BUILD_TYPE=Release "${cmake_options[@]}" ..
-fi
-
+cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} "${cmake_options[@]}" ..
 make -j 2
 ctest -j 2
