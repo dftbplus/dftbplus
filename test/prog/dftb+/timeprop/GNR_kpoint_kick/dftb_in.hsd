@@ -63,9 +63,9 @@
      Temperature [k] = 300 
    }
    ElectricField = {}
-   OrbitalResolvedSCC = No
+   ShellResolvedSCC = No
    ReadInitialCharges = No 
-   Eigensolver = DivideAndConquer {}
+   Solver = DivideAndConquer {}
    OldSKInterpolation = No
    Dispersion = LennardJones {
     Parameters = UFFParameters {}
@@ -74,16 +74,14 @@
  Options = {
    WriteAutotestTag = Yes 
  }
- ParserOptions = {
-   ParserVersion = 5
- }
- Analysis = {
-    ElectronDynamics = {
-      Steps = 2000
-      TimeStep [au] = 0.2
-      FieldStrength [v/a] = 0.001
-      Perturbation = kick {
-       PolarizationDirection = "y"
-       }	
-   }
- }
+
+InputVersion = 20.1
+
+ElectronDynamics = {
+  Steps = 2000
+  TimeStep [au] = 0.2
+  FieldStrength [v/a] = 0.001
+  Perturbation = kick {
+   PolarizationDirection = "y"
+  }
+}

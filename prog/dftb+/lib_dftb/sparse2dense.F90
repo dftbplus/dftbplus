@@ -2085,7 +2085,7 @@ contains
 
   !> Helper routine for unpacking into Pauli-type Hamiltonians.
   !!
-  !! The routine creates the lower triangle of the 2x2 Pauli Hamiltonian
+  !! The routine creates both triangle of the 2x2 Pauli Hamiltonian
   !! 1*orig(:, 1) + sigma1*orig(:, 2) + sigma2*orig(:, 3) + sigma3*orig(:, 4).
   !!
   subroutine unpackHPauliBlacsHelper(myBlacs, orig, kPoint, iNeighbour, nNeighbourSK, iCellVec,&
@@ -2162,17 +2162,17 @@ contains
         ptmp => tmpSqr(1:nOrb2, 1:nOrb1, :)
         ptmp(:, :, :) = 0.5_dp * phase&
             & * reshape(orig(iOrig:iOrig+nOrb1*nOrb2-1, :), [nOrb2, nOrb1, 4])
-        ! up-up component and down-down components
+        ! up-up and down-down components
         call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)),&
             & desc%blacsOrbSqr, jj, ii, square)
         call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)),&
             & desc%blacsOrbSqr, jj + nOrb, ii + nOrb, square)
         if (iAtom1 /= iAtom2f) then
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)))),&
+              & transpose(conjg(imagPrefac * (ptmp(:, :, 1) + ptmp(:, :, 4)))),&
               & desc%blacsOrbSqr, ii, jj, square)
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)))),&
+              & transpose(conjg(imagPrefac * (ptmp(:, :, 1) - ptmp(:, :, 4)))),&
               & desc%blacsOrbSqr, ii + nOrb, jj + nOrb, square)
         end if
         ! down-up component
@@ -2185,22 +2185,24 @@ contains
           call scalafx_addl2g(myBlacs%orbitalGrid,&
               & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
               & jj + nOrb, ii, square)
+          ! Other triangle
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
+              & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
               & desc%blacsOrbSqr, ii, jj + nOrb, square)
         else
           call scalafx_addl2g(myBlacs%orbitalGrid,&
               & imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)), desc%blacsOrbSqr,&
               & jj + nOrb, ii, square)
           call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & hermPrefac * transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
+              & -hermPrefac*transpose(conjg(imagPrefac * (ptmp(:, :, 2) + imag * ptmp(:, :, 3)))),&
               & desc%blacsOrbSqr, ii, jj + nOrb, square)
+
           call scalafx_addl2g(myBlacs%orbitalGrid, imagPrefac * hermPrefac&
               & * conjg(transpose(ptmp(:, :, 2) - imag * ptmp(:, :, 3))), desc%blacsOrbSqr,&
               & ii + nOrb, jj, square)
-          call scalafx_addl2g(myBlacs%orbitalGrid,&
-              & transpose(conjg(imagPrefac * conjg(transpose(ptmp(:, :, 2)&
-              & - imag * ptmp(:, :, 3))))), desc%blacsOrbSqr, jj, ii + nOrb, square)
+          call scalafx_addl2g(myBlacs%orbitalGrid, conjg(imagPrefac * hermPrefac)&
+              & * (ptmp(:, :, 2) - imag * ptmp(:, :, 3))&
+              & , desc%blacsOrbSqr, jj, ii + nOrb, square)
         end if
       end do
     end do
@@ -2373,7 +2375,7 @@ contains
   end subroutine packRhoRealBlacs
 
 
-  !> Packs distributed dense real matrix into sparse form (real).
+  !> Packs distributed dense matrix into sparse form (complex).
   subroutine packRhoCplxBlacs(myblacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
       & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive)
 
@@ -2476,7 +2478,7 @@ contains
   end subroutine packRhoCplxBlacs
 
 
-  !> Pack square matrix into the sparse form (complex Pauli version).
+  !> Pack square dense matrix into the sparse form (complex Pauli version).
   subroutine packRhoPauliBlacs(myBlacs, desc, square, kPoint, kWeight, iNeighbour, nNeighbourSK,&
       & mOrb, iCellVec, cellVec, iSparseStart, img2CentCell, primitive, iprimitive)
 

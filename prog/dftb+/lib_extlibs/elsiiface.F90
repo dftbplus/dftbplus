@@ -25,7 +25,8 @@ module dftbp_elsiiface
   public :: elsi_handle, elsi_rw_handle
   public :: elsi_init, elsi_reinit, elsi_finalize
   public :: elsi_init_rw, elsi_finalize_rw
-  public :: elsi_set_csc, elsi_set_csc_blk, elsi_set_zero_def, elsi_set_rw_zero_def
+  public :: elsi_set_csc, elsi_set_csc_blk, elsi_set_sparsity_mask
+  public :: elsi_set_zero_def, elsi_set_rw_zero_def
   public :: elsi_dm_real, elsi_dm_complex
   public :: elsi_dm_real_sparse, elsi_dm_complex_sparse
   public :: elsi_get_edm_real, elsi_get_edm_complex
@@ -38,6 +39,7 @@ module dftbp_elsiiface
   public :: elsi_set_mu_mp_order, elsi_set_mu_broaden_width, elsi_set_mu_broaden_scheme
   public :: elsi_set_elpa_solver
   public :: elsi_set_omm_flavor, elsi_set_omm_n_elpa, elsi_set_omm_tol
+  public :: elsi_set_pexsi_method
   public :: elsi_set_pexsi_np_per_pole, elsi_set_pexsi_temp, elsi_set_pexsi_n_pole
   public :: elsi_set_pexsi_n_mu, elsi_set_pexsi_np_symbo, elsi_set_pexsi_delta_e
   public :: elsi_set_ntpoly_method, elsi_set_ntpoly_filter, elsi_set_ntpoly_tol
@@ -49,6 +51,7 @@ module dftbp_elsiiface
   public :: elsi_set_mpi, elsi_set_mpi_global
   public :: elsi_set_blacs
   public :: elsi_set_sing_check
+  public :: elsi_get_version, elsi_get_datestamp
 
 
   !> Whether code was built with ELSI support
@@ -128,6 +131,11 @@ contains
     call stubError("elsi_set_csc_blk")
   end subroutine elsi_set_csc_blk
 
+  subroutine elsi_set_sparsity_mask(eh, msk)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: msk
+    call stubError("elsi_set_sparsity_mask")
+  end subroutine elsi_set_sparsity_mask
 
   subroutine elsi_set_zero_def(eh, zero)
     type(elsi_handle), intent(inout) :: eh
@@ -358,6 +366,13 @@ contains
   end subroutine elsi_set_omm_tol
 
 
+  subroutine elsi_set_pexsi_method(eh, method)
+    type(elsi_handle), intent(inout) :: eh
+    integer(i4), intent(in) :: method
+    call stubError("elsi_set_pexsi_method")
+  end subroutine elsi_set_pexsi_method
+
+
   subroutine elsi_set_pexsi_mu_min(eh, mu_min)
     type(elsi_handle), intent(inout) :: eh
     real(r8), intent(in) :: mu_min
@@ -417,7 +432,7 @@ contains
   subroutine elsi_set_pexsi_n_pole(eh, n_pole)
     type(elsi_handle), intent(inout) :: eh
     integer(i4), intent(in) :: n_pole
-    call stubError("elsi_set_pexsi_np_pole")
+    call stubError("elsi_set_pexsi_n_pole")
   end subroutine elsi_set_pexsi_n_pole
 
 
@@ -517,6 +532,15 @@ contains
     complex(r8), intent(in) :: mat(:,:)
     call stubError("elsi_write_mat_complex")
   end subroutine elsi_write_mat_complex
+
+
+  subroutine elsi_get_version(major, minor, patch)
+    integer, intent(out) :: major, minor, patch
+  end subroutine elsi_get_version
+
+  subroutine elsi_get_datestamp(datestamp)
+    integer, intent(out) :: datestamp
+  end subroutine elsi_get_datestamp
 
 #:endif
 

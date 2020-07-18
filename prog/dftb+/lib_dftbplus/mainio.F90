@@ -1881,13 +1881,15 @@ contains
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
-  subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
-      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
-      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE,&
-      & lCurrArray)
+  subroutine writeAutotestTag(fileName, electronicSolver, tPeriodic, cellVol, tMulliken, qOutput,&
+      & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
+      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, lCurrArray)
 
     !> Name of output file
     character(*), intent(in) :: fileName
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
 
     !> Is the geometry periodic
     logical, intent(in) :: tPeriodic
@@ -1943,9 +1945,6 @@ contains
     !> local projected DOS array
     real(dp), allocatable, intent(in) :: ldos(:,:)
 
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
-
     !> Array containing bond currents as (Jvalues, atom)
     !> This array is for testing only since it misses info
     real(dp), allocatable, intent(in) :: lCurrArray(:,:)
@@ -1982,11 +1981,10 @@ contains
     if (associated(pDynMatrix)) then
       call taggedWriter%write(fd, tagLabels%HessianNum, pDynMatrix)
     end if
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesElectronEntropy) then
       ! Mermin electronic free energy
       call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
     else
-      ! only total energy available
       call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
     end if
     if (pressure /= 0.0_dp) then
@@ -1997,7 +1995,6 @@ contains
     if (tLocalise) then
       call taggedWriter%write(fd, tagLabels%pmlocalise, localisation)
     end if
-
 
     if (allocated(esp)) then
       call taggedWriter%write(fd, tagLabels%internfield, -esp%intPotential)
@@ -2031,7 +2028,7 @@ contains
   !> Writes out machine readable data
   subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
       & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
-      & qOutput, q0, taggedWriter, tDefinedFreeE, cm5Cont)
+      & qOutput, q0, taggedWriter, cm5Cont)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2059,7 +2056,6 @@ contains
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
-
 
     !> Should stresses be printed (assumes periodic)
     logical, intent(in) :: tStress
@@ -2091,27 +2087,37 @@ contains
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
-
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
 
     open(newunit=fd, file=fileName, action="write", status="replace")
 
     call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
-    call taggedWriter%write(fd, tagLabels%fermiLvl, Ef)
+    if (electronicSolver%elecChemPotAvailable) then
+      call taggedWriter%write(fd, tagLabels%fermiLvl, Ef)
+    end if
     call taggedWriter%write(fd, tagLabels%nElec, nEl)
 
-    if (electronicSolver%providesEigenvals) then
+    if (electronicSolver%providesFreeEnergy) then
+      call taggedWriter%write(fd, tagLabels%freeEgy, energy%EForceRelated)
+    elseif (electronicSolver%providesElectronEntropy) then
       call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
-      ! extrapolated zero temperature energy
+    else
+      call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
+    end if
+
+    if (electronicSolver%providesFreeEnergy .or. electronicSolver%providesElectronEntropy) then
+      ! extrapolated zero temperature energy (the chemical potential and electron number are assumed
+      ! to be temperature independent, as just extrapolates the Mermin energy)
       call taggedWriter%write(fd, tagLabels%egy0Total, energy%Ezero)
+    end if
+
+    if (electronicSolver%providesEigenvals) then
       call taggedWriter%write(fd, tagLabels%eigvals, eigen)
       call taggedWriter%write(fd, tagLabels%eigFill, filling)
     end if
 
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesFreeEnergy) then
       ! energy connected to the evaluated force/stress (differs for various free energies)
       call taggedWriter%write(fd, tagLabels%egyForceRelated, energy%EForceRelated)
     end if
@@ -2350,8 +2356,7 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv,&
-      & cm5Cont)
+      & iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2493,9 +2498,6 @@ contains
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
-
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
 
     !> Is there a halogen bond correction present?
     logical, intent(in) :: tHalogenX
@@ -2802,18 +2804,18 @@ contains
       if (nSpin == 2) then
         write(fd, "(A, 1X, A)") 'Spin ', trim(spinName(iSpin))
       end if
-      if (.not. tNegf) then
-        ! set in the input and for multiple contact Ef values not meaningful anyway
+      if (electronicSolver%elecChemPotAvailable) then
         write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
-        ! not current available from the Green's function solver
+      end if
+      if (electronicSolver%providesBandEnergy) then
         write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
       end if
-      if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
-          & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-          & electronicSolverTypes%elpa, electronicSolverTypes%elpadm])) then
+      if (electronicSolver%providesFreeEnergy) then
         write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
-        write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
-            & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
+        if (electronicSolver%providesBandEnergy) then
+          write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
+              & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
+        end if
         write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
       end if
       if (tPrintMulliken) then
@@ -2882,14 +2884,12 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
+    if (electronicSolver%providesElectronEntropy) then
       write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
       write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
           & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
     end if
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesFreeEnergy) then
       write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
@@ -3839,7 +3839,7 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
+  subroutine printEnergies(energy, TS, electronicSolver)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
@@ -3850,18 +3850,17 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
 
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
-
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
     if (electronicSolver%providesEigenvals) then
       write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
           & "eV"
+    end if
+    if (electronicSolver%providesElectronEntropy) then
       write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
           & Hartree__eV * energy%EMermin, "eV"
     end if
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesFreeEnergy) then
       write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
@@ -4581,7 +4580,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, TS, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, isRangeSep)
+      & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep)
 
     !> File ID
     integer, intent(in) :: fd
@@ -4672,9 +4671,6 @@ contains
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
-
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
 
     !> Third order DFTB
     logical, intent(in) :: t3rd
@@ -4862,14 +4858,12 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
+    if (electronicSolver%providesElectronEntropy) then
       write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
       write(fd, format2U) 'Total Mermin free energy', energy%Emermin, 'H',&
           & energy%Emermin * Hartree__eV, 'eV'
     end if
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesFreeEnergy) then
       write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
