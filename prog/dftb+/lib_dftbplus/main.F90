@@ -2112,7 +2112,7 @@ contains
     logical, intent(in) :: isREKS
 
     !> resulting hamitonian (sparse)
-    real(dp), intent(out) :: ham(:,:)
+    real(dp), intent(inout) :: ham(:,:)
 
     !> imaginary part of hamitonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
