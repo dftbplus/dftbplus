@@ -1333,49 +1333,75 @@ contains
 
     ! Doing blured and unblured cases separately to avoid ifs in the loop
     if (present(blurWidths1)) then
-      !$OMP PARALLEL DO&
-      !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp, sigma, rs)&
-      !$OMP& REDUCTION(+:localDeriv0, localDeriv1) SCHEDULE(RUNTIME)
-      do iAt0 = iAtFirst0, iAtLast0
-        do iAt1 = iAtFirst1, iAtLast1
-          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sqrt(sum(vect(:)**2))
-          fTmp = -vect(:) / (dist**3)
-          if (dist < erfArgLimit * blurWidths1(iAt1)) then
-            sigma = blurWidths1(iAt1)
-            rs = dist / sigma
-            fTmp = fTmp * (erfwrap(rs) - 2.0_dp/(sqrt(pi)*sigma) * dist * exp(-(rs**2)))
-          end if
-          if (tHamDeriv) then
+      if (tHamDeriv) then
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp, sigma, rs)&
+        !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            dist = sqrt(sum(vect(:)**2))
+            fTmp = -vect(:) / (dist**3)
+            if (dist < erfArgLimit * blurWidths1(iAt1)) then
+              sigma = blurWidths1(iAt1)
+              rs = dist / sigma
+              fTmp = fTmp * (erfwrap(rs) - 2.0_dp/(sqrt(pi)*sigma) * dist * exp(-(rs**2)))
+            end if
             fTmp = charge1(iAt1) * fTmp
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          else
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp, sigma, rs)&
+        !$OMP& REDUCTION(+:localDeriv0, localDeriv1) SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            dist = sqrt(sum(vect(:)**2))
+            fTmp = -vect(:) / (dist**3)
+            if (dist < erfArgLimit * blurWidths1(iAt1)) then
+              sigma = blurWidths1(iAt1)
+              rs = dist / sigma
+              fTmp = fTmp * (erfwrap(rs) - 2.0_dp/(sqrt(pi)*sigma) * dist * exp(-(rs**2)))
+            end if
             fTmp = charge0(iAt0) * charge1(iAt1) * fTmp
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
             localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
-          end if
+          end do
         end do
-      end do
-      !$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
+      end if
     else
-      !$OMP PARALLEL DO&
-      !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp)&
-      !$OMP& REDUCTION(+:localDeriv0, localDeriv1) SCHEDULE(RUNTIME)
-      do iAt0 = iAtFirst0, iAtLast0
-        do iAt1 = iAtFirst1, iAtLast1
-          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          dist = sqrt(sum(vect(:)**2))
-          if (tHamDeriv) then
+      if (tHamDeriv) then
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp)&
+        !$OMP& REDUCTION(+:localDeriv0) SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            dist = sqrt(sum(vect(:)**2))
             fTmp = -charge1(iAt1) / (dist**3) * vect(:)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          else
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, dist, ftmp)&
+        !$OMP& REDUCTION(+:localDeriv0, localDeriv1) SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            dist = sqrt(sum(vect(:)**2))
             fTmp = -charge0(iAt0) * charge1(iAt1) / (dist**3) * vect(:)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
             localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
-          end if
+          end do
         end do
-      end do
-      !$OMP END PARALLEL DO
+        !$OMP END PARALLEL DO
+      end if
     end if
 
     call assembleChunks(env, localDeriv0)
@@ -1678,63 +1704,91 @@ contains
 
     ! real space part
     if (present(blurwidths1)) then
-      !$OMP PARALLEL DO&
-      !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0, localDeriv1)&
-      !$OMP& SCHEDULE(RUNTIME)
-      do iAt0 = iAtFirst0, iAtLast0
-        do iAt1 = iAtFirst1, iAtLast1
-          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          if (tHamDeriv) then
+      if (tHamDeriv) then
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
+        !$OMP& SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
             fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
                 & * charge1(iAt1)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          else
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0, localDeriv1)&
+        !$OMP& SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
             fTmp(:) = derivEwaldReal(vect, rVec, alpha, blurWidth=blurWidths1(iAt1))&
                 & * charge0(iAt0) * charge1(iAt1)
             localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
             localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
-          end if
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end if
+    else
+      if (tHamDeriv) then
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
+        !$OMP& SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge1(iAt1)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      else
+        !$OMP PARALLEL DO&
+        !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0, localDeriv1)&
+        !$OMP& SCHEDULE(RUNTIME)
+        do iAt0 = iAtFirst0, iAtLast0
+          do iAt1 = iAtFirst1, iAtLast1
+            vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge0(iAt0) * charge1(iAt1)
+            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+            localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
+          end do
+        end do
+        !$OMP END PARALLEL DO
+      end if
+    end if
+
+    if (tHamDeriv) then
+      ! reciprocal space part
+      !$OMP PARALLEL DO&
+      !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0)&
+      !$OMP& SCHEDULE(RUNTIME)
+      do iAt0 = iAtFirst0, iAtLast0
+        do iAt1 = iAtFirst1, iAtLast1
+          vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
+          fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge1(iAt1)
+          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
         end do
       end do
       !$OMP END PARALLEL DO
     else
+      ! reciprocal space part
       !$OMP PARALLEL DO&
       !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0, localDeriv1)&
       !$OMP& SCHEDULE(RUNTIME)
       do iAt0 = iAtFirst0, iAtLast0
         do iAt1 = iAtFirst1, iAtLast1
           vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-          if (tHamDeriv) then
-            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge1(iAt1)
-            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          else
-            fTmp(:) = derivEwaldReal(vect, rVec, alpha) * charge0(iAt0) * charge1(iAt1)
-            localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-            localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
-          end if
+          fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge0(iAt0) * charge1(iAt1)
+          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
+          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
         end do
       end do
       !$OMP END PARALLEL DO
     end if
-
-    ! reciprocal space part
-    !$OMP PARALLEL DO&
-    !$OMP& DEFAULT(SHARED) PRIVATE(iAt1, vect, fTmp) REDUCTION(+:localDeriv0, localDeriv1)&
-    !$OMP& SCHEDULE(RUNTIME)
-    do iAt0 = iAtFirst0, iAtLast0
-      do iAt1 = iAtFirst1, iAtLast1
-        vect(:) = coord0(:,iAt0) - coord1(:,iAt1)
-        if (tHamDeriv) then
-          fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge1(iAt1)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-        else
-          fTmp(:) = derivEwaldReciprocal(vect, gVec, alpha, vol) * charge0(iAt0) * charge1(iAt1)
-          localDeriv0(:,iAt0) = localDeriv0(:,iAt0) + fTmp(:)
-          localDeriv1(:,iAt1) = localDeriv1(:,iAt1) - fTmp(:)
-        end if
-      end do
-    end do
-    !$OMP END PARALLEL DO
 
     call assembleChunks(env, localDeriv0)
     deriv0(:,:) = deriv0 + localDeriv0
