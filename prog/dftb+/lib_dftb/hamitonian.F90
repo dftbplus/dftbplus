@@ -461,7 +461,7 @@ contains
     logical, intent(in) :: isREKS
 
     !> resulting hamitonian (sparse)
-    real(dp), intent(out) :: ham(:,:)
+    real(dp), intent(inout) :: ham(:,:)
 
     !> imaginary part of hamitonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
@@ -474,6 +474,7 @@ contains
       ham(:,:) = 0.0_dp
       ham(:,1) = h0
     end if
+
     call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
 
