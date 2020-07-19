@@ -25,7 +25,7 @@
 set(Fortran_FLAGS ""
   CACHE STRING "Additional general Fortran compiler flags")
 
-set(Fortran_FLAGS_RELEASE "-funroll-all-loops"
+set(Fortran_FLAGS_RELEASE "-O2 -funroll-all-loops"
   CACHE STRING "Additional Fortran compiler flags for Release build")
 
 set(Fortran_FLAGS_DEBUG "-Wall -std=f2008ts -pedantic -fbounds-check"
@@ -40,7 +40,7 @@ set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 set(C_FLAGS ""
   CACHE STRING "Additional general C compiler flags")
 
-set(C_FLAGS_RELEASE "-funroll-all-loops"
+set(C_FLAGS_RELEASE "-O2 -funroll-all-loops"
   CACHE STRING  "Additional C compiler flags for Release build")
 
 set(C_FLAGS_DEBUG "-Wall -pedantic -fbounds-check"
