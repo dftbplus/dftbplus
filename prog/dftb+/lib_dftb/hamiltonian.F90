@@ -426,10 +426,9 @@ contains
   end subroutine addBlockChargePotentials
 
 
-
   !> Returns the Hamiltonian for the given scc iteration
   subroutine getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
-      & img2CentCell, potential, ham, iHam)
+      & img2CentCell, potential, isREKS, ham, iHam)
 
     !> non-SCC hamiltonian (sparse)
     real(dp), intent(in) :: H0(:)
@@ -458,8 +457,11 @@ contains
     !> potential acting on sustem
     type(TPotentials), intent(in) :: potential
 
-    !> resulting hamiltonian (sparse)
-    real(dp), intent(out) :: ham(:,:)
+    !> Is this DFTB/SSR formalism
+    logical, intent(in) :: isREKS
+
+    !> resulting hamitonian (sparse)
+    real(dp), intent(inout) :: ham(:,:)
 
     !> imaginary part of hamiltonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
@@ -468,8 +470,11 @@ contains
 
     nAtom = size(orb%nOrbAtom)
 
-    ham(:,:) = 0.0_dp
-    ham(:,1) = h0
+    if (.not. isREKS) then
+      ham(:,:) = 0.0_dp
+      ham(:,1) = h0
+    end if
+
     call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
 

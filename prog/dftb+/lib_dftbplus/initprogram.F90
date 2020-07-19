@@ -1826,6 +1826,10 @@ contains
 
     end if
 
+    if (allocated(reks)) then
+      electronicSolver%providesElectronEntropy = .false.
+    end if
+
     if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then
       call error("Alternative force evaluation methods are not supported by this electronic&
           & solver.")
@@ -2479,8 +2483,9 @@ contains
   #:endif
 
     if (allocated(reks)) then
-      call checkReksConsistency(input%ctrl%reksInp, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
-          & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+      call checkReksConsistency(input%ctrl%reksInp, solvation, onSiteElements, kPoint, nEl,&
+          & nKPoint, tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic,&
+          & tLatOpt, tReadChrg, tPoisson, input%ctrl%tShellResolved)
       ! here, nSpin changes to 2 for REKS
       call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
@@ -4333,7 +4338,11 @@ contains
 
     integer :: nSpinHams, sqrHamSize
 
-    allocate(rhoPrim(0, nSpin))
+    if (isREKS) then
+      allocate(rhoPrim(0, 1))
+    else
+      allocate(rhoPrim(0, nSpin))
+    end if
     allocate(h0(0))
     if (tImHam) then
       allocate(iRhoPrim(0, nSpin))
@@ -4366,6 +4375,9 @@ contains
     case (4)
       nSpinHams = 1
     end select
+    if (isREKS) then
+      nSpinHams = 1
+    end if
 
     sqrHamSize = denseDesc%fullSize
     allocate(TS(nSpinHams))
@@ -4385,7 +4397,6 @@ contains
     end if
     eigen(:,:,:) = 0.0_dp
     filling(:,:,:) = 0.0_dp
-
 
     allocate(coord0Fold(3, nAtom))
 
@@ -5202,11 +5213,15 @@ contains
   end subroutine initPlumed
 
 
-  subroutine checkReksConsistency(reksInp, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
-      & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+  subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
+      & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
+      & tPoisson, isShellResolved)
 
     !> data type for REKS input
     type(TReksInp), intent(in) :: reksInp
+
+    !> Solvation data and calculations
+    class(TSolvation), allocatable, intent(in) :: solvation
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
@@ -5247,6 +5262,12 @@ contains
     !> If initial charges/dens mtx. from external file.
     logical, intent(in) :: tReadChrg
 
+    !> Whether Poisson solver is invoked
+    logical, intent(in) :: tPoisson
+
+    !> l-shell resolved SCC
+    logical, intent(in) :: isShellResolved
+
     if (.not. tSccCalc) then
       call error("REKS requires SCC=Yes")
     end if
@@ -5266,6 +5287,14 @@ contains
       call error("REKS is not compatible with standard linear response excitation")
     else if (allocated(onSiteElements)) then
       call error("REKS is not compatible with onsite corrections")
+    end if
+
+    if (allocated(solvation)) then
+      call error("REKS is currently not available with solvation")
+    else if (tPoisson) then
+      call error("Poisson solver is not compatible with REKS")
+    elseif (isShellResolved) then
+      call error("REKS does not support shell resolved scc yet")
     end if
 
     if (tPeriodic) then
@@ -5362,11 +5391,14 @@ contains
       case (electronicSolverTypes%onlyTransport)
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-          & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg, blurWidths,&
-            & is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
-      case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
-        call error("REKS is not compatible with density matrix ELSI-solvers")
+          & electronicSolverTypes%relativelyrobust)
+        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
+            & blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+      case(electronicSolverTypes%magma_gvd)
+        call error("REKS is not compatible with MAGMA GPU solver")
+      case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+          & electronicSolverTypes%elpadm, electronicSolverTypes%elpa)
+        call error("REKS is not compatible with ELSI-solvers")
       end select
 
     case(hamiltonianTypes%xtb)
@@ -5496,11 +5528,6 @@ contains
       end if
 
     end if
-
-    write (stdOut,*)
-    write (stdOut, "(A)") " Warning! REKS calculation is not affected by,"
-    write (stdOut, "(A)") "          (mixer, filling) option"
-    write (stdOut,*)
 
   end subroutine printReksInitInfo
 

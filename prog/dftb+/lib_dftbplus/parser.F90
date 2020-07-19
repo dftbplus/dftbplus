@@ -127,7 +127,7 @@ contains
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
 
-    type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
+    type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
     logical :: hasInputVersion
     integer :: inputVersion
     type(string) :: versionString
@@ -198,11 +198,11 @@ contains
 
   #:endif
 
-    call getChildValue(root, "Driver", tmp, "", child=child, allowEmptyValue=.true.)
+    call getChildValue(root, "Driver", driverNode, "", child=child, allowEmptyValue=.true.)
   #:if WITH_TRANSPORT
-    call readDriver(tmp, child, input%geom, input%ctrl, input%transpar)
+    call readDriver(driverNode, child, input%geom, input%ctrl, input%transpar)
   #:else
-    call readDriver(tmp, child, input%geom, input%ctrl)
+    call readDriver(driverNode, child, input%geom, input%ctrl)
   #:endif
 
     ! Analysis of properties
@@ -230,6 +230,9 @@ contains
 
     call getChildValue(root, "Reks", dummy, "None", child=child)
     call readReks(child, dummy, input%ctrl, input%geom)
+
+    ! Hamiltonian settings that need to know settings from the REKS block
+    call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
 
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
@@ -707,9 +710,6 @@ contains
           end if
         end if
 
-        call getChildValue(value1, "AdaptFillingTemp", ctrl%tSetFillingTemp, &
-            &.false.)
-
       case ("nosehoover")
         ctrl%iThermostat = 3
         ! Read temperature or temperature profiles
@@ -745,9 +745,6 @@ contains
           ctrl%tInitNHC = .false.
         end if
 
-        call getChildValue(value1, "AdaptFillingTemp", ctrl%tSetFillingTemp, &
-            &.false.)
-
       case ("andersen")
         ctrl%iThermostat = 1
         ! Read temperature or temperature profiles
@@ -770,8 +767,6 @@ contains
               &"ReselectProbability must be in the range (0,1]!")
         end if
         call getChildValue(value1, "ReselectIndividually", ctrl%tRescale)
-        call getChildValue(value1, "AdaptFillingTemp", ctrl%tSetFillingTemp, &
-            &.false.)
 
       case ("none")
         ctrl%iThermostat = 0
@@ -1458,11 +1453,6 @@ contains
       end do
     end if
 
-
-    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-    ! thermostat.)
-    call readFilling(node, ctrl, geo, 0.0_dp)
-
     ! Electronic solver
   #:if WITH_TRANSPORT
     call readSolver(node, ctrl, geo, tp, greendens, poisson)
@@ -1778,10 +1768,6 @@ contains
     !  call getChildValue(node, "ReadShifts", ctrl%tReadShifts, .false.)
     !end if
     ctrl%tReadShifts = .false.
-
-    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-    ! thermostat.)
-    call readFilling(node, ctrl, geo, 300.0_dp)
 
     ! Electronic solver
   #:if WITH_TRANSPORT
@@ -2260,7 +2246,7 @@ contains
   end subroutine readExternal
 
 
-  !> Filling
+  !> Filling of electronic levels
   subroutine readFilling(node, ctrl, geo, temperatureDefault)
 
     !> Relevant node in input tree
@@ -2870,57 +2856,6 @@ contains
     end if
 
     call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
-
-    call getChildValue(node, "Mixer", value1, "Broyden", child=child)
-    call getNodeName(value1, buffer)
-    select case(char(buffer))
-
-    case ("broyden")
-
-      ctrl%iMixSwitch = mixerTypes%broyden
-      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
-      call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
-      call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
-      call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
-      call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
-
-    case ("anderson")
-      ctrl%iMixSwitch = mixerTypes%anderson
-      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-      call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
-      call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
-      call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
-          & allowEmptyValue=.true.)
-      call getNodeName2(value2, buffer2)
-      if (char(buffer2) == "") then
-        ctrl%andersonNrDynMix = 0
-      else
-        call init(lr1)
-        call getChildValue(child, "", 2, lr1, child=child2)
-        if (len(lr1) < 1) then
-          call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
-        end if
-        ctrl%andersonNrDynMix = len(lr1)
-        allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
-        call asArray(lr1, ctrl%andersonDynMixParams)
-        call destruct(lr1)
-      end if
-      call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
-
-    case ("simple")
-      ctrl%iMixSwitch = mixerTypes%simple
-      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-
-    case("diis")
-      ctrl%iMixSwitch = mixerTypes%diis
-      call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
-      call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
-      call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
-
-    case default
-      call getNodeHSDName(value1, buffer)
-      call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
-    end select
 
     ! temporararily removed until debugged
     !call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
@@ -4725,6 +4660,108 @@ contains
     end if
 
   end subroutine readLaterAnalysis
+
+
+  !> Read in hamiltonian settings that are influenced by those read from REKS{}
+  subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo)
+
+    !> Hamiltonian node to parse
+    type(fnode), pointer :: hamNode
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry driver node to parse
+    type(fnode), pointer :: driverNode
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: value1, value2, child, child2
+    type(string) :: buffer, buffer2
+    type(TListRealR1) :: lr1
+
+    if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
+
+      if (ctrl%tSCC) then
+
+        call getChildValue(hamNode, "Mixer", value1, "Broyden", child=child)
+        call getNodeName(value1, buffer)
+        select case(char(buffer))
+
+        case ("broyden")
+
+          ctrl%iMixSwitch = mixerTypes%broyden
+          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
+          call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
+          call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
+          call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
+          call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
+
+        case ("anderson")
+
+          ctrl%iMixSwitch = mixerTypes%anderson
+          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+          call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
+          call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
+          call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
+              & allowEmptyValue=.true.)
+          call getNodeName2(value2, buffer2)
+          if (char(buffer2) == "") then
+            ctrl%andersonNrDynMix = 0
+          else
+            call init(lr1)
+            call getChildValue(child, "", 2, lr1, child=child2)
+            if (len(lr1) < 1) then
+              call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+            end if
+            ctrl%andersonNrDynMix = len(lr1)
+            allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
+            call asArray(lr1, ctrl%andersonDynMixParams)
+            call destruct(lr1)
+          end if
+          call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
+
+        case ("simple")
+
+          ctrl%iMixSwitch = mixerTypes%simple
+          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+
+        case("diis")
+
+          ctrl%iMixSwitch = mixerTypes%diis
+          call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
+          call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
+          call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
+
+        case default
+
+          call getNodeHSDName(value1, buffer)
+          call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
+
+        end select
+
+      end if
+
+      if (ctrl%tMD) then
+        if (ctrl%iThermostat /= 0) then
+          call getChildValue(driverNode, "Thermostat", child, child=child2)
+          call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
+        end if
+      end if
+
+      ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
+      ! thermostat.)
+      select case(ctrl%hamiltonian)
+      case(hamiltonianTypes%xtb)
+        call readFilling(hamNode, ctrl, geo, 300.0_dp)
+      case(hamiltonianTypes%dftb)
+        call readFilling(hamNode, ctrl, geo, 0.0_dp)
+      end select
+
+    end if
+
+  end subroutine readLaterHamiltonian
 
 
   !> Reads W values if required by settings in the Hamiltonian or the excited state

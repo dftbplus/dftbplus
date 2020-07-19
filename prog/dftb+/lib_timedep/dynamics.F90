@@ -62,6 +62,7 @@ module dftbp_timeprop
   use dftbp_simplealgebra
   use dftbp_RangeSeparated, only : TRangeSepFunc
   use dftbp_qdepextpotproxy, only : TQDepExtPotProxy
+  use dftbp_reks, only : TReksCalc
   implicit none
   private
 
@@ -1337,7 +1338,7 @@ contains
     potential%intShell = potential%intShell + potential%extShell
 
     call getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, speciesAll, orb, iSparseStart,&
-        & img2CentCell, potential, ham, iHam)
+        & img2CentCell, potential, .false., ham, iHam)
 
     ! Hack due to not using Pauli-type structure outside of this part of the routine
     if (this%nSpin == 2) then
@@ -1721,6 +1722,7 @@ contains
     integer :: iKS, iK, iSpin
     real(dp) :: TS(this%nSpin)
     logical :: tDFTBU
+    type(TReksCalc), allocatable :: reks ! never allocated
 
     ! if Forces are calculated, rhoPrim has already been calculated
     ! check allways that getEnergy is called AFTER getForces
@@ -1749,7 +1751,7 @@ contains
     TS = 0.0_dp
     call getEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
         & tDFTBU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep,&
+        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
         & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
         & tFixEf, Ef, onSiteElements)
     ! getEnergies returns the total energy Etotal including repulsive and dispersions energies
