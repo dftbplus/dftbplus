@@ -9,7 +9,7 @@
 !> Interface to LIBNEGF for DFTB+
 module negf_int
   use libnegf_vars
-  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, unit
+  use libnegf, only : convertcurrent, eovh, getel, lnParams, pass_DM, Tnegf, units
 #:if WITH_MPI
   use libnegf, only : negf_mpi_init
 #:endif
@@ -125,7 +125,7 @@ module negf_int
     ! Pointer must be set within a subroutine. Initialization at declaration fails.
     pNegf => negf
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%globalComm, tIOproc)
+    call negf_mpi_init(env%mpi%globalComm)
 #:endif
 
     if (transpar%defined) then
@@ -544,8 +544,8 @@ module negf_int
     !> neighbours of each atom
     Integer, intent(in) :: iNeigh(0:,:)
 
-    integer, allocatable :: PL_end(:), cont_end(:), surf_end(:), cblk(:), ind(:)
-    integer, allocatable :: atomst(:), plcont(:)
+    integer, allocatable :: PL_end(:), cont_end(:), surf_start(:), surf_end(:), cblk(:)
+    integer, allocatable :: ind(:), atomst(:), plcont(:)
     integer, allocatable :: minv(:,:)
     Integer :: natoms, ncont, nbl, iatc1, iatc2, iatm2
     integer :: i, m, i1, j1, info
@@ -575,6 +575,7 @@ module negf_int
     allocate(cblk(ncont))
     allocate(cont_end(ncont))
     allocate(surf_end(ncont))
+    allocate(surf_start(ncont))
     allocate(ind(natoms+1))
     allocate(minv(nbl,ncont))
 
@@ -584,6 +585,7 @@ module negf_int
 
     do i = 1, ncont
        cont_end(i) = ind(transpar%contacts(i)%idxrange(2)+1)
+       surf_start(i) = ind(transpar%contacts(i)%idxrange(1))+1
        surf_end(i) = ind(transpar%contacts(i)%idxrange(1))
     enddo
 
@@ -673,7 +675,7 @@ module negf_int
 
     end if
 
-    call init_structure(negf, ncont, cont_end, surf_end, nbl, PL_end, cblk)
+    call init_structure(negf, ncont, surf_start, surf_end, cont_end, nbl, PL_end, cblk)
 
     deallocate(PL_end)
     deallocate(plcont)
@@ -876,7 +878,7 @@ module negf_int
 
   !> Debug routine to dump H and S as a file in Matlab format
   !>
-  !> NOTE: This routine is not MPI-aware, call it only on MPI-master!
+  !> NOTE: This routine is not MPI-aware, call it only on MPI-lead!
   !>
   subroutine negf_dumpHS(HH,SS)
 
@@ -1076,7 +1078,7 @@ module negf_int
     pCsrDens => csrDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1214,7 +1216,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     !Decide what to do with surface GFs.
     !sets readOldSGF: if it is 0 or 1 it is left so
@@ -1362,8 +1364,8 @@ module negf_int
     real(dp), pointer    :: ldosPMat(:,:)=>null()
     real(dp), pointer    :: currPVec(:)=>null()
     integer :: iKS, iK, iS, nKS, nS,  nTotKS, ii, err, ncont, readSGFbkup
-    type(unit) :: unitOfEnergy        ! Set the units of H
-    type(unit) :: unitOfCurrent       ! Set desired units for Jel
+    type(units) :: unitOfEnergy        ! Set the units of H
+    type(units) :: unitOfCurrent       ! Set desired units for Jel
     type(lnParams) :: params
 
     integer :: i, j, k, NumStates, icont
@@ -1372,7 +1374,7 @@ module negf_int
     character(2) :: id1, id2
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     call get_params(negf, params)
 
@@ -1881,7 +1883,7 @@ module negf_int
     pCsrEDens => csrEDens
 
 #:if WITH_MPI
-    call negf_mpi_init(env%mpi%groupComm, tIOproc)
+    call negf_mpi_init(env%mpi%groupComm)
 #:endif
     call get_params(negf, params)
 
@@ -1947,12 +1949,12 @@ module negf_int
       call negf_density(iSCCIter, iS, iK, pCsrHam, pCsrOver, chempot(:,iS), EnMat=pCsrEDens)
 
     #:if WITH_MPI
-      ! Reduce on node 0 as group master node
+      ! Reduce on node 0 as group lead node
       call mpifx_reduceip(env%mpi%groupComm, csrDens%nzval, MPI_SUM)
       call mpifx_reduceip(env%mpi%groupComm, csrEDens%nzval, MPI_SUM)
 
-      ! Each group master node prints the local currents
-      tPrint = env%mpi%groupComm%master
+      ! Each group lead node prints the local currents
+      tPrint = env%mpi%groupComm%lead
 
     #:else
 
