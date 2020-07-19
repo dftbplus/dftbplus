@@ -1321,7 +1321,7 @@ contains
     !> sparse overlap storage
     real(dp), allocatable, intent(inout) :: over(:)
 
-    !> Non-SCC hamitonian storage
+    !> Non-SCC hamiltonian storage
     real(dp), allocatable, intent(inout) :: h0(:)
 
     !> Sparse density matrix storage
@@ -1491,19 +1491,19 @@ contains
     !> data type for REKS
     type(TReksCalc), allocatable, intent(inout) :: reks
 
-    !> Sparse storage for hamitonian (sparseSize,nSpin)
+    !> Sparse storage for hamiltonian (sparseSize,nSpin)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> Sparse storage for overlap
     real(dp), allocatable, intent(inout) :: over(:)
 
-    !> Sparse storage for non-SCC hamitonian
+    !> Sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(inout) :: H0(:)
 
     !> Sparse storage for density matrix
     real(dp), allocatable, intent(inout) :: rhoPrim(:,:)
 
-    !> Sparse storage for imaginary hamitonian (not reallocated if not initially allocated)
+    !> Sparse storage for imaginary hamiltonian (not reallocated if not initially allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     !> Sparse storage for imaginary part of density matrix (not reallocated if not initially
@@ -1761,7 +1761,7 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> Is the Fermi level common accross spin channels?
@@ -1824,7 +1824,7 @@ contains
     !> extrapolated 0 temperature band energy
     real(dp), intent(out) :: E0(:)
 
-    !> imaginary part of hamitonian
+    !> imaginary part of hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
 
     !> spin orbit constants
@@ -1992,7 +1992,7 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> Is the Fermi level common accross spin channels?
@@ -2052,7 +2052,7 @@ contains
     !> extrapolated 0 temperature band energy
     real(dp), intent(out) :: E0(:)
 
-    !> imaginary part of hamitonian
+    !> imaginary part of hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
 
     !> spin orbit constants
@@ -2213,7 +2213,7 @@ contains
     !> functional
     integer, intent(in), allocatable :: nNeighbourLC(:)
 
-    !> dense hamitonian matrix
+    !> dense hamiltonian matrix
     real(dp), intent(out) :: HSqrReal(:,:)
 
     !> dense overlap matrix
@@ -2344,7 +2344,7 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> dense hamitonian matrix
+    !> dense hamiltonian matrix
     complex(dp), intent(out) :: HSqrCplx(:,:)
 
     !> dense overlap matrix
@@ -2462,7 +2462,7 @@ contains
     !> eigenvalues (orbital, kpoint)
     real(dp), intent(out) :: eigen(:,:)
 
-    !> dense hamitonian matrix
+    !> dense hamiltonian matrix
     complex(dp), intent(out) :: HSqrCplx(:,:)
 
     !> dense overlap matrix
@@ -2780,7 +2780,7 @@ contains
     !> Dense matrix descriptor
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> Are spin orbit interactions present
@@ -4270,7 +4270,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> Sparse Hamiltonian
@@ -4306,7 +4306,7 @@ contains
     !> Storage for dense overlap matrix
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
-    !> Storage for dense hamitonian matrix (complex case)
+    !> Storage for dense hamiltonian matrix (complex case)
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
@@ -4415,7 +4415,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> Sparse Hamiltonian
@@ -4445,7 +4445,7 @@ contains
     !> Storage for dense overlap matrix
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
-    !> Storage for dense hamitonian matrix (complex case)
+    !> Storage for dense hamiltonian matrix (complex case)
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
@@ -4945,7 +4945,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> K-points and spins to process
@@ -5370,7 +5370,7 @@ contains
     !> refernce charges
     real(dp), intent(in) :: q0(:,:,:)
 
-    !> non-SCC hamitonian information
+    !> non-SCC hamiltonian information
     type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
@@ -5972,7 +5972,7 @@ contains
     !> Storage for dense overlap matrix
     real(dp), intent(inout), allocatable :: SSqrReal(:,:)
 
-    !> Storage for dense hamitonian matrix (complex case)
+    !> Storage for dense hamiltonian matrix (complex case)
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
     !> Storage for dense overlap matrix (complex case)
@@ -6137,7 +6137,7 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
-    !> dense hamitonian matrix
+    !> dense hamiltonian matrix
     real(dp), intent(out) :: HSqrReal(:,:)
 
     !> dense overlap matrix
@@ -6411,7 +6411,7 @@ contains
     !> map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> non-SCC hamitonian (sparse)
+    !> non-SCC hamiltonian (sparse)
     real(dp), intent(in) :: H0(:)
 
     !> sparse overlap matrix
@@ -6517,7 +6517,7 @@ contains
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
 
-    !> imaginary part of hamitonian (if required, signalled by being allocated)
+    !> imaginary part of hamiltonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     !> data type for REKS
@@ -6614,6 +6614,7 @@ contains
         call rangeSep%addLREnergy(tmpEn(iL))
       end do
     end if
+
 
     ! Calculate energy contribution corresponding to upper Hamiltonian
     do iL = 1, reks%Lmax

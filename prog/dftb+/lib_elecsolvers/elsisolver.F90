@@ -867,7 +867,7 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> Is the Fermi level common accross spin channels?
@@ -900,7 +900,7 @@ contains
     !> electronic entropy times temperature
     real(dp), intent(out) :: TS(:)
 
-    !> imaginary part of hamitonian
+    !> imaginary part of hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
 
     !> spin orbit constants
@@ -1081,7 +1081,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> K-points and spins to process
@@ -1569,7 +1569,7 @@ contains
     !> band structure energy
     real(dp), intent(out) :: Eband(:)
 
-    !> imaginary part of hamitonian
+    !> imaginary part of hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
 
     !> spin orbit constants

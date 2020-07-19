@@ -1082,7 +1082,7 @@ contains
   end function getDescriptor
 
 
-  !> evaluate energy from triangles of the hamitonian and density matrix
+  !> evaluate energy from triangles of the hamiltonian and density matrix
   pure function evaluateEnergy(hamiltonian, densityMat) result(egy)
 
     !> hamiltonian matrix

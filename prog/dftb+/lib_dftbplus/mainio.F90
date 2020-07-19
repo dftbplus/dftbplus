@@ -3422,10 +3422,10 @@ contains
     !> Write dense hamiltonian and overlap matrices
     logical, intent(in) :: tWriteHS
 
-    !> write sparse hamitonian and overlap matrices
+    !> write sparse hamiltonian and overlap matrices
     logical, intent(in) :: tWriteRealHS
 
-    !> Is the hamitonian real?
+    !> Is the hamiltonian real?
     logical, intent(in) :: tRealHS
 
     !> overlap in sparse storage
@@ -3455,10 +3455,10 @@ contains
     !> vectors to unit cells, in lattice constant units
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> sparse hamitonian
+    !> sparse hamiltonian
     real(dp), intent(in) :: ham(:,:)
 
-    !> imaginary part of hamitonian (used if allocated)
+    !> imaginary part of hamiltonian (used if allocated)
     real(dp), allocatable, intent(in) :: iHam(:,:)
 
     real(dp), allocatable :: hamUpDown(:,:)
@@ -3501,7 +3501,7 @@ contains
     !> Is the hamiltonian real?
     logical, intent(in) :: tRealHS
 
-    !> sparse hamitonian matrix
+    !> sparse hamiltonian matrix
     real(dp), intent(in) :: ham(:,:)
 
     !> sparse overlap matrix

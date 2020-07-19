@@ -136,7 +136,7 @@ contains
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
-    !> non-SCC hamitonian data
+    !> non-SCC hamiltonian data
     type(TSlakoCont), intent(in), optional :: skHamCont
 
     !> overlap data
