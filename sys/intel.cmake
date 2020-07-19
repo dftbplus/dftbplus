@@ -25,7 +25,7 @@
 set(Fortran_FLAGS "-standard-semantics"
   CACHE STRING "Additional general Fortran compiler flags")
 
-set(Fortran_FLAGS_RELEASE "-ip -heap-arrays 10"
+set(Fortran_FLAGS_RELEASE "-O2 -ip -heap-arrays 10"
   CACHE STRING "Additional Fortran compiler flags for Release build")
 
 set(Fortran_FLAGS_DEBUG "-warn all -stand f08 -check -diag-error-limit 1 -traceback"
@@ -40,7 +40,7 @@ set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 set(C_FLAGS ""
   CACHE STRING "Additional general C compiler flags")
 
-set(C_FLAGS_RELEASE "-ip"
+set(C_FLAGS_RELEASE "-O2 -ip"
   CACHE STRING  "Additional C compiler flags for Release build")
 
 set(C_FLAGS_DEBUG "-Wall"
