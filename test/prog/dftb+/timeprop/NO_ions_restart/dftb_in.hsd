@@ -1,0 +1,69 @@
+Geometry = GenFormat {
+    2 C
+    N O
+    1   1     0.000000  0.000000   0.000000
+    2   2     1.151128  0.000000   0.000000
+}
+
+Driver = {}
+
+Hamiltonian = DFTB {
+    
+    SCC = Yes
+    SCCTolerance = 1.0E-10
+    
+    MaxAngularMomentum = {
+        N = "p"
+        O = "p"
+    }
+    
+    SpinPolarisation = Colinear {
+        UnpairedElectrons = 1
+    }
+    
+    SpinConstants = {
+        O = {-0.028} # HOMO Wpp
+        N = {-0.026} # HOMO Wpp
+    }
+    
+    SlaterKosterFiles = Type2FileNames {
+        Separator = "-"
+        Suffix = ".skf"
+    }
+    
+    Filling = Fermi {
+        Temperature [K] = 40
+    }
+    
+}
+
+Options {
+    WriteAutotestTag = Yes
+}
+
+InputVersion = 20.1
+
+ElectronDynamics = {
+  Steps = 5000
+  TimeStep [au] = 0.2
+  Perturbation = Laser {
+    PolarizationDirection = 1.0 0.0 0.0
+    LaserEnergy [eV] = 11.66
+  }
+  EnvelopeShape = Sin2 {
+    Time0 [fs] = 10.0
+    Time1 [fs] = 30.0
+  }
+  FieldStrength [v/a] = 0.01
+  IonDynamics = yes
+  Restart = yes
+  WriteRestart = No
+  Populations = Yes
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}
+

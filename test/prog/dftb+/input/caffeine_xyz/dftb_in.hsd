@@ -27,9 +27,7 @@ Analysis {
   CalculateForces = Yes
 }
 
-ParserOptions {
-  ParserVersion = 8
-}
+InputVersion = "20.1"
 
 Parallel {
   # Allow OMP threads explicitely to test for hybrid parallelisation with

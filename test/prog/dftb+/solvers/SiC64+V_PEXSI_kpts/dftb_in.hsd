@@ -78,6 +78,7 @@ Hamiltonian = DFTB {
   MaxSCCIterations = 1000
   Eigensolver = PEXSI {
     Sparse = No
+    Method = 3
   }
   MaxAngularMomentum {
     Si = "p"

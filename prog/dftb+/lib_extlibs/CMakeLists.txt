@@ -1,6 +1,7 @@
 set(curdir "lib_extlibs")
 
 set(sources-fpp
+  ${curdir}/arpack.F90
   ${curdir}/blas.F90
   ${curdir}/dftd4refs.F90
   ${curdir}/elsiiface.F90
@@ -12,10 +13,6 @@ set(sources-fpp
   ${curdir}/poisson_int.F90
   ${curdir}/scalapackfx.F90
   ${curdir}/xmlf90.F90)
-
-if(WITH_ARPACK)
-  list(APPEND sources-fpp ${curdir}/arpack.F90)
-endif()
 
 if(WITH_DFTD3)
   list(APPEND sources-fpp ${curdir}/dftd3.F90)

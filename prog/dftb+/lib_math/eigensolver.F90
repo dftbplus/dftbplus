@@ -306,18 +306,19 @@ contains
   end subroutine dblecmplx_zheev
 
 
-  !> Real eigensolver for generalized symmetric matrix problem
-  subroutine real_ssygv(a,b,w,uplo,jobz,itype)
+#:for NAME, VTYPE, RP in [("Double", "d", "dble"),("Single", "s", "real")]
+  !> ${NAME}$ precision eigensolver for generalized symmetric matrix problem
+  subroutine ${RP}$_${VTYPE}$sygv(a, b, w, uplo, jobz, itype)
 
     !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
     !> overwritten on return anyway)
-    real(rsp), intent(inout) :: a(:,:)
+    real(r${VTYPE}$p), intent(inout) :: a(:,:)
 
     !> contains the second matrix for the solver (overwritten by Cholesky factorization)
-    real(rsp), intent(inout) :: b(:,:)
+    real(r${VTYPE}$p), intent(inout) :: b(:,:)
 
     !> eigenvalues
-    real(rsp), intent(out) :: w(:)
+    real(r${VTYPE}$p), intent(out) :: w(:)
 
     !> upper or lower triangle of both matrices
     character, intent(in) :: uplo
@@ -329,117 +330,49 @@ contains
     !> 3:B*A*x=(lambda)*x default is 1
     integer, optional, intent(in) :: itype
 
-    real(rsp), allocatable :: work(:)
-    integer n, info, iitype
+    real(r${VTYPE}$p), allocatable :: work(:)
+    integer n, lda, info, iitype, ldb
     integer :: int_idealwork
-    real(rsp) :: idealwork(1)
-    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    @:ASSERT(all(shape(a)==shape(b)))
-    @:ASSERT(all(shape(a)==size(w,dim=1)))
-    n=size(a,dim=1)
-    @:ASSERT(n>0)
+    real(r${VTYPE}$p) :: idealwork(1)
+  @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
+  @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
+    n = size(a,dim=2)
+  @:ASSERT(n>0)
+  @:ASSERT(all(shape(b) >= n))
+  @:ASSERT(size(w) >= n)
+    lda = size(a,dim=1)
+  @:ASSERT(lda >= n)
+    ldb = size(b,dim=1)
     if (present(itype)) then
       iitype = itype
     else
       iitype = 1
     end if
-    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call ssygv(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
+  @:ASSERT(iitype >= 1 .and. iitype <= 3 )
+    call ${VTYPE}$sygv(iitype, jobz, uplo, n, a, lda, b, ldb, w, idealwork, -1, info)
     if (info/=0) then
-       call error("Failure in SSYGV to determine optimum workspace")
+       call error("Failure in ${VTYPE}$sygv to determine optimum workspace")
     endif
-    int_idealwork=floor(idealwork(1))
+    int_idealwork=nint(idealwork(1))
     allocate(work(int_idealwork))
-    call ssygv(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, info)
+    call ${VTYPE}$sygv(iitype, jobz, uplo, n, a, lda, b, ldb, w, work, int_idealwork, info)
     if (info/=0) then
-       if (info<0) then
-99160 format ('Failure in diagonalisation routine ssygv,', &
-          & ' illegal argument at position ',i6)
-          write(error_string, 99160) info
-          call error(error_string)
-       else if (info <= n) then
-99170 format ('Failure in diagonalisation routine ssygv,', &
-          & ' diagonal element ',i6,' did not converge to zero.')
-          write(error_string, 99170) info
-          call error(error_string)
-       else
-99180 format ('Failure in diagonalisation routine ssygv,', &
-          & ' non-positive definite overlap! Minor ',i6,' responsible.')
-          write(error_string, 99180) info - n
-          call error(error_string)
-       endif
+      if (info<0) then
+        write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv, illegal ',&
+            & 'argument at position ',i6)") info
+        call error(error_string)
+      else if (info <= n) then
+        write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv, diagonal ',&
+            & 'element ', i6, ' did not converge to zero.')") info
+      else
+        write(error_string, "('Failure in diagonalisation routine ${VTYPE}$sygv,', &
+            & ' non-positive definite overlap! Minor ',i6,' responsible.')") info - n
+        call error(error_string)
+      endif
     endif
 
-  end subroutine real_ssygv
-
-
-  !> Double precision eigensolver for generalized symmetric matrix problem
-  subroutine dble_dsygv(a,b,w,uplo,jobz,itype)
-
-    !> contains the matrix for the solver, returns eigenvectors if requested (matrix always
-    !> overwritten on return anyway)
-    real(rdp), intent(inout) :: a(:,:)
-
-    !> contains the second matrix for the solver (overwritten by Cholesky factorization)
-    real(rdp), intent(inout) :: b(:,:)
-
-    !> eigenvalues
-    real(rdp), intent(out) :: w(:)
-
-    !> upper or lower triangle of both matrices
-    character, intent(in) :: uplo
-
-    !> compute eigenvalues 'N' or eigenvalues and eigenvectors 'V'
-    character, intent(in) :: jobz
-
-    !> specifies the problem type to be solved 1:A*x=(lambda)*B*x, 2:A*B*x=(lambda)*x,
-    !> 3:B*A*x=(lambda)*x default is 1
-    integer, optional, intent(in) :: itype
-
-    real(rdp), allocatable :: work(:)
-    integer n, info, iitype
-    integer :: int_idealwork
-    real(rdp) :: idealwork(1)
-    @:ASSERT(uplo == 'u' .or. uplo == 'U' .or. uplo == 'l' .or. uplo == 'L')
-    @:ASSERT(jobz == 'n' .or. jobz == 'N' .or. jobz == 'v' .or. jobz == 'V')
-    @:ASSERT(all(shape(a)==shape(b)))
-    @:ASSERT(all(shape(a)==size(w,dim=1)))
-    n=size(a,dim=1)
-    @:ASSERT(n>0)
-    if (present(itype)) then
-      iitype = itype
-    else
-      iitype = 1
-    end if
-    @:ASSERT(iitype >= 1 .and. iitype <= 3 )
-    call dsygv(iitype, jobz, uplo, n, a, n, b, n, w, idealwork, -1, info)
-    if (info/=0) then
-       call error("Failure in DSYGV to determine optimum workspace")
-    endif
-    int_idealwork=floor(idealwork(1))
-    allocate(work(int_idealwork))
-    call dsygv(iitype, jobz, uplo, n, a, n, b, n, w, work, int_idealwork, info)
-    if (info/=0) then
-       if (info<0) then
-99190 format ('Failure in diagonalisation routine dsygv,', &
-          & ' illegal argument at position ',i6)
-          write(error_string, 99190) info
-          call error(error_string)
-       else if (info <= n) then
-99200 format ('Failure in diagonalisation routine dsygv,', &
-          & ' diagonal element ',i6,' did not converge to zero.')
-          write(error_string, 99200) info
-          call error(error_string)
-       else
-99210 format ('Failure in diagonalisation routine dsygv,', &
-          & ' non-positive definite overlap! Minor ',i6,' responsible.')
-          write(error_string, 99210) info - n
-          call error(error_string)
-       endif
-    endif
-
-  end subroutine dble_dsygv
+  end subroutine ${RP}$_${VTYPE}$sygv
+#:endfor
 
 
   !> Complex eigensolver for generalized Hermitian matrix problem

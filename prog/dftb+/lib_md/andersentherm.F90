@@ -18,6 +18,7 @@ module dftbp_andersentherm
   use dftbp_mdcommon
   use dftbp_ranlux
   use dftbp_tempprofile
+  use dftbp_message
   implicit none
   private
 
@@ -131,6 +132,9 @@ contains
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
     call self%pTempProfile%getTemperature(kT)
+    if (kT < minTemp) then
+      call error("Andersen thermostat not supported at zero temperature")
+    end if
     do ii = 1, self%nAtom
       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
     end do

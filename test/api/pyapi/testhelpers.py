@@ -15,9 +15,9 @@ import numpy as np
 
 
 # relevant tags for testing the Python interface
-TAGLABELS = {'freeEgy' : 'mermin_energy',
-             'forceTot' : 'forces',
-             'qOutAtGross' : 'gross_atomic_charges'}
+TAGLABELS = {'freeEgy': 'mermin_energy',
+             'forceTot': 'forces',
+             'qOutAtGross': 'gross_atomic_charges'}
 
 
 def write_autotest_tag(filename, **kwargs):
@@ -25,15 +25,14 @@ def write_autotest_tag(filename, **kwargs):
        created file can then be compared with a validated reference file.
 
     Args:
-        filename (str):  path + name of autotest.tag file
+        filename  (str): path + name of autotest.tag file
         **kwargs (dict): keyworded dictionary to pass var-
                          iable number of keyword arguments
 
     '''
 
     # get number of chars of longest tag (used to format output)
-    taglens = [len(TAGLABELS[key]) for key in kwargs]
-    maxtaglen = max(taglens)
+    maxtaglen = max([len(TAGLABELS[key]) for key in kwargs])
 
     tagfile = open(filename, 'w')
 
@@ -55,7 +54,7 @@ def write_autotest_tag(filename, **kwargs):
             content.append(':real:')
         else:
             msg = 'The type "{}" of '.format(result.dtype) + \
-            'kwarg "{}" is invalid.'.format(key)
+                  'kwarg "{}" is invalid.'.format(key)
             raise TypeError(msg)
 
         content.append(str(result.ndim) + ':')
@@ -64,7 +63,7 @@ def write_autotest_tag(filename, **kwargs):
         content.append('\n')
 
         nentries = len(flatres)
-        formatstr = ' '.join([' {:24.15E}',] * 3 + ['\n'])
+        formatstr = ' '.join([' {:24.15E}', ] * 3 + ['\n'])
         for index in range(2, nentries, 3):
             values = formatstr.format(flatres[index - 2],
                                       flatres[index - 1],
@@ -72,8 +71,8 @@ def write_autotest_tag(filename, **kwargs):
             content.append(values)
 
         # handle possible remaining entries
-        nremain = nentries % 3 # 0 1 2
-        formatstr = ' '.join([' {:24.15E}',] * nremain)
+        nremain = nentries % 3
+        formatstr = ' '.join([' {:24.15E}', ] * nremain)
         if nremain == 2:
             values = formatstr.format(flatres[-2], flatres[-1])
             content.append(values)
