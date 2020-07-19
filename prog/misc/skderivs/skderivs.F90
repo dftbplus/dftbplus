@@ -23,6 +23,9 @@ program skderivs
   use dftbp_slakoeqgrid
   use dftbp_oldskdata
   use dftbp_fileid
+#:if WITH_MPI
+  use dftbp_mpienv
+#:endif
   implicit none
 
 
@@ -39,6 +42,16 @@ program skderivs
 
   !> input data for the calculation of the derivatives
   type(TInputData) :: inp
+
+#:if WITH_MPI
+  !> MPI environment, if compiled with mpifort
+  type(TMpiEnv) :: mpi
+
+  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
+  ! build
+  call TMpiEnv_init(mpi)
+  call mpi%mpiSerialEnv()
+#:endif
 
   call parseHSDInput(inp, "skderivs_in.hsd", "skderivs_in")
   call main(inp)

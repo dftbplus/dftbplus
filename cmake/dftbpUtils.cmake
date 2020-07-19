@@ -133,6 +133,19 @@ function(dftbp_get_release_name release)
 endfunction()
 
 
+# Gets DFTB+ API release information.
+#
+# Args:
+#   release [out]: Release string.
+#
+function(dftbp_get_api_release apiversion)
+
+  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  set(${apiversion} "${_api}" PARENT_SCOPE)
+
+endfunction()
+
+
 # Finds libraries and turns them into imported library targets
 #
 # Args:
@@ -204,8 +217,9 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
     string(FIND "${CMAKE_Fortran_FLAGS}" "realloc_lhs" pos2)
     string(FIND "${CMAKE_Fortran_FLAGS}" "norealloc_lhs" pos3)
     if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
-      message(FATAL_ERROR "Intel compiler needs either the '-standard-semantics' or the '-assume \
-realloc_lhs' option to produce correctly behaving (Fortran standard complying) code")
+      message(FATAL_ERROR "Intel Fortran compiler needs either the '-standard-semantics' or the "
+        "'-assume realloc_lhs' option to produce correctly behaving (Fortran standard complying) "
+        "code")
     endif()
   endif()
 
@@ -359,3 +373,78 @@ toolchain file). See the INSTALL.rst file for detailed instructions.")
   endif()
 
 endfunction()
+
+
+# Loads global build settings (either from config.cmake or from user defined file)
+#
+macro (dftbp_load_build_settings)
+
+  if(NOT DEFINED BUILD_CONFIG_FILE)
+    if(DEFINED ENV{DFTBPLUS_BUILD_CONFIG_FILE} AND NOT ENV{DFTBPLUS_BUILD_CONFIG_FILE} STREQUAL "")
+      set(BUILD_CONFIG_FILE "$ENV{DFTBPLUS_BUILD_CONFIG_FILE}")
+    else()
+      set(BUILD_CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.cmake")
+    endif()
+  endif()
+  message(STATUS "Reading build config file: ${BUILD_CONFIG_FILE}\n"
+    "(Adjust the variables defined in this file to enable/disable build components)")
+  include(${BUILD_CONFIG_FILE})
+  
+endmacro()
+
+
+# Tries to guess which toolchain to load based on the environment.
+#
+# Args:
+#     toolchain [out]: Name of the selected toolchain or undefined if it could not be selected
+#
+function(dftbp_guess_toolchain toolchain)
+
+  if("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "GNU|GNU")
+    set(_toolchain "gnu")
+  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "Intel|Intel")
+    set(_toolchain "intel")
+  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "NAG|GNU")
+    set(_toolchain "nag")
+  else()
+    set(_toolchain "generic")
+  endif()
+    
+  set(${toolchain} "${_toolchain}" PARENT_SCOPE)
+  
+endfunction()
+
+
+# Loads toolchain settings.
+#
+macro(dftbp_load_toolchain_settings)
+  
+  if(NOT DEFINED TOOLCHAIN_FILE AND NOT "$ENV{DFTBPLUS_TOOLCHAIN_FILE}" STREQUAL "")
+    set(TOOLCHAIN_FILE "$ENV{DFTBPLUS_TOOLCHAIN_FILE}")
+  endif()
+  if(NOT DEFINED TOOLCHAIN AND NOT "$ENV{DFTBPLUS_TOOLCHAIN}" STREQUAL "")
+    set(TOOLCHAIN "$ENV{DFTBPLUS_TOOLCHAIN}")
+  endif()
+  if(NOT DEFINED TOOLCHAIN_FILE OR TOOLCHAIN_FILE STREQUAL "")
+    if(NOT DEFINED TOOLCHAIN OR TOOLCHAIN STREQUAL "")
+      dftbp_guess_toolchain(TOOLCHAIN)
+    endif()
+    set(TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
+  endif()
+  message(STATUS "Loading toolchain file: ${TOOLCHAIN_FILE}\n"
+    "(Adjust variables defined in this file to change compiler, linker and library settings)")
+  include(${TOOLCHAIN_FILE})
+endmacro()
+
+
+# Sets up the global compiler flags
+#
+macro (dftbp_setup_global_compiler_flags)
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
+  foreach (lang IN ITEMS Fortran C)
+    string(APPEND CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
+    string(APPEND CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+    message(STATUS "Flags for ${lang}-compiler: "
+      "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+  endforeach()
+endmacro()

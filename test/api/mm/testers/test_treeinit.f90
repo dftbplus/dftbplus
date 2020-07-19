@@ -39,7 +39,15 @@ program test_treeinit
   ! pointers to the parts of the input tree that will be set
   type(fnode), pointer :: pRoot, pGeo, pHam, pDftb, pMaxAng, pSlakos, pOptions, pParserOpts
 
+  character(:), allocatable :: DftbVersion
+  integer :: major, minor, patch
+
   !integer :: devNull
+
+  call getDftbPlusBuild(DftbVersion)
+  write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+  call getDftbPlusApi(major, minor, patch)
+  write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
   ! Note: setting the global standard output to /dev/null will also suppress run-time error messages
   !open(newunit=devNull, file="/dev/null", action="write")

@@ -390,18 +390,18 @@ contains
     nOrb = denseDesc%fullSize
     allocate(localEigvec(nOrb))
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call prepareEigvecFileBin(fd, runId, fileName)
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
-    ! Master process collects in the first run (iGroup = 0) the columns of the matrix in its own
-    ! process group (as process group master) via the collector. In the subsequent runs it just
-    ! receives the columns collected by the respective group masters. The number of available
-    ! matrices (possible k and s indices) may differ for various process groups. Also note, that
-    ! the (k, s) pairs are round-robin distributed between the process groups.
+    ! The lead process collects in the first run (iGroup = 0) the columns of the matrix in its own
+    ! process group (as process group lead) via the collector. In the subsequent runs it just
+    ! receives the columns collected by the respective group leaders. The number of available
+    ! matrices (possible k and s indices) may differ for various process groups. Also note, that the
+    ! (k, s) pairs are round-robin distributed between the process groups.
 
-    masterOrSlave: if (env%mpi%tGlobalMaster) then
+    leadOrFollow: if (env%mpi%tGlobalLead) then
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -409,7 +409,7 @@ contains
           end if
           do iEig = 1, nOrb
             if (iGroup == 0) then
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
             else
               call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
@@ -421,18 +421,18 @@ contains
     else
       do iKS = 1, parallelKS%nLocalKS
         do iEig = 1, nOrb
-          if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+          if (env%mpi%tGroupLead) then
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                 & localEigvec)
-            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%leadrank)
           else
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
           end if
         end do
       end do
-    end if masterOrSlave
+    end if leadOrFollow
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       close(fd)
     end if
 
@@ -529,20 +529,20 @@ contains
     nAtom = size(nNeighbourSK)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%mpi%tGroupMaster) then
+    if (env%mpi%tGroupLead) then
       allocate(localEigvec(nOrb))
       allocate(localFrac(nOrb))
     end if
 
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call prepareEigvecFileTxt(fd, .false., fileName)
     end if
 
     ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
 
-    masterOrSlave: if (env%mpi%tGlobalMaster) then
-      ! Global master process
+    leadOrFollow: if (env%mpi%tGlobalLead) then
+      ! Global lead process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -558,9 +558,9 @@ contains
           end if
           do iEig = 1, nOrb
             if (iGroup == 0) then
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             else
               call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
               call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
@@ -571,7 +571,7 @@ contains
         end do group
       end do
     else
-      ! All processes except the global master process
+      ! All processes except the global lead process
       do iKS = 1, parallelKS%nLocalKS
         call unpackHSRealBlacs(env%blacs, over, iNeighbour, nNeighbourSK, iSparseStart,&
             & img2CentCell, denseDesc, globalS)
@@ -579,21 +579,21 @@ contains
             & globalFrac, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = globalFrac * eigvecs(:,:,iKS)
         do iEig = 1, nOrb
-          if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+          if (env%mpi%tGroupLead) then
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                 & localEigvec)
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
-            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
-            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%leadrank)
+            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%leadrank)
           else
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalFrac)
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, globalFrac)
           end if
         end do
       end do
-    end if masterOrSlave
+    end if leadOrFollow
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       close(fd)
     end if
 
@@ -736,17 +736,17 @@ contains
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%mpi%tGroupMaster) then
+    if (env%mpi%tGroupLead) then
       allocate(localEigvec(denseDesc%nOrb))
       allocate(localFrac(denseDesc%nOrb))
     end if
 
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call prepareEigvecFileTxt(fd, .false., fileName)
     end if
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -763,9 +763,9 @@ contains
           end if
           do iEig = 1, nEigvec
             if (iGroup == 0) then
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             else
               call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
               call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
@@ -784,21 +784,21 @@ contains
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
         do iEig = 1, nEigvec
-          if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+          if (env%mpi%tGroupLead) then
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                 & localEigvec)
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
-            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
-            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%leadrank)
+            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%leadrank)
           else
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalFrac)
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, globalFrac)
           end if
         end do
       end do
     end if
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       close(fd)
     end if
 
@@ -955,23 +955,23 @@ contains
     nAtom = size(nNeighbourSK)
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%mpi%tGroupMaster) then
+    if (env%mpi%tGroupLead) then
       allocate(localEigvec(denseDesc%fullSize))
       allocate(localSDotC(denseDesc%fullSize))
-      if (env%mpi%tGlobalMaster) then
+      if (env%mpi%tGlobalLead) then
         allocate(fracs(4, denseDesc%nOrb))
       end if
     end if
 
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call prepareEigvecFileTxt(fd, .true., fileName)
     end if
 
     ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
 
-    masterOrSlave: if (env%mpi%tGlobalMaster) then
-      ! Global master process
+    leadOrFollow: if (env%mpi%tGlobalLead) then
+      ! Global lead process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -986,9 +986,9 @@ contains
           end if
           do iEig = 1, nOrb
             if (iGroup == 0) then
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
             else
               call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
               call mpifx_recv(env%mpi%interGroupComm, localSDotC, iGroup)
@@ -1000,7 +1000,7 @@ contains
         end do group
       end do
     else
-      ! All processes except the global master process
+      ! All processes except the global lead process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), iNeighbour, nNeighbourSK, iCellVec,&
@@ -1008,21 +1008,21 @@ contains
         call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         do iEig = 1, nOrb
-          if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+          if (env%mpi%tGroupLead) then
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                 & localEigvec)
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
-            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
-            call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%masterrank)
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%leadrank)
+            call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%leadrank)
           else
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalSDotC)
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, globalSDotC)
           end if
         end do
       end do
-    end if masterOrSlave
+    end if leadOrFollow
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       close(fd)
     end if
 
@@ -1268,19 +1268,19 @@ contains
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%mpi%tGroupMaster) then
+    if (env%mpi%tGroupLead) then
       allocate(localFrac(nOrb))
     end if
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
     ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
 
-    masterOrSlave: if (env%mpi%tGlobalMaster) then
-      ! Global master process
+    leadOrFollow: if (env%mpi%tGlobalLead) then
+      ! Global lead process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1297,7 +1297,7 @@ contains
           call writeProjEigvecHeader(fd, iS)
           do iEig = 1, nOrb
             if (iGroup == 0) then
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             else
               call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
             end if
@@ -1307,7 +1307,7 @@ contains
         end do group
       end do
     else
-      ! All processes except the global master process
+      ! All processes except the global lead process
       do iKS = 1, parallelKS%nLocalKS
         call unpackHSRealBlacs(env%blacs, over, neighbourList%iNeighbour, nNeighbourSK,&
             & iSparseStart, img2CentCell, denseDesc, globalS)
@@ -1315,17 +1315,17 @@ contains
             & globalFrac, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = eigvecs(:,:,iKS) * globalFrac
         do iEig = 1, nOrb
-          if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
-            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
+          if (env%mpi%tGroupLead) then
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%leadrank)
           else
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalFrac)
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, globalFrac)
           end if
         end do
       end do
-    end if masterOrSlave
+    end if leadOrFollow
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call finishProjEigvecFiles(fd)
     end if
 
@@ -1470,19 +1470,19 @@ contains
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalFrac(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%mpi%tGroupMaster) then
+    if (env%mpi%tGroupLead) then
       allocate(localFrac(nOrb))
     end if
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
     ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
 
-    masterOrSlave: if (env%mpi%tGlobalMaster) then
-      ! Global master process
+    leadOrFollow: if (env%mpi%tGlobalLead) then
+      ! Global lead process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1500,7 +1500,7 @@ contains
           call writeProjEigvecHeader(fd, iS, iK, kWeights(iK))
           do iEig = 1, nOrb
             if (iGroup == 0) then
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
             else
               call mpifx_recv(env%mpi%interGroupComm, localFrac, iGroup)
             end if
@@ -1510,7 +1510,7 @@ contains
         call writeProjEigvecFooter(fd)
       end do
     else
-      ! All processes except the global master process
+      ! All processes except the global lead process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackHSCplxBlacs(env%blacs, over, kPoints(:,iK), neighbourList%iNeighbour,&
@@ -1519,17 +1519,17 @@ contains
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         globalFrac(:,:) = real(conjg(eigvecs(:,:,iKS)) * globalSDotC)
         do iEig = 1, nOrb
-          if (env%mpi%tGroupMaster) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
-            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%masterrank)
+          if (env%mpi%tGroupLead) then
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalFrac, localFrac)
+            call mpifx_send(env%mpi%interGroupComm, localFrac, env%mpi%interGroupComm%leadrank)
           else
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalFrac)
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, globalFrac)
           end if
         end do
       end do
-    end if masterOrSlave
+    end if leadOrFollow
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call finishProjEigvecFiles(fd)
     end if
 
@@ -1691,23 +1691,23 @@ contains
     nOrb = denseDesc%fullSize
     allocate(globalS(size(eigvecs, dim=1), size(eigvecs, dim=2)))
     allocate(globalSDotC(size(eigvecs, dim=1), size(eigvecs, dim=2)))
-    if (env%mpi%tGroupMaster) then
+    if (env%mpi%tGroupLead) then
       allocate(localEigvec(nOrb))
       allocate(localSDotC(nOrb))
-      if (env%mpi%tGlobalMaster) then
+      if (env%mpi%tGlobalLead) then
         allocate(fracs(4, nOrb / 2))
       end if
     end if
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call prepareProjEigvecFiles(fd, fileNames)
     end if
     call collector%init(env%blacs%orbitalGrid, denseDesc%blacsOrbSqr, "c")
 
     ! See comment about algorithm in routine write${NAME}$EigvecsBinBlacs
 
-    masterOrSlave: if (env%mpi%tGlobalMaster) then
-      ! Global master process
+    leadOrFollow: if (env%mpi%tGlobalLead) then
+      ! Global lead process
       do iKS = 1, parallelKS%maxGroupKS
         group: do iGroup = 0, env%mpi%nGroup - 1
           if (iKS > parallelKS%nGroupKS(iGroup)) then
@@ -1724,9 +1724,9 @@ contains
           call writeProjEigvecHeader(fd, 1, iK, kWeights(iK))
           do iEig = 1, nOrb
             if (iGroup == 0) then
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                   & localEigvec)
-              call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
+              call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
             else
               call mpifx_recv(env%mpi%interGroupComm, localEigvec, iGroup)
               call mpifx_recv(env%mpi%interGroupComm, localSDotC, iGroup)
@@ -1738,7 +1738,7 @@ contains
         end do group
       end do
     else
-      ! All processes except the global master process
+      ! All processes except the global lead process
       do iKS = 1, parallelKS%nLocalKS
         iK = parallelKS%localKS(1, iKS)
         call unpackSPauliBlacs(env%blacs, over, kPoints(:,iK), neighbourList%iNeighbour,&
@@ -1747,21 +1747,21 @@ contains
         call pblasfx_phemm(globalS, denseDesc%blacsOrbSqr, eigvecs(:,:,iKS),&
             & denseDesc%blacsOrbSqr, globalSDotC, denseDesc%blacsOrbSqr)
         do iEig = 1, nOrb
-          if (env%blacs%orbitalGrid%master) then
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
+          if (env%blacs%orbitalGrid%lead) then
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS),&
                 & localEigvec)
-            call collector%getline_master(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
-            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%masterrank)
-            call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%masterrank)
+            call collector%getline_lead(env%blacs%orbitalGrid, iEig, globalSDotC, localSDotC)
+            call mpifx_send(env%mpi%interGroupComm, localEigvec, env%mpi%interGroupComm%leadrank)
+            call mpifx_send(env%mpi%interGroupComm, localSDotC, env%mpi%interGroupComm%leadrank)
           else
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
-            call collector%getline_slave(env%blacs%orbitalGrid, iEig, globalSDotC)
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, eigvecs(:,:,iKS))
+            call collector%getline_follow(env%blacs%orbitalGrid, iEig, globalSDotC)
           end if
         end do
       end do
-    end if masterOrSlave
+    end if leadOrFollow
 
-    if (env%mpi%tGlobalMaster) then
+    if (env%mpi%tGlobalLead) then
       call finishProjEigvecFiles(fd)
     end if
 
@@ -1777,7 +1777,7 @@ contains
     !> list of region names
     type(TListCharLc), intent(inout) :: fileNames
 
-    !> eigenvalues
+    !> Eigenvalues
     real(dp), intent(in) :: eigvals(:,:,:)
 
     !> Neighbour list.
@@ -1881,13 +1881,15 @@ contains
 
   !> Write tagged output of data from the code at the end of the DFTB+ run, data being then used for
   !> regression testing
-  subroutine writeAutotestTag(fileName, tPeriodic, cellVol, tMulliken, qOutput, derivs,&
-      & chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
-      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, tDefinedFreeE,&
-      & lCurrArray)
+  subroutine writeAutotestTag(fileName, electronicSolver, tPeriodic, cellVol, tMulliken, qOutput,&
+      & derivs, chrgForces, excitedDerivs, tStress, totalStress, pDynMatrix, energy, pressure,&
+      & endCoords, tLocalise, localisation, esp, taggedWriter, tunneling, ldos, lCurrArray)
 
     !> Name of output file
     character(*), intent(in) :: fileName
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(in) :: electronicSolver
 
     !> Is the geometry periodic
     logical, intent(in) :: tPeriodic
@@ -1943,9 +1945,6 @@ contains
     !> local projected DOS array
     real(dp), allocatable, intent(in) :: ldos(:,:)
 
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
-
     !> Array containing bond currents as (Jvalues, atom)
     !> This array is for testing only since it misses info
     real(dp), allocatable, intent(in) :: lCurrArray(:,:)
@@ -1982,11 +1981,10 @@ contains
     if (associated(pDynMatrix)) then
       call taggedWriter%write(fd, tagLabels%HessianNum, pDynMatrix)
     end if
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesElectronEntropy) then
       ! Mermin electronic free energy
       call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
     else
-      ! only total energy available
       call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
     end if
     if (pressure /= 0.0_dp) then
@@ -1997,7 +1995,6 @@ contains
     if (tLocalise) then
       call taggedWriter%write(fd, tagLabels%pmlocalise, localisation)
     end if
-
 
     if (allocated(esp)) then
       call taggedWriter%write(fd, tagLabels%internfield, -esp%intPotential)
@@ -2029,9 +2026,9 @@ contains
 
 
   !> Writes out machine readable data
-  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, electronicSolver, tStress,&
-      & totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken, qOutput, q0, taggedWriter,&
-      & tDefinedFreeE, cm5Cont)
+  subroutine writeResultsTag(fileName, energy, derivs, chrgForces, nEl, Ef, eigen, filling,&
+      & electronicSolver, tStress, totalStress, pDynMatrix, tPeriodic, cellVol, tMulliken,&
+      & qOutput, q0, taggedWriter, cm5Cont)
 
     !> Name of output file
     character(*), intent(in) :: fileName
@@ -2045,9 +2042,20 @@ contains
     !> Forces on external charges
     real(dp), allocatable, intent(in) :: chrgForces(:,:)
 
+    !> Number of electrons
+    real(dp), intent(in) :: nEl(:)
+
+    !> Fermi level(s)
+    real(dp), intent(inout) :: Ef(:)
+
+    !> Eigenvalues/single particle states (level, kpoint, spin)
+    real(dp), intent(in) :: eigen(:,:,:)
+
+    !> Filling of the eigenstates
+    real(dp), intent(in) :: filling(:,:,:)
+
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
-
 
     !> Should stresses be printed (assumes periodic)
     logical, intent(in) :: tStress
@@ -2079,25 +2087,37 @@ contains
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
-
     real(dp), allocatable :: qOutputUpDown(:,:,:)
     integer :: fd
-
-    @:ASSERT(tPeriodic .eqv. tStress)
 
     open(newunit=fd, file=fileName, action="write", status="replace")
 
     call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
+    if (electronicSolver%elecChemPotAvailable) then
+      call taggedWriter%write(fd, tagLabels%fermiLvl, Ef)
+    end if
+    call taggedWriter%write(fd, tagLabels%nElec, nEl)
 
-    if (electronicSolver%providesEigenvals) then
+    if (electronicSolver%providesFreeEnergy) then
+      call taggedWriter%write(fd, tagLabels%freeEgy, energy%EForceRelated)
+    elseif (electronicSolver%providesElectronEntropy) then
       call taggedWriter%write(fd, tagLabels%freeEgy, energy%EMermin)
-      ! extrapolated zero temperature energy
+    else
+      call taggedWriter%write(fd, tagLabels%egyTotal, energy%ETotal)
+    end if
+
+    if (electronicSolver%providesFreeEnergy .or. electronicSolver%providesElectronEntropy) then
+      ! extrapolated zero temperature energy (the chemical potential and electron number are assumed
+      ! to be temperature independent, as just extrapolates the Mermin energy)
       call taggedWriter%write(fd, tagLabels%egy0Total, energy%Ezero)
     end if
 
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesEigenvals) then
+      call taggedWriter%write(fd, tagLabels%eigvals, eigen)
+      call taggedWriter%write(fd, tagLabels%eigFill, filling)
+    end if
+
+    if (electronicSolver%providesFreeEnergy) then
       ! energy connected to the evaluated force/stress (differs for various free energies)
       call taggedWriter%write(fd, tagLabels%egyForceRelated, energy%EForceRelated)
     end if
@@ -2136,8 +2156,8 @@ contains
 
 
   !> Write XML format of derived results
-  subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, latVec, tRealHS,&
-      & nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
+  subroutine writeDetailedXml(runId, speciesName, species0, coord0Out, tPeriodic, tHelical, latVec,&
+      & origin, tRealHS, nKPoint, nSpin, nStates, nOrb, kPoint, kWeight, filling, occNatural)
 
     !> Identifier for the run
     integer, intent(in) :: runId
@@ -2154,8 +2174,14 @@ contains
     !> Periodic boundary conditions
     logical, intent(in) :: tPeriodic
 
-    !> Lattice vectors if periodic
+    !> Is the geometry helical?
+    logical, intent(in) :: tHelical
+
+    !> Lattice vectors if periodic or helical
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin for periodic/helical coordinates
+    real(dp), intent(in) :: origin(:)
 
     !> Real Hamiltonian
     logical, intent(in) :: tRealHS
@@ -2195,11 +2221,18 @@ contains
     call writeChildValue(xf, "identity", runId)
     call xml_NewElement(xf, "geometry")
     call writeChildValue(xf, "typenames", speciesName)
-    call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
-        & coord0Out)
+    if (tPeriodic .or. tHelical) then
+      call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
+          & coord0Out + spread(origin, 2, size(coord0Out, dim=2)))
+    else
+      call writeChildValue(xf, "typesandcoordinates", reshape(species0, [ 1, size(species0) ]),&
+          & coord0Out)
+    end if
     call writeChildValue(xf, "periodic", tPeriodic)
-    if (tPeriodic) then
+    call writeChildValue(xf, "helical", tHelical)
+    if (tPeriodic .or. tHelical) then
       call writeChildValue(xf, "latticevectors", latVec)
+      call writeChildValue(xf, "coordinateorigin", origin)
     end if
     call xml_EndElement(xf, "geometry")
     call writeChildValue(xf, "real", tRealHS)
@@ -2323,7 +2356,7 @@ contains
       & qInput, qOutput, eigen, filling, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL,&
       & qBlockOut, Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, tDispersion, tEField,&
       & tPeriodic, nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints,&
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
+      & iAtInCentralRegion, electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2466,9 +2499,6 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
 
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
-
     !> Is there a halogen bond correction present?
     logical, intent(in) :: tHalogenX
 
@@ -2584,7 +2614,8 @@ contains
          write(fd, "(A5, 1X, A16)")" Atom", " Charge"
          do ii = 1, size(iAtInCentralRegion)
             iAt = iAtInCentralRegion(ii)
-            write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1)) + cm5Cont%cm5(iAt)
+            write(fd, "(I5, 1X, F16.8)") iAt, sum(q0(:, iAt, 1) - qOutput(:, iAt, 1))&
+                & + cm5Cont%cm5(iAt)
          end do
          write(fd, *)
       end if
@@ -2773,18 +2804,18 @@ contains
       if (nSpin == 2) then
         write(fd, "(A, 1X, A)") 'Spin ', trim(spinName(iSpin))
       end if
-      if (.not. tNegf) then
-        ! set in the input and for multiple contact Ef values not meaningful anyway
+      if (electronicSolver%elecChemPotAvailable) then
         write(fd, format2U) 'Fermi level', Ef(iSpin), "H", Hartree__eV * Ef(iSpin), 'eV'
-        ! not current available from the Green's function solver
+      end if
+      if (electronicSolver%providesBandEnergy) then
         write(fd, format2U) 'Band energy', Eband(iSpin), "H", Hartree__eV * Eband(iSpin), 'eV'
       end if
-      if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
-          & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-          & electronicSolverTypes%elpa, electronicSolverTypes%elpadm])) then
+      if (electronicSolver%providesFreeEnergy) then
         write(fd, format2U)'TS', TS(iSpin), "H", Hartree__eV * TS(iSpin), 'eV'
-        write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
-            & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
+        if (electronicSolver%providesBandEnergy) then
+          write(fd, format2U) 'Band free energy (E-TS)', Eband(iSpin) - TS(iSpin), "H",&
+              & Hartree__eV * (Eband(iSpin) - TS(iSpin)), 'eV'
+        end if
         write(fd, format2U) 'Extrapolated E(0K)', E0(iSpin), "H", Hartree__eV * (E0(iSpin)), 'eV'
       end if
       if (tPrintMulliken) then
@@ -2853,14 +2884,12 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
+    if (electronicSolver%providesElectronEntropy) then
       write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
       write(fd, format2U) 'Total Mermin free energy', energy%Etotal - sum(TS), 'H',&
           & (energy%Etotal - sum(TS)) * Hartree__eV, 'eV'
     end if
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesFreeEnergy) then
       write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
@@ -2899,8 +2928,8 @@ contains
 
 
   !> Second group of data for detailed.out
-  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd, tPrintForces,&
-      & tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
+  subroutine writeDetailedOut2(fd, tScc, tConverged, tXlbomd, isLinResp, tGeoOpt, tMd,&
+      & tPrintForces, tStress, tPeriodic, energy, totalStress, totalLatDeriv, derivs, chrgForces,&
       & indMovedAtom, cellVol, cellPressure, geoOutFile, iAtInCentralRegion)
 
     !> File ID
@@ -3220,15 +3249,18 @@ contains
   end subroutine writeMdOut1
 
   !> Second group of output data during molecular dynamics
-  subroutine writeMdOut2(fd, tStress, tBarostat, isLinResp, tEField, tFixEf, tPrintMulliken,&
-      & energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon, absEField,&
-      & qOutput, q0, dipoleMoment)
+  subroutine writeMdOut2(fd, tStress, tPeriodic, tBarostat, isLinResp, tEField, tFixEf,&
+      & tPrintMulliken, energy, energiesCasida, latVec, cellVol, cellPressure, pressure, tempIon,&
+      & absEField, qOutput, q0, dipoleMoment)
 
     !> File ID
     integer, intent(in) :: fd
 
     !> Is the stress tensor to be printed?
     logical, intent(in) :: tStress
+
+    !> Is this a periodic geometry
+    logical, intent(in) :: tPeriodic
 
     !> Is a barostat in use
     logical, intent(in) :: tBarostat
@@ -3289,12 +3321,14 @@ contains
         end do
         write(fd, format2Ue) 'Volume', cellVol, 'au^3', (Bohr__AA**3) * cellVol, 'A^3'
       end if
-      write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
-      if (pressure /= 0.0_dp) then
-        write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
-            & Hartree__eV * energy%EGibbs,'eV'
-        write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
-            & Hartree__eV * energy%EGibbsKin, 'eV'
+      if (tPeriodic) then
+        write(fd, format2Ue) 'Pressure', cellPressure, 'au', cellPressure * au__pascal, 'Pa'
+        if (pressure /= 0.0_dp) then
+          write(fd, format2U) 'Gibbs free energy', energy%EGibbs, 'H',&
+              & Hartree__eV * energy%EGibbs,'eV'
+          write(fd, format2U) 'Gibbs free energy including KE', energy%EGibbsKin, 'H',&
+              & Hartree__eV * energy%EGibbsKin, 'eV'
+        end if
       end if
     end if
     if (isLinResp) then
@@ -3539,8 +3573,8 @@ contains
 
   !> Write current geometry to disc
   subroutine writeCurrentGeometry(geoOutFile, pCoord0Out, tLatOpt, tMd, tAppendGeo, tFracCoord,&
-      & tPeriodic, tPrintMulliken, species0, speciesName, latVec, iGeoStep, iLatGeoStep, nSpin,&
-      & qOutput, velocities)
+      & tPeriodic, tHelical, tPrintMulliken, species0, speciesName, latVec, origin, iGeoStep,&
+      & iLatGeoStep, nSpin, qOutput, velocities)
 
     !>  file for geometry output
     character(*), intent(in) :: geoOutFile
@@ -3563,6 +3597,9 @@ contains
     !> Is the geometry periodic?
     logical, intent(in) :: tPeriodic
 
+    !> Is the geometry helical?
+    logical, intent(in) :: tHelical
+
     !> should Mulliken charges be printed
     logical, intent(in) :: tPrintMulliken
 
@@ -3574,6 +3611,9 @@ contains
 
     !> lattice vectors
     real(dp), intent(in) :: latVec(:,:)
+
+    !> Origin for periodic coordinates
+    real(dp), intent(in) :: origin(:)
 
     !> current geometry step
     integer, intent(in) :: iGeoStep
@@ -3598,8 +3638,8 @@ contains
     nAtom = size(pCoord0Out, dim=2)
 
     fname = trim(geoOutFile) // ".gen"
-    if (tPeriodic) then
-      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, tFracCoord)
+    if (tPeriodic .or. tHelical) then
+      call writeGenFormat(fname, pCoord0Out, species0, speciesName, latVec, origin, tFracCoord)
     else
       call writeGenFormat(fname, pCoord0Out, species0, speciesName)
     end if
@@ -3799,7 +3839,7 @@ contains
 
 
   !> Prints current total energies
-  subroutine printEnergies(energy, TS, electronicSolver, tDefinedFreeE)
+  subroutine printEnergies(energy, TS, electronicSolver)
 
     !> energy components
     type(TEnergies), intent(in) :: energy
@@ -3810,18 +3850,17 @@ contains
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
 
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
-
     write(stdOut, *)
     write(stdOut, format2U) "Total Energy", energy%Etotal,"H", Hartree__eV * energy%Etotal,"eV"
     if (electronicSolver%providesEigenvals) then
       write(stdOut, format2U) "Extrapolated to 0", energy%Ezero, "H", Hartree__eV * energy%Ezero,&
           & "eV"
+    end if
+    if (electronicSolver%providesElectronEntropy) then
       write(stdOut, format2U) "Total Mermin free energy", energy%EMermin, "H",&
           & Hartree__eV * energy%EMermin, "eV"
     end if
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesFreeEnergy) then
       write(stdOut, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if
@@ -3966,9 +4005,9 @@ contains
 
     real(dp) :: tmpLatVecs(3, 3)
 
-    @:ASSERT(env%tGlobalMaster .eqv. allocated(socket))
+    @:ASSERT(env%tGlobalLead .eqv. allocated(socket))
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       call socket%receive(coord0, tmpLatVecs, tStopDriver)
     end if
     tCoordsChanged = .true.
@@ -4440,7 +4479,7 @@ contains
     integer :: ii, fdEsp
     character(lc) :: tmpStr
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       if (esp%tAppendEsp) then
         open(newunit=fdEsp, file=trim(esp%EspOutFile), position="append")
       else
@@ -4541,7 +4580,7 @@ contains
       & tCoordOpt, tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, &
       & indMovedAtom, coord0Out, q0, qOutput, orb, species, tPrintMulliken, pressure, &
       & cellVol, TS, tAtomicEnergy, tDispersion, tPeriodic, tScc, invLatVec, kPoints, &
-      & iAtInCentralRegion, electronicSolver, tDefinedFreeE, reks, t3rd, isRangeSep)
+      & iAtInCentralRegion, electronicSolver, reks, t3rd, isRangeSep)
 
     !> File ID
     integer, intent(in) :: fd
@@ -4632,9 +4671,6 @@ contains
 
     !> Electronic solver information
     type(TElectronicSolver), intent(in) :: electronicSolver
-
-    !> Is the free energy correctly defined
-    logical, intent(in) :: tDefinedFreeE
 
     !> Third order DFTB
     logical, intent(in) :: t3rd
@@ -4822,14 +4858,12 @@ contains
     end if
 
     write(fd, format2U) 'Total energy', energy%Etotal, 'H', energy%Etotal * Hartree__eV, 'eV'
-    if (any(electronicSolver%iSolver == [electronicSolverTypes%qr,&
-        & electronicSolverTypes%divideandconquer, electronicSolverTypes%relativelyrobust,&
-        & electronicSolverTypes%elpa])) then
+    if (electronicSolver%providesElectronEntropy) then
       write(fd, format2U) 'Extrapolated to 0', energy%Ezero, 'H', energy%Ezero * Hartree__eV, 'eV'
       write(fd, format2U) 'Total Mermin free energy', energy%Emermin, 'H',&
           & energy%Emermin * Hartree__eV, 'eV'
     end if
-    if (tDefinedFreeE) then
+    if (electronicSolver%providesFreeEnergy) then
       write(fd, format2U) 'Force related energy', energy%EForceRelated, 'H',&
           & energy%EForceRelated * Hartree__eV, 'eV'
     end if

@@ -17,7 +17,7 @@ set(fyppflags ${FYPP_FLAGS})
 list(REMOVE_ITEM fyppflags "-n")
 
 execute_process(
-  COMMAND ${FYPP} ${fyppflags} -DOMP_THREADS=${TEST_OMP_THREADS}
+  COMMAND ${FYPP} ${fyppflags} -DMPI_PROCS=${TEST_MPI_PROCS} -DOMP_THREADS=${TEST_OMP_THREADS}
   INPUT_FILE ${builddir}/_modes_tests.fypp
   OUTPUT_FILE ${builddir}/_modes_tests)
 
