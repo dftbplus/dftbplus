@@ -173,8 +173,11 @@ In order to build DFTB+ carry out the following steps:
     env FC=mpifort CC=gcc cmake ..
 
   Based on the detected compilers, the build system will read further settings
-  from a corresponding toolchain file in the `sys/` folder. (The name of the
-  file is shown in the output.)
+  from a corresponding toolchain file in the `sys/` folder. Either from a
+  specific one (e.g. `gnu.cmake`, `intel.cmake`, etc.) or a generic one
+  (`generic.cmake`) if the detected compiler combination does not correspond to
+  any of the specific settings. (The name of the selected toolchain file is
+  shown in the output.)
 
   You may adjust any variables defined in `config.make` or in the toolchain file
   by either modifying the files directly or by overriding the definitions via
