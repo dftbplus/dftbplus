@@ -6,7 +6,7 @@ DFTB+: general package for performing fast atomistic calculations
 
 DFTB+ is a software package for carrying out fast quantum mechanical atomistic
 calculations based on the Density Functional Tight Binding method. The most
-recent features are described in the `DFTB+ paper (open access)
+recent features are described in the (open access) `DFTB+ paper
 <https://doi.org/10.1063/1.5143190>`_.
 
 |DFTB+ logo|
@@ -109,9 +109,10 @@ When publishing results obtained with DFTB+, please cite following works:
 Contributing
 ============
 
-Welcome in the DFTB+ developer community!
+New features, bug fixes, documentation, tutorial examples and code testing is
+welcome in the DFTB+ developer community!
 
-The project is `hosted on github <http://github.com/dftbplus/dftbplus>`_.
+The project is `hosted on github <http://github.com/dftbplus/>`_.
 Please check `CONTRIBUTING.rst <CONTRIBUTING.rst>`_ and the `DFTB+ developers
 guide <https://dftbplus-develguide.readthedocs.io/>`_ for guide lines.
 

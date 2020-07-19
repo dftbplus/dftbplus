@@ -52,10 +52,11 @@ results, you will additionally need:
 * The Slater-Koster data used in the tests (see below)
 
 
-Successful builds
------------------
+Tested builds
+-------------
 
-DFTB+ is regularly built and tested in following build environments:
+DFTB+ is regularly built and tested for both serial and MPI environments on the
+following architectures:
 
 +---------------+----------------------+-------------+------------------+-----+
 | Architecture  | Compiler             | MPI         | Ext. libraries   |Notes|
@@ -83,7 +84,8 @@ DFTB+ is regularly built and tested in following build environments:
 |               |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
 
-All builds use ARPACK-NG 3.7, ELSI 2.6.1 and PLUMED 2.5.
+All builds are also tested with the optional ARPACK-NG 3.7, ELSI 2.6.1 and
+PLUMED 2.5 libraries.
 
 Notes:
 
