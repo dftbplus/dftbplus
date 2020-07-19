@@ -29,21 +29,20 @@ if(WITH_API)
   dftbp_get_api_release(API_RELEASE)
 endif()
 
-
-if(WITH_MPI)
-  find_package(MPI REQUIRED)
-endif()
-
-try_compile(MPI_COMPILES ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_SOURCE_DIR}/prog/misc/cmake/trympi.f90)
-if (WITH_MPI)
-  if(NOT MPI_COMPILES)
-    message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for a WITH_MPI=TRUE build")
-  endif()
+find_package(MPI)
+if(MPI_Fortran_FOUND)
+  option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" TRUE)
 else()
-  if(MPI_COMPILES)
-    message(FATAL_ERROR "MPI enabled compiler ${CMAKE_Fortran_COMPILER} is specified for a build where WITH_MPI=FALSE")
-  endif()
+  option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 endif()
+if(WITH_MPI AND NOT MPI_FORTRAN_FOUND)
+  message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for "
+    "a WITH_MPI=TRUE build")
+elseif(NOT WITH_MPI AND MPI_FORTRAN_FOUND)
+  message(WARNING "MPI enabled compiler ${CMAKE_Fortran_COMPILER} is specified for a build where "
+    "WITH_MPI=FALSE")
+endif()
+
 
 if(WITH_OMP)
   find_package(OpenMP REQUIRED)

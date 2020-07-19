@@ -53,6 +53,11 @@ dftbp_preprocess("${FYPP}" "${FYPP_FLAGS}" "F90" "f90" "${ALL-SOURCES-FPP}" all-
 
 add_library(dftbplus ${ALL-SOURCES-F90} ${all-sources-f90-preproc} ${ALL-SOURCES-C})
 
+if(WITH_MPI)
+  target_include_directories(dftbplus PRIVATE ${MPI_Fortran_MODULE_DIR})
+  target_link_libraries(dftbplus PRIVATE ${MPI_Fortran_LIBRARIES})
+endif()
+
 target_sources(dftbplus PRIVATE $<TARGET_OBJECTS:xmlf90_objlib>)
 
 if(WITH_SOCKETS)

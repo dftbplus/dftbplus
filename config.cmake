@@ -8,7 +8,12 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
 
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
 
-option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
+#option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
+
+# WITH_MPI will be set depending whether the MPI-capability of the specified compiler can be
+# detected or not. Uncomment (or set via the command line option -D) this variable if you want to
+# enforce an mpi or serial build independent of the result of the auto-detection.
+#
 # If you build an MPI-parallised binary, consider to set WITH_OMP (OpenMP thread parallelisaton) to
 # FALSE unless you want hybrid parallelisation (for experts only).
 
