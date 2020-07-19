@@ -450,7 +450,7 @@ contains
     this%eulerFreq = inp%eulerFreq
     this%tBondE = inp%tBondE
     if (this%tBondE .and. .not. this%tRealHS) then
-      call error("Real hamitonian required for bond energies")
+      call error("Real hamiltonian required for bond energies")
     end if
     this%tBondP = inp%tBondP
     this%species = species
@@ -551,7 +551,7 @@ contains
     !> Complex Eigevenctors
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
-    !> Sparse non-SCC hamitonian
+    !> Sparse non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
 
     !> species of all atoms in the system
@@ -560,7 +560,7 @@ contains
     !> reference atomic occupations
     real(dp), intent(inout) :: q0(:,:,:)
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
@@ -752,13 +752,13 @@ contains
     !> Complex Eigevenctors
     complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
 
-    !> Sparse storage for non-SCC hamitonian
+    !> Sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
 
     !> reference atomic occupations
     real(dp), intent(inout) :: q0(:,:,:)
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
@@ -1172,13 +1172,13 @@ contains
     !> Square hamiltonian at each spin and k-point
     complex(dp), intent(inout) :: H1(:,:,:)
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
     real(dp), intent(inout) :: over(:)
 
-    !> Sparse storage for non-SCC hamitonian
+    !> Sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
 
     !> species of all atoms in the system
@@ -1632,7 +1632,7 @@ contains
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
 
-    !> Sparse storage for non-SCC hamitonian
+    !> Sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: ham0(:)
 
     !> atomic ocupations
@@ -1782,7 +1782,7 @@ contains
     !> overlap (sparse)
     real(dp), allocatable, intent(in) :: over(:)
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), allocatable, intent(in) :: ham(:,:)
 
     !> occupations
@@ -1833,10 +1833,10 @@ contains
     !> Adjoint of the inverse of eigenvectors matrix (for populations)
     complex(dp), allocatable, intent(out) :: EiginvAdj(:,:,:)
 
-    !> Non-SCC hamitonian
+    !> Non-SCC hamiltonian
     real(dp), intent(in) :: H0(:)
 
-    !> Local sparse storage for non-SCC hamitonian
+    !> Local sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(out) :: ham0(:)
 
     !> Raw overlap data
@@ -2995,10 +2995,10 @@ contains
     !> Square overlap matrix
     complex(dp), intent(inout), allocatable :: Ssqr(:,:,:)
 
-    !> Local sparse storage for non-SCC hamitonian
+    !> Local sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(inout) :: ham0(:)
 
-    !> scc hamitonian (sparse)
+    !> scc hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
@@ -3385,13 +3385,13 @@ contains
     !> ElecDynamics instance
     type(TElecDynamics), intent(in), target :: this
 
-    !> scc hamitonian (sparse)
+    !> scc hamiltonian (sparse)
     real(dp), allocatable, intent(inout) :: ham(:,:)
 
     !> overlap (sparse)
     real(dp), allocatable, intent(inout) :: over(:)
 
-    !> Local sparse storage for non-SCC hamitonian
+    !> Local sparse storage for non-SCC hamiltonian
     real(dp), allocatable, intent(inout) :: ham0(:)
 
     !> sparse density matrix
@@ -3501,7 +3501,7 @@ contains
     !> overlap (sparse)
     real(dp), intent(in) :: over(:)
 
-    !> Local sparse storage for non-SCC hamitonian
+    !> Local sparse storage for non-SCC hamiltonian
     real(dp), intent(in) :: ham0(:)
 
     !> Atomic neighbour data
