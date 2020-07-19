@@ -1826,6 +1826,10 @@ contains
 
     end if
 
+    if (allocated(reks)) then
+      electronicSolver%providesElectronEntropy = .false.
+    end if
+
     if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then
       call error("Alternative force evaluation methods are not supported by this electronic&
           & solver.")
