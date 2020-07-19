@@ -5525,11 +5525,6 @@ contains
 
     end if
 
-    write (stdOut,*)
-    write (stdOut, "(A)") " Warning! REKS calculation is not affected by,"
-    write (stdOut, "(A)") "          (mixer, filling) option"
-    write (stdOut,*)
-
   end subroutine printReksInitInfo
 
 
