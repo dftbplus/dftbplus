@@ -28,6 +28,7 @@ module dftbp_sparse2dense
 
   public :: unpackHS, packHS, iPackHS, packErho
   public :: blockSymmetrizeHS, blockHermitianHS, blockAntiSymmetrizeHS, symmetrizeHS
+  public :: hermitianSquareMatrix
   public :: packHSPauli, packHSPauliImag, unpackHPauli, unpackSPauli
   public :: unpackHelicalHS, packHelicalHS
 
@@ -1863,6 +1864,21 @@ contains
     end do
 
   end subroutine symmetrizeHS_real
+
+
+  !> copy lower triangle to upper for a square matrix
+  subroutine hermitianSquareMatrix(matrix)
+
+    !> matrix to symmetrize
+    complex(dp), intent(inout) :: matrix(:,:)
+    integer :: ii, matSize
+
+    matSize = size(matrix, dim = 1)
+    do ii = 1, matSize - 1
+      matrix(ii, ii + 1 : matSize) = conjg(matrix(ii + 1 : matSize, ii))
+    end do
+
+  end subroutine hermitianSquareMatrix
 
 
 #:if WITH_SCALAPACK
