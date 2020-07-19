@@ -384,7 +384,7 @@ contains
     !> is this a +U calculation
     logical, intent(in) :: tDftbU
 
-    !> does the hamitonian have an imaginary part in real space?
+    !> does the hamiltonian have an imaginary part in real space?
     logical, intent(in) :: tImHam
 
     !> chemical species of all atoms
@@ -431,7 +431,7 @@ contains
   subroutine getSccHamiltonian(H0, over, nNeighbourSK, neighbourList, species, orb, iSparseStart,&
       & img2CentCell, potential, ham, iHam)
 
-    !> non-SCC hamitonian (sparse)
+    !> non-SCC hamiltonian (sparse)
     real(dp), intent(in) :: H0(:)
 
     !> overlap (sparse)
@@ -458,10 +458,10 @@ contains
     !> potential acting on sustem
     type(TPotentials), intent(in) :: potential
 
-    !> resulting hamitonian (sparse)
+    !> resulting hamiltonian (sparse)
     real(dp), intent(out) :: ham(:,:)
 
-    !> imaginary part of hamitonian (if required, signalled by being allocated)
+    !> imaginary part of hamiltonian (if required, signalled by being allocated)
     real(dp), allocatable, intent(inout) :: iHam(:,:)
 
     integer :: nAtom

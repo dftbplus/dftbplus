@@ -2077,7 +2077,7 @@ module negf_int
   !> pack dense matrices into CSR format
   subroutine MakeHHSS(H_all, S_all, HH, SS)
 
-    !> hamitonian matrix
+    !> hamiltonian matrix
     real(dp), intent(in) :: H_all(:,:)
 
     !> overlap matrix
@@ -2138,7 +2138,7 @@ module negf_int
   !> form orthogonal matrices via Lowdin transform for whole system
   subroutine orthogonalization(H,S)
 
-    !> hamitonian matrix
+    !> hamiltonian matrix
     real(dp), intent(inout) :: H(:,:)
 
     !> overlap matrix

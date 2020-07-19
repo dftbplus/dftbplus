@@ -235,7 +235,7 @@ contains
         & allowEmptyValue=.true., dummyValue=.true.)
     call readOptions(child, input%ctrl)
 
-    ! W values if needed by Hamitonian or excited state calculation
+    ! W values if needed by Hamiltonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
     ! analysis settings that need to know settings from the options block
@@ -4730,7 +4730,7 @@ contains
   !> Reads W values if required by settings in the Hamiltonian or the excited state
   subroutine readSpinConstants(hamNode, geo, slako, ctrl)
 
-    !> node for Hamitonian data
+    !> node for Hamiltonian data
     type(fnode), pointer :: hamNode
 
     !> geometry of the system
