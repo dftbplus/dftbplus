@@ -1487,6 +1487,9 @@ contains
     end if
 
     call openFile(this, laserDat, 'laser.dat')
+    if (.not. this%tEnvFromFile) then
+      write(laserDat, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
+    end if
 
     do iStep = 0,this%nSteps
       time = iStep * this%dt + startTime
@@ -2215,12 +2218,29 @@ contains
     end if
     call openFile(this, dipoleDat, dipoleFileName)
 
+    if (this%nSpin == 1) then
+      write(dipoleDat, "(A)") "#           time (fs)       |    mu_x (e.angstrom)   |     mu_y (e.angstrom)   |   mu_z (e.angstrom)"
+    else if (this%nSpin == 2) then
+      write(dipoleDat, "(A)") "#           time (fs)       |   mu_x (up) (e.angstrom)  |   mu_y (up) (e.angstrom)  &
+          &|  mu_z (down) (e.angstrom) | mu_x (down) (e.angstrom) | mu_y (down) (e.angstrom) |  mu_z (down) (e.angstrom)"
+    end if
+
     if (this%tdWriteExtras) then
       call openFile(this, qDat, 'qsvst.dat')
+
+      write(qDat, "(A)") "#             time (fs)      |   total net charge (e)  |   charge (atom_1) (e)  &
+          & |   charge (atom_2) (e)   |        ...        |  charge (atom_N) (e)"
+
       call openFile(this, energyDat, 'energyvst.dat')
+
+      write(energyDat, "(A)") "#                  time (fs)         |        E total (H)         |         E non-SCC (H) &
+          &       |         E SCC (H)           |         E spin (H)           |       E external (H) &
+          &  |             E rep (H)           |     E kinetic nuclear (H)    |       E dispersion (H)"
 
       if (this%tForces) then
         call openFile(this, forceDat, 'forcesvst.dat')
+        write(forceDat, "(A)") "#           time (fs)       | force (atom_1) (H/b)   |  force (atom_2) (H/b)&
+            &  |           ...          |     force (atom_N) (H/b)"
       end if
 
       if (this%tIons) then
@@ -2234,11 +2254,18 @@ contains
         write(strSpin,'(i1)')iSpin
         if (this%tRealHS) then
           call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '.dat')
+          write(populDat(iKS), "(A,A)") "#  GS molecular orbital populations, spin channel : " // trim(strSpin)
+          write(populDat(iKS), "(A)") "#          time (fs)            |   population (orb 1)       |    population (orb 2)&
+              &          |        ...           |      population (orb N)"
         else
           iK = this%parallelKS%localKS(1, iKS)
           write(strK,'(i0.3)')iK
           call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '-' // trim(strK) //&
               & '.dat')
+          write(populDat(iKS), "(A,A,A,A)") "#  GS molecular orbital populations, spin channel : " // trim(strSpin) // &
+              & ", k-point number: " // trim(strK)
+          write(populDat(iKS), "(A)") "#          time (fs)            |   population (orb 1)       |    population (orb 2)&
+              &          |        ...           |      population (orb N)"
         end if
       end do
     end if
