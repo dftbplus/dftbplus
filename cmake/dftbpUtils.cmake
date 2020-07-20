@@ -133,15 +133,27 @@ function(dftbp_get_release_name release)
 endfunction()
 
 
-# Gets DFTB+ API release information.
+# Gets DFTB+ API version information.
 #
 # Args:
-#   release [out]: Release string.
+#   apiversion [out]: Version string.
+#   apimajor [out]: Major release number (as string).
+#   apiminor [out]: Minor release number (as string).
+#   apipatch [out]: Patch release number (as string).
 #
-function(dftbp_get_api_release apiversion)
+function(dftbp_get_api_version apiversion apimajor apiminor apipatch)
 
-  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api
+    REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  string(REGEX MATCHALL "[0-9]+" _api_list "${_api}")
+  list(GET _api_list 0 _api_major)
+  list(GET _api_list 1 _api_minor)
+  list(GET _api_list 2 _api_patch)
+
   set(${apiversion} "${_api}" PARENT_SCOPE)
+  set(${apimajor} "${_api_major}" PARENT_SCOPE)
+  set(${apiminor} "${_api_minor}" PARENT_SCOPE)
+  set(${apipatch} "${_api_patch}" PARENT_SCOPE)
 
 endfunction()
 

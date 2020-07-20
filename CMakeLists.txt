@@ -26,7 +26,7 @@ dftbp_ensure_config_consistency()
 dftbp_get_release_name(RELEASE)
 
 if(WITH_API)
-  dftbp_get_api_release(API_RELEASE)
+  dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
 endif()
 
 find_package(MPI)
