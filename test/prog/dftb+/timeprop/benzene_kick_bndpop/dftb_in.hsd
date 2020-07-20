@@ -38,20 +38,16 @@ Options = {
     WriteAutotestTag = Yes
 }
 
-ParserOptions = {
-    ParserVersion = 8
-}
+InputVersion = 20.1
 
-Analysis = {
-    ElectronDynamics = {
-        Steps = 1000
-        TimeStep [au] = 0.2
-        Perturbation = Kick {
-            PolarizationDirection = "z"
-        }
-        FieldStrength [v/a] = 0.001
-        WriteBondPopulation = Yes # evaluate bond populations between atoms
+ElectronDynamics = {
+    Steps = 1000
+    TimeStep [au] = 0.2
+    Perturbation = Kick {
+        PolarizationDirection = "z"
     }
+    FieldStrength [v/a] = 0.001
+    WriteBondPopulation = Yes # evaluate bond populations between atoms
 }
 
 Parallel {

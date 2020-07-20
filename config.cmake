@@ -8,7 +8,12 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
 
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
 
-option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
+#option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
+
+# WITH_MPI will be set depending whether the MPI-capability of the specified compiler can be
+# detected or not. Uncomment (or set via the command line option -D) this variable if you want to
+# enforce an mpi or serial build independent of the result of the auto-detection.
+#
 # If you build an MPI-parallised binary, consider to set WITH_OMP (OpenMP thread parallelisaton) to
 # FALSE unless you want hybrid parallelisation (for experts only).
 
@@ -94,27 +99,3 @@ set(PKGCONFIG_LANGUAGE "Fortran" CACHE STRING
 # Depending on the language setting ("C" or "Fortran") you would get the flags for the case of using
 # that compiler for the linking.
 
-
-####################################################################################################
-#
-# NOTE FOR DEVELOPERS: Do not customise any settings here or in any of the sys/*.cmake files as they
-# contain the official defaults DFTB+ is shipped with. If you need to customise any of the settings
-# for your system, create a custom cmake file (e.g. custom.cmake) containing (only) the settings you
-# would like to override. For an example, see
-#
-#     https://gist.github.com/aradi/39ab88acfbacc3b2f44d1e41e4da15e7
-#
-# When invoking CMake, pre-populate its cache with your custom settings using the -C option. For
-# example, assuming your build folder is a subdirectory within the DFTB+ source directory and you
-# wish to override the settings in config.cmake and in sys/gnu.cmake, issue:
-#
-#     cmake -C ../custom.cmake -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
-#
-# The settings in custom.cmake will pre-populate the cache and suppress the corresponding cache
-# variables in config.cmake and sys/*.cmake.
-#
-# Alternatively, you may also override settings on the command line, e.g.:
-#
-#     cmake -DWITH_MPI=1 -DWITH_TRANSPORT=1 -DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
-#
-####################################################################################################

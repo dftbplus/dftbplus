@@ -81,23 +81,20 @@
    RandomSeed = 1234 
  }
  
- ParserOptions = {
-   ParserVersion = 5
+InputVersion = 20.1
+
+ ElectronDynamics = {
+   Steps = 5000
+   TimeStep [au] = 0.2
+   FieldStrength [v/a] = 0.0
+   Perturbation = Laser {
+     PolarizationDirection = 0 1 0 
+     LaserEnergy [ev] = 3.802
+   }
+   IonDynamics = Yes
+   InitialTemperature [k] = 273.15
  }
 
  Analysis = {
-    ElectronDynamics = {
-      Steps = 5000
-      TimeStep [au] = 0.2
-      FieldStrength [v/a] = 0.0
-      Perturbation = Laser {
-        PolarizationDirection = 0 1 0 
-        LaserEnergy [ev] = 3.802
-      }
-      IonDynamics = Yes
-      InitialTemperature [k] = 273.15
-    }
-
    CalculateForces = Yes
  } 
-

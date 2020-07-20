@@ -21,7 +21,7 @@ Added
   feature)
 
 - Use of processor groups with transport calculations
-  
+
 - Read input coordinates in XYZ format
 
 - Read input coordinates in POSCAR format
@@ -36,9 +36,11 @@ Added
 
 - Non-polar solvent accessible surface area solvation model
 
-- Particle-particle random-phase approximation available for suitable excitation calculations
+- Particle-particle random-phase approximation available for suitable excitation
+  calculations
 
 - Range separated excited state calculations for spin free singlet systems
+
 
 Changed
 -------
@@ -52,6 +54,7 @@ Changed
 
 - Removed residual XML input (leaving detailed.xml export, depreciating the
   undocumented <<! tag in HSD)
+
 
 Fixed
 -----
@@ -71,7 +74,7 @@ Added
 - Non-equilibrium Green's function transport.
 
 - Use of the ELSI library.
- 
+
 - Ability to perform ground state MD with excitation energies.
 
 - Caching for transition charges in excited state.
@@ -82,7 +85,7 @@ Added
 - Onsite corrected hamiltonian for ground state energies.
 
 - Range-separated hybrid DFTB.
- 
+
 - GPU acceleration using the MAGMA library for eigensolution. WARNING: this is
   currently an experimental feature, so should be used with care.
 

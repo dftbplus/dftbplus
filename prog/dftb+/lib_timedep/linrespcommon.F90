@@ -814,7 +814,7 @@ contains
     tdip(:,:) = 0.0_dp
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ii,rtmp) SCHEDULE(RUNTIME)
     do ii = 1, size(evec, dim=2)
-      rtmp = eval(ii)**(-4) ! 1._dp / sqrt(sqrt(eval(ii)))
+      rtmp = eval(ii)**(-0.25_dp) ! 1._dp / sqrt(sqrt(eval(ii)))
       do ll = 1, 3
         tdip(ii,ll) = sum(transd(:,ll) * sqrt(wij) * evec(:,ii)) * rtmp
       end do

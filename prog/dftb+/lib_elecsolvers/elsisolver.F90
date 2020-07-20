@@ -14,13 +14,14 @@ module dftbp_elsisolver
 #:endif
   use dftbp_accuracy, only : dp, lc
   use dftbp_environment, only : TEnvironment, globalTimers
+  use dftbp_globalenv, only : stdOut
   use dftbp_elecsolvertypes, only : electronicSolverTypes
   use dftbp_elsiiface
   use dftbp_elsicsc
   use dftbp_densedescr
   use dftbp_periodic
   use dftbp_orbitals
-  use dftbp_message, only : error, cleanshutdown
+  use dftbp_message, only : error, warning, cleanshutdown
   use dftbp_commontypes, only : TParallelKS, TOrbitals
   use dftbp_energies, only : TEnergies
   use dftbp_etemp, only : fillingTypes
@@ -55,8 +56,11 @@ module dftbp_elsisolver
     !> Should the overlap be factorized before minimization
     logical :: ommCholesky = .true.
 
+    !> PEXSI pole expansion method
+    integer :: pexsiMethod = 3
+
     !> number of poles for PEXSI expansion
-    integer :: pexsiNPole = 20
+    integer :: pexsiNPole = 30
 
     !> number of processors per pole for PEXSI
     integer :: pexsiNpPerPole = 1
@@ -187,6 +191,9 @@ module dftbp_elsisolver
     type(TElsiCsc), allocatable :: elsiCsc
 
 
+    !> Version number for ELSI
+    integer, public :: major, minor, patch
+
     !! ELPA settings
 
     !> ELPA solver choice
@@ -219,6 +226,9 @@ module dftbp_elsisolver
 
     !> Previous potentials
     real(dp), allocatable :: pexsiVOld(:)
+
+    !> PEXSI pole expansion method
+    integer :: pexsiMethod
 
     !> Number of poles for expansion
     integer :: pexsiNPole
@@ -265,7 +275,7 @@ contains
 
   !> Initialise ELSI solver
   subroutine TElsiSolver_init(this, inp, env, nBasisFn, nEl, iDistribFn, nSpin, iSpin, nKPoint,&
-      & iKPoint, kWeight, tWriteHS)
+      & iKPoint, kWeight, tWriteHS, providesElectronEntropy)
 
     !> control structure for solvers, including ELSI data
     class(TElsiSolver), intent(out) :: this
@@ -303,7 +313,19 @@ contains
     !> Should the matrices be written out
     logical, intent(in) :: tWriteHS
 
+    !> Whether the solver provides the TS term for electrons
+    logical, intent(inout) :: providesElectronEntropy
+
+    integer :: dateStamp
+
   #:if WITH_ELSI
+
+    character(lc) :: buffer
+
+    call elsi_get_version(this%major, this%minor, this%patch)
+    call elsi_get_datestamp(dateStamp)
+
+    call supportedVersionNumber(this, dateStamp)
 
     this%iSolver = inp%iSolver
 
@@ -362,6 +384,13 @@ contains
     ! Number of spin channels passed to the ELSI library
     this%nSpin = min(nSpin, 2)
     this%iSpin = iSpin
+    if (any(this%iSolver == [electronicSolverTypes%ntpoly, electronicSolverTypes%omm])) then
+      if (nSpin == 4) then
+        this%nSpin = 2
+        this%iSpin = 1
+        this%nElectron = 2.0_dp * this%nElectron
+      end if
+    end if
     this%nKPoint = nKPoint
     this%iKPoint = iKPoint
     this%kWeight = kWeight
@@ -406,7 +435,24 @@ contains
     this%ommCholesky = inp%ommCholesky
 
     ! PEXSI settings
+    this%pexsiMethod = inp%pexsiMethod
     this%pexsiNPole = inp%pexsiNPole
+
+    if (this%pexsiNPole < 10) then
+      call error("Too few PEXSI poles")
+    end if
+    select case(this%pexsiMethod)
+    case(1)
+      if (mod(this%pexsiNPole,10) /= 0 .or. this%pexsiNPole > 120) then
+        call error("Unsupported number of PEXSI poles for method 1")
+      end if
+    case(2,3)
+      if (mod(this%pexsiNPole,5) /= 0 .or. this%pexsiNPole > 40) then
+        write(buffer,"(A,I0)")"Unsupported number of PEXSI poles for method ", this%pexsiMethod
+        call error(trim(buffer))
+      end if
+    end select
+
     this%pexsiNpPerPole = inp%pexsiNpPerPole
     this%pexsiNMu = inp%pexsiNMu
     this%pexsiNpSymbo = inp%pexsiNpSymbo
@@ -439,12 +485,15 @@ contains
     this%OutputLevel = 3
   #:endcall DEBUG_CODE
 
-    if (nSpin == 4 .and. (this%isSparse .and. this%solver /= 1)) then
-      call error("Current solver configuration not avaible for two component complex&
-          & hamiltonians")
+    if (nSpin == 4 .and. this%isSparse) then
+      call error("Sparse solver not currently avaible for two component complex hamiltonians")
     end if
 
     this%tCholeskyDecomposed = .false.
+
+    if (this%pexsiMethod == 2) then
+      providesElectronEntropy = .false.
+    end if
 
   #:else
 
@@ -453,6 +502,62 @@ contains
   #:endif
 
   end subroutine TElsiSolver_init
+
+
+  !> Checks for supported ELSI api version, ideally 2.6.0 or 2.6.1 (correct electronic entropy
+  !> return and # PEXSI poles change between 2.5.0 and 2.6.0), but 2.5.0 can also be used with
+  !> warnings.
+  subroutine supportedVersionNumber(this, dateStamp)
+
+    !> Version value components inside the structure
+    class(TElsiSolver), intent(in) :: this
+
+    !> git commit date for the library
+    integer, intent(in) :: dateStamp
+
+    logical :: isSupported, isPartSupported
+
+    isSupported = .true.
+    if (this%major < 2) then
+      isSupported = .false.
+    elseif (this%major == 2 .and. this%minor < 6) then
+      isSupported = .false.
+    elseif (this%major == 2 .and. this%minor == 6 .and. all(this%patch /= [0,1])) then
+      ! library must be 2.6.{0,1}
+      isSupported = .false.
+    end if
+
+    isPartSupported = isSupported
+    if (.not.isPartSupported) then
+      if (all([this%major, this%minor, this%patch] == [2,5,0])) then
+        isPartSupported = .true.
+      end if
+    end if
+
+    if (.not. (isSupported .or. isPartSupported)) then
+      call error("Unsuported ELSI version for DFTB+, requires release >= 2.5.0")
+    end if
+
+    if (.not.isSupported .and. isPartSupported) then
+      call warning("ELSI version 2.5.0 is only partially supported due to changes in default solver&
+          & behaviour for PEXSI at 2.6.0")
+    end if
+
+    write(stdOut,"(A,T30,I0,'.',I0,'.',I0)")'ELSI library version :', this%major, this%minor,&
+        & this%patch
+
+    if (all([this%major,this%minor,this%patch] == [2,5,0]) .and. dateStamp /= 20200204) then
+      call warning("ELSI 2.5.0 library version is between releases")
+    end if
+    if (all([this%major,this%minor,this%patch] == [2,6,0]) .and. dateStamp /= 20200617) then
+      call warning("ELSI 2.6.0 library version is between releases")
+    end if
+    if (all([this%major,this%minor,this%patch] == [2,6,1]) .and. dateStamp /= 20200625) then
+      call warning("ELSI 2.6.1 library version is between releases")
+    end if
+
+
+  end subroutine supportedVersionNumber
 
 
   !> Finalizes the ELSI solver.
@@ -513,6 +618,8 @@ contains
         call elsi_set_csc_blk(this%handle, this%csrBlockSize)
       else
         call elsi_set_zero_def(this%handle, this%elsi_zero_def)
+        ! sparsity of both H and S used as the pattern
+        call elsi_set_sparsity_mask(this%handle, 0)
       end if
       call elsi_set_blacs(this%handle, this%myBlacsCtx, this%BlacsBlockSize)
 
@@ -567,6 +674,9 @@ contains
 
         call elsi_set_pexsi_mu_min(this%handle, this%pexsiMuMin +this%pexsiDeltaVMin)
         call elsi_set_pexsi_mu_max(this%handle, this%pexsiMuMax +this%pexsiDeltaVMax)
+
+        ! set the pole expansion method for PEXSI
+        call elsi_set_pexsi_method(this%handle, this%pexsiMethod)
 
         ! number of poles for the expansion
         call elsi_set_pexsi_n_pole(this%handle, this%pexsiNPole)
@@ -757,7 +867,7 @@ contains
     !> atomic coordinates
     real(dp), intent(in) :: coord(:,:)
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> Is the Fermi level common accross spin channels?
@@ -790,7 +900,7 @@ contains
     !> electronic entropy times temperature
     real(dp), intent(out) :: TS(:)
 
-    !> imaginary part of hamitonian
+    !> imaginary part of hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
 
     !> spin orbit constants
@@ -873,14 +983,16 @@ contains
       end if
     end if
 
-    Ef(:) = 0.0_dp
     TS(:) = 0.0_dp
-    if (env%mpi%tGroupLead) then
-      call elsi_get_mu(this%handle, Ef(iS))
+    if (any(this%iSolver == [electronicSolverTypes%pexsi, electronicSolverTypes%elpadm])) then
       call elsi_get_entropy(this%handle, TS(iS))
     end if
-    call mpifx_allreduceip(env%mpi%globalComm, Ef, MPI_SUM)
-    call mpifx_allreduceip(env%mpi%globalComm, TS, MPI_SUM)
+
+    Ef(:) = 0.0_dp
+    if (any(this%iSolver == [electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+        & electronicSolverTypes%elpadm])) then
+      call elsi_get_mu(this%handle, Ef(iS))
+    end if
 
     if (this%iSolver == electronicSolverTypes%pexsi) then
       call elsi_get_pexsi_mu_min(this%handle, this%pexsiMuMin)
@@ -969,7 +1081,7 @@ contains
     !> Vectors (in units of the lattice constants) to cells of the lattice
     real(dp), intent(in) :: cellVec(:,:)
 
-    !> Is the hamitonian real (no k-points/molecule/gamma point)?
+    !> Is the hamiltonian real (no k-points/molecule/gamma point)?
     logical, intent(in) :: tRealHS
 
     !> K-points and spins to process
@@ -1457,7 +1569,7 @@ contains
     !> band structure energy
     real(dp), intent(out) :: Eband(:)
 
-    !> imaginary part of hamitonian
+    !> imaginary part of hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
 
     !> spin orbit constants

@@ -378,9 +378,6 @@ module dftbp_initprogram
   !> Fermi energy per spin
   real(dp), allocatable :: Ef(:)
 
-  !> Can an electronic free energy be correctly defined?
-  logical :: tDefinedFreeE
-
   !> Filling temp updated by MD.
   logical :: tSetFillingTemp
 
@@ -1819,18 +1816,18 @@ contains
         end if
       #:endif
 
-      if (tSpinOrbit .and. .not.&
-          & any(electronicSolver%iSolver==[electronicSolverTypes%omm,electronicSolverTypes%elpa]))&
-          & then
-        call error("Only the ELSI libOMM and ELPA solvers are suitable for spin orbit at the&
-            & moment")
-      end if
-
       ! Would be using the ELSI matrix writing mechanism, so set this as always false
-      tWriteHS = .false.
+        tWriteHS = .false.
+
       call TElsiSolver_init(electronicSolver%elsi, input%ctrl%solver%elsi, env, denseDesc%fullSize,&
           & nEl, iDistribFn, nSpin, parallelKS%localKS(2, 1), nKpoint, parallelKS%localKS(1, 1),&
-          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS)
+          & kWeight(parallelKS%localKS(1, 1)), input%ctrl%tWriteHS,&
+          & electronicSolver%providesElectronEntropy)
+
+    end if
+
+    if (allocated(reks)) then
+      electronicSolver%providesElectronEntropy = .false.
     end if
 
     if (forceType /= forceTypes%orig .and. .not. electronicSolver%providesEigenvals) then
@@ -2404,7 +2401,6 @@ contains
 
     restartFreq = input%ctrl%restartFreq
 
-    tDefinedFreeE = .true.
   #:if WITH_TRANSPORT
     if (tLatOpt .and. tNegf) then
       call error("Lattice optimisation currently incompatible with transport calculations")
@@ -2421,7 +2417,8 @@ contains
     call initTransportArrays(tUpload, input%transpar, species0, orb, nAtom, nSpin, shiftPerLUp,&
         & chargeUp, allocated(qBlockIn), blockUp, shiftBlockUp)
 
-    call initTransport(env, input, tDefinedFreeE)
+    call initTransport(env, input, electronicSolver)
+
   #:else
     tNegf = .false.
   #:endif
@@ -2486,8 +2483,9 @@ contains
   #:endif
 
     if (allocated(reks)) then
-      call checkReksConsistency(input%ctrl%reksInp, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
-          & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+      call checkReksConsistency(input%ctrl%reksInp, solvation, onSiteElements, kPoint, nEl,&
+          & nKPoint, tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic,&
+          & tLatOpt, tReadChrg, tPoisson, input%ctrl%tShellResolved)
       ! here, nSpin changes to 2 for REKS
       call TReksCalc_init(reks, input%ctrl%reksInp, electronicSolver, orb, spinW, nEl,&
           & input%ctrl%extChrg, input%ctrl%extChrgBlurWidth, hamiltonianType, nSpin,&
@@ -3986,7 +3984,7 @@ contains
 #:endif
 
 #:if WITH_TRANSPORT
-  subroutine initTransport(env, input, tDefinedFreeE)
+  subroutine initTransport(env, input, electronicSolver)
 
     !> Computational environment
     type(TEnvironment), intent(inout) :: env
@@ -3994,8 +3992,8 @@ contains
     !> Input data
     type(TInputData), intent(in) :: input
 
-    !> Is the free energy defined (i.e. equilibrium calculation)
-    logical, intent(out) :: tDefinedFreeE
+    !> Electronic structure solver and its capabilities
+    type(TElectronicSolver) :: electronicSolver
 
     logical :: tAtomsOutside
     integer :: iSpin
@@ -4010,8 +4008,6 @@ contains
     else
       nSpinChannels = 1
     endif
-
-    tDefinedFreeE = .true.
 
     associate(transpar=>input%transpar, greendens=>input%ginfo%greendens)
       ! Non colinear spin not yet supported
@@ -4033,7 +4029,9 @@ contains
               mu1 = transpar%contacts(iCont)%eFermi(iSpin) - transpar%contacts(iCont)%potential
               mu2 = transpar%contacts(jCont)%eFermi(iSpin) - transpar%contacts(jCont)%potential
               if (abs(mu1 - mu2) > tolEfEquiv) then
-                tDefinedFreeE = .false.
+                ! there is no global chemical potential so associated free energy currently
+                ! undefined.
+                electronicSolver%elecChemPotAvailable = .false.
                 exit lpConts
               end if
             end do
@@ -4340,7 +4338,11 @@ contains
 
     integer :: nSpinHams, sqrHamSize
 
-    allocate(rhoPrim(0, nSpin))
+    if (isREKS) then
+      allocate(rhoPrim(0, 1))
+    else
+      allocate(rhoPrim(0, nSpin))
+    end if
     allocate(h0(0))
     if (tImHam) then
       allocate(iRhoPrim(0, nSpin))
@@ -4373,6 +4375,9 @@ contains
     case (4)
       nSpinHams = 1
     end select
+    if (isREKS) then
+      nSpinHams = 1
+    end if
 
     sqrHamSize = denseDesc%fullSize
     allocate(TS(nSpinHams))
@@ -4393,7 +4398,6 @@ contains
     eigen(:,:,:) = 0.0_dp
     filling(:,:,:) = 0.0_dp
 
-
     allocate(coord0Fold(3, nAtom))
 
     if (tMD) then
@@ -4408,17 +4412,6 @@ contains
     tLargeDenseMatrices = .not. (tWriteRealHS .or. tWriteHS)
     if (electronicSolver%isElsiSolver) then
       tLargeDenseMatrices = tLargeDenseMatrices .and. .not. electronicSolver%elsi%isSparse
-      if (.not.electronicSolver%elsi%isSparse .and. .not.(electronicSolver%providesEigenvals .or.&
-          & electronicSolver%iSolver == electronicSolverTypes%omm)) then
-        if (tDFTBU) then
-          call error("This dense ELSI solver is currently incompatible with DFTB+U, use the sparse&
-              & form")
-        end if
-        if (allocated(onSiteElements)) then
-          call error("This dense ELSI solver is currently incompatible with onsite correctios, use&
-              & the sparse form")
-        end if
-      end if
     end if
     if (tLargeDenseMatrices) then
       call allocateDenseMatrices(env, denseDesc, parallelKS%localKS, t2Component, tRealHS,&
@@ -5218,11 +5211,15 @@ contains
   end subroutine initPlumed
 
 
-  subroutine checkReksConsistency(reksInp, onSiteElements, kPoint, nEl, nKPoint, tSccCalc,&
-      & tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg)
+  subroutine checkReksConsistency(reksInp, solvation, onSiteElements, kPoint, nEl, nKPoint,&
+      & tSccCalc, tSpin, tSpinOrbit, tDFTBU, tEField, isLinResp, tPeriodic, tLatOpt, tReadChrg,&
+      & tPoisson, isShellResolved)
 
     !> data type for REKS input
     type(TReksInp), intent(in) :: reksInp
+
+    !> Solvation data and calculations
+    class(TSolvation), allocatable, intent(in) :: solvation
 
     !> Correction to energy from on-site matrix elements
     real(dp), allocatable, intent(in) :: onSiteElements(:,:,:,:)
@@ -5263,6 +5260,12 @@ contains
     !> If initial charges/dens mtx. from external file.
     logical, intent(in) :: tReadChrg
 
+    !> Whether Poisson solver is invoked
+    logical, intent(in) :: tPoisson
+
+    !> l-shell resolved SCC
+    logical, intent(in) :: isShellResolved
+
     if (.not. tSccCalc) then
       call error("REKS requires SCC=Yes")
     end if
@@ -5282,6 +5285,14 @@ contains
       call error("REKS is not compatible with standard linear response excitation")
     else if (allocated(onSiteElements)) then
       call error("REKS is not compatible with onsite corrections")
+    end if
+
+    if (allocated(solvation)) then
+      call error("REKS is currently not available with solvation")
+    else if (tPoisson) then
+      call error("Poisson solver is not compatible with REKS")
+    elseif (isShellResolved) then
+      call error("REKS does not support shell resolved scc yet")
     end if
 
     if (tPeriodic) then
@@ -5378,11 +5389,14 @@ contains
       case (electronicSolverTypes%onlyTransport)
         call error("REKS is not compatible with OnlyTransport-solver")
       case(electronicSolverTypes%qr, electronicSolverTypes%divideandconquer,&
-          & electronicSolverTypes%relativelyrobust, electronicSolverTypes%elpa)
-        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg, blurWidths,&
-            & is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
-      case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly)
-        call error("REKS is not compatible with density matrix ELSI-solvers")
+          & electronicSolverTypes%relativelyrobust)
+        call REKS_init(reks, reksInp, orb, spinW, nSpin, nEl(1), nExtChrg, extChrg,&
+            & blurWidths, is3rd, isRangeSep, tForces, tPeriodic, tStress, tDipole)
+      case(electronicSolverTypes%magma_gvd)
+        call error("REKS is not compatible with MAGMA GPU solver")
+      case(electronicSolverTypes%omm, electronicSolverTypes%pexsi, electronicSolverTypes%ntpoly,&
+          & electronicSolverTypes%elpadm, electronicSolverTypes%elpa)
+        call error("REKS is not compatible with ELSI-solvers")
       end select
 
     case(hamiltonianTypes%xtb)
@@ -5512,11 +5526,6 @@ contains
       end if
 
     end if
-
-    write (stdOut,*)
-    write (stdOut, "(A)") " Warning! REKS calculation is not affected by,"
-    write (stdOut, "(A)") "          (mixer, filling) option"
-    write (stdOut,*)
 
   end subroutine printReksInitInfo
 

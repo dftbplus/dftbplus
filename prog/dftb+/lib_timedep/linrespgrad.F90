@@ -136,7 +136,7 @@ contains
     !> shift vector for potentials in the ground state
     real(dp), intent(in), optional :: shift(:)
 
-    !> non-SCC hamitonian data
+    !> non-SCC hamiltonian data
     type(TSlakoCont), intent(in), optional :: skHamCont
 
     !> overlap data
@@ -326,7 +326,7 @@ contains
     ALLOCATE(win(nxov))
     ALLOCATE(eval(this%nExc))
     ALLOCATE(getij(nxov, 2))
-    ALLOCATE(transitionDipoles(nxov, 3))
+    ALLOCATE(transitionDipoles(this%nExc, 3))
     ALLOCATE(sposz(nxov))
 
     ! Overlap times wave function coefficients - most routines in DFTB+ use lower triangle (would
@@ -375,7 +375,7 @@ contains
       if (.not. this%tEnergyWindow) then
 
         ! find transitions that are strongly dipole allowed (> oscillatorWindow)
-        call dipselect(wij, sposz, win, snglPartTransDip,nxov_rd, this%oscillatorWindow,&
+        call dipselect(wij, sposz, win, snglPartTransDip, nxov_rd, this%oscillatorWindow,&
             & grndEigVal, getij)
 
       else
@@ -427,13 +427,13 @@ contains
       write(this%fdTrans,*)
     endif
 
-    ! single particle transition dipole file
+    ! Many-body transition dipole file to excited states
     if (this%fdTradip > 0) then
       open(this%fdTradip, file=transDipOut, position="rewind", status="replace")
       write(this%fdTradip,*)
       write(this%fdTradip,'(5x,a,5x,a,2x,a)') "#", 'w [eV]', 'Transition dipole (x,y,z) [Debye]'
       write(this%fdTradip,*)
-      write(this%fdTradip,'(1x,57("="))')
+      write(this%fdTradip,'(1x,60("="))')
       write(this%fdTradip,*)
     endif
 
@@ -855,7 +855,7 @@ contains
       tSpin = .false.
     end if
 
-    transitionDipoles = 0.0_dp
+    transitionDipoles(:,:) = 0.0_dp
     osz = 0.0_dp
 
     ! Triplet oscillator strength and transition dipole is zero for
@@ -1955,9 +1955,9 @@ contains
           write(fdTrans,'(1x,45("="))')
 
           sign = " "
-          do j = 1, nmat
-            !if (wvec(j) < 1e-4_dp) exit ! ??????
-            indo = wvin(j)
+          do jj = 1, nmat
+            !if (wvec(jj) < 1e-4_dp) exit ! ??????
+            indo = wvin(jj)
             call indxov(win, indo, getij, m, n)
             if (tSpin) then
               updwn = (win(indo) <= nmatup)
@@ -1965,16 +1965,17 @@ contains
               if (updwn) sign = "U"
             end if
             write(fdTrans, '(i5,3x,a,1x,i5,1x,1a,T22,f10.8,T33,f14.8)')&
-                & m, '->', n, sign, wvec(j), Hartree__eV * wij(wvin(j))
+                & m, '->', n, sign, wvec(jj), Hartree__eV * wij(wvin(jj))
           end do
           write(fdTrans,*)
         end if
 
         if (fdTradip > 0) then
-          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES13.6))')&
-              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,j)&
-              & * au__Debye, j=1,3)
+          write(fdTradip, '(1x,i5,1x,f10.3,2x,3(ES14.6))')&
+              & ii, Hartree__eV * sqrt(eval(ii)), (transitionDipoles(ii,jj)&
+              & * au__Debye, jj=1,3)
         end if
+
       else
 
         ! find largest coefficient in CI - should use maxloc
@@ -2033,6 +2034,10 @@ contains
       if (.not.tDegenerate) then
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval)
         call taggedWriter%write(fdTagged, tagLabels%excOsc, osz)
+        if (fdTradip > 0) then
+          call taggedWriter%write(fdTagged, tagLabels%excDipole,&
+              & sqrt(sum(transitionDipoles**2,dim=2)))
+        end if
       else
         degenerate = DegeneracyFind%degenerateRanges()
         call taggedWriter%write(fdTagged, tagLabels%excEgy, eval(degenerate(1,:)))
@@ -2042,6 +2047,13 @@ contains
           oDeg(ii) = sum(osz(degenerate(1,ii):degenerate(2,ii)))
         end do
         call taggedWriter%write(fdTagged, tagLabels%excOsc, oDeg)
+        if (fdTradip > 0) then
+          oDeg(:) = 0.0_dp
+          do ii = 1, size(oDeg)
+            oDeg(ii) = sqrt(sum(transitionDipoles(degenerate(1,ii):degenerate(2,ii),:)**2))
+          end do
+          call taggedWriter%write(fdTagged, tagLabels%excDipole, oDeg)
+        end if
       end if
 
     end if

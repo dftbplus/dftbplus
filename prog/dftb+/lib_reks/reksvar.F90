@@ -276,9 +276,6 @@ module dftbp_reksvar
     real(dp), allocatable :: chargePerShellL(:,:,:,:)
 
 
-    !> internal atom and spin resolved potential
-    real(dp), allocatable :: intAtom(:,:)
-
     !> internal shell and spin resolved potential for each microstate
     real(dp), allocatable :: intShellL(:,:,:,:)
 
@@ -701,7 +698,6 @@ module dftbp_reksvar
     allocate(self%qOutputL(mOrb,nAtom,nSpin,Lmax))
     allocate(self%chargePerShellL(mShell,nAtom,nSpin,Lmax))
 
-    allocate(self%intAtom(nAtom,nSpin))
     allocate(self%intShellL(mShell,nAtom,nSpin,Lmax))
     allocate(self%intBlockL(mOrb,mOrb,nAtom,nSpin,Lmax))
 
@@ -888,7 +884,6 @@ module dftbp_reksvar
     self%qOutputL(:,:,:,:) = 0.0_dp
     self%chargePerShellL(:,:,:,:) = 0.0_dp
 
-    self%intAtom(:,:) = 0.0_dp
     self%intShellL(:,:,:,:) = 0.0_dp
     self%intBlockL(:,:,:,:,:) = 0.0_dp
 

@@ -18,7 +18,7 @@ module dftbp_rangeseparated
   use dftbp_slakocont, only : TSlakoCont
   use dftbp_commontypes
   use dftbp_sorting
-  use dftbp_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS
+  use dftbp_sparse2dense, only : blockSymmetrizeHS, symmetrizeHS, hermitianSquareMatrix
   use dftbp_globalenv, only : stdOut
   use dftbp_f08math
   use dftbp_blasroutines, only : gemm
@@ -1048,21 +1048,6 @@ contains
   end subroutine addLrenergy
 
 
-  !> copy lower triangle to upper for a square matrix
-  subroutine hermitianSquareMatrix(matrix)
-
-    !> matrix to symmetrize
-    complex(dp), intent(inout) :: matrix(:,:)
-    integer :: ii, matSize
-
-    matSize = size(matrix, dim = 1)
-    do ii = 1, matSize - 1
-      matrix(ii, ii + 1 : matSize) = conjg(matrix(ii + 1 : matSize, ii))
-    end do
-
-  end subroutine hermitianSquareMatrix
-
-
   !> location of relevant atomic block indices in a dense matrix
   pure function getDescriptor(iAt, iSquare) result(desc)
 
@@ -1080,7 +1065,7 @@ contains
   end function getDescriptor
 
 
-  !> evaluate energy from triangles of the hamitonian and density matrix
+  !> evaluate energy from triangles of the hamiltonian and density matrix
   pure function evaluateEnergy(hamiltonian, densityMat) result(egy)
 
     !> hamiltonian matrix

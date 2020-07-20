@@ -69,8 +69,7 @@ contains
     ! with the old parser as the options have changed to the new parser by now
     call getChildValue(root, "ParserOptions", ch1, "", child=par, &
         &allowEmptyValue=.true.)
-    call getChildValue(par, "ParserVersion", version, child=ch2)
-    call setChildValue(ch2, "", curVersion, replace=.true.)
+    call setChildValue(par, "ParserVersion", version, replace=.true.)
 
   end subroutine convertOldHSD
 
