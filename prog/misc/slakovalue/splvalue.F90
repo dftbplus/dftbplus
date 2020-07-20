@@ -5,15 +5,20 @@
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
 
+#:include 'common.fypp'
+
 !> Reads a spline repulsive from an SK-table and returns its value and its first
 !! and second derivatives.
 program splvalue
   use dftbp_accuracy
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_repspline
   use dftbp_oldskdata, only : readsplinerep
   use dftbp_fileid
   use dftbp_message
+#:if WITH_MPI
+  use dftbp_mpienv
+#:endif
   implicit none
 
   character(*), parameter :: fname = "test.skf"
@@ -23,6 +28,16 @@ program splvalue
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr(3), energy, grad(3), d2
+
+#:if WITH_MPI
+  !> MPI environment, if compiled with mpifort
+  type(TMpiEnv) :: mpi
+
+  ! As this is serial code, trap for run time execution on more than 1 processor with an mpi enabled
+  ! build
+  call TMpiEnv_init(mpi)
+  call mpi%mpiSerialEnv()
+#:endif
 
   if (command_argument_count() /= 1) then
     call error("Wrong number of arguments. Use 'splvalue -h' to obtain help.")

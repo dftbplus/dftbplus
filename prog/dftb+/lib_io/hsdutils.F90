@@ -247,11 +247,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -455,11 +455,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -538,11 +538,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nReadItem = 0
     variableValue = 0.0_dp
@@ -658,11 +658,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(nItem)) then
       nItem = 0
@@ -740,11 +740,11 @@ contains
     type(fnode), pointer :: child2
 
     @:ASSERT(associated(node))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       @:ASSERT(all(shape(default) == shape(variableValue)))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     nReadItem = 0
     if (present(default)) then
@@ -1452,14 +1452,14 @@ contains
     logical :: tList, tAllowEmptyVal, tDummyValue
 
     @:ASSERT(associated(node))
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(default)) then
       if (len(default) == 0) then
         @:ASSERT(present(allowEmptyValue))
         @:ASSERT(allowEmptyValue)
       end if
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (present(list)) then
       tList = list
@@ -1529,7 +1529,7 @@ contains
     !> Contains for every atom its species index
     integer, intent(in) :: species(:)
 
-    !> Master node for detailed errors.
+    !> Top node for detailed errors.
     type(fnode), pointer :: node
 
     !> Integer list of atom indices on return.
@@ -1585,7 +1585,7 @@ contains
     !> Upper limit on range of atoms
     integer, intent(in) :: nAtom
 
-    !> Master node for detailed errors.
+    !> Top node for detailed errors.
     type(fnode), pointer :: node
 
     !> List of the converted atom numbers
@@ -1667,7 +1667,7 @@ contains
     !> String to convert
     character(len=*), intent(in) :: str
 
-    !> Master node for detailed errors.
+    !> Top node for detailed errors.
     type(fnode), pointer :: node
 
     !> Integer list of atom indices on return.

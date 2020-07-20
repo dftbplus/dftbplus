@@ -1,0 +1,81 @@
+Geometry = GenFormat {
+   15 C
+ H  C  O  N
+    1     1   0.21748100  -2.67672000   0.00000000
+    2     1   2.05269400   0.92477300   0.00000000
+    3     1  -1.94310100  -1.70902100   0.00000000
+    4     1  -3.36061000   0.30975400   0.00000000
+    5     1  -2.61646300   1.66500800   0.87910500
+    6     1  -2.61646300   1.66500800  -0.87910500
+    7     2   1.35695100  -0.99449600   0.00000000
+    8     2   0.00000000   1.12110200   0.00000000
+    9     2  -1.21453800   0.30643100   0.00000000
+   10     2  -1.08576400  -1.04181200   0.00000000
+   11     2  -2.52982400   1.02044500   0.00000000
+   12     3   2.44413200  -1.55849000   0.00000000
+   13     3   0.02368100   2.35099200   0.00000000
+   14     4   0.14511200  -1.66624900   0.00000000
+   15     4   1.19246000   0.38213000   0.00001000
+}
+
+Hamiltonian = DFTB { 
+  SCC = Yes
+  SCCTolerance = 1e-6
+  MaxSCCIterations = 1000
+  Charge = 0.0
+  SpinConstants = {
+    ShellResolvedSpin = Yes
+    H = { -0.072 }
+    C = { -0.031 -0.025 -0.025 -0.023 }
+    N = { -0.033 -0.027 -0.027 -0.026 }
+    O = { -0.035 -0.030 -0.030 -0.028 }
+  }
+  MaxAngularMomentum = {
+    H = "s"
+    C = "p"
+    N = "p"
+    O = "p"
+  }
+  SlaterKosterFiles = {
+    O-O = "O-O.skf"
+    O-N = "O-N.skf"
+    O-C = "O-C.skf"
+    O-H = "O-H.skf"
+    N-O = "N-O.skf"
+    N-N = "N-N.skf"
+    N-C = "N-C.skf"
+    N-H = "N-H.skf"
+    C-O = "C-O.skf"
+    C-N = "C-N.skf"
+    C-C = "C-C.skf"
+    C-H = "C-H.skf"
+    H-O = "H-O.skf"
+    H-N = "H-N.skf"
+    H-C = "H-C.skf"
+    H-H = "H-H.skf"
+  }
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+Reks = SSR22 {
+  Energy = {
+    Functional = { "PPS" }
+  }
+  TargetState = 1
+  TargetMicrostate = 0
+  FonMaxIter = 30
+  shift = 0.3
+  RelaxedDensity = Yes
+  VerbosityLevel = 1
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+ParserOptions {
+  ParserVersion = 8
+}

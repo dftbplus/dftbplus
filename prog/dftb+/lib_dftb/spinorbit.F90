@@ -147,7 +147,7 @@ contains
     !> index array for atomic blocks in dense matrices
     type(TDenseDescr), intent(in) :: denseDesc
 
-    !> Dense hamitonian matrix (2 component)
+    !> Dense hamiltonian matrix (2 component)
     complex(dp), intent(inout) :: HSqrCplx(:,:)
 
     complex(dp), allocatable :: speciesZ(:,:,:), speciesPlus(:,:,:)
@@ -168,7 +168,6 @@ contains
       iSp = species(iAt)
       nOrbSp = orb%nOrbSpecies(iSp)
       iOrbStart = denseDesc%iAtomStart(iAt)
-      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
     #:if WITH_SCALAPACK
       call scalafx_addl2g(env%blacs%orbitalGrid, speciesZ(1:nOrbSp, 1:nOrbSp, iSp),&
           & denseDesc%blacsOrbSqr, iOrbStart, iOrbStart, HSqrCplx)
@@ -176,7 +175,12 @@ contains
           & denseDesc%blacsOrbSqr, nOrb + iOrbStart, nOrb + iOrbStart, HSqrCplx)
       call scalafx_addl2g(env%blacs%orbitalGrid, speciesPlus(1:nOrbSp, 1:nOrbSp, iSp),&
           & denseDesc%blacsOrbSqr, nOrb + iOrbStart, iOrbStart, HSqrCplx)
+      ! other triangle
+      call scalafx_addl2g(env%blacs%orbitalGrid,&
+          & transpose(conjg(speciesPlus(1:nOrbSp, 1:nOrbSp, iSp))),&
+          & denseDesc%blacsOrbSqr, iOrbStart, nOrb + iOrbStart, HSqrCplx)
     #:else
+      iOrbEnd = denseDesc%iAtomStart(iAt + 1) - 1
       HSqrCplx(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) = &
           & HSqrCplx(iOrbStart:iOrbEnd, iOrbStart:iOrbEnd) + speciesZ(1:nOrbSp, 1:nOrbSp, iSp)
       HSqrCplx(nOrb + iOrbStart : nOrb + iOrbEnd, nOrb + iOrbStart : nOrb + iOrbEnd) = &

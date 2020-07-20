@@ -7,6 +7,9 @@
 
 #:include 'common.fypp'
 
+#! suffix and kinds for real types
+#:set REAL_KIND_PARAMS = [('real', 's'), ('dble', 'd')]
+
 !> Contains F90 wrapper functions for some commonly used lapack calls needed in the code. The
 !> interface of all LAPACK calls must be defined in the module lapack.
 module dftbp_lapackroutines
@@ -28,6 +31,7 @@ module dftbp_lapackroutines
   interface gesv
     module procedure gesv_real
     module procedure gesv_dble
+    module procedure gesv_dcomplex
   end interface gesv
 
 
@@ -98,9 +102,32 @@ module dftbp_lapackroutines
     module procedure zgesvd_dblecplx
   end interface gesvd
 
+  interface potrf
+  #:for suffix, kind in REAL_KIND_PARAMS
+    module procedure ${kind}$potrf_${suffix}$
+  #:endfor
+  end interface potrf
+
+  interface trsm
+  #:for suffix, kind in REAL_KIND_PARAMS
+    module procedure ${kind}$trsm_${suffix}$
+  #:endfor
+  end interface trsm
+
+
+  !> Solves a system of linear equations
+  !>  A * X = B  or  A**T * X = B
+  !> with a general N-by-N matrix A using the LU factorization computed by getrf.
+  interface getrs
+    module procedure :: getrs_dble
+    module procedure :: getrs1_dble
+    module procedure :: getrs_real
+    module procedure :: getrs1_real
+  end interface getrs
+
 
   public :: gesv, getri, getrf, sytri, sytrf, matinv, symmatinv, sytrs, larnv
-  public :: hermatinv, hetri, hetrf, gesvd
+  public :: hermatinv, hetri, hetrf, gesvd, potrf, trsm, getrs
 
 contains
 
@@ -232,6 +259,71 @@ contains
     end if
 
   end subroutine gesv_dble
+
+  
+  !> Double precision version of gesv
+  subroutine gesv_dcomplex(aa, bb, nEquation, nSolution, iError)
+
+    !> Contains the coefficients on entry, the LU factorisation on exit.
+    complex(rdp), intent(inout) :: aa(:,:)
+
+    !> Right hand side(s) of the linear equation on entry, solution(s) on exit.
+    complex(rdp), intent(inout) :: bb(:,:)
+
+    !> The size of the problem (nr. of variables and equations). Must be only specified if different
+    !> from size(aa, dim=1).
+    integer, intent(in), optional :: nEquation
+
+    !> Nr. of right hand sides (nr. of solutions). Must be only specified if different from size(b,
+    !> dim=2).
+    integer, intent(in), optional :: nSolution
+
+    !> Error flag. If present, Lapack error flags are reported and noncritical errors (iError > 0)
+    !> will not abort the program.
+    integer, intent(out), optional :: iError
+
+    integer :: info
+    integer :: nn, nrhs, lda, ldb
+    integer, allocatable :: ipiv(:)
+
+    lda = size(aa, dim=1)
+    if (present(nEquation)) then
+      @:ASSERT(nEquation >= 1 .and. nEquation <= lda)
+      nn = nEquation
+    else
+      nn = lda
+    end if
+    @:ASSERT(size(aa, dim=2) >= nn)
+
+    ldb = size(bb, dim=1)
+    @:ASSERT(ldb >= nn)
+    nrhs = size(bb, dim=2)
+    if (present(nSolution)) then
+      @:ASSERT(nSolution <= nrhs)
+      nrhs = nSolution
+    end if
+
+    info = 0
+    allocate(ipiv(nn))
+    call zgesv(nn, nrhs, aa, lda, ipiv, bb, ldb, info)
+
+    if (info < 0) then
+99020 format ('Failure in linear equation solver dgesv,', &
+          & ' illegal argument at position ',i10)
+      write (error_string, 99020) info
+      call error(error_string)
+    else
+      if (present(iError)) then
+        iError = info
+      elseif (info > 0) then
+99030   format ('Linear dependent system in linear equation solver dgesv,', &
+            & ' info flag: ',i10)
+        write (error_string, 99030) info
+        call error(error_string)
+      end if
+    end if
+
+  end subroutine gesv_dcomplex
 
 
   !> Single precision version of getrf.
@@ -639,16 +731,30 @@ contains
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
     call sytrf(aa, ipiv, uplo, info0)
-    if (info0 == 0) then
-      call sytri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
+      write(error_string, "(A,I10)") "Matrix inversion failed because of &
+          &error in sytrf. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+        return
+      else
+        call error(error_string)
+      end if
     end if
 
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
+    call sytri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
       write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in sytrf or sytri. Info flag:", info
-      call error(error_string)
+          &error in sytri. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+      elseif (info0 /= 0) then
+        call error(error_string)
+      end if
     end if
 
   end subroutine symmatinv
@@ -671,17 +777,32 @@ contains
 
     nn = size(aa, dim=1)
     allocate(ipiv(nn))
+
     call hetrf(aa, ipiv, uplo, info0)
-    if (info0 == 0) then
-      call hetri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
+      write(error_string, "(A,I10)") "Matrix inversion failed because of &
+          &error in hetrf. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+        return
+      else
+        call error(error_string)
+      end if
     end if
 
-    if (present(info)) then
-      info = info0
-    elseif (info0 /= 0) then
+    call hetri(aa, ipiv, uplo, info0)
+
+    if (info0 /= 0) then
       write(error_string, "(A,I10)") "Matrix inversion failed because of &
-          &error in sytrf or sytri. Info flag:", info
-      call error(error_string)
+          &error in hetri. Info flag:", info0
+      if (present(info)) then
+        call warning(error_string)
+        info = info0
+      elseif (info0 /= 0) then
+        call error(error_string)
+      end if
     end if
 
   end subroutine hermatinv
@@ -707,12 +828,7 @@ contains
     real(rsp) :: tmpwork(1)
     character :: uplo0
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
-
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
     call ssytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
@@ -751,12 +867,7 @@ contains
     real(rdp) :: tmpwork(1)
     character :: uplo0
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
-
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
     call dsytrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
@@ -795,12 +906,7 @@ contains
     complex(rsp) :: tmpwork(1)
     character :: uplo0
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
-
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
     call chetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
@@ -839,12 +945,7 @@ contains
     complex(rdp) :: tmpwork(1)
     character :: uplo0
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
-
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=2)
     lwork = -1
     call zhetrf(uplo0, nn, aa, nn, ipiv, tmpwork, lwork, info0)
@@ -882,11 +983,7 @@ contains
     character :: uplo0
     real(rsp), allocatable :: work(:)
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
     allocate(work(max(1, 2 * nn)))
     call ssytri(uplo0, nn, aa, nn, ipiv, work, info0)
@@ -919,11 +1016,7 @@ contains
     character :: uplo0
     real(rdp), allocatable :: work(:)
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
     allocate(work(max(1, 2 * nn)))
     call dsytri(uplo0, nn, aa, nn, ipiv, work, info0)
@@ -956,11 +1049,7 @@ contains
     character :: uplo0
     complex(rsp), allocatable :: work(:)
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
     allocate(work(max(1, 2 * nn)))
     call chetri(uplo0, nn, aa, nn, ipiv, work, info0)
@@ -993,11 +1082,7 @@ contains
     character :: uplo0
     complex(rdp), allocatable :: work(:)
 
-    if (present(uplo)) then
-      uplo0 = uplo
-    else
-      uplo0 = "L"
-    end if
+    uplo0 = uploHelper(uplo)
     nn = size(aa, dim=1)
     allocate(work(max(1, 2 * nn)))
     call zhetri(uplo0, nn, aa, nn, ipiv, work, info0)
@@ -1466,5 +1551,258 @@ contains
     deallocate(work)
 
   end subroutine zgesvd_dblecplx
+
+
+#:for suffix, kind in REAL_KIND_PARAMS
+
+  !> Choleskii factorization of a matrix
+  subroutine ${kind}$potrf_${suffix}$(b, uplo, info)
+
+    !> Matrix to be factorised, over-written on return
+    real(r${kind}$p), intent(inout) :: b(:,:)
+
+    !> upper or lower triangle of the matrix, defaults to lower
+    character, intent(in), optional :: uplo
+
+    !> Info flag. If not present and an error occurs, the subroutine stops.
+    integer, intent(out), optional :: info
+
+    integer :: info0, n, ldb
+    character :: uplo0
+
+    uplo0 = uploHelper(uplo)
+    n = size(b, dim=2)
+    ldb = size(b, dim=1)
+  @:ASSERT(ldb >= n)
+
+    call ${kind}$potrf(uplo0, n, b, ldb, info0)
+    if (present(info)) then
+      info = info0
+    elseif (info0 /= 0) then
+      write(error_string, "(A,I10)") "Routine ${kind}$potrf failed. Info: ", info0
+      call error(error_string)
+    end if
+
+  end subroutine ${kind}$potrf_${suffix}$
+
+#:endfor
+
+
+#:for suffix, kind in REAL_KIND_PARAMS
+
+  !> solve one of the matrix equations op( A )*X = alpha*B, or X*op( A ) = alpha*B
+  subroutine ${kind}$trsm_${suffix}$(side, A, B, m, n, diag, alpha, transa, uplo)
+
+    !> matrix A on 'l'eft or 'r'ight of X
+    character, intent(in) :: side
+
+    real(r${kind}$p), intent(inout) :: A(:,:)
+
+    real(r${kind}$p), intent(inout) :: B(:,:)
+
+    integer, intent(in) :: m
+
+    integer, intent(in) :: n
+
+    !> 'U'nit triangular or 'N'ot
+    character, intent(in) :: diag
+
+    real(r${kind}$p), intent(in) :: alpha
+
+    !> optional transpose of A matrix (defaults to 'n'), allowed choices are 'n', 'N', 't', 'T', 'c'
+    !> and 'C'
+    character, intent(in), optional :: transA
+
+    !> upper or lower triangle of the matrix, defaults to lower
+    character, intent(in), optional :: uplo
+
+    integer :: lda, ldb
+    character :: uplo0, iTransA
+
+    uplo0 = uploHelper(uplo)
+    lda = size(A, dim=1)
+    ldb = size(B, dim=1)
+  @:ASSERT(m > 0)
+  @:ASSERT(n > 0)
+  @:ASSERT(((side == 'r' .or. side == 'R') .and. lda > n) .or.&
+      & ((side == 'l' .or. side == 'L') .and. lda > m))
+  @:ASSERT(ldb >= m)
+  @:ASSERT(size(B,dim=2) >= n)
+  @:ASSERT(side == 'r' .or. side == 'R' .or. side == 'l' .or. side == 'L')
+  @:ASSERT(diag == 'u' .or. diag == 'U' .or. diag == 'n' .or. diag == 'N')
+  if (present(transa)) then
+    iTransA = transA
+  else
+    iTransA = 'n'
+  end if
+  @:ASSERT(iTransA == 'n' .or. iTransA == 'N' .or. iTransA == 't'&
+      & .or. iTransA == 'T' .or. iTransA == 'c' .or. iTransA == 'C')
+
+    call ${kind}$trsm ( side, uplo, iTransa, diag, m, n, alpha, a, lda, b, ldb )
+
+  end subroutine ${kind}$trsm_${suffix}$
+
+#:endfor
+
+
+  !> Helper function for matrix triangle options to choose optional triangle
+  pure function uploHelper(uplo)
+
+    !> upper or lower triangle of the matrix, defaults to lower if not present
+    character, intent(in), optional :: uplo
+
+    !> Resulting triangle to use
+    character :: uploHelper
+
+    if (present(uplo)) then
+      uploHelper = uplo
+    else
+      uploHelper = "L"
+    end if
+
+  end function uploHelper
+
+
+  !> Solves a system of linear equations with multiple right hand sides
+  subroutine getrs_dble(amat, ipiv, bmat, trans, iError)
+
+    !> Matrix of the linear system
+    real(rdp), intent(in) :: amat(:, :)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(in) :: ipiv(:)
+
+    !> Matrix of the right hand side vectors
+    real(rdp), intent(inout) :: bmat(:, :)
+
+    !> Optional transpose (defaults to 'n')
+    character(len=1), intent(in), optional :: trans
+
+    !> Error flag, zero on successful exit
+    integer, intent(out), optional :: iError
+
+    character(len=1) :: atr
+    integer :: info, nn, nrhs, lda, ldb
+
+    @:ASSERT(size(amat, 1) == size(amat, dim=2))
+    @:ASSERT(size(amat, 1) == size(bmat, dim=1))
+    if(present(trans)) then
+      @:ASSERT(any(trans == ['n', 'N', 't', 'T', 'c', 'C']))
+      atr = trans
+    else
+      atr = 'n'
+    endif
+    lda = max(1, size(amat, 1))
+    ldb = max(1, size(bmat, 1))
+    nn = size(amat, 2)
+    nrhs = size(bmat, 2)
+    call dgetrs(atr, nn, nrhs, amat, lda, ipiv, bmat, ldb, info)
+    if(present(iError)) then
+      iError = info
+    else
+      if (info /= 0) then
+        call error("Failed to solve linear system by diagonal pivoting")
+      end if
+    endif
+
+  end subroutine getrs_dble
+
+
+  !> Solves a system of linear equations with one right hand sides
+  subroutine getrs1_dble(amat, ipiv, bvec, trans, iError)
+
+    !> Matrix of the linear system
+    real(rdp), intent(in) :: amat(:, :)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(in) :: ipiv(:)
+
+    !> Right hand side vector
+    real(rdp), intent(inout), target :: bvec(:)
+
+    !> optional transpose (defaults to 'n')
+    character(len=1), intent(in), optional :: trans
+
+    !> Error flag, zero on successful exit
+    integer, intent(out), optional :: iError
+
+    real(rdp), pointer :: bptr(:, :)
+
+    bptr(1:size(bvec, 1), 1:1) => bvec(1:size(bvec, 1))
+    call getrs(amat, ipiv, bptr, trans, iError)
+
+  end subroutine getrs1_dble
+
+
+  !> Solves a system of linear equations with multiple right hand sides
+  subroutine getrs_real(amat, ipiv, bmat, trans, iError)
+
+    !> Matrix of the linear system
+    real(rsp), intent(in) :: amat(:, :)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(in) :: ipiv(:)
+
+    !> Matrix of the right hand side vectors
+    real(rsp), intent(inout) :: bmat(:, :)
+
+    !> Optional transpose (defaults to 'n')
+    character(len=1), intent(in), optional :: trans
+
+    !> Error flag, zero on successful exit
+    integer, intent(out), optional :: iError
+
+    character(len=1) :: atr
+    integer :: info, nn, nrhs, lda, ldb
+
+    @:ASSERT(size(amat, 1) == size(amat, dim=2))
+    @:ASSERT(size(amat, 1) == size(bmat, dim=1))
+    if(present(trans)) then
+      @:ASSERT(any(trans == ['n', 'N', 't', 'T', 'c', 'C']))
+      atr = trans
+    else
+      atr = 'n'
+    endif
+    lda = max(1, size(amat, 1))
+    ldb = max(1, size(bmat, 1))
+    nn = size(amat, 2)
+    nrhs = size(bmat, 2)
+    call sgetrs(atr, nn, nrhs, amat, lda, ipiv, bmat, ldb, info)
+    if(present(iError)) then
+      iError = info
+    else
+      if (info /= 0) then
+        call error("Failed to solve linear system by diagonal pivoting")
+      end if
+    endif
+
+  end subroutine getrs_real
+
+
+  !> Solves a system of linear equations with one right hand sides
+  subroutine getrs1_real(amat, ipiv, bvec, trans, iError)
+
+    !> Matrix of the linear system
+    real(rsp), intent(in) :: amat(:, :)
+
+    !> Pivot indices, row i of the matrix was interchanged with row ipiv(i).
+    integer, intent(in) :: ipiv(:)
+
+    !> Right hand side vector
+    real(rsp), intent(inout), target :: bvec(:)
+
+    !> Optional transpose (defaults to 'n')
+    character(len=1), intent(in), optional :: trans
+
+    !> Error flag, zero on successful exit
+    integer, intent(out), optional :: iError
+
+    real(rsp), pointer :: bptr(:, :)
+
+    bptr(1:size(bvec, 1), 1:1) => bvec(1:size(bvec, 1))
+    call getrs(amat, ipiv, bptr, trans, iError)
+
+  end subroutine getrs1_real
+
 
 end module dftbp_lapackroutines

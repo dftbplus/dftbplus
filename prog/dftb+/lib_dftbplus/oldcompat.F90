@@ -69,8 +69,7 @@ contains
     ! with the old parser as the options have changed to the new parser by now
     call getChildValue(root, "ParserOptions", ch1, "", child=par, &
         &allowEmptyValue=.true.)
-    call getChildValue(par, "ParserVersion", version, child=ch2)
-    call setChildValue(ch2, "", curVersion, replace=.true.)
+    call setChildValue(par, "ParserVersion", version, replace=.true.)
 
   end subroutine convertOldHSD
 
@@ -451,6 +450,19 @@ contains
           call setChildValue(ch1, "readBinaryContact", .false., child=ch2, replace=.true.)
         end select
       end if
+    end if
+
+    call getDescendant(root, "ParserOptions/WriteXMLInput", ch1)
+    if (associated(ch1)) then
+      call getChildValue(ch1, "", tVal)
+      call setUnprocessed(ch1)
+      if (tVal) then
+        call detailedWarning(ch1, "Sorry, XML export of the dftb_in.hsd is not supported any more&
+            & so is removed")
+      else
+        call detailedWarning(ch1, "XML export option is removed.")
+      end if
+      call destroyNode(ch1)
     end if
 
   end subroutine convert_7_8

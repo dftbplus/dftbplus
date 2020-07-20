@@ -48,6 +48,14 @@ endfunction()
 function (dftbp_add_fypp_defines fyppflags)
 
   set(_fyppflags "${${fyppflags}}")
+
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
+  if("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG")
+    list(APPEND _fyppflags -DDEBUG=1)
+  else()
+    list(APPEND _fyppflags -DDEBUG=0)
+  endif()
+
   if(WITH_OMP)
     list(APPEND _fyppflags -DWITH_OMP)
   endif()
@@ -92,6 +100,10 @@ function (dftbp_add_fypp_defines fyppflags)
     list(APPEND _fyppflags -DWITH_C_EXECUTABLES)
   endif()
 
+  if(BUILD_SHARED_LIBS)
+    list(APPEND _fyppflags -DBUILD_SHARED_LIBS)
+  endif()
+
   set(${fyppflags} ${_fyppflags} PARENT_SCOPE)
 
 endfunction()
@@ -104,21 +116,32 @@ endfunction()
 #
 function(dftbp_get_release_name release)
 
-  if(NOT EXISTS ${CMAKE_BINARY_DIR}/RELEASE)
-    if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
-      file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
-    else()
-      execute_process(
-	COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
-	RESULT_VARIABLE exitcode)
-      if(NOT exitcode EQUAL 0)
-	file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
-      endif()
+  if(EXISTS ${CMAKE_SOURCE_DIR}/RELEASE)
+    file(COPY ${CMAKE_SOURCE_DIR}/RELEASE DESTINATION ${CMAKE_BINARY_DIR})
+  else()
+    execute_process(
+      COMMAND ${CMAKE_SOURCE_DIR}/utils/build/update_release ${CMAKE_BINARY_DIR}/RELEASE
+      RESULT_VARIABLE exitcode)
+    if(NOT exitcode EQUAL 0)
+      file(WRITE ${CMAKE_BINARY_DIR}/RELEASE "(UNKNOWN RELEASE)")
     endif()
   endif()
   file(READ ${CMAKE_BINARY_DIR}/RELEASE _release)
   separate_arguments(_release)
   set(${release} "${_release}" PARENT_SCOPE)
+
+endfunction()
+
+
+# Gets DFTB+ API release information.
+#
+# Args:
+#   release [out]: Release string.
+#
+function(dftbp_get_api_release apiversion)
+
+  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  set(${apiversion} "${_api}" PARENT_SCOPE)
 
 endfunction()
 
@@ -177,6 +200,10 @@ function (dftbp_ensure_config_consistency)
     message(FATAL_ERROR "Building with ARPACK requires MPI-parallel build disabled")
   endif()
 
+  if(WITH_GPU AND WITH_MPI)
+    message(FATAL_ERROR "Building with GPU support and MPI parallelisation disabled")
+  endif()
+
   string(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_UPPER)
   if(("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "NAG")
       AND ("${CMAKE_BUILD_TYPE_UPPER}" STREQUAL "DEBUG") AND WITH_OMP)
@@ -190,8 +217,9 @@ Disable OpenMP (WITH_OMP) when compiling in debug mode")
     string(FIND "${CMAKE_Fortran_FLAGS}" "realloc_lhs" pos2)
     string(FIND "${CMAKE_Fortran_FLAGS}" "norealloc_lhs" pos3)
     if(NOT ((NOT pos1 EQUAL -1) OR ((NOT pos2 EQUAL -1) AND (pos3 EQUAL -1))))
-      message(FATAL_ERROR "Intel compiler needs either the '-standard-semantics' or the '-assume \
-realloc_lhs' option to produce correctly behaving (Fortran standard complying) code")
+      message(FATAL_ERROR "Intel Fortran compiler needs either the '-standard-semantics' or the "
+        "'-assume realloc_lhs' option to produce correctly behaving (Fortran standard complying) "
+        "code")
     endif()
   endif()
 
@@ -327,7 +355,7 @@ function(dftbp_ensure_out_of_source_build)
 separate build directory and invoke CMake from that directory. See the INSTALL.rst file for \
 detailed build instructions.")
   endif()
-  
+
 endfunction()
 
 
@@ -345,3 +373,86 @@ toolchain file). See the INSTALL.rst file for detailed instructions.")
   endif()
 
 endfunction()
+
+
+# Loads global build settings (either from config.cmake or from user defined file)
+#
+macro (dftbp_load_build_settings)
+
+  if(NOT DEFINED BUILD_CONFIG_FILE)
+    if(DEFINED ENV{DFTBPLUS_BUILD_CONFIG_FILE} AND NOT ENV{DFTBPLUS_BUILD_CONFIG_FILE} STREQUAL "")
+      set(BUILD_CONFIG_FILE "$ENV{DFTBPLUS_BUILD_CONFIG_FILE}")
+    else()
+      set(BUILD_CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.cmake")
+    endif()
+  endif()
+  message(STATUS "Reading build config file: ${BUILD_CONFIG_FILE}\n"
+    "(Adjust the variables defined in this file to enable/disable build components)")
+  include(${BUILD_CONFIG_FILE})
+  
+endmacro()
+
+
+# Tries to guess which toolchain to load based on the environment.
+#
+# Args:
+#     toolchain [out]: Name of the selected toolchain or undefined if it could not be selected
+#
+function(dftbp_guess_toolchain toolchain)
+
+  if("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "GNU|GNU")
+    set(_toolchain "gnu")
+  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "Intel|Intel")
+    set(_toolchain "intel")
+  elseif("${CMAKE_Fortran_COMPILER_ID}|${CMAKE_C_COMPILER_ID}" STREQUAL "NAG|GNU")
+    set(_toolchain "nag")
+  else()
+    set(_toolchain "generic")
+  endif()
+    
+  set(${toolchain} "${_toolchain}" PARENT_SCOPE)
+  
+endfunction()
+
+
+# Loads toolchain settings.
+#
+macro(dftbp_load_toolchain_settings)
+  
+  if(NOT DEFINED TOOLCHAIN_FILE AND NOT "$ENV{DFTBPLUS_TOOLCHAIN_FILE}" STREQUAL "")
+    set(TOOLCHAIN_FILE "$ENV{DFTBPLUS_TOOLCHAIN_FILE}")
+  endif()
+  if(NOT DEFINED TOOLCHAIN AND NOT "$ENV{DFTBPLUS_TOOLCHAIN}" STREQUAL "")
+    set(TOOLCHAIN "$ENV{DFTBPLUS_TOOLCHAIN}")
+  endif()
+  if(NOT DEFINED TOOLCHAIN_FILE OR TOOLCHAIN_FILE STREQUAL "")
+    if(NOT DEFINED TOOLCHAIN OR TOOLCHAIN STREQUAL "")
+      dftbp_guess_toolchain(TOOLCHAIN)
+    endif()
+    set(TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
+  endif()
+  message(STATUS "Loading toolchain file: ${TOOLCHAIN_FILE}\n"
+    "(Adjust variables defined in this file to change compiler, linker and library settings)")
+  include(${TOOLCHAIN_FILE})
+endmacro()
+
+
+# Sets up the global compiler flags
+#
+macro (dftbp_setup_global_compiler_flags)
+  string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
+
+  # Remove automatic -O3 flags for Intel (too aggressive)
+  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
+    string(REPLACE "-O3" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+    string(REPLACE "-O3" "" CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+  endif()
+
+  foreach (lang IN ITEMS Fortran C)
+    string(APPEND CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
+    string(APPEND CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+    message(STATUS "Flags for ${lang}-compiler: "
+      "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+  endforeach()
+
+endmacro()

@@ -72,11 +72,29 @@ module dftbp_taggedoutput
     !> oscillator strength for excitations
     character(lenLabel) :: excOsc = 'exc_oscillator'
 
+    !> Transition dipole moments for excitations
+    character(lenLabel) :: excDipole = 'exc_transdip'
+
+    !> nonadiabatic coupling vector, H
+    character(lenLabel) :: nacH = 'coupling_vectors'
+
     !> ground state total forces
     character(lenLabel) :: forceTot = 'forces'
 
     !> forces on any external charges present
     character(lenLabel) :: chrgForces = 'forces_ext_charges'
+
+    !> Fermi level(s)
+    character(lenLabel) :: fermiLvl = 'fermi_level'
+
+    !> number of electrons
+    character(lenLabel) :: nElec = 'number_of_electrons'
+
+    !> eigenvalues/single particle states
+    character(lenLabel) :: eigvals = 'eigenvalues'
+
+    !> filling of the eigenstates
+    character(lenLabel) :: eigFill = 'filling'
 
     !> Gibbs free energy for finite pressure periodic systems
     character(lenLabel) :: gibbsFree = 'gibbs_energy'
@@ -84,8 +102,35 @@ module dftbp_taggedoutput
     !> Gross atomic charges
     character(lenLabel) :: qOutAtGross  = 'gross_atomic_charges'
 
+    !> Charge model 5 corrected atomic gross charges
+    character(lenLabel) :: qOutAtCM5 = 'cm5_atomic_charges'
+
     !> numerically calculated second derivatives matrix
     character(lenLabel) :: hessianNum = 'hessian_numerical'
+
+    !> final energy components after real-time propagation
+    character(lenLabel) :: tdenergy = 'final_energy'
+
+    !> final dipole moment vector after real-time propagation
+    character(lenLabel) :: tddipole = 'final_dipole_moment'
+
+    !> final negative gross atomic Mulliken charges after real-time propagation
+    character(lenLabel) :: tdcharges = 'final_td_charges'
+
+    !> final forces components after real-time (Ehrenfest) propagation
+    character(lenLabel) :: ehrenforces = 'final_ehrenfest_forc'
+
+    !> final geometry after real-time (Ehrenfest) propagation
+    character(lenLabel) :: ehrencoords = 'final_ehrenfest_geom'
+
+    !> final velocities after real-time (Ehrenfest) propagation
+    character(lenLabel) :: ehrenvelos = 'final_ehrenfest_velo'
+
+    !> final molecular orbitals occupations after real-time (Ehrenfest) propagation
+    character(lenLabel) :: tdprojocc = 'final_td_proj_occ'
+
+    !> Sum of bond populaion values (should be number of electrons)
+    character(lenLabel) :: sumBondPopul = 'sum_bond_pops'
 
     !> total energy including electron TS contribution
     character(lenLabel) :: freeEgy = 'mermin_energy'
@@ -105,7 +150,7 @@ module dftbp_taggedoutput
     !> total projected DOS vector
     character(lenLabel) :: ldos = 'total_localdos'
 
-    !> total bond currents 
+    !> total bond currents
     character(lenLabel) :: localCurrents = 'local_currents'
 
     !> total internal energy
@@ -122,6 +167,9 @@ module dftbp_taggedoutput
 
     !> External electric field
     character(lenLabel) :: externField = 'external_efield'
+
+    !> two-electron addition/removal energies in ppRPA formalism
+    character(lenLabel) :: egyppRPA = '2e_add-rem_energies'
 
   end type TTagLabelsEnum
 

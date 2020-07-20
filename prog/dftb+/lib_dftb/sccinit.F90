@@ -11,7 +11,7 @@
 module dftbp_sccinit
   use dftbp_assert
   use dftbp_accuracy
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_message
   use dftbp_commontypes
   use dftbp_charmanip
@@ -243,7 +243,7 @@ contains
     @:ASSERT(size(qq, dim=1) == orb%mOrb)
     @:ASSERT(nSpin == 1 .or. nSpin == 2 .or. nSpin == 4)
     
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
 
     if (present(magnetisation)) then
       @:ASSERT(nSpin==2)
@@ -262,7 +262,7 @@ contains
       @:ASSERT(size(deltaRho) == orb%nOrb*orb%nOrb*nSpin)
     end if
 
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (tReadAscii) then
       open(newunit=file, file=trim(fileName)//'.dat', status='old', action='READ', iostat=iErr)
@@ -454,7 +454,8 @@ contains
     tqiBlock = allocated(qiBlock)
     tRho = allocated(deltaRhoIn)
 
-#:call ASSERT_CODE
+  #:block DEBUG_CODE
+
     if (tqBlock) then
       @:ASSERT(all(shape(qBlock) == (/orb%mOrb,orb%mOrb,nAtom,nSpin/)))
     end if
@@ -468,7 +469,7 @@ contains
       @:ASSERT(size(deltaRhoIn) == orb%nOrb*orb%nOrb*nSpin)
     end if
 
-#:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
 
     if (tWriteAscii) then
       open(newunit=fd, file=trim(fileName)//'.dat', position="rewind", status="replace")

@@ -85,7 +85,7 @@ contains
     !> real temporary
     real(dp) :: rTmp
 
-    if (env%tGlobalMaster) then
+    if (env%tGlobalLead) then
       if (seed < 1) then
         call system_clock(seed)
       end if

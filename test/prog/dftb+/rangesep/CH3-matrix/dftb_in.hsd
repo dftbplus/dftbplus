@@ -18,12 +18,14 @@ Hamiltonian = DFTB {
     SpinPolarisation = Colinear {
         UnpairedElectrons = 1
     }
-    SpinConstants = { # From C. Koehler thesis
+    SpinConstants = { 
         C = {
-            -0.031 -0.025
-            -0.025 -0.023
+     	      -0.04559
+              -0.02930
+              -0.02930
+              -0.02755
         }
-        H = {-0.072}
+        H = {-0.07925}
         ShellResolvedSpin = Yes
     }
     RangeSeparated = LC {
@@ -37,7 +39,6 @@ Options = {
 
 Analysis {
     CalculateForces = No
-    AtomResolvedEnergies = Yes
 }
 
 ParserOptions = {

@@ -16,12 +16,14 @@ module dftbp_inputdata
   use dftbp_message
   use dftbp_dispersions, only : TDispersionInp
   use dftbp_linresp, only : TLinrespini
+  use dftbp_pprpa, only : TppRPAcal
   use dftbp_slakocont
   use dftbp_commontypes
   use dftbp_repcont
   use dftbp_linkedlist
   use dftbp_wrappedintr
   use dftbp_elecsolvers, only : TElectronicSolverInp
+  use dftbp_timeprop
   use dftbp_etemp, only : fillingTypes
   use dftbp_xlbomd
 #:if WITH_SOCKETS
@@ -29,11 +31,14 @@ module dftbp_inputdata
 #:endif
   use dftbp_pmlocalisation, only : TPipekMezeyInp
   use dftbp_elstatpot, only : TElStatPotentialsInp
+  use dftbp_reks
+  use dftbp_cm5, only : TCM5Input
+  use dftbp_solvinput, only : TSolvationInp
 
 #:if WITH_TRANSPORT
   use libnegf_vars
-  use poisson_init
 #:endif
+  use poisson_init
 
   implicit none
   private
@@ -173,6 +178,9 @@ module dftbp_inputdata
 
     !> printout of Mulliken
     logical :: tPrintMulliken   = .false.
+
+    !> Input for CM5 corrected Mulliken charges
+    type(TCM5Input), allocatable :: cm5Input
 
     !> electrostatic potential evaluation and printing
     type(TElStatPotentialsInp), allocatable :: elStatPotentialsInp
@@ -452,6 +460,9 @@ module dftbp_inputdata
     !> Dispersion related stuff
     type(TDispersionInp), allocatable :: dispInp
 
+    !> Solvation
+    class(TSolvationInp), allocatable :: solvInp
+
 
     !> Local potentials
     real(dp), allocatable :: chrgConstr(:,:)
@@ -469,12 +480,17 @@ module dftbp_inputdata
     !> TD Linear response input
     type(TLinrespini) :: lrespini
 
+    !> ElectronDynamics
+    type(TElecDynamicsInp), allocatable :: elecDynInp
+
+    !> input for particle-particle RPA
+    type(TppRPAcal), allocatable :: ppRPA
+
     !> LBFGS input
     type(TLbfgsInput), allocatable :: lbfgsInp
 
     !> Range separated input
     type(TRangeSepInp), allocatable :: rangeSepInp
-
 
   #:if WITH_SOCKETS
     !> socket communication
@@ -485,10 +501,13 @@ module dftbp_inputdata
 
     !> Maximal timing level to show in output
     integer :: timingLevel
-    
+
     ! Custom occupations
     type(TWrappedInt1), allocatable :: customOccAtoms(:)
     real(dp), allocatable :: customOccFillings(:,:)
+
+    !> REKS input
+    type(TReksInp) :: reksInp
 
   end type TControl
 
@@ -525,8 +544,8 @@ module dftbp_inputdata
   #:if WITH_TRANSPORT
     type(TTransPar) :: transpar
     type(TNEGFInfo) :: ginfo
-    type(TPoissonInfo) :: poisson
   #:endif
+    type(TPoissonInfo) :: poisson
   end type TInputData
 
 
