@@ -441,20 +441,18 @@ endmacro()
 #
 macro (dftbp_setup_global_compiler_flags)
   string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
+
+  # Remove automatic -O3 flags for Intel (too aggressive)
   if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
-      macro(remove_c_flag flag)
-        string(REPLACE "${flag}" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-      endmacro()
-      macro(remove_fortran_flag flag)
-        string(REPLACE "${flag}" "" CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-      endmacro()
-      remove_c_flag("-O3")
-      remove_fortran_flag("-O3")
+    string(REPLACE "-O3" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+    string(REPLACE "-O3" "" CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
   endif()
+
   foreach (lang IN ITEMS Fortran C)
     string(APPEND CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
     string(APPEND CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
     message(STATUS "Flags for ${lang}-compiler: "
       "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
   endforeach()
+
 endmacro()
