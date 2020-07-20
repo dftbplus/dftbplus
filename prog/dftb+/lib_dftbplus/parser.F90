@@ -1168,12 +1168,6 @@ contains
   #:else
       call readDFTBHam(node, ctrl, geo, slako, poisson)
   #:endif
-    case ("xtb")
-  #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
-  #:else
-      call readXTBHam(node, ctrl, geo, poisson)
-  #:endif
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
@@ -4754,7 +4748,7 @@ contains
       ! thermostat.)
       select case(ctrl%hamiltonian)
       case(hamiltonianTypes%xtb)
-        call readFilling(hamNode, ctrl, geo, 300.0_dp)
+        call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
       case(hamiltonianTypes%dftb)
         call readFilling(hamNode, ctrl, geo, 0.0_dp)
       end select
