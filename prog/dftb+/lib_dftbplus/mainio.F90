@@ -4374,7 +4374,7 @@ contains
       if (present(iK)) then
         write(fd(iReg), "(2(A,1X,I0,1X),A,1X,F12.8)") 'KPT', iK, 'SPIN', iS, 'KWEIGHT', kWeight
       else
-        write(fd(iReg), "(A,1X,I0)") 'SPIN', iS
+        write(fd(iReg), "(2(A,1X,I0,1X),A,1X,F12.8)") 'KPT', 1, 'SPIN', iS, 'KWEIGHT', 1.0_dp
       end if
     end do
 
