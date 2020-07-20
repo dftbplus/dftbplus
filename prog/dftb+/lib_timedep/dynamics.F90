@@ -2218,29 +2218,50 @@ contains
     end if
     call openFile(this, dipoleDat, dipoleFileName)
 
-    if (this%nSpin == 1) then
-      write(dipoleDat, "(A)") "#           time (fs)       |    mu_x (e.angstrom)   |     mu_y (e.angstrom)   |   mu_z (e.angstrom)"
-    else if (this%nSpin == 2) then
-      write(dipoleDat, "(A)") "#           time (fs)       |   mu_x (up) (e.angstrom)  |   mu_y (up) (e.angstrom)  &
-          &|  mu_z (down) (e.angstrom) | mu_x (down) (e.angstrom) | mu_y (down) (e.angstrom) |  mu_z (down) (e.angstrom)"
-    end if
+    write(dipoleDat, "(A)", advance = "NO")"#           time (fs)    |"
+    select case(this%nSpin)
+    case(1)
+      write(dipoleDat, "(A)", advance = "NO")"     mu_x (e.angstrom)   |"
+      write(dipoleDat, "(A)", advance = "NO")"     mu_y (e.angstrom)   |"
+      write(dipoleDat, "(A)", advance = "NO")"     mu_z (e.angstrom)   |"
+    case(2)
+      write(dipoleDat, "(A)", advance = "NO")"  mu_x (up) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")"  mu_y (up) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")"  mu_z (up) (e.angstrom) |"
+      write(dipoleDat, "(A)", advance = "NO")" mu_x (down) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_y (down) (e.angstrom)|"
+      write(dipoleDat, "(A)", advance = "NO")" mu_z (down) (e.angstrom)|"
+    end select
+    write(dipoleDat, "(A)")
 
     if (this%tdWriteExtras) then
       call openFile(this, qDat, 'qsvst.dat')
-
-      write(qDat, "(A)") "#             time (fs)      |   total net charge (e)  |   charge (atom_1) (e)  &
-          & |   charge (atom_2) (e)   |        ...        |  charge (atom_N) (e)"
+      write(qDat, "(A)", advance = "NO")"#             time (fs)      |"
+      write(qDat, "(A)", advance = "NO")"   total net charge (e)  |"
+      write(qDat, "(A)", advance = "NO")"   charge (atom_1) (e)   |"
+      write(qDat, "(A)", advance = "NO")"   charge (atom_2) (e)   |"
+      write(qDat, "(A)", advance = "NO")"        ...        |"
+      write(qDat, "(A)", advance = "NO")"   charge (atom_N) (e)   |"
+      write(qDat, "(A)")
 
       call openFile(this, energyDat, 'energyvst.dat')
-
-      write(energyDat, "(A)") "#                  time (fs)         |        E total (H)         |         E non-SCC (H) &
-          &       |         E SCC (H)           |         E spin (H)           |       E external (H) &
-          &  |             E rep (H)           |     E kinetic nuclear (H)    |       E dispersion (H)"
+      write(energyDat, "(A)", advance = "NO")"#                  time (fs)         |"
+      write(energyDat, "(A)", advance = "NO")"        E total (H)         |"
+      write(energyDat, "(A)", advance = "NO")"        E non-SCC (H)       |"
+      write(energyDat, "(A)", advance = "NO")"            E SCC (H)       |"
+      write(energyDat, "(A)", advance = "NO")"           E spin (H)       |"
+      write(energyDat, "(A)", advance = "NO")"       E external (H)       |"
+      write(energyDat, "(A)", advance = "NO")"            E rep (H)       |"
+      write(energyDat, "(A)", advance = "NO")"E kinetic nuclear (H)       |"
+      write(energyDat, "(A)", advance = "NO")"     E dispersion (H)       |"
+      write(energyDat, "(A)")
 
       if (this%tForces) then
         call openFile(this, forceDat, 'forcesvst.dat')
-        write(forceDat, "(A)") "#           time (fs)       | force (atom_1) (H/b)   |  force (atom_2) (H/b)&
-            &  |           ...          |     force (atom_N) (H/b)"
+        write(forceDat, "(A)", advance = "NO")"#           time (fs)       |"
+        write(forceDat, "(A)", advance = "NO")" force (atom_1) (H/b)   |  force (atom_2) (H/b)  |"
+        write(forceDat, "(A)", advance = "NO")"           ...          |  force (atom_N) (H/b)  |"
+        write(forceDat, "(A)")
       end if
 
       if (this%tIons) then
@@ -2254,19 +2275,22 @@ contains
         write(strSpin,'(i1)')iSpin
         if (this%tRealHS) then
           call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '.dat')
-          write(populDat(iKS), "(A,A)") "#  GS molecular orbital populations, spin channel : " // trim(strSpin)
-          write(populDat(iKS), "(A)") "#          time (fs)            |   population (orb 1)       |    population (orb 2)&
-              &          |        ...           |      population (orb N)"
+          write(populDat(iKS), "(A,A)") "#  GS molecular orbital populations, spin channel : ",&
+              & trim(strSpin)
         else
           iK = this%parallelKS%localKS(1, iKS)
           write(strK,'(i0.3)')iK
           call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '-' // trim(strK) //&
               & '.dat')
-          write(populDat(iKS), "(A,A,A,A)") "#  GS molecular orbital populations, spin channel : " // trim(strSpin) // &
-              & ", k-point number: " // trim(strK)
-          write(populDat(iKS), "(A)") "#          time (fs)            |   population (orb 1)       |    population (orb 2)&
-              &          |        ...           |      population (orb N)"
+          write(populDat(iKS), "(A,A,A,A)") "#  GS molecular orbital populations, spin channel : ",&
+              & trim(strSpin), ", k-point number: ", trim(strK)
         end if
+        write(populDat(iKS), "(A)", advance = "NO")"#          time (fs)            |"
+        write(populDat(iKS), "(A)", advance = "NO")"   population (orb 1)       |"
+        write(populDat(iKS), "(A)", advance = "NO")"    population (orb 2)      |"
+        write(populDat(iKS), "(A)", advance = "NO")"           ...              |"
+        write(populDat(iKS), "(A)", advance = "NO")"    population (orb N)      |"
+        write(populDat(iKS), "(A)")
       end do
     end if
 
