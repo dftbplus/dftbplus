@@ -4853,9 +4853,6 @@ contains
     !> masses to be returned
     real(dp), allocatable, intent(inout) :: masses(:)
 
-    !> ElecDynamicsInp instance
-    type(TElecDynamicsInp), intent(inout) :: input
-
     type(fnode), pointer :: value1, child
     type(string) :: buffer, buffer2, modifier
     logical :: ppRangeInvalid, tNeedFieldStrength

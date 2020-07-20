@@ -1874,7 +1874,7 @@ contains
     real(dp), intent(in), optional :: Ssq(:)
 
     integer :: nmat
-    integer :: ii, j, iweight, indo, m, n
+    integer :: ii, jj, iweight, indo, m, n
     real(dp), allocatable :: wvec(:)
     real(dp), allocatable :: xply(:)
     integer, allocatable :: wvin(:)
