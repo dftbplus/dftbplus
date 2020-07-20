@@ -3,7 +3,7 @@
 #
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (Release|Debug)")
 
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
   "Directory to install the compiled code into")
 
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
