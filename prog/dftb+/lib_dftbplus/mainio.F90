@@ -4367,14 +4367,15 @@ contains
     real(dp), intent(in), optional :: kWeight
 
     integer :: iReg
+    character(len=*), parameter :: formatHeader = "(2(A,1X,I0,1X),A,1X,F12.8)"
 
     @:ASSERT(present(iK) .eqv. present(kWeight))
 
     do iReg = 1, size(fd)
       if (present(iK)) then
-        write(fd(iReg), "(2(A,1X,I0,1X),A,1X,F12.8)") 'KPT', iK, 'SPIN', iS, 'KWEIGHT', kWeight
+        write(fd(iReg), formatHeader) 'KPT', iK, 'SPIN', iS, 'KWEIGHT', kWeight
       else
-        write(fd(iReg), "(2(A,1X,I0,1X),A,1X,F12.8)") 'KPT', 1, 'SPIN', iS, 'KWEIGHT', 1.0_dp
+        write(fd(iReg), formatHeader) 'KPT', 1, 'SPIN', iS, 'KWEIGHT', 1.0_dp
       end if
     end do
 
