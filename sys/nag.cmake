@@ -12,24 +12,19 @@
 #    environment variable should be set up correctly, so that CMake can find those libraries
 #    automatically. If that is not the case, override those variables to add search paths
 #    manually
-#
-#  * Compiler flags specified via the environment variables FFLAGS and CFLAGS are *appended* to the
-#    pre-configured flags. If you want to override all flags on the command line, use the
-#    -DFortran_FLAGS=<flags> and -DC_FLAGS=<flags> options.
-#
 
 
 #
 # Fortran compiler settings
 #
-set(Fortran_FLAGS "-ieee=full"
-  CACHE STRING "Additional general Fortran compiler flags")
+set(Fortran_FLAGS "-ieee=full ${CMAKE_Fortran_FLAGS}"
+  CACHE STRING "Build type independent Fortran compiler flags")
 
 set(Fortran_FLAGS_RELEASE "-O2"
-  CACHE STRING "Additional Fortran compiler flags for Release build")
+  CACHE STRING "Fortran compiler flags for Release build")
 
 set(Fortran_FLAGS_DEBUG "-g -f2008 -nan -C=all"
-  CACHE STRING "Additional Fortran compiler flags for Debug build")
+  CACHE STRING "Fortran compiler flags for Debug build")
 
 set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 
@@ -37,14 +32,14 @@ set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 #
 # C compiler settings
 #
-set(C_FLAGS ""
-  CACHE STRING "Additional general C compiler flags")
+set(C_FLAGS "${CMAKE_C_FLAGS}"
+  CACHE STRING "Build type independent C compiler flags")
 
-set(C_FLAGS_RELEASE "-funroll-all-loops"
-  CACHE STRING  "Additional C compiler flags for Release build")
+set(C_FLAGS_RELEASE "-O2 -funroll-all-loops"
+  CACHE STRING  "C compiler flags for Release build")
 
-set(C_FLAGS_DEBUG "-Wall -pedantic -fbounds-check"
-  CACHE STRING "Additional C compiler flags for Debug build")
+set(C_FLAGS_DEBUG "-g -Wall -pedantic -fbounds-check"
+  CACHE STRING "C compiler flags for Debug build")
 
 
 #
