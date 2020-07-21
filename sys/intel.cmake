@@ -56,8 +56,8 @@ else()
     "LAPACK and BLAS libraries to link")
 endif()
 
-#set(LAPACK_LIBRARY_DIRS "$ENV{MKLROOT}/lib/intel64" CACHE STRING
-#  "Directories where LAPACK and BLAS libraries can be found")
+set(LAPACK_LIBRARY_DIRS "$ENV{MKLROOT}/lib/intel64" CACHE STRING
+  "Directories where LAPACK and BLAS libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
 set(ARPACK_LIBRARIES "arpack" CACHE STRING "Arpack library")
