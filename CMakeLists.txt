@@ -30,19 +30,13 @@ if(WITH_API)
 endif()
 
 find_package(MPI)
-if(MPI_Fortran_FOUND)
-  option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" TRUE)
-else()
-  option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
-endif()
 if(WITH_MPI AND NOT MPI_FORTRAN_FOUND)
   message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for "
     "a WITH_MPI=TRUE build")
 elseif(NOT WITH_MPI AND MPI_FORTRAN_FOUND)
   message(WARNING "MPI enabled compiler ${CMAKE_Fortran_COMPILER} is specified for a build where "
-    "WITH_MPI=FALSE")
+    "WITH_MPI=FALSE. Your build will NOT be MPI-parallelised.")
 endif()
-
 
 if(WITH_OMP)
   find_package(OpenMP REQUIRED)
