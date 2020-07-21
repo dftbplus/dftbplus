@@ -278,7 +278,7 @@ Installing DFTB+
 
   where the destination directory can be configured by the variable
   ``CMAKE_INSTALL_PREFIX`` (in the `config.cmake` file). The default location is
-  the `_install` subdirectory within the build directory.
+  the `install` subdirectory within the build directory.
 
 
 

@@ -4,15 +4,10 @@
 list(APPEND FYPP_FLAGS -I${CMAKE_CURRENT_SOURCE_DIR}/include -DRELEASE="'${RELEASE}'")
 
 if(WITH_API)
-  # Define the API version string
-  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_RELEASE}'")
-  # individual components
-  string(REGEX MATCHALL "[0-9]+" API_LIST "${API_RELEASE}")
-  list(GET API_LIST 0 api_major)
-  list(GET API_LIST 1 api_minor)
-  list(GET API_LIST 2 api_patch)
-  MESSAGE("DFTB+ API : ${api_major}.${api_minor}.${api_patch}")
-  list(APPEND FYPP_FLAGS -DAPIMAJOR=${api_major} -DAPIMINOR=${api_minor} -DAPIPATCH=${api_patch})
+  message(STATUS "DFTB+ API version: ${API_VERSION}")
+  list(APPEND FYPP_FLAGS -DAPIVERSION="'${API_VERSION}'")
+  list(APPEND FYPP_FLAGS -DAPIMAJOR=${API_VERSION_MAJOR} -DAPIMINOR=${API_VERSION_MINOR}
+    -DAPIPATCH=${API_VERSION_PATCH})
 endif()
 
 #
