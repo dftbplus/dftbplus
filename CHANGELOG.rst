@@ -15,8 +15,8 @@ Unreleased
 Added
 -----
 
-- REKS (REstricted Kohn-Sham) calculations for ground and low-lying exited
-  states
+- REKS (spin-Restricted Ensemble Kohn-Sham) calculations for ground and
+  low-lying exited states
 
 - Support for meta-dynamics in MD via the Plumed library
 
