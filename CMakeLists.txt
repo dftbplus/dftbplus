@@ -34,8 +34,9 @@ if(WITH_MPI AND NOT MPI_FORTRAN_FOUND)
   message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for "
     "a WITH_MPI=TRUE build")
 elseif(NOT WITH_MPI AND MPI_FORTRAN_FOUND)
-  message(WARNING "MPI enabled compiler ${CMAKE_Fortran_COMPILER} is specified for a build where "
-    "WITH_MPI=FALSE. Your build will NOT be MPI-parallelised.")
+  message(WARNING "MPI enabled compiler ${CMAKE_Fortran_COMPILER} found for a non-MPI build. Your "
+    "build will NOT be MPI-parallelised. Set WITH_MPI=TRUE in order to obtain an MPI-parallelised "
+    "build.")
 endif()
 
 if(WITH_OMP)
