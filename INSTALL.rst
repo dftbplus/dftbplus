@@ -64,7 +64,7 @@ following architectures:
 | x86_64 /      | GNU Fortran/C 7.5    | OpenMPI 2.1 | OpenBlas 0.3.7,  |     |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 10.1   | OpenMPI 4.0 | OpenBlas 0.3.10, |     |
+| x86_64 /      | GNU Fortran/C 10.1   | OpenMPI 4.0 | OpenBlas 0.3.10, | [1] |
 | Linux         |                      |             | ScaLAPACK 2.1    |     |
 +---------------+----------------------+-------------+------------------+-----+
 | x86_64 /      | Intel Fortran/C 18.0 | MPICH 3.2   | MKL 18.0         |     |
@@ -79,7 +79,7 @@ following architectures:
 | x86_64 /      | NAG Fortran 7.0      | MPICH 3.3   | OpenBlas 0.3.7   |     |
 | Linux         | GNU C 9.2            |             | ScaLAPACK 2.1    |     |
 +---------------+----------------------+-------------+------------------+-----+
-| x86_64 /      | GNU Fortran/C 8.4    | --          | OpenBlas 0.3.10  | [1] |
+| x86_64 /      | GNU Fortran/C 8.4    | --          | OpenBlas 0.3.10  | [2] |
 | OS X          |                      |             |                  |     |
 |               |                      |             |                  |     |
 +---------------+----------------------+-------------+------------------+-----+
@@ -89,7 +89,11 @@ PLUMED 2.5 libraries.
 
 Notes:
 
-[1] Only serial version tested.
+[1] The timedep/C60_OscWindow test fails with recent versions (>= 0.3.8) of the
+OpenBlas library. If possible, use older versions or link against the MKL
+library instead.
+
+[2] Only serial version tested.
 
 
 Obtaining the source
