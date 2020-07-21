@@ -110,11 +110,11 @@ if(WITH_MPI)
   target_link_libraries(dftbplus PRIVATE ${SCALAPACK_LIBRARIES})
 endif()
 
-target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
-
 if(WITH_ARPACK)
   target_link_libraries(dftbplus PRIVATE ${ARPACK_LIBRARIES})
 endif()
+
+target_link_libraries(dftbplus PRIVATE ${LAPACK_LIBRARIES})
 
 if (WITH_GPU)
   target_include_directories(dftbplus PUBLIC ${MAGMA_INCLUDE_DIRS})
