@@ -162,15 +162,15 @@ In order to build DFTB+ carry out the following steps:
 
 * From the build folder invoke CMake to configure the build. You have to pass
   the source directory as argument to CMake. Additionally pass your Fortran and
-  C compilers as environment variables, e.g.::
+  C compilers as environment variables, e.g. (in a BASH compatible shell)::
 
-    env FC=gfortran CC=gcc cmake ..
+    FC=gfortran CC=gcc cmake ..
 
   If you want to build the code with MPI-support (see ``WITH_MPI`` in
   `config.cmake`), pass the name of the mpi compiler-wrapper as Fortran
   compiler, e.g.::
 
-    env FC=mpifort CC=gcc cmake ..
+    FC=mpifort CC=gcc cmake ..
 
   Based on the detected compilers, the build system will read further settings
   from a corresponding toolchain file in the `sys/` folder. Either from a
@@ -181,10 +181,15 @@ In order to build DFTB+ carry out the following steps:
 
   You may adjust any variables defined in `config.make` or in the toolchain file
   by either modifying the files directly or by overriding the definitions via
-  the ``-D`` command line option. For example, in order to change the name of
-  the LAPACK library, you can override the ``LAPACK_LIBRARIES`` variable with::
+  the ``-D`` command line option. For example, in order to use the MKL-library
+  with the GNU-compiler, you would have to override the ``LAPACK_LIBRARIES``
+  variable::
 
-    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES=openblas ..
+    FC=gfortran CC=gcc cmake -DLAPACK_LIBRARIES="mkl_gf_lp64;mkl_gnu_thread;mkl_core"  ..
+
+  When needed, you can also pass linker options in the library variables, e.g.::
+
+    -DLAPACK_LIBRARIES="-Wl,--start-group -lmkl_gf_lp64 -lmkl_gnu_thread -lmkl_core -Wl,--end-group"
 
   CMake automatically searches for the external libraries in the paths specified
   in the ``CMAKE_PREFIX_PATH`` environment variable. Make sure that it is set up
@@ -192,19 +197,19 @@ In order to build DFTB+ carry out the following steps:
   ``*_LIBRARY_DIRS`` variable for each external library to add path hints for
   the library search, e.g.::
 
-    env FC=gfortran CC=gcc cmake -DLAPACK_LIBRARY_DIRS=/opt/custom-lapack/lib ..
+    FC=gfortran CC=gcc cmake -DLAPACK_LIBRARY_DIRS=/opt/custom-lapack/lib ..
 
   Note: You can override the toolchain file selection by passing the
   ``-DTOOLCHAIN_FILE`` option with the name of the file to read, e.g.::
 
-    env FC=ifort CC=gcc cmake -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake ..
+    FC=ifort CC=gcc cmake -DTOOLCHAIN_FILE=/somepath/myintelgnu.cmake ..
 
   or by setting the toolchain file path in the ``DFTBPLUS_TOOCHAIN_FILE``
   environment variable. If the customized toolchain file is within the `sys/`
   folder, you may use the ``-DTOOLCHAIN`` option or the ``DFTBPLUS_TOOLCHAIN``
   environment variable instead::
 
-    env FC=ifort CC=gcc cmake -DTOOLCHAIN=gnu ..
+    FC=ifort CC=gcc cmake -DTOOLCHAIN=gnu ..
 
   Similarly, you can use an alternative build config file instead of
   `config.cmake` by specifying it with the ``-DBUILD_CONFIG_FILE`` option or by
