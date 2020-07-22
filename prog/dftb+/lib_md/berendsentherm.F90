@@ -77,11 +77,11 @@ contains
 
 
   !> Creates an Berendsen thermostat instance.
-  subroutine Berendsen_init(self, pRanlux, masses, tempProfile, &
+  subroutine Berendsen_init(this, pRanlux, masses, tempProfile, &
       & couplingParameter, pMDFrame)
 
     !> Initialised instance on exit.
-    type(TBerendsenThermostat), intent(out) :: self
+    type(TBerendsenThermostat), intent(out) :: this
 
     !> Pointer to the random generator.
     type(TRanlux), allocatable, intent(inout) :: pRanlux
@@ -98,22 +98,22 @@ contains
     !> Molecular dynamics generic framework
     type(TMDCommon), intent(in) :: pMDFrame
 
-    call move_alloc(pRanlux, self%pRanlux)
-    self%nAtom = size(masses)
-    allocate(self%mass(self%nAtom))
-    self%mass(:) = masses(:)
-    self%pTempProfile => tempProfile
-    self%couplingParameter = couplingParameter
-    self%pMDFrame = pMDFrame
+    call move_alloc(pRanlux, this%pRanlux)
+    this%nAtom = size(masses)
+    allocate(this%mass(this%nAtom))
+    this%mass(:) = masses(:)
+    this%pTempProfile => tempProfile
+    this%couplingParameter = couplingParameter
+    this%pMDFrame = pMDFrame
 
   end subroutine Berendsen_init
 
 
   !> Returns the initial velocities.
-  subroutine Berendsen_getInitVelos(self, velocities)
+  subroutine Berendsen_getInitVelos(this, velocities)
 
     !> BerendsenThermostat instance.
-    type(TBerendsenThermostat), intent(inout) :: self
+    type(TBerendsenThermostat), intent(inout) :: this
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
@@ -121,49 +121,49 @@ contains
     real(dp) :: kT
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
 
-    call self%pTempProfile%getTemperature(kT)
+    call this%pTempProfile%getTemperature(kT)
     if (kT < minTemp) then
       call error("Berendsen thermostat not supported at zero temperature")
     end if
-    do ii = 1, self%nAtom
-      call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
+    do ii = 1, this%nAtom
+      call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
     end do
-    call restFrame(self%pMDFrame, velocities, self%mass)
-    call rescaleTokT(self%pMDFrame, velocities, self%mass, kT)
+    call restFrame(this%pMDFrame, velocities, this%mass)
+    call rescaleTokT(this%pMDFrame, velocities, this%mass, kT)
 
   end subroutine Berendsen_getInitVelos
 
 
   !> Updates the provided velocities according the current temperature.
   !> Shifts to rest frame coordinates if required - this removes some of the flying icecube effect.
-  subroutine Berendsen_updateVelos(self, velocities)
+  subroutine Berendsen_updateVelos(this, velocities)
 
     !> Thermostat instance.
-    type(TBerendsenThermostat), intent(inout) :: self
+    type(TBerendsenThermostat), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
 
     real(dp) :: kTCurrent, kTTarget, scaling
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
 
-    call self%pTempProfile%getTemperature(kTTarget)
-    call evalkT(self%pMDFrame, kTCurrent,velocities,self%mass)
-    scaling = sqrt(1.0_dp + self%couplingParameter*(kTTarget/kTCurrent-1.0_dp))
+    call this%pTempProfile%getTemperature(kTTarget)
+    call evalkT(this%pMDFrame, kTCurrent,velocities,this%mass)
+    scaling = sqrt(1.0_dp + this%couplingParameter*(kTTarget/kTCurrent-1.0_dp))
     velocities(:,:) = scaling * velocities(:,:)
-    call restFrame(self%pMDFrame, velocities, self%mass)
+    call restFrame(this%pMDFrame, velocities, this%mass)
 
   end subroutine Berendsen_updateVelos
 
 
   !> Outputs internals of thermostat
-  subroutine Berendsen_state(self, fd)
+  subroutine Berendsen_state(this, fd)
 
     !> thermostat object
-    type(TBerendsenThermostat), intent(in) :: self
+    type(TBerendsenThermostat), intent(in) :: this
 
     !> file unit
     integer,intent(in) :: fd

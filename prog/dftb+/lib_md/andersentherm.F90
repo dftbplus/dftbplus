@@ -81,11 +81,11 @@ contains
 
 
   !> Creates an Andersen thermostat instance.
-  subroutine AndersenThermostat_init(self, pRanlux, masses, tempProfile, &
+  subroutine AndersenThermostat_init(this, pRanlux, masses, tempProfile, &
       &rescaleIndiv, wvScale, pMDFramework)
 
     !> Initialised instance on exit.
-    type(TAndersenThermostat), intent(out) :: self
+    type(TAndersenThermostat), intent(out) :: this
 
     !> Random generator
     type(TRanlux), allocatable, intent(inout) :: pRanlux
@@ -105,23 +105,23 @@ contains
     !> Molecular dynamics general specifications
     type(TMDCommon), intent(in) :: pMDFramework
 
-    call move_alloc(pRanlux, self%pRanlux)
-    self%nAtom = size(masses)
-    allocate(self%mass(self%nAtom))
-    self%mass(:) = masses(:)
-    self%pTempProfile => tempProfile
-    self%tRescaleIndiv = rescaleIndiv
-    self%wvScale = wvScale
-    self%pMDFramework = pMDFramework
+    call move_alloc(pRanlux, this%pRanlux)
+    this%nAtom = size(masses)
+    allocate(this%mass(this%nAtom))
+    this%mass(:) = masses(:)
+    this%pTempProfile => tempProfile
+    this%tRescaleIndiv = rescaleIndiv
+    this%wvScale = wvScale
+    this%pMDFramework = pMDFramework
 
   end subroutine AndersenThermostat_init
 
 
   !> Returns the initial velocities.
-  subroutine AndersenThermostat_getInitVelos(self, velocities)
+  subroutine AndersenThermostat_getInitVelos(this, velocities)
 
     !> AndersenThermostat instance.
-    type(TAndersenThermostat), intent(inout) :: self
+    type(TAndersenThermostat), intent(inout) :: this
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
@@ -129,26 +129,26 @@ contains
     real(dp) :: kT
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
 
-    call self%pTempProfile%getTemperature(kT)
+    call this%pTempProfile%getTemperature(kT)
     if (kT < minTemp) then
       call error("Andersen thermostat not supported at zero temperature")
     end if
-    do ii = 1, self%nAtom
-      call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
+    do ii = 1, this%nAtom
+      call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, this%pRanlux)
     end do
-    call restFrame(self%pMDFramework, velocities, self%mass)
-    call rescaleTokT(self%pMDFramework, velocities, self%mass, kT)
+    call restFrame(this%pMDFramework, velocities, this%mass)
+    call rescaleTokT(this%pMDFramework, velocities, this%mass, kT)
 
   end subroutine AndersenThermostat_getInitVelos
 
 
   !> Updates the provided velocities according the current temperature.
-  subroutine AndersenThermostat_updateVelos(self, velocities)
+  subroutine AndersenThermostat_updateVelos(this, velocities)
 
     !> AndersenThermostat instance.
-    type(TAndersenThermostat), intent(inout) :: self
+    type(TAndersenThermostat), intent(inout) :: this
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
@@ -157,28 +157,28 @@ contains
     real(dp) :: kT
     integer :: ii
 
-    @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
+    @:ASSERT(all(shape(velocities) <= (/ 3, this%nAtom /)))
 
-    call self%pTempProfile%getTemperature(kT)
-    if (self%tRescaleIndiv) then
-      do ii = 1, self%nAtom
-        call getRandom(self%pRanlux, rescaleChance)
-        if (rescaleChance <= self%wvScale) then
-          call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, &
-              &self%pRanlux)
+    call this%pTempProfile%getTemperature(kT)
+    if (this%tRescaleIndiv) then
+      do ii = 1, this%nAtom
+        call getRandom(this%pRanlux, rescaleChance)
+        if (rescaleChance <= this%wvScale) then
+          call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, &
+              &this%pRanlux)
         end if
       end do
-      call restFrame(self%pMDFramework, velocities, self%mass)
+      call restFrame(this%pMDFramework, velocities, this%mass)
     else
       ! all atoms re-set at random
-      call getRandom(self%pRanlux, rescaleChance)
-      if (rescaleChance <= self%wvScale) then
-        do ii = 1, self%nAtom
-          call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, &
-              &self%pRanlux)
+      call getRandom(this%pRanlux, rescaleChance)
+      if (rescaleChance <= this%wvScale) then
+        do ii = 1, this%nAtom
+          call MaxwellBoltzmann(velocities(:,ii), this%mass(ii), kT, &
+              &this%pRanlux)
         end do
-        call restFrame(self%pMDFramework, velocities, self%mass)
-        call rescaleTokT(self%pMDFramework, velocities, self%mass, kT)
+        call restFrame(this%pMDFramework, velocities, this%mass)
+        call rescaleTokT(this%pMDFramework, velocities, this%mass, kT)
       end if
     end if
 
@@ -186,10 +186,10 @@ contains
 
 
   !> Outputs internals of thermostat
-  subroutine AndersenThermostat_state(self, fd)
+  subroutine AndersenThermostat_state(this, fd)
 
     !> instance of thermostat
-    type(TAndersenThermostat), intent(in) :: self
+    type(TAndersenThermostat), intent(in) :: this
 
     !> filehandle to write out to
     integer,intent(in) :: fd

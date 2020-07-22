@@ -93,30 +93,30 @@ contains
 
 
   !> Initialises the repulsive container.
-  subroutine RepCont_init(self, nSpecies)
+  subroutine RepCont_init(this, nSpecies)
 
     !> Repulsive container.
-    type(TRepCont), intent(out) :: self
+    type(TRepCont), intent(out) :: this
 
     !> Nr. of species.
     integer, intent(in) :: nSpecies
 
-    @:ASSERT(.not. self%tInit)
+    @:ASSERT(.not. this%tInit)
 
-    self%nSpecies = nSpecies
-    allocate(self%repulsives(nSpecies, nSpecies))
-    self%cutoff = 0.0_dp
-    self%tDataOK = .false.
-    self%tInit = .true.
+    this%nSpecies = nSpecies
+    allocate(this%repulsives(nSpecies, nSpecies))
+    this%cutoff = 0.0_dp
+    this%tDataOK = .false.
+    this%tInit = .true.
 
   end subroutine RepCont_init
 
 
   !> Adds a spline repulsive function to the container for a given species pair.
-  subroutine RepCont_addRepSpline(self, pRep, iSp1, iSp2)
+  subroutine RepCont_addRepSpline(this, pRep, iSp1, iSp2)
 
     !> Repulsive container.
-    type(TRepCont), intent(inout) :: self
+    type(TRepCont), intent(inout) :: this
 
     !> Repulsive function to add.
     type(TRepSpline), intent(in) :: pRep
@@ -127,20 +127,20 @@ contains
     !> Nr. of the second interacting species.
     integer, intent(in) :: iSp2
 
-    @:ASSERT(self%tInit)
-    self%repulsives(iSp2, iSp1)%iType = typeRepSpline
-    self%repulsives(iSp2, iSp1)%pRepSpline = pRep
-    self%tDataOK = all(self%repulsives(:,:)%iType /= typeRepInvalid)
-    self%cutoff = max(self%cutoff, getCutoff(pRep))
+    @:ASSERT(this%tInit)
+    this%repulsives(iSp2, iSp1)%iType = typeRepSpline
+    this%repulsives(iSp2, iSp1)%pRepSpline = pRep
+    this%tDataOK = all(this%repulsives(:,:)%iType /= typeRepInvalid)
+    this%cutoff = max(this%cutoff, getCutoff(pRep))
 
   end subroutine RepCont_addRepSpline
 
 
   !> Adds a polynomial repulsive function to the container for a given species pair.
-  subroutine RepCont_addRepPoly(self, pRep, iSp1, iSp2)
+  subroutine RepCont_addRepPoly(this, pRep, iSp1, iSp2)
 
     !> Repulsive container.
-    type(TRepCont), intent(inout) :: self
+    type(TRepCont), intent(inout) :: this
 
     !> Repulsive function to add.
     type(TRepPoly), intent(in) :: pRep
@@ -151,35 +151,35 @@ contains
     !> Nr. of the second interacting species.
     integer, intent(in) :: iSp2
 
-    @:ASSERT(self%tInit)
-    self%repulsives(iSp2, iSp1)%iType = typeRepPoly
-    self%repulsives(iSp2, iSp1)%pRepPoly = pRep
-    self%tDataOK = all(self%repulsives(:,:)%iType /= typeRepInvalid)
-    self%cutoff = max(self%cutoff, getCutoff(pRep))
+    @:ASSERT(this%tInit)
+    this%repulsives(iSp2, iSp1)%iType = typeRepPoly
+    this%repulsives(iSp2, iSp1)%pRepPoly = pRep
+    this%tDataOK = all(this%repulsives(:,:)%iType /= typeRepInvalid)
+    this%cutoff = max(this%cutoff, getCutoff(pRep))
 
   end subroutine RepCont_addRepPoly
 
 
   !> Returns a global cutoff for all repulive functions.
-  function RepCont_getCutoff(self) result(cutoff)
+  function RepCont_getCutoff(this) result(cutoff)
 
     !> Repulsive container.
-    type(TRepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: this
 
     !> Global cutoff.
     real(dp) :: cutoff
 
-    @:ASSERT(self%tInit .and. self%tDataOK)
-    cutoff = self%cutoff
+    @:ASSERT(this%tInit .and. this%tDataOK)
+    cutoff = this%cutoff
 
   end function RepCont_getCutoff
 
 
   !> Returns the repulsive energy for a given distance and species pair.
-  subroutine RepCont_getEnergy(self, res, rr, sp1, sp2)
+  subroutine RepCont_getEnergy(this, res, rr, sp1, sp2)
 
     !> Repulsive container.
-    type(TRepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: this
 
     !> Energy contribution.
     real(dp), intent(out) :: res
@@ -193,23 +193,23 @@ contains
     !> Type of the second interacting atom
     integer, intent(in) :: sp2
 
-    @:ASSERT(self%tInit .and. self%tDataOK)
+    @:ASSERT(this%tInit .and. this%tDataOK)
 
-    select case (self%repulsives(sp2, sp1)%iType)
+    select case (this%repulsives(sp2, sp1)%iType)
     case(typeRepSpline)
-      call getEnergy(self%repulsives(sp2, sp1)%pRepSpline, res, rr)
+      call getEnergy(this%repulsives(sp2, sp1)%pRepSpline, res, rr)
     case(typeRepPoly)
-      call getEnergy(self%repulsives(sp2, sp1)%pRepPoly, res, rr)
+      call getEnergy(this%repulsives(sp2, sp1)%pRepPoly, res, rr)
     end select
 
   end subroutine RepCont_getEnergy
 
 
   !> Returns the repulsive gradient for a given distance and species pair.
-  subroutine RepCont_getEnergyDeriv(self, res, xx, sp1, sp2)
+  subroutine RepCont_getEnergyDeriv(this, res, xx, sp1, sp2)
 
     !> Repulsive container.
-    type(TRepCont), intent(in) :: self
+    type(TRepCont), intent(in) :: this
 
     !> Gradient on exit.
     real(dp), intent(out) :: res(:)
@@ -223,15 +223,15 @@ contains
     !> Type of the second interacting atom
     integer, intent(in) :: sp2
 
-    @:ASSERT(self%tInit .and. self%tDataOK)
+    @:ASSERT(this%tInit .and. this%tDataOK)
     @:ASSERT(size(res) == 3)
     @:ASSERT(size(xx) == 3)
 
-    select case (self%repulsives(sp2, sp1)%iType)
+    select case (this%repulsives(sp2, sp1)%iType)
     case(typeRepSpline)
-      call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepSpline, res, xx)
+      call getEnergyDeriv(this%repulsives(sp2, sp1)%pRepSpline, res, xx)
     case(typeRepPoly)
-      call getEnergyDeriv(self%repulsives(sp2, sp1)%pRepPoly, res, xx)
+      call getEnergyDeriv(this%repulsives(sp2, sp1)%pRepPoly, res, xx)
     end select
 
   end subroutine RepCont_getEnergyDeriv

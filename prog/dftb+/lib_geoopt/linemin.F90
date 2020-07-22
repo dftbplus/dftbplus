@@ -145,10 +145,10 @@ contains
 
 
   !> Creates a new line minimizer
-  subroutine LineMin_init(self, nElem, mIter, tolerance, maxDisp)
+  subroutine LineMin_init(this, nElem, mIter, tolerance, maxDisp)
 
     !> Valid line minimizer instance on exit
-    type(TLineMin), intent(out) :: self
+    type(TLineMin), intent(out) :: this
 
     !> Nr. of elements in the coordinate/gradient vectors
     integer, intent(in) :: nElem
@@ -167,21 +167,21 @@ contains
     @:ASSERT(tolerance > 0.0_dp)
     @:ASSERT(maxDisp > 0.0_dp)
 
-    self%nElem = nElem
-    allocate(self%x0(nElem))
-    allocate(self%d0(nElem))
-    self%mIter = mIter
-    self%tolerance = tolerance
-    self%maxDisp = maxDisp
-    self%tInitialized = .false.
+    this%nElem = nElem
+    allocate(this%x0(nElem))
+    allocate(this%d0(nElem))
+    this%mIter = mIter
+    this%tolerance = tolerance
+    this%maxDisp = maxDisp
+    this%tInitialized = .false.
   end subroutine LineMin_init
 
 
   !> Resets the line minimizer
-  subroutine LineMin_reset(self, x0, d0, firstStep)
+  subroutine LineMin_reset(this, x0, d0, firstStep)
 
     !> Line minimizer instance
-    type(TLineMin), intent(inout) :: self
+    type(TLineMin), intent(inout) :: this
 
     !> New starting point
     real(dp), intent(in) :: x0(:)
@@ -194,21 +194,21 @@ contains
 
     real(dp) :: tmp
 
-    @:ASSERT(size(x0) == self%nElem)
-    @:ASSERT(size(d0) == self%nElem)
+    @:ASSERT(size(x0) == this%nElem)
+    @:ASSERT(size(d0) == this%nElem)
 
-    self%state = st_1
-    self%iIter = 0
-    self%xx(:) = 0.0_dp
-    self%dx(:) = 0.0_dp
-    self%x0(:) = x0(:)
+    this%state = st_1
+    this%iIter = 0
+    this%xx(:) = 0.0_dp
+    this%dx(:) = 0.0_dp
+    this%x0(:) = x0(:)
     tmp = sqrt(sum(d0**2))
-    self%d0(:) = d0(:) / tmp
-    self%xCur = 0.0_dp
-    self%firstStep = firstStep
-    self%maxX = self%maxDisp / maxval(abs(self%d0))
-    self%tConverged = .false.
-    self%tInitialized = .true.
+    this%d0(:) = d0(:) / tmp
+    this%xCur = 0.0_dp
+    this%firstStep = firstStep
+    this%maxX = this%maxDisp / maxval(abs(this%d0))
+    this%tConverged = .false.
+    this%tInitialized = .true.
 
   end subroutine LineMin_reset
 
@@ -219,10 +219,10 @@ contains
   !> the maximal nr. of steps.
   !> When calling this subroutine the first time, function value and gradient for the starting point
   !> of the minimization should be passed.
-  subroutine LineMin_next(self, fx, dx, xNew, tConverged)
+  subroutine LineMin_next(this, fx, dx, xNew, tConverged)
 
     !> Line minimizer instance
-    type(TLineMin), intent(inout) :: self
+    type(TLineMin), intent(inout) :: this
 
     !> Function value for the last returned point
     real(dp), intent(in) :: fx
@@ -237,18 +237,18 @@ contains
     !> derivative.
     logical,  intent(out) :: tConverged
 
-    @:ASSERT(self%tInitialized)
-    @:ASSERT(size(xNew) == self%nElem)
-    @:ASSERT(size(dx) == self%nElem)
+    @:ASSERT(this%tInitialized)
+    @:ASSERT(size(xNew) == this%nElem)
+    @:ASSERT(size(dx) == this%nElem)
 
-    if (.not. self%tConverged) then
-      call next_local(self%state, self%mIter, self%iIter, self%xCur, &
-          &self%x0, self%d0, self%xx, self%dx, self%tConverged, self%tolerance,&
-          &self%maxX, self%firstStep, fx, dx, xNew)
+    if (.not. this%tConverged) then
+      call next_local(this%state, this%mIter, this%iIter, this%xCur, &
+          &this%x0, this%d0, this%xx, this%dx, this%tConverged, this%tolerance,&
+          &this%maxX, this%firstStep, fx, dx, xNew)
     else
-      call getMinX(self, xNew)
+      call getMinX(this, xNew)
     end if
-    tConverged = self%tConverged
+    tConverged = this%tConverged
 
   end subroutine LineMin_next
 
@@ -430,15 +430,15 @@ contains
   !> Gives the coordinate of the minimal point back
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
-  subroutine LineMin_getMinX(self, minX)
+  subroutine LineMin_getMinX(this, minX)
 
     !> Line minimizer
-    type(TLineMin), intent(in) :: self
+    type(TLineMin), intent(in) :: this
 
     !> Coordinate of the minimal point
     real(dp), intent(out) :: minX(:)
 
-    minX(:) = self%x0(:)
+    minX(:) = this%x0(:)
 
   end subroutine LineMin_getMinX
 
@@ -446,15 +446,15 @@ contains
   !> Returns the function at the minimal point
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
-  subroutine LineMin_getMinY(self, minY)
+  subroutine LineMin_getMinY(this, minY)
 
     !> Line minimizer
-    type(TLineMin), intent(in) :: self
+    type(TLineMin), intent(in) :: this
 
     !> Function value in the minimal point
     real(dp), intent(out) :: minY
 
-    minY = self%xx(1)
+    minY = this%xx(1)
 
   end subroutine LineMin_getMinY
 
@@ -462,15 +462,15 @@ contains
   !> Gives the gradient in the minimal point back
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
-  subroutine LineMin_getMinGrad(self, minGrad)
+  subroutine LineMin_getMinGrad(this, minGrad)
 
     !> Line minimizer
-    type(TLineMin), intent(in) :: self
+    type(TLineMin), intent(in) :: this
 
     !> Gradient in the minimal point
     real(dp), intent(out) :: minGrad(:)
 
-    minGrad(:) = self%d0(:)
+    minGrad(:) = this%d0(:)
 
   end subroutine LineMin_getMinGrad
 
@@ -478,15 +478,15 @@ contains
   !> Returns the displacement to the minimum along the line
   !> The value passed back is meaningless if the subroutine is called before the line minimizer
   !> signals convergence.
-  subroutine LineMin_getMinLambda(self, minLambda)
+  subroutine LineMin_getMinLambda(this, minLambda)
 
     !> Line minimizer
-    type(TLineMin), intent(in) :: self
+    type(TLineMin), intent(in) :: this
 
     !> Displacement along the line to the minimum
     real(dp), intent(out) :: minLambda
 
-    minLambda = self%xx(2)
+    minLambda = this%xx(2)
 
   end subroutine LineMin_getMinLambda
 

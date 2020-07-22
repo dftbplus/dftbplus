@@ -1568,44 +1568,44 @@ contains
 
 
   !> obtain the array of atomic species
-  subroutine getSpecies(self, targetArray)
+  subroutine getSpecies(this, targetArray)
 
     !> 1D array for output, will be allocated
     integer, allocatable, intent(out) :: targetArray(:)
 
     !> instance
-    class(TRangeSepFunc), intent(in) :: self
+    class(TRangeSepFunc), intent(in) :: this
 
     !> dimension of the species array
     integer :: dim1
 
-    dim1 = size(self%species)
+    dim1 = size(this%species)
     allocate(targetArray(dim1))
 
-    targetArray(:) = self%species
+    targetArray(:) = this%species
 
   end subroutine getSpecies
 
 
   !> Get long-range gamma integrals
-  subroutine getLrGamma(self, LrGamma)
+  subroutine getLrGamma(this, LrGamma)
 
     !> class instance
-    class(TRangeSepFunc), intent(inout) :: self
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> long-range gamma integrals in AO basis
     real(dp), intent(out) :: LrGamma(:,:)
 
-    LrGamma(:,:) = self%lrGammaEval
+    LrGamma(:,:) = this%lrGammaEval
 
   end subroutine getLrGamma
 
 
   !> Calculate long-range gamma derivative integrals
-  subroutine getLrGammaDeriv(self, coords, species, LrGammaDeriv)
+  subroutine getLrGammaDeriv(this, coords, species, LrGammaDeriv)
 
     !> class instance
-    class(TRangeSepFunc), intent(inout) :: self
+    class(TRangeSepFunc), intent(inout) :: this
 
     !> atomic coordinates
     real(dp), intent(in) :: coords(:,:)
@@ -1624,7 +1624,7 @@ contains
     do iAt1 = 1, nAtom
       do iAt2 = 1, nAtom
         if (iAt1 /= iAt2) then
-          call getGammaPrimeValue(self, tmp, iAt1, iAt2, coords, species)
+          call getGammaPrimeValue(this, tmp, iAt1, iAt2, coords, species)
           LrGammaDeriv(iAt2,iAt1,:) = tmp
         end if
       end do

@@ -35,10 +35,10 @@ module dftbp_reksio
   contains
 
   !> Print energy contribution for each microstate in SCC iteration
-  subroutine printReksMicrostates(self, Erep)
+  subroutine printReksMicrostates(this, Erep)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> repulsive energy
     real(dp), intent(in) :: Erep
@@ -47,39 +47,39 @@ module dftbp_reksio
 
     write(stdOut,'(1x,A,5x,A,9x,A,9x,A,9x,A,8x,A,9x,A,8x,A)') &
         & "iL", "nonSCC", "SCC", "spin", "3rd", "fock", "Rep", "Total"
-    do iL = 1, self%Lmax
-      write(stdOut,'(I3,7(f13.8))',advance="no") iL, self%enLnonSCC(iL), &
-          & self%enLscc(iL), self%enLspin(iL)
-      if (self%t3rd) then
-        write(stdOut,'(1(f13.8))',advance="no") self%enL3rd(iL)
+    do iL = 1, this%Lmax
+      write(stdOut,'(I3,7(f13.8))',advance="no") iL, this%enLnonSCC(iL), &
+          & this%enLscc(iL), this%enLspin(iL)
+      if (this%t3rd) then
+        write(stdOut,'(1(f13.8))',advance="no") this%enL3rd(iL)
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      if (self%isRangeSep) then
-        write(stdOut,'(1(f13.8))',advance="no") self%enLfock(iL)
+      if (this%isRangeSep) then
+        write(stdOut,'(1(f13.8))',advance="no") this%enLfock(iL)
       else
         write(stdOut,'(1(f13.8))',advance="no") 0.0_dp
       end if
-      write(stdOut,'(2(f13.8))') Erep, self%enLtot(iL)
+      write(stdOut,'(2(f13.8))') Erep, this%enLtot(iL)
     end do
 
   end subroutine printReksMicrostates
 
 
   !> Print SA-REKS energy in SCC iteration
-  subroutine printSaReksEnergy(self)
+  subroutine printSaReksEnergy(this)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     integer :: ist
 
     write(stdOut,'(1x,A)') "SA-REKS state energies"
-    do ist = 1, self%nstates
-      if (mod(ist,5) == 0 .or. ist == self%nstates) then
-        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')") ist, self%energy(ist)
+    do ist = 1, this%nstates
+      if (mod(ist,5) == 0 .or. ist == this%nstates) then
+        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')") ist, this%energy(ist)
       else
-        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')",advance="no") ist, self%energy(ist)
+        write(stdOut,"(I3,':',1x,1(f13.8),1x,'H')",advance="no") ist, this%energy(ist)
       end if
     end do
 
@@ -87,19 +87,19 @@ module dftbp_reksio
 
 
   !> print SA-REKS result in standard output
-  subroutine printReksSAInfo(self, Etotal)
+  subroutine printReksSAInfo(this, Etotal)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> state-averaged energy
     real(dp), intent(in) :: Etotal
 
-    select case (self%reksAlg)
+    select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call printReksSAInfo22_(Etotal, self%enLtot, self%energy, self%FONs, self%Efunction,&
-          & self%Plevel)
+      call printReksSAInfo22_(Etotal, this%enLtot, this%energy, this%FONs, this%Efunction,&
+          & this%Plevel)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -108,10 +108,10 @@ module dftbp_reksio
 
 
   !> print SI-SA-REKS result in standard output
-  subroutine printReksSSRInfo(self, Wab, tmpEn, StateCoup)
+  subroutine printReksSSRInfo(this, Wab, tmpEn, StateCoup)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> converged Lagrangian values within active space
     real(dp), intent(in) :: Wab(:,:)
@@ -122,11 +122,11 @@ module dftbp_reksio
     !> state-interaction term between SA-REKS states
     real(dp), intent(in) :: StateCoup(:,:)
 
-    select case (self%reksAlg)
+    select case (this%reksAlg)
     case (reksTypes%noReks)
     case (reksTypes%ssr22)
-      call printReksSSRInfo22_(Wab, tmpEn, StateCoup, self%energy, self%eigvecsSSR, &
-          & self%Na, self%tAllStates, self%tSSR)
+      call printReksSSRInfo22_(Wab, tmpEn, StateCoup, this%energy, this%eigvecsSSR, &
+          & this%Na, this%tAllStates, this%tSSR)
     case (reksTypes%ssr44)
       call error("SSR(4,4) is not implemented yet")
     end select
@@ -135,39 +135,39 @@ module dftbp_reksio
 
 
   !> print gradient results for REKS calculation
-  subroutine printReksGradInfo(self, derivs)
+  subroutine printReksGradInfo(this, derivs)
 
     !> data type for REKS
-    type(TReksCalc), intent(inout) :: self
+    type(TReksCalc), intent(inout) :: this
 
     !> derivatives of energy wrt to atomic positions
     real(dp), intent(in) :: derivs(:,:)
 
     integer :: ist, ia, ib, nstHalf
 
-    nstHalf = self%nstates * (self%nstates - 1) / 2
+    nstHalf = this%nstates * (this%nstates - 1) / 2
 
     write(stdOut,*)
-    if (self%Efunction == 1) then
+    if (this%Efunction == 1) then
 
       write(stdOut,"(A)") repeat("-", 50)
       write(stdOut,"(A)") " Gradient Information"
       write(stdOut,"(A)") repeat("-", 50)
-      write(stdOut,*) self%rstate, "state (single-state)"
+      write(stdOut,*) this%rstate, "state (single-state)"
       write(stdOut,'(3(f15.8))') derivs(:,:)
       write(stdOut,"(A)") repeat("-", 50)
 
     else
 
-      if (self%tNAC) then
+      if (this%tNAC) then
 
         write(stdOut,"(A)") repeat("-", 50)
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
-        do ist = 1, self%nstates
+        do ist = 1, this%nstates
           write(stdOut,*) ist, "st state (SSR)"
-          write(stdOut,'(3(f15.8))') self%SSRgrad(:,:,ist)
-          if (ist == self%nstates) then
+          write(stdOut,'(3(f15.8))') this%SSRgrad(:,:,ist)
+          if (ist == this%nstates) then
             write(stdOut,"(A)") repeat("-", 50)
           else
             write(stdOut,'(3(f15.8))')
@@ -175,12 +175,12 @@ module dftbp_reksio
         end do
 
 !        write(stdOut,*) "AVG state"
-!        write(stdOut,'(3(f15.8))') self%avgGrad(:,:)
+!        write(stdOut,'(3(f15.8))') this%avgGrad(:,:)
 !        write(stdOut,'(3(f15.8))')
-!        do ist = 1, self%nstates
+!        do ist = 1, this%nstates
 !          write(stdOut,*) ist, "st state (SA-REKS)"
-!          write(stdOut,'(3(f15.8))') self%SAgrad(:,:,ist)
-!          if (ist == self%nstates) then
+!          write(stdOut,'(3(f15.8))') this%SAgrad(:,:,ist)
+!          if (ist == this%nstates) then
 !            write(stdOut,"(A)") repeat("-", 50)
 !          else
 !            write(stdOut,'(3(f15.8))')
@@ -190,22 +190,22 @@ module dftbp_reksio
         write(stdOut,"(A)") " Coupling Information"
         do ist = 1, nstHalf
 
-          call getTwoIndices(self%nstates, ist, ia, ib, 1)
+          call getTwoIndices(this%nstates, ist, ia, ib, 1)
 
           write(stdOut,"(A)") repeat("-", 50)
           write(stdOut,'(" between ",I2," and ",I2," states")') ia, ib
           write(stdOut,"(A)") repeat("-", 50)
           write(stdOut,*) "g vector - difference gradient"
-          write(stdOut,'(3(f15.8))') (self%SAgrad(:,:,ia) - self%SAgrad(:,:,ib)) * 0.5_dp
+          write(stdOut,'(3(f15.8))') (this%SAgrad(:,:,ia) - this%SAgrad(:,:,ib)) * 0.5_dp
           write(stdOut,'(3(f15.8))')
           write(stdOut,*) "h vector - derivative coupling"
-          write(stdOut,'(3(f15.8))') self%SIgrad(:,:,ist)
+          write(stdOut,'(3(f15.8))') this%SIgrad(:,:,ist)
           write(stdOut,'(3(f15.8))')
           write(stdOut,*) "G vector - GDV"
-          write(stdOut,'(3(f15.8))') self%nacG(:,:,ist)
+          write(stdOut,'(3(f15.8))') this%nacG(:,:,ist)
           write(stdOut,'(3(f15.8))')
           write(stdOut,*) "H vector - DCV - non-adiabatic coupling"
-          write(stdOut,'(3(f15.8))') self%nacH(:,:,ist)
+          write(stdOut,'(3(f15.8))') this%nacH(:,:,ist)
 
         end do
         write(stdOut,"(A)") repeat("-", 50)
@@ -215,14 +215,14 @@ module dftbp_reksio
         write(stdOut,"(A)") repeat("-", 50)
         write(stdOut,"(A)") " Gradient Information"
         write(stdOut,"(A)") repeat("-", 50)
-        if (self%Lstate == 0) then
-          if (self%tSSR) then
-            write(stdOut,*) self%rstate, "state (SSR)"
+        if (this%Lstate == 0) then
+          if (this%tSSR) then
+            write(stdOut,*) this%rstate, "state (SSR)"
           else
-            write(stdOut,*) self%rstate, "state (SA-REKS)"
+            write(stdOut,*) this%rstate, "state (SA-REKS)"
           end if
         else
-          write(stdOut,*) self%Lstate, "microstate"
+          write(stdOut,*) this%Lstate, "microstate"
         end if
         write(stdOut,'(3(f15.8))') derivs(:,:)
         write(stdOut,"(A)") repeat("-", 50)

@@ -74,10 +74,10 @@ contains
   !> Create new instance of derivative object
   !> Note: Use pre-relaxed coordinates when starting this, as the the truncation at second
   !> derivatives is only valid at the minimum position.
-  subroutine derivs_create(self,xInit,Delta)
+  subroutine derivs_create(this, xInit, Delta)
 
     !> Pointer to the initialised object on exit.
-    type(TNumDerivs), allocatable, intent(out) :: self
+    type(TNumDerivs), allocatable, intent(out) :: this
 
     !> initial atomic coordinates (3,:)
     real(dp), intent(inout) :: xInit(:,:)
@@ -90,30 +90,30 @@ contains
     @:ASSERT(size(xInit,dim=1)==3)
     nDerivs = size(xInit,dim=2)
 
-    allocate(self)
-    allocate(self%x0(3, nDerivs))
-    self%x0(:,:) = xInit(:,:)
-    allocate(self%derivs(3*nDerivs,3*nDerivs))
-    self%derivs(:,:) = 0.0_dp
-    self%nDerivs = nDerivs
-    self%Delta = Delta
+    allocate(this)
+    allocate(this%x0(3, nDerivs))
+    this%x0(:,:) = xInit(:,:)
+    allocate(this%derivs(3*nDerivs,3*nDerivs))
+    this%derivs(:,:) = 0.0_dp
+    this%nDerivs = nDerivs
+    this%Delta = Delta
 
-    self%iAtom = 1
-    self%iComponent = 1
-    self%iDelta = -1.0_dp
+    this%iAtom = 1
+    this%iComponent = 1
+    this%iDelta = -1.0_dp
 
-    xInit(self%iComponent,self%iAtom) = &
-        & xInit(self%iComponent,self%iAtom) + self%iDelta*self%Delta
+    xInit(this%iComponent,this%iAtom) = &
+        & xInit(this%iComponent,this%iAtom) + this%iDelta*this%Delta
 
   end subroutine derivs_create
 
 
   !> Takes the next step for derivatives using the central difference formula to choose the new
   !> coordinates for differentiation of the forces with respect to atomic coordinates
-  subroutine derivs_next(self,xNew,fOld,tGeomEnd)
+  subroutine derivs_next(this,xNew,fOld,tGeomEnd)
 
     !> Derivatives instance to propogate
-    type(TNumDerivs), intent(inout) :: self
+    type(TNumDerivs), intent(inout) :: this
 
     !> New coordinates for the next step
     real(dp), intent(out) :: xNew(:,:)
@@ -127,56 +127,56 @@ contains
     integer :: ii, jj
 
     @:ASSERT(all(shape(xNew)==shape(fOld)))
-    @:ASSERT(all(shape(xNew)==(/3,self%nDerivs/)))
+    @:ASSERT(all(shape(xNew)==(/3,this%nDerivs/)))
 
-    if (self%iAtom==self%nDerivs .and. self%iComponent == 3 .and. &
-        & self%iDelta > 0.0_dp) then
+    if (this%iAtom==this%nDerivs .and. this%iComponent == 3 .and. &
+        & this%iDelta > 0.0_dp) then
       tGeomEnd = .true.
     else
       tGeomEnd = .false.
     end if
 
-    do ii = 1, self%nDerivs
+    do ii = 1, this%nDerivs
       do jj = 1, 3
-        self%derivs((ii-1)*3+jj,(self%iAtom-1)*3+self%iComponent) = &
-            & self%derivs((ii-1)*3+jj,(self%iAtom-1)*3+self%iComponent) &
-            & + self%iDelta * fOld(jj,ii)
+        this%derivs((ii-1)*3+jj,(this%iAtom-1)*3+this%iComponent) = &
+            & this%derivs((ii-1)*3+jj,(this%iAtom-1)*3+this%iComponent) &
+            & + this%iDelta * fOld(jj,ii)
       end do
     end do
 
     if (.not.tGeomEnd) then
 
-      if (self%iDelta < 0.0_dp) then
-        self%iDelta = 1.0_dp
+      if (this%iDelta < 0.0_dp) then
+        this%iDelta = 1.0_dp
       else
-        self%iDelta = -1.0_dp
-        if (self%iComponent == 3) self%iAtom = self%iAtom + 1
-        self%iComponent = mod(self%iComponent,3) + 1
+        this%iDelta = -1.0_dp
+        if (this%iComponent == 3) this%iAtom = this%iAtom + 1
+        this%iComponent = mod(this%iComponent,3) + 1
       end if
 
-      xNew(:,:) = self%x0(:,:)
-      xNew(self%iComponent,self%iAtom) = xNew(self%iComponent,self%iAtom) + &
-          & self%iDelta * self%Delta
+      xNew(:,:) = this%x0(:,:)
+      xNew(this%iComponent,this%iAtom) = xNew(this%iComponent,this%iAtom) + &
+          & this%iDelta * this%Delta
     else
       ! get actual derivatives
-      self%derivs(:,:) = 0.5_dp*self%derivs(:,:)/(self%Delta)
+      this%derivs(:,:) = 0.5_dp*this%derivs(:,:)/(this%Delta)
       ! set xnew to an arbitrary value
-      xNew(:,:) = self%x0
+      xNew(:,:) = this%x0
     end if
 
   end subroutine derivs_next
 
 
   !> Routine to return pointer to internal matrix of derivative elements.
-  subroutine getDerivMatrixPtr(self,d)
+  subroutine getDerivMatrixPtr(this,d)
 
     !> Derivatives instance including the Hessian internally
-    type(TNumDerivs), intent(in), target :: self
+    type(TNumDerivs), intent(in), target :: this
 
     !> Pointer to the Hessian matrix to allow retrieval
     real(dp), pointer :: d(:,:)
 
-    d => self%derivs
+    d => this%derivs
 
   end subroutine getDerivMatrixPtr
 
