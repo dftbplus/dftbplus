@@ -8,6 +8,18 @@ Notable project changes since release 1.3.1 (2017-02-22).
 Unreleased
 ==========
 
+Added
+-----
+
+
+Changed
+-------
+
+
+Fixed
+-----
+
+
 
 20.1 (2020-07-22)
 =================
@@ -30,8 +42,7 @@ Added
 
 - Reading of input coordinates in the VASP POSCAR format
 
-- The DFT-D4 dispersion model (see DOIs: 10.1063/1.4993215 10.1063/1.5090222
-  10.26434/chemrxiv.10299428 )
+- The DFT-D4 dispersion model
 
 - Helical geometries supported for non-SCC calculations
 
@@ -74,6 +85,7 @@ Changed
 
 - Parser input can now be set according to the code release version (20.1)
   
+
 Fixed
 -----
 
@@ -85,6 +97,7 @@ Fixed
 - Free energy for PEXSI calculations
 
 - ELSI calculations for spin-orbit and onsite corrected corrections
+
 
 19.1 (2019-07-01)
 =================

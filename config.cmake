@@ -20,7 +20,7 @@ option(WITH_GPU "Whether DFTB+ should support GPU-acceleration via the MAGMA-lib
 option(WITH_TRANSPORT "Whether transport via libNEGF should be included." FALSE)
 # Works only when building static libraries (see option BUILD_SHARED_LIBS)
 
-option(WITH_SOCKETS "Whether socket communication should be allowed for" TRUE)
+option(WITH_SOCKETS "Whether socket communication should be allowed for" FALSE)
 
 option(WITH_ARPACK "Whether the ARPACK library should be included (needed for TD-DFTB)" FALSE)
 # Works only with non-MPI (serial) build, needed for Casida linear response
