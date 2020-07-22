@@ -1,0 +1,77 @@
+PYTHONAPI: A ctypes based Python interface for DFTB+
+****************************************************
+
+This package provides a Python Interface for DFTB+ to improve
+the ease of use and expand its applications and functionality.
+It currently contains the following Python class:
+
+DftbPlus
+  Interface module for the communication between DFTB+ and
+  Python (via the foreign function C-library ctypes). Provides
+  methods for initializing and configuring a DFTB+ calculator.
+
+
+Compiling DFTB+
+===============
+
+In order to be able to use the Python interface, DFTB+ has to get
+compiled as a shared library and with API support enabled. To
+instruct DFTB+ that a dynamically linked shared library should be
+created, the WITH_API and BUILD_SHARED_LIBS flag in the cmake
+configuration file config.cmake must be set to TRUE, before starting
+the compilation process. If you do not want to mess around with files,
+a construct like the following is a convenient way to specify these
+flags, while configuring CMake:
+
+cmake -DBUILD_SHARED_LIBS=1 -DWITH_API=1 \
+-DCMAKE_TOOLCHAIN_FILE=../sys/gnu.cmake ..
+
+
+Testing pythonapi
+=================
+
+In the _build/ directory, running
+
+ctest -R pyapi_*
+
+will validate the source of pythonapi by executing regression tests.
+
+For developers
+--------------
+
+To perform pylint static checking, in the top DFTB+ directory the
+individual files can be tested, for example by
+
+pylint3 --rcfile utils/srccheck/pylint/pylintrc-3.ini tools/pythonapi/src/*
+
+
+Installation
+============
+
+Please note, that the package has been tested for **Python 3.X**
+support. It additionally needs Numerical Python (the numpy module).
+
+System install
+--------------
+
+You can install the script package via the standard 'python setup'
+mechanism. If you want to install it system-wide into your normal
+python installation, you simply issue::
+
+  python setup.py
+
+Local install
+-------------
+
+Alternatively, you can install it locally in your home space, e.g.::
+
+  python setup.py install --user
+
+If the local python install directory is not in your path, you should
+add this. For the bash shell you should include in .bashrc::
+
+  export PATH=$PATH:/home/user/.local/bin
+
+while in tcsh shell, you would have to add to your .cshrc::
+
+  setenv PATH $PATH:/home/user/.local/bin

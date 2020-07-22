@@ -18,7 +18,7 @@ module dftbp_mdintegrator
   private
 
   public :: TMDIntegrator
-  public :: init, next, rescale, state
+  public :: init, next, rescale, reset, state
 
 
   !> Data for the MD integrator.
@@ -30,6 +30,7 @@ module dftbp_mdintegrator
 
     !> Verlet case
     type(TVelocityVerlet), allocatable :: pVelocityVerlet
+
   end type TMDIntegrator
 
 
@@ -37,6 +38,12 @@ module dftbp_mdintegrator
   interface init
     module procedure MDIntegrator_init_VVerlet
   end interface init
+
+
+  !> reset the positions and velocities of the integrator
+  interface reset
+    module procedure MDIntegrator_reset
+  end interface reset
 
 
   !> Take a geometry step
@@ -122,16 +129,44 @@ contains
   end subroutine MDIntegrator_rescale
 
 
+  !> resets the positions and velocities of the integrator internal state
+  subroutine MDIntegrator_reset(this, positions, velocities, tHalfVelocities)
+
+    !> Integrator instance
+    type(TMDIntegrator), intent(inout) :: this
+
+    !> New position of the atoms.
+    real(dp), intent(in) :: positions(:,:)
+
+    !> On input, if tHalfVelocities these are the t=-.5 velocities, but ignored if false. On output
+    !> these are the internal velocities, either at current time or t=-.5 depending on setting of
+    !> tHalfVelocities if this is allocated
+    real(dp), intent(inout) :: velocities(:,:)
+
+    !> This indicates if the routine is setting the t-.5 velocities internally (true), otherwise
+    !> they need to be regenerated later (false).
+    logical, intent(in) :: tHalfVelocities
+
+    @:ASSERT(allocated(this%pVelocityVerlet))
+
+    call reset(this%pVelocityVerlet, positions, velocities, tHalfVelocities)
+
+  end subroutine MDIntegrator_reset
+
+
   !> Probe internal state of the integrator, writing this to disc
-  subroutine MDIntegrator_state(this,fd)
+  subroutine MDIntegrator_state(this, fd, velocities)
 
     !> Integrator instance
     type(TMDIntegrator), intent(in) :: this
 
     !> file handle to write to
-    integer,intent(in) :: fd
+    integer,intent(in), optional :: fd
 
-    call state(this%pVelocityVerlet,fd)
+    real(dp), intent(out), optional :: velocities(:,:)
+
+    @:ASSERT(allocated(this%pVelocityVerlet))
+    call state(this%pVelocityVerlet, fd, velocities)
 
   end subroutine MDIntegrator_state
 

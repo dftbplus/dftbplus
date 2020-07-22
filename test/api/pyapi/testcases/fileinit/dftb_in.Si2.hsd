@@ -37,6 +37,10 @@ Analysis {
   AtomResolvedEnergies = Yes
 }
 
+Options = {
+  WriteAutotestTag = No
+}
+
 ParserOptions = {
   ParserVersion = 8
 }

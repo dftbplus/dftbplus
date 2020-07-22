@@ -18,9 +18,9 @@ module dftbp_reksinterface
   use dftbp_accuracy
   use dftbp_densedescr
   use dftbp_dispiface
+  use dftbp_elecsolvers
   use dftbp_environment
   use dftbp_globalenv
-  use dftbp_mainio
   use dftbp_nonscc
   use dftbp_orbitals
   use dftbp_periodic
@@ -35,7 +35,9 @@ module dftbp_reksinterface
   use dftbp_taggedoutput, only : TTaggedWriter, tagLabels
   use dftbp_rekscommon
   use dftbp_rekscpeqn
+  use dftbp_reksen
   use dftbp_reksgrad
+  use dftbp_reksio
   use dftbp_reksproperty
   use dftbp_reksvar
 
@@ -43,10 +45,133 @@ module dftbp_reksinterface
 
   private
 
+  public :: getStateInteraction, getReksEnProperties
   public :: getReksGradients, getReksGradProperties
   public :: getReksStress
 
   contains
+
+  !> Calculate SSR state from SA-REKS states and state-interaction terms
+  subroutine getStateInteraction(env, denseDesc, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, coord, iAtInCentralRegion, eigenvecs,&
+      & electronicSolver, eigen, qOutput, q0, tDipole, dipoleMoment, this)
+
+    !> Environment settings
+    type(TEnvironment), intent(inout) :: env
+
+    !> Dense matrix descriptor
+    type(TDenseDescr), intent(in) :: denseDesc
+
+    !> list of neighbours for each atom
+    type(TNeighbourList), intent(in) :: neighbourList
+
+    !> Number of neighbours for each of the atoms
+    integer, intent(in) :: nNeighbourSK(:)
+
+    !> Index array for the start of atomic blocks in sparse arrays
+    integer, intent(in) :: iSparseStart(:,:)
+
+    !> map from image atoms to the original unique atom
+    integer, intent(in) :: img2CentCell(:)
+
+    !> atomic coordinates
+    real(dp), intent(in) :: coord(:,:)
+
+    !> Atoms over which to sum the total energies
+    integer, intent(in) :: iAtInCentralRegion(:)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(in) :: eigenvecs(:,:,:)
+
+    !> Electronic solver information
+    type(TElectronicSolver), intent(inout) :: electronicSolver
+
+    !> eigenvalues
+    real(dp), intent(inout) :: eigen(:,:,:)
+
+    !> Output electrons
+    real(dp), intent(in) :: qOutput(:,:,:)
+
+    !> reference atomic occupations
+    real(dp), intent(in) :: q0(:,:,:)
+
+    !> calculate an electric dipole?
+    logical, intent(in) :: tDipole
+
+    !> resulting dipole moment
+    real(dp), allocatable, intent(inout) :: dipoleMoment(:)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: this
+
+    call adjustEigenval(this, eigen)
+
+    if (this%Efunction > 1) then
+      call solveSecularEqn(env, denseDesc, neighbourList, nNeighbourSK, &
+          & iSparseStart, img2CentCell, electronicSolver, eigenvecs, this)
+    else
+      ! Get the dipole moment for single-state REKS case
+      ! In this case dipole moment can be calculated w/o gradient result
+      ! tDipole = (total charge = 0.0) * (non-periodic system) * (mulliken)
+      if (tDipole) then
+        call getDipoleMoment_(qOutput, q0, coord, dipoleMoment, iAtInCentralRegion)
+      end if
+    end if
+
+
+  end subroutine getStateInteraction
+
+
+  !> get the energy-related properties; unrelaxed density matrix,
+  !> dipole integral, transition dipole, oscillator strength
+  subroutine getReksEnProperties(eigenvecs, coord0, this)
+
+    !> Eigenvectors on eixt
+    real(dp), intent(inout) :: eigenvecs(:,:,:)
+
+    !> central cell coordinates of atoms
+    real(dp), intent(in) :: coord0(:,:)
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout) :: this
+
+    real(dp), allocatable :: dipoleInt(:,:,:)
+
+    integer :: ist, nstHalf, nOrb
+
+    nOrb = size(eigenvecs,dim=1)
+    nstHalf = this%nstates * (this%nstates - 1) / 2
+
+    allocate(dipoleInt(nOrb,nOrb,3))
+
+    ! Get the unrelaxed density matrix for SA-REKS or SSR state
+    ! The matrix that used in this calculation is not relaxed density
+    ! matrix, so this unrelaxed FONs are not equal to relaxed FONS,
+    ! but this value is easy to calculate without the information of
+    ! gradient. Therefore, we can easily guess the behavior of the states.
+    if (this%nstates > 1) then
+
+      call getUnrelaxedDensMatAndTdp(eigenvecs(:,:,1), this%overSqr, this%rhoSqrL, &
+          & this%FONs, this%eigvecsSSR, this%Lpaired, this%Nc, this%Na, &
+          & this%rstate, this%Lstate, this%reksAlg, this%tSSR, this%tTDP, &
+          & this%unrelRhoSqr, this%unrelTdm)
+
+      if (this%tTDP) then
+        call getDipoleIntegral(coord0, this%overSqr, this%getAtomIndex, dipoleInt)
+        ! Get the transition dipole moment between states
+        ! For (SI-)SA-REKS dipole moment requires gradient info.
+        ! But TDP use only zero-th part without gradient info.
+        do ist = 1, nstHalf
+          call getDipoleMomentMatrix(this%unrelTdm(:,:,ist), dipoleInt, this%tdp(:,ist))
+        end do
+        call writeReksTDP(this%tdp)
+        call getReksOsc(this%tdp, this%energy)
+      end if
+
+    end if
+
+  end subroutine getReksEnProperties
+
 
   !> Calculate SI-SA-REKS state gradient by solving CP-REKS equations
   subroutine getReksGradients(env, denseDesc, sccCalc, rangeSep, dispersion, &
@@ -174,7 +299,7 @@ module dftbp_reksinterface
         do ist = 1, this%nstates
           if (ist /= this%SAstates) then
 
-            call printBlankLine()
+            write(stdOut,"(A)")
             write(stdOut,"(A)") repeat("-", 82)
             write(stdOut,'(1x,a,1x,I2,1x,a)') &
                 & 'Solving CP-REKS equation for', ist, 'state vector...'
@@ -184,7 +309,7 @@ module dftbp_reksinterface
             call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
                 & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
                 & this%XT(:,ist), this%ZT(:,ist), this%RmatL(:,:,:,ist), &
-                & this%ZmatL, this%Q1mat, this%Q2mat, .false.)
+                & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
             Qmat(:,:) = this%Q1mat + this%Q2mat
             ! compute SA-REKS shift
             call SSRshift(eigenvecs, this%gradL, Qmat, this%Sderiv, &
@@ -199,7 +324,7 @@ module dftbp_reksinterface
         do ist = 1, nstHalf
 
           call getTwoIndices(this%nstates, ist, ia, ib, 1)
-          call printBlankLine()
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
           write(stdOut,'(1x,a,1x,I2,1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for SI between', ia, 'and', ib, 'state vectors...'
@@ -209,7 +334,7 @@ module dftbp_reksinterface
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
               & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
               & this%XTdel(:,ist), this%ZTdel(:,ist), this%tmpRL(:,:,:,ist), &
-              & this%ZmatL, this%Q1mat, this%Q2mat, .false.)
+              & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
           call SIshift(eigenvecs, this%gradL, this%Q1del(:,:,ist), &
               & this%Q2del(:,:,ist), this%Q1mat, this%Q2mat, Qmat, &
               & this%Sderiv, this%ZTdel(:,ist), this%SAweight, this%omega, &
@@ -227,7 +352,7 @@ module dftbp_reksinterface
           call SaToSsrWeight(this%Rab, this%weightIL, this%G1, &
               & this%eigvecsSSR, this%rstate, this%weightL)
 
-          call printBlankLine()
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
           write(stdOut,'(1x,a,1x,I2,1x,a)') &
               & 'Solving CP-REKS equation for', this%rstate, 'state vector...'
@@ -237,7 +362,7 @@ module dftbp_reksinterface
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
               & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
               & this%XT(:,this%rstate), this%ZT(:,1), this%RmatL(:,:,:,1), &
-              & this%ZmatL, this%Q1mat, this%Q2mat, .false.)
+              & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
 
           ! add remaining SI component to SSR state
           call addSItoRQ(eigenvecs, this%RdelL, this%Q1del, this%Q2del, &
@@ -247,7 +372,7 @@ module dftbp_reksinterface
 
         else
 
-          call printBlankLine()
+          write(stdOut,"(A)")
           write(stdOut,"(A)") repeat("-", 82)
           if (this%Lstate == 0) then
             write(stdOut,'(1x,a,1x,I2,1x,a)') &
@@ -262,7 +387,7 @@ module dftbp_reksinterface
           call solveCpReks_(env, denseDesc, neighbourList, nNeighbourSK, &
               & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
               & this%XT(:,1), this%ZT(:,1), this%RmatL(:,:,:,1), &
-              & this%ZmatL, this%Q1mat, this%Q2mat, .false.)
+              & this%ZmatL, this%Q1mat, this%Q2mat, optionQMMM=.false.)
           Qmat(:,:) = this%Q1mat + this%Q2mat
           fac = 1
 
@@ -382,7 +507,7 @@ module dftbp_reksinterface
               & iSparseStart, img2CentCell, eigenvecs, over, orb, this, &
               & this%XT(:,this%SAstates), this%ZT(:,this%SAstates), &
               & this%RmatL(:,:,:,this%SAstates), this%ZmatL, &
-              & this%Q1mat, this%Q2mat, .true.)
+              & this%Q1mat, this%Q2mat, optionQMMM=.true.)
           ! now, ZT has information about target SSR state
           call SaToSsrXT(this%ZTdel, this%eigvecsSSR, this%rstate, this%ZT)
         end if
@@ -453,7 +578,7 @@ module dftbp_reksinterface
     !> method for calculating derivatives of S and H0
     type(TNonSccDiff), intent(in) :: nonSccDeriv
 
-    !> non-SCC hamitonian information
+    !> non-SCC hamiltonian information
     type(TSlakoCont), intent(in) :: skHamCont
 
     !> overlap information
@@ -569,7 +694,7 @@ module dftbp_reksinterface
 
 !        if (allocated(thirdOrd)) then
 !          call thirdOrd%updateCharges(pSpecies0, neighbourList, &
-!              & reks%qOutput_L(:,:,:,iL), reks%q0, img2CentCell, orb)
+!              & this%qOutput_L(:,:,:,iL), q0, img2CentCell, orb)
 !          call thirdOrd%addStressDc(neighbourList, species, coord, &
 !              & img2CentCell, cellVol, tmpStress)
 !        end if
@@ -1051,7 +1176,7 @@ module dftbp_reksinterface
       call getQ1mat(ZT, this%fockFc, this%fockFa, this%SAweight, &
           & this%FONs, this%Nc, this%Na, this%reksAlg, Q1mat)
     else
-      call printBlankLine()
+      write(stdOut,"(A)")
     end if
 
   end subroutine solveCpReks_

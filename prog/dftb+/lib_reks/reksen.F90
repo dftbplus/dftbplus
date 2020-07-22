@@ -23,11 +23,11 @@ module dftbp_reksen
   use dftbp_energies
   use dftbp_environment
   use dftbp_globalenv
-  use dftbp_mainio
   use dftbp_message
   use dftbp_periodic
   use dftbp_sparse2dense
   use dftbp_rekscommon
+  use dftbp_reksio
   use dftbp_reksvar, only : TReksCalc, reksTypes
 
   implicit none
@@ -38,6 +38,7 @@ module dftbp_reksen
   public :: activeOrbSwap, getFilling, calcSaReksEnergy
   public :: getFockandDiag, guessNewEigvecs
   public :: adjustEigenval, solveSecularEqn
+  public :: setReksTargetEnergy
 
   contains
 
@@ -124,47 +125,29 @@ module dftbp_reksen
     !> Energy terms in the system
     type(TEnergies), intent(inout) :: energy
 
-    integer :: ist, iL
+    integer :: ist
 
-    ! Compute the energy contributions of target SA-REKS state
-    ! energy = nonSCC + scc + spin + 3rd + fock
-    energy%EnonSCC = 0.0_dp
-    energy%Escc = 0.0_dp
-    energy%Espin = 0.0_dp
+    ! Compute the energy contributions for target SA-REKS state
+    ! electronic energy = nonSCC + scc + spin + 3rd + fock
+    energy%EnonSCC = sum(this%weightL(this%rstate,:)*this%enLnonSCC(:))
+    energy%Escc = sum(this%weightL(this%rstate,:)*this%enLscc(:))
+    energy%Espin = sum(this%weightL(this%rstate,:)*this%enLspin(:))
     if (this%t3rd) then
-      energy%e3rd = 0.0_dp
+      energy%e3rd = sum(this%weightL(this%rstate,:)*this%enL3rd(:))
     end if
     if (this%isRangeSep) then
-      energy%Efock = 0.0_dp
-    end if
-    do iL = 1, this%Lmax
-      energy%EnonSCC = energy%EnonSCC + this%weightL(this%rstate,iL) * this%enLnonSCC(iL)
-      energy%Escc = energy%Escc + this%weightL(this%rstate,iL) * this%enLSCC(iL)
-      energy%Espin = energy%Espin + this%weightL(this%rstate,iL) * this%enLspin(iL)
-      if (this%t3rd) then
-        energy%e3rd = energy%e3rd + this%weightL(this%rstate,iL) * this%enL3rd(iL)
-      end if
-      if (this%isRangeSep) then
-        energy%Efock = energy%Efock + this%weightL(this%rstate,iL) * this%enLfock(iL)
-      end if
-    end do
-    energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin
-    if (this%t3rd) then
-      energy%Eelec = energy%Eelec + energy%e3rd
-    end if
-    if (this%isRangeSep) then
-      energy%Eelec = energy%Eelec + energy%Efock
+      energy%Efock = sum(this%weightL(this%rstate,:)*this%enLfock(:))
     end if
 
-    ! Compute the energy of SA-REKS states
-    this%energy(:) = 0.0_dp
+    energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
+        & energy%e3rd + energy%Efock
+
+    ! Compute the total energy for SA-REKS states
     do ist = 1, this%nstates
-      do iL = 1, this%Lmax
-        this%energy(ist) = this%energy(ist) + this%weightL(ist,iL) * this%enLtot(iL)
-      end do
+      this%energy(ist) = sum(this%weightL(ist,:)*this%enLtot(:))
     end do
 
-    ! In this step Etotal is energy of averaged state, not individual states
+    ! In this step Etotal becomes the energy of averaged state, not individual states
     ! From this energy we can check the variational principle
     energy%Etotal = 0.0_dp
     do ist = 1, this%SAstates
@@ -393,6 +376,63 @@ module dftbp_reksen
     call printReksSSRInfo(this, Wab, tmpEn, StateCoup)
 
   end subroutine solveSecularEqn
+
+
+  !> Set correct final energy values for target state or microstate
+  subroutine setReksTargetEnergy(this, energy, cellVol, pressure, TS)
+
+    !> data type for REKS
+    type(TReksCalc), intent(in) :: this
+
+    !> Energy terms in the system
+    type(TEnergies), intent(inout) :: energy
+
+    !> Unit cell volume
+    real(dp), intent(in) :: cellVol
+
+    !> External pressure
+    real(dp), intent(in) :: pressure
+
+    !> Electron entropy times temperature
+    real(dp), intent(in) :: TS(:)
+
+    ! get correct energy values
+    if (this%Lstate == 0) then
+
+      ! get energy contributions for target state
+      energy%Etotal = this%energy(this%rstate)
+      if (this%nstates > 1) then
+        energy%Eexcited = this%energy(this%rstate) - this%energy(1)
+      else
+        energy%Eexcited = 0.0_dp
+      end if
+
+    else
+
+      ! get energy contributions for target microstate
+      energy%EnonSCC = this%enLnonSCC(this%Lstate)
+      energy%ESCC = this%enLSCC(this%Lstate)
+      energy%Espin = this%enLspin(this%Lstate)
+      if (this%t3rd) then
+        energy%e3rd = this%enL3rd(this%Lstate)
+      end if
+      if (this%isRangeSep) then
+        energy%Efock = this%enLfock(this%Lstate)
+      end if
+
+      energy%Eelec = energy%EnonSCC + energy%Escc + energy%Espin + &
+          & energy%e3rd + energy%Efock
+      energy%Etotal = this%enLtot(this%Lstate)
+      energy%Eexcited = 0.0_dp
+
+    end if
+
+    energy%EMermin = energy%Etotal - sum(TS)
+    energy%Ezero = energy%Etotal - 0.5_dp * sum(TS)
+    energy%EGibbs = energy%EMermin + cellVol * pressure
+    energy%EForceRelated = energy%EGibbs
+
+  end subroutine setReksTargetEnergy
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

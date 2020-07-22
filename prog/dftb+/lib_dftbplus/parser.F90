@@ -40,9 +40,11 @@ module dftbp_parser
   use dftbp_dftbplusu
   use dftbp_commontypes
   use dftbp_oldskdata
+  use dftbp_xmlutils, only : removeChildNodes
   use dftbp_xmlf90
   use dftbp_orbitals
   use dftbp_rangeseparated
+  use dftbp_timeprop
   use dftbp_forcetypes, only : forceTypes
   use dftbp_mixer, only : mixerTypes
   use dftbp_geoopt, only : geoOptTypes
@@ -58,6 +60,7 @@ module dftbp_parser
   use dftbp_tempprofile, only : identifyTempProfile
   use dftbp_reks
   use dftbp_plumed, only : withPlumed
+  use dftbp_arpack, only : withArpack
   use poisson_init
 #:if WITH_TRANSPORT
   use libnegf_vars
@@ -124,17 +127,34 @@ contains
     !> Special block containings parser related settings
     type(TParserFlags), intent(out) :: parserFlags
 
-    type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
+    type(fnode), pointer :: root, tmp, driverNode, hamNode, analysisNode, child, dummy
+    logical :: hasInputVersion
+    integer :: inputVersion
+    type(string) :: versionString
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
     write(stdout, "(A)") repeat("-", 80)
 
     call getChild(hsdTree, rootTag, root)
 
+    call getChild(root, "InputVersion", child, requested=.false.)
+    hasInputVersion = associated(child)
+    if (hasInputVersion) then
+      call getChildValue(child, "", versionString)
+      call getParserVersion(child, unquote(char(versionString)), inputVersion)
+      if (inputVersion /= parserVersion) then
+        call removeChildNodes(child)
+        call destroyNode(child)
+      end if
+    end if
     ! Handle parser options
     call getChildValue(root, "ParserOptions", dummy, "", child=child, list=.true.,&
         & allowEmptyValue=.true., dummyValue=.true.)
-    call readParserOptions(child, root, parserFlags)
+    if (hasInputVersion) then
+      call readParserOptions(child, root, parserFlags, inputVersion)
+    else
+      call readParserOptions(child, root, parserFlags)
+    end if
 
     call getChild(root, "Geometry", tmp)
     call readGeometry(tmp, input)
@@ -178,11 +198,11 @@ contains
 
   #:endif
 
-    call getChildValue(root, "Driver", tmp, "", child=child, allowEmptyValue=.true.)
+    call getChildValue(root, "Driver", driverNode, "", child=child, allowEmptyValue=.true.)
   #:if WITH_TRANSPORT
-    call readDriver(tmp, child, input%geom, input%ctrl, input%transpar)
+    call readDriver(driverNode, child, input%geom, input%ctrl, input%transpar)
   #:else
-    call readDriver(tmp, child, input%geom, input%ctrl)
+    call readDriver(driverNode, child, input%geom, input%ctrl)
   #:endif
 
     ! Analysis of properties
@@ -198,6 +218,12 @@ contains
     call readAnalysis(analysisNode, input%ctrl, input%geom, input%slako%orb)
   #:endif
 
+    call getChild(root, "ElectronDynamics", child=child, requested=.false.)
+    if (associated(child)) then
+       allocate(input%ctrl%elecDynInp)
+       call readElecDynamics(child, input%ctrl%elecDynInp, input%geom, input%ctrl%masses)
+    end if
+
     call getChildValue(root, "ExcitedState", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readExcited(child, input%geom, input%ctrl)
@@ -205,11 +231,14 @@ contains
     call getChildValue(root, "Reks", dummy, "None", child=child)
     call readReks(child, dummy, input%ctrl, input%geom)
 
+    ! Hamiltonian settings that need to know settings from the REKS block
+    call readLaterHamiltonian(hamNode, input%ctrl, driverNode, input%geom)
+
     call getChildValue(root, "Options", dummy, "", child=child, list=.true., &
         & allowEmptyValue=.true., dummyValue=.true.)
     call readOptions(child, input%ctrl)
 
-    ! W values if needed by Hamitonian or excited state calculation
+    ! W values if needed by Hamiltonian or excited state calculation
     call readSpinConstants(hamNode, input%geom, input%slako, input%ctrl)
 
     ! analysis settings that need to know settings from the options block
@@ -225,7 +254,7 @@ contains
 
 
   !> Read in parser options (options not passed to the main code)
-  subroutine readParserOptions(node, root, flags)
+  subroutine readParserOptions(node, root, flags, implicitVersion)
 
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -237,12 +266,23 @@ contains
     !> Contains parser flags on exit.
     type(TParserFlags), intent(out) :: flags
 
+    !> Parser version implied by version number
+    integer, intent(in), optional :: implicitVersion
+
     integer :: inputVersion
     type(fnode), pointer :: child
 
-    ! Check if input needs compatibility conversion.
-    call getChildValue(node, "ParserVersion", inputVersion, parserVersion, &
-        &child=child)
+    if (present(implicitVersion)) then
+      call getChild(node, "ParserVersion", child, requested=.false.)
+      if (associated(child)) then
+        call detailedError(child, "Cannot have both ParserVersion and InputVersion")
+      end if
+      inputVersion = implicitVersion
+    else
+      ! Check if input needs compatibility conversion.
+      call getChildValue(node, "ParserVersion", inputVersion, parserVersion, &
+          &child=child)
+    end if
     if (inputVersion < 1 .or. inputVersion > parserVersion) then
       call detailedError(child, "Invalid parser version (" // i2c(inputVersion)&
           &// ")")
@@ -670,9 +710,6 @@ contains
           end if
         end if
 
-        call getChildValue(value1, "AdaptFillingTemp", ctrl%tSetFillingTemp, &
-            &.false.)
-
       case ("nosehoover")
         ctrl%iThermostat = 3
         ! Read temperature or temperature profiles
@@ -708,9 +745,6 @@ contains
           ctrl%tInitNHC = .false.
         end if
 
-        call getChildValue(value1, "AdaptFillingTemp", ctrl%tSetFillingTemp, &
-            &.false.)
-
       case ("andersen")
         ctrl%iThermostat = 1
         ! Read temperature or temperature profiles
@@ -733,8 +767,6 @@ contains
               &"ReselectProbability must be in the range (0,1]!")
         end if
         call getChildValue(value1, "ReselectIndividually", ctrl%tRescale)
-        call getChildValue(value1, "AdaptFillingTemp", ctrl%tSetFillingTemp, &
-            &.false.)
 
       case ("none")
         ctrl%iThermostat = 0
@@ -746,15 +778,7 @@ contains
           ! need a temperature, so just set it to something 'safe'
           ctrl%tempAtom = minTemp
         else
-          call getChildValue(value1, "InitialTemperature", ctrl%tempAtom, &
-              &modifier=modifier, child=field)
-          if (ctrl%tempAtom < 0.0_dp) then
-            call detailedError(field, "Negative temperature")
-          end if
-          call convertByMul(char(modifier), energyUnits, field, ctrl%tempAtom)
-          if (ctrl%tempAtom < minTemp) then
-            ctrl%tempAtom = minTemp
-          end if
+          call readMDInitTemp(value1, ctrl%tempAtom, minTemp)
         end if
       case default
         call getNodeHSDName(value1, buffer2)
@@ -1144,12 +1168,6 @@ contains
   #:else
       call readDFTBHam(node, ctrl, geo, slako, poisson)
   #:endif
-    case ("xtb")
-  #:if WITH_TRANSPORT
-      call readXTBHam(node, ctrl, geo, tp, greendens, poisson)
-  #:else
-      call readXTBHam(node, ctrl, geo, poisson)
-  #:endif
     case default
       call detailedError(node, "Invalid Hamiltonian")
     end select
@@ -1428,11 +1446,6 @@ contains
             & ctrl%xi(:slako%orb%nShell(iSp1),iSp1))
       end do
     end if
-
-
-    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-    ! thermostat.)
-    call readFilling(node, ctrl, geo, 0.0_dp)
 
     ! Electronic solver
   #:if WITH_TRANSPORT
@@ -1749,10 +1762,6 @@ contains
     !  call getChildValue(node, "ReadShifts", ctrl%tReadShifts, .false.)
     !end if
     ctrl%tReadShifts = .false.
-
-    ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
-    ! thermostat.)
-    call readFilling(node, ctrl, geo, 300.0_dp)
 
     ! Electronic solver
   #:if WITH_TRANSPORT
@@ -2231,7 +2240,7 @@ contains
   end subroutine readExternal
 
 
-  !> Filling
+  !> Filling of electronic levels
   subroutine readFilling(node, ctrl, geo, temperatureDefault)
 
     !> Relevant node in input tree
@@ -2330,6 +2339,8 @@ contains
     type(fnode), pointer :: value1, child
     type(string) :: buffer, modifier
 
+    integer :: iTmp
+
     ! Electronic solver
     call getChildValue(node, "Solver", value1, "RelativelyRobust")
     call getNodeName(value1, buffer)
@@ -2372,7 +2383,33 @@ contains
       ctrl%solver%isolver = electronicSolverTypes%pexsi
       allocate(ctrl%solver%elsi)
       ctrl%solver%elsi%iSolver = ctrl%solver%isolver
-      call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, 20)
+    #:if ELSI_VERSION > 2.5
+      call getChildValue(value1, "Method", ctrl%solver%elsi%pexsiMethod, 3)
+    #:else
+      call getChildValue(value1, "Method", ctrl%solver%elsi%pexsiMethod, 2)
+    #:endif
+      select case(ctrl%solver%elsi%pexsiMethod)
+      case(1)
+        iTmp = 60
+      case(2)
+        iTmp = 20
+      case(3)
+        iTmp = 30
+      end select
+      call getChildValue(value1, "Poles", ctrl%solver%elsi%pexsiNPole, iTmp)
+      if (ctrl%solver%elsi%pexsiNPole < 10) then
+        call detailedError(value1, "Too few PEXSI poles")
+      end if
+      select case(ctrl%solver%elsi%pexsiMethod)
+      case(1)
+        if (mod(ctrl%solver%elsi%pexsiNPole,10) /= 0 .or. ctrl%solver%elsi%pexsiNPole > 120) then
+          call detailedError(value1, "Unsupported number of PEXSI poles for method 1")
+        end if
+      case(2,3)
+        if (mod(ctrl%solver%elsi%pexsiNPole,5) /= 0 .or. ctrl%solver%elsi%pexsiNPole > 40) then
+          call detailedError(value1, "Unsupported number of PEXSI poles for this method")
+        end if
+      end select
       call getChildValue(value1, "ProcsPerPole", ctrl%solver%elsi%pexsiNpPerPole, 1)
       call getChildValue(value1, "muPoints", ctrl%solver%elsi%pexsiNMu, 2)
       call getChildValue(value1, "SymbolicFactorProcs", ctrl%solver%elsi%pexsiNpSymbo, 1)
@@ -2442,10 +2479,6 @@ contains
             & then
           call getChildValue(value1, "Threshold", ctrl%solver%elsi%elsi_zero_def, 1.0E-15_dp)
         end if
-      end if
-      if (ctrl%t2Component .and. ctrl%solver%elsi%elsiCsr) then
-        call detailedError(value1,"Two-component hamiltonians currently cannot be used with sparse&
-            & ELSI solvers")
       end if
     end if
 
@@ -2817,57 +2850,6 @@ contains
     end if
 
     call getChildValue(node, "SCCTolerance", ctrl%sccTol, 1.0e-5_dp)
-
-    call getChildValue(node, "Mixer", value1, "Broyden", child=child)
-    call getNodeName(value1, buffer)
-    select case(char(buffer))
-
-    case ("broyden")
-
-      ctrl%iMixSwitch = mixerTypes%broyden
-      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
-      call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
-      call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
-      call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
-      call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
-
-    case ("anderson")
-      ctrl%iMixSwitch = mixerTypes%anderson
-      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-      call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
-      call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
-      call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
-          & allowEmptyValue=.true.)
-      call getNodeName2(value2, buffer2)
-      if (char(buffer2) == "") then
-        ctrl%andersonNrDynMix = 0
-      else
-        call init(lr1)
-        call getChildValue(child, "", 2, lr1, child=child2)
-        if (len(lr1) < 1) then
-          call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
-        end if
-        ctrl%andersonNrDynMix = len(lr1)
-        allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
-        call asArray(lr1, ctrl%andersonDynMixParams)
-        call destruct(lr1)
-      end if
-      call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
-
-    case ("simple")
-      ctrl%iMixSwitch = mixerTypes%simple
-      call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
-
-    case("diis")
-      ctrl%iMixSwitch = mixerTypes%diis
-      call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
-      call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
-      call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
-
-    case default
-      call getNodeHSDName(value1, buffer)
-      call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
-    end select
 
     ! temporararily removed until debugged
     !call getChildValue(node, "WriteShifts", ctrl%tWriteShifts, .false.)
@@ -4348,22 +4330,17 @@ contains
 
   #:if WITH_ARPACK
     type(string) :: modifier
-  #:endif
 
     ! Linear response stuff
     call getChild(node, "Casida", child, requested=.false.)
 
-  #:if not WITH_ARPACK
-
-    if (associated(child)) then
+    if (associated(child) .and. .not. withArpack) then
       call detailedError(child, 'This DFTB+ binary has been compiled without support for linear&
-          & response calculations (requires the ARPACK/ngARPACK library).')
+          & response calculations (requires the ARPACK/ngARPACK libraries).')
     end if
 
     ctrl%lrespini%tInit = .false.
     ctrl%lrespini%tPrintEigVecs = .false.
-
-  #:else
 
     if (associated(child)) then
 
@@ -4431,11 +4408,14 @@ contains
         call getChildValue(child, "TotalStateCoeffs", ctrl%lrespini%tGrndState, .false.)
       end if
       call getChildValue(child, "WriteEigenvectors", ctrl%lrespini%tPrintEigVecs, .false.)
+      call getChildValue(child, "WriteDensityMatrix", ctrl%lrespini%tWriteDensityMatrix, .false.)
       call getChildValue(child, "WriteXplusY", ctrl%lrespini%tXplusY, default=.false.)
       call getChildValue(child, "WriteSPTransitions", ctrl%lrespini%tSPTrans, default=.false.)
       call getChildValue(child, "WriteTransitions", ctrl%lrespini%tTrans, default=.false.)
       call getChildValue(child, "WriteTransitionDipole", ctrl%lrespini%tTradip, default=.false.)
-      call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
+      if (allocated(ctrl%rangeSepInp)) then
+        call getChildValue(child, "WriteTransitionCharges", ctrl%lrespini%tTransQ, default=.false.)
+      end if
       call getChildValue(child, "WriteStatusArnoldi", ctrl%lrespini%tArnoldi, default=.false.)
       call getChildValue(child, "TestArnoldi", ctrl%lrespini%tDiagnoseArnoldi, default=.false.)
 
@@ -4657,6 +4637,7 @@ contains
     endif
   #:endif
 
+
   end subroutine readAnalysis
 
   !> Read in settings that are influenced by those read from Options{} but belong in Analysis{}
@@ -4675,10 +4656,112 @@ contains
   end subroutine readLaterAnalysis
 
 
+  !> Read in hamiltonian settings that are influenced by those read from REKS{}
+  subroutine readLaterHamiltonian(hamNode, ctrl, driverNode, geo)
+
+    !> Hamiltonian node to parse
+    type(fnode), pointer :: hamNode
+
+    !> Control structure to fill
+    type(TControl), intent(inout) :: ctrl
+
+    !> Geometry driver node to parse
+    type(fnode), pointer :: driverNode
+
+    !> Geometry structure to be filled
+    type(TGeometry), intent(in) :: geo
+
+    type(fnode), pointer :: value1, value2, child, child2
+    type(string) :: buffer, buffer2
+    type(TListRealR1) :: lr1
+
+    if (ctrl%reksInp%reksAlg == reksTypes%noReks) then
+
+      if (ctrl%tSCC) then
+
+        call getChildValue(hamNode, "Mixer", value1, "Broyden", child=child)
+        call getNodeName(value1, buffer)
+        select case(char(buffer))
+
+        case ("broyden")
+
+          ctrl%iMixSwitch = mixerTypes%broyden
+          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.2_dp)
+          call getChildValue(value1, "InverseJacobiWeight", ctrl%broydenOmega0, 0.01_dp)
+          call getChildValue(value1, "MinimalWeight", ctrl%broydenMinWeight, 1.0_dp)
+          call getChildValue(value1, "MaximalWeight", ctrl%broydenMaxWeight, 1.0e5_dp)
+          call getChildValue(value1, "WeightFactor", ctrl%broydenWeightFac, 1.0e-2_dp)
+
+        case ("anderson")
+
+          ctrl%iMixSwitch = mixerTypes%anderson
+          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+          call getChildValue(value1, "Generations", ctrl%iGenerations, 4)
+          call getChildValue(value1, "InitMixingParameter", ctrl%andersonInitMixing, 0.01_dp)
+          call getChildValue(value1, "DynMixingParameters", value2, "", child=child,&
+              & allowEmptyValue=.true.)
+          call getNodeName2(value2, buffer2)
+          if (char(buffer2) == "") then
+            ctrl%andersonNrDynMix = 0
+          else
+            call init(lr1)
+            call getChildValue(child, "", 2, lr1, child=child2)
+            if (len(lr1) < 1) then
+              call detailedError(child2, "At least one dynamic mixing parameter must be defined.")
+            end if
+            ctrl%andersonNrDynMix = len(lr1)
+            allocate(ctrl%andersonDynMixParams(2, ctrl%andersonNrDynMix))
+            call asArray(lr1, ctrl%andersonDynMixParams)
+            call destruct(lr1)
+          end if
+          call getChildValue(value1, "DiagonalRescaling", ctrl%andersonOmega0, 1.0e-2_dp)
+
+        case ("simple")
+
+          ctrl%iMixSwitch = mixerTypes%simple
+          call getChildValue(value1, "MixingParameter", ctrl%almix, 0.05_dp)
+
+        case("diis")
+
+          ctrl%iMixSwitch = mixerTypes%diis
+          call getChildValue(value1, "InitMixingParameter", ctrl%almix, 0.2_dp)
+          call getChildValue(value1, "Generations", ctrl%iGenerations, 6)
+          call getChildValue(value1, "UseFromStart", ctrl%tFromStart, .true.)
+
+        case default
+
+          call getNodeHSDName(value1, buffer)
+          call detailedError(child, "Invalid mixer '" // char(buffer) // "'")
+
+        end select
+
+      end if
+
+      if (ctrl%tMD) then
+        if (ctrl%iThermostat /= 0) then
+          call getChildValue(driverNode, "Thermostat", child, child=child2)
+          call getChildValue(child, "AdaptFillingTemp", ctrl%tSetFillingTemp, .false.)
+        end if
+      end if
+
+      ! Filling (temperature only read, if AdaptFillingTemp was not set for the selected MD
+      ! thermostat.)
+      select case(ctrl%hamiltonian)
+      case(hamiltonianTypes%xtb)
+        call readFilling(hamNode, ctrl, geo, 300.0_dp*Boltzmann)
+      case(hamiltonianTypes%dftb)
+        call readFilling(hamNode, ctrl, geo, 0.0_dp)
+      end select
+
+    end if
+
+  end subroutine readLaterHamiltonian
+
+
   !> Reads W values if required by settings in the Hamiltonian or the excited state
   subroutine readSpinConstants(hamNode, geo, slako, ctrl)
 
-    !> node for Hamitonian data
+    !> node for Hamiltonian data
     type(fnode), pointer :: hamNode
 
     !> geometry of the system
@@ -4777,6 +4860,335 @@ contains
     end if
 
   end subroutine readCustomisedHubbards
+
+
+  !> Reads the electron dynamics block
+  subroutine readElecDynamics(node, input, geom, masses)
+
+    !> input data to parse
+    type(fnode), pointer :: node
+
+    !> ElecDynamicsInp instance
+    type(TElecDynamicsInp), intent(inout) :: input
+
+    !> geometry of the system
+    type(TGeometry), intent(in) :: geom
+
+    !> masses to be returned
+    real(dp), allocatable, intent(inout) :: masses(:)
+
+    integer :: ii
+    type(fnode), pointer :: value1, value2, child, child2
+    type(string) :: buffer, buffer2, modifier
+    logical :: ppRangeInvalid, tNeedFieldStrength
+    real (dp) :: defPpRange(2)
+    type(fnodeList), pointer :: children
+    logical :: defaultWrite
+
+  #:if WITH_MPI
+    if (associated(node)) then
+      call detailedError(node, 'This DFTB+ binary has been compiled with MPI settings and &
+          & electron dynamics are not currently available for distributed parallel calculations.')
+    end if
+  #:endif
+
+    call getChildValue(node, "Steps", input%steps)
+    call getChildValue(node, "TimeStep", input%dt, modifier=modifier, child=child)
+    call convertByMul(char(modifier), timeUnits, child, input%dt)
+
+    call getChildValue(node, "Populations", input%tPopulations, .false.)
+    call getChildValue(node, "WriteFrequency", input%writeFreq, 50)
+    call getChildValue(node, "Restart", input%tReadRestart, .false.)
+    if (input%tReadRestart) then
+      call getChildValue(node, "RestartFromAscii", input%tReadRestartAscii, .false.)
+    end if
+    call getChildValue(node, "WriteRestart", input%tWriteRestart, .true.)
+    if (input%tWriteRestart) then
+      call getChildValue(node, "WriteAsciiRestart", input%tWriteRestartAscii, .false.)
+    end if
+    call getChildValue(node, "RestartFrequency", input%restartFreq, max(input%Steps / 10, 1))
+    call getChildValue(node, "Forces", input%tForces, .false.)
+    call getChildValue(node, "WriteBondEnergy", input%tBondE, .false.)
+    call getChildValue(node, "WriteBondPopulation", input%tBondP, .false.)
+    call getChildValue(node, "Pump", input%tPump, .false.)
+    call getChildValue(node, "FillingsFromFile", input%tFillingsFromFile, .false.)
+
+    if (input%tPump) then
+      call getChildValue(node, "PumpProbeFrames", input%tdPPFrames)
+      defPpRange = [0.0_dp, input%steps * input%dt]
+      call getChildValue(node, "PumpProbeRange", input%tdPpRange, defPprange, modifier=modifier,&
+          & child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%tdPpRange)
+
+      ppRangeInvalid = (input%tdPpRange(2) <= input%tdPpRange(1))&
+          & .or. (input%tdPprange(1) < defPpRange(1))&
+          & .or. (input%tdPpRange(2) > defPpRange(2))
+      if (ppRangeInvalid) then
+        call detailederror(child, "Wrong definition of PumpProbeRange, either incorrect order&
+            & or outside of simulation time range")
+      end if
+    end if
+
+    call getChildValue(node, "Probe", input%tProbe, .false.)
+    if (input%tPump .and. input%tProbe) then
+      call detailedError(child, "Pump and probe cannot be simultaneously true.")
+    end if
+
+    call getChildValue(node, "EulerFrequency", input%eulerFreq, 0)
+    if ((input%eulerFreq < 50) .and. (input%eulerFreq > 0)) then
+      call detailedError(child, "Wrong number of Euler steps, should be above 50")
+    end if
+    if (input%eulerFreq >= 50) then
+      input%tEulers = .true.
+    else
+      input%tEulers = .false.
+    end if
+
+    ! assume this is required (needed for most perturbations, but not none)
+    tNeedFieldStrength = .true.
+
+    defaultWrite = .true.
+
+    !! Different perturbation types
+    call getChildValue(node, "Perturbation", value1, "None", child=child)
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+
+    case ("kick")
+      input%pertType = pertTypes%kick
+      call getChildValue(value1, "PolarizationDirection", buffer2)
+      input%polDir = directionConversion(unquote(char(buffer2)), value1)
+
+      call getChildValue(value1, "SpinType", buffer2, "Singlet")
+      select case(unquote(char(buffer2)))
+      case ("singlet", "Singlet")
+        input%spType = tdSpinTypes%singlet
+      case ("triplet", "Triplet")
+        input%spType = tdSpinTypes%triplet
+      case default
+        call detailedError(value1, "Unknown spectrum spin type " // char(buffer2))
+      end select
+
+      defaultWrite = .false.
+
+    case ("laser")
+      input%pertType = pertTypes%laser
+      call getChildValue(value1, "PolarizationDirection", input%reFieldPolVec)
+      call getChildValue(value1, "ImagPolarizationDirection", input%imFieldPolVec, &
+          & [0.0_dp, 0.0_dp, 0.0_dp])
+      call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
+      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
+          & input%indExcitedAtom)
+
+      input%nExcitedAtom = size(input%indExcitedAtom)
+      if (input%nExcitedAtom == 0) then
+        call error("No atoms specified for laser excitation.")
+      end if
+
+      defaultWrite = .true.
+
+    case ("kickandlaser")
+      input%pertType = pertTypes%kickAndLaser
+      call getChildValue(value1, "KickPolDir", buffer2)
+      input%polDir = directionConversion(unquote(char(buffer2)), value1)
+      call getChildValue(value1, "SpinType", input%spType, tdSpinTypes%singlet)
+      call getChildValue(value1, "LaserPolDir", input%reFieldPolVec)
+      call getChildValue(value1, "LaserImagPolDir", input%imFieldPolVec, [0.0_dp, 0.0_dp, 0.0_dp])
+      call getChildValue(value1, "LaserEnergy", input%omega, modifier=modifier, child=child)
+      call convertByMul(char(modifier), energyUnits, child, input%omega)
+      call getChildValue(value1, "Phase", input%phase, 0.0_dp)
+      call getChildValue(value1, "LaserStrength", input%tdLaserField, modifier=modifier,&
+          & child=child)
+      call convertByMul(char(modifier), EFieldUnits, child, input%tdLaserField)
+
+      call getChildValue(value1, "ExcitedAtoms", buffer, "1:-1", child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
+          & input%indExcitedAtom)
+      input%nExcitedAtom = size(input%indExcitedAtom)
+      if (input%nExcitedAtom == 0) then
+        call error("No atoms specified for laser excitation.")
+      end if
+
+      defaultWrite = .false.
+
+    case ("none")
+      input%pertType = pertTypes%noTDPert
+      tNeedFieldStrength = .false.
+
+      defaultWrite = .true.
+
+    case default
+      call detailedError(child, "Unknown perturbation type " // char(buffer))
+    end select
+
+    if (tNeedFieldStrength) then
+      call getChildValue(node, "FieldStrength", input%tdfield, modifier=modifier, child=child)
+      call convertByMul(char(modifier), EFieldUnits, child, input%tdfield)
+    end if
+
+    call getChildValue(node, "WriteEnergyAndCharges", input%tdWriteExtras, defaultWrite)
+
+    !! Different envelope functions
+    call getChildValue(node, "EnvelopeShape", value1, "Constant")
+    call getNodeName(value1, buffer)
+    select case(char(buffer))
+
+    case("constant")
+      input%envType = envTypes%constant
+
+    case("gaussian")
+      input%envType = envTypes%gaussian
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
+
+      call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time1)
+
+    case("sin2")
+      input%envType = envTypes%sin2
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
+
+      call getChildValue(value1, "Time1", input%time1, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time1)
+
+    case("fromfile")
+      input%envType = envTypes%fromFile
+      call getChildValue(value1, "Time0", input%time0, 0.0_dp, modifier=modifier, child=child)
+      call convertByMul(char(modifier), timeUnits, child, input%Time0)
+
+    case default
+      call detailedError(value1, "Unknown envelope shape " // char(buffer))
+    end select
+
+    !! Non-adiabatic molecular dynamics
+    call getChildValue(node, "IonDynamics", input%tIons, .false.)
+    if (input%tIons) then
+      call getChildValue(node, "MovedAtoms", buffer, "1:-1", child=child, multiple=.true.)
+      call convAtomRangeToInt(char(buffer), geom%speciesNames, geom%species, child,&
+          & input%indMovedAtom)
+
+      input%nMovedAtom = size(input%indMovedAtom)
+      call readInitialVelocitiesNAMD(node, input, geom%nAtom)
+      if (input%tReadMDVelocities) then
+        ! without a thermostat, if we know the initial velocities, we do not need a temperature, so
+        ! just set it to something 'safe'
+        input%tempAtom = minTemp
+      else
+        if (.not. input%tReadRestart) then
+          ! previously lower limit was minTemp:
+          call readMDInitTemp(node, input%tempAtom, 0.0_dp)
+        end if
+        call getInputMasses(node, geom, masses)
+      end if
+    end if
+
+  end subroutine readElecDynamics
+
+
+  !> Read in initial ion temperature for simple MD
+  subroutine readMDInitTemp(node, tempAtom, minimumTemp)
+
+    !> input data to parse
+    type(fnode), pointer :: node
+
+    !> Ionic temperature
+    real(dp), intent(out) :: tempAtom
+
+    !> Lowest possible ion temperature
+    real(dp), intent(in) :: minimumTemp
+
+    type(fnode), pointer :: child
+    type(string) :: modifier
+
+    call getChildValue(node, "InitialTemperature", tempAtom, modifier=modifier, child=child)
+    if (tempAtom < 0.0_dp) then
+      call detailedError(node, "Negative temperature")
+    end if
+    call convertByMul(char(modifier), energyUnits, node, tempAtom)
+    tempAtom = max(tempAtom, minimumTemp)
+
+  end subroutine readMDInitTemp
+
+
+  !> Converts direction label text string into corresponding numerical value
+  function directionConversion(direction, node) result(iX)
+
+    !> Direction label
+    character(*), intent(in) :: direction
+
+    !> input tree for error return
+    type(fnode), pointer :: node
+
+    !> direction indicator (1 - 4) for (x,y,z,all)
+    integer :: iX
+
+    select case(trim(direction))
+    case ("x", "X")
+      iX = 1
+    case ("y", "Y")
+      iX = 2
+    case ("z", "Z")
+      iX = 3
+    case ("all", "All", "ALL")
+      iX = 4
+    case default
+      call detailedError(node, "Wrongly specified polarization direction " // trim(direction)&
+          & // ". Must be x, y, z or all.")
+    end select
+
+  end function directionConversion
+
+
+  !> Reads MD velocities
+  subroutine readInitialVelocitiesNAMD(node, input, nAtom)
+
+    !> Node to get the information from
+    type(fnode), pointer :: node
+
+    !> ElecDynamicsInp object structure to be filled
+    type(TElecDynamicsInp), intent(inout) :: input
+
+    !> Total number of all atoms
+    integer, intent(in) :: nAtom
+
+    type(fnode), pointer :: value1, child
+    type(string) :: buffer, modifier
+    type(TListRealR1) :: realBuffer
+    integer :: nVelocities
+    real(dp), pointer :: tmpVelocities(:,:)
+
+    call getChildValue(node, "Velocities", value1, "", child=child, &
+         & modifier=modifier, allowEmptyValue=.true.)
+    call getNodeName2(value1, buffer)
+    if (char(buffer) == "") then
+       input%tReadMDVelocities = .false.
+    else
+       call init(realBuffer)
+       call getChildValue(child, "", 3, realBuffer, modifier=modifier)
+       nVelocities = len(realBuffer)
+       if (nVelocities /= nAtom) then
+          call detailedError(node, "Incorrect number of specified velocities: " &
+               & // i2c(3*nVelocities) // " supplied, " &
+               & // i2c(3*nAtom) // " required.")
+       end if
+       allocate(tmpVelocities(3, nVelocities))
+       call asArray(realBuffer, tmpVelocities)
+       if (len(modifier) > 0) then
+          call convertByMul(char(modifier), VelocityUnits, child, &
+               & tmpVelocities)
+       end if
+       call destruct(realBuffer)
+       allocate(input%initialVelocities(3, input%nMovedAtom))
+       input%initialVelocities(:,:) = tmpVelocities(:, input%indMovedAtom(:))
+       input%tReadMDVelocities = .true.
+    end if
+
+  end subroutine readInitialVelocitiesNAMD
+
 
 #:if WITH_TRANSPORT
   !> Read geometry information for transport calculation
@@ -6822,5 +7234,26 @@ contains
 
   end subroutine readSpinTuning
 
+
+  subroutine getParserVersion(node, versionString, parserVersion)
+    type(fnode), pointer :: node
+    character(len=*), intent(in) :: versionString
+    integer, intent(out) :: parserVersion
+
+    select case(trim(versionString))
+    case("20.1")
+      parserVersion = 8
+    case("19.1")
+      parserVersion = 7
+    case("18.2")
+      parserVersion = 6
+    case("17.1", "18.1")
+      parserVersion = 5
+    case default
+      call detailedError(node, "Program version '"//trim(versionString)// &
+        & "' is not recognized")
+    end select
+
+  end subroutine getParserVersion
 
 end module dftbp_parser

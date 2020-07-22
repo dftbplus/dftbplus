@@ -69,7 +69,8 @@ module dftbp_energies
     !> total energy (Erep+Etotal)
     real(dp) :: Etotal  = 0.0_dp
 
-    !> Total Mermin energy
+    !> Total Mermin energy (note that this may be evaluated even when the TS term cannot be set, so
+    !> contains the same as Etotal in those cases)
     real(dp) :: EMermin = 0.0_dp
 
     !> Zero temperature extrapolated energy

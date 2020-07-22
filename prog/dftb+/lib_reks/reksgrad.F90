@@ -2676,19 +2676,19 @@ module dftbp_reksgrad
     if (tPeriodic) then
       if (tBlur) then
         call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
-            & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces, &
+            & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces, tHamDeriv=.false., &
             & blurWidths1=blurWidths)
       else
         call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
-            & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces)
+            & pcCharges, rVec, gVec, alpha, vol, deriv, chrgForces, tHamDeriv=.false.)
       end if
     else
       if (tBlur) then
         call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
-            & pcCharges, deriv, chrgForces, blurWidths1=blurWidths)
+            & pcCharges, deriv, chrgForces, tHamDeriv=.false., blurWidths1=blurWidths)
       else
         call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, qmCharges, &
-            & pcCharges, deriv, chrgForces)
+            & pcCharges, deriv, chrgForces, tHamDeriv=.false.)
       end if
     end if
 
@@ -3267,7 +3267,7 @@ module dftbp_reksgrad
       ! check singularity for preconditioner
       if (abs(A1ePre(ij,ij)) <= epsilon(1.0_dp)) then
         write(stdOut,'(A,f15.8)') " Current preconditioner value = ", A1ePre(ij,ij)
-        call error("A singularity exists in preconditioner for PCG, set GradientLevel = 2")
+        call error("A singularity exists in preconditioner for PCG, set Preconditioner = No")
       end if
 
       ! preconditioner part for CG
@@ -5553,26 +5553,33 @@ module dftbp_reksgrad
         !> Q_{pc} * (-1/R**2) between QM and PC
         real(dp), intent(out) :: QinvRderiv(:,:)
 
+        real(dp), allocatable :: tmpCharges(:)
+        real(dp), allocatable :: tmpDeriv(:,:)
         integer :: nAtom, nAtomPc
 
         nAtom = size(qmCoords,dim=2)
         nAtomPc = size(pcCoords,dim=2)
 
+        allocate(tmpCharges(nAtom))
+        allocate(tmpDeriv(3, nAtomPc))
+
+        QinvRderiv(:,:) = 0.0_dp
         if (tPeriodic) then
           if (tBlur) then
-            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, pcCharges, &
-                & rVec, gVec, alpha, vol, QinvRderiv, blurWidths1=blurWidths)
+            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, pcCharges, &
+                & rVec, gVec, alpha, vol, QinvRderiv, tmpDeriv, tHamDeriv=.true., &
+                & blurWidths1=blurWidths)
           else
-            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, pcCharges, &
-                & rVec, gVec, alpha, vol, QinvRderiv)
+            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, pcCharges, &
+                & rVec, gVec, alpha, vol, QinvRderiv, tmpDeriv, tHamDeriv=.true.)
           end if
         else
           if (tBlur) then
-            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, &
-                & pcCharges, QinvRderiv, blurWidths1=blurWidths)
+            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, &
+                & pcCharges, QinvRderiv, tmpDeriv, tHamDeriv=.true., blurWidths1=blurWidths)
           else
-            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, &
-                & pcCharges, QinvRderiv)
+            call addInvRPrime(env, nAtom, nAtomPc, qmCoords, pcCoords, tmpCharges, &
+                & pcCharges, QinvRderiv, tmpDeriv, tHamDeriv=.true.)
           end if
         end if
 
