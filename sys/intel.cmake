@@ -66,7 +66,7 @@ set(ARPACK_LIBRARY_DIRS "" CACHE STRING "Directories where Arpack library can be
 # ScaLAPACK -- only needed for MPI-parallel build
 set(SCALAPACK_LIBRARIES "mkl_scalapack_lp64;mkl_blacs_intelmpi_lp64" CACHE STRING
   "Scalapack libraries to link")
-set(SCALAPACK_LIBRARY_DIRS "" CACHE STRING
+set(SCALAPACK_LIBRARY_DIRS "$ENV{MKLROOT}/lib/intel64" CACHE STRING
   "Directories where Scalapack libraries can be found")
 
 # ELSI -- only needed when compiled with ELSI support

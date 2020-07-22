@@ -90,8 +90,8 @@ PLUMED 2.5 libraries.
 Notes:
 
 [1] The timedep/C60_OscWindow test fails with recent versions (>= 0.3.8) of the
-OpenBlas library. If possible, use older versions or link against the MKL
-library instead.
+OpenBlas library. If possible, use an older version or link against either MKL
+or an another BLAS/LAPACK library instead.
 
 [2] Only serial version tested.
 
