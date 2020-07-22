@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -32,9 +32,17 @@ program test_fileinit
   type(TDftbPlusInput) :: input
 
   real(dp) :: merminEnergy
-  real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2), grossCharges(2)
+  real(dp) :: coords(3, 2), latVecs(3, 3), gradients(3, 2), grossCharges(2), stressTensor(3, 3)
 
   integer :: devNull
+
+  character(:), allocatable :: DftbVersion
+  integer :: major, minor, patch
+
+  call getDftbPlusBuild(DftbVersion)
+  write(*,*)'DFTB+ build: ' // "'" // trim(DftbVersion) // "'"
+  call getDftbPlusApi(major, minor, patch)
+  write(*,"(1X,A,1X,I0,'.',I0,'.',I0)")'API version:', major, minor, patch
 
   ! Note: setting the global standard output to /dev/null to suppress output and run-time error
   ! messages
@@ -74,6 +82,7 @@ program test_fileinit
   call dftbp%getEnergy(merminEnergy)
   call dftbp%getGradients(gradients)
   call dftbp%getGrossCharges(grossCharges)
+  call dftbp%getStressTensor(stressTensor)
   print "(A,F15.10)", 'Obtained Mermin Energy:', merminEnergy
   print "(A,3F15.10)", 'Obtained gradient of atom 1:', gradients(:,1)
   print "(A,2F15.10)", 'Obtained charges:', grossCharges
@@ -82,6 +91,7 @@ program test_fileinit
   call TDftbPlus_destruct(dftbp)
 
   ! Write file for internal test system
-  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges)
+  call writeAutotestTag(merminEnergy=merminEnergy, gradients=gradients, grossCharges=grossCharges,&
+      & stressTensor = stressTensor)
 
 end program test_fileinit

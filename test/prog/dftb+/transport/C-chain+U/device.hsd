@@ -1,0 +1,77 @@
+Geometry = GenFormat {
+    <<< Ordered_geo.gen
+}
+
+Transport {
+    Device {
+        AtomRange = 1 8
+        FirstLayerAtoms = 1 5
+    }
+    Contact {
+        <<+ "Contact.source"
+    }
+    Contact {
+        <<+ "Contact.drain"
+    }
+}
+
+Hamiltonian = DFTB {
+    Scc = Yes
+    MaxAngularMomentum {
+        C = p
+    }
+    Filling = Fermi {
+        Temperature [K] = 100
+    }
+    KPointsAndWeights = SupercellFolding {
+        1 0 0
+        0 1 0
+        0 0 1
+        0.0 0.0 0.0
+    }
+    SlaterKosterFiles {
+        C-C = "C-C.skf"
+    }
+    OrbitalPotential = {
+      Functional = {pSIC}
+      C = {
+        Shells = {1 2} # sp block on the C
+        UJ = 0.178371875 # dummy value 
+      }
+    }
+    # Generally a bad idea, but used to reduce required atoms in
+    # principle layers:
+    TruncateSKRange = {
+        SKMaxDistance [AA] = 5.0
+    }
+    Eigensolver = GreensFunction {
+        RealAxisPoints = 1000
+        EnclosedPoles = 100
+    }
+    Electrostatics = Poisson {
+      MinimalGrid [Angstrom] = 0.3 0.3 0.3
+    }
+}
+
+Analysis = {
+    AtomResolvedEnergies = Yes
+    CalculateForces = Yes
+    TunnelingAndDos{
+      EnergyRange [eV] = -10.0 -5.0
+      EnergyStep [eV] = 0.02
+    }
+}
+
+Options = {
+    WriteAutotestTag = Yes
+}
+
+ParserOptions {
+    ParserVersion = 6
+}
+
+Parallel {
+    # Allow OMP threads explicitely to test for hybrid parallelisation with
+    # MPI-binary. (Check the manual before using this in production runs!)
+    UseOmpThreads = Yes
+}

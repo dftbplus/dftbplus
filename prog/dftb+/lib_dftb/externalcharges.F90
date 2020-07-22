@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -86,6 +86,9 @@ module dftbp_externalcharges
 
     !> Returns the electrostatic potential on a grid
     generic, public :: getElStatPotential => getElStatPotentialCluster, getElStatPotentialPeriodic
+
+    !> Copy Q * inverse R contribution for the point charges
+    procedure, public :: copyInvRvec
     
   end type TExtCharge
 
@@ -321,10 +324,10 @@ contains
 
     if (this%tBlur) then
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, atomForces, chrgForces, blurWidths1=this%blurWidths)
+          & this%charges, atomForces, chrgForces, tHamDeriv=.false., blurWidths1=this%blurWidths)
     else
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, atomForces, chrgForces)
+          & this%charges, atomForces, chrgForces, tHamDeriv=.false.)
     end if
 
   end subroutine addForceDcCluster
@@ -372,11 +375,11 @@ contains
 
     if (this%tBlur) then
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces,&
+          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces, tHamDeriv=.false.,&
           & blurWidths1=this%blurWidths)
     else
       call addInvRPrime(env, this%nAtom, this%nChrg, atomCoords, this%coords, atomCharges,&
-          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces)
+          & this%charges, rCellVec, gVec, alpha, vol, atomForces, chrgForces, tHamDeriv=.false.)
     end if
 
   end subroutine addForceDcPeriodic
@@ -461,4 +464,18 @@ contains
   end subroutine getElStatPotentialCluster
 
 
+  !> Copy Q * inverse R contribution for the point charges
+  subroutine copyInvRvec(this, qInvR)
+
+    !> Instance of SCC calculation
+    class(TExtCharge), intent(in) :: this
+
+    !> (Q * invR) contribution
+    real(dp), intent(out) :: qInvR(:)
+
+    qInvR(:) = this%invRVec
+
+  end subroutine copyInvRvec
+
+  
 end module dftbp_externalcharges

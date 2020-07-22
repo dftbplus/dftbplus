@@ -1,9 +1,9 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 from distutils.core import setup
 
 setup(
     name="dptools",
-    version='19.1',
+    version='20.1',
     description="Tools to process DFTB+ related data",
     author="DFTB+ developers",
     url="http://www.dftbplus.org",
@@ -24,7 +24,7 @@ setup(
         "Programming Language :: Python",
         "Environment :: Console",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: LGPL License",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering",
     ],

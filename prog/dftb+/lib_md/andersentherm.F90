@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,28 +18,29 @@ module dftbp_andersentherm
   use dftbp_mdcommon
   use dftbp_ranlux
   use dftbp_tempprofile
+  use dftbp_message
   implicit none
   private
 
-  public :: OAndersenThermostat
+  public :: TAndersenThermostat
   public :: init, getInitVelocities, updateVelocities, state
 
 
   !> Data for the Andersen thermostat
-  type OAndersenThermostat
+  type TAndersenThermostat
     private
 
     !> Nr. of atoms
     integer :: nAtom
 
     !> Random number generator
-    type(ORanlux), allocatable :: pRanlux
+    type(TRanlux), allocatable :: pRanlux
 
     !> Mass of the atoms
     real(dp), allocatable :: mass(:)
 
     !> Temperature generator
-    type(OTempProfile), pointer :: pTempProfile
+    type(TTempProfile), pointer :: pTempProfile
 
     !> Rescale velocities individually?
     logical :: tRescaleIndiv
@@ -48,8 +49,9 @@ module dftbp_andersentherm
     real(dp) :: wvScale
 
     !> MD framework
-    type(OMDCommon) :: pMDFramework
-  end type OAndersenThermostat
+    type(TMDCommon) :: pMDFramework
+
+  end type TAndersenThermostat
 
 
   !> Initialise thermostat object
@@ -83,16 +85,16 @@ contains
       &rescaleIndiv, wvScale, pMDFramework)
 
     !> Initialised instance on exit.
-    type(OAndersenThermostat), intent(out) :: self
+    type(TAndersenThermostat), intent(out) :: self
 
     !> Random generator
-    type(ORanlux), allocatable, intent(inout) :: pRanlux
+    type(TRanlux), allocatable, intent(inout) :: pRanlux
 
     !> Masses of the atoms.
     real(dp), intent(in) :: masses(:)
 
     !> Pointer to a temperature profile object.
-    type(OTempProfile), pointer, intent(in) :: tempProfile
+    type(TTempProfile), pointer, intent(in) :: tempProfile
 
     !> If velocities should be rescaled per atom
     logical, intent(in) :: rescaleIndiv
@@ -101,7 +103,7 @@ contains
     real(dp), intent(in) :: wvScale
 
     !> Molecular dynamics general specifications
-    type(OMDCommon), intent(in) :: pMDFramework
+    type(TMDCommon), intent(in) :: pMDFramework
 
     call move_alloc(pRanlux, self%pRanlux)
     self%nAtom = size(masses)
@@ -119,7 +121,7 @@ contains
   subroutine AndersenThermostat_getInitVelos(self, velocities)
 
     !> AndersenThermostat instance.
-    type(OAndersenThermostat), intent(inout) :: self
+    type(TAndersenThermostat), intent(inout) :: self
 
     !> Contains the velocities on return.
     real(dp), intent(out) :: velocities(:,:)
@@ -129,7 +131,10 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kT)
+    call self%pTempProfile%getTemperature(kT)
+    if (kT < minTemp) then
+      call error("Andersen thermostat not supported at zero temperature")
+    end if
     do ii = 1, self%nAtom
       call MaxwellBoltzmann(velocities(:,ii), self%mass(ii), kT, self%pRanlux)
     end do
@@ -143,7 +148,7 @@ contains
   subroutine AndersenThermostat_updateVelos(self, velocities)
 
     !> AndersenThermostat instance.
-    type(OAndersenThermostat), intent(inout) :: self
+    type(TAndersenThermostat), intent(inout) :: self
 
     !> Updated velocities on exit.
     real(dp), intent(inout) :: velocities(:,:)
@@ -154,7 +159,7 @@ contains
 
     @:ASSERT(all(shape(velocities) <= (/ 3, self%nAtom /)))
 
-    call getTemperature(self%pTempProfile, kT)
+    call self%pTempProfile%getTemperature(kT)
     if (self%tRescaleIndiv) then
       do ii = 1, self%nAtom
         call getRandom(self%pRanlux, rescaleChance)
@@ -184,7 +189,7 @@ contains
   subroutine AndersenThermostat_state(self, fd)
 
     !> instance of thermostat
-    type(OAndersenThermostat), intent(in) :: self
+    type(TAndersenThermostat), intent(in) :: self
 
     !> filehandle to write out to
     integer,intent(in) :: fd

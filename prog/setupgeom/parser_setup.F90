@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -14,7 +14,7 @@ module dftbp_parsersetup
   use dftbp_accuracy
   use dftbp_constants
   use dftbp_typegeometryhsd
-  use dftbp_hsdparser, only : dumpHSD, dumpHSDAsXML, getNodeHSDName
+  use dftbp_hsdparser, only : parseHSD, dumpHSD, getNodeHSDName
   use dftbp_hsdutils
   use dftbp_hsdutils2
   use dftbp_charmanip
@@ -96,34 +96,22 @@ contains
   subroutine parseHsdInput(input)
 
     !> Returns initialised input variables on exit
-    type(inputData), intent(out) :: input
+    type(TInputData), intent(out) :: input
 
     type(fnode), pointer :: hsdTree
-    type(fnode), pointer :: root, tmp, hamNode, analysisNode, child, dummy
+    type(fnode), pointer :: root, tmp, child, dummy
     type(TParserflags) :: parserFlags
     logical :: tHSD, missing
 
     write(stdOut, "(/, A, /)") "***  Parsing and initializing"
 
     ! Read in the input
-    call readHSDOrXML(hsdInputName, xmlInputName, rootTag, hsdTree, tHSD, &
-        &missing)
-
-    !! If input is missing return
-    if (missing) then
-      call error("No input file found.")
-    end if
+    call parseHSD(rootTag, hsdInputName, hsdTree)
+    call getChild(hsdTree, rootTag, root)
 
     write(stdout, '(A,1X,I0,/)') 'Parser version:', parserVersion
-    if (tHSD) then
-      write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
-    else
-      write(stdout, "(A)") "Interpreting input file '" // xmlInputName //  "'"
-    end if
+    write(stdout, "(A)") "Interpreting input file '" // hsdInputName // "'"
     write(stdout, "(A)") repeat("-", 80)
-
-    ! Get the root of all evil ;-)
-    call getChild(hsdTree, rootTag, root)
 
     ! Handle parser options
     call getChildValue(root, "ParserOptions", dummy, "", child=child, &
@@ -159,11 +147,6 @@ contains
       call dumpHSD(hsdTree, hsdProcInputName)
       write(stdout, '(/,/,A)') "Processed input in HSD format written to '" &
           &// hsdProcInputName // "'"
-    end if
-    if (tIoProc .and. parserFlags%tWriteXML) then
-      call dumpHSDAsXML(hsdTree, xmlProcInputName)
-      write(stdout, '(A,/)') "Processed input in XML format written to '" &
-          &// xmlProcInputName // "'"
     end if
 
     ! Stop, if only parsing is required
@@ -236,7 +219,7 @@ contains
     type(fnode), pointer :: node
 
     !> Input structure to be filled
-    type(inputData), intent(inout) :: input
+    type(TInputData), intent(inout) :: input
 
     type(fnode), pointer :: value1, child
     type(string) :: buffer
@@ -266,14 +249,11 @@ contains
     !> Parameters of the transport calculation
     type(TTransPar), intent(inout) :: transpar
 
-    type(fnode), pointer :: pGeom, pDevice, pNode, pTask, pTaskType
-    type(string) :: buffer, modif
-    type(fnode), pointer :: pTmp, field
+    type(fnode), pointer :: pDevice, pTask, pTaskType
+    type(string) :: buffer
     type(fnodeList), pointer :: pNodeList
-    integer :: ii, contact
-    real(dp) :: acc, contactRange(2), lateralContactSeparation, skCutoff
-    type(listInt) :: li
-    type(WrappedInt1), allocatable :: iAtInRegion(:)
+    real(dp) :: skCutoff
+    type(TWrappedInt1), allocatable :: iAtInRegion(:)
     integer, allocatable :: nPLs(:)
     logical :: printDebug
 
@@ -326,15 +306,14 @@ contains
     type(ContactInfo), allocatable, dimension(:), intent(inout) :: contacts
     type(TGeometry), intent(in) :: geom
     character(*), intent(in) :: task
-    type(WrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
+    type(TWrappedInt1), allocatable, intent(out) :: iAtInRegion(:)
     integer, intent(out), allocatable :: nPLs(:)
 
     real(dp) :: contactLayerTol, vec(3)
-    integer :: ii, jj
-    type(fnode), pointer :: field, pNode, pTmp, pWide
+    integer :: ii
+    type(fnode), pointer :: field, pNode, pTmp
     type(string) :: buffer, modif
-    type(listReal) :: fermiBuffer, vecBuffer
-    integer, allocatable :: tmpI1(:)
+    type(TListReal) :: vecBuffer
 
     allocate(iAtInRegion(size(contacts)+1))
     allocate(nPLs(size(contacts)))
@@ -404,49 +383,9 @@ contains
         end if
       end function string_to_int
 
-      function char_to_int(chr) result(ind)
-        character(*), intent(in) :: chr
-        integer :: ind
-        if (trim(chr) .eq. "") then
-          ind = 0
-          return
-        end if
-        if (verify(chr,"+-0123456789") .ne. 0) then
-          call error("Modifier in Atoms should be an integer number")   
-        end if  
-        read(chr,*) ind
-      end function char_to_int
-
   end subroutine readContacts
 
-  subroutine getTranslation(pNode, translVec)
-    type(fnode), pointer :: pNode
-    real(dp), intent(inout), allocatable :: translVec(:)    
-    
-    type(fnode), pointer :: pVal, pChild
-    type(listReal) :: vecBuffer
-    type(string) :: modif, buffer
 
-    allocate(translVec(3))
-
-    call getChildValue(pNode, "Translation", pVal, "", child=pChild, &
-        & modifier=modif, allowEmptyValue=.true.)
-    call getNodeName2(pVal, buffer)
-    if (char(buffer)=="") then
-      translVec = 0.0_dp
-    else    
-      call init(vecBuffer)
-      call getChildValue(pChild, "", vecBuffer, modifier=modif)
-      if (len(vecBuffer).eq.3) then
-        call asArray(vecBuffer, translVec)
-        call convertByMul(char(modif), lengthUnits, pNode, translVec)
-        call destruct(vecBuffer)
-      else
-        call error("ContactVector must define three entries")
-      end if
-    end if   
-  end subroutine getTranslation
-     
   subroutine getSKcutoff(node, geo, mSKCutoff)
     !> Node to get the information from
     type(fnode), pointer :: node
@@ -458,7 +397,7 @@ contains
     real(dp), intent(out) :: mSKCutoff
 
     ! Locals
-    type(fnode), pointer :: child 
+    type(fnode), pointer :: child
     integer :: skInterMeth
     logical :: oldSKInter
 
@@ -502,12 +441,12 @@ contains
     !> Maximum SK cutoff distance obtained from SK files  
     real(dp), intent(out) :: maxSKcutoff
 
-    type(fnode), pointer :: value1, child, child2 
+    type(fnode), pointer :: value1, child, child2
     type(string) :: buffer, buffer2
-    type(listString) :: lStr
-    type(listCharLc), allocatable :: skFiles(:,:)
+    type(TListString) :: lStr
+    type(TListCharLc), allocatable :: skFiles(:,:)
     type(TOldSKData) :: skData
-    integer :: iSp1, iSp2, iSh1, ii, jj, kk, ind
+    integer :: iSp1, iSp2, ii
     character(lc) :: prefix, suffix, separator, elem1, elem2, strTmp
     character(lc) :: fileName
     logical :: tLower, tExist

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,18 +9,17 @@
 
 !> Auxiliary subroutines for the ASSERT command
 module dftbp_assert
-  use dftbp_io
-  use dftbp_globalenv, only : abortProgram
+  use dftbp_globalenv, only : abortProgram, stdOut
   implicit none
   private
 
-#:call ASSERT_CODE
+#:block DEBUG_CODE
   public :: assertError
-#:endcall ASSERT_CODE
+#:endblock DEBUG_CODE
 
 contains
 
-#:call ASSERT_CODE
+#:block DEBUG_CODE
 
 
   !> Prints assertion error and abort program execution.
@@ -39,6 +38,6 @@ contains
 
   end subroutine assertError
 
-#:endcall ASSERT_CODE
+#:endblock DEBUG_CODE
 
 end module dftbp_assert

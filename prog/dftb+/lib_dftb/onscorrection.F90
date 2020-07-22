@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@ module dftbp_onsitecorrection
   use dftbp_assert
   use dftbp_commontypes
   use dftbp_message
-  use dftbp_nonscc, only : NonSccDiff
+  use dftbp_nonscc, only : TNonSccDiff
   use dftbp_slakocont
   implicit none
   private
@@ -402,11 +402,11 @@ contains
 
     @:ASSERT(size(output, dim=1) == orb%mOrb)
     @:ASSERT(size(output, dim=2) == orb%mOrb)
-  #:call ASSERT_CODE
+  #:block DEBUG_CODE
     if (present(orbEquiv)) then
       @:ASSERT(all(shape(orbEquiv) == (/ orb%mOrb, nAtom, nSpin /)))
     end if
-  #:endcall ASSERT_CODE
+  #:endblock DEBUG_CODE
     @:ASSERT(all(shape(blockEquiv) == shape(output)))
 
     output = 0.0_dp

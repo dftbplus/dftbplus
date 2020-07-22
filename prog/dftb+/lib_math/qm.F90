@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -15,13 +15,13 @@ module dftbp_qm
   implicit none
 
   private
-  public :: makeSimiliarityTrans
+  public :: makeSimilarityTrans
 
   !> perform a similarity (or unitary) transformation of a matrix X' = U X U^T*
-  interface makeSimiliarityTrans
+  interface makeSimilarityTrans
     module procedure U_cmplx
     module procedure U_real
-  end interface makeSimiliarityTrans
+  end interface makeSimilarityTrans
 
 contains
 

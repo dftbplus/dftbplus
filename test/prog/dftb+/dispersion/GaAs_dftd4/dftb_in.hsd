@@ -1,0 +1,60 @@
+Geometry = GenFormat {
+ <<< "GaAs.gen"
+}
+
+Driver {}
+
+Hamiltonian = DFTB {
+  SCC = Yes
+  SccTolerance = 1-10
+  MaxAngularMomentum {
+    Ga = "d"
+    As = "p"
+  }
+  SlaterKosterFiles = Type2FileNames {
+    Separator = "-"
+    Suffix = ".skf"
+  }
+  KPointsAndWeights = SupercellFolding {
+   1 0 0
+   0 1 0
+   0 0 1
+   0.0 0.0 0.0
+  }
+  # Warning, the DftD4 parameters below are fake ones for test purposes only!
+  Dispersion = DftD4 {
+    a1 = 0.52
+    a2 = 3.6
+    s9 = 1.0
+    s6 = 1.0
+    s8 = 0.61
+    CutoffInter = 60
+    CoordinationNumber = Cov {
+       Cutoff = 34
+    }
+    ChargeModel = EEQ {
+       EwaldParameter = 0.25165824
+       CoordinationNumber = Erf {
+          Cutoff = 34
+       }
+    }
+  }
+}
+
+Options {
+  WriteAutotestTag = Yes
+}
+
+Analysis {
+  CalculateForces = Yes
+}
+
+ParserOptions {
+  ParserVersion = 7
+}
+
+Parallel {
+  # Allow OMP threads explicitely to test for hybrid parallelisation with
+  # MPI-binary. (Check the manual before using this in production runs!)
+  UseOmpThreads = Yes
+}

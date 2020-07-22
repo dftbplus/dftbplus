@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -9,7 +9,7 @@
 !! and second derivatives.
 program polyvalue
   use dftbp_accuracy
-  use dftbp_io
+  use dftbp_globalenv, only : stdOut
   use dftbp_reppoly
   use dftbp_fileid
   use dftbp_message
@@ -17,8 +17,8 @@ program polyvalue
 
   character(lc) :: arg, fname
   logical :: homo
-  type(tRepPolyIn) :: repPolyIn
-  type(ORepPoly) :: pRepPoly
+  type(TRepPolyIn) :: repPolyIn
+  type(TRepPoly) :: pRepPoly
   integer :: fp, iostat, ii, npoint
   real(dp), parameter :: rstart = 0.01_dp, dr = 0.01_dp
   real(dp) :: rr(3), energy, grad(3), d2, rDummy

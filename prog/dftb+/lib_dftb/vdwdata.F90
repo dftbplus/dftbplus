@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,7 @@
 !> Radii". J. Phys. Chem. 68:441. doi:10.1021/j100785a001
 !>
 !> M. Mantina; A.C. Chamberlin; R. Valero; C.J. Cramer; D.G. Truhlar (2009). "Consistent van der
-!> Waals Radii for the Whole Main Group". J. Phys. Chem. A. 113:5806–12. doi:10.1021/jp8111556
+!> Waals Radii for the Whole Main Group". J. Phys. Chem. A. 113:5806-12. doi:10.1021/jp8111556
 !>
 module dftbp_vdwdata
   use dftbp_accuracy, only : dp

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -18,7 +18,7 @@ module dftbp_eigenvects
   use dftbp_scalapackfx
 #:endif
 #:if WITH_GPU
-  use dftbp_initprogram, only: ngpus
+  use dftbp_gpuinfo, only: ngpus
   use magma
 #:endif
   use dftbp_elsiiface

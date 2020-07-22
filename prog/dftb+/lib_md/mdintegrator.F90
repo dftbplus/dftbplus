@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !  DFTB+: general package for performing fast atomistic simulations                                !
-!  Copyright (C) 2006 - 2019  DFTB+ developers group                                               !
+!  Copyright (C) 2006 - 2020  DFTB+ developers group                                               !
 !                                                                                                  !
 !  See the LICENSE file for terms of usage and distribution.                                       !
 !--------------------------------------------------------------------------------------------------!
@@ -17,26 +17,33 @@ module dftbp_mdintegrator
   implicit none
   private
 
-  public :: OMDIntegrator
-  public :: init, next, rescale, state
+  public :: TMDIntegrator
+  public :: init, next, rescale, reset, state
 
 
   !> Data for the MD integrator.
-  type OMDIntegrator
+  type TMDIntegrator
     private
 
     !> Integrator type
     integer :: integrator
 
     !> Verlet case
-    type(OVelocityVerlet), allocatable :: pVelocityVerlet
-  end type OMDIntegrator
+    type(TVelocityVerlet), allocatable :: pVelocityVerlet
+
+  end type TMDIntegrator
 
 
   !> Initialise integrator
   interface init
     module procedure MDIntegrator_init_VVerlet
   end interface init
+
+
+  !> reset the positions and velocities of the integrator
+  interface reset
+    module procedure MDIntegrator_reset
+  end interface reset
 
 
   !> Take a geometry step
@@ -67,10 +74,10 @@ contains
   subroutine MDIntegrator_init_VVerlet(self, pIntegrator)
 
     !> Integrator wrapper instance on exit.
-    type(OMDIntegrator), intent(out) :: self
+    type(TMDIntegrator), intent(out) :: self
 
     !> Velocity Verlet integrator.
-    type(OVelocityVerlet), allocatable, intent(inout) :: pIntegrator
+    type(TVelocityVerlet), allocatable, intent(inout) :: pIntegrator
 
     self%integrator = velocityVerlet_
     call move_alloc(pIntegrator, self%pVelocityVerlet)
@@ -82,7 +89,7 @@ contains
   subroutine MDIntegrator_next(self, accel, newCoord, newVelocity)
 
     !> Integrator wrapper instance on exit.
-    type(OMDIntegrator), intent(inout) :: self
+    type(TMDIntegrator), intent(inout) :: self
 
     !> Accelerations.
     real(dp), intent(in) :: accel(:,:)
@@ -106,7 +113,7 @@ contains
   subroutine MDIntegrator_rescale(self,coord,latVecs,stress)
 
     !> Integrator instance
-    type(OMDIntegrator), intent(inout) :: self
+    type(TMDIntegrator), intent(inout) :: self
 
     !> coordinates of atoms
     real(dp),intent(inout) :: coord(:,:)
@@ -122,16 +129,44 @@ contains
   end subroutine MDIntegrator_rescale
 
 
-  !> Probe internal state of the integrator, writing this to disc
-  subroutine MDIntegrator_state(self,fd)
+  !> resets the positions and velocities of the integrator internal state
+  subroutine MDIntegrator_reset(self, positions, velocities, tHalfVelocities)
 
     !> Integrator instance
-    type(OMDIntegrator), intent(in) :: self
+    type(TMDIntegrator), intent(inout) :: self
+
+    !> New position of the atoms.
+    real(dp), intent(in) :: positions(:,:)
+
+    !> On input, if tHalfVelocities these are the t=-.5 velocities, but ignored if false. On output
+    !> these are the internal velocities, either at current time or t=-.5 depending on setting of
+    !> tHalfVelocities if this is allocated
+    real(dp), intent(inout) :: velocities(:,:)
+
+    !> This indicates if the routine is setting the t-.5 velocities internally (true), otherwise
+    !> they need to be regenerated later (false).
+    logical, intent(in) :: tHalfVelocities
+
+    @:ASSERT(allocated(self%pVelocityVerlet))
+
+    call reset(self%pVelocityVerlet, positions, velocities, tHalfVelocities)
+
+  end subroutine MDIntegrator_reset
+
+
+  !> Probe internal state of the integrator, writing this to disc
+  subroutine MDIntegrator_state(self, fd, velocities)
+
+    !> Integrator instance
+    type(TMDIntegrator), intent(in) :: self
 
     !> file handle to write to
-    integer,intent(in) :: fd
+    integer,intent(in), optional :: fd
 
-    call state(self%pVelocityVerlet,fd)
+    real(dp), intent(out), optional :: velocities(:,:)
+
+    @:ASSERT(allocated(self%pVelocityVerlet))
+    call state(self%pVelocityVerlet, fd, velocities)
 
   end subroutine MDIntegrator_state
 
