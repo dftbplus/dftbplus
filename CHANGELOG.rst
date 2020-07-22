@@ -5,10 +5,6 @@ Change Log
 Notable project changes since release 1.3.1 (2017-02-22).
 
 
-Unreleased
-==========
-
-
 20.1 (2020-07-22)
 =================
 
@@ -85,6 +81,7 @@ Fixed
 - Free energy for PEXSI calculations
 
 - ELSI calculations for spin-orbit and onsite corrected corrections
+
 
 19.1 (2019-07-01)
 =================
