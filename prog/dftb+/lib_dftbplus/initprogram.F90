@@ -3259,10 +3259,10 @@ contains
 
       allocate(electronDynamics)
 
-      call TElecDynamics_init(electronDynamics, input%ctrl%elecDynInp, species0, speciesName,&
-          & tWriteAutotest, autotestTag, randomThermostat, mass, nAtom, cutOff%skCutoff,&
-          & cutOff%mCutoff, atomEigVal, dispersion, nonSccDeriv, tPeriodic, parallelKS,&
-          & tRealHS, kPoint, kWeight, isRangeSep)
+      call TElecDynamics_init(input%ctrl%elecDynInp, species0, speciesName, tWriteAutotest,&
+          & autotestTag, mass, nAtom, cutOff%skCutoff, cutOff%mCutoff, atomEigVal, nonSccDeriv,&
+          & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep, randomThermostat,&
+          & electronDynamics, dispersion)
 
     end if
 
@@ -3399,7 +3399,7 @@ contains
        if (tDFTBU) then
           allocate(iEqOrbSpin(orb%mOrb, nAtom, nSpin))
           allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
-          call DFTBplsU_getOrbitalEquiv(iEqOrbDFTBU,orb, species0, nUJ, niUJ, iUJ)
+          call DFTBplsU_getOrbitalEquiv(orb, species0, nUJ, niUJ, iUJ, iEqOrbDFTBU)
           call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
           iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
           nIneqOrb = maxval(iEqOrbitals)
@@ -3412,7 +3412,7 @@ contains
           iEqOrbSpin(:,:,:) = 0.0_dp
           allocate(iEqOrbDFTBU(orb%mOrb, nAtom, nSpin))
           iEqOrbDFTBU(:,:,:) = 0.0_dp
-          call Ons_getOrbitalEquiv(iEqOrbDFTBU,orb, species0)
+          call Ons_getOrbitalEquiv(orb, species0, iEqOrbDFTBU)
           call OrbitalEquiv_merge(iEqOrbitals, iEqOrbDFTBU, orb, iEqOrbSpin)
           iEqOrbitals(:,:,:) = iEqOrbSpin(:,:,:)
           nIneqOrb = maxval(iEqOrbitals)
@@ -3430,7 +3430,7 @@ contains
                 allocate(iEqBlockOnSiteLS(orb%mOrb, orb%mOrb, nAtom, nSpin))
              endif
           end if
-          call Ons_blockIndx(iEqBlockOnSite, iEqBlockOnSiteLS, nIneqOrb, orb)
+          call Ons_blockIndx(nIneqOrb, orb, iEqBlockOnSite, iEqBlockOnSiteLS)
           nMixElements = max(nMixElements, maxval(iEqBlockOnSite))
           if (allocated(iEqBlockOnSiteLS)) then
              nMixElements = max(nMixElements, maxval(iEqBlockOnSiteLS))
@@ -3440,7 +3440,7 @@ contains
           if(.not. allocated(iEqBlockDFTBU))then
              allocate(iEqBlockDFTBU(orb%mOrb, orb%mOrb, nAtom, nSpin))
           endif
-          call DFTBU_blockIndx(iEqBlockDFTBU, nIneqOrb, orb, species0, nUJ, niUJ, iUJ)
+          call DFTBU_blockIndx(nIneqOrb, orb, species0, nUJ, niUJ, iUJ, iEqBlockDFTBU)
           nMixElements = max(nMixElements,maxval(iEqBlockDFTBU)) ! as
           !  iEqBlockDFTBU does not include diagonal elements, so in the case of
           !  a purely s-block DFTB+U calculation, maxval(iEqBlockDFTBU) would
@@ -3449,7 +3449,7 @@ contains
              if(.not. allocated(iEqBlockDFTBULS))then
                 allocate(iEqBlockDFTBULS(orb%mOrb, orb%mOrb, nAtom, nSpin))
              endif
-             call DFTBU_blockIndx(iEqBlockDFTBULS, nMixElements, orb, species0, nUJ, niUJ, iUJ)
+             call DFTBU_blockIndx(nMixElements, orb, species0, nUJ, niUJ, iUJ, iEqBlockDFTBULS)
              nMixElements = max(nMixElements,maxval(iEqBlockDFTBULS))
           end if
        end if

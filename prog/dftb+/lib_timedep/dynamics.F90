@@ -297,18 +297,15 @@ module dftbp_timeprop
 contains
 
   !> Initialisation of input variables
-  subroutine TElecDynamics_init(this, inp, species, speciesName, tWriteAutotest, autotestTag,&
-      & randomThermostat, mass, nAtom, skCutoff, mCutoff, atomEigVal, dispersion, nonSccDeriv,&
-      & tPeriodic, parallelKS, tRealHS, kPoint, kWeight, isRangeSep)
-
-    !> ElecDynamics instance
-    type(TElecDynamics), intent(out) :: this
+  subroutine TElecDynamics_init(inp, species, speciesName, tWriteAutotest, autotestTag, mass,&
+      & nAtom, skCutoff, mCutoff, atomEigVal, nonSccDeriv, tPeriodic, parallelKS, tRealHS, kPoint,&
+      & kWeight, isRangeSep, randomThermostat, this, dispersion)
 
     !> ElecDynamicsInp instance
     type(TElecDynamicsInp), intent(in) :: inp
 
     !> label for each atomic chemical species
-    character(mc), allocatable, intent(in) :: speciesName(:)
+    character(mc), intent(in) :: speciesName(:)
 
     !> produce tagged output?
     logical, intent(in) :: tWriteAutotest
@@ -317,25 +314,13 @@ contains
     character(*), intent(in) :: autotestTag
 
     !> self energy (orbital, atom)
-    real(dp), intent(in), allocatable :: atomEigVal(:,:)
+    real(dp), intent(in) :: atomEigVal(:,:)
 
     !> nr. of atoms
     integer, intent(in) :: nAtom
 
-    ! thermostat object
-    type(TRanlux), allocatable, intent(inout) :: randomThermostat
-
     !> longest range of interactions for which neighbours are required
     real(dp), intent(in) :: mCutoff
-
-    !> Cut off distance for Slater-Koster interactions
-    real(dp) :: skCutoff
-
-    !> list of atomic masses
-    real(dp) :: mass(:)
-
-    !> dispersion data and calculations
-    class(TDispersionIface), allocatable, intent(inout) :: dispersion
 
     !> Differentiation method for (H^0,S)
     type(TNonSccDiff), intent(in) :: nonSccDeriv
@@ -346,17 +331,29 @@ contains
     !> if calculation is periodic
     logical, intent(in) :: tPeriodic
 
-    !> dummy thermostat objetct
-    type(TDummyThermostat), allocatable :: pDummyTherm
-
-    !> MD Framework
-    type(TMDCommon), allocatable :: pMDFrame
-
     !> Contains (iK, iS) tuples to be processed in parallel by various processor groups
     type(TParallelKS), intent(in) :: parallelKS
 
     !> H and S are real
     logical, intent(in) :: tRealHS
+
+    !> LC correction
+    logical, intent(in) :: isRangeSep
+
+    ! thermostat object
+    type(TRanlux), allocatable, intent(inout) :: randomThermostat
+
+    !> ElecDynamics instance
+    type(TElecDynamics), intent(out) :: this
+
+    !> dispersion data and calculations
+    class(TDispersionIface), intent(inout), optional :: dispersion
+
+    !> Cut off distance for Slater-Koster interactions
+    real(dp) :: skCutoff
+
+    !> list of atomic masses
+    real(dp) :: mass(:)
 
     !> K-points
     real(dp) :: kPoint(:,:)
@@ -364,12 +361,15 @@ contains
     !> weight of the K-Points
     real(dp) :: KWeight(:)
 
-    !> LC correction
-    logical, intent(in) :: isRangeSep
-
     real(dp) :: norm, tempAtom
     logical :: tMDstill, tDispersion
     integer :: iAtom
+
+    !> dummy thermostat objetct
+    type(TDummyThermostat), allocatable :: pDummyTherm
+
+    !> MD Framework
+    type(TMDCommon), allocatable :: pMDFrame
 
     this%field = inp%tdField
     this%dt = inp%dt
@@ -511,7 +511,7 @@ contains
       end if
     end if
 
-    tDispersion = allocated(dispersion)
+    tDispersion = present(dispersion)
     if (tDispersion) then
       this%tDispersion = .true.
       allocate(this%dispersion, source=dispersion)
@@ -539,12 +539,12 @@ contains
   subroutine runDynamics(this, eigvecs, ham, H0, speciesAll, q0, over, filling, neighbourList,&
       & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
       & pRepCont, sccCalc, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot,&
-      & nDftbUFunc, UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements,&
-      & skHamCont, skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver,&
-      & eigvecsCplx, taggedWriter, refExtPot)
+      & UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, coordAll, onSiteElements, skHamCont,&
+      & skOverCont, latVec, invLatVec, iCellVec, rCellVec, cellVec, electronicSolver, eigvecsCplx,&
+      & taggedWriter, refExtPot, nDftbUFunc)
 
     !> ElecDynamics instance
-    type(TElecDynamics) :: this
+    type(TElecDynamics), intent(inout) :: this
 
     !> Real Eigenvectors
     real(dp), intent(inout), allocatable :: eigvecs(:,:,:)
@@ -562,19 +562,19 @@ contains
     real(dp), intent(inout) :: q0(:,:,:)
 
     !> resulting hamiltonian (sparse)
-    real(dp), allocatable, intent(inout) :: ham(:,:)
+    real(dp), intent(inout), allocatable :: ham(:,:)
 
     !> overlap (sparse)
-    real(dp), allocatable, intent(inout) :: over(:)
+    real(dp), intent(inout), allocatable :: over(:)
 
     !> central atomic coordinates
-    real(dp), allocatable, intent(inout) :: coord(:,:)
+    real(dp), intent(inout), allocatable :: coord(:,:)
 
     !> all atomic coordinates
-    real(dp), allocatable, intent(inout) :: coordAll(:,:)
+    real(dp), intent(inout), allocatable :: coordAll(:,:)
 
     !> spin constants
-    real(dp), allocatable, intent(in) :: spinW(:,:,:)
+    real(dp), intent(in), allocatable :: spinW(:,:,:)
 
     !> occupations
     real(dp), intent(inout) :: filling(:,:,:)
@@ -586,10 +586,10 @@ contains
     integer, intent(inout), allocatable :: nNeighbourLC(:)
 
     !> index array for location of atomic blocks in large sparse arrays
-    integer, allocatable, intent(inout) :: iSparseStart(:,:)
+    integer, intent(inout), allocatable :: iSparseStart(:,:)
 
     !> image atoms to their equivalent in the central cell
-    integer, allocatable, intent(inout) :: img2CentCell(:)
+    integer, intent(inout), allocatable :: img2CentCell(:)
 
     !> Index array for start of atomic block in dense matrices
     integer, intent(in) :: iSquare(:)
@@ -615,22 +615,19 @@ contains
     logical, intent(in) :: tDualSpinOrbit
 
     !> Spin orbit constants if required
-    real(dp), allocatable, intent(in) :: xi(:,:)
+    real(dp), intent(in), allocatable :: xi(:,:)
 
     !> 3rd order settings
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
 
     !> Solvation model
-    class(TSolvation), allocatable, intent(inout) :: solvation
+    class(TSolvation), intent(inout), allocatable :: solvation
 
     !> Range separation contributions
-    type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
 
     !> Proxy for querying Q-dependant external potentials
     type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
-
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
 
     !> U-J prefactors in DFTB+U
     real(dp), intent(in), allocatable :: UJ(:,:)
@@ -670,13 +667,16 @@ contains
     real(dp), intent(in) :: cellVec(:,:)
 
     !> index of cell in cellVec and rCellVec for each atom
-    integer, allocatable, intent(in) :: iCellVec(:)
+    integer, intent(in), allocatable :: iCellVec(:)
 
     !> Electronic solver information
     type(TElectronicSolver), intent(inout) :: electronicSolver
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
 
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
@@ -720,29 +720,28 @@ contains
         tWriteAutotest = tWriteAutotest .and. (iPol == size(this%polDirs))
         call doDynamics(this, eigvecs, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
             & nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-            & tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ,&
-            & iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements,&
-            & skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+            & tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, UJ, nUJ, iUJ, niUJ,&
+            & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
+            & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot, nDftbUFunc)
         iCall = iCall + 1
       end do
     else
       call doDynamics(this, eigvecs, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
           & nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
-          & tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements,&
-          & skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot)
+          & tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, UJ, nUJ, iUJ, niUJ,&
+          & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
+          & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot, nDftbUFunc)
     end if
 
   end subroutine runDynamics
 
 
   !> Runs the electronic dynamics of the system
-  subroutine doDynamics(this, eigvecsReal, ham, H0, q0, over, filling, neighbourList,&
-      & nNeighbourSK, nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW,&
-      & pRepCont, env, tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, nDftbUFunc,&
-      & UJ, nUJ, iUJ, niUJ, iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll,&
-      & onSiteElements, skHamCont, skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter,&
-      & refExtPot)
+  subroutine doDynamics(this, eigvecsReal, ham, H0, q0, over, filling, neighbourList, nNeighbourSK,&
+      & nNeighbourLC, iSquare, iSparseStart, img2CentCell, orb, coord, spinW, pRepCont, env,&
+      & tDualSpinOrbit, xi, thirdOrd, solvation, rangeSep, qDepExtPot, UJ, nUJ, iUJ, niUJ,&
+      & iAtInCentralRegion, tFixEf, Ef, tWriteAutotest, coordAll, onSiteElements, skHamCont,&
+      & skOverCont, iCall, electronicSolver, eigvecsCplx, taggedWriter, refExtPot, nDftbUFunc)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -813,9 +812,6 @@ contains
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
 
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
     !> U-J prefactors in DFTB+U
     real(dp), intent(in), allocatable :: UJ(:,:)
 
@@ -867,6 +863,9 @@ contains
 
     !> Tagged writer object
     type(TTaggedWriter), intent(inout) :: taggedWriter
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
 
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
@@ -963,8 +962,8 @@ contains
 
     call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
         & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, 0, chargePerShell,&
-        & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ,&
-        & onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, trho)
+        & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, UJ, nUJ, iUJ, niUJ, refExtPot,&
+        & deltaRho, H1LC, Ssqr, solvation, rangeSep, trho, nDftbUFunc, onSiteElements)
 
     if (this%tForces) then
       totalForce(:,:) = 0.0_dp
@@ -996,8 +995,8 @@ contains
 
     call getTDEnergy(this, energy, rhoPrim, trhoOld, neighbourList, nNeighbourSK, orb,&
         & iSquare, iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell,&
-        & energyKin, tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock,&
-        & nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+        & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, UJ, nUJ, iUJ, niUJ,&
+        & xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements, energyKin, nDftbUFunc)
 
     ! after calculating the TD function, set initial time to zero for probe simulations
     ! this is to properly calculate the dipole fourier transform after the simulation
@@ -1064,8 +1063,8 @@ contains
 
       call updateH(this, H1, ham, over, ham0, this%speciesAll, qq, q0, coord, orb, potential,&
           & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep,&
-          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho)
+          & chargePerShell, spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, UJ, nUJ, iUJ, niUJ,&
+          & refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho, nDftbUFunc, onSiteElements)
 
       if (this%tForces) then
         call getForces(this, movedAccel, totalForce, rho, H1, Sinv, neighbourList,&  !F_1
@@ -1089,9 +1088,9 @@ contains
       end if
 
       call getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
-          & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
-          & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
-          & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+          & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, tDualSpinOrbit,&
+          & thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, UJ, nUJ, iUJ, niUJ, xi,&
+          & iAtInCentralRegion, tFixEf, Ef, onSiteElements, energyKin, nDftbUFunc)
 
       if ((mod(iStep, this%writeFreq) == 0)) then
         call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over,&
@@ -1164,8 +1163,8 @@ contains
   !> Updates the hamiltonian with SCC and external TD field (if any) contributions
   subroutine updateH(this, H1, ham, over, H0, speciesAll, qq, q0, coord, orb, potential,&
       & neighbourList, nNeighbourSK, iSquare, iSparseStart, img2CentCell, iStep, chargePerShell,&
-      & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, nDftbUFunc, UJ, nUJ, iUJ,&
-      & niUJ, onSiteElements, refExtPot, deltaRho, H1LC, Ssqr, solvation, rangeSep, rho)
+      & spinW, env, tDualSpinOrbit, xi, thirdOrd, qBlock, UJ, nUJ, iUJ, niUJ, refExtPot, deltaRho,&
+      & H1LC, Ssqr, solvation, rangeSep, rho, nDftbUFunc, onSiteElements)
 
     !> ElecDynamics instance
     type(TElecDynamics) :: this
@@ -1222,7 +1221,7 @@ contains
     real(dp), intent(inout) :: chargePerShell(:,:,:)
 
     !> spin constants
-    real(dp), allocatable, intent(in) :: spinW(:,:,:)
+    real(dp), intent(in) :: spinW(:,:,:)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -1231,7 +1230,7 @@ contains
     logical, intent(in) :: tDualSpinOrbit
 
     !> Spin orbit constants if required
-    real(dp), allocatable, intent(in) :: xi(:,:)
+    real(dp), intent(in) :: xi(:,:)
 
     !> 3rd order settings
     type(TThirdOrder), intent(inout), allocatable :: thirdOrd
@@ -1239,23 +1238,17 @@ contains
     !> block (dual) atomic populations
     real(dp), intent(inout), allocatable :: qBlock(:,:,:,:)
 
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
-
     !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
+    real(dp), intent(in) :: UJ(:,:)
 
     !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
+    integer, intent(in) :: nUJ(:)
 
     !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
+    integer, intent(in) :: iUJ(:,:,:)
 
     !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
-
-    !> Corrections terms for on-site elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+    integer, intent(in) :: niUJ(:,:)
 
     !> Reference external potential (usual provided via API)
     type(TRefExtPot) :: refExtPot
@@ -1274,6 +1267,12 @@ contains
 
     !> Range separation contributions
     type(TRangeSepFunc), allocatable, intent(inout) :: rangeSep
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
+
+    !> Corrections terms for on-site elements
+    real(dp), intent(in), optional :: onSiteElements(:,:,:,:)
 
     !> Density matrix
     complex(dp), intent(in) :: rho(:,:,:)
@@ -1303,14 +1302,14 @@ contains
     tImHam = .false. ! for the moment
 
     call resetExternalPotentials(refExtPot, potential)
-    call resetInternalPotentials(tDualSpinOrbit, xi, orb, speciesAll, potential)
+    call resetInternalPotentials(tDualSpinOrbit, orb, speciesAll, potential, xi)
 
     call getChargePerShell(qq, orb, speciesAll, chargePerShell)
     call addChargePotentials(env, this%sccCalc, qq, q0, chargePerShell, orb, speciesAll,&
-        & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential,&
-        & elstatTypes%gammaFunc, .false., .false., dummy)
+        & neighbourList, img2CentCell, potential, elstatTypes%gammaFunc, .false., .false., dummy,&
+        & spinW, solvation, thirdOrd)
 
-    if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
+    if ((size(UJ) /= 0) .or. present(onSiteElements)) then
       ! convert to qm representation
       call ud2qm(qBlock)
     end if
@@ -1319,9 +1318,9 @@ contains
       call addBlockChargePotentials(qBlock, qiBlock, tDftbU, .false., speciesAll, orb, nDftbUFunc,&
           & UJ, nUJ, iUJ, niUJ, potential)
     end if
-    if (allocated(onSiteElements)) then
-      call addOnsShift(potential%intBlock, potential%iOrbitalBlock, qBlock, qiBlock, q0,&
-          & onSiteElements, speciesAll, orb)
+    if (present(onSiteElements)) then
+      call addOnsShift(qBlock, q0, onSiteElements, speciesAll, orb, potential%intBlock,&
+          & potential%iOrbitalBlock, qiBlock)
     end if
 
     ! Add time dependent field if necessary
@@ -1486,7 +1485,7 @@ contains
       E0 = 0.0_dp !this is to make sure we never sum the current field with the read from file
     end if
 
-    call openFile(this, laserDat, 'laser.dat')
+    call openFile(this, 'laser.dat', laserDat)
     if (.not. this%tEnvFromFile) then
       write(laserDat, "(A)") "#     time (fs)  |  E_x (eV/ang)  | E_y (eV/ang) | E_z (eV/ang)"
     end if
@@ -1620,9 +1619,9 @@ contains
   !> Calculate energy - modify to include new way to calculate energy
   !> Repulsive energy and dispersion energies must be calculated before calling this subroutine
   subroutine getTDEnergy(this, energy, rhoPrim, rho, neighbourList, nNeighbourSK, orb, iSquare,&
-      & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, energyKin,&
-      & tDualSpinOrbit, thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, nDftbUFunc, UJ, nUJ,&
-      & iUJ, niUJ, xi, iAtInCentralRegion, tFixEf, Ef, onSiteElements)
+      & iSparseStart, img2CentCell, ham0, qq, q0, potential, chargePerShell, tDualSpinOrbit,&
+      & thirdOrd, solvation, rangeSep, qDepExtPot, qBlock, UJ, nUJ, iUJ, niUJ, xi,&
+      & iAtInCentralRegion, tFixEf, Ef, onSiteElements, energyKin, nDftbUFunc)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(inout) :: this
@@ -1669,9 +1668,6 @@ contains
     !> potential acting on the system
     type(TPotentials), intent(in) :: potential
 
-    !> kinetic energy
-    real(dp), intent(out) :: energyKin
-
     !> Is dual spin orbit being used
     logical, intent(in) :: tDualSpinOrbit
 
@@ -1689,9 +1685,6 @@ contains
 
     !> block (dual) atomic populations
     real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
-
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
 
     !> U-J prefactors in DFTB+U
     real(dp), intent(in), allocatable :: UJ(:,:)
@@ -1720,6 +1713,12 @@ contains
 
     !> Corrections terms for on-site elements
     real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+
+    !> kinetic energy
+    real(dp), intent(out) :: energyKin
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
 
     real(dp), allocatable :: qiBlock(:,:,:,:) ! never allocated
     integer :: iKS, iK, iSpin
@@ -1752,11 +1751,11 @@ contains
     end if
 
     TS = 0.0_dp
-    call calcEnergies(this%sccCalc, qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false.,&
-        & tDFTBU, tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
-        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
-        & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
-        & tFixEf, Ef, onSiteElements)
+    call calcEnergies(qq, q0, chargePerShell, this%speciesAll, this%tLaser, .false., tDFTBU,&
+        & tDualSpinOrbit, rhoPrim, ham0, orb, neighbourList, nNeighbourSK, img2CentCell,&
+        & iSparseStart, 0.0_dp, 0.0_dp, TS, potential, energy, qBlock, UJ, nUJ, iUJ, niUJ, xi,&
+        & iAtInCentralRegion, tFixEf, Ef, this%sccCalc, thirdOrd, solvation, rangeSep, reks,&
+        & qDepExtPot, onSiteElements, qiBlock, nDftbUFunc)
     call sumEnergies(energy)
     ! calcEnergies then sumEnergies returns the total energy Etotal including repulsive and
     ! dispersions energies
@@ -2001,10 +2000,10 @@ contains
       allocate(bondWork(this%nAtom, this%nAtom))
     end if
     if (this%tBondE) then
-      call openFile(this, fdBondEnergy, 'bondenergy.bin', isBinary = .true.)
+      call openFile(this, 'bondenergy.bin', fdBondEnergy, isBinary = .true.)
     end if
     if (this%tBondP) then
-      call openFile(this, fdBondPopul, 'bondpop.bin', isBinary = .true.)
+      call openFile(this, 'bondpop.bin', fdBondPopul, isBinary = .true.)
     end if
     call getBondPopulAndEnergy(this, bondWork, lastBondPopul, rhoPrim, ham0, over, iNeighbour,&
         & nNeighbourSK, iSparseStart, img2CentCell, iSquare, fdBondEnergy, fdBondPopul, .false.,&
@@ -2217,7 +2216,7 @@ contains
     else
       dipoleFileName = 'mu.dat'
     end if
-    call openFile(this, dipoleDat, dipoleFileName)
+    call openFile(this, dipoleFileName, dipoleDat)
 
     write(dipoleDat, "(A)", advance = "NO")"#           time (fs)    |"
     select case(this%nSpin)
@@ -2236,7 +2235,7 @@ contains
     write(dipoleDat, "(A)")
 
     if (this%tdWriteExtras) then
-      call openFile(this, qDat, 'qsvst.dat')
+      call openFile(this, 'qsvst.dat', qDat)
       write(qDat, "(A)", advance = "NO")"#             time (fs)      |"
       write(qDat, "(A)", advance = "NO")"   total net charge (e)  |"
       write(qDat, "(A)", advance = "NO")"   charge (atom_1) (e)   |"
@@ -2245,7 +2244,7 @@ contains
       write(qDat, "(A)", advance = "NO")"   charge (atom_N) (e)   |"
       write(qDat, "(A)")
 
-      call openFile(this, energyDat, 'energyvst.dat')
+      call openFile(this, 'energyvst.dat', energyDat)
       write(energyDat, "(A)", advance = "NO")"#                  time (fs)         |"
       write(energyDat, "(A)", advance = "NO")"        E total (H)         |"
       write(energyDat, "(A)", advance = "NO")"        E non-SCC (H)       |"
@@ -2258,7 +2257,7 @@ contains
       write(energyDat, "(A)")
 
       if (this%tForces) then
-        call openFile(this, forceDat, 'forcesvst.dat')
+        call openFile(this, 'forcesvst.dat', forceDat)
         write(forceDat, "(A)", advance = "NO")"#           time (fs)       |"
         write(forceDat, "(A)", advance = "NO")" force (atom_1) (H/b)   |  force (atom_2) (H/b)  |"
         write(forceDat, "(A)", advance = "NO")"           ...          |  force (atom_N) (H/b)  |"
@@ -2266,7 +2265,7 @@ contains
       end if
 
       if (this%tIons) then
-        call openFile(this, coorDat, 'tdcoords.xyz')
+        call openFile(this, 'tdcoords.xyz', coorDat)
       end if
     end if
 
@@ -2275,14 +2274,14 @@ contains
         iSpin = this%parallelKS%localKS(2, iKS)
         write(strSpin,'(i1)')iSpin
         if (this%tRealHS) then
-          call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '.dat')
+          call openFile(this, 'molpopul' // trim(strSpin) // '.dat', populDat(iKS))
           write(populDat(iKS), "(A,A)") "#  GS molecular orbital populations, spin channel : ",&
               & trim(strSpin)
         else
           iK = this%parallelKS%localKS(1, iKS)
           write(strK,'(i0.3)')iK
-          call openFile(this, populDat(iKS), 'molpopul' // trim(strSpin) // '-' // trim(strK) //&
-              & '.dat')
+          call openFile(this, 'molpopul' // trim(strSpin) // '-' // trim(strK) //&
+              & '.dat', populDat(iKS))
           write(populDat(iKS), "(A,A,A,A)") "#  GS molecular orbital populations, spin channel : ",&
               & trim(strSpin), ", k-point number: ", trim(strK)
         end if
@@ -2365,16 +2364,16 @@ contains
 
 
   !> Open files in different ways depending on their previous existance
-  subroutine openFile(this, unitName, fileName, isBinary)
+  subroutine openFile(this, fileName, unitName, isBinary)
 
     !> ElecDynamics instance
     type(TElecDynamics), intent(in) :: this
 
-    !> File ID
-    integer, intent(out) :: unitName
-
     !> Name of the file to open
     character(*), intent(in) :: fileName
+
+    !> File ID
+    integer, intent(out) :: unitName
 
     !> should this be a binary file?
     logical, intent(in), optional :: isBinary
@@ -3522,11 +3521,11 @@ contains
     integer, intent(in) :: iAtInCentralRegion(:)
 
     ! using here nNeighbourSK instead of nNeighbourRep
-    call calcRepulsiveEnergy(coordAll, this%speciesAll, img2CentCell, nNeighbourSK, neighbourList,&
-        & pRepCont, energy%atomRep, energy%Erep, iAtInCentralRegion)
+    call calcRepulsiveEnergy(iAtInCentralRegion, coordAll, this%speciesAll, img2CentCell,&
+        & nNeighbourSK, neighbourList, pRepCont, energy%atomRep, energy%Erep)
 
     if (this%tDispersion) then
-      call calcDispersionEnergy(this%dispersion, energy%atomDisp, energy%eDisp, iAtInCentralRegion)
+      call calcDispersionEnergy(iAtInCentralRegion, this%dispersion, energy%atomDisp, energy%eDisp)
     else
       energy%atomDisp(:) = 0.0_dp
       energy%eDisp = 0.0_dp

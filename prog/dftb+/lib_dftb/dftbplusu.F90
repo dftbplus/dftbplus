@@ -260,10 +260,7 @@ contains
   !> Calculates the energy contribution for the DFTB+U type functionals
   !>
   !> Note: factor of 0.5 in expressions as using double the Pauli spinors
-  subroutine E_dftbU(egy, qBlock, species, orb, functional, UJ, nUJ, niUJ, iUJ, qiBlock)
-
-    !> energy contribution
-    real(dp), intent(out) :: egy(:)
+  subroutine E_dftbU(qBlock, species, orb, UJ, nUJ, niUJ, iUJ, egy, functional, qiBlock)
 
     !> charge block populations
     real(dp), intent(in) :: qBlock(:,:,:,:)
@@ -273,9 +270,6 @@ contains
 
     !> Angular momentum information about the orbitals.
     type(TOrbitals), intent(in) :: orb
-
-    !> choice of functional, so far FLL, pSIC (1,2)
-    integer, intent(in), optional :: functional
 
     !> list of U-J values for each species
     real(dp), intent(in) :: UJ(:,:)
@@ -288,6 +282,12 @@ contains
 
     !> list of l values in each block for each species
     integer, intent(in) :: iUJ(:,:,:)
+
+    !> energy contribution
+    real(dp), intent(out) :: egy(:)
+
+    !> choice of functional, so far FLL, pSIC (1,2)
+    integer, intent(in), optional :: functional
 
     !> optional skew population for L.S cases
     real(dp), intent(in), optional :: qiBlock(:,:,:,:)
@@ -405,10 +405,7 @@ contains
 
 
   !> Returns the equivalence between the orbitals in the DFTB+U interactions
-  subroutine DFTBplsU_getOrbitalEquiv(equiv, orb, species, nUJ, niUJ, iUJ)
-
-    !> The equivalence vector on return
-    integer, intent(out) :: equiv(:,:,:)
+  subroutine DFTBplsU_getOrbitalEquiv(orb, species, nUJ, niUJ, iUJ, equiv)
 
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
@@ -424,6 +421,9 @@ contains
 
     !> l-values of U-J for each block
     integer, intent(in) :: iUJ(:,:,:)
+
+    !> The equivalence vector on return
+    integer, intent(out) :: equiv(:,:,:)
 
     integer :: nAtom, iCount, iSpin, nSpin
     integer :: iAt, iSp, ii, jj, kk, iStart, iEnd
@@ -472,10 +472,7 @@ contains
 
 
   !> Returns the index for packing the relevant parts of DFTB+U atomic blocks into a 1D array
-  subroutine DFTBU_blockIndx(iEqBlockDFTBU, count, orb, species, nUJ, niUJ, iUJ)
-
-    !> The mapping array on return
-    integer, intent(out) :: iEqBlockDFTBU(:,:,:,:)
+  subroutine DFTBU_blockIndx(count, orb, species, nUJ, niUJ, iUJ, iEqBlockDFTBU)
 
     !> Number of prior entries in 1D array holding regular charges
     integer, intent(in) :: count
@@ -494,6 +491,9 @@ contains
 
     !> l-values of U-J for each block
     integer, intent(in) :: iUJ(:,:,:)
+
+    !> The mapping array on return
+    integer, intent(out) :: iEqBlockDFTBU(:,:,:,:)
 
     integer :: nAtom, nSpin, iCount
     integer :: iAt, iSp, iSpecies
@@ -628,7 +628,7 @@ contains
     integer, intent(in) :: iUJ(:,:,:)
 
     !> equivalences for atoms
-    integer, intent(in),optional :: orbEquiv(:,:,:)
+    integer, intent(in), optional :: orbEquiv(:,:,:)
 
     !> is skew symmetry required
     logical, optional, intent(in) :: skew

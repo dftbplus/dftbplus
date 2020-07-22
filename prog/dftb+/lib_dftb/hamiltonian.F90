@@ -139,7 +139,7 @@ contains
     integer, intent(in) :: iGeoStep
 
     !> Atomic coordinates in central cell
-    real(dp), allocatable, intent(in) :: coord0Fold(:,:)
+    real(dp), intent(in) :: coord0Fold(:,:)
 
     !> all coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -203,13 +203,10 @@ contains
 
 
   !> Reset internal potential related quantities
-  subroutine resetInternalPotentials(tDualSpinOrbit, xi, orb, species, potential)
+  subroutine resetInternalPotentials(tDualSpinOrbit, orb, species, potential, xi)
 
     !> Is dual spin orbit being used (block potentials)
     logical, intent(in) :: tDualSpinOrbit
-
-    !> Spin orbit constants if required
-    real(dp), allocatable, intent(in) :: xi(:,:)
 
     !> atomic orbital information
     type(TOrbitals), intent(in) :: orb
@@ -220,7 +217,10 @@ contains
     !> potentials in the system
     type(TPotentials), intent(inout) :: potential
 
-    @:ASSERT(.not. tDualSpinOrbit .or. allocated(xi))
+    !> Spin orbit constants if required
+    real(dp), intent(in), optional :: xi(:,:)
+
+    @:ASSERT(.not. tDualSpinOrbit .or. present(xi))
 
     potential%intAtom(:,:) = 0.0_dp
     potential%intShell(:,:,:) = 0.0_dp
@@ -236,8 +236,8 @@ contains
 
   !> Add potentials comming from point charges.
   subroutine addChargePotentials(env, sccCalc, qInput, q0, chargePerShell, orb, species,&
-      & neighbourList, img2CentCell, spinW, solvation, thirdOrd, potential, electrostatics,&
-      & tPoisson, tUpload, shiftPerLUp)
+      & neighbourList, img2CentCell, potential, electrostatics, tPoisson, tUpload, shiftPerLUp,&
+      & spinW, solvation, thirdOrd)
 
     !> Environment settings
     type(TEnvironment), intent(inout) :: env
@@ -266,15 +266,6 @@ contains
     !> map from image atom to real atoms
     integer, intent(in) :: img2CentCell(:)
 
-    !> spin constants
-    real(dp), intent(in), allocatable :: spinW(:,:,:)
-
-    !> Solvation mode
-    class(TSolvation), allocatable, intent(inout) :: solvation
-
-    !> third order SCC interactions
-    type(TThirdOrder), allocatable, intent(inout) :: thirdOrd
-
     !> Potentials acting
     type(TPotentials), intent(inout) :: potential
 
@@ -288,7 +279,16 @@ contains
     logical, intent(in) :: tUpload
 
     !> uploded potential per shell per atom
-    real(dp), allocatable, intent(in) :: shiftPerLUp(:,:)
+    real(dp), intent(in) :: shiftPerLUp(:,:)
+
+    !> spin constants
+    real(dp), intent(in), optional :: spinW(:,:,:)
+
+    !> Solvation mode
+    class(TSolvation), intent(inout), optional :: solvation
+
+    !> third order SCC interactions
+    type(TThirdOrder), intent(inout), optional :: thirdOrd
 
     ! local variables
     real(dp), allocatable :: atomPot(:,:)
@@ -346,21 +346,21 @@ contains
     potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
     potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
 
-    if (allocated(thirdOrd)) then
+    if (present(thirdOrd)) then
       call thirdOrd%updateCharges(pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
       call thirdOrd%getShifts(atomPot(:,1), shellPot(:,:,1))
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
     end if
 
-    if (allocated(solvation)) then
+    if (present(solvation)) then
       call solvation%updateCharges(env, pSpecies0, neighbourList, qInput, q0, img2CentCell, orb)
       call solvation%getShifts(atomPot(:,1), shellPot(:,:,1))
       potential%intAtom(:,1) = potential%intAtom(:,1) + atomPot(:,1)
       potential%intShell(:,:,1) = potential%intShell(:,:,1) + shellPot(:,:,1)
     end if
 
-    if (nSpin /= 1 .and. allocated(spinW)) then
+    if (nSpin /= 1 .and. present(spinW)) then
       call getSpinShift(shellPot, chargePerShell, species, orb, spinW)
       potential%intShell = potential%intShell + shellPot
     end if
@@ -376,10 +376,10 @@ contains
       &, UJ, nUJ, iUJ, niUJ, potential)
 
     !> block input charges
-    real(dp), allocatable, intent(in) :: qBlockIn(:,:,:,:)
+    real(dp), intent(in) :: qBlockIn(:,:,:,:)
 
     !> imaginary part
-    real(dp), allocatable, intent(in) :: qiBlockIn(:,:,:,:)
+    real(dp), intent(in) :: qiBlockIn(:,:,:,:)
 
     !> is this a +U calculation
     logical, intent(in) :: tDftbU
@@ -397,16 +397,16 @@ contains
     integer, intent(in) :: nDftbUFunc
 
     !> prefactor for +U potential
-    real(dp), allocatable, intent(in) :: UJ(:,:)
+    real(dp), intent(in) :: UJ(:,:)
 
     !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
+    integer, intent(in) :: nUJ(:)
 
     !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
+    integer, intent(in) :: iUJ(:,:,:)
 
     !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
+    integer, intent(in) :: niUJ(:,:)
 
     !> potentials acting in system
     type(TPotentials), intent(inout) :: potential
@@ -463,8 +463,8 @@ contains
     !> resulting hamitonian (sparse)
     real(dp), intent(inout) :: ham(:,:)
 
-    !> imaginary part of hamiltonian (if required, signalled by being allocated)
-    real(dp), allocatable, intent(inout) :: iHam(:,:)
+    !> imaginary part of hamiltonian
+    real(dp), intent(inout), optional :: iHam(:,:)
 
     integer :: nAtom
 
@@ -478,7 +478,7 @@ contains
     call add_shift(ham, over, nNeighbourSK, neighbourList%iNeighbour, species, orb, iSparseStart,&
         & nAtom, img2CentCell, potential%intBlock)
 
-    if (allocated(iHam)) then
+    if (present(iHam)) then
       iHam(:,:) = 0.0_dp
       call add_shift(iHam, over, nNeighbourSK, neighbourList%iNeighbour, species, orb,&
           & iSparseStart, nAtom, img2CentCell, potential%iorbitalBlock)

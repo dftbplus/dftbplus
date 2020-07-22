@@ -23,19 +23,10 @@ module dftbp_onsitecorrection
 contains
 
   !> Add the block shift due to onsite matrix element contributions
-  subroutine addOnsShift(potential, iPotential, qBlock, qiBlock, q0, onsMEs, species, orb)
-
-    !> resulting onsite matrix elements
-    real(dp), intent(inout) :: potential(:,:,:,:)
-
-    !> resulting onsite matrix elements (imaginary part)
-    real(dp), allocatable, intent(inout) :: iPotential(:,:,:,:)
+  subroutine addOnsShift(qBlock, q0, onsMEs, species, orb, potential, iPotential, qiBlock)
 
     !> Block charges
     real(dp), intent(in) :: qBlock(:,:,:,:)
-
-    !> Block charges (imaginary part)
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     !> reference charges
     real(dp), intent(in) :: q0(:,:,:)
@@ -48,6 +39,15 @@ contains
 
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
+
+    !> resulting onsite matrix elements
+    real(dp), intent(inout) :: potential(:,:,:,:)
+
+    !> resulting onsite matrix elements (imaginary part)
+    real(dp), intent(inout) :: iPotential(:,:,:,:)
+
+    !> Block charges (imaginary part)
+    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
 
     integer :: iAt, nAt, iSp, iSpin, nSpin, iSh, iOrb, nOrb
     real(dp), allocatable :: tmpME(:,:,:), tmpBlock(:,:)
@@ -98,7 +98,7 @@ contains
 
       end do
 
-      if (allocated(qiBlock)) then
+      if (present(qiBlock)) then
         do iSpin = 1, nSpin
           tmpBlock(:,:) = 0.0_dp
           ! extract the relevant charge parts
@@ -170,16 +170,10 @@ contains
   end subroutine getOnsME
 
   !> get the onsite energy correction
-  subroutine getEons(Eons, qBlock, qiBlock, q0, onsMEs, species, orb)
-
-    !> Onsite energy correction
-    real(dp), intent(out) :: Eons(:)
+  subroutine getEons(qBlock, q0, onsMEs, species, orb, Eons, qiBlock)
 
     !> Block charges
     real(dp), intent(in) :: qBlock(:,:,:,:)
-
-    !> Block charges imaginary part
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
 
     !> reference charges
     real(dp), intent(in) :: q0(:,:,:)
@@ -193,17 +187,23 @@ contains
     !> Information about the orbitals in the system
     type(TOrbitals), intent(in) :: orb
 
+    !> Onsite energy correction
+    real(dp), intent(out) :: Eons(:)
+
+    !> Block charges imaginary part
+    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+
     real(dp), allocatable :: shift(:,:,:,:), iShift(:,:,:,:)
 
     allocate(shift(orb%mOrb, orb%mOrb, size(qBlock, dim=3), size(qBlock, dim=4)))
     shift(:,:,:,:) = 0.0_dp
-    if (allocated(qiBlock)) then
+    if (present(qiBlock)) then
       allocate(iShift(orb%mOrb, orb%mOrb, size(qBlock, dim=3), size(qBlock, dim=4)))
       iShift(:,:,:,:) = 0.0_dp
     end if
-    call addOnsShift(shift, iShift, qBlock, qiBlock, q0, onsMEs, species, orb)
+    call addOnsShift(qBlock, q0, onsMEs, species, orb, shift, iShift, qiBlock)
     Eons(:) = 0.5_dp*sum(sum(sum(shift(:,:,:,:)*qBlock(:,:,:,:),dim=1),dim=1),dim=2)
-    if (allocated(qiBlock)) then
+    if (present(qiBlock)) then
       Eons(:) = Eons(:) + 0.5_dp*sum(sum(sum(iShift(:,:,:,:)*qiBlock(:,:,:,:),dim=1),dim=1),dim=2)
     end if
 
@@ -211,16 +211,16 @@ contains
 
 
   !> Returns the equivalence between the orbitals in the onsite correction
-  subroutine ons_getOrbitalEquiv(equiv, orb, species)
-
-    !> The equivalence vector on return
-    integer, intent(out) :: equiv(:,:,:)
+  subroutine ons_getOrbitalEquiv(orb, species, equiv)
 
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
 
     !> Species of each atom
     integer, intent(in) :: species(:)
+
+    !> The equivalence vector on return
+    integer, intent(out) :: equiv(:,:,:)
 
     integer :: nAtom, iCount, iSpin, nSpin
     integer :: iAt, iSp, ii
@@ -248,19 +248,19 @@ contains
 
 
   !> Returns the index for packing the relevant parts of atomic blocks into a 1D array
-  subroutine ons_blockIndx(iEqBlock, iEqBlockLS, count, orb)
-
-    !> The mapping array on return
-    integer, intent(out) :: iEqBlock(:,:,:,:)
-
-    !> The equivalence vector for imagninary parts on return
-    integer, intent(inout), allocatable :: iEqBlockLS(:,:,:,:)
+  subroutine ons_blockIndx(count, orb, iEqBlock, iEqBlockLS)
 
     !> Number of prior entries in 1D array holding regular charges
     integer, intent(in) :: count
 
     !> Information about the orbitals and their angular momenta
     type(TOrbitals), intent(in) :: orb
+
+    !> The mapping array on return
+    integer, intent(out) :: iEqBlock(:,:,:,:)
+
+    !> The equivalence vector for imagninary parts on return
+    integer, intent(inout), optional :: iEqBlockLS(:,:,:,:)
 
     integer :: nAtom, nSpin, iCount
     integer :: iAt, iSp
@@ -286,7 +286,7 @@ contains
       end do
     end do
 
-    if (allocated(iEqBlockLS)) then
+    if (present(iEqBlockLS)) then
       iEqBlockLS(:,:,:,:) = 0
       do iSp = 1, nSpin
         do iAt = 1, nAtom
@@ -319,7 +319,7 @@ contains
     real(dp), intent(inout) :: output(:)
 
     !> is skew symmetry required
-    logical, optional, intent(in) :: skew
+    logical, intent(in), optional :: skew
 
     integer :: nAtom, nSpin
     integer :: iS, iOrb1, iOrb2, iAt
@@ -379,10 +379,10 @@ contains
     real(dp), intent(out) :: output(:,:,:,:)
 
     !> equivalences for atoms
-    integer, intent(in),optional :: orbEquiv(:,:,:)
+    integer, intent(in), optional :: orbEquiv(:,:,:)
 
     !> is skew symmetry required
-    logical, optional, intent(in) :: skew
+    logical, intent(in), optional :: skew
 
     integer :: nAtom, nSpin
     integer :: iAt, iSp

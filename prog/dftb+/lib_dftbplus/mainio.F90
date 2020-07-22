@@ -167,21 +167,21 @@ contains
     logical, intent(in) :: tPrintEigvecsTxt
 
     !> Real eigenvectors (will be overwritten)
-    real(dp), intent(inout), allocatable :: eigvecsReal(:,:,:)
+    real(dp), intent(inout), optional :: eigvecsReal(:,:,:)
 
     !> Storage for dense real overlap matrix
-    real(dp), intent(inout), allocatable :: SSqrReal(:,:)
+    real(dp), intent(inout), optional :: SSqrReal(:,:)
 
     !> Complex eigenvectors (will be overwritten)
-    complex(dp), intent(inout), allocatable :: eigvecsCplx(:,:,:)
+    complex(dp), intent(inout), optional :: eigvecsCplx(:,:,:)
 
     !> Storage for dense complex overlap matrix
-    complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+    complex(dp), intent(inout), optional :: SSqrCplx(:,:)
 
-    @:ASSERT(allocated(eigvecsReal) .neqv. allocated(eigvecsCplx))
-    @:ASSERT(allocated(SSqrReal) .neqv. allocated(SSqrCplx))
+    @:ASSERT(present(eigvecsReal) .neqv. present(eigvecsCplx))
+    @:ASSERT(present(SSqrReal) .neqv. present(SSqrCplx))
 
-    if (allocated(eigvecsCplx)) then
+    if (present(eigvecsCplx)) then
       call writeCplxEigvecs(env, runId, neighbourList, nNeighbourSK, cellVec, iCellVec, denseDesc,&
           & iPair, img2CentCell, species, speciesName, orb, kPoint, over, parallelKS,&
           & tPrintEigvecsTxt, eigvecsCplx, SSqrCplx)
@@ -2209,7 +2209,7 @@ contains
     real(dp), intent(in) :: filling(:,:,:)
 
     !> Occupation numbers for natural orbitals
-    real(dp), allocatable, target, intent(in) :: occNatural(:)
+    real(dp), target, intent(in), optional :: occNatural(:)
 
     type(xmlf_t) :: xf
     real(dp), allocatable :: bufferRealR2(:,:)
@@ -2254,7 +2254,7 @@ contains
       call xml_EndElement(xf, "spin" // i2c(ii))
     end do
     call xml_EndElement(xf, "occupations")
-    if (allocated(occNatural)) then
+    if (present(occNatural)) then
       call xml_NewElement(xf, "excitedoccupations")
       call xml_NewElement(xf, "spin" // i2c(1))
       !pOccNatural(1:size(occNatural), 1:1) => occNatural
@@ -2354,10 +2354,10 @@ contains
   !> First group of data to go to detailed.out
   subroutine writeDetailedOut1(fd, iDistribFn, nGeoSteps, iGeoStep, tMD, tDerivs, tCoordOpt,&
       & tLatOpt, iLatGeoStep, iSccIter, energy, diffElec, sccErrorQ, indMovedAtom, coord0Out, q0,&
-      & qInput, qOutput, eigen, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, qBlockOut,&
-      & Ef, Eband, TS, E0, pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic,&
-      & nSpin, tSpin, tSpinOrbit, tScc, tOnSite, tNegf,  invLatVec, kPoints, iAtInCentralRegion,&
-      & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont, qOnsite)
+      & qInput, qOutput, eigen, orb, species, tDFTBU, tImHam, tPrintMulliken, orbitalL, Ef, Eband,&
+      & TS, E0, pressure, cellVol, tAtomicEnergy, dispersion, tEField, tPeriodic, nSpin, tSpin,&
+      & tSpinOrbit, tScc, tOnSite, tNegf, invLatVec, kPoints, iAtInCentralRegion,&
+      & electronicSolver, tHalogenX, tRangeSep, t3rd, tSolv, cm5Cont, qBlockOut, qOnsite)
 
     !> File ID
     integer, intent(in) :: fd
@@ -2432,10 +2432,7 @@ contains
     logical, intent(in) :: tPrintMulliken
 
     !> Orbital angular momentum (if available)
-    real(dp), allocatable, intent(in) :: orbitalL(:,:,:)
-
-    !> Output block (dual) Mulliken charges
-    real(dp), allocatable, intent(in) :: qBlockOut(:,:,:,:)
+    real(dp), intent(in) :: orbitalL(:,:,:)
 
     !> Fermi level
     real(dp), intent(in) :: Ef(:)
@@ -2470,9 +2467,6 @@ contains
     !> Number of spin channels
     integer, intent(in) :: nSpin
 
-    !> is this a spin polarized calculation?
-    logical :: tSpin
-
     !> Are spin orbit interactions present
     logical, intent(in) :: tSpinOrbit
 
@@ -2500,9 +2494,6 @@ contains
     !> Is there a halogen bond correction present?
     logical, intent(in) :: tHalogenX
 
-    !> Onsite mulliken population per atom
-    real(dp), allocatable, intent(in) :: qOnsite(:)
-
     !> Is this a range separation calculation?
     logical, intent(in) :: tRangeSep
 
@@ -2513,7 +2504,16 @@ contains
     logical, intent(in) :: tSolv
 
     !> Charge model 5 for correcting atomic gross charges
-    type(TChargeModel5), allocatable, intent(in) :: cm5Cont
+    type(TChargeModel5), intent(in), optional :: cm5Cont
+
+    !> Output block (dual) Mulliken charges
+    real(dp), intent(in), optional :: qBlockOut(:,:,:,:)
+
+    !> Onsite mulliken population per atom
+    real(dp), intent(in), optional :: qOnsite(:)
+
+    !> is this a spin polarized calculation?
+    logical :: tSpin
 
     real(dp), allocatable :: qInputUpDown(:,:,:), qOutputUpDown(:,:,:), qBlockOutUpDown(:,:,:,:)
     real(dp) :: angularMomentum(3)
@@ -2532,7 +2532,7 @@ contains
     call qm2ud(qInputUpDown)
     qOutputUpDown = qOutput
     call qm2ud(qOutputUpDown)
-    if (allocated(qBlockOut)) then
+    if (present(qBlockOut)) then
       qBlockOutUpDown = qBlockOut
       call qm2ud(qBlockOutUpDown)
     end if
@@ -2610,7 +2610,7 @@ contains
       end do
       write(fd, *)
 
-      if (allocated(qOnsite)) then
+      if (present(qOnsite)) then
         write(fd, "(/,A)") " Atomic net (on-site) populations and hybridisation ratios"
         write(fd, "(A5, 1X, A16, A16)")" Atom", " Population", "Hybrid."
         do ii = 1, size(iAtInCentralRegion)
@@ -2621,7 +2621,7 @@ contains
         write(fd, *)
       end if
 
-      if (allocated(cm5Cont)) then
+      if (present(cm5Cont)) then
          write(fd, "(A)") " CM5 corrected atomic gross charges (e)"
          write(fd, "(A5, 1X, A16)")" Atom", " Charge"
          do ii = 1, size(iAtInCentralRegion)

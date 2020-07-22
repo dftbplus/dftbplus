@@ -812,9 +812,8 @@ contains
   !> Returns the density matrix using ELSI non-diagonalisation routines.
   subroutine TElsiSolver_getDensity(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
       & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, tHelical, orb, species,&
-      & coord, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, Ef,&
-      & energy, rhoPrim, Eband, TS, iHam, xi, orbitalL, HSqrReal, SSqrReal, iRhoPrim, HSqrCplx,&
-      & SSqrCplx)
+      & coord, tRealHS, tSpinSharedEf, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, iHam, xi,&
+      & Ef, energy, orbitalL, HSqrReal, SSqrReal, HSqrCplx, SSqrCplx, rhoPrim, Eband, TS, iRhoPrim)
 
     !> Electronic solver information
     class(TElsiSolver), intent(inout) :: this
@@ -885,32 +884,20 @@ contains
     !> K-points and spins to process
     type(TParallelKS), intent(in) :: parallelKS
 
-    !> Fermi level(s)
-    real(dp), intent(inout) :: Ef(:)
-
-    !> Energy contributions and total
-    type(TEnergies), intent(inout) :: energy
-
-    !> sparse density matrix
-    real(dp), intent(out) :: rhoPrim(:,:)
-
-    !> band structure energy
-    real(dp), intent(out) :: Eband(:)
-
-    !> electronic entropy times temperature
-    real(dp), intent(out) :: TS(:)
-
     !> imaginary part of hamiltonian
     real(dp), intent(in), allocatable :: iHam(:,:)
 
     !> spin orbit constants
     real(dp), intent(in), allocatable :: xi(:,:)
 
-    !> orbital moments of atomic shells
-    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
+    !> Fermi level(s)
+    real(dp), intent(inout) :: Ef(:)
 
-    !> imaginary part of density matrix
-    real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
+    !> Energy contributions and total
+    type(TEnergies), intent(inout) :: energy
+
+    !> orbital moments of atomic shells
+    real(dp), intent(inout) :: orbitalL(:,:,:)
 
     !> dense real hamiltonian storage
     real(dp), intent(inout), allocatable :: HSqrReal(:,:)
@@ -923,6 +910,18 @@ contains
 
     !> dense complex (k-points) overlap storage
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    !> sparse density matrix
+    real(dp), intent(out) :: rhoPrim(:,:)
+
+    !> band structure energy
+    real(dp), intent(out) :: Eband(:)
+
+    !> electronic entropy times temperature
+    real(dp), intent(out) :: TS(:)
+
+    !> imaginary part of density matrix
+    real(dp), intent(inout), optional :: iRhoPrim(:,:)
 
   #:if WITH_ELSI
 
@@ -940,7 +939,7 @@ contains
     end if
 
     rhoPrim(:,:) = 0.0_dp
-    if (allocated(iRhoPrim)) then
+    if (present(iRhoPrim)) then
       iRhoPrim(:,:) = 0.0_dp
     end if
 
@@ -976,10 +975,10 @@ contains
       if (this%isSparse) then
         call error("Internal error: getDensityFromElsiSolver : sparse pauli not yet implemented")
       else
-        call getDensityPauliDense(this, env, denseDesc, ham, over, neighbourList,&
-            & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb,&
-            & species, tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, rhoPrim, Eband,&
-            & iHam, xi, orbitalL, iRhoPrim, HSqrCplx, SSqrCplx)
+        call getDensityPauliDense(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
+            & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
+            & tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, rhoPrim, orbitalL,&
+            & iRhoPrim, HSqrCplx, SSqrCplx, Eband, iHam, xi)
       end if
     end if
 
@@ -1001,7 +1000,7 @@ contains
 
     ! Add up and distribute density matrix contribution from each group
     call mpifx_allreduceip(env%mpi%globalComm, rhoPrim, MPI_SUM)
-    if (allocated(iRhoPrim)) then
+    if (present(iRhoPrim)) then
       call mpifx_allreduceip(env%mpi%globalComm, iRhoPrim, MPI_SUM)
     end if
 
@@ -1498,10 +1497,10 @@ contains
 
 
   !> Returns the density matrix using ELSI non-diagonalisation routines (Pauli dense case).
-  subroutine getDensityPauliDense(this, env, denseDesc, ham, over, neighbourList,&
-      & nNeighbourSK, iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species,&
-      & tSpinOrbit, tDualSpinOrbit, tMulliken, parallelKS, energy, rhoPrim, Eband, iHam, xi,&
-      & orbitalL, iRhoPrim, HSqrCplx, SSqrCplx)
+  subroutine getDensityPauliDense(this, env, denseDesc, ham, over, neighbourList, nNeighbourSK,&
+      & iSparseStart, img2CentCell, iCellVec, cellVec, kPoint, kWeight, orb, species, tSpinOrbit,&
+      & tDualSpinOrbit, tMulliken, parallelKS, energy, rhoPrim, orbitalL, iRhoPrim, HSqrCplx,&
+      & SSqrCplx, Eband, iHam, xi)
 
     !> Electronic solver information
     type(TElsiSolver), intent(inout) :: this
@@ -1566,26 +1565,26 @@ contains
     !> sparse density matrix
     real(dp), intent(inout) :: rhoPrim(:,:)
 
-    !> band structure energy
-    real(dp), intent(out) :: Eband(:)
-
-    !> imaginary part of hamiltonian
-    real(dp), intent(in), allocatable :: iHam(:,:)
-
-    !> spin orbit constants
-    real(dp), intent(in), allocatable :: xi(:,:)
-
     !> orbital moments of atomic shells
-    real(dp), intent(inout), allocatable :: orbitalL(:,:,:)
+    real(dp), intent(inout) :: orbitalL(:,:,:)
 
     !> imaginary part of density matrix
-    real(dp), intent(inout), allocatable :: iRhoPrim(:,:)
+    real(dp), intent(inout) :: iRhoPrim(:,:)
 
     !> dense complex (k-points) hamiltonian storage
     complex(dp), intent(inout), allocatable :: HSqrCplx(:,:)
 
     !> dense complex (k-points) overlap storage
     complex(dp), intent(inout), allocatable :: SSqrCplx(:,:)
+
+    !> band structure energy
+    real(dp), intent(out) :: Eband(:)
+
+    !> imaginary part of hamiltonian
+    real(dp), intent(in), optional :: iHam(:,:)
+
+    !> spin orbit constants
+    real(dp), intent(in), optional :: xi(:,:)
 
     complex(dp), allocatable :: rhoSqrCplx(:,:)
     real(dp), allocatable :: rVecTemp(:), orbitalLPart(:,:,:)
@@ -1609,7 +1608,7 @@ contains
       orbitalL(:,:,:) = 0.0_dp
     end if
 
-    if (allocated(iHam)) then
+    if (present(iHam)) then
       call unpackHPauliBlacs(env%blacs, ham, kPoint(:,iK), neighbourList%iNeighbour,&
           & nNeighbourSK, iCellVec, cellVec, iSparseStart, img2CentCell, orb%mOrb, denseDesc,&
           & HSqrCplx, iorig=iHam)
@@ -1627,7 +1626,7 @@ contains
         this%tCholeskyDecomposed = .true.
       end if
     end if
-    if (allocated(xi) .and. .not. allocated(iHam)) then
+    if (present(xi) .and. .not. present(iHam)) then
       call addOnsiteSpinOrbitHam(env, xi, species, orb, denseDesc, HSqrCplx)
     end if
     allocate(rhoSqrCplx(size(HSqrCplx,dim=1),size(HSqrCplx,dim=2)))
@@ -1651,7 +1650,7 @@ contains
         orbitalL(:,:,:) = orbitalL + kWeight(iK) * orbitalLPart
       end if
     end if
-    if (allocated(iHam)) then
+    if (present(iHam)) then
       call packRhoPauliBlacs(env%blacs, denseDesc, rhoSqrCplx, kPoint(:,iK), kWeight(iK),&
           & neighbourList%iNeighbour, nNeighbourSK, orb%mOrb, iCellVec, cellVec,&
           & iSparseStart, img2CentCell, rhoPrim, iRhoPrim)

@@ -42,15 +42,12 @@ module dftbp_getenergies
 contains
 
 
-    !> Calculates various energy contribution that can potentially update for the same geometry
-  subroutine calcEnergies(sccCalc, qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
+  !> Calculates various energy contribution that can potentially update for the same geometry
+  subroutine calcEnergies(qOrb, q0, chargePerShell, species, tExtField, isXlbomd, tDftbU,&
       & tDualSpinOrbit, rhoPrim, H0, orb, neighbourList, nNeighbourSK, img2CentCell, iSparseStart,&
-      & cellVol, extPressure, TS, potential, energy, thirdOrd, solvation, rangeSep, reks,&
-      & qDepExtPot, qBlock, qiBlock, nDftbUFunc, UJ, nUJ, iUJ, niUJ, xi, iAtInCentralRegion,&
-      & tFixEf, Ef, onSiteElements)
-
-    !> SCC module internal variables
-    type(TScc), allocatable, intent(in) :: sccCalc
+      & cellVol, extPressure, TS, potential, energy, qBlock, UJ, nUJ, iUJ, niUJ, xi,&
+      & iAtInCentralRegion, tFixEf, Ef, sccCalc, thirdOrd, solvation, rangeSep, reks, qDepExtPot,&
+      & onSiteElements, qiBlock, nDftbUFunc)
 
     !> Electrons in each atomic orbital
     real(dp), intent(in) :: qOrb(:,:,:)
@@ -112,44 +109,23 @@ contains
     !> energy contributions
     type(TEnergies), intent(inout) :: energy
 
-    !> 3rd order settings
-    type(TThirdOrder), intent(inout), allocatable :: thirdOrd
-
-    !> Solvation model
-    class(TSolvation), allocatable, intent(inout) :: solvation
-
-    !> Data from rangeseparated calculations
-    type(TRangeSepFunc), intent(inout), allocatable :: rangeSep
-
-    !> data type for REKS
-    type(TReksCalc), allocatable, intent(inout) :: reks
-
-    !> Proxy for querying Q-dependant external potentials
-    type(TQDepExtPotProxy), intent(inout), allocatable :: qDepExtPot
-
     !> block (dual) atomic populations
-    real(dp), intent(in), allocatable :: qBlock(:,:,:,:)
-
-    !> Imaginary part of block atomic populations
-    real(dp), intent(in), allocatable :: qiBlock(:,:,:,:)
-
-    !> which DFTB+U functional (if used)
-    integer, intent(in), optional :: nDftbUFunc
+    real(dp), intent(in) :: qBlock(:,:,:,:)
 
     !> U-J prefactors in DFTB+U
-    real(dp), intent(in), allocatable :: UJ(:,:)
+    real(dp), intent(in) :: UJ(:,:)
 
     !> Number DFTB+U blocks of shells for each atom type
-    integer, intent(in), allocatable :: nUJ(:)
+    integer, intent(in) :: nUJ(:)
 
     !> which shells are in each DFTB+U block
-    integer, intent(in), allocatable :: iUJ(:,:,:)
+    integer, intent(in) :: iUJ(:,:,:)
 
     !> Number of shells in each DFTB+U block
-    integer, intent(in), allocatable :: niUJ(:,:)
+    integer, intent(in) :: niUJ(:,:)
 
     !> Spin orbit constants
-    real(dp), intent(in), allocatable :: xi(:,:)
+    real(dp), intent(in) :: xi(:,:)
 
     !> Atoms over which to sum the total energies
     integer, intent(in) :: iAtInCentralRegion(:)
@@ -161,8 +137,32 @@ contains
     !> from the given number of electrons
     real(dp), intent(inout) :: Ef(:)
 
+    !> SCC module internal variables
+    type(TScc), intent(in), optional :: sccCalc
+
+    !> 3rd order settings
+    type(TThirdOrder), intent(inout), optional :: thirdOrd
+
+    !> Solvation model
+    class(TSolvation), intent(inout), optional :: solvation
+
+    !> Data from rangeseparated calculations
+    type(TRangeSepFunc), intent(inout), optional :: rangeSep
+
+    !> data type for REKS
+    type(TReksCalc), intent(inout), optional :: reks
+
+    !> Proxy for querying Q-dependant external potentials
+    type(TQDepExtPotProxy), intent(inout), optional :: qDepExtPot
+
     !> Corrections terms for on-site elements
-    real(dp), intent(in), allocatable :: onSiteElements(:,:,:,:)
+    real(dp), intent(in), optional :: onSiteElements(:,:,:,:)
+
+    !> Imaginary part of block atomic populations
+    real(dp), intent(in), optional :: qiBlock(:,:,:,:)
+
+    !> which DFTB+U functional (if used)
+    integer, intent(in), optional :: nDftbUFunc
 
     integer :: nSpin
     real(dp) :: nEl(2)
@@ -180,12 +180,12 @@ contains
       energy%atomExt(:) = energy%atomExt&
           & + sum(qOrb(:,:,1) - q0(:,:,1), dim=1) * potential%extAtom(:,1)
     end if
-    if (allocated(qDepExtPot)) then
+    if (present(qDepExtPot)) then
       call qDepExtPot%addEnergy(energy%atomExt)
     end if
     energy%Eext = sum(energy%atomExt)
 
-    if (allocated(sccCalc)) then
+    if (present(sccCalc)) then
       if (isXlbomd) then
         call sccCalc%getEnergyPerAtomXlbomd(species, orb, qOrb, q0, energy%atomSCC)
       else
@@ -200,7 +200,7 @@ contains
       end if
     end if
 
-    if (allocated(thirdOrd)) then
+    if (present(thirdOrd)) then
       if (isXlbomd) then
         call thirdOrd%getEnergyPerAtomXlbomd(qOrb, q0, species, orb, energy%atom3rd)
       else
@@ -209,22 +209,21 @@ contains
       energy%e3rd = sum(energy%atom3rd(iAtInCentralRegion))
     end if
 
-    if (allocated(solvation)) then
+    if (present(solvation)) then
       call solvation%getEnergies(energy%atomSolv)
       energy%eSolv = sum(energy%atomSolv(iAtInCentralRegion))
     end if
 
-    if (allocated(onSiteElements)) then
-      call getEons(energy%atomOnSite, qBlock, qiBlock, q0, onSiteElements, species, orb)
+    if (present(onSiteElements)) then
+      call getEons(qBlock, q0, onSiteElements, species, orb, energy%atomOnSite, qiBlock)
       energy%eOnSite = sum(energy%atomOnSite)
     end if
 
     if (tDftbU) then
-      if (allocated(qiBlock)) then
-        call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ,&
-            & qiBlock)
+      if (present(qiBlock)) then
+        call E_DFTBU(qBlock, species, orb, UJ, nUJ, niUJ, iUJ, energy%atomDftbu, nDFTBUfunc, qiBlock)
       else
-        call E_DFTBU(energy%atomDftbu, qBlock, species, orb, nDFTBUfunc, UJ, nUJ, niUJ, iUJ)
+        call E_DFTBU(qBlock, species, orb, UJ, nUJ, niUJ, iUJ, energy%atomDftbu, nDFTBUfunc)
       end if
       energy%Edftbu = sum(energy%atomDftbu(iAtInCentralRegion))
     end if
@@ -236,7 +235,7 @@ contains
     end if
 
     ! Add exchange conribution for range separated calculations
-    if (allocated(rangeSep) .and. .not. allocated(reks)) then
+    if (present(rangeSep) .and. .not. present(reks)) then
       energy%Efock = 0.0_dp
       call rangeSep%addLREnergy(energy%Efock)
     end if
@@ -266,8 +265,11 @@ contains
 
 
   !> Calculates repulsive energy for current geometry
-  subroutine calcRepulsiveEnergy(coord, species, img2CentCell, nNeighbourRep, neighbourList,&
-      & pRepCont, Eatom, Etotal, iAtInCentralRegion)
+  subroutine calcRepulsiveEnergy(iAtInCentralRegion, coord, species, img2CentCell, nNeighbourRep,&
+      & neighbourList, pRepCont, Eatom, Etotal)
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
 
     !> All atomic coordinates
     real(dp), intent(in) :: coord(:,:)
@@ -293,9 +295,6 @@ contains
     !> Total energy
     real(dp), intent(out) :: Etotal
 
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: iAtInCentralRegion(:)
-
     call getERep(Eatom, coord, nNeighbourRep, neighbourList%iNeighbour, species, pRepCont,&
         & img2CentCell)
     Etotal = sum(Eatom(iAtInCentralRegion))
@@ -304,7 +303,10 @@ contains
 
 
   !> Calculates dispersion energy for current geometry.
-  subroutine calcDispersionEnergy(dispersion, Eatom, Etotal, iAtInCentralRegion)
+  subroutine calcDispersionEnergy(iAtInCentralRegion, dispersion, Eatom, Etotal)
+
+    !> atoms in the central cell (or device region if transport)
+    integer, intent(in) :: iAtInCentralRegion(:)
 
     !> dispersion interactions
     class(TDispersionIface), intent(inout) :: dispersion
@@ -314,9 +316,6 @@ contains
 
     !> total energy
     real(dp), intent(out) :: Etotal
-
-    !> atoms in the central cell (or device region if transport)
-    integer, intent(in) :: iAtInCentralRegion(:)
 
     call dispersion%getEnergies(Eatom)
   #:if WITH_MBD

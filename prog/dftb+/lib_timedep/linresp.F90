@@ -313,8 +313,8 @@ contains
   !> Wrapper to call linear response calculations of excitations and forces in excited states
   subroutine LinResp_addGradients(tSpin, this, iAtomStart, eigVec, eigVal, SSqrReal, filling,&
       & coords0, sccCalc, dqAt, species0, iNeighbour, img2CentCell, orb, skHamCont, skOverCont,&
-      & tWriteTagged, fdTagged, taggedWriter, excEnergy, allExcEnergies, excgradient, derivator,&
-      & rhoSqr, occNatural, naturalOrbs)
+      & tWriteTagged, fdTagged, taggedWriter, derivator, rhoSqr, allExcEnergies, naturalOrbs,&
+      & excEnergy, excgradient, occNatural)
 
     !> is this a spin-polarized calculation
     logical, intent(in) :: tSpin
@@ -364,12 +364,6 @@ contains
     !> overlap data
     type(TSlakoCont), intent(in) :: skOverCont
 
-    !> method for calculating derivatives of S and H0 matrices
-    class(TNonSccDiff), intent(in) :: derivator
-
-    !> ground state density matrix (square matrix plus spin index)
-    real(dp), intent(in) :: rhoSqr(:,:,:)
-
     !> print tag information
     logical, intent(in) :: tWriteTagged
 
@@ -379,28 +373,34 @@ contains
     !> Tagged writer
     type(TTaggedWriter), intent(inout) :: taggedWriter
 
-    !> energy of particular excited state
-    real(dp), intent(out) :: excenergy
+    !> method for calculating derivatives of S and H0 matrices
+    class(TNonSccDiff), intent(in) :: derivator
+
+    !> ground state density matrix (square matrix plus spin index)
+    real(dp), intent(in) :: rhoSqr(:,:,:)
 
     !> energes of all solved states
     real(dp), intent(inout), allocatable :: allExcEnergies(:)
+
+    !> the natural orbitals of the excited state transition density matrix or the total density
+    !> matrix in the excited state
+    real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
+
+    !> energy of particular excited state
+    real(dp), intent(out) :: excenergy
 
     !> contribution to forces from derivative of excited state energy
     real(dp), intent(out) :: excgradient(:,:)
 
     !> occupations of the natural orbitals from the density matrix
-    real(dp), intent(inout), allocatable :: occNatural(:)
-
-    !> the natural orbitals of the excited state transition density matrix or the total density
-    !> matrix in the excited state
-    real(dp), intent(inout), allocatable :: naturalOrbs(:,:,:)
+    real(dp), intent(inout), optional :: occNatural(:)
 
     real(dp), allocatable :: shiftPerAtom(:), shiftPerL(:,:)
 
     if (withArpack) then
       @:ASSERT(this%tInit)
       @:ASSERT(this%nAtom == size(orb%nOrbAtom))
-      @:ASSERT(allocated(occNatural) .eqv. allocated(naturalOrbs))
+      @:ASSERT(present(occNatural) .eqv. present(naturalOrbs))
 
       allocate(shiftPerAtom(this%nAtom))
       allocate(shiftPerL(orb%mShell, this%nAtom))
@@ -408,7 +408,7 @@ contains
       call sccCalc%getShiftPerL(shiftPerL)
       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
-      if (allocated(occNatural)) then
+      if (present(occNatural)) then
         call LinRespGrad_old(tSpin, this, iAtomStart, eigVec, eigVal, sccCalc, dqAt, coords0,&
             & SSqrReal, filling, species0, iNeighbour, img2CentCell, orb, tWriteTagged, fdTagged,&
             & taggedWriter, excEnergy, allExcEnergies, shiftPerAtom, skHamCont, skOverCont,&
