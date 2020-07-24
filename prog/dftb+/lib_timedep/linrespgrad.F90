@@ -926,7 +926,7 @@ contains
     integer, intent(in) :: getij(:,:)
 
     !> index array from orbital pairs to compound index
-    integer, intent(in) :: iatrans(:,homo(1)+1:,:)
+    integer, intent(in) :: iatrans(:,minval(homo)+1:,:)
 
     !> number of central cell atoms
     integer, intent(in) :: natom
