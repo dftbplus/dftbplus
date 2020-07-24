@@ -62,7 +62,7 @@ contains
     !> Index array of transitions
     integer, intent(in) :: getij(:,:)
 
-    integer :: nxov, ii, jj, iOcc, iVrt, iStart
+    integer :: nxov, ii, jj, iOcc, iVrt, iStart, iSpin
     real(dp) :: eOcc, eExc, mu
 
     nxov = size(wij)
@@ -73,14 +73,14 @@ contains
     @:ASSERT(size(getij,dim=2) == 2)
     @:ASSERT(threshold >= 0.0_dp)
 
-    call indxov(win, 1, getij, iOcc, iVrt)
+    call indxov(win, 1, getij, iOcc, iVrt, iSpin)
     eOcc = grndEigVal(iOcc,1)
     eExc = wij(1)
     iStart = 1
     nxov_r = 0
     ! Check, to single precision tolerance, for degeneracies when selecting bright transitions
     do ii = 2, nxov
-      call indxov(win, ii, getij, iOcc, iVrt)
+      call indxov(win, ii, getij, iOcc, iVrt, iSpin)
       ! check if this is a still within a degenerate group, otherwise process the group
       if ( abs(grndEigVal(iOcc,1)-eOcc) > epsilon(0.0) .or. &
           & abs(wij(ii)-eExc) > epsilon(0.0) ) then
@@ -89,7 +89,7 @@ contains
         mu = 0.0_dp
         ! loop over transitions in the group and check the oscillator strength
         do jj = iStart, ii-1
-          call indxov(win, jj, getij, iOcc, iVrt)
+          call indxov(win, jj, getij, iOcc, iVrt, iSpin)
           mu = mu + sposz(jj)
         end do
         ! if something in the group is bright, so include them all
@@ -109,7 +109,7 @@ contains
     ! last group in the transitions
     mu = 0.0_dp
     do jj = iStart, nxov
-      call indxov(win, jj, getij, iOcc, iVrt)
+      call indxov(win, jj, getij, iOcc, iVrt, iSpin)
       mu = mu + sposz(jj)
     end do
     if (mu>threshold) then
@@ -126,7 +126,7 @@ contains
 
 
   !> Computes individual indices from the compound occ-virt excitation index.
-  pure subroutine indxov(win, indx, getij, ii, jj)
+  pure subroutine indxov(win, indx, getij, ii, jj, ss)
 
     !> index array after sorting of eigenvalues.
     integer, intent(in) :: win(:)
@@ -143,11 +143,15 @@ contains
     !> Final (empty) state.
     integer, intent(out) :: jj
 
+    !> Spin channel: 1 (up) or 2 (down)
+    integer, intent(out) :: ss
+
     integer :: indo
 
     indo = win(indx)
     ii = getij(indo,1)
     jj = getij(indo,2)
+    ss = getij(indo,3)
 
   end subroutine indxov
 
@@ -238,7 +242,7 @@ contains
     integer, intent(in) :: getij(:,:)
 
     !> resulting index array from orbital pairs to compound index
-    integer, intent(out) :: iatrans(:,nocc+1:)
+    integer, intent(out) :: iatrans(:,nocc+1:,:)
 
     integer :: ia
 
@@ -249,7 +253,7 @@ contains
     ! If wij was not sorted, it would be a trivial transformation.
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia) SCHEDULE(RUNTIME)
     do ia = 1, nxov
-      iatrans( getij(win(ia),1), getij(win(ia),2) ) = ia
+      iatrans( getij(win(ia),1), getij(win(ia),2), getij(win(ia),3)) = ia
     end do
     !$OMP  END PARALLEL DO
 
@@ -362,13 +366,13 @@ contains
     !> resulting scaled matrix
     real(dp), intent(out) :: wn_ij(:)
 
-    integer :: ia, ii, jj
+    integer :: ia, ii, jj, ss
     logical :: updwn
     real(dp) :: docc_ij
 
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(ia, ii, jj, updwn, docc_ij) SCHEDULE(RUNTIME)
     do ia = 1, nmat
-      call indxov(win, ia, getij, ii, jj)
+      call indxov(win, ia, getij, ii, jj, ss)
       updwn = (win(ia) <= nmatup)
       if(updwn) then
         docc_ij = occNr(ii,1) - occNr(jj,1)
@@ -575,11 +579,12 @@ contains
     real(dp) :: qq_ij(orb%mOrb,orb%mOrb)
     logical :: updwn
     integer :: nmat, nAtom, nOrb
-    integer :: ia, iAt, iSp, iSh, iOrb, iOrb1, iOrb2, ii, jj, mu, nu, ss, sindx(2), iSpin
+    integer :: ia, iAt, iSp, iSh, iOrb, iOrb1, iOrb2, ii, jj, mu, nu, ss, sindx(2), iSpin, nSpin
     real(dp) :: degeneracy, partTrace
 
     nmat = size(vin)
     nAtom = size(species0)
+    nSpin = size(stimc, dim=3)
 
     vout(:) = 0.0_dp
     otmp(:,:,:,:)  = 0.0_dp
@@ -591,18 +596,12 @@ contains
       end if
     end if
 
-    if (spin) then
-      ss = 2
-    else
-      ss = 1
-    end if
-
     do iAt = 1, nAtom
       iSp = species0(iAt)
       nOrb = orb%nOrbAtom(iAt)
       call getOnsME(orb, iSp, ons_en, nOrb, onsite)
       do ia = 1, nmat
-        call indxov(win, ia, getij, ii, jj)
+        call indxov(win, ia, getij, ii, jj, ss)
         updwn = (win(ia) <= nmatup)
         call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
         if (spin) then
@@ -623,7 +622,7 @@ contains
         end if
       end do
       ! rotational invariance corection for diagonal part
-      do iSpin = 1, ss
+      do iSpin = 1, nSpin
         do iSh = 1, orb%nShell(iSp)
           degeneracy = real(2*orb%angShell(iSh, iSp) + 1, dp)
           partTrace = 0.0_dp
@@ -639,12 +638,8 @@ contains
     end do
 
     do ia = 1, nmat
-      call indxov(win, ia, getij, ii, jj)
+      call indxov(win, ia, getij, ii, jj, ss)
       updwn = (win(ia) <= nmatup)
-      ss = 1
-      if (.not. updwn) then
-        ss = 2
-      end if
       do iAt = 1, nAtom
         nOrb = orb%nOrbAtom(iAt)
         call transDens(ii, jj, iAt, iAtomStart, nOrb, updwn, stimc, grndEigVecs, qq_ij)
@@ -750,7 +745,7 @@ contains
           if (filling(ii,iSpin) > filling(jj,iSpin) + elecTolMax) then
             ind = ind + 1
             wij(ind) = grndEigVal(jj,iSpin) - grndEigVal(ii,iSpin)
-            getij(ind,:) = [ii,jj]
+            getij(ind,:) = [ii,jj,iSpin]
           end if
         end do
       end do
@@ -851,7 +846,7 @@ contains
     real(dp), intent(out) :: snglPartTransDip(:,:)
 
     integer :: nxov, natom
-    integer :: indm, ii, jj
+    integer :: indm, ii, jj, ss
     real(dp), allocatable :: qij(:)
     logical :: updwn
 
@@ -862,7 +857,7 @@ contains
 
     ! Calculate transition dipole elements
     do indm = 1, nxov
-      call indxov(win, indm, getij, ii, jj)
+      call indxov(win, indm, getij, ii, jj, ss)
       updwn = (win(indm) <= nmatup)
       qij(:) = transq(ii, jj, iAtomStart, updwn, stimc, grndEigVecs)
       snglPartTransDip(indm, :) = matmul(coord0, qij)
@@ -905,7 +900,7 @@ contains
     !> Ground state eigenvectors
     real(dp), intent(in) :: grndEigVecs(:,:,:)
 
-    integer:: i, k, l, m, ia, jb, ii, aa, jj, bb
+    integer:: i, k, l, m, ia, jb, ii, aa, jj, bb, ss
     integer:: nmat, nexc, nup, ndwn
     real(dp) :: rsqw, TDvnorm
     real(dp), allocatable :: TDvec(:), TDvec_sq(:)
@@ -940,11 +935,11 @@ contains
       s_iaja = 0.0_dp
       do k = 1, nmat
         ia = TDvin(k)
-        call indxov(win, ia, getij, ii, aa)
+        call indxov(win, ia, getij, ii, aa, ss)
         ud_ia = (win(ia) <= nmatup)
         do l = 1, nmat
           jb = TDvin(l)
-          call indxov(win, jb, getij, jj, bb)
+          call indxov(win, jb, getij, jj, bb, ss)
           ud_jb = (win(jb) <= nmatup)
 
           if ( (bb /= aa) .or. (ud_jb .neqv. ud_ia) ) then
@@ -971,11 +966,11 @@ contains
       s_iaib = 0.0_dp
       do k = 1, nmat
         ia = TDvin(k)
-        call indxov(win, ia, getij, ii, aa)
+        call indxov(win, ia, getij, ii, aa, ss)
         ud_ia = (win(ia) <= nmatup)
         do l = 1, nmat
           jb = TDvin(l)
-          call indxov(win, jb, getij, jj, bb)
+          call indxov(win, jb, getij, jj, bb, ss)
           ud_jb = (win(jb) <= nmatup)
 
           if ( (ii /= jj) .or. (ud_jb .neqv. ud_ia) ) then
@@ -1001,14 +996,14 @@ contains
       s_iajb = 0.0_dp
       do k = 1, nmat
         ia = TDvin(k)
-        call indxov(win, ia, getij, ii, aa)
+        call indxov(win, ia, getij, ii, aa, ss)
         ud_ia = (win(ia) <= nmatup)
         if (.not. ud_ia ) then
           cycle
         end if
         do l = 1, nmat
           jb = TDvin(l)
-          call indxov(win, jb, getij, jj, bb)
+          call indxov(win, jb, getij, jj, bb, ss)
           ud_jb = (win(jb) <= nmatup)
 
           if ( ud_jb ) cycle
@@ -1054,7 +1049,7 @@ contains
     !> is this a spin-polarized calculation?
     logical, intent(in) :: tSpin
 
-    integer :: indm, m, n
+    integer :: indm, m, n, s
     logical :: updwn
     character :: sign
 
@@ -1070,7 +1065,7 @@ contains
       write(fdSPTrans,'(1x,58("="))')
       write(fdSPTrans,*)
       do indm = 1, nxov
-        call indxov(win, indm, getij, m, n)
+        call indxov(win, indm, getij, m, n, s)
         sign = " "
         if (tSpin) then
           updwn = (win(indm) <= nmatup)
