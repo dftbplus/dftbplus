@@ -174,6 +174,7 @@ contains
 
     integer :: nocc, nocc_r, nvir_r, nxoo_r, nxvv_r
     integer, allocatable :: nocc_ud(:), nvir_ud(:)
+    integer :: mHOMO, mLUMO
     integer :: nxov, nxov_ud(2), nxov_r, nxov_d, nxov_rd
     integer :: norb
     integer :: i, j, iSpin, isym, iLev, nStartLev, nEndLev
@@ -560,6 +561,9 @@ contains
       nxoo_r = (nocc_r * (nocc_r + 1)) / 2
       nxvv_r = (nvir_r * (nvir_r + 1)) / 2
 
+      mHOMO = maxval(nocc_ud)
+      mLUMO = minval(nocc_ud) + 1
+
       ! Arrays needed for Z vector
       ALLOCATE(xpy(nxov_rd))
       ALLOCATE(xmy(nxov_rd))
@@ -568,7 +572,7 @@ contains
       ALLOCATE(woo(nxoo_r, nSpin))
       ALLOCATE(wvv(nxvv_r, nSpin))
       ALLOCATE(wov(nxov_rd))
-      ALLOCATE(iatrans(1:nocc, nocc+1:norb, nSpin))
+      ALLOCATE(iatrans(1:mHOMO, mLUMO:norb, nSpin))
 
       ! Arrays for gradients and Mulliken analysis
       if (tZVector) then
