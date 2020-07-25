@@ -30,9 +30,9 @@ Building from source
 --------------------
 
 **Note:** This section describes the building with default settings (offering
-only a subset of all possible features in DFTB+). For more detailed information
-on the build customization and the build process, consult the `detailed building
-instructions <INSTALL.rst>`_.
+only a subset of all possible features in DFTB+) in a typical Linux
+environment. For more detailed information on the build customization and the
+build process, consult the `detailed building instructions <INSTALL.rst>`_.
 
 Download the source code from the `stable release page
 <http://www.dftbplus.org/download/dftb-stable/>`_.
@@ -44,7 +44,7 @@ the location where the code should be installed (``-DCMAKE_INSTALL_PREFIX``)::
 
   mkdir build
   cd build
-  env FC=gfortran CC=gcc cmake -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ ..
+  FC=gfortran CC=gcc cmake -DCMAKE_INSTALL_PREFIX=$HOME/opt/dftb+ ..
 
 If the configuration was successful, start the build with ::
 

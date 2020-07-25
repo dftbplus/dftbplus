@@ -1753,13 +1753,13 @@ contains
 
 
   !> Computes excitation spectrum through range separated response calculation
-  subroutine linRespCalcExcitationsRS(spin, tOnsite, self, iAtomStart, eigVec, eigVal, sccCalc,&
+  subroutine linRespCalcExcitationsRS(spin, tOnsite, this, iAtomStart, eigVec, eigVal, sccCalc,&
       & SSqrReal, filling, coords0, dqAt, specie0, hubbUAtom, iNeighbor, img2CentCell, orb, rsData,&
       & tWriteTagged, fdTagged, taggedWriter, excEnergy, skHamCont, skOverCont, derivator,&
       & deltaRho, excGrad, dQAtomEx)
     logical, intent(in) :: spin
     logical, intent(in) :: tOnsite
-    type(TLinResp), intent(inout) :: self
+    type(TLinResp), intent(inout) :: this
     integer, intent(in) :: iAtomStart(:)
     real(dp), intent(in) :: eigVec(:,:,:)
     real(dp), intent(in) :: eigVal(:,:), SSqrReal(:,:)
@@ -1808,12 +1808,12 @@ contains
 
     if (.not. present(excGrad)) then
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, self%nExc, self%nStat, self%symmetry, SSqrReal, occNr, specie0, self%nAtom,&
-          & hubbUAtom, self%spinW, self%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
-          & fdTagged, taggedWriter, self%fdMulliken, self%fdCoeffs, self%fdXplusY, self%fdTrans,&
-          & self%fdSPTrans, self%fdTraDip, self%fdTransQ, self%tArnoldi, self%fdArnoldi,&
-          & self%fdExc, self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow,&
-          & self%oscillatorWindow, self%tCacheCharges, excEnergy)
+          & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
+          & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
+          & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%fdXplusY, this%fdTrans,&
+          & this%fdSPTrans, this%fdTraDip, this%fdTransQ, this%tArnoldi, this%fdArnoldi,&
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy)
     else
       allocate(shiftPerAtom(nAtom))
       allocate(shiftPerL(orb%mShell, nAtom))
@@ -1822,12 +1822,12 @@ contains
       shiftPerAtom = shiftPerAtom + shiftPerL(1,:)
 
       call runRsLinRespCalc(spin, tOnsite, nAtom, iAtomStart, eigVec, eigVal, sccCalc, dqAt,&
-          & coords0, self%nExc, self%nStat, self%symmetry, SSqrReal, occNr, specie0, self%nAtom,&
-          & hubbUAtom, self%spinW, self%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
-          & fdTagged, taggedWriter, self%fdMulliken, self%fdCoeffs, self%fdXplusY, self%fdTrans,&
-          & self%fdSPTrans, self%fdTraDip, self%fdTransQ, self%tArnoldi, self%fdArnoldi,&
-          & self%fdExc, self%tEnergyWindow, self%energyWindow, self%tOscillatorWindow,&
-          & self%oscillatorWindow, self%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
+          & coords0, this%nExc, this%nStat, this%symmetry, SSqrReal, occNr, specie0, this%nAtom,&
+          & hubbUAtom, this%spinW, this%nEl, iNeighbor, img2CentCell, orb, rsData, tWriteTagged,&
+          & fdTagged, taggedWriter, this%fdMulliken, this%fdCoeffs, this%fdXplusY, this%fdTrans,&
+          & this%fdSPTrans, this%fdTraDip, this%fdTransQ, this%tArnoldi, this%fdArnoldi,&
+          & this%fdExc, this%tEnergyWindow, this%energyWindow, this%tOscillatorWindow,&
+          & this%oscillatorWindow, this%tCacheCharges, excEnergy, shiftPerAtom, skHamCont,&
           & skOverCont, derivator, deltaRho, excGrad, dQAtomEx)
     end if
 

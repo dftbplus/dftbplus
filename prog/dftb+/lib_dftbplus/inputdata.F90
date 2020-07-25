@@ -564,35 +564,35 @@ contains
 
 
   !> Mark data structure as initialised
-  subroutine InputData_init(self)
+  subroutine InputData_init(this)
 
     !> Instance
-    type(TInputData), intent(out) :: self
+    type(TInputData), intent(out) :: this
 
-    self%tInitialized = .true.
+    this%tInitialized = .true.
 
   end subroutine InputData_init
 
 
   !> destructor for parts that are not cleaned up when going out of scope
-  subroutine InputData_destruct(self)
+  subroutine InputData_destruct(this)
 
     !> Instance
-    type(TInputData), intent(inout) :: self
+    type(TInputData), intent(inout) :: this
 
-    call Control_destruct(self%ctrl)
+    call Control_destruct(this%ctrl)
 
   end subroutine InputData_destruct
 
 
   !> destructor for parts that are not cleaned up when going out of scope
-  subroutine Control_destruct(self)
+  subroutine Control_destruct(this)
 
     !> Instance
-    type(TControl), intent(inout) :: self
+    type(TControl), intent(inout) :: this
 
-    if (allocated(self%tShellResInRegion)) then
-      call destruct(self%iAtInRegion)
+    if (allocated(this%tShellResInRegion)) then
+      call destruct(this%iAtInRegion)
     end if
 
   end subroutine Control_destruct

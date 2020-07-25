@@ -13,23 +13,19 @@
 #    automatically. If that is not the case, override those variables to add search paths
 #    manually
 #
-#  * Compiler flags specified via the environment variables FFLAGS and CFLAGS are *appended* to the
-#    pre-configured flags. If you want to override all flags on the command line, use the
-#    -DFortran_FLAGS=<flags> and -DC_FLAGS=<flags> options.
-#
 
 
 #
 # Fortran compiler settings
 #
-set(Fortran_FLAGS "-standard-semantics"
-  CACHE STRING "Additional general Fortran compiler flags")
+set(Fortran_FLAGS "-standard-semantics ${CMAKE_Fortran_FLAGS}"
+  CACHE STRING "Build type independent Fortran compiler flags")
 
 set(Fortran_FLAGS_RELEASE "-O2 -ip -heap-arrays 10"
-  CACHE STRING "Additional Fortran compiler flags for Release build")
+  CACHE STRING "Fortran compiler flags for Release build")
 
-set(Fortran_FLAGS_DEBUG "-warn all -stand f08 -check -diag-error-limit 1 -traceback"
-  CACHE STRING "Additional Fortran compiler flags for Debug build")
+set(Fortran_FLAGS_DEBUG "-g -warn all -stand f08 -check -diag-error-limit 1 -traceback"
+  CACHE STRING "Fortran compiler flags for Debug build")
 
 set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 
@@ -37,14 +33,14 @@ set(FYPP_FLAGS "" CACHE STRING "Flags for the preprocessor")
 #
 # C compiler settings
 #
-set(C_FLAGS ""
-  CACHE STRING "Additional general C compiler flags")
+set(C_FLAGS "${CMAKE_C_FLAGS}"
+  CACHE STRING "Build type independent C compiler flags")
 
 set(C_FLAGS_RELEASE "-O2 -ip"
-  CACHE STRING  "Additional C compiler flags for Release build")
+  CACHE STRING  "C compiler flags for Release build")
 
-set(C_FLAGS_DEBUG "-Wall"
-  CACHE STRING "Additional C compiler flags for Debug build")
+set(C_FLAGS_DEBUG "-g -Wall"
+  CACHE STRING "C compiler flags for Debug build")
 
 
 #
@@ -60,8 +56,8 @@ else()
     "LAPACK and BLAS libraries to link")
 endif()
 
-#set(LAPACK_LIBRARY_DIRS "$ENV{MKLROOT}/lib/intel64" CACHE STRING
-#  "Directories where LAPACK and BLAS libraries can be found")
+set(LAPACK_LIBRARY_DIRS "$ENV{MKLROOT}/lib/intel64" CACHE STRING
+  "Directories where LAPACK and BLAS libraries can be found")
 
 # ARPACK -- only needed when built with ARPACK support
 set(ARPACK_LIBRARIES "arpack" CACHE STRING "Arpack library")
@@ -70,7 +66,7 @@ set(ARPACK_LIBRARY_DIRS "" CACHE STRING "Directories where Arpack library can be
 # ScaLAPACK -- only needed for MPI-parallel build
 set(SCALAPACK_LIBRARIES "mkl_scalapack_lp64;mkl_blacs_intelmpi_lp64" CACHE STRING
   "Scalapack libraries to link")
-set(SCALAPACK_LIBRARY_DIRS "" CACHE STRING
+set(SCALAPACK_LIBRARY_DIRS "$ENV{MKLROOT}/lib/intel64" CACHE STRING
   "Directories where Scalapack libraries can be found")
 
 # ELSI -- only needed when compiled with ELSI support

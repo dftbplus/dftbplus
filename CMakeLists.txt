@@ -26,23 +26,18 @@ dftbp_ensure_config_consistency()
 dftbp_get_release_name(RELEASE)
 
 if(WITH_API)
-  dftbp_get_api_release(API_RELEASE)
+  dftbp_get_api_version(API_VERSION API_VERSION_MAJOR API_VERSION_MINOR API_VERSION_PATCH)
 endif()
 
 find_package(MPI)
-if(MPI_Fortran_FOUND)
-  option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" TRUE)
-else()
-  option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
-endif()
 if(WITH_MPI AND NOT MPI_FORTRAN_FOUND)
   message(FATAL_ERROR "Compiler ${CMAKE_Fortran_COMPILER} is not MPI capable but is specified for "
     "a WITH_MPI=TRUE build")
 elseif(NOT WITH_MPI AND MPI_FORTRAN_FOUND)
-  message(WARNING "MPI enabled compiler ${CMAKE_Fortran_COMPILER} is specified for a build where "
-    "WITH_MPI=FALSE")
+  message(WARNING "MPI enabled compiler ${CMAKE_Fortran_COMPILER} found for a non-MPI build. Your "
+    "build will NOT be MPI-parallelised. Set WITH_MPI=TRUE in order to obtain an MPI-parallelised "
+    "build.")
 endif()
-
 
 if(WITH_OMP)
   find_package(OpenMP REQUIRED)

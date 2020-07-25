@@ -7,13 +7,9 @@ external/gbsa/origin
 external/gbsa/status
 external/slakos/origin
 external/slakos/status
-_build*
-_install
-make.arch
-make.config
+build
 custom.cmake
 __pycache__
 .idea
 RELEASE
 tools/dptools/build
-test/prog/dftb+/transtests

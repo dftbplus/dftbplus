@@ -37,7 +37,8 @@ contributed to DFTB+ :
 
 * Sebastian Ehlert (University of Bonn, Germany)
 
-* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of Korea)
+* In Seong Lee (Ulsan National Institute of Science and Technology, Repubic of
+  Korea)
 
 * Izaac Mitchell (University of Newcastle, Australia)
   

@@ -71,25 +71,25 @@ contains
 
 
   !> Create integrator wrapper for velocity Verlet.
-  subroutine MDIntegrator_init_VVerlet(self, pIntegrator)
+  subroutine MDIntegrator_init_VVerlet(this, pIntegrator)
 
     !> Integrator wrapper instance on exit.
-    type(TMDIntegrator), intent(out) :: self
+    type(TMDIntegrator), intent(out) :: this
 
     !> Velocity Verlet integrator.
     type(TVelocityVerlet), allocatable, intent(inout) :: pIntegrator
 
-    self%integrator = velocityVerlet_
-    call move_alloc(pIntegrator, self%pVelocityVerlet)
+    this%integrator = velocityVerlet_
+    call move_alloc(pIntegrator, this%pVelocityVerlet)
 
   end subroutine MDIntegrator_init_VVerlet
 
 
   !> Delivers the next velocities
-  subroutine MDIntegrator_next(self, accel, newCoord, newVelocity)
+  subroutine MDIntegrator_next(this, accel, newCoord, newVelocity)
 
     !> Integrator wrapper instance on exit.
-    type(TMDIntegrator), intent(inout) :: self
+    type(TMDIntegrator), intent(inout) :: this
 
     !> Accelerations.
     real(dp), intent(in) :: accel(:,:)
@@ -99,9 +99,9 @@ contains
 
     real(dp), intent(out) :: newVelocity(:,:)
 
-    select case (self%integrator)
+    select case (this%integrator)
     case (velocityVerlet_)
-      call next(self%pVelocityVerlet, accel, newCoord, newVelocity)
+      call next(this%pVelocityVerlet, accel, newCoord, newVelocity)
     end select
 
   end subroutine MDIntegrator_next
@@ -110,10 +110,10 @@ contains
   !> Apply Barostat type rescales if needed
   !>
   !> Note: Should be packaged in the same way as thermostats
-  subroutine MDIntegrator_rescale(self,coord,latVecs,stress)
+  subroutine MDIntegrator_rescale(this,coord,latVecs,stress)
 
     !> Integrator instance
-    type(TMDIntegrator), intent(inout) :: self
+    type(TMDIntegrator), intent(inout) :: this
 
     !> coordinates of atoms
     real(dp),intent(inout) :: coord(:,:)
@@ -124,16 +124,16 @@ contains
     !> stress tensor
     real(dp),intent(in) :: stress(3,3)
 
-    call rescale(self%pVelocityVerlet,coord,latVecs,stress)
+    call rescale(this%pVelocityVerlet,coord,latVecs,stress)
 
   end subroutine MDIntegrator_rescale
 
 
   !> resets the positions and velocities of the integrator internal state
-  subroutine MDIntegrator_reset(self, positions, velocities, tHalfVelocities)
+  subroutine MDIntegrator_reset(this, positions, velocities, tHalfVelocities)
 
     !> Integrator instance
-    type(TMDIntegrator), intent(inout) :: self
+    type(TMDIntegrator), intent(inout) :: this
 
     !> New position of the atoms.
     real(dp), intent(in) :: positions(:,:)
@@ -147,26 +147,26 @@ contains
     !> they need to be regenerated later (false).
     logical, intent(in) :: tHalfVelocities
 
-    @:ASSERT(allocated(self%pVelocityVerlet))
+    @:ASSERT(allocated(this%pVelocityVerlet))
 
-    call reset(self%pVelocityVerlet, positions, velocities, tHalfVelocities)
+    call reset(this%pVelocityVerlet, positions, velocities, tHalfVelocities)
 
   end subroutine MDIntegrator_reset
 
 
   !> Probe internal state of the integrator, writing this to disc
-  subroutine MDIntegrator_state(self, fd, velocities)
+  subroutine MDIntegrator_state(this, fd, velocities)
 
     !> Integrator instance
-    type(TMDIntegrator), intent(in) :: self
+    type(TMDIntegrator), intent(in) :: this
 
     !> file handle to write to
     integer,intent(in), optional :: fd
 
     real(dp), intent(out), optional :: velocities(:,:)
 
-    @:ASSERT(allocated(self%pVelocityVerlet))
-    call state(self%pVelocityVerlet, fd, velocities)
+    @:ASSERT(allocated(this%pVelocityVerlet))
+    call state(this%pVelocityVerlet, fd, velocities)
 
   end subroutine MDIntegrator_state
 

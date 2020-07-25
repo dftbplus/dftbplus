@@ -133,15 +133,27 @@ function(dftbp_get_release_name release)
 endfunction()
 
 
-# Gets DFTB+ API release information.
+# Gets DFTB+ API version information.
 #
 # Args:
-#   release [out]: Release string.
+#   apiversion [out]: Version string.
+#   apimajor [out]: Major release number (as string).
+#   apiminor [out]: Minor release number (as string).
+#   apipatch [out]: Patch release number (as string).
 #
-function(dftbp_get_api_release apiversion)
+function(dftbp_get_api_version apiversion apimajor apiminor apipatch)
 
-  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  file(STRINGS ${CMAKE_SOURCE_DIR}/prog/dftb+/api/mm/API_VERSION _api
+    REGEX "^[0-9]+\.[0-9]+\.[0-9]+$")
+  string(REGEX MATCHALL "[0-9]+" _api_list "${_api}")
+  list(GET _api_list 0 _api_major)
+  list(GET _api_list 1 _api_minor)
+  list(GET _api_list 2 _api_patch)
+
   set(${apiversion} "${_api}" PARENT_SCOPE)
+  set(${apimajor} "${_api_major}" PARENT_SCOPE)
+  set(${apiminor} "${_api_minor}" PARENT_SCOPE)
+  set(${apipatch} "${_api_patch}" PARENT_SCOPE)
 
 endfunction()
 
@@ -154,6 +166,11 @@ endfunction()
 #
 function (dftbp_create_library_targets libraries libpaths)
   foreach(lib IN LISTS libraries)
+    string(REGEX MATCH "^[ ]*-.*" option ${lib})
+    # If the library is a linker option, skip target conversion (use it literally)
+    if(NOT "${option}" STREQUAL "")
+      continue()
+    endif()
     if(TARGET ${lib})
       continue()
     endif()
@@ -386,8 +403,7 @@ macro (dftbp_load_build_settings)
       set(BUILD_CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.cmake")
     endif()
   endif()
-  message(STATUS "Reading build config file: ${BUILD_CONFIG_FILE}\n"
-    "(Adjust the variables defined in this file to enable/disable build components)")
+  message(STATUS "Reading global build config file: ${BUILD_CONFIG_FILE}")
   include(${BUILD_CONFIG_FILE})
   
 endmacro()
@@ -431,8 +447,7 @@ macro(dftbp_load_toolchain_settings)
     endif()
     set(TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/sys/${TOOLCHAIN}.cmake)
   endif()
-  message(STATUS "Loading toolchain file: ${TOOLCHAIN_FILE}\n"
-    "(Adjust variables defined in this file to change compiler, linker and library settings)")
+  message(STATUS "Reading build environment specific toolchain file: ${TOOLCHAIN_FILE}")
   include(${TOOLCHAIN_FILE})
 endmacro()
 
@@ -441,16 +456,9 @@ endmacro()
 #
 macro (dftbp_setup_global_compiler_flags)
   string(TOUPPER "${CMAKE_BUILD_TYPE}" BUILDTYPE_UPPER)
-
-  # Remove automatic -O3 flags for Intel (too aggressive)
-  if("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Intel")
-    string(REPLACE "-O3" "" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-    string(REPLACE "-O3" "" CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-  endif()
-
   foreach (lang IN ITEMS Fortran C)
-    string(APPEND CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
-    string(APPEND CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
+    set(CMAKE_${lang}_FLAGS " ${${lang}_FLAGS}")
+    set(CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER} " ${${lang}_FLAGS_${BUILDTYPE_UPPER}}")
     message(STATUS "Flags for ${lang}-compiler: "
       "${CMAKE_${lang}_FLAGS} ${CMAKE_${lang}_FLAGS_${BUILDTYPE_UPPER}}")
   endforeach()

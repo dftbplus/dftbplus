@@ -3,17 +3,12 @@
 #
 set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type (Release|Debug)")
 
-set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/_install" CACHE STRING
+set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE STRING
   "Directory to install the compiled code into")
 
 option(WITH_OMP "Whether OpenMP thread parallisation should be enabled" TRUE)
 
-#option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
-
-# WITH_MPI will be set depending whether the MPI-capability of the specified compiler can be
-# detected or not. Uncomment (or set via the command line option -D) this variable if you want to
-# enforce an mpi or serial build independent of the result of the auto-detection.
-#
+option(WITH_MPI "Whether DFTB+ should support MPI-parallelism" FALSE)
 # If you build an MPI-parallised binary, consider to set WITH_OMP (OpenMP thread parallelisaton) to
 # FALSE unless you want hybrid parallelisation (for experts only).
 
@@ -36,7 +31,7 @@ option(WITH_DFTD3 "Whether the DFTD3 library should be included" FALSE)
 
 option(WITH_PLUMED "Whether metadynamics via the PLUMED2 library should be allowed for" FALSE)
 
-option(WITH_API "Whether public API should be included and the DFTB+ library installed" FALSE)
+option(WITH_API "Whether public API should be included and the DFTB+ library installed" TRUE)
 # Turn this on, if you want to use the DFTB+ library to integrate DFTB+ into other software
 # packages. (Otherwise only a stripped down version of the library without the public API is built.)
 # This will also install necessary include and module files and further libraries needed to link the
