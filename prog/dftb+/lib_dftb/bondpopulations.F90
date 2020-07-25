@@ -47,7 +47,7 @@ contains
     !> index array for location of atomic blocks in large sparse arrays
     integer, intent(in) :: iSparseStart(0:,:)
 
-    integer :: iAt1, iAt2, iAt2f, nOrb1, nOrb2, iOrig, iStart, iEnd, iNeigh, mOrb, iOrb1, iOrb2
+    integer :: iAt1, iAt2, iAt2f, nOrb1, nOrb2, iOrig, iNeigh, iOrb1, iOrb2
     integer :: nAtom
 
     nAtom = size(iSquare) - 1

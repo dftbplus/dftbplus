@@ -89,7 +89,7 @@ module poisson
 
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
-   integer :: PoissFlag, ndim 
+   integer :: PoissFlag
 
    if (active_id) then
      PoissFlag=3
@@ -117,7 +117,7 @@ module poisson
 
    real(kind=dp), DIMENSION(3,1) :: fakegrad
    real(kind=dp), DIMENSION(1,1) :: fakeshift
-   integer :: PoissFlag, ndim
+   integer :: PoissFlag
 
    call env%globalTimer%startTimer(globalTimers%poisson)
 
@@ -385,7 +385,6 @@ subroutine mudpack_drv(env, SCC_in, V_L_atm, grad_V, iErr)
  integer, save :: niter = 1
 
  integer :: na,nb,nc, cont_mem
- character(10) :: bndtype 
  character(50) :: BCinfo
  !e.g.: tmpdir (1) = 0 if there aren't two or more contacts in the same "x direction"
 
@@ -984,22 +983,22 @@ subroutine set_rhs(env, iparm, fparm, dlx, dly, dlz, rhs, bulk)
 end subroutine set_rhs
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-subroutine renormalization_volume(iparm,fparm,dlx,dly,dlz,fixed)
+subroutine renormalization_volume(iparm, fparm, dlx, dly, dlz, fixed)
 
   implicit none 
 
   integer :: iparm(23) 
   real(kind=dp) :: fparm(8)
-  real(kind=dp) :: dlx,dly,dlz
+  real(kind=dp) :: dlx, dly, dlz
   logical, intent(in) :: fixed
 
   !Internal variables
 
-  real(kind=dp) :: xi(3),deltaR
-  integer :: i,j,k,atom, rag(3)
+  real(kind=dp) :: xi(3), deltaR
+  integer :: i, j, k, atom, rag(3)
   integer :: ragx, ragy, ragz, npx, npy, npz
 
-  real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
+  real(kind=dp) :: dl(3), xmin(3), xmax(3)
   integer :: imin(3),imax(3), ii, jj, kk, l, nsh
   real(kind=dp), allocatable, dimension(:,:) :: tau
   ! Perform almost the same operations of charge_density, estimates
@@ -1099,7 +1098,7 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
 
  implicit none 
 
- integer :: iparm(23) 
+ integer :: iparm(23)
  real(kind=dp) :: fparm(8)
  real(kind=dp) :: dlx,dly,dlz
  real(kind=dp) :: rhs(:,:,:)
@@ -1112,7 +1111,7 @@ subroutine charge_density(iparm,fparm,dlx,dly,dlz,rhs)
 
  real(kind=dp) :: tmp,dl(3),xmin(3),xmax(3)
  integer :: imin(3),imax(3), ii, jj, kk, l, nsh
- real(kind=dp), allocatable, dimension(:,:) :: tau, vol
+ real(kind=dp), allocatable, dimension(:,:) :: tau
 
  rhs(:,:,:)=0.d0
 
@@ -1286,7 +1285,6 @@ Subroutine shift_Ham(iparm,fparm,dlx,dly,dlz,phi,phi_bulk,V_atm)
   real(dp) :: dl(3), xmin(3), xmax(3), xhlp(3), dla, dlb, dlc
   integer :: imin(3), imax(3), n_cell(3), ii, jj, kk, rag(3)
   integer :: ncx,ncy,ncz, npx, npy, npz, nsh,l
-  integer, dimension(:), allocatable :: istart, iend, displ, dims
  
   dl(1)=dlx; dl(2)=dly; dl(3)=dlz;
  
@@ -1613,20 +1611,19 @@ subroutine save_pot_cube(iparm,fparm,dlx,dly,dlz,phi,rhs)
 end subroutine save_pot_cube
 
 subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
-  
+
   integer, intent(in) :: iparm(23) 
   real(kind=dp), intent(in) :: fparm(8)
   real(kind=dp), intent(in) :: dlx,dly,dlz
   real(kind=dp), intent(in) :: phi(:,:,:)
   real(kind=dp), intent(in) :: rhs(:,:,:)
-  
+
   integer :: i,j,k,nx_fix,ny_fix,nz_fix,FixDir, fp
   real(kind=dp) :: xi,yj,zk
   real(kind=dp) :: z_min_gate, z_max_gate, z_min_ox, z_max_ox 
-  logical :: tmpLogic
-  
+
   FixDir=int(PoissPlane(1)) 
-  
+
   if (verbose.gt.70) then 
     if(id0) write(stdOut,'(1x,a)') 'Saving charge density and potential ...'
   endif
@@ -1927,11 +1924,10 @@ subroutine save_pot(iparm,fparm,dlx,dly,dlz,phi,rhs)
 
  real(dp) function rho(xx1,yy1,zz1)
    
-   real(dp) :: xx1,yy1,zz1
-   
-   real(dp) :: xx,yy,zz
+   real(dp) :: xx1, yy1, zz1
+   real(dp) :: xx, yy, zz
    real(dp) :: deltaR, tau 
-   integer :: typ,atom, nsh,l
+   integer :: atom, nsh, l
    
    
    xx=xx1+PoissBounds(1,1)

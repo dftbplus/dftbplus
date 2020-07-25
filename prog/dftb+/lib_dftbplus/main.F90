@@ -1873,10 +1873,8 @@ contains
     !> Are dense matrices for H, S, etc. being used
     logical, intent(in) :: tLargeDenseMatrices
 
-    integer :: nSpin, iKS, iSp, iK, nAtom
-    complex(dp), allocatable :: rhoSqrCplx(:,:)
+    integer :: nSpin
     logical :: tImHam
-    real(dp), allocatable :: rVecTemp(:)
 
     nSpin = size(ham, dim=2)
     tImHam = allocated(iRhoPrim)
@@ -2225,7 +2223,7 @@ contains
     !> eigenvalues
     real(dp), intent(out) :: eigen(:,:)
 
-    integer :: iKS, iSpin, ii
+    integer :: iKS, iSpin
 
     eigen(:,:) = 0.0_dp
     do iKS = 1, parallelKS%nLocalKS
@@ -3970,8 +3968,7 @@ contains
     logical :: tSpin
     ! Onsite corrections -- remain dummy as they are not calculated
     logical, parameter :: tOnsite = .false.
-    real(dp), allocatable :: ons_en(:,:), ons_dip(:,:)
-    integer :: i, norb
+    integer :: norb
 
     nAtom = size(qOutput, dim=2)
     nSpin = size(eigen, dim=2)
@@ -5119,7 +5116,6 @@ contains
     real(dp), allocatable :: dQ(:,:,:)
     logical :: tImHam, tExtChrg, tSccCalc
     integer :: nAtom, iAt
-    integer :: ii
 
 
     tSccCalc = allocated(sccCalc)

@@ -886,7 +886,7 @@ contains
     integer :: dipoleDat, qDat, energyDat, populDat(this%parallelKS%nLocalKS)
     integer :: forceDat, coorDat
     integer :: fdBondPopul, fdBondEnergy
-    integer :: iStep, iSpin, iKS
+    integer :: iStep, iKS
     type(TPotentials) :: potential
     type(TEnergies) :: energy
     type(TTimer) :: loopTime
@@ -2200,10 +2200,9 @@ contains
     integer, intent(out) :: coorDat
 
     character(20) :: dipoleFileName
-    character(1) :: strSpin, strCount
+    character(1) :: strSpin
     character(3) :: strK
     integer :: iSpin, iKS, iK
-    logical :: exist
 
     if (this%tKick) then
       if (this%currPolDir == 1) then
@@ -2694,8 +2693,7 @@ contains
     real(dp), intent(in) :: totalForce(:,:)
 
     real(dp) :: auxVeloc(3, this%nAtom)
-    integer :: iAtom, iAtom2, iSpin, iDir
-    logical :: isOpen
+    integer :: iAtom, iSpin, iDir
 
     write(dipoleDat, '(7F25.15)') time * au__fs, ((dipole(iDir, iSpin) * Bohr__AA, iDir=1, 3),&
         & iSpin=1, this%nSpin)

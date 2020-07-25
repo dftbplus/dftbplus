@@ -580,9 +580,8 @@ contains
 
   #:if WITH_SCALAPACK
     real(dp), pointer :: deltaQAtom2D(:,:), shiftPerAtom2D(:,:)
-  #:endif
-
     integer :: ll
+  #:endif
 
     @:ASSERT(this%tCoordsUpdated)
     @:ASSERT(this%tChargesUpdated)

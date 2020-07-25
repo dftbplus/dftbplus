@@ -443,8 +443,12 @@ contains
     !> machinery for transition charges between single particle levels
     type(TTransCharges), intent(in) :: transChrg
 
-    integer :: nmat, natom
-    integer :: ia, ii, jj
+    integer :: nmat, natom, ia
+
+  #:if WITH_OMP
+    integer :: ii, jj
+  #:endif
+
     real(dp) :: fact
     ! somewhat ugly, but fast small arrays on stack:
     real(dp) :: otmp(size(gamma, dim=1)), gtmp(size(gamma, dim=1))
@@ -575,7 +579,7 @@ contains
     real(dp) :: qq_ij(orb%mOrb,orb%mOrb)
     logical :: updwn
     integer :: nmat, nAtom, nOrb
-    integer :: ia, iAt, iSp, iSh, iOrb, iOrb1, iOrb2, ii, jj, mu, nu, ss, sindx(2), iSpin
+    integer :: ia, iAt, iSp, iSh, iOrb, ii, jj, ss, sindx(2), iSpin
     real(dp) :: degeneracy, partTrace
 
     nmat = size(vin)
@@ -700,8 +704,7 @@ contains
     type(TTransCharges), intent(in) :: transChrg
 
     !> gamma matrix
-    integer :: ia, ii, jj
-    real(dp) :: tmp(natom), gtmp(natom), qij(natom)
+    real(dp) :: tmp(natom), gtmp(natom)
 
     @:ASSERT(size(rkm1) == nmat)
 

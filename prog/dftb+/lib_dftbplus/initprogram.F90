@@ -1080,7 +1080,7 @@ contains
     type(TRanlux), allocatable :: randomInit, randomThermostat
     integer :: iSeed
 
-    integer :: ind, ii, jj, kk, iS, iAt, iSp, iSh, iOrb
+    integer :: ind, ii, jj, kk, iAt, iSp, iSh, iOrb
 
     ! Dispersion
     type(TDispSlaKirk), allocatable :: slaKirk
@@ -3509,7 +3509,7 @@ contains
     !> Tolerance in difference between total charge and sum of initial charges
     real(dp), parameter :: deltaChargeTol = 1.e-4_dp
 
-    integer :: iAt,iSp,iSh,ii,jj,i,j, iStart,iStop,iEnd,iS
+    integer :: iAt, iSp, iSh, ii, jj, iStart, iEnd, iS
     real(dp) :: rTmp
     character(lc) :: message
 
@@ -3996,7 +3996,7 @@ contains
     type(TElectronicSolver) :: electronicSolver
 
     logical :: tAtomsOutside
-    integer :: iSpin, isz
+    integer :: iSpin
     integer :: nSpinChannels, iCont, jCont
     real(dp) :: mu1, mu2
 
@@ -4484,8 +4484,6 @@ contains
     !> uploaded charges for atoms
     real(dp), allocatable, intent(inout) :: blockUp(:,:,:,:)
 
-    integer :: iSpin, iCont
-    real(dp), allocatable :: pot(:)
 
     !> Format for two values with units
     character(len=*), parameter :: format2U = "(1X,A, ':', T32, F18.10, T51, A, T54, F16.4, T71, A)"

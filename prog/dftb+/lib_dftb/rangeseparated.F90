@@ -249,7 +249,7 @@ contains
     !> list of atomic coordinates
     real(dp), intent(in) :: coords(:,:)
 
-    integer :: nAtom, iAtom1, iAtom2, ii, iSp1, iSp2
+    integer :: nAtom, iAtom1, iAtom2, iSp1, iSp2
     real(dp) :: dist
 
     this%coords(:,:) = coords
@@ -423,7 +423,7 @@ contains
 
       integer :: nAtom
       real(dp) :: pbound, prb
-      real(dp) :: tmpvec1(orb%mOrb), tmpvec2(orb%mOrb), tmpvec3(orb%mOrb)
+      real(dp) :: tmpvec1(orb%mOrb), tmpvec2(orb%mOrb)
       real(dp) :: tmp, tstbound, gammabatch, gammabatchtmp
       integer :: iAtMu, iAtNu, iAt1, iAt2, iSp1, iSp2, nOrb1, nOrb2
       integer :: kk, ll, jj, ii, mu, nu
@@ -543,16 +543,14 @@ contains
     integer, parameter :: descLen = 3, iStart = 1, iEnd = 2, iNOrb = 3
     real(dp), dimension(orb%mOrb**2), target :: Sma, Sam, Snb, Sbn
     real(dp), dimension(orb%mOrb**2), target :: Pab, Pmb, Pan, Pmn
-    real(dp), dimension(:,:), pointer :: pSma, pSam, pSnb, pSbn, pHH
+    real(dp), dimension(:,:), pointer :: pSma, pSam, pSnb, pSbn
     real(dp), dimension(:,:), pointer :: pPab, pPmb, pPan, pPmn
     real(dp) :: gamma1, gamma2, gammaTot
-    integer :: nAtom, ii, jj
+    integer :: nAtom
     integer :: iAtM, iAtN, iAtA, iAtB, iNeighN, iNeighA
     integer, dimension(descLen) :: descA, descB, descM, descN
     real(dp), dimension(:,:), allocatable, target :: tmpDRho
     real(dp), dimension(:,:), allocatable, target :: tmpHH
-    real(dp) :: tmp
-    integer :: mu, nu
 
     call allocateAndInit(tmpHH, tmpDRho)
     call evaluateHamiltonian()
@@ -1109,7 +1107,6 @@ contains
     !> resulting gamma
     real(dp) :: getAnalyticalGammaValue
 
-    integer :: ii
     real(dp) :: tauA, tauB, omega
     real(dp) :: prefac, tmp, tmp2, tau
 
@@ -1204,9 +1201,8 @@ contains
     !> resulting d gamma / d dist
     real(dp) :: getdAnalyticalGammaDeriv
 
-    integer :: ii
     real(dp) :: tauA, tauB, omega
-    real(dp) :: prefac, tmp, tmp2, tau, dTmp, dTmp2
+    real(dp) :: prefac, tmp, tmp2, dTmp, dTmp2
 
     tauA = 3.2_dp * this%hubbu(Sp1)
     tauB = 3.2_dp * this%hubbu(Sp2)
@@ -1311,9 +1307,8 @@ contains
     !> list of all atomic species
     integer, intent(in) :: species(:)
 
-    integer :: sp1, sp2, jj, ii
-    real(dp) :: vect(3), tmp(3),tmp2(3), dist
-    real(dp) :: tauA, tauB, omega
+    integer :: sp1, sp2
+    real(dp) :: vect(3), dist
 
     sp1 = species(iAtom1)
     sp2 = species(iAtom2)
@@ -1373,8 +1368,8 @@ contains
     integer :: nAtom, iAtK, iNeighK, iAtB, iNeighB, iAtC, iAtA, kpa
     real(dp) :: tmpgamma1, tmpgamma2
     real(dp) :: tmpforce(3), tmpforce_r(3), tmpforce2, tmpmultvar1
-    integer :: nSpin, iSpin, mu, nu, alpha, beta, ccc, kkk
-    real(dp) :: dummy(orb%mOrb,orb%mOrb,3), sPrimeTmp(orb%mOrb,orb%mOrb,3)
+    integer :: nSpin, iSpin, mu, alpha, beta, ccc, kkk
+    real(dp) :: sPrimeTmp(orb%mOrb,orb%mOrb,3)
     real(dp) :: sPrimeTmp2(orb%mOrb,orb%mOrb,3)
     real(dp), allocatable :: gammaPrimeTmp(:,:,:), tmpOvr(:,:), tmpRho(:,:,:), tmpderiv(:,:)
 

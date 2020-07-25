@@ -478,7 +478,6 @@ contains
     !> Gradient contributions for each atom
     real(dp), intent(inout) :: gradients(:,:)
 
-    real(dp) :: iAt1
     real(dp) :: sigma(3, 3)
     real(dp), allocatable :: dEdcm5(:)
     integer, allocatable :: nNeigh(:)
@@ -754,13 +753,13 @@ contains
     real(dp), intent(in) :: coords(:, :)
 
     integer :: iAt1, iNeigh, iAt2, iAt2f, iSp1, iSp2
-    logical :: tOvij,tOvji
-    real(dp) :: vec(3),dist,rhoi,rhoj
-    real(dp) :: gi,gj,ap,am,lnab,rhab,ab,dgi,dgj
-    real(dp) :: dGr(3), dSr(3, 3)
-    real(dp) :: rh1,rhr1,r24,rh2,r1,aprh1,r12
-    real(dp) :: rvdwi,rvdwj
-    real(dp), allocatable :: psi(:),dpsidr(:,:,:),dpsitr(:,:)
+    logical :: tOvij, tOvji
+    real(dp) :: vec(3), dist, rhoi, rhoj
+    real(dp) :: gi, gj, ap, am, lnab, rhab, ab, dgi, dgj
+    real(dp) :: dGr(3)
+    real(dp) :: rh1, rhr1, r24, r1, aprh1, r12
+    real(dp) :: rvdwi, rvdwj
+    real(dp), allocatable :: psi(:), dpsidr(:,:,:), dpsitr(:,:)
 
     allocate(psi(this%nAtom), dpsidr(3, this%nAtom, this%nAtom), dpsitr(3, this%nAtom))
     psi(:) = 0.0_dp
@@ -1004,8 +1003,7 @@ contains
     !> coordinates in the central cell
     real(dp), intent(in) :: coords0(:, :)
 
-    integer :: iAt1, iAt2, iAt2f, iNeigh
-    real(dp) :: aa, dist2, dd, expd, dfgb, fgb
+    integer :: iAt1
 
     this%bornMat(:, :) = 0.0_dp
 
@@ -1044,7 +1042,7 @@ contains
     !> Born matrix
     real(dp), intent(inout) :: bornMat(:, :)
 
-    integer :: iAt1, iAt2, iAt2f, iNeigh
+    integer :: iAt1, iAt2
     real(dp) :: aa, dist2, dd, expd, dfgb, fgb
 
     do iAt1 = 1, nAtom
@@ -1083,7 +1081,7 @@ contains
     real(dp), intent(inout) :: bornMat(:, :)
 
     integer :: iAt1, iAt2
-    real(dp) :: r1, ab, arg, eab, fgb, dfgb
+    real(dp) :: r1, ab, arg, fgb, dfgb
 
     !$omp parallel do default(none) shared(bornMat, nAtom, coords0, bornRad, kEps) &
     !$omp private(iAt1, iAt2, r1, ab, arg, fgb, dfgb)
@@ -1125,9 +1123,9 @@ contains
     !> Strain derivative
     real(dp), intent(inout) :: sigma(:, :)
 
-    integer :: iAt1, iAt2
-    real(dp) :: aa, dist2, fgb, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
-    real(dp) :: grddbi,grddbj, vec(3), dGr(3), dSr(3, 3)
+    integer :: iAt1
+    real(dp) :: qq, bp
+    real(dp) :: grddbi
     real(dp), allocatable :: dEdbr(:)
     real(dp), allocatable :: derivs(:, :)
 
@@ -1182,8 +1180,8 @@ contains
     real(dp), intent(inout) :: dEdbr(:)
 
     integer :: iAt1, iAt2
-    real(dp) :: aa, dist2, fgb, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
-    real(dp) :: grddbi,grddbj, vec(3), dGr(3), dSr(3, 3)
+    real(dp) :: aa, dist2, fgb2, qq, dd, expd, dfgb, dfgb2, dfgb3, ap, bp
+    real(dp) :: grddbi, grddbj, vec(3), dGr(3), dSr(3, 3)
     real(dp), allocatable :: derivs(:, :)
 
     allocate(derivs(3, this%nAtom))
@@ -1260,7 +1258,7 @@ contains
     real(dp), intent(inout) :: dEdbr(:)
 
     integer :: iAt1, iAt2
-    real(dp) :: vec(3), r2, r1, ab, arg1, arg16, qq, fgb, fgb2, dfgb, dfgb2
+    real(dp) :: vec(3), r2, r1, ab, arg1, arg16, qq, fgb, dfgb, dfgb2
     real(dp) :: dEdbr1, dEdbr2, dG(3), ap, bp, dS(3, 3)
     real(dp), allocatable :: derivs(:, :)
 
@@ -1345,7 +1343,7 @@ contains
     real(dp), intent(out) :: inertia(:, :)
 
     integer :: iAt, iSp
-    real(dp) :: r2, rad2, rad3, totRad3, vec(3)
+    real(dp) :: r2, rad2, rad3, vec(3)
     real(dp), parameter :: tof = 2.0_dp/5.0_dp, unity(3, 3) = reshape(&
         & [1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 1.0_dp], &
         & [3, 3])
@@ -1428,7 +1426,7 @@ contains
     real(dp), intent(inout) :: gradient(:, :)
 
     integer :: iAt, iSp
-    real(dp) :: r2, rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3), aDet
+    real(dp) :: rad2, rad3, totRad3, vec(3), center(3), inertia(3, 3), aDet
     real(dp) :: aDeriv(3, 3), qtotal
 
     qtotal = 0.0_dp

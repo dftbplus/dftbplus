@@ -116,9 +116,6 @@ contains
     !> Lattice vectors, if the system is periodic.
     real(dp), intent(in), optional :: latVecs(:, :)
 
-    real(dp) :: recVecs(3, 3), maxGEwald
-    integer :: iAt1
-
     this%tPeriodic = present(latVecs)
 
     if (this%tPeriodic) then
@@ -191,8 +188,6 @@ contains
 
     !> New lattice vectors
     real(dp), intent(in) :: latVecs(:, :)
-
-    real(dp) :: recVecs(3, 3), maxGEwald
 
     @:ASSERT(this%tPeriodic)
     @:ASSERT(all(shape(latvecs) == shape(this%latvecs)))
