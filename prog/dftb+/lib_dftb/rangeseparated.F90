@@ -128,8 +128,7 @@ contains
 
 
   !> Intitialize the range-sep module
-  subroutine RangeSepFunc_init(this, nAtom, species, speciesNames, hubbu, screen, omega,&
-      & tSpin, tREKS, rsAlg)
+  subroutine RangeSepFunc_init(this, nAtom, species, hubbu, screen, omega, tSpin, tREKS, rsAlg)
 
     !> class instance
     type(TRangeSepFunc), intent(out) :: this
@@ -139,9 +138,6 @@ contains
 
     !> list of all atomic species
     integer, intent(in) :: species(:)
-
-    !> list of all atomic species names
-    character(mc), intent(in) :: speciesNames(:)
 
     !> atomic hubbards
     real(dp), intent(in) :: hubbu(:)
@@ -770,7 +766,7 @@ contains
 
     HH(:,:) = HH + Hlr
 
-    this%lrenergy = this%lrenergy + 0.5_dp * sum(Dmat * Hlr)
+    this%lrenergy = this%lrenergy + 0.5_dp * real(sum(Dmat * Hlr), dp)
 
   contains
 
@@ -1323,8 +1319,8 @@ contains
 
 
   !> Adds gradients due to long-range HF-contribution
-  subroutine addLrGradients(this, gradients, derivator, deltaRho, skHamCont, skOverCont, coords,&
-      & species, orb, iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
+  subroutine addLrGradients(this, gradients, derivator, deltaRho, skOverCont, coords, species, orb,&
+      & iSquare, ovrlapMat, iNeighbour, nNeighbourSK)
 
     !> class instance
     class(TRangeSepFunc), intent(inout) :: this
@@ -1334,9 +1330,6 @@ contains
 
     !> density matrix difference from reference q0
     real(dp), intent(in) :: deltaRho(:,:,:)
-
-    !> sparse hamiltonian (non-scc)
-    type(TSlakoCont), intent(in) :: skHamCont
 
     !> sparse overlap part
     type(TSlakoCont), intent(in) :: skOverCont

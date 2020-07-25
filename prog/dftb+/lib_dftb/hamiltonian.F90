@@ -304,7 +304,7 @@ contains
     allocate(atomPot(nAtom, nSpin))
     allocate(shellPot(orb%mShell, nAtom, nSpin))
 
-    call sccCalc%updateCharges(env, qInput, q0, orb, species)
+    call sccCalc%updateCharges(qInput, q0, orb, species)
 
     select case(electrostatics)
 

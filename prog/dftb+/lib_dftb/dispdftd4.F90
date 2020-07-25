@@ -96,7 +96,7 @@ contains
 
 
   !> Initialize DispDftD4 instance.
-  subroutine DispDftD4_init(this, inp, nAtom, species0, speciesNames, latVecs)
+  subroutine DispDftD4_init(this, inp, nAtom, speciesNames, latVecs)
 
     !> Initialized instance of D4 dispersion model.
     type(TDispDftD4), intent(out) :: this
@@ -106,9 +106,6 @@ contains
 
     !> Nr. of atoms in the system.
     integer, intent(in) :: nAtom
-
-    !> Species of every atom in the unit cell.
-    integer, intent(in) :: species0(:)
 
     !> Names of species.
     character(*), intent(in) :: speciesNames(:)
@@ -138,7 +135,7 @@ contains
     allocate(this%gradients(3, nAtom))
 
     allocate(this%calculator)
-    call initializeCalculator(this%calculator, inp, this%nAtom, speciesNames)
+    call initializeCalculator(this%calculator, inp, speciesNames)
 
   end subroutine DispDftD4_init
 

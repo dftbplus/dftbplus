@@ -431,16 +431,13 @@ contains
   end function numIntegration
 
 
-  subroutine initializeCalculator(calculator, input, nAtom, speciesNames)
+  subroutine initializeCalculator(calculator, input, speciesNames)
 
     !> Calculator
     type(TDftD4Calculator), intent(inout) :: calculator
 
     !> Input
     type(TDispDftD4Inp), intent(in) :: input
-
-    !> Nr. of atoms (without periodic images)
-    integer, intent(in) :: nAtom
 
     !> Names of species.
     character(*), intent(in) :: speciesNames(:)

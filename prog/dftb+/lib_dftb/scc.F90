@@ -463,7 +463,7 @@ contains
 
     this%coord = coord
 
-    call this%coulombCont%updateCoords(env, neighList, coord, species)
+    call this%coulombCont%updateCoords(env, coord)
 
     call updateNNeigh_(this, species, neighList)
 
@@ -513,13 +513,10 @@ contains
 
 
   !> Updates the SCC module, if the charges have been changed
-  subroutine updateCharges(this, env, qOrbital, q0, orb, species)
+  subroutine updateCharges(this, qOrbital, q0, orb, species)
 
     !> Resulting module variables
     class(TScc), intent(inout) :: this
-
-    !> Environment settings
-    type(TEnvironment), intent(in) :: env
 
     !> Orbital resolved charges
     real(dp), intent(in) :: qOrbital(:,:,:)
@@ -538,8 +535,7 @@ contains
     call getSummedCharges(species, orb, qOrbital, q0, iHubbU=this%iHubbU, dQ=this%deltaQ, &
         & dQAtom=this%deltaQAtom, dQShell=this%deltaQPerLShell, dQUniqU=this%deltaQUniqU)
 
-    call this%coulombCont%updateCharges(env, qOrbital, q0, orb, species, &
-        & this%deltaQ, this%deltaQAtom, this%deltaQPerLShell, this%deltaQUniqU)
+    call this%coulombCont%updateCharges(this%deltaQAtom)
 
   end subroutine updateCharges
 
@@ -570,7 +566,7 @@ contains
 
     call buildShifts_(this, env, orb, species, iNeighbour, img2CentCell)
 
-    call this%coulombCont%updateShifts(env, orb, species, iNeighbour, img2CentCell)
+    call this%coulombCont%updateShifts(env)
 
     if (this%tChrgConstr) then
       call buildShift(this%chrgConstr, this%deltaQAtom)
@@ -830,8 +826,7 @@ contains
     ! Short-range part of gamma contribution
     call addGammaPrime_(this, force, species, iNeighbour, img2CentCell)
 
-    call this%coulombCont%addGradients(env, this%coord, species, iNeighbour, &
-        & img2CentCell, force)
+    call this%coulombCont%addGradients(env, this%coord, force)
 
     if (allocated(this%extCharge)) then
       if (this%tPeriodic) then
@@ -882,8 +877,7 @@ contains
     st(:,:) = st(:,:) - 0.5_dp * stTmp(:,:)
 
     ! 1/R contribution
-    call this%coulombCont%addStress(env, this%coord, species, iNeighbour, &
-        & img2CentCell, st)
+    call this%coulombCont%addStress(env, this%coord, st)
 
     ! if (tExtChrg_) then
     ! ????
@@ -1071,8 +1065,7 @@ contains
     call addGammaPrimeXlbomd_(this, this%deltaQUniqU, dQOutUniqU, species, iNeighbour,&
         & img2CentCell, force)
 
-    call this%coulombCont%addGradients(env, this%coord, species, iNeighbour, &
-        & img2CentCell, force, dQOut, dQOutAtom, dQOutLShell)
+    call this%coulombCont%addGradients(env, this%coord, force, dQOut, dQOutAtom, dQOutLShell)
 
     if (allocated(this%extCharge)) then
       call error("XLBOMD with external charges does not work yet!")

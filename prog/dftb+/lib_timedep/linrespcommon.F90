@@ -661,8 +661,8 @@ contains
 
 
   !> Multiplies the supermatrix (A+B) with a given vector.
-  subroutine apbw(rkm1, rhs2, wij, nmat, natom, win, nmatup, getij, iAtomStart, stimc, grndEigVecs,&
-      & gamma, transChrg)
+  subroutine apbw(rkm1, rhs2, wij, nmat, natom, win, getij, iAtomStart, stimc, grndEigVecs, gamma,&
+      & transChrg)
 
     !> Resulting vector on return.
     real(dp), intent(out) :: rkm1(:)
@@ -681,9 +681,6 @@ contains
 
     !> index array
     integer, intent(in) :: win(:)
-
-    !> number of same spin transitions
-    integer, intent(in) :: nmatup
 
     !> index array
     integer, intent(in) :: getij(:,:)

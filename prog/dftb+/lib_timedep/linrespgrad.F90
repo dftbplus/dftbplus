@@ -603,9 +603,9 @@ contains
 
         if (tForces) then
           call addGradients(sym, nxov_rd, this%nAtom, species0, iAtomStart, norb, nocc, nocc_r,&
-              & nxov_ud(1), getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, this%HubbardU,&
-              & this%spinW, shift, woo, wov, wvv, transChrg, xpy, coord0, orb, skHamCont,&
-              & skOverCont, derivator, rhoSqr(:,:,1), excgrad)
+              & getij, win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, this%HubbardU, this%spinW,&
+              & shift, woo, wov, wvv, transChrg, xpy, coord0, orb, skHamCont, skOverCont,&
+              & derivator, rhoSqr(:,:,1), excgrad)
         end if
 
       end do
@@ -1200,8 +1200,7 @@ contains
     rhs2(:) = 1.0_dp / sqrt(real(nxov,dp))
 
     ! action of matrix on vector
-    call apbw(rkm1, rhs2, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-        & transChrg)
+    call apbw(rkm1, rhs2, wij, nxov, natom, win, getij, iAtomStart, stimc, c, gammaMat, transChrg)
 
     rkm1(:) = rhs - rkm1
     zkm1(:) = P * rkm1
@@ -1211,8 +1210,7 @@ contains
     do kk = 1, nxov**2
 
       ! action of matrix on vector
-      call apbw(apk, pkm1, wij, nxov, natom, win, nmatup, getij, iAtomStart, stimc, c, gammaMat,&
-          & transChrg)
+      call apbw(apk, pkm1, wij, nxov, natom, win, getij, iAtomStart, stimc, c, gammaMat, transChrg)
 
       tmp1 = dot_product(rkm1, zkm1)
       tmp2 = dot_product(pkm1, apk)
@@ -1425,8 +1423,8 @@ contains
   !> 2. we need P,(T,Z),W, X + Y from linear response
   !> 3. calculate dsmndr, dhmndr (dS/dR, dh/dR), dgabda (dGamma_{IAt1,IAt2}/dR_{IAt1}),
   !> dgext (dGamma-EXT_{IAt1,k}/dR_{IAt1})
-  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, nocc, nmatup, getij,&
-      & win, grndEigVecs, pc, stimc, dq, dqex, gammaMat, HubbardU, spinW, shift, woo, wov, wvv,&
+  subroutine addGradients(sym, nxov, natom, species0, iAtomStart, norb, homo, nocc, getij, win,&
+      & grndEigVecs, pc, stimc, dq, dqex, gammaMat, HubbardU, spinW, shift, woo, wov, wvv,&
       & transChrg, xpy, coord0, orb, skHamCont, skOverCont, derivator, rhoSqr, excgrad)
 
     !> symmetry of the transition
@@ -1456,9 +1454,6 @@ contains
 
     !> single particle transition index
     integer, intent(in) :: win(:)
-
-    !> number of up->up transitions
-    integer, intent(in) :: nmatup
 
     !> index array from composite transition index to specific single particle states
     integer, intent(in) :: getij(:,:)
