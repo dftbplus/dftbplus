@@ -20,7 +20,7 @@ module dftbp_reksen
   use dftbp_densedescr
   use dftbp_eigenvects
   use dftbp_elecsolvers
-  use dftbp_energies
+  use dftbp_energytypes, only : TEnergies
   use dftbp_environment
   use dftbp_globalenv
   use dftbp_message

@@ -15,7 +15,6 @@ module dftbp_nhctherm
   use dftbp_mdcommon
   use dftbp_ranlux
   use dftbp_tempprofile
-  use dftbp_energies
   use dftbp_message
   implicit none
 

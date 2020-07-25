@@ -95,7 +95,7 @@ module dftbp_initprogram
 #:endif
   use dftbp_elstatpot
   use dftbp_pmlocalisation
-  use dftbp_energies
+  use dftbp_energytypes
   use dftbp_potentials
   use dftbp_taggedoutput
   use dftbp_formatout
@@ -4363,7 +4363,7 @@ contains
       end if
     end if
 
-    call init(energy, nAtom)
+    call energies_init(energy, nAtom)
     call init(potential, orb, nAtom, nSpin)
 
     ! Nr. of independent spin Hamiltonians

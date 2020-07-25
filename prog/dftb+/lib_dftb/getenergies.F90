@@ -8,10 +8,10 @@
 #:include 'common.fypp'
 
 !> Evaluate energies
-module dftb_evaluateenergies
+module dftbp_getenergies
   use dftbp_accuracy, only : dp, lc
   use dftbp_assert
-  use dftbp_energies
+  use dftbp_energytypes, only : TEnergies
   use dftbp_populations
   use dftbp_commontypes, only : TOrbitals
   use dftbp_periodic, only : TNeighbourList
@@ -333,4 +333,4 @@ contains
 
   end subroutine calcDispersionEnergy
 
-end module dftb_evaluateenergies
+end module dftbp_getenergies
