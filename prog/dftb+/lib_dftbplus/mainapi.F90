@@ -251,7 +251,7 @@ contains
         allocate(chrgForces(3, size(chargeQs)))
       end if
     end if
-    call sccCalc%setExternalCharges(chargeCoords, chargeQs)
+    call sccCalc%setExternalCharges(chargeCoords, chargeQs, blurWidths=blurWidths)
 
   end subroutine setExternalCharges
 
