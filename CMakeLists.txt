@@ -10,6 +10,10 @@ dftbp_ensure_out_of_source_build()
 dftbp_load_build_settings()
 
 project(dftbplus VERSION ${DFTBPLUS_VERSION} LANGUAGES Fortran C)
+
+# By default, use intrinsic Fortran 2008 erf/erfc
+set(INTERNAL_ERFC CACHE BOOL 0)
+
 dftbp_load_toolchain_settings()
 dftbp_setup_global_compiler_flags()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
@@ -116,7 +120,6 @@ endif()
 dftbp_create_library_targets("${OTHER_LIBRARIES}" "${OTHER_LIBRARY_DIRS}")
 list(APPEND EXPORTED_EXTERNAL_LIBRARIES ${OTHER_LIBRARIES})
 list(APPEND EXPORTED_EXTERNAL_LIBRARY_DIRS ${OTHER_LIBRARY_DIRS})
-
 
 #
 # Preprocessor details
