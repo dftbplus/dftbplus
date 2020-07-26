@@ -36,7 +36,7 @@ module dftbp_mainio
   use dftbp_fileid
   use dftbp_spin, only : qm2ud
   use dftbp_elecsolvers, only : TElectronicSolver, electronicSolverTypes
-  use dftbp_energies
+  use dftbp_energytypes, only : TEnergies
   use dftbp_xmlf90
   use dftbp_hsdutils, only : writeChildValue
   use dftbp_mdintegrator, only : TMdIntegrator, state

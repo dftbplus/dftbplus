@@ -37,7 +37,7 @@ module dftbp_main
   use dftbp_stress
   use dftbp_scc
   use dftbp_hamiltonian
-  use dftb_evaluateenergies
+  use dftbp_getenergies, only : getEnergies, calcRepulsiveEnergy, calcDispersionEnergy
   use dftbp_sccinit
   use dftbp_onsitecorrection
   use dftbp_externalcharges
@@ -48,7 +48,7 @@ module dftbp_main
   use dftbp_spin
   use dftbp_dftbplusu
   use dftbp_mdcommon
-  use dftbp_energies
+  use dftbp_energytypes, only : TEnergies
   use dftbp_potentials
   use dftbp_orbitalequiv
   use dftbp_parser

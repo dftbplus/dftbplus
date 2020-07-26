@@ -42,8 +42,8 @@ module dftbp_timeprop
   use dftbp_periodic
   use dftbp_velocityverlet
   use dftbp_nonscc
-  use dftbp_energies, only: TEnergies, init
-  use dftb_evaluateenergies
+  use dftbp_energytypes, only : TEnergies, TEnergies_init
+  use dftbp_getenergies, only : getEnergies, calcRepulsiveEnergy, calcDispersionEnergy
   use dftbp_thirdorder, only : TThirdOrder
   use dftbp_solvation, only : TSolvation
   use dftbp_populations
@@ -1985,7 +1985,7 @@ contains
     end if
 
     call init(potential, orb, this%nAtom, this%nSpin)
-    call init(energy, this%nAtom)
+    call TEnergies_init(energy, this%nAtom)
 
     if ((size(UJ) /= 0) .or. allocated(onSiteElements)) then
       allocate(qBlock(orb%mOrb, orb%mOrb, this%nAtom, this%nSpin))

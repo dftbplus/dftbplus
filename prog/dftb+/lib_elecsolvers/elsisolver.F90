@@ -23,7 +23,7 @@ module dftbp_elsisolver
   use dftbp_orbitals
   use dftbp_message, only : error, warning, cleanshutdown
   use dftbp_commontypes, only : TParallelKS, TOrbitals
-  use dftbp_energies, only : TEnergies
+  use dftbp_energytypes, only : TEnergies
   use dftbp_etemp, only : fillingTypes
   use dftbp_sparse2dense
   use dftbp_assert
