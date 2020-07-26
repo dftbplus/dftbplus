@@ -30,7 +30,7 @@ contains
 
 
   !> Calculates the value of the error function.
-  function erfwrap(xx) result(res)
+  elemental function erfwrap(xx) result(res)
 
     !> Function argument.
     real(dp), intent(in) :: xx
@@ -44,7 +44,7 @@ contains
 
 
   !> Calculates the value of the complementary error function.
-  function erfcwrap(xx) result(res)
+  elemental function erfcwrap(xx) result(res)
 
     !> Function argument.
     real(dp), intent(in) :: xx

@@ -36,7 +36,7 @@ contains
 
 
   !> Calculates the value of the error function.
-  function erf(x)
+  elemental function erf(x)
 
     !> Function argument.
     real(wp), intent(in) :: x
@@ -44,13 +44,13 @@ contains
     !> erf(x)
     real(wp) :: erf
 
-    call erfcalc_calc(x, erf, 0)
+    erf = erfcalc_calc(x, 0)
 
   end function erf
 
 
   !> Calculates the value of the complementary error function.
-  function erfc(x)
+  elemental function erfc(x)
 
     !> Function argument.
     real(wp), intent(in) :: x
@@ -58,28 +58,34 @@ contains
     !> erfc(x)
     real(wp) :: erfc
 
-    call erfcalc_calc(x, erfc, 1)
+    erfc = erfcalc_calc(x, 1)
 
   end function erfc
 
 #:for VC, LABEL in [('sp', 'single'), ('dp', 'double')]
 
   !> Calculates the appropriate function in double precision.
-  subroutine erfcalc_calc${LABEL}$(arg, res, jint)
+  elemental function erfcalc_calc${LABEL}$(arg, jint) result(res)
 
     !> Where to evaluate the function (x).
     real(${VC}$), intent(in) :: arg
 
-    !> Result.
-    real(${VC}$), intent(out) :: res
-
-    !> Function type: 1 - erf(x), 2 - erfc(x), 3 - exp(x**2)*erfc(x).
+    !> Function type: 1 - erf(x), 2 - erfc(x)
     integer, intent(in) :: jint
+
+    !> Result
+    real(${VC}$) :: res
 
     real(${VC}$), parameter :: xsmall = 1.11E-16_${VC}$
     real(${VC}$), parameter :: xbig = 26.543_${VC}$
     real(${VC}$), parameter :: xhuge = 6.71E7_${VC}$
-    real(${VC}$), parameter :: xmax = 2.53E307_${VC}$
+
+    ! see https://www.netlib.org/specfun/erf :
+  #:if VC == 'sp'
+    real(sp), parameter :: xmax = 4.79E37_sp
+  #:else
+    real(dp), parameter :: xmax = 2.53E307_dp
+  #:endif
 
     real(${VC}$), parameter :: four = 4.0_${VC}$
     real(${VC}$), parameter :: one = 1.0_${VC}$
@@ -186,11 +192,11 @@ contains
     end if
     call fixnegf_${VC}$(res, ysq, del, yy, jint, xx)
 
-  end subroutine erfcalc_calc${LABEL}$
+  end function erfcalc_calc${LABEL}$
 
 
   !> fix up for negative argument, erf, etc.
-  subroutine fixnegf_${VC}$(res, ysq, del, yy, jint, xx)
+  pure subroutine fixnegf_${VC}$(res, ysq, del, yy, jint, xx)
     real(${VC}$), intent(inout) :: res
     real(${VC}$), intent(inout) :: ysq
     real(${VC}$), intent(inout) :: del
